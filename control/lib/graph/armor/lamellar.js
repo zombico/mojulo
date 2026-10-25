@@ -96,6 +96,6 @@ export function lamellarSuit(dials, ctx, { crest = 'crescent' } = {}) {
       return out; },
   };
   const kit = [];
-  for (const [th, piece] of LAMELLAR_ORDER) if (c >= th - 1e-9) { trace.worn.push(piece); kit.push(...PIECES[piece]()); }
+  for (const [th, piece] of LAMELLAR_ORDER) if (c >= th - 1e-9 && (!ctx.keep || ctx.keep.includes(piece))) { trace.worn.push(piece); kit.push(...PIECES[piece]()); }
   return { kit, trace: { ...trace, pieces: trace.worn.length, focal: `crest:${crest}` } };
 }

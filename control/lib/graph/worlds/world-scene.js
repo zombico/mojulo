@@ -90,6 +90,15 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * fallback returns null for any non-room manifest). Async because the workbench path
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
+/** A hero's FACE under the runtime's state names (`clips` each state's clip, `own` the hero's clips by their names): a
+ * state's facial track its clip's, the ambient blink over a state whose clip it played over or that has no track of
+ * its own (a library's clip). */
+export function stateFace(face, own, clips) {
+  const of = Object.fromEntries(Object.keys(clips).map((st) => [st, Object.keys(own).find((c) => own[c] === clips[st]) ?? null]));
+  const tracks = {}, over = new Set(face.ambientOver || []);
+  for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
+  return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
+}
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
  * how many may sit (2 to 4, at most one more than the bodies), how they join (drop-in or lobby), what an empty seat's body
@@ -152,7 +161,10 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   // its OWN MOVES (`moves`: state → a clip of its own, egocube/moves.js `fieldStatesOf`): a state plays the hero's own
   // clip when it has it, over the library's; one it lacks keeps what the state played (absent ⇒ the same figure)
   for (const [state, clip] of Object.entries(spec.moves || {})) if (pack.clips[clip]) clips[state] = pack.clips[clip];
-  return { ...pack, clips, ...(held ? { held } : {}) };
+  // (its FACE, the realistic hero's: each state's facial track the clip's it plays, the ambient blink over a state its
+  // clip let it play over; a library's clip has no track and takes the ambient blink)
+  const face = pack.face?.tracks ? stateFace(pack.face, pack.clips, clips) : null;
+  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}) };
 }
 
 export async function resolveWorldScene(sketch, viewOpts = {}) {

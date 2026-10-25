@@ -56,14 +56,18 @@ export function validateArmor(build) {
 }
 
 /** Expand a (valid) build → { kit, tones, emissive, trace }. `ctx`: { Ht, Hl, scale } from hero-dress.dressContext. */
-export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth } = {}) {
+export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chibi = null } = {}) {
   const errs = validateArmor(build);
   if (errs.length) throw new Error(`Invalid armour build:\n- ${errs.join('\n- ')}`);
   const card = cardOf(build.style ?? 'knight'), T = build.theme === undefined ? null : themeOf(build.theme);
   // precedence: the style's card, then the theme's lean, then the build's own words
-  const dials = { stylize: 0, mass: 1, coverage: 1, ornament: 1, ...card.dials, ...(T?.dials || {}), ...build.dials };
+  // (a chibi's lean, hero-dress.js CHIBI_DRESS, between the theme's and the build's: fewer, larger lames, no ornament)
+  const leaned = { stylize: 0, mass: 1, coverage: 1, ornament: 1, ...card.dials, ...(T?.dials || {}) }, C = chibi?.armor;
+  const lean = C ? { stylize: Math.max(leaned.stylize, C.stylize), ornament: Math.min(leaned.ornament, C.ornament) } : {};
+  const dials = { ...leaned, ...lean, ...build.dials };
   const lang = { ...(card.language || {}), ...(T?.language?.[card.family] || {}), ...(build.language || {}) };
-  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale, ...(pelvis ? { pelvis: true, Hth } : {}) };
+  // (a chibi wears only its family's `keep` pieces: CHIBI_DRESS)
+  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale * (C?.height ?? 1), ...(pelvis ? { pelvis: true, Hth } : {}), ...(C ? { keep: C.keep[card.family] } : {}) };
   let out = card.family === 'lamellar' ? lamellarSuit(dials, ctx, { crest: lang.crest ?? 'crescent' })
     : card.family === 'hardsuit' ? hardSuit(dials, ctx, lang)
       : plateSuit(dials, ctx, { variant: lang.pauldron ?? 'spaulder', focalSide: lang.focalSide ?? 'R', fnSide: lang.fnSide ?? 'L' });

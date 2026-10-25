@@ -1,7 +1,7 @@
 /** Looks (anime-looks.js): presets as words that compose. The tables are disjoint; every preset builds a closed head whose
  * eyes read (unless its pose closes them) with no advice at its own values; composition keeps its laws. */
 import { describe, it, expect } from 'vitest';
-import { ANIME_LOOKS, LOOK_TABLES, LOOK_WORDS, validateLook, resolveLook, lookEntries, composeAnime } from './anime-looks.js';
+import { ANIME_LOOKS, LOOK_TABLES, LOOK_WORDS, validateLook, resolveLook, lookEntries, composeAnime, CHILD_FACE, childFaced } from './anime-looks.js';
 import { animeHead, animeFaceWarnings, animeHairWarnings, animeExpressionWarnings, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, ANIME_HAIR_BASE, resolveAnimeHair } from './anime-head.js';
 import { tuneWarnings } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, animeSculptWarnings } from './anime-sculpt.js';
@@ -79,5 +79,35 @@ describe('looks: composition', () => {
   });
   it('lookEntries keeps the order the words were said in', () => {
     expect(lookEntries(['rival', 'tareme']).face).toEqual(['sharp', 'tsurime', 'narrow-eyes', 'tareme']);
+  });
+});
+
+describe('the child\'s face (hero laws 13, CHILD_FACE): under every other layer', () => {
+  const child = { cast: { pole: 'female', build: 'child' }, head: 'anime' }, boy = { cast: 'child', head: 'anime' };
+  const of = (hero, laws) => composeAnime({ ...hero, laws }, 'bob');
+  it('the child build under laws 13 wears it, by word or by build; laws 12, a chibi and a man do not', () => {
+    expect(childFaced({ ...child, laws: 13 })).toBe(true); expect(childFaced({ ...boy, laws: 13 })).toBe(true);
+    for (const hero of [{ ...child, laws: 12 }, { cast: 'chibi', laws: 13 }, { cast: 'male', laws: 13 }]) expect(childFaced(hero)).toBe(false);
+    expect(of({ cast: 'male', head: 'anime' }, 13)).toEqual(of({ cast: 'male', head: 'anime' }, 12));
+  });
+  it('larger, taller eyes and a shorter lower face; the sculpt past the sliders; the boy\'s jaw and chin softer still', () => {
+    const a = of(child, 12), b = of(child, 13);
+    for (const k of ['eyeHeight', 'eyeWidth', 'iris']) expect(b.face[k], k).toBeGreaterThan(a.face[k]);
+    expect(b.face.lower).toBeLessThan(a.face.lower); expect(b.face.nose).toBeLessThan(a.face.nose);
+    expect(b.sculpt).toMatchObject(CHILD_FACE.sculpt);
+    expect(of(boy, 13).face.chinProjection).toBeLessThan(b.face.chinProjection);
+  });
+  it('laws 14, the round child: a broader, shorter, set-back chin, the jaw broad with its corner high, the lower cheeks full; the boy\'s chin no longer narrowed; laws 13 as it was', () => {
+    for (const hero of [child, boy]) {
+      const a = of(hero, 13), b = of(hero, 14);
+      for (const k of ['chin', 'jaw', 'jawAngle', 'lowerCheekVolume']) expect(b.face[k], k).toBeGreaterThan(a.face[k]);
+      expect(b.face.chinHeight).toBeLessThan(a.face.chinHeight); expect(b.face.chinProjection).toBeLessThan(a.face.chinProjection);
+    }
+    expect(of(boy, 14).face.chin).toBeGreaterThanOrEqual(of(child, 13).face.chin);
+    expect(of(child, 13).face).toEqual(composeAnime({ ...child, laws: 13 }, 'bob').face);
+  });
+  it('a look and the hero\'s own words compose over it; sculpt: false still turns the graphic face off', () => {
+    expect(of({ ...child, face: { eyeHeight: 0.9 } }, 13).face.eyeHeight).toBeLessThan(of(child, 13).face.eyeHeight);
+    expect(of({ ...child, sculpt: false }, 13).sculpt).toBe(false);
   });
 });

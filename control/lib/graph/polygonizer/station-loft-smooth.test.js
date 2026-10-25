@@ -16,6 +16,19 @@ const meshOf = (m) => compileLayered(m.recipe, m.dials || {}, m.channels || {});
 const world = async (manifest, opts = {}) => (await resolveWorldScene({ ref: 'x', title: 't', manifest }, opts)).payload.faces.filter((f) => !f.studio);
 const key = (p) => p.map((x) => Math.round(x * 1e6)).join();
 
+describe('the anime face\'s lean toward its capsule (`face`: its floor)', () => {
+  it('the default floor is the 0.5 it always was; a higher floor turns the face\'s corners further, the rest of the figure alone', () => {
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: { build: 'child' }, form: 'tiered', head: 'anime', laws: 14 }) }), mesh = compileLayered(m.recipe, m.dials);
+    const base = layeredShadingNormals(mesh, m.recipe, { crease: 70 });
+    expect(layeredShadingNormals(mesh, m.recipe, { crease: 70, face: 0.5 })).toEqual(base);
+    const round = layeredShadingNormals(mesh, m.recipe, { crease: 70, face: 0.85 });
+    const partOf = (fi) => mesh.provenance[mesh.faces[fi][0]].part;
+    let moved = 0;
+    base.forEach((f, fi) => { const same = JSON.stringify(f) === JSON.stringify(round[fi]); if (partOf(fi) === 'face') moved += same ? 0 : 1; else expect(same, partOf(fi)).toBe(true); });
+    expect(moved).toBeGreaterThan(0);
+  }, 120_000);
+});
+
 describe('smooth shading under the studio light', () => {
   const m = hero({ cast: 'female', detail: 'swimsuit' }), mesh = meshOf(m);
 

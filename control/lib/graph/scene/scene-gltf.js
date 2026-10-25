@@ -941,12 +941,22 @@ class GlbBuilder {
     const hasFace = morphAt.length > 0, corr = corrAt.length ? fig.correctives : null;
     if (hasFace || corr) {
       const n = A.P.length / 3;
+      // (under the lit handoff every target carries its NORMAL too: the smooth normals of the shape at full weight less
+      // the rest's, over the same triangles, so a lid shut over the eye is shaded as the lid it is, not as the fold it
+      // rolled out of; every target alike, as glTF's readers take a target's missing NORMAL for the rest's)
+      const N0 = A.N ? restNormals(A.P, I) : null;
+      const normalOf = (ids, vals) => {
+        const P = Float32Array.from(A.P); ids.forEach((v, k) => { for (let c = 0; c < 3; c++) P[v * 3 + c] += vals[k * 3 + c]; });
+        const N1 = restNormals(P, I), nid = [], nv = [];
+        for (let v = 0; v < n; v++) { const d0 = N1[v * 3] - N0[v * 3], d1 = N1[v * 3 + 1] - N0[v * 3 + 1], d2 = N1[v * 3 + 2] - N0[v * 3 + 2]; if (Math.hypot(d0, d1, d2) > 1e-4) { nid.push(v); nv.push(d0, d1, d2); } }
+        return this.morphAccessor(n, Uint32Array.from(nid), Float32Array.from(nv));
+      };
       // (welded: a row once per vertex, the vertices ascending)
       const sparse = (at, rows, o) => {
         let ids = [], vals = [];
         at.forEach((g, k) => { const r = rows[k]; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } });
         if (weld) { const by = new Map(); ids.forEach((g, k) => { const v = weld.of[g]; if (!by.has(v)) by.set(v, k); }); const vs = [...by.keys()].sort((a, b) => a - b); vals = vs.flatMap((v) => { const k = by.get(v); return [vals[k * 3], vals[k * 3 + 1], vals[k * 3 + 2]]; }); ids = vs; }
-        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) };
+        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)), ...(N0 ? { NORMAL: normalOf(ids, vals) } : {}) };
       };
       prim.targets = [...(hasFace ? fig.face.targets.map((_, t) => sparse(morphAt, morphRow, 3 + t * 3)) : []), ...(corr ? corr.targets.map((_, t) => sparse(corrAt, corrRow, t * 3)) : [])];
       if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = prim.targets.map(() => ({ POSITION: zero })); }

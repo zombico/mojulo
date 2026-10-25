@@ -9,7 +9,8 @@ import { compileLayered, auditLayered } from './station-loft.js';
 import { validateRig, bindLayered, auditRig, layeredClip } from './station-loft-rig.js';
 import { detailBody, dominance, RIGID } from './station-loft-body.js';
 import { justify, SIGNATURES } from './station-loft-adorn.js';
-import { clothedBody, rangerKit, dressContext, dressPlan, validateDress, DETAIL_WORDS, KIT_WORDS } from './hero-dress.js';
+import { clothedBody, rangerKit, dressContext, dressPlan, validateDress, DETAIL_WORDS, KIT_WORDS, CHIBI_DRESS } from './hero-dress.js';
+import { expandArmor } from '../armor/expand.js';
 import { refineSlot, clone } from './station-loft-detail.js';
 
 const failures = (m) => Object.entries(auditLayered(m)).filter(([, r]) => !r.pass).map(([n]) => n);
@@ -144,5 +145,30 @@ describe('the swimsuit and the chest layers', () => {
     expect(plan.adorn.find((A) => A.id === 'baldric').over).toEqual(expect.arrayContaining(['bustR', 'bustL']));
     const bare = humanoidPlan({ preset: 'male', adorn: 'ranger' });
     expect(bare.adorn.find((A) => A.id === 'pauldron').over).toEqual(expect.arrayContaining(['upperArmR', 'pectoralR', 'pectoralL']));
+  });
+});
+
+describe('the chibi\'s dress (hero laws 12, CHIBI_DRESS): few pieces, drawn for its body', () => {
+  const ctx = (chibi) => ({ ...dressContext({ slots: 'ring8', limbSlots: 'limb6', ...(chibi ? { body: 'chibi' } : {}) }, 1, null) });
+  it('a plan whose style says body: chibi carries the dress; another carries none', () => {
+    expect(ctx(true).chibi).toBe(CHIBI_DRESS); expect(ctx(false).chibi).toBeUndefined();
+  });
+  it('the ranger kit: only its kit pieces, bolder and thicker, standing off as they did; an adult\'s as it was', () => {
+    const adult = rangerKit(ctx(false)), chibi = rangerKit(ctx(true));
+    expect(chibi.map((A) => A.id)).toEqual(CHIBI_DRESS.kit);
+    for (const A of chibi) { const B = adult.find((x) => x.id === A.id);
+      expect(A.thick).toBeGreaterThan(B.thick); expect(A.mugen).toBe(B.mugen);
+      expect(Object.values(A.signature).filter(Number.isFinite).some((v, i) => v > Object.values(B.signature).filter(Number.isFinite)[i])).toBe(true); }
+    expect(rangerKit({ ...ctx(false), chibi: null })).toEqual(adult);
+  });
+  it('an armour build: each family wears only its kept pieces, no helm, and the build\'s own dials still win', () => {
+    for (const [style, family] of [['knight', 'plate'], ['aka', 'lamellar'], ['armored-hero', 'hardsuit']]) {
+      const A = expandArmor({ type: 'armor', style }, ctx(true)), B = expandArmor({ type: 'armor', style }, ctx(false));
+      const worn = A.trace.worn.map((w) => w.split(':')[0]);
+      expect(worn.every((w) => CHIBI_DRESS.armor.keep[family].includes(w)), style).toBe(true);
+      expect(A.kit.length, style).toBeLessThan(B.kit.length);
+      expect(worn.some((w) => /helm|kabuto/.test(w)), style).toBe(false);
+    }
+    expect(expandArmor({ type: 'armor', style: 'knight', dials: { stylize: 0.2 } }, ctx(true)).trace.dials.stylize).toBe(0.2);
   });
 });

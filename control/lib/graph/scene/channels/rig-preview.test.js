@@ -96,4 +96,15 @@ describe('rig preview channel', () => {
     const page = (f) => emitThreeWorld({ ...base, figures: { body: { ...f, preview: { clips: ['bob'], hide: 'body', period: 3 } } } });
     expect(page(timedFig)).toContain('(clip.s > 0 ? clip.s : r.period)'); expect(page(fig)).not.toContain('clip.s');
   });
+  it('the face (the realistic hero): a faced figure\'s parts take morph targets driven by the clip\'s track; a faceless bank emits none of it', () => {
+    const pv = [{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }];
+    const plain = rigPreviewChannelScript(pv, { body: fig });
+    for (const needle of ['__rpMorph', '__rpFace', 'morphTargetInfluences']) expect(plain).not.toContain(needle);
+    // (one target, its one row: the corner 0 rebased and moved; the rows 16-bit as the page packs them)
+    const q = Buffer.from(Int16Array.from([0, 0, 0, 0, 0, 32767]).buffer).toString('base64');
+    const faced = { ...fig, face: { targets: ['blink'], weights: [0], tracks: { bob: { t: [0, 0.5], w: [[0], [1]] } }, ambientOver: [] }, parts: [{ ...fig.parts[0], morph: { i: Buffer.from(Uint32Array.from([0]).buffer).toString('base64'), q, s: 1e-3 } }] };
+    const js = rigPreviewChannelScript(pv, { body: faced });
+    for (const needle of ['__rpMorph(fig, part, geo)', 'mesh.updateMorphTargets()', '__rpFace(r, r.state.clip, phase, sec)', '__mq(']) expect(js).toContain(needle);
+  });
 });
+

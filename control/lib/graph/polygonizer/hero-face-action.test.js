@@ -1,12 +1,14 @@
 // hero-face-action — the face acting an action, on its beats: the shout or the clench on the contact, the hup on the
-// take-off, the lids squashed on the touch-down, the eyes on the target through a strike, drawings on twos with the
-// eyes only at their knots, a one-shot back on the authored face and a guard on its held one; seeded takes that differ.
+// take-off, the lids squashed on the touch-down, a blow's wince or grit on its impact, the eyes on the target through a
+// strike, drawings on twos with the eyes only at their knots, a one-shot back on the authored face and a guard on its
+// held one; seeded takes that differ.
 import { describe, expect, it } from 'vitest';
 import { validateRig } from './station-loft-rig.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { heroStrike, STRIKE_NAMES } from './hero-strike.js';
 import { heroJump } from './hero-jump.js';
 import { heroGuard } from './hero-grip.js';
+import { heroReact } from './hero-react.js';
 import { FACE_FPS, FACE_TARGETS } from './anime-face-rig.js';
 import { actionFace, actionBeats, actionFaceTrack, onKnots, FACE_SAMPLES, MIN_HOLD } from './hero-face-action.js';
 
@@ -70,6 +72,18 @@ describe('hero-face-action', () => {
     for (let f = shut; f < up - 2; f++) expect(x.faces[f].blink).toBe(1);   // then the half lid and 0.20, opening
     expect(x.faces[up].blink).toBeLessThan(0.5);
   });
+  it('a blow taken answers its impact a frame after it lands, the lids squeezed to the half lid at most, and gives back', () => {
+    for (const name of ['hitHigh', 'stagger']) {
+      const { act } = heroReact(name, R), hit = frameOf(act.action.beats.impact), back = frameOf(act.action.beats.hold);
+      for (const seed of SEEDS) {
+        const x = actionFace(act.action, { seed }); common(x);
+        const d = x.drawings.find((o) => o.beat === 'impact');
+        expect(d.frame - hit, `${name} seed ${seed}: the face after the blow`).toBeGreaterThanOrEqual(0); expect(d.frame - hit).toBeLessThanOrEqual(1);
+        expect(Math.abs(d.face.brow), 'the brows answer it').toBeGreaterThan(0.4);
+        for (let f = 0; f <= back; f++) expect(x.faces[f].blink, 'the eyes stay on the threat').toBeLessThanOrEqual(0.5);
+      }
+    }
+  });
   it('a guard is taken up with its face and holds it; the regime leans the take (a weightless guard smirks more)', () => {
     for (const [name, a] of Object.entries(GUARDS_R)) for (const seed of SEEDS) {
       const x = actionFace(a, { seed }); common(x, { oneShot: false });
@@ -105,7 +119,7 @@ describe('hero-face-action', () => {
     expect(T.t).toHaveLength(x.drawings.length + 1);
   });
   it('names its samples; refuses an unknown sample or a thing that is not an action', () => {
-    expect(Object.keys(FACE_SAMPLES)).toEqual(['strike', 'jump', 'roll', 'guard']);
+    expect(Object.keys(FACE_SAMPLES)).toEqual(['strike', 'jump', 'react', 'roll', 'guard']);
     expect(() => actionFace(STRIKES_R.jab, { sample: 'yawn' })).toThrow(/no strike sample/);
     expect(() => actionFace({ seconds: 1 })).toThrow(/an action is/);
     const own = actionFace({ family: 'strike', seconds: 0.6, beats: { load: 0.1, contact: 0.3, follow: 0.36, end: 0.6 } }, { seed: 2 });

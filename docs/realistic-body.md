@@ -35,7 +35,8 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 - **Re-sampled parts:** `torso`, `neck`, `pelvis`, `upperArmR/L`, `foreArmR/L`, `thighR/L`, `shankR/L`, `footR/L`,
   `toesR/L`. Each is a
   closed part with `slots = ringSlots(N)` (`'front'`, `s01R` … down the right, `'back'`, … `s01L`; N = 48 round the male
-  torso, 64 the female, 32 the neck, 24 the arms and the shank, 32 the thigh, 72 the foot, 64 the toes) and stations whose `u` keeps the authored
+  torso, 64 the female, 32 the neck, 24 the arms and the shank (32 under realistic laws 4, as the thigh: the knee's
+  ring is shared), 32 the thigh, 72 the foot, 64 the toes) and stations whose `u` keeps the authored
   address: an integer station is `st<k>`, a fractional one `st<a>_st<b>_<mmm>` (`mmm` the fraction in thousandths, three
   digits; the authored plan's own fractional ids are in hundredths, `st1_st2_50`). `slotT` is dropped. The left limb is
   the right's mirror, slot for slot (R ↔ L). The bind's blends are per slot (`<station>.<slot>`).
@@ -46,6 +47,10 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
   the foot to the big toe's tip. The soles flat on the authored shoe's lowest point (the ground the gaits plant). The
   foot's points near the shank's skin or over the level carry the shank's own shares, the toe base a hinge band (the
   foot's bone and the toes', no fold). Their `group` is the shoe's (`Shoes`) still.
+- **The hinges (realistic laws 4):** the knee and the elbow are stitched. The upper segment's last ring and the lower's
+  first are one ring at the joint's plane, the same points, so the two shells are one surface and the shading welds
+  across it (`formSlice` `stitch`). Before laws 4 the two overlapped across the plane, the upper's skin tucked inside
+  past it.
 - **Kept authored:** the head, the hands. Under a physique with bulk the hands and their joints are scaled
   about the wrist (`build.hands`).
 - **Rig additions:** joints `scapulaAcr<S>`, `scapulaSup<S>`, `scapulaInf<S>`, bone `scapula<S>`; the folds
@@ -80,8 +85,17 @@ is refused: it is the authored body's own clothing, fitted to its rings, and an 
 over the tailor's cloth (their `over`). It depicts adults: a child or chibi cast asked of it is that cast's stylized
 figure instead, its colours keyed the same.
 
-The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own,
-each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
+The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own.
+Under realistic laws 2 (a hero minted now) it is ONE SKIN (`hero-one-skin.js`): the head's field netted whole
+(`skin-net.js`), globes and ears left out, joined to the neck and cut off on the neck's seam ring (every seam point a
+point of its rim), simplified with the eyes, the nose and the mouth keeping more of the faces. It is one layer-1 mesh
+part, `headSkin`, bound per point: the seam's blend easing up to the jaw's share. The lips are cut exactly on their
+line, the upper lip the head's and the lower the jaw's, each turned in along the cut, with a closed `mouth` bag behind
+them. Each globe is its own closed part (`globeR`, `globeL`: rings about its gaze, the pupil's and the iris's edges
+rings of their own), and the ears are as below. The hair, the brows, the lashes, the beard and the piercings are pinned
+to the skin's faces. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
+carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 1 the head
+is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,
 the brow), `nose` and `eyeR/L` (rings following the nose's outline and each eye's opening: the wings' creases and the
@@ -89,4 +103,7 @@ lids' margins run along them; the eyes painted Sclera, Iris, Pupil), each sunk u
 eyes over the nose over the visage over the cranium), and `earR/L` (a tube up each ear on the ear's own field). The
 rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion. Every head part's stations carry `normals` (each
 point's unit gradient of its field at rest), which the shading takes in place of the facets' (`authoredNormals`); the lower face (the jaw part, the visage under
-the lips' line) is bound to the jaw. No face rig or expressions yet; the lips stretch as the jaw opens.
+the lips' line) is bound to the jaw. Its face rides an export as morph targets (`relational-face-rig.js`: a blink, one eye's, a smile, a brow raised and
+lowered, each the head rebuilt at its fit with one of its own actions; what is pinned to the face carried by the skin
+under it), weighed by the western expression channels; the World page plays no face morphs yet. The lips stretch as the
+jaw opens.

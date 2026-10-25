@@ -18,6 +18,7 @@
  *   MOJULO_FIGURE_SPECS_DIR → $MOJULO_DATA_DIR/figure-specs  (draft figure specs, user state)
  *   MOJULO_CHROMIUM_DIR     → $MOJULO_HOME/chromium  (the lazily fetched Chrome for Testing)
  *   MOJULO_FFMPEG_DIR       → $MOJULO_HOME/ffmpeg    (the lazily fetched ffmpeg)
+ *   MOJULO_FACE_RIG_DIR     → $MOJULO_HOME/cache/face-rig  (the realistic face's solved shapes, relational-face-store.js)
  *
  * All of these matter because their lib fallbacks are cwd-relative
  * (lib/outcomes-paths.js, lib/mcp/tools/exports-dir.js, chromium.js, ffmpeg.js,
@@ -56,6 +57,7 @@ export function resolveMojuloPaths() {
   process.env.MOJULO_FIGURE_SPECS_DIR ??= path.join(dataDir, 'figure-specs');
   process.env.MOJULO_CHROMIUM_DIR ??= path.join(home, 'chromium');
   process.env.MOJULO_FFMPEG_DIR ??= path.join(home, 'ffmpeg');
+  process.env.MOJULO_FACE_RIG_DIR ??= path.join(home, 'cache', 'face-rig');
 
   for (const dir of [home, dataDir, modelsDir, process.env.STORAGE_ROOT]) {
     fs.mkdirSync(dir, { recursive: true });
@@ -74,5 +76,6 @@ export function resolveMojuloPaths() {
     figureSpecsDir: process.env.MOJULO_FIGURE_SPECS_DIR,
     chromiumDir: process.env.MOJULO_CHROMIUM_DIR,
     ffmpegDir: process.env.MOJULO_FFMPEG_DIR,
+    faceRigDir: process.env.MOJULO_FACE_RIG_DIR,
   };
 }

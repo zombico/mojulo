@@ -18,14 +18,18 @@
  *              the mouth and the ring stays shut behind them. The rig's jaw hinge moved to the head's condyles, its tip
  *              to the gnathion; the landmark head's `jawOpen` dial (a hinge of its own jaw) leaves with it
  *
- * The ears are out of the sampled field (a ray from inside cannot find a plate standing off the head) and the eyes are
- * the field's (globe and lids in one skin); both, expressions and a face rig are later work. Pure and deterministic. */
-import { relationalHead } from './head-relational.js';
+ * The ears are out of the sampled field (a ray from inside cannot find a plate standing off the head): each its own part.
+ * That is the head under realistic laws 1. Under laws 2 (`oneSkin`) the head is ONE SKIN (hero-one-skin.js: the field
+ * netted whole, sealed to the same seam ring, the lips cut, the globes and a mouth their own parts) in place of the
+ * cranium, the jaw, the visage, the nose and the eyes; `oneSkinFollow` moves its points for the face rig. Pure and
+ * deterministic. */
+import { relationalHead, HEAD_V } from './head-relational.js';
 import { compileLayered } from './station-loft.js';
 import { crossing, project } from './body-relational-field.js';
 import { ringSlots, mixW, four, mirrorPart } from './body-relational-resample.js';
 import { r6 } from './body-relational-vec.js';
 import { smin } from './vajra.js';
+import { oneSkinHead } from './hero-one-skin.js';
 
 /** the head's density and its joins: `multiple` head slots to a neck slot, `jaw` and `cranium` rings, the neck's join
  * to the head (`join`, metres: the smooth union's width, and how far outside the head the seam ring stands) */
@@ -37,9 +41,14 @@ export const RELATIONAL_HEAD = Object.freeze({
   // the eyes: their look's tilt, slots, the rings out past the opening's edge (m) and in toward the cornea (shares of the
   // edge), where the visage under them comes back up (m past the edge), and how far it is let down there
   eyeTilt: 5, eyeSlots: 64, eyeOut: [0.02, 0.017, 0.0145, 0.0123, 0.0104, 0.0088, 0.0074, 0.0062, 0.0051, 0.0042, 0.0034, 0.0027, 0.0021, 0.0016, 0.0011, 0.0007, 0.0003, 0],
-  eyeIn: [0.85, 0.7, 0.55, 0.4, 0.28, 0.17, 0.08], eyeUnder: 0.01, eyeRise: 0.01, eyeShortIn: 0.6, noseShortDown: 0.45,
+  eyeIn: [0.85, 0.7, 0.55, 0.4, 0.28, 0.17, 0.08], eyeUnder: 0.01, eyeRise: 0.01, eyeShortIn: 0.6, eyeRoomEase: 6, noseShortDown: 0.45,
   noseSlots: 96, noseMost: 0.04, noseBase: 0.002, noseOut: [0.02, 0.017, 0.0145, 0.0123, 0.0104, 0.0088, 0.0074, 0.0062, 0.0051, 0.0042, 0.0034, 0.0027, 0.0021, 0.0016, 0.0011, 0.0007, 0.0003, 0],
   noseIn: [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.31, 0.23, 0.16, 0.1, 0.05], eyeSink: 0.002, eyeKeep: 0.015, eyeRimSink: 0.0005,
+  // what lies under an eye (the visage's and the nose's points inside `eyeUnder` of its edge, easing out over `eyeRise`)
+  // held `eyeSink` behind the globe's front (its height just inside the lids, `eyeGlobeIn` of the opening, along the
+  // eye's look): the lower lid is a ledge over the globe, and a face bridging its front and the globe beside it would
+  // otherwise cut in front of the eye
+  eyeGlobeIn: 0.85, eyeDeflate: 0.006, eyeAround: 0.02, eyeAroundRise: 0.012,
   // the ears: slots round a section, sections up the ear
   earSlots: 40, earRings: 24,
 });
@@ -48,8 +57,8 @@ export const RELATIONAL_HEAD = Object.freeze({
  * takes most of a minute, and a minted head is a compatibility promise (hero-relational-head.deep.test.js holds these to
  * the solver; re-pin with the solver's output in the commit that moves it) */
 export const HEAD_TUNES = Object.freeze({
-  male: Object.freeze({ eu: 0.006847826086956521, zy: 0.034043478260869564, go: 0.06143478260869566, op: 0.019760869565217394, g: 0.01643478260869565, gn: 0.008706521739130432, n: 0.03071739130434783, sn: 0.014086956521739132, prn: -0.01291304347826087, al: 0.0033260869565217392, mod: -0.07786956521739131 }),
-  female: Object.freeze({ eu: 0.007630434782608695, zy: 0.03384782608695652, go: 0.063, op: 0.013402173913043484, g: 0.02347826086956522, gn: 0.011250000000000003, n: 0.011054347826086955, sn: 0.014478260869565218, prn: -0.013304347826086957, al: 0.0062608695652173925, mod: -0.08 }),
+  male: Object.freeze({ eu: 0.006847826086956521, zy: 0.034434782608695653, go: 0.072, op: 0.019760869565217394, g: 0.01643478260869565, gn: 0.0064565217391304355, n: 0.03130434782608695, sn: 0.014086956521739132, prn: -0.012130434782608697, al: 0.005584493885869565, mod: -0.08 }),
+  female: Object.freeze({ eu: 0.007434782608695652, zy: 0.034043478260869564, go: 0.07552173913043479, op: 0.009489130434782611, g: 0.030521739130434784, gn: 0.017070652173913046, n: -0.005771739130434786, sn: 0.02465217391304348, prn: -0.01682608695652174, al: 0.004206521739130434, mod: -0.08 }),
 });
 
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
@@ -213,7 +222,24 @@ function eyeFrame(fF, paintAt, c, C) {
   const O = lookup(hullOf(open));
   // (its reach shorter toward the nose, so the bridge is the nose's)
   const scale = (th) => 1 - C.eyeShortIn * Math.max(0, -Math.sin(th)) ** 2;
-  return { ...F, O, scale, beyond: (q) => { const p = F.at(q); return (p.r - O(p.th)) / scale(p.th); } };
+  // the ROOM out past the edge, per direction: where the outer ring would cast past the face's side (a wide eye on a
+  // narrow face, the skin there turned away from the eye's look), the rings out there close in to the furthest that
+  // still meets the skin; elsewhere 1 (the rings as drawn)
+  const room = Array.from({ length: N }, (_, j) => {
+    const th = (2 * Math.PI * j) / N, o = O(th), out = C.eyeOut[0] * scale(th);
+    if (F.cast(fF, F.inPlane(th, o + out))) return 1;
+    let r = o;
+    while (r + 0.0005 < o + out && F.cast(fF, F.inPlane(th, r + 0.0005))) r += 0.0005;
+    return Math.max(0, r - o - 0.0005) / out;
+  });
+  // (eased into its neighbours over `eyeRoomEase` slots, a slope from each closed-in direction back up to 1: a lone
+  // direction closed in beside open ones stood its rings as a spike at the eye's corner)
+  const W = C.eyeRoomEase, eased = room.map((_, j) => {
+    let m = 1;
+    for (let k = -W; k <= W; k++) { const q = room[(j + k + N) % N]; m = Math.min(m, q + (Math.abs(k) / W) * (1 - q)); }
+    return m;
+  });
+  return { ...F, O, scale, room: lookup(eased), beyond: (q) => { const p = F.at(q); return (p.r - O(p.th)) / scale(p.th); } };
 }
 
 /** a RELIEF part: rings about its frame's middle, ring `i` (0 the rim, inward) at `radius(th, i)`, each point cast
@@ -292,23 +318,38 @@ function earPart(fE, tragion, C) {
 
 /**
  * The realistic hero's recipe (a sliced one: formSlice) wearing the relational head in place of its landmark head.
- * `sex` picks the head's pole. Returns a new recipe; the one given is left as it was.
+ * `sex` picks the head's pole; `relations` and `eyes` a face of its own over the pole's (face-compose.js composeFace's,
+ * on the pole's own tune: solving one per face costs most of a minute, and a composed face sits near its pole). Returns
+ * a new recipe; the one given is left as it was. `faceOnly` (the face rig's builds, relational-face-rig.js, which keep the
+ * stored cranium and jaw): the face's parts alone are built, exactly as a whole build makes them; the cranium and the
+ * jaw are the recipe's as given.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
-  const tune = HEAD_TUNES[sex];
+  // (a face's own tune, solved for its relations, in place of the pole's: the head the study shows, exactly; it rides the fit)
+  const tune = own_ ?? HEAD_TUNES[sex];
   if (!tune) throw new Error(`hero-relational-head: the head's pole is ${Object.keys(HEAD_TUNES).join(' or ')}`);
-  const head = relationalHead({ sex, tune, ears: false }), eared = relationalHead({ sex, tune });
-  const { k, ty, men } = fitOf(parts, head, eared);
+  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) };
+  // (`actions`, the face's: head-relational.js ACTIONS, a blink, a smile, a brow; `fit` the rest's, kept so an action moves
+  // the face and never the head's place: relational-face-rig.js differences these builds)
+  // (ONE SKIN, realistic laws 2: the head's field netted whole, its globes their own parts: hero-one-skin.js)
+  const head = relationalHead({ sex, tune, ears: false, ...own, ...(actions ? { actions } : {}), ...(oneSkin ? { globes: false } : {}) }), eared = fit ? null : relationalHead({ sex, tune, ...own });
+  const { k, ty, men } = fit ?? fitOf(parts, head, eared);
   const toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
   const fH = inHead(head.field), fBare = inHead(head.bare);
+  if (oneSkin) return oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts });
   // THE VISAGE's frame first: the cranium is let down under it by its reach (`deflate`, eased out over its rim)
   const V = visageFrame(fH, fBare, toHero(mid3(head.points.sto, head.points.ls)), C);
   const under = (q) => { const { f, h } = V.f(q); return (C.deflate * (1 - ramp((f - 0.85 * C.inner) / (0.15 * C.inner))) + C.rimDeflate * (1 - ramp((f - C.inner) / (1 - C.inner)))) * ramp((h + 0.06) / 0.02); };
-  const fB = (q) => fBare(q) + under(q);
+  // (under the visage let down from the deeper of the bare head and the face itself: a deep-set eye's socket, sunk past
+  // the bare head's reach, would have the cranium stand in front of the globe)
+  // (and about each eye let down `eyeDeflate` more, within `eyeAround` of the globe's centre easing out over `eyeAroundRise`:
+  // the visage there is held behind the globe, and the cranium must lie under it)
+  const eyeC = toHero(head.points.eyeR), nearEye = (q) => 1 - ramp((Math.min(Math.hypot(q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]), Math.hypot(q[0] + eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2])) - C.eyeAround) / C.eyeAroundRise);
+  const fB = (q) => { const u = under(q); return fBare(q) + u + (u > 0 ? Math.max(0, fH(q) - fBare(q)) : 0) + C.eyeDeflate * nearEye(q); };
 
   // THE SEAM: the highest neck ring standing wholly outside the head by the join's width (where the union is the neck's)
   let seam = -1;
@@ -346,7 +387,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   const zM = toHero(P.sto)[2], ch = toHero(P.chR), aCh = Math.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
   const shut = (a) => ramp((Math.abs(a) - aCh) / ease);   // 0 between the corners, 1 past them
   const latM = new Array(H);
-  for (let j = 0; j <= half; j++) {
+  if (!faceOnly) for (let j = 0; j <= half; j++) {
     const a = az[j], f0 = latAt(a, zM, latOf(seamPts[j]), Math.PI / 2 - 0.05), w = 1 - shut(a);
     let f = f0;
     if (w > 0) {
@@ -364,17 +405,18 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
     for (const j of [0, half]) pts[j] = [0, pts[j][1], pts[j][2]];
     return pts;
   };
-  const mouthPts = column((j) => latM[j]);
-  const jawRings = [seamPts, ...Array.from({ length: C.jaw - 1 }, (_, i) => column((j) => latOf(seamPts[j]) + ((latM[j] - latOf(seamPts[j])) * (i + 1)) / C.jaw)), mouthPts];
+  // (the face alone: the cranium's and the jaw's rings, the most of a build's casts, are not cast)
+  const mouthPts = faceOnly ? null : column((j) => latM[j]);
+  const jawRings = faceOnly ? [] : [seamPts, ...Array.from({ length: C.jaw - 1 }, (_, i) => column((j) => latOf(seamPts[j]) + ((latM[j] - latOf(seamPts[j])) * (i + 1)) / C.jaw)), mouthPts];
   const top = (C.top * Math.PI) / 180;
-  const cranRings = [mouthPts, ...Array.from({ length: C.cranium - 1 }, (_, i) => column((j) => latM[j] + ((top - latM[j]) * (i + 1)) / (C.cranium - 1)))];
-  const vertex = cast(0, Math.PI / 2);
+  const cranRings = faceOnly ? [] : [mouthPts, ...Array.from({ length: C.cranium - 1 }, (_, i) => column((j) => latM[j] + ((top - latM[j]) * (i + 1)) / (C.cranium - 1)))];
+  const vertex = faceOnly ? null : cast(0, Math.PI / 2);
 
   const station = (pts, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(slots.map((s, j) => [s, rp(pts[j])])) });
   // (the caps on the shared rings are inside the head, each set a few millimetres off its ring's middle OUTWARD for its
   // part: the loft winds a cap by its first face against the ring's middle, and a flat cap leaves that undecided)
   const lift = (ps, h) => { const c = mean(ps); return rp([c[0], c[1], c[2] + h]); };
-  const mouthUp = lift(mouthPts, 0.004), mouthDown = lift(mouthPts, -0.004), seamUp = lift(seamPts, 0.004), seamDown = lift(seamPts, -0.004);
+  const mouthUp = faceOnly ? null : lift(mouthPts, 0.004), mouthDown = faceOnly ? null : lift(mouthPts, -0.004), seamUp = lift(seamPts, 0.004), seamDown = lift(seamPts, -0.004);
 
   // THE BIND. The seam ring carries the neck's blend there (lerped onto the head's extra slots); the rings above ease
   // to { jaw, head }: the jaw's share by how far ahead of the ramus (gonion → condyle) a point stands, held to the
@@ -391,8 +433,8 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
     blend[`st${i}.${s}`] = four(mixW(seamW[j], target, v));
   }));
   blend.back = four(mixW(seamW[0], seamW[half], 0.5)); blend.tip = { head: 1 };
-  parts.jaw = { layer: 1, closure: 'closed', slots, stations: jawRings.map(station), group: 'Skin', caps: { back: seamDown, tip: mouthUp }, capGroups: { back: 'Skin', tip: 'Mouth' }, bind: { bone: 'head', blend } };
-  parts.cranium = { layer: 1, closure: 'closed', slots, stations: cranRings.map(station), group: 'Skin', caps: { back: mouthDown, tip: rp(vertex) }, capGroups: { back: 'Mouth', tip: 'Skin' }, bind: 'head' };
+  if (!faceOnly) parts.jaw = { layer: 1, closure: 'closed', slots, stations: jawRings.map(station), group: 'Skin', caps: { back: seamDown, tip: mouthUp }, capGroups: { back: 'Skin', tip: 'Mouth' }, bind: { bone: 'head', blend } };
+  if (!faceOnly) parts.cranium = { layer: 1, closure: 'closed', slots, stations: cranRings.map(station), group: 'Skin', caps: { back: mouthDown, tip: rp(vertex) }, capGroups: { back: 'Mouth', tip: 'Skin' }, bind: 'head' };
 
   // the landmark head leaves (its details, its creases, its dial); the neck ends on the seam
   const gone = landmarkHeadParts(recipe.parts);
@@ -419,18 +461,26 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   // its rim let down there, the visage let down under it inside `eyeUnder` of the edge
   const E = eyeFrame(fV, paintAt, toHero(head.points.eyeR), C);
   const OFF = C.eyeOut, IN = C.eyeIn;
-  const eyeRadius = (th, i) => (i < OFF.length ? E.O(th) + OFF[i] * E.scale(th) : E.O(th) * IN[i - OFF.length]);
+  const eyeRadius = (th, i) => (i < OFF.length ? E.O(th) + OFF[i] * E.scale(th) * E.room(th) : E.O(th) * IN[i - OFF.length]);
   const eye = reliefPart(E, fV, { slots: C.eyeSlots, rings: OFF.length + IN.length, radius: eyeRadius, sym: false, sink: (q, i) => (i < OFF.length ? C.eyeRimSink * ramp((OFF[i] - C.eyeKeep) / (OFF[0] - C.eyeKeep)) : 0), depth: 0.006, paintAt, name: 'eye' });
   const beyond = (q) => Math.min(E.beyond(q), E.beyond([-q[0], q[1], q[2]]));
   // THE NOSE, its rings following its outline (the wings' creases and the sidewalls run along them), the visage let
   // down under it as under the eyes
   const Nf = noseFrame(fV, fBare, toHero(mid3(head.points.rhinion, head.points.prn)), toHero(head.points.sn), C), NOFF = C.noseOut, NIN = C.noseIn;
-  const underEyes = (q) => C.eyeSink * (1 - ramp((beyond(q) - C.eyeUnder) / C.eyeRise));
+  // (the globe's front per direction about the eye, as its own look sees it)
+  const gH = Array.from({ length: C.eyeSlots }, (_, j) => { const th = (2 * Math.PI * j) / C.eyeSlots, q = E.cast(fV, E.inPlane(th, C.eyeGlobeIn * E.O(th))); return q ? E.at(q).h : null; });
+  const gMin = Math.min(...gH.filter((h) => h !== null)), globeH = (th) => gH[((Math.round((th / (2 * Math.PI)) * C.eyeSlots) % C.eyeSlots) + C.eyeSlots) % C.eyeSlots] ?? gMin;
+  const underGlobe = (q) => {
+    const m = [-q[0], q[1], q[2]], qq = E.beyond(q) <= E.beyond(m) ? q : m, b = E.beyond(qq), w = 1 - ramp((b - C.eyeUnder) / C.eyeRise);
+    if (w <= 0) return 0;
+    const p = E.at(qq); return Math.max(0, p.h - globeH(p.th) + C.eyeSink) * w;
+  };
+  const underEyes = (q) => Math.max(C.eyeSink * (1 - ramp((beyond(q) - C.eyeUnder) / C.eyeRise)), underGlobe(q));
   const nose = reliefPart(Nf, fV, { slots: C.noseSlots, rings: NOFF.length + NIN.length, radius: (th, i) => (i < NOFF.length ? Nf.O(th) + NOFF[i] * Nf.scale(th) : Nf.O(th) * NIN[i - NOFF.length]), sym: true, sink: (q, i) => (i < NOFF.length ? C.eyeRimSink * ramp((NOFF[i] - C.eyeKeep) / (NOFF[0] - C.eyeKeep)) : 0) + underEyes(q), depth: 0.008, name: 'nose' });
   const vis = reliefPart(V, fV, {
     slots: C.slots, rings: C.rings, radius: (th, i) => (1 - i / C.rings) * V.Rat(th), sym: true, relax: C.relax,
     relaxFrom: Math.ceil((1 - C.inner) * C.rings), depth: C.depth, name: 'visage',
-    sink: (q, i) => C.sink * ramp((1 - i / C.rings - C.inner) / (1 - C.inner)) + C.eyeSink * (1 - ramp((Math.min(beyond(q), Nf.beyond(q)) - C.eyeUnder) / C.eyeRise)),
+    sink: (q, i) => C.sink * ramp((1 - i / C.rings - C.inner) / (1 - C.inner)) + Math.max(C.eyeSink * (1 - ramp((Math.min(beyond(q), Nf.beyond(q)) - C.eyeUnder) / C.eyeRise)), underGlobe(q)),
   }), sto = toHero(P.sto);
   const lipZ = (x) => { const u = Math.min(1, Math.abs(x) / Math.abs(ch[0])); return sto[2] + (ch[2] - sto[2]) * u * u + (zM - ch[2]) * ramp((Math.abs(x) - Math.abs(ch[0])) / 0.01); };
   const visW = (p) => {
@@ -454,16 +504,207 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   parts.eyeL = mirrorPart(parts.eyeR, { ...parts.eyeR, bind: { bone: 'head' } });
   // THE NORMALS: each part shades by the field it was sampled from, so where two hand over (each let down under the
   // other by a slope) they shade as one skin, and the lids' and the wings' blends finer than the rings read smooth
-  parts.jaw = withNormals(parts.jaw, fU); parts.cranium = withNormals(parts.cranium, fU);
+  if (!faceOnly) { parts.jaw = withNormals(parts.jaw, fU); parts.cranium = withNormals(parts.cranium, fU); }
   for (const k of ['visage', 'nose', 'eyeR', 'eyeL']) parts[k] = withNormals(parts[k], fV);
   if (earR) { const fE = inHead(earR.field); parts.earR = withNormals(parts.earR, fE); parts.earL = withNormals(parts.earL, (q) => fE([-q[0], q[1], q[2]])); }
 
 
   // THE FIT kept on the recipe: the head's pole and its scale and offsets into the hero's frame, so its skin can be read
   // back in the head's own frame (its sphere's addresses, its landmarks' marks: epidermis/dermal-hero.js)
-  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men) };
+  // (a face of its own rides the fit, so the skin charts the head the face shaped: dermal-hero.js headSkin)
+  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}) };
   // the rig's jaw on the head's own joint: the hinge between the condyles, the tip at the gnathion
   const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
   at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));
   return r;
+}
+
+/** the hero's recipe wearing the head as ONE SKIN (hero-one-skin.js): the seam, the neck's end and the jaw's share as
+ * the pieces' build reads them, the skin, the mouth and the globes in place of the cranium, the jaw, the visage, the
+ * nose and the eyes; the ears and the fit as before */
+function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts }) {
+  const parts = r.parts, neck = parts.neck;
+  // THE SEAM: the highest neck ring standing wholly outside the head by the join's width
+  let seam = -1;
+  for (let i = neck.stations.length - 1; i >= 0 && seam < 0; i--) if (neck.slots.every((s) => fH(neck.stations[i].points[s]) > C.join)) seam = i;
+  if (seam < 1) throw new Error('hero-relational-head: no neck ring stands clear of the head');
+  const fN = neckField(neck, seam - 1), seamSt = neck.stations[seam], N = neck.slots.length, H = N * C.multiple;
+  const seamPts = Array.from({ length: H }, (_, j) => { const i = Math.floor(j / C.multiple), t = (j % C.multiple) / C.multiple; return lerp3(seamSt.points[neck.slots[i]], seamSt.points[neck.slots[(i + 1) % N]], t); });
+  const nb = neck.bind?.blend || {}, nbone = typeof neck.bind === 'string' ? neck.bind : neck.bind.bone;
+  const neckW = (s) => nb[`${seamSt.id}.${s}`] || nb[seamSt.id] || { [nbone]: 1 };
+  const seamW = Array.from({ length: H }, (_, j) => { const i = Math.floor(j / C.multiple), t = (j % C.multiple) / C.multiple; return mixW(neckW(neck.slots[i]), neckW(neck.slots[(i + 1) % N]), t); });
+  // the jaw's share: ahead of the ramus, under the lips' line (sharp across it between the corners, eased past them)
+  const P = head.points, c0 = mean(seamPts), O = [0, c0[1], toHero(P.porionR)[2]];
+  const ch = toHero(P.chR), sto = toHero(P.sto), zM = sto[2], aCh = Math.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
+  const shut = (a) => ramp((Math.abs(a) - aCh) / ease);
+  const go = toHero(P.goR), cd = toHero(P.condyleR), ry = cd[1] - go[1], rz = cd[2] - go[2], rl = Math.hypot(ry, rz);
+  const ahead = (p) => ((p[1] - go[1]) * rz - (p[2] - go[2]) * ry) / rl;
+  const lipZ = (x) => { const u = Math.min(1, Math.abs(x) / Math.abs(ch[0])); return sto[2] + (ch[2] - sto[2]) * u * u + (zM - ch[2]) * ramp((Math.abs(x) - Math.abs(ch[0])) / 0.01); };
+  // (`side`, the cut's: +1 the upper lip's, −1 the lower's, 0 a point the cut does not reach, its side by its height)
+  const jawW = (p, side = 0) => {
+    const a = Math.atan2(p[0] - O[0], p[1] - O[1]), s = shut(a), cut = side > 0 ? 0 : side < 0 ? 1 : ramp((lipZ(p[0]) - p[2] + 0.0005) / 0.001);
+    const below = (1 - s) * cut + s * ramp((lipZ(p[0]) - p[2]) / 0.015);
+    const wj = r6(ramp((ahead(p) + 0.006) / 0.018) * below);
+    return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
+  };
+  const S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
+  const skin = oneSkinHead({ head, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW, opts: opts.oneSkin });
+  // the landmark head leaves (its details, its creases, its dial); the neck ends on the seam
+  const gone = landmarkHeadParts(recipe.parts);
+  for (const g of gone) delete parts[g];
+  for (const [id, c] of Object.entries(r.creases || {})) if (gone.has(c.parent)) delete r.creases[id];
+  if (r.dials?.jawOpen?.part === 'jaw') delete r.dials.jawOpen;
+  // (a dial that moved the cranium and the jaw moves the skin and what is set in it)
+  const HEADS = ['headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
+  for (const d of Object.values(r.dials || {})) if (Array.isArray(d.parts) && d.parts.some((n) => gone.has(n))) {
+    const i = d.parts.findIndex((n) => gone.has(n));
+    d.parts = [...d.parts.slice(0, i).filter((n) => !gone.has(n)), ...HEADS, ...d.parts.slice(i).filter((n) => !gone.has(n) && !HEADS.includes(n))];
+  }
+  const kept = new Set(neck.stations.slice(0, seam + 1).map((s) => s.id));
+  neck.stations = neck.stations.slice(0, seam + 1);
+  neck.caps = { ...neck.caps, tip: rp([c0[0], c0[1], c0[2] + 0.004]) };
+  if (neck.bind?.blend) {
+    for (const key of Object.keys(nb)) { const st = key.split('.')[0]; if (st !== 'back' && st !== 'tip' && !kept.has(st)) delete nb[key]; }
+    nb.tip = four(mixW(seamW[0], seamW[H / 2], 0.5));
+  }
+  Object.assign(parts, skin.parts);
+  // THE EARS, each on its own field
+  const earR = head.earFields.find((e) => e.side === 'R');
+  if (earR) {
+    const fE = inHead(earR.field), R = withNormals(earPart(fE, toHero(earR.tragion), C), fE);
+    parts.earR = R; parts.earL = withNormals(mirrorPart(R, { ...R, bind: { bone: 'head' } }), (q) => fE([-q[0], q[1], q[2]]));
+  }
+  for (const d of Object.values(r.dials || {})) if (Array.isArray(d.parts)) d.parts = d.parts.filter((n) => parts[n] || !HEADS.includes(n));
+  // (the skin's own density when a target set it: what is pinned to its faces is kept by the fit, and must not be worn
+  // on another count's faces)
+  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}), skin: 'one', ...(opts.oneSkin?.faces ? { skinFaces: opts.oneSkin.faces } : {}) };
+  const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
+  at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));
+  return r;
+}
+
+/** how one skin FOLLOWS an action (oneSkinFollow): the muscle's beads near a point carry it (a Gaussian of the bead's
+ * reach × `beadReach`, at least `beadMin` m: a small bead deep under the brow still carries the skin over it; their
+ * sum's weight held to at most 1), then it settles onto the acted skin along its normal (at
+ * most `settle` m); within an eye's footprint (out `lid` m past its margins) a blink TURNS
+ * the lids about the globe's centre (within `lidReach` m of it), so they slide over the globe: the upper down to a line a
+ * quarter of the opening up from the lower margin, wholly over `lidBand[0]` radians above its margin and easing out by
+ * `lidBand[1]`, the lower up to it over `lowBand`, the margins' inner walls between drawn onto the line; a lid only as
+ * far out from the globe's centre as its margin and `lidOut` past it (the fold over the upper lid stands further out,
+ * and the lid slides under it); a lid is its margin's by the skin's own way (`faces` given: the distance along the skin
+ * from the margin, out to `geoUp` or `geoLow`), else by those bands. The beads carry what the lids leave (under the lower
+ * lid `carryUnder` of it); in the eye's footprint the settle reaches `settleIn` of its own */
+export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoUp: [0.004, 0.01], geoLow: [0.002, 0.006] });
+/**
+ * Where the one skin's points go under `actions` (head-relational.js ACTIONS): `points` { id: [x, y, z] } and
+ * `normals` { id: n } in the hero's frame (the rest skin's: hero-one-skin.js), the face's words and its `fit`. →
+ * { id: [x, y, z] }. The skin is never re-netted per action (its faces would change): the rest's own points move, so the
+ * face rig differences them (relational-face-rig.js). A point of the eye's socket behind its globe moves with the lids alone.
+ */
+export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tune = null, fit, actions, points, normals, faces = null, opts = {} }) {
+  const C = { ...RELATIONAL_HEAD, ...opts }, F = { ...SKIN_FOLLOW, ...(opts.follow || {}) };
+  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) }, tn = tune ?? HEAD_TUNES[sex];
+  const rest = relationalHead({ sex, tune: tn, ears: false, ...own }), acted = relationalHead({ sex, tune: tn, ears: false, ...own, actions });
+  const { k, ty, men } = fit, toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men], S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
+  const f0 = (q) => rest.field(S2(q)) * k, fA = (q) => acted.field(S2(q)) * k, e = 1e-5;
+  const gradA = (p) => [fA([p[0] + e, p[1], p[2]]) - fA([p[0] - e, p[1], p[2]]), fA([p[0], p[1] + e, p[2]]) - fA([p[0], p[1] - e, p[2]]), fA([p[0], p[1], p[2] + e]) - fA([p[0], p[1], p[2] - e])].map((x) => x / (2 * e));
+  // the beads the action moved, in the hero's frame
+  const beads = [];
+  // (the beads live in the head's vajra units: HEAD_V of the head's own)
+  const hv = HEAD_V, inH = (q) => ({ x: q.x * hv, y: q.y * hv, z: q.z * hv });
+  rest.vajras.forEach((w, i) => { const v = acted.vajras[i]; if (!w.drive || !v) return; ['a', 'c', 'b'].forEach((key, j) => { const d = [(v[key].x - w[key].x) * hv * k, (v[key].y - w[key].y) * hv * k, (v[key].z - w[key].z) * hv * k]; if (Math.hypot(...d) < 1e-7) return; const r = Math.max(F.beadMin, (Array.isArray(w.r) ? w.r[Math.min(j, w.r.length - 1)] : w.r) * hv * k * F.beadReach); beads.push({ p: toHero(inH(w[key])), d, r }); }); });
+  const carry = (p) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2, w = Math.exp(-d2 / (b.r * b.r)); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
+  // (to the depth it had: a point the rim let down under the cranium stays that far under)
+  const settle = (p, n, depth, most = F.settle) => { let T = 0; for (let it = 0; it < 4; it++) { const q = p.map((x, a) => x + n[a] * T), g = gradA(q), gn = g[0] * n[0] + g[1] * n[1] + g[2] * n[2]; if (Math.abs(gn) < 1e-6) break; const t = (depth - fA(q)) / gn, T2 = Math.max(-most, Math.min(most, T + t)); if (Math.abs(T2 - T) < 1e-6) { T = T2; break; } T = T2; } return p.map((x, a) => x + n[a] * T); };
+  // (the rest eye's frame: within the eye's footprint the beads carry nothing, the lids are the eye's own)
+  const eyeC = toHero(rest.points.eyeR), E0 = eyeFrame(f0, (q) => rest.paint(S2(q)), eyeC, C);
+  // (the opening at rest per column across the eye: its upper and lower margins in the eye's plane, u across, v up)
+  let cols = null;
+  {
+    const N = 360, pts = Array.from({ length: N }, (_, j) => { const th = (2 * Math.PI * j) / N, r = E0.O(th); return [r * Math.sin(th), r * Math.cos(th)]; });
+    const u0 = Math.min(...pts.map((q) => q[0])), u1 = Math.max(...pts.map((q) => q[0])), B = 96, top = new Array(B + 1).fill(-Infinity), bot = new Array(B + 1).fill(Infinity);
+    for (const [u, v] of pts) { const b = Math.round(((u - u0) / (u1 - u0)) * B); top[b] = Math.max(top[b], v); bot[b] = Math.min(bot[b], v); }
+    for (let b = 0; b <= B; b++) if (!Number.isFinite(top[b])) { let l = b; while (l > 0 && !Number.isFinite(top[l])) l--; top[b] = top[l]; bot[b] = bot[l]; }
+    const at = (A, u) => { const x = Math.max(0, Math.min(B, ((u - u0) / (u1 - u0)) * B)), i = Math.min(B - 1, Math.floor(x)), t = x - i; return A[i] + (A[i + 1] - A[i]) * t; };
+    cols = { u0, u1, top: (u) => at(top, u), bot: (u) => at(bot, u) };
+  }
+  // the lids' turn: about the globe's centre, square to the look (E0.side), a point's elevation the angle from the look
+  const gC = toHero(rest.globes.find((g) => g.side === 'R').centre), D0 = E0.d, U0 = E0.up, S0 = E0.side;
+  const rel = (q) => [q[0] - gC[0], q[1] - gC[1], q[2] - gC[2]], dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const dotD = (q) => dot3(rel(q), D0), elevOf = (q) => { const r = rel(q); return Math.atan2(dot3(r, U0), dot3(r, D0)); };
+  const turnLid = (q, da) => { const r = rel(q), x = dot3(r, S0), f = dot3(r, D0), w = dot3(r, U0), c = Math.cos(da), sn = Math.sin(da), f2 = f * c - w * sn, w2 = f * sn + w * c; return [0, 1, 2].map((a) => gC[a] + S0[a] * x + D0[a] * f2 + U0[a] * w2); };
+  // (each margin's elevation per column, at rest and acted: the eye rig's own lash lines, the margins exactly)
+  const inV = (c) => toHero({ x: c.x * HEAD_V, y: c.y * HEAD_V, z: c.z * HEAD_V });
+  const line = (m) => { const A = Array.from({ length: 65 }, (_, i) => { const q = inV(m(i / 64).c); return [dot3([q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]], S0), elevOf(q)]; }).sort((x, y) => x[0] - y[0]);
+    return (u) => { if (u <= A[0][0]) return A[0][1]; if (u >= A.at(-1)[0]) return A.at(-1)[1]; const i = A.findIndex((x) => x[0] >= u), t = (u - A[i - 1][0]) / (A[i][0] - A[i - 1][0] || 1); return A[i - 1][1] + (A[i][1] - A[i - 1][1]) * t; }; };
+  const M0 = rest.relational.eyeRigs.find((e) => e.side === 'R').margins, M1 = acted.relational.eyeRigs.find((e) => e.side === 'R').margins;
+  const elev = { top: line(M0.upper), bot: line(M0.lower), topA: line(M1.upper), botA: line(M1.lower) };
+  // (each margin's distance from the globe's centre per column: the lid lies there over the globe; what stands further
+  // out, the fold over the upper lid, is no lid's and stays as the lid slides under it)
+  const reach = (m) => { const A = Array.from({ length: 65 }, (_, i) => { const q = inV(m(i / 64).c); return [dot3([q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]], S0), Math.hypot(...rel(q))]; }).sort((x, y) => x[0] - y[0]);
+    return (u) => { if (u <= A[0][0]) return A[0][1]; if (u >= A.at(-1)[0]) return A.at(-1)[1]; const i = A.findIndex((x) => x[0] >= u), t = (u - A[i - 1][0]) / (A[i][0] - A[i - 1][0] || 1); return A[i - 1][1] + (A[i][1] - A[i - 1][1]) * t; }; };
+  const rTop = reach(M0.upper), rBot = reach(M0.lower);
+  // THE LIDS BY THE SKIN'S OWN WAY (`faces` given): each point's distance ALONG the skin from each margin (both eyes,
+  // the left by the right's mirror): over the lid, up into its crease and back out over the fold that distance only
+  // grows, where the elevation and the distance from the globe fold back on themselves; a lid is its margin's out to
+  // `geoUp` (the upper) or `geoLow` (the lower), the fold beyond it is not
+  let geo = null;
+  if (faces) {
+    const ids = Object.keys(points), ix = new Map(ids.map((id, i) => [id, i])), Pp = ids.map((id) => points[id]), n = ids.length, nb = Array.from({ length: n }, () => []);
+    for (const t of Object.values(faces)) for (let e = 0; e < 3; e++) { const a = ix.get(t[e]), b = ix.get(t[(e + 1) % 3]); if (a === undefined || b === undefined) continue; const d = Math.hypot(Pp[a][0] - Pp[b][0], Pp[a][1] - Pp[b][1], Pp[a][2] - Pp[b][2]); nb[a].push(b, d); nb[b].push(a, d); }
+    const lash = (m) => Array.from({ length: 65 }, (_, i) => { const L = m(i / 64); return { c: inV(L.c), r: L.r * HEAD_V * k }; });
+    const walk = (line) => {
+      const D = new Float64Array(n).fill(Infinity), heap = [];
+      const push = (i, d) => { heap.push([d, i]); let j = heap.length - 1; while (j > 0) { const q = (j - 1) >> 1; if (heap[q][0] < heap[j][0] || (heap[q][0] === heap[j][0] && heap[q][1] <= heap[j][1])) break; [heap[q], heap[j]] = [heap[j], heap[q]]; j = q; } };
+      const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let j = 0; for (;;) { const l = 2 * j + 1, r = l + 1; let mm = j; if (l < heap.length && (heap[l][0] < heap[mm][0] || (heap[l][0] === heap[mm][0] && heap[l][1] < heap[mm][1]))) mm = l; if (r < heap.length && (heap[r][0] < heap[mm][0] || (heap[r][0] === heap[mm][0] && heap[r][1] < heap[mm][1]))) mm = r; if (mm === j) break; [heap[mm], heap[j]] = [heap[j], heap[mm]]; j = mm; } } return top; };
+      // (the seeds: the skin's points on the margin, within its rim's tube and a hair more of the lash line)
+      for (let i = 0; i < n; i++) { const q = Pp[i][0] < 0 ? [-Pp[i][0], Pp[i][1], Pp[i][2]] : Pp[i]; let best = Infinity; for (const L of line) best = Math.min(best, Math.hypot(q[0] - L.c[0], q[1] - L.c[1], q[2] - L.c[2]) - L.r); if (best < F.seed) { D[i] = Math.max(0, best); push(i, D[i]); } }
+      while (heap.length) { const [d, i] = pop(); if (d > D[i]) continue; const N = nb[i]; for (let j = 0; j < N.length; j += 2) { const e = d + N[j + 1]; if (e < D[N[j]]) { D[N[j]] = e; push(N[j], e); } } }
+      return new Map(ids.map((id, i) => [id, D[i]]));
+    };
+    geo = { up: walk(lash(M0.upper)), low: walk(lash(M0.lower)) };
+  }
+  const ramp2 = (x, [a, b]) => 1 - ramp((x - a) / (b - a));
+  const out = {}, globes = rest.globes.map((g) => g.field);
+  for (const [id, p] of Object.entries(points)) {
+    const n = normals[id];
+    const socket = globes.some((g) => g(S2(p)) < 0);
+    let inside = 0, under = 0, lid = null;
+    {
+      const m = p[0] < 0, pp = m ? [-p[0], p[1], p[2]] : p, at = E0.at(pp), u = at.r * Math.sin(at.th), v = at.r * Math.cos(at.th);
+      const back = (q) => (m ? [-q[0], q[1], q[2]] : q);
+      // (the eye's footprint, eased out over `eyeEase` m past it: the settle's reach there shrinks to `settleIn` of its own)
+      const uc = Math.max(cols.u0, Math.min(cols.u1, u)), out_ = Math.max(cols.u0 - u, u - cols.u1, 0, v - (cols.top(uc) + F.lid), cols.bot(uc) - 0.5 * F.lid - v);
+      inside = at.h > -0.03 ? 1 - ramp(out_ / F.eyeEase) : 0;
+      // (under the lower lid the beads carry `carryUnder` of their own there: a smile's cheek would rise in front of the
+      // lower lid and cover the eye; over the upper lid they carry whole, so the fold follows the brow)
+      under = inside * ramp((cols.bot(uc) - v) / (0.25 * F.lid));
+      // THE LIDS turned about the globe's centre (a lid slides over the globe) as far as the action moved their margins
+      // (a blink shuts them to one line, a raised brow lifts the upper, a smile's squint the lower), each over its band
+      // above or below its margin, what lies between (the margins' inner walls) turned in proportion; columns past the
+      // canthi and points toward the reach's end eased out. What the lids leave of a point moves as the rest does.
+      const rg = Math.hypot(pp[0] - gC[0], pp[1] - gC[1], pp[2] - gC[2]);
+      if (rg < F.lidReach && dotD(pp) > -0.004) {
+        const uc = Math.max(cols.u0, Math.min(cols.u1, u)), aT = elev.top(uc), aB = elev.bot(uc), dT = elev.topA(uc) - aT, dB = elev.botA(uc) - aB, a = elevOf(pp);
+        const t = Math.max(0, Math.min(1, (a - aB) / (aT - aB || 1e-6)));
+        // (by the skin's way when it is known: the nearer margin's lid, out to its reach; else by the elevation's bands)
+        const gU = geo?.up.get(id) ?? Infinity, gL = geo?.low.get(id) ?? Infinity, upper = gU <= gL;
+        const da = geo ? (a > aB && a < aT ? dB + (dT - dB) * t : upper ? dT : dB) : a >= aT ? dT : a <= aB ? dB : dB + (dT - dB) * t;
+        const w = (1 - ramp(Math.max(cols.u0 - u, u - cols.u1, 0) / F.canthus)) * ramp((F.lidReach - rg) / (0.25 * F.lidReach))
+          // (the lower lid also only as far out as its margin: the cheek standing in front of it is the cheek's, and turned
+          // with the lid it swung up across the eye)
+          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2(gU, F.geoUp) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
+            : a >= aT ? ramp2(a - aT, F.lidBand) * ramp2(rg - rTop(uc), F.lidOut) : a <= aB ? ramp2(aB - a, F.lowBand) * ramp2(rg - rBot(uc), F.lidOut) : 1);
+        // (a lid's point is the lid's for every action, turned or not: a smile's beads would draw the upper lid down)
+        if (w > 1e-4) lid = { q: Math.abs(da) > 1e-7 ? back(turnLid(pp, da * w)) : p, w };
+      }
+    }
+    // (the socket behind a globe turns with the lids over it, else stays)
+    if (socket) { out[id] = lid ? lid.q : p; continue; }
+    // (the beads carry what the lids leave; the settle reaches less in the eye's footprint: the fold's layers lie closer
+    // than a settle's reach, and a point settled onto the layer beside its own stood out as a spike)
+    const c = carry(p).map((x) => x * (1 - (1 - F.carryUnder) * under)), q = p.map((x, a) => x + c[a]), sq = n ? settle(q, n, f0(p), F.settle * (1 - (1 - F.settleIn) * inside)) : q;
+    out[id] = lid ? lid.q.map((x, a) => x + (1 - lid.w) * (sq[a] - p[a])) : sq;
+  }
+  return out;
 }
