@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildContest, contestRead, contestStart, contestLegal, contestApply, contestDisplay, contestRegion, contestInside, contestSideOf, contestPlayers, contestLieOf } from './contest-kernel.js';
 import { tennis } from './fixtures/tennis.js';
-import { golf, bowling } from './sports.js';
+import { golf, bowling, soccer, hockey } from './sports.js';
 import { volleyball } from './fixtures/volleyball.js';
 import { sprint } from './fixtures/sprint.js';
 import { longJump } from './fixtures/long-jump.js';
@@ -47,7 +47,7 @@ describe('reading a contest', () => {
     expect(() => contestRead({ shape: 'meet', event: { kind: 'sprint', lanes: 4, measure: 'laps' } })).toThrow(/event.measure is time \| distance \| height/);
     expect(() => contestRead({ ...sprint(), event: { ...sprint().event, attempts: 3 } })).toThrow(/a timed event is one attempt/);
     expect(() => contestRead({ ...tennis(), roles: { one: { home: 'half' }, two: { home: 'half' } } })).toThrow(/names 2 roles for 1 players/);
-    for (const spec of [tennis(), volleyball(), sprint(), longJump(), periods(), golf(), bowling()]) expect(() => contestRead(spec), spec.title).not.toThrow();
+    for (const spec of [tennis(), volleyball(), sprint(), longJump(), periods(), golf(), bowling(), soccer(), hockey()]) expect(() => contestRead(spec), spec.title).not.toThrow();
     // a turn sport
     expect(() => contestRead({ shape: 'turns', rounds: 3, turn: { kind: 'pins' } })).toThrow(/rounds\[0\] has no course and the spec names none/);
     expect(() => contestRead({ ...bowling(), turn: { kind: 'frames' } })).toThrow(/turn.kind is strokes \| pins/);
@@ -274,6 +274,36 @@ describe('a goal game on the clock', () => {
     expect(kinds(r.calls)).toEqual(['live', 'period', 'overtime']);
     r = play(O, r.S, [{ kind: 'resume' }, { kind: 'tick', dt: 2 }, { kind: 'score', side: 'b' }, { kind: 'resume' }, { kind: 'tick', dt: 3 }]);
     expect(r.calls.at(-1)).toMatchObject({ kind: 'over', winner: 'b' });
+  });
+});
+
+describe('a goal game\'s outs and offside', () => {
+  const G = contestRead(soccer());
+  const play = (S, facts) => { const calls = []; for (const f of facts) { const r = contestApply(G, S, f); S = r.S; calls.push(...r.calls); } return { S, calls }; };
+  it('a throw-in for the other side where the ball crossed the touchline; over an end line a corner when the defenders touched it last, else a goal kick; without outs a free; the restart side resumes', () => {
+    const S0 = play(contestStart(G, 1), [{ kind: 'resume' }]).S;
+    const t = play(S0, [{ kind: 'touch', who: 'b2', at: [0, 1] }, { kind: 'out', at: [15, 4] }]);
+    expect(t.calls.at(-1)).toMatchObject({ kind: 'out', side: 'a', restart: { kind: 'throw-in', side: 'a', at: [15, 4] } });
+    expect(contestLegal(G, t.S, 'a3').may).toEqual(['resume']); expect(contestLegal(G, t.S, 'b3').may).toEqual(['wait']);
+    const gk = play(S0, [{ kind: 'touch', who: 'a3', at: [10, 5] }, { kind: 'out', at: [-3, 25] }]);
+    expect(gk.calls.at(-1).restart).toMatchObject({ kind: 'goal-kick', side: 'b', at: [0, 22.5] });   // a tenth of the length in from the line
+    const corner = play(S0, [{ kind: 'touch', who: 'b1', at: [0, 20] }, { kind: 'out', at: [-3, 25] }]);
+    expect(corner.calls.at(-1).restart).toMatchObject({ kind: 'corner', side: 'a', at: [-15, 25] });
+    const H = contestRead(hockey()), h0 = play(contestStart(H, 1), [{ kind: 'resume' }]).S;
+    expect(contestApply(H, contestApply(H, h0, { kind: 'touch', who: 'a2', at: [0, 0] }).S, { kind: 'out', at: [15, 2] }).calls.at(-1).restart).toMatchObject({ kind: 'free', side: 'b' });
+    expect(() => contestRead({ ...soccer(), outs: { side: 'kick-in' } })).toThrow(/outs.side is throw-in/);
+    expect(() => contestRead({ ...tennis(), outs: { side: 'throw-in' } })).toThrow(/outs belong to a goal game/);
+    expect(() => contestRead({ ...soccer(), offside: 'line' })).toThrow(/offside is ball/);
+  });
+  it('offside against the ball: a pass received by a teammate who stood past the ball\'s line in the other half is a free for the other side; the same player, or a receiver behind the ball, or in its own half, plays on', () => {
+    const S0 = play(contestStart(G, 1), [{ kind: 'resume' }, { kind: 'touch', who: 'a5', at: [0, 2] }]).S;
+    const off = play(S0, [{ kind: 'touch', who: 'a4', at: [3, 8], atPass: [3, 5] }]);
+    expect(off.calls.at(-1)).toMatchObject({ kind: 'foul', foul: 'offside', who: 'a4', side: 'a', cost: 'free' }); expect(off.S.restart).toMatchObject({ kind: 'free', side: 'b', at: [3, 8] });
+    expect(play(S0, [{ kind: 'touch', who: 'a4', at: [3, 8], atPass: [3, 1] }]).calls).toEqual([]);     // behind the ball at the pass
+    expect(play(S0, [{ kind: 'touch', who: 'a5', at: [3, 8], atPass: [3, 5] }]).calls).toEqual([]);     // the same player
+    const own = play(contestStart(G, 1), [{ kind: 'resume' }, { kind: 'touch', who: 'a5', at: [0, -10] }, { kind: 'touch', who: 'a4', at: [3, -2], atPass: [3, -6] }]);
+    expect(own.calls.filter((c) => c.kind === 'foul')).toEqual([]);   // past the ball but in its own half
+    expect(play(S0, [{ kind: 'touch', who: 'b4', at: [3, 8], atPass: [3, 5] }]).calls).toEqual([]);     // the other side's touch is never offside
   });
 });
 

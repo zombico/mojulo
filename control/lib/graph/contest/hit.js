@@ -44,7 +44,7 @@ export const HIT_VERBS = Object.freeze({
   // the volleyball's bare-handed touches (no gear in the hand: the swing door needs an item) and the leg: no clip yet
   bump: Object.freeze({ arc: 60, lift: 10, spin: 'none', rate: 0, power: 0.5, hands: 2, swing: null }),
   set: Object.freeze({ arc: 70, lift: 10, spin: 'none', rate: 0, power: 0.35, hands: 2, swing: null }),
-  kick: Object.freeze({ arc: 15, lift: 20, spin: 'side', rate: 8, power: 1.2, hands: 0, swing: null }),
+  kick: Object.freeze({ arc: 15, lift: 20, spin: 'side', rate: 2, power: 1.2, hands: 0, swing: null }),   // a touch of curl: a side-footed ball bends a little, never a banana
   throw: Object.freeze({ arc: 30, lift: 20, spin: 'back', rate: 5, power: 0.6, hands: 1, swing: null }),
   bat: Object.freeze({ arc: 25, lift: 15, spin: 'back', rate: 30, power: 1.5, hands: 2, swing: 'bat' }),
   putt: Object.freeze({ arc: 0, lift: 0, spin: 'top', rate: 2, power: 0.1, hands: 2, swing: null }),

@@ -173,9 +173,31 @@ and a ball card's on the ball. Planned, in order:
   the card are the play), the golf ball's own aero constants (it flies on soccer's curves and the card says so), a pin
   that topples (a sphere sweeps instead), the oil pattern (the lane's friction is one number), curling and billiards on
   the same shape, no bus emit. The eyes gate is open: nobody has watched a hole or a frame yet.
-- **The team goal game**, planned last: a second local pilot in the controllable runtime (the single-pilot world byte
-  for byte), soccer and hockey with possession, offside as legality conditional on the pass, fouls from contact facts,
-  teammates by role over the board's continuous positions.
+- **The team goal game**, built as a pitch the World page plays, with a stopping point: the kernel's goal game
+  gained its outs (`outs`: a throw-in for the other side where the ball crossed the touchline; over an end line a
+  corner when the defenders touched it last, else a goal kick; without them a free) and offside against the ball
+  (`offside: 'ball'`: a pass received by a teammate who stood past the ball's line in the other half when it was
+  played, a `touch` fact carrying where the toucher stood at its side's last touch, is a free where it was received);
+  soccer (five-a-side, two halves, throw-ins and corners, offside) and hockey (four-a-side on a rink with boards,
+  three periods and overtime, no outs; the blue-line offside is not the ball rule and is left out, said so) in the
+  book with the puck on the ball card; `contest/team-sim.js` (the match sim's shape for two pads in the screen's
+  directions: each pad drives its side's player nearest the ball, a tap passes along the ground, a hold shoots, aimed
+  by the stick; a player running at a slow ball carries it; the others hold their role's home and the nearest presses,
+  the keeper across its line with a save on a ball coming at it; a goal between the posts under the bar the kernel's
+  score, the ball over a line its out, a charge from behind into the carrier a foul, the clock ticking while live; a
+  restart placed where the kernel says and taken by the first touch, or by the sim after three seconds); the team mind
+  in `contest-mind.js` (the computer side's player at the ball chases, shoots in range, passes to the teammate
+  furthest ahead, else carries on) over the positional mind's roles; `contest/team-arena.js`, `team-arena.client.js`
+  and the `pitch` channel (WASD and F or Space, the arrows and the right Shift or the keypad 0; the lines, the boxes,
+  the goals with nets or the rink's boards, the players as capsules in their side's colour with the one at the pad
+  ringed, the scoreboard and the clock, the referee's banners, the hosted wire), hooked up as the court is, the
+  `pitch` emit fixture pinned (`meet`, `court` and `turns` re-pinned for the kernel's, the minds' and the hit's
+  source), the e2e `pitch-page.live.test.js`. Stopping point: the second local pilot in the controllable runtime (the
+  plan's route to the hero body on the pitch) is not taken: the team game plays on the contest pages' own bodies, as
+  the court and the course do, so no hero library clip kicks yet and the controllable pins stand untouched; the quick
+  goal (phase 7); a tackle (the only challenge is the press and the keeper's save); the second-last-defender offside
+  (the ball rule stands in); a wall at a free kick; restarts that walk the players home; the kick's curl one number.
+  The eyes gate is open: nobody has watched a match yet.
 - No new listed tool: `create_game`'s quick goals own the intent (a routing row per shape, the game vocab card). Web
   first, as versus; the engines' marks say `absent` until a conformance scenario carries a contest. Out of scope: split
   screen, online play, a season or career (a campaign door by composition later), non-sphere implements' aerodynamics,

@@ -6,6 +6,7 @@
  * out from the rules the person explains; these are the rules everyone knows.
  *
  *   SPORTS { tennis, golf, bowling }   each { shape, words, spec(…), ball, … } with the dials its sim reads:
+ *   TEAM_SPORTS { soccer, hockey }     the team goal games (team-sim.js): { side, goal, homes, kick, ground, press }
  *     tennis   { players, strokes: { fore, back, serve }, net: { height, posts }, serve: { behind, aside, hand },
  *                receive: { behind, aside }, home: { behind } } (metres from the baseline and the centre line)
  *     golf     { holes: [{ par, length, …regions }], clubs: [{ verb, within? | on? }] (the club by the distance left or
@@ -22,6 +23,10 @@
  *                              water or out of bounds a stroke and the ball played again from its last lie, the pick-up
  *                              at ten; the fewest strokes win
  *   bowling({ frames? })       tenpin: ten frames of two rolls, a strike or a spare the mark, the tenth frame's fill
+ *   soccer({ periods?, seconds? })   five-a-side on a small pitch: a goal a point, the clock decides, a throw-in and a
+ *                              corner for the ball over the lines, offside against the ball, a foul a free kick
+ *   hockey({ periods?, seconds? })   four-a-side on a rink with boards (the puck never goes out), overtime on a tie;
+ *                              the blue-line offside is not the ball rule and is left out
  *
  * The court is the singles court: 8.23 m across, 23.77 m long, the net at y = 0, side a's end at y < 0. Regions are
  * written for side a and mirrored half-turn for side b, so the box on a's right is diagonal from b's right. A course's
@@ -107,6 +112,47 @@ export function bowling({ frames = 10 } = {}) {
   return { shape: 'turns', title: `Tenpin, ${frames} frame${frames === 1 ? '' : 's'}`, course: laneCourse(), rounds: frames, turn: { kind: 'pins', pins: 10 } };
 }
 
+// ── the team goal games: a small pitch and a rink in an arena, five or four a side, two local pads ──
+const teamCourt = (w, l, box, area) => ({
+  frame: [w, l],
+  mirror: 'reflect',
+  regions: {
+    pitch: { rect: [-w / 2, -l / 2, w / 2, l / 2], shared: true },
+    half: { rect: [-w / 2, -l / 2, w / 2, 0] },
+    box: { rect: [-box[0] / 2, -l / 2, box[0] / 2, -l / 2 + box[1]] },
+    'goal-area': { rect: [-area[0] / 2, -l / 2, area[0] / 2, -l / 2 + area[1]] },
+  },
+});
+
+export function soccer({ periods = 2, seconds = 120 } = {}) {
+  return {
+    shape: 'match',
+    title: 'Five-a-side',
+    players: 5,
+    roles: { keeper: { home: 'box' }, back: { home: 'half' }, mid: { home: 'pitch' }, wing: { home: 'pitch' }, striker: { home: 'pitch' } },
+    court: teamCourt(30, 50, [14, 6], [8, 3]),
+    scoring: { ladder: [{ unit: 'goal' }] },
+    clock: { periods, seconds },
+    fouls: { contact: 'free', handball: 'free' },
+    outs: { side: 'throw-in', end: 'corner' },
+    offside: 'ball',
+  };
+}
+
+export function hockey({ periods = 3, seconds = 90 } = {}) {
+  return {
+    shape: 'match',
+    title: 'Four-a-side hockey',
+    players: 4,
+    roles: { keeper: { home: 'goal-area' }, back: { home: 'half' }, centre: { home: 'pitch' }, wing: { home: 'pitch' } },
+    court: teamCourt(30, 60, [12, 8], [6, 3]),
+    scoring: { ladder: [{ unit: 'goal' }] },
+    clock: { periods, seconds, overtime: 60 },
+    fouls: { contact: 'free', 'high-stick': 'free' },
+    // the boards keep the puck in: no outs; the blue-line offside is not the ball rule, and is left out, said so
+  };
+}
+
 export const SPORTS = Object.freeze({
   tennis: Object.freeze({
     shape: 'match',
@@ -145,6 +191,30 @@ export const SPORTS = Object.freeze({
     swing: Object.freeze({ tipSpeed: 40, charge: 1.0, spread: 3 }),   // the arm's at the release (the roll's power is a fifth of it); a narrow aim: the pocket is a hand wide
   }),
 });
+export const TEAM_SPORTS = Object.freeze({
+  soccer: Object.freeze({
+    shape: 'team',
+    words: 'five-a-side football: two pads, pass and shoot, throw-ins and corners, offside against the ball, two halves',
+    spec: soccer, ball: 'soccer', side: 5,
+    goal: Object.freeze({ width: 4, height: 2 }),
+    // each role's home point (side a's frame: its goal at -y), the kernel's home region round it
+    homes: Object.freeze({ keeper: [0, -23], back: [-5, -14], mid: [0, -7], wing: [7, -8], striker: [2, -2] }),
+    kick: Object.freeze({ verb: 'kick', tipSpeed: 20, reach: 1.1, charge: 0.8, pass: 0.45, dribble: 2.2 }),   // the leg's tip; a tap's share; the carry's speed over the body's
+    ground: Object.freeze({ roll: 3, boards: false }),   // the grass's rolling resistance (m/s²); no boards: the ball goes out
+    press: 7,
+  }),
+  hockey: Object.freeze({
+    shape: 'team',
+    words: 'four-a-side hockey on a rink with boards: two pads, a puck that never leaves, three periods and overtime',
+    spec: hockey, ball: 'puck', side: 4,
+    goal: Object.freeze({ width: 1.83, height: 1.22 }),
+    homes: Object.freeze({ keeper: [0, -28], back: [-4, -18], centre: [0, -8], wing: [6, -10] }),
+    kick: Object.freeze({ verb: 'kick', tipSpeed: 26, reach: 1.3, charge: 0.6, pass: 0.4, dribble: 2.6 }),
+    ground: Object.freeze({ roll: 0.3, boards: true }),
+    press: 8,
+  }),
+});
+export const TEAM_SPORT_IDS = Object.freeze(Object.keys(TEAM_SPORTS));
 export const SPORT_IDS = Object.freeze(Object.keys(SPORTS));
 export const MATCH_SPORT_IDS = Object.freeze(SPORT_IDS.filter((id) => SPORTS[id].shape === 'match'));
 export const TURN_SPORT_IDS = Object.freeze(SPORT_IDS.filter((id) => SPORTS[id].shape === 'turns'));

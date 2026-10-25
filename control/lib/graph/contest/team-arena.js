@@ -1,0 +1,87 @@
+/**
+ * THE TEAM ARENA — a team goal game's venue as a stage recipe (era/stage.js: one open room on a stage kit, the pitch or
+ * the rink in its middle, the stands behind the far goal), carrying the `pitch` the World page's channel plays
+ * (scene/channels/contest.js), as the court arena carries its court (match-arena.js).
+ *
+ *   readTeam(spec) → M            { sport, players, register, level, periods?, seconds?, seed, kit, look?, crowd, title } checked
+ *   teamPitch(M) → the pitch in the stage's frame: the room, its half sizes, the goal, where its centre stands
+ *   teamManifest(spec) → a `kind: 'stage'` recipe: the room, the stands, the camera, the `pitch` key
+ *   teamArenaData(v) → the page's data: the game read, the sport's dials, the contest compiled, the pitch, the wire
+ *
+ * Stage coordinates are metres, z up; the court frame's origin is the pitch's centre at (0, stage.originY); side a's
+ * goal is nearer the open side (y = 0), where the camera stands. Pure and deterministic.
+ */
+import { contestRead } from './contest-kernel.js';
+import { TEAM_SPORTS, TEAM_SPORT_IDS } from './sports.js';
+import { TEAM_REGISTER_IDS } from './team-sim.js';
+import { MIND_LEVEL_IDS } from './contest-mind.js';
+import { ARENA_KITS } from '../versus/versus-arena.js';
+import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+
+export const PITCH_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
+export const PITCH_PAGE_MODULES = Object.freeze([
+  'physics/flight.js', 'contest/ball-card.js', 'polygonizer/hero-swing.js', 'contest/hit.js', 'worlds/physics-sim.js',
+  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/team-sim.js', 'contest/team-arena.client.js',
+]);
+export const TEAM_DEFAULTS = Object.freeze({ sport: 'soccer', players: 1, register: 'realistic', level: 'regular', seed: 1, kit: 'island-plaza' });
+export const PITCH_RUN_OFF = Object.freeze({ side: 5, end: 8 });
+export const PITCH_H = 12;
+const KIT_LOOK = { 'island-plaza': 'island-noon' };
+const r3 = (v) => Math.round(v * 1000) / 1000;
+const fail = (m) => { throw new Error(`team: ${m}`); };
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** The game's words, checked. */
+export function readTeam(spec = {}) {
+  if (!isObj(spec)) fail('a team game is { sport?, players?, register?, level?, periods?, seconds?, seed?, kit?, look?, crowd?, title? }');
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'periods', 'seconds', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a team game has no '${k}' (sport, players, register, level, periods, seconds, seed, kit, look, crowd, title)`);
+  const M = { ...TEAM_DEFAULTS, ...spec };
+  if (!TEAM_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${TEAM_SPORT_IDS.join(', ')} (a team goal game)`);
+  if (!(Number.isInteger(M.players) && M.players >= 0 && M.players <= 2)) fail('players is 0 (an exhibition), 1 (against the computer) or 2 (both sides local)');
+  if (!TEAM_REGISTER_IDS.includes(M.register)) fail(`register is one of ${TEAM_REGISTER_IDS.join(', ')}`);
+  if (!MIND_LEVEL_IDS.includes(M.level)) fail(`level is one of ${MIND_LEVEL_IDS.join(', ')} (the computer's)`);
+  if (M.periods !== undefined && !(Number.isInteger(M.periods) && M.periods >= 1 && M.periods <= 4)) fail('periods is 1 to 4');
+  if (M.seconds !== undefined && !(Number.isFinite(M.seconds) && M.seconds >= 20 && M.seconds <= 900)) fail('seconds is 20 to 900 a period');
+  if (!Number.isInteger(M.seed)) fail('seed is a whole number');
+  if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
+  if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
+  if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
+  return { sport: M.sport, players: M.players, register: M.register, level: M.level, ...(M.periods !== undefined ? { periods: M.periods } : {}), ...(M.seconds !== undefined ? { seconds: M.seconds } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+}
+
+/** The sport's dials the page carries (its spec is compiled apart). */
+export const teamSportDials = (id) => { const { spec, ...dials } = TEAM_SPORTS[id]; void spec; return { id, ...dials }; };
+const specOf = (M) => TEAM_SPORTS[M.sport].spec({ ...(M.periods !== undefined ? { periods: M.periods } : {}), ...(M.seconds !== undefined ? { seconds: M.seconds } : {}) });
+
+/** The pitch in the stage's frame. */
+export function teamPitch(M) {
+  const sp = TEAM_SPORTS[M.sport], [w, l] = specOf(M).court.frame;
+  const room = { w: r3(w + 2 * PITCH_RUN_OFF.side), d: r3(l + 2 * PITCH_RUN_OFF.end), h: PITCH_H };
+  return { width: w, length: l, halfW: r3(w / 2), halfL: r3(l / 2), originY: r3(room.d / 2), room, goal: sp.goal, boards: sp.ground.boards };
+}
+
+/** The venue: a stage set with its camera side open behind side a's goal, the stands behind the far one. */
+export function teamManifest(spec = {}) {
+  const M = readTeam(spec), T = teamPitch(M);
+  const title = M.title ?? `${M.sport} · ${M.players === 2 ? 'two players' : M.players === 1 ? 'you against the computer' : 'an exhibition'}`;
+  return {
+    kind: 'stage',
+    kit: M.kit,
+    ...(M.look ?? KIT_LOOK[M.kit] ? { reference: M.look ?? KIT_LOOK[M.kit] } : {}),
+    title,
+    dress: false,
+    viewBox: { width: 1280, height: 720 },
+    rooms: [{ id: 'pitch', x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d, h: T.room.h, open: ['-y'] }],
+    lights: 'auto',
+    ...(M.crowd ? { stands: { from: r3(T.room.d - 0.5), rows: M.crowd.rows, fill: M.crowd.fill, shade: 0.62, seed: M.seed } } : {}),
+    camera: { name: 'end', worldFraming: { cameraPosition: [0, r3(T.originY - T.halfL - 14), 12], lookAt: [0, T.originY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } },
+    pitch: { ...M, ...(M.title ? {} : { title }) },
+  };
+}
+
+/** The page's data: the game, the sport's dials, the contest compiled, the pitch, the wire a hosting shell speaks. */
+export function teamArenaData(v = {}) {
+  const M = readTeam(v), T = teamPitch(M);
+  const C = contestRead(specOf(M));
+  return { ...M, sport: teamSportDials(M.sport), C, court: T, wire: PITCH_WIRE };
+}

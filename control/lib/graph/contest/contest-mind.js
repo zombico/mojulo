@@ -9,8 +9,10 @@
  * THE TURN MIND (turn-sim.js): at its seat it plans the shot (the club the lie gives, the speed that carries the
  * distance left on the verb's arc, or the roll's line to the pocket and its hook), waits its wait, turns the aim with
  * the stick and releases the press at the meter it wants, each with the level's wobble.
- * THE POSITIONAL MIND (the seed of the team game's teammates): a role's home region, a mark to stand goal-side of,
- * the ball to press when near; the point it goes to is always inside what the kernel says is legal.
+ * THE POSITIONAL MIND (the team game's teammates): a role's home region, a mark to stand goal-side of, the ball to
+ * press when near; the point it goes to is always inside what the kernel says is legal.
+ * THE TEAM MIND (team-sim.js): the computer side's player at the ball: it chases when nearest, shoots in range of
+ * the goal, else passes to the teammate furthest ahead, else carries the ball on toward the goal.
  *
  *   MIND_LEVELS                       { <level>: { react (s), wobble (a share of the stick), pace (a share of the speed),
  *                                       serveWait (s) } }
@@ -18,6 +20,7 @@
  *   courtMind(M, S, who, ctx, sim)     → { x, y, b } the pad it holds this frame (the player's own frame: y toward the net)
  *   predictLanding(sim, state, id, { steps }) → { at: [x, y], t } where the ball meets the floor, or null (a copy is run)
  *   newTurnMind(level, seed), turnMind(M, S, ctx) → { x, y, b } the pad at the seat this frame
+ *   newTeamMind(level, seed), teamMind(M, S, who, ctx) → { x, y, kick: { facing, power } | null } the pad (court frame)
  *   fieldTarget({ me, home, legal, ball?, mark?, press? }) → { to: [x, y], why: 'press' | 'mark' | 'home' } the point a
  *                                       role goes to, clamped into the legal shapes (the kernel's region shapes)
  *   nearestInside(shape, p)            the point of a rect or circle nearest p (p itself when inside)
@@ -264,4 +267,34 @@ export function fieldTarget({ me, home, legal, ball = null, mark = null, press =
   let best = null, bestD = Infinity;
   for (const sh of legal) { const q = nearestInside(sh, want); const d = Math.hypot(q[0] - want[0], q[1] - want[1]); if (d < bestD) { bestD = d; best = q; } if (d === 0) break; }
   return { to: [mr4(best[0]), mr4(best[1])], why, clamped: bestD > 0 };
+}
+
+// ── the team mind ────────────────────────────────────────────────────────────────────────────────────────────
+
+export function newTeamMind(level = 'regular', seed = 1) {
+  if (!MIND_LEVELS[level]) throw new Error(`contest: mind level '${level}' is one of ${MIND_LEVEL_IDS.join(', ')}`);
+  return { level, r: (seed * 2654435761) >>> 0, shootWithin: 20 };
+}
+
+/** The pad the computer side's active player holds this frame, in the court frame, and the kick it wants if any. */
+export function teamMind(M, S, who, ctx) {
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1;
+  const b = S.sim.bodies[0], ball = [b.position[0], b.position[1]], goal = [0, dir * ctx.court.halfL];
+  const wob = () => (mindDice(M) - 0.5) * L.wobble;
+  const toward = (t) => { const d = [t[0] - P.x, t[1] - P.y], n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * L.pace) / n; return [mr4(d[0] * k), mr4(d[1] * k)]; };
+  const d = Math.hypot(ball[0] - P.x, ball[1] - P.y);
+  if (d > ctx.sport.kick.reach * 0.9) return { x: toward(ball)[0], y: toward(ball)[1], kick: null };
+  const toGoal = Math.hypot(goal[0] - ball[0], goal[1] - ball[1]);
+  if (toGoal <= M.shootWithin) {
+    const az = Math.atan2(goal[1] - ball[1], (goal[0] + (mindDice(M) - 0.5) * ctx.sport.goal.width * 0.6) - ball[0]) + wob() * 0.4;
+    return { x: 0, y: 0, kick: { facing: mr4(az), power: 1 } };
+  }
+  // a teammate ahead of the ball, within a pass
+  let mate = null, best = -Infinity;
+  for (const Q of S.p) { if (Q.side !== P.side || Q === P || Q.role === 'keeper') continue; const ahead = (Q.y - ball[1]) * dir, far = Math.hypot(Q.x - ball[0], Q.y - ball[1]); if (ahead > 2 && far < 18 && ahead > best) { best = ahead; mate = Q; } }
+  if (mate && mindDice(M) < 0.7) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(mate.y - ball[1], mate.x - ball[0]) + wob() * 0.3), power: Math.min(0.9, ctx.sport.kick.pass + Math.hypot(mate.x - ball[0], mate.y - ball[1]) / 30) } };
+  // carry on toward the goal, leaning off the centre
+  const t = [ball[0] * 0.5 + wob() * 4, goal[1]];
+  const st = toward(t);
+  return { x: st[0], y: st[1], kick: null };
 }

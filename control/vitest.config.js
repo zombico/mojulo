@@ -22,6 +22,7 @@ export const E2E = [
   'lib/graph/contest/meet-page.live.test.js',
   'lib/graph/contest/court-page.live.test.js',
   'lib/graph/contest/turns-page.live.test.js',
+  'lib/graph/contest/pitch-page.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',
   'lib/graph/science-worlds/relativistic/conformance.chrome.test.js',

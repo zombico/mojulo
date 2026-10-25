@@ -221,6 +221,12 @@ import { emitThreeWorld } from './scene-three.js';
 // turns shape joins the closure) and the court with the minds' (the turn mind and the positional mind join the court
 // mind's module) and the hit's (the turn sports' verbs), additions only; every other page is byte-identical, and a page
 // without a `turns` key emits no block.
+// Pinned 2026-10-25 (battle city: the team game): the `pitch` fixture joins the matrix (a team goal game on a pitch:
+// the pitch block, inlining the same physics and hit modules, the kernel, the minds, the team sim and its arena
+// client, its own frame step `stepPitch`, the camera owned). The `meet`, `court` and `turns` fixtures re-pin with the
+// kernel's source (a goal game's outs and offside join the match shape), the court and the turns with the minds' (the
+// team mind joins the module) and the hit's (the kick's curl), additions only; every other page is byte-identical,
+// and a page without a `pitch` key emits no block.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

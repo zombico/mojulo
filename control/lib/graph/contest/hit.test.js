@@ -55,7 +55,7 @@ describe('the ball off the hit', () => {
     const back = hitVelocity({ verb: 'backhand', register: 'realistic', facing: 0, tipSpeed: 20 });
     expect(back.angularVelocity[1]).toBeLessThan(0);
     const side = hitVelocity({ verb: 'kick', register: 'realistic', facing: 0, tipSpeed: 20 });
-    expect(side.angularVelocity[2]).toBeCloseTo(8 * 2 * Math.PI, 3); expect(side.angularVelocity[0]).toBe(0);
+    expect(side.angularVelocity[2]).toBeCloseTo(2 * 2 * Math.PI, 3); expect(side.angularVelocity[0]).toBe(0);
     expect(hitVelocity({ verb: 'forehand', register: 'pinball', tipSpeed: 20 }).spin.rate).toBe(r(25 * 0.1));
     expect(hitVelocity({ verb: 'serve', register: 'realistic', tipSpeed: 20 }).angularVelocity).toEqual([0, 0, 0]);
     // a ball along +y with topspin spins about -x: the axis turns with the heading

@@ -13,6 +13,7 @@ import { safeJson } from '../emit-util.js';
 import { contestSource } from '../../contest/meet-arena.js';
 import { graphSource, COURT_PAGE_MODULES } from '../../contest/match-arena.js';
 import { TURNS_PAGE_MODULES } from '../../contest/turn-arena.js';
+import { PITCH_PAGE_MODULES } from '../../contest/team-arena.js';
 
 export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'meet-arena.client.js']);
 
@@ -54,5 +55,20 @@ export function turnsChannelScript(cfg) {
 const TURNS_ARENA = ${safeJson(cfg)};
 ${lib}
 stepTurnSport = stepTurnsArena;
+}`;
+}
+
+// pitch channel: a team goal game on the world (lib/graph/contest team-sim.js: soccer, hockey). Opt-in on a world's
+// `pitch` key (a pitch stage: contest/team-arena.js); absent, it adds nothing. One block as the court's: the same
+// physics and hit modules, the kernel, the minds and the team sim inlined by source, then the browser runtime; it hands
+// the page `stepPitch` and publishes `window.__mojPitch`. It owns the camera.
+export function pitchChannelScript(cfg) {
+  const lib = PITCH_PAGE_MODULES.map(graphSource).join('\n');
+  return `
+// ── pitch: the team goal game on this pitch ──
+{
+const PITCH_ARENA = ${safeJson(cfg)};
+${lib}
+stepPitch = stepPitchArena;
 }`;
 }

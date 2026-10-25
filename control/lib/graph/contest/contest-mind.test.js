@@ -1,7 +1,9 @@
 // The court mind: plain, seeded, bounded. Its levels are the mind's skill names; it reads the ball's way on the ball's
 // own physics; it serves when its turn comes and swings when the ball comes into reach.
 import { describe, it, expect } from 'vitest';
-import { MIND_LEVELS, MIND_LEVEL_IDS, newCourtMind, courtMind, predictLanding, predictCrossing, aimStick, serveStick, newTurnMind, turnMind, planShot, fieldTarget, nearestInside } from './contest-mind.js';
+import { MIND_LEVELS, MIND_LEVEL_IDS, newCourtMind, courtMind, predictLanding, predictCrossing, aimStick, serveStick, newTurnMind, turnMind, planShot, fieldTarget, nearestInside, newTeamMind, teamMind } from './contest-mind.js';
+import { newTeam, stepTeam, teamContext } from './team-sim.js';
+import { teamArenaData } from './team-arena.js';
 import { newTurns, stepTurns, turnContext, probeShot, TPAD } from './turn-sim.js';
 import { turnsArenaData } from './turn-arena.js';
 import { contestRead, contestStart, contestLegal, contestRegion } from './contest-kernel.js';
@@ -116,5 +118,27 @@ describe('the positional mind', () => {
     expect(nearestInside({ kind: 'circle', circle: [0, 0, 2] }, [6, 8])).toEqual([1.2, 1.6]);
     expect(nearestInside({ kind: 'rect', rect: [-1, -1, 1, 1] }, [0.5, -0.5])).toEqual([0.5, -0.5]);
     expect(() => fieldTarget({ me: [0, 0] })).toThrow(/fieldTarget is/);
+  });
+});
+
+describe('on the pitch', () => {
+  it('the team mind chases the ball when away from it, shoots in range of the goal, passes to a teammate ahead, else carries on', () => {
+    const ctx = teamContext(teamArenaData({ sport: 'soccer', players: 0, level: 'ace', seed: 4 })), S = newTeam(ctx);
+    const M = newTeamMind('ace', 4), b = S.sim.bodies[0];
+    const P = S.p.find((p) => p.id === 'a5');
+    b.position = [6, 6, b.radius]; P.x = 0; P.y = 0;
+    const chase = teamMind(M, S, 'a5', ctx);
+    expect(chase.kick).toBeNull(); expect(chase.x).toBeGreaterThan(0); expect(chase.y).toBeGreaterThan(0);
+    P.x = 0; P.y = 12; b.position = [0, 12.5, b.radius];   // 12.5 m from b's goal: a shot
+    const shot = teamMind(M, S, 'a5', ctx);
+    expect(shot.kick).toMatchObject({ power: 1 }); expect(Math.abs(shot.kick.facing - Math.PI / 2)).toBeLessThan(0.3);
+    P.x = 0; P.y = -15; b.position = [0, -14.5, b.radius];   // deep in its own half: a pass to the mid or the wing ahead, or a carry
+    const deep = teamMind(M, S, 'a5', ctx);
+    expect(deep.kick === null || deep.kick.power < 1).toBe(true);
+    // a side played by the mind reaches the other half and kicks within a minute of play
+    const E = newTeam(ctx);
+    let n = 0; while (!E.calls.some((c) => c.kind === 'kick' && c.who[0] === 'b') && n++ < 60 * 60) stepTeam(E, [], ctx);
+    expect(E.calls.some((c) => c.kind === 'kick' && c.who[0] === 'b')).toBe(true);
+    expect(() => newTeamMind('grandmaster')).toThrow(/mind level 'grandmaster' is one of/);
   });
 });

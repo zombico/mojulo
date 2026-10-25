@@ -37,6 +37,12 @@
  *       clock?: { periods: n, seconds: n, overtime?: seconds (on a tie; absent: a draw) }
  *       fouls?: { <kind>: 'fault' | 'point' | 'free' | 'warn' }  what a reported foul costs: a serve fault, the point, a free
  *                 restart for the other side, a warning
+ *       outs?: { side?: 'throw-in', end?: 'corner' }   a goal game's ball over a line: a throw-in for the other side where
+ *                 it went out; over an end line, a corner for the attackers when the defenders touched it last, else a
+ *                 goal kick (without `outs`, a free for the other side where it went out)
+ *       offside?: 'ball'   a goal game's offside, read against the ball: a pass received by a teammate who stood past the
+ *                 ball's line, in the other half, when it was played (a `touch` fact carries `atPass`: where the toucher
+ *                 stood at its side's last touch) is a free for the other side where it was received
  *       — a meet —
  *       event: { kind, lanes: n, measure: 'time' | 'distance' | 'height', best?: 'low' | 'high' (time: low), attempts?: n
  *                (a measured event; 1), falseStart?: 'disqualify' | 'warn' (a warning, then disqualified) }
@@ -59,8 +65,9 @@
  *   apply(C, S, fact) → { S, calls }   a fact the movement layer saw, the next state and the calls it made (a point, a
  *                                fault, a let, a game, a set, a gun, a false start, a finish, a mark, the end). A fact
  *                                the rules do not care about now changes nothing and calls nothing.
- *     facts (match): { kind: 'touch', who, at } | { kind: 'bounce', at } | { kind: 'net' } (the ball on the cord) |
- *                    { kind: 'out' } (the ball gone past any line, where the sim knows before a bounce) |
+ *     facts (match): { kind: 'touch', who, at, atPass? } | { kind: 'bounce', at } | { kind: 'net' } (the ball on the cord) |
+ *                    { kind: 'out', at? } (the ball gone past any line, where the sim knows before a bounce; a goal game's
+ *                    carries where) |
  *                    { kind: 'foul', foul: <fouls key>, who, at? } | { kind: 'score', side } (a goal) |
  *                    { kind: 'tick', dt } | { kind: 'resume' } (the restart taken: play is live)
  *     facts (meet):  { kind: 'set' } | { kind: 'tick', dt } | { kind: 'press', who } | { kind: 'finish', who } |
@@ -140,7 +147,7 @@ export function buildContest() {
   }
 
   function readMatch(spec, C) {
-    only(spec, ['shape', 'title', 'players', 'roles', 'court', 'scoring', 'serve', 'rally', 'clock', 'fouls'], 'a match');
+    only(spec, ['shape', 'title', 'players', 'roles', 'court', 'scoring', 'serve', 'rally', 'clock', 'fouls', 'outs', 'offside'], 'a match');
     if (!spec.court) fail('a match has a court');
     C.court = readCourt(spec.court);
     if (!isObj(spec.scoring)) fail('scoring is { points?: rally | serve, ladder: [...] }');
@@ -188,6 +195,21 @@ export function buildContest() {
         if (v === 'fault' && !C.serve) fail(`fouls.${k} costs a serve fault, and this match has no serve`);
         C.fouls[k] = v;
       }
+    }
+    C.outs = null;
+    if (spec.outs !== undefined) {
+      if (!isObj(spec.outs)) fail('outs is { side?: throw-in, end?: corner }');
+      only(spec.outs, ['side', 'end'], 'outs');
+      if (C.rally) fail('outs belong to a goal game: a rally\'s out is the point');
+      if (spec.outs.side !== undefined && spec.outs.side !== 'throw-in') fail('outs.side is throw-in');
+      if (spec.outs.end !== undefined && spec.outs.end !== 'corner') fail('outs.end is corner (a goal kick when the attackers touched it last)');
+      C.outs = { side: spec.outs.side ?? null, end: spec.outs.end ?? null };
+    }
+    C.offside = null;
+    if (spec.offside !== undefined) {
+      if (spec.offside !== 'ball') fail('offside is ball: a pass received past the ball\'s line, in the other half');
+      if (C.rally) fail('offside belongs to a goal game');
+      C.offside = 'ball';
     }
   }
 
@@ -319,7 +341,7 @@ export function buildContest() {
 
   // ── a match ──────────────────────────────────────────────────────────────────────────────────────────────────
 
-  function newBall() { return { side: null, lastSide: null, lastWho: null, bounces: 0, touches: 0, serving: false, netted: false }; }
+  function newBall() { return { side: null, lastSide: null, lastWho: null, bounces: 0, touches: 0, serving: false, netted: false, passAt: null }; }
 
   function startMatch(C, seed) {
     const S = { r: seed >>> 0, n: 0, phase: 'ready', score: { a: C.scoring.ladder.map(() => 0), b: C.scoring.ladder.map(() => 0) }, played: 0, server: null, serverIndex: { a: 0, b: 0 }, served: 0, faults: 0, ball: newBall(), clock: C.clock ? { period: 1, t: 0, overtime: false } : null, restart: null, winner: null, last: null, warned: {} };
@@ -427,7 +449,21 @@ export function buildContest() {
         calls.push({ kind: 'serve', who, into: serveInto(C, S), faults: S.faults });
         return;
       }
-      if (S.phase !== 'live' || !C.rally) return;
+      if (S.phase !== 'live') return;
+      if (!C.rally) {
+        // a goal game: possession is the touch. Offside against the ball: a pass received by a teammate who stood past
+        // the ball's line, in the other half, when its side last played it
+        if (C.offside && B.lastSide === side && B.lastWho !== who && B.passAt && Array.isArray(f.atPass)) {
+          const dir = side === 'a' ? 1 : -1;
+          if (f.atPass[1] * dir > B.passAt[1] * dir + EPS && f.atPass[1] * dir > EPS) {
+            calls.push({ kind: 'foul', foul: 'offside', who, side, cost: 'free' });
+            S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'free', side: opp(side), at: p }; S.last = { kind: 'foul', foul: 'offside', who, cost: 'free' };
+            return;
+          }
+        }
+        B.lastSide = side; B.lastWho = who; B.side = side; B.passAt = p;
+        return;
+      }
       const on = sideOf(C, p);
       if (on && on !== side) { rallyTo(C, S, opp(side), 'reach-over', calls); return; }
       if (B.lastSide === side) {
@@ -444,7 +480,22 @@ export function buildContest() {
     }
     if (k === 'net') { if (S.phase === 'live' && B.serving && B.bounces === 0) B.netted = true; return; }
     if (k === 'out') {
-      if (S.phase !== 'live' || !B.lastSide) return;
+      if (S.phase !== 'live') return;
+      if (!C.rally) {
+        // a goal game: the ball over a line comes back by the restart the game names, where it went out
+        const p = at(f), W = C.court.frame[0] / 2, L = C.court.frame[1] / 2, last = B.lastSide || 'a';
+        const onSide = Math.abs(p[0]) >= W - EPS && Math.abs(p[1]) < L - EPS;
+        let restart;
+        if (onSide || !C.outs || !C.outs.end) restart = { kind: C.outs && C.outs.side ? C.outs.side : 'free', side: opp(last), at: [Math.max(-W, Math.min(W, p[0])), Math.max(-L, Math.min(L, p[1]))] };
+        else {
+          const end = p[1] < 0 ? 'a' : 'b', ey = end === 'a' ? -L : L;   // whose end line
+          restart = last === end ? { kind: 'corner', side: opp(end), at: [p[0] < 0 ? -W : W, ey] } : { kind: 'goal-kick', side: end, at: [0, ey - Math.sign(ey) * L * 0.1] };
+        }
+        S.phase = 'dead'; S.ball = newBall(); S.restart = restart; S.last = { kind: 'out', restart: clone(restart) };
+        calls.push({ kind: 'out', side: restart.side, restart: clone(restart) });
+        return;
+      }
+      if (!B.lastSide) return;
       if (B.serving && B.bounces === 0) { fault(C, S, calls, 'out'); return; }
       // a ball gone after it bounced in on a side was that side's to play
       if (B.side && B.bounces >= C.rally.bounces) { rallyTo(C, S, opp(B.side), 'double-bounce', calls); return; }

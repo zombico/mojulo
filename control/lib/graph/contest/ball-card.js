@@ -44,6 +44,9 @@ export const BALLS = Object.freeze({
   // USBC: at most 16 lb (7.26 kg), 8.5 to 8.595 in across (radius 0.108 m); a dead ball on the lane, e ≈ 0.3; the
   // lane's oil keeps the friction low until the dry back end
   bowling: { mass: 7.26, radius: 0.108, restitution: 0.3, friction: 0.12, aero: null, cited: false, words: 'a bowling ball' },
+  // IIHF: 156 to 170 g, 76.2 mm across, 25.4 mm thick; a disc, not a sphere: it rides the card as a sphere of its own
+  // radius and mass (a disc's air is not flight.js's, and the card says so), dead on the ice, nearly frictionless on it
+  puck: { mass: 0.163, radius: 0.0381, restitution: 0.35, friction: 0.05, aero: null, cited: false, words: 'a puck (a disc on a sphere\'s card)' },
   // ITTF: 2.7 g, 40 mm; a rebound of 24 to 26 cm from 30.5 cm reads e ≈ 0.89 to 0.92
   pingpong: { mass: 0.0027, radius: 0.02, restitution: rebound(25, 30.5), friction: 0.3, aero: null, cited: false, words: 'a table-tennis ball' },
 });
