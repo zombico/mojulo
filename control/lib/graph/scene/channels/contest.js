@@ -11,6 +11,7 @@
 
 import { safeJson } from '../emit-util.js';
 import { contestSource } from '../../contest/meet-arena.js';
+import { graphSource, COURT_PAGE_MODULES } from '../../contest/match-arena.js';
 
 export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'meet-arena.client.js']);
 
@@ -22,5 +23,20 @@ export function meetChannelScript(cfg) {
 const MEET_ARENA = ${safeJson(cfg)};
 ${lib}
 stepContest = stepMeetArena;
+}`;
+}
+
+// court channel: a net game on the world (lib/graph/contest match-sim.js). Opt-in on a world's `court` key (a court
+// stage: contest/match-arena.js); absent, it adds nothing. One block: the ball's flight, the ball card, the swing
+// system, the hit, the physics integrator, the contest kernel, the court mind and the match sim inlined by source, then
+// the browser runtime; it hands the page `stepCourt` and publishes `window.__mojCourt`. It owns the camera.
+export function courtChannelScript(cfg) {
+  const lib = COURT_PAGE_MODULES.map(graphSource).join('\n');
+  return `
+// ── court: the net game on this court ──
+{
+const COURT_ARENA = ${safeJson(cfg)};
+${lib}
+stepCourt = stepCourtArena;
 }`;
 }

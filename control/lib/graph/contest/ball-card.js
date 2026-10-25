@@ -27,22 +27,22 @@
 import { PROJECTILES, RHO_SEA_LEVEL } from '../physics/flight.js';
 
 const SOCCER_AERO = PROJECTILES.soccer.aero;
-const e = (rebound, drop) => Math.round(Math.sqrt(rebound / drop) * 1000) / 1000;
+const rebound = (rebound, drop) => Math.round(Math.sqrt(rebound / drop) * 1000) / 1000;
 
 export const BALLS = Object.freeze({
   // FIFA size 5: 0.43 kg, 0.69 m round; the FIFA Quality rebound of 1.2 to 1.65 m from 2 m on steel reads e ≈ 0.77 to 0.91
   // (mid 0.84); its aero constants are the literature's (physics/flight.js)
-  soccer: { mass: 0.43, radius: 0.1098, restitution: e(1.4, 2), friction: 0.3, aero: SOCCER_AERO, cited: true, words: 'a soccer ball' },
+  soccer: { mass: 0.43, radius: 0.1098, restitution: rebound(1.4, 2), friction: 0.3, aero: SOCCER_AERO, cited: true, words: 'a soccer ball' },
   // ITF: 56.0 to 59.4 g, 6.54 to 6.86 cm across; a rebound of 135 to 147 cm from 254 cm onto concrete reads e ≈ 0.73 to 0.76
-  tennis: { mass: 0.058, radius: 0.0335, restitution: e(141, 254), friction: 0.5, aero: null, cited: false, words: 'a tennis ball' },
+  tennis: { mass: 0.058, radius: 0.0335, restitution: rebound(141, 254), friction: 0.5, aero: null, cited: false, words: 'a tennis ball' },
   // FIVB: 260 to 280 g, 65 to 67 cm round; no rebound rule in the laws, e ≈ 0.75 as measured on a hard floor
   volleyball: { mass: 0.27, radius: 0.105, restitution: 0.75, friction: 0.3, aero: null, cited: false, words: 'a volleyball' },
   // FIBA size 7: 567 to 650 g, 74.9 to 78 cm round; a rebound of 1.2 to 1.4 m from 1.8 m reads e ≈ 0.82 to 0.88
-  basketball: { mass: 0.62, radius: 0.12, restitution: e(1.3, 1.8), friction: 0.5, aero: null, cited: false, words: 'a basketball' },
+  basketball: { mass: 0.62, radius: 0.12, restitution: rebound(1.3, 1.8), friction: 0.5, aero: null, cited: false, words: 'a basketball' },
   // R&A and USGA: at most 45.93 g, at least 42.67 mm across; e ≈ 0.8 against a hard face at low speed
   golf: { mass: 0.04593, radius: 0.021335, restitution: 0.8, friction: 0.4, aero: null, cited: false, words: 'a golf ball' },
   // ITTF: 2.7 g, 40 mm; a rebound of 24 to 26 cm from 30.5 cm reads e ≈ 0.89 to 0.92
-  pingpong: { mass: 0.0027, radius: 0.02, restitution: e(25, 30.5), friction: 0.3, aero: null, cited: false, words: 'a table-tennis ball' },
+  pingpong: { mass: 0.0027, radius: 0.02, restitution: rebound(25, 30.5), friction: 0.3, aero: null, cited: false, words: 'a table-tennis ball' },
 });
 export const BALL_IDS = Object.freeze(Object.keys(BALLS));
 
@@ -60,14 +60,14 @@ export const BALL_CARDS = Object.freeze({
 });
 export const BALL_REGISTERS = Object.freeze(Object.keys(BALL_CARDS));
 
-const fail = (m) => { throw new Error(`ball: ${m}`); };
-const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const r4 = (v) => Math.round(v * 1e4) / 1e4;
+const ballFail = (m) => { throw new Error(`ball: ${m}`); };
+const ballIsObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const br4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /** The register's card; throws naming the registers. */
 export function readBallCard(register = 'realistic') {
   const c = BALL_CARDS[register];
-  if (!c) fail(`register '${register}' is one of ${BALL_REGISTERS.join(', ')}`);
+  if (!c) ballFail(`register '${register}' is one of ${BALL_REGISTERS.join(', ')}`);
   return c;
 }
 
@@ -75,14 +75,14 @@ export function readBallCard(register = 'realistic') {
 export function ballOf(spec = 'soccer') {
   if (typeof spec === 'string') {
     const b = BALLS[spec];
-    if (!b) fail(`'${spec}' is not a ball here (${BALL_IDS.join(', ')}); or write one out: { mass, radius, restitution?, friction?, aero? }`);
+    if (!b) ballFail(`'${spec}' is not a ball here (${BALL_IDS.join(', ')}); or write one out: { mass, radius, restitution?, friction?, aero? }`);
     return { id: spec, ...b };
   }
-  if (!isObj(spec) || !(spec.mass > 0) || !(spec.radius > 0)) fail('a ball written out is { mass (kg), radius (m), restitution?, friction?, aero? }');
-  for (const k of Object.keys(spec)) if (!['mass', 'radius', 'restitution', 'friction', 'aero', 'words'].includes(k)) fail(`a ball has no '${k}' (mass, radius, restitution, friction, aero, words)`);
-  if (spec.restitution !== undefined && !(spec.restitution >= 0 && spec.restitution <= 1)) fail('restitution is 0 to 1');
-  if (spec.friction !== undefined && !(spec.friction >= 0 && spec.friction <= 1)) fail('friction is 0 to 1');
-  if (spec.aero !== undefined && spec.aero !== null && !isObj(spec.aero)) fail('aero is the curve constants { cdSup, cdSub, vCrit, vWidth, clMax, s0 } or null');
+  if (!ballIsObj(spec) || !(spec.mass > 0) || !(spec.radius > 0)) ballFail('a ball written out is { mass (kg), radius (m), restitution?, friction?, aero? }');
+  for (const k of Object.keys(spec)) if (!['mass', 'radius', 'restitution', 'friction', 'aero', 'words'].includes(k)) ballFail(`a ball has no '${k}' (mass, radius, restitution, friction, aero, words)`);
+  if (spec.restitution !== undefined && !(spec.restitution >= 0 && spec.restitution <= 1)) ballFail('restitution is 0 to 1');
+  if (spec.friction !== undefined && !(spec.friction >= 0 && spec.friction <= 1)) ballFail('friction is 0 to 1');
+  if (spec.aero !== undefined && spec.aero !== null && !ballIsObj(spec.aero)) ballFail('aero is the curve constants { cdSup, cdSub, vCrit, vWidth, clMax, s0 } or null');
   return { id: 'custom', mass: spec.mass, radius: spec.radius, restitution: spec.restitution ?? 0.7, friction: spec.friction ?? 0.3, aero: spec.aero ?? null, cited: !!spec.aero, words: spec.words ?? 'a ball' };
 }
 
@@ -91,7 +91,7 @@ export function ballBody(sport, register = 'realistic', { id = 'ball', position 
   const b = ballOf(sport), c = readBallCard(register);
   return {
     id, collider: 'sphere', mass: b.mass, radius: b.radius,
-    restitution: r4(Math.min(1, b.restitution * c.bounce)), friction: b.friction,
+    restitution: br4(Math.min(1, b.restitution * c.bounce)), friction: b.friction,
     position: position.slice(), velocity: velocity.slice(),
   };
 }
@@ -104,14 +104,14 @@ export function ballForces(sport, register = 'realistic', { id = 'ball' } = {}) 
 }
 
 /** The sim's gravity for the card (the platformer's ball falls slower). */
-export const ballGravity = (register = 'realistic', g = 9.81) => [0, 0, -r4(g * readBallCard(register).gravity)];
+export const ballGravity = (register = 'realistic', g = 9.81) => [0, 0, -br4(g * readBallCard(register).gravity)];
 
 /** The arcade's growing rally: the speed a clean hit leaves the ball at, after `hits` clean hits, from `base` m/s. */
 export function rallySpeed(register, hits, base) {
   const c = readBallCard(register);
-  if (!(Number.isInteger(hits) && hits >= 0)) fail('hits is a count of the rally\'s clean hits so far');
+  if (!(Number.isInteger(hits) && hits >= 0)) ballFail('hits is a count of the rally\'s clean hits so far');
   const factor = 1 + c.grow * hits;
-  return r4(base * (c.cap === null ? factor : Math.min(c.cap, factor)));
+  return br4(base * (c.cap === null ? factor : Math.min(c.cap, factor)));
 }
 
 /** What the card does to this ball, and what it leaves out, said. */

@@ -122,10 +122,31 @@ and a ball card's on the ball. Planned, in order:
   - **Not built, said:** the quick game's `meet` goal (the arena plays on its own and hosted; the game shell's level
     is the next step), the hero library's clips on the runners (the stick figure stands in), the throws (a javelin or
     a shot is not a sphere, and the flight model is sphere-only by design).
-- **The net game**, planned: a quick game's `contest` goal (tennis, volleyball, pong), one or two local players, the
-  sides each held to their half by the kernel's legality, the ball on the register's card, the serve a restart the
-  kernel owns, the bounce and the out as facts, the point, game and set the kernel's; a CPU opponent that moves to the
-  ball's predicted bounce and swings on the strike frame at the mind's tiers; no split screen.
+- **The net game**, built as a court the World page plays, with a stopping point: `lib/graph/contest/sports.js` (the
+  book of sports: tennis's spec for the kernel beside its dials, the ball, the strokes, the net, where the server and
+  the receiver stand; a sport asked for by a name the book lacks is refused by name); `contest/match-sim.js` (the match
+  as a pure function of two pads at 60 Hz: the body held to the motion flavors' sprint and build-up register for
+  register, the ball the physics property's sphere on its card, the serve from the hand into the box the point names,
+  the swing's strike window from the swing system, the floor and the cord as the kernel's bounce, net and out facts,
+  the point, game and set the kernel's; in the arcade registers the aimed shot, the arc that lands at the depth the
+  stick asks, lifted over the cord, the speed given up for it; the realistic register is never aimed);
+  `contest/contest-mind.js` (the court mind at the mind's four tiers: it reads the ball's way on the ball's own
+  physics, runs to where it crosses its depth after its reaction, swings in reach at the depth its stick says, serves
+  across into the box after its wait; plain, seeded, bounded); `contest/match-arena.js` (the venue a stage recipe with
+  the stands behind the far baseline and a broadcast camera, `matchArenaData` the page's data, `graphSource` a module
+  inlined by source), `match-arena.client.js` and the `court` channel (`scene/channels/contest.js`: WASD and F or
+  Space, the arrows and the right Shift or the keypad 0; the court's lines from the kernel's regions, the net, the
+  players, the ball and its shadow, the scoreboard in the kernel's words, the hosted wire), hooked up as the meet is
+  (world-scene, channels/index, scene-three, the `court` emit fixture pinned, the engines' marks, test-changed's
+  readers), the e2e `court-page.live.test.js` (the page's exhibition equals Node's frame for frame). What building it
+  corrected: the kernel's double-bounce rule (a ball bounced in and never returned is the striker's point, in the bounce
+  and the out branches; before, the out went to the side that failed to return it), the hit's azimuth (the stick right
+  aims right), the aimed elevation's cord check (a cord past the landing is no cord), the racquet on the player's
+  right. Stopping point: the quick goal `contest` (the shell's level, as `meet`'s), the hero library's clips on the
+  players (stick figures stand in), racquet gear items, the realistic register's depth (a flat forehand at the
+  realistic speed carries past a close target, so the mind's lift sits on the cord's floor; depth there is spin and
+  pace, which the mind does not yet modulate), volleyball and pong on the same sim, no bus emit; no split screen. The
+  eyes gate is open: nobody has watched a rally yet.
 - **Turn sports and the positional mind**, planned: golf and bowling as one shot a turn, hot-seat; the CPU's role
   (a home region, a mark, a press) within the kernel's legal regions, the seed of a team's players.
 - **The team goal game**, planned last: a second local pilot in the controllable runtime (the single-pilot world byte

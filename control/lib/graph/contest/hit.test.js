@@ -33,7 +33,7 @@ describe('the ball off the hit', () => {
     expect(H.azimuth).toBeCloseTo(Math.PI / 2, 4); expect(H.elevation).toBe(8);
     expect(H.velocity[0]).toBeCloseTo(0, 3); expect(H.velocity[1]).toBeGreaterThan(0); expect(H.velocity[2]).toBeGreaterThan(0);
     const right = hitVelocity({ verb: 'forehand', register: 'realistic', facing: 0, stick: [1, 0], tipSpeed: 20 });
-    expect(right.azimuth).toBeCloseTo((-25 * Math.PI) / 180 * -1, 4);   // the stick right turns the aim right of the facing by the spread
+    expect(right.azimuth).toBeCloseTo((-25 * Math.PI) / 180, 4);   // the stick right turns the aim right of the facing (clockwise) by the spread
     const lifted = hitVelocity({ verb: 'forehand', register: 'realistic', facing: 0, stick: [0, 1], tipSpeed: 20 });
     expect(lifted.elevation).toBe(20);
     expect(() => hitVelocity({ verb: 'forehand', stick: [2, 0] })).toThrow(/stick is \[x, y\]/);

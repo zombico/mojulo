@@ -370,6 +370,8 @@ export function buildContest() {
     if (k === 'out') {
       if (S.phase !== 'live' || !B.lastSide) return;
       if (B.serving && B.bounces === 0) { fault(C, S, calls, 'out'); return; }
+      // a ball gone after it bounced in on a side was that side's to play
+      if (B.side && B.bounces >= C.rally.bounces) { rallyTo(C, S, opp(B.side), 'double-bounce', calls); return; }
       rallyTo(C, S, opp(B.lastSide), 'out', calls);
       return;
     }
@@ -386,6 +388,8 @@ export function buildContest() {
         return;
       }
       if (on === B.lastSide) { rallyTo(C, S, opp(on), 'own-side', calls); return; }
+      // a ball that already bounced on this side is that side's to play: its next bounce, in or out, is the point lost
+      if (B.side === on && B.bounces >= C.rally.bounces) { rallyTo(C, S, opp(on), 'double-bounce', calls); return; }
       if (!inside(C, C.rally.in, on, p)) { rallyTo(C, S, opp(B.lastSide), 'out', calls); return; }
       B.side = on; B.bounces += 1; B.touches = 0;
       if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), 'double-bounce', calls);

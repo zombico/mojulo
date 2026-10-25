@@ -1232,6 +1232,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { meetArenaData } = await import('@/lib/graph/contest/meet-arena.js');
     payload.meet = meetArenaData(sketch.manifest.meet);
   }
+  // a net game on a court (contest/match-arena.js): the sport, the players, the register, the contest compiled, the
+  // level wire's names; the page's court channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.court && typeof sketch.manifest.court === 'object') {
+    const { matchArenaData } = await import('@/lib/graph/contest/match-arena.js');
+    payload.court = matchArenaData(sketch.manifest.court);
+  }
   // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
   // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
   // (a city's `board` is its plan's street grid, city/plan: never spots)

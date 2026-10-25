@@ -209,6 +209,12 @@ import { emitThreeWorld } from './scene-three.js';
 // Pinned 2026-10-25 (battle city: the meet): the `meet` fixture joins the matrix (an athletic meet on a track: the meet
 // block, inlining the contest kernel, the meet sim and the arena client, its own frame step `stepContest`, the camera
 // owned). A new fixture only: every other page is byte-identical, and a page without a `meet` key emits no block.
+// Pinned 2026-10-25 (battle city: the court): the `court` fixture joins the matrix (a net game on a court: the court
+// block, inlining the ball's flight, the ball card, the swing system, the hit, the physics integrator, the contest
+// kernel, the court mind, the match sim and the arena client, its own frame step `stepCourt`, the camera owned). The
+// `meet` fixture re-pins with the kernel's source (its double-bounce rule: a ball bounced in and never returned is the
+// striker's point, in the bounce and the out branches), additions only; every other page is byte-identical, and a page
+// without a `court` key emits no block.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

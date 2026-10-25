@@ -37,7 +37,9 @@ export const HIT_VERBS = Object.freeze({
   forehand: Object.freeze({ arc: 8, lift: 12, spin: 'top', rate: 25, power: 1, hands: 1, swing: 'forehand' }),
   backhand: Object.freeze({ arc: 8, lift: 12, spin: 'back', rate: 15, power: 0.9, hands: 1, swing: 'backhand' }),
   // the overhead verbs lift the elbow over the head, which the swing system's law forbids (hero-swing.js): no clip yet
-  serve: Object.freeze({ arc: -6, lift: 6, spin: 'none', rate: 0, power: 1.25, hands: 1, swing: null }),
+  // (a serve struck from 2.8 m at the realistic power, about 29 m/s, clears the cord and lands in the box at −4°: the
+  // stick down is the net, the stick up is long; the arcade registers aim it)
+  serve: Object.freeze({ arc: -4, lift: 4, spin: 'none', rate: 0, power: 1, hands: 1, swing: null }),
   spike: Object.freeze({ arc: -15, lift: 8, spin: 'top', rate: 10, power: 1.3, hands: 1, swing: null }),
   // the volleyball's bare-handed touches (no gear in the hand: the swing door needs an item) and the leg: no clip yet
   bump: Object.freeze({ arc: 60, lift: 10, spin: 'none', rate: 0, power: 0.5, hands: 2, swing: null }),
@@ -57,18 +59,18 @@ export const HIT_REGISTERS = Object.freeze({
   pinball: Object.freeze({ base: 15, gain: 1.5, spread: 30, spin: 0.1 }),
 });
 
-const fail = (m) => { throw new Error(`hit: ${m}`); };
-const r4 = (v) => Math.round(v * 1e4) / 1e4;
+const hitFail = (m) => { throw new Error(`hit: ${m}`); };
+const hr4 = (v) => Math.round(v * 1e4) / 1e4;
 const RAD = Math.PI / 180;
 
 function verbOf(verb) {
   const V = HIT_VERBS[verb];
-  if (!V) fail(`verb '${verb}' is one of ${HIT_VERB_IDS.join(', ')}`);
+  if (!V) hitFail(`verb '${verb}' is one of ${HIT_VERB_IDS.join(', ')}`);
   return V;
 }
 function registerOf(register) {
   const R = HIT_REGISTERS[register];
-  if (!R) fail(`register '${register}' is one of ${Object.keys(HIT_REGISTERS).join(', ')}`);
+  if (!R) hitFail(`register '${register}' is one of ${Object.keys(HIT_REGISTERS).join(', ')}`);
   return R;
 }
 
@@ -77,7 +79,7 @@ export function hitWindow(verb, cls = 'normal', register = 'realistic') {
   const V = verbOf(verb);
   registerOf(register);
   if (!V.swing) return { swing: null, strike: null, window: null, says: `no swing clip plays '${verb}' yet: the hit law holds, the clip is the body's own` };
-  if (!SWING_WORDS.includes(V.swing)) fail(`'${verb}' names a swing '${V.swing}' the swing system does not have`);
+  if (!SWING_WORDS.includes(V.swing)) hitFail(`'${verb}' names a swing '${V.swing}' the swing system does not have`);
   const T = swingTiming(cls, register);
   if (T) return { swing: V.swing, cls, strike: T.strike, window: T.window.slice(), flavor: register };
   const K = swingKeys(V.swing, cls);
@@ -96,35 +98,83 @@ function spinVector(kind, rate, d) {
   if (kind === 'none' || !(w > 0)) return [0, 0, 0];
   // topspin: the top of the ball turns forward, the axis up × d (a ball along +x spins about +y); backspin the other way
   const top = [-d[1], d[0], 0];
-  if (kind === 'top') return top.map((v) => r4(v * w));
-  if (kind === 'back') return top.map((v) => r4(-v * w));
-  return [0, 0, r4(w)];   // side: about the vertical, curling left of the aim (flight.js's curl +)
+  if (kind === 'top') return top.map((v) => hr4(v * w));
+  if (kind === 'back') return top.map((v) => hr4(-v * w));
+  return [0, 0, hr4(w)];   // side: about the vertical, curling left of the aim (flight.js's curl +)
 }
 
-/** The ball's velocity off the hit, by the verb, the register, the stick and the tip's speed, grown by the rally. */
-export function hitVelocity({ verb, register = 'realistic', facing = 0, stick = [0, 0], tipSpeed = 0, hits = 0 } = {}) {
+/**
+ * The ball's velocity off the hit, by the verb, the register, the stick and the tip's speed, grown by the rally.
+ * `elevationDeg` and `speedCap`: the arcade's AIMED shot (the cartoon tennis lands where it aims): the sim hands the
+ * elevation that lands the ball at its chosen depth, in place of the verb's arc and the stick's lift, and the speed it
+ * gives up for it; the realistic register never does (its arc is the verb's and the stick's, and the court is the
+ * player's to find).
+ */
+export function hitVelocity({ verb, register = 'realistic', facing = 0, stick = [0, 0], tipSpeed = 0, hits = 0, elevationDeg, speedCap } = {}) {
   const V = verbOf(verb), R = registerOf(register);
-  if (!Array.isArray(stick) || stick.length !== 2 || !stick.every((s) => Number.isFinite(s) && s >= -1 && s <= 1)) fail('stick is [x, y], each -1 to 1');
-  if (!(Number.isFinite(tipSpeed) && tipSpeed >= 0)) fail('tipSpeed is the swing\'s tip speed at the strike, m/s');
-  if (!(Number.isInteger(hits) && hits >= 0)) fail('hits is the rally\'s clean hits so far');
-  if (!BALL_REGISTERS.includes(register)) fail(`register '${register}' is one of ${BALL_REGISTERS.join(', ')}`);
-  const azimuth = facing + stick[0] * R.spread * RAD;
-  const elevation = (V.arc + stick[1] * V.lift) * RAD;
+  if (!Array.isArray(stick) || stick.length !== 2 || !stick.every((s) => Number.isFinite(s) && s >= -1 && s <= 1)) hitFail('stick is [x, y], each -1 to 1');
+  if (!(Number.isFinite(tipSpeed) && tipSpeed >= 0)) hitFail('tipSpeed is the swing\'s tip speed at the strike, m/s');
+  if (!(Number.isInteger(hits) && hits >= 0)) hitFail('hits is the rally\'s clean hits so far');
+  if (!BALL_REGISTERS.includes(register)) hitFail(`register '${register}' is one of ${BALL_REGISTERS.join(', ')}`);
+  if (elevationDeg !== undefined) {
+    if (register === 'realistic') hitFail('the realistic register takes no aimed elevation: its arc is the verb\'s and the stick\'s');
+    if (!(Number.isFinite(elevationDeg) && elevationDeg > -89 && elevationDeg < 89)) hitFail('elevationDeg is degrees above the court, -89 to 89');
+  }
+  const azimuth = facing - stick[0] * R.spread * RAD;   // the stick right turns the aim right of the facing (clockwise)
+  const elevation = (elevationDeg !== undefined ? elevationDeg : V.arc + stick[1] * V.lift) * RAD;
   const base = (R.base + R.gain * tipSpeed) * V.power;
-  const speed = rallySpeed(register, hits, base);   // the arcade's rally grows the ball by its card
+  // the arcade's rally grows the ball by its card; an aimed shot may give speed up for its depth (speedCap)
+  let speed = rallySpeed(register, hits, base);
+  if (speedCap !== undefined) { if (register === 'realistic') hitFail('the realistic register takes no speed cap: the ball leaves at the tip\'s speed'); if (!(Number.isFinite(speedCap) && speedCap >= 0)) hitFail('speedCap is m/s'); speed = hr4(Math.min(speed, speedCap)); }
 
   const d = [Math.cos(azimuth), Math.sin(azimuth), 0];
-  const velocity = [r4(speed * Math.cos(elevation) * d[0]), r4(speed * Math.cos(elevation) * d[1]), r4(speed * Math.sin(elevation))];
-  const rate = r4(V.rate * R.spin);
-  return { velocity, angularVelocity: spinVector(V.spin, rate, d), speed, azimuth: r4(azimuth), elevation: r4(elevation / RAD), spin: { kind: V.spin, rate } };
+  const velocity = [hr4(speed * Math.cos(elevation) * d[0]), hr4(speed * Math.cos(elevation) * d[1]), hr4(speed * Math.sin(elevation))];
+  const rate = hr4(V.rate * R.spin);
+  return { velocity, angularVelocity: spinVector(V.spin, rate, d), speed, azimuth: hr4(azimuth), elevation: hr4(elevation / RAD), spin: { kind: V.spin, rate } };
+}
+
+/**
+ * THE AIMED ELEVATION — the arc that lands a shot of speed v from height h at range D on gravity g, in degrees: the low
+ * arc, lifted until it clears the cord by a hand when it would not (`net`: { at, height }, the cord so far along the
+ * path and so high; the shot then lands longer for it), or 45 when nothing reaches. A mind reads its stick from it; the
+ * realistic register's player must find it.
+ */
+export function aimedElevation(v, h, D, g, net = null) {
+  const range = (th) => { const s = Math.sin(th), co = Math.cos(th); const vz = v * s, disc = vz * vz + 2 * g * h; return disc < 0 ? 0 : (v * co * (vz + Math.sqrt(disc))) / g; };
+  const zAt = (th, d) => { const co = Math.cos(th); return h + d * Math.tan(th) - (g * d * d) / (2 * v * v * co * co); };
+  const clears = (th) => !net || !(net.at > 0) || net.at >= range(th) || zAt(th, net.at) >= net.height + 0.2;   // a cord past the landing is no cord
+  const Q = Math.PI / 4;
+  if (range(Q) < D) return 45;
+  let lo = -0.3, hi = Q;
+  if (range(lo) >= D) hi = lo; else for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (range(mid) >= D) hi = mid; else lo = mid; }
+  if (clears(hi)) return hr4((hi * 180) / Math.PI);
+  let a = hi, b = Math.PI / 3;
+  if (!clears(b)) return hr4((b * 180) / Math.PI);
+  for (let i = 0; i < 40; i++) { const mid = (a + b) / 2; if (clears(mid)) b = mid; else a = mid; }
+  return hr4((b * 180) / Math.PI);
+}
+
+/**
+ * THE AIMED SHOT — the arcade's (the cartoon tennis lands where it aims): the fastest speed up to `v` whose arc clears
+ * the cord and still lands at D, and that arc. A shot too fast to land in gives up speed for its depth; nothing is ever
+ * aimed into the net or past the line on purpose.  → { speed, elevationDeg }
+ */
+export function aimedShot(v, h, D, g, net = null) {
+  const landsAt = (u) => { const th = (aimedElevation(u, h, D, g, net) * Math.PI) / 180, s = Math.sin(th), co = Math.cos(th); const vz = u * s, disc = vz * vz + 2 * g * h; return disc < 0 ? 0 : (u * co * (vz + Math.sqrt(disc))) / g; };
+  const fits = (u) => landsAt(u) <= D + 0.5;
+  if (fits(v)) return { speed: hr4(v), elevationDeg: aimedElevation(v, h, D, g, net) };
+  let lo = 4, hi = v;
+  if (!fits(lo)) return { speed: hr4(lo), elevationDeg: aimedElevation(lo, h, D, g, net) };
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+  return { speed: hr4(lo), elevationDeg: aimedElevation(lo, h, D, g, net) };
 }
 
 /** The hit on a sim body: the impulse that takes it from its velocity to the hit's, its new spin, and the kernel's fact. */
 export function hitBall({ ball, who, at, ...rest }) {
-  if (!ball || !(ball.mass > 0) || !Array.isArray(ball.velocity)) fail('ball is the sim body: { mass, velocity }');
-  if (typeof who !== 'string' || !who) fail('who is the player that hit it (a1, b2 …)');
-  if (!Array.isArray(at) || at.length < 2) fail('at is where the ball was hit, [x, y] in the court frame');
+  if (!ball || !(ball.mass > 0) || !Array.isArray(ball.velocity)) hitFail('ball is the sim body: { mass, velocity }');
+  if (typeof who !== 'string' || !who) hitFail('who is the player that hit it (a1, b2 …)');
+  if (!Array.isArray(at) || at.length < 2) hitFail('at is where the ball was hit, [x, y] in the court frame');
   const H = hitVelocity(rest);
-  const impulse = H.velocity.map((v, i) => r4(ball.mass * (v - (ball.velocity[i] || 0))));
+  const impulse = H.velocity.map((v, i) => hr4(ball.mass * (v - (ball.velocity[i] || 0))));
   return { impulse, velocity: H.velocity, angularVelocity: H.angularVelocity, speed: H.speed, spin: H.spin, fact: { kind: 'touch', who, at: [at[0], at[1]] } };
 }

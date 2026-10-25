@@ -31,6 +31,7 @@ import { CONTROL, importGraph, testsReaching, isTest } from './test-graph.mjs';
 export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/versus\/[^/]+\.js$/, by: ['lib/graph/versus/versus-page.js'], why: 'the versus page inlines its modules and clients' },
   { reads: /^lib\/graph\/contest\/(contest-kernel|meet-sim|meet-arena\.client)\.js$/, by: ['lib/graph/contest/meet-arena.js'], why: 'the meet channel inlines the contest kernel, the meet sim and the arena client' },
+  { reads: /^lib\/graph\/(physics\/flight|contest\/ball-card|polygonizer\/hero-swing|contest\/hit|worlds\/physics-sim|contest\/contest-kernel|contest\/contest-mind|contest\/match-sim|contest\/match-arena\.client)\.js$/, by: ['lib/graph/contest/match-arena.js'], why: 'the court channel inlines the ball\'s flight, the ball card, the swing system, the hit, the physics integrator, the kernel, the mind and the match sim' },
   { reads: /^lib\/graph\/gameworld\/feel\/(cards|kernel|page\.client)\.js$/, by: ['lib/graph/gameworld/feel/page.js'], why: 'the action lab page inlines its kernel' },
   { reads: /^lib\/graph\/pixelizer\/[^/]+\.js$/, by: ['lib/graph/pixelizer/brickster-shell.js', 'lib/graph/pixelizer/philosophers-stone-shell.js'], why: 'the pixelizer shells inline their siblings' },
   { reads: /^lib\/graph\/(worlds\/controllable\/[^/]+|scene\/scene-three|scene\/engine-score|scene\/channels\/events)\.js$/, by: ['lib/graph/scene/engines/mark-sources.js', 'lib/graph/scene/godot-marks.test.js'], why: 'the engine marks scan the runtime\'s source for its keys' },

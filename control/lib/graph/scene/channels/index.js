@@ -18,7 +18,7 @@ import { fxChannelScript } from './fx.js';
 import { gameChannelScript } from './game.js';
 import { versusChannelScript } from './versus.js';
 import { boardChannelScript } from './board.js';
-import { meetChannelScript } from './contest.js';
+import { meetChannelScript, courtChannelScript } from './contest.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
@@ -252,6 +252,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // an athletic meet on a track (lib/graph/contest); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojMeet'] },         // the meet's state and phase, for probes
+  { key: 'court', anchor: 'post-capture', script: courtChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a net game on a court (lib/graph/contest); it owns the camera
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojCourt'] },        // the match's state and phase, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -337,7 +341,7 @@ export { shootChannelScript } from './shoot.js';
 export { shootSetScript } from './shoot-set.js';
 export { versusChannelScript } from './versus.js';
 export { boardChannelScript } from './board.js';
-export { meetChannelScript } from './contest.js';
+export { meetChannelScript, courtChannelScript } from './contest.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';
