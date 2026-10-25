@@ -12,6 +12,7 @@ import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
 import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
+import { titleScript, titleHex } from './title-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
 import { rimScript } from '../effect-rim.js';
@@ -71,17 +72,21 @@ const GATE_CSS = [
 // Toasts spawn one element per firing (capped per widget) that rises + fades on the same clock;
 // an event toast reads its `{event.*}` fields from the frame's INCOMING list (the log keeps type
 // only), a var toast from the var's change since the last frame (first frame seeds, never fires).
-function hudScript(widgets, style, register, menus = null) {
+// `titles` (game/title-carve.js carveTitles, carried as events.titles) splices the title channel: the title widgets' words as
+// 3D letters (title-channel.js), their colour resolved here to the hex the letters are baked in. Absent ⇒ not a byte.
+function hudScript(widgets, style, register, menus = null, titles = null, juice = null) {
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
-  const accentDefault = (w) => w.kind === 'banner' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
-  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : '') }));
+  const accentDefault = (w) => w.kind === 'banner' || w.kind === 'title' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
+  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? { hex: titleHex(w.color, style) } : {}) }));
   const gated = widgets.some((w) => w.id || w.when);
   const on = (x) => (gated ? ` && __hudOn(${x})` : '');
+  const titled = !!titles && widgets.some((w) => w.kind === 'title');
   return `// HUD: the screen-space widget layer (hud-widgets.js) — a column per slot, a widget per row.
 const __HUD = ${safeJson(rows)};
 const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};${gated ? `
-const __hudGated = [], __UI_STATES = ${JSON.stringify(UI_STATES)};` : ''}
+const __hudGated = [], __UI_STATES = ${JSON.stringify(UI_STATES)};` : ''}${titled ? `
+const __hudTitles = [];   // the carved banners: fired and stepped by the title channel below` : ''}
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
   const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${gated ? GATE_CSS : ''}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}${menus && register && register.inventory ? inventoryCss(register.inventory) : ''}`)}; document.head.appendChild(st);
@@ -101,7 +106,8 @@ const __TOAST_CAP = 8, __TOAST_RISE = 28;
       else { el.appendChild(lbl); el.appendChild(val); }
       __hudEls.push({ w: w, val: val, fill: fill });
     } else if (w.kind === 'banner') { el.textContent = w.text; el.classList.add('moj-hidden'); __hudBanners.push({ w: w, el: el, until: 0 }); }
-    else if (w.kind === 'toast') { col(w.slot); __hudToasts.push({ w: w, prev: null, n: 0 }); return; }   // spawns per firing; no standing element
+    else if (w.kind === 'toast') { col(w.slot); __hudToasts.push({ w: w, prev: null, n: 0 }); return; }   // spawns per firing; no standing element${titled ? `
+    else if (w.kind === 'title') { __hudTitles.push({ w: w, run: null, seq: 0 }); return; }   // carved letters in the scene; no element` : ''}
     else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
 ${gated ? `    if (w.id || w.when) __hudGated.push({ w: w, el: el });
 ` : ''}    col(w.slot).appendChild(el);
@@ -158,7 +164,8 @@ function __syncHud(t, incoming) {
   if (log.length < __hudLogN) __hudLogN = 0;
   for (let i = __hudLogN; i < log.length; i++) {
     const ev = log[i]; if (!ev || !ev.type) continue;
-    for (const b of __hudBanners) if (__hudGlob(ev.type, b.w.on)${on('b.w')}) { b.el.textContent = __hudSubst(b.w.text); b.el.classList.remove('moj-hidden'); b.until = (t || 0) + b.w.ttl * 1000; }
+    for (const b of __hudBanners) if (__hudGlob(ev.type, b.w.on)${on('b.w')}) { b.el.textContent = __hudSubst(b.w.text); b.el.classList.remove('moj-hidden'); b.until = (t || 0) + b.w.ttl * 1000; }${titled ? `
+    for (const tt of __hudTitles) if (__hudGlob(ev.type, tt.w.on)${on('tt.w')}) __ttFire(tt, __hudSubst(tt.w.text), t);` : ''}
     for (const tw of __hudToasts) if (tw.w.on && __hudGlob(ev.type, tw.w.on)${on('tw.w')}) {
       let src = null; const inc = incoming || [];   // the firing event's fields: the last incoming of that type this frame
       for (let k = inc.length - 1; k >= 0; k--) if (inc[k] && inc[k].type === ev.type) { src = inc[k]; break; }
@@ -177,8 +184,9 @@ function __syncHud(t, incoming) {
     l.el.style.opacity = String(1 - p * p); l.el.style.transform = 'translateY(' + (-__TOAST_RISE * p).toFixed(1) + 'px)';
   }
   for (const b of __hudBanners) if (b.until && (t || 0) >= b.until) { b.el.classList.add('moj-hidden'); b.until = 0; }
-  for (const l of __hudTimed) if (l.until >= 0 && (t || 0) - __hudT0 >= l.until) { l.el.classList.add('moj-hidden'); l.until = -1; }
-}`;
+  for (const l of __hudTimed) if (l.until >= 0 && (t || 0) - __hudT0 >= l.until) { l.el.classList.add('moj-hidden'); l.until = -1; }${titled ? `
+  __ttStep(t || 0);` : ''}
+}${titled ? titleScript(titles, { register: juice }) : ''}`;
 }
 
 // In-page script: the EVENTS channel — the in-world bus (event-bus.plan.md). This is the MEMBRANE
@@ -232,9 +240,13 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu
   const minigames = !!(events.minigames && typeof events.minigames === 'object');   // play.minigames: the games inside the game
-  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
+  // the carved titles (events.titles, game/title-carve.js): the glyph atlas rides its own constant in the title channel, not
+  // the bus's EVENTS; the letters are baked in the composed floor's register (anime unless the floor says western)
+  const { titles = null, ...evPage } = events;
+  const juiceRegister = titles && titles.register === 'western' ? 'western' : fxs && typeof fxs === 'object' && fxs.register === 'western' ? 'western' : 'anime';
+  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus, titles, juiceRegister) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
-const EVENTS = ${safeJson(events)};
+const EVENTS = ${safeJson(titles ? evPage : events)};
 const __BUS = (${buildBus.toString()})();
 const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);${stats ? `
 const __STATS = (${buildStats.toString()})();   // levels, resources, purchases, epochs, tech ranks; scalings on the cast's ops` : ''}

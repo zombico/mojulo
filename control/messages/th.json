@@ -794,5 +794,33 @@
         "other": "อื่นๆ"
       }
     }
+  },
+  "gameTitles": {
+    "round": "รอบ {round}",
+    "fight": "สู้!",
+    "ko": "น็อกเอาต์",
+    "victory": "ชนะ",
+    "defeat": "แพ้",
+    "draw": "เสมอ",
+    "ready": "พร้อมไหม?",
+    "go": "ไป!",
+    "start": "เริ่ม",
+    "finish": "เส้นชัย",
+    "gameOver": "เกมจบ",
+    "levelClear": "ผ่านด่าน",
+    "stageClear": "ผ่านฉาก",
+    "timeUp": "หมดเวลา",
+    "paused": "หยุดชั่วคราว",
+    "perfect": "สมบูรณ์แบบ!",
+    "newRecord": "สถิติใหม่",
+    "youWin": "คุณชนะ",
+    "youLose": "คุณแพ้",
+    "wave": "ระลอก {wave}",
+    "boss": "บอส",
+    "continue": "เล่นต่อไหม?",
+    "combo": "คอมโบ {combo}",
+    "checkpoint": "จุดตรวจ",
+    "goal": "โกล!",
+    "bonus": "โบนัส"
   }
 }

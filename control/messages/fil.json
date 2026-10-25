@@ -794,5 +794,33 @@
         "other": "Iba pa"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Round {round}",
+    "fight": "Laban!",
+    "ko": "K.O.",
+    "victory": "Tagumpay",
+    "defeat": "Talo",
+    "draw": "Tabla",
+    "ready": "Handa?",
+    "go": "Go!",
+    "start": "Simula",
+    "finish": "Tapos",
+    "gameOver": "Game Over",
+    "levelClear": "Tapos ang Level",
+    "stageClear": "Tapos ang Stage",
+    "timeUp": "Ubos na ang Oras",
+    "paused": "Naka-pause",
+    "perfect": "Perpekto!",
+    "newRecord": "Bagong Rekord",
+    "youWin": "Panalo Ka",
+    "youLose": "Talo Ka",
+    "wave": "Wave {wave}",
+    "boss": "Boss",
+    "continue": "Magpatuloy?",
+    "combo": "{combo} Combo",
+    "checkpoint": "Checkpoint",
+    "goal": "Goal!",
+    "bonus": "Bonus"
   }
 }

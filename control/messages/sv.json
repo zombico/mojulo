@@ -794,5 +794,33 @@
         "other": "Övrigt"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Rond {round}",
+    "fight": "Slåss!",
+    "ko": "K.O.",
+    "victory": "Seger",
+    "defeat": "Förlust",
+    "draw": "Oavgjort",
+    "ready": "Redo?",
+    "go": "Kör!",
+    "start": "Start",
+    "finish": "Mål",
+    "gameOver": "Spelet är slut",
+    "levelClear": "Nivå klarad",
+    "stageClear": "Bana klarad",
+    "timeUp": "Tiden är ute",
+    "paused": "Pausat",
+    "perfect": "Perfekt!",
+    "newRecord": "Nytt rekord",
+    "youWin": "Du vann",
+    "youLose": "Du förlorade",
+    "wave": "Våg {wave}",
+    "boss": "Boss",
+    "continue": "Fortsätta?",
+    "combo": "{combo} kombo",
+    "checkpoint": "Checkpoint",
+    "goal": "Mål!",
+    "bonus": "Bonus"
   }
 }

@@ -794,5 +794,33 @@
         "other": "Overig"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Ronde {round}",
+    "fight": "Vecht!",
+    "ko": "K.O.",
+    "victory": "Overwinning",
+    "defeat": "Nederlaag",
+    "draw": "Gelijkspel",
+    "ready": "Klaar?",
+    "go": "Start!",
+    "start": "Start",
+    "finish": "Finish",
+    "gameOver": "Game Over",
+    "levelClear": "Level gehaald",
+    "stageClear": "Stage gehaald",
+    "timeUp": "Tijd is op",
+    "paused": "Gepauzeerd",
+    "perfect": "Perfect!",
+    "newRecord": "Nieuw record",
+    "youWin": "Je wint",
+    "youLose": "Je verliest",
+    "wave": "Golf {wave}",
+    "boss": "Baas",
+    "continue": "Doorgaan?",
+    "combo": "{combo} combo",
+    "checkpoint": "Checkpoint",
+    "goal": "Goal!",
+    "bonus": "Bonus"
   }
 }

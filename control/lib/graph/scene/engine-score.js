@@ -333,7 +333,11 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   const sound = levelSound(payload.audio, sketch?.ref);
   if (sound?.sounds.length) ledger.sfx_carried = { count: sound.sounds.length, note: `action sounds ride score.json \`audio\` (bus events, footsteps, shots, swings) as one-shot WAVs${sound.score.variants > 1 ? `, ${sound.score.variants} takes each` : ''}; the Godot kernel plays them (kernel/sound.gd, an AudioStreamRandomizer per sound on the SFX bus, which ducks the music); Unity and Unreal carry the data` };
   if (sound?.combat) ledger.combat_music_carried = { note: 'the fight score ships beside the soundtrack and the Godot kernel changes to it on the bar line when the tension the level\'s events raise reaches its threshold, and back after the hold (kernel/sound.gd, the page\'s meter); Unity and Unreal play the explore score only' };
-  const hudWidgets = normalizeHud(payload.events?.hud).widgets;
+  // a carved title (hud-widgets.js `as: 'title'`, the web's 3D letters) travels as the kernel's banner: the same words at
+  // the same firing, on a plate; the carve, the look and the entrance stay the web's
+  const hudWidgets = normalizeHud(payload.events?.hud).widgets.map((w) => (w.kind === 'title' ? { kind: 'banner', on: w.on, text: w.text, slot: w.slot, ttl: w.ttl, ...(w.color ? { color: w.color } : {}), ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) } : w));
+  const titleCount = normalizeHud(payload.events?.hud).widgets.filter((w) => w.kind === 'title').length;
+  if (titleCount) ledger.titles_as_banners = { count: titleCount, note: 'carved title cards (the web page\'s 3D letters, their entrance and sparks) ride score.json `hud` as banners: the same words at the same firing, drawn on the kernel\'s plate' };
   if (hudWidgets.length) {
     ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel draws them as the page does (kernel/hud.gd: slots, text / counter / bar / clock, banners, stacking toasts, legends, a part\'s show / hide / state and its phases) in the guide\'s tokens, font and frame and plate dials (`hudStyle`); the register\'s motion, sound, cursor and light stay the web\'s; without a bus the kernels paint their own readout from `mechanics`' };
   }

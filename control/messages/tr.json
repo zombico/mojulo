@@ -794,5 +794,33 @@
         "other": "Diğer"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Raunt {round}",
+    "fight": "Dövüş!",
+    "ko": "Nakavt",
+    "victory": "Zafer",
+    "defeat": "Yenilgi",
+    "draw": "Berabere",
+    "ready": "Hazır?",
+    "go": "Başla!",
+    "start": "Başla",
+    "finish": "Bitiş",
+    "gameOver": "Oyun Bitti",
+    "levelClear": "Seviye Tamamlandı",
+    "stageClear": "Bölüm Tamamlandı",
+    "timeUp": "Süre Doldu",
+    "paused": "Duraklatıldı",
+    "perfect": "Mükemmel!",
+    "newRecord": "Yeni Rekor",
+    "youWin": "Kazandın",
+    "youLose": "Kaybettin",
+    "wave": "Dalga {wave}",
+    "boss": "Patron",
+    "continue": "Devam?",
+    "combo": "{combo} Kombo",
+    "checkpoint": "Kontrol Noktası",
+    "goal": "Gol!",
+    "bonus": "Bonus"
   }
 }

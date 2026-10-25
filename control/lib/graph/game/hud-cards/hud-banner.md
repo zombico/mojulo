@@ -19,6 +19,10 @@
 The screen-space sibling of `gameOverFreeze({ banner })` (which toggles an ENTITY on — the gold
 sphere in whack-a-mole). Use both: the entity is the world's tell, the banner is the words.
 
+A banner that should read like a game's announcement rather than a plate of words — ROUND 1,
+FIGHT!, K.O. — is a **title** (`as: 'title'`, card `hud-title`): the same row, its words carved into
+3D letters and slammed onto the screen. A text may name a word in the world's language: `'@fight'`.
+
 ## Toast
 
 The damage number. Where a banner REPLACES itself on each firing, a toast STACKS: every firing is

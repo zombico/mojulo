@@ -33,6 +33,8 @@ describe('parts a cue gates', () => {
     expect(rows[0]).toMatchObject({ var: 'gold', id: 'gold' });
     expect(rows[2]).toMatchObject({ on: 'cue:win', when: [2] });
     expect(rows[3]).toMatchObject({ text: 'Press start', when: [0] });
+    // a banner part carved: its as, look and style ride the row (hud-widgets.js `as: 'title'`)
+    expect(lowerParts([{ part: 'banner', bind: { on: 'fight' }, text: '@fight', as: 'title', look: 'stamp', style: 'blocky', color: 'harm' }], PLAY.phases)).toEqual([{ on: 'fight', text: '@fight', as: 'title', look: 'stamp', style: 'blocky', color: 'harm' }]);
     expect(() => lowerParts([{ part: 'legend', text: 'x', when: ['paused'] }], PLAY.phases)).toThrow(/'paused', which is no phase/);
     const { widgets, errors } = normalizeHud(rows);
     expect(errors).toEqual([]);
