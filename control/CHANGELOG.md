@@ -26,17 +26,39 @@ attempts: the athletic events) and a MATCH (sides, a ball, possession, zones who
 register ladder from a simulation to an arcade game (a tennis to a cartoon tennis) is the feel card's axis on the body
 and a ball card's on the ball. Planned, in order:
 
-- **The registry sees sport**, planned: probes for a meet, a net game, a turn sport and a team goal game in the cosmos
-  fixtures, and the facet values they ask for (the `meet` and `contest` mechanics, a `team` party, a `court` level
-  form, a `position` motivation), priced as one package, so the hill-climb page records the gap and the move.
-- **The contest kernel**, planned: one self-contained closure, pure and seeded, a contest as data (sides, players,
-  roles with home regions, a court of named regions mirrored for the other side, a clock, the scoring and its win, the
-  possession rule, the fouls and the restarts; for a meet, the event, its lanes, attempts, measure and faults). It
-  reads facts the movement layer saw (a touch, a bounce in a region, a ball out, a body in a region, a false start)
-  and answers what is legal now, the phase, the clock, the score and the last call. Fixtures in the data alone, one
-  per procedure (tennis's scoring sequence and its let and fault, volleyball's touches and rotation, a sprint's gun
-  and false start, a long jump's attempts and foul line); a published game asked for by name is written out from the
-  rules the person explains, as the tabletop kernel's rule already says.
+- **The registry sees sport**, built: probes for an athletics meet, a net game, a turn sport and a team goal game in
+  the cosmos fixtures, and the facet values they ask for (the `meet` and `contest` mechanics as the mechanics table's
+  planned values, a `team` party, a `court` level form, a `position` motivation), each absent and priced as one
+  package, so the hill-climb page records the gap and the move: every probe reads blocked, naming the values it waits
+  on, and the package ranks first of the priced packages by worlds lifted per effort. Each probe is a genre with the
+  words a brief uses for it (a sport named is its shape's: "tennis" the net game, "football" the team game, "golf" the
+  turn sport, "hurdles" the meet; "race" stays the car's), raises its concerns (a court with its lines mirrored for the
+  other side and a broadcast camera; room for a side), and plays in the realistic flavor until the operator's word moves
+  it toward the arcade.
+- **The contest kernel** (`lib/graph/contest/contest-kernel.js`), built: one self-contained closure (`buildContest`),
+  pure and seeded as the board kernel is, a contest as data. A MATCH: a court of named regions (a rectangle or a
+  circle in metres, the net at the middle) written for one side and mirrored for the other, half-turn or reflected, or
+  shared; a ladder of scoring units, the lowest first (a unit won at `to` ahead by `by` resets and adds one to the next;
+  tennis's game is four by two named 0 15 30 40, and the scoreboard says deuce and advantage; a unit with no `to` is the
+  clock's); a serve (into a region, or regions cycled by the game's points; so many faults lose the point; a let off the
+  cord; the serve changing hands by the game, by points, or on a side-out, each side's servers rotating) or a kickoff;
+  the rally's rules (where a bounce is in, how many bounces a side, how many touches, the same player twice); a clock
+  of periods with overtime or a draw; fouls that cost a serve fault, the point, a free restart for the other side, or a
+  warning; rally or side-out scoring. A MEET: lanes, the set, a gun on the kernel's seeded delay, a false start that
+  disqualifies or warns once, a race measured from the gun, or attempts measured in metres with fouls, placings by the
+  best. The kernel reads FACTS the movement layer saw (a touch by whom and where, a bounce where, the ball on the cord,
+  the ball out, a foul, a goal, the clock's tick, the restart taken; a runner's press, finish or mark) and answers what
+  each player may do now (its regions, whether it may touch, whether it serves), the phase, the score, the clock and
+  every call (a point and why, a fault, a let, a game, a set, a period, the gun, a false start, the end). A fact the
+  rules do not care about changes nothing. It never integrates a body or a ball, and the agent never adjudicates.
+  Fixtures in the data alone, one per procedure and not in the book: singles tennis, volleyball, a goal game on a
+  clock, a sprint, the long jump. The tests hold the concept on them (the diagonal serve into the box the point names,
+  the fault and the double fault, the let, the volleyed serve, reaching over, the ladder to a set and a match, three
+  touches and the side-out rotation, kickoff and the free, the periods and the draw and overtime, the gun's clock, a
+  disqualification, the best of three attempts), that the same seed and facts are the same contest to the byte, that
+  the closure runs from its own source with no imports, and that it never mutates a state. A published game asked for
+  by name is written out from the rules the person explains, as the tabletop kernel's rule already says; tiebreaks,
+  possession by carry and offside wait on the team game.
 - **The ball and the hit**, planned: the ball is the physics property's sphere (mass, restitution, friction, spin, its
   contacts emitted as facts), already live on the World page; a ball card per register names its bounce, its drag and
   whether it flies in real air (the realistic card adds the spin-aware flight model's drag crisis and Magnus lift as a

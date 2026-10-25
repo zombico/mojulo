@@ -1,0 +1,534 @@
+/**
+ * THE CONTEST KERNEL — the game state of a sport as a pure function of the facts the movement layer saw: who touched
+ * the ball and where, where it bounced, that it went out, that a runner pressed before the gun, that the clock ran.
+ * It answers what is legal now, the phase, the score, the clock and the last call. It never integrates a body or a
+ * ball (the physics property's sphere and the platform rule do that) and the agent never adjudicates: the kernel calls
+ * every point.
+ *
+ * SINGLE SOURCE OF TRUTH, the board kernel's discipline (board/board-kernel.js): everything lives inside
+ * `buildContest()`, a closure referencing nothing outside itself, so a page runs the same code by emitting
+ * `buildContest.toString()`. Node imports the live instance below. Pure and seeded: no clock, no Math.random; the dice
+ * are mulberry32 on the state (S.r) from the contest's seed (the toss, the gun's delay), and `apply` returns a new
+ * state, so the same start and the same facts are the same contest to the byte.
+ *
+ * Two shapes of contest, one kernel:
+ *   match   sides, a ball, possession, a court of named regions mirrored for the other side, a ladder of scoring
+ *           units (points into games into sets), a serve or a kickoff as the restart, a clock with periods
+ *   meet    an athletic event: lanes, a set and a gun, a false start, a measure (time, distance, height), attempts
+ *
+ *   read(spec) → C   the contest compiled; throws on what it cannot read, teaching the shape
+ *     spec: {
+ *       shape: 'match' | 'meet', title?,
+ *       players?: n (a side; 1), roles?: { <role>: { home: <region> } } (a side's players by role, in order),
+ *       court?: { frame: [width, depth] (m; x across, y along, the centre 0,0; side a's end is y < 0), mirror: 'half-turn' |
+ *                'reflect' (how side b's regions are made from side a's), regions: { <name>: { rect: [x0, y0, x1, y1] } |
+ *                { circle: [cx, cy, r] }, each with shared?: true (the same for both sides) } }
+ *       — a match —
+ *       scoring: { points?: 'rally' (every rally scores; default) | 'serve' (only the serving side scores: side-out),
+ *                  ladder: [{ unit, to?, by?, names? }, …] } the lowest unit first; winning a unit (to, ahead by `by`, 1)
+ *                  resets it and adds one to the next; the top unit's win ends the match; a unit with no `to` is won by
+ *                  the clock (the most at the end); names: what each count is called (tennis's 0 15 30 40)
+ *       serve?: { into: <region> | [regions, cycled by the game's points], faults?: 2, let?: true, rotate?: 'game' | 'point'
+ *                 | 'side-out', every?: n (points a 'point' rotation serves in a row; 1) }
+ *       rally?: { in?: <region> ('half'), bounces?: 1 (a side may let it bounce so many times), touches?: 1 (a side may touch
+ *                 it so many times before it crosses), sameTwice?: true (one player twice in a row) }
+ *       clock?: { periods: n, seconds: n, overtime?: seconds (on a tie; absent: a draw) }
+ *       fouls?: { <kind>: 'fault' | 'point' | 'free' | 'warn' }  what a reported foul costs: a serve fault, the point, a free
+ *                 restart for the other side, a warning
+ *       — a meet —
+ *       event: { kind, lanes: n, measure: 'time' | 'distance' | 'height', best?: 'low' | 'high' (time: low), attempts?: n
+ *                (a measured event; 1), falseStart?: 'disqualify' | 'warn' (a warning, then disqualified) }
+ *     }
+ *   start(C, seed) → S          the first state: the toss (match: who serves or kicks off), the lanes drawn (meet)
+ *   legal(C, S, who) → { regions, touch, serve, may }   where `who` may stand (region names on its side), whether it may
+ *                                touch the ball, whether it is the server; a meet's runner: its lane and what it may do
+ *   apply(C, S, fact) → { S, calls }   a fact the movement layer saw, the next state and the calls it made (a point, a
+ *                                fault, a let, a game, a set, a gun, a false start, a finish, a mark, the end). A fact
+ *                                the rules do not care about now changes nothing and calls nothing.
+ *     facts (match): { kind: 'touch', who, at } | { kind: 'bounce', at } | { kind: 'net' } (the ball on the cord) |
+ *                    { kind: 'out' } (the ball gone past any line, where the sim knows before a bounce) |
+ *                    { kind: 'foul', foul: <fouls key>, who, at? } | { kind: 'score', side } (a goal) |
+ *                    { kind: 'tick', dt } | { kind: 'resume' } (the restart taken: play is live)
+ *     facts (meet):  { kind: 'set' } | { kind: 'tick', dt } | { kind: 'press', who } | { kind: 'finish', who } |
+ *                    { kind: 'mark', who, value, foul? }
+ *   display(C, S) → { score: { a: [words], b: [words] }, phase, clock }   the scoreboard's words (deuce, advantage)
+ *   region(C, name, side) → the shape on that side; inside(C, name, side, p); sideOf(C, p) → 'a' | 'b' | null (the net)
+ *   players(C) → ['a1', 'a2', …, 'b1', …]; sideOf a player id is its first letter
+ */
+
+export function buildContest() {
+  const SIDES = ['a', 'b'];
+  const SHAPES = ['match', 'meet'];
+  const MIRRORS = ['half-turn', 'reflect'];
+  const MEASURES = ['time', 'distance', 'height'];
+  const ROTATES = ['game', 'point', 'side-out'];
+  const FOUL_COSTS = ['fault', 'point', 'free', 'warn'];
+  const FALSE_STARTS = ['disqualify', 'warn'];
+  const GUN_LEAST = 1.5, GUN_SPREAD = 1.5;   // seconds after "set" the gun may fire: least, and the spread the dice add
+
+  function rnd(S) {
+    S.r = (S.r + 0x6D2B79F5) >>> 0;
+    let t = S.r;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  const clone = (S) => JSON.parse(JSON.stringify(S));
+  const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  const isPos = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  const isCount = (v) => Number.isInteger(v) && v > 0;
+  const fail = (m) => { throw new Error(`contest: ${m}`); };
+  const only = (o, keys, where) => { for (const k of Object.keys(o)) if (!keys.includes(k)) fail(`${where} has no '${k}' (one of ${keys.join(', ')})`); };
+  const opp = (side) => (side === 'a' ? 'b' : 'a');
+  const sideOfId = (who) => (typeof who === 'string' && SIDES.includes(who[0]) ? who[0] : null);
+
+  // ── reading ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+  function readCourt(c) {
+    if (!isObj(c)) fail('court is { frame: [width, depth], mirror?, regions: { <name>: { rect } | { circle } } }');
+    only(c, ['frame', 'mirror', 'regions'], 'court');
+    if (!Array.isArray(c.frame) || c.frame.length !== 2 || !c.frame.every(isPos)) fail('court.frame is [width, depth] in metres');
+    const mirror = c.mirror ?? 'half-turn';
+    if (!MIRRORS.includes(mirror)) fail(`court.mirror is ${MIRRORS.join(' | ')}`);
+    if (!isObj(c.regions) || !Object.keys(c.regions).length) fail('court.regions names at least one region');
+    const regions = {};
+    for (const [name, r] of Object.entries(c.regions)) {
+      if (!/^[a-z][a-z0-9-]*$/.test(name)) fail(`court.regions: '${name}' is a name of letters, digits and dashes`);
+      if (!isObj(r)) fail(`court.regions.${name} is { rect: [x0, y0, x1, y1] } or { circle: [cx, cy, r] }`);
+      only(r, ['rect', 'circle', 'shared'], `court.regions.${name}`);
+      if (r.rect !== undefined) {
+        if (!Array.isArray(r.rect) || r.rect.length !== 4 || !r.rect.every(Number.isFinite) || !(r.rect[0] < r.rect[2]) || !(r.rect[1] < r.rect[3])) fail(`court.regions.${name}.rect is [x0, y0, x1, y1], x0 < x1 and y0 < y1`);
+        regions[name] = { kind: 'rect', rect: r.rect.slice(), shared: r.shared === true };
+      } else if (r.circle !== undefined) {
+        if (!Array.isArray(r.circle) || r.circle.length !== 3 || !r.circle.every(Number.isFinite) || !(r.circle[2] > 0)) fail(`court.regions.${name}.circle is [cx, cy, r], r > 0`);
+        regions[name] = { kind: 'circle', circle: r.circle.slice(), shared: r.shared === true };
+      } else fail(`court.regions.${name} is a rect or a circle`);
+    }
+    return { frame: c.frame.slice(), mirror, regions };
+  }
+
+  function readLadder(l) {
+    if (!Array.isArray(l) || !l.length) fail('scoring.ladder is a list of units, the lowest first: [{ unit, to?, by?, names? }]');
+    return l.map((u, i) => {
+      if (!isObj(u) || typeof u.unit !== 'string' || !u.unit) fail(`scoring.ladder[${i}] is { unit, to?, by?, names? }`);
+      only(u, ['unit', 'to', 'by', 'names'], `scoring.ladder[${i}]`);
+      if (u.to !== undefined && !isCount(u.to)) fail(`scoring.ladder[${i}].to is a whole number of ${u.unit}s`);
+      if (u.by !== undefined && !isCount(u.by)) fail(`scoring.ladder[${i}].by is a whole number: the lead that wins`);
+      if (u.to === undefined && i < l.length - 1) fail(`scoring.ladder[${i}] (${u.unit}) has no 'to': only the top unit may be won by the clock`);
+      if (u.names !== undefined && (!Array.isArray(u.names) || !u.names.every((n) => typeof n === 'string'))) fail(`scoring.ladder[${i}].names is a list of words`);
+      return { unit: u.unit, to: u.to ?? null, by: u.by ?? 1, names: u.names ? u.names.slice() : null };
+    });
+  }
+
+  function readMatch(spec, C) {
+    only(spec, ['shape', 'title', 'players', 'roles', 'court', 'scoring', 'serve', 'rally', 'clock', 'fouls'], 'a match');
+    if (!spec.court) fail('a match has a court');
+    C.court = readCourt(spec.court);
+    if (!isObj(spec.scoring)) fail('scoring is { points?: rally | serve, ladder: [...] }');
+    only(spec.scoring, ['points', 'ladder'], 'scoring');
+    const points = spec.scoring.points ?? 'rally';
+    if (!['rally', 'serve'].includes(points)) fail('scoring.points is rally (every rally scores) or serve (only the server scores)');
+    C.scoring = { points, ladder: readLadder(spec.scoring.ladder) };
+    if (spec.serve !== undefined) {
+      const s = spec.serve;
+      if (!isObj(s)) fail('serve is { into, faults?, let?, rotate?, every? }');
+      only(s, ['into', 'faults', 'let', 'rotate', 'every'], 'serve');
+      const into = Array.isArray(s.into) ? s.into : [s.into];
+      if (!into.length || !into.every((n) => typeof n === 'string' && C.court.regions[n])) fail(`serve.into is a region of the court (${Object.keys(C.court.regions).join(', ')}), or a list of them cycled by the game's points`);
+      if (s.faults !== undefined && !isCount(s.faults)) fail('serve.faults is how many faults lose the point (2)');
+      if (s.rotate !== undefined && !ROTATES.includes(s.rotate)) fail(`serve.rotate is ${ROTATES.join(' | ')}`);
+      if (s.every !== undefined && !isCount(s.every)) fail('serve.every is the points a server serves in a row');
+      C.serve = { into: into.slice(), faults: s.faults ?? 2, let: s.let !== false, rotate: s.rotate ?? 'game', every: s.every ?? 1 };
+    } else C.serve = null;
+    if (spec.rally !== undefined) {
+      const r = spec.rally;
+      if (!isObj(r)) fail('rally is { in?, bounces?, touches?, sameTwice? }');
+      only(r, ['in', 'bounces', 'touches', 'sameTwice'], 'rally');
+      const inside = r.in ?? 'half';
+      if (!C.court.regions[inside]) fail(`rally.in is a region of the court (${Object.keys(C.court.regions).join(', ')}): where a bounce is in`);
+      if (r.bounces !== undefined && !(Number.isInteger(r.bounces) && r.bounces >= 0)) fail('rally.bounces is 0 or more');
+      if (r.touches !== undefined && !isCount(r.touches)) fail('rally.touches is 1 or more');
+      C.rally = { in: inside, bounces: r.bounces ?? 1, touches: r.touches ?? 1, sameTwice: r.sameTwice !== false };
+    } else C.rally = null;
+    if (C.serve && !C.rally) C.rally = { in: C.court.regions.half ? 'half' : fail('a served match names rally.in (or a region called half)'), bounces: 1, touches: 1, sameTwice: true };
+    if (spec.clock !== undefined) {
+      const k = spec.clock;
+      if (!isObj(k) || !isCount(k.periods) || !isPos(k.seconds)) fail('clock is { periods, seconds, overtime? }');
+      only(k, ['periods', 'seconds', 'overtime'], 'clock');
+      if (k.overtime !== undefined && !isPos(k.overtime)) fail('clock.overtime is seconds');
+      C.clock = { periods: k.periods, seconds: k.seconds, overtime: k.overtime ?? null };
+    } else C.clock = null;
+    if (!C.serve && !C.clock) fail('a match is restarted by a serve or run on a clock: name serve or clock');
+    const top = C.scoring.ladder[C.scoring.ladder.length - 1];
+    if (top.to === null && !C.clock) fail(`scoring.ladder's top unit (${top.unit}) has no 'to' and there is no clock to end it`);
+    C.fouls = {};
+    if (spec.fouls !== undefined) {
+      if (!isObj(spec.fouls)) fail(`fouls is { <kind>: ${FOUL_COSTS.join(' | ')} }`);
+      for (const [k, v] of Object.entries(spec.fouls)) {
+        if (!FOUL_COSTS.includes(v)) fail(`fouls.${k} is ${FOUL_COSTS.join(' | ')}`);
+        if (v === 'fault' && !C.serve) fail(`fouls.${k} costs a serve fault, and this match has no serve`);
+        C.fouls[k] = v;
+      }
+    }
+  }
+
+  function readMeet(spec, C) {
+    only(spec, ['shape', 'title', 'players', 'event'], 'a meet');
+    const e = spec.event;
+    if (!isObj(e)) fail('a meet has an event: { kind, lanes, measure, best?, attempts?, falseStart? }');
+    only(e, ['kind', 'lanes', 'measure', 'best', 'attempts', 'falseStart'], 'event');
+    if (typeof e.kind !== 'string' || !e.kind) fail('event.kind names the event (sprint, hurdles, longJump, javelin …)');
+    if (!isCount(e.lanes) || e.lanes > 12) fail('event.lanes is 1 to 12');
+    if (!MEASURES.includes(e.measure)) fail(`event.measure is ${MEASURES.join(' | ')}`);
+    const best = e.best ?? (e.measure === 'time' ? 'low' : 'high');
+    if (!['low', 'high'].includes(best)) fail('event.best is low or high');
+    if (e.attempts !== undefined && !isCount(e.attempts)) fail('event.attempts is 1 or more');
+    if (e.measure === 'time' && e.attempts !== undefined && e.attempts !== 1) fail('a timed event is one attempt: the race');
+    if (e.falseStart !== undefined && !FALSE_STARTS.includes(e.falseStart)) fail(`event.falseStart is ${FALSE_STARTS.join(' | ')}`);
+    C.event = { kind: e.kind, lanes: e.lanes, measure: e.measure, best, attempts: e.measure === 'time' ? 1 : e.attempts ?? 1, falseStart: e.falseStart ?? 'disqualify' };
+    C.players = C.event.lanes;
+  }
+
+  function read(spec) {
+    if (!isObj(spec)) fail('a contest is an object: { shape: match | meet, … }');
+    if (!SHAPES.includes(spec.shape)) fail(`shape is ${SHAPES.join(' | ')}`);
+    if (spec.title !== undefined && typeof spec.title !== 'string') fail('title is a string');
+    if (spec.players !== undefined && !(isCount(spec.players) && spec.players <= 12)) fail('players is 1 to 12 (a side)');
+    const C = { shape: spec.shape, title: spec.title ?? spec.shape, players: spec.players ?? 1, roles: null };
+    if (spec.roles !== undefined) {
+      if (!isObj(spec.roles) || !Object.keys(spec.roles).length) fail('roles is { <role>: { home: <region> } }, a side\'s players in order');
+      C.roles = spec.roles;   // checked against the court below
+    }
+    if (C.shape === 'match') readMatch(spec, C); else readMeet(spec, C);
+    if (C.roles) {
+      if (C.shape !== 'match') fail('roles belong to a match');
+      for (const [role, r] of Object.entries(C.roles)) {
+        if (!isObj(r) || typeof r.home !== 'string' || !C.court.regions[r.home]) fail(`roles.${role}.home is a region of the court (${Object.keys(C.court.regions).join(', ')})`);
+      }
+      C.roles = Object.fromEntries(Object.entries(C.roles).map(([k, r]) => [k, { home: r.home }]));
+      if (Object.keys(C.roles).length !== C.players) fail(`roles names ${Object.keys(C.roles).length} roles for ${C.players} players a side: one each`);
+    }
+    return C;
+  }
+
+  // ── the court ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  // (`|| 0` keeps a mirrored 0 from reading as -0, so a region's JSON is the same whichever side authored it)
+  const mirrorPoint = (C, p) => (C.court.mirror === 'half-turn' ? [-p[0] || 0, -p[1] || 0] : [p[0], -p[1] || 0]);
+  /** The region's shape on a side: side a's as authored, side b's mirrored; a shared region the same on both. */
+  function region(C, name, side) {
+    const r = C.court && C.court.regions[name];
+    if (!r) fail(`no region '${name}' (${C.court ? Object.keys(C.court.regions).join(', ') : 'no court'})`);
+    if (!SIDES.includes(side)) fail(`side is ${SIDES.join(' or ')}`);
+    if (r.shared || side === 'a') return r.kind === 'rect' ? { kind: 'rect', rect: r.rect.slice() } : { kind: 'circle', circle: r.circle.slice() };
+    if (r.kind === 'circle') { const [cx, cy, rad] = r.circle; const m = mirrorPoint(C, [cx, cy]); return { kind: 'circle', circle: [m[0], m[1], rad] }; }
+    const [x0, y0, x1, y1] = r.rect, a = mirrorPoint(C, [x0, y0]), b = mirrorPoint(C, [x1, y1]);
+    return { kind: 'rect', rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
+  }
+  const EPS = 1e-9;
+  function insideShape(sh, p) {
+    if (sh.kind === 'rect') { const [x0, y0, x1, y1] = sh.rect; return p[0] >= x0 - EPS && p[0] <= x1 + EPS && p[1] >= y0 - EPS && p[1] <= y1 + EPS; }
+    const [cx, cy, r] = sh.circle;
+    return Math.hypot(p[0] - cx, p[1] - cy) <= r + EPS;
+  }
+  const inside = (C, name, side, p) => insideShape(region(C, name, side), p);
+  /** Which side of the net a point is on: a is y < 0, b is y > 0, the net itself null. */
+  const sideOf = (C, p) => (p[1] < 0 ? 'a' : p[1] > 0 ? 'b' : null);
+  const players = (C) => (C.shape === 'meet' ? Array.from({ length: C.event.lanes }, (_, i) => `r${i + 1}`) : SIDES.flatMap((s) => Array.from({ length: C.players }, (_, i) => `${s}${i + 1}`)));
+  const playerOf = (C, side, index) => `${side}${index + 1}`;
+  const at = (fact) => {
+    if (!Array.isArray(fact.at) || fact.at.length < 2 || !Number.isFinite(fact.at[0]) || !Number.isFinite(fact.at[1])) fail(`a ${fact.kind} fact carries at: [x, y] in the court's frame`);
+    return [fact.at[0], fact.at[1]];
+  };
+
+  // ── a match ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+  function newBall() { return { side: null, lastSide: null, lastWho: null, bounces: 0, touches: 0, serving: false, netted: false }; }
+
+  function startMatch(C, seed) {
+    const S = { r: seed >>> 0, n: 0, phase: 'ready', score: { a: C.scoring.ladder.map(() => 0), b: C.scoring.ladder.map(() => 0) }, played: 0, server: null, serverIndex: { a: 0, b: 0 }, served: 0, faults: 0, ball: newBall(), clock: C.clock ? { period: 1, t: 0, overtime: false } : null, restart: null, winner: null, last: null, warned: {} };
+    const toss = rnd(S) < 0.5 ? 'a' : 'b';
+    if (C.serve) { S.server = toss; S.phase = 'serve'; S.restart = { kind: 'serve', side: toss, who: playerOf(C, toss, 0) }; }
+    else { S.phase = 'dead'; S.restart = { kind: 'kickoff', side: toss }; }
+    return S;
+  }
+
+  const serverId = (C, S) => playerOf(C, S.server, S.serverIndex[S.server] % C.players);
+  const serveInto = (C, S) => C.serve.into[S.played % C.serve.into.length];
+
+  function nextServe(C, S, calls) {
+    S.faults = 0; S.ball = newBall(); S.phase = 'serve';
+    S.restart = { kind: 'serve', side: S.server, who: serverId(C, S) };
+  }
+
+  /** The ladder climbed by one unit for `side`: the calls it makes (a game, a set …) and whether the match is over. */
+  function climb(C, S, side, calls) {
+    const L = C.scoring.ladder, me = S.score[side], them = S.score[opp(side)];
+    let gameOver = false;
+    for (let i = 0; i < L.length; i++) {
+      me[i] += 1;
+      if (L[i].to === null) break;   // won by the clock, never by a count
+      if (!(me[i] >= L[i].to && me[i] - them[i] >= L[i].by)) break;
+      if (i === L.length - 1) { S.winner = side; S.phase = 'over'; S.restart = null; calls.push({ kind: 'over', winner: side, score: clone(S.score) }); return true; }
+      calls.push({ kind: L[i].unit, side, score: [me[i], them[i]] });
+      me[i] = 0; them[i] = 0; gameOver = gameOver || i === 0;
+      // a serve that rotates by the game changes hands as the lowest unit is won
+      if (i === 0 && C.serve && C.serve.rotate === 'game') { S.server = opp(S.server); S.serverIndex[S.server] += 1; S.served = 0; }
+    }
+    if (gameOver) S.played = 0;
+    return false;
+  }
+
+  /** The rally is decided: `side` wins it for `why`. */
+  function rallyTo(C, S, side, why, calls) {
+    const scores = C.scoring.points === 'rally' || !C.serve || S.server === side;
+    S.last = { kind: 'point', side, why, scored: scores };
+    calls.push({ kind: 'point', side, why, scored: scores });
+    S.played += 1;
+    if (scores && climb(C, S, side, calls)) return;
+    if (C.serve) {
+      if (C.serve.rotate === 'side-out' && side !== S.server) { S.server = side; S.serverIndex[side] += 1; S.served = 0; }
+      else if (C.serve.rotate === 'point') { S.served += 1; if (S.served >= C.serve.every) { S.server = opp(S.server); S.serverIndex[S.server] += 1; S.served = 0; } }
+      if (S.phase !== 'over') nextServe(C, S, calls);
+    } else { S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: opp(side) }; }
+  }
+
+  function fault(C, S, calls, why) {
+    S.faults += 1;
+    if (S.faults >= C.serve.faults) { rallyTo(C, S, opp(S.server), 'double-fault', calls); return; }
+    S.last = { kind: 'fault', side: S.server, why, faults: S.faults };
+    calls.push({ kind: 'fault', side: S.server, why, faults: S.faults });
+    S.ball = newBall(); S.phase = 'serve'; S.restart = { kind: 'serve', side: S.server, who: serverId(C, S) };
+  }
+
+  function applyMatch(C, S, f, calls) {
+    const B = S.ball, k = f.kind;
+    if (k === 'tick') {
+      if (!C.clock || S.phase !== 'live') return;
+      if (!isPos(f.dt)) fail('a tick fact carries dt, seconds');
+      const K = S.clock, span = K.overtime ? C.clock.overtime : C.clock.seconds;
+      K.t = Math.min(span, K.t + f.dt);
+      if (K.t < span) return;
+      calls.push({ kind: 'period', period: K.period, overtime: K.overtime });
+      const top = C.scoring.ladder.length - 1, a = S.score.a[top], b = S.score.b[top];
+      if (K.period < C.clock.periods && !K.overtime) { K.period += 1; K.t = 0; S.phase = 'between'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: K.period % 2 === 0 ? 'b' : 'a' }; return; }
+      if (a !== b) { S.winner = a > b ? 'a' : 'b'; S.phase = 'over'; S.restart = null; calls.push({ kind: 'over', winner: S.winner, score: clone(S.score) }); return; }
+      if (C.clock.overtime && !K.overtime) { K.overtime = true; K.t = 0; S.phase = 'between'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: 'a' }; calls.push({ kind: 'overtime' }); return; }
+      S.winner = null; S.phase = 'over'; S.restart = null; calls.push({ kind: 'over', winner: null, score: clone(S.score) });
+      return;
+    }
+    if (k === 'resume') {
+      if (S.phase !== 'dead' && S.phase !== 'between') return;
+      S.phase = 'live'; S.last = { kind: 'resume', restart: S.restart }; calls.push({ kind: 'live', restart: S.restart }); S.restart = null;
+      return;
+    }
+    if (k === 'foul') {
+      const cost = C.fouls[f.foul];
+      if (!cost) fail(`no foul '${f.foul}' in this contest (${Object.keys(C.fouls).join(', ') || 'none'})`);
+      const side = sideOfId(f.who) || fail('a foul fact names who');
+      if (S.phase === 'over') return;
+      calls.push({ kind: 'foul', foul: f.foul, who: f.who, side, cost });
+      if (cost === 'warn') { S.warned[f.who] = (S.warned[f.who] || 0) + 1; S.last = { kind: 'foul', foul: f.foul, who: f.who, cost }; return; }
+      if (cost === 'fault') { if (S.phase === 'serve' || (S.phase === 'live' && B.serving)) fault(C, S, calls, f.foul); return; }
+      if (cost === 'point') { rallyTo(C, S, opp(side), f.foul, calls); return; }
+      S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'free', side: opp(side), at: Array.isArray(f.at) ? f.at.slice(0, 2) : null }; S.last = { kind: 'foul', foul: f.foul, who: f.who, cost };
+      return;
+    }
+    if (k === 'score') {
+      if (S.phase !== 'live' || !SIDES.includes(f.side)) return;
+      S.last = { kind: 'score', side: f.side };
+      calls.push({ kind: 'score', side: f.side });
+      if (climb(C, S, f.side, calls)) return;
+      S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: opp(f.side) };
+      return;
+    }
+    if (k === 'touch') {
+      const who = f.who, side = sideOfId(who) || fail('a touch fact names who (a1, b2 …)'), p = at(f);
+      if (S.phase === 'serve') {
+        if (who !== serverId(C, S)) return;   // not the server: not a serve
+        S.phase = 'live'; S.restart = null;
+        Object.assign(B, { side, lastSide: side, lastWho: who, bounces: 0, touches: 1, serving: true, netted: false });
+        calls.push({ kind: 'serve', who, into: serveInto(C, S), faults: S.faults });
+        return;
+      }
+      if (S.phase !== 'live' || !C.rally) return;
+      const on = sideOf(C, p);
+      if (on && on !== side) { rallyTo(C, S, opp(side), 'reach-over', calls); return; }
+      if (B.lastSide === side) {
+        if (B.serving) { rallyTo(C, S, opp(side), 'touched-own-serve', calls); return; }
+        B.touches += 1;
+        if (B.touches > C.rally.touches) { rallyTo(C, S, opp(side), 'touches', calls); return; }
+        if (!C.rally.sameTwice && B.lastWho === who) { rallyTo(C, S, opp(side), 'double-touch', calls); return; }
+      } else {
+        if (B.serving && B.bounces === 0 && C.rally.bounces > 0 && B.lastSide !== null) { rallyTo(C, S, opp(side), 'volleyed-serve', calls); return; }
+        B.touches = 1; B.bounces = 0; B.serving = false; B.netted = false;
+      }
+      B.lastSide = side; B.lastWho = who; B.side = side;
+      return;
+    }
+    if (k === 'net') { if (S.phase === 'live' && B.serving && B.bounces === 0) B.netted = true; return; }
+    if (k === 'out') {
+      if (S.phase !== 'live' || !B.lastSide) return;
+      if (B.serving && B.bounces === 0) { fault(C, S, calls, 'out'); return; }
+      rallyTo(C, S, opp(B.lastSide), 'out', calls);
+      return;
+    }
+    if (k === 'bounce') {
+      if (S.phase !== 'live' || !C.rally || !B.lastSide) return;
+      const p = at(f), on = sideOf(C, p);
+      if (on === null) { rallyTo(C, S, opp(B.lastSide), 'net', calls); return; }
+      if (B.serving && B.bounces === 0) {
+        const ok = inside(C, serveInto(C, S), on, p) && on !== B.lastSide;
+        if (!ok) { fault(C, S, calls, on === B.lastSide ? 'own-side' : 'out'); return; }
+        if (B.netted && C.serve.let) { S.last = { kind: 'let' }; calls.push({ kind: 'let' }); S.ball = newBall(); S.phase = 'serve'; S.restart = { kind: 'serve', side: S.server, who: serverId(C, S) }; return; }
+        B.serving = false; B.netted = false; B.bounces = 1; B.side = on; B.touches = 0;
+        if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), 'double-bounce', calls);
+        return;
+      }
+      if (on === B.lastSide) { rallyTo(C, S, opp(on), 'own-side', calls); return; }
+      if (!inside(C, C.rally.in, on, p)) { rallyTo(C, S, opp(B.lastSide), 'out', calls); return; }
+      B.side = on; B.bounces += 1; B.touches = 0;
+      if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), 'double-bounce', calls);
+      return;
+    }
+    fail(`no fact '${k}' in a match (touch, bounce, net, out, foul, score, tick, resume)`);
+  }
+
+  function legalMatch(C, S, who) {
+    const side = sideOfId(who);
+    if (!side) fail(`'${who}' is not a player (${players(C).join(', ')})`);
+    const index = Number(who.slice(1)) - 1;
+    const regions = [];
+    if (C.roles) { const role = Object.keys(C.roles)[index]; if (role) regions.push(C.roles[role].home); }
+    if (C.rally && C.court.regions[C.rally.in] && !regions.length) regions.push(C.rally.in);
+    for (const [name, r] of Object.entries(C.court.regions)) if (r.shared && !regions.includes(name)) regions.push(name);
+    if (!regions.length) regions.push(Object.keys(C.court.regions)[0]);
+    const serve = S.phase === 'serve' && who === serverId(C, S);
+    const touch = S.phase === 'live' && (!C.rally || S.ball.side === null || S.ball.side === side);
+    const may = S.phase === 'over' ? [] : serve ? ['serve'] : touch ? ['touch'] : S.phase === 'dead' || S.phase === 'between' ? (S.restart && S.restart.side === side ? ['resume'] : ['wait']) : ['move'];
+    return { side, regions, touch, serve, may };
+  }
+
+  // ── a meet ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+  function startMeet(C, seed) {
+    const S = { r: seed >>> 0, n: 0, phase: 'ready', t: 0, gunAt: null, lanes: {}, placings: null, last: null };
+    for (const id of players(C)) S.lanes[id] = { lane: Number(id.slice(1)), state: 'ready', t: null, marks: [], best: null, warned: 0 };
+    return S;
+  }
+
+  const runners = (S) => Object.keys(S.lanes);
+  const better = (C, x, y) => (y === null ? true : x === null ? false : C.event.best === 'low' ? x < y : x > y);
+
+  function finishMeet(C, S, calls) {
+    const list = runners(S).map((id) => ({ who: id, lane: S.lanes[id].lane, value: S.lanes[id].state === 'dq' ? null : C.event.measure === 'time' ? S.lanes[id].t : S.lanes[id].best, dq: S.lanes[id].state === 'dq' }));
+    const ranked = list.filter((x) => x.value !== null).sort((x, y) => (better(C, x.value, y.value) ? -1 : better(C, y.value, x.value) ? 1 : x.lane - y.lane));
+    const rest = list.filter((x) => x.value === null).sort((x, y) => x.lane - y.lane);
+    S.placings = [...ranked, ...rest].map((x, i) => ({ ...x, place: x.value === null ? null : i + 1 }));
+    S.phase = 'over';
+    calls.push({ kind: 'over', placings: clone(S.placings) });
+  }
+
+  function applyMeet(C, S, f, calls) {
+    const k = f.kind, E = C.event;
+    const lane = (who) => S.lanes[who] || fail(`'${who}' is not a runner (${runners(S).join(', ')})`);
+    if (k === 'set') {
+      if (S.phase !== 'ready') return;
+      S.phase = 'set'; S.gunAt = S.t + GUN_LEAST + GUN_SPREAD * rnd(S);
+      for (const id of runners(S)) if (S.lanes[id].state === 'ready') S.lanes[id].state = 'set';
+      calls.push({ kind: 'set' });
+      return;
+    }
+    if (k === 'tick') {
+      if (!isPos(f.dt)) fail('a tick fact carries dt, seconds');
+      if (S.phase !== 'set' && S.phase !== 'live') return;
+      S.t += f.dt;
+      if (S.phase === 'set' && S.t >= S.gunAt) {
+        S.phase = 'live'; S.t -= S.gunAt;   // the race clock runs from the gun; the tick's remainder past it counts
+        for (const id of runners(S)) if (S.lanes[id].state === 'set') S.lanes[id].state = 'running';
+        S.last = { kind: 'gun' }; calls.push({ kind: 'gun' });
+        if (!runners(S).some((id) => S.lanes[id].state === 'running')) finishMeet(C, S, calls);
+      }
+      return;
+    }
+    if (k === 'press') {
+      const L = lane(f.who);
+      if (S.phase !== 'set' || L.state !== 'set') return;   // after the gun a press is the run itself
+      if (E.falseStart === 'warn' && !L.warned) { L.warned = 1; S.last = { kind: 'false-start', who: f.who, warned: true }; calls.push({ kind: 'false-start', who: f.who, warned: true }); return; }
+      L.state = 'dq'; S.last = { kind: 'false-start', who: f.who, warned: false }; calls.push({ kind: 'false-start', who: f.who, warned: false });
+      return;
+    }
+    if (k === 'finish') {
+      const L = lane(f.who);
+      if (S.phase !== 'live' || L.state !== 'running' || E.measure !== 'time') return;
+      L.state = 'done'; L.t = S.t; L.best = S.t;
+      calls.push({ kind: 'finish', who: f.who, t: S.t });
+      if (!runners(S).some((id) => S.lanes[id].state === 'running')) finishMeet(C, S, calls);
+      return;
+    }
+    if (k === 'mark') {
+      const L = lane(f.who);
+      if (S.phase !== 'live' || L.state !== 'running' || E.measure === 'time') return;
+      if (L.marks.length >= E.attempts) return;
+      const foul = f.foul === true, value = foul ? null : (Number.isFinite(f.value) && f.value >= 0 ? f.value : fail('a mark fact carries value (metres), or foul: true'));
+      L.marks.push(value);
+      if (value !== null && better(C, value, L.best)) L.best = value;
+      calls.push({ kind: 'mark', who: f.who, attempt: L.marks.length, value, foul });
+      if (L.marks.length >= E.attempts) L.state = 'done';
+      if (!runners(S).some((id) => S.lanes[id].state === 'running')) finishMeet(C, S, calls);
+      return;
+    }
+    fail(`no fact '${k}' in a meet (set, tick, press, finish, mark)`);
+  }
+
+  function legalMeet(C, S, who) {
+    const L = S.lanes[who];
+    if (!L) fail(`'${who}' is not a runner (${runners(S).join(', ')})`);
+    const may = L.state === 'dq' || L.state === 'done' || S.phase === 'over' ? [] : S.phase === 'ready' ? ['wait'] : S.phase === 'set' ? ['hold'] : C.event.measure === 'time' ? ['run', 'finish'] : ['attempt'];
+    return { lane: L.lane, state: L.state, may, attemptsLeft: C.event.measure === 'time' ? null : C.event.attempts - L.marks.length };
+  }
+
+  // ── the shared face ──────────────────────────────────────────────────────────────────────────────────────────
+
+  function start(C, seed = 1) {
+    if (!Number.isInteger(seed)) fail('seed is a whole number');
+    return C.shape === 'meet' ? startMeet(C, seed) : startMatch(C, seed);
+  }
+
+  function apply(C, S, fact) {
+    if (!isObj(fact) || typeof fact.kind !== 'string') fail('a fact is { kind, … }');
+    const next = clone(S), calls = [];
+    next.n += 1;
+    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else applyMatch(C, next, fact, calls);
+    return { S: next, calls };
+  }
+
+  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : legalMatch(C, S, who));
+
+  /** The scoreboard's words: the tennis game's 0 15 30 40, deuce and advantage, else the counts. */
+  function display(C, S) {
+    if (C.shape === 'meet') return { phase: S.phase, t: S.t, lanes: clone(S.lanes), placings: S.placings ? clone(S.placings) : null };
+    const L = C.scoring.ladder, out = { a: [], b: [] };
+    for (let i = 0; i < L.length; i++) {
+      const a = S.score.a[i], b = S.score.b[i], u = L[i];
+      if (u.names && u.to !== null && u.by > 1 && a >= u.to - 1 && b >= u.to - 1) {
+        const w = a === b ? ['deuce', 'deuce'] : a > b ? ['advantage', '-'] : ['-', 'advantage'];
+        out.a.push(w[0]); out.b.push(w[1]);
+      } else { out.a.push(u.names && a < u.names.length ? u.names[a] : String(a)); out.b.push(u.names && b < u.names.length ? u.names[b] : String(b)); }
+    }
+    return { phase: S.phase, score: out, server: S.server, clock: S.clock ? clone(S.clock) : null, restart: S.restart ? clone(S.restart) : null, winner: S.winner };
+  }
+
+  return { read, start, legal, apply, display, region, inside, sideOf, players, SIDES, SHAPES };
+}
+
+const _contest = buildContest();
+export const contestRead = _contest.read;
+export const contestStart = _contest.start;
+export const contestLegal = _contest.legal;
+export const contestApply = _contest.apply;
+export const contestDisplay = _contest.display;
+export const contestRegion = _contest.region;
+export const contestInside = _contest.inside;
+export const contestSideOf = _contest.sideOf;
+export const contestPlayers = _contest.players;
