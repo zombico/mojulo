@@ -1851,6 +1851,964 @@ Opt-in and versioned: a default hero keeps its bytes.
   swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
   draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.
 
+### Biocube fauna: what lives in a level, beside what grows
+
+A biocube said what grows in a level. It now says what lives there too (`fauna`, beside `flora`). Fauna are never
+enemies: an animal that hunts is a game's foe. There are two tiers. UNIT fauna take up room (a sheep, a deer); FIELD
+fauna are scenery that is never in the way. Not every level wants fauna: a biocube grows none unless asked, and every
+preset's is none, so the geocubes that grow `meadow`, `upland` or `grove` are byte for byte as before.
+
+- **Size classes** (`fauna/size-class.js`): `mini` (insects), `smol` (a mouse to a pet), `chonky` (to a person or
+  cattle), `behemoth` (a hippo, a rhino), `gargantuan` (an elephant and up). Measured, never tagged: a bug by its
+  bauplan's length, an animal by its skeleton's longest extent, so a new species gets its class from the bones it
+  builds.
+- **The document** (`era/biocube-fauna.js`): a preset (`summer-day`: butterflies, gnats, a flock crossing;
+  `summer-night`: fireflies, a few gnats), a document `{ swarms: { <kind>: true | { …settings } | null } }`, or
+  `{ from, swarms }` kind by kind. Every setting is on its rail and told when it is off. Each field kind stands for an
+  animal in the rosters, takes its size class, and keeps to its grounds of the substrate map (`faunaOn`).
+- **The field on a stage** (`placeFauna`, an isekai stage's `biocube.fauna`): gnat clouds over the grass near the way,
+  fireflies by the trees, butterflies over the grass, all on their own ground, off the way and off claimed ground, by
+  the site's dice. The colours are the world's ramps: the soil's darkest for gnats, the gold for fireflies, the gold,
+  violet and fruit for butterflies, the rock's darkest for birds.
+- **The page draws them** (`scene/channels/fauna.js`, `emitThreeWorld({ fauna })`). Each kind is a closed form of the
+  clock, so a pinned frame is reproducible:
+  - gnats are dark specks jittering in a swaying column;
+  - fireflies are glowing points drifting and blinking, a hard core with a soft halo;
+  - butterflies are two wing cards beating along a wandering loop above the grass;
+  - birds are a loose V of beating and gliding silhouettes crossing high overhead every `every` seconds, each pass its
+    own heading, height and count.
+
+  Absent fauna, not one byte. Godot and Roblox mark it absent.
+- **Herds: the unit tier** (`fauna.herds`: `{ <species>: true | { groups, size: [lo, hi] } | null }`; presets
+  `pasture`, sheep in two flocks, and `woodland`, deer and rabbits). Any species of the encyclopedia that can walk a
+  level (`unitOf`): a bug is refused (a mini animal is a swarm), as are an animal of the water and a body with no stride
+  on land, each saying why.
+  - The stage places each herd's ground on the soil off the way, its animals round it, none on a trunk.
+  - Each animal is an `ai` body walking on its species' own gait at that gait's speed (`fauna/rig.js` `gaitStride`), so
+    its feet keep to the ground. Its mind is passive: a grazer crops the grass laid round its herd (`food`), every other
+    animal wanders. No weapon and no side, whatever the species: a wolf in a pasture only wanders.
+  - The world builds each species' rig once from its plan (`worlds/fauna-units.js`), with no stored sketch: its gait
+    plays the runtime's walk, its eating the graze.
+  - A level whose only minds are its fauna shows no AI-attack button.
+- **Killable and pettable herds** (a herd's `killable: false | true | { hp }` and `interact: null | 'pet'`).
+  - Killable: its body takes hits (`hp`, by its size unless named: a rabbit about 25, a sheep about 50, an elephant about
+    180), its rig carries its flinch, fall and rise as the runtime's stagger, topple and getup, and it lies where it
+    falls. It never strikes back. A `defeat-all` that names its foes never counts it (its ids begin `fauna:`).
+  - Petted (`scene/channels/fauna-pet.js`, emitted only when an animal may be): the walker, or the pilot in a game, in
+    reach of one sees the interact key and "pet". The press holds it (the cast's hold: its mind waits), turned to the
+    petter, playing its relax loop under a rising heart for 3 s; then it goes back to grazing. A game's bus hears
+    `petted` { entity, species }. `pasture`'s sheep may be petted.
+  - Petting is the World page's: Godot plays the herds and their hits, not the petting.
+- **Water, indoors and the gargantuan.**
+  - Ducks (`ducks`, a mallard's stand-in): floating on a stage's streams (`era/out-trail.js` `streamSheets`, the water a
+    trail's crossing lays, now shared with what floats on it), paddling, bobbing, tipping up to feed. Preset `brook`.
+  - Indoors (`roaches`, `mice`, preset `cellar`): a room stage lays a biocube's fauna along its rooms' walls
+    (`placeIndoorFauna`; each storey's on its own floor), each critter still a while, then a dash. Nothing grows under
+    a roof: a room stage lays no flora. The kinds keep to their side: herds and outdoor kinds are refused indoors, the
+    indoor kinds outdoors, each saying why.
+  - A biocube of fauna alone (`{ fauna }`) lays no flora of its own: the kit grows its own, byte for byte.
+  - The gargantuan is a rock's or a pillar's scale (an elephant, a giraffe, up to a Gundam's), never a mountain's. A
+    body standing 4 m or more is gargantuan whatever its length (a giraffe). A gargantuan unit is solid and holds
+    (`body.collide`, heavy: a game's player walks round it), stands long between slow wanders, and one past 20 m is
+    refused as a landmark, not fauna. The walk page's eye is no body: it passes through, as through any.
+  - Herds keep to the valley's side of the cliff, as the trees do.
+### Snow: a cube's land under snow, bare trees and footprints
+
+A cube can name its snow (`snow`, `era/snow.js`), and its trail's stage lies under it: snowcapped crags over a line, a
+winter cover or deep snow over the whole land. A biocube's trees can go bare for the season, and the walker leaves
+footprints. A cube that names no snow, and a biocube that names no season, are drawn as before.
+
+- **Where it lies**: over its `line` (metres over the land's lowest ground; absent, everywhere), its edge wandering and
+  held lower on the side turned from the sun (`lee`), on ground level enough to hold it (`hold`: steeper rock stands
+  bare, a cliff's ledge takes it whole), opened in patches by the wind (`drift`). The lying ground is cut where its
+  field crosses, as sand and pavement are; boulder caps take it; the rock flora is buried; a grass lip on a snowy cliff
+  is gone. Gritty, it is laid with the sand's cut, the wind's crust.
+- **Its colour** is the theorist's (`snowRamp`): near-white, cool in its shade (the sky's hue), warm in its light (the
+  sun's), quiet in chroma since the bake blues its shade; it takes the hour as the land does.
+- **The trail** goes trodden snow, packed and greyed, the soil showing through as far as the snow is shallow; its
+  fringe the snow's, no dirt patch over it.
+- **The far ridges** are capped over the line (the whole ridge but its foot without one), the line wandering down the
+  gullies, hazed into each ridge's far stop; the skirt's near bands go white with it.
+- **Under it**: the grass stands through a dusting, thins under a cover and is gone under deep snow (`grassUnder`); a
+  leaf turned up carries it, more of them and further down the deeper it lies (`capOf`), so bushes become mounds; a
+  limb's top takes it too.
+- **The season** (`flora.trees.season: 'bare'`, `era/biocube.js`): what has a fall drops its leaves, every tree and
+  bush its limbs and twigs (a tree with no kind grown as a spray's); the evergreens keep their crowns: the new `spire`
+  form (a cone of near-level tiers in flat drooping fans to a leader: firs, pines), evergreen unless a kind says
+  otherwise, and any kind with `evergreen: true`. The far woods go to the bark's grey-brown.
+- **Footprints** (`scene/channels/snow-prints.js`, a stage's `snowPrints`): the beach's footprint bed
+  (`materials/soft-ground.js`) on its fresh-snow ground, in a window round the walker on the snow; a foot packs the
+  powder and pushes a rim. Only what a foot touched is drawn, a few centimetres nearer the eye along its own ray, so
+  no window shows. The beach's own channel is unchanged. Engines mark it not drawn.
+
+The gallery: `scripts/spikes/geotown/snow.mjs` (none, snowcapped, a cover, deep, deep winter with bare trees and firs, a cover by
+night, a quiet cube, a fir wood; the clump, the trail to the crags, from above, footprints up the trail). The manuals: the
+`geocube` card (`snow`) and the `biocube` card (the season).
+
+### Flora at night: what is drawn in a ramp's stops comes down with the hour
+
+A cube lowered at an hour bakes its land under the hour's light, but a gritty crown's chips and cores, the live grass's
+windows and the rock flora are drawn in a ramp's stops rather than baked, so at dusk and night they kept their noon
+colours over a darkened land. They now come down the ramp by the hour.
+
+- **Measured against the cube's own light**: a cube lowered at an hour keeps its reference's light beside the hour's
+  (`ownLight` on the look's card, `era/geocube.js`); the shift (`hourShift`, `era/isekai.js`) is where the bake lands the
+  foliage under the hour's light against where it lands under the cube's own, in stops, never above 0. A cube at its own
+  hour (a night palette under its own moon, a day cube at noon) and a kit's card move by none.
+- **What moves**: chips and cores by the world foliage's shift, every picked foliage the same stops; the live grass's
+  lit and shade windows; the rock flora down its ramps as far as the foliage dims (`hourDim`), so a bright gold comes
+  as far down as a dark fern; a gritty cube's leaf card tile its window of the foliage moved by the shift; the
+  swatch-coloured flora (shrubs, ikebana solids) dimmed by the same share.
+- **Unchanged**: a cube lowered with no hour, and a kit, are byte-identical. A cube lowered at its own hour draws the same
+  colours, but its look's card carries a new key, so the look's id changes.
+
+The gallery: `scripts/spikes/geotown/night.mjs` (a cube's own palette at noon, dusk and night, and a night palette
+altogether at its own hour).
+
+### Bushes and shrubs: composed in sections, blocking or walked through
+
+A biocube composes a level's bushes (`flora.bushes`, `era/thickets.js`): tree kinds with the trunk taken away (a few
+thin stems from the foot, splayed, finer limbs, a low wide crown), drawn through the trees' own leaf-branch path, chipped
+on a gritty land and plain on a quiet one.
+
+- **Sections**: patches of one kind each, off the trail and clear of the rocks, the trees and each other, mounding
+  toward the middle; no grass grows up through a bush (an avoided thing's own `clearR`, the grass's fixed reach
+  absent it).
+- **Walk**: a kind's `walk: 'block'` stops a walker on the page and is a collider for an engine; `walk: 'through'` is
+  drawn in soft groups (`flora:brush`, `flora:brush-chips`, `flora:brush-wood`) the walker passes through.
+- **In a clump**: an arranged clump's role can be cast as a bush (`clump.hikae: { bush: 0 }`, `filler: { bush: 1 }`), and
+  takes its role's harmony colour as a tree does.
+- **Cost**: a bush's lobes are coarse and it draws no twigs: about 930 faces a bush on a gritty land.
+
+The galleries: `scripts/spikes/geotown/bushes.mjs` (sections) and `clump-harmony.mjs clump-bushes` (clumps grounded on
+shrubs); the manual, the `biocube` card.
+
+### Composed clumps: an ikebana clump cast and coloured by role
+
+An arranged clump (`compose: 'ikebana'`) placed its trees in roles but drew them all one kind and one colour. Now a
+biocube casts them and the colour theorist colours them:
+
+- **The cast** (`flora.trees.clump: { shin, soe, hikae, filler }`): each role's kind by its place in `kinds`, so a clump
+  can contrast a line, a mass and a mound.
+- **The harmony** (`flora.trees.harmony`, `era/flora-colours.js`): the clump's colours by role, solved from the world's
+  foliage: `analogous` (the hue stepping cool to warm), `value` (dark behind to light in front), `accent` (one note
+  turned on the anchor), `season` (the clump turning). The theorist's law: each role steps from the one behind it (an
+  accent stands out), every role off the grass. A role's harmony colour wins over its kind's `leaf`.
+- **Shares** (a kind's `share`): the level's kinds in proportion, a dominant, a subordinate, an accent.
+- **Each stamp its own value**: a kind's stamped trees each a little darker or not, by their own dice
+  (`TREE_BANDS.vary`).
+
+No new geometry: a template for each kind and crown colour the stock takes. The gallery:
+`scripts/spikes/geotown/clump-harmony.mjs`; the manual, the `biocube` card.
+
+### Far grass: the meadow out past the field
+
+The live grass stood only round the walker: past about 13 m its cover fell away and past its radius it was gone, so
+open meadow was turf with tussocks on it and the grass grew in as the walker came close. Now the meadow has a far grass
+of its own (`scene/channels/stage-grass.js`, opt-in on a card's `live.far: { density, width }`, the meadow's on):
+clumps over every cell grass may stand in, the field's own simplest tuft drawn wider and sparser, in the same locked
+ramp and the same wind. Each clump stands by the cover the field has lost at its distance (`farShare`: none near the
+eye, all of it past the field, rising as the field thins), worked in its vertex shader each frame, so walking in, the
+field takes over clump by clump, and walking out the clumps stand back up. A recipe's `grass.far: false` turns it off.
+On the meadow it is about 3,400 clumps, 94k triangles: about an eighth of the field's own budget. The walk in, off and
+on: `scripts/spikes/geotown/far-grass.mjs`.
+
+### Leaf forms: a gritty crown grown as leaf branches
+
+A gritty crown can grow as LEAF BRANCHES instead of one heap of balls: the trunk forks into limbs, the limbs throw leaf
+branches, and each ends in a lobe, an ellipsoid shaped and turned by the form so the leaf pattern reads as the plant's
+own (`era/leaf-forms.js`). Each lobe is cored and chipped as the painted crown is, the chips grained along its length
+and leant as the form holds its leaves; far, the lobes' cores alone carry the tree, coarser.
+
+- **The forms**: `spray` (lobes strung along twigs, the leaves fanned along them), `plate` (flat level discs in tiers
+  round the trunk), `weep` (long drops hanging from arching limbs), `tuft` (small upright brushes at bare limbs' tips),
+  `whorl` (a ring of level spokes round each limb's end); the gallery is `scripts/spikes/geotown/leaf-forms.mjs`.
+- **A level's trees are kinds it composes**, not species looked up from nature. A biocube's `flora.trees.kinds` lists
+  1 to 6: a form's name, or `{ form, scale, trunk, girth, spread, density, stems, splay, branch, split, leaf, bark,
+  barkForm }` (`TREE_KIND_KEYS`): the silhouette, how tall it stands against the level's heights, where its crown
+  starts, its trunk's girth, its crown's spread, its limbs against the form's, how many stems rise from its foot and
+  how far they lean out (two a V), its limbs' thickness and how often each forks again (finer branching), the colours
+  it picks and its bark's marks. Each clump is one kind, by its dice; a cube carries
+  the kinds it wants in its own biocube. On a gritty land each tree grows its kind's crown: a hero whole, the stock
+  stamped from a template for each kind and variant, a far tree its cores coarse and no twigs. A quiet land keeps the
+  balls, and a level that names no kinds is as it was.
+- **The colour theorist offers the trees their colours** (`era/flora-colours.js`): from the world's own foliage, grass,
+  rock and soil, three more foliage colours (deep, young, turned toward the accent or autumn's warm), each kept apart
+  from the grass and from each other, and four barks (warm from the soil, pale from the rock, a cool near-black, and a
+  near-white, a birch's).
+  A kind's `leaf` and `bark` pick from the offer (0 the world's own); which tree takes which is the composition's. Its
+  crown's core and chips stand in the picked foliage, its wood is baked from the picked bark and locked to its ramp.
+  The level side by side, with the offer as swatches: `scripts/spikes/geotown/kinds.mjs`.
+- **Bark's marks** (`matte-paint/dressed.js` BARK_FORM_IDS, the bark cut's `form`): `furrowed` (plates between furrows,
+  as it was), `smooth`, `banded` (dark dashes round the trunk and a few scars, a birch's), `plated` (broad plates parted
+  by deep cracks) and `peeling` (patches in three tones). The tile is a grey the bark's colour multiplies, so a white
+  bark with `banded` marks is a birch. One kind at a time, with its bark close: `scripts/spikes/geotown/tree-kinds.mjs`.
+- **The manual**: the `biocube` sketch-vocab card (`get_sketch_vocab({ id: 'biocube' })`): where a biocube goes, its
+  presets and blocks, the tree kinds and their settings, the theorist's offer and some silhouettes people ask for (a
+  birch, a V, a clump, an umbrella grove); the geocube card points to it from its ingredients.
+
+### Faster gritty builds, and the tests that build them
+
+Byte-identical output throughout: the same stages, faces and texture bytes, checked by hash before and after.
+
+- **The sun's shadow test** (`era/sun.js`) works what a triangle and the sun fix (its edges, `L × ac`, `1/det`) once
+  per triangle, and a query's arithmetic in scalars in the same order, so it allocates nothing. A gritty stage builds
+  in about 60% of the time it took; every sunlit world shares it (stages, jungle, local meru, the road looks).
+- **A detail tile is painted once while it is in use** (`matte-paint/detail.js`): its texels and its shown tile are
+  kept for the few keys in use, and a scree's dice for its levels (`era/scree-tiles.js`), so the page's resolver, the
+  sand and turf cutouts and the scree's levels stop repainting the same 512-texel tile. A gritty stage's textures
+  resolve in under half the time.
+- **The era tests share their builds within a file**: a stage or a street several tests read is built once, the
+  determinism rebuilds left to the suites that own that law, and a street read only for the stage it lowers to is not
+  built at all.
+
+### Creases: the vgl rule as a shader in the World
+
+The vgl rule inks a concave crease (a wall's foot, a tier on the one below, a column on its plinth) and never a convex
+edge or a silhouette. Until now it was baked geometry for box massings only: the stepped pyramid's hairlines and the
+city's `creaseSeams` feather. It is now a pass in the World page over the scene's depth, for any geometry the builders
+mark angular, with a falloff that blends from the corner out. Opt-in: a world that does not ask emits the same bytes.
+
+- **`creases` on any world manifest** (`true`, or `{ ink, line, wash, reach }`). Built for the outcomes outside the game
+  loop: the fractal city (its metro profile too), the city plan, edifices, historic places, the transit kinds and the
+  building interiors. The exported unshaded base drops it, as it drops the other baked shading. `compose_world` takes
+  it as `overrides.creases` on any base, and a stored world takes it by patch (`set /creases true`); the manual is the
+  `creases` view-vocab card. Engines do not draw it yet (marked absent).
+- **How it draws** (`scene/channels/creases.js`). One prepass draws every solid's linear depth and an angular mask
+  into a float target. A pass then reads each pixel's neighbours against its plane: a small disc for the line, a disc
+  of the world reach for the blend. Only rises taller than two pixels count, and the ink fades where the reach spans
+  only a few pixels, so a far facade's window reveals are not hatched. A depth-aware 4x4 composite blends the sampling
+  jitter out.
+- **Only angular surfaces take ink.** A face marked `organic` (the city's trees) is drawn black in the crease mask, so
+  neither it nor the ground at its foot is inked; figures, walkers, cars, water and the sky are never inked.
+- **The colour register** (`era/colour-register.js`). A geocube's `register` was the tone's bands and key; it can now be
+  a NAME that renders the world as a drawing: `cel` (three bands along each ramp, an outline round every form, crisp
+  creases), `ink-wash` (a broad wash pooling in every corner, a fine outline), `wii` (soft creases, the light shaped in
+  the vertex) and `continuous` (the light alone). `{ from, …changes }` varies one; its terms are `steps`, `key`,
+  `outline`, `creases` and `contrast`, and a name keeps the key the cube had or the palette solves. The colour theorist
+  inks it: the outline in the stone's hue and the creases in the shade's, both under every ramp's darkest stop, checked
+  by a cube law, `register-ink`. A world painted by the cube (a stage's `geocube`, the geocube kind, a city plan's
+  `paint.geocube`) draws the register's creases and outline; the world's own `creases` wins, and `false` turns them off.
+  A register's `contrast` is lent to a cube that names none of its own. A cube whose register is `{ steps, key }`
+  reads, lowers and renders as before.
+- **The outline** is a term of the crease pass (`creases.outline`): a line round every silhouette, where a pixel's
+  neighbours find the sky or a surface well behind it. The toon dial's ink hull stays the figures' outline.
+- **Land.** A face may be `organic: 'land'`: inked only where something built meets it, and outlined against what lies
+  behind it but not against the sky at the world's edge. When a world draws creases its land and plant pools take their
+  class from their groups (`scene/crease-roles.js`: the polygon land, a terrain's bake, rocks; the plant pools'
+  species), so nothing is threaded through the land's builders. A gritty land's foliage is organic too: a crown, its
+  core and chips, blossom, grass and the drapes over a cliff's edge, the strand's wrack, a rock's moss, the clouds and
+  the stage's flora (`flora:*`); a trunk and a bamboo's culm are built, so a tree is grounded. A gritty cube whose register
+  names no creases now draws the `wii` register's soft ones (its rooms and its town's stone panel-lined, its foliage
+  left alone); `register.creases: false` draws none. A water sheet hides the bed under it from the pass, and
+  the sky dome is no surface behind anything. The scene's fog takes the ink as it takes the surface under it.
+- **Fixed: vertex contrast in a world not measured in metres.** The contrast's foot and its drift are metres; a city
+  plan's unit is 3.66 m, so the foot covered a whole storey. The payload now carries the world's unit to it.
+
+### Micro matte painting: surfaces painted from relief
+
+Every surface mark becomes relief, painted from a light: an element's face is a seeded height field, lit from a
+chosen direction with its own shadows and hollows, painted by sampling the cube's ramps at the values the light gives,
+and cut to the element's outline as a PNG. No line is drawn; a crack is a groove whose lip catches the light. The
+light is baked into the paint, the house era's way; no normal maps. First stone blocks, then cliffs and rocks painted
+on the road. Existing tiles are untouched: a cube, stage or road that does not ask for it emits the same bytes.
+
+- **The painter** (`lib/graph/matte-paint/`): `paintSurface({ outline, ppm, grit, seed, light, relief, paint })` paints
+  one face and cuts it to its outline as an RGBA PNG, in about a tenth of a second for a 1.2 m block at 256 px/m.
+  The relief comes in layers. `form` makes the chamfered, slightly pillowed face with a ragged arris. `rough` adds
+  undulation and grain, and `tool` the finish's marks (tooled ridges, or a pitched face of tilted facets). `spall`
+  breaks the arrises back along curved fracture planes; where a break falls deep enough the stone is gone and the
+  outline follows. `groove` cuts cracks as tapered V-grooves that wander and fork, and `pit` adds round craters. The
+  light gives each texel a value from its normal, a self-shadow marched over the height field, and darkening in
+  hollows, held at a mean of 1 so the World's vertex light still does the large shading. The paint picks each texel's
+  stop on the material's ramp by that value, then lays on its other layers: patches of a second ramp, mineral flecks,
+  damp at the foot, dirt in the hollows and toward the foot, and moss on what faces up (opt-in). `grit` moves every
+  layer together, and a layer set to `false` adds nothing. Seeded dice only, over the integer-exact noise
+  (`noise/noise.js`), and pinned. Nothing uses it yet: the stone-block wall is next.
+  `scripts/spikes/matte/sheet.mjs` paints a sheet of one block from a cube's ramps.
+- **A rock can be a dressed block.** The rock field (`polygonizer/rock-fracture.js`) takes `base: 'box'`: a box's six
+  faces are the block in place of the random fracture planes round an ellipsoid, so its faces stay whole and the chips
+  find its arrises and corners, breaking along the minerals' cleavage. `chipScale` (0–1) shrinks every fracture level,
+  so a dressed block chips by the centimetre. Both are opt-in; a rock that names neither is the same field.
+  `scripts/spikes/matte/rock-compare.mjs` sets the matte painter beside faces traced from the rock field.
+- **A gritty style's rock takes pixels, near the eye.** "Rock takes no pixels" (the polygon land) now holds for a style
+  that is not gritty. A geocube takes `grit` (0–1), which lowers into its land's `shading.grit`. At `GRIT_PIXELS` (0.35)
+  or over, the land's faces stay exactly the quiet style's, so the polygons carry the far view, and the page is handed
+  the rock's own FABRIC (`matte-paint/fabric.js`). That is its joint sets as planes in world space, read from the joints
+  the landform broke the cliff on (the island's granite: two vertical sets along its strike at the card's spacing,
+  each with minor joints at a third of it; basalt three sets sixty degrees apart; slate a dipping cleavage), and the
+  landform's beds when it has strata. The page's channel (`scene/channels/fabric.js`) draws where those planes cut each
+  cliff face. A joint is a groove whose lips the key light finds; it wanders a little, holds for a stretch and stops.
+  Each block between joints is its own plane, a soft bed is recessed, and the grain shows at its own size. The relief
+  is shaded as a ratio to the face's own light, so where it draws nothing the baked light is untouched. A face along a
+  joint set shows none of it, a face across it shows its lines, the beds stay level round the cliff, and joints fade on
+  slopes gentler than the landform's own joint band. THE VISUAL DOMAIN: each layer fades in once its feature spans a
+  few pixels, and a pixel covering more than the coarsest feature's share does no work, so the detail is a sphere round
+  the eye that ends at the grain. Under the threshold, or with no `grit`, nothing is emitted. The boulders stay polygon
+  for now. `landform.js` records the joints it lays (`s.joints`); its output is unchanged.
+- **A rock's skin.** The land's shading takes `skin` (with `grit`): `true` for the rock's own, or one of `ROCK_SKINS`
+  (`fluted`, `sculpted`, `slabs`, `bedded`; granite's blocky joints give sculpted, basalt's columns fluted, slate's
+  cleavage slabs, a stone with strata bedded). The page then draws the near rock in its CHUNKS rather than its joints'
+  grooves: Voronoi regions in 3D, warped by noise and laid in the fabric's own frame (along the joint strike, across it,
+  up), so the chunks are the blocks the joints bound and every face through one agrees. Each chunk stands proud or sits
+  back by its own dice, its edge rounded into a recess, and one sample toward the sun casts its shadow into the recess
+  beside it. The height bumps the face's light by screen-space derivatives, and the chunks read only on the steep faces
+  the landform broke. A skin's chunks read from farther than a groove, so the visual domain grows to them. Without
+  `skin`, the page's fabric is byte for byte as pinned.
+- **Rock formations.** `skin` also names a formation (`ROCK_FORMATIONS`: `flagstone`, `limestone`, `sandstone`).
+  The page then draws the cliff as erosion leaves it instead of as chunks laid on it. The rock is units up the face, each
+  either a thick bed or a packet of thin ones, and each with its own hardness; the joints cut a run of units into
+  blocks. A soft bed wears back. A hard block holds an overhang over it up to what its hardness and thickness bear,
+  then sheds slabs, and the block above, now undercut, follows; the page traces this four units down. Some blocks fall
+  on their own and leave an irregular scar. The face is broken small by terraced noise: ledges along the beds and
+  steps up the joints, never a network of cells. A few samples toward the sun cast the ledges' shadows. The rock is
+  weathered with a tint for each bed, darker soft beds, warm fresh scars, lichen near the eye, streaks under a proud
+  block, and the land's grass hung over a flagstone's ledges. Every step blends over the pixel's own footprint, so no
+  edge aliases. A face turned from the sun keeps its relief soft, and the light ratio is held closer than a skin's, so
+  a lit ledge is a highlight rather than a glare. The boulders are drawn in the same rock. The formations were found
+  on a CPU study of whole cliffs generated by erosion (`scripts/spikes/matte/cliffs.mjs`). Up close the rock has
+  DEPTH: where a pixel spans under a formation's `near` metres, the view ray is marched into the structure (the blocks'
+  retreat and the soft beds' wear), so a recess is seen into and its far wall hides its floor. The broken small detail
+  goes on in finer octaves down to a few centimetres, with a mineral grain under a centimetre, each layer drawn once
+  it can be seen. Without a formation, the page's fabric is byte for byte as pinned.
+- **Broken edges.** A gritty style's boulders break at their edges, so no long edge reads as a ruled line against the
+  sky. Each boulder's sides and cap are refined into one grid of shared vertices, so it stays closed, open only at its
+  sunk foot. Each vertex is pushed into the rock by a chip field of stepped dice in 3D cells at two sizes: blocky
+  breaks, never a wobble. The chips are strongest on the real edges (the rim, the corners between sides, a ring's bend
+  by its angle) and fade inside them, and the flats undulate a little. The land's shape is otherwise the quiet
+  style's; its baked light differs only where the broken boulders cast their shadows. `boulderFaces` takes `broken`;
+  without it a boulder is byte for byte as it was.
+- **Broken rims and strewn stones** (`local-meru/broken-land.js`). A gritty island's cliff rims break the same way.
+  Each vertex where a cliff face meets the land above it is pushed back into the land, and down a little, by stepped
+  chip dice. The move depends on the vertex alone, so the cliff and the ground beside it keep one corner. Small stones
+  lie about: a few on each boulder's top, pebbles along the paths, and scree fallen out at the cliffs' feet (never in
+  the sea). Each stone is a boulder of a few sides, drawn in the rock's own skin.
+- **A second rock.** The land's shading takes `rocks` (with `skin`): the boulders' own skin or formation, beside the
+  cliff's, drawn by a program of its own. Without `rocks`, a formation takes the boulders too.
+
+### Dressed rooms: the room's stone painted from relief
+
+- **A dressed-stone tile** (`gen: 'dressed'`, `matte-paint/dressed.js`). Ashlar painted by the matte painter as a room
+  tile: courses of big blocks in a running bond, each block its own relief (a pillowed, chamfered form, a tooled face or
+  a pitched rock face, spalls at its arrises, pits), set in recessed mortar, lit from above (a wall's light is the
+  sky's and the lamps'), each block its own tone, mottle and weather. Seamless by construction (whole courses, blocks
+  laid whole and wrapped, the light's march and cavity wrapped: `lightRelief`'s new `tile`). 512 texels a side; its
+  scale is part of its family, and unset it is painted at the metres the kit lays it at. `stone-brick` is untouched.
+- **Pillars, never coursed.** A stage recipe (and a geocube's `surfaces.pillar`) names its pillars' own surface: the
+  pilasters and the engaged columns' shafts, which otherwise draw in the kit's trim. Group `stage:pillar`; the trim's
+  laying, cells and value band; the grime and the nave's moss as on trim; the column's base block and abacus stay trim.
+  A pillar is a shaft, never stacked like a wall: dressed stone's `cut` is `fluted` (vertical channels between narrow
+  fillets, `flutes` a repeat, the arrises nicked here and there) or `shaft` (a plain monolith, its grain up it), both
+  weathered in streaks running down and lit from the upper left so a flute is found. Laid upright: on an engaged column
+  the flutes stand up the shaft. A dressed family draws two variants, not four (every block is its own stone already),
+  halving its bytes. Without a pillar surface a room is byte for byte as it was.
+- **Floors, paths and baseboards.** Dressed stone's `face: 'floor'`: lit from nearly overhead (a floor has no up), each
+  slab dished a little where it is walked and polished on its crests, the dirt in its joints. A floor laid a tile a bay
+  is painted at the bay's metres. Two more surfaces of their own, as the pillars are: the `plinth` (the baseboard along
+  the walls' feet, in the trim's laying; a course of long blocks with no bed joint across it) and the `path` (the nave's
+  runner, in the floor's laying, still floor to the tone and the dirt). A geocube's `surfaces.plinth` reaches the room.
+  Without them a room is byte for byte as it was.
+- **A gritty cube dresses its room.** At `grit` from `GRIT_PIXELS` (the island's own threshold, now in
+  `matte-paint/fabric.js`), a geocube's room is dressed as its outside's rock is drawn near: the wall's stock
+  stone-brick becomes ashlar and the floor's flagstone worn slabs, in the colours they named; the pillars fluted and the
+  plinth a course of long blocks unless the cube names its own; grit sets how much is broken, pitted and worn (a rock
+  face from 0.85). Its tone's `detail` rises with grit (0.45 + 0.45 × grit), so the stone's own light and dark read
+  through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
+  is the first.
+
+### Forest: hollow crowns, clumps arranged, the hero near and the stock far
+
+A gritty crown no longer builds the parts of itself buried inside its other lobes or its neighbours'. A forest's trees
+can stand in arranged clumps, tallest at the back and open toward the trail, and be built by how near the trail they
+are: whole close by, stamped from a few templates further off, a cheap shell far away.
+
+- Every gritty crown is hollowed (`era/isekai.js` `hollowed`): a lobe face whose corners all lie inside another lobe,
+  its own tree's or a neighbour's, is not built, tested against that lobe's own facets. Crown faces fall by about a
+  quarter on a meadow and two fifths in a grove; nothing seen changes. An emission change for every gritty land.
+- Clumps arranged (`trees.compose: 'ikebana'`, `era/nature.js` `arrangedClump`): an odd count of trees, the tallest at
+  the back away from the trail, the next two stepping 0.75 and 0.56 of it out to the sides, fillers lower round the
+  back, the trail's side left open; neighbouring clumps alternate hands.
+- Trees banded by the trail (`trees.bands`, `treeBands`): within `hero` m of the trail's edge (and the named hero)
+  built whole; to `far` m stamped from a few templates as the page's instanced repeats, each template built off the map
+  through the same light, lock and detail and lifted out, a shade tint where the sun misses its crown, casting as its
+  shell; past `far` a shell, each crown mass one coarse lumped blob, no leaf cards.
+- A `forest` biocube preset (era/biocube.js) turns both on: denser, taller clumps.
+- Leaf chips (`era/leaf-chips.js`): a crown as its masses' dark core with rounded cupped chips over it, each low, mid
+  or high in the foliage ramp by the clump's light and the sun's reach; a gallery spike
+  (`scripts/spikes/geotown/chips.mjs`) settles their count, size and cup.
+- Every gritty land's trees are chipped (`era/isekai.js`): a blob crown's masses its core, hollowed across the clump,
+  casting the crown's shadow and drawn in its two darkest stops by the sun; the chips over it lit by the stage's own
+  sun and shadow, those buried in a neighbouring core left out; leaf cards only on bushes now. With the bands, the hero
+  and the stock templates are chipped and a far tree is its core alone. The horizon's clumps keep two flat stops (the
+  gritty leaf texture on crowns is retired). Quiet lands' crowns stay the sixth-gen balls, byte for byte.
+- The page draws a repeat whose template is wholly textured (it was dropped), and a texture only a repeat's template
+  uses is resolved (`scene-three.js`, `worlds/world-scene.js`).
+
+### Rock ground: bare rock and scree drawn, and what grows on them
+
+A cube that names its rock now draws its bare rock and its scree as rock: a limestone cube's pavement in its stone,
+jointed, its scree in loose stones, each meeting the turf in a curve. Lichen crusts the rock, cushion plants and
+stonecrop root in its joints, small ferns in the shaded ones. The gap report ranks what is missing by how much of a
+level its ground covers. A cube that names no rock is drawn as before.
+
+- A land whose shading names a formation (`skin`: limestone, flagstone, sandstone) draws its ground by it
+  (`era/isekai.js` `formationGround`): limestone's and flagstone's turned bedrock as pavement (`isekai:pavement`) in the
+  rock's colour, the talus apron as loose stone (`isekai:talus`) in the rock's leaned to the soil, each line with the
+  turf cut through the cells where its field crosses. No grass on either. `limestone-crags` is the first.
+- Gritty, the pavement is laid with the new `karst` cut: clints in courses parted by deep grikes, some only cracks,
+  weathered rough, the odd pan and crack (`matte-paint/karst.js` the joints); the talus with the `scree` cut, angular
+  stones lying over one another.
+- The rock flora (`era/rock-flora.js`): `lichen-crust` (crusts on the clints, the boulders' and stones' caps and the
+  talus, grey-green or gold), `cushion-plant` (flowering domes), `stonecrop` (mats of fleshy rosettes), `crevice-fern`
+  (in the shaded joints), in the kit's own ramps. The clumps root in the joints the karst tile draws: the placer reads
+  the same joints (`gritty-flora.js` `pavementJoints`).
+- Scree in variety (`matte-paint/dressed.js` `SCREE_FORMS`): blocks, plates, cobbles and rubble, by the rock
+  (`gritty-flora.js` `TALUS_CUTS`: limestone in blocks, flagstone in plates, sandstone in cobbles), and coarse patches
+  of rubble (`isekai:rubble`) wandering through a talus.
+- A gritty talus's edge is its stones thinning out (`isekai.js` `TALUS_EDGE`): within a metre either side of its line
+  the ground is turf and over it a cutout of the scree's own tile keeps fewer of its stones band by band
+  (`era/scree-tiles.js`, whole stones, shaded as the scree is), from nearly all inside to a few strays out on the grass.
+  Where a trail's verge runs beside a talus, the verge's outer bands carry the scree the same way instead of turf
+  (`trail-dress.js` `screeBands`); the stage's own trails keep clear of a talus today.
+- The gap report weighs each gap by the ground it would cover (`measuredShares`, over the cube presets' stage land) and
+  shows the shares and scores; bedrock's cover and clump and scree's cover are no longer empty.
+
+### Sand: the ground drawn as sand, and what lies on it
+
+Where a level's ground is sand, the stage now draws sand there, in the cube's own sand colour, with no grass on it and
+wind ripples on a gritty cube. A new library of what lies on sand (shells, driftwood, sea pebbles) and a dune grass
+fill the gap report's sand row. A land with no sand is drawn as before.
+
+- A sandstone cube's flats are sand on its stage (`era/substrate.js` `turnField`, the formation's turn as a field): the
+  line between sand and turf is cut through the land's cells where the field crosses, not along the grid; no tufts,
+  field or live grass stand on it. A gritty land lays it with the new `sand` cut (`matte-paint/dressed.js`): wind
+  ripples wandering across fine grain, a bright fleck here and there.
+- The strand (`era/strand.js`): `shells`, `driftwood` and `sea-pebbles`, each a row and a builder of small faces in the
+  kit's own ramps (a shell the sand's light end or, a mussel, the rock's dark; driftwood the rock's light end bleached
+  toward the sand; a pebble the rock's). Shells only where a shore says the tide reaches.
+- `marram` joins the grasses (`vegetation/grass.js`): stiff grey-green tufts with a pale spike.
+- Inland sand is dressed: pebbles in drifts, driftwood now and then, marram in sparse clumps in the kit's grass leaned
+  to its sand. A gritty island's beach takes shells along its tide line, driftwood and pebbles above it, and its line
+  with the turf is cut through the cells at the beach's height (`cutFace`) rather than stepping round them. The sand cut
+  is laid in one variant, so its ripples run on across the faces.
+- The gap report reads the strand and the ground cuts (`strand:`, `cut:` refs); the sand's cover is no longer empty.
+
+### The substrate map and the flora gap report
+
+The geocube now says what its ground is (bedrock, scree, soil, sand, wet ground, the path), cell by cell, from what
+its land already knows and its rock's formation; and a generated report sets the flora library against what belongs on
+each, so its gaps are named. Nothing drawn changes yet.
+
+- **The substrate map** (`era/substrate.js` `substrateMap`, `era/substrate-of.js` `substrateOf(manifest)` for a stage
+  recipe). Every land cell is one of `SUBSTRATES` (bedrock, scree, soil, sand, wet, path), by rules in order: the trail
+  and its fringe are path; within a stream's reach the ground is wet; a face past the land's rock slope is bedrock;
+  the talus apron is scree; the rest soil, which the formation turns in patches (`FORMATION_TURNS`: limestone to bare
+  pavement, sandstone's flats to sand, flagstone's slabs through the turf). A geocube's street reads out its ground's
+  shares (`geocube.substrate`).
+- **What belongs where** (`era/substrate-flora.js`). `SUBSTRATE_FLORA`: per substrate, per role (cover, clump,
+  accent, interspacing, canopy) the kinds that belong there and the climates they suit, each a ref into the library
+  (read off its own registries: grasses, wildflowers, species, the flora forms, the trail's patches and stones) or a
+  wanted kind not yet built (`WANTS`, each with its read). `floraGaps()` ranks the wanted kinds by the ground and
+  climates each opens and the empty slots it fills.
+- **The gap report**: [docs/flora-gaps.md](../docs/flora-gaps.md), generated by `npm run flora-gaps`
+  (`scripts/flora-gaps.mjs`), kept current by a test. The spike `scripts/spikes/geotown/substrate.mjs` draws a stage's
+  ground from above in its substrates' colours.
+
+### Trail dress: rubble at the edge, patches on the dirt, and paved trails
+
+A gritty dirt trail is strewn at its edges with the mountain's rubble and worn in patches along it, in its own colours.
+A trail can also be paved, in the same material words the town's streets are dressed in. A quiet trail is drawn as
+before.
+
+- **The dress** (`era/trail-dress.js`, a stage's `trail`, the geocube kind's `path` for the trail a street lies on):
+  `surface` a ground word, `rubble` and `patches`, read and refused by name in the trail grammar.
+- **Rubble at the edge** (`local-meru/broken-land.js` `strewEdge`). The stones a gritty island strews on its boulders'
+  tops and at its cliffs' feet, heaped in clumps along both sides of a dirt trail: thickest at its edge, thinning out
+  across the fringe onto the land, a few smaller ones in on the trail, as many as the grit says. None on ground a town
+  has claimed. `rubble: false` for none.
+- **Patches** (`trailPatches`). Blobs on a gritty dirt trail, laid on its ribbon's own heights a hair over it, each
+  the trail's colour a shade off with a relief of its own, feathered at its edge into the trail's colour: `worn` (lighter, packed smooth), `damp` (darker, smooth),
+  `gravel` (stones close in a bed of grit: a new `gravel` cut in `matte-paint/dressed.js`), `crown` (a strip of turf
+  down the middle, the cart track's), `puddle` (a darker core with no relief in a damp ring). The default is worn, damp
+  and gravel; `patches` names the kinds, `false` none.
+- **The edge blended** (gritty dirt). The trail met its verge on a ruled line, a step in colour along it. Now the verge
+  lanes start in the trail's own colour at its edge and fade to the land's across their width (`verged`), and the
+  trail's dirt spills over the edge (`edgeSpill`): blobs of its own colour and path relief straddling the edge every
+  metre or so a side, reaching out over the verge, each feathered to what lies under its rim, so the edge is ragged.
+- **Paved trails.** `surface`: the dirt (`earth`) by default; the outdoor ones laid in the dirt, `stone-road` (field
+  stones with earth between them: the rooms' rubble floor, `art-direction.js` RUBBLE's `stone-brick` bond) and `gravel`;
+  and the made ones, `flags`, `setts`, `pavement`, `asphalt` and `brick-paving` (the rooms' herringbone floor brick,
+  BRICK_FLOOR's bond). `stone-road`, `brick-paving` and `gravel` are ground words added to `MATERIAL_WORDS`. A paved
+  trail's lanes lean to its word's colour (a stone word without one to the kit's rock), on a gritty land laid with its
+  word's tile for the path's, one tile across the lanes so its joints run on (`matte-paint/detail.js` lays a
+  `stone-brick` spec as a detail, painted in greys under the word's colour; `landscape/surface-textures.js`
+  `bondedBrickTile` its texels). A made one keeps its own edge: its fringe turf to its edge, with no rubble, patches or
+  pebbles. An outdoor one leans part of the way and keeps the dirt trail's edge (the verge from the dirt, a narrower
+  spill, the rubble beside it and more of it in on its border), and its border has sand worked into it (`sandBands`):
+  seven bands along each edge over a metre, each a cutout of the road's own tile (`era/sand-tiles.js`: a share of its
+  cracks in broken runs, then all of them, then broken patches over the stones), the sand coming in a crack at a time
+  from furthest in to mostly sand at the edge, so the road reads its whole width and shows through beneath the sand
+  with no line where the sand begins.
+- **The verge's outer edge** (any gritty trail in the dirt), done the same way (`turfBands`): seven bands of the land's
+  own turf tile cut to its blades, a share of them furthest in on the verge, then all, then patches of sward, a little
+  past the edge onto the land, in the land's colour, so the verge meets the land with no line.
+- The geocube vocab card names the glazings (arabesque, ornamental, stained) and the trail's dress. Tests:
+  `trail-dress.test.js`. The study spike `scripts/spikes/geotown/trail.mjs` frames one stretch of a stage trail on a
+  cube, per dress.
+
+### Window glazing: stained glass, ornament and arabesque, by the style
+
+A style's lights took one of five glazings (diamond lattice, sash, casement, plate, none). Three more now, each tied to
+the style that speaks it: an arabesque star screen from the in-house pattern library, leaded ornament, and stained
+glass in the style's own colours.
+
+- **Arabesque** (`moorish-medina`). A screen of the khatam star field (octagons and their gap squares,
+  `polygonizer/arabesque.js` at its own contact angles) over the glass. Drawn as bars, a screen is hundreds a light, past
+  a house's whole triangle budget, so the budget sent it into the tile, which the town stage never draws. It is one
+  cutout card a light instead (`era/screen-tiles.js`: the field painted white on clear, one cell a tile, the card's own
+  trim colour multiplying it), carried beside the house's faces (`speak`'s `screens`) and stood by the town stage as
+  `town:screen`. A screen whose light went into the tile goes with it. Renderers that draw no textures leave the glass
+  clear.
+- **Ornamental** (`art-deco`). Leading: a border a hand in, a roundel at the head (an arch's spring, three quarters up a
+  square light), a sunburst of rays from it to the border, and two uprights under it, darker than the frame.
+- **Stained** (the new `gothic-parish` starter: coursed stone, a steep slate roof, tall arched lights). Panes behind
+  the lattice's cames, cut to the light's clear, each on the paint's ramp or the lens's by its ring out from the light's
+  heart, its value its own. A tall light's diamonds are sized up to it (some three dozen panes a light, a hand at
+  least). The style's surfaces take the paint the panes use. The house budget sheds panes after cames, so a light keeps
+  its colour longest.
+- The glazing rail names all eight; the existing five glazings are unchanged. Tests: `out-openings.test.js`. The close
+  spike (`scripts/spikes/geotown/close.mjs`) frames the front light square on.
+
+### Gritty flora: the cube's grit draws what grows in detail
+
+A geocube's grit already says how finely its rooms, streets and rock are drawn; the biocube says what grows. Grit now
+reaches the flora too: on a gritty cube the crowns, the trunks, the path and its edge, the grass's light and the
+clouds take detail in the cube's own colours, stronger with more grit. A quiet cube is drawn as before.
+
+- **Leaves and bark** (`era/gritty-flora.js`). On a gritty polygon land the crowns take the `leaves` cut (leaves over
+  one another, now gathered into masses that read from afar, thin and dark between them), a crown's top laid as a
+  floor and its sides as a wall, and the trunks take `bark` up them: grey relief over each face's own colour
+  (`matte-paint/detail.js` layDetail), its strength the land's grit.
+- **The path and its edge.** The trail takes a new `path` cut (packed earth, crumbs, faceted stones pressed into it,
+  worn hollows), the ground and its talus `turf`, and the trail's fringe lanes a new `verge` cut laid across the lane:
+  earth and stones at the path's side giving way to turf at the land's, so path and land meet in a band, not a line
+  (`withGrittyGround`). A town's street keeps its own edge, its kerbs and walks: the land wholly under its paving goes
+  with the trail under it (`stage-buildings.js`), so no blend runs under the street; the trail beyond the town blends as
+  before. The same band laid across a walk is the shape a later street wear would take (water at the kerb, rubble at
+  a derelict wall's foot).
+- **The grass's light.** A gritty land's live grass takes the material light (its ramp read smooth, not banded), the
+  roots darker and the light through the blades stronger as the grit rises (`ao` 0.6 to 0.3, `back` 0.6 to 1); no dry
+  tips, a hue the cube's ramps do not hold.
+- **Crowns in lobes, not domes.** A gritty land's crown masses are each three overlapping lobes, every vertex pushed by
+  a lumpy noise (more with grit), so a crown's outline breaks into clumps, and a face's tint darkens by how deep in
+  the crown it lies: the dark core between the clumps, in the foliage ramp's own stops.
+- **Leaf cards on the crowns' outline.** A gritty cube's look carries the leaf card's tile on its own foliage ramp, and
+  its land stands the kit's leaf cards out of each crown mass (as the realistic pole does), each its band's tile drawn
+  hi-def in the foliage's stops: a crown's edge is leaves, not a dome's curve.
+- **Bushes the same.** A gritty land's bushes are lumped about their own middles as a crown's lobes are and stand leaf
+  cards like a crown's mass. (The lobes are coarse, twenty facets: the cards carry the outline; a gritty grove town is
+  about 64,000 faces against a quiet one's 50,000.)
+- **The clouds, heaped.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the
+  kit's own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest
+  stops, the cutout's edge kept whole, and its outline broken further (small heads on the heads, wisps pulling off the
+  upper edge, the base's line bumped; the big shape the same). Each cloud is a heap of three cards, two smaller set
+  behind it and to a side, one mirrored, so it has depth and shifts as the eye moves.
+
+### The biocube: a level's flora as data
+
+A geocube holds a level's one look; what grows there was each kit card's own numbers. A biocube holds it as data, a
+sibling of the geocube: which trees, in what clusters, how dense the grass, which shrubs and flowers, in the kit's own
+vocabulary so a stage reads it by merging. Fauna later.
+
+- **The card** (`era/biocube.js`). `flora`: `trees` (`clusters` groves of `perCluster` trees `spread` metres round,
+  their `heights`, clear of the trail and the cliff, a `crown`, a `hero` or none), `grass` (tussock `clusters` of
+  `perCluster` tufts, a `scatter` share, the fringe's `fringeEvery`, its `height`, its `kinds` by place from
+  `vegetation/grass.js` GRASSES, the `field` of blades along the trail) or null, `shrubs` (the recipe's own
+  `{ count, bloom, fruit }`) and `flowers` (`{ share, mix }` of `vegetation/wildflowers.js`): the kit card's own keys.
+  Presets `meadow` (the meadow card's own numbers: a meadow stage given it is byte for byte as without), `upland`,
+  `grove`, `bare`; `{ from, …changes }` block by block, every value on its rail and told when it is off.
+- **A stage grows it** (`era/isekai.js`, a stage's `biocube`): its trees and grass laid over the card's, its bushes
+  when the recipe names none, its flowers in the live grass. On a polygon land the grass is the biocube's: the island
+  grows none, a biocube brings back the tufts and the field (the lips' and hats' fringes stay off).
+- **A geocube's street takes one** (the geocube kind's `biocube`, `show: 'town'` or a domain's street).
+- **A cube carries its own** (a geocube's `biocube`, checked when the cube is read): its streets' flora (`show:
+  'town'`, a domain's street, a recipe's `geocube` with a `trail` in the cube's kit) unless the recipe names another.
+  `valley-morning` grows a meadow, `upland-morning` and `limestone-crags` an upland, `jungle-haze` a grove; a cube with
+  none grows nothing on its streets' land, as its island.
+- **Its grass a carpet by default.** A biocube's grass names its live carpet (`grass.live`: `{ kind, density /m²,
+  height }`, the card's `live`; null for none), and a stage whose biocube grows grass lays it wherever the grass grows,
+  as a recipe's `wind` or `grass` did: blades on every grassable cell round the walker, not tufts in clusters with the
+  ground between them. On a polygon land the grass brings back what the island has none of: a big boulder's hat (its
+  top the ground's, a fringe draped over its rim) and the cliff lips' fringes.
+- **Nothing grows on a path.** The trail's fringe tufts stand off it across the trail, not along x, so a slanting
+  stretch keeps them off as a straight one does, and no tuft roots within a hand of it (`nature.js` `grassTufts`: the
+  nature kit's fringe too). The carpet grows only in cells wholly clear of the trail (a cell's tufts stand anywhere in
+  it). A town's street clears what stands on its own paving, its door paths among it, tufts and carpet cells alike.
+- The inventory it was drawn from, and the overlaps left to settle (tree clustering said four ways, grass density
+  five), are the plan's; a cube's own default biocube and the nature kit come next.
+
+### The land drawn as the island's: a cube's town and trail stand on its island's terrain
+
+A geocube's island draws its land as polygons lit by the cube's land rules, and a gritty one draws its rock's own
+formation on its cliffs; the land under its towns and trails was still the isekai kit's pixel-locked tiles and grass
+cards. It is now drawn the island's way, by the island's own functions.
+
+- **The polygon land on an isekai stage** (`era/isekai.js`, a stage's `shading`: the same object the local meru reads,
+  `local-meru/plan.js` `readShading`, now exported). No tiles on the land: cliffs and boulders baked flat per facet, the
+  ground, the talus and the trail smooth at each corner, then the land's rules (`local-meru/shading.js`: crevice,
+  ridge, blend, mix). No grass on it (no tufts, no field, no fringe, no hats, no trail blend, no live grass). A gritty
+  land (`grit` from `GRIT_PIXELS`) breaks its boulders and its cliffs' rims and strews stones
+  (`local-meru/broken-land.js`), and the page draws its rock's fabric near the eye: the site's own strata and joints,
+  the land's `skin` (a formation: beds worn back, overhangs, fallen slabs) and `rocks`. Absent, a stage is byte for
+  byte as it was.
+- **A geocube's town and trail carry it.** `show: 'town'`, a domain's street and a recipe's `geocube` with a `trail`
+  pass the cube's land shading (its outside's `land`, as its island takes it), so every cube's street stands on its
+  island's terrain: a quiet cube's ground smooth and green, a gritty one's crags in their formation. Their grass is
+  gone with it, to come back with the flora. The trees and the clouds are the kit's, as before.
+- **Parked for the flora:** the matte painter's natural cuts, `turf`, `leaves` and `bark` (`matte-paint/dressed.js`,
+  on the dressed tile's rails), grey relief tiles to lay over the ground, a crown and a trunk. Nothing lays them yet.
+- **Valley and facet on the stage.** The land's `valley` (a corner darkened by the sky the land round it takes) and
+  `facet` (the rock drawn toward planes, on the faces' own heights, the ground round it and the land the rest is placed
+  on unmoved) now reach a stage's polygon land too: the island's `valleyOf` and `planarise`, moved unchanged into
+  `local-meru/land-form.js` (the island imports them from there, byte for byte as before).
+- **A gritty land's shadows at a third of the cost.** A broken boulder casts its unbroken shape's shadow (drawn in by an
+  eighth, so no chip lies inside it) and the strewn stones cast none: a gritty meadow stage assembles in about 4 s, not
+  11. Its rock is drawn and lit as before.
+- **The micro-town's `trail` camera** (`show: 'town'`): on the trail's open stretch short of the street, at a person's
+  eye, looking along it toward the town, so the trail's edges into the land and the rocks beside it are seen.
+
+### Geotown structures: doors and windows, the street, the square, the gates
+
+The geotown's buildings up close, and the town round them: its openings as architecture rather than marks on a wall.
+
+- **Openings as architecture** (`era/out-openings.js`). New params on the building language's `light` and `door`
+  elements, held by the street and refused off their rails by name; absent, every town is as it was, byte for byte.
+  A light's `frame` stands a surround proud of the wall with its returns as the reveal, the glass set back in it;
+  its `glazing` lays bars over the glass (`lattice`, leaded diamonds; `sash`, two sashes of small panes with a meeting
+  rail; `casement`, a mullion and a transom; `plate`, one pane), in its `trim` (a surface group, `trimValue` its
+  value). A door's `leaf` is `boards`, `panels` (raised, in two columns) or `glazed` (its upper half glass); its
+  `surround` a `frame`, `pilasters` and an entablature, or a `hood` on brackets; its `fanlight` a glazed transom
+  (`rect`) or a half-round over the head with radial bars (`arch`); its `steps` up to the threshold, and the stage
+  raises the house's floor to meet them. Shutters take a `form` (`boards`, `louvred`) and stand out of the wall. They
+  are a detail's depth (the near ring); over the ring's triangle budget the dressing off the lane face goes into the
+  tile first, then the language's own ornaments, then the lane face's dressing. The style starters take them by period
+  and place (sashes and a fanlight between pilasters for the Georgian terrace, leaded lattices for the Tudor town and
+  the medina, white casements for the Nordic harbour, plate glass in deep reveals under a hood for the Brutalist), and
+  the style's `surfaces-built` law counts a built light's trim as a surface its palette may name.
+- **The street through the town** (`era/stage-street.js`; a stage town's `street: true`, which every geocube town
+  takes). The stretch of trail between a town's first and last house is laid as its language's lane: the anchor's own
+  section (the road in its paving, the edge in its walk's form: a kerb set on end, a flush channel, a boardwalk's
+  fascia, a verge; the walk at its lift) on both sides, draped on the land along the trail; its lamps at their stride,
+  the head reaching over the road, their glass warm; posts along a flush walk; a path of slabs from the walk to each
+  door. The houses are seated to front it: a seat every metre and a half along it either side, just behind the
+  footway, facing it, the seats nearest the town's heart first; a house left no free frontage is not built rather
+  than stacked on another (before, a town's houses scattered over the land, one up a hill, and could stand in one
+  another). The planning pass reserves the street's ground, so nothing grows on it; its trail and growth are cleared.
+  On a gritty cube its setts, flags and slabs are laid from relief (era/town-dress.js `street:*`), a style's `road`
+  and `walk` words over them. The micro-town's `house` camera stands on the road before the first house, its
+  `street` camera on that house's walk looking down it. A stage town that does not ask for its street is as it was.
+
+### Architectural style: the model composes a town's and a city's look, on the cube's materials
+
+A town or a city is not one style: a STYLE says what a place's builders build, and the town, the city and their dress
+follow from it. The buildings' design stays the model's: a style composes the building language's elements and the
+material words, and starters are examples on the rails, never the limit.
+
+- **The style card** (`era/arch-style.js`). A style is a starter's id, a document, or `{ from: <starter>, …changes }`:
+  its `read`, its `class` (ancient or modern), its `language` (an anchor's id, its own elements, or `{ from: <anchor>,
+  elements: { <id>: element | null }, … }` that changes or drops the anchor's elements), its `materials` (a word per
+  surface), its `palette` (a colour per surface, over its word's own) and its `city` (a city grammar's changes, its `grain` the
+  grammar it starts from). Every refusal names the rail and the words it allows.
+- **Material words** (`MATERIAL_WORDS`), each of a class and for a surface: ancient limewash, lime render, ashlar,
+  rubble, hand-made brick, adobe, boards, shingle, thatch, flags, setts, earth; modern wire-cut brick, stucco, sawn
+  stone, precast, concrete, glass, pavement, asphalt; clay tile and slate built in both. A word is a dressed tile (on a
+  gritty cube) and a colour of its own: a lit town face keeps its luminance (the cube's light and the value its language
+  gave it) and leans its hue to the word's (`leanHue`, era/town-dress.js; a pale face that would clip gives up chroma,
+  not light), a city's frame leans as a modern material's does; a quiet cube's street and city take the colours without
+  the relief. What a style does not name keeps the cube's own dress.
+- **Starters** (`STYLE_STARTERS`) across periods and places (a whitewashed island village, a Tudor market town, a
+  Georgian terrace, an adobe pueblo, a Nordic timber harbour, a Moorish medina, Beaux-Arts, Art Deco, Brutalist), each a
+  recipe to take `{ from, …changes }`; each keeps its own laws.
+- **Laws that advise** (`styleLaws`, never refusing): the class against the materials, the cover against the pitch,
+  the value order (wall over roof over opening; a flat roof is not seen), materials that name a surface the language
+  never builds; written back on the specimen (`geocube.style`) as `{ law, ok, value }`.
+- **Wired in.** A settlement's `style`, a cube's `buildings.style` (a settlement's over the cube's; at each level an
+  `anchor` named beside a style speaks over its language), the micro-town's and the micro-city's `style` (over the
+  settlement's anchor), and a city paint's `style` (city/plan/look.js; its class the materials' unless the paint names
+  them). The town speaks the style's language in its street and its houses (a stage town's language written as elements
+  now reaches its houses and their insides too, not only its street) and wears its words; a program on a styled cube
+  speaks its style's language. The city's grammar is the style's language at its `grain` with its changes over it
+  (`styleGrammar`): an ancient city raises no curtain walls and no towers and stands no taller than Haussmann's Paris,
+  a flat-capped language raises no roofs; its walls and ground are dressed in its words (a rhythm takes a word or a
+  list, each building picking one by its dice; glass leaves a building as drawn). Absent a style, as it was, byte for
+  byte.
+
+### Geocube town materials: a cube's town and city painted from relief, at its hours
+
+The island's know-how carried to the cube's architecture: its micro-town and micro-city seen at eye height, lit at its
+hours under its clouds, and a gritty cube's street painted from relief as its rock is.
+
+- **Seen for the architecture.** The micro-town's first cameras are a person's eye nine metres before its first house's
+  front (`house`) and down the street to the rest at their own floors (`street`); the micro-city's, a person's eye on its
+  sidewalk a step and a half out from the block, looking down its first side (`sidewalk`). The trail's and the city's
+  own cameras follow.
+- **The city at the cube's hours.** The micro-city takes `hour` (its domain's unless it names one) and `clouds`, and the
+  city kind's `paint` takes them too (`paint: { geocube, amount?, hour?, clouds? }`, city/plan/look.js `cubeLookSpec`):
+  the cube's reference card relit at that hour (its sun on the hour's arc, weakened by the hour's gain; past dusk none,
+  so the moon lights it and its windows and signs are lit, city/plan/night.js), its dome, ambient and air the hour's, its
+  stars out and its moon on the dome by night, its clouds painted round it. The hour's light and air under clouds are one
+  function for the land and the city (era/geocube-hours.js `hourAir`). A micro-city refuses the live `weather` (its sky is
+  its clouds). A paint without an hour or clouds lights the city as before.
+- **Lime render over stone** (`matte-paint/dressed.js` `cut: 'render'`, on the tile rails with `render`, its coat's
+  colour, and `loss`). The Dust map: the ashlar laid as ever, a smooth coat proud of it, trowelled in soft swells,
+  blotched with damp and streaked by the weather from above, fallen away in broad patches wider than tall (their edges
+  broken finer) to the coursed blocks behind; each patch's lip thins and breaks and casts its shadow onto the stone, and
+  the stone in the hollow is dirtier for having been under the coat. The ashlar's own paint was factored out to share
+  with it, byte for byte. Its noise slides each octave's lattice by whole cells of its own (still periodic): thresholded
+  hard, the shared lattice showed every patch at the repeat's origin.
+- **A gritty cube's street dressed** (`era/town-dress.js`). At `grit` from `GRIT_PIXELS`, a cube's street (`geocubeTown`)
+  carries a `dress`: its plaster walls the lime render (a 3 m repeat, loss from its grit), its stone walls ashlar
+  (rock-faced from 0.85), its plinths and stoops a course of long blocks, in the cube's stone and floor colours. A stage
+  town's `dress` lays each on the walls, gables, socles, quoins, sills and plinths of its standing houses and of the
+  buildings walked into (era/stage-buildings.js), as a DETAIL: the painted tile divided by its own mean in linear light
+  and set to 0.8, the face's own colour and baked light lifted by the inverse (the page multiplies them, `textureLit`),
+  so each wall keeps the cube's paint and the sun, and the stone's relief, its patches and joints ride on them; laid
+  world-locked (u along the wall, v up it, a metre a metre), its two variants by where the wall stands, served by a
+  `detail:` texture resolver painted once a spec. Openings, frames, doors and roofs are as they were. `limestone-crags`'s
+  harbour is built in the timber hall's language (a coursed stone ground storey, lime render above, tile over it): its
+  houses are what its grit dresses. A quiet cube's street, and any town without a dress, is as it was.
+- **Roofs in courses, timber in boards** (`matte-paint/dressed.js` `cut: 'tile' | 'slate' | 'boards'`; the rails' `rows`
+  to 16 and `cols` to 12). Tiles in courses, each course's lower edge ragged a little and lapping proud over the one
+  below so its shadow falls down the slope, each tile rolled across like a pantile, its tone its own, the weather darker
+  toward each course's exposed foot and lichen a fine speckle gathered there at grit (a broad thresholded blotch read as
+  camouflage); slates the same, thin, flat, half-bonded and each laid a little askew; boards upright with gaps between
+  them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gritty cube's street dress
+  lays its tile, slate and shingle roofs (u along the eave, v up the slope: a rise over the pitch's sine) and its timber
+  walls, frames and trims (the tiered houses' boards) the same way; a flat roof is not laid. Thatch is as it was.
+- **Two classes of built material** (`matte-paint/dressed.js`, `city/plan/dress.js`). ANCIENT, hand-worked and
+  lime-bound, worn by loss, spalling and lichen (the render over stone, tooled ashlar, clay tile, slate, boards, flags,
+  and `setts`, a road of small stones in courses, crowned and worn smooth, set in sand); MODERN, machine-made and
+  cement-bound, worn by the weather and never by loss (`brick`, wire-cut in an exact stretcher bond with thin struck
+  joints, a burnt brick now and then, a white bloom low at grit; `concrete`, board-formed in form panels, the boards'
+  grain pressed in, the panels' joints standing as fins, tie holes in rows and a streak run down below each, bug holes;
+  `precast`, chamfered panels with dark sealant joints and the dirt washed down from each; `stucco`, a floated coat with
+  a control joint, hairline cracks and a soft repaint; sawn stone, ashlar with hairline joints and no chips; `pavement`,
+  a sidewalk scored into slabs with a broom finish, a straight crack across a slab or two and round stains; `asphalt`,
+  aggregate in its binder, squares of repair, cracks sealed in tar, oil). A town builds ancient; a city builds modern
+  unless its paint says `materials: 'ancient'` (the micro-city takes `materials`). In a modern city each rhythm offers
+  its materials (punched: brick or stucco; pier: sawn stone or precast; banded: precast or board-formed concrete) and
+  each building takes one by its own dice (its card's frame, body, floors and bays), so a street mixes them; a modern
+  material keeps its own colour (a brick red, concrete grey), the cube's tint kept a third; the roads are asphalt (or
+  setts, ancient). The dice cells snap to the repeat (a cell that did not divide it left a seam), and a crack ends at
+  its slab's joint.
+- **One place asks whether a cube is gritty** (`matte-paint/fabric.js` `grittyOf`, beside `GRIT_PIXELS`): its room,
+  its town's and city's dress and a style's words read it, instead of each its own threshold. Byte for byte as before.
+- **The resampler: painted tiles that do not repeat at scale** (`scene/channels/resample.js`, `matte-paint/detail.js`
+  `resamplePlan`). No AI and no new texels: the page reads a detail tile again at seeded shifts as it draws it, by a plan
+  read off how the tile was built. Coursed work (ashlar, brick, setts, tile, slate) in bands a few courses deep, each
+  read at its own shift down by whole bond periods (so every cut falls on a bed joint and an exact bond holds across it)
+  and along by whole units (or any amount where the head joints are free); boards in upright strips shifted by whole
+  boards; a grid (slabs, panels) in cells of whole units shifted both ways; free work (a render, stucco, asphalt) as
+  three readings at seeded shifts blended on a hexagonal grid, sharpened, the blend's contrast held round the detail's
+  known mean so it neither repeats nor washes out (a render's readings shift down by whole courses, so the stone under
+  its coat runs on across a blend). Over all of it a broad wash of tone, so a street is not one swatch. Every reading
+  takes its gradients from the unshifted uv (no mip seam at a cut); the dice are an integer hash of the cell and the
+  plan's seed. The world sends a plan for each detail tile a page draws (`payload.resample`); the patch replaces the map's
+  read in those meshes' shader; a page with no plan emits nothing of it. Godot and Roblox tile the detail as painted.
+- **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gritty cube (its
+  `paint.geocube`, the micro-city's always) is painted from relief as the cube's town is: the wall a facade's windows
+  are cut through (a card's shirt in the `punched`, `pier` and `banded` rhythms) a lime render broken to the stone, ashlar,
+  or a coat that has weathered rather than fallen; its sidewalks and plazas in worn slabs. A card carries its wall's
+  `dress`, and the card realizer (`architecture/facade-card.js` `projectCardOntoQuad`) lays it on each facet of the shirt,
+  world-locked in metres on the city's units, so a facade's piers and spandrels carry one stone; the windows' body
+  behind, a curtain wall's glass and mullions, metal and the roads are as they were. The tiles a card names are served
+  with the payload (a card's facets are realized on the page, after the scene's textures are gathered). The laying is one
+  module for the town and the city (`matte-paint/detail.js`: the tile, its mean held, the face's paint lifted by it,
+  world-locked as a wall, a roof or a floor); the town's bytes are as they were. A quiet cube's city, and a city no cube
+  paints, is byte for byte as before. (The engines' marks now name the page's `fabric` input: absent in Godot and
+  Roblox, the rock keeping its baked faces.)
+
+### Geocube domains: one cube, many levels
+
+A geocube made one level: its style fused with one room and one island. A cube is now its style (light, palette,
+register, contrast, grit, surfaces, era, target, materials, principles) plus named ingredients (terrains, interiors,
+structures, settlements), and its `domains` are its level configs, each a composition of those ingredients at an hour.
+Expanding a domain lowers it into a level, in the cube's style. The cube offers its domains with a line each, and the
+model picks the one that fits. A cube without domains lowers byte for byte as before.
+
+- **Ingredients apart from the level** (`era/geocube.js`). A terrain in `outside.terrains` may now be a whole land of
+  its own (`tiers`, `island` and `crystals` beside base, land, relief, ground and colour). The inside gains the same
+  shape: `inside.interiors` are the cube's other rooms (`bones`, `size`, `accentWall`), its own named by
+  `inside.interior` (`room` unless named). Terrains and interiors share one set of names.
+- **Domains.** A cube's `domains: { <name>: { reads?, terrain? | interior?, hour? } }` are the levels it makes:
+  outside on one of its terrains at an hour, or inside one of its interiors. A domain never touches the style: light,
+  colour, palette and the rest refuse, with a pointer to `from` on the cube. A cube that names none offers one per
+  terrain and one per interior, so `domain: { terrain: 'x' }` is `terrain: 'x'`, byte for byte.
+- **Domain expansion.** `domain` on a `stage`, the `geocube` kind, a level and a world's style (`style.domain`, the
+  level's own over the world's terrain and the other way round) asks for one: by name, as `{ from: <name>, …changes }`
+  (a change of side takes the other side's ingredients with it), or composed from the cube's own ingredients.
+  `pickDomain` answers as `pickTerrain` does: the level's ask, else the first domain on its heartbeat's terrain, else
+  the cube's first, with what was offered and what was wanted. `expandGeocube` lowers the pick. A stage on an outside
+  domain that names neither trail nor meru stands on the cube's island at the domain's hour (the stage's own hour
+  wins); an inside one is the room. `painted`, the level's `paint` summary and the specimen's `geocube` payload name
+  the domain; a specimen whose cube names more than its own room and land lists the levels it makes.
+- **`limestone-crags` makes four levels** (`GEOCUBE_DOMAINS`, beside its buildings, so the preset's own document does
+  not move): `crag-path` (its crags, a shrine on the top), `cove-dusk` (a sand cove under low crags, at dusk),
+  `harbour-town` (a street up from the cove) and `temple-hall` (a tall nave).
+  Every preset's room, land and dusk land, a stage on each and a painted level render byte for byte as before; the
+  limestone specimen's payload gains its list of domains. Only the automated checks have run; none of them has been
+  looked at.
+- **Structures, the landmarks a domain raises.** A cube's `structures: { <name>: [<structure>…] }` are the landmarks
+  its builders raise: a fractal structure's words each, standing `at` [x, y, z?] or `on: 'summit'` (the climb's top
+  tier, `at` then an offset). A domain stands a set by name or lists its own (`structures`; an interior takes none).
+  `geocubeStructures` paints them from the cube's ramps on the domain's terrain (body the stone, band the trim, crown
+  the accent, plinth the floor; a structure's own palette over them, key by key) and lights them by the cube's key at
+  the domain's hour. The structures channel raises them beside a recipe's own on a stage's climb or a specimen's land,
+  never on a trail. `limestone-crags`'s `crag-path` stands a spire on its top. A domain without structures renders as
+  before.
+- **Settlements, the towns a domain walks through.** A cube's `settlements: { <name>: { town?, houses?, enter?, doors?,
+  anchor? } }` are the towns its builders make: a town plan (`era/out-town.js`) and how much of its street stands and
+  is walked into. A domain names one or writes its own (`settlement`; an interior takes none). `geocubeTown` makes it a
+  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own, painted by the
+  cube (Geocube micro worlds, below). A town
+  domain standing alone walks a trail through its street (a town does not fit on the island); a level lays the street
+  once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains `harbour-town`, a street up
+  from the cove.
+- **A game expands its one cube.** A level on a cube that names its domains, asking for neither a domain nor a
+  terrain, takes the first on its heartbeat's terrain, else the cube's first outside (a cube that names none paints by
+  terrain, as before). `composeGameworld` lends the cube's outside domains to its walks, the ones the prompt's words
+  name first (in the order they are said), then the rest in the cube's order, round again when the walks outnumber
+  them; `brief.domains` records each level's domain and the word that chose it, and the world keeps one cube.
+  `limestone` and `crag` now name `limestone-crags`.
+- **Domain expansion, taught.** The geocube routing card names domains and `domain` and points to a new sketch-vocab
+  card, `geocube` (`get_sketch_vocab({ id: 'geocube' })`): the style, the ingredients, the domains, the four doors
+  and how to choose. No new tool.
+
+### Geocube micro worlds: a town and a city up close
+
+The trail's stand-in, walked through architecture: two more specimens on the geocube kind, each a tiny world that
+builds in seconds, so a cube's town and city can be reviewed at eye height. Showcases, like the trail: no goal, no
+hero, nothing to export.
+
+- **`show: 'town'`, a micro-town** (`era/geocube.js`). A few houses of a town's street on a 12 s trail, in the
+  domain's land and light (its terrain at its hour, `clouds`) and the cube's builders' language: the domain's
+  settlement, else the cube's first, else `MICRO_TOWN` (the smallest town the rails allow, a hamlet on one lane, four
+  houses standing, none entered). The dummy walks the trail's spine a point a metre at the ground's height, and at
+  each house a spur out to a metre and a half before its door and back. `seed` lays the street; a town minted without
+  one draws its own from its ref, as a trail does. `payload.geocube.town` names the settlement, its builders and how
+  many houses stand. About four seconds to build.
+- **`show: 'city'`, a micro-city** (`era/geocube-city.js`). A city plan on a 2 × 2 board (the smallest that makes
+  blocks round a crossing) in the cube's builders' language (its domain's town's, else its buildings', on its base kit
+  when that kit has structure rails, else the meadow's), painted by the cube, no cars, no people; a new city every
+  mint. `hour` and `clouds` refuse: a city is lit by its cube's look. The city kind takes `route` (`ctx`): the sidewalk
+  round the block nearest its core, in its units (`city/plan/pedestrians.js` `blockRing`); a city without it is as it
+  was. The dummy walks it round at `1 / CITY_METERS_PER_UNIT` (`attachDummy`'s `scale`, opt-in: a trail's walker is
+  as it was), a person's height among the city's buildings. Under a second warm.
+- A domain with a town shown on its land is a street on a trail, so it raises no summit structures; nor do a
+  micro-town or a micro-city.
+- **The cube paints its architecture.** A geocube's look carries the cube's own made ramps beside its kit's, under
+  names of their own (`cube-stone`, `cube-trim`, `cube-roof` from the floor, `cube-accent`), so nothing that names a
+  kit's ramp moves. A stage's `town` takes `paint` (`era/stage-buildings.js`): its surface groups re-pointed at the
+  kit's ramps, a ramp the kit lacks passed over; a cube's street (`geocubeTown`) re-points its timber and trim at the
+  cube's trim, its roofs (tile, slate, shingle, thatch) at its floor, its shells at its stone and its painted things at
+  its accent (`CUBE_STREET_PAINT`; plaster and stone walls were already the land's soil and rock, the cube's). Two cubes
+  on one base kit now paint their houses apart. The micro-city leans its skins all the way to the cube
+  (`paint.amount` 1); a game's city level still leans halfway. A street with no `paint` is as it was.
+- Rendered headless (no page errors), not reviewed: the dummy walks the town's trail and its door spurs and stands a
+  person's height on the city's sidewalk; the gothic town's houses stand in cold grey stone, the island's under
+  terracotta, and the island city's facades lean to its stucco, their window bands still the glass's dark.
+
+### Geocube trail: the cube's island, walked by a dummy
+
+The first recipe expansion: a geocube shown one step further in. `show: 'land'` is where a cube's look is judged;
+`show: 'trail'` is the same island laid fresh with every way up drawn and a plain stand-in figure walking it, where
+the walk and the runtime cost are read. A showcase, not a level: no goal, no hero, nothing to export.
+
+- **`show: 'trail'`** on the geocube kind (`era/geocube.js`): the island and its land as `land` lowers them, with
+  every way up drawn (the island's `walk: 'all'` in place of the specimen's `'base'`), walkable from the seam. It takes
+  `hour` and `clouds` as `land` does, and `seed`, which lays the island (its relief, ground and geology); the same seed
+  gives the same bytes. `room` and `land` refuse a `seed` and emit the same bytes as before. With a `domain` (Geocube
+  domains, above) it walks that domain's island: its terrain at its hour, its structures on the rolled top.
+- **A new island every mint.** A trail minted without a seed takes one from its new ref (as a new house does), written
+  into the recipe, so no two mints show the same island and the row re-renders byte for byte. The seed also rolls the
+  way up (`local-meru/roll.js` `rollTiers`): the cube's own tiers, their forms, sides and ways up kept, each mound's
+  height, foot, summit and bulge, each spiral's turns and hand and each tower's deck drawn in a band round the cube's
+  own. A roll is kept only when it breaks no law the cube's own tiers keep (the steps, landings, shelves, a tier inside
+  the top below); else the next, and after eight the cube's own.
+- **The dummy** (`local-meru/dummy.js`). A trail is walked by a stand-in: the protoform in plain clothes, its colours
+  greyed by their own light into a mannequin's, baked once and kept. It walks the island's route on the walkers
+  channel, up to the top and back down to the seam, round and round. The route is laid on the land: each walked
+  stretch every half metre at the ground's height, the flights and landings at their own (`local-meru/scene.js` emits
+  it only when the geocube asks). The walkers channel takes `follow` on one walker (`scene/channels/walkers.js`): the
+  orbit's target rides it and the camera moves with it, so the view still turns and zooms round it; a `follow` button
+  lets it go, the walk takes the camera while it is on, and the chase is seated behind the walker again after. A still
+  capture keeps its own camera. A world without `follow` emits the same bytes. The dummy adds about 4 MB to the page
+  (the clothed bake). A climb is not posed yet: the dummy slides up the ladder in its walk; none of the cubes' trails
+  has one.
+- Planned: a readout, never a gate: the payload's counts (triangles, draw groups, textures and their bytes, page bytes)
+  and, on the page while the dummy walks, frame time and draw calls. `room` and `land` emit the same bytes.
+
+### Geocube hours: one cube at any hour, under a sky painted to match its ground
+
+- **The hour** (`era/geocube-hours.js`). A geocube's outside takes an `hour`: a stage recipe with `geocube` and `meru`
+  or a `trail` (in the cube's look), and the geocube kind's `show: 'land'`; a number from 0 up to 24, or a word on the
+  clock's dial (`dawn`, `morning`, `noon`, `afternoon`, `golden`, `dusk`, `night`). The sixth-gen references are the
+  keyframes (sunshine's noon, colosseum's sunset, dmc3's night, and a twilight between golden and night that no
+  reference paints, so the sky never passes through brown), and the cube's own reference is one of them: its sun on
+  one arc that rises at 6 and sets at 18 (`weather/clock-dial.js`), peaking at the reference's elevation or 58°, turning
+  15° an hour, so at the reference's own hour the light is the reference's. The key warms and dims toward the horizon,
+  then hands over to the cube's moon (or a pale one) past the dial's dusk; the sky, the ambient and the fog's colour
+  move between the keyframes in the cube's own hue, the golden horizon kept the sun's, and the day's sky is back by the
+  time the sun is well up. The air keeps its thickness and the cube its colours (the bake relights the same paint);
+  the water darkens into the night. A moonlit hour draws the night on the dome: the moon where the key is, the stars
+  out as far as the night has come. A cube's contrast is resolved against the hour's light. A room, a room's show and a
+  trail in its own kit refuse an hour. Absent, the outside is byte for byte as it was.
+- **The painted sky** (`matte-paint/sky.js`). A geocube's outside takes `clouds`: `clear`, `fair`, `overcast`, `storm`,
+  `haze` or `high`, or `{ kind, cover, seed }`; or `'weather'`, the sky the recipe's live weather state is painted under
+  (rain and thunder under storm cloud, fog and mist under haze, drizzle and snow under overcast). A band round the dome
+  is painted once on the CPU by the old Photoshop recipe, nothing volumetric: each sheet is a flat deck overhead that a
+  pixel of the band looks up into, so the clouds crowd and stretch toward the horizon by perspective and wrap the dome
+  without a seam; on it, clouds (value fbm, billowed for cumulus) or difference clouds (a storm's churn), stretched along
+  the wind, levels cutting the cover (normalised, so a sheet's levels read as its cover), an emboss toward the sun (the
+  rims that face it lit, the bellies and thick cloud shaded), a gradient map from the belly's colour (the sky overhead,
+  darkened) to the top's (the key, the sun's or the moon's), a silver lining where the sun stands behind thin cloud,
+  far deck fading into the horizon's colour, a haze a veil thickest low; the octaves a pixel can hold, so the horizon
+  does not speckle. The sheets are laid high first. The clouds lean the light as their cloud would: under overcast and
+  storm the key weakens, the shade greys toward the sky, the air thickens and the sun's disc is gone; clouds that follow
+  a live weather lean only the disc (the live channel carries the air). The dome draws the band as a ring inside it that
+  hides the stars, the moon and the sun behind a cloud; a sky without one emits nothing new. Clouds without an hour are
+  at the cube's own. A level minted with a weather keeps its bare dome: following it is opt-in.
+- Planned: the clouds through the cube's ramps, banded to the register on a quiet cube and soft on a gritty one.
+
+### Geocube styles: principles and the laws that check them
+
+A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's
+`why` already carries the principles and the color theorist's laws already name a palette's mistakes; this theme
+joins them. Both keys are opt-in: a spec without `values` and a cube without `avoid` solve and lower byte for byte as
+before.
+
+- **Value groups.** A palette spec takes `values: { groups: 2 | 3, of? }` (`color-theorist/solve.js`,
+  `PALETTE_VALUES`): each land role's lightness band becomes its group's, so the land reads as a few masses of value
+  instead of a continuous spread. Two groups are a figure and its ground (what stands dark, the sky and the ground
+  light); three are a painter's masses (the sky and the stone light, the ground and what is made mid, the leaves dark).
+  `of` moves a role to another group. The key moves every band; the accents are not grouped. Such a spec is also
+  checked by a new law, `value-groups`: each grouped role's middle sits in its band and the groups sit apart.
+  `pick_palette` takes `values`.
+- **A cube's avoid list.** A geocube takes `avoid: [{ line, law }]`: the mistakes its style names, each with the law
+  that measures it (`era/geocube-laws.js`). A law is one of the palette's, read off the contract the cube's colours
+  were solved from, or one of the cube's own: `quiet-surfaces` (every tile's block shift and speckle under a ceiling).
+  Each line is written back with `ok` and `value` when the cube is read; a palette law on a cube whose colours are its
+  own is `ok: null`, unmeasured. The readout rides the specimen's `geocube` payload and a painted stage's `painted`.
+  It advises and never refuses.
+- **A preset from published art direction.** `theatre-grey`: a grey, quiet world staged in pools of light, one red
+  for what matters (a `mono-accent` palette, quiet surfaces, thick air, lab bones). It carries its avoid list, and
+  every line holds under its own palette. Only the automated checks have run; it has not been looked at.
+- **`limestone-crags`, the first terrain past the sixth generation.** Pale limestone crags over a deep blue sea, the
+  rock drawn near in its own beds: `grit` 0.7, the land's `skin` the limestone formation, edges broken and stones
+  strewn. Its palette is the color theorist's, solved round a locked stone and a locked clear sky (a role's hue alone
+  is a pull the solve overrides), with the sky written, since the solve's horizon read lavender. The flagstone and the
+  sandstone stay one override away: `skin` and a palette on the same cube.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube

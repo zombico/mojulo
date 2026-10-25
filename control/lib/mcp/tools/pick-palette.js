@@ -11,7 +11,7 @@ import { novelSeed, nearestRecent, recentPalettes } from '@/lib/graph/color-theo
 import { coverPalette, pixelPalette } from '@/lib/graph/color-theorist/adapters.js';
 import './palette-ledger.js';
 
-const SPEC_FIELDS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset'];
+const SPEC_FIELDS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset', 'values'];
 
 export function pickPaletteHandler(input = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(`pick_palette takes { ${SPEC_FIELDS.join('?, ')}?, variants? }`);
@@ -58,6 +58,7 @@ export function registerPickPaletteTools() {
         preset: { type: 'string', enum: PALETTE_PRESET_IDS, description: 'A place to start from (its own fields win): earth from the air, then space.' },
         air: { type: 'string', enum: Object.keys(PALETTE_AIRS), description: 'full (default), thin (Mars: a dusty sky), none (vacuum: a void sky, no haze).' },
         shift: { type: 'object', description: 'The palette moved: { turn?: degrees, light?: −1…1, chroma?: ×0.25…2, warm?: −1…1 }.' },
+        values: { type: 'object', description: 'Value groups { groups: 2 | 3, of? }: the land in a few masses.' },
         script: { type: 'string', enum: PALETTE_SCRIPT_IDS, description: "A world's colour script: shifted level by level." },
         seed: { type: 'integer', description: 'The dice for what the spec leaves open (rolled when left out; returned in the spec).' },
         variants: { type: 'integer', description: 'How many palettes to choose between, from consecutive seeds (1–6, default 1).' },

@@ -144,6 +144,7 @@ export const WORLD_STYLE = Object.freeze({
   weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
   geocube: 'a geocube that paints the level once: its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
+  domain: 'or one of the levels the geocube makes (its domains)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
@@ -403,6 +404,9 @@ function tunnelCivilization(C, cid, kit, seed) {
 const over = (base, top) => {
   const out = { ...base };
   for (const [k, v] of Object.entries(top)) out[k] = k === 'land' ? Object.fromEntries([...new Set([...Object.keys(base.land || {}), ...Object.keys(v)])].map((f) => [f, { ...(base.land?.[f] || {}), ...(v[f] || {}) }])) : GROUPS[k] ? { ...(base[k] || {}), ...v } : v;
+  // a geocube's terrain and its domain are one choice: the nearer one says it
+  if (top.domain !== undefined && top.terrain === undefined) delete out.terrain;
+  if (top.terrain !== undefined && top.domain === undefined) delete out.domain;
   return out;
 };
 // what `top` changes of `base`, as ledger entries
@@ -713,7 +717,7 @@ export function resolveLevel(world, id) {
   // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
   // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
   const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
-    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
+    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.domain !== undefined ? { domain: style.domain } : {}) };
   let lv = readLevel(level);
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was

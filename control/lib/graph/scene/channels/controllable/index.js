@@ -155,6 +155,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // matching how specularChannelScript itself is gated in scene-three.js.
   // the TOUCH layer (touch.js): a game made for a screen draws a virtual pad, laid out for its pilot and camera
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner }) : null;
+  // a level whose only minds are its fauna (era/biocube-fauna.js: each `fauna: true`, passive) has nothing to attack:
+  // no AI-attack button. Any other mind ⇒ the button, byte-identical.
+  const ais = (entities || []).filter((e) => e && ((e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')));
+  const faunaOnly = ais.length > 0 && ais.every((e) => e.fauna === true);
   const figHasSpec = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && (p.spec || p.spec8)));
   // first person (an `eye` camera with `hideTarget`): the body it rides is never drawn, or the view would sit inside
@@ -1907,7 +1911,7 @@ if (__world.camera && __world.camera.rule.type === 'follow') {
   (function __rvPad() { requestAnimationFrame(__rvPad); const g = __padNow(); const on = !!g && __CTL.held(__BIND, 'reverseView', 'gamepad', __CTL.gamepadRead(g, __DEV)); if (on && !__rvPadWas) __rvFlip(); __rvPadWas = on; })();
   hud.appendChild(__rvBtn);
 }
-// AI ATTACK toggle (worlds with ai-ambient suits): a HUD button twin of the G key. The click only
+${faunaOnly ? '' : `// AI ATTACK toggle (worlds with ai-ambient suits): a HUD button twin of the G key. The click only
 // INJECTS the shared input edge — the engine flips world.aiEnabled in stepWorld, so live play and
 // capture replay go through the one deterministic path; a tiny watcher mirrors the live state onto
 // the button label (G presses update it too).
@@ -1922,7 +1926,7 @@ if (__world.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') 
     if (__aiBtn.textContent !== want) { __aiBtn.textContent = want; __aiBtn.classList.toggle('on', on); }
   })();
 }
-// SPECTATOR RIG (ai-battle-spectator.plan.md): a no-pilot ALL-AI battle the operator WATCHES. The
+`}// SPECTATOR RIG (ai-battle-spectator.plan.md): a no-pilot ALL-AI battle the operator WATCHES. The
 // camera is a glide FREE-FLY drone (WASD + mouse) by default; F toggles a LOCKED chase-cam on a
 // chosen fighter; TAB cycles which fighter is watched (retargets the chase / snaps the drone behind
 // the new pick). __specCast/__specWatchEnt sit at this scope (hoisted) so the radar + HP HUD can

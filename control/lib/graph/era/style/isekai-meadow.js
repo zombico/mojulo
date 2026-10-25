@@ -79,7 +79,7 @@ export const ISEKAI_MEADOW = Object.freeze({
   // lays the grass it walks through and the landings it makes ring out (`contact`: the card's over vegetation/grass-contact.js's
   // defaults). The crowns sway: a pendulum push φ·u|u| (`phi`) over `reach`, a leaf `flutter`,
   // weighted from `from` to `full` m above the ground
-  live: { win: { lit: [1, 3], shade: [0, 2] }, kind: 'meadow', variants: 3, radius: 30, near: 7, tile: 8, density: 5, height: [0.45, 0.9], px: { L2: 55, L1: 16 }, drawTris: 700000, sheen: 1, contact: {}, flowers: { share: 0.14, size: 2.6, lift: 1.15 },   // (wildflowers, opt-in: a recipe's grass.flowers)
+  live: { win: { lit: [1, 3], shade: [0, 2] }, kind: 'meadow', variants: 3, radius: 30, near: 7, tile: 8, density: 5, height: [0.45, 0.9], px: { L2: 55, L1: 16 }, drawTris: 700000, sheen: 1, contact: {}, far: { density: 1, width: 2.2 }, flowers: { share: 0.14, size: 2.6, lift: 1.15 },   // (wildflowers, opt-in: a recipe's grass.flowers)
     crowns: { phi: 0.5, reach: 1, flutter: 0.05, from: 1.2, full: 6 } },
   // SHRUBS (opt-in, a recipe's `shrubs`, era/shrubs.js): `n` bushes within `band` m past the trail's fringe, `gap` apart,
   // `height` m; a `bloom` share in flower (`blooms` posies), a `fruit` share in fruit (`fruits` clusters of berries)

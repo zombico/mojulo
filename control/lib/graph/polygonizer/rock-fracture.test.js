@@ -125,3 +125,31 @@ describe('the workbench path', () => {
     expect(validateRockSpec({ size: 1, joints: { above: 2, prob: 0.5 }, color: 'mean' })).toEqual([]);
   });
 });
+
+describe('a dressed block (base: box)', () => {
+  // a 1.2 × 0.5 × 0.6 m ashlar: the box's faces are the block, the chips find its arrises
+  const spec = { size: 1.2, unit: 'm', rock: 'granite', seed: 7, octaves: 4, aspect: [1, 0.5 / 1.2, 0.6 / 1.2], base: 'box', chipScale: 0.4, edgeChip: 1 };
+  const f = rockField(spec);
+
+  it('keeps its faces whole: the middle of a face is the box face', () => {
+    expect(Math.abs(f.d([0, -0.25, 0]))).toBeLessThan(1e-9);
+    expect(Math.abs(f.d([0, 0, 0.3]))).toBeLessThan(1e-9);
+  });
+
+  it('is chipped at its arrises: somewhere along an edge the stone is cut back past the box', () => {
+    let cut = 0;
+    for (let i = 0; i <= 60; i++) { const x = -0.58 + (1.16 * i) / 60; if (f.d([x, -0.245, 0.295]) > 0) cut++; }
+    expect(cut).toBeGreaterThan(0);
+  });
+
+  it('chipScale shrinks every fracture level; left out, the levels are the fragment\'s', () => {
+    expect(f.meta.levels[0]).toBeCloseTo(0.45 * 1.2 * 0.4, 9);
+    expect(rockField({ ...spec, chipScale: undefined }).meta.levels[0]).toBeCloseTo(0.45 * 1.2, 9);
+  });
+
+  it('is checked', () => {
+    expect(validateRockSpec({ size: 1, base: 'sphere' })[0]).toMatch(/base: 'box'/);
+    expect(validateRockSpec({ size: 1, chipScale: 0 })[0]).toMatch(/chipScale/);
+    expect(validateRockSpec({ size: 1, base: 'box', chipScale: 0.4 })).toEqual([]);
+  });
+});

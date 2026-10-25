@@ -27,6 +27,8 @@ export function readPeople(v, driven = true) {
 
 // a closed ring round a rect, pushed out onto the walk, clockwise from its north-west corner (metres)
 const ring = (r, k) => [[r.x0 - k, r.y0 - k], [r.x1 + k, r.y0 - k], [r.x1 + k, r.y1 + k], [r.x0 - k, r.y1 + k], [r.x0 - k, r.y0 - k]];
+/** A block's sidewalk, walked round: its rect's ring out at the people's inset, closed, in metres. */
+export const blockRing = (rect) => ring(rect, PEOPLE.inset);
 
 /**
  * The walkers of a designed city: [{ path: [[x, y, z]] (units, closed), speed (units/s), holds, block }]. `junctions` is

@@ -94,7 +94,7 @@ export function archedOpening(out, F, { u0, u1, z0, z1, a, b, zs, H, seg: segIn 
  * An ENGAGED COLUMN on wall F at u: a square base block (it bridges the gutter), a `sides`-gon half-shaft standing
  * `embed` into the wall, a flared capital up to `top`. Lathed: each station is a radius at a height.
  */
-export function engagedColumn(out, F, u, { r, embed, sides, z0, top, baseH, gutterDepth }, trimS) {
+export function engagedColumn(out, F, u, { r, embed, sides, z0, top, baseH, gutterDepth }, trimS, shaftS = trimS) {
   // the base block: from the gutter floor to the shaft's foot, wide enough to read as a plinth
   wallBox(out, F, u - r - 0.12, u + r + 0.12, -gutterDepth, z0, embed + r + 0.12, trimS, trimS.cell);
   const stations = [[r + 0.08, z0], [r + 0.08, z0 + baseH * 0.5], [r, z0 + baseH], [r, top - 0.55], [r + 0.06, top - 0.45], [r + 0.16, top - 0.15], [r + 0.16, top]];
@@ -105,15 +105,18 @@ export function engagedColumn(out, F, u, { r, embed, sides, z0, top, baseH, gutt
   for (let s = 0; s + 1 < stations.length; s++) {
     const [ra, za] = stations[s], [rb, zb] = stations[s + 1];
     // split tall spans so light has corners on the shaft
-    const rows = Math.max(1, Math.ceil((zb - za) / trimS.cell));
+    // (the shaft in its own surface when it has one: a pillar's fluted stone; the base block and the abacus stay trim)
+    const rows = Math.max(1, Math.ceil((zb - za) / shaftS.cell));
     for (let j = 0; j < rows; j++) {
       const z0r = za + ((zb - za) * j) / rows, z1r = za + ((zb - za) * (j + 1)) / rows;
       const r0 = ra + ((rb - ra) * j) / rows, r1 = ra + ((rb - ra) * (j + 1)) / rows;
       for (let k = 0; k < half; k++) {
         const tm = angle(k + 0.5), n = P(add(mul(F.U, Math.sin(tm)), mul(F.N, Math.cos(tm))));
-        const ua = (angle(k) * r) / trimS.scale, ub = (angle(k + 1) * r) / trimS.scale;
-        quad(out, [ring(r0, z0r, k), ring(r0, z0r, k + 1), ring(r1, z1r, k + 1), ring(r1, z1r, k)], n, trimS, F.U, Z,
-          [[z0r / trimS.scale, ua], [z0r / trimS.scale, ub], [z1r / trimS.scale, ub], [z1r / trimS.scale, ua]]);   // turned: the stone's bands run up the shaft
+        const ua = (angle(k) * r) / shaftS.scale, ub = (angle(k + 1) * r) / shaftS.scale;
+        // turned: the stone's bands run up the shaft; an upright surface (a fluted shaft) stands its flutes up it
+        quad(out, [ring(r0, z0r, k), ring(r0, z0r, k + 1), ring(r1, z1r, k + 1), ring(r1, z1r, k)], n, shaftS, F.U, Z, shaftS.upright
+          ? [[ua, z0r / shaftS.scale], [ub, z0r / shaftS.scale], [ub, z1r / shaftS.scale], [ua, z1r / shaftS.scale]]
+          : [[z0r / shaftS.scale, ua], [z0r / shaftS.scale, ub], [z1r / shaftS.scale, ub], [z1r / shaftS.scale, ua]]);
       }
     }
   }

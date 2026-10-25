@@ -34,6 +34,15 @@ export const TILE_RAILS = Object.freeze({
   rock: { required: ['base'], keys: {
     style: { of: ROCK_STYLES }, base: RGB, amp: num(10, 120), crackFreq: num(2, 20), crackWidth: num(0.005, 0.1), crackDepth: num(0, 0.8),
     bands: int(0, 16), bandAmp: num(0, 30), speckle: num(0, 0.4), seed: int(1, 99999) } },
+  // dressed stone (matte-paint/dressed.js): ashlar painted from relief, lit from above, at the metres it is laid at; a
+  // pillar's `cut` fluted or a plain shaft, never coursed
+  dressed: { required: ['stone', 'mortar'], keys: {
+    stone: RGB, mortar: RGB, cut: { of: ['ashlar', 'fluted', 'shaft', 'render', 'tile', 'slate', 'boards', 'brick', 'concrete', 'precast', 'stucco', 'pavement', 'asphalt', 'setts', 'turf', 'leaves', 'bark', 'path', 'gravel', 'sand', 'karst', 'scree', 'verge'] }, face: { of: ['wall', 'floor'] }, flutes: int(4, 32), rows: int(1, 16), cols: int(1, 12), joint: num(0.004, 0.04), recess: num(0, 0.03), tool: { of: ['tooled', 'pitched', 'none'] },
+    chamfer: num(0, 0.06), pillow: num(0, 0.02), spall: num(0, 1), pit: num(0, 1), vary: num(0, 40), grit: num(0, 1), seed: int(1, 99999),
+    // (a lime render over the ashlar, `cut: 'render'`: its colour, and how much of it has fallen away)
+    render: RGB, loss: num(0, 1),
+    // (scree's stones, `cut: 'scree'`: matte-paint/dressed.js SCREE_FORMS; a bark's marks, `cut: 'bark'`: BARK_FORM_IDS)
+    form: { of: ['blocks', 'plates', 'cobbles', 'rubble', 'furrowed', 'smooth', 'banded', 'plated', 'peeling'] } } },
 });
 /** How a tile lies on its face (not a painting setting): metres per repeat. */
 const PLACEMENT = { scale: num(0.25, 8) };
@@ -70,9 +79,10 @@ const hash = (s) => { let h = 0x811c9dc5; for (const c of s) { h ^= c.charCodeAt
 
 /** Register the spec's four variants and return the family name they share. */
 export function tileFamilyOf(spec, at) {
-  const { gen, params } = normalizeTileSpec(spec, at);
-  const name = `gen:${gen}-${hash(JSON.stringify([gen, params]))}`;
-  const cfg = gen === 'rock' ? { ...rockDnaOf(params.style), ...params } : gen === 'wood' ? { ...WOOD_DNA, ...params } : params;
+  const { gen, params, scale } = normalizeTileSpec(spec, at);
+  // (dressed stone is painted at the metres it is laid at: its scale is part of what it is)
+  const name = `gen:${gen}-${hash(JSON.stringify(gen === 'dressed' ? [gen, params, scale ?? 2] : [gen, params]))}`;
+  const cfg = gen === 'rock' ? { ...rockDnaOf(params.style), ...params } : gen === 'wood' ? { ...WOOD_DNA, ...params } : gen === 'dressed' ? { ...params, metres: scale ?? 2 } : params;
   defineGeneratedFamily(name, gen, cfg);
   return name;
 }

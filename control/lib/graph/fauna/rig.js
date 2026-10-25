@@ -17,7 +17,8 @@
  * speed the stride implies, so a walk plays at a walk's pace. In place: the World's walkers move the body. A behavior
  * packs the same way, a clip named for its word (`relax`, `sleep`): one loop of the pose its strategy resolves to, from
  * behavior/pose.js, lasting as long as its loop's motion takes on a body that size (`behaviorSeconds`). A floating
- * behavior's surface is the ground's level.
+ * behavior's surface is the ground's level. `gaitStride(id, gait)` says how far one stride goes and how fast, for the
+ * walker that moves the body (a level's fauna, era/biocube-fauna.js).
  */
 import { faunaSkeleton } from './skeleton.js';
 import { gaitFrames, prepare } from './gait.js';
@@ -146,6 +147,15 @@ export function quatOfRows(m) {
   else { const s = 2 * Math.sqrt(1 + m[2][2] - m[0][0] - m[1][1]); w = (m[1][0] - m[0][1]) / s; x = (m[0][2] + m[2][0]) / s; y = (m[1][2] + m[2][1]) / s; z = 0.25 * s; }
   const n = Math.hypot(x, y, z, w) || 1;
   return w < 0 ? [-x / n, -y / n, -z / n, -w / n] : [x / n, y / n, z / n, w / n];
+}
+
+/** One stride of a gait on the ground: its length (m), how long it lasts (s, strideSeconds) and the speed that makes
+ *  (m/s), so a body moved at that speed plants its feet where the clip does. A gait with no stride: null. */
+export function gaitStride(id, gait) {
+  const ctx = prepare(id), g = ctx.L.gaits[gait];
+  if (!g?.stride) return null;
+  const length = r4(g.stride * ctx.h), seconds = strideSeconds(id, gait);
+  return { length, seconds, speed: r4(length / seconds) };
 }
 
 /** How long one stride of a gait lasts, seconds: stride ÷ the speed it implies (stride/h ≈ 2.3·Fr^0.3). */

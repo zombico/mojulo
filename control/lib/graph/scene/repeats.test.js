@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { emitThreeWorld } from './scene-three.js';
 import { facesToGlb } from './scene-gltf.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
+import { registerTextureResolver } from '../landscape/surface-textures.js';
 
 // renderer-ladder P4 — instanced repeats: geometry stored once, stamped N times.
 
@@ -60,6 +61,15 @@ describe('emitThreeWorld — instanced repeats', () => {
     expect(withEmpty).toContain('const REPEATS = []');
   });
 
+  it('draws a template every face of which is textured (a gritty crown\'s leaves and bark): its textured instances', () => {
+    const tex = [{ corners: [[-1, 0, 1], [1, 0, 1], [1, 0, 3], [-1, 0, 3]], fill: '#ffffff', texture: 'leaf', textureLit: true, uv: [[0, 0], [1, 0], [1, 1], [0, 1]], doubleSided: true }];
+    const html = emitThreeWorld({ faces: [floor()], textures: { leaf: 'data:image/png;base64,AA==' }, repeats: [{ template: tex, transforms: grid(4, 3), group: 'crowns' }] });
+    const packed = JSON.parse(html.match(/const REPEATS = (\[.*?\]);\n/s)[1]);
+    expect(packed).toHaveLength(1);
+    expect(packed[0].t).toHaveLength(4);
+    expect(packed[0].tex.map((t) => t.key)).toEqual(['leaf']);
+  });
+
   it('widens the fallback camera framing to cover far instances', () => {
     const near = emitThreeWorld({ faces: [floor()] });
     const far = emitThreeWorld({ faces: [floor()], repeats: [{ template: tree(), transforms: [{ pos: [400, 400, 0] }] }] });
@@ -96,6 +106,16 @@ describe('world-scene — generic opt-in repeats channel', () => {
     }));
     expect(out.payload.repeats).toHaveLength(1);
     expect(out.payload.repeats[0].transforms).toHaveLength(5);
+  });
+
+  it('resolves a texture only a repeat\'s template draws', async () => {
+    registerTextureResolver('repeat-test:', () => 'data:image/png;base64,AA==');
+    const tex = [{ corners: [[-1, 0, 1], [1, 0, 1], [1, 0, 3], [-1, 0, 3]], fill: '#ffffff', texture: 'repeat-test:leaf', uv: [[0, 0], [1, 0], [1, 1], [0, 1]] }];
+    const out = await resolveWorldScene(sketch({
+      kind: 'controllable', faces: [floor()], entities: [{ id: 'cam', rule: { type: 'glide' }, body: { type: 'none' } }],
+      repeats: [{ template: tex, transforms: grid(3, 4) }],
+    }));
+    expect(Object.keys(out.payload.textures ?? {})).toContain('repeat-test:leaf');
   });
 
   it('leaves the payload untouched without repeats', async () => {

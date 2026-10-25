@@ -35,6 +35,7 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
+import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
@@ -45,10 +46,13 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures } from '@/lib/graph/era/geocube';
+import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
+import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
+import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
 
@@ -264,6 +268,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
     toon: unshaded ? null : toon,
+    // CREASES (scene/channels/creases.js): `creases` on the manifest (or scene.creases), the vgl rule as a World pass,
+    // or the one the REGISTER of the cube that paints the world asks for (era/colour-register.js: cel, ink-wash, wii),
+    // the manifest's own winning (false turns the register's off). A kind whose trees are grown here tags them organic
+    // when it is on (fractal-city, city); the payload carries it below. Dropped under the unshaded export, as the other
+    // baked shading is. Absent ⇒ null ⇒ every byte identical.
+    creases: unshaded ? null : readCreases(sketch.manifest.creases ?? scene.creases ?? geocubeRegisterOf(sketch.manifest) ?? undefined),
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -438,6 +448,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
     structureColliders = S.colliders;
   }
+  // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
+  // key (unshaded, the view's light), standing on the domain's land
+  const domainStructures = payload && (kind === 'stage' || kind === 'geocube') && sketch.manifest.domain !== undefined ? geocubeStructures(sketch.manifest) : null;
+  if (domainStructures) {
+    const { structureFaces } = await import('@/lib/graph/fractal-structure/index.js');
+    const S = structureFaces(domainStructures.list, { light: unshaded ? ctx.light : domainStructures.light });
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
+    structureColliders = [...structureColliders, ...S.colliders];
+  }
 
   // science (science-worlds/setting.js): a science world stood in any world, a classical demo 1:1 or any other as a
   // bench prop in a glass case. Its surfaces join before the material / AO passes; its readout and panel ride the
@@ -483,11 +502,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && !unshaded && Array.isArray(payload.faces) && payload.faces.length) {
     const vc = geocubeContrastOf(sketch.manifest, { value: !!payload.tone });
     if (vc) {
-      payload.vertexContrast = vc;
+      // a world not measured in metres (the city plan's 3.66 m unit) carries its unit, so the contrast's metres read
+      const mpu = Number(payload.metersPerUnit ?? sketch.manifest.metersPerUnit);
+      payload.vertexContrast = Number.isFinite(mpu) && mpu > 0 && mpu !== 1 ? { ...vc, unit: mpu } : vc;
       // (a hero's metal-only shaping asks no bake: its plate takes the foot and the crease, its body keeps its light)
       if (vc.contact > 0 && !vc.only && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
     }
   }
+
+  // the crease pass (ctx.creases above): the World page reads the resolved terms; stills and exports ignore them
+  // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
+  if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the
@@ -504,12 +529,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // manifest.textures (custom dataURL / an image-worker bound PNG). emitThreeWorld + facesToGlb read
   // payload.textures. Additive: a face list with no `texture` opt-ins leaves the payload untouched.
   if (payload && Array.isArray(payload.faces) && payload.faces.length) {
-    const textures = collectFaceTextures(payload.faces, { ...(payload.textures || {}) });
+    // (and the instanced repeats' templates: a key only a template draws, a stock tree's leaves, is resolved too)
+    const reps = Array.isArray(payload.repeats) ? payload.repeats : Array.isArray(sketch.manifest.repeats) ? sketch.manifest.repeats : [];
+    const repeatFaces = reps.flatMap((r) => (Array.isArray(r?.template) ? r.template : []));
+    const textures = collectFaceTextures(repeatFaces.length ? [...payload.faces, ...repeatFaces] : payload.faces, { ...(payload.textures || {}) });
     const manifestTex = sketch.manifest.textures;
     if (manifestTex && typeof manifestTex === 'object') {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
     }
     if (Object.keys(textures).length) payload.textures = textures;
+    // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
+    const plans = resamplePlans(Object.keys(textures).filter((k) => k.startsWith('detail:')));
+    if (Object.keys(plans).length) payload.resample = plans;
   }
 
   // generic, opt-in INSTANCED REPEATS (renderer-ladder P4): a manifest may carry `repeats` —
@@ -1000,6 +1031,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.figures = glyphLowered.figures;
     }
   }
+  // a stage's HERDS (era/biocube-fauna.js placeHerds, a biocube's `fauna.herds`): its animals laid after the world's own
+  // entities, each species' rig built once (worlds/fauna-units.js). None ⇒ payload untouched.
+  if (payload && 'faunaUnits' in payload) await lowerFaunaUnits(payload);
 
   // generic, opt-in figure WEATHERING (materials/procedural-material.js `weatherRigParts`): the suit
   // analog of the face `material` channel. `weathering: true` (or `{ amt, seed }`) modulates every rig

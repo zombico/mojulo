@@ -46,6 +46,10 @@
  *   cumulus  (RGBA) a heaped cloud on a flat base: puffs along the base, cauliflower heads on top, each lit from
  *            above in three levels with the darkest along the base
  *
+ * HI-DEF (a key's `+hd` suffix: a gritty land's clouds, era/isekai.js): the same drawing in the same stops without the
+ * pixel lock: its levels smoothed and painted at twice the size, each texel between its two nearest stops, a cutout's edge
+ * smoothed the same way and kept whole.
+ *
  * `isekaiTexture(key)` → data:image/png; `isekaiTexels(key)` → { W, H, rgb, a? } (the test reads every texel).
  * Deterministic: mulberry32 dice seeded from the key, memoized per process.
  */
@@ -408,8 +412,10 @@ const PAINTERS = {
       }
     }
   },
-  // a heaped cumulus (image y = 0 is the top): puffs whose union is the cloud, the base cut flat
-  cumulus(lv, n, R, a) {
+  // a heaped cumulus (image y = 0 is the top): puffs whose union is the cloud, the base cut flat; drawn hi-def (a gritty
+  // land's), the outline broken further: small heads on the heads, a few wisps pulling off the upper edge, the base's
+  // line bumped (the big shape the same: those dice are thrown after the body's)
+  cumulus(lv, n, R, a, K = {}) {
     const top = n - 1, base = SIZE * 0.9, puffs = [];
     const m = 4 + Math.floor(R() * 3);
     for (let i = 0; i < m; i++) {   // the body: along the base, biggest in the middle, heaped up
@@ -421,6 +427,18 @@ const PAINTERS = {
     for (let i = 0; i < 12; i++) {   // the heads: cauliflower on the upper rim of body and crown
       const b = i < 5 ? tower : puffs[1 + Math.floor(R() * (m - 2))], ang = -Math.PI / 2 + (R() - 0.5) * 2.2, r = b[2] * (0.38 + 0.25 * R());
       puffs.push([b[0] + Math.cos(ang) * b[2] * 0.78, b[1] + Math.sin(ang) * b[2] * 0.78, r]);
+    }
+    if (K.hd) {
+      const heads = puffs.slice(-12);
+      for (let i = 0; i < 26; i++) {   // heads on the heads
+        const b = heads[Math.floor(R() * heads.length)], ang = -Math.PI / 2 + (R() - 0.5) * 2.6, r = b[2] * (0.3 + 0.2 * R());
+        puffs.push([b[0] + Math.cos(ang) * b[2] * 0.85, b[1] + Math.sin(ang) * b[2] * 0.85, r]);
+      }
+      for (let i = 0; i < 5; i++) {   // wisps: small puffs pulling off the upper edge, still clinging to it
+        const b = heads[Math.floor(R() * heads.length)], ang = -Math.PI / 2 + (R() - 0.5) * 2.2, r = b[2] * (0.2 + 0.12 * R()), d = b[2] * (0.98 + 0.1 * R());
+        puffs.push([b[0] + Math.cos(ang) * d, b[1] + Math.sin(ang) * d, r]);
+      }
+      for (let i = 0; i < 9; i++) puffs.push([SIZE * (0.12 + 0.76 * R()), base - SIZE * 0.015, SIZE * (0.025 + 0.025 * R())]);   // the base's line bumped
     }
     a.fill(0);
     for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
@@ -561,16 +579,17 @@ const PAINTERS = {
  *  `lit` / `shade` (the card's windows), or `s<k>` for a tile that MATCHES what it lies on (`match: true`): its body in
  *  stop k of the ramp, its flecks in the stop above. */
 export function isekaiKey(key) {
-  const m = /^isekai:([a-z0-9-]+):([a-z]+)-(lit|shade|s\d|b\d)(?:~(\d{1,2}))?$/.exec(key || ''); if (!m) return null;
+  const m = /^isekai:([a-z0-9-]+):([a-z]+)-(lit|shade|s\d|b\d)(?:~(\d{1,2}))?(\+hd)?$/.exec(key || ''); if (!m) return null;
+  const hd = m[5] ? { hd: true } : {};
   if (m[4] !== undefined && (!GROUNDS.has(m[2]) || Number(m[4]) > 15)) return null;
   const st = ISEKAI_STYLES[m[1]] ?? lookOf(m[1])?.card, T = st && st.tiles[m[2]];
   // (a card's tile may name another PAINTER: the material pole draws its cliff as strata, its rock as a rock face)
   if (!T || !PAINTERS[T.paint ?? m[2]]) return null;
   const ramp = st.palette[T.ramp];
   // a skin BAND (`b0`…`b3`, lit to deep shade): the tile's one window, its drawing the band's (a leaf die's skin)
-  if (/^b\d$/.test(m[3])) { const b = Number(m[3].slice(1)); if (b > 3) return null; return { st, tile: m[2], painter: T.paint ?? m[2], band: m[3], bandIndex: b, die: st.trees?.die ?? 'oval', variant: 0, cutout: CUTOUT.has(m[2]), stops: T.lit.map((i) => ramp[i]) }; }
-  if (/^s\d$/.test(m[3])) { const k = Number(m[3].slice(1)); if (!T.match || k >= ramp.length) return null; return { st, tile: m[2], band: m[3], cutout: CUTOUT.has(m[2]), stops: [ramp[k], ramp[k], ramp[Math.min(k + 1, ramp.length - 1)]] }; }
-  return { st, tile: m[2], painter: T.paint ?? m[2], band: m[3], variant: Number(m[4] ?? 0), cutout: CUTOUT.has(m[2]), stops: T[m[3]].map((i) => ramp[i]) };
+  if (/^b\d$/.test(m[3])) { const b = Number(m[3].slice(1)); if (b > 3) return null; return { st, tile: m[2], painter: T.paint ?? m[2], band: m[3], bandIndex: b, die: st.trees?.die ?? 'oval', variant: 0, cutout: CUTOUT.has(m[2]), stops: T.lit.map((i) => ramp[i]), ...hd }; }
+  if (/^s\d$/.test(m[3])) { const k = Number(m[3].slice(1)); if (!T.match || k >= ramp.length) return null; return { st, tile: m[2], band: m[3], cutout: CUTOUT.has(m[2]), stops: [ramp[k], ramp[k], ramp[Math.min(k + 1, ramp.length - 1)]], ...hd }; }
+  return { st, tile: m[2], painter: T.paint ?? m[2], band: m[3], variant: Number(m[4] ?? 0), cutout: CUTOUT.has(m[2]), stops: T[m[3]].map((i) => ramp[i]), ...hd };
 }
 
 const TEXELS = new Map();
@@ -578,13 +597,36 @@ const TEXELS = new Map();
 export function isekaiTexels(key) {
   if (TEXELS.has(key)) return TEXELS.get(key);
   const K = isekaiKey(key); if (!K) return null;
-  const tileKey = key.replace(/-(lit|shade|s\d|b\d)(~\d+)?$/, ''), R = mulberry32(seedOf(tileKey)), lv = new Uint8Array(SIZE * SIZE), al = K.cutout || PATCHES.has(K.tile) ? new Uint8Array(SIZE * SIZE) : null;
+  const tileKey = key.replace(/-(lit|shade|s\d|b\d)(~\d+)?(\+hd)?$/, ''), R = mulberry32(seedOf(tileKey)), lv = new Uint8Array(SIZE * SIZE), al = K.cutout || PATCHES.has(K.tile) ? new Uint8Array(SIZE * SIZE) : null;
   // the same dice for both bands of a tile: its lit and shade tiles are one drawing in two windows of the ramp
   // (a ground tile's variant paints its interior from its own dice; its frame from the tile's)
   PAINTERS[K.painter ?? K.tile](lv, K.stops.length, R, al, { ...K, tileKey, Rv: mulberry32(seedOf(`${tileKey}~${K.variant}`)) });
+  if (K.hd) { const t = hiDef(lv, al, K); TEXELS.set(key, t); return t; }
   const rgb = new Uint8Array(SIZE * SIZE * 3), a = al ? new Uint8Array(SIZE * SIZE) : null;
   for (let i = 0; i < SIZE * SIZE; i++) { const s = K.stops[Math.min(K.stops.length - 1, lv[i])]; rgb[i * 3] = s[0]; rgb[i * 3 + 1] = s[1]; rgb[i * 3 + 2] = s[2]; if (a) a[i] = K.cutout ? (al[i] ? 255 : 0) : al[i]; }
   const t = { W: SIZE, H: SIZE, rgb, a }; TEXELS.set(key, t); return t;
+}
+
+// the hi-def drawing: the levels (and a cutout's alpha) smoothed on the tile's own wrap, read at twice the size, each texel
+// coloured between the two stops its level falls between; a cutout's edge where its smoothed alpha crosses a half
+const HD = 2, HD_R = 1;
+function hiDef(lv, al, K) {
+  const N = SIZE, M = N * HD, n = K.stops.length;
+  const blur = (src) => {
+    const a = new Float32Array(N * N), b = new Float32Array(N * N), w = 2 * HD_R + 1;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let t = 0; for (let d = -HD_R; d <= HD_R; d++) t += src[y * N + ((x + d + N) % N)]; a[y * N + x] = t / w; }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let t = 0; for (let d = -HD_R; d <= HD_R; d++) t += a[((y + d + N) % N) * N + x]; b[y * N + x] = t / w; }
+    return b;
+  };
+  const L = blur(lv), A = al ? blur(Array.from(al, (v) => (K.cutout ? (v ? 1 : 0) : v / 255))) : null;
+  const at = (F, u, v) => { const x0 = Math.floor(u), y0 = Math.floor(v), fx = u - x0, fy = v - y0, g = (x, y) => F[((y + N) % N) * N + ((x + N) % N)]; return (g(x0, y0) * (1 - fx) + g(x0 + 1, y0) * fx) * (1 - fy) + (g(x0, y0 + 1) * (1 - fx) + g(x0 + 1, y0 + 1) * fx) * fy; };
+  const rgb = new Uint8Array(M * M * 3), a = A ? new Uint8Array(M * M) : null;
+  for (let y = 0; y < M; y++) for (let x = 0; x < M; x++) {
+    const u = (x + 0.5) / HD - 0.5, v = (y + 0.5) / HD - 0.5, l = Math.max(0, Math.min(n - 1, at(L, u, v))), i0 = Math.floor(l), i1 = Math.min(n - 1, i0 + 1), f = l - i0, i = y * M + x;
+    for (let c = 0; c < 3; c++) rgb[i * 3 + c] = Math.round(K.stops[i0][c] + (K.stops[i1][c] - K.stops[i0][c]) * f);
+    if (a) { const q = at(A, u, v); a[i] = K.cutout ? (q >= 0.5 ? 255 : 0) : Math.round(q * 255); }
+  }
+  return { W: M, H: M, rgb, a };
 }
 
 const BLOCKS = new Map();
@@ -611,8 +653,8 @@ export function isekaiTexture(key) {
   if (URLS.has(key)) return URLS.get(key);
   const t = isekaiTexels(key); if (!t) return null;
   let url;
-  if (t.a) { const rgba = new Uint8Array(SIZE * SIZE * 4); for (let i = 0; i < SIZE * SIZE; i++) { rgba[i * 4] = t.rgb[i * 3]; rgba[i * 4 + 1] = t.rgb[i * 3 + 1]; rgba[i * 4 + 2] = t.rgb[i * 3 + 2]; rgba[i * 4 + 3] = t.a[i]; } url = `data:image/png;base64,${encodePngRgba(Buffer.from(rgba), SIZE, SIZE).toString('base64')}`; }
-  else url = `data:image/png;base64,${encodePng(Buffer.from(t.rgb), SIZE, SIZE).toString('base64')}`;
+  if (t.a) { const rgba = new Uint8Array(t.W * t.H * 4); for (let i = 0; i < t.W * t.H; i++) { rgba[i * 4] = t.rgb[i * 3]; rgba[i * 4 + 1] = t.rgb[i * 3 + 1]; rgba[i * 4 + 2] = t.rgb[i * 3 + 2]; rgba[i * 4 + 3] = t.a[i]; } url = `data:image/png;base64,${encodePngRgba(Buffer.from(rgba), t.W, t.H).toString('base64')}`; }
+  else url = `data:image/png;base64,${encodePng(Buffer.from(t.rgb), t.W, t.H).toString('base64')}`;
   URLS.set(key, url); return url;
 }
 

@@ -336,6 +336,9 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
   const fires = parts.flatMap(({ z, P: Q }) => (Q.fireSources || []).map((f) => lift(f, z)));
   const mote = parts.map(({ z, P: Q }) => Q.motes && { ...Q.motes, boxes: Q.motes.boxes.map((b) => [b[0], b[1], r5(b[2] + z), b[3], b[4], r5(b[5] + z)]), lights: Q.motes.lights.map((l) => [l[0], l[1], r5(l[2] + z), l[3]]) }).filter(Boolean);
   const lamps = parts.flatMap(({ z, P: Q }) => (Q.flicker ? Q.flicker.lamps.map((l) => lift(l, z)) : []));
+  // (a biocube's indoor fauna, era/biocube-fauna.js: each storey's critters along its own walls, on its floor)
+  const critters = (k) => parts.flatMap(({ z, P: Q }) => (Q.fauna && Q.fauna[k] ? Q.fauna[k].runs.map((r) => [...r.slice(0, 5), r5(r[5] + z)]) : []));
+  const fauna = parts.find(({ P: Q }) => Q.fauna)?.P.fauna, kinds = fauna ? ['roaches', 'mice'].filter((k) => critters(k).length) : [];
   return {
     ...g,
     faces, lights, colliders, anchors: [...anchors, ...stairs], rooms,
@@ -345,6 +348,7 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
     ...(fires.length ? { fireSources: fires } : {}),
     ...(mote.length ? { motes: { ...mote[0], count: Math.min(3200, mote.reduce((a, m) => a + m.count, 0)), boxes: mote.flatMap((m) => m.boxes), lights: mote.flatMap((m) => m.lights).slice(0, 48) } } : {}),
     ...(lamps.length ? { flicker: { lamps: lamps.slice(0, 8) } } : {}),
+    ...(kinds.length ? { fauna: { seed: fauna.seed, ...Object.fromEntries(kinds.map((k) => [k, { ...parts.find(({ P: Q }) => Q.fauna && Q.fauna[k]).P.fauna[k], runs: critters(k) }])) } } : {}),
     storeys: plan.storeys.map((st) => ({ index: st.index, z0: st.z0, rooms: [...ids(st.index)] })),
     ...(manifest._program ? { program: manifest._program } : {}),
   };

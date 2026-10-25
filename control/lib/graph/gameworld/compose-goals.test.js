@@ -76,7 +76,9 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
     expect(orders.at(-1).auto_audit).toBe(true);
     const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
-    expect(fingerprint(unaudited(orders))).toBe('7617ee3d');
+    // (re-pinned 2026-10-25 merging 1024-geocube-composition-update: geocube styles rewrote the gothic-night preset, so the
+    // kit its variant is named by hashes anew, geocube-gothic-night-variant-9bedf4 -> -f88cc1; nothing else in the orders moved)
+    expect(fingerprint(unaudited(orders))).toBe('f8c60bfb');
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('c42f5e2b');
     expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('35dcc6ea');
   }, 300000);

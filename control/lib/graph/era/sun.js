@@ -41,21 +41,31 @@ export function makeSunShadow(faces, toSun, { cell = 0.75, skip = () => false, m
       const k = key(i, j); let b = grid.get(k); if (!b) grid.set(k, b = []); b.push(ti);
     }
   });
-  // Möller–Trumbore along +L from o; a hit at t > eps means something stands between o and the sun
+  // Möller–Trumbore along +L from o; a hit at t > eps means something stands between o and the sun. What depends on the
+  // triangle and the sun alone (its edges, pv = L × ac, 1/det) is worked once per triangle, and a query's arithmetic is
+  // written out in scalars in the same order, so every test gives the very bits it always gave, without an allocation.
+  const T = new Float64Array(tris.length * 13);
+  tris.forEach(([a, b, c], k) => {
+    const ab = sub(b, a), ac = sub(c, a), pv = cross(L, ac), det = dot(ab, pv), o = k * 13;
+    T.set([a[0], a[1], a[2], ab[0], ab[1], ab[2], ac[0], ac[1], ac[2], pv[0], pv[1], pv[2], Math.abs(det) < 1e-12 ? 0 : 1 / det], o);
+  });
   const clear = (k, u, v) => {
     const { m, uv } = masks[k], w = 1 - u - v;
     const s = uv[0][0] * w + uv[1][0] * u + uv[2][0] * v, q = uv[0][1] * w + uv[1][1] * u + uv[2][1] * v;
     const x = Math.floor((s - Math.floor(s)) * m.W), y = Math.floor((1 - (q - Math.floor(q))) * m.H);   // v up: the image's row 0 is v = 1
     return m.a[Math.min(m.H - 1, y) * m.W + Math.min(m.W - 1, x)] === 0;
   };
-  const hits = (o, t, k) => {
-    const [a, b, c] = t, ab = sub(b, a), ac = sub(c, a), pv = cross(L, ac), det = dot(ab, pv);
-    if (Math.abs(det) < 1e-12) return false;
-    const inv = 1 / det, tv = sub(o, a), u = dot(tv, pv) * inv;
+  const [L0, L1, L2] = L;
+  const hits = (o0, o1, o2, k) => {
+    const i = k * 13, inv = T[i + 12];
+    if (inv === 0) return false;
+    const t0 = o0 - T[i], t1 = o1 - T[i + 1], t2 = o2 - T[i + 2];
+    const u = (t0 * T[i + 9] + t1 * T[i + 10] + t2 * T[i + 11]) * inv;
     if (u < 0 || u > 1) return false;
-    const qv = cross(tv, ab), v = dot(L, qv) * inv;
+    const b0 = T[i + 3], b1 = T[i + 4], b2 = T[i + 5];
+    const q0 = t1 * b2 - t2 * b1, q1 = t2 * b0 - t0 * b2, q2 = t0 * b1 - t1 * b0, v = (L0 * q0 + L1 * q1 + L2 * q2) * inv;
     if (v < 0 || u + v > 1) return false;
-    if (dot(ac, qv) * inv <= 1e-3) return false;
+    if ((T[i + 6] * q0 + T[i + 7] * q1 + T[i + 8] * q2) * inv <= 1e-3) return false;
     return !(masks[k] && clear(k, u, v));
   };
   return (p, n) => {
@@ -63,7 +73,8 @@ export function makeSunShadow(faces, toSun, { cell = 0.75, skip = () => false, m
     const o = n ? [p[0] + n[0] * 0.02, p[1] + n[1] * 0.02, p[2] + n[2] * 0.02] : p;
     const b = grid.get(key(Math.floor(dot(o, e1) / cell), Math.floor(dot(o, e2) / cell)));
     if (!b) return 1;
-    for (const ti of b) if (hits(o, tris[ti], ti)) return 0;
+    const [o0, o1, o2] = o;
+    for (const ti of b) if (hits(o0, o1, o2, ti)) return 0;
     return 1;
   };
 }

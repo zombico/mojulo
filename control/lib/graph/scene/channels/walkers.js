@@ -32,8 +32,13 @@ import { HELD_WALK_SOURCE } from './traffic-model.js';
 // `holds` (a planned city's walkers, with the cars' `signals`): a held walker is STEPPED from clock zero at a fixed dt,
 // waiting at each crossing's kerb until the street it crosses is red and the one it walks along has green enough left to
 // cross on (the cars' own phaseAt); a replay is the same people. Absent ⇒ the closed-form loop, byte-identical.
-export function walkersChannelScript(walkers, bank, { cast = false, signals = null } = {}) {
+// `follow` (one walker, local-meru/dummy.js): the orbit's target rides that walker and the camera keeps its offset from
+// it, so the view still turns and zooms round it; a 'follow' button lets it go, and the walk (walk.js) takes the camera
+// while it is on, the chase seated again behind the walker after. A still capture (`capture`) keeps its own camera.
+// Absent ⇒ byte-identical.
+export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
+  const follow = !capture && walkers.some((w) => w.follow);
   return `
 // ---- walkers channel (ambient rig figures on looped paths) ----
 let stepWalkers = () => {};
@@ -152,7 +157,31 @@ stepWalkers = (t) => {
     }
     const wo = window.__mojWalkers[wi];
     wo.pos[0] = p[0]; wo.pos[1] = p[1]; wo.pos[2] = p[2]; wo.heading = heading; wo.phase = phase;
+  }${follow ? `
+  __wFollow();` : ''}
+};${follow ? `
+// the followed walker: seated behind and above it along its heading, then carried with it (a pure translation, so the
+// orbit's turn and zoom are kept); let go by the button, or while the walk has the camera
+const __wF = __walkerRigs.findIndex((r) => r.w.follow), __wFLast = new THREE.Vector3();
+let __wFOn = true, __wFSeat = true;
+const __wFBtn = document.createElement('button'); __wFBtn.textContent = 'follow'; __wFBtn.classList.add('on');
+__wFBtn.onclick = () => { __wFOn = !__wFOn; __wFSeat = true; __wFBtn.classList.toggle('on', __wFOn); };
+if (hud) hud.appendChild(__wFBtn);
+function __wFollow() {
+  if (__wF < 0 || !__wFOn || (typeof walkOn !== 'undefined' && walkOn)) { __wFSeat = true; return; }
+  const r = __walkerRigs[__wF], g = r.rig.group.position, up = (r.rig.fig.figH || 1.8) * r.scale * 0.6;
+  if (__wFSeat) {
+    const h = window.__mojWalkers[__wF].heading;
+    controls.target.set(g.x, g.y, g.z + up);
+    camera.position.set(g.x - Math.cos(h) * 7, g.y - Math.sin(h) * 7, g.z + up + 3.5);
+    camera.lookAt(controls.target);
+    __wFSeat = false;
+  } else {
+    const dx = g.x - __wFLast.x, dy = g.y - __wFLast.y, dz = g.z - __wFLast.z;
+    controls.target.x += dx; controls.target.y += dy; controls.target.z += dz;
+    camera.position.x += dx; camera.position.y += dy; camera.position.z += dz;
   }
-};
+  __wFLast.copy(g);
+}` : ''}
 }`;
 }

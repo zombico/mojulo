@@ -411,6 +411,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Held 2026-10-20 at 212_000 (measured 211,923) merging 1019-science-worlds: create_view's `kind` gains 'classical',
 // 'microscopic', 'quantum' and 'relativistic' (laws composed into a demo, each an argument on the view door; on its own
 // branch it raised the pin 211_300 -> 211_500). No new tool.
+// Raised 2026-10-20 on 1024-geocube-composition-update (211_800 -> 212_000; measured 211,867) for geocube styles:
+// pick_palette's `values` (value groups, the land in two or three masses of value), one schema property. No new tool.
+// Held 2026-10-25 at 212_000 (measured 211,919) merging 1024-geocube-composition-update over 1023-consolidated: both
+// lines' additions together fit under the pin. No new tool.
 const PAYLOAD_CEILING = 212_000;
 
 async function listedTools() {

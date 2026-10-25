@@ -25,9 +25,15 @@ import { withProgram } from './programs.js';
 import { stageLevel } from '../structure/level.js';
 import { STRUCTURE_RAILS } from './out-structures.js';
 import { structurePaint, paintStop } from './out-structures-paint.js';
+import { madeRamp } from './style/swatches.js';
 import { decompileAnchor, ANCHOR_STRUCTURES, ANCHOR_IDS } from './out-anchor-structure.js';
 import { designTown } from './out-town.js';
 import { structureStyle } from './out-structures.js';
+import { dressTownFace } from './town-dress.js';
+import { stepsLift } from './out-openings.js';
+import { townLanguage } from './out-town.js';
+import { streetSpan, layStreet } from './stage-street.js';
+import { outTrailOf } from './out-trail-board.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -86,16 +92,20 @@ function anchorOf(b, kitId) {
   return a;
 }
 
-/** The kit's structure paint, or a plain one for a kit its towns are not painted for. */
-function paintFor(kitId) {
+/** The kit's structure paint, or a plain one for a kit its towns are not painted for. `repoint`: a town's `paint`, a
+ * group at another of the kit's ramps (a geocube's look carries the cube's: era/geocube.js CUBE_STREET_PAINT); a ramp the
+ * kit lacks is passed over, so a street painted for a cube stands in another kit in that kit's own paint. */
+function paintFor(kitId, repoint) {
   const hex = (c) => (typeof c === 'string' ? c : `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('')}`);
-  try { const P = structurePaint(kitId); return (group, v) => hex(paintStop(P, group, v)); }
+  const has = (n) => { try { madeRamp(kitId, n); return true; } catch { return false; } };
+  const swatches = repoint ? Object.fromEntries(Object.entries(repoint).filter(([, n]) => has(n))) : undefined;
+  try { const P = structurePaint(kitId, swatches ? { swatches } : {}); return (group, v) => hex(paintStop(P, group, v)); }
   catch { const base = { 'str:plaster': [196, 186, 166], 'str:stone': [150, 146, 138], 'str:roof': [122, 72, 56] };
     return (group, v) => { const c = base[group] ?? base['str:stone'], k = 0.55 + 0.6 * v; return `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0')).join('')}`; }; }
 }
 
 /** The kit's structure paint at a group and value, as hex (the town's own groups: str:plaster, str:thatch …). */
-const paintRaw = (kitId) => paintFor(kitId);
+const paintRaw = (kitId, repoint) => paintFor(kitId, repoint);
 
 /**
  * A town's street: the civilization's town designed on the kit (era/out-town.js), its lots in the town's own order
@@ -107,11 +117,14 @@ const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
 const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 function townStreet(town, kitId, seed0) {
-  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe)`);
+  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress, street)`);
+  if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
+  if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
-  const anchor = typeof town.anchor === 'string' ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
+  // (a language written as its elements is spoken by the houses too; a seeded one, { seed }, only by the street)
+  const anchor = typeof town.anchor === 'string' || town.anchor?.elements || town.anchor?.pieces ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
     || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k).slice(0, houses);
   // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor
@@ -204,6 +217,32 @@ function doorOf(id, x, y0, out, F, ground) {
   return { id, at: P3([zone[0], zone[1], F.floor]), half: odd ? [0.75, 1.4, 2] : [1.4, 0.75, 2], spawn: P3([back[0], back[1], gz(back)]), heading: r5(Math.atan2(ny, nx)) };
 }
 
+/** Whether a point lies on a street's paving (its road, walks, kerbs and door paths): a lookup over their top faces. */
+function pavedBy(faces) {
+  const C = 2, cells = new Map(), tops = faces.filter((f) => /^street:(road|walk|kerb)$/.test(f.group) && f.normal[2] > 0.7);
+  for (const f of tops) {
+    const P = f.corners.map((c) => [c[0], c[1]]), xs = P.map((p) => p[0]), ys = P.map((p) => p[1]);
+    for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++) for (let j = Math.floor(Math.min(...ys) / C); j <= Math.floor(Math.max(...ys) / C); j++) {
+      const k = `${i},${j}`; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(P);
+    }
+  }
+  const inside = (P, x, y) => { let s = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) s = !s; } return s; };
+  return (x, y) => (cells.get(`${Math.floor(x / C)},${Math.floor(y / C)}`) || []).some((P) => inside(P, x, y));
+}
+
+/** The live grass with no cell on the paving: a cell's tufts stand anywhere in it, so a cell any corner of which is paved
+ *  grows none (era/isekai.js liveGrassConfig's mask, bit 1 the cell grows). */
+function offPaving(L, paved) {
+  const g = L.grid, M = Uint8Array.from(Buffer.from(g.m.__b64, 'base64')), CX = g.nx - 1;
+  let n = 0;
+  for (let j = 0; j < g.ny - 1; j++) for (let i = 0; i < CX; i++) {
+    if (!(M[j * CX + i] & 1)) continue;
+    const at = (a, b) => paved(g.x0 + (i + a) * g.cell, g.y0 + (j + b) * g.cell);
+    if (at(0, 0) || at(1, 0) || at(1, 1) || at(0, 1) || at(0.5, 0.5)) { M[j * CX + i] = 0; n++; }
+  }
+  return n ? { ...L, grid: { ...g, m: { ...g.m, __b64: Buffer.from(M.buffer).toString('base64') } } } : L;
+}
+
 /**
  * The outdoor payload with its buildings seated: their faces, lights, colliders and anchors added, the land's growth
  * cleared from their footprints. A recipe without `buildings` returns the payload as it came. `ctx.planOnly` seats
@@ -217,7 +256,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   // houses standing as shells; seated after the recipe's own buildings, on what land is left
   const street = manifest.town !== undefined ? townStreet(manifest.town, manifest.kit, manifest.seed) : [];
   const list = [...list0, ...street];
-  const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId);
+  const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId, manifest.town?.paint);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
   const sun = unit(payload.sky?.sun?.dir ?? [0.45, -0.55, 0.7]);
   const seated = [], taken = [], reserved = [];
@@ -226,6 +265,15 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
   let faces = payload.faces, lights = [...(payload.lights || [])], colliders = [...(payload.colliders || [])], anchors = [...(payload.anchors || [])];
   const cutouts = new Set(payload.cutouts || []);
+  // the town's street (`town.street`, stage-street.js): the trail through it laid as its language's lane; the houses
+  // seated to front it, behind its footway, and kept off it
+  const ST = manifest.town?.street && manifest.trail !== undefined ? (() => {
+    const L = townLanguage(structureStyle(kitId, manifest.town.seed ?? manifest.seed ?? 1), manifest.town.anchor);
+    return { L, span: streetSpan(L), site: outTrailOf(manifest).site };
+  })() : null;
+  const offStreet = (x, y) => ST && Math.abs(x - ST.site.trailX(y)) < ST.span.half + 0.2;
+  // the street's stretch: from before its first house to past its last, along the trail
+  const streetRange = (ys) => [Math.max(0, Math.min(...ys) - 6), Math.min(ST.site.D, Math.max(...ys) + 6)], planned = [];
   list.forEach((b, i) => {
     if (!b || typeof b.use !== 'string') throw new Error(`stage: buildings[${i}] needs a use`);
     const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;
@@ -257,12 +305,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const zs = samples.map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       const atDoor = [toWorld([doorPlan[0], doorPlan[1] - 0.6]), toWorld([doorPlan[0], doorPlan[1] + 0.6])].map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       if (zs.length < samples.length * 0.9 || !atDoor.length) return { off: true };
-      const floor = Math.max(...atDoor) + 0.12;
+      // (a door with steps stands its floor up them: the steps' foot on the land, era/out-openings.js)
+      const floor = Math.max(...atDoor) + (lot?.design?.dims?.steps ? stepsLift(lot.design.dims.steps) : 0.12);
       const cellsIn = (set) => { let n = 0; for (const B of boxes) for (let i = Math.floor(B[0]); i <= Math.floor(B[2]); i++) for (let j = Math.floor(B[1]); j <= Math.floor(B[3]); j++) if (set.has(`${i},${j}`)) n++; return n; };
       const hits = (B, c) => B[0] < c.max[0] && c.min[0] < B[2] && B[1] < c.max[1] && c.min[1] < B[3];
       // a building never stands on a beat of the trail (the way runs through them) or another building
       const onBeat = boxes.some((B) => beats.some((bt) => bt.at[0] > B[0] - 2 && bt.at[0] < B[2] + 2 && bt.at[1] > B[1] - 2 && bt.at[1] < B[3] + 2));
-      const blocked = onBeat || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
+      const onStreet = !!ST && String(id).startsWith('town-') && boxes.some((B) => [[B[0], B[1]], [B[2], B[1]], [B[0], B[3]], [B[2], B[3]], [(B[0] + B[2]) / 2, (B[1] + B[3]) / 2]].some(([x, y]) => offStreet(x, y)));
+      const blocked = onBeat || onStreet || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
       return { q, rot, toWorld, boxes, zs, floor, into: Math.max(...zs) - floor, rough: cellsIn(rough), path: cellsIn(path), blocked };
     };
     const score = (F) => (F.off ? Infinity : F.into + 3 * F.rough + (F.path ? 40 : 0) + (F.blocked ? 1000 : 0));
@@ -279,18 +329,32 @@ export function withBuildings(payload, manifest, ctx = {}) {
     } else {
       // absent: the flattest place beside the trail, its door to the trail; the trail's beats and pockets the places
       // looked at (each beat a few distances out to either side), the first best kept
-      const cands = [];
-      for (const p of pockets) { const m = p.mouth ? [p.mouth[0] - p.at[0], p.mouth[1] - p.at[1]] : [0, -1]; cands.push([[p.at[0], p.at[1]], Math.abs(m[0]) >= Math.abs(m[1]) ? (m[0] >= 0 ? '+x' : '-x') : (m[1] >= 0 ? '+y' : '-y')]); }
-      beats.forEach((bt, k) => {
-        const a = beats[Math.max(0, k - 1)].at, c = beats[Math.min(beats.length - 1, k + 1)].at, d = unit([c[0] - a[0], c[1] - a[1], 0]), n = [-d[1], d[0]];
-        for (const off of [5, 8, 11]) for (const sg of [1, -1]) {
-          const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
-          cands.push([[r5(bt.at[0] + sg * n[0] * off), r5(bt.at[1] + sg * n[1] * off)], f]);
+      const cands = [], street = ST && String(id).startsWith('town-');
+      if (street) {
+        // a town with a street fronts it: a seat every metre and a half along it, either side, just behind its footway
+        // and facing it (the house turned to the nearest quarter), the seats nearest the town's heart first
+        for (let y = 2; y <= ST.site.D - 2 + 1e-9; y += 1.5) {
+          const x = ST.site.trailX(y), dx = ST.site.trailX(y + 0.5) - ST.site.trailX(y - 0.5), l = Math.hypot(dx, 1), n = [1 / l, -dx / l];
+          for (const sg of [1, -1]) {
+            const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
+            cands.push([[r5(x + sg * n[0] * (ST.span.half + 1.4)), r5(y + sg * n[1] * (ST.span.half + 1.4))], f, 0.15 * Math.abs(y - ST.site.D / 2)]);
+          }
         }
-      });
+      } else {
+        for (const p of pockets) { const m = p.mouth ? [p.mouth[0] - p.at[0], p.mouth[1] - p.at[1]] : [0, -1]; cands.push([[p.at[0], p.at[1]], Math.abs(m[0]) >= Math.abs(m[1]) ? (m[0] >= 0 ? '+x' : '-x') : (m[1] >= 0 ? '+y' : '-y')]); }
+        beats.forEach((bt, k) => {
+          const a = beats[Math.max(0, k - 1)].at, c = beats[Math.min(beats.length - 1, k + 1)].at, d = unit([c[0] - a[0], c[1] - a[1], 0]), n = [-d[1], d[0]];
+          for (const off of [5, 8, 11]) for (const sg of [1, -1]) {
+            const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
+            cands.push([[r5(bt.at[0] + sg * n[0] * off), r5(bt.at[1] + sg * n[1] * off)], f]);
+          }
+        });
+      }
       let best = null;
-      for (const [P0, f] of cands) { const F = fit(P0, f), sc = score(F); if (!best || sc < best.sc - 1e-9) best = { T: P0, facing: f, sc }; }
+      for (const [P0, f, near = 0] of cands) { const F = fit(P0, f), sc = score(F) + near; if (!best || sc < best.sc - 1e-9) best = { T: P0, facing: f, sc }; }
       if (!best || best.sc === Infinity) throw new Error(`stage: buildings[${i}] (${id}) finds no place on the land beside the trail; give at: { x, y, facing }`);
+      // (a street's house with no free frontage left is not built: stacked on another it would be a ruin)
+      if (street && best.sc >= 1000) return;
       T = best.T; facing = best.facing;
     }
     const F = fit(T, facing);
@@ -298,7 +362,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const { q, rot, toWorld, zs, floor, into } = F;
     taken.push(...F.boxes);
     // the planning pass only claims the ground (era/reserve.js): the land is laid again round it before anything is built
-    if (ctx.planOnly) { reserved.push(...F.boxes.map((B) => B.map(r5))); return; }
+    if (ctx.planOnly) { reserved.push(...F.boxes.map((B) => B.map(r5))); if (ST && String(id).startsWith('town-')) planned.push(T[1]); return; }
     const clearUnder = (pad, land = true) => {
       const grow = F.boxes.map((B) => [B[0] - pad, B[1] - pad, B[2] + pad, B[3] + pad]), mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
       faces = faces.filter((f) => { const g = f.group || ''; if (CLEARED.test(g)) { const [cx, cy] = mid(f); return !grow.some((B) => cx >= B[0] && cx <= B[2] && cy >= B[1] && cy <= B[3]); } if (land && (GROUND.test(g) || ROUGH.test(g))) { const [cx, cy] = mid(f); return !F.boxes.some((B) => cx > B[0] && cx < B[2] && cy > B[1] && cy < B[3]); } return true; });
@@ -308,10 +372,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
       // one collider round it
       const below0 = Math.max(0.3, floor - Math.min(...zs) + 0.3), Wl = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
       clearUnder(0.4, false);   // a shell has no floor: its land stays (its collider keeps a walker out)
-      const Pt = paintRaw(kitId), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
-      const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return { ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; });
-      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return { ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }; });
-      faces = [...faces, ...shellF, ...plinth];
+      const Pt = paintRaw(kitId, manifest.town?.paint), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+      // (a cube's street dressed: its walls painted from relief, town-dress.js; absent, the paint alone)
+      const Dr = manifest.town?.dress, dressed = (face, grp) => (Dr ? dressTownFace(face, grp, Dr) : face);
+      const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return dressed({ ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }, f.group); });
+      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return dressed({ ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }, 'plinth'); });
+      // (a screen over a light: one card, its star field a cutout texture, era/screen-tiles.js)
+      const screenF = (lot.design.screens || []).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn))); cutouts.add(f.texture); return { corners: c.map(P3), group: 'town:screen', fill, cornerFills: c.map(() => fill), normal: P3(nn), outNormal: P3(nn), texture: f.texture, textureLit: true, uv: f.uv }; });
+      faces = [...faces, ...shellF, ...screenF, ...plinth];
       const top = Math.max(...lot.design.faces.flatMap((f) => f.corners.map((c) => c[2]))), B = F.boxes[0];
       colliders.push({ min: P3([B[0], B[1], floor - below0]), max: P3([B[2], B[3], floor + top]), of: `${id}:house` });
       const door = b.enter === 'door' ? doorOf(id, doorPlan[0], 0, 0, F, ground) : null;
@@ -329,7 +397,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const L0 = decompileAnchor(typeof anchor === 'string' ? ANCHOR_STRUCTURES[anchor] : anchor, typeof anchor === 'string' ? anchor : null);
       const massD = L0.anchor.pieces.find((p) => p.role === 'mass') ?? {}, capD = L0.anchor.pieces.find((p) => p.role === 'cap') ?? null;
       const lam = (nn) => Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
-      const paintFace = (cs, group, grp, v) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))); return { ...quad(cs, group, paint(grp, Math.min(1, v * (0.55 + 0.45 * lam(nn))))), normal: P3(nn), outNormal: P3(nn) }; };
+      const DrD = manifest.town?.dress;
+      const paintFace = (cs, group, grp, v) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), F0 = { ...quad(cs, group, paint(grp, Math.min(1, v * (0.55 + 0.45 * lam(nn))))), normal: P3(nn), outNormal: P3(nn) }; return DrD && group !== 'building:door' ? dressTownFace(F0, grp, DrD) : F0; };
       const shellD = shellOf(inner, waysD, 0.5, L0.vocab.cap, L0.proportions.pitch, belowD).map((sf) => paintFace(sf.corners.map(Wd), `building:${sf.group}`, sf.group === 'roof' ? (capD?.group ?? 'str:plaster') : (massD.group ?? 'str:plaster'), sf.group === 'roof' ? (capD?.value ?? 0.5) : (massD.value ?? 0.7)));
       // the door, shut: a leaf filling the way in, set a hand's width inside the outer face
       const wy = waysD[0], y = entry.y - t + 0.08, leaf = [[wy.lo, y, 0], [wy.hi, y, 0], [wy.hi, y, wy.top], [wy.lo, y, wy.top]].map(Wd);
@@ -367,7 +436,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const shell = shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
-      return { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
+      const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
+      return manifest.town?.dress ? dressTownFace(F0, roof ? roofGroup : wallGroup, manifest.town.dress) : F0;
     });
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
@@ -375,7 +445,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const stoop = drop > 0.05 ? (() => {
       const a = wy.lo - 0.2, c = wy.hi + 0.2, y0 = entry.y - t, y1 = y0 - run, zt = 0, zb = -drop - 0.15;
       const top = [[a, y1, zb], [c, y1, zb], [c, y0, zt], [a, y0, zt]].map(W), sides = [[[a, y0, zt], [a, y1, zb], [a, y0, zb]], [[c, y1, zb], [c, y0, zt], [c, y0, zb]]].map((tri) => tri.map(W));
-      return [top, ...sides].map((cs) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lit = 0.35 + 0.65 * Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]); return { ...quad(cs, 'building:stoop', paint('str:stone', Math.min(1, 0.5 * lit))), normal: P3(nn), outNormal: P3(nn) }; });
+      return [top, ...sides].map((cs) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lit = 0.35 + 0.65 * Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]); const F0 = { ...quad(cs, 'building:stoop', paint('str:stone', Math.min(1, 0.5 * lit))), normal: P3(nn), outNormal: P3(nn) }; return manifest.town?.dress ? dressTownFace(F0, 'plinth', manifest.town.dress) : F0; });
     })() : [];
     faces = [...faces, ...moved, ...shell, ...stoop];
     for (const c of P.cutouts || []) cutouts.add(c);
@@ -403,6 +473,31 @@ export function withBuildings(payload, manifest, ctx = {}) {
     seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
       findings: [...inner._program.findings.map((f) => f.says), ...(into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : [])] });
   });
+  // (planning: the street's ground is reserved too, so nothing grows on it when the land is laid again)
+  if (ctx.planOnly && ST && planned.length) {
+    const [y0, y1] = streetRange(planned);
+    for (let y = y0; y < y1; y += 2) { const xs = [y, y + 1, y + 2].map((q) => ST.site.trailX(Math.min(q, y1))), h = ST.span.half + 0.5; reserved.push([r5(Math.min(...xs) - h), r5(y), r5(Math.max(...xs) + h), r5(Math.min(y + 2, y1))]); }
+  }
   if (ctx.planOnly) return { reserved };
-  return { ...payload, faces, ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  // the street, once its houses stand: from before the first to past the last along the trail, the land's growth and
+  // the trail under it cleared, a path of slabs to each door
+  let liveGrass = null;
+  if (ST && !ctx.planOnly) {
+    const doors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && String(a.id).includes('town-'));
+    if (doors.length) {
+      const [y0, y1] = streetRange(doors.map((d) => d.at[1]));
+      const fillOf = (re) => faces.find((f) => re.test(f.group || '') && typeof f.fill === 'string')?.fill ?? '#8a7a62';
+      const lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+      const { faces: SF, clear } = layStreet(ST.site, ST.L, ST.span, { y0, y1, ground, paint, lit, soil: fillOf(/:trail$/), grass: fillOf(/:ground$/), dress: manifest.town.dress, doors });
+      const mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
+      // (nothing grows on the street's own ground either, its door paths among it: what stands within a hand of it goes;
+      // and the land wholly under its paving goes with the trail, so no blend of the trail's runs under the street: its
+      // kerbs and walks are its edge)
+      const paved = pavedBy(SF), near = (x, y) => paved(x, y) || [[0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dy]) => paved(x + dx, y + dy));
+      const under = (f) => f.corners.every((c) => paved(c[0], c[1])) && paved(...mid(f));
+      faces = [...faces.filter((f) => { const g = f.group || ''; if (GROUND.test(g) && under(f)) return false; if (!(CLEARED.test(g) || PATH.test(g))) return true; const [cx, cy] = mid(f); return !clear(cx, cy) && !(CLEARED.test(g) && near(cx, cy)); }), ...SF];
+      if (payload.liveGrass) liveGrass = offPaving(payload.liveGrass, paved);
+    }
+  }
+  return { ...payload, faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

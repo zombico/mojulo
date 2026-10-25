@@ -31,6 +31,7 @@ import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
+import { readTrailDress } from './trail-dress.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -74,8 +75,9 @@ const C = OUT_TRAIL;
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after? } (or true)');
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds'];
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after?, surface?, rubble?, patches? } (or true)');
+  // (its dress, `surface`, `rubble`, `patches`, is the stage's to draw: era/trail-dress.js reads it)
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -105,6 +107,7 @@ export function readOutTrail(t, depth = 0) {
     if (rest.id === undefined || prev.id === id) throw new Error('stage: trail.after names the trail it follows by an id of its own (trail.after.id), not this trail\'s');
     after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
   }
+  readTrailDress(t);
   const ground = readGround(t.ground);
   return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
 }
@@ -488,17 +491,23 @@ export function outTrailPayload(site) {
   };
 }
 
+/** The water a crossing fords, as sheets: each stream's line `y`, its half width `w`, where it rises (`x0`, at the
+ *  cliff's foot past the talus) and runs out (`x1`), and its surface `z(x)` a little over the bed. None without a trail's
+ *  crossings. (What floats on it reads the same water: era/biocube-fauna.js.) */
+export function streamSheets(site, st) {
+  const x1 = site.W, w = C.stream.w * 0.9;
+  return (site.out?.streams ?? []).map((s) => ({ y: s.y, w, x0: site.cliffX(s.y) + (st.cliff ? st.cliff.talus : 3), x1, z: (x) => site.ground(x, s.y) + C.stream.water * 0.55 }));
+}
+
 /** The water a crossing fords: a sheet down the stream's bed across the site, a little over the bed wherever the bed
  *  runs (so it follows the ground as a stream does), sky-tinted, drawn after the bake. */
 export function streamFaces(site, st) {
-  const out = [], x1 = site.W, n = 40, w = C.stream.w * 0.9;
-  for (const s of site.out.streams) {
+  const out = [], n = 40;
+  for (const { y, w, x0, x1, z } of streamSheets(site, st)) {
     // it rises at the cliff's foot (past the talus), and runs out across the valley
-    const x0 = site.cliffX(s.y) + (st.cliff ? st.cliff.talus : 3);
-    const z = (x) => site.ground(x, s.y) + C.stream.water * 0.55;
     for (let i = 0; i < n; i++) {
       const xa = mix(x0, x1, i / n), xb = mix(x0, x1, (i + 1) / n);
-      out.push({ corners: [[xa, s.y - w, z(xa)], [xb, s.y - w, z(xb)], [xb, s.y + w, z(xb)], [xa, s.y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
+      out.push({ corners: [[xa, y - w, z(xa)], [xb, y - w, z(xb)], [xb, y + w, z(xb)], [xa, y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
         fill: st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', cornerAlpha: [0.55, 0.55, 0.55, 0.55], group: 'trail:water' });
     }
   }

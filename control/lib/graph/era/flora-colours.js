@@ -1,0 +1,123 @@
+/**
+ * FLORA COLOURS — the colour theorist's offer to a level's trees: more foliage than the world's one and barks of its
+ * own, solved from the world's own colours (its foliage, grass, rock and soil), so whatever a tree is made of reads
+ * as this world's. The theorist offers; the trees choose (a biocube's tree kinds, era/biocube.js `leaf` and `bark`):
+ * which tree takes which colour is the composition's, not the palette's.
+ *
+ *   floraColours({ foliage, grass, rock, soil, accent? })  (rgb 0..255, the world's key colours)
+ *     → { leaves: [deep, young, turn], barks: [warm, pale, dark, white] }, rgb
+ *        leaves: deep (darker, cooler), young (lighter, toward the yellow), turn (toward the accent, or autumn's warm);
+ *                each kept apart from the grass and from each other, so a crown reads against the ground
+ *        barks:  warm (the soil's hue, dark), pale (the rock's hue, light and grey), dark (a cool near-black), white
+ *                (a near-white in the rock's hue, a birch's)
+ *   floraRamps(palette)  → { 'foliage-1..3', 'bark-1..4' }: the offer as ramps the length of the palette's foliage and
+ *                          bark, for the lock (a tree kind's `leaf: n` locks its crown to `foliage-n`, `bark: n` its
+ *                          wood to `bark-n`; 0 is the world's own)
+ *
+ * HARMONY — an ikebana clump's colours by role (its tall line `shin`, its mass `soe`, its low anchor `hikae`, the
+ * `filler` round them; era/nature.js arrangedClump), solved from the world's foliage as one harmony the composition
+ * names, so a clump reads as composed (HARMONIES):
+ *   analogous  the hue stepping from cool behind to warm in front, the value held
+ *   value      one hue, the value stepping from dark behind to light in front: depth read from afar
+ *   accent     the world's own green, and one note turned (toward the accent, or autumn) on the anchor in front
+ *   season     the clump turning: the line the world's green, the mass half turned, the anchor turned
+ *   harmonyColours({ foliage, grass, accent? }, harmony) → { shin, soe, hikae, filler } rgb
+ *   harmonyLaw(colours, grass, harmony) → { ok, value }: the roles step apart where the harmony steps (an accent stands
+ *                          out from the rest), and every role stands apart from the grass
+ *   harmonyRamps(palette, harmony) → { 'role-shin', 'role-soe', 'role-hikae', 'role-filler' } ramps for the lock
+ *
+ * Pure.
+ */
+import { lchOf, oklch, deltaE, hueGap } from '../color-theorist/oklab.js';
+import { rampFrom } from './look-facets.js';
+
+/** How many foliage colours and barks the theorist offers beyond the world's own. */
+export const LEAF_OFFER = 3, BARK_OFFER = 4;
+// how far apart (OKLab) a crown must stand from the grass and a leaf colour from another
+const APART = 0.05;
+const mixHue = (a, b, t) => { const d = ((b - a + 540) % 360) - 180; return (a + d * t + 360) % 360; };
+
+export function floraColours({ foliage, grass, rock, soil, accent = null }) {
+  const [L, C, h] = lchOf(foliage), G = grass, A = accent ? lchOf(accent) : null;
+  const want = [
+    [L * 0.78, C * 1.05, mixHue(h, 205, 0.18)],
+    [Math.min(0.86, L * 1.18 + 0.03), C * 1.2, mixHue(h, 100, 0.35)],
+    // (turned: toward the world's accent when it has one and it sits in reach, else autumn's warm)
+    [Math.min(0.8, L * 1.06), Math.max(C, 0.09), A && A[1] > 0.04 && hueGap(h, A[2]) < 150 ? mixHue(h, A[2], 0.7) : mixHue(h, 58, 0.75)],
+  ];
+  const leaves = [];
+  for (const [l, c, hh] of want) {
+    let rgb = oklch(l, c, hh);
+    // (kept apart: from the grass, the world's own foliage and the leaves before it, by lightness, away from each)
+    for (let i = 0; i < 6 && [G, foliage, ...leaves].some((o) => deltaE(rgb, o) < APART); i++) {
+      const near = [G, foliage, ...leaves].find((o) => deltaE(rgb, o) < APART), [Ln] = lchOf(near), [Lr] = lchOf(rgb);
+      rgb = oklch(Lr + (Lr >= Ln ? 0.04 : -0.04), c, hh);
+    }
+    leaves.push(rgb);
+  }
+  const [, Cs, hs] = lchOf(soil), [, Cr, hr] = lchOf(rock);
+  const barks = [oklch(0.36, Math.min(Cs, 0.045), hs), oklch(0.6, Math.min(Cr, 0.022), hr), oklch(0.27, 0.02, mixHue(hs, 255, 0.55)), oklch(0.9, Math.min(Cr, 0.014), hr)];
+  return { leaves, barks };
+}
+
+/** The offer as ramps for the lock, from a palette's own ramps (their middle stops the world's key colours). */
+export function floraRamps(palette) {
+  const mid = (r) => r[Math.floor(r.length / 2)], F = palette.foliage, B = palette.bark;
+  if (!F || !B || !palette.grass || !palette.rock || !palette.soil) return {};
+  const { leaves, barks } = floraColours({ foliage: mid(F), grass: mid(palette.grass), rock: mid(palette.rock), soil: mid(palette.soil), accent: palette.accent ? mid(palette.accent) : null });
+  // (each ramp cut as a kit's are, rampFrom: its dark end leaning to the shade's default hue)
+  const out = {};
+  leaves.forEach((c, i) => { out[`foliage-${i + 1}`] = rampFrom(c, F.length); });
+  barks.forEach((c, i) => { out[`bark-${i + 1}`] = rampFrom(c, B.length); });
+  return out;
+}
+
+export const HARMONIES = Object.freeze(['analogous', 'value', 'accent', 'season']);
+export const CLUMP_ROLES = Object.freeze(['shin', 'soe', 'hikae', 'filler']);
+// how far (OKLab) a stepping harmony's neighbouring roles stand apart, and an accent from the rest
+const STEP = 0.035, ACCENT = 0.08;
+const turnedHue = (h, A) => (A && A[1] > 0.04 && hueGap(h, A[2]) < 150 ? mixHue(h, A[2], 0.7) : mixHue(h, 58, 0.75));
+
+export function harmonyColours({ foliage, grass, accent = null }, harmony) {
+  const [L, C, h] = lchOf(foliage), A = accent ? lchOf(accent) : null, ht = turnedHue(h, A), Ct = Math.max(C, 0.09);
+  const want = {
+    analogous: { shin: [L, C, mixHue(h, 205, 0.14)], soe: [L, C, h], hikae: [Math.min(0.86, L * 1.04), C * 1.06, mixHue(h, 95, 0.32)] },
+    value: { shin: [L * 0.76, C, h], soe: [L, C, h], hikae: [Math.min(0.88, L * 1.2 + 0.02), C * 1.08, h] },
+    accent: { shin: [L, C, h], soe: [L, C, h], hikae: [Math.min(0.8, L * 1.06), Ct, ht] },
+    season: { shin: [L, C, h], soe: [L * 1.02, (C + Ct) / 2, mixHue(h, ht, 0.45)], hikae: [Math.min(0.8, L * 1.06), Ct, ht] },
+  }[harmony];
+  if (!want) throw new Error(`harmony '${harmony}' is not one (${HARMONIES.join(', ')})`);
+  const out = {};
+  for (const role of ['shin', 'soe', 'hikae']) {
+    const [l, c, hh] = want[role];
+    let rgb = oklch(l, c, hh);
+    // (kept apart from the grass, and where the harmony steps, from the role behind it: by lightness, away from each)
+    const behind = harmony === 'accent' ? [] : role === 'soe' ? [out.shin] : role === 'hikae' ? [out.soe] : [];
+    for (let i = 0; i < 8; i++) {
+      const near = deltaE(rgb, grass) < APART ? grass : behind.find((o) => deltaE(rgb, o) < STEP);
+      if (!near) break;
+      const [Ln] = lchOf(near), [Lr] = lchOf(rgb);
+      rgb = oklch(Lr + (Lr >= Ln ? 0.03 : -0.03), c, hh);
+    }
+    out[role] = rgb;
+  }
+  out.filler = out.soe;
+  return out;
+}
+
+export function harmonyLaw(colours, grass, harmony) {
+  const apart = CLUMP_ROLES.filter((r) => deltaE(colours[r], grass) < APART);
+  const steps = harmony === 'accent' ? [deltaE(colours.hikae, colours.shin), deltaE(colours.hikae, colours.soe)].map((d) => d >= ACCENT)
+    : [deltaE(colours.shin, colours.soe), deltaE(colours.soe, colours.hikae)].map((d) => d >= STEP);
+  const ok = !apart.length && steps.every(Boolean);
+  return { ok, value: ok ? `${harmony}: the roles step apart, every one off the grass` : `${harmony}: ${apart.length ? `${apart.join(', ')} too near the grass` : ''}${apart.length && !steps.every(Boolean) ? '; ' : ''}${!steps.every(Boolean) ? (harmony === 'accent' ? 'the accent does not stand out' : 'a role does not step from the one behind it') : ''}` };
+}
+
+export function harmonyRamps(palette, harmony) {
+  const mid = (r) => r[Math.floor(r.length / 2)], F = palette.foliage;
+  if (!F || !palette.grass) return {};
+  const H = harmonyColours({ foliage: mid(F), grass: mid(palette.grass), accent: palette.accent ? mid(palette.accent) : null }, harmony), out = {};
+  for (const r of CLUMP_ROLES) out[`role-${r}`] = rampFrom(H[r], F.length);
+  return out;
+}
+

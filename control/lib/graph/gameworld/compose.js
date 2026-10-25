@@ -33,7 +33,7 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
-import { GEOCUBE_PRESETS } from '../era/geocube.js';
+import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
 import { suggestGenres } from './intent.js';
 
 /**
@@ -96,6 +96,7 @@ export const CUBE_WORDS = Object.freeze({
   night: 'gothic-night', dark: 'gothic-night', gothic: 'gothic-night', crypt: 'gothic-night', haunted: 'gothic-night', moonlit: 'gothic-night', torchlit: 'gothic-night',
   island: 'island-noon', coast: 'island-noon', sea: 'island-noon', shore: 'island-noon', beach: 'island-noon', sunny: 'island-noon', tropical: 'island-noon', noon: 'island-noon',
   jungle: 'jungle-haze', haze: 'jungle-haze', hazy: 'jungle-haze', swamp: 'jungle-haze', overgrown: 'jungle-haze', humid: 'jungle-haze',
+  limestone: 'limestone-crags', crag: 'limestone-crags',
 });
 // a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
 const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
@@ -286,6 +287,26 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       world.brief.unread = world.brief.unread.filter((x) => x !== w);
     }
   } else world.brief.cube = { id: null, why: `no cube has ${style.kit}'s air` };
+  // domain expansion: a cube that names the levels it makes lends them to the walks, the ones the words name first (in
+  // the order they are said), then the rest in the cube's order, round again when the walks outnumber them
+  if (style.geocube !== undefined) {
+    const C = readGeocube(style.geocube), outside = C.domains ? geocubeDomains(C).filter((d) => d.side === 'outside') : [];
+    const named = (d) => P.words.findIndex((w) => w.length >= 4 && !STOP.has(w) && (d.name.split('-').includes(w) || d.reads.toLowerCase().split(/[^a-z]+/).includes(w)));
+    const order = [...outside.filter((d) => named(d) >= 0).sort((a, b) => named(a) - named(b)), ...outside.filter((d) => named(d) < 0)];
+    const walks = Object.keys(world.levels).filter((lid) => world.levels[lid].walk);
+    if (order.length && walks.length) {
+      world.brief.domains = walks.map((lid, k) => {
+        const d = order[k % order.length], i = named(d);
+        world.levels[lid].style = { ...(world.levels[lid].style ?? {}), domain: d.name };
+        return { level: lid, domain: d.name, ...(i >= 0 ? { word: P.words[i] } : {}) };
+      });
+      for (const w of new Set(world.brief.domains.filter((x) => x.word).map((x) => x.word))) {
+        const r = world.brief.read.find((x) => x.word === w);
+        if (r) r.decides = [...r.decides, 'domain']; else world.brief.read.push({ word: w, decides: ['domain'] });
+        world.brief.unread = world.brief.unread.filter((x) => x !== w);
+      }
+    }
+  }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {
     const r = world.brief.read.find((x) => x.word === w);

@@ -309,13 +309,26 @@ function expandDiagramManifest(manifest) {
  */
 function newHouseSeed(m, ref) {
   if (m?.kind !== 'floorplan' || m.seed !== undefined) return m;
-  let seed;
+  return { ...m, seed: newSeedOf(ref) };
+}
+
+/** A new row's own seed: from its ref when the caller names one (the same ref, the same seed), else at random. */
+function newSeedOf(ref) {
   if (typeof ref === 'string' && ref) {
     let h = 0x811c9dc5;
     for (let i = 0; i < ref.length; i += 1) { h ^= ref.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-    seed = (h % 2147483646) + 1;
-  } else seed = randomInt(1, 2147483647);
-  return { ...m, seed };
+    return (h % 2147483646) + 1;
+  }
+  return randomInt(1, 2147483647);
+}
+
+/** A geocube's trail (or micro-town, or micro-city) draws its own seed as a new house does, so no two mints lay the same island or
+ * street (era/geocube.js). A seed written is kept, and a row already one keeps what it renders from. */
+const SEEDED_SHOWS = ['trail', 'town', 'city'];
+function newTrailSeed(m, ref, existing) {
+  if (m?.kind !== 'geocube' || !SEEDED_SHOWS.includes(m.show) || m.seed !== undefined) return m;
+  if (existing?.kind === 'geocube' && existing.show === m.show) return m;
+  return { ...m, seed: newSeedOf(ref) };
 }
 
 /** A gameworld manifest read and returned as written, or the reader's refusal. The hero its pages compose (and its
@@ -591,6 +604,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // every geocube it names given its palette's seed: the color theorist decides a cube's colours; a cube an edit
   // leaves as it was is left (color-theorist/stamp.js)
   manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
+  // a geocube's trail its own seed, a new island
+  manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
   manifest = resolvePlayUi(manifest);
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;
