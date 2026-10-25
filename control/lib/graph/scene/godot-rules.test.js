@@ -76,7 +76,7 @@ const climb = () => run([10, {}], [6, { turn: 0.5 }], [6, { turn: -0.5 }], [70, 
 describe('the motion rules the Godot kernel runs', () => {
   it('the corpus walks one case per path through the rules, every hand scenario a distinct one', () => {
     expect(new Set(SCENARIOS.map((s) => s.id)).size).toBe(SCENARIOS.length);
-    expect(new Set(SCENARIOS.map((s) => s.entity.rule.type))).toEqual(new Set(['walk', 'platform']));
+    expect(new Set(SCENARIOS.map((s) => s.entity.rule.type))).toEqual(new Set(['walk', 'platform', 'glide']));
     // the probe walker steps the tread and not the shelf above it, which a walker probing from its eye would climb
     const probe = scenarioById('walk-probe');
     expect(JSON.parse(runRules(probe).at(-1)).pos[2]).toBeCloseTo(0.4 + 1.7, 6);
@@ -84,14 +84,23 @@ describe('the motion rules the Godot kernel runs', () => {
     expect(JSON.parse(runRules(eyeProbe).at(-1)).pos[2]).toBeCloseTo(1.2 + 1.7, 6);
   });
 
-  it('the score carries the pilot\'s rule in recipe units, for a pilot the kernel runs (walk, platform, drive, fly)', () => {
+  it('the score carries the pilot\'s rule in recipe units, for a pilot the kernel runs (walk, platform, drive, fly, glide)', () => {
     const score = extractEngineScore({ ref: 'r', manifest: {} }, ledgeLevel());
     expect(score.pilot).toEqual({ id: 'hero', rule: { type: 'platform', eye: 1.7, collideRadius: 0.3 }, pos: [0, 0, 1.7], heading: 0 });
     const drive = extractEngineScore({ ref: 'r', manifest: {} }, { entities: [{ id: 'car', pilotable: true, rule: { type: 'drive' } }] });
     expect(drive.pilot).toMatchObject({ id: 'car', rule: { type: 'drive' } });
     const glide = extractEngineScore({ ref: 'r', manifest: {} }, { entities: [{ id: 'cam', pilotable: true, rule: { type: 'glide' } }] });
-    expect(glide.pilot).toBeUndefined();
+    expect(glide.pilot).toMatchObject({ id: 'cam', rule: { type: 'glide' } });   // the drone flies by kernel/rules.gd (since 0.31.0)
+    const patrol = extractEngineScore({ ref: 'r', manifest: {} }, { entities: [{ id: 'g', pilotable: true, rule: { type: 'patrol' } }] });
+    expect(patrol.pilot).toBeUndefined();
     expect(extractEngineScore({ ref: 'r', manifest: {} }, raceLevel()).drivers.map((d) => d.id)).toEqual(['rival']);
+    // the bodies that move themselves ride beside the racers (since 0.31.0): a lift (its carry top) and a patrol
+    const bodies = extractEngineScore({ ref: 'r', manifest: {} }, { entities: [...ledgeLevel().entities,
+      { id: 'lift', rule: { type: 'mover', path: [[4, 0, -0.25], [4, 0, 2.75]], drive: 'ride' }, transform: { pos: [4, 0, -0.25] }, body: { type: 'mesh', carrier: true, carryHalf: [1, 1], deck: 0.25, color: '#999' } },
+      { id: 'dummy', rule: { type: 'patrol', waypoints: [[0, 0], [10, 0]] }, transform: { pos: [2, 2, 0], heading: 1 }, body: { type: 'mesh', hp: 60 } }] }).drivers;
+    expect(bodies).toEqual([
+      { id: 'lift', rule: { type: 'mover', path: [[4, 0, -0.25], [4, 0, 2.75]], drive: 'ride' }, pos: [4, 0, -0.25], heading: 0, carry: { carryHalf: [1, 1], deck: 0.25 } },
+      { id: 'dummy', rule: { type: 'patrol', waypoints: [[0, 0], [10, 0]] }, pos: [2, 2, 0], heading: 1 }]);
     expect(extractEngineScore({ ref: 'r', manifest: {} }, { entities: [] }).pilot).toBeUndefined();
   });
 
@@ -140,6 +149,11 @@ describe('the motion rules the Godot kernel runs', () => {
     { name: 'a racer slow to back off', from: '	if float(e["stuckT"]) > 1.0:', to: '	if float(e["stuckT"]) > 2.0:' },
     { name: 'a gauge that never unlocks', from: '			e["boostLock"] = false', to: '			pass' },
     { name: 'a chase that banks at once', from: '(tr * rf - float(c.get("roll", 0.0))) * k', to: '(tr * rf - float(c.get("roll", 0.0))) * 1.0' },
+    { name: 'a drone damped a step late', from: 'var keep := 1.0 - smooth(damping, dt)', to: 'var keep := 1.0 - smooth(damping, dt * 1.0001)' },
+    { name: 'a deck that ignores its phase', from: 'return fmod(fmod(float(e["_mt"]) / period + _num0(r, "phase"), 1.0) + 1.0, 1.0)', to: 'return fmod(fmod(float(e["_mt"]) / period, 1.0) + 1.0, 1.0)' },
+    { name: 'a dummy that walks before it faces', from: 'if absf(dh) < 1.0:', to: 'if absf(dh) < 1.1:' },
+    { name: 'a lift that waits past its dwell', from: 'if float(st["wait"]) >= _num(r, "dwell", 2.0):', to: 'if float(st["wait"]) > _num(r, "dwell", 2.0) + 0.05:' },
+    { name: 'a deck that drops its rider behind', from: '			p[0] = float(p[0]) + dx\n', to: '			p[0] = float(p[0]) + dx * 0.99\n' },
   ];
   it.skipIf(!GODOT)('every planted bug in the rules is caught by the corpus (MOJULO_GODOT)', () => {
     const sc = corpus();

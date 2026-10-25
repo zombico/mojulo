@@ -14,6 +14,39 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Godot recoup: the export catches up with what plays on the web
+
+Kernel 0.31.0. Of the 500 worlds the sweep rolls near the genre probes, 256 now play in Godot (192 before); of 500
+random worlds, 72 (65 before). The 3D collectathon, the metroidvania, the flight sim, the space shooter and air combat
+now play in Godot.
+
+- **Three genres were hollow and now play.** The party role-playing game, the farming sim and the tower defence
+  exported as hollow because their cast stands on `static`, `core.js`'s default for a body with no rule of its own. The
+  export read it as a rule nobody had marked. It is no rule: the body stands in every engine, and the cast's ops walk
+  it there as on the web.
+- **The drone flies** (`glide`, the free-flight rule a spectator or a drone pilot runs). `kernel/rules.gd` runs the
+  look, the push along the look's basis, the lift, the damping and the top speed, and the walker's view rides it. The
+  collectathon's cube loses nothing on export now.
+- **Moving decks and lifts travel** (`mover`), and so do the training dummies' marches (`patrol`). They ride beside the
+  racers in `score.drivers`, each stepped by `kernel/rules.gd` with its node riding its pose. A deck runs its
+  ping-pong, its looped rail or its ride drive. A lift waits at its start until the pilot stands on it, rises, waits
+  its dwell empty and comes home. The web's carry pass takes the pilot standing on a deck's top along with it. A
+  patrol in the cast keeps the cast's copy with it, and stands once the fight downs it.
+  - A deck's top is footing in neither engine. The page's ground ray skips every entity body, a carrier's too, and the
+    level harness agrees: a rider does not stand on a deck raised off the floor. Godot matches the web here; standing
+    on a raised deck is a web change.
+  - A catapult's throw (`launcher`) is still the web's.
+- **Marks that had fallen behind the kernel.**
+  - The aircraft hero and the airspace level form were marked absent with "Godot has no fly rule". The fly rule has run
+    in the kernel since 0.27.0, and the three flight fixtures export as playing in part. Both are approximated: a
+    fighter's homing missiles and flares stay the web's, and so does the haze's falloff curve.
+  - The double jump's gait was marked absent. The air jump itself runs in `kernel/rules.gd` (`airJumps`); only its
+    clip does not play, as with the other jumps. It is approximated.
+- **Proof.** The rules corpus gains a drone scenario and seven body scenarios: a shuttle, a rail, a looped rail, a
+  march past a box and up a ramp, an arc, a lift stood on, and a deck that carries its rider. A corpus scenario may now
+  carry a carrier beside its pilot. The planted-bug list gains a bug for each new port. The equality tests need Godot
+  (`MOJULO_GODOT`), which neither this branch's machine nor CI has, so they have not run against a real engine yet.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:

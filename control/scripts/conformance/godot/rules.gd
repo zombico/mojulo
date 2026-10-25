@@ -20,12 +20,23 @@ func _init() -> void:
 		var world := {"ground": Rules.make_ground(sc["tris"]), "colliders": sc["colliders"]}
 		var snaps := []
 		var cam = Rules.camera(sc["cameraAt"], 0.0) if sc.get("camera") is Dictionary else null
+		# a carrier beside the pilot (a lift, a moving deck): stepped as kernel/level.gd steps the level's bodies, before
+		# the pilot, the web's carry pass between them after both
+		var car = sc.get("carrier")
+		var ce = Rules.entity(car["pos"], float(car.get("heading", 0.0))) if car is Dictionary else null
 		for inp in sc["input"]:
+			var was = (ce["pos"] as Array).duplicate() if ce != null else null
+			if ce != null:
+				Rules.step(ce, car["rule"], {}, float(sc["dt"]), world)
 			Rules.step(e, r, inp, float(sc["dt"]), world)
+			if ce != null:
+				Rules.carry_pass([{"id": car["id"], "ent": ce, "body": car["body"], "rule": car["rule"], "from": was}], [{"ent": e, "rule": r}])
 			var snap: String = Js.ss(_snapshot(e, r))
 			if cam != null:
 				Rules.camera_step(cam, sc["camera"], e, r, float(sc["dt"]), world, {"hero": {"pos": e["pos"], "heading": e["heading"]}}, "hero")
 				snap += "|" + Js.ss(_cam(cam))
+			if ce != null:
+				snap += "|" + Js.ss({"pos": (ce["pos"] as Array).map(_nano), "ridden": ce.get("_ridden") == true, "carried": e.get("carriedBy")})
 			snaps.append(snap)
 		results[sc["id"]] = snaps
 	var out := FileAccess.open(args[1], FileAccess.WRITE)

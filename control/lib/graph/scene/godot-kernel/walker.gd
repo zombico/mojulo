@@ -37,6 +37,7 @@ var input_held := false   # a scene plays: the pilot takes no input, the world s
 var subjects: Callable    # the characters a directing shot frames, by id (level.gd shot_subjects)
 var pilot_id := ""
 var halt := 1.0           # 0 while the fight roots the body (a melee swing), as the web's platform rule halts its drive
+var after_rule: Callable  # the level's world pass after the pilot's rule, before its camera (the carry: level.gd _carry_pilot)
 var cam_rule = null       # the page's camera rule (score.camera, since 0.23.0), stepped after the pilot; null: the Head
 var cam: Dictionary = {}  # its state in the recipe's frame (kernel/rules.gd camera)
 var cam_node: Camera3D = null
@@ -179,6 +180,8 @@ func rule_step(input: Dictionary, delta: float) -> void:
 	var before := position
 	var dt := 0.0 if frozen else delta
 	RulesScript.step(ent, rule, {} if input_held else input, dt, world, halt)
+	if after_rule.is_valid():
+		after_rule.call()
 	_show_pose(before, delta)
 	if cam_rule != null:
 		RulesScript.camera_step(cam, cam_rule, ent, rule, dt, world, subjects.call() if subjects.is_valid() else {}, pilot_id)
@@ -255,7 +258,8 @@ func _show_pose(before: Vector3, delta: float) -> void:
 	_shown = position
 	rotation.y = float(ent["heading"]) - PI / 2.0
 	_shown_yaw = rotation.y
-	if pitch_node != null and String(rule.get("turnMode", "tank")) != "tank":
+	# a look rule pitches the view; the drone (glide) always looks where it flies
+	if pitch_node != null and (String(rule.get("turnMode", "tank")) != "tank" or rule.get("type") == "glide"):
 		pitch_node.rotation.x = float(ent.get("pitch", 0.0))
 	velocity = (position - before) / delta if delta > 0.0 else Vector3.ZERO
 	if body != null:

@@ -12,11 +12,12 @@ export const SOUL = Object.freeze({
         creature: { status: 'partial', godot: 'absent', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no creatureRef' },
         animal: { status: 'partial', godot: 'absent', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no animalRef' },
         // built 10-12: a quick game's `ride` (car, coupe, van) mints its build and pilots every stage on the drive rule,
-        // its feel derived from the build's parts. Godot has no drive rule.
+        // its feel derived from the build's parts. Godot drives it (kernel/rules.gd drive, since kernel 0.23.0).
         vehicle: { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
-        // Its body is a placeholder slab until the aircraft roster; Godot has no fly rule.
-        aircraft: { status: 'built', godot: 'absent', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
+        // Its body is a placeholder slab until the aircraft roster. Godot flies it (kernel/rules.gd fly and its dials, since
+        // kernel 0.27.0; the flight fixtures export as plays-partly): a fighter's homing missiles and flares are the web's.
+        aircraft: { status: 'built', godot: 'approximated', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
         // built 10-19 (more than meets): a hero in two forms, one body (transformation/), B to change; Godot and Roblox
         // have no forms
         transformer: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/transformation/index.js', note: 'a quick game\'s transformer: a variable suit folding into its waverider, or a car or jet standing up into a robot (controllable/forms.js: the rule of each form, the beat between them); a car\'s goals are a trail\'s, a flier\'s the fly goal' },

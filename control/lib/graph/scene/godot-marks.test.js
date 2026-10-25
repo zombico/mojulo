@@ -194,19 +194,26 @@ describe('the verdict stamps, never refuses', () => {
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: s }], engine: 'godot' });
     expect(p.verdict).toBe('plays');
     expect(exportVerdict(p)).toEqual({ verdict: 'plays', lost: [], approximated: [] });
+    // a body on `static` (core.js's default: no rule) stands, as it does in every engine: never a rule nobody marked
+    const by = score({ entities: [walker, { id: 'farmhand', rule: { type: 'static', speed: 1.6, eye: 0 }, transform: { pos: [2, 0, 0] } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
+    expect(engineReading({ entities: [walker, { id: 'farmhand', rule: { type: 'static' } }] }, 'godot').rules).not.toHaveProperty('static');
+    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: by }], engine: 'godot' }).verdict).toBe('plays');
   });
-  it('hollow: a glider with no rule, a moving deck at rest; plays: a drive (since 0.23.0), a sneak past sight (since 0.26.0)', () => {
+  it('hollow: a catapult\'s pad that throws nobody; plays: a drive (since 0.23.0), a sneak past sight (since 0.26.0), a drone and a moving deck (since 0.31.0)', () => {
     const sneak = score({ entities: [walker] }, { game: { mechanics: [{ kind: 'unseen' }, { kind: 'reach-exit', at: [5, 0, 0] }] } });
     expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: sneak }], engine: 'godot' }).verdict).toBe('plays');
     const glider = score({ entities: [{ ...walker, pilotable: true, rule: { type: 'glide' } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
     const pg = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: glider }], engine: 'godot' });
-    expect(pg.verdict).toBe('hollow');
-    expect(exportVerdict(pg).lost.join('\n')).toMatch(/rule 'glide' \(the pilot\)/);
+    expect(pg.verdict).toBe('plays');
+    expect(glider.pilot).toMatchObject({ id: 'hero', rule: { type: 'glide' } });
     const car = score({ entities: [{ ...walker, pilotable: true, rule: { type: 'drive' } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
     expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: car }], engine: 'godot' }).verdict).toBe('plays');
-    const deck = score({ entities: [walker, { id: 'deck', rule: { type: 'mover', path: [[0, 0, 0], [1, 0, 0]] } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
-    const pd = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: deck }], engine: 'godot' });
-    expect(pd.verdict).toBe('hollow');   // a mover is a character's rule the level runs: absent and not the camera's
+    const deck = score({ entities: [walker, { id: 'deck', rule: { type: 'mover', path: [[0, 0, 0], [1, 0, 0]] }, body: { type: 'mesh', carrier: true, carryHalf: [1, 1], deck: 0.25 } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
+    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: deck }], engine: 'godot' }).verdict).toBe('plays');
+    expect(deck.drivers).toEqual([{ id: 'deck', rule: { type: 'mover', path: [[0, 0, 0], [1, 0, 0]] }, pos: [0, 0, 0], heading: 0, carry: { carryHalf: [1, 1], deck: 0.25 } }]);
+    const pad = score({ entities: [walker, { id: 'pad', rule: { type: 'launcher', power: 12 } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
+    const pp = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: pad }], engine: 'godot' });
+    expect(pp.verdict).toBe('hollow');   // a launcher is a character's rule the level runs: absent and not the camera's
   });
   it('the other engines read as they always did: no verdict, no Godot rows', () => {
     const s = score({ entities: [walker] }, { game: { mechanics: [{ kind: 'laps', checkpoints: [{ at: [1, 0, 0] }] }] } });
@@ -247,7 +254,7 @@ const EVIDENCE = {
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },
-  rule: { ai: 'mind', drive: 'rules', racer: 'rules', fly: 'rules', shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
+  rule: { ai: 'mind', glide: 'rules', mover: 'rules', patrol: 'rules', drive: 'rules', racer: 'rules', fly: 'rules', shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
   event: {
     reactions: 'corpus', watches: 'corpus', sequences: 'corpus', timers: 'corpus', vars: 'corpus', sources: 'chapter', initial: 'corpus',
     entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter', scenes: 'scenes', quests: 'scenes',

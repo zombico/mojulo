@@ -6,7 +6,7 @@
  * the harness's own web), the Godot side through rules.gd, and both print one canonical snapshot a frame: the pose to
  * 1e-9 and the rule's state (grounded, coyote, the jump buffer, the gait).
  *
- *   SCENARIOS, randomScenarios(n, seed), corpus({ random, seed }), runRules(sc) → [snapshot], scenarioById(id, opts)
+ *   SCENARIOS, BODY_SCENARIOS, randomScenarios(n, seed), corpus({ random, seed }), runRules(sc) → [snapshot], scenarioById(id, opts)
  *
  * The hand scenarios pick one case per path through the rules (a tank turn, a look, a strafe, a slope, a wall, a probe;
  * a jump, its cut, its buffer, coyote time, a wind-up, an air jump, a glide, a ledge stepped up, a ledge fallen off, an
@@ -67,6 +67,9 @@ export const SCENARIOS = [
     input: run([25, { forward: 1 }], [12, {}], [2, { forward: 1, jump: 1, jumpHeld: 1 }], [20, { jumpHeld: 1 }], [10, { forward: -1 }], [40, { forward: 1 }], [8, { boost: 1 }], [20, {}]) },
   { id: 'platform-look', about: 'a look platformer: the mouse turns and pitches it, A/D strafes it',
     entity: pilot({ type: 'platform', eye: 1.7, turnMode: 'look', strafe: 0.7, airControl: 0.4 }), faces: FLAT, input: run([10, { lookDX: 80, lookDY: 30 }], [20, { forward: 1, turn: -1 }], [2, { jump: 1, jumpHeld: 1, forward: 1 }], [25, { forward: 1, jumpHeld: 1 }]) },
+  { id: 'glide-drone', about: 'the drone: the look steers and pitches it past both its stops, W, A/D and E/Q and lift push it, held at its top speed, damped to rest',
+    entity: pilot({ type: 'glide', accel: 30, damping: 3, maxSpeed: 12 }, [0, 0, 6]), faces: FLAT,
+    input: run([10, { lookDX: 60, lookDY: 40 }], [40, { forward: 1 }], [20, { turn: 1, strafe: 0.5 }], [15, { lift: -1, lookDY: 900 }], [10, { forward: -1, lift: 1 }], [5, { lookDY: -2000, forward: 1 }], [40, {}]) },
 ];
 
 // the vehicles: a car's power, brakes, reverse, steer and coast; its opt-in physics; a wall; a ledge; flight off a ramp
@@ -148,6 +151,30 @@ export const CAMERA_SCENARIOS = [
     camera: { rule: 'fixed', target: 'hero', hold: 1, stations: [{ at: [0, 8, 5], focus: [0, 0] }, { at: [6, -8, 5], focus: [6, 0, 0.5] }, { at: [12, 8, 5], focus: [12, 0] }] } },
 ];
 
+// the bodies the level moves by their own rule, no one piloting them (since kernel 0.31.0): a moving deck and a lift
+// (mover), a training dummy's march (patrol); and a carrier beside a platform pilot, the web's carry pass between them
+// (a lift stood on rises; a deck sliding along the floor takes its rider with it)
+const deck = (rule, pos, body = {}) => ({ id: 'deck', rule, transform: { pos, heading: 0 }, body: { type: 'mesh', shape: 'box', size: [2, 2, 0.5], carrier: true, carryHalf: [1, 1], deck: 0.25, ...body } });
+export const BODY_SCENARIOS = [
+  { id: 'mover-shuttle', about: 'a deck between its spawn and `to`, a smoothed ping-pong a third of the way into its period',
+    entity: pilot({ type: 'mover', to: [6, 2, 3], period: 3, phase: 0.3 }, [0, 0, 1]), faces: FLAT, input: run([150, {}]) },
+  { id: 'mover-rail', about: 'a rail of three points by distance, back and forth',
+    entity: pilot({ type: 'mover', path: [[0, 0, 1], [6, 0, 1], [6, 6, 3]], period: 4 }, [0, 0, 1]), faces: FLAT, input: run([130, {}]) },
+  { id: 'mover-loop', about: 'a looped rail run one way round (mode loop), shifted by its phase',
+    entity: pilot({ type: 'mover', path: [[0, 0, 1], [6, 0, 1], [6, 6, 1], [0, 6, 1]], loop: true, mode: 'loop', period: 3, phase: 0.6 }, [0, 0, 1]), faces: FLAT, input: run([120, {}]) },
+  { id: 'patrol-waypoints', about: 'a dummy marching its points up a ramp and past a box, turning at its cap, arriving early',
+    entity: pilot({ type: 'patrol', speed: 3, turn: 2, arrive: 1.5, collideRadius: 0.4, collideHeight: 1.8, waypoints: [[12, 0], [12, 8], [0, 8]] }, [0, 0, 0], 2.5),
+    faces: [quad(-40, -40, 6, 40), ramp(6, 10, -40, 40, 0, 1), quad(10, -40, 40, 40, 1)], colliders: [box([3, 0.25, 0], [4, 2, 2])], input: run([260, {}]) },
+  { id: 'patrol-arc', about: 'no waypoints: the slow constant arc, the other way round',
+    entity: pilot({ type: 'patrol', speed: 2, turn: 0.5, turnDir: -1, eye: 1 }, [0, 0, 1]), faces: FLAT, input: run([90, {}]) },
+  { id: 'carry-lift', about: 'a platform pilot walks onto a ride lift at floor height: stood on, it rises, its rider left below; empty at the top, it waits its dwell and comes home',
+    entity: pilot({ type: 'platform', eye: 1.7, collideRadius: 0.3 }), faces: FLAT, input: run([25, { forward: 1 }], [20, {}], [30, { forward: 1 }], [120, {}]),
+    carrier: deck({ type: 'mover', path: [[4, 0, -0.25], [4, 0, 2.75]], drive: 'ride', speed: 0.8, dwell: 1 }, [4, 0, -0.25]) },
+  { id: 'carry-deck', about: 'a deck sliding along the floor carries the pilot standing on it, and lets it go when it steps off its edge',
+    entity: pilot({ type: 'platform', eye: 1.7, collideRadius: 0.2 }, [3, 0, 1.7]), faces: FLAT, input: run([80, {}], [30, { forward: -1 }], [20, {}]),
+    carrier: deck({ type: 'mover', path: [[3, 0, -0.25], [9, 0, -0.25]], period: 4 }, [3, 0, -0.25]) },
+];
+
 // random input over a random heightfield (a grid of quads at seeded heights) with seeded boxes
 export function randomScenarios(n = 8, seed = 1) {
   const rand = mulberry32(seed);
@@ -202,30 +229,35 @@ export function snapshot(e) {
   });
 }
 
+// a carrier: its pose, whether it is stood on, and whom it carries
+const carrySnap = (c, rider) => canon({ pos: c.transform.pos.map(nano), ridden: !!c._ridden, carried: rider.carriedBy ?? null });
+
 // a camera: its pose and its look point to 1e-9
 const camSnap = (c) => canon({ pos: c.transform.pos.map(nano), heading: nano(c.transform.heading), pitch: nano(c.transform.pitch || 0), lookAt: c.lookAt ? c.lookAt.map(nano) : null, ...(c.roll != null ? { roll: nano(c.roll) } : {}) });
 
 export function runRules(sc) {
   const camera = sc.camera ? { ...clone(sc.camera), ...(sc.at ? { transform: { pos: sc.at.slice(), heading: 0 } } : {}) } : undefined;
-  const sim = simLevel({ entities: [clone(sc.entity)], events: {}, ...(sc.colliders ? { colliders: clone(sc.colliders) } : {}), camera }, { ground: faceGround(sc.faces) });
+  const sim = simLevel({ entities: [clone(sc.entity), ...(sc.carrier ? [clone(sc.carrier)] : [])], events: {}, ...(sc.colliders ? { colliders: clone(sc.colliders) } : {}), camera }, { ground: faceGround(sc.faces) });
   const snaps = [];
   for (const inp of sc.input) {
     for (const k of Object.keys(sim.input)) delete sim.input[k];
     Object.assign(sim.input, inp);
     sim.frame(DT);
-    snaps.push(snapshot(sim.world.byId.hero) + (camera ? `|${camSnap(sim.world.camera)}` : ''));
+    const c = sc.carrier ? sim.world.byId[sc.carrier.id] : null;
+    snaps.push(snapshot(sim.world.byId.hero) + (camera ? `|${camSnap(sim.world.camera)}` : '') + (c ? `|${carrySnap(c, sim.world.byId.hero)}` : ''));
   }
   return snaps;
 }
 
 // what the Godot side reads: the rule, the start pose, the triangles, the colliders, the input
 export function corpus({ random = 8, seed = 1 } = {}) {
-  return [...SCENARIOS, ...VEHICLE_SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].map((sc) => clone({
+  return [...SCENARIOS, ...VEHICLE_SCENARIOS, ...CAMERA_SCENARIOS, ...BODY_SCENARIOS, ...randomScenarios(random, seed)].map((sc) => clone({
     id: sc.id, rule: sc.entity.rule, pos: sc.entity.transform.pos, heading: sc.entity.transform.heading,
     tris: trianglesOf(sc.faces), colliders: sc.colliders || [], input: sc.input, dt: DT,
     // the camera's rule as the controllable engine seats it (core.js createWorld: { type: camera.rule, ...camera })
     ...(sc.camera ? { camera: { type: sc.camera.rule, ...sc.camera }, cameraAt: sc.at || [0, 0, 0] } : {}),
+    ...(sc.carrier ? { carrier: { id: sc.carrier.id, rule: sc.carrier.rule, body: sc.carrier.body, pos: sc.carrier.transform.pos, heading: sc.carrier.transform.heading } } : {}),
   }));
 }
 
-export const scenarioById = (id, { random = 8, seed = 1 } = {}) => [...SCENARIOS, ...VEHICLE_SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].find((s) => s.id === id);
+export const scenarioById = (id, { random = 8, seed = 1 } = {}) => [...SCENARIOS, ...VEHICLE_SCENARIOS, ...CAMERA_SCENARIOS, ...BODY_SCENARIOS, ...randomScenarios(random, seed)].find((s) => s.id === id);

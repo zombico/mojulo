@@ -28,18 +28,18 @@ export const RULE_MARKS = Object.freeze({
   follow: m(B, 'kernel/rules.gd: the web chase camera (its ease, shoulder, lead, reverse swing and pitch), pulled in before the land as the page pulls it in; a level whose camera is not the page\'s rides kernel/walker.gd\'s spring arm behind the suit'),
   eye: m(B, 'kernel/rules.gd: first person at the target\'s eye, its heading and pitch'),
   platform: m(B, 'kernel/rules.gd: the web platform rule\'s run (its ground acceleration too), turn (tank, look, world, lane), jump with its cut, buffer, coyote, wind-up, air jumps and glide, boost and its gauge, on the level\'s faces and colliders; its opt-in moves the kernel does not run are named per level (PLATFORM_LOST)'),
-  glide: m(A, 'no glide in kernel/walker.gd'),
+  glide: m(B, 'kernel/rules.gd (since 0.31.0): the drone\'s free flight, its look, push, lift, damping and top speed, the walker\'s view riding it'),
   overhead: m(B, 'kernel/rules.gd: the ¾ overhead, north up the screen'),
   side: m(B, 'kernel/rules.gd: square to the pilot\'s lane, swinging round its bends (the lane pilot is the platform rule\'s)'),
   fixed: m(B, 'kernel/rules.gd: the stations, cut by the nearest focus, held against flicker'),
   shot: m(B, 'kernel/rules.gd: the directing camera a scene sets aside the page\'s own (frames, moves, the side of the line, the clear view)'),
   clock: m(P, 'a figure-frames body\'s self-playing loop (a glyph, a turntable): the body stands, its frames do not play'),
-  mover: m(A, 'movers do not travel (skipped_movers): a moving platform or lift stands at rest'),
+  mover: m(B, 'kernel/rules.gd (since 0.31.0): a moving deck or a lift runs its path as the web\'s (the ping-pong, the loop, the ride that waits to be stood on), its node riding it, and the web\'s carry takes the pilot standing on its top along; its top is footing in neither engine (the page\'s ground meets no body)'),
   launcher: m(A, 'no launcher: a catapult stands still'),
   drive: m(B, 'kernel/rules.gd: the web drive rule (its power curve, brakes, steer, the ground followed down, walls, flight off a lip with `air`); the surface grip under it is the web\'s (PAGE_MARKS.driveSurface)'),
   racer: m(B, 'kernel/rules.gd: the rivals drive their lines as the web\'s (score.drivers), braking into bends, counting laps, backing off when held up'),
   fly: m(B, 'kernel/rules.gd: fixed-wing flight (taxi, takeoff, banked turns, stall, touchdown) and its dials since 0.27.0 (a glider, the throttle lever, space, the boost, the barrel roll, the assist, the map\'s bound)'),
-  patrol: m(A, 'no patrol: a guard stands where it was placed'),
+  patrol: m(B, 'kernel/rules.gd (since 0.31.0): the dummy marches its waypoints (or its arc) as the web\'s, its node riding it, the cast\'s copy with it; downed, it stands'),
   ai: m(B, 'kernel/mind.gd (since 0.26.0): the web mind (every motivation, perception and memory, cover, pathing on the web\'s grid in kernel/nav.gd, groups in kernel/group.gd, the blade, the roll, the charge, the loadout, the tier, a body\'s own tuning, a boss\'s phases and adapting), firing and swinging through kernel/combat.gd; the commander and the pilot\'s shove-down set piece stay the web\'s'),
 });
 
@@ -217,7 +217,8 @@ export function gaitMark(name, row) {
   if (row.from !== undefined) return m(P, 'the walker stops; the stop clip does not play');
   if (row.vault !== undefined) return m(A, 'no vault');
   if (row.family !== undefined || row.seconds === undefined) return m(A, 'nothing plays a pose, a stance or a seat');
-  return AIR_MOVES[name] ? m(P, 'the walker jumps; the clip does not play') : m(A, 'no air jump and no roll in kernel/walker.gd');
+  if (name === 'doubleJump') return m(P, 'the pilot\'s air jump runs (kernel/rules.gd airJumps); the clip does not play');
+  return AIR_MOVES[name] ? m(P, 'the walker jumps; the clip does not play') : m(A, 'no roll in the kernel');
 }
 
 // ── power.systems (gameworld/actions.js SYSTEM_KINDS): what a system lowers to ───────────────────────────────────────
@@ -234,7 +235,7 @@ export const SYSTEM_MARKS = Object.freeze({
 const TRAVERSAL_HOW = Object.freeze({
   door: m(P, 'a door is a trigger; its leaf does not swing'),
   bridge: m(B, 'a static deck: a floor face and its collider'),
-  platform: m(P, 'a static deck travels (a floor face and its collider); a moving one is a mover and stands at rest'),
+  platform: m(B, 'a static deck travels (a floor face and its collider); a moving one runs its rail (the mover rule, kernel/rules.gd)'),
   stairs: m(B, 'treads as faces over solid blocks'),
 });
 export function traversalMark(entry) {

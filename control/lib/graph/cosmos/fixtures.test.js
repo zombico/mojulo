@@ -16,7 +16,7 @@ describe('cosmos fixtures', () => {
   // Godot (scene/godot-marks.js, kernel 0.20.0): the crawler's melee travels (kernel/combat.gd), its set pieces the
   // web's; the collectathon's glide is the controllable runtime's, which does not travel yet; everything else in them
   // does, some of it simpler (a moving platform stands at rest, the look's sky stays the web's)
-  const GODOT_LOST = { 'dungeon-crawler': [], collectathon: ['power.rules=glide'] };
+  const GODOT_LOST = { 'dungeon-crawler': [], collectathon: [] };   // the collectathon's glide flies in Godot since kernel 0.31.0
   it('hold the anchors makeable, and name what a Godot export loses', () => {
     const anchors = FIXTURES.filter((f) => f.anchor);
     expect(anchors.map((f) => f.id)).toEqual(['dungeon-crawler', 'collectathon']);

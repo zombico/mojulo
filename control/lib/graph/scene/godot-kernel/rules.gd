@@ -177,10 +177,10 @@ static func resolve_blocking(pos: Array, foot_z: float, height: float, cr: float
 				pos[1] = ny + (dy / d) * cr
 
 
-# a fresh entity's rule state, as core.js normalizeEntity starts it
+# a fresh entity's rule state, as core.js normalizeEntity starts it (its authored start pose kept as its spawn)
 static func entity(pos: Array, heading: float) -> Dictionary:
 	return {"pos": [float(pos[0]), float(pos[1]), float(pos[2])], "heading": heading, "pitch": 0.0, "vel": [0.0, 0.0, 0.0],
-		"gaitPhase": 0.0, "moving": false, "locomotion": "forward"}
+		"gaitPhase": 0.0, "moving": false, "locomotion": "forward", "spawn": {"pos": [float(pos[0]), float(pos[1]), float(pos[2])], "heading": heading}}
 
 
 static func step(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, world: Dictionary, halt: float = 1.0) -> void:
@@ -195,6 +195,238 @@ static func step(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, wor
 			racer(e, r, dt, world)
 		"fly":
 			fly(e, r, input, dt, world)
+		"glide":
+			glide(e, r, input, dt)
+		"mover":
+			mover(e, r, dt)
+		"patrol":
+			patrol(e, r, dt, world)
+
+
+# ── mover — a moving deck or a lift (rules-basic.js mover): no input; along a rail (`path`, by distance, round if `loop`)
+# on a smoothed ping-pong or a saw (`mode: 'loop'`), a ride drive (`drive: 'ride'`) waiting at its start until stood on
+# (`_ridden`, carry_pass's), else between `from` and `to` (the spawn by default) over `period` ───────────────────────────
+static func _rail_point(path: Array, loop: bool, t: float) -> Array:
+	var pts: Array = path.duplicate()
+	if loop:
+		pts.append(path[0])
+	var total := 0.0
+	var seg := []
+	for k in range(1, pts.size()):
+		var l := Js.hypot3(float(pts[k][0]) - float(pts[k - 1][0]), float(pts[k][1]) - float(pts[k - 1][1]), float(pts[k][2]) - float(pts[k - 1][2]))
+		seg.append(l)
+		total += l
+	var s := minf(1.0, maxf(0.0, t)) * total
+	var i := 0
+	while i < seg.size() - 1 and s > float(seg[i]):
+		s -= float(seg[i])
+		i += 1
+	var f: float = s / float(seg[i]) if float(seg[i]) != 0.0 else 0.0
+	var a: Array = pts[i]
+	var b: Array = pts[i + 1]
+	return [float(a[0]) + (float(b[0]) - float(a[0])) * f, float(a[1]) + (float(b[1]) - float(a[1])) * f, float(a[2]) + (float(b[2]) - float(a[2])) * f]
+
+
+static func _saw(e: Dictionary, r: Dictionary, dt: float) -> float:
+	var period := _num(r, "period", 0.0)
+	if not (period > 0.0):
+		period = 4.0
+	e["_mt"] = float(e.get("_mt", 0.0)) + dt
+	return fmod(fmod(float(e["_mt"]) / period + _num0(r, "phase"), 1.0) + 1.0, 1.0)
+
+
+static func mover(e: Dictionary, r: Dictionary, dt: float) -> void:
+	var p: Array = e["pos"]
+	var path = r.get("path")
+	if path is Array and path.size() >= 2:
+		var t := 0.0
+		if r.get("drive") == "ride":
+			if not (e.get("_ride") is Dictionary):
+				e["_ride"] = {"t": 0.0, "target": 0.0, "wait": 0.0}
+			var st: Dictionary = e["_ride"]
+			var at_end: bool = float(st["t"]) >= 1.0 - 1e-9
+			var at_home: bool = float(st["t"]) <= 1e-9
+			var ridden: bool = e.get("_ridden") == true
+			if ridden and at_home:
+				st["target"] = 1.0
+			if at_end and not ridden:
+				st["wait"] = float(st["wait"]) + dt
+				if float(st["wait"]) >= _num(r, "dwell", 2.0):
+					st["target"] = 0.0
+					st["wait"] = 0.0
+			elif not at_end:
+				st["wait"] = 0.0
+			var speed := _num(r, "speed", 0.0)
+			var step_t := (speed if speed > 0.0 else 0.25) * dt
+			if float(st["t"]) < float(st["target"]):
+				st["t"] = minf(float(st["target"]), float(st["t"]) + step_t)
+			else:
+				st["t"] = maxf(float(st["target"]), float(st["t"]) - step_t)
+			t = float(st["t"])
+		else:
+			var s := _saw(e, r, dt)
+			var tri := 1.0 - absf(s * 2.0 - 1.0)
+			t = s if r.get("mode") == "loop" else tri * tri * (3.0 - 2.0 * tri)
+		var q := _rail_point(path, r.get("loop") == true, t)
+		p[0] = q[0]
+		p[1] = q[1]
+		p[2] = q[2]
+		e["moving"] = true
+		return
+	var a0: Array = r["from"] if r.get("from") is Array else (e["spawn"]["pos"] if e.get("spawn") is Dictionary else p.duplicate())
+	var a1: Array = r["to"] if r.get("to") is Array else a0
+	var s2 := _saw(e, r, dt)
+	var tri2 := 1.0 - absf(s2 * 2.0 - 1.0)
+	var u := tri2 * tri2 * (3.0 - 2.0 * tri2)
+	p[0] = float(a0[0]) + (float(a1[0]) - float(a0[0])) * u
+	p[1] = float(a0[1]) + (float(a1[1]) - float(a0[1])) * u
+	p[2] = float(a0[2]) + (float(a1[2]) - float(a0[2])) * u
+	e["moving"] = true
+
+
+# THE CARRY (core.js stepCarry): a carrier's riders, the grounded walk or platform bodies resting on its top, inherit its
+# horizontal step this tick; a ride-driven carrier is told whether it is stood on. `carriers`: [{ id, ent, body, rule,
+# from }] (`from` its pose before this tick's rules); `riders`: [{ ent, rule }]. Run after every rule, as the web's world
+# pass after its entity loop.
+static func _rides(c: Dictionary, rider: Dictionary, top: float, half: Array) -> bool:
+	var e: Dictionary = rider["ent"]
+	var rr: Dictionary = rider["rule"]
+	if not (e.get("grounded") == true) or e.get("downed") == true or e.get("gone") == true or not (String(rr.get("type", "")) in ["platform", "walk"]):
+		return false
+	var cp: Array = c["ent"]["pos"]
+	var p: Array = e["pos"]
+	var cr := _num(rr, "collideRadius", 0.0)
+	return absf(float(p[2]) - _num(rr, "eye", 0.0) - top) <= _num(rr, "snap", 0.15) + 0.05 \
+		and absf(float(p[0]) - float(cp[0])) <= float(half[0]) + cr and absf(float(p[1]) - float(cp[1])) <= float(half[1]) + cr
+
+
+static func carry_pass(carriers: Array, riders: Array) -> void:
+	for c in carriers:
+		var b: Dictionary = c["body"]
+		var cp: Array = c["ent"]["pos"]
+		var top := float(cp[2]) + _num0(b, "deck")
+		if (c["rule"] as Dictionary).get("drive") == "ride":
+			var h: Array = b["carryHalf"] if b.get("carryHalf") is Array else [1.5, 1.5]
+			var ridden := false
+			for x in riders:
+				ridden = ridden or _rides(c, x, top, h)
+			c["ent"]["_ridden"] = ridden
+		var p0 = c.get("from")
+		if not (p0 is Array):
+			continue
+		var dx := float(cp[0]) - float(p0[0])
+		var dy := float(cp[1]) - float(p0[1])
+		if dx == 0.0 and dy == 0.0:
+			continue
+		var half = b["carryHalf"] if b.get("carryHalf") is Array else null
+		var rad := _num(b, "carryRadius", 0.0 if half != null else 1.5)
+		for x in riders:
+			var e: Dictionary = x["ent"]
+			var rr: Dictionary = x["rule"]
+			if not (e.get("grounded") == true) or e.get("downed") == true or e.get("gone") == true:
+				continue
+			if not (String(rr.get("type", "")) in ["platform", "walk"]) or rr.get("space"):
+				continue
+			var p: Array = e["pos"]
+			if absf(float(p[2]) - _num(rr, "eye", 0.0) - top) > _num(rr, "snap", 0.15) + 0.05:
+				continue
+			var cr := _num(rr, "collideRadius", 0.0)
+			var in_xy: bool
+			if half != null:
+				in_xy = absf(float(p[0]) - float(cp[0])) <= float(half[0]) + cr and absf(float(p[1]) - float(cp[1])) <= float(half[1]) + cr
+			else:
+				in_xy = Js.hypot2(float(p[0]) - float(cp[0]), float(p[1]) - float(cp[1])) <= rad + cr
+			if not in_xy:
+				if e.get("carriedBy") == c["id"]:
+					e["carriedBy"] = null
+				continue
+			p[0] = float(p[0]) + dx
+			p[1] = float(p[1]) + dy
+			e["carriedBy"] = c["id"]
+
+
+# ── patrol — the passive walker (tutorial.js patrol): a march between `waypoints`, looped (turn toward the point at
+# `turn` rad/s, walk when roughly facing, the next point within `arrive`), else a slow constant arc; no gravity, the
+# ground found from head height, pushed out of the boxes; a downed one stands ───────────────────────────────────────
+static func patrol(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> void:
+	if e.get("downed") == true:
+		e["moving"] = false
+		return
+	var speed := _num(r, "speed", 6.0)
+	var stride := _num(r, "stride", 2.4)
+	var eye := _num(r, "eye", 0.0)
+	var p: Array = e["pos"]
+	var wps = r.get("waypoints")
+	var move_mag := 0.0
+	if wps is Array and not wps.is_empty():
+		var idx := int(e.get("patrolIdx", 0))
+		var wp: Array = wps[idx % wps.size()]
+		var dx := float(wp[0]) - float(p[0])
+		var dy := float(wp[1]) - float(p[1])
+		if Js.hypot2(dx, dy) < _num(r, "arrive", maxf(4.0, speed * 0.6)):
+			e["patrolIdx"] = (idx + 1) % wps.size()
+		else:
+			var want := atan2(dy, dx)
+			var dh := fmod(fmod(want - float(e["heading"]) + PI, TAU) + TAU, TAU) - PI
+			var cap := _num(r, "turn", 1.2) * dt
+			e["heading"] = float(e["heading"]) + clampf(dh, -cap, cap)
+			if absf(dh) < 1.0:
+				var f := Js.fwd_xy(float(e["heading"]))
+				var stp := speed * dt
+				p[0] = float(p[0]) + f[0] * stp
+				p[1] = float(p[1]) + f[1] * stp
+				move_mag = stp
+	else:
+		e["heading"] = float(e["heading"]) + _num(r, "turn", 0.25) * _num(r, "turnDir", 1.0) * dt
+		var f2 := Js.fwd_xy(float(e["heading"]))
+		var stp2 := speed * dt
+		p[0] = float(p[0]) + f2[0] * stp2
+		p[1] = float(p[1]) + f2[1] * stp2
+		move_mag = stp2
+	var height := _num(r, "collideHeight", 24.0)
+	if world.get("colliders") is Array:
+		resolve_blocking(p, float(p[2]) - eye, height, _num(r, "collideRadius", 0.0), world["colliders"], _num(r, "step", 0.35))
+	var gz := ground_at(world.get("ground"), [p[0], p[1], (float(p[2]) - eye) + height])
+	if not is_nan(gz):
+		p[2] = gz + eye
+	if move_mag > 0.0:
+		e["locomotion"] = "forward"
+		e["gaitPhase"] = float(e.get("gaitPhase", 0.0)) + move_mag / stride
+		e["moving"] = true
+	else:
+		e["moving"] = false
+
+
+# ── glide — free flight with momentum and no gravity (rules-basic.js glide): the look steers heading and pitch, forward,
+# strafe (A/D folded in: the drone is mouse-steered) and lift push along the look's basis, the velocity damps to rest ──
+static func glide(e: Dictionary, r: Dictionary, input: Dictionary, dt: float) -> void:
+	var sens := _num(r, "lookSens", 0.0025)
+	var accel := _num(r, "accel", 24.0)
+	var damping := _num(r, "damping", 4.0)
+	var max_speed := _num(r, "maxSpeed", 18.0)
+	e["heading"] = fmod(float(e["heading"]) + _in(input, "lookDX") * sens, TAU)
+	e["pitch"] = clampf(float(e.get("pitch", 0.0)) + _in(input, "lookDY") * sens, -HALF_PI + 0.05, HALF_PI - 0.05)
+	var f := Js.fwd3(float(e["heading"]), float(e["pitch"]))
+	var rt := Js.right_xy(float(e["heading"]))
+	var fa := _in(input, "forward") * accel
+	var sa := (_in(input, "strafe") + _in(input, "turn")) * accel
+	var la := _in(input, "lift") * accel
+	# the web's adds, term by term: 0 + f·fa, then + rt·sa, then + [0, 0, 1]·la
+	var a := [0.0 + f[0] * fa, 0.0 + f[1] * fa, 0.0 + f[2] * fa]
+	a = [a[0] + rt[0] * sa, a[1] + rt[1] * sa, a[2] + rt[2] * sa]
+	a = [a[0] + 0.0 * la, a[1] + 0.0 * la, a[2] + 1.0 * la]
+	var keep := 1.0 - smooth(damping, dt)
+	var vel: Array = e["vel"]
+	var v := [float(vel[0]) * keep + a[0] * dt, float(vel[1]) * keep + a[1] * dt, float(vel[2]) * keep + a[2] * dt]
+	var sp := Js.hypot3(v[0], v[1], v[2])
+	if sp > max_speed:
+		var k := max_speed / sp
+		v = [v[0] * k, v[1] * k, v[2] * k]
+	e["vel"] = v
+	var p: Array = e["pos"]
+	p[0] = float(p[0]) + v[0] * dt
+	p[1] = float(p[1]) + v[1] * dt
+	p[2] = float(p[2]) + v[2] * dt
 
 
 # ── walk — ground-locked: a tank turn (or a look), forward and strafe, the feet on the ground under the eye ──────────

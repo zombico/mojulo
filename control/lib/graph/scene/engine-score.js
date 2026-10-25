@@ -152,7 +152,9 @@ export function engineReading(payload, engine = DEFAULT_ENGINE) {
   const player = (payload?.entities ?? []).find((e) => e?.pilotable === true)?.id ?? playerOf(payload), by = {};
   for (const e of payload?.entities ?? []) {
     const t = e?.rule?.type;
-    if (typeof t !== 'string') continue;
+    // `static` is no rule at all (core.js normalizeEntity's default): the body stands, as it does in every engine, and
+    // the cast's ops walk it there as on the web
+    if (typeof t !== 'string' || t === 'static') continue;
     const r = (by[t] ||= { count: 0 });
     r.count++;
     if (e.isCamera) r.camera = true;
@@ -217,11 +219,19 @@ function blendOnlyNodes(faces) {
   return [...by].filter(([, all]) => all).map(([k]) => k).sort();
 }
 
-// the rules kernel/rules.gd runs for a pilot (since 0.23.0: the vehicles too), and the drivers it runs for no one
-const RULED_PILOTS = new Set(['walk', 'platform', 'drive', 'fly']);
+// the rules kernel/rules.gd runs for a pilot (since 0.23.0: the vehicles too; the drone's glide since 0.31.0), and the
+// drivers it runs for no one
+const RULED_PILOTS = new Set(['walk', 'platform', 'drive', 'fly', 'glide']);
+// the bodies the level moves by their own rule (the racers; since 0.31.0 the moving decks and lifts, and the patrols); a
+// carrier says the top it is ridden on (core.js stepCarry's body keys)
+const DRIVEN = new Set(['racer', 'mover', 'patrol']);
+const CARRY_KEYS = ['carryHalf', 'carryRadius', 'deck'];
 function driverRows(payload) {
-  return (Array.isArray(payload?.entities) ? payload.entities : []).filter((e) => e && typeof e.id === 'string' && e.rule?.type === 'racer' && !e.isCamera)
-    .map((e) => ({ id: e.id, rule: JSON.parse(JSON.stringify(e.rule)), pos: Array.isArray(e.transform?.pos) ? e.transform.pos.slice(0, 3) : [0, 0, 0], heading: Number.isFinite(e.transform?.heading) ? e.transform.heading : 0 }));
+  return (Array.isArray(payload?.entities) ? payload.entities : []).filter((e) => e && typeof e.id === 'string' && DRIVEN.has(e.rule?.type) && !e.isCamera)
+    .map((e) => {
+      const carry = e.body?.carrier ? Object.fromEntries(CARRY_KEYS.filter((k) => e.body[k] != null).map((k) => [k, JSON.parse(JSON.stringify(e.body[k]))])) : null;
+      return { id: e.id, rule: JSON.parse(JSON.stringify(e.rule)), pos: Array.isArray(e.transform?.pos) ? e.transform.pos.slice(0, 3) : [0, 0, 0], heading: Number.isFinite(e.transform?.heading) ? e.transform.heading : 0, ...(carry ? { carry } : {}) };
+    });
 }
 
 // the pilot the level-equivalence key names first (a pilotable entity, else the first walker), when it walks or runs
@@ -536,8 +546,9 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     // the pilot's motion rule as data, in RECIPE units like bus.json (score.metersPerUnit is the mesh's scale over them):
     // kernel/rules.gd runs a walk or a platform pilot as the web runs it, standing on the GLB's own faces. Absent ⇒ no key.
     ...(pilot ? { pilot } : {}),
-    // the rivals that drive themselves (the racer rule: a line, a pace), in recipe units: kernel/rules.gd drives each
-    // as the web does (since 0.23.0). Absent ⇒ no key.
+    // the bodies that move themselves, in recipe units: the rivals (the racer rule: a line, a pace, since 0.23.0), the
+    // moving decks and lifts (mover, a carrier's `carry` top) and the patrols (since 0.31.0); kernel/rules.gd steps each
+    // as the web does. Absent ⇒ no key.
     ...(drivers.length ? { drivers } : {}),
     // the GLB nodes that are all blend faces (a second tile over the ground, which the page draws in its own pass at the
     // ground's height): the kernel's land leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.

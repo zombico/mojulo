@@ -1021,9 +1021,10 @@ func _spawn_walker() -> void:
 	if _upright() and view0 != null and walker.head != null:
 		walker.head.keep_aspect = Camera3D.KEEP_WIDTH
 		walker.head.fov = view0.fov
-	# a pilot on the web's walk or platform rule walks by kernel/rules.gd on the level's own faces (since 0.23.0)
+	# a pilot on the web's walk or platform rule walks by kernel/rules.gd on the level's own faces (since 0.23.0); a drone
+	# on glide flies by it (since 0.31.0)
 	var pilot = score.get("pilot")
-	if pilot is Dictionary and pilot.get("rule") is Dictionary and String(pilot["rule"].get("type", "")) in ["walk", "platform", "drive", "fly"]:
+	if pilot is Dictionary and pilot.get("rule") is Dictionary and String(pilot["rule"].get("type", "")) in ["walk", "platform", "drive", "fly", "glide"]:
 		var mpu := float(score.get("metersPerUnit", 1.0))
 		var boxes := []
 		for c in colliders:
@@ -1040,23 +1041,48 @@ func _spawn_walker() -> void:
 	_build_drivers()
 
 
-# THE DRIVERS (score.drivers, since 0.23.0): the rivals no one pilots (the racer rule), each driven by kernel/rules.gd
-# after the pilot as the web's world steps them, its node riding its pose
+# THE DRIVERS (score.drivers, since 0.23.0): the bodies no one pilots that move by their own rule, each stepped by
+# kernel/rules.gd as the web's world steps them, its node riding its pose: the rivals (the racer rule); since 0.31.0 the
+# moving decks and lifts (mover) and the patrols. A carrier (its `carry` top) takes the pilot standing on it along, and a
+# ride lift hears it stood on, by the web's carry pass (RulesScript.carry_pass, after the pilot's rule, before its
+# camera); a patrol in the cast stands down when the fight downs it, and the cast's copy of it walks where it walks.
 var land: Dictionary = {}
-var drivers: Array = []   # [{ id, rule, ent, node, rot0, h0 }]
+var drivers: Array = []   # [{ id, rule, ent, node, rot0, h0, carry? }]
+var carriers: Array = []  # the drivers that carry: [{ id, ent, body, rule, from }]
 func _build_drivers() -> void:
 	var mpu := float(score.get("metersPerUnit", 1.0))
 	for d in score.get("drivers", []):
 		if not (d is Dictionary and d.get("rule") is Dictionary):
 			continue
 		var node := _entity_node(s_(d.get("id")))
-		drivers.append({"id": s_(d["id"]), "rule": d["rule"], "ent": RulesScript.entity(d.get("pos", [0, 0, 0]), float(d.get("heading", 0.0))), "node": node,
-			"rot0": node.global_transform.basis if node != null else Basis(), "h0": float(d.get("heading", 0.0)), "mpu": mpu})
+		var row := {"id": s_(d["id"]), "rule": d["rule"], "ent": RulesScript.entity(d.get("pos", [0, 0, 0]), float(d.get("heading", 0.0))), "node": node,
+			"rot0": node.global_transform.basis if node != null else Basis(), "h0": float(d.get("heading", 0.0)), "mpu": mpu}
+		drivers.append(row)
+		if d.get("carry") is Dictionary:
+			carriers.append({"id": row["id"], "ent": row["ent"], "body": d["carry"], "rule": d["rule"], "from": null})
+	if not carriers.is_empty() and walker != null and walker.rule != null:
+		walker.after_rule = _carry_pilot
+
+
+# the web's carry pass over the pilot (the one body the kernel walks by its rule)
+func _carry_pilot() -> void:
+	RulesScript.carry_pass(carriers, [{"ent": walker.ent, "rule": walker.rule}])
 
 
 func step_drivers(delta: float) -> void:
+	for c in carriers:
+		c["from"] = (c["ent"]["pos"] as Array).duplicate()
 	for d in drivers:
+		# (a racer keeps to itself, as it always has)
+		var ce = cast_state.get("byId", {}).get(d["id"]) if cast != null and d["rule"].get("type") != "racer" else null
+		if ce is Dictionary:
+			if ce.get("gone") == true:
+				continue
+			d["ent"]["downed"] = ce.get("downed") == true
 		RulesScript.step(d["ent"], d["rule"], {}, delta, land if not land.is_empty() else {"ground": RulesScript.make_ground([], float(score.get("ground", 0.0))), "colliders": []})
+		if ce is Dictionary:
+			ce["pos"] = (d["ent"]["pos"] as Array).duplicate()
+			ce["heading"] = float(d["ent"]["heading"])
 		var node: Node3D = d["node"]
 		if node != null:
 			var p: Array = d["ent"]["pos"]
