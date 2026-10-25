@@ -3,6 +3,7 @@
 //   · actor shadows over the baked sun: an actor's shadow darkens a floor the sun lights and leaves a floor the bake
 //     already shadows alone; a world that bakes no sun darkens both by the cast's alpha;
 //   · the hour's map: drawn once at load, never per frame, and again once when the hour changes; it shadows the floor;
+//   · occlusion: one prepass a frame with creases and occlusion both on; contact darkens the floor at a box's foot.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { emitThreeWorld } from './scene-three.js';
@@ -123,4 +124,22 @@ describe('live light in Chrome', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 120000);
+
+  it('creases and occlusion draw one prepass a frame, and contact darkens the floor at a box\'s foot', async () => {
+    if (!browser) return;
+    const faces = [half(-24, 24), ...boxFaces([-1, -1, 0], [1, 1, 2])];
+    const { page, errors } = await open({ faces, creases: true, occlusion: { strength: 1, reach: 0.8 } });
+    for (let i = 0; i < 3; i++) await frameRow(page);
+    const p = await page.evaluate(() => ({ ...window.__mojLight }));
+    expect(p.prepasses).toBe(p.prepassCalls);   // one scene render into the prepass target a frame, for both
+    expect(p.aoPasses).toBe(p.prepassCalls);
+    const on = await frameRow(page);
+    const off = await (async () => { await page.evaluate(() => window.__mojOcclusion.set(false)); return frameRow(page); })();
+    // the floor beside the block's foot is darker with occlusion than without; far from it, the same
+    const diff = on.map((v, i) => off[i] - v);
+    expect(Math.max(...diff)).toBeGreaterThan(0.05);   // (0.098 in SwiftShader at strength 1, reach 0.8 m)
+    expect(diff[2]).toBeLessThan(0.02);
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 90000);
 });

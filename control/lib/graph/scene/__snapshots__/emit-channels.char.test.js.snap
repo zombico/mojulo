@@ -94,6 +94,10 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > movers emits byte-identically 1`] = `"b8ad42ecb6dbdf72d0220a268daeef9c8be13bb03e405659d8daa3d1f53b32b4"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > occlusion emits byte-identically 1`] = `"6de43c7ea210691e5c1a67b03babbf2e2772ea00e9a3c9601b0d148bcfa84a49"`;
+
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > occlusion-creases emits byte-identically 1`] = `"d882cf3a7b75c82544191446092c986faed1e2e56caaa14708432047f3ea1760"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > physics emits byte-identically 1`] = `"ad526ca1df1a0931efd1dc18e1628dee756e34ec47f85e5176d688bc5f3adcf7"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > physics-actions emits byte-identically 1`] = `"7eb0c82eff90e190fafdcbe78d9c15aa854b6c03697b09e0f9f64650eacbdba3"`;

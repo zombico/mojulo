@@ -363,6 +363,9 @@ export const EMIT_FIXTURES = [
     faces: [quad('#8a7a5c'), floor('#6a9a42', { organic: 'land' }), quad('#3a6a32', { organic: true })],
     creases: { line: 0.9, wash: 0.25, outline: { ink: '#0d070d', width: 2 } },
   }],
+  // live occlusion on the creases' prepass (scene/live-light.js): alone, and with the creases on the one prepass
+  ['occlusion', { faces: [quad('#8a7a5c'), floor('#b8b08a')], occlusion: true }],
+  ['occlusion-creases', { faces: [quad('#8a7a5c'), floor('#b8b08a'), quad('#3a6a32', { organic: true })], creases: { ink: '#1b1d3e' }, occlusion: { strength: 0.8, reach: 0.4, samples: 8 }, metersPerUnit: 3.66 }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],
