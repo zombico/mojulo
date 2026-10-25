@@ -42,6 +42,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `gritty-night`, at the realistic stop: a storm night under a low key, the light shaped in the vertex
   (`contrast: 'wii'`), the walls dressed from relief at `grit` 0.8 and aged old, the air thick enough to swallow the far
   towers. Gritty is the material pole with the atmosphere as the light, not another stop of the dial.
+- The pack's characters: a cast of six asks in the egocube's words (an archetype, a role, a build, an age, a motivation
+  and an order, with a brief; the rival the hero's archetype in shadow), five suits as cards built from the hero door's
+  own words (a catsuit and gloves, a cloak hung from the shoulders with a chest emblem, a belt, a field-painted star or
+  diamond, the armored-hero hardsuit, biker leathers), each with a fragment per pole since the realistic body refuses
+  paint and detail, and a compiler (`memberOrders(member, look)`) that rolls the sheet, reads it into a hero plan by the
+  egocube's own compiler, replaces the sheet's cut with the suit, puts the realistic body on at the material pole, and
+  asks the toon the stop wants: the character light with its ink at the comic stop (the silhouette hull the character
+  book never asks for), ink alone at the painted stop, none at the material pole. Every member validates at both poles.
 
 ### Written intent: compose and quick write the game they are
 
