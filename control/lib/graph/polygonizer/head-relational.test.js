@@ -24,7 +24,9 @@ describe('the orbit in depth', () => {
     expect(RELATIONS.radix * MM).toBeLessThan(14);
   });
   it('sets the lateral rim behind the eye, skin and bone (Hertel: the cornea 12–20 mm ahead of the rim)', () => {
-    expect(most(skin, beside, P.exR.z)).toBeLessThan(-5);
+    // (the skin still behind the eye at its outer corner; the realistic head as one skin, realistic laws 2, fills the corner
+    // over the rim, 3.3 mm behind the cornea where the separate lids stood 5 and more: the bone below holds Hertel's range)
+    expect(most(skin, beside, P.exR.z)).toBeLessThan(-3);
     const rim = most(bone, beside, P.exR.z);
     expect(rim).toBeLessThan(-12);
     expect(rim).toBeGreaterThan(-20);

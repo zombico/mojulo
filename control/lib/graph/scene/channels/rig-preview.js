@@ -223,8 +223,8 @@ function __rpFace(r, clipName, phase, sec) {   // the face's weights on its bone
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${painted ? `
     const map = fig.paintTex && part.uv ? __rpTex(fig) : null;
-    if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}
-${faced ? `
+    if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}${faced ? `
+
     __rpMorph(fig, part, geo);` : ''}
     geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${faced ? `

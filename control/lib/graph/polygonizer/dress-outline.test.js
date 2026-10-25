@@ -1,7 +1,7 @@
 // The dressed outline read (dress-outline.js) on the realistic body, one case per concept: the bare figure (nothing worn
 // reads as nothing: no shift, no division, no flair, every return); trousers alone (their sash the one division, their
 // leg the flair, the ankle's cuff a return); the gi over them (loose above and below, coming back at the belt, the
-// wrists and the ankles; the jacket's skirt at the thigh's widest advised); the knight (the shoulders carried out: a T);
+// wrists and the ankles; the jacket's skirt at the thigh's widest advised); the knight (the plates on the body: the V kept);
 // the authored game body read the same way (its own bare family, a skirt's hem a division, the hero's readout carrying it).
 // Deterministic. (Beside the module, not in the critical tier: each case mints a realistic body.)
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -44,17 +44,22 @@ describe('the dressed outline', () => {
     // (the body line is not asked of a loose outfit that returns: the rule's escape)
     expect(c.reads.some((x) => x.id === 'bodyLine')).toBe(false);
     expect(m.flair.of).toEqual(['gi', 'martialPants']);
-    // (a box over wide legs: the waist unmarked, the hem near the shoulders' width)
-    expect(m.family).toBe('H');
+    // (a box over wide legs: the waist unmarked, the hem near the shoulders' width; on the realistic body rounded out the
+    // jacket blouses at the belt past the hip, so the box reads between the families, not a clean H)
+    expect(m.family).toBe('between');
+    expect(m.ratios.waistOverShoulder).toBeGreaterThan(0.8);
     // the jacket's skirt ends at the thigh's widest, halving the figure: advised, in both styles
     for (const style of ['western', 'anime']) expect(outlineCritic(m, style).advice.join(' ')).toMatch(/thigh's widest/);
   });
 
-  it('the knight: the shoulders carried out past the body, a T over the bare V', () => {
+  it('the knight: the plates lie on the body, the shoulders carried a little past it, the bare V kept', () => {
+    // (the realistic armour fitted to the body rounded out wraps the chest and the shoulders: it no longer carries them out
+    // into a T, the outline stays the body's V)
     const m = outlineMeasures(knight.mesh, knight.r);
     expect(m.bareFamily).toBe('V');
-    expect(m.family).toBe('T');
-    expect(m.at.shoulder.e).toBeGreaterThan(0.15);
+    expect(m.family).toBe('V');
+    expect(m.at.shoulder.e).toBeGreaterThan(0.05);
+    expect(m.at.shoulder.e).toBeLessThan(0.15);
   });
 
   it('the authored game body read the same way: a bare family of its own, a skirt\'s hem a division, the readout carrying it', () => {

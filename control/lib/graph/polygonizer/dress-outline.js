@@ -100,8 +100,9 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
   const dressed = (lim) => (I) => lim.includes(I.limb), bare = (lim) => (I) => I.body && lim.includes(I.limb);
   const side = (lim, sgn) => (I, part) => lim.includes(I.limb) && /R$/.test(part) === (sgn > 0);
 
-  // the landmarks' heights, off the rig and the bare body
-  const zs = Object.values(parts).filter((P) => P.layer === 1).flatMap((P) => P.stations.flatMap((st) => Object.values(st.points).map((p) => p[2])));
+  // the landmarks' heights, off the rig and the bare body (the ground off the body's stations; a part laid as one skin, with
+  // no stations, the realistic head's, stands above it and its top is the rig's headTop)
+  const zs = Object.values(parts).filter((P) => P.layer === 1 && P.stations).flatMap((P) => P.stations.flatMap((st) => Object.values(st.points).map((p) => p[2])));
   const ground = Math.min(...zs), top = at('headTop')?.[2] ?? Math.max(...zs), S = top - ground;
   const zSh = at('shoulderR')[2], zHip = at('hipR')[2], zKnee = at('kneeR')[2], zAnk = at('ankleR')[2], zNav = at('navel')?.[2] ?? (zSh + zHip) / 2, zWr = at('wristR')?.[2];
   const pel = parts.pelvis, zCr = pel ? Math.min(...pel.stations[0] ? Object.values(pel.stations[0].points).map((p) => p[2]) : [zHip - 0.08]) : zHip - 0.08;
