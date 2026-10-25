@@ -60,16 +60,18 @@ export function sequentialLevel(recipe) {
     stages.push({ node: id, section: n.section, manifest });
   }
   const ground = laid ? { cell: laid.frame.cell, cols: laid.frame.cols, rows: laid.frame.rows, spans: laid.frame.spans.map(({ node, section, origin, D }) => ({ node, section, origin, D })), placed: laid.placed } : null;
-  const paint = G.paint ? { geocube: G.paint.cube.id, ...(G.paint.domain ? { domain: G.paint.domain.name, ...(G.paint.domain.domain.hour !== undefined ? { hour: G.paint.domain.domain.hour } : {}) } : {}),
+  const hour = G.paint?.hour ?? G.paint?.domain?.domain.hour;
+  const paint = G.paint ? { geocube: G.paint.cube.id, ...(G.paint.domain ? { domain: G.paint.domain.name, ...(hour !== undefined ? { hour } : {}) } : hour !== undefined ? { hour } : {}),
     terrain: G.paint.terrain.name, from: G.paint.terrain.from, offered: G.paint.terrain.offered,
     ...(G.paint.terrain.wanted ? { wanted: G.paint.terrain.wanted } : {}), nodes: order.filter((id) => G.nodes[id].painted) } : null;
   return { layout: 'sequential', root: G.root, spawn: G.spawn, order, edges: G.edges, stages, ...(ground ? { ground } : {}), ...(paint ? { paint } : {}) };
 }
 // a node's paint: its kit, or (painted by the level's geocube) the cube itself and the terrain (or the domain) the level
-// picked, so the stage carries what it is drawn by and lowers it on every read
+// picked, and the hour the level lights it at, so the stage carries what it is drawn by and lowers it on every read
 function paintOf(G, n) {
   if (!n.painted) return { kit: n.kit };
-  if (G.paint.domain) return { geocube: G.paint.cube, domain: G.paint.ask };
+  const lit = G.paint.hour !== undefined ? { hour: G.paint.hour } : {};
+  if (G.paint.domain) return { geocube: G.paint.cube, domain: G.paint.ask, ...lit };
   const T = G.paint.terrain;
-  return { geocube: G.paint.cube, terrain: T.from === 'level' ? T.name : { ...(T.from === 'heartbeat' || T.wanted ? { hint: T.from === 'heartbeat' ? T.name : T.wanted } : {}) } };
+  return { geocube: G.paint.cube, terrain: T.from === 'level' ? T.name : { ...(T.from === 'heartbeat' || T.wanted ? { hint: T.from === 'heartbeat' ? T.name : T.wanted } : {}) }, ...lit };
 }

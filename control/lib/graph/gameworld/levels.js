@@ -76,9 +76,10 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** Every stage of every level, the start level first, then the rest in the world's order. */
 export function gameStages(world) {
-  const G = readGameworld(world), order = [G.start, ...G.ids.filter((id) => id !== G.start)], out = [];
+  const G = readGameworld(world), order = [G.start, ...G.ids.filter((id) => id !== G.start)], out = [], hours = {};
   for (const level of order) {
     const R = resolveLevel(G, level);
+    if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
@@ -118,7 +119,12 @@ export function gameStages(world) {
       }
     }
   }
-  return out;
+  // the style's hour lights the outside of a stage its level's geocube paints (world.js resolveLevel); an outside stage
+  // no cube paints (a section in its own kit, a level with no cube, a building, a city, a track…) is lit as before, and
+  // says so (`unlit`: stageLevelOrder's advice). An inside has no outside to light. No hour: every stage as it was
+  if (!Object.keys(hours).length) return out;
+  const lit = (s) => (s.section === 'trail' || s.section === 'meru') && s.manifest?.geocube !== undefined;
+  return out.map((s) => (hours[s.level] === undefined || s.section === 'interior' || lit(s) ? s : { ...s, unlit: hours[s.level] }));
 }
 
 /**
@@ -361,7 +367,9 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
  * world's `moves`): each figure of the level standing for one, the pilot's included, plays them over the library's.)
  */
 export function stageLevelOrder(G, stage, opts = {}) {
-  const laid = levelOrder(G, stage, opts);
+  const laid0 = levelOrder(G, stage, opts);
+  // a stage the style's hour does not reach (gameStages `unlit`): advice, never a refusal
+  const laid = stage.unlit === undefined ? laid0 : { ...laid0, laws: [...(laid0.laws ?? []), { concern: 'hour', law: 'lit', holds: false, says: `style.hour '${stage.unlit}' lights a stage the level's geocube paints; this ${stage.section} stage is not on one, so it is lit as before` }] };
   const L = opts.moves ? withOwnMoves(laid, opts.moves) : laid;
   // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
   return G.screen ? screenLevel(G.screen, L) : L;

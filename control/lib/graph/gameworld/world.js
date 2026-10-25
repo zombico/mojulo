@@ -23,7 +23,12 @@
  *
  *   gameworld: {
  *     id, name?, seed?,
- *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, weather?: '<climate>' | {…}, land?: { <form>: variant | many | { variant?, many? } } },
+ *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, weather?: '<climate>' | {…}, land?: { <form>: variant | many | { variant?, many? } },
+ *               geocube?, terrain? | domain?, hour?, look?, pixel?, palette? },
+ *                                         // hour: the geocube's outside lit at an hour (era/geocube-hours.js readHour:
+ *                                         // dawn, morning, noon, afternoon, golden, dusk, night, or 0 to 24), lowered
+ *                                         // onto each stage the level's geocube paints as its `hour` (a level's over
+ *                                         // the world's); a stage no geocube paints is lit as before, said as advice
  *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…}, builds?,
  *                                 technology?: { finish?, blocks?, things?, vehicles?, structures?, weapons? } } },
  *     levels: { '<id>': {
@@ -123,6 +128,7 @@ import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
+import { readHour } from '../era/geocube-hours.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
@@ -145,7 +151,8 @@ export const WORLD_STYLE = Object.freeze({
   weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
   geocube: 'a geocube that paints the level once: its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
-  domain: 'or one of the levels the geocube makes (its domains)',
+  domain: 'or one of the cube\'s levels (its domains)',
+  hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
@@ -230,6 +237,7 @@ function readStyle(s, at) {
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
+    else if (k === 'hour') { try { readHour(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.hour = v; }
     else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
@@ -717,8 +725,10 @@ export function resolveLevel(world, id) {
   }
   // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
   // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
+  // the hour: the geocube's outside at it, on each stage the cube paints (a level with no cube is lit as before: levels.js)
   const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
-    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.domain !== undefined ? { domain: style.domain } : {}) };
+    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.domain !== undefined ? { domain: style.domain } : {}),
+    ...(style.hour !== undefined && style.geocube !== undefined ? { hour: style.hour } : {}) };
   let lv = readLevel(level);
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was

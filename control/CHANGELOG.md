@@ -22,6 +22,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   forced. The run now saves the world with the record of the steps that succeeded before it rethrows, and the error
   reaches the caller as it was; the next run keeps or remakes those steps as usual. A failure before anything was made
   writes nothing.
+- **Night, and any hour, from a gameworld's style.** A world's or a level's `style.hour` (a level's over the world's,
+  read by the cube's own `readHour`: dawn, morning, noon, afternoon, golden, dusk, night, or 0 to 24) lowers onto each
+  stage its level's geocube paints, the trails and the climb, as the stage's `hour`, over its domain's own; until now
+  night was reachable only through a cube domain's hour. The level recipe takes `hour` beside its `geocube` (refused
+  without one), and a painted stage's `painted` readout names the hour it got. A stage no cube paints (a section in its
+  own kit, a level with no cube, a building, a city, a track) is lit as before and says so as advice on its step in the
+  run (`hour: … is not on one`), never a refusal. The composer reads an hour word (dawn, sunrise, morning, afternoon,
+  sunset, dusk, twilight, evening, night, moonlit) into `style.hour`, unless the cube is lit at that hour already, so
+  "a gothic night" composes as it did and "a sunny island at night" is the island at night. A world with no hour emits
+  the bytes it did. The world card's style line names it.
 
 ### Level edit demo: a level made and changed by conversation
 

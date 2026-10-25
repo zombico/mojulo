@@ -1066,7 +1066,7 @@ export function geocubePaint(manifest) {
       ...(cube.avoid ? { avoid: cube.avoid.map(({ law, ok }) => ({ law, ok })) } : {}) };
   }
   const T = manifest.terrain === undefined ? pickTerrain(cube) : readTerrainAsk(cube, manifest.terrain);
-  return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}),
+  return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.hour !== undefined ? { hour: manifest.hour } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}),
     ...(cube.avoid ? { avoid: cube.avoid.map(({ law, ok }) => ({ law, ok })) } : {}) };
 }
 
