@@ -147,6 +147,13 @@ FIGURE_CLIPS = ${JSON.stringify(Object.fromEntries(Object.entries(figureClips).s
 M = 100.0  # 1 mojulo unit = 1 meter; UE works in centimeters
 START_LIFT_CM = 96.0  # the score's spawn is the walker's FEET; a PlayerStart is the capsule's centre (default half-height 88 cm + margin)
 IMPORT_TAG = 'MojuloImported'
+# what the run did with the figures, step by step: written to mojulo-import.json beside mojulo-gate.json (verify embeds
+# it in the gate file), so one gate run says what Interchange made and which editor calls held
+NOTES = []
+
+
+def note(what, **detail):
+    NOTES.append(dict(detail, what=what))
 
 
 def P(v):
@@ -600,12 +607,14 @@ def loop_figure_clips(content_dir):
         comps = figure_skeletal(figure)
         if p is None or not comps:
             unreal.log_warning('[mojulo] figure ' + figure + ' stands: ' + ('no AnimSequence for ' + clip if p is None else 'no skeletal mesh actor'))
+            note('figure_clip', figure=figure, clip=clip, asset=p, components=len(comps))
             continue
         anim = unreal.EditorAssetLibrary.load_asset(p)
         for comp in comps:
             comp.set_editor_property('animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
             comp.override_animation_data(anim, True, True, 0.0, 1.0)
         unreal.log('[mojulo] figure ' + figure + ' loops ' + anim.get_name())
+        note('figure_clip', figure=figure, clip=clip, asset=p, components=len(comps))
 
 
 def glb_humanoids(glb_path):
@@ -638,6 +647,7 @@ def turn_lone_humanoids(glb_path):
             if actor is not None:
                 actor.add_actor_world_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=180.0), False, False)
                 unreal.log('[mojulo] figure ' + name + ' turned to the world facing')
+                note('turned', figure=name)
 
 
 # THE RETARGET SEAM: one FK chain per limb over a humanoid figure's VRM bones, named as Unreal's mannequin IK rig names
@@ -716,6 +726,7 @@ def retarget_figures(glb_path, content_dir):
         hits = sorted(k for k in meshes if k.startswith(want))
         if not hits or 'hips' not in vrm:
             unreal.log_warning('[mojulo] retarget ' + figure + ': ' + ('no SkeletalMesh' if not hits else 'no hips'))
+            note('retarget', figure=figure, content_dir=content_dir, skipped='no SkeletalMesh' if not hits else 'no hips', meshes=sorted(meshes))
             continue
         mesh = unreal.EditorAssetLibrary.load_asset(meshes[hits[0]])
         names = skeletal_bone_names(mesh) or []
@@ -737,6 +748,7 @@ def retarget_figures(glb_path, content_dir):
         source = source_ik_rig()
         if source is None:
             unreal.log('[mojulo] retarget ' + figure + ': no mannequin IK rig in the project (MOJULO_SOURCE_IK_RIG names one) — the IK Rig is the seam')
+            note('retarget', figure=figure, content_dir=content_dir, mesh=hits[0], bones_read=len(names), chains=made, source=None, steps=log)
             continue
         rtg = asset_in_place(folder, 'RTG_Mojulo_' + want, unreal.IKRetargeter, unreal.IKRetargetFactory())
         rc = unreal.IKRetargeterController.get_controller(rtg)
@@ -748,6 +760,7 @@ def retarget_figures(glb_path, content_dir):
         step(log, 'align target pose', lambda: rc.auto_align_all_bones(unreal.RetargetSourceOrTarget.TARGET))
         unreal.EditorAssetLibrary.save_loaded_asset(rtg)
         unreal.log('[mojulo] retarget ' + figure + ': ' + source.get_name() + ' -> ' + rig.get_name() + ' (' + '; '.join(x for x in log if 'failed' in x) + ')')
+        note('retarget', figure=figure, content_dir=content_dir, mesh=hits[0], bones_read=len(names), chains=made, source=source.get_path_name(), steps=log)
 
 
 def ensure_sticker_master():
@@ -1255,6 +1268,14 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
 
 
 def build():
+    try:
+        build_pack()
+    finally:
+        with open(os.path.join(unreal.Paths.project_dir(), 'mojulo-import.json'), 'w') as f:
+            json.dump({'notes': NOTES}, f, indent=2)
+
+
+def build_pack():
     game = game_manifest()
     if game is None:
         score = read_json(os.path.join(PACK, 'score.json'))
@@ -1497,12 +1518,43 @@ def verify():
                     rtg = content_dir + '/Retarget/RTG_Mojulo_' + want
                     check(prefix + 'retargeter:' + figure, unreal.EditorAssetLibrary.does_asset_exist(rtg), rtg)
 
+    diagnostics = []
+
+    def diagnose(glb_path, content_dir, prefix):
+        """What Interchange made of a level's figures, with its map loaded: the clips' asset names, each skeletal mesh and
+        its first bones, and where each skinned figure's mesh hangs in the actor tree. Facts, never a check."""
+        skins = glb_skins(glb_path)
+        if not skins:
+            return
+        out = {'level': prefix.rstrip(':') or 'world', 'anim_sequences': sorted(assets_of(content_dir, unreal.AnimSequence)),
+               'level_sequences': len(assets_of(content_dir, unreal.LevelSequence)), 'skeletal_meshes': [], 'figures': []}
+        for name, path in sorted(assets_of(content_dir, unreal.SkeletalMesh).items()):
+            bones = skeletal_bone_names(unreal.EditorAssetLibrary.load_asset(path))
+            out['skeletal_meshes'].append({'name': name, 'bones': None if bones is None else len(bones), 'first_bones': (bones or [])[:8]})
+        for figure, joints in skins:
+            wrapper = find_actor_by_label(figure)
+            owners = []
+            for a in all_actors():
+                if a.get_components_by_class(unreal.SkeletalMeshComponent):
+                    parent = a.get_attach_parent_actor()
+                    owners.append({'actor': a.get_actor_label(), 'class': a.get_class().get_name(),
+                                   'attach_parent': parent.get_actor_label() if parent is not None else None})
+            out['figures'].append({'figure': figure, 'joints': joints, 'wrapper': wrapper.get_actor_label() if wrapper is not None else None,
+                                   'wrapper_class': wrapper.get_class().get_name() if wrapper is not None else None,
+                                   'under_wrapper': len(skeletal_components(wrapper)) if wrapper is not None else 0,
+                                   'skeletal_actors': owners})
+        diagnostics.append(out)
+
     try:
         game = game_manifest()
         landmarked = False
         if game is None:
             score = read_json(os.path.join(PACK, 'score.json'))
             landmarked = verify_level(score, MAP_PATH, '', False)
+            try:
+                diagnose(os.path.join(PACK, 'model.glb'), CONTENT_ROOT, '')
+            except Exception as e:  # noqa: BLE001 — facts, never a check
+                diagnostics.append({'level': 'world', 'error': str(e)})
             if (score.get('entities') or []) and not landmarked:
                 check('frame_landmark', False, 'no entity node found by figure or entity:<id> label')
             verify_materials()
@@ -1520,6 +1572,10 @@ def verify():
                 scored.append((score, CONTENT_ROOT + '/Levels/' + ref))
                 any_entities = any_entities or bool(score.get('entities'))
                 landmarked = verify_level(score, CONTENT_ROOT + '/Maps/' + ref, ref + ':', landmarked)
+                try:
+                    diagnose(os.path.join(PACK, 'levels', ref, 'model.glb'), CONTENT_ROOT + '/Levels/' + ref, ref + ':')
+                except Exception as e:  # noqa: BLE001 — facts, never a check
+                    diagnostics.append({'level': ref, 'error': str(e)})
             if any_entities and not landmarked:
                 check('frame_landmark', False, 'no entity node found in any level by figure or entity:<id> label')
             menu_ok = unreal.EditorAssetLibrary.does_asset_exist(MENU_MAP)
@@ -1538,8 +1594,14 @@ def verify():
 
     ok = len(failures) == 0
     gate_path = os.path.join(unreal.Paths.project_dir(), 'mojulo-gate.json')
+    gate = {'ok': ok, 'checks': checks}
+    # the figures' facts and the run's notes ride the gate file when there is a skinned figure; else it is as before
+    imported = os.path.join(unreal.Paths.project_dir(), 'mojulo-import.json')
+    notes = (read_json(imported).get('notes') or []) if os.path.exists(imported) else []
+    if diagnostics or notes:
+        gate['diagnostics'] = {'levels': diagnostics, 'import': notes}
     with open(gate_path, 'w') as f:
-        json.dump({'ok': ok, 'checks': checks}, f, indent=2)
+        json.dump(gate, f, indent=2)
     unreal.log('[mojulo] gate ' + ('PASS' if ok else 'FAIL') + ' (' + str(len(checks)) + ' checks)')
     if not ok:
         # A non-zero editor exit for the driver; the gate file is authoritative.

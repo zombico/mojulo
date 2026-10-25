@@ -358,3 +358,15 @@ describe('the retarget seam (C2)', () => {
     expect(py()).toContain('verify_retarget(level_glbs)');
   });
 });
+
+describe('the gate run reports what it found (the first-run diagnostics)', () => {
+  const py = () => emitGame().files.find((f) => f.file === 'import_mojulo.py').text;
+
+  it('the run writes its notes even when it fails; verify embeds them with the figures\' facts, only when there are any', () => {
+    expect(py()).toContain("    try:\n        build_pack()\n    finally:\n        with open(os.path.join(unreal.Paths.project_dir(), 'mojulo-import.json'), 'w') as f:");
+    expect(py()).toContain("    if diagnostics or notes:\n        gate['diagnostics'] = {'levels': diagnostics, 'import': notes}");
+    // the facts the first run pins: the clips' asset names, the meshes' bones, where the skinned mesh hangs
+    for (const key of ["'anim_sequences'", "'first_bones'", "'attach_parent'", "'under_wrapper'"]) expect(py()).toContain(key);
+    expect(py()).toContain("note('retarget', figure=figure, content_dir=content_dir, mesh=hits[0], bones_read=len(names), chains=made, source=source.get_path_name(), steps=log)");
+  });
+});

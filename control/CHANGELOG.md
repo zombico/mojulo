@@ -262,6 +262,15 @@ for none of them emits the same bytes as before.
     against a pack's GLB.
   - Not run in Unreal: every IK Rig and Retargeter call is tried and logged, since the API moved between 5.2 and 5.6.
     The operator's gate run says which calls held, and the eyes gate is a mannequin clip playing on the figure.
+- **The first gate run reports what it found.** With a skinned figure in the pack, `mojulo-gate.json` carries a
+  `diagnostics` block beside its checks, facts and never verdicts:
+  - the AnimSequence names Interchange gave the clips;
+  - each SkeletalMesh with its first bones;
+  - where each skinned figure's mesh hangs in the actor tree;
+  - the import run's notes (`mojulo-import.json`): which clip each figure loops, the figures turned, each retarget step
+    and whether it held.
+
+  A pack without a skinned figure writes the gate file as before.
 
 ### Chatbot sweep: what the chatbot factory left behind
 
