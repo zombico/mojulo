@@ -129,6 +129,14 @@ for none of them emits the same bytes as before.
 - A world with live shadows and occlusion together no longer dies on load: the live light's script and the occlusion
   block both declared `__mojLight` on one page (a SyntaxError). The occlusion block binds the shared probe under its own
   name; the two occlusion pins moved, nothing else.
+- An actor's shadow meets its feet. The operator's look found a wide soft smudge that began away from the hero's feet on
+  the trail valley: until the pilot first stepped, and in every capture (which never steps), the actors' box covered
+  the whole stage (550 m across there, a 27 cm texel), and a single-sided caster drew its back faces, so a sole's depth
+  was the floor's own and the contact was lost. The controllable now hands the live light a focus (`__mojCast.focus`)
+  that the pass before every render asks, so the box sits round the pilot from the first frame; the default span is
+  12 m (a box 24 m across round one hero, a centimetre's texel; seats still grow it), the bias a contact's 5 mm, and an
+  adopted subtree casts both its sides. Measured in Chrome on a standing figure: the shadow's edge 6 mm past the leg's
+  face and a 3 cm penumbra (5 cm and 11 cm in the old fit box); on the quick game's hero, 1 mm and 3 to 4 cm.
 - `export_model` exports a building level. A stage's `program` is its building program (`{ use, seed }`), and the
   exporter read it as the code kind's, so every quick game's building level was refused ("program.source must be a
   non-empty string") while the game page played it. Only a workbench's `program` is code now (`hasCodeProgram`).

@@ -150,6 +150,9 @@ for (const m of solids) {
 // baked shade beside it, and a corner already in the baked shadow is not darkened again), else by the cast's alpha. A
 // patch chains whatever patch the material carries already. `__mojLight` counts the frames, the hour map's arms
 // (`hourMaps`) and the renders that drew it (`hourDraws`).
+// THE FOCUS: a channel with a focus (the controllable: the pilot, or the seats' centre) hands `__mojCast.focus(fn)` a
+// function that answers [x, y, z, spread]; the pass before every render (captures included, which never step) asks it
+// and seats the actors' box round it, so the box is tight from the first frame. Without a focus the box stays FIT.
 export function liveShadowScript(cfg) {
   const A = !!cfg.actors, H = !!cfg.hour;
   const fitMinLit = Number.isFinite(cfg.fitMin) && cfg.fitMin > 0 ? String(cfg.fitMin) : '60';
@@ -197,9 +200,11 @@ const __csNoCast = (m) => !!(m.userData && __CS.noCast.indexOf(m.userData.g) !==
 // and never cast there, so a receiver never shadows itself and the bias is only the contact's (a few centimetres)
 ${light('__csL')}
 const __csMatU = { value: __csL.shadow.matrix }, __csMapU = { value: null }, __csBiasU = { value: 0 }, __csTexelU = { value: 1 / __CS.mapSize };
-const __csActorBias = __CS.bias || 0.02 / (__CS.unit || 1);
+// (a contact's bias, a few millimetres: no receiver casts here, so there is no self-shadowing to hide)
+const __csActorBias = __CS.bias || 0.005 / (__CS.unit || 1);
 __csSeat(__csL, __csBiasU, __csR, __csC.x, __csC.y, __csC.z, __csActorBias);   // FIT until a focus follows
-let __csFollowing = false;` : ''}${H ? `
+let __csFollowing = false, __csFocus = null;
+const __csSteer = () => { const f = __csFocus && __csFocus(); if (f) window.__mojCast.follow(f[0], f[1], f[2], f[3] || 0); };` : ''}${H ? `
 // THE HOUR'S MAP: in the scene, its autoUpdate off, so three draws it only when __mojHourPass arms it (at load, and
 // when the hour changes); FIT over the whole static stage, its bias a few of its own texels (statics cast and receive)
 ${light('__hrL')}
@@ -212,7 +217,8 @@ let __hrDirty = true, __hrArmed = null;
 let __hrStamp = -1;
 const __hrSeen = (r, o, cam, shCam) => { if (shCam === __hrL.shadow.camera && __hrStamp !== renderer.info.render.frame) { __hrStamp = renderer.info.render.frame; __mojLight.hourDraws++; } };
 const __mojHourPass = () => {
-  __mojLight.frames++;
+  __mojLight.frames++;${A ? `
+  __csSteer();` : ''}
   if (__hrArmed) {   // the frame after: the flags back, the actors' map live again
     for (const [o, c] of __hrArmed) o.castShadow = c;
     __hrArmed = null;${A ? `
@@ -229,7 +235,7 @@ const __mojHourPass = () => {
   __csL.shadow.autoUpdate = false; __csL.shadow.needsUpdate = false;   // (this frame its map would hold the static world)` : ''}
   __mojLight.hourMaps++;
 };` : `
-const __mojHourPass = () => { __mojLight.frames++; };`}
+const __mojHourPass = () => { __mojLight.frames++;${A ? ' __csSteer();' : ''} };`}
 // the receive patch, chained over the material's own: project the fragment into each map (four taps of hardware PCF)
 // and darken by its sun share (aSun, where the world bakes its sun) or the cast's alpha
 const __csVS = '${vDecl}#ifdef CS_SUN\\nattribute float aSun;\\nvarying float vCsSun;\\n#endif\\n';
@@ -275,14 +281,17 @@ ${A ? '  vCsCoord = csMat * csW;\n' : ''}${H ? '  vHrCoord = hrMat * csW;\n' : '
 window.__mojCast = {   // the channel's public seam: dynamic channels hand their casters in, a focus steers the box, the hour moves the sun
   dir: __csDir, dbg: { renderer, THREE, scene, patch: __csPatch },${A ? `
   light: __csL, mapU: __csMapU, biasU: __csBiasU,
-  // a subtree that moves (a channel's bodies): its opaque meshes cast into the actors' map
-  adopt(root) { root.traverse((o) => { if (o.isMesh && o.material && !o.material.transparent) o.castShadow = true; }); },
+  // a subtree that moves (a channel's bodies): its opaque meshes cast into the actors' map, both sides drawn into it (a
+  // single-sided mesh casts by its back faces, and a foot's sole is then the floor's own depth: the contact lost)
+  adopt(root) { root.traverse((o) => { if (o.isMesh && o.material && !o.material.transparent) { o.castShadow = true; if (o.material.shadowSide == null) o.material.shadowSide = THREE.DoubleSide; } }); },
   // tighten the actors' box round the action (the pilot, or the seats' centre with \`r\` their spread)
   follow(x, y, z, r = 0) {
     __csFollowing = true;
     __csSeat(__csL, __csBiasU, Math.max(__CS.span, r + __CS.span * 0.5), x, y, z, __csActorBias);
-  },` : `
-  adopt() {}, follow() {},`}${H ? `
+  },
+  // the focus the box follows, asked before every render: fn() → [x, y, z, spread] (or nothing: the box stays)
+  focus(fn) { __csFocus = typeof fn === 'function' ? fn : null; },` : `
+  adopt() {}, follow() {}, focus() {},`}${H ? `
   hourLight: __hrL, hourMapU: __hrMapU,
   // the hour changed: the sun's new direction (toward it, z-up); the static map is drawn again on the next frame
   hour(toLight) { if (toLight) __csDir.set(toLight[0], toLight[1], toLight[2]).normalize(); __hrSeat();${A ? ' if (!__csFollowing) __csSeat(__csL, __csBiasU, __csR, __csC.x, __csC.y, __csC.z, __csActorBias);' : ''} __hrDirty = true; },` : ''}

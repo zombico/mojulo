@@ -842,7 +842,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // existing world's emitted bytes are untouched (the char net holds).
   const castShadows = shadows && typeof shadows === 'object' && shadows.cast ? shadows : null;
   // the live light's split (liveShadows, above): what moves casts each frame (`actors`), the static world into its own
-  // map when the hour changes (`hour`). Its box follows the action at `span` (30 m by default, in world units)
+  // map when the hour changes (`hour`). Its box follows the action at `span` (12 m by default, in world units: a box 24 m
+  // across round one hero, a 2048 map's texel about a centimetre, so a foot's shadow meets the foot; seats grow it)
   const liveUnit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
   const liveShadowBlock = liveShadows ? liveShadowScript({
     actors: liveShadows.actors, hour: liveShadows.hour,
@@ -850,7 +851,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
     alpha: typeof shadows.alpha === 'number' ? shadows.alpha : 0.38,
     mapSize: shadows.mapSize || 2048,
-    span: shadows.span || Math.round((30 / liveUnit) * 1e4) / 1e4,
+    span: shadows.span || Math.round((12 / liveUnit) * 1e4) / 1e4,
     ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
     ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),
