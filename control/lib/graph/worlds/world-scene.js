@@ -51,6 +51,8 @@ import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
+import { hasTitleWords, localizeHudRows, readTitleLocale } from '@/lib/graph/game/title-words';
+import { carveTitles } from '@/lib/graph/game/title-carve';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
@@ -1130,8 +1132,23 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // token fails the compose_world resolve gate with a teaching message instead of painting
     // wrong; the events channel normalizes again at emit (idempotent), so fixtures stay raw.
     if (Array.isArray(ev.hud) && ev.hud.length) {
+      // a row's text may name a word in the world's language ('@fight': game/title-words.js, the dashboard's own
+      // catalogs); the world's `locale` is read only when a row does, so a world without one is never gated on it
+      if (hasTitleWords(ev.hud)) ev = { ...ev, hud: localizeHudRows(ev.hud, readTitleLocale(sketch.manifest.locale, 'locale')) };
       const h = normalizeHud(ev.hud);
       if (h.errors.length) throw new Error(`events.hud is invalid — see get_game_vocab({ id: 'hud-guide' }):\n- ${h.errors.join('\n- ')}`);
+      // the carved banners (`as: 'title'`, game/title-carve.js): their words carved here into the glyph atlas the page lays
+      // out (events.titles); a title the host cannot carve (no font, a shaped script, a character no face covers) stays a
+      // banner — the DOM spells it — and says why in events.titlesFallback. A world without a title row is untouched.
+      const carved = carveTitles(h.widgets);
+      if (carved) {
+        const { fallback, ...atlas } = carved;
+        const down = new Set(fallback.map((f) => `${f.on}\u0000${f.text}`));
+        const hud = down.size ? ev.hud.map((r) => (r && r.as === 'title' && down.has(`${r.on}\u0000${r.text}`) ? { ...r, as: 'banner' } : r)) : ev.hud;
+        // the look the letters are baked in: the composed juice floor's register (anime unless it says western)
+        const fxs = sketch.manifest.fxStyle, register = fxs && typeof fxs === 'object' && fxs.register === 'western' ? 'western' : 'anime';
+        ev = { ...ev, hud, ...(Object.keys(atlas.styles).length ? { titles: { ...atlas, register } } : {}), ...(fallback.length ? { titlesFallback: fallback } : {}) };
+      }
     }
     if (ev.style !== undefined) {
       const se = validateHudStyle(ev.style, 'events.style');

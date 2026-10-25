@@ -794,5 +794,33 @@
         "other": "سایر"
       }
     }
+  },
+  "gameTitles": {
+    "round": "راند {round}",
+    "fight": "بجنگ!",
+    "ko": "ناک‌اوت",
+    "victory": "پیروزی",
+    "defeat": "شکست",
+    "draw": "مساوی",
+    "ready": "آماده؟",
+    "go": "برو!",
+    "start": "شروع",
+    "finish": "پایان",
+    "gameOver": "بازی تمام شد",
+    "levelClear": "مرحله تمام شد",
+    "stageClear": "صحنه تمام شد",
+    "timeUp": "وقت تمام شد",
+    "paused": "توقف",
+    "perfect": "عالی!",
+    "newRecord": "رکورد جدید",
+    "youWin": "تو بردی",
+    "youLose": "تو باختی",
+    "wave": "موج {wave}",
+    "boss": "غول مرحله",
+    "continue": "ادامه؟",
+    "combo": "کمبو {combo}",
+    "checkpoint": "ایست بازرسی",
+    "goal": "گل!",
+    "bonus": "جایزه"
   }
 }

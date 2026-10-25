@@ -14,6 +14,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Title cards: the carved letters come back as the game's words
+
+- **`as: 'title'` on a HUD banner row** carves the row's words into 3D letters and puts them on the screen when its
+  event fires, the way a game announces a round, a K.O., a clear, instead of a plate with words on it. The letters are
+  the glyph carver's (`lib/motion/glyph-carver.js`, the letter primitive of the pre-three renderer, until now reached
+  only through the `carved-solid` wordmark and cover titles) extruded with the bevelled carve kernel and tessellated
+  into a GLYPH ATLAS the page lays out by advance, so a `{score}` substituted at play time still carves (the digits
+  ride along with any placeholder). `look` is the entrance and its exit: `slam` (scaled down with an overshoot and a
+  settling tilt; a flash, a jolt and sparks on landing; leaves growing), `rise` (letter by letter from below, stretched,
+  squashing as each lands; leaves falling) or `stamp` (punched in from the eye with a bounce; leaves scattering, each
+  letter on its own line and spin). `style` is the carve: `heavy`, `blocky`, `slick`, `thin`, `italic`. The look is the
+  game's: the composed juice floor's register bakes anime cel bands with an ink hull behind each letter, or western
+  metal with a glint and a drop copy, into vertex colour, unlit, so the scene's lights do not matter. Everything plays
+  on the frame clock from the firing, every number of chance hashed from the firing's count: a capture draws the same.
+  Card `hud-title`; idiom `title(…)`; a `play.parts` banner passes `as`, `look` and `style` through.
+- **Words in the player's language.** A HUD row's `text` may name a word instead of spelling it (`'@fight'`,
+  `'@round'`, `'@gameOver'`, …: the `gameTitles` namespace of the dashboard's own locale catalogs, added to every
+  shipped language), read in the world's top-level `locale` (a shipped code; absent ⇒ `en`). A new language reaches
+  the games and the dashboard at once through `/sync-locales`.
+- **Absence degrades, never breaks.** A title the host cannot carve stays a banner (the browser spells it) and the
+  world's events say why under `titlesFallback`: no face parsed, `opentype.js` absent (an optional dependency), a
+  script that needs a shaping engine (Arabic, Hebrew, Thai, the Indic scripts), a character no face on the host covers.
+  The letters follow the host's faces (`MOJULO_TITLE_FONT` first, then the system's bold display faces, a CJK face
+  after a Latin one); vendor a face to pin them. The engines take a title as a banner in `score.json` (ledger
+  `titles_as_banners`). A world without a title row emits byte-identical pages.
+
 ### Resonance: the compiler checks that a composition's combined outcomes are laid
 
 - When values in two or more of the cube's facets are set together, an outcome exists that neither says alone: the

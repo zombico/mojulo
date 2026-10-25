@@ -198,6 +198,7 @@ export const EVENT_MARKS = Object.freeze({
   cast: m(B, 'bus.json cast rows (kernel/cast.gd)'), stats: m(B, 'bus.json (kernel/stats.gd)'),
   inputs: m(P, 'keys and clicks travel (bus.json inputs); a pick or a shot on a marker does not'),
   hud: m(B, 'score.json hud (kernel/hud.gd)'), style: m(B, 'score.json hudStyle'), register: m(P, 'score.json hudStyle.register: its motion, sound, cursor and light are the web\'s'),
+  titles: m(P, 'a carved title travels as a banner in score.json hud (kernel/hud.gd): the same words at the same firing on the plate; the 3D letters, their entrance and sparks are the web\'s'),
   menus: m(B, 'score.json menus (level.gd)'),
   looks: m(P, 'score.json looks (kernel/looks.gd): nothing wears one until a script calls looks.wear'),
   scenes: m(B, 'bus.json scenes (kernel/scenes.gd, the page\'s runner ported): the beats, the bars, the text box and the choices; its shots direct the camera when the level has the page\'s camera, as on the page'),

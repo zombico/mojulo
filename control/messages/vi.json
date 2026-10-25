@@ -794,5 +794,33 @@
         "other": "Khác"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Hiệp {round}",
+    "fight": "Chiến!",
+    "ko": "K.O.",
+    "victory": "Chiến thắng",
+    "defeat": "Thất bại",
+    "draw": "Hòa",
+    "ready": "Sẵn sàng?",
+    "go": "Bắt đầu!",
+    "start": "Bắt đầu",
+    "finish": "Về đích",
+    "gameOver": "Trò chơi kết thúc",
+    "levelClear": "Qua màn",
+    "stageClear": "Qua chặng",
+    "timeUp": "Hết giờ",
+    "paused": "Tạm dừng",
+    "perfect": "Hoàn hảo!",
+    "newRecord": "Kỷ lục mới",
+    "youWin": "Bạn thắng",
+    "youLose": "Bạn thua",
+    "wave": "Đợt {wave}",
+    "boss": "Trùm",
+    "continue": "Tiếp tục?",
+    "combo": "Combo {combo}",
+    "checkpoint": "Điểm kiểm tra",
+    "goal": "Ghi bàn!",
+    "bonus": "Thưởng"
   }
 }

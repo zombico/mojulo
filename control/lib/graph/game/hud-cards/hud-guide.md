@@ -28,6 +28,10 @@ A row of a world's `events.hud` is a **widget** in one slot. Four kinds:
 - **toast** (`as: 'toast'`) is the damage number: a banner that STACKS, one rising element per
   firing — off an event (`on`, reading `{event.damage}`) or off a var's change (`var`, reading
   `{delta}`) (card `hud-banner`).
+- **title** (`as: 'title'`) is the banner CARVED: its words as 3D letters slammed onto the screen —
+  ROUND 1, FIGHT!, K.O., LEVEL CLEAR — juiced by the game's register, with `look` (slam | rise |
+  stamp) and `style` (heavy | blocky | slick | thin | italic); a text may name a word in the world's
+  language (`'@fight'`, the world's `locale`) (card `hud-title`).
 - **legend** (`text`) is static: the controls hint, the "press E" prompt (card `hud-banner`).
 
 Widgets in one slot stack in declaration order. A legacy `{ var, label }` row (what

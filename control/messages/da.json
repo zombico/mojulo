@@ -794,5 +794,33 @@
         "other": "Andet"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Runde {round}",
+    "fight": "Kamp!",
+    "ko": "K.O.",
+    "victory": "Sejr",
+    "defeat": "Nederlag",
+    "draw": "Uafgjort",
+    "ready": "Klar?",
+    "go": "Kør!",
+    "start": "Start",
+    "finish": "Mål",
+    "gameOver": "Spillet er slut",
+    "levelClear": "Niveau klaret",
+    "stageClear": "Bane klaret",
+    "timeUp": "Tiden er gået",
+    "paused": "Pause",
+    "perfect": "Perfekt!",
+    "newRecord": "Ny rekord",
+    "youWin": "Du vandt",
+    "youLose": "Du tabte",
+    "wave": "Bølge {wave}",
+    "boss": "Boss",
+    "continue": "Fortsæt?",
+    "combo": "{combo} kombo",
+    "checkpoint": "Checkpoint",
+    "goal": "Mål!",
+    "bonus": "Bonus"
   }
 }

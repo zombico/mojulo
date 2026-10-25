@@ -9,6 +9,10 @@
  *   banner   { on: '<busEventPattern>', text, slot?: 'center', ttl?: 2, color? }
  *   toast    { on, text, as: 'toast', slot?: 'center', ttl?: 0.8, color? }   — a banner that STACKS
  *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
+ *   title    { on, text, as: 'title', slot?: 'center', ttl?: 1.8, color?, look?: 'slam', style?: 'heavy' }
+ *            — a banner CARVED: its words as 3D letters slammed onto the screen (title-carve.js, the glyph carver's
+ *            letters), juiced by the game's register; `look` is the entrance (TITLE_LOOKS), `style` the carve
+ *            (TITLE_STYLES). A text may name a word in the world's language: '@fight' (title-words.js)
  *   legend   { text, slot?: 'bottom', ttl? }
  *
  * Any row may carry `id` (a part's: a cue shows, hides or restates it through the bus vars ui-<id> = 0 | 1 and
@@ -35,8 +39,15 @@
 
 export const HUD_SLOTS = ['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right'];
 export const HUD_KINDS = ['text', 'counter', 'bar', 'clock'];
-export const MOMENT_KINDS = ['banner', 'toast'];   // what an `on` row may be `as`
+export const MOMENT_KINDS = ['banner', 'toast', 'title'];   // what an `on` row may be `as`
 export const TOAST_TTL = 0.8;                        // seconds a damage number lives (default)
+export const TITLE_TTL = 1.8;                        // seconds a title card stands (default), its entrance and exit inside
+// a title's entrance: slam (scaled down onto the screen, a flash and a jolt), rise (the letters rise one after another and
+// settle), stamp (punched in from the viewer, then a bounce); its exit mirrors it. The first is the default.
+export const TITLE_LOOKS = ['slam', 'rise', 'stamp'];
+// a title's carve (lib/motion/glyph-carver.js CARVE_STYLES): heavy (bold, bevelled), blocky (grid-snapped, chunky),
+// slick, thin, italic. The first is the default.
+export const TITLE_STYLES = ['heavy', 'blocky', 'slick', 'thin', 'italic'];
 export const STYLE_TOKENS = ['accent', 'accent2', 'ink', 'bg', 'panel', 'line'];
 export const FONTS = {
   system: 'system-ui,sans-serif',
@@ -194,6 +205,12 @@ export function normalizeHud(rows) {
       if (!isStr(r.text)) errors.push(`${where}: a ${kind === 'toast' ? 'toast' : 'banner'} needs text (shown when the bus emits '${r.on}')`);
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
       const k = MOMENT_KINDS.includes(kind) ? kind : 'banner';
+      if (k === 'title') {   // the carved banner: its entrance and its carve are closed words
+        if (r.look !== undefined && !TITLE_LOOKS.includes(r.look)) errors.push(`${where}.look must be one of: ${TITLE_LOOKS.join(', ')} (a title's entrance)`);
+        if (r.style !== undefined && !TITLE_STYLES.includes(r.style)) errors.push(`${where}.style must be one of: ${TITLE_STYLES.join(', ')} (a title's carve)`);
+        widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(TITLE_TTL), color: isHudColor(r.color) ? r.color : undefined, look: TITLE_LOOKS.includes(r.look) ? r.look : TITLE_LOOKS[0], style: TITLE_STYLES.includes(r.style) ? r.style : TITLE_STYLES[0], ...gate });
+        return;
+      }
       widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
