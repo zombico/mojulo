@@ -42,6 +42,7 @@ export const LANE_W = 1.22, LANE_Y0 = 2, RUN_IN = 4, RUN_OUT = 12, TRACK_H = 8;
 export const MEET_DEFAULTS = Object.freeze({ event: 'sprint', lanes: 4, players: 1, register: 'realistic', seed: 1, kit: 'island-plaza' });
 const KIT_LOOK = { 'island-plaza': 'island-noon' };
 const r3 = (v) => Math.round(v * 1000) / 1000;
+const even = (v) => 2 * Math.ceil(v / 2);   // the stage's rooms sit on a one-metre grid, their x a whole number: even metres
 const fail = (m) => { throw new Error(`meet: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -74,7 +75,7 @@ export const meetSpec = (M) => ({ shape: 'meet', title: M.title ?? M.event, even
 /** The track in the stage's frame: the room, each lane's y, the start, the finish, the hurdles, the board. */
 export function meetTrack(M) {
   const E = MEET_EVENTS[M.event];
-  const length = M.distance + RUN_IN + RUN_OUT, depth = LANE_Y0 * 2 + M.lanes * LANE_W;
+  const length = even(M.distance + RUN_IN + RUN_OUT), depth = even(LANE_Y0 * 2 + M.lanes * LANE_W);
   const x0 = r3(-length / 2 + RUN_IN);
   const lanesY = Array.from({ length: M.lanes }, (_, i) => r3(LANE_Y0 + (i + 0.5) * LANE_W));
   const hurdles = M.event === 'hurdles' ? Array.from({ length: E.flights }, (_, k) => r3(E.first + k * E.gap)).filter((h) => h < M.distance - 2) : [];

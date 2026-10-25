@@ -32,6 +32,7 @@ import { validateCube, dryRun } from '../cosmos/cosmos.js';
 import { MARKED_ENGINES, engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { resolveSport } from '../contest/sports.js';
 
 // the words a brief uses for each genre (lower case; a phrase is matched whole)
 const WORDS = Object.freeze({
@@ -76,8 +77,12 @@ export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
-  fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner',
+  fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner', meet: 'athletics-meet', contest: 'net-game',
 });
+/** A contest's genre is its sport's shape: a net game, a turn sport, a team goal game (a sport it cannot read: the net game's). */
+export function contestGenre(sport) {
+  try { const sp = resolveSport(sport); return sp.shape === 'turns' ? 'turn-sport' : sp.shape === 'team' ? 'team-goal-game' : 'net-game'; } catch { return 'net-game'; }
+}
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const clone = (c) => Object.fromEntries(Object.entries(c ?? {}).map(([f, s]) => [f, { ...s }]));
@@ -113,7 +118,7 @@ export function cubeOfWorld(world) {
   const I = readIntent(world?.intent), Q = world?.quick;
   // a race against rivals is a kart race (its cube a loop's); alone, a time trial
   // a shooter with a craft is a dogfight: a space craft's a space shooter, an atmosphere craft's air combat
-  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : QUICK_GENRE[Q.goal])) ?? null;
+  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal])) ?? null;
   const cube = clone(from ? CUBES[from] : {});
   // what the world's own settings imply
   if (world?.camera) put(cube, 'space', 'camera', world.camera);

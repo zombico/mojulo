@@ -227,6 +227,10 @@ import { emitThreeWorld } from './scene-three.js';
 // kernel's source (a goal game's outs and offside join the match shape), the court and the turns with the minds' (the
 // team mind joins the module) and the hit's (the kick's curl), additions only; every other page is byte-identical,
 // and a page without a `pitch` key emits no block.
+// Pinned 2026-10-25 (battle city: the door): the `meet`, `court` and `turns` fixtures re-pin for their arenas' rooms
+// rounded up to even metres (the stage kind's one-metre grid, met when the first quick game minted one), which moves
+// the page's own data (the room, the court's origin on the stage); the `pitch` room was on the grid already. Every
+// other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

@@ -62,8 +62,8 @@ export const SPACE = Object.freeze({
         // into, doors to insides, a ring of the city as its backdrop. No Godot fixture plays one: its traffic and walkers do
         // not step there (godot-marks.js), and the rest is unproven
         city: { status: 'built', lowers: 'lib/graph/city/plan/level.js', godot: 'absent', roblox: 'absent', note: 'a district of a planned city: a segment cut along its streets, left by its portals, its lots solid, lobbies walked into and doors to insides; played first person by a walker, or third person by a hero whose roofs are ground (level.hero)' },
-        // priced 10-25 (battle city): the venue of a contest, laid in an arena with stands
-        court: { status: 'absent', effort: 'L', pkg: 'battle-city', ...WEB, note: 'a court, a pitch, a track or a lane laid in an arena with stands: named regions mirrored for the other side (a half, a service box, a crease, a lane, a foul line), the lines drawn on the ground, a broadcast camera square to the play. The arena and the stage with stands exist (versus-arena.js), the school vocab draws a pitch and a court as scenery; no level is one yet' },
+        // built 10-25 (battle city): the venue of a contest, laid in an arena with stands
+        court: { status: 'built', lowers: 'lib/graph/contest/match-arena.js', ...WEB, note: 'a court, a pitch, a track, a course or a lane laid in an arena with stands (a stage recipe: match-arena.js, meet-arena.js, turn-arena.js, team-arena.js): the contest kernel\'s named regions mirrored for the other side (a half, a service box, a box, a green, a gutter), the lines drawn on the ground from them, a camera square to the play (the broadcast, the end, the follow); played as the level of a quick meet or contest' },
       },
     },
     // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it

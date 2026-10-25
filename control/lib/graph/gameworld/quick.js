@@ -135,6 +135,11 @@ import { solveFighter } from '../versus/versus-solver.js';
 import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
 import { fighterSpec, defaultFighters } from '../versus/versus-sheet.js';
+import { readMeet, meetManifest } from '../contest/meet-arena.js';
+import { readMatch, matchManifest } from '../contest/match-arena.js';
+import { readTurns, turnsManifest } from '../contest/turn-arena.js';
+import { readTeam, teamManifest } from '../contest/team-arena.js';
+import { resolveSport } from '../contest/sports.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 
@@ -153,6 +158,8 @@ export const QUICK_GOALS = Object.freeze({
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   fight: 'a 1v1 fighter from the side, every fighter a character the character loop designs: roster, arenas, rounds, timer, rules',
+  meet: 'an athletic meet in an arena (the contest kernel the referee): a sprint, the hurdles or the long jump in lanes, up to four local players on one keyboard, the rest the computer\'s; the gun, a false start, the clock or the measure, the placings',
+  contest: 'a sport in an arena, the contest kernel the referee: a net game (tennis) on two pads, a turn sport (golf, bowling) hot-seat on one, a team goal game (soccer, hockey) on two; the computer takes what nobody holds; a sport not in the book is written out (the distilled-rulebook catalyst)',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
@@ -188,7 +195,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -349,7 +356,7 @@ export function readQuick(Q) {
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
   // the RUNNER (worlds/controllable/runner.js): its settings, and a distance that wins it (absent: endless)
-  if (Q.goal !== 'runner' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal');
+  if (Q.goal !== 'runner' && Q.goal !== 'meet' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal (a meet\'s distance is its event\'s)');
   if (Q.goal === 'runner') {
     if (Q.runner !== undefined) { try { readRunner(Q.runner, 'quick.runner'); } catch (e) { throw fail(`: ${e.message}`); } }
     if (Q.distance !== undefined && !(Number.isInteger(Q.distance) && Q.distance >= 10)) throw fail('.distance is the metres a run is won at, a whole number of 10 or more (leave it out: endless)');
@@ -452,9 +459,48 @@ export function readQuick(Q) {
   if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
-  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules']) if (Q.goal !== 'fight' && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
+  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.goal === 'fight') readFight(Q);
+  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  if (Q.goal === 'meet' || Q.goal === 'contest') readSport(Q);
   return Q;
+}
+
+// what a sport takes (a contest is its own simulation on the World page: no hero, trail, building, ride or run)
+const SPORT_KEYS = ['event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts'];
+const MEET_KEYS = ['goal', 'event', 'lanes', 'players', 'register', 'distance', 'attempts', 'theme', 'screen'];
+const CONTEST_KEYS = ['goal', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'rounds', 'periods', 'seconds', 'theme', 'screen'];
+const pick = (Q, keys) => Object.fromEntries(keys.filter((k) => Q[k] !== undefined).map((k) => [k, Q[k]]));
+/** The sport's words read by its arena (contest/*-arena.js), the refusal its own. */
+function readSport(Q) {
+  const keys = Q.goal === 'meet' ? MEET_KEYS : CONTEST_KEYS;
+  if (Q.camera !== undefined) throw fail('.camera: a sport is seen from its arena\'s camera (the broadcast, the end, the follow)');
+  for (const k of Object.keys(Q)) if (!keys.includes(k)) throw fail(`.${k}: a ${Q.goal} takes ${keys.join(', ')} (${Q.goal === 'meet' ? 'its runners are its lanes' : 'its players are its pads'})`);
+  try {
+    if (Q.goal === 'meet') { readMeet(pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts'])); return; }
+    if (Q.sport === undefined) throw new Error('contest: sport names the sport: tennis (a net game), golf or bowling (a turn sport), soccer or hockey (a team goal game), or a sport written out { id, shape, words, spec, … }');
+    const sp = resolveSport(Q.sport);
+    const own = { match: ['sets'], turns: ['seats', 'rounds'], team: ['periods', 'seconds'] };
+    for (const [shape, ks] of Object.entries(own)) if (shape !== sp.shape) for (const k of ks) if (Q[k] !== undefined) throw new Error(`contest: ${k} belongs to a ${shape === 'match' ? 'net game' : shape === 'turns' ? 'turn sport' : 'team goal game'}; ${sp.id} is a ${sp.shape === 'match' ? 'net game' : sp.shape === 'turns' ? 'turn sport' : 'team goal game'}`);
+    if (sp.shape === 'match') readMatch(pick(Q, ['sport', 'players', 'register', 'level', 'sets']));
+    else if (sp.shape === 'turns') readTurns(pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds']));
+    else readTeam(pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds']));
+  } catch (e) { throw fail(`: ${e.message.replace(/^(contest|meet|court|turns|team): /, '')}`); }
+}
+
+/** A sport's level: the arena as a stage recipe carrying its play, with the game contract a hosted level speaks (the
+ * page posts READY, takes INIT, posts the OUTCOME: contest/*-arena.client.js). One level, named for its ground. */
+export function sportArenas(Q, { title, seed = 1 } = {}) {
+  const contract = (id, text) => ({ levelRef: id, consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text } });
+  if (Q.goal === 'meet') {
+    const m = meetManifest({ ...pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts']), seed, ...(title ? { title } : {}) });
+    return [{ id: 'track', name: m.title, manifest: { ...m, game: contract('track', 'the meet') } }];
+  }
+  const sp = resolveSport(Q.sport);
+  if (sp.shape === 'match') { const m = matchManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'sets']), seed, ...(title ? { title } : {}) }); return [{ id: 'court', name: m.title, manifest: { ...m, game: contract('court', 'the match') } }]; }
+  if (sp.shape === 'turns') { const m = turnsManifest({ ...pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds']), seed, ...(title ? { title } : {}) }); return [{ id: 'course', name: m.title, manifest: { ...m, game: contract('course', 'the round') } }]; }
+  const m = teamManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds']), seed, ...(title ? { title } : {}) });
+  return [{ id: 'pitch', name: m.title, manifest: { ...m, game: contract('pitch', 'the match') } }];
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)

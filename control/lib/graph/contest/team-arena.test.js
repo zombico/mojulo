@@ -33,7 +33,7 @@ describe('the pitch and the venue', () => {
   it('the pitch in the stage\'s frame: its halves, the goal, the origin at its centre, run-off round it', () => {
     const T = teamPitch(readTeam({}));
     expect(T.halfW).toBe(15); expect(T.halfL).toBe(25); expect(T.goal).toEqual({ width: 4, height: 2 }); expect(T.boards).toBe(false);
-    expect(T.room.w).toBeCloseTo(30 + 2 * PITCH_RUN_OFF.side, 6); expect(T.originY).toBeCloseTo(T.room.d / 2, 6);
+    expect(T.room.w).toBe(2 * Math.ceil((30 + 2 * PITCH_RUN_OFF.side) / 2)); expect(T.originY).toBeCloseTo(T.room.d / 2, 6);
     expect(teamPitch(readTeam({ sport: 'hockey' })).boards).toBe(true);
   });
   it('the venue is a stage: one open room, the stands behind the far goal, a camera behind the near one, the pitch key', () => {

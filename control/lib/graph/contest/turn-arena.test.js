@@ -36,7 +36,7 @@ describe('the course and the venue', () => {
   it('the course in the stage\'s frame: the room holds the largest round with run-off, the origin at its middle', () => {
     const T = turnsCourse(readTurns({ sport: 'golf' }));
     expect(T.width).toBe(60); expect(T.depth).toBe(340);
-    expect(T.room.w).toBeCloseTo(60 + 2 * COURSE_RUN_OFF.side, 6); expect(T.room.d).toBeCloseTo(340 + 2 * COURSE_RUN_OFF.end, 6);
+    expect(T.room.w).toBe(2 * Math.ceil((60 + 2 * COURSE_RUN_OFF.side) / 2)); expect(T.room.d).toBe(2 * Math.ceil((340 + 2 * COURSE_RUN_OFF.end) / 2));
     expect(T.originY).toBeCloseTo(T.room.d / 2, 6); expect(T.rounds.map((r) => r.par)).toEqual([3, 4, 3]);
     const L = turnsCourse(readTurns({ sport: 'bowling', rounds: 1 }));
     expect(L.rounds[0].regions).toEqual(['approach', 'lane', 'gutter-left', 'gutter-right', 'pit']);

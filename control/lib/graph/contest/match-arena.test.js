@@ -36,7 +36,7 @@ describe('the court and the venue', () => {
     const T = matchCourt(readMatch({}));
     expect(T.width).toBeCloseTo(8.23, 6); expect(T.length).toBeCloseTo(23.77, 6);
     expect(T.halfW).toBeCloseTo(4.115, 3); expect(T.halfL).toBeCloseTo(11.885, 3);
-    expect(T.room.w).toBeCloseTo(8.23 + 2 * RUN_OFF.side, 3); expect(T.room.d).toBeCloseTo(23.77 + 2 * RUN_OFF.end, 3);
+    expect(T.room.w).toBe(2 * Math.ceil((8.23 + 2 * RUN_OFF.side) / 2)); expect(T.room.d).toBe(2 * Math.ceil((23.77 + 2 * RUN_OFF.end) / 2));   // the stage's grid: even metres
     expect(T.netY).toBeCloseTo(T.room.d / 2, 3);
     expect(T.net.height).toBe(0.914); expect(Object.keys(T.regions)).toContain('service-right');
   });

@@ -224,3 +224,55 @@ export function sportOf(id) {
   if (!s) throw new Error(`contest: sport '${id}' is one of ${SPORT_IDS.join(', ')}`);
   return s;
 }
+
+// what a written-out sport must carry for its shape's sim, beside `spec` (the kernel's) and `words`
+const WRITTEN_DIALS = Object.freeze({
+  match: ['ball', 'players', 'strokes', 'net', 'serve', 'receive', 'home'],
+  turns: ['ball', 'seats', 'clubs', 'lies', 'swing'],
+  team: ['ball', 'side', 'goal', 'homes', 'kick', 'ground', 'press'],
+});
+const SHAPE_SIM = Object.freeze({ match: 'the court (match-sim.js)', turns: 'the course (turn-sim.js)', team: 'the pitch (team-sim.js)' });
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const sfail = (m) => { throw new Error(`contest: ${m}`); };
+
+/**
+ * A sport resolved: the book's by name, or one WRITTEN OUT (the distilled-rulebook catalyst's product: a rulebook
+ * distilled into what the primitives can play): { id, shape: match | turns | team, words, spec (the kernel's, an
+ * object), omits?: [words] (what the rulebook says that the primitives do not carry, named), …the shape's dials }.
+ * The spec is checked by the kernel's own read; a written-out sport rides the sim its shape names, the dials the
+ * sim reads checked for presence (their values the sim's to refuse). `shape`, when given, is the shape asked for.
+ */
+export function resolveSport(v, shape = null) {
+  if (typeof v === 'string') {
+    const s = SPORTS[v] ?? TEAM_SPORTS[v];
+    if (!s) sfail(`sport '${v}' is one of ${[...SPORT_IDS, ...TEAM_SPORT_IDS].join(', ')}, or a sport written out { id, shape, words, spec, … }`);
+    if (shape && s.shape !== shape) sfail(`sport '${v}' is a ${s.shape === 'match' ? 'net game' : s.shape === 'turns' ? 'turn sport' : 'team goal game'}: it plays on ${SHAPE_SIM[s.shape]}`);
+    return { id: v, ...s };
+  }
+  if (!isObj(v)) sfail('a sport is a name from the book, or one written out { id, shape, words, spec, … }');
+  if (typeof v.id !== 'string' || !/^[a-z][a-z0-9-]{1,31}$/.test(v.id)) sfail('a written-out sport has an id: a short lower-case name');
+  if (SPORTS[v.id] || TEAM_SPORTS[v.id]) sfail(`'${v.id}' is the book's: name it, or write the variant out under its own id (${v.id}-doubles, mini-${v.id})`);
+  if (!WRITTEN_DIALS[v.shape]) sfail(`a written-out sport's shape is ${Object.keys(WRITTEN_DIALS).join(' | ')}`);
+  if (shape && v.shape !== shape) sfail(`'${v.id}' is written as a ${v.shape}: it plays on ${SHAPE_SIM[v.shape]}`);
+  if (typeof v.words !== 'string' || !v.words) sfail('a written-out sport says what it is in words');
+  if (!isObj(v.spec)) sfail('a written-out sport carries spec: the contest kernel\'s data (contest-kernel.js read); the kernel teaches its shape');
+  const kernelShape = v.shape === 'team' ? 'match' : v.shape;
+  if (v.spec.shape !== kernelShape) sfail(`a ${v.shape} sport's spec has shape '${kernelShape}'`);
+  if (v.shape === 'team' && v.spec.rally !== undefined) sfail('a team goal game\'s spec has no rally: its clock and goals decide');
+  if (v.shape === 'match' && !v.spec.serve) sfail('a net game\'s spec names a serve');
+  const turnKind = v.shape === 'turns' && isObj(v.spec.turn) ? v.spec.turn.kind : null;
+  const need = [...WRITTEN_DIALS[v.shape], ...(turnKind === 'strokes' ? ['cup', 'holes'] : turnKind === 'pins' ? ['lane', 'pins', 'hook'] : [])];
+  const missing = need.filter((k) => v[k] === undefined);
+  if (missing.length) sfail(`a written-out ${v.shape} sport carries ${need.join(', ')} (missing ${missing.join(', ')}); the book's ${v.shape === 'match' ? 'tennis' : v.shape === 'turns' ? 'golf and bowling' : 'soccer and hockey'} show the dials`);
+  if (v.omits !== undefined && !(Array.isArray(v.omits) && v.omits.every((o) => typeof o === 'string'))) sfail('omits is a list of words: what the rulebook says that the primitives do not carry');
+  const { spec, ...rest } = v;
+  return { ...rest, spec: () => JSON.parse(JSON.stringify(spec)), written: true };
+}
+
+/** The sport's dials a page carries (its spec compiled apart): the book's by id, a written-out one whole. */
+export function sportDialsOf(sport) {
+  const { spec, written, ...dials } = sport; void spec;
+  return written ? { ...dials, written: true } : dials;
+}
+/** What a page or a level stores for the sport: its name, or the written-out sport itself. */
+export const sportKeyOf = (v) => (typeof v === 'string' ? v : { ...v });

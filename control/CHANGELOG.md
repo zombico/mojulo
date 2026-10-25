@@ -198,10 +198,29 @@ and a ball card's on the ball. Planned, in order:
   goal (phase 7); a tackle (the only challenge is the press and the keeper's save); the second-last-defender offside
   (the ball rule stands in); a wall at a free kick; restarts that walk the players home; the kick's curl one number.
   The eyes gate is open: nobody has watched a match yet.
-- No new listed tool: `create_game`'s quick goals own the intent (a routing row per shape, the game vocab card). Web
-  first, as versus; the engines' marks say `absent` until a conformance scenario carries a contest. Out of scope: split
-  screen, online play, a season or career (a campaign door by composition later), non-sphere implements' aerodynamics,
-  any adjudication by the agent.
+- **The door and the distilled rulebook**, built: no new listed tool. Two quick goals (`design_game({ quick })`):
+  `meet` (the event, the lanes, the players, the register, the distance, the attempts) and `contest` (the sport, the
+  players or the seats, the register, the computer's level, the sets, the rounds, the periods and seconds), each read
+  by its arena with its own refusals; a sport's quick game is one level, the arena as a stage carrying the play and a
+  hosted level's contract (the page posts READY, takes INIT, posts the OUTCOME), and the game that plays it in the
+  shell, with no hero, trail or camera of its own (`gameworld/quick.js` readSport and sportArenas, `runner.js`). The
+  genres: a meet the athletics meet's, a contest its sport's shape (`intent.js` contestGenre), so the registry's
+  probes read makeable and the four sport values (`power.mechanics` meet and contest, `space.levelForm` court,
+  `mind.motivation` position, `soul.party` team) read built, each lowering to its module; the hillclimb page
+  regenerated. The game vocab's quick cards for both goals; routing rows for a race, a tennis game, mini golf and
+  five-a-side, the `game-design` card naming the sport goals. **A sport written out** (`sports.js` resolveSport): the
+  contest goal's `sport` may be the book's name or an object `{ id, shape: match | turns | team, words, spec, omits?,
+  …the shape's dials }`, the spec the contest kernel's own data (its read the gate), the dials the shape's sim reads
+  (their presence checked, their values the sim's to refuse), `omits` the rulebook's sentences the primitives do not
+  carry, by name; the three arenas resolve either, so a distilled rulebook plays on the court, the course or the pitch
+  with no code change (pickleball and mini golf in the test). **The `distilled-rulebook` catalyst**
+  (`lib/mcp/catalysts/distilled-rulebook.md`): the transcriber, not the referee: find the rules (the operator's
+  words, a document, a search MCP), name the shape or say it is not one the sims play, distil the kernel's data field
+  by field with the source's sentence beside each, distil the dials from the book's nearest sport, write `omits`,
+  mint and read the kernel's calls off an exhibition; register is simplification by name, never a second kernel;
+  the kernel's read is the gate and the agent never adjudicates. Stopping points: the engines' kernels carry no
+  contest (every sport value is `absent` on Godot and Roblox, the page's own simulation); the shapes the sims lack
+  (a hoop, a wicket, a wall game) are refused by name, not approximated.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

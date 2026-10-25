@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { contestRead } from './contest-kernel.js';
-import { SPORTS, MATCH_SPORT_IDS } from './sports.js';
+import { MATCH_SPORT_IDS, resolveSport, sportDialsOf, sportKeyOf } from './sports.js';
 import { MATCH_REGISTER_IDS } from './match-sim.js';
 import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
@@ -40,6 +40,7 @@ export const RUN_OFF = Object.freeze({ side: 4, end: 7 });   // metres of floor 
 export const COURT_H = 9;
 const KIT_LOOK = { 'island-plaza': 'island-noon' };
 const r3 = (v) => Math.round(v * 1000) / 1000;
+const even = (v) => 2 * Math.ceil(v / 2);   // the stage's rooms sit on a one-metre grid, their x a whole number: even metres
 const fail = (m) => { throw new Error(`court: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -48,7 +49,8 @@ export function readMatch(spec = {}) {
   if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title? }');
   for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title)`);
   const M = { ...MATCH_DEFAULTS, ...spec };
-  if (!MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course)`);
+  if (typeof M.sport === 'string' && !MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course, a team game on a pitch), or a net game written out`);
+  try { resolveSport(M.sport, 'match'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
   if (!(Number.isInteger(M.players) && M.players >= 0 && M.players <= 2)) fail('players is 0 (an exhibition), 1 (against the computer) or 2 (both sides local)');
   if (!MATCH_REGISTER_IDS.includes(M.register)) fail(`register is one of ${MATCH_REGISTER_IDS.join(', ')}`);
   if (!MIND_LEVEL_IDS.includes(M.level)) fail(`level is one of ${MIND_LEVEL_IDS.join(', ')} (the computer's)`);
@@ -57,23 +59,23 @@ export function readMatch(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  return { sport: M.sport, players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
-export const sportDials = (id) => { const { spec, ...dials } = SPORTS[id]; void spec; return { id, ...dials }; };
+export const sportDials = (v) => sportDialsOf(resolveSport(v, 'match'));
 
 /** The court in the stage's frame. */
 export function matchCourt(M) {
-  const sp = SPORTS[M.sport], spec = sp.spec({ sets: M.sets }), [w, l] = spec.court.frame;
-  const room = { w: r3(w + 2 * RUN_OFF.side), d: r3(l + 2 * RUN_OFF.end), h: COURT_H };
+  const sp = resolveSport(M.sport, 'match'), spec = sp.spec({ sets: M.sets }), [w, l] = spec.court.frame;
+  const room = { w: even(w + 2 * RUN_OFF.side), d: even(l + 2 * RUN_OFF.end), h: COURT_H };
   return { width: w, length: l, halfW: r3(w / 2), halfL: r3(l / 2), netY: r3(room.d / 2), room, net: sp.net, regions: spec.court.regions };
 }
 
 /** The venue: a stage set with its camera side open behind side a's baseline, the stands behind the far one. */
 export function matchManifest(spec = {}) {
   const M = readMatch(spec), T = matchCourt(M);
-  const title = M.title ?? `${M.sport} · ${M.players === 2 ? 'two players' : M.players === 1 ? 'you against the computer' : 'an exhibition'}`;
+  const title = M.title ?? `${typeof M.sport === 'string' ? M.sport : M.sport.id} · ${M.players === 2 ? 'two players' : M.players === 1 ? 'you against the computer' : 'an exhibition'}`;
   return {
     kind: 'stage',
     kit: M.kit,
@@ -92,6 +94,6 @@ export function matchManifest(spec = {}) {
 /** The page's data: the match, the sport's dials, the contest compiled, the court, the wire a hosting shell speaks. */
 export function matchArenaData(v = {}) {
   const M = readMatch(v), T = matchCourt(M);
-  const C = contestRead(SPORTS[M.sport].spec({ sets: M.sets }));
+  const C = contestRead(resolveSport(M.sport, 'match').spec({ sets: M.sets }));
   return { ...M, sport: sportDials(M.sport), C, court: T, wire: COURT_WIRE };
 }

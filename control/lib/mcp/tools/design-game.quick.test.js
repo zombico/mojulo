@@ -137,6 +137,21 @@ describe('design_game quick', () => {
     expect(payload.haze.color).toBe(payload.bg);
   }, 240_000);
 
+  it('contest and meet: a sport is one level, the arena as a stage carrying the play and a hosted level\'s contract, the game in one call; the page runs the sport\'s channel', async () => {
+    const out = await designGameHandler({ quick: { goal: 'contest', sport: 'tennis', players: 2, register: 'action', world: { id: 'centre-court', name: 'Centre Court' } }, ref: 'cc' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-arena-court', 'make'], ['game', 'make']]);
+    const L = stored('cc-level-arena-court');
+    expect(L).toMatchObject({ kind: 'stage', court: { sport: 'tennis', players: 2, register: 'action' }, game: { levelRef: 'court', produces: { results: ['success', 'fail'], events: [] } } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('cc-level-arena-court'), { live: true });
+    expect(payload.court).toMatchObject({ sport: { id: 'tennis' }, players: 2 }); expect(payload.court.C.shape).toBe('match');
+    expect(emitThreeWorld({ ...payload, inline: true })).toContain('const COURT_ARENA = ');
+    const G = stored('cc-game');
+    expect(G).toMatchObject({ title: 'Centre Court', shell: 'play' }); expect(G.levels.map((l) => l.ref)).toEqual(['cc-level-arena-court']);
+    const meet = await designGameHandler({ quick: { goal: 'meet', event: 'hurdles', lanes: 3, players: 1, world: { id: 'hurdles' } }, ref: 'hd' });
+    expect(meet.ran.map((r) => r.key)).toEqual(['level-arena-track', 'game']);
+    expect(stored('hd-level-arena-track')).toMatchObject({ kind: 'stage', meet: { event: 'hurdles', lanes: 3 }, game: { levelRef: 'track' } });
+  }, 240_000);
+
   it('fly in space: a space craft\'s map is space (rocks, stars, no ground), its gates a race with nothing to land on', async () => {
     const out = await designGameHandler({ quick: { goal: 'fly', craft: 'fighter', airspace: { space: { asteroids: 'sparse' } }, world: { id: 'belt' } }, ref: 'sp' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);

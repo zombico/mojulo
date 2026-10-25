@@ -39,7 +39,7 @@ describe('the track and the venue', () => {
   it('the venue is a stage: one open room the track long, the stands behind the lanes, a broadcast camera, the meet key', () => {
     const m = meetManifest({ event: 'sprint', lanes: 4, players: 2, seed: 7 });
     expect(m.kind).toBe('stage'); expect(m.rooms.length).toBe(1); expect(m.rooms[0].open).toEqual(['-y']);
-    expect(m.rooms[0].w).toBeGreaterThan(100); expect(m.rooms[0].d).toBeCloseTo(LANE_Y0 * 2 + 4 * LANE_W, 3);
+    expect(m.rooms[0].w).toBeGreaterThan(100); expect(m.rooms[0].d).toBe(2 * Math.ceil((LANE_Y0 * 2 + 4 * LANE_W) / 2));   // the stage's grid: even metres
     expect(m.stands).toMatchObject({ rows: 3, fill: 0.8, seed: 7 }); expect(m.stands.from).toBeLessThan(m.rooms[0].d);
     expect(m.camera.name).toBe('broadcast');
     expect(m.meet).toMatchObject({ event: 'sprint', lanes: 4, players: 2, register: 'realistic', distance: 100 });

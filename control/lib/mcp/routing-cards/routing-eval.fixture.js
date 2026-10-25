@@ -198,6 +198,11 @@ export const COLLISION_FIXTURE = [
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['an endless runner for my phone where you swipe to dodge', 'design_game'],
+  // battle city: a sport is a quick goal (meet, contest), the contest kernel the referee
+  ['a hurdles race for four of us on one keyboard', 'design_game'],
+  ['a two-player tennis game', 'design_game'],
+  ['mini golf I can play against the computer, three holes', 'design_game'],
+  ['five-a-side football with my brother on the second controller', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],
