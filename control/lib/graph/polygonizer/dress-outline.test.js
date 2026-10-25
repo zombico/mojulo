@@ -65,5 +65,24 @@ describe('the dressed outline', () => {
     const out = dressReadout(hero, heroPlanOf(hero), mesh, m.recipe);
     expect(out.outline).toMatchObject({ family: M.family, bare: M.bareFamily });
     expect(Object.keys(out.outline.advice)).toEqual(['western', 'anime']);
+    expect(out.realisticOnly).toBeUndefined();
+    // (what the game body wears plain or not at all is said, never refused: the tailoring, a plated suit, a footwear card)
+    const suit = heroRecord({ cast: 'male', outfit: { type: 'outfit', style: 'business' } }), sm = expandLayeredManifest({ kind: 'layered', hero: suit });
+    expect(dressReadout(suit, heroPlanOf(suit), null, sm.recipe).realisticOnly.join(' ')).toMatch(/tailoring \(.*outer.*tie/);
+    const words = heroRecord({ cast: 'male', outfit: ['powerSuit', 'oxfords'] });
+    const said = dressReadout(words, heroPlanOf(words), null, null).realisticOnly.join(' ');
+    expect(said).toMatch(/powerSuit: plated suits are worn on the realistic body/); expect(said).not.toMatch(/oxfords/);
+    const lean = heroRecord({ cast: 'male', core: 'streamlined', outfit: ['oxfords'] });
+    expect(dressReadout(lean, heroPlanOf(lean), null, null).realisticOnly.join(' ')).toMatch(/oxfords: worn as plain .* streamlined core/);
+  }, 300_000);
+
+  it('the value gradient, the anime/game canon\'s: dark shoes under a light chest in band, light shoes under a dark chest advised', () => {
+    const hero = (palette) => { const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', palette, outfit: { type: 'outfit', style: 'casual' } }) }).recipe; return outlineMeasures(compileLayered(r), r); };
+    const good = hero({ Top: '#e8e4dc', Shoes: '#2a1d14' }), bad = hero({ Top: '#1d1f24', Shoes: '#f2efe8' });
+    expect(good.values.feet).toBeLessThan(good.values.chest); expect(bad.values.feet).toBeGreaterThan(bad.values.chest);
+    const reads = (m, st) => outlineCritic(m, st, { sex: 'male' }).reads.filter((r) => r.id === 'gradient');
+    expect(reads(good, 'anime')[0].in).toBe(true); expect(reads(bad, 'anime')[0].in).toBe(false);
+    expect(outlineCritic(bad, 'anime', { sex: 'male' }).advice.join(' ')).toMatch(/dark shoes under a light chest/);
+    expect(reads(bad, 'western')).toEqual([]);
   }, 300_000);
 });

@@ -107,6 +107,16 @@ describe('the skinned GLB carries the anime face', () => {
     expect(bytesOf(G, body.attributes.COLOR_0).equals(bytesOf(N, nBody.attributes.COLOR_0))).toBe(true);
   });
 
+  it('the lit export\'s targets shade as they move: each carries its NORMAL (its shape\'s at full weight less the rest\'s); the unlit export none', async () => {
+    const G = glbOf((await skinnedGlb(ANIME, { unshaded: true, face: true })).bytes), [body] = G.json.meshes.find((m) => m.name === 'body:skinned').primitives;
+    expect(body.targets.length).toBeGreaterThan(0); expect(body.targets.every((t) => t.NORMAL !== undefined)).toBe(true);
+    // (a closing lid turns its normals: some target turns a dozen of them by more than a tenth)
+    const turned = body.targets.map((t) => { const d = floats(G, t.NORMAL); let k = 0; for (let v = 0; v < d.length / 3; v++) if (Math.hypot(d[v * 3], d[v * 3 + 1], d[v * 3 + 2]) > 0.1) k++; return k; });
+    expect(Math.max(...turned)).toBeGreaterThan(12);
+    const U = glbOf((await skinnedGlb(ANIME, { face: true })).bytes), [unlit] = U.json.meshes.find((m) => m.name === 'body:skinned').primitives;
+    expect(unlit.attributes.NORMAL).toBeUndefined(); expect(unlit.targets.every((t) => t.NORMAL === undefined)).toBe(true);
+  });
+
   it('a hero whose own lid closure sits between the knots carries its corrective pair, and its default weights put back the stored face', async () => {
     const OWN = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', register: 'lowpoly', expression: ['neutral', { blink: 0.35 }] }) });
     const G = glbOf((await skinnedGlb(OWN, { face: true })).bytes), N = glbOf((await skinnedGlb(OWN)).bytes);

@@ -7,6 +7,8 @@
  * game are derived from them (later), as the game mesh is derived from the field.
  *
  *   hair.colour   an egocube hair colour's name, or a hex
+ *   hair.grey     0 … 1, the share of the scalp's hair gone grey (dermal-map.js `grey`): the brows' hairs silver by a
+ *                 share of it, the lashes' by less (they grey last), each hair by its own die; absent, none
  *   hair.brows    the brow groom, hung on the head's brow bridge (its strings and the fold's arc): a shape word (`BROW_SHAPES`) and its numbers over it — `arch` (0 straight … 1 high),
  *                 `thickness`, `density` (hairs per mm²), `length` (mm, the body's hairs), `seed`
  *   hair.lashes   the lash groom, rooted on the eye rig's lid margins: a shape word (`LASH_SHAPES`) and its numbers —
@@ -73,6 +75,7 @@ export function readEpidermis(spec = 'default') {
     if (!SKIN_FIDELITY.includes(skin.fidelity)) throw new Error(`epidermis: skin.fidelity '${skin.fidelity}' (have ${SKIN_FIDELITY.join(', ')})`);
     if (skin.region !== undefined && typeof skin.region === 'string' && !SKIN_REGIONS[skin.region]) throw new Error(`epidermis: skin.region '${skin.region}' (have ${Object.keys(SKIN_REGIONS).join(', ')})`);
   }
+  if (hair.grey !== undefined && !(hair.grey >= 0 && hair.grey <= 1)) throw new Error('epidermis: hair.grey 0 … 1 (the share of the hair gone grey)');
   return { hair, skin };
 }
 
@@ -287,8 +290,8 @@ export function growEpidermis(head, cube) {
     const f = head.field, h = 0.0004;
     const normal = (q) => unit({ x: f({ ...q, x: q.x + h }) - f({ ...q, x: q.x - h }), y: f({ ...q, y: q.y + h }) - f({ ...q, y: q.y - h }), z: f({ ...q, z: q.z + h }) - f({ ...q, z: q.z - h }) });
     // in head heights: a root laid on the lid's skin (the rim the margin's beads welded into it, along the field's
-    // normal); a step the lash's curl would sink into the skin (a fold, the other lid on a shut eye) bent off it toward
-    // the skin's normal until it clears a hair's breadth — its length kept, never stretched
+    // normal); a step the lash's curl would sink into the skin (a fold, the other lid on a shut eye, a full cheek) bent off
+    // it toward the skin's normal until it clears a hair's breadth — its length kept, never stretched
     const fV = (p) => f({ x: p.x * sc, y: p.y * sc, z: p.z * sc }) / sc, nV = (p) => normal({ x: p.x * sc, y: p.y * sc, z: p.z * sc });
     const clear = 0.05 * MM;
     const skin = {
@@ -296,7 +299,10 @@ export function growEpidermis(head, cube) {
       place: (p) => { const q = toLevel(f, { x: p.x * sc, y: p.y * sc, z: p.z * sc }, 0.2 * clear * sc, 0.05 * clear * sc), r = { x: q.x / sc, y: q.y / sc, z: q.z / sc }; return Math.hypot(r.x - p.x, r.y - p.y, r.z - p.z) > 2 * MM ? null : r; },
       step: (p, dir, l) => {
         let q = add(p, dir, l);
-        for (let w = 0.25, k = 0; k < 8 && fV(q) < clear; k++, w *= 1.6) q = add(p, unit(add(dir, nV(q), w)), l);
+        // (a lash heading down onto skin that faces up, a lower lash over a full cheek, is pushed forward off it, not
+        // up: the normal's rise taken off)
+        const off = (n) => (dir.z < 0 && n.z > 0 ? unit({ x: n.x, y: n.y, z: 0 }) : n);
+        for (let w = 0.25, k = 0; k < 8 && fV(q) < clear; k++, w *= 1.6) q = add(p, unit(add(dir, off(nV(q)), w)), l);
         return fV(q) < clear ? null : q;   // (pressed against skin it cannot clear — a canthus's corner — it ends)
       },
     };
@@ -307,5 +313,16 @@ export function growEpidermis(head, cube) {
       }
     }
   }
+  // GREY: a share of the brows' and the lashes' hairs silver (`hair.grey`, the scalp's, the brows' at EPI_GREY of it),
+  // each its own die, as the scalp's (dermal-hair.js): absent, the strands as they were
+  if (cube.hair.grey > 0) {
+    const silver = [1, 3, 5].map((i) => { const c = parseInt(GREY_HEX.slice(i, i + 2), 16) / 255; return Math.round((c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
+    const dice = streamOf(cube.hair.brows?.seed ?? 1, 'epidermis-grey', 'hairs');
+    for (let i = 0; i < strands.length; i++) { const st = strands[i], share = cube.hair.grey * (EPI_GREY[st.groom] ?? 0); if (dice() < share) strands[i] = { ...st, streak: { colour: silver, from: 0, grey: true } }; }
+  }
   return { strands, colour, counts };
 }
+/** the brows' and the lashes' share of the scalp's grey (the brows grey later, the lashes last); a grey hair's colour
+ * (dermal-map.js GREY_HAIR's) */
+const EPI_GREY = Object.freeze({ brow: 0.7, lash: 0.3, lashLow: 0.3 });
+const GREY_HEX = '#cdc8bf';

@@ -20,6 +20,8 @@
 import { resolveDirection, LOOKS_ELEMENTS } from './characters.js';
 import { resolveMotion, motionOrders } from './hero-vibe.js';
 import { ELEMENT_TINT } from './element-words.js';
+import { solvePalette } from '../color-theorist/solve.js';
+import { skinDirection } from '../color-theorist/adapters.js';
 
 export { ELEMENT_TINT };
 
@@ -140,7 +142,21 @@ export function composeHero(G, looks = heroLooks(G)) {
   spec.palette = { ...(U.tones || {}), ...(spec.palette || {}) };
   if (!Object.keys(spec.palette).length) delete spec.palette;
   spec.outfit = U.build;
-  return { spec, toon: D.hero.toon, underlayer: U, elements, unread: looks.unread, ledger: [...D.ledger, ...U.ledger] };
+  const skin = worldSkin(G);
+  return { spec, toon: D.hero.toon, underlayer: U, elements, unread: looks.unread, ledger: [...D.ledger, ...U.ledger], ...(skin ? { skin } : {}) };
+}
+
+/**
+ * The SKIN the world's art direction paints (its palette and the direction's `shading`, color-theorist/adapters.js
+ * skinDirection): `{ shade }`, the realistic hero's dermis dial; the default light is kept (the engine's). Null without
+ * a world palette, or with `shading: 'none'`. Data beside the composed hero: the mint carries it only on a realistic
+ * hero, whose skin is painted (`heroOrders`).
+ */
+export function worldSkin(G) {
+  const P = G.style?.palette;
+  if (!P) return null;
+  const A = skinDirection(solvePalette(P === 'auto' ? {} : P), G.characters?.direction?.shading ?? 'painted');
+  return A.shade ? { shade: A.shade } : null;
 }
 
 /**
@@ -164,7 +180,9 @@ export function castOrders(G, id) {
 export function heroOrders(G, { title, composed } = {}) {
   const C = composed ?? composeHero(G);
   if (!C) return null;
-  const mint = { tool: 'mint_solid', args: { kind: 'layered', via: 'hero', title: title ?? `${G.name} hero`, spec: C.spec, ...(C.toon ? { toon: { light: true } } : {}) } };
+  // (the world's skin rides the mint only on a realistic hero, the one whose skin is painted; its own shade kept)
+  const spec = C.skin && C.spec.form === 'realistic' && C.spec.skin?.shade === undefined ? { ...C.spec, skin: { ...(C.spec.skin || {}), ...C.skin } } : C.spec;
+  const mint = { tool: 'mint_solid', args: { kind: 'layered', via: 'hero', title: title ?? `${G.name} hero`, spec, ...(C.toon ? { toon: { light: true } } : {}) } };
   const patches = Object.entries(C.elements).map(([key, E]) => ({
     tool: 'update_sketch', part: E.part,
     args: { ref: '<ref of the mint>', patch: Object.entries(E.spec).flatMap(([field, value]) => (field === 'palette'

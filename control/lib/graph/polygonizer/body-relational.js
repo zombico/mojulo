@@ -402,6 +402,16 @@ export function formSlice(recipe, R, build, opts = {}) {
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }
+  // THE HINGES STITCHED (a build's `stitch`, the round-out's): the upper segment ends and the lower begins on ONE ring at
+  // the joint's plane, the same points, so the two are one surface the shading welds across. Handed over on one field
+  // with the upper's skin tucked past the plane and the lower's before it, the two skins crossed there nearly flat, each
+  // tessellated its own way, and the knee and the elbow wore a jagged line in the light
+  if (B.stitch) for (const [a, b] of B.stitch) {
+    const A = r.parts[`${a}R`], Bp = r.parts[`${b}R`]; if (!A || !Bp || A.slots.length !== Bp.slots.length) continue;
+    r.parts[`${a}R`] = hingeBand(stitched(A, R.joints[B.limbs[a].to], unit(sub(R.joints[B.limbs[a].to], R.joints[B.limbs[a].from])), limbs[a].sd, limbOpts[a].capsAlong, true), ...HINGES[a], 0.35 * W0);
+    r.parts[`${b}R`] = hingeBand(stitched(Bp, R.joints[B.limbs[a].to], unit(sub(R.joints[B.limbs[a].to], R.joints[B.limbs[a].from])), limbs[a].sd, limbOpts[b].capsAlong, false, r.parts[`${a}R`]), ...HINGES[b], 0.35 * W0);
+    for (const n of [a, b]) if (r.parts[`${n}L`]) r.parts[`${n}L`] = mirrorPart(r.parts[`${n}R`], r.parts[`${n}L`]);
+  }
   // (a stage over the arm's top: the arm sampled again with the stage's mass in its field, the same rays, the difference
   // its own offsets; the left the right's mirror, slot for slot)
   for (const c of r.correctives) if (c.arm && c.id.endsWith('R') && limbOpts.upperArm && recipe.parts.upperArmR) {
@@ -423,4 +433,56 @@ export function formSlice(recipe, R, build, opts = {}) {
     if (d.blend && d.parts?.some((p) => done.includes(p))) for (const pn of done) for (const s of r.parts[pn]?.stations || []) if (d.blend[s.id] === undefined) { const lo = d.blend[`st${Math.floor(s.u)}`] ?? 0, hi = d.blend[`st${Math.ceil(s.u)}`] ?? 0, t = s.u - Math.floor(s.u); d.blend[s.id] = r6(lo * (1 - t) + hi * t); }
   }
   return { recipe: r, field, removed: gone, landmarks: { crotch, navel: field.masses.dimples.find((d) => d.id === 'navel')?.c[2] ?? null }, fields: Object.fromEntries([['torso', pelvic ? handed(field.sd, 1) : field.sd], ...(pelvic ? [['pelvis', handed(pelvisSd ?? field.sd, -1)]] : []), ...Object.entries(limbs).map(([k, l]) => [k, l.sd])]) };
+}
+
+/** A hinge's segment cut at the joint's plane (through `J`, square to the upper bone `n`) and closed on the plane's ring:
+ * the upper (`upper`: its rings before the plane, then the ring) or the lower (the ring, then its rings past it, the
+ * ring taken from `ring`, the upper already stitched, point for point). The ring: where each slot's column crosses the
+ * plane, carried onto the field `sd` within it. A ring of the part's own any point of which lies within a quarter of a
+ * ring's spacing of the plane, or across it, is dropped for it. The caps re-made off the end rings as the resample makes them,
+ * the stitched end's turned back into its own segment. */
+function stitched(P, J, n, sd, capsAlong, upper, ring = null) {
+  const past = (q) => dot(sub(q, J), n), S = P.slots, st = P.stations;
+  const centre = (x) => scl(S.reduce((acc, k) => add(acc, x.points[k]), [0, 0, 0]), 1 / S.length);
+  const d = st.map((x) => past(centre(x)));
+  let i = 0; while (i < st.length - 1 && !(d[i] < 0 && d[i + 1] >= 0)) i++;
+  if (i >= st.length - 1) return P;
+  // (the shared ring takes the end's own address, the upper's last u and id, the lower's first: an address up to the part's
+  // authored end, an elbow's plate, still lands on it; at the plane's own u the upper had stopped short of it)
+  const a = st[i], b = st[i + 1], u = upper ? st[st.length - 1].u : st[0].u, gap = 0.25 * Math.abs(d[i + 1] - d[i]);
+  let points;
+  if (ring) points = { ...ring.stations[ring.stations.length - 1].points };
+  else {
+    const raw = Object.fromEntries(S.map((k) => { const p = a.points[k], q = b.points[k], dp = past(p), dq = past(q), f = dq === dp ? 0.5 : -dp / (dq - dp); return [k, add(p, scl(sub(q, p), Math.max(0, Math.min(1, f))))]; }));
+    // (each point carried onto the skin along the field's gradient laid into the plane, within a centimetre either way:
+    // a point between its column's rings stands a few millimetres off the skin, and a ray from the ring's centre landed
+    // a point here and there off its column, a kink across the ring)
+    const onSkin = (p) => {
+      const e = 1e-4, g = [0, 1, 2].map((i) => { const a2 = [...p], b2 = [...p]; a2[i] += e; b2[i] -= e; return sd(a2) - sd(b2); });
+      const gp = sub(g, scl(n, dot(g, n))); if (len(gp) < 1e-12) return p;
+      const dir = unit(gp), at = (t) => sd(add(p, scl(dir, t)));
+      let lo = -0.01, hi = 0.01; if (at(lo) > 0 || at(hi) < 0) return p;
+      for (let it = 0; it < 30; it++) { const mid = (lo + hi) / 2; if (at(mid) < 0) lo = mid; else hi = mid; }
+      return add(p, scl(dir, (lo + hi) / 2));
+    };
+    points = Object.fromEntries(S.map((k) => [k, onSkin(raw[k]).map(r6)]));
+  }
+  const id = upper ? st[st.length - 1].id : st[0].id, plane = { id, u, points };
+  // (a ring is kept only if every point of it stands clear of the plane: the lower segment's rings are square to its own
+  // bone, tilted against the plane by the joint's bend, and one kept by its centre stood behind the plane on one side
+  // of the limb, its band to the plane's ring folded back)
+  const clear = (x) => S.map((k) => past(x.points[k])), keep = upper ? st.filter((x) => Math.max(...clear(x)) < -gap) : st.filter((x) => Math.min(...clear(x)) > gap);
+  const stations = upper ? [...keep, plane] : [plane, ...keep];
+  const gone = new Set(st.filter((x) => !stations.includes(x)).map((x) => x.id));
+  const blend = Object.fromEntries(Object.entries(P.bind.blend || {}).filter(([k]) => !gone.has(k.split('.')[0])));
+  const caps = P.caps && capsAlong ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => {
+    const end = stations[k === 'back' ? 0 : stations.length - 1], pts = S.map((sl) => end.points[sl]);
+    const c = scl(pts.reduce((acc, x) => add(acc, x), [0, 0, 0]), 1 / pts.length), rad = pts.reduce((acc, x) => acc + len(sub(x, c)), 0) / pts.length;
+    // (the stitched end's cap turned back into its own segment, its pole a third of the radius inside it, so it stays
+    // within that segment's volume: a pole past the ring rides its own bone while the shared ring rides the hinge, and a
+    // bend carries it out through the other segment's skin)
+    const inward = k === (upper ? 'tip' : 'back');
+    return [k, add(c, scl(capsAlong, (k === 'back' ? -1 : 1) * (inward ? -1 : 1) * rad / 3)).map(r6)];
+  })) : P.caps;
+  return { ...P, stations, ...(caps ? { caps } : {}), bind: { ...P.bind, blend } };
 }

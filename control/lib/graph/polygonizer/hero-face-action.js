@@ -1,11 +1,12 @@
 /**
  * hero-face-action — the anime hero's FACE ACTING AN ACTION: hand it a solved action (a strike, hero-strike; a jump or a
- * roll, hero-jump; a guard taken up, hero-grip) and a seed, and it gives a face sequence timed to that action's beats,
- * drawn on the face tracks' 30-fps grid (anime-face-rig FACE_FPS) in the four expression channels (blink, smile, open,
- * brow). A take is one of a few SAMPLES per family (a kiai, a gritted strike, a fencer's stillness, a smirk, a flinch; a
- * jump's effort, its joy, a startle; a roll eyes shut or eyes open; a guard's resolve, calm, smirk or fire), picked by
- * the seed and weighted by the action's own intensity, and each sample's drawings land within a range of frames of
- * their beat and with channels within a range, so no two takes are the same face at the same frame.
+ * roll, hero-jump; a guard taken up, hero-grip; a blow taken, hero-react) and a seed, and it gives a face sequence
+ * timed to that action's beats, drawn on the face tracks' 30-fps grid (anime-face-rig FACE_FPS) in the four expression
+ * channels (blink, smile, open, brow). A take is one of a few SAMPLES per family (a kiai, a gritted strike, a fencer's
+ * stillness, a smirk, a flinch; a jump's effort, its joy, a startle; a roll eyes shut or eyes open; a guard's resolve,
+ * calm, smirk or fire; a blow's wince or grit), picked by the seed and weighted by the action's own intensity, and
+ * each sample's drawings land within a range of frames of their beat and with channels within a range, so no two takes
+ * are the same face at the same frame.
  *
  *   • THE BEATS come from the action, never authored here: a strike's load, contact and follow (its STRIKES timing over
  *     its seconds), a jump's load and absorb (the deepest sink either side of the air: sampled off the clip), take-off,
@@ -108,6 +109,20 @@ export const FACE_SAMPLES = Object.freeze({
       { at: 'end', lead: [3, 5], back: true, anchor: true },
     ] },
   },
+  // a blow taken (hero-react: a hit, a stagger): the face answers the impact a frame after it lands, the lids squeezed to
+  // the half lid at most (the eyes stay on the threat), and comes back as the body gives back to the stand
+  react: {
+    wince: { weight: () => 1, marks: [
+      { at: 'impact', lead: [-1, 0], face: { brow: [-0.7, -0.45], blink: [0.5], open: [0.3, 0.5] }, anchor: true },   // the pain: the brows up, the lids squeezed
+      { at: 'hold', lead: [1, 2], face: { brow: [-0.4, -0.2], blink: [0.18, 0.2], open: [0.1, 0.2] } },
+      { at: 'end', lead: [3, 5], back: true, anchor: true },
+    ] },
+    grit: { weight: () => 0.7, marks: [
+      { at: 'impact', lead: [-1, 0], face: { brow: [0.8, 1], blink: [0.5], open: 0 }, anchor: true },                // teeth set against it
+      { at: 'hold', lead: [1, 2], face: { brow: [0.5, 0.7], blink: [0.18, 0.2] } },
+      { at: 'end', lead: [3, 5], back: true, anchor: true },
+    ] },
+  },
   roll: {
     tuck: { weight: () => 1, marks: [
       { at: 'start', lead: [2, 4], face: { brow: [0.6, 0.85], blink: [1], open: 0 }, anchor: true },           // eyes shut through the tumble
@@ -152,7 +167,7 @@ const strikeIntensity = (K) => clamp(Math.abs(K.turn) / 45 + 2 * (K.lunge ?? 0),
  * A strike (hero-strike heroStrike): load, contact, follow, end. A jump (hero-jump heroJump; `name` its JUMPS name):
  * load and absorb (the deepest sink either side of the air), takeoff, apex, land, kick (a double jump), end. A roll:
  * start, mid, end, end!. A guard (hero-grip heroGuard): close (the arms begin to close), set (the guard taken), end.
- * Or `{ family, seconds, beats }` as given.
+ * Or `{ family, seconds, beats }` as given (a reaction's: impact, hold, end; hero-motion.js MOVE_FAMILIES.react).
  */
 export function actionBeats(action, { name } = {}) {
   if (action?.beats && action.family) return { intensity: 0.6, ...action };

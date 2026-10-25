@@ -524,6 +524,327 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Two views:** every player draws each pane from the side and from a ¾ overhead camera over a floor grid.
 - **One review page** (`viewer.mjs`): every part's player, strobes and machine gate on tabs, for the artifact host.
 
+### The man walks his own wider base
+
+Both casts walked the one calibrated walk (figure-posing.js WALK_MINT under hero-gaits.js HERO_WALK), its feet on a
+narrow base (`stepWidth` 0.05). On the man that read as a catwalk: his ankles came onto one line as they passed, and
+his legs ran 6 cm through each other but for the swing going round the planted leg (the pass, below), a circumduction
+a man's walk does not show.
+
+- HERO_WALK_POLE (hero-gaits.js) is a walk by the hero's silhouette, over HERO_WALK. The man's is `stepWidth` 0.16:
+  his feet land 10 to 11 cm apart (men's heels about 10 to 13), his legs clear each other on their own (by 9 mm on the
+  game body, 23 mm on the realistic) and the swing goes straight through, nothing for the pass to solve. The woman, a
+  child and a chibi keep the narrow walk.
+- It is stamped with the walk at mint (motion-stamp.js stampHero reads the adult cast's silhouette, stampHeroMotion
+  `pole`), so a hero stored before keeps the walk it was written with, and a creator's own `stepWidth` stays theirs.
+
+### The realistic body rounded out
+
+REALISTIC LAWS 4 (body-relational-builds.js `ROUND_OUT`, read by layered.js realisticBuild). Read off each limb's rings
+and the body's CT stack (horizontal cuts every centimetre, the front and side silhouettes and each contour's peaks),
+the athletic builds read as an action figure's in their limbs: each joint pinched between its bellies (the man's thigh
+5.3 cm of girth under his knee just above it, hers 4.2), the wrist half the forearm's belly (14.3 cm against 29; people
+about 0.6), the forearm dropping from its belly to the wrist in a step (2.4 cm of girth per cm), a knot of the
+adductors' origin under the groin, and every limb mass joined in a tight crease.
+
+- The limbs' masses re-proportioned, data only, by mass id: the blend between a limb's masses widened (× 1.35); the
+  forearm's bone fuller at the wrist and its bellies reaching toward it; the outer quadriceps and the hamstrings reaching
+  nearer the knee, the knee's knob slimmer; the adductors' origin a long flat sheet into fuller adductors; the calf's
+  outer head higher and reaching up to the knee, its inner head lower and fuller, the soleus less wide.
+- The rhythm the bellies had is kept, not made a cylinder: the thigh's outside still peaks high (0.45 of the thigh) and
+  its inside low over the knee (0.81), the calf behind at a third of the shank, its inner head the lower.
+- Measured on his limbs: the pinch over the knee 1.8 cm (was 5.3), the wrist 18.7 cm against a 30 cm belly (0.62), the
+  forearm's steepest fall 1.5 cm per cm (was 2.4), the pinch under the knee 0.6 cm (was 1.4); hers 2.5 at the thigh's
+  top (was 4.2 over her knee), the wrist 0.59 of her forearm.
+- The knee and the elbow STITCHED (body-relational.js formSlice `stitch`): the upper segment's last ring and the lower's
+  first are one ring at the joint's plane, the same points (the shank rung 32 round, as the thigh), so the two shells
+  are one surface and the shading welds across it. Handed over by overlapping across the plane, the upper's skin tucked
+  3 mm inside past it, the two skins crossed nearly flat with each its own facets, and every knee and elbow wore a
+  jagged line in the light; a steeper tuck did not clear it (the rings stand 1.4 to 2 cm apart, so the crossing is a
+  facet wide wherever it falls). The stitched end's cap turns back into its own segment. The shared ring keeps the
+  segment's end address (the upper's last station, the lower's first), so dress and armour addressed up to a limb's end
+  (an elbow's plate) still land on it. The gi's sleeve, copied off the arm, stretches 4.8 cm over a sprint's bent elbow
+  (3.2 under the round-out alone, the sleeve smooth there): its test's bound is 5 cm, a spike still tens of centimetres.
+- Not yet: a knee bent past about 100° (the sprint's) folds behind, the thigh's skin passing through the calf's (the
+  blend of the hinge's bones, as before, where the overlap hid a little more of it): a flexion corrective, as the
+  shoulder's, is the fix. The wrist's, the shoulder's and the hip's handovers keep their own seams.
+- A realistic hero stored before keeps its laws and its limbs.
+
+### The game body's head seated on its neck
+
+HERO LAWS 16 (hero-form.js `CERVICAL_LEAN`, tiered-form.js `TIERED_OCCIPUT`, humanoid-head-fit.js's `occiput` move).
+Read on the game body's midline silhouette, the landmark head stood over the body where a person's does (its ear over
+the shoulder joint), but its neck rose all but upright (3°) under the back of the head, and the man's fitted skull was
+short behind the ear (18.5 cm long, the ear at 0.41 of its length from the back; people about 0.45): his skull's back
+stood 2.2 cm behind his nape (people 4 to 5), so in profile his head read hung forward off the neck. The anime heads
+were left as they are.
+
+- The landmark head's neck leans forward up to the skull, as the cervical column runs from C7 up into the skull's
+  base: 6° for the woman, 5° for the man (on every game body that wears the landmark head, the child forms' too).
+- The man's skull is deeper behind the ear (the fitted head's `occiput` feature, set by the tiered face): the points
+  behind the ear root move back, fading out at the ear and below it toward the jaw's angle, so the back of the skull
+  stands out and his hair follows it. The face moves no more than about a millimetre, where the fitted surface's
+  triangles over the crown and the cheek span both halves.
+- Measured on the midline: his skull now stands 4.2 cm behind his nape (was 2.2), his jaw 4.7 cm past his throat (was
+  4.9); hers 5.1 cm (was 4.3) and 6.0 cm (was 6.4).
+- A statue minted now leans its neck the same way (its carved figure is a landmark hero); the realistic body keeps its
+  own neck (realistic laws 3: `heroPlan({ seat: false })`).
+- A hero or a statue stored before keeps its laws, its neck and its skull.
+
+### The realistic neck leans up into the skull
+
+REALISTIC LAWS 3 (body-relational-builds.js `CERVICAL_NECK`, read by layered.js realisticBuild). Measured on the
+midline skin, the realistic hero's head stood where a person's does over the body (the ear over the shoulder joint; C7
+at the cervicale's height, 0.85 of the stature, the craniovertebral angle about 60°, people 50 to 55), but sat forward
+on its own neck: the neck's mass rose straight from the trunk's top, so the nape stood under the back of the skull
+(the woman's occiput 2.8 cm behind it, people 4 to 5) and her jaw jutted 7.2 cm past the throat (people 5.5 to 6.5).
+In profile the head read as hung off the front of a post.
+
+- The neck's column now leans forward from its root up to the skull, as the cervical spine runs from C7 up and forward
+  into the skull's base, and is a little fuller under it. The head stays where its fit sets it; the column's top comes
+  forward under it, by the build's own `lean` (hers further: her jaw had jutted the more). The one skin's seam and the
+  column it blends into the skull follow the neck's rings, so the head's own neck comes with it.
+- The woman's occiput now stands 4.0 to 4.3 cm behind her nape and her jaw 5.5 cm past her throat. The man's occiput
+  3.7 to 3.9 cm behind his nape (it was 3) and his jaw 4.7 cm past his throat (it was 6): a compromise, his jaw already
+  in range before.
+- A realistic hero stored before keeps its laws and its neck.
+- Fixed: the head's piercings, scalp hair and face hair were kept (layered.js) by the head's fit alone, though they are
+  pinned to faces of its skin, which also moves with the neck it is cut on and the rung it is netted at. A hero minted
+  after another of the same face under other laws or another target could wear the other's pins, and fail to compile.
+  They are now kept by the head they were grown on.
+
+### The legs pass each other: the walk's swing goes round the planted leg
+
+The hero's calibrated walk (the door's default, figure-posing.js WALK_MINT and hero-gaits.js HERO_WALK) sets the feet
+on a narrow base, about 5 cm apart, and swings each leg straight forward in its own plane. On every body the swing
+leg's calf ran through the planted one for about a third of each step (measured on the legs' own girths: up to 58 mm
+deep on the realistic woman, 52 mm on the realistic man, 57 mm on the game body's woman), the fuller thighs and the
+wider hips reading it worst.
+
+- THE PASS (hero-stride.js, heroLocomotion). People keep that line without tripping because the swing leg goes AROUND
+  the stance leg: the foot leaves its line after the lift-off (a little hip abduction, circumduction), passes wide at
+  mid-swing with the knee bent and the thigh already ahead of the upright stance thigh, and comes back onto the line
+  only late in the swing, past the planted foot, landing in front of it, the weight over the planted foot the while.
+  The walk now does that: `swingBump` times the excursion (out over the swing's first third, held through the pass,
+  in over its last), and heroLocomotion solves its size, the least that keeps the legs `swingClear` apart (8 mm) at
+  every phase of the swing, on the legs' capsules (`legGirths`, `legClearance`: each leg's radius by its bone's share,
+  read off the body's own rings; the inner thighs' contact under the groin is the body's, never a collision). On the
+  realistic woman the foot goes about 8 cm out at the pass and the legs keep the gap at every phase.
+- A walk minted now carries the dial (HERO_WALK `swingClear`, stamped with the walk) and the body's girths ride its
+  recipe's `locomotion` (layered.js), so the World page, the export and every reader compile the same walk; the solve
+  is kept per rig and body (a page compiles its clips on every read). A walk stored before passes straight through,
+  as it did.
+
+### The cervical chain: a head aim within the neck's range
+
+HERO LAWS 15 (hero-form.js; the rig's `cervical`, figure-vajra.js `CERVICAL_CAP`). A `head` pose word aims the skull's
+axis, atlas to crown, and the vajra swung the skull ALONE at the atlas in a 45° cone, the neck's column still. The
+form's own wave aimed that axis 72° forward on one key, as if it were a gaze, so every hero's wave nodded the skull the
+whole 45° at the atlas and snapped back on the next key: the neck craned down and the face looked up out of it.
+
+- The head and the neck are posed as the CERVICAL SPINE, each segment within its own range, asymmetric as the anatomy
+  is: the neck's column (C2–C7, bending at its root) flexes 35°, extends 55° and bends 35° to the side; the skull on the
+  atlas (occiput–C1) nods 12° forward, 20° back and 6° to the side. Together about 47° of flexion, 75° of extension
+  and 41° of side bend, an adult's cervical range. The axial turn keeps its split (C1–C2 carries most of a glance).
+- A head aim alone is the whole chain's: held to the chain's range in its direction and shared by each segment's share
+  of it, so a nod bends the neck more than the atlas, never the atlas alone. A neck and a head both named are each held
+  to their own. The chain reads AIMS (a direction: the words a clip or an agent writes); raw angles (`{ yaw, pitch,
+  turn }`) stay each joint's own channel, for a solver that splits the neck and the head itself (hero-aura.js's gaze),
+  so the aura's poses and every statue carve as they did.
+- The form's wave holds a small look while the hand waves: the skull tilted about 7° toward the raised hand and about
+  5° back. Laws 1 to 14 keep their wave and the cones, byte for byte; every other figure keeps the cones.
+- The layered vocabulary says what `head: {x,y,z}` is (the skull's axis, not the gaze), and `/hero-live`'s takes say
+  their looks in it.
+
+### The realistic head as one skin
+
+- REALISTIC LAWS 2: A HERO MINTED NOW WEARS ITS HEAD AS ONE SKIN (hero-one-skin.js). The relational head's field is
+  netted whole, globes and ears left out, in place of the pieces the head was cast in (the cranium, the jaw, the visage,
+  the nose, the eyes), whose hand-overs read on the World page as torn sclera at the lower lid, patches at the nose and
+  the lips, and a crescent under each eye. The skin is joined smoothly to the neck and cut off on the neck's seam ring,
+  every seam point a point of its rim. It is netted along its surface (skin-net.js `netSkin`), made sound where the net
+  pinches (`soundMesh`, `closeHoles`), and quadric-simplified (`simplifyMesh`). The eyes, the nose and the mouth keep
+  more of the faces. A layer-1 part may now be given as a mesh (station-loft.js `meshPart`), bound per point and shaded
+  by its own normals. A hero stored under laws 1 keeps its pieces, byte for byte.
+- THE LIPS are cut exactly on their line: each face across it is split there and the points on it doubled, the upper
+  lip's the head's and the lower's the jaw's, so the jaw bone parts them. Each lip is turned in along the cut, and a
+  closed mouth bag sits behind them (`mouth`). A collapse never carries a point across the line, and a point is bound
+  by its side of the cut.
+- THE EYES: each globe is its own closed part (`globeR`, `globeL`), built as rings about its gaze set on its field. The
+  pupil's and the iris's edges are rings of their own, so they read crisp at any count. The skin texture paints the
+  whole skin, and the eyes' paint no longer takes the lids' margins (where the crescents came from).
+- THE FACE RIG on one skin (`oneSkinFollow`): each action moves the rest skin's own points, never re-nets it, so its
+  faces stay. The muscles' beads carry the face. The lids turn about the globe's centre as far as the eye rig's own
+  margins moved: a blink shuts them over the globe, a raised brow lifts the upper lid, a smile's squint the lower. The
+  hair, the brows, the lashes, the beard and the piercings ride the skin (pinned to its faces).
+- A PIPE, NOT A SET OF HEADS: rolled faces no eye has seen (both poles, populations the composer reads differently)
+  each pass the machine gates unattended (hero-one-skin.deep.test.js). The skin, the mouth and the globes are sound,
+  the rim lies on the seam ring, the lips are doubled along the cut, the budget is held, and the head has two open rims
+  and no others. The sweep found what the hand-picked faces hid, now fixed. A rim the net's pinches left touching
+  itself (at the nostrils, the canthi, the sockets) was traced wrong, so its hole stayed open or its fan laid a third
+  face on an edge; it is split into simple loops now (skin-net.js `boundaryLoops`). Crossings near the mouth's
+  corners landed on one spot (welded now). A collapse could leave a face flat against the seam ring's straight front
+  (refused now).
+- The face roll's hairline is held to the skin's own range (face-compose.js): the male band reached under the dermis's
+  0.8, and a face rolled there was refused at mint. The dice are drawn as before, so every other face is as it was.
+- THE HEAD'S BUDGET BY ITS SIZE ON SCREEN (laws 2). The hero's `target` sets the head's rung (a head 200 px tall and
+  over L2, 80 and over L1, under that L0), and the whole head follows it, not just the scalp's blades. The skin is
+  simplified to 30k, 18k or 8k faces (hero-one-skin.js `ONE_SKIN_RUNGS`), and the globes are lighter at L0. The coats
+  under the scalp's blades and the beard's are simplified to the rung's count (hero-head-layers.js `HEAD_BUDGET`). The
+  beard is on the scalp's own rung, not one finer, and the brows are shorter blades, with fewer hairs and no twins at
+  L0. A bearded head drawn for 1080p third-person falls from 124k faces to 51k, and an untargeted one from 191k to
+  118k. A hero drawn for no target keeps its skin whole (the eyes gate's). The hair is lit as one volume about the skin
+  it rides: the one skin has no cranium, and the hair had been lit facet by facet. The scalp's strips lose their faces
+  without area (a blade's segment of no length), so the hair passes its audit. The skin's count rides the head's fit,
+  so what is pinned to it is never worn on another count's faces.
+- THE LIDS' CREASE AND THE BLINK. The upper lid's fold is thinner than a 1.5 mm cell, and the net pinched it into a
+  ragged crease. The skin is now netted at 1 mm (1.2 at L1; L0's head is too small to show it). To afford that, the
+  rim's untangle reads only the faces about the seam ring: it had read the whole head, smoothing the nostrils and
+  the sockets that rightly face its middle. The simplifier also solves its quadric inline. A lid is now its margin's
+  by the distance ALONG the skin from the margin (`oneSkinFollow`'s `faces`): over the lid, into its crease and out
+  over the fold that distance only grows, where the elevation and the radius fold back. The lid turns over the globe
+  and slides under the fold, which stays. The lower lid is held to its margin's radius, so the cheek in front of it is
+  never swung up across the eye. A lid's points are the lid's for every action, so a smile's beads never draw the
+  upper lid down. The beads carry what the lids leave (the fold follows a raised brow, with no tear), and the settle
+  reaches a tenth as far in the eye's footprint, where the fold's layers lie closer than its reach.
+- A clip's keys on the realistic hero carry the face as the landmark head's do (`face: 'smile'`, a word or its
+  channels, and the key's `jaw`), with `head: 'relational'` named or not. They export as morph weights in the clip
+  beside its bones, so a wave can smile and a start can raise the brows on the same beat. Before this, a named relational
+  head refused the key, and its tracks resolved through the anime head's words.
+- THE LASHES CLOSE WITH THE LIDS (relational-face-rig.js `lashBlades`, `turnLashes`). A lash rode the skin by the same
+  Gaussian carry as the brows, and its root's nearest carriers were the fold's: the lid's margin lies within the globe's
+  radius of its centre, where the socket's still points carry nothing. So a blink left the lashes standing up through
+  the shut lid. Each lash is now turned about its eye's centre as its root on the margin turns (the root riding the
+  face's own points), so a shut upper lash points down and out with its lid. The face store's version is 2, so a rig
+  solved before is solved again.
+- THE SHUT LID SHADED AS A LID (scene-gltf.js, the skinned export under the lit handoff). A morph target carried its
+  positions alone, so the skin a blink rolls out from under the fold over the eye kept the normals it had there, facing
+  down and in, and the shut lid read as a dark band across the eye (a ray from the front meets the skin everywhere
+  across the shut eye: the lid was there, shaded as the fold). Every target now carries its NORMAL: the smooth normals
+  of its shape at full weight less the rest's, sparse, the correctives' too (a reader takes a target's missing NORMAL
+  for the rest's). The unlit export writes what it wrote. Still open: the skin's colour near the margin is stretched
+  across the shut lid, and a fleck of the iris shows at the lower margin.
+- `/hero-live`'s ambient blink keeps the wall clock: on a slow frame rate a blink stretched over as many frames as it
+  spanned, and the eyes read shut through a take.
+- `/hero-live`: the hero played as an engine gets it. Each variant (bare, an armour style, a round of its words) is
+  minted through the door and exported as the skinned GLB with every clip, then played in a three.js page beside the
+  mint's read: orbit, the takes, a scrubber, every morph channel live or held by hand, wireframe, bones. `shot.mjs` tiles
+  frames at set moments into a sheet for an agent to read; `--publish` packs the page for an artifact host.
+- Still open: the shut lid ripples a little; a full smile's cheek stands over the lower iris, as the face's field
+  draws it.
+
+### The realistic hero's face: rolled, bounded, aimed
+
+- A REALISTIC HERO WEARS A COMPOSED FACE (face-compose.js, from face harmony): `face: { seed?, ethnicity?, want?,
+  character?, accent?, nose?, beauty?, age? }` on the realistic body's relational head. Minted with no face, it ROLLS
+  one: the seed, the ethnicity (every base population and the mixed) and, with no `cast`, the sex, stamped into the
+  record so it rebuilds as it was (layered.js `withRolledFace`). Named words BOUND the roll (an ethnicity, a list of
+  them for a mix, a cast) and the rest TUNE it. The baseline is HEROIC (`HERO_FACE`): the face drawn toward its
+  population's harmonious mean (beauty 0.75), at prime age. A remake keeps its stamped face unless the order names one.
+- AIMED: `want: { feature: shape }` takes the shapes named in place of the roll's (composeFace's new `want`); every
+  feature still rolls, so the rest of the face is the seed's and a face liked can be kept and aimed piece by piece.
+- On every read the face's relations and eyes shape the relational head (on the pole's own tune: solving one per face
+  costs most of a minute), and its skin lies under the hero's own `skin`: the ancestry's tone, undertone and hair
+  colour, the hairline, marks, a beard, the years. The face rides `recipe.headFit`, so an export's skin charts the head
+  the face shaped. The readout's `hero.realisticFace` says what was rolled (the picks, the character, the ancestry).
+  The composed cut, brows, lashes and piercings are read there but not yet grown on the hero. A hero without a face, and
+  every other form, is as it was.
+
+### The tiered game body: the default at mint
+
+- THE GAME BODY IS THE TIERED FORM: a hero minted with no `form` is stamped `form: 'tiered'` (motion-stamp.js
+  `withDefaultForm`, beside the calibrated walk), at the door, on a design run's remake of a new figure, and on a world's
+  new inline hero; every build and cast takes it (heroic, brute, lithe, stout, canonical, child, chibi, both poles). A
+  hero stored without a form keeps the body it was minted on, byte for byte, and a remake keeps the stored hero's form.
+  The body before it is a word now, `form: 'classic'`, and is deprecated with the streamlined core: still read, and a
+  hero on it (named, or stored without a form) is told so on its readout's warnings.
+- THE TIERED BODY IS SHADED SMOOTH wherever it is drawn: under the character light too (the anime head's look), at the
+  tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
+  35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
+  study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE ROUND CHILD (hero laws 14, anime-looks.js `CHILD_FACE.round`, tiered-form.js `CHILD_SHADE`): the child's
+  jaw and chin rounder, and its figure shaded round so its facets don't read as folds. The chin is broader, shorter
+  and set back, the jaw broad with its corner high, and the lower cheeks full over the jaw line. The boy's chin is no
+  longer narrowed, which drew it to a point under laws 13. Its body and clothes blend across 85° (the tiered body's
+  70°), and its anime face leans 0.85 of the way toward the head's capsule (0.5 on any other face), so the cheeks and
+  the jaw take the light as one round form. Laws 13 children are as they were. The body study frames a large head
+  (the chibi's or the child's) by its own height.
+- THE CHILD FORM (hero laws 13, hero-form.js `CHILD_FORM`; anime-looks.js `CHILD_FACE`): the child drawn as the anime
+  child reads, on the chibi form's base. Its limbs are cylinders, it has no pectoral, mitten hands, round shoes and a
+  short neck. It is rounder: a barrel torso (the waist as wide as the chest, each section toward round) and fuller
+  arms. Its shoulders are narrower, and with a larger head on shorter legs it stands about three and three-quarter
+  heads tall. Its anime face is the child's, under any look or the hero's own words: a short lower face, full cheeks,
+  a small set-back chin, a button nose, a broader head, and eyes set lower, opened taller and with larger irises, a
+  narrower mouth and a thinner brow. On the boy, the male base's long jaw and forward chin are brought toward the
+  female base's. The bare `child` word is now the child build, as `chibi` became the chibi build under laws 6, and a
+  child minted without a head wears the anime head, as a chibi does. Its dress is the chibi's few pieces.
+- THE ADULT-FORM CHIBI, PINNED (`chibi-adult-form.char.test.js`): the laws 12 chibi's record, plan and recipe, bare,
+  in the ranger kit and in the knight's plate, byte for byte; laws 13 builds it the same.
+- THE CHIBI FORM (hero laws 12, hero-form.js `CHIBI_FORM`): the chibi reads as simple solids, not a small adult.
+  Its limbs are cylinders: no muscle shaping, each limb's rings drawn most of the way to their mean radius, the ankle
+  as full as the calf and the knee as full as the thigh. Its chest has no pectoral layer. Its head is larger and its
+  legs, arms and neck shorter, so it stands about two and a half heads tall with its hands at its hips. Its hands are
+  small mittens and its shoes short and round. Another cast is as it was.
+- THE CHIBI'S DRESS (hero laws 12, hero-dress.js `CHIBI_DRESS`): a body that small cannot carry every piece, so the
+  chibi wears only the pieces that say what it is. The ranger kit is its belt and its bossed pauldron, drawn bolder
+  and thicker. An armour build keeps each family's own few pieces (plate: the pauldrons, the breastplate, the greaves;
+  lamellar: the dō and the greaves; the hard-suit: the cuirass, the pauldrons, the boots), never a helm over the face,
+  with fewer, larger lames and no ornament. The build's own dials still win. The plan says `style.body: 'chibi'`, so
+  what it wears reads it; no other plan says it, and every other kit and suit is as it was.
+- THE CHIBI'S CHEST (hero laws 11, hero-form.js `CHIBI_CHEST`): the chibi's chest is wider (×1.25 over the build's)
+  and deeper (×1.3). It meets the shoulder's ring, which the shoulders' span sets, where laws 6 to 10 stepped out to
+  it in a shelf two centimetres tall, front and back. It stands as deep as the belly under it, where it was pinched
+  behind the shelf. Another cast is as it was.
+- A CHIBI WEARS THE ANIME HEAD at mint (motion-stamp.js `withDefaultForm`): a chibi minted on the tiered body without
+  a head of its own is stamped `head: 'anime'`. It keeps the landmark head when it says a word only that head reads
+  (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). A stored chibi keeps its head.
+- THE WEB'S ARMPIT (hero laws 10, tiered-form.js `WEB_ARMPIT`): the fold under a raised arm closed. The web's
+  under-arm slots (its side, back and front toward the trunk) follow the arm more than the rest of their ring, so a
+  raised arm stretches that side instead of folding it back behind the armpit. The cone's slots turn half a slot, off the fold's own axis, where its front and
+  back slots creased. It reaches less far toward the neck, and its weights hand the collarbone to the fold over its
+  length rather than at once. Its rings past the ball turn the in-ball ring onto the arm's way, so it does not twist
+  where it enters the arm, and sit a little inside the arm. Its upper slots stay with the trunk over the chest, and
+  its base sits deeper in the torso. Measured on the male with both arms up and forward: no face of the cone or the
+  web folds over, where laws 9 folded one. Laws 9 rows are as they were.
+- THE SHOULDER CONE (hero laws 9, tiered-form.js `SHOULDER_CONE`): the web's inner fairing, in its group and skinned as
+  it is (the collarbone at its base, the fold at the ball), its rings square to the way from the ball toward the neck's
+  root: from one hidden in the ball to a wide, flattened base held inside the torso's own section. Its upper half rides
+  just over the torso's skin where it would sink under it, so the torso's faceted shoulder corner (the pectoral's top,
+  the trapezius' slope, the shoulder blade) runs into the ball closed; its sides stay under the skin and its underside
+  draws in toward its centre, so it never spans the armpit. Past the ball it runs on INTO THE ARM, round the arm's own
+  axis inside the web at rest, to inside the arm's belly ring, its weights handing the fold to the arm more slowly than
+  the web's: a raised arm's root, which pulled away from the torso's shoulder corner in a V, stays joined to it. The
+  ball is drawn in under the web and the cone (its centre kept), so a raised arm no longer shows it as a jagged band;
+  and the web hugs the arm before it ends (its last ring before the arm's on the arm's own way down) where it met the
+  arm at an angle and showed the meeting as a crease. A small fold remains behind a raised arm's armpit.
+- THE SHOULDER WEB (hero laws 8, tiered-form.js `SHOULDER_WEB`): a sleeve of skin in the arm's own colour group (the
+  top's tone under a shirt, the skin on a bare arm) over the tiered shoulder's ball, from inside the torso's shoulder
+  through the ball's equator to the arm's own belly ring, where it ends on the arm's points and welds into one surface
+  with it. It rides the collarbone, the shoulder's fold and the arm by ring, so it stretches as the arm swings, and it
+  splits with the arm's chain at a target that splits the arm. The ball reads as the deltoid's swell instead of a knob;
+  a tiered hero stamped before keeps its ball bare.
+- THE TIERED LIMB END (hero laws 7, tiered-form.js `tieredJoints` `respace`): a lofted limb stopped short of its bridge
+  (the thigh, at the knee) carries its shaping rings with its end, each by its share of the run, so its last span keeps
+  its length. Laws 1 to 6 left them, and the man's thigh ended in a centimetre-long span: a knight's knee guard built
+  over it splayed past half a metre on the default body. A tiered hero stamped before keeps its thigh.
+- THE TIERED FORM HOLDS THE BUST'S CEILING (hero-form.js `bustCeilingError`): it builds its plan bare and profiles the
+  bust after, so a runaway `body.bust` passed it silently; it is refused by the same words heroPlan says. And its plan
+  carries no −0 (a stored plan reads it back as 0, so a regenerated plan matched the stored one only by its bytes).
+- `core: 'streamlined'` IS DEPRECATED: still read on a hero that names it (the classic body carries it; a new hero that
+  names it is not stamped tiered), and said on its readout's warnings; drop `/hero/core` for the game body.
+- A FLAT CAP CLOSES ITS PART (station-loft.js): each cap now winds against the ring edges it shares with the bands, the
+  bands alone judged by their geometry. A cap whose point sits on its ring's own plane (the tiered form's joints and
+  bridges, where each limb ends on the ring the bridge begins on) had been wound by a coin toss, eight to sixteen faces
+  wound against their neighbours on the upper arms, forearms, thighs, hands and every bridge; every pointed cap winds as
+  it did.
+- A HEELED STANCE PASSES THE RIG GATE (station-loft-rig.js `auditRig`): the planted toe is read on the shoe's forepart
+  sole, `stance.toe` up, where the solver stands it; a footwear card with a heel on the game body (pumps, stilettos)
+  was refused at mint with a planted drift of exactly that lift.
+- THE CHIBI (hero laws 6, hero-form.js `CHIBI`, `lawCast`): the bare `chibi` word reads as the chibi build on the male
+  pole (its child radii), with the head larger (`headScale` × 1.15 over the build's), the arms thinner (× 0.9 over the
+  build's radius) and the neck that carries the head fuller (× 1.45). Laws 1 to 5 stood the bare word on the adult
+  radii, a man's arms and a head no bigger than his; a chibi stamped under them keeps it.
+
 ### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
 
 The realistic body depicts adults; the wearable libraries and the tailor share one set of primitives; the realistic
@@ -569,6 +890,435 @@ body catches up to what the authored one wears, and its principles are shared ba
   line a top worn out at the hip, kept on the realistic body, is moved on the game body; the stage now judges by the
   body the hero is on. Down the leg the bodies agree within about two hundredths. The measuring found a cropped woven
   top refused on the game body (its buttons placed below its window); its row now starts on it.
+- ONE CANON ACROSS THE WEARABLES: the footwear, handwear and plating libraries' principles each end on the same law, the
+  canon is the outfit's (the dressed outline's western | anime): no library carries a canon of its own, and what each
+  canon asks of its pieces is the garment principles' (a boot, a gauntlet's cuff, plates standing out among the anime
+  flair pieces; the feet in the value gradient). The outline read measures that gradient now (`values: { chest,
+  feet }`, the shoe's L* against the chest's front) and the anime canon reads it (`gradient`: dark shoes under a light
+  chest).
+- WHAT THE GAME BODY WEARS, SAID: the authored body wears the handwear library's gloves (its own adapter) and every
+  footwear card as plain boots, shoes or sandals; the tailoring words, the plated suits and the footwear cards' own cut
+  are the realistic body's. The hero readout now says so (`realisticOnly`) where it had worn them plain or dropped them
+  in silence; nothing refused.
+- FOOTWEAR CARDS ON THE GAME BODY: every footwear library card past the plain boots, shoes and sandals is the library's
+  on the authored body's structured core too, through an authored foot adapter (`footwear/adapters/authored.js`). The
+  plan keeps the bare foot (hero-foot.js, the same proportions) under the card (`heroPlan({ feet: 'bare' })`); the
+  library reads it up to the toe base, the five toes as one block from that ring on, the leather stood off past the bare
+  foot near each ring; a heeled card stands the rig in its stance, as on the realistic body. A closed shoe's foot is not
+  drawn (the game foot's boxy sections stood past the toe cap the library tucks the leather under); a sandal's straps and
+  sole are on the bare foot. The library takes an adapter's `facets` (a share of its reference resolution: sole and
+  heel outlines, the toe cap, the wraps), the game body's half; absent, as drawn, the realistic pins unchanged. The
+  plain words and the outfit cards' `feet` keep the kernel's shoe, byte for byte; the streamlined core keeps the plain
+  base, said in the readout.
+
+### Unified character: the face harmony's work in the realistic character depictor
+
+- PIERCINGS ON THE HERO (polygonizer/hero-head-layers.js `heroJewellery`): a realistic hero's composed face's piercings
+  (face-compose.js's roll) are grown on its head: the head rebuilt from its fit, pierced on its own chart
+  (epidermis/dermal-jewel.js), mapped into the hero's frame and carried as a pinned part on the visage (`jewel`; the
+  lower lip's labret and lip ring `jewelJaw`, on a face the jaw alone carries, so they follow it), each piece's group its
+  metal's or its gem's (`JewelGold`, `GemRuby` …) with its colour in the palette under the hero's own. A hero with no
+  face, or a face that rolled none, wears none. The readout's `realisticFace.shown` names what the hero wears of its
+  face (its hair, brows, lashes, a styled beard, its piercings); `notYet` is gone, everything it listed now grown.
+- THE SCALP ON THE HERO, A GRASS HAT (hero-head-layers.js `heroHair`; dermal-hair.js `grassHat`, `bladeOf`,
+  `GRASS_HAT`): the stylized meadow's way (vegetation/grass.js) on a head. The scalp is planted as a lawn, a blade from
+  a root every few millimetres (growScalp's strands at that gap: combed down the head, cut by the stylist, hung by
+  their weight, a curl's wound by the lock's keratin hand), each blade a wedge tapering to a point that keeps its
+  strand's shape over the top of the skull and thins along its fall. Dense at the roots, the blades overlap into one
+  dark mass, and their ends read as the strands; coloured up a ramp root to tip (`HairRoot`, `HairShade`, `Hair`,
+  `HairTip` from the hair's colour as the eye averages it), a streak's blades `HairStreak`. Open, double-sided strips,
+  pinned to the visage where the head alone carries it. The cut the face rolled, else its ancestry's with the face's
+  hint over it; a buzz grows none (the painted scalp is the hair). A hero with no face wears none.
+- THE TUFT'S BASE, A COAT (hero-head-layers.js `HAT_CAP`; dermal-hair.js `partDistance`): under the blades, the skin
+  coated half a millimetre deep in the hair's root colour wherever the dermis grows scalp hair (`hairCap`, `HairRoot`:
+  the hairline, a peak and a loss its edge, a bald crown left bare), the groom's part left open so it reads; under a
+  styled beard the same where its locks grow (`hairBeardCoat`, the chin's `hairBeardCoatJaw`, `BeardRoot`). As a
+  tuft's base reads solid, no scalp shows between the blades on a head that has not lost its hair, on any renderer
+  (the coat is geometry in the hair's colour, so it holds where a renderer draws no skin texture).
+- THE HAIR'S DEPICTION AND ITS SCORE (new epidermis/hair-depict.js `depictHair`, `stripMesh`, `capMesh`; new
+  epidermis/hair-score.js `scoreHair`, `rasterize`, `strandMesh`): the grass hat's blades and its coat as plain meshes
+  in the chart's frame, which the hero pins (hero-head-layers.js `pinMesh`) and the depiction solver measures: on the
+  head it grows on, from the front, the lateral, the back and the top, its COVERAGE (the hair-bearing scalp seen bare),
+  its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
+  (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
+  `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE FACE IN PLAY (worlds/world-kinds.js; channels/rig-preview.js; channels/controllable/index.js; world-scene.js
+  `stateFace`; relational-face-rig.js `MOVES`): the realistic hero's face blinks and acts on the World page and in a
+  level, where it rode an export alone. The page's pack carries the face's rows (16-bit steps of each part's own scale,
+  about a micron, `quantMorph`; an export keeps its floats) and its tracks; the clip preview and the controllable player
+  build morph targets on the faced bone meshes (the neutral face, each target's offsets, as the GLB writes them) and set
+  their weights each frame from the playing clip's facial track, the ambient blink (the authored face with its own
+  blinks) over the clips that hold the face, on the page's clock or the world's. A hero in a level plays each state's
+  clip's track under the state's name. A point no target moves 0.1 mm carries no row (the scalp's far hair), which trims
+  the export too. A page or a level without a realistic hero emits none of it, byte-identical; one with it resolves the
+  face's rig on its first build (a minute or two, once per head) and carries its rows.
+  The hero in a level wears its skin too (the controllable player draws a painted body's parts on its atlas, texel ×
+  its lit colour, as the World page draws it), where it played flat grey.
+  What a clip acts reaches the face (relational-face-rig.js `relationalWeights`; hero-react.js `act`; hero-face-action.js
+  `react`): the realistic face reads the brow an acted take draws (its tilt: set, the brows drawn down and together;
+  worried, lifted), so a strike's kiai or a jump's effort shows on it, where only its lids moved; and a blow taken acts a
+  face, a wince or a grit a frame after the impact, the lids squeezed to the half lid at most, back on the authored face
+  as the body gives back (every hero's reactions, the anime and landmark heads' too). In play each one reaches the
+  state that plays it (a swing, a stagger, a jump).
+  The face's rig is solved once per machine (new polygonizer/relational-face-store.js; hero-relational-head.js
+  `faceOnly`; scripts/mojulo-paths.mjs `MOJULO_FACE_RIG_DIR`): its builds make the face alone (the cranium and the jaw,
+  which it keeps as stored, are no longer cast five times over), its rows byte-identical, and a head's solved shapes
+  are kept on disk under the mojulo home (keyed on the face the figure carries, the package version and a store
+  version; the newest two dozen kept), so a realistic hero's page or level after a restart reads them back in a blink
+  where it rebuilt them for most of a minute.
+- THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
+  `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
+  ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and
+  the landmark heads' do: `blink`, `blinkLeft`, `blinkRight`, `smile`, `browRaise`, `browLower`, each the head rebuilt
+  at its own fit with one of its actions at full (the lids, the zygomaticus, the frontalis, the corrugator) less the
+  head at rest; the face alone rebuilt (the visage, the nose, the eyes), the cranium and the jaw under it as stored.
+  What rides the face moves as the skin under it moves (a Gaussian of the face's points near each, `CARRY`), not as the
+  one face it is pinned to tilts: a blink carries its lashes, a raised brow its hairs, a smile the beard on the cheeks,
+  and the scalp's hair stays. A blink also sinks the globe behind the shut lid; the smile keeps a seventh of the head's
+  squint (`smileEyes`). The weights are the western expression channels' (the door's `expression`, a clip key's words,
+  the tracks), so the realistic hero blinks and acts as the landmark hero does; the jaw opens by its bone. A rig costs
+  a few head builds (~2 min, once per head; the World page never asks: it plays no face morphs yet).
+- THE EYE'S SURROUND (hero-relational-head.js `eyeGlobeIn`, `eyeDeflate`, `eyeAround`; the relational head re-pinned):
+  within an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look
+  sees it, easing back out to the skin, and the cranium let down further about each globe. The lower lid is a ledge
+  over the globe, and the face sheet, cast along the face's look, landed now on the ledge's front, now on the globe
+  behind it: its faces bridging the two cut in front of the eye as spikes along the lower lid (on every face, worse in
+  a smile, hiding the iris), and the cranium showed through at the lid's crease and the inner corner.
+- A REALISTIC HERO DRAWN FOR A TARGET COMPILES (layered.js `targetPlan`): the target's density split (era/cast-density.js
+  `densityPlan`, halving a part's slots where its outline misses) is not laid on the realistic body, whose rings give
+  every point themselves: the halved slots named points no ring carried, and any `target` failed at compile
+  (`torso/st0.h0R missing`). Its rings are its own; its target reads the hair's rung, as it did.
+- THE LIGHT TONES AS FAIR SKIN (dermal-map.js `toneAlbedo`'s light knee, `LIGHT`; dermal.test.js re-pinned): the
+  lightest Monk swatches photograph near-white and grey-yellow (MST 1 … 3 at a luminance of ~0.81 … 0.86, paper's),
+  and were taken as the skin's albedo as they are, so a fair hero read as plaster. Above MST 5's luminance a swatch's
+  rise is now pressed to 0.15 of itself (MST 1 … 4 at ~0.56 … 0.58, measured fair skin's ~0.5 … 0.6) and its colour
+  drawn toward a measured fair albedo's red slope (`#dfb8a0`'s) as it nears white, the swatches' order kept; a hex tone the same. MST 5
+  down to the deep knee are their swatches, as before. Every realistic hero of a light tone, a minted one too (its
+  skin regenerates), reads darker and warmer: the default presets' MST 3 among them.
+- THE SKIN ON THE WORLD PAGE (worlds/world-kinds.js; dermal-hero.js `heroSkinPaint`'s `light`): the realistic hero's
+  dermal skin (the body's and the head's maps on one atlas) was an export's alone; the page drew one flat skin colour.
+  The page now wears it too, on its static faces (each lit by its fill over the skin's flat colour, so the texel's
+  colour is lit, not tinted twice) and on its clips' pack, at the page's own sizes (`PAGE_SKIN`: the body's page 1024
+  a side, the head's 2048, so a mole or a birthmark reads at a face's distance; the export's own unchanged; the atlas as
+  wide as its wider page, a narrower one beside white): the skin's tone and grain, the lips, the marks, the painted hair and
+  stubble, and age's fine lines. The atlas's corners are written to a tenth of a texel. A realistic hero's page
+  takes a few seconds more to resolve once (the World page caches it) and carries the atlas and its corners.
+  The body study's `world-skin.mjs` photographs the page itself, the face close and the whole figure.
+- THE BROWS AS A FINE LAWN (hero-head-layers.js `BROW_BLADE`): every brow hair its own thin blade (0.5 mm at its root
+  to a point; the cards gathered hairs 2.5 mm apart into boxes 1.2 mm wide, read as bars), REPEATED once by a seeded
+  die (a twin a fraction of a millimetre across, lifted, shorter) so the brow reads full; its root darker down the
+  hair's ramp (`BrowRoot`, `Brow`), its colour the hair's with its grey, lit as the hair is, as one volume. The lashes
+  a fine open blade each where they were boxes, paying for it: the brows and lashes together cost fewer faces than
+  before (the brows ~12,000, the lashes ~1,400, where they were ~4,900 and ~9,200).
+- THE CRANIUM UNDER A DEEP-SET EYE (hero-relational-head.js; the relational head re-pinned): under the visage the
+  cranium is let down from the deeper of the bare head and the face itself. A rolled face whose eyes sit deeper than
+  the bare head's reach had the cranium stand in front of the globe, a pale sheet over a shut-looking eye.
+- THE HAIR LIT AS ONE VOLUME (station-loft-shade.js `volumeNormals`, a part's `volume: { heart, up }`; the hero's
+  hair, its coat, the beard and the beard's coat: hero-head-layers.js `HAIR_VOLUME`): each corner's shading normal bent
+  out from the head's centre (the cranium's, where it stands) and a fifth toward the sky, the grass's way
+  (vegetation/grass.js volumeLit), so the blades shade as one soft mass, both sides alike, where each lit by its own
+  facing read as flakes. The hair's ramp root to tip gentler (`HAIR_RAMP` 0.7 … 1.12, from 0.45 … 1.3): the bands no
+  longer interleave into a patchwork across the blades. A part without a `volume` is lit as it was.
+- THE BEARD GREYS AT THE ROOT (hero-head-layers.js `BEARD_ROOT`): the beard's root and its coat are its tip's colour,
+  the grey in it, darkened (0.7), where they were the un-greyed colour (×0.6): an old beard read as grey flecks on
+  black.
+- THE DEPICTION SOLVER (new epidermis/hair-solve.js `solveClass`, `candidatesFor`, `prepareCase`; hair-depict.js
+  `hairClass`, `HAIR_DEPICTION`, `depictionOf`): how a groom is cut into the hat's blades is a CLASS's, never a style's
+  own: `rope` (locs, rows), `tied` (a tail, a braid, a bun), `coil`, `standing` (gel, a crest), `cropped`, `short`,
+  `long`. The solver scores each candidate (the blades' width, the turn a kept point needs, how flat a short blade
+  lies, the most spans a blade keeps) on every style of the class and keeps the one every style passes on (no bald
+  spot; the outline within a point of the rung's own) that reads best for its faces; its rows are `HAIR_DEPICTION`,
+  which the hero's hair wears, and a new style is covered by its class's row. The dermis study's `hair-solve.mjs` runs
+  it over the catalog; `hair-sweep.mjs --raw` draws the rung without it.
+- THE BLADE'S RULES (dermal-hair.js `bladeOf`'s `lie`, `cap`, `rope`; `hatStrands`, `hatBlades`, `ROPE_TAILS`): a
+  short blade LIES along the comb, its rise off the head pressed into the head's tangent, its length kept, fading out
+  over 6 … 12 cm (a standing short blade showed its edge: a crop read stippled); a loc's, a row's and a braid's
+  blades are ROPES, as wide to their last span as at the tie; a coil's blade keeps at most `cap` spans. The hat's
+  strands grow once (`hatStrands`) for every way of cutting them (`hatBlades`); a gathered strand names its tail.
+- THE HAT'S LADDER, THE GRASS'S TRICK (dermal-hair.js `HAIR_LADDER`, `hairLevel`; layered.js `heroHairLevel`): fewer
+  blades the smaller the head stands on screen, the survivors wider so the cover holds, as a tuft thins: `L2` every
+  blade (a close-up), `L1` a third of them rooted 1/√⅓ as far apart and wider again (a sixth of L2's faces, the
+  default), `L0` one broad wedge a comb guide (the outline). The rung is the head's height in pixels under the hero's
+  `target` (era/target.js), L1 for a hero drawn for none; the beard a rung finer than the scalp. The readout's
+  `realisticFace.hairLevel` says which.
+- THE FACE'S HAIR ON THE HERO (hero-head-layers.js `heroFaceHair`): a styled beard's locks (dermal-hair.js
+  growBodyHair) as a lawn as the scalp's, a wedge a few millimetres apart (`BeardRoot`, `Beard`), those under the lip
+  line on a face the jaw alone carries (`hairBeardJaw`), the moustache's and the cheeks' the head's (`hairBeard`); the
+  brows and the lashes (see THE BROWS AS A FINE LAWN) from the epidermis, its grooms the ancestry's with the
+  composed face's over them; `Beard` (its grey a third again), `Brow`, `Lash`. Stubble stays the skin's paint. The
+  layers' colours lie over the plan's defaults and under the hero's own `palette` (a named `Hair` wins).
+- THE FACE'S OWN FIT (layered.js `withFaceFit`, the mint's; hero-relational-head.js `relationalHeadRecipe`'s `tune`):
+  the mint solves the realistic face's own tune for its composed relations (head-relational.js `solveTune`, ~45 s,
+  once) and stamps it beside its words, `face.fit: { tune, of }` (`of` the relations' fingerprint), so the hero's head
+  is the face the studies show, not the face on its pole's tune. It rides `headFit.tune`, so the skin (dermal-hero.js),
+  the piercings and the hair chart the same head. A face whose words change since reads a stamp not its own and wears
+  the pole's tune until it is minted again (the readout's `realisticFace.fit` says which). A hero minted before keeps
+  the pole's tune, byte for byte, until reminted.
+- dermal-hair.js `growScalp`'s `strands: false`: the guides and their cards alone, without the strands a render draws
+  (the ladder's outline rung).
+- dermal-jewel.js: each face of the mesh names its piece (`mesh.piece`); the wires are capped and the balls fanned to a
+  single pole point, so every piece is a closed solid with no collapsed face (the hero's audit).
+- dermal-hero.js: what the head wears of its own (`jewel`, `jewelJaw`, the hair to come) never counts as a garment over
+  the body's skin.
+
+### Face harmony: the female differentiated, the look standard, the lips' grain
+
+- The dermis study's lineup takes subjects of its own (`--faces '[{ label, sex, relations, eyes }]'`, the wave's tune
+  solved for each relation set), so a spike's relation sets read side by side, textured and lit; `--lineup-crop face`
+  frames the face from the brow to the chin. The first study: the relational head's female pole differs from the male
+  in the jaw's width and little else (the nose's root and dorsum, the chin's shape, the eyes' size are the male's), and
+  relations alone move the eyes, the lips and the brow but cannot reach the nose's width, the chin's point or the lower
+  face's taper.
+- The relational head's HARMONIC SHAPES, relations the canon's ratios did not reach (head-relational.js `RELATIONS`):
+  `chinWidth` and `chinRound` (the chin's width and its point), `dorsum` (the nose's bridge and root), `gonionDrop`
+  (the jaw's corner), `cheeks` (the cheek's fullness), `lowerCheek` (the lower cheek bowed out over the jaw's body: a softer outline from
+  the cheekbone to the chin), `masseter` (the jaw's muscle), `forehead` (the frontal bulb).
+  Each is an offset from the canon, 0 the canon's own: a face moves from a natural one and never starts from a carved
+  one (no hollowed cheek by default), and both poles' heads are byte for byte as pinned.
+- face-harmony.js: `dimorphRelations(d)`, the relations `d` of the way from the male canon (0) to the female pole (1),
+  −0.25 … 1.5 (a Nordic heroine's bone part of the way, her features the female's); `harmonyMeasures(head)`, calipers
+  on the skin for the chin's width and its fall 10 mm out, the bridge's and the root's width, and the lower face's
+  taper (the width at the mouth and at the gonions over the zygions'). A reading, never a refusal.
+- THE FEMALE POLE moved (approved on the eyes gate): beyond the canon's sex cues, a shorter, less projected nose with a
+  finer bridge and a narrower base, larger eyes, fuller and more forward lips over a finer philtrum, a lighter brow, a
+  narrower jaw and a narrower, pointed chin that no longer recedes, the cheeks fuller and the lower cheek bowed out (a
+  soft outline). Its tune re-solved; the female head re-pinned, the male's unmoved. The hero's eye part closes its
+  outer rings in where they would cast past the face's side (a wider eye on a narrower face), eased over its neighbours.
+- THE FACE COMPOSER (face-compose.js `composeFace({ sex, bucket, seed, character?, accent? })`): many faces that each
+  hold together, never one face under different hair. Per harmonic feature (the chin, the nose, the lips, the cheeks,
+  the outline, the eyes) a few named shapes (`FACE_SHAPES`), each offsets to the relations over the sex's pole and a
+  point on two character axes (soft ↔ angular, delicate ↔ strong); a face rolls its point and takes the shapes near it,
+  each pushed a seeded share, and may carry one accent taken from far off (a strong jaw under fine features). A bucket
+  (`FACE_BUCKETS`) names the egocube ancestries its tone and hair are rolled from; `western` first. The dermis study's
+  `--faces` subjects may name an ancestry and a seed.
+- The composer's PROPORTIONS (`FACE_PROPORTIONS`): what differs person to person whatever the character, rolled after the
+  shapes about the face's own values: the skull's length and breadth, the vault's height (the face's share of the head),
+  the face's, the jaw's and the mouth's widths.
+- The composer's EYE REGION: the eyes' shapes carry the lids (the eye rig's channels: open, large, almond, deep, hooded,
+  soft), a brows feature takes the epidermis cube's groom words (natural, straight, arched, thick, thin), and the eyes'
+  spacing, height, size and tilt are rolled per face; `composeFace` returns `eyes` and `epidermis` with its relations.
+- THE ASIAN BUCKET (East and Southeast Asian ancestry): a bucket's `base` is the population's mean morphology, set before
+  the rolls and measured against what the pole already does (after published East Asian anthropometry: a rounder vault,
+  the inner canthi wider apart, a wider nasal base, a lower and flatter root, a broader bridge, a lighter brow ridge, a
+  rounder forehead, the cheekbones forward). Its LID COVER is rolled per face (monolid, in-fold, parallel, hooded, by the
+  egocube's weights) and owns the fold's channels (`LID_FOLD`) over the character's eye shape; never a slant. Shapes
+  weigh per bucket. `FACE_LIMITS` holds a composed face inside the head's working range, measured by the tune's solve
+  (the nose's projection, the cephalic index): a face asked past it is drawn at it.
+- The composer's GROOMS (`FACE_GROOMS`): the brows' thickness and density and the lashes' density and length rolled per
+  face as shares of their shape's numbers, after its face (a seed keeps its relations); a bucket may carry its own.
+- THE NOSE'S AXIS (`FACE_NOSE`): one roll per face from a short, flat nose (less projected, shorter, smaller, its root
+  lower, its base wider) to a long, pointed one, each bucket setting where its people sit on it and how widely they spread
+  (`nose: { mean, spread }`: the western a little toward long, the asian toward short and flat, both reaching both
+  ends); `composeFace`'s `nose` sets it. The relational head's `noseSize` (0 the canon's) scales the nose's own parts and
+  their places with it, so a small nose is a smaller nose, not the canon's parts crowded; `TUNE_LIMITS` holds the tune's
+  subnasale lift to the poles' own range (chased further, the nose's base rose ~18 mm and drew the upper lip into a snout;
+  the miss is reported instead). Both poles' heads and tunes are unchanged; the head's floor on the nose's projection
+  falls from ~0.265 to 0.2.
+- MORE BUCKETS, from the same principles: `east-asian` (the bucket first built as `asian`), `south-asian` (a longer
+  vault and a narrower face, the root higher than the East Asian, the base moderately wide, the eyes a little larger, the
+  rig's creased lid or a hooded one, the brows and lashes rolled heavier), `southeast-asian` (Filipino and maritime
+  Southeast Asian: a rounder vault, a low broad root and a wider base, the nose leaning short and flat, fuller lips, the
+  lid a parallel crease or the rig's), `latin` (Mexican mestizo: a broader face, high forward cheekbones, the nose spread
+  wide on its axis), `african` (sub-Saharan: a longer vault, a rounder forehead, a much wider base on a low broad root,
+  fuller, taller, more forward lips). A BLEND bucket is one of its buckets per face (`asian`: East or South Asian); a MIX
+  bucket is one, or one with a share of a second, their bases and leanings mixed by the share (`equatorial`: South Asian,
+  Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
+  the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
+  (`tones`, on the Monk scale: `equatorial` is brown, MST 6–8), the ancestry still giving the hair, the undertone and the eyes.
+- THE GEO-ETHNIC CATALOGUE widened: `north-asian` (Mongolia, Korea, northern China, Siberia: a broad round short vault,
+  high flat forward cheekbones, the eyes wide apart under a low flat root, a light brow, thinner lips, the lid most often
+  a monolid or an in-fold), and `asian` the asiatic look pinned on it (North 2 : East 1); `east-asian` East Asian alone.
+  South Asia as its cline: `indo-aryan` (northern India and Pakistan: a long narrow face, a high root, the nose leaning
+  long and aquiline, large deep-set eyes, MST 3–7) and `dravidian` (southern India and Sri Lanka: a wider base, fuller
+  lips, MST 5–9), `south-asian` the mix along it. MENA: `levantine` (a long oval face, a long high-bridged nose, large
+  deep-set eyes, MST 2–6) and `south-mediterranean` (the Maghreb and coastal Egypt: a long narrow face, a straight to
+  aquiline nose, almond eyes, fuller lips, MST 3–7), `mena` the mix between them. A mix may hold its own tones over its
+  buckets' (the equatorial's brown is the mix's, its buckets keep their own).
+- THE HAIR'S CUTS by region (`FACE_HAIR`): a woman's hair texture is rolled from her ancestry's and cut from her bucket's
+  pool for it, as a stylist there would cut it (the Levant and the Maghreb: long blow-dried waves, long defined curls,
+  layered curls, half-up; South Asia: long hair, braided, put up; Mexico: layered curls, a curly crop, a high bun;
+  sub-Saharan Africa: the short afro, the high bun, braids, the bun, the curly crop, the big round afro rare); a texture a
+  pool leaves out keeps the ancestry's own style. The widow's peak's centre part goes only on cuts it suits (a part, no
+  ties, to the shoulder or longer). New cuts (dermal-hair.js): `curly-crop` (~9 cm on top, tapered at the nape and round the ears) and `high-bun` (the hair
+  smoothed up into a top-knot high on the crown).
+- HYBRIDS (`hybridOf`, `HYBRID_TRAITS`): a person of two lineages composed trait by trait, not averaged. Each trait group
+  (the skull, the eyes with their lid cover, the nose with its axis, the cheeks, the lips, the skin's tone, the hair's
+  ancestry and its region's cuts) comes from one parent (the likelier the larger its share) or is blended between them;
+  the face names its sources (`hybrid: { of, with, share, traits }`). `mixed` seeds one from any two base buckets;
+  `composeFace({ parents: { a: w, b: w } })` makes any face one. A cline (`mix`: the South Asian, the equatorial, MENA)
+  still interpolates its neighbours.
+- THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
+  rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
+  behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the
+  front, to the horseshoe; a woman's front kept, the crown and the part thinned): the scalp's region, so the skin and the
+  hair it grows follow together. The composer rolls them last of every face (`FACE_HAIRLINE`), a man's loss far more
+  often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. A face rolled a
+  widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part over any style that has a
+  part (the peak is where the hair parts of itself), with the groom's `framed-layers` move (dermal-hair.js, the
+  Rachel's principles): a smooth crown, the front cut shortest and layered longer toward the back, the ends flipped out so
+  the width sits at the sides at mid-length (the back hanging straight: the groom's `flipBack`, the flip's share behind
+  the ears, absent the whole flip all round), in pieces, within the style's own length. A `blowout` move (the roots lifted
+  well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
+- THE MALE POLE (head-relational.js `RELATION_POLES.male`, empty until now; approved by the operator's eyes): the
+  female's principles at the male's character. The cheeks full and the lower cheek filled (volume, never a hollowed
+  default), a broader, rounder chin that no longer recedes over a wider jaw and a heavier masseter, a shorter nose with a
+  finer bridge and a wider base, fuller lips, the eyes a little more open; `HEAD_TUNES.male` re-solved for it and the
+  male head re-pinned. The male dermis's hairline sits lower (0.88) with a widow's peak (5 mm). The sex axis
+  (`dimorphRelations`) now runs between the two poles. The composer rolls a man about his pole: his hairline lower, the
+  widow's peak more often and more marked and without the women's centre-parted groom, his brows taller and fuller
+  (`FACE_GROOM_SEX`); a woman's rolls are byte-identical.
+- PAINTED SHADING, opt-in (dermal-map.js `shade`, 0 … 1, absent nothing): the occlusion read at a face's reach (the
+  sockets, the hollow under the cheekbone, beside the nose, under the lip and the jaw), multiplied into the colour as a
+  game paints its light in (dermal-texture.js `finishPages`; the head chart's `occlusionAt`). For targets without their
+  own occlusion; an engine that adds its own wants it absent.
+- THE SKIN IN A GAME'S ART DIRECTION (color-theorist/adapters.js `skinDirection(contract, shading)`): the game's solved
+  palette and a shading word (`SKIN_SHADINGS`: painted, cel, graphic, none) read into the character's `shade` (as deep as
+  the key is low and the palette heavy, its colour the palette's fill, banded by the shading) and a light (the palette's
+  key, fill and rim, an exposure by the key). `shade` takes `{ amount, colour, steps }` as well as a number. The dermis
+  study lights a subject by its `light`, so one face reads in each game's light and shade.
+- THE DEEP CURVE (`shade.curve: 'deep'`, the `chiaroscuro` shading): the shade as before until the skin is enclosed
+  deepest, then a near-black in the shade's hue: the nostrils, the mouth's line, the sockets' inner corners, the ear's
+  folds (the knee at 0.9 of the occlusion, the darkest a tenth of the shade's colour: a tight band, tightened at the
+  operator's ask). A near-black only that deep, and only by asking for it.
+- THE WORLD'S SKIN, as data (gameworld/hero-looks.js `worldSkin`): a world with a palette hands its characters the shade
+  its art direction paints (`skinDirection`, the default light kept), `characters.direction.shading` naming how
+  (painted when absent). The composed hero carries it as `skin`; the mint takes it only on a realistic hero, under its
+  own shade, so every hero a world mints today mints as it did.
+- The dermis study's sheen reads the relief layer: each relief class's slopes (its pores and grain, finer than a pixel)
+  widen the highlight, Toksvig's way, so the skin reads satin rather than plastic (`--flat-sheen` for the old lobe).
+- THE SCALP'S STRANDS, finer (dermal-hair.js; the operator's eyes): a drawn strand stands for a ribbon `strandGap` wide,
+  `strandWidth` of it drawn; by the hair's type now (`HAIR_TYPES` `strand`): straight and wavy 1.5 mm and 0.4 (~4.5 hairs a
+  strand, between a lash and a card; were 3 mm and 0.75, ~18), curly 2 mm and 0.5, coily 2.5 mm and 0.6 (a curl keeps its
+  locks' weight). Every scalp's strands change; a groom's own `strandGap` / `strandWidth` still wins.
+- A CURL'S KERATIN (`HAIR_TYPES` `chiral`, hair-spine.js `coilOffsets` `flips` / `taper` / `scale`): curly and coily locks
+  twist each their own way: a share left-handed, the radius ± per lock, the twist reversing along the lock (a kink, as a
+  phone cord's: a few a metre in curls, many in coils), and the hair's weight drawing the coil open toward the root. A
+  coil that names none of these is as it was.
+- THE BEARD'S STYLES (dermal-map.js `beardStyle`, `BEARD_STYLES`: stubble, short-boxed, full, goatee, van-dyke,
+  chin-strap, moustache): a barber's lines over the beard tract (which zones grow: the moustache, the corners, the chin, a
+  soul patch, the cheeks or a strap along the jaw; the cheek line lowered; the neckline under the jaw) and a length a zone.
+  A beard of 6 mm and more grows as LOCKS (dermal-hair.js): ribbons of hair at the hair type's strand, a little coarser,
+  falling under their weight and curling by the man's hair type a step tighter (a coil curling back toward the skin), each
+  lock its own keratin twist (`growBodyHair`'s `type`). Absent, the tract and `stubble` as they were.
+- The beard grows on the whole upper lip (dermal-map.js): the nose's region, whose reach round the columella spans the
+  philtrum, cleared the beard there, so every moustache and every stubble bared the upper lip's middle; the nose now clears
+  the beard only on itself, above its base. Every male skin's upper lip changes.
+- The moustache is trimmed at the lip line, as it usually is: a hair above the upper lip grows no longer than its way down
+  to the lip's border, so none hangs over the lip (a beard of strands, 1.5 mm and longer; the painted shadow as it was);
+  a style may let it over (`overLip`, none does yet).
+- A styled beard is fuller (dermal-map.js `BEARD_ZONES`, the operator's eyes): denser and lifted off the skin by zone, the
+  moustache thickest (2.4 × the tract's hairs, lifted most), the chin and the cheeks full; its locks closer and a little
+  wider where it is denser, and a style long anywhere grows all of itself as locks (its trimmed moustache among them).
+- Under a styled beard the skin is painted in the hair's colour (dermal-texture.js), as the scalp's is under its groom, as
+  much as the hair covers it (the longer and the denser, the more; faded in with the beard's region, so no line marks the
+  style's edge): the gaps between locks foreshortened toward the eye read as beard, not as the shaven shadow's grey. The
+  dermis study shades a beard matte and darker within (coarse hair), and sizes its views with a loop (a head's hair now
+  runs to more points than a call's arguments hold).
+- THE MEN'S PARITY across the buckets (face-compose.js): a man draws his cut from his region's barbers
+  (`FACE_HAIR_MALE`: a default pool for every texture, the MENA, South Asian, Latin and African pools; a curly-haired
+  western man no longer rolls a TWA), his facial hair (`FACE_BEARD`: a style by the bucket's weights, clean the shaven
+  shadow, and the tract's fullness in the bucket's range; East and Southeast Asian beards sparser and more often shaven,
+  after published density; every style reachable everywhere), and the shapes by his sex's weights
+  (`FACE_SEX_WEIGHTS`: the thin and high-arched brow, large eyes, the heart's chin and outline rarer on a man) with
+  shorter lashes. A woman's every roll is byte for byte as it was.
+- A man's loss ends in a HORSESHOE (dermal-map.js): as the front's recession meets the crown's, what is left is a band round
+  the sides and the back, its top level about the parietal ridge and dipping to the sideburn in front; no wedge left at the
+  temple, and no island of hair left by a widow's peak once the front has receded. What the loss leaves a barber keeps
+  short (dermal-hair.js): no lock from the band's top laid over the bald crown. The MENA men's wavy pool crops instead of
+  standing in a curly crop's spikes.
+- THE MEN'S CUTS by culture (dermal-hair.js `SCALP_STYLES`, the cuts a barber in each place would name): the fade, the
+  Caesar, the French crop, the two-block, the pompadour, the slick-back, the high-top, the top-knot; drawn by region
+  (face-compose.js `FACE_HAIR_MALE`: East Asia's two-block and French crop, the Levant's slick-back, the Latin and the
+  Black barbershop's fade and Caesar, South Asia's neat side part; a bucket's `hairMale`). A cut from 2 cm is grown as a
+  cut (its taper, shelf and fringe shape it: a fade fades, a crop is no bowl; a buzz still lies as body hair), and a
+  style may carry its own lock edits.
+- THE BEARD'S GROWTH DIRECTION (dermal-map.js `beardFlow`): the sideburn straight down, the cheek down and toward the chin
+  (the more the lower), the chin down and gathering, the moustache out from the philtrum (flatter toward the corners),
+  under the jaw back toward the throat, the neck down toward its middle about a whorl either side. The beard WRAPS the
+  jaw: under the ear's lobe it reaches back past the sideburn's line, and the neck's top carries it on round.
+- The dermis study's SPLAT (`.claude/skills/dermis-study/splat.mjs`): the skin map's regions as points on the head's
+  surface net, orthographic from any azimuth, the far side culled by the normals, a pale grey where no region weighs;
+  where a region lies, in seconds, before a lit render's minutes.
+- LOCS and CORNROWS, anyone's (dermal-hair.js, the tie's new tails `loc` and `row`): locs, the hair matted into ropes, one
+  from each section of a grid over the scalp, twisting round its rope and hanging to the shoulder; cornrows, plaited flat
+  in rows from the hairline over the crown to the nape (a root joins its nearest row where it is nearest, the scalp parted
+  bare between), a short braid on past it. In the women's and the men's pools of the African groups, and the Latin coily.
+- THE ERAS' CUTS: the mohawk, the fauxhawk (a `strip` cut: the band down the middle kept and standing, the rest clipped),
+  the broccoli (the 2020s' perm), the mullet, the '90s curtains and bowl, the 2000s' emo fringe; some in the men's pools
+  now and then. A style with ties is grown with its ties at any length. The fauxhawk is the 2000s–2010s gelled one:
+  textured spikes worked up, back and in to a ridge (a groom's `gel`, 0 … 1: what stands is turned from the scalp's
+  normal toward that ridge, not fanned out); `spiky` its whole-top variation (a Kisame's), and the SPIKED FADE family:
+  the spiked fade, the high one, the spiked quiff fade and the burst fade's band of spikes. The bowl is clipped short
+  beneath (a root a shelf or a strip clips stays clipped under a line cut).
+- ASYMMETRY (head-relational.js, 0-centred, absent byte-identical): the left eye's, brow's and mouth corner's height, the
+  nose's lean, the left jaw's and cheekbone's width. The composer rolls each face its own (`FACE_ASYMMETRY`, ~1–1.5 mm),
+  never none: a mirror reads uncanny.
+- BEAUTY (face-compose.js `composeFace`'s `beauty`, 0 … 1, `FACE_BEAUTY`): averageness and symmetry, the attractiveness
+  research's steadiest findings: the proportions' and the nose's reach and the shapes' spread drawn toward the bucket's
+  mean, the asymmetry toward slight. The default (0.5) leans to it: most faces typical, the median rather than the
+  extremes; every composed face, women's and men's, changes with it.
+- THE SKIN'S MARKS (dermal-map.js `marks`, `MARK_KINDS`): moles, a beauty mark, birthmarks (a café-au-lait patch, a
+  port-wine stain) at mm on the head, painted into the skin's colour, a stain's edge wandering; the composer rolls up to
+  three moles a face, a beauty mark in its classic places now and then, a birthmark rarely (`FACE_MARKS`).
+- HAIR STREAKS (dermal-hair.js scalp key `streaks`, `STREAK_KINDS`, `STREAK_DYES`): the money pieces framing the face,
+  a chunk at a clump's seat, the under layer, the tips (ombré, from a share along the strand), a scatter of babylights;
+  each strand and card in one carries its `streak` (the dye, linear, and where along it the dye starts). The hair grows
+  exactly as without; absent, no field. A buzz under 2 cm takes none.
+- PIERCINGS (new epidermis/dermal-jewel.js `pierce`, `readPiercings`, `PIERCING_SITES`): the lobe and the upper lobe, the
+  helix, the tragus, the nostril, the septum, the brow, the bridge, the labret, a lip ring, the monroe and the medusa,
+  each placed from the head's landmarks and settled on its surface by the field (the ear's sites from the ear's own
+  samples), in a kind the site takes (stud, a gem set; hoop through its hole, hanging off the tissue's edge; barbell;
+  drop) and a metal; out, the pieces and one mesh (balls, rings, wires) in the chart's frame with its materials.
+- ADORNMENTS in the composer (`FACE_ADORN`), rolled after the marks: each site at its chance by sex (the lobes on most
+  women, few men, every other site rare; a nose stud common in the South Asian buckets), one metal a face; now and then
+  streaks, mostly the salon's lightened dyes, sometimes a fashion colour, as a scalp hint. The rolls before them keep
+  their dice.
+- THE YEARS ON THE SAME ROLL (face-compose.js `composeFace`'s `age`, years 16 … 85, `FACE_AGE`): the rolled face is the
+  person at their prime (28; absent or 28, the face as rolled, byte for byte); other ages keep every roll and the
+  person's styling (the cut, the streaks, the piercings, the marks, the beard's style) and move the years' signs. Older:
+  the soft tissue descends (the jowl and the fold, the cheek's fat from the cheekbone to the jaw, thinner lips set back,
+  a longer nose and ear, hooded lids, the outer canthus down), the skin's `age` and `lines` rise, the hair greys from
+  its onset, a man's temples recede and his loss advances by its destiny, a woman's crown thins late. Younger, to 16:
+  fuller cheeks and lips, a smaller nose, a softer jaw, a man's brow ridge not yet grown, the skin younger. Its own dice
+  (`face-age`): the rate the person ages at, the greying's onset by the ancestry's mean, the loss's destiny, the same at
+  every age of one seed.
+- THE FACE'S LINES AS FOLDS (dermal-map.js `dermalDetail`, dermal-texture.js `FOLD_INK`): each line a tapered polyline
+  painted at two scales, a thin dark core inside a broad smooth shade (`crease`, `soft`), with a faint lift on the roll's
+  lit lip (`lift`), in the skin's own warm shadow rather than grey; broken along its length, wider as it deepens, the
+  crow's feet curved and more of them with depth. The lines no longer read as pencil strokes. Absent `lines`, nothing.
+- THE WRINKLE MAP (dermal-texture.js the FOLD page, `FOLD_SLOPE`; dermal-map.js `FOLD`, `dermalDetail`'s `slope`): the
+  same folds as SHAPE, a narrow valley and the broad roll of skin on its lit side, baked as the height's slope over the
+  head's mm (R toward the figure's right along the chart's `tr`, G up the head along its `ta`, 128 flat; B the valley's
+  cavity), so the light draws a fold and it answers the light's direction: an engine's wrinkle normal map. Only where
+  the face has lines (absent, no page). The dermis study bends its shading by it; `--key` moves the key light (a raking
+  side light shows the folds turn with it). A normal map shades; it casts no shadow and leaves the silhouette smooth.
+- THE FOREHEAD'S FURROWS AS SHAPE (head-relational.js `furrows`, 0 … 1, absent byte-identical): an old forehead's three
+  deep folds cut into the skin, each a tube laid along the forehead by the landmarks, sunk along the skin's normal so a
+  shallow sliver cuts (~0.8 mm at 1), thinning to nothing at its ends, its edge blended soft: real shape, so an engine's
+  light casts it and the profile carries it, under the same lines the paint and the wrinkle map draw. The composer cuts
+  them from the late fifties at the person's rate.
+- THE FOLDS' PAINT BY THE ART DIRECTION (dermal-texture.js `FOLD_INK.lit`): where the light draws a fold (the realistic
+  register, no painted `shade`), the painted core and shade at a little over half; whole where an art direction paints
+  its light in.
+- THE CLOSED MOUTH'S SEAM, EVEN (head-relational.js `SEAM`; the relational head re-pinned): a closed mouth's lip line
+  is cut to one depth all along the lips (~1 mm under the less prominent lip's front, the lips' fronts probed across
+  the mouth, fading at the corners) in place of the lip-line carve, whose depth swung from ~0.6 to ~2.4 mm and, where
+  thin lips parted from it, left a groove under the surface net's cell: drawn as a row of dark notches along the lips,
+  plainest on the men and the old. An open mouth keeps its carve.
+- GREY BROWS AND LASHES (epidermis.js `hair.grey`): the brows' hairs silver at 0.7 of the scalp's share, the lashes' at
+  0.3, each by its own die; the composer passes the years' `grey` on. Absent, none.
+- GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
+  (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
+  the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.
+- THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
+  not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
+- THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
+  as a camera saw it, and the deepest two photograph near-black and grey (less red over blue than MST 6), so MST 9 and 10
+  rendered as dark grey under a white sheen. Below MST 8's luminance a tone is lifted (by a square root under that knee,
+  its order kept) and holds MST 8's red slope, the way measured deep skin stays a red-sloped few percent; the melanin
+  measure (the blood shown, the palms) still reads the swatch. MST 1 … 8, and any hex tone at or above the knee, are
+  byte-identical.
+
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,
@@ -803,6 +1553,19 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
 - The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.
+- THE PLATES LIE ON THE BODY, THE ARMS OUTSIDE THEM (body-relational-armour.js `PLATE_STAND`, fieldGarment `stand`,
+  `shoulders`, `under`). A trunk plate was cast out to where the trunk's field ends, and that field runs on over the
+  arms hanging beside the chest and the deltoids blended into it: the cuirass was a barrel half again the chest's width
+  (0.25 m from the midline at the chest, the skin at 0.12 to 0.2), the arms inside it from the waist to the shoulder.
+  A trunk plate now stands at most its clearance and 2 cm past the skin; the cuirass's field leaves the deltoids out,
+  and it is worn under the upper arm: within 2.5 cm of the arm (its armhole, and over the shoulder's ball, where the
+  pauldron's cap sits) it eases down onto the skin at its clearance, after the envelope's lift. The arm hangs over its
+  edge, its lames and rerebrace their own. Other garments write what they wrote (the options are off by default).
+- The read judges what the body wears (`dressReadout`). The realistic knight's read had judged every piece of the kit
+  as planned: the breast and back plates, the faulds, the sabatons, the pauldron's facing and the gorget, worn as its own
+  shells or left off, each "does not read" at exposure 0, 12 of its 70 warnings. They are now `dress.unworn`, named and
+  not judged. What remains is real: the straps' buckles buried under the cuirass, the vambraces that never read, and
+  the shells that replaced the kit's pieces carry no signature of their own (the focal pauldron's facing among them).
 
 ### Footwear: a solver library, an adapter per body's foot
 

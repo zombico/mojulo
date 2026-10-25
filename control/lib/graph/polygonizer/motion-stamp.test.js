@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
-import { HERO_WALK, HERO_RUN } from './hero-gaits.js';
+import { HERO_WALK, HERO_WALK_POLE, HERO_RUN } from './hero-gaits.js';
 import { HERO_LAWS_VERSION } from './hero-form.js';
-import { stampAuthoredMotion, stampHero, withDefaultWalk } from './motion-stamp.js';
+import { stampAuthoredMotion, stampHero, withDefaultWalk, withDefaultForm } from './motion-stamp.js';
 
 const PHASES = Array.from({ length: 12 }, (_, i) => i / 12);
 const same = (a, b) => PHASES.every((u) => JSON.stringify(a(u)) === JSON.stringify(b(u)));
@@ -99,6 +99,8 @@ describe('stampAuthoredMotion — what is written, and what an edit leaves alone
     expect(m.figures.kept).toBe(next.figures.kept);
     expect(m.figures.fresh.hero.motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
     expect(m.figures.fresh.hero.laws).toBe(HERO_LAWS_VERSION);
+    // (on the game body: the tiered form, unless it names one; the kept hero keeps the classic body it has)
+    expect(m.figures.own.hero.form).toBe('tiered'); expect(m.figures.kept.hero.form).toBeUndefined();
     expect(m.figures.own.hero.motion.walk).toBe(false);
     expect(m.figures.own.hero.laws).toBe(HERO_LAWS_VERSION);   // a structured-core hero reads the shoulder line (laws 2)
   });
@@ -115,12 +117,37 @@ describe('withDefaultWalk — a new hero walks with the calibrated gait', () => 
   it('a hero that says nothing of its walk gets one; its other gaits stay', () => {
     expect(withDefaultWalk({ cast: 'female' }).motion).toEqual({ walk: true });
     expect(withDefaultWalk({ cast: 'male', motion: { sprint: true } }).motion).toEqual({ sprint: true, walk: true });
-    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
+    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK, ...HERO_WALK_POLE.male });
+  });
+
+  it('the man walks his own wider base, the woman, a child and a chibi the narrow one; a creator\'s step width is kept', () => {
+    const width = (spec) => stampHero(withDefaultWalk(withDefaultForm(spec))).motion.walk.stepWidth;
+    expect(HERO_WALK_POLE.male.stepWidth).toBeGreaterThan(WALK_MINT.stepWidth);
+    for (const spec of [{ cast: 'male' }, { cast: 'male', form: 'realistic' }, { cast: { pole: 'male', build: 'brute' } }]) expect(width(spec)).toBe(HERO_WALK_POLE.male.stepWidth);
+    for (const spec of [{ cast: 'female' }, { cast: 'female', form: 'realistic' }, { cast: 'chibi' }, { cast: 'child' }]) expect(width(spec)).toBe(WALK_MINT.stepWidth);
+    expect(width({ cast: 'male', motion: { walk: { stepWidth: 0.07 } } })).toBe(0.07);
+    // (stored by value: a walk already stamped keeps its width when the hero is written again)
+    const stored = { cast: 'male', motion: { walk: { ...WALK_MINT, ...HERO_WALK } } };
+    expect(stampHero(stored).motion.walk.stepWidth).toBe(WALK_MINT.stepWidth);
   });
 
   it('a creator\'s own walk, a door clip named walk, and a statue are left as they are', () => {
     for (const spec of [{ cast: 'male', motion: { walk: { lean: 0.1 } } }, { cast: 'male', clips: { walk: [{}, {}] } }, { cast: 'male', statue: 'roman' }]) {
       expect(withDefaultWalk(spec)).toBe(spec);
     }
+  });
+});
+
+describe('withDefaultForm — a new hero is built on the game body, the tiered form', () => {
+  it('a hero that names no form is stamped tiered; a named form, a stored null aside, and the deprecated streamlined core are left', () => {
+    expect(withDefaultForm({ cast: 'female' })).toEqual({ cast: 'female', form: 'tiered' });
+    expect(withDefaultForm({ cast: { pole: 'male', build: 'brute' }, form: null }).form).toBe('tiered');
+    for (const spec of [{ cast: 'male', form: 'classic' }, { cast: 'male', form: 'realistic' }, { cast: 'male', core: 'streamlined' }]) expect(withDefaultForm(spec)).toBe(spec);
+  });
+  it('a chibi minted on it wears the anime head, unless it names a head or says a landmark head\'s word; another cast does not', () => {
+    expect(withDefaultForm({ cast: 'chibi' })).toEqual({ cast: 'chibi', form: 'tiered', head: 'anime' });
+    expect(withDefaultForm({ cast: { pole: 'female', build: 'chibi' } }).head).toBe('anime');
+    for (const cast of ['child', { build: 'child' }]) expect(withDefaultForm({ cast }).head).toBe('anime');
+    for (const spec of [{ cast: 'chibi', head: 'landmark' }, { cast: 'chibi', hair: 'swept' }, { cast: 'chibi', form: 'classic' }, { cast: 'male' }]) expect(withDefaultForm(spec).head).toBe(spec.head);
   });
 });

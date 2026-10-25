@@ -24,6 +24,9 @@
  *                                                          limb and its place on the limb's bare profile
  *     flair: { pieces, of, bodyLine }                      the garments reaching furthest where e > 0.25 down the trunk,
  *                                                          an arm and a leg; the share of those samples at e ≤ 0.10
+ *     values: { chest, feet }                              CIELAB L* at the front of the chest and of the outermost layer
+ *                                                          on the right foot (a shoe's, else the foot's): the value
+ *                                                          gradient the anime/game canon reads (dark feet, a light chest)
  *   }
  *   with `{ profile: true }` also `profile`: { ground, top, rows: [{ z, dressed, bare }] every 5 mm, each the x runs of the
  *     front outline (the arms too: the picture's, not the measures'), landmarks }, for a picture of the read
@@ -38,14 +41,14 @@
 /** The bands per style (docs/garment-principles.md): starting points, tuned at the eyes gate */
 export const OUTLINE_BANDS = Object.freeze({
   western: Object.freeze({ waist: { male: [0.8, 0.87], female: [0.72, 0.8], boxy: 0.92 }, returns: 2, division: [[0.33, 0.42], [0.6, 0.7]], halves: [0.46, 0.56], legLine: 0.55, divisions: 3, flair: null, bodyLine: null }),
-  anime: Object.freeze({ waist: { male: [0.7, 0.8], female: [0.62, 0.75], boxy: 0.92 }, returns: 3, division: [[0.28, 0.38], [0.7, 0.85]], halves: [0.46, 0.56], legLine: 0.6, divisions: 4, flair: [1, 3], bodyLine: 0.6 }),
+  anime: Object.freeze({ waist: { male: [0.7, 0.8], female: [0.62, 0.75], boxy: 0.92 }, returns: 3, division: [[0.28, 0.38], [0.7, 0.85]], halves: [0.46, 0.56], legLine: 0.6, divisions: 4, flair: [1, 3], bodyLine: 0.6, gradient: true }),
 });
 /** the fit classes by ease share (the published minimum wearing ease for `fitted`) */
 export const FIT_CLASSES = Object.freeze([['skin', 0.02], ['fitted', 0.11], ['semi', 0.2], ['loose', 0.35], ['oversized', Infinity]]);
 const fitClass = (e) => FIT_CLASSES.find(([, hi]) => e <= hi)[0];
 
 const BODY = /^(torso|pelvis|neck|upperArm|foreArm|hand|thumb|index|middle|ring|little|thigh|shank|foot|toes)[RL]?$/;
-const HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face|visage|nose)/;
+const HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face|visage|nose|headSkin|globe)/;
 const ARM = /^(upperArm|foreArm|hand|thumb|index|middle|ring|little|elbowFold)/, UPPER_ARM = /^(upperArm|elbowFold)/, LEG = /^(thigh|shank|foot|toes|kneeFold|hipFold)/;
 const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
 
@@ -175,6 +178,11 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
   // (a garment is a flair piece where it is the furthest over 4 cm at least: a buckle's corner is not)
   const flaring = [...loud].filter(([, n]) => n >= 2).map(([g]) => g).sort();
   const flair = { pieces: flaring.length, of: flaring, bodyLine: all.length ? r3(all.filter((e) => e <= 0.1).length / all.length) : null };
+  // the VALUES the gradient reads: the chest's at the front; the right foot's outermost layer 3 cm off the ground (what
+  // is worn there over the foot, the shoe, else the foot itself)
+  const feetL = (() => { const s = [...slice(ground + 0.03, side(['leg'], 1)).entries()], worn_ = s.filter(([p]) => !info.get(p).body), pick = (worn_.length ? worn_ : s).reduce((b, e) => (!b || e[1].y1 - e[1].y0 > b[1].y1 - b[1].y0 ? e : b), null);
+    return pick ? info.get(pick[0]).L : null; })();
+  const values = { chest: r3(frontL(at_.chest.z)), feet: r3(feetL) };
   const mean = (xs) => { const v = xs.filter((x) => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
   const top_ = mean([at_.chest.e, at_.waist.e]), bot = mean([at_.hip.e, at_.midThigh.e, at_.knee.e]);
   // the RETURN points: where the cloth comes back to the body, the least standoff each side in each region (the waist
@@ -188,7 +196,7 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
   return { S: r3(S), at: at_, ratios: round(R), bareRatios: round(RB), shift: round(Object.fromEntries(Object.keys(R).map((k) => [k, R[k] - RB[k]]))),
     family: familyOf(R, at_, 'W'), bareFamily: familyOf(RB, at_, 'B'), fit: { top: { e: r3(top_), class: fitClass(top_ ?? 0) }, bottom: { e: r3(bot), class: fitClass(bot ?? 0) } },
     ...(profile ? { profile: (() => { const rows = []; for (let z = ground + 0.0025; z < top; z += 0.005) { const d = union([...slice(z, () => true).values()].map((g) => [g.x0, g.x1])).runs, b = union([...slice(z, (I) => I.body).values()].map((g) => [g.x0, g.x1])).runs; if (d.length || b.length) rows.push({ z: r3(z), dressed: d.map((x) => x.map(r3)), bare: b.map((x) => x.map(r3)) }); } return { ground: r3(ground), top: r3(top), rows, landmarks: Object.fromEntries(Object.entries(at_).map(([k, v]) => [k, v.z])) }; })() } : {}),
-    returns, returnGap: Object.fromEntries(Object.entries(ret).map(([k, g]) => [k, r3(g)])), rho: r3(rho), divisions, dominant, legLine, hems, flair };
+    returns, returnGap: Object.fromEntries(Object.entries(ret).map(([k, g]) => [k, r3(g)])), rho: r3(rho), divisions, dominant, legLine, hems, flair, values };
 }
 
 /** the silhouette family by its outline's ratios (docs/garment-principles.md), the first rule that holds. The cut-offs
@@ -229,6 +237,8 @@ export function outlineCritic(m, style = 'western', { sex = 'male' } = {}) {
   read('divisions', m.divisions.length, `≤ ${B.divisions}`, m.divisions.length <= B.divisions, `${m.divisions.length} hard divisions: drop or match the value of one (a belt the trousers' value, a hem that a layer covers)`);
   for (const h of m.hems) if (h.pos !== null) read(`hem@${h.on}`, h.pos, '≤ 0.35 good, ≥ 0.8 warn', h.pos < 0.8, `a hem on the ${h.on} at its widest (${h.pos}): move it below the ${h.on === 'shank' ? 'calf' : 'thigh'}'s widest or to a narrow point`);
   if (B.flair) read('flair', m.flair.pieces, B.flair, m.flair.pieces >= B.flair[0] && m.flair.pieces <= B.flair[1], m.flair.pieces > B.flair[1] ? `${m.flair.pieces} exaggerated pieces: keep one to three, the rest close to the body` : 'no exaggerated piece: give the silhouette one (a sleeve, a trouser leg, a coat skirt, a sash)');
+  // (the anime/game value gradient: the feet darker than the chest, Mitchell's dark feet to a light chest)
+  if (B.gradient && m.values && m.values.chest !== null && m.values.feet !== null) read('gradient', r3(m.values.chest - m.values.feet), `> 0`, m.values.feet < m.values.chest, `the feet (L* ${m.values.feet}) are no darker than the chest (L* ${m.values.chest}): dark shoes under a light chest (the anime/game value gradient)`);
   const escape = loose(m.fit.top.class) && loose(m.fit.bottom.class) && m.returns.length >= B.returns && m.returns.includes('waist');
   if (B.bodyLine && !escape) read('bodyLine', m.flair.bodyLine, `≥ ${B.bodyLine}`, m.flair.bodyLine >= B.bodyLine, `only ${m.flair.bodyLine} of the body's length lies close: keep the body line under the flair`);
   return { style, family: m.family, bareFamily: m.bareFamily, reads, advice };

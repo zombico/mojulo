@@ -570,10 +570,15 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // they were.
   // Re-pinned for the arm length, hero laws 5 (hero-form.js ARM_LENGTH): each one under laws 4 is the value pinned
   // before it, still (LAWS_4); the anime heroes as they were.
+  // Re-pinned for the cervical chain, hero laws 15 (figure-vajra.js CERVICAL_CAP; the form's wave holds its look): each
+  // one under laws 14 is the value pinned before it, still (LAWS_14); the anime heroes (their own wave) as they were.
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['115c2f27831d6be6', '79db36fbca9682aa', '36d97af7ab3cfb2c']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['d0b8b087dfd21361', '40fb80ab778f9cfd', 'bd6faf12a65eeca5']],
-      headNone: [{ cast: 'female', head: 'none' }, ['b7e6a816086090f1', '33f4b0f67645ac19', '0ccce7eeb70cf49b']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['11b72bcb82042619', 'a1fbd0aa9163dd81', '4902a3e02aabec25']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['ff73b46f123d7a49', 'edbe9cb88d1d9883', 'f3cf422abc79caab']],
+      headNone: [{ cast: 'female', head: 'none' }, ['82a11ef446c59684', '451bf3e3a0ea6b45', 'dbb43421213022eb']] };
+    const LAWS_14 = { landmarkMale: ['115c2f27831d6be6', '79db36fbca9682aa', '36d97af7ab3cfb2c'],
+      landmarkFemaleLowpoly: ['d0b8b087dfd21361', '40fb80ab778f9cfd', 'bd6faf12a65eeca5'],
+      headNone: ['b7e6a816086090f1', '33f4b0f67645ac19', '0ccce7eeb70cf49b'] };
     const LAWS_4 = { landmarkMale: ['be4750de62beeea3', '153c9f75da35a70f', 'a7abbe989bf20e0d'],
       landmarkFemaleLowpoly: ['ecc1d5338a587ccf', '4e520074e3de300d', '4606e63fda65293c'],
       headNone: ['f3615993791f8043', 'e31f071c6a7d39b2', '0ea843f1d06c75fd'] };
@@ -589,7 +594,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
-      for (const [L, pins] of [[1, LAWS_1], [2, LAWS_2], [3, LAWS_3], [4, LAWS_4]]) {
+      for (const [L, pins] of [[1, LAWS_1], [2, LAWS_2], [3, LAWS_3], [4, LAWS_4], [14, LAWS_14]]) {
         const [p1, t1, u1] = pins[name], m1 = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ ...spec, laws: L }) });
         expect(h(await world(m1)), `${name} laws ${L}`).toBe(p1); expect(h(await world({ ...m1, toon: { bands: 3, ink: true } })), `${name} laws ${L}`).toBe(t1); expect(h(await world(m1, { unshaded: true })), `${name} laws ${L}`).toBe(u1);
       }
@@ -786,4 +791,23 @@ describe('the strands: lines in the hair\'s own hue, darkened', () => {
     expect(resolveToonLight({ strands: { Hair: { count: 30 } } }).strands.Hair).toEqual({ ...STRAND_DEFAULTS, count: 30, reach: [...STRAND_DEFAULTS.reach] });
     expect(toonLightErrors({ strands: { Hair: { count: 2, tone: 1.2, dash: 1 } } }).map((e) => e.split(':')[0])).toEqual(['toon.light.strands.Hair.dash', 'toon.light.strands.Hair.count', 'toon.light.strands.Hair.tone']);
   }, 120000);
+});
+
+describe('a part lit as one volume', () => {
+  // (a heart's triangle about the origin; a blade off to its +x side, facing +y, edge-on to the way out)
+  const mesh = {
+    vertices: [[-0.1, 0, -0.05], [0.1, 0, -0.05], [0, 0, 0.1], [0.2, 0, 0], [0.3, 0, 0], [0.25, 0, 0.1]],
+    faces: [[0, 1, 2], [3, 4, 5]], groups: ['Skin', 'Hair'],
+    provenance: ['cranium', 'cranium', 'cranium', 'hair', 'hair', 'hair'].map((part) => ({ part })),
+    parts: {},
+  };
+  it('bends a blade\'s normals out from the heart and up, whatever way the blade faces', () => {
+    const own = layeredShadingNormals(mesh, { parts: { cranium: {}, hair: {} } }, { proxy: false });
+    const vol = layeredShadingNormals(mesh, { parts: { cranium: {}, hair: { volume: { heart: 'cranium' } } } }, { proxy: false });
+    expect(Math.abs(own[1][0][1])).toBeCloseTo(1, 5);   // (its own: square to the blade)
+    for (const n of vol[1]) { expect(n[0]).toBeGreaterThan(0.6); expect(n[2]).toBeGreaterThan(0); expect(Math.hypot(...n)).toBeCloseTo(1, 6); }
+    // (the heart, and a part without a volume, as they were)
+    expect(vol[0]).toEqual(own[0]);
+    expect(layeredShadingNormals(mesh, { parts: { cranium: {}, hair: { volume: { heart: 'nose' } } } }, { proxy: false })).toEqual(own);
+  });
 });

@@ -6,7 +6,8 @@
  * shelf-packed onto a square page. The channels are painted from the address alone:
  *
  *   albedo         the map's colour, with the TRICKS a realistic skin is painted with: the SCALP PAINT (the scalp in the
- *                  hair's colour under a groom, so a gap between cards reads as hair, never as skin), the beard's
+ *                  hair's colour under a groom, so a gap between cards reads as hair, never as skin; a styled beard's
+ *                  skin too, under its locks), the beard's
  *                  STUBBLE (each follicle's dot of hair where it leaves the skin, its share of the texel by density and
  *                  length: the shadow a shaven face carries), the freckles, the mottle
  *   roughness      the sheen's map (grey: 0 glossy … 255 matte)
@@ -29,10 +30,20 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairColourOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
+
+/** a fold's shadow by channel: the blue and green darkened more than the red (the blood under the skin) */
+const FOLD_SHADOW = [0.8, 1, 1.12];
+/** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift; `lit` their
+ * share where the light draws the fold (no painted `shade`: the realistic register, the wrinkle map doing the rest),
+ * whole where the art direction paints its light in */
+const FOLD_INK = Object.freeze({ soft: 0.16, core: 0.4, lift: 0.05, lit: 0.55 });
+/** the FOLD page (the lines' wrinkle map, only where the face has lines): R, G = 128 + 127 × the height's slope / this
+ * (mm per mm; R toward the figure's right, G up the head: the chart's `tr` and `ta`), B the valley's cavity */
+export const FOLD_SLOPE = 1.5;
 
 /** where each part's ring is cut (its `around`): the side least seen */
 export const DERMAL_SEAMS = Object.freeze({ head: 0.5, neck: 0.5, trunk: 0.5, pelvis: 0.5, upperArm: 0.75, forearm: 0.75, hand: 0.75, finger: 0.75, thigh: 0.75, shank: 0.75, foot: 0.75, toe: 0.75 });
@@ -109,7 +120,10 @@ export function dermalPages(layout, D) {
   for (let i = 0; i < N * NH; i++) { albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = albedo[i * 4 + 3] = 255; hair[i * 4 + 1] = hair[i * 4 + 2] = 128; hair[i * 4 + 3] = 255; }
   const classes = [], classOf = new Map();
   const classIndex = (rel) => { if (!classOf.has(rel.class)) { classOf.set(rel.class, classes.length); classes.push({ ...rel }); } return classOf.get(rel.class); };
-  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairColourOf(D) };
+  // (the FOLD page only where the face has lines: absent, nothing)
+  let fold = null;
+  if (D.lines > 0) { fold = new Uint8Array(N * NH * 4); for (let i = 0; i < N * NH; i++) { fold[i * 4] = fold[i * 4 + 1] = 128; fold[i * 4 + 3] = 255; } }
+  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairMeanOf(D), ...(fold ? { fold } : {}) };
 }
 
 /**
@@ -140,13 +154,28 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
     if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
+    // (under a styled beard, the skin in the hair's colour, as the scalp's under its groom: a gap between
+    // the locks, foreshortened where they point at the eye, reads as beard, never as the shaven shadow's grey)
+    // (as much as the hair covers it: the more the longer and the denser; faded in with the beard's region itself, so it is
+    // nothing where the hair stops and no line marks the style's edge)
+    if (D.beardStyle && beardD > 0.5) {
+      const bl = lerp((s) => (s.hair.tract === 'beard' ? s.hair.length : 0)), bw = lerp((s) => s.regions.beard || 0);
+      const share = 0.85 * smooth(0.5, 8, bl) * Math.min(1, 0.5 + 0.35 * beardD / 55) * smooth(0.3, 0.8, bw);
+      if (share > 0) col = mixc(col, hairLin.map((x) => x * 0.8), share);
+    }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
-    if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
+    // (a fold in the skin's own shadow, warmer and redder than grey: the broad smooth shade first, then the thin core
+    // darker inside it, so the line sits in a gradient and never on bare skin; the roll's lip lifted a touch)
+    const ink = (typeof D.shade === 'number' ? D.shade : D.shade?.amount) > 0 ? 1 : FOLD_INK.lit;
+    if (det?.soft) col = col.map((x, k) => x * (1 - ink * FOLD_INK.soft * det.soft * FOLD_SHADOW[k]));
+    if (det?.crease) col = col.map((x, k) => x * (1 - ink * FOLD_INK.core * det.crease * FOLD_SHADOW[k]));
+    if (det?.lift) col = col.map((x) => x * (1 + ink * FOLD_INK.lift * det.lift));
     if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
     if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
     const o = (r.y + py) * N + r.x + px;
     for (let k = 0; k < 3; k++) albedo[o * 4 + k] = byte(toSrgb(col[k]));
+    if (P.fold && det?.slope) { const e = (g) => Math.round(128 + 127 * Math.max(-1, Math.min(1, g / FOLD_SLOPE))); P.fold[o * 4] = e(det.slope[0]); P.fold[o * 4 + 1] = e(det.slope[1]); P.fold[o * 4 + 2] = byte(det.crease); }
     rough[o] = byte(lerp((s) => s.roughness));
     trans[o] = byte(lerp((s) => s.translucency));
     fuzz[o] = byte(lerp((s) => s.fuzz));
@@ -160,6 +189,14 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
   }
 }
 
+/** the shading's reach (STAND units: ~63 mm, a socket's or a cheek's hollow), its strength, how deep it paints at `shade: 1`,
+ * how far a shade's colour leans it to its hue, and the `deep` curve's knee (the occlusion past which the skin falls toward
+ * a near-black, `near` of its colour: the nostrils, the mouth's line, the sockets' corners, the ear's folds) */
+const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6, knee: 0.9, near: 0.1 });
+/** the deep curve's fall past its knee (0 … 1, smooth) */
+/** a smoothstep from a to b */
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const smoothKnee = (o) => { const t = Math.max(0, Math.min(1, (o - SHADE.knee) / (1 - SHADE.knee))); return t * t * (3 - 2 * t); };
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
 export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
   const { N, NH, albedo, rough, trans, hair, fuzz, detail, classes } = P;
@@ -174,7 +211,25 @@ export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
     for (let i = 0; i < N * NH; i++) { const k = 0.5 + 0.5 * ao[i] ** 1.3, g = D.dirt * Math.min(1, 1.6 * (1 - ao[i])); for (let c = 0; c < 3; c++) { const x = srgbLin(albedo[i * 4 + c] / 255) * k; albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, Math.min(1, x + (DIRT_COLOUR[c] * k - x) * 0.6 * g)))); } }
     ao = Uint8Array.from(ao, (v) => byte(v));
   }
-  return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
+  // the SHADING (the dermis's `shade`, absent nothing): the occlusion at a face's reach, the sockets, the hollow under
+  // the cheekbone, the folds beside the nose and under the lip, darkening the colour as a painted texture carries its
+  // light (an engine that adds its own occlusion wants it absent)
+  // (an art direction's shade: its hue, the shade's colour at its deepest; `steps` hard bands, a cel look)
+  const Sh = typeof D.shade === 'number' ? { amount: D.shade } : D.shade;
+  if (Sh?.amount > 0 && chart.occlusionAt) {
+    const broad = bakeVertex(chart, uvOf, N, NH, chart.occlusionAt(SHADE.radius, SHADE.strength), 1);
+    const hue = Sh.colour ? [1, 3, 5].map((j) => srgbLin(parseInt(Sh.colour.slice(j, j + 2), 16) / 255)) : [1, 1, 1], hl = Math.max(1e-6, 0.2126 * hue[0] + 0.7152 * hue[1] + 0.0722 * hue[2]);
+    // (the multiplier at the deepest: as dark as the grey's, leaning to the hue)
+    const floor = hue.map((v) => Math.min(1, (1 - SHADE.depth) * (1 + SHADE.tint * (v / hl - 1))));
+    for (let i = 0; i < N * NH; i++) {
+      let o = Math.max(0, Math.min(1, 1 - broad[i]));
+      if (Sh.steps) o = Math.min(1, Math.floor(o * Sh.steps * 1.6) / Sh.steps);
+      if (!(o > 0)) continue;
+      const deep = Sh.curve === 'deep' ? Sh.amount * smoothKnee(o) : 0;
+      for (let c = 0; c < 3; c++) { const m = 1 - Sh.amount * o * (1 - floor[c]), nb = SHADE.near * floor[c] / (1 - SHADE.depth); albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * (m + (nb - m) * deep)))); }
+    }
+  }
+  return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, ...(P.fold ? { fold: P.fold } : {}), mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
 }
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -303,6 +358,7 @@ export function dermalPngs(T) {
   return {
     albedo: encodePngRgba(B(T.albedo), N, NH), roughness: encodePngGrey(B(T.roughness), N, NH), translucency: encodePngGrey(B(T.translucency), N, NH),
     hair: encodePngRgba(B(T.hair), N, NH), fuzz: encodePngGrey(B(T.fuzz), N, NH), ...(T.ao ? { ao: encodePngGrey(B(T.ao), N, NH) } : {}),
+    ...(T.fold ? { fold: encodePngRgba(B(T.fold), N, NH) } : {}),
   };
 }
 export { encodePng };

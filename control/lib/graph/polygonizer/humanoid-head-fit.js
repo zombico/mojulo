@@ -84,6 +84,13 @@ const KNOB_MOVES = {
   // the BRIDGE (no face word: the tiered face's `features.bridge`): the nasion and the nose's bridge forward, the
   // glabella and the bridge's sides a share of it, so the nose stands off the eyes with volume at its root
   noseBridge: (k, P) => { const d = (k - 1) * 0.045 * headHeight(P); for (const [n, w] of [['nasion', 1], ['bridge', 0.85], ['noseSide', 0.5], ['glabella', 0.45], ['browInner', 0.2]]) P[n][1] += d * w; },
+  // the OCCIPUT (no face word: the tiered face's `features.occiput`, hero laws 16): the skull behind the ear root deeper by
+  // `k − 1` of the head's height at its back, nothing at the ear root, fading out below the ear to the jaw's angle, so
+  // the back of the skull stands out over the nape and the face is untouched
+  occiput: (k, P) => {
+    const ear = P.earRoot, back = P.back[1], low = P.jawAngle[2], d = (k - 1) * headHeight(P), smooth = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
+    for (const p of Object.values(P)) if (p[1] < ear[1]) p[1] -= d * smooth((ear[1] - p[1]) / (ear[1] - back)) * smooth((p[2] - low) / (ear[2] - low));
+  },
 };
 function deformed(F, knobs, jaw = 0) {
   const half = Object.fromEntries(Object.entries(F.BASE).filter(([k]) => !k.endsWith('L')).map(([k, p]) => [k.replace(/R$/, ''), [...p]]));

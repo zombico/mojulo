@@ -49,9 +49,11 @@ register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href)
 process.chdir(CONTROL);
 const sharp = createRequire(path.join(CONTROL, 'package.json'))('sharp');
 const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+const { withDefaultForm } = await import('@/lib/graph/polygonizer/motion-stamp.js');
 const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
 const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
+const { heroShade } = await import('@/lib/graph/polygonizer/tiered-form.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
 const { outlineMeasures, outlineCritic } = await import('@/lib/graph/polygonizer/dress-outline.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
@@ -171,7 +173,9 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra }) });
+  // (the body a mint gets: the tiered game body unless the spec names a form; a --form slice reads the classic plan)
+  const spec = { cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra };
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(form ? spec : withDefaultForm(spec)) });
   const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
   if (sl) m.recipe = graft ? sl.recipe : relationalHeadRecipe(sl.recipe, { sex: cast === 'female' ? 'female' : 'male' });
   // (the relational head leaves the landmark head's jawOpen dial behind: the dials the recipe still has)
@@ -233,7 +237,8 @@ function posed(H, nodes) {
   const frames = boneFrames(H.R, H.R.joints, nodes);
   // (a sliced recipe's correctives, the pauldron, added to the rest by the pose before the skin poses it)
   const V = skinLayered({ ...H.mesh, vertices: correctiveRest(H.mesh, H.m.recipe, nodes) }, H.skin, frames);
-  const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh });
+  // (shaded as the World shades the hero: its crease, and the tiered landmark head's ellipsoid)
+  const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh, ...heroShade(H.m.hero) });
   if (!H.graft) return { V, normals, faces: H.mesh.faces };
   // the graft rides the head bone rigidly; the hero's own head stays out of the picture
   const G = H.graft, f = frames[G.bone], mv = (m, v) => [0, 1, 2].map((r) => m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2]);
@@ -253,7 +258,10 @@ function frameBox(V, J, which) {
   if (which === 'hand') return box(mid(J.wristR, J.knucklesR, 0.7), [0.12, 0.12, 0.12]);
   if (which === 'foot') return box(mid(J.ankleR, J.toeTipR, 0.45), [0.14, 0.14, 0.14]);
   if (which === 'neck') return box(mid(J.neckHub, J.headBase, 0.4), [0.15, 0.15, 0.15]);
-  if (which === 'head') return box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]);
+  // (a larger head, the chibi's or the child's, framed by its own height over its base: the figure's top, for the head
+  // joints stand a fixed run apart whatever the head's size; an adult's at the 12 cm it always was)
+  if (which === 'head') { let top = -Infinity; for (const v of V) if (v[2] > top) top = v[2]; const h = top - J.headBase[2], hh = Math.max(0.12, 0.62 * h);
+    return h > 0.2 ? box([J.headBase[0], J.headBase[1], J.headBase[2] + 0.35 * h], [hh, hh, hh]) : box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]); }
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const v of V) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); }
   return { min: lo, max: hi };
@@ -308,8 +316,8 @@ function measures(H) {
   };
   const sections = Object.fromEntries(Object.entries(cuts).map(([k, [re, { o, n }]]) => [k, section(H, V, re, o, n)]));
   const partsZ = (re) => V.filter((_, i) => re.test(H.mesh.provenance[i].part)).map((v) => v[2]);
-  const zs = V.map((v) => v[2]), stature = Math.max(...zs) - Math.min(...zs);
-  const head = Math.max(...zs) - Math.min(...partsZ(/^(cranium|jaw|face|head)/));
+  const zs = V.map((v) => v[2]), stature = zs.reduce((a, z) => Math.max(a, z), -Infinity) - zs.reduce((a, z) => Math.min(a, z), Infinity);
+  const head = zs.reduce((a, z) => Math.max(a, z), -Infinity) - partsZ(/^(cranium|jaw|face|head)/).reduce((a, z) => Math.min(a, z), Infinity);
   const band = (re, z0, z1) => { const xs = V.filter((v, i) => re.test(H.mesh.provenance[i].part) && v[2] >= z0 && v[2] <= z1).map((v) => v[0]); return xs.length ? Math.max(...xs) - Math.min(...xs) : 0; };
   const mm = (x) => Math.round(x * 1000);
   return {

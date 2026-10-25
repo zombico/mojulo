@@ -59,3 +59,29 @@ describe('the ear', () => {
     expect((L.exR.y - T.y) * 1800).toBeLessThan(82);
   });
 });
+
+describe('the forehead\'s furrows', () => {
+  it('cuts three shallow grooves across the forehead where its lines run, and nothing without them', () => {
+    const a = relationalHead({ sex: 'male' }), b = relationalHead({ sex: 'male', relations: { furrows: 1 } }), L = a.landmarks, mm = L.H / MM;
+    const front = (h, z) => { const q = rayIn(h.field, { x: 0.004, y: L.g.y - 0.1, z }, [0, 1, 0]); return q ? q.y : NaN; };
+    const cut = Array.from({ length: 30 }, (_, i) => (front(a, L.g.z + (8 + i) * mm) - front(b, L.g.z + (8 + i) * mm)) / mm);
+    expect(Math.max(...cut)).toBeGreaterThan(0.4); expect(Math.max(...cut)).toBeLessThan(1.6);
+    // (three: a groove, the skin between, the next)
+    const grooves = cut.filter((c, i) => c > 0.3 && !(cut[i - 1] > 0.3)).length;
+    expect(grooves).toBe(3);
+    expect(front(b, L.g.z - 4 * mm)).toBe(front(a, L.g.z - 4 * mm));
+  });
+});
+
+describe('the closed mouth\'s seam', () => {
+  it('cuts the lip line to one depth along the lips', () => {
+    const h = relationalHead({ sex: 'male' }), L = h.landmarks, mm = L.H / MM, sto = L.stomion, ch = Math.abs(L.chR.x) / mm;
+    const front = (x, z) => { let y = sto.y + 15 * mm; while (h.field({ x, y, z }) > 0) y -= 0.05 * mm; return y; };
+    const depths = [-0.6, -0.3, 0, 0.3, 0.6].map((u) => {
+      const x = u * ch * mm, ys = Array.from({ length: 41 }, (_, k) => front(x, sto.z + (k - 20) * 0.15 * mm));
+      return (Math.min(Math.max(...ys.slice(0, 8)), Math.max(...ys.slice(33))) - Math.min(...ys.slice(8, 33))) / mm;
+    });
+    expect(Math.min(...depths)).toBeGreaterThan(0.6);
+    expect(Math.max(...depths) - Math.min(...depths)).toBeLessThan(0.7);
+  });
+});

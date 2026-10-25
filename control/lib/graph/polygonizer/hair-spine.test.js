@@ -131,3 +131,20 @@ describe('regions, clumps and curl', () => {
   });
 });
 
+
+describe('a curl\'s keratin twist', () => {
+  const line = Array.from({ length: 81 }, (_, i) => [0, 0, -i * 0.002]), L = 0.16;
+  const base = { radius: 0.004, turns: 6, from: 0.02 };
+  it('absent, the coil as it was; a flip turns the hand back past its place and not before', () => {
+    expect(coilOffsets(line, { ...base, flips: [], taper: 0 }, L).offsets).toEqual(coilOffsets(line, base, L).offsets);
+    const plain = coilOffsets(line, base, L).offsets, flipped = coilOffsets(line, { ...base, flips: [0.5] }, L).offsets;
+    for (let i = 0; i <= 40; i++) expect(flipped[i][0]).toBeCloseTo(plain[i][0], 12);
+    expect(flipped.slice(50).some((p, k) => Math.abs(p[1] - plain[50 + k][1]) > 1e-4)).toBe(true);
+  });
+  it('the taper draws the coil in toward the root, the tip as wide', () => {
+    const { offsets } = coilOffsets(line, { ...base, taper: 0.4 }, L), wide = coilOffsets(line, base, L).offsets;
+    const reach = (os, a, b) => Math.max(...os.slice(a, b).map((o) => Math.hypot(o[0], o[1])));
+    expect(reach(offsets, 10, 30)).toBeLessThan(reach(wide, 10, 30));
+    expect(reach(offsets, 70, 81)).toBeCloseTo(reach(wide, 70, 81), 3);
+  });
+});

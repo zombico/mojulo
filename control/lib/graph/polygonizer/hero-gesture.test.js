@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GESTURE_CLIP, GESTURE_PRESETS, GESTURE_WORDS, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, ANIME_CLIP_SECONDS, heroClipSeconds, heroClipFaces } from './hero-gesture.js';
 import { resolveAnimeExpression } from './anime-head.js';
+import { resolveWesternExpression } from './humanoid-head.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, layeredClip, auditRig } from './station-loft-rig.js';
 import { layeredSeat, layeredFaces } from './station-loft-faces.js';
 import { compileLayered } from './station-loft.js';
@@ -193,8 +194,11 @@ describe('the anime wave', () => {
     expect(JSON.stringify(heroPlan({ cast: 'male' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE_HAND));
     expect(JSON.stringify(heroPlan({ cast: 'male', core: 'streamlined' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE));
     expect(heroPlanOf(heroRecord({ cast: 'female', head: 'anime', core: 'streamlined' })).clips.wave).toEqual(ANIME_WAVE);
-    for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }])
-      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
+    // (a hero under laws 14 waves the form's wave as minted; under laws 15 the form's wave holds its look, hero-form.js)
+    for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }]) {
+      expect(JSON.stringify(heroPlanOf({ ...heroRecord(spec), laws: 14 }).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
+      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(heroPlan({ cast: 'male', laws: 15 }).clips.wave));
+    }
     // the plan gets its own copy: a plan edited downstream never reaches the table
     const p = humanoidPlan({ preset: 'female', head: 'anime', hair: 'none' }); p.clips.wave[1].elbowR = 0; expect(ANIME_WAVE[1].elbowR).toBe(120);
   });
@@ -381,7 +385,7 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
     expect(hr.gesture).toBe('guard'); expect(Object.keys(p.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(p.clips.gesture).toEqual([resolveGesture('guard', 'male', { core: 'structured' })]);
-    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(PINS.landmarkMale[1][1]);   // nothing else moved
+    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(h(heroPlanOf(heroRecord({ cast: 'male' }))));   // nothing else moved
   });
 });
 
@@ -535,6 +539,13 @@ describe('the door clips on the anime head: facial tracks and designed durations
     expect(F.greet).toEqual([null, { blink: 1, smile: 1, open: 0.4, brow: -0.2 }]); expect(F.greet[1]).toEqual(resolveAnimeExpression(['happy', { open: 0.4 }]));
     expect(F.run).toEqual([{ blink: 0.2, smile: 0, open: 0, brow: 0 }, null]);
     expect(F.idle).toEqual([null, null, null, null]); expect(F.gesture).toEqual([null]);
+  });
+  it("the realistic body's relational head takes the landmark head's face words on its clips, resolved as its channels", () => {
+    for (const head of ['relational', undefined]) {
+      const hr = heroRecord({ form: 'realistic', cast: 'female', ...(head ? { head } : {}), clips: { greet: [{}, { face: 'smile', jaw: 8 }] } });
+      expect(heroClipFaces(hr, { greet: [{}, {}] }).greet, head ?? 'default').toEqual([null, resolveWesternExpression('smile')]);
+    }
+    expect(() => heroRecord({ form: 'realistic', cast: 'female', head: 'relational', clips: { greet: [{ face: 'happy' }] } })).toThrow(/clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
   });
   it("the rig gates name a { seconds, keys } clip's key by its path", () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', register: 'lowpoly', core: 'streamlined', clips: { lunge: { seconds: 2, keys: [{}, { pelvis: 25 }] } } }) });

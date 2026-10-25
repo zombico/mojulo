@@ -25,6 +25,9 @@ const DOF_SAMPLES = [
     elbowL: 60, elbowR: 140, kneeL: 30, kneeR: 100,
     neck: { yaw: -15, pitch: 10 }, head: { yaw: 20, pitch: -30 },
   },
+  // the cervical chain (CERVICAL_CAP): a head aim alone shared down the neck; both named, each held to its own range
+  { cervical: true, head: { yaw: 10, pitch: -70 } },
+  { cervical: true, neck: { yaw: -50, pitch: 80, turn: 20 }, head: { yaw: 30, pitch: -40, turn: -30 } },
 ];
 
 const apply = (T, p) => ({

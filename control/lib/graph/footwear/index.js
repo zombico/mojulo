@@ -13,6 +13,8 @@
  *   upper(sock, { id, group })  the body's own close leather over its foot at the sock's height and thickness → parts
  *                               named `<id>_<segment>`
  *   u(kind, share)              the station `u` a share along a segment names on this body
+ *   facets?                     a share (0 … 1) of the reference resolution the outlines, the toe cap and the wraps are
+ *                               drawn at (the game body's half); absent, the reference's
  *   size()?                     the body's foot length (m; footLength reads it off the adapter): the cards are drawn for
  *                               FOOT_REFERENCE's, and worn scaled to this one (`upper` then takes `k`, the scale, for
  *                               its own close-fit distances)

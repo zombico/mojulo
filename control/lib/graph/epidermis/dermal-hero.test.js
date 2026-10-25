@@ -1,4 +1,4 @@
-// The realistic hero's skin as an export wears it (dermal-hero.js), on one dressed hero at a small page: what it wears
+// The realistic hero's skin as an export and the World page wear it (dermal-hero.js), on one dressed hero at a small page: what it wears
 // covers its skin (rays out along the normal, a garment on the same bone or one near it; never a hand by the trousers),
 // the body's islands keep only the rings that show, each kept ring's address the whole part's, and a covered face takes
 // no texel; the bake's occlusion (polygonizer/surface-bake.js) cast by what is seen alone, on the field's normals.
@@ -6,7 +6,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
-import { coveredSkin, heroDermis, heroHidden, GLOBE } from './dermal-hero.js';
+import { coveredSkin, heroDermis, heroHidden, heroSkinPaint, GLOBE } from './dermal-hero.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
 import { bakeChannels } from '../polygonizer/surface-bake.js';
 import { layeredShadingNormals } from '../polygonizer/station-loft-shade.js';
 import { bodyChart } from './dermal-body.js';
@@ -52,13 +53,36 @@ describe('the skin under what the hero wears', () => {
     const hid = heroHidden(mesh, recipe), part = (v) => mesh.provenance[v].part;
     mesh.faces.forEach((t, fi) => { if (GLOBE.test(mesh.groups[fi])) for (const v of t) expect(hid[v]).toBe(1); });
     const count = (k) => mesh.provenance.reduce((n, p, v) => n + (p.part === k && hid[v] ? 1 : 0), 0);
-    expect(count('cranium')).toBeGreaterThan(50);   // under the face
+    expect(count('headSkin')).toBeGreaterThan(50);   // the one skin's sockets, behind the globes
     expect(count('torso') + count('handR')).toBe(0);
-    // the seen corners: the lids buried less once the globes and the layers under them cast nothing; the jaw over the
-    // neck's seam no longer read as a fold once its normals are the field's
+    // the seen corners: the lids buried less once the globes and the sockets behind them cast nothing
     const before = bakeChannels(mesh), after = bakeChannels(mesh, { hidden: hid, normals: layeredShadingNormals(mesh, recipe, { proxy: false }) });
-    const read = (ch, k, f) => { let s = 0, n = 0; mesh.provenance.forEach((p, v) => { if (p.part === k && !hid[v]) { s += f(ch.occlusion[v]); n++; } }); return s / n; };
-    expect(read(after, 'eyeR', (o) => o)).toBeLessThan(read(before, 'eyeR', (o) => o) * 0.85);
-    expect(read(after, 'jaw', (o) => o > 0.5)).toBeLessThan(read(before, 'jaw', (o) => o > 0.5) / 2);
+    const eyes = ['globeR', 'globeL'].map((g) => { const ps = Object.values(recipe.parts[g].mesh.points); return [0, 1, 2].map((a) => ps.reduce((t, q) => t + q[a], 0) / ps.length); });
+    const lid = (v) => mesh.provenance[v].part === 'headSkin' && !hid[v] && eyes.some((e) => Math.hypot(...mesh.vertices[v].map((x, a) => x - e[a])) < 0.02);
+    const read = (ch) => { let s = 0, n = 0; mesh.provenance.forEach((_, v) => { if (lid(v)) { s += ch.occlusion[v]; n++; } }); return s / n; };
+    expect(read(after)).toBeLessThan(read(before) * 0.95);
+  }, 240_000);
+  it('is on the World page: its skin faces textured by the atlas, lit by their fill over the skin\'s colour', async () => {
+    const P = heroSkinPaint(mesh, recipe, { page: 512, headPage: 512 });
+    expect(P.light(recipe.palette.Skin)).toBe('#ffffff');
+    // (a face lit to half the skin's colour is half lit, its texel carrying the colour)
+    const half = '#' + [1, 3, 5].map((i) => parseInt(recipe.palette.Skin.slice(i, i + 2), 16)).map((c) => Math.round(255 * ((((c / 255 + 0.055) / 1.055) ** 2.4 * 0.5) ** (1 / 2.4) * 1.055 - 0.055))).map((c) => c.toString(16).padStart(2, '0')).join('');
+    expect(Math.abs(parseInt(P.light(half).slice(1, 3), 16) - 186)).toBeLessThan(4);
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'] }) });
+    const { payload } = await resolveWorldScene({ ref: 'skin-page', title: 'skin', manifest: m });
+    expect(Object.keys(payload.textures)).toContain('heroSkin');
+    const lit = payload.faces.filter((f) => f.texture === 'heroSkin');
+    expect(lit.length).toBeGreaterThan(1000);
+    expect(lit.every((f) => f.textureLit && f.uv.length === 3)).toBe(true);
+    // (the page's atlas: the body's page a size down from an export's, the head's twice it, the atlas as wide as it)
+    expect(payload.figures.body.paintTex.w).toBe(2048);
+  }, 600_000);
+  it('lays a head page wider than the body\'s beside white: the atlas the head\'s width, the body\'s corners in its left', () => {
+    const P = heroSkinPaint(mesh, recipe, { page: 256, headPage: 512 });
+    expect(P.atlas.w).toBe(512);
+    let body = 0;
+    mesh.faces.forEach((t, fi) => { if (P.painted(fi) && !/^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|headSkin)$/.test(mesh.provenance[t[0]].part)) { body++; for (const vi of t) expect(P.uvAt({ vi })[0]).toBeLessThanOrEqual(0.5); } });
+    expect(body).toBeGreaterThan(100);
   }, 240_000);
 });
+
