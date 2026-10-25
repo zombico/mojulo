@@ -325,6 +325,8 @@ export function storyReport(world, { ref = 'gw' } = {}) {
  * a sneak's guards on every stage's beats (quick.js guardPosts, one figure for them all at `<ref>-guard`); a level with
  * none passes nothing, so it lays as it always did (reach its exit). */
 const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
+// the cameras that watch a hero (levels.js levelOrder refuses them without one)
+const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
 function goalArgs(G, s, lastOf, ref) {
@@ -358,13 +360,16 @@ function worldSteps(world, G, ref) {
   const ground = ['world', 'nature', 'civilizations', 'key'];
   const steps = [], stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
+  // a camera that watches a hero waits for one (the form's hero, resonance.js): before its people the world is walked
+  // first person, its camera kept for the run that has its hero
+  const W = HERO_CAMERAS.includes(G.camera) ? (({ camera: _c, ...g }) => g)(G) : G;
   // a level goal's boss and guards (levels.<id>.goal.boss, .guards): their figures made first, on the world's own parts
   if (bossed(G)) steps.push(bossStep(G, ref, settled(ground)));
   if (guarded(G)) steps.push(guardStep(G, ref, settled(ground)));
   const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...goalArgs(G, s, lastOf, ref), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...goalArgs(G, s, lastOf, ref), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {

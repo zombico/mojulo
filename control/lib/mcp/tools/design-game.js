@@ -32,7 +32,7 @@ import {
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
-import { compilerGaps } from '@/lib/graph/gameworld/resonance.js';
+import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
@@ -221,7 +221,7 @@ async function runWorld(ref, world, { force = false } = {}) {
   for (const step of rest) await act(step);
   // the compiler's own check (gameworld/resonance.js): what the cube's combined values open that these steps did not
   // lay, or laid and does not hold; reported with the run, never refused
-  const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order));
+  const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order), W);
   return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(gaps.length ? { resonance: gaps } : {}) };
 }
 
@@ -280,6 +280,10 @@ function readout(ref, world, context = {}) {
   // the advice: measured, never a verdict on the design
   // what game it is (gameworld/intent.js): the cube the world is, and what that asks of the world
   const intent = intentReport(world);
+  // the form (resonance.js): what the world's cube asks that the world does not hold yet, and who fills it (the hero is
+  // the creator's), said before the run so the run can lay it
+  const form = formGaps(world, cubeOfWorld(world).cube);
+  if (form.length) next.push({ step: 'form', asks: form.map((f) => ({ for: f.row, field: f.field, by: f.by, says: f.says })), card: 'gameworld-next' });
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
   // a quick game's goal changed since its genre was written: keep the written one or change it, the creator's call
   if (intent.drift) next.push({ step: 'intent', drift: intent.drift, card: 'gameworld-intent' });

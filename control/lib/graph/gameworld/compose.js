@@ -34,7 +34,8 @@ import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
-import { suggestGenres } from './intent.js';
+import { suggestGenres, cubeOfWorld } from './intent.js';
+import { composerFills } from './resonance.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -225,7 +226,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the words point at
   const [lead, next] = suggestGenres(prompt, 2), leadWords = new Set((lead?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   const genre = lead && leadWords.size >= 2 && !(next && next.matched.length === lead.matched.length) ? lead : null;
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
+  // the form (resonance.js): what the genre's cube asks of the world that the composer can fill, written before the
+  // levels are laid (a co-op platformer's side camera, its walks laid without climbs); the hero it asks is the creator's
+  const fills = genre ? composerFills(cubeOfWorld({ intent: { from: genre.id } }).cube) : {};
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(fills.camera ? { camera: fills.camera } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
   // the words that named the genre are read: they decide the intent
   for (const w of genre?.matched ?? []) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
@@ -241,7 +245,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0;
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false;
     // the level's goal: what is collected and the health on every level, the boss at the end of the last
     const lg = goals ? (({ boss, ...g }) => ({ ...g, ...(boss && last ? { boss } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
@@ -264,6 +268,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
   if (goals) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  // what the composer filled of the genre's form: said only when it filled something
+  if (Object.keys(fills).length) world.brief.form = fills;
   if (indoors) {
     world.brief.indoors = { use: indoors.use, kit: indoors.kit, levels: Object.keys(world.levels).slice(indoors.from) };
     // the word that named the use is read (as a cube's word is): it decides the building's use

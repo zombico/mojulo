@@ -40,6 +40,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   figure stands for them all, rolled in the game's setting at `<ref>-guard`. The composer reads guard, sentry, stealth
   and sneak words into it, so a composed stealth game lays its watchers, and the gate's ledger loses that gap. A level
   without it lays as before.
+- **The form, before the run.** A row now names what a world must hold before a run can lay it (`form`): each field
+  filled by the composer, which can fill it from the cube, or by the creator (the hero, chosen, never defaulted).
+  `formGaps(world, cube)` says which fields are empty and who fills them; the design readout puts them first as its
+  `form` step (`asks`), and a run's `resonance` gap names the empty fields that left it unlaid. The co-op screen is the
+  first: words that name a couch co-op platformer now write the side camera and lay walks a side camera runs (no
+  climb), and the readout asks for the hero; until there is one the world is walked first person, its camera kept for
+  the run that has its hero. With a book, the composed co-op platformer seats every player on the shared side camera,
+  and the gate's last known gap is gone. The gate's co-op case runs the loop as a creator does: compose, the book the
+  readout asks for, the run.
 
 ### Written intent: compose and quick write the game they are
 

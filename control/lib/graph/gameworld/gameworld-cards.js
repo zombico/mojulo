@@ -575,6 +575,8 @@ function nextCard() {
     '  target     the intent names an engine (intent.target) and `lost` are values it does not carry: advice, not a',
     '             refusal (gameworld-intent). Change one or keep it; the export says the same.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
+    '  form       what the game it is asks and the world lacks (`asks`: for, field, by, says): a field `by: creator` is',
+    '             theirs (the hero: ask who it is, never pick one), a `by: composer` field compose fills; run lays it after.',
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
   '             write it (feel: …) or leave the hero its own rule. Written, `lost` are card fields the runtime does not',
   '             carry yet: advice (gameworld-feel). Keep it, pick a template closer to what the runtime plays, or wait.',

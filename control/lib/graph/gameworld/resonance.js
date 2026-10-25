@@ -17,12 +17,22 @@
  *   resonanceCheck(cube, orders) → [{ id, name, laid, held, says }] for each opened row: `orders` the design run's
  *                              step orders (a level's is { title, manifest }), `held` null when the row has no law or
  *                              nothing was laid, `says` the law's advice (null when it holds)
- *   compilerGaps(cube, orders) → the opened rows the run did not lay ({ id, laid: false }) or laid and did not hold
- *                              ({ id, says }): the compiler's own defects, reported with a design run, never refused
+ *   compilerGaps(cube, orders, world?) → the opened rows the run did not lay ({ id, laid: false, form?: [field] }, the
+ *                              form's empty fields when the world is passed) or laid and did not hold ({ id, says }):
+ *                              the compiler's own defects, reported with a design run, never refused
  *   latentOf(cube)             → [{ id, name, missing: [key] }]: the VOICED rows the cube is one move from (it holds
  *                              some of the row's keys and every key it lacks sits in one facet), the one field the
  *                              agent reads (intentReport `latent`): a next move it would not find facet by facet
- * Pure; reads the cube and the orders, never a store.
+ *
+ * THE FORM: what a WORLD must hold before its run can lay a row, checked before the run rather than read off its levels
+ * after. Each field is filled by the composer (it can, from the cube: `fill(cube)` → what it writes or how it lays) or
+ * by the creator (the composer never chooses it: the hero is chosen, never defaulted). A form left empty says which
+ * field and who fills it; the check after the run stays, for a form filled and a row still not laid.
+ *   formGaps(world, cube)      → [{ row, field, by: 'composer' | 'creator', says }]: the empty fields of the rows
+ *                              its cube opens (cubeOfWorld(world).cube)
+ *   composerFills(cube)        → { camera?, climb? }: what the composer writes for the rows the cube opens (`camera`
+ *                              the world's, `climb: false` its walks laid without climbs)
+ * Pure; reads the cube, the world and the orders, never a store.
  */
 
 const has = (cube, key) => {
@@ -36,6 +46,10 @@ const valuesOf = (cube, path) => { const [facet, setting] = path.split('.'), v =
 // the level orders of a run: those whose manifest is a playable level (it carries a game channel)
 const levelsOf = (orders) => (orders ?? []).map((o) => o?.manifest).filter((m) => m && m.game);
 const SEATS = { two: 2, four: 4 };
+// the camera a world plays through, its own or its quick game's
+const cameraOf = (w) => w?.camera ?? w?.quick?.camera;
+// a world a side camera can run: every walk node a trail (a climb has no lane), no building levels (a quick game lays its own)
+const sideRunnable = (w) => !!w?.quick || Object.values(w?.levels ?? {}).every((L) => !L.building && Object.values(L.walk?.nodes ?? {}).every((n) => n.trail));
 
 export const RESONANCES = Object.freeze([
   {
@@ -60,6 +74,12 @@ export const RESONANCES = Object.freeze([
       return null;
     },
     voiced: ['couch co-op', 'co-op platformer', 'play together on one screen'],
+    form: [
+      // (seatPart seats a body per player beside the hero: no hero, no seats; a book's hero, an adopted one, a quick hero)
+      { id: 'hero', by: 'creator', says: 'a hero for the players to play: write the character book (characters), or adopt one made with create_character (characters.hero.ref)', filled: (w) => !!(w.characters || (w.quick?.hero && w.quick.hero !== false)) },
+      { id: 'camera', by: 'composer', says: 'the shared camera the cube asks: camera side or top-down', filled: (w) => ['side', 'top-down'].includes(cameraOf(w)), fill: (cube) => ({ camera: valuesOf(cube, 'space.camera')[0] }) },
+      { id: 'levels', by: 'composer', says: 'levels the camera runs: a side camera runs trails, no climb and no building', filled: (w) => cameraOf(w) !== 'side' || sideRunnable(w), fill: (cube) => (valuesOf(cube, 'space.camera')[0] === 'side' ? { climb: false } : {}) },
+    ],
   },
   {
     id: 'watched-sneak', name: 'A sneak past watchers',
@@ -112,8 +132,26 @@ export function resonanceCheck(cube, orders) {
   });
 }
 
-export function compilerGaps(cube, orders) {
-  return resonanceCheck(cube, orders).filter((r) => !r.laid || r.held === false).map((r) => (r.laid ? { id: r.id, says: r.says } : { id: r.id, laid: false }));
+export function compilerGaps(cube, orders, world = null) {
+  const empty = world ? formGaps(world, cube) : [];
+  return resonanceCheck(cube, orders).filter((r) => !r.laid || r.held === false).map((r) => {
+    if (r.laid) return { id: r.id, says: r.says };
+    // (what of its form the world left empty: why it was not laid, when the form says)
+    const form = empty.filter((f) => f.row === r.id).map((f) => f.field);
+    return { id: r.id, laid: false, ...(form.length ? { form } : {}) };
+  });
+}
+
+export function formGaps(world, cube) {
+  const out = [];
+  for (const r of resonancesOf(cube)) for (const f of r.form ?? []) if (!f.filled(world)) out.push({ row: r.id, field: f.id, by: f.by, says: f.says });
+  return out;
+}
+
+export function composerFills(cube) {
+  const out = {};
+  for (const r of resonancesOf(cube)) for (const f of r.form ?? []) if (f.by === 'composer' && f.fill) Object.assign(out, f.fill(cube));
+  return out;
 }
 
 export function latentOf(cube) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { RESONANCES, resonancesOf, resonanceCheck, latentOf } from './resonance.js';
+import { RESONANCES, resonancesOf, resonanceCheck, latentOf, formGaps, composerFills, compilerGaps } from './resonance.js';
+import { composeGameworld } from './compose.js';
 import { quickWorld } from './quick.js';
 import { runSteps } from './index.js';
 import { cubeOfWorld } from './intent.js';
@@ -98,4 +99,37 @@ describe('what a cube is one move from', () => {
     expect(latentOf({ soul: { seats: 'two', frame: 'follow-all' }, space: { camera: 'side' } })).toEqual([]);
     expect(latentOf({ soul: { seats: 'two' } })).toEqual([]);   // the frame (soul) and the camera (space): two moves
   });
+});
+
+// THE FORM: what a world must hold before its run can lay a row; the composer fills its fields, the creator theirs.
+describe('the form a row asks of the world', () => {
+  const cube = { soul: { seats: 'two', frame: 'follow-all' }, space: { camera: 'side' } };
+  const walk = (nodes) => ({ walk: { nodes } });
+
+  it('each empty field says who fills it; a world that holds them all leaves none', () => {
+    expect(formGaps({ levels: { a: walk({ x: { trail: true }, y: { meru: true } }) } }, cube).map((f) => [f.field, f.by])).toEqual([['hero', 'creator'], ['camera', 'composer']]);
+    // (the camera written, a climb left in: the levels field is empty until the walks are trails)
+    expect(formGaps({ camera: 'side', characters: {}, levels: { a: walk({ x: { trail: true }, y: { meru: true } }) } }, cube).map((f) => f.field)).toEqual(['levels']);
+    expect(formGaps({ camera: 'side', characters: {}, levels: { a: walk({ x: { trail: true } }) } }, cube)).toEqual([]);
+    expect(formGaps({}, {})).toEqual([]);   // nothing opened, nothing asked
+  });
+
+  it('the composer fills the camera the cube asks and lays a side camera\'s walks without climbs; top-down keeps them', () => {
+    expect(composerFills(cube)).toEqual({ camera: 'side', climb: false });
+    expect(composerFills({ ...cube, space: { camera: 'top-down' } })).toEqual({ camera: 'top-down' });
+    expect(composerFills({})).toEqual({});
+  });
+
+  it('a gap the run reports names the empty fields that left it unlaid', () => {
+    expect(compilerGaps(cube, [], { levels: {} })).toEqual([{ id: 'co-op-screen', laid: false, form: ['hero', 'camera'] }]);
+    expect(compilerGaps(cube, [])).toEqual([{ id: 'co-op-screen', laid: false }]);
+  });
+
+  it('a composed co-op world before its hero is walked first person, its side camera kept for the run that has one', () => {
+    const w = composeGameworld({ prompt: 'a couch co-op platformer to play with my brother', seed: 1, levels: 1 });
+    expect(w.camera).toBe('side');
+    const lv = orders(w).map((o) => o?.manifest).filter((m) => m?.game);
+    expect(lv.length).toBeGreaterThan(0);
+    expect(lv.every((m) => m.camera?.rule !== 'side' && !m.seats)).toBe(true);
+  }, 300_000);
 });
