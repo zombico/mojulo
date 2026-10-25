@@ -14,6 +14,56 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Battle city: sports as a contest over the movement stack
+
+A sports game is two things: what is happening at the ball, and what the game state is. The first is the movement
+stack the action games already play (the platform rule, the feel cards, the hero library's clips) with a free body; the
+second is rules, deterministic as a board game's. A CONTEST is the rules layer: who may stand where, who has the ball,
+the clock and its stoppages, the score, the fouls and the restart each one triggers. The agent composes the contest
+recipe; a World page channel draws the kernel's state as the scoreboard, the lit zones and the referee's calls; the
+kernel calls every point, never the agent. Two shapes of contest, one kernel: a MEET (lanes, a start, a measure,
+attempts: the athletic events) and a MATCH (sides, a ball, possession, zones whose legality depends on the state). The
+register ladder from a simulation to an arcade game (a tennis to a cartoon tennis) is the feel card's axis on the body
+and a ball card's on the ball. Planned, in order:
+
+- **The registry sees sport**, planned: probes for a meet, a net game, a turn sport and a team goal game in the cosmos
+  fixtures, and the facet values they ask for (the `meet` and `contest` mechanics, a `team` party, a `court` level
+  form, a `position` motivation), priced as one package, so the hill-climb page records the gap and the move.
+- **The contest kernel**, planned: one self-contained closure, pure and seeded, a contest as data (sides, players,
+  roles with home regions, a court of named regions mirrored for the other side, a clock, the scoring and its win, the
+  possession rule, the fouls and the restarts; for a meet, the event, its lanes, attempts, measure and faults). It
+  reads facts the movement layer saw (a touch, a bounce in a region, a ball out, a body in a region, a false start)
+  and answers what is legal now, the phase, the clock, the score and the last call. Fixtures in the data alone, one
+  per procedure (tennis's scoring sequence and its let and fault, volleyball's touches and rotation, a sprint's gun
+  and false start, a long jump's attempts and foul line); a published game asked for by name is written out from the
+  rules the person explains, as the tabletop kernel's rule already says.
+- **The ball and the hit**, planned: the ball is the physics property's sphere (mass, restitution, friction, spin, its
+  contacts emitted as facts), already live on the World page; a ball card per register names its bounce, its drag and
+  whether it flies in real air (the realistic card adds the spin-aware flight model's drag crisis and Magnus lift as a
+  force rule on the live ball; the action card grows the rally hit by hit; pinball gives back more than it got). The
+  hit joins the swing system's strike frame to the ball: an impulse whose direction is the stick and the verb's arc,
+  whose speed is the register's power over the body's real tip speed, whose spin is the verb's. New verbs through the
+  swing system (a forehand, a backhand, a serve, a bump, a set, a spike, a bat, a putt), a kick as a leg clip from the
+  vault's solve, a throw and a catch over the reaching arm; what an arc cannot show is said, never faked.
+- **The meet**, planned: a quick game's `meet` goal (a sprint, hurdles, the long jump, a throw; lanes; up to four local
+  players, each a pad), a pure step over every pad in versus's shape, each lane's body on the register's feel card, the
+  gun and the false start the kernel's, the hurdle the library's solved vault, the throw a launched body measured where
+  it rests; button-mash at the arcade end, stride-timed at the realistic end, one dial. Drawn in an arena with stands
+  under a broadcast camera, the scoreboard the kernel's.
+- **The net game**, planned: a quick game's `contest` goal (tennis, volleyball, pong), one or two local players, the
+  sides each held to their half by the kernel's legality, the ball on the register's card, the serve a restart the
+  kernel owns, the bounce and the out as facts, the point, game and set the kernel's; a CPU opponent that moves to the
+  ball's predicted bounce and swings on the strike frame at the mind's tiers; no split screen.
+- **Turn sports and the positional mind**, planned: golf and bowling as one shot a turn, hot-seat; the CPU's role
+  (a home region, a mark, a press) within the kernel's legal regions, the seed of a team's players.
+- **The team goal game**, planned last: a second local pilot in the controllable runtime (the single-pilot world byte
+  for byte), soccer and hockey with possession, offside as legality conditional on the pass, fouls from contact facts,
+  teammates by role over the board's continuous positions.
+- No new listed tool: `create_game`'s quick goals own the intent (a routing row per shape, the game vocab card). Web
+  first, as versus; the engines' marks say `absent` until a conformance scenario carries a contest. Out of scope: split
+  screen, online play, a season or career (a campaign door by composition later), non-sphere implements' aerodynamics,
+  any adjudication by the agent.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:
