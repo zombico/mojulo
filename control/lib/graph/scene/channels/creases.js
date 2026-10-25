@@ -270,10 +270,11 @@ scene.add(__aoQuad);
 const __crFw = new THREE.Vector3(), __crRi = new THREE.Vector3(), __crUp = new THREE.Vector3(), __crSz = new THREE.Vector2(), __crCc = new THREE.Color();${cfg ? `
 const __mojCreases = window.__mojCreases = { on: true, set(on) { this.on = !!on; }, tint(hex) { const c = new THREE.Color(hex); __crCU.uInk.value.set(c.r, c.g, c.b); } };` : ''}
 const __mojOcclusion = window.__mojOcclusion = { on: true, set(on) { this.on = !!on; } };
-const __mojLight = window.__mojLight = Object.assign(window.__mojLight || {}, { prepassCalls: 0, prepasses: 0, aoPasses: 0 });
+// (its own name for the shared probe: the live light's script declares __mojLight on the same page)
+const __crLight = window.__mojLight = Object.assign(window.__mojLight || {}, { prepassCalls: 0, prepasses: 0, aoPasses: 0 });
 // the prepass, before every frame's render: solids drawn with the override materials into both targets at once
 const __creasePrepass = () => {
-  __mojLight.prepassCalls++;
+  __crLight.prepassCalls++;
   const __persp = !!camera.isPerspectiveCamera;${cfg ? `
   __crQuad.visible = __mojCreases.on && __persp;` : ''}
   __aoQuad.visible = __mojOcclusion.on && __persp;
@@ -293,7 +294,7 @@ const __creasePrepass = () => {
   // (the shadow maps are the frame's, not the prepass's: three skips them here)
   const __bg = scene.background, __ca = renderer.getClearAlpha(), __sm = renderer.shadowMap.autoUpdate; renderer.getClearColor(__crCc);
   scene.background = null; renderer.setClearColor(0x000000, 0); renderer.shadowMap.autoUpdate = false;
-  renderer.setRenderTarget(__crRT); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null); __mojLight.prepasses++;
+  renderer.setRenderTarget(__crRT); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null); __crLight.prepasses++;
   renderer.setClearColor(__crCc, __ca); scene.background = __bg; renderer.shadowMap.autoUpdate = __sm;
   for (const [o, m] of __sw) { if (m) o.material = m; else o.visible = true; }
   const __fg = scene.fog, __fv = [__fg && __fg.isFogExp2 ? 1 : __fg && __fg.isFog ? 2 : 0, __fg ? (__fg.isFogExp2 ? __fg.density : __fg.near) : 0, __fg && __fg.isFog ? __fg.far : 0];${cfg ? `
@@ -310,7 +311,7 @@ const __creasePrepass = () => {
   if (__aoQuad.visible) {
     __aoU.uRes.value.set(__w, __h); __aoU.uFov.value = camera.fov * Math.PI / 180; __aoCU.uHalf.value.set(__aoRT.width, __aoRT.height); __aoCU.uFog.value.set(__fv[0], __fv[1], __fv[2]);
     // the occlusion pass: half the resolution, into its own target, read back (blurred on the surface) by its composite
-    renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(__aoRT); renderer.clear(); renderer.render(__aoScene, camera); renderer.setRenderTarget(null); __mojLight.aoPasses++;
+    renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(__aoRT); renderer.clear(); renderer.render(__aoScene, camera); renderer.setRenderTarget(null); __crLight.aoPasses++;
     renderer.setClearColor(__crCc, __ca);
   }
 };

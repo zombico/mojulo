@@ -117,6 +117,9 @@ for none of them emits the same bytes as before.
   that is not perspective hides it. `__mojOcclusion.set(on)` turns it off and on. The unshaded export drops it. A
   world with creases and no occlusion keeps the creases' block as it was.
 - The Godot and Roblox legs mark `occlusion` absent. Neither draws it yet.
+- A world with live shadows and occlusion together no longer dies on load: the live light's script and the occlusion
+  block both declared `__mojLight` on one page (a SyntaxError). The occlusion block binds the shared probe under its own
+  name; the two occlusion pins moved, nothing else.
 
 ### Written intent: compose and quick write the game they are
 

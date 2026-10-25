@@ -203,6 +203,18 @@ describe('occlusion: the World page', () => {
     expect(emitThreeWorld({ faces, creases: true, occlusion: false })).toBe(emitThreeWorld({ faces, creases: true }));
     expect(emitThreeWorld({ faces, creases: true })).not.toContain('__mojOcclusion');
   });
+  // (found 1025 in a live page: the live light's script and the occlusion block both declared `__mojLight`, so a world
+  // with both died on load with a SyntaxError; each now binds the shared probe under its own name)
+  it('beside the live light, every name the page declares is declared once, and both count on the one probe', () => {
+    for (const extra of [{}, { creases: true }]) {
+      const page = emitThreeWorld({ faces, shadows: { actors: true, hour: true }, occlusion: true, ...extra });
+      expect(page).toContain('__mojHourPass');
+      const names = [...page.matchAll(/^(?:const|let) (__[A-Za-z]\w*) =/gm)].map((m) => m[1]);
+      expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
+      expect(page.split('window.__mojLight = Object.assign(window.__mojLight || {}').length - 1).toBe(2);
+    }
+  });
+
   it('alone or with the creases: one prepass into two targets, its pass and composite, before every render', () => {
     for (const extra of [{}, { creases: true }]) {
       const page = emitThreeWorld({ faces, occlusion: true, ...extra });

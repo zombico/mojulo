@@ -245,6 +245,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 
 // Pinned 2026-10-25 (live light, phase 3: occlusion on the shared prepass): two new rows (`occlusion`,
 // `occlusion-creases`) and no existing hash moved. Without `occlusion` the creases' block is the one it was.
+// Re-pinned 2026-10-25 (live light, the probe binding): `occlusion` and `occlusion-creases` only. The occlusion block
+// binds the shared __mojLight probe as __crLight, since the live light's script declares __mojLight on the same page.
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
