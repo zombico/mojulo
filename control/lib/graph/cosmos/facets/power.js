@@ -18,11 +18,22 @@ export const POWER = Object.freeze({
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', marks: 'mechanicMarks' },
       // a mechanic's mark is found by lowering it (engine-portability.js mechanicMarks): unseen waits on `seen`, on-beat
       // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep their bests in kernel/game.gd
+      // priced 10-25 (the comic hero pack): a blow that moves its target, a body or a prop lifted and hurled, street props
+      // that break; none exists, so none is marked for an engine
+      planned: {
+        knockback: { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.combat=melee'], note: 'a landed blow carries its target back along the blow, by the attack\'s weight; a wall stops it with a burst' },
+        throw: { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.mechanics=knockback'], note: 'lift a body or a prop and hurl it; what it lands on takes the hit' },
+        destructible: { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-street', note: 'a street prop (a crate, a hydrant, a lamp, a car) breaks under a blow or a thrown body into a few pieces and a puff' },
+      },
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', marks: 'kitMarks' } },
     rules: {
       multi: true,
       source: { module: 'lib/graph/worlds/controllable/compose.js', read: 'engineRules', marks: 'ruleMarks' },
+      // priced 10-25 (the comic hero pack): the hero's leap, a platform rule with a long rise and a landing that cracks the ground
+      planned: {
+        'super-jump': { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.rules=platform'], note: 'a charged leap several storeys high with a hang at its top and a landing puff that staggers what stands near' },
+      },
     },
     combat: {
       multi: true,

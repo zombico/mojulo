@@ -21,6 +21,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the realistic hero, and resonance laws that advise a look from the gameplay. The comic hero pack is the first. Six
   probe cubes dry-run against the registry today: four makeable, two with gaps the core already names
   (`space.topology=open`, `soul.contest=versus`); the comic look itself is the first gap, with no value to probe yet.
+- The pack's gaps are priced so the sweep ranks them: `planned` rows on the facets, each in its work package
+  (`cosmos/packages.js`). The look: `reality.look=comic-day` and `comic-night` (`comic-look`: a sixth-gen look on the
+  geocube's `cel` register with an ink outline and a bold palette). The blows: `power.mechanics=knockback`, `throw`
+  and `power.rules=super-jump` (`comic-blows`), `power.mechanics=destructible` (`comic-street`). The dress:
+  `soul.equipment=cape` (`cape`, a garment that trails, not a held item). The shot: `time.shots=panel`
+  (`comic-panel`, a beat held as a still with a border and a caption). Every one is absent today and says so; a cube
+  that names one dry-runs `blocked` naming it. The hillclimb page is regenerated.
 
 ### Written intent: compose and quick write the game they are
 

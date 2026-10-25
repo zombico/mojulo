@@ -32,7 +32,16 @@ export const REALITY = Object.freeze({
     // the cast in the same era (era/cast-density.js): built where its body is, partial while conventions are planned
     cast: { values: Object.fromEntries(ERA_IDS.map((id) => [id, castStatus(id)])) },
     // a look's bake and palette ride the GLB; its sky and haze travel approximated, its tone whole (godot-marks.js PAGE_MARKS)
-    look: { source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' }, roblox: { all: 'approximated' } } },
+    look: {
+      source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' }, roblox: { all: 'approximated' } },
+      // priced 10-25 (the comic hero pack): the comic page as a look. The parts exist and no look names them: the geocube's
+      // `cel` register (colour-register.js: three bands, an outline, inked creases), effect-style's ink and echoes, the
+      // color theorist's palette; a look row that composes them is the gap, by day and by night
+      planned: {
+        'comic-day': { status: 'absent', godot: 'absent', roblox: 'absent', effort: 'M', pkg: 'comic-look', note: 'a sixth-gen look on the cel register: an ink outline, three bands, a bold two-ramp palette, a flat noon sky; the halftone is not promised' },
+        'comic-night': { status: 'absent', godot: 'absent', roblox: 'absent', effort: 'S', pkg: 'comic-look', requires: ['reality.look=comic-day'], note: 'the comic look by night: the same ink and bands, a city-night palette, rim light on the cast' },
+      },
+    },
     kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', godot: { all: 'built' }, roblox: { all: 'approximated' } } },
     medium: {
       values: {
