@@ -34,6 +34,8 @@ const Js := preload("res://kernel/js.gd")
 const GameChannel := preload("res://kernel/game_channel.gd")
 const Beat := preload("res://kernel/beat.gd")
 const SfxScript := preload("res://kernel/sfx.gd")
+const JuiceScript := preload("res://kernel/juice.gd")
+const WetRoadShader := preload("res://kernel/wet_road.gdshader")
 const HAZARD_COOLDOWN := 0.8
 
 var score: Dictionary = {}
@@ -195,6 +197,7 @@ func _ready() -> void:
 	_build_address()
 	_build_crystal_light()
 	_build_cards()
+	_build_wet_road()
 	_build_cameras()
 	_spawn_walker()
 	_build_rigs()
@@ -1041,6 +1044,7 @@ func _spawn_walker() -> void:
 				walker.body_rot0 = walker.body.global_transform.basis
 				walker.body_heading0 = float(pilot.get("heading", 0.0))
 	_build_drivers()
+	_build_vehicles()
 
 
 # THE CARDS (since 0.31.0): what the page draws as additive camera-facing sprites. A world's game sfx (score.spriteSfx:
@@ -1286,6 +1290,104 @@ func step_drivers(delta: float) -> void:
 			var p: Array = d["ent"]["pos"]
 			node.global_position = Vector3(float(p[0]), float(p[2]), -float(p[1])) * float(d["mpu"])
 			node.global_transform.basis = Basis(Vector3.UP, float(d["ent"]["heading"]) - float(d["h0"])) * d["rot0"]
+
+
+# THE LIVE VEHICLES (score.vehicles, since 0.31.0): a racer's rig, the pilot's or a rival's, posed each frame by
+# kernel/vehicle.gd off its rule's state (the drive clip at the wheel's phase, the live overlay), its juice drawn by
+# kernel/juice.gd (one node a body: flames, smoke, sparks, the landing ring, the lamps' tints and halos, the big effects,
+# a dark mood's beams and trails), after the world steps, as the page's frame poses its rigs after its world.
+var vehicles: Array = []
+func _build_vehicles() -> void:
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	var pilot = score.get("pilot")
+	var pilot_id := s_(pilot.get("id")) if pilot is Dictionary else ""
+	for row in score.get("vehicles", []):
+		if not (row is Dictionary and row.get("bones") is Array):
+			continue
+		var id := s_(row.get("id"))
+		var node := _entity_node(id)
+		if node == null:
+			continue
+		var ent_fn := Callable()
+		var rule := {}
+		if id == pilot_id and walker != null and walker.rule != null:
+			ent_fn = func(): return walker.ent
+			rule = walker.rule
+		else:
+			for d in drivers:
+				if d["id"] == id:
+					var dd: Dictionary = d
+					ent_fn = func(): return dd["ent"]
+					rule = d["rule"]
+					break
+		if not ent_fn.is_valid():
+			continue
+		var j: Node3D = JuiceScript.new()
+		j.name = "Juice_" + gd_name(id)
+		add_child(j)
+		j.setup(row, node, rule, ent_fn, mpu, id == pilot_id)
+		vehicles.append(j)
+	if not vehicles.is_empty():
+		print("moj: vehicles %d (live, juice)" % vehicles.size())
+
+
+func _step_vehicles(delta: float) -> void:
+	for j in vehicles:
+		j.step(delta)
+
+
+# A WET ROAD (score.wetRoad, since 0.31.0): the film over a rain race's road (kernel/wet_road.gdshader), its quads a hair
+# over the road, the lamps nearest the eye handed to it each frame as the page's does
+var wet_road: MeshInstance3D = null
+var wet_lamps: Array = []
+func _build_wet_road() -> void:
+	var W = score.get("wetRoad")
+	if not (W is Dictionary and W.get("quads") is Array and not (W["quads"] as Array).is_empty()):
+		return
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for q in W["quads"]:
+		for k in [0, 1, 2, 0, 2, 3]:
+			var c: Array = q[k]
+			st.add_vertex(to_yup([c[0], c[1], float(c[2]) + 0.02]) * mpu)
+	var sm := ShaderMaterial.new()
+	sm.shader = WetRoadShader
+	var lin := func(c: Array) -> Vector3: return Vector3(pow(float(c[0]) / 255.0, 2.2), pow(float(c[1]) / 255.0, 2.2), pow(float(c[2]) / 255.0, 2.2))
+	sm.set_shader_parameter("mpu", mpu)
+	sm.set_shader_parameter("zen", lin.call(W["zenith"]))
+	sm.set_shader_parameter("hor", lin.call(W["horizon"]))
+	for l in W.get("lamps", []):
+		wet_lamps.append({"at": l["at"], "c": lin.call(l["rgb"]), "k": float(l["intensity"])})
+	wet_road = MeshInstance3D.new()
+	wet_road.name = "WetRoad"
+	wet_road.mesh = st.commit()
+	wet_road.material_override = sm
+	wet_road.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(wet_road)
+	print("moj: wet road %d quads, %d lamps" % [(W["quads"] as Array).size(), wet_lamps.size()])
+
+
+func _step_wet_road() -> void:
+	if wet_road == null:
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	var c := cam.global_position / mpu
+	var near := wet_lamps.duplicate()
+	near.sort_custom(func(a, b): return pow(float(a["at"][0]) - c.x, 2) + pow(float(a["at"][1]) + c.z, 2) < pow(float(b["at"][0]) - c.x, 2) + pow(float(b["at"][1]) + c.z, 2))
+	var L := []
+	var C := []
+	for i in 24:
+		var l = near[i] if i < near.size() else null
+		L.append(Vector4(float(l["at"][0]), float(l["at"][1]), float(l["at"][2]), float(l["k"])) if l != null else Vector4())
+		C.append(l["c"] if l != null else Vector3())
+	var sm := wet_road.material_override as ShaderMaterial
+	sm.set_shader_parameter("lamps", L)
+	sm.set_shader_parameter("lamp_cols", C)
+	sm.set_shader_parameter("count", mini(24, near.size()))
 
 
 # The page's camera (score.camera) when it watches the pilot the kernel walks by its rule: follow, eye, overhead, side
@@ -1623,6 +1725,7 @@ func _live_frame() -> bool:
 func _process(delta: float) -> void:
 	_step_edit(delta)
 	_step_cards(delta)
+	_step_wet_road()
 	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
 	if sim:
 		var f = sim_frames[sim_frame]
@@ -1678,6 +1781,7 @@ func _frame(delta: float, input: Dictionary, keys: Array, events: Array, beat_at
 			me3["heading"] = atan2(bz3.z, -bz3.x)
 		combat.step(cast_state, me3, {}, combat_rest, _pilot_grounded(), null, "minds")
 		combat_rest = -1.0
+	_step_vehicles(delta if menu_open == null and not journal_open else 0.0)
 
 
 # the harness's lines for a frame: the canonical key, and the page's camera as the rule left it with the node as drawn,

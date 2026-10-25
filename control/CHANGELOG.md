@@ -18,7 +18,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 Kernel 0.31.0. Of the 500 worlds the sweep rolls near the genre probes, 270 now play in Godot (192 before); of 500
 random worlds, 73 (65 before). The 3D collectathon, the metroidvania, the flight sim, the space shooter, air combat and
-the arena shooter now play in Godot.
+the arena shooter now play in Godot. No fixture game loses anything on export now; the two racers were the last.
 
 - **Three genres were hollow and now play.** The party role-playing game, the farming sim and the tower defence
   exported as hollow because their cast stands on `static`, `core.js`'s default for a body with no rule of its own. The
@@ -62,6 +62,22 @@ the arena shooter now play in Godot.
     a bus event queues (a collected coin bursts and goes). Its tints and ink verbs stay the web's.
   - Each is approximated, not built: Godot blends and colours its own way, and no one has looked at them in a Godot
     window yet.
+- **The racers come alive** (`score.vehicles`, `score.wetRoad`). Before, a car held its rest pose and drew none of
+  its effects. Now, for the pilot's car and each rival:
+  - `kernel/vehicle.gd` poses the rig as the page does: the drive clip at the wheel's phase, faded in from the rest,
+    then the live overlay. The front wheels steer, a steering wheel turns, a mast whips and spins, and the body leans,
+    squats, dives and bounces after a landing.
+  - It reads the juice's triggers over the same facts the page keeps (a slide's time, the corner's share of the grip,
+    the speed's change, a bump, a boost's first frame) and the status rows' tints on the lamps and the body.
+  - `kernel/juice.gd` sets the GLB's part nodes to that pose and draws the effects: flames at the tips; puffs, smoke,
+    dust and sparks; the landing's ring; the lamps' tints and halos; a shield's bubble; stars from a bump and round the
+    head; motion lines; a boost's shock ring; the pilot's speed lines.
+  - A dark mood adds its own light: the headlamps' pool on the road (`kernel/beam.gdshader`) and the tail lamps'
+    ribbons.
+  - A rain race lays the wet road's film (`kernel/wet_road.gdshader`): the sky's sheen and the nearest lamps' streaks.
+  - Still the web's: the offroad fact (the ground's grip under a car is not read), the stars' spin, and the page's
+    exact particle stream (the jitter is the page's own generator, drawn from in another order).
+  - All approximated: Godot blends and colours its own way, and no one has looked at a car in a Godot window yet.
 - **Marks that had fallen behind the kernel.**
   - The aircraft hero and the airspace level form were marked absent with "Godot has no fly rule". The fly rule has run
     in the kernel since 0.27.0, and the three flight fixtures export as playing in part. Both are approximated: a
@@ -76,12 +92,20 @@ the arena shooter now play in Godot.
     wall, items then an objective.
   - A new sprites corpus holds `kernel/sfx.gd` to the web's verb shelf at 1e-6. The sparkle's scatter hash parts two
     maths libraries near the ninth digit, past what a float32 card shows.
+  - A new vehicle corpus holds `kernel/vehicle.gd` to the page's own functions, taken from the controllable channel
+    as it emits them and run against the page's three.js: the springs, the clip sampling, the trigger trees, the status
+    rows, and the page's lines that compute the facts. It covers a kart with a spinning mast off a ramp, a kart with
+    steered fenders through a crash and its corners, and the supercar at night with every status a game can set. Through
+    the GDScript translator every frame is equal to 1e-9, and every planted bug is caught.
   - The planted-bug lists gain a bug for each new port.
   - These equality tests need Godot (`MOJULO_GODOT`), which neither this branch's machine nor CI has, so they have not
     run against a real engine yet.
   - The cloud deck is held to the page's fragment in Chrome instead (`godot-clouds.chrome.test.js`, the e2e tier): the
     port's maths and the page's render the same rays into float targets and agree to float32 rounding, and both sky
     shaders compile as GLSL under the sky wrap.
+  - The wet road's film and the headlamps' pool are held to the page's fragments the same way
+    (`godot-juice.chrome.test.js`): the film agrees exactly seen down the road, across it and from above, and the pool to
+    2e-7. Every shader the racer adds compiles as GLSL under a spatial wrap.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

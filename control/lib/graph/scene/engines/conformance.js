@@ -22,6 +22,7 @@ import * as rulesC from '../rules-conformance.js';
 import * as scenesC from '../scenes-conformance.js';
 import * as levelC from '../level-conformance.js';
 import * as spritesC from '../sprites-conformance.js';
+import * as vehicleC from '../vehicle-conformance.js';
 
 const byId = (scenarios, run) => Object.fromEntries(scenarios.map((sc) => [sc.id, run(sc)]));
 
@@ -76,6 +77,14 @@ export const CORPORA = Object.freeze({
     module: 'lib/graph/scene/sprites-conformance.js', kernel: ['bus', 'json', 'sfx'],
     scenarios: () => spritesC.corpus(),
     web: (scenarios) => byId(scenarios, (sc) => spritesC.runSprites(spritesC.scenarioById(sc.id))),
+  },
+  // a racer's rig: its pose (the clip at the wheel's phase, the gait crossfade, the live overlay) and its juice (the facts,
+  // the triggers, the status rows' tints) as the page's own functions run them (the Godot kernel's vehicle.gd)
+  vehicle: {
+    engines: ['godot'],
+    module: 'lib/graph/scene/vehicle-conformance.js', kernel: ['bus', 'json', 'rules', 'vehicle'],
+    scenarios: () => vehicleC.corpus(),
+    web: (scenarios) => byId(scenarios, (sc) => vehicleC.runVehicle(vehicleC.scenarioById(sc.id))),
   },
   levelcast: {
     engines: ['roblox'],

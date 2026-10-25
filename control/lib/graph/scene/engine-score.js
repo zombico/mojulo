@@ -247,6 +247,32 @@ function cardRows(payload) {
   return { ...(glows.length ? { glows } : {}), ...(sfx.length ? { spriteSfx: JSON.parse(JSON.stringify(sfx)) } : {}), ...(fx ? { fx: JSON.parse(JSON.stringify(fx)) } : {}), ...(deck ? { cloudDeck: JSON.parse(JSON.stringify(deck)) } : {}) };
 }
 
+// a vehicle rig as kernel/vehicle.gd poses it and reads its juice (since 0.31.0): its bones (a head each, and whether a
+// part rides it: a part-less bone has no node), its clips, its live overlay, its juice
+export function vehicleRow(fig) {
+  return { bones: fig.bones.map((b, i) => ({ id: b.id, head: b.head, part: !!(fig.parts && fig.parts[i]) })), clips: JSON.parse(JSON.stringify(fig.clips || {})),
+    ...(fig.live ? { live: JSON.parse(JSON.stringify(fig.live)) } : {}), ...(fig.juice ? { juice: JSON.parse(JSON.stringify(fig.juice)) } : {}) };
+}
+
+// the bodies whose rig lives or carries juice (car-designer: a racer, a supercar), for a kernel that poses them (Godot's
+// level.gd, since 0.31.0): the entity, its figure (the GLB's wrapper and its bone nodes), the rig as vehicleRow reads it
+function vehicleRows(payload) {
+  const figs = payload?.figures && typeof payload.figures === 'object' ? payload.figures : {};
+  return (Array.isArray(payload?.entities) ? payload.entities : []).flatMap((e) => {
+    const key = typeof e?.body?.figure === 'string' ? e.body.figure : null, f = key ? figs[key] : null;
+    if (!f || !f.rig || !Array.isArray(f.bones) || !(f.live || f.juice)) return [];
+    return [{ id: String(e.id), figure: key, ...vehicleRow(f), ...(Number.isFinite(e.body.blendTime) ? { blendTime: e.body.blendTime } : {}) }];
+  });
+}
+
+// a wet road's film (roads/race-mood.js: a race in the rain) for a kernel that lays it (Godot's level.gd, since 0.31.0):
+// its quads to 1e-4, the lamps it throws back, the sky's two colours
+function wetRoadRow(w) {
+  if (!w || !Array.isArray(w.quads) || !w.quads.length) return null;
+  const r4 = (x) => Math.round(x * 1e4) / 1e4;
+  return { quads: w.quads.map((q) => q.map((c) => c.map(r4))), lamps: (w.lamps || []).map((l) => ({ at: l.at.map(r4), rgb: l.rgb, intensity: l.intensity })), zenith: w.zenith, horizon: w.horizon };
+}
+
 // the pilot the level-equivalence key names first (a pilotable entity, else the first walker), when it walks or runs
 function pilotRow(payload) {
   const ents = Array.isArray(payload?.entities) ? payload.entities : [];
@@ -456,6 +482,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   const reading = M ? engineReading(payload, engine) : null;
   const pilot = pilotRow(payload);
   const drivers = driverRows(payload);
+  const vehicles = vehicleRows(payload), wetRoad = wetRoadRow(payload.wetRoad);
   const blendNodes = blendOnlyNodes(payload.faces);
   if (reading) {
     const N = M.READING_NOTES;
@@ -570,6 +597,11 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     // fixtures' glows as the page collects them (channels/glow.js, unless the payload turns glow off), the game sfx
     // layers (kernel/sfx.gd moves their beads) and the UI language's states and gestures. Absent ⇒ no key.
     ...(engine === 'godot' ? cardRows(payload) : {}),
+    // the rigs that live or carry juice (the racers' and the supercars': the overlay, the effects at their anchors, the
+    // lamps' tints, the beams and trails of a dark mood) and a wet road's film, for the kernel that draws them (Godot's
+    // level.gd and kernel/juice.gd, since 0.31.0), in recipe units. Absent ⇒ no key.
+    ...(engine === 'godot' && vehicles.length ? { vehicles } : {}),
+    ...(engine === 'godot' && wetRoad ? { wetRoad } : {}),
     // the GLB nodes that are all blend faces (a second tile over the ground, which the page draws in its own pass at the
     // ground's height): the kernel's land leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.
     ...(blendNodes.length ? { blendNodes } : {}),

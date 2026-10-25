@@ -158,7 +158,7 @@ export const PAGE_MARKS = Object.freeze({
   shallows: m(A, 'shallows are not drawn'), wetSand: m(A, 'wet sand is not drawn'), softGround: m(A, 'soft ground is not drawn'),
   jets: m(A, 'jets are not drawn'), jetLight: m(A, 'jet light is not drawn'), sway: m(A, 'vegetation does not sway'),
   flicker: m(A, 'lights do not flicker'), motes: m(A, 'motes are not drawn'),
-  wetRoad: m(A, 'a wet road\'s film is not drawn: the road keeps its baked dark, no sky or lamp thrown back off it'),
+  wetRoad: m(P, 'kernel/wet_road.gdshader (since 0.31.0) lays the page\'s film over the road, the sky\'s sheen and the nearest lamps\' streaks point for point (godot-juice.chrome.test.js); Godot adds it in its own colour space'),
   weather: m(P, 'fog, colour and light (kernel/weather.gd); falls, landings and lightning are the web\'s'),
   tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),
   liveGrass: m(A, 'live grass is not drawn'),
@@ -175,10 +175,10 @@ export const PAGE_MARKS = Object.freeze({
 // (engines/marks.js figureOverlays).
 export const FIGURE_MARKS = Object.freeze({
   forms: m(A, 'a body in two forms (transformation/) plays as its starting form, its rule and its clips: the other form and the transform beat (B) are the page\'s'),
-  live: m(A, 'a vehicle\'s live overlay (the front wheels steering, the body leaning, squatting and diving off the drive) is the page\'s: the car holds its rest pose'),
-  juice: m(A, 'a racer\'s juice (flames, smoke, sparks, dust, the landing ring, the lamps lit by its status) is the page\'s'),
-  beams: m(A, 'the headlamps\' pool on the road (a dark race mood) is not drawn'),
-  trails: m(A, 'the tail lamps\' ribbons (a race after dark) are not drawn'),
+  live: m(P, 'kernel/vehicle.gd (since 0.31.0) poses the rig as the page does, the drive clip at the wheel\'s phase and the live overlay (the front wheels steering, the body leaning, squatting, diving and bouncing, a mast\'s whip and spin), held to the page\'s own functions by the vehicle corpus; kernel/juice.gd sets the GLB\'s part nodes to it'),
+  juice: m(P, 'the triggers, the facts they read and the lamps\' tints are the page\'s (kernel/vehicle.gd, the vehicle corpus); kernel/juice.gd draws the flames, smoke, sparks, dust, the landing ring, the halos, the bubble, the stars, streaks, shock and speed lines with its own pools and blend; the ground\'s offroad is not read'),
+  beams: m(P, 'kernel/beam.gdshader (since 0.31.0): the page\'s pool on the road, its lobes held to the page\'s fragment in Chrome (godot-juice.chrome.test.js), added in Godot\'s colour space'),
+  trails: m(P, 'kernel/juice.gd (since 0.31.0) leaves the tail lamps\' ribbons as the page does (its points, their age, the brake\'s flare), turned to the eye; Godot blends them its own way'),
 });
 
 // ── the events manifest's keys (the page reads the whole object; what travels rides bus.json or score.json) ──────────
