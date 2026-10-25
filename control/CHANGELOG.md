@@ -137,6 +137,12 @@ for none of them emits the same bytes as before.
   12 m (a box 24 m across round one hero, a centimetre's texel; seats still grow it), the bias a contact's 5 mm, and an
   adopted subtree casts both its sides. Measured in Chrome on a standing figure: the shadow's edge 6 mm past the leg's
   face and a 3 cm penumbra (5 cm and 11 cm in the old fit box); on the quick game's hero, 1 mm and 3 to 4 cm.
+- Occlusion no longer lays square halos round grass clumps. The prepass drew every solid with one override material,
+  so an alpha-tested card (a grass clump, a leaf card) occluded as its whole rectangle. A cutout is now drawn with an
+  override that samples its map's alpha and discards under its alphaTest, so it occludes and receives by its blades
+  (the costlier of the two options, one override per class and map: leaving cutouts out of the prepass would have let
+  the floor's contact shadow show through the blades in front of it). Measured in Chrome on a half-transparent card:
+  0.17 darkening at the opaque half's foot, 0 at the transparent half's (0.17 at both before).
 - `export_model` exports a building level. A stage's `program` is its building program (`{ use, seed }`), and the
   exporter read it as the code kind's, so every quick game's building level was refused ("program.source must be a
   non-empty string") while the game page played it. Only a workbench's `program` is code now (`hasCodeProgram`).

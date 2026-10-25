@@ -190,6 +190,39 @@ describe('live light in Chrome', () => {
     await page.close();
   }, 120000);
 
+  it('a cutout card occludes by its opaque texels only: its transparent half adds no occlusion', async () => {
+    if (!browser) return;
+    // (the actors' channel only lends the page's THREE and scene: nothing here is adopted, so its map stays empty)
+    const { page, errors } = await open({ faces: [half(-24, 24)], occlusion: { strength: 1, reach: 0.8 }, shadows: { actors: true } });
+    const r = await page.evaluate(({ CAM }) => {
+      const { THREE, scene } = window.__mojCast.dbg;
+      // a standing card, x −2..2, 2 m high, at y = 0.3: its map transparent on the left half (x < 0), opaque on the right,
+      // alpha-tested as the emitter draws a leaf card or a grass clump
+      const tex = new THREE.DataTexture(new Uint8Array([200, 200, 200, 0, 200, 200, 200, 255]), 2, 1);
+      tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.needsUpdate = true;
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(4, 2), new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
+      card.rotation.x = Math.PI / 2; card.position.set(0, 0.3, 1); scene.add(card);
+      const cv = document.querySelector('canvas'), c2 = document.createElement('canvas');
+      c2.width = cv.width; c2.height = cv.height;
+      const g = c2.getContext('2d');
+      const cam = new THREE.PerspectiveCamera(CAM.vfov, cv.width / cv.height, 0.1, 100);
+      cam.up.set(0, 0, 1); cam.position.set(...CAM.pos); cam.lookAt(...CAM.target); cam.updateMatrixWorld();
+      const grab = () => { window.__mojCapture.frame(CAM); g.drawImage(cv, 0, 0); return g.getImageData(0, 0, c2.width, c2.height).data; };
+      const on = grab(); card.visible = false; const off = grab();
+      // the floor in front of the card's foot (y = 0.15), each half beyond the occlusion's reach of the other: the darkening
+      // the card lays there
+      const v = new THREE.Vector3(), Y = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const dark = (x) => { v.set(x, 0.15, 0).project(cam); const px = Math.floor((v.x * 0.5 + 0.5) * c2.width), py = Math.floor((0.5 - v.y * 0.5) * c2.height), i = (py * c2.width + px) * 4; return 1 - Y(on, i) / Math.max(1, Y(off, i)); };
+      const span = (x0, x1) => { let m = 0; for (let x = x0; x <= x1; x += 0.05) m = Math.max(m, dark(x)); return m; };
+      return { clear: span(-1.8, -1.0), opaque: span(1.0, 1.8) };
+    }, { CAM });
+    // (in SwiftShader: 0.17 at the opaque half's foot and 0 at the transparent half's; before 1025, 0.17 at both)
+    expect(r.opaque).toBeGreaterThan(0.05);   // the opaque half is drawn into the prepass and occludes its foot
+    expect(r.clear).toBeLessThan(0.005);   // the transparent half adds none
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 90000);
+
   it('creases and occlusion draw one prepass a frame, and contact darkens the floor at a box\'s foot', async () => {
     if (!browser) return;
     const faces = [half(-24, 24), ...boxFaces([-1, -1, 0], [1, 1, 2])];
