@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { RESONANCES, resonancesOf, resonanceCheck } from './resonance.js';
+import { RESONANCES, resonancesOf, resonanceCheck, latentOf } from './resonance.js';
 import { quickWorld } from './quick.js';
 import { runSteps } from './index.js';
 import { cubeOfWorld } from './intent.js';
@@ -79,5 +79,23 @@ describe('companions who follow', () => {
   it('a party cube with no companion laid is opened and not laid: a gap for the compiler', () => {
     expect(resonanceCheck(cube, [level('C', [{ id: 'hero', pilotable: true }])])).toEqual([{ id: 'escorting-party', name: 'Companions who follow', laid: false, held: null, says: null }]);
     expect(resonanceCheck({ soul: { party: 'party' } }, [])).toEqual([]);
+  });
+});
+
+// LATENT: the one field the agent reads. A voiced resonance the cube is one move from: it holds some of the row's keys,
+// and every key it lacks sits in one facet (seats and the frame are both soul's: one move).
+describe('what a cube is one move from', () => {
+  it('a side-on platformer is one move from a co-op screen: the seats and the shared frame, both soul\'s', () => {
+    expect(latentOf({ space: { camera: 'side' }, power: { rules: ['platform'] } })).toEqual([{ id: 'co-op-screen', name: 'A co-op screen', missing: ['soul.seats=two|four', 'soul.frame=follow-all'] }]);
+  });
+
+  it('an unseen goal with no watchers named is one move from a sneak', () => {
+    expect(latentOf({ power: { mechanics: ['unseen'] } }).map((l) => [l.id, l.missing])).toEqual([['watched-sneak', ['mind.perception=sight|memory']]]);
+  });
+
+  it('nothing held, everything held, or what is lacking spread over two facets: nothing latent', () => {
+    expect(latentOf({})).toEqual([]);
+    expect(latentOf({ soul: { seats: 'two', frame: 'follow-all' }, space: { camera: 'side' } })).toEqual([]);
+    expect(latentOf({ soul: { seats: 'two' } })).toEqual([]);   // the frame (soul) and the camera (space): two moves
   });
 });

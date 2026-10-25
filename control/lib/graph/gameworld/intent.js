@@ -24,7 +24,8 @@
  *                            the intent quickWorld writes)
  *   cubeOfWorld(world)       → { cube, from, said: [<facet.setting>] } the cube the world is: its genre's, then what the
  *                            world's own settings imply, then its intent's own values (`said`: the ones the intent wrote)
- *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, drift?, target? }
+ *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, drift?, target?,
+ *                            latent? } (latent: the resonances a user voices that the cube is one move from, resonance.js)
  *                            the readout's: the world's cube read (cosmos dryRun's verdict), what it asks of the world,
  *                            for a world that wrote no intent the genres its brief's words suggest, for a quick game
  *                            whose goal now reads as another genre than its written one `drift: { written, goal }`
@@ -35,6 +36,7 @@ import { FIXTURES } from '../cosmos/fixtures.js';
 import { validateCube, dryRun } from '../cosmos/cosmos.js';
 import { MARKED_ENGINES, engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
+import { latentOf } from './resonance.js';
 import { CRAFT } from '../skyscape/eye.js';
 
 // the words a brief uses for each genre (lower case; a phrase is matched whole)
@@ -158,11 +160,14 @@ export function intentReport(world) {
   const I = readIntent(world?.intent), target = I?.target ?? null, run = dryRun(cube);
   // a quick game's written genre against what its goal reads as now (a goal patched since): said, never rewritten
   const reads = quickGenre(world?.quick), drift = I?.from && reads && reads !== I.from ? { written: I.from, goal: reads } : null;
+  // what the cube is one move from (gameworld/resonance.js): an outcome a user voices, the values it still lacks
+  const latent = latentOf(cube);
   return {
     from, written, verdict: run.verdict,
     concerns: concernsOf(cube).map(({ asks: _, ...c }) => c),
     ...(suggest.length ? { suggest: suggest.map((g) => ({ id: g.id, matched: g.matched })) } : {}),
     ...(drift ? { drift } : {}),
     ...(target ? { target: targetAdvice(target, run.engines[target]) } : {}),
+    ...(latent.length ? { latent } : {}),
   };
 }

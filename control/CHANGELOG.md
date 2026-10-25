@@ -29,7 +29,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   there is none; nothing refuses. A gate (`resonance.gate.test.js`) makes worlds the ways a creator does (words
   composed, a quick game) and FIRES on a new gap; its ledger of known gaps only shrinks (a gap filled fails until its
   line goes). It found three at once: the composed co-op platformer lays no hero per seat on its side camera, the
-  composed stealth game lays no watchers, and the quick sneak lays guards who see where its cube asks for memory.
+  composed stealth game lays no watchers, and the quick sneak lays guards who see where its cube asks for memory. The
+  last is settled the other way: guards stay goldfish, simple and local, so the stealth probe now asks for sight.
+- **The one field the agent reads: `intent.latent`.** The design readout's intent names the outcomes a user voices that
+  the cube is one move from (`latentOf`: it holds some of the row's keys and lacks keys in one facet only), with what it
+  lacks: a side-on platformer is one move from a couch co-op screen (`soul.seats`, `soul.frame`). Absent when there is
+  none; the `gameworld-intent` card names it in one line.
 
 ### Written intent: compose and quick write the game they are
 

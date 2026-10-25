@@ -19,6 +19,9 @@
  *                              nothing was laid, `says` the law's advice (null when it holds)
  *   compilerGaps(cube, orders) → the opened rows the run did not lay ({ id, laid: false }) or laid and did not hold
  *                              ({ id, says }): the compiler's own defects, reported with a design run, never refused
+ *   latentOf(cube)             → [{ id, name, missing: [key] }]: the VOICED rows the cube is one move from (it holds
+ *                              some of the row's keys and every key it lacks sits in one facet), the one field the
+ *                              agent reads (intentReport `latent`): a next move it would not find facet by facet
  * Pure; reads the cube and the orders, never a store.
  */
 
@@ -111,4 +114,16 @@ export function resonanceCheck(cube, orders) {
 
 export function compilerGaps(cube, orders) {
   return resonanceCheck(cube, orders).filter((r) => !r.laid || r.held === false).map((r) => (r.laid ? { id: r.id, says: r.says } : { id: r.id, laid: false }));
+}
+
+export function latentOf(cube) {
+  const out = [];
+  for (const r of RESONANCES) {
+    if (!r.voiced) continue;
+    const missing = r.when.filter((k) => !has(cube, k));
+    if (!missing.length || missing.length === r.when.length) continue;
+    if (new Set(missing.map((k) => k.split('.')[0])).size !== 1) continue;
+    out.push({ id: r.id, name: r.name, missing });
+  }
+  return out;
 }

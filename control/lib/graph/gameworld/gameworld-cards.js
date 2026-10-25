@@ -599,6 +599,7 @@ function intentCard() {
     'CONCERNS: what the cube asks of the world, raised by its values (a farm with guns asks both):',
     ...CONCERNS.map((c) => `  ${c.id.padEnd(14)}${c.when.join(' | ')}`),
     'The readout\'s intent.concerns names each, and whether the levels lay it (laid) and check it (checked) yet.',
+    'intent.latent: an outcome the cube is one move from and the values it lacks (couch co-op: soul.seats, soul.frame).',
     '',
     'PLAYING TOGETHER — cube.soul.seats \'two\' | \'four\': every stage the hero walks lays a hero per extra seat, on one',
     'screen; a player sits down with any press on their own pad (the keyboard is one). An empty seat\'s hero follows the hero.',
