@@ -63,6 +63,11 @@ const WORDS = Object.freeze({
   rts: ['rts', 'real-time strategy', 'real time strategy', 'starcraft', 'command and conquer', 'army', 'armies', 'build orders', 'base building', 'harvesters'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
+  // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
+  'athletics-meet': ['athletics', 'athletic', 'olympic', 'olympics', 'track and field', 'sprint', 'sprinting', '100m', 'hurdles', 'long jump', 'high jump', 'javelin', 'shot put', 'decathlon', 'relay', 'meet'],
+  'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pong', 'pickleball', 'squash', 'rally', 'serve', 'net game', 'racket', 'racquet'],
+  'turn-sport': ['golf', 'mini golf', 'minigolf', 'putting', 'bowling', 'curling', 'darts', 'billiards', 'pool table', 'snooker', 'bocce', 'petanque'],
+  'team-goal-game': ['soccer', 'football', 'futsal', 'hockey', 'basketball', 'handball', 'lacrosse', 'rugby', 'water polo', 'dodgeball', 'sports game', 'sports', 'goalkeeper', 'offside', 'team sport'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));
 const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));

@@ -34,6 +34,8 @@ export const SOUL = Object.freeze({
       values: {
         solo: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/playscape/player.js' },
         party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', godot: 'absent', note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
+        // priced 10-25 (battle city): a side of a contest, local players and the positional mind's teammates alike
+        team: { status: 'absent', effort: 'L', pkg: 'battle-city', godot: 'absent', note: 'a side of a contest: its players each a local pad or a teammate played by the positional mind, its roles and their home regions the contest kernel\'s. The controllable runtime has one pilot; versus reads two pads on its own plane; a match\'s teams and the frags mechanic\'s are two of ids, not a party' },
       },
     },
   },

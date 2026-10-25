@@ -22,7 +22,14 @@ export const MIND = Object.freeze({
   id: 'mind',
   asks: 'how do the others decide?',
   settings: {
-    motivation: { values: marked('motivation', AXES.motivation) },
+    // priced 10-25 (battle city): a teammate's positional play is not a strategy of the matrix yet; the mark is the
+    // matrix's, since the kernels run whatever the web's mind resolves, and an absent value resolves to nothing
+    motivation: {
+      values: marked('motivation', {
+        ...AXES.motivation,
+        position: { status: 'absent', effort: 'L', pkg: 'battle-city', note: 'a teammate in a contest: hold a role\'s home region, mark an opponent, press the ball, move to where the ball will be (the physics property\'s own integration on a copy); within what the contest kernel says is legal. Not a strategy of the mind matrix; the board RTS\'s roles and orders over continuous positions are its parent' },
+      }),
+    },
     aggressiveness: { values: marked('aggressiveness', AXES.aggressiveness) },
     rank: { values: marked('rank', AXES.rank) },
     skill: { values: marked('skill', AXES.skill) },

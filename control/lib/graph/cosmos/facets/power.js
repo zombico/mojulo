@@ -18,6 +18,14 @@ export const POWER = Object.freeze({
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', marks: 'mechanicMarks' },
       // a mechanic's mark is found by lowering it (engine-portability.js mechanicMarks): unseen waits on `seen`, on-beat
       // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep their bests in kernel/game.gd
+      // priced 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
+      // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
+      // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Two shapes of
+      // contest, one kernel; neither exists yet, so the probes that ask for them are blocked, not makeable
+      planned: {
+        meet: { status: 'absent', effort: 'L', pkg: 'battle-city', ...WEB, note: 'an athletic event: lanes, a start and a false start, a measure (time, distance, height), attempts and a foul line; the bodies never resolve against each other, so local players are lanes. No kernel calls it yet; the hurdle, the running jump and the sprint are the library\'s, the score mechanic keeps a best' },
+        contest: { status: 'absent', effort: 'L', pkg: 'battle-city', ...WEB, note: 'a match: sides, a ball, possession, zones whose legality depends on the state, a clock with stoppages, scoring, fouls and restarts, called by a contest kernel the agent never adjudicates for. No kernel yet; the ball is the physics property\'s sphere (spin, restitution) and real air is physics/flight.js, the hit the swing system\'s strike frame; versus is the one-on-one shape already built' },
+      },
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', marks: 'kitMarks' } },
     rules: {
