@@ -129,6 +129,12 @@ for none of them emits the same bytes as before.
 - A world with live shadows and occlusion together no longer dies on load: the live light's script and the occlusion
   block both declared `__mojLight` on one page (a SyntaxError). The occlusion block binds the shared probe under its own
   name; the two occlusion pins moved, nothing else.
+- `export_model` exports a building level. A stage's `program` is its building program (`{ use, seed }`), and the
+  exporter read it as the code kind's, so every quick game's building level was refused ("program.source must be a
+  non-empty string") while the game page played it. Only a workbench's `program` is code now (`hasCodeProgram`).
+- The README capture helper (`docs/images/src/lib/browser.mjs`) runs on Linux: off macOS it routes GL through
+  SwiftShader, which current Chrome builds gate behind `--enable-unsafe-swiftshader`; on those, without the flag, the
+  World page never became capture-ready. It passes the flag, as the scene renderer's own launch does.
 
 ### Written intent: compose and quick write the game they are
 
