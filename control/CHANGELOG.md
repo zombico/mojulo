@@ -14,6 +14,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The man walks his own wider base
+
+Both casts walked the one calibrated walk (figure-posing.js WALK_MINT under hero-gaits.js HERO_WALK), its feet on a
+narrow base (`stepWidth` 0.05). On the man that read as a catwalk: his ankles came onto one line as they passed, and
+his legs ran 6 cm through each other but for the swing going round the planted leg (the pass, below), a circumduction
+a man's walk does not show.
+
+- HERO_WALK_POLE (hero-gaits.js) is a walk by the hero's silhouette, over HERO_WALK. The man's is `stepWidth` 0.16:
+  his feet land 10 to 11 cm apart (men's heels about 10 to 13), his legs clear each other on their own (by 9 mm on the
+  game body, 23 mm on the realistic) and the swing goes straight through, nothing for the pass to solve. The woman, a
+  child and a chibi keep the narrow walk.
+- It is stamped with the walk at mint (motion-stamp.js stampHero reads the adult cast's silhouette, stampHeroMotion
+  `pole`), so a hero stored before keeps the walk it was written with, and a creator's own `stepWidth` stays theirs.
+
 ### The realistic body rounded out
 
 REALISTIC LAWS 4 (body-relational-builds.js `ROUND_OUT`, read by layered.js realisticBuild). Read off each limb's rings

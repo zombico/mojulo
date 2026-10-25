@@ -24,6 +24,16 @@ export const GAITS = Object.freeze({
 export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true, swingFoot: true, swingClear: 0.008 });
 
 /**
+ * A walk by the hero's SILHOUETTE, over HERO_WALK (stampHeroMotion `pole`, the adult cast's: a child or a chibi walks the
+ * one walk). The MAN walks a wider base: on the narrow one (`stepWidth` 0.05) his ankles came onto one line as they
+ * passed and his legs ran 5 to 6 cm through each other but for the swing's going round (hero-stride.js); at 0.16 his
+ * feet land 10 to 11 cm apart (men's heels about 10 to 13), his legs clear each other on their own (the game body by
+ * 0.9 cm, the realistic by 2.3) and the swing goes straight through, no crossing and no going round. The woman keeps the
+ * near-single line, her hips carrying it.
+ */
+export const HERO_WALK_POLE = Object.freeze({ male: Object.freeze({ stepWidth: 0.16 }) });
+
+/**
  * The hero's own run dials (the jog and the sprint), over the figure's mint table (figure-posing.js SPRINT_MINT):
  * heroLocomotion reads `swingFoot`, as it does on the walk (HERO_WALK). With it, a foot in its swing follows its own
  * shank (the gait's own ankle, its `anklePoint` and `toeFlick`), so a run's recovery tucks the heel up with the toes

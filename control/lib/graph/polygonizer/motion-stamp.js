@@ -10,7 +10,7 @@
  */
 import { stampMotion } from './figure-posing.js';
 import { stampHeroMotion } from './hero-motion.js';
-import { HERO_LAWS_VERSION, readsHeroLaws } from './hero-form.js';
+import { HERO_LAWS_VERSION, readsHeroLaws, castOf } from './hero-form.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -19,8 +19,14 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function stampHero(hero, prev = null) {
   if (!isObj(hero) || !isObj(hero.motion)) return hero;
   if (prev && same(hero.motion, prev.motion)) return hero;
-  const motion = stampHeroMotion(hero.motion);
+  const motion = stampHeroMotion(hero.motion, { pole: walkPole(hero) });
   return same(motion, hero.motion) ? hero : { ...hero, motion };
+}
+
+/** the walk's silhouette (hero-gaits.js HERO_WALK_POLE): the adult cast's, a child or a chibi none (they walk the one walk) */
+function walkPole(hero) {
+  let C; try { C = castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero')); } catch { return null; }
+  return C && !C.child ? (C.silhouette === 'female' ? 'female' : 'male') : null;   // (only the female cast names its silhouette)
 }
 
 /**

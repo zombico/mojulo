@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
-import { HERO_WALK, HERO_RUN } from './hero-gaits.js';
+import { HERO_WALK, HERO_WALK_POLE, HERO_RUN } from './hero-gaits.js';
 import { HERO_LAWS_VERSION } from './hero-form.js';
 import { stampAuthoredMotion, stampHero, withDefaultWalk, withDefaultForm } from './motion-stamp.js';
 
@@ -117,7 +117,18 @@ describe('withDefaultWalk — a new hero walks with the calibrated gait', () => 
   it('a hero that says nothing of its walk gets one; its other gaits stay', () => {
     expect(withDefaultWalk({ cast: 'female' }).motion).toEqual({ walk: true });
     expect(withDefaultWalk({ cast: 'male', motion: { sprint: true } }).motion).toEqual({ sprint: true, walk: true });
-    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
+    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK, ...HERO_WALK_POLE.male });
+  });
+
+  it('the man walks his own wider base, the woman, a child and a chibi the narrow one; a creator\'s step width is kept', () => {
+    const width = (spec) => stampHero(withDefaultWalk(withDefaultForm(spec))).motion.walk.stepWidth;
+    expect(HERO_WALK_POLE.male.stepWidth).toBeGreaterThan(WALK_MINT.stepWidth);
+    for (const spec of [{ cast: 'male' }, { cast: 'male', form: 'realistic' }, { cast: { pole: 'male', build: 'brute' } }]) expect(width(spec)).toBe(HERO_WALK_POLE.male.stepWidth);
+    for (const spec of [{ cast: 'female' }, { cast: 'female', form: 'realistic' }, { cast: 'chibi' }, { cast: 'child' }]) expect(width(spec)).toBe(WALK_MINT.stepWidth);
+    expect(width({ cast: 'male', motion: { walk: { stepWidth: 0.07 } } })).toBe(0.07);
+    // (stored by value: a walk already stamped keeps its width when the hero is written again)
+    const stored = { cast: 'male', motion: { walk: { ...WALK_MINT, ...HERO_WALK } } };
+    expect(stampHero(stored).motion.walk.stepWidth).toBe(WALK_MINT.stepWidth);
   });
 
   it('a creator\'s own walk, a door clip named walk, and a statue are left as they are', () => {
