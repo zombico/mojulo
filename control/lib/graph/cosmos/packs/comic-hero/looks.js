@@ -61,7 +61,7 @@ export const LOOKS = Object.freeze({
     // the light shaped in the vertex (vertex-contrast.js wii: the foot of a wall, crease and contact, warm against cool),
     // the walls dressed from relief at grit (city/plan/dress.js: streaks, stains, a bloom), the air thick enough to swallow
     // the far towers and carry the sodium up into the sky
-    geocube: { from: 'city-night', register: { name: 'continuous', key: 0.22 }, contrast: 'wii', grit: 0.8, materials: { age: 'old' }, light: { outsideFog: 2.2, moon: { color: '#b4bce0', elevation: 40, azimuth: 220, gain: 0.45 }, sky: { zenith: '#0c0a0c', horizon: '#3a2c26', fog: '#3a2c26' } } },
+    geocube: { from: 'city-night', register: { name: 'continuous', key: 0.3 }, contrast: 'wii', grit: 0.8, materials: { age: 'old' }, light: { outsideFog: 2.2, moon: { color: '#b4bce0', elevation: 40, azimuth: 220, gain: 0.45 }, sky: { zenith: '#0c0a0c', horizon: '#3a2c26', fog: '#3a2c26' } } },
     paint: { hour: 'night', clouds: 'storm', materials: 'modern' },
     hero: { tradition: 'western', from: 'world', form: 'realistic', primary: 'the silhouette', secondary: 'the emblem, small' },
     why: ['The atmosphere is the light: what is lit is what the air lets through.', 'A low key, the walls worn and streaked, the shade warm against a cold sky.', 'The far city is gone into the air; the near street is all there is.'],
