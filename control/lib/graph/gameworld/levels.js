@@ -589,8 +589,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
  * beside the hero's spawn, a body per extra seat (`hero-2`…): the hero itself, dressed as the goal dressed it, on the
  * hero's rule, its seat's ring its colour. While its seat is empty it follows the hero on the party's escort motive (the
  * seat's `drop: 'ai'`); all of them on the hero's side. The manifest's `seats` names them for the page (soul.join: drop-in
- * or lobby). One seat, or none said, lays nothing. */
-const SEAT_COUNT = Object.freeze({ two: 2, four: 4 });
+ * or lobby) and, when the cube says soul.pool, the lives a fall costs (each seat's own, or one count shared). One seat,
+ * or none said, lays nothing. */
+const SEAT_COUNT = Object.freeze({ two: 2, four: 4 }), SEAT_LIVES = 3;
 function seatPart(G, pilotPart, ends, lane) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
   if (!n) return { pilotPart, seats: null };
@@ -606,7 +607,9 @@ function seatPart(G, pilotPart, ends, lane) {
     entities.push({ ...p0, id, team: side, ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
     bodies.push(id);
   }
-  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in' } };
+  // lives (soul.pool): each seat three of its own, or three a seat in one count the seats share; a fall costs one
+  const lives = soul.pool === 'own' ? { lives: SEAT_LIVES, pool: 'own' } : soul.pool === 'shared' ? { lives: SEAT_LIVES * n, pool: 'shared' } : {};
+  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives } };
 }
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the

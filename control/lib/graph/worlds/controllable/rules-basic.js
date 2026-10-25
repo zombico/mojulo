@@ -174,11 +174,12 @@ export function buildRulesBasic(E) {
   // `fov` (50°) with `margin` (2 m) round it: never nearer than the rule's own distance, never past `maxDist` (2.2 × it).
   // Past that, the group leash below holds the leader back and brings the straggler in. One playing pilot, or a world
   // with no seats: null, and the camera frames its target as it always did.
-  const playing = (world) => E.pilotsOf(world).filter((p) => !p.downed && p.rule === p.pilotRule);
+  const playing = (world) => E.pilotsOf(world).filter((p) => !p.downed && !p.gone && p.rule === p.pilotRule);
   function groupFrame(r, world, dist) {
     if (!world.seatOf) return null;
+    // (one playing seat frames itself only when it is not the camera's own target: seat 1 out, seat 2 still in)
     const P = playing(world);
-    if (P.length < 2) return null;
+    if (!P.length || (P.length === 1 && P[0].id === r.target)) return null;
     const c = [0, 0, 0];
     for (const p of P) for (let k = 0; k < 3; k++) c[k] += p.transform.pos[k] / P.length;
     let span = 0;
@@ -422,6 +423,34 @@ export function buildRulesBasic(E) {
   // centre is held there, the leader held back and the straggler brought in, so nobody leaves the shot. Nothing without
   // seats, or with one pilot playing.
   const GROUP_DIST = { side: 11, overhead: 14 };
+  // SEAT FALLS (pilots.plan.md; a world with seats): a seated body below the floor is brought back beside the others,
+  // just above a playing seat (seat 1's pilot first), else where it started. With lives (state.seatLives) each fall costs
+  // its seat one, or the shared count one; a seat with none left is out (its body gone), and when no seat is left
+  // playing the seats are over (state.seatsOver: the page ends the level, failed). Without lives seat 1's fall is the
+  // level's catch, as before.
+  E.registerWorldPass('seat-falls', (state) => {
+    if (!state.seatOf) return;
+    const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? 1 : state.seatOf[e.id]);
+    for (const e of all) {
+      if (e.gone || e.transform.pos[2] >= state.seatFloor) continue;
+      const n = seatN(e);
+      if (n === 1 && !state.seatLives) continue;
+      if (state.seatLives) {
+        const k = state.seatPool === 'shared' ? 'shared' : n;
+        state.seatLives[k] = Math.max(0, (state.seatLives[k] ?? 0) - 1);
+        if (!state.seatLives[k]) {
+          for (const o of state.seatPool === 'shared' ? all : [e]) { state.seatOut[seatN(o)] = true; o.gone = true; }
+          if (!all.some((o) => !o.gone && o.rule === o.pilotRule)) state.seatsOver = true;
+          continue;
+        }
+      }
+      const to = all.find((p) => p !== e && !p.gone && (p.id === state.pilotId || p.rule === p.pilotRule));
+      const at = to ? to.transform.pos : null, home = state.seatHome && state.seatHome[e.id];
+      e.transform.pos = at ? [at[0], at[1], at[2] + 1] : home ? home.slice() : [e.transform.pos[0], e.transform.pos[1], 0];
+      if (e.vel) e.vel = [0, 0, 0];
+    }
+  });
+
   E.registerWorldPass('group-leash', (state) => {
     const cam = state.camera, r = cam && cam.rule;
     if (!state.seatOf || !r || !GROUP_DIST[r.type]) return;

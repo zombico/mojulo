@@ -89,8 +89,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   being seat 1, the world's pilot, which then reads only its own controller; seats 2 to 4 read theirs through the pilot
   scheme onto `input.seats`. A ring in the seat's colour stands under each seated body and a strip at the top names who
   is in. Tested in headless Chrome with two stubbed pads (`seats.live.test.js`, e2e). The target lock, the tutorial,
-  the runner and the suit swap stay seat 1's, and the pause menu is still the shell's, not yet the seat's that opened it;
-  a world without seats emits as it did.
+  the runner and the suit swap stay seat 1's; a world without seats emits as it did.
 - **A gameworld seats its players from its cube.** A world whose intent says `soul.seats` two or four (`intent: { from:
   'co-op-platformer' }`, or its own `cube.soul`) lays, on every stage the hero walks, a hero per extra seat (`hero-2`…)
   beside the spawn: the hero itself, dressed as the goal dressed it, on the hero's rule, all on one side. While its seat
@@ -105,6 +104,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   without seats gets (`design-game.seats.test.js`, e2e). Godot and Roblox exports name the seats among what they leave.
   Found on the way, not from the seats: a quick side-on level is never proved beatable by the automatic audit, whose
   walker seeks the exit in a straight line, which a lane does not run.
+- **Lives per seat.** A world whose cube says `soul.pool` gives its seats lives (`seats.lives`, `pool`): `own`, three
+  for each seat, or `shared`, three a seat in one count. A fall off the world costs one and brings the player back beside
+  a seat still playing (else where they started); a seat with none left sits out, and the level is lost when no seat is
+  left playing. The strip shows each seat's hearts, or the shared count. A shared camera whose own target is out frames
+  the seats still in. Falls only: a hit is still seat 1's hp, and the score stays one count. `soul.pool` own and shared
+  are built (web); the co-op platformer and the co-op street brawler probes are makeable.
+- **The pause is the seat's that opened it.** In both shells (the play shell and the game shell) any pad's start opens
+  the pause and only the same pad's start closes it; the on-screen button still works for anyone. A level with seats
+  tells the shell who sits where (a new `game-seats` sidecar message, level to shell), and the pause panel names the
+  owner's seat in its colour ("paused · P2"). Tested in Chrome with two stubbed pads (`pause-owner.live.test.js`).
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.

@@ -1137,6 +1137,8 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // Local multiplayer added the 'seats' pre-step before the groups and the pilot swap (a seat with no player this frame hands its body
     // to its AI, or holds it: pilots.plan.md); a no-op without spec.seats. And the 'group-leash' pass last, before the
     // camera (a shared camera's playing pilots held inside the frame's reach); a no-op without seats or with one playing.
+    // Lives per seat added the 'seat-falls' pass before it (a seated body below the floor back beside the others, a life
+    // spent when the world counts them); a no-op without seats.
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'seats', 'groups', 'pilot-swap', 'transform', 'carry-snapshot', 'launch-lock', 'lock'],
@@ -1145,7 +1147,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery', 'drive-stop'],
       entityActions: ['weapon', 'missiles', 'melee', 'tackle', 'form-thrust'],
-      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'gear-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial', 'group-leash'],
+      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'gear-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial', 'seat-falls', 'group-leash'],
     });
   });
 

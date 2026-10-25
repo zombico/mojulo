@@ -89,11 +89,12 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
  * how many may sit (2 to 4, at most one more than the bodies), how they join (drop-in or lobby), what an empty seat's body
- * does (its AI, or held still) and the height below which a seated body is brought back to seat 1. Throws, teaching. */
+ * does (its AI, or held still), the height below which a seated body is brought back, and the lives its falls cost (each
+ * seat's own, or one count shared). Throws, teaching. */
 export function readSeats(seats, entities, pilot = null) {
-  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number }, the bodies seats 2 to 4 take`);
+  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared' }, the bodies seats 2 to 4 take`);
   if (!seats || typeof seats !== 'object' || Array.isArray(seats)) throw bad('');
-  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor'].includes(k)) throw bad(`.${k} is not a seats key`);
+  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool'].includes(k)) throw bad(`.${k} is not a seats key`);
   const list = Array.isArray(entities) ? entities : [], first = pilot ?? list.find((e) => e && e.pilotable)?.id;
   if (!Array.isArray(seats.bodies) || !seats.bodies.length || seats.bodies.length > 3) throw bad('.bodies names one to three bodies');
   seats.bodies.forEach((id, i) => {
@@ -107,7 +108,10 @@ export function readSeats(seats, entities, pilot = null) {
   if (seats.join !== undefined && !['drop-in', 'lobby'].includes(seats.join)) throw bad('.join is drop-in or lobby');
   if (seats.drop !== undefined && !['ai', 'pause'].includes(seats.drop)) throw bad('.drop is ai or pause');
   if (seats.floor !== undefined && !Number.isFinite(seats.floor)) throw bad('.floor is a height in metres');
-  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}) };
+  if (seats.lives !== undefined && !(Number.isInteger(seats.lives) && seats.lives >= 1 && seats.lives <= 99)) throw bad('.lives is a whole count, 1 to 99: the falls a seat (or the seats together) may take');
+  if (seats.pool !== undefined && !['own', 'shared'].includes(seats.pool)) throw bad('.pool is own (each seat its lives) or shared (one count for all)');
+  if (seats.pool !== undefined && seats.lives === undefined) throw bad('.pool shares or splits lives: give lives');
+  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
 export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {

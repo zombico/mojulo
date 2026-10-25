@@ -64,3 +64,55 @@ describe('a shared camera with seats', () => {
     expect(w.camera.lookAt[0]).toBeCloseTo(w.byId.p1.transform.pos[0], 6);
   });
 });
+
+// LIVES (soul.pool; rules-basic.js 'seat-falls'): a fall below the floor costs a seat one of its own lives, or one of the
+// count the seats share; a seat with none left is out (its body gone), and when no seat is left playing the seats are over.
+describe('lives per seat', () => {
+  // ground everywhere but a pit past y = 50, where a body set below the floor keeps falling
+  const PIT = { ground: (p) => (p[1] > 50 ? null : 0) };
+  const drop = (w, id) => { w.byId[id].transform.pos = [w.byId[id].transform.pos[0], 60, -30]; stepWorld(w, { seats: { 2: {} } }, DT, PIT); };
+  const two = (seats) => createWorld({ entities: [hero('p1', 0), hero('p2', 3)], seats: { bodies: ['p2'], ...seats } });
+
+  it('own: each fall costs that seat one and brings it back beside the other; at none it sits out, the other plays on', () => {
+    const w = two({ lives: 2 });
+    drop(w, 'p2');
+    expect(w.seatLives).toEqual({ 1: 2, 2: 1 });
+    expect(w.byId.p2.transform.pos.slice(0, 2)).toEqual(w.byId.p1.transform.pos.slice(0, 2));
+    drop(w, 'p2');
+    expect(w.seatLives[2]).toBe(0);
+    expect(w.byId.p2.gone).toBe(true);
+    expect(w.seatOut).toEqual({ 2: true });
+    expect(w.seatsOver).toBeUndefined();
+    // seat 1 falls with lives left: back beside nobody playing, so where it started
+    drop(w, 'p1');
+    expect(w.seatLives[1]).toBe(1);
+    expect(w.byId.p1.transform.pos.slice(0, 2)).toEqual([0, 0]);
+    drop(w, 'p1');
+    expect(w.seatsOver).toBe(true);
+  });
+
+  it('seat 1 out, seat 2 still in: the shared camera frames seat 2', () => {
+    const w = createWorld({ entities: [hero('p1', 0), hero('p2', 3)], camera: { rule: 'side', target: 'p1', dist: 11 }, seats: { bodies: ['p2'], lives: 1 } });
+    drop(w, 'p1');
+    expect(w.byId.p1.gone).toBe(true);
+    expect(w.seatsOver).toBeUndefined();
+    for (let i = 0; i < 120; i++) stepWorld(w, { seats: { 2: { forward: 1 } } }, DT, FLAT);
+    expect(w.camera.lookAt[0]).toBeCloseTo(w.byId.p2.transform.pos[0], 1);
+  });
+
+  it('shared: one count for every seat; at none every seat is out and the seats are over', () => {
+    const w = two({ lives: 2, pool: 'shared' });
+    drop(w, 'p2');
+    drop(w, 'p1');
+    expect(w.seatLives).toEqual({ shared: 0 });
+    expect(w.byId.p1.gone && w.byId.p2.gone).toBe(true);
+    expect(w.seatsOver).toBe(true);
+  });
+
+  it('without lives a fall costs nothing, and seat 1\'s is left to the level\'s catch', () => {
+    const w = two({});
+    drop(w, 'p1');
+    expect(w.byId.p1.transform.pos[2]).toBeLessThan(-20);
+    expect(w.seatLives).toBeUndefined();
+  });
+});

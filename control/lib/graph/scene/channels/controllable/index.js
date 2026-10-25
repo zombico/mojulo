@@ -2,7 +2,7 @@ import { b64, safeJson } from '../../emit-util.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
 import { surfaceAt } from '../../../roads/surface.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
-import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../../game/level-contract.js';
+import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI, MSG_SEATS as GAME_MSG_SEATS } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
 import { projectileSmokeBlock } from './projectile-smoke.js';
 import { suitShadowBlock } from './suit-shadows.js';
@@ -96,16 +96,22 @@ __seatEl.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,
 document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {
-  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '')).join(',');
+  const L = __world.seatLives, lives = (n) => (L ? (__world.seatPool === 'shared' ? L.shared : L[n]) : null);
+  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n)).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
   if (said === __seatSaid) return;
   __seatSaid = said;
+  // the shell (game-seats): who sits where, so its pause names the seat that opened it
+  if (window.parent !== window) { try { window.parent.postMessage({ moj: '${GAME_MSG_SEATS}', seats: __SEATS.seats.map((x) => ({ n: x.n, label: x.label, color: x.color, controller: x.controller, away: x.away })) }, '*'); } catch (err) { /* opaque parent */ } }
   __seatEl.textContent = '';
   for (let n = 1; n <= __SEATS.max; n++) {
     const x = __SK.seat(__SEATS, n), c = document.createElement('span'), col = __SK.SEAT_COLORS[n - 1];
     c.style.cssText = 'padding:2px 8px;border-radius:10px;border:2px solid ' + col + ';color:' + (x ? '#fff' : col) + ';background:' + (x && !x.away ? col : 'rgba(0,0,0,.45)');
-    c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (x.away ? ' away' : '') : ' press to join');
+    const out = __world.seatOut && __world.seatOut[n];
+    c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
     __seatEl.appendChild(c);
   }
+  // a shared pool: one count for every seat, after the chips
+  if (L && __world.seatPool === 'shared') { const c = document.createElement('span'); c.style.cssText = 'padding:2px 8px;color:#fff'; c.textContent = '\u2665' + L.shared; __seatEl.appendChild(c); }
 }
 __seatStrip();
 // the rings: a seat's colour under its body, on the ground it stands on
@@ -120,6 +126,13 @@ function __seatRings() {
     r.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + 0.04);
   }
   for (const n in __seatRing) if (!__SK.seat(__SEATS, +n)) __seatRing[n].visible = false;
+}
+// no seat left playing (every seat out of lives): the level is lost, once
+let __seatsEnded = false;
+function __seatsOver() {
+  if (__seatsEnded || !__world.seatsOver) return;
+  __seatsEnded = true;
+  if (window.__mojGame) window.__mojGame.end('fail', { pilot: __world.pilotId, seats: 'out of lives' });
 }
 function __withSeats(inp) {
   __SEATS = __SK.step(__SEATS, __seatFrame());
@@ -3286,7 +3299,9 @@ ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
     for (const e of __world.entities) __syncEntity(e, dt);${seats ? `
-    __seatRings();` : ''}
+    __seatRings();
+    __seatStrip();
+    __seatsOver();` : ''}
     __updateFx();
     __updateChargeRings();
     __updateProjectiles();

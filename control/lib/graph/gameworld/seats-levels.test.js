@@ -36,6 +36,12 @@ describe('seats, lowered from the cube', () => {
     expect(none.entities.some((e) => /^hero-\d$/.test(e.id))).toBe(false);
   }, 60_000);
 
+  it('soul.pool gives the seats lives: three each of their own, or three a seat shared', () => {
+    expect(level(W({ soul: { seats: 'two', pool: 'own' } })).seats).toMatchObject({ lives: 3, pool: 'own' });
+    expect(level(W({ soul: { seats: 'four', pool: 'shared' } })).seats).toMatchObject({ lives: 12, pool: 'shared' });
+    expect(level(W({ soul: { seats: 'two' } })).seats.lives).toBeUndefined();
+  }, 60_000);
+
   it('first person seats one: there is no body for a second player to take', () => {
     expect(level(W({ soul: { seats: 'two' } }, { camera: 'first-person' })).seats).toBeUndefined();
   }, 60_000);
@@ -46,8 +52,8 @@ describe('the sim with the lowered seats', () => {
   const hero = (id, x) => ({ id, pilotable: true, rule: { type: 'platform', eye: 0, speed: 6 }, ambient: { type: 'static' }, transform: { pos: [x, 0, 0], heading: 0 } });
   it('a seated body fallen below the floor comes back above seat 1; seat 1 never swaps onto a seated body', () => {
     const w = createWorld({ entities: [hero('p1', 0), hero('p2', 2), hero('p3', 4)], seats: { bodies: ['p2'], floor: -5 } });
-    w.byId.p2.transform.pos = [3, 0, -6];
-    stepWorld(w, { seats: { 2: {} } }, DT, FLAT);
+    w.byId.p2.transform.pos = [3, 60, -6];
+    stepWorld(w, { seats: { 2: {} } }, DT, { ground: (p) => (p[1] > 50 ? null : 0) });   // over a pit
     expect(w.byId.p2.transform.pos.slice(0, 2)).toEqual(w.byId.p1.transform.pos.slice(0, 2));
     expect(w.byId.p2.transform.pos[2]).toBeGreaterThan(-1);
     stepWorld(w, { swap: 1 }, DT, FLAT);
@@ -64,5 +70,8 @@ describe('the sim with the lowered seats', () => {
     expect(() => readSeats({ bodies: ['p2'], max: 4 }, E)).toThrow(/max is 2 to 2/);
     expect(() => readSeats({ bodies: ['p2'], seat: 2 }, E)).toThrow(/not a seats key/);
     expect(readSeats({ bodies: ['p2'], drop: 'pause' }, E)).toEqual({ bodies: ['p2'], max: 2, drop: 'pause' });
+    expect(readSeats({ bodies: ['p2'], lives: 3 }, E)).toEqual({ bodies: ['p2'], max: 2, lives: 3, pool: 'own' });
+    expect(() => readSeats({ bodies: ['p2'], pool: 'shared' }, E)).toThrow(/give lives/);
+    expect(() => readSeats({ bodies: ['p2'], lives: 0 }, E)).toThrow(/1 to 99/);
   });
 });

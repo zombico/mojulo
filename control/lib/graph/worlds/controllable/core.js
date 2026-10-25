@@ -408,14 +408,29 @@ export function buildCore(E) {
     // AI-attack switch: `spec.ai:'off'` seats the world PASSIVE (ai-ambient suits stand down
     // until input.aiToggle wakes them); anything else — including absent — leaves authored ai live.
     const state = { entities, byId, camera, pilotId, spectate, aiEnabled: spec.ai !== 'off', aiTuning: null, colliders: normalizeColliders(spec.colliders), match: null, wreckExplodes: null, time: 0, projectiles: [], bursts: [], projSeq: 0, burstSeq: 0, clashes: [], clashSeq: 0, shieldBreaks: 0, cinematic: null };
-    // SEATS (pilots.plan.md; opt-in `spec.seats: { bodies, drop?, floor? }`): the bodies seats 2, 3 and 4 take, in order,
+    // SEATS (pilots.plan.md; opt-in `spec.seats: { bodies, drop?, floor?, lives?, pool? }`): the bodies seats 2, 3 and 4 take, in order,
     // each on its pilot rule and its own input (`input.seats[n]`); seat 1 is the pilot above. A seat with no player this
     // frame leaves its body to its AI (`drop: 'ai'`, the default) or holds it still (`'pause'`); a seated body below
-    // `floor` (default -20) is brought back to seat 1. Absent: no `seatOf`, and every body is stepped as it always was.
+    // `floor` (default -20) is brought back beside the others, at a cost of one of its `lives` when the world counts them.
+    // Absent: no `seatOf`, and every body is stepped as it always was.
     if (spec.seats && Array.isArray(spec.seats.bodies)) {
       state.seatOf = {};
       state.seatDrop = spec.seats.drop === 'pause' ? 'pause' : 'ai';
       state.seatFloor = Number.isFinite(spec.seats.floor) ? spec.seats.floor : -20;
+      // LIVES (opt-in `lives`, docs/local-multiplayer-principles.md: soul.pool): each seat's own count (`pool: 'own'`) or
+      // one the seats share (`'shared'`); a fall below the floor costs one (rules-basic.js 'seat-falls'). Absent: a fall
+      // costs nothing, and seat 1's is the level's catch.
+      if (Number.isInteger(spec.seats.lives) && spec.seats.lives > 0) {
+        const max = Number.isInteger(spec.seats.max) ? spec.seats.max : Math.min(4, spec.seats.bodies.length + 1);
+        state.seatPool = spec.seats.pool === 'shared' ? 'shared' : 'own';
+        state.seatLives = {};
+        if (state.seatPool === 'shared') state.seatLives.shared = spec.seats.lives;
+        else for (let n = 1; n <= max; n++) state.seatLives[n] = spec.seats.lives;
+        state.seatOut = {};
+        // where a body comes back when no other seat is playing to come back beside: where it started
+        state.seatHome = {};
+        for (const e of entities) if (e.id === pilotId || state.seatOf[e.id]) state.seatHome[e.id] = e.transform.pos.slice();
+      }
       spec.seats.bodies.slice(0, 3).forEach((id, k) => { const e = byId[id]; if (e && e.pilotable && e.id !== pilotId) { state.seatOf[id] = k + 2; e.rule = e.pilotRule; } });
     }
     runStateInits(state, spec);   // opt-in state layers (the match bout + wreck finisher — combat-match.js, S2)
@@ -511,13 +526,6 @@ export function buildCore(E) {
       if (!e) continue;
       const here = !!(input.seats && input.seats[state.seatOf[id]]);
       e.rule = here || state.seatDrop === 'pause' ? e.pilotRule : e.ambientRule;
-      // fallen off the world (below `seats.floor`): back in just above seat 1's pilot, as a co-op game brings a lost
-      // player back to the others (seat 1's own fall is the level's catch)
-      const P = state.byId[state.pilotId];
-      if (e.transform.pos[2] < state.seatFloor && P && !P.gone) {
-        e.transform.pos = [P.transform.pos[0], P.transform.pos[1], P.transform.pos[2] + 1];
-        if (e.vel) e.vel = [0, 0, 0];
-      }
     }
   }, 25);
 

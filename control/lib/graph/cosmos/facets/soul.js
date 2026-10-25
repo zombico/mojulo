@@ -104,8 +104,8 @@ export const SOUL = Object.freeze({
     pool: {
       given: GIVEN,
       values: {
-        shared: { ...NOT_YET, effort: 'S', requires: TWO },
-        own: { ...NOT_YET, effort: 'S', requires: TWO },
+        shared: { status: 'built', ...TOGETHER, lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one; at none the level is lost (rules-basic.js seat-falls); falls only, a hit is seat 1\'s hp; web only', requires: TWO },
+        own: { status: 'built', ...TOGETHER, lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls); falls only, a hit is seat 1\'s hp; scores stay one count; web only', requires: TWO },
       },
     },
     join: {

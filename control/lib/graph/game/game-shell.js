@@ -48,7 +48,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI, MSG_SEATS } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -645,17 +645,24 @@ window.addEventListener('gamepaddisconnected', syncPadName);
 syncPadName();
 // gamepad START (the shell scheme's pause, standard button 9) toggles the pause menu during battle — the SHELL polls it
 // (the world deliberately leaves start alone), so the pad can pause and resume even while the
-// level underneath is frozen. Rising-edge, level screens only.
-let padStartPrev = false;
+// level underneath is frozen. Each pad's start on its own rising edge, level screens only: any pad opens the pause, and
+// only the pad that opened it closes it (the pause is that seat's; docs/local-multiplayer-principles.md).
+const padStartPrev = {};
 (function padPausePoll() {
   requestAnimationFrame(padPausePoll);
-  if (!settings.padOn || screen !== 'level' || !navigator.getGamepads) { padStartPrev = false; return; }
-  let dn = false;
+  if (!settings.padOn || screen !== 'level' || !navigator.getGamepads) { for (const k in padStartPrev) delete padStartPrev[k]; return; }
   const ps = navigator.getGamepads();
   const PAUSE = ${JSON.stringify(PAUSE_BUTTONS)};
-  for (let i = 0; i < ps.length && !dn; i++) { const p = ps[i]; if (p && p.connected) dn = PAUSE.some((b) => p.buttons[b] && p.buttons[b].pressed); }
-  if (dn && !padStartPrev) setGamePaused(!gamePaused);
-  padStartPrev = dn;
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i];
+    if (!p || !p.connected) continue;
+    const id = 'pad:' + p.index, dn = PAUSE.some((b) => p.buttons[b] && p.buttons[b].pressed);
+    if (dn && !padStartPrev[id]) {
+      if (!gamePaused) setGamePaused(true, id);
+      else if (!pauseBy || pauseBy === id) setGamePaused(false);
+    }
+    padStartPrev[id] = dn;
+  }
 })();
 
 // ---- pause menu (level screens only): ☰ freezes the level over the pause sidecar and raises
@@ -666,7 +673,8 @@ const pauseEl = document.getElementById('pause');
 const pauseRoot = document.getElementById('pauseRoot');
 const pauseCtl = document.getElementById('pauseControls');
 const pauseSet = document.getElementById('pauseSettings');
-let gamePaused = false, ctlRows = null;
+let gamePaused = false, ctlRows = null, pauseBy = null, seatList = [];
+const pauseTitle = document.querySelector('.pause-title');
 function renderCtlRows() {
   const dl = document.getElementById('ctlRows');
   dl.innerHTML = '';
@@ -677,8 +685,13 @@ function renderCtlRows() {
     const dd = document.createElement('dd'); dd.textContent = r[1]; dl.appendChild(dd);
   }
 }
-function setGamePaused(on) {
+function setGamePaused(on, by) {
   gamePaused = on;
+  // the controller that opened it owns it; with seats (the level's game-seats) the title names its seat, in its colour
+  pauseBy = on ? by || null : null;
+  const owner = pauseBy && seatList.find((x) => x.controller === pauseBy);
+  pauseTitle.textContent = owner ? 'paused · ' + owner.label : 'paused';
+  pauseTitle.style.color = owner ? owner.color : '';
   pauseEl.hidden = !on;
   unembedSettings();
   pauseRoot.hidden = false; pauseCtl.hidden = true; pauseSet.hidden = true;   // always reopen at the root list
@@ -1662,6 +1675,7 @@ function startLevel(lv, pickers, difficulty, arrive, carry) {
 window.addEventListener('message', (e) => {
   const d = e.data;
   if (!d || !session || e.source !== frame.contentWindow) return;
+  if (d.moj === ${JSON.stringify(MSG_SEATS)}) { seatList = Array.isArray(d.seats) ? d.seats : []; return; }
   if (d.moj === ${JSON.stringify(MSG_CONTROLS)}) {
     ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null;
     if (!pauseCtl.hidden) renderCtlRows();   // panel already open → live-update it

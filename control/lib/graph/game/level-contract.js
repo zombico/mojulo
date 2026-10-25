@@ -62,6 +62,11 @@ export const MSG_PAUSE = 'game-pause';
 export const MSG_CONTROLS = 'game-controls';
 export const MSG_GAMEPAD = 'game-gamepad';
 export const MSG_AI = 'game-ai';
+//   level → shell  { moj: MSG_SEATS, seats: [{ n, label, color, controller, away }] }
+//                                                        — who sits where (a level with seats), sent as it changes: the
+//                                                          pause menu names the seat that opened it, and only that
+//                                                          seat's controller closes it with its start
+export const MSG_SEATS = 'game-seats';
 
 export function validateLevelContract(game, schema) {
   const errors = [];

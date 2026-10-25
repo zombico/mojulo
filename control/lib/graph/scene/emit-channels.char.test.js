@@ -233,6 +233,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fixture 5 lines are replaced (the seats comment, the swap's list, the pre-step's close) and 14 written in their place;
 // every fixture that embeds the runtime re-pinned with it. A world without seats steps as before.
 
+// Re-pinned 2026-10-25 (lives per seat): the runtime the page embeds counts a world's seat lives (`seats.lives`, `pool`)
+// and moves a seated body's fall from the 'seats' pre-step into a 'seat-falls' world pass (back beside a playing seat, a
+// life spent, a seat out at none), and its shared camera frames a lone playing seat that is not its target. On the
+// `controllable` fixture 11 lines are replaced and 48 written in their place; every fixture that embeds the runtime
+// re-pinned with it. A world without seats steps as before.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
