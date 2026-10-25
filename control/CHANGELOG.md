@@ -14,6 +14,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Comic hero pack: the first tesseract, a pack of game cubes
+
+- Planned. A tesseract is a library of cosmos cubes with the look that suits them, shipped as data a creator can
+  write: genre cubes `intent.from` reads as it reads the core fixtures, geocube looks on one dial from cel-and-ink to
+  the realistic hero, and resonance laws that advise a look from the gameplay. The comic hero pack is the first. Six
+  probe cubes dry-run against the registry today: four makeable, two with gaps the core already names
+  (`space.topology=open`, `soul.contest=versus`); the comic look itself is the first gap, with no value to probe yet.
+
 ### Written intent: compose and quick write the game they are
 
 - A quick game writes its `intent` (`{ from: <genre> }`) when its goal has a genre and the caller wrote none: the genre
