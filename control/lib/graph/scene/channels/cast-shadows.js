@@ -150,21 +150,34 @@ for (const m of solids) {
 // baked shade beside it, and a corner already in the baked shadow is not darkened again), else by the cast's alpha. A
 // patch chains whatever patch the material carries already. `__mojLight` counts the frames, the hour map's arms
 // (`hourMaps`) and the renders that drew it (`hourDraws`).
+// INDOORS (`cfg.indoor`: the world declares itself an interior, so its bake has no sun): the hour is never drawn (there
+// is no sun to move; `hour()` is a no-op), and the actors' map is drawn from BELOW, straight up (`cfg.toLight` points
+// down): what it holds per texel is the lowest surface of what moves above it. A receiver darkens by how much of a small
+// disc round it has something standing within a hand, a knee and a hip's height above it (and nothing below it): a soft
+// CONTACT BLOB under each actor, darkest under the feet, fading as it leaves the floor, never a sun-directed shadow.
 // THE FOCUS: a channel with a focus (the controllable: the pilot, or the seats' centre) hands `__mojCast.focus(fn)` a
 // function that answers [x, y, z, spread]; the pass before every render (captures included, which never step) asks it
 // and seats the actors' box round it, so the box is tight from the first frame. Without a focus the box stays FIT.
 export function liveShadowScript(cfg) {
-  const A = !!cfg.actors, H = !!cfg.hour;
+  const A = !!cfg.actors, H = !!cfg.hour, B = A && !!cfg.indoor;
+  // the blob's three bands, in world units: the height above the receiver, the disc's radius, the weight
+  const u = cfg.unit || 1, wl = (m) => (Math.round((m / u) * 1e4) / 1e4).toFixed(4);   // (a GLSL float: always a point)
+  // seating the actors' box (half-width, centre): indoors it also hands the blob its units
+  const seatA = (args) => {
+    if (B) return `__csSeatA(${args})`;
+    const [half, ...xyz] = args.split(/, (?![^(]*\))/);
+    return `__csSeat(__csL, __csBiasU, ${half}, ${xyz.join(', ')}, __csActorBias)`;
+  };
   const fitMinLit = Number.isFinite(cfg.fitMin) && cfg.fitMin > 0 ? String(cfg.fitMin) : '60';
   const noCast = Array.isArray(cfg.noCast) && cfg.noCast.length;
   const light = (v) => `const ${v} = new THREE.DirectionalLight(0xffffff, 1);   // invisible to the MeshBasic fills: only its shadow camera matters
 ${v}.castShadow = true; ${v}.shadow.mapSize.set(__CS.mapSize, __CS.mapSize);
 scene.add(${v}); scene.add(${v}.target);`;
   const tap = (p) => `csLit( ${p}Map, v${p === 'cs' ? 'Cs' : 'Hr'}Coord, ${p}Bias, ${p}Texel )`;
-  const litExpr = A && H ? `min( ${tap('cs')}, ${tap('hr')} )` : A ? tap('cs') : tap('hr');
+  const litExpr = B ? '1.0 - csBlob( csMap, vCsCoord )' : A && H ? `min( ${tap('cs')}, ${tap('hr')} )` : A ? tap('cs') : tap('hr');
   const vDecl = [A ? 'uniform mat4 csMat;\\nvarying vec4 vCsCoord;\\n' : '', H ? 'uniform mat4 hrMat;\\nvarying vec4 vHrCoord;\\n' : ''].join('');
-  const fDecl = [A ? 'uniform sampler2DShadow csMap;\\nuniform float csBias;\\nuniform float csTexel;\\nvarying vec4 vCsCoord;\\n' : '', H ? 'uniform sampler2DShadow hrMap;\\nuniform float hrBias;\\nuniform float hrTexel;\\nvarying vec4 vHrCoord;\\n' : ''].join('');
-  const what = [A ? 'what moves casts each frame' : '', H ? 'the static world its own map, drawn when the hour changes' : ''].filter(Boolean).join('; ');
+  const fDecl = [A ? `uniform sampler2DShadow csMap;\\nuniform float csBias;\\nuniform float csTexel;\\n${B ? 'uniform vec2 csBlobK;\\n' : ''}varying vec4 vCsCoord;\\n` : '', H ? 'uniform sampler2DShadow hrMap;\\nuniform float hrBias;\\nuniform float hrTexel;\\nvarying vec4 vHrCoord;\\n' : ''].join('');
+  const what = [A ? (B ? 'what moves lays a contact blob each frame (indoors)' : 'what moves casts each frame') : '', H ? 'the static world its own map, drawn when the hour changes' : ''].filter(Boolean).join('; ');
   return `
 // --- live light (opt-in world 'shadows.${[A ? 'actors' : '', H ? 'hour' : ''].filter(Boolean).join(' + ')}'): ${what} ---
 const __CS = ${safeJson(cfg)};
@@ -201,8 +214,11 @@ const __csNoCast = (m) => !!(m.userData && __CS.noCast.indexOf(m.userData.g) !==
 ${light('__csL')}
 const __csMatU = { value: __csL.shadow.matrix }, __csMapU = { value: null }, __csBiasU = { value: 0 }, __csTexelU = { value: 1 / __CS.mapSize };
 // (a contact's bias, a few millimetres: no receiver casts here, so there is no self-shadowing to hide)
-const __csActorBias = __CS.bias || 0.005 / (__CS.unit || 1);
-__csSeat(__csL, __csBiasU, __csR, __csC.x, __csC.y, __csC.z, __csActorBias);   // FIT until a focus follows
+const __csActorBias = __CS.bias || 0.005 / (__CS.unit || 1);${B ? `
+// (the blob reads its bands in the map's own units: depth per world unit, map uv per world unit)
+const __csBlobU = { value: new THREE.Vector2() };` : ''}
+${B ? `const __csSeatA = (half, x, y, z) => { __csSeat(__csL, __csBiasU, half, x, y, z, __csActorBias); const c = __csL.shadow.camera; __csBlobU.value.set(1 / (c.far - c.near), 1 / (2 * half)); };
+` : ''}${seatA('__csR, __csC.x, __csC.y, __csC.z')};   // FIT until a focus follows
 let __csFollowing = false, __csFocus = null;
 const __csSteer = () => { const f = __csFocus && __csFocus(); if (f) window.__mojCast.follow(f[0], f[1], f[2], f[3] || 0); };` : ''}${H ? `
 // THE HOUR'S MAP: in the scene, its autoUpdate off, so three draws it only when __mojHourPass arms it (at load, and
@@ -245,7 +261,21 @@ const __csFS = '${fDecl}#ifdef CS_SUN\\nvarying float vCsSun;\\n#endif\\n'
   + '  if ( !( sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0 ) ) return 1.0;\\n'
   + '  float z = sc.z - bias, t = texel * 0.9;\\n'
   + '  return 0.25 * ( texture( map, vec3( sc.xy + vec2( -t, -t ), z ) ) + texture( map, vec3( sc.xy + vec2( t, -t ), z ) )\\n'
-  + '                + texture( map, vec3( sc.xy + vec2( -t, t ), z ) ) + texture( map, vec3( sc.xy + vec2( t, t ), z ) ) );\\n}\\n';
+  + '                + texture( map, vec3( sc.xy + vec2( -t, t ), z ) ) + texture( map, vec3( sc.xy + vec2( t, t ), z ) ) );\\n}\\n'${B ? `
+  // the contact blob: per band, the share of a disc (its centre and six round it) whose lowest actor surface stands
+  // above this receiver within the band's height (the map is drawn from below: depth grows upward) with nothing below
+  + 'float csBlob( sampler2DShadow map, vec4 co ) {\\n'
+  + '  vec3 sc = co.xyz / co.w;\\n'
+  + '  if ( !( sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z > 0.0 && sc.z < 1.0 ) ) return 0.0;\\n'
+  + '  float o = 0.0, lo = sc.z - ${wl(0.02)} * csBlobK.x;\\n'
+  + '  for ( int j = 0; j < 3; j++ ) {\\n'
+  + '    float h = sc.z + ( j == 0 ? ${wl(0.12)} : j == 1 ? ${wl(0.45)} : ${wl(1)} ) * csBlobK.x, r = ( j == 0 ? ${wl(0.1)} : j == 1 ? ${wl(0.2)} : ${wl(0.32)} ) * csBlobK.y, w = j == 0 ? 0.45 : j == 1 ? 0.35 : 0.2;\\n'
+  + '    for ( int i = 0; i < 7; i++ ) {\\n'
+  + '      float a = float( i ) * 1.0472 + float( j ) * 0.5236;\\n'
+  + '      vec2 q = sc.xy + ( i == 6 ? vec2( 0.0 ) : r * vec2( cos( a ), sin( a ) ) );\\n'
+  + '      o += w * max( 0.0, texture( map, vec3( q, lo ) ) - texture( map, vec3( q, h ) ) );\\n'
+  + '    }\\n  }\\n'
+  + '  return min( 1.0, o * 2.5 / 7.0 );\\n}\\n'` : ''};
 function __csPatch(m) {
   const mat = m.material;
   if (!mat || mat.userData.__live) return;
@@ -254,7 +284,7 @@ function __csPatch(m) {
   if (m.geometry && m.geometry.getAttribute('aSun')) mat.defines = Object.assign({}, mat.defines, { CS_SUN: '' });
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev.call(mat, sh, r);
-    ${[A ? 'sh.uniforms.csMat = __csMatU; sh.uniforms.csMap = __csMapU; sh.uniforms.csBias = __csBiasU; sh.uniforms.csTexel = __csTexelU;' : '', H ? 'sh.uniforms.hrMat = __hrMatU; sh.uniforms.hrMap = __hrMapU; sh.uniforms.hrBias = __hrBiasU; sh.uniforms.hrTexel = __hrTexelU;' : ''].filter(Boolean).join('\n    ')}
+    ${[A ? `sh.uniforms.csMat = __csMatU; sh.uniforms.csMap = __csMapU; sh.uniforms.csBias = __csBiasU; sh.uniforms.csTexel = __csTexelU;${B ? ' sh.uniforms.csBlobK = __csBlobU;' : ''}` : '', H ? 'sh.uniforms.hrMat = __hrMatU; sh.uniforms.hrMap = __hrMapU; sh.uniforms.hrBias = __hrBiasU; sh.uniforms.hrTexel = __hrTexelU;' : ''].filter(Boolean).join('\n    ')}
     sh.vertexShader = __csVS + sh.vertexShader.replace('#include <project_vertex>', \`#include <project_vertex>
 #ifdef USE_INSTANCING
   vec4 csW = modelMatrix * instanceMatrix * vec4( transformed, 1.0 );
@@ -287,14 +317,15 @@ window.__mojCast = {   // the channel's public seam: dynamic channels hand their
   // tighten the actors' box round the action (the pilot, or the seats' centre with \`r\` their spread)
   follow(x, y, z, r = 0) {
     __csFollowing = true;
-    __csSeat(__csL, __csBiasU, Math.max(__CS.span, r + __CS.span * 0.5), x, y, z, __csActorBias);
+    ${seatA('Math.max(__CS.span, r + __CS.span * 0.5), x, y, z')};
   },
   // the focus the box follows, asked before every render: fn() → [x, y, z, spread] (or nothing: the box stays)
   focus(fn) { __csFocus = typeof fn === 'function' ? fn : null; },` : `
   adopt() {}, follow() {}, focus() {},`}${H ? `
   hourLight: __hrL, hourMapU: __hrMapU,
   // the hour changed: the sun's new direction (toward it, z-up); the static map is drawn again on the next frame
-  hour(toLight) { if (toLight) __csDir.set(toLight[0], toLight[1], toLight[2]).normalize(); __hrSeat();${A ? ' if (!__csFollowing) __csSeat(__csL, __csBiasU, __csR, __csC.x, __csC.y, __csC.z, __csActorBias);' : ''} __hrDirty = true; },` : ''}
+  hour(toLight) { if (toLight) __csDir.set(toLight[0], toLight[1], toLight[2]).normalize(); __hrSeat();${A ? ` if (!__csFollowing) ${seatA('__csR, __csC.x, __csC.y, __csC.z')};` : ''} __hrDirty = true; },` : cfg.indoor ? `
+  hour() {},   // indoors: no sun to move` : ''}
 };
 for (const m of solids) {
   m.castShadow = false;   // the static world receives; ${H ? 'it casts only into the hour\'s map, when that is drawn' : 'what moves casts'}

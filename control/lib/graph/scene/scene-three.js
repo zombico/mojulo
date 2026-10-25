@@ -281,7 +281,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // LIVE LIGHT (scene/live-light.js): `shadows.actors` (what moves casts, each frame) and `shadows.hour` (the static
   // world's own map, drawn when the hour changes), the cast channel's split; with either, a baked sun's per-vertex share
   // (`sunShare` on the faces) rides each group as `aSun`. Absent ⇒ null ⇒ no share packed, the cast block as it was
-  const liveShadows = readLiveShadows(shadows);
+  // INDOORS (a world that declares itself an interior, `sky.preset 'interior'`: its bake has no sun) the hour is dropped,
+  // since there is no sun for it to move (a page asking only for it is the page without it), and the actors' shadow is a
+  // contact blob from below (channels/cast-shadows.js), not a shadow off an outdoor sun under a roof
+  const liveAsked = readLiveShadows(shadows), liveIndoor = !!(liveAsked && sky && sky.preset === 'interior');
+  const liveShadows = liveIndoor ? (liveAsked.actors ? { actors: true, hour: false } : null) : liveAsked;
   // OCCLUSION (scene/live-light.js, on the creases' prepass: channels/creases.js): live contact occlusion. With creases
   // or alone, one prepass a frame. Absent ⇒ null ⇒ the creases' block as it was, or none
   const occlusionCfg = readOcclusion(occlusion);
@@ -847,11 +851,13 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const liveUnit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
   const liveShadowBlock = liveShadows ? liveShadowScript({
     actors: liveShadows.actors, hour: liveShadows.hour,
-    toLight: Array.isArray(shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight
+    // (indoors the actors' light stands below, straight up: the blob's map)
+    toLight: liveIndoor ? [0, 0, -1] : Array.isArray(shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight
       : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
     alpha: typeof shadows.alpha === 'number' ? shadows.alpha : 0.38,
     mapSize: shadows.mapSize || 2048,
     span: shadows.span || Math.round((12 / liveUnit) * 1e4) / 1e4,
+    ...(liveIndoor ? { indoor: true } : {}),
     ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
     ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),

@@ -190,6 +190,48 @@ describe('live light in Chrome', () => {
     await page.close();
   }, 120000);
 
+  it('indoors an actor lays a soft contact blob under it, not a shadow off the outdoor sun, and none from high up', async () => {
+    if (!browser) return;
+    const FW = 640, FH = 480, page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    await page.setViewport({ width: FW, height: FH });
+    // an interior (no baked sun, `sky.preset 'interior'`): the world's toLight would put a shadow 1.2 m to −x of a figure
+    await page.setContent(emitThreeWorld({ viewBox: { width: FW, height: FH }, inline: true, capture: true, hud: false, faces: [half(-24, 24)], sky: { preset: 'interior' }, shadows: { actors: true, toLight: SUN } }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCapture && window.__mojCapture.ready, { timeout: 30000 });
+    const r = await page.evaluate(({ FIG, CAM }) => {
+      const { THREE, scene } = window.__mojCast.dbg;
+      const fig = new THREE.Group(), box = (x0, y0, x1, y1, z0, z1) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), new THREE.MeshBasicMaterial({ color: 0x808080 }));
+        m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); fig.add(m);
+      };
+      for (const [x0, y0, x1, y1] of FIG.legs) box(x0, y0, x1, y1, 0, FIG.legTop);
+      box(...FIG.torso);
+      box(-1.5, 0.8, -0.9, 1.4, 2.2, 2.8);   // a box hanging 2.2 m up: too high to touch the floor
+      scene.add(fig); window.__mojCast.adopt(fig);
+      fig.traverse((o) => { if (o.isMesh) { o.material.colorWrite = false; o.material.depthWrite = false; } });
+      window.__mojCast.focus(() => [0, 0, 0, 0]);
+      const cv = document.querySelector('canvas'), c2 = document.createElement('canvas');
+      c2.width = cv.width; c2.height = cv.height;
+      const g = c2.getContext('2d');
+      const cam = new THREE.PerspectiveCamera(CAM.vfov, cv.width / cv.height, 0.1, 100);
+      cam.up.set(0, 0, 1); cam.position.set(...CAM.pos); cam.lookAt(...CAM.target); cam.updateMatrixWorld();
+      const grab = () => { window.__mojCapture.frame(CAM); g.drawImage(cv, 0, 0); return g.getImageData(0, 0, c2.width, c2.height).data; };
+      const on = grab(); fig.visible = false; const off = grab();
+      const v = new THREE.Vector3(), Y = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const dark = (x, y) => { v.set(x, y, 0).project(cam); const px = Math.floor((v.x * 0.5 + 0.5) * c2.width), py = Math.floor((0.5 - v.y * 0.5) * c2.height), i = (py * c2.width + px) * 4; return 1 - Y(on, i) / Math.max(1, Y(off, i)); };
+      const peak = (x0, y0, x1, y1) => { let m = 0; for (let x = x0; x <= x1; x += 0.02) for (let y = y0; y <= y1; y += 0.02) m = Math.max(m, dark(x, y)); return m; };
+      return { under: peak(-0.1, -0.1, 0.1, 0.1), rim: dark(0.55, 0), sunward: peak(-1.5, -0.25, -0.7, 0.25), hung: peak(-1.4, 0.9, -1.0, 1.3) };
+    }, { FIG, CAM: FIG_CAM });
+    // (in SwiftShader: 0.32 between the feet, the alpha's 0.38 at most; 0 half a metre out, sunward and under the box)
+    expect(r.under).toBeGreaterThan(0.15);   // the blob under the figure, between its feet
+    expect(r.rim).toBeLessThan(r.under / 3);   // soft: faded half a metre out
+    expect(r.sunward).toBeLessThan(0.01);   // nothing where the outdoor sun would have thrown it
+    expect(r.hung).toBeLessThan(0.01);   // nothing under what does not touch the floor
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 90000);
+
   it('a cutout card occludes by its opaque texels only: its transparent half adds no occlusion', async () => {
     if (!browser) return;
     // (the actors' channel only lends the page's THREE and scene: nothing here is adopted, so its map stays empty)

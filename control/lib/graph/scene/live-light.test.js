@@ -135,6 +135,24 @@ describe('live light: the World page', () => {
   });
 });
 
+describe('live light: indoors (a world that declares itself an interior: its bake has no sun)', () => {
+  const IN = { faces: [floor()], sky: { preset: 'interior' } };
+  it('the hour has no sun to move: an interior asking for it emits the page without it', () => {
+    expect(emitThreeWorld({ ...IN, shadows: { actors: true, hour: true } })).toBe(emitThreeWorld({ ...IN, shadows: { actors: true } }));
+    expect(emitThreeWorld({ ...IN, shadows: { hour: true } })).toBe(emitThreeWorld(IN));
+    expect(emitThreeWorld({ faces: [floor()], shadows: { hour: true } })).toContain('__hrL');   // outdoors it is drawn
+  });
+  it('an actor lays a contact blob from a map drawn from below, never a shadow off the outdoor sun', () => {
+    const page = emitThreeWorld({ ...IN, shadows: { actors: true }, light: { toLight: [0.5, 0.3, 0.8] } });
+    expect(page).toContain('"toLight":[0,0,-1]');
+    expect(page).toContain('float lit = 1.0 - csBlob( csMap, vCsCoord );');
+    expect(page).toContain('hour() {},   // indoors: no sun to move');
+    const out = emitThreeWorld({ faces: [floor()], shadows: { actors: true }, light: { toLight: [0.5, 0.3, 0.8] } });
+    expect(out).not.toContain('csBlob');
+    expect(out).toContain('"toLight":[0.5,0.3,0.8]');
+  });
+});
+
 describe('live light: a world asks for it', () => {
   it('a stage on a geocube keeps the cube\'s bake shadows under a recipe\'s page-only shadows', async () => {
     const { withGeocube } = await import('../era/geocube.js');

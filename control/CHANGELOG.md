@@ -143,6 +143,18 @@ for none of them emits the same bytes as before.
   (the costlier of the two options, one override per class and map: leaving cutouts out of the prepass would have let
   the floor's contact shadow show through the blades in front of it). Measured in Chrome on a half-transparent card:
   0.17 darkening at the opaque half's foot, 0 at the transparent half's (0.17 at both before).
+- Indoors the hour's map no longer dims the whole room. An interior (a world that declares itself one, `sky.preset
+  'interior'`: the gothic-stone rooms of a quick game's crypt or tavern) bakes no sun and records no sun share, so every
+  receiver fell back to the cast's alpha under the outdoor sun's map, roof and all: 60,000 to 100,000 pixels of an
+  800 by 500 frame darker in the crypt and tavern. There is no sun for the hour to move there, so it is dropped: an
+  interior asking for `hour` emits the page it would without it (`__mojCast.hour` is a no-op), and renders the same
+  pixels. Outdoor pages are unchanged byte for byte.
+- Indoors an actor lays a soft contact blob under it instead of a shadow off the outdoor sun, still under `actors`.
+  The actors' map is drawn from below, straight up, so each texel holds the lowest surface of what moves above it; a
+  receiver darkens by how much of a small disc round it has something standing within 12 cm, 45 cm and a metre above it
+  (and nothing below), darkest under the feet and fading as the actor leaves the floor. Measured in Chrome: 0.32
+  between a standing figure's feet (the alpha's 0.38 at most), nothing half a metre out, nothing where the outdoor sun
+  would have thrown its shadow, nothing under a box hung 2.2 m up.
 - `export_model` exports a building level. A stage's `program` is its building program (`{ use, seed }`), and the
   exporter read it as the code kind's, so every quick game's building level was refused ("program.source must be a
   non-empty string") while the game page played it. Only a workbench's `program` is code now (`hasCodeProgram`).
