@@ -46,8 +46,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 ## Golden rules
 
 - **Recipes, not renders.** The manifest is the artifact; kernels regenerate on every read, so a kernel's
-  output for given params is a compatibility promise over already-minted rows. Byte-identical re-render is
-  the baseline test for any kernel change. Seeded dice only (`mulberry32`); never `Math.random`, `Date`,
+  output for given params is a compatibility promise over already-minted rows. Byte-identical re-render on the
+  reference runtime (Node 22, both CPUs) is the baseline test for any kernel change; across Node majors a render is
+  equal within tolerance, not byte for byte (CI runs the byte pins on the reference legs only). Seeded dice only (`mulberry32`); never `Math.random`, `Date`,
   `Intl` in a builder. An absent opt-in channel must contribute zero bytes.
 - **Two gates, never conflated.** Machine gate (measured, automated) and eyes gate (a human looks). Never
   claim the eyes gate passed. All gates advise and stamp; none refuse. Say which gate ran and what was seen.
