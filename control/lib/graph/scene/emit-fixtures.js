@@ -17,6 +17,7 @@ import { resolveWorldAudio } from '../beats/beats-world.js';
 import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
 import { shootSubjects } from '../shoot/subjects.js';
 import { versusArenaData } from '../versus/versus-page.js';
+import { meetArenaData } from '../contest/meet-arena.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
 
@@ -256,6 +257,8 @@ export const EMIT_FIXTURES = [
   ['game', { faces: [floor()], game: GAME }],
   // versus (a side-view fight on an arena): the fight block, its own frame step (`stepFight`), the camera owned
   ['versus', { faces: [floor()], versus: versusArenaData({ plane: 2.2, half: 6, roster: [{ id: 'a', archetype: 'all-rounder' }, { id: 'b', archetype: 'grappler' }] }) }],
+  // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
+  ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // board (a tactics board over the ground): the board kernel, the tactical camera and the page in one block, its own
   // frame step (`stepBoard`), the camera owned
   ['board', { faces: [floor()], board: boardChannelData(layBoard({ seed: 'fixture', cols: 4, rows: 4 }), { units: [{ id: 'a', side: 'p', at: 'A1' }, { id: 'b', side: 'q', at: 'D4' }] }) }],

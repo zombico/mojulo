@@ -90,11 +90,38 @@ and a ball card's on the ball. Planned, in order:
     the swing system's law forbids: an overhead clip family is a later step), the volleyball's bare-handed bump and set
     (the swing door needs an item in the hand), the kick (a leg clip from the vault's solve), the throw, the catch and
     the putt. Each is a hit verb already (its arc, spin and power hold) whose window says no clip plays it yet.
-- **The meet**, planned: a quick game's `meet` goal (a sprint, hurdles, the long jump, a throw; lanes; up to four local
-  players, each a pad), a pure step over every pad in versus's shape, each lane's body on the register's feel card, the
-  gun and the false start the kernel's, the hurdle the library's solved vault, the throw a launched body measured where
-  it rests; button-mash at the arcade end, stride-timed at the realistic end, one dial. Drawn in an arena with stands
-  under a broadcast camera, the scoreboard the kernel's.
+- **The meet**, built as a track the World page plays, with a recorded stopping point:
+  - **The meet sim** (`lib/graph/contest/meet-sim.js`): an athletic event as a pure function of the lanes' pads at
+    60 Hz, in versus's shape, the contest kernel its referee (the set after the marks, the gun on the kernel's seeded
+    delay, the race clock from the gun, a press before it a false start on that frame, the finish and the marks its
+    facts, its calls the sim's). Each lane is a body on a line whose sprint is the motion flavors' own top speed and
+    build-up, register for register (held equal by the test), driven as the register drives it: the realistic register
+    holds the run and a press on the footfall's beat lifts the form while one off it drops it (the beat never narrower
+    than a frame and a half of stride); the arcade registers mash, the press rate the speed and the full rate the top.
+    The hurdles are flights at the 110 m spacing: a hop begun in the approach band clears one and keeps most of the
+    speed (the realistic register takes it on the stride itself, the others on the press), a flight met on the ground
+    clips the runner into a stumble no pad drives. The long jump takes off on the press in the runway's last metres,
+    flies the arc of its speed and the register's angle on the register's gravity, is marked from the board, a
+    take-off past the board or a run through it a foul, the runner back for the next attempt until the kernel says
+    they are spent. A lane with no pad is run by a seeded computer that never jumps the gun. The same context and
+    pads are the same meet to the byte.
+  - **The meet arena** (`meet-arena.js`): the venue as a stage recipe, the versus arena's sibling: one long open room
+    on a stage kit, the lanes along it, the stands behind them, a broadcast camera, and the `meet` key (the event, the
+    lanes, the players, the register, the distance, the attempts, the seed, the kit, the crowd), checked and
+    teaching; the track in the stage's frame (each lane's line, the start, the finish, the flights, the board); the
+    page's data with the contest compiled and the level wire's names.
+  - **The meet on the World page** (`scene/channels/contest.js`, `meet-arena.client.js`): a channel on a world's
+    `meet` key that inlines the kernel, the sim and its client by source and owns the camera; up to four players on one
+    keyboard or the gamepads by index, the other lanes the computer's; the runners stick figures posed from the sim's
+    stride, the air and the stumble (a first drawing); the lane lines, the flights and the board on the floor; a
+    broadcast side camera that follows the field; the banners (ON YOUR MARKS, SET, GO, a false start), each lane's
+    clock or best, the placings; the hosted wire (READY, the meet INIT brings, the OUTCOME when the placings are in:
+    success when a player's lane placed first, or an exhibition). The page's probe runs an exhibition to the placings
+    the same meet reaches in Node, frame for frame (the e2e suite, in a real browser). The `meet` fixture joins the
+    emission matrix; a page without the key emits no block.
+  - **Not built, said:** the quick game's `meet` goal (the arena plays on its own and hosted; the game shell's level
+    is the next step), the hero library's clips on the runners (the stick figure stands in), the throws (a javelin or
+    a shot is not a sphere, and the flight model is sphere-only by design).
 - **The net game**, planned: a quick game's `contest` goal (tennis, volleyball, pong), one or two local players, the
   sides each held to their half by the kernel's legality, the ball on the register's card, the serve a restart the
   kernel owns, the bounce and the out as facts, the point, game and set the kernel's; a CPU opponent that moves to the

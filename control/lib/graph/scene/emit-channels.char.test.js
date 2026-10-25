@@ -206,6 +206,9 @@ import { emitThreeWorld } from './scene-three.js';
 // (physics, physics-actions, events, events-hud, kitchen-sink, kitchen-sink-capture) re-pin with its source, additions
 // only; a world with no `aero` force integrates every byte as before (physics-sim.test.js), and the other 65 pages are
 // byte-identical.
+// Pinned 2026-10-25 (battle city: the meet): the `meet` fixture joins the matrix (an athletic meet on a track: the meet
+// block, inlining the contest kernel, the meet sim and the arena client, its own frame step `stepContest`, the camera
+// owned). A new fixture only: every other page is byte-identical, and a page without a `meet` key emits no block.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

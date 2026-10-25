@@ -1226,6 +1226,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
   }
+  // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
+  // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.meet && typeof sketch.manifest.meet === 'object') {
+    const { meetArenaData } = await import('@/lib/graph/contest/meet-arena.js');
+    payload.meet = meetArenaData(sketch.manifest.meet);
+  }
   // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
   // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
   // (a city's `board` is its plan's street grid, city/plan: never spots)
