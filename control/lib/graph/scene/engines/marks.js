@@ -43,7 +43,7 @@ export const optionRow = (engine) => Object.freeze({ [engine]: 'built', option: 
 
 // the ledger rows engine-score.js writes that say what travels (read by no verdict); every other row is marked per engine
 export const LEDGER_INFO = Object.freeze([
-  'greybox_declared', 'skipped_runtime', 'sfx_carried', 'combat_music_carried', 'hud_declared', 'lights_carried', 'look_declared',
+  'greybox_declared', 'skipped_runtime', 'sfx_carried', 'combat_music_carried', 'hud_declared', 'titles_as_banners', 'lights_carried', 'look_declared',
   'crystals_carried', 'water_carried', 'address_carried', 'contract', 'bus_carried', 'combat_carried', 'rules_carried',
   'channels_carried', 'figures_carried', 'events_carried',
 ]);

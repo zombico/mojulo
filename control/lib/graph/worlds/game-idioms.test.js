@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createBusState, processEvents, stepTime, tickTimers, watchEvents, hashState, deriveEvents, linkPhysics, syncFromBodies, syncToBodies } from './event-bus.js';
 import { createState, step } from './physics-sim.js';
-import { compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed, onContact, pickup, onRest, hitConfirm, ephemeralTarget, banner, legend, toast } from './game-idioms.js';
+import { compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed, onContact, pickup, onRest, hitConfirm, ephemeralTarget, banner, legend, toast, title } from './game-idioms.js';
 import { buildWhackAMole } from './games/whack-a-mole.js';
 import { buildCradles } from './games/newton-cradles.js';
 import { resolveWorldScene } from './world-scene.js';
@@ -386,6 +386,10 @@ describe('screen-space presentation rides the idioms (hud-widgets.js)', () => {
 
   it('banner / legend are hud-only fragments (no state, no verbs) and compose beside the rest', () => {
     expect(banner({ text: 'TIME! {score}', ttl: 3 })).toEqual({ hud: [{ on: 'game-over', text: 'TIME! {score}', ttl: 3 }] });
+    // the carved banner: the same row with as:'title', its entrance and carve as given, a word key as text
+    expect(title({ on: 'fight', text: '@fight', look: 'stamp', style: 'blocky', color: 'harm' })).toEqual({ hud: [{ on: 'fight', text: '@fight', as: 'title', color: 'harm', look: 'stamp', style: 'blocky' }] });
+    expect(title({ text: 'K.O.' })).toEqual({ hud: [{ on: 'game-over', text: 'K.O.', as: 'title' }] });
+    expect(() => title({})).toThrow(/title needs text/);
     expect(legend({ text: 'click to whack', slot: 'bottom' })).toEqual({ hud: [{ text: 'click to whack', slot: 'bottom' }] });
     expect(() => banner({})).toThrow(/needs text/);
     const ev = compose(scoreCounter('score'), banner({ text: 'TIME! {score}' }), legend({ text: 'hi' }));

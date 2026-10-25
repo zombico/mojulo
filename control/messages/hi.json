@@ -794,5 +794,33 @@
         "other": "अन्य"
       }
     }
+  },
+  "gameTitles": {
+    "round": "राउंड {round}",
+    "fight": "लड़ो!",
+    "ko": "नॉकआउट",
+    "victory": "विजय",
+    "defeat": "हार",
+    "draw": "बराबरी",
+    "ready": "तैयार?",
+    "go": "चलो!",
+    "start": "शुरू",
+    "finish": "समाप्त",
+    "gameOver": "खेल समाप्त",
+    "levelClear": "स्तर पूरा",
+    "stageClear": "चरण पूरा",
+    "timeUp": "समय समाप्त",
+    "paused": "रुका हुआ",
+    "perfect": "बेहतरीन!",
+    "newRecord": "नया रिकॉर्ड",
+    "youWin": "आप जीते",
+    "youLose": "आप हारे",
+    "wave": "लहर {wave}",
+    "boss": "बॉस",
+    "continue": "आगे बढ़ें?",
+    "combo": "{combo} कॉम्बो",
+    "checkpoint": "चेकपॉइंट",
+    "goal": "गोल!",
+    "bonus": "बोनस"
   }
 }

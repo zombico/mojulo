@@ -794,5 +794,33 @@
         "other": "أخرى"
       }
     }
+  },
+  "gameTitles": {
+    "round": "الجولة {round}",
+    "fight": "قاتل!",
+    "ko": "ضربة قاضية",
+    "victory": "فوز",
+    "defeat": "هزيمة",
+    "draw": "تعادل",
+    "ready": "مستعد؟",
+    "go": "انطلق!",
+    "start": "ابدأ",
+    "finish": "النهاية",
+    "gameOver": "انتهت اللعبة",
+    "levelClear": "اكتمل المستوى",
+    "stageClear": "اكتملت المرحلة",
+    "timeUp": "انتهى الوقت",
+    "paused": "متوقف",
+    "perfect": "مثالي!",
+    "newRecord": "رقم قياسي جديد",
+    "youWin": "لقد فزت",
+    "youLose": "لقد خسرت",
+    "wave": "الموجة {wave}",
+    "boss": "الزعيم",
+    "continue": "متابعة؟",
+    "combo": "كومبو {combo}",
+    "checkpoint": "نقطة تفتيش",
+    "goal": "هدف!",
+    "bonus": "مكافأة"
   }
 }

@@ -794,5 +794,33 @@
         "other": "Muu"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Raund {round}",
+    "fight": "Võitle!",
+    "ko": "K.O.",
+    "victory": "Võit",
+    "defeat": "Kaotus",
+    "draw": "Viik",
+    "ready": "Valmis?",
+    "go": "Läks!",
+    "start": "Start",
+    "finish": "Finiš",
+    "gameOver": "Mäng läbi",
+    "levelClear": "Tase läbitud",
+    "stageClear": "Etapp läbitud",
+    "timeUp": "Aeg on läbi",
+    "paused": "Paus",
+    "perfect": "Täiuslik!",
+    "newRecord": "Uus rekord",
+    "youWin": "Sa võitsid",
+    "youLose": "Sa kaotasid",
+    "wave": "Laine {wave}",
+    "boss": "Boss",
+    "continue": "Jätkata?",
+    "combo": "{combo} kombo",
+    "checkpoint": "Kontrollpunkt",
+    "goal": "Värav!",
+    "bonus": "Boonus"
   }
 }

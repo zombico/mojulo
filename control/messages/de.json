@@ -794,5 +794,33 @@
         "other": "Sonstiges"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Runde {round}",
+    "fight": "Kampf!",
+    "ko": "K.O.",
+    "victory": "Sieg",
+    "defeat": "Niederlage",
+    "draw": "Unentschieden",
+    "ready": "Bereit?",
+    "go": "Los!",
+    "start": "Start",
+    "finish": "Ziel",
+    "gameOver": "Game Over",
+    "levelClear": "Level geschafft",
+    "stageClear": "Abschnitt geschafft",
+    "timeUp": "Zeit abgelaufen",
+    "paused": "Pause",
+    "perfect": "Perfekt!",
+    "newRecord": "Neuer Rekord",
+    "youWin": "Du gewinnst",
+    "youLose": "Du verlierst",
+    "wave": "Welle {wave}",
+    "boss": "Boss",
+    "continue": "Weiter?",
+    "combo": "{combo} Kombo",
+    "checkpoint": "Checkpoint",
+    "goal": "Tor!",
+    "bonus": "Bonus"
   }
 }

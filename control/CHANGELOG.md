@@ -21,6 +21,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   with no height and the stage was refused; it now stands at the tier's top. A cube whose summit tier has a height
   places it as before.
 
+### Title cards: the carved letters come back as the game's words
+
+- **`as: 'title'` on a HUD banner row** carves the row's words into 3D letters and puts them on the screen when its
+  event fires, the way a game announces a round, a K.O., a clear, instead of a plate with words on it. The letters are
+  the glyph carver's (`lib/motion/glyph-carver.js`, the letter primitive of the pre-three renderer, until now reached
+  only through the `carved-solid` wordmark and cover titles) extruded with the bevelled carve kernel and tessellated
+  into a GLYPH ATLAS the page lays out by advance, so a `{score}` substituted at play time still carves (the digits
+  ride along with any placeholder). `look` is the entrance and its exit: `slam` (scaled down with an overshoot and a
+  settling tilt; a flash, a jolt and sparks on landing; leaves growing), `rise` (letter by letter from below, stretched,
+  squashing as each lands; leaves falling) or `stamp` (punched in from the eye with a bounce; leaves scattering, each
+  letter on its own line and spin). `style` is the carve: `heavy`, `blocky`, `slick`, `thin`, `italic`. The look is the
+  game's: the composed juice floor's register bakes anime cel bands with an ink hull behind each letter, or western
+  metal with a glint and a drop copy, into vertex colour, unlit, so the scene's lights do not matter. Everything plays
+  on the frame clock from the firing, every number of chance hashed from the firing's count: a capture draws the same.
+  Card `hud-title`; idiom `title(…)`; a `play.parts` banner passes `as`, `look` and `style` through.
+- **Words in the player's language.** A HUD row's `text` may name a word instead of spelling it (`'@fight'`,
+  `'@round'`, `'@gameOver'`, …: the `gameTitles` namespace of the dashboard's own locale catalogs, added to every
+  shipped language), read in the world's top-level `locale` (a shipped code; absent ⇒ `en`). A new language reaches
+  the games and the dashboard at once through `/sync-locales`.
+- **Absence degrades, never breaks.** A title the host cannot carve stays a banner (the browser spells it) and the
+  world's events say why under `titlesFallback`: no face parsed, `opentype.js` absent (an optional dependency), a
+  script that needs a shaping engine (Arabic, Hebrew, Thai, the Indic scripts), a character no face on the host covers.
+  The letters follow the host's faces (`MOJULO_TITLE_FONT` first, then the system's bold display faces, a CJK face
+  after a Latin one); vendor a face to pin them. The engines take a title as a banner in `score.json` (ledger
+  `titles_as_banners`). A world without a title row emits byte-identical pages.
+
 ### Resonance: the compiler checks that a composition's combined outcomes are laid
 
 - When values in two or more of the cube's facets are set together, an outcome exists that neither says alone: the
@@ -56,6 +82,41 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the run that has its hero. With a book, the composed co-op platformer seats every player on the shared side camera,
   and the gate's last known gap is gone. The gate's co-op case runs the loop as a creator does: compose, the book the
   readout asks for, the run.
+
+### Live light: actor shadows, the hour's shadow map, occlusion
+
+What does not move stays baked; what moves gets live light on the World page. Each piece is opt-in. A world that asks
+for none of them emits the same bytes as before.
+
+- **Actor shadows over the baked sun** (`shadows: { actors: true }`, beside `cast`). Only what moves casts: the pilot,
+  the seats' bodies, walkers, cars, fauna on the ground, and any subtree a channel hands to `__mojCast.adopt`. The
+  static world only receives. The shadow box follows the pilot, or the centre of the seated pilots when seats play.
+  Where the stage bake lights a world by the sun (a stage kit under the sun, and a meru outside, whose land is baked
+  the same way), it writes each corner's share of its light that comes straight from the sun (`sunShare`; 0 where
+  the baked sun is already shadowed or the face looks away). The page carries the share as a vertex attribute. An
+  actor's shadow darkens a fragment by that share, so it takes a lit floor down to the baked shade beside it and never
+  doubles a baked shadow. A world whose bake writes no share (the island's, a city's, a world with no baked sun)
+  darkens by the cast's `alpha`, as `shadows.cast` does. Leaves, grass and far flora never cast. `cast` with `actors`
+  or `hour` is refused, with a message that says why.
+- A stage's `shadows` takes the page's keys (`cast`, `actors`, `hour` and the cast's tuning) beside its bake's
+  `torch`, `sun` and `cells`; before, they were refused. On a geocube, a recipe's `shadows` that names only page keys
+  keeps the cube's bake shadows under them.
+- **The hour's shadow map** (`shadows: { hour: true }`). The static world is drawn into its own shadow map once at
+  load, and again only when the hour changes (`__mojCast.hour([x, y, z])`, the direction toward the sun). It is never
+  drawn per frame. With `actors`, the actors' map is drawn each frame and the receive patch reads both. The baked
+  per-vertex sun stays the fallback and the light the captures use. The page's probe counts it: `__mojLight.hourMaps`
+  (the times it was asked for) and `hourDraws` (the renders that drew it), beside `frames`. For the one frame the
+  static map is drawn, the actors' map keeps its last frame.
+- **Occlusion on the shared prepass** (`occlusion: true` or `{ strength, reach, samples }`). Live contact shadowing:
+  a hero's feet on the floor, a prop on the ground, what no bake knows. Static occlusion stays baked. The creases'
+  prepass also writes normals when occlusion is on (two render targets in one render). A half-resolution pass then
+  samples a hemisphere (`samples`, 6 to 16) out to `reach` metres, and the composite blurs it on the surface (it never
+  bleeds across an edge) and lays it under fog, as the creases are. A world with both creases and occlusion draws one
+  prepass. The page's probe counts it: `__mojLight.prepassCalls`, `prepasses` (the renders into the prepass target)
+  and `aoPasses`. With occlusion on, the prepass skips the shadow maps, which the frame's own render draws. A camera
+  that is not perspective hides it. `__mojOcclusion.set(on)` turns it off and on. The unshaded export drops it. A
+  world with creases and no occlusion keeps the creases' block as it was.
+- The Godot and Roblox legs mark `occlusion` absent. Neither draws it yet.
 
 ### Written intent: compose and quick write the game they are
 

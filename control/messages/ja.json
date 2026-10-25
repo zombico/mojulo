@@ -794,5 +794,33 @@
         "other": "その他"
       }
     }
+  },
+  "gameTitles": {
+    "round": "ラウンド {round}",
+    "fight": "ファイト！",
+    "ko": "K.O.",
+    "victory": "勝利",
+    "defeat": "敗北",
+    "draw": "引き分け",
+    "ready": "レディ？",
+    "go": "ゴー！",
+    "start": "スタート",
+    "finish": "フィニッシュ",
+    "gameOver": "ゲームオーバー",
+    "levelClear": "レベルクリア",
+    "stageClear": "ステージクリア",
+    "timeUp": "タイムアップ",
+    "paused": "ポーズ",
+    "perfect": "パーフェクト！",
+    "newRecord": "新記録",
+    "youWin": "勝ち",
+    "youLose": "負け",
+    "wave": "ウェーブ {wave}",
+    "boss": "ボス",
+    "continue": "コンティニュー？",
+    "combo": "{combo} コンボ",
+    "checkpoint": "チェックポイント",
+    "goal": "ゴール！",
+    "bonus": "ボーナス"
   }
 }

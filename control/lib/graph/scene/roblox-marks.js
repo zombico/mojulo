@@ -118,7 +118,7 @@ export const PAGE_MARKS = Object.freeze({
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
     'doors', 'items', 'shallows', 'wetSand', 'softGround', 'snowPrints', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'fauna', 'wetRoad',
-    'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast', 'screen', 'runner', 'board', 'science', 'seats', 'creases', 'fabric', 'resample',
+    'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast', 'screen', 'runner', 'board', 'science', 'seats', 'creases', 'occlusion', 'fabric', 'resample',
   ]),
 });
 
@@ -132,6 +132,7 @@ export const EVENT_MARKS = Object.freeze({
   stats: m(P, 'kernel/stats.luau inside the bus\'s watch fixpoint, held equal by the bus corpus; the bodies bound to them (hpMax, speed) do not move the Humanoid'),
   inputs: m(P, 'a key the player presses reaches the bus by the page\'s name for it (MojuloClient: letters, digits, Space, Enter, Escape, the arrows); a click, a pick and a shot do not'),
   hud: m(P, 'kernel/hud.luau writes the rows as words (MojuloClient draws them); the page\'s widgets, motion and gates are not drawn'),
+  titles: m(P, 'a carved title is written as a banner\'s words (kernel/hud.luau); the 3D letters, their entrance and sparks are the web\'s'),
   cast: m(B, 'bus.json cast rows (kernel/cast.luau), held equal by the combat, mind and levelcast corpora; MojuloServer draws each body as a box'),
   scenes: m(P, 'bus.json scenes (kernel/scenes.luau, the page\'s runner ported): the beats, the line and the choices as words in a box (MojuloClient; Space, Enter or E goes on, Esc skips, the arrows and 1-4 choose); the bars and the shots are not drawn (the camera is Roblox\'s)'),
   quests: m(P, 'bus.json quests (kernel/quests.luau): a word as one begins, moves on, ends (MojuloServer); there is no journal to open'),

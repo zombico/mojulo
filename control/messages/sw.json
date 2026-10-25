@@ -794,5 +794,33 @@
         "other": "Nyingine"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Raundi {round}",
+    "fight": "Pigana!",
+    "ko": "K.O.",
+    "victory": "Ushindi",
+    "defeat": "Kushindwa",
+    "draw": "Sare",
+    "ready": "Tayari?",
+    "go": "Nenda!",
+    "start": "Anza",
+    "finish": "Mwisho",
+    "gameOver": "Mchezo Umekwisha",
+    "levelClear": "Kiwango Kimekamilika",
+    "stageClear": "Hatua Imekamilika",
+    "timeUp": "Muda Umekwisha",
+    "paused": "Imesitishwa",
+    "perfect": "Kamili!",
+    "newRecord": "Rekodi Mpya",
+    "youWin": "Umeshinda",
+    "youLose": "Umeshindwa",
+    "wave": "Wimbi {wave}",
+    "boss": "Bosi",
+    "continue": "Endelea?",
+    "combo": "Kombo {combo}",
+    "checkpoint": "Kituo cha Ukaguzi",
+    "goal": "Goli!",
+    "bonus": "Bonasi"
   }
 }

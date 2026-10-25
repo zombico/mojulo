@@ -201,6 +201,10 @@ Pointers only; each target carries its own design notes.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
+- Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
+  by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
+  in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
+  manual: the `hud-title` card. A host that cannot carve shows the banner.
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a

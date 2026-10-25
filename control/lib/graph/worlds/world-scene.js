@@ -49,8 +49,11 @@ import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures } from '@/lib/graph/era/geocube';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
+import { wantsSunShare, readOcclusion } from '@/lib/graph/scene/live-light';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
+import { hasTitleWords, localizeHudRows, readTitleLocale } from '@/lib/graph/game/title-words';
+import { carveTitles } from '@/lib/graph/game/title-carve';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
@@ -286,6 +289,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // when it is on (fractal-city, city); the payload carries it below. Dropped under the unshaded export, as the other
     // baked shading is. Absent ⇒ null ⇒ every byte identical.
     creases: unshaded ? null : readCreases(sketch.manifest.creases ?? scene.creases ?? geocubeRegisterOf(sketch.manifest) ?? undefined),
+    // LIVE LIGHT (scene/live-light.js): a world whose `shadows` ask for actors or the hour has its sun bake write each
+    // corner's share of light from the sun (`sunShare`), so an actor's shadow on the page never doubles a baked one.
+    // Dropped under the unshaded export (it bakes no sun). Absent ⇒ false ⇒ every byte identical
+    liveSun: !unshaded && wantsSunShare(sketch.manifest.shadows),
+    // OCCLUSION (scene/live-light.js, on the creases' prepass): live contact occlusion; the unshaded base drops it
+    occlusion: unshaded ? null : readOcclusion(sketch.manifest.occlusion),
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -525,6 +534,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the crease pass (ctx.creases above): the World page reads the resolved terms; stills and exports ignore them
   // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
   if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
+  // the live occlusion pass (ctx.occlusion above): the World page reads the resolved terms; stills and exports ignore them
+  if (payload && ctx.occlusion && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the
@@ -645,7 +656,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // under every rig-figure body, the landing tell). `shadows: { cast: true, alpha?, span?,
   // mapSize?, toLight? }` is the scene-level CAST-SHADOW channel: real shadow-map silhouettes
   // off every opaque mass and figure (static masses, walkers, controllable bodies), light keyed
-  // to the payload's baked sun when one exists. Opt-in; absent ⇒ byte-identical.
+  // to the payload's baked sun when one exists. `shadows: { actors: true }` and `{ hour: true }` are the LIVE LIGHT's
+  // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
+  // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
@@ -1130,8 +1143,23 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // token fails the compose_world resolve gate with a teaching message instead of painting
     // wrong; the events channel normalizes again at emit (idempotent), so fixtures stay raw.
     if (Array.isArray(ev.hud) && ev.hud.length) {
+      // a row's text may name a word in the world's language ('@fight': game/title-words.js, the dashboard's own
+      // catalogs); the world's `locale` is read only when a row does, so a world without one is never gated on it
+      if (hasTitleWords(ev.hud)) ev = { ...ev, hud: localizeHudRows(ev.hud, readTitleLocale(sketch.manifest.locale, 'locale')) };
       const h = normalizeHud(ev.hud);
       if (h.errors.length) throw new Error(`events.hud is invalid — see get_game_vocab({ id: 'hud-guide' }):\n- ${h.errors.join('\n- ')}`);
+      // the carved banners (`as: 'title'`, game/title-carve.js): their words carved here into the glyph atlas the page lays
+      // out (events.titles); a title the host cannot carve (no font, a shaped script, a character no face covers) stays a
+      // banner — the DOM spells it — and says why in events.titlesFallback. A world without a title row is untouched.
+      const carved = carveTitles(h.widgets);
+      if (carved) {
+        const { fallback, ...atlas } = carved;
+        const down = new Set(fallback.map((f) => `${f.on}\u0000${f.text}`));
+        const hud = down.size ? ev.hud.map((r) => (r && r.as === 'title' && down.has(`${r.on}\u0000${r.text}`) ? { ...r, as: 'banner' } : r)) : ev.hud;
+        // the look the letters are baked in: the composed juice floor's register (anime unless it says western)
+        const fxs = sketch.manifest.fxStyle, register = fxs && typeof fxs === 'object' && fxs.register === 'western' ? 'western' : 'anime';
+        ev = { ...ev, hud, ...(Object.keys(atlas.styles).length ? { titles: { ...atlas, register } } : {}), ...(fallback.length ? { titlesFallback: fallback } : {}) };
+      }
     }
     if (ev.style !== undefined) {
       const se = validateHudStyle(ev.style, 'events.style');

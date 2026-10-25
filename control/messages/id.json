@@ -794,5 +794,33 @@
         "other": "Lainnya"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Ronde {round}",
+    "fight": "Bertarung!",
+    "ko": "K.O.",
+    "victory": "Menang",
+    "defeat": "Kalah",
+    "draw": "Seri",
+    "ready": "Siap?",
+    "go": "Mulai!",
+    "start": "Mulai",
+    "finish": "Selesai",
+    "gameOver": "Permainan Berakhir",
+    "levelClear": "Level Selesai",
+    "stageClear": "Tahap Selesai",
+    "timeUp": "Waktu Habis",
+    "paused": "Dijeda",
+    "perfect": "Sempurna!",
+    "newRecord": "Rekor Baru",
+    "youWin": "Kamu Menang",
+    "youLose": "Kamu Kalah",
+    "wave": "Gelombang {wave}",
+    "boss": "Bos",
+    "continue": "Lanjutkan?",
+    "combo": "Kombo {combo}",
+    "checkpoint": "Pos Pemeriksaan",
+    "goal": "Gol!",
+    "bonus": "Bonus"
   }
 }

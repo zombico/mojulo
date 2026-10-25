@@ -102,7 +102,7 @@ describe('normalizeHud — the widget language over events.hud', () => {
   it('the closed lists are what the cards say', () => {
     expect(HUD_SLOTS).toEqual(['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right']);
     expect(HUD_KINDS).toEqual(['text', 'counter', 'bar', 'clock']);
-    expect(MOMENT_KINDS).toEqual(['banner', 'toast']);
+    expect(MOMENT_KINDS).toEqual(['banner', 'toast', 'title']);
     expect(hudSlotsUsed(normalizeHud([{ var: 'a', slot: 'bottom' }, { var: 'b' }, { on: 'x', text: 'y' }]).widgets)).toEqual(['top-left', 'center', 'bottom']);
   });
 });

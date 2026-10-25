@@ -22,7 +22,9 @@ import { safeJson } from '../emit-util.js';
 // `cfg`: { seed, gnats?: { colour, per, clouds }, fireflies?: { colour, flies }, butterflies?: { colours, homes },
 //          birds?: { colour, flock, every, height, centre, span }, ducks?: { colours: { body, head, bill }, ducks },
 //          roaches?, mice?: { colour, size, runs } }
-export function faunaScript(cfg) {
+// `cast` (the live light's actor shadows, `shadows.actors`): the herds on the ground (ducks, roaches, mice) cast into the
+// actors' map; swarms, butterflies and the high birds never do. Absent ⇒ the same bytes.
+export function faunaScript(cfg, { cast = false } = {}) {
   return `
 // --- fauna: the field's swarms and birds, a closed form of the clock ---
 (function () {
@@ -158,7 +160,7 @@ export function faunaScript(cfg) {
     g.setAttribute('color', new THREE.BufferAttribute(c, 3));
     return g;
   };
-  const herd = (geom, n) => { const m = new THREE.InstancedMesh(geom, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }), n); m.frustumCulled = false; m.raycast = () => {}; scene.add(m); return m; };
+  const herd = (geom, n) => { const m = new THREE.InstancedMesh(geom, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }), n); m.frustumCulled = false; m.raycast = () => {};${cast ? ' m.castShadow = true;' : ''} scene.add(m); return m; };
   const Rx = new THREE.Matrix4();
 
   if (F.ducks && F.ducks.ducks.length) {
