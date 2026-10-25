@@ -117,7 +117,7 @@ describe('the fall policy', () => {
   });
 });
 
-// ── mechanics-vocab V1: win-when + hp-pool + defeat-all (mechanics-vocab.plan.md) ───────────────
+// ── mechanics vocabulary V1: win-when + hp-pool + defeat-all ───────────────
 
 describe('win-when — the generic predicate terminal', () => {
   it('lowers to a var-predicate watch → end-success, with no audit unless hand-named', () => {
