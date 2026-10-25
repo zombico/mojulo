@@ -39,7 +39,9 @@ export function memberOrders(id, lookId, { seed = 1 } = {}) {
   spec.palette = { ...(spec.palette || {}), ...suitPalette };
   spec.gesture = m.gesture;
   if (L.hero.form === 'realistic') { spec.form = 'realistic'; for (const k of STYLIZED_ONLY) delete spec[k]; }
-  const toon = L.stop === 'comic' ? { light: true, ink: true } : L.stop === 'painted' ? { ink: true } : null;
+  // the ink's width is a share of the figure's bounding radius (scene-three.js toonInkCfg, 0.008 by default): the comic
+  // page draws it bolder, the painted cover finer
+  const toon = L.stop === 'comic' ? { light: true, ink: { width: 0.014 } } : L.stop === 'painted' ? { ink: { width: 0.006 } } : null;
   return {
     sheet: { facets: sheet.facets, reading: sheet.reading, seed: sheet.seed },
     mint: { tool: 'mint_solid', args: { kind: 'layered', via: 'hero', title: plan.create.title, spec, vibe: m.vibe, ...(toon ? { toon } : {}) } },

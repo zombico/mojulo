@@ -62,7 +62,9 @@ describe('comic hero pack: member orders', () => {
     const hero = memberOrders('hero', byPole.banded).mint.args.spec;
     expect(hero.paint).toEqual(['catsuit', 'gloves']);
     expect(hero.outfit.pieces.map((p) => p.kind)).toEqual(['cloak', 'belt']);
-    expect(hero.fieldPaint[0]).toMatchObject({ part: 'torso', shape: 'star' });
+    expect(hero.outfit.detail).toEqual([{ prim: 'embroidery', role: 'chest', motif: 'star' }]);
+    expect(hero.outfit.language.bottom).toMatchObject({ leg: 'long', cut: 'skinny' });
+    expect(hero.palette.OutfitSecond).toBe('#c62828');
     expect(hero.palette.Top).toBe('#c62828');
     const boss = memberOrders('mastermind', byPole.banded).mint.args.spec;
     expect(boss.adorn).toMatchObject({ type: 'armor', style: 'armored-hero' });
@@ -70,8 +72,8 @@ describe('comic hero pack: member orders', () => {
   });
   it('the toon follows the stop: light and ink at the comic stop, ink alone painted, none at the material pole', () => {
     const toonAt = (look) => memberOrders('hero', look).mint.args.toon;
-    expect(toonAt('comic-night')).toEqual({ light: true, ink: true });
-    expect(toonAt('painted-dusk')).toEqual({ ink: true });
+    expect(toonAt('comic-night')).toEqual({ light: true, ink: { width: 0.014 } });
+    expect(toonAt('painted-dusk')).toEqual({ ink: { width: 0.006 } });
     expect(toonAt('realistic-city')).toBeUndefined();
     expect(memberOrders('hero', 'realistic-city').mint.args.spec.paint).toBeUndefined();
   });
