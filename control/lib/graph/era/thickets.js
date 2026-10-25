@@ -8,7 +8,8 @@
  *   flora.bushes = { kinds: [bush kind …] (1–6), sections?: { count, radius: [lo, hi] m, fill (bushes a m²), gap m,
  *                    band: [near, far] m from the trail's edge } }
  *   a bush kind: a leaf form's name, or { form, height: [lo, hi] m, spread, stems, splay, trunk, girth, branch, split,
- *                density, leaf, bark, barkForm, share, walk: 'block' | 'through' } (BUSH_KIND_KEYS; BUSH_DEFAULTS)
+ *                density, leaf, bark, barkForm, share, walk: 'block' | 'through', evergreen } (BUSH_KIND_KEYS;
+ *                BUSH_DEFAULTS; `evergreen` keeps its leaves when the trees' season is bare)
  *
  *   readBush(kind)                       → the kind with the bush's defaults under it
  *   checkBushes(b, no)                   the `flora.bushes` block, checked (`no` throws in the biocube's voice)
@@ -27,7 +28,7 @@ const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
 
 /** A bush is a tree kind with the trunk taken away: thin stems from its foot, finer limbs, a low wide crown. */
 export const BUSH_DEFAULTS = Object.freeze({ height: Object.freeze([0.8, 1.5]), spread: 0.6, stems: 5, splay: 26, trunk: 0.12, girth: 0.014, branch: 0.35, split: 0, density: 0.8, walk: 'block' });
-export const BUSH_KIND_KEYS = Object.freeze(['form', 'height', 'spread', 'stems', 'splay', 'trunk', 'girth', 'branch', 'split', 'density', 'leaf', 'bark', 'barkForm', 'share', 'walk']);
+export const BUSH_KIND_KEYS = Object.freeze(['form', 'height', 'spread', 'stems', 'splay', 'trunk', 'girth', 'branch', 'split', 'density', 'leaf', 'bark', 'barkForm', 'share', 'walk', 'evergreen']);
 export const SECTION_DEFAULTS = Object.freeze({ count: 6, radius: Object.freeze([1.5, 3.2]), fill: 0.45, gap: 0.9, band: Object.freeze([1.2, 10]) });
 /** The groups a walked-through bush is drawn in, so the page lets the walker pass (its wood, its core, its chips). */
 export const SOFT_BRUSH = Object.freeze({ wood: 'flora:brush-wood', core: 'flora:brush', chips: 'flora:brush-chips' });
@@ -57,6 +58,7 @@ export function checkBushes(b, { no, num, int, range, keys, isObj, LEAF_OFFER, B
     if (k.leaf !== undefined) int(k.leaf, 0, LEAF_OFFER, `${at}.leaf (0 the world's, 1 to ${LEAF_OFFER} the theorist's offer)`);
     if (k.bark !== undefined) int(k.bark, 0, BARK_OFFER, `${at}.bark (0 the world's, 1 to ${BARK_OFFER} the theorist's offer)`);
     if (k.barkForm !== undefined && !BARK_FORM_IDS.includes(k.barkForm)) no(`${at}.barkForm is a bark's marks (${BARK_FORM_IDS.join(', ')})`);
+    if (k.evergreen !== undefined && typeof k.evergreen !== 'boolean') no(`${at}.evergreen is true (it keeps its leaves in a bare season) or false`);
     if (k.share !== undefined) num(k.share, 0.05, 20, `${at}.share`);
     if (k.walk !== undefined && k.walk !== 'block' && k.walk !== 'through') no(`${at}.walk is 'block' (a walker stops at it) or 'through' (a walker pushes through it)`);
   });

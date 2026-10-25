@@ -363,6 +363,7 @@ export { jetChannelScript } from './jet.js';
 export { aquaPatchScript } from './aqua-glsl.js';
 export { wetSandScript } from './wet-sand.js';
 export { softGroundScript } from './soft-ground.js';
+export { snowPrintsScript } from './snow-prints.js';
 export { toonInkScript } from './toon-ink.js';
 export { drawLayersScript, drawLayerGroup, DRAW_LAYER_KEYS } from './draw-layers.js';
 export { walkModeScript } from './walk.js';

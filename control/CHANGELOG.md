@@ -75,6 +75,39 @@ preset's is none, so the geocubes that grow `meadow`, `upland` or `grove` are by
     (`body.collide`, heavy: a game's player walks round it), stands long between slow wanders, and one past 20 m is
     refused as a landmark, not fauna. The walk page's eye is no body: it passes through, as through any.
   - Herds keep to the valley's side of the cliff, as the trees do.
+### Snow: a cube's land under snow, bare trees and footprints
+
+A cube can name its snow (`snow`, `era/snow.js`), and its trail's stage lies under it: snowcapped crags over a line, a
+winter cover or deep snow over the whole land. A biocube's trees can go bare for the season, and the walker leaves
+footprints. A cube that names no snow, and a biocube that names no season, are drawn as before.
+
+- **Where it lies**: over its `line` (metres over the land's lowest ground; absent, everywhere), its edge wandering and
+  held lower on the side turned from the sun (`lee`), on ground level enough to hold it (`hold`: steeper rock stands
+  bare, a cliff's ledge takes it whole), opened in patches by the wind (`drift`). The lying ground is cut where its
+  field crosses, as sand and pavement are; boulder caps take it; the rock flora is buried; a grass lip on a snowy cliff
+  is gone. Gritty, it is laid with the sand's cut, the wind's crust.
+- **Its colour** is the theorist's (`snowRamp`): near-white, cool in its shade (the sky's hue), warm in its light (the
+  sun's), quiet in chroma since the bake blues its shade; it takes the hour as the land does.
+- **The trail** goes trodden snow, packed and greyed, the soil showing through as far as the snow is shallow; its
+  fringe the snow's, no dirt patch over it.
+- **The far ridges** are capped over the line (the whole ridge but its foot without one), the line wandering down the
+  gullies, hazed into each ridge's far stop; the skirt's near bands go white with it.
+- **Under it**: the grass stands through a dusting, thins under a cover and is gone under deep snow (`grassUnder`); a
+  leaf turned up carries it, more of them and further down the deeper it lies (`capOf`), so bushes become mounds; a
+  limb's top takes it too.
+- **The season** (`flora.trees.season: 'bare'`, `era/biocube.js`): what has a fall drops its leaves, every tree and
+  bush its limbs and twigs (a tree with no kind grown as a spray's); the evergreens keep their crowns: the new `spire`
+  form (a cone of near-level tiers in flat drooping fans to a leader: firs, pines), evergreen unless a kind says
+  otherwise, and any kind with `evergreen: true`. The far woods go to the bark's grey-brown.
+- **Footprints** (`scene/channels/snow-prints.js`, a stage's `snowPrints`): the beach's footprint bed
+  (`materials/soft-ground.js`) on its fresh-snow ground, in a window round the walker on the snow; a foot packs the
+  powder and pushes a rim. Only what a foot touched is drawn, a few centimetres nearer the eye along its own ray, so
+  no window shows. The beach's own channel is unchanged. Engines mark it not drawn.
+
+The gallery: `scripts/spikes/geotown/snow.mjs` (none, snowcapped, a cover, deep, deep winter with bare trees and firs, a cover by
+night, a quiet cube, a fir wood; the clump, the trail to the crags, from above, footprints up the trail). The manuals: the
+`geocube` card (`snow`) and the `biocube` card (the season).
+
 ### Flora at night: what is drawn in a ramp's stops comes down with the hour
 
 A cube lowered at an hour bakes its land under the hour's light, but a gritty crown's chips and cores, the live grass's

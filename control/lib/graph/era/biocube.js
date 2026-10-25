@@ -109,12 +109,18 @@ function checkKinds(kinds) {
     if (k.bark !== undefined) int(k.bark, 0, BARK_OFFER, `${at}.bark (0 the world's, 1 to ${BARK_OFFER} the theorist's offer)`);
     if (k.barkForm !== undefined && !BARK_FORM_IDS.includes(k.barkForm)) no(`${at}.barkForm is a bark's marks (${BARK_FORM_IDS.join(', ')})`);
     if (k.share !== undefined) num(k.share, 0.05, 20, `${at}.share`);
+    if (k.evergreen !== undefined && typeof k.evergreen !== 'boolean') no(`${at}.evergreen is true (it keeps its leaves in a bare season) or false`);
   });
 }
 
+/** A level's trees' seasons: in leaf, or bare (era/isekai.js treeFaces). */
+export const TREE_SEASONS = Object.freeze(['leafy', 'bare']);
+
 function checkTrees(t) {
   if (!isObj(t)) no('flora.trees is { clusters, perCluster, spread, heights, clearTrail, clearCliff, crown?, hero? }');
-  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'kinds', 'clump', 'harmony'], 'flora.trees');
+  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'kinds', 'clump', 'harmony', 'season'], 'flora.trees');
+  // (the SEASON: 'bare' the leaves fallen, the trees and bushes their limbs and twigs, but a kind that is evergreen)
+  if (t.season !== undefined && !TREE_SEASONS.includes(t.season)) no(`flora.trees.season is ${TREE_SEASONS.join(' or ')} (the leaves fallen: limbs and twigs, but an evergreen kind)`);
   if (t.kinds !== undefined) checkKinds(t.kinds);
   // (an ikebana clump's cast, era/nature.js arrangedClump: which kind each role takes; and the harmony its colours are
   // solved in, era/flora-colours.js)

@@ -7,7 +7,8 @@
  *
  *   LEAF_FORMS                       the forms: spray, plate, weep, tuft, whorl
  *   TREE_KIND_KEYS                   a tree kind's settings (a biocube's `flora.trees.kinds`, era/biocube.js): a form,
- *                                      its proportions and the colours it takes from the theorist's offer
+ *                                      its proportions and the colours it takes from the theorist's offer, and
+ *                                      `evergreen` (it keeps its leaves when the trees' season is bare)
  *   readKind(kind)                   a form's name or a kind → the kind ({ form, … })
  *   pickByShare(kinds, r)            the kind a roll r (0..1) picks, weighed by the kinds' shares
  *   lobeTris(lobe, { detail, shrink }) → the lobe's skin as triangles (a core's facets)
@@ -67,6 +68,9 @@ export const LEAF_FORMS = Object.freeze({
   tuft: Object.freeze({ limbs: [6, 7], rise: [48, 70], reach: 0.92, at: [1], grain: 0.55, lean: [0, 0, 0.3] }),
   // a ring of spokes round each limb's end, radiating level, a small heart in the middle
   whorl: Object.freeze({ limbs: [4, 5], rise: [38, 55], reach: 0.8, at: [1], grain: 0.9, lean: [0, 0, 0.2] }),
+  // a cone of tiers (a fir's, a pine's): near-level limbs round the stem, shorter up it to a leader, each in flat
+  // drooping fans; EVERGREEN, its crown kept when the season is bare
+  spire: Object.freeze({ limbs: [10, 13], rise: [-16, 4], reach: 1, at: [0.4, 0.75, 1], grain: 0.85, lean: [0, 0, 0.45], evergreen: true }),
 });
 export const LEAF_FORM_IDS = Object.freeze(Object.keys(LEAF_FORMS));
 /**
@@ -86,7 +90,7 @@ export const LEAF_FORM_IDS = Object.freeze(Object.keys(LEAF_FORMS));
  *   barkForm its bark's marks (matte-paint/dressed.js BARK_FORM_IDS): furrowed, smooth, banded, plated, peeling
  *   share    how much of the level it is against the other kinds (1 each by default): a dominant, a subordinate, an accent
  */
-export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'stems', 'splay', 'branch', 'split', 'leaf', 'bark', 'barkForm', 'share']);
+export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'stems', 'splay', 'branch', 'split', 'leaf', 'bark', 'barkForm', 'share', 'evergreen']);
 export const readKind = (k) => (typeof k === 'string' ? { form: k } : k);
 /** A kind for a roll `r` (0..1): uniform over the kinds, or weighed by their shares when any names one (1 each else). */
 export function pickByShare(kinds, r) {
@@ -126,6 +130,10 @@ const GROW = {
     }
     return { twig: twigs[0], twigs, lobes };
   },
+  spire: (p, dir, az, f, j, R, h) => {
+    const d = unit([dir[0], dir[1], dir[2] - 0.12 * f]), L = R * mix(0.2, 0.28, h(1)) * (1.15 - 0.4 * f);
+    return { twig: null, lobes: [lobe(add(p, mul(d, L * 0.3)), [L, L * mix(0.55, 0.7, h(2)), R * 0.05], levelFrame(Math.atan2(d[1], d[0]), Math.asin(Math.max(-1, Math.min(1, d[2])))))] };
+  },
   whorl: (p, dir, az, f, j, R, h) => {
     const n = 5 + (h(1) < 0.5 ? 1 : 0), lobes = [lobe(add(p, [0, 0, R * 0.05]), [R * 0.12, R * 0.12, R * 0.09], levelFrame(az))], twigs = [];
     for (let i = 0; i < n; i++) {
@@ -146,6 +154,8 @@ export function leafForm(form, { base, h, c, Rc, seed = 1, density = 1, forks = 
   // (the fork low in the crown, or each stem's top (`forks`, a tree of several stems): a limb leaves the stem whose turn
   // it is, heading out over that stem's own side; a plate's limbs leave in tiers, so its plates stand one over another)
   const tops = forks ?? [[c[0], c[1], c[2] - 0.45 * Rc]], many = tops.length > 1;
+  // (a spire's tiers climb its stem to the tree's own height)
+  const spireTop = Math.max(base[2] + h, tops[0][2] + Rc);
   const sideOf = (p) => Math.atan2(p[1] - c[1], p[0] - c[0]);
   // (its leaf branches along a limb from `from` by `elbow` to `end`, the share `f` of its length, `j` their count so far)
   const leaves = (from, elbow, end, dir, az, i, fs, j0) => fs.forEach((f, j) => {
@@ -157,10 +167,23 @@ export function leafForm(form, { base, h, c, Rc, seed = 1, density = 1, forks = 
   for (let i = 0; i < n; i++) {
     const fork = tops[i % tops.length], own = Math.floor(i / tops.length), per = Math.ceil(n / tops.length);
     const az = many ? sideOf(fork) + ((own - (per - 1) / 2) / Math.max(1, per)) * 2.4 + 0.3 * (H(10 + i, 2) - 0.5)
-      : yaw + (form === 'plate' ? i * 2.39996 + 0.3 * H(10 + i, 2) : (2 * Math.PI * (i + 0.35 * H(10 + i, 2))) / n), el = mix(F.rise[0], F.rise[1], H(20 + i, 3)) * DEG;
-    const from = form === 'plate' ? [fork[0], fork[1], fork[2] - Rc * 0.35 + (Rc * 0.9 * i) / Math.max(1, n - 1)] : fork;
-    const reach = Rc * F.reach * mix(0.85, 1.1, H(30 + i, 4)) * (form === 'plate' ? mix(1.05, 0.6, i / Math.max(1, n - 1)) : 1);
+      : yaw + (form === 'plate' || form === 'spire' ? i * 2.39996 + 0.3 * H(10 + i, 2) : (2 * Math.PI * (i + 0.35 * H(10 + i, 2))) / n), el = mix(F.rise[0], F.rise[1], H(20 + i, 3)) * DEG;
+    // (a spire's limbs in tiers up its stem from below the fork to near its tip, each shorter: a cone)
+    const tier = i / Math.max(1, n - 1), spire = form === 'spire';
+    const from = form === 'plate' ? [fork[0], fork[1], fork[2] - Rc * 0.35 + (Rc * 0.9 * i) / Math.max(1, n - 1)] : spire ? [fork[0], fork[1], mix(fork[2] - Rc * 0.25, spireTop - Rc * 0.3, tier)] : fork;
+    const reach = Rc * F.reach * mix(0.85, 1.1, H(30 + i, 4)) * (form === 'plate' ? mix(1.05, 0.6, i / Math.max(1, n - 1)) : spire ? mix(1, 0.14, tier) : 1);
     const dir = dirOf(az, el), elbow = add(from, mul(dirOf(az, el * 1.25), reach * 0.5)), end = add(from, mul(dir, reach));
+    // (a spire's tier: its limb clothed in broad flat fans the limb's own length, overlapping round the stem into a cone)
+    if (spire) {
+      limbs.push({ pts: [from, elbow, end], radii: [0.026 * h * branch, 0.016 * h * branch, 0.007 * h * branch] });
+      // (boughs with body, drooping the more the lower they hang: seen from under the tiers they show their underside)
+      const droop = -mix(26, 10, tier) * DEG;
+      for (const [f, k] of [[0.42, 0.62], [0.82, 0.38]]) {
+        const p = add(from, mul(sub(end, from), f)), wob = (H(70 + i, 8 + k * 10) - 0.5) * 0.4;
+        lobes.push(lobe(add(p, [0, 0, -reach * 0.06 * f]), [reach * k, reach * k * mix(0.6, 0.8, H(71 + i, 9)), Math.max(Rc * 0.06, reach * k * 0.24)], levelFrame(az + wob, droop - 0.1 * f)));
+      }
+      continue;
+    }
     if (!split) {
       limbs.push({ pts: [from, elbow, end], radii: [0.03 * h * branch, 0.022 * h * branch, 0.012 * h * branch] });
       leaves(from, elbow, end, dir, az, i, F.at, 0);
@@ -178,6 +201,12 @@ export function leafForm(form, { base, h, c, Rc, seed = 1, density = 1, forks = 
       leaves(p0, p0, e, d2, a2, i, outer, 10 + salt);
     });
     fan(elbow, az, el, reach * 0.62, 0.016 * h * branch, Math.min(2, split), i * 13 + 1);
+  }
+  // (a spire's leader: its stem on up through the tiers to the tip, the last lobe a small one on it)
+  if (form === 'spire') {
+    const f0 = tops[0], tip = [f0[0], f0[1], spireTop];
+    limbs.push({ pts: [f0, tip], radii: [0.032 * h * branch, 0.008 * h * branch] });
+    lobes.push(lobe(add(tip, [0, 0, -Rc * 0.12]), [Rc * 0.18, Rc * 0.09, Rc * 0.09], alongFrame([0, 0, 1])));
   }
   return { limbs, twigs, lobes };
 }

@@ -115,7 +115,7 @@ export const PAGE_MARKS = Object.freeze({
     'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'fog', 'haze', 'splats', 'audio', 'fx',
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
-    'doors', 'items', 'shallows', 'wetSand', 'softGround', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'fauna', 'wetRoad',
+    'doors', 'items', 'shallows', 'wetSand', 'softGround', 'snowPrints', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'fauna', 'wetRoad',
     'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast', 'board', 'creases', 'fabric', 'resample',
   ]),
 });

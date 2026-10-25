@@ -26,7 +26,7 @@ import { hexRgb, rgbHex } from '../era/geom.js';
 import { gnoise2, smoothstep } from '../noise/noise.js';
 
 export const ROCK = new Set(['isekai:cliff', 'isekai:rock']);
-const PRIORITY = ['isekai:cliff', 'isekai:rock', 'isekai:sand', 'isekai:ground', 'isekai:trail'];
+const PRIORITY = ['isekai:cliff', 'isekai:rock', 'isekai:snow', 'isekai:sand', 'isekai:ground', 'isekai:trail'];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -113,7 +113,7 @@ function mixWeights(faces, V, { rings, seed }) {
   }
 }
 
-const K = 5, DEEP = 0.35, LIFT = 0.22, GRAIN = 0.35, GRAINED = new Set(['isekai:ground', 'isekai:sand']), VALLEY = 1.8;
+const K = 5, DEEP = 0.35, LIFT = 0.22, GRAIN = 0.35, GRAINED = new Set(['isekai:ground', 'isekai:sand', 'isekai:snow']), VALLEY = 1.8;
 /**
  * The rules into each corner colour, in linear light. `tints` is each surface's albedo (0..1 sRGB) for the blend and
  * the mix. `X` (optional): `grain` ({ at(x, y) → about [−1, 1], amount 0..1 }) the relief's fine octaves for the value;

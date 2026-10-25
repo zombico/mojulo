@@ -156,7 +156,7 @@ export const PAGE_MARKS = Object.freeze({
   fire: m(A, 'fire is not drawn'),
   doors: m(P, 'doors and doorways are triggers (kernel/level.gd _build_address); a door leaf does not swing'),
   items: m(P, 'items are triggers (kernel/level.gd _build_address); they are not drawn as the page draws them'),
-  shallows: m(A, 'shallows are not drawn'), wetSand: m(A, 'wet sand is not drawn'), softGround: m(A, 'soft ground is not drawn'),
+  shallows: m(A, 'shallows are not drawn'), wetSand: m(A, 'wet sand is not drawn'), softGround: m(A, 'soft ground is not drawn'), snowPrints: m(A, 'snow prints are not drawn'),
   jets: m(A, 'jets are not drawn'), jetLight: m(A, 'jet light is not drawn'), sway: m(A, 'vegetation does not sway'),
   flicker: m(A, 'lights do not flicker'), motes: m(A, 'motes are not drawn'),
   fauna: m(A, 'the field fauna (gnats, fireflies, butterflies, birds overhead, ducks, a room\'s roaches and mice: scene/channels/fauna.js) are the page\'s own: none is drawn'),
