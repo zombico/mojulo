@@ -234,8 +234,8 @@ for none of them emits the same bytes as before.
     loop their idle. A rigid figure plays through its LevelSequences as before.
   - A world pack has no kernel, so the importer loops the figure's clip on it at import: idle, else its first moving
     clip, as Godot's figure scene does.
-  - `node scripts/export-unreal.mjs --ref <world> --humanoid` ships the figure as the engine skeleton: VRM-named joints
-    at the T-pose rest, the seam an IK Retargeter maps from.
+  - A humanoid figure ships as the engine skeleton by default, in world and game packs: VRM-named joints at the T-pose
+    rest, the seam an IK Retargeter maps from. `--no-humanoid` (`humanoid: false`) keeps the flat skeleton.
   - The importer's verify adds `figures_skinned` (a SkeletalMesh for each skin the GLB declares, with at least its
     joints as bones) and, in a world pack, `figure_clip`. `clips_bound` counts an AnimSequence as a bound clip.
   - The README gains a Characters section when a figure ships skinned.
@@ -243,6 +243,25 @@ for none of them emits the same bytes as before.
   - Not yet run in Unreal: the kernel's compile, the figure checks and the eyes gate are the operator's
     (`MOJULO_UNREAL`). The AnimSequence names Interchange gives the clips are read by exact name, else by the one asset
     that contains it, and the first gate run pins them.
+- **A placed engine skeleton stands where its entity stands.** A humanoid figure exported as the engine skeleton (a
+  scene root in the VRM space, beside the z-up root) took its entity's z-up placement as is: about a metre off its spot
+  and tipped over. It now takes the placement said in the VRM space, turned half a turn since the VRM front is the
+  figure's back, the world's unit scale applied. It lands where the flat skeleton lands. Only humanoid exports with a
+  placed figure change: no shipped pack placed one (Godot's game packs carry the flat skeleton).
+- **The retarget seam in Unreal.** For each humanoid figure its GLB declares, the importer makes an IK Rig
+  (`IK_Mojulo_<figure>` under the level's `Retarget/`): its root the hips, one chain per limb named as Unreal's mannequin
+  rig names its chains. When the project holds the mannequin's rig (the Third Person template's `IK_Mannequin`, or
+  `MOJULO_SOURCE_IK_RIG`), it also makes `RTG_Mojulo_<figure>`, an IK Retargeter from it to the figure, so the project's
+  animation (motion matching, any mannequin clip) plays on the figure.
+  - A re-import rebuilds both in place, so an AnimBP pointed at them survives a re-mint.
+  - A lone humanoid figure (no entity places it) is turned at import to the world's facing, as Godot's figure scene
+    turns it.
+  - Verify adds `retarget_rig` (the rig with every chain the figure's bones make) and, with a mannequin rig present,
+    `retargeter`.
+  - The chains are read off the GLB by the importer's own code. A test runs that code under python3 with a stub editor
+    against a pack's GLB.
+  - Not run in Unreal: every IK Rig and Retargeter call is tried and logged, since the API moved between 5.2 and 5.6.
+    The operator's gate run says which calls held, and the eyes gate is a mannequin clip playing on the figure.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

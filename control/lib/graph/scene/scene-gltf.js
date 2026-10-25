@@ -1693,9 +1693,19 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (wrapIdx != null && !claimed.has(wrapIdx)) {
       claimed.add(wrapIdx);
       const node = b.json.nodes[wrapIdx];
-      if (e.translation.some((v) => v)) node.translation = e.translation;
       const yaw = e.heading + e.yawOffset;
-      if (yaw) node.rotation = zRotationQuat(yaw);
+      if (b.sceneRoots.includes(wrapIdx)) {
+        // an ENGINE SKELETON stands outside the z-up root, in the VRM space (y up, facing +z, the left on +x): its
+        // placement is the entity's said in that space — the root's (x, y, z) → (x, z, −y), the root's unit scale applied
+        // here since it does not reach a scene root's translation — and its heading a turn about y, half a turn more
+        // than the root's since the VRM front is the figure's back in the root's frame
+        const s = unitScale ?? 1, [x, y, z] = e.translation;
+        if (e.translation.some((v) => v)) node.translation = [x * s, z * s, -y * s];
+        node.rotation = [0, Math.sin((yaw + Math.PI) / 2), 0, Math.cos((yaw + Math.PI) / 2)];
+      } else {
+        if (e.translation.some((v) => v)) node.translation = e.translation;
+        if (yaw) node.rotation = zRotationQuat(yaw);
+      }
       node.extras = e.extras;
     } else {
       const node = { name: e.name, extras: e.extras };

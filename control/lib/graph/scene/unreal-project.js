@@ -573,14 +573,19 @@ def find_clip(index, clip):
     return index[hits[0]] if len(hits) == 1 else None
 
 
-def skeletal_bone_count(mesh):
-    """A SkeletalMesh's bones, off its skeleton's reference pose; None when this
-    editor does not expose it (UNPINNED: AnimPoseExtensions)."""
+def skeletal_bone_names(mesh):
+    """A SkeletalMesh's bone names, off its skeleton's reference pose; None when
+    this editor does not expose them (UNPINNED: AnimPoseExtensions)."""
     try:
         pose = unreal.AnimPoseExtensions.get_reference_pose(mesh.get_editor_property('skeleton'))
-        return len(unreal.AnimPoseExtensions.get_bone_names(pose))
+        return [str(n) for n in unreal.AnimPoseExtensions.get_bone_names(pose)]
     except Exception:  # noqa: BLE001 — a readout, never a gate
         return None
+
+
+def skeletal_bone_count(mesh):
+    names = skeletal_bone_names(mesh)
+    return None if names is None else len(names)
 
 
 def loop_figure_clips(content_dir):
@@ -601,6 +606,148 @@ def loop_figure_clips(content_dir):
             comp.set_editor_property('animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
             comp.override_animation_data(anim, True, True, 0.0, 1.0)
         unreal.log('[mojulo] figure ' + figure + ' loops ' + anim.get_name())
+
+
+def glb_humanoids(glb_path):
+    """The humanoid figures a GLB declares (VRMC_vrm's humanBones), {figure: {vrm bone: node name}}: scene-gltf names a
+    humanoid joint '<figure>:<vrm bone>'. {} when unreadable or none."""
+    doc = glb_doc(glb_path, 'humanoid scan') or {}
+    bones = ((doc.get('extensions') or {}).get('VRMC_vrm') or {}).get('humanoid', {}).get('humanBones') or {}
+    nodes = doc.get('nodes') or []
+    out = {}
+    for vrm, ref in sorted(bones.items()):
+        i = (ref or {}).get('node')
+        name = str(nodes[i].get('name', '')) if isinstance(i, int) and 0 <= i < len(nodes) else ''
+        if ':' in name:
+            out.setdefault(name.split(':')[0], {})[vrm] = name
+    return out
+
+
+def turn_lone_humanoids(glb_path):
+    """A humanoid figure no entity places stands in the VRM space, facing its +z: the figure's back in the world's frame
+    (scene-gltf turns a placed one itself). Half a turn about up brings it to the world's facing, as Godot's figure
+    scene turns it. Idempotent: the import's actors are fresh on every run."""
+    doc = glb_doc(glb_path, 'facing scan') or {}
+    nodes = doc.get('nodes') or []
+    skins = set(f for f, _ in glb_skins(glb_path))
+    for i in (doc.get('scenes') or [{}])[0].get('nodes') or []:
+        n = nodes[i] if 0 <= i < len(nodes) else {}
+        name = str(n.get('name', ''))
+        if name in skins and 'rotation' not in n:
+            actor = find_actor_by_label(name)
+            if actor is not None:
+                actor.add_actor_world_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=180.0), False, False)
+                unreal.log('[mojulo] figure ' + name + ' turned to the world facing')
+
+
+# THE RETARGET SEAM: one FK chain per limb over a humanoid figure's VRM bones, named as Unreal's mannequin IK rig names
+# its chains, so an IK Retargeter maps the two by name. (chain, first bone, last bone): each end the first of its
+# candidates the figure has; a chain whose ends it lacks is left out.
+RETARGET_CHAINS = [
+    ('Spine', ['spine'], ['upperChest', 'chest', 'spine']),
+    ('Neck', ['neck'], ['neck']),
+    ('Head', ['head'], ['head']),
+    ('LeftClavicle', ['leftShoulder'], ['leftShoulder']),
+    ('LeftArm', ['leftUpperArm'], ['leftHand']),
+    ('RightClavicle', ['rightShoulder'], ['rightShoulder']),
+    ('RightArm', ['rightUpperArm'], ['rightHand']),
+    ('LeftLeg', ['leftUpperLeg'], ['leftToes', 'leftFoot']),
+    ('RightLeg', ['rightUpperLeg'], ['rightToes', 'rightFoot']),
+] + [(side.capitalize() + finger, [side + vrm + first for first in starts], [side + vrm + 'Distal'])
+     for side in ('left', 'right')
+     for finger, vrm, starts in (('Thumb', 'Thumb', ['Metacarpal', 'Proximal']), ('Index', 'Index', ['Proximal']),
+                                 ('Middle', 'Middle', ['Proximal']), ('Ring', 'Ring', ['Proximal']),
+                                 ('Pinky', 'Little', ['Proximal']))]
+# the mannequin rig a retargeter maps from, where Unreal's templates put it (MOJULO_SOURCE_IK_RIG names another)
+SOURCE_IK_RIGS = ['/Game/Characters/Mannequins/Rigs/IK_Mannequin', '/Game/Characters/Mannequins/Rigs/IK_Manny']
+
+
+def retarget_chains(vrm):
+    """The chains a humanoid's VRM bones make: [(chain, first vrm bone, last vrm bone)]."""
+    out = []
+    for chain, starts, ends in RETARGET_CHAINS:
+        a = next((b for b in starts if b in vrm), None)
+        z = next((b for b in ends if b in vrm), None)
+        if a and z:
+            out.append((chain, a, z))
+    return out
+
+
+def source_ik_rig():
+    for p in ([os.environ['MOJULO_SOURCE_IK_RIG']] if os.environ.get('MOJULO_SOURCE_IK_RIG') else []) + SOURCE_IK_RIGS:
+        if unreal.EditorAssetLibrary.does_asset_exist(p):
+            rig = unreal.EditorAssetLibrary.load_asset(p)
+            if isinstance(rig, unreal.IKRigDefinition):
+                return rig
+    return None
+
+
+def asset_in_place(folder, name, cls, factory):
+    """The asset at folder/name, made when missing: a re-run rebuilds it IN PLACE, so whatever the project points at it
+    (an AnimBP's retargeter) survives a re-mint."""
+    path = folder + '/' + name
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        a = unreal.EditorAssetLibrary.load_asset(path)
+        if isinstance(a, cls):
+            return a
+        unreal.EditorAssetLibrary.delete_asset(path)
+    return unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, folder, cls, factory)
+
+
+def step(log, what, fn):
+    """One UNPINNED editor call (the IK Rig / Retargeter Python API moved between 5.2 and 5.6): tried, its outcome logged."""
+    try:
+        out = fn()
+        log.append(what + ' ok')
+        return out if out is not None else True
+    except Exception as e:  # noqa: BLE001 — every step advises, none refuses
+        log.append(what + ' failed: ' + str(e))
+        unreal.log_warning('[mojulo] ' + what + ': ' + str(e))
+        return None
+
+
+def retarget_figures(glb_path, content_dir):
+    """C2: each humanoid figure the GLB declares gets an IK Rig over its skeleton (retarget root hips, RETARGET_CHAINS)
+    under content_dir/Retarget, and, when the project holds a mannequin rig, an IK Retargeter from it to the figure."""
+    meshes = assets_of(content_dir, unreal.SkeletalMesh)
+    folder = content_dir + '/Retarget'
+    for figure, vrm in sorted(glb_humanoids(glb_path).items()):
+        want = clean_label(figure)
+        hits = sorted(k for k in meshes if k.startswith(want))
+        if not hits or 'hips' not in vrm:
+            unreal.log_warning('[mojulo] retarget ' + figure + ': ' + ('no SkeletalMesh' if not hits else 'no hips'))
+            continue
+        mesh = unreal.EditorAssetLibrary.load_asset(meshes[hits[0]])
+        names = skeletal_bone_names(mesh) or []
+        by_clean = dict((clean_label(n), n) for n in names)
+        bone = lambda v: by_clean.get(clean_label(vrm[v]), clean_label(vrm[v]))   # noqa: E731 — the bone a VRM name became
+        log = []
+        rig = asset_in_place(folder, 'IK_Mojulo_' + want, unreal.IKRigDefinition, unreal.IKRigDefinitionFactory())
+        ctl = unreal.IKRigController.get_controller(rig)
+        step(log, 'set_skeletal_mesh', lambda: ctl.set_skeletal_mesh(mesh))
+        for c in list(step(log, 'get_retarget_chains', lambda: list(ctl.get_retarget_chains())) or []):
+            step(log, 'remove_retarget_chain', lambda c=c: ctl.remove_retarget_chain(c.get_editor_property('chain_name')))
+        step(log, 'set_retarget_root', lambda: ctl.set_retarget_root(bone('hips')))
+        made = []
+        for chain, a, z in retarget_chains(vrm):
+            if step(log, 'chain ' + chain, lambda chain=chain, a=a, z=z: ctl.add_retarget_chain(chain, bone(a), bone(z), '')):
+                made.append(chain)
+        unreal.EditorAssetLibrary.save_loaded_asset(rig)
+        unreal.log('[mojulo] retarget ' + figure + ': IK Rig with ' + str(len(made)) + ' chains (' + ', '.join(made) + ')')
+        source = source_ik_rig()
+        if source is None:
+            unreal.log('[mojulo] retarget ' + figure + ': no mannequin IK rig in the project (MOJULO_SOURCE_IK_RIG names one) — the IK Rig is the seam')
+            continue
+        rtg = asset_in_place(folder, 'RTG_Mojulo_' + want, unreal.IKRetargeter, unreal.IKRetargetFactory())
+        rc = unreal.IKRetargeterController.get_controller(rtg)
+        step(log, 'set source rig', lambda: rc.set_ik_rig(unreal.RetargetSourceOrTarget.SOURCE, source))
+        step(log, 'set target rig', lambda: rc.set_ik_rig(unreal.RetargetSourceOrTarget.TARGET, rig))
+        step(log, 'set target mesh', lambda: rc.set_preview_mesh(unreal.RetargetSourceOrTarget.TARGET, mesh))
+        step(log, 'auto map chains', lambda: rc.auto_map_chains(unreal.AutoMapChainType.FUZZY, True))
+        # the figure rests in the T, the mannequin in its A: the figure's retarget pose is aligned to the source's
+        step(log, 'align target pose', lambda: rc.auto_align_all_bones(unreal.RetargetSourceOrTarget.TARGET))
+        unreal.EditorAssetLibrary.save_loaded_asset(rtg)
+        unreal.log('[mojulo] retarget ' + figure + ': ' + source.get_name() + ' -> ' + rig.get_name() + ' (' + '; '.join(x for x in log if 'failed' in x) + ')')
 
 
 def ensure_sticker_master():
@@ -1032,6 +1179,8 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
     apply_unlit_materials(glb_path)
     apply_rim_materials(score)
     ensure_pot_lights(score)
+    turn_lone_humanoids(glb_path)
+    retarget_figures(glb_path, content_dir)
     if game_mode is None:
         loop_figure_clips(content_dir)
 
@@ -1327,6 +1476,27 @@ def verify():
             want = clean_label(clip)
             check('figure_clip:' + figure, any(want in clean_label(n) for n in playing), ', '.join(playing) or 'no clip set')
 
+    def verify_retarget(glbs):
+        """C2: each humanoid figure's IK Rig with every chain its VRM bones make; its retargeter, when the project holds
+        a mannequin rig. No humanoid figure => no check, byte-identical gate file."""
+        for glb_path, content_dir, prefix in glbs:
+            for figure, vrm in sorted(glb_humanoids(glb_path).items()):
+                want, expected = clean_label(figure), [c for c, _, _ in retarget_chains(vrm)]
+                path = content_dir + '/Retarget/IK_Mojulo_' + want
+                rig = unreal.EditorAssetLibrary.load_asset(path) if unreal.EditorAssetLibrary.does_asset_exist(path) else None
+                have = []
+                if rig is not None:
+                    try:
+                        have = [str(c.get_editor_property('chain_name')) for c in unreal.IKRigController.get_controller(rig).get_retarget_chains()]
+                    except Exception:  # noqa: BLE001 — UNPINNED
+                        have = None
+                missing = [c for c in expected if have is not None and c not in have]
+                check(prefix + 'retarget_rig:' + figure, rig is not None and not missing,
+                      'missing ' + path if rig is None else ('chains unread' if have is None else str(len(have)) + ' chains' + (' — missing: ' + ', '.join(missing) if missing else '')))
+                if source_ik_rig() is not None:
+                    rtg = content_dir + '/Retarget/RTG_Mojulo_' + want
+                    check(prefix + 'retargeter:' + figure, unreal.EditorAssetLibrary.does_asset_exist(rtg), rtg)
+
     try:
         game = game_manifest()
         landmarked = False
@@ -1339,6 +1509,7 @@ def verify():
             verify_rim([score])
             verify_clips([(score, CONTENT_ROOT)])
             verify_figures([(os.path.join(PACK, 'model.glb'), CONTENT_ROOT, '')])
+            verify_retarget([(os.path.join(PACK, 'model.glb'), CONTENT_ROOT, '')])
         else:
             levels = game.get('levels') or []
             any_entities = False
@@ -1359,7 +1530,9 @@ def verify():
             verify_materials()
             verify_rim([s for s, _ in scored])
             verify_clips(scored)
-            verify_figures([(os.path.join(PACK, 'levels', spec['ref'], 'model.glb'), CONTENT_ROOT + '/Levels/' + spec['ref'], spec['ref'] + ':') for spec in levels])
+            level_glbs = [(os.path.join(PACK, 'levels', spec['ref'], 'model.glb'), CONTENT_ROOT + '/Levels/' + spec['ref'], spec['ref'] + ':') for spec in levels]
+            verify_figures(level_glbs)
+            verify_retarget(level_glbs)
     except Exception as e:  # noqa: BLE001 — the gate must always write its file
         check('verify_ran', False, str(e))
 
@@ -1513,6 +1686,13 @@ ${GUIDE_LEDGER(ledger)}
 // The skinned figures a pack carries (unreal-pack.js: a rigged layered figure ships as one skinned mesh): what
 // Interchange makes of them and what plays their clips. No skinned figure ⇒ no section, byte-identical.
 const SKINNED_IMPORT = 'Interchange imports it as a SkeletalMesh on its own Skeleton and each clip as an AnimSequence';
+// the retarget seam a humanoid figure's import makes (import_mojulo.py retarget_figures), said once for both scopes
+const RETARGET_NOTE = (folder) => `The importer makes \`IK_Mojulo_<figure>\` under \`${folder}/Retarget\`: an IK Rig over the skeleton, its root the
+hips and one chain per limb named as Unreal's mannequin rig names its chains. When the project holds the mannequin's rig
+(the Third Person template's \`IK_Mannequin\`, or the one \`MOJULO_SOURCE_IK_RIG\` names) it makes \`RTG_Mojulo_<figure>\`
+too, an IK Retargeter from it to the figure, so the project's animation (motion matching, any mannequin clip) plays on
+the figure. A re-import rebuilds both in place, so what the project points at them survives a re-mint.
+`;
 const charactersSection = ({ figure = null, levels = [] }) => {
   if (figure) {
     return `## Characters
@@ -1521,20 +1701,23 @@ const charactersSection = ({ figure = null, levels = [] }) => {
 ${SKINNED_IMPORT}; the
 importer loops \`${figure.clip}\` on it (single node), since a world pack has no kernel.
 ${figure.humanoid ? `Its skeleton is the engine skeleton: the joints carry VRM names (\`${figure.humanoid.slice(0, 3).join('`, `')}\`, …) and rest in
-the T-pose, so an IK Rig over it retargets Unreal animation onto the figure, and its clips onto another humanoid.
-` : ''}
+the T-pose.
+
+${RETARGET_NOTE('Content/MojuloPack')}` : ''}
 `;
   }
   const skinned = levels.filter((l) => l.skinned?.length);
   if (!skinned.length) return '';
+  const humanoid = skinned.some((l) => l.humanoid?.length);
   return `## Characters
 
 A level's rigged figure ships skinned (one mesh, its skeleton, its clips).
 ${SKINNED_IMPORT}; the
 kernel plays them on the mesh: the player's suit swaps idle and walk as it moves, the others loop their idle.
 
-${skinned.map((l) => `- \`${l.ref}\`: ${l.skinned.map((n) => `\`${n}\``).join(', ')}`).join('\n')}
-
+${skinned.map((l) => `- \`${l.ref}\`: ${l.skinned.map((n) => `\`${n}\`${l.humanoid?.includes(n) ? ' (humanoid)' : ''}`).join(', ')}`).join('\n')}
+${humanoid ? `
+A humanoid figure's skeleton is the engine skeleton: VRM-named joints at the T-pose rest. ${RETARGET_NOTE('Content/MojuloPack/Levels/<level>')}` : ''}
 `;
 };
 

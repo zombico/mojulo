@@ -9,9 +9,10 @@
  * A pack is DATA (score.json / model.glb / WAV / recipe) plus the emitter's
  * text (unreal-project.js: import_mojulo.py, T-numbered guide, README). A
  * rigged layered figure ships SKINNED (one mesh, its clips; Interchange makes
- * a SkeletalMesh and an AnimSequence per clip), as on the Godot leg; a world
- * pack's `humanoid` ships it as the engine skeleton (VRM-named joints at the
- * T-pose rest, the seam an IK Retargeter maps from). No
+ * a SkeletalMesh and an AnimSequence per clip), as on the Godot leg; a
+ * humanoid one ships as the engine skeleton by default (VRM-named joints at
+ * the T-pose rest, the seam the importer's IK Rig and Retargeter map from;
+ * `humanoid: false` keeps the flat skeleton). No
  * .meta sidecars — UE idempotency rides deterministic asset paths + the
  * import script rebuilding in place. Deterministic: same rows → same pack
  * bytes; the folder is wholly derived and clean-emitted on every build.
@@ -34,7 +35,7 @@ async function writePack({ outDir, binaries, emitted, portability }) {
 /** A standalone world → Unreal pack at outDir (U0 scope). `posture` is the
  * per-handoff greybox/final declaration (engine-score.js); absent, the
  * world manifest's own `posture` still applies as the durable default. */
-export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, humanoid = false, log = () => {} }) {
+export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, humanoid = true, log = () => {} }) {
   const sketch = loadSketch(ref);
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildUnrealGamePack`);
@@ -55,7 +56,7 @@ export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', postur
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'unreal' });
   const emitted = emitUnrealProject({
     ref, score, manifestHash, audioFile, lit, figure,
-    remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}${humanoid ? ' --humanoid' : ''}`,
+    remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}${humanoid ? '' : ' --no-humanoid'}`,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
@@ -71,7 +72,7 @@ export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', postur
  * beds dedupe by beatsRef, but `audio/menu.wav` must ALWAYS exist when the
  * game declares menu music (Unity's dedupe silently dropped it when the menu
  * bed was already some level's soundtrack). */
-export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
+export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture = null, lit = false, humanoid = true, log = () => {} }) {
   const manifest = refuse(loadSketch(ref), ref);
   const specs = gameLevels(manifest, ref);
   const posturePack = packPosture(posture, manifest);
@@ -86,8 +87,9 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
   for (let i = 0; i < specs.length; i++) {
     const spec = specs[i];
     const lvSketch = loadSketch(spec.ref);
-    // a level's rigged layered figure ships skinned, as a world pack's does (the kernel plays its clips as AnimSequences)
-    const { exported, score, soundtrack } = await resolveLevel(lvSketch, { engine: 'unreal', clips, posture: posturePack, lit, figure: true });
+    // a level's rigged layered figure ships skinned, as a world pack's does (the kernel plays its clips as AnimSequences),
+    // a humanoid one as the engine skeleton placed where its entity stands (scene-gltf.js)
+    const { exported, score, soundtrack } = await resolveLevel(lvSketch, { engine: 'unreal', clips, posture: posturePack, lit, figure: true, humanoid });
     // The battle rotation, stamped into DATA (the shipped Unity/Godot
     // behavior): a level without its own soundtrack gets the game's rotation
     // pick baked into its sidecar copy — the kernel never knows a rotation.
@@ -100,7 +102,7 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
       bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0,
       ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}),
     };
-    levels.push({ ref: spec.ref, title: spec.title, gate: spec.gate, score, ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}) });
+    levels.push({ ref: spec.ref, title: spec.title, gate: spec.gate, score, ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}), ...(exported.humanoidFigures ? { humanoid: exported.humanoidFigures } : {}) });
     log(`level '${spec.ref}' resolved — GLB ${exported.byteLength} bytes${score.soundtrack ? `, bed ${score.soundtrack}` : ''}`);
   }
   await beds.put(music.menu, 'audio/menu.wav');
@@ -112,7 +114,7 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
   const portability = assessPortability({ manifest, levels, engine: 'unreal' });
   const emitted = emitUnrealGame({ lit,
     ref, manifest, levels, manifestHash,
-    remint: `node scripts/export-unreal.mjs --ref ${ref}`,
+    remint: `node scripts/export-unreal.mjs --ref ${ref}${humanoid ? '' : ' --no-humanoid'}`,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {

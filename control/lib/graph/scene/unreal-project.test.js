@@ -334,3 +334,27 @@ describe('skinned figures (C1)', () => {
     expect(readme(skinned.files)).not.toContain('`lv-two`:');
   });
 });
+
+describe('the retarget seam (C2)', () => {
+  const py = () => emitGame().files.find((f) => f.file === 'import_mojulo.py').text;
+
+  it('every level, either scope: the lone humanoid turned to the world facing, its IK Rig, its retargeter when a source rig is there', () => {
+    expect(py()).toContain('    turn_lone_humanoids(glb_path)\n    retarget_figures(glb_path, content_dir)\n    if game_mode is None:\n');
+    // a placed figure carries its rotation from scene-gltf; only the unplaced scene root is turned
+    expect(py()).toContain("if name in skins and 'rotation' not in n:");
+    expect(py()).toContain("ctl.set_retarget_root(bone('hips'))");
+    expect(py()).toContain("rc.auto_map_chains(unreal.AutoMapChainType.FUZZY, True)");
+    expect(py()).toContain("SOURCE_IK_RIGS = ['/Game/Characters/Mannequins/Rigs/IK_Mannequin'");
+  });
+
+  it('rebuilt in place on a re-run, so what the project points at survives a re-mint', () => {
+    expect(py()).toContain('def asset_in_place(folder, name, cls, factory):');
+    expect(py()).toContain("ctl.remove_retarget_chain(c.get_editor_property('chain_name'))");
+  });
+
+  it('verify: retarget_rig per humanoid figure; retargeter only when the project holds a mannequin rig', () => {
+    expect(py()).toContain("check(prefix + 'retarget_rig:' + figure");
+    expect(py()).toContain("                if source_ik_rig() is not None:\n                    rtg = content_dir + '/Retarget/RTG_Mojulo_' + want");
+    expect(py()).toContain('verify_retarget(level_glbs)');
+  });
+});

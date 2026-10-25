@@ -23,7 +23,7 @@
  *   node scripts/export-unreal.mjs --ref <world-or-game sketch>
  *   node scripts/export-unreal.mjs --ref <ref> --no-gate       # emit only
  *   node scripts/export-unreal.mjs --ref <ref> --fresh-project # rebuild scratch
- *   node scripts/export-unreal.mjs --ref <world> --humanoid    # a humanoid figure as the engine skeleton (VRM names, T-pose)
+ *   node scripts/export-unreal.mjs --ref <ref> --no-humanoid   # a humanoid figure on the flat skeleton (default: the engine skeleton)
  * Env: MOJULO_UNREAL (UnrealEditor-Cmd binary; else newest under
  *      "/Users/Shared/Epic Games/UE_<ver>/Engine/Binaries/Mac/UnrealEditor-Cmd"),
  *      MOJULO_UNREAL_TIMEOUT_MS (watchdog, default 15 min).
@@ -55,7 +55,7 @@ const { values: args } = parseArgs({ options: {
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
   lit: { type: 'boolean', default: false },   // the LIT handoff: PBR materials over an unshaded base (lit-handoff.plan.md)
-  humanoid: { type: 'boolean', default: false },   // a world's humanoid figure ships the engine skeleton (retargetable)
+  'no-humanoid': { type: 'boolean', default: false },   // a humanoid figure ships the flat skeleton, not the retargetable engine one
   'fresh-project': { type: 'boolean', default: false },
 } });
 
@@ -81,7 +81,7 @@ const clips = args['no-clips'] ? null : '_all';
 let pack;
 try {
   const build = isGame ? buildUnrealGamePack : buildUnrealWorldPack;
-  pack = await build({ lit: args.lit, ref: args.ref, outDir, clips, posture: args.posture ?? null, ...(isGame ? {} : { humanoid: args.humanoid }), log });
+  pack = await build({ lit: args.lit, ref: args.ref, outDir, clips, posture: args.posture ?? null, humanoid: !args['no-humanoid'], log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }
