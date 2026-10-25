@@ -14,6 +14,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Resonance: the compiler checks that a composition's combined outcomes are laid
+
+- When values in two or more of the cube's facets are set together, an outcome exists that neither says alone: the
+  seats, the frame and the camera make a co-op screen; a watcher's perception and an unseen goal make a sneak; a party
+  and the escort motive make companions who follow. A RESONANCE names such an outcome (`gameworld/resonance.js`), and
+  the compiler checks itself against it: for a composition, which resonances it opens, whether its steps LAID what
+  each needs, and whether the laid level HOLDS its law. Internal: nothing in the agent's tools or cards, no refusal.
+- **The table and the check.** `RESONANCES` (`{ id, name, of, when, outcome, lowers, laid, law?, voiced? }`, `when`
+  ANDed across its keys, `a|b` inside a key ORed), `resonancesOf(cube)`, `resonanceCheck(cube, orders)`. The first
+  rows are what the compiler already lays: `co-op-screen`, `watched-sneak`, `escorting-party`.
+
 ### Written intent: compose and quick write the game they are
 
 - A quick game writes its `intent` (`{ from: <genre> }`) when its goal has a genre and the caller wrote none: the genre
