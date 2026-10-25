@@ -47,6 +47,16 @@ describe('comic hero pack: looks', () => {
     for (const d of DIAL) expect(Object.values(LOOKS).some((L) => L.stop === d.id), d.id).toBe(true);
     expect(() => lookOf('noir')).toThrow(/no look 'noir' \(known: comic-day/);
   });
+  it('every look reads as a geocube, and its paint is the city\'s (an hour word, a cloud kind)', () => {
+    for (const [id, L] of Object.entries(LOOKS)) {
+      expect(() => readGeocube(L.geocube), id).not.toThrow();
+      expect(['dawn', 'morning', 'noon', 'afternoon', 'golden', 'dusk', 'night'], id).toContain(L.paint.hour);
+      expect(['clear', 'fair', 'overcast', 'storm', 'haze', 'high'], id).toContain(L.paint.clouds);
+    }
+    // the gritty look is the material pole with the air thick and the walls worn, not another stop
+    const g = readGeocube(LOOKS['gritty-night'].geocube);
+    expect([LOOKS['gritty-night'].stop, g.grit, g.contrast !== undefined, g.light.outsideFog > readGeocube(LOOKS['realistic-city'].geocube).light.outsideFog]).toEqual(['realistic', 0.8, true, true]);
+  });
   it('each stop reads as a geocube today with the register it says, and as a hero direction', () => {
     const REGISTER = { comic: 'cel', painted: 'ink-wash', realistic: 'continuous' };
     const one = Object.fromEntries(DIAL.map((d) => [d.id, Object.entries(LOOKS).find(([, L]) => L.stop === d.id)]));
@@ -98,7 +108,7 @@ describe('comic hero pack: QA orders', () => {
     expect(kind).toBe('gameworld');
     const G = readGameworld(W);
     expect(G.intent.cube).toEqual(M.intent.cube);
-    expect(resolveLevel(G, 'downtown').city.plan.paint).toEqual({ geocube: LOOKS['realistic-city'].geocube });
+    expect(resolveLevel(G, 'downtown').city.plan.paint).toEqual({ geocube: LOOKS['realistic-city'].geocube, ...LOOKS['realistic-city'].paint });
     expect(resolveDirection(G).hero.toon).toBe(false);
     expect([hero.tool, hero.args.kind, hero.args.via, hero.args.spec.form, hero.args.toon]).toEqual(['mint_solid', 'layered', 'hero', 'realistic', undefined]);
     // the banded pole: the comic stop's world reads too, its hero lit as a character

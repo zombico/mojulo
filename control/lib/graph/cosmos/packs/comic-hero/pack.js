@@ -13,7 +13,7 @@
  *   qaOrders(lookId)        the orders that put one stop of the dial in front of the operator: a `create_sketch` of a
  *                           gameworld (the tree's own example world, gameworld/examples.js, with the pack cube that suits
  *                           the look as its intent, the look's hero direction, and a downtown city level painted by the
- *                           look's geocube), and the `mint_solid` hero the world's own hero page orders (hero-looks.js
+ *                           look's geocube at its hour under its clouds), and the `mint_solid` hero the world's own hero page orders (hero-looks.js
  *                           heroOrders: `via: 'hero'`, the character light at the banded pole, the realistic body at
  *                           the material one). The QA hero wears pole-neutral looks (the example's are the anime
  *                           head's). The eyes gate is the operator's; this only sets the table
@@ -67,7 +67,7 @@ export function qaOrders(lookId) {
     id: `comic-hero-qa-${lookId}`, name: `Comic hero QA: ${lookId}`,
     intent: { cube: cube.cube, why: `the ${L.stop} stop of the comic hero dial: ${L.reads}` },
     characters: { ...MEADOWMARK_HERO.characters, direction, hero: { ...MEADOWMARK_HERO.characters.hero, looks: QA_LOOKS } },
-    levels: { ...MEADOWMARK_HERO.levels, downtown: { name: 'Downtown', city: { board: { cols: 12, rows: 9 }, seed: 4 }, style: { geocube: L.geocube } } },
+    levels: { ...MEADOWMARK_HERO.levels, downtown: { name: 'Downtown', city: { board: { cols: 12, rows: 9 }, seed: 4, paint: { geocube: L.geocube, ...(L.paint || {}) } } } },
   };
   const hero = heroOrders(readGameworld(world)).mint;
   return [

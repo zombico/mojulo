@@ -37,6 +37,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   reported, never thrown) and `qaOrders(look)` sets the table for the eyes gate at one stop: a `create_sketch` of the
   example gameworld with the pack cube as its intent, the look's direction and a downtown painted by the look's
   geocube, and the hero at that pole (`pack.js`). Nothing reads the pack yet: the loader seam is next.
+- Every look carries its air: the geocube's `light` (how thick the outside's air is, the sky's fog colour) and the
+  city paint's `hour` and `clouds`, which the QA city is lit and hazed by (city/plan/look.js). A fifth look,
+  `gritty-night`, at the realistic stop: a storm night under a low key, the light shaped in the vertex
+  (`contrast: 'wii'`), the walls dressed from relief at `grit` 0.8 and aged old, the air thick enough to swallow the far
+  towers. Gritty is the material pole with the atmosphere as the light, not another stop of the dial.
 
 ### Written intent: compose and quick write the game they are
 
