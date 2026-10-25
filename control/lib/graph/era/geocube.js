@@ -815,7 +815,8 @@ export function geocubeStructures(manifest) {
   const low = m.kind === 'geocube' ? lowerGeocube(cube, 'outside', D.terrain, H) : withGeocube(m);
   const M = m.kind === 'geocube' && m.show === 'trail' ? trailMeru(low.meru, m.seed ?? 1) : low.meru === true ? {} : low.meru;
   const plan = planLocalMeru({ ...M, after: M.after ? { seed: Number.isFinite(low.seed) ? low.seed : 1, ...M.after } : null });
-  const top = plan.tiers[plan.tiers.length - 1], anchors = { summit: [top.centre[0], top.centre[1], top.base + top.height] };
+  // (a top tier with no height of its own, a terraced mountain's crown, stands to its plan's `top`)
+  const top = plan.tiers[plan.tiers.length - 1], anchors = { summit: [top.centre[0], top.centre[1], Number.isFinite(top.height) ? top.base + top.height : top.top] };
   const R = geocubeRamps(onTerrain(cube, D.terrain)), paint = { body: R.stone[2], band: R.trim[1], crown: R.accent[3], plinth: R.floor[1] };
   const placed = list.map(({ on, ...words }) => {
     const a = on === undefined ? null : anchors[on], d = words.at ?? [0, 0];

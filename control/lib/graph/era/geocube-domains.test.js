@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { planLocalMeru } from '../local-meru/plan.js';
 import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps, GEOCUBE_DOMAINS, CUBE_STREET_PAINT } from './geocube.js';
 import { readHour } from './geocube-hours.js';
 import { rollTiers } from '../local-meru/roll.js';
@@ -157,6 +158,13 @@ describe('structures, the landmarks a domain raises', () => {
     expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'shore-night' })).toBeNull();
     expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'crypt' })).toBeNull();
     expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'beacon-hill', trail: { run: 12 } })).toBeNull();
+  });
+
+  it('on a climb whose crown has no height of its own (a terraced mountain\'s lookout), the summit is its top', () => {
+    const m = { kind: 'stage', geocube: RAISED, domain: 'beacon-hill', meru: { preset: 'terraced-mountain' } };
+    const top = planLocalMeru(withGeocube(m).meru).tiers.at(-1);
+    expect(top.height ?? null).toBeNull();
+    expect(geocubeStructures(m).list[0].at[2]).toBe(top.top);
   });
 
   it('the world raises them on the domain\'s land, beside the recipe\'s own', async () => {

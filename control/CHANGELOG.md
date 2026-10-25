@@ -14,6 +14,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Level edit demo: a level made and changed by conversation
+
+- A structure a cube raises `on: 'summit'` stands on a terraced mountain's crown. The climb a level walks up from its
+  trail (the `terraced-mountain` preset) ends in a lookout tier with no height of its own, so the summit came out
+  with no height and the stage was refused; it now stands at the tier's top. A cube whose summit tier has a height
+  places it as before.
+
 ### Resonance: the compiler checks that a composition's combined outcomes are laid
 
 - When values in two or more of the cube's facets are set together, an outcome exists that neither says alone: the
