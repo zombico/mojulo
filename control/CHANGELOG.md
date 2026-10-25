@@ -170,6 +170,38 @@ for none of them emits the same bytes as before.
 - A world with live shadows and occlusion together no longer dies on load: the live light's script and the occlusion
   block both declared `__mojLight` on one page (a SyntaxError). The occlusion block binds the shared probe under its own
   name; the two occlusion pins moved, nothing else.
+- An actor's shadow meets its feet. The operator's look found a wide soft smudge that began away from the hero's feet on
+  the trail valley: until the pilot first stepped, and in every capture (which never steps), the actors' box covered
+  the whole stage (550 m across there, a 27 cm texel), and a single-sided caster drew its back faces, so a sole's depth
+  was the floor's own and the contact was lost. The controllable now hands the live light a focus (`__mojCast.focus`)
+  that the pass before every render asks, so the box sits round the pilot from the first frame; the default span is
+  12 m (a box 24 m across round one hero, a centimetre's texel; seats still grow it), the bias a contact's 5 mm, and an
+  adopted subtree casts both its sides. Measured in Chrome on a standing figure: the shadow's edge 6 mm past the leg's
+  face and a 3 cm penumbra (5 cm and 11 cm in the old fit box); on the quick game's hero, 1 mm and 3 to 4 cm.
+- Occlusion no longer lays square halos round grass clumps. The prepass drew every solid with one override material,
+  so an alpha-tested card (a grass clump, a leaf card) occluded as its whole rectangle. A cutout is now drawn with an
+  override that samples its map's alpha and discards under its alphaTest, so it occludes and receives by its blades
+  (the costlier of the two options, one override per class and map: leaving cutouts out of the prepass would have let
+  the floor's contact shadow show through the blades in front of it). Measured in Chrome on a half-transparent card:
+  0.17 darkening at the opaque half's foot, 0 at the transparent half's (0.17 at both before).
+- Indoors the hour's map no longer dims the whole room. An interior (a world that declares itself one, `sky.preset
+  'interior'`: the gothic-stone rooms of a quick game's crypt or tavern) bakes no sun and records no sun share, so every
+  receiver fell back to the cast's alpha under the outdoor sun's map, roof and all: 60,000 to 100,000 pixels of an
+  800 by 500 frame darker in the crypt and tavern. There is no sun for the hour to move there, so it is dropped: an
+  interior asking for `hour` emits the page it would without it (`__mojCast.hour` is a no-op), and renders the same
+  pixels. Outdoor pages are unchanged byte for byte.
+- Indoors an actor lays a soft contact blob under it instead of a shadow off the outdoor sun, still under `actors`.
+  The actors' map is drawn from below, straight up, so each texel holds the lowest surface of what moves above it; a
+  receiver darkens by how much of a small disc round it has something standing within 12 cm, 45 cm and a metre above it
+  (and nothing below), darkest under the feet and fading as the actor leaves the floor. Measured in Chrome: 0.32
+  between a standing figure's feet (the alpha's 0.38 at most), nothing half a metre out, nothing where the outdoor sun
+  would have thrown its shadow, nothing under a box hung 2.2 m up.
+- `export_model` exports a building level. A stage's `program` is its building program (`{ use, seed }`), and the
+  exporter read it as the code kind's, so every quick game's building level was refused ("program.source must be a
+  non-empty string") while the game page played it. Only a workbench's `program` is code now (`hasCodeProgram`).
+- The README capture helper (`docs/images/src/lib/browser.mjs`) runs on Linux: off macOS it routes GL through
+  SwiftShader, which current Chrome builds gate behind `--enable-unsafe-swiftshader`; on those, without the flag, the
+  World page never became capture-ready. It passes the flag, as the scene renderer's own launch does.
 
 ### Written intent: compose and quick write the game they are
 

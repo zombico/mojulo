@@ -176,7 +176,10 @@ void main() {
 // silhouette). Its composite (a fullscreen quad in the scene, under the creases' and the fog) averages each pixel's 4x4
 // half-resolution neighbours on the same surface (depth within 3 %), which cancels the spin and blurs without bleeding
 // across an edge, and darkens by `strength`, faded by the fog as the creases are. One prepass for both: a world with
-// creases pays nothing more for it. `__mojOcclusion` is the live handle (set(on)); `__mojLight` counts the prepass's
+// creases pays nothing more for it. A CUTOUT (an alpha-tested map: a leaf card, a grass clump) cuts its holes in the
+// prepass too, through an override that samples its map's alpha and discards below its alphaTest (one per class and
+// map, made the first time it is met); drawn with the plain override, its transparent texels stood as a full rectangle
+// and laid a square halo of occlusion round every clump. `__mojOcclusion` is the live handle (set(on)); `__mojLight` counts the prepass's
 // calls (`prepassCalls`), its renders (`prepasses`) and the occlusion passes (`aoPasses`). Static occlusion stays baked.
 // live-light.js occlusionAt is this pass in JS, pinned on stubs.
 
@@ -244,6 +247,16 @@ const __crVS = 'varying float vZ;\\nvarying vec3 vVP;\\n#include <common>\\n#inc
 const __crFS = 'layout(location = 0) out highp vec4 oZM;\\nlayout(location = 1) out highp vec4 oN;\\nuniform float uM; varying float vZ; varying vec3 vVP;\\nvoid main() { vec3 n = normalize(cross(dFdx(vVP), dFdy(vVP))); if (dot(n, vVP) > 0.0) n = -n; oZM = vec4(vZ, uM, 0.0, 1.0); oN = vec4(n, 1.0); }';
 const __crMask = (m) => new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: __crVS, fragmentShader: __crFS, uniforms: { uM: { value: m } }, side: THREE.DoubleSide });
 ${cfg ? 'const __crA = __crMask(1), __crL = __crMask(0.5), __crB = __crMask(0);   // angular, land, organic' : 'const __crB = __crMask(0);   // (no creases: one class)'}
+// a cutout's override: the class's, its holes cut where its map's alpha falls under its alphaTest
+const __crVSC = __crVS.replace('varying float vZ;', 'varying float vZ;\\nvarying vec2 vCutUv;\\nuniform mat3 uCutT;').replace('vZ = -mvPosition.z;', 'vZ = -mvPosition.z;\\nvCutUv = (uCutT * vec3(uv, 1.0)).xy;');
+const __crFSC = __crFS.replace('varying float vZ;', 'varying float vZ; varying vec2 vCutUv; uniform sampler2D uCut; uniform float uCutA;').replace('void main() {', 'void main() { if (texture(uCut, vCutUv).a < uCutA) discard;');
+const __crCuts = new Map();
+const __crCut = (cls, m) => {
+  const k = cls.uniforms.uM.value + '|' + m.map.id + '|' + m.alphaTest;
+  let c = __crCuts.get(k);
+  if (!c) { c = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: __crVSC, fragmentShader: __crFSC, uniforms: { uM: { value: cls.uniforms.uM.value }, uCut: { value: m.map }, uCutA: { value: m.alphaTest }, uCutT: { value: m.map.matrix } }, side: THREE.DoubleSide }); __crCuts.set(k, c); }
+  return c;
+};
 const __crVSQ = 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }';${cfg ? `
 const __crInkRT = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
 const __crU = { uZM: { value: __crRT.textures[0] }, uRes: { value: new THREE.Vector2() }, uCamPos: { value: new THREE.Vector3() }, uCamBasis: { value: new THREE.Matrix3() }, uFov: { value: 1 },
@@ -288,7 +301,7 @@ const __creasePrepass = () => {
     const m = o.material;
     const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
     const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;
-    if (solid || water) { __sw.push([o, m]); o.material = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; }
+    if (solid || water) { __sw.push([o, m]); const __cls = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; o.material = !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls; }
     else if (o.isMesh || o.isLine || o.isPoints || o.isSprite) { __sw.push([o, null]); o.visible = false; }
   });
   // (the shadow maps are the frame's, not the prepass's: three skips them here)

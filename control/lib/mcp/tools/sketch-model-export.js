@@ -25,7 +25,7 @@ import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union
 import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
 import { EXPR_GRAMMAR_VERSION } from '@/lib/graph/polygonizer/field-expr';
 import { FIELD_DOMAIN_OPS } from '@/lib/graph/polygonizer/field-terms';
-import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
+import { expandWorkbenchProgram, hasCodeProgram } from '@/lib/graph/worlds/workbench-program';
 import { withEquipment } from '@/lib/graph/equipment/expand';
 import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
@@ -995,7 +995,7 @@ async function exportModel(input, context = {}) {
               // lower inside the transpiler. The payload is the fallback for a kind that has
               // no workbench manifest to read (decision 6: nothing refuses the format).
               ? scadExport({
-                manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : withEquipment(sketch.manifest),
+                manifest: hasCodeProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : withEquipment(sketch.manifest),
                 payload,
                 title: sketch.title || sketch.manifest.title || ref,
                 ref,
@@ -1050,7 +1050,7 @@ async function exportModel(input, context = {}) {
   // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
   // program's monomers are the ones that shipped) and says what ran, in numbers
   let ledgerManifest = withEquipment(sketch.manifest);
-  if (hasProgram(sketch.manifest)) {
+  if (hasCodeProgram(sketch.manifest)) {
     const ex = expandWorkbenchProgram(sketch.manifest);
     ledgerManifest = ex.manifest;
     result.code = {

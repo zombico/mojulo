@@ -16,7 +16,11 @@ const req = createRequire(path.join(CONTROL, 'package.json'));
 const { default: puppeteer } = await import(pathToFileURL(req.resolve('puppeteer-core')).href);
 
 const CHROME = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const GL_ARGS = ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'swiftshader'}`, '--ignore-gpu-blocklist'];
+// Off macOS that is SwiftShader, which current Chrome builds gate behind --enable-unsafe-swiftshader: without it the
+// World page gets no WebGL and never becomes capture-ready (control/lib/graph/scene/chromium.js WEBGL_LAUNCH_ARGS).
+const GL_ARGS = process.platform === 'darwin'
+  ? ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist']
+  : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
 // Chromium cannot keep its sandbox as root (a Linux container), so it runs without one there.
 const ROOT_ARGS = process.getuid?.() === 0 ? ['--no-sandbox'] : [];

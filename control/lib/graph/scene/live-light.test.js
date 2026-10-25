@@ -108,7 +108,10 @@ describe('live light: the World page', () => {
     expect(page).toContain("if (grp.sun) geo.setAttribute('aSun'");
     expect(page).toContain('m.castShadow = false;   // the static world receives');
     expect(page).toContain('mesh.castShadow = true;');   // the controllable body casts
-    expect(page).toContain('window.__mojCast.follow(__c[0], __c[1], __c[2], __r)');   // the pilot, or the seats' centre
+    expect(page).toContain('window.__mojCast.focus(() => {');   // the pilot, or the seats' centre: handed over once
+    expect(page).toContain('return [__c[0], __c[1], __c[2], __r]; });');
+    expect(page).toContain('const __mojHourPass = () => { __mojLight.frames++; __csSteer(); };');   // asked before every render, captures included
+    expect(page).not.toContain('window.__mojCast.follow(__c[0]');   // not from the step: a capture's frames never step
     expect(page).not.toContain('__hrL');   // no hour map asked
     expect(page).not.toContain('__updateSuitShadows();');   // the blob gives way to the real shadow
     const renders = page.split('renderer.render(scene, camera)').length - 1;
@@ -125,10 +128,28 @@ describe('live light: the World page', () => {
     expect(() => emitThreeWorld({ faces: [floor()], shadows: { cast: true, hour: true } })).toThrow(/not both/);
   });
 
-  it('the actors\' box is 30 metres in the world\'s units unless the world names its span', () => {
-    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true } })).toContain('"span":30');
-    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true }, metersPerUnit: 3 })).toContain('"span":10,"unit":3');
-    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true, span: 12 } })).toContain('"span":12');
+  it('the actors\' box is 12 metres in the world\'s units round one hero unless the world names its span', () => {
+    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true } })).toContain('"span":12');
+    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true }, metersPerUnit: 3 })).toContain('"span":4,"unit":3');
+    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true, span: 30 } })).toContain('"span":30');
+  });
+});
+
+describe('live light: indoors (a world that declares itself an interior: its bake has no sun)', () => {
+  const IN = { faces: [floor()], sky: { preset: 'interior' } };
+  it('the hour has no sun to move: an interior asking for it emits the page without it', () => {
+    expect(emitThreeWorld({ ...IN, shadows: { actors: true, hour: true } })).toBe(emitThreeWorld({ ...IN, shadows: { actors: true } }));
+    expect(emitThreeWorld({ ...IN, shadows: { hour: true } })).toBe(emitThreeWorld(IN));
+    expect(emitThreeWorld({ faces: [floor()], shadows: { hour: true } })).toContain('__hrL');   // outdoors it is drawn
+  });
+  it('an actor lays a contact blob from a map drawn from below, never a shadow off the outdoor sun', () => {
+    const page = emitThreeWorld({ ...IN, shadows: { actors: true }, light: { toLight: [0.5, 0.3, 0.8] } });
+    expect(page).toContain('"toLight":[0,0,-1]');
+    expect(page).toContain('float lit = 1.0 - csBlob( csMap, vCsCoord );');
+    expect(page).toContain('hour() {},   // indoors: no sun to move');
+    const out = emitThreeWorld({ faces: [floor()], shadows: { actors: true }, light: { toLight: [0.5, 0.3, 0.8] } });
+    expect(out).not.toContain('csBlob');
+    expect(out).toContain('"toLight":[0.5,0.3,0.8]');
   });
 });
 
@@ -225,6 +246,9 @@ describe('occlusion: the World page', () => {
       const renders = page.split('renderer.render(scene, camera)').length - 1;
       expect(page.split('__creasePrepass(); renderer.render(scene, camera)').length - 1).toBe(renders - 1);   // all but the prepass's own
       expect(page.includes('__crInkScene')).toBe(!!extra.creases);
+      // a cutout (an alpha-tested map) is drawn with an override that cuts its holes
+      expect(page).toContain('o.material = !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls;');
+      expect(page).toContain("if (texture(uCut, vCutUv).a < uCutA) discard;");
     }
   });
   it('world-scene carries it only when asked, and the unshaded base drops it', async () => {

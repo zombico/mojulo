@@ -248,6 +248,16 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-10-25 (live light, the probe binding): `occlusion` and `occlusion-creases` only. The occlusion block
 // binds the shared __mojLight probe as __crLight, since the live light's script declares __mojLight on the same page.
 
+// Re-pinned 2026-10-25 (live light, the actors' box at the feet): `live-shadows-actors`, `live-shadows-hour` and
+// `live-shadows-both` only. The actors' box follows a focus the pass before every render asks (captures included), its
+// default span is 12 m (was 30), its bias a contact's 5 mm (was 2 cm), and an adopted subtree casts both its sides; the
+// hour-only row moves with the span in its config and the seam's no-op `focus`. No other hash moved.
+
+// Re-pinned 2026-10-25 (live light, cutouts in the occlusion prepass): `occlusion` and `occlusion-creases` only. The
+// prepass draws an alpha-tested mesh (a leaf card, a grass clump) with an override that samples its map's alpha and
+// discards under its alphaTest, so its transparent texels no longer occlude as a rectangle. The creases' own block
+// (creases without occlusion) is unchanged.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

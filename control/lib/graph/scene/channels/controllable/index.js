@@ -306,12 +306,17 @@ const __rimPatch = (m, rim) => {
   // existing shadows world (true / { occlude } / tuning objects) emits its byte-identical
   // blob template.
   // The live light's ACTOR shadows (`shadows.actors`, scene/live-light.js) integrate the same way; their box follows the
-  // pilot, or with seats the centre of the seated pilots, grown to their spread (the group frame's centre).
+  // pilot, or with seats the centre of the seated pilots, grown to their spread (the group frame's centre). It is handed
+  // over once as the live light's FOCUS, which the pass before every render asks: captures never step, and the box is
+  // tight round the pilot from the first frame.
   const actors = !!(sh && typeof shadows === 'object' && shadows.actors);
   const cast = !!(sh && typeof shadows === 'object' && shadows.cast) || actors;
   const shadowBlock = cast ? '' : sh ? suitShadowBlock(sh) : '';
+  const focusHook = actors
+    ? 'if (window.__mojCast && window.__mojCast.focus) window.__mojCast.focus(() => { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0], __ps = __pe && __pe.transform ? [__pe] : []; if (__world.seatOf) for (const id in __world.seatOf) { const e = __world.byId[id]; if (e && e.transform && !e.gone && e !== __pe) __ps.push(e); } if (!__ps.length) return null; const __c = [0, 0, 0]; for (const e of __ps) for (let k = 0; k < 3; k++) __c[k] += e.transform.pos[k] / __ps.length; let __r = 0; for (const e of __ps) __r = Math.max(__r, Math.hypot(e.transform.pos[0] - __c[0], e.transform.pos[1] - __c[1])); return [__c[0], __c[1], __c[2], __r]; });   // the live light\'s box follows the pilot (or the seats\' centre)\n'
+    : '';
   const shadowHook = actors
-    ? '\n    if (window.__mojCast) { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0], __ps = __pe && __pe.transform ? [__pe] : []; if (__world.seatOf) for (const id in __world.seatOf) { const e = __world.byId[id]; if (e && e.transform && !e.gone && e !== __pe) __ps.push(e); } if (__ps.length) { const __c = [0, 0, 0]; for (const e of __ps) for (let k = 0; k < 3; k++) __c[k] += e.transform.pos[k] / __ps.length; let __r = 0; for (const e of __ps) __r = Math.max(__r, Math.hypot(e.transform.pos[0] - __c[0], e.transform.pos[1] - __c[1])); window.__mojCast.follow(__c[0], __c[1], __c[2], __r); } }'
+    ? ''
     : cast
       ? '\n    if (window.__mojCast) { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0]; if (__pe && __pe.transform) window.__mojCast.follow(__pe.transform.pos[0], __pe.transform.pos[1], __pe.transform.pos[2]); }'
       : sh ? '\n    __updateSuitShadows();' : '';
@@ -3342,7 +3347,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-` : ''}${runner ? runnerViewScript(runner) : ''}stepControllable = (dt, inputOverride) => {
+` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
