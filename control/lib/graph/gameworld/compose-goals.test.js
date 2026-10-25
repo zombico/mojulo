@@ -125,7 +125,7 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const lv = (goal, extra = {}) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], goal } }, ...extra });
     expect(readGameworld(lv({ collect: 'coin', boss: true, health: true })).levels['meadow-ascent'].goal).toEqual({ collect: 'coin', boss: true, health: true });
     expect(() => readGameworld(lv({}))).toThrow(/at least one/);
-    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health\)/);
+    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards\)/);
     expect(() => readGameworld(lv({ collect: 'Big Gems' }))).toThrow(/one lower-case word/);
     expect(() => readGameworld(lv({ boss: 2 }))).toThrow(/boss is true/);
     // a book's world: its hero fights the boss, the goal's play beside the systems' own

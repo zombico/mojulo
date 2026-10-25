@@ -127,7 +127,7 @@ function worldCard() {
     '  (each list { <id>: \'<words>\' }); anchor, fort, town, castle default from the kit, best left out (see the bible).',
     `levels: { <id>: { name?, style?, walk: { nodes: { <id>: { ${LEVEL_SECTIONS.join(': {} } | { ')}: {} } }, edges?: [{ from, to }] }, ground?, places?, scenes?, goal? } }:`,
     '  a walk is one line of sections (a trail, then a climb), joined by edges in order; a level overrides its world where it says.',
-    '  goal?: { collect?: true | \'<pickup>\', boss?: true, health?: true }: what the level is played for, else reaching its exit.',
+    '  goal?: { collect?: true | \'<pickup>\', boss?: true, health?: true, guards?: true }: what the level is played for, else its exit.',
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',

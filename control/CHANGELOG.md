@@ -35,6 +35,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the cube is one move from (`latentOf`: it holds some of the row's keys and lacks keys in one facet only), with what it
   lacks: a side-on platformer is one move from a couch co-op screen (`soul.seats`, `soul.frame`). Absent when there is
   none; the `gameworld-intent` card names it in one line.
+- **Guards as a level goal.** A level's `goal` takes `guards: true` (`LEVEL_GOAL_PARTS`): the quick sneak's guards on
+  each stage's beats, watching by sight, and the `unseen` mechanic that loses the level when one sees the hero; one
+  figure stands for them all, rolled in the game's setting at `<ref>-guard`. The composer reads guard, sentry, stealth
+  and sneak words into it, so a composed stealth game lays its watchers, and the gate's ledger loses that gap. A level
+  without it lays as before.
 
 ### Written intent: compose and quick write the game they are
 

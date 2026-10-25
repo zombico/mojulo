@@ -9,9 +9,9 @@
  * machine gate (review.js), the prompt and every decision kept in its `brief`, ready for the creator to approve or
  * send back.
  *
- * Words also say what a level is played for (relics to collect, a boss at the end, health: a level's `goal`, quick.js
- * levelGoalMechanics) and whether it is indoors (a dungeon, a crypt: building levels in a room kit); none, and every
- * level is a walk to its exit, as before. Words that name a game clearly (intent.js suggestGenres) write its `intent`,
+ * Words also say what a level is played for (relics to collect, a boss at the end, health, guards to sneak past: a
+ * level's `goal`, quick.js levelGoalMechanics) and whether it is indoors (a dungeon, a crypt: building levels in a room
+ * kit); none, and every level is a walk to its exit, as before. Words that name a game clearly (intent.js suggestGenres) write its `intent`,
  * and its levels are laid for it.
  *
  *   composeGameworld({ prompt, name?, id?, levels?: 1…6, seed? }) → a gameworld recipe
@@ -77,10 +77,11 @@ export const LEXICON = Object.freeze({
   // how big
   small: { levels: 2 }, short: { levels: 2 }, epic: { levels: 5 }, vast: { levels: 5 }, long: { levels: 4 },
   // what a level is played for (a level's goal, quick.js levelGoalMechanics): what lies along the way to pick up, a boss
-  // at the end, health to lose
+  // at the end, health to lose, guards who see to get past unseen
   relic: { 'goal.collect': 'relic' }, treasure: { 'goal.collect': 'treasure' }, coin: { 'goal.collect': 'coin' }, gem: { 'goal.collect': 'gem' }, jewel: { 'goal.collect': 'jewel' }, collect: { 'goal.collect': true },
   boss: { 'goal.boss': true }, bosses: { 'goal.boss': true },
   health: { 'goal.health': true }, lives: { 'goal.health': true }, heart: { 'goal.health': true }, hp: { 'goal.health': true },
+  guard: { 'goal.guards': true }, sentry: { 'goal.guards': true }, sentries: { 'goal.guards': true }, stealth: { 'goal.guards': true }, stealthy: { 'goal.guards': true }, sneak: { 'goal.guards': true }, sneaking: { 'goal.guards': true }, unseen: { 'goal.guards': true },
   // indoors: the levels are buildings (a crypt by default), laid room by room in a room kit
   dungeon: { building: 'crypt' }, crypt: { building: 'crypt' }, vault: { building: 'crypt' }, interior: { building: 'crypt' },
   catacomb: { building: 'crypt', 'building.kit': 'catacomb' }, tomb: { building: 'crypt', 'building.kit': 'catacomb' },

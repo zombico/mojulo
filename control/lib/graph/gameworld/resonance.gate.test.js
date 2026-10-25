@@ -22,9 +22,8 @@ const KNOWN_GAPS = {
   // the composed co-op platformer writes its intent (four seats, the shared camera, a side camera) and lays its levels
   // on the composer's own camera with no hero per seat
   'co-op words': 'unlaid',
-  // the composed stealth game writes its intent (watchers who see, an unseen goal) and lays no watchers: only the
-  // quick sneak lays guards
-  'stealth words': 'unlaid',
+  // (filled 1025: 'stealth words', the composed stealth game laid no watchers; its words now write each level's
+  // goal.guards, guards who see on the beats and the unseen goal)
 };
 
 const statusOf = (world, row) => {
