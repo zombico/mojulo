@@ -413,7 +413,7 @@ function adornOf({ kit, mirrored, mended }, k, groups) {
   const sides = (S) => (mirrored ? ['R', 'L'] : [S]);
   for (const piece of kit) {
     if (piece === 'belt') out.push({ id: 'belt', mode: 'shell', part: 'pelvis', s: [1.4, 1.85], t: 'wrap', nt: 14, ns: 2, mugen: r3(0.02 * k), thick: r3(0.014 * k), group: L,
-      signature: { kind: 'buckle', k: 0, j: 1, w: r3(0.06 * k), h: r3(0.05 * k), bar: r3(0.01 * k), standoff: r3(0.01 * k), group: L } });
+      signature: { kind: 'buckle', w: r3(0.06 * k), h: r3(0.05 * k), bar: r3(0.01 * k), standoff: r3(0.01 * k), group: L } });
     if (piece === 'baldric') out.push({ id: 'baldric', mode: 'strap', part: 'torso', path: [[3.6, 2.2, 'R'], [3.2, 1.2, 'R'], [2.5, 0.45, 'R'], [1.9, 0.05, 'R'], [1.4, 0.5, 'L'], [0.8, 1.3, 'L'], [0.4, 2.0, 'L']], width: r3(0.06 * k), thick: r3(0.01 * k), mugen: r3(0.03 * k), group: L, rad: r3(0.05 * k),
       signature: mended ? { kind: 'studs', r: r3(0.008 * k), h: r3(0.004 * k), count: 5, from: 2, m: 6, group: 'Stitch' } : { kind: 'ring', R: r3(0.04 * k), r: r3(0.009 * k), lean: [0, 0.4, 0], standoff: r3(0.02 * k), m: 12, rm: 6, group: L } });
     if (piece === 'satchel' || piece === 'satchels') for (const [S, sz] of piece === 'satchels' ? [['R', 1], ['L', 0.8]] : [['R', 1]]) out.push({ id: `satchel${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.8, 1.3], t: [1.6, 2.2], nt: 4, ns: 2, mugen: r3(0.02 * k), thick: r3(0.008 * k), group: L,

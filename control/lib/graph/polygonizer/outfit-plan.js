@@ -99,7 +99,17 @@ export const OUTFIT_KINDS = Object.freeze({
   // trim's metal
   sash: { layer: 5, cls: 'soft', colour: 'secondary', compile: (p, B, G) => { const s = B.ringAt(B.torso, B.waist).s;
     return { adorn: [shell(p.id ?? 'sash', 'torso', [Math.max(0, s - 0.2), s + 0.2], { mugen: r3(0.028 * B.k), thick: r3(0.012 * B.k), group: G({ colour: p.colour ?? (p.role === 'focal' ? 'accent' : 'secondary') }), signature: { kind: 'buckle', k: 0, j: 1, w: r3(0.05 * B.k), h: r3(0.045 * B.k), bar: r3(0.009 * B.k), standoff: r3(0.009 * B.k), group: G({ colour: p.knotColour ?? p.colour ?? 'trim' }) } })] }; } },
-  belt: { layer: 5, cls: 'stiff', colour: 'leather', compile: (p, B, G) => ({ adorn: [shell(p.id ?? 'belt', 'pelvis', [1.4, 1.85], { nt: 14, mugen: r3(0.02 * B.k), thick: r3(0.014 * B.k), group: G(p), signature: { kind: 'buckle', k: 0, j: 1, w: r3(0.06 * B.k), h: r3(0.05 * B.k), bar: r3(0.01 * B.k), standoff: r3(0.01 * B.k), group: G(p) } })] }) },
+  // a BELT rides the hip line by default (`at: 'hip'`, the pelvis's own stations) or the natural waist (`at: 'waist'`:
+  // the torso's narrowest ring between the hips and the shoulders, where a hero's belt over the trunks sits), its
+  // buckle on the centre line either way
+  belt: { layer: 5, cls: 'stiff', colour: 'leather', compile: (p, B, G) => {
+    const buckle = { kind: 'buckle', w: r3(0.06 * B.k), h: r3(0.05 * B.k), bar: r3(0.01 * B.k), standoff: r3(0.01 * B.k), group: G(p) };
+    // (at the waist the band lies on the top's cloth: a stand-off of the cloth's own thickness, not the hip belt's 2 cm,
+    // which at the body's narrowest ring would stand the band off it like a hoop)
+    if (p.at === 'waist') { const s = B.ringAt(B.torso, B.waist).s, waistBuckle = { ...buckle, w: r3(0.04 * B.k), h: r3(0.034 * B.k), bar: r3(0.008 * B.k) };
+      return { adorn: [shell(p.id ?? 'belt', 'torso', [Math.max(0, s - 0.28), s + 0.28], { nt: 14, mugen: r3(0.009 * B.k), thick: r3(0.012 * B.k), group: G(p), signature: waistBuckle })] }; }
+    return { adorn: [shell(p.id ?? 'belt', 'pelvis', [1.4, 1.85], { nt: 14, mugen: r3(0.02 * B.k), thick: r3(0.014 * B.k), group: G(p), signature: buckle })] };
+  } },
   baldric: { layer: 5, cls: 'stiff', colour: 'leather', compile: (p, B, G, I) => { const S = I.side ?? 'R', O = S === 'R' ? 'L' : 'R';
     return { adorn: [{ id: p.id ?? 'baldric', mode: 'strap', part: 'torso', path: [[3.6, 2.2, S], [3.2, 1.2, S], [2.5, 0.45, S], [1.9, 0.05, S], [1.4, 0.5, O], [0.8, 1.3, O], [0.4, 2.0, O]], width: r3(0.06 * B.k), thick: r3(0.01 * B.k), mugen: r3(0.03 * B.k), group: G(p), rad: r3(0.05 * B.k),
       signature: { kind: 'studs', r: r3(0.008 * B.k), h: r3(0.004 * B.k), count: 5, from: 2, m: 6, group: G({ colour: 'trim' }) } }] }; } },

@@ -48,7 +48,7 @@ import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/st
 import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
-import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
+import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, withGrownFall } from '@/lib/graph/polygonizer/humanoid-hair';
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
@@ -230,7 +230,11 @@ function realisticBuild(hero) {
   // (realistic laws 3: the neck's column leaning forward up to the skull, body-relational-builds.js CERVICAL_NECK; laws 4:
   // the limbs' masses rounded out, ROUND_OUT)
   const N = laws >= 3 ? cervicalNeck(B, name) : B;
-  return laws >= 4 ? roundOut(N) : N;
+  const R4 = laws >= 4 ? roundOut(N) : N;
+  // (realistic laws 5: the crotch found no lower than 0.6 W under the hip and the pelvis's rings under it drawn in to a
+  // cone, on EVERY build; laws 1 to 4 did so only under a physique with a dial set, and the athletic base, the build
+  // itself byte for byte, hung the pelvis down between touching thighs to the knees: body-relational.js CROTCH)
+  return laws >= 5 ? { ...R4, crotch: true } : R4;
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
@@ -699,8 +703,9 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
  * `physique` at mint, so a later retune never moves a stored hero. 2: the relational head as ONE SKIN (hero-one-skin.js);
  * 3: the neck's column leaning forward up to the skull (body-relational-builds.js CERVICAL_NECK); 4: the limbs' masses
- * rounded out, each joint filled between its bellies (body-relational-builds.js ROUND_OUT) */
-export const REALISTIC_LAWS_VERSION = 4;
+ * rounded out, each joint filled between its bellies (body-relational-builds.js ROUND_OUT); 5: the crotch and the pelvis's
+ * cone under it on every build, the athletic base included (body-relational.js, the hip's handover) */
+export const REALISTIC_LAWS_VERSION = 5;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
@@ -1226,7 +1231,7 @@ function heroFormPlanOf(hero) {
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
   const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });
   const { childCoded, ...worn } = dress;
-  return dressPlan(plan, { ...worn, figure: { female: castOf(hero.cast, hero.proportions ?? 'hero')?.silhouette === 'female', child: !!childCoded }, operatorPalette: hero.palette ?? {}, scale: planScale({ cast: hero.cast, scale: hero.scale, tune: hero.tune, proportions: hero.proportions ?? 'hero' }) });
+  return dressPlan(plan, { ...worn, laws: hero.laws ?? 1, figure: { female: castOf(hero.cast, hero.proportions ?? 'hero')?.silhouette === 'female', child: !!childCoded }, operatorPalette: hero.palette ?? {}, scale: planScale({ cast: hero.cast, scale: hero.scale, tune: hero.tune, proportions: hero.proportions ?? 'hero' }) });
 }
 /** The dress the hero wears, in the operator's terms: the words (or 'data'), the parts each layer baked, and the
  * adornment ledger — every signature must read and be a real share of its adornment's picture (advice, never a refusal).
@@ -1475,6 +1480,16 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
 }
 
 /** The hero door: a cast word and a tune → the hero form's plan → the plan door, with `hero` stored beside the plan. */
+/** the landmark head's hair stamped with the grown fall (humanoid-hair.js withGrownFall) where the recipe is written: a
+ * new hero's fall hangs by the spine law and frames the face; a stored hero keeps its bytes. The anime head's hair and
+ * the realistic body's relational head are their own builders and are left as given. */
+function withGrownHair(spec) {
+  if (!spec || typeof spec !== 'object' || spec.hair === undefined || spec.hair === null) return spec;
+  if (spec.head !== undefined && spec.head !== 'landmark') return spec;
+  const hair = withGrownFall(spec.hair);
+  return hair === spec.hair ? spec : { ...spec, hair };
+}
+
 export async function createLayeredHeroHandler(input) {
   if (!input || typeof input !== 'object') throw new Error("The hero door takes spec { cast?, register?, tune?, face?, hair?, expression?, sculpt?, detail?, adorn?, body?, palette?, head?, gesture?, clips?: { <name>: [keys] | { seconds, keys } | false } (a key's face on the anime or the landmark head), blink?: false, title? }. Read get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections: get_solid_vocab({ id: 'layered', section: 'hero-looks' }) …).");
   // a word the door does not take is refused by name with where it belongs (it was dropped without a word)
@@ -1483,7 +1498,7 @@ export async function createLayeredHeroHandler(input) {
   const { spec: heroSpec, vibe } = lowerVibe(Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]])), input.vibe);
   // a new hero walks with the calibrated gait unless it brings its own walk (withDefaultWalk), and the door's gaits are
   // stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
-  const hero = heroRecord(stampHero(withDefaultWalk(withRolledFace(withDefaultForm(heroSpec)))));
+  const hero = heroRecord(stampHero(withDefaultWalk(withRolledFace(withGrownHair(withDefaultForm(heroSpec))))));
   let plan;
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }

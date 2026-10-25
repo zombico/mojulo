@@ -92,7 +92,9 @@ export function formSlice(recipe, R, build, opts = {}) {
     crotch = zh;
     // (under a physique no lower than `0.6 W` under the hip's joint: thighs bulked or fat enough meet on the midline, and
     // the crotch, the lowest skin there, fell to the knees; below it they touch, each cut at the midline)
-    const floor = zh - (B.physique ? 0.6 : 2) * W0;
+    // (`B.crotch`, realistic laws 5: the rule on every build; before them only under a physique with a dial set)
+    const crotchRule = !!(B.physique || B.crotch);
+    const floor = zh - (crotchRule ? 0.6 : 2) * W0;
     for (let y = -0.1; y <= 0.15; y += 0.01) for (let z = floor; z < crotch; z += 0.002) if (pf([0, y, z]) < 0) { crotch = z; break; }
     zp = crotch + 0.005 + bp + 0.003;
     const hip = (q) => Math.max(pf(q), -q[0]), w = (z) => ramp((zp + bz - z) / bz) * ramp((z - zp + 0.14) / bz);
@@ -138,7 +140,7 @@ export function formSlice(recipe, R, build, opts = {}) {
     // point at it and wide at the level: where the thighs nearly meet, their rays crossed the thigh and left it at its
     // front or side, and the rings folded in a zigzag)
     const psd0 = handed(pelvisSd ?? field.sd, -1), P0 = structuredClone(r.parts.pelvis), s0 = P0.stations[0];
-    const psd = B.physique && crotch !== null ? (q) => { if (q[2] >= zp) return psd0(q); const t = ramp((q[2] - crotch) / (zp - crotch)); return Math.max(psd0(q), Math.hypot(q[0], q[1]) - (0.01 + 1.5 * W0 * t * t * t)); } : psd0;
+    const psd = (B.physique || B.crotch) && crotch !== null ? (q) => { if (q[2] >= zp) return psd0(q); const t = ramp((q[2] - crotch) / (zp - crotch)); return Math.max(psd0(q), Math.hypot(q[0], q[1]) - (0.01 + 1.5 * W0 * t * t * t)); } : psd0;
     if (crotch !== null) for (const k of P0.slots) s0.points[k] = [s0.points[k][0], s0.points[k][1], crotch + 0.005];
     const up = (c) => { if (psd(c) < 0) return c; for (let t = 0.002; t <= 0.12; t += 0.002) { const q = [c[0], c[1], c[2] + t]; if (psd(q) < -0.004) return q; } return c; };
     // (its relaxing projected centred: at the crotch's level the skin's two walls stand close; see project)

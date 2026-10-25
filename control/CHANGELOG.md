@@ -14,6 +14,41 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Realistic laws 5: the crotch on every build
+
+- The realistic body finds the crotch no lower than 0.6 W under the hip's joint and draws the pelvis's rings under it
+  in to a cone, on EVERY build (`REALISTIC_LAWS_VERSION` 5, stamped on a new hero's `physique`). Laws 1 to 4 did so
+  only under a physique with a dial set; the athletic base (the build itself, byte for byte, and what a hero gets with
+  no physique named) scanned the midline two widths down, found the thighs touching to the knees, and hung the pelvis
+  between them, so a skin-fit bottom's seat copied a web of cloth down between the legs with a hole at the crotch and
+  the top's hem caught in it. A stored hero keeps its laws and its body.
+
+### The belt's buckle sits on the centre line
+
+- A belt's buckle on a shell or a band (the outfit piece, the word outfits' and the outfit build's belts, the egocube
+  plan's) is seated where the belt's outer skin faces the body's front (station-loft-adorn.js `buckle` → `seatOf`),
+  not at grid row zero, which turns with the ring's own origin and had left the buckle beside the waist's centre. A
+  seat named by row, parameter or `dir` still wins; a mascot's belt and the armour's straps are as they were. The
+  buckle sits on the band's own middle station (the lowest row of a pelvis band juts forward at the pubis) and its
+  plate stands upright. The outfit's `belt` piece takes `at: 'hip'` (the pelvis, as before) or `at: 'waist'` (the
+  torso's narrowest ring between the hips and the shoulders, where a hero's belt over the trunks sits); at the waist
+  the band lies on the top's cloth (a stand-off of the cloth's thickness, not the hip belt's two centimetres, which at
+  the body's narrowest ring stood the band off it like a hoop) with a belt's proportions.
+
+### Hair frames the face: the grown fall as the mint's default, beside the cheek and never on it
+
+- A new hero's fall (long, wavy, layers, angled, curtains; a ponytail or a braid) hangs by the spine law by default:
+  the hero door stamps `hair.spine: 'elastica'` on the landmark head's hair where the recipe is written
+  (`withGrownFall`), so the fall is draped off the head's own skin and frames the face; a hero stored without the word
+  keeps the bytes it was minted with, and a cap, a bun or `none` is left as given. The anime head's hair is its own.
+- The frame principle's other half (hair-spine.js `keepOut`, humanoid-hair.js `fallGuide`): a hairline root that
+  faces forward (the temples, the slots beside the face) is combed sideways and back and leans out, so the fall STARTS
+  beside the face; and where the head's skin faces forward and has a side to it (a cheek, a temple) a lock is pushed
+  sideways and kept the face's gap off, a lock's own radius (10 mm), not the scalp's 3 mm; the lift is capped at three
+  times the shortfall and finished over passes, so no chord is pulled back through the head. Held by test on both
+  presets: a grown long or wavy fall puts no surface sample within 8 mm of the face forward of the ears, and the
+  legacy fall, which has no collider at all, does; a curled fall still never passes into the skull.
+
 ### Comic hero pack: the first tesseract, a pack of game cubes
 
 - Planned. A tesseract is a library of cosmos cubes with the look that suits them, shipped as data a creator can
@@ -50,9 +85,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   egocube's own compiler, replaces the sheet's cut with the suit, puts the realistic body on at the material pole, and
   asks the toon the stop wants: the character light with its ink at the comic stop (the silhouette hull the character
   book never asks for), ink alone at the painted stop, none at the material pole. Every member validates at both poles.
-  The toon and the vibe ride inside the spec, since `mint_solid` hands its handler the spec alone and drops a key
-  beside it without a word (the character book's own hero order puts its toon beside the spec, so a gameworld hero
-  minted through `mint_solid` never gets its character light: found, not fixed here).
+  The vibe rides inside the spec, since `mint_solid` hands its handler the spec alone and drops a key beside it
+  without a word (the character book's own hero order puts its toon beside the spec, so a gameworld hero minted
+  through `mint_solid` never gets its character light: found, not fixed here). The pack's heroes are never cel shaded:
+  the world walks the registers (cel, ink-wash, continuous), the hero is the western tradition at every stop with no
+  character light and no ink, the standard tiered body shaded smooth at the comic and painted stops and the realistic
+  body at the realistic stop; the suits are cards per body, not per pole.
+- Three costume eras as principles (`costumes.js`), each a card over the role suits: the Silver Age (the classic
+  hero before the dark knight: primaries, a cape, one big emblem, a belt at the waist, flat colour), the Modern (the
+  nineties to now: a dark panelled suit with one accent, a chevron, bracers and kneepads, the cape short or gone) and
+  the Movie Hero (tactical armour over an undersuit, muted metals, no cape: the plating library by word on the
+  realistic body, the hardsuit at low mass over a tactical outfit on the tiered one). `costumeOf(role, era, body)`
+  resolves a costume in the door's own words; every role in every era validates on both bodies. The eras tie to the
+  look dial: each stop suggests one (the page the Silver Age, the cover the Modern, the film the Movie Hero) and a
+  member's order takes another by name.
 
 ### Written intent: compose and quick write the game they are
 

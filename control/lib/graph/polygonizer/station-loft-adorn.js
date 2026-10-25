@@ -372,6 +372,16 @@ export const SIGNATURES = {
   /** a rectangular frame of four bars, upright on the shell: { w, h, bar, standoff? } */
   buckle: (fig, g, _b, S) => { let p, n, up;
     if (g.pts) { const i = Math.floor(g.pts.length / 2) + (S.shift ?? 0); p = g.pts[i]; n = g.ns[i]; const d = sub(g.pts[Math.min(i + 1, g.pts.length - 1)], g.pts[Math.max(i - 1, 0)]); up = unit(sub(d, mul(n, dot(d, n)))); }   // on a strap: upright along it
+    // on a shell the buckle sits on the belt's own station (the band's middle, or `j`) at the row whose frame faces the
+    // body's FRONT across the plan (the waist's centre line, by the skin, not by grid row zero, which turns with the
+    // ring's own origin; and never the lowest row, which on a pelvis juts forward at the pubis); a seat named by row,
+    // parameter or `after` wins, and the plate stands upright: the skin's lean up or down is not its facing
+    else if (S.k === undefined && S.t === undefined && S.after === undefined) {
+      const K = g.outer.length, J = g.outer[0].length, j = S.j === undefined ? Math.floor(J / 2) : S.j < 0 ? J + S.j : S.j, want = unit(S.dir ?? [0, 1, 0]);
+      let k = 0, best = -Infinity;
+      for (let r = 0; r < K; r++) { const m = g.F[r][j].normal, flat = unit([m[0], m[1], 0]); const score = flat ? dot(flat, want) : -Infinity; if (score > best) { best = score; k = r; } }
+      p = g.outer[k][j]; const m = g.F[k][j].normal; n = unit([m[0], m[1], 0]) ?? m; up = [0, 0, 1];
+    }
     else { const [k, j] = gridAt(g, { k: 0, j: 1, ...S }, S.side); p = g.outer[k][j]; n = g.F[k][j].normal; up = [0, 0, 1]; }
     const lat = unit(cross(up, n)); const W = S.w, Hh = S.h;
     const path = [[-W, -Hh], [W, -Hh], [W, Hh], [-W, Hh]].flatMap(([a, b], i, arr) => { const [c, d] = arr[(i + 1) % 4]; return [0, 0.5].map((u) => [lerp(a, c, u), lerp(b, d, u)]); });
