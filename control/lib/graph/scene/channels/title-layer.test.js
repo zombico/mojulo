@@ -5,6 +5,7 @@ import { emitThreeWorld } from '../scene-three.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 import { titleFontsFound } from '../../game/title-carve.js';
 import { titleHex } from './title-channel.js';
+import { resolvePlayUi } from '../../playscape/ui/direction.js';
 
 // ── the title layer (title-channel.js): a HUD banner `as: 'title'` as carved 3D letters on the page ──
 // The concept: a world with a title the host can carve gets the title block (the atlas as its own constant, not the
@@ -215,6 +216,23 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     expect(cinematic.events.hud[0].theme).toBe('cinematic');
     expect(JSON.parse(emitThreeWorld(cinematic).match(/const __HUD = (\[[\s\S]*?\]);\n/)[1])[0]).toMatchObject({ look: 'fade', style: 'thin', edge: 'none', hex: '#ffffff', ttl: 2.8, scale: 0.5 });
     await expect(titled({}, [{ on: 'go', text: 'go', as: 'title', theme: 'baroque' }])).rejects.toThrow(/theme must be one of: arcade, pixel, cel, cartoon, cinematic, speed/);
+  });
+
+  it('a settled play direction dresses the title rows through its register: the carve, the edge, the entrance, its tempo and steps', async () => {
+    const m = resolvePlayUi({ kind: 'orbit-view', scenario: 'circular', title: 'test', events: { ...live }, play: { ui: { register: 'console', seed: 3 }, phases: ['playing'], parts: [{ part: 'banner', bind: { on: 'cue:win' }, text: 'GO', as: 'title' }] } }, () => 11);
+    m.play.ui.status = Object.fromEntries(Object.keys(m.play.ui.status).map((k) => [k, 'approved']));
+    const out = (await resolveWorldScene({ manifest: m, title: 'test' })).payload;
+    expect(out.events.register).toMatchObject({ type: 'display', frame: 'bevel', motion: 'stepped' });
+    const html = emitThreeWorld(out);
+    const w = JSON.parse(html.match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]).find((x) => x.kind === 'title');
+    expect(w).toMatchObject({ style: 'heavy', edge: 'both', look: 'rise', caps: true, tempo: 0.55, steps: 3 });
+    expect(html).toContain('const held = (k) =>');
+    // the greybox while the direction is still proposed: the words stand, in the greybox tokens, with the theme's own dials
+    const g = resolvePlayUi({ kind: 'orbit-view', scenario: 'circular', title: 'test', events: { ...live }, play: { ui: { register: 'console', seed: 3 }, phases: ['playing'], parts: [{ part: 'banner', bind: { on: 'cue:win' }, text: 'GO', as: 'title' }] } }, () => 11);
+    const grey = (await resolveWorldScene({ manifest: g, title: 'test' })).payload;
+    expect(grey.events.register).toBeUndefined();
+    const gw = JSON.parse(emitThreeWorld(grey).match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]).find((x) => x.kind === 'title');
+    expect(gw).toMatchObject({ style: 'heavy', edge: 'both', look: 'slam', hex: '#d9d9d9', tempo: 1, steps: 0 });
   });
 
   it('fade comes in slowly with nothing else; slide comes in from the right, stretched, with streaks, and leaves to the left', async () => {

@@ -1154,7 +1154,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const theme = titleThemeFor(juice);
         ev = { ...ev, hud: ev.hud.map((r) => (r && r.as === 'title' && r.theme === undefined ? { ...r, theme } : r)) };
       }
-      const h = normalizeHud(ev.hud);
+      // the cascade: a settled play direction's register dresses the title rows (hud-widgets.js titleDials)
+      const h = normalizeHud(ev.hud, { register: ev.register });
       if (h.errors.length) throw new Error(`events.hud is invalid — see get_game_vocab({ id: 'hud-guide' }):\n- ${h.errors.join('\n- ')}`);
       // the carved banners (`as: 'title'`, game/title-carve.js): their words carved here into the glyph atlas the page lays
       // out (events.titles); a title the host cannot carve (no font, a shaped script, a character no face covers) stays a

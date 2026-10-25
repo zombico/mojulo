@@ -163,6 +163,9 @@ function __ttStep(t) {
   for (const tt of __hudTitles) {
     const r = tt.run; if (!r) continue;
     const u = (t - r.t0) / 1000, ttl = r.w.ttl, look = r.w.look, hit = Number.isFinite(r.w.flash) ? r.w.flash : 1;
+    // the register's motion: its tempo scales the entrance, its steps hold it in that many drawings (the UI sheet's steps())
+    const tempo = Number.isFinite(r.w.tempo) && r.w.tempo > 0 ? r.w.tempo : 1, steps = Number.isInteger(r.w.steps) && r.w.steps > 0 ? r.w.steps : 0;
+    const held = (k) => (steps ? Math.min(1, Math.floor(k * steps + 1e-9) / steps) : k);
     if (u >= ttl) { __ttDrop(r); tt.run = null; continue; }
     const exitFor = look === 'fade' ? 0.5 : 0.32, ex = Math.max(0, (u - (ttl - exitFor)) / exitFor);   // the exit, over the last seconds
     const s = Math.min(0.17 * H * (Number.isFinite(r.w.scale) ? r.w.scale : 1), 0.84 * W / r.width), slot = r.w.slot;
@@ -172,19 +175,19 @@ function __ttStep(t) {
     const jolt = (k0, when, amp) => { const d = u - when; if (d < 0) return; const e = Math.exp(-d * 14) * amp * hit * H; r.grp.position.x += (seed(k0) - 0.5) * 2 * e * Math.sin(d * 90); r.grp.position.y += (seed(k0 + 1) - 0.5) * 2 * e * Math.sin(d * 70); };
     let land = 0, wordA = 1, sx = 1;
     if (look === 'slam') {
-      land = 0.22; const k = Math.min(1, u / land), e = __ttBack(k);
+      land = 0.22 * tempo; const k = held(Math.min(1, u / land)), e = __ttBack(k);
       r.grp.scale.setScalar(s * (1 + 2.0 * (1 - e)) * (1 + 0.5 * ex * ex));
       r.grp.rotation.z += (seed(3) - 0.5) * 0.16 * (1 - k);
       if (u >= land) { jolt(5, land, 0.05); flash = Math.max(flash, hit * 0.42 * Math.max(0, 1 - (u - land) / 0.18)); }
     } else if (look === 'stamp') {
-      land = 0.16; const k = Math.min(1, u / land), e = k * k;
+      land = 0.16 * tempo; const k = held(Math.min(1, u / land)), e = k * k;
       r.grp.position.z = -__ttD + 0.7 * __ttD * (1 - e);
       if (u >= land) { const d = u - land; r.grp.scale.setScalar(s * (1 + 0.14 * Math.sin(d * 28) * Math.exp(-d * 9))); jolt(7, land, 0.07); flash = Math.max(flash, hit * 0.55 * Math.max(0, 1 - d / 0.2)); }
     } else if (look === 'fade') {
-      const k = Math.min(1, u / 0.55), e = k * k * (3 - 2 * k);
+      const k = held(Math.min(1, u / (0.55 * tempo))), e = k * k * (3 - 2 * k);
       wordA = e; r.grp.scale.setScalar(s * (1.06 - 0.06 * e)); r.grp.position.y += 0.06 * H * (1 - e);
     } else if (look === 'slide') {
-      land = 0.18; const k = Math.min(1, u / land), e = __ttOut(k);
+      land = 0.18 * tempo; const k = held(Math.min(1, u / land)), e = __ttOut(k);
       r.grp.position.x += 0.7 * W * (1 - e) - 0.8 * W * ex * ex; sx = 1 + 0.9 * (1 - e) + 0.9 * ex;
       if (u >= land) { jolt(9, land, 0.03); flash = Math.max(flash, hit * 0.4 * Math.max(0, 1 - (u - land) / 0.15)); }
     }
@@ -192,7 +195,7 @@ function __ttStep(t) {
       L.lg.position.y = 0; L.lg.position.z = 0; L.lg.scale.set(sx, 1, 1); L.lg.rotation.set(0, 0, 0);
       let a = wordA;
       if (look === 'rise') {
-        const p = Math.max(0, Math.min(1, (u - i * 0.045) / 0.2)), e = 1 - (1 - p) * (1 - p), sy = 1 + 0.45 * (1 - e);
+        const p = held(Math.max(0, Math.min(1, (u - i * 0.045 * tempo) / (0.2 * tempo)))), e = 1 - (1 - p) * (1 - p), sy = 1 + 0.45 * (1 - e);
         L.lg.position.y = -0.9 * (1 - e); L.lg.scale.set(1 / sy, sy, 1); a = Math.min(1, p * 3);
         if (ex > 0) { const q = Math.max(0, Math.min(1, (ex * 1.3 - i * 0.04))); L.lg.position.y -= 1.4 * q * q; }
       } else if (look === 'stamp' && ex > 0) {

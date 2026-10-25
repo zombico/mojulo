@@ -172,7 +172,8 @@ function meshBuilder() {
  * is in, or two of its quarter points are: a thin diagonal stays joined), each filled cell a block of the given depth,
  * the walls where a filled cell meets an empty one. Always a clean closed mesh.
  */
-export function rasterGlyphMesh(contours, N, depth) {
+/** The outline's even-odd fill sampled on cells 1/N wide: { i0, i1, j0, j1, filled(i, j) }. */
+export function rasterCells(contours, N) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const r of contours) for (const [x, y] of r) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
   const i0 = Math.floor(minX * N), i1 = Math.ceil(maxX * N), j0 = Math.floor(minY * N), j1 = Math.ceil(maxY * N);
@@ -184,6 +185,10 @@ export function rasterGlyphMesh(contours, N, depth) {
     if (!on) { let k = 0; for (const [dx, dy] of [[-h, -h], [h, -h], [h, h], [-h, h]]) if (insideAll([cx + dx, cy + dy], contours)) k++; on = k >= 2; }
     if (on) cell[(j - j0) * W + (i - i0)] = 1;
   }
+  return { i0, i1, j0, j1, filled };
+}
+export function rasterGlyphMesh(contours, N, depth) {
+  const { i0, i1, j0, j1, filled } = rasterCells(contours, N);
   const M = meshBuilder(), d = -depth;
   // a row's filled cells in runs: one block per run for the caps, the top and bottom walls in spans where the row
   // above or below is empty, a side wall at each end of the run
@@ -303,3 +308,44 @@ export function carveTitles(widgets) {
 
 /** The faces the host offers (their paths), for a readout; [] when none parses. */
 export function titleFontsFound() { return fonts().map((f) => f.path); }
+
+/**
+ * The title as the UI BOARD draws it: the same letters the page would carve, as a flat SVG — each glyph's styled
+ * outline (the blocky carve as its blocks), laid out at the dials' tracking and case, with the dials' edge behind
+ * (ink: a dark stroke; shadow: a dark copy down-right; both; glow: a blurred copy in the colour) and the letters
+ * filled in `currentColor`, so the board's stage tokens colour it as they colour a part. Returns the SVG markup, or
+ * null when the host has no face to carve from (the board then shows the words as text).
+ */
+export function titleSpecimenSvg(text, dials = {}, { height = 40, ink = '#0a0a0a' } = {}) {
+  const F = fonts();
+  if (!F.length) return null;
+  const words = dials.caps ? String(text).toUpperCase() : String(text);
+  if (needsShaping(words)) return null;
+  const styleName = TITLE_STYLES.includes(dials.style) ? dials.style : TITLE_STYLES[0], raster = styleName === 'blocky';
+  const style = { ...CARVE_STYLES[styleName], curveSteps: CURVE_STEPS, ...(raster ? { blocky: 0 } : {}) };
+  const tracking = Number.isFinite(dials.tracking) ? dials.tracking : TITLE_SIZING.tracking;
+  const caps = F.map(({ font }) => capHeight(font));
+  const shapes = []; let x = 0;
+  for (const ch of words) {
+    if (!ch.trim()) { x += TITLE_SIZING.space + tracking; continue; }
+    const k = F.findIndex(({ font }) => font.hasChar(ch));
+    if (k < 0) { x += TITLE_SIZING.space + tracking; continue; }
+    const { contours: raw, advance } = glyphContours(F[k].font, ch, style), sc = 1 / caps[k];
+    const contours = styleContours(raw, style).map((r) => r.map(([px, py]) => [px * sc, py * sc])).filter((r) => r.length > 2);
+    if (raster) {
+      const { i0, i1, j0, j1, filled } = rasterCells(contours, TITLE_GRID.blocky), N = TITLE_GRID.blocky, rects = [];
+      for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) if (filled(i, j)) rects.push(`M${((x + i / N) * height).toFixed(1)} ${((1 - (j + 1) / N) * height).toFixed(1)}h${(height / N).toFixed(2)}v${(height / N).toFixed(2)}h-${(height / N).toFixed(2)}z`);
+      shapes.push(rects.join(''));
+    } else {
+      shapes.push(contours.map((r) => 'M' + r.map(([px, py]) => `${((x + px) * height).toFixed(1)} ${((1 - py) * height).toFixed(1)}`).join('L') + 'z').join(''));
+    }
+    x += advance * sc + tracking;
+  }
+  const width = Math.max(1, x - tracking) * height, d = shapes.join(''), edge = dials.edge || 'ink', pad = height * 0.25;
+  const copies = [];
+  if (edge === 'glow') copies.push(`<path d="${d}" fill="currentColor" opacity=".55" filter="url(#tg)"/>`);
+  if (edge === 'shadow' || edge === 'both') copies.push(`<path d="${d}" fill="${ink}" opacity=".85" transform="translate(${(height * 0.06).toFixed(1)} ${(height * 0.07).toFixed(1)})"/>`);
+  if (edge === 'ink' || edge === 'both') copies.push(`<path d="${d}" fill="none" stroke="${ink}" stroke-width="${(height * 0.09).toFixed(1)}" stroke-linejoin="round"/>`);
+  const lean = Number.isFinite(dials.tilt) && dials.tilt ? ` transform="rotate(${(-dials.tilt * 180 / Math.PI).toFixed(1)} ${(width / 2).toFixed(1)} ${(height / 2).toFixed(1)})"` : '';
+  return `<svg class="tt-spec" viewBox="${(-pad).toFixed(1)} ${(-pad).toFixed(1)} ${(width + 2 * pad).toFixed(1)} ${(height + 2 * pad).toFixed(1)}" style="height:${Math.round(height * 1.5)}px;max-width:100%">${edge === 'glow' ? '<defs><filter id="tg"><feGaussianBlur stdDeviation="2.5"/></filter></defs>' : ''}<g fill-rule="evenodd"${lean}>${copies.join('')}<path d="${d}" fill="currentColor"/></g></svg>`;
+}

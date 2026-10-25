@@ -52,6 +52,23 @@ camera for `ttl` seconds (the theme's), its entrance and exit inside that time.
   The letters are baked in it.
 - `slot` — `center` (default); `top` / `bottom` raise or lower the word. Corners read as their edge.
 
+## The cascade: a play direction dresses its titles
+
+A world whose play block carries a settled UI direction (`play.ui`, card `ui-direction`) dresses its titles
+from the same register the parts are dressed from, so a title never looks like it came from another game:
+
+| register dial | title dial |
+|---|---|
+| `type` system / display / period | carve slick / heavy in capitals / thin in capitals |
+| a `pixel` tuning | carve blocky, in capitals, an ink edge |
+| `frame` none / hairline, rule / bevel / material | edge none / ink / both / shadow |
+| `motion` ease / snap / stepped / mechanical | entrance fade / slam / rise / slide, its tempo (the dial's frames against ease's) and its steps (a stepped or mechanical entrance plays in that many held drawings) |
+
+Precedence per dial: the row's own word > the register (a pin the operator set, or a border flavor's, counts
+as theirs) > the theme the game implies > the default. The UI board draws each title part as the page would
+carve it, flat, in every state, in values and dressed, with a line naming the layer that set every dial.
+While the direction is still proposed the page draws the title in the greybox tokens with the theme's own dials.
+
 ## The look is the game's
 
 The theme is the game's (above), and the letters take the composed juice floor's register (`fxStyle: { register }`, the gameworld's `juice`):

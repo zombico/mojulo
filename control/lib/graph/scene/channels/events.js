@@ -206,7 +206,7 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
   const events = fxs === true ? styleEvents(events0) : fxs && typeof fxs === 'object' ? styleEvents(events0, juiceFloor(fxs)) : events0;
-  const { widgets } = normalizeHud(events.hud);
+  const { widgets } = normalizeHud(events.hud, { register: events.register });   // the title rows dressed by the play direction's register
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
   const facts = cast || listensForHits(events);   // the characters' happenings are read (a hit counts there too)

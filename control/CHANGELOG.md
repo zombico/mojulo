@@ -45,6 +45,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the prestige card and the racer's readout. Two entrances join for them: `fade` (in slowly, nothing else) and `slide`
   (in from the right, stretched, streaks behind, out to the left). A dial a row names itself (`look`, `style`,
   `caps`, `edge`, `color`, `ttl`) wins over the theme's.
+- **The cascade: a play direction dresses its titles.** A world whose play block carries a settled UI direction
+  dresses its title rows from the register the parts are dressed from: `type` ⇒ the carve and the case (system slick,
+  display heavy in capitals, period thin in capitals; a pixel tuning blocky with an ink edge), `frame` ⇒ what stands
+  behind the letters, `motion` ⇒ the entrance, its tempo (the dial's frames against ease's) and its steps (a stepped or
+  mechanical entrance plays in that many held drawings, as the UI's own moves do). Precedence per dial: the row's word
+  > the register (a pin the operator set counts as theirs) > the theme the game implies > the default. The UI board
+  draws a title part as the page would carve it, flat, in every state, in values and dressed, under a line naming
+  the layer that set every dial (`titleDials` with `explain`); a host with no face shows the words. While the
+  direction is proposed the page draws the title in the greybox tokens with the theme's own dials.
 - **Words in the player's language.** A HUD row's `text` may name a word instead of spelling it (`'@fight'`,
   `'@round'`, `'@gameOver'`, …: the `gameTitles` namespace of the dashboard's own locale catalogs, added to every
   shipped language), read in the world's top-level `locale` (a shipped code; absent ⇒ `en`). A new language reaches

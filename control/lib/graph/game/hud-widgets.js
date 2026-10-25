@@ -39,6 +39,8 @@
  * both, the defaults below are today's look. Pure + deterministic; nothing here touches the DOM.
  */
 
+import { MOTION_TIMING } from '../playscape/ui/register.js';
+
 export const HUD_SLOTS = ['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right'];
 export const HUD_KINDS = ['text', 'counter', 'bar', 'clock'];
 export const MOMENT_KINDS = ['banner', 'toast', 'title'];   // what an `on` row may be `as`
@@ -91,15 +93,60 @@ export function titleThemeFor(juice) {
   if (flavor === 'pinball') return register === 'western' ? 'speed' : 'arcade';
   return register === 'western' ? 'arcade' : 'cel';
 }
-const TITLE_DIALS = ['style', 'look', 'caps', 'tracking', 'scale', 'edge', 'tilt', 'flash', 'sparks', 'ring', 'color'];
-/** A title row's dials: its theme's, each overridden by the dial the row names itself. */
-export function titleDials(r) {
-  const T = TITLE_THEMES[TITLE_THEME_IDS.includes(r.theme) ? r.theme : 'arcade'];
-  const out = { theme: TITLE_THEME_IDS.includes(r.theme) ? r.theme : 'arcade' };
-  for (const k of TITLE_DIALS) out[k] = r[k] !== undefined && r[k] !== null ? r[k] : T[k];
-  out.ttl = Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : T.ttl;
-  return out;
+const TITLE_DIALS = ['style', 'look', 'caps', 'tracking', 'scale', 'edge', 'tilt', 'flash', 'sparks', 'ring', 'color', 'tempo', 'steps'];
+/**
+ * THE CASCADE: a world whose play block carries a settled UI direction dresses its titles from the same register the
+ * parts are dressed from (playscape/ui/register.js), so a title never looks like it came from another game:
+ *   type    → the carve, and the case: system → slick; display → heavy, in capitals; period → thin, in capitals;
+ *             a pixel tuning → blocky, in capitals, with an ink edge
+ *   frame   → what stands behind the letters: none → none; hairline, rule → ink; bevel → both; material → shadow
+ *   motion  → the entrance: ease → fade; snap → slam; stepped → rise; mechanical → slide — and its TEMPO (the motion
+ *             dial's frames against ease's) and its STEPS (a stepped or mechanical motion plays its entrance in that
+ *             many held drawings, the UI sheet's steps())
+ * Each derived dial names the register dial it came from (`by`), for the board's provenance.
+ */
+const REGISTER_TITLE = Object.freeze({
+  type: { system: { style: 'slick' }, display: { style: 'heavy', caps: true }, period: { style: 'thin', caps: true } },
+  frame: { none: { edge: 'none' }, hairline: { edge: 'ink' }, rule: { edge: 'ink' }, bevel: { edge: 'both' }, material: { edge: 'shadow' } },
+  motion: { ease: { look: 'fade' }, snap: { look: 'slam' }, stepped: { look: 'rise' }, mechanical: { look: 'slide' } },
+});
+export function titleDialsOfRegister(reg) {
+  const dials = {}, by = {};
+  if (!reg || typeof reg !== 'object') return { dials, by };
+  for (const [dial, table] of Object.entries(REGISTER_TITLE)) {
+    const got = table[reg[dial]];
+    if (got) for (const [k, v] of Object.entries(got)) { dials[k] = v; by[k] = dial; }
+  }
+  if (reg.pixel) { dials.style = 'blocky'; dials.caps = true; dials.edge = 'ink'; by.style = 'pixel'; by.caps = 'pixel'; by.edge = 'pixel'; }
+  const m = MOTION_TIMING[reg.motion];
+  if (m) {
+    dials.tempo = Math.round(Math.max(0.45, Math.min(1.6, m.frames / MOTION_TIMING.ease.frames)) * 100) / 100; by.tempo = 'motion';
+    const st = /steps\((\d+)/.exec(m.fn); dials.steps = st ? Number(st[1]) : 0; by.steps = 'motion';
+  }
+  return { dials, by };
 }
+/**
+ * A title row's dials, each from the first layer that sets it: the row's own word > the register the play block settled
+ * (ctx.register: the dials lowerPlay hands the build, a pin among them counted as the operator's by ctx.sources) > its
+ * theme > the default. With ctx.explain, `from` names each dial's layer ('row', 'operator', 'flavor', 'register',
+ * 'pixel', 'theme', 'default') and `by` the register dial behind it.
+ */
+export function titleDials(r, ctx = {}) {
+  const theme = TITLE_THEME_IDS.includes(r.theme) ? r.theme : 'arcade', T = TITLE_THEMES[theme];
+  const reg = ctx.register ? titleDialsOfRegister(ctx.register) : { dials: {}, by: {} };
+  const srcDials = ctx.sources && ctx.sources.dials ? ctx.sources.dials : {};
+  const out = { theme }, from = {}, by = {};
+  for (const k of TITLE_DIALS) {
+    if (r[k] !== undefined && r[k] !== null) { out[k] = r[k]; from[k] = 'row'; }
+    else if (reg.dials[k] !== undefined) { out[k] = reg.dials[k]; by[k] = reg.by[k]; from[k] = reg.by[k] === 'pixel' ? 'pixel' : srcDials[reg.by[k]] === 'operator' || srcDials[reg.by[k]] === 'flavor' ? srcDials[reg.by[k]] : 'register'; }
+    else if (T[k] !== undefined) { out[k] = T[k]; from[k] = ctx.themeFrom || 'theme'; }
+    else { out[k] = k === 'tempo' ? 1 : k === 'steps' ? 0 : undefined; from[k] = 'default'; }
+  }
+  out.ttl = Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : T.ttl;
+  from.ttl = Number.isFinite(r.ttl) && r.ttl > 0 ? 'row' : 'theme';
+  return ctx.explain ? { ...out, from, by } : out;
+}
+
 export const STYLE_TOKENS = ['accent', 'accent2', 'ink', 'bg', 'panel', 'line'];
 export const FONTS = {
   system: 'system-ui,sans-serif',
@@ -197,11 +244,13 @@ export function fmtDelta(n) {
 }
 
 /**
- * normalizeHud(rows) → { widgets, errors }. Widgets are complete (every optional filled) and in
+ * normalizeHud(rows, ctx?) → { widgets, errors }. Widgets are complete (every optional filled) and in
+ * declaration order; ctx.register (the dials a settled play direction hands the build) dresses the title rows
+ * through the cascade (titleDials). Widgets are in
  * declaration order (a merged var keeps its FIRST position). Errors teach; a caller that needs
  * a gate throws on them, a renderer that already passed the gate takes the widgets.
  */
-export function normalizeHud(rows) {
+export function normalizeHud(rows, ctx = {}) {
   const errors = [];
   const widgets = [];
   const byVar = new Map();
@@ -263,7 +312,7 @@ export function normalizeHud(rows) {
         if (r.style !== undefined && !TITLE_STYLES.includes(r.style)) errors.push(`${where}.style must be one of: ${TITLE_STYLES.join(', ')} (a title's carve)`);
         if (r.edge !== undefined && !TITLE_EDGES.includes(r.edge)) errors.push(`${where}.edge must be one of: ${TITLE_EDGES.join(', ')} (what stands behind a title's letters)`);
         if (r.caps !== undefined && typeof r.caps !== 'boolean') errors.push(`${where}.caps is true (the words in capitals) or false`);
-        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl });
+        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl }, { register: ctx.register });
         widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ...d, ...gate });
         return;
       }
