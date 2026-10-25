@@ -61,14 +61,14 @@ describe('comic hero pack: member orders', () => {
     }
   });
   it('the suit is the pack\'s, not the sheet\'s cut: the hero wears the classic cape and emblem, the mastermind the hardsuit', () => {
-    const hero = memberOrders('hero', byBody.tiered).mint.args.spec;
+    const hero = memberOrders('hero', byBody.tiered, { era: 'silver' }).mint.args.spec;
     expect(hero.paint).toEqual(['catsuit', 'gloves']);
     expect(hero.outfit.pieces.map((p) => p.kind)).toEqual(['cloak', 'belt']);
     expect(hero.outfit.detail).toEqual([{ prim: 'embroidery', role: 'chest', motif: 'diamond' }]);
     expect(hero.outfit.language.bottom).toMatchObject({ leg: 'long', cut: 'skinny' });
     expect(hero.palette.OutfitSecond).toBe('#c62828');
     expect(hero.palette.Top).toBe('#c62828');
-    const boss = memberOrders('mastermind', byBody.tiered).mint.args.spec;
+    const boss = memberOrders('mastermind', byBody.tiered, { era: 'silver' }).mint.args.spec;
     expect(boss.adorn).toMatchObject({ type: 'armor', style: 'armored-hero' });
     expect(boss.outfit).toBeUndefined();
   });

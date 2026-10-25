@@ -29,16 +29,16 @@ export const SUITS = Object.freeze({
     reads: 'the classic suit: a bodysuit in two primaries, a cape from the shoulders, a gold chest emblem, a belt, boots and gloves',
     palette: PRIMARIES,
     at: {
-      tiered: { paint: ['catsuit', 'gloves'], outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt' }], 'diamond') },
-      realistic: { outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt' }], 'diamond') },
+      tiered: { paint: ['catsuit', 'gloves'], outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt', at: 'waist' }], 'diamond') },
+      realistic: { outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt', at: 'waist' }], 'diamond') },
     },
   },
   street: {
     reads: 'the street suit: a hooded half-cape over streetwear, fighting gloves, no emblem; the vigilante and the sidekick',
     palette: { Top: '#263238', Bottom: '#1c2024', Shoes: '#111315', Gloves: '#111315', Trim: '#e53935', OutfitBase: '#263238', OutfitSecond: '#37474f', OutfitTrim: '#e53935' },
     at: {
-      tiered: { paint: ['gloves'], outfit: { type: 'outfit', style: 'streetwear', dials: { fit: 0.7, stylize: 0.6, coverage: 0.9, ornament: 1 }, language: { feet: 'boots' }, pieces: [CAPE({ hood: true, wrap: 0.5, hem: 'hip' }), { kind: 'belt' }] } },
-      realistic: { outfit: { type: 'outfit', style: 'streetwear', dials: { fit: 0.7, stylize: 0.6, coverage: 0.9, ornament: 1 }, language: { feet: 'boots' }, pieces: [CAPE({ hood: true, wrap: 0.5, hem: 'hip' }), { kind: 'belt' }] } },
+      tiered: { paint: ['gloves'], outfit: { type: 'outfit', style: 'streetwear', dials: { fit: 0.7, stylize: 0.6, coverage: 0.9, ornament: 1 }, language: { feet: 'boots' }, pieces: [CAPE({ hood: true, wrap: 0.5, hem: 'hip' }), { kind: 'belt', at: 'waist' }] } },
+      realistic: { outfit: { type: 'outfit', style: 'streetwear', dials: { fit: 0.7, stylize: 0.6, coverage: 0.9, ornament: 1 }, language: { feet: 'boots' }, pieces: [CAPE({ hood: true, wrap: 0.5, hem: 'hip' }), { kind: 'belt', at: 'waist' }] } },
     },
   },
   sleek: {
