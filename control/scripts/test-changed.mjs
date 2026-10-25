@@ -35,6 +35,7 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/(worlds\/controllable\/[^/]+|scene\/scene-three|scene\/engine-score|scene\/channels\/events)\.js$/, by: ['lib/graph/scene/engines/mark-sources.js', 'lib/graph/scene/godot-marks.test.js'], why: 'the engine marks scan the runtime\'s source for its keys' },
   { reads: /^lib\/graph\/scene\/(godot-kernel|godot-arcade-kernel)\//, by: ['lib/graph/scene/engines/runners.js', 'lib/graph/scene/godot-harness.js'], why: 'the Godot kernels are copied into the project' },
   { reads: /^lib\/graph\/scene\/roblox-kernel\//, by: ['lib/graph/scene/roblox-gate.js', 'lib/graph/scene/engines/runners.js'], why: 'the Roblox kernel is copied into the place' },
+  { reads: /^lib\/graph\/scene\/unreal-kernel\//, by: ['lib/graph/scene/unreal-kernel.js'], why: 'the Unreal kernel plugin is copied into the pack' },
   { reads: /^lib\/mcp\/apps\/preview-ui\.js$/, by: ['lib/mcp/apps/preview.js'], why: 'the app preview inlines its UI script' },
 ]);
 /** Modules that read files beside them that are DATA (cards, tables, stores, fonts, versions), not code: their own

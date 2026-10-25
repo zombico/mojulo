@@ -27,8 +27,8 @@ import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { manifestIdentity, extractEngineScore, extractBus, levelSoundtrack } from '../engine-score.js';
 import { levelSound } from '../engine-sound.js';
 import { renderBed } from '../engine-audio.js';
-import { isHumanoidRig } from '../../polygonizer/figure-humanoid-map.js';
-import { tposeRig } from '../../figures/rig-tpose.js';
+import { isHumanoidRig, humanoidBonesFor } from '../../polygonizer/figure-humanoid-map.js';
+import { tposeRig, withProfileJoints } from '../../figures/rig-tpose.js';
 import { synthesizeLevel } from '../../game/level-synth.js';
 import { normalizeLevelContract } from '../../game/level-contract.js';
 
@@ -49,6 +49,22 @@ export const packHash = (manifest) => createHash('sha256').update(JSON.stringify
 
 /** A world's rigged LAYERED figure (station-loft-rig packLayeredRig: `layered: true`) as [name, figure], else null. */
 export const layeredFigure = (payload) => Object.entries(payload?.figures || {}).find(([, f]) => f?.rig === true && f.layered === true) ?? null;
+
+/** The clip a figure plays when nothing drives it (Godot's figure scene, an Unreal world pack's import): `idle` when it
+ * has one, else the first clip with more than one key, else the first (a one-key stand holds). */
+export function figureClip(recipeClips = {}, names = Object.keys(recipeClips || {})) {
+  if (names.includes('idle')) return 'idle';
+  return names.find((c) => Array.isArray(recipeClips?.[c]) && recipeClips[c].length > 1) ?? names[0] ?? null;
+}
+
+/** A skinned figure's skeleton as its GLB carries it: its joint count; for the engine skeleton (`engine`, the T-pose
+ * figure resolveLevel re-rested) the profile's inserted joints and the weightless wrist and ankle leaves among them, and
+ * the VRM names a humanoid profile maps onto. */
+export function figureSkeleton(f, engine = null) {
+  if (!engine) return { joints: f.bones.length };
+  const bones = withProfileJoints(engine).bones, { names, leaves } = humanoidBonesFor(bones);
+  return { joints: bones.length + leaves.length, humanoid: [...names.values(), ...leaves.map((l) => l.vrm)] };
+}
 
 /** The clips of a figure a pack's GLB carries: every one under '_all', those a list names, none otherwise. */
 export const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.clips || {}) : Array.isArray(clips) ? clips.filter((c) => f?.clips?.[c]) : []);

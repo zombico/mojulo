@@ -118,6 +118,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
 
+### Unreal catch-up: the hero as Unreal's character, the levels by the Godot pattern
+
+- **The Unreal kernel is source files.** The MojuloKernel plugin's C++ lives in `scene/unreal-kernel/MojuloKernel/`,
+  the files a game pack ships, copied as they are (it was written out from strings in `unreal-kernel.js`). Every pack
+  is byte-identical.
+- **The hero ships skinned to Unreal** (leg 0.5.0), as it does to Godot. A rigged layered figure goes out as one
+  skinned mesh with its clips, in a world pack and in a game's levels; Interchange imports it as a SkeletalMesh and an
+  AnimSequence per clip.
+  - The kernel plays a skinned figure's clips on its mesh: the player's suit swaps idle and walk as it moves, the others
+    loop their idle. A rigid figure plays through its LevelSequences as before.
+  - A world pack has no kernel, so the importer loops the figure's clip on it at import: idle, else its first moving
+    clip, as Godot's figure scene does.
+  - `node scripts/export-unreal.mjs --ref <world> --humanoid` ships the figure as the engine skeleton: VRM-named joints
+    at the T-pose rest, the seam an IK Retargeter maps from.
+  - The importer's verify adds `figures_skinned` (a SkeletalMesh for each skin the GLB declares, with at least its
+    joints as bones) and, in a world pack, `figure_clip`. `clips_bound` counts an AnimSequence as a bound clip.
+  - The README gains a Characters section when a figure ships skinned.
+  - A pack with no rigged layered figure carries the GLB it carried before. Its importer and kernel text change.
+  - Not yet run in Unreal: the kernel's compile, the figure checks and the eyes gate are the operator's
+    (`MOJULO_UNREAL`). The AnimSequence names Interchange gives the clips are read by exact name, else by the one asset
+    that contains it, and the first gate run pins them.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:
