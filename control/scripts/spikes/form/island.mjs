@@ -19,9 +19,13 @@ register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href,
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { readGeocube, GEOCUBE_PALETTES } = await import('../../../lib/graph/era/geocube.js');
 const { cubeLight } = await import('../../../lib/graph/era/cube-light.js');
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const { solveMirror, seen, decodeSrgb, encodeSrgb } = await import('../../../lib/graph/color-theorist/light.js');
-const { landForm, LAND_CLASSES, DEEP_FADE } = await import('../../../lib/graph/form/land-form.js');
+const { landForm, LAND_CLASSES, DEEP_FADE, DEEP_TONE } = await import('../../../lib/graph/form/land-form.js');
 const { b64, safeJson, CDN_IMPORTMAP, inlineImportmap } = await import('../../../lib/graph/scene/emit-util.js');
+const { dressedMaterial } = await import('../../../lib/graph/matte-paint/dressed.js');
+const { encodePng } = await import('../../../lib/graph/landscape/surface-textures.js');
+const { strHash } = await import('../../../lib/graph/city/plan/dice.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = path.resolve(arg('--out', 'island.html')), id = arg('--cube', 'island-noon'), seed = arg('--palette'), cdn = process.argv.includes('--cdn');
@@ -32,39 +36,77 @@ const { payload: P } = await resolveWorldScene({ title: 'island', manifest: { ki
 const C = readGeocube(cube), light = cubeLight(C), sun = light.sun.dir;
 // THE SEA, a mirror over a body: from the island camera's view down onto it, the palette's sea colour is what the sky it
 // reflects (the dome at that angle, as the page draws it) and its body under the light show together, the floor under
-// it showing through its alpha (the deep water's colour, itself the body darkened: solved twice)
+// it showing through its alpha (the deep water's colour, the body's own: solved twice)
 const isleCam = P.cameras.find((c) => c.name === 'island').worldFraming, [cx, cy, cz] = isleCam.cameraPosition, [lx, ly, lz] = isleCam.lookAt;
 const view = (Math.atan2(cz - lz, Math.hypot(cx - lx, cy - ly)) * 180) / Math.PI, up = Math.sin((view * Math.PI) / 180) ** 0.6;
 const lin = (c) => c.map((v) => decodeSrgb(v / 255)), hexL = (c) => '#' + c.map((v) => Math.round(encodeSrgb(Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
 const sees = hexL(lin(P.sky.horizon).map((v, k) => v * (1 - up) + lin(P.sky.zenith)[k] * up));
 const at = { ambient: light.ambient.linear, sun: light.sun.linear }, mirror = (under) => solveMirror({ target: C.colour.water, sees, view, light: at, cos: sun[2], alpha: 0.9, under });
 let water = mirror('#000000');
-water = mirror(seen(water.base.map((v) => v * 0.4), at, 0));
+water = mirror(seen(water.base.map((v) => v * DEEP_TONE), at, 0));
 const bases = { ...light.bases, water: hexL(water.base) };
 const L = landForm(P.faces, bases, { seed: 1 });
 
+// THE LAYERED GROUND (the plan's phase 2): every land corner carries a weight for each layer (rock, scree, soil, sand),
+// from the classes of the faces round it (a transition a cell wide), foothill scree within FOOT metres of rock, and
+// seeded patches of scree over the soil off any path; the renderer blends the layers' materials by them, by height.
+// A layer's texture modulates its palette-solved base about its own mean, so the palette's colours hold on average.
+const LAYERS = [
+  { id: 'rock', cut: 'crag', metres: 4, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 2, role: 'stone' },
+  { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' }, { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' }];
+const layerOf = { cliff: 0, rock: 0, scree: 1, soil: 2, ground: 2, trail: 2, sand: 3 }, FOOT = 6, PATCH = 8, TEX = 512;
+const layered = (F) => F.cls && F.cls in layerOf && !F.under;
+const atlas = (k) => Buffer.alloc(TEX * 2 * TEX * 2 * 3), A = { base: atlas(), normal: atlas(), orm: atlas() }, means = [];
+LAYERS.forEach((Ly, li) => {
+  const M = dressedMaterial({ cut: Ly.cut, metres: Ly.metres, stone: [170, 160, 140], grit: 0.5 }, { size: TEX, seed: 3, rough: 0.9 });
+  let lo = Infinity, hi = -Infinity; for (const v of M.height) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const ox = (li % 2) * TEX, oy = Math.floor(li / 2) * TEX, sum = [0, 0, 0];
+  for (let j = 0; j < TEX; j++) for (let i = 0; i < TEX; i++) {
+    const k = j * TEX + i, o = ((oy + j) * TEX * 2 + ox + i) * 3;
+    for (let c = 0; c < 3; c++) { A.base[o + c] = M.baseColor[k * 3 + c]; A.normal[o + c] = M.normal[k * 3 + c]; sum[c] += decodeSrgb(M.baseColor[k * 3 + c] / 255); }
+    A.orm[o] = M.orm[k * 3]; A.orm[o + 1] = M.orm[k * 3 + 1]; A.orm[o + 2] = Math.round(((M.height[k] - lo) / Math.max(1e-9, hi - lo)) * 255);
+  }
+  means.push(sum.map((v) => Math.round((v / (TEX * TEX)) * 1e4) / 1e4));
+});
+const png = (b) => `data:image/png;base64,${encodePng(b, TEX * 2, TEX * 2).toString('base64')}`;
+// the weights: the classes round each corner (corners keyed to a centimetre), then the scree laid over the soil
+const keyAt = (c) => `${Math.round(c[0] * 100)},${Math.round(c[1] * 100)}`, W = new Map();
+P.faces.forEach((f, i) => { const F = L.faces[i]; if (!layered(F)) return; for (const c of f.corners) { const k = keyAt(c), w = W.get(k) ?? W.set(k, { at: c, w: [0, 0, 0, 0] }).get(k); w.w[layerOf[F.cls]] += 1; } });
+const rockAt = [...W.values()].filter((v) => v.w[0] > 0).map((v) => v.at), bucketOf = (x, y) => `${Math.floor(x / FOOT)},${Math.floor(y / FOOT)}`, RB = new Map();
+for (const c of rockAt) (RB.get(bucketOf(c[0], c[1])) ?? RB.set(bucketOf(c[0], c[1]), []).get(bucketOf(c[0], c[1]))).push(c);
+const nearRock = (x, y) => { let d = Infinity; const bi = Math.floor(x / FOOT), bj = Math.floor(y / FOOT); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const c of RB.get(`${bi + a},${bj + b}`) || []) d = Math.min(d, Math.hypot(c[0] - x, c[1] - y)); return d; };
+const lattice = (i, j) => strHash(`3|scree-patch-v1|${i},${j}`) / 4294967296, ease = (t) => t * t * (3 - 2 * t);
+const patchAt = (x, y) => { const u = x / PATCH, v = y / PATCH, i = Math.floor(u), j = Math.floor(v), a = ease(u - i), b = ease(v - j); return (lattice(i, j) * (1 - a) + lattice(i + 1, j) * a) * (1 - b) + (lattice(i, j + 1) * (1 - a) + lattice(i + 1, j + 1) * a) * b; };
+for (const v of W.values()) {
+  const n = v.w.reduce((s, x) => s + x, 0), w = v.w.map((x) => x / n), soilW = w[2];
+  if (soilW > 0) { const foot = Math.max(0, 1 - nearRock(v.at[0], v.at[1]) / FOOT), patch = Math.max(0, (patchAt(v.at[0], v.at[1]) - 0.62) / 0.38); w[1] += soilW * (0.8 * foot + 0.9 * patch); }
+  const m = w.reduce((s, x) => s + x, 0); v.w = w.map((x) => x / m);
+}
+const roleBase = LAYERS.map((Ly) => hexRgb(bases[Ly.role]));
+
 // faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours
 // and the gate's bucket: 1 a cliff turned to the hour's sun, 2 one turned away, 3 wet sand, 4 dry sand
-const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const keyOf = (i) => { const F = L.faces[i]; return F.cls ? `${F.cls}${F.under ? ':under' : F.wet ? ':wet' : ''}` : 'unread'; };
 const order = P.faces.map((_, i) => i).sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : keyOf(a) > keyOf(b) ? 1 : a - b));
 const dot = (n) => n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2];
 // and the seen laws' id: the role a face shows (cliff and rock the stone, ground the grass, dry sand, the trail the floor,
 // the sea) × 4, + 1 turned to the hour's sun (within ~40° of square to it: the palette's lit colour is a face square to the
 // sun, so a steep face lit at a glance is not compared with a flat one), 2 turned away
-const SEEN_ROLES = ['stone', 'grass', 'sand', 'floor', 'water'], roleOf = { cliff: 'stone', rock: 'stone', ground: 'grass', sand: 'sand', trail: 'floor', water: 'water' };
-const pos = [], c6 = [], c7 = [], bk = [], sid = [], ranges = [];
+const SEEN_ROLES = ['stone', 'grass', 'sand', 'floor', 'water'], roleOf = { cliff: 'stone', rock: 'stone', scree: 'stone', ground: 'grass', soil: 'floor', sand: 'sand', trail: 'floor', water: 'water' };
+const pos = [], c6 = [], c7 = [], bk = [], sid = [], spl = [], ranges = [];
 for (const i of order) {
   const f = P.faces[i], F = L.faces[i], key = keyOf(i), n = f.normal || [0, 0, 1];
   const bucket = F.cls === 'cliff' ? (dot(n) >= 0.5 ? 1 : dot(n) <= 0.05 ? 2 : 0) : F.cls === 'sand' && !F.under ? (F.wet ? 3 : 4) : 0;
   const role = F.cls && !F.under && !F.wet ? SEEN_ROLES.indexOf(roleOf[F.cls]) + 1 : 0, facing = dot(n) >= 0.75 ? 1 : dot(n) <= 0.05 ? 2 : 0;
   const seenId = role && facing ? role * 4 + facing : 0;
   const fills = f.cornerFills || f.corners.map(() => f.fill), alpha = f.cornerAlpha || f.corners.map(() => 1);
-  const base = F.cls ? F.base : hexRgb(f.fill);
+  // (a layered face's corner: its layers' weights, and its base their solved bases by weight; wet sand keeps its own)
+  const wAt = (j) => (layered(F) ? W.get(keyAt(f.corners[j])).w : [0, 0, 0, 0]);
+  const base = F.cls ? F.base : hexRgb(f.fill), baseAt = (j) => (F.corners ? F.corners[j] : layered(F) && !F.wet ? [0, 1, 2].map((c) => Math.round(wAt(j).reduce((s, x, li) => s + x * roleBase[li][c], 0))) : base);
   let R = ranges[ranges.length - 1];
   if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });
   for (let k = 1; k + 1 < f.corners.length; k++) for (const j of [0, k, k + 1]) {
-    pos.push(...f.corners[j]); c6.push(...hexRgb(fills[j]), Math.round(alpha[j] * 255)); c7.push(...base, Math.round(alpha[j] * 255)); bk.push(bucket); sid.push(seenId); R.count += 1;
+    pos.push(...f.corners[j]); c6.push(...hexRgb(fills[j]), Math.round(alpha[j] * 255)); c7.push(...baseAt(j), Math.round(alpha[j] * 255)); bk.push(bucket); sid.push(seenId); spl.push(...wAt(j).map((x) => Math.round(x * 255))); R.count += 1;
   }
 }
 // the shadow's frame: what stands above the water, not the sea's floor or the sea to the horizon
@@ -86,9 +128,12 @@ const data = {
   seabed: { x: [Math.min(...seaX), Math.max(...seaX)], y: [Math.min(...seaY), Math.max(...seaY)], z: L.waterZ - DEEP_FADE - 1 },
   classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
   cameras: [...P.cameras.map((c) => ({ name: c.name, ...c.worldFraming })), shore], shoreSun, ranges,
+  // the shore's reading: a line from where the water begins (2 m past the wet line) straight out to sea, at its face
+  shoreLine: Array.from({ length: 41 }, (_, i) => [shoreAt[0] + d2[0] * (i + 2), shoreAt[1] + d2[1] * (i + 2), L.waterZ]),
   light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { view: Math.round(view * 10) / 10, fresnel: water.fresnel, sees, base: bases.water, target: C.colour.water, ...(water.unreached ? { unreached: true } : {}) },
     swatches: ['stone', 'grass', 'sand', 'floor'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
-  pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)), sid: b64(Uint8Array.from(sid)), seenRoles: SEEN_ROLES,
+  pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)), sid: b64(Uint8Array.from(sid)), spl: b64(Uint8Array.from(spl)), seenRoles: SEEN_ROLES,
+  layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(layerOf) },
   palette: { sky: light.ambient.color, targets: Object.fromEntries(SEEN_ROLES.map((r) => [r, { lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade }])) },
 };
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -123,7 +168,7 @@ const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 // (the fills and colours are sRGB bytes; three's vertex colours are linear)
 const LIN = Float32Array.from({ length: 256 }, (_, v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
 const linear = (b) => Float32Array.from(b, (v, i) => (i % 4 === 3 ? v / 255 : LIN[v]));
-const POS = new Float32Array(bytes(D.pos).buffer), C6 = linear(bytes(D.c6)), C7 = linear(bytes(D.c7)), BK = bytes(D.bk), SID = bytes(D.sid);
+const POS = new Float32Array(bytes(D.pos).buffer), C6 = linear(bytes(D.c6)), C7 = linear(bytes(D.c7)), BK = bytes(D.bk), SID = bytes(D.sid), SPL = bytes(D.spl);
 const cv = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
@@ -139,6 +184,7 @@ function skyDome() {
 }
 function part(R, colours, extra = {}) {
   const g = new THREE.BufferGeometry();
+  if (extra.splat) g.setAttribute('splat', new THREE.BufferAttribute(SPL.subarray(R.start * 4, (R.start + R.count) * 4), 4, true));
   g.setAttribute('position', new THREE.BufferAttribute(POS.subarray(R.start * 3, (R.start + R.count) * 3), 3));
   g.setAttribute('color', new THREE.BufferAttribute(colours.subarray(R.start * 4, (R.start + R.count) * 4), 4));
   if (extra.bucket) { g.setAttribute('bucket', new THREE.BufferAttribute(BK.subarray(R.start, R.start + R.count), 1)); g.setAttribute('seenid', new THREE.BufferAttribute(SID.subarray(R.start, R.start + R.count), 1)); }
@@ -161,6 +207,43 @@ const skyEnv = pm.fromScene(envScene, 0, 1, 6000).texture;
 const solved = (lin) => { const m = Math.max(...lin, 1e-9); return [new THREE.Color().setRGB(lin[0] / m, lin[1] / m, lin[2] / m, THREE.LinearSRGBColorSpace), Math.PI * m]; };
 seven.add(new THREE.AmbientLight(...solved(D.light.ambient)));
 let wetMat = null;
+// the layered ground's shader, chained over the standard material's: each layer along the face's dominant axis, its
+// weight raised by its own height (the border decided by the relief), its normal, roughness and occlusion, and its
+// colour about its mean over the corner's base
+const loadTex = (u, srgb) => new THREE.TextureLoader().loadAsync(u).then((t) => { t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.flipY = false; return t; });
+const [tBase, tNorm, tOrm] = await Promise.all([loadTex(D.layers.base, true), loadTex(D.layers.normal), loadTex(D.layers.orm)]);
+const LAYER_U = { tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, uTile: { value: D.layers.tile }, uOff: { value: [0, 1, 2, 3].map((i) => new THREE.Vector2((i % 2) * 0.5, Math.floor(i / 2) * 0.5)) }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) } };
+function layeredGround(m, roughScale) {
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
+    sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+    sh.fragmentShader = 'uniform sampler2D tBase, tNorm, tOrm;\\nuniform float uTile[4];\\nuniform vec2 uOff[4];\\nuniform vec3 uMean[4];\\nuniform float uRough;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
+  vec3 nW = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ), aN = abs( nW );
+  vec2 uvW; vec3 tT, tB;
+  if ( aN.z >= aN.x && aN.z >= aN.y ) { uvW = vWPos.xy; tT = vec3( 1.0, 0.0, 0.0 ); tB = vec3( 0.0, 1.0, 0.0 ); }
+  else if ( aN.x >= aN.y ) { uvW = vec2( vWPos.y * sign( nW.x ), vWPos.z ); tT = vec3( 0.0, sign( nW.x ), 0.0 ); tB = vec3( 0.0, 0.0, 1.0 ); }
+  else { uvW = vec2( -vWPos.x * sign( nW.y ), vWPos.z ); tT = vec3( -sign( nW.y ), 0.0, 0.0 ); tB = vec3( 0.0, 0.0, 1.0 ); }
+  vec4 hgt; vec3 bs[4]; vec3 ns[4]; vec2 rs[4];
+  for ( int i = 0; i < 4; i++ ) {
+    vec2 a = ( fract( uvW / uTile[ i ] ) * 0.996 + 0.002 ) * 0.5 + uOff[ i ];
+    vec4 o = texture2D( tOrm, a );
+    hgt[ i ] = o.b; rs[ i ] = o.rg;
+    bs[ i ] = texture2D( tBase, a ).rgb / uMean[ i ];
+    ns[ i ] = texture2D( tNorm, a ).xyz * 2.0 - 1.0;
+  }
+  vec4 wb = vSplat + hgt * 0.35 * step( 0.001, vSplat );
+  float top = max( max( wb.x, wb.y ), max( wb.z, wb.w ) ) - 0.2;
+  vec4 w = max( wb - top, 0.0 ); w /= max( 1e-4, w.x + w.y + w.z + w.w );
+  vec3 mb = bs[ 0 ] * w.x + bs[ 1 ] * w.y + bs[ 2 ] * w.z + bs[ 3 ] * w.w;
+  vec2 mr = rs[ 0 ] * w.x + rs[ 1 ] * w.y + rs[ 2 ] * w.z + rs[ 3 ] * w.w;
+  vec3 mn = normalize( ns[ 0 ] * w.x + ns[ 1 ] * w.y + ns[ 2 ] * w.z + ns[ 3 ] * w.w );
+  diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
+  roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );
+  normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
+  };
+  m.customProgramCacheKey = () => 'layered-ground';
+  return m;
+}
 const sunLight = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;
 const [bx, by, bz] = D.box, mid = new THREE.Vector3((bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2, (bz[0] + bz[1]) / 2), rad = Math.hypot(bx[1] - bx[0], by[1] - by[0], bz[1] - bz[0]) / 2;
 Object.assign(sunLight.shadow.camera, { left: -rad, right: rad, top: rad, bottom: -rad, near: 0.5, far: rad * 4 });
@@ -170,8 +253,14 @@ for (const R of D.ranges) {
   const water = R.key === 'water';
   const m = water
     ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
-    : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, flatShading: true, side: THREE.DoubleSide });
-  const g = part(R, C7); if (water) g.computeVertexNormals();   // (the land is shaded flat, its normals the faces'; the sea's are its own)
+    : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, flatShading: R.key !== 'sand:under', side: THREE.DoubleSide });
+  const ground = !water && R.key !== 'sand:under' && D.layers.keys.includes(R.key.split(':')[0]);
+  if (ground) layeredGround(m, R.key === 'sand:wet' ? R.rough / 0.9 : 1);
+  // (the land is shaded flat, its normals the faces'; the sea's are its own; the shallows' floor, all but level, lit as
+  // one surface facing up, so its faces never show through the sea as facets)
+  const floor = R.key === 'sand:under', g = part(R, C7, { splat: ground });
+  if (water) g.computeVertexNormals();
+  if (floor) g.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from({ length: R.count * 3 }, (_, i) => (i % 3 === 2 ? 1 : 0)), 3));
   const mesh = new THREE.Mesh(g, m); mesh.castShadow = !water; mesh.receiveShadow = true; seven.add(mesh);
   if (R.key === 'sand:wet') wetMat = m;
 }
@@ -264,6 +353,23 @@ function swatches() {
   return W.map((w, i) => ({ role: w.role, lit: lit[i], want: w.lit, litOff: off(lit[i], w.lit), shade: shade[i], wantShade: w.shade, shadeOff: off(shade[i], w.shade) }));
 }
 window.swatches = swatches;
+// the shore, read from straight above (flown over it, an orthographic eye 60 m up): each half's luminance along the line
+// from the wet line out to sea: the shallows should read lighter than the deep, and the floor fall away without steps
+window.shoreReading = () => {
+  const L = D.shoreLine, a = L[0], z = L[L.length - 1], mid = [(a[0] + z[0]) / 2, (a[1] + z[1]) / 2, a[2]], half = 26;
+  const eye = new THREE.OrthographicCamera(-half, half, half, -half, 1, 400); eye.position.set(mid[0], mid[1], mid[2] + 60); eye.up.set(z[0] - a[0], z[1] - a[1], 0); eye.lookAt(...mid);
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, v = new THREE.Vector3(), cam = camera;
+  eye.left = -half * w / h; eye.right = half * w / h; eye.updateProjectionMatrix();
+  const along = (scene) => {
+    renderer.setRenderTarget(null); renderer.setScissorTest(false); renderer.setViewport(0, 0, cv.clientWidth, cv.clientHeight); renderer.render(scene, eye);
+    const px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    return L.map((q) => { v.set(...q).project(eye); const x = Math.round((v.x + 1) / 2 * w), y = Math.round((v.y + 1) / 2 * h); const i = (y * w + x) * 4; return Math.round(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]); });
+  };
+  const read = (ys) => { const n = Math.max(1, Math.floor(ys.length / 5)), m = (b) => Math.round(b.reduce((s, y) => s + y, 0) / b.length);
+    let rises = 0; for (let i = 1; i < ys.length; i++) if (ys[i] - ys[i - 1] > 3) rises += 1;
+    return { samples: ys.length, shallow: m(ys.slice(0, n)), deep: m(ys.slice(-n)), rises, line: ys }; };
+  const out = { gen6: read(along(six)), gen7: read(along(seven)) }; draw(); return out;
+};
 window.measure = ({ camera: name, sun } = {}) => {
   if (name) frame(name);
   const before = [Number(az.value), Number(el.value)];

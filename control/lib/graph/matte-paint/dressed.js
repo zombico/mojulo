@@ -82,14 +82,16 @@ const rampAt = (R, t) => { const x = clamp(t, 0, 1) * (R.length - 1), i = Math.m
 
 /**
  * A dressed face as the form render's material (gen-7: form/relief-material.js): the same relief, its colour under no
- * light, its slope a normal map, its hollows occlusion. The modern cuts read so far (each paints through paintedTile);
+ * light, its slope a normal map, its hollows occlusion. The modern and natural cuts read so (each paints through paintedTile);
  * any other cut is not drawn as material yet, and says so.
  *   dressedMaterial(cfg, { size, seed, rough }) → { W, H, px, baseColor, normal, orm, height }
  */
 export function dressedMaterial(cfgIn, { size = 512, seed = 1, rough = 0.85 } = {}) {
-  const cut = cfgIn.cut ?? 'ashlar';
-  if (!MODERN[cut]) throw new Error(`dressed: the form render reads the modern cuts as material so far (${Object.keys(MODERN).join(', ')}); '${cut}' is still drawn as paint`);
-  return MODERN[cut]({ ...DRESSED_DEFAULTS, ...cfgIn, _material: { rough } }, size, seed);
+  const cut = cfgIn.cut ?? 'ashlar', T = MODERN[cut] ? MODERN : NATURAL[cut] ? NATURAL : null;
+  if (!T) throw new Error(`dressed: the form render reads the modern and natural cuts as material so far (${[...Object.keys(MODERN), ...Object.keys(NATURAL)].join(', ')}); '${cut}' is still drawn as paint`);
+  const M = T[cut]({ ...DRESSED_DEFAULTS, ...cfgIn, _material: { rough } }, size, seed);
+  if (!M.normal) throw new Error(`dressed: '${cut}' does not paint through the shared pass, so it cannot be read as material yet`);
+  return M;
 }
 
 export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
@@ -674,6 +676,39 @@ const NATURAL = {
       peb[k] = p > 0 ? 1 : 0;
       return z + p - 0.002 * cr;
     }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.2 + 0.05 * sfbm(x, y, M, 0.4, 0.4, 3, seed + 13) + 0.06 * peb[k] - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // SOIL from above: loose bare dirt, looser than a path's packed earth: clods a few centimetres across standing out of
+  // it, crumbs between them, a small stone here and there; no worn hollows (nothing walks it)
+  soil(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), clod = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      const b = Math.abs(sfbm(x, y, M, 0.06, 0.06, 3, seed + 3)), lump = 0.005 * (1 - b) ** 2;
+      let st = 0;
+      marksNear(x, y, M, 0.07, 1, seed + 11, (cx, cy, h, cs) => {
+        if (h(3) > 0.1 + 0.15 * g) return;
+        const d = stoneDist(x, y, cx, cy, cs * (0.1 + 0.12 * h(4)), h);
+        if (d < 1) { const v = 0.004 * (0.5 + h(6)) * Math.min(1, (1 - d) * 3); if (v > st) st = v; }
+      });
+      clod[k] = lump / 0.005 + (st > 0 ? 0.5 : 0);
+      return lump + st + 0.0008 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5) + 0.003 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 7);
+    }, (x, y, k, lit) => rampAt(body, 0.54 + (lit.value[k] - 1) * 1.2 + 0.06 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 13) + 0.05 * clod[k] - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // a CRAG, a weathered rock face (u along it, v up it): the stone bulged and lumped, laid in beds (each its own tone, a
+  // ledge at its foot), broken by joints running up it (wandering, V-cut), a fine grain over all; read near, at a cliff
+  crag(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), bed = new Float32Array(size * size);
+    const beds = Math.max(2, Math.round(M / 0.35)), joints = Math.max(1, Math.round(M / 0.9));
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const lump = 0.03 * (1 - Math.abs(sfbm(x, y, M, 0.6, 0.45, 3, seed + 3)));
+      // the beds: a step at each one's foot, its line wandering a little; each bed its own tone
+      const v = (y / M) * beds + 0.4 * sfbm(x, y, M, 1, 0.5, 2, seed + 5), b = Math.floor(v), f = v - b;
+      bed[k] = hash01(((b % beds) + beds) % beds, 3, seed);
+      const ledge = -0.012 * smoothstep(0.85, 1, f) - 0.004 * bed[k];
+      // the joints: V-grooves up the face, wandering
+      const u = (x / M) * joints + 0.25 * sfbm(x, y, M, 0.5, 1, 2, seed + 7), d = Math.abs(u - Math.round(u)) * (M / joints);
+      const joint = -0.015 * Math.max(0, 1 - d / (0.025 * (0.6 + g)));
+      return lump + ledge + joint + 0.0015 * sfbm(x, y, M, 0.02, 0.02, 2, seed + 9);
+    }, (x, y, k, lit) => rampAt(body, 0.5 + (lit.value[k] - 1) * 1.1 + 0.12 * (bed[k] - 0.5) + 0.04 * sfbm(x, y, M, 0.25, 0.25, 3, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // SAND from above: wind ripples across it (a crest every few centimetres, wandering and forking as the wind shifts),
   // the grains fine between them, a bright grit here and there (a shell's fleck)

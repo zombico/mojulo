@@ -18,7 +18,11 @@ try {
   const m = await p.evaluate((c) => window.measure({ camera: c }), camera), sw = await p.evaluate(() => window.swatches()), palette = await p.evaluate(() => window.palette);
   const swatches = Object.fromEntries(sw.map((w) => [w.role, { lit: w.lit, shade: w.shade }]));
   const report = { camera, palette, gen6: { seen: m.gen6.roles, laws: seenLaws({ roles: m.gen6.roles }, palette) }, gen7: { seen: m.gen7.roles, laws: seenLaws({ roles: m.gen7.roles, swatches }, palette) } };
+  const shoreR = await p.evaluate(() => window.shoreReading());
   for (const era of ['gen6', 'gen7']) {
+    const R = shoreR[era];
+    report[era].laws.push({ law: 'shallows-lighter', ok: R.shallow > R.deep, value: `the shallows ${R.shallow}, the deep ${R.deep} (luminance along ${R.samples} samples from the wet line out)` },
+      { law: 'floor-smooth', ok: R.rises <= 1, value: `${R.rises} step${R.rises === 1 ? '' : 's'} up along the line out (a rise over 3 of 255): ${R.line.join(' ')}` });
     console.log(`${era}: ${Object.entries(report[era].seen).map(([r, v]) => `${r} ${v.lit ?? '-'}/${v.shade ?? '-'}`).join('  ')}`);
     for (const l of report[era].laws) console.log(`  ${l.ok ? 'ok  ' : 'ADVISE'} ${l.law}: ${l.value}`);
   }

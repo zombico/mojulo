@@ -4,13 +4,16 @@
  * group is read and the fill is not: a face's base colour is the cube's colour for its class with a small seeded tone,
  * its roughness the class's, and the renderer lights it.
  *
- *   landForm(faces, colour, { seed?, wetBand? }) → { faces: [{ cls, base: [r, g, b] (0–255), rough, wet, under }], waterZ,
- *       deep: [r, g, b], unread }
+ *   landForm(faces, colour, { seed?, wetBand? }) → { faces: [{ cls, base: [r, g, b] (0–255), rough, wet, under,
+ *       corners? }], waterZ, deep: [r, g, b], unread }
  *       faces: a payload's faces (`group` 'isekai:<class>', `corners`); colour: the cube's key colours (era/geocube.js
  *       `colour`: stone, grass, sand, water, floor). A face of a group with no class keeps its fill (cls null) and is
  *       counted in `unread`. Sand within `wetBand` metres above the water's line is WET: darker, and glossy (its
  *       roughness, not its paint); sand wholly under the line (the shallows' floor, seen through the sea) is wet and `under`,
- *       fading with its depth to `deep`, the colour of deep water (the sea's colour darkened), which open sea shows too.
+ *       fading with its depth to `deep`, the sea's own body (its colour as the cube names it, or as the light solves it):
+ *       the floor is lost into the colour the deep water shows, never into a darker one, so the shallows read lighter:
+ *       over the floor's own depth (the deepest it falls under the line, at least DEEP_FADE), corner by corner (`corners`:
+ *       each corner's base), so the floor fades smoothly and never in the steps of its faces.
  *       A face's tone wanders smoothly over the ground (a few metres to a swing), not face by face.
  *
  * Nothing here reads a sun: the same faces and colours give the same material whatever the hour. Pure, seeded.
@@ -24,6 +27,9 @@ import { strHash } from '../city/plan/dice.js';
 export const LAND_CLASSES = Object.freeze({
   sand: { colour: 'sand', rough: 0.95, tone: 1, vary: 0.04 },
   ground: { colour: 'grass', rough: 0.9, tone: 1, vary: 0.07 },
+  // a geo island's bare ground (local-meru island `cover: 'soil'`): the soil the cube names, and the scree under its cliffs
+  soil: { colour: 'floor', rough: 0.95, tone: 1, vary: 0.06 },
+  scree: { colour: 'stone', rough: 0.9, tone: 1, vary: 0.1 },
   cliff: { colour: 'stone', rough: 0.85, tone: 1, vary: 0.06 },
   rock: { colour: 'stone', rough: 0.8, tone: 1, vary: 0.08 },
   trail: { colour: 'floor', rough: 0.9, tone: 1, vary: 0.04 },
@@ -33,8 +39,10 @@ export const LAND_CLASSES = Object.freeze({
 export const WET_BAND = 0.3, WET_TONE = 0.68, WET_ROUGH = 0.25;
 /** Sand under the sea: its colour (× dry), lighter than the wet line's (the sea over it, not a film of water, darkens it). */
 export const UNDER_TONE = 0.9;
-/** Deep water: its colour (× the sea's) and the depth (metres under the line) at which the shallows' floor is lost in it. */
-export const DEEP_TONE = 0.4, DEEP_FADE = 3;
+/** Deep water: its colour (× the sea's: the sea's own body, so a floor fading into it meets the water it is seen
+ *  through; a darker deep turned the shallows darker than the open sea) and the least depth (metres under the line)
+ *  over which the shallows' floor is lost in it (a deeper sea fades over its own depth). */
+export const DEEP_TONE = 1, DEEP_FADE = 3;
 /** The tone's swing: one lattice cell, metres. */
 export const TONE_CELL = 4;
 
@@ -55,6 +63,9 @@ export function landForm(faces, colour, { seed = 1, wetBand = WET_BAND } = {}) {
   const water = faces.filter((f) => clsOf(f.group) === 'water').map((f) => f.corners[0][2]).sort((a, b) => a - b);
   const waterZ = water.length ? water[water.length >> 1] : null;
   const tone = toneField(seed), deep = hexToRgb(colour.water).map((v) => byte(v * DEEP_TONE));
+  // (the floor's own depth: how far the sand falls under the line, over which it is lost in deep water)
+  const floorZ = waterZ === null ? 0 : Math.min(waterZ, ...faces.filter((f) => clsOf(f.group) === 'sand').flatMap((f) => f.corners.map((c) => c[2])));
+  const fade = waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, waterZ - floorZ);
   let unread = 0;
   const out = faces.map((f) => {
     const cls = clsOf(f.group);
@@ -63,9 +74,10 @@ export function landForm(faces, colour, { seed = 1, wetBand = WET_BAND } = {}) {
     const C = LAND_CLASSES[cls], t = C.tone * (1 + C.vary * tone(mid[0], mid[1]));
     const zs = f.corners.map((c) => c[2]), under = cls === 'sand' && waterZ !== null && Math.max(...zs) <= waterZ;
     const wet = under || (cls === 'sand' && waterZ !== null && Math.min(...zs) < waterZ + wetBand);
-    const k = t * (under ? UNDER_TONE : wet ? WET_TONE : 1), lost = under ? Math.min(1, (waterZ - mid[2]) / DEEP_FADE) : 0;
-    const base = hexToRgb(colour[C.colour]).map((v, c) => byte(v * k * (1 - lost) + deep[c] * lost));
-    return { cls, base, rough: wet ? WET_ROUGH : C.rough, wet, under };
+    const k = t * (under ? UNDER_TONE : wet ? WET_TONE : 1), own = hexToRgb(colour[C.colour]);
+    // (clear water keeps its sand until it is deep: lost by the square of the depth's share)
+    const at = (z) => { const lost = under ? Math.max(0, Math.min(1, (waterZ - z) / fade)) ** 2 : 0; return own.map((v, c) => byte(v * k * (1 - lost) + deep[c] * lost)); };
+    return { cls, base: at(mid[2]), rough: wet ? WET_ROUGH : C.rough, wet, under, ...(under ? { corners: zs.map(at) } : {}) };
   });
   return { faces: out, waterZ, deep, unread };
 }

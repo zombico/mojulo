@@ -134,6 +134,12 @@ import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
+// island-noon's MERU ISLAND (the operator, 1026): the seed a path is grown on, at a game's scale and geo only. Three
+// times the island (its mounds 18 m and 15 m, every slope's angle kept; its beach, sea and high side with them), its land
+// in 1.5 m quads (the detail left to the material), its seabed merged; bare soil and scree, no grass; no walk (flown and
+// zoomed: walking is the path's). The other cubes keep the shared island.
+const MERU_BASES = TWO_BASES.map(({ height, foot, summit, ...t }) => ({ ...t, height: height * 3, foot: foot * 3, summit: summit * 3 }));
+const MERU_ISLE = { geology: true, walk: 'none', seabed: 'merged', cell: 1.5, scale: 3, cover: 'soil', beach: 27, sea: 2.1, depth: 9, high: { height: 13.5 } };
 const STONE = { gen: 'stone-brick', stone: [150, 150, 150], mortar: [88, 88, 88], rows: 6, cols: 4, mortarThick: 0.1, vary: 28, grain: 11, bevel: 0.2, accent: 0.14, accentDark: 40, accentLight: 26, seed: 13 };
 const FLAGS = { gen: 'flagstone', stone: [140, 140, 140], mortar: [58, 58, 58], gravel: [96, 96, 96], cells: 5, mortarThick: 0.05, wobble: 2.2, vary: 22, grain: 12, lost: 0.04, cracked: 0.2, seed: 17 };
 const ROCK = { gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 };
@@ -176,7 +182,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     register: { steps: 0, key: 0.55 },
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
     why: [
       'A hard high sun: what is lit is warm and pale, what is in shade is sky blue.',
       'Stucco and terracotta inside and out; the accent is the sea\'s blue.',
