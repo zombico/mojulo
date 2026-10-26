@@ -141,7 +141,7 @@ describe('design_game quick', () => {
     const out = await designGameHandler({ quick: { goal: 'contest', sport: 'tennis', players: 2, register: 'action', world: { id: 'centre-court', name: 'Centre Court' } }, ref: 'cc' });
     // each side an athlete, a character rolled in the game's setting and made through the hero door, in its own body
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['athlete', 'make'], ['athlete-2', 'make'], ['level-arena-court', 'make'], ['game', 'make']]);
-    expect(stored('cc-athlete')).toMatchObject({ kind: 'layered', hero: { detail: 'swimsuit', paint: ['tank', 'bikeShorts', 'socks'] } });
+    expect(stored('cc-athlete')).toMatchObject({ kind: 'layered', hero: { kit: { sport: 'tennis' } } });
     const L = stored('cc-level-arena-court');
     expect(L).toMatchObject({ kind: 'stage', court: { sport: 'tennis', players: 2, register: 'action' }, game: { levelRef: 'court', produces: { results: ['success', 'fail'], events: [] } } });
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('cc-level-arena-court'), { live: true });

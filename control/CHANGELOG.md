@@ -256,6 +256,34 @@ and a ball card's on the ball. Planned, in order:
     character's walk, sprint or swing clips), a kick, a header or a tackle on the pitch (the stride carries the ball),
     a racquet or a club as gear, the realistic body's outfit on the page's rigid parts (the card is chosen, not looked
     at). The eyes gate is open: the frames looked at were machine screenshots of exhibitions, not play.
+- **Sport kits: the character designer's shortcut**, built: `kit` on the hero door (create_character, update_character,
+  any hero-door spec), a sport's kit in a few words, lowered on every read into the dress the body already has
+  (`lib/graph/sportswear/kits.js`, a card per sport and a row per pattern, no geometry anywhere).
+  - **The words:** `kit: 'soccer'`, or `{ sport?, colours?: [main, second?, trim?], pattern?, trim?, socks? }`. The
+    cards: soccer, keeper (long sleeves and gloves), hockey (long sleeves, pants to the knee, gloves), tennis (whites),
+    track (a singlet), basketball (a vest and long shorts), volleyball, golf (a polo and trousers), bowling (a yoke).
+    The patterns over the shirt in the second colour: plain, hoops, stripes, band, sleeves, yoke, sides. The trims in
+    the third: collar, cuffs, hem, a stripe down the shorts. Socks to the knee, at the ankle, or none.
+  - **How it lowers:** on the authored body, the bare body (`detail: 'swimsuit'`) with the card's paint words (a tee,
+    a tank or long sleeves; bike shorts carried down the leg; the shoes with their collar cut low; gloves) and paint
+    entries on the parts every core has, each pattern band painting only where the shirt is (`only: ['Top']`), so a
+    scoop's skin and a sleeve's end hold. On the realistic body, the athlete's outfit card in the kit's colours. The
+    kit's colours sit beneath the operator's palette and the operator's paint comes after the kit's; the record keeps
+    the words alone (`kittedHero` in `layered.js`, applied where the plan is made and the body expanded), so patching
+    `/hero/kit` re-dresses a character in place. A hero without a kit is unchanged to the byte.
+  - **The athletes wear them:** a rolled athlete is dressed in its sport's kit (a meet's the track's, a book sport's
+    its own, one written out its shape's), the roll's own shirt colour its kit's main, so a field of runners is a field
+    of colours; tennis keeps its whites and takes the player's colour as the trim. A team's sides each wear one kit in
+    the side's colours, and a keeper (the role named so) a kit of its own: the soccer keeper's, or the sport's in a
+    keeper's colour. `quick.kits` (a kit's words each, cycled over the sides or the athletes) chooses the colours and
+    the patterns; the quick cards name it.
+  - **Held:** the words read and refused by name; the card's defaults; the lowering by role; the operator's own words
+    over the kit's; one pattern per procedure painted on the anime body and the streamlined core; the rolled athletes'
+    kits, the keepers, the whites, the kits' words. Looked at in machine screenshots (eight kits on two heads, a derby
+    in hoops against stripes, a court in whites); the eyes gate is open.
+  - **Not built, said:** numbers and names on the back (a decal, not a band), halves and sashes (the paint's window is
+    up the trunk and around it, symmetric), a pattern on the realistic body's garments (the outfit card takes the colours
+    only), helmets and pads.
 - **The holo lift: a board game in a hologram arena**, built for the games of moves, with a stopping point. Battle
   city run back to the tabletop: Duelist Kingdom's way of showing a simple game, the duelists on podiums at either
   end and the board projected between them, every piece a hologram and every event of the game staged. The lift is

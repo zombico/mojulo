@@ -96,13 +96,14 @@ describe('a sport written out (the distilled rulebook\'s product)', () => {
 describe('the athletes: a sport played by characters in their own bodies', () => {
   const keys = (st) => st.map((x) => x.key);
   const athletesOf = (st) => st.filter((x) => /^athlete(-\d+)?$/.test(x.key));
-  it('rolls a person a lane in the game\'s setting, in the athlete\'s kit, each lane\'s ref on the track; the same world rolls the same', () => {
+  it('rolls a person a lane in the game\'s setting, in the sport\'s kit in their own colour, each lane\'s ref on the track; the same world rolls the same', () => {
     const W = quickWorld({ id: 'sprint', seed: 5, quick: { goal: 'meet', event: 'sprint', lanes: 3 } });
     const st = runSteps(W, { ref: 'gw_sp' });
     expect(keys(st)).toEqual(['athlete', 'athlete-2', 'athlete-3', 'level-arena-track', 'game']);
     const A = athletesOf(st);
-    // (the authored body bare, the athlete's kit painted on it: a vest, shorts, the socks)
-    for (const a of A) expect(a.order.mint).toMatchObject({ kind: 'layered', via: 'hero', spec: { detail: 'swimsuit', paint: ['tank', 'bikeShorts', 'socks'] } });
+    // (the track's kit, each in the shirt colour the roll gave them; the clothes' colours left to the kit)
+    for (const a of A) { expect(a.order.mint).toMatchObject({ kind: 'layered', via: 'hero', spec: { kit: { sport: 'track' } } }); expect(a.order.mint.spec.palette.Top).toBeUndefined(); }
+    expect(new Set(A.map((a) => a.order.mint.spec.kit.colours?.[0])).size).toBeGreaterThan(1);
     expect(new Set(A.map((a) => a.print)).size).toBe(3);
     expect(st[3].order.manifest.meet.athletes).toEqual(A.map((a) => a.ref));
     expect(st[4].laws[0]).toMatchObject({ concern: 'cast', law: 'setting' });
@@ -115,18 +116,34 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     const A = athletesOf(st);
     expect(A.length).toBe(2);
     for (const a of A) { expect(a.order.mint.spec.head).toBe('anime'); expect(a.order.mint.toon).toEqual({ light: true }); }
+    // tennis is played in whites: each player's own colour is the trim
+    for (const a of A) expect(a.order.mint.spec.kit.colours.slice(0, 2)).toEqual(['#ffffff', '#ffffff']);
   });
-  it('a team\'s sides are each a rank of faces in one uniform, its shirt the side\'s colour, cycled over its players', () => {
+  it('a team\'s sides are each a rank of faces in one kit, its shirt the side\'s colour, a keeper in a kit of its own', () => {
     const st = runSteps(quickWorld({ id: 'five', quick: { goal: 'contest', sport: 'soccer' } }), { ref: 'gw_5' });
     const A = athletesOf(st), refs = st.find((x) => x.key === 'level-arena-pitch').order.manifest.pitch.athletes;
-    expect(A.length).toBe(6);
-    const [a, b] = [A.slice(0, 3), A.slice(3)];
-    for (const [side, rank] of [['a', a], ['b', b]]) {
-      for (const m of rank) { expect(m.order.mint.spec.palette.Top).toBe(SIDE_KITS[side]); expect(m.order.mint.spec.paint).toEqual(['tee', 'bikeShorts', 'socks']); }
+    // per side: three outfield faces in one kit, then the keeper
+    expect(A.length).toBe(8);
+    const [a, ka, b, kb] = [A.slice(0, 3), A[3], A.slice(4, 7), A[7]];
+    for (const [side, rank, keeper] of [['a', a, ka], ['b', b, kb]]) {
+      for (const m of rank) expect(m.order.mint.spec.kit).toEqual(rank[0].order.mint.spec.kit);
+      expect(rank[0].order.mint.spec.kit.sport).toBe('soccer'); expect(rank[0].order.mint.spec.kit.colours[0]).toBe(SIDE_KITS[side]);
+      expect(keeper.order.mint.spec.kit.sport).toBe('keeper');
+      expect(keeper.order.mint.spec.kit.colours[0]).not.toBe(SIDE_KITS[side]);
     }
+    // soccer's roles: the keeper first, then the outfield cycled over the faces
     expect(refs.length).toBe(10);
-    expect(refs.slice(0, 5)).toEqual([a[0], a[1], a[2], a[0], a[1]].map((m) => m.ref));
-    expect(refs.slice(5)).toEqual([b[0], b[1], b[2], b[0], b[1]].map((m) => m.ref));
+    expect(refs.slice(0, 5)).toEqual([ka, a[0], a[1], a[2], a[0]].map((m) => m.ref));
+    expect(refs.slice(5)).toEqual([kb, b[0], b[1], b[2], b[0]].map((m) => m.ref));
+  });
+  it('the kits\' words choose the sides\' colours and patterns; they dress the rolled athletes only', () => {
+    const st = runSteps(quickWorld({ id: 'derby', quick: { goal: 'contest', sport: 'soccer', kits: [{ colours: ['#c8102e', '#ffffff'], pattern: 'hoops' }, { colours: ['#1f4fa8'], pattern: 'stripes' }] } }), { ref: 'gw_d' });
+    const A = athletesOf(st);
+    expect(A[0].order.mint.spec.kit).toMatchObject({ sport: 'soccer', colours: ['#c8102e', '#ffffff'], pattern: 'hoops' });
+    expect(A[4].order.mint.spec.kit).toMatchObject({ colours: ['#1f4fa8'], pattern: 'stripes' });
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', kits: [{ pattern: 'tartan' }] })).toThrow(/kits\[0\]: kit.pattern: one of/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', kits: [{}], athletes: [{ ref: 'a' }] })).toThrow(/kits dress the athletes the run rolls/);
+    expect(() => readQuick({ goal: 'meet', kits: [{ sport: 'track', colours: ['#2a9d8f'] }] })).not.toThrow();
   });
   it('takes the operator\'s own: a character by ref adopted as it stands, a hero-door spec made by the run, cycled over the slots', () => {
     const st = runSteps(quickWorld({ id: 'bowl', quick: { goal: 'contest', sport: 'bowling', seats: 3, athletes: [{ ref: 'my-bowler' }, { cast: 'female' }] } }), { ref: 'gw_b' });

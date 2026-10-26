@@ -39,7 +39,7 @@ describe("a game's setting", () => {
       const F = quickFigure(G, W.quick, key);
       expect(validateHeroSpec(F.spec)).toEqual([]);
       // (a role with a kit of its own, the athlete, wears it whatever the world's underlayer: on the authored body, painted)
-      expect(F).toMatchObject({ toon: { light: true }, spec: { head: 'anime', ...(QUICK_FIGURES[key].kit ? { detail: 'swimsuit', paint: QUICK_FIGURES[key].kit.paint } : { outfit: { type: 'outfit' } }) } });
+      expect(F).toMatchObject({ toon: { light: true }, spec: { head: 'anime', ...(QUICK_FIGURES[key].kit ? { kit: { sport: QUICK_FIGURES[key].kit } } : { outfit: { type: 'outfit' } }) } });
     }
     // the play's facet is kept: a farmhand does not fight
     expect(quickFigure(G, W.quick, 'farmhand').sheet.reads.join(' ')).toMatch(/non-combatant/);

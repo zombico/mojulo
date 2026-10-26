@@ -39,7 +39,7 @@ import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots,
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
-import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -367,17 +367,18 @@ function worldSteps(world, G, ref) {
 
 /** The most people rolled for one sport's slots (a side's rank is CAST_POOL): more lanes or seats cycle over them. */
 export const ATHLETE_POOL = 4;
-/** A shirt's partner a side wears below it, by the side (contest/team-arena.js SIDE_KITS is the shirt). */
-const SIDE_SHORTS = Object.freeze({ a: '#f2f2f2', b: '#1d2433' });
-/** A team's kit on the authored body (hero-dress.js PAINT_WORDS): a shirt with sleeves, shorts, the socks. */
-const TEAM_KIT = Object.freeze(['tee', 'bikeShorts', 'socks']);
+/** A side's kit colours past its shirt (contest/team-arena.js SIDE_KITS is the shirt): the second (the shorts, a pattern)
+ * and the trim; and the keeper's shirt, a colour neither side wears. */
+const SIDE_SECOND = Object.freeze({ a: '#f2f2f2', b: '#1d2433' }), SIDE_TRIM = Object.freeze({ a: '#1d2433', b: '#f2f2f2' });
+const KEEPER_SHIRT = Object.freeze({ a: '#2fb34a', b: '#f2c14e' });
 /**
  * A sport's athletes (quick.athletes, contest/athletes.js): each slot's character ref in the sim's order, and the steps
  * that make the ones the run makes. Given, the list cycles over the slots: a `{ ref }` is adopted as it stands (never
  * made), a hero-door spec made through the hero door. Absent, they are ROLLED in the game's setting (cast-setting.js:
- * its tradition how a body is drawn, its era, its colours) in the athlete's kit: a person per slot up to ATHLETE_POOL,
- * cycled; a team's sides each a rank of up to CAST_POOL faces in one uniform, its shirt the side's colour. False: none
- * (the arena's stick figures). → { refs: [ref] | null, steps, laws }
+ * its tradition how a body is drawn, its era, its colours) in the sport's KIT (the hero door's `kit`,
+ * sportswear/kits.js): a person per slot up to ATHLETE_POOL, cycled, each in their own colour; a team's sides each a rank
+ * of up to CAST_POOL faces in one uniform, its shirt the side's colour, its keeper in a kit of its own. `quick.kits` (a
+ * kit's words each, cycled over the sides or the athletes) over the card's. False: none (the arena's stick figures). → { refs: [ref] | null, steps, laws }
  */
 function sportAthletes(G, Q, ref) {
   if (Q.athletes === false) return { refs: null, steps: [], laws: [] };
@@ -407,23 +408,29 @@ function sportAthletes(G, Q, ref) {
     return { ref: st.ref, F };
   };
   let refs, says;
+  const sport = sportKitOf(Q), own = (i) => (Q.kits ? Q.kits[i % Q.kits.length] : {});
   if (slots.sides && slots.n > 2) {
-    // a team: each side a rank in its kit, its faces cycled over its players in their roles' order
-    const per = slots.n / 2, faces = Math.min(CAST_POOL, per);
+    // a team: each side a rank in its kit, its faces cycled over its outfield in their roles' order; its keeper (a role
+    // named so) in a kit of its own, the soccer keeper's long sleeves and gloves, or its sport's kit in the keeper's colour
+    const per = slots.n / 2, keeperAt = slots.roles.indexOf('keeper'), field = per - (keeperAt >= 0 ? 1 : 0);
+    const faces = Math.min(CAST_POOL, field);
     refs = [];
+    let k = 0;
     ['a', 'b'].forEach((side, s) => {
-      const colours = { Top: SIDE_KITS[side], Bottom: SIDE_SHORTS[side] }, rank = [];
-      for (let i = 0; i < faces; i++) rank.push(roll(s * faces + i, { colours, paint: TEAM_KIT, ...(rank.length ? { uniform: rank[0].F.spec } : {}) }));
-      for (let i = 0; i < per; i++) refs.push(rank[i % rank.length].ref);
+      const kit = { sport, colours: [SIDE_KITS[side], SIDE_SECOND[side], SIDE_TRIM[side]], ...own(s) }, rank = [];
+      for (let i = 0; i < faces; i++) rank.push(roll(k++, { kit, ...(rank.length ? { uniform: rank[0].F.spec } : {}) }));
+      const keeper = keeperAt >= 0 ? roll(k++, { kit: { sport: sport === 'soccer' ? 'keeper' : sport, colours: [KEEPER_SHIRT[side], SIDE_TRIM[side], SIDE_SECOND[side]] } }).ref : null;
+      for (let i = 0, f = 0; i < per; i++) refs.push(i === keeperAt ? keeper : rank[f++ % rank.length].ref);
     });
-    says = `two sides of ${faces} faces each, one uniform a side in its colour`;
+    says = `two sides of ${faces} faces each, one ${sport} kit a side in its colour${keeperAt >= 0 ? ', a keeper each in a kit of its own' : ''}`;
   } else {
-    const pool = Array.from({ length: Math.min(ATHLETE_POOL, slots.n) }, (_, k) => roll(k).ref);
+    // one each, the sport's kit in their own colour (or the kits' words, a court's two players one a side)
+    const pool = Array.from({ length: Math.min(ATHLETE_POOL, slots.n) }, (_, k) => roll(k, { kit: { sport, ...own(k) } }).ref);
     refs = Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]);
-    says = `${pool.length} ${pool.length === 1 ? 'athlete' : 'athletes'}${slots.n > pool.length ? ` over ${slots.n} ${Q.goal === 'meet' ? 'lanes' : 'seats'}` : ''}`;
+    says = `${pool.length} ${pool.length === 1 ? 'athlete' : 'athletes'} in ${sport} kit${slots.n > pool.length ? ` over ${slots.n} ${Q.goal === 'meet' ? 'lanes' : 'seats'}` : ''}`;
   }
   const laws = [{ concern: 'cast', law: 'setting', holds: !pending.length,
-    says: `the athletes rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}) in the athlete's kit: ${says}${reads ? `; ${reads.slice(0, 2).join('; ')}` : ''}${pending.length ? ` (${[...new Set(pending)].join('; ')})` : ''}` }];
+    says: `the athletes rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${says}${reads ? `; ${reads.slice(0, 2).join('; ')}` : ''}${pending.length ? ` (${[...new Set(pending)].join('; ')})` : ''}` }];
   return { refs, steps, laws };
 }
 
