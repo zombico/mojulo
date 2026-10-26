@@ -345,7 +345,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
     // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner
-    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, inner: 'EarInner', sparse: register === 'lowpoly', lean: !!ft.earLean });
+    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, ...(ft.earAngle !== undefined ? { angle: ft.earAngle } : {}), inner: 'EarInner', sparse: register === 'lowpoly', lean: !!ft.earLean });
     parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);

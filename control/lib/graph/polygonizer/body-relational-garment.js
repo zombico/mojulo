@@ -50,7 +50,10 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
   const trunk = bodyField(R, B1, { extra: shoulders ? arm.prims.filter((p) => /^deltoid/.test(p.id)) : [] });
   // (`join`: a limb taken into the trunk's cloth, both sides, so a trunk piece wraps the limb's top)
   const J = join ? limbField(R, B1, join) : null, trunkSd = J ? (q) => smin(trunk.sd(q), J.sd([Math.abs(q[0]), q[1], q[2]]), B1.kMuscle) : (q) => trunk.sd(q);
-  const cloth = (seg) => (TRUNK.has(seg) ? (q) => trunkSd(q) - ease : ((L) => (q) => L.sd([Math.abs(q[0]), q[1], q[2]]) - ease)(limbField(R, B1, seg.replace(/[RL]$/, ''))));
+  // (a limb's field is the right limb's: a left segment reads it REFLECTED, a right one as it is, never by |x|: with the
+  // legs together at rest the thighs' fields meet at the midline, and a ray from an inner slot read by |x| never leaves
+  // its own limb, runs on through the mirrored one and lands on its far side, a 9 cm spike of cloth across the midline)
+  const cloth = (seg) => (TRUNK.has(seg) ? (q) => trunkSd(q) - ease : ((L, m) => (q) => L.sd([m * q[0], q[1], q[2]]) - ease)(limbField(R, B1, seg.replace(/[RL]$/, '')), /L$/.test(seg) ? -1 : 1));
   // (`under`: a limb the piece is worn under, its field the body's own, not loosened: where the piece comes within
   // `UNDER_BAND` of it, the piece lies on the skin at its own clearance, eased from where it stands, so the limb passes
   // over the piece's edge, never out of it: a breastplate's armhole under the arm and the shoulder's ball)

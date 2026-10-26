@@ -295,6 +295,7 @@ export function rockItems(st, site, seed) {
   for (let i = 0; i < nb; i++) {
     const y = D * (0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1;
     const x = trailX(y) + side * (halfWAt(y) + fringeAt(y) + 1 + 2 * hash3(i, 7, S + 41)), inside = inRadius(x, y);
+    if (site.water && site.water.clear(x, y)) continue;   // (none in a trail's water or on its shore: out-water.js)
     items.push({ x, y, size: 1.3 + 1.1 * hash3(i, 8, S + 43), detail: inside ? 1 : 0, v: inside ? distinct++ % R.variants : i % R.variants, role: 'boulder' });
   }
   for (const f of foci.filter((f) => f.gate)) R.gate.sizes.forEach((size, k) => {
@@ -589,7 +590,7 @@ export function grassTufts(st, site, trees, rocks, sun, seed) {
   const tufts = [];
   const add = (zone, x, y, i) => {
     // (nothing rooted on the trail: its edge a hand clear)
-    if (x < 0 || y < 0 || x > W || y > D || trailDist(x, y) < halfWAt(y) + 0.1 || !free(x, y)) return;
+    if (x < 0 || y < 0 || x > W || y > D || trailDist(x, y) < halfWAt(y) + 0.1 || (site.wet && site.wet(x, y)) || !free(x, y)) return;
     const z = ground(x, y), lit = sun.shadow([x, y, z + 0.25], [0, 0, 1]);
     const h = mix(G.height[0], G.height[1], hash3(i, 31, S + 101)) * (zone === 'cliff' ? 1.2 : 1);
     tufts.push({ zone, level: inRadius(x, y) ? 'L1' : 'L0', v: i % G.variants, pos: [r5(x), r5(y), r5(z - 0.03)], scale: r5(h * (zone === 'scatter' ? 0.7 : 1)), lit });

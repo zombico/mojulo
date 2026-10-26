@@ -33,10 +33,12 @@
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
  *             count?, size?, glow?, seed? }, local-meru/crystals.js); `cliff` (optional): the far cliff its trails
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
- *             false: none, the land open on both sides of every trail it paints (a field, a plain); and
+ *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
+ *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
+ *             { lake?, coast?, river?, falls? }; a trail's own form wins); and
  *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
  *             the others, each a few changes to it, up to a whole land of its own ({ reads?, base?, tiers?, island?, land?,
- *             relief?, ground?, crystals?, cliff?, colour? }: a shore, a highland). A level asks for one, or its heartbeat names the
+ *             relief?, ground?, crystals?, cliff?, water?, colour? }: a shore, a highland). A level asks for one, or its heartbeat names the
  *             one it was made for, and the answer says which it got
  *   structures (optional) landmarks its builders raise, by name: { <name>: [<structure>…] }, each a fractal structure's
  *             words (fractal-structure/read.js) standing `at` [x, y, z?] or `on: 'summit'` (the top tier's top, `at` then
@@ -379,8 +381,13 @@ const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${
 const groundOrNo = (v, at) => { try { readGround(v); } catch (e) { no(`${at}${e.message.replace(/^local-meru: ground/, '')}`); } };
 // the far cliff a trail breaks into (out-ground.js), or false: none
 const cliffOrNo = (v, at) => { try { readTrailGround({ cliff: v }, 'ground'); } catch (e) { no(`${at}${e.message.replace(/^stage: ground\.cliff/, '')}`); } };
+// the water its trails are cut with (out-water.js), with the cliff a fall drops from
+const waterOrNo = (v, cliff, at) => { try { readTrailGround({ water: v, ...(cliff !== undefined ? { cliff } : {}) }, 'ground'); } catch (e) { no(`${at}${e.message.replace(/^stage: ground\.water/, '').replace(/^stage: ground/, '')}`); } };
+// the water a cube lays under a trail's own (out-water.js): each form the trail names its own, the trail's `false`
+// none; the trail's as written when the cube names none. A fall keeps the cliff it drops from (`keep`)
+const cubeWater = (O, g = {}) => { const w = O.water !== undefined && O.water !== false && g.water !== false ? { ...O.water, ...(g.water ?? {}) } : g.water; return { water: w, keep: !!(w && w.falls) }; };
 const SLUG = /^[a-z][a-z0-9-]{0,31}$/;
-const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'colour'];
+const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'colour'];
 const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour', 'structures', 'settlement'];
 const SETTLEMENT_KEYS = ['town', 'houses', 'enter', 'doors', 'anchor', 'style'];
 const STRUCTURE_ON = ['summit'];
@@ -491,8 +498,9 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'terrain', 'terrains'], 'outside');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
+  if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
@@ -510,6 +518,7 @@ export function readGeocube(spec) {
       if (t.relief !== undefined && t.relief !== false) reliefOrNo(t.relief, `${at}.relief`);
       if (t.ground !== undefined && t.ground !== false) groundOrNo(t.ground, `${at}.ground`);
       if (t.cliff !== undefined) cliffOrNo(t.cliff, `${at}.cliff`);
+      if (t.water !== undefined) waterOrNo(t.water, t.cliff ?? c.outside.cliff, `${at}.water`);
       if (t.base !== undefined && (!ISEKAI_STYLES[t.base] || !SWATCHES[t.base])) no(`${at}.base '${t.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
       if (t.land !== undefined && t.land !== false) only(t.land, LAND_WORDS, `${at}.land`);
       if (t.colour !== undefined) {
@@ -657,7 +666,7 @@ function onTerrain(cube, name) {
   if (!t) no(`terrain '${name}' is not one of ${cube.id}'s (terrains: ${geocubeTerrains(cube).map((x) => x.name).join(', ')})`);
   return { ...cube, id: `${cube.id}-${name}`, reads: t.reads ?? cube.reads, colour: { ...cube.colour, ...(t.colour ?? {}) },
     outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land, ...(t.relief !== undefined ? { relief: t.relief } : {}), ...(t.ground !== undefined ? { ground: t.ground } : {}),
-      ...(t.tiers !== undefined ? { tiers: t.tiers } : {}), ...(t.island !== undefined ? { island: t.island } : {}), ...(t.crystals !== undefined ? { crystals: t.crystals } : {}), ...(t.cliff !== undefined ? { cliff: t.cliff } : {}) } };
+      ...(t.tiers !== undefined ? { tiers: t.tiers } : {}), ...(t.island !== undefined ? { island: t.island } : {}), ...(t.crystals !== undefined ? { crystals: t.crystals } : {}), ...(t.cliff !== undefined ? { cliff: t.cliff } : {}), ...(t.water !== undefined ? { water: t.water } : {}) } };
 }
 
 /** The cube's interiors by name: its own room first. → [{ name, reads, own }]. */
@@ -1047,8 +1056,11 @@ export function withGeocube(manifest) {
     // (and its flora the cube's biocube when the recipe names none)
     const own = m.kit === undefined;
     // (and its far cliff the cube's, its terrain's, when the trail names none: `false` an open land, out-trail.js)
-    const C = own ? onTerrain(cube, T?.name).outside.cliff : undefined, tr = isObj(m.trail) ? m.trail : {};
-    if (C !== undefined && tr.ground?.cliff === undefined) m.trail = { ...tr, ground: { ...(tr.ground ?? {}), cliff: C } };
+    const O = own ? onTerrain(cube, T?.name).outside : {}, C = O.cliff, tr = isObj(m.trail) ? m.trail : {};
+    // (and its water the cube's under the trail's own, out-water.js: a lake, a coast, a river, the falls)
+    const { water: Wt, keep } = cubeWater(O, tr.ground ?? {});
+    if (C !== undefined && tr.ground?.cliff === undefined && !(C === false && keep)) m.trail = { ...tr, ground: { ...(tr.ground ?? {}), cliff: C } };
+    if (Wt !== tr.ground?.water) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), water: Wt } };
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       // (and its snow, era/snow.js: the cube's when the recipe names none)
       ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}) };
@@ -1110,6 +1122,23 @@ function withAccent(payload, wall, tile) {
   if (!n) no(`no wall faces on ${wall} to make the accent`);
 }
 // the island seen whole: the wide camera pulled back and up, first so the page opens on it
+/**
+ * THE STILLS the kind may be first seen from (a camera glyph's, gameworld/glyph-words.js), each made from its first
+ * camera (its frame of the place): `low` a low eye looking up into it, `overhead` high over what it looks at, looking
+ * down, `wide` drawn back and wider, `close` a narrow lens on what it looks at. Laid first, named `still`.
+ */
+export const STILLS = Object.freeze(['low', 'overhead', 'wide', 'close']);
+function withStill(payload, still) {
+  const base = payload.cameras[0]?.worldFraming;
+  if (!base) return;
+  const p = base.cameraPosition, t = base.lookAt, d = [t[0] - p[0], t[1] - p[1], t[2] - p[2]], L = Math.hypot(d[0], d[1]) || 1, r2 = (v) => Math.round(v * 100) / 100;
+  const W = still === 'low' ? { cameraPosition: [p[0], p[1], p[2] - 1.2], lookAt: [t[0], t[1], t[2] + 0.25 * L], horizontalFov: 70 }
+    : still === 'overhead' ? { cameraPosition: [t[0] - (d[0] / L) * 10, t[1] - (d[1] / L) * 10, t[2] + 42], lookAt: [...t], horizontalFov: 60 }
+      : still === 'wide' ? { cameraPosition: [p[0] - (d[0] / L) * 6, p[1] - (d[1] / L) * 6, p[2] + 2.5], lookAt: [...t], horizontalFov: 96 }
+        : { cameraPosition: [...p], lookAt: [...t], horizontalFov: 36 };
+  payload.cameras = [{ name: 'still', worldFraming: { ...base, cameraPosition: W.cameraPosition.map(r2), lookAt: W.lookAt.map(r2), horizontalFov: W.horizontalFov } }, ...payload.cameras];
+}
+
 function withIslandCamera(payload) {
   const wide = payload.cameras.find((c) => c.name === 'wide');
   if (!wide) return;
@@ -1181,7 +1210,9 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, words; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, words; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
+  if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
   // keys above, gameworld/scene-words.js; the build reads the keys. And the page's live light, which world-scene reads:
   // shadows, occlusion, light.tier; scene/live-light.js)
@@ -1194,6 +1225,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const show = manifest.show ?? (D ? (D.side === 'inside' ? 'room' : 'land') : 'room');
   if (show === 'city') no('show \'city\' is the kind\'s micro-city, built by the city plan: resolve it through the geocube kind (era/geocube-city.js)');
   if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
+  if (manifest.camera !== undefined && show === 'room') no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
   for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && show === 'room') no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land', 'trail', 'path' or 'town' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
   if (manifest.seed !== undefined && show !== 'trail' && show !== 'path' && show !== 'town') no('seed is the trail\'s, the path\'s and the town\'s: show \'trail\' to lay the island from a seed, \'path\' the way through the land, or \'town\' its street');
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
@@ -1216,11 +1248,13 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (manifest.path !== undefined && show !== 'town' && show !== 'path' && !town) no('path is the dress of the trail the land is walked on: show \'path\' or \'town\' (or a domain with a town)');
   if (manifest.path !== undefined && (typeof manifest.path !== 'object' || manifest.path === null || Array.isArray(manifest.path) || Object.keys(manifest.path).some((k) => !TRAIL_DRESS_KEYS.includes(k)))) no(`path is { ${TRAIL_DRESS_KEYS.map((k) => `${k}?`).join(', ')} }: the trail's dress`);
   // (the trail's far cliff the cube's, its terrain's, as on any stage it paints: `false` an open land, out-trail.js)
-  const cliff = onTerrain(cube, D?.terrain).outside.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined ? { ground: { cliff } } : {}) };
+  // (and its water, out-water.js, the cube's under the trail's own: one rule for every trail the cube paints)
+  const OT = onTerrain(cube, D?.terrain).outside, T0 = manifest.trail ?? {}, CW = cubeWater(OT, isObj(T0.ground) ? T0.ground : {});
+  const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
-  const T0 = manifest.trail ?? {}, ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}) };
+  const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
   const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
   // the PATH: the way through the cube's land, no town and nobody on it (a place to walk, not a game), under its snow
@@ -1231,6 +1265,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'path') payload.route = townRoute(low, payload);
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
+  if (manifest.camera !== undefined) withStill(payload, manifest.camera);
   // (what its ground is, era/substrate.js: a street's land, read off the trail it stands on)
   const sub = low.kind === 'stage' && low.trail !== undefined && low.meru === undefined ? substrateOf(low).shares : null;
   payload.geocube = { ...geocubeReadout(cube, show, P, manifest), ...(sub ? { substrate: sub } : {}),

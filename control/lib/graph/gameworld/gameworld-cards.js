@@ -43,6 +43,8 @@ import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
 import { COURSE_PRESETS } from '../roads/course.js';
+import { SPORT_PRESETS } from '../contest/sport-presets.js';
+import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS } from '../contest/sports.js';
 import { GENRES, genreCube } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { RIDES } from './ride.js';
@@ -332,6 +334,8 @@ function systemsCard() {
 // `gameworld-quick-<goal>` is that card with one goal's play and its own levers in full. A new goal is a row in
 // QUICK_LEVERS (and its card), never more bytes on the index: the agent that knows the goal reads one card.
 const HERO_WORDS = '{ <hero-door words> }';
+// the TV graphics a sport is shown in (broadcast/broadcast-package.js), one lever on both sport goals
+const BROADCAST_LEVER = ['  broadcast: network | stadium | arcade | clean | { package?, sides?, names?, closeups?, accent? }   TV graphics'];
 const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
@@ -340,6 +344,38 @@ const QUICK_LEVERS = {
     '  distance: n (10+)   metres a run is won at (absent: endless, a crash ends it, the best kept)',
     '  runner: { lanes?, speed?, accel?, max?, seed?, palette? }   the run itself; a hero runs it (made when none is named)',
     '  played by swipe on a phone (left and right a lane, up a jump, down a slide), A / D, Space and S on a keyboard',
+  ],
+  meet: () => [
+    '  event: sprint | hurdles | longJump   lanes: 1..8 (one: a time trial)   players: 0..4, the lanes people hold on one keyboard',
+    '    (P1 F runs, G hops; P2 J, K; P3 Z, X; P4 , .; gamepads by index); the other lanes are the computer\'s',
+    '  register: realistic | action | platformer | pinball (the body\'s pace)   distance: m (the event\'s)   attempts: n (the long jump\'s, 3)',
+    ...BROADCAST_LEVER,
+    '  the level is the arena (contest/meet-arena.js), the referee the contest kernel: no hero, camera, climb or building',
+    '  venue: <stadium preset> | { preset?, surface?, time?, bowl?, … } | false (a stage)   the stadium round it (view-vocab stadium); olympic',
+    `  preset: ${Object.keys(SPORT_PRESETS.meet).join(' | ')} (the meet's own: a venue and a broadcast)`,
+    '  athletes: [{ ref } (made with create_character) | { <hero-door words> }] cycled over the slots, or false (sticks); absent,',
+    '    rolled in the game\'s setting (its tradition: anime or western) in sports kit, a team\'s sides in their colours',
+    '  kits: [{ colours?, pattern?: hoops | stripes | band | sleeves | yoke | sides, trim?, socks? }] the rolled athletes\' kits, cycled',
+    '  athletes: \'chibi\' (a super-deformed body) | \'mascot\': rolled so, kitted as far as the shape allows; a list mixes in { mascot, kit? }',
+  ],
+  contest: () => [
+    `  sport: a net game, two pads (WASD + F | arrows + right Shift): ${MATCH_SPORT_IDS.join(' | ')}; a turn sport, hot-seat`,
+    `    (aim, hold, release): ${TURN_SPORT_IDS.join(' | ')}; a team goal game, two pads (a tap passes, a hold shoots): ${TEAM_SPORT_IDS.join(' | ')}`,
+    '  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace  register: realistic | action | platformer | pinball',
+    '  sets 1..3 (a net game\'s, to win), surface clay | hard | grass (tennis); rounds (golf 1..3, bowling 1..10), seats 1..8; periods 1..4, seconds 20..900',
+    `  preset: ${Object.entries(SPORT_PRESETS).filter(([s]) => s !== 'meet').map(([s, b]) => `${s} ${Object.keys(b).join('|')}`).join('; ')}`,
+    '  a variant: { id, from: <an arcade card>, …its modules\' words } (get_game_vocab({ id: \'contest-arcade\' })); beyond, written out (distilled-rulebook)',
+    ...BROADCAST_LEVER,
+    '  athletes: \'chibi\' | \'mascot\' | [{ ref } | { mascot, kit? } | { hero words }] | false; absent, rolled (kits: a side\'s each)',
+    '  venue: <preset> | { … } | false   the stadium (view-vocab stadium); absent, the sport\'s',
+  ],
+  tabletop: () => [
+    '  game: chess | checkers | a game of moves written out in the tabletop kernel\'s words (get_game_vocab({ id: \'tabletop\' }))',
+    '  players: 0 (an exhibition) | 1 (you against the computer) | 2 (hot-seat)   level: easy | fair | hard   human: the player you are',
+    '  lift: holo (the default): the board projected between two podiums, each piece a hologram of its body; a move glides, a capture',
+    '    is an attack and a piece destroyed, a promotion a pillar of light, CHECK and the end on the banners; the life points fall with',
+    '    each piece lost and mate takes them to zero. The kernel is the referee; a euro, tile, card or round game stays on its own page',
+    '  venue: <stadium preset> (patron-dome: a dome of glowing ribs) | { … }   a stadium round the duel; absent, the stage',
   ],
   avoid: () => [],
   race: () => [

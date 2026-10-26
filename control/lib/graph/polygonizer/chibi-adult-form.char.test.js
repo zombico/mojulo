@@ -4,6 +4,8 @@
 // form (laws 13, CHILD_FORM) is built on its terms and must leave it alone: under laws 13 and 14 the same plan and recipe
 // (laws 15, the cervical chain, moves every hero's neck and wave, the chibi's with them). A pin moves only when a step
 // says the adult-form chibi's emission changes.
+// (the knight's record re-pinned for armour laws 2, which its build is stamped with at mint; its plan and recipe unmoved:
+// the plate is not the hard-suit, whose cut laws 2 changes)
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -13,7 +15,7 @@ const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').sl
 const PINS = {
   bare: [{ cast: 'chibi' }, 'cb8f519a8618b56c', 'cca8e48f59fc0abc', '62179f95b6207aa2'],
   ranger: [{ cast: 'chibi', adorn: 'ranger' }, 'ecd2544f2f758daf', 'f3368556c1e110f9', '032dcb229344a2fb'],
-  knight: [{ cast: 'chibi', adorn: { type: 'armor', style: 'knight' } }, '24ebc6de4e459f08', '406972d2373d7d63', '96827d1f9a97d9c3'],
+  knight: [{ cast: 'chibi', adorn: { type: 'armor', style: 'knight' } }, '1202ebf6ce9d963b', '406972d2373d7d63', '96827d1f9a97d9c3'],
 };
 
 describe('the adult-form chibi (hero laws 12), byte for byte', () => {

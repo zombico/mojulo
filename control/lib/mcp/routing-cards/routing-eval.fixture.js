@@ -45,6 +45,7 @@ export const FIXTURE = [
   // a scene: a place to walk with nobody in it and nothing to play, the geocube's path
   ['Create a walkable scene of a colorful grassy field in the daytime', 'create_sketch', 'path'],
   ['just a quiet forest trail I can wander down, no game, nobody else there', 'create_sketch', 'path'],
+  ['let me stroll along a sandy beach by the sea, nothing to do there, just the place', 'create_sketch', 'path'],
   // game buildings: a building's rooms laid from its use, in a cube's look
   ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],
@@ -204,6 +205,11 @@ export const COLLISION_FIXTURE = [
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['an endless runner for my phone where you swipe to dodge', 'design_game'],
+  // battle city: a sport is a quick goal (meet, contest), the contest kernel the referee
+  ['a hurdles race for four of us on one keyboard', 'design_game'],
+  ['a two-player tennis game', 'design_game'],
+  ['mini golf I can play against the computer, three holes', 'design_game'],
+  ['five-a-side football with my brother on the second controller', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],

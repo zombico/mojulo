@@ -185,6 +185,28 @@ describe('force rules (autonomous, no input)', () => {
   });
 });
 
+describe('force rule: aero (a sphere in real air; held to physics/flight.js in contest/ball-card.test.js)', () => {
+  const flyer = (over = {}) => sphere({ id: 'ball', mass: 0.43, radius: 0.11, position: [0, 0, 1], velocity: [25, 0, 0], ...over });
+  const run = (forces, over, steps = 60) => simulate(createState({ bodies: [flyer(over)], forces }), 1 / 120, steps).bodies[0];
+  it('drag bleeds a fast ball\'s speed; its crisis pinned off bleeds less', () => {
+    const free = run([]), air = run([{ kind: 'aero' }]), noCrisis = run([{ kind: 'aero', crisis: false }]);
+    expect(vlen(air.velocity)).toBeLessThan(vlen(free.velocity));
+    expect(vlen(noCrisis.velocity)).toBeGreaterThan(vlen(air.velocity));
+  });
+  it('spin lifts along ω × v: backspin about −y on a ball along +x floats it, topspin dips it; no spin, no lift', () => {
+    const back = run([{ kind: 'aero' }], { angularVelocity: [0, -30, 0] }), top = run([{ kind: 'aero' }], { angularVelocity: [0, 30, 0] });
+    const flat = run([{ kind: 'aero' }]), unspun = run([{ kind: 'aero', spin: false }], { angularVelocity: [0, -30, 0] });
+    expect(back.position[2]).toBeGreaterThan(flat.position[2]); expect(top.position[2]).toBeLessThan(flat.position[2]);
+    expect(unspun.position[2]).toBeCloseTo(flat.position[2], 9);
+  });
+  it('`on` names the bodies it acts on; the rest keep every byte; spinDecay bleeds the spin', () => {
+    expect(JSON.stringify(run([{ kind: 'aero', on: ['other'] }]))).toBe(JSON.stringify(run([])));
+    const spun = run([{ kind: 'aero', spinDecay: 1 }], { angularVelocity: [0, -30, 0] });
+    expect(vlen(spun.angularVelocity)).toBeCloseTo(30 * Math.exp(-0.5), 3);
+    expect(vlen(run([{ kind: 'aero' }], { angularVelocity: [0, -30, 0] }).angularVelocity)).toBe(30);
+  });
+});
+
 describe('rotation (spin)', () => {
   it('a sphere has isotropic inertia; a static body has none', () => {
     expect(normalizeBody({ collider: 'sphere', mass: 2, radius: 1 }).invInertia).toBeCloseTo(1 / (0.4 * 2 * 1), 9);

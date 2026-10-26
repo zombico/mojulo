@@ -13,6 +13,7 @@ import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
 import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
+import { tableBroadcastData, broadcastDomCss, broadcastDomClient } from '../broadcast/broadcast-dom.js';
 import { pieceBodies } from './tabletop-bodies.js';
 
 const VIEWPORT = { width: 760, height: 600 };
@@ -47,6 +48,7 @@ export function tilePageHtml(G, L, K, opts = {}) {
   });
   const { bodies, icons } = pieceBodies(G, { cell: L.cell, unit: UNIT });
   const data = {
+    tv: tableBroadcastData(G.players, opts.broadcast, ['#888888']),
     L, G, human, level, seed, view, geo,
     plan: { W: r2(frame.W), H: r2(frame.H), box, cw: r2(2 * hw * frame.px), ch: r2(2 * hh * frame.px), icons },
     table: { cams, faces, bodies, at: L.cells.map((c) => c.at.map((x) => r2(x * UNIT))), hw: r2(hw * UNIT), hh: r2(hh * UNIT) },
@@ -65,7 +67,7 @@ export function tilePageHtml(G, L, K, opts = {}) {
   button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
   button:disabled{opacity:.4;cursor:default}
   button.on{border-color:var(--ink);font-weight:600}
-  #status{margin-left:auto;font-weight:600}
+  #status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   main{display:flex;flex-wrap:wrap;gap:16px;padding:16px;align-items:flex-start}
   #boards{flex:1 1 520px;min-width:0;display:flex;justify-content:center}
   #plan{width:100%;max-width:760px}
@@ -96,13 +98,14 @@ export function tilePageHtml(G, L, K, opts = {}) {
   #log{margin:0;padding-left:34px;max-height:220px;overflow:auto;font-size:13px}
   .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;box-shadow:0 0 0 1px #1a1512 inset}
   @media (max-width:600px){aside{flex-basis:100%}}
+${broadcastDomCss(data.tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
   <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
   <button id="again">New game</button>
-  <span id="status"></span>
+  <span id="status" aria-live="polite"></span>
 </header>
 <main>
   <div id="boards">
@@ -119,18 +122,19 @@ export function tilePageHtml(G, L, K, opts = {}) {
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-(${tabletopTileClient.toString()})(DATA, T, M);
+const TV = (${broadcastDomClient.toString()})(DATA.tv);
+(${tabletopTileClient.toString()})(DATA, T, M, TV);
 </script>
 </body></html>
 `;
 }
 
 /* The tile page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopTileClient(D, T, M) {
+export function tabletopTileClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], n = K.L.dirs.length, look = D.G.look || {};
   const feat = (type) => (look.features && look.features[type]) || { colour: '#999', form: 'area' };
-  const colour = (s) => D.G.players[s].colour || '#888';
+  const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const shade = (hex, k) => { const v = parseInt(hex.slice(1), 16), c = (x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0'); return '#' + c(v >> 16) + c((v >> 8) & 255) + c(v & 255); };
   let S, legal, rot = 0, busy = false, level = D.level, log = [], turns = 0;
   // the laid tiles and the standing claims are objects (S.pieces): a cell's tile as { t, rot }, a claim as { c, s, side }
@@ -210,7 +214,7 @@ export function tabletopTileClient(D, T, M) {
     placeView();
   }
 
-  function reset() { S = T.start(K); rot = 0; busy = false; log = []; turns = 0; step(); }
+  function reset() { TV.clear(); S = T.start(K); rot = 0; busy = false; log = []; turns = 0; step(); }
   function step() {
     legal = T.legal(K, S);
     render();
@@ -302,6 +306,7 @@ export function tabletopTileClient(D, T, M) {
     }
     $('prompt').textContent = prompt;
     $('status').textContent = S.over ? prompt : S.bag.length + ' tiles left';
+    TV.table({ players: K.players, me, scores: S.over && S.over.scores ? S.over.scores : S.score, live: S.side, tab: (prompt ? prompt + ' · ' : '') + S.bag.length + ' tiles left', over: S.over, again: reset });
     $('seats').innerHTML = K.players.map((p, s) => '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + p.id + (s === me ? ' (you)' : '') + '</span><span>' + S.score[s] + ' pts · ' + S.stock[s] + ' in hand</span></div>').join('');
     $('log').innerHTML = log.join('');
     $('log').scrollTop = 1e6;

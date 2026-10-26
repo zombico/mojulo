@@ -51,13 +51,22 @@ export const SOUL = Object.freeze({
     vibe: { source: { module: 'lib/graph/gameworld/hero-vibe.js', table: 'VIBES', godot: { all: 'built' } } },
     // the suit plays its idle and walk; a jump or a stop happens without its clip; nothing plays a pose (gaitMark)
     gaits: { multi: true, source: { module: 'lib/graph/polygonizer/hero-motion.js', table: 'MOTION_GAITS', marks: 'gaitMarks' } },
-    equipment: { multi: true, source: { module: 'lib/graph/equipment/expand.js', table: 'EQUIPMENT_ITEMS', godot: { all: 'built' }, roblox: { all: 'approximated' } } },
+    equipment: {
+      multi: true,
+      source: { module: 'lib/graph/equipment/expand.js', table: 'EQUIPMENT_ITEMS', godot: { all: 'built' }, roblox: { all: 'approximated' } },
+      // priced 10-25 (the comic hero pack): a cape is a garment that moves, not a held item; the tailor has no cloth that trails
+      planned: {
+        cape: { status: 'absent', godot: 'absent', roblox: 'absent', effort: 'M', pkg: 'cape', note: 'a garment hung from the shoulders that trails the gait and lifts in a leap or a flight; a few bones on the hero\'s rig, no cloth simulation' },
+      },
+    },
     // a creature's body and clips ride the GLB; how it behaves is a mind's, and the kernel has none
     species: { multi: true, source: { module: 'lib/graph/fauna/species.js', table: 'SPECIES', godot: { all: 'approximated' } } },
     party: {
       values: {
         solo: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/playscape/player.js' },
         party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', godot: 'absent', note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
+        // built 10-25 (battle city): a side of a contest, local players and the positional mind's teammates alike
+        team: { status: 'built', lowers: 'lib/graph/contest/team-sim.js', godot: 'absent', note: 'a side of a team goal game (team-sim.js): its roles and their home regions the contest kernel\'s, the player nearest the ball at the pad, the rest played by the positional mind, the keeper on its line; two pads on one screen. On the contest page\'s own bodies: the controllable runtime still has one pilot, so the hero body is not on the pitch yet' },
       },
     },
     seats: {

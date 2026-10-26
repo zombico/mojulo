@@ -32,7 +32,8 @@
  *                  document of fauna alone ({ fauna }) lays no flora (`flora: null`): the kit grows its own. A room
  *                  stage lays only the fauna (era/stage.js): nothing grows under a roof
  *
- *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, forest, bare
+ *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, forest, bare; the biomes' coast,
+ *                            alpine, desert (a geocube's biome lays one: gameworld/compose.js cubeWithLand)
  *   readBiocube(spec)        a preset id, a document, or { from: preset, …changes } (each flora block merged, the
  *                            fauna in its place) → checked
  *   withFlora(card, cube)    an isekai or nature card with the cube's flora laid over its trees and grass
@@ -77,6 +78,22 @@ export const BIOCUBE_PRESETS = fz({
     trees: fz({ clusters: 14, perCluster: [3, 7], spread: 5, heights: [8, 14], clearTrail: 3, clearCliff: 4, compose: 'ikebana', bands: true }),
     grass: fz({ clusters: 30, perCluster: [6, 12], spacing: 0.3, scatter: 0.12, fringeEvery: 0.6, height: [0.4, 0.8], field: fz({ reach: 3, every: 0.9, height: [0.45, 0.8] }), live: fz({ kind: 'meadow', density: 3, height: [0.35, 0.75] }) }),
     shrubs: fz({ count: 14, bloom: 0.25, fruit: 0.3 }), flowers: null }) }),
+  // THE BIOMES' flora (a cube's biome lays it with its ground and its palette's character: gameworld/compose.js)
+  // a coast: a few low wind-flattened trees, marram on the dunes and the banks, no field along the trail
+  coast: fz({ title: 'Coast', reads: 'a few low wind-bent trees, marram grass on the banks and the dunes', flora: fz({
+    trees: fz({ clusters: 3, perCluster: [1, 3], spread: 3, heights: [4, 7], clearTrail: 4, clearCliff: 5, crown: fz({ squash: 0.7 }) }),
+    grass: fz({ clusters: 40, perCluster: [5, 10], spacing: 0.35, scatter: 0.22, fringeEvery: 0.7, height: [0.35, 0.75], kinds: fz({ fringe: 'marram', meadow: 'marram', cliff: 'sedge', scatter: 'fescue' }), field: null, live: fz({ kind: 'marram', density: 3, height: [0.3, 0.7] }) }),
+    shrubs: fz({ count: 8, bloom: 0.15, fruit: 0 }), flowers: null }) }),
+  // alpine: conifers standing in stands, the grass short and fine, a few flowers in it
+  alpine: fz({ title: 'Alpine', reads: 'conifers in stands on a high meadow, the grass short, a few flowers in it', flora: fz({
+    trees: fz({ clusters: 7, perCluster: [2, 5], spread: 4, heights: [7, 13], clearTrail: 3.5, clearCliff: 4, crown: fz({ squash: 1.3 }), kinds: fz(['spire']) }),
+    grass: fz({ clusters: 45, perCluster: [6, 12], spacing: 0.3, scatter: 0.25, fringeEvery: 0.6, height: [0.15, 0.4], kinds: fz({ fringe: 'fescue', meadow: 'fescue', cliff: 'sedge', scatter: 'fescue' }), field: null, live: fz({ kind: 'fescue', density: 4, height: [0.15, 0.35] }) }),
+    shrubs: null, flowers: fz({ share: 0.15 }) }) }),
+  // desert: almost nothing grows: a lone low tree, needlegrass in sparse clumps, a few dry bushes
+  desert: fz({ title: 'Desert', reads: 'dry ground: a lone low tree, needlegrass in sparse clumps, a few dry bushes', flora: fz({
+    trees: fz({ clusters: 1, perCluster: [1, 1], spread: 3, heights: [3, 5], clearTrail: 4, clearCliff: 5, hero: null }),
+    grass: fz({ clusters: 14, perCluster: [3, 6], spacing: 0.4, scatter: 0.05, fringeEvery: 1.6, height: [0.2, 0.45], kinds: fz({ fringe: 'needlegrass', meadow: 'needlegrass', cliff: 'needlegrass', scatter: 'needlegrass' }), field: null, live: null }),
+    shrubs: fz({ count: 6, bloom: 0.05, fruit: 0 }), flowers: null }) }),
   // bare ground: no trees, no grass
   bare: fz({ title: 'Bare', reads: 'bare ground: rock and earth, nothing growing', flora: fz({ trees: fz({ clusters: 0, perCluster: [1, 1], spread: 3, heights: [6, 10], clearTrail: 3.5, clearCliff: 5, hero: null }), grass: null, shrubs: null, flowers: null }) }),
 });

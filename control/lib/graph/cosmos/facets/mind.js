@@ -22,7 +22,14 @@ export const MIND = Object.freeze({
   id: 'mind',
   asks: 'how do the others decide?',
   settings: {
-    motivation: { values: marked('motivation', AXES.motivation) },
+    // built 10-25 (battle city): a teammate's positional play is the contest minds' (contest-mind.js), not a strategy
+    // of the matrix; the mark is the matrix's, since the kernels run whatever the web's mind resolves
+    motivation: {
+      values: marked('motivation', {
+        ...AXES.motivation,
+        position: { status: 'built', lowers: 'lib/graph/contest/contest-mind.js', note: 'a player in a contest played by the computer: the court mind reads where the ball will land by running its physics on a copy and runs there; the turn mind bisects its power and aim on the sim\'s own probe; the positional mind holds a role\'s home region, marks and presses inside what the contest kernel says is legal; the team mind chases, shoots in range, passes ahead. Four skill tiers; never a strategy of the mind matrix' },
+      }),
+    },
     aggressiveness: { values: marked('aggressiveness', AXES.aggressiveness) },
     rank: { values: marked('rank', AXES.rank) },
     skill: { values: marked('skill', AXES.skill) },

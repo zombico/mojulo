@@ -37,7 +37,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner',
-  'science', 'hazeHeight', 'fauna',
+  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo',
 ]);
 
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';

@@ -19,10 +19,12 @@
 // body (shL mirrored); shoulders + brings the right shoulder forward; spine twist 'right' takes the right shoulder back.
 // Pure data: no dice, no clock.
 
-export const SWING_WORDS = Object.freeze(['chop', 'thrust', 'rising', 'cleave', 'bash', 'plant']);
+// the contest's verbs (battle city, contest/hit.js): the forehand and the backhand level across the body, the bat two-handed
+// and level; an overhead serve or spike would lift the elbow over the head, which the law below forbids, so none is here
+export const SWING_WORDS = Object.freeze(['chop', 'thrust', 'rising', 'cleave', 'bash', 'plant', 'forehand', 'backhand', 'bat']);
 export const isSwing = (g) => typeof g === 'string' && SWING_WORDS.includes(g);
 /** the hand each verb swings with (its gear slot) */
-export const SWING_HAND = Object.freeze({ chop: 'right', thrust: 'right', rising: 'right', cleave: 'right', bash: 'left', plant: 'right' });
+export const SWING_HAND = Object.freeze({ chop: 'right', thrust: 'right', rising: 'right', cleave: 'right', bash: 'left', plant: 'right', forehand: 'right', backhand: 'right', bat: 'right' });
 
 const READY = { support: 'both', crouch: 0.1, shR: { yaw: 4, pitch: 40, roll: 0 }, elbowR: 40, shL: { yaw: -6, pitch: 20, roll: 0 }, elbowL: 50, shoulders: 0, head: { pitch: -6 } };
 const pose = (o) => ({ ...READY, ...o });
@@ -73,6 +75,35 @@ const VERBS = {
     strike: { crouch: 0.22, shL: { yaw: -6, pitch: 80, roll: 0 }, elbowL: 20, shoulders: -24, spine: { twist: ['right', 0.3] }, hinge: 10 },
     follow: { crouch: 0.24, shL: { yaw: -8, pitch: 84, roll: 0 }, elbowL: 12, shoulders: -28, spine: { twist: ['right', 0.35] }, hinge: 12 },
     recover: { crouch: 0.15, shL: { yaw: -4, pitch: 50, roll: 0 }, elbowL: 50, shoulders: -8 },
+  },
+  // THE FOREHAND (the contest's racquet): a level arc on the right side. The arm is taken back and out (yaw −, the right
+  // shoulder back, the spine twisted right), swung level through the front (pitch near 80, the arm near straight, the elbow
+  // at the shoulder line) and carried across the body (yaw +, the left shoulder back); the hand has no roll, so the face is
+  // the arm's arc
+  forehand: {
+    coil: { shR: { yaw: -30, pitch: 60, roll: 0 }, elbowR: 60, shoulders: -14, spine: { twist: ['right', 0.2] } },
+    cock: { crouch: 0.14, shR: { yaw: -50, pitch: 70, roll: 0 }, elbowR: 50, shoulders: -26, spine: { twist: ['right', 0.35] }, head: { pitch: 2 } },
+    strike: { crouch: 0.18, shR: { yaw: 10, pitch: 82, roll: 0 }, elbowR: 15, shoulders: 16, spine: { twist: ['left', 0.25] }, hinge: 4 },
+    follow: { crouch: 0.2, shR: { yaw: 45, pitch: 92, roll: 0 }, elbowR: 40, shoulders: 28, spine: { twist: ['left', 0.4] }, hinge: 6 },
+    recover: { crouch: 0.14, shR: { yaw: 20, pitch: 60, roll: 0 }, elbowR: 40, shoulders: 10, spine: { twist: ['left', 0.1] } },
+  },
+  // THE BACKHAND: the same arc from the other side, the right hand carried across the body at the cock (yaw +, the right
+  // shoulder forward, the spine twisted left) and swung out level to the right (yaw −)
+  backhand: {
+    coil: { shR: { yaw: 40, pitch: 55, roll: 0 }, elbowR: 70, shoulders: 14, spine: { twist: ['left', 0.2] } },
+    cock: { crouch: 0.14, shR: { yaw: 55, pitch: 65, roll: 0 }, elbowR: 75, shoulders: 26, spine: { twist: ['left', 0.35] }, head: { pitch: 2 } },
+    strike: { crouch: 0.18, shR: { yaw: -10, pitch: 84, roll: 0 }, elbowR: 15, shoulders: -16, spine: { twist: ['right', 0.25] }, hinge: 4 },
+    follow: { crouch: 0.2, shR: { yaw: -45, pitch: 88, roll: 0 }, elbowR: 35, shoulders: -28, spine: { twist: ['right', 0.4] }, hinge: 6 },
+    recover: { crouch: 0.14, shR: { yaw: -20, pitch: 60, roll: 0 }, elbowR: 40, shoulders: -10, spine: { twist: ['right', 0.1] } },
+  },
+  // THE BAT: two hands, level. The off hand tracks the bat hand (yawed hard inboard so the fists meet, as the cleave's),
+  // the bat taken back over the right shoulder at the cock and swung level through the front, carried across
+  bat: {
+    coil: { shR: { yaw: -40, pitch: 70, roll: 20 }, elbowR: 90, shL: { yaw: -70, pitch: 50, roll: 0 }, elbowL: 60, shoulders: -16, spine: { twist: ['right', 0.2] } },
+    cock: { crouch: 0.16, shR: { yaw: -50, pitch: 80, roll: 40 }, elbowR: 100, shL: { yaw: -75, pitch: 60, roll: 30 }, elbowL: 70, shoulders: -26, spine: { twist: ['right', 0.35] }, head: { pitch: 2 } },
+    strike: { crouch: 0.22, shR: { yaw: 15, pitch: 84, roll: 0 }, elbowR: 15, shL: { yaw: -25, pitch: 80, roll: 0 }, elbowL: 25, shoulders: 18, spine: { twist: ['left', 0.3] }, hinge: 6 },
+    follow: { crouch: 0.24, shR: { yaw: 50, pitch: 90, roll: 0 }, elbowR: 40, shL: { yaw: 10, pitch: 86, roll: 0 }, elbowL: 30, shoulders: 30, spine: { twist: ['left', 0.4] }, hinge: 8 },
+    recover: { crouch: 0.16, shR: { yaw: 20, pitch: 60, roll: 0 }, elbowR: 45, shL: { yaw: -30, pitch: 45, roll: 0 }, elbowL: 50, shoulders: 10, spine: { twist: ['left', 0.1] } },
   },
   // the staff lifted and driven down to the floor before the feet
   plant: {

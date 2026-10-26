@@ -37,6 +37,8 @@ import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
 import { suggestGenres, cubeOfWorld } from './intent.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
+import { glyphOf } from './glyph-words.js';
+import { PALETTE_PRESETS } from '../color-theorist/solve.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
 import { composerFills } from './resonance.js';
 
@@ -74,17 +76,27 @@ export const LEXICON = Object.freeze({
   rocky: { 'land.rock': ['boulders', 0.75] }, boulders: { 'land.rock': ['boulders', 1] }, tor: { 'land.rock': ['tor', 0.5] }, crags: { 'land.face': ['crag', 0.75] },
   cliffs: { 'land.face': ['blocky', 0.5] }, basalt: { 'land.face': ['columnar', 0.75] }, columns: { 'land.face': ['columnar', 0.75] },
   layered: { 'land.strata': ['layered', 0.5] }, sandstone: { 'land.strata': ['layered', 0.75], 'land.landmark': ['butte', 0.25] }, folded: { 'land.strata': ['folded', 0.5] },
-  canyon: { 'land.strata': ['tilted', 0.5], 'land.landmark': ['butte', 0.5], 'land.face': ['slabby', 0.5] }, desert: { 'land.landmark': ['butte', 0.5], 'land.cloud': ['cirrus', 0.25], 'land.rock': ['hoodoo', 0.5], weather: 'desert' },
-  coast: { 'land.rock': ['stack', 0.5], 'land.landmark': ['arch', 0.25] }, shore: { 'land.rock': ['stack', 0.25] }, sea: { 'land.rock': ['stack', 0.5] },
+  canyon: { 'land.strata': ['tilted', 0.5], 'land.landmark': ['butte', 0.5], 'land.face': ['slabby', 0.5] }, desert: { 'land.landmark': ['butte', 0.5], 'land.cloud': ['cirrus', 0.25], 'land.rock': ['hoodoo', 0.5], weather: 'desert', biome: 'desert' },
+  coast: { 'land.rock': ['stack', 0.5], 'land.landmark': ['arch', 0.25], biome: 'coast' }, shore: { 'land.rock': ['stack', 0.25], 'water.coast': true }, sea: { 'land.rock': ['stack', 0.5], 'water.coast': true },
+  // the water on the land (era/out-water.js), laid on the cube so every trail it paints is cut with it: a lake beside the
+  // walk, the open side falling to the sea, a river beside the walk (the falls are a landmark's, below)
+  lake: { 'water.lake': true }, lakeside: { 'water.lake': true }, pond: { 'water.lake': { size: 4 } }, tarn: { 'water.lake': { size: 5 } },
+  beach: { 'water.coast': true }, ocean: { 'water.coast': true }, seaside: { biome: 'coast' }, coastal: { biome: 'coast' },
+  river: { 'water.river': true }, riverside: { 'water.river': true }, stream: { 'water.river': { width: 1.8 } }, brook: { 'water.river': { width: 1.6 } }, creek: { 'water.river': { width: 1.8 } },
+  // a biome (BIOMES): its flora, its palette's character and its ground laid on the cube together
+  // conifers: the alpine flora's stands on the meadow's card (a pine forest is not a bamboo one)
+  pine: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } }, conifer: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } },
+  spruce: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } }, fir: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } },
+  dunes: { biome: 'desert', 'trail.bumpiness': 0.7 }, dune: { biome: 'desert', 'trail.bumpiness': 0.7 }, arid: { biome: 'desert' },
   // landmarks
   arch: { 'land.landmark': ['arch', 0.25] }, arches: { 'land.landmark': ['arch', 0.75] }, spire: { 'land.landmark': ['spire', 0.25] }, spires: { 'land.landmark': ['spire', 0.75] },
-  monolith: { 'land.landmark': ['monolith', 0] }, waterfall: { 'land.landmark': ['falls', 0] }, falls: { 'land.landmark': ['falls', 0] }, mesa: { 'land.landmark': ['butte', 0.25] },
+  monolith: { 'land.landmark': ['monolith', 0] }, waterfall: { 'land.landmark': ['falls', 0] }, falls: { 'land.landmark': ['falls', 0] }, cascade: { 'land.landmark': ['falls', 0] }, mesa: { 'land.landmark': ['butte', 0.25] },
   // the sky
   clear: { 'land.cloud': [null, 0] }, fair: { 'land.cloud': ['cumulus', 0.25] }, cloudy: { 'land.cloud': ['cumulus', 0.75] }, overcast: { 'land.cloud': ['stratus', 1], weather: { overcast: 4, haze: 1, drizzle: 0.5 } },
   misty: { 'land.cloud': ['stratus', 0.75], weather: { mist: 4, fog: 1, overcast: 1, clear: 1 } }, foggy: { 'land.cloud': ['stratus', 1], weather: { fog: 4, mist: 2, overcast: 1 } }, stormy: { 'land.cloud': ['towering', 0.75], weather: 'storm-coast' }, windy: { 'land.cloud': ['cirrus', 0.5] }, lenticular: { 'land.cloud': ['lenticular', 0.25] },
   // what falls
   rainy: { weather: { drizzle: 2, rain: 3, overcast: 2, mist: 1 } }, wet: { weather: { drizzle: 2, rain: 3, overcast: 2, mist: 1 } }, monsoon: { weather: 'monsoon' },
-  snowy: { weather: 'alpine', snow: true }, snow: { weather: 'alpine', snow: true }, alpine: { weather: 'alpine' }, dusty: { weather: 'desert' }, autumn: { weather: 'autumn' },
+  snowy: { weather: 'alpine', snow: true }, snow: { weather: 'alpine', snow: true }, alpine: { weather: 'alpine', biome: 'alpine' }, dusty: { weather: 'desert' }, autumn: { weather: 'autumn' },
   // how big
   small: { levels: 2 }, short: { levels: 2 }, epic: { levels: 5 }, vast: { levels: 5 }, long: { levels: 4 },
   // what a level is played for (a level's goal, quick.js levelGoalMechanics): what lies along the way to pick up, a boss
@@ -115,16 +127,52 @@ export const CUBE_WORDS = Object.freeze({
 export const HOUR_OF_WORDS = Object.freeze({
   dawn: 'dawn', sunrise: 'dawn', morning: 'morning', daytime: 'noon', midday: 'noon', daylight: 'noon', afternoon: 'afternoon', sunset: 'golden', dusk: 'dusk', twilight: 'dusk', evening: 'dusk', night: 'night', moonlit: 'night',
 });
+/**
+ * THE BIOMES: a place's character laid on a cube at once: its flora (a biocube, era/biocube.js), its palette's character
+ * (the colour theorist's own preset for such a place, color-theorist/solve.js PALETTE_PRESETS: its axes and hues as the
+ * spec, solved with the cube's seed), its ground (a land's formation, era/substrate.js: sandstone weathers to sand) and
+ * its water (era/out-water.js).
+ */
+export const BIOMES = Object.freeze({
+  coast: Object.freeze({ biocube: 'coast', palette: 'coastal-noon', water: Object.freeze({ coast: true }) }),
+  alpine: Object.freeze({ biocube: 'alpine', palette: 'alpine-dawn' }),
+  desert: Object.freeze({ biocube: 'desert', palette: 'desert-haze', skin: 'sandstone' }),
+});
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A cube (a preset id or { from, …changes }) with the land the words name laid on it: open (`outside.cliff: false`),
- * wildflowers in its grass (its biocube's, else the meadow's, with `flowers.share`), its snow. Shared by a game's cube
- * (composeGameworld) and a scene's (scene-words.js). */
-export function cubeWithLand(geocube, { open = false, flowers = null, snow = false } = {}) {
+ * wildflowers in its grass (its biocube's, else the meadow's, with `flowers.share`), its snow, its water (`outside.water`),
+ * a biome (BIOMES: its flora, palette, ground and water), a biocube a word names, the palette's character a word names
+ * (`palette`: the theorist's axes, over the biome's). Shared by a game's cube (composeGameworld) and a scene's
+ * (scene-words.js). */
+export function cubeWithLand(geocube, { open = false, flowers = null, snow = false, water = null, biome = null, biocube = null, palette = null } = {}) {
   const c = typeof geocube === 'string' ? { from: geocube } : { ...geocube };
   if (open) c.outside = { ...(c.outside ?? {}), cliff: false };
-  if (flowers !== null) { const b = readGeocube(geocube).biocube; c.biocube = { from: typeof b === 'string' ? b : b?.from ?? 'meadow', flora: { flowers: { share: flowers } } }; }
+  const B = biome ? BIOMES[biome] : null;
+  if (B?.skin) c.outside = { ...(c.outside ?? {}), land: { ...(c.outside?.land ?? {}), skin: B.skin } };
+  const W = { ...(B?.water ?? {}), ...(water ?? {}) };
+  if (Object.keys(W).length) c.outside = { ...(c.outside ?? {}), water: { ...(c.outside?.water ?? {}), ...W } };
+  const bio = biocube ?? B?.biocube ?? null;
+  if (bio !== null) c.biocube = bio;
+  if (flowers !== null && bio === null) { const b = readGeocube(geocube).biocube; c.biocube = { from: typeof b === 'string' ? b : b?.from ?? 'meadow', flora: { flowers: { share: flowers } } }; }
+  else if (flowers !== null) c.biocube = { from: typeof bio === 'string' ? bio : bio.from, flora: { ...(isObj(bio) ? bio.flora : {}), flowers: { share: flowers } } };
   if (snow) c.snow = true;
+  const P = B ? PALETTE_PRESETS[B.palette] : null, axes = { ...(P ? { intent: P.says, ...P.spec } : {}), ...(palette ?? {}) };
+  if (Object.keys(axes).length) c.palette = { ...(isObj(c.palette) ? c.palette : {}), ...axes };
   return c;
 }
+
+/** What a word decides: the shared table's reading (LEXICON), else a painted-landscape glyph's (glyph-words.js) where
+ * no table reads the word; a game takes no camera (a scene's still). → { <decide>: value } | null */
+export function readingOf(word, { scene = false } = {}) {
+  const r = LEXICON[word] ?? LEXICON[word.replace(/s$/, '')];
+  if (r) return r;
+  if (CUBE_WORDS[word] ?? CUBE_WORDS[word.replace(/s$/, '')] ?? HOUR_OF_WORDS[word] ?? HOUR_OF_WORDS[word.replace(/s$/, '')]) return null;
+  const g = glyphOf(word);
+  if (!g || (g.family === 'camera' && !scene)) return null;
+  return g.decides;
+}
+/** The words that fall from a cliff (a landmark's falls): a fall keeps the cliff an open word would take away. */
+export const fallsWords = (P) => P.read.filter((r) => { const v = readingOf(r.word)?.['land.landmark']; return v && v[0] === 'falls'; }).map((r) => r.word);
 // a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
 export const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
 
@@ -135,9 +183,9 @@ const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g
 const pick = (rand, a) => a[Math.floor(rand() * a.length)];
 
 /** Read a prompt's words: what each decides, and what nothing read. */
-export function readPrompt(prompt) {
+export function readPrompt(prompt, { scene = false } = {}) {
   const words = String(prompt ?? '').toLowerCase().split(/[^a-z-]+/).filter(Boolean), read = [], unread = [];
-  for (const w of words) { const r = LEXICON[w] ?? LEXICON[w.replace(/s$/, '')]; if (r) read.push({ word: w, decides: Object.keys(r) }); else if (w.length > 3 && !STOP.has(w)) unread.push(w); }
+  for (const w of words) { const r = readingOf(w, { scene }); if (r) read.push({ word: w, decides: Object.keys(r) }); else if (w.length > 3 && !STOP.has(w)) unread.push(w); }
   return { words, read, unread: [...new Set(unread)] };
 }
 
@@ -184,10 +232,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const P = readPrompt(prompt), rand = mulberry32((seed * 2654435761) >>> 0 || 1);
   const style = { trail: {}, land: {} }, langs = [];
   let fort = null, meru = null, kit = null, count = null, weather = null, room = null, roomKit = null;
-  let openWord = null, flowers = null, snowy = false;
-  const goal = {};
+  let openWord = null, flowers = null, snowy = false, biome = null, biocube = null, palette = null, glyphHour = null;
+  const goal = {}, water = {};
   for (const { word } of P.read) {
-    const r = LEXICON[word] ?? LEXICON[word.replace(/s$/, '')];
+    const r = readingOf(word);
     for (const [k, v] of Object.entries(r)) {
       if (k === 'kit') kit = kit ?? v;
       else if (k === 'anchor') { if (!langs.includes(v)) langs.push(v); }
@@ -199,6 +247,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       else if (k === 'outside.cliff') openWord ??= word;
       else if (k === 'flora.flowers') flowers ??= v;
       else if (k === 'snow') snowy = true;
+      // (its water, its biome, a flora a glyph names, the palette's character, a glyph's hour: era/out-water.js, BIOMES)
+      else if (k.startsWith('water.')) water[k.slice(6)] ??= v;
+      else if (k === 'biome') biome ??= v;
+      else if (k === 'flora.biocube') biocube ??= v;
+      else if (k === 'palette') palette ??= v;
+      else if (k === 'hour') glyphHour ??= word;
       // (a word naming what is collected wins over one that only says to collect)
       else if (k.startsWith('goal.')) { const g = k.slice(5); goal[g] = g === 'collect' && typeof goal.collect === 'string' ? goal.collect : v; }
       else if (k === 'building') room ??= v;
@@ -345,7 +399,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     }
   }
   // the hour: the first word naming one lights the cube's outside at it, unless the cube is lit at it already
-  const hourOf = (w) => HOUR_OF_WORDS[w] ?? HOUR_OF_WORDS[w.replace(/s$/, '')];
+  // (a sky glyph's hour, glyph-words.js, where no hour word names one)
+  const hourOf = (w) => HOUR_OF_WORDS[w] ?? HOUR_OF_WORDS[w.replace(/s$/, '')] ?? (w === glyphHour ? readingOf(w).hour : undefined);
   const hourWord = style.geocube !== undefined ? P.words.find(hourOf) : undefined;
   if (hourWord) {
     const hour = hourOf(hourWord), cube = readGeocube(style.geocube);
@@ -361,12 +416,14 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the land the words name, laid on the cube so every level it paints takes it (era/geocube.js): open, no far cliff on
   // its trails, unless a word names a cliff, a face or beds (or a tunnel read the word as something else: field cannon);
   // wildflowers in its grass; its snow. A world with no cube (an airless plain) takes none of them
-  const cliffWord = P.read.find((r) => r.decides.some((d) => d === 'land.face' || d === 'land.strata'))?.word;
+  // (and a fall keeps the cliff it falls from: a field with a waterfall)
+  const cliffWord = P.read.find((r) => r.decides.some((d) => d === 'land.face' || d === 'land.strata'))?.word ?? fallsWords(P)[0];
   // (a word naming the thing after it is not the land: in "field cannon" the next word is a machine a tunnel reads)
   const after = openWord === null ? null : P.words[P.words.indexOf(openWord) + 1];
   const thing = after !== undefined && after !== null && [techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].some((d) => readIntent(d, after).traits.length > 0);
   const open = openWord !== null && !cliffWord && !thing;
-  if (style.geocube !== undefined && (open || flowers !== null || snowy)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy });
+  const wet = Object.keys(water).length ? water : null;
+  if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {

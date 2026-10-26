@@ -12,4 +12,11 @@ export const PACKAGES = Object.freeze({
   'strategy-board': { name: 'The strategy board: spots over the ground and the tactical camera that plays them', effort: 'L' },
   shot: { name: 'The 3D shot and banter: a directed camera, subjects, a text box, two speakers', effort: 'L' },
   seats: { name: 'The seats kernel: a controller bound to each player, who join and leave', effort: 'M' },
+  'battle-city': { name: 'Battle city: a contest kernel over the movement stack (a meet and a match), the court, the team, the ball and the hit', effort: 'L' },
+  // the comic hero pack (10-25): the first pack of game cubes; its gaps, priced so the sweep ranks them
+  'comic-look': { name: 'The comic look: a geocube look on the cel register with an ink outline, by day and by night', effort: 'M' },
+  'comic-blows': { name: 'Comic blows: knockback, a thrown body or prop, the hero\'s storeys-high leap', effort: 'M' },
+  'comic-street': { name: 'The breakable street: props that shatter under a blow or a thrown body', effort: 'M' },
+  cape: { name: 'The cape: a garment that trails the gait and lifts in a leap', effort: 'M' },
+  'comic-panel': { name: 'The comic panel: a beat held as a still with a border, a caption and an onomatopoeia', effort: 'S' },
 });

@@ -327,8 +327,16 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * Laws 16 SEATS THE HEAD ON ITS NECK (CERVICAL_LEAN, tiered-form.js TIERED_OCCIPUT): the landmark head's neck leans
  * forward up into the skull and the male's skull is deeper behind the ear, so in profile the back of the skull stands
  * over the nape as people's does; laws 1 to 15 stood the column upright under the back of the head.
+ * Laws 17 SEATS THE BELT'S BUCKLE ON THE CENTRE LINE (hero-dress.js rangerKit, station-loft-adorn.js `buckle`): the
+ * ranger's belt buckle sits where the band faces the body's front, on the band's own station; laws 1 to 16 seated it at
+ * the band's grid row zero, which turns with the ring's own origin and stood beside the waist's centre.
+ * Laws 18 KEEPS THE TRUNK'S PLATES OFF THE SHOULDER (tiered-form.js tieredKit, station-loft-adorn.js `armhole`): on the
+ * tiered body, above the shoulder ball's lowest point, a plate the torso carries that is not a shoulder piece keeps
+ * inside the ball (a front or back plate cut in under the arm, a wrap ending under it) and lies under the arm instead of
+ * standing off the balls; laws 1 to 17 stood every torso plate off them, so a breastplate reaching the shoulder line
+ * wrapped the shoulder in a yoke.
  */
-export const HERO_LAWS_VERSION = 16;
+export const HERO_LAWS_VERSION = 18;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);

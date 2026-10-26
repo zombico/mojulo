@@ -803,6 +803,8 @@ function landUnder(section, low, written, tune) {
     const pick = (k) => { const o = { ...(g0[k] || {}) }; for (const q of Object.keys(tune?.[k] || {})) delete o[q]; if (k === 'bump' && written.bumpiness !== undefined) delete o.height; return { ...o, ...(w[k] || {}) }; };
     const ground = { ...w };
     for (const k of ['bump', 'cliff']) if (g0[k]) { const v = pick(k); if (Object.keys(v).length) ground[k] = v; }
+    // (the land's water, era/out-water.js: under the trail's own, a trail's `water: false` refusing it)
+    if (g0.water && w.water !== false) ground.water = { ...g0.water, ...(w.water || {}) };
     if (Object.keys(ground).length) out.ground = ground;
   }
   if (low.rocks) out.rocks = { ...low.rocks, ...(written.rocks || {}) };

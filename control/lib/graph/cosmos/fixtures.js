@@ -472,6 +472,63 @@ export const FIXTURES = Object.freeze([
       soul: { seats: 'four', contest: 'free-for-all', dependence: 'parallel', frame: 'split', input: 'real-time', pool: 'own', join: 'lobby' },
     },
   },
+  // battle city (10-25): sports as a contest over the movement stack. Two shapes of contest, one kernel: a meet (lanes,
+  // a start, a measure) and a match (sides, a ball, zones, a clock, fouls); the match ladder in build order: the net
+  // game, the turn sport, the team goal game. Each probe asks for a value no table holds yet, so each is blocked
+  {
+    id: 'athletics-meet',
+    name: 'Athletics meet',
+    anchor: false,
+    why: 'lanes on a track in an arena, a gun and a false start, hurdles cleared on the stride, the clock the measure; up to four local players, each a lane',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'fixed', topology: 'linear', levelForm: 'court' },
+      power: { rules: ['platform'], mechanics: ['meet', 'score'] },
+      soul: { hero: 'hero', gaits: ['sprint', 'hurdle', 'runningJump'] },
+      time: { progression: 'none' },
+    },
+  },
+  {
+    id: 'net-game',
+    name: 'Net game',
+    anchor: false,
+    why: 'two sides of a court that never mix, a ball struck on the swing\'s strike frame, the serve a restart, the bounce and the out called against the lines, points, games and sets; one or two local players',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'fixed', topology: 'linear', levelForm: 'court' },
+      power: { rules: ['platform'], mechanics: ['contest', 'score'] },
+      soul: { hero: 'hero' },
+      mind: { motivation: 'position', skill: 'regular' },
+      time: { progression: 'none' },
+    },
+  },
+  {
+    id: 'turn-sport',
+    name: 'Turn sport',
+    anchor: false,
+    why: 'one shot a turn, the ball\'s rest the turn\'s end, a course of regions (the green, the bunker, the lane, the gutter), strokes the score; hot-seat local play',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'court' },
+      power: { mechanics: ['contest', 'score'] },
+      soul: { hero: 'hero' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'team-goal-game',
+    name: 'Team goal game',
+    anchor: false,
+    why: 'two teams on a pitch, possession by touch or carry, offside as a zone whose legality depends on the pass, fouls on contact, a kickoff and a throw-in, two periods on a clock with stoppages; teammates played by a positional mind',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'fixed', topology: 'linear', levelForm: 'court' },
+      power: { rules: ['platform'], mechanics: ['contest', 'clock'] },
+      soul: { hero: 'hero', party: 'team' },
+      mind: { motivation: 'position', skill: 'regular', squad: 'team-aware', pathing: 'navmesh' },
+      time: { progression: 'none' },
+    },
+  },
 ]);
 
 export function fixture(id) {

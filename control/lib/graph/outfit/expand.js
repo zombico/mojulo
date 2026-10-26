@@ -224,12 +224,12 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
       rows.push({ part: on('top', 'torso'), t: 'front', s: [lengths.hem === 'crop' ? 1.85 : 0.45, 3.6], step: r6(0.55 * law.buttonStep), shape: 'stud', r: r6(0.0045 * law.button * k), h: r6(0.0028 * law.button * k), m: 8, group: 'Button' }); return true; },
     belt: () => { if (!bottom || vest || ((bottom.family ?? 'woven') !== 'woven' && focal !== 'belt')) return false;   // law 7: a knit waist is elastic, no loops; a waistcoat over braces
       if (worn.has('skirt')) { kit.push({ id: 'belt', mode: 'band', part: 'skirt_skirt', s: [0.15, dress ? 0.75 : 0.9], t: 'wrap', nt: 16, ns: 2, mugen: r6(0.002 * k), thick: r6(0.006 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
-        signature: { kind: 'buckle', k: 0, j: 1, w: r6(0.026 * k * law.trim), h: r6(0.02 * k * law.trim), bar: r6(0.005 * k), standoff: r6(0.004 * k), group: 'Buckle' } }); return true; }
+        signature: { kind: 'buckle', w: r6(0.026 * k * law.trim), h: r6(0.02 * k * law.trim), bar: r6(0.005 * k), standoff: r6(0.004 * k), group: 'Buckle' } }); return true; }
       const seat = worn.has('bottomSeat') ? on('bottomSeat', 'pelvis') : structured && bottom?.fit === 'skin' ? 'pelvis' : null;   // over second-skin legs, on the body
       if (!seat) { if (bottom) warnings.push('belt: the streamlined core has no pelvis to belt'); return false; }
       const over = [...(!tuck && worn.has('topTail') ? [on('topTail', 'pelvis')] : []), ...panels.filter((Q) => worn.has(Q.id)).map((Q) => `${Q.id}_panel`)];
       kit.push({ id: 'belt', mode: 'band', part: seat, over, s: [5.2, 5.85], t: 'wrap', nt: 12, ns: 2, mugen: r6(0.003 * k), thick: r6(0.008 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
-        signature: { kind: 'buckle', k: 0, j: 1, w: r6(0.03 * k * law.trim), h: r6(0.024 * k * law.trim), bar: r6(0.006 * k), standoff: r6(0.005 * k), group: 'Buckle' } }); return true; },
+        signature: { kind: 'buckle', w: r6(0.03 * k * law.trim), h: r6(0.024 * k * law.trim), bar: r6(0.006 * k), standoff: r6(0.005 * k), group: 'Buckle' } }); return true; },
     cuffs: () => { if (!sleeveEnd) return false; paint.push({ part: sleeveEnd, run: [0.998, 1], group: 'Trim' }); return true; },   // the last band: from the cuff's own ring to the end
     hem: () => { if (!hemPiece || dress) return false; paint.push({ ...hemPiece, group: 'Trim' }); return true; },
     waistband: () => { if (worn.has('skirt') && !dress) { paint.push({ part: 'skirt_skirt', u: [0, 0.6], group: 'Waistband' }); return true; } if (!worn.has('bottomSeat')) return false; paint.push({ part: on('bottomSeat', 'pelvis'), u: [6 - EDGE.waistband, 6], group: 'Waistband' }); return true; },

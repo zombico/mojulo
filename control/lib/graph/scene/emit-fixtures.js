@@ -17,6 +17,11 @@ import { resolveWorldAudio } from '../beats/beats-world.js';
 import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
 import { shootSubjects } from '../shoot/subjects.js';
 import { versusArenaData } from '../versus/versus-page.js';
+import { meetArenaData } from '../contest/meet-arena.js';
+import { matchArenaData } from '../contest/match-arena.js';
+import { turnsArenaData } from '../contest/turn-arena.js';
+import { teamArenaData } from '../contest/team-arena.js';
+import { holoArenaData } from '../tabletop/holo-arena.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
 
@@ -264,6 +269,17 @@ export const EMIT_FIXTURES = [
   ['game', { faces: [floor()], game: GAME }],
   // versus (a side-view fight on an arena): the fight block, its own frame step (`stepFight`), the camera owned
   ['versus', { faces: [floor()], versus: versusArenaData({ plane: 2.2, half: 6, roster: [{ id: 'a', archetype: 'all-rounder' }, { id: 'b', archetype: 'grappler' }] }) }],
+  // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
+  ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
+  // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned
+  ['court', { faces: [floor()], court: matchArenaData({ sport: 'tennis', players: 1 }) }],
+  // turns (a turn sport on a course): the turns block, its own frame step (`stepTurnSport`), the camera owned
+  ['turns', { faces: [floor()], turns: turnsArenaData({ sport: 'bowling', seats: 2, players: 1, rounds: 3 }) }],
+  // pitch (a team goal game on a pitch): the pitch block, its own frame step (`stepPitch`), the camera owned
+  ['pitch', { faces: [floor()], pitch: teamArenaData({ sport: 'soccer', players: 1, seconds: 60 }) }],
+  // holo (a board game lifted into a hologram arena): the kernel and the mind from their closures and the arena's
+  // client in one block, its own frame step (`stepHolo`), the camera owned
+  ['holo', { faces: [floor()], holo: holoArenaData({ game: 'checkers', players: 1 }) }],
   // board (a tactics board over the ground): the board kernel, the tactical camera and the page in one block, its own
   // frame step (`stepBoard`), the camera owned
   ['board', { faces: [floor()], board: boardChannelData(layBoard({ seed: 'fixture', cols: 4, rows: 4 }), { units: [{ id: 'a', side: 'p', at: 'A1' }, { id: 'b', side: 'q', at: 'D4' }] }) }],

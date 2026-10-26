@@ -16,6 +16,7 @@
 
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
+import { tableBroadcastData, broadcastDomCss, broadcastDomClient, TABLE_LOOKS } from '../broadcast/broadcast-dom.js';
 import { shapeIcon } from './tabletop-shapes.js';
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
 
@@ -49,7 +50,7 @@ export function roundPageHtml(G, L, K, opts = {}) {
     plan = { svg: latticeSvg(L, { px: 72, names: true, ids: true }).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, ''), W: r2(f.W), H: r2(f.H),
       at: L.cells.map((c) => [r2((c.at[0] - f.x0) * f.px + f.pad), r2((f.y1 - c.at[1]) * f.px + f.pad)]), r: r2(f.px * L.cell * 0.36) };
   }
-  const data = { L, G, human, level, seed, icon: wk && G.pieces[wk] ? iconPath(G.pieces[wk].shape) : null, art, plan };
+  const data = { tv: tableBroadcastData(G.players, opts.broadcast, ['#888888'], TABLE_LOOKS.felt), L, G, human, level, seed, icon: wk && G.pieces[wk] ? iconPath(G.pieces[wk].shape) : null, art, plan };
   const title = opts.title ?? G.title ?? 'mojulo round game';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -63,7 +64,7 @@ export function roundPageHtml(G, L, K, opts = {}) {
   header h1{font-size:16px;margin:0 8px 0 0}
   button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
   button:disabled{opacity:.4;cursor:default}
-  #status{margin-left:auto;font-weight:600}
+  #status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   main{display:flex;flex-wrap:wrap;gap:16px;padding:16px;align-items:flex-start}
   #felt{flex:1 1 560px;min-width:0;background:var(--felt);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px;color:#efe9dc}
   .zone h2{font-size:12px;margin:0 0 6px;font-weight:600;color:#cfc6b5;text-transform:uppercase;letter-spacing:.04em}
@@ -120,12 +121,13 @@ export function roundPageHtml(G, L, K, opts = {}) {
   .sw{display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:0 0 0 1px #1a1512 inset}
   #log{margin:0;padding-left:34px;max-height:260px;overflow:auto;font-size:13px}
   @media (max-width:600px){aside{flex-basis:100%}}
+${broadcastDomCss(data.tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
   <button id="again">New game</button>
-  <span id="status"></span>
+  <span id="status" aria-live="polite"></span>
 </header>
 <main>
   <div id="felt">
@@ -150,17 +152,18 @@ export function roundPageHtml(G, L, K, opts = {}) {
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-(${tabletopRoundClient.toString()})(DATA, T, M);
+const TV = (${broadcastDomClient.toString()})(DATA.tv);
+(${tabletopRoundClient.toString()})(DATA, T, M, TV);
 </script>
 </body></html>
 `;
 }
 
 /* The round page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopRoundClient(D, T, M) {
+export function tabletopRoundClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), R = D.G.round, me = K.sideOf[D.human], wkind = R.workers && R.workers.kind;
-  const colour = (s) => D.G.players[s].colour || '#888';
+  const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const name = (s) => K.players[s].id;
   let S, legal, busy = false, level = D.level, log = [], turns = 0, choosing = null, picked = -1;
@@ -254,7 +257,7 @@ export function tabletopRoundClient(D, T, M) {
   // past the last phase once the game is over: the last one stands
   const phase = () => T.phaseNow(K, S) || (R.phases || R.turn)[(R.phases || R.turn).length - 1];
 
-  function reset() { S = T.start(K); busy = false; log = []; turns = 0; choosing = null; picked = -1; step(); }
+  function reset() { TV.clear(); S = T.start(K); busy = false; log = []; turns = 0; choosing = null; picked = -1; step(); }
   function step() {
     legal = T.legal(K, S);
     render();
@@ -291,7 +294,7 @@ export function tabletopRoundClient(D, T, M) {
         note(-1, 'bids: ' + chose.map((c, s) => (c ? name(s) + ' ' + c.n : '')).filter(Boolean).join(', ') + ' → ' + (won >= 0 ? name(won) + ' takes ' + (lot.name || lot.kind) : 'nobody takes ' + (lot.name || lot.kind)));
       } else note(-1, 'picks: ' + chose.map((c, s) => (c ? name(s) + ' ' + (K.defs[c.card].name || c.card) : '')).filter(Boolean).join(', '));
     } else if (m.type === 'bid' || m.type === 'pick') note(who, (m.type === 'bid' ? 'bids' : 'picks') + ', sealed');
-    if (S.round > before.round && !S.over) note(-1, 'round ' + (S.round + 1));
+    if (S.round > before.round && !S.over) { note(-1, 'round ' + (S.round + 1)); TV.call({ text: 'Round ' + (S.round + 1), sub: 'of ' + R.rounds, tone: 'neutral' }); }
   }
   function note(side, text) { log.push('<li>' + (side >= 0 ? '<i class="sw" style="background:' + colour(side) + '"></i> <b>' + esc(name(side)) + '</b> ' : '') + esc(text) + '</li>'); }
   const mine = () => !busy && !S.over && S.side === me;
@@ -401,6 +404,7 @@ export function tabletopRoundClient(D, T, M) {
     $('prompt').textContent = prompt;
     const sc = S.over ? S.over.scores : T.roundScores(K, S, false);
     $('status').textContent = S.over ? prompt : 'Round ' + (S.round + 1) + ' of ' + R.rounds + ' · ' + (P.id || P.move);
+    TV.table({ players: K.players, me, scores: sc, live: S.side, tab: 'round ' + (S.round + 1) + ' of ' + R.rounds + ' · ' + (P.id || P.move) + (prompt ? ' · ' + prompt : ''), over: S.over, again: reset });
     $('seats').innerHTML = K.players.map((p, s) => {
       const u = T.utilization(K, S, s);
       return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><i class="sw" style="background:' + colour(s) + '"></i> ' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + (duel && L0 && !S.over ? S.pools[s][L0] + ' ' + L0 : sc[s] + ' pts') + (u ? ' <small>· used ' + Math.round(u.share * 100) + '%</small>' : '') + '</span></div>';

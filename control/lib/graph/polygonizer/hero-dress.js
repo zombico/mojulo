@@ -53,9 +53,9 @@ const both = (xs) => xs.flatMap((n) => (/R$/.test(n) ? [n, n.replace(/R$/, 'L')]
  * pelvis (hero-form.js HERO_CORES) also `pelvis: true` and `Hth`, the thigh's own half (it takes the trunk's ring family
  * there), so hip pieces hang from the pelvis and a thigh plate wraps the thigh it is drawn on; absent, as before. A dense
  * torso (its slots addressed by `slotT`) says `dense: true`; chest layers (hero-form.js CHEST_FORM) are `chest`. */
-export function dressContext(style = {}, scale = 1, plan = null) {
+export function dressContext(style = {}, scale = 1, plan = null, laws = 1) {
   const half = (fam) => (SLOT_FAMILIES[fam] ?? SLOT_FAMILIES.ring8).length / 2;
-  const ctx = { Ht: half(style.slots ?? 'ring8'), Hl: half(style.limbSlots ?? 'limb6'), scale };
+  const ctx = { Ht: half(style.slots ?? 'ring8'), Hl: half(style.limbSlots ?? 'limb6'), scale, laws };
   const segs = plan?.segments || [], thigh = segs.find((s) => s.name === 'thighR');
   if (segs.some((s) => s.name === 'pelvis')) Object.assign(ctx, { pelvis: true, Hth: thigh?.slots ? half(thigh.slots) : ctx.Hl });
   if (segs.find((s) => s.name === 'torso')?.slotT) ctx.dense = true;
@@ -278,13 +278,15 @@ export function lowerOutfit(outfit, plan, scale = 1) {
 }
 
 /** the RANGER kit: belt, baldric, archer's bracer on the left, one pauldron on the right (the focal accent) */
-export function rangerKit({ Ht, Hl, scale: k, pelvis: structured = false, chibi = null }) {
+export function rangerKit({ Ht, Hl, scale: k, pelvis: structured = false, chibi = null, laws = 1 }) {
+  // (hero laws 17: the belt's buckle seated by the band's front; before them, at grid row zero: a stored row keeps its seat)
+  const buckleSeat = laws >= 17 ? {} : { k: 0, j: 1 };
   const cap = structured ? [2.55, 3.45] : [2.8, 3.8];   // the structured torso's shoulder ring over the arm's cap, a trapezius ring above (plate.js pauldron)
   // (the chibi's kit bolder and thicker, its standoffs as they are, and only its `kit` pieces: CHIBI_DRESS)
   const kb = k * (chibi?.bold ?? 1), kt = k * (chibi?.thick ?? 1);
   const kit = [
     { id: 'belt', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.12, 0.44], t: 'wrap', nt: 12, ns: 2, mugen: 0.004 * k, thick: 0.01 * kt, rad: 0.05 * k, group: 'Leather',
-      signature: { kind: 'buckle', k: 0, j: 1, w: 0.028 * kb, h: 0.022 * kb, bar: 0.0055 * kb, standoff: 0.006 * k, group: 'Iron' } },
+      signature: { kind: 'buckle', ...buckleSeat, w: 0.028 * kb, h: 0.022 * kb, bar: 0.0055 * kb, standoff: 0.006 * k, group: 'Iron' } },
     { id: 'baldric', mode: 'strap', part: 'torso', path: [[3.55, 0.5 * Ht, 'R'], [3.1, 0.25 * Ht, 'R'], [2.55, 0.06 * Ht, 'R'], [2.05, 0.18 * Ht, 'L'], [1.5, 0.4 * Ht, 'L'], [1.0, 0.55 * Ht, 'L'], [0.6, 0.62 * Ht, 'L']],
       width: 0.045 * kb, thick: 0.007 * kt, mugen: 0.004 * k, rad: 0.05 * k, group: 'Leather',
       signature: { kind: 'buckle', w: 0.033 * kb, h: 0.028 * kb, bar: 0.007 * kb, standoff: 0.006 * k, group: 'Iron' } },
@@ -322,16 +324,19 @@ export function validateDress({ detail, adorn } = {}) {
 
 /** Put `detail` / `adorn` on a hero plan: `plan.body`, `plan.adorn`, and the palette (the kit's suggestion beneath the
  * operator's colours, then the derived tones beneath any the operator names). Absent or 'none' changes nothing. */
-export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette = {}, scale = 1, figure = {} } = {}) {
+export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette = {}, scale = 1, figure = {}, laws = 1 } = {}) {
   const wantDetail = detail !== undefined && detail !== 'none', wantAdorn = adorn !== undefined && adorn !== 'none', wantPaint = paint !== undefined && paint !== null, wantOutfit = outfit !== undefined && outfit !== null;
   if (!wantDetail && !wantAdorn && !wantPaint && !wantOutfit) return plan;
   const errs = [...validateDress({ detail, adorn }), ...validateDressPaint(paint), ...validateOutfit(outfit)]; if (errs.length) throw new Error(`hero dress: ${errs.join('; ')}`);
   if (detail === 'clothed') dropPectorals(plan);
-  const ctx = dressContext(plan.style, scale, plan);
+  const ctx = dressContext(plan.style, scale, plan, laws);
   if (detail === 'swimsuit') swimsuit(plan, figure);
   else if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
-  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = overChest(overPelvis(A.kit, ctx), ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
+  // (`with`: a kit worn over the build, after it; a head piece in it (on the cranium: a helmet, a mask) replaces the
+  // armour's own helm)
+  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx), W = adorn.with || [], head = W.some((a) => a.part === 'cranium');
+    plan.adorn = overChest(overPelvis([...(head ? A.kit.filter((a) => a.part !== 'cranium') : A.kit), ...W], ctx), ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
   else if (wantAdorn) plan.adorn = overChest(overPelvis(typeof adorn === 'string' ? rangerKit(ctx) : adorn, ctx), ctx);
   if (wantPaint) plan.paint = lowerPaint(paint, plan);
   let built = null;

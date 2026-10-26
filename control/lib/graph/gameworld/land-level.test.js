@@ -72,24 +72,25 @@ describe('the land in the level', () => {
     expect(at({ strata: { variant: 'tilted' } })).toEqual(at({ strata: { variant: 'tilted' } }));
   });
 
-  it('a form the stage cannot draw is a named gap, and lowers nothing; falls among them', () => {
+  it('a form the stage cannot draw is a named gap, and lowers nothing', () => {
     const at = (land, o) => landToLevel('isekai-meadow', land, { seed: 7, painted: true, ...o });
     // one variant a form names that no stage draws, picked from the catalog: the first with no lever
-    const LEVER = { landscape: () => true, rock: (v) => v === 'boulders', strata: (v) => ['layered', 'tilted'].includes(v), face: (v) => !!FACE_PATTERN[v], cloud: (v) => !!CLOUD_SKY[v], landmark: (v) => v === 'monolith' };
+    const LEVER = { landscape: () => true, rock: (v) => v === 'boulders', strata: (v) => ['layered', 'tilted'].includes(v), face: (v) => !!FACE_PATTERN[v], cloud: (v) => !!CLOUD_SKY[v], landmark: (v) => v === 'monolith' || v === 'falls' };
     for (const f of LAND_FORM_IDS.filter((x) => x !== 'landscape')) {
       const v = Object.keys(LAND_FORMS[f].variants).find((x) => !LEVER[f](x)), R = at({ [f]: { variant: v } });
       expect(R.forms[f].gaps.join(' ')).toMatch(new RegExp(`^${v}: not drawn`));
     }
+    // (falls draw since 1026: water off the trail's far cliff, era/out-water.js)
     const falls = at({ landmark: { variant: 'falls' } });
-    expect(falls.trail).toBeUndefined();
-    expect(falls.forms.landmark.gaps[0]).toMatch(/no water falls from a cliff.*stream/);
+    expect(falls.trail).toEqual({ ground: { water: { falls: true } } });
+    expect(falls.forms.landmark).toMatchObject({ on: ['trail'], gaps: [] });
     // a sky no cube paints is the kit's own; a trail's ground is not stepped
     expect(at({ cloud: { variant: 'stratus' } }, { painted: false }).forms.cloud.gaps).toEqual(['no geocube paints this level: its sky is the kit\'s own']);
     expect(at({ landscape: { variant: 'terraced' } }).forms.landscape.gaps[0]).toMatch(/not stepped into terraces/);
     // a walk with no trail draws only its plain and its sky
     expect(at({ rock: { many: 1 } }, { sections: ['meru'] }).forms.rock.gaps).toContain('the walk has no trail to draw it on');
     // the readout's advice: one line a gap, naming its levels
-    expect(landAdvice(W({ style: { land: { landmark: { variant: 'falls' } } } }))).toEqual([expect.stringMatching(/^land\.landmark on a, b: falls: not drawn/)]);
+    expect(landAdvice(W({ style: { land: { landmark: { variant: 'arch' } } } }))).toEqual([expect.stringMatching(/^land\.landmark on a, b: arch: not drawn/)]);
   });
 
   it('a level\'s land wins over the world\'s; a section\'s own settings over the land', () => {
@@ -119,7 +120,12 @@ describe('the land in the level', () => {
       for (const { d } of changed) expect(d.every((p) => key.test(p)), `${f}: ${d}`).toBe(true);
     }
     // a gap re-makes nothing
-    expect(JSON.stringify(gameStages(W({ a: { land: { landmark: { variant: 'falls' } } } })))).toBe(JSON.stringify(base));
+    expect(JSON.stringify(gameStages(W({ a: { land: { landmark: { variant: 'arch' } } } })))).toBe(JSON.stringify(base));
+    // the falls re-make only the level's trails and their water (a climb has no far cliff: it changes only in the trail
+    // it follows, its `after`)
+    const F = gameStages(W({ a: { land: { landmark: { variant: 'falls' } } } })).map((s, i) => ({ s, d: diff(base[i].manifest, s.manifest) })).filter((x) => x.d.length);
+    expect(F.map(({ s }) => `${s.level}.${s.node}`)).toEqual(['a.t', 'a.u', 'a.top']);
+    for (const { d } of F) expect(d.every((p) => /\.ground\.water\.falls$/.test(p)), `${d}`).toBe(true);
   });
 
   it('the stages draw what they are handed: a trail\'s rocks and its cliff\'s beds and joints, a level\'s clouds', () => {
