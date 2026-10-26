@@ -831,6 +831,14 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
   recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
 - **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
+- **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
+  geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
+  colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
+  metres, never its fill; the sand at the water's line wet (darker, glossy), the shallows' floor lost by depth into deep
+  water's colour. One sun at the cube's hour, the sky's light, the shadow map drawn once per placing of the sun; the page
+  adds a shore camera on the wet line. `window.measure()` is the machine gate: cliff faces turned to the hour's sun read
+  brighter than those turned away and swap when the sun is turned, where gen-6 reads the same under every sun; wet sand
+  darker than dry, and what its gloss adds under a low sun. The eyes gate is the operator's.
 - **Gen-7 no longer means live light over paint.** The live light's gen-7 defaults (actor shadows, the hour's shadow map,
   occlusion) are now the light a form render's surfaces are drawn under while it draws them as paint; their reason in
   `liveLightDefaults`'s `from` reads `form`. A hero's level keeps its actor shadows, and any gen-6 recipe can still ask
