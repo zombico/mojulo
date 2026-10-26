@@ -2,7 +2,7 @@
 // parses, no name declared twice); one without adds nothing. The athletes' list read, and the team's kit the page's own.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { readAthletes, athleteBodies } from './athletes.js';
+import { readAthletes, athleteBodies, atStature, ATHLETE_STATURE, ATHLETE_HALF_WIDTH } from './athletes.js';
 import { graphSource } from './match-arena.js';
 import { contestSource } from './meet-arena.js';
 import { SIDE_KITS, teamArenaData } from './team-arena.js';
@@ -28,6 +28,20 @@ describe('the athletes on a sport\'s page', () => {
     expect(() => readAthletes([], 2, fail)).toThrow(/athletes is a list of 1 to 2/);
     expect(() => readAthletes(['a', 'b', 'c'], 2, fail)).toThrow(/1 to 2 characters' refs/);
     expect(() => readAthletes(['a b'], 2, fail)).toThrow(/athletes\[0\]/);
+  });
+
+  it('draws a body smaller than a player at a player\'s stature, whole about its feet; a round one no wider than a broad player; a grown one as it is', () => {
+    const f32 = (a) => Buffer.from(new Float32Array(a).buffer).toString('base64'), back = (s) => [...new Float32Array(Uint8Array.from(Buffer.from(s, 'base64')).buffer)];
+    const body = (h, w) => ({ bones: [{ id: 'pelvis', head: [0, 0, h * 0.4], tail: [0, 0, h * 0.5] }, { id: 'head', head: [0, 0, h * 0.7], tail: [0, 0, h] }], parts: [{ pos: f32([w, 0, 0, -w, 0, h, 0, 0, h * 0.5]), col: 'x' }, null] });
+    const small = atStature(body(0.75, 0.1));
+    expect(small.stature).toEqual({ own: 0.75, drawn: ATHLETE_STATURE });
+    expect(small.bones[1].tail[2]).toBeCloseTo(ATHLETE_STATURE, 3); expect(back(small.parts[0].pos)[3]).toBeCloseTo(-0.2, 4);
+    expect(small.parts[1]).toBeNull();
+    const round = atStature(body(0.5, 0.4));
+    expect(Math.max(...back(round.parts[0].pos).filter((_, i) => i % 3 === 0).map(Math.abs))).toBeCloseTo(ATHLETE_HALF_WIDTH, 4);
+    expect(round.stature.drawn).toBeLessThan(ATHLETE_STATURE);
+    const grown = body(1.8, 0.25);
+    expect(atStature(grown)).toBe(grown);
   });
 
   it('packs no body when no athlete names a character', async () => {

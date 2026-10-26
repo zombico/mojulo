@@ -3,7 +3,7 @@
 // that plays it. A sport the book lacks is written out and read by the kernel.
 import { describe, it, expect } from 'vitest';
 import { quickWorld, readQuick, sportArenas, QUICK_GOALS } from './quick.js';
-import { runSteps } from './runner.js';
+import { runSteps, CHIBI_HEAD } from './runner.js';
 import { QUICK_GENRE, contestGenre, cubeOfWorld } from './intent.js';
 import { validateLevelContract } from '../game/level-contract.js';
 import { contestRead } from '../contest/contest-kernel.js';
@@ -137,6 +137,32 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     // tennis is played in whites: each player's own colour is the trim
     for (const a of A) expect(a.order.mint.spec.kit.colours.slice(0, 2)).toEqual(['#ffffff', '#ffffff']);
   });
+  it('rolls them as chibis or as mascots in the same kits; a list mixes mascots the run makes with people; refuses, teaching', () => {
+    // chibi: the rolled person on the chibi build under an anime head, the kit as rolled
+    const C = athletesOf(runSteps(quickWorld({ id: 'tiny', quick: { goal: 'contest', sport: 'tennis', athletes: 'chibi' } }), { ref: 'gw_c' }));
+    expect(C.length).toBe(2);
+    for (const a of C) {
+      expect(a.order.mint.spec).toMatchObject({ cast: { build: 'chibi' }, head: 'anime', headScale: CHIBI_HEAD, kit: { sport: 'tennis' } });
+      expect(['female', 'male']).toContain(a.order.mint.spec.cast.pole);
+    }
+    // mascots: each side's in the side's kit, minted through the creature door, the keeper in a kit of its own
+    const st = runSteps(quickWorld({ id: 'zoo', quick: { goal: 'contest', sport: 'soccer', athletes: 'mascot' } }), { ref: 'gw_z' });
+    const M = athletesOf(st);
+    expect(M.length).toBe(8);
+    for (const m of M) expect(m.order.mint).toMatchObject({ kind: 'layered', via: 'plan', spec: { plan: { mascot: { kit: { sport: expect.any(String) } } } } });
+    expect(M[0].order.mint.spec.plan.palette.Top).toBe(SIDE_KITS.a); expect(M[4].order.mint.spec.plan.palette.Top).toBe(SIDE_KITS.b);
+    expect(M[3].order.mint.spec.plan.mascot.kit.sport).toBe('keeper');
+    expect(new Set(M.map((m) => m.print)).size).toBe(8);
+    expect(st.at(-1).laws[0].says).toMatch(/mascots each/);
+    // a list: a mascot the run makes in its kit, beside a person
+    const L = athletesOf(runSteps(quickWorld({ id: 'mixed', quick: { goal: 'meet', event: 'sprint', lanes: 2, athletes: [{ mascot: { brief: 'a speedy fox' }, kit: 'track' }, { cast: 'female' }] } }), { ref: 'gw_m' }));
+    expect(L[0].order).toMatchObject({ mascot: { brief: 'a speedy fox' }, mint: { via: 'plan' } }); expect(L[1].order.mint.via).toBe('hero');
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: 'giant' })).toThrow(/'giant' is not a form the run rolls \(chibi, mascot\)/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: { colour: 'red' } }] })).toThrow(/\.mascot is true or \{ brief\?, facets\?, seed\? \}/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: true, cast: 'male' }] })).toThrow(/a mascot is \{ mascot/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: true, kit: 'cricket' }] })).toThrow(/'cricket' is not a sport's kit/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: 'mascot', kits: [{ colours: ['#112233'] }] })).not.toThrow();
+  });
   it('a team\'s sides are each a rank of faces in one kit, its shirt the side\'s colour, a keeper in a kit of its own', () => {
     const st = runSteps(quickWorld({ id: 'five', quick: { goal: 'contest', sport: 'soccer' } }), { ref: 'gw_5' });
     const A = athletesOf(st), refs = st.find((x) => x.key === 'level-arena-pitch').order.manifest.pitch.athletes;
@@ -171,9 +197,10 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     expect(st[2].laws).toBeUndefined();
   });
   it('refuses what is not an athlete; an arena refuses more athletes than slots', () => {
-    expect(() => readQuick({ goal: 'meet', athletes: 'four' })).toThrow(/athletes is false \(the stick figures\) or 1 to 12 athletes/);
+    expect(() => readQuick({ goal: 'meet', athletes: 'four' })).toThrow(/athletes is false \(the stick figures\), 'chibi' or 'mascot' \(the rolled athletes in that form\), or 1 to 12 athletes/);
+    expect(() => readQuick({ goal: 'meet', athletes: 4 })).toThrow(/athletes is false \(the stick figures\)/);
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ ref: 'a', cast: 'male' }] })).toThrow(/adopts a character made with create_character, by its sketch ref alone/);
-    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: ['a'] })).toThrow(/an athlete is \{ ref \} or a hero-door spec/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: ['a'] })).toThrow(/an athlete is \{ ref \}, \{ mascot, kit\? \} or a hero-door spec/);
     expect(() => readQuick({ goal: 'contest', sport: 'golf', athletes: false })).not.toThrow();
     expect(() => meetArenaData({ lanes: 2, athletes: ['a', 'b', 'c'] })).toThrow(/athletes is a list of 1 to 2 characters' refs/);
     expect(() => matchArenaData({ athletes: ['a b'] })).toThrow(/athletes\[0\]/);

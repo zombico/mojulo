@@ -10,8 +10,9 @@
  *   as 'hero'     → mint_solid kind 'layered' via 'hero'   (a cast word, a tune, face, hair, dress)
  *   as 'creature' → mint_solid kind 'layered' via 'plan' when spec.plan, else the layered recipe
  *   as 'animal'   → mint_solid kind 'animal'                (a species, or a bare archetype)
- *   as 'mascot'   → a mascot sheet rolled from spec { brief?, facets?, seed? } (egocube/mascot.js), its body compiled
- *                   to a ring plan (egocube/mascot-form.js), minted as a creature: the same call a mascot egocube makes
+ *   as 'mascot'   → a mascot sheet rolled from spec { brief?, facets?, seed?, kit? } (egocube/mascot.js), its body
+ *                   compiled to a ring plan (egocube/mascot-form.js), minted as a creature: the same call a mascot
+ *                   egocube makes; `kit` a sport's kit worn as far as its shape allows (sportswear/mascot-kit.js)
  *
  * Iteration: `update_character` (below), the same door the other way round: a character's own words merged into the
  * stored recipe, carried out by `update_sketch`'s patch path, so an edit through it equals the equivalent patch
@@ -27,6 +28,8 @@ import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions
 import { egocubeCreate, egocubePrint } from '@/lib/graph/egocube/kind.js';
 import { rollMascot } from '@/lib/graph/egocube/mascot.js';
 import { mascotPlanFromSheet } from '@/lib/graph/egocube/mascot-form.js';
+import { readKit } from '@/lib/graph/sportswear/kits.js';
+import { mascotKit } from '@/lib/graph/sportswear/mascot-kit.js';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_DOORS = {
@@ -37,19 +40,22 @@ export const CHARACTER_DOORS = {
 
 /** `as: 'mascot'` is a door of its own: a sheet rolled from the words, then the creature door (docs/mascot.md) */
 const AS_LIST = [...Object.keys(CHARACTER_DOORS), 'mascot'];
-const MASCOT_SPEC_KEYS = ['brief', 'facets', 'seed'];
+const MASCOT_SPEC_KEYS = ['brief', 'facets', 'seed', 'kit'];
 
 /** The dials a sheet's first reading turns after the mint (`after` ops on /dials/<name>), as a mint's `dials`. */
 const dialsAfter = (after) => Object.fromEntries((after || []).filter((op) => op.op === 'set' && /^\/dials\/[^/]+$/.test(op.path)).map((op) => [op.path.slice(7), op.value]));
 
 /** A MASCOT: rolled from its words (brief, facets, seed), compiled, minted through the creature door. */
 async function createMascot({ spec = {}, title, ref, folder_ref: folderRef }) {
-  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error("create_character: a mascot's spec is { brief?, facets?, seed? } (docs/mascot.md)");
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error("create_character: a mascot's spec is { brief?, facets?, seed?, kit? } (docs/mascot.md)");
   const unknown = Object.keys(spec).filter((k) => !MASCOT_SPEC_KEYS.includes(k));
   if (unknown.length) throw new Error(`create_character: a mascot's spec takes ${MASCOT_SPEC_KEYS.join(', ')} (not ${unknown.join(', ')}); its body is revised after, with update_character patch ops`);
-  const sheet = rollMascot(spec), P = mascotPlanFromSheet(sheet, { ...(title ? { title } : {}) });
-  const dials = dialsAfter(P.after);
-  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS.creature.route(P.create.spec), spec: { ...P.create.spec, ...(Object.keys(dials).length ? { dials } : {}) }, title: P.create.title, ref, folder_ref: folderRef }));
+  // (a sport's kit, sportswear/kits.js words, worn as far as the mascot's shape has the parts: sportswear/mascot-kit.js)
+  const { kit, ...words } = spec, kitErrs = readKit(kit);
+  if (kitErrs.length) throw new Error(`create_character: a mascot's ${kitErrs.join('; ')}`);
+  const sheet = rollMascot(words), P = mascotPlanFromSheet(sheet, { ...(title ? { title } : {}) });
+  const dials = dialsAfter(P.after), plan = kit === undefined ? P.create.spec.plan : mascotKit(P.create.spec.plan, kit);
+  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS.creature.route(P.create.spec), spec: { ...P.create.spec, plan, ...(Object.keys(dials).length ? { dials } : {}) }, title: P.create.title, ref, folder_ref: folderRef }));
   return { ...out, mascot: { thesis: P.thesis, facets: sheet.facets, given: sheet.given, reads: sheet.reads, ...(sheet.unread.words.length ? { unread: sheet.unread.words } : {}), ...(sheet.faults.length ? { faults: sheet.faults } : {}) } };
 }
 

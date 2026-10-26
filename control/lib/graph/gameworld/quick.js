@@ -84,13 +84,16 @@
  *     game?, human?, lift?: 'holo',        // tabletop: the board game (chess, checkers, one written out), the player you
  *                                           // are, and its depiction: lifted into a hologram arena (tabletop/holo-arena.js),
  *                                           // players 0..2 and level as a contest's
- *     athletes?: false | [<athlete>, …],   // meet, contest: who plays, each slot (a lane, a side's player, a seat) a
+ *     athletes?: false | 'chibi' | 'mascot' | [<athlete>, …],
+ *                                           // meet, contest: who plays, each slot (a lane, a side's player, a seat) a
  *                                           // CHARACTER in its own body on the arena's page (contest/athletes.js): { ref }
- *                                           // (one made with create_character) or a hero-door spec made by the run, cycled
- *                                           // over the slots; absent, rolled in the game's setting (cast-setting.js: its
- *                                           // tradition is how they are drawn) in the sport's kit (sportswear/kits.js), a
- *                                           // team's sides each a rank in its side's colour with a keeper in a kit of its
- *                                           // own; false, the arena's stick figures
+ *                                           // (one made with create_character), { mascot: true | { brief?, facets?,
+ *                                           // seed? }, kit? } (a mascot the run makes, sportswear/mascot-kit.js) or a
+ *                                           // hero-door spec made by the run, cycled over the slots; absent, rolled in the
+ *                                           // game's setting (cast-setting.js: its tradition is how they are drawn) in the
+ *                                           // sport's kit (sportswear/kits.js), a team's sides each a rank in its side's
+ *                                           // colour with a keeper in a kit of its own; 'chibi' or 'mascot', rolled so in
+ *                                           // that form; false, the arena's stick figures
  *     kits?: [<kit words>, …],              // meet, contest: the rolled athletes' kits ({ sport?, colours?, pattern?,
  *                                           // trim?, socks? }), cycled over the sides (a court, a pitch) or the athletes
  *     venue?: false | <preset> | { … },     // meet, contest, tabletop: the stadium round the arena (stadium/venue.js: a
@@ -544,19 +547,30 @@ export function sportSlots(Q) {
   const roles = Object.keys(teamArenaData(pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds'])).C.roles);
   return { n: 2 * roles.length, sides: 2, roles };
 }
-const ATHLETE_WORDS = 'false (the stick figures) or 1 to 12 athletes, each { ref } (a character made with create_character) or a hero-door spec the run makes; absent, rolled in the game\'s setting';
+const ATHLETE_WORDS = 'false (the stick figures), \'chibi\' or \'mascot\' (the rolled athletes in that form), or 1 to 12 athletes, each { ref } (a character made with create_character), { mascot: true | { brief?, facets?, seed? }, kit? } (a mascot the run makes, in the kit) or a hero-door spec the run makes; absent, rolled in the game\'s setting';
+/** The forms the rolled athletes may take beside a person's: a chibi (a super-deformed body: the hero door's chibi build
+ * under an anime head) or a mascot (egocube/mascot.js), each in the sport's kit as far as its shape allows. */
+export const ATHLETE_FORMS = Object.freeze(['chibi', 'mascot']);
+const MASCOT_WORDS = ['brief', 'facets', 'seed'];
 function readSportAthletes(Q) {
   if (Q.kits !== undefined) {
-    if (Q.athletes !== undefined) throw fail('.kits dress the athletes the run rolls; athletes given are dressed by their own words (a hero-door spec\'s kit)');
+    if (Q.athletes !== undefined && typeof Q.athletes !== 'string') throw fail('.kits dress the athletes the run rolls; athletes given are dressed by their own words (a hero-door spec\'s kit, a mascot\'s kit)');
     if (!Array.isArray(Q.kits) || Q.kits.length < 1 || Q.kits.length > 8) throw fail('.kits is 1 to 8 kits, each a sport kit\'s words { sport?, colours?, pattern?, trim?, socks? } (sportswear/kits.js), cycled over the sides (a court, a pitch) or the athletes');
     Q.kits.forEach((k, i) => { const e = readKit(k); if (e.length) throw fail(`.kits[${i}]: ${e.join('; ').replace(/^kit/, 'kit')}`); });
   }
   const A = Q.athletes;
   if (A === undefined || A === false) return;
+  if (typeof A === 'string') { if (!ATHLETE_FORMS.includes(A)) throw fail(`.athletes '${A}' is not a form the run rolls (${ATHLETE_FORMS.join(', ')}); .athletes is ${ATHLETE_WORDS}`); return; }
   if (!Array.isArray(A) || A.length < 1 || A.length > 12) throw fail(`.athletes is ${ATHLETE_WORDS}`);
   A.forEach((e, i) => {
-    if (!isObj(e)) throw fail(`.athletes[${i}]: an athlete is { ref } or a hero-door spec (.athletes is ${ATHLETE_WORDS})`);
+    if (!isObj(e)) throw fail(`.athletes[${i}]: an athlete is { ref }, { mascot, kit? } or a hero-door spec (.athletes is ${ATHLETE_WORDS})`);
     if (e.ref !== undefined && (Object.keys(e).length !== 1 || !(typeof e.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(e.ref)))) throw fail(`.athletes[${i}] { ref } adopts a character made with create_character, by its sketch ref alone (its words are its own row's)`);
+    if (e.mascot !== undefined) {
+      const extra = Object.keys(e).filter((k) => k !== 'mascot' && k !== 'kit');
+      if (extra.length) throw fail(`.athletes[${i}] a mascot is { mascot: true | { ${MASCOT_WORDS.join('?, ')}? }, kit? } (not ${extra.join(', ')})`);
+      if (e.mascot !== true && !(isObj(e.mascot) && Object.keys(e.mascot).every((k) => MASCOT_WORDS.includes(k)))) throw fail(`.athletes[${i}].mascot is true or { ${MASCOT_WORDS.join('?, ')}? } (egocube/mascot.js)`);
+      const k = readKit(e.kit); if (k.length) throw fail(`.athletes[${i}].${k.join('; ')}`);
+    }
   });
 }
 

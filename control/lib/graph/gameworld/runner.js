@@ -47,6 +47,7 @@ import { beastLook } from './stage-figures.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
+import { mascotKit } from '../sportswear/mascot-kit.js';
 import { isMascotPlan, mascotPilot } from '../egocube/mascot-pilot.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { rollEgocube } from '../egocube/egocube.js';
@@ -380,32 +381,63 @@ const KEEPER_SHIRT = Object.freeze({ a: '#2fb34a', b: '#f2c14e' });
  * of up to CAST_POOL faces in one uniform, its shirt the side's colour, its keeper in a kit of its own. `quick.kits` (a
  * kit's words each, cycled over the sides or the athletes) over the card's. False: none (the arena's stick figures). → { refs: [ref] | null, steps, laws }
  */
+/** A chibi athlete: the rolled person's spec on the hero door's chibi build (child-coded: no bust), its head an anime
+ * head grown past the build's own, the super-deformed body of a sports cartoon; the kit as rolled. */
+export const CHIBI_HEAD = 1.6;
+function chibiSpec(spec) {
+  const pole = typeof spec.cast === 'string' && ['female', 'male'].includes(spec.cast) ? spec.cast : isObj(spec.cast) && spec.cast.pole ? spec.cast.pole : 'male';
+  const { expression: _e, hair, ...rest } = spec;
+  return { ...rest, ...(hair ? { hair } : {}), cast: { pole, build: 'chibi' }, head: 'anime', headScale: CHIBI_HEAD };
+}
+
 function sportAthletes(G, Q, ref) {
   if (Q.athletes === false) return { refs: null, steps: [], laws: [] };
-  const slots = sportSlots(Q), steps = [], name = G.name ?? G.id;
+  const slots = sportSlots(Q), steps = [], name = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
+  let thesis = null;
   const stepOf = (key, F) => {
     const mint = { kind: 'layered', via: 'hero', title: `${name} ${key}`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
     return { key, ref: childRef(ref, key), ready: true, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
   };
+  // a mascot athlete: rolled from its words in the game's setting, its kit worn as far as its shape allows
+  // (sportswear/mascot-kit.js), minted through the creature door as create_character { as: 'mascot' } mints one
+  const mascotStep = (key, words, kit, setting, path) => {
+    const P = mascotPlanFromSheet(rollMascot({ ...words, seed: words.seed ?? seed, ...(words.seed === undefined && path ? { path } : {}), setting }), { title: `${name} ${key}` });
+    const dials = Object.fromEntries((P.after || []).filter((op) => op.op === 'set' && /^\/dials\/[^/]+$/.test(op.path)).map((op) => [op.path.slice(7), op.value]));
+    const plan = kit ? mascotKit(P.create.spec.plan, kit) : P.create.spec.plan;
+    const mint = { kind: 'layered', via: 'plan', title: P.create.title, spec: { ...P.create.spec, plan, ...(Object.keys(dials).length ? { dials } : {}) } };
+    thesis ??= P.thesis;
+    return { key, ref: childRef(ref, key), ready: true, order: { mascot: words, mint, motion: null }, print: fingerprint({ mascot: mint.spec }) };
+  };
   const keyAt = (k) => (k ? `athlete-${k + 1}` : 'athlete');
   if (Array.isArray(Q.athletes)) {
     let made = 0;
+    const setting = Q.athletes.some((e) => e.mascot !== undefined) ? settingOfGame(G, Q) : null;
     const pool = Q.athletes.map((e) => {
       if (typeof e.ref === 'string') return e.ref;
-      const st = stepOf(keyAt(made++), { spec: e, ...(e.head === 'anime' ? { toon: { light: true } } : {}) });
+      const key = keyAt(made++);
+      const st = e.mascot !== undefined ? mascotStep(key, e.mascot === true ? {} : e.mascot, e.kit, setting, `quick/athlete/${made}`)
+        : stepOf(key, { spec: e, ...(e.head === 'anime' ? { toon: { light: true } } : {}) });
       steps.push(st);
       return st.ref;
     });
     return { refs: Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]), steps, laws: [] };
   }
-  const setting = settingOfGame(G, Q);
+  const setting = settingOfGame(G, Q), form = typeof Q.athletes === 'string' ? Q.athletes : null;
   let reads = null, pending = [];
   const roll = (k, opts) => {
+    if (form === 'mascot') {
+      // (a rank's members each a mascot of their own in the rank's kit; a person's kit words are the mascot's)
+      const st = mascotStep(keyAt(k), {}, opts.kit, setting, k ? `quick/athlete/${k + 1}` : 'quick/athlete');
+      reads ??= [thesis].filter(Boolean);
+      steps.push(st);
+      return { ref: st.ref, F: { spec: { kit: opts.kit } } };
+    }
     const F = quickFigure(G, Q, 'athlete', setting, { variant: k, ...opts });
     reads ??= F.sheet.reads; pending = [...pending, ...F.pending];
-    const st = stepOf(keyAt(k), F);
+    const G2 = form === 'chibi' ? { ...F, spec: chibiSpec(F.spec), toon: { light: true } } : F;
+    const st = stepOf(keyAt(k), G2);
     steps.push(st);
-    return { ref: st.ref, F };
+    return { ref: st.ref, F: G2 };
   };
   let refs, says;
   const sport = sportKitOf(Q), own = (i) => (Q.kits ? Q.kits[i % Q.kits.length] : {});
@@ -418,16 +450,16 @@ function sportAthletes(G, Q, ref) {
     let k = 0;
     ['a', 'b'].forEach((side, s) => {
       const kit = { sport, colours: [SIDE_KITS[side], SIDE_SECOND[side], SIDE_TRIM[side]], ...own(s) }, rank = [];
-      for (let i = 0; i < faces; i++) rank.push(roll(k++, { kit, ...(rank.length ? { uniform: rank[0].F.spec } : {}) }));
+      for (let i = 0; i < faces; i++) rank.push(roll(k++, { kit, ...(rank.length && form !== 'mascot' ? { uniform: rank[0].F.spec } : {}) }));
       const keeper = keeperAt >= 0 ? roll(k++, { kit: { sport: sport === 'soccer' ? 'keeper' : sport, colours: [KEEPER_SHIRT[side], SIDE_TRIM[side], SIDE_SECOND[side]] } }).ref : null;
       for (let i = 0, f = 0; i < per; i++) refs.push(i === keeperAt ? keeper : rank[f++ % rank.length].ref);
     });
-    says = `two sides of ${faces} faces each, one ${sport} kit a side in its colour${keeperAt >= 0 ? ', a keeper each in a kit of its own' : ''}`;
+    says = `two sides of ${faces} ${form === 'mascot' ? 'mascots' : form === 'chibi' ? 'chibi faces' : 'faces'} each, one ${sport} kit a side in its colour${keeperAt >= 0 ? ', a keeper each in a kit of its own' : ''}`;
   } else {
     // one each, the sport's kit in their own colour (or the kits' words, a court's two players one a side)
     const pool = Array.from({ length: Math.min(ATHLETE_POOL, slots.n) }, (_, k) => roll(k, { kit: { sport, ...own(k) } }).ref);
     refs = Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]);
-    says = `${pool.length} ${pool.length === 1 ? 'athlete' : 'athletes'} in ${sport} kit${slots.n > pool.length ? ` over ${slots.n} ${Q.goal === 'meet' ? 'lanes' : 'seats'}` : ''}`;
+    says = `${pool.length} ${form ? `${form} ` : ''}${pool.length === 1 ? 'athlete' : 'athletes'} in ${sport} kit${slots.n > pool.length ? ` over ${slots.n} ${Q.goal === 'meet' ? 'lanes' : 'seats'}` : ''}`;
   }
   const laws = [{ concern: 'cast', law: 'setting', holds: !pending.length,
     says: `the athletes rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${says}${reads ? `; ${reads.slice(0, 2).join('; ')}` : ''}${pending.length ? ` (${[...new Set(pending)].join('; ')})` : ''}` }];

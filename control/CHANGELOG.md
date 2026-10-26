@@ -351,6 +351,25 @@ and a ball card's on the ball. Planned, in order:
     mosaic flickering), an athletics stadium's field events laid in the infield, sound. The eyes gate is open: the
     frames looked at were machine screenshots of each preset from inside and outside, and of a court, a pitch, a
     rink, a meet and a holo duel in their venues.
+- **Chibi and mascot athletes**, built: a sport's players may be super-deformed chibis or cartoon mascots, each
+  dressed in the sport's kit as far as its shape allows.
+  - **A mascot's kit** (`sportswear/mascot-kit.js`): the hero door's kit words lowered onto a mascot's own parts as
+    paint, as the hero's are on the bare body (the shirt the trunk's upper part and the upper arms, the shorts its lower
+    part and the thighs, the socks the shins, the gloves the hands, the patterns and the trims). An orb wears a band low
+    round its middle, clear of its face, and its shorts on its legs. A new kit replaces the old; none takes it off, the
+    colours it covered restored. `create_character { as: 'mascot', spec: { kit } }`.
+  - **The quick sports** take `athletes: 'chibi'` (each rolled person on the hero door's chibi build under an anime
+    head grown to 1.6) or `athletes: 'mascot'` (each a mascot rolled in the game's setting, a side's in the side's kit, a
+    keeper in its own), and a list mixes `{ mascot, kit? }` with people and refs.
+  - **At a player's stature** (`contest/athletes.js` `atStature`): an athlete shorter than a grown player is drawn at
+    1.5 m, scaled whole about its feet (its proportions its own), and a round one only as wide as a broad player, so a
+    racquet meets the ball the sim swings at and an orb keeps to its lane. A grown body is drawn as it is.
+  - **Held:** a kit names only the parts the mascot has and its plan still expands; re-kitting equals kitting the bare
+    mascot and taking the kit off gives the mascot back; a small body grows to the stature, a round one to the width,
+    a grown one is untouched; the quick words roll and refuse as said.
+  - **Not built, said:** a mascot's own sport clips (it plays on the sim's stick, its own idle aside), numbers on a
+    mascot's back, a chibi's own swing timing. The eyes gate is open: the frames looked at were machine screenshots of
+    kitted mascots and chibis standing, and of a court, a pitch, a rink and a meet played by them.
 
 ### TV animator: the broadcast package over the contest pages
 
