@@ -14,6 +14,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Gen 7: form, not light
+
+The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,
+the era a choice of the read and the export as the engine is. Gen-7 is the form render (a surface carries its material
+and its form, never light, and the renderer lights it); gen-6 is paint (the light held in the colour).
+
+- **The era is the read's.** `resolveWorldScene(sketch, { era })`, the World page's `?era=gen-7` and
+  `export_game { era }` read a world in another era than its cube's, the recipe untouched (its bytes never depend on the
+  era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
+  recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
+- **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
+- **Gen-7 no longer means live light over paint.** The live light's gen-7 defaults (actor shadows, the hour's shadow map,
+  occlusion) are now the light a form render's surfaces are drawn under while it draws them as paint; their reason in
+  `liveLightDefaults`'s `from` reads `form`. A hero's level keeps its actor shadows, and any gen-6 recipe can still ask
+  for the live light with `shadows` and `occlusion`.
+- **The era marks** (`era/era-marks.js`): what each era gives every World page input, in the engine marks' words. Gen-6
+  draws every input as built; gen-7 marks each surface input (the faces' vertex light, painted tiles, ramps, live grass,
+  the rock fabric, baked occlusion, the live light itself) `approximated`, drawn as paint, and every other input
+  neutral. `eraReading(payload, era)` lists what a payload's era drew short of built, and `export_game { era }` answers
+  with it (`era_marks`). A guard holds the marks to the page's own inputs: a new input is classified before it passes.
+
 ### Geocube scenes: a place to walk, not a game, on the geocube
 
 A request that asks only for a place (its look, its land, what grows, the sky, the hour) and nothing of a hero, rules,

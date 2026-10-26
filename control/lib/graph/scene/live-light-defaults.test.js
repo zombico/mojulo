@@ -2,7 +2,8 @@
  * The live light on by default where it pays (scene/live-light.js liveLightDefaults). Claims under test:
  *   · a hero's level takes the actors' shadows unless its recipe says otherwise; a world that is neither a hero's
  *     level nor gen-7, and asks nothing, keeps its recipe's own values (the same objects) and no tier: its page as it was;
- *   · a world whose geocube names the seventh generation takes actors, the hour's map and occlusion, each overridable;
+ *   · a world read in the form render (gen-7: its cube's era, or the read's) takes actors, the hour's map and occlusion,
+ *     each overridable; the era is the read's, the recipe untouched by it;
  *   · the tier, by the screen the game is made for: a phone half without the default occlusion, off none of it;
  *   · the page: the tier sizes the maps and the occlusion, and only a page with a tier carries the budget probe;
  *   · the hour map's receiver bias grows with the receiver's slope, capped;
@@ -58,8 +59,8 @@ describe('live light defaults: who takes what', () => {
     }
   });
   it('the seventh generation turns on the actors, the hour and occlusion, each the recipe\'s own where it names it', () => {
-    expect(liveLightDefaults({}, { era: 'gen-7' })).toEqual({ shadows: { actors: true, hour: true }, occlusion: true, tier: { tier: 'full', mapSize: 2048, ao: 1 }, from: { actors: 'gen-7', hour: 'gen-7', occlusion: 'gen-7' } });
-    expect(liveLightDefaults({ entities: [HERO] }, { era: 'gen-7' }).from).toEqual({ actors: 'hero', hour: 'gen-7', occlusion: 'gen-7' });
+    expect(liveLightDefaults({}, { era: 'gen-7' })).toEqual({ shadows: { actors: true, hour: true }, occlusion: true, tier: { tier: 'full', mapSize: 2048, ao: 1 }, from: { actors: 'form', hour: 'form', occlusion: 'form' } });
+    expect(liveLightDefaults({ entities: [HERO] }, { era: 'gen-7' }).from).toEqual({ actors: 'hero', hour: 'form', occlusion: 'form' });
     expect(liveLightDefaults({ shadows: { hour: false } }, { era: 'gen-7' }).shadows).toEqual({ hour: false, actors: true });
     expect(liveLightDefaults({ occlusion: false }, { era: 'gen-7' }).occlusion).toBe(false);
     expect(liveLightDefaults({ occlusion: { strength: 0.3 } }, { era: 'gen-7' }).occlusion).toEqual({ strength: 0.3 });
@@ -176,6 +177,18 @@ describe('live light defaults: a world resolved', () => {
     const phone = (await resolveWorldScene(sk({ from: 'gothic-night', era: 'gen-7' }, { screen: 'phone' }))).payload;
     expect(phone.lightTier).toEqual({ tier: 'half', mapSize: 1024, ao: 0.5 });
     expect(phone.occlusion).toBeUndefined();
+  }, 60000);
+  it('the era is the read\'s: the same recipe in the other era, the recipe untouched; an unknown era teaches', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const manifest = { kind: 'stage', geocube: 'gothic-night' }, before = structuredClone(manifest);
+    const g7 = (await resolveWorldScene({ manifest, title: 't' }, { era: 'gen-7' })).payload;
+    expect(g7.shadows).toEqual({ actors: true, hour: true });
+    expect(g7.occlusion).toEqual({ ...OCCLUSION_DEFAULTS });
+    expect(manifest).toEqual(before);
+    const back = (await resolveWorldScene({ manifest: { kind: 'stage', geocube: { from: 'gothic-night', era: 'gen-7' } }, title: 't' }, { era: 'gen-6' })).payload;
+    expect(back.shadows).toBeUndefined();
+    expect(back.occlusion).toBeUndefined();
+    await expect(resolveWorldScene({ manifest, title: 't' }, { era: 'gen-8' })).rejects.toThrow(/not an era \(gen-6, gen-7\)/);
   }, 60000);
 });
 

@@ -51,7 +51,7 @@ const WORLD_CACHE_BUDGET = (Number(process.env.MOJULO_WORLD_CACHE_MB) > 0
 // release and browsers should drop the pages they hold; a release bump does it on its own.
 const WORLD_CACHE_VERSION = 'v1';
 // `stream` (world streaming, fractal-city): a streamed page and the whole page are different bakes.
-const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream'];
+const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream', 'era'];
 
 function worldCacheKey(ref, manifest, search) {
   const deps = worldDeps(manifest);
@@ -313,6 +313,8 @@ export async function GET(request, { params }) {
     const render = request.nextUrl.searchParams.get('render') || undefined;
     // ?livery=<shelf name> repaints a z-series assembler unit onto another livery (hangar swatches).
     const livery = request.nextUrl.searchParams.get('livery') || undefined;
+    // ?era=gen-7 reads the world in another era than its cube's (era/eras.js: an era is a render, the recipe untouched)
+    const era = request.nextUrl.searchParams.get('era') || undefined;
     // ?stream=1 on a fractal city that can stream: the horizon page (city-tiles.js) — nothing at
     // full fidelity is inlined; the page fetches it from the tile route. walk / xr ride the manifest
     // exactly as resolveWorldScene carries them.
@@ -326,7 +328,7 @@ export async function GET(request, { params }) {
       if (sketch.manifest.walk) payload.walk = sketch.manifest.walk;
       if (sketch.manifest.xr) payload.xr = sketch.manifest.xr;
     } else {
-      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery, live: true }));
+      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery, live: true, ...(era ? { era } : {}) }));
     }
 
     if (!payload) {

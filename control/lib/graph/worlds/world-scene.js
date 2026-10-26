@@ -50,6 +50,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf }
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
+import { readEra } from '@/lib/graph/era/eras';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle, titleThemeFor } from '@/lib/graph/game/hud-widgets';
 import { hasTitleWords, localizeHudRows, readTitleLocale } from '@/lib/graph/game/title-words';
@@ -271,8 +272,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // own where it says; all of it under the tier (`light.tier`, auto by the `screen`). Read before the bake, which
   // writes the sun's share for it. The unshaded export bakes no sun and takes none of it. Neither a hero's level nor
   // gen-7 nor an ask: the recipe's own values, and every byte as it was
+  // THE ERA IS THE READ'S (era/eras.js: an era is a render of the same recipe, as the engine is): `era` on the read or
+  // the export, the cube's own by default, the recipe never written by it. Absent ⇒ the cube's, every byte as it was
+  const era = viewOpts.era !== undefined ? readEra(viewOpts.era) : geocubeEraOf(sketch.manifest);
   const liveL = unshaded ? null : liveLightDefaults(sketch.manifest, {
-    era: geocubeEraOf(sketch.manifest), screen: sketch.manifest.screen != null ? readScreen(sketch.manifest.screen) : null });
+    era, screen: sketch.manifest.screen != null ? readScreen(sketch.manifest.screen) : null });
   const ctx = {
     title: sketch.title || sketch.manifest.title || desc.title,
     time,
@@ -349,7 +353,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
         ({ faces, textures } = readBoundMeshScene(bound.path, {}));
       } else {
-        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded });
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}) });
         faces = inner.payload?.faces || [];
         textures = inner.payload?.textures || {};
       }
@@ -377,7 +381,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const key = `${rec.ref ?? (rec.hero ? `hero:${JSON.stringify(rec.hero)}` : `form:${rec.form}:${rec.material ?? ''}`)}|${rec.dir}`;
       if (!baked.has(key) && rec.form) {   // a library form (statue/forms.js): no store
         const { statueFormManifest } = await import('@/lib/graph/statue/forms.js');
-        const inner = await resolveWorldScene({ ref: `form-${rec.form}`, title: rec.form, manifest: statueFormManifest(rec.form, { material: rec.material }) }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        const inner = await resolveWorldScene({ ref: `form-${rec.form}`, title: rec.form, manifest: statueFormManifest(rec.form, { material: rec.material }) }, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}), ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
         if (rec.equestrian) throw new Error(`statue on '${rec.at}': an equestrian slot takes a mounted statue, not the ${rec.form}`);
         baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
       }
@@ -386,7 +390,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero, { staleScale: true }) });
         const mounted = statueWords(manifest.hero.statue).stand === 'mounted';
         if (!!rec.equestrian !== mounted) throw new Error(`statue on '${rec.at}': ${rec.equestrian ? 'an equestrian slot takes a mounted statue (statue.stand \'mounted\')' : 'a mounted statue stands on an equestrian slot'}`);
-        const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}), ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
         baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
       }
       if (!baked.has(key)) {
@@ -397,7 +401,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const mounted = src.manifest?.hero?.statue ? statueWords(src.manifest.hero.statue).stand === 'mounted' : false;
         if (rec.equestrian && !mounted) throw new Error(`statue on '${rec.at}': an equestrian slot (a rider on a horse) takes a mounted statue — carve ref '${rec.ref}' with /hero/statue/stand 'mounted', or stand it on a standing slot`);
         if (!rec.equestrian && mounted) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is mounted (horse and rider); stand it on an equestrian slot`);
-        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}), ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
         baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
       }
       payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...fitStatueFaces(baked.get(key), rec, { s: 1 / unit, group: `statue:${rec.at}:${rec.figure}` })];
@@ -672,6 +676,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
+  // (a read in another era than its cube's says so where the cube's look is read back)
+  if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word

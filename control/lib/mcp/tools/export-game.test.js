@@ -36,6 +36,11 @@ describe('export_game — input gates', () => {
     SketchRepository.create({ title: 'a diagram', manifest: { kind: 'flow', nodes: [] }, ref: 'sk_eg_diagram' });
     await expect(exportGameHandler({ ref: 'sk_eg_diagram' })).rejects.toThrow(/not a game[\s\S]*export_model/);
   });
+
+  it('an era is the pages\': an unknown one teaches, an engine pack refuses one', async () => {
+    await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-9' })).rejects.toThrow(/not an era \(gen-6, gen-7\)/);
+    await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-7', target: 'godot' })).rejects.toThrow(/era is read by the web and desktop pages; a godot pack/);
+  });
 });
 
 describe('export_game — pixelizer branch', () => {
@@ -125,6 +130,21 @@ describe('export_game — world/level games', () => {
     expect(muse.handoff.next).toMatch(/so the folder sk_eg_duo would not surface there/);
     expect(muse.handoff.caveats).toEqual([expect.stringMatching(/cannot carry a folder, and no courier page carries it: .*hand over its recipe \(recipe\/ in the folder re-mints it/)]);
     expect(muse.handoff.caveats.join()).not.toMatch(/recipe\.json|bundle/);
+  });
+
+  it('the same game in another era: its pages drawn in it, the surfaces drawn as paint named, the recipes as they were', async () => {
+    const g7 = await exportGameHandler({ ref: 'sk_eg_duo', era: 'gen-7' });
+    expect(g7.era).toBe('gen-7');
+    expect(Object.keys(g7.era_marks.approximated)).toEqual(expect.arrayContaining(['faces', 'shadows']));
+    expect(g7.era_marks.approximated.faces).toMatch(/drawn as paint/);
+    // the level's page takes the form render's light: the hour's map beside the hero's actor shadows
+    const level = readFileSync(path.join(g7.dir, 'levels/sk_eg_lv_a.html'), 'utf8');
+    expect(level).toMatch(/"hour":true/);
+    expect(JSON.parse(readFileSync(path.join(g7.dir, 'recipe/sk_eg_lv_a.json'), 'utf8'))).toEqual(SketchRepository.getByRef('sk_eg_lv_a').manifest);
+    // the game's own era, asked nothing: no era in the answer
+    const g6 = await exportGameHandler({ ref: 'sk_eg_duo' });
+    expect(g6.era).toBeUndefined();
+    expect(g6.era_marks).toBeUndefined();
   });
 
   it('surfaces resolveGame teaching errors for a game pointing at a missing level', async () => {

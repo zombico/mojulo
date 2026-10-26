@@ -1,14 +1,15 @@
 /**
  * LIVE LIGHT: the settings and the math of the World page's live light. What does not move stays baked; what moves
- * gets live light (live-light.plan.md). Pure: the readers, and the JS mirrors of the shaders the page compiles
+ * gets live light. Pure: the readers, and the JS mirrors of the shaders the page compiles
  * (channels/cast-shadows.js, channels/creases.js), so the math is pinned on stubs without a browser.
  *
  * THE SUN DOES NOT MOVE, live or within a level (the operator's principle, era/geocube-hours.js). A level is lit at one
  * hour: its light baked, its static shadow map drawn once at load. Never wire a clock, a day cycle or a moving sun here.
  *
  * ON BY DEFAULT where it pays (liveLightDefaults, read by world-scene before the bake): a hero's level, and a battle
- * watched with no pilot (its fighters), take the actors' shadows; a world whose geocube names the seventh generation takes actors, the hour's map and occlusion; each the
- * recipe's own where it says, and all of it under the quality tier (`light.tier`, by the screen the game is made for).
+ * watched with no pilot (its fighters), take the actors' shadows; a world read in the form render (the seventh generation,
+ * era/eras.js: the read's `era` or its cube's) takes actors, the hour's map and occlusion, the light its surfaces are drawn
+ * under while the form render draws them as paint (era/era-marks.js names each); each the recipe's own where it says, and all of it under the quality tier (`light.tier`, by the screen the game is made for).
  *
  *   shadows.actors   only what moves casts into a shadow map drawn each frame; the static world receives. Where the
  *                    world bakes its sun, each vertex carries its share of light that comes straight from the sun
@@ -33,9 +34,10 @@
  *   LIGHT_TIERS, readLightTier(light)   `light.tier` → 'auto' | 'off' | 'half' | 'full', or throws
  *   TIER_TERMS, tierFor(tier, screen)   a tier (and the screen's pole for auto) → { tier, mapSize, ao, occlusion }
  *   liveLightDefaults(m, { era })   a world manifest → the shadows and occlusion its page takes (the recipe's own, the
- *                             hero's and the era's defaults filled where it says nothing) and the tier they cost at
+ *                             hero's and the form render's defaults filled where it says nothing) and the tier they cost at
  *   receiverBias(g, texel, bias, cap)   the hour map's depth bias for a receiver whose light-space depth slope is g
  */
+import { ERAS } from '../era/eras.js';
 
 /** the keys of a world's `shadows` that the page reads: the cast channel's and its tuning, the live modes */
 export const LIVE_SHADOW_KEYS = Object.freeze(['cast', 'actors', 'hour', 'alpha', 'span', 'lead', 'mapSize', 'toLight', 'noCastGroups', 'bias', 'fitMin']);
@@ -186,7 +188,7 @@ function shadowsSay(s) {
  * The live light a world's page takes: its recipe's own, and the defaults where the recipe says nothing.
  *   a hero's level (heroLevel)   shadows.actors
  *   a spectated battle           shadows.actors (its fighters)
- *   era 'gen-7' (its geocube's)  shadows.actors, shadows.hour, occlusion
+ *   a form render (gen-7)        shadows.actors, shadows.hour, occlusion (its surfaces, paint until form draws them)
  * A recipe says otherwise with `shadows: false`, `shadows: true` or a blob's tuning, `shadows.cast`, `actors: false` /
  * `hour: false`, `occlusion: false`; a stage's bake keys alone say nothing. The tier (`light.tier`, auto by the
  * `screen`, readScreen's) caps the cost: off drops the live light, its defaults and the recipe's asks alike.
@@ -194,7 +196,7 @@ function shadowsSay(s) {
  * `occlusion` are the recipe's own values (the same objects) where nothing is added; `from` names each default taken.
  */
 export function liveLightDefaults(m, { era = null, screen = null } = {}) {
-  const s = m.shadows, T = tierFor(readLightTier(m.light), screen), gen7 = era === 'gen-7', hero = heroLevel(m), watched = spectatedBattle(m);
+  const s = m.shadows, T = tierFor(readLightTier(m.light), screen), form = ERAS[era]?.surface === 'form', hero = heroLevel(m), watched = spectatedBattle(m);
   if (!T) {
     // off: no live light. The recipe's live keys come off its shadows (its bake keys and its blob stay); a shadows that
     // asked for live light alone is none
@@ -202,15 +204,15 @@ export function liveLightDefaults(m, { era = null, screen = null } = {}) {
     const rest = live ? Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'actors' && k !== 'hour')) : s;
     return { shadows: live && !Object.keys(rest).length ? undefined : rest, occlusion: undefined, tier: null, from: {} };
   }
-  const want = { actors: hero || watched || gen7, hour: gen7 }, say = shadowsSay(s), from = {};
+  const want = { actors: hero || watched || form, hour: form }, say = shadowsSay(s), from = {};
   let shadows = s;
   if (say !== 'said') {
     const add = {};
-    for (const k of ['actors', 'hour']) if (want[k] && (say === 'open' || s[k] === undefined)) { add[k] = true; from[k] = k === 'actors' && hero ? 'hero' : k === 'actors' && watched ? 'spectate' : 'gen-7'; }
+    for (const k of ['actors', 'hour']) if (want[k] && (say === 'open' || s[k] === undefined)) { add[k] = true; from[k] = k === 'actors' && hero ? 'hero' : k === 'actors' && watched ? 'spectate' : 'form'; }
     if (Object.keys(add).length) shadows = { ...(s || {}), ...add };
   }
   let occlusion = m.occlusion;
-  if (occlusion === undefined && gen7 && T.occlusion) { occlusion = true; from.occlusion = 'gen-7'; }
+  if (occlusion === undefined && form && T.occlusion) { occlusion = true; from.occlusion = 'form'; }
   const lit = !!readLiveShadows(shadows) || !!readOcclusion(occlusion);
   return { shadows, occlusion, tier: lit ? { tier: T.tier, mapSize: T.mapSize, ao: T.ao } : null, from };
 }
