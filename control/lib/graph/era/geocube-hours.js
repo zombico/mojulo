@@ -18,6 +18,10 @@
  * The air's thickness is the cube's (its reference's density by `outsideFog`): an hour moves colour, never haze. The
  * cube's colours are not re-solved: the land is the same paint under another light.
  *
+ * THE SUN DOES NOT MOVE, live or within a level (the operator's principle). A level is lit at one hour: its light baked,
+ * its static shadow map drawn once at load. An hour is a recipe's choice between levels, never a clock: do not animate
+ * the sun, wire a day cycle, or re-bake a level on a timer.
+ *
  *   HOUR_WORDS            the dial's words → hours
  *   readHour(v)           a number in [0, 24) or one of the words → the hour, or throws
  *   referenceHour(ref)    the hour a reference card is lit at
