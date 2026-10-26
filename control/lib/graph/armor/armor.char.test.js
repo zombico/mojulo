@@ -27,15 +27,18 @@ const PINS = {
   'shiro@0': '83bbe71e639ad0f6',
   'shiro@0.5': '7fa8bbe006ed6ace',
   'shiro@1': '83241c9ce3527620',
-  'grim-scifi@0': '383efe19c84adc4f',
-  'grim-scifi@0.5': '4931e24b2bfa2d6a',
-  'grim-scifi@1': 'f0ca194eb86a14a6',
-  'fantasy-space@0': 'd4f923bdde96fbc1',
-  'fantasy-space@0.5': '08b3bc4bee65c921',
-  'fantasy-space@1': 'e146bf0dbbecfc30',
+  // the hard-suits are armour laws 2's (principles.js: the fitted cut, hardsuit.js `cut`; grim-scifi and fantasy-space
+  // recomposed by their cards' `byLaws`, the heavy suit in cylinders and tanks, the trooper in few plates, each with a
+  // shell helm); laws 1's kits are LAWS_1 below
+  'grim-scifi@0': '35733a0a891bd504',
+  'grim-scifi@0.5': '21d7babca383c708',
+  'grim-scifi@1': 'de5d1b93bf8b1dc5',
+  'fantasy-space@0': 'c8a2299b1b4c5470',
+  'fantasy-space@0.5': 'd7a63fd9d6e98ed8',
+  'fantasy-space@1': '203c53444aef91db',
   'armored-hero@0': '196c4fc450ea2e25',
-  'armored-hero@0.5': 'b16bc5e35c62b1a2',
-  'armored-hero@1': '073d8df486b287c4',
+  'armored-hero@0.5': '75469bbce6ad5353',
+  'armored-hero@1': 'e5ffef415410f11e',
   // themed: a theme over the plate knight (themes/themes.js)
   'knight+death-knight@0.5': '7b7758cdab24668b',
   'knight+death-knight@1': '1846ed34a5b4663a',
@@ -43,10 +46,18 @@ const PINS = {
   'knight+radiant@1': '8287d365a5e96500',
 };
 
+// rows minted under armour laws 1 keep the yoke cut: the hard-suits' kits as they were pinned before laws 2
+const LAWS_1 = {
+  'grim-scifi@0.5': '4931e24b2bfa2d6a', 'grim-scifi@1': 'f0ca194eb86a14a6', 'fantasy-space@0.5': '08b3bc4bee65c921',
+  'fantasy-space@1': 'e146bf0dbbecfc30', 'armored-hero@0.5': 'b16bc5e35c62b1a2', 'armored-hero@1': '073d8df486b287c4',
+};
+
 const COVERAGES = [0, 0.5, 1];
 const hashOf = (style, coverage, theme) => createHash('sha1').update(JSON.stringify(expandArmor({ type: 'armor', style, dials: { coverage }, ...(theme ? { theme } : {}) }, { Ht: 4, Hl: 3, scale: 1 }).kit)).digest('hex').slice(0, 16);
 
 describe('armor kits (characterization)', () => {
+  for (const [k, pin] of Object.entries(LAWS_1)) { const [style, c] = k.split('@');
+    it(`${style} @ coverage ${c} under armour laws 1`, () => { expect(createHash('sha1').update(JSON.stringify(expandArmor({ type: 'armor', style, dials: { coverage: +c }, laws: 1 }, { Ht: 4, Hl: 3, scale: 1 }).kit)).digest('hex').slice(0, 16)).toBe(pin); }); }
   for (const style of Object.keys(SEEDED_ARMOR)) for (const c of COVERAGES) {
     it(`${style} @ coverage ${c}`, () => { expect(hashOf(style, c)).toBe(PINS[`${style}@${c}`]); });
   }

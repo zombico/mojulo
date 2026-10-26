@@ -13,6 +13,7 @@ import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
 import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
+import { tableBroadcastData, broadcastDomCss, broadcastDomClient } from '../broadcast/broadcast-dom.js';
 import { pieceBodies } from './tabletop-bodies.js';
 
 const VIEWPORT = { width: 760, height: 600 };
@@ -68,6 +69,7 @@ export function euroPageHtml(G, L, K, opts = {}) {
   L.corners.forEach((c) => stand.push([...c.at.map((x) => r2(x * UNIT)), 0]));
   L.edges.forEach((e) => { const [a, b] = e.ends.map((k) => L.corners[k].at); stand.push([...e.at.map((x) => r2(x * UNIT)), r2(Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI)]); });
   const data = {
+    tv: tableBroadcastData(G.players, opts.broadcast, ['#888888']),
     L: { ...L }, G, human, level, seed, view,
     plan: { W: r2(frame.W), H: r2(frame.H), places: planPlaces, r: r2(frame.px * L.cell * 0.17), cellPx: r2(frame.px * L.cell), icons },
     table: { cams, faces, places: tablePlaces, size: { cell: r2(sizes.cell * UNIT), corner: r2(sizes.corner * UNIT), edge: sizes.edge.map((x) => r2(x * UNIT)) }, bodies, stand },
@@ -86,7 +88,7 @@ export function euroPageHtml(G, L, K, opts = {}) {
   button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
   button:disabled{opacity:.4;cursor:default}
   button.on{border-color:var(--ink);font-weight:600}
-  #status{margin-left:auto;font-weight:600}
+  #status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   main{display:flex;flex-wrap:wrap;gap:16px;padding:16px;align-items:flex-start}
   #boards{flex:1 1 520px;min-width:0;display:flex;justify-content:center}
   #plan svg{max-width:100%;height:auto;display:block}
@@ -127,13 +129,14 @@ export function euroPageHtml(G, L, K, opts = {}) {
   .tr .st button{padding:0 7px}
   #dice{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   @media (max-width:600px){aside{flex-basis:100%}}
+${broadcastDomCss(data.tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
   <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
   <button id="again">New game</button>
-  <span id="status"></span>
+  <span id="status" aria-live="polite"></span>
 </header>
 <main>
   <div id="boards">
@@ -152,19 +155,20 @@ export function euroPageHtml(G, L, K, opts = {}) {
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-(${tabletopEuroClient.toString()})(DATA, T, M);
+const TV = (${broadcastDomClient.toString()})(DATA.tv);
+(${tabletopEuroClient.toString()})(DATA, T, M, TV);
 </script>
 </body></html>
 `;
 }
 
 /* The euro page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopEuroClient(D, T, M) {
+export function tabletopEuroClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], P = K.P, look = D.G.look || {};
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255); };
   const resColour = (r) => (look.resources && look.resources[r]) || '#999';
-  const colour = (s) => D.G.players[s].colour || '#888';
+  const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const sortOf = (p) => (p < P.nC ? 'cell' : p < P.nC + P.nK ? 'corner' : 'edge');
   const cardName = (c) => (D.G.cards && D.G.cards[c] && D.G.cards[c].name) || c;
   let S, legal, mode = null, busy = false, level = D.level, n = 0, log = [];
@@ -185,7 +189,8 @@ export function tabletopEuroClient(D, T, M) {
     return '<div class="' + cls + '"' + (extra || '') + ' style="width:' + wh[0] + 'px;height:' + wh[1] + 'px;' + (bg ? 'background:' + bg + ';' : '') + 'font-size:' + (wh[1] * 0.55) + 'px;transform:' + D.table.places[p] + '">' + (inner || '') + '</div>';
   };
 
-  function reset() { S = T.start(K); mode = null; busy = false; n = 0; log = []; step(); }
+  let rolled = null;
+  function reset() { TV.clear(); rolled = null; S = T.start(K); mode = null; busy = false; n = 0; log = []; step(); }
   function step() {
     legal = T.legal(K, S);
     render();
@@ -342,6 +347,9 @@ export function tabletopEuroClient(D, T, M) {
     }
     $('prompt').textContent = prompt;
     $('status').textContent = S.over ? prompt : 'Turn ' + (S.turn + 1);
+    // the dice: one roll a turn, called as the table hears it
+    if (S.roll && !S.over && rolled !== S.turn + ':' + S.roll) { rolled = S.turn + ':' + S.roll; TV.call({ text: 'Rolled ' + S.roll, sub: S.side === me ? 'You' : K.players[S.side].id, tone: 'neutral', hold: 0.7 }); }
+    TV.table({ players: K.players, me, scores: K.players.map((_, s) => T.score(K, S, s, s !== me)), live: T.actor(S), tab: S.over ? prompt : prompt + ' · turn ' + (S.turn + 1), over: S.over, again: reset });
     $('dice').textContent = S.roll ? 'rolled ' + S.roll : '';
     // the hand and the cards
     $('hand').innerHTML = K.res.map((r) => '<span class="chip"><i style="background:' + resColour(r) + '"></i>' + r + ' ' + S.hand[me][r] + '</span>').join('');

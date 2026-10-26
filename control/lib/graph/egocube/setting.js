@@ -64,6 +64,10 @@ export const GENRES = Object.freeze({
   // a skirmish commanded from above: a commander's cast, never a child
   conquer:    { weight: 0.2, mascot: { promise: { might: 2, pride: 3 } }, person: { role: { frontline: 2, ranged: 2 }, archetype: { ruler: 3, hero: 1.5, outlaw: 1.5 }, age: { adult: 1.5, seasoned: 2, ...combat } } },
   fly:        { weight: 0.4, mascot: { promise: { speed: 3, wonder: 2 } }, person: { archetype: { explorer: 3, hero: 2 }, role: { ranged: 2 } } },
+  // a sport's athletes (contest/athletes.js): people on the hero door in their prime, built to run and to strike, never a
+  // child; a meet's runners leaner, a contest's players any athletic build
+  meet:       { weight: 0, mascot: {}, person: { build: { lithe: 3, canonical: 2, heroic: 1.5, stout: 0.3, brute: 0.2 }, archetype: { hero: 2, explorer: 2, everyman: 1.5 }, age: { youth: 2, adult: 2, seasoned: 0.5, elder: 0.1, ...combat } } },
+  contest:    { weight: 0, mascot: {}, person: { build: { lithe: 2, canonical: 2, heroic: 2, stout: 0.6, brute: 0.6 }, archetype: { hero: 2, everyman: 2, explorer: 1.5, jester: 1.5 }, age: { youth: 2, adult: 2, seasoned: 0.8, elder: 0.2, ...combat } } },
   // an endless runner (worlds/controllable/runner.js): the genre's heroes are quick and cheeky, mascots first
   runner:     { weight: 0.85, mascot: { promise: { speed: 4, cheer: 2, mischief: 1.5 }, energy: { zippy: 2 } }, person: { archetype: { explorer: 2, jester: 2, outlaw: 1.5, hero: 1.5 }, age: { youth: 2, elder: 0.5 } } },
 });

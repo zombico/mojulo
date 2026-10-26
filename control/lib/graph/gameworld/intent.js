@@ -38,6 +38,7 @@ import { MARKED_ENGINES, engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { latentOf } from './resonance.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { resolveSport } from '../contest/sports.js';
 
 // the words a brief uses for each genre (lower case; a phrase is matched whole)
 const WORDS = Object.freeze({
@@ -76,6 +77,11 @@ const WORDS = Object.freeze({
   'driver-and-gunner': ['driver and gunner', 'one drives one shoots', 'turret', 'gunner'],
   'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
+  // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
+  'athletics-meet': ['athletics', 'athletic', 'olympic', 'olympics', 'track and field', 'sprint', 'sprinting', '100m', 'hurdles', 'long jump', 'high jump', 'javelin', 'shot put', 'decathlon', 'relay', 'meet'],
+  'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pong', 'pickleball', 'squash', 'rally', 'serve', 'net game', 'racket', 'racquet'],
+  'turn-sport': ['golf', 'mini golf', 'minigolf', 'putting', 'bowling', 'curling', 'darts', 'billiards', 'pool table', 'snooker', 'bocce', 'petanque'],
+  'team-goal-game': ['soccer', 'football', 'futsal', 'hockey', 'basketball', 'handball', 'lacrosse', 'rugby', 'water polo', 'dodgeball', 'sports game', 'sports', 'goalkeeper', 'offside', 'team sport'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));
 const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));
@@ -84,8 +90,12 @@ export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
-  fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner',
+  fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner', meet: 'athletics-meet', contest: 'net-game',
 });
+/** A contest's genre is its sport's shape: a net game, a turn sport, a team goal game (a sport it cannot read: the net game's). */
+export function contestGenre(sport) {
+  try { const sp = resolveSport(sport); return sp.shape === 'turns' ? 'turn-sport' : sp.shape === 'team' ? 'team-goal-game' : 'net-game'; } catch { return 'net-game'; }
+}
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const clone = (c) => Object.fromEntries(Object.entries(c ?? {}).map(([f, s]) => [f, { ...s }]));
@@ -118,10 +128,11 @@ export function readIntent(v) {
 const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
 
 /** The genre a quick goal is, or null: a race against rivals is a kart race (its cube a loop's), alone a time trial; a
- * shooter with a craft is a dogfight, a space craft's a space shooter, an atmosphere craft's air combat. */
+ * shooter with a craft is a dogfight, a space craft's a space shooter, an atmosphere craft's air combat; a contest is its
+ * sport's genre. */
 export function quickGenre(Q) {
   if (!Q) return null;
-  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : QUICK_GENRE[Q.goal]) ?? null;
+  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
 }
 
 export function cubeOfWorld(world) {

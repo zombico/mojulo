@@ -146,7 +146,7 @@ describe('tiles: the bag, the board, the computer', () => {
 
   it('the page carries the tile game and draws the same twice', () => {
     const html = tabletopPageHtml(tileGame());
-    expect(html).toContain('function tabletopTileClient(D, T, M)');
+    expect(html).toContain('function tabletopTileClient(D, T, M, TV)');
     expect(html.match(/<\/script>/g)).toHaveLength(1);
     expect(tabletopPageHtml(tileGame())).toBe(html);
   });

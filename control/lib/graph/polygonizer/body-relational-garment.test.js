@@ -62,5 +62,12 @@ describe('a field garment (the tee)', () => {
     const G = r.parts.trousers_thighR, P = r.parts.thighR, lift = [];
     for (const st of G.stations) { const S = P.stations.find((x) => x.id === st.id); for (const sl of P.slots) lift.push(Math.hypot(...[0, 1, 2].map((q) => st.points[sl][q] - S.points[sl][q]))); }
     expect([...lift].sort((x, y) => x - y)[Math.floor(lift.length / 2)]).toBeLessThan(0.012);
+    // each leg's cloth on its own side: the limb's field read reflected for a left piece, as it is for a right one, never
+    // by |x| (with the thighs together at rest a ray from an inner slot read by |x| ran on through the mirrored limb and
+    // landed on its far side, a spike of cloth across the midline); no point farther over it than the cloth's own ease
+    for (const [k, sign] of [['trousers_thighR', 1], ['trousers_thighL', -1], ['trousers_shankR', 1], ['trousers_shankL', -1]]) {
+      const over = r.parts[k].stations.flatMap((st) => Object.values(st.points)).filter((q) => sign * q[0] < -0.012);
+      expect(over, `${k}: ${over.length} points across the midline`).toEqual([]);
+    }
   }, 240_000);
 });

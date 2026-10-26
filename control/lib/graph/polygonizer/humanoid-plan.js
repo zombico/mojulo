@@ -74,7 +74,7 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
   // forearm upright); every other head keeps the form's wave. A hand with digits opens and turns its palm to the front
   if (anime) plan.clips.wave = plan.rig?.hands ? withWaveHand(JSON.parse(JSON.stringify(ANIME_WAVE)), WAVE_TWIST.anime) : JSON.parse(JSON.stringify(ANIME_WAVE));
-  dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child, anime } });
+  dressPlan(plan, { detail, adorn, paint, outfit, laws, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child, anime } });
   plan.frame.note = anime
     ? `1 unit = 1 m; humanoid ${castLabel(preset)} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
     : `1 unit = 1 m; humanoid ${castLabel(preset)} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;

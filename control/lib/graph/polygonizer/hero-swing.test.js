@@ -13,7 +13,9 @@ import { gearMounts, gearRestPoint } from './hero-gear.js';
 import { heroRecord, heroPlanOf, expandLayeredManifest, planLayered, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 
-const ITEM = { chop: 'sword', thrust: 'sword', rising: 'sword', cleave: 'greatsword', bash: 'shield', plant: 'staff' };
+// the contest's verbs swing the hand's gear whatever it is: until a racquet and a bat are gear items, a sword and a
+// greatsword stand in for the clip's gates (the arc is the arm's; the item sets the class)
+const ITEM = { chop: 'sword', thrust: 'sword', rising: 'sword', cleave: 'greatsword', bash: 'shield', plant: 'staff', forehand: 'sword', backhand: 'sword', bat: 'greatsword' };
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => Math.hypot(...a);

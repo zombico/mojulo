@@ -40,6 +40,7 @@ import { mintMathStructure } from '@/lib/mcp/tools/scene-math-structure';
 import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
 import { mintDungeon } from '@/lib/mcp/tools/scene-dungeon';
 import { mintTerrainWorld } from '@/lib/mcp/tools/terrain-world';
+import { mintStadium } from '@/lib/mcp/tools/stadium-world';
 import { mintCityPlan } from '@/lib/mcp/tools/city-plan';
 
 // Identity adapter: theme slots pass straight through as mint params. Each
@@ -63,6 +64,7 @@ const BASES = {
   school: { mint: mintSchoolComplex, adapt: identityAdapter },
   dungeon: { mint: mintDungeon, adapt: identityAdapter },
   terrain: { mint: mintTerrainWorld, adapt: identityAdapter },
+  stadium: { mint: mintStadium, adapt: identityAdapter },
 };
 
 // A city with a `plan` is the city on rails (city/plan/, kind 'city'): the plan is its whole recipe, so the theme's slots
@@ -355,7 +357,7 @@ export function registerComposeWorldTools() {
       properties: {
         base: {
           type: 'string',
-          enum: ['city', 'transport-hub', 'controllable', 'action', 'planetary', 'painted-landscape', 'math', 'school', 'dungeon', 'terrain'],
+          enum: ['city', 'transport-hub', 'controllable', 'action', 'planetary', 'painted-landscape', 'math', 'school', 'dungeon', 'terrain', 'stadium'],
           description: "Which geometry generator (the world's SHAPE). Read the base's view-vocab card for its overrides manual.",
         },
         theme: { type: 'string', description: "A theme pack id (the world's FLAVOR). See list_world_themes. Defaults to 'earth-temperate' (identity)." },

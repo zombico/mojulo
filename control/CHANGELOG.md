@@ -14,6 +14,795 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Superheroic pieces: belts, pouches and jackets as cards
+
+- The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
+  hex the buckle wears instead of the band's: a gold buckle on a leather belt), `buckleScale` (× the buckle's face, an
+  emblem buckle) and `width` (× the band's height and thickness, a power belt). `pouches` takes `at: 'waist'` (a UTILITY
+  BELT: the belt at the waist and `count` pouches, 2, 4 or 6, ringing it just under its line, hung on the pelvis's top by
+  shares) and `size`; the belt's dials pass through to its band. A new kind, `thighPouch`: a holster rig strapped round
+  the thigh, the pouch on its outer side (one on the intent's side, `pair` both, `size`). Absent, every dial contributes
+  nothing: a row without them is byte for byte what it was.
+- The comic hero pack's piece cards (`cosmos/packs/comic-hero/pieces.js`): belts (the emblem belt, the power belt, the
+  utility belt and the full one, the sash), pouches (the duty belt, the thigh rig and its pair, the chest rig, the
+  harness, the bandolier) and jackets (the bomber, the moto jacket, the duster, the armoured jacket, the hooded jacket, each
+  the language's `outer` in its own `Outer` colour), worn over a role suit by `withPieces` (a waist belt replaces the
+  suit's, never stacks) and by `memberOrders(id, look, { pieces })`; a word-list outfit (the Movie era's plating suits on
+  the realistic body) takes none and the call says so.
+
+### Headgear spike: masks, visors and helmets
+
+- The `cast` signature (`station-loft-adorn.js`): a mask CAST from the face, not built over the head's bounds. An
+  outline drawn in the eyes' frame (the cranium's eye row, between its inner and outer corner slots), wrapped round the
+  head on a cylinder, a grid over it cast inward onto the skin, its depth smoothed and never below the cast, lifted,
+  thickened and walled. `outline`: `domino` (almond eye holes, over the brows and the bridge, a notch above the nose,
+  points swept up at the temples), `band`, or a polygon with holes. The pack's tiered domino is now this cast.
+- The cast is the MASK BUILDER's primitive, every look words: the outline's dials (`CAST_DIALS`: bridge, cheek, brow,
+  notch or a widow's `peak`, the temples' `wing` and `wingRise`, a `fang` down each cheek, `round` curved or angular), the
+  `eyes` (almond, slit, angular or round; open holes, `lens` covers domed over the eyeball, or `none`), and relief (a
+  raised `rim`, a `ridge` down the middle, panel `seams` by word or line), each face coloured by its triangle so a lens
+  or a rim follows its shape. A plate is a second cast over the first. It reads the anime head's face and pupils too.
+- The pack's builder (`headgear.js` `maskKit({ outline, eyes, detail, plate })`, its words in `MASK_OUTLINES`,
+  `MASK_EYES`, `MASK_DETAIL`) and its variations: pointed, raptor, technical, tactical, hunter, lens, blank and goggle
+  masks. On the anime head the default eyes are opaque covers (its eyes are too large and too drawn to frame), and an
+  open-eyed mask wears covers in its eye shape unless the eyes say `anime: 'open'`.
+- The `cowl` signature: the cast over the whole head, out from its middle on a map laid round the crown, down to an edge
+  set by the head's own heights (`mouth: 'show'` a U under the nose round the mouth and the chin, `'cover'` to the chin
+  over the lips, `'none'` smooth over them: a mask with no mouth), the jaw at the sides and the nape behind; the eyes the
+  cast's, carried onto the map; the ears raised under it; `hair` the hero's hair flowing out of the back in its own
+  colour. The cast and the cowl share one head reader and one grid mesher.
+- The pack's `cowlKit({ hair: 'cover' | 'flow', mouth, domino, eyes, detail })`: the cowl with a domino laid over it by
+  default (a mask's words, or false), the two sharing one eye treatment so their holes meet; the hair hidden under it
+  either way (flowing, its length from the hero's own style); and its variations: the domino, flowing, lens, covered,
+  bare and technical cowls, the full mask and the faceless mask.
+- ORNAMENTS on the cowl, composed with the face as a whole: the eyes are its focus and the domino frames them, so every
+  ornament rides a FACE PATH that carries the domino's own line on over the head (`COWL_PATHS`: brow, echo, temple,
+  parietal, sagittal, cheek, jaw; `align` the domino's dials). Spikes (`bat`, its broad face to the front; `fin`; `cone`;
+  in a row by a profile) and lines (embroidery as stitches, a cord or a double cord). The pack's ornament words
+  (`COWL_ORNAMENTS`: bat ears, a bat crest along the sides, fins, a crown crest, brow, echo and cheek stitches, temple
+  cords, a crown stripe) and compositions (`COWL_DRESS`: gothic, nocturne, aviator, stitched, crowned, owl).
+- The cast's W: the outline's `arm` and `valley` dials raise the domino's points into arms with a dip before the brow, and
+  `sweep` carries the cast off the skin past the head from the temples, so the arms sweep out beyond its silhouette. The
+  owl's W and its variations: the owl, horned owl, barn owl, great owl and night owl cowls, the owl full mask and the owl
+  mask alone, each with its own colours.
+- The `mouthpiece` signature: the lower face's cast, the domino's counterpart, from under the eyes past the chin, its
+  edges set against the head's own heights (`nose`, `mouth`, `chin`, with an offset or a share: 'chin-0.2'), the cloth
+  HANGING straight down below the chin where the skin runs out; `taut` bridging the features (a cloth drawn over them),
+  `bulge` a cup over the mouth, `fold` crisp folded planes (a mecha's plate), a `mouth` cut (a slot, the oni's snarl) with
+  `teeth` and `fangs`, `vents` cut along a polyline, a dark MAW behind every cut, the oni's `wrinkles`, and `fittings`
+  (filters, grilles, ribbed tubes, valves, straps).
+- The pack's mouthpieces (`MOUTHPIECES`, `mouthpieceKit`): the ninja and wraith wraps, the bandanna, the oni mouth, the gas
+  and twin filters, the tube, slatted and mecha masks and the rebreather; and FACE SETS, a cowl with a mouthpiece laid over
+  it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior and the wastelander.
+- A mouthpiece takes a polygon outline (`outline.poly`, its heights words) and vents in any direction (each slot square to
+  its path). The PANELLED mouthpiece (`panelledKit`, `PANELLED.kombat`): the fighting ninja's three panels cast tight on the
+  face, a flat centre with horizontal vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
+  under them so the gaps read as panel lines; in four colourways (frost, venom, ember, jade).
+- EYEGEAR: everything worn over the eyes as one family on the cast, the dominoes its first kind. The cast gains eyegear
+  outlines (`goggles`: two rings and a bridge; `shield`: one wide lens with a nose notch; `visor`: a narrow band), one lens
+  filling the outline (`eyes.shape: 'shield'`), a flat `front` standing off the face (a headset's box), a `strap` cast round
+  the whole head, and `fittings`, now shared with the mouthpiece (`castFittings`), with earpieces, antennas, forward
+  scopes, small lenses and arms. The pack's `EYEGEAR` words and `eyegearKit`: ski, moto and lab goggles, night vision and
+  quad vision, a VR headset, a cyber visor (a glass band, a silver headband, earpieces, antennas, cables) and a spider visor
+  (a lens cluster held on arms from the earpieces); the domino mask cards are eyegear too.
+- The cast's `front` takes `curve` (a curved shield at one distance from the head's axis) and `shell` (the piece a sheet
+  standing off the face: a visor); the fittings' discs are flat-topped with a bevelled edge (no pointed centre), and an
+  earpiece or an antenna stands `out` past the cast, over the hair. The ski goggles are a riot-shield visor standing off
+  the face, the VR headset narrower, the cyber visor bolder; and two visors: the engineer's (a gold band wrapped temple to
+  temple, ridged across) and the optic visor (a dark band with one ruby lens strip across both eyes).
+- HELMETS on the cowl: `pad` (padding under a hard shell), `shell` (its surface bridged round and taut), a `window` (an
+  eyegear outline: the face opening, a visor by `eyes.treat`), `mouth: 'open'` (the whole face shown) and `fittings` on
+  the shell, with a `peak` (a brim). The pack's `HELMETS` and `helmetKit`: the biker's full-face helmet (a smoked visor, a
+  racing stripe), the motocross helmet (an open window, a peak), the jet helmet, the pilot helmet (a jet shell, a dark
+  shield visor standing off, an oxygen mask and its hose, composed from the eyegear and the mouthpiece), the tactical bump
+  helmet and the space helmet.
+- The peak fitting curves (`span`): a strip across the shell's front just over the window, each column standing off along
+  the shell's own outward line, sloping down and lipped up at its edge (it was a flat board standing high on the dome).
+  The motocross helmet is the base of a family built from its dials (`MOTO`: the peak, the window, the chin bar's vents,
+  a visor, a crest, stripes): the enduro, downhill, adventure, BMX, desert and raider helmets.
+- The cast takes a `shift` (its outline moved: goggles pushed up on the forehead, a visor's housing over the brow). The
+  JET PILOT family (`pilotKit`: an open-face shell, a visor housing, the visor down or up, earcups, an oxygen mask and its
+  hose, a boom mic, stripes): the fighter, top, test and helicopter pilots, the aviator's leather cap with goggles up,
+  and the display pilot. The ASTRONAUT family (`astroKit`: a great padded shell, its window a clear, gold or glowing
+  visor, a gold visor shell standing off over it, headlamps, valves, antennas, a crest): the moon, spacewalk, soft,
+  fishbowl and sci-fi space helmets. And sci-fi helmets on the full-face shell: the hunter's (a T visor, a rangefinder),
+  the trooper's (angled eye lenses, a mouth grille), the spartan's (a gold visor, a crest) and the synth's (a glowing strip).
+- The FACELESS helmet: the cowl's `blank` face is one smooth egg, fitted to enclose the whole face (brow, nose and lips)
+  and blended into the skull, so no feature shows through it. Heights on a blank face are read on the egg. Its shell takes
+  panel lines (`panels`, fine cords that stay crisp at any grid; `windowSeam` one round a faceplate). Painted eyes
+  (`eyes.treat: 'paint'`) are flat decals laid on the smoothed shell. `decals` (slots, dots, polys in the eyes' frame)
+  lay paint or, rimmed, cutaways: vents and slots. `facelessKit` composes five optional word libraries (`FACELESS`):
+  - panels: ribbed, plated, kabuto, split, brow band, cheek, jaw plate;
+  - adorn: fins, horns, a crest fin, crown spikes, a ridge, ear discs, antennae;
+  - details: one or two glowing eyes, a grille, hoses, filters, studs;
+  - cuts: a mouth slit, mouth, cheek and temple vents, eye slits, a mono slot, a brow slot;
+  - paint: fox, kabuki, tears, oni, stripes, kintsugi, a third eye, a blush, lips.
+
+  Cards built from it:
+  - segmented: the cyborg ninja, the vented ninja, the hunter, titan and warlock guardians, the ronin and the mono-eye;
+  - porcelain: the fox, kabuki, noh, oni and kintsugi masks.
+- Skulls, gladiators, peaked helms and T-visors on the same builder. The cowl gains:
+  - decal `layer`s, paint over paint, and a `decalLift` for a contoured hood;
+  - `dents`: the shell sculpted, sockets and hollows pressed in, a brow or a chin swelled out;
+  - a `crest` ornament along any path: a blade, or a horsehair plume, rounded and swelling;
+  - a `brim` fitting: a flange round the head, swept up over the face, or behind only as a neck guard;
+  - a `peak` on an open face's edge (a point over the nose), and `openCurve` (how long the edge holds over the eyes).
+
+  Fixes in the same work: height words in a cowl's stroke paths are resolved (they were dropped), a poly window is
+  resampled before it is carried onto the shell (its straight sides cut chords across the polar map: the hunter
+  helmet's T visor arched over the brow), and large decals are subdivided by their size. New words:
+  - `sculpt`: sockets, nasal, cheeks, temples, brow, chin;
+  - paint: skull, skullFace, skullJaw, sugar, cracks;
+  - cuts: grille, eyeHoles, chinVents, teeth;
+  - adorn: band, comb, griffin, plume, transversePlume, brim, neckGuard, templeFlares, rangefinder;
+  - panels: teardrop, sideBands.
+
+  Cards:
+  - skulls: bone skull, painted skull, skull balaclava, sugar skull, skull knight;
+  - gladiators: the fish, griffin and chaser gladiators, the hoplite and the legion helms;
+  - peaked helms: peaked, iron and crowned;
+  - T-visors: the T-visor helm, bronze, night and heavy.
+- Structured masks: the face in flat planes. Two new cowl dials:
+  - `facets`: planes given by azimuth and elevation, each fitted to just clear the face, the shell riding the solid they
+    bound; `nose` leaves the nose out of the fit, so it stands sculpted out of the plates;
+  - `front`: the shell over the face only, from a hairline down to the edge and back to the ears, worn over the hair.
+
+  A front mask's lines stop at its edge. `structuredKit` and `FACETS` (iron, respirator, skull) dress them with the
+  faceless builder's words, plus new ones:
+  - cuts: barredMouth, triGrille, chinVent, visorSlit, lensEyes;
+  - details: rivets, scopeEye, hinges;
+  - panels: tusks, plates.
+
+  Cards (the mask family):
+  - the iron and gilded tyrants;
+  - the dark and chrome-lined respirators;
+  - the clockwork skull and the whaler mask.
+- Ensembles: the body that answers a head. Three changes make a suit harmonize with the headgear:
+  - **Layering:** an armour build takes `with`, a kit worn over the suit, and a head piece in it (on the cranium) takes
+    the suit's helm's place. Before this, a headgear card on an armoured suit replaced the whole `adorn` and the
+    armour was lost.
+  - **The hardsuit's archetype words**, each absent the piece as before (the armour pins hold), documented in the door's
+    manual:
+    - `pauldron` `lames` | `none`, and `pauldronSide`;
+    - `chest` `plates` | `box` | `bands` | `none`;
+    - `arms` `manica` | `gadget` | `none`;
+    - `legs` `greaves` | `ocrea` | `none`;
+    - `skirt` `pteruges` | `tassets`;
+    - `pack` `jet`;
+    - `glow` `lines`;
+    - `collar` `high` | `none`;
+    - `fnSide` and `leadSide`.
+    - `cut` `fitted` | `yoke`: under the fitted cut the chest and back plates end under the collarbone and off the
+      sides, the pauldrons sit on the shoulder's point, and the collar is a gorget at the neck's base, so the torso never
+      wraps the shoulders. Fitted is the default from **armour laws 2** (`ARMOR_LAWS_VERSION`). A build stamped under
+      laws 1 keeps the yoke, pinned by the char test's `LAWS_1`, and the validator accepts any known version.
+    - `build` `plates` | `cylinders`: under cylinders the arms and shins are rigid tubes (the `volume` signature),
+      cuffed in the trim, their girth leaning a little on mass. The thighs keep plates (law 8).
+    - `pack` `tanks`: a back unit, capped at the shoulders' breadth, with two exhaust stacks.
+    - `helm` `shell`: a helm cast over the whole head from the card's `language.helmet` (the cowl's words). A shell helm
+      over visible hair warns, as the kabuto does.
+  - **Cards recompose by law:** a card's `byLaws` lays its later composition over it from an armour law on. grim-scifi
+    is recomposed as the heavy suit: cylinders, a tank unit, tassets, a gorget, ornament 1, and a shell helm with two
+    round amber lenses and a breathing canister. fantasy-space is the light trooper: chest plates, caps and greaves,
+    and a white shell helm with angled dark lenses, a grille and cheek lines. Both pin anew at laws 2, and laws 1
+    keeps them as they were.
+  - **The shoulder is not the torso's** (**hero laws 18**, `tieredKit`): this was the yoke on every armour family on
+    the tiered body.
+    - The tiered body's shoulder balls stand out of the torso's widest rings, and every torso plate stood off them, so
+      a breastplate reaching the shoulder line wrapped the shoulder.
+    - Above the ball's lowest point, a trunk plate that is not a shoulder piece now keeps inside the ball's inner edge.
+      A front or back plate is cut in under the arm by a new shell `armhole` (its side edge eased in above a station),
+      and a wrap ends under the arm.
+    - Pauldrons, pinned pieces and the neck's gorget stand as before.
+    - Heroes stamped 1 to 17 keep their fit (the adult-form chibi's pins hold).
+  - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
+    (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
+    becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.
+    The ensembles are cyborg, hunter, titan, warlock, ronin, gladiator, hoplite, legion, regal, bounty hunter, tyrant,
+    dark lord, assassin, reaper, death knight, operator and shinobi.
+
+  `HARMONY` names the ensemble each head calls for; `memberOrders(id, look, { headgear, ensemble: 'auto' | id })`
+  wears it in place of the costume (tiered body).
+
+- `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
+  dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
+  band and the visor (an `adorn` kit on the cranium), and four helms through the armour's `helm` signature (open, trooper,
+  faceplate, band), each dropping the hair. The realistic armour fit leaves every head piece off the relational head, so a
+  visor or a helm fits the tiered body only and `fitted(id, body)` says so. Worn by `memberOrders(id, look, { headgear })`.
+
+### The half-cape to the hip, and its hood, are worn
+
+- `hem: 'hip'` was no cloak hem word (`outfit-plan.js` hemAt: thigh, knee, calf, shin, ankle), so a cloak asking for it
+  threw inside the piece sorter and was dropped as "not worn" with the throw's message for a word: the street suit's
+  hooded half-cape never rendered, and no hood ever showed. `hip` is now a hem word (the cape ends at the structured
+  pelvis's top, at the thigh's top on a body without one; `HEM_WORDS` names them), and an unknown word is refused by
+  name. A cloak at another hem is byte for byte what it was.
+
+### A leg's cloth stays on its own side
+
+- A limb's cloth field (`body-relational-garment.js` `fieldGarment`) was read by `|x|`, the right limb's field mirrored for
+  both sides. With the legs together at rest the thighs' fields meet at the midline, so a ray from an inner slot never left
+  its own limb, ran on through the mirrored one and landed on its far side: a spike of trouser cloth up to 9 cm across the
+  midline at the inner thigh and the inner shin, which a stand carried out with the leg as a flap bridging the two legs,
+  the cape and the background showing through the openings it left. A left segment now reads the field reflected, a right
+  one as it is; a point that never crossed the midline is byte for byte what it was. The trousers test holds every leg
+  piece to its own side; the byte pins the module reaches hold (no pinned figure had its limbs touching).
+
+### Realistic laws 6: the crotch on every build
+
+- The realistic body finds the crotch no lower than 0.6 W under the hip's joint and draws the pelvis's rings under it
+  in to a cone, on EVERY build (`REALISTIC_LAWS_VERSION` 6, stamped on a new hero's `physique`; laws 5 is the
+  head's relief in the normal bake). Laws 1 to 5 did so
+  only under a physique with a dial set; the athletic base (the build itself, byte for byte, and what a hero gets with
+  no physique named) scanned the midline two widths down, found the thighs touching to the knees, and hung the pelvis
+  between them, so a skin-fit bottom's seat copied a web of cloth down between the legs with a hole at the crotch and
+  the top's hem caught in it. A stored hero keeps its laws and its body.
+
+### The belt's buckle sits on the centre line
+
+- A belt's buckle on a shell or a band (the outfit piece, the word outfits' and the outfit build's belts, the egocube
+  plan's) is seated where the belt's outer skin faces the body's front (station-loft-adorn.js `buckle` → `seatOf`),
+  not at grid row zero, which turns with the ring's own origin and had left the buckle beside the waist's centre. A
+  seat named by row, parameter or `dir` still wins; a mascot's belt and the armour's straps are as they were. The
+  buckle sits on the band's own middle station (the lowest row of a pelvis band juts forward at the pubis) and its
+  plate stands upright. The outfit's `belt` piece takes `at: 'hip'` (the pelvis, as before) or `at: 'waist'` (the
+  torso's narrowest ring between the hips and the shoulders, where a hero's belt over the trunks sits); at the waist
+  the band lies on the top's cloth (a stand-off of the cloth's thickness, not the hip belt's two centimetres, which at
+  the body's narrowest ring stood the band off it like a hoop) with a belt's proportions.
+
+### Hair frames the face: the grown fall as the mint's default, beside the cheek and never on it
+
+- A new hero's fall (long, wavy, layers, angled, curtains; a ponytail or a braid) hangs by the spine law by default:
+  the hero door stamps `hair.spine: 'elastica'` on the landmark head's hair where the recipe is written
+  (`withGrownFall`), so the fall is draped off the head's own skin and frames the face; a hero stored without the word
+  keeps the bytes it was minted with, and a cap, a bun or `none` is left as given. The anime head's hair is its own.
+- The frame principle's other half (hair-spine.js `keepOut`, humanoid-hair.js `fallGuide`): a hairline root that
+  faces forward (the temples, the slots beside the face) is combed sideways and back and leans out, so the fall STARTS
+  beside the face; and where the head's skin faces forward and has a side to it (a cheek, a temple) a lock is pushed
+  sideways and kept the face's gap off, a lock's own radius (10 mm), not the scalp's 3 mm; the lift is capped at three
+  times the shortfall and finished over passes, so no chord is pulled back through the head. Held by test on both
+  presets: a grown long or wavy fall puts no surface sample within 8 mm of the face forward of the ears, and the
+  legacy fall, which has no collider at all, does; a curled fall still never passes into the skull.
+
+### Comic hero pack: the first tesseract, a pack of game cubes
+
+- Planned. A tesseract is a library of cosmos cubes with the look that suits them, shipped as data a creator can
+  write: genre cubes `intent.from` reads as it reads the core fixtures, geocube looks on one dial from cel-and-ink to
+  the realistic hero, and resonance laws that advise a look from the gameplay. The comic hero pack is the first. Six
+  probe cubes dry-run against the registry today: four makeable, two with gaps the core already names
+  (`space.topology=open`, `soul.contest=versus`); the comic look itself is the first gap, with no value to probe yet.
+- The pack's gaps are priced so the sweep ranks them: `planned` rows on the facets, each in its work package
+  (`cosmos/packages.js`). The look: `reality.look=comic-day` and `comic-night` (`comic-look`: a sixth-gen look on the
+  geocube's `cel` register with an ink outline and a bold palette). The blows: `power.mechanics=knockback`, `throw`
+  and `power.rules=super-jump` (`comic-blows`), `power.mechanics=destructible` (`comic-street`). The dress:
+  `soul.equipment=cape` (`cape`, a garment that trails, not a held item). The shot: `time.shots=panel`
+  (`comic-panel`, a beat held as a still with a border and a caption). Every one is absent today and says so; a cube
+  that names one dry-runs `blocked` naming it. The hillclimb page is regenerated.
+- The pack itself, as data (`lib/graph/cosmos/packs/comic-hero/`): six cubes in registry words, each a genre row with
+  the words a brief uses and the planned values it `wants` (`cubes.js`); one look dial from the comic page to the
+  realistic hero, every stop a geocube the tree reads today (`from` a sixth-gen preset, the `cel`, `ink-wash` or
+  `continuous` register over it) with the hero direction that goes with it, its two ends the tree's own `banded` and
+  `material` poles (`looks.js`); five resonance laws in the facet law shape, advice from the gameplay to the look and
+  never a verdict (`resonance.js`); `packReport` dry-runs the cubes and reads each want's status (an unknown want is
+  reported, never thrown) and `qaOrders(look)` sets the table for the eyes gate at one stop: a `create_sketch` of the
+  example gameworld with the pack cube as its intent, the look's direction and a downtown painted by the look's
+  geocube, and the hero at that pole (`pack.js`). Nothing reads the pack yet: the loader seam is next.
+- Every look carries its air: the geocube's `light` (how thick the outside's air is, the sky's fog colour) and the
+  city paint's `hour` and `clouds`, which the QA city is lit and hazed by (city/plan/look.js). A fifth look,
+  `gritty-night`, at the realistic stop: a storm night under a low key, the light shaped in the vertex
+  (`contrast: 'wii'`), the walls dressed from relief at `grit` 0.8 and aged old, the air thick enough to swallow the far
+  towers. Gritty is the material pole with the atmosphere as the light, not another stop of the dial.
+- The pack's characters: a cast of six asks in the egocube's words (an archetype, a role, a build, an age, a motivation
+  and an order, with a brief; the rival the hero's archetype in shadow), five suits as cards built from the hero door's
+  own words (a catsuit and gloves, a cloak hung from the shoulders with a chest emblem, a belt, a field-painted star or
+  diamond, the armored-hero hardsuit, biker leathers), each with a fragment per pole since the realistic body refuses
+  paint and detail, and a compiler (`memberOrders(member, look)`) that rolls the sheet, reads it into a hero plan by the
+  egocube's own compiler, replaces the sheet's cut with the suit, puts the realistic body on at the material pole, and
+  asks the toon the stop wants: the character light with its ink at the comic stop (the silhouette hull the character
+  book never asks for), ink alone at the painted stop, none at the material pole. Every member validates at both poles.
+  The vibe rides inside the spec, since `mint_solid` hands its handler the spec alone and drops a key beside it
+  without a word (the character book's own hero order puts its toon beside the spec, so a gameworld hero minted
+  through `mint_solid` never gets its character light: found, not fixed here). The pack's heroes are never cel shaded:
+  the world walks the registers (cel, ink-wash, continuous), the hero is the western tradition at every stop with no
+  character light and no ink, the standard tiered body shaded smooth at the comic and painted stops and the realistic
+  body at the realistic stop; the suits are cards per body, not per pole.
+- Three costume eras as principles (`costumes.js`), each a card over the role suits: the Silver Age (the classic
+  hero before the dark knight: primaries, a cape, one big emblem, a belt at the waist, flat colour), the Modern (the
+  nineties to now: a dark panelled suit with one accent, a chevron, bracers and kneepads, the cape short or gone) and
+  the Movie Hero (tactical armour over an undersuit, muted metals, no cape: the plating library by word on the
+  realistic body, the hardsuit at low mass over a tactical outfit on the tiered one). `costumeOf(role, era, body)`
+  resolves a costume in the door's own words; every role in every era validates on both bodies. The eras tie to the
+  look dial: each stop suggests one (the page the Silver Age, the cover the Modern, the film the Movie Hero) and a
+  member's order takes another by name.
+
+### Battle city: sports as a contest over the movement stack
+
+A sports game is two things: what is happening at the ball, and what the game state is. The first is the movement
+stack the action games already play (the platform rule, the feel cards, the hero library's clips) with a free body; the
+second is rules, deterministic as a board game's. A CONTEST is the rules layer: who may stand where, who has the ball,
+the clock and its stoppages, the score, the fouls and the restart each one triggers. The agent composes the contest
+recipe; a World page channel draws the kernel's state as the scoreboard, the lit zones and the referee's calls; the
+kernel calls every point, never the agent. Two shapes of contest, one kernel: a MEET (lanes, a start, a measure,
+attempts: the athletic events) and a MATCH (sides, a ball, possession, zones whose legality depends on the state). The
+register ladder from a simulation to an arcade game (a tennis to a cartoon tennis) is the feel card's axis on the body
+and a ball card's on the ball. Planned, in order:
+
+- **The registry sees sport**, built: probes for an athletics meet, a net game, a turn sport and a team goal game in
+  the cosmos fixtures, and the facet values they ask for (the `meet` and `contest` mechanics as the mechanics table's
+  planned values, a `team` party, a `court` level form, a `position` motivation), each absent and priced as one
+  package, so the hill-climb page records the gap and the move: every probe reads blocked, naming the values it waits
+  on, and the package ranks first of the priced packages by worlds lifted per effort. Each probe is a genre with the
+  words a brief uses for it (a sport named is its shape's: "tennis" the net game, "football" the team game, "golf" the
+  turn sport, "hurdles" the meet; "race" stays the car's), raises its concerns (a court with its lines mirrored for the
+  other side and a broadcast camera; room for a side), and plays in the realistic flavor until the operator's word moves
+  it toward the arcade.
+- **The contest kernel** (`lib/graph/contest/contest-kernel.js`), built: one self-contained closure (`buildContest`),
+  pure and seeded as the board kernel is, a contest as data. A MATCH: a court of named regions (a rectangle or a
+  circle in metres, the net at the middle) written for one side and mirrored for the other, half-turn or reflected, or
+  shared; a ladder of scoring units, the lowest first (a unit won at `to` ahead by `by` resets and adds one to the next;
+  tennis's game is four by two named 0 15 30 40, and the scoreboard says deuce and advantage; a unit with no `to` is the
+  clock's); a serve (into a region, or regions cycled by the game's points; so many faults lose the point; a let off the
+  cord; the serve changing hands by the game, by points, or on a side-out, each side's servers rotating) or a kickoff;
+  the rally's rules (where a bounce is in, how many bounces a side, how many touches, the same player twice); a clock
+  of periods with overtime or a draw; fouls that cost a serve fault, the point, a free restart for the other side, or a
+  warning; rally or side-out scoring. A MEET: lanes, the set, a gun on the kernel's seeded delay, a false start that
+  disqualifies or warns once, a race measured from the gun, or attempts measured in metres with fouls, placings by the
+  best. The kernel reads FACTS the movement layer saw (a touch by whom and where, a bounce where, the ball on the cord,
+  the ball out, a foul, a goal, the clock's tick, the restart taken; a runner's press, finish or mark) and answers what
+  each player may do now (its regions, whether it may touch, whether it serves), the phase, the score, the clock and
+  every call (a point and why, a fault, a let, a game, a set, a period, the gun, a false start, the end). A fact the
+  rules do not care about changes nothing. It never integrates a body or a ball, and the agent never adjudicates.
+  Fixtures in the data alone, one per procedure and not in the book: singles tennis, volleyball, a goal game on a
+  clock, a sprint, the long jump. The tests hold the concept on them (the diagonal serve into the box the point names,
+  the fault and the double fault, the let, the volleyed serve, reaching over, the ladder to a set and a match, three
+  touches and the side-out rotation, kickoff and the free, the periods and the draw and overtime, the gun's clock, a
+  disqualification, the best of three attempts), that the same seed and facts are the same contest to the byte, that
+  the closure runs from its own source with no imports, and that it never mutates a state. A published game asked for
+  by name is written out from the rules the person explains, as the tabletop kernel's rule already says; tiebreaks,
+  possession by carry and offside wait on the team game.
+- **The ball and the hit**, built, with a recorded stopping point:
+  - **Real air on the live ball.** The physics property's integrator (`worlds/physics-sim.js`) gained the `aero` force
+    rule: drag with the drag crisis and Magnus lift saturating with the spin ratio, the spin-aware flight model's own
+    curves and constants (`physics/flight.js`, the oracle it is held to), the air's density and a spin decay in flight,
+    `on` the bodies it acts on. On the model's free-kick launch the live ball lands within half a per cent of the
+    oracle's range, apex and curl at the oracle's step, within one at the page's; no crisis flies farther, no spin flies
+    straight, no air is the parabola; a body the rule is not on keeps every byte. Every page that embeds the integrator
+    re-pins with the rule's source (additions only; a world without an `aero` force runs as before).
+  - **The ball card** (`lib/graph/contest/ball-card.js`): the sports' balls (soccer, tennis, volleyball, basketball,
+    golf, table tennis: mass, size, the rebound each sport's rule allows as a restitution, the aero curve where one is
+    cited, soccer's otherwise and said so), and a card per register, the feel cards' own names: realistic flies the
+    sport's ball in real air; action drops the air and grows the rally a share a clean hit to a cap (the cartoon tennis)
+    with a livelier bounce; the platformer's ball is slow and floaty under lighter gravity; pinball's never stops
+    gaining and bounces lossless. A card makes the sim's body, its force rules and its gravity; the report says what it
+    leaves out (a bounce that gives back more than it got is the hit's to add: the table keeps a contact lossless at most).
+  - **The hit** (`lib/graph/contest/hit.js`): the join of the swing and the ball. The hit is live through the swing
+    system's contact window and lands on its strike phase, on the game type's timeline where one re-times it; a ball
+    inside takes a velocity whose direction is the body's facing turned by the stick within the register's spread and
+    the verb's arc lifted by the stick, whose speed is the register's base plus its gain on the swing's real tip speed by
+    the verb's power (realistic is the tip alone), grown by the ball card's rally, and whose spin is the verb's (topspin
+    about up × the heading, backspin the other way, sidespin about the vertical), scaled by the register. The result is
+    the sim's own impulse and the contest kernel's `touch` fact.
+  - **The forehand, the backhand and the bat** in the swing system (`hero-swing.js`): a level arc on the right side
+    taken back and out and carried across the body, the same from the other side, and the two-handed level swing; each
+    through every gate the swing system holds on both casts at every class (solvable at mint, the item clear of the head
+    and above the floor, the elbow at the shoulder line, the strike on its key). Until a racquet and a bat are gear items
+    they swing the hand's gear whatever it is.
+  - **Not built, said where it is asked for:** the overhead serve and spike (they lift the elbow over the head, which
+    the swing system's law forbids: an overhead clip family is a later step), the volleyball's bare-handed bump and set
+    (the swing door needs an item in the hand), the kick (a leg clip from the vault's solve), the throw, the catch and
+    the putt. Each is a hit verb already (its arc, spin and power hold) whose window says no clip plays it yet.
+- **The meet**, built as a track the World page plays, with a recorded stopping point:
+  - **The meet sim** (`lib/graph/contest/meet-sim.js`): an athletic event as a pure function of the lanes' pads at
+    60 Hz, in versus's shape, the contest kernel its referee (the set after the marks, the gun on the kernel's seeded
+    delay, the race clock from the gun, a press before it a false start on that frame, the finish and the marks its
+    facts, its calls the sim's). Each lane is a body on a line whose sprint is the motion flavors' own top speed and
+    build-up, register for register (held equal by the test), driven as the register drives it: the realistic register
+    holds the run and a press on the footfall's beat lifts the form while one off it drops it (the beat never narrower
+    than a frame and a half of stride); the arcade registers mash, the press rate the speed and the full rate the top.
+    The hurdles are flights at the 110 m spacing: a hop begun in the approach band clears one and keeps most of the
+    speed (the realistic register takes it on the stride itself, the others on the press), a flight met on the ground
+    clips the runner into a stumble no pad drives. The long jump takes off on the press in the runway's last metres,
+    flies the arc of its speed and the register's angle on the register's gravity, is marked from the board, a
+    take-off past the board or a run through it a foul, the runner back for the next attempt until the kernel says
+    they are spent. A lane with no pad is run by a seeded computer that never jumps the gun. The same context and
+    pads are the same meet to the byte.
+  - **The meet arena** (`meet-arena.js`): the venue as a stage recipe, the versus arena's sibling: one long open room
+    on a stage kit, the lanes along it, the stands behind them, a broadcast camera, and the `meet` key (the event, the
+    lanes, the players, the register, the distance, the attempts, the seed, the kit, the crowd), checked and
+    teaching; the track in the stage's frame (each lane's line, the start, the finish, the flights, the board); the
+    page's data with the contest compiled and the level wire's names.
+  - **The meet on the World page** (`scene/channels/contest.js`, `meet-arena.client.js`): a channel on a world's
+    `meet` key that inlines the kernel, the sim and its client by source and owns the camera; up to four players on one
+    keyboard or the gamepads by index, the other lanes the computer's; the runners stick figures posed from the sim's
+    stride, the air and the stumble (a first drawing); the lane lines, the flights and the board on the floor; a
+    broadcast side camera that follows the field; the banners (ON YOUR MARKS, SET, GO, a false start), each lane's
+    clock or best, the placings; the hosted wire (READY, the meet INIT brings, the OUTCOME when the placings are in:
+    success when a player's lane placed first, or an exhibition). The page's probe runs an exhibition to the placings
+    the same meet reaches in Node, frame for frame (the e2e suite, in a real browser). The `meet` fixture joins the
+    emission matrix; a page without the key emits no block.
+  - **Not built, said:** the quick game's `meet` goal (the arena plays on its own and hosted; the game shell's level
+    is the next step), the hero library's clips on the runners (the stick figure stands in), the throws (a javelin or
+    a shot is not a sphere, and the flight model is sphere-only by design).
+- **The net game**, built as a court the World page plays, with a stopping point: `lib/graph/contest/sports.js` (the
+  book of sports: tennis's spec for the kernel beside its dials, the ball, the strokes, the net, where the server and
+  the receiver stand; a sport asked for by a name the book lacks is refused by name); `contest/match-sim.js` (the match
+  as a pure function of two pads at 60 Hz: the body held to the motion flavors' sprint and build-up register for
+  register, the ball the physics property's sphere on its card, the serve from the hand into the box the point names,
+  the swing's strike window from the swing system, the floor and the cord as the kernel's bounce, net and out facts,
+  the point, game and set the kernel's; in the arcade registers the aimed shot, the arc that lands at the depth the
+  stick asks, lifted over the cord, the speed given up for it; the realistic register is never aimed);
+  `contest/contest-mind.js` (the court mind at the mind's four tiers: it reads the ball's way on the ball's own
+  physics, runs to where it crosses its depth after its reaction, swings in reach at the depth its stick says, serves
+  across into the box after its wait; plain, seeded, bounded); `contest/match-arena.js` (the venue a stage recipe with
+  the stands behind the far baseline and a broadcast camera, `matchArenaData` the page's data, `graphSource` a module
+  inlined by source), `match-arena.client.js` and the `court` channel (`scene/channels/contest.js`: WASD and F or
+  Space, the arrows and the right Shift or the keypad 0; the court's lines from the kernel's regions, the net, the
+  players, the ball and its shadow, the scoreboard in the kernel's words, the hosted wire), hooked up as the meet is
+  (world-scene, channels/index, scene-three, the `court` emit fixture pinned, the engines' marks, test-changed's
+  readers), the e2e `court-page.live.test.js` (the page's exhibition equals Node's frame for frame). What building it
+  corrected: the kernel's double-bounce rule (a ball bounced in and never returned is the striker's point, in the bounce
+  and the out branches; before, the out went to the side that failed to return it), the hit's azimuth (the stick right
+  aims right), the aimed elevation's cord check (a cord past the landing is no cord), the racquet on the player's
+  right. Stopping point: the quick goal `contest` (the shell's level, as `meet`'s), the hero library's clips on the
+  players (stick figures stand in), racquet gear items, the realistic register's depth (a flat forehand at the
+  realistic speed carries past a close target, so the mind's lift sits on the cord's floor; depth there is spin and
+  pace, which the mind does not yet modulate), volleyball and pong on the same sim, no bus emit; no split screen. The
+  eyes gate is open: nobody has watched a rally yet.
+- **Turn sports and the positional mind**, built as a course the World page plays, with a stopping point: the kernel's
+  third shape, `turns` (seats played hot-seat in order, rounds each seat plays in turn, one shot at a time and the
+  ball's rest the shot's end; `strokes`: the tee, the lie, a rest in the water or out of bounds a stroke from the last
+  lie, the cup the round's end, the pick-up, the fewest strokes; `pins`: tenpin's frames, strikes and spares, the tenth
+  frame's fill, its card with running totals; `lieOf` the region a point lies in; the kernel still calls every
+  round); golf and bowling in the book (`sports.js`: three stadium holes as courses of regions with par and the ground's
+  rolling resistance by the lie, the clubs by the lie and the distance left; the lane, the gutters, the pit, the ten
+  pins on their spots, the hook), the drive, the iron and the roll as hit verbs, the bowling ball on the ball card;
+  `contest/turn-sim.js` (the match sim's shape for one pad: the stick turns the aim about the line to the target across
+  the sport's spread, a press runs the meter up and back (the action lab's hold-and-release) and its release strikes at
+  the meter's share of the club's tip speed; the ball on the physics property's integrator in its register's air over
+  the course's ground (the lie's resistance, the cup that takes a slow ball, the water and the out where it went in, the
+  gutter to the pit, the pins as spheres that fall when moved from their spots, racked again as the kernel says);
+  `probeShot`, a shot tried on a copy); the turn mind in `contest-mind.js` (it plans on the sim's own probe, never a
+  guess: the meter bisected until the shot rests at the distance left, the aim bisected until the roll crosses the pin
+  line at the pocket, the level's wobble on each); the positional mind there too (`fieldTarget`: a role presses the ball
+  near it, stands goal-side of its mark, else holds its home region, always inside the kernel's legal shapes: the seed
+  of the team game's teammates); `contest/turn-arena.js` and `turn-arena.client.js` with the `turns` channel (the
+  arrows or WASD aim, Space or F charges, Enter again; the course from the kernel's regions, the flag, the pins, the
+  aim line, the meter, the card, the camera behind the ball following the shot, the hosted wire), hooked up as the
+  court is, the `turns` emit fixture pinned (`meet` and `court` re-pinned for the kernel's, the minds' and the hit's
+  source), the e2e `turns-page.live.test.js`. Stopping point: the quick goal `turns` (the shell's level, as `meet`'s
+  and `contest`'s), the hero library's clips on the golfer and the bowler (nobody is drawn yet: the ball, the aim and
+  the card are the play), the golf ball's own aero constants (it flies on soccer's curves and the card says so), a pin
+  that topples (a sphere sweeps instead), the oil pattern (the lane's friction is one number), curling and billiards on
+  the same shape, no bus emit. The eyes gate is open: nobody has watched a hole or a frame yet.
+- **The team goal game**, built as a pitch the World page plays, with a stopping point: the kernel's goal game
+  gained its outs (`outs`: a throw-in for the other side where the ball crossed the touchline; over an end line a
+  corner when the defenders touched it last, else a goal kick; without them a free) and offside against the ball
+  (`offside: 'ball'`: a pass received by a teammate who stood past the ball's line in the other half when it was
+  played, a `touch` fact carrying where the toucher stood at its side's last touch, is a free where it was received);
+  soccer (five-a-side, two halves, throw-ins and corners, offside) and hockey (four-a-side on a rink with boards,
+  three periods and overtime, no outs; the blue-line offside is not the ball rule and is left out, said so) in the
+  book with the puck on the ball card; `contest/team-sim.js` (the match sim's shape for two pads in the screen's
+  directions: each pad drives its side's player nearest the ball, a tap passes along the ground, a hold shoots, aimed
+  by the stick; a player running at a slow ball carries it; the others hold their role's home and the nearest presses,
+  the keeper across its line with a save on a ball coming at it; a goal between the posts under the bar the kernel's
+  score, the ball over a line its out, a charge from behind into the carrier a foul, the clock ticking while live; a
+  restart placed where the kernel says and taken by the first touch, or by the sim after three seconds); the team mind
+  in `contest-mind.js` (the computer side's player at the ball chases, shoots in range, passes to the teammate
+  furthest ahead, else carries on) over the positional mind's roles; `contest/team-arena.js`, `team-arena.client.js`
+  and the `pitch` channel (WASD and F or Space, the arrows and the right Shift or the keypad 0; the lines, the boxes,
+  the goals with nets or the rink's boards, the players as capsules in their side's colour with the one at the pad
+  ringed, the scoreboard and the clock, the referee's banners, the hosted wire), hooked up as the court is, the
+  `pitch` emit fixture pinned (`meet`, `court` and `turns` re-pinned for the kernel's, the minds' and the hit's
+  source), the e2e `pitch-page.live.test.js`. Stopping point: the second local pilot in the controllable runtime (the
+  plan's route to the hero body on the pitch) is not taken: the team game plays on the contest pages' own bodies, as
+  the court and the course do, so no hero library clip kicks yet and the controllable pins stand untouched; the quick
+  goal (phase 7); a tackle (the only challenge is the press and the keeper's save); the second-last-defender offside
+  (the ball rule stands in); a wall at a free kick; restarts that walk the players home; the kick's curl one number.
+  The eyes gate is open: nobody has watched a match yet.
+- **The door and the distilled rulebook**, built: no new listed tool. Two quick goals (`design_game({ quick })`):
+  `meet` (the event, the lanes, the players, the register, the distance, the attempts) and `contest` (the sport, the
+  players or the seats, the register, the computer's level, the sets, the rounds, the periods and seconds), each read
+  by its arena with its own refusals; a sport's quick game is one level, the arena as a stage carrying the play and a
+  hosted level's contract (the page posts READY, takes INIT, posts the OUTCOME), and the game that plays it in the
+  shell, with no hero, trail or camera of its own (`gameworld/quick.js` readSport and sportArenas, `runner.js`). The
+  genres: a meet the athletics meet's, a contest its sport's shape (`intent.js` contestGenre), so the registry's
+  probes read makeable and the four sport values (`power.mechanics` meet and contest, `space.levelForm` court,
+  `mind.motivation` position, `soul.party` team) read built, each lowering to its module; the hillclimb page
+  regenerated. The game vocab's quick cards for both goals; routing rows for a race, a tennis game, mini golf and
+  five-a-side, the `game-design` card naming the sport goals. **A sport written out** (`sports.js` resolveSport): the
+  contest goal's `sport` may be the book's name or an object `{ id, shape: match | turns | team, words, spec, omits?,
+  …the shape's dials }`, the spec the contest kernel's own data (its read the gate), the dials the shape's sim reads
+  (their presence checked, their values the sim's to refuse), `omits` the rulebook's sentences the primitives do not
+  carry, by name; the three arenas resolve either, so a distilled rulebook plays on the court, the course or the pitch
+  with no code change (pickleball and mini golf in the test). **The `distilled-rulebook` catalyst**
+  (`lib/mcp/catalysts/distilled-rulebook.md`): the transcriber, not the referee: find the rules (the operator's
+  words, a document, a search MCP), name the shape or say it is not one the sims play, distil the kernel's data field
+  by field with the source's sentence beside each, distil the dials from the book's nearest sport, write `omits`,
+  mint and read the kernel's calls off an exhibition; register is simplification by name, never a second kernel;
+  the kernel's read is the gate and the agent never adjudicates. Stopping points: the engines' kernels carry no
+  contest (every sport value is `absent` on Godot and Roblox, the page's own simulation); the shapes the sims lack
+  (a hoop, a wicket, a wall game) are refused by name, not approximated.
+- **The athletes: a sport played by characters**, built: the stick figures and capsules give way to characters made
+  with create_character, each slot (a lane, a side's player, a seat) in its own body on the arena's page.
+  - **The arenas carry their athletes** (`contest/athletes.js`): `athletes` on a `meet`, `court`, `turns` or `pitch` key is a
+    character's ref per slot in the sim's order (null a slot's stick figure), cycled when shorter. The arena stores the
+    refs, never the bodies: the World page packs each character's rig bones and rigid parts where it is served
+    (`world-scene.js`, versus's `characterBody`), so a sport follows its characters' edits as a versus roster does. A
+    ref the store has lost, or a rig the figure cannot stand up, is the stick figure; absent, nothing is added anywhere.
+  - **The pose** (`contest/athlete-pose.js`, pure): the sports already pose a stick (the meet's stride, the court's
+    swing); a character takes the stick's directions on its own lengths (the trunk turned rigidly onto the stick's,
+    each limb laid along its stick bone, each foot turned with its shin), stands on its lowest sole and rises by the
+    stick's air, and each bone rides its segment through versus's figure (`figureSegments`), so the chain closes
+    everywhere. `strideStick` runs a body the sim keeps as a point and a velocity (the pitch's players, the stride on
+    the ground they cover) and `swingStick` addresses a ball (golf's hands on the club, bowling's arm). The tests hold
+    the concept on a small rig: lengths kept, directions followed, the sole on the ground, the right side on the right,
+    the chain closed.
+  - **On the page** (`contest/athlete.client.js`): one geometry per character shared by its slots, relit by the stage's
+    key and inked as the versus arena draws a fighter. The meet's runners, the court's players (the racquet in the
+    athlete's own hand), the pitch's players (the one at the pad still ringed) and the seat to play on the course (it
+    stands to the ball, takes the club or the arm back with the meter, holds its finish while the ball runs; nobody was
+    drawn there before). The channel inlines the figure only when the arena carries bodies, so a sport without athletes
+    emits what it did; each probe counts its athletes, and `athletes-page.live.test.js` plays all four in a real browser.
+    Corrected on the way: the meet's title read `[object Object]` when the track had none.
+  - **The quick goals roll them** (`quick.athletes` on `meet` and `contest`, `runner.js`): absent, the athletes are
+    rolled in the game's setting (`cast-setting.js`: the kit's tradition draws them anime or western, its era, the
+    `meet` and `contest` genres leaning to athletic builds in their prime), a person a slot up to four and cycled; a
+    team's sides each a rank of up to three faces in one uniform, the shirt the side's colour. They wear the sport's
+    kit whatever the world's wardrobe (a new `athlete` quick figure): on the authored body the paint words on the bare
+    body (a vest or a shirt, shorts, socks, white shoes), on the realistic body the `athlete` outfit card. Given, a list of
+    `{ ref }` (a character the operator made, adopted as it stands) or hero-door specs (made by the run), cycled over the
+    slots; `false` keeps the stick figures. The run's readout says what the setting rolled. Each athlete is a hero step
+    (`athlete`, `athlete-2` …) that design_game makes and remakes as it does a guard.
+  - **Not built, said:** the hero library's clips (the bodies are posed from the arena's own procedural stick, not the
+    character's walk, sprint or swing clips), a kick, a header or a tackle on the pitch (the stride carries the ball),
+    a racquet or a club as gear, the realistic body's outfit on the page's rigid parts (the card is chosen, not looked
+    at). The eyes gate is open: the frames looked at were machine screenshots of exhibitions, not play.
+- **Sport kits: the character designer's shortcut**, built: `kit` on the hero door (create_character, update_character,
+  any hero-door spec), a sport's kit in a few words, lowered on every read into the dress the body already has
+  (`lib/graph/sportswear/kits.js`, a card per sport and a row per pattern, no geometry anywhere).
+  - **The words:** `kit: 'soccer'`, or `{ sport?, colours?: [main, second?, trim?], pattern?, trim?, socks? }`. The
+    cards: soccer, keeper (long sleeves and gloves), hockey (long sleeves, pants to the knee, gloves), tennis (whites),
+    track (a singlet), basketball (a vest and long shorts), volleyball, golf (a polo and trousers), bowling (a yoke).
+    The patterns over the shirt in the second colour: plain, hoops, stripes, band, sleeves, yoke, sides. The trims in
+    the third: collar, cuffs, hem, a stripe down the shorts. Socks to the knee, at the ankle, or none.
+  - **How it lowers:** on the authored body, the bare body (`detail: 'swimsuit'`) with the card's paint words (a tee,
+    a tank or long sleeves; bike shorts carried down the leg; the shoes with their collar cut low; gloves) and paint
+    entries on the parts every core has, each pattern band painting only where the shirt is (`only: ['Top']`), so a
+    scoop's skin and a sleeve's end hold. On the realistic body, the athlete's outfit card in the kit's colours. The
+    kit's colours sit beneath the operator's palette and the operator's paint comes after the kit's; the record keeps
+    the words alone (`kittedHero` in `layered.js`, applied where the plan is made and the body expanded), so patching
+    `/hero/kit` re-dresses a character in place. A hero without a kit is unchanged to the byte.
+  - **The athletes wear them:** a rolled athlete is dressed in its sport's kit (a meet's the track's, a book sport's
+    its own, one written out its shape's), the roll's own shirt colour its kit's main, so a field of runners is a field
+    of colours; tennis keeps its whites and takes the player's colour as the trim. A team's sides each wear one kit in
+    the side's colours, and a keeper (the role named so) a kit of its own: the soccer keeper's, or the sport's in a
+    keeper's colour. `quick.kits` (a kit's words each, cycled over the sides or the athletes) chooses the colours and
+    the patterns; the quick cards name it.
+  - **Held:** the words read and refused by name; the card's defaults; the lowering by role; the operator's own words
+    over the kit's; one pattern per procedure painted on the anime body and the streamlined core; the rolled athletes'
+    kits, the keepers, the whites, the kits' words. Looked at in machine screenshots (eight kits on two heads, a derby
+    in hoops against stripes, a court in whites); the eyes gate is open.
+  - **Not built, said:** numbers and names on the back (a decal, not a band), halves and sashes (the paint's window is
+    up the trunk and around it, symmetric), a pattern on the realistic body's garments (the outfit card takes the colours
+    only), helmets and pads.
+- **The holo lift: a board game in a hologram arena**, built for the games of moves, with a stopping point. Battle
+  city run back to the tabletop: Duelist Kingdom's way of showing a simple game, the duelists on podiums at either
+  end and the board projected between them, every piece a hologram and every event of the game staged. The lift is
+  optional and depiction only: the tabletop kernel stays the referee, and the same game still plays as its own page.
+  - **The arena** (`tabletop/holo-arena.js`): `readHolo` (the tabletop manifest's game, a book game or one written
+    out, the seat player 1 holds, players 0 an exhibition, 1 against the computer or 2 hot-seat, the computer's
+    level, the seed, the stage kit), `holoBoard` (the lattice at a cell sized to the arena, floating over the floor,
+    a podium behind each side), `holoManifest` (the venue as a stage recipe carrying the `holo` key, a camera behind
+    player 1's podium) and `holoArenaData` (the game dealt, each kind's body resolved from the meeple shelf, its value,
+    the duelists and their lights, the level wire). A euro, tile, card or round game is refused by name: it plays on
+    its own page.
+  - **The page** (`holo-arena.client.js`, `scene/channels/holo.js`): one block inlining the kernel and the mind from
+    their closures and the client. A projector disc with lit rings and beams, the board as panes of light with lit
+    edges and a scan sweeping across, each duelist's podium in its colour (the side to move brighter). Each piece is a
+    hologram of its body (a cut-out, a turned profile, a box, a group as real geometry): a translucent body lit at its
+    rim with scan lines, its edges in light, a glow under it. What the kernel says is staged as BEATS, played one after
+    another while the state is already ahead: the opening summon (the army out of beams of light, about two seconds), an
+    attack (the attacker turns and a beam crosses to its victim), a destroy (the victim shatters into light), a move
+    (a glide, a leap higher, a castling partner beside it), a promotion (a pillar of light, the piece remade), a flip
+    (a convert), CHECK and the end on the banners. LIFE POINTS on the overlay fall with the destroy beat by the piece's
+    share of the army; mate takes the loser's to zero. The camera stands behind the person's podium, swings to whoever
+    is to move in hot-seat, sways in an exhibition and leans toward each beat. Click a piece, then a lit cell (a
+    capture red); a promotion or a drop with a choice asks which. The hosted wire as the sports' (READY, INIT,
+    OUTCOME). The probe (`__mojHolo`) runs plies at once, names the beat on stage and the beats seen, and clicks a
+    cell as the pointer would.
+  - **The door** (`design_game({ quick: { goal: 'tabletop', game, players?, level?, human?, lift: 'holo' } })`): one
+    level, the arena in the play shell, its quick card, a line on the tabletop card, the registry's lattice note.
+  - **Held:** the minds' duel in the page is Node's move for move (checkers and chess, `holo-page.live.test.js`); a
+    capture stages attack, destroy, move in that order; a person's seat waits for them and two clicks play a move; a
+    page without the key emits no block (the `holo` emit fixture pinned, every other page byte-identical).
+  - **Not built, said:** the euro, tile, card and round families (the dice as a shaker reveal and the card duel with
+    summons, spells and responses, the tabletop kernel's own Duel Monsters shape, are the next lifts), characters as
+    pieces (the athletes' bodies on the board), sound. The eyes gate is open: the frames looked at were machine
+    screenshots of exhibitions and one scripted move, not play.
+- **The stadium: the Mojulo Olympics' venues**, built, with a stopping point. A sport is played inside a place, never
+  against a flat dark colour, and tennis is no longer held to the town square unless the game asks for it. A venue is
+  composed from the building designer's parts and recomposed by its words: a patron of sport and the arts builds them
+  in every degree of realism.
+  - **The bowl** (`stadium/bowl.js`): the seating as one round form, all polygons. A ring that follows a superellipse
+    (an ellipse up to a rounded box), sized so the field's corners sit on it; a pitch wall of boards, raked tiers
+    two rows to a step with aisles, a concourse with a band of glass boxes, an upper tier, a parapet; the outer wall
+    in a facade card (glass, brick, metal) between pilasters, or an amphitheatre's storeys of arches with cornices;
+    a roof (a canopy with its truss and rafters, the canopy hung from a ring of masts by stays, or a dome of ribs to
+    an open eye); open sides left out and their ends capped; screens on the rim; a landmark (the cauldron on its
+    pylon, an arch sprung over the far stand); the infield in the field's surface, the apron (a running track's
+    lanes), the plaza outside. A full house is a MOSAIC of colours on the treads, never figures: the crowd costs
+    nothing past the steps it sits on. Every face is wound to the side it is seen from, so the hour's relight reads it.
+  - **The venue** (`stadium/stadium.js`, the `stadium` kind and a `compose_world` base): the field, the bowl in a
+    livery (its colour set, any colour over it), floodlight masts (the track's set piece), a skyline of the fractal
+    structures' lean towers past the rim, hazed into the sky, on ground that reaches past them, and the race's hours
+    (day, golden, dusk, night; after dark the masts and the cauldron light the field). Presets: `olympic`,
+    `centre-court`, `football`, `colosseum`, `patron-dome`, `arcade`, `anime`, `municipal`, each named for the games it
+    suits; any word over one moves that part alone. The look is the degree of realism: shaded, anime (banded) or
+    voxel. The manual is the `stadium` view-vocab card.
+  - **A game's venue** (`stadium/venue.js`): the court, the pitch, the meet, the course and the holo arena each take
+    `venue`, a preset or a stadium's words. The arena's room becomes the field, its camera and its channel stay its own,
+    and the bowl's camera side stands back until the camera is inside the pitch wall. Without the word an arena mints
+    its stage recipe as before. The quick goals take `venue` and default a meet to `olympic`, a net game to
+    `centre-court` and a team game to `football`; a course and a board game keep their stage, and `venue: false` keeps
+    any stage.
+  - **Held:** the same words are the same stadium; refusals teach; the ring passes through the field's corners at any
+    shape; an open side leaves nothing standing there; the skyline stands on the ground; each arena stands in a venue
+    by its word with its camera and channel, and without it stays a stage.
+  - **Not built, said:** a roof over a field that closes, banners and sponsors' boards, crowd motion (a wave, the
+    mosaic flickering), an athletics stadium's field events laid in the infield, sound. The eyes gate is open: the
+    frames looked at were machine screenshots of each preset from inside and outside, and of a court, a pitch, a
+    rink, a meet and a holo duel in their venues.
+- **Chibi and mascot athletes**, built: a sport's players may be super-deformed chibis or cartoon mascots, each
+  dressed in the sport's kit as far as its shape allows.
+  - **A mascot's kit** (`sportswear/mascot-kit.js`): the hero door's kit words lowered onto a mascot's own parts as
+    paint, as the hero's are on the bare body (the shirt the trunk's upper part and the upper arms, the shorts its lower
+    part and the thighs, the socks the shins, the gloves the hands, the patterns and the trims). An orb wears a band low
+    round its middle, clear of its face, and its shorts on its legs. A new kit replaces the old; none takes it off, the
+    colours it covered restored. `create_character { as: 'mascot', spec: { kit } }`.
+  - **The quick sports** take `athletes: 'chibi'` (each rolled person on the hero door's chibi build under an anime
+    head grown to 1.6) or `athletes: 'mascot'` (each a mascot rolled in the game's setting, a side's in the side's kit, a
+    keeper in its own), and a list mixes `{ mascot, kit? }` with people and refs.
+  - **At a player's stature** (`contest/athletes.js` `atStature`): an athlete shorter than a grown player is drawn at
+    1.5 m, scaled whole about its feet (its proportions its own), and a round one only as wide as a broad player, so a
+    racquet meets the ball the sim swings at and an orb keeps to its lane. A grown body is drawn as it is.
+  - **Held:** a kit names only the parts the mascot has and its plan still expands; re-kitting equals kitting the bare
+    mascot and taking the kit off gives the mascot back; a small body grows to the stature, a round one to the width,
+    a grown one is untouched; the quick words roll and refuse as said.
+  - **Not built, said:** a mascot's own sport clips (it plays on the sim's stick, its own idle aside), numbers on a
+    mascot's back, a chibi's own swing timing. The eyes gate is open: the frames looked at were machine screenshots of
+    kitted mascots and chibis standing, and of a court, a pitch, a rink and a meet played by them.
+
+### TV animator: the broadcast package over the contest pages
+
+The battle city pages each drew their own overlay: flat black boxes and outlined words. They are now covered as
+television covers a sport, by one sport-blind package (`lib/graph/broadcast/`, [docs/broadcast.md](../docs/broadcast.md))
+that every contest page draws through. The arena hands it a feed (what the scoreboard says) and the kernel's calls
+(what the referee said). Built:
+
+- **The package** (`broadcast-package.js`): four looks as cards (`network`, `stadium`, `arcade` and `clean`). Each sets
+  type, glass, rim and accent metals, an easing curve, durations, slant, corner, ink and letterbox. The register picks
+  one when the recipe does not (realistic → network, action → stadium, platformer and pinball → arcade).
+  - Colour theory on `dmath`: the kits are kept apart in OKLab, and again under deutan and protan simulation; a
+    clash wears its alternate.
+  - The ink on a colour is chosen by WCAG contrast; every default kit reads at 4.5:1 or more.
+  - Each kit is an OKLCH ramp clamped into gamut, and a kit lost in the glass is keylined.
+  - Lanes and seats default to the Okabe–Ito set.
+  - The metals are a bevel reflecting a studio sweep, weighted by the metal's measured reflectance
+    (`materials/metal-surface.js`); cel packages band them hard.
+  - A cue for every call the contest kernel makes, or a silence by name; the referee's reasons in broadcast words.
+- **The client** (`broadcast.client.js`, inlined before each arena client):
+  - The open, then the bug. Its rows roll a changed value and flash the row's colour; the hot column sits on the
+    accent metal; the clock and period, and the tab, sit beside and beneath it.
+  - The call plate. One holds the frame by weight: a weightier call takes it, an equal one once read, a lighter one
+    waits, and nothing goes up over the open. A plate drops below the bug rather than cross it.
+  - The lower third, the meter, and the results board with gold, silver and bronze medals (the bug steps aside for it).
+  - The director's closeup, laid over the arena's own shot and given back, letterboxed, with a slow push and a held
+    camera's drift. The graphics run on their own frame count and never touch the game.
+- **The four pages draw through it.** The players' kits are the broadcast's colours. The closeups:
+  - the court: on the point's winner in the dead ball, with a lower third at a game and the match;
+  - the meet: on the winner or a jump's landing once no player's lane still runs;
+  - the course: on the cup when the ball is holed; a strike or a spare names the bowler without a cut (the deck after
+    a roll is an empty pit);
+  - the pitch: on whoever touched the ball last before a goal, from a high angle over the players between; an own goal
+    is named so.
+- **The `broadcast` key** on the four arenas (`readBroadcast`: a package's name, or `{ package?, sides?, names?,
+  closeups?, accent? }`), carried into each page's data, and a lever on the `meet` and `contest` quick goals and their
+  cards. A sport written out with the distilled-rulebook catalyst is broadcast with no code; the catalyst says so.
+- **The board games** (`broadcast-dom.js`: the same package as CSS on the tabletop pages):
+  - Seat plates replace the status line and clocks. Each shows the kit's chip, the name, the pieces taken, the score on
+    the inlay (points, or material by the pieces' values in a game of moves) and the clock. The seat to play is lit,
+    and a score that rose pops.
+  - Calls hang under the plates over the board's top edge: check, promotion, a multiple capture, the dice, a new
+    round, the end.
+  - A results board with medals follows the end ("See the board", "Play again"), and the last move's cell flashes.
+  - The board games default to a new `table` package, akin to the game rather than to television: plates of the page's
+    own materials (the board's wood, the card table's felt), scores on the light inlay, brass fittings, a book face in
+    mixed case, the board's red and green for its tones, quiet fades, no sheen and no cuts.
+  - `tabletop.broadcast` names a TV look instead, and the pieces take the kits' colours so chip and piece agree.
+- **Guards:** a kernel call kind with no cue fails `broadcast-package.test.js`. A `*-arena.client.js` that does not
+  inline and draw through the client fails `broadcast.client.test.js`.
+- The `meet`, `court`, `turns` and `pitch` emit fixtures re-pin for the inlined client and the page's `broadcast` data;
+  every other page is byte-identical. The contest pages' live probes still equal Node's frame for frame.
+- Stopping point: no replay (a replay wants a buffer of the sim's frames), no sound, no web font (the type is the
+  system's condensed face, falling back per package). The eyes gate is open: screenshots were taken while building
+  (the open, the bug, the calls, the closeups, the boards, in each package), and nobody has watched a broadcast yet.
+
+### Sports, native: each sport's stats and presets
+
+- **The stats solver** (`contest/contest-stats.js`), built: a sport's stats folded from the log its sim already keeps
+  (the kernel's calls and the sim's events, frame-stamped), the kernel the referee and nothing judged anew. A net game:
+  points won, aces, double faults, 1st serve in, winners, errors, longest rally, fastest serve. A goal game: goals,
+  shots, on target, possession, passes, corners, fouls, offsides, saves (a shot is a kick the team sim now marks
+  `goalward`: struck at the goal from the attacking half; the sim's physics untouched). Golf: to par, putts, fairways,
+  greens in regulation, penalties. Bowling: pinfall, strikes, spares, open frames, ball speed. A meet: time, place,
+  hurdles hit, a jump's best, fouls and run-up. Inlined into each contest page and run in Node alike.
+- **The broadcast shows them** (`broadcast/`): the stats panel (`tvPanel`, head to head, the lead lit in its side's
+  colour) at the sport's breaks (a tennis changeover, half time, after every hole and every third frame), the stats on
+  the lower thirds that speak to them and beside each place on the results board; each contest's coverage
+  (`STAT_COVERAGE`), and `broadcast.stats` on the recipe (`false`, or the rows and the break). A hosted level's OUTCOME
+  carries `stats.contest`.
+  - **Held:** each fold on a written-out call log (what each stat counts); a real game's goals equal the kernel's
+    score and every goal and save is a shot on target; the panel draws and goes, and never over the board; every
+    contest page folds and shows them; the emit pins of the four contest pages re-pinned, every other page identical.
+  - **Seen, said:** the tennis minds rarely return a serve (about seven points in ten end with the receiver never
+    touching the ball, in both the realistic and the action registers): the stats show it, the sims are not retuned here.
+- **The court's surface** (`contest/match-arena.js` `COURT_SURFACES`), built: `surface: clay | hard | grass` on a court,
+  how the floor meets the ball (the physics' contact takes the lower restitution and the root of the frictions). Grass
+  keeps the ball low and lets it skid, a hard court plays true, clay grips and keeps the ball's own bounce, which is how
+  every court has played until now: a court without the word replays to the byte. A court in its stadium stands on its
+  surface, the clay a terracotta.
+- **The sports' own presets** (`contest/sport-presets.js`), built: each book sport's native presentations, a starting
+  set of its arena's words (the venue, the surface, the broadcast and the stats it leans on, the register, the rules'
+  length) laid under the words given. Tennis: grass, clay, hard, indoor, arcade. Soccer: league, derby, final,
+  five-a-side. Hockey: arena, pond. Golf: tour, arcade. Bowling: league-night, tv-final. The meet: olympic-final,
+  indoor, school-sports. Quick `preset` on the contest and meet goals, and `surface` on a net game.
+  - **Held:** a court without a surface plays as before and clay is that court; grass is lower and slicker than hard;
+    a preset lands on its arena and any word given wins over it; the refusals teach; every preset of every sport reads
+    and mints its level (`sport-presets.deep.test.js`).
+  - **Seen, said:** the surfaces move the exhibitions' points, aces and winners a little; the rallies stay short on
+    every surface while the minds rarely return a serve.
+
+### Arcade rules: the ball games distilled to modules
+
+The ball games at the level an arcade plays them, each a CARD of modules (its court, its score, its serve, its rally,
+its ball, its body) that its family composes into a sport the book resolves by name and the shape's sim plays. A
+variant is a word over a card (`{ id, from: <card>, …a module's words }`), so "ping pong to twenty-one" is not a
+rulebook; a rulebook the modules cannot say stays the distilled-rulebook catalyst's, written out whole. Every card
+names what the full rules say that the arcade leaves out (`omits`). Planned, by family: the net games, then
+volleyball's sides of more than one, basketball's hoop, the carry games (rugby, American football), the innings
+games (baseball, cricket).
+
+- **The kit and the net family** (`contest/arcade-rules.js`), built: the net family's modules and three cards on the
+  court sim. Table tennis: the table a raised bed, the serve bounced on its own half first, to eleven by two, two serves
+  each. Pickleball: the underhand serve into the diagonal box past the kitchen, the two-bounce rule, a volley from the
+  kitchen the point, to eleven by two, the rally's winner serving. Badminton: the shuttle, which never bounces, the low
+  serve, to twenty-one by two. The arcade rules' card, `get_game_vocab({ id: 'contest-arcade' })`, names the modules
+  and every card; the contest card names the sports from the book's lists and points at it.
+  - **The kernel's words** (`contest-kernel.js`): `serve.bounce: 'own'` (the serve's own bounce first), `serve.by:
+    'score'` (the box by the server's own score, even then odd), `rally.mustBounce` (the first returns off the bounce),
+    and a point where no bounce is let is called `down` (the broadcast's IN), not `double-bounce`; each absent on the
+    book's sports, which read as before.
+  - **The court sim's dials** (`match-sim.js`), each absent on tennis: a raised bed (the court a slab at its height, the
+    room's floor below it, the players kept to its ends, no stroke from under it), the body scaled to the game's size, a
+    no-volley region (a volley struck from it is the foul of its name), and an arcade serve that must bounce at home
+    first, aimed by flying it on a copy of the sim's own physics (the realistic mind finds its lift the same way). A
+    card's `cpu.slip` is the computer's unforced error, so a small court's rally ends.
+  - **The ball card** (`ball-card.js`): the pickleball and the shuttle, whose air is its own on every register (its
+    drag, a terminal speed near 6.3 m/s); the arcade aims a ball with its own air through that air (`hit.js`,
+    the midpoint rule over the flight), and the hit's verbs gain the underhand serve, the clear and table tennis's
+    drop serve.
+  - **The page** (`match-arena.client.js`): the table drawn with its lines and net on top, the camera nearer and
+    lower for a small court, the scoreboard's columns and straps from the ladder (SETS GAMES PTS for tennis, GAMES PTS
+    for a rally game), the paddle as short as the reach, the ball in its colour.
+  - **Held:** the new words on a small court each (the own bounce and its fault, the box by the score, the two-bounce
+    rule); a card composes to a sport the kernel reads, a variant moves one word, the refusals teach; every card, in
+    a short variant, plays an exhibition to its end (the deep sweep); the bed's slab and net, every stroke over the
+    bed and every arcade serve home first; the realistic table serve lands; the kitchen's foul and its absence off the
+    bounce; the slip ends a table's rally that otherwise never does; the shuttle's aim lands where it aims in its air;
+    each new court plays in the page to the state the same match reaches in Node.
+  - **Seen, said:** the minds rarely play the kitchen (they stay back), so its foul comes from a player at the pad;
+    the receiver's returns on the court sim remain the weak point the tennis stats showed.
+
 ### No flat building polygons: a building's seen edges have thickness
 
 Walls and roofs read paper-thin: a building's outer wall was one skin with its way out punched through it, and every

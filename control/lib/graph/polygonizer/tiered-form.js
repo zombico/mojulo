@@ -14,7 +14,8 @@
  *   tieredJoints(plan)        the plan with a BRIDGE over the elbows, the knees and the wrists
  *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
  *   tieredGarments(plan)      the plan's garments over its bridges, and split wherever their body part is split
- *   tieredKit(kit, plan)      an adornment kit over the joints: a piece over a joint rides its bridge, a pauldron its ball
+ *   tieredKit(kit, plan, { laws })  an adornment kit over the joints: a piece over a joint rides its bridge, a pauldron its
+ *                                   ball, a trunk plate keeps off the shoulder (laws 18)
  *   TIERED_FACE[pole]         the landmark head's defaults by sex: face words, hair, features (humanoid-head.js)
  *   TIERED_FACE_SMOOTH        the landmark head's normals blended toward its ellipsoid
  *   TIERED_FACE_TINT[pole]    the head skin's occlusion and blush (face-tint.js); tieredPole(hero) the head's sex
@@ -585,11 +586,43 @@ export function tieredGarments(plan) {
  * does, instead of riding the upper bone while the bridge bends under it. A piece on the torso or the neck (a pauldron,
  * a gorget) stands off the shoulders' BALLS as well, which stand out of the torso there. A piece its author
  * pinned keeps its pin. No bridges or balls ⇒ the kit as it was.
+ *
+ * THE SHOULDER IS NOT THE TORSO'S: the torso's top rings run out to the shoulders (the arms hang from their sides), so a
+ * plate on the torso that reaches up there stood off the balls and wrapped the shoulder in a yoke. Above the ball's
+ * lowest point the torso's sides are the shoulder's: a trunk plate that is not a shoulder piece (one that spans the
+ * upper arm: a pauldron's anchor) keeps off them, a front or back plate cut in under the arm (its `armhole`), a wrap (a band, a row,
+ * a hoop) ending under the arm, and it lies under the arm instead of standing off the balls, as the realistic body's
+ * cuirass does (body-relational-armour.js PLATE_STAND). A pinned piece (a skirt's board) and the neck's (a gorget) as
+ * they were. Hero laws 18 (hero-form.js); a hero minted under 1 to 17 keeps its plates standing off the balls.
  */
-export function tieredKit(kit, plan) {
+export function tieredKit(kit, plan, { laws = 1 } = {}) {
   if (!Array.isArray(kit) || !kit.length) return kit;
   const seg = (n) => (plan.segments || []).find((s) => s.name === n.replace(/L$/, 'R'));
   const sideOf = (n) => (/L$/.test(n) ? 'L' : /R$/.test(n) ? 'R' : null);
+  // (the ball's lowest point as a torso station s, by the height of the torso's own stations st0, st1, …, and its inner
+  // edge, the nearest the ball comes to the body's middle: above that point a plate keeps inside it)
+  const T = seg('torso'), ball = seg('shoulderBallR'), Ht = (SLOT_FAMILIES[plan.style?.slots ?? 'ring8'] ?? SLOT_FAMILIES.ring8).length / 2;
+  const sOf = (id) => { const m = /^st(\d+)(?:_st(\d+)_(\d+))?$/.exec(id); return m ? (m[2] === undefined ? +m[1] : +m[1] + ((+m[2] - +m[1]) * +m[3]) / 100) : null; };
+  const rings = (T?.stations || []).map((st) => ({ s: sOf(st.id), z: st.z, rx: st.r?.[0] })).filter((q) => q.s != null && Number.isFinite(q.z) && Number.isFinite(q.rx)).sort((a, b) => a.s - b.s);
+  const ballPts = (ball?.stations || []).flatMap((st) => Object.values(st.points || {}));
+  const sBall = (() => { if (rings.length < 2 || !ballPts.length) return null; const zb = Math.min(...ballPts.map((p) => p[2]));
+    for (let i = 0; i + 1 < rings.length; i++) { const a = rings[i], b = rings[i + 1]; if (zb >= a.z && zb <= b.z && b.z > a.z) return r6(a.s + ((b.s - a.s) * (zb - a.z)) / (b.z - a.z)); } return null; })();
+  const xIn = ballPts.length ? Math.min(...ballPts.map((p) => Math.abs(p[0]))) * 0.92 : null, e = T?.e ?? 2;
+  // the furthest round from the front (in the ring's t) a plate may reach and stay inside the ball over rings s0 → s1:
+  // the torso's ring a superellipse (x = rx·sinθ^(2/e)), t uniform in θ over the ring half
+  const tReach = (s0, s1) => { const rx = Math.max(...rings.filter((q) => q.s >= s0 - 1e-9 && q.s <= s1 + 0.5).map((q) => q.rx), 1e-9);
+    const sn = Math.min(1, (xIn / rx) ** (e / 2)); return r6((Math.asin(sn) / Math.PI) * Ht); };
+  const trunkPlate = (A) => A.part === 'torso' && (A.mode === 'shell' || A.mode === 'band') && !A.pin && !(A.over || []).some((o) => /^upperArm/.test(o));
+  const offShoulder = (A) => { if (sBall == null || !Array.isArray(A.s) || A.s[1] <= sBall) return A;
+    const reach = tReach(Math.max(A.s[0], sBall), A.s[1]);
+    if (Array.isArray(A.t)) { const [t0, t1] = A.t[0] <= A.t[1] ? A.t : [A.t[1], A.t[0]];
+      if (t1 <= reach || t0 >= Ht - reach) return A;                                        // clear of the shoulder
+      // a front or back plate cut in under the arm: its side edge eased in above the ball (station-loft-adorn.js armhole)
+      const edge = A.t[1] >= A.t[0] ? 1 : 0;   // (the window's end toward the side: its t end, unless it runs back to front)
+      if (t0 < reach && t1 <= Ht - reach + 1e-9 && t0 < Ht / 2) return { ...A, armhole: { from: sBall, edge, t: reach } };
+      if (t1 > Ht - reach && t0 >= reach - 1e-9 && t1 > Ht / 2) return { ...A, armhole: { from: sBall, edge: 1 - edge, t: r6(Ht - reach) } }; }
+    // a wrap, or a window across the side: it ends under the arm (its support with it)
+    const top = r6(Math.max(A.s[0] + 0.1, sBall)); return { ...A, s: [A.s[0], top], ...(A.support > top ? { support: top } : {}) }; };
   return kit.map((A) => {
     const S = sideOf(A.part ?? ''), over = A.over || [];
     let B = A;
@@ -600,7 +633,9 @@ export function tieredKit(kit, plan) {
       const mid = r6(((br.stations?.length ?? 2) - 1) / 2), t = Array.isArray(A.t) ? r6((A.t[0] + A.t[1]) / 2) : null;
       B = { ...B, over: [...new Set([...(B.over || []), `${bridge}${S}`])], ...(A.rigid && !A.pin && t != null ? { pin: [mid, t, A.side || S, `${bridge}${S}`] } : {}) };
     }
-    // the balls stand out of the torso at the shoulder: what the torso or the neck carries stands off them
+    // the balls stand out of the torso at the shoulder: what the torso or the neck carries stands off them, but a trunk
+    // plate, which keeps off the shoulder instead
+    if (laws >= 18 && trunkPlate(A) && sBall != null) return offShoulder(B);
     if ((A.part === 'torso' || A.part === 'neck') && seg('shoulderBallR')) B = { ...B, over: [...new Set([...(B.over || []), 'shoulderBallR', 'shoulderBallL', ...(seg('shoulderWebR') ? ['shoulderWebR', 'shoulderWebL'] : []), ...(seg('shoulderConeR') ? ['shoulderConeR', 'shoulderConeL'] : [])])] };
     return B;
   });

@@ -1364,6 +1364,41 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
   }
+  // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
+  // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's
+  // athletes (characters by ref, contest/athletes.js) are packed here, so a sport follows its characters' edits
+  if (payload && sketch.manifest.meet && typeof sketch.manifest.meet === 'object') {
+    const { meetArenaData } = await import('@/lib/graph/contest/meet-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.meet = meetArenaData(sketch.manifest.meet, { bodies: await athleteBodies(sketch.manifest.meet.athletes) });
+  }
+  // a net game on a court (contest/match-arena.js): the sport, the players, the register, the contest compiled, the
+  // level wire's names; the page's court channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.court && typeof sketch.manifest.court === 'object') {
+    const { matchArenaData } = await import('@/lib/graph/contest/match-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.court = matchArenaData(sketch.manifest.court, { bodies: await athleteBodies(sketch.manifest.court.athletes) });
+  }
+  // a turn sport on a course (contest/turn-arena.js): the sport, the seats, the register, the contest compiled, the
+  // level wire's names; the page's turns channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.turns && typeof sketch.manifest.turns === 'object') {
+    const { turnsArenaData } = await import('@/lib/graph/contest/turn-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.turns = turnsArenaData(sketch.manifest.turns, { bodies: await athleteBodies(sketch.manifest.turns.athletes) });
+  }
+  // a team goal game on a pitch (contest/team-arena.js): the sport, the players, the register, the contest compiled,
+  // the level wire's names; the page's pitch channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.pitch && typeof sketch.manifest.pitch === 'object') {
+    const { teamArenaData } = await import('@/lib/graph/contest/team-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.pitch = teamArenaData(sketch.manifest.pitch, { bodies: await athleteBodies(sketch.manifest.pitch.athletes) });
+  }
+  // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
+  // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).
+  if (payload && sketch.manifest.holo && typeof sketch.manifest.holo === 'object') {
+    const { holoArenaData } = await import('@/lib/graph/tabletop/holo-arena.js');
+    payload.holo = holoArenaData(sketch.manifest.holo);
+  }
   // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
   // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
   // (a city's `board` is its plan's street grid, city/plan: never spots)

@@ -10,6 +10,7 @@
 
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
+import { tableBroadcastData, broadcastDomCss, broadcastDomClient, TABLE_LOOKS } from '../broadcast/broadcast-dom.js';
 
 const LEVELS = ['easy', 'fair', 'hard'];
 
@@ -18,7 +19,7 @@ const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function cardPageHtml(G, L, K, opts = {}) {
   const { human, level, seed } = opts;
-  const data = { L, G, human, level, seed };
+  const data = { tv: tableBroadcastData(G.players, opts.broadcast, ['#888888'], TABLE_LOOKS.felt), L, G, human, level, seed };
   const title = opts.title ?? G.title ?? 'mojulo card game';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -32,7 +33,7 @@ export function cardPageHtml(G, L, K, opts = {}) {
   header h1{font-size:16px;margin:0 8px 0 0}
   button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
   button:disabled{opacity:.4;cursor:default}
-  #status{margin-left:auto;font-weight:600}
+  #status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   main{display:flex;flex-wrap:wrap;gap:16px;padding:16px;align-items:flex-start}
   #felt{flex:1 1 560px;min-width:0;background:var(--felt);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px;color:#efe9dc}
   .zone h2{font-size:12px;margin:0 0 6px;font-weight:600;color:#cfc6b5;text-transform:uppercase;letter-spacing:.04em}
@@ -70,12 +71,13 @@ export function cardPageHtml(G, L, K, opts = {}) {
   .sw{display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:0 0 0 1px #1a1512 inset}
   #log{margin:0;padding-left:34px;max-height:240px;overflow:auto;font-size:13px}
   @media (max-width:600px){aside{flex-basis:100%}.c{width:80px;height:116px}}
+${broadcastDomCss(data.tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
   <button id="again">New game</button>
-  <span id="status"></span>
+  <span id="status" aria-live="polite"></span>
 </header>
 <main>
   <div id="felt">
@@ -97,17 +99,18 @@ export function cardPageHtml(G, L, K, opts = {}) {
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-(${tabletopCardClient.toString()})(DATA, T, M);
+const TV = (${broadcastDomClient.toString()})(DATA.tv);
+(${tabletopCardClient.toString()})(DATA, T, M, TV);
 </script>
 </body></html>
 `;
 }
 
 /* The card page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopCardClient(D, T, M) {
+export function tabletopCardClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], types = K.card.types;
-  const colour = (s) => D.G.players[s].colour || '#888';
+  const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let S, legal, busy = false, level = D.level, log = [], turns = 0;
 
@@ -154,7 +157,7 @@ export function tabletopCardClient(D, T, M) {
   }
   const stack = (ids) => { const by = {}; for (const id of ids) by[id] = (by[id] || 0) + 1; return Object.keys(by).sort().map((id) => [id, by[id]]); };
 
-  function reset() { S = T.start(K); busy = false; log = []; turns = 0; step(); }
+  function reset() { TV.clear(); S = T.start(K); busy = false; log = []; turns = 0; step(); }
   function step() {
     legal = T.legal(K, S);
     render();
@@ -250,6 +253,7 @@ export function tabletopCardClient(D, T, M) {
     $('act').innerHTML = K.card.draft || S.side !== me || S.over ? '' : '<span>Actions <b>' + S.act.actions + '</b></span><span>Buys <b>' + S.act.buys + '</b></span><span>Coins <b>' + S.act.coins + '</b></span>';
     const sc = S.over ? S.over.scores : T.cardScores(K, S);
     $('status').textContent = S.over ? prompt : 'Turn ' + (Math.floor(S.turn / K.players.length) + 1);
+    TV.table({ players: K.players, me, scores: sc, live: S.side, tab: (prompt ? prompt + ' · ' : '') + 'turn ' + (Math.floor(S.turn / K.players.length) + 1), over: S.over, again: reset });
     $('seats').innerHTML = K.players.map((p, s) => '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><i class="sw" style="background:' + colour(s) + '"></i> ' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + sc[s] + ' pts</span></div>').join('');
     $('log').innerHTML = log.join('');
     $('log').scrollTop = 1e6;

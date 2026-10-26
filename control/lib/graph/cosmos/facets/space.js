@@ -62,6 +62,8 @@ export const SPACE = Object.freeze({
         // into, doors to insides, a ring of the city as its backdrop. No Godot fixture plays one: its traffic and walkers do
         // not step there (godot-marks.js), and the rest is unproven
         city: { status: 'built', lowers: 'lib/graph/city/plan/level.js', godot: 'absent', roblox: 'absent', note: 'a district of a planned city: a segment cut along its streets, left by its portals, its lots solid, lobbies walked into and doors to insides; played first person by a walker, or third person by a hero whose roofs are ground (level.hero)' },
+        // built 10-25 (battle city): the venue of a contest, laid in an arena with stands
+        court: { status: 'built', lowers: 'lib/graph/contest/match-arena.js', ...WEB, note: 'a court, a pitch, a track, a course or a lane laid in an arena with stands (a stage recipe: match-arena.js, meet-arena.js, turn-arena.js, team-arena.js): the contest kernel\'s named regions mirrored for the other side (a half, a service box, a box, a green, a gutter), the lines drawn on the ground from them, a camera square to the play (the broadcast, the end, the follow); played as the level of a quick meet or contest' },
       },
     },
     // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it
@@ -77,7 +79,7 @@ export const SPACE = Object.freeze({
       values: {
         none: { status: 'built', godot: 'built', roblox: 'built' },
         spots: { status: 'built', ...WEB, lowers: 'lib/graph/board/board-kernel.js', note: 'square spots over a level\'s own ground (its rooms or its land) or a diorama, each a height, a type and one occupant; reach by move and jump, aim and area shapes, walls cutting steps, legal moves; a book\'s battles on boards are laid over their stages' },
-        lattice: { status: 'built', ...WEB, lowers: 'lib/graph/polygonizer/lattice.js', note: 'a board game\'s own board, no map: square or hex cells, corners and edges with their relations, pieces whose moves are vectors under its symmetry; chess and checkers in its book, any other game written out on it from systems and meeples (tabletop/), played against the computer as their own page' },
+        lattice: { status: 'built', ...WEB, lowers: 'lib/graph/polygonizer/lattice.js', note: 'a board game\'s own board, no map: square or hex cells, corners and edges with their relations, pieces whose moves are vectors under its symmetry; chess and checkers in its book, any other game written out on it from systems and meeples (tabletop/), played against the computer as their own page, or a game of moves lifted into a hologram arena on the World page (tabletop/holo-arena.js)' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', marks: 'linkMarks' } },

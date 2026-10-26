@@ -119,11 +119,43 @@ export function buildSim() {
   //   drag:      F = −c·v (÷ mass) — `coefficient`.
   //   attractor: a gravity-like ACCELERATION field strength·dir/(d²+soft²), mass-independent;
   //              `position`, `strength`, optional `softening`, `radius` (cutoff), `repel`.
+  //   aero:      a sphere in REAL AIR, the ball's flight (battle city; the curves and constants are physics/flight.js's,
+  //              from the soccer-ball aerodynamics literature, and that module is the oracle this rule is held to):
+  //              drag ½ρA·C_d|v|² against the motion with the DRAG CRISIS (C_d a logistic from the slow, high-drag plateau
+  //              `cdSub` to the fast, low-drag plateau `cdSup` about `vCrit`, over `vWidth`; `crisis: false` pins it at
+  //              cdSup), and MAGNUS lift ½ρA·C_l|v|² along ω × v, C_l saturating with the spin ratio S = r·ω⊥/|v|
+  //              (`clMax`, `s0`; `spin: false` drops it); `rho` the air's density (sea level); `spinDecay` /s bleeds the
+  //              spin while it flies (stepped in step(), since it needs dt). `on`: the body ids it acts on (absent: every
+  //              dynamic sphere). The constants are the force's, never the body's: a ball's cited aero rides its spec.
+  function aeroOn(body, f) {
+    return body.collider === 'sphere' && body.invMass > 0 && (!Array.isArray(f.on) || f.on.indexOf(body.id) >= 0);
+  }
+  function aeroAccel(body, f) {
+    const v = body.velocity, speed = len(v);
+    if (speed < 1e-6) return ZERO;
+    const rho = Number.isFinite(f.rho) ? f.rho : 1.225, A = Math.PI * body.radius * body.radius;
+    const cdSup = Number.isFinite(f.cdSup) ? f.cdSup : 0.18, cdSub = Number.isFinite(f.cdSub) ? f.cdSub : 0.5;
+    const vCrit = Number.isFinite(f.vCrit) ? f.vCrit : 12.5, vWidth = Number.isFinite(f.vWidth) ? f.vWidth : 1.3;
+    const Cd = f.crisis === false ? cdSup : cdSup + (cdSub - cdSup) / (1 + Math.exp((speed - vCrit) / vWidth));
+    let a = scl(v, -(0.5 * rho * A * Cd * speed) * body.invMass);
+    if (f.spin !== false) {
+      const c = cross(body.angularVelocity, v), cm = len(c);
+      if (cm > 1e-9) {
+        const clMax = Number.isFinite(f.clMax) ? f.clMax : 0.25, s0 = Number.isFinite(f.s0) ? f.s0 : 0.25;
+        const S = (body.radius * (cm / speed)) / speed;
+        const Cl = clMax * (1 - Math.exp(-S / s0));
+        a = add(a, scl(c, ((0.5 * rho * A * Cl * speed * speed) * body.invMass) / cm));
+      }
+    }
+    return a;
+  }
   function fieldAccel(body, forces) {
     let a = [0, 0, 0];
     for (let i = 0; i < forces.length; i++) {
       const f = forces[i];
-      if (f.kind === 'wind' && Array.isArray(f.vector)) {
+      if (f.kind === 'aero') {
+        if (aeroOn(body, f)) a = add(a, aeroAccel(body, f));
+      } else if (f.kind === 'wind' && Array.isArray(f.vector)) {
         a = add(a, scl(f.vector, body.invMass));
       } else if (f.kind === 'drag') {
         const c = Number.isFinite(f.coefficient) ? f.coefficient : 0.1;
@@ -244,6 +276,11 @@ export function buildSim() {
       const acc = add(gravity, fieldAccel(body, forces));
       body.velocity = add(body.velocity, scl(acc, dt));
       body.position = add(body.position, scl(body.velocity, dt));
+      // the air bleeds a flying ball's spin (aero spinDecay /s); a body no aero rule acts on keeps every byte of it
+      for (let i = 0; i < forces.length; i++) {
+        const f = forces[i];
+        if (f.kind === 'aero' && Number.isFinite(f.spinDecay) && f.spinDecay > 0 && aeroOn(body, f)) body.angularVelocity = scl(body.angularVelocity, Math.exp(-f.spinDecay * dt));
+      }
       if (body.invInertia > 0) body.orientation = integrateOrientation(body.orientation, body.angularVelocity, dt);
       body.resting = false;
     }
