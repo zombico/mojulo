@@ -258,6 +258,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // discards under its alphaTest, so its transparent texels no longer occlude as a rectangle. The creases' own block
 // (creases without occlusion) is unchanged.
 
+// Re-pinned 2026-10-26 (live light defaults): `live-shadows-actors`, `live-shadows-hour` and `live-shadows-both` only.
+// The actors' box is 16 m by default (was 12), led 8 m ahead along the camera's ground with one focus (`lead`); the
+// hour's map reads its receiver's slope into its bias (`csLitR`: no moire under a low sun), and the `hour` seam's comment
+// says the sun does not move. The occlusion rows are unchanged (the half tier's strings are written only with a tier),
+// and so is every other hash: the defaults resolve in world-scene, never in the emitter.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

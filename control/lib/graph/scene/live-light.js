@@ -3,6 +3,13 @@
  * gets live light (live-light.plan.md). Pure: the readers, and the JS mirrors of the shaders the page compiles
  * (channels/cast-shadows.js, channels/creases.js), so the math is pinned on stubs without a browser.
  *
+ * THE SUN DOES NOT MOVE, live or within a level (the operator's principle, era/geocube-hours.js). A level is lit at one
+ * hour: its light baked, its static shadow map drawn once at load. Never wire a clock, a day cycle or a moving sun here.
+ *
+ * ON BY DEFAULT where it pays (liveLightDefaults, read by world-scene before the bake): a hero's level, and a battle
+ * watched with no pilot (its fighters), take the actors' shadows; a world whose geocube names the seventh generation takes actors, the hour's map and occlusion; each the
+ * recipe's own where it says, and all of it under the quality tier (`light.tier`, by the screen the game is made for).
+ *
  *   shadows.actors   only what moves casts into a shadow map drawn each frame; the static world receives. Where the
  *                    world bakes its sun, each vertex carries its share of light that comes straight from the sun
  *                    (`sunShare` on a face, the page's `aSun`), and an actor's shadow darkens by that share alone, so
@@ -21,10 +28,17 @@
  *   occlusionKernel(n)        the hemisphere's sample offsets, the same numbers the page's shader is written with
  *   occlusionAt(stub, px)     the occlusion pass on a depth / normal stub (the shader's loop, in JS)
  *   occlusionComposite(occ, strength, fogK)   the composite's alpha: what share of a pixel's colour the occlusion takes
+ *   heroLevel(m)              does a world have a pilot with a body (a hero's level, not a spectated battle)?
+ *   spectatedBattle(m)        is it a battle watched with no pilot whose fighters have bodies (they cast as a hero does)?
+ *   LIGHT_TIERS, readLightTier(light)   `light.tier` → 'auto' | 'off' | 'half' | 'full', or throws
+ *   TIER_TERMS, tierFor(tier, screen)   a tier (and the screen's pole for auto) → { tier, mapSize, ao, occlusion }
+ *   liveLightDefaults(m, { era })   a world manifest → the shadows and occlusion its page takes (the recipe's own, the
+ *                             hero's and the era's defaults filled where it says nothing) and the tier they cost at
+ *   receiverBias(g, texel, bias, cap)   the hour map's depth bias for a receiver whose light-space depth slope is g
  */
 
 /** the keys of a world's `shadows` that the page reads: the cast channel's and its tuning, the live modes */
-export const LIVE_SHADOW_KEYS = Object.freeze(['cast', 'actors', 'hour', 'alpha', 'span', 'mapSize', 'toLight', 'noCastGroups', 'bias', 'fitMin']);
+export const LIVE_SHADOW_KEYS = Object.freeze(['cast', 'actors', 'hour', 'alpha', 'span', 'lead', 'mapSize', 'toLight', 'noCastGroups', 'bias', 'fitMin']);
 
 /** A world's `shadows` → null (no live mode asked) | { actors, hour }; malformed live keys throw, naming the setting. */
 export function readLiveShadows(s) {
@@ -113,3 +127,97 @@ export function occlusionAt(stub, px) {
 
 /** The composite's alpha over a pixel: its occlusion × the strength, faded by the fog as the creases are. */
 export const occlusionComposite = (occ, strength, fogK = 1) => Math.min(1, Math.max(0, occ * strength * fogK));
+
+// ── on by default where it pays ──────────────────────────────────────────────────────────────────────────────────
+
+/** A hero's level: the world has a pilot with a body (a pilotable entity whose body is not `none`), and is not a
+ *  spectated battle (no pilot at all there). A first-person walker with no body is the camera, not a hero. */
+export function heroLevel(m) {
+  if (!m || m.spectate === true || !Array.isArray(m.entities)) return false;
+  return m.entities.some((e) => e && e.pilotable && !(e.body && e.body.type === 'none'));
+}
+
+/** A spectated battle (`spectate: true`, no pilot: the whole cast runs its brain): its fighters, the entities with a
+ *  body, cast as a hero does (the operator's call, 1026). */
+export function spectatedBattle(m) {
+  if (!m || m.spectate !== true || !Array.isArray(m.entities)) return false;
+  return m.entities.some((e) => e && e.body && e.body.type !== 'none');
+}
+
+/** the tiers a world's `light.tier` names: auto (by the screen the game is made for), off, half, full */
+export const LIGHT_TIERS = Object.freeze(['auto', 'off', 'half', 'full']);
+/** what a tier costs: the shadow maps' size, and the occlusion's resolution (1 as built: the prepass at the frame's,
+ *  the occlusion pass at half of it; 0.5: each at half that) */
+export const TIER_TERMS = Object.freeze({ half: Object.freeze({ mapSize: 1024, ao: 0.5 }), full: Object.freeze({ mapSize: 2048, ao: 1 }) });
+// auto, by the screen's pole (game/screen.js): a phone takes half and no default occlusion; a tablet half; a screen
+// (the desktop's), or none named, full. A custom frame upright reads as a phone, on its side as a screen
+const AUTO = Object.freeze({ phone: { tier: 'half', occlusion: false }, tablet: { tier: 'half', occlusion: true }, screen: { tier: 'full', occlusion: true } });
+
+/** A world's `light` → its tier ('auto' when it names none). Only `light.tier` is the live light's: other keys of a
+ *  world's `light` (a painted landscape's direction) are their kind's. Throws on a tier that is not one. */
+export function readLightTier(light) {
+  if (light === undefined || light === null || typeof light !== 'object' || Array.isArray(light) || light.tier === undefined) return 'auto';
+  if (!LIGHT_TIERS.includes(light.tier)) throw new Error(`light.tier is one of ${LIGHT_TIERS.join(', ')} (what the live light may cost: auto by the screen the game is made for, a phone half without occlusion; off none of it; half its maps at 1024 and its occlusion at a quarter of the frame; full 2048 and half the frame)`);
+  return light.tier;
+}
+
+/** A tier and the screen it is read with (readScreen's, or null) → null (off) | { tier, mapSize, ao, occlusion } where
+ *  `occlusion` says whether a DEFAULT occlusion is taken at it (a recipe's own is kept at any tier but off). */
+export function tierFor(tier, screen = null) {
+  if (tier === 'off') return null;
+  if (tier === 'half' || tier === 'full') return { tier, ...TIER_TERMS[tier], occlusion: true };
+  const pole = !screen ? 'screen' : AUTO[screen.pole] ? screen.pole : screen.orientation === 'portrait' ? 'phone' : 'screen';
+  const A = AUTO[pole];
+  return { tier: A.tier, ...TIER_TERMS[A.tier], occlusion: A.occlusion };
+}
+
+// what a recipe's own `shadows` says about the page: 'open' (nothing: absent, or only a stage's bake keys), 'live' (it
+// names actors or hour: the rest is filled), 'said' (false: none; true or a blob's tuning: the suit's contact blob; cast)
+const BAKE_SHADOW_KEYS = ['torch', 'sun', 'cells'];
+function shadowsSay(s) {
+  if (s === undefined || s === null) return 'open';
+  if (typeof s !== 'object' || Array.isArray(s)) return 'said';
+  if (s.cast) return 'said';
+  if (s.actors !== undefined || s.hour !== undefined) return 'live';
+  return Object.keys(s).some((k) => !BAKE_SHADOW_KEYS.includes(k)) ? 'said' : 'open';
+}
+
+/**
+ * The live light a world's page takes: its recipe's own, and the defaults where the recipe says nothing.
+ *   a hero's level (heroLevel)   shadows.actors
+ *   a spectated battle           shadows.actors (its fighters)
+ *   era 'gen-7' (its geocube's)  shadows.actors, shadows.hour, occlusion
+ * A recipe says otherwise with `shadows: false`, `shadows: true` or a blob's tuning, `shadows.cast`, `actors: false` /
+ * `hour: false`, `occlusion: false`; a stage's bake keys alone say nothing. The tier (`light.tier`, auto by the
+ * `screen`, readScreen's) caps the cost: off drops the live light, its defaults and the recipe's asks alike.
+ * → { shadows, occlusion, tier: null | { tier, mapSize, ao }, from: { actors?, hour?, occlusion? } }. `shadows` and
+ * `occlusion` are the recipe's own values (the same objects) where nothing is added; `from` names each default taken.
+ */
+export function liveLightDefaults(m, { era = null, screen = null } = {}) {
+  const s = m.shadows, T = tierFor(readLightTier(m.light), screen), gen7 = era === 'gen-7', hero = heroLevel(m), watched = spectatedBattle(m);
+  if (!T) {
+    // off: no live light. The recipe's live keys come off its shadows (its bake keys and its blob stay); a shadows that
+    // asked for live light alone is none
+    const live = s && typeof s === 'object' && !Array.isArray(s) && (s.actors !== undefined || s.hour !== undefined);
+    const rest = live ? Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'actors' && k !== 'hour')) : s;
+    return { shadows: live && !Object.keys(rest).length ? undefined : rest, occlusion: undefined, tier: null, from: {} };
+  }
+  const want = { actors: hero || watched || gen7, hour: gen7 }, say = shadowsSay(s), from = {};
+  let shadows = s;
+  if (say !== 'said') {
+    const add = {};
+    for (const k of ['actors', 'hour']) if (want[k] && (say === 'open' || s[k] === undefined)) { add[k] = true; from[k] = k === 'actors' && hero ? 'hero' : k === 'actors' && watched ? 'spectate' : 'gen-7'; }
+    if (Object.keys(add).length) shadows = { ...(s || {}), ...add };
+  }
+  let occlusion = m.occlusion;
+  if (occlusion === undefined && gen7 && T.occlusion) { occlusion = true; from.occlusion = 'gen-7'; }
+  const lit = !!readLiveShadows(shadows) || !!readOcclusion(occlusion);
+  return { shadows, occlusion, tier: lit ? { tier: T.tier, mapSize: T.mapSize, ao: T.ao } : null, from };
+}
+
+/** The hour map's depth bias for a receiver whose light-space depth slope is `g` = [dz/du, dz/dv] (the receive patch
+ *  reads it from the fragment's own derivatives): the map's constant bias plus the depth the receiver's own plane
+ *  climbs across one texel and a half (the farthest of the four taps from the texel it reads), capped at `cap` (a
+ *  grazing receiver would otherwise lose a caster's real shadow). Without it a sun low over wide terrain lays the map's
+ *  own steps on the ground as moiré. The page's shader in JS. */
+export const receiverBias = (g, texel, bias, cap) => bias + Math.min(cap, 1.5 * texel * (Math.abs(g[0]) + Math.abs(g[1])));

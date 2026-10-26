@@ -758,7 +758,9 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // a card stops the sun only where its painted needles are; grass is no occluder
   const shadow = makeSunShadow(raw, dir, { cell: 0.6, ...(st.trees.cards ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) });
-  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
+  // (the live light's SUN SHARE, scene/live-light.js: a world whose page takes actor shadows has the bake write each
+  // corner's share of its light that comes straight from the sun, as the stage does; ctx.liveSun, world-scene)
+  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow, ...(ctx.liveSun ? { share: true } : {}) };
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   // grass as cards stands in the bake (after the sun: it grows where it is placed, shaded where the shade falls)
   if (st.grass.cards) raw.push(...grassCards(st, site, grassTufts(st, site, trees, rocks, sun, seed), seed));

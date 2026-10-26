@@ -43,6 +43,19 @@ let LIT = CITY_LIGHT;
 const shade = (hex, n, lift = 0) => scaleHex(hex, Math.min(1.15, litFactor(n, LIT) + lift));
 const CITY_GROUND_BASE = Object.freeze({ ground: '#56643f', road: '#3b3d40', walk: '#a8a49a', plaza: '#a19f97', park: '#4f6b3a', water: '#3e6a84', parking: '#5c5e60', rail: '#6d6257', guideway: '#c9ccd1', pylon: '#9aa0a8', stop: '#d9b44a', landmark: '#c9c4b8', civic: '#bdb6a6' });
 export const CITY_GROUND = CITY_GROUND_BASE;
+// the share of a face's light its key gives (the live light's `sunShare`): the key's Lambert over the whole light
+const NIGHT_LIT = new Set(['city:neon', 'city:night-window', 'city:night-shop']);
+function keyShare(f) {
+  let n = f.normal;
+  if (!Array.isArray(n)) {
+    const [a, b, c] = f.corners, u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  }
+  const l = Math.hypot(n[0], n[1], n[2]);
+  if (!(l > 1e-12)) return 0;
+  const N = [n[0] / l, n[1] / l, n[2] / l], key = LIT.diffuse * Math.max(0, N[0] * LIT.toLight[0] + N[1] * LIT.toLight[1] + N[2] * LIT.toLight[2]), all = litFactor(N, LIT);
+  return all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0;
+}
 // a maglev's guideway: its deck's underside this high, pylons this far apart
 // the faces the city's trees may draw between them (the pool spends it on the trees seen largest first)
 const CITY_PLANT_FACES = 240000, LEVEL_PLANT_FACES = 60000;
@@ -307,6 +320,11 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan =
     // at night the windows and signs are lit (night.js)
     if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }
+  // the live light's SUN SHARE (ctx.liveSun: a page taking actor shadows, scene/live-light.js): the city is lit by its
+  // key's Lambert (vexar's), with no shadow test, so a face's share is the key's part of its light by its normal, and an
+  // actor's shadow takes that away; at night the key is the moon (look.js lookLight). A lit window, a sign and a lit
+  // shop carry their own light: none
+  if (ctx.liveSun) scene = { ...scene, faces: scene.faces.map((f) => (!f || !Array.isArray(f.corners) || NIGHT_LIT.has(f.group) ? f : { ...f, sunShare: keyShare(f) })) };
   const air = spec && spec.ref.air;
   // the stalker's eye (eye.js): the far ring and the skyline band, and its air, per unit (fog density is per world unit)
   const bg0 = '#cfd6dc', hz = eyePlan ? { density: +(eyePlan.haze.density * U).toPrecision(6), hazeHeight: r3(eyePlan.haze.hazeHeight / U) } : null;

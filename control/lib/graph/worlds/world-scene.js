@@ -46,10 +46,10 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf } from '@/lib/graph/era/geocube';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
-import { wantsSunShare, readOcclusion } from '@/lib/graph/scene/live-light';
+import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle, titleThemeFor } from '@/lib/graph/game/hud-widgets';
 import { hasTitleWords, localizeHudRows, readTitleLocale } from '@/lib/graph/game/title-words';
@@ -266,6 +266,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     desc = bookWorldKind(kind) ?? undefined;
   }
   desc = desc ?? ROOM_FALLBACK;
+  // LIVE LIGHT ON BY DEFAULT where it pays (scene/live-light.js liveLightDefaults): a hero's level takes the actors'
+  // shadows, a world whose cube names the seventh generation actors, the hour's map and occlusion, each the recipe's
+  // own where it says; all of it under the tier (`light.tier`, auto by the `screen`). Read before the bake, which
+  // writes the sun's share for it. The unshaded export bakes no sun and takes none of it. Neither a hero's level nor
+  // gen-7 nor an ask: the recipe's own values, and every byte as it was
+  const liveL = unshaded ? null : liveLightDefaults(sketch.manifest, {
+    era: geocubeEraOf(sketch.manifest), screen: sketch.manifest.screen != null ? readScreen(sketch.manifest.screen) : null });
   const ctx = {
     title: sketch.title || sketch.manifest.title || desc.title,
     time,
@@ -292,9 +299,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // LIVE LIGHT (scene/live-light.js): a world whose `shadows` ask for actors or the hour has its sun bake write each
     // corner's share of light from the sun (`sunShare`), so an actor's shadow on the page never doubles a baked one.
     // Dropped under the unshaded export (it bakes no sun). Absent ⇒ false ⇒ every byte identical
-    liveSun: !unshaded && wantsSunShare(sketch.manifest.shadows),
+    liveSun: !!liveL && wantsSunShare(liveL.shadows),
     // OCCLUSION (scene/live-light.js, on the creases' prepass): live contact occlusion; the unshaded base drops it
-    occlusion: unshaded ? null : readOcclusion(sketch.manifest.occlusion),
+    occlusion: liveL ? readOcclusion(liveL.occlusion) : null,
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -659,7 +666,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // to the payload's baked sun when one exists. `shadows: { actors: true }` and `{ hour: true }` are the LIVE LIGHT's
   // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
-  if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
+  // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
+  const shadowsOut = liveL ? liveL.shadows : sketch.manifest.shadows;
+  if (payload && shadowsOut) payload.shadows = shadowsOut;
+  // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
+  // page with live light on
+  if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word

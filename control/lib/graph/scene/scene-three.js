@@ -46,7 +46,7 @@ import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import { contrastFaces } from '../era/vertex-contrast.js';
 import {
-  actionsChannelScript, audioChannelScript, castShadowScript, liveShadowScript, channelRuntimeSection, channelSetupSection,
+  actionsChannelScript, audioChannelScript, castShadowScript, liveShadowScript, liveBudgetScript, channelRuntimeSection, channelSetupSection,
   controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
@@ -244,7 +244,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -846,8 +846,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // existing world's emitted bytes are untouched (the char net holds).
   const castShadows = shadows && typeof shadows === 'object' && shadows.cast ? shadows : null;
   // the live light's split (liveShadows, above): what moves casts each frame (`actors`), the static world into its own
-  // map when the hour changes (`hour`). Its box follows the action at `span` (12 m by default, in world units: a box 24 m
-  // across round one hero, a 2048 map's texel about a centimetre, so a foot's shadow meets the foot; seats grow it)
+  // map, drawn once at load (`hour`). Its box follows the action at `span` (16 m by default, in world units: a box 32 m
+  // across, a 2048 map's texel a centimetre and a half, so a foot's shadow meets the foot; seats grow it), led `lead`
+  // (8 m) ahead along the camera's ground with one focus, so it covers the hero and what is near it where the frame
+  // looks (8 m behind the hero to 24 m ahead), not a disc round the hero half of which is behind the camera. The tier
+  // (`lightTier`, scene/live-light.js liveLightDefaults) sizes the maps where the world names none
   const liveUnit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
   const liveShadowBlock = liveShadows ? liveShadowScript({
     actors: liveShadows.actors, hour: liveShadows.hour,
@@ -855,8 +858,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     toLight: liveIndoor ? [0, 0, -1] : Array.isArray(shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight
       : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
     alpha: typeof shadows.alpha === 'number' ? shadows.alpha : 0.38,
-    mapSize: shadows.mapSize || 2048,
-    span: shadows.span || Math.round((12 / liveUnit) * 1e4) / 1e4,
+    mapSize: shadows.mapSize || (lightTier && lightTier.mapSize) || 2048,
+    span: shadows.span || Math.round((16 / liveUnit) * 1e4) / 1e4,
+    ...(liveShadows.actors ? { lead: Number.isFinite(shadows.lead) && shadows.lead >= 0 ? shadows.lead : Math.round((8 / liveUnit) * 1e4) / 1e4 } : {}),
     ...(liveIndoor ? { indoor: true } : {}),
     ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
@@ -1022,7 +1026,9 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock || liveShadowBlock,
     splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
-    creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}) }) : '',
+    creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}), ...(occlusionCfg && lightTier && lightTier.ao === 0.5 ? { aoHalf: true } : {}) }) : '',
+    // the live light's budget (channels/cast-shadows.js liveBudgetScript): a page world-scene gave a tier counts what it draws
+    lightBudget: lightTier && (liveShadows || occlusionCfg) ? liveBudgetScript(lightTier) : '',
     fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock,
   };
 

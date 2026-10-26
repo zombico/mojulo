@@ -37,6 +37,7 @@ import { poleOf } from './style/pole.js';
 import { ISEKAI_STYLES, isekaiMask } from './isekai-tiles.js';
 import { hash3, vnoise } from './dirt.js';
 import { P, r5, hexRgb, rgbHex, crossed } from './geom.js';
+import { sunShare } from '../scene/live-light.js';
 import { makeSunShadow, makeSoftSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
 import { natureSite, trailFaces, trailRims, rockItems, treeItems, grassTufts, tube } from './nature.js';
@@ -92,6 +93,10 @@ const facet = (c, toward) => {
 };
 export const isekaiKeyOf = (st, tile, lit) => `isekai:${st.id}:${tile}-${lit ? 'lit' : 'shade'}`;
 const stopFill = (st, tile, lit) => { const T = st.tiles[tile], ramp = st.palette[T.ramp], w = T[lit ? 'lit' : 'shade']; return rgbHex(ramp[w[Math.floor(w.length / 2)]].map((v) => v / 255)); };
+// a pixel-locked face's SUN SHARE (the live light, scene/live-light.js): its band is its light, so a lit band's share is
+// what its tile's value loses down to the shade band's (an actor's shadow takes it to the band in the shade beside it);
+// a band in the shade, 0 (never darkened again)
+const celShare = (st, tile, lit) => (lit ? sunShare(hexRgb(stopFill(st, tile, true)), hexRgb(stopFill(st, tile, false)), (v) => v) : 0);
 
 /**
  * The GROUND as the landform grid's facets. Steep facets are cliff (pixel-locked, `cel: 'cliff'`, uv up the face along
@@ -324,7 +329,7 @@ function materialFace(st, { mat, ...f }, scale = 1.2) {
  * The tile comes in `variants` that join, one per tile-sized block, so the ground doesn't repeat in rows from far.
  * → faces, unlocked (the tile is already in the ramp's stops).
  */
-function realGround(st, site, cells, shadow, sun, ambient, marks, S) {
+function realGround(st, site, cells, shadow, sun, ambient, marks, S, share = false) {
   const G = st.ground, g = site.grid, h = g.dx, z = site.ground, E = G.exposure ?? 1;
   // the tile snapped to a whole number of grid cells, so a tile's edge is a cell's: one VARIANT per tile-sized block (any
   // variant joins any other at that edge, isekai-tiles.js), chosen by the block's dice; the trail's ribbon, which
@@ -365,7 +370,9 @@ function realGround(st, site, cells, shadow, sun, ambient, marks, S) {
   const weight = (k, [x, y]) => clamp01(CAUSE[k](x, y) * (0.15 + 1.05 * vnoise(x * 0.7, y * 0.7, S + 401 + PT.indexOf(k) * 7)));
   const patches = [];
   const leaf = (f, cs, s) => {
-    const cornerFills = cs.map((p) => rgbHex(light(f, p, s))), base = { corners: cs.map(P), normal: f.normal, outNormal: f.outNormal, ...(f.doubleSided ? { doubleSided: true } : {}) };
+    const cornerFills = cs.map((p) => rgbHex(light(f, p, s))), base = { corners: cs.map(P), normal: f.normal, outNormal: f.outNormal, ...(f.doubleSided ? { doubleSided: true } : {}),
+      // (the live light's share: each corner's light with the sun and without it; 0 where the sun does not reach)
+      ...(share ? { sunShare: cs.map((p) => (s ? sunShare(light(f, p, s), light(f, p, 0), (v) => v) : 0)) } : {}) };
     out.push({ ...base, texture: isekaiKeyOf(st, f.group === 'isekai:scree' ? 'scree' : f.group === 'isekai:trail' ? 'packed' : 'dirt', true) + f.v, textureLit: true,
       uv: cs.map((p) => [r5((p[0] - ox) / tile), r5((p[1] - oy) / tile)]), cornerFills, fill: rgbHex(light(f, mean(cs), s)), group: f.group });
     if (f.group === 'isekai:trail') return;
@@ -518,7 +525,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
   const shadow = SH && SH.sun && !cardMask ? makeSoftSunShadow(solid, dir, SH.sun, { cell: 0.6 })
     : makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
-  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
+  // (the live light's SUN SHARE, scene/live-light.js: a world whose page takes actor shadows has the bake write each
+  // corner's share of its light that comes straight from the sun, as the stage does; ctx.liveSun, world-scene)
+  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow, ...(ctx.liveSun ? { share: true } : {}) };
   const reach = (p, n) => Math.max(0, dot(n, dir)) * shadow(addv(p, mul(n, 0.05)), n);
   const lit = Gl ? (p, n) => reach(p, n) >= st.cel || glowAt(p) >= st.cel : (p, n) => reach(p, n) >= st.cel;
   // ── the pixel-locked faces: the cel band is the choice of tile ──
@@ -529,7 +538,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const lightHex = (n, isLit) => { const lam = isLit ? (n ? Math.max(0, dot(n, dir)) : 0.8) : 0, down = n ? Math.max(0, 0.5 - 0.5 * n[2]) : 0; return rgbHex(fill0.map((a, k) => Math.min(1, (a + hexRgb(key.color)[k] * st.light.sunGain * lam + st.light.bounce[k] * st.light.bounceGain * down) * E))); };
   // (`vn`: the form's normal at a corner — rock and cliff are lit SMOOTH over their form, corner by corner, the shadow
   // still the face's own and crisp)
-  const put = (rest, tile, isLit, n = null, vn = null) => (MAT ? { ...rest, texture: isekaiKeyOf(st, tile, true), textureLit: true, fill: lightHex(n, isLit), ...(vn ? { cornerFills: rest.corners.map((c) => lightHex(vn(c) ?? n, isLit)) } : {}) } : { ...rest, texture: isekaiKeyOf(st, tile, isLit), fill: stopFill(st, tile, isLit) });
+  // (the live light's share, sun.share: a material face's from its light with the sun and without; a cel face's from its band)
+  const shareOf = (n, isLit) => {
+    if (!isLit) return 0;
+    const lam = n ? Math.max(0, dot(n, dir)) : 0.8, down = n ? Math.max(0, 0.5 - 0.5 * n[2]) : 0, K = hexRgb(key.color);
+    const noSun = fill0.map((a, k) => a + st.light.bounce[k] * st.light.bounceGain * down);
+    return sunShare(noSun.map((v, k) => v + K[k] * st.light.sunGain * lam), noSun, (v) => Math.min(1, v * E));
+  };
+  const matSun = (rest, n, isLit, vn) => (!sun.share ? {} : { sunShare: vn ? rest.corners.map((c) => shareOf(vn(c) ?? n, isLit)) : shareOf(n, isLit) });
+  const celSun = (tile, isLit) => (sun.share ? { sunShare: celShare(st, tile, isLit) } : {});
+  const put = (rest, tile, isLit, n = null, vn = null) => (MAT ? { ...rest, texture: isekaiKeyOf(st, tile, true), textureLit: true, fill: lightHex(n, isLit), ...(vn ? { cornerFills: rest.corners.map((c) => lightHex(vn(c) ?? n, isLit)) } : {}), ...matSun(rest, n, isLit, vn) } : { ...rest, texture: isekaiKeyOf(st, tile, isLit), fill: stopFill(st, tile, isLit), ...celSun(tile, isLit) });
   // a form's corner normals: every face's normal summed at the corners it shares
   const formNormals = (faces) => { const m = new Map(), k = (c) => c.map((v) => v.toFixed(2)).join(','); for (const f of faces) for (const c of f.corners) { const a = m.get(k(c)) ?? [0, 0, 0]; m.set(k(c), addv(a, f.normal)); } return (c) => { const a = m.get(k(c)); return a ? unit(a) : null; }; };
   const cel = [];
@@ -593,7 +611,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
-    for (const { tint, textureLit, ...f } of raw) cel.push(MAT ? put(f, 'blades', t.lit) : { ...f, fill: stopFill(st, 'blades', t.lit) });
+    for (const { tint, textureLit, ...f } of raw) cel.push(MAT ? put(f, 'blades', t.lit) : { ...f, fill: stopFill(st, 'blades', t.lit), ...celSun('blades', t.lit) });
   });
   // the FIELD: within `reach` of the trail the meadow stands as one sea of blades, a tuft on a jittered grid every
   // `every` metres (never on the ribbon, a rock or a trunk), the band by the shadow at its root
@@ -608,7 +626,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       const z = site.ground(px, py), lt = shadow([px, py, z + 0.3], [0, 0, 1]) > 0 || (Gl ? glowAt([px, py, z + 0.3]) >= st.cel : false), h = mix(F.height[0], F.height[1], hash3(i, 75, S + 197)) * G.height;
       const raw = [];
       crossed(raw, [px, py, z - 0.03], Math.PI * hash3(i, 77, S + 199), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
-      for (const { tint, textureLit, ...f } of raw) cel.push(MAT ? put(f, 'blades', lt) : { ...f, fill: stopFill(st, 'blades', lt) });
+      for (const { tint, textureLit, ...f } of raw) cel.push(MAT ? put(f, 'blades', lt) : { ...f, fill: stopFill(st, 'blades', lt), ...celSun('blades', lt) });
     }
   }
   // the SAND dressed (era/strand.js): pebbles in drifts and driftwood lying on it, dune grass in clumps (no shells: no
@@ -685,7 +703,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   // the realistic pole (a card's `ground`) draws the ground and the scree itself: material × light, shadows crisp
   // (the trail ribbon too: the old bake of it is kept only as what the trail blend reads its stops from)
-  const bare = ground.faces.filter((f) => !f.cel), real = st.ground && !SH ? realGround(st, site, [...bare.map((f) => ({ ...f, grid: true })), ...ribbon], shadow, sun, ambient, isekaiMarks(st, site, S), S) : [];
+  const bare = ground.faces.filter((f) => !f.cel), real = st.ground && !SH ? realGround(st, site, [...bare.map((f) => ({ ...f, grid: true })), ...ribbon], shadow, sun, ambient, isekaiMarks(st, site, S), S, !!sun.share) : [];
   // the trees on the material pole: their faces light only (white), then the bark's grain and the leaf's tile on
   const woodM = MAT ? woodDrawn.map((f) => ({ ...f, tint: [1, 1, 1], mat: f.group === 'isekai:wood' ? 'grain' : 'leaf' })) : woodDrawn;
   // (the polygon land: the land baked and ruled as the island's, the rest as before)

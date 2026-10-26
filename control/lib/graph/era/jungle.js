@@ -588,7 +588,9 @@ export function assembleJungleScene(manifest = {}, ctx = {}) {
   const P = manifest.palette && manifest.palette.roles ? manifest.palette : null, st = P ? recolourCard(st0, P) : st0;
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   const { site, giants, colossi, rocks, puddles, raw, dir, shadow } = jungleLayers(st, seed, manifest._keepOut ?? null), key = st.light.key;
-  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
+  // (the live light's SUN SHARE, scene/live-light.js: a world whose page takes actor shadows has the bake write each
+  // corner's share of its light that comes straight from the sun, as the stage does; ctx.liveSun, world-scene)
+  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow, ...(ctx.liveSun ? { share: true } : {}) };
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   // a leaf is lit from either side (it lets the light through): its card faces the sun, and lifts a little on its own
   const faced = [...raw, ...mossFaces(st, site, raw, shadow, dir, seed)].map((f) => {

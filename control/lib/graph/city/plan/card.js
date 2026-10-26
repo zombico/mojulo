@@ -31,8 +31,9 @@ import { ENTER, readInside } from './doors.js';
 export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'cars', 'people', 'green', 'season', 'waive', 'fidelity', 'notes', 'cityRef', 'edifices']);
 /** How the world draws it: every lot in its facade (the default), or the massing alone (a plan judged as a plan). */
 export const FIDELITIES = Object.freeze(['facade', 'massing']);
-/** The channels every world kind wears (world-scene.js reads them; the plan never does). */
-export const WORLD_CHANNELS = Object.freeze(['audio', 'weather', 'fire', 'fog', 'clouds', 'walk', 'look']);
+/** The channels every world kind wears (world-scene.js reads them; the plan never does). The live light's three
+ *  (scene/live-light.js: `shadows`, `occlusion`, `light.tier`) among them: a city level opts out of its default there. */
+export const WORLD_CHANNELS = Object.freeze(['audio', 'weather', 'fire', 'fog', 'clouds', 'walk', 'look', 'shadows', 'occlusion', 'light']);
 export const BOARD = Object.freeze({ cell: [20, 200], cols: [2, 26], rows: [2, 99], defaults: { real: { cols: 8, rows: 5 }, game: { cols: 10, rows: 6 } } });
 export const RANKS = Object.freeze(['major', 'minor']);
 
