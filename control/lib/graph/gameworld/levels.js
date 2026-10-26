@@ -106,7 +106,8 @@ export function gameStages(world) {
       const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
       // a stage on a nature or jungle kit in a palette world carries the palette as its builder reads it
       const painted = paintedPalette(s.manifest, R.style?.palette ?? G.style?.palette);
-      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
+      // (a level that builds is solid, era/solid.js: no flat building polygons)
+      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}), ...(R.arena && first ? { arena: R.arena } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });

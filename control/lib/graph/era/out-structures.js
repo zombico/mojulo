@@ -14,6 +14,7 @@
  * Pure; seeded dice only.
  */
 import { baseOf } from './style/looks.js';
+import { slabOf } from './solid.js';
 import { EYE_SPOT_PX, metresPerPixel } from '../playscape/objects/laws.js';
 
 function mulberry32(a) {
@@ -157,6 +158,8 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+// a solid roof's thickness (era/solid.js): its covering, battens and rafters
+const ROOF_T = 0.15;
 function face(out, corners, out3, part, value, extra = {}) {
   corners = corners.map((p) => p.map(r3));
   let n = unit(cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])));
@@ -181,9 +184,11 @@ function wallPoly(out, W, pts, d, part, value, extra) { face(out, pts.map(([u, z
 /**
  * A pitched roof over `rect` [x0, y0, x1, y1], eaves at `ze`, `form` gable | hip | pyramid | shed, its ridge along the
  * rect's long side (or `axis`), `e` overhang, `p` pitch (deg). Returns its ridge height and the faces it pushed
- * (slopes, the gables in `gableMat`, and the covering's edge when `edge` > 0).
+ * (slopes, the gables in `gableMat`, and the covering's edge when `edge` > 0). `solid` (era/solid.js: no flat building
+ * polygons): the covering a slab ROOF_T thick (or `edge`, the thicker), its underside and a band down every free edge
+ * (the fascia at the eaves, the verges), in place of the edge's band alone; absent, as it was.
  */
-function roof(out, rect, ze, { form, axis, e, p, mat, value, gableMat, gableValue, edge = 0, shedHigh = null, low = 'v0', sides = true, courses = null }) {
+function roof(out, rect, ze, { form, axis, e, p, mat, value, gableMat, gableValue, edge = 0, shedHigh = null, low = 'v0', sides = true, courses = null, solid = false }) {
   const [x0, y0, x1, y1] = rect, t = Math.tan((p * Math.PI) / 180);
   // build with the ridge along u; map (u, v) back to (x, y)
   const alongX = axis === 'x';
@@ -191,13 +196,20 @@ function roof(out, rect, ze, { form, axis, e, p, mat, value, gableMat, gableValu
   const P = (u, v, z) => (alongX ? [u, v, z] : [v, u, z]);
   const half = (V1 - V0) / 2, vm = (V0 + V1) / 2, zl = ze - e * t, zr = ze + half * t, mid = P((U0 + U1) / 2, vm, ze);
   const slopes = [];
+  // (solid: the slopes as a slab, era/solid.js: the underside a step darker, the bands the covering's edge)
+  const solidify = () => {
+    const S = slabOf(slopes.map((f) => f.corners), Math.max(edge, ROOF_T));
+    for (const c of S.under) face(out, c, [0, 0, -1], 'roof', value * 0.6, { mat });
+    for (const x of S.edges) face(out, x.corners, x.out, 'edge', value * 0.5, { mat });
+  };
   const slope = (corners) => { face(out, corners, sub(corners.reduce((s, c) => [s[0] + c[0] / corners.length, s[1] + c[1] / corners.length, s[2] + c[2] / corners.length], [0, 0, 0]), mid), 'roof', value, { mat }); slopes.push(out[out.length - 1]); };
   if (form === 'shed') {
     // one slope falling from the high side to the eave (at V0, or at V1 when `low` is 'v1'); its sides close it
     const zh = shedHigh, rise = zh - ze, tt = rise / (V1 - V0), zlo = ze - e * tt, lo = low === 'v1', vl = lo ? V1 + e : V0 - e, vh = lo ? V0 : V1;
     slope([P(U0 - e, vl, zlo), P(U1 + e, vl, zlo), P(U1 + e, vh, zh), P(U0 - e, vh, zh)]);
     if (sides) for (const u of [U0, U1]) face(out, [P(u, lo ? V1 : V0, ze), P(u, vh, ze), P(u, vh, zh)], P(u === U0 ? -1 : 1, 0, 0), 'wall', gableValue, { mat: gableMat });
-    if (edge) face(out, [P(U0 - e, vl, zlo - edge), P(U1 + e, vl, zlo - edge), P(U1 + e, vl, zlo), P(U0 - e, vl, zlo)], P(0, lo ? 1 : -1, 0), 'edge', value * 0.5, { mat });
+    if (edge && !solid) face(out, [P(U0 - e, vl, zlo - edge), P(U1 + e, vl, zlo - edge), P(U1 + e, vl, zlo), P(U0 - e, vl, zlo)], P(0, lo ? 1 : -1, 0), 'edge', value * 0.5, { mat });
+    if (solid) solidify();
     if (courses) lay(courses, slopes, Math.atan(tt), mat, value);
     return { ridge: r3(zh), rise: r3(rise) };
   }
@@ -219,7 +231,8 @@ function roof(out, rect, ze, { form, axis, e, p, mat, value, gableMat, gableValu
     slope([P(eU0, eV1, zl), P(eU0, eV0, zl), P(ra, vm, zr)]);
     slope([P(eU1, eV0, zl), P(eU1, eV1, zl), P(rb, vm, zr)]);
   }
-  if (edge) {
+  if (solid) solidify();
+  else if (edge) {
     // the covering's thickness along the eaves (and the verges of a gable): the roof's edge reads as a band
     for (const v of [eV0, eV1]) face(out, [P(eU0, v, zl - edge), P(eU1, v, zl - edge), P(eU1, v, zl), P(eU0, v, zl)], P(0, v < vm ? -1 : 1, 0), 'edge', value * 0.5, { mat });
     if (form === 'gable') for (const u of [eU0, eU1]) for (const [va, vb] of [[eV0, vm], [vm, eV1]]) { const za = va === vm ? zr : zl, zb = vb === vm ? zr : zl; face(out, [P(u, va, za - edge), P(u, vb, zb - edge), P(u, vb, zb), P(u, va, za)], P(u === eU0 ? -1 : 1, 0, 0), 'edge', value * 0.5, { mat }); }

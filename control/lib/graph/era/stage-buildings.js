@@ -34,10 +34,13 @@ import { stepsLift } from './out-openings.js';
 import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
 import { outTrailOf } from './out-trail-board.js';
+import { slabOf } from './solid.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
 const GROUND = /:(ground|trail|top|scree)$/;
+// a solid roof's thickness: its covering, battens and rafters (era/solid.js)
+const ROOF_T = 0.18;
 const CLEARED = /:(wood|crown|tree|bough|rock|hat|blaze|debris|grass|grassblend|shadow|card|bush|flower|ikebana)$/;
 const FACINGS = { '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] };
 
@@ -116,13 +119,13 @@ const paintRaw = (kitId, repoint) => paintFor(kitId, repoint);
 const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
 const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
-function townStreet(town, kitId, seed0) {
+function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
   for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress, street)`);
   if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
-  const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
+  const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) }, { solid });
   // (a language written as its elements is spoken by the houses too; a seeded one, { seed }, only by the street)
   const anchor = typeof town.anchor === 'string' || town.anchor?.elements || town.anchor?.pieces ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
@@ -145,10 +148,20 @@ const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l
  * The outside of a planned building, in plan coordinates (metres, z from the floor): every room's outer walls where no
  * room stands against them (cut at the way out), a plinth under them `below` deep, and a roof per room in the cap's
  * form, over the highest thing built inside it (`tops`: a kit's vault rises over its walls). → [{ corners, group }]
- * (unpainted).
+ * (unpainted). `solid` (era/solid.js: no flat building polygons): each way out cut through the wall's depth (two jambs,
+ * a head and a threshold from the outer face to the inside's), each roof a slab ROOF_T thick (its underside, its fascia
+ * and verges); absent, the skin as it was, every byte.
  */
-function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
+function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) {
   const out = [], t = wall / 2, rooms = plan.rooms;
+  // a face wound so its normal points along `n`
+  const faceN = (c, n, group) => { const nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); out.push({ corners: nn[0] * n[0] + nn[1] * n[1] + nn[2] * n[2] < 0 ? c.slice().reverse() : c, group, n }); };
+  // a room's roof faces as a slab: its underside and a band down each free edge (era/solid.js)
+  const slab = (from) => {
+    const polys = out.slice(from).filter((f) => f.group === 'roof').map((f) => f.corners), S = slabOf(polys, ROOF_T);
+    for (const c of S.under) out.push({ corners: c, group: 'roof', n: [0, 0, -1] });
+    for (const e of S.edges) faceN(e.corners, e.out, 'roof');
+  };
   // on storeys (storeys.js): each room's walls from its floor (the ground storey's from the plinth), a room with one
   // over it walled up to the floor over it and flat-roofed there (hidden under it, or a terrace where it is not)
   const S = rooms.some((r) => r.storey) ? planStage(plan) : null, at0 = (r) => (S ? S.rooms.find((q) => q.id === (r.id)).z0 : 0);
@@ -171,25 +184,37 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
       for (const [lo, hi] of covered) { if (lo > u) free.push([u, lo]); u = Math.max(u, hi); }
       if (u < a1) free.push([u, a1]);
       const at = (uu, z) => (alongX ? [uu, line + out0, z] : [line + out0, uu, z]);
-      const n = alongX ? [0, Math.sign(out0), 0] : [Math.sign(out0), 0, 0];
+      const atIn = (uu, z) => (alongX ? [uu, line - out0, z] : [line - out0, uu, z]);
+      const n = alongX ? [0, Math.sign(out0), 0] : [Math.sign(out0), 0, 0], un = alongX ? [1, 0, 0] : [0, 1, 0];
       const W = ways.filter((w) => w.room === r.id && w.side === side);
       for (const [s0, s1] of free) {
         // the face winds so its normal points out
         const face = (u0, u1, z0, z1) => { if (u1 - u0 < 1e-3 || z1 - z0 < 1e-3) return; const c = [at(u0, z0), at(u1, z0), at(u1, z1), at(u0, z1)], nn = unit(cross(sub3(c[1], c[0]), sub3(c[3], c[0]))); out.push({ corners: nn[0] * n[0] + nn[1] * n[1] < 0 ? c.reverse() : c, group: 'wall', n }); };
         let v = s0;
-        for (const w of W) { if (w.hi < s0 || w.lo > s1) continue; face(v, w.lo, base, top); face(w.lo, w.hi, w.top, top); face(w.lo, w.hi, base, 0); v = w.hi; }
+        for (const w of W) {
+          if (w.hi < s0 || w.lo > s1) continue;
+          face(v, w.lo, base, top); face(w.lo, w.hi, w.top, top); face(w.lo, w.hi, base, 0); v = w.hi;
+          // (solid: the way cut through the wall, outer face to inner: its jambs facing in, its head down, its threshold up)
+          if (solid) {
+            faceN([at(w.lo, 0), atIn(w.lo, 0), atIn(w.lo, w.top), at(w.lo, w.top)], un, 'wall');
+            faceN([at(w.hi, 0), atIn(w.hi, 0), atIn(w.hi, w.top), at(w.hi, w.top)], un.map((x) => -x), 'wall');
+            faceN([at(w.lo, w.top), at(w.hi, w.top), atIn(w.hi, w.top), atIn(w.lo, w.top)], [0, 0, -1], 'wall');
+            faceN([at(w.lo, 0), at(w.hi, 0), atIn(w.hi, 0), atIn(w.lo, 0)], [0, 0, 1], 'wall');
+          }
+        }
         face(v, s1, base, top);
       }
     }
     // the roof: a gable along the long side (a hip when the cap is hipped), flat for a flat cap, a pyramid for a dome
     const e = 0.45, X0 = x0 - t - e, X1 = x1 + t + e, Y0 = y0 - t - e, Y1 = y1 + t + e, along = r.w >= r.d;
     const span = along ? Y1 - Y0 : X1 - X0, rise = cap === 'flat' || under(r) ? 0 : Math.min(r.h, (span / 2) * Math.tan(((pitch ?? 40) * Math.PI) / 180));
-    const z0 = top, z1 = top + rise;
-    if (under(r)) { out.push({ corners: [[x0 - t, y0 - t, z0], [x1 + t, y0 - t, z0], [x1 + t, y1 + t, z0], [x0 - t, y1 + t, z0]], group: 'roof', n: [0, 0, 1] }); continue; }
-    if (cap === 'flat' || rise < 0.05) { out.push({ corners: [[X0, Y0, z0], [X1, Y0, z0], [X1, Y1, z0], [X0, Y1, z0]], group: 'roof', n: [0, 0, 1] }); continue; }
+    const z0 = top, z1 = top + rise, from = out.length;
+    if (under(r)) { out.push({ corners: [[x0 - t, y0 - t, z0], [x1 + t, y0 - t, z0], [x1 + t, y1 + t, z0], [x0 - t, y1 + t, z0]], group: 'roof', n: [0, 0, 1] }); continue; }   // (a floor over it, or a terrace walled by the storey on it)
+    if (cap === 'flat' || rise < 0.05) { out.push({ corners: [[X0, Y0, z0], [X1, Y0, z0], [X1, Y1, z0], [X0, Y1, z0]], group: 'roof', n: [0, 0, 1] }); if (solid) slab(from); continue; }
     if (cap === 'dome' || cap === 'pyramid' || cap === 'cone' || cap === null) {
       const c = [(X0 + X1) / 2, (Y0 + Y1) / 2, z1];
       for (const [a, b] of [[[X0, Y0, z0], [X1, Y0, z0]], [[X1, Y0, z0], [X1, Y1, z0]], [[X1, Y1, z0], [X0, Y1, z0]], [[X0, Y1, z0], [X0, Y0, z0]]]) out.push({ corners: [a, b, c], group: 'roof' });
+      if (solid) slab(from);
       continue;
     }
     const hip = cap === 'hip' ? Math.min(span / 2, (along ? X1 - X0 : Y1 - Y0) / 2 - 0.01) : 0;
@@ -202,6 +227,7 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
       out.push({ corners: [[X1, Y0, z0], [X1, Y1, z0], r1, r0], group: 'roof' }, { corners: [[X0, Y1, z0], [X0, Y0, z0], r0, r1], group: 'roof' });
       out.push({ corners: [[X0, Y0, z0], [X1, Y0, z0], r0], group: hip ? 'roof' : 'gable' }, { corners: [[X1, Y1, z0], [X0, Y1, z0], r1], group: hip ? 'roof' : 'gable' });
     }
+    if (solid) slab(from);
   }
   return out;
 }
@@ -254,7 +280,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   if (!Array.isArray(list0) || (manifest.buildings !== undefined && !list0.length)) throw new Error('stage: buildings is [{ use, at?, seed?, civilization?, kit? }], at least one');
   // a town's street (`town`): its lots in the town's own order, the first `enter` of them walked into, the rest its
   // houses standing as shells; seated after the recipe's own buildings, on what land is left
-  const street = manifest.town !== undefined ? townStreet(manifest.town, manifest.kit, manifest.seed) : [];
+  const street = manifest.town !== undefined ? townStreet(manifest.town, manifest.kit, manifest.seed, !!ctx.solid) : [];
   const list = [...list0, ...street];
   const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId, manifest.town?.paint);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
@@ -399,7 +425,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const lam = (nn) => Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const DrD = manifest.town?.dress;
       const paintFace = (cs, group, grp, v) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), F0 = { ...quad(cs, group, paint(grp, Math.min(1, v * (0.55 + 0.45 * lam(nn))))), normal: P3(nn), outNormal: P3(nn) }; return DrD && group !== 'building:door' ? dressTownFace(F0, grp, DrD) : F0; };
-      const shellD = shellOf(inner, waysD, 0.5, L0.vocab.cap, L0.proportions.pitch, belowD).map((sf) => paintFace(sf.corners.map(Wd), `building:${sf.group}`, sf.group === 'roof' ? (capD?.group ?? 'str:plaster') : (massD.group ?? 'str:plaster'), sf.group === 'roof' ? (capD?.value ?? 0.5) : (massD.value ?? 0.7)));
+      const shellD = shellOf(inner, waysD, 0.5, L0.vocab.cap, L0.proportions.pitch, belowD, {}, !!ctx.solid).map((sf) => paintFace(sf.corners.map(Wd), `building:${sf.group}`, sf.group === 'roof' ? (capD?.group ?? 'str:plaster') : (massD.group ?? 'str:plaster'), sf.group === 'roof' ? (capD?.value ?? 0.5) : (massD.value ?? 0.7)));
       // the door, shut: a leaf filling the way in, set a hand's width inside the outer face
       const wy = waysD[0], y = entry.y - t + 0.08, leaf = [[wy.lo, y, 0], [wy.hi, y, 0], [wy.hi, y, wy.top], [wy.lo, y, wy.top]].map(Wd);
       const doorLeaf = { ...paintFace(leaf.slice().reverse(), 'building:door', 'str:timber', 0.35) };
@@ -433,7 +459,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const wallGroup = mass.group ?? 'str:plaster', wallV = mass.value ?? 0.7, roofGroup = capP?.group ?? wallGroup, roofV = capP?.value ?? wallV * 0.7;
     // each room's highest face inside: the roof stands over the vault, not through it
     const tops = Object.fromEntries(inner.rooms.map((r) => [r.id, Math.max(0, ...P.faces.filter((f) => { const n = f.corners.length, cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n; return cx > r.x && cx < r.x + r.w && cy > r.y && cy < r.y + r.d; }).flatMap((f) => f.corners.map((c) => c[2])))]));
-    const shell = shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops).map((s) => {
+    const shell = shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
