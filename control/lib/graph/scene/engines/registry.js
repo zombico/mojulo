@@ -5,7 +5,7 @@
  *
  *   kind     runtime   a kernel runs the game's behaviour (the bus, the rules, the minds) and is held equal to the web
  *            scene     a project with a small closed kernel of its own (walker, five mechanics, menu); no marks
- *            art       geometry and materials for an art pass; no game
+ *            art       geometry and materials for an art pass or an asset; no game
  *   marks    the engine's marks module (engines/marks.js says the shape); null for an engine with none
  *   unmarked what a cosmos value with no mark for this engine reads as: null (closed: the registry throws, the mark must
  *            be written) or 'absent' (a young kernel: what nobody marked does not run, so its flow offers nothing
@@ -23,7 +23,8 @@ export const ENGINES = Object.freeze({
   godot: Object.freeze({ id: 'godot', name: 'Godot', kind: 'runtime', marks: godotMarks, marksPath: 'lib/graph/scene/godot-marks.js', unmarked: null, proof: 'MOJULO_GODOT', outDir: 'godot' }),
   roblox: Object.freeze({ id: 'roblox', name: 'Roblox', kind: 'runtime', marks: robloxMarks, marksPath: 'lib/graph/scene/roblox-marks.js', unmarked: 'absent', proof: 'MOJULO_LUNE', outDir: 'roblox' }),
   unity: Object.freeze({ id: 'unity', name: 'Unity', kind: 'scene', marks: null, outDir: 'unity' }),
-  unreal: Object.freeze({ id: 'unreal', name: 'Unreal', kind: 'scene', marks: null, outDir: 'unreal' }),
+  // Unreal takes mojulo's assets (export_model { format: 'unreal' }: a character, a prop, a building), not its games
+  unreal: Object.freeze({ id: 'unreal', name: 'Unreal', kind: 'art', marks: null }),
   blender: Object.freeze({ id: 'blender', name: 'Blender', kind: 'art', marks: null }),
 });
 

@@ -37,6 +37,7 @@ import { readStructure } from '@/lib/graph/structure/read';
 import { occupancyOf } from '@/lib/graph/structure/programs';
 import { scheduleFiles, sheetFiles, allTables } from '@/lib/graph/structure/tables';
 import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
+import { buildUnrealAssetPack } from '@/lib/graph/scene/unreal-pack';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
@@ -402,6 +403,29 @@ async function blenderExport(input) {
       gate: `node scripts/export-blender.mjs --ref ${ref}${out.pack.fire && fireT != null ? ` --fire-t ${fireT}` : ''}`,
     },
     note: `A Blender pack (${out.pack.base} base) in ${dir}: open it with import_mojulo.py (ARTPASS-GUIDE.md walks the art pass; the README has the dials).${out.pack.fire ? ` It carries the fire at t = ${out.pack.fire.t} s: the render command makes a Cycles still of it.` : ''} Blender runs on the operator's machine; mojulo did not launch it.`,
+  };
+}
+
+// ── format: 'unreal' (the Unreal asset pack) ──────────────────────────────────────────────────
+// Unreal takes mojulo's ASSETS (a character, a prop, a building, a robot, anything assembled), not its games or levels:
+// the GLB, the recipe and an editor Python importer under <ref>/unreal/ (unreal-pack.js). A game is refused with the move.
+async function unrealExport(input) {
+  const { ref, lit = false } = input;
+  if (typeof lit !== 'boolean') throw new Error('`lit` must be a boolean if provided');
+  if ('humanoid' in input && typeof input.humanoid !== 'boolean') throw new Error('`humanoid` must be a boolean if provided');
+  const humanoid = input.humanoid !== false;   // a humanoid figure ships as the engine skeleton unless asked otherwise
+  const dir = path.join(outcomeDirFor(ref), 'unreal');
+  const pack = await buildUnrealAssetPack({ ref, outDir: dir, lit, humanoid });
+  const flags = `${lit ? ' --lit' : ''}${humanoid ? '' : ' --no-humanoid'}`;
+  return {
+    ok: true, ref, kind: pack.kind, format: 'unreal', dir, files: pack.written.map((w) => w.file), glb: pack.glbStats,
+    ...(pack.figure ? { figure: pack.figure } : {}),
+    commands: {
+      import: 'copy the folder into the project beside the .uproject, then in the Output Log (Python): py <its path>/import_mojulo.py',
+      gate: `node scripts/export-unreal.mjs --ref ${ref}${flags}`,
+    },
+    note: `An Unreal asset pack in ${dir} (IMPORT-GUIDE.md walks the import). Its geometry and colours travel${pack.figure ? ', and its figure\'s skeleton, clips and face morphs' : ''}; `
+      + 'every slot takes one vertex-colour material, and the look the web build draws stays mojulo\'s. Unreal runs on the operator\'s machine; mojulo did not launch it.',
   };
 }
 
@@ -850,9 +874,9 @@ async function exportModel(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', ...SCAD_2D_FORMATS, 'bom'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', 'unreal', ...SCAD_2D_FORMATS, 'bom'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', 'dxf', 'svg', 'bom' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', 'unreal', 'dxf', 'svg', 'bom' if provided");
   }
   if (('slice_z' in input || 'part' in input) && !SCAD_2D_FORMATS.includes(format)) throw new Error("`slice_z` and `part` apply to `format: 'dxf' | 'svg'` only");
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
@@ -865,6 +889,7 @@ async function exportModel(input, context = {}) {
   // the drawing set and the schedules are the building read as 2D: they read the house, not the World's faces
   if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
   if (format === 'blender') return blenderExport(input);
+  if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
   if (format === 'bom') return bomExport(input, context);
   // dxf / svg are a flat part's drawing, cut by OpenSCAD from a scad row — not the World's faces.
@@ -1152,7 +1177,7 @@ async function exportModel(input, context = {}) {
     if (exported.lit) {
       result.lit = true;
       result.lit_note = 'Real pbrMetallicRoughness materials (metallic 0, roughness 0.85; no KHR_materials_unlit) over the UNSHADED payload — '
-        + 'Blender, Godot, Unity and three.js light it on import; the Unreal pack pairs it with the M_MojuloLit master (pass --lit to export-unreal). '
+        + 'Blender, Godot, Unity and three.js light it on import; an Unreal asset pack pairs it with the M_MojuloLit master (format: \'unreal\', lit: true). '
         + 'The web runtime stays unlit; this is a handoff mode.';
     }
     if (exported.quantized) {

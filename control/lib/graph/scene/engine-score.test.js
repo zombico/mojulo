@@ -91,7 +91,7 @@ describe('extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 
   });
 });
 
-describe('extractEngineScore — the locomotion row (export-unreal U2, the walking-suits gap)', () => {
+describe('extractEngineScore — the locomotion row (the walking-suits gap)', () => {
   const rigPayload = () => ({
     ...payload(),
     entities: [

@@ -98,7 +98,7 @@ status line in gate language. Tool names go on a single closing line in `code`, 
 - **Goes to:**
   - A real Godot 4 project. The event bus and the game store run as Godot scripts (`kernel/bus.gd`,
     `kernel/store.gd`), so behaviour travels as data.
-  - Unity and Unreal data packs with importers.
+  - A Unity data pack with its importer; Unreal assets (a character or a solid) with theirs.
 - **Status:**
   - Machine gate: a two-level game plays through in a headless Godot, with chapters turning and a dialogue choice
     taking effect.
@@ -197,7 +197,7 @@ status line in gate language. Tool names go on a single closing line in `code`, 
 
 ## 4. Destinations
 
-- Keep the current "Where it goes" table almost as is: Browser, glTF / OpenUSD, Godot, Unity / Unreal, Blender,
+- Keep the current "Where it goes" table almost as is: Browser, glTF / OpenUSD, Godot, Unity, Unreal (assets), Blender,
   STL / 3MF, `.scad`.
 - **Add a row:** **IFC4 + drawing set** · sheets, schedules, takeoff · gate: `[verify]` whether any IFC validator is
   wired in; if not, "advisory checks in the structure book".
@@ -285,7 +285,7 @@ Every outward surface gets the same first sentence. Extend the existing `PARADIG
 - `docs/tour.md` (a v2.0.4 snapshot): retire it. Its persona and catalog content feeds `docs/designers/*`.
 - `docs/mcp-integration.md`, `mcp-orbit.md`, `meta-context.md`, `catalysts.md`, `app-runtime.md` describe retired
   office surfaces. Move them to `docs/historic/` or add a "retired from the listed surface in 3.1" banner.
-- `docs/examples/*`: label them as design logs. Only `unreal-night-run` is a user worked example.
+- `docs/examples/*`: label them as design logs.
 - The README's "Also in the box … local apps … workflows over the MCPs you already run" line: delete it.
 
 ## Appendix C — assets

@@ -1,7 +1,6 @@
 /**
  * engine-score.js — the shared score extraction for engine handoffs
- * (godot-handoff.plan.md "Cross-engine alignment"; consumed by the Godot
- * emitter now, export-unreal U0 next).
+ * (consumed by the Godot, Unity and Roblox legs).
  *
  * The score is the engine-agnostic digest of a resolved world payload:
  * colliders, spawn, cameras, entities, declarative mechanics, audio binding,
@@ -92,7 +91,7 @@ function scaleMechanic(m, sv, sn) {
   };
 }
 
-// The locomotion row (export-unreal.plan.md, the walking-suits gap): per
+// The locomotion row (the walking-suits gap): per
 // entity, the GLB animation names a kernel needs to make the figure MOVE —
 // idle / walk / boost, derived from the figure's own clip vocabulary
 // (mojulo rigs name their travel cycle 'forward'; 'walk' is accepted as an
@@ -306,7 +305,7 @@ export function levelSoundtrack(sketch, payload) {
 }
 
 // `engine`: the engine the score is read for (engines/registry.js); its ledger reads the level against that engine's marks.
-// An engine without marks (Unity, Unreal) gets no reading rows and no bus coverage: its kernel runs neither.
+// An engine without marks (Unity) gets no reading rows and no bus coverage: its kernel runs neither.
 export function extractEngineScore(sketch, payload, { posture = null, engine = DEFAULT_ENGINE } = {}) {
   const M = marksOf(engine);
   const manifest = sketch?.manifest ?? {};
@@ -368,7 +367,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     .filter((l) => l && Array.isArray(l.position))
     .map((l) => ({ ...l, position: sv(l.position) }));
   if (lights.length) {
-    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel), the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
+    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel)' };
   }
   // The LOOK declaration (shader-look phase 4): the one runtime term the bake cannot carry — a
   // figure's rim `[r,g,b,strength,power]` — rides the score so each engine kernel lowers it to

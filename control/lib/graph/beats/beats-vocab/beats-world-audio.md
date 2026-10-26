@@ -32,7 +32,7 @@ audio: {
   play (a fight is battle music, the last fight the boss; a sneak toward tension, a race driving), with a `why`.
   `create_game`'s reply carries each unscored level's update_sketch call; `design_game({ quick: { music: 'auto' } })`
   writes it at mint.
-- A composition always loops here, at the next bar line. Engine exports (Godot, Unity, Unreal) render the same
+- A composition always loops here, at the next bar line. Engine exports (Godot, Unity) render the same
   soundtrack as a looped WAV bed. Godot also plays the level's sounds and its `combat` change (see the end).
 
 ## sfx
@@ -95,4 +95,4 @@ These read the controllable entity's state and never write back.
 renders to `audio/sfx/` (three takes each when `vary`, never the same twice in a row), fired by the same bus events
 and hero moves as the page; `combat` renders beside the soundtrack and changes on the bar line by the page's own
 meter; the game's `music.victory` / `music.defeat` play once as a level ends. The pack's buses are Music, SFX and
-UI, and the sounds duck the music. Unity and Unreal carry the explore score only.
+UI, and the sounds duck the music. Unity carries the explore score only.

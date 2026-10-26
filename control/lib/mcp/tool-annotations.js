@@ -180,7 +180,7 @@ export const TOOL_ANNOTATIONS = {
   bind_image_render: ['Bind a rendered image', ADDITIVE], // append-only slots
   bind_character_sheet: ['Bind a character sheet render', ADDITIVE],
   preview_world: ['Preview a stored mesh', ADDITIVE_IDEMPOTENT],
-  export_model: ['Export a model file', ADDITIVE_IDEMPOTENT], // rewrites its own export files
+  export_model: ['Export a model file', ADDITIVE_IDEMPOTENT], // rewrites its own export files (a blender or unreal pack its folder)
   bind_mesh_render: ['Bind a refined mesh', ADDITIVE],
   mint_diagram: ['Mint a diagram', ADDITIVE],
   mint_building: ['Mint a building', ADDITIVE],
@@ -251,7 +251,7 @@ export const TOOL_ANNOTATIONS = {
   create_pixelizer_game: ['Create a pixel arcade game', ADDITIVE],
   create_sprite_sheet: ['Create a sprite sheet', ADDITIVE],
   bake_sprite_sheet: ['Bake a sprite sheet', ADDITIVE_IDEMPOTENT],
-  // An engine target (godot / unity / unreal) deletes and rewrites its pack folder.
+  // An engine target (godot / unity / roblox) deletes and rewrites its pack folder.
   export_game: ['Export a game', DESTRUCTIVE_IDEMPOTENT],
 
   // ── unlisted, callable by name (figure-specs.js, roles.js) ─────────────────

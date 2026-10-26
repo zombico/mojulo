@@ -1,5 +1,5 @@
 /**
- * engine-audio — the music beds the engine packs (Godot, Unity, Unreal) render. A bed is a stored beats row named by
+ * engine-audio — the music beds the engine packs (Godot, Unity) render. A bed is a stored beats row named by
  * its ref, or a level's own soundtrack ('field:<mood>', { score }, an inline recipe, a kind's period music), which
  * world-scene has already resolved onto the payload and which ships under the level's name. Beds loop in the engine,
  * so each renders as one seamless pass to the bar line with a smpl loop chunk; an sfx stays a one-shot. Which bed a

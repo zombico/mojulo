@@ -15,8 +15,8 @@
  *   bedWriter({ binaries, log })          WAV beds rendered once per music (and loop), written at every path asked for
  *   emitFolder({ outDir, files, keep })   clean-emit a pack folder (`keep`: a folder the developer owns survives)
  *
- * The legs (godot-pack.js, unity-pack.js, unreal-pack.js, and the Blender art pass for its front) keep what is theirs:
- * their layout, their sidecars, their music policy and their emitter.
+ * The legs (godot-pack.js, unity-pack.js; the Blender art pass and the Unreal asset pack take its front) keep what is
+ * theirs: their layout, their sidecars, their music policy and their emitter.
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -50,7 +50,7 @@ export const packHash = (manifest) => createHash('sha256').update(JSON.stringify
 /** A world's rigged LAYERED figure (station-loft-rig packLayeredRig: `layered: true`) as [name, figure], else null. */
 export const layeredFigure = (payload) => Object.entries(payload?.figures || {}).find(([, f]) => f?.rig === true && f.layered === true) ?? null;
 
-/** The clip a figure plays when nothing drives it (Godot's figure scene, an Unreal world pack's import): `idle` when it
+/** The clip a figure plays when nothing drives it (Godot's figure scene, an Unreal asset's preview): `idle` when it
  * has one, else the first clip with more than one key, else the first (a one-key stand holds). */
 export function figureClip(recipeClips = {}, names = Object.keys(recipeClips || {})) {
   if (names.includes('idle')) return 'idle';
