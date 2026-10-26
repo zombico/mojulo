@@ -366,9 +366,9 @@ function plaqueAt(fig, beneath, S) {
 // ─── the CAST mask (SIGNATURES.cast): an outline in the eyes' frame cast onto the face ───
 const pip = (P, x, z) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, zi] = P[i], [xj, zj] = P[j]; if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c; } return c; };
 const nearestOn = (P, x, z) => { let best = null, bd = Infinity; for (let i = 0; i < P.length; i++) { const [ax, az] = P[i], [bx, bz] = P[(i + 1) % P.length], dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz || 1e-12, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L)), px = ax + t * dx, pz = az + t * dz, d = (px - x) ** 2 + (pz - z) ** 2; if (d < bd) { bd = d; best = [px, pz]; } } return best; };
-const almond = (cx, rx, rz, tilt, n = 20) => Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * i) / n, x = rx * dmath.cos(a), z = rz * dmath.sin(a) * (1 - 0.35 * Math.abs(dmath.cos(a)) ** 3), c = dmath.cos(tilt), sn = dmath.sin(tilt) * Math.sign(cx); return [cx + x * c - z * sn, x * sn + z * c]; });
+const almond = (cx, rx, rz, tilt, n = 24) => Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * i) / n, x = rx * dmath.cos(a), z = rz * Math.sign(dmath.sin(a)) * Math.abs(dmath.sin(a)) ** 0.8 * (1 - Math.abs(dmath.cos(a)) ** 4) ** 0.6, c = dmath.cos(tilt), sn = dmath.sin(tilt) * Math.sign(cx); return [cx + x * c - z * sn, x * sn + z * c]; });
 function castOutline(S) {
-  const [rx, rz] = S.eye ?? [0.66, 0.4], tilt = S.tilt ?? 0.14, holes = [almond(1, rx, rz, tilt), almond(-1, rx, rz, tilt)];
+  const [rx, rz] = S.eye ?? [0.6, 0.36], tilt = S.tilt ?? 0.1, holes = [almond(1, rx, rz, tilt), almond(-1, rx, rz, tilt)];
   if (S.outline && typeof S.outline === 'object') return { outer: S.outline.poly, holes: S.outline.holes ?? holes };
   if (S.outline === 'band') return { outer: [[-2.3, -0.62], [2.3, -0.62], [2.3, 0.7], [-2.3, 0.7]], holes };
   // (the domino over the brows and down to the cheekbones: up over the bridge, dipping to a notch above the nose, its
@@ -388,13 +388,18 @@ function castMask(fig, S) {
   // EYE ROW, the landmark head's station 4 (its rows: 0 the mouth … 3 the bridge, 4 the eyes, 5 the brow), between the
   // eye's inner and outer corner slots; a head without them falls back to its bounds)
   const Cr = fig.mesh.parts[(S.parts || ['cranium'])[0]], eyeRow = Cr?.stations?.find((st) => st.id === (S.eyeRow ?? 'st4'));
-  const corner = (S0) => { const a = Cr?.points?.[`${Cr ? Object.keys(Cr.points)[0].split('/')[0] : ''}/${eyeRow?.id}.inner${S0}`], b = Cr?.points?.[`${Cr ? Object.keys(Cr.points)[0].split('/')[0] : ''}/${eyeRow?.id}.outer${S0}`]; return a && b ? mul(add(a, b), 0.5) : null; };
+  // (the landmark head draws its eye a little past the middle of its corners, `eyeAt` of the way from the inner to the outer)
+  const pre = Cr ? Object.keys(Cr.points)[0].split('/')[0] : '', eyeAt = S.eyeAt ?? 0.565;
+  const corner = (S0) => { const a = Cr?.points?.[`${pre}/${eyeRow?.id}.inner${S0}`], b = Cr?.points?.[`${pre}/${eyeRow?.id}.outer${S0}`]; return a && b ? add(a, mul(sub(b, a), eyeAt)) : null; };
   const eR = eyeRow ? corner('R') : null, eL = eyeRow ? corner('L') : null;
   const c0 = eR && eL ? mul(add(eR, eL), 0.5) : [(lo[0] + hi[0]) / 2, hi[1], lo[2] + 0.55 * (hi[2] - lo[2])];
   const d = eR && eL ? Math.max(0.012, Math.abs(eR[0] - eL[0]) / 2) : 0.032;
   // the cylinder the outline wraps round: its axis vertical through the head's middle, its radius the head's half-depth
   const ax = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2], R = Math.max(0.03, Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2);
-  const dirAt = (X) => { const th = (X * d) / R; return [dmath.sin(th), dmath.cos(th), 0]; };
+  // (the wrap is anchored on the eyes: X ±1 lands on each eye's own angle round the axis, so the holes sit on the eyes
+  // however round the head is; a head without eyes found wraps by arc length on the radius)
+  const thE = eR ? Math.atan2(Math.abs(eR[0] - ax[0]), eR[1] - ax[1]) : d / R;
+  const dirAt = (X) => { const th = X * thE; return [dmath.sin(th), dmath.cos(th), 0]; };
   const castAt = (X, Z) => { const dir = dirAt(X), z = c0[2] + Z * d, o = [ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, z], ray = mul(dir, -1); let best = null;
     for (const [a, b, c] of tri) { const e1 = sub(b, a), e2 = sub(c, a), h = cross(ray, e2), det = dot(e1, h); if (Math.abs(det) < 1e-14) continue; const f = 1 / det, sv = sub(o, a), u = f * dot(sv, h); if (u < 0 || u > 1) continue; const q = cross(sv, e1), v = f * dot(ray, q); if (v < 0 || u + v > 1) continue; const t = f * dot(e2, q); if (t > 1e-6 && (best === null || t < best)) best = t; }
     return best === null ? null : 0.4 - best; };   // the skin's distance from the axis along the ray
