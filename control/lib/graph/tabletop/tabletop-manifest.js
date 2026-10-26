@@ -2,14 +2,15 @@
  * THE TABLETOP MANIFEST — a board game as a recipe: a few keys a `sketches` row keeps, the page regenerated from them
  * on every read.
  *
- *   { kind: 'tabletop', game, human?, level?, view?, seed?, clock?, title? }
+ *   { kind: 'tabletop', game, human?, level?, view?, seed?, clock?, title?, broadcast? }
  *     game 'chess' | 'checkers' (the book: games nobody owns), or a game written out (the tabletop kernel's G: board,
  *       players, pieces, rules, setup, or the systems: places, resources, building, dice, cards, trading, scores), so a
  *       new game is composed, not coded. The book never holds a published game by name: one asked for by name is
  *       written out from the rules the person explains.
  *     human the player the person plays (the first); level 'easy' | 'fair' | 'hard'; view 'plan' | 'table'; seed the
  *     computer's dice (and a written game's `deal`, when it has no seed of its own); clock { base, inc?, delay? } in
- *     seconds (a game of moves)
+ *     seconds (a game of moves); broadcast the TV graphics (broadcast/broadcast-package.js readBroadcast: a package's
+ *     name or { package?, sides?, names?, closeups?, accent? }), the seats, the calls and the result
  *
  *   TABLETOP_GAMES                 the book's games
  *   resolveTabletop(manifest) → { G, opts }   G the kernel's game, opts the page's; refuses what it cannot play
@@ -27,13 +28,14 @@ import { CHECKERS } from './games/checkers.js';
 import { tabletopGame } from './tabletop.js';
 import { tabletopPageHtml } from './tabletop-page.js';
 import { shapeOf } from './tabletop-shapes.js';
+import { readBroadcast } from '../broadcast/broadcast-package.js';
 
 export const TABLETOP_GAMES = {
   chess: { title: 'Chess', make: () => ({ ...CHESS, title: 'Chess' }) },
   checkers: { title: 'Checkers', make: () => ({ ...CHECKERS, title: 'Checkers' }) },
 };
 
-const KEYS = new Set(['kind', 'game', 'human', 'level', 'view', 'seed', 'clock', 'title']);
+const KEYS = new Set(['kind', 'game', 'human', 'level', 'view', 'seed', 'clock', 'title', 'broadcast']);
 
 export function resolveTabletop(m = {}) {
   const no = (msg) => { throw new Error(`tabletop: ${msg}`); };
@@ -61,9 +63,10 @@ export function resolveTabletop(m = {}) {
   for (const [kind, P] of Object.entries(G.pieces || {})) {
     if (P && P.shape !== undefined) { try { shapeOf(P.shape); } catch (err) { no(`piece ${kind}: ${err.message}`); } }
   }
+  if (m.broadcast !== undefined) { try { readBroadcast(m.broadcast, 'tabletop'); } catch (err) { no(err.message.replace(/^tabletop: /, '')); } }
   // compiled here, so a game that cannot be played is refused at minting, not on the page; its deal done
   G = tabletopGame(G).G;
-  return { G, opts: { human: m.human, level: m.level, view: m.view, seed, title: G.title } };
+  return { G, opts: { human: m.human, level: m.level, view: m.view, seed, title: G.title, ...(m.broadcast !== undefined ? { broadcast: m.broadcast } : {}) } };
 }
 
 export function tabletopManifestHtml(m) {
@@ -73,7 +76,7 @@ export function tabletopManifestHtml(m) {
 
 export function buildTabletopGameManifest({ title, tabletop } = {}) {
   if (!tabletop || typeof tabletop !== 'object' || Array.isArray(tabletop)) {
-    throw new Error(`tabletop is { game: ${Object.keys(TABLETOP_GAMES).join(' | ')} | <a game written out>, human?, level?, view?, seed?, clock? }`);
+    throw new Error(`tabletop is { game: ${Object.keys(TABLETOP_GAMES).join(' | ')} | <a game written out>, human?, level?, view?, seed?, clock?, broadcast? }`);
   }
   const { kind, ...keys } = tabletop;
   const { G } = resolveTabletop({ kind: 'tabletop', ...keys });

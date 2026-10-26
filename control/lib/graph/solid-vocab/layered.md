@@ -518,6 +518,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   share of the ring half (0 front, 1 back); `only` repaints just the bands in those groups. Words wear the figure's Top,
   Bottom and Shoes tones and Glove; best over `detail: 'swimsuit'`, whose forms they keep (a word over the hips clears the
   swimwear beneath). Patch `/hero/paint`.
+  SPORT KITS. `kit` dresses a hero for a sport in a few words (`sportswear/kits.js`), lowered on every read into the
+  dress the body has: `kit: 'soccer'` (or keeper, hockey, tennis, track, basketball, volleyball, golf, bowling), or
+  `{ sport?, colours?: [main, second?, trim?], pattern?: plain | hoops | stripes | band | sleeves | yoke | sides,
+  trim?: [collar | cuffs | hem | shortsStripe] | false, socks?: knee | ankle | none }`. On the authored body it is the bare
+  body with the card's shirt, shorts, socks, shoes (and a keeper's gloves) painted on, the pattern over the shirt in
+  the second colour, the trims in the third; on the realistic body the athlete's outfit card in its colours. The kit's
+  colours sit under the palette's own groups (`Top`, `Kit`, `Trim`, `Bottom`, `Socks`, `Shoes`), so `palette` still
+  wins, and `paint` after it paints over it. Patch `/hero/kit` to re-kit a character in place.
 <!-- /section -->
 <!-- section: hero-outfit | Outfits | garments with volume, and the outfit build: a styled look with dials (stylize, fit, coverage, ornament) -->
   OUTFIT. `outfit` puts on garments WITH VOLUME that follow the body's own geometry (`body-garment.js`; words in
@@ -767,7 +775,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
   slot's item, hold, bone, length (m) and share of the figure's height.
   THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
-  `plant` (a staff driven down) swing the `right` hand's gear; `bash` the `left` (a shield). The hero stands in the
+  `plant` (a staff driven down), and the contest's `forehand`, `backhand` (level arcs across the body) and `bat` (two
+  hands, level) swing the `right` hand's gear; `bash` the `left` (a shield). The hero stands in the
   swing's ready pose and the swing plays as its own looping clip (the World's clip picker, the skinned and engine
   exports). The body drives it: the shoulders and spine coil at the cock and uncoil through the strike, the trunk hinges
   over and the knees sink, both feet planted. The item sets the timing (law 8): a dagger strikes early from a small

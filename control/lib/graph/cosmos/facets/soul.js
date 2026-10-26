@@ -58,6 +58,8 @@ export const SOUL = Object.freeze({
       values: {
         solo: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/playscape/player.js' },
         party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', godot: 'absent', note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
+        // built 10-25 (battle city): a side of a contest, local players and the positional mind's teammates alike
+        team: { status: 'built', lowers: 'lib/graph/contest/team-sim.js', godot: 'absent', note: 'a side of a team goal game (team-sim.js): its roles and their home regions the contest kernel\'s, the player nearest the ball at the pad, the rest played by the positional mind, the keeper on its line; two pads on one screen. On the contest page\'s own bodies: the controllable runtime still has one pilot, so the hero body is not on the pitch yet' },
       },
     },
     seats: {

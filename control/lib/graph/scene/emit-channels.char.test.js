@@ -200,6 +200,61 @@ import { emitThreeWorld } from './scene-three.js';
 // actions (airdash, airjump: rules-gated, no fixture switches them on), readRules' `kind`, and the runtime client's swing
 // trails (drawn only with a kind's look, which no fixture names), the reset system and its banner, and iron's systems
 // (limbs, strings, bound, sidestep) with the sidestep's pose and the bound's spark; every other page is unchanged.
+// Re-pinned 2026-10-25 (battle city: the ball's air): the physics integrator the page embeds (worlds/physics-sim.js,
+// inlined by source) gained the `aero` force rule (a sphere in real air: the drag crisis and Magnus lift, the flight
+// model's curves; `on` the bodies it acts on; its spin decay in step). The six fixtures that embed the integrator
+// (physics, physics-actions, events, events-hud, kitchen-sink, kitchen-sink-capture) re-pin with its source, additions
+// only; a world with no `aero` force integrates every byte as before (physics-sim.test.js), and the other 65 pages are
+// byte-identical.
+// Pinned 2026-10-25 (battle city: the meet): the `meet` fixture joins the matrix (an athletic meet on a track: the meet
+// block, inlining the contest kernel, the meet sim and the arena client, its own frame step `stepContest`, the camera
+// owned). A new fixture only: every other page is byte-identical, and a page without a `meet` key emits no block.
+// Pinned 2026-10-25 (battle city: the court): the `court` fixture joins the matrix (a net game on a court: the court
+// block, inlining the ball's flight, the ball card, the swing system, the hit, the physics integrator, the contest
+// kernel, the court mind, the match sim and the arena client, its own frame step `stepCourt`, the camera owned). The
+// `meet` fixture re-pins with the kernel's source (its double-bounce rule: a ball bounced in and never returned is the
+// striker's point, in the bounce and the out branches), additions only; every other page is byte-identical, and a page
+// without a `court` key emits no block.
+// Pinned 2026-10-25 (battle city: the turn sports): the `turns` fixture joins the matrix (a turn sport on a course: the
+// turns block, inlining the same physics and hit modules, the kernel, the minds, the turn sim and its arena client, its
+// own frame step `stepTurnSport`, the camera owned). The `meet` and `court` fixtures re-pin with the kernel's source (the
+// turns shape joins the closure) and the court with the minds' (the turn mind and the positional mind join the court
+// mind's module) and the hit's (the turn sports' verbs), additions only; every other page is byte-identical, and a page
+// without a `turns` key emits no block.
+// Pinned 2026-10-25 (battle city: the team game): the `pitch` fixture joins the matrix (a team goal game on a pitch:
+// the pitch block, inlining the same physics and hit modules, the kernel, the minds, the team sim and its arena
+// client, its own frame step `stepPitch`, the camera owned). The `meet`, `court` and `turns` fixtures re-pin with the
+// kernel's source (a goal game's outs and offside join the match shape), the court and the turns with the minds' (the
+// team mind joins the module) and the hit's (the kick's curl), additions only; every other page is byte-identical,
+// and a page without a `pitch` key emits no block.
+// Pinned 2026-10-25 (battle city: the door): the `meet`, `court` and `turns` fixtures re-pin for their arenas' rooms
+// rounded up to even metres (the stage kind's one-metre grid, met when the first quick game minted one), which moves
+// the page's own data (the room, the court's origin on the stage); the `pitch` room was on the grid already. Every
+// other page is byte-identical.
+// Pinned 2026-10-26 (battle city: the athletes): the `meet`, `court`, `turns` and `pitch` fixtures re-pin for their
+// clients' source (each draws a slot's athlete in its own body when the arena carries bodies; the fixtures carry none,
+// so no figure module is inlined). Every other page is byte-identical.
+// Pinned 2026-10-26 (battle city: the holo lift): the `holo` fixture joins the matrix (a board game lifted into a
+// hologram arena: the tabletop kernel and its mind from their closures and the arena's client in one block, its own
+// frame step `stepHolo`, the camera owned). Every other page is byte-identical, and a page without a `holo` key emits
+// no block.
+// Re-pinned 2026-10-26 (battle city: the court's surface): the `court` fixture re-pins for the match sim's source (the
+// floor reads the court's surface when the arena names one); a court without one plays as before. Every other page is
+// byte-identical.
+// Re-pinned 2026-10-26 (battle city: the stats): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because each
+// contest block now inlines contest/contest-stats.js (the stats folded from the sim's calls) before the broadcast client,
+// which gains the stats panel, and the page's data carries the coverage (`broadcast.stats`). Every other page is
+// byte-identical.
+// Re-pinned 2026-10-26 (tv animator: the broadcast package): the `meet`, `court`, `turns` and `pitch` fixtures re-pin
+// because each contest block now inlines broadcast/broadcast.client.js before its arena client, the arena clients draw
+// their overlay through it (the bug, the call plates, the closeup, the board) and the page's data carries the resolved
+// package (`broadcast`: the card, the colours, the metals, the cues). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: the net family): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
+// the modules every contest block inlines by source changed: the kernel (the own-bounce serve, the box by the server's
+// score, the two-bounce rule, a no-bounce rally's point called `down`), the ball card (the pickleball, the shuttle's own
+// air), the hit (the underhand, clear and drop verbs, the aim through a ball's own air), the stats (`down` a winner)
+// and the broadcast's words; the court block's sim, mind and client too (the raised bed, the body's scale, the
+// no-volley foul, the slip, the ladder's scoreboard). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

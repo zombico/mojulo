@@ -296,8 +296,21 @@ A quick game takes one as `quick.hero: { mascot: true | { brief?, facets?, seed?
 (its tradition is the mascot's style) and minted through the creature door, as `create_character { as: 'mascot' }`
 mints one. Or adopt one made before: `quick.hero: { ref }`.
 
+**In a sport** ([mascot-kit.js](../control/lib/graph/sportswear/mascot-kit.js)). A mascot plays a sport as any athlete
+does, in its own body, and wears the sport's kit as far as its shape has the parts a kit is worn on:
+`create_character { as: 'mascot', spec: { brief, kit } }` takes the hero door's kit words (`'soccer'`, or `{ sport,
+colours, pattern, trim, socks }`). The kit is paint on the mascot's own parts, as the hero's is on the bare body: the
+shirt the trunk's upper part and the sleeves the upper arms, the shorts the trunk's lower part and the thighs, the
+socks the shins, the gloves the hands, the patterns and trims as the hero's. An orb wears its shirt as a band low round
+its middle, under its face, and its shorts on its legs. Its face, its hook, its adornment and its colours elsewhere stay
+its own; a new kit replaces the old one, and `kit: null` takes it off. The kit is recorded on the plan (`mascot.kit`).
+A quick sport rolls its athletes as mascots with `quick.athletes: 'mascot'` (each side's in the side's kit, a keeper in
+its own), or mixes them into a list with `{ mascot: true | { brief?, facets?, seed? }, kit? }`. On the arena's page a
+body shorter than a grown player is drawn at a player's stature, whole (contest/athletes.js `atStature`), and a round
+one only as wide as a broad player, so its racquet meets the ball the sim swings at.
+
 Not yet:
-- a game's other figures as mascots (its foes, guards and farmhands are people);
+- a game's other figures as mascots (its foes, guards and farmhands are people; a sport's athletes may be mascots);
 - a mascot hero's hit egg in a shooter (a person's);
 - an orb that rolls;
 - a mascot's own vault and ledge moves;

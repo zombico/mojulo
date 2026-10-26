@@ -10,7 +10,8 @@
  *     human the player id the person plays (the first player); level 'easy' | 'fair' | 'hard' ('fair'); view 'plan' |
  *     'table' (the first shown, 'plan'); seed the computer's dice (1)
  *     G as tabletop-kernel.js reads it, with `board` a lattice spec, and for the page: players[i].colour, and each
- *     piece's glyph (one character drawn on its token)
+ *     piece's glyph (one character drawn on its token); broadcast the TV graphics' word (broadcast-package.js
+ *     readBroadcast: a package, the kits, the names), the seats, the calls and the result drawn by broadcast-dom.js
  *
  * The page reads a clock only to measure a move's time for the game's clock rule (the kernel is handed the number), and
  * the computer thinks in a count of positions, so a replayed game is the same game.
@@ -27,6 +28,7 @@ import { tilePageHtml } from './tabletop-tile-page.js';
 import { cardPageHtml } from './tabletop-card-page.js';
 import { roundPageHtml } from './tabletop-round-page.js';
 import { pieceBodies } from './tabletop-bodies.js';
+import { tableBroadcastData, broadcastDomCss, broadcastDomClient, END_WORDS } from '../broadcast/broadcast-dom.js';
 
 const VIEWPORT = { width: 760, height: 560 };
 const UNIT = 60;
@@ -48,10 +50,10 @@ export function tabletopPageHtml(G, opts = {}) {
   const level = opts.level ?? 'fair';
   if (!LEVELS.includes(level)) throw new Error(`tabletop page: level is ${LEVELS.join(', ')}`);
   const view = opts.view ?? 'plan';
-  if (K.round) return roundPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title });
-  if (K.card) return cardPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title });
-  if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
-  if (K.tile) return tilePageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
+  if (K.round) return roundPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
+  if (K.card) return cardPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
+  if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
+  if (K.tile) return tilePageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
   const facing = K.T.ways.get(K.players[K.sideOf[human]].facing);
   // the person sits at their own side of the board: the plan and the table both turn to face their forward
   const turnRad = ((facing.angle - 90) * Math.PI) / 180;
@@ -88,8 +90,9 @@ export function tabletopPageHtml(G, opts = {}) {
   const { bodies, icons } = pieceBodies(G, { cell: L.cell, unit: UNIT });
   const at = L.cells.map((c) => c.at.map((x) => r2(x * UNIT)));
   const turns = K.players.map((p) => r2(K.T.ways.get(p.facing).angle - 90));
+  const tv = tableBroadcastData(G.players, opts.broadcast);
   const data = {
-    L, G, human, level, seed: opts.seed ?? 1, view,
+    L, G, human, level, seed: opts.seed ?? 1, view, tv, ends: END_WORDS,
     plan: { W: r2(frame.W), H: r2(frame.H), cells: L.cells.map((c) => [r2((c.at[0] - frame.x0) * frame.px + frame.pad), r2((frame.y1 - c.at[1]) * frame.px + frame.pad)]), r: r2(frame.px * L.cell * 0.36), cellPx: r2(frame.px * L.cell), turn: r2(-(facing.angle - 90)), icons },
     table: { cams, faces, tokens, size: r2(side * UNIT), bodies, at, turns },
   };
@@ -106,7 +109,7 @@ export function tabletopPageHtml(G, opts = {}) {
   header h1{font-size:16px;margin:0 8px 0 0}
   header button,header select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
   header button.on{border-color:var(--ink)}
-  #status{margin-left:auto;font-weight:600}
+  #status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   main{display:flex;flex-wrap:wrap;gap:16px;padding:16px;align-items:flex-start}
   #boards{flex:1 1 520px;min-width:0;display:flex;justify-content:center}
   #plan svg{max-width:100%;height:auto;display:block}
@@ -129,49 +132,49 @@ export function tabletopPageHtml(G, opts = {}) {
   .t{position:absolute;left:0;top:0;transform-origin:0 0;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .25s ease;pointer-events:none;box-shadow:0 0 0 2px #1a1512 inset}
   aside{flex:0 1 240px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
   aside h2{font-size:13px;margin:0 0 6px;color:var(--mute);font-weight:600}
-  #clocks{display:flex;gap:8px;margin-bottom:10px}
-  #clocks div{flex:1;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-variant-numeric:tabular-nums}
-  #clocks div.on{border-color:var(--ink);font-weight:600}
   #moves{margin:0;padding-left:22px;max-height:360px;overflow:auto;font-variant-numeric:tabular-nums}
   #pick{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0006}
   #pick div{background:var(--panel);border-radius:10px;padding:12px;display:flex;gap:8px}
   #pick button{font-size:28px;width:52px;height:52px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
   @media (max-width:600px){main{padding:16px 16px}aside{flex-basis:100%}}
+${broadcastDomCss(tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
   <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
   <button id="pass" style="display:none">Pass</button><button id="undo">Undo</button><button id="again">New game</button>
-  <span id="status"></span>
+  <span id="status" aria-live="polite"></span>
 </header>
 <main>
   <div id="boards">
     <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}" width="${data.plan.W}" height="${data.plan.H}"><g id="board" transform="rotate(${data.plan.turn} ${r2(data.plan.W / 2)} ${r2(data.plan.H / 2)})">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="hl"></g></g><g id="toks"></g></svg></div>
     <div id="table" class="viewport"><div class="view" id="view"></div></div>
   </div>
-  <aside><div id="clocks"></div><h2>Moves</h2><ol id="moves"></ol></aside>
+  <aside><h2>Moves</h2><ol id="moves"></ol></aside>
 </main>
 <div id="pick"><div id="pick-row"></div></div>
 <script>
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-(${tabletopClient.toString()})(DATA, T, M);
+const TV = (${broadcastDomClient.toString()})(DATA.tv);
+(${tabletopClient.toString()})(DATA, T, M, TV);
 </script>
 </body></html>
 `;
 }
 
-/* The page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopClient(D, T, M) {
+/* The page's own code: runs in the browser, references only its arguments and the DOM. TV is the broadcast
+   (broadcast-dom.js): the seats, the calls, the result. */
+export function tabletopClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human];
   const glyph = (kind) => { const g = D.G.pieces[kind] && D.G.pieces[kind].glyph; return g === undefined ? kind : g; };
-  const colour = (s) => D.G.players[s].colour || ['#f3ede2', '#2a2420', '#c4362a', '#2f6db3'][s % 4];
+  const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255); };
   const inkOn = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140 ? '#1a1512' : '#f3ede2'; };
-  let S, line, legal, sel, last, busy, level = D.level, view = D.view, turnStart = 0, tick = 0;
+  let S, line, legal, sel, last, busy, level = D.level, view = D.view, turnStart = 0, tick = 0, fresh = false, ended = false;
 
   // the table: the board's faces, then a token per piece
   const vw = $('view');
@@ -187,21 +190,50 @@ export function tabletopClient(D, T, M) {
   setCam(0);
 
   function reset() {
-    S = T.start(K); line = []; sel = -1; last = null; busy = false; turnStart = performance.now();
+    S = T.start(K); line = []; sel = -1; last = null; busy = false; turnStart = performance.now(); ended = false;
+    TV.clear();
     after();
   }
   function after() {
     legal = T.legal(K, S);
     render();
     const end = S.over || T.outcome(K, S, legal);
+    if (end && !ended) { ended = true; finish(end); }
     if (!end && S.side !== me) { busy = true; setTimeout(computer, 40); }
+  }
+  // the broadcast's words for a move: what it means, not what it is (a capture is the seat's score rolling up)
+  const who = (s) => (s === me ? 'You' : K.players[s].id);
+  const inCheck = (s) => K.royal && S.pieces.some((P) => P.at >= 0 && P.side === s && K.kinds[P.kind].royal && K.players.some((_, o) => o !== s && T.attacked(K, S, P.at, o)));
+  function callMove(m, side) {
+    if (m.promote) TV.call({ text: 'Promoted', sub: who(side) + ' · ' + (glyph(m.promote) || m.promote), tone: 'gold' });
+    if (m.cap && m.cap.length >= 2) TV.call({ text: (['', '', 'Double', 'Triple', 'Quadruple'][m.cap.length] || m.cap.length + '×') + ' capture', sub: who(side), tone: 'side', color: side });
+    if (!S.over && inCheck(S.side)) TV.call({ text: 'Check', sub: who(S.side) + ' to answer', tone: 'warn' });
+  }
+  // what each seat has taken: the material (the pieces' values, as a chess broadcast counts it), else the count, and
+  // the pieces themselves for the plate; a game that only places pieces and never takes one shows no score
+  const takes = (s) => line.filter((x) => x.s === s).reduce((a, x) => a.concat(x.got), []);
+  const valued = Object.values(D.G.pieces).some((P) => P.value > 0);
+  const captures = () => K.players.map((_, s) => Math.round(takes(s).reduce((n, k) => n + (valued ? D.G.pieces[k].value || 0 : 1), 0)));
+  const scored = () => !!(K.G.end && K.G.end.score);
+  const placing = () => Object.values(D.G.pieces).every((P) => P.drop) && !line.some((x) => x.got.length);
+  // the end: its word on a plate, then the board of the seats
+  function finish(end) {
+    const won = end.winner, title = won === null ? 'Draw' : won === me ? 'You win' : K.players.length === 2 ? 'The computer wins' : K.players[won].id + ' wins';
+    const why = D.ends[end.reason] || end.reason;
+    TV.call({ text: end.reason === 'mate' ? 'Checkmate' : title, sub: why, tone: won === null ? 'neutral' : 'gold' });
+    const vals = end.scores || (scored() ? T.scores(K, S) : placing() ? K.players.map(() => '') : captures());
+    const order = K.players.map((_, s) => s).sort((a, b) => (a === won ? -1 : b === won ? 1 : vals[b] - vals[a]));
+    const rows = order.map((s) => ({ place: won === null ? 1 : s === won ? 1 : 2, name: who(s), note: s === me ? K.players[s].id : 'computer', color: s, value: vals[s] }));
+    setTimeout(() => { if (ended) TV.result({ title, sub: why, tone: won === me ? 'gold' : 'neutral', rows, again: reset }); }, 1400);
   }
   function play(m) {
     const ms = performance.now() - turnStart;
     S = T.apply(K, S, m, S.clock ? { ms: ms } : undefined);
     turnStart = performance.now();
-    line.push({ name: m.name, side: m.p >= 0 ? K.players[S.pieces[m.p].side].id : '' });
-    last = m; sel = S.chain >= 0 && S.side === me ? S.pieces[S.chain].at : -1;
+    const mover = m.p >= 0 ? S.pieces[m.p].side : -1;
+    line.push({ name: m.name, side: mover >= 0 ? K.players[mover].id : '', s: mover, got: (m.cap || []).map((q) => S.pieces[q].kind) });
+    last = m; sel = S.chain >= 0 && S.side === me ? S.pieces[S.chain].at : -1; fresh = true;
+    if (mover >= 0) callMove(m, mover);
     after();
   }
   function computer() {
@@ -259,7 +291,7 @@ export function tabletopClient(D, T, M) {
     // the plan
     const P = D.plan, hl = [];
     const ring = (cell, stroke, w) => '<circle cx="' + P.cells[cell][0] + '" cy="' + P.cells[cell][1] + '" r="' + (P.r * 1.12) + '" fill="none" stroke="' + stroke + '" stroke-width="' + w + '"/>';
-    if (last && last.p >= 0) { hl.push(ring(last.from, '#e0b84a', 3)); hl.push(ring(last.to, '#e0b84a', 3)); }
+    if (last && last.p >= 0) { hl.push(ring(last.from, '#e0b84a', 3)); hl.push(ring(last.to, '#e0b84a', 3).replace('<circle', '<circle class="' + (fresh ? 'tv-hit' : '') + '"')); }
     if (sel >= 0) hl.push(ring(sel, 'var(--mark)', 4));
     for (const m of targets) hl.push(m.cap.length ? ring(m.to, 'var(--mark)', 3) : '<circle cx="' + P.cells[m.to][0] + '" cy="' + P.cells[m.to][1] + '" r="' + (P.r * 0.3) + '" fill="var(--go)"/>');
     $('hl').innerHTML = hl.join('');
@@ -278,7 +310,8 @@ export function tabletopClient(D, T, M) {
     }).join('');
     // the table
     for (const k in cellDivs) cellDivs[k].className = 'f cell';
-    if (last && last.p >= 0) { cellDivs[last.from].classList.add('last'); cellDivs[last.to].classList.add('last'); }
+    if (last && last.p >= 0) { cellDivs[last.from].classList.add('last'); cellDivs[last.to].classList.add('last'); if (fresh) TV.hit(cellDivs[last.to]); }
+    fresh = false;
     if (sel >= 0) cellDivs[sel].classList.add('sel');
     for (const m of targets) cellDivs[m.to].classList.add(m.cap.length ? 'cap' : 'to');
     const size = D.table.size;
@@ -306,6 +339,11 @@ export function tabletopClient(D, T, M) {
     });
     // the rest
     $('status').textContent = status();
+    const caps = captures(), sc = scored() ? T.scores(K, S) : null, end = S.over || T.outcome(K, S, legal);
+    TV.frame({
+      seats: K.players.map((p, s) => { const got = takes(s); return { name: who(s), note: got.length ? got.slice(-8).map(glyph).join('') : s === me ? p.id : 'computer', color: s, score: sc ? sc[s] : placing() ? undefined : caps[s], live: !end && S.side === s, clock: S.clock ? fmt(S.clock[s]) : null }; }),
+      tab: end ? 'Final' : status(),
+    });
     $('moves').innerHTML = line.map((x) => '<li>' + (x.side ? x.side + ' ' : '') + x.name + '</li>').join('');
     $('moves').scrollTop = 1e6;
     $('undo').disabled = busy || !line.length;
@@ -313,11 +351,11 @@ export function tabletopClient(D, T, M) {
     clocks();
   }
   function fmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  // the running clock ticks in the seat plates in place (the plates are redrawn only on a move)
   function clocks() {
-    const box = $('clocks');
-    if (!S.clock) { box.style.display = 'none'; return; }
-    const run = S.over ? 0 : performance.now() - turnStart;
-    box.innerHTML = K.players.map((p, s) => '<div class="' + (s === S.side ? 'on' : '') + '">' + p.id + ' ' + fmt(S.clock[s] - (s === S.side ? run : 0)) + '</div>').join('');
+    if (!S.clock) return;
+    const run = S.over ? 0 : performance.now() - turnStart, out = document.querySelectorAll('.tv-bug .tv-clock');
+    K.players.forEach((_, s) => { if (out[s]) out[s].textContent = fmt(S.clock[s] - (s === S.side ? run : 0)); });
   }
 
   function showView(v) {
@@ -344,8 +382,8 @@ export function tabletopClient(D, T, M) {
     while (cut > 0 && sides[cut - 1] !== me) cut--;
     while (cut > 0 && sides[cut - 1] === me) cut--;
     S = T.start(K);
-    for (const n of names.slice(0, cut)) { const m = T.legal(K, S).find((x) => x.name === n); S = T.apply(K, S, m); keep.push({ name: n, side: K.players[sides[keep.length]].id }); last = m; }
-    line = keep; sel = -1; if (!cut) last = null; turnStart = performance.now();
+    for (const n of names.slice(0, cut)) { const m = T.legal(K, S).find((x) => x.name === n); S = T.apply(K, S, m); keep.push({ name: n, side: K.players[sides[keep.length]].id, s: sides[keep.length], got: (m.cap || []).map((q) => S.pieces[q].kind) }); last = m; }
+    line = keep; sel = -1; if (!cut) last = null; turnStart = performance.now(); ended = false; TV.clear();
     after();
   };
   showView(view);

@@ -18,6 +18,14 @@ export const POWER = Object.freeze({
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', marks: 'mechanicMarks' },
       // a mechanic's mark is found by lowering it (engine-portability.js mechanicMarks): unseen waits on `seen`, on-beat
       // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep their bests in kernel/game.gd
+      // built 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
+      // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
+      // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Three shapes of
+      // contest, one kernel (lib/graph/contest), each a page's own frame simulation: nothing in an engine's kernel runs it
+      planned: {
+        meet: { status: 'built', lowers: 'lib/graph/contest/meet-sim.js', ...WEB, note: 'an athletic event (contest-kernel.js the referee): lanes, the set and the gun on a seeded delay, a false start, the clock or the measure, attempts, the placings; the sprint, the hurdles cleared on the stride, the long jump from the board; up to four local players on one keyboard, the rest the computer\'s. A quick game (design_game quick.meet) played on the World page (meet-arena.js); the runners are stick figures, the hero library\'s clips the step after' },
+        contest: { status: 'built', lowers: 'lib/graph/contest/contest-kernel.js', ...WEB, note: 'a match called by the contest kernel, never the agent: a net game (match-sim.js: tennis on two pads, the serve, the rally, 15 30 40), a turn sport (turn-sim.js: golf and bowling hot-seat, a charged aimed shot), a team goal game (team-sim.js: soccer and hockey on two pads, possession, throw-ins and corners, offside against the ball, fouls, the clock); the ball the physics property\'s sphere on its register\'s card, the hit the swing\'s strike; a sport not in the book written out (sports.js resolveSport, the distilled-rulebook catalyst). A quick game (design_game quick.contest) on the World page' },
+      },
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', marks: 'kitMarks' } },
     rules: {

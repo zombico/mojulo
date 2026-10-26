@@ -56,7 +56,7 @@ describe('the cast', () => {
 
   it('a run records what it made of the cast', () => {
     expect(() => readMade({ 'cast-mayor': { ref: 'gw-cast-mayor', order: '0123abcd', stored: '89abcdef' } })).not.toThrow();
-    expect(() => readMade({ 'cast-': { ref: 'x', order: '0123abcd', stored: '89abcdef' } })).toThrow(/is not something a run makes \(hero, hero-equipped, guard, ride, foe, tower, farmhand, keeper, cast-<id>/);
+    expect(() => readMade({ 'cast-': { ref: 'x', order: '0123abcd', stored: '89abcdef' } })).toThrow(/is not something a run makes \(hero, hero-equipped, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>/);
   });
 
   it('design_game makes each after the hero, at <ref>-cast-<id>; without a story no level is remade', () => {

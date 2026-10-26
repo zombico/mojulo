@@ -219,7 +219,7 @@ describe('turns: the computer', () => {
 
   it('the page carries the duel', () => {
     const html = tabletopPageHtml(responseDuel());
-    expect(html).toContain('function tabletopRoundClient(D, T, M)');
+    expect(html).toContain('function tabletopRoundClient(D, T, M, TV)');
     expect(tabletopPageHtml(responseDuel())).toBe(html);
   });
 });

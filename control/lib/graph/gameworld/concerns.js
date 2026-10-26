@@ -147,6 +147,17 @@ export const CONCERNS = Object.freeze([
     when: ['time.shots=staged', 'time.shots=banter', 'time.shots=in-world'],
     asks: 'scenes need places to stand their cast: open spots along the way with a backdrop, where a camera can stand off',
   },
+  // battle city (10-25): a contest's venue, asked and not yet laid
+  {
+    id: 'court', name: 'A court with its lines',
+    when: ['space.levelForm=court', 'power.mechanics=contest', 'power.mechanics=meet'],
+    asks: 'a contest needs a venue the rules can read: level ground with its regions named and mirrored for the other side (a half, a service box, a crease, a lane, a foul line), the lines drawn, a run-off past them, stands round it, and a broadcast camera square to the play that holds every player',
+  },
+  {
+    id: 'sides', name: 'Room for a side',
+    when: ['soul.party=team', 'mind.motivation=position'],
+    asks: 'a side needs each role a home region to stand in and a way to its mark: open ground between the regions, no cover on the pitch, every player in sight of every other',
+  },
 ]);
 
 const keysOf = (cube) => Object.entries(cube ?? {}).flatMap(([f, s]) => Object.entries(s ?? {}).flatMap(([k, v]) => (Array.isArray(v) ? v : [v]).map((x) => `${f}.${k}=${x}`)));

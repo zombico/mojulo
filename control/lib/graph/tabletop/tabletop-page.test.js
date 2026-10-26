@@ -38,7 +38,7 @@ describe('tabletop page: a euro game', () => {
   it('carries every place to click and draw, on the plan and the table', async () => {
     const { islandEconomy } = await import('./fixtures/island-economy.js');
     const html = tabletopPageHtml(islandEconomy({ seed: 2, players: 3 }));
-    expect(html).toContain('function tabletopEuroClient(D, T, M)');
+    expect(html).toContain('function tabletopEuroClient(D, T, M, TV)');
     expect(html.match(/<\/script>/g)).toHaveLength(1);
     const data = JSON.parse(html.match(DATA)[1]);
     // nineteen hexes, fifty-four corners, seventy-two edges

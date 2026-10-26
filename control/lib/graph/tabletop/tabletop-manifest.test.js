@@ -32,6 +32,14 @@ describe('tabletop manifest', () => {
     expect(html).toContain('<title>Rook endgame</title>');
   });
 
+  it('carries the broadcast\'s word to the page: the game\'s own table by default, a TV look when asked, a bad word taught', () => {
+    expect(resolveTabletop({ game: 'chess', broadcast: 'network' }).opts.broadcast).toBe('network');
+    expect(resolveTabletop({ game: 'chess' }).opts.broadcast).toBeUndefined();
+    expect(() => resolveTabletop({ game: 'chess', broadcast: 'tv' })).toThrow(/broadcast package 'tv' is one of/);
+    const data = (m) => JSON.parse(tabletopManifestHtml(m).match(/const DATA = (\{.*?\});\n/s)[1]).tv.package;
+    expect(data({ game: 'checkers' })).toBe('table');
+    expect(data({ game: 'checkers', broadcast: { package: 'arcade' } })).toBe('arcade');
+  });
   it('refuses what it cannot play, at minting', () => {
     expect(() => resolveTabletop({ game: 'go' })).toThrow(/no game 'go'/);
     expect(() => resolveTabletop({ game: 'chess', players: 4 })).toThrow(/unknown key 'players'/);

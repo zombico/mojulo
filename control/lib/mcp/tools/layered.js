@@ -44,6 +44,7 @@ import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-meas
 import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
 import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-outline';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
+import { readKit, kitDress } from '@/lib/graph/sportswear/kits.js';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
 import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
@@ -196,7 +197,7 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = expandHeroAwarePlan(plan, hero, hero ? null : manifest.geocube);
+  const recipe = expandHeroAwarePlan(plan, hero ? kittedHero(hero) : hero, hero ? null : manifest.geocube);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
@@ -210,6 +211,22 @@ function withLegGirths(recipe) {
   if (!wants.length) return recipe;
   const girths = legGirths(recipe, validateRig(recipe.rig)); if (!girths) return recipe;
   return { ...recipe, locomotion: { ...L, ...Object.fromEntries(wants.map(([n, g]) => [n, { ...g, girths }])) } };
+}
+/**
+ * A hero in its sport's KIT (`kit`, sportswear/kits.js): the words lowered into the dress the body has, every read, so an
+ * edit to the kit re-dresses it. The authored body bare with the kit painted over it (the operator's own detail and
+ * paint still win and come after); the realistic body in the athlete's outfit card unless it names an outfit. The kit's
+ * colours sit beneath the operator's own palette. Without a kit, the hero as it is; the record keeps the words alone.
+ */
+export function kittedHero(hero) {
+  if (!hero || hero.kit === undefined || hero.kit === null) return hero;
+  const { kit, ...rest } = hero, D = kitDress(kit, { realistic: hero.form === 'realistic' });
+  const own = rest.paint === undefined ? [] : Array.isArray(rest.paint) ? rest.paint : [rest.paint];
+  return {
+    ...rest,
+    ...(D.outfit ? { outfit: rest.outfit ?? D.outfit } : { detail: rest.detail ?? D.detail, paint: [...D.paint, ...own] }),
+    palette: { ...D.tones, ...(rest.palette ?? {}) },
+  };
 }
 /** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
  * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
@@ -705,7 +722,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * baked from its own field into a normal map on the lit engine export (epidermis/dermal-relief.js; its fit keeps the
  * neck's column it was joined to, `headFit.column`, so the field can be rebuilt), the body as laws 4 built it */
 export const REALISTIC_LAWS_VERSION = 5;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
 /** where a word the hero door does not take belongs: the words agents guess, then the nearest known word */
@@ -716,6 +733,7 @@ const KEY_HOMES = Object.freeze({
   pole: "the pole is the cast's: cast: { pole: 'female' | 'male', build? }",
   age: "a child is the cast's child build: cast: { pole, build: 'child' }",
   height: 'height is a tune: tune: { stature: <ratio to the cast> }', stature: 'stature is a tune: tune: { stature }',
+  jersey: "a sport's kit is kit: '<sport>' | { sport, colours, pattern } (sportswear/kits.js)", uniform: "a sport's kit is kit: '<sport>' | { sport, colours, pattern } (sportswear/kits.js)", sportswear: "a sport's kit is kit: '<sport>' | { sport, colours, pattern }", strip: "a sport's kit is kit: '<sport>' | { sport, colours, pattern }",
   colour: 'colours are the palette: palette: { … }', color: 'colours are the palette: palette: { … }', colors: 'colours are the palette: palette: { … }', colours: 'colours are the palette: palette: { … }',
   clothes: 'clothes are detail (a word) or outfit (garments that follow the body)', clothing: 'clothes are detail (a word) or outfit', dress: 'clothes are detail (a word) or outfit', armor: "armour is an adorn build: adorn: { type: 'armor', style }", armour: "armour is an adorn build: adorn: { type: 'armor', style }",
   weapon: "held things are gear: gear: { right: { item: 'sword' } }", item: "held things are gear: gear: { right: { item } }", items: 'held things are gear: gear: { right, left, back, hip }',
@@ -857,6 +875,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateDressPaint(spec.paint));
   errs.push(...validateOutfit(spec.outfit));
   errs.push(...validateStylism(spec.stylism));
+  errs.push(...readKit(spec.kit));
   if (isOutfitBuild(spec.outfit) && Array.isArray(spec.outfit.pieces)) for (const [i, P] of spec.outfit.pieces.entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
   // the hand's words (wrist, fingers) on a hero whose hand has them: the structured core
   const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
@@ -1057,7 +1076,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (spec.painterly === true) hero.painterly = true;
     else if (spec.painterly && typeof spec.painterly === 'object') hero.painterly = { ...(spec.painterly.nose ? { nose: { ...spec.painterly.nose } } : {}) };
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin', 'kit']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
   if (hero.head === 'relational' && spec.face !== undefined && spec.face !== null) hero.face = structuredClone(spec.face);
   // the realistic body's physique, always stored on a realistic hero (athletic when none is given), with the laws
@@ -1098,6 +1117,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
  * form with a blank trunk (`head: 'none'`) or a baked include; the door's clips (`clips`) merged over its own, and the
  * stand (`gesture`) as its first clip. */
 export function heroPlanOf(hero) {
+  // a sport's KIT (sportswear/kits.js) lowers first, into the dress every pass below reads; absent ⇒ the hero as it is
+  hero = kittedHero(hero);
   // the STYLISM tuner resolves first, into the outfit (and an armour build's dials) every pass below reads; absent ⇒ the hero
   hero = styledHero(hero);
   // a statue's card stands, stills and drapes the hero beneath its own words (statue/expand.js passes 1 and 2)

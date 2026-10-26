@@ -178,7 +178,7 @@ describe('deck building on the turn engine', () => {
   it('the pages carry both', () => {
     for (const G of [fieldDuel(), deckTurns()]) {
       const html = tabletopPageHtml(G);
-      expect(html).toContain('function tabletopRoundClient(D, T, M)');
+      expect(html).toContain('function tabletopRoundClient(D, T, M, TV)');
       expect(tabletopPageHtml(G)).toBe(html);
     }
   });
