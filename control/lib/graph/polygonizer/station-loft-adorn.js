@@ -526,7 +526,7 @@ function castCowl(fig, S) {
   // a covered mouth with no mouth (`mouth: 'none'`): the skin over the lips bridged smooth
   const zLip = zNose + 0.004, bridge = mouth === 'none' ? (x, z) => { const [th, rho] = ofMap(x, z); if (Math.abs(th) > 0.7) return false; const zz = zOf(th, rho); return zz !== null && zz < zLip; } : null;
   // the EARS under the cowl, the landmark head's (its side slot between rows 3 and 4): bumps, so they stay under it
-  const bumps = S.ears === false ? [] : H.ears.map((E) => { const th = Math.atan2(E[0] - C[0], E[1] - C[1]); return { at: toMap(th, rhoAt(th, E[2])), r: S.earR ?? 0.62, h: S.earH ?? 0.024 }; });
+  const bumps = S.ears === false ? [] : H.ears.map((E) => { const th = Math.atan2(E[0] - C[0], E[1] - C[1]); return { at: toMap(th, rhoAt(th, E[2])), r: S.earR ?? 0.48, h: S.earH ?? 0.0105 }; });
   const out = castGrid(S, { outer, holes, cell: S.cell ?? 0.05, depthAt, place, axisOf: () => C, bridge, bumps });
   // HAIR FLOWING out of the back (`hair` { len, n?, spread?, group? }: the hero's own hair, its colour the Hair group's):
   // clumps from a tie at the back of the head at the eyes' height, falling and fanning, fixed by a pattern (no dice)
@@ -849,7 +849,8 @@ export const SIGNATURES = {
   cast: (fig, _g, _b, S) => castMask(fig, S),
   /** a COWL: the cast over the whole head (castCowl): the crown, the back and the sides down to the jaw and the nape,
    * the front open under the nose (`mouth: 'show'`), down to the chin over the lips (`'cover'`), or smooth over them
-   * (`'none'`, a mask with no mouth); the eyes as the cast's (`eyes`); the ears raised under it (`ears` false: none);
+   * (`'none'`, a mask with no mouth); the eyes as the cast's (`eyes`); the ears, pressed to the head by it (the landmark
+   * head builds them flat when its kit carries a cowl), raised a little under it (`ears` false: neither);
    * `hair` { len, n?, spread?, r?, group? } the hero's hair flowing out of the back in its own colour. Relief as the
    * cast's (`rim`, `ridge`: a crest over the crown, `seams`). A domino over it is a cast with a larger `lift`.
    * { mouth?, opening?, jaw?, nape?, eyes?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, lift?, thick?, cell? } */

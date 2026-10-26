@@ -1222,7 +1222,11 @@ function heroFormPlanOf(hero) {
   // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
   if (hero.head === 'relational') return humanoidPlan({ preset: cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });
   if ((hero.head ?? 'landmark') === 'landmark') {
-    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.faceFeatures ? { features: hero.faceFeatures } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    // (a COWL in the kit presses the ears to the head, as a cowl's cloth does: they stand off it at a small angle and
+    // lift, so the cowl passes close over them; its `ears: false` leaves them as they are. No cowl: the ears as before)
+    const cowled = Array.isArray(hero.adorn) && hero.adorn.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false);
+    const features = cowled ? { ...(hero.faceFeatures ?? {}), earAngle: 0.03, earLift: 0 } : hero.faceFeatures;
+    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them

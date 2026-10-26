@@ -96,13 +96,14 @@ export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eye
   if (!['show', 'cover', 'none'].includes(mouth)) throw new Error(`comic-hero: cowl mouth '${mouth}' (show, cover, none)`);
   const words = domino === false ? null : typeof domino === 'string' ? { outline: domino } : domino;
   // (the eyes the cowl and its domino share: the domino's own when it names them, else the cowl's, else the head's default)
-  const mk = maskKit({ ...(words || {}), eyes: eyes ?? words?.eyes ?? null, head, id: `${id}Domino`, lift: 0.0063, group: 'MaskDomino' })[0], E = mk.signature.eyes;
+  const mk = maskKit({ ...(words || {}), eyes: eyes ?? words?.eyes ?? null, head, id: `${id}Domino`, lift: 0.0048, group: 'MaskDomino' })[0], E = mk.signature.eyes;
   // (the domino reads on the cowl by its edge: a rim raised in shading, unless its own detail names one)
   if (!mk.signature.rim) mk.signature.rim = { w: 0.16, h: 0.0016 };
   const style = typeof heroHair === 'string' ? heroHair : heroHair?.style, len = FLOW[style] ?? 0.2;
   const D = typeof detail === 'object' ? detail : MASK_DETAIL[detail] ?? MASK_DETAIL.plain;
   const cowl = { id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Mask', rigid: true, stack: false, ghost: true,
-    signature: { kind: 'cowl', group: 'Mask', mouth, eyes: E, ...D, ...(hair === 'flow' ? { hair: { len } } : {}) } };
+    // (close to the skin, a thin cloth: the cowl's silhouette the head's own)
+    signature: { kind: 'cowl', group: 'Mask', mouth, eyes: E, lift: 0.0015, thick: 0.0025, ...D, ...(hair === 'flow' ? { hair: { len } } : {}) } };
   return words ? [cowl, mk] : [cowl];
 }
 const COWLED = (reads, words) => ({ reads, family: 'cowl', words, at: { tiered: (spec) => withHelm(spec, cowlKit({ ...words, head: spec.head, heroHair: spec.hair })) } });
