@@ -28,10 +28,11 @@ describe('cosmos-sweep CLI', () => {
   it('prints one fixture row by row, with what each value lowers to', () => {
     const f = fixture('shooter');
     expect(formatFixture(f, dryRun(f.cube))).toMatch(/verdict makeable/);
-    // the same shooter asked at seventh-generation fidelity waits on the era
+    // the same shooter asked at seventh-generation fidelity has a gap: the era is partial (its live light built as
+    // opt-ins, its lightmaps, normal maps, HDR and IBL planned)
     const hd = { ...f, cube: { ...f.cube, reality: { ...f.cube.reality, era: 'gen-7' } } };
     const text = formatFixture(hd, dryRun(hd.cube));
-    expect(text).toMatch(/verdict blocked/);
-    expect(text).toMatch(/era=gen-7\s+absent/);
+    expect(text).toMatch(/verdict gaps/);
+    expect(text).toMatch(/era=gen-7\s+partial/);
   });
 });

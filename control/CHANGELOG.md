@@ -196,6 +196,11 @@ for none of them emits the same bytes as before.
   that is not perspective hides it. `__mojOcclusion.set(on)` turns it off and on. The unshaded export drops it. A
   world with creases and no occlusion keeps the creases' block as it was.
 - The Godot and Roblox legs mark `occlusion` absent. Neither draws it yet.
+- The cosmos registry says the seventh generation's world is partial, no longer absent (`reality.era=gen-7`,
+  era/eras.js). Its built pieces are the opt-ins above, which a world asks for itself: naming the era does not turn
+  them on yet. Still planned: lightmaps and light probes, normal maps on the world, HDR, IBL and height fog. A world
+  asking for gen-7 now reads as one with a gap, not a blocked one; the Godot and Roblox legs still mark it absent, so
+  those worlds now count as losing it there. The hill-climb page is regenerated.
 - A world with live shadows and occlusion together no longer dies on load: the live light's script and the occlusion
   block both declared `__mojLight` on one page (a SyntaxError). The occlusion block binds the shared probe under its own
   name; the two occlusion pins moved, nothing else.

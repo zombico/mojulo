@@ -23,7 +23,9 @@ export const ERAS = Object.freeze({
   }),
   'gen-7': Object.freeze({
     reads: 'the seventh generation (360, PS3: Halo 3, Skyrim)', extends: 'gen-6',
-    world: Object.freeze({ status: 'absent', note: 'planned: normal maps, live sun, HDR, SSAO, IBL, height fog' }),
+    // partial: the live light's pieces are built as a world's own opt-ins (`shadows.actors`, `shadows.hour`, `occlusion`);
+    // naming the era does not turn them on yet
+    world: Object.freeze({ status: 'partial', lowers: 'lib/graph/scene/live-light.js', note: 'built as opt-ins the world asks for itself, not by naming the era: actor shadows over the baked sun, the hour\'s shadow map, contact occlusion (SSAO); planned: lightmaps and light probes, normal maps on the world, HDR, IBL, height fog' }),
     cast: Object.freeze({
       light: 'live-key-over-baked-indirect',
       conventions: Object.freeze([
