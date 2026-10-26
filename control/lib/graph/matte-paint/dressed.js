@@ -60,6 +60,7 @@
  * block painted in its own coordinates and laid whole, wrapping round the edge it crosses, and the light's march and
  * cavity wrapped (light.js `tile`). Pure: the seed's dice only; the same cfg and seed paint the same bytes.
  */
+import { reliefMaterial } from '../form/relief-material.js';
 import { reliefField, hash01 } from './relief.js';
 import { lightRelief } from './light.js';
 import { karstJoints } from './karst.js';
@@ -78,6 +79,18 @@ const FLOOR_LIGHT = { az: 90, el: 78, ambient: 0.4, wrap: 0.3, reach: 0.03, soft
 /** A ramp of five stops round a colour, dark to light (the material). */
 const rampOf = (c) => [0.42, 0.68, 0.9, 1.08, 1.22].map((k) => c.map((v) => clamp(v * k, 0, 255)));
 const rampAt = (R, t) => { const x = clamp(t, 0, 1) * (R.length - 1), i = Math.min(R.length - 2, Math.floor(x)), f = x - i; return R[i].map((v, k) => v + (R[i + 1][k] - v) * f); };
+
+/**
+ * A dressed face as the form render's material (gen-7: form/relief-material.js): the same relief, its colour under no
+ * light, its slope a normal map, its hollows occlusion. The modern cuts read so far (each paints through paintedTile);
+ * any other cut is not drawn as material yet, and says so.
+ *   dressedMaterial(cfg, { size, seed, rough }) → { W, H, px, baseColor, normal, orm, height }
+ */
+export function dressedMaterial(cfgIn, { size = 512, seed = 1, rough = 0.85 } = {}) {
+  const cut = cfgIn.cut ?? 'ashlar';
+  if (!MODERN[cut]) throw new Error(`dressed: the form render reads the modern cuts as material so far (${Object.keys(MODERN).join(', ')}); '${cut}' is still drawn as paint`);
+  return MODERN[cut]({ ...DRESSED_DEFAULTS, ...cfgIn, _material: { rough } }, size, seed);
+}
 
 export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
   const cut = cfgIn.cut ?? 'ashlar';
@@ -316,10 +329,20 @@ function boardsTile(c, size, seed) {
 // ── the modern class ────────────────────────────────────────────────────────────────────────────────────────────────
 // a texel loop with its own height and paint passes: `shape(x, y, k)` sets the height (and any per-texel facts), `colour`
 // paints from the lit value; lit by `light`
+// (`c._material`, dressedMaterial's: the same shape and colour passes read into the form render's material, the colour
+// under no light, the relief kept; form/relief-material.js)
 function paintedTile(c, size, light, shape, colour) {
   const W = size, H = size, M = c.metres, px = M / size, height = new Float32Array(W * H);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) height[j * W + i] = shape((i + 0.5) * px, (j + 0.5) * px, j * W + i);
   const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, light), rgb = Buffer.alloc(W * H * 3);
+  if (c._material) {
+    const none = { value: new Float32Array(W * H).fill(1), cavity: new Float32Array(W * H), convex: lit.convex, up: lit.up };
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      const k = j * W + i, col = colour((i + 0.5) * px, (j + 0.5) * px, k, none);
+      rgb[k * 3] = Math.round(clamp(col[0], 0, 255)); rgb[k * 3 + 1] = Math.round(clamp(col[1], 0, 255)); rgb[k * 3 + 2] = Math.round(clamp(col[2], 0, 255));
+    }
+    return reliefMaterial({ W, H, px, height, tile: true }, { base: rgb, cavity: lit.cavity, convex: lit.convex, rough: c._material.rough });
+  }
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const k = j * W + i, col = colour((i + 0.5) * px, (j + 0.5) * px, k, lit);
     rgb[k * 3] = Math.round(clamp(col[0], 0, 255)); rgb[k * 3 + 1] = Math.round(clamp(col[1], 0, 255)); rgb[k * 3 + 2] = Math.round(clamp(col[2], 0, 255));
@@ -331,6 +354,10 @@ function paintedTile(c, size, light, shape, colour) {
 const snapCell = (M, cell) => M / Math.max(1, Math.round(M / cell));
 const cellHash = (x, y, M, cell, seed) => { const n = Math.max(1, Math.round(M / cell)), cs = M / n, i = Math.floor(x / cs), j = Math.floor(y / cs); return hash01(((i % n) + n) % n, ((j % n) + n) % n, seed); };
 const white = [236, 234, 226];
+
+/** The wire-cut brick's joint: its width and how far the struck mortar sits back of the face (m). The bond lowered to
+ *  polygons reads the same (form/bond.js). */
+export const BRICK = Object.freeze({ joint: 0.009, mortar: 0.004 });
 
 const MODERN = {
   // a road's asphalt: aggregate in its binder, repairs patched in squares, cracks sealed in tar, oil stains
@@ -378,14 +405,14 @@ const MODERN = {
   },
   // wire-cut brick: an exact half bond, crisp arrises, thin struck joints, its tone a little each, a burnt one now and then
   brick(c, size, seed) {
-    const M = c.metres, g = c.grit, hc = M / c.rows, bw = M / c.cols, jt = 0.009, tone = new Float32Array(size * size), mort = new Uint8Array(size * size);
+    const M = c.metres, g = c.grit, hc = M / c.rows, bw = M / c.cols, jt = BRICK.joint, tone = new Float32Array(size * size), mort = new Uint8Array(size * size);
     const body = rampOf(c.stone), mortar = rampOf(c.mortar);
     return paintedTile(c, size, LIGHT, (x, y, k) => {
       const r = Math.floor(y / hc), xi = x + (r % 2) * bw / 2, b = ((Math.floor(xi / bw) % c.cols) + c.cols) % c.cols;
       const fx = xi / bw - Math.floor(xi / bw), fy = y / hc - r, dx = Math.min(fx, 1 - fx) * bw, dy = Math.min(fy, 1 - fy) * hc, d = Math.min(dx, dy);
       const h = hash01(r % c.rows, b, seed + 3);
       tone[k] = (h - 0.5) * 2 * c.vary / 255 - (h > 0.94 ? 0.12 : 0);
-      if (d < jt / 2) { mort[k] = 1; return -0.004 + 0.002 * (d / (jt / 2)) ** 2; }
+      if (d < jt / 2) { mort[k] = 1; return -BRICK.mortar + 0.002 * (d / (jt / 2)) ** 2; }
       // (an arris eased a millimetre or two; the face's fine sand)
       return -0.001 * clamp(1 - (d - jt / 2) / 0.004, 0, 1) + 0.00025 * sfbm(x, y, M, 0.004, 0.004, 2, seed + 5);
     }, (x, y, k, lit) => {
