@@ -82,7 +82,10 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // style.land, and MEADOWMARK's examples too; the level orders now carry it lowered (the trails' mounds, rocks and
     // cliff, the climb's relief, the cube's clouds), f8c60bfb -> 2471fa9c, c42f5e2b -> 9ad2a5b7, 35dcc6ea -> 0b5f8e90;
     // the world itself is unchanged, its print above as it was)
-    expect(fingerprint(unaudited(orders))).toBe('2471fa9c');
+    // (re-pinned 2026-10-26: a climb after a trail under a level's clouds names the look its own stage draws, the cube's
+    // look under those clouds; the two climbs' meru.after.kit moved, geocube-gothic-night-variant-f88cc1 -> -011c7d, and
+    // nothing else, 2471fa9c -> b771729c)
+    expect(fingerprint(unaudited(orders))).toBe('b771729c');
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
     expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
   }, 300000);
