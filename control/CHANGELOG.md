@@ -142,6 +142,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - gladiators: the fish, griffin and chaser gladiators, the hoplite and the legion helms;
   - peaked helms: peaked, iron and crowned;
   - T-visors: the T-visor helm, bronze, night and heavy.
+- Structured masks: the face in flat planes. Two new cowl dials:
+  - `facets`: planes given by azimuth and elevation, each fitted to just clear the face, the shell riding the solid they
+    bound; `nose` leaves the nose out of the fit, so it stands sculpted out of the plates;
+  - `front`: the shell over the face only, from a hairline down to the edge and back to the ears, worn over the hair.
+
+  A front mask's lines stop at its edge. `structuredKit` and `FACETS` (iron, respirator, skull) dress them with the
+  faceless builder's words, plus new ones:
+  - cuts: barredMouth, triGrille, chinVent, visorSlit, lensEyes;
+  - details: rivets, scopeEye, hinges;
+  - panels: tusks, plates.
+
+  Cards (the mask family):
+  - the iron and gilded tyrants;
+  - the dark and chrome-lined respirators;
+  - the clockwork skull and the whaler mask.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

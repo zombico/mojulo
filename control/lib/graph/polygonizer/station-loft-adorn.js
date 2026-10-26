@@ -725,7 +725,17 @@ function castCowl(fig, S) {
     const half = (D, az) => { const o = sub(C, Ce), q = [1 / ax, 1 / (D[1] < 0 ? 0.5 * ay : ay), 1 / az], a = D.reduce((s0, v, i) => s0 + (v * q[i]) ** 2, 0), b = 2 * o.reduce((s0, v, i) => s0 + v * D[i] * q[i] ** 2, 0), c = o.reduce((s0, v, i) => s0 + (v * q[i]) ** 2, 0) - 1, disc0 = b * b - 4 * a * c;
       return disc0 < 0 ? 0 : (-b + Math.sqrt(disc0)) / (2 * a); };
     return (D) => { const t = half(D, zU); return C[2] + t * D[2] >= Ce[2] ? t : half(D, zD); }; })();
-  const rAt = egg ? (D) => { const r = castDir(D); if (r === null) return null; const e = egg(D), k = 0.016; return (r + e + Math.sqrt((r - e) ** 2 + k * k)) / 2; } : castDir;   // (a soft max: no crease where the egg meets the skull)
+  const rEgg = egg ? (D) => { const r = castDir(D); if (r === null) return null; const e = egg(D), k = 0.016; return (r + e + Math.sqrt((r - e) ** 2 + k * k)) / 2; } : castDir;   // (a soft max: no crease where the egg meets the skull)
+  // a STRUCTURED face (`facets`: [{ az, el, out? }] in degrees, round from the front and up, each off the middle mirrored):
+  // flat planes, each fitted to just clear the face in front (the ears and, with `nose`, the nose left out of the fit, so
+  // the nose stands sculpted out of the plates), the shell riding the solid they bound: an iron mask's planes
+  const facets = (() => { if (!S.facets?.length) return null; const half = (hi[0] - lo[0]) / 2, zN = H.zNose ?? lo[2] + 0.32 * (hi[2] - lo[2]), rad = Math.PI / 180;
+    const isNose = (p) => S.nose && Math.abs(p[0] - C[0]) < 0.6 * d && p[2] > zN - 0.006 && p[2] < c0[2] && p[1] > C[1];
+    const pts = H.tri.flat().filter((p) => p[1] > C[1] - 0.01 && Math.abs(p[0] - C[0]) < 0.8 * half && !isNose(p));
+    const planes = S.facets.flatMap((F) => [F.az ?? 0, ...(F.mirror === false || !F.az ? [] : [-F.az])].map((az) => { const a = az * rad, el = (F.el ?? 0) * rad, n = [dmath.sin(a) * dmath.cos(el), dmath.cos(a) * dmath.cos(el), dmath.sin(el)];
+      return { n, d: pts.reduce((m, p) => Math.max(m, dot(sub(p, C), n)), 0) + (F.out ?? S.facetOut ?? 0.003) }; }));
+    return (D) => planes.reduce((t, P) => { const c = dot(P.n, D); return c > 0.02 ? Math.min(t, P.d / c) : t; }, Infinity); })();
+  const rAt = facets ? (D) => { const r = rEgg(D); if (r === null) return null; const f = Math.min(facets(D), r + 0.04), k = S.facetSoft ?? 0.004; return (r + f + Math.sqrt((r - f) ** 2 + k * k)) / 2; } : rEgg;
   const depthAt = (x, z) => { const [th, rho] = ofMap(x, z); return rAt(dir(th, rho)); };
   const place = (x, z, r, off) => { const [th, rho] = ofMap(x, z); return add(C, mul(dir(th, rho), r + off)); };
   // the map's ρ where the skin (a blank face's egg), cast along θ, stands at height `zt` (bisected: it falls as ρ grows)
@@ -748,7 +758,11 @@ function castCowl(fig, S) {
   // (the edge sampled round the head, its ρ smoothed over its neighbours so a facet of the skin leaves no notch in it)
   const N = 120, TH = Array.from({ length: N }, (_, k) => -Math.PI + (2 * Math.PI * k) / N); let RHO = TH.map((th) => rhoAt(th, edgeZ(th)));
   for (let pass = 0; pass < 3; pass++) RHO = RHO.map((v, k) => (RHO[(k + N - 1) % N] + 2 * v + RHO[(k + 1) % N]) / 4);
-  const outer = TH.map((th, k) => toMap(th, RHO[k]));
+  // (`front` { w, top, topSide }: a FACE MASK, the shell over the front only, `w` radians either side, from `top` (eye
+  // units over the eyes, `topSide` at its sides) down to the edge: the hair stays, the mask worn over it)
+  const FM = S.front, wM = FM?.w ?? 1.2, topZ = (th) => c0[2] + ((FM.top ?? 2.2) + ((FM.topSide ?? FM.top ?? 2.2) - (FM.top ?? 2.2)) * Math.abs(th) / wM) * d;
+  const outer = FM ? [...Array.from({ length: 41 }, (_, i) => { const th = -wM + (2 * wM * i) / 40; return toMap(th, rhoAt(th, topZ(th))); }), ...Array.from({ length: 41 }, (_, i) => { const th = wM - (2 * wM * i) / 40; return toMap(th, rhoAt(th, edgeZ(th))); })]
+    : TH.map((th, k) => toMap(th, RHO[k]));
   // the eyes: the domino's eye shapes, carried from the eyes' frame (θ by the eye's own angle round C, height by the eyes')
   const thE = eR ? Math.atan2(Math.abs(eR[0] - C[0]), eR[1] - C[1]) : 0.45;
   // (a WINDOW, `window` an eyegear outline (shape: shield | visor | goggles, or a poly), in place of the eyes: a helmet's
@@ -797,7 +811,7 @@ function castCowl(fig, S) {
     for (let i = 0; i < nC; i++) { const ph = i * 2.39996, L = len * (1 - 0.25 * hsh(i, 1)), sp = (T.spread ?? 0.3) * (0.5 + hsh(i, 2)), side = add(mul([1, 0, 0], dmath.cos(ph)), mul([0, -0.7, 0], dmath.sin(ph))), K = 7;
       const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1); return add(add(add(root, mul(bk, L * 0.28 * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]), mul(side, sp * L * dmath.pow(t, 0.9))); });
       out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, rr * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
-  if (Sg.ornaments?.length && out.length) out.push(...cowlOrnaments(Sg, { C, dir, castDir: rAt, rhoAt, toMap, thE, c0, d }));
+  if (Sg.ornaments?.length && out.length) out.push(...cowlOrnaments(Sg, { C, dir, castDir: rAt, rhoAt, toMap, thE, c0, d, clip: FM ? outer : null }));
   // FITTINGS on the cowl or the helmet (castFittings), placed in the eyes' frame and carried onto it
   if (S.fittings?.length && out.length) { const top = (Sg.lift ?? 0.0025) + (S.thick ?? 0.003) + (S.shell ? 0.004 : 0);
     const on = (X, Z, off = 0) => { const th = X * thE, D = dir(th, rhoAt(th, c0[2] + Z * d)), r = rAt(D); return r === null ? null : add(C, mul(D, r + top + off)); };
@@ -832,7 +846,7 @@ function cowlOrnaments(S, F) {
   // a path sampled into `k` points evenly along its map length, each on the cowl with its frame and its tangent
   const sample = (path, k, off) => { const Q = path.map(onMap), L = [0]; for (let i = 1; i < Q.length; i++) L.push(L[i - 1] + Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]));
     const at = (s0) => { let i = 1; while (i < Q.length - 1 && L[i] < s0) i++; const f = (s0 - L[i - 1]) / Math.max(1e-9, L[i] - L[i - 1]); return [Q[i - 1][0] + (Q[i][0] - Q[i - 1][0]) * f, Q[i - 1][1] + (Q[i][1] - Q[i - 1][1]) * f]; };
-    const pts = Array.from({ length: k }, (_, i) => { const [th, rho] = at((L[L.length - 1] * i) / Math.max(1, k - 1)); return frame(th, rho, off); }).filter(Boolean);
+    const pts = Array.from({ length: k }, (_, i) => { const [th, rho] = at((L[L.length - 1] * i) / Math.max(1, k - 1)), f = frame(th, rho, off); return f && { ...f, m: [rho * dmath.sin(th), rho * dmath.cos(th)] }; }).filter(Boolean);
     return pts.map((P, i) => ({ ...P, t: unit(sub(pts[Math.min(i + 1, pts.length - 1)].p, pts[Math.max(i - 1, 0)].p)) })); };
   const sides = (O) => (O.side === 'R' ? [false] : O.side === 'L' ? [true] : O.path === 'sagittal' ? [false] : [false, true]);
   const PROFILE = { even: () => 1, rise: (q) => 0.55 + 0.45 * q, fall: (q) => 1 - 0.45 * q, crown: (q) => 0.6 + 0.4 * dmath.sin(Math.PI * q), lead: (q) => (q < 0.01 ? 1 : 0.55 + 0.25 * (1 - q)) };
@@ -876,8 +890,10 @@ function cowlOrnaments(S, F) {
     // | 'double' (two cords `apart` m either side), `w` the thread's width (m)
     const P = sample(path, O.samples ?? 48, 0.0009), w = O.w ?? 0.0022, style = O.style ?? 'stitch';
     const cord = (Q, off = 0) => { const pts = Q.map((f) => add(f.p, mul(unit(cross(f.n, f.t)), off))); if (pts.length < 3) return; out.push({ ...sweep(pts, pts.slice(0, -1).map(() => w / 2), 5, { squash: [1, 0.5] }), group: g }); };
-    if (style === 'cord') cord(P);
-    else if (style === 'double') { cord(P, O.apart ?? 0.0035); cord(P, -(O.apart ?? 0.0035)); }
+    // (a shell over part of the head, `clip` its outline on the map: a line runs only where the shell is, in runs)
+    const runs = F.clip ? P.reduce((R, f) => { if (pip(F.clip, f.m[0], f.m[1])) R[R.length - 1].push(f); else if (R[R.length - 1].length) R.push([]); return R; }, [[]]).filter((r) => r.length > 2) : [P];
+    if (style === 'cord') runs.forEach((r) => cord(r));
+    else if (style === 'double') runs.forEach((r) => { cord(r, O.apart ?? 0.0035); cord(r, -(O.apart ?? 0.0035)); });
     else { let run = [], acc = 0, on = true; const dash = O.dash ?? 0.006, gap = O.gap ?? 0.004;
       for (let i = 0; i < P.length; i++) { if (on) run.push(P[i]); if (i + 1 < P.length) { acc += Math.hypot(...sub(P[i + 1].p, P[i].p)); if (acc >= (on ? dash : gap)) { if (on && run.length >= 2) { const a = run[0].p, b = run[run.length - 1].p, m3 = [a, mul(add(a, b), 0.5), b]; out.push({ ...sweep(m3, [w / 2, w / 2], 4, { squash: [1, 0.5] }), group: g }); } run = []; acc = 0; on = !on; } } } }
   }
@@ -1209,8 +1225,9 @@ export const SIGNATURES = {
    * `panels` (polylines in the eyes' frame or on the map) drawn as fine panel lines (`panelW`): a segmented shell;
    * `windowSeam` one round the window. `eyes.treat: 'paint'` the eyes laid on as decals; `decals` shapes painted on or,
    * rimmed, cut away (slots, vents), stacked by `layer`. `dents` sculpt it (sockets, hollows). `peak` dips an open face's
-   * edge to a point over the nose. Ornaments add `crest` (a blade or a plume along a path); fittings `brim`. `blank` (true | { wide, up, down, out }) a face with no features: a smooth egg.
-   * { mouth?, opening?, jaw?, nape?, brow?, eyes?, window?, pad?, shell?, panels?, panelW?, windowSeam?, blank?, decals?, dents?, peak?, openCurve?, decalLift?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, fittings?, align?, lift?, thick?, cell? } */
+   * edge to a point over the nose. Ornaments add `crest` (a blade or a plume along a path); fittings `brim`. `facets`
+   * planes fitted over the face (`nose` left out of them): a structured mask; `front` the shell over the face only. `blank` (true | { wide, up, down, out }) a face with no features: a smooth egg.
+   * { mouth?, opening?, jaw?, nape?, brow?, eyes?, window?, pad?, shell?, panels?, panelW?, windowSeam?, blank?, decals?, dents?, peak?, openCurve?, decalLift?, facets?, nose?, facetOut?, front?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, fittings?, align?, lift?, thick?, cell? } */
   cowl: (fig, _g, _b, S) => castCowl(fig, S),
   /** a MOUTHPIECE (castMouthpiece): the lower face's cast, from under the eyes past the chin, hanging where the skin runs
    * out: `outline` { top, dip, side, bottom, point, straight } in the eyes' frame against the head's own heights; `taut`

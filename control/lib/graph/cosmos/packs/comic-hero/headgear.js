@@ -303,6 +303,7 @@ const BULB = (at, r, group, h = 0.003) => ({ kind: 'lens', at, r, h, group });
 const CUT = (o) => ({ group: 'HelmetCut', rim: { group: 'HelmetTrim', w: 0.0018 }, ...o });
 // (the SKULL's marks: the sockets, the nasal hole, a row of teeth on a line; a bone FACE or JAW laid under them on a dark
 // mask; a higher `layer` lies over a lower)
+const hzw = (w, v) => (v >= 0 ? `${w}+${+v.toFixed(3)}` : `${w}-${+(-v).toFixed(3)}`);   // a height word moved by `v` eye units
 const SOCKETS = (o = {}) => ({ shape: 'dot', at: [0.95, 0.05], w: 0.6, h: 0.52, tilt: 0.1, group: 'MaskSeam', layer: 1, ...o });
 const NOSE = { shape: 'poly', at: [0, 'nose+0.2'], points: [[0, 0.42], [0.24, 0.05], [0.16, -0.25], [0, -0.08], [-0.16, -0.25], [-0.24, 0.05]], mirror: false, group: 'MaskSeam', layer: 1 };
 const TEETH = (group = 'MaskSeam', layer = 1) => [-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72].map((x) => ({ shape: 'slot', at: [x, 'mouth'], w: 0.045, h: 0.2, group, layer, mirror: false }));
@@ -318,7 +319,9 @@ export const FACELESS = Object.freeze({
     cheek: both([[1.75, 1.3], [2.15, -0.4], [1.55, 'mouth-0.7']]),                                                      // down each side of the face
     jawPlate: [[[2.5, 'mouth+0.7'], [1.3, 'chin+0.35'], [-1.3, 'chin+0.35'], [-2.5, 'mouth+0.7']]],
     teardrop: both([[1.95, -0.32], [2.25, -1.3], [1.7, 'mouth-0.3'], [0.8, 'chin+0.45']]),                               // a tear down each cheek from the visor's end
-    sideBands: both([[1.0, 2.3], [2.6, 0.9], [2.95, -1.2]]) },                                                          // a band swept down each side                   // a plate under the jaw
+    sideBands: both([[1.0, 2.3], [2.6, 0.9], [2.95, -1.2]]),
+    tusks: both([[0.62, 'mouth+0.55'], [0.95, 'mouth-0.35'], [0.75, 'chin+0.3']]),                                            // down from a grille's corners
+    plates: both([[0.25, 1.1], [1.5, 0.75], [2.3, 0.2]]).concat(both([[1.7, -0.5], [1.2, 'mouth+0.3'], [0.5, 'chin+0.4']])) },   // a brow plate and a cheek plate                                                          // a band swept down each side                   // a plate under the jaw
   adorn: {
     templeFins: [SPIKE('temple', { shape: 'fin', face: 'along', at: 0.9, len: 0.05, w: 0.045, up: 0.35, lean: 0.25 })],
     parietalFins: [SPIKE('parietal', { shape: 'fin', face: 'along', count: 3, len: 0.04, w: 0.03, profile: 'lead', up: 0.6, lean: 0.2 })],
@@ -343,6 +346,9 @@ export const FACELESS = Object.freeze({
     grille: { fittings: [{ kind: 'grille', at: [0, 'mouth'], rows: 3, w: 0.5, step: 0.2, bar: 0.0026, group: 'HelmetTrim' }] },
     tubes: { fittings: [0.6, -0.6].map((x) => ({ kind: 'tube', at: [x, 'mouth-0.3'], to: [x * 4.4, 'chin-0.4'], r: 0.006, arch: 0.01, group: 'HelmetTrim' })) },
     filters: { fittings: [1.55, -1.55].map((x) => ({ kind: 'filter', at: [x, 'mouth-0.2'], r: 0.013, h: 0.012, group: 'HelmetTrim', capGroup: 'HelmetCut' })) },
+    rivets: { fittings: [[2.35, 1.5], [2.6, 0.4], [2.5, -0.8], [2.1, 'mouth+0.4'], [1.4, 'chin+0.55'], [0.8, 1.9]].flatMap(([x, z]) => [BULB([x, z], 0.0035, 'HelmetTrim', 0.002), BULB([-x, z], 0.0035, 'HelmetTrim', 0.002)]) },   // round the mask's edge
+    scopeEye: { fittings: [{ kind: 'scope', at: [-0.95, 0.05], r: 0.013, len: 0.02, group: 'HelmetTrim', lensGroup: 'EyeLens' }, BULB([0.95, 0.05], 0.013, 'EyeLens', 0.004)] },   // one eye a zoom lens, the other a round glass
+    hinges: { fittings: [2.35, -2.35].map((x) => ({ kind: 'valve', at: [x, 'mouth+0.35'], r: 0.008, group: 'HelmetTrim' })) },
     studs: { fittings: [[2.3, 'mouth+0.8'], [2.1, 'mouth+0.2'], [1.7, 'mouth-0.4']].flatMap(([x, z]) => [BULB([x, z], 0.0045, 'HelmetTrim', 0.0025), BULB([-x, z], 0.0045, 'HelmetTrim', 0.0025)]) } },
   cuts: {
     mouthSlit: [CUT({ shape: 'slot', at: [0, 'mouth'], w: 0.8, h: 0.08 })],
@@ -355,7 +361,13 @@ export const FACELESS = Object.freeze({
     chinVents: ['mouth+0.05', 'mouth-0.2'].map((z) => CUT({ shape: 'slot', at: [0.75, z], w: 0.2, h: 0.04 })),
     eyeHoles: [CUT({ shape: 'dot', at: [0.95, 0.05], w: 0.2, h: 0.2 })],                                                     // two small round holes
     grille: GRILLE,                                                                                                          // a face pierced all over
-    teeth: TEETH('HelmetCut', 0) },
+    teeth: TEETH('HelmetCut', 0),
+    barredMouth: [CUT({ shape: 'slot', at: [0, 'mouth'], w: 0.78, h: 0.12, mirror: false }), ...[-0.56, -0.28, 0, 0.28, 0.56].map((x) => ({ shape: 'slot', at: [x, 'mouth'], w: 0.03, h: 0.11, group: 'Helmet', layer: 1, mirror: false }))],   // a slot barred upright
+    triGrille: [{ shape: 'poly', at: [0, 'mouth+0.25'], points: [[-0.6, 0.3], [0.6, 0.3], [0, -0.8]], group: 'HelmetCut', rim: { group: 'MaskTrim', w: 0.002 }, mirror: false },
+      ...[-0.36, -0.18, 0, 0.18, 0.36].map((x) => { const bot = -0.8 + (Math.abs(x) / 0.6) * 1.1 + 0.1, h = (0.22 - bot) / 2; return { shape: 'slot', at: [x, hzw('mouth', 0.25 + bot + h)], w: 0.028, h, group: 'MaskTrim', layer: 1, mirror: false }; })],   // an inverted triangle of upright bars
+    chinVent: [{ shape: 'slot', at: [0, 'chin+0.55'], w: 0.22, h: 0.07, group: 'MaskTrim', mirror: false }],
+    visorSlit: [CUT({ shape: 'slot', at: [0, 0.05], w: 1.85, h: 0.075, group: 'EyeLens', mirror: false })],
+    lensEyes: [{ shape: 'poly', at: [1.0, 0.05], points: [[-0.6, 0.32], [0.62, 0.28], [0.78, -0.08], [0.25, -0.42], [-0.62, -0.26]], group: 'EyeLens', rim: { group: 'MaskTrim', w: 0.0016 } }] },   // great angular lenses
   sculpt: {
     sockets: [{ at: [0.95, 0.05], r: 0.75, h: 0.006 }], nasal: [{ at: [0, 'nose+0.25'], r: 0.32, h: 0.004 }], cheeks: [{ at: [1.55, 'mouth+0.55'], r: 0.6, h: 0.003 }],
     temples: [{ at: [2.3, 0.9], r: 0.6, h: 0.0025 }], brow: [{ at: [0.9, 1.0], r: 0.55, h: -0.002 }], chin: [{ at: [0, 'chin+0.5'], r: 0.7, h: -0.002 }] },
@@ -386,6 +398,17 @@ export function facelessKit({ face = { shape: 'shield', w: 2.4, top: 1.1, bottom
     .reduce((A, G) => { for (const [k, v] of Object.entries(G)) A[k] = Array.isArray(v) ? [...(A[k] || []), ...v] : v; return A; }, {});
   return helmetKit({ mouth: 'cover', jaw: 1.0, nape: 0.08, pad, shell: 24, thick: 0.004, cell: 0.04, blank, ...front, rim: { w: 0.07, h: 0.0015, group: 'HelmetTrim' }, seamGroup: 'HelmetSeam', ...F, ...over });
 }
+// THE STRUCTURED MASKS: the face only (`front`), flat planes fitted over it (`facets`, FACETS), the nose sculpted out of
+// them or left in, worn over the hair; the faceless builder's words dress them
+export const FACETS = Object.freeze({
+  iron: [{ az: 0, el: -4 }, { az: 0, el: 38 }, { az: 28, el: 14 }, { az: 34, el: -8 }, { az: 62, el: 0 }, { az: 0, el: -38 }, { az: 30, el: -34 }, { az: 58, el: -30 }, { az: 0, el: -62 }],   // a flat iron face, broad planes
+  respirator: [{ az: 0, el: 30 }, { az: 22, el: 22 }, { az: 40, el: 6 }, { az: 20, el: -10 }, { az: 55, el: -10 }, { az: 0, el: -25 }, { az: 22, el: -40 }, { az: 0, el: -55 }, { az: 70, el: -5 }],   // sharp brow, angled cheeks, a jutting mouth
+  skull: [{ az: 0, el: 20 }, { az: 30, el: 15 }, { az: 45, el: -5 }, { az: 18, el: -20 }, { az: 0, el: -30 }, { az: 35, el: -40 }, { az: 0, el: -55 }, { az: 65, el: 0 }],   // a skull's: a domed brow, wide cheekbones, a narrow jaw
+});
+export function structuredKit({ facets = 'iron', nose = true, top = 2.3, w = 1.25, ...words } = {}) {
+  return facelessKit({ face: null, eyes: false, blank: false, pad: 0.005, panels: [], ...words, over: { front: { w, top, topSide: top - 0.9 }, facets: typeof facets === 'string' ? FACETS[facets] : facets, nose, shell: 4, cell: 0.03, rim: { w: 0.06, h: 0.0015, group: 'HelmetTrim' }, ...(words.over || {}) } });
+}
+const MASKED = (reads, kit, palette) => ({ reads, family: 'mask', at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, kit(spec)) } });
 const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', at: { tiered: (spec) => withHelm({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, typeof kit === 'function' ? kit(spec) : helmetKit(kit)) } });
 /** an eyegear's kit from its word (EYEGEAR) or its own data: the cast carried by a ghost shell on the cranium */
 export function eyegearKit(word, { id = 'eyegear', over = {} } = {}) {
@@ -473,6 +496,13 @@ export const HEADGEAR = Object.freeze({
   bronzeTVisor: HELMETED('the bronze T-visor: the T-visor helm in burnished bronze, a crest fin over the crown, no rangefinder; the armorer', () => facelessKit({ face: { poly: [[-1.9, 0.35], [1.9, 0.35], [1.9, -0.3], [0.34, -0.3], [0.34, -2.0], [-0.34, -2.0], [-0.34, -0.3], [-1.9, -0.3]] }, faceGroup: 'HelmetVisor', panels: ['teardrop', 'split'], adorn: ['crestFin'] }), { Helmet: '#a8743a', HelmetSeam: '#5e3f1c', HelmetTrim: '#c9a227', HelmetVisor: '#120d09' }),
   nightTVisor: HELMETED('the night T-visor: a black T-visor helm, red trim, ear discs, cracks across its face; the night owl', () => facelessKit({ face: { poly: [[-1.9, 0.35], [1.9, 0.35], [1.9, -0.3], [0.34, -0.3], [0.34, -2.0], [-0.34, -2.0], [-0.34, -0.3], [-1.9, -0.3]] }, faceGroup: 'HelmetVisor', panels: ['teardrop', 'browBand'], adorn: ['earDiscs'], cuts: ['chinVents'], paint: ['cracks'] }), { Helmet: '#1d1f24', HelmetSeam: '#7a1d1d', HelmetTrim: '#a32020', HelmetVisor: '#08090b', HelmetCut: '#050506', MaskSeam: '#5a5f68' }),
   heavyTVisor: HELMETED('the heavy T-visor: a green T-visor helm, a plated shell, vents on the cheeks and under the visor, antennae; the veteran', () => facelessKit({ face: { poly: [[-1.9, 0.35], [1.9, 0.35], [1.9, -0.3], [0.34, -0.3], [0.34, -2.0], [-0.34, -2.0], [-0.34, -0.3], [-1.9, -0.3]] }, faceGroup: 'HelmetVisor', panels: ['plated', 'teardrop'], cuts: ['chinVents', 'cheekVents'], adorn: ['antennae', 'rangefinder'] }), { Helmet: '#5d6b4a', HelmetSeam: '#2a3120', HelmetTrim: '#a3402a', HelmetVisor: '#0e1013', HelmetCut: '#0b0c0e', EyeGlow: '#e0202a' }),
+  // ── STRUCTURED MASKS: the face in flat planes, worn over the hair ──
+  ironTyrant: MASKED('the iron tyrant: a riveted iron face of flat planes, a sculpted nose, narrow eye slits, a barred slot of a mouth; the armoured despot', () => structuredKit({ facets: 'iron', panels: ['plates'], cuts: [[CUT({ shape: 'slot', at: [0.95, 0.05], w: 0.6, h: 0.12, tilt: -0.04 })], 'barredMouth'], details: ['rivets'], sculpt: ['brow'] }), { Helmet: '#8c9198', HelmetTrim: '#5f646b', HelmetSeam: '#4a4f56', HelmetCut: '#0a0b0d' }),
+  gildedTyrant: MASKED('the gilded tyrant: the iron tyrant in gold, its rivets and plate lines dark; the golden despot', () => structuredKit({ facets: 'iron', panels: ['plates', 'split'], cuts: [[CUT({ shape: 'slot', at: [0.95, 0.05], w: 0.6, h: 0.12, tilt: -0.04 })], 'barredMouth'], details: ['rivets'], sculpt: ['brow'] }), { Helmet: '#c9a227', HelmetTrim: '#6e5414', HelmetSeam: '#6e5414', HelmetCut: '#0a0806' }),
+  darkRespirator: MASKED('the dark respirator: a gloss black mask of sharp planes, great angular lenses, a triangle of upright bars at the mouth, a vent at the chin; the dark lord', () => structuredKit({ facets: 'respirator', panels: ['tusks'], cuts: ['lensEyes', 'triGrille', 'chinVent'], sculpt: ['brow'] }), { Helmet: '#121316', HelmetTrim: '#2a2c31', HelmetSeam: '#7d848e', MaskTrim: '#a2a9b2', EyeLens: '#3a2226', HelmetCut: '#050506' }),
+  chromeRespirator: MASKED('the chrome-lined respirator: a black mask of sharp planes, one narrow visor slit, chrome lines framing it, small slits below; the dark knight-errant', () => structuredKit({ facets: 'respirator', panels: ['tusks'], cuts: ['visorSlit', 'chinVents'], paint: [{ ornaments: [STROKE([[0.2, 0.25], [1.3, 0.3], [2.1, 0.05]], 0.003, 'MaskTrim'), STROKE([[0.15, -0.15], [0.35, -1.3], [0.6, 'mouth']], 0.003, 'MaskTrim')] }] }), { Helmet: '#141518', HelmetTrim: '#2a2c31', HelmetSeam: '#a2a9b2', MaskTrim: '#c3c9d0', EyeLens: '#3a4450', HelmetCut: '#050506' }),
+  clockworkSkull: MASKED('the clockwork skull: a steel skull of plates, brass bands and rivets, one eye a zoom lens, teeth cut through, hinges at the jaw; the masked assassin', () => structuredKit({ facets: 'skull', nose: false, panels: ['plates', 'split'], cuts: ['teeth'], details: ['scopeEye', 'hinges', 'rivets'], sculpt: ['sockets', 'nasal', 'cheeks'], paint: [{ decals: [SOCKETS({ group: 'HelmetCut', layer: 0, w: 0.5, h: 0.45 }), { ...NOSE, group: 'HelmetCut', layer: 0 }] }] }), { Helmet: '#6b6f75', HelmetTrim: '#b08440', HelmetSeam: '#3a3d42', HelmetCut: '#0b0b0c', MaskStrap: '#3a2a1e', EyeLens: '#7fb2c9' }),
+  whalerMask: MASKED('the whaler mask: a dark leather-and-brass skull mask, two glowing green lenses, a breathing canister at the mouth with hoses; the hunter of the docks', () => structuredKit({ facets: 'skull', nose: false, panels: ['plates'], details: ['twinEyes', 'hinges', { fittings: [{ kind: 'filter', at: [0, 'mouth'], r: 0.016, h: 0.016, group: 'HelmetTrim', capGroup: 'HelmetCut' }, ...[0.6, -0.6].map((x) => ({ kind: 'tube', at: [x, 'mouth-0.2'], to: [x * 4.2, 'chin-0.3'], r: 0.005, arch: 0.01, group: 'HelmetTrim' }))] }], sculpt: ['sockets', 'cheeks'], paint: [{ decals: [SOCKETS({ group: 'HelmetCut', layer: 0, w: 0.5, h: 0.45 })] }] }), { Helmet: '#3b3027', HelmetTrim: '#b08440', HelmetSeam: '#1d1712', HelmetCut: '#0b0908', MaskStrap: '#2a2018', EyeGlow: '#7dff6a' }),
   spaceHelmet: HELMETED('the space helmet: a great round shell standing off the head, a wide clear visor over the whole face; the astronaut', 'astronaut', { Helmet: '#f4f5f7', HelmetVisor: '#9ec3d6', HelmetTrim: '#c9a227' }),
   // ── EYEGEAR: goggles, visors and headsets ──
   skiGoggles: EYEWEAR('the ski goggles: one wide mirrored lens across both eyes in a white frame, a broad strap round the head; the snow runner', 'ski', { EyeFrame: '#f2f2f2', EyeTrim: '#1b1b1f', EyeLens: '#f08a24', EyeStrap: '#1b1b1f' }),
