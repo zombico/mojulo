@@ -967,6 +967,20 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   the rock fabric, baked occlusion, the live light itself) `approximated`, drawn as paint, and every other input
   neutral. `eraReading(payload, era)` lists what a payload's era drew short of built, and `export_game { era }` answers
   with it (`era_marks`). A guard holds the marks to the page's own inputs: a new input is classified before it passes.
+- **The first material: relief read as an engine reads it** (`form/relief-material.js`). A dressed face's relief (the
+  height field the matte painter already builds) read into glTF's metal-rough set: base colour (the paint's colour pass
+  under no light), a tangent-space normal from its slope (the glTF / OpenGL convention), occlusion from its hollows and
+  roughness polished on its crests packed in one texture, and the height kept. `dressedMaterial(cfg)` reads the modern
+  cuts so (the wire-cut brick first); any other cut says it is still drawn as paint. The paint's own tiles are as they
+  were, byte for byte.
+- **The bond as polygons** (`form/bond.js`): a brick wall's courses lowered to geometry from the same numbers the paint
+  reads (its courses, bricks a course, its half bond, `BRICK`'s joint and mortar depth, now exported from
+  `matte-paint/dressed.js`): each brick a face and four returns standing proud of a mortar plane, so it casts into its
+  joints under a real sun.
+- **The brick wall three ways** (`scripts/spikes/form/brick-three-ways.mjs`): one tile painted (gen-6), as material lit
+  live, and as polygons with the material's fine relief, under one sun the page moves; `window.measure()` reads the
+  mortar under a brick against the brick's face (a side sun at 25°: material 1.74, polygons 1.26, the polygons'
+  joints shadowed).
 
 ### Geocube scenes: a place to walk, not a game, on the geocube
 
