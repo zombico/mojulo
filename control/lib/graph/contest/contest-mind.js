@@ -302,6 +302,7 @@ function sideMind(M, S, who, ctx, sim) {
  * with the level's wobble.
  */
 function handsMind(M, S, who, ctx) {
+  if (ctx.sport.carry) return carryMind(M, S, who, ctx);
   const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1, hoop = ctx.sport.goal.hoop;
   const b = S.sim.bodies[0], ball = [b.position[0], b.position[1]], ring = [0, dir * (ctx.court.halfL - hoop.out)];
   const toward = (t) => { const d = [t[0] - P.x, t[1] - P.y], n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * L.pace) / n; return [mr4(d[0] * k), mr4(d[1] * k)]; };
@@ -317,6 +318,98 @@ function handsMind(M, S, who, ctx) {
   if (mate && mindDice(M) < 0.02) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(mate.y - P.y, mate.x - P.x)), power: 0.4 } };
   const st = toward([ring[0] + (P.x > 0 ? 2 : -2), ring[1] - dir * 3.2]);
   return { x: st[0], y: st[1], kick: null };
+}
+
+/**
+ * THE CARRY MIND (team-sim.js's carry: rugby, American football): the computer side's active player. The kicker waits
+ * and kicks the conversion at the posts; without the ball it runs at the carrier (where it is going); with it, it runs
+ * for the line away from the nearest defender, passes back or flat when a defender closes in (rugby's), or, behind the
+ * line with a forward pass to give, throws it to the most open receiver downfield once its routes have run
+ * (football's); the level's wobble on each.
+ */
+function carryMind(M, S, who, ctx) {
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1, K = S.K.carry, line = ctx.sport.carry.line;
+  const toward = (t, pace = L.pace) => { const d = [t[0] - P.x, t[1] - P.y], n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * pace) / n; return [mr4(d[0] * k), mr4(d[1] * k)]; };
+  const wob = () => (mindDice(M) - 0.5) * L.wobble;
+  if (S.convert && S.convert.side === P.side) {
+    if (S.convert.kicked || S.f - S.convert.at < 60) return { x: 0, y: 0, kick: null };
+    const py = dir * ctx.sport.goal.posts.y;
+    return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(py - P.y, -P.x)), power: mr4(0.85 + wob() * 0.6) } };
+  }
+  const b = S.sim.bodies[0];
+  if (S.hold !== who) {
+    const holder = S.p.find((Q) => Q.id === S.hold), t = holder ? [holder.x + holder.vx * 0.5, holder.y + holder.vy * 0.5] : [b.position[0], b.position[1]];
+    const st = toward(t, 1);
+    return { x: st[0], y: st[1], kick: null };
+  }
+  const them = S.p.filter((Q) => Q.side !== P.side), mates = S.p.filter((Q) => Q.side === P.side && Q !== P);
+  const near = them.reduce((m, Q) => (m === null || Math.hypot(Q.x - P.x, Q.y - P.y) < Math.hypot(m.x - P.x, m.y - P.y) ? Q : m), null);
+  const nearD = near ? Math.hypot(near.x - P.x, near.y - P.y) : Infinity;
+  const openOf = (Q) => them.reduce((m, O) => Math.min(m, Math.hypot(O.x - Q.x, O.y - Q.y)), Infinity);
+  if (ctx.sport.carry.style === 'downs') {
+    // football: behind the line with the pass to give, the quarterback lets the routes run, then throws downfield
+    const behind = (P.y - K.los) * dir <= 0.5, since = S.f - (S.playAt ?? 0);
+    if (behind && !K.forward) {
+      if (since > 30) {
+        const downfield = mates.filter((Q) => (Q.y - P.y) * dir > 4).sort((q, r) => openOf(r) - openOf(q))[0];
+        if (downfield && (openOf(downfield) > 2 || nearD < 2.5) && mindDice(M) < 0.1) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(downfield.y - P.y, downfield.x - P.x) + wob() * 0.1), power: 0.7 } };
+      }
+      // the drop back: a few steps behind the line while the routes run, then it runs if nobody came open
+      if (since < 90 && nearD > 2) { const st = toward([P.x, K.los - dir * 3], 1); return { x: st[0], y: st[1], kick: null }; }
+    }
+  } else if (nearD < 1.8 && (near.y - P.y) * dir > -0.5) {
+    // rugby: a defender about to tackle: a pass back or flat to a teammate in space
+    const back = mates.filter((Q) => (Q.y - P.y) * dir < -0.3 && Math.hypot(Q.x - P.x, Q.y - P.y) < 10 && openOf(Q) > 3).sort((q, r) => openOf(r) - openOf(q))[0];
+    if (back && mindDice(M) < 0.15) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(back.y - P.y, back.x - P.x)), power: 0.5 } };
+  }
+  // run for the line, away from the nearest defender ahead
+  const away = near && (near.y - P.y) * dir > 0 && nearD < 8 ? (P.x >= near.x ? 1 : -1) * (8 - nearD) * 0.8 : 0;
+  const st = toward([P.x + away + wob() * 2, dir * (line + 2)], 1);
+  return { x: st[0], y: st[1], kick: null };
+}
+
+/**
+ * Where a carry game's role player runs (team-sim.js, every player not at a pad or the active one): the side with the
+ * ball supports its carrier (rugby's staggered line behind it, beside it) or runs its routes downfield from the line
+ * (football's, until the pass is thrown, then alongside); the other side holds its line a gap off the ball and closes on
+ * the carrier, a man on each receiver while the ball is behind the line (football's), and pursues where the carrier is
+ * going. → [x, y]
+ */
+export function carryTarget(S, ctx, P) {
+  const c = ctx.court, K = S.K.carry, sideDir = (side) => (side === 'a' ? 1 : -1), holder = S.p.find((Q) => Q.id === S.hold), b = S.sim.bodies[0];
+  const mates = S.p.filter((Q) => Q.side === P.side), i = mates.indexOf(P), n = mates.length, spread = (i - (n - 1) / 2);
+  const clampIn = (t) => [mclamp(t[0], -c.halfW + 0.5, c.halfW - 0.5), mclamp(t[1], -c.halfL, c.halfL)];
+  // a ball in the air: its receiver runs to where it comes down, the other side converges on the receiver, the rest of
+  // the receiver's side hold their ground
+  if (!holder) {
+    if (P.id === S.passTo) return clampIn([b.position[0] + b.velocity[0] * 0.3, b.position[1] + b.velocity[1] * 0.3]);
+    const to = S.p.find((Q) => Q.id === S.passTo);
+    return to && to.side !== P.side ? clampIn([to.x + to.vx * 0.5, to.y + to.vy * 0.5]) : [P.x, P.y];
+  }
+  const dir = sideDir(holder.side), downs = ctx.sport.carry.style === 'downs';
+  if (holder.side === P.side) {
+    if (downs && !K.forward && (holder.y - K.los) * dir <= 0.5) {
+      const h = ctx.sport.homes[P.role];
+      return clampIn([holder.x + h[0] * 1.2, K.los + dir * (5 + 4 * Math.abs(spread) + Math.abs(h[0]) * 0.3)]);
+    }
+    const k = mates.filter((Q) => Q !== holder).indexOf(P);
+    return clampIn(downs ? [holder.x + (k % 2 ? 1 : -1) * (2 + k), holder.y + dir * 1.5] : [holder.x + (k % 2 ? 1 : -1) * (3 + 2.5 * Math.floor(k / 2)), holder.y - dir * (1.2 + k * 0.4)]);
+  }
+  // defence: a man on each receiver while the ball is behind the line (football's), else the line closing on the carrier
+  if (downs && !K.forward && (holder.y - K.los) * dir <= 0.5 && i > 0) {
+    // the last of the side plays a deep zone; the rest a man each, a step downfield of it and inside
+    if (i === n - 1) return clampIn([holder.x * 0.4, K.los + dir * 12]);
+    const man = S.p.find((Q) => Q.side === holder.side && Q.id.slice(1) === P.id.slice(1));
+    if (man && man !== holder) return clampIn([man.x + (man.x >= 0 ? -0.8 : 0.8), man.y + dir * 0.8]);
+  }
+  const far = Math.hypot(holder.x - P.x, holder.y - P.y);
+  // the last of the side (the safety, the fullback) holds its depth in front of the carrier, squared up to it, and
+  // meets it when it comes near (it never backs away)
+  if (i === n - 1 && (P.y - holder.y) * dir > 2 && far > 6) return clampIn([holder.x + holder.vx * 0.5, P.y]);
+  // the rest pursue, leading the carrier by the time to reach it (a cut-off angle, not a chase from behind), spread
+  // across the field while far, straight in when near
+  const lead = Math.min(1.2, far / 6), wide = far > 8 ? spread * 3 : 0;
+  return clampIn([holder.x + holder.vx * lead + wide, holder.y + holder.vy * lead + dir * (far > 8 ? ctx.sport.carry.gap : 0)]);
 }
 
 // ── the turn mind ────────────────────────────────────────────────────────────────────────────────────────────

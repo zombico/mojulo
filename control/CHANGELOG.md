@@ -534,6 +534,30 @@ games (baseball, cricket).
     every card's short variant to its end (the deep sweep, now on both shapes); the page plays it to the Node state.
   - **Seen, said:** an exhibition scores about seven points in two minutes with about half the shots made; the
     blocks, the shot clock, travelling and free throws are the card's omissions.
+- **The carry games: rugby and American football** (`arcade-rules.js` the carry family, `contest-kernel.js` `carry`,
+  `team-sim.js`), built: five a side on a short field. The kernel's carry module: possession and plays (the line of
+  scrimmage where each starts), a tackle ending one, the ball kept for so many tackles (rugby league's six, then the
+  handover) or downs to gain the next first down (four to gain ten yards), a pass forward never fair or fair once a
+  play from behind the line, a dropped ball and a ball out each a down or a turnover, a try (or touchdown) its points
+  and then the conversion kicked from in front for its own, no play restarted on a try line. The pitch sim's carry
+  mode: each play the side with the ball in its formation round it and its first role holding it, live at once; an
+  opponent kept at the carrier a moment tackles it; over the line a try; the conversion kicked at the posts, through
+  between the uprights over the bar or not; a pass tells the kernel where from and to; a carrier a step slower than its
+  chasers. The carry mind: the quarterback drops back and throws to the most open receiver once the routes have run,
+  the rugby carrier passes back to a teammate in space when a tackle comes, the carrier runs for the line away from the
+  nearest defender; the role players run support lines and routes, a man each and a deep zone, and pursue on a
+  cut-off angle, converging on a pass's receiver while the ball flies. The page lays the field's lines, the in-goals
+  in the sides' colours, the H posts, the line of scrimmage and the line to gain, an oval ball; the tab reads
+  "2nd & 6" in yards or "tackle 3 of 6"; the broadcast calls TRY!, TOUCHDOWN!, the conversion, FIRST DOWN, HANDOVER,
+  TURNOVER ON DOWNS, INTERCEPTED, KNOCK-ON and FORWARD PASS, and the stats count the conversion's points.
+  - **Held:** the kernel's six tackles to the handover, a first down for the gain and the turnover on downs, the
+    forward pass once and its second the down lost, never in rugby, the knock-on, the try and its conversion; the
+    play's formation and the snap, the tackle where it was made, the try over the line and the conversion good at the
+    sweet spot and no good off it; the plates; every card's short variant to its end; the page at the Node state for a
+    game of tackles and one of downs.
+  - **Seen, said:** the arcade football scores high (about a touchdown a minute between two computer sides, as an
+    arcade football game does); the rugby is tight. The ruck, the scrum and the lineout, kicking in open play, eleven a
+    side, punts and penalties are the cards' omissions.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

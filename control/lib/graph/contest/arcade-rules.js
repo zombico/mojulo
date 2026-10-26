@@ -138,6 +138,31 @@ function composeGoal(card) {
   };
 }
 
+// ── the carry family's modules ─────────────────────────────────────────────────────────────────────────────────
+
+function composeCarry(card) {
+  for (const k of ['court', 'posts', 'carry', 'score', 'roles', 'play']) if (!isObj(card[k])) afail(`a carry card names ${k}`);
+  const roles = Object.keys(card.roles), title = card.title, c = card.court, line = r4(c.length / 2), W = r4(c.width / 2), L = r4(line + c.ingoal);
+  const spec = ({ periods, seconds } = {}) => ({
+    shape: 'match', title, players: roles.length,
+    roles: Object.fromEntries(roles.map((r) => [r, { home: 'pitch' }])),
+    court: { frame: [c.width, r4(c.length + 2 * c.ingoal)], mirror: 'reflect', regions: { pitch: { rect: [-W, -L, W, L], shared: true }, half: { rect: [-W, -L, W, 0] }, 'in-goal': { rect: [-W, -L, W, -line] } } },
+    scoring: { ladder: [{ unit: 'point' }] },
+    clock: { periods: periods ?? card.score.periods ?? 2, seconds: seconds ?? card.score.seconds ?? 150 },
+    carry: { ...card.carry, line },
+  });
+  const P = card.play;
+  return {
+    shape: 'team', words: card.words, spec, ball: card.ball, side: roles.length,
+    goal: { posts: { ...card.posts, y: card.posts.at === 'end' ? L : line } },
+    homes: Object.fromEntries(roles.map((r) => [r, card.roles[r].slice()])),
+    kick: { verb: 'throw', tipSpeed: P.tipSpeed, reach: P.reach, charge: P.charge, pass: P.pass, dribble: P.dribble },
+    ground: { roll: card.ground?.roll ?? 3, boards: false, ...(card.ground?.bounce ? { bounce: card.ground.bounce } : {}) },
+    press: 0, hands: true,
+    carry: { line, ingoal: c.ingoal, gap: card.gap ?? 2, lines: card.court.lines ?? 10, style: card.carry.downs ? 'downs' : 'tackles', ...(c.yards ? { yards: true } : {}) },
+  };
+}
+
 export const ARCADE_FAMILIES = freeze({
   net: {
     shape: 'match', sim: 'the court (match-sim.js)', says: 'two ends and a net: a serve, a rally the kernel calls, points to games',
@@ -162,6 +187,17 @@ export const ARCADE_FAMILIES = freeze({
       'play { verb?, hands?, tipSpeed, reach, charge, pass, dribble } (hands: caught, held, thrown)   ground { roll, boards?, bounce? }   press',
     ],
     compose: composeGoal,
+  },
+  carry: {
+    shape: 'team', sim: 'the pitch (team-sim.js)', says: 'carry it over their line: tackles or downs, passes back or one forward, a try and its conversion kick',
+    modules: ['court', 'posts', 'carry', 'score', 'roles', 'play', 'ground', 'gap', 'ball'],
+    doc: [
+      'court { width, length (line to line), ingoal, lines? (every so many metres), yards? (the distance said in yards) }   posts { width, bar, height, at?: end }',
+      'carry { try, called?, conversion?, convertFrom?, start, tackles? | downs? + gain?, forward?: never | once, drop?, out? } (the kernel\'s)',
+      'score { periods?, seconds? }   roles { <role>: [x, behind] } (the formation round the ball; the first takes it)   gap (the defence\'s line)',
+      'play { tipSpeed, reach, charge, pass, dribble } (hands: caught, carried, passed)   ground { roll, bounce? }',
+    ],
+    compose: composeCarry,
   },
 });
 
@@ -246,6 +282,33 @@ export const ARCADE_SPORTS = freeze({
     ground: { roll: 0.8, bounce: 0.85 }, press: 6,
     fouls: { contact: 'free' }, outs: { side: 'throw-in' },
     omits: ['five a side (three play the full court here)', 'the shot clock and the eight seconds to cross half way', 'travelling, the double dribble and the backcourt', 'free throws (a foul gives the ball back where it happened)', 'the inbound under the basket after a score (a check at the centre)', 'goaltending'],
+  },
+  rugby: {
+    family: 'carry', title: 'Rugby, five a side',
+    words: 'rugby five a side: run it and pass it back or flat, six tackles and the ball turns over, a try five and its conversion two',
+    ball: 'rugby',
+    // a short field for five (the full one is 100 × 70 m, its in-goals up to 22 m); the posts 5.6 m apart, the bar 3 m up
+    court: { width: 40, length: 60, ingoal: 6, lines: 10 },
+    posts: { width: 5.6, bar: 3, height: 7 },
+    carry: { try: 5, called: 'try', conversion: 2, convertFrom: 15, start: 20, tackles: 6, forward: 'never', drop: 'turnover', out: 'turnover' },
+    score: { periods: 2, seconds: 150 },
+    roles: { half: [0, -1], forward: [-3, -2], centre: [5, -3], wing: [-10, -5], fullback: [2, -9] },
+    play: { tipSpeed: 18, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 }, ground: { roll: 3, bounce: 0.6 }, gap: 4,
+    omits: ['fifteen (or seven) a side on the full field', 'the ruck and the maul (a tackle is rugby league\'s: the side keeps the ball, six times)', 'the scrum and the lineout (a knock-on or a ball out turns it over where it was)', 'kicking in open play, the drop goal and the penalty kick', 'the conversion taken in line with the try (the arcade kicks it from in front)'],
+  },
+  football: {
+    family: 'carry', title: 'American football, five a side',
+    words: 'American football five a side: four downs to gain ten yards, one forward pass a play from behind the line, a touchdown six and the extra point one',
+    ball: 'football',
+    // a short field for five (the NFL's is 100 yards between the goal lines, its end zones 10 yards deep); the posts
+    // 18 ft 6 in apart on the end line, the bar 10 ft up; the ball at the 25 to start, the extra point from the 15
+    court: { width: 30, length: 64, ingoal: 9.14, lines: 9.144, yards: true },
+    posts: { width: 5.64, bar: 3.05, height: 9, at: 'end' },
+    carry: { try: 6, called: 'touchdown', conversion: 1, convertFrom: 13.7, start: 22.9, downs: 4, gain: 9.14, forward: 'once', drop: 'down', out: 'down' },
+    score: { periods: 2, seconds: 150 },
+    roles: { qb: [0, -4], receiver: [-9, -0.5], wideout: [9, -0.5], tight: [-3, -1], back: [2, -6] },
+    play: { tipSpeed: 18, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 }, ground: { roll: 3, bounce: 0.55 }, gap: 1.5,
+    omits: ['eleven a side, the snap from a center and the huddle', 'kickoffs and punts (a possession starts at the 25; after four downs the ball turns over where it lies)', 'penalties, the two-point try and the field goal', 'blocking (the line is a formation, the defence runs at the ball)'],
   },
 });
 export const ARCADE_SPORT_IDS = Object.freeze(Object.keys(ARCADE_SPORTS));

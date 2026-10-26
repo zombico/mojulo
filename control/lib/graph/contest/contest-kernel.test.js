@@ -328,6 +328,64 @@ describe('a basket worth more than one', () => {
   });
 });
 
+describe('a carry game: plays, tackles or downs, the pass forward, a try and its conversion', () => {
+  const field = { frame: [30, 72], mirror: 'reflect', regions: { pitch: { rect: [-15, -36, 15, 36], shared: true } } };
+  const spec = (carry) => ({ shape: 'match', players: 2, court: field, scoring: { ladder: [{ unit: 'point' }] }, clock: { periods: 1, seconds: 600 }, carry: { try: 5, line: 30, start: 20, ...carry } });
+  // the side in possession runs a play: the restart's taker touches and play is live
+  const snap = (S) => [{ kind: 'resume' }, { kind: 'touch', who: `${S.carry.side}1`, at: S.restart.at }];
+  const dy = (side, y) => (side === 'a' ? y : -y);
+  it('a possession starts at its line, a tackle ends a play; six tackles hand the ball over where the last was made', () => {
+    const C = contestRead(spec({ tackles: 6, conversion: 2 })), S0 = contestStart(C, 2), side = S0.carry.side, oth = side === 'a' ? 'b' : 'a';
+    expect(S0.restart).toMatchObject({ kind: 'play', side, at: [0, dy(side, -10)] });
+    let S = S0, r;
+    for (let i = 1; i <= 6; i++) { r = play(C, S, [...snap(S), { kind: 'tackle', who: `${side}1`, at: [0, dy(side, -10 + i)] }]); S = r.S; }
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'turnover', side: oth, why: 'tackles' });
+    expect(S.restart).toMatchObject({ kind: 'play', side: oth, at: [0, dy(side, -4)] });
+    expect(contestDisplay(C, S).carry).toEqual({ side: oth, tackles: 0, of: 6 });
+  });
+  it('downs: a first down for the gain, four short and it turns over; a forward pass once a play from behind the line, a second the down lost', () => {
+    const C = contestRead(spec({ downs: 4, gain: 9, forward: 'once', drop: 'down', out: 'down' })), S0 = contestStart(C, 2), side = S0.carry.side, oth = side === 'a' ? 'b' : 'a';
+    let r = play(C, S0, [...snap(S0), { kind: 'tackle', who: `${side}1`, at: [0, dy(side, 0)] }]);   // ten metres: a first down
+    expect(r.calls).toContainEqual({ kind: 'down', side, down: 1, first: true });
+    expect(contestDisplay(C, r.S).carry).toEqual({ side, down: 1, toGo: 9 });
+    let S = r.S;
+    for (let i = 0; i < 3; i++) { r = play(C, S, [...snap(S), { kind: 'tackle', who: `${side}1`, at: [0, dy(side, 1)] }]); S = r.S; }
+    expect(contestDisplay(C, S).carry.down).toBe(4);
+    // a forward pass from behind the line is fair once; a second in the play costs the down
+    r = play(C, S, [...snap(S), { kind: 'pass', who: `${side}1`, from: [0, S.carry.los - dy(side, 1)], to: [0, S.carry.los + dy(side, 8)] }]);
+    expect(r.calls.filter((c) => c.kind === 'foul')).toEqual([]); expect(r.S.carry.forward).toBe(true);
+    r = play(C, r.S, [{ kind: 'pass', who: `${side}2`, from: [0, S.carry.los + dy(side, 8)], to: [0, S.carry.los + dy(side, 14)] }]);
+    expect(r.calls[0]).toMatchObject({ kind: 'foul', foul: 'forward-pass', cost: 'down' });
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'turnover', side: oth, why: 'downs' });   // the fifth down: over
+    // an incomplete pass is a down lost at the line, no gain
+    const S1 = contestStart(C, 2);
+    r = play(C, S1, [...snap(S1), { kind: 'incomplete', at: [3, dy(S1.carry.side, 0)] }]);
+    expect(r.calls).toContainEqual({ kind: 'incomplete', side: S1.carry.side, cost: 'down' });
+    expect(r.S.restart.at[1]).toBe(S1.restart.at[1]); expect(r.S.carry.down).toBe(2);
+  });
+  it('the pass forward never fair (rugby\'s), the ball over where it was thrown; a knock-on over where it fell; flat or back plays on', () => {
+    const C = contestRead(spec({ tackles: 6 })), S0 = contestStart(C, 2), side = S0.carry.side, oth = side === 'a' ? 'b' : 'a';
+    let r = play(C, S0, [...snap(S0), { kind: 'pass', who: `${side}1`, from: [0, dy(side, -10)], to: [4, dy(side, -11)] }]);
+    expect(r.calls.map((c) => c.kind)).toEqual(['live']);   // the play live, the pass back fair
+    r = play(C, r.S, [{ kind: 'pass', who: `${side}1`, from: [0, dy(side, -10)], to: [0, dy(side, -6)] }]);
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'turnover', side: oth, why: 'forward-pass' });
+    const S1 = contestStart(C, 2);
+    r = play(C, S1, [...snap(S1), { kind: 'incomplete', at: [2, dy(side, -8)] }]);
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'turnover', side: oth, why: 'incomplete' }); expect(r.S.restart.at).toEqual([2, dy(side, -8)]);
+  });
+  it('a try scores its points, then the conversion from in front for its own (good or not), then the other side\'s ball at its line', () => {
+    const C = contestRead(spec({ tackles: 6, conversion: 2, convertFrom: 15, called: 'try' })), S0 = contestStart(C, 2), side = S0.carry.side, oth = side === 'a' ? 'b' : 'a';
+    let r = play(C, S0, [...snap(S0), { kind: 'try', who: `${side}2`, at: [3, dy(side, 31)] }]);
+    expect(r.calls).toContainEqual({ kind: 'score', side, points: 5, how: 'try' });
+    expect(r.S.score[side]).toEqual([5]); expect(r.S.restart).toMatchObject({ kind: 'conversion', side, at: [0, dy(side, 15)] });
+    r = play(C, r.S, [{ kind: 'convert', side, good: true }]);
+    expect(r.calls[0]).toEqual({ kind: 'conversion', side, good: true, points: 2 }); expect(r.S.score[side]).toEqual([7]);
+    expect(r.S.restart).toMatchObject({ kind: 'play', side: oth, at: [0, dy(oth, -10)] });
+    expect(() => contestRead(spec({}))).toThrow(/carry names tackles .* or downs and gain/);
+    expect(() => contestRead({ ...spec({ tackles: 6 }), serve: { into: 'pitch' }, rally: { in: 'pitch' } })).toThrow(/carry belongs to a goal game on the clock/);
+  });
+});
+
 describe('a goal game\'s outs and offside', () => {
   const G = contestRead(soccer());
   const play = (S, facts) => { const calls = []; for (const f of facts) { const r = contestApply(G, S, f); S = r.S; calls.push(...r.calls); } return { S, calls }; };

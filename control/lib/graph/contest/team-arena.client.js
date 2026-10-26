@@ -105,8 +105,40 @@ function dressHoops(W, L, t) {
     box(0.08, Math.abs(s * (L + 1) - by), 0.08, 0, (s * (L + 1) + by) / 2, HOOP.height + 0.5, pole);
   }
 }
+// a carry game (the arcade rules' carry family: rugby, American football): the field's lines, the in-goals, the posts
+const CARRY = SP.carry || null, POSTS = SP.goal && SP.goal.posts ? SP.goal.posts : null;
+function dressCarry(W, L, t) {
+  const line = CARRY.line, white = new THREE.MeshBasicMaterial({ color: 0xf4f4f0 });
+  for (const s of [-1, 1]) {
+    flat(2 * W, L - line, 0, s * (line + (L - line) / 2), 0.0125, new THREE.MeshBasicMaterial({ color: s < 0 ? SIDE_COLORS.a : SIDE_COLORS.b, transparent: true, opacity: 0.35 }));
+    flat(2 * W, t * 2, 0, s * line, 0.014, LINE);   // the goal line, wide
+    // the posts: two uprights and the bar
+    const py = s * POSTS.y;
+    box(0.12, 0.12, POSTS.height, -POSTS.width / 2, py, POSTS.height / 2, white); box(0.12, 0.12, POSTS.height, POSTS.width / 2, py, POSTS.height / 2, white);
+    box(POSTS.width, 0.12, 0.12, 0, py, POSTS.bar, white);
+  }
+  for (let y = CARRY.lines; y < line - 0.01; y += CARRY.lines) for (const s of [-1, 1]) flat(2 * W, t, 0, s * y, 0.014, LINE);
+  flat(2 * W, t, 0, 0, 0.014, LINE);
+}
+// the line of scrimmage and the line to gain (a game of downs), laid each frame from the kernel's play
+const LOS = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.18), new THREE.MeshBasicMaterial({ color: 0x3a7bd5 })), GAIN = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.18), new THREE.MeshBasicMaterial({ color: 0xf2c12e }));
+LOS.visible = GAIN.visible = false; scene.add(LOS, GAIN);
+function placeLines() {
+  const K = S.K.carry;
+  LOS.visible = GAIN.visible = !!(CARRY && CARRY.style === 'downs' && K);
+  if (!LOS.visible) return;
+  LOS.scale.x = GAIN.scale.x = 2 * PT.halfW;
+  LOS.position.set(0, K.los + OY, 0.02); GAIN.position.set(0, K.toGain + OY, 0.021);
+}
 function dressPitch() {
   const W = PT.halfW, L = PT.halfL, t = 0.1, ice = PT.boards;
+  if (CARRY) {
+    flat(2 * W + 1, 2 * L + 1, 0, 0, 0.011, new THREE.MeshBasicMaterial({ color: 0x3f9a48 }));
+    for (let i = 0; i < 12; i++) flat(2 * W, (2 * L) / 12, 0, -L + ((2 * L) / 12) * (i + 0.5), 0.012, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x3f9a48 : 0x45a650 }));
+    for (const [w, d, x, y] of [[2 * W, t, 0, -L], [2 * W, t, 0, L], [t, 2 * L, -W, 0], [t, 2 * L, W, 0]]) flat(w, d, x, y, 0.014, LINE);
+    dressCarry(W, L, t);
+    return;
+  }
   flat(2 * W + 1, 2 * L + 1, 0, 0, 0.011, new THREE.MeshBasicMaterial({ color: HOOP ? 0xc9955b : ice ? 0xdfe9f2 : 0x3f9a48 }));
   if (HOOP) for (let i = 0; i < 12; i++) flat((2 * W) / 12, 2 * L, -W + ((2 * W) / 12) * (i + 0.5), 0, 0.012, new THREE.MeshBasicMaterial({ color: i % 2 ? 0xc9955b : 0xd09d63 }));
   else if (!ice) for (let i = 0; i < 10; i++) flat(2 * W, (2 * L) / 10, 0, -L + ((2 * L) / 10) * (i + 0.5), 0.012, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x3f9a48 : 0x45a650 }));
@@ -133,7 +165,7 @@ function dressPitch() {
 }
 dressPitch();
 const BALL_GEO = new THREE.SphereGeometry(1, 14, 10), CAP = new THREE.CylinderGeometry(0.22, 0.22, 1.1, 10).rotateX(Math.PI / 2), HEAD = new THREE.SphereGeometry(0.16, 10, 8);
-const ballMesh = new THREE.Mesh(BALL_GEO, new THREE.MeshBasicMaterial({ color: SP.ball === 'puck' ? 0x141414 : SP.ball === 'basketball' ? 0xd8742c : 0xf8f8f4 })), ballInk = new THREE.Mesh(BALL_GEO, INK);
+const ballMesh = new THREE.Mesh(BALL_GEO, new THREE.MeshBasicMaterial({ color: SP.ball === 'puck' ? 0x141414 : SP.ball === 'basketball' ? 0xd8742c : SP.ball === 'football' ? 0x7a3b1d : SP.ball === 'rugby' ? 0xf1ece0 : 0xf8f8f4 })), ballInk = new THREE.Mesh(BALL_GEO, INK);
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
 scene.add(ballMesh, ballInk, shadow);
 const figures = {};
@@ -229,6 +261,13 @@ function placeBodies() {
   const b = S.sim.bodies[0], r = Math.max(b.radius, 0.11);
   ballMesh.position.set(b.position[0], b.position[1] + OY, Math.max(b.position[2], r)); ballMesh.scale.setScalar(r);
   ballInk.position.copy(ballMesh.position); ballInk.scale.setScalar(r * 1.12);
+  if (CARRY) {
+    // the oval: long along its flight (or its carrier's way)
+    const v = Math.hypot(b.velocity[0], b.velocity[1]) > 0.3 ? Math.atan2(b.velocity[1], b.velocity[0]) : ballMesh.rotation.z + Math.PI / 2;
+    ballMesh.scale.set(r * 0.8, r * 1.4, r * 0.8); ballInk.scale.set(r * 0.9, r * 1.52, r * 0.9);
+    ballMesh.rotation.z = ballInk.rotation.z = v - Math.PI / 2;
+    placeLines();
+  }
   shadow.position.set(b.position[0], b.position[1] + OY, 0.02); shadow.scale.setScalar(Math.max(r * 0.7, r * (1.5 - Math.min(1, b.position[2] / 6))));
   for (const P of S.p) {
     const F = figures[P.id]; if (!F) continue;
@@ -257,14 +296,18 @@ function frameCamera() {
 const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function feedOf(d) {
   const me = S.p.find((P) => P.id === S.active.a), periods = ctx.C.clock ? ctx.C.clock.periods : 0;
-  const restart = d.restart && S.K.phase !== 'live' ? (BC.why[d.restart.kind] || d.restart.kind) : null;
+  const restart = d.restart && S.K.phase !== 'live' && !d.carry ? (BC.why[d.restart.kind] || d.restart.kind) : null;
+  // a carry game's tab: the down and the distance, or the tackle's count, and whose ball
+  const ord = (n) => ['', '1st', '2nd', '3rd', '4th'][n] || `${n}th`;
+  const toGo = d.carry && d.carry.down ? (CARRY.yards ? Math.max(1, Math.round(d.carry.toGo / 0.9144)) : d.carry.toGo) : 0;
+  const carryTab = d.carry ? `${sideName(d.carry.side)} ball · ${d.carry.down ? `${ord(d.carry.down)} & ${toGo}` : `tackle ${d.carry.tackles} of ${d.carry.of}`}` : null;
   return {
     title: PA.title || SPORT,
     rows: ['a', 'b'].map((side) => ({ name: sideName(side), color: sideIx(side), cells: [d.score[side][0]] })), hot: 0,
     ...(d.clock ? { clock: mmss(d.clock.left), period: d.clock.overtime ? 'OT' : periods === 2 ? (d.clock.period === 1 ? '1st' : '2nd') : `P${d.clock.period}` } : {}),
-    tab: restart ? `${restart} · ${sideName(d.restart.side)}` : null,
-    ...(me && ctx.players > 0 && me.charge > 0 ? { meter: { share: me.charge, label: 'shoot', color: 0 } } : {}),
-    hint: ctx.players > 0 && TV.f < 600 ? `${sideName('a')} · W A S D run · tap F pass · hold F shoot` : null,
+    tab: carryTab || (restart ? `${restart} · ${sideName(d.restart.side)}` : null),
+    ...(me && ctx.players > 0 && me.charge > 0 ? { meter: { share: me.charge, label: CARRY ? (S.convert ? 'kick' : 'pass') : 'shoot', color: 0 } } : {}),
+    hint: ctx.players > 0 && TV.f < 600 ? `${sideName('a')} · W A S D run · tap F pass · hold F ${CARRY ? 'pass long' : 'shoot'}` : null,
   };
 }
 function draw() {

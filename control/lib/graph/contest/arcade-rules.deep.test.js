@@ -1,5 +1,5 @@
-// The arcade rules, every card: it reads through the kernel, and a short variant of it (a net game to three, a goal
-// game one short period) plays an exhibition between the minds to its end in an arcade register, the kernel's end.
+// The arcade rules, every card: it reads through the kernel, and a short variant of it (a net game to three, a goal or
+// a carry game one short period) plays an exhibition between the minds to its end in an arcade register, the kernel's end.
 import { describe, it, expect } from 'vitest';
 import { ARCADE_SPORTS, ARCADE_SPORT_IDS, composeArcade } from './arcade-rules.js';
 import { contestRead } from './contest-kernel.js';
@@ -13,7 +13,7 @@ const ARENA = {
   match: (sport) => { const ctx = matchContext(matchArenaData({ sport, players: 0, register: 'action', seed: 3 })); return { ctx, S: newMatch(ctx), step: stepMatch }; },
   team: (sport) => { const ctx = teamContext(teamArenaData({ sport, players: 0, register: 'action', seed: 3 })); return { ctx, S: newTeam(ctx), step: stepTeam }; },
 };
-const SHORT = { net: { score: { to: 3, by: 1 } }, goal: { score: { periods: 1, seconds: 30 } } };
+const SHORT = { net: { score: { to: 3, by: 1 } }, goal: { score: { periods: 1, seconds: 30 } }, carry: { score: { periods: 1, seconds: 30 } } };
 
 describe('every arcade card', () => {
   for (const id of ARCADE_SPORT_IDS) {

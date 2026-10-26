@@ -263,6 +263,11 @@ import { emitThreeWorld } from './scene-three.js';
 // kernel every contest block inlines reads a score fact's points, the broadcast client calls a basket by them and the
 // stats count them, and the minds (the hands mind) the court, turns and pitch inline; the pitch block's sim and client
 // too (the hoop, the hands, the hardwood). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: the carry games): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
+// the kernel every contest block inlines reads a carry game (its plays, tackles, downs, passes, try and conversion), the
+// broadcast's cues and plates name its calls and the stats count its conversion, and the minds (the carry mind, its role
+// lines) the court, turns and pitch inline; the pitch block's sim and client too (the carry mode, the field's lines, the
+// posts, the line markers, the oval). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

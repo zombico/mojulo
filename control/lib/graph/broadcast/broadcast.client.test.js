@@ -42,6 +42,18 @@ describe('the broadcast client', () => {
     expect(said({ kind: 'serve', who: 'a1' })).toBeNull();   // silent by name
     expect(said({ kind: 'finish', who: 'r1', t: 10.4 })).toMatchObject({ text: '10.40' });
     expect(said({ kind: 'finish', who: 'r2', t: 10.5 })).toBeNull();   // the winner's time only
+    // the arcade rules' calls: a basket by its points, a try or a touchdown by its name, the carry game's turns of play
+    expect(said({ kind: 'score', side: 'a', points: 3 })).toMatchObject({ text: 'THREE!' });
+    expect(said({ kind: 'score', side: 'b', points: 5, how: 'try' })).toMatchObject({ text: 'TRY!', sub: 'CPU' });
+    expect(said({ kind: 'conversion', side: 'b', good: true, points: 1 })).toMatchObject({ text: 'EXTRA POINT', tone: 'gold' });
+    expect(said({ kind: 'conversion', side: 'b', good: false, points: 0 })).toMatchObject({ text: 'NO GOOD', tone: 'warn' });
+    expect(said({ kind: 'turnover', side: 'a', why: 'downs' })).toMatchObject({ text: 'TURNOVER ON DOWNS', sub: 'P1 BALL' });
+    expect(said({ kind: 'turnover', side: 'a', why: 'incomplete' })).toBeNull();   // its cause's plate is up already
+    expect(said({ kind: 'down', side: 'a', down: 1, first: true })).toMatchObject({ text: 'FIRST DOWN' });
+    expect(said({ kind: 'down', side: 'a', down: 3, toGo: 4 })).toBeNull();
+    expect(said({ kind: 'tackle', side: 'a', count: 2 })).toBeNull();   // the tab's
+    expect(said({ kind: 'incomplete', side: 'b', cost: 'turnover' })).toMatchObject({ text: 'KNOCK-ON' });
+    expect(said({ kind: 'point', side: 'a', why: 'down' })).toMatchObject({ text: 'IN' });
   });
   it('holds the frame by weight: the decisive call takes it, a lighter word waits its turn', () => {
     const TV = lib.newBroadcast(broadcastData()), g = stubCanvas();

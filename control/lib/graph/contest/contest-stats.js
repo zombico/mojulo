@@ -97,6 +97,8 @@ function stTeam(S) {
       const keeper = stSide(c.who); add('saves', keeper); onTarget(keeper === 'a' ? 'b' : 'a'); lastKick = null;
     } else if (c.kind === 'score') {
       add('goals', c.side, c.points ?? 1); onTarget(c.side); close(c.f);   // (a basket its points)
+    } else if (c.kind === 'conversion') {
+      if (c.good) add('goals', c.side, c.points);   // (a carry game's conversion: its points beside the try's)
     } else if (c.kind === 'out') {
       if (c.restart?.kind === 'corner') add('corners', c.restart.side);
       close(c.f);

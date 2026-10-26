@@ -3,7 +3,7 @@
 // register; the pad's active player and its kick (a tap a pass, a hold a shot); the carry; a goal, an out and their
 // restarts; the keeper's save; an exhibition to the final whistle in both sports; byte-identical replays.
 import { describe, it, expect } from 'vitest';
-import { TEAM_BODY, TEAM_REGISTER_IDS, GPAD, TEAM_FPS, newTeam, stepTeam, cloneTeam, teamContext, teamDisplay, throwBall } from './team-sim.js';
+import { TEAM_BODY, TEAM_REGISTER_IDS, GPAD, TEAM_FPS, newTeam, stepTeam, cloneTeam, teamContext, teamDisplay, throwBall, teamKick } from './team-sim.js';
 import { ARCADE_SPORT_IDS } from './arcade-rules.js';
 import { resolveSport } from './sports.js';
 import { teamArenaData } from './team-arena.js';
@@ -174,5 +174,49 @@ describe('a hoop and hands (the arcade goal family)', () => {
     for (let i = 0; i < 120 && S.hold === a2.id; i++) { park(); Object.assign(b1, { x: b.position[0] + 0.3, y: b.position[1], vx: 0, vy: 0 }); Object.assign(a2, { vx: 0, vy: 0 }); stepTeam(S, [REST, REST], ctx); }
     expect(S.hold).toBe(b1.id);
     expect(calls(S, 'steal')[0]).toMatchObject({ who: b1.id, from: a2.id });
+  });
+});
+
+// the arcade rules' carry family on the pitch: plays, tackles, a try and its conversion, on the cards that carry them
+describe('a carry game (the arcade carry family)', () => {
+  const team = ARCADE_SPORT_IDS.filter((id) => resolveSport(id).shape === 'team' && resolveSport(id).carry);
+  const tackles = team.find((id) => resolveSport(id).carry.style === 'tackles'), downs = team.find((id) => resolveSport(id).carry.style === 'downs');
+  // both sides at resting pads: nobody's mind moves the ball the test plays
+  const start = (sport) => { const ctx = ctxOf({ sport, players: 2, register: 'action', seed: 2 }), S = newTeam(ctx); for (let i = 0; i < 3 && S.K.phase !== 'live'; i++) stepTeam(S, [REST, REST], ctx); return { ctx, S }; };
+  const park = (S, keep) => { for (const Q of S.p) if (!keep.includes(Q)) Object.assign(Q, { x: Q.side === 'a' ? -12 : 12, y: 0, vx: 0, vy: 0 }); };
+
+  it('a play: the side with the ball in its formation behind it, its first role holding it and play live at once, the other side beyond the gap', () => {
+    for (const sport of [tackles, downs]) {
+      const { ctx, S } = start(sport), side = S.K.carry.side, s = side === 'a' ? 1 : -1, los = S.K.carry.los;
+      expect(S.K.phase, sport).toBe('live');
+      const holder = S.p.find((P) => P.id === S.hold);
+      expect(holder.side).toBe(side); expect(holder.role).toBe(Object.keys(ctx.C.roles)[0]);
+      for (const P of S.p) if (P !== holder) expect((P.y - los) * s, `${sport} ${P.id}`)[P.side === side ? 'toBeLessThanOrEqual' : 'toBeGreaterThan'](P.side === side ? 0.01 : ctx.sport.carry.gap * 0.9);
+    }
+  });
+  it('an opponent kept at the carrier tackles it: the play over, the next where it was brought down', () => {
+    const { ctx, S } = start(tackles), side = S.K.carry.side, carrier = S.p.find((P) => P.id === S.hold), foe = S.p.find((P) => P.side !== side);
+    park(S, [carrier, foe]);
+    for (let i = 0; i < 30 && !calls(S, 'tackled').length; i++) { Object.assign(foe, { x: carrier.x + 0.4, y: carrier.y, vx: 0, vy: 0 }); Object.assign(carrier, { vx: 0, vy: 0 }); stepTeam(S, [REST, REST], ctx); }
+    const t = calls(S, 'tackled')[0];
+    expect(t).toMatchObject({ who: carrier.id });
+    expect(calls(S, 'tackle')[0]).toMatchObject({ side, count: 1 });
+    expect(S.K.restart).toMatchObject({ kind: 'play', side, at: t.at });
+  });
+  it('the carrier over the line scores the try; the conversion at the sweet spot sails through the posts, off it no good', () => {
+    for (const [power, good] of [[0.85, true], [0.62, false]]) {
+      const { ctx, S } = start(tackles), side = S.K.carry.side, s = side === 'a' ? 1 : -1, carrier = S.p.find((P) => P.id === S.hold);
+      park(S, [carrier]);
+      Object.assign(carrier, { x: 2, y: s * (ctx.sport.carry.line - 0.3), vx: 0, vy: 0 });
+      for (let i = 0; i < 90 && !calls(S, 'score').length; i++) stepTeam(S, [side === 'a' ? { x: 0, y: 1, b: 0 } : REST, side === 'b' ? { x: 0, y: -1, b: 0 } : REST], ctx);
+      expect(calls(S, 'score')[0]).toMatchObject({ side, points: ctx.C.carry.try, how: ctx.C.carry.called });
+      for (let i = 0; i < 400 && !S.convert; i++) stepTeam(S, [REST, REST], ctx);
+      expect(S.K.restart.kind).toBe('conversion');
+      const kicker = S.p.find((P) => P.id === S.active[side]), posts = s * ctx.sport.goal.posts.y;
+      expect(teamKick(S, ctx, kicker, Math.atan2(posts - kicker.y, -kicker.x), power)).toBe(true);
+      for (let i = 0; i < 400 && !calls(S, 'conversion').length; i++) stepTeam(S, [REST, REST], ctx);
+      expect(calls(S, 'conversion')[0], `power ${power}`).toMatchObject({ side, good, points: good ? ctx.C.carry.conversion : 0 });
+      expect(S.K.score[side]).toEqual([ctx.C.carry.try + (good ? ctx.C.carry.conversion : 0)]);
+    }
   });
 });

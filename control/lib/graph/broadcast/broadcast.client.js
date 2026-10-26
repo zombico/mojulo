@@ -194,9 +194,15 @@ function tvCall(TV, c, names = {}) {
     }
     case 'period': text = names.period ? names.period(c) : `END OF PERIOD ${c.period}`; break;
     case 'overtime': text = 'OVERTIME'; break;
-    case 'score': text = c.points ? (c.points === 3 ? 'THREE!' : `${c.points} POINTS`) : `${names.unit ? tvUp(names.unit('score')) : 'SCORE'}!`; sub = side ? side.name : ''; break;
-    case 'out': text = W(c.restart && c.restart.kind); sub = side ? side.name : ''; tone = 'neutral'; color = null; break;
-    case 'foul': text = c.foul === 'offside' ? 'OFFSIDE' : 'FOUL'; sub = c.cost === 'warn' ? 'WARNING' : c.cost === 'free' ? `FREE · ${side ? side.name : ''}` : c.cost === 'point' ? `POINT · ${side ? side.name : ''}` : ''; break;
+    case 'score': text = c.how ? `${tvUp(c.how)}!` : c.points ? (c.points === 3 ? 'THREE!' : `${c.points} POINTS`) : `${names.unit ? tvUp(names.unit('score')) : 'SCORE'}!`; sub = side ? side.name : ''; break;
+    case 'out': text = c.restart && c.restart.kind === 'play' ? 'OUT' : W(c.restart && c.restart.kind); sub = side ? side.name : ''; tone = 'neutral'; color = null; break;
+    case 'foul': text = c.foul === 'offside' ? 'OFFSIDE' : c.foul === 'forward-pass' ? 'FORWARD PASS' : 'FOUL'; sub = c.cost === 'warn' ? 'WARNING' : c.cost === 'free' ? `FREE · ${side ? side.name : ''}` : c.cost === 'point' ? `POINT · ${side ? side.name : ''}` : c.cost === 'down' ? 'LOSS OF DOWN' : c.cost === 'turnover' ? 'TURNOVER' : ''; break;
+    // a carry game's: the ball over (its cause's plate already up for a drop, an out, a forward pass), a first down,
+    // a dropped ball, the conversion
+    case 'turnover': if (['incomplete', 'out', 'forward-pass'].includes(c.why)) return null; text = c.why === 'downs' ? 'TURNOVER ON DOWNS' : c.why === 'tackles' ? 'HANDOVER' : c.why === 'taken' ? 'INTERCEPTED' : 'TURNOVER'; sub = side ? `${side.name} BALL` : ''; break;
+    case 'down': if (!c.first) return null; text = 'FIRST DOWN'; sub = side ? side.name : ''; break;
+    case 'incomplete': text = c.cost === 'down' ? 'INCOMPLETE' : 'KNOCK-ON'; sub = side ? side.name : ''; break;
+    case 'conversion': text = c.good ? (c.points === 1 ? 'EXTRA POINT' : 'CONVERTED') : 'NO GOOD'; tone = c.good ? 'gold' : 'warn'; sub = side ? side.name : ''; break;
     case 'set': text = 'SET'; break;
     case 'gun': text = 'GO'; break;
     case 'false-start': text = 'FALSE START'; sub = `${who ? who.name : ''} · ${c.warned ? 'WARNING' : 'DISQUALIFIED'}`; break;

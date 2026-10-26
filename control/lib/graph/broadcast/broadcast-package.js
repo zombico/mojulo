@@ -250,7 +250,13 @@ export const CALL_CUES = Object.freeze({
   holed: Object.freeze({ tone: 'gold', hold: 1.3, cut: 'ball' }),
   penalty: Object.freeze({ tone: 'warn', hold: 1.3 }),
   roll: Object.freeze({ tone: 'side', hold: 1.1, strap: true }),
-  serve: null, live: null, shot: null, lie: null,
+  // a carry game's: the ball turned over, a first down, a dropped ball, the conversion (a tackle and its count are the
+  // tab's, no plate)
+  turnover: Object.freeze({ tone: 'side', hold: 1.1 }),
+  down: Object.freeze({ tone: 'side', hold: 0.9 }),
+  incomplete: Object.freeze({ tone: 'warn', hold: 0.9 }),
+  conversion: Object.freeze({ tone: 'gold', hold: 1.2 }),
+  serve: null, live: null, shot: null, lie: null, tackle: null, tackled: null,
 });
 /** The referee's reasons and the sports' own words, as the broadcast shows them. */
 export const WHY_WORDS = Object.freeze({
