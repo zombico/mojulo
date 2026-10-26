@@ -7,20 +7,24 @@
  * again) and the gamepads by index (the left stick moves, south kicks, start begins again), both in the screen's
  * directions (one camera behind side a's goal); the sides nobody holds are the computer's. The pitch is drawn from the
  * kernel's regions (the lines, the boxes, the centre circle, the goals with their nets; the rink with its boards), the
- * players as capsules in their side's colour (the one at the pad ringed), the ball with its shadow, the scoreboard and
+ * players as capsules in their side's colour, or a player's athlete in its own body running on the sim's velocity (a
+ * character made with create_character: athlete.client.js, when the pitch carries bodies), the one at the pad ringed, the ball with its shadow, the scoreboard and
  * the clock, the referee's banners (GOAL, THROW-IN, CORNER, GOAL KICK, OFFSIDE, FOUL, HALF TIME, FULL TIME).
  *
  * As a level: hosted in a game's frame it posts READY, plays the game INIT brings (players, register, level, seed over
  * the pitch's own), and posts the OUTCOME at the end: success when a player's side won (or drew, or no player holds a
  * side: an exhibition), fail otherwise, the score as stats. On its own it starts at once and runs again on start.
  */
-/* global PITCH_ARENA, THREE, scene, camera, controls, wrap, newTeam, stepTeam, teamContext, teamDisplay, GPAD, TEAM_FPS */
+/* global PITCH_ARENA, THREE, scene, camera, controls, wrap, newTeam, stepTeam, teamContext, teamDisplay, GPAD, TEAM_FPS, athleteRig, placeAthlete, strideStick */
 
 const PA = PITCH_ARENA, PT = PA.court, SP = PA.sport;
 const hosted = window.parent !== window;
 const SIDE_COLORS = { a: '#e0503a', b: '#3a9be0' };
 const FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif';
 const OY = PT.originY;   // the court frame's origin on the stage
+// the players' athletes in their own bodies, when the pitch carries them (athlete.client.js inlined before this)
+const ATH = typeof athleteRig === 'function' && PA.bodies ? athleteRig(PA) : null;
+const STRIDE = 2.2;   // metres a full stride covers: the athlete's phase advances by the ground it covers
 
 // ── the overlay and the camera ───────────────────────────────────────────────────────────────────────────────
 
@@ -106,7 +110,13 @@ const ballMesh = new THREE.Mesh(BALL_GEO, new THREE.MeshBasicMaterial({ color: S
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
 scene.add(ballMesh, ballInk, shadow);
 const figures = {};
-function makeFigure(id, side) {
+function makeFigure(id, side, slot) {
+  if (ATH && ATH.has(slot)) {
+    const A = ATH.make(slot), ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a }));
+    ring.visible = false; scene.add(ring);
+    figures[id] = { A, ring, phase: 0, at: null };
+    return;
+  }
   const mat = new THREE.MeshBasicMaterial({ color: SIDE_COLORS[side] });
   const body = new THREE.Mesh(CAP, mat), ink = new THREE.Mesh(CAP, INK), head = new THREE.Mesh(HEAD, new THREE.MeshBasicMaterial({ color: 0xf0d2b6 })), ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a }));
   ink.scale.set(1.12, 1.12, 1.03); ring.visible = false;
@@ -123,8 +133,8 @@ function begin(params = {}) {
   lastParams = params;
   ctx = teamContext({ ...PA, players: params.players ?? PA.players, register: params.register ?? PA.register, level: params.level ?? PA.level, seed: params.seed ?? PA.seed });
   S = newTeam(ctx);
-  for (const id of Object.keys(figures)) { const F = figures[id]; scene.remove(F.body, F.ink, F.head, F.ring); delete figures[id]; }
-  for (const P of S.p) makeFigure(P.id, P.side);
+  for (const id of Object.keys(figures)) { const F = figures[id]; if (F.A) scene.remove(F.A.group, F.A.shadow, F.ring); else scene.remove(F.body, F.ink, F.head, F.ring); delete figures[id]; }
+  S.p.forEach((P, i) => makeFigure(P.id, P.side, i));
   banner = { text: 'KICK-OFF', left: BANNER_FRAMES, color: '#fff' }; calls = 0;
   phase = 'game';
 }
@@ -175,6 +185,14 @@ function placeBodies() {
   shadow.position.set(b.position[0], b.position[1] + OY, 0.02); shadow.scale.setScalar(Math.max(r * 0.7, r * (1.5 - Math.min(1, b.position[2] / 6))));
   for (const P of S.p) {
     const F = figures[P.id]; if (!F) continue;
+    if (F.A) {
+      const x = P.x, y = P.y + OY, speed = Math.hypot(P.vx, P.vy);
+      if (F.at) F.phase += (Math.hypot(x - F.at[0], y - F.at[1]) / STRIDE) * 2 * Math.PI;
+      F.at = [x, y];
+      placeAthlete(F.A, strideStick({ at: [x, y], heading: P.facing, phase: F.phase, speed }), { face: [Math.cos(P.facing), Math.sin(P.facing)] });
+      F.ring.position.set(x, y, 0.02); F.ring.visible = S.active[P.side] === P.id && (P.side === 'a' ? 0 : 1) < ctx.players;
+      continue;
+    }
     F.body.position.set(P.x, P.y + OY, 0.55); F.ink.position.copy(F.body.position); F.head.position.set(P.x, P.y + OY, 1.27);
     F.ring.position.set(P.x, P.y + OY, 0.02); F.ring.visible = S.active[P.side] === P.id && (P.side === 'a' ? 0 : 1) < ctx.players;
   }
@@ -224,6 +242,8 @@ function stepPitchArena(t) {
 }
 
 window.__mojPitch = {
+  // how many players are drawn in their own bodies (athlete.client.js) at this frame
+  athletes: () => Object.values(figures).filter((F) => F.A).length,
   get state() { return S; }, get phase() { return phase; }, get ctx() { return ctx; },
   display: () => (S ? teamDisplay(S, ctx) : null),
   // a probe's run: so many seconds of the game stepped at once, the pads at rest (the computer sides play)

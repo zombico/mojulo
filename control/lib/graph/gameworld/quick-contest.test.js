@@ -10,6 +10,10 @@ import { contestRead } from '../contest/contest-kernel.js';
 import { resolveSport, tennis, golf } from '../contest/sports.js';
 import { matchArenaData } from '../contest/match-arena.js';
 import { turnsArenaData } from '../contest/turn-arena.js';
+import { SIDE_KITS } from '../contest/team-arena.js';
+import { meetArenaData } from '../contest/meet-arena.js';
+import { GROUND_KITS } from '../era/stage.js';
+import { settingOfGame } from './cast-setting.js';
 
 /** Pickleball written out as a net game: tennis's shape with its own court, ladder and serve, a shuttle-less ball. */
 const pickleball = () => ({
@@ -37,20 +41,21 @@ describe('the sport goals', () => {
     expect(() => readQuick({ goal: 'meet', event: 'hurdles', lanes: 4, players: 2, distance: 110 })).not.toThrow();
   });
   it('a meet\'s game is one level, the track as a stage carrying the meet and a hosted level\'s contract; a contest\'s the court, the course or the pitch', () => {
-    const steps = runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2 } }), { ref: 'gw_meet' });
+    const steps = runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2, athletes: false } }), { ref: 'gw_meet' });
     expect(steps.map((s) => s.key)).toEqual(['level-arena-track', 'game']);
     const level = steps[0].order.manifest;
     expect(level).toMatchObject({ kind: 'stage', meet: { event: 'hurdles', lanes: 4, players: 2, seed: 3 }, game: { levelRef: 'track', produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} } } });
     expect(validateLevelContract(level.game, { slices: [] }).ok).toBe(true);
     expect(steps[1].order).toMatchObject({ title: 'relay', allow_unaudited: true, shell: 'play', levels: [{ ref: steps[0].ref, title: level.title }] });
-    for (const [spec, id, key] of [[{ goal: 'contest', sport: 'tennis', players: 2 }, 'court', 'court'], [{ goal: 'contest', sport: 'golf', rounds: 2 }, 'course', 'turns'], [{ goal: 'contest', sport: 'hockey', players: 1 }, 'pitch', 'pitch']]) {
+    for (const [spec, id, key] of [[{ goal: 'contest', sport: 'tennis', players: 2, athletes: false }, 'court', 'court'], [{ goal: 'contest', sport: 'golf', rounds: 2, athletes: false }, 'course', 'turns'], [{ goal: 'contest', sport: 'hockey', players: 1, athletes: false }, 'pitch', 'pitch']]) {
       const st = runSteps(quickWorld({ id: `g-${id}`, quick: spec }), { ref: `gw_${id}` });
       expect(st.map((s) => s.key)).toEqual([`level-arena-${id}`, 'game']);
       expect(st[0].order.manifest[key]).toMatchObject({ sport: spec.sport }); expect(st[0].order.manifest.game.levelRef).toBe(id);
       expect(validateLevelContract(st[0].order.manifest.game, { slices: [] }).ok).toBe(true);
     }
     // the same world runs the same steps
-    expect(runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2 } }), { ref: 'gw_meet' })).toEqual(steps);
+    expect(runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2, athletes: false } }), { ref: 'gw_meet' })).toEqual(steps);
+    expect(steps[0].order.manifest.meet.athletes).toBeUndefined();
   });
   it('a contest\'s genre is its sport\'s shape; the cube it implies is the probe\'s', () => {
     expect(QUICK_GENRE.meet).toBe('athletics-meet'); expect(QUICK_GENRE.contest).toBe('net-game');
@@ -85,5 +90,59 @@ describe('a sport written out (the distilled rulebook\'s product)', () => {
     const T = turnsArenaData({ sport: mini, rounds: 1, seats: 2 });
     expect(T.C.rounds.length).toBe(1); expect(T.sport.clubs).toEqual([{ verb: 'putt' }]); expect(T.course.rounds.length).toBe(1);
     expect(() => readQuick({ goal: 'contest', sport: mini, rounds: 3 })).toThrow(/rounds for mini-golf is 1 to 2/);
+  });
+});
+
+describe('the athletes: a sport played by characters in their own bodies', () => {
+  const keys = (st) => st.map((x) => x.key);
+  const athletesOf = (st) => st.filter((x) => /^athlete(-\d+)?$/.test(x.key));
+  it('rolls a person a lane in the game\'s setting, in the athlete\'s kit, each lane\'s ref on the track; the same world rolls the same', () => {
+    const W = quickWorld({ id: 'sprint', seed: 5, quick: { goal: 'meet', event: 'sprint', lanes: 3 } });
+    const st = runSteps(W, { ref: 'gw_sp' });
+    expect(keys(st)).toEqual(['athlete', 'athlete-2', 'athlete-3', 'level-arena-track', 'game']);
+    const A = athletesOf(st);
+    // (the authored body bare, the athlete's kit painted on it: a vest, shorts, the socks)
+    for (const a of A) expect(a.order.mint).toMatchObject({ kind: 'layered', via: 'hero', spec: { detail: 'swimsuit', paint: ['tank', 'bikeShorts', 'socks'] } });
+    expect(new Set(A.map((a) => a.print)).size).toBe(3);
+    expect(st[3].order.manifest.meet.athletes).toEqual(A.map((a) => a.ref));
+    expect(st[4].laws[0]).toMatchObject({ concern: 'cast', law: 'setting' });
+    expect(st[4].laws[0].says).toMatch(/rolled in the game's setting \(.*meet\)/);
+    expect(runSteps(W, { ref: 'gw_sp' })).toEqual(st);
+  });
+  it('draws them in the game\'s tradition: an anime world\'s athletes wear the anime head and the character light', () => {
+    const kit = GROUND_KITS.find((k) => settingOfGame({ style: { kit: k } }).tradition === 'anime');
+    const st = runSteps(quickWorld({ id: 'anime-court', style: { kit }, quick: { goal: 'contest', sport: 'tennis' } }), { ref: 'gw_ac' });
+    const A = athletesOf(st);
+    expect(A.length).toBe(2);
+    for (const a of A) { expect(a.order.mint.spec.head).toBe('anime'); expect(a.order.mint.toon).toEqual({ light: true }); }
+  });
+  it('a team\'s sides are each a rank of faces in one uniform, its shirt the side\'s colour, cycled over its players', () => {
+    const st = runSteps(quickWorld({ id: 'five', quick: { goal: 'contest', sport: 'soccer' } }), { ref: 'gw_5' });
+    const A = athletesOf(st), refs = st.find((x) => x.key === 'level-arena-pitch').order.manifest.pitch.athletes;
+    expect(A.length).toBe(6);
+    const [a, b] = [A.slice(0, 3), A.slice(3)];
+    for (const [side, rank] of [['a', a], ['b', b]]) {
+      for (const m of rank) { expect(m.order.mint.spec.palette.Top).toBe(SIDE_KITS[side]); expect(m.order.mint.spec.paint).toEqual(['tee', 'bikeShorts', 'socks']); }
+    }
+    expect(refs.length).toBe(10);
+    expect(refs.slice(0, 5)).toEqual([a[0], a[1], a[2], a[0], a[1]].map((m) => m.ref));
+    expect(refs.slice(5)).toEqual([b[0], b[1], b[2], b[0], b[1]].map((m) => m.ref));
+  });
+  it('takes the operator\'s own: a character by ref adopted as it stands, a hero-door spec made by the run, cycled over the slots', () => {
+    const st = runSteps(quickWorld({ id: 'bowl', quick: { goal: 'contest', sport: 'bowling', seats: 3, athletes: [{ ref: 'my-bowler' }, { cast: 'female' }] } }), { ref: 'gw_b' });
+    expect(keys(st)).toEqual(['athlete', 'level-arena-course', 'game']);
+    expect(st[0].order.mint.spec).toEqual({ cast: 'female' });
+    expect(st[1].order.manifest.turns.athletes).toEqual(['my-bowler', st[0].ref, 'my-bowler']);
+    expect(st[2].laws).toBeUndefined();
+  });
+  it('refuses what is not an athlete; an arena refuses more athletes than slots', () => {
+    expect(() => readQuick({ goal: 'meet', athletes: 'four' })).toThrow(/athletes is false \(the stick figures\) or 1 to 12 athletes/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ ref: 'a', cast: 'male' }] })).toThrow(/adopts a character made with create_character, by its sketch ref alone/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: ['a'] })).toThrow(/an athlete is \{ ref \} or a hero-door spec/);
+    expect(() => readQuick({ goal: 'contest', sport: 'golf', athletes: false })).not.toThrow();
+    expect(() => meetArenaData({ lanes: 2, athletes: ['a', 'b', 'c'] })).toThrow(/athletes is a list of 1 to 2 characters' refs/);
+    expect(() => matchArenaData({ athletes: ['a b'] })).toThrow(/athletes\[0\]/);
+    expect(matchArenaData({ athletes: ['a', null] }, { bodies: { a: { bones: [], parts: [] } } })).toMatchObject({ athletes: ['a', null], bodies: { a: {} } });
+    expect(matchArenaData({})).not.toHaveProperty('bodies');
   });
 });

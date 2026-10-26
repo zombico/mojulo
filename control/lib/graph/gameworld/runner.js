@@ -38,7 +38,8 @@ import { composeExtras } from './stage-figures.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { SIDE_KITS } from '../contest/team-arena.js';
+import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -364,6 +365,68 @@ function worldSteps(world, G, ref) {
   return steps;
 }
 
+/** The most people rolled for one sport's slots (a side's rank is CAST_POOL): more lanes or seats cycle over them. */
+export const ATHLETE_POOL = 4;
+/** A shirt's partner a side wears below it, by the side (contest/team-arena.js SIDE_KITS is the shirt). */
+const SIDE_SHORTS = Object.freeze({ a: '#f2f2f2', b: '#1d2433' });
+/** A team's kit on the authored body (hero-dress.js PAINT_WORDS): a shirt with sleeves, shorts, the socks. */
+const TEAM_KIT = Object.freeze(['tee', 'bikeShorts', 'socks']);
+/**
+ * A sport's athletes (quick.athletes, contest/athletes.js): each slot's character ref in the sim's order, and the steps
+ * that make the ones the run makes. Given, the list cycles over the slots: a `{ ref }` is adopted as it stands (never
+ * made), a hero-door spec made through the hero door. Absent, they are ROLLED in the game's setting (cast-setting.js:
+ * its tradition how a body is drawn, its era, its colours) in the athlete's kit: a person per slot up to ATHLETE_POOL,
+ * cycled; a team's sides each a rank of up to CAST_POOL faces in one uniform, its shirt the side's colour. False: none
+ * (the arena's stick figures). → { refs: [ref] | null, steps, laws }
+ */
+function sportAthletes(G, Q, ref) {
+  if (Q.athletes === false) return { refs: null, steps: [], laws: [] };
+  const slots = sportSlots(Q), steps = [], name = G.name ?? G.id;
+  const stepOf = (key, F) => {
+    const mint = { kind: 'layered', via: 'hero', title: `${name} ${key}`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
+    return { key, ref: childRef(ref, key), ready: true, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
+  };
+  const keyAt = (k) => (k ? `athlete-${k + 1}` : 'athlete');
+  if (Array.isArray(Q.athletes)) {
+    let made = 0;
+    const pool = Q.athletes.map((e) => {
+      if (typeof e.ref === 'string') return e.ref;
+      const st = stepOf(keyAt(made++), { spec: e, ...(e.head === 'anime' ? { toon: { light: true } } : {}) });
+      steps.push(st);
+      return st.ref;
+    });
+    return { refs: Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]), steps, laws: [] };
+  }
+  const setting = settingOfGame(G, Q);
+  let reads = null, pending = [];
+  const roll = (k, opts) => {
+    const F = quickFigure(G, Q, 'athlete', setting, { variant: k, ...opts });
+    reads ??= F.sheet.reads; pending = [...pending, ...F.pending];
+    const st = stepOf(keyAt(k), F);
+    steps.push(st);
+    return { ref: st.ref, F };
+  };
+  let refs, says;
+  if (slots.sides && slots.n > 2) {
+    // a team: each side a rank in its kit, its faces cycled over its players in their roles' order
+    const per = slots.n / 2, faces = Math.min(CAST_POOL, per);
+    refs = [];
+    ['a', 'b'].forEach((side, s) => {
+      const colours = { Top: SIDE_KITS[side], Bottom: SIDE_SHORTS[side] }, rank = [];
+      for (let i = 0; i < faces; i++) rank.push(roll(s * faces + i, { colours, paint: TEAM_KIT, ...(rank.length ? { uniform: rank[0].F.spec } : {}) }));
+      for (let i = 0; i < per; i++) refs.push(rank[i % rank.length].ref);
+    });
+    says = `two sides of ${faces} faces each, one uniform a side in its colour`;
+  } else {
+    const pool = Array.from({ length: Math.min(ATHLETE_POOL, slots.n) }, (_, k) => roll(k).ref);
+    refs = Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]);
+    says = `${pool.length} ${pool.length === 1 ? 'athlete' : 'athletes'}${slots.n > pool.length ? ` over ${slots.n} ${Q.goal === 'meet' ? 'lanes' : 'seats'}` : ''}`;
+  }
+  const laws = [{ concern: 'cast', law: 'setting', holds: !pending.length,
+    says: `the athletes rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}) in the athlete's kit: ${says}${reads ? `; ${reads.slice(0, 2).join('; ')}` : ''}${pending.length ? ` (${[...new Set(pending)].join('; ')})` : ''}` }];
+  return { refs, steps, laws };
+}
+
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the
  * goal placed on its anchors, piloted by the hero or in first person, then the game in the play shell (play-shell.js).
  * Nothing waits: a quick game has no book to review. */
@@ -400,13 +463,15 @@ function quickSteps(world, G, ref, lookup) {
     return [...steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(laws ? { laws } : {}) }];
   }
   // a sport is its own simulation on the World page (contest/): one level, the arena as a stage carrying the play and
-  // the hosted level's contract; the game plays it in the shell. No hero, no trail: the arena's bodies are the play's
+  // the hosted level's contract; the game plays it in the shell. No hero, no trail: the arena's bodies are the play's,
+  // each slot an athlete (a character in its own body) unless the quick spec says false
   if (Q.goal === 'meet' || Q.goal === 'contest') {
     const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
-    const arenas = sportArenas(Q, { title, seed }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
+    const A = sportAthletes(G, Q, ref);
+    const arenas = sportArenas(Q, { title, seed, athletes: A.refs }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
     const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
-    return [...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+    return [...A.steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(A.laws.length ? { laws: A.laws } : {}) }];
   }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;

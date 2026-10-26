@@ -81,6 +81,12 @@
  *                                           // { ref } } (one made with create_character); the fight read off the sheet,
  *                                           // the entry's style?, signature?, weapon?, library?, normals?, specials?,
  *                                           // super?, tune? over it; four sheets (one per style) if absent
+ *     athletes?: false | [<athlete>, …],   // meet, contest: who plays, each slot (a lane, a side's player, a seat) a
+ *                                           // CHARACTER in its own body on the arena's page (contest/athletes.js): { ref }
+ *                                           // (one made with create_character) or a hero-door spec made by the run, cycled
+ *                                           // over the slots; absent, rolled in the game's setting (cast-setting.js: its
+ *                                           // tradition is how they are drawn) in the athlete's kit, a team's sides each a
+ *                                           // rank in its side's colour; false, the arena's stick figures
  *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }],
  *                                           // fight: scapeshift arenas (versus/versus-arena.js), each a stage world the
  *                                           // fight runs on in 3D (a plaza and a nave if absent)
@@ -138,7 +144,7 @@ import { fighterSpec, defaultFighters } from '../versus/versus-sheet.js';
 import { readMeet, meetManifest } from '../contest/meet-arena.js';
 import { readMatch, matchManifest } from '../contest/match-arena.js';
 import { readTurns, turnsManifest } from '../contest/turn-arena.js';
-import { readTeam, teamManifest } from '../contest/team-arena.js';
+import { readTeam, teamManifest, teamArenaData } from '../contest/team-arena.js';
 import { resolveSport } from '../contest/sports.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
@@ -195,7 +201,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -467,15 +473,16 @@ export function readQuick(Q) {
 }
 
 // what a sport takes (a contest is its own simulation on the World page: no hero, trail, building, ride or run)
-const SPORT_KEYS = ['event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts'];
-const MEET_KEYS = ['goal', 'event', 'lanes', 'players', 'register', 'distance', 'attempts', 'theme', 'screen'];
-const CONTEST_KEYS = ['goal', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'rounds', 'periods', 'seconds', 'theme', 'screen'];
+const SPORT_KEYS = ['event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes'];
+const MEET_KEYS = ['goal', 'event', 'lanes', 'players', 'register', 'distance', 'attempts', 'athletes', 'theme', 'screen'];
+const CONTEST_KEYS = ['goal', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'rounds', 'periods', 'seconds', 'athletes', 'theme', 'screen'];
 const pick = (Q, keys) => Object.fromEntries(keys.filter((k) => Q[k] !== undefined).map((k) => [k, Q[k]]));
 /** The sport's words read by its arena (contest/*-arena.js), the refusal its own. */
 function readSport(Q) {
   const keys = Q.goal === 'meet' ? MEET_KEYS : CONTEST_KEYS;
   if (Q.camera !== undefined) throw fail('.camera: a sport is seen from its arena\'s camera (the broadcast, the end, the follow)');
   for (const k of Object.keys(Q)) if (!keys.includes(k)) throw fail(`.${k}: a ${Q.goal} takes ${keys.join(', ')} (${Q.goal === 'meet' ? 'its runners are its lanes' : 'its players are its pads'})`);
+  readSportAthletes(Q);
   try {
     if (Q.goal === 'meet') { readMeet(pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts'])); return; }
     if (Q.sport === undefined) throw new Error('contest: sport names the sport: tennis (a net game), golf or bowling (a turn sport), soccer or hockey (a team goal game), or a sport written out { id, shape, words, spec, … }');
@@ -488,18 +495,39 @@ function readSport(Q) {
   } catch (e) { throw fail(`: ${e.message.replace(/^(contest|meet|court|turns|team): /, '')}`); }
 }
 
+/** A sport's slots, in its sim's order: the lanes, side a's players then side b's, the seats. → { n, sides? } */
+export function sportSlots(Q) {
+  if (Q.goal === 'meet') return { n: readMeet(pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts'])).lanes };
+  const sp = resolveSport(Q.sport);
+  if (sp.shape === 'match') return { n: 2, sides: 2 };
+  if (sp.shape === 'turns') return { n: readTurns(pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds'])).seats };
+  const perSide = Object.keys(teamArenaData(pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds'])).C.roles).length;
+  return { n: 2 * perSide, sides: 2 };
+}
+const ATHLETE_WORDS = 'false (the stick figures) or 1 to 12 athletes, each { ref } (a character made with create_character) or a hero-door spec the run makes; absent, rolled in the game\'s setting';
+function readSportAthletes(Q) {
+  const A = Q.athletes;
+  if (A === undefined || A === false) return;
+  if (!Array.isArray(A) || A.length < 1 || A.length > 12) throw fail(`.athletes is ${ATHLETE_WORDS}`);
+  A.forEach((e, i) => {
+    if (!isObj(e)) throw fail(`.athletes[${i}]: an athlete is { ref } or a hero-door spec (.athletes is ${ATHLETE_WORDS})`);
+    if (e.ref !== undefined && (Object.keys(e).length !== 1 || !(typeof e.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(e.ref)))) throw fail(`.athletes[${i}] { ref } adopts a character made with create_character, by its sketch ref alone (its words are its own row's)`);
+  });
+}
+
 /** A sport's level: the arena as a stage recipe carrying its play, with the game contract a hosted level speaks (the
  * page posts READY, takes INIT, posts the OUTCOME: contest/*-arena.client.js). One level, named for its ground. */
-export function sportArenas(Q, { title, seed = 1 } = {}) {
+export function sportArenas(Q, { title, seed = 1, athletes = null } = {}) {
+  const own = athletes ? { athletes } : {};
   const contract = (id, text) => ({ levelRef: id, consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text } });
   if (Q.goal === 'meet') {
-    const m = meetManifest({ ...pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts']), seed, ...(title ? { title } : {}) });
+    const m = meetManifest({ ...pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts']), seed, ...(title ? { title } : {}), ...own });
     return [{ id: 'track', name: m.title, manifest: { ...m, game: contract('track', 'the meet') } }];
   }
   const sp = resolveSport(Q.sport);
-  if (sp.shape === 'match') { const m = matchManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'sets']), seed, ...(title ? { title } : {}) }); return [{ id: 'court', name: m.title, manifest: { ...m, game: contract('court', 'the match') } }]; }
-  if (sp.shape === 'turns') { const m = turnsManifest({ ...pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds']), seed, ...(title ? { title } : {}) }); return [{ id: 'course', name: m.title, manifest: { ...m, game: contract('course', 'the round') } }]; }
-  const m = teamManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds']), seed, ...(title ? { title } : {}) });
+  if (sp.shape === 'match') { const m = matchManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'sets']), seed, ...(title ? { title } : {}), ...own }); return [{ id: 'court', name: m.title, manifest: { ...m, game: contract('court', 'the match') } }]; }
+  if (sp.shape === 'turns') { const m = turnsManifest({ ...pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds']), seed, ...(title ? { title } : {}), ...own }); return [{ id: 'course', name: m.title, manifest: { ...m, game: contract('course', 'the round') } }]; }
+  const m = teamManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds']), seed, ...(title ? { title } : {}), ...own });
   return [{ id: 'pitch', name: m.title, manifest: { ...m, game: contract('pitch', 'the match') } }];
 }
 

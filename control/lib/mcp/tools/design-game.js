@@ -70,7 +70,7 @@ function withPin(world, pin) {
 
 /** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
-const HERO_STEP = /^(hero|hero-equipped|(guard|foe|tower|farmhand|keeper)(-\d+)?|cast-.+)$/;
+const HERO_STEP = /^(hero|hero-equipped|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|cast-.+)$/;
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
 
 /** Make or remake one step; → the record to keep. */

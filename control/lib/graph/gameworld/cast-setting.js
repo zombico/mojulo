@@ -12,9 +12,11 @@
  *               look's own, so a palette's colours dress them
  *
  *   settingOfGame(G, quick?)  → the setting; `G` a read world (readGameworld's), `quick` the world's quick spec
- *   quickFigure(G, quick, key, setting?, { variant?, uniform? })  → { spec, toon?, sheet, pending } a quick game's figure
- *                               it names none of (QUICK_FIGURES), rolled in the setting and dressed in the kit's
- *                               underlayer; `variant` another roll of the same role, `uniform` a rank's first member's spec
+ *   quickFigure(G, quick, key, setting?, { variant?, uniform?, colours?, paint? })  → { spec, toon?, sheet, pending } a
+ *                               quick game's figure it names none of (QUICK_FIGURES), rolled in the setting and dressed
+ *                               in the kit's underlayer (a role with a `kit` of its own, the athlete, in that); `variant`
+ *                               another roll of the same role, `uniform` a rank's first member's spec, `colours` what a
+ *                               side wears ({ Top?, Bottom? } over the roll's), `paint` the role kit's paint words instead
  *
  * Pure. A word the game does not say is left out, never guessed.
  */
@@ -75,12 +77,17 @@ export const QUICK_FIGURES = Object.freeze({
   tower:    { facets: { role: 'ranged' }, gear: { right: { item: 'bow' } }, era: armed({ right: { item: 'carbine' } }) },
   farmhand: { facets: { role: 'non-combatant' } },
   guard:    { facets: { role: 'frontline' }, gear: { right: { item: 'sword' } }, era: armed({ right: { item: 'carbine' }, hip: { item: 'pistol' } }) },
+  // a sport's player (contest/athletes.js): a grown person in the sport's own kit whatever the world's wardrobe: on the
+  // authored body the kit painted on the bare body (hero-dress.js PAINT_WORDS, a second skin that fits every cast), on
+  // the realistic body the outfit card (outfit/styles.js), whose garments take the body's suit off
+  athlete:  { facets: { age: 'adult' }, kit: { paint: ['tank', 'bikeShorts', 'socks'], outfit: 'athlete' } },
 });
 
+const ATHLETE_SHOES = '#f0f0ee';
 /** A quick figure rolled in the game's setting: the Egocube's person on the hero door (a blind roll is human, so it is
  * always that door), in the game's tradition, wearing what the kit's world wears beneath everything (hero-looks.js
  * UNDERLAYERS, as a book hero's base does) in the world's ramps. */
-export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { variant = 0, uniform = null } = {}) {
+export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { variant = 0, uniform = null, colours = null, paint = null } = {}) {
   const F = QUICK_FIGURES[key];
   if (!F) throw new Error(`quick figure: '${key}' is not one (${Object.keys(QUICK_FIGURES).join(', ')})`);
   const seed = Number.isInteger(G.seed) ? G.seed : 1;
@@ -89,7 +96,17 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
   let spec = P.create.spec;
   // (a modern or future person dresses as its rolled look, egocube/outfit.js ERA_LOOKS: the look is its world's wardrobe,
   // so the kit's underlayer is not laid over it)
-  const rail = KIT_ERAS.includes(setting.era) ? null : UNDERLAYERS[G.style?.kit];
+  const rail = F.kit || KIT_ERAS.includes(setting.era) ? null : UNDERLAYERS[G.style?.kit];
+  if (F.kit) {
+    // the role's own clothes in place of the world's: the clothes the roll would wear, their kit and gear and the look's
+    // silhouette go; the roll's colours dress the kit, a side's over them
+    const { detail: _d, adorn: _a, gear: _g, stylism: _s, outfit: _o, paint: _p, ...rest } = spec;
+    const wear = rest.form === 'realistic' ? { outfit: { type: 'outfit', style: F.kit.outfit } } : { detail: 'swimsuit', paint: paint ?? F.kit.paint };
+    // (the bare body's swimwear beneath the kit, where the paint leaves a band of it, is the shorts' colour; the shoes are
+    // the sport's white unless the roll names its own)
+    const palette = { Shoes: ATHLETE_SHOES, ...rest.palette, ...(colours ?? {}) };
+    spec = { ...rest, ...wear, palette: wear.detail && palette.Bottom ? { ...palette, Swim: palette.Bottom } : palette };
+  }
   if (rail) {
     // the world's underlayer in place of the stock clothed body and the role's kit (the base a book hero wears)
     const { detail: _d, adorn: _a, ...rest } = spec;
@@ -98,9 +115,9 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
   // a rank's member wears the first's uniform (its clothes, their colours, its kit and gear) on a face of its own
   if (uniform) {
     // (the silhouette too, and the look's owned tones: a rank of troopers is one plate, one helm)
-    const { outfit: _o, detail: _d, adorn: _a, gear: _g, stylism: _s, ...own } = spec;
+    const { outfit: _o, detail: _d, adorn: _a, gear: _g, stylism: _s, paint: _p, ...own } = spec;
     const { Outer: _out, Emblem: _em, Shoes: _sh, ...ownPalette } = own.palette;
-    spec = { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear', 'stylism'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
+    spec = { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear', 'stylism', 'paint'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
       palette: { ...ownPalette, ...Object.fromEntries(['Top', 'Bottom', 'Outer', 'Emblem', 'Shoes'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
     return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}), sheet: { print: fingerprint(sheet), reads: sheet.reads }, pending };
   }

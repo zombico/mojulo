@@ -7,13 +7,15 @@
  * Space or F charges and releases the shot, Enter begins again; gamepad 0 the same), the computer plays the rest. The
  * course is drawn from the kernel's regions (the tee, the fairway, the green, the bunkers, the water, the cup and its
  * flag; the approach, the lane, the gutters, the pins), the ball with its shadow, the aim as a line from the ball, the
- * meter and the card on the overlay, the camera behind the ball toward the target and following the shot.
+ * meter and the card on the overlay, the camera behind the ball toward the target and following the shot. Nobody is
+ * drawn unless the course carries its seats' athletes (characters made with create_character: athlete.client.js): then
+ * the seat to play stands to the ball in its own body and swings with the meter.
  *
  * As a level: hosted in a game's frame it posts READY, plays the game INIT brings (seats, players, register, level,
  * seed over the course's own), and posts the OUTCOME at the end: success when a player's seat won (or no player holds
  * a seat: an exhibition), fail otherwise, the totals as stats. On its own it starts at once and runs again on start.
  */
-/* global TURNS_ARENA, THREE, scene, camera, controls, wrap, newTurns, stepTurns, turnContext, turnsDisplay, targetOf, clubOf, TPAD, TURN_FPS */
+/* global TURNS_ARENA, THREE, scene, camera, controls, wrap, newTurns, stepTurns, turnContext, turnsDisplay, targetOf, clubOf, TPAD, TURN_FPS, athleteRig, placeAthlete, swingStick */
 
 const TA = TURNS_ARENA, CO = TA.course, SP = TA.sport;
 const hosted = window.parent !== window;
@@ -104,6 +106,32 @@ const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THR
 scene.add(aimLine);
 const AIM_LEN = { putt: 4, iron: 25, drive: 40, roll: 8 };
 
+// the seats' athletes in their own bodies, when the course carries them (athlete.client.js inlined before this): the
+// seat to play stands to the ball (a golfer square to the line with the ball before it, a bowler behind it), takes the
+// club or the arm back with the meter and through with the shot, and holds its finish while the ball runs
+const ATH = typeof athleteRig === 'function' && TA.bodies ? athleteRig(TA) : null;
+const seatBodies = {};
+let stance = null;
+const BACKSWING = { drive: 2.4, iron: 2.1, putt: 0.7, roll: 1.3 };
+function placeSeat() {
+  for (const A of Object.values(seatBodies)) A.group.visible = A.shadow.visible = false;
+  if (!ATH || S.over) return;
+  const i = Number(S.K.turn.slice(1)) - 1;
+  if (!ATH.has(i)) return;
+  const A = seatBodies[i] || (seatBodies[i] = ATH.make(i));
+  const b = S.sim.bodies[0], golf = ctx.kind === 'strokes';
+  if (S.K.phase === 'turn' && !S.shot && S.dead === 0) {
+    const t = targetOf(ctx, S), along = (golf ? Math.atan2(t[1] - b.position[1], t[0] - b.position[0]) : Math.PI / 2) - (S.aim.x * ctx.spread * Math.PI) / 180;
+    const face = golf ? along - Math.PI / 2 : along, fx = Math.cos(face), fy = Math.sin(face);
+    const at = golf ? [b.position[0] - fx * 0.75, b.position[1] + OY - fy * 0.75] : [b.position[0] - fx * 0.45 - fy * 0.2, b.position[1] + OY + fx * 0.2 - fy * 0.45];
+    stance = { at, face, along, back: BACKSWING[clubOf(ctx, S)] || 1.5 };
+  }
+  if (!stance) return;
+  const swing = S.shot || S.dead > 0 ? stance.back * 0.9 : -(S.charge.meter || 0) * stance.back;
+  placeAthlete(A, swingStick({ at: stance.at, face: stance.face, along: stance.along, swing, both: golf }), { face: [Math.cos(stance.face), Math.sin(stance.face)] });
+  A.group.visible = A.shadow.visible = true;
+}
+
 // ── the game ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 let ctx = null, S = null, phase = 'wait', waited = 0, banner = null, lastParams = null, calls = 0;
@@ -113,6 +141,7 @@ function begin(params = {}) {
   lastParams = params;
   ctx = turnContext({ ...TA, players: params.players ?? TA.players, register: params.register ?? TA.register, level: params.level ?? TA.level, seed: params.seed ?? TA.seed });
   S = newTurns(ctx);
+  stance = null;
   banner = { text: `${seatName(S.K.turn)} TO PLAY`, left: BANNER_FRAMES, color: '#fff' }; calls = 0;
   dressHole(S.hole);
   phase = 'game';
@@ -207,7 +236,7 @@ function draw() {
   g2.setTransform(ODPR, 0, 0, ODPR, 0, 0);
   g2.clearRect(0, 0, OW, OH);
   if (!S) { outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
-  placeBodies(); frameCamera();
+  placeBodies(); placeSeat(); frameCamera();
   const d = turnsDisplay(S, ctx);
   text(`${TA.title || TA.sport.id}`, 18, 26, 20, '#fff', 'left'); text(SP.words, 18, 50, 13, 'rgba(255,255,255,0.75)', 'left', 500);
   drawCard(d);
@@ -238,6 +267,8 @@ function stepTurnsArena(t) {
 }
 
 window.__mojTurns = {
+  // how many players are drawn in their own bodies (athlete.client.js) at this frame
+  athletes: () => Object.values(seatBodies).filter((A) => A.group.visible).length,
   get state() { return S; }, get phase() { return phase; }, get ctx() { return ctx; },
   display: () => (S ? turnsDisplay(S, ctx) : null),
   // a probe's run: so many seconds of the game stepped at once, the pad at rest (the computer seats play)

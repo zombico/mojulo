@@ -9,8 +9,8 @@
  * left stick, south to swing, start to begin again). A side nobody holds is the court mind's. The stick aims the
  * stroke as it is pressed: sideways across the court, forward for depth (the arcade) or lift (realistic).
  *
- * The players are stick figures posed from the sim (a first drawing: the hero library's clips are the step after this
- * one), the ball a sphere with its shadow, the court its lines from the kernel's regions and the net; a broadcast camera
+ * The players are stick figures posed from the sim, or a side's athlete in its own body on the same pose (a character
+ * made with create_character: athlete.client.js, when the court carries bodies) with the racquet in its hand, the ball a sphere with its shadow, the court its lines from the kernel's regions and the net; a broadcast camera
  * behind side a's baseline; the overlay the scoreboard (sets, games, the points in the kernel's words), the server,
  * the calls (FAULT, LET, OUT, GAME, SET, MATCH) and the rally.
  *
@@ -18,9 +18,11 @@
  * the court's own), and posts the OUTCOME when the match is over: success when side a (the first player's) won, or an
  * exhibition ended; fail otherwise. On its own it starts at once and plays again on start.
  */
-/* global COURT_ARENA, THREE, scene, camera, controls, wrap, newMatch, stepMatch, matchContext, matchDisplay, MPAD, MATCH_FPS, contestRegion */
+/* global COURT_ARENA, THREE, scene, camera, controls, wrap, newMatch, stepMatch, matchContext, matchDisplay, MPAD, MATCH_FPS, contestRegion, athleteRig, placeAthlete */
 
 const CA = COURT_ARENA, CT = CA.court, NET_Y = CT.netY;
+// the sides' athletes in their own bodies, when the court carries them (athlete.client.js inlined before this)
+const ATH = typeof athleteRig === 'function' && CA.bodies ? athleteRig(CA) : null;
 const hosted = window.parent !== window;
 const COLORS = ['#e0503a', '#3a9be0'];
 const FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif';
@@ -131,6 +133,12 @@ function makePlayer(color) {
   return B;
 }
 const seg = (P, a, b, r) => { vA.set(a[0], a[1], a[2]); vB.set(b[0], b[1], b[2]); cylinderAt(P.fill, vA, vB, r); cylinderAt(P.ink, vA, vB, r * 1.3); };
+// a side's athlete: its own body, and the racquet it holds
+function makeAthlete(i) {
+  const A = ATH.make(i), fill = new THREE.Mesh(GEO_CYL, new THREE.MeshBasicMaterial({ color: 0xd8d2c2, vertexColors: true })), ink = new THREE.Mesh(GEO_CYL, INK);
+  A.group.add(fill, ink); A.racquet = { fill, ink };
+  return A;
+}
 // the body from the sim: facing the net, the legs working with its speed, the racquet arm swept by the swing's phase
 function posePlayer(B, P) {
   const s = P.side === 'a' ? 1 : -1, right = s;   // a faces +y, its right +x
@@ -162,6 +170,14 @@ function posePlayer(B, P) {
     void isRacquet;
   }
   const neck = [x, y, shoulderZ + 0.08], head = [x, y + s * 0.03, neck[2] + 0.16];
+  if (B.athlete) {
+    // its own body on the stick's pose, facing the net; the racquet on along its own forearm from its own wrist
+    const N = placeAthlete(B, { ...J, pelvis: [x, y, hipZ], neck }, { face: [0, s] });
+    const w = N.wristR, e = N.elbowR, d = [w[0] - e[0], w[1] - e[1], w[2] - e[2]], n = Math.hypot(d[0], d[1], d[2]) || 1, h = N.hand || 0.09;
+    const g = [w[0] + (d[0] / n) * h, w[1] + (d[1] / n) * h, w[2] + (d[2] / n) * h];
+    seg(B.racquet, g, [g[0] + (d[0] / n) * 0.55, g[1] + (d[1] / n) * 0.55, g[2] + (d[2] / n) * 0.55], LIMB_R * 0.6);
+    return;
+  }
   seg(B.trunk, [x, y, hipZ], neck, LIMB_R * 1.8);
   for (const S2 of ['L', 'R']) {
     seg(B.limbs[`thigh${S2}`], J[`hip${S2}`], J[`knee${S2}`], LIMB_R * 1.15); seg(B.limbs[`shin${S2}`], J[`knee${S2}`], J[`ankle${S2}`], LIMB_R);
@@ -193,7 +209,7 @@ function begin(params = {}) {
   for (const B of bodies) scene.remove(B.group, B.shadow);
   ctx = matchContext({ ...CA, players: params.players ?? CA.players, register: params.register ?? CA.register, level: params.level ?? CA.level, seed: params.seed ?? CA.seed });
   S = newMatch(ctx);
-  bodies = S.p.map((_, i) => makePlayer(COLORS[i]));
+  bodies = S.p.map((_, i) => (ATH && ATH.has(i) ? makeAthlete(i) : makePlayer(COLORS[i])));
   banner = null; calls = 0;
   phase = 'match';
 }
@@ -280,6 +296,8 @@ function stepCourtArena(t) {
 }
 
 window.__mojCourt = {
+  // how many players are drawn in their own bodies (athlete.client.js) at this frame
+  athletes: () => bodies.filter((B) => B.athlete).length,
   get state() { return S; }, get phase() { return phase; }, get ctx() { return ctx; },
   display: () => (S ? matchDisplay(S, ctx) : null),
   // a probe's run: so many seconds of the match stepped at once, the players' pads at rest (the minds play)

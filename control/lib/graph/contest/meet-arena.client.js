@@ -5,8 +5,9 @@
  *
  * The pads: up to four players on one keyboard (P1 F to run and G to hop, or Space; P2 J and K; P3 Z and X; P4 , and .)
  * and the gamepads by index (south runs, east hops, start begins again); the other lanes are the computer's. The
- * runners are stick figures posed from the sim's stride (a first drawing: the hero library's clips are the step after
- * this one), the track its lanes, flights and board, the camera a broadcast side view that follows the field, the
+ * runners are stick figures posed from the sim's stride, or a lane's athlete in its own body on the same stride (a
+ * character made with create_character: athlete.client.js, when the track carries bodies), the track its lanes, flights
+ * and board, the camera a broadcast side view that follows the field, the
  * overlay the event's banners (ON YOUR MARKS, SET, GO, a false start), each lane's clock and the placings.
  *
  * As a level: hosted in a game's frame it posts READY, runs the meet INIT brings (players, register, seed over the
@@ -14,9 +15,11 @@
  * player holds a lane: an exhibition), fail otherwise, the placings as stats. On its own it starts at once and runs
  * again on start.
  */
-/* global MEET_ARENA, THREE, scene, camera, controls, wrap, newMeet, stepMeet, meetContext, meetLanes, PAD, HURDLE, FPS */
+/* global MEET_ARENA, THREE, scene, camera, controls, wrap, newMeet, stepMeet, meetContext, meetLanes, PAD, HURDLE, FPS, athleteRig, placeAthlete */
 
 const MA = MEET_ARENA, TK = MA.track;
+// the lanes' athletes in their own bodies, when the track carries them (athlete.client.js inlined before this)
+const ATH = typeof athleteRig === 'function' && MA.bodies ? athleteRig(MA) : null;
 const hosted = window.parent !== window;
 const COLORS = ['#e0503a', '#3a9be0', '#e0a23a', '#3ae08a', '#9a4ae0', '#e03a9a', '#c8c8c8', '#6ad0d0'];
 const FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif';
@@ -149,6 +152,7 @@ function poseRunner(B, r, laneY, S) {
   }
   const neck = [(joints.shoulderL[0] + joints.shoulderR[0]) / 2, y, joints.shoulderL[2] + 0.08];
   const head = [neck[0] + 0.06 * Math.sin(lean) + (r.dq ? 0.05 : 0), y, neck[2] + 0.16 - (r.dq ? 0.06 : 0)];
+  if (!B.trunk) { B.joints = { ...joints, pelvis: [x, y, hipZ], neck }; B.hop = hop; return; }   // the stick alone (an athlete's)
   seg(B.trunk, [x, y, hipZ], neck, LIMB_R * 1.8);
   for (const [S2] of [['L'], ['R']]) {
     seg(B.limbs[`thigh${S2}`], joints[`hip${S2}`], joints[`knee${S2}`], LIMB_R * 1.15); seg(B.limbs[`shin${S2}`], joints[`knee${S2}`], joints[`ankle${S2}`], LIMB_R);
@@ -157,6 +161,13 @@ function poseRunner(B, r, laneY, S) {
   B.head.fill.position.set(head[0], head[1], head[2]); B.head.fill.scale.setScalar(0.11);
   B.head.ink.position.copy(B.head.fill.position); B.head.ink.scale.setScalar(0.11 * 1.12);
   B.shadow.position.set(x, y, 0.01); B.shadow.scale.setScalar(Math.max(0.5, 1 - hop * 0.6));
+}
+// a lane's athlete: its own body on the stick's stride, facing down the track, the hop its air
+function poseLane(B, r, laneY, S) {
+  if (!B.athlete) return poseRunner(B, r, laneY, S);
+  const stick = { joints: null };
+  poseRunner(stick, r, laneY, S);
+  placeAthlete(B, stick.joints, { face: [1, 0], lift: stick.hop });
 }
 
 // ── the meet ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -168,7 +179,7 @@ function begin(params = {}) {
   for (const B of bodies) scene.remove(B.group, B.shadow);
   ctx = meetContext({ ...MA, players: params.players ?? MA.players, register: params.register ?? MA.register, seed: params.seed ?? MA.seed });
   S = newMeet(ctx);
-  bodies = S.r.map((_, i) => makeRunner(COLORS[i % COLORS.length]));
+  bodies = S.r.map((_, i) => (ATH && ATH.has(i) ? ATH.make(i) : makeRunner(COLORS[i % COLORS.length])));
   banner = { text: 'ON YOUR MARKS', left: BANNER_FRAMES * 1.2, color: '#fff' }; calls = 0;
   phase = 'meet';
 }
@@ -230,8 +241,8 @@ function draw() {
   g2.clearRect(0, 0, OW, OH);
   if (!S) { outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
   frameCamera();
-  S.r.forEach((r, i) => poseRunner(bodies[i], r, TK.lanesY[r.lane], S));
-  text(`${MA.title || MA.event}`, 18, 26, 20, '#fff', 'left'); text(MA.event.words, 18, 50, 13, 'rgba(255,255,255,0.75)', 'left', 500);
+  S.r.forEach((r, i) => poseLane(bodies[i], r, TK.lanesY[r.lane], S));
+  text(`${MA.title || MA.event.kind}`, 18, 26, 20, '#fff', 'left'); text(MA.event.words, 18, 50, 13, 'rgba(255,255,255,0.75)', 'left', 500);
   const lanes = meetLanes(S), rowH = 22, x = OW - 18;
   lanes.forEach((L, i) => {
     const r = S.r[i], y = 30 + i * rowH, col = COLORS[i % COLORS.length];
@@ -261,6 +272,8 @@ function stepMeetArena(t) {
 }
 
 window.__mojMeet = {
+  // how many players are drawn in their own bodies (athlete.client.js) at this frame
+  athletes: () => bodies.filter((B) => B.athlete).length,
   get state() { return S; }, get phase() { return phase; }, get ctx() { return ctx; },
   lanes: () => (S ? meetLanes(S) : null),
   // a probe's run: so many seconds of the meet stepped at once, the players' pads at rest (the computer lanes run)

@@ -17,8 +17,16 @@ import { PITCH_PAGE_MODULES } from '../../contest/team-arena.js';
 
 export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'meet-arena.client.js']);
 
+// A sport whose arena carries its athletes' bodies (contest/athletes.js) inlines the figure that poses them before the
+// arena's client: the versus rig and figure (the segments a bone rides), the athlete's pose and its meshes. Without
+// bodies none of it is added, and the arena draws its stick figures.
+export const ATHLETE_PAGE_MODULES = Object.freeze(['versus/versus-rig.js', 'versus/versus-figure.js', 'contest/athlete-pose.js', 'contest/athlete.client.js']);
+const athleteLib = (cfg) => (cfg && cfg.bodies ? `${ATHLETE_PAGE_MODULES.map(graphSource).join('\n')}\n` : '');
+// the page's modules with the athletes' just before the client (the last)
+const withAthletes = (mods, source, cfg) => `${mods.slice(0, -1).map(source).join('\n')}\n${athleteLib(cfg)}${source(mods[mods.length - 1])}`;
+
 export function meetChannelScript(cfg) {
-  const lib = MEET_PAGE_MODULES.map(contestSource).join('\n');
+  const lib = withAthletes(MEET_PAGE_MODULES, contestSource, cfg);
   return `
 // ── meet: the athletic event on this track ──
 {
@@ -33,7 +41,7 @@ stepContest = stepMeetArena;
 // system, the hit, the physics integrator, the contest kernel, the court mind and the match sim inlined by source, then
 // the browser runtime; it hands the page `stepCourt` and publishes `window.__mojCourt`. It owns the camera.
 export function courtChannelScript(cfg) {
-  const lib = COURT_PAGE_MODULES.map(graphSource).join('\n');
+  const lib = withAthletes(COURT_PAGE_MODULES, graphSource, cfg);
   return `
 // ── court: the net game on this court ──
 {
@@ -48,7 +56,7 @@ stepCourt = stepCourtArena;
 // hit modules, the kernel, the minds and the turn sim inlined by source, then the browser runtime; it hands the page
 // `stepTurnSport` and publishes `window.__mojTurns`. It owns the camera.
 export function turnsChannelScript(cfg) {
-  const lib = TURNS_PAGE_MODULES.map(graphSource).join('\n');
+  const lib = withAthletes(TURNS_PAGE_MODULES, graphSource, cfg);
   return `
 // ── turns: the turn sport on this course ──
 {
@@ -63,7 +71,7 @@ stepTurnSport = stepTurnsArena;
 // physics and hit modules, the kernel, the minds and the team sim inlined by source, then the browser runtime; it hands
 // the page `stepPitch` and publishes `window.__mojPitch`. It owns the camera.
 export function pitchChannelScript(cfg) {
-  const lib = PITCH_PAGE_MODULES.map(graphSource).join('\n');
+  const lib = withAthletes(PITCH_PAGE_MODULES, graphSource, cfg);
   return `
 // ── pitch: the team goal game on this pitch ──
 {

@@ -346,6 +346,8 @@ const QUICK_LEVERS = {
     '    (P1 F runs, G hops; P2 J, K; P3 Z, X; P4 , .; gamepads by index); the other lanes are the computer\'s',
     '  register: realistic | action | platformer | pinball (the body\'s pace)   distance: m (the event\'s)   attempts: n (the long jump\'s, 3)',
     '  the level is the arena (a stage with stands, contest/meet-arena.js), the referee the contest kernel: no hero, camera, climb or building',
+    '  athletes: [{ ref } (made with create_character) | { <hero-door words> }] cycled over the slots, or false (sticks); absent,',
+    '    rolled in the game\'s setting (its tradition: anime or western) in sports kit, a team\'s sides in their colours',
   ],
   contest: () => [
     '  sport: tennis (a net game: two pads, WASD + F / Space and the arrows + right Shift) | golf | bowling (a turn sport, hot-seat on one',
@@ -355,8 +357,9 @@ const QUICK_LEVERS = {
     '  tennis: sets 1..3;  golf: rounds 1..3 (holes), seats 1..8;  bowling: rounds 1..10 (frames), seats;  soccer, hockey: periods 1..4, seconds 20..900',
     '  a sport not in the book is WRITTEN OUT and played on its shape\'s sim: sport: { id, shape: match | turns | team, words, spec (the contest',
     '    kernel\'s data), omits?: [what the rulebook says the primitives do not carry], …the shape\'s dials } — the distilled-rulebook catalyst',
-    '    (get_catalyst) distills a rulebook into one; contest/sports.js shows tennis, golf, bowling, soccer and hockey written out',
+    '    (get_catalyst) distills a rulebook into one; contest/sports.js shows the book\'s sports written out',
     '  the rules are the kernel\'s: it calls every point, out, foul and restart; the agent never adjudicates',
+    '  athletes: [{ ref } | { <hero-door words> }] cycled, or false (sticks); absent, rolled in the game\'s setting and its tradition',
   ],
   avoid: () => [],
   race: () => [

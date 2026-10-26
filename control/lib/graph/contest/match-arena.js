@@ -3,11 +3,12 @@
  * middle, the stands behind the far baseline), carrying the `court` the World page's channel plays
  * (scene/channels/contest.js), as the meet arena carries its meet (meet-arena.js).
  *
- *   readMatch(spec) → M           { sport, players, register, level, sets, seed, kit, look?, crowd, title } checked
+ *   readMatch(spec) → M           { sport, players, register, level, sets, seed, kit, look?, crowd, title, athletes? } checked
  *   matchCourt(M) → the court in the stage's frame: the room, the court's half sizes, where its centre stands (the
  *                                 court frame's origin), the net's height and posts
  *   matchManifest(spec) → a `kind: 'stage'` recipe: the room, the stands, the broadcast camera, the `court` key
- *   matchArenaData(v) → the page's data: the match read, the sport's dials, the contest compiled, the court, the wire
+ *   matchArenaData(v) → the page's data: the match read, the sport's dials, the contest compiled, the court, the wire, the
+ *                                 athletes' bodies (v, { bodies }: contest/athletes.js)
  *   graphSource(rel)              a module under lib/graph as a classic-script fragment (the channel inlines the ball's
  *                                 flight, the ball card, the swing system, the hit, the physics integrator, the kernel,
  *                                 the mind and the sim by source)
@@ -24,6 +25,7 @@ import { MATCH_REGISTER_IDS } from './match-sim.js';
 import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+import { readAthletes } from './athletes.js';
 
 export const COURT_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 const GRAPH = join(moduleDir(import.meta.url, 'lib/graph/contest'), '..');
@@ -46,8 +48,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** The match's words, checked. */
 export function readMatch(spec = {}) {
-  if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title)`);
+  if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title?, athletes? }');
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title, athletes)`);
   const M = { ...MATCH_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course, a team game on a pitch), or a net game written out`);
   try { resolveSport(M.sport, 'match'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -59,7 +61,8 @@ export function readMatch(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+  const athletes = readAthletes(M.athletes, 2, fail);   // side a's player, then side b's
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -91,9 +94,10 @@ export function matchManifest(spec = {}) {
   };
 }
 
-/** The page's data: the match, the sport's dials, the contest compiled, the court, the wire a hosting shell speaks. */
-export function matchArenaData(v = {}) {
+/** The page's data: the match, the sport's dials, the contest compiled, the court, the wire a hosting shell speaks; `bodies`
+ * its athletes' (athletes.js athleteBodies), when it has any. */
+export function matchArenaData(v = {}, { bodies = null } = {}) {
   const M = readMatch(v), T = matchCourt(M);
   const C = contestRead(resolveSport(M.sport, 'match').spec({ sets: M.sets }));
-  return { ...M, sport: sportDials(M.sport), C, court: T, wire: COURT_WIRE };
+  return { ...M, sport: sportDials(M.sport), C, court: T, wire: COURT_WIRE, ...(bodies ? { bodies } : {}) };
 }

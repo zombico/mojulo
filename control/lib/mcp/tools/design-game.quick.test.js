@@ -139,15 +139,20 @@ describe('design_game quick', () => {
 
   it('contest and meet: a sport is one level, the arena as a stage carrying the play and a hosted level\'s contract, the game in one call; the page runs the sport\'s channel', async () => {
     const out = await designGameHandler({ quick: { goal: 'contest', sport: 'tennis', players: 2, register: 'action', world: { id: 'centre-court', name: 'Centre Court' } }, ref: 'cc' });
-    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-arena-court', 'make'], ['game', 'make']]);
+    // each side an athlete, a character rolled in the game's setting and made through the hero door, in its own body
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['athlete', 'make'], ['athlete-2', 'make'], ['level-arena-court', 'make'], ['game', 'make']]);
+    expect(stored('cc-athlete')).toMatchObject({ kind: 'layered', hero: { detail: 'swimsuit', paint: ['tank', 'bikeShorts', 'socks'] } });
     const L = stored('cc-level-arena-court');
     expect(L).toMatchObject({ kind: 'stage', court: { sport: 'tennis', players: 2, register: 'action' }, game: { levelRef: 'court', produces: { results: ['success', 'fail'], events: [] } } });
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('cc-level-arena-court'), { live: true });
-    expect(payload.court).toMatchObject({ sport: { id: 'tennis' }, players: 2 }); expect(payload.court.C.shape).toBe('match');
-    expect(emitThreeWorld({ ...payload, inline: true })).toContain('const COURT_ARENA = ');
+    expect(payload.court).toMatchObject({ sport: { id: 'tennis' }, players: 2, athletes: ['cc-athlete', 'cc-athlete-2'] }); expect(payload.court.C.shape).toBe('match');
+    expect(Object.keys(payload.court.bodies).sort()).toEqual(['cc-athlete', 'cc-athlete-2']);
+    expect(payload.court.bodies['cc-athlete'].parts.some((p) => p && p.pos)).toBe(true);
+    const page = emitThreeWorld({ ...payload, inline: true });
+    expect(page).toContain('const COURT_ARENA = '); expect(page).toContain('function placeAthlete(');
     const G = stored('cc-game');
     expect(G).toMatchObject({ title: 'Centre Court', shell: 'play' }); expect(G.levels.map((l) => l.ref)).toEqual(['cc-level-arena-court']);
-    const meet = await designGameHandler({ quick: { goal: 'meet', event: 'hurdles', lanes: 3, players: 1, world: { id: 'hurdles' } }, ref: 'hd' });
+    const meet = await designGameHandler({ quick: { goal: 'meet', event: 'hurdles', lanes: 3, players: 1, athletes: false, world: { id: 'hurdles' } }, ref: 'hd' });
     expect(meet.ran.map((r) => r.key)).toEqual(['level-arena-track', 'game']);
     expect(stored('hd-level-arena-track')).toMatchObject({ kind: 'stage', meet: { event: 'hurdles', lanes: 3 }, game: { levelRef: 'track' } });
   }, 240_000);

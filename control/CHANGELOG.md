@@ -221,6 +221,41 @@ and a ball card's on the ball. Planned, in order:
   the kernel's read is the gate and the agent never adjudicates. Stopping points: the engines' kernels carry no
   contest (every sport value is `absent` on Godot and Roblox, the page's own simulation); the shapes the sims lack
   (a hoop, a wicket, a wall game) are refused by name, not approximated.
+- **The athletes: a sport played by characters**, built: the stick figures and capsules give way to characters made
+  with create_character, each slot (a lane, a side's player, a seat) in its own body on the arena's page.
+  - **The arenas carry their athletes** (`contest/athletes.js`): `athletes` on a `meet`, `court`, `turns` or `pitch` key is a
+    character's ref per slot in the sim's order (null a slot's stick figure), cycled when shorter. The arena stores the
+    refs, never the bodies: the World page packs each character's rig bones and rigid parts where it is served
+    (`world-scene.js`, versus's `characterBody`), so a sport follows its characters' edits as a versus roster does. A
+    ref the store has lost, or a rig the figure cannot stand up, is the stick figure; absent, nothing is added anywhere.
+  - **The pose** (`contest/athlete-pose.js`, pure): the sports already pose a stick (the meet's stride, the court's
+    swing); a character takes the stick's directions on its own lengths (the trunk turned rigidly onto the stick's,
+    each limb laid along its stick bone, each foot turned with its shin), stands on its lowest sole and rises by the
+    stick's air, and each bone rides its segment through versus's figure (`figureSegments`), so the chain closes
+    everywhere. `strideStick` runs a body the sim keeps as a point and a velocity (the pitch's players, the stride on
+    the ground they cover) and `swingStick` addresses a ball (golf's hands on the club, bowling's arm). The tests hold
+    the concept on a small rig: lengths kept, directions followed, the sole on the ground, the right side on the right,
+    the chain closed.
+  - **On the page** (`contest/athlete.client.js`): one geometry per character shared by its slots, relit by the stage's
+    key and inked as the versus arena draws a fighter. The meet's runners, the court's players (the racquet in the
+    athlete's own hand), the pitch's players (the one at the pad still ringed) and the seat to play on the course (it
+    stands to the ball, takes the club or the arm back with the meter, holds its finish while the ball runs; nobody was
+    drawn there before). The channel inlines the figure only when the arena carries bodies, so a sport without athletes
+    emits what it did; each probe counts its athletes, and `athletes-page.live.test.js` plays all four in a real browser.
+    Corrected on the way: the meet's title read `[object Object]` when the track had none.
+  - **The quick goals roll them** (`quick.athletes` on `meet` and `contest`, `runner.js`): absent, the athletes are
+    rolled in the game's setting (`cast-setting.js`: the kit's tradition draws them anime or western, its era, the
+    `meet` and `contest` genres leaning to athletic builds in their prime), a person a slot up to four and cycled; a
+    team's sides each a rank of up to three faces in one uniform, the shirt the side's colour. They wear the sport's
+    kit whatever the world's wardrobe (a new `athlete` quick figure): on the authored body the paint words on the bare
+    body (a vest or a shirt, shorts, socks, white shoes), on the realistic body the `athlete` outfit card. Given, a list of
+    `{ ref }` (a character the operator made, adopted as it stands) or hero-door specs (made by the run), cycled over the
+    slots; `false` keeps the stick figures. The run's readout says what the setting rolled. Each athlete is a hero step
+    (`athlete`, `athlete-2` …) that design_game makes and remakes as it does a guard.
+  - **Not built, said:** the hero library's clips (the bodies are posed from the arena's own procedural stick, not the
+    character's walk, sprint or swing clips), a kick, a header or a tackle on the pitch (the stride carries the ball),
+    a racquet or a club as gear, the realistic body's outfit on the page's rigid parts (the card is chosen, not looked
+    at). The eyes gate is open: the frames looked at were machine screenshots of exhibitions, not play.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

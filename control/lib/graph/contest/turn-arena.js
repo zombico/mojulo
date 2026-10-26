@@ -3,7 +3,7 @@
  * the lane in its middle, the stands behind the far end), carrying the `turns` the World page's channel plays
  * (scene/channels/contest.js), as the court arena carries its court (match-arena.js).
  *
- *   readTurns(spec) → M           { sport, seats, players, register, level, rounds, seed, kit, look?, crowd, title } checked
+ *   readTurns(spec) → M           { sport, seats, players, register, level, rounds, seed, kit, look?, crowd, title, athletes? } checked
  *                                 (sport: the book's name, or a turn sport written out: sports.js resolveSport)
  *   turnsCourse(M) → the course in the stage's frame: the room (the largest round's frame with run-off), where the
  *                                 course frame's origin stands in it, each round's frame and par
@@ -19,6 +19,7 @@ import { TURN_REGISTER_IDS } from './turn-sim.js';
 import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+import { readAthletes } from './athletes.js';
 
 export const TURNS_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 export const TURNS_PAGE_MODULES = Object.freeze([
@@ -37,8 +38,8 @@ const roundsOf = (sport) => { const sp = resolveSport(sport, 'turns'); return sp
 
 /** The game's words, checked. */
 export function readTurns(spec = {}) {
-  if (!isObj(spec)) fail('a turn sport is { sport?, seats?, players?, register?, level?, rounds?, seed?, kit?, look?, crowd?, title? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'seats', 'players', 'register', 'level', 'rounds', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a turn sport has no '${k}' (sport, seats, players, register, level, rounds, seed, kit, look, crowd, title)`);
+  if (!isObj(spec)) fail('a turn sport is { sport?, seats?, players?, register?, level?, rounds?, seed?, kit?, look?, crowd?, title?, athletes? }');
+  for (const k of Object.keys(spec)) if (!['sport', 'seats', 'players', 'register', 'level', 'rounds', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes'].includes(k)) fail(`a turn sport has no '${k}' (sport, seats, players, register, level, rounds, seed, kit, look, crowd, title, athletes)`);
   const M = { ...TURNS_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !TURN_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${TURN_SPORT_IDS.join(', ')} (a turn sport; a net game plays on a court, a team game on a pitch), or a turn sport written out`);
   try { resolveSport(M.sport, 'turns'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -52,7 +53,8 @@ export function readTurns(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  return { sport: sportKeyOf(M.sport), seats: M.seats, players: M.players, register: M.register, level: M.level, rounds, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+  const athletes = readAthletes(M.athletes, M.seats, fail);   // a seat's golfer or bowler each
+  return { sport: sportKeyOf(M.sport), seats: M.seats, players: M.players, register: M.register, level: M.level, rounds, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -95,9 +97,10 @@ export function turnsManifest(spec = {}) {
   };
 }
 
-/** The page's data: the game, the sport's dials, the contest compiled, the course, the wire a hosting shell speaks. */
-export function turnsArenaData(v = {}) {
+/** The page's data: the game, the sport's dials, the contest compiled, the course, the wire a hosting shell speaks; `bodies`
+ * its athletes' (athletes.js athleteBodies), when it has any. */
+export function turnsArenaData(v = {}, { bodies = null } = {}) {
   const M = readTurns(v), T = turnsCourse(M);
   const C = contestRead({ ...specOf(M), players: M.seats });
-  return { ...M, sport: turnSportDials(M.sport), C, course: T, wire: TURNS_WIRE };
+  return { ...M, sport: turnSportDials(M.sport), C, course: T, wire: TURNS_WIRE, ...(bodies ? { bodies } : {}) };
 }
