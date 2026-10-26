@@ -16,6 +16,8 @@ import { planFromSheet } from '../../../egocube/plan.js';
 import { castMember } from './cast.js';
 import { SUIT_KEYS } from './suits.js';
 import { costumeOf, ERA_OF_STOP, ERAS } from './costumes.js';
+import { withPieces } from './pieces.js';
+import { withHeadgear } from './headgear.js';
 import { lookOf, DIAL } from './looks.js';
 
 export const bodyOf = (lookId) => DIAL.find((d) => d.id === lookOf(lookId).stop).body;
@@ -28,7 +30,7 @@ export function rollMember(id, { seed = 1 } = {}) {
 // the body words the realistic form refuses (layered.js realisticErrors): addressed on the stylized body's rings
 const STYLIZED_ONLY = ['detail', 'body', 'girth', 'paint'];
 
-export function memberOrders(id, lookId, { seed = 1, era: eraIn } = {}) {
+export function memberOrders(id, lookId, { seed = 1, era: eraIn, pieces = [], headgear = null } = {}) {
   const m = castMember(id), L = lookOf(lookId), body = bodyOf(lookId), sheet = rollMember(id, { seed });
   const era = eraIn ?? ERA_OF_STOP[L.stop];
   if (!ERAS[era]) throw new Error(`comic-hero: no era '${era}' (known: ${Object.keys(ERAS).join(', ')})`);
@@ -36,11 +38,14 @@ export function memberOrders(id, lookId, { seed = 1, era: eraIn } = {}) {
   if (plan.create.as !== 'hero') throw new Error(`comic-hero: ${id} rolled a ${plan.create.as}, not a person`);
   const spec = { ...plan.create.spec };
   for (const k of SUIT_KEYS) delete spec[k];
-  const { palette: suitPalette, ...dress } = costumeOf(m.suit, era, body);
+  const { palette: suitPalette, ...dress } = withPieces(costumeOf(m.suit, era, body), pieces);
   Object.assign(spec, dress);
   spec.palette = { ...(spec.palette || {}), ...suitPalette };
   spec.gesture = m.gesture;
   if (body === 'realistic') { spec.form = 'realistic'; for (const k of STYLIZED_ONLY) delete spec[k]; }
+  // (the headgear worn over a COPY: a card returns a new spec, no card the one it was given)
+  const worn = withHeadgear({ ...spec }, body, headgear);
+  for (const k of Object.keys(spec)) delete spec[k]; Object.assign(spec, worn);
   // `vibe` is the hero door's own key (layered.js HERO_DOOR_KEYS) and rides INSIDE `spec`: mint_solid hands its handler
   // the spec alone (mint-solid.js mergeTop), so a key beside it is dropped without a word. No `toon`: never cel shaded
   delete spec.toon;

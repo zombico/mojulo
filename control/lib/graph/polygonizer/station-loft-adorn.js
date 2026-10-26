@@ -655,6 +655,32 @@ export const SIGNATURES = {
     for (let q = 0; q < (S.vents ?? 0); q++) { const b = add(add(add(c, mul(lat, (-0.3 + 0.6 * (S.vents === 1 ? 0.5 : q / (S.vents - 1))) * S.w)), mul(up, S.h / 2 - 0.01)), mul(nrm, S.d * 0.55));
       out.push({ ...sweep([b, add(b, mul(up, S.ventH * 0.5)), add(b, mul(up, S.ventH))], [S.ventR, S.ventR, S.ventR * 1.1], 10), ...(S.ventGroup ? { group: S.ventGroup } : {}) }); }
     return out; },
+  /** a RESPIRATOR: a cup over the nose and the mouth (the cyberpunk gas mask), sized from the head's own bounds as the helm
+   * is (`parts`, default cranium + jaw; `pad` off the head), the head's superellipse section (`n`) spanning `spread`
+   * radians either side of the front from `low` (helm heights, 0 under the chin) to `high` (default just under the eye
+   * line, `eye`), pushed forward `muzzle` at the mouth line, `thick` deep. `filters` { count: 1 | 2, r?, h?, a?, group }:
+   * canister discs on its sides (`a` radians either side of the front; one at the front), `grille` bars across the
+   * mouth in `grilleGroup`. Composes with a cowl (the helm, open below the nose), a hood or a visor band over it.
+   * { parts?, pad?, n?, eye?, spread?, low?, high?, muzzle?, thick?, filters?, grille?, grilleGroup? } */
+  respirator: (fig, _g, _b, S) => {
+    const P = (S.parts || ['cranium', 'jaw']).flatMap((n) => Object.values(fig.mesh.parts[n]?.points || {}));
+    const lo = [0, 1, 2].map((i) => Math.min(...P.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...P.map((p) => p[i])));
+    const pad = S.pad ?? 0.006, cy = (lo[1] + hi[1]) / 2, zB = lo[2] - 0.01, zT = hi[2], rx0 = (hi[0] - lo[0]) / 2 + pad, ry0 = (hi[1] - lo[1]) / 2 + pad;
+    const n = S.n ?? 2.4, se = (v) => Math.sign(v) * dmath.pow(Math.abs(v), 2 / n), F = Math.PI / 2;
+    const uE = (lo[2] + (S.eye ?? 0.55) * (hi[2] - lo[2]) - zB) / (zT - zB), u0 = S.low ?? 0.03, u1 = S.high ?? uE - 0.09, a = S.spread ?? 0.85, th = S.thick ?? 0.006, mz = S.muzzle ?? 0.03;
+    const uM = u0 + (u1 - u0) * 0.45;   // the mouth line, where the cup stands farthest forward
+    const at = (u, t, off = 0) => { const c = dmath.cos(t), sn = dmath.sin(t), fr = dmath.cos(((t - F) / a) * (Math.PI / 2));
+      const bulge = mz * dmath.exp(-(((u - uM) / (0.5 * (u1 - u0))) ** 2)) * Math.max(0, fr) ** 2;
+      return [(rx0 + off) * se(c), cy + (ry0 + off) * se(sn) + bulge + (sn > 0 ? off * 0.2 : 0), zB + u * (zT - zB)]; };
+    const K = 7, M = 11, A = Array.from({ length: M }, (_, q) => F - a + (2 * a * q) / (M - 1));
+    const secs = Array.from({ length: K }, (_, i) => { const u = u0 + ((u1 - u0) * i) / (K - 1); return [...A.map((t) => at(u, t, 0)), ...[...A].reverse().map((t) => at(u, t, -th))]; });
+    const out = [{ ...loftParts(secs, mean(secs[0]), mean(secs[secs.length - 1])), group: S.group }];
+    const w = hi[2] - lo[2];
+    if (S.filters) { const Fl = S.filters, r = Fl.r ?? w * 0.11, h = Fl.h ?? r * 0.8, ths = (Fl.count ?? 2) === 1 ? [F] : [F - (Fl.a ?? 0.62), F + (Fl.a ?? 0.62)];
+      for (const t of ths) { const c = at(uM, t, 0.001), nrm = unit(add(sub(at(uM, t, 0.02), c), [0, 0, -0.25])); out.push({ ...disc(c, nrm, r, h, 16, 0.7), group: Fl.group ?? S.group }); } }
+    if (S.grille) for (let i = 0; i < S.grille; i++) { const u = uM + (i - (S.grille - 1) / 2) * 0.05, pts = Array.from({ length: 7 }, (_, q) => at(u, F - 0.32 + (0.64 * q) / 6, 0.003));
+      out.push({ ...sweep(pts, pts.slice(0, -1).map(() => w * 0.012), 6), group: S.grilleGroup ?? S.group }); }
+    return out; },
   /** a free VOLUME round the carrier (figure-fluff's girth contrast on the rig: the hero robot's football forearm, flared
    * boot, shoulder ball). Built on its shell's WRAPPED window: the carrier's own axis (the ring centres at the window's
    * ends) and its measured radius, so it scales with the body and rides the bone it is pinned to. The shape is fluff's

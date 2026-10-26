@@ -14,6 +14,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Superheroic pieces: belts, pouches and jackets as cards
+
+- The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
+  hex the buckle wears instead of the band's: a gold buckle on a leather belt), `buckleScale` (× the buckle's face, an
+  emblem buckle) and `width` (× the band's height and thickness, a power belt). `pouches` takes `at: 'waist'` (a UTILITY
+  BELT: the belt at the waist and `count` pouches, 2, 4 or 6, ringing it just under its line, hung on the pelvis's top by
+  shares) and `size`; the belt's dials pass through to its band. A new kind, `thighPouch`: a holster rig strapped round
+  the thigh, the pouch on its outer side (one on the intent's side, `pair` both, `size`). Absent, every dial contributes
+  nothing: a row without them is byte for byte what it was.
+- The comic hero pack's piece cards (`cosmos/packs/comic-hero/pieces.js`): belts (the emblem belt, the power belt, the
+  utility belt and the full one, the sash), pouches (the duty belt, the thigh rig and its pair, the chest rig, the
+  harness, the bandolier) and jackets (the bomber, the moto jacket, the duster, the armoured jacket, the hooded jacket, each
+  the language's `outer` in its own `Outer` colour), worn over a role suit by `withPieces` (a waist belt replaces the
+  suit's, never stacks) and by `memberOrders(id, look, { pieces })`; a word-list outfit (the Movie era's plating suits on
+  the realistic body) takes none and the call says so.
+
+### Headgear spike: masks, visors and helmets
+
+- `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
+  dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
+  band and the visor (an `adorn` kit on the cranium), and four helms through the armour's `helm` signature (open, trooper,
+  faceplate, band), each dropping the hair. The realistic armour fit leaves every head piece off the relational head, so a
+  visor or a helm fits the tiered body only and `fitted(id, body)` says so. Worn by `memberOrders(id, look, { headgear })`.
+
+### The half-cape to the hip, and its hood, are worn
+
+- `hem: 'hip'` was no cloak hem word (`outfit-plan.js` hemAt: thigh, knee, calf, shin, ankle), so a cloak asking for it
+  threw inside the piece sorter and was dropped as "not worn" with the throw's message for a word: the street suit's
+  hooded half-cape never rendered, and no hood ever showed. `hip` is now a hem word (the cape ends at the structured
+  pelvis's top, at the thigh's top on a body without one; `HEM_WORDS` names them), and an unknown word is refused by
+  name. A cloak at another hem is byte for byte what it was.
+
 ### A leg's cloth stays on its own side
 
 - A limb's cloth field (`body-relational-garment.js` `fieldGarment`) was read by `|x|`, the right limb's field mirrored for
