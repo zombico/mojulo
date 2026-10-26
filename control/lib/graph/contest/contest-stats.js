@@ -59,10 +59,15 @@ const stTable = (kind, ids, values, keep = null) => STAT_ROWS[kind].filter((r) =
 function stMatch(S) {
   const ids = ['a', 'b'], v = {}, add = (row, id, n = 1) => { v[row] ??= {}; v[row][id] = (v[row][id] ?? 0) + n; }, max = (row, id, n) => { v[row] ??= {}; v[row][id] = Math.max(v[row][id] ?? 0, n); };
   let server = null, hits = [], firsts = { a: 0, b: 0 }, firstFaults = { a: 0, b: 0 };
-  for (const c of S.calls) {
-    if (c.kind === 'serve') { server = stSide(c.who); hits = []; if (c.faults === 0) firsts[server] += 1; }
+  S.calls.forEach((c, i) => {
+    // (the serve's own stroke is the hit just before its call, whatever the card names the stroke: it opens the rally
+    // and its speed is the serve's)
+    if (c.kind === 'serve') {
+      server = stSide(c.who); const struck = S.calls[i - 1]?.kind === 'hit' && stSide(S.calls[i - 1].who) === server ? S.calls[i - 1] : null;
+      hits = struck ? [server] : []; if (struck) max('serve', server, stKmh(struck.speed)); if (c.faults === 0) firsts[server] += 1;
+    }
     else if (c.kind === 'fault') { if (c.faults === 1) firstFaults[c.side] += 1; hits = []; }
-    else if (c.kind === 'hit') { hits.push(stSide(c.who)); if (c.verb === 'serve') max('serve', stSide(c.who), stKmh(c.speed)); }
+    else if (c.kind === 'hit') hits.push(stSide(c.who));
     else if (c.kind === 'point') {
       add('points', c.side);
       const loser = c.side === 'a' ? 'b' : 'a', last = hits[hits.length - 1] ?? null;
@@ -73,7 +78,7 @@ function stMatch(S) {
       else if (last === loser && (c.why === 'out' || c.why === 'net' || c.why === 'own-side')) add('errors', loser);
       hits = [];
     }
-  }
+  });
   for (const id of ids) { v.firstIn ??= {}; v.firstIn[id] = stPct(firsts[id] - firstFaults[id], firsts[id]); }
   return { shape: 'match', by: 'side', ids, rows: stTable('match', ids, v) };
 }

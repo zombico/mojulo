@@ -1,7 +1,8 @@
 // The piece cards and the headgear: superheroic variations of what a hero wears over a role suit, each the hero door's
 // own words. A card names piece kinds the catalogue has; worn over a suit it rides the outfit build (a waist belt
 // replacing the suit's, never stacking); a word-list outfit takes none and says so. Headgear fits per body, and a card
-// with no realistic side says so. Every card validates on the body it fits through the hero door's own validator.
+// with no realistic side says so. One card per family validates on the body it fits through the hero door's own
+// validator, chosen from the catalogue in code; comic-hero.deep.test.js validates every card.
 import { describe, it, expect } from 'vitest';
 import { PIECES, PIECE_IDS, withPieces } from './pieces.js';
 import { HEADGEAR, HEADGEAR_IDS, fitted, withHeadgear } from './headgear.js';
@@ -10,6 +11,9 @@ import { memberOrders } from './characters.js';
 import { ENSEMBLES, HARMONY } from './ensembles.js';
 import { OUTFIT_KIND_NAMES } from '../../../polygonizer/outfit-plan.js';
 import { validateHeroSpec } from '../../../../mcp/tools/layered.js';
+
+// the first card of each family: a family is one build path (a belt, a pouch, a jacket; a mask, a helmet, a cowl…)
+const firstOfFamily = (ids, cards) => [...new Set(ids.map((id) => cards[id].family))].map((f) => ids.find((id) => cards[id].family === f));
 
 describe('comic hero pack: piece cards', () => {
   it('each card reads, names a family and eras, and only piece kinds the catalogue has', () => {
@@ -28,8 +32,8 @@ describe('comic hero pack: piece cards', () => {
     expect(() => withPieces(silver, ['capeOfWind'])).toThrow(/no piece card 'capeOfWind'/);
     expect(() => withPieces(costumeOf('classic', 'movie', 'realistic'), ['utilityBelt'])).toThrow(/word list/);
   });
-  it('every card validates on the hero through the door on both bodies (the Movie realistic suit aside, a word list)', () => {
-    for (const id of PIECE_IDS) for (const look of ['comic-day', 'realistic-city']) {
+  it('a card of each family validates on the hero through the door on both bodies (the Movie realistic suit aside, a word list)', () => {
+    for (const id of firstOfFamily(PIECE_IDS, PIECES)) for (const look of ['comic-day', 'realistic-city']) {
       const { mint } = memberOrders('hero', look, { era: 'modern', pieces: [id] });
       expect(validateHeroSpec(mint.args.spec), `${id} on ${look}`).toEqual([]);
     }
@@ -44,8 +48,8 @@ describe('comic hero pack: headgear (the spike)', () => {
     expect(() => withHeadgear({}, 'realistic', 'trooperHelm')).toThrow(/not fitted to the realistic body/);
     expect(() => withHeadgear({}, 'tiered', 'crown')).toThrow(/no headgear 'crown'/);
   });
-  it('a helmet drops the hair; a domino is cast from the face on the tiered head and the dermis\'s war paint on the realistic one; each validates', () => {
-    for (const id of HEADGEAR_IDS) for (const look of ['comic-day', 'realistic-city']) {
+  it('a helmet drops the hair; a domino is cast from the face on the tiered head and the dermis\'s war paint on the realistic one; a card of each family validates', () => {
+    for (const id of firstOfFamily(HEADGEAR_IDS, HEADGEAR)) for (const look of ['comic-day', 'realistic-city']) {
       if (!fitted(id, look === 'comic-day' ? 'tiered' : 'realistic')) continue;
       const { mint } = memberOrders('hero', look, { era: 'modern', headgear: id });
       expect(validateHeroSpec(mint.args.spec), `${id} on ${look}`).toEqual([]);
@@ -61,8 +65,11 @@ describe('comic hero pack: headgear (the spike)', () => {
 });
 
 describe('comic hero pack: ensembles (the body that answers a head)', () => {
-  it('every head\'s ensemble validates through the door; the head rides over the armour build in place of its helm; a bare group is the skin', () => {
-    for (const [head, id] of Object.entries(HARMONY)) {
+  it('a head\'s ensemble validates through the door, armoured and bare: the head rides over the armour build in place of its helm', () => {
+    // one head per path: an ensemble with armour, one without (every head: comic-hero.deep.test.js)
+    const heads = Object.keys(HARMONY), armoured = (h) => !!ENSEMBLES[HARMONY[h]].armor;
+    for (const head of [heads.find(armoured), heads.find((h) => !armoured(h))]) {
+      const id = HARMONY[head];
       expect(ENSEMBLES[id], `${head} → ${id}`).toBeTruthy();
       const { spec } = memberOrders('hero', 'comic-day', { headgear: head, ensemble: 'auto' }).mint.args;
       expect(validateHeroSpec(spec), `${head} in ${id}`).toEqual([]);

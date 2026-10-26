@@ -2,7 +2,7 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect } from 'vitest';
 import { tieredGarments, tieredKit } from './tiered-form.js';
-import { heroRecord, heroPlanOf, createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
+import { heroRecord, heroPlanOf, createLayeredPlanHandler, cowlPressesEars } from '@/lib/mcp/tools/layered';
 
 // the tiered form's dress: garments over the bridges and split with their parts, a kit over the joints
 const planOf = (spec) => heroPlanOf(heroRecord({ cast: 'female', form: 'tiered', ...spec }));
@@ -68,5 +68,27 @@ describe('tiered dress: a kit over the joints', () => {
     expect(gorget.over).toEqual(['torso', 'shoulderBallR', 'shoulderBallL', 'shoulderWebR', 'shoulderWebL', 'shoulderConeR', 'shoulderConeL']);
     expect(pauldron.over).toEqual(['upperArmR', 'shoulderBallR', 'shoulderBallL', 'shoulderWebR', 'shoulderWebL', 'shoulderConeR', 'shoulderConeL']);
     expect(greave.over).toBeUndefined();
+  });
+
+  it('a trunk plate wrapping the chest ends under the arm; a shoulder piece (a mantle) keeps the shoulders; the cut never raises a top', () => {
+    const wrap = (o) => ({ part: 'torso', mode: 'band', t: 'wrap', ...o });
+    const [band] = tieredKit([wrap({ id: 'torso-band', s: [2, 3.9] })], plan, { laws: 18 });
+    const sBall = band.s[1];
+    expect(sBall).toBeGreaterThan(2.1);
+    expect(sBall).toBeLessThan(3.9);
+    const [mantle, short] = tieredKit([
+      wrap({ id: 'mantle', s: [1.9, 3.95], shoulder: true }),
+      wrap({ id: 'torso-strap', s: [+(sBall - 0.02).toFixed(4), +(sBall + 0.03).toFixed(4)] }),
+    ], plan, { laws: 18 });
+    expect(mantle.s).toEqual([1.9, 3.95]);
+    expect(short.s[1]).toBeLessThanOrEqual(+(sBall + 0.03).toFixed(4));
+  });
+
+  it('a cowl worn over an armour build presses the ears as one in the adorn list does', () => {
+    const cowl = { id: 'cranium-cowl', mode: 'shell', part: 'cranium', s: [3, 8], t: 'wrap', signature: { kind: 'cowl' } };
+    expect(cowlPressesEars({ adorn: [cowl] })).toBe(true);
+    expect(cowlPressesEars({ adorn: { type: 'armor', style: 'knight', with: [cowl] } })).toBe(true);
+    expect(cowlPressesEars({ adorn: { type: 'armor', style: 'knight' } })).toBe(false);
+    expect(cowlPressesEars({ adorn: [{ ...cowl, signature: { kind: 'cowl', ears: false } }] })).toBe(false);
   });
 });

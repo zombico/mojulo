@@ -69,12 +69,17 @@ export function newTeam(ctx) {
     ballBody(ctx.ball, ctx.register, { id: 'ball', position: [0, 0, r] }),
     { id: 'floor', collider: 'plane', position: [0, 0, 0], normal: [0, 0, 1], mass: 0, restitution: 0.5, friction: 0.8 },
   ];
-  if (ctx.sport.ground.boards) {   // the rink's boards: four walls just past the lines, the goal mouths in the end walls' line
+  if (ctx.sport.ground.boards) {   // the rink's boards: four walls just past the lines, the goal mouths open in the end walls
     const t = 0.15, h = 1.2;
     bodies.push({ id: 'board-left', collider: 'aabb', position: [-(c.halfW + t), 0, h / 2], half: [t, c.halfL + 2 * t, h / 2], mass: 0, restitution: 0.6, friction: 0.2 });
     bodies.push({ id: 'board-right', collider: 'aabb', position: [c.halfW + t, 0, h / 2], half: [t, c.halfL + 2 * t, h / 2], mass: 0, restitution: 0.6, friction: 0.2 });
-    bodies.push({ id: 'board-near', collider: 'aabb', position: [0, -(c.halfL + t), h / 2], half: [c.halfW + 2 * t, t, h / 2], mass: 0, restitution: 0.6, friction: 0.2 });
-    bodies.push({ id: 'board-far', collider: 'aabb', position: [0, c.halfL + t, h / 2], half: [c.halfW + 2 * t, t, h / 2], mass: 0, restitution: 0.6, friction: 0.2 });
+    // each end wall in three: a length either side of the goal's mouth and a lintel over it, so a puck on target goes in
+    // and one beside it comes off the boards
+    const G = ctx.sport.goal, gw = Math.min(G.width / 2, c.halfW), gh = Math.min(G.height, h), wing = (c.halfW + 2 * t - gw) / 2;
+    for (const [end, y] of [['near', -(c.halfL + t)], ['far', c.halfL + t]]) {
+      for (const sx of [-1, 1]) bodies.push({ id: `board-${end}-${sx < 0 ? 'l' : 'r'}`, collider: 'aabb', position: [sx * (gw + wing), y, h / 2], half: [wing, t, h / 2], mass: 0, restitution: 0.6, friction: 0.2 });
+      if (gh < h) bodies.push({ id: `board-${end}-lintel`, collider: 'aabb', position: [0, y, (gh + h) / 2], half: [gw, t, (h - gh) / 2], mass: 0, restitution: 0.6, friction: 0.2 });
+    }
   }
   const sim = _gsim.createState({ gravity: ballGravity(ctx.register), seed: ctx.seed, bodies, forces: ballForces(ctx.ball, ctx.register, { id: 'ball' }) });
   const roles = Object.keys(ctx.C.roles);

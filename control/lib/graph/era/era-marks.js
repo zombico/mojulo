@@ -24,6 +24,9 @@ export const SURFACE_INPUTS = Object.freeze([
   'faces', 'repeats', 'textures', 'resample', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
   'fabric', 'tone', 'toon', 'vertexContrast', 'strokeOverlay', 'ao', 'light', 'glow', 'soft', 'wetSand', 'wetRoad',
   'shallows', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
+  // (a game drawing its own arena: the fighters', the board's, the contests' courts and pitches, each in unlit vertex
+  // colour, MeshBasicMaterial: paint)
+  'versus', 'board', 'meet', 'court', 'turns', 'pitch', 'holo',
 ]);
 // the live light itself (scene/live-light.js): a form render's light, darkening paint until there is material to light
 const LIVE = new Set(['shadows', 'occlusion', 'creases', 'lightTier']);
@@ -36,8 +39,8 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'breakPieces', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
-  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner',
-  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo',
+  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'screen', 'runner',
+  'science', 'hazeHeight', 'fauna',
 ]);
 
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';

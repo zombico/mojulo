@@ -124,3 +124,22 @@ describe('an exhibition, pure and seeded', () => {
     const c = cloneTeam(a); c.p[0].x = 99; expect(a.p[0].x).not.toBe(99);
   });
 });
+
+describe('the rink\'s goal mouths', () => {
+  // a puck slid at b's end with nobody near it: on target it goes in whatever its speed; wide of the mouth it comes back
+  // off the boards
+  const slide = (x, v) => {
+    const ctx = teamContext(teamArenaData({ sport: 'hockey', players: 2, seed: 1 })), S = newTeam(ctx);
+    S.K = { ...S.K, phase: 'live', restart: null }; S.phase = 'live';
+    for (const P of S.p) { P.home = [P.home[0] + 10, P.home[1]]; P.x = 12; }
+    const b = S.sim.bodies[0]; b.position = [x, ctx.court.halfL - 3, b.radius]; b.velocity = [0, v, 0]; b.resting = false;
+    for (let n = 0; n < 120 && !S.calls.some((c) => c.kind === 'score'); n++) stepTeam(S, [{ x: 0, y: 0, b: 0 }, { x: 0, y: 0, b: 0 }], ctx);
+    return { scored: S.calls.some((c) => c.kind === 'score'), ctx };
+  };
+  it('a shot on target scores at a crawl and at full speed; one beside the mouth does not', () => {
+    expect(slide(0, 4).scored).toBe(true);
+    expect(slide(0, 30).scored).toBe(true);
+    const { ctx } = slide(0, 4);
+    expect(slide(ctx.sport.goal.width / 2 + 1.5, 8).scored).toBe(false);
+  });
+});

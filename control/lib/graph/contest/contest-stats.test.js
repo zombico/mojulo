@@ -10,11 +10,12 @@ const log = (...calls) => ({ calls: calls.map((c, i) => ({ f: i * 10, ...c })) }
 
 describe('the stats of a net game', () => {
   it('counts the server\'s untouched points as aces, a double fault against the server, winners and errors by the last hit', () => {
+    // (in the sim's order: the serve's stroke, then the kernel's serve call)
     const S = log(
-      { kind: 'serve', who: 'a1', faults: 0 }, { kind: 'hit', who: 'a1', verb: 'serve', speed: 50 }, { kind: 'point', side: 'a', why: 'double-bounce' },   // an ace
+      { kind: 'hit', who: 'a1', verb: 'serve', speed: 50 }, { kind: 'serve', who: 'a1', faults: 0 }, { kind: 'point', side: 'a', why: 'double-bounce' },   // an ace
       { kind: 'serve', who: 'a1', faults: 0 }, { kind: 'fault', side: 'a', faults: 1 }, { kind: 'serve', who: 'a1', faults: 1 }, { kind: 'point', side: 'b', why: 'double-fault' },
-      { kind: 'serve', who: 'a1', faults: 0 }, { kind: 'hit', who: 'a1', verb: 'serve', speed: 40 }, { kind: 'hit', who: 'b1', verb: 'forehand', speed: 30 }, { kind: 'hit', who: 'a1', verb: 'volley', speed: 30 }, { kind: 'point', side: 'a', why: 'double-bounce' },   // a's winner
-      { kind: 'serve', who: 'b1', faults: 0 }, { kind: 'hit', who: 'b1', verb: 'serve', speed: 30 }, { kind: 'hit', who: 'a1', verb: 'forehand', speed: 30 }, { kind: 'point', side: 'b', why: 'out' },   // a's error
+      { kind: 'hit', who: 'a1', verb: 'serve', speed: 40 }, { kind: 'serve', who: 'a1', faults: 0 }, { kind: 'hit', who: 'b1', verb: 'forehand', speed: 30 }, { kind: 'hit', who: 'a1', verb: 'volley', speed: 30 }, { kind: 'point', side: 'a', why: 'double-bounce' },   // a's winner
+      { kind: 'hit', who: 'b1', verb: 'serve', speed: 30 }, { kind: 'serve', who: 'b1', faults: 0 }, { kind: 'hit', who: 'a1', verb: 'forehand', speed: 30 }, { kind: 'point', side: 'b', why: 'out' },   // a's error
     );
     const st = contestStats(S, 'match');
     expect(st).toMatchObject({ shape: 'match', by: 'side', ids: ['a', 'b'] });
@@ -24,6 +25,8 @@ describe('the stats of a net game', () => {
     expect(val(st, 'winners')).toEqual({ a: 1, b: 0 }); expect(val(st, 'errors')).toEqual({ a: 1, b: 0 });
     expect(val(st, 'firstIn')).toEqual({ a: 67, b: 100 });   // a's three first serves, one faulted
     expect(val(st, 'rally').a).toBe(3); expect(val(st, 'serve')).toEqual({ a: 180, b: 108 });
+    // an arcade card's serve stroke has its own name (a drop, an underhand): its speed is the serve's all the same
+    expect(val(contestStats(log({ kind: 'hit', who: 'a1', verb: 'drop', speed: 20 }, { kind: 'serve', who: 'a1', faults: 0 }), 'match'), 'serve')).toEqual({ a: 72, b: 0 });
     expect(statLine(st, 'a', ['aces', 'firstIn'])).toBe('aces 1 · 1st serve in 67%');
     // the panel: the rows asked that the sport has, formatted, the one best value lit by the row's lean; a tie lit none
     const P = statPanel(st, ['aces', 'doubles', 'points', 'saves'], [{ name: 'P1', color: 0 }, { name: 'CPU', color: 1 }], 'changeover');

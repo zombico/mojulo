@@ -75,6 +75,13 @@ const NET_STROKES = Object.freeze({ fore: 'forehand', back: 'backhand', serve: '
 
 function composeNet(card) {
   for (const k of ['court', 'net', 'score', 'serve', 'receive', 'home']) if (!isObj(card[k])) afail(`a net card names ${k}`);
+  // a no-volley zone: a region the court lays, its foul costing the point (the one cost the match restarts from: a free
+  // ball or a warning would leave the rally dead, a fault would swallow the volley)
+  if (card.noVolley !== undefined) {
+    const regions = netCourt(card.court, card.serve).regions;
+    if (typeof card.noVolley !== 'string' || !regions[card.noVolley]) afail(`noVolley names a region the court lays (${Object.keys(regions).join(', ')}; a kitchen needs court.kitchen)`);
+    if (card.fouls?.[card.noVolley] !== 'point') afail(`fouls.${card.noVolley} is 'point': a volley from the ${card.noVolley} costs the point (the match restarts from a point, not from a free ball, a warning or a fault)`);
+  }
   const serve = card.serve, title = card.title;
   const spec = ({ sets } = {}) => {
     const games = sets ?? card.score.games ?? 1;

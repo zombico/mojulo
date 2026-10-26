@@ -255,6 +255,10 @@ import { emitThreeWorld } from './scene-three.js';
 // air), the hit (the underhand, clear and drop verbs, the aim through a ball's own air), the stats (`down` a winner)
 // and the broadcast's words; the court block's sim, mind and client too (the raised bed, the body's scale, the
 // no-volley foul, the slip, the ladder's scoreboard). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (review fixes): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because every contest
+// block inlines contest/contest-stats.js by source, and a serve's speed and opening hit are now read from the hit before
+// its call; the pitch block's sim leaves the rink's goal mouths open in its end boards. Every other page is
+// byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

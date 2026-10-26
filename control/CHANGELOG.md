@@ -194,12 +194,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
       A front or back plate is cut in under the arm by a new shell `armhole` (its side edge eased in above a station),
       and a wrap ends under the arm.
     - Pauldrons, pinned pieces and the neck's gorget stand as before.
+    - A mantle is a shoulder piece too, so it keeps its drape over the shoulder rather than being cut to a chest band,
+      and the cut never ends a plate above its own start.
     - Heroes stamped 1 to 17 keep their fit (the adult-form chibi's pins hold).
   - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
     (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
     becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.
     The ensembles are cyborg, hunter, titan, warlock, ronin, gladiator, hoplite, legion, regal, bounty hunter, tyrant,
     dark lord, assassin, reaper, death knight, operator and shinobi.
+    A cowl carried in an armour's `with` presses the ears flat as a worn cowl does.
 
   `HARMONY` names the ensemble each head calls for; `memberOrders(id, look, { headgear, ensemble: 'auto' | id })`
   wears it in place of the costume (tiered body).
@@ -498,6 +501,8 @@ and a ball card's on the ball. Planned, in order:
   the court and the course do, so no hero library clip kicks yet and the controllable pins stand untouched; the quick
   goal (phase 7); a tackle (the only challenge is the press and the keeper's save); the second-last-defender offside
   (the ball rule stands in); a wall at a free kick; restarts that walk the players home; the kick's curl one number.
+  The rink's end boards stand either side of the goal and over it, its mouth left open, so a puck is scored between
+  the posts and never by passing through a board.
   The eyes gate is open: nobody has watched a match yet.
 - **The door and the distilled rulebook**, built: no new listed tool. Two quick goals (`design_game({ quick })`):
   `meet` (the event, the lanes, the players, the register, the distance, the attempts) and `contest` (the sport, the
@@ -509,7 +514,8 @@ and a ball card's on the ball. Planned, in order:
   probes read makeable and the four sport values (`power.mechanics` meet and contest, `space.levelForm` court,
   `mind.motivation` position, `soul.party` team) read built, each lowering to its module; the hillclimb page
   regenerated. The game vocab's quick cards for both goals; routing rows for a race, a tennis game, mini golf and
-  five-a-side, the `game-design` card naming the sport goals. **A sport written out** (`sports.js` resolveSport): the
+  five-a-side, the `game-design` card naming the sport goals. A contest's `seconds` are its periods', read with its
+  sport (the survive goal's 5 to 600 is not theirs). **A sport written out** (`sports.js` resolveSport): the
   contest goal's `sport` may be the book's name or an object `{ id, shape: match | turns | team, words, spec, omits?,
   …the shape's dials }`, the spec the contest kernel's own data (its read the gate), the dials the shape's sim reads
   (their presence checked, their values the sim's to refuse), `omits` the rulebook's sentences the primitives do not
@@ -611,7 +617,8 @@ and a ball card's on the ball. Planned, in order:
     OUTCOME). The probe (`__mojHolo`) runs plies at once, names the beat on stage and the beats seen, and clicks a
     cell as the pointer would.
   - **The door** (`design_game({ quick: { goal: 'tabletop', game, players?, level?, human?, lift: 'holo' } })`): one
-    level, the arena in the play shell, its quick card, a line on the tabletop card, the registry's lattice note.
+    level, the arena in the play shell, its quick card, a line on the tabletop card, the registry's lattice note; the
+    `game-design` routing card names it, with its routing-eval row.
   - **Held:** the minds' duel in the page is Node's move for move (checkers and chess, `holo-page.live.test.js`); a
     capture stages attack, destroy, move in that order; a person's seat waits for them and two clicks play a move; a
     page without the key emits no block (the `holo` emit fixture pinned, every other page byte-identical).
@@ -638,7 +645,7 @@ and a ball card's on the ball. Planned, in order:
     (day, golden, dusk, night; after dark the masts and the cauldron light the field). Presets: `olympic`,
     `centre-court`, `football`, `colosseum`, `patron-dome`, `arcade`, `anime`, `municipal`, each named for the games it
     suits; any word over one moves that part alone. The look is the degree of realism: shaded, anime (banded) or
-    voxel. The manual is the `stadium` view-vocab card.
+    voxel. The manual is the `stadium` view-vocab card; the `world` routing card names it, with its routing-eval row.
   - **A game's venue** (`stadium/venue.js`): the court, the pitch, the meet, the course and the holo arena each take
     `venue`, a preset or a stadium's words. The arena's room becomes the field, its camera and its channel stay its own,
     and the bowl's camera side stands back until the camera is inside the pitch wall. Without the word an arena mints
@@ -736,6 +743,8 @@ that every contest page draws through. The arena hands it a feed (what the score
   `goalward`: struck at the goal from the attacking half; the sim's physics untouched). Golf: to par, putts, fairways,
   greens in regulation, penalties. Bowling: pinfall, strikes, spares, open frames, ball speed. A meet: time, place,
   hurdles hit, a jump's best, fouls and run-up. Inlined into each contest page and run in Node alike.
+  A net game's serve is read from the stroke that struck it, the hit just before the serve's call, so a drop serve's
+  speed counts and the rally the serve opens counts it as its first hit.
 - **The broadcast shows them** (`broadcast/`): the stats panel (`tvPanel`, head to head, the lead lit in its side's
   colour) at the sport's breaks (a tennis changeover, half time, after every hole and every third frame), the stats on
   the lower thirds that speak to them and beside each place on the results board; each contest's coverage
@@ -802,6 +811,8 @@ games (baseball, cricket).
     each new court plays in the page to the state the same match reaches in Node.
   - **Seen, said:** the minds rarely play the kitchen (they stay back), so its foul comes from a player at the pad;
     the receiver's returns on the court sim remain the weak point the tennis stats showed.
+  - **Refused:** a card's `noVolley` names a region its court lays, and its foul there is `'point'` (a free ball or a
+    warning would leave the rally dead and the match frozen).
 
 ### No flat building polygons: a building's seen edges have thickness
 
@@ -840,6 +851,7 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   the rock fabric, baked occlusion, the live light itself) `approximated`, drawn as paint, and every other input
   neutral. `eraReading(payload, era)` lists what a payload's era drew short of built, and `export_game { era }` answers
   with it (`era_marks`). A guard holds the marks to the page's own inputs: a new input is classified before it passes.
+  The contest pages' channels (versus, board, meet, court, turns, pitch, holo) are surfaces: their vertex colour is unlit.
 
 ### Geocube scenes: a place to walk, not a game, on the geocube
 

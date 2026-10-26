@@ -371,7 +371,8 @@ export function readQuick(Q) {
   if (Q.tuning !== undefined && !TUNINGS.includes(Q.tuning)) throw fail(`.tuning is ${TUNINGS.join(' or ')}`);
   if (Q.conditions !== undefined && !(Q.conditions in CONDITIONS)) throw fail(`.conditions is one of ${Object.keys(CONDITIONS).join(', ')}`);
   if (Q.pickup !== undefined && !(typeof Q.pickup === 'string' && /^[a-z][a-z-]{0,23}$/.test(Q.pickup))) throw fail('.pickup is one lower-case word (coin, key, star, gem, shell…)');
-  if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
+  // (a contest's seconds are its periods' own, read with its sport: 20 to 900)
+  if (Q.seconds !== undefined && Q.goal !== 'contest' && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   if (Q.screen !== undefined) readScreen(Q.screen, 'quick.screen');
@@ -379,7 +380,7 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
-  if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
+  if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.goal !== 'contest' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals, and a contest\'s periods');
   // the RUNNER (worlds/controllable/runner.js): its settings, and a distance that wins it (absent: endless)
   if (Q.goal !== 'runner' && Q.goal !== 'meet' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal (a meet\'s distance is its event\'s)');
   if (Q.goal === 'runner') {
