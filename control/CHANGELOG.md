@@ -445,6 +445,21 @@ that every contest page draws through. The arena hands it a feed (what the score
     contest page folds and shows them; the emit pins of the four contest pages re-pinned, every other page identical.
   - **Seen, said:** the tennis minds rarely return a serve (about seven points in ten end with the receiver never
     touching the ball, in both the realistic and the action registers): the stats show it, the sims are not retuned here.
+- **The court's surface** (`contest/match-arena.js` `COURT_SURFACES`), built: `surface: clay | hard | grass` on a court,
+  how the floor meets the ball (the physics' contact takes the lower restitution and the root of the frictions). Grass
+  keeps the ball low and lets it skid, a hard court plays true, clay grips and keeps the ball's own bounce, which is how
+  every court has played until now: a court without the word replays to the byte. A court in its stadium stands on its
+  surface, the clay a terracotta.
+- **The sports' own presets** (`contest/sport-presets.js`), built: each book sport's native presentations, a starting
+  set of its arena's words (the venue, the surface, the broadcast and the stats it leans on, the register, the rules'
+  length) laid under the words given. Tennis: grass, clay, hard, indoor, arcade. Soccer: league, derby, final,
+  five-a-side. Hockey: arena, pond. Golf: tour, arcade. Bowling: league-night, tv-final. The meet: olympic-final,
+  indoor, school-sports. Quick `preset` on the contest and meet goals, and `surface` on a net game.
+  - **Held:** a court without a surface plays as before and clay is that court; grass is lower and slicker than hard;
+    a preset lands on its arena and any word given wins over it; the refusals teach; every preset of every sport reads
+    and mints its level (`sport-presets.deep.test.js`).
+  - **Seen, said:** the surfaces move the exhibitions' points, aces and winners a little; the rallies stay short on
+    every surface while the minds rarely return a serve.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

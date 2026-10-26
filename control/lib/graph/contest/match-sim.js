@@ -49,7 +49,7 @@ export function matchContext(data) {
   if (!data || !data.C || !data.sport || !data.court) throw new Error('match: a context is { C, sport, court, register?, players?, level?, seed? }');
   const register = data.register ?? 'realistic';
   if (!MATCH_BODY[register]) throw new Error(`match: register '${register}' is one of ${MATCH_REGISTER_IDS.join(', ')}`);
-  return { C: data.C, sport: data.sport, ball: data.sport.ball, court: data.court, register, players: data.players ?? 0, level: data.level ?? 'regular', seed: data.seed ?? 1, body: MATCH_BODY[register], spread: HIT_REGISTERS[register].spread };
+  return { C: data.C, sport: data.sport, ball: data.sport.ball, court: data.court, register, players: data.players ?? 0, level: data.level ?? 'regular', seed: data.seed ?? 1, body: MATCH_BODY[register], spread: HIT_REGISTERS[register].spread, ...(data.floor ? { floor: data.floor } : {}) };
 }
 
 const signOf = (side) => (side === 'a' ? 1 : -1);          // a's "toward the net" is +y
@@ -65,7 +65,8 @@ export function newMatch(ctx) {
     gravity: ballGravity(ctx.register), seed: ctx.seed,
     bodies: [
       ballBody(ctx.ball, ctx.register, { id: 'ball', position: [0, 0, 1] }),
-      { id: 'floor', collider: 'plane', position: [0, 0, 0], normal: [0, 0, 1], mass: 0, restitution: 1, friction: 1 },
+      // (the court's surface, match-arena.js COURT_SURFACES: absent, a neutral floor, the ball's own bounce and full grip)
+      { id: 'floor', collider: 'plane', position: [0, 0, 0], normal: [0, 0, 1], mass: 0, restitution: ctx.floor ? ctx.floor.restitution : 1, friction: ctx.floor ? ctx.floor.friction : 1 },
       { id: 'net', collider: 'aabb', position: [0, 0, ctx.sport.net.height / 2], half: [c.halfW + ctx.sport.net.beyond, 0.02, ctx.sport.net.height / 2], mass: 0, restitution: 0.1, friction: 0.6 },
     ],
     forces: ballForces(ctx.ball, ctx.register, { id: 'ball' }),

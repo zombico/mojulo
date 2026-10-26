@@ -9,7 +9,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 
 /** The surfaces: a kit material (tiled in the kit's terms) or a flat colour of the sport's own. */
 export const STADIUM_SURFACES = Object.freeze({
-  grass: { material: 'grass' }, clay: { material: 'earth' }, sand: { material: 'gravel' },
+  grass: { material: 'grass' }, clay: { colour: '#c2643c' }, sand: { material: 'gravel' },   // (clay the courts' terracotta)
   hard: { colour: '#3d6fa6' }, track: { colour: '#b4553c' }, ice: { colour: '#e6eef3' }, wood: { colour: '#c69c64' }, holo: { colour: '#16233a' },
 });
 export const STADIUM_LOOKS = Object.freeze({ shaded: 'shaded', anime: 'banded', voxel: 'voxel' });

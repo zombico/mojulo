@@ -39,6 +39,16 @@ export const COURT_PAGE_MODULES = Object.freeze([
   'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/match-sim.js', 'contest/contest-stats.js', 'broadcast/broadcast.client.js', 'contest/match-arena.client.js',
 ]);
 
+/**
+ * THE COURT'S SURFACE: how the floor meets the ball (the physics' contact takes the lower restitution and the root of
+ * the frictions, worlds/physics-sim.js). Absent, the floor is neutral (the ball's own bounce and a full grip): the court
+ * as it has always played, which is the clay's. Grass skids and keeps low, a hard court plays true between them.
+ */
+export const COURT_SURFACES = Object.freeze({
+  clay: Object.freeze({ restitution: 1, friction: 1, words: 'clay: the ball grips and sits up, the rallies long' }),
+  hard: Object.freeze({ restitution: 0.72, friction: 0.7, words: 'a hard court: a true, medium-fast bounce' }),
+  grass: Object.freeze({ restitution: 0.66, friction: 0.45, words: 'grass: the ball skids and keeps low, the serve rules' }),
+});
 export const MATCH_DEFAULTS = Object.freeze({ sport: 'tennis', players: 1, register: 'realistic', level: 'regular', sets: 1, seed: 1, kit: 'island-plaza' });
 export const RUN_OFF = Object.freeze({ side: 4, end: 7 });   // metres of floor beside the lines and behind each baseline
 export const COURT_H = 9;
@@ -50,8 +60,9 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** The match's words, checked. */
 export function readMatch(spec = {}) {
-  if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title?, athletes?, broadcast?, venue? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes', 'broadcast', 'venue'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title, athletes, broadcast, venue)`);
+  if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, surface?, seed?, kit?, look?, crowd?, title?, athletes?, broadcast?, venue? }');
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'surface', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes', 'broadcast', 'venue'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, surface, seed, kit, look, crowd, title, athletes, broadcast, venue)`);
+  if (spec.surface !== undefined && !COURT_SURFACES[spec.surface]) fail(`surface '${spec.surface}' is one of ${Object.keys(COURT_SURFACES).join(', ')} (how the court plays)`);
   const M = { ...MATCH_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course, a team game on a pitch), or a net game written out`);
   try { resolveSport(M.sport, 'match'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -65,7 +76,7 @@ export function readMatch(spec = {}) {
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
   const athletes = readAthletes(M.athletes, 2, fail);   // side a's player, then side b's
   const broadcast = M.broadcast === undefined ? undefined : readBroadcast(M.broadcast, 'court');
-  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(broadcast ? { broadcast } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, ...(M.surface ? { surface: M.surface } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(broadcast ? { broadcast } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -85,7 +96,7 @@ export function matchManifest(spec = {}) {
   const camera = { name: 'broadcast', worldFraming: { cameraPosition: [0, r3(T.netY - T.halfL - 12), 7], lookAt: [0, T.netY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } };
   const channel = { court: { ...M, ...(M.title ? {} : { title }) } };
   // (in a stadium when the arena names one: its room the field, its camera its own)
-  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.sport === 'tennis' ? 'grass' : 'hard', camera, title, channel });
+  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.surface ?? (M.sport === 'tennis' ? 'grass' : 'hard'), camera, title, channel });
   return {
     kind: 'stage',
     kit: M.kit,
@@ -106,5 +117,5 @@ export function matchManifest(spec = {}) {
 export function matchArenaData(v = {}, { bodies = null } = {}) {
   const M = readMatch(v), T = matchCourt(M);
   const C = contestRead(resolveSport(M.sport, 'match').spec({ sets: M.sets }));
-  return { ...M, sport: sportDials(M.sport), C, court: T, wire: COURT_WIRE, broadcast: broadcastData(M.broadcast, { register: M.register, count: 2, kind: 'sides', where: 'court' }), ...(bodies ? { bodies } : {}) };
+  return { ...M, sport: sportDials(M.sport), C, court: T, ...(M.surface ? { floor: { restitution: COURT_SURFACES[M.surface].restitution, friction: COURT_SURFACES[M.surface].friction } } : {}), wire: COURT_WIRE, broadcast: broadcastData(M.broadcast, { register: M.register, count: 2, kind: 'sides', where: 'court' }), ...(bodies ? { bodies } : {}) };
 }

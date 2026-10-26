@@ -43,6 +43,7 @@ import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
 import { COURSE_PRESETS } from '../roads/course.js';
+import { SPORT_PRESETS } from '../contest/sport-presets.js';
 import { GENRES, genreCube } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { RIDES } from './ride.js';
@@ -350,21 +351,22 @@ const QUICK_LEVERS = {
     ...BROADCAST_LEVER,
     '  the level is the arena (contest/meet-arena.js), the referee the contest kernel: no hero, camera, climb or building',
     '  venue: <stadium preset> | { preset?, surface?, time?, bowl?, … } | false (a stage)   the stadium round it (view-vocab stadium); olympic',
+    `  preset: ${Object.keys(SPORT_PRESETS.meet).join(' | ')} (the meet's own: a venue and a broadcast)`,
     '  athletes: [{ ref } (made with create_character) | { <hero-door words> }] cycled over the slots, or false (sticks); absent,',
     '    rolled in the game\'s setting (its tradition: anime or western) in sports kit, a team\'s sides in their colours',
     '  kits: [{ colours?, pattern?: hoops | stripes | band | sleeves | yoke | sides, trim?, socks? }] the rolled athletes\' kits, cycled',
     '  athletes: \'chibi\' (a super-deformed body) | \'mascot\': rolled so, kitted as far as the shape allows; a list mixes in { mascot, kit? }',
   ],
   contest: () => [
-    '  sport: tennis (a net game: two pads, WASD + F / Space and the arrows + right Shift) | golf | bowling (a turn sport, hot-seat on one',
+    '  sport: tennis (a net game: two pads, WASD + F or the arrows + right Shift) | golf | bowling (a turn sport, hot-seat on one',
     '    pad: aim with the stick, hold to charge, release) | soccer | hockey (a team goal game: two pads in the screen\'s directions, a tap',
-    '    passes, a hold shoots); the computer takes what nobody holds.  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace',
-    '  register: realistic | action | platformer | pinball (the ball card and the body)',
-    '  tennis: sets 1..3; golf: rounds 1..3 (holes), seats 1..8; bowling: rounds 1..10 (frames), seats; soccer, hockey: periods 1..4, seconds 20..900',
-    '  a sport not in the book is WRITTEN OUT and played on its shape\'s sim: sport: { id, shape: match | turns | team, words, spec (the contest',
-    '    kernel\'s data), omits?, …the shape\'s dials }; the distilled-rulebook catalyst (get_catalyst) distills a rulebook into one',
+    '    passes, a hold shoots); the computer the rest.  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace',
+    '  register: realistic | action | platformer | pinball (the ball and the body)',
+    '  tennis: sets 1..3, surface clay | hard | grass; golf: rounds 1..3, seats 1..8; bowling: rounds 1..10, seats; soccer, hockey: periods 1..4, seconds 20..900',
+    `  preset: ${Object.entries(SPORT_PRESETS).filter(([s]) => s !== 'meet').map(([s, b]) => `${s} ${Object.keys(b).join('|')}`).join('; ')}`,
+    '  a sport not in the book: written out { id, shape: match | turns | team, words, spec, … } (get_catalyst: distilled-rulebook)',
     ...BROADCAST_LEVER,
-    '  the rules are the kernel\'s: it calls every point, out, foul and restart, never the agent',
+    '  the kernel calls every point, foul and restart (the broadcast\'s stats fold its calls)',
     '  athletes: \'chibi\' | \'mascot\' | [{ ref } | { mascot, kit? } | { hero words }] | false; absent, rolled (kits: a side\'s each)',
     '  venue: <preset> | { … } | false   the stadium (view-vocab stadium); absent, the sport\'s',
   ],

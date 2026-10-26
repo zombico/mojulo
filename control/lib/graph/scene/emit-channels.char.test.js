@@ -238,6 +238,9 @@ import { emitThreeWorld } from './scene-three.js';
 // hologram arena: the tabletop kernel and its mind from their closures and the arena's client in one block, its own
 // frame step `stepHolo`, the camera owned). Every other page is byte-identical, and a page without a `holo` key emits
 // no block.
+// Re-pinned 2026-10-26 (battle city: the court's surface): the `court` fixture re-pins for the match sim's source (the
+// floor reads the court's surface when the arena names one); a court without one plays as before. Every other page is
+// byte-identical.
 // Re-pinned 2026-10-26 (battle city: the stats): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because each
 // contest block now inlines contest/contest-stats.js (the stats folded from the sim's calls) before the broadcast client,
 // which gains the stats panel, and the page's data carries the coverage (`broadcast.stats`). Every other page is
