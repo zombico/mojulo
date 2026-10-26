@@ -849,9 +849,19 @@ colour is base × light, so the palette's colours are targets and the base colou
   island-noon gen-7 meets every law but one gen-6 shares (the sea reads lighter than the grass in both, where the
   palette asks it darker: gen-6's alpha over pale sand, gen-7's sky in it). They caught the form read's own class tones
   (cliff × 0.92, rock × 0.8) darkening the palette's stone: the classes now show the stone the palette names.
-- **Seen, said:** the sky in the gen-7 sea's reflection lifts it over its target. Still to come: gen-6 reading the same
-  light (its shading, contrast and sky), the live light's shadow falling toward the shade rather than black, and the
-  palette's own light colour on the sun. An unseeded cube's payload is byte for byte as it was (nothing reads the
+- **The sun takes the palette's light** (`era/geocube.js` `light.sun: { color }`): a solved day palette writes its light as
+  its sun's colour, as a night's is its moon's (the reference keeps the sun's arc and strength); a cube may write it; the
+  cube's light reads it as the sun's hue. An unseeded cube has none and reads as before.
+- **The sea, a mirror over a body** (`color-theorist/light.js` `solveMirror`): what is seen is the sky it reflects
+  (Fresnel at the eye's angle down onto it, F0 0.04) and its body under the light, through its alpha; the body is solved
+  so the palette's sea is what is seen from a view, and where the sky reflected already outshines the target the solve
+  says so. The island's sea is one surface (its clearcoat, a second reflection, gone), solved from the island camera's
+  14°: gen-7's sea now reads as gen-6's (#74bee4 for #77b7d4), both lighter than the palette's #3a9cc6, which a calm sea
+  reflecting that sky cannot show from so low (the sky alone outshines it in red): the seen law says so in both eras.
+- **Seen, said:** the shallows' pale ring is gen-6's and not yet gen-7's (the sand under the shallows reads dark through
+  the sea), the stepped floor under them shows through as streaks near the shore, and the cliffs' shadows on the sea
+  fall a dark navy (no light scattered in the water). Still to come: gen-6 reading the same
+  light (its shading, contrast and sky). An unseeded cube's payload is byte for byte as it was (nothing reads the
   light yet).
 
 ### Gen 7: form, not light

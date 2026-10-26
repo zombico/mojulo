@@ -4,8 +4,10 @@
  *
  *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
  *             thick the outside's air is against the reference's (`outsideFog`), the inside's `shadows` (the
- *             stage's: torch, sun, cells; the gen-6 upgrades by default), and the outside's `sky` (zenith, horizon,
- *             fog; the reference's dome and fog colour where it names none)
+ *             stage's: torch, sun, cells; the gen-6 upgrades by default), the outside's `sky` (zenith, horizon,
+ *             fog; the reference's dome and fog colour where it names none), and the `sun`'s colour (`{ color }`: a
+ *             solved day palette's light; the reference keeps the sun's arc and strength; era/cube-light.js reads it
+ *             as the hue the palette's light is solved in, the hour's key where it is absent)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
@@ -435,7 +437,8 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun'], 'light');
+  if (c.light.sun !== undefined && !(isObj(c.light.sun) && Object.keys(c.light.sun).every((k) => k === 'color') && HEX.test(c.light.sun.color ?? ''))) no('light.sun is { color: \'#rrggbb\' }: the sun\'s colour (its arc and strength are the reference\'s)');
   c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   const ref = SIXTH_GEN_REFERENCES[resolveLook(c.light.reference)];
@@ -591,6 +594,8 @@ function solveInto(c, P, ref) {
   c.colour = { ...colour, ...c.colour };
   c.register = { ...c.register, key: c.register.key ?? S.key };
   if (c.light.moon) c.light.moon = { ...c.light.moon, color: c.light.moon.color ?? S.moon };
+  // (a day palette's light is its sun's colour, as a night's is its moon's)
+  if (!night) c.light.sun = { color: c.light.sun?.color ?? S.moon };
   c.light.sky ??= night ? { zenith: atValueOf(S.sky.zenith, dome.zenith), horizon: atValueOf(S.sky.horizon, dome.horizon), fog: atValueOf(S.sky.fog, hexToRgb(ref.air.fog.color)) } : S.sky;
   c.why = [...c.why, `Its colours are the color theorist's (${K.id}): ${K.read.says}, in a ${K.read.key} key.`,
     ...(K.read.moonlit ? ['The moon is the cool light and the dark is warm: a cold night inverts the palette.'] : [])];

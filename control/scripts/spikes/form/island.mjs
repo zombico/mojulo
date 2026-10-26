@@ -19,6 +19,7 @@ register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href,
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { readGeocube, GEOCUBE_PALETTES } = await import('../../../lib/graph/era/geocube.js');
 const { cubeLight } = await import('../../../lib/graph/era/cube-light.js');
+const { solveMirror, seen, decodeSrgb, encodeSrgb } = await import('../../../lib/graph/color-theorist/light.js');
 const { landForm, LAND_CLASSES, DEEP_FADE } = await import('../../../lib/graph/form/land-form.js');
 const { b64, safeJson, CDN_IMPORTMAP, inlineImportmap } = await import('../../../lib/graph/scene/emit-util.js');
 
@@ -29,7 +30,18 @@ const cube = seed === undefined ? id : { from: id, palette: { ...GEOCUBE_PALETTE
 
 const { payload: P } = await resolveWorldScene({ title: 'island', manifest: { kind: 'geocube', cube, show: 'land' } }, {});
 const C = readGeocube(cube), light = cubeLight(C), sun = light.sun.dir;
-const L = landForm(P.faces, light.bases, { seed: 1 });
+// THE SEA, a mirror over a body: from the island camera's view down onto it, the palette's sea colour is what the sky it
+// reflects (the dome at that angle, as the page draws it) and its body under the light show together, the floor under
+// it showing through its alpha (the deep water's colour, itself the body darkened: solved twice)
+const isleCam = P.cameras.find((c) => c.name === 'island').worldFraming, [cx, cy, cz] = isleCam.cameraPosition, [lx, ly, lz] = isleCam.lookAt;
+const view = (Math.atan2(cz - lz, Math.hypot(cx - lx, cy - ly)) * 180) / Math.PI, up = Math.sin((view * Math.PI) / 180) ** 0.6;
+const lin = (c) => c.map((v) => decodeSrgb(v / 255)), hexL = (c) => '#' + c.map((v) => Math.round(encodeSrgb(Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
+const sees = hexL(lin(P.sky.horizon).map((v, k) => v * (1 - up) + lin(P.sky.zenith)[k] * up));
+const at = { ambient: light.ambient.linear, sun: light.sun.linear }, mirror = (under) => solveMirror({ target: C.colour.water, sees, view, light: at, cos: sun[2], alpha: 0.9, under });
+let water = mirror('#000000');
+water = mirror(seen(water.base.map((v) => v * 0.4), at, 0));
+const bases = { ...light.bases, water: hexL(water.base) };
+const L = landForm(P.faces, bases, { seed: 1 });
 
 // faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours
 // and the gate's bucket: 1 a cliff turned to the hour's sun, 2 one turned away, 3 wet sand, 4 dry sand
@@ -74,7 +86,8 @@ const data = {
   seabed: { x: [Math.min(...seaX), Math.max(...seaX)], y: [Math.min(...seaY), Math.max(...seaY)], z: L.waterZ - DEEP_FADE - 1 },
   classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
   cameras: [...P.cameras.map((c) => ({ name: c.name, ...c.worldFraming })), shore], shoreSun, ranges,
-  light: { sun: light.sun.linear, ambient: light.ambient.linear, swatches: ['stone', 'grass', 'sand', 'floor', 'water'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
+  light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { view: Math.round(view * 10) / 10, fresnel: water.fresnel, sees, base: bases.water, target: C.colour.water, ...(water.unreached ? { unreached: true } : {}) },
+    swatches: ['stone', 'grass', 'sand', 'floor'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
   pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)), sid: b64(Uint8Array.from(sid)), seenRoles: SEEN_ROLES,
   palette: { sky: light.ambient.color, targets: Object.fromEntries(SEEN_ROLES.map((r) => [r, { lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade }])) },
 };
@@ -156,7 +169,7 @@ sunLight.target.position.copy(mid); seven.add(sunLight, sunLight.target);
 for (const R of D.ranges) {
   const water = R.key === 'water';
   const m = water
-    ? new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.04, envMap: skyEnv, envMapIntensity: 1.2 })
+    ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
     : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, flatShading: true, side: THREE.DoubleSide });
   const g = part(R, C7); if (water) g.computeVertexNormals();   // (the land is shaded flat, its normals the faces'; the sea's are its own)
   const mesh = new THREE.Mesh(g, m); mesh.castShadow = !water; mesh.receiveShadow = true; seven.add(mesh);

@@ -15,6 +15,11 @@
  *     palette gets a bright light, a dark one a dim one. A base channel that would pass 1 is a colour this sun cannot
  *     reach: held at 1 and named (`unreached`, its wanted base), advice never a refusal
  *   seen(base, light, cos)   the display colour a base shows under the light at cos θ to the sun (0: the sky alone)
+ *   solveMirror({ target, sees, view, light, cos, alpha?, under? }) → { base, fresnel, unreached? }   a surface that is a
+ *     mirror over a body (water): what is seen is alpha × (F × the sky it reflects + (1 − F) × body × light) + (1 − alpha)
+ *     × what shows under it, F the Fresnel reflectance at `view` (degrees the eye looks down onto it; Schlick, F0 0.04 as a
+ *     renderer's dielectric). The body is solved so the palette's colour is what is seen from there; a sky brighter than
+ *     the target in a channel leaves the body nothing to give (held at 0, `unreached`)
  *   toneNeutral(rgb) / untoneNeutral(rgb) / displayToLinear(hex)   the renderer's tone curve (Khronos PBR neutral, as
  *     three's NeutralToneMapping at exposure 1), its inverse, and a display colour taken back through sRGB and the curve
  *
@@ -76,4 +81,14 @@ export function solveLight({ targets, sky, sun, contrast }) {
     brightest: roles.filter((r) => luminance(want[r]) >= BASE_MAX - 1e-9),
     unreached: Object.fromEntries(roles.filter((r) => Math.max(...want[r]) > REACH).map((r) => [r, want[r]])),
   };
+}
+
+/** Schlick's Fresnel reflectance at `view` degrees down onto a surface (its angle from the normal is 90° − view). */
+export const fresnelAt = (view, f0 = 0.04) => f0 + (1 - f0) * (1 - Math.sin((Math.max(0.5, view) * Math.PI) / 180)) ** 5;
+
+export function solveMirror({ target, sees, view, light, cos = 1, alpha = 1, under = '#000000' }) {
+  const F = fresnelAt(view), T = displayToLinear(target), R = rgbOf(sees).map(decodeSrgb), U = rgbOf(under).map(decodeSrgb);
+  const lit = light.ambient.map((a, k) => a + light.sun[k] * Math.max(0, cos));
+  const want = T.map((t, k) => ((t - (1 - alpha) * U[k]) / alpha - F * R[k]) / ((1 - F) * lit[k]));
+  return { base: want.map((v) => clamp(v, 0, 1)), fresnel: Math.round(F * 1e4) / 1e4, ...(want.some((v) => v < 0 || v > REACH) ? { unreached: want } : {}) };
 }
