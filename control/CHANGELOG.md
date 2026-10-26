@@ -851,7 +851,6 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   the rock fabric, baked occlusion, the live light itself) `approximated`, drawn as paint, and every other input
   neutral. `eraReading(payload, era)` lists what a payload's era drew short of built, and `export_game { era }` answers
   with it (`era_marks`). A guard holds the marks to the page's own inputs: a new input is classified before it passes.
-  The contest pages' channels (versus, board, meet, court, turns, pitch, holo) are surfaces: their vertex colour is unlit.
 - **The first material: relief read as an engine reads it** (`form/relief-material.js`). A dressed face's relief (the
   height field the matte painter already builds) read into glTF's metal-rough set: base colour (the paint's colour pass
   under no light), a tangent-space normal from its slope (the glTF / OpenGL convention), occlusion from its hollows and
