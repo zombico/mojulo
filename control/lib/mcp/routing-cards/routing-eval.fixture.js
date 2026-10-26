@@ -45,6 +45,7 @@ export const FIXTURE = [
   // a scene: a place to walk with nobody in it and nothing to play, the geocube's path
   ['Create a walkable scene of a colorful grassy field in the daytime', 'create_sketch', 'path'],
   ['just a quiet forest trail I can wander down, no game, nobody else there', 'create_sketch', 'path'],
+  ['let me stroll along a sandy beach by the sea, nothing to do there, just the place', 'create_sketch', 'path'],
   // game buildings: a building's rooms laid from its use, in a cube's look
   ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],

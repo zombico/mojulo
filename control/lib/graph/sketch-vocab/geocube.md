@@ -12,11 +12,19 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 
 ## The ingredients
 
-- **Terrains** (`outside.terrains: { <name>: { reads?, base?, tiers?, island?, land?, relief?, ground?, crystals?, cliff?, colour? } }`):
+- **Terrains** (`outside.terrains: { <name>: { reads?, base?, tiers?, island?, land?, relief?, ground?, crystals?, cliff?, water?, colour? } }`):
   a whole land each, or a few changes to the cube's own (named by `outside.terrain`, `default` unless named).
 - **The far cliff** (`outside.cliff`): the cliff its trails break into (a trail's `ground.cliff`: `{ height?, face?, bed?,
   dip?, joint?, pattern? }`), or `false`: none, the land open on both sides of every trail the cube paints (a field, a
   plain), a scene's path and a game's levels alike; a trail that names its own cliff keeps it, a terrain may name its own.
+- **Water** (`outside.water: { lake?, coast?, river?, falls? }`, each `true` or its settings): cut into the land of every
+  trail the cube paints (a trail's `ground.water`), drawn in the cube's `colour.water`. `lake { side?, at?, size?, depth? }`
+  a basin beside the walk, a sand shore round it; `coast { beach?, depth? }` the open side falling through a beach to
+  the sea, out to the horizon; `river { side?, width?, off?, depth? }` beside the walk (the far side unless named),
+  falling with the land; `falls { at?, width? }` off the far cliff into a pool, the crossing's stream rising from it (a
+  cube with `cliff: false` has none to fall from). `side` 'open' or 'far'; the coast takes the open side. A trail's own
+  form wins, its `water: false` refuses the cube's; each body is an anchor and a water hazard, and adds a still
+  (`lake`, `shore`, `river`, `falls`).
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),
@@ -74,8 +82,11 @@ A cube that names no domains offers one per terrain and one per interior.
   or down a sidewalk; `show: 'path'` the way through its land (a trail stage on the cube's terrain), no town and nobody on it, walked by
   the stand-in and seen from its overlook: a place to walk, not a game (`seed`, `biocube`, `path`, `hour`, `clouds`
   as the other shows; the cube's `snow`; its own `trail` recipe: dials, ground, rocks). A scene asked in words: `words`
-  ('a colorful grassy field in the daytime') read at mint into `cube`, `show: 'path'`, `hour`, `clouds` and `trail` by
-  the game's own word table (gameworld/scene-words.js), each key written beside them kept; `brief` says what each word
+  ('a colorful grassy field in the daytime') read at mint into `cube`, `show: 'path'`, `hour`, `clouds`, `trail` and
+  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; desert,
+  alpine, coast a biome, its flora, ground and palette's character; the painted landscape's glyph words, each card's
+  numbers read onto the cube, a splatch as the palette's axes, never its colours), each key written beside them kept;
+  `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word
   decided; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`

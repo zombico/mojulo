@@ -15,6 +15,7 @@
  * Pure: the same dials and edits build the same ground.
  */
 import { JOINT_PATTERNS } from '../polygonizer/landform.js';
+import { readWater } from './out-water.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -30,6 +31,7 @@ export const GROUND_DIALS = Object.freeze({
   shapes: '{ reveal?, landmark?, pinch?, crossing? }: each beat\'s { share?, reach? }: how much of the amplitude (a crest) or the depth (a dip) it takes, and how far it reaches in metres',
   cliff: '{ height?, face?, bed?, dip?, joint?, pattern? } | false: the kit\'s cliff down the far side (false: none, the land open on both sides of the trail): metres of throw, the face in degrees, its beds\' thickness in metres and their tilt in degrees, its joints\' spacing in metres and their pattern (blocky, columnar, slabby)',
   edits: 'the ground shaped by hand: a list of raise, lower, flatten, cliff, gorge, ridge',
+  water: '{ lake?, coast?, river?, falls? } | false: the water cut into the land (era/out-water.js): a lake beside the walk, the open side falling to the sea, a river beside the walk, water off the far cliff; false: none',
 });
 /** Each beat's shape on the heartbeat: its share of the amplitude (a crest) or the depth (a dip), and its reach (m).
  *  A reveal climbs over `reach` to its crest and falls 0.7 of it again over `fall`. */
@@ -110,6 +112,9 @@ export function readGround(g, at = 'trail.ground') {
     if (g.cliff.pattern !== undefined && !JOINT_PATTERNS[g.cliff.pattern]) throw new Error(`stage: ${at}.cliff.pattern is one of ${Object.keys(JOINT_PATTERNS).join(', ')}`);
   }
   const edits = g.edits === undefined ? undefined : readEdits(g.edits, `${at}.edits`);
+  // (the water, era/out-water.js: a fall wants the far cliff it falls from)
+  const water = readWater(g.water, `${at}.water`);
+  if (water?.falls && g.cliff === false) throw new Error(`stage: ${at}.water.falls drop off the far cliff: a trail with no cliff (cliff: false) has none to fall from`);
   return { ...g, ...(edits ? { edits } : {}) };
 }
 
@@ -188,6 +193,8 @@ export function groundOf(T, C) {
     // (false: no far cliff, the land open on both sides; out-trail.js siteOf)
     cliff: g.cliff === false ? false : g.cliff || {},
     edits: g.edits || [],
+    // (the water cut into the land, era/out-water.js: none when absent or false)
+    ...(g.water ? { water: readWater(g.water) } : {}),
   };
 }
 

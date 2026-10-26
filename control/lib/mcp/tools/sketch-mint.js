@@ -335,7 +335,7 @@ function newTrailSeed(m, ref, existing) {
 /** A scene asked in words (the geocube kind's `words`): read into its keys (gameworld/scene-words.js), each one the
  * recipe does not write itself. On an edit, new words read again: a key the edit left as the words had written it is
  * the new words', one the edit changed is the edit's. The same words are not read again: the keys stand as edited. */
-const SCENE_KEYS = ['cube', 'show', 'hour', 'clouds', 'trail'];
+const SCENE_KEYS = ['cube', 'show', 'hour', 'clouds', 'trail', 'camera'];
 function expandSceneWords(m, existing) {
   if (m?.kind !== 'geocube' || m.words === undefined) return m;
   if (existing?.kind === 'geocube' && existing.words === m.words) return m;

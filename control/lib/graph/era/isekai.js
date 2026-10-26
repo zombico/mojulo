@@ -51,6 +51,7 @@ import { grassLadder } from '../vegetation/grass.js';
 import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
 import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
+import { waterCameras, beachOf } from './out-water.js';
 import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP, SOLID_GROUP } from './ikebana-place.js';
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
@@ -434,6 +435,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // bedrock's pavement — and the talus as loose stone, no grass on either; no formation, nothing changes)
   const GF = SH ? formationGround(st, site, SH, seed, broken) : null, onSand0 = GF?.bare ?? null, SA = GF?.to === 'sand' && GF.cells.length ? GF : null;
   if (GF) ground.faces = ground.faces.flatMap((f) => (f.cel ? [f] : GF.cut(f)));
+  // (the WATER's shores, era/out-water.js: a lake's, a beach, a river's shingle, cut as sand along their line; no water,
+  // nothing changes)
+  const WS = site.water ?? null;
+  if (WS) ground.faces = ground.faces.flatMap((f) => (f.cel ? [f] : cutFace(f, f.corners.map((c) => WS.sand(c[0], c[1], c[2])), 'isekai:sand').map((q) => (q.group === 'isekai:sand' ? { ...q, tint: st.tint.trail } : q))));
   // (the SNOW over it, era/snow.js: the lying ground cut where its field crosses, a cliff's ledge level enough to hold
   // it whole; the trail's ribbon kept, walked bare)
   const zLow = SN ? site.grid.z.reduce((a, v) => Math.min(a, v), Infinity) : 0, SF = SN ? snowField(SN, { base: zLow, sun: dir, seed }) : null;
@@ -441,7 +446,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (SF) ground.faces = ground.faces.flatMap((f) => snowOn(f, SF));
   // (no grass on the sand, the bare rock or the talus; in the snow, the share its depth leaves standing, grassUnder)
   const under = SN ? grassUnder(SN) : 1, inSnow = SF && under < 1 ? (p) => snowAt(p) && hash3(Math.round(p[0] * 4), Math.round(p[1] * 4), seed + 1823) >= under : null;
-  const onSand = inSnow ? (p) => !!onSand0?.(p) || inSnow(p) : onSand0;
+  const onSand1 = inSnow ? (p) => !!onSand0?.(p) || inSnow(p) : onSand0;
+  // (and none in the water or on its shores)
+  const onSand = WS ? (p) => WS.bare(p[0], p[1]) || !!onSand1?.(p) : onSand1;
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // (the TRAIL under snow: its fringe the snow's, its path trodden snow, packed and greyed, the soil showing through
@@ -556,7 +563,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (the polygon land: the rock untiled, lit with the land below; its albedo the rock ramp's middle, as the island's; the
   // talus apron is ground, as the island's is)
   const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
-  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(GF ? FORMATION_TINTS(st, mid) : {}), ...(SN ? { 'isekai:snow': snowAlbedo(st.palette.snow) } : {}) } : null;
+  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(WS ? { 'isekai:sand': mid(st.palette.sand ?? st.palette.soil) } : {}), ...(GF ? FORMATION_TINTS(st, mid) : {}), ...(SN ? { 'isekai:snow': snowAlbedo(st.palette.snow) } : {}) } : null;
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
   // (on a polygon land the grass is a biocube's: the island grows none of its own; with it, a boulder big enough wears
   // its hat again, its top the ground's)
@@ -631,13 +638,15 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   // the SAND dressed (era/strand.js): pebbles in drifts and driftwood lying on it, dune grass in clumps (no shells: no
   // shore inland); each piece a stop up where the sun reaches it, and cast nothing
-  if (SA) {
-    for (const p of strewStrand(st, { cells: SA.cells, cell: SA.cell, heightAt: site.ground, seed, grit: broken, keep, on: SA.at })) {
+  // (and a coast's beach, era/out-water.js: its shells along the tide line)
+  const SB = SA ?? (WS?.coast ? beachOf(site) : null);
+  if (SB) {
+    for (const p of strewStrand(st, { cells: SB.cells, cell: SB.cell, heightAt: site.ground, seed, grit: broken, keep, on: SB.at, ...(SB.shore ? { shore: SB.shore } : {}) })) {
       const isLit = lit([p.at[0], p.at[1], site.ground(p.at[0], p.at[1]) + 0.15], [0, 0, 1]);
       for (const { part: _p, value: _v, ...f } of p.faces) cel.push({ ...f, fill: rgbHex(strandFill(st, { part: _p, value: _v }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
     }
     const avoid = [...rocks.filter((r) => r.role !== 'pebble').map((r) => ({ x: r.x, y: r.y, r: r.size * st.rubble.unit * 0.6 })), ...near.map((t) => ({ x: t.x, y: t.y, r: 0.6 }))];
-    const dune = duneGrass(st, { cells: SA.cells, cell: SA.cell, heightAt: site.ground, seed, keep, avoid, on: SA.at });
+    const dune = duneGrass(st, { cells: SB.cells, cell: SB.cell, heightAt: site.ground, seed, keep, avoid, on: SB.at });
     for (const { rgb, ...f } of duneGrassFaces(st, dune, (p) => lit(p, [0, 0, 1]), site.inRadius)) cel.push({ ...f, fill: rgbHex(rgb.map((v) => v / 255)) });
   }
   // the ROCK GROUND grown (era/rock-flora.js): lichen on a formation's pavement, its boulders' and stones' caps and its
@@ -729,7 +738,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       cel.push({ ...f, texture: `isekai:${st.id}:${tile}-s${k}`, fill: rgbHex(ramp[k].map((v) => v / 255)), group: band === 'bleed' ? 'isekai:trail' : 'isekai:ground', doubleSided: true });
     });
   }
-  const ridges = layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null);
+  const ridges = layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir, !!broken)) cel.push(f);
   // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
   // the bare ground, then the ribbon's lanes in order, then the rock. A paved trail, era/trail-dress.js `surface`, leans
@@ -804,7 +813,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],
     cameras: [manifest.camera || (site.out ? outTrailCamera(site) : { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }),
-      { name: over ? 'overlook' : 'cliff-top', worldFraming: { cameraPosition: (over ?? lip).map(r5), lookAt: [site.W * 0.75, Fr.top.lookY, site.ground(site.W * 0.75, Fr.top.lookY)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }, ...heroCam],
+      { name: over ? 'overlook' : 'cliff-top', worldFraming: { cameraPosition: (over ?? lip).map(r5), lookAt: [site.W * 0.75, Fr.top.lookY, site.ground(site.W * 0.75, Fr.top.lookY)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }, ...heroCam, ...waterCameras(site)],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
@@ -895,7 +904,10 @@ function glowFaces(faces, Gl, trees, st) {
  * The far LAYERS: rings of standing panels round the site's centre, each a stop of the far ramp (its own colour: the
  * haze is thin and does not make the depth), its skyline a ridged noise round the ring — peaks, not lumps.
  */
-export function layerFaces(st, site, dir = [0, 0, 1], snow = null) {
+// a coast's sea side: the far layers sink into the sea toward it (1 inland, 0 seaward), so the sea runs on to the
+// horizon (out-water.js)
+const SEAWARD = (a) => 1 - smooth(0.02, 0.32, Math.cos(a));
+export function layerFaces(st, site, dir = [0, 0, 1], snow = null, seaward = null) {
   const out = [], c = [site.W / 2, site.D / 2], base = Math.hypot(site.W, site.D) / 2, far = st.palette.far;
   const hexOf = (stop) => rgbHex(stop.map((v) => v / 255));
   // where a ray from the centre leaves the site's ground (the landform grid's rectangle), a little inside it
@@ -906,10 +918,13 @@ export function layerFaces(st, site, dir = [0, 0, 1], snow = null) {
   };
   st.layers.forEach((L, li) => {
     const R = base + L.at, n = Math.max(64, Math.round((2 * Math.PI * R) / 6)), fill = hexOf(far[L.stop]);
-    const sky = (k) => { const a = (2 * Math.PI * k) / n, q = vnoise(Math.cos(a) * L.peaks + 9, Math.sin(a) * L.peaks + li * 7, 917 + li), ridged = 1 - Math.abs(2 * q - 1); return mix(L.height[0], L.height[1], ridged * ridged); };
+    const sky0 = (k) => { const a = (2 * Math.PI * k) / n, q = vnoise(Math.cos(a) * L.peaks + 9, Math.sin(a) * L.peaks + li * 7, 917 + li), ridged = 1 - Math.abs(2 * q - 1); return mix(L.height[0], L.height[1], ridged * ridged); };
+    // (toward a coast's sea the skyline sinks under it)
+    const sky = seaward ? (k) => { const f = seaward((2 * Math.PI * k) / n); return f === 1 ? sky0(k) : -20 + (sky0(k) + 20) * f; } : sky0;
     const at = (k, z) => { const a = (2 * Math.PI * k) / n; return [c[0] + Math.cos(a) * R, c[1] + Math.sin(a) * R, z]; };
     for (let k = 0; k < n; k++) {
       const a = (2 * Math.PI * (k + 0.5)) / n, nn = [-Math.cos(a), -Math.sin(a), 0].map(r5);
+      if (seaward && seaward((2 * Math.PI * k) / n) === 0 && seaward((2 * Math.PI * (k + 1)) / n) === 0) continue;
       if (!L.skirt) {
         // (under SNOW, era/snow.js: the ridge white over its line, hazed into the layer's far stop; the line wandering
         // down the gullies, and over the whole ridge without one but its foot)
@@ -937,6 +952,7 @@ export function layerFaces(st, site, dir = [0, 0, 1], snow = null) {
         const h = (q) => hash3(ci, q, 1409 + li), k0 = n * (ci + 0.7 * (h(1) - 0.5)) / Cl.n, m = Cl.trees[0] + Math.floor(h(2) * (Cl.trees[1] - Cl.trees[0] + 1));
         for (let ti = 0; ti < m; ti++) {
           const kk = k0 + (h(10 + ti) - 0.5) * Cl.spread, t = mix(Cl.band[0], Cl.band[1], h(30 + ti)), foot = pt(kk, t), r = mix(Cl.size[0], Cl.size[1], h(50 + ti));
+          if (seaward && seaward((2 * Math.PI * kk) / n) < 0.5) continue;
           for (const b of [[0, 0, 1.1], [0.45, 0.2, 0.75], [-0.4, -0.25, 0.8]]) for (const tri of blobTris([foot[0] + b[0] * r, foot[1] + b[1] * r, foot[2] + r * 0.45 * b[2]], [r * b[2] * 0.6, r * b[2] * 0.6, r * b[2] * 0.5], null)) {
             const cs = tri.p.map(P), nn = facetN(cs, [cs[0][0] - foot[0], cs[0][1] - foot[1], cs[0][2] - foot[2] - r * 0.6]);
             // (in a bare season the far woods are their wood, the bark's stops: a grey-brown haze of limbs)

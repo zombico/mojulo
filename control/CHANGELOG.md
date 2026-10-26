@@ -71,6 +71,32 @@ so a game's levels on the cube get it too.
   take them; one that says none composes as before.
 - **The palette** of a scene's cube: `cube.palette: { heat, weight, activity }` (pick_palette's axes) over the cube's own
   character, solved by the color theorist and checked by the cube's laws, as any cube's.
+- **Water on the cube's land** (`outside.water`, a terrain's own, a trail's `ground.water`): a lake beside the walk (a
+  basin off it, its water just under the lowest of its shore, a sand shore round it); a coast (the open side runs on
+  past the site's edge and falls through a beach to the sea, which runs to the horizon, the far ridges sinking under it
+  on that side, shells and driftwood on the beach); a river beside the walk (its channel cut, its water falling with the
+  land and climbing no more than a step, shingle on its banks); the falls (a brook along the cliff top, the fall down
+  the face in white water, a pool at its foot, the crossing's stream rising from it). Cut after the walk is laid, so no
+  water moves the walk; drawn in the cube's `colour.water`, a surface, not physics. Laid on every trail the cube paints,
+  a game's levels as well as a scene's path; a trail's own form wins and its `water: false` refuses the cube's. Each body
+  is an anchor and a water hazard on its trail and adds a still (`lake`, `shore`, `river`, `falls`). No grass, tree or
+  boulder stands in it. A trail with none builds as before, to the byte.
+- **The falls draw**: a land's `landmark: falls` (waterfall, falls, cascade) was a named gap since the land merge; it
+  now lowers onto the trail's `ground.water.falls`. A fall keeps the cliff it drops from: an open word gives way to it.
+- **Biomes**: coast, alpine and desert, each a biocube preset (low wind-bent trees and marram; conifer stands, short
+  grass and a few flowers; a lone low tree and sparse needlegrass) and, laid on a cube by its word, the color theorist's
+  own preset for such a place as the palette's character (coastal-noon, alpine-dawn, desert-haze), a desert's sandstone
+  ground weathering to sand, a coast's sea.
+- **New words**, read by a game and a scene alike: lake, lakeside, pond, tarn; beach, ocean, shore, sea (the coast's
+  water); coast, coastal, seaside (the coast biome); river, riverside, stream, brook, creek; cascade; alpine, desert,
+  dunes, arid (their biomes); pine, conifer, spruce, fir (conifer stands on the meadow). A world that says none composes
+  as before.
+- **The painted landscape's glyphs as words**: each glyph card's aliases are read where the shared table reads nothing,
+  and what a card decides is derived from its own numbers: a heartbeat the trail's heartbeat and bumpiness, a scene the
+  cube's flora (conifer stands, a grove or a meadow, an upland with its rocks), a sky the hour and the land's cloud form,
+  a splatch the palette's character as the theorist's axes (heat, weight, activity) read off its seeds, never its
+  colours, and a camera the still the geocube kind is first seen from (the kind's new `camera`: low, overhead, wide,
+  close; a scene's, never a game's). Aliases a sentence uses for other things (water, open, warm…) are no glyph's.
 
 ### Normal bake: the realistic head's relief from its own field, in the engine export
 

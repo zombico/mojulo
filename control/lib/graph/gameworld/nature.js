@@ -111,7 +111,8 @@ const makesOf = (f, v) => LAND_FORMS[f].makes[Object.keys(LAND_FORMS[f].variants
  *   strata     the trail cliff's beds (`ground.cliff.bed`; `dip` when tilted); graded, folded, unconformity are gaps
  *   face       the trail cliff's joints (`ground.cliff.joint`; `pattern` columnar, blocky, slabby); fluted, crag are gaps
  *   cloud      the level's sky (`clouds`, on every stage its geocube paints); lenticular, and a level no cube paints, gaps
- *   landmark   the trail's landmark stone (`rocks.landmark`, a monolith's height); any other landmark, and company, gaps
+ *   landmark   the trail's landmark stone (`rocks.landmark`, a monolith's height); falls, water off its far cliff
+ *              (`ground.water.falls`, era/out-water.js); any other landmark, and company, gaps
  * A climb draws the landscape and the cloud; the rest stand on a trail (a climb's few boulders round its foot are its own). `seed` rolls each variant's dials (out-land.js
  * landDials); `painted`: a geocube paints the level; `sections`: which of trail and meru its walk has; `trail`: the trail
  * settings the style hands down (a bumpiness named there keeps the mounds' height).
@@ -154,7 +155,9 @@ export function landToLevel(kit, land = {}, { seed = 1, painted = false, section
     } else if (f === 'landmark') {
       // (a monolith's height, its place on its rail, laid on the trail's own landmark stone: its sizes, at its card's rock unit)
       if (own.variant === 'monolith') { const rail = LAND_FORMS.landmark.variants.monolith.height, S = OUT_TRAIL.landmark.sizes, t = within((dials(f).height - rail[0]) / (rail[1] - rail[0]), 0, 1); rocks().landmark = r2(landmarkStands(cardOf(kit), S[0] + (S[S.length - 1] - S[0]) * t)); if (onTrail) became.push(`the trail's landmark stone, ${trail.rocks.landmark} m tall (trail.rocks.landmark)`); }
-      else if (own.variant === 'falls') gaps.push('falls: not drawn; no water falls from a cliff on a walk (its only water is a crossing\'s stream, fording flat ground); the trail keeps its landmark stone');
+      // (falls: water off the trail's far cliff, era/out-water.js: a brook to the lip, the fall, a pool at its foot, the
+      // crossing's stream rising from it)
+      else if (own.variant === 'falls') { ground().water = { ...(ground().water ?? {}), falls: true }; if (onTrail) became.push('water falling off the trail\'s far cliff into a pool at its foot (trail.ground.water.falls)'); }
       else if (own.variant !== undefined) gaps.push(`${own.variant}: not drawn; the trail keeps its landmark stone`);
       if (own.many !== undefined && dials(f, own.many).satellites > 0) gaps.push(`${o.word}: the landmark stands alone, its company not drawn`);
     }
