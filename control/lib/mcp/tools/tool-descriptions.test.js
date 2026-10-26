@@ -415,7 +415,9 @@ const DESCRIPTION_ALLOWLIST = {
 // pick_palette's `values` (value groups, the land in two or three masses of value), one schema property. No new tool.
 // Held 2026-10-25 at 212_000 (measured 211,919) merging 1024-geocube-composition-update over 1023-consolidated: both
 // lines' additions together fit under the pin. No new tool.
-const PAYLOAD_CEILING = 212_000;
+// Raised 2026-10-26 on 1026-gen7-form (212_000 -> 212_300; measured 212,161) for the era as a render: export_game's
+// `era` (the same game's pages drawn in another era than its cube's), one schema property. No new tool.
+const PAYLOAD_CEILING = 212_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
