@@ -29,7 +29,7 @@ import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport,
+  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
@@ -238,6 +238,12 @@ async function runWorld(ref, world, { force = false } = {}) {
 }
 
 /** Each part's stamp, the steps, what was made, and what to do next. */
+// a world that names land (its style's or a level's): what of it no stage draws, as advice; a world the reader refuses
+// says so elsewhere, so here it says nothing
+const landGapsOf = (world) => {
+  if (!world.style?.land && !Object.values(world.levels ?? {}).some((l) => l?.style?.land)) return [];
+  try { return landAdvice(world); } catch { return []; }
+};
 function readout(ref, world, context = {}) {
   const lookup = world.characters ? heroLookup(heroRefOf(world, ref)) : undefined;
   // a hero edited by hand since the run has moved past its pinned base: said on the base's part, never refused
@@ -312,7 +318,9 @@ function readout(ref, world, context = {}) {
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
-  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
+  // the land its levels cannot draw (gameworld/nature.js landToLevel): each gap, and the levels it is one on
+  const landGaps = landGapsOf(world);
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }

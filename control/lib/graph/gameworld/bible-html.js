@@ -277,6 +277,20 @@ export function gameworldBibleHtml(world) {
   const groundOf = (k) => order.filter((id) => built[id].R.style.kit === k).map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join(', ') || 'no level yet';
   // each kit's land as the world (or the first level drawn in it) chose it
   const landOfKitHere = (k) => { const at = order.find((id) => built[id].R.style.kit === k); return landFor(k, (at ? built[at].R.style.land : G.style.land) || {}); };
+  // what each form the land names became in the levels drawn in the kit (nature.js landToLevel), and each gap: a level
+  // that names no land of its own says nothing
+  const inLevels = (k) => {
+    // (the levels that say the same of a form share one line)
+    const rows = new Map();
+    for (const id of order.filter((x) => built[x].R.style.kit === k && built[x].R.land)) for (const [f, o] of Object.entries(built[id].R.land)) {
+      const said = `${f}\u0000${o.variant}\u0000${o.word}\u0000${o.became.join('; ')}\u0000${o.gaps.join('; ')}`;
+      if (!rows.has(said)) rows.set(said, { f, o, ids: [] });
+      rows.get(said).ids.push(id);
+    }
+    if (!rows.size) return '';
+    const line = ({ f, o, ids }) => `<dt>${esc(f)} · ${esc(o.variant)} · ${esc(o.word)}</dt><dd>${ids.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join(', ')}: ${o.became.length ? esc(o.became.join('; ')) : o.gaps.length ? '' : 'drawn as the kit draws it'}${o.gaps.length ? `${o.became.length ? '<br>' : ''}<span class="muted">${esc(o.gaps.join('; '))}</span>` : ''}</dd>`;
+    return `<h4>In the level</h4><dl class="vocab">${[...rows.values()].map(line).join('')}</dl>`;
+  };
   const VIEW = { landscape: 'low', strata: 'front', face: 'three' }, LIFT = { landscape: 2 };
   const natureHtml = kits.map((k) => {
     const N = natureCard(k), land = landOfKitHere(k), draw = (f, w, h, level = 'near') => {
@@ -289,7 +303,7 @@ export function gameworldBibleHtml(world) {
     const strips = LAND_FORM_IDS.map((f) => `<div class="strip-row"><span class="eyebrow">${esc(f)} · ${esc(land[f].variant)}</span><div class="many"><div class="many-in">${manyStrip(f, land[f].variant, k, G.seed, { mark: manyStep(land[f].many), w: 112, h: 84 })}</div></div></div>`).join('');
     return `<article class="nature" id="nature-${esc(k)}"><div class="civ-h"><div><span class="eyebrow">Natural world · ${esc(N.look)}</span><h3>${esc(k)}</h3></div><p class="muted">the ground of ${groundOf(k)}</p></div>
 <div class="land-hero"><figure class="form">${plate(`land-${k}-landscape`, draw('landscape', 620, 300))}<figcaption>${cap('landscape')}</figcaption></figure><div class="forms">${forms}</div></div>
-<h4>From little to many</h4><div class="strips">${strips}</div>
+<h4>From little to many</h4><div class="strips">${strips}</div>${inLevels(k)}
 <dl class="vocab">${[['trees', N.trees], ['grass', N.grass], ['water', N.water.read], ['sky', N.sky.read], ['light', N.light], ['air', N.air], ['far', N.far]].map(([t, v]) => `<dt>${t}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 <details><summary>Its principles</summary><ul class="principles">${N.principles.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details></article>`;
   }).join('');
