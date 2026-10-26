@@ -444,7 +444,7 @@ describe('tools/list description budget — the ratchet', () => {
       .filter((t) => t.len > t.budget)
       .map((t) => `${t.name}: ${t.len} chars > budget ${t.budget}`);
     expect(offenders).toEqual([]);
-  });
+  }, 180_000);   // the first here to register every tool: 35-45 s with nothing cached, past the 30 s default
 
   it('the allowlist only ratchets down — stale entries must be deleted', async () => {
     const byName = new Map((await listedTools()).map((t) => [t.name, (t.description || '').length]));
