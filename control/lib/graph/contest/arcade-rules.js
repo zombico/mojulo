@@ -28,7 +28,10 @@
  *   receive { behind, aside }   home { behind }   (metres behind the baseline: negative, inside the court)
  *   rally   { bounces?, touches?, mustBounce? }   fouls { <kind>: cost }   noVolley: <region> (a volley struck from it
  *           is the foul of its name)
- *   body    { tip?, reach?, speed? }   the register's body scaled for the game's size (a table's reach, a paddle's tip)
+ *   players a side's players (1; volleyball's pair 2): each at its home across the side (home.aside)
+ *   assist  'pass': a side's touches before its last placed for a teammate in every register (volleyball's bump and set)
+ *   body    { tip?, reach?, speed?, up?, bare? }   the register's body scaled for the game's size (a table's reach, a
+ *           paddle's tip), how high it reaches (a jump's), bare hands (no racquet drawn)
  *   strokes { fore?, back?, serve? }   the hit's verbs (hit.js HIT_VERBS)
  *   cpu     { slip }   the computer's unforced error: the share of balls it lets go at the regular level (its level
  *           scales it, contest-mind.js); a small court's rally otherwise never ends
@@ -58,7 +61,7 @@ function netCourt(c, serve) {
 /** The score: rally points to a count by a lead, games to the match; or the tennis ladder. */
 function netScore(s, games, rally) {
   if (s.tennis) return { points: 'rally', ladder: [{ unit: 'game', to: 4, by: 2, names: ['0', '15', '30', '40'] }, { unit: 'set', to: 6, by: 2 }, { unit: 'match', to: games }] };
-  return { points: rally, ladder: [{ unit: 'game', to: s.to, by: s.by ?? 2 }, { unit: 'match', to: games }] };
+  return { points: rally, ladder: [{ unit: s.unit ?? 'game', to: s.to, by: s.by ?? 2 }, { unit: 'match', to: games }] };
 }
 
 /** The serve's kernel words: the regions, who serves next, the box by what, the own bounce. */
@@ -79,23 +82,26 @@ function composeNet(card) {
   const spec = ({ sets } = {}) => {
     const games = sets ?? card.score.games ?? 1;
     return {
-      shape: 'match', title, players: 1,
+      shape: 'match', title, players: card.players ?? 1,
       court: netCourt(card.court, serve),
       scoring: netScore(card.score, games, card.score.side ? 'serve' : 'rally'),
       serve: netServe(serve),
-      rally: { in: 'half', bounces: card.rally?.bounces ?? 1, touches: card.rally?.touches ?? 1, ...(card.rally?.mustBounce ? { mustBounce: card.rally.mustBounce } : {}) },
+      rally: { in: 'half', bounces: card.rally?.bounces ?? 1, touches: card.rally?.touches ?? 1, ...(card.rally?.sameTwice === false ? { sameTwice: false } : {}), ...(card.rally?.mustBounce ? { mustBounce: card.rally.mustBounce } : {}) },
       ...(card.fouls ? { fouls: { ...card.fouls } } : {}),
     };
   };
   return {
-    shape: 'match', words: card.words, spec, ball: card.ball, players: 1,
+    shape: 'match', words: card.words, spec, ball: card.ball, players: card.players ?? 1,
     strokes: { ...NET_STROKES, ...(card.strokes ?? {}) },
     net: { height: card.net.height, posts: card.net.posts ?? card.net.height, beyond: card.net.beyond ?? 0.914 },
     serve: { behind: serve.behind, aside: serve.aside, hand: serve.hand },
     receive: { ...card.receive }, home: { ...card.home },
     ...(card.court.bed ? { bed: { height: card.court.bed } } : {}),
     ...(card.noVolley ? { noVolley: card.noVolley } : {}),
-    ...(card.body ? { pace: { ...card.body } } : {}),
+    ...(card.body && ['tip', 'reach', 'speed'].some((k) => card.body[k] !== undefined) ? { pace: Object.fromEntries(['tip', 'reach', 'speed'].filter((k) => card.body[k] !== undefined).map((k) => [k, card.body[k]])) } : {}),
+    ...(card.body?.up ? { reachUp: card.body.up } : {}),
+    ...(card.body?.bare ? { bare: true } : {}),
+    ...(card.assist ? { assist: card.assist } : {}),
     ...(card.cpu?.slip ? { slip: card.cpu.slip } : {}),
   };
 }
@@ -103,13 +109,14 @@ function composeNet(card) {
 export const ARCADE_FAMILIES = freeze({
   net: {
     shape: 'match', sim: 'the court (match-sim.js)', says: 'two ends and a net: a serve, a rally the kernel calls, points to games',
-    modules: ['court', 'net', 'score', 'serve', 'receive', 'home', 'rally', 'fouls', 'noVolley', 'body', 'strokes', 'ball', 'cpu'],
+    modules: ['players', 'court', 'net', 'score', 'serve', 'receive', 'home', 'rally', 'fouls', 'noVolley', 'assist', 'body', 'strokes', 'ball', 'cpu'],
     doc: [
       'court { width, length, bed? (a table\'s height), service? { from, to } (the boxes off the net), kitchen? (a no-volley depth) }',
-      'net { height, posts?, beyond? }   score { to, by?, games?, side? (only the server scores) } | { tennis: true }',
+      'players (a side: 1, 2 …)   net { height, posts?, beyond? }   score { to, by?, games?, unit?, side? (only the server scores) } | { tennis: true }',
       'serve { into: diagonal | half, faults?, let?, turns?: game | n | winner, court?: points | score, bounce?: own, behind, aside, hand }',
-      'rally { bounces?, touches?, mustBounce? }   fouls { <kind>: point | … }   noVolley: <region>   receive, home { behind, aside? }',
-      'body { tip?, reach?, speed? } (the body scaled)   strokes { fore?, back?, serve? } (hit verbs)   ball   cpu { slip }',
+      'rally { bounces?, touches?, sameTwice?, mustBounce? }   fouls { <kind>: point | … }   noVolley: <region>   receive, home { behind, aside? }',
+      'assist: pass (the touches before the last placed for a teammate)   body { tip?, reach?, speed?, up? (the reach up), bare? }',
+      'strokes { fore?, back?, serve? } (hit verbs)   ball   cpu { slip }',
     ],
     compose: composeNet,
   },
@@ -165,6 +172,22 @@ export const ARCADE_SPORTS = freeze({
     strokes: { fore: 'clear', back: 'clear', serve: 'underhand' },
     body: { tip: 1, reach: 1.15, speed: 0.9 }, cpu: { slip: 0.08 },
     omits: ['the cap at thirty (a game is won by two, however long)', 'the serve struck below 1.15 m and the server\'s feet still', 'the faults of a shuttle caught or slung on the racquet', 'doubles\' service courts'],
+  },
+  volleyball: {
+    family: 'net', title: 'Beach volleyball',
+    words: 'beach volleyball, two a side: three touches a side, never twice in a row, the ball never down, rally points to twenty-one',
+    ball: 'volleyball', players: 2,
+    // FIVB beach: the court 16 × 8 m, the net 2.43 m (men's); a set to 21 by two, the match the best of three
+    court: { width: 8, length: 16 },
+    net: { height: 2.43, posts: 2.55, beyond: 0.5 },
+    score: { to: 21, by: 2, games: 2, unit: 'set' },
+    serve: { into: 'half', faults: 1, let: false, turns: 'winner', behind: 0.6, aside: 1, hand: 2.7 },
+    receive: { behind: -2.5, aside: 2 }, home: { behind: -3, aside: 2 },
+    rally: { bounces: 0, touches: 3, sameTwice: false },
+    assist: 'pass',
+    strokes: { fore: 'spike', back: 'spike', serve: 'float' },
+    body: { reach: 0.8, up: 3.1, bare: true }, cpu: { slip: 0.04 },
+    omits: ['the third set to fifteen', 'changing ends every seven points', 'the block not counted as a touch', 'the open-hand tip and the double contact on a set', 'six a side, the rotation and the libero (the indoor game is a sport written out)'],
   },
 });
 export const ARCADE_SPORT_IDS = Object.freeze(Object.keys(ARCADE_SPORTS));

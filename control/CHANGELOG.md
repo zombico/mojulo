@@ -501,6 +501,20 @@ games (baseball, cricket).
     each new court plays in the page to the state the same match reaches in Node.
   - **Seen, said:** the minds rarely play the kitchen (they stay back), so its foul comes from a player at the pad;
     the receiver's returns on the court sim remain the weak point the tennis stats showed.
+- **Volleyball on the court** (`arcade-rules.js` `volleyball`, `match-sim.js`), built: beach volleyball, two a side,
+  three touches a side and never twice in a row, the ball never down, rally points to twenty-one, the rally's winner
+  serving (a float serve). The court sim takes a side of more than one (the kernel's `players`): each player at its home
+  across the side, the pad on the side's ACTIVE player (the one to play the ball: never the last to touch it, else the
+  nearest), its teammates the minds'. The card's `assist: 'pass'` places the side's touches before its last for a
+  teammate in every register (the bump to the setter's spot by the net, the set to the attacker's), and its last goes
+  over as the register strikes it; a body reaches as high as its `up` (a jump's); bare hands draw no racquet. The side
+  mind runs the active player to where the ball comes down (its own physics on a copy) and the others to the set and
+  the attack. A tennis court replays as before (one a side, the same minds and seeds).
+  - **Held:** the players and minds from the kernel's, across the side; every touch inside the rally's rule; each
+    placed pass played next by the teammate it was placed for; a bump, a set and an attack in one rally; the pad on
+    side a's active player; the page plays it to the Node state.
+  - **Seen, said:** in the realistic register the minds rarely return a float serve (the body's realistic build-up is
+    slow for a court of eight metres): an ace is most points there; the arcade registers rally.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

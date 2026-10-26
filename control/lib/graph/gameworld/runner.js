@@ -444,7 +444,7 @@ function sportAthletes(G, Q, ref) {
   if (slots.sides && slots.n > 2) {
     // a team: each side a rank in its kit, its faces cycled over its outfield in their roles' order; its keeper (a role
     // named so) in a kit of its own, the soccer keeper's long sleeves and gloves, or its sport's kit in the keeper's colour
-    const per = slots.n / 2, keeperAt = slots.roles.indexOf('keeper'), field = per - (keeperAt >= 0 ? 1 : 0);
+    const per = slots.n / 2, keeperAt = (slots.roles ?? []).indexOf('keeper'), field = per - (keeperAt >= 0 ? 1 : 0);
     const faces = Math.min(CAST_POOL, field);
     refs = [];
     let k = 0;

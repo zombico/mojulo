@@ -179,6 +179,7 @@ const mr4 = (v) => Math.round(v * 10000) / 10000;
  * `sim` the physics instance. The stick is in the player's own frame (x its right, y toward the net).
  */
 export function courtMind(M, S, who, ctx, sim) {
+  if (ctx.C.players > 1) return sideMind(M, S, who, ctx, sim);
   const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), side = P.side, sign = side === 'a' ? 1 : -1;
   const court = ctx.court, body = ctx.body;
   const ball = S.sim.bodies.find((b) => b.id === 'ball');
@@ -239,6 +240,59 @@ export function courtMind(M, S, who, ctx, sim) {
     return { x: aimX, y: aimY, b: 1 };
   }
   return { x: stick[0], y: stick[1], b: 0 };
+}
+
+/**
+ * THE SIDE MIND — a player on a side of more than one (volleyball's pair). The sim names the side's active player (the
+ * one to play the ball, match-sim.js); the active player runs to where the ball comes down (its own physics, flown on a
+ * copy) and plays it when it is in reach and low enough, the others go where the side's play wants them: by the net for
+ * the set, to the attack spot for the hit, home while the other side has it. The serve as the court mind's.
+ */
+function sideMind(M, S, who, ctx, sim) {
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), side = P.side, sign = side === 'a' ? 1 : -1;
+  const court = ctx.court, body = ctx.body, dt = 1 / 60, B = S.K.ball;
+  const ball = S.sim.bodies.find((b) => b.id === 'ball');
+  const own = (p) => [p[0] * sign, p[1] * sign];
+  const toward = (tx, ty, pace = L.pace) => { const d = own([tx - P.x, ty - P.y]); const n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * pace) / n; return [d[0] * k, d[1] * k]; };
+  if (M.rallyOf !== S.rallies) { M.rallyOf = S.rallies; M.aim = mindDice(M) < 0.5 ? -1 : 1; M.react = L.react; M.wait = L.serveWait; M.landing = null; M.read = -1; }
+  if (S.K.phase === 'serve' && S.ball.held === who && S.dead === 0) {
+    M.wait = Math.max(0, M.wait - dt);
+    if (M.wait > 0) return { x: 0, y: 0, b: 0 };
+    const aim = serveStick(ctx, S, P, sim);
+    return { x: mclamp(aim.x + (mindDice(M) - 0.5) * L.wobble, -1, 1), y: mclamp(aim.y + (mindDice(M) - 0.5) * L.wobble * 0.5, -1, 1), b: 1 };
+  }
+  const home = (() => { const n = ctx.C.players, i = Number(who.slice(1)) - 1, aside = ctx.sport.home.aside ?? 0; return [sign * (n > 1 ? (i - (n - 1) / 2) * ((2 * aside) / (n - 1)) : 0), -sign * (court.halfL + ctx.sport.home.behind)]; })();
+  if (S.K.phase !== 'live' || S.dead > 0) { const st = toward(home[0], home[1]); return { x: st[0], y: st[1], b: 0 }; }
+  // the ball is ours to play: on its way to our side, or on our side with touches left
+  const ours = B.lastSide === side ? B.touches < ctx.C.rally.touches : ball.velocity[1] * sign < 0 || ball.position[1] * sign < 0;
+  if (!ours) { M.react = L.react; M.landing = null; const st = toward(home[0], home[1]); return { x: st[0], y: st[1], b: 0 }; }
+  if (S.f - M.read >= PREDICT_EVERY) { M.read = S.f; M.landing = predictLanding(sim, S.sim); }
+  M.react = Math.max(0, M.react - dt);
+  const up = ctx.sport.reachUp ?? 2.6;
+  if (S.active[side] === who) {
+    let stick = [0, 0];
+    if (M.react === 0 && M.landing && M.landing.at[1] * sign < 0) stick = toward(M.landing.at[0], M.landing.at[1]);
+    // the swing, begun so its strike meets the ball: in reach, under the reach up, coming down or low
+    const lead = body.swing * 0.5, g = -S.sim.gravity[2];
+    const bx = ball.position[0] + ball.velocity[0] * lead, by = ball.position[1] + ball.velocity[1] * lead, bz = ball.position[2] + ball.velocity[2] * lead - 0.5 * g * lead * lead;
+    const swing = by * sign < 0 && Math.hypot(bx - P.x, by - P.y) <= body.reach * 0.9 && bz < up - 0.2 && bz > 0.3 && !P.swing && S.ball.held === null;
+    if (swing && ctx.sport.slip) {
+      const key = `${S.rallies}:${S.ball.hits}`;
+      if (M.slipOf !== key) { M.slipOf = key; M.slipped = mindDice(M) < ctx.sport.slip * SLIP_SCALE[M.level]; }
+      if (M.slipped) return { x: stick[0], y: stick[1], b: 0 };
+    }
+    if (swing) {
+      const aimX = mclamp(M.aim * 0.3 + (mindDice(M) - 0.5) * L.wobble, -1, 1);
+      const verb = ctx.sport.strokes.fore;
+      const aimY = mclamp(aimStick(ctx, S, verb, [bx, by, Math.max(0.3, bz)], [bx + aimX * 2, sign * court.halfL * 0.6]) + (mindDice(M) - 0.5) * L.wobble, -1, 1);
+      return { x: aimX, y: aimY, b: 1 };
+    }
+    return { x: stick[0], y: stick[1], b: 0 };
+  }
+  // a teammate plays it: the setter's spot by the net before the side's first touch, the attack spot after it
+  const spot = B.lastSide === side && B.touches >= 1 ? [mclamp(P.x, -court.halfW * 0.7, court.halfW * 0.7), -sign * 1.2] : [0, -sign * 1.6];
+  const st = toward(spot[0], spot[1], 1);
+  return { x: st[0], y: st[1], b: 0 };
 }
 
 // ── the turn mind ────────────────────────────────────────────────────────────────────────────────────────────

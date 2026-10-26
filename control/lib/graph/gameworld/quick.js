@@ -554,7 +554,7 @@ export function sportKitOf(Q) {
 export function sportSlots(Q) {
   if (Q.goal === 'meet') return { n: readMeet(pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts'])).lanes };
   const sp = resolveSport(Q.sport);
-  if (sp.shape === 'match') return { n: 2, sides: 2 };
+  if (sp.shape === 'match') return { n: 2 * (sp.players ?? 1), sides: 2 };
   if (sp.shape === 'turns') return { n: readTurns(pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds'])).seats };
   const roles = Object.keys(teamArenaData(pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds'])).C.roles);
   return { n: 2 * roles.length, sides: 2, roles };

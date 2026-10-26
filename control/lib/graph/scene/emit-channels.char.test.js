@@ -255,6 +255,10 @@ import { emitThreeWorld } from './scene-three.js';
 // air), the hit (the underhand, clear and drop verbs, the aim through a ball's own air), the stats (`down` a winner)
 // and the broadcast's words; the court block's sim, mind and client too (the raised bed, the body's scale, the
 // no-volley foul, the slip, the ladder's scoreboard). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: volleyball): the `court`, `turns` and `pitch` fixtures re-pin because the minds
+// (the side mind for a side of more than one) and the hit's verbs (the float serve) they inline changed, and the court's
+// sim and client too (the players from the kernel's, the active player, the placed pass, the side's colours, bare
+// hands). The meet inlines neither and is unchanged; every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

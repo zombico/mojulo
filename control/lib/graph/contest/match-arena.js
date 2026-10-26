@@ -74,7 +74,7 @@ export function readMatch(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  const athletes = readAthletes(M.athletes, 2, fail);   // side a's player, then side b's
+  const athletes = readAthletes(M.athletes, 2 * (resolveSport(M.sport, 'match').players ?? 1), fail);   // side a's players, then side b's
   const broadcast = M.broadcast === undefined ? undefined : readBroadcast(M.broadcast, 'court');
   return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, ...(M.surface ? { surface: M.surface } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(broadcast ? { broadcast } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
 }
