@@ -107,6 +107,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   visor, a gold visor shell standing off over it, headlamps, valves, antennas, a crest): the moon, spacewalk, soft,
   fishbowl and sci-fi space helmets. And sci-fi helmets on the full-face shell: the hunter's (a T visor, a rangefinder),
   the trooper's (angled eye lenses, a mouth grille), the spartan's (a gold visor, a crest) and the synth's (a glowing strip).
+- The FACELESS helmet: the cowl's `blank` face is one smooth egg, fitted to enclose the whole face (brow, nose and lips)
+  and blended into the skull, so no feature shows through it. Heights on a blank face are read on the egg. Its shell takes
+  panel lines (`panels`, fine cords that stay crisp at any grid; `windowSeam` one round a faceplate). Painted eyes
+  (`eyes.treat: 'paint'`) are flat decals laid on the smoothed shell. `decals` (slots, dots, polys in the eyes' frame)
+  lay paint or, rimmed, cutaways: vents and slots. `facelessKit` composes five optional word libraries (`FACELESS`):
+  - panels: ribbed, plated, kabuto, split, brow band, cheek, jaw plate;
+  - adorn: fins, horns, a crest fin, crown spikes, a ridge, ear discs, antennae;
+  - details: one or two glowing eyes, a grille, hoses, filters, studs;
+  - cuts: a mouth slit, mouth, cheek and temple vents, eye slits, a mono slot, a brow slot;
+  - paint: fox, kabuki, tears, oni, stripes, kintsugi, a third eye, a blush, lips.
+
+  Cards built from it:
+  - segmented: the cyborg ninja, the vented ninja, the hunter, titan and warlock guardians, the ronin and the mono-eye;
+  - porcelain: the fox, kabuki, noh, oni and kintsugi masks.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
