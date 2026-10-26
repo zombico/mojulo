@@ -42,6 +42,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - New settings, each the card's own number where left out, on readers that already drew the thing: a trail's `rocks`
   (`boulders` 0 to 24, `landmark` metres), its ground's `cliff` `bed`, `dip`, `joint` and `pattern`, and a level
   recipe's `clouds` (refused without its geocube).
+- A climb after a trail under a level's clouds opens on its own. The level named its painted look without the clouds,
+  and a climb's `after.kit` (the look the trail before it is drawn in) took that name, but each stage registers the look
+  with them: in a fresh process (an export, the World page) the climb was refused ("after.kit … is not an isekai kit").
+  The level now lowers its look under its clouds, as its stages do. A level with no clouds is unchanged.
 
 ### One name: a 3D compiler for agents
 

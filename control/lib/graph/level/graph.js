@@ -80,6 +80,9 @@ export function readLevel(L) {
     try { readClouds(L.clouds); } catch (e) { throw new Error(`level: ${e.message}`); }
   }
   const lit = { ...(L.hour !== undefined ? { hour: L.hour } : {}), ...(L.clouds !== undefined ? { clouds: L.clouds } : {}) };
+  // the look the painted sections are drawn in, lowered as each stage lowers it (its hour and its clouds), so a climb's
+  // `after.kit` names the look its own stage registers
+  const sky = L.clouds === undefined ? undefined : readClouds(L.clouds);
   if (cube && (L.domain !== undefined || (L.terrain === undefined && cube.domains))) {
     // a domain: the level the cube makes, its terrain at its hour (every section is outside); asked, else (the cube naming
     // its levels) its heartbeat's, else its first outside
@@ -88,10 +91,10 @@ export function readLevel(L) {
     if (D.side !== 'outside') throw new Error(`level: the domain is inside (interior '${D.interior}'); a level's sections are outside, so ask an outside domain`);
     const terrain = { name: D.terrain, from: domain.from, offered: geocubeTerrains(cube).map((t) => t.name) };
     const hour = L.hour ?? D.hour;
-    paint = { cube, terrain, domain, ask: L.domain ?? domain.name, ...lit, kit: lowerGeocube(cube, 'outside', D.terrain, hour === undefined ? undefined : readHour(hour)).kit };
+    paint = { cube, terrain, domain, ask: L.domain ?? domain.name, ...lit, kit: lowerGeocube(cube, 'outside', D.terrain, hour === undefined ? undefined : readHour(hour), sky).kit };
   } else if (cube) {
     const terrain = pickTerrain(cube, L.terrain, ground?.heartbeat?.terrain);
-    paint = { cube, terrain, ...lit, kit: lowerGeocube(cube, 'outside', terrain.name, L.hour === undefined ? undefined : readHour(L.hour)).kit };
+    paint = { cube, terrain, ...lit, kit: lowerGeocube(cube, 'outside', terrain.name, L.hour === undefined ? undefined : readHour(L.hour), sky).kit };
   } else if (L.terrain !== undefined || L.domain !== undefined) throw new Error(`level: ${L.terrain !== undefined ? 'terrain is one of a geocube\'s terrains' : 'domain is one of the levels a geocube makes'}: name the level's geocube`);
 
   // NODES: each one section, keyed by its id

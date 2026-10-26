@@ -9,6 +9,7 @@ import { outTrailSite, OUT_TRAIL, landmarkStands } from '../era/out-trail.js';
 import { rockItems } from '../era/nature.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { readLevel, layLevel } from '../level/index.js';
+import { withGeocube } from '../era/geocube.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 // every leaf path at which two recipes differ (a group one side lacks read as empty)
@@ -109,7 +110,8 @@ describe('the land in the level', () => {
   it('each form is local: it re-makes only its level\'s stages, and changes only the setting it lowers onto', () => {
     const base = gameStages(W());
     // one case per form: each lowered setting's own key in the stage recipes
-    const CASE = { landscape: [{ variant: 'rugged', many: 1 }, /\.(ground\.bump|meru\.relief)\./], rock: [{ many: 1 }, /\.rocks\.boulders$/], strata: [{ many: 1 }, /\.ground\.cliff\.bed$/], face: [{ variant: 'columnar' }, /\.ground\.cliff\.pattern$/], cloud: [{ variant: 'cirrus', many: 0.5 }, /^\.clouds\.(kind|cover)$/], landmark: [{ variant: 'monolith' }, /\.rocks\.landmark$/] };
+    // (the clouds also light the look a climb names for the trail before it: its `after.kit`)
+    const CASE = { landscape: [{ variant: 'rugged', many: 1 }, /\.(ground\.bump|meru\.relief)\./], rock: [{ many: 1 }, /\.rocks\.boulders$/], strata: [{ many: 1 }, /\.ground\.cliff\.bed$/], face: [{ variant: 'columnar' }, /\.ground\.cliff\.pattern$/], cloud: [{ variant: 'cirrus', many: 0.5 }, /^\.clouds\.(kind|cover)$|^\.meru\.after\.kit$/], landmark: [{ variant: 'monolith' }, /\.rocks\.landmark$/] };
     for (const [f, [patch, key]] of Object.entries(CASE)) {
       const S = gameStages(W({ a: { land: { [f]: patch } } })), changed = S.map((s, i) => ({ s, d: diff(base[i].manifest, s.manifest) })).filter((x) => x.d.length);
       expect(changed.every(({ s }) => s.level === 'a'), f).toBe(true);
@@ -142,5 +144,13 @@ describe('the land in the level', () => {
     const lay = (n) => layLevel({ geocube: 'island-noon', clouds: { kind: 'high', cover: 0.4 }, nodes: { t: n } }).stages[0].manifest.clouds;
     expect([lay({ trail: true }), lay({ trail: true, kit: 'isekai-meadow' })]).toEqual([{ kind: 'high', cover: 0.4 }, undefined]);
     expect(() => readLevel({ clouds: 'high', nodes: { t: { trail: true } } })).toThrow(/clouds are a geocube's outside's sky/);
+  });
+
+  it('a climb after a trail under a level\'s clouds names the look its own stage draws (it opens in a fresh process)', () => {
+    // the trail before is drawn in the cube's look under the clouds, and the climb's own stage registers that look; the
+    // climb's `after.kit` named the look without them, which only an earlier lowering in the same process had registered
+    const climb = layLevel({ geocube: 'island-noon', clouds: { kind: 'high', cover: 0.4 }, nodes: { t: { trail: true }, c: { meru: true } } })
+      .stages.find((x) => x.manifest.meru).manifest;
+    expect(climb.meru.after.kit).toBe(withGeocube(climb).kit);
   });
 });
