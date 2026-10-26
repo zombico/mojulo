@@ -631,6 +631,7 @@ function castMouthpiece(fig, S) {
 //   earpiece { r, h, cap?, out }  a disc at the temple, `out` (m) past the cast (over the hair);  antenna { len, r, back, up }  a spike off the cast, back and up
 //   scope { r, len, lensGroup }  a tube standing forward with a lens at its end (night vision)
 //   lens { r, h }  a small domed lens (`group` default MaskLens);  arm { to, r }  a rigid bar standing off the cast to `to`
+//   peak { w, len, t, tilt, taper }  a brim standing forward off the cast (a motocross helmet's peak)
 function castFittings(S, { on, nOf, hz, d, th }) {
   const out = [], Z = hz;
   // (a fitting's disc FLAT on top, its edge bevelled to `bevel` of its radius: a lens, a cap, a scope's glass, never the
@@ -657,6 +658,9 @@ function castFittings(S, { on, nOf, hz, d, th }) {
     if (F.kind === 'lens') { const p = on(fx, fz, -0.0005); if (!p) continue; out.push({ ...disc(p, nOf(fx, fz), F.r ?? 0.006, F.h ?? 0.004, 14, 0.6), group: F.group ?? 'MaskLens' }); continue; }
     if (F.kind === 'arm') { const [tx, tz0] = F.to, tz = Z(tz0), pts = Array.from({ length: 10 }, (_, i) => { const t = i / 9; return on(fx + (tx - fx) * t, fz + (tz - fz) * t, (F.lift ?? 0.004) + (F.arch ?? 0.006) * dmath.sin(Math.PI * t)); }).filter(Boolean);
       if (pts.length > 3) out.push({ ...sweep(pts, pts.slice(0, -1).map(() => F.r ?? 0.0025), 6), group: g }); continue; }
+    if (F.kind === 'peak') { const p = on(fx, fz, -0.002); if (!p) continue; const n0 = nOf(fx, fz), fwd = unit(add(mul(unit([n0[0], n0[1], 0]), dmath.cos(F.tilt ?? 0.25)), [0, 0, -dmath.sin(F.tilt ?? 0.25)])), side = unit(cross([0, 0, 1], fwd)), w = F.w ?? 0.14, len = F.len ?? 0.06, t = F.t ?? 0.004;
+      const ring = (c, hw, tt) => [add(add(c, mul(side, -hw)), [0, 0, tt]), add(add(c, mul(side, hw)), [0, 0, tt]), add(add(c, mul(side, hw)), [0, 0, -tt]), add(add(c, mul(side, -hw)), [0, 0, -tt])];
+      const A = ring(add(p, mul(fwd, -0.006)), w / 2, t / 2), B = ring(add(p, mul(fwd, len)), (w / 2) * (F.taper ?? 0.85), t / 2); out.push({ ...loftParts([A, B], mean(A), mean(B)), group: g }); continue; }
     if (F.kind === 'strap') { const [tx, tz0] = F.to, tz = Z(tz0), pts = Array.from({ length: 14 }, (_, i) => { const t = i / 13; return on(fx + (tx - fx) * t, fz + (tz - fz) * t, -th * 0.4); }).filter(Boolean);
       if (pts.length > 3) out.push({ ...sweep(pts, pts.slice(0, -1).map(() => (F.w ?? 0.008) / 2), 4, { squash: [1, 0.3] }), group: F.group ?? 'MaskStrap' }); continue; } }
   return out;
@@ -682,7 +686,10 @@ function castCowl(fig, S) {
   // the edge's height round the head: the front open under the nose (shown) or down to the chin, the jaw at the sides
   // (`jaw`, a share from the mouth to the chin), the nape behind (`nape`, m under the mouth)
   const zJaw = zMouth - (S.jaw ?? 0.45) * (zMouth - zChin), zNape = zMouth - (S.nape ?? 0.012);
+  const zBrow = c0[2] + (S.brow ?? 1.3) * d;
   const edgeZ = (th) => { const a = Math.abs(th), back = easeS((a - Math.PI / 2) / (Math.PI / 2)), side = zJaw + (zNape - zJaw) * back;
+    // (open: the whole face shown, the edge over the brow in front, down the cheeks to the jaw: an open-face helmet)
+    if (mouth === 'open') return a < wO ? zBrow - (zBrow - zJaw) * easeS(a / wO) ** 1.4 : side;
     if (mouth !== 'show') return a < Math.PI / 2 ? zChin + (side - zChin) * easeS((a - 0.35) / (Math.PI / 2 - 0.35)) : side;
     // (shown: the edge under the nose, running down across the cheeks to the jaw's corner, a U round the mouth and chin)
     const open = zNose - 0.003 - (zNose - 0.003 - zJaw) * Math.min(1, (a / wO) ** 1.6); return a < wO ? open : side; };
@@ -692,12 +699,16 @@ function castCowl(fig, S) {
   const outer = TH.map((th, k) => toMap(th, RHO[k]));
   // the eyes: the domino's eye shapes, carried from the eyes' frame (θ by the eye's own angle round C, height by the eyes')
   const thE = eR ? Math.atan2(Math.abs(eR[0] - C[0]), eR[1] - C[1]) : 0.45;
-  const { holes: eyeHoles } = castOutline(S), holes = eyeHoles.map((Hh) => Hh.map(([X, Z]) => toMap(X * thE, rhoAt(X * thE, c0[2] + Z * d))));
+  // (a WINDOW, `window` an eyegear outline (shape: shield | visor | goggles, or a poly), in place of the eyes: a helmet's
+  // face opening, open or a visor by `eyes.treat`)
+  const { holes: eyeHoles } = S.window ? { holes: [castOutline({ outline: S.window }).outer] } : castOutline(S), holes = eyeHoles.map((Hh) => Hh.map(([X, Z]) => toMap(X * thE, rhoAt(X * thE, c0[2] + Z * d))));
   // a covered mouth with no mouth (`mouth: 'none'`): the skin over the lips bridged smooth
   const zLip = zNose + 0.004, bridge = mouth === 'none' ? (x, z) => { const [th, rho] = ofMap(x, z); if (Math.abs(th) > 0.7) return false; const zz = zOf(th, rho); return zz !== null && zz < zLip; } : null;
   // the EARS under the cowl, the landmark head's (its side slot between rows 3 and 4): bumps, so they stay under it
   const bumps = S.ears === false ? [] : H.ears.map((E) => { const th = Math.atan2(E[0] - C[0], E[1] - C[1]); return { at: toMap(th, rhoAt(th, E[2])), r: S.earR ?? 0.48, h: S.earH ?? 0.0105 }; });
-  const out = castGrid(S, { outer, holes, cell: S.cell ?? 0.05, depthAt, place, axisOf: () => C, bridge, bumps });
+  // (a HARD SHELL: `pad` (m) of padding under it, its surface bridged `shell` passes everywhere: a helmet, round and taut)
+  const pad = S.pad ?? 0, Sg = pad ? { ...S, lift: (S.lift ?? 0.0025) + pad } : S;
+  const out = castGrid(Sg, { outer, holes, cell: S.cell ?? 0.05, depthAt, place, axisOf: () => C, bridge: S.shell ? () => true : bridge, bridgePasses: S.shell ?? 8, bumps: pad ? [] : bumps });
   // HAIR FLOWING out of the back (`hair` { len, n?, spread?, group? }: the hero's own hair, its colour the Hair group's):
   // clumps from a tie at the back of the head at the eyes' height, falling and fanning, fixed by a pattern (no dice)
   if (S.hair && out.length) { const T = S.hair, nC = T.n ?? 9, len = T.len ?? 0.25, th0 = Math.PI, rho0 = rhoAt(th0, c0[2] - 0.01), D0 = dir(th0, rho0), r0 = castDir(D0) ?? 0.09;
@@ -707,7 +718,13 @@ function castCowl(fig, S) {
     for (let i = 0; i < nC; i++) { const ph = i * 2.39996, L = len * (1 - 0.25 * hsh(i, 1)), sp = (T.spread ?? 0.3) * (0.5 + hsh(i, 2)), side = add(mul([1, 0, 0], dmath.cos(ph)), mul([0, -0.7, 0], dmath.sin(ph))), K = 7;
       const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1); return add(add(add(root, mul(bk, L * 0.28 * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]), mul(side, sp * L * dmath.pow(t, 0.9))); });
       out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, rr * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
-  if (S.ornaments?.length && out.length) out.push(...cowlOrnaments(S, { C, dir, castDir, rhoAt, toMap, thE, c0, d }));
+  if (S.ornaments?.length && out.length) out.push(...cowlOrnaments(Sg, { C, dir, castDir, rhoAt, toMap, thE, c0, d }));
+  // FITTINGS on the cowl or the helmet (castFittings), placed in the eyes' frame and carried onto it
+  if (S.fittings?.length && out.length) { const top = (Sg.lift ?? 0.0025) + (S.thick ?? 0.003) + (S.shell ? 0.004 : 0);
+    const on = (X, Z, off = 0) => { const th = X * thE, D = dir(th, rhoAt(th, c0[2] + Z * d)), r = castDir(D); return r === null ? null : add(C, mul(D, r + top + off)); };
+    const nOf = (X, Z) => { const a = on(X, Z), b = on(X + 0.05, Z), c = on(X, Z + 0.05); if (!a || !b || !c) return [0, 1, 0]; let n = unit(cross(sub(b, a), sub(c, a))); if (dot(n, sub(a, C)) < 0) n = mul(n, -1); return n; };
+    const hz = (v) => { if (typeof v !== 'string') return v; const m = v.match(/^(nose|mouth|chin)(?:([+*-])([\d.]+))?$/); if (!m) throw new Error(`cowl: '${v}' is not a height`); const b = { nose: (zNose - c0[2]) / d, mouth: (zMouth - c0[2]) / d, chin: (zChin - c0[2]) / d }[m[1]], k = m[3] === undefined ? 0 : +m[3]; return m[2] === '+' ? b + k : m[2] === '-' ? b - k : m[2] === '*' ? b * k : b; };
+    out.push(...castFittings(S, { on, nOf, hz, d, th: S.thick ?? 0.003 })); }
   return out;
 }
 // ─── the COWL'S ORNAMENTS (SIGNATURES.cowl `ornaments`): spikes and lines on the cowl, along the FACE'S PATHS ───
@@ -1093,7 +1110,9 @@ export const SIGNATURES = {
    * head (`align`: the domino's dials, so they meet its edges): spikes { shape: bat | fin | cone, face: front | along, count, at, len, w,
    * profile: even | rise | fall | crown | lead, up, lean, thick, group }; lines { style: stitch | cord | double, w, dash,
    * gap, apart, group (default MaskStitch) }.
-   * { mouth?, opening?, jaw?, nape?, eyes?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, align?, lift?, thick?, cell? } */
+   * A HELMET is a cowl with `pad` (m of padding under a hard shell), `shell` (passes bridging it round and taut), a
+   * `window` (an eyegear outline: the face opening, a visor by `eyes.treat`), `mouth: 'open'` (an open face) and `fittings`.
+   * { mouth?, opening?, jaw?, nape?, brow?, eyes?, window?, pad?, shell?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, fittings?, align?, lift?, thick?, cell? } */
   cowl: (fig, _g, _b, S) => castCowl(fig, S),
   /** a MOUTHPIECE (castMouthpiece): the lower face's cast, from under the eyes past the chin, hanging where the skin runs
    * out: `outline` { top, dip, side, bottom, point, straight } in the eyes' frame against the head's own heights; `taut`

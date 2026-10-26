@@ -90,6 +90,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   earpiece or an antenna stands `out` past the cast, over the hair. The ski goggles are a riot-shield visor standing off
   the face, the VR headset narrower, the cyber visor bolder; and two visors: the engineer's (a gold band wrapped temple to
   temple, ridged across) and the optic visor (a dark band with one ruby lens strip across both eyes).
+- HELMETS on the cowl: `pad` (padding under a hard shell), `shell` (its surface bridged round and taut), a `window` (an
+  eyegear outline: the face opening, a visor by `eyes.treat`), `mouth: 'open'` (the whole face shown) and `fittings` on
+  the shell, with a `peak` (a brim). The pack's `HELMETS` and `helmetKit`: the biker's full-face helmet (a smoked visor, a
+  racing stripe), the motocross helmet (an open window, a peak), the jet helmet, the pilot helmet (a jet shell, a dark
+  shield visor standing off, an oxygen mask and its hose, composed from the eyegear and the mouthpiece), the tactical bump
+  helmet and the space helmet.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

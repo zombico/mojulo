@@ -20,7 +20,7 @@ const HELM = (shape) => ({ id: 'cranium-helm', mode: 'shell', part: 'cranium', s
 const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' };
 // (a kit's colours: the helm in the suit's secondary, the visor, the lenses and a visor band in its accent, the face plate
 // dark; the era palettes name none of these groups, and grey on grey hides a T visor)
-const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c', MaskTeeth: P.MaskTeeth ?? '#efe9d8', MaskFitting: P.MaskFitting ?? '#7d848e', MaskFilter: P.MaskFilter ?? '#2b2f36', MaskStrap: P.MaskStrap ?? '#1d1f24', MaskMaw: P.MaskMaw ?? '#140808', MaskMouth: P.MaskMouth ?? P.Mask ?? '#15171c', EyeFrame: P.EyeFrame ?? '#1b1d22', EyeLens: P.EyeLens ?? '#9fc6c9', EyeStrap: P.EyeStrap ?? '#1b1d22', EyeTrim: P.EyeTrim ?? '#8a9099', EyeGlow: P.EyeGlow ?? '#5dff7a' });
+const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c', MaskTeeth: P.MaskTeeth ?? '#efe9d8', MaskFitting: P.MaskFitting ?? '#7d848e', MaskFilter: P.MaskFilter ?? '#2b2f36', MaskStrap: P.MaskStrap ?? '#1d1f24', MaskMaw: P.MaskMaw ?? '#140808', MaskMouth: P.MaskMouth ?? P.Mask ?? '#15171c', EyeFrame: P.EyeFrame ?? '#1b1d22', EyeLens: P.EyeLens ?? '#9fc6c9', EyeStrap: P.EyeStrap ?? '#1b1d22', EyeTrim: P.EyeTrim ?? '#8a9099', EyeGlow: P.EyeGlow ?? '#5dff7a', Helmet: P.Helmet ?? '#d0d3d8', HelmetVisor: P.HelmetVisor ?? '#20252c', HelmetTrim: P.HelmetTrim ?? '#1b1d22' });
 // (a helm drops the hair; a visor keeps it)
 const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
@@ -223,6 +223,26 @@ export const EYEGEAR = Object.freeze({
   // the OPTIC blast visor: a dark band round to the temples, one ruby lens strip across both eyes, a band round the head
   optic: { outline: { shape: 'visor', w: 2.7, h: 0.9, curve: 0.06 }, eyes: LENS({ shape: 'shield', inset: [0.9, 0.36], dome: 0, group: 'EyeGlow' }), group: 'EyeFrame', thick: 0.004, lift: 0.004, front: { curve: true, shell: true, out: 0.008, max: 0.025 }, rim: { w: 0.1, h: 0.0012, group: 'EyeTrim' }, strap: { z: 0.1, h: 0.4 } },
 });
+// ── HELMETS: hard shells over the whole head (the cast's `cowl` with padding under a smoothed shell), their face
+// openings by the cowl's mouth words and a `window`, a visor in it by `eyes.treat`; fittings and ornaments on the shell
+const VISOR = (o = {}) => ({ treat: 'lens', group: 'HelmetVisor', dome: 0.004, ...o });
+const STRIPE = [{ kind: 'lines', path: 'sagittal', style: 'double', w: 0.006, apart: 0.012, group: 'HelmetTrim' }];
+export const HELMETS = Object.freeze({
+  fullFace: { mouth: 'cover', jaw: 0.95, nape: 0.05, pad: 0.018, shell: 24, thick: 0.004, window: { shape: 'shield', w: 2.35, top: 1.15, bottom: -0.95, notch: 0.15 }, eyes: VISOR(), rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' }, ornaments: STRIPE },
+  motocross: { mouth: 'cover', jaw: 1.0, nape: 0.05, pad: 0.02, shell: 24, thick: 0.004, window: { shape: 'shield', w: 2.3, top: 1.1, bottom: -0.8, notch: 0.3 }, eyes: { treat: 'open' }, rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' },
+    fittings: [{ kind: 'peak', at: [0, 1.85], w: 0.17, len: 0.075, tilt: 0.3, group: 'HelmetTrim' }], ornaments: STRIPE },
+  jet: { mouth: 'open', opening: 1.2, brow: 1.45, jaw: 0.75, nape: 0.05, pad: 0.016, shell: 24, thick: 0.004, rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' } },
+  tactical: { mouth: 'open', opening: 1.25, brow: 1.55, jaw: 0.25, nape: 0.02, pad: 0.014, shell: 20, thick: 0.004, rim: { w: 0.08, h: 0.0015, group: 'HelmetTrim' },
+    fittings: [{ kind: 'earpiece', at: [0, 2.35], r: 0.014, h: 0.008, group: 'HelmetTrim', capGroup: 'HelmetTrim' }, { kind: 'earpiece', at: [2.9, 0.9], r: 0.012, h: 0.006, group: 'HelmetTrim', capGroup: 'HelmetTrim' }, { kind: 'earpiece', at: [-2.9, 0.9], r: 0.012, h: 0.006, group: 'HelmetTrim', capGroup: 'HelmetTrim' }] },
+  astronaut: { mouth: 'cover', jaw: 1.0, nape: 0.15, pad: 0.045, shell: 40, thick: 0.004, window: { shape: 'shield', w: 3.0, top: 2.1, bottom: -2.3, notch: 0 }, eyes: VISOR({ dome: 0 }), rim: { w: 0.1, h: 0.003, group: 'HelmetTrim' } },
+});
+/** a helmet's kit from its word (HELMETS) or its own data, `over` its words' changes */
+export function helmetKit(word, { id = 'helmet', over = {} } = {}) {
+  const W = typeof word === 'object' ? word : HELMETS[word];
+  if (!W) throw new Error(`comic-hero: no helmet '${word}' (known: ${Object.keys(HELMETS).join(', ')})`);
+  return [{ id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Helmet', rigid: true, stack: false, ghost: true, signature: { kind: 'cowl', group: 'Helmet', ...W, ...over } }];
+}
+const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', at: { tiered: (spec) => withHelm({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, typeof kit === 'function' ? kit(spec) : helmetKit(kit)) } });
 /** an eyegear's kit from its word (EYEGEAR) or its own data: the cast carried by a ghost shell on the cranium */
 export function eyegearKit(word, { id = 'eyegear', over = {} } = {}) {
   const W = typeof word === 'object' ? word : EYEGEAR[word];
@@ -235,6 +255,15 @@ const EYEWEAR = (reads, word, palette) => ({ reads, family: 'eyegear', words: { 
 const MASK = (reads, words) => ({ reads, family: 'eyegear', words, at: { tiered: (spec) => withKit(spec, maskKit({ ...words, head: spec.head })) } });
 
 export const HEADGEAR = Object.freeze({
+  // ── HELMETS ──
+  bikerHelmet: HELMETED('the biker helmet: a full-face shell, a smoked visor, a double racing stripe over the crown; the rider', 'fullFace', { Helmet: '#c62828', HelmetVisor: '#20252c', HelmetTrim: '#f2f2f2' }),
+  motocrossHelmet: HELMETED('the motocross helmet: a full-face shell with an open window for goggles, a peak over the brow, a stripe; the dirt racer', 'motocross', { Helmet: '#f2c230', HelmetTrim: '#1b1d22' }),
+  jetHelmet: HELMETED('the jet helmet: an open-face shell, the whole face shown, a rim round the opening; the scooter rider', 'jet', { Helmet: '#e8e2d4', HelmetTrim: '#6b4a2b' }),
+  pilotHelmet: HELMETED('the pilot helmet: an open-face shell, a dark visor standing off over the eyes, an oxygen mask with its hose; the ace', () => [...helmetKit('jet', { over: { brow: 1.6 } }),
+    ...eyegearKit({ outline: { shape: 'shield', w: 2.2, top: 1.25, bottom: -0.5, notch: 0.35 }, eyes: { treat: 'lens', shape: 'shield', inset: [0.96, 0.9], dome: 0, group: 'HelmetVisor' }, group: 'HelmetTrim', thick: 0.003, front: { curve: true, shell: true, out: 0.026, max: 0.045 } }, { id: 'pilotVisor' }),
+    ...mouthpieceKit('rebreather', { id: 'oxygen', group: 'HelmetTrim' })], { Helmet: '#7d8b6a', HelmetTrim: '#3b4030', HelmetVisor: '#3a2a12', MaskFitting: '#2b2f36' }),
+  tacticalHelmet: HELMETED('the tactical helmet: a cut-high bump shell, the ears and the face shown, mounts at the front and the sides; the operator', 'tactical', { Helmet: '#6b6a4a', HelmetTrim: '#2f2f26' }),
+  spaceHelmet: HELMETED('the space helmet: a great round shell standing off the head, a wide clear visor over the whole face; the astronaut', 'astronaut', { Helmet: '#f4f5f7', HelmetVisor: '#9ec3d6', HelmetTrim: '#c9a227' }),
   // ── EYEGEAR: goggles, visors and headsets ──
   skiGoggles: EYEWEAR('the ski goggles: one wide mirrored lens across both eyes in a white frame, a broad strap round the head; the snow runner', 'ski', { EyeFrame: '#f2f2f2', EyeTrim: '#1b1b1f', EyeLens: '#f08a24', EyeStrap: '#1b1b1f' }),
   motoGoggles: EYEWEAR('the moto goggles: two round tinted lenses in leather cups with brass rims, a leather strap; the rider', 'moto', { EyeFrame: '#5a3b22', EyeTrim: '#b08d3c', EyeLens: '#8fb9bd', EyeStrap: '#4a3020' }),
