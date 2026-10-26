@@ -100,6 +100,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the shell's own outward line, sloping down and lipped up at its edge (it was a flat board standing high on the dome).
   The motocross helmet is the base of a family built from its dials (`MOTO`: the peak, the window, the chin bar's vents,
   a visor, a crest, stripes): the enduro, downhill, adventure, BMX, desert and raider helmets.
+- The cast takes a `shift` (its outline moved: goggles pushed up on the forehead, a visor's housing over the brow). The
+  JET PILOT family (`pilotKit`: an open-face shell, a visor housing, the visor down or up, earcups, an oxygen mask and its
+  hose, a boom mic, stripes): the fighter, top, test and helicopter pilots, the aviator's leather cap with goggles up,
+  and the display pilot. The ASTRONAUT family (`astroKit`: a great padded shell, its window a clear, gold or glowing
+  visor, a gold visor shell standing off over it, headlamps, valves, antennas, a crest): the moon, spacewalk, soft,
+  fishbowl and sci-fi space helmets. And sci-fi helmets on the full-face shell: the hunter's (a T visor, a rangefinder),
+  the trooper's (angled eye lenses, a mouth grille), the spartan's (a gold visor, a crest) and the synth's (a glowing strip).
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

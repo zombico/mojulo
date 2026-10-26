@@ -527,7 +527,8 @@ function castMask(fig, S) {
   const place = (X, Z, r, off) => { if (!flap(X, Z)) return onSkin(X, Z, r, off);
     const sg = Math.sign(X), [Xc, Zc] = rootOf(X, Z), q0 = onSkin(Xc, Zc, r, off), t0 = Xc * thE, N = [dmath.sin(t0), dmath.cos(t0), 0], T = unit(add(mul([dmath.cos(t0), -dmath.sin(t0), 0], sg), mul(N, flare)));
     return add(add(add(q0, mul(T, (Math.abs(X) - Math.abs(Xc)) * thE * r)), [0, 0, (Z - Zc) * d]), mul(N, lean * (Z - Zc) * d)); };
-  const { outer, holes } = castOutline(S), axisOf = (p) => [ax[0], ax[1], p[2]];
+  // (`shift` [dX, dZ] eye units: the outline moved, goggles pushed up on the forehead, a visor's housing over the brow)
+  const sh = S.shift ?? [0, 0], O1 = castOutline(S), mv = (P) => P.map(([x, z]) => [x + sh[0], z + sh[1]]), outer = mv(O1.outer), holes = O1.holes.map(mv), axisOf = (p) => [ax[0], ax[1], p[2]];
   // a FLAT FRONT (`front` { out, max }: a VR box's face): the outer surface on a plane square to the front, `out` (m) before
   // the skin's farthest point inside the outline, never more than `max` off the skin
   let outerOff = null;
@@ -1101,7 +1102,8 @@ export const SIGNATURES = {
    * the top over them, `notch` its dip in the middle or `peak` a widow's point rising there, `wing` and `wingRise` the
    * temples' points, `fang` a point down each cheek, `round` 1 curved, 0 angular, `arm` the points raised into arms with a
    * `valley` before the brow: a W) | 'band' | { poly, holes? } in the eyes' frame; `sweep` { from, flare } (or the
-   * outline's own): past `from` the cast leaves the skin and sweeps on past the head (the W's arms). `eyes` { shape: almond | slit | angular | round, size: [rx, rz], tilt, treat: 'open' (holes) | 'lens'
+   * outline's own): past `from` the cast leaves the skin and sweeps on past the head (the W's arms); `shift` [dX, dZ]
+   * moves the outline (goggles pushed up on the forehead). `eyes` { shape: almond | slit | angular | round, size: [rx, rz], tilt, treat: 'open' (holes) | 'lens'
    * (covers in `group`, default Lens) | 'none' (the mask whole), dome: m a covered eye bulges over the eyeball }. Relief and detail: `rim` { w, h, group? } a raised edge,
    * `ridge` { w, h } a crest down the middle, `seams` words (centre, brow, cheek, temple) or polylines pressed in, in
    * `seamGroup`. Plates are a second cast over the first (a smaller outline, a larger `lift`).
