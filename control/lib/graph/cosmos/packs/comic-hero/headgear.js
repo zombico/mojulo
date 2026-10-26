@@ -20,7 +20,7 @@ const HELM = (shape) => ({ id: 'cranium-helm', mode: 'shell', part: 'cranium', s
 const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' };
 // (a kit's colours: the helm in the suit's secondary, the visor, the lenses and a visor band in its accent, the face plate
 // dark; the era palettes name none of these groups, and grey on grey hides a T visor)
-const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38' });
+const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a' });
 // (a helm drops the hair; a visor keeps it)
 const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
@@ -70,14 +70,14 @@ const MASK_PLATES = Object.freeze({
  * cast carried by a ghost shell on the cranium; with a plate, a second cast over it. On the ANIME head (`head: 'anime'`)
  * the eyes are too large and too drawn to frame, so the default is OPAQUE: no eyes named, the opaque covers; open eyes
  * named, covers in their shape; open holes there only when the eyes say `anime: 'open'` */
-export function maskKit({ outline = 'domino', eyes = null, detail = 'plain', plate = null, id = 'mask', head = 'landmark' } = {}) {
+export function maskKit({ outline = 'domino', eyes = null, detail = 'plain', plate = null, id = 'mask', head = 'landmark', lift = null, group = 'Mask' } = {}) {
   const pick = (T, w, what) => { if (w && typeof w === 'object') return w; if (!T[w]) throw new Error(`comic-hero: no mask ${what} '${w}' (known: ${Object.keys(T).join(', ')})`); return T[w]; };
   const anime = head === 'anime', E0 = pick(MASK_EYES, eyes ?? (anime ? 'opaque' : 'open'), 'eyes');
   const E = anime && (E0.treat ?? 'open') === 'open' && E0.anime !== 'open' ? { ...E0, treat: 'lens', group: E0.group ?? 'MaskLens', size: E0.size ?? MASK_EYES.opaque.size } : E0;
   const O = pick(MASK_OUTLINES, outline, 'outline'), D = pick(MASK_DETAIL, detail, 'detail');
   // (the carrier by shares of the cranium's rings, its last fifth: a ghost that only pins the cast, on any head's rows)
   const carrier = (aid, sig) => ({ id: aid, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Mask', rigid: true, stack: false, ghost: true, signature: { kind: 'cast', group: 'Mask', ...sig } });
-  const kit = [carrier(id, { outline: O, eyes: E, ...D })];
+  const kit = [carrier(id, { outline: O, eyes: E, ...D, ...(lift !== null ? { lift } : {}), group })];
   if (plate) { const P = pick(MASK_PLATES, plate, 'plate'); kit.push(carrier(`${id}Plate`, { outline: P.outline, eyes: { treat: 'none', dome: 0 }, lift: 0.0058, thick: 0.0012, rim: { w: 0.1, h: 0.0006, group: 'MaskTrim' }, group: 'MaskPlate' })); }
   return kit;
 }
@@ -85,10 +85,41 @@ export function maskKit({ outline = 'domino', eyes = null, detail = 'plain', pla
 const GOGGLES = ['R', 'L'].map((S) => ({ id: `goggle${S}`, mode: 'shell', part: 'cranium', side: S, s: EYE_ROWS, t: [0.3, 5.6], nt: 6, ns: 2, mugen: 0.01, thick: 0.004, onTop: true, rigid: true, edge: 'roll', group: 'Visor',
   signature: { kind: 'boss', r: 0.017, h: 0.008, k: 'mid', j: 'mid', group: 'Lens' } }));
 
+// ── THE COWL: the cast over the whole head (station-loft-adorn.js `cowl`), usually with a domino over it. Its words:
+// `hair` 'cover' (the hair under the cowl) | 'flow' (the hero's own hair flowing out of the back, in its own colour, its
+// length from the hero's hair style); `mouth` 'show' (open under the nose) | 'cover' (over the lips) | 'none' (smooth: a
+// mask with no mouth); `domino` a mask's words laid over it (the domino by default) or false; `eyes` shared by the cowl
+// and its domino, so the holes meet (on the anime head the opaque covers by default, as a mask's); `detail` the cowl's own
+const FLOW = { long: 0.32, wavy: 0.3, layers: 0.3, ponytail: 0.34, braid: 0.34, curtains: 0.16, bob: 0.14, bun: 0.1 };
+export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eyes = null, detail = 'plain', head = 'landmark', heroHair = null, id = 'cowl' } = {}) {
+  if (!['cover', 'flow'].includes(hair)) throw new Error(`comic-hero: cowl hair '${hair}' (cover, flow)`);
+  if (!['show', 'cover', 'none'].includes(mouth)) throw new Error(`comic-hero: cowl mouth '${mouth}' (show, cover, none)`);
+  const words = domino === false ? null : typeof domino === 'string' ? { outline: domino } : domino;
+  // (the eyes the cowl and its domino share: the domino's own when it names them, else the cowl's, else the head's default)
+  const mk = maskKit({ ...(words || {}), eyes: eyes ?? words?.eyes ?? null, head, id: `${id}Domino`, lift: 0.0063, group: 'MaskDomino' })[0], E = mk.signature.eyes;
+  // (the domino reads on the cowl by its edge: a rim raised in shading, unless its own detail names one)
+  if (!mk.signature.rim) mk.signature.rim = { w: 0.16, h: 0.0016 };
+  const style = typeof heroHair === 'string' ? heroHair : heroHair?.style, len = FLOW[style] ?? 0.2;
+  const D = typeof detail === 'object' ? detail : MASK_DETAIL[detail] ?? MASK_DETAIL.plain;
+  const cowl = { id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Mask', rigid: true, stack: false, ghost: true,
+    signature: { kind: 'cowl', group: 'Mask', mouth, eyes: E, ...D, ...(hair === 'flow' ? { hair: { len } } : {}) } };
+  return words ? [cowl, mk] : [cowl];
+}
+const COWLED = (reads, words) => ({ reads, family: 'cowl', words, at: { tiered: (spec) => withHelm(spec, cowlKit({ ...words, head: spec.head, heroHair: spec.hair })) } });
+
 // the masks' VARIATIONS, each the builder's words (tiered: the cast rides the landmark head)
 const MASK = (reads, words) => ({ reads, family: 'mask', words, at: { tiered: (spec) => withKit(spec, maskKit({ ...words, head: spec.head })) } });
 
 export const HEADGEAR = Object.freeze({
+  // ── COWLS over the whole head (the cast's `cowl`) ──
+  dominoCowl: COWLED('the domino cowl: the head covered, the domino over the eyes, the mouth and the chin bare; the night vigilante', {}),
+  flowingCowl: COWLED('the flowing cowl: the domino cowl with the hero\'s own hair flowing out of the back; the acrobat', { hair: 'flow' }),
+  lensCowl: COWLED('the lens cowl: the head covered, a pointed domino with white lenses, the mouth shown; the detective', { domino: 'pointed', eyes: 'lens' }),
+  coveredCowl: COWLED('the covered cowl: the head and the mouth covered, the lips read through the cloth, a domino over the eyes; the ninja', { mouth: 'cover' }),
+  fullMask: COWLED('the full mask: the whole head covered, no mouth, white lenses, no domino; the wall-crawler', { mouth: 'none', domino: false, eyes: 'lens' }),
+  facelessMask: COWLED('the faceless mask: the whole head covered, no mouth, no eyes; the blank', { mouth: 'none', domino: false, eyes: 'blank' }),
+  bareCowl: COWLED('the bare cowl: the head covered, eye holes cut, no domino, the mouth shown; the thief', { domino: false }),
+  technicalCowl: COWLED('the technical cowl: the head covered, a technical domino with lenses and seams, a crest over the crown; the gadgeteer', { domino: { outline: 'technical', detail: 'technical' }, eyes: 'angularLens', detail: { ridge: { w: 0.22, h: 0.002 } } }),
   pointedMask: MASK('the pointed mask: the domino swept to long points at the temples, a widow\'s peak at the brow; the aerialist', { outline: 'pointed' }),
   raptorMask: MASK('the raptor mask: angular, a high peak, fangs down the cheeks, slanted slits; the predator', { outline: 'raptor', eyes: 'slit' }),
   technicalMask: MASK('the technical mask: angular planes, panel seams and a raised rim, white lens covers; the gadgeteer', { outline: 'technical', eyes: 'lens', detail: 'technical' }),

@@ -46,6 +46,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `MASK_EYES`, `MASK_DETAIL`) and its variations: pointed, raptor, technical, tactical, hunter, lens, blank and goggle
   masks. On the anime head the default eyes are opaque covers (its eyes are too large and too drawn to frame), and an
   open-eyed mask wears covers in its eye shape unless the eyes say `anime: 'open'`.
+- The `cowl` signature: the cast over the whole head, out from its middle on a map laid round the crown, down to an edge
+  set by the head's own heights (`mouth: 'show'` a U under the nose round the mouth and the chin, `'cover'` to the chin
+  over the lips, `'none'` smooth over them: a mask with no mouth), the jaw at the sides and the nape behind; the eyes the
+  cast's, carried onto the map; the ears raised under it; `hair` the hero's hair flowing out of the back in its own
+  colour. The cast and the cowl share one head reader and one grid mesher.
+- The pack's `cowlKit({ hair: 'cover' | 'flow', mouth, domino, eyes, detail })`: the cowl with a domino laid over it by
+  default (a mask's words, or false), the two sharing one eye treatment so their holes meet; the hair hidden under it
+  either way (flowing, its length from the hero's own style); and its variations: the domino, flowing, lens, covered,
+  bare and technical cowls, the full mask and the faceless mask.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

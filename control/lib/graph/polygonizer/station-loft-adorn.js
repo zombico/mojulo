@@ -400,69 +400,69 @@ const SEAM_WORDS = { centre: [[[0, -1.2], [0, 1.6]]], brow: [[[-2.2, 0.62], [-1.
   temple: [[[1.62, 0.12], [2.5, 0.6]], [[-1.62, 0.12], [-2.5, 0.6]]] };
 const segDist = (x, z, L) => { let b = Infinity; for (let i = 0; i + 1 < L.length; i++) { const [ax, az] = L[i], [bx, bz] = L[i + 1], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1e-12))); b = Math.min(b, Math.hypot(ax + t * dx - x, az + t * dz - z)); } return b; };
 const ringDist = (x, z, P) => segDist(x, z, [...P, P[0]]);
-function castMask(fig, S) {
+// the HEAD a cast reads: the skin's triangles (the named parts, by default the landmark head's cranium and jaw and the anime
+// head's face; and the details riding it, `over`), its bounds, the eyes' centres and spacing, and a ray caster
+function castHead(fig, S) {
   const tri = []; const take = (P) => { if (!P?.faces || !P.points) return; const F = Array.isArray(P.faces) ? P.faces : Object.values(P.faces); for (const f of F) for (let k = 1; k + 1 < f.length; k++) { const a = P.points[f[0]], b = P.points[f[k]], c = P.points[f[k + 1]]; if (a && b && c) tri.push([a, b, c]); } };
-  // (the skin it is cast onto: the named parts, by default the landmark head's cranium and jaw and the anime head's face)
   for (const n of S.parts || ['cranium', 'jaw', 'face']) take(fig.mesh.parts[n]);
   const over = S.over ? new RegExp(S.over) : /^(brow|lid)(R|L)?$/;
   for (const [k, P] of Object.entries(fig.parts || {})) if (over.test(k)) take(P);
-  if (!tri.length) return [];
+  if (!tri.length) return null;
   const all = tri.flat(), lo = [0, 1, 2].map((i) => Math.min(...all.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...all.map((p) => p[i])));
   const mid = (P) => { const v = Object.values(P?.points || {}); return v.length ? [0, 1, 2].map((i) => v.reduce((a, p) => a + p[i], 0) / v.length) : null; };
   // (the eyes' centres: the head's eye details are not built yet when it is dressed, so they are read off the cranium's own
-  // EYE ROW, the landmark head's station 4 (its rows: 0 the mouth … 3 the bridge, 4 the eyes, 5 the brow), between the
-  // eye's inner and outer corner slots; a head without them falls back to its bounds)
-  const Cr = fig.mesh.parts[(S.parts || ['cranium'])[0]], eyeRow = Cr?.stations?.find((st) => st.id === (S.eyeRow ?? 'st4'));
-  // (the landmark head draws its eye a little past the middle of its corners, `eyeAt` of the way from the inner to the outer)
-  const pre = Cr ? Object.keys(Cr.points)[0].split('/')[0] : '', eyeAt = S.eyeAt ?? 0.565;
-  const corner = (S0) => { const a = Cr?.points?.[`${pre}/${eyeRow?.id}.inner${S0}`], b = Cr?.points?.[`${pre}/${eyeRow?.id}.outer${S0}`]; return a && b ? add(a, mul(sub(b, a), eyeAt)) : null; };
-  // (a head that draws its pupils as parts by the time it is dressed, the anime head's: their middles)
+  // EYE ROW, the landmark head's station 4 (its rows: 0 the mouth … 3 the bridge, 4 the eyes, 5 the brow), `eyeAt` of the
+  // way from the eye's inner corner slot to its outer, where the landmark head draws it; a head that draws its pupils as
+  // parts by the time it is dressed, the anime head, their middles; else the head's bounds)
+  const Cr = fig.mesh.parts[(S.parts || ['cranium'])[0]], pre = Cr ? Object.keys(Cr.points)[0].split('/')[0] : '', row = (id) => Cr?.stations?.find((st) => st.id === id);
+  const eyeRow = row(S.eyeRow ?? 'st4'), eyeAt = S.eyeAt ?? 0.565, P = (id, sl) => Cr?.points?.[`${pre}/${id}.${sl}`];
+  const corner = (S0) => { const a = P(eyeRow?.id, `inner${S0}`), b = P(eyeRow?.id, `outer${S0}`); return a && b ? add(a, mul(sub(b, a), eyeAt)) : null; };
   const pupil = (S0) => mid(fig.mesh.parts[`pupil${S0}`]) ?? mid(fig.parts?.[`pupil${S0}`]) ?? mid(fig.mesh.parts[`iris${S0}`]) ?? mid(fig.parts?.[`iris${S0}`]);
   const eR = (eyeRow && corner('R')) || pupil('R'), eL = (eyeRow && corner('L')) || pupil('L');
   const c0 = eR && eL ? mul(add(eR, eL), 0.5) : [(lo[0] + hi[0]) / 2, hi[1], lo[2] + 0.55 * (hi[2] - lo[2])];
   const d = eR && eL ? Math.max(0.012, Math.abs(eR[0] - eL[0]) / 2) : 0.032;
-  // the cylinder the outline wraps round: its axis vertical through the head's middle, its radius the head's half-depth
-  const ax = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2], R = Math.max(0.03, Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2);
-  // (the wrap is anchored on the eyes: X ±1 lands on each eye's own angle round the axis, so the holes sit on the eyes
-  // however round the head is; a head without eyes found wraps by arc length on the radius)
-  const thE = eR ? Math.atan2(Math.abs(eR[0] - ax[0]), eR[1] - ax[1]) : d / R;
-  const dirAt = (X) => { const th = X * thE; return [dmath.sin(th), dmath.cos(th), 0]; };
-  const castAt = (X, Z) => { const dir = dirAt(X), z = c0[2] + Z * d, o = [ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, z], ray = mul(dir, -1); let best = null;
+  // the landmark head's other heights, where its rows give them: the mouth (row 0), under the nose (row 1); the ear at the
+  // side slot between rows 3 and 4
+  const zAt = (id) => { const st = row(id); return st ? Object.values(st.points)[0][2] : null; };
+  const ear = (S0) => { const a = P('st3', `side${S0}`), b = P('st4', `side${S0}`); return a && b ? add(a, mul(sub(b, a), 0.7)) : null; };
+  const hit = (o, ray) => { let best = null;
     for (const [a, b, c] of tri) { const e1 = sub(b, a), e2 = sub(c, a), h = cross(ray, e2), det = dot(e1, h); if (Math.abs(det) < 1e-14) continue; const f = 1 / det, sv = sub(o, a), u = f * dot(sv, h); if (u < 0 || u > 1) continue; const q = cross(sv, e1), v = f * dot(ray, q); if (v < 0 || u + v > 1) continue; const t = f * dot(e2, q); if (t > 1e-6 && (best === null || t < best)) best = t; }
-    return best === null ? null : 0.4 - best; };   // the skin's distance from the axis along the ray
-  const { outer, holes } = castOutline(S), cell = S.cell ?? 0.06, treat = S.eyes?.treat ?? 'open', cut = treat === 'open' ? holes : [];
+    return best; };
+  return { tri, lo, hi, eR, eL, c0, d, hit, zMouth: zAt('st0'), zNose: zAt('st1'), ears: [ear('R'), ear('L')].filter(Boolean) };
+}
+const easeS = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 - 2 * v); };
+// the GRID a cast is meshed on, in its own map's (x, z): the cells inside `outer` and outside the open eyes, their corners
+// snapped onto the outline and the eyes' outlines, each corner cast to its depth (`depthAt`), smoothed but never below
+// the cast (`bridge(x, z)`: corners bridged harder, a covered mouth's), lifted, thickened with RELIEF and walled, each
+// outer triangle in its GROUP; `place(x, z, r, off)` the corner's point, `axisOf(p)` the point it faces away from
+function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null, bumps = [] }) {
+  const treat = S.eyes?.treat ?? 'open', cut = treat === 'open' ? holes : [], covered = treat === 'open' ? [] : holes;
   const inside = (x, z) => pip(outer, x, z) && !cut.some((H) => pip(H, x, z));
   const xs = outer.map((p) => p[0]), zs = outer.map((p) => p[1]), X0 = Math.min(...xs) - cell, Z0 = Math.min(...zs) - cell, NX = Math.ceil((Math.max(...xs) - X0) / cell) + 2, NZ = Math.ceil((Math.max(...zs) - Z0) / cell) + 2;
   const keep = new Set(); for (let i = 0; i < NX - 1; i++) for (let j = 0; j < NZ - 1; j++) if (inside(X0 + (i + 0.5) * cell, Z0 + (j + 0.5) * cell)) keep.add(`${i},${j}`);
-  // the corners the kept cells use, those outside the shape snapped onto its nearest edge (the outline, or an eye hole's)
   // (`edge`: the corner lies on the outline, `eye` on an eye's; a covered eye's outline is snapped to too, so a lens's
   // colour, cut by the faces, follows its shape instead of the grid's steps)
-  const covered = treat === 'open' ? [] : holes, used = new Map(), uv = (i, j) => { const kk = `${i},${j}`; if (!used.has(kk)) { let x = X0 + i * cell, z = Z0 + j * cell, edge = false, eye = false;
+  const used = new Map(), uv = (i, j) => { const kk = `${i},${j}`; if (!used.has(kk)) { let x = X0 + i * cell, z = Z0 + j * cell, edge = false, eye = false;
       if (!inside(x, z)) { const cands = [[nearestOn(outer, x, z), 'edge'], ...cut.map((H) => [nearestOn(H, x, z), 'eye'])].sort(([A], [B]) => (A[0] - x) ** 2 + (A[1] - z) ** 2 - ((B[0] - x) ** 2 + (B[1] - z) ** 2)); [x, z] = cands[0][0]; edge = cands[0][1] === 'edge'; eye = !edge; }
       else for (const H of covered) { const q = nearestOn(H, x, z); if (Math.hypot(q[0] - x, q[1] - z) < 0.5 * cell) { [x, z] = q; eye = true; break; } }
       used.set(kk, { x, z, edge, eye }); } return kk; };
   for (const kk of keep) { const [i, j] = kk.split(',').map(Number); uv(i, j); uv(i + 1, j); uv(i + 1, j + 1); uv(i, j + 1); }
-  // the cast depth, smoothed twice over the grid's neighbours and never below the cast (the mask lies on the face's peaks)
-  let r = new Map([...used].map(([kk, q]) => [kk, castAt(q.x, q.z)]));
+  let r = new Map([...used].map(([kk, q]) => [kk, depthAt(q.x, q.z)]));
   const miss = [...r.values()].filter((v) => v === null).length; if (miss > r.size / 2) return [];
   const fallback = Math.max(...[...r.values()].filter((v) => v !== null)); for (const [kk, v] of r) if (v === null) r.set(kk, fallback);
-  for (let pass = 0; pass < 2; pass++) { const n = new Map(); for (const [kk, v] of r) { const [i, j] = kk.split(',').map(Number), nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => r.get(`${i + a},${j + b}`)).filter((x) => x !== undefined); n.set(kk, Math.max(v, (2 * v + nb.reduce((a, x) => a + x, 0)) / (2 + nb.length))); } r = n; }
-  // RELIEF on the outer face (m, by the corner's place in the eyes' frame): a raised RIM along the outline (`rim` { w, h }),
-  // a RIDGE down the middle (`ridge` { w, h }: a crest over the bridge), each eased to nothing at its width; the SEAMS
-  // (`seams`: words or polylines) pressed in a hair
+  const smooth = (passes, only = null) => { for (let pass = 0; pass < passes; pass++) { const n = new Map(); for (const [kk, v] of r) { if (only && !only(used.get(kk))) { n.set(kk, v); continue; } const [i, j] = kk.split(',').map(Number), nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => r.get(`${i + a},${j + b}`)).filter((x) => x !== undefined); n.set(kk, Math.max(v, (2 * v + nb.reduce((a, x) => a + x, 0)) / (2 + nb.length))); } r = n; } };
+  smooth(2); if (bridge) smooth(8, (q) => bridge(q.x, q.z));
+  // RELIEF on the outer face (m, by the corner's place in the map): a covered eye DOMED over the eyeball (`eyes.dome`), a
+  // raised RIM along the outline (`rim` { w, h }), a RIDGE down the middle (`ridge` { w, h }), the caller's BUMPS (an ear
+  // under a cowl: { at: [x, z], r, h }), each eased to nothing at its width; the SEAMS (words or polylines) pressed in a hair
   const seams = (S.seams || []).flatMap((x) => (typeof x === 'string' ? SEAM_WORDS[x] ?? [] : [x])), sw = S.seamW ?? 0.045;
-  const ease = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 - 2 * v); };
-  // a covered eye (a lens, or no eyes at all) DOMED over the eye, `eyes.dome` (m) at its middle, eased out past its outline,
-  // so the eyeball and its lids under the cast stay under it
-  const dome = treat === 'open' ? 0 : S.eyes?.dome ?? 0.006, domeAt = (x, z) => (dome ? dome * Math.max(...holes.map((H) => (pip(H, x, z) ? 1 : ease(1 - ringDist(x, z, H) / 0.3)))) : 0);
-  const relief = (x, z) => domeAt(x, z) + (S.rim ? (S.rim.h ?? 0.0015) * ease(1 - ringDist(x, z, outer) / (S.rim.w ?? 0.14)) : 0) + (S.ridge ? (S.ridge.h ?? 0.002) * ease(1 - Math.abs(x) / (S.ridge.w ?? 0.25)) * (pip(outer, x, z) ? 1 : 0) : 0)
-    - (seams.some((L) => segDist(x, z, L) < sw) ? 0.0006 : 0);
-  const lift = S.lift ?? 0.0025, th = S.thick ?? 0.003, pts = {}, at = (kk, off) => { const q = used.get(kk), dir = dirAt(q.x); return [ax[0] + dir[0] * (r.get(kk) + off), ax[1] + dir[1] * (r.get(kk) + off), c0[2] + q.z * d]; };
-  for (const [kk, q] of used) { pts[`o${kk}`] = at(kk, lift + th + relief(q.x, q.z)); pts[`i${kk}`] = at(kk, lift); }
-  // each outer face's GROUP by its cell's middle: a lens cover's (`eyes.treat: 'lens'`, `eyes.group`), a seam's (`seamGroup`),
-  // the rim's (`rim.group`), else the mask's; the inside and the walls the mask's
-  // (by each triangle: its middle inside a covered eye, a lens; on a seam, the seam; two corners on the outline, the rim's
-  // strip along the edge)
+  const dome = treat === 'open' ? 0 : S.eyes?.dome ?? 0.006, domeAt = (x, z) => (dome && holes.length ? dome * Math.max(...holes.map((H) => (pip(H, x, z) ? 1 : easeS(1 - ringDist(x, z, H) / 0.3)))) : 0);
+  const relief = (x, z) => domeAt(x, z) + (S.rim ? (S.rim.h ?? 0.0015) * easeS(1 - ringDist(x, z, outer) / (S.rim.w ?? 0.14)) : 0) + (S.ridge ? (S.ridge.h ?? 0.002) * easeS(1 - Math.abs(x) / (S.ridge.w ?? 0.25)) * (pip(outer, x, z) ? 1 : 0) : 0)
+    + bumps.reduce((a, B) => a + B.h * easeS(1 - Math.hypot(x - B.at[0], z - B.at[1]) / B.r), 0) - (seams.some((L) => segDist(x, z, L) < sw) ? 0.0006 : 0);
+  const lift = S.lift ?? 0.0025, th = S.thick ?? 0.003, pts = {};
+  for (const [kk, q] of used) { pts[`o${kk}`] = place(q.x, q.z, r.get(kk), lift + th + relief(q.x, q.z)); pts[`i${kk}`] = place(q.x, q.z, r.get(kk), lift); }
+  // (each outer triangle's group: its middle inside a covered eye, a lens; on a seam, the seam; two corners on the
+  // outline, the rim's strip along the edge; else the mask's. The inside and the walls the mask's, the walls the rim's)
   const G = S.group, gOf = (T) => { const Q = T.map((k) => used.get(k)), x = (Q[0].x + Q[1].x + Q[2].x) / 3, z = (Q[0].z + Q[1].z + Q[2].z) / 3;
     if (treat === 'lens' && holes.some((H) => pip(H, x, z))) return S.eyes.group ?? 'Lens';
     if (seams.length && S.seamGroup && seams.some((L) => segDist(x, z, L) < sw)) return S.seamGroup;
@@ -473,9 +473,71 @@ function castMask(fig, S) {
     faces.push([`o${C[0]}`, `o${C[1]}`, `o${C[2]}`], [`o${C[0]}`, `o${C[2]}`, `o${C[3]}`], [`i${C[2]}`, `i${C[1]}`, `i${C[0]}`], [`i${C[3]}`, `i${C[2]}`, `i${C[0]}`]); fg.push(gOf([C[0], C[1], C[2]]), gOf([C[0], C[2], C[3]]), G, G);
     for (let e = 0; e < 4; e++) { const a = C[e], b = C[(e + 1) % 4], key = a < b ? `${a}|${b}` : `${b}|${a}`; const E = edges.get(key); if (E) E.n++; else edges.set(key, { a, b, n: 1 }); } }
   for (const { a, b, n } of edges.values()) if (n === 1) { faces.push([`o${b}`, `o${a}`, `i${a}`], [`o${b}`, `i${a}`, `i${b}`]); fg.push(S.rim?.group ?? G, S.rim?.group ?? G); }
-  // wound outward: the outer face of the first cell faces away from the axis, else every face turned
-  const f0 = faces[0].map((k) => pts[k]), nrm = cross(sub(f0[1], f0[0]), sub(f0[2], f0[0])), out0 = sub(f0[0], [ax[0], ax[1], f0[0][2]]);
+  // wound outward: the outer face of the first cell faces away from its axis, else every face turned
+  const f0 = faces[0].map((k) => pts[k]), nrm = cross(sub(f0[1], f0[0]), sub(f0[2], f0[0])), out0 = sub(f0[0], axisOf(f0[0]));
   return [{ points: Object.fromEntries(Object.entries(pts).map(([k, p]) => [k, p.map((v) => Math.round(v * 1e6) / 1e6)])), faces: dot(nrm, out0) < 0 ? faces.map((f) => [...f].reverse()) : faces, ...(fg.some((g) => g !== G) ? { faceGroups: fg } : {}), group: G }];
+}
+function castMask(fig, S) {
+  const H = castHead(fig, S); if (!H) return [];
+  const { lo, hi, eR, c0, d, hit } = H;
+  // the cylinder the outline wraps round: its axis vertical through the head's middle; the wrap anchored on the eyes (X ±1
+  // lands on each eye's own angle round the axis, so the holes sit on the eyes however round the head is; a head without
+  // eyes found wraps by arc length on its half-depth)
+  const ax = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2], R = Math.max(0.03, Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2);
+  const thE = eR ? Math.atan2(Math.abs(eR[0] - ax[0]), eR[1] - ax[1]) : d / R;
+  const dirAt = (X) => { const th = X * thE; return [dmath.sin(th), dmath.cos(th), 0]; };
+  const depthAt = (X, Z) => { const dir = dirAt(X), t = hit([ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, c0[2] + Z * d], mul(dir, -1)); return t === null ? null : 0.4 - t; };
+  const place = (X, Z, r, off) => { const dir = dirAt(X); return [ax[0] + dir[0] * (r + off), ax[1] + dir[1] * (r + off), c0[2] + Z * d]; };
+  const { outer, holes } = castOutline(S);
+  return castGrid(S, { outer, holes, cell: S.cell ?? 0.06, depthAt, place, axisOf: (p) => [ax[0], ax[1], p[2]] });
+}
+// THE COWL (SIGNATURES.cowl): the cast over the whole head, out from its middle on a map laid round the crown
+// (x, z) = (ρ sin θ, ρ cos θ), θ round from the front, ρ down from the crown (radians: π/2 the head's middle height); the
+// region down to an edge by HEIGHT round the head: under the nose in front and up to the cheeks with the mouth shown, to
+// the chin with it covered, the jaw at the sides, the nape behind; the eyes cut (or covered) as the domino's, their
+// outlines carried from the eyes' frame onto the map
+function castCowl(fig, S) {
+  const H = castHead(fig, S); if (!H) return [];
+  const { lo, hi, eR, c0, d, hit } = H, C = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2 + 0.1 * (hi[2] - lo[2])];
+  const dir = (th, rho) => { const ph = Math.PI / 2 - rho, cp = dmath.cos(ph); return [dmath.sin(th) * cp, dmath.cos(th) * cp, dmath.sin(ph)]; };
+  const castDir = (D) => { const t = hit(add(C, mul(D, 0.5)), mul(D, -1)); return t === null ? null : 0.5 - t; };
+  const toMap = (th, rho) => [rho * dmath.sin(th), rho * dmath.cos(th)], ofMap = (x, z) => [Math.atan2(x, z), Math.hypot(x, z)];
+  const depthAt = (x, z) => { const [th, rho] = ofMap(x, z); return castDir(dir(th, rho)); };
+  const place = (x, z, r, off) => { const [th, rho] = ofMap(x, z); return add(C, mul(dir(th, rho), r + off)); };
+  // the map's ρ where the skin, cast along θ, stands at height `zt` (bisected: the cast's height falls as ρ grows)
+  const RMAX = 2.6, zOf = (th, rho) => { const D = dir(th, rho), r = castDir(D); return r === null ? null : C[2] + D[2] * r; };
+  const rhoAt = (th, zt) => { let a = 0.05, b = RMAX; for (let i = 0; i < 26; i++) { const m = (a + b) / 2, z = zOf(th, m); if (z === null || z < zt) b = m; else a = m; } return (a + b) / 2; };
+  const zMouth = H.zMouth ?? lo[2] + 0.22 * (hi[2] - lo[2]), zNose = H.zNose ?? lo[2] + 0.32 * (hi[2] - lo[2]), zChin = lo[2] + 0.004;
+  const mouth = S.mouth ?? 'show', wO = S.opening ?? 0.95;   // the open front's half-width (radians round the head)
+  // the edge's height round the head: the front open under the nose (shown) or down to the chin, the jaw at the sides
+  // (`jaw`, a share from the mouth to the chin), the nape behind (`nape`, m under the mouth)
+  const zJaw = zMouth - (S.jaw ?? 0.45) * (zMouth - zChin), zNape = zMouth - (S.nape ?? 0.012);
+  const edgeZ = (th) => { const a = Math.abs(th), back = easeS((a - Math.PI / 2) / (Math.PI / 2)), side = zJaw + (zNape - zJaw) * back;
+    if (mouth !== 'show') return a < Math.PI / 2 ? zChin + (side - zChin) * easeS((a - 0.35) / (Math.PI / 2 - 0.35)) : side;
+    // (shown: the edge under the nose, running down across the cheeks to the jaw's corner, a U round the mouth and chin)
+    const open = zNose - 0.003 - (zNose - 0.003 - zJaw) * Math.min(1, (a / wO) ** 1.6); return a < wO ? open : side; };
+  // (the edge sampled round the head, its ρ smoothed over its neighbours so a facet of the skin leaves no notch in it)
+  const N = 120, TH = Array.from({ length: N }, (_, k) => -Math.PI + (2 * Math.PI * k) / N); let RHO = TH.map((th) => rhoAt(th, edgeZ(th)));
+  for (let pass = 0; pass < 3; pass++) RHO = RHO.map((v, k) => (RHO[(k + N - 1) % N] + 2 * v + RHO[(k + 1) % N]) / 4);
+  const outer = TH.map((th, k) => toMap(th, RHO[k]));
+  // the eyes: the domino's eye shapes, carried from the eyes' frame (θ by the eye's own angle round C, height by the eyes')
+  const thE = eR ? Math.atan2(Math.abs(eR[0] - C[0]), eR[1] - C[1]) : 0.45;
+  const { holes: eyeHoles } = castOutline(S), holes = eyeHoles.map((Hh) => Hh.map(([X, Z]) => toMap(X * thE, rhoAt(X * thE, c0[2] + Z * d))));
+  // a covered mouth with no mouth (`mouth: 'none'`): the skin over the lips bridged smooth
+  const zLip = zNose + 0.004, bridge = mouth === 'none' ? (x, z) => { const [th, rho] = ofMap(x, z); if (Math.abs(th) > 0.7) return false; const zz = zOf(th, rho); return zz !== null && zz < zLip; } : null;
+  // the EARS under the cowl, the landmark head's (its side slot between rows 3 and 4): bumps, so they stay under it
+  const bumps = S.ears === false ? [] : H.ears.map((E) => { const th = Math.atan2(E[0] - C[0], E[1] - C[1]); return { at: toMap(th, rhoAt(th, E[2])), r: S.earR ?? 0.62, h: S.earH ?? 0.024 }; });
+  const out = castGrid(S, { outer, holes, cell: S.cell ?? 0.05, depthAt, place, axisOf: () => C, bridge, bumps });
+  // HAIR FLOWING out of the back (`hair` { len, n?, spread?, group? }: the hero's own hair, its colour the Hair group's):
+  // clumps from a tie at the back of the head at the eyes' height, falling and fanning, fixed by a pattern (no dice)
+  if (S.hair && out.length) { const T = S.hair, nC = T.n ?? 9, len = T.len ?? 0.25, th0 = Math.PI, rho0 = rhoAt(th0, c0[2] - 0.01), D0 = dir(th0, rho0), r0 = castDir(D0) ?? 0.09;
+    const root = add(C, mul(D0, r0 + (S.lift ?? 0.0025) + (S.thick ?? 0.003) - 0.002)), bk = [0, -1, 0], rr = T.r ?? 0.012;
+    const hsh = (i, k) => { const x = dmath.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+    out.push({ ...disc(root, unit(add(bk, [0, 0, -0.3])), rr * 1.5, rr * 0.9, 12, 0.6), group: S.group });
+    for (let i = 0; i < nC; i++) { const ph = i * 2.39996, L = len * (1 - 0.25 * hsh(i, 1)), sp = (T.spread ?? 0.3) * (0.5 + hsh(i, 2)), side = add(mul([1, 0, 0], dmath.cos(ph)), mul([0, -0.7, 0], dmath.sin(ph))), K = 7;
+      const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1); return add(add(add(root, mul(bk, L * 0.28 * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]), mul(side, sp * L * dmath.pow(t, 0.9))); });
+      out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, rr * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
+  return out;
 }
 
 export const SIGNATURES = {
@@ -785,6 +847,13 @@ export const SIGNATURES = {
    * `seamGroup`. Plates are a second cast over the first (a smaller outline, a larger `lift`).
    * { parts?, over?, outline?, eyes?, rim?, ridge?, seams?, seamW?, seamGroup?, lift?, thick?, cell?, eyeAt?, eyeRow? } */
   cast: (fig, _g, _b, S) => castMask(fig, S),
+  /** a COWL: the cast over the whole head (castCowl): the crown, the back and the sides down to the jaw and the nape,
+   * the front open under the nose (`mouth: 'show'`), down to the chin over the lips (`'cover'`), or smooth over them
+   * (`'none'`, a mask with no mouth); the eyes as the cast's (`eyes`); the ears raised under it (`ears` false: none);
+   * `hair` { len, n?, spread?, r?, group? } the hero's hair flowing out of the back in its own colour. Relief as the
+   * cast's (`rim`, `ridge`: a crest over the crown, `seams`). A domino over it is a cast with a larger `lift`.
+   * { mouth?, opening?, jaw?, nape?, eyes?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, lift?, thick?, cell? } */
+  cowl: (fig, _g, _b, S) => castCowl(fig, S),
   /** a RESPIRATOR: a cup over the nose and the mouth (the cyberpunk gas mask), sized from the head's own bounds as the helm
    * is (`parts`, default cranium + jaw; `pad` off the head), the head's superellipse section (`n`) spanning `spread`
    * radians either side of the front from `low` (helm heights, 0 under the chin) to `high` (default just under the eye
