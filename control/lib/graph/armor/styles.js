@@ -28,7 +28,7 @@ export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
 const HARD = { helm: ['power', 'trooper', 'faceplate', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'none'], focal: ['helm', 'pauldron', 'reactor'],
-  arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] };
+  cut: ['yoke', 'fitted'], arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] };
 
 export const SEEDED_ARMOR = Object.freeze({
   knight: {

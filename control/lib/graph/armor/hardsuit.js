@@ -27,9 +27,12 @@ export const HELMS = Object.freeze(['power', 'trooper', 'faceplate', 'none']);
 //   skirt         none | pteruges (strips hanging from the belt all round) | tassets (a plate over each hip)
 //   pack          + jet (two thrusters: the flier's);  glow none | lines (glowing strips down the limbs: the cyborg's)
 //   collar        band | high | none;  fnSide R | L (the manica's arm), leadSide R | L (the ocrea's leg)
+//   cut           yoke (the plates up over the shoulders, a collar round the neck) | fitted (the plates under the
+//                 collarbone and off the sides, the pauldrons on the shoulder's point, a gorget for the collar: the
+//                 torso never wraps the shoulders)
 export const HARD_PAULDRONS = Object.freeze(['dome', 'cap', 'segmented', 'lames', 'none']);
 export const CHESTS = Object.freeze(['plain', 'reactor', 'plates', 'box', 'bands', 'none']);
-export const HARD_WORDS = Object.freeze({ arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] });
+export const HARD_WORDS = Object.freeze({ cut: ['yoke', 'fitted'], arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] });
 
 // the helm shapes: a superellipse exponent, the padding off the head, the bottom flare, the muzzle, the crown
 const HELM_SHAPES = {
@@ -63,14 +66,21 @@ export function hardSuit(dials, ctx, lang = {}) {
       if (chest === 'none') return out;
       // moulded breast and back, split on the midline and open at the sides under the arms (law 8), the abdomen in
       // bands whose gaps are panel lines; `bands` the whole cuirass in wrapped bands, each a little prouder than the one above
-      if (chest === 'bands') { const n = 3 + seg; for (let i = 0; i < n; i++) { const a = 1.1 + i * (2.2 / n); out.push(shell({ id: `torso-band${i}`, part: 'torso', side: 'R', s: [r4(a), r4(a + 2.2 / n - 0.05)], t: 'wrap', nt: 16, ns: 1, mugen: mug(0.008 + 0.0015 * i), stack: false })); } }
+      // (`cut: 'fitted'`: the plates stop under the collarbone and off the sides, the bands under the arms, so the
+      // shoulders are the pauldrons' alone; the default cut runs them up over the shoulder's roundness)
+      const fit = lang.cut === 'fitted', top = fit ? 3.0 : 3.3;
+      if (chest === 'bands') { const n = 3 + seg, span = fit ? 1.75 : 2.2; for (let i = 0; i < n; i++) { const a = 1.1 + i * (span / n); out.push(shell({ id: `torso-band${i}`, part: 'torso', side: 'R', s: [r4(a), r4(a + span / n - 0.05)], t: 'wrap', nt: 16, ns: 1, mugen: mug(0.008 + 0.0015 * i), stack: false })); } }
       else for (const S of ['R', 'L']) {
-        out.push(shell({ id: `torso-chest${S}`, part: 'torso', side: S, s: [2.05, 3.3], t: [0, r4(0.37 * Ht)], nt: 7, ns: 4, mugen: mug(0.012), support: 3.3, ramp: r4(0.25 * law.flare) }));
-        out.push(shell({ id: `torso-backplate${S}`, part: 'torso', side: S, s: [1.4, 3.3], t: [r4(0.63 * Ht), Ht], nt: 7, ns: 4, mugen: mug(0.01), support: 3.3, ramp: 0.2 }));
+        out.push(shell({ id: `torso-chest${S}`, part: 'torso', side: S, s: [2.05, top], t: [0, r4((fit ? 0.3 : 0.37) * Ht)], nt: 7, ns: 4, mugen: mug(0.012), support: top, ramp: r4(0.25 * law.flare) }));
+        out.push(shell({ id: `torso-backplate${S}`, part: 'torso', side: S, s: [1.4, top], t: [r4((fit ? 0.7 : 0.63) * Ht), Ht], nt: 7, ns: 4, mugen: mug(0.01), support: top, ramp: 0.2 }));
         if (chest !== 'plates') for (let i = 0; i < seg + 1; i++) { const a = 1.1 + i * (0.9 / (seg + 1)); out.push(shell({ id: `torso-abs${S}${i}`, part: 'torso', side: S, s: [r4(a), r4(a + 0.9 / (seg + 1) - 0.05)], t: [0, r4(0.3 * Ht)], nt: 5, ns: 1, mugen: mug(0.008) })); }
       }
       const col = lang.collar ?? 'band';
-      if (col !== 'none') out.push(shell({ id: 'neck-collar', mode: 'band', part: 'neck', over: ['torso'], pin: [3.95, 0, 'R', 'torso'], s: [0.0, col === 'high' ? 1.15 : 0.7], t: 'wrap', nt: 12, ns: 2, mugen: mug(col === 'high' ? 0.012 : 0.008), support: col === 'high' ? 1.15 : 0.7, ramp: r4((col === 'high' ? 1.2 : 0.8) * law.flare) }));
+      // (fitted: no ring round the neck, whose base rings run out over the trapezius; a GORGET instead, a plate front
+      // and back round the neck's base on the torso's top, narrow, rising and standing off more as it climbs (`high`))
+      if (col !== 'none' && fit) for (const S of ['R', 'L']) for (const [w, t] of [['F', [0, r4(0.22 * Ht)]], ['B', [r4(0.78 * Ht), Ht]]])
+        out.push(shell({ id: `torso-gorget${w}${S}`, part: 'torso', side: S, s: [3.5, 3.98], t, nt: 5, ns: 3, mugen: mug(col === 'high' ? 0.014 : 0.01), support: 3.5, ramp: r4((col === 'high' ? 0.9 : 0.5) * law.flare), stack: false }));
+      else if (col !== 'none') out.push(shell({ id: 'neck-collar', mode: 'band', part: 'neck', over: ['torso'], pin: [3.95, 0, 'R', 'torso'], s: [0.0, col === 'high' ? 1.15 : 0.7], t: 'wrap', nt: 12, ns: 2, mugen: mug(col === 'high' ? 0.012 : 0.008), support: col === 'high' ? 1.15 : 0.7, ramp: r4((col === 'high' ? 1.2 : 0.8) * law.flare) }));
       // (the BOX: a plate on the chest, a row of lights along its lower edge)
       if (chest === 'box') for (const S of ['R', 'L']) out.push(shell({ id: `torso-box${S}`, part: 'torso', side: S, s: [2.2, 2.75], t: [0, r4(0.13 * Ht)], nt: 4, ns: 2, mugen: mug(0.024), group: 'Trim', stack: false,
         signature: { kind: 'studs', j: 0, count: 3, r: r4(Math.max(minF * 0.6, 0.004 * k)), h: r4(Math.max(minF * 0.4, 0.002 * k)), m: 6, group: 'Reactor' } }));
@@ -80,13 +90,14 @@ export function hardSuit(dials, ctx, lang = {}) {
     pauldron: () => (lang.pauldron === 'none' ? [] : (lang.pauldronSide && lang.pauldronSide !== 'both' ? [lang.pauldronSide] : ['R', 'L'])).flatMap((S) => { const focal = S === focalSide && lang.focal === 'pauldron', v = lang.pauldron ?? 'cap';
       // (LAMES: three stacked down the arm, each prouder than the one above, the shoulder's cap over them)
       if (v === 'lames') return [...[2, 1, 0].map((i) => shell({ id: `upperArm${S}-lame${i}`, part: `upperArm${S}`, side: S, s: [r4(0.02 + i * 0.26), r4(0.4 + i * 0.26)], t: [r4(0.04 * Hl), r4(0.96 * Hl)], nt: 12, ns: 2, mugen: mug(0.007 + 0.003 * i), stack: false, support: r4(0.02 + i * 0.26), ramp: r4(0.4 * law.flare), pin: [3.5, r4(0.5 * Ht), S, 'torso'] })),
-        shell({ id: `torso-pauldron${S}`, part: 'torso', over: [`upperArm${S}`], side: S, s: [2.95, 3.85], t: [r4(0.3 * Ht), r4(0.7 * Ht)], nt: 12, ns: 4, mugen: mug(0.009), support: 3.85, ramp: 0.8, rad: r4(0.04 * k) })];
+        shell({ id: `torso-pauldron${S}`, part: 'torso', over: [`upperArm${S}`], side: S, s: lang.cut === 'fitted' ? [3.0, 3.55] : [2.95, 3.85], t: [r4(0.34 * Ht), r4(0.66 * Ht)], nt: 12, ns: 4, mugen: mug(0.009), support: lang.cut === 'fitted' ? 3.55 : 3.85, ramp: lang.cut === 'fitted' ? 0.4 : 0.8, rad: r4(0.04 * k) })];
       const big = v === 'dome' ? 1.6 : v === 'segmented' ? 1.1 : 0.8, half = Math.min(0.46, 0.25 * big ** 0.35);
       const out = [];
       if (v !== 'cap') for (let i = (v === 'segmented' ? 2 : 1) - 1; i >= 0; i--) {   // the arm skirt(s), shaped on the arm, pinned to the torso (the arm moves beneath)
         const a = 0.02 + i * 0.32, len = v === 'dome' ? 0.72 * law.focal ** 0.2 : 0.42;
         out.push(shell({ id: `upperArm${S}-pauldron${i}`, part: `upperArm${S}`, side: S, s: [r4(a), r4(a + len)], t: [r4(0.06 * Hl), r4(0.94 * Hl)], nt: 12, ns: 3, mugen: mug(0.006 * big), support: r4(a), ramp: r4(law.flare * big), pin: [3.5, r4(0.5 * Ht), S, 'torso'] })); }
-      const anchor = shell({ id: `torso-pauldron${S}`, part: 'torso', over: [`upperArm${S}`], side: S, s: [2.85, 3.85], t: [r4((0.5 - half) * Ht), r4((0.5 + half) * Ht)], nt: 14, ns: 6, mugen: mug(0.008 * big), support: 3.85, ramp: r4(0.6 + 0.3 * big), rad: r4(0.05 * k),
+      const fitA = lang.cut === 'fitted', hA = fitA ? half * 0.7 : half;   // (fitted: the anchor on the shoulder's point, off the neck and the trapezius)
+      const anchor = shell({ id: `torso-pauldron${S}`, part: 'torso', over: [`upperArm${S}`], side: S, s: fitA ? [2.95, 3.55] : [2.85, 3.85], t: [r4((0.5 - hA) * Ht), r4((0.5 + hA) * Ht)], nt: 14, ns: 6, mugen: mug(0.008 * big), support: fitA ? 3.55 : 3.85, ramp: fitA ? r4(0.3 + 0.15 * big) : r4(0.6 + 0.3 * big), rad: r4(0.05 * k),
         signature: focal ? { kind: 'facing', dir: [0.85, 0.45, 0.2], r: r4(0.045 * k * law.focal), h: r4(Math.max(minF, 0.01 * k)), m: 16, rim: 0.75, group: 'Emblem' } : quiet() });
       out.push(anchor);
       if (v === 'dome' && orn >= 1) out.push(edgeTrim(anchor, { at: 'low', w: 0.02 * k * law.rivet, thick: thick * 2, group: 'Trim', minF }));   // law 11: the rim takes the trim

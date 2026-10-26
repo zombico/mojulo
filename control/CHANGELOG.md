@@ -172,6 +172,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - `glow` `lines`;
     - `collar` `high` | `none`;
     - `fnSide` and `leadSide`.
+    - `cut` `yoke` (as before) | `fitted`: the chest and back plates under the collarbone and off the sides, the
+      pauldrons on the shoulder's point, a gorget at the neck's base for the collar, so the torso never wraps the
+      shoulders. The ensembles wear the fitted cut.
   - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
     (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
     becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.
