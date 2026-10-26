@@ -8,10 +8,10 @@
   "form": "world"
 }
 ---
-→ `create_sketch` kind `geocube`: `{ cube: <preset | document | { from: <preset>, …changes } >, show: 'room' | 'land' }`. The cube holds the look, nothing placed: light, colours, register, surfaces, inside bones, outside land. `hour` (`dawn`…`night` or 0–24) and `clouds` (`fair`, `storm`…) set the land's sky. Revise with `update_sketch` until both read right.
+→ `create_sketch` kind `geocube`: `{ cube: <preset | document | { from: <preset>, …changes } >, show: 'room' | 'land' | 'path' }`. The cube holds the look, nothing placed. `hour` (`dawn`…`night` or 0–24) and `clouds` (`fair`, `storm`…) set the land's sky. `outside.cliff: false`: no far cliff on any trail it paints. Revise with `update_sketch` until both read right.
 
 One cube, many levels: its `domains` compose its terrains, interiors, structures and towns at an hour. `domain` (a name, `{ from, …changes }`, or composed) expands one on the kind, a `stage`, a level or a game's `style`, in the cube's one style. Pick the domain whose `reads` fits the task. Manual: `get_sketch_vocab({ id: 'geocube' })`.
 
 Or a `stage` with `geocube` and your own rooms or `meru` (with `hour`, `clouds`): your keys win; vary the cube, never restyle the level. A level copies its cube: re-create it from a new one. A building: `program: { use }` (card `game-building`).
 
-(Contrast: a city, a terrain, a drivable or a campus is a `compose_world` base, not a cube.) Full family → `get_creative_toolset({ form: 'world' })`.
+(A city, terrain or campus → `compose_world`.) Full family → `get_creative_toolset({ form: 'world' })`.

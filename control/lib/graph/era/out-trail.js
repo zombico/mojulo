@@ -278,6 +278,8 @@ function joinOf(prev) {
   return { from: P.id, x: prev.trailX(D), slope: P.trailSlope(D), z: P.smoothAt(P.L), cliff: prev.cliffX(D), ground: (x) => prev.groundBase(x, D), whole: (x) => prev.ground(x, D), origin: r5(prev.origin + D) };
 }
 const JOIN = 24, SEAM = 12;
+// an open trail's cliff line: this far past the site's back edge, out of every placement's reach
+const OPEN_BEYOND = 40;
 // a pooled rock (nature.js rockFaces) stands its size × the card's rock unit × (CROWN × its `tall` − SINK) over the ground:
 // its crown at 0.45 of its size, sunk 0.3 of it
 const CROWN = 0.45, SINK = 0.3;
@@ -303,13 +305,17 @@ function siteOf(st, plan) {
   const fringeAt = (y) => st.trail.fringe * (1 + st.trail.fringeVary * (vnoise(y * 0.22, 4.5, S + 83) - 0.5) * 2);
   const lineDist = (x, y) => Math.abs(x - trailX(y)) / Math.sqrt(1 + trailSlope(y) ** 2);
   const edge = (y) => halfWAt(y) + fringeAt(y);
-  // the CLIFF breathes with the beats: drawn in at a pinch, pushed back at a reveal
-  const cliffRaw = (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
+  // the CLIFF breathes with the beats: drawn in at a pinch, pushed back at a reveal. An OPEN trail (`ground.cliff: false`)
+  // has none: its line stands past the site's back edge, so the whole site is the open side (the meadow on both sides of
+  // the walk, nature.js), no scarp and no geology are laid, and no beat moves it
+  const open = G.cliff === false, Gc = open ? {} : G.cliff;
+  const cliffRaw = open ? () => -Lf.back - OPEN_BEYOND : (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
   const J = plan.join, seamW = (y) => (J ? 1 - smooth(0, SEAM, y) : 0);
   const cliff0 = (y) => cliffRaw(y) + (J ? (1 - smooth(0, JOIN, y)) * (J.cliff - cliffRaw(0)) : 0);
   const cliffX = (y) => {
     let x = cliff0(y);
     const k = 1 - seamW(y);   // (at a seam the followed trail's cliff holds: no beat moves it there)
+    if (open) return x;
     for (const b of at('pinch')) x = mix(x, Math.max(x, trailX(y) - edge(y) - 6), k * near(b, y, 5));
     for (const b of at('reveal')) x -= 3 * k * near(b, y, 8);
     return x;
@@ -373,12 +379,12 @@ function siteOf(st, plan) {
   const eased = g.z.slice();
   const valley = (x, y) => gridSample({ ...g, z: eased }, x, y);
   const path = []; for (let y = -8; y <= D + 8; y += 2) path.push([cliffX(y), y]);
-  applyLandform(g, [
-    { op: 'scarp', path, throw: G.cliff.height ?? Lf.throw, face: G.cliff.face ?? Lf.face, side: 'left', rough: 0.02, taper: 0 },
+  applyLandform(g, open ? [] : [
+    { op: 'scarp', path, throw: Gc.height ?? Lf.throw, face: Gc.face ?? Lf.face, side: 'left', rough: 0.02, taper: 0 },
     // (the beds and the joints: the card's, unless the trail's ground names its cliff's; a dip tilts the beds along the
     // walk, a pattern turns the joints from the granite's blocks)
-    { op: 'strata', thickness: G.cliff.bed ?? Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4, ...(G.cliff.dip ? { dip: G.cliff.dip, dipAz: 90 } : {}) },
-    { op: 'joints', rock: 'granite', ...(G.cliff.pattern ? { pattern: G.cliff.pattern } : {}), spacing: G.cliff.joint ?? Lf.joint, steep: 40 },
+    { op: 'strata', thickness: Gc.bed ?? Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4, ...(Gc.dip ? { dip: Gc.dip, dipAz: 90 } : {}) },
+    { op: 'joints', rock: 'granite', ...(Gc.pattern ? { pattern: Gc.pattern } : {}), spacing: Gc.joint ?? Lf.joint, steep: 40 },
     { op: 'talus', angle: 34, cliff: 50, retreat: Lf.retreat, scree: Lf.scree, rmin: 0.25, rmax: 1.3 },
   ], { seed: `out-trail-${S}` });
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
@@ -444,10 +450,10 @@ function siteOf(st, plan) {
   const rocks = marks.map((m, i) => ({ x: m.x, y: m.y, size: m.size, detail: 1, v: i, role: 'landmark', node: m.b.id, tall: C.landmark.tall }));
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
   const origin = J ? J.origin : 0;
-  const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius,
+  const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius, ...(open ? { open: true } : {}),
     clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin, ...(T.rocks?.boulders !== undefined ? { boulders: T.rocks.boulders } : {}) };
   // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail
-  site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff });
+  site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff && !open });
   out.anchors.push(...boundAnchors(site, site.bounds).map((a) => ({ ...a, trail: `out-trail:${plan.id}` })));
   return site;
 }

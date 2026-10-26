@@ -8,8 +8,8 @@
   "form": "world"
 }
 ---
-→ `compose_world`: a BASE × a THEME. Bases: `city`, `transport-hub`, `controllable` (drive/fly/platform), `action` (games with rules via an `idioms` recipe), `planetary`, `painted-landscape`, `math` (a group as a walkable Cayley city), `school` (a campus; its plans and book → `mint_building`), `dungeon` (a cave interior), `terrain` (real-scale ground from a painted landscape or composed features — a great river, a range, a huge lake — with cities on its hills). Read a base's manual via `get_view_vocab({id:'<base>'})`; find one by intent via `semantic_search({kinds:['view_vocab']})`; themes via `list_world_themes`. Served traversable at `/world`. (Contrast: a playable game with a persistent store → `create_game`, which promotes worlds into levels.) Full family → `get_creative_toolset({ form: 'world' })`.
+→ `compose_world`: a BASE × a THEME. Bases: `city`, `transport-hub`, `controllable` (drive/fly/platform), `action` (games with rules via an `idioms` recipe), `planetary`, `math` (a group as a walkable Cayley city), `school` (a campus; its plans and book → `mint_building`), `dungeon` (a cave interior), `terrain` (real-scale ground from a painted landscape or composed features — a great river, a range, a huge lake — with cities on its hills). Read a base's manual via `get_view_vocab({id:'<base>'})`; find one by intent via `semantic_search({kinds:['view_vocab']})`; themes via `list_world_themes`. Served traversable at `/world`. (A playable game → `create_game`, its levels from worlds.) Full family → `get_creative_toolset({ form: 'world' })`.
 
 Fire in a world (a campfire, torches, a fireball, a grass fire, coloured flame) → `overrides.fire`, the 'Fire' section of the dungeon and terrain cards; prefer it to carved-solid `flame` or sketch fire.
 
-A level with its own look (rooms, an island) → card `geocube`: forge it first.
+A level with its own look (rooms, an island) → card `geocube`: forge it first. An empty place to walk, no game → card `scene`.

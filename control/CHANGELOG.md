@@ -14,6 +14,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Geocube scenes: a place to walk, not a game, on the geocube
+
+A request that asks only for a place (its look, its land, what grows, the sky, the hour) and nothing of a hero, rules,
+levels, story or minds is a scene, not a game. It lands on the geocube, and what it needs is added to the geocube itself,
+so a game's levels on the cube get it too.
+
+- **An open trail** (`trail.ground.cliff: false`): no far cliff. The land is open on both sides of the walk, the meadow's
+  trees, grass and flowers growing on both, no scarp and no geology laid. The stage stands an `overlook` camera, a
+  raised eye off the walk's open side, in place of the cliff-top. A trail with no `cliff`, or one with settings, is the
+  card's far cliff as before.
+- **The cube's far cliff** (`outside.cliff`, and a terrain's own): `false` or the cliff's settings, laid on every trail
+  the cube paints unless the trail names its own: a scene's path and a game's levels alike, with no game-side setting.
+- **The geocube kind shows the path** (`show: 'path'`): the way through the cube's land, a trail stage on its terrain
+  with no town and nobody on it, walked by the stand-in and seen from its overlook. It takes `seed`, `biocube`, `path`
+  (the trail's dress), `hour` and `clouds` as the other shows do, and the cube's `snow`. `show: 'trail'` keeps its
+  meaning: the cube's island walked.
+- **The routing**: a new `scene` routing card sends a walkable scene, a landscape or a nature scene to the geocube's
+  path, with the words a place is asked in mapped onto the cube (an open field to `outside.cliff: false`, wildflowers
+  to the biocube's, the time of day to `hour`). The scene-illustration card keeps illustrations of things (portraits,
+  structural drawings) and no longer sends landscapes to the painted landscape, whose rows render as before. The world
+  and geocube cards point at the scene. Routing-eval rows carry the phrasing "Create a walkable scene of a colorful
+  grassy field in the daytime".
+
 ### Land in the level: the composer's land forms drawn
 
 - **A world's land now reaches its levels.** A gameworld's `style.land` (and a level's, over it) names land forms,

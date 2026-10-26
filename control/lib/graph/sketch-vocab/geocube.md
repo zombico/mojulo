@@ -12,8 +12,11 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 
 ## The ingredients
 
-- **Terrains** (`outside.terrains: { <name>: { reads?, base?, tiers?, island?, land?, relief?, ground?, crystals?, colour? } }`):
+- **Terrains** (`outside.terrains: { <name>: { reads?, base?, tiers?, island?, land?, relief?, ground?, crystals?, cliff?, colour? } }`):
   a whole land each, or a few changes to the cube's own (named by `outside.terrain`, `default` unless named).
+- **The far cliff** (`outside.cliff`): the cliff its trails break into (a trail's `ground.cliff`: `{ height?, face?, bed?,
+  dip?, joint?, pattern? }`), or `false`: none, the land open on both sides of every trail the cube paints (a field, a
+  plain), a scene's path and a game's levels alike; a trail that names its own cliff keeps it, a terrain may name its own.
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),
@@ -68,7 +71,9 @@ A cube that names no domains offers one per terrain and one per interior.
   an outside domain's island, every way up drawn; `show: 'town'` a micro-town (a few houses of its street, or a
   hamlet's) and `show: 'city'` a micro-city (the smallest city plan, in the cube's paint and builders' language),
   each walked by a stand-in at eye height to review the architecture, seen first from a person's eye before a house
-  or down a sidewalk; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
+  or down a sidewalk; `show: 'path'` the way through its land (a trail stage on the cube's terrain), no town and nobody on it, walked by
+  the stand-in and seen from its overlook: a place to walk, not a game (`seed`, `biocube`, `path`, `hour`, `clouds`
+  as the other shows; the cube's `snow`); `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its

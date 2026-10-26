@@ -153,6 +153,9 @@ export function isekaiGround(st, site, z = site.grid.z) {
  * style's rings — [height share, radius share] from the sunk foot to the flat top — leaning a little, the top tilted.
  * → { sides: faces (cel 'rock'), cap: faces, rim: [{ a, b, s }] } (the rim edges with the shoulder point below each).
  */
+// an open trail's overlook (metres): off the walk's open side, short of the cliff-top's station, raised over the land
+const OVERLOOK = Object.freeze({ side: 12, back: 6, up: 7 });
+
 export function boulderFaces(st, it, seed, broken = 0) {
   const B = st.boulder, R = st.rubble, s = it.size * R.unit, k = Math.round(it.x * 13 + it.y * 7) + it.v * 101, S = seed | 0;
   const n = B.sides[0] + Math.floor(hash3(k, 1, S + 701) * (B.sides[1] - B.sides[0] + 1));
@@ -767,6 +770,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
   const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];
   const ly = Fr.top.y, lx = site.cliffX(ly) - 1.6, lip = [lx, ly, site.ground(lx, ly) + 1.7];
+  // an open trail (no cliff to stand on): the OVERLOOK, a raised eye off the walk's open side where the lip would be
+  const oy = ly - OVERLOOK.back, ox = Math.max(site.trailX(oy) - OVERLOOK.side, -st.landform.back + 2), over = site.open ? [ox, oy, site.ground(ox, oy) + OVERLOOK.up] : null;
   const sky = st.palette.sky, Fh = Fr.hero, heroCam = [];
   // the HERO frame: from the trail short of the hero, up into its crown (none when reserved ground took the tree)
   const ht = Fh && sak ? trees.filter((q) => q.hero)[Fh.tree] : null;
@@ -781,7 +786,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],
     cameras: [manifest.camera || (site.out ? outTrailCamera(site) : { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }),
-      { name: 'cliff-top', worldFraming: { cameraPosition: lip.map(r5), lookAt: [site.W * 0.75, Fr.top.lookY, site.ground(site.W * 0.75, Fr.top.lookY)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }, ...heroCam],
+      { name: over ? 'overlook' : 'cliff-top', worldFraming: { cameraPosition: (over ?? lip).map(r5), lookAt: [site.W * 0.75, Fr.top.lookY, site.ground(site.W * 0.75, Fr.top.lookY)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }, ...heroCam],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
