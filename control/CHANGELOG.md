@@ -178,6 +178,8 @@ lit at one hour, its light baked and its static shadow map drawn once at load; n
   `shadows: { actors: false }` keep the page it had. A stage's bake keys alone (`torch`, `sun`, `cells`) say nothing
   about the page, so the default goes beside them. **Hero levels change on their next render**: their page gains the
   actors' map and the bake writes each corner's sun share.
+- **A spectated battle's fighters cast too** (`spectate: true`, no pilot): its entities with a body take
+  `shadows.actors` by default, as a hero does, the recipe's own word kept the same way.
 - **A world whose geocube names the seventh generation turns the live light on** (`geocube: { from, era: 'gen-7' }`,
   or a gameworld's `style.geocube`, which reaches every level). It gets `shadows: { actors, hour }` and `occlusion`,
   each the recipe's own where it names it (`hour: false`, `occlusion: false`, ...). gen-6, the default, adds nothing.

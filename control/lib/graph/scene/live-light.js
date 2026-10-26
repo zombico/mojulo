@@ -6,8 +6,8 @@
  * THE SUN DOES NOT MOVE, live or within a level (the operator's principle, era/geocube-hours.js). A level is lit at one
  * hour: its light baked, its static shadow map drawn once at load. Never wire a clock, a day cycle or a moving sun here.
  *
- * ON BY DEFAULT where it pays (liveLightDefaults, read by world-scene before the bake): a hero's level takes the actors'
- * shadows; a world whose geocube names the seventh generation takes actors, the hour's map and occlusion; each the
+ * ON BY DEFAULT where it pays (liveLightDefaults, read by world-scene before the bake): a hero's level, and a battle
+ * watched with no pilot (its fighters), take the actors' shadows; a world whose geocube names the seventh generation takes actors, the hour's map and occlusion; each the
  * recipe's own where it says, and all of it under the quality tier (`light.tier`, by the screen the game is made for).
  *
  *   shadows.actors   only what moves casts into a shadow map drawn each frame; the static world receives. Where the
@@ -29,6 +29,7 @@
  *   occlusionAt(stub, px)     the occlusion pass on a depth / normal stub (the shader's loop, in JS)
  *   occlusionComposite(occ, strength, fogK)   the composite's alpha: what share of a pixel's colour the occlusion takes
  *   heroLevel(m)              does a world have a pilot with a body (a hero's level, not a spectated battle)?
+ *   spectatedBattle(m)        is it a battle watched with no pilot whose fighters have bodies (they cast as a hero does)?
  *   LIGHT_TIERS, readLightTier(light)   `light.tier` → 'auto' | 'off' | 'half' | 'full', or throws
  *   TIER_TERMS, tierFor(tier, screen)   a tier (and the screen's pole for auto) → { tier, mapSize, ao, occlusion }
  *   liveLightDefaults(m, { era })   a world manifest → the shadows and occlusion its page takes (the recipe's own, the
@@ -136,6 +137,13 @@ export function heroLevel(m) {
   return m.entities.some((e) => e && e.pilotable && !(e.body && e.body.type === 'none'));
 }
 
+/** A spectated battle (`spectate: true`, no pilot: the whole cast runs its brain): its fighters, the entities with a
+ *  body, cast as a hero does (the operator's call, 1026). */
+export function spectatedBattle(m) {
+  if (!m || m.spectate !== true || !Array.isArray(m.entities)) return false;
+  return m.entities.some((e) => e && e.body && e.body.type !== 'none');
+}
+
 /** the tiers a world's `light.tier` names: auto (by the screen the game is made for), off, half, full */
 export const LIGHT_TIERS = Object.freeze(['auto', 'off', 'half', 'full']);
 /** what a tier costs: the shadow maps' size, and the occlusion's resolution (1 as built: the prepass at the frame's,
@@ -177,6 +185,7 @@ function shadowsSay(s) {
 /**
  * The live light a world's page takes: its recipe's own, and the defaults where the recipe says nothing.
  *   a hero's level (heroLevel)   shadows.actors
+ *   a spectated battle           shadows.actors (its fighters)
  *   era 'gen-7' (its geocube's)  shadows.actors, shadows.hour, occlusion
  * A recipe says otherwise with `shadows: false`, `shadows: true` or a blob's tuning, `shadows.cast`, `actors: false` /
  * `hour: false`, `occlusion: false`; a stage's bake keys alone say nothing. The tier (`light.tier`, auto by the
@@ -185,7 +194,7 @@ function shadowsSay(s) {
  * `occlusion` are the recipe's own values (the same objects) where nothing is added; `from` names each default taken.
  */
 export function liveLightDefaults(m, { era = null, screen = null } = {}) {
-  const s = m.shadows, T = tierFor(readLightTier(m.light), screen), gen7 = era === 'gen-7', hero = heroLevel(m);
+  const s = m.shadows, T = tierFor(readLightTier(m.light), screen), gen7 = era === 'gen-7', hero = heroLevel(m), watched = spectatedBattle(m);
   if (!T) {
     // off: no live light. The recipe's live keys come off its shadows (its bake keys and its blob stay); a shadows that
     // asked for live light alone is none
@@ -193,11 +202,11 @@ export function liveLightDefaults(m, { era = null, screen = null } = {}) {
     const rest = live ? Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'actors' && k !== 'hour')) : s;
     return { shadows: live && !Object.keys(rest).length ? undefined : rest, occlusion: undefined, tier: null, from: {} };
   }
-  const want = { actors: hero || gen7, hour: gen7 }, say = shadowsSay(s), from = {};
+  const want = { actors: hero || watched || gen7, hour: gen7 }, say = shadowsSay(s), from = {};
   let shadows = s;
   if (say !== 'said') {
     const add = {};
-    for (const k of ['actors', 'hour']) if (want[k] && (say === 'open' || s[k] === undefined)) { add[k] = true; from[k] = k === 'actors' && hero ? 'hero' : 'gen-7'; }
+    for (const k of ['actors', 'hour']) if (want[k] && (say === 'open' || s[k] === undefined)) { add[k] = true; from[k] = k === 'actors' && hero ? 'hero' : k === 'actors' && watched ? 'spectate' : 'gen-7'; }
     if (Object.keys(add).length) shadows = { ...(s || {}), ...add };
   }
   let occlusion = m.occlusion;

@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { liveLightDefaults, heroLevel, readLightTier, tierFor, receiverBias, OCCLUSION_DEFAULTS } from './live-light.js';
+import { liveLightDefaults, heroLevel, spectatedBattle, readLightTier, tierFor, receiverBias, OCCLUSION_DEFAULTS } from './live-light.js';
 import { emitThreeWorld } from './scene-three.js';
 
 const HERO = { id: 'h', pilotable: true, rule: { type: 'walk' }, body: { type: 'mesh', shape: 'box', size: [0.5, 0.4, 1.8] }, transform: { pos: [2, 2, 0], heading: 0 } };
@@ -26,6 +26,14 @@ describe('live light defaults: who takes what', () => {
     expect(heroLevel({ entities: [HERO], spectate: true })).toBe(false);
     expect(heroLevel({ entities: [{ ...HERO, pilotable: false }] })).toBe(false);
     expect(heroLevel({})).toBe(false);
+  });
+  it('a spectated battle\'s fighters cast as a hero does; a battle with no bodies takes nothing', () => {
+    const FIGHTER = { ...HERO, pilotable: false };
+    expect(spectatedBattle({ entities: [FIGHTER], spectate: true })).toBe(true);
+    expect(spectatedBattle({ entities: [FIGHTER] })).toBe(false);
+    expect(spectatedBattle({ entities: [{ ...FIGHTER, body: { type: 'none' } }], spectate: true })).toBe(false);
+    expect(liveLightDefaults({ entities: [FIGHTER], spectate: true })).toMatchObject({ shadows: { actors: true }, from: { actors: 'spectate' } });
+    expect(liveLightDefaults({ entities: [FIGHTER], spectate: true, shadows: false }).shadows).toBe(false);
   });
   it('neither a hero nor gen-7: the recipe\'s own values, the same objects, and no tier', () => {
     for (const shadows of [undefined, { torch: 'soft' }, true, { cast: true }]) {
