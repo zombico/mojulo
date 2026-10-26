@@ -515,6 +515,25 @@ games (baseball, cricket).
     side a's active player; the page plays it to the Node state.
   - **Seen, said:** in the realistic register the minds rarely return a float serve (the body's realistic build-up is
     slow for a court of eight metres): an ace is most points there; the arcade registers rally.
+- **Basketball on the pitch** (`arcade-rules.js` the goal family and its `basketball` card, `team-sim.js`), built:
+  full-court basketball three a side, four quarters, two points inside the arc and three beyond it. The goal family
+  composes a team game from its modules (the court and its key, the goal a mouth or a HOOP, the score's unit and clock,
+  the roles' homes, the play by foot or by HANDS, the ground, the outs). The pitch sim's hoop is a ring of the physics'
+  spheres and a backboard over each end, so a shot rattles in or out by the physics; a basket is the ball dropping
+  through the ring, its points the shot's (the kernel's score fact now carries `points`, a goal as ever without them).
+  The hands: the ball caught (never as it leaves the hand, a shot only on its way down), held and dribbled at the
+  holder's side inside the lines, a tap passes to the teammate along the stick (led by the pass's flight), a hold
+  shoots on a steep arc at a speed found by flying the ball alone in the sim's own physics, the charge off its sweet
+  spot, the range and a defender's hand its miss; an opponent at the ball long enough steals it. The side with the ball
+  takes its roles' spots in the attacking half and the other marks its man; the hands mind drives, works the ball and
+  shoots in range from in front of the ring. The page lays the hardwood, the key, the arcs, the rings, their nets and
+  boards; the broadcast calls a basket by its points (THREE!), and the stats count them. Soccer and hockey replay as
+  before; the arcade rules' card is now an index (`contest-arcade`) and a card per family (`contest-arcade-<family>`).
+  - **Held:** a score's points in the kernel; a shot at the sweet spot drops through for two inside and three beyond,
+    off it no basket; the catch, the dribble at the side, the pass caught by its teammate, the steal; the stats' points;
+    every card's short variant to its end (the deep sweep, now on both shapes); the page plays it to the Node state.
+  - **Seen, said:** an exhibition scores about seven points in two minutes with about half the shots made; the
+    blocks, the shot clock, travelling and free throws are the card's omissions.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

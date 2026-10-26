@@ -194,7 +194,7 @@ function tvCall(TV, c, names = {}) {
     }
     case 'period': text = names.period ? names.period(c) : `END OF PERIOD ${c.period}`; break;
     case 'overtime': text = 'OVERTIME'; break;
-    case 'score': text = `${names.unit ? tvUp(names.unit('score')) : 'SCORE'}!`; sub = side ? side.name : ''; break;
+    case 'score': text = c.points ? (c.points === 3 ? 'THREE!' : `${c.points} POINTS`) : `${names.unit ? tvUp(names.unit('score')) : 'SCORE'}!`; sub = side ? side.name : ''; break;
     case 'out': text = W(c.restart && c.restart.kind); sub = side ? side.name : ''; tone = 'neutral'; color = null; break;
     case 'foul': text = c.foul === 'offside' ? 'OFFSIDE' : 'FOUL'; sub = c.cost === 'warn' ? 'WARNING' : c.cost === 'free' ? `FREE · ${side ? side.name : ''}` : c.cost === 'point' ? `POINT · ${side ? side.name : ''}` : ''; break;
     case 'set': text = 'SET'; break;

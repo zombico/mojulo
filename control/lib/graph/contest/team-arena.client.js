@@ -83,10 +83,33 @@ const dressing = new THREE.Group();
 scene.add(dressing);
 function flat(w, d, x, y, z, mat) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); m.position.set(x, y + OY, z); dressing.add(m); return m; }
 function box(w, d, h, x, y, z, mat) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, d, h), mat); m.position.set(x, y + OY, z); dressing.add(m); return m; }
+// a hoop (the arcade rules' goal family: basketball) in place of a goal mouth: the hardwood, the arcs, the rings
+const HOOP = SP.goal && SP.goal.hoop ? SP.goal.hoop : null;
+function dressHoops(W, L, t) {
+  const ry = L - HOOP.out, three = SP.goal.three, side = W - 0.9, t0 = Math.acos(Math.min(1, side / three));
+  const rim = new THREE.MeshBasicMaterial({ color: 0xe0561b }), board = new THREE.MeshBasicMaterial({ color: 0xf4f4f0, transparent: true, opacity: 0.85 }), pole = new THREE.MeshBasicMaterial({ color: 0x2a2f3a });
+  const net = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide, wireframe: true });
+  for (const s of [-1, 1]) {
+    const cy = s * ry;
+    // the three-point arc and its straight ends to the end line
+    const arc = new THREE.Mesh(new THREE.RingGeometry(three - t / 2, three + t / 2, 48, 1, s > 0 ? Math.PI + t0 : t0, Math.PI - 2 * t0), LINE);
+    arc.position.set(0, cy + OY, 0.014); dressing.add(arc);
+    const yEnd = Math.sin(t0) * three, len = L - (ry - yEnd);
+    for (const x of [-side, side]) flat(t, len, x, s * (L - len / 2), 0.014, LINE);
+    // the ring, its net, the board and the pole behind the end line
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(HOOP.radius, 0.012, 6, 28), rim); ring.position.set(0, cy + OY, HOOP.height); dressing.add(ring);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(HOOP.radius, HOOP.radius * 0.6, 0.4, 12, 1, true).rotateX(Math.PI / 2), net); mesh.position.set(0, cy + OY, HOOP.height - 0.2); dressing.add(mesh);
+    const by = s * (ry + HOOP.radius + 0.18);
+    box(HOOP.board[0], 0.05, HOOP.board[1], 0, by, HOOP.height - 0.15 + HOOP.board[1] / 2, board);
+    box(0.12, 0.12, HOOP.height + 0.6, 0, s * (L + 1), (HOOP.height + 0.6) / 2, pole);
+    box(0.08, Math.abs(s * (L + 1) - by), 0.08, 0, (s * (L + 1) + by) / 2, HOOP.height + 0.5, pole);
+  }
+}
 function dressPitch() {
   const W = PT.halfW, L = PT.halfL, t = 0.1, ice = PT.boards;
-  flat(2 * W + 1, 2 * L + 1, 0, 0, 0.011, new THREE.MeshBasicMaterial({ color: ice ? 0xdfe9f2 : 0x3f9a48 }));
-  if (!ice) for (let i = 0; i < 10; i++) flat(2 * W, (2 * L) / 10, 0, -L + ((2 * L) / 10) * (i + 0.5), 0.012, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x3f9a48 : 0x45a650 }));
+  flat(2 * W + 1, 2 * L + 1, 0, 0, 0.011, new THREE.MeshBasicMaterial({ color: HOOP ? 0xc9955b : ice ? 0xdfe9f2 : 0x3f9a48 }));
+  if (HOOP) for (let i = 0; i < 12; i++) flat((2 * W) / 12, 2 * L, -W + ((2 * W) / 12) * (i + 0.5), 0, 0.012, new THREE.MeshBasicMaterial({ color: i % 2 ? 0xc9955b : 0xd09d63 }));
+  else if (!ice) for (let i = 0; i < 10; i++) flat(2 * W, (2 * L) / 10, 0, -L + ((2 * L) / 10) * (i + 0.5), 0.012, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x3f9a48 : 0x45a650 }));
   const lines = [[2 * W, t, 0, -L], [2 * W, t, 0, L], [t, 2 * L, -W, 0], [t, 2 * L, W, 0], [2 * W, t, 0, 0]];
   for (const [w, d, x, y] of lines) flat(w, d, x, y, 0.014, LINE);
   const regions = PA.C.court.regions;
@@ -95,7 +118,8 @@ function dressPitch() {
     const [x0, y0, x1, y1] = r.rect, bw = x1 - x0, bd = y1 - y0;
     for (const s of [1, -1]) { const yc = s * (y0 + y1) / 2; flat(bw, t, (x0 + x1) / 2, s * y1, 0.014, LINE); flat(t, bd, x0, yc, 0.014, LINE); flat(t, bd, x1, yc, 0.014, LINE); }
   }
-  const ring = new THREE.Mesh(new THREE.RingGeometry(ice ? 4.4 : 2.9, ice ? 4.5 : 3, 48), LINE); ring.position.set(0, OY, 0.014); dressing.add(ring);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(HOOP ? 1.75 : ice ? 4.4 : 2.9, HOOP ? 1.85 : ice ? 4.5 : 3, 48), LINE); ring.position.set(0, OY, 0.014); dressing.add(ring);
+  if (HOOP) { dressHoops(W, L, t); return; }
   // the goals: posts, a bar, a net plane behind; the rink's boards
   const G = SP.goal, post = new THREE.MeshBasicMaterial({ color: 0xffffff }), net = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
   for (const s of [-1, 1]) {
@@ -109,7 +133,7 @@ function dressPitch() {
 }
 dressPitch();
 const BALL_GEO = new THREE.SphereGeometry(1, 14, 10), CAP = new THREE.CylinderGeometry(0.22, 0.22, 1.1, 10).rotateX(Math.PI / 2), HEAD = new THREE.SphereGeometry(0.16, 10, 8);
-const ballMesh = new THREE.Mesh(BALL_GEO, new THREE.MeshBasicMaterial({ color: SP.ball === 'puck' ? 0x141414 : 0xf8f8f4 })), ballInk = new THREE.Mesh(BALL_GEO, INK);
+const ballMesh = new THREE.Mesh(BALL_GEO, new THREE.MeshBasicMaterial({ color: SP.ball === 'puck' ? 0x141414 : SP.ball === 'basketball' ? 0xd8742c : 0xf8f8f4 })), ballInk = new THREE.Mesh(BALL_GEO, INK);
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
 scene.add(ballMesh, ballInk, shadow);
 const figures = {};

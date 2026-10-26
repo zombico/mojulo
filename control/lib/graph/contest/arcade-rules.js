@@ -106,6 +106,38 @@ function composeNet(card) {
   };
 }
 
+// ── the goal family's modules ──────────────────────────────────────────────────────────────────────────────────
+
+/** A goal game's court: the floor shared, each side's half, its key (the box by its goal). Side a's goal is at y < 0. */
+function goalCourt(c) {
+  const W = r4(c.width / 2), L = r4(c.length / 2), key = c.key ?? [4.9, 5.8];
+  return { frame: [c.width, c.length], mirror: 'reflect', regions: { pitch: { rect: [-W, -L, W, L], shared: true }, half: { rect: [-W, -L, W, 0] }, box: { rect: [-r4(key[0] / 2), -L, r4(key[0] / 2), r4(-L + key[1])] } } };
+}
+
+function composeGoal(card) {
+  for (const k of ['court', 'goal', 'score', 'roles', 'play']) if (!isObj(card[k])) afail(`a goal card names ${k}`);
+  const roles = Object.keys(card.roles), title = card.title;
+  const spec = ({ periods, seconds } = {}) => ({
+    shape: 'match', title, players: roles.length,
+    roles: Object.fromEntries(roles.map((r) => [r, { home: 'pitch' }])),
+    court: goalCourt(card.court),
+    scoring: { ladder: [{ unit: card.score.unit ?? 'goal' }] },
+    clock: { periods: periods ?? card.score.periods ?? 2, seconds: seconds ?? card.score.seconds ?? 120, ...(card.score.overtime ? { overtime: card.score.overtime } : {}) },
+    ...(card.fouls ? { fouls: { ...card.fouls } } : {}),
+    ...(card.outs ? { outs: { ...card.outs } } : {}),
+  });
+  const P = card.play;
+  return {
+    shape: 'team', words: card.words, spec, ball: card.ball, side: roles.length,
+    goal: { ...card.goal, ...(card.goal.hoop ? { hoop: { ...card.goal.hoop } } : {}) },
+    homes: Object.fromEntries(roles.map((r) => [r, card.roles[r].slice()])),
+    kick: { verb: P.verb ?? 'kick', tipSpeed: P.tipSpeed, reach: P.reach, charge: P.charge, pass: P.pass, dribble: P.dribble },
+    ground: { roll: card.ground?.roll ?? 3, boards: !!card.ground?.boards, ...(card.ground?.bounce ? { bounce: card.ground.bounce } : {}) },
+    press: card.press ?? 7,
+    ...(P.hands ? { hands: true } : {}),
+  };
+}
+
 export const ARCADE_FAMILIES = freeze({
   net: {
     shape: 'match', sim: 'the court (match-sim.js)', says: 'two ends and a net: a serve, a rally the kernel calls, points to games',
@@ -119,6 +151,17 @@ export const ARCADE_FAMILIES = freeze({
       'strokes { fore?, back?, serve? } (hit verbs)   ball   cpu { slip }',
     ],
     compose: composeNet,
+  },
+  goal: {
+    shape: 'team', sim: 'the pitch (team-sim.js)', says: 'two goals and a clock: the sides mix, the ball carried, passed and shot, the most scored wins',
+    modules: ['court', 'goal', 'score', 'roles', 'play', 'ground', 'press', 'fouls', 'outs', 'ball'],
+    doc: [
+      'court { width, length, key? [width, depth] (the box by each goal) }   roles { <role>: [x, y] } (a side\'s players, side a\'s homes)',
+      'goal { width, height } (a mouth) | { hoop: { height, radius, out, board: [w, h], range }, three } (a ring; three points past `three`)',
+      'score { unit?, periods?, seconds?, overtime? }   fouls { contact: free }   outs { side?: throw-in, end?: corner }',
+      'play { verb?, hands?, tipSpeed, reach, charge, pass, dribble } (hands: caught, held, thrown)   ground { roll, boards?, bounce? }   press',
+    ],
+    compose: composeGoal,
   },
 });
 
@@ -189,6 +232,21 @@ export const ARCADE_SPORTS = freeze({
     body: { reach: 0.8, up: 3.1, bare: true }, cpu: { slip: 0.04 },
     omits: ['the third set to fifteen', 'changing ends every seven points', 'the block not counted as a touch', 'the open-hand tip and the double contact on a set', 'six a side, the rotation and the libero (the indoor game is a sport written out)'],
   },
+  basketball: {
+    family: 'goal', title: 'Basketball, three a side',
+    words: 'full-court basketball, three a side: dribble, pass and shoot at the ring, two points inside the arc and three beyond it, four quarters',
+    ball: 'basketball',
+    // FIBA: the court 28 × 15 m; the ring 3.05 m up, 45 cm across, its centre 1.575 m out from the end line; the board
+    // 1.8 × 1.05 m, its foot 2.9 m up; the three-point line 6.75 m from the ring's centre; the key 4.9 × 5.8 m
+    court: { width: 15, length: 28, key: [4.9, 5.8] },
+    goal: { hoop: { height: 3.05, radius: 0.225, out: 1.575, board: [1.8, 1.05], range: 7.6 }, three: 6.75 },
+    score: { unit: 'point', periods: 4, seconds: 120, overtime: 60 },
+    roles: { guard: [0, -2], forward: [-4, -6], center: [3, -9] },
+    play: { verb: 'throw', hands: true, tipSpeed: 14, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 },
+    ground: { roll: 0.8, bounce: 0.85 }, press: 6,
+    fouls: { contact: 'free' }, outs: { side: 'throw-in' },
+    omits: ['five a side (three play the full court here)', 'the shot clock and the eight seconds to cross half way', 'travelling, the double dribble and the backcourt', 'free throws (a foul gives the ball back where it happened)', 'the inbound under the basket after a score (a check at the centre)', 'goaltending'],
+  },
 });
 export const ARCADE_SPORT_IDS = Object.freeze(Object.keys(ARCADE_SPORTS));
 
@@ -217,19 +275,33 @@ export function composeArcade(card, id = null) {
   return { ...sport, arcade: { family: card.family, ...(id ? { card: id } : {}) }, omits: [...(card.omits ?? [])] };
 }
 
-/** The arcade rules' card, served by get_game_vocab({ id: 'contest-arcade' }): the families, their modules, the cards. */
-export function arcadeRulesCard() {
+/**
+ * The arcade rules' cards, served by get_game_vocab: `contest-arcade` the index (how a card is played and varied, each
+ * family and its cards), `contest-arcade-<family>` a family's modules and its cards with what each leaves out. → the
+ * card, or null for an id that is not one
+ */
+export function arcadeRulesCard(id = 'contest-arcade') {
+  const cardsOf = (fam) => ARCADE_SPORT_IDS.filter((c) => ARCADE_SPORTS[c].family === fam);
+  if (id === 'contest-arcade') {
+    const body = [
+      'THE ARCADE RULES — the ball games at the level an arcade plays them, each a card of modules its family composes',
+      '(contest/arcade-rules.js). Play one by name: design_game({ quick: { goal: \'contest\', sport: \'<card>\' } }).',
+      'A VARIANT moves a word: sport: { id, from: <card>, …a module\'s words } (laid over that module\'s, one level deep;',
+      'words, title and omits replace), e.g. { id: \'pong-21\', from: \'pingpong\', score: { to: 21 } }. A rulebook the modules',
+      'cannot say is written out whole: get_catalyst({ id: \'distilled-rulebook\' }).',
+      '',
+      ...Object.entries(ARCADE_FAMILIES).flatMap(([fam, f]) => [`${fam} (${f.sim}): ${f.says}`, `  cards: ${cardsOf(fam).join(', ')}   modules and omissions: get_game_vocab({ id: 'contest-arcade-${fam}' })`]),
+    ].join('\n');
+    return { id, name: 'The arcade rules', summary: 'the ball games distilled to modules: a card per sport, a variant a word', when: 'an arcade sport or a variant of one', scope: 'rail', body };
+  }
+  const fam = typeof id === 'string' && id.startsWith('contest-arcade-') ? id.slice('contest-arcade-'.length) : null, f = ARCADE_FAMILIES[fam];
+  if (!f) return null;
   const body = [
-    'THE ARCADE RULES — the ball games at the level an arcade plays them, each a card of modules its family composes',
-    '(contest/arcade-rules.js). Play one by name: design_game({ quick: { goal: \'contest\', sport: \'<card>\' } }).',
-    'A VARIANT moves a word: sport: { id, from: <card>, …a module\'s words } (laid over that module\'s, one level deep;',
-    'words, title and omits replace), e.g. { id: \'pong-21\', from: \'pingpong\', score: { to: 21 } }. A rulebook the modules',
-    'cannot say is written out whole: get_catalyst({ id: \'distilled-rulebook\' }).',
+    `THE ARCADE RULES, the ${fam} family (${f.sim}): ${f.says}. Its modules, a card's words:`,
+    ...f.doc.map((d) => `  ${d}`),
     '',
-    ...Object.entries(ARCADE_FAMILIES).flatMap(([id, f]) => [`${id} (${f.sim}): ${f.says}`, ...f.doc.map((d) => `  ${d}`)]),
-    '',
-    'the cards, each with what the full rules say that the arcade leaves out:',
-    ...ARCADE_SPORT_IDS.flatMap((id) => { const c = ARCADE_SPORTS[id]; return [`  ${id} (${c.family}): ${c.words}`, `    omits: ${c.omits.join('; ')}`]; }),
+    'its cards, each with what the full rules say that the arcade leaves out:',
+    ...cardsOf(fam).flatMap((c) => [`  ${c}: ${ARCADE_SPORTS[c].words}`, `    omits: ${ARCADE_SPORTS[c].omits.join('; ')}`]),
   ].join('\n');
-  return { id: 'contest-arcade', name: 'The arcade rules', summary: 'the ball games distilled to modules: a card per sport, a variant a word', when: 'an arcade sport or a variant of one', scope: 'rail', body };
+  return { id, name: `The arcade rules: ${fam}`, summary: `the ${fam} family's modules and cards`, when: `an arcade ${fam} game`, scope: 'rail', body };
 }

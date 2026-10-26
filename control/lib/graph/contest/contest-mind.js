@@ -295,6 +295,30 @@ function sideMind(M, S, who, ctx, sim) {
   return { x: st[0], y: st[1], b: 0 };
 }
 
+/**
+ * THE HANDS MIND (team-sim.js's hands: basketball): the computer side's active player. Without the ball it goes to it
+ * (a free ball, or the holder's, to steal it); holding it, it drives to a step short of the ring, shoots in range (more
+ * often the nearer, a three now and then from beyond the arc), passes ahead now and then; its charge the sweet spot
+ * with the level's wobble.
+ */
+function handsMind(M, S, who, ctx) {
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1, hoop = ctx.sport.goal.hoop;
+  const b = S.sim.bodies[0], ball = [b.position[0], b.position[1]], ring = [0, dir * (ctx.court.halfL - hoop.out)];
+  const toward = (t) => { const d = [t[0] - P.x, t[1] - P.y], n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * L.pace) / n; return [mr4(d[0] * k), mr4(d[1] * k)]; };
+  if (S.hold !== who) { const st = toward(ball); return { x: st[0], y: st[1], kick: null }; }
+  const toRing = Math.hypot(ring[0] - P.x, ring[1] - P.y), sweet = 0.85 + (mindDice(M) - 0.5) * L.wobble * 0.6;
+  // a shot from in front of the ring: the nearer, the likelier each frame; close in always (under it or behind it, out first)
+  const front = (ring[1] - P.y) * dir;
+  const want = front < 1.2 ? 0 : toRing < 2 ? 1 : toRing < hoop.range ? 0.006 + 0.02 * (1 - toRing / hoop.range) : 0;
+  if (mindDice(M) < want) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(ring[1] - P.y, ring[0] - P.x)), power: mr4(sweet) } };
+  // a pass to a teammate, now and then: one ahead, else the one most open (the furthest from its marker)
+  let mate = null, best = -Infinity;
+  for (const Q of S.p) { if (Q.side !== P.side || Q === P) continue; const open = S.p.filter((O) => O.side !== P.side).reduce((m, O) => Math.min(m, Math.hypot(O.x - Q.x, O.y - Q.y)), Infinity) + Math.max(0, (Q.y - P.y) * dir); if (open > best) { best = open; mate = Q; } }
+  if (mate && mindDice(M) < 0.02) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(mate.y - P.y, mate.x - P.x)), power: 0.4 } };
+  const st = toward([ring[0] + (P.x > 0 ? 2 : -2), ring[1] - dir * 3.2]);
+  return { x: st[0], y: st[1], kick: null };
+}
+
 // ── the turn mind ────────────────────────────────────────────────────────────────────────────────────────────
 
 export function newTurnMind(level = 'regular', seed = 1) {
@@ -389,6 +413,7 @@ export function newTeamMind(level = 'regular', seed = 1) {
 
 /** The pad the computer side's active player holds this frame, in the court frame, and the kick it wants if any. */
 export function teamMind(M, S, who, ctx) {
+  if (ctx.sport.hands) return handsMind(M, S, who, ctx);
   const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1;
   const b = S.sim.bodies[0], ball = [b.position[0], b.position[1]], goal = [0, dir * ctx.court.halfL];
   const wob = () => (mindDice(M) - 0.5) * L.wobble;

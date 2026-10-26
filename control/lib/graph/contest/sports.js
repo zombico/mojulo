@@ -220,6 +220,8 @@ export const TEAM_SPORTS = Object.freeze({
     ground: Object.freeze({ roll: 0.3, boards: true }),
     press: 8,
   }),
+  // the arcade cards that play on the pitch, composed from their modules
+  ...Object.fromEntries(ARCADE_SPORT_IDS.filter((id) => composeArcade(ARCADE_SPORTS[id]).shape === 'team').map((id) => [id, Object.freeze(composeArcade(ARCADE_SPORTS[id], id))])),
 });
 export const TEAM_SPORT_IDS = Object.freeze(Object.keys(TEAM_SPORTS));
 export const SPORT_IDS = Object.freeze(Object.keys(SPORTS));

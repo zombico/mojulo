@@ -23,6 +23,13 @@
  * opponents colliding at speed, a foul on the faster; the clock ticks while live. A restart places the ball where the
  * kernel says and the restart side's nearest player behind it; the first touch resumes play (after three seconds the
  * sim takes it for them, so play never stalls).
+ *
+ * A HOOP and HANDS (the arcade rules' goal family: basketball), each absent on soccer and hockey: the goal a ring with
+ * its backboard over each end (a ring of the physics' spheres and a slab, so a shot rattles out or in by the physics),
+ * a basket the ball dropping through the ring, worth `goal.three`'s three from beyond the arc, else two (the kernel's
+ * score fact carrying its points). The ball is caught and held, not kicked: the holder dribbles it at its side, a tap
+ * passes it to the teammate most along the stick, a hold shoots it at the ring on the shot's arc, the charge's
+ * distance from the sweet spot (and the range) its miss; an opponent at the ball long enough takes it (a steal).
  */
 import { contestStart, contestApply, contestDisplay, contestRegion } from './contest-kernel.js';
 import { buildSim } from '../worlds/physics-sim.js';
@@ -45,8 +52,14 @@ const AUTO_RESUME = TEAM_FPS * 3;   // frames a restart waits before the sim tak
 const SWITCH = 1.0;                 // metres nearer another teammate must be to take the pad
 const FOUL_SPEED = 4.5, FOUL_REACH = 0.6, FOUL_COOL = 120, FOUL_GRACE = 45;   // a charge into the carrier at speed; none in the frames after a restart
 const SAVE_COOL = 30;
+// the hands (basketball's): a steal is an opponent this near the held ball for so many frames; a thrower cannot catch
+// its own throw for a moment; a shot leaves on this arc, its sweet spot this share of the charge, its miss by register
+const STEAL_REACH = 0.6, STEAL_FRAMES = 60, RECATCH = 12, FREE_FLIGHT = 10, SHOT_ARC = 60, SWEET = 0.85, RELEASE = 2.1, CATCH_UP = 2.6;
+const MISS = Object.freeze({ realistic: 1, action: 0.6, platformer: 0.5, pinball: 0.8 });
+const PASS_SPEED = 9, PASS_CATCH = 1.8;   // m/s along the floor; the reach the pass's receiver catches it in
 const MARGIN = 1.5;                 // metres past the lines a player may stand
 const gr3 = (v) => Math.round(v * 1000) / 1000;
+const RIM_BEADS = 14;
 const gclamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const _gsim = buildSim();
 
@@ -67,8 +80,16 @@ export function newTeam(ctx) {
   const K = contestStart(ctx.C, ctx.seed), c = ctx.court, r = ballBody(ctx.ball, ctx.register).radius;
   const bodies = [
     ballBody(ctx.ball, ctx.register, { id: 'ball', position: [0, 0, r] }),
-    { id: 'floor', collider: 'plane', position: [0, 0, 0], normal: [0, 0, 1], mass: 0, restitution: 0.5, friction: 0.8 },
+    { id: 'floor', collider: 'plane', position: [0, 0, 0], normal: [0, 0, 1], mass: 0, restitution: ctx.sport.ground.bounce ?? 0.5, friction: 0.8 },
   ];
+  const hoop = ctx.sport.goal.hoop;
+  if (hoop) for (const e of [-1, 1]) {
+    // each end's ring, a circle of small spheres the ball rattles on, and its backboard behind it
+    const cy = e * (c.halfL - hoop.out);
+    for (let k = 0; k < RIM_BEADS; k++) { const a = (2 * Math.PI * k) / RIM_BEADS; bodies.push({ id: `rim-${e > 0 ? 'b' : 'a'}${k}`, collider: 'sphere', radius: 0.012, mass: 0, position: [gr3(hoop.radius * Math.cos(a)), gr3(cy + hoop.radius * Math.sin(a)), hoop.height], restitution: 0.6, friction: 0.3 }); }
+    const by = e * (c.halfL - hoop.out + hoop.radius + 0.15 + 0.03);
+    bodies.push({ id: `board-${e > 0 ? 'b' : 'a'}`, collider: 'aabb', position: [0, gr3(by), gr3(hoop.height - 0.15 + hoop.board[1] / 2)], half: [hoop.board[0] / 2, 0.03, hoop.board[1] / 2], mass: 0, restitution: 0.55, friction: 0.3 });
+  }
   if (ctx.sport.ground.boards) {   // the rink's boards: four walls just past the lines, the goal mouths in the end walls' line
     const t = 0.15, h = 1.2;
     bodies.push({ id: 'board-left', collider: 'aabb', position: [-(c.halfW + t), 0, h / 2], half: [t, c.halfL + 2 * t, h / 2], mass: 0, restitution: 0.6, friction: 0.2 });
@@ -83,6 +104,7 @@ export function newTeam(ctx) {
   const S = {
     f: 0, K, phase: K.phase, calls: [], over: false, winner: null, dead: 0, last: null, sim, p,
     active: { a: null, b: null }, wait: 0, placedAt: -1, liveAt: 0, passPos: {}, minds: {},
+    ...(ctx.sport.hands ? { hold: null, shot: null, steal: null, thrownBy: null, thrownAt: -99, passTo: null, pz: 0 } : {}),
   };
   for (const side of ['a', 'b']) if ((side === 'a' ? 0 : 1) >= ctx.players) S.minds[side] = newTeamMind(ctx.level, ctx.seed * 17 + (side === 'a' ? 1 : 2));
   place(S, ctx);
@@ -96,6 +118,7 @@ function place(S, ctx) {
   const R = S.K.restart, b = ballBodyOf(S), c = ctx.court;
   S.placedAt = S.K.n; S.wait = 0;
   for (const P of S.p) { P.x = P.home[0]; P.y = P.home[1]; P.vx = 0; P.vy = 0; P.charge = 0; P.held = 0; }
+  if (ctx.sport.hands) { S.hold = null; S.shot = null; S.steal = null; }
   if (!R) return;
   let at = R.at ? [gclamp(R.at[0], -c.halfW + 0.3, c.halfW - 0.3), gclamp(R.at[1], -c.halfL + 0.3, c.halfL - 0.3)] : [0, 0];
   if (R.kind === 'kickoff') at = [0, 0];
@@ -133,6 +156,7 @@ function touch(S, ctx, P, at) {
 
 /** The kick: the leg's strike on a ball in reach, aimed along `facing`, at the share `power` of the tip (a pass stays low). */
 function kick(S, ctx, P, facing, power) {
+  if (ctx.sport.hands) return throwBall(S, ctx, P, facing, power);
   const b = ballBodyOf(S), K = ctx.sport.kick;
   if (dist2([P.x, P.y], b.position) > K.reach || b.position[2] > 0.6) return false;
   if (!touch(S, ctx, P, b.position)) return false;
@@ -149,11 +173,118 @@ function kick(S, ctx, P, facing, power) {
   return true;
 }
 
+/** The attacking ring of a side (a attacks +y): its centre. */
+const ringOf = (ctx, side) => [0, signOf(side) * (ctx.court.halfL - ctx.sport.goal.hoop.out), ctx.sport.goal.hoop.height];
+
+/**
+ * The hands' throw, by the ball's holder: a hold (`power` over 0.7) shoots at the ring on the shot's arc, short or long
+ * by the charge's distance from its sweet spot and the range (the register's share of it); a tap passes to the teammate
+ * most along `facing`, at chest height, flat.  → true when thrown
+ */
+export function throwBall(S, ctx, P, facing, power) {
+  if (S.hold !== P.id) return false;
+  const b = ballBodyOf(S), g = -S.sim.gravity[2], from = [gr3(P.x + Math.cos(facing) * 0.3), gr3(P.y + Math.sin(facing) * 0.3), RELEASE];
+  let v, shot = null;
+  if (power > 0.7) {
+    const R = ringOf(ctx, P.side), D = Math.max(0.5, Math.hypot(R[0] - from[0], R[1] - from[1])), th = (SHOT_ARC * Math.PI) / 180;
+    // the miss: the charge off its sweet spot, the range, the register, and a defender's hand in the shooter's face
+    const guard = S.p.filter((Q) => Q.side !== P.side).reduce((m, Q) => Math.min(m, Math.hypot(Q.x - P.x, Q.y - P.y)), Infinity);
+    const miss = (0.003 + Math.abs(power - SWEET) * 0.3) * (0.5 + D / 8) * MISS[ctx.register] * (1 + Math.max(0, 1.5 - guard) * 1.5) * (power < SWEET ? -1 : 1);
+    const az0 = Math.atan2(R[1] - from[1], R[0] - from[0]), speed = shotSpeed(S, from, az0, th, R, D) * (1 + miss);
+    const az = az0 + miss * 0.25;
+    v = [gr3(speed * Math.cos(th) * Math.cos(az)), gr3(speed * Math.cos(th) * Math.sin(az)), gr3(speed * Math.sin(th))];
+    shot = { side: P.side, points: Math.hypot(R[0] - P.x, R[1] - P.y) > ctx.sport.goal.three ? 3 : 2, f: S.f };
+  } else {
+    const mates = S.p.filter((Q) => Q.side === P.side && Q !== P);
+    const along = (Q) => { const d = [Q.x - P.x, Q.y - P.y], n = Math.hypot(d[0], d[1]) || 1; return (d[0] * Math.cos(facing) + d[1] * Math.sin(facing)) / n; };
+    const mate = mates.filter((Q) => along(Q) > 0.4).reduce((m, Q) => (m === null || along(Q) > along(m) ? Q : m), null);
+    // led by the pass's own flight: where the teammate will be when it arrives
+    const lead = mate ? Math.hypot(mate.x - from[0], mate.y - from[1]) / PASS_SPEED : 0;
+    const to = mate ? [mate.x + mate.vx * lead, mate.y + mate.vy * lead] : [P.x + Math.cos(facing) * 8, P.y + Math.sin(facing) * 8];
+    const D = Math.max(1, Math.hypot(to[0] - from[0], to[1] - from[1])), t = D / PASS_SPEED;
+    v = [gr3(((to[0] - from[0]) / D) * PASS_SPEED), gr3(((to[1] - from[1]) / D) * PASS_SPEED), gr3((1.3 - from[2] + 0.5 * g * t * t) / t)];
+    S.passTo = mate ? mate.id : null;
+  }
+  b.position = from; b.velocity = v; b.angularVelocity = [0, 0, 0]; b.resting = false;
+  S.hold = null; S.steal = null; S.thrownBy = P.id; S.thrownAt = S.f; S.shot = shot;
+  P.kicks += 1; P.facing = facing;
+  S.calls.push({ kind: 'kick', who: P.id, speed: gr3(Math.hypot(v[0], v[1], v[2])), power: gr3(power), ...(shot ? { goalward: true, points: shot.points } : {}), f: S.f });
+  return true;
+}
+
+/**
+ * The speed that drops a shot on the arc `th` through the ring's centre: bisected on the ball alone flown in the sim's
+ * own physics (its step, its gravity, its air), so the integrator and the air are counted, not guessed.
+ */
+function shotSpeed(S, from, az, th, R, D) {
+  const ball = ballBodyOf(S);
+  const reach = (v) => {
+    const st = _gsim.createState({ gravity: S.sim.gravity, bodies: [{ ...ball, position: from.slice(), velocity: [v * Math.cos(th) * Math.cos(az), v * Math.cos(th) * Math.sin(az), v * Math.sin(th)], angularVelocity: [0, 0, 0], resting: false }], forces: S.sim.forces });
+    const b = st.bodies[0];
+    for (let i = 0; i < 240; i++) {
+      const pz = b.position[2], px = b.position[0], py = b.position[1];
+      _gsim.step(st, GDT);
+      if (pz > R[2] && b.position[2] <= R[2]) { const f = (pz - R[2]) / (pz - b.position[2]); return Math.hypot(px + (b.position[0] - px) * f - from[0], py + (b.position[1] - py) * f - from[1]); }
+      if (b.velocity[2] < 0 && b.position[2] < R[2]) return 0;   // never up to the ring: short
+    }
+    return 0;
+  };
+  let lo = 2, hi = 25;
+  for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2; if (reach(mid) < D) lo = mid; else hi = mid; }
+  return gr3((lo + hi) / 2);
+}
+
+/**
+ * The hands after the ball has flown its frame: the held ball at its holder's side, dribbled; a steal by an opponent
+ * at it long enough; a free ball caught by the nearest player in reach (the restart side's while a restart waits);
+ * the basket, the ball dropping through a ring.
+ */
+function handsStep(S, ctx) {
+  const b = ballBodyOf(S), K = ctx.sport.kick, hoop = ctx.sport.goal.hoop;
+  if (S.hold) {
+    const P = S.p.find((Q) => Q.id === S.hold);
+    const near = S.p.filter((Q) => Q.side !== P.side && Math.hypot(Q.x - b.position[0], Q.y - b.position[1]) <= STEAL_REACH);
+    if (near.length && S.K.phase === 'live') {
+      const thief = near[0];
+      S.steal = S.steal && S.steal.who === thief.id ? { who: thief.id, n: S.steal.n + 1 } : { who: thief.id, n: 1 };
+      if (S.steal.n >= STEAL_FRAMES && touch(S, ctx, thief, b.position)) { S.hold = thief.id; S.steal = null; S.calls.push({ kind: 'steal', who: thief.id, from: P.id, f: S.f }); return handsStep(S, ctx); }
+    } else S.steal = null;
+    const bounce = 0.35 + 0.6 * Math.abs(Math.sin(S.f * 0.18)), c = ctx.court, r = b.radius;
+    // (the dribble kept inside the lines: the arcade's holder never carries the ball out)
+    b.position = [gr3(gclamp(P.x + Math.cos(P.facing) * 0.45, -c.halfW + r, c.halfW - r)), gr3(gclamp(P.y + Math.sin(P.facing) * 0.45, -c.halfL + r, c.halfL - r)), gr3(bounce)];
+    b.velocity = [gr3(P.vx), gr3(P.vy), 0]; b.angularVelocity = [0, 0, 0]; b.resting = false;
+    S.pz = b.position[2];
+    return;
+  }
+  // the basket: down through a ring from above it, inside its rim
+  if (S.K.phase === 'live') for (const side of ['a', 'b']) {
+    const R = ringOf(ctx, side);
+    if (S.pz > R[2] && b.position[2] <= R[2] && Math.hypot(b.position[0] - R[0], b.position[1] - R[1]) < hoop.radius - b.radius * 0.3) {
+      const points = S.shot && S.shot.side === side ? S.shot.points : 2;
+      S.calls.push({ kind: 'goal', side, points, f: S.f });
+      S.shot = null;
+      fact(S, ctx, { kind: 'score', side, points });
+      S.pz = b.position[2];
+      return;
+    }
+  }
+  S.pz = b.position[2];
+  // a ball just thrown flies free (no block, no tip at the release), and a shot is caught only on its way down
+  if (b.position[2] > CATCH_UP || S.f - S.thrownAt < FREE_FLIGHT || (S.shot && b.velocity[2] > 0)) return;
+  const restarting = S.K.phase === 'dead' || S.K.phase === 'between';
+  const can = S.p.filter((P) => !(P.id === S.thrownBy && S.f - S.thrownAt < RECATCH) && (!restarting || (S.K.restart && S.K.restart.side === P.side)) && Math.hypot(P.x - b.position[0], P.y - b.position[1]) <= (P.id === S.passTo ? PASS_CATCH : K.reach));
+  if (!can.length) return;
+  const P = can.reduce((m, Q) => (Math.hypot(Q.x - b.position[0], Q.y - b.position[1]) < Math.hypot(m.x - b.position[0], m.y - b.position[1]) ? Q : m));
+  if (touch(S, ctx, P, b.position)) { S.hold = P.id; S.steal = null; S.passTo = null; }
+}
+
 function move(S, ctx, P, stick) {
   const c = ctx.court, B = ctx.body, k = 1 - Math.exp(-GDT / B.tau);
   P.vx += (stick[0] * B.speed - P.vx) * k; P.vy += (stick[1] * B.speed - P.vy) * k;
-  P.x = gr3(gclamp(P.x + P.vx * GDT, -(c.halfW + MARGIN), c.halfW + MARGIN));
-  P.y = gr3(gclamp(P.y + P.vy * GDT, -(c.halfL + MARGIN), c.halfL + MARGIN));
+  // (the hands' holder stays inside the lines)
+  const m = ctx.sport.hands && S.hold === P.id ? -0.3 : MARGIN;
+  P.x = gr3(gclamp(P.x + P.vx * GDT, -(c.halfW + m), c.halfW + m));
+  P.y = gr3(gclamp(P.y + P.vy * GDT, -(c.halfL + m), c.halfL + m));
   if (Math.hypot(P.vx, P.vy) > 0.5) P.facing = Math.atan2(P.vy, P.vx);
 }
 
@@ -222,14 +353,20 @@ export function stepTeam(S, pads, ctx) {
       } else if (!(restarting && P.id === activeId)) {
         // a role: home, the press when nearest, the mark; inside the kernel's legal regions
         const legal = (ctx.C.roles && P.role === 'keeper' ? [contestRegion(ctx.C, ctx.C.roles.keeper.home, side)] : [contestRegion(ctx.C, 'pitch', side)]);
-        const T = fieldTarget({ me: [P.x, P.y], home: { kind: 'circle', circle: [P.home[0], P.home[1], 1.5] }, legal, ball: [b.position[0], b.position[1]], press: restarting ? 0 : P === presser ? ctx.sport.press : 0 });
+        // (the hands: the side with the ball takes its roles' spots in the attacking half, the other marks its man)
+        let home = P.home, mark = null;
+        if (ctx.sport.hands && S.hold) {
+          if (S.hold[0] === P.side) home = [P.home[0], -P.home[1]];
+          else { const man = S.p.find((Q) => Q.side !== P.side && Q.id.slice(1) === P.id.slice(1)); if (man) mark = [man.x, man.y]; }
+        }
+        const T = fieldTarget({ me: [P.x, P.y], home: { kind: 'circle', circle: [home[0], home[1], 1.5] }, legal, ball: [b.position[0], b.position[1]], ...(mark ? { mark } : {}), press: restarting ? 0 : P === presser ? ctx.sport.press : 0 });
         stick = toward(P, T.to, 0.9);
       }
       move(S, ctx, P, stick);
       if (want) kick(S, ctx, P, want.facing, want.power);
       // the carry: a slow ball at the feet of a moving player stays a half step ahead of them, at their pace
       const v = Math.hypot(P.vx, P.vy), bv = Math.hypot(b.velocity[0], b.velocity[1]);
-      if (v > 0.6 && b.position[2] < 0.4 && bv < K.dribble + 1 && dist2([P.x, P.y], b.position) <= K.reach * 0.9 && !(restarting && S.K.restart && S.K.restart.side !== side)) {
+      if (!ctx.sport.hands && v > 0.6 && b.position[2] < 0.4 && bv < K.dribble + 1 && dist2([P.x, P.y], b.position) <= K.reach * 0.9 && !(restarting && S.K.restart && S.K.restart.side !== side)) {
         if (S.f - P.dribbled > 20 || S.K.ball.lastWho !== P.id) { if (touch(S, ctx, P, b.position)) P.dribbled = S.f; }
         const n = v || 1, pace = Math.min(K.dribble, v);
         b.position = [gr3(P.x + (P.vx / n) * 0.5), gr3(P.y + (P.vy / n) * 0.5), b.position[2]];
@@ -244,7 +381,7 @@ export function stepTeam(S, pads, ctx) {
   }
   // fouls: a charge into the ball's carrier from behind at speed (never in the frames after a restart, while the players spread)
   if (S.K.phase === 'live' && S.f - S.liveAt > FOUL_GRACE) {
-    const carrier = S.p.find((Q) => Q.id === S.K.ball.lastWho && dist2([Q.x, Q.y], b.position) <= K.reach);
+    const carrier = S.p.find((Q) => Q.id === (ctx.sport.hands ? S.hold : S.K.ball.lastWho) && dist2([Q.x, Q.y], b.position) <= K.reach);
     if (carrier) for (const P of S.p) {
       if (P.side === carrier.side || P.cool > 0 || dist2([P.x, P.y], [carrier.x, carrier.y]) > FOUL_REACH) continue;
       // a charge from behind or the side at speed; a block met head-on is fair
@@ -259,10 +396,11 @@ export function stepTeam(S, pads, ctx) {
     if (vh > 0) { const k = Math.max(0, vh - ctx.sport.ground.roll * GDT) / vh; b.velocity[0] *= k; b.velocity[1] *= k; }
     if (Math.hypot(b.velocity[0], b.velocity[1]) < 0.05 && Math.abs(b.velocity[2]) < 0.1) { b.velocity = [0, 0, 0]; b.angularVelocity = [0, 0, 0]; b.resting = true; }
   }
+  if (ctx.sport.hands) handsStep(S, ctx);
   if (S.K.phase === 'live') {
     fact(S, ctx, { kind: 'tick', dt: GDT });
     const x = b.position[0], y = b.position[1], z = b.position[2], r = b.radius, G = ctx.sport.goal;
-    if (Math.abs(y) > c.halfL + r * 0.5 && Math.abs(x) < G.width / 2 && z < G.height) {
+    if (!G.hoop && Math.abs(y) > c.halfL + r * 0.5 && Math.abs(x) < G.width / 2 && z < G.height) {
       const scorer = y < 0 ? 'b' : 'a';   // the ball in a's goal (y < 0) is b's
       S.calls.push({ kind: 'goal', side: scorer, f: S.f });
       fact(S, ctx, { kind: 'score', side: scorer });

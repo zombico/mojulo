@@ -72,7 +72,8 @@
  *     facts (match): { kind: 'touch', who, at, atPass? } | { kind: 'bounce', at } | { kind: 'net' } (the ball on the cord) |
  *                    { kind: 'out', at? } (the ball gone past any line, where the sim knows before a bounce; a goal game's
  *                    carries where) |
- *                    { kind: 'foul', foul: <fouls key>, who, at? } | { kind: 'score', side } (a goal) |
+ *                    { kind: 'foul', foul: <fouls key>, who, at? } | { kind: 'score', side, points? } (a goal; a basket
+ *                    worth more than one, `points` of the lowest unit at once) |
  *                    { kind: 'tick', dt } | { kind: 'resume' } (the restart taken: play is live)
  *     facts (meet):  { kind: 'set' } | { kind: 'tick', dt } | { kind: 'press', who } | { kind: 'finish', who } |
  *                    { kind: 'mark', who, value, foul? }
@@ -451,9 +452,11 @@ export function buildContest() {
     }
     if (k === 'score') {
       if (S.phase !== 'live' || !SIDES.includes(f.side)) return;
-      S.last = { kind: 'score', side: f.side };
-      calls.push({ kind: 'score', side: f.side });
-      if (climb(C, S, f.side, calls)) return;
+      if (f.points !== undefined && !(Number.isInteger(f.points) && f.points >= 1 && f.points <= 9)) fail('a score fact\'s points is 1 to 9');
+      const n = f.points ?? 1;
+      S.last = { kind: 'score', side: f.side, ...(f.points !== undefined ? { points: n } : {}) };
+      calls.push({ kind: 'score', side: f.side, ...(f.points !== undefined ? { points: n } : {}) });
+      for (let i = 0; i < n; i++) if (climb(C, S, f.side, calls)) return;
       S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: opp(f.side) };
       return;
     }

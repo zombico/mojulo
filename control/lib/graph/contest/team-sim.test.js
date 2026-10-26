@@ -3,7 +3,9 @@
 // register; the pad's active player and its kick (a tap a pass, a hold a shot); the carry; a goal, an out and their
 // restarts; the keeper's save; an exhibition to the final whistle in both sports; byte-identical replays.
 import { describe, it, expect } from 'vitest';
-import { TEAM_BODY, TEAM_REGISTER_IDS, GPAD, TEAM_FPS, newTeam, stepTeam, cloneTeam, teamContext, teamDisplay } from './team-sim.js';
+import { TEAM_BODY, TEAM_REGISTER_IDS, GPAD, TEAM_FPS, newTeam, stepTeam, cloneTeam, teamContext, teamDisplay, throwBall } from './team-sim.js';
+import { ARCADE_SPORT_IDS } from './arcade-rules.js';
+import { resolveSport } from './sports.js';
 import { teamArenaData } from './team-arena.js';
 import { MATCH_BODY } from './match-sim.js';
 
@@ -122,5 +124,55 @@ describe('an exhibition, pure and seeded', () => {
     const a = run(ctx, pads, (S) => S.f >= 1200), b = run(ctx, pads, (S) => S.f >= 1200);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b)); expect(a.f).toBeGreaterThan(TEAM_FPS);
     const c = cloneTeam(a); c.p[0].x = 99; expect(a.p[0].x).not.toBe(99);
+  });
+});
+
+// the arcade rules' goal family on the pitch: the hoop and the hands, on the card that has them (chosen in code)
+describe('a hoop and hands (the arcade goal family)', () => {
+  const sport = ARCADE_SPORT_IDS.find((id) => resolveSport(id).shape === 'team' && resolveSport(id).goal.hoop);
+  // (both sides at resting pads: nobody's mind throws the ball the test holds)
+  const live = (register = 'action') => {
+    const ctx = ctxOf({ sport, players: 2, register, seed: 2 }), S = newTeam(ctx);
+    S.K = { ...S.K, phase: 'live', restart: null }; S.phase = 'live';
+    for (const P of S.p) { P.x = P.side === 'a' ? -6 : 6; P.y = 0; }   // everyone out of the way
+    return { ctx, S };
+  };
+  const fly = (S, ctx, frames = 150) => { for (let i = 0; i < frames && !calls(S, 'goal').length; i++) stepTeam(S, [REST, REST], ctx); return calls(S, 'goal')[0] ?? null; };
+
+  it('a ring and a board over each end; a shot at the sweet spot drops through the ring, two inside the arc and three beyond, the kernel scoring its points', () => {
+    const { ctx, S } = live(), H = ctx.sport.goal.hoop, ry = ctx.court.halfL - H.out;
+    expect(S.sim.bodies.filter((b) => b.id.startsWith('rim-')).length).toBeGreaterThan(8);
+    expect(S.sim.bodies.filter((b) => b.id.startsWith('board-')).length).toBe(2);
+    for (const [back, points] of [[4, 2], [ctx.sport.goal.three + 0.8, 3]]) {
+      const { S: T } = live(), P = T.p[0];
+      Object.assign(P, { x: 0, y: ry - back }); T.hold = P.id; T.f = 1000;
+      expect(throwBall(T, ctx, P, Math.PI / 2, 0.85)).toBe(true);
+      const g = fly(T, ctx);
+      expect(g, `from ${back} m`).toMatchObject({ side: 'a', points });
+      expect(T.K.score.a[0]).toBe(points);
+    }
+    // off the sweet spot, short: no basket
+    const { S: U } = live(), Q = U.p[0];
+    Object.assign(Q, { x: 0, y: ry - 5 }); U.hold = Q.id; U.f = 1000;
+    throwBall(U, ctx, Q, Math.PI / 2, 0.75);
+    expect(fly(U, ctx)).toBeNull();
+  });
+  it('the ball caught and held at the holder\'s side; a tap passes it to the teammate along the stick, who catches it; an opponent at the ball long enough steals it', () => {
+    const { ctx, S } = live(), [a1, a2] = S.p.filter((P) => P.side === 'a'), b1 = S.p.find((P) => P.side === 'b');
+    Object.assign(a1, { x: 0, y: -4, facing: Math.PI / 2 }); Object.assign(a2, { x: 0, y: 2 });
+    const b = S.sim.bodies[0]; b.position = [0, -3.4, 1]; b.velocity = [0, 0, 0];
+    stepTeam(S, [REST, REST], ctx);
+    expect(S.hold).toBe(a1.id);
+    stepTeam(S, [REST, REST], ctx);
+    expect(Math.hypot(b.position[0] - a1.x, b.position[1] - a1.y)).toBeCloseTo(0.45, 1);   // dribbled at its side
+    S.f += 100;   // (the thrower's own recatch long past)
+    expect(throwBall(S, ctx, a1, Math.PI / 2, 0.4)).toBe(true);
+    for (let i = 0; i < 90 && S.hold !== a2.id; i++) { Object.assign(a2, { x: 0, y: 2, vx: 0, vy: 0 }); stepTeam(S, [REST, REST], ctx); }
+    expect(S.hold).toBe(a2.id);
+    // the steal: an opponent kept at the held ball
+    const park = () => { for (const Q of S.p) if (Q !== a2 && Q !== b1) Object.assign(Q, { x: Q.side === 'a' ? -6 : 6, y: -10, vx: 0, vy: 0 }); };
+    for (let i = 0; i < 120 && S.hold === a2.id; i++) { park(); Object.assign(b1, { x: b.position[0] + 0.3, y: b.position[1], vx: 0, vy: 0 }); Object.assign(a2, { vx: 0, vy: 0 }); stepTeam(S, [REST, REST], ctx); }
+    expect(S.hold).toBe(b1.id);
+    expect(calls(S, 'steal')[0]).toMatchObject({ who: b1.id, from: a2.id });
   });
 });

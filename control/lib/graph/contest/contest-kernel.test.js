@@ -317,6 +317,17 @@ describe('a goal game on the clock', () => {
   });
 });
 
+describe('a basket worth more than one', () => {
+  it('a score fact\'s points climb the lowest unit so many at once; the call carries them; out of range refused', () => {
+    const C = contestRead({ shape: 'match', court: { frame: [15, 28], mirror: 'reflect', regions: { pitch: { rect: [-7.5, -14, 7.5, 14], shared: true } } }, scoring: { ladder: [{ unit: 'point' }] }, clock: { periods: 1, seconds: 60 } });
+    let r = play(C, contestStart(C, 1), [{ kind: 'resume' }, { kind: 'score', side: 'a', points: 3 }]);
+    expect(r.S.score.a).toEqual([3]); expect(r.calls.at(-1)).toMatchObject({ kind: 'score', side: 'a', points: 3 });
+    r = play(C, r.S, [{ kind: 'resume' }, { kind: 'score', side: 'b' }]);
+    expect(r.S.score.b).toEqual([1]); expect(r.calls.at(-1)).toEqual({ kind: 'score', side: 'b' });   // a goal as ever
+    expect(() => play(C, r.S, [{ kind: 'resume' }, { kind: 'score', side: 'a', points: 12 }])).toThrow(/points is 1 to 9/);
+  });
+});
+
 describe('a goal game\'s outs and offside', () => {
   const G = contestRead(soccer());
   const play = (S, facts) => { const calls = []; for (const f of facts) { const r = contestApply(G, S, f); S = r.S; calls.push(...r.calls); } return { S, calls }; };

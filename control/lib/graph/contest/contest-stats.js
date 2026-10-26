@@ -96,7 +96,7 @@ function stTeam(S) {
     } else if (c.kind === 'save') {
       const keeper = stSide(c.who); add('saves', keeper); onTarget(keeper === 'a' ? 'b' : 'a'); lastKick = null;
     } else if (c.kind === 'score') {
-      add('goals', c.side); onTarget(c.side); close(c.f);
+      add('goals', c.side, c.points ?? 1); onTarget(c.side); close(c.f);   // (a basket its points)
     } else if (c.kind === 'out') {
       if (c.restart?.kind === 'corner') add('corners', c.restart.side);
       close(c.f);

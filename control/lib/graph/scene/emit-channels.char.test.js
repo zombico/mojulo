@@ -259,6 +259,10 @@ import { emitThreeWorld } from './scene-three.js';
 // (the side mind for a side of more than one) and the hit's verbs (the float serve) they inline changed, and the court's
 // sim and client too (the players from the kernel's, the active player, the placed pass, the side's colours, bare
 // hands). The meet inlines neither and is unchanged; every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: basketball): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because the
+// kernel every contest block inlines reads a score fact's points, the broadcast client calls a basket by them and the
+// stats count them, and the minds (the hands mind) the court, turns and pitch inline; the pitch block's sim and client
+// too (the hoop, the hands, the hardwood). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

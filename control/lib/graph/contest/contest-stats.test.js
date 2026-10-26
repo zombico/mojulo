@@ -52,6 +52,10 @@ describe('the stats of a goal game', () => {
     expect(val(st, 'possession').a + val(st, 'possession').b).toBe(100);
   });
 
+  it('a basket counts its points', () => {
+    const S = log({ kind: 'live' }, { kind: 'kick', who: 'a1', power: 0.85, goalward: true, points: 3 }, { kind: 'score', side: 'a', points: 3 }, { kind: 'live' }, { kind: 'kick', who: 'b1', power: 0.85, goalward: true, points: 2 }, { kind: 'score', side: 'b', points: 2 });
+    expect(val(contestStats(S, 'team'), 'goals')).toEqual({ a: 3, b: 2 });
+  });
   it('agrees with the kernel on a real game: the goals its score, a shot for every goal and save', () => {
     const ctx = teamContext(teamArenaData({ sport: 'soccer', players: 0, seed: 4, periods: 1, seconds: 60 }));
     const S = newTeam(ctx);
