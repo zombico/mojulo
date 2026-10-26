@@ -10,6 +10,7 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { stampSolid } from '@/lib/graph/era/solid';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
@@ -630,6 +631,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // every geocube it names given its palette's seed: the color theorist decides a cube's colours; a cube an edit
   // leaves as it was is left (color-theorist/stamp.js)
   manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
+  // a new world that builds is solid (era/solid.js: no flat building polygons); an edit or a restore keeps the row's own
+  if (!existingSketch && !restore) manifest = stampSolid(manifest);
   // a geocube's trail its own seed, a new island
   manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored

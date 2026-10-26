@@ -53,6 +53,8 @@ export const PIECE_KINDS = Object.freeze({
 export const CAPS_FOR = Object.freeze({ block: ['gable', 'hip', 'pyramid', 'flat', 'dome'], drum: ['cone', 'dome', 'flat'], shell: [null] });
 export const DEPTHS = Object.freeze({ mass: 0, cap: 0, annex: 0, tiers: 0, courses: 1, opening: 1, entry: 1, point: 2, chimney: 2, rib: 2, band: 2, socle: 2, cornice: 2, bond: 2, frame: 3, shutters: 3, rim: 3, sill: 3, lintel: 3, quoins: 3 });
 const PITCHED = new Set(['gable', 'hip', 'pyramid']);
+// a solid flat cap's parapet: a wall's thickness (era/solid.js)
+const PARAPET_T = 0.25;
 const COVER_OF = (group) => (group || '').replace('str:', '');
 
 // ── three anchors: element sets, composed (era/out-anchor-elements.js) ──────────────────────────────────────────
@@ -126,7 +128,7 @@ const SCALE_LAWS = ['storey', 'door', 'one-leads', 'value-order', 'eye-spot', 'b
  * interest (a focus, a landmark or the accent at 3; near 3, mid 2, far 0). `band` [lo, hi] is the town's heartbeat
  * here: a citizen's storeys inside it (a shell as far as its rise allows). Returns the shape the town places.
  */
-export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null } = {}) {
+export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null, solid = false } = {}) {
   const U = STRUCTURE_USES[use];
   if (!U) throw new Error(`structures: '${use}' is not a use (${STRUCTURE_USE_IDS.join(', ')})`);
   if (!STRUCTURE_RINGS[ring]) throw new Error(`structures: '${ring}' is not a ring (${STRUCTURE_RING_IDS.join(', ')})`);
@@ -235,7 +237,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     let top = z;
     if (PITCHED.has(V.cap)) {
       const form = V.cap === 'pyramid' || (V.cap === 'hip' && Math.max(w, d) / Math.min(w, d) < 1.05) ? (V.cap === 'gable' ? 'gable' : V.cap === 'hip' ? 'hip' : 'pyramid') : V.cap;
-      const R = roof(faces, rect, z, { form, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid });
+      const R = roof(faces, rect, z, { form, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid, solid });
       top = R.ridge;
     } else if (V.cap === 'dome' || V.cap === 'cone') {
       const rx = w / 2 + eave * 0.4, ry = d / 2 + eave * 0.4, rise = capK * Math.min(rx, ry);
@@ -244,7 +246,16 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
       top = r3(z + rise);
     } else if (V.cap === 'flat') {
       const par = 0.7;
-      for (const s of Object.keys(SIDES)) { const W = wallOf(rect, s); wallQuad(faces, W, 0, W.len, z, z + par, 0, 'wall', capV.value); }
+      for (const s of Object.keys(SIDES)) {
+        const W = wallOf(rect, s);
+        wallQuad(faces, W, 0, W.len, z, z + par, 0, 'wall', capV.value);
+        // (solid, era/solid.js: the parapet a wall's thickness, its inner face and its coping)
+        if (solid) {
+          const pt = PARAPET_T, inN = W.n.map((v) => -v);
+          face(faces, [W.at(pt, z, -pt), W.at(W.len - pt, z, -pt), W.at(W.len - pt, z + par, -pt), W.at(pt, z + par, -pt)], inN, 'wall', capV.value * 0.8);
+          face(faces, [W.at(0, z + par, 0), W.at(W.len, z + par, 0), W.at(W.len - pt, z + par, -pt), W.at(pt, z + par, -pt)], [0, 0, 1], 'wall', capV.value);
+        }
+      }
       face(faces, [[rect[0], rect[1], z + 0.05], [rect[2], rect[1], z + 0.05], [rect[2], rect[3], z + 0.05], [rect[0], rect[3], z + 0.05]], [0, 0, 1], 'roof', Math.max(0.1, capV.value - 0.1));
       top = r3(z + par);
     }
@@ -296,7 +307,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     if (aw >= 3 && ad >= 2.4) {
       const left = D.R() < 0.5, x0 = left ? 0 : r3(W0 - aw), arect = round ? [r3(W0 / 2 + (left ? -1 : 1) * (W0 / 2 - aw * 0.45) - aw / 2), r3(D0 - aw * 0.3), 0, 0] : [x0, D0, r3(x0 + aw), r3(D0 + ad)];
       if (round) { arect[2] = r3(arect[0] + aw); arect[3] = r3(arect[1] + aw); }
-      const sub = speakMass(L, arect, Math.max(1, n - 1), storeyH, Lv, dep - 1, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, r3(ridge - 0.6));
+      const sub = speakMass(L, arect, Math.max(1, n - 1), storeyH, Lv, dep - 1, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, r3(ridge - 0.6), solid);
       floor = r3(floor + sub.floor); underRidge = r3(ridge - sub.ridge);
       masses.push({ id: 'annex', rect: arect, n: sub.n, storeyH, eave: sub.ridge });
       why.push(`${deficit} m² short: the language again behind, ${r3(sc * 100)} % its size (an annex, a depth shallower)`);
@@ -561,7 +572,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
 }
 
 /** The language spoken again for an annex: a smaller mass under the same cap, a depth shallower (its lights at 1). */
-function speakMass(L, rect, n, storeyH, Lv, dep, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, under = Infinity) {
+function speakMass(L, rect, n, storeyH, Lv, dep, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, under = Infinity, solid = false) {
   const V = L.vocab, w = rect[2] - rect[0], d = rect[3] - rect[1], t0 = faces.length, u0 = tile.length;
   let ridge;
   if (V.mass === 'shell') {
@@ -571,7 +582,7 @@ function speakMass(L, rect, n, storeyH, Lv, dep, round, stGroup, capV, pitch, ea
   } else {
     for (let i = 0; i < n; i++) for (const s of Object.keys(SIDES)) { if (s === 'front') continue; const W = wallOf(rect, s); if (V.mass === 'drum') { /* a drum's annex is a smaller drum */ } wallQuad(faces, W, 0, W.len, r3(i * storeyH), r3((i + 1) * storeyH), 0, 'wall', stGroup(i).value, { group: stGroup(i).group }); }
     const z = r3(n * storeyH);
-    if (V.cap && PITCHED.has(V.cap)) ridge = roof(faces, rect, z, { form: V.cap === 'pyramid' ? 'hip' : V.cap, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid }).ridge;
+    if (V.cap && PITCHED.has(V.cap)) ridge = roof(faces, rect, z, { form: V.cap === 'pyramid' ? 'hip' : V.cap, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid, solid }).ridge;
     else if (V.cap === 'dome') { const rise = (L.proportions.rise ?? 0.8) * Math.min(w, d) / 2; shellFaces(faces, shellAt([(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2], w / 2, d / 2, rise, z), { lon: Math.max(6, Lv.lon - 4), lat: 2 }, 'roof', capV.value); ridge = r3(z + rise); }
     else { face(faces, [[rect[0], rect[1], z], [rect[2], rect[1], z], [rect[2], rect[3], z], [rect[0], rect[3], z]], [0, 0, 1], 'roof', capV?.value ?? 0.5); ridge = z; }
   }

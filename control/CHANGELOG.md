@@ -14,6 +14,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### No flat building polygons: a building's seen edges have thickness
+
+Walls and roofs read paper-thin: a building's outer wall was one skin with its way out punched through it, and every
+roof a single sheet, its overhang a knife edge from below. Now a solid building (`era/solid.js`) has thickness wherever
+its edge can be seen.
+
+- **Roofs are slabs.** A pitched roof's covering, an underside a roof's thickness below it, and a band down every edge
+  no other slope shares (the fascia at the eaves, the verges at a gable); a stage building's flat roof the same. A town's
+  flat cap stands its parapet a wall's thickness, its inner face and its coping laid.
+- **Doorways are cut through the wall.** A stage building's way out has its two jambs, its head and its threshold from
+  the outer face to the inside's.
+- **Who is solid:** a recipe that says `solid: true`, and every world read in gen-7 (the form render). A new world that
+  builds (a stage's `buildings` or `town`, the geocube kind's town, a composed game's levels with buildings) is stamped
+  `solid: true` at mint, so a world minted from now is solid and a row minted before keeps its bytes; `solid: false`
+  keeps the skin. Not solid, every face as it was.
+- **A town law** (`solid`, read only on a solid town): every pitched roof a closed slab, no edge of it open.
+
 ### Gen 7: form, not light
 
 The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,

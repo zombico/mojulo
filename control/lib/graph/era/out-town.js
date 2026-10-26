@@ -23,11 +23,13 @@
  *
  *   HEARTBEATS                    the town's height: storeys at the heart and at the edge
  *   readTownPlan(recipe)          the recipe against the TOWN_CARD rails; anything else refused, with what is allowed
- *   designTown(style, seed, rec)  → { card, routes, places, terraces, stairs, lots, paths, bounds, laws }
+ *   designTown(style, seed, rec, { solid? })  → { card, routes, places, terraces, stairs, lots, paths, bounds, laws }
+ *                                  (`solid`, era/solid.js: its buildings' roofs slabs, and the `solid` law read)
  *   placedFaces(lot)              a lot's building in town coordinates (x east along the lane, y north, z up, metres)
  *
  * Pure; seeded dice only. Nothing is placed in a world yet: this is the map the sheet draws.
  */
+import { openEdges } from './solid.js';
 import { STRUCTURE_USES, STRUCTURE_LAWS, ringOf } from './out-structures.js';
 import { decompileAnchor, speak, seedAnchor, secondaryOf } from './out-anchor-structure.js';
 import { madeStyle, designPiece, madeLaws } from './out-made.js';
@@ -188,7 +190,7 @@ function walkOf(SX, foot) {
   return { walkForm: form, edge: W.edge, kerbH: W.lift ? SX.kerb.h : form === 'verge' ? 0.02 : 0, verge: form === 'verge' ? r3(Math.min(SX.footway.verge ?? 0.6, Math.max(0, foot - edge - WALK_CLEAR))) : 0 };
 }
 
-export function designTown(style, seed = 1, recipe = {}) {
+export function designTown(style, seed = 1, recipe = {}, { solid = false } = {}) {
   const C = TOWN_CARD, T = readTownPlan(recipe), language = townLanguage(style, T.anchor), secondary = T.secondary > 0 ? secondaryOf(language) : null, D = dice(subSeed(seed, 'town')), made = madeStyle(style.kitId, seed);
   // the anchor's street, stepped down the ranks: the lane in its road's paving, its footway kept by each rank's share
   // the dial: a fortified town is the town drawn tighter, its terraces become wards, the walk climbs them
@@ -407,12 +409,12 @@ export function designTown(style, seed = 1, recipe = {}) {
     if (l.ring === 'mid') s = subSeed(seed, `mid:${l.route}:${l.side}:${Math.floor((l.k ?? 0) / 2)}`);
     if (l.ring === 'far') s = subSeed(seed, `far:${l.use}`);
     const lot = l.ring === 'mid' && (l.k ?? 0) % 2 ? lots.find((x) => x.route === l.route && x.side === l.side && x.k === l.k - 1) : null;
-    let d = speak(language, l.use, { w: l.w, d: l.d }, style, s, { ring: l.ring, corner: l.corner, accent: !!l.focus, crown, band: l.band, ...(l.keep ? { over: { plan: r3(Math.min(l.w, l.d) - 3) } } : {}) });
+    let d = speak(language, l.use, { w: l.w, d: l.d }, style, s, { solid, ring: l.ring, corner: l.corner, accent: !!l.focus, crown, band: l.band, ...(l.keep ? { over: { plan: r3(Math.min(l.w, l.d) - 3) } } : {}) });
     // the mid ring repeats in pairs: the second of a pair takes its partner's design if it fits its lot
-    if (lot?.design && !lot.secondary && lot.w <= l.w + 1e-9 && lot.d <= l.d + 1e-9 && lot.use === l.use) d = speak(language, l.use, { w: lot.w, d: lot.d }, style, lot.design.seed, { ring: l.ring, corner: lot.corner, band: lot.band });
+    if (lot?.design && !lot.secondary && lot.w <= l.w + 1e-9 && lot.d <= l.d + 1e-9 && lot.use === l.use) d = speak(language, l.use, { w: lot.w, d: lot.d }, style, lot.design.seed, { solid, ring: l.ring, corner: lot.corner, band: lot.band });
     if (l.ring === 'near' && !crown) {
       const key = `${l.route}:${l.side}`;
-      for (let k = 1; k <= 10 && prev.get(key) && d.sig === prev.get(key); k++) { rerolls++; d = speak(language, l.use, { w: l.w, d: l.d }, style, s + 977 * k, { ring: l.ring, corner: l.corner, band: l.band }); }
+      for (let k = 1; k <= 10 && prev.get(key) && d.sig === prev.get(key); k++) { rerolls++; d = speak(language, l.use, { w: l.w, d: l.d }, style, s + 977 * k, { solid, ring: l.ring, corner: l.corner, band: l.band }); }
 
       prev.set(key, d.sig);
     }
@@ -447,14 +449,14 @@ export function designTown(style, seed = 1, recipe = {}) {
     const over = besides(l).filter((x) => !x.secondary), want = over.length ? Math.max(...over.map((x) => x.crown)) + 1 : 1.12 * median, ceiling = Math.min(hall && sqNear(l) ? hall.crown - 0.8 : Infinity, FD?.wards && keepL ? keepL.crown - 2 : Infinity);
     const hi = l.band[1], tries = [[hi + 1, hi + 1 + (s % 2)], [hi + 1, hi + 1], [hi + 2, hi + 2], [hi + 3, hi + 3]];
     let got = null;
-    for (const band of tries) { const d = speak(secondary, l.use, { w: l.w, d: l.d }, style, s, { ring: l.ring, band }); const c = l.z + d.measures.ridge; if (c >= want - 1e-9 && c <= ceiling) { got = d; break; } }
+    for (const band of tries) { const d = speak(secondary, l.use, { w: l.w, d: l.d }, style, s, { solid, ring: l.ring, band }); const c = l.z + d.measures.ridge; if (c >= want - 1e-9 && c <= ceiling) { got = d; break; } }
     if (!got) { l.secondary = false; designLot(l); continue; }
     sit(l, got);
     l.design.why.push(`the secondary: rises over its neighbours (${r3(want)} m)${ceiling < Infinity ? `, under the hall (${hall.crown} m)` : ''}`);
     if (l.corner) l.design.why.push('on a corner: the secondary marks it');
   }
   // a lot that was to be a secondary and became a citizen answers its neighbours' designs, not the run's last
-  for (const l of lots.filter((x) => x.secondary === false && x.ring === 'near')) { const sigs = besides(l).map((x) => x.design.sig); let k = 0; while (sigs.includes(l.design.sig) && k < 10) { k++; rerolls++; sit(l, speak(language, l.use, { w: l.w, d: l.d }, style, subSeed(seed, `again:${lots.indexOf(l)}:${k}`), { ring: l.ring, corner: l.corner, band: l.band })); } }
+  for (const l of lots.filter((x) => x.secondary === false && x.ring === 'near')) { const sigs = besides(l).map((x) => x.design.sig); let k = 0; while (sigs.includes(l.design.sig) && k < 10) { k++; rerolls++; sit(l, speak(language, l.use, { w: l.w, d: l.d }, style, subSeed(seed, `again:${lots.indexOf(l)}:${k}`), { solid, ring: l.ring, corner: l.corner, band: l.band })); } }
 
   // the fortification, now the buildings stand: curtains, towers over what is near them, gates, the ditch; the keep
   // is told to stand over every tower
@@ -604,6 +606,8 @@ export function designTown(style, seed = 1, recipe = {}) {
     { law: 'section', ok: clear, value: `every lot behind its footway (${routes.map((r) => `${r.id} ${r.foot ? `${r.foot} m` : 'none'}`).join(', ')})` },
     { law: 'secondary', ok: together.length === 0 && risen.length === secs.length && under.length === secs.length, value: secondary ? `${secs.length} secondaries among ${citizens.length} citizens: ${together.length} together, ${risen.length} rising a metre over both neighbours, ${under.length} under the hall round the square` : 'none (secondary 0, or an anchor of pieces only)' },
     { law: 'distinct-radius', ok: new Set(near.map((l) => l.design.seed)).size === near.length && new Set(midL.map((l) => l.design.seed)).size <= new Set(midL.map((l) => `${l.route}:${l.side}:${Math.floor((l.k ?? 0) / 2)}`)).size + 1 && midS.size <= 1 && new Set(farL.map((l) => l.design.seed)).size <= 2, value: `near ${new Set(near.map((l) => l.design.seed)).size}/${near.length}, mid ${new Set(midL.map((l) => l.design.seed)).size}/${midL.length}, far ${new Set(farL.map((l) => l.design.seed)).size}/${farL.length}` },
+    // (solid, era/solid.js: every pitched roof a closed slab, its covering, underside and bands sharing every edge)
+    ...(solid ? [((open) => ({ law: 'solid', ok: open === 0, value: open ? `${open} roof edges open` : `${lots.filter((l) => l.design).length} buildings, every pitched roof a closed slab` }))(lots.reduce((n, l) => n + (l.design ? roofOpenEdges(l.design.faces) : 0), 0))] : []),
   ].map((l) => ({ ...l, want: want(l.law) }));
   // the map's frame: everything built, a margin round it
   const all = [...routes.flatMap((r) => r.pts), ...lots.flatMap((l) => [l.A, [l.A[0] + l.ex[0] * l.w + l.ey[0] * l.d, l.A[1] + l.ex[1] * l.w + l.ey[1] * l.d]]), ...farms.flatMap((f) => f.field)];
@@ -642,8 +646,18 @@ export function designTown(style, seed = 1, recipe = {}) {
 }
 
 /** The laws a town adds to the street's (era/out-structures.js STRUCTURE_LAWS, layer street). */
+/** The open edges of a building's pitched roofs (era/solid.js): each mass's covering, underside and bands; none when closed. */
+function roofOpenEdges(faces) {
+  const by = new Map();
+  for (const f of faces) if (f.part === 'roof' || f.part === 'edge') { const k = f.mass ?? 'main'; if (!by.has(k)) by.set(k, []); by.get(k).push(f.corners); }
+  let open = 0;
+  for (const [k, polys] of by) if (faces.some((f) => f.part === 'edge' && (f.mass ?? 'main') === k)) open += openEdges(polys).length;
+  return open;
+}
+
 export const TOWN_LAWS = Object.freeze([
   { id: 'routes-first', want: 'every lot is cut from a route\'s frontage (or a place\'s edge)', why: 'path flow first: the town is its routes before it is its buildings' },
+  { id: 'solid', want: 'a solid town (era/solid.js): every pitched roof a closed slab, no edge of it a knife edge', why: 'a roof seen from below has a soffit and a fascia; a sheet with no thickness reads as paper' },
   { id: 'forks-are-places', want: 'every route that forks off another starts at a place (a square, a landing, a pocket)', why: 'where ways meet, people stop: a fork is somewhere' },
   { id: 'levels-climbed', want: 'every terrace a route crosses is climbed by a flight that holds the steps\' laws', why: 'a level the walk cannot climb is a wall; a stair out of stride trips' },
   { id: 'lots-clear', want: 'no lot on a route, a retaining wall, a stair or another lot', why: 'the ground is claimed once, in the order the walker meets it' },
