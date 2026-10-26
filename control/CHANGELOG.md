@@ -78,6 +78,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   its path). The PANELLED mouthpiece (`panelledKit`, `PANELLED.kombat`): the fighting ninja's three panels cast tight on the
   face, a flat centre with horizontal vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
   under them so the gaps read as panel lines; in four colourways (frost, venom, ember, jade).
+- EYEGEAR: everything worn over the eyes as one family on the cast, the dominoes its first kind. The cast gains eyegear
+  outlines (`goggles`: two rings and a bridge; `shield`: one wide lens with a nose notch; `visor`: a narrow band), one lens
+  filling the outline (`eyes.shape: 'shield'`), a flat `front` standing off the face (a headset's box), a `strap` cast round
+  the whole head, and `fittings`, now shared with the mouthpiece (`castFittings`), with earpieces, antennas, forward
+  scopes, small lenses and arms. The pack's `EYEGEAR` words and `eyegearKit`: ski, moto and lab goggles, night vision and
+  quad vision, a VR headset, a cyber visor (a glass band, a silver headband, earpieces, antennas, cables) and a spider visor
+  (a lens cluster held on arms from the earpieces); the domino mask cards are eyegear too.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
