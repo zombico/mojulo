@@ -500,7 +500,7 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
     expect(missing).toEqual([]);
     // One source: every listed tool has exactly one TOOL_LINES entry, and nothing else does.
     expect(Object.keys(TOOL_LINES).sort()).toEqual([...listed].sort());
-  });
+  }, 180_000);   // it registers every tool and walks the index: about 40 s on a quiet runner, past the 30 s default
 
   it('each line fits LINE_MAX, carries a known verb, and names only registered tools', async () => {
     const { ensureToolsRegistered, getRegisteredTool } = await import('@/lib/mcp/server');
