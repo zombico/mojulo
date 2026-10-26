@@ -36,6 +36,20 @@ so a game's levels on the cube get it too.
   structural drawings) and no longer sends landscapes to the painted landscape, whose rows render as before. The world
   and geocube cards point at the scene. Routing-eval rows carry the phrasing "Create a walkable scene of a colorful
   grassy field in the daytime".
+- **A scene asked in words** (the geocube kind's `words`): `{ kind: 'geocube', words: 'a colorful grassy field in the
+  daytime' }` is read at mint into the cube, `show: 'path'`, `hour`, `clouds` and the path's own `trail` (its dials,
+  mounds, rocks), with the game's own word table: what a word decides for a game's cube it decides for a scene's. A key
+  written beside the words is kept; new words on an edit read again, a key the edit changed stands, and the same cube
+  keeps the colours it was stamped with. The `brief` says what each word decided, what a game's word gave way to (a hero,
+  a goal, a castle to raise) and what went unread. A path draws its own seed at mint, as a trail and a town do.
+- **New words, read by a game and a scene alike**: field, plain, prairie, steppe, grassland, savanna lay the cube open
+  (no far cliff) unless a word names a cliff, a face or beds (plains under basalt cliffs keep them) or the next word is a
+  machine (field cannon); colorful, flowers, flowery, wildflowers, floral, blooming put wildflowers in its grass (the
+  cube's biocube); grassy and grass name the meadow; snowy and snow lay the cube's snow beside the alpine weather;
+  daytime, midday and daylight light it at noon. A composed world that says them lays them on its cube, so its levels
+  take them; one that says none composes as before.
+- **The palette** of a scene's cube: `cube.palette: { heat, weight, activity }` (pick_palette's axes) over the cube's own
+  character, solved by the color theorist and checked by the cube's laws, as any cube's.
 
 ### Land in the level: the composer's land forms drawn
 

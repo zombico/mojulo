@@ -797,7 +797,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     glow: !!Gl,
     pack: true,
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
-    ...((manifest.wind || manifest.grass || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora?.flowers ? { flowers: B.flora.flowers } : undefined)), broken, st), onSand) } : {}),
+    // (under snow, the carpet the snow's depth leaves standing, as the tufts are, and no wildflowers in it: snow.js grassUnder)
+    ...((manifest.wind || manifest.grass || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora?.flowers && !SN ? { flowers: B.flora.flowers } : undefined), inSnow), broken, st), onSand) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
@@ -1156,7 +1157,7 @@ function offSand(LG, onSand) {
  * only: the colour is the ramp's, by height), the grass ramp and its lit and shade windows, the wind and its grass taker,
  * and the crowns that sway.
  */
-export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, grass = undefined) {
+export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, grass = undefined, inSnow = null) {
   const errs = validateIsekaiGrass(grass); if (errs.length) throw new Error(`isekai: ${errs.join('; ')}`);
   const G = grass && grass !== true ? grass : {}, L = st.live, g = site.grid, nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), cell = gridX(g, 1) - x0;
   let lo = Infinity, hi = -Infinity; for (const z of g.z) { lo = Math.min(lo, z); hi = Math.max(hi, z); }
@@ -1171,6 +1172,8 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - c[0], r.y - c[1]) < r.size * st.rubble.unit * 0.5 + 0.15)) continue;
     if (trees.some((t) => Math.hypot(t.x - c[0], t.y - c[1]) < (t.clearR ?? 0.45))) continue;
     if (site.reserved && !kept(site.reserved, c[0], c[1], 0.3)) continue;
+    // (a cell the snow covers, by the share its depth leaves standing: grassUnder)
+    if (inSnow && inSnow(c)) continue;
     m[j * (nx - 1) + i] = 1 | (shadow([c[0], c[1], c[2] + 0.3], [0, 0, 1]) > 0 ? 2 : 0);
   }
   // the grown tufts, positions only, quantized; a variant's levels index into the templates

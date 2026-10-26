@@ -73,7 +73,10 @@ A cube that names no domains offers one per terrain and one per interior.
   each walked by a stand-in at eye height to review the architecture, seen first from a person's eye before a house
   or down a sidewalk; `show: 'path'` the way through its land (a trail stage on the cube's terrain), no town and nobody on it, walked by
   the stand-in and seen from its overlook: a place to walk, not a game (`seed`, `biocube`, `path`, `hour`, `clouds`
-  as the other shows; the cube's `snow`); `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
+  as the other shows; the cube's `snow`; its own `trail` recipe: dials, ground, rocks). A scene asked in words: `words`
+  ('a colorful grassy field in the daytime') read at mint into `cube`, `show: 'path'`, `hour`, `clouds` and `trail` by
+  the game's own word table (gameworld/scene-words.js), each key written beside them kept; `brief` says what each word
+  decided; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its

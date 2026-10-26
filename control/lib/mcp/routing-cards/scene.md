@@ -8,8 +8,8 @@
   "form": "world"
 }
 ---
-→ `create_sketch` kind `geocube`, `show: 'path'`: the way through the cube's land, walked by a stand-in, nobody on it. `{ cube: { from: <preset>, …changes }, show: 'path', hour?, clouds?, biocube?, path?, seed? }`. Only the place is asked for (the look, the land, what grows, the sky, the hour): no hero, rules, levels, story or minds, so no game. Any of those voiced → `design_game`.
+→ `create_sketch` kind `geocube` with the person's `words`: `{ kind: 'geocube', words: 'a colorful grassy field in the daytime' }`. Mojulo reads them into the cube and `show: 'path'` (the way through its land, nobody on it), with the game's own word table: an open field → no far cliff, colourful → wildflowers, the time of day → `hour`, misty → `clouds`, rocky → boulders, snowy → snow. The reply's `brief` says what each word decided and what went unread. Only the place: no hero, rules, levels, story or minds; any of those voiced → `design_game`.
 
-Words → the cube: an open field or plain, no cliff → `outside: { cliff: false }`; grassy, a meadow → `from: 'island-noon'` (the meadow); wildflowers, colourful → `biocube: { from: 'meadow', flora: { flowers: { share } } }`; a forest, a grove, an upland → that biocube; the time of day → `hour` (`dawn`…`night`); misty, stormy → `clouds`; snowy → the cube's `snow`. Revise with `update_sketch`: each change re-makes the place from its recipe. Manual: `get_sketch_vocab({ id: 'geocube' })`.
+Revise with `update_sketch`: new `words` read again, a key you set (`hour`, `cube`, `trail`, `clouds`) stands. Colours: `cube.palette: { heat, weight, activity }` (pick_palette's axes); the color theorist solves them over the cube's own. Manual: `get_sketch_vocab({ id: 'geocube' })`.
 
 (Contrast: a game → `design_game`; a city, terrain or campus → `compose_world`.) Full family → `get_creative_toolset({ form: 'world' })`.

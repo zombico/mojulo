@@ -110,6 +110,16 @@ describe('snow on a stage', () => {
     expect(emitThreeWorld({ faces: P.faces.slice(0, 50), inline: true }).includes('stepSnowPrints')).toBe(false);
   }, 180000);
 
+  it('thins a biocube\'s live grass by the share its depth leaves, as the tufts, and grows no wildflowers in it', () => {
+    const cube = { from: 'island-noon', biocube: { from: 'meadow', flora: { flowers: { share: 0.4 } } } };
+    const bare = assembleStageScene({ kind: 'stage', trail: {}, seed: 3, geocube: cube }, {});
+    const snowed = assembleStageScene({ kind: 'stage', trail: {}, seed: 3, geocube: { ...cube, snow: 'cover' } }, {});
+    const cells = (P) => [...Buffer.from(P.liveGrass.grid.m.__b64, 'base64')].filter((v) => v & 1).length;
+    expect(bare.liveGrass.flowers).toBeTruthy();
+    expect(snowed.liveGrass.flowers ?? null).toBe(null);
+    expect(cells(snowed)).toBeLessThan(cells(bare) * 0.8);
+  }, 180000);
+
   it('names no snow on a land that is no polygon land, and adds nothing where none falls', () => {
     expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: {}, snow: 'deep' }, {})).toThrow(/polygon land/);
   });

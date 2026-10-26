@@ -1167,7 +1167,9 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'words', 'brief'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, words); build a level on a cube with a stage recipe's geocube`);
+  // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
+  // keys above, gameworld/scene-words.js; the build reads the keys)
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
   // a domain shows the level it makes: its room, or its land (or its land walked, `trail`), at its hour unless the
   // recipe names one
@@ -1200,9 +1202,14 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (manifest.path !== undefined && (typeof manifest.path !== 'object' || manifest.path === null || Array.isArray(manifest.path) || Object.keys(manifest.path).some((k) => !TRAIL_DRESS_KEYS.includes(k)))) no(`path is { ${TRAIL_DRESS_KEYS.map((k) => `${k}?`).join(', ')} }: the trail's dress`);
   // (the trail's far cliff the cube's, its terrain's, as on any stage it paints: `false` an open land, out-trail.js)
   const cliff = onTerrain(cube, D?.terrain).outside.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined ? { ground: { cliff } } : {}) };
+  // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
+  if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
+  if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
+  const T0 = manifest.trail ?? {}, ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}) };
+  const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
   const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
   // the PATH: the way through the cube's land, no town and nobody on it (a place to walk, not a game), under its snow
-  const low = show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: dress, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
+  const low = show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }

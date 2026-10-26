@@ -82,8 +82,8 @@ describe('geocube: the two specimens share one style', () => {
     expect(JSON.stringify((await at(7)).faces)).toBe(JSON.stringify(seeded.faces));
   });
   it('refuses keys the kind does not take', () => {
-    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room', 'land', 'trail' or 'town'/);
-    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 7 }, {})).toThrow(/seed is the trail's/);
+    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room', 'land', 'trail', 'path' or 'town'/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 7 }, {})).toThrow(/seed is the trail's, the path's and the town's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', rooms: [] }, {})).toThrow(/'rooms' is not a setting/);

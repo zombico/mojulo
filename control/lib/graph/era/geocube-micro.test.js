@@ -39,11 +39,11 @@ describe('the micro-town', () => {
     expect(cz - Math.max(...under.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(1.7, 0);
   });
 
-  it('takes the domain\'s street and land; seed is the trail\'s and the town\'s alone', () => {
+  it('takes the domain\'s street and land; seed is the trail\'s, the path\'s and the town\'s alone', () => {
     const P = assembleGeocubeScene({ kind: 'geocube', cube: 'limestone-crags', domain: 'harbour-town', show: 'town', seed: 3 }, {}, assembleStageScene);
     expect(P.geocube.town.settlement).toBe('harbour');
     expect(P.geocube.domain).toMatchObject({ name: 'harbour-town', terrain: 'cove' });
-    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 3 }, {}, assembleStageScene)).toThrow(/seed is the trail's and the town's/);
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 3 }, {}, assembleStageScene)).toThrow(/seed is the trail's, the path's and the town's/);
     expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'city' }, {}, assembleStageScene)).toThrow(/the kind's micro-city/);
   });
 });
