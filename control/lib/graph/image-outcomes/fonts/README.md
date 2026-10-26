@@ -16,12 +16,13 @@ weights, these are small and license-clean):
 
 | key            | face             | file                    | source (fetch the OFL `.ttf`) |
 | -------------- | ---------------- | ----------------------- | ------------------------------ |
-| `archivo-black`| Archivo Black    | `archivo-black.ttf`     | Google Fonts / fonts.google.com/specimen/Archivo+Black |
+| `archivo-black`| Archivo Black    | `archivo-black.ttf`     | **vendored** (google/fonts `ofl/archivoblack`) |
 | `im-fell`      | IM Fell English  | `im-fell-english.ttf`   | Google Fonts / igino-marini.com |
 | `great-vibes`  | Great Vibes      | `great-vibes.ttf`       | Google Fonts / fonts.google.com/specimen/Great+Vibes |
 | `inter`        | Inter            | `inter.ttf`             | Google Fonts / rsms.me/inter |
 
-When a face is vendored, add its license text/attribution to `LICENSES.md`.
+When a face is vendored, add its license text/attribution to `LICENSES.md`, ship its OFL text beside it as
+`<file stem>.OFL.txt` (the license must travel with the font), and name it in the repository's `NOTICE`.
 
 ## Adding a new face
 

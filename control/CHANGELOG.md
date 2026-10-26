@@ -14,6 +14,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Carved glyphs: the letter primitive grows up
+
+The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
+font covers, styled and extruded. Its legacy stack (materials, a bevelled carve, inner glow, the outer form-effects,
+the materialize reveals) reached the page only in part. This theme brings the primitive's pieces up first, then
+spreads carved letters to where the page draws words.
+
+- **The shelf's display face ships with the repo.** Archivo Black (SIL OFL 1.1) is vendored at
+  `lib/graph/image-outcomes/fonts/archivo-black.ttf`, its license text beside it and its notice in `NOTICE`. The shelf
+  says a recipe names a face by key "so a cover carves identically on any host", but no face was ever vendored: the
+  key fell back to whatever the host had (Arial Black on a Mac, DejaVu Sans Bold on Linux), so the same cover carved
+  in a different face per machine. A cover or title naming the default face now carves in Archivo Black everywhere:
+  on a host that fell back, its letters change once, to the face the recipe always meant. The other shelf faces (IM
+  Fell English, Great Vibes, Inter) stay unvendored until something carves in them. Machine gate: the cover suites
+  pass on the vendored face; eyes gate not run.
+
 ### Superheroic pieces: belts, pouches and jackets as cards
 
 - The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
