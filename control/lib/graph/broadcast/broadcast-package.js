@@ -12,6 +12,9 @@
  *                     stadium   the big screen: slanted slabs in the side's colour, heavy rims, a slam with overshoot
  *                     arcade    the cartoon register: rounded, saturated, inked, cel metal in hard bands, a bounce
  *                     clean     the world feed's minimum: flat glass, no metal, fades, no cuts
+ *                     table     the game's own furniture, not a broadcast's: plates of the game's wood or felt (the page
+ *                               hands its materials in, `look`), scores on its light inlay, brass fittings, a book face
+ *                               in mixed case, quiet eases, no sheen and no cuts (the board games' default)
  *                   the register picks one when the recipe does not (realistic → network, action → stadium, the
  *                   platformer and pinball → arcade: the feel cards' axis)
  *   COLOUR          the side colours separated in OKLab, and again as a deutan and a protan sees them (a clash wears
@@ -26,7 +29,9 @@
  *                   the words a referee's reason is shown in (CALL_CUES, WHY_WORDS)
  *
  *   readBroadcast(v, where) → { package?, sides?, names?, closeups?, accent? } checked (teaches on a bad word)
- *   broadcastData(v, { register, count, kind }) → the page's data: the card, the colours, the metals, the cues
+ *   broadcastData(v, { register, count, kind, look? }) → the page's data: the card, the colours, the metals, the cues;
+ *                   look { glass: [top, bottom], inlay? } is the page's own material laid over the package's (a table
+ *                   built of the board's wood), the kits keylined and the type inked against it
  *   oklab, deltaE, simulateCvd, contrast, inkOn, colorRamp, separateColors, metalStops   the arithmetic, for tests
  *
  * Pure data and arithmetic on dmath: the same bytes on every host. No dice.
@@ -66,6 +71,14 @@ export const BROADCAST_PACKAGES = Object.freeze({
     weight: 900, track: 0.03, glass: ['#3a2a7a', '#1a1240'], glassAlpha: 0.94, rimMetal: 'gold', accent: 'gold',
     ease: 'elastic', in: 26, out: 12, hold: 84, sheen: 36, slant: 0, radius: 14, rim: 3, ink: 4, cel: true,
     letterbox: 0, safe: 0.04, closeups: true,
+  }),
+  table: Object.freeze({
+    words: 'the game\'s own table: plates of its wood or felt, scores on its light inlay, brass fittings, a book face in mixed case; quiet eases, no sheen, no cuts',
+    face: '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif',
+    weight: 700, track: 0.01, glass: ['#7c6855', '#3a2715'], glassAlpha: 1, rimMetal: 'brass', accent: 'brass',
+    ease: 'sine', in: 16, out: 14, hold: 96, sheen: 0, slant: 0, radius: 6, rim: 2, ink: 0, cel: false,
+    letterbox: 0, safe: 0.04, closeups: false, caps: false, grain: true, inlay: '#e8d9b8',
+    tones: Object.freeze({ warn: '#b0402a', go: '#3a7d50' }),   // the board's own marker red and its green, not a referee's amber
   }),
   clean: Object.freeze({
     words: 'the world feed: flat glass, no metal, fades, no cuts; the score and the calls, nothing else',
@@ -275,9 +288,10 @@ export function readBroadcast(v, where = 'contest') {
  * metals as gradient stops (the rim, the accent, the medals, the sheen), the cues and the words. `kind` is how the
  * contest is divided (sides: two; lanes or seats: up to eight), `count` how many.
  */
-export function broadcastData(v, { register = 'realistic', count = 2, kind = 'sides', where = 'contest' } = {}) {
+export function broadcastData(v, { register = 'realistic', count = 2, kind = 'sides', where = 'contest', look = null, fallback = null } = {}) {
   const B = readBroadcast(v, where);
-  const id = B.package ?? REGISTER_PACKAGE[register] ?? 'network', P = BROADCAST_PACKAGES[id];
+  const id = B.package ?? fallback ?? REGISTER_PACKAGE[register] ?? 'network', base = BROADCAST_PACKAGES[id];
+  const P = look && id === 'table' ? { ...base, ...(look.glass ? { glass: look.glass } : {}), ...(look.inlay ? { inlay: look.inlay } : {}) } : base;
   const kit = kind === 'sides' ? SIDE_KITS : LANE_KITS;
   const asked = Array.from({ length: count }, (_, i) => (B.sides && B.sides[i]) || kit[i % kit.length]);
   const { colors, clash } = separateColors(asked, kind === 'sides' ? 0.14 : 0.12);
@@ -290,8 +304,9 @@ export function broadcastData(v, { register = 'realistic', count = 2, kind = 'si
     colors: colors.map((c) => colorRamp(c, P.glass[1])),
     clash,
     metal: { rim: stops(P.rimMetal), accent: stops(accent), medals: MEDALS.map((m) => metalStops(m, { cel: P.cel })), sheen: accent ? sheenOf(accent) : '#ffffff' },
-    tones: { warn: colorRamp(TONE_KITS.warn), go: colorRamp(TONE_KITS.go) },
-    glassInk: inkOn(P.glass[1]),
+    tones: { warn: colorRamp((P.tones || TONE_KITS).warn), go: colorRamp((P.tones || TONE_KITS).go) },
+    // on a material with an inlay the type is the inlay's (ivory on the wood), when it reads
+    glassInk: P.inlay && contrast(P.inlay, P.glass[1]) >= 4.5 ? P.inlay : inkOn(P.glass[1]),
     names: B.names ?? null,
     cues: CALL_CUES,
     why: WHY_WORDS,

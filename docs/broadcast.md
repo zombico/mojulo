@@ -32,6 +32,29 @@ and a lighter one waits its turn (one word waits: the weightiest). Nothing is ra
 | `stadium` | slanted slabs, heavy chrome rims | a slam with an overshoot and a flash | action |
 | `arcade` | rounded, saturated, inked type, cel metal in hard bands | an elastic pop | platformer, pinball |
 | `clean` | flat glass, no metal | fades; no closeups | (by name only) |
+| `table` | the game's own furniture: plates of its wood or felt, scores on its light inlay, brass fittings, a book face in mixed case | quiet fades, no sheen, no closeups | the board games |
+
+## The board games
+
+The tabletop pages (chess, checkers, the placement, euro, tile, card and round games against the computer) are
+covered by the same package, written as CSS for a DOM page:
+[broadcast-dom.js](../control/lib/graph/broadcast/broadcast-dom.js).
+
+- **Seat plates** replace the status line and the clocks. Each player gets its kit's chip, a name ("You", or the
+  player), a note (its colour, or the pieces it has taken), a score on the inlay (the points, or in a game of moves the
+  material taken by the pieces' values), and its clock. The seat to play is lit, and a score that rose pops.
+- **Calls** hang under the plates, over the board's top edge, so they never hide the play. The board page calls check,
+  promotion and a multiple capture; the euro game calls its dice; the round game calls a new round. All of them call the
+  end.
+- **The result** comes a beat after the end's call: the places by points with their medals, and "See the board" and
+  "Play again".
+- The last move's cell flashes once.
+
+A board game is shown in the `table` package by default, built of the page's own materials (`TABLE_LOOKS`: the board's
+wood frame under its light square, or the card table's felt under the card stock), so the graphics read as the game's
+furniture rather than a broadcast. Its tones come from the board, not the referee: the marker's red, the felt's green.
+`tabletop.broadcast` names a TV look instead. A new tabletop page calls `tableBroadcastData`, puts `broadcastDomCss`
+in its style, inlines `broadcastDomClient`, and calls `tv.table(...)` (or `tv.frame` and `tv.call`) from its render.
 
 ## Colour
 

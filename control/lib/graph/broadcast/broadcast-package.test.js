@@ -87,7 +87,7 @@ describe('the recipe\'s word', () => {
   });
   it('teaches on a bad word', () => {
     expect(readBroadcast('stadium')).toEqual({ package: 'stadium' });
-    expect(() => readBroadcast('tv', 'court')).toThrow(/court: broadcast package 'tv' is one of network, stadium, arcade, clean/);
+    expect(() => readBroadcast('tv', 'court')).toThrow(/court: broadcast package 'tv' is one of network, stadium, arcade, table, clean/);
     expect(() => readBroadcast({ logo: 1 })).toThrow(/has no 'logo'/);
     expect(() => readBroadcast({ sides: ['red'] })).toThrow(/#rrggbb/);
     expect(() => readBroadcast({ names: ['a name far too long for a strap'] })).toThrow(/1 to 18 characters/);

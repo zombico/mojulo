@@ -258,6 +258,17 @@ that every contest page draws through. The arena hands it a feed (what the score
 - **The `broadcast` key** on the four arenas (`readBroadcast`: a package's name, or `{ package?, sides?, names?,
   closeups?, accent? }`), carried into each page's data, and a lever on the `meet` and `contest` quick goals and their
   cards. A sport written out with the distilled-rulebook catalyst is broadcast with no code; the catalyst says so.
+- **The board games** (`broadcast-dom.js`: the same package as CSS on the tabletop pages):
+  - Seat plates replace the status line and clocks. Each shows the kit's chip, the name, the pieces taken, the score on
+    the inlay (points, or material by the pieces' values in a game of moves) and the clock. The seat to play is lit,
+    and a score that rose pops.
+  - Calls hang under the plates over the board's top edge: check, promotion, a multiple capture, the dice, a new
+    round, the end.
+  - A results board with medals follows the end ("See the board", "Play again"), and the last move's cell flashes.
+  - The board games default to a new `table` package, akin to the game rather than to television: plates of the page's
+    own materials (the board's wood, the card table's felt), scores on the light inlay, brass fittings, a book face in
+    mixed case, the board's red and green for its tones, quiet fades, no sheen and no cuts.
+  - `tabletop.broadcast` names a TV look instead, and the pieces take the kits' colours so chip and piece agree.
 - **Guards:** a kernel call kind with no cue fails `broadcast-package.test.js`. A `*-arena.client.js` that does not
   inline and draw through the client fails `broadcast.client.test.js`.
 - The `meet`, `court`, `turns` and `pitch` emit fixtures re-pin for the inlined client and the page's `broadcast` data;

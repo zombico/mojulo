@@ -37,7 +37,7 @@ describe('the sport goals', () => {
     expect(() => readQuick({ goal: 'meet', event: 'hurdles', lanes: 4, players: 2, distance: 110 })).not.toThrow();
   });
   it('the broadcast is a lever on both sport goals: the arena reads it, the level carries it, a bad word is taught', () => {
-    expect(() => readQuick({ goal: 'contest', sport: 'tennis', broadcast: 'tv' })).toThrow(/broadcast package 'tv' is one of network, stadium, arcade, clean/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', broadcast: 'tv' })).toThrow(/broadcast package 'tv' is one of network, stadium, arcade, table, clean/);
     expect(() => readQuick({ goal: 'meet', event: 'sprint', broadcast: { sides: ['red'] } })).toThrow(/#rrggbb/);
     const [court] = sportArenas({ goal: 'contest', sport: 'tennis', broadcast: { package: 'stadium', names: ['Ana', 'Bo'] } });
     expect(court.manifest.court.broadcast).toEqual({ package: 'stadium', names: ['Ana', 'Bo'] });

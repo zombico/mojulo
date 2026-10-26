@@ -187,7 +187,7 @@ describe('rounds: the computer', () => {
   it('the page carries a round game and draws the same twice', () => {
     for (const G of [workerGame(), auctionGame(), passDraftGame()]) {
       const html = tabletopPageHtml(G);
-      expect(html).toContain('function tabletopRoundClient(D, T, M)');
+      expect(html).toContain('function tabletopRoundClient(D, T, M, TV)');
       expect(html.match(/<\/script>/g)).toHaveLength(1);
       expect(tabletopPageHtml(G)).toBe(html);
     }

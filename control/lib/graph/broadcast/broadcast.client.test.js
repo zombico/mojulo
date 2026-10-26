@@ -95,7 +95,7 @@ describe('the broadcast client', () => {
       { title: 'bowling', cols: ['1', '2', 'TOT'], hot: 2, rows: [{ name: 'P1', color: 0, cells: ['X', '7/', '37'], mark: 'turn' }], meter: { share: 0.95, label: 'release!', color: 0 } },
       { title: 'soccer', rows: [{ name: 'P1', color: 0, cells: [1] }, { name: 'CPU', color: 1, cells: [0] }], hot: 0, clock: '1:23', period: '2nd', hint: 'W A S D run' },
     ];
-    for (const pkg of ['network', 'stadium', 'arcade', 'clean']) {
+    for (const pkg of ['network', 'stadium', 'arcade', 'table', 'clean']) {
       const TV = lib.newBroadcast(broadcastData(pkg, { count: 8, kind: 'lanes' })), g = stubCanvas();
       lib.tvOpen(TV, { title: 'the open', rows: [{ name: 'P1', color: 0 }, { name: 'CPU', color: 1 }] });
       step(TV, 400);
