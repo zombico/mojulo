@@ -75,9 +75,9 @@ const C = OUT_TRAIL;
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after?, surface?, rubble?, patches? } (or true)');
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after?, surface?, rubble?, patches?, rocks? } (or true)');
   // (its dress, `surface`, `rubble`, `patches`, is the stage's to draw: era/trail-dress.js reads it)
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches'];
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches', 'rocks'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -108,8 +108,22 @@ export function readOutTrail(t, depth = 0) {
     after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
   }
   readTrailDress(t);
-  const ground = readGround(t.ground);
-  return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
+  const ground = readGround(t.ground), rocks = readRocks(t.rocks);
+  return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds), ...(rocks ? { rocks } : {}) };
+}
+
+/**
+ * The trail's ROCKS (`trail.rocks`, absent: the card's own): `boulders` how many it strews beside the walk (the card's
+ * `rubble.boulders`), `landmark` the metres its landmark beat's stone stands (the card's least size the trailhead
+ * sees, else). The stones are the card's pooled rocks either way; this only says how many, and how tall the one is.
+ */
+export function readRocks(r) {
+  if (r === undefined) return null;
+  if (!r || typeof r !== 'object' || Array.isArray(r)) throw new Error('stage: trail.rocks is { boulders?, landmark? }');
+  for (const k of Object.keys(r)) if (!['boulders', 'landmark'].includes(k)) throw new Error(`stage: trail.rocks.${k} is not a rocks setting (boulders, landmark)`);
+  if (r.boulders !== undefined && !(Number.isInteger(r.boulders) && r.boulders >= 0 && r.boulders <= 24)) throw new Error('stage: trail.rocks.boulders is how many boulders it strews beside the walk, 0 to 24');
+  if (r.landmark !== undefined && !(typeof r.landmark === 'number' && r.landmark >= 2 && r.landmark <= 30)) throw new Error('stage: trail.rocks.landmark is the metres its landmark stone stands, 2 to 30');
+  return { ...r };
 }
 
 /** The beats in walking order, drawn by dice when the recipe names none: a reveal, a landmark and a pocket always (a
@@ -264,6 +278,16 @@ function joinOf(prev) {
   return { from: P.id, x: prev.trailX(D), slope: P.trailSlope(D), z: P.smoothAt(P.L), cliff: prev.cliffX(D), ground: (x) => prev.groundBase(x, D), whole: (x) => prev.ground(x, D), origin: r5(prev.origin + D) };
 }
 const JOIN = 24, SEAM = 12;
+// a pooled rock (nature.js rockFaces) stands its size × the card's rock unit × (CROWN × its `tall` − SINK) over the ground:
+// its crown at 0.45 of its size, sunk 0.3 of it
+const CROWN = 0.45, SINK = 0.3;
+/** The metres a landmark stone of `size` stands on a card (its rock unit). */
+export const landmarkStands = (st, size) => size * (CROWN * C.landmark.tall - SINK) * st.rubble.unit;
+/** The sizes the landmark's stone is tried at: the card's, or the one the trail's `rocks.landmark` (metres) stands at. */
+function landmarkSizes(st, T) {
+  if (T.rocks?.landmark === undefined) return C.landmark.sizes;
+  return [r5(T.rocks.landmark / landmarkStands(st, 1))];
+}
 
 function siteOf(st, plan) {
   const { T, G, S, W, D, trailX, trailSlope, sOf, beats } = plan;
@@ -351,8 +375,10 @@ function siteOf(st, plan) {
   const path = []; for (let y = -8; y <= D + 8; y += 2) path.push([cliffX(y), y]);
   applyLandform(g, [
     { op: 'scarp', path, throw: G.cliff.height ?? Lf.throw, face: G.cliff.face ?? Lf.face, side: 'left', rough: 0.02, taper: 0 },
-    { op: 'strata', thickness: Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4 },
-    { op: 'joints', rock: 'granite', spacing: Lf.joint, steep: 40 },
+    // (the beds and the joints: the card's, unless the trail's ground names its cliff's; a dip tilts the beds along the
+    // walk, a pattern turns the joints from the granite's blocks)
+    { op: 'strata', thickness: G.cliff.bed ?? Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4, ...(G.cliff.dip ? { dip: G.cliff.dip, dipAz: 90 } : {}) },
+    { op: 'joints', rock: 'granite', ...(G.cliff.pattern ? { pattern: G.cliff.pattern } : {}), spacing: G.cliff.joint ?? Lf.joint, steep: 40 },
     { op: 'talus', angle: 34, cliff: 50, retreat: Lf.retreat, scree: Lf.scree, rmin: 0.25, rmax: 1.3 },
   ], { seed: `out-trail-${S}` });
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
@@ -409,7 +435,7 @@ function siteOf(st, plan) {
   // that shows it); the open side first, then the cliff's, and the least stone that is seen wins
   const eyeOf = (b) => [trailX(b.y), b.y, ground(trailX(b.y), b.y) + 1.7];
   for (const m of marks) {
-    const tries = C.landmark.sizes.flatMap((size) => [1, -1].map((side) => ({ size, x: side > 0 ? Math.min(W - 5, trailX(m.y) + m.off) : Math.max(cliffX(m.y) + 6, trailX(m.y) - m.off) })));
+    const tries = landmarkSizes(st, T).flatMap((size) => [1, -1].map((side) => ({ size, x: side > 0 ? Math.min(W - 5, trailX(m.y) + m.off) : Math.max(cliffX(m.y) + 6, trailX(m.y) - m.off) })));
     const eyes = beats.filter((b, i) => i === 0 || b.s <= m.b.s - 15).map(eyeOf);
     const seenBy = (c, es) => es.some((e) => sightClear(ground, e, [c.x, m.y, ground(c.x, m.y) + c.size * 0.6 * C.landmark.tall]));
     const ok = tries.find((c) => seenBy(c, eyes.slice(0, 1))) || tries.find((c) => seenBy(c, eyes)) || tries[tries.length - 2];
@@ -419,7 +445,7 @@ function siteOf(st, plan) {
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
   const origin = J ? J.origin : 0;
   const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius,
-    clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin };
+    clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin, ...(T.rocks?.boulders !== undefined ? { boulders: T.rocks.boulders } : {}) };
   // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail
   site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff });
   out.anchors.push(...boundAnchors(site, site.bounds).map((a) => ({ ...a, trail: `out-trail:${plan.id}` })));

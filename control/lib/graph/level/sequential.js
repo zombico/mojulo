@@ -67,10 +67,10 @@ export function sequentialLevel(recipe) {
   return { layout: 'sequential', root: G.root, spawn: G.spawn, order, edges: G.edges, stages, ...(ground ? { ground } : {}), ...(paint ? { paint } : {}) };
 }
 // a node's paint: its kit, or (painted by the level's geocube) the cube itself and the terrain (or the domain) the level
-// picked, and the hour the level lights it at, so the stage carries what it is drawn by and lowers it on every read
+// picked, and the hour the level lights it at (and the clouds it draws it under), so the stage carries what it is drawn by and lowers it on every read
 function paintOf(G, n) {
   if (!n.painted) return { kit: n.kit };
-  const lit = G.paint.hour !== undefined ? { hour: G.paint.hour } : {};
+  const lit = { ...(G.paint.hour !== undefined ? { hour: G.paint.hour } : {}), ...(G.paint.clouds !== undefined ? { clouds: G.paint.clouds } : {}) };
   if (G.paint.domain) return { geocube: G.paint.cube, domain: G.paint.ask, ...lit };
   const T = G.paint.terrain;
   return { geocube: G.paint.cube, terrain: T.from === 'level' ? T.name : { ...(T.from === 'heartbeat' || T.wanted ? { hint: T.from === 'heartbeat' ? T.name : T.wanted } : {}) }, ...lit };

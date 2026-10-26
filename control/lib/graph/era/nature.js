@@ -289,9 +289,11 @@ export function rockItems(st, site, seed) {
   const R = st.rubble, { D, halfWAt, fringeAt, trailX, ground, inRadius, foci } = site, S = seed | 0, items = [];
   // the talus: where the landform's own scree came to rest (power-law sizes, the big blocks on the thin distal edge)
   site.scree.slice(0, R.maxScree).forEach((r, i) => items.push({ x: r.x, y: r.y, size: r.size / (R.unit * 0.66), detail: 0, v: i % R.variants, role: 'talus' }));
+  // (as many as the card strews, or the trail's own `rocks.boulders`: out-trail.js readRocks)
   let distinct = 0;
-  for (let i = 0; i < R.boulders; i++) {
-    const y = D * (0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / R.boulders), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1;
+  const nb = site.boulders ?? R.boulders;
+  for (let i = 0; i < nb; i++) {
+    const y = D * (0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1;
     const x = trailX(y) + side * (halfWAt(y) + fringeAt(y) + 1 + 2 * hash3(i, 7, S + 41)), inside = inRadius(x, y);
     items.push({ x, y, size: 1.3 + 1.1 * hash3(i, 8, S + 43), detail: inside ? 1 : 0, v: inside ? distinct++ % R.variants : i % R.variants, role: 'boulder' });
   }

@@ -14,6 +14,7 @@
  * The level tier (level/ground.js) writes these from its top-down grid; this file only knows metres.
  * Pure: the same dials and edits build the same ground.
  */
+import { JOINT_PATTERNS } from '../polygonizer/landform.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -27,7 +28,7 @@ export const GROUND_DIALS = Object.freeze({
   drift: 'the slow wander under the beats, a share of the amplitude (0–1, 0.3)',
   bump: '{ height?, scale?, walk? }: the mounds and hollows: metres (bumpiness × 1.1), their size (0.25–4, under 1 broader), the share left on the walk (0–1, 0.12)',
   shapes: '{ reveal?, landmark?, pinch?, crossing? }: each beat\'s { share?, reach? }: how much of the amplitude (a crest) or the depth (a dip) it takes, and how far it reaches in metres',
-  cliff: '{ height?, face? }: the kit\'s cliff down the far side: metres of throw, the face in degrees',
+  cliff: '{ height?, face?, bed?, dip?, joint?, pattern? }: the kit\'s cliff down the far side: metres of throw, the face in degrees, its beds\' thickness in metres and their tilt in degrees, its joints\' spacing in metres and their pattern (blocky, columnar, slabby)',
   edits: 'the ground shaped by hand: a list of raise, lower, flatten, cliff, gorge, ridge',
 });
 /** Each beat's shape on the heartbeat: its share of the amplitude (a crest) or the depth (a dip), and its reach (m).
@@ -98,10 +99,15 @@ export function readGround(g, at = 'trail.ground') {
     num(s, 'reach', 2, 60, `${at}.shapes.${b}`, 'metres, 2 to 60');
     num(s, 'fall', 2, 60, `${at}.shapes.${b}`, 'metres, 2 to 60');
   }
-  sub('cliff', ['height', 'face']);
+  sub('cliff', ['height', 'face', 'bed', 'dip', 'joint', 'pattern']);
   if (g.cliff) {
     num(g.cliff, 'height', 0, 40, `${at}.cliff`, 'metres of throw, 0 to 40');
     num(g.cliff, 'face', 20, 89, `${at}.cliff`, 'the face in degrees, 20 to 89');
+    // its geology (polygonizer/landform.js strata and joints): the card's own where left out
+    num(g.cliff, 'bed', 0.2, 20, `${at}.cliff`, 'the beds\' thickness in metres, 0.2 to 20');
+    num(g.cliff, 'dip', 0, 40, `${at}.cliff`, 'the beds\' tilt in degrees, 0 to 40');
+    num(g.cliff, 'joint', 0.5, 20, `${at}.cliff`, 'the joints\' spacing in metres, 0.5 to 20');
+    if (g.cliff.pattern !== undefined && !JOINT_PATTERNS[g.cliff.pattern]) throw new Error(`stage: ${at}.cliff.pattern is one of ${Object.keys(JOINT_PATTERNS).join(', ')}`);
   }
   const edits = g.edits === undefined ? undefined : readEdits(g.edits, `${at}.edits`);
   return { ...g, ...(edits ? { edits } : {}) };
