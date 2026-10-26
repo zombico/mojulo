@@ -73,7 +73,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (filters, grilles, ribbed tubes, valves, straps).
 - The pack's mouthpieces (`MOUTHPIECES`, `mouthpieceKit`): the ninja and wraith wraps, the bandanna, the oni mouth, the gas
   and twin filters, the tube, slatted and mecha masks and the rebreather; and FACE SETS, a cowl with a mouthpiece laid over
-  it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior, the wastelander and the mecha face.
+  it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior and the wastelander.
+- A mouthpiece takes a polygon outline (`outline.poly`, its heights words) and vents in any direction (each slot square to
+  its path). The PANELLED mouthpiece (`panelledKit`, `PANELLED.kombat`): the fighting ninja's three panels cast tight on the
+  face, a flat centre with vertical vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
+  under them so the gaps read as panel lines; in four colourways (frost, venom, ember, jade).
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

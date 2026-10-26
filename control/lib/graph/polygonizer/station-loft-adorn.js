@@ -545,14 +545,18 @@ function castMouthpiece(fig, S) {
   const O0 = { top: 0.5 * nose, dip: 0, side: 2.9, bottom: chin - 0.9, point: 0, ...(S.outline || {}) }, O = { ...O0, top: hz(O0.top), bottom: hz(O0.bottom) }, top = O.top, sd = O.side;
   const half = [{ x: 0, z: top - O.dip }, { x: 0.9, z: top + (O.straight ? 0 : 0.05) }, { x: 1.9, z: top + (O.straight ? 0 : 0.22) }, { x: sd, z: top + (O.straight ? 0 : 0.1) }, { x: sd + 0.15, z: mouthZ }, { x: sd - 0.25, z: O.bottom + 0.6 },
     { x: 1.6, z: O.bottom + 0.1 }, ...(O.point > 0 ? [{ x: 0.7, z: O.bottom - 0.25 * O.point }, { x: 0, z: O.bottom - O.point }] : [{ x: 0.7, z: O.bottom }, { x: 0, z: O.bottom }])];
-  const outer = [...half.map((p) => [p.x, p.z]), ...half.slice(1, -1).reverse().map((p) => [-p.x, p.z])].reverse();
+  // (a POLYGON outline of its own, `outline.poly` [[X, Z], …], its heights words or numbers: a panel of a panelled piece)
+  const outer = O0.poly ? O0.poly.map(([x, z]) => [x, hz(z)]) : [...half.map((p) => [p.x, p.z]), ...half.slice(1, -1).reverse().map((p) => [-p.x, p.z])].reverse();
   // the MOUTH's cut: `slot` (a narrow opening) | `snarl` (wide, its corners pulled down, the oni's) | none; `w`, `h` its size
   const M = S.mouth ? { shape: 'snarl', w: 1.15, h: 0.75, ...(typeof S.mouth === 'object' ? S.mouth : { shape: S.mouth }) } : null, zc = mouthZ + (M?.lift ?? 0.05);
   const topE = (x) => (M.shape === 'slot' ? zc + 0.14 * M.h : zc + 0.5 * M.h - 0.75 * M.h * (x / M.w) ** 2), botE = (x) => (M.shape === 'slot' ? zc - 0.14 * M.h : zc - 0.5 * M.h - 0.15 * M.h * (x / M.w) ** 2 + 0.2 * M.h * Math.abs(x / M.w));
   const mouthHole = M ? [...Array.from({ length: 13 }, (_, i) => { const x = -M.w + (2 * M.w * i) / 12; return [x, topE(x)]; }), ...Array.from({ length: 13 }, (_, i) => { const x = M.w - (2 * M.w * i) / 12; return [x, botE(x)]; })] : null;
   // VENTS (`vents`: [{ path: [[X, Z], …], h }]: slots cut along a polyline, `h` tall (eye units), each backed by the maw):
   // a mecha's faceplate vents following its fold, \_/ across
-  const ventHoles = (S.vents || []).map((V) => { const P = V.path.map(([x, z]) => [x, hz(z)]), h = (V.h ?? 0.16) / 2; return [...P.map(([x, z]) => [x, z + h]), ...[...P].reverse().map(([x, z]) => [x, z - h])]; });
+  // (each slot `h` wide across its path, square to it: a horizontal vent stands h tall, a vertical one h wide)
+  const ventHoles = (S.vents || []).map((V) => { const P = V.path.map(([x, z]) => [x, hz(z)]), h = (V.h ?? 0.16) / 2;
+    const nAt = (i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; return [-dz / l, dx / l]; };
+    return [...P.map(([x, z], i) => [x + nAt(i)[0] * h, z + nAt(i)[1] * h]), ...[...P].map(([x, z], i) => [x - nAt(i)[0] * h, z - nAt(i)[1] * h]).reverse()]; });
   const holes = [...(mouthHole ? [mouthHole] : []), ...ventHoles];
   const bumps = [...(S.bulge ? [{ at: [0, mouthZ + 0.1], r: S.bulge.r ?? 1.5, h: S.bulge.h ?? S.bulge }] : []), ...(S.wrinkles ? [1, -1].flatMap((sg) => [{ at: [sg * 1.45, nose - 0.35], r: 0.45, h: 0.004 }, { at: [sg * 1.75, mouthZ + 0.1], r: 0.4, h: 0.0035 }]) : [])];
   const S2 = { ...S, eyes: undefined, ...(S.fold ? { seams: [...(S.seams || []), [[0, top - O.dip - 0.1], [0, O.bottom - O.point]]], seamGroup: S.seamGroup ?? S.group } : {}) };

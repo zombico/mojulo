@@ -160,6 +160,27 @@ export const MOUTHPIECES = Object.freeze({
 });
 // (a height word: 'nose', 'mouth', 'chin', or one of them with an offset or a share ('nose+0.55', 'chin-0.2', 'nose*0.35'),
 // resolved by the cast against the head; the kit carries it as written)
+// THE PANELLED MOUTHPIECE (the fighting ninja's): three panels cast tight on the face with a gap between each, a flat
+// centre over the mouth and the chin, and the sides angled back, their tops climbing out to the cheekbones and their
+// bottoms rising to the jaw's corners; vertical vents in the centre. Each panel its own cast (a polygon outline), so the
+// gaps are clean
+const PANEL = { taut: 0.55, thick: 0.0028, lift: 0.0018, rim: { w: 0.08, h: 0.0009 }, hang: 0.08 };
+export const PANELLED = Object.freeze({
+  kombat: {
+    centre: { ...PANEL, outline: { poly: [[-0.6, 'nose*0.55'], [0.6, 'nose*0.55'], [0.62, 'chin-0.45'], [-0.62, 'chin-0.45']] },
+      vents: [-0.33, -0.11, 0.11, 0.33].map((x) => ({ path: [[x, 'mouth+0.3'], [x, 'mouth-0.6']], h: 0.09 })) },
+    side: { ...PANEL, outline: { poly: [[0.72, 'nose*0.55'], [1.5, 'nose*0.25'], [2.35, 'nose*0.05'], [2.45, 'mouth-0.1'], [1.6, 'chin-0.05'], [0.74, 'chin-0.4']] } },
+  },
+});
+/** a panelled mouthpiece's kit: its centre and its two sides (the right's outline mirrored for the left) */
+export function panelledKit(word = 'kombat', { lift = null, group = 'Mask' } = {}) {
+  const P = PANELLED[word]; if (!P) throw new Error(`comic-hero: no panelled mouthpiece '${word}' (known: ${Object.keys(PANELLED).join(', ')})`);
+  const left = { ...P.side, outline: { poly: P.side.outline.poly.map(([x, z]) => [-x, z]) } };
+  // (a thin dark BACKING under the panels, the whole piece's outline, so the gaps between them read as dark panel lines)
+  const R = P.side.outline.poly, backing = { taut: P.centre.taut, thick: 0.0008, lift: 0.0012, hang: P.centre.hang, maw: false,
+    outline: { poly: [...R.slice(0, 3), ...R.slice(3).map(([x, z]) => [x, z]), ...[[0.62, 'chin-0.45'], [-0.62, 'chin-0.45']], ...R.slice(3).reverse().map(([x, z]) => [-x, z]), ...R.slice(0, 3).reverse().map(([x, z]) => [-x, z])].filter(([x]) => true) } };
+  return [...mouthpieceKit(backing, { id: 'mouthBacking', group: 'MaskMaw' }), ...mouthpieceKit(P.centre, { id: 'mouthCentre', lift, group }), ...mouthpieceKit(P.side, { id: 'mouthSideR', lift, group }), ...mouthpieceKit(left, { id: 'mouthSideL', lift, group })];
+}
 /** a mouthpiece's kit from its word (MOUTHPIECES) or its own data, `over` its words' changes; `lift` over a domino or a cowl */
 export function mouthpieceKit(word = 'ninja', { over = {}, lift = null, id = 'mouthpiece', group = 'Mask' } = {}) {
   const W = typeof word === 'object' ? word : MOUTHPIECES[word];
@@ -191,8 +212,11 @@ export const HEADGEAR = Object.freeze({
   twinFilter: MOUTHED('the twin filter: a cup with a canister at each side, a valve at the chin; the hazmat operative', 'twinFilter', { Mask: '#33363d', MaskFitting: '#5d636c', MaskFilter: '#b3261e' }),
   tubeMask: MOUTHED('the tube mask: a plate over the mouth, a grille, ribbed tubes running back to the jaw; the brute', 'tubes', { Mask: '#3a3a36', MaskFitting: '#7a7a72' }),
   slattedMask: MOUTHED('the slatted mask: a flat plate over the lower face, five vent slats, a valve at the chin; the enforcer', 'slatted', { Mask: '#26292f', MaskFitting: '#9aa1ab' }),
-  mechaPlate: MOUTHED('the mecha faceplate: a white plate in crisp folded planes, a V at the chin, two vents following the fold; the pilot\'s machine', 'mecha', { Mask: '#e8eaee', MaskSeam: '#5b6270', MaskTrim: '#b3261e', MaskMaw: '#15171c' }),
-  mechaFace: FACE_SET('the mecha face: a white cowl with a technical domino and gold six-sided lenses, the folded faceplate with its vents; the mobile suit', { domino: 'technical', eyes: { shape: 'angular', size: [0.8, 0.42], tilt: 0.25, treat: 'lens', group: 'MaskLens' } }, 'mecha', { Mask: '#e8eaee', MaskDomino: '#2a2f39', MaskLens: '#f2c94c', MaskMouth: '#e8eaee', MaskSeam: '#5b6270', MaskTrim: '#b3261e', MaskMaw: '#15171c' }),
+  // the panelled ninja's mouthpiece in four colourways
+  ninjaPanels: { reads: 'the ninja panels: three panels tight on the face, a flat centre with vertical vents, the sides angled back to the cheekbones and the jaw; the frost ninja', family: 'mouthpiece', words: { panelled: 'kombat' }, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), Mask: '#2f6fb0', MaskMaw: '#0b1622' } }, panelledKit('kombat')) } },
+  venomPanels: { reads: 'the venom panels: the ninja panels in yellow; the spectre ninja', family: 'mouthpiece', words: { panelled: 'kombat' }, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), Mask: '#d4a017', MaskMaw: '#1c1505' } }, panelledKit('kombat')) } },
+  emberPanels: { reads: 'the ember panels: the ninja panels in red; the fire ninja', family: 'mouthpiece', words: { panelled: 'kombat' }, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), Mask: '#a51f1a', MaskMaw: '#1a0605' } }, panelledKit('kombat')) } },
+  jadePanels: { reads: 'the jade panels: the ninja panels in green; the jade ninja', family: 'mouthpiece', words: { panelled: 'kombat' }, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), Mask: '#2f8a4a', MaskMaw: '#06170c' } }, panelledKit('kombat')) } },
   rebreather: MOUTHED('the rebreather: a small cup over the mouth, a valve, a hose to the side; the diver', 'rebreather', { Mask: '#1f2a33', MaskFitting: '#c9a227' }),
   // ── COWLS over the whole head (the cast's `cowl`) ──
   dominoCowl: COWLED('the domino cowl: the head covered, the domino over the eyes, the mouth and the chin bare; the night vigilante', {}),
