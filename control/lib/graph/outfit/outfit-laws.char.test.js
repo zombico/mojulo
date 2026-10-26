@@ -23,11 +23,11 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // the seat follows the hip's joint)
 const PINS = {
   1: {
-    'out': { laws: '265ded3657d405cc', rings: 'b0b17af3f724b51d' },
-    'tucked': { laws: 'b76e277c3f91d9e7', rings: '93b7fe6a8f127edd' },
-    'dress': { laws: 'ab5993a5be6a4df7', rings: '2653063e545832d6' },
-    'outer': { laws: '5ca7c23fe61ab573', rings: 'b1531c36edba8029' },
-    'panels': { laws: '08e10bad4e472308', rings: 'a66206304b231551' },
+    'out': { laws: '6b63e2d4125c3c4d', rings: 'b0b17af3f724b51d' },
+    'tucked': { laws: '2699679ced951074', rings: '93b7fe6a8f127edd' },
+    'dress': { laws: 'bb1fe989040c0422', rings: '2653063e545832d6' },
+    'outer': { laws: '537daebbd9973246', rings: 'b1531c36edba8029' },
+    'panels': { laws: '157d53eaabdb1ce6', rings: 'a66206304b231551' },
   },
 };
 

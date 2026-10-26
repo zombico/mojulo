@@ -884,9 +884,18 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     - plate: `pauldron` (`spaulder` | `bell`), `focalSide`, `fnSide` (the arm that carries function takes the first
       bracer);
     - lamellar: `crest` (`crescent` | `kuwagata` | `sun`);
-    - hardsuit: `helm` (`power` | `trooper` | `faceplate`), `pauldron` (`dome` | `cap` | `segmented`), `chest`
-      (`plain` | `reactor`), `pack` (`power` | `none`), `segments` 1–3 (the panel lines), `focal`
-      (`helm` | `pauldron` | `reactor`).
+    - hardsuit: `helm` (`power` | `trooper` | `faceplate` | `shell` | `none`; `shell` a helm cast over the whole head,
+      its words the card's `language.helmet`: the cowl's window, blank face, facets, eyes, decals, panels, fittings),
+      `pauldron` (`dome` | `cap` | `segmented` | `lames` | `none`; `pauldronSide` `both` | `R` | `L`), `chest` (`plain` |
+      `reactor` | `plates` | `box` | `bands` | `none`), `pack` (`power` | `jet` | `tanks` | `none`), `segments` 1–3 (the
+      panel lines), `build` (`plates` | `cylinders`: the limbs in rigid tubes, the heavy suit), `focal` (`helm` |
+      `pauldron` | `reactor`),
+      and the archetype words, each absent the piece as it was: `arms` (`panels` | `manica` on `fnSide` | `gadget` |
+      `none`), `legs` (`panels` | `greaves` | `ocrea` on `leadSide` | `none`), `skirt` (`none` | `pteruges` |
+      `tassets`), `glow` (`none` | `lines`), `collar` (`band` | `high` | `none`), `cut` (`fitted`, the default from armour
+      laws 2: the plates under the collarbone, the shoulders the pauldrons', a gorget for the collar | `yoke`, laws 1's).
+    A card's `byLaws` (`{ "2": { dials, language, tones } }`) recomposes it from that armour law on; a build stamped
+    under an earlier law keeps the card it was minted with.
   - `theme` (plate suits): `death-knight`, `radiant`, or an inline card from `control/lib/graph/themes/`. A theme is a
     motif vocabulary carried down the suit, not a skin:
     - the primary motif (a skull, a sun boss) sits full size at the focal piece, then smaller at the partner, chest,
@@ -897,6 +906,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     - glyphs mark the plain fields (runes).
     A theme may add a helm, a tabard and a belt. It leans the dials and language between the style's and the
     build's own, and its tones layer over the style's. Patch `set /hero/adorn/theme 'radiant'`.
+  - `with`: a KIT worn over the suit (`[{ id, mode, part, …, signature }]`), after it: a helmet or a mask in it (a piece
+    on the cranium) takes the suit's helm's place, so a head of its own sits on any armour.
   - The laws, as worn:
     - one focal piece per suit, every piece sized to its body part;
     - a plate never crosses a joint (each rides one bone, and cops cap a joint from one side);

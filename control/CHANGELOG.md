@@ -14,6 +14,307 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Superheroic pieces: belts, pouches and jackets as cards
+
+- The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
+  hex the buckle wears instead of the band's: a gold buckle on a leather belt), `buckleScale` (× the buckle's face, an
+  emblem buckle) and `width` (× the band's height and thickness, a power belt). `pouches` takes `at: 'waist'` (a UTILITY
+  BELT: the belt at the waist and `count` pouches, 2, 4 or 6, ringing it just under its line, hung on the pelvis's top by
+  shares) and `size`; the belt's dials pass through to its band. A new kind, `thighPouch`: a holster rig strapped round
+  the thigh, the pouch on its outer side (one on the intent's side, `pair` both, `size`). Absent, every dial contributes
+  nothing: a row without them is byte for byte what it was.
+- The comic hero pack's piece cards (`cosmos/packs/comic-hero/pieces.js`): belts (the emblem belt, the power belt, the
+  utility belt and the full one, the sash), pouches (the duty belt, the thigh rig and its pair, the chest rig, the
+  harness, the bandolier) and jackets (the bomber, the moto jacket, the duster, the armoured jacket, the hooded jacket, each
+  the language's `outer` in its own `Outer` colour), worn over a role suit by `withPieces` (a waist belt replaces the
+  suit's, never stacks) and by `memberOrders(id, look, { pieces })`; a word-list outfit (the Movie era's plating suits on
+  the realistic body) takes none and the call says so.
+
+### Headgear spike: masks, visors and helmets
+
+- The `cast` signature (`station-loft-adorn.js`): a mask CAST from the face, not built over the head's bounds. An
+  outline drawn in the eyes' frame (the cranium's eye row, between its inner and outer corner slots), wrapped round the
+  head on a cylinder, a grid over it cast inward onto the skin, its depth smoothed and never below the cast, lifted,
+  thickened and walled. `outline`: `domino` (almond eye holes, over the brows and the bridge, a notch above the nose,
+  points swept up at the temples), `band`, or a polygon with holes. The pack's tiered domino is now this cast.
+- The cast is the MASK BUILDER's primitive, every look words: the outline's dials (`CAST_DIALS`: bridge, cheek, brow,
+  notch or a widow's `peak`, the temples' `wing` and `wingRise`, a `fang` down each cheek, `round` curved or angular), the
+  `eyes` (almond, slit, angular or round; open holes, `lens` covers domed over the eyeball, or `none`), and relief (a
+  raised `rim`, a `ridge` down the middle, panel `seams` by word or line), each face coloured by its triangle so a lens
+  or a rim follows its shape. A plate is a second cast over the first. It reads the anime head's face and pupils too.
+- The pack's builder (`headgear.js` `maskKit({ outline, eyes, detail, plate })`, its words in `MASK_OUTLINES`,
+  `MASK_EYES`, `MASK_DETAIL`) and its variations: pointed, raptor, technical, tactical, hunter, lens, blank and goggle
+  masks. On the anime head the default eyes are opaque covers (its eyes are too large and too drawn to frame), and an
+  open-eyed mask wears covers in its eye shape unless the eyes say `anime: 'open'`.
+- The `cowl` signature: the cast over the whole head, out from its middle on a map laid round the crown, down to an edge
+  set by the head's own heights (`mouth: 'show'` a U under the nose round the mouth and the chin, `'cover'` to the chin
+  over the lips, `'none'` smooth over them: a mask with no mouth), the jaw at the sides and the nape behind; the eyes the
+  cast's, carried onto the map; the ears raised under it; `hair` the hero's hair flowing out of the back in its own
+  colour. The cast and the cowl share one head reader and one grid mesher.
+- The pack's `cowlKit({ hair: 'cover' | 'flow', mouth, domino, eyes, detail })`: the cowl with a domino laid over it by
+  default (a mask's words, or false), the two sharing one eye treatment so their holes meet; the hair hidden under it
+  either way (flowing, its length from the hero's own style); and its variations: the domino, flowing, lens, covered,
+  bare and technical cowls, the full mask and the faceless mask.
+- ORNAMENTS on the cowl, composed with the face as a whole: the eyes are its focus and the domino frames them, so every
+  ornament rides a FACE PATH that carries the domino's own line on over the head (`COWL_PATHS`: brow, echo, temple,
+  parietal, sagittal, cheek, jaw; `align` the domino's dials). Spikes (`bat`, its broad face to the front; `fin`; `cone`;
+  in a row by a profile) and lines (embroidery as stitches, a cord or a double cord). The pack's ornament words
+  (`COWL_ORNAMENTS`: bat ears, a bat crest along the sides, fins, a crown crest, brow, echo and cheek stitches, temple
+  cords, a crown stripe) and compositions (`COWL_DRESS`: gothic, nocturne, aviator, stitched, crowned, owl).
+- The cast's W: the outline's `arm` and `valley` dials raise the domino's points into arms with a dip before the brow, and
+  `sweep` carries the cast off the skin past the head from the temples, so the arms sweep out beyond its silhouette. The
+  owl's W and its variations: the owl, horned owl, barn owl, great owl and night owl cowls, the owl full mask and the owl
+  mask alone, each with its own colours.
+- The `mouthpiece` signature: the lower face's cast, the domino's counterpart, from under the eyes past the chin, its
+  edges set against the head's own heights (`nose`, `mouth`, `chin`, with an offset or a share: 'chin-0.2'), the cloth
+  HANGING straight down below the chin where the skin runs out; `taut` bridging the features (a cloth drawn over them),
+  `bulge` a cup over the mouth, `fold` crisp folded planes (a mecha's plate), a `mouth` cut (a slot, the oni's snarl) with
+  `teeth` and `fangs`, `vents` cut along a polyline, a dark MAW behind every cut, the oni's `wrinkles`, and `fittings`
+  (filters, grilles, ribbed tubes, valves, straps).
+- The pack's mouthpieces (`MOUTHPIECES`, `mouthpieceKit`): the ninja and wraith wraps, the bandanna, the oni mouth, the gas
+  and twin filters, the tube, slatted and mecha masks and the rebreather; and FACE SETS, a cowl with a mouthpiece laid over
+  it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior and the wastelander.
+- A mouthpiece takes a polygon outline (`outline.poly`, its heights words) and vents in any direction (each slot square to
+  its path). The PANELLED mouthpiece (`panelledKit`, `PANELLED.kombat`): the fighting ninja's three panels cast tight on the
+  face, a flat centre with horizontal vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
+  under them so the gaps read as panel lines; in four colourways (frost, venom, ember, jade).
+- EYEGEAR: everything worn over the eyes as one family on the cast, the dominoes its first kind. The cast gains eyegear
+  outlines (`goggles`: two rings and a bridge; `shield`: one wide lens with a nose notch; `visor`: a narrow band), one lens
+  filling the outline (`eyes.shape: 'shield'`), a flat `front` standing off the face (a headset's box), a `strap` cast round
+  the whole head, and `fittings`, now shared with the mouthpiece (`castFittings`), with earpieces, antennas, forward
+  scopes, small lenses and arms. The pack's `EYEGEAR` words and `eyegearKit`: ski, moto and lab goggles, night vision and
+  quad vision, a VR headset, a cyber visor (a glass band, a silver headband, earpieces, antennas, cables) and a spider visor
+  (a lens cluster held on arms from the earpieces); the domino mask cards are eyegear too.
+- The cast's `front` takes `curve` (a curved shield at one distance from the head's axis) and `shell` (the piece a sheet
+  standing off the face: a visor); the fittings' discs are flat-topped with a bevelled edge (no pointed centre), and an
+  earpiece or an antenna stands `out` past the cast, over the hair. The ski goggles are a riot-shield visor standing off
+  the face, the VR headset narrower, the cyber visor bolder; and two visors: the engineer's (a gold band wrapped temple to
+  temple, ridged across) and the optic visor (a dark band with one ruby lens strip across both eyes).
+- HELMETS on the cowl: `pad` (padding under a hard shell), `shell` (its surface bridged round and taut), a `window` (an
+  eyegear outline: the face opening, a visor by `eyes.treat`), `mouth: 'open'` (the whole face shown) and `fittings` on
+  the shell, with a `peak` (a brim). The pack's `HELMETS` and `helmetKit`: the biker's full-face helmet (a smoked visor, a
+  racing stripe), the motocross helmet (an open window, a peak), the jet helmet, the pilot helmet (a jet shell, a dark
+  shield visor standing off, an oxygen mask and its hose, composed from the eyegear and the mouthpiece), the tactical bump
+  helmet and the space helmet.
+- The peak fitting curves (`span`): a strip across the shell's front just over the window, each column standing off along
+  the shell's own outward line, sloping down and lipped up at its edge (it was a flat board standing high on the dome).
+  The motocross helmet is the base of a family built from its dials (`MOTO`: the peak, the window, the chin bar's vents,
+  a visor, a crest, stripes): the enduro, downhill, adventure, BMX, desert and raider helmets.
+- The cast takes a `shift` (its outline moved: goggles pushed up on the forehead, a visor's housing over the brow). The
+  JET PILOT family (`pilotKit`: an open-face shell, a visor housing, the visor down or up, earcups, an oxygen mask and its
+  hose, a boom mic, stripes): the fighter, top, test and helicopter pilots, the aviator's leather cap with goggles up,
+  and the display pilot. The ASTRONAUT family (`astroKit`: a great padded shell, its window a clear, gold or glowing
+  visor, a gold visor shell standing off over it, headlamps, valves, antennas, a crest): the moon, spacewalk, soft,
+  fishbowl and sci-fi space helmets. And sci-fi helmets on the full-face shell: the hunter's (a T visor, a rangefinder),
+  the trooper's (angled eye lenses, a mouth grille), the spartan's (a gold visor, a crest) and the synth's (a glowing strip).
+- The FACELESS helmet: the cowl's `blank` face is one smooth egg, fitted to enclose the whole face (brow, nose and lips)
+  and blended into the skull, so no feature shows through it. Heights on a blank face are read on the egg. Its shell takes
+  panel lines (`panels`, fine cords that stay crisp at any grid; `windowSeam` one round a faceplate). Painted eyes
+  (`eyes.treat: 'paint'`) are flat decals laid on the smoothed shell. `decals` (slots, dots, polys in the eyes' frame)
+  lay paint or, rimmed, cutaways: vents and slots. `facelessKit` composes five optional word libraries (`FACELESS`):
+  - panels: ribbed, plated, kabuto, split, brow band, cheek, jaw plate;
+  - adorn: fins, horns, a crest fin, crown spikes, a ridge, ear discs, antennae;
+  - details: one or two glowing eyes, a grille, hoses, filters, studs;
+  - cuts: a mouth slit, mouth, cheek and temple vents, eye slits, a mono slot, a brow slot;
+  - paint: fox, kabuki, tears, oni, stripes, kintsugi, a third eye, a blush, lips.
+
+  Cards built from it:
+  - segmented: the cyborg ninja, the vented ninja, the hunter, titan and warlock guardians, the ronin and the mono-eye;
+  - porcelain: the fox, kabuki, noh, oni and kintsugi masks.
+- Skulls, gladiators, peaked helms and T-visors on the same builder. The cowl gains:
+  - decal `layer`s, paint over paint, and a `decalLift` for a contoured hood;
+  - `dents`: the shell sculpted, sockets and hollows pressed in, a brow or a chin swelled out;
+  - a `crest` ornament along any path: a blade, or a horsehair plume, rounded and swelling;
+  - a `brim` fitting: a flange round the head, swept up over the face, or behind only as a neck guard;
+  - a `peak` on an open face's edge (a point over the nose), and `openCurve` (how long the edge holds over the eyes).
+
+  Fixes in the same work: height words in a cowl's stroke paths are resolved (they were dropped), a poly window is
+  resampled before it is carried onto the shell (its straight sides cut chords across the polar map: the hunter
+  helmet's T visor arched over the brow), and large decals are subdivided by their size. New words:
+  - `sculpt`: sockets, nasal, cheeks, temples, brow, chin;
+  - paint: skull, skullFace, skullJaw, sugar, cracks;
+  - cuts: grille, eyeHoles, chinVents, teeth;
+  - adorn: band, comb, griffin, plume, transversePlume, brim, neckGuard, templeFlares, rangefinder;
+  - panels: teardrop, sideBands.
+
+  Cards:
+  - skulls: bone skull, painted skull, skull balaclava, sugar skull, skull knight;
+  - gladiators: the fish, griffin and chaser gladiators, the hoplite and the legion helms;
+  - peaked helms: peaked, iron and crowned;
+  - T-visors: the T-visor helm, bronze, night and heavy.
+- Structured masks: the face in flat planes. Two new cowl dials:
+  - `facets`: planes given by azimuth and elevation, each fitted to just clear the face, the shell riding the solid they
+    bound; `nose` leaves the nose out of the fit, so it stands sculpted out of the plates;
+  - `front`: the shell over the face only, from a hairline down to the edge and back to the ears, worn over the hair.
+
+  A front mask's lines stop at its edge. `structuredKit` and `FACETS` (iron, respirator, skull) dress them with the
+  faceless builder's words, plus new ones:
+  - cuts: barredMouth, triGrille, chinVent, visorSlit, lensEyes;
+  - details: rivets, scopeEye, hinges;
+  - panels: tusks, plates.
+
+  Cards (the mask family):
+  - the iron and gilded tyrants;
+  - the dark and chrome-lined respirators;
+  - the clockwork skull and the whaler mask.
+- Ensembles: the body that answers a head. Three changes make a suit harmonize with the headgear:
+  - **Layering:** an armour build takes `with`, a kit worn over the suit, and a head piece in it (on the cranium) takes
+    the suit's helm's place. Before this, a headgear card on an armoured suit replaced the whole `adorn` and the
+    armour was lost.
+  - **The hardsuit's archetype words**, each absent the piece as before (the armour pins hold), documented in the door's
+    manual:
+    - `pauldron` `lames` | `none`, and `pauldronSide`;
+    - `chest` `plates` | `box` | `bands` | `none`;
+    - `arms` `manica` | `gadget` | `none`;
+    - `legs` `greaves` | `ocrea` | `none`;
+    - `skirt` `pteruges` | `tassets`;
+    - `pack` `jet`;
+    - `glow` `lines`;
+    - `collar` `high` | `none`;
+    - `fnSide` and `leadSide`.
+    - `cut` `fitted` | `yoke`: under the fitted cut the chest and back plates end under the collarbone and off the
+      sides, the pauldrons sit on the shoulder's point, and the collar is a gorget at the neck's base, so the torso never
+      wraps the shoulders. Fitted is the default from **armour laws 2** (`ARMOR_LAWS_VERSION`). A build stamped under
+      laws 1 keeps the yoke, pinned by the char test's `LAWS_1`, and the validator accepts any known version.
+    - `build` `plates` | `cylinders`: under cylinders the arms and shins are rigid tubes (the `volume` signature),
+      cuffed in the trim, their girth leaning a little on mass. The thighs keep plates (law 8).
+    - `pack` `tanks`: a back unit, capped at the shoulders' breadth, with two exhaust stacks.
+    - `helm` `shell`: a helm cast over the whole head from the card's `language.helmet` (the cowl's words). A shell helm
+      over visible hair warns, as the kabuto does.
+  - **Cards recompose by law:** a card's `byLaws` lays its later composition over it from an armour law on. grim-scifi
+    is recomposed as the heavy suit: cylinders, a tank unit, tassets, a gorget, ornament 1, and a shell helm with two
+    round amber lenses and a breathing canister. fantasy-space is the light trooper: chest plates, caps and greaves,
+    and a white shell helm with angled dark lenses, a grille and cheek lines. Both pin anew at laws 2, and laws 1
+    keeps them as they were.
+  - **The shoulder is not the torso's** (**hero laws 18**, `tieredKit`): this was the yoke on every armour family on
+    the tiered body.
+    - The tiered body's shoulder balls stand out of the torso's widest rings, and every torso plate stood off them, so
+      a breastplate reaching the shoulder line wrapped the shoulder.
+    - Above the ball's lowest point, a trunk plate that is not a shoulder piece now keeps inside the ball's inner edge.
+      A front or back plate is cut in under the arm by a new shell `armhole` (its side edge eased in above a station),
+      and a wrap ends under the arm.
+    - Pauldrons, pinned pieces and the neck's gorget stand as before.
+    - Heroes stamped 1 to 17 keep their fit (the adult-form chibi's pins hold).
+  - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
+    (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
+    becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.
+    The ensembles are cyborg, hunter, titan, warlock, ronin, gladiator, hoplite, legion, regal, bounty hunter, tyrant,
+    dark lord, assassin, reaper, death knight, operator and shinobi.
+
+  `HARMONY` names the ensemble each head calls for; `memberOrders(id, look, { headgear, ensemble: 'auto' | id })`
+  wears it in place of the costume (tiered body).
+
+- `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
+  dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
+  band and the visor (an `adorn` kit on the cranium), and four helms through the armour's `helm` signature (open, trooper,
+  faceplate, band), each dropping the hair. The realistic armour fit leaves every head piece off the relational head, so a
+  visor or a helm fits the tiered body only and `fitted(id, body)` says so. Worn by `memberOrders(id, look, { headgear })`.
+
+### The half-cape to the hip, and its hood, are worn
+
+- `hem: 'hip'` was no cloak hem word (`outfit-plan.js` hemAt: thigh, knee, calf, shin, ankle), so a cloak asking for it
+  threw inside the piece sorter and was dropped as "not worn" with the throw's message for a word: the street suit's
+  hooded half-cape never rendered, and no hood ever showed. `hip` is now a hem word (the cape ends at the structured
+  pelvis's top, at the thigh's top on a body without one; `HEM_WORDS` names them), and an unknown word is refused by
+  name. A cloak at another hem is byte for byte what it was.
+
+### A leg's cloth stays on its own side
+
+- A limb's cloth field (`body-relational-garment.js` `fieldGarment`) was read by `|x|`, the right limb's field mirrored for
+  both sides. With the legs together at rest the thighs' fields meet at the midline, so a ray from an inner slot never left
+  its own limb, ran on through the mirrored one and landed on its far side: a spike of trouser cloth up to 9 cm across the
+  midline at the inner thigh and the inner shin, which a stand carried out with the leg as a flap bridging the two legs,
+  the cape and the background showing through the openings it left. A left segment now reads the field reflected, a right
+  one as it is; a point that never crossed the midline is byte for byte what it was. The trousers test holds every leg
+  piece to its own side; the byte pins the module reaches hold (no pinned figure had its limbs touching).
+
+### Realistic laws 6: the crotch on every build
+
+- The realistic body finds the crotch no lower than 0.6 W under the hip's joint and draws the pelvis's rings under it
+  in to a cone, on EVERY build (`REALISTIC_LAWS_VERSION` 6, stamped on a new hero's `physique`; laws 5 is the
+  head's relief in the normal bake). Laws 1 to 5 did so
+  only under a physique with a dial set; the athletic base (the build itself, byte for byte, and what a hero gets with
+  no physique named) scanned the midline two widths down, found the thighs touching to the knees, and hung the pelvis
+  between them, so a skin-fit bottom's seat copied a web of cloth down between the legs with a hole at the crotch and
+  the top's hem caught in it. A stored hero keeps its laws and its body.
+
+### The belt's buckle sits on the centre line
+
+- A belt's buckle on a shell or a band (the outfit piece, the word outfits' and the outfit build's belts, the egocube
+  plan's) is seated where the belt's outer skin faces the body's front (station-loft-adorn.js `buckle` → `seatOf`),
+  not at grid row zero, which turns with the ring's own origin and had left the buckle beside the waist's centre. A
+  seat named by row, parameter or `dir` still wins; a mascot's belt and the armour's straps are as they were. The
+  buckle sits on the band's own middle station (the lowest row of a pelvis band juts forward at the pubis) and its
+  plate stands upright. The outfit's `belt` piece takes `at: 'hip'` (the pelvis, as before) or `at: 'waist'` (the
+  torso's narrowest ring between the hips and the shoulders, where a hero's belt over the trunks sits); at the waist
+  the band lies on the top's cloth (a stand-off of the cloth's thickness, not the hip belt's two centimetres, which at
+  the body's narrowest ring stood the band off it like a hoop) with a belt's proportions.
+
+### Hair frames the face: the grown fall as the mint's default, beside the cheek and never on it
+
+- A new hero's fall (long, wavy, layers, angled, curtains; a ponytail or a braid) hangs by the spine law by default:
+  the hero door stamps `hair.spine: 'elastica'` on the landmark head's hair where the recipe is written
+  (`withGrownFall`), so the fall is draped off the head's own skin and frames the face; a hero stored without the word
+  keeps the bytes it was minted with, and a cap, a bun or `none` is left as given. The anime head's hair is its own.
+- The frame principle's other half (hair-spine.js `keepOut`, humanoid-hair.js `fallGuide`): a hairline root that
+  faces forward (the temples, the slots beside the face) is combed sideways and back and leans out, so the fall STARTS
+  beside the face; and where the head's skin faces forward and has a side to it (a cheek, a temple) a lock is pushed
+  sideways and kept the face's gap off, a lock's own radius (10 mm), not the scalp's 3 mm; the lift is capped at three
+  times the shortfall and finished over passes, so no chord is pulled back through the head. Held by test on both
+  presets: a grown long or wavy fall puts no surface sample within 8 mm of the face forward of the ears, and the
+  legacy fall, which has no collider at all, does; a curled fall still never passes into the skull.
+
+### Comic hero pack: the first tesseract, a pack of game cubes
+
+- Planned. A tesseract is a library of cosmos cubes with the look that suits them, shipped as data a creator can
+  write: genre cubes `intent.from` reads as it reads the core fixtures, geocube looks on one dial from cel-and-ink to
+  the realistic hero, and resonance laws that advise a look from the gameplay. The comic hero pack is the first. Six
+  probe cubes dry-run against the registry today: four makeable, two with gaps the core already names
+  (`space.topology=open`, `soul.contest=versus`); the comic look itself is the first gap, with no value to probe yet.
+- The pack's gaps are priced so the sweep ranks them: `planned` rows on the facets, each in its work package
+  (`cosmos/packages.js`). The look: `reality.look=comic-day` and `comic-night` (`comic-look`: a sixth-gen look on the
+  geocube's `cel` register with an ink outline and a bold palette). The blows: `power.mechanics=knockback`, `throw`
+  and `power.rules=super-jump` (`comic-blows`), `power.mechanics=destructible` (`comic-street`). The dress:
+  `soul.equipment=cape` (`cape`, a garment that trails, not a held item). The shot: `time.shots=panel`
+  (`comic-panel`, a beat held as a still with a border and a caption). Every one is absent today and says so; a cube
+  that names one dry-runs `blocked` naming it. The hillclimb page is regenerated.
+- The pack itself, as data (`lib/graph/cosmos/packs/comic-hero/`): six cubes in registry words, each a genre row with
+  the words a brief uses and the planned values it `wants` (`cubes.js`); one look dial from the comic page to the
+  realistic hero, every stop a geocube the tree reads today (`from` a sixth-gen preset, the `cel`, `ink-wash` or
+  `continuous` register over it) with the hero direction that goes with it, its two ends the tree's own `banded` and
+  `material` poles (`looks.js`); five resonance laws in the facet law shape, advice from the gameplay to the look and
+  never a verdict (`resonance.js`); `packReport` dry-runs the cubes and reads each want's status (an unknown want is
+  reported, never thrown) and `qaOrders(look)` sets the table for the eyes gate at one stop: a `create_sketch` of the
+  example gameworld with the pack cube as its intent, the look's direction and a downtown painted by the look's
+  geocube, and the hero at that pole (`pack.js`). Nothing reads the pack yet: the loader seam is next.
+- Every look carries its air: the geocube's `light` (how thick the outside's air is, the sky's fog colour) and the
+  city paint's `hour` and `clouds`, which the QA city is lit and hazed by (city/plan/look.js). A fifth look,
+  `gritty-night`, at the realistic stop: a storm night under a low key, the light shaped in the vertex
+  (`contrast: 'wii'`), the walls dressed from relief at `grit` 0.8 and aged old, the air thick enough to swallow the far
+  towers. Gritty is the material pole with the atmosphere as the light, not another stop of the dial.
+- The pack's characters: a cast of six asks in the egocube's words (an archetype, a role, a build, an age, a motivation
+  and an order, with a brief; the rival the hero's archetype in shadow), five suits as cards built from the hero door's
+  own words (a catsuit and gloves, a cloak hung from the shoulders with a chest emblem, a belt, a field-painted star or
+  diamond, the armored-hero hardsuit, biker leathers), each with a fragment per pole since the realistic body refuses
+  paint and detail, and a compiler (`memberOrders(member, look)`) that rolls the sheet, reads it into a hero plan by the
+  egocube's own compiler, replaces the sheet's cut with the suit, puts the realistic body on at the material pole, and
+  asks the toon the stop wants: the character light with its ink at the comic stop (the silhouette hull the character
+  book never asks for), ink alone at the painted stop, none at the material pole. Every member validates at both poles.
+  The vibe rides inside the spec, since `mint_solid` hands its handler the spec alone and drops a key beside it
+  without a word (the character book's own hero order puts its toon beside the spec, so a gameworld hero minted
+  through `mint_solid` never gets its character light: found, not fixed here). The pack's heroes are never cel shaded:
+  the world walks the registers (cel, ink-wash, continuous), the hero is the western tradition at every stop with no
+  character light and no ink, the standard tiered body shaded smooth at the comic and painted stops and the realistic
+  body at the realistic stop; the suits are cards per body, not per pole.
+- Three costume eras as principles (`costumes.js`), each a card over the role suits: the Silver Age (the classic
+  hero before the dark knight: primaries, a cape, one big emblem, a belt at the waist, flat colour), the Modern (the
+  nineties to now: a dark panelled suit with one accent, a chevron, bracers and kneepads, the cape short or gone) and
+  the Movie Hero (tactical armour over an undersuit, muted metals, no cape: the plating library by word on the
+  realistic body, the hardsuit at low mass over a tactical outfit on the tiered one). `costumeOf(role, era, body)`
+  resolves a costume in the door's own words; every role in every era validates on both bodies. The eras tie to the
+  look dial: each stop suggests one (the page the Silver Age, the cover the Modern, the film the Movie Hero) and a
+  member's order takes another by name.
+
 ### Battle city: sports as a contest over the movement stack
 
 A sports game is two things: what is happening at the ball, and what the game state is. The first is the movement

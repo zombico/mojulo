@@ -67,7 +67,8 @@ export function fitPlates(kit, parts, { density = 0.75 } = {}) {
  * A piece's ROLE on the realistic body, read from its geometry (its carrier, its window, whether it wraps, what it spans),
  * never its family's names, so a style the fit has never seen is fitted by what its pieces cover:
  *   head      on the head or pinned to it (a helm, a neck guard hung from it): not fitted to the relational head yet
- *   neck      a wrap round the neck (a gorget, a collar): optional
+ *   neck      a wrap round the neck (a gorget, a collar), or a trunk plate wholly above the shoulder line at the
+ *             neck's root (a hard-suit's gorget plates, armour laws 2): optional
  *   foot      a wrap round the foot (a sabaton, an armoured boot): the footwear primitive's boot
  *   hoop      a wrap round the trunk (a fauld's lame, a belt, a lamellar row): a field hoop over its window
  *   shoulder  a trunk shell spanning the upper arm (a pauldron's anchor): a cap domed over the shoulder
@@ -84,11 +85,15 @@ export function roleOf(A) {
   if (/^foot[RL]$/.test(A.part) && wrap) return 'foot';
   if ((A.part === 'torso' || A.part === 'pelvis') && wrap) return 'hoop';
   if (A.part === 'torso' && A.mode === 'shell' && (A.over || []).some((o) => /^upperArm/.test(o))) return 'shoulder';
+  // (a trunk plate wholly above the shoulder line, round the neck's root: a gorget's plate, the neck's role)
+  if (A.part === 'torso' && A.mode === 'shell' && Array.isArray(A.t) && Array.isArray(A.s) && Math.min(...A.s) >= NECK_ROOT_S) return 'neck';
   // (a PINNED panel hangs from its pin, a skirt's plate: not the trunk's shell)
   if (A.part === 'torso' && A.mode === 'shell' && Array.isArray(A.t) && !A.pin) return 'panel';
   return null;
 }
 const HEAD_PARTS = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|head|headSkin|globe[RL]|mouth)$/;
+/** the torso station above which a plate is at the neck's root, not the chest (the trunk's chest plates end by 3.3) */
+const NECK_ROOT_S = 3.45;
 /** a plate's cloth as a field shell: taut over every dip shorter than 20 cm (the chest one form, not its muscles) */
 const PLATE_CLOTH = { looser: 4, reach: 0.08, taut: true, span: 0.2, along: 2 };
 /** THE PLATE ON ITS BODY: a trunk plate stands at most this far past the skin under it, over its own clearance (`ease`).

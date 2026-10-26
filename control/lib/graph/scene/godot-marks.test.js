@@ -177,8 +177,9 @@ describe('the cosmos registry and the export read the same marks', () => {
     for (const axis of ['motivation', 'aggressiveness', 'rank', 'skill', 'perception', 'pathing', 'squad', 'social', 'commander']) agree(reg.mind[axis], null, (v) => mindMark(axis, v).godot);
   });
   it('the story: shots, framing, quests and talk travel no further than scenes and quests do', () => {
-    // (a shot told on the board itself is the board page's: no engine kernel plays a board)
-    for (const v of Object.values(reg.time.shots.values)) expect(v.godot).toBe(v.requires?.includes('space.board=spots') ? 'absent' : EVENT_MARKS.scenes.godot);
+    // (a shot told on the board itself is the board page's: no engine kernel plays a board; a PLANNED shot, status
+    // 'absent', travels nowhere yet, as every planned row in the registry marks it)
+    for (const v of Object.values(reg.time.shots.values)) expect(v.godot).toBe(v.requires?.includes('space.board=spots') || v.status === 'absent' ? 'absent' : EVENT_MARKS.scenes.godot);
     for (const v of Object.values(reg.time.framing.values)) expect(v.godot).toBe(EVENT_MARKS.scenes.godot);
     expect(reg.time.advance.values.quests.godot).toBe(EVENT_MARKS.quests.godot);
     expect(reg.time.advance.values.steps.godot).toBe(EVENT_MARKS.quests.godot);

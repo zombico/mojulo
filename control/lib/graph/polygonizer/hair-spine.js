@@ -231,8 +231,10 @@ export const coilSteps = (curl, base) => (curl ? Math.max(base, Math.ceil(8 * cu
 /** the stored form: the word becomes the object, defaults left absent (read at build time) */
 export const resolveSpine = (spec) => (spec === 'elastica' ? { law: 'elastica' } : { law: 'elastica', ...spec });
 
-/** Drape a spine over colliders: `{ surface: { pts, nrm, gap, reach } }` a sampled skin (each point kept `gap` outside
- * its nearest sample's tangent plane, within `reach`), `{ c, r }` an ellipsoid and `{ axis: [x, y], r, top, bottom }`
+/** Drape a spine over colliders: `{ surface: { pts, nrm, gap, reach, frame?, faceGap? } }` a sampled skin (each point
+ * kept `gap` outside its nearest sample's tangent plane, within `reach`; with `frame`, where the skin faces forward and
+ * sideways, a cheek or a temple, the lift goes sideways and the point is kept `faceGap` off, the lock's own radius, so
+ * hair frames the face rather than lying on it), `{ c, r }` an ellipsoid and `{ axis: [x, y], r, top, bottom }`
  * an upright column (the neck). Follow the leader from the root: each point is pushed out of every collider (along its own radial,
  * to the surface + margin) and then set back on its segment length from the point before, so the lock wraps the body and
  * stays its length. A lock that never enters is returned as it was. */
@@ -266,6 +268,10 @@ function surfaceGrid(S) {
   GRIDS.set(S, g); return g;
 }
 
+/** a framed skin's push goes sideways where the skin has this much of a side to it (a cheek, a temple); a skin facing
+ * mostly forward (the brow's and the nose's line) keeps its normal and its gap. (0.12, pushing the cheek's front sideways
+ * too, wound a curled fall's coil through the brow's corner at the temple: measured, left at 0.3.) */
+const FRAME_SIDE_MIN = 0.3;
 /** One point pushed out of every collider: `{ p, hit }`. */
 export function keepOut(p, colliders, margin = 0.04) {
   const list = Array.isArray(colliders) ? colliders : [colliders];
@@ -274,7 +280,7 @@ export function keepOut(p, colliders, margin = 0.04) {
     if (C.surface) {
       // the head's own skin, sampled by address: the nearest sample's tangent plane; a point less than the margin
       // outside it (or under it) is lifted along that sample's normal to the margin
-      const { pts, nrm, gap, reach } = C.surface, grid = surfaceGrid(C.surface); let bi = -1, bd = Infinity;
+      const { pts, nrm, gap, reach, faceGap } = C.surface, grid = surfaceGrid(C.surface); let bi = -1, bd = Infinity;
       const cx = Math.floor(p[0] / reach), cy = Math.floor(p[1] / reach), cz = Math.floor(p[2] / reach);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let e = -1; e <= 1; e++) {
         const cell = grid.get(cellKey(cx + a, cy + b, cz + e)); if (!cell) continue;
@@ -282,12 +288,15 @@ export function keepOut(p, colliders, margin = 0.04) {
       }
       if (bi < 0 || bd > reach * reach) continue;
       const q = pts[bi], n = nrm[bi], h = (p[0] - q[0]) * n[0] + (p[1] - q[1]) * n[1] + (p[2] - q[2]) * n[2];
-      if (h >= gap) continue;
-      // `frame`: hair frames the face. Where the skin faces forward (a cheek, a temple) the lift goes sideways and back,
-      // never out in front of the face; a skin facing straight forward (the nose's line) keeps its normal
-      let d = n;
-      if (C.surface.frame && n[1] > 0) { const side = norm([n[0], 0, n[2]]); if (side && dot(side, n) > 0.3) d = side; }
-      hit = true; p = plus(p, scale(d, (gap - h) / dot(d, n)));
+      // `frame`: hair frames the face. Where the skin faces forward (a cheek, a temple) the lift goes sideways, never
+      // out in front of the face, and the stand-off is the face's (`faceGap`, the lock's own radius, where given: a
+      // lock hangs beside a cheek, not on it); a skin facing straight forward (the nose's line) keeps its normal and gap
+      let d = n, g = gap;
+      if (C.surface.frame && n[1] > 0) { const side = norm([n[0], 0, n[2]]); if (side && dot(side, n) > FRAME_SIDE_MIN) { d = side; if (faceGap > gap) g = faceGap; } }
+      if (h >= g) continue;
+      // (a sideways lift off a skin that faces mostly forward is a long one: it is capped at three times the shortfall
+      // and finished on the next pass, so no point is flung round the head and no chord pulled back through it)
+      hit = true; p = plus(p, scale(d, Math.min((g - h) / dot(d, n), 3 * (g - h))));
     } else if (C.axis) {
       if (p[2] > C.top || p[2] < C.bottom) continue;
       const dx = p[0] - C.axis[0], dy = p[1] - C.axis[1], d = Math.hypot(dx, dy), R = C.r * (1 + margin);
