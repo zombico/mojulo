@@ -14,6 +14,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Land in the level: the composer's land forms drawn
+
+- **A world's land now reaches its levels.** A gameworld's `style.land` (and a level's, over it) names land forms,
+  each a variant and a step from little to many: landscape, rock, strata, face, cloud, landmark. The composer has
+  always written them from words ("misty", "rocky", "a waterfall", "rolling hills") and the bible drew them, but no
+  stage read them: "add a waterfall" changed the recipe and remade nothing. `resolveLevel` now lowers them, through
+  one function (`landToLevel`, gameworld/nature.js, the other way round from `landOfKit`), onto the settings a walk's
+  stages already draw by, so the level recipe carries them and the existing builders draw them:
+  - landscape: the trails' mounds (`trail.ground.bump`, height and size) and the climb's plain (`meru.relief`);
+  - rock: how many boulders a trail strews (`trail.rocks.boulders`);
+  - strata: the trail cliff's beds (`trail.ground.cliff.bed`, and `dip` when tilted);
+  - face: the trail cliff's joints (`trail.ground.cliff.joint`, and `pattern`: columnar, blocky, slabby);
+  - cloud: the level's sky (`clouds` on the level recipe, laid on every stage its geocube paints, as `hour` is);
+  - landmark: a monolith is the trail's landmark stone, at its height (`trail.rocks.landmark`).
+- **What a stage cannot draw is a named gap, never faked geometry.** A tor, a sea stack, a hoodoo, a balanced rock;
+  graded, folded or unconformable beds; fluted or craggy faces; lenticular clouds; an arch, a spire, a butte, a split
+  rock, a landmark's company; terraces on a trail; a sky on a level no cube paints. **A waterfall is one of them:** the
+  only water on a walk is a crossing's stream, fording flat ground, and nothing falls from a cliff. `design_game`'s
+  readout says each gap under `advice.land`, naming its levels, and the bible's land section says, under "In the
+  level", what each form became on each level and what it could not.
+- **Compatibility, said plainly:** composed worlds, and the example worlds that name land (MEADOWMARK among them), lay
+  different levels on their next run: the recipe always said it, and the level now honors it. There is no flag to
+  keep the old levels. What a world's land leaves out stays the kit's own, and a setting a trail or a climb names
+  itself (its bumpiness, its own ground, rocks or relief, the level's ground tune) is kept over the land's. A world
+  with no land emits the bytes it did.
+- New settings, each the card's own number where left out, on readers that already drew the thing: a trail's `rocks`
+  (`boulders` 0 to 24, `landmark` metres), its ground's `cliff` `bed`, `dip`, `joint` and `pattern`, and a level
+  recipe's `clouds` (refused without its geocube).
+
 ### One name: a 3D compiler for agents
 
 - Every surface says the same thing: the README, the npm README, `package.json`, the Claude plugin, `glama.json`,

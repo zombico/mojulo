@@ -78,9 +78,13 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
     // (re-pinned 2026-10-25 merging 1024-geocube-composition-update: geocube styles rewrote the gothic-night preset, so the
     // kit its variant is named by hashes anew, geocube-gothic-night-variant-9bedf4 -> -f88cc1; nothing else in the orders moved)
-    expect(fingerprint(unaudited(orders))).toBe('f8c60bfb');
-    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('c42f5e2b');
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('35dcc6ea');
+    // (re-pinned 2026-10-25, 1025-land-into-cube: the levels now carry their land. A composed world has always written
+    // style.land, and MEADOWMARK's examples too; the level orders now carry it lowered (the trails' mounds, rocks and
+    // cliff, the climb's relief, the cube's clouds), f8c60bfb -> 2471fa9c, c42f5e2b -> 9ad2a5b7, 35dcc6ea -> 0b5f8e90;
+    // the world itself is unchanged, its print above as it was)
+    expect(fingerprint(unaudited(orders))).toBe('2471fa9c');
+    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
