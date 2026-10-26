@@ -42,8 +42,12 @@
 //
 // Pure arithmetic; no dice. ARMOR_LAWS_VERSION is stamped on every minted build: a change to any curve here that moves
 // a kit's bytes is a new version, and the expander keeps the old one for rows minted under it.
+//
+// Laws 2 holds the HARD-SUIT to laws 3 and 8 (hardsuit.js `cut`, fitted by default): its breast and back plates end
+// under the collarbone and off the torso's sides, its pauldrons' anchors sit on the shoulder's point, and its collar is a
+// gorget at the neck's base, so the trunk's plates never wrap the shoulders; laws 1 cut it as a yoke over them.
 
-export const ARMOR_LAWS_VERSION = 1;
+export const ARMOR_LAWS_VERSION = 2;
 
 export const ARMOR_DIALS = Object.freeze({
   stylize: 'realism 0 → stylized 1: one proportion curve for the whole suit (shared with held items)',

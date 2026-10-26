@@ -52,7 +52,7 @@ import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, w
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
-import { isArmorBuild, armorReadout, armorFamily, armorMaterials, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
@@ -1158,7 +1158,7 @@ function targetPlan(plan, hero) {
 function tieredDress(plan, hero, target) {
   if (hero.form !== 'tiered') return plan;
   const dressed = tieredGarments(plan);
-  return dressed.adorn?.length ? { ...dressed, adorn: tierKit(tieredKit(dressed.adorn, dressed), dressed, target ?? DEFAULT_TARGET).kit } : dressed;
+  return dressed.adorn?.length ? { ...dressed, adorn: tierKit(tieredKit(dressed.adorn, dressed, { laws: hero.laws ?? 1 }), dressed, target ?? DEFAULT_TARGET).kit } : dressed;
 }
 /** the door's MOTION (hero-motion.js) on a rigged plan: its gaits as `plan.locomotion` (compiled where the clips are
  * packed); absent ⇒ the plan as it was. A vault on a leg the hero laws set back (LEG_SET, laws 3) says `legSet`, and a
@@ -1444,6 +1444,8 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);
   if (unjustified.length) warnings.push(...unjustified);
   if (dress?.armor?.worn?.includes('kabuto') && hair && hair.style !== 'none') warnings.push(`the kabuto covers the head and the hair (${hair.style}) passes through it: set /hero/hair/style 'none'`);
+  // (a hard-suit's SHELL helm is cast over the whole head, as the kabuto is)
+  if (dress?.armor?.worn?.includes('helm') && armorLanguage(hero.adorn)?.helm === 'shell' && hair && hair.style !== 'none') warnings.push(`the shell helm covers the head and the hair (${hair.style}) passes through it: set /hero/hair/style 'none'`);
   for (const id of dress?.clearance?.sinking || []) { const w = dress.clearance.worst[id]; warnings.push(`adornment ${id} sinks into ${(w.into || []).join(', ') || 'the body'} at ${w.at} (${Math.round(w.share * 100)} % of its points): keep that dial nearer rest, or move the adornment`); }
   const ownMoved = (r, one = (k) => ANIME_FACE.DEFAULT[k] ?? ANIME_HAIR.DEFAULT[k] ?? 1) => (r && typeof r === 'object' ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'style' && k !== 'locks' && typeof v === 'number' && v !== one(k))) : r);
   return { cast: hero.cast, register: hero.register, tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(tune), measures: heroMeasures(plan, stats),

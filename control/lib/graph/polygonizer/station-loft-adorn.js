@@ -79,7 +79,13 @@ export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.
     S = [...new Set(fr.map((f) => Math.round(f * 1e6) / 1e6))].sort((a, b) => a - b).map((f) => lerp(A.s[0], A.s[1], f));
     if (!closed && rim.ends !== false) { const et = Math.min(0.3, rim.wt ?? 0.07), nt = A.nt ?? 12; ends = true;
       list = [0, et, ...Array.from({ length: nt - 1 }, (_, k) => (k + 1) / nt).filter((f) => f > et && f < 1 - et), 1 - et, 1].map((f) => [lerp(A.t[0], A.t[1], f), side]); } }
-  const F = list.map(([t, sd]) => S.map((s) => frameAt(L1, A.part, [s, t], sd)));
+  // an ARMHOLE (`armhole` { from, edge, t }): above station `from` the window's `edge` end (0 its t start, 1 its end)
+  // eases in to `t`, the rest of the window drawn with it: a breastplate cut in under the arm. Absent, the window's t
+  // is the same at every station
+  const AH = A.armhole && !closed && Array.isArray(A.t) ? A.armhole : null, tAt = (t, s) => { if (!AH || s <= AH.from) return t;
+    const f = (t - A.t[0]) / ((A.t[1] - A.t[0]) || 1e-9), u = easeS((s - AH.from) / Math.max(1e-9, Math.max(A.s[0], A.s[1]) - AH.from));
+    return AH.edge === 0 ? lerp(lerp(A.t[0], AH.t, u), A.t[1], f) : lerp(A.t[0], lerp(A.t[1], AH.t, u), f); };
+  const F = list.map(([t, sd]) => S.map((s) => frameAt(L1, A.part, [s, tAt(t, s)], sd)));
   let H = F.map((row) => row.map((f) => hullHeight(beneath, f.origin, f.normal, A.rad ?? 0.05)));
   const nb = (k, j) => [[k, j], [k - 1, j], [k + 1, j], [k, j - 1], [k, j + 1]].map(([a, b]) => [closed ? (a + H.length) % H.length : Math.min(H.length - 1, Math.max(0, a)), Math.min(S.length - 1, Math.max(0, b))]);
   H = H.map((row, k) => row.map((_, j) => Math.max(...nb(k, j).map(([a, b]) => H[a][b])))); H = H.map((row, k) => row.map((_, j) => mean(nb(k, j).map(([a, b]) => [H[a][b]]))[0]));   // min-shield: max, then mean

@@ -24,9 +24,8 @@ const SKIN = { fit: 'skin', feet: 'boots', top: { family: 'knit', sleeve: 'long'
 const TACTICAL = { fit: 'fitted', feet: 'boots', top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long', cut: 'tapered' } };
 const build = (style, language, pieces = [], dials = {}) => ({ type: 'outfit', style, dials: { fit: 1, stylize: 0.5, coverage: 0.95, ornament: 0, ...dials }, language, pieces });
 const CAPE = (over = {}) => ({ kind: 'cloak', wrap: 0.55, hem: 'calf', flare: 0.16, rigidity: 'soft', ...over });
-// the HARDSUIT as an inline card: no helm (the head is the ensemble's), the plates fitted under the collarbone (the
-// shoulders the pauldrons'), the archetype's words, its lights full-bright
-const SUIT = (language, dials = {}) => ({ type: 'armor', style: { id: 'ensemble', family: 'hardsuit', dials: { stylize: 0.5, mass: 0.6, coverage: 1, ornament: 1, ...dials }, language: { helm: 'none', cut: 'fitted', ...language }, emissive: ['Lens', 'Reactor'] } });
+// the HARDSUIT as an inline card: no helm (the head is the ensemble's), the archetype's words, its lights full-bright
+const SUIT = (language, dials = {}) => ({ type: 'armor', style: { id: 'ensemble', family: 'hardsuit', dials: { stylize: 0.5, mass: 0.6, coverage: 1, ornament: 1, ...dials }, language: { helm: 'none', ...language }, emissive: ['Lens', 'Reactor'] } });
 // (SKIN_TONE: the body bare there, the tiered body's Top or Bottom in the figure's own skin; memberOrders reads it)
 export const SKIN_TONE = 'skin';
 // the undersuit's groups all in one colour (the bodysuit, the outfit's base, the boots and gloves)

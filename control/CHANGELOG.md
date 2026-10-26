@@ -172,9 +172,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - `glow` `lines`;
     - `collar` `high` | `none`;
     - `fnSide` and `leadSide`.
-    - `cut` `yoke` (as before) | `fitted`: the chest and back plates under the collarbone and off the sides, the
-      pauldrons on the shoulder's point, a gorget at the neck's base for the collar, so the torso never wraps the
-      shoulders. The ensembles wear the fitted cut.
+    - `cut` `fitted` | `yoke`: under the fitted cut the chest and back plates end under the collarbone and off the
+      sides, the pauldrons sit on the shoulder's point, and the collar is a gorget at the neck's base, so the torso never
+      wraps the shoulders. Fitted is the default from **armour laws 2** (`ARMOR_LAWS_VERSION`). A build stamped under
+      laws 1 keeps the yoke, pinned by the char test's `LAWS_1`, and the validator accepts any known version.
+    - `build` `plates` | `cylinders`: under cylinders the arms and shins are rigid tubes (the `volume` signature),
+      cuffed in the trim, their girth leaning a little on mass. The thighs keep plates (law 8).
+    - `pack` `tanks`: a back unit, capped at the shoulders' breadth, with two exhaust stacks.
+    - `helm` `shell`: a helm cast over the whole head from the card's `language.helmet` (the cowl's words). A shell helm
+      over visible hair warns, as the kabuto does.
+  - **Cards recompose by law:** a card's `byLaws` lays its later composition over it from an armour law on. grim-scifi
+    is recomposed as the heavy suit: cylinders, a tank unit, tassets, a gorget, ornament 1, and a shell helm with two
+    round amber lenses and a breathing canister. fantasy-space is the light trooper: chest plates, caps and greaves,
+    and a white shell helm with angled dark lenses, a grille and cheek lines. Both pin anew at laws 2, and laws 1
+    keeps them as they were.
+  - **The shoulder is not the torso's** (**hero laws 18**, `tieredKit`): this was the yoke on every armour family on
+    the tiered body.
+    - The tiered body's shoulder balls stand out of the torso's widest rings, and every torso plate stood off them, so
+      a breastplate reaching the shoulder line wrapped the shoulder.
+    - Above the ball's lowest point, a trunk plate that is not a shoulder piece now keeps inside the ball's inner edge.
+      A front or back plate is cut in under the arm by a new shell `armhole` (its side edge eased in above a station),
+      and a wrap ends under the arm.
+    - Pauldrons, pinned pieces and the neck's gorget stand as before.
+    - Heroes stamped 1 to 17 keep their fit (the adult-form chibi's pins hold).
   - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
     (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
     becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.

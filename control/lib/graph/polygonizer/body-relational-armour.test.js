@@ -25,8 +25,11 @@ describe('a piece\'s role, read off its geometry', () => {
     expect(Object.entries(R).filter(([k]) => /^neck-shikoro[RL]\d$/.test(k)).every(([, r]) => r === 'head')).toBe(true);
   });
   it('hardsuit (armored-hero): its chest, back and abdomen panels, its belt a hoop, its boots feet, its collar the neck', () => {
+    // (armour laws 2: the collar a gorget's plates at the neck's root, the neck's role as the band was; laws 1's band)
     const R = rolesOf(kitOf('armored-hero'));
-    expect(R).toMatchObject({ 'torso-chestR': 'panel', 'torso-backplateL': 'panel', 'torso-absR0': 'panel', 'torso-belt': 'hoop', 'footR-boot': 'foot', 'neck-collar': 'neck', 'torso-pauldronL': 'shoulder' });
+    expect(R).toMatchObject({ 'torso-chestR': 'panel', 'torso-backplateL': 'panel', 'torso-absR0': 'panel', 'torso-belt': 'hoop', 'footR-boot': 'foot', 'torso-gorgetFR': 'neck', 'torso-gorgetBL': 'neck', 'torso-pauldronL': 'shoulder' });
+    const R1 = rolesOf(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', adorn: { type: 'armor', style: 'armored-hero', laws: 1 } }) }).plan.adorn);
+    expect(R1).toMatchObject({ 'neck-collar': 'neck', 'torso-chestR': 'panel' });
   });
 });
 

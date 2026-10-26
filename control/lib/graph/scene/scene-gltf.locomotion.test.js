@@ -116,7 +116,9 @@ describe('the hero door\'s motion', () => {
     const tracks = async (spec) => { const { payload } = await resolveWorldScene({ ref: 'act', title: 'act', manifest: heroManifest(spec) }, { face: true }); return payload.figures.body.face; };
     const peak = (F, clip, target) => Math.max(...F.tracks[clip].w.map((w) => w[F.targets.indexOf(target)]));
     const anime = await tracks({ cast: 'female', head: 'anime', motion: { jab: true, heroHips: true, jump: true } });
-    expect(peak(anime, 'jab', 'mouthOpen')).toBeGreaterThan(0);   // the shout on the contact (hero-face-action)
+    // (the strike's take is picked by the hero's face seed, a hash of its record: a shout, a clench or a fencer's stillness,
+    // so the jab acts its face in some channel, whichever take the seed draws)
+    expect(anime.targets.some((t) => peak(anime, 'jab', t) > 0)).toBe(true);
     expect(peak(anime, 'jump', 'mouthOpen')).toBeGreaterThan(0);  // the take-off's "hup"
     expect(peak(anime, 'heroHips', 'smile')).toBeGreaterThan(0);  // the pose's own face
     const western = await tracks({ cast: 'male', motion: { jab: true, heroHips: true } });

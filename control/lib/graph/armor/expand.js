@@ -13,7 +13,7 @@
 // The hero record stores these words; `hero-dress.dressPlan` calls `expandArmor` with the register's ring halves, and
 // the kit is baked like any other (station-loft-adorn.js). Pure and deterministic: no dice, fixed order.
 import { ARMOR_LAWS_VERSION } from './principles.js';
-import { SEEDED_ARMOR, validateArmorCard } from './styles.js';
+import { SEEDED_ARMOR, validateArmorCard, cardAtLaws } from './styles.js';
 import { plateSuit } from './plate.js';
 import { lamellarSuit } from './lamellar.js';
 import { hardSuit } from './hardsuit.js';
@@ -29,7 +29,8 @@ export function isArmorBuild(adorn) {
 /** the pieces a build's `wear` may name (the realistic body's optional ones) */
 const WEARABLE = Object.freeze(['gorget']);
 
-const cardOf = (style) => (typeof style === 'string' ? SEEDED_ARMOR[style] : style);
+// (the card a build reads: its style's, as recomposed up to the build's armour laws, the current ones when unstamped)
+const cardOf = (style, laws = ARMOR_LAWS_VERSION) => cardAtLaws(typeof style === 'string' ? SEEDED_ARMOR[style] : style, laws);
 
 /** Validate a build → an array of error strings, each naming the choices. */
 export function validateArmor(build) {
@@ -44,7 +45,7 @@ export function validateArmor(build) {
   for (const k of ['stylize', 'coverage']) if (d[k] !== undefined && !(Number.isFinite(d[k]) && d[k] >= 0 && d[k] <= 1)) errs.push(`adorn.dials.${k}: a number 0–1`);
   if (d.mass !== undefined && !(Number.isFinite(d.mass) && d.mass >= 0.5 && d.mass <= 2)) errs.push('adorn.dials.mass: a number 0.5–2');
   if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push('adorn.dials.ornament: an integer 0–3');
-  const card = cardOf(style);
+  const card = cardOf(style, build.laws ?? ARMOR_LAWS_VERSION);
   if (build.language !== undefined && card && !validateArmorCard(card).length) errs.push(...validateArmorCard({ ...card, language: { ...card.language, ...build.language } }, 'adorn').filter((e) => e.includes('language')));
   // `wear`: the pieces the realistic body leaves off unless named (polygonizer/body-relational-armour.js OPTIONAL_PIECES)
   if (build.wear !== undefined && !(Array.isArray(build.wear) && build.wear.every((w) => WEARABLE.includes(w)))) errs.push(`adorn.wear: a list of the optional pieces the realistic body wears only when named (${WEARABLE.join(', ')})`);
@@ -54,7 +55,7 @@ export function validateArmor(build) {
   if (TL !== undefined) errs.push(...validateArmorCard({ family: card.family, language: TL }, 'adorn.theme').filter((e) => e.includes('language')).map((e) => e.replace('adorn.theme.language.', `adorn.theme.language.${card.family}.`)));
   // `with`: a kit worn over the build (hero-dress.js dressPlan), each adornment its own data (the adornment layer judges it)
   if (build.with !== undefined && !(Array.isArray(build.with) && build.with.every((a) => a && typeof a === 'object' && !Array.isArray(a) && typeof a.id === 'string'))) errs.push('adorn.with: a KIT worn over the armour, [{ id, mode, part, …, signature }]');
-  if (build.laws !== undefined && build.laws !== ARMOR_LAWS_VERSION) errs.push(`adorn.laws: ${build.laws} is unknown — this kernel carries armour laws ${ARMOR_LAWS_VERSION}`);
+  if (build.laws !== undefined && !(Number.isInteger(build.laws) && build.laws >= 1 && build.laws <= ARMOR_LAWS_VERSION)) errs.push(`adorn.laws: ${build.laws} is unknown — this kernel carries armour laws 1 to ${ARMOR_LAWS_VERSION}`);
   return errs;
 }
 
@@ -62,7 +63,7 @@ export function validateArmor(build) {
 export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chibi = null } = {}) {
   const errs = validateArmor(build);
   if (errs.length) throw new Error(`Invalid armour build:\n- ${errs.join('\n- ')}`);
-  const card = cardOf(build.style ?? 'knight'), T = build.theme === undefined ? null : themeOf(build.theme);
+  const card = cardOf(build.style ?? 'knight', build.laws ?? ARMOR_LAWS_VERSION), T = build.theme === undefined ? null : themeOf(build.theme);
   // precedence: the style's card, then the theme's lean, then the build's own words
   // (a chibi's lean, hero-dress.js CHIBI_DRESS, between the theme's and the build's: fewer, larger lames, no ornament)
   const leaned = { stylize: 0, mass: 1, coverage: 1, ornament: 1, ...card.dials, ...(T?.dials || {}) }, C = chibi?.armor;
@@ -70,7 +71,7 @@ export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chi
   const dials = { ...leaned, ...lean, ...build.dials };
   const lang = { ...(card.language || {}), ...(T?.language?.[card.family] || {}), ...(build.language || {}) };
   // (a chibi wears only its family's `keep` pieces: CHIBI_DRESS)
-  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale * (C?.height ?? 1), ...(pelvis ? { pelvis: true, Hth } : {}), ...(C ? { keep: C.keep[card.family] } : {}) };
+  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale * (C?.height ?? 1), armorLaws: build.laws ?? ARMOR_LAWS_VERSION, ...(pelvis ? { pelvis: true, Hth } : {}), ...(C ? { keep: C.keep[card.family] } : {}) };
   let out = card.family === 'lamellar' ? lamellarSuit(dials, ctx, { crest: lang.crest ?? 'crescent' })
     : card.family === 'hardsuit' ? hardSuit(dials, ctx, lang)
       : plateSuit(dials, ctx, { variant: lang.pauldron ?? 'spaulder', focalSide: lang.focalSide ?? 'R', fnSide: lang.fnSide ?? 'L' });
@@ -85,6 +86,14 @@ export function armorFamily(build) {
   return card && typeof card === 'object' ? card.family ?? null : null;
 }
 
+/** The words a build's suit is composed in: its card's language (at the build's armour laws), the theme's lean, the
+ * build's own; null for anything not an armour build. */
+export function armorLanguage(build) {
+  if (!isArmorBuild(build)) return null;
+  const card = cardOf(build.style ?? 'knight', build.laws ?? ARMOR_LAWS_VERSION), T = build.theme === undefined ? null : themeOf(build.theme);
+  return card && typeof card === 'object' ? { ...(card.language || {}), ...(T?.language?.[card.family] || {}), ...(build.language || {}) } : null;
+}
+
 /** The materials a build's card names for its pieces (styles.js `materials`), or null. */
 export function armorMaterials(build) {
   const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null;
@@ -93,7 +102,7 @@ export function armorMaterials(build) {
 
 /** The palette a build suggests beneath the operator's own (its piece groups and the layer beneath). */
 export function armorTones(build) {
-  const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null, T = card && build.theme !== undefined ? themeOf(build.theme) : null;
+  const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight', build.laws ?? ARMOR_LAWS_VERSION) : null, T = card && build.theme !== undefined ? themeOf(build.theme) : null;
   return card && typeof card === 'object' ? { ...(card.tones || {}), ...(T?.tones || {}) } : {};
 }
 

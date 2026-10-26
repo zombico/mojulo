@@ -18,6 +18,10 @@
 //             beneath (Top, Bottom, Shoes) — law 10: one clear value step between them. Suggested beneath the
 //             operator's own palette.
 //   emissive  groups that render full-bright (lenses, a visor slit, a reactor) — law 5: the glow spends on the focal
+//   byLaws    (optional) { "<armour laws>": { dials?, language?, tones?, emissive? } }: the card as recomposed from that
+//             law on (each entry over the card, in order), so a row minted under an earlier law keeps the card it was minted
+//             with (principles.js ARMOR_LAWS_VERSION); a hard-suit's `language.helmet` is its `shell` helm's words (the
+//             `cowl` signature, station-loft-adorn.js: window, blank, facets, eyes, decals, panels, fittings)
 //   materials (optional) group → a material (a shelf name, a metal surface { metal, finish? }, or false: paint): what
 //             this card's pieces are made of where it differs from its family's (materials/dress-materials.js), worn
 //             only where a level names `materials` (a geocube's), under that level's own overrides and age
@@ -27,8 +31,8 @@ import { validateMaterialRef } from '../polygonizer/materials.js';
 export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
-const HARD = { helm: ['power', 'trooper', 'faceplate', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'none'], focal: ['helm', 'pauldron', 'reactor'],
-  cut: ['yoke', 'fitted'], arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] };
+const HARD = { helm: ['power', 'trooper', 'faceplate', 'shell', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'tanks', 'none'], focal: ['helm', 'pauldron', 'reactor'],
+  build: ['plates', 'cylinders'], cut: ['fitted', 'yoke'], arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] };
 
 export const SEEDED_ARMOR = Object.freeze({
   knight: {
@@ -69,7 +73,15 @@ export const SEEDED_ARMOR = Object.freeze({
     "language": { "helm": "power", "pauldron": "dome", "chest": "plain", "pack": "power", "segments": 1, "focal": "pauldron", "focalSide": "L" },
     "tones": { "Plate": "#8c7a5b", "Helm": "#8c7a5b", "Trim": "#3d3a36", "Emblem": "#2f2c28", "Lens": "#ffb238", "Suit": "#1b1c1f", "Top": "#1b1c1f", "Bottom": "#1b1c1f", "Shoes": "#161616" },
     "emissive": ["Lens"],
-    "materials": { "Trim": { "metal": "steel", "finish": "blasted" } }
+    "materials": { "Trim": { "metal": "steel", "finish": "blasted" } },
+    // laws 2: recomposed as the HEAVY suit: the limbs in cylinders (one to a limb's part, cuffed), a back unit of tanks with
+    // two exhaust stacks, a high gorget, plates over the hips, its ornament spent on the focal pauldron alone, and a
+    // SHELL helm, a dome over the whole head with two round amber lenses and a breathing canister at the mouth
+    "byLaws": { "2": {
+      "dials": { "ornament": 1 },
+      "language": { "build": "cylinders", "segments": 1, "pack": "tanks", "helm": "shell", "collar": "high", "skirt": "tassets",
+        "helmet": { "pad": 0.03, "blank": { "out": 0.01 }, "eyes": { "treat": "paint", "shape": "round", "size": [0.4, 0.36], "tilt": 0, "group": "Lens" },
+          "rim": { "w": 0.07, "h": 0.002, "group": "Trim" }, "fittings": [{ "kind": "filter", "at": [0, "mouth"], "r": 0.02, "h": 0.016, "group": "Trim", "capGroup": "Helm" }] } } } }
   },
   // minimal trooper plates over a dark bodysuit, a smooth helmet with a T-visor (the helm is the focal)
   "fantasy-space": {
@@ -78,7 +90,16 @@ export const SEEDED_ARMOR = Object.freeze({
     "dials": { "stylize": 0.3, "mass": 0.9, "coverage": 0.6, "ornament": 0 },
     "language": { "helm": "trooper", "pauldron": "cap", "chest": "plain", "pack": "none", "segments": 1, "focal": "helm" },
     "tones": { "Plate": "#e8eaed", "Helm": "#eceef0", "Visor": "#15161a", "Trim": "#7d848c", "Suit": "#16171a", "Top": "#16171a", "Bottom": "#16171a", "Shoes": "#121214" },
-    "emissive": []
+    "emissive": [],
+    // laws 2: the trooper's few plates where they protect (the chest's plates, small caps, the shins), no collar, and
+    // a SHELL helm: a white dome, dark angled eye lenses, a trapezoid grille at the mouth, a line down each cheek
+    "byLaws": { "2": {
+      "dials": { "coverage": 0.7 },
+      "language": { "helm": "shell", "chest": "plates", "legs": "greaves", "collar": "none",
+        "helmet": { "pad": 0.018, "blank": true, "eyes": { "treat": "paint", "shape": "angular", "size": [0.66, 0.36], "tilt": 0.3, "group": "Visor" },
+          "decals": [{ "shape": "poly", "at": [0, "mouth+0.1"], "points": [[-0.5, 0.2], [0.5, 0.2], [0.3, -0.35], [-0.3, -0.35]], "group": "Visor", "mirror": false }],
+          "panels": [[[0.55, -0.4], [0.8, "mouth+0.3"], [0.6, "chin+0.4"]], [[-0.55, -0.4], [-0.8, "mouth+0.3"], [-0.6, "chin+0.4"]]], "seamGroup": "Trim",
+          "rim": { "w": 0.06, "h": 0.0015, "group": "Trim" } } } } }
   },
   // a modular powered suit: full segmented coverage, a faceplate helm with glowing eye slits, a glowing chest reactor.
   // Industrial colours (slate plate, steel faceplate, safety-orange trim), so the sample reads as the genre, not as any
@@ -95,6 +116,14 @@ export const SEEDED_ARMOR = Object.freeze({
 });
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+
+/** A card as it reads under armour laws `laws`: its `byLaws` entries up to that law laid over it, in order. */
+export function cardAtLaws(card, laws) {
+  if (!card || typeof card !== 'object' || !card.byLaws) return card;
+  const { byLaws, ...base } = card;
+  return Object.keys(byLaws).map(Number).filter((v) => v <= laws).sort((a, b) => a - b).reduce((C, v) => { const E = byLaws[v];
+    return { ...C, dials: { ...(C.dials || {}), ...(E.dials || {}) }, language: { ...(C.language || {}), ...(E.language || {}) }, tones: { ...(C.tones || {}), ...(E.tones || {}) }, ...(E.emissive ? { emissive: E.emissive } : {}) }; }, base);
+}
 
 /** Error strings for an inline card (form only). */
 export function validateArmorCard(card, at = 'style') {
@@ -118,6 +147,11 @@ export function validateArmorCard(card, at = 'style') {
   }
   for (const [g, v] of Object.entries(card.tones || {})) if (!isHex(v)) errs.push(`${at}.tones.${g}: a "#rrggbb" colour`);
   if (card.emissive !== undefined && !(Array.isArray(card.emissive) && card.emissive.every((g) => typeof g === 'string'))) errs.push(`${at}.emissive: a list of group names`);
+  if (L.helmet !== undefined && !(L.helmet && typeof L.helmet === 'object' && !Array.isArray(L.helmet))) errs.push(`${at}.language.helmet: the shell helm's words { window?, blank?, facets?, eyes?, decals?, panels?, fittings?, … } (the cowl signature)`);
+  if (card.byLaws !== undefined) {
+    if (!card.byLaws || typeof card.byLaws !== 'object' || Array.isArray(card.byLaws) || !Object.keys(card.byLaws).every((v) => /^[1-9]\d*$/.test(v))) errs.push(`${at}.byLaws: { "<armour laws>": { dials?, language?, tones?, emissive? } }`);
+    else for (const v of Object.keys(card.byLaws)) errs.push(...validateArmorCard(cardAtLaws(card, +v), `${at}.byLaws.${v}`).filter((e) => !e.includes('.byLaws.')));
+  }
   if (card.materials !== undefined) {
     if (!card.materials || typeof card.materials !== 'object' || Array.isArray(card.materials)) errs.push(`${at}.materials: { <group>: <material> } (a shelf name, { metal, finish? }, or false)`);
     else for (const [g, m] of Object.entries(card.materials)) {
