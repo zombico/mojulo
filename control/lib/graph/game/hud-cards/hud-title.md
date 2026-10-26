@@ -5,7 +5,7 @@
 ## The row
 
 ```json
-{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "slot"?: "center", "ttl"?, "color"? }
+{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "material"?, "slot"?: "center", "ttl"?, "color"? }
 ```
 
 A title is set in a **theme**, a whole graphic-design style — the carve, the entrance, the case, the tracking,
@@ -50,6 +50,14 @@ camera for `ttl` seconds (the theme's), its entrance and exit inside that time.
   `glow` (the title's colour, added, larger), `none`.
 - `color` — hex or a semantic name (`harm`, `value`, `goal`, `accent`, `accent2`); default the theme's token.
   The letters are baked in it.
+- `material` — what the letters are made of, instead of the register's paint. A **metal** (`chrome`, `gold`,
+  `silver`, `copper`, `bronze`, `brass`, `steel`, `titanium`, `aluminium` …) is the chrome logo: each letter's face
+  reflects a studio sweep top to bottom of the line (a bright softbox, a dark horizon under the middle, the floor's
+  warm bounce, in the metal's measured colour), in three hard bands in the anime look; the metal is the colour, and
+  `color` tints only a `glow` edge. A **finish** (`stone`, `wood`, `plastic`, `satin`, `matte`, `glass`, `neon`, `cel`,
+  and words like `marble` or `ceramic`) shades the letters its way in `color`, or in its own colour when the row names
+  none. No theme names one: a title without it is painted as before. `{ "on": "ko", "text": "K.O.", "as": "title",
+  "material": "chrome" }`.
 - `slot` — `center` (default); `top` / `bottom` raise or lower the word. Corners read as their edge.
 
 ## The cascade: a play direction dresses its titles

@@ -57,6 +57,7 @@ describe('world-scene — the title gate', () => {
   it('a bad look or style on a title row fails the gate with the closed words', async () => {
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', look: 'explode' }] }))).rejects.toThrow(/look must be one of: slam, rise, stamp, fade, slide/);
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', style: 'comic' }] }))).rejects.toThrow(/style must be one of: heavy, blocky, slick, thin, italic/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', material: 'plasma' }] }))).rejects.toThrow(/material must name a metal \(chrome, gold/);
   });
 
   it('a world without a title row carries no title bytes (the events-hud fixture)', () => {
@@ -109,12 +110,17 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
   const THREE = {
     Group: Obj, Mesh: class extends Obj { constructor(g, m) { super(); this.geometry = g; this.material = m; } }, Sprite: class extends Obj { constructor(m) { super(); this.material = m; } },
     BufferGeometry: Geo, BufferAttribute: class { constructor(a, n) { this.array = a; this.itemSize = n; } }, RingGeometry: class extends Geo {},
-    MeshBasicMaterial: Mat, SpriteMaterial: Mat, Color: class { constructor(c) { this.c = c; } }, BackSide: 1, DoubleSide: 2, AdditiveBlending: 3,
+    MeshBasicMaterial: class extends Mat { constructor(o) { super(o); this.userData = {}; } }, SpriteMaterial: Mat, Color: class { constructor(c) { this.c = c; } }, BackSide: 1, DoubleSide: 2, AdditiveBlending: 3,
+    CanvasTexture: class { constructor(c) { this.image = c; } }, SRGBColorSpace: 'srgb', LinearFilter: 6, ClampToEdgeWrapping: 7,
   };
   const dom = () => {
     const mk = (tag) => {
       const el = { tag, children: [], style: {}, cls: new Set(), textContent: '', get className() { return [...this.cls].join(' '); }, set className(v) { this.cls = new Set(v.split(' ').filter(Boolean)); }, appendChild(c) { el.children.push(c); return c; }, remove() {} };
       el.classList = { add: (c) => el.cls.add(c), remove: (c) => el.cls.delete(c), contains: (c) => el.cls.has(c) };
+      if (tag === 'canvas') {   // a metal's sweep is drawn once into a two-column texture: record what was drawn
+        el.drawn = [];
+        el.getContext = () => ({ createLinearGradient: () => ({ stops: [], addColorStop(o, c) { this.stops.push([o, c]); } }), fillRect(...r) { el.drawn.push([this.fillStyle, r]); }, fillStyle: null });
+      }
       return el;
     };
     return { document: { head: mk('head'), createElement: mk }, wrap: mk('wrap') };
@@ -150,6 +156,49 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     expect(run(h, 'round-start')).toBeNull();   // ttl 1.8 s: gone, its materials disposed
     expect(r.letters[0].m.material.disposed).toBe(true);
     expect(h.rig().children).toEqual([]);
+  });
+
+  it('a material dresses the letters: a metal reflects its sweep from a map by height, a finish shades by its shelf row, glass stays glass through the fade', async () => {
+    const rows = [
+      { on: 'ko', text: 'KO', as: 'title', material: 'chrome', edge: 'glow' },
+      { on: 'win', text: 'WIN', as: 'title', material: 'marble' },
+      { on: 'ice', text: 'ICE', as: 'title', material: 'glass', look: 'fade', color: '#88ccff' },
+      { on: 'go', text: 'GO', as: 'title', look: 'fade' },
+    ];
+    const out = await titled({}, rows);
+    const html = emitThreeWorld(out);
+    const widgets = JSON.parse(html.match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]).filter((w) => w.kind === 'title');
+    expect(widgets.map((w) => [w.material, w.mat ? (w.mat.metal || 'shade') : null])).toEqual([['chrome', 'chrome'], ['stone', 'shade'], ['glass', 'shade'], [undefined, null]]);
+    expect(widgets[1].hex).toBe('#8d8f93');   // a finish without a colour of its own wears its shelf row's
+    expect(widgets[2].hex).toBe('#88ccff');   // the row's own colour wins
+    expect(new Set(widgets[0].mat.stops.map(([, h]) => h)).size).toBe(3);   // no floor ⇒ the anime register: cel metal, three bands
+    for (const src of pageScripts(html)) if (src.trim()) expect(() => new Function(src.replace(/^\s*import[^\n]*\n/gm, ''))).not.toThrow();
+    // a world whose titles name no material carries none of its code
+    expect(emitThreeWorld(await titled())).not.toContain('__ttMatGeometry');
+    expect(html).toContain('__ttMatGeometry');
+
+    const h = await mount({}, rows);
+    h.sync(0, []); h.bus.log.push({ type: 'ko' }, { type: 'win' }, { type: 'ice' }, { type: 'go' }); h.sync(0, []);
+    const ko = run(h, 'ko').letters[0].m, win = run(h, 'win').letters[0].m, ice = run(h, 'ice').letters[0].m, go = run(h, 'go').letters[0].m;
+    // the metal: a map whose first column is the sweep and second white; every vertex has a uv, v its height in the line
+    expect(ko.material.map.image.drawn.map(([, r]) => r)).toEqual([[0, 0, 1, 128], [1, 0, 1, 128]]);
+    expect(ko.material.map.colorSpace).toBe('srgb');
+    const uv = ko.geometry.uv.array, pos = ko.geometry.position.array;
+    expect(uv.length / 2).toBe(pos.length / 3);
+    const us = new Set(); for (let i = 0; i < uv.length; i += 2) { us.add(uv[i]); expect(uv[i + 1]).toBe(pos[(i / 2) * 3 + 1]); }
+    expect([...us].sort()).toEqual([0.25, 0.75]);   // the face and the bevel take the sweep; the walls take the white column
+    expect(run(h, 'ko').letters[0].glow).toBeTruthy();   // the edge still stands behind the metal
+    // the finish and the plain title: no map, colours per vertex
+    expect(win.material.map).toBeUndefined(); expect(win.geometry.uv).toBeUndefined();
+    expect(go.material.map).toBeUndefined(); expect(go.geometry.uv).toBeUndefined();
+    // the same letter in the same material twice is one geometry; a different material is another
+    expect(h.layout('heavy', 'KO').letters).toHaveLength(2);
+    // glass keeps its opacity through the entrance: half of what the same fade gives a plain letter, mid-fade and settled
+    h.sync(150, []);
+    expect(go.material.opacity).toBeGreaterThan(0.05); expect(go.material.opacity).toBeLessThan(0.95);
+    expect(ice.material.opacity).toBeCloseTo(0.5 * go.material.opacity, 5);
+    h.sync(1200, []);
+    expect(ice.material.opacity).toBeCloseTo(0.5 * go.material.opacity, 5);
   });
 
   it('slam: oversized at first, then its size, a flash and sparks on landing, growing out at the end; the same frame twice', async () => {

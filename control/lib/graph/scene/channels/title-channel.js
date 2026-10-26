@@ -15,7 +15,11 @@ import { SEMANTIC_COLORS, styleTokens } from '../../game/hud-widgets.js';
  *               controller drives is not touched); a character the atlas lacks is a space
  *   the look    baked into vertex colour from each face's winding under a light at the viewer's upper left, so the
  *               material is unlit and the scene's lights do not matter: anime (the composed floor's register, or the
- *               default) three flat cel bands; western lambert and a specular glint. Behind each letter the theme's
+ *               default) three flat cel bands; western lambert and a specular glint. A row's MATERIAL (title-material.js)
+ *               replaces the look: a metal's face reflects the studio sweep top to bottom of the line (its gradient a
+ *               texture, the stops the broadcast's metal; three hard bands in the anime register), its walls the metal's
+ *               middle, lit; a finish shades by its shelf row (cel bands, a glint, emission, glass's opacity). A material's
+ *               colours are decoded from sRGB as the world's baked colours are. Behind each letter the theme's
  *               EDGE: an ink hull, a dark drop copy, both, a glow (the title's colour, added, larger), or nothing
  *   the juice   on the frame clock from the firing's time (a capture draws the same frame), the theme's dials over it
  *               (TITLE_THEMES: how hard the landing flashes, whether it throws sparks or a halo ring):
@@ -44,7 +48,7 @@ export function titleHex(color, style) {
   return '#' + d.slice(0, 6).toLowerCase();
 }
 
-export function titleScript(titles, { register = 'anime' } = {}) {
+export function titleScript(titles, { register = 'anime', material = false } = {}) {
   const cel = register !== 'western';
   return `
 // TITLES: the carved banners (game/title-carve.js) — a title's words as 3D letters put on the screen when its event
@@ -65,8 +69,9 @@ const __ttL = (() => { const l = [-0.4, 0.8, 0.6], n = Math.hypot(l[0], l[1], l[
 const __ttH = (() => { const h = [__ttL[0], __ttL[1], __ttL[2] + 1], n = Math.hypot(h[0], h[1], h[2]); return [h[0] / n, h[1] / n, h[2] / n]; })();
 // a glyph in a colour: the atlas's indexed triangles unshared, each face's normal from its winding, the look baked into
 // vertex colour (cel: three flat bands; metal: lambert and a specular glint) — the material is unlit
-function __ttGeometry(style, ch, hex) {
-  const key = style + '/' + ch + '/' + hex; if (__ttGeo[key]) return __ttGeo[key];
+function __ttGeometry(style, ch, hex${material ? ', mat' : ''}) {
+${material ? `  if (mat) return __ttMatGeometry(style, ch, hex, mat);
+` : ''}  const key = style + '/' + ch + '/' + hex; if (__ttGeo[key]) return __ttGeo[key];
   const g = __TT.styles[style].glyphs[ch], P = g.p, I = g.i, n = I.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), rgb = __ttHexRgb(hex);
   for (let k = 0; k < n; k += 3) {
     for (let j = 0; j < 3; j++) { const v = I[k + j] * 3, o = (k + j) * 3; pos[o] = P[v] / 1000; pos[o + 1] = P[v + 1] / 1000; pos[o + 2] = P[v + 2] / 1000; }
@@ -82,7 +87,55 @@ function __ttGeometry(style, ch, hex) {
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return (__ttGeo[key] = geo);
 }
-// the run: letters by advance at the theme's tracking, centred on x = 0; a character the atlas lacks is a space
+${material ? `// a glyph in a material (title-material.js): a metal's faces toward the viewer take the sweep from its texture by their
+// height in the line (u in the texture's first column; the second is white, for the walls, which bake the metal's middle
+// lit); a finish shades each face by its shelf row. Colours decoded from sRGB, as the world's are
+const __ttLin = (v) => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+const __ttMaps = {};
+function __ttMetalMap(stops) {
+  const key = JSON.stringify(stops); if (__ttMaps[key]) return __ttMaps[key];
+  const c = document.createElement('canvas'); c.width = 2; c.height = 128; const x = c.getContext('2d');
+  const gr = x.createLinearGradient(0, 0, 0, 128); for (const [o, h] of stops) gr.addColorStop(o, h);
+  x.fillStyle = gr; x.fillRect(0, 0, 1, 128); x.fillStyle = '#fff'; x.fillRect(1, 0, 1, 128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false;
+  t.minFilter = t.magFilter = THREE.LinearFilter; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return (__ttMaps[key] = t);
+}
+function __ttMatGeometry(style, ch, hex, mat) {
+  const key = style + '/' + ch + '/' + hex + '/' + (mat.metal || JSON.stringify(mat.shade)); if (__ttGeo[key]) return __ttGeo[key];
+  const g = __TT.styles[style].glyphs[ch], P = g.p, I = g.i, n = I.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const uv = mat.metal ? new Float32Array(n * 2) : null, sh = mat.shade || {}, rgb = __ttHexRgb(mat.metal ? mat.hex : hex);
+  for (let k = 0; k < n; k += 3) {
+    for (let j = 0; j < 3; j++) { const v = I[k + j] * 3, o = (k + j) * 3; pos[o] = P[v] / 1000; pos[o + 1] = P[v + 1] / 1000; pos[o + 2] = P[v + 2] / 1000; }
+    const a = k * 3, b = a + 3, c = a + 6;
+    const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2], vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    const lam = Math.max(0, nx * __ttL[0] + ny * __ttL[1] + nz * __ttL[2]), nh = Math.max(0, nx * __ttH[0] + ny * __ttH[1] + nz * __ttH[2]);
+    let r, gg, bb, u = 0.75;
+    if (mat.metal) {
+      if (nz > 0.2) {   // the face and the bevel reflect the sweep, a bevel's facet dimmed by its turn from the light
+        u = 0.25; const f = nz > 0.98 ? 1 : Math.min(1.15, 0.62 + 0.45 * lam + 0.6 * Math.pow(nh, 24)); r = gg = bb = f;
+      } else { const f = 0.3 + 0.7 * lam, sp = 0.5 * Math.pow(nh, 22); r = rgb[0] * f + sp; gg = rgb[1] * f + sp; bb = rgb[2] * f + sp; }
+    } else {
+      let lm = lam; if (sh.cel) lm = Math.round(lm * sh.cel) / sh.cel;
+      const f = (sh.ambient ?? 0.26) + (sh.diffuse ?? 0.7) * lm, sp = sh.specular ? sh.specular * Math.pow(nh, sh.shininess || 16) : 0, e = sh.emissive || 0;
+      r = (rgb[0] * f + sp) * (1 - e) + rgb[0] * e; gg = (rgb[1] * f + sp) * (1 - e) + rgb[1] * e; bb = (rgb[2] * f + sp) * (1 - e) + rgb[2] * e;
+    }
+    r = __ttLin(Math.min(1, r)); gg = __ttLin(Math.min(1, gg)); bb = __ttLin(Math.min(1, bb));
+    for (let j = 0; j < 3; j++) { const o = (k + j) * 3; col[o] = r; col[o + 1] = gg; col[o + 2] = bb; if (uv) { uv[(k + j) * 2] = u; uv[(k + j) * 2 + 1] = pos[o + 1]; } }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return (__ttGeo[key] = geo);
+}
+// the letter's own material: unlit, the metal's sweep its map, a finish's opacity (glass) its own
+function __ttLetterMat(mat) {
+  const o = { vertexColors: true, transparent: true };
+  if (mat && mat.metal) o.map = __ttMetalMap(mat.stops);
+  const m = new THREE.MeshBasicMaterial(o); if (mat && mat.shade && mat.shade.opacity) { m.opacity = mat.shade.opacity; m.userData.op = mat.shade.opacity; }
+  return m;
+}
+` : ''}// the run: letters by advance at the theme's tracking, centred on x = 0; a character the atlas lacks is a space
 function __ttLayout(style, text, tracking) {
   const S = __TT.styles[style], tr = Number.isFinite(tracking) ? tracking : __TT.tracking, letters = []; let x = 0;
   for (const ch of String(text)) { const g = S.glyphs[ch]; if (!g || !g.i.length) { x += __TT.space + tr; continue; } letters.push({ ch, x, a: g.a }); x += g.a + tr; }
@@ -96,8 +149,8 @@ function __ttBuild(tt, text, t) {
   for (const l of L.letters) {
     // the letter's group sits at its centre, so a hull scales and a letter spins about it
     const lg = new THREE.Group(); lg.position.set(l.x + l.a / 2 - L.width / 2, 0, 0);
-    const geo = __ttGeometry(w.style, l.ch, w.hex);
-    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true })); m.position.set(-l.a / 2, -0.5, depth / 2); m.frustumCulled = false; m.renderOrder = 992;
+    const geo = __ttGeometry(w.style, l.ch, w.hex${material ? ', w.mat' : ''});
+    const m = new THREE.Mesh(geo, ${material ? 'w.mat ? __ttLetterMat(w.mat) : ' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true })); m.position.set(-l.a / 2, -0.5, depth / 2); m.frustumCulled = false; m.renderOrder = 992;
     const letter = { lg, m, hull: null, shadow: null, glow: null, mats: [m.material] };
     if (edge === 'ink' || edge === 'both') {   // the ink hull: the same letter, back faces, dark, a little larger
       const h = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: dark, side: THREE.BackSide, transparent: true })); h.scale.setScalar(1.07); h.position.copy(m.position).multiplyScalar(1.07);
@@ -202,7 +255,7 @@ function __ttStep(t) {
         const ang = seed(20 + i) * 6.2832; L.lg.position.x += Math.cos(ang) * 1.6 * ex * ex; L.lg.position.y += Math.sin(ang) * 1.6 * ex * ex - 0.6 * ex * ex; L.lg.rotation.z = (seed(60 + i) - 0.5) * 3 * ex;
       }
       a *= 1 - ex;
-      L.m.material.opacity = a;
+      L.m.material.opacity = a${material ? ' * (L.m.material.userData.op || 1)' : ''};
       if (L.hull) L.hull.material.opacity = a;
       if (L.shadow) L.shadow.material.opacity = a * 0.85;
       if (L.glow) L.glow.material.opacity = a * 0.45;

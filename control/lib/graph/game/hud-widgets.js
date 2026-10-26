@@ -9,12 +9,13 @@
  *   banner   { on: '<busEventPattern>', text, slot?: 'center', ttl?: 2, color? }
  *   toast    { on, text, as: 'toast', slot?: 'center', ttl?: 0.8, color? }   — a banner that STACKS
  *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
- *   title    { on, text, as: 'title', theme?, slot?: 'center', ttl?, color?, look?, style?, caps?, edge? }
+ *   title    { on, text, as: 'title', theme?, slot?: 'center', ttl?, color?, look?, style?, caps?, edge?, material? }
  *            — a banner CARVED: its words as 3D letters put on the screen (title-carve.js, the glyph carver's
  *            letters) in a design THEME (TITLE_THEMES: arcade, pixel, cel, cartoon, cinematic, speed; the game's own
  *            by default, titleThemeFor), each dial of which a row may name itself: `look` the entrance (TITLE_LOOKS),
- *            `style` the carve (TITLE_STYLES), `caps`, `edge` (TITLE_EDGES), `color`, `ttl`. A text may name a word
- *            in the world's language: '@fight' (title-words.js)
+ *            `style` the carve (TITLE_STYLES), `caps`, `edge` (TITLE_EDGES), `color`, `ttl`, and `material` what the
+ *            letters are made of (title-material.js: a metal reflecting a studio sweep, or a shelf finish; no theme sets
+ *            one). A text may name a word in the world's language: '@fight' (title-words.js)
  *   legend   { text, slot?: 'bottom', ttl? }
  *
  * Any row may carry `id` (a part's: a cue shows, hides or restates it through the bus vars ui-<id> = 0 | 1 and
@@ -40,6 +41,7 @@
  */
 
 import { MOTION_TIMING } from '../playscape/ui/register.js';
+import { titleMaterialName, titleMaterial } from './title-material.js';
 
 export const HUD_SLOTS = ['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right'];
 export const HUD_KINDS = ['text', 'counter', 'bar', 'clock'];
@@ -144,6 +146,14 @@ export function titleDials(r, ctx = {}) {
   }
   out.ttl = Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : T.ttl;
   from.ttl = Number.isFinite(r.ttl) && r.ttl > 0 ? 'row' : 'theme';
+  // what the letters are made of: the row's word only (no theme or register sets one, so a title without it is unchanged);
+  // a finish the row gives no colour of its own wears the shelf row's (a metal is its own colour, title-material.js)
+  const material = titleMaterialName(r.material);
+  if (material) {
+    out.material = material; from.material = 'row';
+    const m = titleMaterial(material);
+    if (m.base && from.color !== 'row') { out.color = m.base; from.color = 'material'; }
+  }
   return ctx.explain ? { ...out, from, by } : out;
 }
 
@@ -312,7 +322,8 @@ export function normalizeHud(rows, ctx = {}) {
         if (r.style !== undefined && !TITLE_STYLES.includes(r.style)) errors.push(`${where}.style must be one of: ${TITLE_STYLES.join(', ')} (a title's carve)`);
         if (r.edge !== undefined && !TITLE_EDGES.includes(r.edge)) errors.push(`${where}.edge must be one of: ${TITLE_EDGES.join(', ')} (what stands behind a title's letters)`);
         if (r.caps !== undefined && typeof r.caps !== 'boolean') errors.push(`${where}.caps is true (the words in capitals) or false`);
-        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl }, { register: ctx.register });
+        if (r.material !== undefined && !titleMaterialName(r.material)) errors.push(`${where}.material must name a metal (chrome, gold, silver, copper, bronze, brass, steel, titanium …) or a finish (stone, wood, plastic, satin, glass, neon, cel …): what a title's letters are made of`);
+        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl, material: r.material }, { register: ctx.register });
         widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ...d, ...gate });
         return;
       }

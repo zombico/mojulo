@@ -29,6 +29,23 @@ spreads carved letters to where the page draws words.
   on a host that fell back, its letters change once, to the face the recipe always meant. The other shelf faces (IM
   Fell English, Great Vibes, Inter) stay unvendored until something carves in them. Machine gate: the cover suites
   pass on the vendored face; eyes gate not run.
+- **`material` on a title row: what the carved letters are made of** (`game/title-material.js`). A title's letters
+  took the register's paint (anime cel bands, western lambert and a glint) in the title's colour; the carver's legacy
+  material shelf (the `carved-solid` wordmark's `material`) never reached them. A row may now name one. A **metal**
+  (`chrome`, `gold`, `silver`, `copper`, `bronze`, `brass`, `steel`, `titanium`, `aluminium` … and the shelf's
+  `gunmetal`, which reads as steel) is the chrome logo: each letter's face and bevel reflect the studio sweep the
+  broadcast's metal reflects (`metalStops`: the softbox, the dark horizon under the middle, the floor's bounce, in the
+  metal's measured reflectance), drawn from a two-column texture by the vertex's height in the line, so every letter
+  shares one horizon; three hard bands in the anime register; the walls the metal's middle, lit. A **finish** (any other
+  shelf row or its alias: `stone`, `wood`, `plastic`, `glass`, `neon`, `marble` …) shades by its row (cel bands, a glint,
+  emission, glass's opacity, held through the entrance's fade) in the row's colour, or the row's own when it names none.
+  The material's colours are decoded from sRGB as the world's baked colours are. The idiom `title(…)` and a `play.parts`
+  banner pass it; card `hud-title`. No theme names a material, and a world whose titles name none emits the title block
+  byte for byte as before (the material code is spliced only when a title names one). Machine gate: the title layer's
+  suite drives a metal, a finish and glass through the emitted page against stubs; a bad word fails the gate with the
+  shelf's words. Eyes gate not run: the author's own renders (chrome, gold, copper, marble, glass, neon titles in
+  headless Chromium) showed the sweep reading as chrome and gold; glass reads murky, its walls and a glow edge showing
+  through.
 
 ### Superheroic pieces: belts, pouches and jackets as cards
 
