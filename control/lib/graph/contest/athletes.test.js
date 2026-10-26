@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { readAthletes, athleteBodies } from './athletes.js';
 import { graphSource } from './match-arena.js';
 import { contestSource } from './meet-arena.js';
-import { SIDE_KITS } from './team-arena.js';
+import { SIDE_KITS, teamArenaData } from './team-arena.js';
 import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, ATHLETE_PAGE_MODULES, MEET_PAGE_MODULES } from '../scene/channels/contest.js';
 import { COURT_PAGE_MODULES } from './match-arena.js';
 import { TURNS_PAGE_MODULES } from './turn-arena.js';
@@ -50,8 +50,9 @@ describe('the athletes on a sport\'s page', () => {
     }
   });
 
-  it('a team\'s rolled kit is the page\'s side colour', () => {
+  it('a team\'s rolled kit is the page\'s side colour (the broadcast\'s, when the recipe names none)', () => {
     const client = readFileSync(new URL('./team-arena.client.js', import.meta.url), 'utf8');
-    expect(client).toContain(`const SIDE_COLORS = { a: '${SIDE_KITS.a}', b: '${SIDE_KITS.b}' };`);
+    expect(client).toContain('const SIDE_COLORS = { a: BC.colors[0].base, b: BC.colors[1].base };');
+    expect(teamArenaData({ sport: 'soccer' }).broadcast.colors.map((c) => c.base)).toEqual([SIDE_KITS.a, SIDE_KITS.b]);
   });
 });

@@ -5,24 +5,27 @@
  *
  * The pads: up to four players on one keyboard (P1 F to run and G to hop, or Space; P2 J and K; P3 Z and X; P4 , and .)
  * and the gamepads by index (south runs, east hops, start begins again); the other lanes are the computer's. The
- * runners are stick figures posed from the sim's stride, or a lane's athlete in its own body on the same stride (a
- * character made with create_character: athlete.client.js, when the track carries bodies), the track its lanes, flights
- * and board, the camera a broadcast side view that follows the field, the
- * overlay the event's banners (ON YOUR MARKS, SET, GO, a false start), each lane's clock and the placings.
+ * runners are stick figures posed from the sim's stride in their lanes' broadcast colours, or a lane's athlete in its
+ * own body on the same stride (a character made with create_character: athlete.client.js, when the track carries
+ * bodies), the track its lanes, flights and board, the camera a broadcast side view that follows the field. The overlay
+ * is the broadcast package (broadcast/broadcast.client.js): the open with the field, the bug (each lane's time or best,
+ * the race clock), the starter's calls on their plates (ON YOUR MARKS, SET, GO, a false start), the winner's time as it
+ * crosses, the closeup on the winner or a jump's landing once no player's lane still runs, and the results board with
+ * its medals.
  *
  * As a level: hosted in a game's frame it posts READY, runs the meet INIT brings (players, register, seed over the
  * track's own), and posts the OUTCOME when the placings are in: success when a player's lane placed first (or no
  * player holds a lane: an exhibition), fail otherwise, the placings as stats. On its own it starts at once and runs
  * again on start.
  */
-/* global MEET_ARENA, THREE, scene, camera, controls, wrap, newMeet, stepMeet, meetContext, meetLanes, PAD, HURDLE, FPS, athleteRig, placeAthlete */
+/* global MEET_ARENA, THREE, scene, camera, controls, wrap, newMeet, stepMeet, meetContext, meetLanes, PAD, HURDLE, FPS, athleteRig, placeAthlete, newBroadcast, tvNames, tvAdvance, tvCall, tvPlate, tvOpen, tvBoard, tvCut, tvShot, tvDraw */
 
 const MA = MEET_ARENA, TK = MA.track;
 // the lanes' athletes in their own bodies, when the track carries them (athlete.client.js inlined before this)
 const ATH = typeof athleteRig === 'function' && MA.bodies ? athleteRig(MA) : null;
 const hosted = window.parent !== window;
-const COLORS = ['#e0503a', '#3a9be0', '#e0a23a', '#3ae08a', '#9a4ae0', '#e03a9a', '#c8c8c8', '#6ad0d0'];
-const FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif';
+const BC = MA.broadcast, TV = newBroadcast(BC);
+const COLORS = BC.colors.map((c) => c.base);   // the lanes' kits are the broadcast's: the bug's chip and the vest agree
 
 // ── the overlay and the camera ───────────────────────────────────────────────────────────────────────────────
 
@@ -172,15 +175,17 @@ function poseLane(B, r, laneY, S) {
 
 // ── the meet ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-let ctx = null, S = null, bodies = [], phase = 'wait', waited = 0, banner = null, lastParams = null, calls = 0;
-const BANNER_FRAMES = 90;
+let ctx = null, S = null, bodies = [], phase = 'wait', waited = 0, lastParams = null, calls = 0;
+const EVENT_TITLE = MA.title || (MA.event.kind === 'longJump' ? 'long jump' : `${MA.event.distance} m${MA.event.kind === 'hurdles' ? ' hurdles' : ''}`);
 function begin(params = {}) {
   lastParams = params;
   for (const B of bodies) scene.remove(B.group, B.shadow);
   ctx = meetContext({ ...MA, players: params.players ?? MA.players, register: params.register ?? MA.register, seed: params.seed ?? MA.seed });
   S = newMeet(ctx);
   bodies = S.r.map((_, i) => (ATH && ATH.has(i) ? ATH.make(i) : makeRunner(COLORS[i % COLORS.length])));
-  banner = { text: 'ON YOUR MARKS', left: BANNER_FRAMES * 1.2, color: '#fff' }; calls = 0;
+  calls = 0;
+  tvOpen(TV, { title: EVENT_TITLE, rows: S.r.map((_, i) => ({ name: laneName(i), color: i })) });
+  tvPlate(TV, { text: 'ON YOUR MARKS', tone: 'neutral', hold: 1.2 });
   phase = 'meet';
 }
 function post(msg) { if (hosted) window.parent.postMessage(msg, '*'); }
@@ -192,25 +197,34 @@ if (hosted) {
   });
   post({ moj: MA.wire.ready, contractVersion: MA.wire.version, levelRef: 'meet' });
 }
-const laneName = (i) => (i < ctx.players ? `P${i + 1}` : 'CPU');
+const laneName = (i) => tvNames(BC, MA.lanes, ctx ? ctx.players : MA.players)[i];
+const runnerIx = (id) => S.r.findIndex((r) => r.id === id);
+const NAMES = { who: (id) => { const i = runnerIx(id); return { name: `${laneName(i)} · LANE ${S.r[i].lane + 1}`, color: i }; } };
+// the director: the starter's calls and the field's on their plates; a closeup only once no player's lane still runs
+const playerRunning = () => S.r.some((r, i) => i < ctx.players && !r.done && !r.dq);
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
-    const c = S.calls[calls];
-    if (c.kind === 'set') banner = { text: 'SET', left: BANNER_FRAMES * 2, color: '#ffd23a' };
-    else if (c.kind === 'gun') banner = { text: 'GO!', left: BANNER_FRAMES * 0.7, color: '#3ae08a' };
-    else if (c.kind === 'false-start') banner = { text: `FALSE START · LANE ${S.r.find((r) => r.id === c.who).lane + 1}${c.warned ? ' (WARNING)' : ''}`, left: BANNER_FRAMES * 1.5, color: '#e0503a' };
-    else if (c.kind === 'over') banner = null;
+    const c = S.calls[calls], q = tvCall(TV, c, NAMES);
+    if (c.kind === 'over') {
+      const rows = S.placings.map((p) => { const i = runnerIx(p.who); return { place: p.place ?? null, name: laneName(i), color: i, note: `lane ${S.r[i].lane + 1}`, value: p.dq ? 'DQ' : MA.event.measure === 'time' ? fmt(p.value) : p.value === null ? 'NM' : `${p.value.toFixed(2)} m` }; });
+      tvBoard(TV, { title: `${EVENT_TITLE} · result`, rows, foot: hosted ? null : 'press start to run again' });
+    }
+    if (!q || !q.cut || playerRunning()) continue;
+    const i = runnerIx(c.who);
+    if (i < 0) continue;
+    const r = S.r[i];
+    tvCut(TV, { on: [TK.x0 + r.x, TK.lanesY[r.lane], 0], hold: 70, strap: { name: laneName(i), line: c.kind === 'finish' ? `first across · ${fmt(c.t)}` : c.kind === 'mark' ? (c.foul ? `attempt ${c.attempt} · foul` : `attempt ${c.attempt} · ${c.value.toFixed(2)} m`) : 'false start', tag: String(r.lane + 1), color: i } });
   }
 }
 function tick() {
   const pads = Array.from({ length: ctx ? ctx.players : MA.players }, (_, i) => padOf(i));
   const start = startEdge(pads);
+  tvAdvance(TV);
   if (phase === 'wait') { if (!hosted || ++waited > 90) begin({}); return; }
   if (phase === 'over') { if (start) begin(lastParams); return; }
   if (phase !== 'meet') return;
   stepMeet(S, pads, ctx);
   readCalls();
-  if (banner && --banner.left <= 0) banner = null;
   if (S.over) {
     const mine = S.placings.filter((p) => S.r.find((r) => r.id === p.who).lane < ctx.players);
     const won = ctx.players === 0 || mine.some((p) => p.place === 1);
@@ -231,32 +245,29 @@ function frameCamera() {
   cam.dist += (want - cam.dist) * 0.06;
   if (camera.fov !== 38) { camera.fov = 38; camera.updateProjectionMatrix(); }
   camera.position.set(cam.x, trackMidY - cam.dist, 2.2 + cam.dist * 0.12);
-  camera.lookAt(cam.x, trackMidY, 1);
+  const look = [cam.x, trackMidY, 1];
+  camera.lookAt(look[0], look[1], look[2]);
+  tvShot(TV, camera, look);
 }
 const fmt = (t) => (t === null || t === undefined ? '—' : t.toFixed(2));
-function text(str, x, y, size, color, align = 'center', weight = 800) { g2.font = `${weight} ${size}px ${FONT}`; g2.textAlign = align; g2.textBaseline = 'middle'; g2.fillStyle = color; g2.fillText(str, x, y); }
-function outlined(str, x, y, size, color) { g2.font = `900 ${size}px ${FONT}`; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.lineWidth = Math.max(3, size / 9); g2.strokeStyle = '#000'; g2.lineJoin = 'round'; g2.strokeText(str, x, y); g2.fillStyle = color; g2.fillText(str, x, y); }
+const KEYS_HINT = ['F run · G hop', 'J run · K hop', 'Z run · X hop', ', run · . hop'];
+function feedOf() {
+  const lanes = meetLanes(S), timed = MA.event.measure === 'time', running = S.K.phase === 'running' || S.K.phase === 'live' || lanes.some((L) => L.state === 'running');
+  return {
+    title: EVENT_TITLE,
+    rows: lanes.map((L, i) => ({ name: laneName(i), color: i, mark: L.state === 'dq' ? 'out' : null, cells: [timed ? (L.t !== null ? fmt(L.t) : L.state === 'dq' ? 'DQ' : '') : L.best !== null ? L.best.toFixed(2) : L.marks.length ? 'X' : ''] })),
+    ...(timed && (running || S.over) ? { clock: fmt(S.K.t), period: 'race' } : {}),
+    ...(timed ? {} : { tab: `best of ${MA.event.attempts} attempts` }),
+    hint: ctx.players > 0 && TV.f < 600 ? Array.from({ length: ctx.players }, (_, i) => `${laneName(i)} ${KEYS_HINT[i]}`).join('   ') : null,
+  };
+}
 function draw() {
   g2.setTransform(ODPR, 0, 0, ODPR, 0, 0);
   g2.clearRect(0, 0, OW, OH);
-  if (!S) { outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
+  if (!S) { tvDraw(TV, g2, OW, OH, null); return; }
   frameCamera();
   S.r.forEach((r, i) => poseLane(bodies[i], r, TK.lanesY[r.lane], S));
-  text(`${MA.title || MA.event.kind}`, 18, 26, 20, '#fff', 'left'); text(MA.event.words, 18, 50, 13, 'rgba(255,255,255,0.75)', 'left', 500);
-  const lanes = meetLanes(S), rowH = 22, x = OW - 18;
-  lanes.forEach((L, i) => {
-    const r = S.r[i], y = 30 + i * rowH, col = COLORS[i % COLORS.length];
-    const val = MA.event.measure === 'time' ? (L.t !== null ? fmt(L.t) : L.state === 'dq' ? 'DQ' : L.state === 'running' ? fmt(S.K.t) : '') : (L.best !== null ? `${L.best.toFixed(2)} m` : L.marks.length ? 'X' : '');
-    text(`${laneName(i)}  lane ${i + 1}`, x - 90, y, 14, col, 'right', 700); text(val, x, y, 14, '#fff', 'right', 600);
-    void r;
-  });
-  if (banner) outlined(banner.text, OW / 2, OH * 0.3, 46, banner.color);
-  if (S.over) {
-    g2.fillStyle = 'rgba(0,0,0,0.55)'; g2.fillRect(OW / 2 - 220, OH * 0.42 - 30, 440, 40 + S.placings.length * 28);
-    outlined('RESULT', OW / 2, OH * 0.42, 30, '#ffd23a');
-    S.placings.forEach((p, k) => { const i = S.r.findIndex((r) => r.id === p.who); text(`${p.place ?? '—'}  ${laneName(i)}  lane ${i + 1}  ${p.dq ? 'DQ' : MA.event.measure === 'time' ? fmt(p.value) : p.value === null ? 'no mark' : `${p.value.toFixed(2)} m`}`, OW / 2, OH * 0.42 + 36 + k * 28, 18, COLORS[i % COLORS.length], 'center', 700); });
-    if (phase === 'over') text('press start to run again', OW / 2, OH * 0.42 + 44 + S.placings.length * 28, 14, '#fff', 'center', 500);
-  }
+  tvDraw(TV, g2, OW, OH, feedOf());
 }
 
 // the page calls this from its frame step with its clock in seconds; the meet steps at 60 Hz

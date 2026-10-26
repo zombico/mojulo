@@ -7,20 +7,23 @@
  * Space or F charges and releases the shot, Enter begins again; gamepad 0 the same), the computer plays the rest. The
  * course is drawn from the kernel's regions (the tee, the fairway, the green, the bunkers, the water, the cup and its
  * flag; the approach, the lane, the gutters, the pins), the ball with its shadow, the aim as a line from the ball, the
- * meter and the card on the overlay, the camera behind the ball toward the target and following the shot. Nobody is
- * drawn unless the course carries its seats' athletes (characters made with create_character: athlete.client.js): then
- * the seat to play stands to the ball in its own body and swings with the meter.
+ * camera behind the ball toward the target and following the shot. Nobody is drawn unless the course carries its seats'
+ * athletes (characters made with create_character: athlete.client.js): then the seat to play stands to the ball in its
+ * own body and swings with the meter. The overlay is the broadcast package (broadcast/broadcast.client.js): the open
+ * with the seats, the bug as the card (a column a hole or a frame, the total on the accent metal, the seat to play
+ * marked), the tab (the hole, its par, the club and the distance; the frame and the pins standing), the meter in the
+ * seat's colour, the kernel's calls on their plates (TO PLAY, BIRDIE, STRIKE, IN THE WATER), the closeup on the cup
+ * with the golfer's lower third, the bowler's on a strike or a spare, and the results board.
  *
  * As a level: hosted in a game's frame it posts READY, plays the game INIT brings (seats, players, register, level,
  * seed over the course's own), and posts the OUTCOME at the end: success when a player's seat won (or no player holds
  * a seat: an exhibition), fail otherwise, the totals as stats. On its own it starts at once and runs again on start.
  */
-/* global TURNS_ARENA, THREE, scene, camera, controls, wrap, newTurns, stepTurns, turnContext, turnsDisplay, targetOf, clubOf, TPAD, TURN_FPS, athleteRig, placeAthlete, swingStick */
+/* global TURNS_ARENA, THREE, scene, camera, controls, wrap, newTurns, stepTurns, turnContext, turnsDisplay, targetOf, clubOf, TPAD, TURN_FPS, athleteRig, placeAthlete, swingStick, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvCut, tvStrap, tvShot, tvDraw */
 
 const TA = TURNS_ARENA, CO = TA.course, SP = TA.sport;
 const hosted = window.parent !== window;
-const SEAT_COLORS = ['#e0503a', '#3a9be0', '#e0a23a', '#3ae08a', '#9a4ae0', '#e03a9a', '#c8c8c8', '#6ad0d0'];
-const FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif';
+const BC = TA.broadcast, TV = newBroadcast(BC);
 const OY = CO.originY;   // the course frame's origin on the stage
 
 // ── the overlay and the camera ───────────────────────────────────────────────────────────────────────────────
@@ -134,15 +137,17 @@ function placeSeat() {
 
 // ── the game ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-let ctx = null, S = null, phase = 'wait', waited = 0, banner = null, lastParams = null, calls = 0;
-const BANNER_FRAMES = 90;
-const seatName = (id) => { const i = Number(id.slice(1)) - 1; return i < ctx.players ? `P${i + 1}` : ctx.seats - ctx.players > 1 ? `CPU ${i + 1 - ctx.players}` : 'CPU'; };
+let ctx = null, S = null, phase = 'wait', waited = 0, lastParams = null, calls = 0;
+const SPORT = TA.title || (TA.sport.id || 'the game').replace(/-/g, ' ');
+const seatIx = (id) => Number(id.slice(1)) - 1;
+const seatName = (id) => tvNames(BC, ctx ? ctx.seats : TA.seats, ctx ? ctx.players : TA.players)[seatIx(id)];
 function begin(params = {}) {
   lastParams = params;
   ctx = turnContext({ ...TA, players: params.players ?? TA.players, register: params.register ?? TA.register, level: params.level ?? TA.level, seed: params.seed ?? TA.seed });
   S = newTurns(ctx);
   stance = null;
-  banner = { text: `${seatName(S.K.turn)} TO PLAY`, left: BANNER_FRAMES, color: '#fff' }; calls = 0;
+  calls = 0;
+  tvOpen(TV, { title: SPORT, rows: Object.keys(S.K.cards).map((id) => ({ name: seatName(id), color: seatIx(id) })) });
   dressHole(S.hole);
   phase = 'game';
 }
@@ -155,27 +160,39 @@ if (hosted) {
   });
   post({ moj: TA.wire.ready, contractVersion: TA.wire.version, levelRef: 'turns' });
 }
-const TO_PAR = { '-3': 'ALBATROSS', '-2': 'EAGLE', '-1': 'BIRDIE', 0: 'PAR', 1: 'BOGEY', 2: 'DOUBLE BOGEY' };
+const strokes = () => ctx.kind === 'strokes';
+const NAMES = {
+  who: (id) => ({ name: seatName(id), color: seatIx(id) }),
+  round: (c) => (strokes() ? `hole ${c.round}` : `frame ${c.round}`),
+  gutter: () => !!S.ball.gutter,
+};
+// the director: each call on its plate; a holed ball and the camera closes on the cup; a strike or a spare names the bowler
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
-    const c = S.calls[calls];
-    if (c.kind === 'holed') banner = { text: c.why === 'picked-up' ? 'PICKED UP' : c.toPar === null ? `HOLED IN ${c.strokes}` : TO_PAR[c.toPar] ?? `+${c.toPar}`, left: BANNER_FRAMES * 1.3, color: c.toPar !== null && c.toPar < 0 ? '#3ae08a' : '#ffd23a' };
-    else if (c.kind === 'penalty') banner = { text: `${c.region === 'water' ? 'IN THE WATER' : c.region === 'out' ? 'OUT OF BOUNDS' : c.region.toUpperCase()} · +${c.strokes}`, left: BANNER_FRAMES * 1.3, color: '#e0503a' };
-    else if (c.kind === 'roll') banner = c.mark === 'strike' ? { text: 'STRIKE!', left: BANNER_FRAMES * 1.3, color: '#3ae08a' } : c.mark === 'spare' ? { text: 'SPARE', left: BANNER_FRAMES * 1.2, color: '#ffd23a' } : c.down === 0 ? { text: S.ball.gutter ? 'GUTTER' : 'MISS', left: BANNER_FRAMES, color: '#e0503a' } : { text: `${c.down} DOWN`, left: BANNER_FRAMES * 0.8, color: '#fff' };
-    else if (c.kind === 'turn') banner = { text: `${seatName(c.who)} TO PLAY${ctx.kind === 'strokes' ? ` · HOLE ${c.round}` : ` · FRAME ${c.round}`}`, left: BANNER_FRAMES, color: '#fff' };
-    else if (c.kind === 'over') banner = null;
+    const c = S.calls[calls], q = tvCall(TV, c, NAMES);
+    if (c.kind === 'over') {
+      const ids = Object.keys(S.K.totals).sort((a, b) => (strokes() ? S.K.totals[a] - S.K.totals[b] : S.K.totals[b] - S.K.totals[a]));
+      const seats = turnsDisplay(S, ctx).seats, toPar = (id) => { const t = seats.find((x) => x.id === id).toPar; return t === null || t === undefined ? '' : t === 0 ? 'E' : t > 0 ? `+${t}` : String(t); };
+      let place = 0, prev = null;
+      const rows = ids.map((id, k) => { if (S.K.totals[id] !== prev) { place = k + 1; prev = S.K.totals[id]; } return { place, name: seatName(id), color: seatIx(id), value: String(S.K.totals[id]), note: strokes() ? toPar(id) : '' }; });
+      tvBoard(TV, { title: `${SPORT} · final`, rows, foot: hosted ? null : 'press start to play again' });
+    }
+    if (q && q.strap && (c.mark === 'strike' || c.mark === 'spare')) tvStrap(TV, { name: seatName(c.who), line: `frame ${c.round} · ${c.mark}`, tag: String(seatIx(c.who) + 1), color: seatIx(c.who), hold: 0.9 });
+    if (!q || q.cut !== 'ball') continue;
+    const b = S.sim.bodies[0];
+    tvCut(TV, { on: [b.position[0], b.position[1] + OY, 0], hold: 60, lift: 0.25, rise: 0.5, dist: 2.6, fov: 36, strap: { name: seatName(c.who), line: `hole ${c.round} · ${c.strokes} ${c.strokes === 1 ? 'stroke' : 'strokes'}${c.par ? ` · par ${c.par}` : ''}`, tag: String(seatIx(c.who) + 1), color: seatIx(c.who) } });
   }
 }
 function tick() {
   const pad = padNow();
   const start = startEdge(pad);
+  tvAdvance(TV);
   if (phase === 'wait') { if (!hosted || ++waited > 90) begin({}); return; }
   if (phase === 'over') { if (start) begin(lastParams); return; }
   if (phase !== 'game') return;
   stepTurns(S, pad, ctx);
   readCalls();
   if (S.hole !== courseHole) dressHole(S.hole);
-  if (banner && --banner.left <= 0) banner = null;
   if (S.over) {
     const mine = Object.keys(S.K.cards).filter((id) => Number(id.slice(1)) - 1 < ctx.players);
     const won = ctx.players === 0 || (S.winner !== null ? mine.includes(S.winner) : (S.K.tied || []).some((id) => mine.includes(id)));
@@ -216,44 +233,29 @@ function frameCamera() {
   if (camera.fov !== 46) { camera.fov = 46; camera.updateProjectionMatrix(); }
   camera.position.set(cam.x, cam.y, cam.z);
   camera.lookAt(cam.lx, cam.ly, cam.lz);
+  tvShot(TV, camera, [cam.lx, cam.ly, cam.lz]);
 }
-function text(str, x, y, size, color, align = 'center', weight = 800) { g2.font = `${weight} ${size}px ${FONT}`; g2.textAlign = align; g2.textBaseline = 'middle'; g2.fillStyle = color; g2.fillText(str, x, y); }
-function outlined(str, x, y, size, color) { g2.font = `900 ${size}px ${FONT}`; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.lineWidth = Math.max(3, size / 9); g2.strokeStyle = '#000'; g2.lineJoin = 'round'; g2.strokeText(str, x, y); g2.fillStyle = color; g2.fillText(str, x, y); }
-function drawCard(d) {
-  const x = OW - 18, rowH = 22;
-  d.seats.forEach((seat, i) => {
-    const y = 30 + i * rowH, col = SEAT_COLORS[i % SEAT_COLORS.length], live = d.turn === seat.id;
-    if (ctx.kind === 'strokes') {
-      const holes = seat.rounds.map((r) => (r.toPar === null ? String(r.strokes) : r.toPar === 0 ? 'E' : r.toPar > 0 ? `+${r.toPar}` : String(r.toPar))).join('  ');
-      text(`${live ? '▸ ' : ''}${seatName(seat.id)}`, x - 200, y, 14, col, 'right', 700); text(holes, x - 70, y, 13, '#fff', 'right', 600); text(seat.toPar === null ? String(seat.total) : seat.toPar === 0 ? 'E' : seat.toPar > 0 ? `+${seat.toPar}` : String(seat.toPar), x, y, 14, '#fff', 'right', 800);
-    } else {
-      const marks = seat.frames.map((f) => f.mark.join('')).join(' ');
-      text(`${live ? '▸ ' : ''}${seatName(seat.id)}`, x - 260, y, 14, col, 'right', 700); text(marks, x - 60, y, 13, '#fff', 'right', 600); text(String(seat.total), x, y, 14, '#fff', 'right', 800);
-    }
+const parWord = (t) => (t === null || t === undefined ? '' : t === 0 ? 'E' : t > 0 ? `+${t}` : String(t));
+function feedOf(d) {
+  const n = d.rounds, low = strokes();
+  const rows = d.seats.map((seat) => {
+    const cells = low ? Array.from({ length: n }, (_, k) => (seat.rounds[k] ? String(seat.rounds[k].strokes) : '')) : Array.from({ length: n }, (_, k) => (seat.frames[k] ? seat.frames[k].mark.join('') : ''));
+    return { name: seatName(seat.id), color: seatIx(seat.id), cells: [...cells, low ? (seat.toPar !== null ? parWord(seat.toPar) : String(seat.total)) : String(seat.total)], mark: d.turn === seat.id && !S.over ? 'turn' : null };
   });
+  const aiming = S.K.phase === 'turn' && !S.shot && !S.over, live = d.turn ? seatIx(d.turn) : 0;
+  const t = aiming ? targetOf(ctx, S) : null, par = low && TA.C.rounds[S.hole] ? TA.C.rounds[S.hole].par : null;
+  return {
+    title: SPORT, cols: [...Array.from({ length: n }, (_, k) => String(k + 1)), low ? 'TOT' : 'TOT'], hot: n, rows,
+    tab: low ? `hole ${d.round}${par ? ` · par ${par}` : ''}${d.club && t ? ` · ${d.club} · ${Math.round(Math.hypot(t[0] - d.ball[0], t[1] - d.ball[1]))} m` : ''}` : `frame ${d.round} · ${d.standing} standing`,
+    ...(aiming ? { meter: { share: d.charging ? d.meter : 0, label: d.charging ? 'release!' : live < ctx.players ? 'hold to charge · ◂ ▸ aim' : `${seatName(d.turn)} lines it up`, color: live } } : {}),
+  };
 }
 function draw() {
   g2.setTransform(ODPR, 0, 0, ODPR, 0, 0);
   g2.clearRect(0, 0, OW, OH);
-  if (!S) { outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
+  if (!S) { tvDraw(TV, g2, OW, OH, null); return; }
   placeBodies(); placeSeat(); frameCamera();
-  const d = turnsDisplay(S, ctx);
-  text(`${TA.title || TA.sport.id}`, 18, 26, 20, '#fff', 'left'); text(SP.words, 18, 50, 13, 'rgba(255,255,255,0.75)', 'left', 500);
-  drawCard(d);
-  if (d.club) text(ctx.kind === 'strokes' ? `${d.club.toUpperCase()} · ${Math.round(Math.hypot(targetOf(ctx, S)[0] - d.ball[0], targetOf(ctx, S)[1] - d.ball[1]))} m to the cup` : `FRAME ${d.round} · ${d.standing} standing`, OW / 2, OH - 64, 15, '#fff', 'center', 600);
-  // the meter
-  const mw = Math.min(360, OW * 0.4), mx = OW / 2 - mw / 2, my = OH - 40;
-  g2.fillStyle = 'rgba(0,0,0,0.5)'; g2.fillRect(mx, my, mw, 14);
-  g2.fillStyle = d.charging ? '#ffd23a' : 'rgba(255,255,255,0.35)'; g2.fillRect(mx, my, mw * (d.charging ? d.meter : 0), 14);
-  text(d.charging ? 'release!' : S.K.phase === 'turn' && !S.shot ? 'hold to charge · ◂ ▸ aim' : '', OW / 2, my - 10, 12, 'rgba(255,255,255,0.8)', 'center', 500);
-  if (banner) outlined(banner.text, OW / 2, OH * 0.3, 44, banner.color);
-  if (S.over) {
-    const ids = Object.keys(S.K.totals);
-    g2.fillStyle = 'rgba(0,0,0,0.55)'; g2.fillRect(OW / 2 - 200, OH * 0.42 - 30, 400, 44 + ids.length * 28);
-    outlined(S.winner ? `${seatName(S.winner)} WINS` : 'A TIE', OW / 2, OH * 0.42, 30, '#ffd23a');
-    ids.forEach((id, k) => text(`${seatName(id)}  ${S.K.totals[id]}${ctx.kind === 'strokes' && d.seats[k].toPar !== null ? ` (${d.seats[k].toPar === 0 ? 'E' : d.seats[k].toPar > 0 ? '+' + d.seats[k].toPar : d.seats[k].toPar})` : ''}`, OW / 2, OH * 0.42 + 36 + k * 28, 18, SEAT_COLORS[k % SEAT_COLORS.length], 'center', 700));
-    if (phase === 'over') text('press start to play again', OW / 2, OH * 0.42 + 50 + ids.length * 28, 14, '#fff', 'center', 500);
-  }
+  tvDraw(TV, g2, OW, OH, feedOf(turnsDisplay(S, ctx)));
 }
 
 // the page calls this from its frame step with its clock in seconds; the game steps at 60 Hz

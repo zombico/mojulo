@@ -9,23 +9,26 @@
  * left stick, south to swing, start to begin again). A side nobody holds is the court mind's. The stick aims the
  * stroke as it is pressed: sideways across the court, forward for depth (the arcade) or lift (realistic).
  *
- * The players are stick figures posed from the sim, or a side's athlete in its own body on the same pose (a character
- * made with create_character: athlete.client.js, when the court carries bodies) with the racquet in its hand, the ball a sphere with its shadow, the court its lines from the kernel's regions and the net; a broadcast camera
- * behind side a's baseline; the overlay the scoreboard (sets, games, the points in the kernel's words), the server,
- * the calls (FAULT, LET, OUT, GAME, SET, MATCH) and the rally.
+ * The players are stick figures posed from the sim in their sides' broadcast colours, or a side's athlete in its own
+ * body on the same pose (a character made with create_character: athlete.client.js, when the court carries bodies) with
+ * the racquet in its hand, the ball a sphere with its shadow, the court its lines from the kernel's regions and the net;
+ * a broadcast camera behind side a's baseline. The overlay is the broadcast package (broadcast/broadcast.client.js):
+ * the open, the bug (sets, games, the points in the kernel's words, the server), the tab (second serve, deuce,
+ * advantage), the kernel's calls on their plates, the closeup on the point's winner in the dead ball with its lower
+ * third at a game, and the results board.
  *
  * As a level: hosted in a game's frame it posts READY, plays the match INIT brings (players, register, level, seed over
  * the court's own), and posts the OUTCOME when the match is over: success when side a (the first player's) won, or an
  * exhibition ended; fail otherwise. On its own it starts at once and plays again on start.
  */
-/* global COURT_ARENA, THREE, scene, camera, controls, wrap, newMatch, stepMatch, matchContext, matchDisplay, MPAD, MATCH_FPS, contestRegion, athleteRig, placeAthlete */
+/* global COURT_ARENA, THREE, scene, camera, controls, wrap, newMatch, stepMatch, matchContext, matchDisplay, MPAD, MATCH_FPS, contestRegion, athleteRig, placeAthlete, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvCut, tvStrap, tvShot, tvDraw */
 
 const CA = COURT_ARENA, CT = CA.court, NET_Y = CT.netY;
 // the sides' athletes in their own bodies, when the court carries them (athlete.client.js inlined before this)
 const ATH = typeof athleteRig === 'function' && CA.bodies ? athleteRig(CA) : null;
 const hosted = window.parent !== window;
-const COLORS = ['#e0503a', '#3a9be0'];
-const FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif';
+const BC = CA.broadcast, TV = newBroadcast(BC);
+const COLORS = BC.colors.map((c) => c.base);   // the kits are the broadcast's: the bug's chip and the player's shirt agree
 
 // ── the overlay and the camera ───────────────────────────────────────────────────────────────────────────────
 
@@ -202,15 +205,16 @@ function placeBall(S) {
 
 // ── the match ────────────────────────────────────────────────────────────────────────────────────────────────
 
-let ctx = null, S = null, bodies = [], phase = 'wait', waited = 0, banner = null, lastParams = null, calls = 0;
-const BANNER = 90;
+let ctx = null, S = null, bodies = [], phase = 'wait', waited = 0, lastParams = null, calls = 0;
+const SPORT = (CA.sport.id || 'match').replace(/-/g, ' ');
 function begin(params = {}) {
   lastParams = params;
   for (const B of bodies) scene.remove(B.group, B.shadow);
   ctx = matchContext({ ...CA, players: params.players ?? CA.players, register: params.register ?? CA.register, level: params.level ?? CA.level, seed: params.seed ?? CA.seed });
   S = newMatch(ctx);
   bodies = S.p.map((_, i) => (ATH && ATH.has(i) ? makeAthlete(i) : makePlayer(COLORS[i])));
-  banner = null; calls = 0;
+  calls = 0;
+  tvOpen(TV, { title: CA.title || SPORT, rows: [0, 1].map((i) => ({ name: sideName(i), color: i })) });
   phase = 'match';
 }
 function post(msg) { if (hosted) window.parent.postMessage(msg, '*'); }
@@ -222,28 +226,35 @@ if (hosted) {
   });
   post({ moj: CA.wire.ready, contractVersion: CA.wire.version, levelRef: 'court' });
 }
-const sideName = (i) => (i < ctx.players ? `P${i + 1}` : 'CPU');
-const CALL_WORDS = { out: 'OUT', 'double-bounce': 'NOT UP', 'own-side': 'INTO THE NET', net: 'NET', 'reach-over': 'OVER THE NET', touches: 'TWICE', 'double-touch': 'TWICE', 'volleyed-serve': 'VOLLEYED', 'touched-own-serve': 'OWN SERVE', 'net-touch': 'NET TOUCH', 'foot-fault': 'FOOT FAULT', 'double-fault': 'DOUBLE FAULT' };
+const sideName = (i) => tvNames(BC, 2, ctx ? ctx.players : CA.players)[i];
+const sideIx = (side) => (side === 'a' ? 0 : 1);
+const NAMES = { side: (side) => ({ name: sideName(sideIx(side)), color: sideIx(side) }) };
+// the director: each call on its plate; in the dead ball after a point, a game or the match, the closeup on its winner
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
-    const c = S.calls[calls];
-    if (c.kind === 'point') banner = { text: CALL_WORDS[c.why] || c.why.toUpperCase(), left: BANNER, color: '#ffd23a' };
-    else if (c.kind === 'fault') banner = { text: 'FAULT', left: BANNER * 0.7, color: '#e0503a' };
-    else if (c.kind === 'let') banner = { text: 'LET', left: BANNER * 0.7, color: '#fff' };
-    else if (c.kind === 'game') banner = { text: 'GAME', left: BANNER, color: '#3ae08a' };
-    else if (c.kind === 'set') banner = { text: 'SET', left: BANNER * 1.3, color: '#3ae08a' };
-    else if (c.kind === 'over') banner = { text: `GAME, SET AND MATCH · ${c.winner === 'a' ? sideName(0) : sideName(1)}`, left: BANNER * 3, color: '#3ae08a' };
+    const c = S.calls[calls], q = tvCall(TV, c, NAMES);
+    if (!q) continue;
+    const side = c.kind === 'over' ? c.winner : c.side;
+    if (q.cut === 'winner' && (side === 'a' || side === 'b')) {
+      const P = S.p[sideIx(side)], [x, y] = toStage(P.x, P.y), sc = S.K.score[side], op = S.K.score[side === 'a' ? 'b' : 'a'];
+      const strap = q.unit || c.kind === 'over' ? { name: sideName(sideIx(side)), line: `${c.kind === 'over' ? 'THE MATCH' : q.text} · SETS ${sc[2] ?? 0}–${op[2] ?? 0} · GAMES ${sc[1] ?? 0}–${op[1] ?? 0}`, tag: side === 'a' ? '1' : '2', color: sideIx(side) } : null;
+      tvCut(TV, { on: [x, y, 0], hold: c.kind === 'over' ? 110 : 54, ...(strap ? { strap } : {}) });
+    }
+    if (c.kind === 'over') {
+      const rows = ['a', 'b'].sort((p, q2) => (p === c.winner ? -1 : q2 === c.winner ? 1 : 0)).map((side, k) => ({ place: k + 1, name: sideName(sideIx(side)), color: sideIx(side), value: String(c.score[side][c.score[side].length - 1]), note: 'sets' }));
+      tvBoard(TV, { title: `${SPORT} · final`, rows, foot: hosted ? null : 'press start to play again' });
+    }
   }
 }
 function tick() {
   const pads = Array.from({ length: ctx ? ctx.players : CA.players }, (_, i) => padOf(i, i === 0 ? 'a' : 'b'));
   const start = startEdge(pads);
+  tvAdvance(TV);
   if (phase === 'wait') { if (!hosted || ++waited > 90) begin({}); return; }
   if (phase === 'over') { if (start) begin(lastParams); return; }
   if (phase !== 'match') return;
   stepMatch(S, pads, ctx);
   readCalls();
-  if (banner && --banner.left <= 0) banner = null;
   if (S.over && S.dead === 0) {
     const won = ctx.players === 0 || S.winner === 'a';
     if (hosted) { post({ moj: CA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { court: { winner: S.winner, score: S.K.score } } } }); phase = 'done'; }
@@ -257,30 +268,29 @@ function frameCamera() {
   cam.x += (wantX - cam.x) * 0.06;
   if (camera.fov !== 44) { camera.fov = 44; camera.updateProjectionMatrix(); }
   camera.position.set(cam.x, NET_Y - CT.halfL - 10.5, 6.5);
-  camera.lookAt(cam.x * 0.5, NET_Y + 1.5, 0.4);
+  const look = [cam.x * 0.5, NET_Y + 1.5, 0.4];
+  camera.lookAt(look[0], look[1], look[2]);
+  tvShot(TV, camera, look);
 }
-function text(str, x, y, size, color, align = 'center', weight = 800) { g2.font = `${weight} ${size}px ${FONT}`; g2.textAlign = align; g2.textBaseline = 'middle'; g2.fillStyle = color; g2.fillText(str, x, y); }
-function outlined(str, x, y, size, color) { g2.font = `900 ${size}px ${FONT}`; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.lineWidth = Math.max(3, size / 9); g2.strokeStyle = '#000'; g2.lineJoin = 'round'; g2.strokeText(str, x, y); g2.fillStyle = color; g2.fillText(str, x, y); }
+// the scoreboard's words as the bug shows them: deuce is 40 all and said on the tab, the advantage AD
+const POINT_CELL = { deuce: '40', advantage: 'AD', '-': '40' };
+function feedOf(d) {
+  const pa = d.score.a[0], tab = d.faults === 1 && S.K.phase === 'serve' ? 'second serve' : pa === 'deuce' ? 'deuce' : pa === 'advantage' ? `advantage ${sideName(0)}` : d.score.b[0] === 'advantage' ? `advantage ${sideName(1)}` : null;
+  return {
+    title: CA.title || SPORT, cols: ['SETS', 'GAMES', 'PTS'], hot: 2,
+    rows: ['a', 'b'].map((side, i) => { const sc = d.score[side]; return { name: sideName(i), color: i, cells: [sc[2], sc[1], POINT_CELL[sc[0]] ?? sc[0]], mark: d.server === side ? 'serve' : null }; }),
+    tab,
+    hint: ctx.players > 0 && TV.f < 600 ? `${sideName(0)} · W A S D move · F swing` : null,
+  };
+}
 function draw() {
   g2.setTransform(ODPR, 0, 0, ODPR, 0, 0);
   g2.clearRect(0, 0, OW, OH);
-  if (!S) { outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
+  if (!S) { tvDraw(TV, g2, OW, OH, null); return; }
   frameCamera();
   S.p.forEach((P, i) => posePlayer(bodies[i], P));
   placeBall(S);
-  const d = matchDisplay(S, ctx);
-  // the scoreboard: a row a side, the sets, the games, the points, the server marked
-  g2.fillStyle = 'rgba(0,0,0,0.55)'; g2.fillRect(14, 14, 300, 68);
-  text(CA.title || CA.sport.words, 18, 96, 12, 'rgba(255,255,255,0.75)', 'left', 500);
-  ['a', 'b'].forEach((side, i) => {
-    const y = 32 + i * 30, sc = d.score[side], col = COLORS[i];
-    text(`${d.server === side ? '● ' : '   '}${sideName(i)}`, 22, y, 16, col, 'left', 700);
-    text(sc[2], 200, y, 16, '#fff', 'right', 600); text(sc[1], 240, y, 16, '#fff', 'right', 600); text(sc[0], 300, y, 18, '#ffd23a', 'right', 800);
-  });
-  text('sets  games  points', 300, 76, 10, 'rgba(255,255,255,0.6)', 'right', 500);
-  if (d.faults === 1 && S.K.phase === 'serve') text('second serve', OW / 2, 30, 14, '#fff', 'center', 600);
-  if (banner) outlined(banner.text, OW / 2, OH * 0.26, 44, banner.color);
-  if (phase === 'over') text('press start to play again', OW / 2, OH * 0.36, 14, '#fff', 'center', 500);
+  tvDraw(TV, g2, OW, OH, feedOf(matchDisplay(S, ctx)));
 }
 
 // the page calls this from its frame step with its clock in seconds; the match steps at 60 Hz

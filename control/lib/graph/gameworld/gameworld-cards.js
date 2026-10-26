@@ -332,6 +332,8 @@ function systemsCard() {
 // `gameworld-quick-<goal>` is that card with one goal's play and its own levers in full. A new goal is a row in
 // QUICK_LEVERS (and its card), never more bytes on the index: the agent that knows the goal reads one card.
 const HERO_WORDS = '{ <hero-door words> }';
+// the TV graphics a sport is shown in (broadcast/broadcast-package.js), one lever on both sport goals
+const BROADCAST_LEVER = ['  broadcast: network | stadium | arcade | clean | { package?, sides?, names?, closeups?, accent? }   TV graphics'];
 const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
@@ -345,6 +347,7 @@ const QUICK_LEVERS = {
     '  event: sprint | hurdles | longJump   lanes: 1..8 (one: a time trial)   players: 0..4, the lanes people hold on one keyboard',
     '    (P1 F runs, G hops; P2 J, K; P3 Z, X; P4 , .; gamepads by index); the other lanes are the computer\'s',
     '  register: realistic | action | platformer | pinball (the body\'s pace)   distance: m (the event\'s)   attempts: n (the long jump\'s, 3)',
+    ...BROADCAST_LEVER,
     '  the level is the arena (contest/meet-arena.js), the referee the contest kernel: no hero, camera, climb or building',
     '  venue: <stadium preset> | { preset?, surface?, time?, bowl?, … } | false (a stage)   the stadium round it (view-vocab stadium); olympic',
     '  athletes: [{ ref } (made with create_character) | { <hero-door words> }] cycled over the slots, or false (sticks); absent,',
@@ -355,14 +358,14 @@ const QUICK_LEVERS = {
     '  sport: tennis (a net game: two pads, WASD + F / Space and the arrows + right Shift) | golf | bowling (a turn sport, hot-seat on one',
     '    pad: aim with the stick, hold to charge, release) | soccer | hockey (a team goal game: two pads in the screen\'s directions, a tap',
     '    passes, a hold shoots); the computer takes what nobody holds.  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace',
-    '  register: realistic | action | platformer | pinball (the ball card and the body: real air … a lossless bounce)',
+    '  register: realistic | action | platformer | pinball (the ball card and the body)',
     '  tennis: sets 1..3;  golf: rounds 1..3 (holes), seats 1..8;  bowling: rounds 1..10 (frames), seats;  soccer, hockey: periods 1..4, seconds 20..900',
     '  a sport not in the book is WRITTEN OUT and played on its shape\'s sim: sport: { id, shape: match | turns | team, words, spec (the contest',
-    '    kernel\'s data), omits?: [what the rulebook says the primitives do not carry], …the shape\'s dials } — the distilled-rulebook catalyst',
-    '    (get_catalyst) distills a rulebook into one',
-    '  the kernel calls every point, out, foul and restart; the agent never adjudicates',
-    '  athletes: [{ ref } | { <hero-door words> }] cycled, or false (sticks); absent, rolled, kitted (kits: a side\'s each)',
-    '  venue: <stadium preset> | { … } | false   its stadium (view-vocab stadium); absent, the sport\'s (a course: its stage)',
+    '    kernel\'s data), omits?, …the shape\'s dials }; the distilled-rulebook catalyst (get_catalyst) distills a rulebook into one',
+    ...BROADCAST_LEVER,
+    '  the rules are the kernel\'s: it calls every point, out, foul and restart, never the agent',
+    '  athletes: [{ ref } | { hero words }] or false (sticks); absent, rolled, kitted (kits: a side\'s each)',
+    '  venue: <preset> | { … } | false   the stadium (view-vocab stadium); absent, the sport\'s (a course: a stage)',
   ],
   tabletop: () => [
     '  game: chess | checkers | a game of moves written out in the tabletop kernel\'s words (get_game_vocab({ id: \'tabletop\' }))',

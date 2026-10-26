@@ -86,7 +86,8 @@ first thing you say.
 6. **Mint and read.** `design_game({ quick: { goal: 'contest', sport, players, register, level, … } })`. Open the
    game, play an exhibition (`players: 0`), and read the kernel's calls off the display: a serve that never lands
    in its box, a goal that never comes, a round that never ends is a number to fix in the dials, never a rule to
-   bend. Then hand the operator the sport object, the `omits`, and the game.
+   bend. The TV graphics come free (every kernel call has its plate); `broadcast: { sides, names }` sets the kits
+   and the players' names. Then hand the operator the sport object, the `omits`, and the game.
 
 ## Mapping decisions that are not obvious
 

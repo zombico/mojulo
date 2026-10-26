@@ -40,6 +40,15 @@ describe('the sport goals', () => {
     expect(() => readQuick({ goal: 'contest', sport: 'bowling', rounds: 3 })).not.toThrow();
     expect(() => readQuick({ goal: 'meet', event: 'hurdles', lanes: 4, players: 2, distance: 110 })).not.toThrow();
   });
+  it('the broadcast is a lever on both sport goals: the arena reads it, the level carries it, a bad word is taught', () => {
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', broadcast: 'tv' })).toThrow(/broadcast package 'tv' is one of network, stadium, arcade, table, clean/);
+    expect(() => readQuick({ goal: 'meet', event: 'sprint', broadcast: { sides: ['red'] } })).toThrow(/#rrggbb/);
+    const [court] = sportArenas({ goal: 'contest', sport: 'tennis', broadcast: { package: 'stadium', names: ['Ana', 'Bo'] } });
+    expect(court.manifest.court.broadcast).toEqual({ package: 'stadium', names: ['Ana', 'Bo'] });
+    expect(matchArenaData(court.manifest.court).broadcast.package).toBe('stadium');
+    const [track] = sportArenas({ goal: 'meet', event: 'sprint', lanes: 3, broadcast: 'arcade' });
+    expect(track.manifest.meet.broadcast).toEqual({ package: 'arcade' });
+  });
   it('a meet\'s game is one level, the track in its stadium carrying the meet and a hosted level\'s contract; a contest\'s the court, the course or the pitch', () => {
     const steps = runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2, athletes: false } }), { ref: 'gw_meet' });
     expect(steps.map((s) => s.key)).toEqual(['level-arena-track', 'game']);

@@ -238,6 +238,10 @@ import { emitThreeWorld } from './scene-three.js';
 // hologram arena: the tabletop kernel and its mind from their closures and the arena's client in one block, its own
 // frame step `stepHolo`, the camera owned). Every other page is byte-identical, and a page without a `holo` key emits
 // no block.
+// Re-pinned 2026-10-26 (tv animator: the broadcast package): the `meet`, `court`, `turns` and `pitch` fixtures re-pin
+// because each contest block now inlines broadcast/broadcast.client.js before its arena client, the arena clients draw
+// their overlay through it (the bug, the call plates, the closeup, the board) and the page's data carries the resolved
+// package (`broadcast`: the card, the colours, the metals, the cues). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
