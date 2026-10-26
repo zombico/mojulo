@@ -21,6 +21,7 @@
  * lite-template/integration/0620/spike-output/multiply-lit-texture/SPIKE-RESULT.md.
  */
 import zlib from 'node:zlib';
+import { dressedTile } from '../matte-paint/dressed.js';
 
 // ── minimal dependency-free PNG encoder (truecolour RGB) ──
 const CRC_TABLE = (() => {
@@ -628,7 +629,9 @@ function bondCells(bond, W, H, rows, cols, seed) {
 }
 
 /** The bonded stone wall: the running bond's paint (jitter, accents, grain, bevel, wear, radius, shadow) on any bond. */
-function bondedBrickPng(cfg, { size = 256, seed = 1 } = {}) {
+function bondedBrickPng(cfg, opts) { const { rgb, W, H } = bondedBrickTile(cfg, opts); return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`; }
+/** A bonded brick tile's texels (stone-brick's bonds other than running: herringbone, basketweave, …) → { rgb, W, H }. */
+export function bondedBrickTile(cfg, { size = 256, seed = 1 } = {}) {
   const W = size, H = size, n = makeNoise(seed * 7 + 1), rgb = Buffer.alloc(W * H * 3);
   const rows = cfg.rows ?? 6, cols = cfg.cols ?? 4, mt = cfg.mortarThick ?? 0.1;
   const stone = cfg.stone ?? [150, 145, 135], mortar = cfg.mortar ?? [92, 88, 80];
@@ -666,7 +669,7 @@ function bondedBrickPng(cfg, { size = 256, seed = 1 } = {}) {
       }
     }
   }
-  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+  return { rgb, W, H };
 }
 
 function stoneBrickPng(cfg, { size = 256, seed = 1 } = {}) {
@@ -1312,8 +1315,12 @@ function friezePng(cfg, { size = 256, seed = 1 } = {}) {
   }
   return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
 }
+/** Dressed stone (matte-paint/dressed.js): ashlar painted from relief, at the metres it is laid at (`metres`). */
+function dressedPng(cfg, { size = 512, seed }) { const { rgb, W, H } = dressedTile(cfg, { size, seed }); return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`; }
 /** The generators a recipe may name in a tile spec (era/tile-specs.js holds their rails). */
-const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng, wood: woodPng, frieze: friezePng };
+const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng, wood: woodPng, frieze: friezePng, dressed: dressedPng };
+// a generator's texels a side, where it is not 256: dressed stone is drawn past the sixth generation's density
+const SPEC_SIZE = { dressed: 512 };
 const SPEC_VARIANT_SEEDS = [['a', 13], ['b', 47], ['c', 88], ['d', 124]];
 
 /**
@@ -1326,7 +1333,7 @@ export function defineGeneratedFamily(name, gen, cfg) {
   if (!make) throw new Error(`defineGeneratedFamily: unknown generator '${gen}' (known: ${Object.keys(SPEC_GENERATORS).join(', ')})`);
   const base = cfg.seed ?? 1;
   const variants = SPEC_VARIANT_SEEDS.map(([suf, s]) => [`${name}-${suf}`, base * 1009 + s]);
-  for (const [k, seed] of variants) { if (!RUNTIME_GEN[k]) RUNTIME_GEN[k] = () => make({ ...cfg, seed }, { size: 256, seed }); SURFACE_TILING[k] = 'repeat'; }
+  for (const [k, seed] of variants) { if (!RUNTIME_GEN[k]) RUNTIME_GEN[k] = () => make({ ...cfg, seed }, { size: SPEC_SIZE[gen] ?? 256, seed }); SURFACE_TILING[k] = 'repeat'; }
   TEXTURE_FAMILIES[name] = variants.map(([k]) => k);
   return TEXTURE_FAMILIES[name].slice();
 }

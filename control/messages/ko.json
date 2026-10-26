@@ -794,5 +794,33 @@
         "other": "기타"
       }
     }
+  },
+  "gameTitles": {
+    "round": "라운드 {round}",
+    "fight": "싸워!",
+    "ko": "K.O.",
+    "victory": "승리",
+    "defeat": "패배",
+    "draw": "무승부",
+    "ready": "준비?",
+    "go": "시작!",
+    "start": "시작",
+    "finish": "완주",
+    "gameOver": "게임 오버",
+    "levelClear": "레벨 클리어",
+    "stageClear": "스테이지 클리어",
+    "timeUp": "시간 종료",
+    "paused": "일시 정지",
+    "perfect": "퍼펙트!",
+    "newRecord": "신기록",
+    "youWin": "승리했습니다",
+    "youLose": "패배했습니다",
+    "wave": "웨이브 {wave}",
+    "boss": "보스",
+    "continue": "계속할까요?",
+    "combo": "{combo} 콤보",
+    "checkpoint": "체크포인트",
+    "goal": "골!",
+    "bonus": "보너스"
   }
 }

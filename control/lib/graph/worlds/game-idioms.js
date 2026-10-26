@@ -74,6 +74,15 @@ export function banner({ on = 'game-over', text, slot, ttl, color } = {}) {
   return { hud: [{ on, text, ...defined({ slot, ttl, color }) }] };
 }
 
+// title — a banner CARVED: its words as 3D letters slammed onto the screen when the event fires ("ROUND 1", "FIGHT!",
+// "K.O."), juiced by the game's register (hud-widgets.js `as: 'title'`; the letters are game/title-carve.js's). `look`
+// is the entrance (slam | rise | stamp), `style` the carve (heavy | blocky | slick | thin | italic); `text` may name a
+// word in the world's language ('@fight', game/title-words.js). A host that cannot carve it shows the banner.
+export function title({ on = 'game-over', text, slot, ttl, color, theme, look, style, caps, edge } = {}) {
+  if (typeof text !== 'string' || !text) throw new Error('game-idioms: title needs text (words, or a word key like \'@fight\')');
+  return { hud: [{ on, text, as: 'title', ...defined({ slot, ttl, color, theme, look, style, caps, edge }) }] };
+}
+
 // legend — static text in a slot: the controls hint, the "press E" prompt. `ttl` makes it a
 // one-shot that fades after the opening seconds.
 export function legend({ text, slot, ttl, color } = {}) {
@@ -226,6 +235,7 @@ export const IDIOM_LOWERING = {
   banner: (p) => banner(p),
   legend: (p) => legend(p),
   toast: (p) => toast(p),
+  title: (p) => title(p),
   gameOverFreeze: (p) => gameOverFreeze(p),
   spawnOnHeartbeat: (p) => spawnOnHeartbeat(p),
   deed: (p) => deed(p),
@@ -291,6 +301,13 @@ export const IDIOM_ABOUT = {
     when: 'damage numbers, +1 popping up, show points gained, hit feedback',
     params: { on: 'an event (text may read {event.<field>})', var: 'or a var (text may read {delta} and {value})', text: 'the words', slot: 'HUD slot', ttl: 'seconds', color: 'colour' },
     example: { var: 'score', text: '+{delta}' },
+  },
+  title: {
+    name: 'Title card', tier: 'level',
+    summary: 'A banner carved: the words as 3D letters slammed onto the screen when an event fires (ROUND 1, FIGHT!, K.O.), juiced by the game\'s register; a text may name a word in the world\'s language (@fight).',
+    when: 'round 1 fight, K.O. in big letters, a title card, level clear that reads like a game, announce the round in 3D, localized title',
+    params: { on: 'event glob (default game-over)', text: 'the words, or a word key (@fight, @round, @gameOver …)', theme: 'arcade | pixel | cel | cartoon | cinematic | speed (default: the game\'s own)', look: 'slam | rise | stamp | fade | slide', style: 'heavy | blocky | slick | thin | italic', caps: 'true | false', edge: 'ink | shadow | both | glow | none', slot: 'HUD slot', ttl: 'seconds shown', color: 'colour' },
+    example: { on: 'round-start', text: '@round', theme: 'arcade' },
   },
   gameOverFreeze: {
     name: 'Game-over freeze', tier: 'level',

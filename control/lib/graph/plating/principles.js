@@ -31,4 +31,8 @@
 //  10. THE EXTREMITIES ARE THEIR OWN LIBRARIES' CARDS. The feet a footwear card (its sole, its toe cap), the hands a
 //      handwear card (the glove the gauntlet's plates are laid on), so a suit composes with any shoe and any glove, and
 //      a plate on a finger curls with it (each plate takes its surface's weights, by point or by ring).
+//  11. THE CANON IS THE OUTFIT'S. A suit has no canon of its own: it is read in the one the outfit is designed to, by the
+//      dressed outline (dress-outline.js: western | anime, docs/garment-principles.md): the shoulder line's band (armour
+//      at 0.15 and past), and in anime/game the plates standing out past the body counted among the one to three flair
+//      pieces, the rest of the body line close.
 export const PLATING_LAWS_VERSION = 1;

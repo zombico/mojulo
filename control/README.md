@@ -4,7 +4,7 @@
 
 <sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one repainted and rearranged, a walkthrough out; just over two minutes of agent time, 30 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
 
-Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
+Mojulo is a 3D compiler for agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
 
 ```bash
 npx mojulo init
@@ -14,7 +14,7 @@ That wires mojulo into the coding agents on this machine (Claude Code, Codex, Cl
 
 You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **objects, worlds, and games by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
 
-**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser and export to **Godot** as a real project, to **Unity** and **Unreal** as a data pack plus importer (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
+**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser and export to **Godot** as a real project, to **Unity** as a data pack plus importer, characters and solids to **Unreal** as assets (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
 
 Mojulo is the **upstream** that feeds the tools you already use. It does not try to out-render a game engine, and it is not just an exporter: the recipe is where the thing is born and re-renders; the engine or the printer is where it is optionally finished. Every handoff carries a ledger of what did not travel.
 
@@ -182,7 +182,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 - **"Model me a bracket that fits this shelf"** → a solid at literal scale on the workbench: lathes, sweeps, extrudes, fields; a hole is a line in the recipe; parts seat by declared relation. Measured without exporting, then out as print-ready STL or 3MF with process-aware print advisories — the conversation ends at the printer.
 - **"A posed archer" / "a wolf, mid-stride"** → figures and animals on one armature, with gaits and emotes; rigs export as glTF clips, skinned meshes, or VRM humanoids.
 - **"A six-storey building with a set-back penthouse" / "a walkable city at dusk"** → furnished floorplans that stack, bespoke buildings, caves and dungeons, cities, transit hubs, campuses, landscapes — every one a place you can walk, and every one exportable.
-- **"Make me a game"** → composition: levels, music, and figures bound to a typed store with rules — playable standalone, or exported as a **Godot** project, a **Unity** pack, or an **Unreal** pack. 2D reducer games land in the built-in Arcade.
+- **"Make me a game"** → composition: levels, music, and figures bound to a typed store with rules — playable standalone, or exported as a **Godot** project or a **Unity** pack. 2D reducer games land in the built-in Arcade.
 - **"An ambient loop for it"** → music and SFX from seeded math, never samples; worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
 - **"Here's a photo of the room"** → your agent is the vision adapter: it recovers a room's perspective, a figure's pose, or an object's part-graph as a scaffold. No vision key; the image never reaches mojulo.
 
@@ -220,7 +220,7 @@ The paradigm loops (media · game · connected service · app) and the recipe fo
 
 - Full repo and docs: <https://github.com/zombico/mojulo>
 - What it needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md) (footprint, engine legs, slicers, workers, platform notes)
-- The handoff doctrine: [docs/bicycles.md](https://github.com/zombico/mojulo/blob/main/docs/bicycles.md) (machine gate, eyes gate); the Unreal worked example: [docs/examples/unreal-night-run/](https://github.com/zombico/mojulo/blob/main/docs/examples/unreal-night-run/)
+- The handoff doctrine: [docs/bicycles.md](https://github.com/zombico/mojulo/blob/main/docs/bicycles.md) (machine gate, eyes gate)
 - Optional workers: [Blender](https://github.com/zombico/mojulo/blob/main/docs/local-blender-worker.md), [slicers](https://github.com/zombico/mojulo/blob/main/docs/local-slicer-worker.md), [mesh sculptors](https://github.com/zombico/mojulo/blob/main/docs/local-mesh-worker.md), [image](https://github.com/zombico/mojulo/blob/main/docs/local-image-worker.md), [voice](https://github.com/zombico/mojulo/blob/main/docs/local-voice-worker.md)
 - Architecture: [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (the headless control surface), [docs/AGENT-REFERENCE.md](https://github.com/zombico/mojulo/blob/main/docs/AGENT-REFERENCE.md) (the creative substrate, data layout), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the geometry substrate)
 - MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md); catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)

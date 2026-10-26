@@ -308,6 +308,30 @@ describe('grown: the fall and the tail hang by the spine law (hair-spine.js)', (
     });
     return n;
   };
+  // hair frames the face (hair-spine.js keepOut `frame` + `faceGap`, humanoid-hair.js fallGuide's frame comb): the
+  // fall's SURFACE (every triangle sampled at its corners, edge midpoints, centre and quarter points; the loft's closing
+  // points excepted) keeps 8 mm off the FACE, the skin forward of the ears below the brow and above the chin, where the
+  // legacy fall, which has no collider, lies on the cheek. One falling style of each kind: the straight fall, the wave
+  const faceOf = (preset) => {
+    const m = compileLayered(humanoidHead({ preset, hair: 'none' })), pts = m.pointIds.map((id, i) => (isHair(id) ? null : m.vertices[i])).filter(Boolean);
+    const zHi = zMax(pts), zLo = zMin(pts);
+    return pts.filter((p) => p[1] > 0.035 && Math.abs(p[0]) > 0.025 && p[2] > zLo + 0.03 && p[2] < zHi - 0.095);
+  };
+  const fallSurface = (head) => {
+    const m = compileLayered(head), out = [];
+    for (const f of m.faces) { if (!m.pointIds[f[0]].startsWith('hairFall/') || f.some((v) => /\/(back|tip)$/.test(m.pointIds[v]))) continue;
+      const [a, b, c] = [m.vertices[f[0]], m.vertices[f[1]], m.vertices[f[2]]];
+      for (const [u, v] of [[0, 0], [1, 0], [0, 1], [0.5, 0], [0, 0.5], [0.5, 0.5], [1 / 3, 1 / 3], [0.25, 0.25], [0.5, 0.25], [0.25, 0.5]]) out.push([0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * u + (c[i] - a[i]) * v)); }
+    return out;
+  };
+  const nearFace = (head, face) => fallSurface(head).filter((p) => face.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < 0.008)).length;
+  for (const preset of PRESETS) it(`${preset}: a grown fall frames the face, 8 mm off the cheek, where the legacy fall lies on it`, () => {
+    const face = faceOf(preset);
+    for (const style of ['long', 'wavy']) {
+      expect(nearFace(humanoidHead({ preset, hair: [style, { spine: 'elastica' }] }), face), `${style} grown`).toBe(0);
+      expect(nearFace(humanoidHead({ preset, hair: style }), face), `${style} legacy`).toBeGreaterThan(0);
+    }
+  });
   for (const preset of PRESETS) it(`${preset}: a grown fall never passes into the skull or the jaw, where today's does`, () => {
     for (const hair of [['wavy', { spine: 'elastica' }], ['long', { spine: { stiffness: 'stiff' } }], ['angled', { spine: 'elastica' }], ['layers', { spine: { wind: { R: 1.5, dir: 90 } } }]]) expect(fallInSkin(humanoidHead({ preset, hair }))).toBe(0);
     expect(fallInSkin(humanoidHead({ preset, hair: 'wavy' }))).toBeGreaterThan(0);   // today's, measured, left as minted

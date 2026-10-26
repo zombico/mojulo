@@ -186,7 +186,11 @@ export function spineFor(spine, region, lock) {
  * radius growing in over a tenth from `from`), and `k`, the axis's share of the coil's run (1 / k is how much longer
  * the curled hair is than where it falls). */
 export function coilOffsets(line, curl, L, out0 = null, planar = false, phase = 0) {
-  const n = line.length - 1, from = curl.from ?? 0, hand = curl.hand ?? 1, r = curl.radius, T = curl.turns;
+  const n = line.length - 1, from = curl.from ?? 0, hand = curl.hand ?? 1, r = curl.radius * (curl.scale ?? 1), T = curl.turns;
+  // (a KERATIN twist, when the curl names one: `flips` the places, 0 … 1 of the coil, where its hand reverses (a kink, as a
+  // phone cord's), `taper` the weight drawing the coil open toward the root (its radius smaller, its turns sparser there,
+  // the whole coil's turns kept); absent both, the coil as it was)
+  const twisted = (curl.flips?.length || curl.taper) ? twistOf(curl, n, from, T) : null;
   const k = 1 / Math.sqrt(1 + ((2 * Math.PI * r * T) / Math.max(L * (1 - from), 1e-9)) ** 2);
   const tan = (i) => norm([0, 1, 2].map((j) => line[Math.min(n, i + 1)][j] - line[Math.max(0, i - 1)][j])) ?? [0, 0, -1];
   // the coil's first reach: `out0` (a guide's outward direction, so neighbouring guides coil in step around the head), else any normal
@@ -194,13 +198,25 @@ export function coilOffsets(line, curl, L, out0 = null, planar = false, phase = 
   const out = [];
   for (let i = 0; i <= n; i++) {
     const t = tan(i); a = norm(plus(a, scale(t, -dot(a, t)))) ?? a;   // parallel transport: the frame turns only as the line does
-    const b = cross3(t, a), u = i / n, g = u <= from ? 0 : Math.min(1, (u - from) / 0.1), phi = hand * 2 * Math.PI * T * Math.max(0, u - from) / Math.max(1 - from, 1e-9) + (u > from ? phase : 0);
-    const R = r * g * g * (3 - 2 * g);
+    const b = cross3(t, a), u = i / n, g = u <= from ? 0 : Math.min(1, (u - from) / 0.1), phi = hand * (twisted ? twisted.phi[i] : 2 * Math.PI * T * Math.max(0, u - from) / Math.max(1 - from, 1e-9)) + (u > from ? phase : 0);
+    const R = r * g * g * (3 - 2 * g) * (twisted ? twisted.rk[i] : 1);
     // starts on the axis (no jump where the coil begins), coiling out toward `a`; `planar`: the coil's reach toward `a`
     // only (an S-wave), for a curtain whose neighbouring guides would shear past each other if they coiled sideways
     out.push(planar ? scale(a, R * (Math.sin(phi) - Math.sin(phase))) : plus(scale(a, R - R * Math.cos(phi)), scale(b, R * Math.sin(phi))));
   }
   return { offsets: out, k };
+}
+/** the twisted coil's angle and radius share at each sample: the rate by the taper (normalised, so the turns are kept),
+ * its sign reversed past each flip */
+function twistOf(curl, n, from, T) {
+  const tp = curl.taper ?? 0, flips = curl.flips ?? [], phi = [0], rk = [];
+  const v = (i) => Math.max(0, (i / n - from) / Math.max(1 - from, 1e-9)), rate = (x) => (1 - tp * (1 - x)) / (1 - tp / 2);
+  for (let i = 0; i <= n; i++) {
+    const x = v(i);
+    rk.push(1 - 0.5 * tp * (1 - x));
+    if (i) { const xm = (v(i - 1) + x) / 2, sign = flips.filter((f) => f < xm).length % 2 ? -1 : 1; phi.push(phi[i - 1] + sign * 2 * Math.PI * T * rate(xm) * (x - v(i - 1))); }
+  }
+  return { phi, rk };
 }
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 /** a spine coiled: each sample set off its axis by the coil (the axis, and so where the lock falls, unchanged) */
@@ -215,8 +231,10 @@ export const coilSteps = (curl, base) => (curl ? Math.max(base, Math.ceil(8 * cu
 /** the stored form: the word becomes the object, defaults left absent (read at build time) */
 export const resolveSpine = (spec) => (spec === 'elastica' ? { law: 'elastica' } : { law: 'elastica', ...spec });
 
-/** Drape a spine over colliders: `{ surface: { pts, nrm, gap, reach } }` a sampled skin (each point kept `gap` outside
- * its nearest sample's tangent plane, within `reach`), `{ c, r }` an ellipsoid and `{ axis: [x, y], r, top, bottom }`
+/** Drape a spine over colliders: `{ surface: { pts, nrm, gap, reach, frame?, faceGap? } }` a sampled skin (each point
+ * kept `gap` outside its nearest sample's tangent plane, within `reach`; with `frame`, where the skin faces forward and
+ * sideways, a cheek or a temple, the lift goes sideways and the point is kept `faceGap` off, the lock's own radius, so
+ * hair frames the face rather than lying on it), `{ c, r }` an ellipsoid and `{ axis: [x, y], r, top, bottom }`
  * an upright column (the neck). Follow the leader from the root: each point is pushed out of every collider (along its own radial,
  * to the surface + margin) and then set back on its segment length from the point before, so the lock wraps the body and
  * stays its length. A lock that never enters is returned as it was. */
@@ -250,6 +268,10 @@ function surfaceGrid(S) {
   GRIDS.set(S, g); return g;
 }
 
+/** a framed skin's push goes sideways where the skin has this much of a side to it (a cheek, a temple); a skin facing
+ * mostly forward (the brow's and the nose's line) keeps its normal and its gap. (0.12, pushing the cheek's front sideways
+ * too, wound a curled fall's coil through the brow's corner at the temple: measured, left at 0.3.) */
+const FRAME_SIDE_MIN = 0.3;
 /** One point pushed out of every collider: `{ p, hit }`. */
 export function keepOut(p, colliders, margin = 0.04) {
   const list = Array.isArray(colliders) ? colliders : [colliders];
@@ -258,7 +280,7 @@ export function keepOut(p, colliders, margin = 0.04) {
     if (C.surface) {
       // the head's own skin, sampled by address: the nearest sample's tangent plane; a point less than the margin
       // outside it (or under it) is lifted along that sample's normal to the margin
-      const { pts, nrm, gap, reach } = C.surface, grid = surfaceGrid(C.surface); let bi = -1, bd = Infinity;
+      const { pts, nrm, gap, reach, faceGap } = C.surface, grid = surfaceGrid(C.surface); let bi = -1, bd = Infinity;
       const cx = Math.floor(p[0] / reach), cy = Math.floor(p[1] / reach), cz = Math.floor(p[2] / reach);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let e = -1; e <= 1; e++) {
         const cell = grid.get(cellKey(cx + a, cy + b, cz + e)); if (!cell) continue;
@@ -266,12 +288,15 @@ export function keepOut(p, colliders, margin = 0.04) {
       }
       if (bi < 0 || bd > reach * reach) continue;
       const q = pts[bi], n = nrm[bi], h = (p[0] - q[0]) * n[0] + (p[1] - q[1]) * n[1] + (p[2] - q[2]) * n[2];
-      if (h >= gap) continue;
-      // `frame`: hair frames the face. Where the skin faces forward (a cheek, a temple) the lift goes sideways and back,
-      // never out in front of the face; a skin facing straight forward (the nose's line) keeps its normal
-      let d = n;
-      if (C.surface.frame && n[1] > 0) { const side = norm([n[0], 0, n[2]]); if (side && dot(side, n) > 0.3) d = side; }
-      hit = true; p = plus(p, scale(d, (gap - h) / dot(d, n)));
+      // `frame`: hair frames the face. Where the skin faces forward (a cheek, a temple) the lift goes sideways, never
+      // out in front of the face, and the stand-off is the face's (`faceGap`, the lock's own radius, where given: a
+      // lock hangs beside a cheek, not on it); a skin facing straight forward (the nose's line) keeps its normal and gap
+      let d = n, g = gap;
+      if (C.surface.frame && n[1] > 0) { const side = norm([n[0], 0, n[2]]); if (side && dot(side, n) > FRAME_SIDE_MIN) { d = side; if (faceGap > gap) g = faceGap; } }
+      if (h >= g) continue;
+      // (a sideways lift off a skin that faces mostly forward is a long one: it is capped at three times the shortfall
+      // and finished on the next pass, so no point is flung round the head and no chord pulled back through it)
+      hit = true; p = plus(p, scale(d, Math.min((g - h) / dot(d, n), 3 * (g - h))));
     } else if (C.axis) {
       if (p[2] > C.top || p[2] < C.bottom) continue;
       const dx = p[0] - C.axis[0], dy = p[1] - C.axis[1], d = Math.hypot(dx, dy), R = C.r * (1 + margin);

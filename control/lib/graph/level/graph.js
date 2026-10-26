@@ -15,6 +15,14 @@
  *     geocube?: <cube>, terrain?: '<name>',   // the cube paints every section once (its outside's look on one of its
  *                                         // terrains: the level's, else its heartbeat's, else the cube's own); a
  *                                         // node's own kit wins. Each stage says what it got (`painted`)
+ *     domain?: <ask>,                     // or one of the levels the cube makes (era/geocube.js pickDomain: a name,
+ *                                         // { from, …changes } or a composition), outside: its terrain at its hour;
+ *                                         // asking neither, on a cube that names its domains: its heartbeat's, else
+ *                                         // the cube's first outside
+ *     hour?: <hour>,                      // the cube's outside lit at that hour (era/geocube-hours.js readHour: a
+ *                                         // word or 0 to 24), on every section it paints; over its domain's own
+ *     clouds?: <clouds>,                  // the cube's outside under that sky (matte-paint/sky.js readClouds: a kind
+ *                                         // or { kind, cover?, seed? }), on every section it paints
  *   }
  *
  * A node's recipe is its section's own (era/out-trail.js `readOutTrail`, local-meru/plan.js `readLocalMeru`) less its
@@ -23,7 +31,9 @@
 import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
 import { readWeather } from '../weather/weather.js';
 import { readLevelGround } from './ground.js';
-import { readGeocube, pickTerrain, lowerGeocube } from '../era/geocube.js';
+import { readGeocube, pickTerrain, pickDomain, lowerGeocube, geocubeTerrains } from '../era/geocube.js';
+import { readHour } from '../era/geocube-hours.js';
+import { readClouds } from '../matte-paint/sky.js';
 
 export const LEVEL_LAYOUTS = Object.freeze(['sequential']);
 export const LEVEL_SECTIONS = Object.freeze(['trail', 'meru']);
@@ -31,7 +41,7 @@ export const LEVEL_EDGES = Object.freeze({ seam: 'the next section starts where 
 export const SPAWN_AT = Object.freeze(['entry']);
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const KEYS = ['layout', 'kit', 'seed', 'root', 'nodes', 'edges', 'spawn', 'weather', 'ground', 'geocube', 'terrain'];
+const KEYS = ['layout', 'kit', 'seed', 'root', 'nodes', 'edges', 'spawn', 'weather', 'ground', 'geocube', 'terrain', 'domain', 'hour', 'clouds'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** A kit id as the level reads it: known, and resolved from any older name. */
@@ -58,10 +68,34 @@ export function readLevel(L) {
   // its heartbeat says what it was made for; the cube offers), laid once on every node that names no kit of its own
   const ground = readLevelGround(L.ground);
   let paint = null;
-  if (L.geocube !== undefined) {
-    const cube = readGeocube(L.geocube), terrain = pickTerrain(cube, L.terrain, ground?.heartbeat?.terrain);
-    paint = { cube, terrain, kit: lowerGeocube(cube, 'outside', terrain.name).kit };
-  } else if (L.terrain !== undefined) throw new Error('level: terrain is one of a geocube\'s terrains: name the level\'s geocube');
+  const cube = L.geocube === undefined ? null : readGeocube(L.geocube);
+  // the hour its painted sections are lit at (each stage takes it: era/geocube.js withGeocube); a cube's outside's only
+  if (L.hour !== undefined) {
+    if (!cube) throw new Error('level: hour lights a geocube\'s outside: name the level\'s geocube');
+    try { readHour(L.hour); } catch (e) { throw new Error(`level: ${e.message}`); }
+  }
+  // the sky its painted sections are drawn under (each stage takes it: era/geocube.js withGeocube), a cube's outside's only
+  if (L.clouds !== undefined) {
+    if (!cube) throw new Error('level: clouds are a geocube\'s outside\'s sky: name the level\'s geocube');
+    try { readClouds(L.clouds); } catch (e) { throw new Error(`level: ${e.message}`); }
+  }
+  const lit = { ...(L.hour !== undefined ? { hour: L.hour } : {}), ...(L.clouds !== undefined ? { clouds: L.clouds } : {}) };
+  // the look the painted sections are drawn in, lowered as each stage lowers it (its hour and its clouds), so a climb's
+  // `after.kit` names the look its own stage registers
+  const sky = L.clouds === undefined ? undefined : readClouds(L.clouds);
+  if (cube && (L.domain !== undefined || (L.terrain === undefined && cube.domains))) {
+    // a domain: the level the cube makes, its terrain at its hour (every section is outside); asked, else (the cube naming
+    // its levels) its heartbeat's, else its first outside
+    if (L.terrain !== undefined) throw new Error('level: domain or terrain, not both: a domain names its terrain');
+    const domain = pickDomain(cube, L.domain, ground?.heartbeat?.terrain, 'outside'), D = domain.domain;
+    if (D.side !== 'outside') throw new Error(`level: the domain is inside (interior '${D.interior}'); a level's sections are outside, so ask an outside domain`);
+    const terrain = { name: D.terrain, from: domain.from, offered: geocubeTerrains(cube).map((t) => t.name) };
+    const hour = L.hour ?? D.hour;
+    paint = { cube, terrain, domain, ask: L.domain ?? domain.name, ...lit, kit: lowerGeocube(cube, 'outside', D.terrain, hour === undefined ? undefined : readHour(hour), sky).kit };
+  } else if (cube) {
+    const terrain = pickTerrain(cube, L.terrain, ground?.heartbeat?.terrain);
+    paint = { cube, terrain, ...lit, kit: lowerGeocube(cube, 'outside', terrain.name, L.hour === undefined ? undefined : readHour(L.hour), sky).kit };
+  } else if (L.terrain !== undefined || L.domain !== undefined) throw new Error(`level: ${L.terrain !== undefined ? 'terrain is one of a geocube\'s terrains' : 'domain is one of the levels a geocube makes'}: name the level's geocube`);
 
   // NODES: each one section, keyed by its id
   if (!isObj(L.nodes) || !Object.keys(L.nodes).length) throw new Error('level: nodes is { <id>: { trail | meru, kit?, seed? } }, at least one');

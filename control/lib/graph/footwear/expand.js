@@ -210,6 +210,9 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
   const errs = validateFootwear(spec), C = footwearCard(spec);
   if (errs.length) throw new Error(errs.join('; '));
   const sock = C.sock || null, used = new Set();
+  // (a body's FACETS, its adapter's `facets`: a share of the reference resolution the outlines, the toe cap's egg and the
+  // wraps are drawn at, the game body's coarser; absent, the reference's, as drawn)
+  const fx = A.facets ?? 1, res = (o, n) => (fx === 1 ? o : { ...o, ...Object.fromEntries(Object.entries(n).map(([k, v]) => [k, Math.max(k === 'rings' ? 5 : 8, Math.round(v * fx))])) });
   // (the sole's layers from the floor up; `{ thick, welt }` is one)
   const layers = C.sole?.layers ?? [{ thick: C.sole?.thick ?? 0.008, welt: C.sole?.welt ?? 0.003 }], HL = C.heels ?? null, soleThick = HL ? 0 : layers.reduce((t, L) => t + L.thick, 0);
   let stance = null;
@@ -239,8 +242,8 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
       // (the bind height a place on the foot must have to stand on the floor once the foot is tipped and raised)
       const groundAt = (x, y) => tb[2] + (floor - tb[2] - t - (y - tb[1]) * sa) / ca;
       const lerp = (x, y) => Math.min(1, Math.max(0, -ahead([x, y, 0]) / 0.06));
-      const teeth = kind === 'teeth', toeSole = toes && slabBetween(near(toes, (p) => ahead(p) > -0.004), { welt, bottom: () => floor - (teeth ? sh : t), top: () => floor + 0.002 });
-      const footSole = slabBetween(fp, { welt, top: () => floor + 0.002,
+      const teeth = kind === 'teeth', toeSole = toes && slabBetween(near(toes, (p) => ahead(p) > -0.004), { ...res({}, { n: 48 }), welt, bottom: () => floor - (teeth ? sh : t), top: () => floor + 0.002 });
+      const footSole = slabBetween(fp, { ...res({}, { n: 48 }), welt, top: () => floor + 0.002,
         bottom: kind === 'wedge' ? (x, y) => Math.min(floor - t, groundAt(x, y)) : teeth ? () => floor - sh : (x, y) => floor - (t + (sh - t) * lerp(x, y)) });
       // (rigid on the foot's bone and the toes', as a shoe's sole and heel are: the leather's blend round the ankle would
       // turn them with the shin)
@@ -253,7 +256,7 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
           // (its strip of the footprint, or on a coarse foot the eight points nearest the strip's middle)
           const strip = fp.filter((p) => -ahead(p) >= back * b0 && -ahead(p) <= back * b1), m = back * (b0 + b1) / 2;
           const print = strip.length >= 8 ? strip : [...fp].sort((p, q) => Math.abs(-ahead(p) - m) - Math.abs(-ahead(q) - m)).slice(0, 8);
-          const tooth = slabBetween(print, { welt: welt * 0.5, top: () => floor - sh + 0.002, bottom: groundAt });
+          const tooth = slabBetween(print, { ...res({}, { n: 48 }), welt: welt * 0.5, top: () => floor - sh + 0.002, bottom: groundAt });
           if (tooth) put(`${id}${name}_${fn}`, { ...tooth, group: HL.group ?? 'Heel', bind: rigid(foot) });
         }
       } else if (kind !== 'wedge') {
@@ -263,7 +266,7 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
         // (a slender heel's foot under the back of the seat, a block's under its middle)
         const rear = seat.reduce((m, p) => (ahead(p) < ahead(m) ? p : m), seat[0] ?? [0, 0, 0]), k = HEEL_KINDS[kind] < 0.5 ? 0.45 : 0;
         const toward = c && [c[0] + (rear[0] - c[0]) * k, c[1] + (rear[1] - c[1]) * k];
-        const heel = c && slabBetween(seat, { welt, top: () => floor - sh + 0.002, bottom: groundAt, taper: HEEL_KINDS[kind], toward, shift });
+        const heel = c && slabBetween(seat, { ...res({}, { n: 48 }), welt, top: () => floor - sh + 0.002, bottom: groundAt, taper: HEEL_KINDS[kind], toward, shift });
         if (heel) put(`${id}Heel_${fn}`, { ...heel, group: HL.group ?? 'Heel', bind: rigid(foot) });
       }
       // (the stance the rig stands every pose in: the toes up on their sole, the heel up by the pitch, the root risen so
@@ -275,7 +278,7 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
       const print = pointsOf(P).filter((p) => p[2] < floor + Math.max(0.015, soleThick + 0.008) && keep(p));
       let z = floor;
       layers.forEach((L, i) => {
-        const welt = L.welt ?? 0.003, slab = soleSlab(print, { floor: z, thick: L.thick, welt });
+        const welt = L.welt ?? 0.003, slab = soleSlab(print, res({ floor: z, thick: L.thick, welt }, { n: 48 }));
         if (slab) put(`${id}Sole${i || ''}_${seg}`, { ...slab, group: L.group ?? 'Sole', bind: bindNearest(slab, P) });
         // (its pod: the print from the heel, `from` … `to` of its length, its own slab a little proud of the layer's wall)
         // (its tread: lugs round its edge, standing off it at its middle height)
@@ -286,13 +289,13 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
         // (its heel: a block under the print's rear, from the layer's floor up, the foot still flat on it)
         if (L.heel && seg === fn && print.length) {
           const t = print.map(ahead), t0 = Math.min(...t), t1 = Math.max(...t), sub = print.filter((q, j) => (t[j] - t0) / (t1 - t0 || 1) <= (L.heel.to ?? 0.3));
-          const blk = soleSlab(sub, { floor: z, thick: L.heel.thick ?? 0.02, welt });
+          const blk = soleSlab(sub, res({ floor: z, thick: L.heel.thick ?? 0.02, welt }, { n: 48 }));
           if (blk) put(`${id}Heel${i}_${seg}`, { ...blk, group: L.heel.group ?? 'Heel', bind: bindNearest(blk, P) });
         }
         if (L.pod && seg === fn && print.length) {
           const t = print.map(ahead), t0 = Math.min(...t), t1 = Math.max(...t), at = (q) => (q - t0) / (t1 - t0 || 1);
           const sub = print.filter((p, j) => at(t[j]) >= (L.pod.from ?? 0) && at(t[j]) <= (L.pod.to ?? 0.35));
-          const pod = soleSlab(sub, { floor: z + L.thick * 0.2, thick: L.thick * 0.6, welt: welt + (L.pod.welt ?? 0.0015) });
+          const pod = soleSlab(sub, res({ floor: z + L.thick * 0.2, thick: L.thick * 0.6, welt: welt + (L.pod.welt ?? 0.0015) }, { n: 48 }));
           if (pod) put(`${id}Pod${i}_${seg}`, { ...pod, group: L.pod.group ?? 'Air', bind: bindNearest(pod, P) });
         }
         z += L.thick;
@@ -361,7 +364,7 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
         if (sts.length < 2) continue;
         const k0 = n.wrap; n.wrap += a.cross ? 2 : 1;
         [1, ...(a.cross ? [-1] : [])].forEach((sign, j) => {
-          const H = helixOn(P, sts, { turns: a.turns ?? 3, phase: j * 0.5, lift: a.lift ?? 0.003, sign }), rb = ribbon(H.path, H.normals, { w: a.w ?? 0.012 });
+          const H = helixOn(P, sts, res({ turns: a.turns ?? 3, phase: j * 0.5, lift: a.lift ?? 0.003, sign }, { steps: 18 })), rb = ribbon(H.path, H.normals, { w: a.w ?? 0.012 });
           if (rb) put(`${id}Wrap${k0 + j}_${seg}`, { ...rb, group: a.group ?? 'Wrap', bind: bindNearest(rb, P) });
         });
       } else if (a.prim === 'flare') {
@@ -438,7 +441,7 @@ function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
         const tMax = Math.max(...pts.map(ahead)), front = pts.map((q, j) => [ahead(q), across[j]]).filter(([t]) => t > tMax - 0.01), cTip = front.reduce((s, f) => s + f[1], 0) / front.length;
         const egg = { o: tb, fwd, side, c, cTip, minZ, p: 3, L: Math.max(ahead(tt), ...pts.map(ahead)) + lift + (a.room ?? 0.006),
           W: Math.max(...across.map((x) => Math.abs(x - c))) + lift, H: Math.max(...pts.map((p) => p[2])) - minZ + lift };
-        const cap = quarterEgg(egg);
+        const cap = quarterEgg(res(egg, { rings: 10, n: 24 }));
         // (the sock's leather under it tucked inside, so none pokes through)
         for (const seg of [fn, tn]) if (parts[`${id}_${seg}`]) parts[`${id}_${seg}`] = tuckUnderEgg(parts[`${id}_${seg}`], egg);
         put(`${id}ToeCap_${tn}`, { ...cap, group: a.group ?? 'Steel', bind: bindNearest(cap, toes) });

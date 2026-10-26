@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  FIGURE_NODES, FIGURE_EDGES, LIMITS,
+  FIGURE_NODES, FIGURE_EDGES, LIMITS, CERVICAL_CAP,
   basePositions, articulate, figureVajraSpecs, figureJointGraph,
 } from './figure-vajra.js';
 
@@ -59,5 +59,40 @@ describe('figure-vajra — the fundamental figure shape', () => {
     const g = figureJointGraph(basePositions());
     expect(g.spheres).toHaveLength(17);
     expect(g.links).toHaveLength(FIGURE_EDGES.length * 2);
+  });
+});
+
+// The cervical chain (`dof.cervical`, CERVICAL_CAP): a head aim is the cervical spine's, shared by the neck's column and
+// the skull's nod on the atlas, each within its own range; without the flag, the two cones as before.
+describe('figure-vajra — the cervical chain', () => {
+  const deg = (r) => (r * 180) / Math.PI;
+  const lines = (m) => { const nk = [m.headBase.y - m.neckHub.y, m.headBase.z - m.neckHub.z, m.headBase.x - m.neckHub.x], hd = [m.headTop.y - m.headBase.y, m.headTop.z - m.headBase.z, m.headTop.x - m.headBase.x];
+    // (the nod: forward of vertical, +; the side bend: toward +x, +)
+    return { neck: deg(Math.atan2(nk[0], nk[1])), skull: deg(Math.atan2(hd[0], hd[1])), neckSide: deg(Math.atan2(nk[2], nk[1])), skullSide: deg(Math.atan2(hd[2], hd[1])) }; };
+  const rest = lines(articulate({}));
+  const at = (dof) => { const L = lines(articulate(dof)); return { neck: L.neck - rest.neck, atlas: L.skull - L.neck - (rest.skull - rest.neck), neckSide: L.neckSide - rest.neckSide, atlasSide: L.skullSide - L.neckSide - (rest.skullSide - rest.neckSide) }; };
+  it('shares a head aim alone down the neck: a nod bends the column more than the atlas, never the atlas alone', () => {
+    const A = at({ cervical: true, head: { yaw: 0, pitch: -20 } });
+    expect(A.neck + A.atlas).toBeCloseTo(20, 6);
+    expect(A.neck / A.atlas).toBeCloseTo(CERVICAL_CAP.neck.flex / CERVICAL_CAP.head.flex, 6);
+    // (without the chain, the same word swings the skull alone at the atlas)
+    const B = at({ head: { yaw: 0, pitch: -20 } });
+    expect(B.neck).toBeCloseTo(0, 9); expect(B.atlas).toBeCloseTo(20, 6);
+  });
+  it('holds each direction to the chain\'s range: flexion, extension and side bend each their own', () => {
+    const C = CERVICAL_CAP;
+    const fwd = at({ cervical: true, head: { yaw: 0, pitch: -90 } }), back = at({ cervical: true, head: { yaw: 0, pitch: 90 } }), side = at({ cervical: true, head: { yaw: 90, pitch: 0 } });
+    expect(fwd.neck).toBeCloseTo(C.neck.flex, 6); expect(fwd.atlas).toBeCloseTo(C.head.flex, 6);
+    expect(-back.neck).toBeCloseTo(C.neck.ext, 6); expect(-back.atlas).toBeCloseTo(C.head.ext, 6);
+    expect(Math.abs(side.neckSide)).toBeCloseTo(C.neck.lateral, 6); expect(Math.abs(side.atlasSide)).toBeCloseTo(C.head.lateral, 6);
+    expect(C.neck.flex + C.head.flex).toBeLessThan(C.neck.ext + C.head.ext);   // (the cervical spine extends further than it flexes)
+  });
+  it('holds a neck and a head both named each to its own segment\'s range', () => {
+    const A = at({ cervical: true, neck: { yaw: 0, pitch: -80 }, head: { yaw: 0, pitch: -80 } });
+    expect(A.neck).toBeCloseTo(CERVICAL_CAP.neck.flex, 6); expect(A.atlas).toBeCloseTo(CERVICAL_CAP.head.flex, 6);
+  });
+  it('is absent without the flag: a pose with no cervical key is the cones\' to the bit', () => {
+    const dof = { neck: { yaw: 10, pitch: -30 }, head: { yaw: -5, pitch: 40, turn: 12 } };
+    expect(articulate({ ...dof, cervical: false })).toEqual(articulate(dof));
   });
 });

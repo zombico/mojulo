@@ -12,7 +12,7 @@ import { resolveMojuloPaths } from './mojulo-paths.mjs';
 const KEYS = [
   'MOJULO_HOME', 'MOJULO_DATA_DIR', 'MOJULO_MODELS_DIR', 'SQLITE_PATH', 'ARTIFACTS_DIR',
   'STORAGE_ROOT', 'MOJULO_OUTCOMES_DIR', 'MOJULO_EXPORTS_DIR', 'MOJULO_SCENE_PNG_DIR',
-  'MOJULO_TURNTABLE_DIR', 'MOJULO_FIGURE_SPECS_DIR', 'MOJULO_CHROMIUM_DIR', 'MOJULO_FFMPEG_DIR',
+  'MOJULO_TURNTABLE_DIR', 'MOJULO_FIGURE_SPECS_DIR', 'MOJULO_CHROMIUM_DIR', 'MOJULO_FFMPEG_DIR', 'MOJULO_FACE_RIG_DIR',
 ];
 
 function withCleanEnv(fn) {
@@ -59,7 +59,8 @@ describe('resolveMojuloPaths', () => {
       expect(process.env.MOJULO_FIGURE_SPECS_DIR).toBe(path.join(data, 'figure-specs'));
       expect(process.env.MOJULO_CHROMIUM_DIR).toBe(path.join(home, 'chromium'));
       expect(process.env.MOJULO_FFMPEG_DIR).toBe(path.join(home, 'ffmpeg'));
-      for (const dir of [r.scenePngDir, r.turntableDir, r.figureSpecsDir, r.chromiumDir, r.ffmpegDir]) {
+      expect(process.env.MOJULO_FACE_RIG_DIR).toBe(path.join(home, 'cache', 'face-rig'));
+      for (const dir of [r.scenePngDir, r.turntableDir, r.figureSpecsDir, r.chromiumDir, r.ffmpegDir, r.faceRigDir]) {
         expect(dir.startsWith(home + path.sep)).toBe(true);
       }
     });

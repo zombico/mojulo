@@ -411,7 +411,13 @@ const DESCRIPTION_ALLOWLIST = {
 // Held 2026-10-20 at 212_000 (measured 211,923) merging 1019-science-worlds: create_view's `kind` gains 'classical',
 // 'microscopic', 'quantum' and 'relativistic' (laws composed into a demo, each an argument on the view door; on its own
 // branch it raised the pin 211_300 -> 211_500). No new tool.
-const PAYLOAD_CEILING = 212_000;
+// Raised 2026-10-20 on 1024-geocube-composition-update (211_800 -> 212_000; measured 211,867) for geocube styles:
+// pick_palette's `values` (value groups, the land in two or three masses of value), one schema property. No new tool.
+// Held 2026-10-25 at 212_000 (measured 211,919) merging 1024-geocube-composition-update over 1023-consolidated: both
+// lines' additions together fit under the pin. No new tool.
+// Raised 2026-10-26 on 1026-gen7-form (212_000 -> 212_300; measured 212,161) for the era as a render: export_game's
+// `era` (the same game's pages drawn in another era than its cube's), one schema property. No new tool.
+const PAYLOAD_CEILING = 212_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
@@ -440,7 +446,7 @@ describe('tools/list description budget — the ratchet', () => {
       .filter((t) => t.len > t.budget)
       .map((t) => `${t.name}: ${t.len} chars > budget ${t.budget}`);
     expect(offenders).toEqual([]);
-  });
+  }, 180_000);   // the first here to register every tool: 35-45 s with nothing cached, past the 30 s default
 
   it('the allowlist only ratchets down — stale entries must be deleted', async () => {
     const byName = new Map((await listedTools()).map((t) => [t.name, (t.description || '').length]));

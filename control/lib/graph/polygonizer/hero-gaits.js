@@ -16,8 +16,22 @@ export const GAITS = Object.freeze({
  * in the rig's metres. Tuned
  * on the cast heroes: about 1.05 m/s, a 3.3 cm bob, a 58 % stance, the body no longer held low all cycle (the studied
  * walk: 0.70 m/s, 5.5 cm, the hips never less than 5.5 cm down). The figure's gait ignores the hero dials.
+ * `swingClear` (m) is the least gap the legs keep as the swing leg passes the planted one (hero-stride.js): on the walk's
+ * narrow base the swing foot goes round the planted leg by the least excursion that keeps it, out after the lift-off and
+ * back onto its line late, past the planted foot. It needs the body's leg girths (the recipe's `locomotion` carries them,
+ * layered.js); a walk stored before it passes straight through, as it did.
  */
-export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true, swingFoot: true });
+export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true, swingFoot: true, swingClear: 0.008 });
+
+/**
+ * A walk by the hero's SILHOUETTE, over HERO_WALK (stampHeroMotion `pole`, the adult cast's: a child or a chibi walks the
+ * one walk). The MAN walks a wider base: on the narrow one (`stepWidth` 0.05) his ankles came onto one line as they
+ * passed and his legs ran 5 to 6 cm through each other but for the swing's going round (hero-stride.js); at 0.16 his
+ * feet land 10 to 11 cm apart (men's heels about 10 to 13), his legs clear each other on their own (the game body by
+ * 0.9 cm, the realistic by 2.3) and the swing goes straight through, no crossing and no going round. The woman keeps the
+ * near-single line, her hips carrying it.
+ */
+export const HERO_WALK_POLE = Object.freeze({ male: Object.freeze({ stepWidth: 0.16 }) });
 
 /**
  * The hero's own run dials (the jog and the sprint), over the figure's mint table (figure-posing.js SPRINT_MINT):

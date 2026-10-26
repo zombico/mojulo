@@ -23,6 +23,16 @@ describe('the wizard\'s robe: a robe whose sleeves bell at the wrist', () => {
   });
 });
 
+describe('a half-cape to the hip, hooded, on the landmark head', () => {
+  // (`hem: 'hip'` was no hem word: the cloak threw in the sorter and was dropped as "not worn", so no street half-cape
+  // and no hood ever showed; an unknown word is now said)
+  it('ends at the pelvis\'s top and raises its hood; an unknown hem word is refused by name', () => {
+    const parts = expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', outfit: { type: 'outfit', style: 'streetwear', pieces: [{ kind: 'cloak', hood: true, wrap: 0.5, hem: 'hip' }] } }) }).recipe.parts;
+    expect(parts.cloak_cape).toBeTruthy(); expect(parts.cloakHood_hood).toBeTruthy();
+    expect(() => expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', outfit: { type: 'outfit', style: 'streetwear', pieces: [{ kind: 'cloak', hem: 'elbow' }] } }) })).not.toThrow();   // the sorter says it, the mint stands
+  });
+});
+
 describe('a hooded cloak', () => {
   const P = partsOf('female', 'traveler', [{ kind: 'cloak', hood: true }]);
   it('the hood rises from the cloak over the head, round, open at the face, turning with the head', () => {

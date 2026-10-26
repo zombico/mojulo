@@ -289,10 +289,13 @@ export function rockItems(st, site, seed) {
   const R = st.rubble, { D, halfWAt, fringeAt, trailX, ground, inRadius, foci } = site, S = seed | 0, items = [];
   // the talus: where the landform's own scree came to rest (power-law sizes, the big blocks on the thin distal edge)
   site.scree.slice(0, R.maxScree).forEach((r, i) => items.push({ x: r.x, y: r.y, size: r.size / (R.unit * 0.66), detail: 0, v: i % R.variants, role: 'talus' }));
+  // (as many as the card strews, or the trail's own `rocks.boulders`: out-trail.js readRocks)
   let distinct = 0;
-  for (let i = 0; i < R.boulders; i++) {
-    const y = D * (0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / R.boulders), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1;
+  const nb = site.boulders ?? R.boulders;
+  for (let i = 0; i < nb; i++) {
+    const y = D * (0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1;
     const x = trailX(y) + side * (halfWAt(y) + fringeAt(y) + 1 + 2 * hash3(i, 7, S + 41)), inside = inRadius(x, y);
+    if (site.water && site.water.clear(x, y)) continue;   // (none in a trail's water or on its shore: out-water.js)
     items.push({ x, y, size: 1.3 + 1.1 * hash3(i, 8, S + 43), detail: inside ? 1 : 0, v: inside ? distinct++ % R.variants : i % R.variants, role: 'boulder' });
   }
   for (const f of foci.filter((f) => f.gate)) R.gate.sizes.forEach((size, k) => {
@@ -326,6 +329,36 @@ export function rockFaces(st, items) {
   return out;
 }
 
+/**
+ * A CLUMP ARRANGED (a card's `trees.compose: 'ikebana'`, era/out-ikebana.js's principles at a clump's scale): an odd
+ * count of trees about the centre, the tallest (shin) at the back away from the trail, the next (soe) out to one side
+ * and the third (hikae) low toward the other front, their heights stepping 1 : 0.75 : 0.56 (scalene: the triangle their
+ * crowns make is the clump's locked shape); the rest fillers lower still, round the sides and back; a sector toward the
+ * trail (the ma) left open. Neighbouring clumps alternate hands. → trees
+ */
+// (bearings in degrees from the clump's front, toward the trail; radii a share of the clump's spread)
+export const CLUMP = Object.freeze({ shin: { at: 180, r: 0.25 }, soe: { at: 100, r: 0.62 }, hikae: { at: -60, r: 0.7 }, steps: [1, 0.75, 0.56], fillers: [0.38, 0.5], ma: 34, apart: 1.7 });
+function arrangedClump(T, site, [cx, cy], ci, S, ok, placed) {
+  const H = (k) => hash3(ci * 131 + k, 7, S + 71), hand = ci % 2 ? -1 : 1, top = T.heights[1] * mix(0.92, 1, H(1));
+  // the bearing toward the trail (the clump's front): its open side
+  const front = site.trailX(cy) >= cx ? 0 : Math.PI, at = (deg) => front + hand * (deg * Math.PI) / 180;
+  let want = T.perCluster[0] + Math.floor(H(2) * (T.perCluster[1] - T.perCluster[0] + 1));
+  if (want % 2 === 0) want += want + 1 <= Math.max(T.perCluster[1], 3) ? 1 : -1;
+  const out = [], free = (x, y) => ok(x, y, T.clearTrail) && [...placed, ...out].every((t) => Math.hypot(t.x - x, t.y - y) >= CLUMP.apart);
+  const put = (x, y, h, role) => { if (!free(x, y)) return false; out.push({ x: r5(x), y: r5(y), h: r5(h), v: (ci + out.length) % T.variants, cluster: ci, role }); return true; };
+  // the principals, each nudged round its bearing until it stands clear
+  ['shin', 'soe', 'hikae'].slice(0, want >= 3 ? 3 : 1).forEach((role, i) => {
+    const P0 = CLUMP[role], h = Math.max(T.heights[0] * 0.8, top * CLUMP.steps[i]);
+    for (let k = 0; k < 8; k++) { const a = at(P0.at + (k % 2 ? 1 : -1) * 12 * Math.ceil(k / 2)), r = T.spread * P0.r * (1 + 0.1 * k); if (put(cx + Math.cos(a) * r, cy + Math.sin(a) * r, h, role)) break; }
+  });
+  // the fillers: round the sides and back, never in the ma
+  for (let k = 0, tries = 0; out.length < want && tries < 60; tries++, k++) {
+    const deg = 180 - (CLUMP.ma + (180 - CLUMP.ma) * H(10 + k)) * (H(30 + k) < 0.5 ? 1 : -1), a = at(deg), r = T.spread * mix(0.45, 1, Math.sqrt(H(50 + k)));
+    put(cx + Math.cos(a) * r, cy + Math.sin(a) * r, Math.max(T.heights[0] * 0.6, top * mix(CLUMP.fillers[0], CLUMP.fillers[1], H(70 + k))), 'filler');
+  }
+  return out;
+}
+
 /** Tree positions: cluster centres by rejection (apart from each other, the trail and the cliff), 3–7 trees each. */
 export function treeItems(st, site, seed) {
   const T = st.trees, { W, D, trailDist, cliffX, apronAt } = site, S = seed | 0, centres = [], trees = [];
@@ -334,6 +367,7 @@ export function treeItems(st, site, seed) {
     const x = W * hash3(i, 1, S + 51), y = D * hash3(i, 2, S + 53);
     if (ok(x, y, T.clearTrail + T.spread * 0.6) && centres.every((c) => Math.hypot(c[0] - x, c[1] - y) > T.spread * 2.6)) centres.push([x, y]);
   }
+  if (T.compose === 'ikebana') { centres.forEach((c, ci) => trees.push(...arrangedClump(T, site, c, ci, S, ok, trees))); return trees; }
   centres.forEach(([cx, cy], ci) => {
     const want = T.perCluster[0] + Math.floor(hash3(ci, 3, S + 57) * (T.perCluster[1] - T.perCluster[0] + 1));
     for (let k = 0, tries = 0; k < want && tries < 60; tries++) {
@@ -550,21 +584,23 @@ export function grassTufts(st, site, trees, rocks, sun, seed) {
   const placed = new Map(), cellOf = (x, y) => `${Math.floor(x / G.spacing)},${Math.floor(y / G.spacing)}`;
   const free = (x, y) => {
     if (placed.has(cellOf(x, y))) return false;
-    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 0.6) || rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * st.rubble.unit * 0.35)) return false;
+    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < (t.clearR ?? 0.6)) || rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * st.rubble.unit * 0.35)) return false;
     placed.set(cellOf(x, y), 1); return true;
   };
   const tufts = [];
   const add = (zone, x, y, i) => {
-    if (x < 0 || y < 0 || x > W || y > D || !free(x, y)) return;
+    // (nothing rooted on the trail: its edge a hand clear)
+    if (x < 0 || y < 0 || x > W || y > D || trailDist(x, y) < halfWAt(y) + 0.1 || (site.wet && site.wet(x, y)) || !free(x, y)) return;
     const z = ground(x, y), lit = sun.shadow([x, y, z + 0.25], [0, 0, 1]);
     const h = mix(G.height[0], G.height[1], hash3(i, 31, S + 101)) * (zone === 'cliff' ? 1.2 : 1);
     tufts.push({ zone, level: inRadius(x, y) ? 'L1' : 'L0', v: i % G.variants, pos: [r5(x), r5(y), r5(z - 0.03)], scale: r5(h * (zone === 'scatter' ? 0.7 : 1)), lit });
   };
-  // the fringe: both edges of the trail, every `fringeEvery` metres, inside the fringe band
+  // the fringe: both edges of the trail, every `fringeEvery` metres, inside the fringe band (its offset across the trail,
+  // so a slanting stretch keeps its fringe off the trail as a straight one does)
   let i = 0;
   for (let y = 0.3; y < D; y += G.fringeEvery) for (const side of [-1, 1]) {
-    const off = halfWAt(y) + fringeAt(y) * (0.15 + 0.85 * hash3(i, 33, S + 103));
-    add('fringe', trailX(y) + side * off, y + (hash3(i, 35, S + 107) - 0.5) * 0.3, i++);
+    const off = halfWAt(y) + fringeAt(y) * (0.15 + 0.85 * hash3(i, 33, S + 103)), slant = Math.hypot(1, trailX(y + 0.5) - trailX(y - 0.5));
+    add('fringe', trailX(y) + side * off * slant, y + (hash3(i, 35, S + 107) - 0.5) * 0.3, i++);
   }
   // meadow clumps: centres in the grass (never on the trail or the talus), more tufts inside a radius
   for (let c = 0; c < G.clusters; c++) {
@@ -723,7 +759,9 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // a card stops the sun only where its painted needles are; grass is no occluder
   const shadow = makeSunShadow(raw, dir, { cell: 0.6, ...(st.trees.cards ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) });
-  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
+  // (the live light's SUN SHARE, scene/live-light.js: a world whose page takes actor shadows has the bake write each
+  // corner's share of its light that comes straight from the sun, as the stage does; ctx.liveSun, world-scene)
+  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow, ...(ctx.liveSun ? { share: true } : {}) };
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   // grass as cards stands in the bake (after the sun: it grows where it is placed, shaded where the shade falls)
   if (st.grass.cards) raw.push(...grassCards(st, site, grassTufts(st, site, trees, rocks, sun, seed), seed));

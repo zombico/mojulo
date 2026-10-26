@@ -34,18 +34,23 @@ const WORDS = {
   doorForm: ['rect', 'arch'], lintelForm: ['flat', 'key'], head: ['lantern', 'globe', 'hood', 'orb'], arm: ['post', 'bracket', 'crook'], postForm: ['square', 'round', 'capped'],
   boundForm: ['rail', 'paling', 'picket', 'hedge', 'drystone', 'coursed', 'rendered'], footPaving: ['flags', 'setts', 'slabs'], roadPaving: ['setts', 'flags', 'earth'],
   walkForm: ['kerbed', 'flush', 'boards', 'verge'],
+  // the openings as architecture (era/out-openings.js)
+  glazing: ['none', 'lattice', 'sash', 'casement', 'plate', 'arabesque', 'ornamental', 'stained'], trim: ['str:paint', 'str:timber', 'str:stone', 'str:plaster', 'str:accent'],
+  leaf: ['boards', 'panels', 'glazed'], surround: ['none', 'frame', 'pilasters', 'hood'], fanlight: ['none', 'rect', 'arch'], shutterForm: ['flat', 'boards', 'louvred'],
 };
 export const ELEMENT_KINDS = Object.freeze({
   wall: { family: 'building', depth: 0, read: 'the wall, storey by storey: its material (a surface group and value) and how it is laid (its bond, marks in the tile)', params: { bond: { rail: WORDS.bond, hold: ST } } },
   cap: { family: 'building', depth: 0, read: 'what covers the mass: its form, pitch or rise, eave, covering and courses', params: { form: { rail: WORDS.capForm, hold: ST }, pitch: { rail: [20, 60], hold: ST }, eave: { rail: [0.2, 1.4], hold: ST }, rise: { rail: [0.5, 1.4], hold: { house: 0.08 } } } },
-  light: { family: 'building', depth: 1, read: 'the window: its form, size and head line (held by the street), its rhythm (a house may widen a bay or add a light)', params: { form: { rail: WORDS.lightForm, hold: ST }, w: { rail: [0.6, 1.4], hold: ST }, h: { rail: [0.6, 2], hold: ST }, sill: { rail: [0.6, 1.1], hold: ST }, bay: { rail: [2.2, 3.6], hold: { house: 0.12 } }, count: { rail: [1, 4], hold: { house: 1 } } } },
-  door: { family: 'building', depth: 1, read: 'the way in: its head (square or round); its size is the use\'s, its bay the household\'s', params: { form: { rail: WORDS.doorForm, hold: ST }, w: { rail: [0.9, 1.4], hold: ST }, h: { rail: [2, 2.5], hold: ST } } },
+  light: { family: 'building', depth: 1, read: 'the window: its form, size and head line (held by the street), its rhythm (a house may widen a bay or add a light); its frame, glazing and trim when the language builds them', params: { form: { rail: WORDS.lightForm, hold: ST }, w: { rail: [0.6, 1.4], hold: ST }, h: { rail: [0.6, 2], hold: ST }, sill: { rail: [0.6, 1.1], hold: ST }, bay: { rail: [2.2, 3.6], hold: { house: 0.12 } }, count: { rail: [1, 4], hold: { house: 1 } },
+    frame: { rail: [0, 0.2], hold: ST }, glazing: { rail: WORDS.glazing, hold: ST }, trim: { rail: WORDS.trim, hold: ST }, trimValue: { rail: [0, 1], hold: ST } } },
+  door: { family: 'building', depth: 1, read: 'the way in: its head (square or round); its size is the use\'s, its bay the household\'s; its leaf, surround, fanlight and steps when the language builds them', params: { form: { rail: WORDS.doorForm, hold: ST }, w: { rail: [0.9, 1.4], hold: ST }, h: { rail: [2, 2.5], hold: ST },
+    leaf: { rail: WORDS.leaf, hold: ST }, surround: { rail: WORDS.surround, hold: ST }, fanlight: { rail: WORDS.fanlight, hold: ST }, steps: { rail: [0, 3], hold: ST } } },
   socle: { family: 'building', depth: 2, read: 'a plinth band at the wall\'s foot: the building stands on something', params: { h: { rail: [0.3, 0.9], hold: ST } } },
   cornice: { family: 'building', depth: 2, read: 'a proud band under the eave: the wall ends, the cap begins', params: { h: { rail: [0.15, 0.45], hold: ST }, proud: { rail: [0.08, 0.3], hold: ST } } },
   sill: { family: 'building', depth: 3, read: 'a ledge under each light, wider than it', params: { h: { rail: [0.15, 0.24], hold: ST }, over: { rail: [0.04, 0.15], hold: ST } } },
   lintel: { family: 'building', depth: 3, read: 'what carries the wall over each light: a beam, or a keystone over a round head', params: { h: { rail: [0.16, 0.32], hold: ST }, form: { rail: WORDS.lintelForm, hold: ST } } },
   quoins: { family: 'building', depth: 3, read: 'dressed stones at the corners, long and short in turn', params: { w: { rail: [0.25, 0.5], hold: ST }, course: { rail: [0.25, 0.4], hold: ST } } },
-  shutters: { family: 'building', depth: 3, read: 'a pair beside each square light; not every household hangs them', params: { share: { rail: [0, 1], hold: 'share' } } },
+  shutters: { family: 'building', depth: 3, read: 'a pair beside each square light; not every household hangs them', params: { share: { rail: [0, 1], hold: 'share' }, form: { rail: WORDS.shutterForm, hold: ST } } },
   chimney: { family: 'building', depth: 2, read: 'a hearth\'s stack through the cap, where the use has a hearth', params: { w: { rail: [0.5, 0.9], hold: ST } } },
   point: { family: 'building', depth: 2, read: 'pointed finials: one at a crown, or a counted radial set', params: { count: { rail: [1, 6], hold: ST }, len: { rail: [0.06, 0.25], hold: ST }, base: { rail: [0.14, 0.3], hold: ST } } },
   rib: { family: 'building', depth: 2, read: 'vertical ribs between the lights; a share of households carry them', params: { count: { rail: [2, 6], hold: ST }, w: { rail: [0.12, 0.3], hold: ST }, share: { rail: [0, 1], hold: 'share' } } },
@@ -300,6 +305,10 @@ function holdsOf(E) {
  * then compiled into pieces (the form the language is decompiled from), the street section, the holds and the bonds.
  * An anchor given as pieces (no elements) passes through with the default street.
  */
+// what a light and a door say of themselves as architecture (era/out-openings.js): carried when written, else nothing
+export const OPENING_WORDS = Object.freeze(['frame', 'glazing', 'trim', 'trimValue']);
+export const ENTRY_WORDS = Object.freeze(['leaf', 'surround', 'fanlight', 'steps']);
+const only = (el, keys) => Object.fromEntries(keys.filter((k) => el[k] !== undefined).map((k) => [k, el[k]]));
 export function composeAnchor(A) {
   if (A.pieces) return { ...A, use: A.use ?? 'dwelling', lot: A.lot ?? { w: 12, d: 18 }, storeys: A.storeys ?? A.pieces.find((p) => p.role === 'mass')?.storeys?.length ?? 1, street: A.street ?? DEFAULT_STREET, holds: A.holds ?? { street: ['storeyH', 'pitch', 'eave', 'shrink', 'head'], house: { bay: 0.1, lights: 1, capRise: 0.1, rise: 0.1, annexScale: 0.1 }, share: { shutters: 1, rib: 0.75 } }, bonds: A.bonds ?? [], elements: A.elements ?? null };
   const E = A.elements, C = A.compose;
@@ -318,8 +327,8 @@ export function composeAnchor(A) {
   for (const [id, el] of of('boundary')) for (const r of el.roles ?? []) if (!BOUNDARY_ROLES[r]) throw new Error(`anchor: boundary '${id}': '${r}' is not a role (${BOUNDARY_ROLE_IDS.join(', ')})`);
   const pieces = [{ id: 'mass', role: 'mass', kind: mass, w: C.mass.w, d: C.mass.d, rise: mass === 'shell' ? C.mass.rise ?? cap.rise : undefined, storeys: wall.storeys.map((s) => ({ group: s.group, value: s.value })), ...(C.tiers ? { tiers: { shrink: C.tiers.shrink } } : {}) }];
   if (cap.form !== 'none') pieces.push({ id: 'cap', role: 'cap', kind: cap.form, on: 'mass', pitch: cap.pitch, rise: cap.rise, eave: cap.eave, every: !!C.tiers?.every, group: cap.group, value: cap.value, courses: !!cap.courses });
-  pieces.push({ id: 'lights', role: 'opening', kind: light.form, on: 'mass', w: light.w, h: light.h, sill: light.sill, rhythm: block ? { by: 'bays', bay: light.bay } : { by: 'band', count: light.count ?? 2 }, group: light.group, value: light.value });
-  pieces.push({ id: 'door', role: 'entry', kind: block ? 'door' : 'tunnel', shape: door.form, on: 'mass', w: door.w, h: door.h });
+  pieces.push({ id: 'lights', role: 'opening', kind: light.form, on: 'mass', w: light.w, h: light.h, sill: light.sill, rhythm: block ? { by: 'bays', bay: light.bay } : { by: 'band', count: light.count ?? 2 }, group: light.group, value: light.value, ...only(light, OPENING_WORDS) });
+  pieces.push({ id: 'door', role: 'entry', kind: block ? 'door' : 'tunnel', shape: door.form, on: 'mass', w: door.w, h: door.h, ...only(door, ENTRY_WORDS) });
   for (const [id, el] of Object.entries(E)) if (!['wall', 'cap', 'light', 'door', 'boundary', ...STREET_KINDS].includes(el.kind)) pieces.push({ ...el, id, role: 'ornament', kind: el.kind, on: 'mass' });
   if (C.annex) pieces.push({ id: 'annex', role: 'annex', kind: mass, on: 'mass', at: 'behind', scale: C.annex.scale });
   const street = { ...Object.fromEntries(STREET_KINDS.map((k) => [k, one(k) ?? DEFAULT_STREET[k]])), bounds: of('boundary').length ? Object.fromEntries(of('boundary')) : DEFAULT_STREET.bounds };

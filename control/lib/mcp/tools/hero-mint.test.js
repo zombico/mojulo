@@ -14,6 +14,20 @@ import { fingerprint } from '@/lib/graph/gameworld/review.js';
 const book = { ...HALDEN_REACH, characters: MEADOWMARK_HERO.characters, equipment: MEADOWMARK_HERO.equipment };
 const heroStep = () => runSteps(book, { ref: 'gw' }).find((s) => s.key === 'hero');
 
+describe('the grown fall is the mint\'s default: stamped on the landmark head\'s falling styles, never on a cap or the anime head', () => {
+  const stored = async (ref, spec) => { const r = await mintSolidHandler({ kind: 'layered', via: 'hero', ref, spec }); expect(r.ok, JSON.stringify(r).slice(0, 200)).toBe(true); return SketchRepository.getByRef(ref).manifest.hero.hair; };
+  it('a long fall, a word or a list, is stored with spine elastica; a cap and a bun are stored as given; a spine named is kept', async () => {
+    expect(await stored('gf_long', { cast: 'female', hair: 'long' })).toMatchObject({ style: 'long', spine: { law: 'elastica' } });
+    expect(await stored('gf_list', { cast: 'female', hair: ['wavy', { length: 1.1 }] })).toMatchObject({ style: 'wavy', length: 1.1, spine: { law: 'elastica' } });
+    expect((await stored('gf_crop', { cast: 'male', hair: 'crop' })).spine).toBeUndefined();
+    expect((await stored('gf_bun', { cast: 'female', hair: 'bun' })).spine).toBeUndefined();
+    expect((await stored('gf_stiff', { cast: 'female', hair: ['long', { spine: { stiffness: 'stiff' } }] })).spine).toEqual({ law: 'elastica', stiffness: 'stiff' });
+  });
+  it('the anime head\'s hair is left as given', async () => {
+    expect((await stored('gf_anime', { cast: 'female', head: 'anime', hair: 'long' })).spine).toBeUndefined();
+  });
+});
+
 describe('hero-mint: the one way a run mints or remakes a hero', () => {
   it('the character light reaches the door: the book\'s anime hero is stored with it', async () => {
     const { order } = heroStep();
@@ -36,6 +50,11 @@ describe('hero-mint: the one way a run mints or remakes a hero', () => {
     const paged = heroRemakeOps({ ...order, motion: [{ op: 'set', path: '/hero/motion', value: {} }] }, { hero: { cast: 'male', motion: { jog: true } } });
     expect(paged[0].value.motion.jog).toBeUndefined();
     expect(paged[0].value.motion.walk).toBeTruthy();
+    // the body: a new figure on the tiered game body, a stored one on the body it was minted on, a named one as named
+    expect(heroRemakeOps(order, null)[0].value.form).toBe('tiered');
+    expect(heroRemakeOps(order, { hero: { cast: 'male' } })[0].value.form).toBeUndefined();
+    expect(heroRemakeOps(order, { hero: { cast: 'male', form: 'tiered' } })[0].value.form).toBe('tiered');
+    expect(heroRemakeOps({ ...order, spec: { ...order.spec, form: 'classic' } }, null)[0].value.form).toBe('classic');
     const lit = heroRemakeOps({ ...order, mint: { ...order.mint, toon: { light: true } } }, null);
     expect(lit[1]).toEqual({ op: 'set', path: '/toon', value: { light: true } });
   });

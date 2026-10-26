@@ -57,6 +57,22 @@ describe('schemes', () => {
     expect(K.conflicts(SCHEMES[id], K.resolve(SCHEMES[id], D))).toEqual([]);
   });
 
+  // a pad player can do what a keyboard player can in the pilot scheme: every action has a pad binding but the few a
+  // pad says another way (the left stick strafes under mouselook, the RB chord selects a weapon, kneel descends a glide)
+  it('pilot: every action but those a pad says another way has a pad binding', () => {
+    const OTHERWISE = ['strafeLeft', 'strafeRight', 'descend', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'];
+    expect(SCHEMES.pilot.actions.filter((a) => !a.bind.gamepad?.length && !OTHERWISE.includes(a.id)).map((a) => a.id)).toEqual([]);
+  });
+
+  // the action lab read these by hand before the scheme held them (gameworld/feel/page.client.js): the same keys and buttons
+  it('action: the lab\'s keys and pad buttons, as it had them', () => {
+    const B = K.resolve(SCHEMES.action, D);
+    const KEYS = { KeyI: 'lock', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', KeyF: 'shoot', KeyZ: 'switch', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
+    for (const [code, verb] of Object.entries(KEYS)) expect(K.actionOf(B, 'keyboard', code), code).toBe(verb);
+    const PAD = { jump: [0], attack: [2], dodge: [1], dash: [5], lock: [4, 11], guard: [7], shoot: [3], switch: [8], sprint: [6, 10], up: [12], down: [13], left: [14], right: [15] };
+    for (const [verb, idx] of Object.entries(PAD)) expect(B.bind.gamepad[verb].filter((c) => D.gamepad.buttons[c] !== undefined).map((c) => D.gamepad.buttons[c]), verb).toEqual(idx);
+  });
+
   it('is plain data (the page embeds it as JSON)', () => {
     expect(JSON.parse(JSON.stringify(SCHEMES))).toEqual(SCHEMES);
   });

@@ -26,7 +26,7 @@ import { hexRgb, rgbHex } from '../era/geom.js';
 import { gnoise2, smoothstep } from '../noise/noise.js';
 
 export const ROCK = new Set(['isekai:cliff', 'isekai:rock']);
-const PRIORITY = ['isekai:cliff', 'isekai:rock', 'isekai:sand', 'isekai:ground', 'isekai:trail'];
+const PRIORITY = ['isekai:cliff', 'isekai:rock', 'isekai:snow', 'isekai:sand', 'isekai:ground', 'isekai:trail'];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -53,11 +53,12 @@ export function bakeLand(faces, ambient, sun, S) {
     const k = `${keyOf(c)}|${faces[i].group}`;
     if (!at.has(k)) { at.set(k, points.length); points.push({ corners: [c], normal: unit(vn.get(keyOf(c))), tint: faces[i].tint, group: faces[i].group }); }
   }
-  const lit = bakeStageLight(points, [], ambient, undefined, sun).map((p) => hexRgb(p.fill));
+  const bakedPts = bakeStageLight(points, [], ambient, undefined, sun), lit = bakedPts.map((p) => hexRgb(p.fill));
   for (const i of soft) {
-    const { tint, ...f } = faces[i], cs = f.corners.map((c) => lit[at.get(`${keyOf(c)}|${f.group}`)]);
+    const { tint, ...f } = faces[i], ix = f.corners.map((c) => at.get(`${keyOf(c)}|${f.group}`)), cs = ix.map((j) => lit[j]);
     const m = [0, 1, 2].map((j) => cs.reduce((a, v) => a + v[j], 0) / cs.length);
-    out[i] = { ...f, fill: rgbHex(m), cornerFills: cs.map(rgbHex) };
+    // (each corner's sun share, when the live light asks for it: scene/live-light.js)
+    out[i] = sun && sun.share ? { ...f, fill: rgbHex(m), cornerFills: cs.map(rgbHex), sunShare: ix.map((j) => bakedPts[j].sunShare) } : { ...f, fill: rgbHex(m), cornerFills: cs.map(rgbHex) };
   }
   return out;
 }
@@ -113,7 +114,7 @@ function mixWeights(faces, V, { rings, seed }) {
   }
 }
 
-const K = 5, DEEP = 0.35, LIFT = 0.22, GRAIN = 0.35, GRAINED = new Set(['isekai:ground', 'isekai:sand']), VALLEY = 1.8;
+const K = 5, DEEP = 0.35, LIFT = 0.22, GRAIN = 0.35, GRAINED = new Set(['isekai:ground', 'isekai:sand', 'isekai:snow']), VALLEY = 1.8;
 /**
  * The rules into each corner colour, in linear light. `tints` is each surface's albedo (0..1 sRGB) for the blend and
  * the mix. `X` (optional): `grain` ({ at(x, y) → about [−1, 1], amount 0..1 }) the relief's fine octaves for the value;

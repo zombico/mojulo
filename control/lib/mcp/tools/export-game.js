@@ -25,6 +25,8 @@
  *  - Pixelizer games are already single-file: their export is game.html + recipe + README.
  */
 
+import { readEra } from '@/lib/graph/era/eras';
+import { eraReading } from '@/lib/graph/era/era-marks';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -74,8 +76,10 @@ const PREVIEW_SRC = (ref) => `levels/preview-${ref}.html`;
  * a CSP will execute (an artifact host refuses inline `data:` modules at ANY size), for publishing
  * a game as a page. 2.0.9 through 2.1 defaulted to the CDN; 2.2 made it opt-in.
  */
-async function emitWorldPage(sketch, role, { cdn = false } = {}) {
-  const { payload, kind } = await resolveWorldScene(sketch);
+async function emitWorldPage(sketch, role, { cdn = false, era, reads = null } = {}) {
+  const { payload, kind } = await resolveWorldScene(sketch, era ? { era } : {});
+  // (what the era drew short of built, era/era-marks.js: each surface a gen-7 page draws as paint)
+  if (era && reads && payload) for (const r of eraReading(payload, era).approximated) reads.set(r.input, r.how);
   if (!payload) {
     throw new Error(`'${sketch.ref}' has no traversable World form (kind '${kind ?? sketch.manifest?.kind}') — it cannot ship as a ${role} page`);
   }
@@ -293,13 +297,24 @@ function withHandoff(result, context, artifact) {
 // `deps.smoke`: false skips the desktop smoke (the CLI runs its own, with --electron / --no-gate); { find, run } inject it.
 export async function exportGameHandler(input, context = {}, deps = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref, target, posture = null, cdn: cdnInput = false } = input;
+  const { ref, target, posture = null, cdn: cdnInput = false, era } = input;
   // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only self-contained pages, and so does a desktop
   // app, which plays offline.
   const pluginBuild = pluginProfileActive();
   const desktop = target === 'desktop';
   const cdn = pluginBuild || desktop ? false : cdnInput;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
+  // the era is the render's (era/eras.js), read by the pages: the engine packs carry the recipe's surfaces as they are
+  // until the form render gives them materials, so an era there would change nothing, and says so
+  if (era !== undefined) {
+    readEra(era);
+    if (target && target !== 'web' && target !== 'desktop') throw new Error(`export_game: era is read by the web and desktop pages; a ${target} pack carries the recipe's surfaces as they are until the form render (gen-7) gives them materials — export it without era`);
+  }
+  // Unreal takes mojulo's assets, not its games: the game's characters and solids go, each by its own ref
+  if (target === 'unreal') {
+    throw new Error("export_game: Unreal takes mojulo's assets, not its games or levels — export each character or solid "
+      + "the game uses by its own ref with export_model { ref, format: 'unreal' }");
+  }
 
   if (target === 'godot') {
     const { buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
@@ -370,25 +385,6 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     };
   }
 
-  if (target === 'unreal') {
-    const { buildUnrealGamePack } = await import('@/lib/graph/scene/unreal-pack.js');
-    const outDir = path.join(outcomeDirFor(ref), 'unreal');
-    const pack = await buildUnrealGamePack({ ref, outDir, posture });
-    return {
-      ok: true,
-      ref,
-      target: 'unreal',
-      dir: outDir,
-      leg: pack.legVersion,
-      ...(posture ? { posture } : {}),
-      files: pack.written.length,
-      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
-      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
-      ledger: pack.ledger,
-      note: 'Pack emitted (data + the MojuloKernel C++ plugin). Machine gate lives in the CLI: '
-        + `node scripts/export-unreal.mjs --ref ${ref} — or follow the pack's IMPORT-GUIDE.md in UE 5.4+.`,
-    };
-  }
 
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
@@ -398,6 +394,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
 
   const dir = outcomeDirFor(ref);
   const files = [];
+  const eraReads = new Map();   // (each surface a page drew short of built in the asked era: era/era-marks.js)
   const write = async (rel, data) => {
     const abs = path.join(dir, rel);
     await fs.mkdir(path.dirname(abs), { recursive: true });
@@ -500,6 +497,9 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   } : {});
 
   // ── pixelizer branch: already single-file, the export is just the folder dressing ──
+  if (era !== undefined && ['pixelizer', 'versus', 'tabletop'].includes(manifest.engine)) {
+    throw new Error(`export_game: era is read by a game's World pages; a ${manifest.engine} game is drawn by its own single page, which no era changes — export it without era`);
+  }
   if (manifest.engine === 'pixelizer') {
     const { emitPixelizerGame } = await import('@/lib/graph/pixelizer/pixelizer-games');
     await write('game.html', emitPixelizerGame(manifest, { title: sketch.title }));
@@ -631,7 +631,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   const mapRecipes = new Set();
   for (const lv of resolved.levels) {
     const levelSketch = getSketch(lv.ref);
-    await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn })));
+    await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn, era, reads: eraReads })));
     await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
     // a city's sites stand edifices by ref (city/plan/landmarks.js): each ships too, the city's and its segments'
     const standsOf = (m) => (m && m.kind === 'city' && Array.isArray(m.sites) ? m.sites.map((x) => x && x.from) : []);
@@ -649,7 +649,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   for (const en of norm.menu?.entries || []) {
     if (en.kind !== 'world') continue;
     const menuSketch = getSketch(en.ref);
-    await write(MENU_SRC(en.ref), await hoistShared(await emitWorldPage(menuSketch, 'menu', { cdn })));
+    await write(MENU_SRC(en.ref), await hoistShared(await emitWorldPage(menuSketch, 'menu', { cdn, era, reads: eraReads })));
     await writeRecipe(`recipe/${en.ref}.json`, menuSketch.manifest);
   }
 
@@ -676,13 +676,13 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
         await write(PORTRAIT_SRC(card.portrait), png);
       }
       if (card.preview) {
-        await write(PREVIEW_SRC(card.preview), await hoistShared(await emitWorldPage(getSketch(card.preview), 'preview', { cdn })));
+        await write(PREVIEW_SRC(card.preview), await hoistShared(await emitWorldPage(getSketch(card.preview), 'preview', { cdn, era, reads: eraReads })));
       }
       // per-livery preview turntables (livery-ingame): one page per swatch so the setup carousel
       // repaints offline too. De-duped against card.preview (the default livery reuses it).
       for (const l of (card.liveries || [])) {
         if (l && l.preview && l.preview !== card.preview) {
-          await write(PREVIEW_SRC(l.preview), await hoistShared(await emitWorldPage(getSketch(l.preview), 'preview', { cdn })));
+          await write(PREVIEW_SRC(l.preview), await hoistShared(await emitWorldPage(getSketch(l.preview), 'preview', { cdn, era, reads: eraReads })));
         }
       }
     }
@@ -694,7 +694,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
   const heavy = files.filter((f) => f.bytes > 25 * 1024 * 1024).map((f) => f.file);
   return withHandoff({
-    ok: true, ref, engine: 'shell', dir,
+    ok: true, ref, engine: 'shell', dir, ...(era !== undefined ? { era, era_marks: { approximated: Object.fromEntries([...eraReads].sort(([a], [b]) => a.localeCompare(b))) } } : {}),
     preview_url: `${outcomeUrlFor(ref)}game.html`,
     files, total_bytes: totalBytes,
     ...(figureFiles.size ? { figure_bank: { files: figureFiles.size, note: 'shared rigged-figure bank hoisted out of every page into assets/figures/ (deduped by content) — serve the folder over HTTP; file:// no longer loads levels' } } : {}),
@@ -725,14 +725,15 @@ export function registerExportGameTools() {
       + 'it playable outside mojulo", "publish it to GitHub Pages", "make it a desktop app". The engines get a '
       + "translation with a portability report: `target:'godot'` a Godot 4 pack under `<ref>/godot/` (per-level GLB, "
       + "score, audio, run by the versioned mojulo-godot kernel); `'unity'` the Unity 6 sibling (its "
-      + "kernel + an import guide); `'unreal'` the UE 5 sibling (data + the MojuloKernel C++ plugin); "
-      + "`'roblox'` a Rojo project (the Luau kernel, a greybox, a Humanoid).",
+      + "kernel + an import guide); `'roblox'` a Rojo project (the Luau kernel, a greybox, a Humanoid). Unreal takes "
+      + "assets, not games: export_model { format: 'unreal' }.",
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'unreal', 'roblox'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`unreal`/`roblox` emit the engine pack instead.' },
+        target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'roblox'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`roblox` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
+        era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'Optional. The era its pages are drawn in, the cube\'s by default: the same recipe, another render. Web and desktop.' },
         cdn: { type: 'boolean', description: "web target only (a desktop app always inlines). Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
       },
       required: ['ref'],

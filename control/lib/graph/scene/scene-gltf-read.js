@@ -33,7 +33,10 @@
  * comes home under the same key. UVs travel RAW (the writer's convention).
  *
  * Deliberate limits (noted, not solved):
- * - normal / roughness-metallic / occlusion / emissive MAPS are dropped and COUNTED
+ * - a NORMAL map that rides with its primitive's TANGENT on TEXCOORD_0, its image embedded (a realistic hero's relief:
+ *   epidermis/dermal-relief.js), is CARRIED: its image byte-preserved under `normalMaps` (key → data URL) and named in
+ *   `ledger.maps_carried.normal` with the tangents read (the faces stay the unlit currency: nothing here shades by it);
+ * - any other normal map, and roughness-metallic / occlusion / emissive MAPS, are dropped and COUNTED
  *   (`ledger.maps_dropped`); non-PNG/JPEG images, external image URIs and
  *   TEXCOORD_1+ bindings are dropped and NAMED (`ledger.textures_dropped`);
  * - animations, skins, morph targets are ignored (an imported mesh is scenery
@@ -229,11 +232,23 @@ export function glbToScene(buf, { group = 'mesh' } = {}) {
     keyByTex.set(texIdx, key);
     return key;
   };
-  const mapsSeen = new Set();
-  const countMaps = (mi, mat) => {
+  const mapsSeen = new Set(), normalMaps = {};
+  // (a normal map on TEXCOORD_0 beside its primitive's TANGENT, its image embedded: carried; else dropped)
+  const carryNormal = (prim, mat, nodeName) => {
+    const nt = mat.normalTexture, tIdx = prim.attributes?.TANGENT;
+    if ((nt.texCoord ?? 0) !== 0 || prim.attributes?.TEXCOORD_0 == null || tIdx == null || json.accessors?.[tIdx]?.type !== 'VEC4') return false;
+    const img = imageOf(nt.index); if (!img.url) return false;
+    // (named as the albedo is, after its material, and kept out of the albedo's keys)
+    const raw = (typeof mat.name === 'string' && mat.name) || (typeof nodeName === 'string' && nodeName) || `tex${nt.index}`, base = `${raw.includes(':') ? raw.slice(raw.lastIndexOf(':') + 1) || raw : raw}:normal`;
+    const key = base in normalMaps ? `${base}#${nt.index}` : base;
+    normalMaps[key] = img.url;
+    (ledger.maps_carried ??= { normal: [] }).normal.push({ key, mime: img.mime, bytes: img.bytes, tangents: json.accessors[tIdx].count });
+    return true;
+  };
+  const countMaps = (mi, mat, prim, nodeName) => {
     if (mapsSeen.has(mi) || !mat) return;
     mapsSeen.add(mi);
-    if (mat.normalTexture) ledger.maps_dropped.normal++;
+    if (mat.normalTexture && !carryNormal(prim, mat, nodeName)) ledger.maps_dropped.normal++;
     if (mat.occlusionTexture) ledger.maps_dropped.occlusion++;
     if (mat.emissiveTexture) ledger.maps_dropped.emissive++;
     if (mat.pbrMetallicRoughness?.metallicRoughnessTexture) ledger.maps_dropped.metallicRoughness++;
@@ -242,7 +257,7 @@ export function glbToScene(buf, { group = 'mesh' } = {}) {
   const textureFor = (prim, nodeName) => {
     const mi = prim.material;
     const mat = json.materials?.[mi];
-    countMaps(mi, mat);
+    countMaps(mi, mat, prim, nodeName);
     const bct = mat?.pbrMetallicRoughness?.baseColorTexture;
     if (!bct || bct.index == null) return null;
     const key = keyFor(bct.index, mat, nodeName);
@@ -339,7 +354,7 @@ export function glbToScene(buf, { group = 'mesh' } = {}) {
     const inv = mpu ? 1 / mpu : 1;
     walk(r, mpu ? [inv, 0, 0, 0, 0, inv, 0, 0, 0, 0, inv, 0, 0, 0, 0, 1] : IDENT, new Set());
   }
-  return { faces, textures, ledger };
+  return { faces, textures, ledger, ...(Object.keys(normalMaps).length ? { normalMaps } : {}) };
 }
 
 /** glbToFaces(buf, { group }) → faces[] — the face-list view of glbToScene. */

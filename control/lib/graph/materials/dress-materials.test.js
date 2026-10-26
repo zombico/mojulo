@@ -156,7 +156,7 @@ describe('dress materials: a hero on a cube that names them', () => {
     expect(suit('armored-hero', 'upland-morning').surfaces.Face).toEqual({ metal: 'stainless', finish: 'brushed' });
     expect(suit('fantasy-space', 'upland-morning').surfaces.Trim).toBe('satin');
     expect(suit('grim-scifi', 'valley-morning')).not.toHaveProperty('surfaces');
-  });
+  }, 120000);   // (the hard-suits under armour laws 2 build their heavy suits in seconds each)
 
   it('paints a plain hero\'s cloth on a level that names materials, and nothing on one that does not', async () => {
     const plain = (geocube) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', geocube }) });

@@ -794,5 +794,33 @@
         "other": "دیگر"
       }
     }
+  },
+  "gameTitles": {
+    "round": "راؤنڈ {round}",
+    "fight": "لڑو!",
+    "ko": "ناک آؤٹ",
+    "victory": "فتح",
+    "defeat": "شکست",
+    "draw": "برابر",
+    "ready": "تیار؟",
+    "go": "چلو!",
+    "start": "شروع",
+    "finish": "اختتام",
+    "gameOver": "گیم ختم",
+    "levelClear": "لیول مکمل",
+    "stageClear": "اسٹیج مکمل",
+    "timeUp": "وقت ختم",
+    "paused": "رُکا ہوا",
+    "perfect": "بہترین!",
+    "newRecord": "نیا ریکارڈ",
+    "youWin": "آپ جیت گئے",
+    "youLose": "آپ ہار گئے",
+    "wave": "لہر {wave}",
+    "boss": "باس",
+    "continue": "جاری رکھیں؟",
+    "combo": "{combo} کومبو",
+    "checkpoint": "چیک پوائنٹ",
+    "goal": "گول!",
+    "bonus": "بونس"
   }
 }

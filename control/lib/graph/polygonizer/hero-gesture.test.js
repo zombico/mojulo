@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GESTURE_CLIP, GESTURE_PRESETS, GESTURE_WORDS, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, ANIME_CLIP_SECONDS, heroClipSeconds, heroClipFaces } from './hero-gesture.js';
 import { resolveAnimeExpression } from './anime-head.js';
+import { resolveWesternExpression } from './humanoid-head.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, layeredClip, auditRig } from './station-loft-rig.js';
 import { layeredSeat, layeredFaces } from './station-loft-faces.js';
 import { compileLayered } from './station-loft.js';
@@ -18,7 +19,7 @@ import { characterLitPieces, layeredShadingNormals, piecesAt } from './station-l
 import { heroRecord, heroPlanOf, heroReadout, expandLayeredManifest, planLayered } from '../../mcp/tools/layered.js';
 import { humanoidPlan } from './humanoid-plan.js';
 import { composeAnime } from './anime-looks.js';
-import { heroPlan, ANIME_WAVE, WAVE_TWIST, withWaveHand } from './hero-form.js';
+import { heroPlan, ANIME_WAVE, WAVE_TWIST, withWaveHand, HERO_LAWS_VERSION } from './hero-form.js';
 
 const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 /** a hero as the door mints it, compiled at rest, with its rig bound (built once a spec, shared by the tests that read it) */
@@ -193,8 +194,11 @@ describe('the anime wave', () => {
     expect(JSON.stringify(heroPlan({ cast: 'male' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE_HAND));
     expect(JSON.stringify(heroPlan({ cast: 'male', core: 'streamlined' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE));
     expect(heroPlanOf(heroRecord({ cast: 'female', head: 'anime', core: 'streamlined' })).clips.wave).toEqual(ANIME_WAVE);
-    for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }])
-      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
+    // (a hero under laws 14 waves the form's wave as minted; under laws 15 the form's wave holds its look, hero-form.js)
+    for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }]) {
+      expect(JSON.stringify(heroPlanOf({ ...heroRecord(spec), laws: 14 }).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
+      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(heroPlan({ cast: 'male', laws: 15 }).clips.wave));
+    }
     // the plan gets its own copy: a plan edited downstream never reaches the table
     const p = humanoidPlan({ preset: 'female', head: 'anime', hair: 'none' }); p.clips.wave[1].elbowR = 0; expect(ANIME_WAVE[1].elbowR).toBe(120);
   });
@@ -243,7 +247,12 @@ describe('the anime wave', () => {
   });
 });
 
-// The door's absent ⇒ byte-identical: the hero record, the plan and the recipe of every hero that does not stand, pinned
+// The door's absent ⇒ byte-identical: the hero record, the plan and the recipe of every hero that does not stand, pinned.
+// Re-pinned for the hero laws 17 (hero-form.js HERO_LAWS_VERSION: the belt's buckle seated on the centre line; every record
+// carries the new laws, the ranger's plan and recipe its re-seated buckle; the streamlined pairs and the laws 1 to 5 rows
+// unchanged).
+// Re-pinned for the hero laws 18 (tiered-form.js tieredKit: a trunk plate keeps off the shoulder on the tiered body):
+// every record carries the new laws; no plan or recipe here moves (none wears a trunk plate on the tiered form).
 // from the door BEFORE the gesture existed (sha256(JSON.stringify(x)), first 16 hex digits); the anime hero at
 // `gesture: 'rest'` keeps the plan and recipe it had (its record says 'rest').
 // Re-pinned for the hero's `wave` clip (hero-form.js): the upper arm level and the forearm up, the elbow never over
@@ -284,15 +293,24 @@ describe('the anime wave', () => {
 // record, plan and recipe pinned before it (LAWS_3 below); then for the hero laws 5 (hero-form.js ARM_LENGTH: the
 // adult humerus and forearm shortened), the same again, each at laws 4 as pinned before it (LAWS_4 below)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['fa996040b1394ceb', '7397a1ac3c1ed81f', '6111f68e79d32b0c'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['e81f5d4603481a31', '7b305c8c422339b5', '2ad6d83fae2927de'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['3f63cede6aa963f9', '9b51e97bcfbbb7a9', 'd85c53bd6488ecf4'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['199852b0873026dd', 'e44b99db1b6081f6', 'e3b457efbaa16a3e'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['85ed6657f2ad45a8', '37e5e2f421d7cf79', 'ba1b546d97b8f573'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['023d512aa5e6e57e', '41bd60ab3623a06d', '8255963574361639'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['1187e66e6f2e8474', 'c927544d60f2d254', '52faad4125c59d09'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['b22640c373a1314f', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['c93473081b1fdb66', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['6a6531ad6a9bb1bb', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 /** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
  * row stamped laws 1 (or unstamped) still builds */
 const LAWS_1 = { landmarkMale: ['5151980a1491275e', 'f0aa4d041466bd73', 'df8192d31cce17f6'], headNone: ['2abfcb8d912a8fef', 'bbaab5524004c1c0', 'e79e41b49d2ff353'] };
+/** the structured heroes as minted under the hero laws 5 (the adult arm, before the realism round-out's laws 6 to 16):
+ * their record stamped laws 5, and the plan and recipe it still builds (the PINS above until 2026-10-25) */
+const LAWS_5 = {
+  landmarkMale: ['fa996040b1394ceb', '7397a1ac3c1ed81f', '6111f68e79d32b0c'],
+  landmarkFemaleLowpoly: ['e81f5d4603481a31', '7b305c8c422339b5', '2ad6d83fae2927de'],
+  headNone: ['3f63cede6aa963f9', '9b51e97bcfbbb7a9', 'd85c53bd6488ecf4'],
+  ranger: ['199852b0873026dd', 'e44b99db1b6081f6', 'e3b457efbaa16a3e'],
+  chibiFaced: ['85ed6657f2ad45a8', '37e5e2f421d7cf79', 'ba1b546d97b8f573'],
+};
 /** the structured heroes as minted under the hero laws 2 (the shoulder line, before the leg set): their record stamped
  * laws 2, and the plan and recipe it still builds */
 const LAWS_2 = {
@@ -319,6 +337,8 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   // rig gained the reference joint; the streamlined core's pins did not move), and again for its shoulder girdle (the
   // collarbones that rise with a raised arm, the shoulder's skin over them), and again for the knee and elbow FOLDS (the
   // rings at each hinge riding a helper bone turned half the bend: the rig and the limbs' binds)
+  // (re-pinned 2026-10-25 for the realism round-out, hero laws 16: a hero minted today builds the rounded-out body; a row
+  // stamped laws 5 builds what these pinned before, LAWS_5 below)
   for (const [name, [spec, [record, plan, recipe], [oldPlan, oldRecipe]]] of Object.entries(PINS)) {
     it(`${name}: record, plan, recipe; the streamlined core's as before it`, () => {
       const hr = heroRecord(spec); const p = heroPlanOf(hr);
@@ -329,12 +349,12 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   it('a row minted before the hero laws 2 builds as it did, byte for byte', () => {
     for (const [name, [record, plan, recipe]] of Object.entries(LAWS_1)) {
       const { laws, ...bare } = heroRecord(PINS[name][0]);
-      expect(laws).toBe(5); expect(h(bare)).toBe(record);
+      expect(laws).toBe(HERO_LAWS_VERSION); expect(h(bare)).toBe(record);
       for (const hr of [bare, { ...bare, laws: 1 }]) { const p = heroPlanOf(hr); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe); }
     }
   });
-  it('a row minted under the hero laws 2, 3 or 4 builds as it did, byte for byte', () => {
-    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3], [4, LAWS_4]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
+  it('a row minted under the hero laws 2, 3, 4 or 5 builds as it did, byte for byte', () => {
+    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3], [4, LAWS_4], [5, LAWS_5]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
       const hr = { ...heroRecord(PINS[name][0]), laws: L }, p = heroPlanOf(hr);
       expect(h(hr), `${name} laws ${L}`).toBe(record); expect(h(p), `${name} laws ${L}`).toBe(plan); expect(h(expandPlan(p)), `${name} laws ${L}`).toBe(recipe);
     }
@@ -381,7 +401,7 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
     expect(hr.gesture).toBe('guard'); expect(Object.keys(p.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(p.clips.gesture).toEqual([resolveGesture('guard', 'male', { core: 'structured' })]);
-    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(PINS.landmarkMale[1][1]);   // nothing else moved
+    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(h(heroPlanOf(heroRecord({ cast: 'male' }))));   // nothing else moved
   });
 });
 
@@ -535,6 +555,13 @@ describe('the door clips on the anime head: facial tracks and designed durations
     expect(F.greet).toEqual([null, { blink: 1, smile: 1, open: 0.4, brow: -0.2 }]); expect(F.greet[1]).toEqual(resolveAnimeExpression(['happy', { open: 0.4 }]));
     expect(F.run).toEqual([{ blink: 0.2, smile: 0, open: 0, brow: 0 }, null]);
     expect(F.idle).toEqual([null, null, null, null]); expect(F.gesture).toEqual([null]);
+  });
+  it("the realistic body's relational head takes the landmark head's face words on its clips, resolved as its channels", () => {
+    for (const head of ['relational', undefined]) {
+      const hr = heroRecord({ form: 'realistic', cast: 'female', ...(head ? { head } : {}), clips: { greet: [{}, { face: 'smile', jaw: 8 }] } });
+      expect(heroClipFaces(hr, { greet: [{}, {}] }).greet, head ?? 'default').toEqual([null, resolveWesternExpression('smile')]);
+    }
+    expect(() => heroRecord({ form: 'realistic', cast: 'female', head: 'relational', clips: { greet: [{ face: 'happy' }] } })).toThrow(/clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
   });
   it("the rig gates name a { seconds, keys } clip's key by its path", () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', register: 'lowpoly', core: 'streamlined', clips: { lunge: { seconds: 2, keys: [{}, { pelvis: 25 }] } } }) });

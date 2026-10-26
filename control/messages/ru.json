@@ -794,5 +794,33 @@
         "other": "Прочее"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Раунд {round}",
+    "fight": "Бой!",
+    "ko": "Нокаут",
+    "victory": "Победа",
+    "defeat": "Поражение",
+    "draw": "Ничья",
+    "ready": "Готов?",
+    "go": "Вперёд!",
+    "start": "Старт",
+    "finish": "Финиш",
+    "gameOver": "Игра окончена",
+    "levelClear": "Уровень пройден",
+    "stageClear": "Этап пройден",
+    "timeUp": "Время вышло",
+    "paused": "Пауза",
+    "perfect": "Идеально!",
+    "newRecord": "Новый рекорд",
+    "youWin": "Вы победили",
+    "youLose": "Вы проиграли",
+    "wave": "Волна {wave}",
+    "boss": "Босс",
+    "continue": "Продолжить?",
+    "combo": "Комбо x{combo}",
+    "checkpoint": "Контрольная точка",
+    "goal": "Гол!",
+    "bonus": "Бонус"
   }
 }

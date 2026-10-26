@@ -23,7 +23,12 @@
  *
  *   gameworld: {
  *     id, name?, seed?,
- *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, weather?: '<climate>' | {…}, land?: { <form>: variant | many | { variant?, many? } } },
+ *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, weather?: '<climate>' | {…}, land?: { <form>: variant | many | { variant?, many? } },
+ *               geocube?, terrain? | domain?, hour?, look?, pixel?, palette? },
+ *                                         // hour: the geocube's outside lit at an hour (era/geocube-hours.js readHour:
+ *                                         // dawn, morning, noon, afternoon, golden, dusk, night, or 0 to 24), lowered
+ *                                         // onto each stage the level's geocube paints as its `hour` (a level's over
+ *                                         // the world's); a stage no geocube paints is lit as before, said as advice
  *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…}, builds?,
  *                                 technology?: { finish?, blocks?, things?, vehicles?, structures?, weapons? } } },
  *     levels: { '<id>': {
@@ -32,9 +37,10 @@
  *       walk: { layout?, root?, nodes, edges?, spawn? },   // the level graph (level/graph.js) less its kit and seed
  *       ground?: { cell?, tune?, edits? },   // the level's ground on a top-down grid of cells (level/ground.js)
  *       places?: { town?: true | { civilization?, … }, castle?: true | false | { civilization?, … } },
- *       goal?: { collect?: true | '<pickup>', boss?: true, health?: true },   // the level's own goal on its walk or
- *                                         // building (quick.js levelGoalMechanics): pickups along it, a boss at its end
- *                                         // fought turn by turn, hp on the HUD; none: reach the exit
+ *       goal?: { collect?: true | '<pickup>', boss?: true, health?: true, guards?: true },   // the level's own goal on
+ *                                         // its walk or building (quick.js levelGoalMechanics): pickups along it, a boss
+ *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
+ *                                         // unseen; none: reach the exit
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
  *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
  *                                         // civilization's language, entered at its way in, played to its goal room
@@ -94,6 +100,7 @@ import { readTownPlan } from '../era/out-town.js';
 import { readCastlePlan } from '../era/out-castle.js';
 import { readLevel } from '../level/graph.js';
 import { LAND_FORMS, LAND_FORM_IDS } from '../era/out-land.js';
+import { landToLevel } from './nature.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
 import { tunnelTech } from './tunnel-tech.js';
 import { craftTech } from './tech-crafter.js';
@@ -122,6 +129,7 @@ import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
+import { readHour } from '../era/geocube-hours.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
@@ -144,6 +152,8 @@ export const WORLD_STYLE = Object.freeze({
   weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
   geocube: 'a geocube that paints the level once: its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
+  domain: 'or one of the cube\'s levels (its domains)',
+  hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
@@ -228,6 +238,7 @@ function readStyle(s, at) {
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
+    else if (k === 'hour') { try { readHour(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.hour = v; }
     else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
@@ -403,6 +414,9 @@ function tunnelCivilization(C, cid, kit, seed) {
 const over = (base, top) => {
   const out = { ...base };
   for (const [k, v] of Object.entries(top)) out[k] = k === 'land' ? Object.fromEntries([...new Set([...Object.keys(base.land || {}), ...Object.keys(v)])].map((f) => [f, { ...(base.land?.[f] || {}), ...(v[f] || {}) }])) : GROUPS[k] ? { ...(base[k] || {}), ...v } : v;
+  // a geocube's terrain and its domain are one choice: the nearer one says it
+  if (top.domain !== undefined && top.terrain === undefined) delete out.terrain;
+  if (top.terrain !== undefined && top.domain === undefined) delete out.domain;
   return out;
 };
 // what `top` changes of `base`, as ledger entries
@@ -472,13 +486,13 @@ export function readGameworld(W) {
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
     if (L.goal !== undefined) {
-      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true }, at least one`;
+      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
       for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);
       if (Gl.collect !== undefined && Gl.collect !== true && !(typeof Gl.collect === 'string' && /^[a-z][a-z-]{0,23}$/.test(Gl.collect))) throw new Error(`gameworld: ${at}.goal.collect is true (gems) or what lies along the way, one lower-case word (relic, coin, key…)`);
-      for (const k of ['boss', 'health']) if (Gl[k] !== undefined && Gl[k] !== true) throw new Error(`gameworld: ${at}.goal.${k} is true`);
+      for (const k of ['boss', 'health', 'guards']) if (Gl[k] !== undefined && Gl[k] !== true) throw new Error(`gameworld: ${at}.goal.${k} is true`);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
     if (L.arena !== undefined) {
@@ -697,14 +711,18 @@ export function resolveLevel(world, id) {
     return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
   }
 
+  // the LAND (nature.js landToLevel): the forms the style names (the level's over the world's), lowered onto what the
+  // walk's stages draw them by; what it leaves out, and every setting a section names itself, stays as it was
+  const sectionOf = (n) => ['trail', 'meru'].find((s) => n && n[s] !== undefined);
+  const lowered = style.land ? landToLevel(style.kit, style.land, { seed, painted: style.geocube !== undefined, sections: [...new Set(Object.values(L.walk.nodes || {}).map(sectionOf).filter(Boolean))], trail: style.trail }) : null;
   // the walk: each section given the ground's character first, its own recipe over it
   const nodes = {};
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) {
-    const section = ['trail', 'meru'].find((s) => n && n[s] !== undefined), at = `${id}/${nid}`;
+    const section = sectionOf(n), at = `${id}/${nid}`;
     if (!section) { nodes[nid] = n; continue; }   // readLevel says what is wrong with it
     const own = n[section] === true ? {} : n[section];
     if (!isObj(own)) { nodes[nid] = n; continue; }
-    const recipe = { ...(style[section] || {}), ...own };
+    const written = { ...(style[section] || {}), ...own }, recipe = lowered?.[section] ? landUnder(section, lowered[section], written, L.ground?.tune) : written;
     for (const k of Object.keys(own)) if (GROUPS[section].includes(k) && style[section]?.[k] !== undefined && !same(style[section][k], own[k])) ledger.push({ scope: 'section', at, key: `${section}.${k}`, world: style[section][k], local: own[k] });
     if (n.kit !== undefined && resolveKitId(n.kit) !== style.kit) ledger.push({ scope: 'section', at, key: 'kit', world: style.kit, local: resolveKitId(n.kit) });
     if (section === 'trail') readOutTrail(recipe); else readLocalMeru(recipe);
@@ -712,8 +730,12 @@ export function resolveLevel(world, id) {
   }
   // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
   // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
+  // the hour: the geocube's outside at it, on each stage the cube paints (a level with no cube is lit as before: levels.js)
   const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
-    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
+    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.domain !== undefined ? { domain: style.domain } : {}),
+    ...(style.hour !== undefined && style.geocube !== undefined ? { hour: style.hour } : {}),
+    // (the land's sky, on every section the cube paints, unless the walk names its own)
+    ...(lowered?.clouds && L.walk.clouds === undefined ? { clouds: lowered.clouds } : {}) };
   let lv = readLevel(level);
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was
@@ -768,7 +790,39 @@ export function resolveLevel(world, id) {
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
   const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(lowered ? { land: lowered.forms } : {}), ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
+}
+
+// the land's settings laid UNDER what a section writes itself (its world's style group and its own recipe): a trail's
+// ground dials and rocks merged key by key, its own winning; a trail naming its bumpiness keeps its mounds' height; the
+// level's ground tune (level/ground.js) keeps the dials it names. A climb's relief, unless it names one
+function landUnder(section, low, written, tune) {
+  if (section === 'meru') return written.relief !== undefined ? written : { ...written, relief: low.relief };
+  const out = { ...written }, g0 = low.ground, w = written.ground || {};
+  if (g0) {
+    const pick = (k) => { const o = { ...(g0[k] || {}) }; for (const q of Object.keys(tune?.[k] || {})) delete o[q]; if (k === 'bump' && written.bumpiness !== undefined) delete o.height; return { ...o, ...(w[k] || {}) }; };
+    const ground = { ...w };
+    for (const k of ['bump', 'cliff']) if (g0[k]) { const v = pick(k); if (Object.keys(v).length) ground[k] = v; }
+    // (the land's water, era/out-water.js: under the trail's own, a trail's `water: false` refusing it)
+    if (g0.water && w.water !== false) ground.water = { ...g0.water, ...(w.water || {}) };
+    if (Object.keys(ground).length) out.ground = ground;
+  }
+  if (low.rocks) out.rocks = { ...low.rocks, ...(written.rocks || {}) };
+  return out;
+}
+
+/**
+ * What of a world's land its levels cannot draw (nature.js landToLevel), as design_game's advice: one line a gap,
+ * naming the form and the levels it is a gap on. [] when the land names nothing, or every form it names is drawn.
+ */
+export function landAdvice(world) {
+  const G = readGameworld(world), by = new Map();
+  for (const id of G.ids) for (const [f, o] of Object.entries(resolveLevel(G, id).land ?? {})) for (const g of o.gaps) {
+    const k = `${f}\u0000${g}`;
+    if (!by.has(k)) by.set(k, { f, g, at: [] });
+    by.get(k).at.push(id);
+  }
+  return [...by.values()].map(({ f, g, at }) => `land.${f} on ${at.join(', ')}: ${g}`);
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

@@ -27,7 +27,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -108,7 +108,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
@@ -457,6 +457,7 @@ export function playShellRuntime(cfg, K) {
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || !session || e.source !== frame.contentWindow) return;
+    if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     if (d.moj === W.ready) {
       clearTimeout(veilCap); veil.style.display = 'none';
@@ -515,9 +516,12 @@ export function playShellRuntime(cfg, K) {
   });
 
   // ---- pause ----
-  let paused = false;
-  function setPaused(on) {
+  // OWNED (docs/local-multiplayer-principles.md): the controller whose start opened the pause owns it; another's start
+  // does nothing until it closes. With seats (the level's game-seats) the panel names the owner's seat in its colour.
+  let paused = false, pauseBy = null, seatList = [];
+  function setPaused(on, by) {
     paused = on;
+    pauseBy = on ? by || null : null;
     pauseEl.style.display = on ? 'flex' : 'none';
     if (screen === 'level') post({ moj: W.pause, on });
     if (on) renderPause();
@@ -533,7 +537,10 @@ export function playShellRuntime(cfg, K) {
       s.appendChild(dl);
       s.appendChild(el('button', { text: 'back', on: () => renderPause() }));
     } else {
-      s.appendChild(el('h2', { text: 'paused' }));
+      const owner = pauseBy && seatList.find((x) => x.controller === pauseBy);
+      const h = el('h2', { text: owner ? 'paused · ' + owner.label : 'paused' });
+      if (owner) h.style.color = owner.color;
+      s.appendChild(h);
       s.appendChild(el('button', { cls: 'primary', text: 'resume', on: () => setPaused(false) }));
       s.appendChild(el('button', { text: 'restart', on: () => launch(session.level) }));
       s.appendChild(el('button', { text: 'controls', on: () => renderPause('controls') }));
@@ -543,15 +550,22 @@ export function playShellRuntime(cfg, K) {
     pauseEl.appendChild(s);
   }
   pauseBtn.addEventListener('click', () => setPaused(!paused));
-  let padPrev = false;
+  // each pad's start on its own press edge: any pad opens the pause, only the one that opened it closes it
+  const padPrev = {};
   (function padPoll() {
     requestAnimationFrame(padPoll);
-    if (screen !== 'level' || !navigator.getGamepads) { padPrev = false; return; }
-    let dn = false;
+    if (screen !== 'level' || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
     const ps = navigator.getGamepads();
-    for (let i = 0; i < ps.length && !dn; i++) { const p = ps[i]; if (p && p.connected) dn = cfg.pauseButtons.some((b) => p.buttons[b] && p.buttons[b].pressed); }
-    if (dn && !padPrev) setPaused(!paused);
-    padPrev = dn;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      if (!p || !p.connected) continue;
+      const id = 'pad:' + p.index, dn = cfg.pauseButtons.some((b) => p.buttons[b] && p.buttons[b].pressed);
+      if (dn && !padPrev[id]) {
+        if (!paused) setPaused(true, id);
+        else if (!pauseBy || pauseBy === id) setPaused(false);
+      }
+      padPrev[id] = dn;
+    }
   })();
 
   // ---- result ----

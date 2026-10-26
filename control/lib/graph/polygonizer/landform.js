@@ -164,6 +164,8 @@ export function scarp(s, { path, throw: T, face = 75, side = 'left', rough = 0.0
 // ─── joints ──────────────────────────────────────────────────────────────────────────────────────────────────
 export function joints(s, { pattern = 'blocky', spacing, strike = 0, steep = 38, band = 12, strength = 1, dip = 60, cut = pattern === 'columnar' ? 1.5 : 0.6, lip = 0.08, seed = 1 }) {
   const P = JOINT_PATTERNS[pattern]; const { gx, gy } = gridGradient(s); const z0 = Float64Array.from(s.z); s.fabric = pattern;
+  // the joint fabric as laid, for whatever draws the rock nearer than its facets (matte-paint/fabric.js)
+  s.joints = { pattern, strike, spacing, cell: P.cell, lattice: P.lattice, plane: P.plane, dip, steep, band, seed };
   const cs = Math.cos(strike * D2R), sn = Math.sin(strike * D2R); const sx = spacing * P.cell[0], sy = spacing * P.cell[1];
   const toL = (x, y) => [(x * cs + y * sn) / sx, (-x * sn + y * cs) / sy]; const fromL = (u, v) => [u * sx * cs - v * sy * sn, u * sx * sn + v * sy * cs];
   const hex = P.lattice === 'hex';

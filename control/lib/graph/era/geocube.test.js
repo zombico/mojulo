@@ -60,8 +60,32 @@ describe('geocube: the two specimens share one style', () => {
     expect(groups(land).has('isekai:grass')).toBe(false);
     expect(land.geocube).toMatchObject({ id: 'gothic-night', show: 'land' });
   });
+  it('shows the trail: the same island with every way up drawn, laid from its seed', async () => {
+    const at = (seed) => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', ...(seed !== undefined ? { seed } : {}) }, {});
+    const land = show('gothic-night', 'land'), trail = await at(), seeded = await at(7);
+    expect(trail.cameras[0].name).toBe('island');
+    expect(trail.walk).toBeTruthy();
+    expect(trail.geocube).toMatchObject({ id: 'gothic-night', show: 'trail' });
+    // its dummy (local-meru/dummy.js): a rig on the walkers channel, the route out and back as one loop, followed
+    const [dummy] = trail.walkers;
+    expect(dummy).toMatchObject({ figure: 'dummy', style: 'bumble', follow: true });
+    expect(dummy.path[0]).toEqual(dummy.path[dummy.path.length - 1]);
+    expect(trail.figures.dummy.rig).toBe(true);
+    expect(trail.route).toBeUndefined();
+    expect(land.walkers).toBeUndefined();
+    // the ways up: walked faces the land (walk 'base') leaves off
+    expect(trail.faces.length).toBeGreaterThan(land.faces.length);
+    // the seed lays the island and rolls its way up (local-meru/roll.js): another seed, another island; the same seed,
+    // the same bytes
+    expect(seeded.localMeru.tiers).not.toEqual(trail.localMeru.tiers);
+    expect(JSON.stringify(seeded.faces)).not.toBe(JSON.stringify(trail.faces));
+    expect(JSON.stringify((await at(7)).faces)).toBe(JSON.stringify(seeded.faces));
+  });
   it('refuses keys the kind does not take', () => {
-    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room' or 'land'/);
+    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room', 'land', 'trail', 'path' or 'town'/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 7 }, {})).toThrow(/seed is the trail's, the path's and the town's/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', rooms: [] }, {})).toThrow(/'rooms' is not a setting/);
   });
 });

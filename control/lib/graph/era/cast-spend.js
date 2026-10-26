@@ -49,10 +49,10 @@ const COVER_SHARE = (tierId) => [0, REGION_SHARES[tierId].hair[1]];
 export const REGIONS = Object.freeze(['body', 'head', 'hair', 'hands', 'clothing']);
 
 // the tiered form's joints (tiered-form.js) are the body's: the bridges over the elbows, knees and wrists, the shoulders'
-// balls and folds
+// balls and folds, and over the balls their webs and cones (hero laws 8 and 9: skin in the arm's colour, never a garment)
 // (a creature's: the shin, the metatarsal, the tail's links, the foot's pads and claws, and the bridge over any joint
 // its chains name, creature-drawn.js)
-const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold)[RL]|(elbow|knee|hip)Fold[RL]|shin[RL]|meta[RL]|tail\d+|pad\.toes[RL]|clawF\d+[RL]|[a-z]+Bridge[RL])$/;
+const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold|Web|Cone)[RL]|(elbow|knee|hip)Fold[RL]|shin[RL]|meta[RL]|tail\d+|pad\.toes[RL]|clawF\d+[RL]|[a-z]+Bridge[RL])$/;
 // (a creature's paw: its fingers, pads and claws)
 const HANDS = /^((hand|thumb|index|middle|ring|little)[RL]|finger[A-Z]\d[RL]|pad\.hand[RL]|clawH\d+[RL])$/;
 // the head's own parts that reach below its base (the jaw hangs about 4 cm under it; a creature's muzzle further; the anime

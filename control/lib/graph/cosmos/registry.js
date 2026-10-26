@@ -53,7 +53,13 @@ export function capabilityRegistry() {
           if (!MARKS.includes(row[e])) throw new Error(`cosmos: ${facet.id}.${setting}=${v} has no ${ENGINES[e].name} mark ('${row[e]}'; known: ${MARKS.join(', ')}): mark it in ${ENGINES[e].marksPath} or on the value`);
         }
       }
-      out[setting] = { multi: !!spec.multi, values };
+      // `given`: a setting that means something only when another of the facet holds one of these values (soul's seat
+      // settings, given more than one seat); the sweep rolls and nudges it only then
+      for (const [g, vals] of Object.entries(spec.given || {})) {
+        if (!facet.settings[g]) throw new Error(`cosmos: ${facet.id}.${setting} is given ${g}, which ${facet.id} has no setting for`);
+        for (const v of vals) if (!(facet.settings[g].values || {})[v]) throw new Error(`cosmos: ${facet.id}.${setting} is given ${g}=${v}, which ${facet.id}.${g} does not hold`);
+      }
+      out[setting] = { multi: !!spec.multi, values, ...(spec.given ? { given: spec.given } : {}) };
     }
   }
   for (const [f, settings] of Object.entries(reg)) {

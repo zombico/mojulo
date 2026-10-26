@@ -25,12 +25,13 @@ import { readSeason, seasonFaces, seasonPool } from './foliage.js';
 import { plantBoxToFaces } from '../../polygonizer/plant-faces.js';
 import { plantPool, plantRepeats } from '../../vegetation/pool.js';
 import { cityTraffic, readCars } from './traffic.js';
-import { cityPedestrians, readPeople } from './pedestrians.js';
+import { cityPedestrians, readPeople, blockRing } from './pedestrians.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
-import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
+import { readCityLook, readPaint, lookLight, paintGround, paintSkin, cubeLookSpec, CITY_HAZE } from './look.js';
 import { stalkerEye, skylineFaces } from './eye.js';
-import { resolveLookSpec } from '../../era/look.js';
+import { cloudBand } from '../../matte-paint/sky.js';
+import { dressCity } from './dress.js';
 import { rgbToHex } from '../../polygonizer/vexar.js';
 import { makeLight, litFactor, scaleHex } from '../../polygonizer/vexar.js';
 
@@ -42,6 +43,19 @@ let LIT = CITY_LIGHT;
 const shade = (hex, n, lift = 0) => scaleHex(hex, Math.min(1.15, litFactor(n, LIT) + lift));
 const CITY_GROUND_BASE = Object.freeze({ ground: '#56643f', road: '#3b3d40', walk: '#a8a49a', plaza: '#a19f97', park: '#4f6b3a', water: '#3e6a84', parking: '#5c5e60', rail: '#6d6257', guideway: '#c9ccd1', pylon: '#9aa0a8', stop: '#d9b44a', landmark: '#c9c4b8', civic: '#bdb6a6' });
 export const CITY_GROUND = CITY_GROUND_BASE;
+// the share of a face's light its key gives (the live light's `sunShare`): the key's Lambert over the whole light
+const NIGHT_LIT = new Set(['city:neon', 'city:night-window', 'city:night-shop']);
+function keyShare(f) {
+  let n = f.normal;
+  if (!Array.isArray(n)) {
+    const [a, b, c] = f.corners, u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  }
+  const l = Math.hypot(n[0], n[1], n[2]);
+  if (!(l > 1e-12)) return 0;
+  const N = [n[0] / l, n[1] / l, n[2] / l], key = LIT.diffuse * Math.max(0, N[0] * LIT.toLight[0] + N[1] * LIT.toLight[1] + N[2] * LIT.toLight[2]), all = litFactor(N, LIT);
+  return all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0;
+}
 // a maglev's guideway: its deck's underside this high, pylons this far apart
 // the faces the city's trees may draw between them (the pool spends it on the trees seen largest first)
 const CITY_PLANT_FACES = 240000, LEVEL_PLANT_FACES = 60000;
@@ -195,6 +209,13 @@ export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
   return boxes;
 }
 
+// the sidewalk round the block nearest the city's core (where its walker starts), in units
+function blockRoute(d) {
+  const blocks = d.blocks.filter((b) => b.rect), mid = (r) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
+  const b = blocks.reduce((best, x) => (!best || Math.hypot(...mid(x.rect).map((v, i) => v - [d.field.cx, d.field.cy][i])) < Math.hypot(...mid(best.rect).map((v, i) => v - [d.field.cx, d.field.cy][i])) ? x : best), null);
+  return b ? blockRing(b.rect).map(([x, y]) => [r3(x / U), r3(y / U), 0]) : [];
+}
+
 /** The `city` world kind: the recipe → the city in its facades (or its massing), walkable, the design's readout attached. */
 export function assembleCityScene(manifest, ctx = {}) {
   // a level's lowered channels (level.js) are the world's, not the plan's
@@ -211,12 +232,24 @@ export function assembleCityScene(manifest, ctx = {}) {
   const W = seg ? seg.rect.x1 - seg.rect.x0 : d.frame.W, D = seg ? seg.rect.y1 - seg.rect.y0 : d.frame.D;
   // the look lights the city (the world-wide channel adds its air and sky after); with none, a paint's cube's look does,
   // and the city takes that look's air and sky itself
-  const paint = readPaint(d.plan.paint), spec = readCityLook(d.plan.look) || (paint ? resolveLookSpec(paint.cube.light.reference) : null);
+  const paint = readPaint(d.plan.paint), spec = readCityLook(d.plan.look) || (paint ? cubeLookSpec(paint) : null);
   const lit = spec ? lookLight(spec, paint) : null;
   LIT = lit ? lit.light : CITY_LIGHT;
   const ox = seg ? seg.rect.x0 : 0, oy = seg ? seg.rect.y0 : 0;
   const crop = seg ? { x0: seg.rect.x0 - ring, y0: seg.rect.y0 - ring, x1: seg.rect.x1 + ring, y1: seg.rect.y1 + ring } : null;
   try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy, crop, eyePlan, farLots, whole: d0 }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
+}
+
+/** A cube's hour on the city's dome (look.js cubeLookSpec): the stars out as far as the night has come, the moon where its
+ *  key is, the clouds painted round it (matte-paint/sky.js). */
+function hourSky(A) {
+  const H = A.H, out = {};
+  if (H.moonlit) {
+    const a = (H.key.azimuth * Math.PI) / 180, az = Math.atan2(Math.sin(a), Math.cos(a));
+    Object.assign(out, { day: +Math.min(1, Math.max(0, 1.25 * (1 - H.night))).toFixed(3), stars: 1, moon: { u: +((az + Math.PI / 2) / Math.PI + 0.5).toFixed(5), h: +(H.key.elevation / 90).toFixed(5), phase: 0.62, size: 1.3 } });
+  }
+  if (A.band) out.clouds = cloudBand(A.band);
+  return out;
 }
 
 function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan = null, farLots = [], whole = d }, { title, walkFlag, ctx }) {
@@ -259,7 +292,8 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan =
     const built = boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape));
     // the leaves through the year and in the paint's colours (foliage.js); the shrubs grown here so they turn with them
     const leaves = { season: readSeason(d.plan.season), foliage: paint?.cube.colour.foliage ?? null, amount: paint?.amount ?? 0 };
-    for (const b of plants.boxes) grown.push(...seasonFaces(plantBoxToFaces(b, { light: LIT }), { ...leaves, deciduous: leaves.season === 'autumn' }));
+    // a world drawing creases (ctx.creases) tags its trees organic, so the crease pass leaves them alone
+    for (const b of plants.boxes) grown.push(...seasonFaces(plantBoxToFaces(b, { light: LIT, organic: !!ctx.creases }), { ...leaves, deciduous: leaves.season === 'autumn' }));
     const laid = ground.map(toUnits);
     scene = assembleBoxCityScene({ boxes: built, faces: [...laid, ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
     // the ground first: the World lifts a face stacked on another of its plane over it (face-mesh decollideFaces), so a
@@ -286,6 +320,11 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan =
     // at night the windows and signs are lit (night.js)
     if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }
+  // the live light's SUN SHARE (ctx.liveSun: a page taking actor shadows, scene/live-light.js): the city is lit by its
+  // key's Lambert (vexar's), with no shadow test, so a face's share is the key's part of its light by its normal, and an
+  // actor's shadow takes that away; at night the key is the moon (look.js lookLight). A lit window, a sign and a lit
+  // shop carry their own light: none
+  if (ctx.liveSun) scene = { ...scene, faces: scene.faces.map((f) => (!f || !Array.isArray(f.corners) || NIGHT_LIT.has(f.group) ? f : { ...f, sunShare: keyShare(f) })) };
   const air = spec && spec.ref.air;
   // the stalker's eye (eye.js): the far ring and the skyline band, and its air, per unit (fog density is per world unit)
   const bg0 = '#cfd6dc', hz = eyePlan ? { density: +(eyePlan.haze.density * U).toPrecision(6), hazeHeight: r3(eyePlan.haze.hazeHeight / U) } : null;
@@ -303,15 +342,21 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan =
   // the people (pedestrians.js): round their blocks, some across a street at its signals; their rigs baked by the world
   const people = d.plan.fidelity !== 'massing' ? readPeople(d.plan.people, !!C) : 0;
   const walkers = people > 0 ? cityPedestrians(d, T ? T.junctions : [], { people, crop }) : [];
+  // a gritty cube's city painted from relief (dress.js): its walls and sidewalks
+  const dressed = paint ? dressCity(scene.faces, paint, U) : null;
   return {
     ...scene,
+    ...(dressed ? { faces: dressed.faces, ...(scene.textures || Object.keys(dressed.textures).length ? { textures: { ...(scene.textures || {}), ...dressed.textures } } : {}) } : {}),
     ...traffic,
     ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
+    // a walk round one block for a stand-in to take (ctx.route: a geocube's micro-city, era/geocube-city.js): the sidewalk
+    // of the block nearest the city's core, in the world's units
+    ...(ctx.route ? { route: blockRoute(d) } : {}),
     bg: bg0,
     // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
-    // by it: lookLit); a paint's cube's look is laid here
+    // by it: lookLit); a paint's cube's look is laid here (its hour on the dome: hourSky)
     ...(spec && !own ? { lookLit: true, lookHaze: hz ? +(hz.density / air.fog.density).toPrecision(6) : CITY_HAZE } : {}),
-    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: hz ? hz.density : +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1 } } : {}),
+    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: hz ? hz.density : +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1, ...(spec.air ? hourSky(spec.air) : {}) } } : {}),
     // a hero's air with no look of its own: the sheet's grey, thickening with distance and thinning with height
     ...(hz && !spec ? { haze: { color: bg0, density: hz.density } } : {}),
     ...(hz ? { hazeHeight: hz.hazeHeight } : {}),

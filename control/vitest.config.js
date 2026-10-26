@@ -29,11 +29,15 @@ export const E2E = [
   'lib/graph/contest/innings-page.live.test.js',
   'lib/graph/tabletop/holo-page.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
+  'lib/graph/game/pause-owner.live.test.js',
+  'lib/graph/scene/channels/controllable/seats.live.test.js',
+  'lib/mcp/tools/design-game.seats.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',
   'lib/graph/science-worlds/relativistic/conformance.chrome.test.js',
   'lib/graph/science-worlds/quantum/conformance.chrome.test.js',
   'lib/graph/science-worlds/classical/conformance.chrome.test.js',
   'lib/mcp/tools/science-setting.test.js',
+  'lib/graph/scene/live-light.chrome.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).

@@ -439,7 +439,7 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, normalTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
       // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
       baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
@@ -449,6 +449,8 @@ class GlbBuilder {
     // texture × material: the surface tile rides as the lit albedo (a marble floor with sheen)
     if (baseColorTexture != null) pbr.baseColorTexture = { index: baseColorTexture };
     const mat = { doubleSided: true, pbrMetallicRoughness: pbr };
+    // a tangent-space normal map on TEXCOORD_0 (a figure's relief: the primitive carries TANGENT beside it)
+    if (normalTexture != null) mat.normalTexture = { index: normalTexture };
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
     // A glowing surface (a pot-light lens): core emissiveFactor, plus KHR_materials_emissive_strength
@@ -746,7 +748,12 @@ class GlbBuilder {
     // THE PAINTED FACE (face-paint-rig.js, the pack's `paintTex`): one textured material over the figure, its texel ×
     // COLOR_0 (an unpainted corner samples the atlas's white tile, so its colour is as before). Absent ⇒ byte-identical.
     const tex = fig.paintTex ? this.imageFromDataUrl(fig.paintTex.url) : null;
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex }) : this.surfaceMaterial({ name: `fig:${name}` });
+    // THE RELIEF (epidermis/dermal-relief.js, the pack's `normalTex` and each part's `tan`), under the lit handoff only: the
+    // figure's normal map on the paint's UVs, its corners' TANGENT beside their NORMAL, so an engine lights the relief in
+    // the basis it was baked in. Absent ⇒ byte-identical.
+    const relief = this.lit && tex !== null && fig.normalTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.nrm === 'string' && typeof p.tan === 'string'));
+    const ntex = relief ? this.imageFromDataUrl(fig.normalTex.url) : null;
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}) }) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
@@ -805,7 +812,9 @@ class GlbBuilder {
     const corrT = !parents && Array.isArray(fig.correctives?.targets) ? fig.correctives.targets.length : 0, corrAt = [], corrRow = [];
     // under the lit handoff, a pack whose every part carries its corners' shading normals (`nrm`: packLayeredRig engineLit,
     // the realistic body's weld) writes those instead of the triangles' own
-    const carried = this.lit && !parents && fig.parts.every((p) => !p || typeof p.nrm === 'string') && fig.parts.some(Boolean) ? [] : null;
+    // (the engine skeleton writes them too when the figure carries its relief: rig-tpose.js re-rests them with the mesh)
+    const carried = this.lit && (!parents || ntex !== null) && fig.parts.every((p) => !p || typeof p.nrm === 'string') && fig.parts.some(Boolean) ? [] : null;
+    const tangents = carried && ntex !== null ? [] : null;
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -847,6 +856,7 @@ class GlbBuilder {
         for (let k = 0; k < mi.length; k++) { morphAt.push(base + mi[k]); morphRow.push(md.subarray(k * W, k * W + W)); }
       }
       if (carried) { const n = b64ToF32(part.nrm); if (n.length !== d.vertexCount * 3) throw new Error(`skinned export: rig '${name}' part ${bone.id} normals do not match its vertices`); for (let i = 0; i < n.length; i++) carried.push(n[i]); }
+      if (tangents) { const t = b64ToF32(part.tan); if (t.length !== d.vertexCount * 4) throw new Error(`skinned export: rig '${name}' part ${bone.id} tangents do not match its vertices`); for (let i = 0; i < t.length; i++) tangents.push(t[i]); }
       if (corrT && part.corrective) {
         const ci = b64ToU32(part.corrective.i), cd = b64ToF32(part.corrective.d), W = corrT * 3;
         if (cd.length !== ci.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} corrective rows do not match their vertices`);
@@ -862,14 +872,14 @@ class GlbBuilder {
     if (morphAt.length) morphAt.forEach((g, k) => { const r = morphRow[k]; for (let c = 0; c < 3; c++) positions[g * 3 + c] = pos[g * 3 + c] - r[c]; });
     // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
     // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
-    let A = { P: positions, C: Float32Array.from(col), J: Uint16Array.from(jnt), W: Float32Array.from(wgt), U: uvs ? Float32Array.from(uvs) : null, N: this.lit ? (carried ? Float32Array.from(carried) : restNormals(positions, idx)) : null }, I = idx;
+    let A = { P: positions, C: Float32Array.from(col), J: Uint16Array.from(jnt), W: Float32Array.from(wgt), U: uvs ? Float32Array.from(uvs) : null, N: this.lit ? (carried ? Float32Array.from(carried) : restNormals(positions, idx)) : null, T: tangents ? Float32Array.from(tangents) : null }, I = idx;
     // THE WELD (the carried normals' pack, or a figure that asks, `weld`: the realistic body's, lit or not): its corners
     // alike in everything one vertex (weldCorners), five or six to one on the hero; its targets' rows follow their vertex.
     // Any other figure: every byte as before.
-    const weld = (carried || (fig.weld === true && !parents)) ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), ...(A.N ? [[A.N, 3]] : [])], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
+    const weld = (carried || (fig.weld === true && !parents)) ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), ...(A.N ? [[A.N, 3]] : []), ...(A.T ? [[A.T, 4]] : [])], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
     if (weld) {
       const pick = (a, w) => { if (!a) return a; const out = new a.constructor(weld.count * w); weld.keep.forEach((c, v) => { for (let k = 0; k < w; k++) out[v * w + k] = a[c * w + k]; }); return out; };
-      A = { P: pick(A.P, 3), C: pick(A.C, 3), J: pick(A.J, 4), W: pick(A.W, 4), U: pick(A.U, 2), N: pick(A.N, 3) };
+      A = { P: pick(A.P, 3), C: pick(A.C, 3), J: pick(A.J, 4), W: pick(A.W, 4), U: pick(A.U, 2), N: pick(A.N, 3), T: pick(A.T, 4) };
       I = idx.map((i) => weld.of[i]);
       vertices = weld.count;
     }
@@ -880,6 +890,7 @@ class GlbBuilder {
       WEIGHTS_0: this.floatAccessor(A.W, 4),
       ...(A.U ? { TEXCOORD_0: this.floatAccessor(A.U, 2) } : {}),
       ...(A.N ? { NORMAL: this.floatAccessor(A.N, 3) } : {}),
+      ...(A.T ? { TANGENT: this.floatAccessor(A.T, 4) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(I)) };
@@ -941,12 +952,22 @@ class GlbBuilder {
     const hasFace = morphAt.length > 0, corr = corrAt.length ? fig.correctives : null;
     if (hasFace || corr) {
       const n = A.P.length / 3;
+      // (under the lit handoff every target carries its NORMAL too: the smooth normals of the shape at full weight less
+      // the rest's, over the same triangles, so a lid shut over the eye is shaded as the lid it is, not as the fold it
+      // rolled out of; every target alike, as glTF's readers take a target's missing NORMAL for the rest's)
+      const N0 = A.N ? restNormals(A.P, I) : null;
+      const normalOf = (ids, vals) => {
+        const P = Float32Array.from(A.P); ids.forEach((v, k) => { for (let c = 0; c < 3; c++) P[v * 3 + c] += vals[k * 3 + c]; });
+        const N1 = restNormals(P, I), nid = [], nv = [];
+        for (let v = 0; v < n; v++) { const d0 = N1[v * 3] - N0[v * 3], d1 = N1[v * 3 + 1] - N0[v * 3 + 1], d2 = N1[v * 3 + 2] - N0[v * 3 + 2]; if (Math.hypot(d0, d1, d2) > 1e-4) { nid.push(v); nv.push(d0, d1, d2); } }
+        return this.morphAccessor(n, Uint32Array.from(nid), Float32Array.from(nv));
+      };
       // (welded: a row once per vertex, the vertices ascending)
       const sparse = (at, rows, o) => {
         let ids = [], vals = [];
         at.forEach((g, k) => { const r = rows[k]; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } });
         if (weld) { const by = new Map(); ids.forEach((g, k) => { const v = weld.of[g]; if (!by.has(v)) by.set(v, k); }); const vs = [...by.keys()].sort((a, b) => a - b); vals = vs.flatMap((v) => { const k = by.get(v); return [vals[k * 3], vals[k * 3 + 1], vals[k * 3 + 2]]; }); ids = vs; }
-        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) };
+        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)), ...(N0 ? { NORMAL: normalOf(ids, vals) } : {}) };
       };
       prim.targets = [...(hasFace ? fig.face.targets.map((_, t) => sparse(morphAt, morphRow, 3 + t * 3)) : []), ...(corr ? corr.targets.map((_, t) => sparse(corrAt, corrRow, t * 3)) : [])];
       if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = prim.targets.map(() => ({ POSITION: zero })); }
@@ -1683,9 +1704,19 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (wrapIdx != null && !claimed.has(wrapIdx)) {
       claimed.add(wrapIdx);
       const node = b.json.nodes[wrapIdx];
-      if (e.translation.some((v) => v)) node.translation = e.translation;
       const yaw = e.heading + e.yawOffset;
-      if (yaw) node.rotation = zRotationQuat(yaw);
+      if (b.sceneRoots.includes(wrapIdx)) {
+        // an ENGINE SKELETON stands outside the z-up root, in the VRM space (y up, facing +z, the left on +x): its
+        // placement is the entity's said in that space — the root's (x, y, z) → (x, z, −y), the root's unit scale applied
+        // here since it does not reach a scene root's translation — and its heading a turn about y, half a turn more
+        // than the root's since the VRM front is the figure's back in the root's frame
+        const s = unitScale ?? 1, [x, y, z] = e.translation;
+        if (e.translation.some((v) => v)) node.translation = [x * s, z * s, -y * s];
+        node.rotation = [0, Math.sin((yaw + Math.PI) / 2), 0, Math.cos((yaw + Math.PI) / 2)];
+      } else {
+        if (e.translation.some((v) => v)) node.translation = e.translation;
+        if (yaw) node.rotation = zRotationQuat(yaw);
+      }
       node.extras = e.extras;
     } else {
       const node = { name: e.name, extras: e.extras };

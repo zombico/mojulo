@@ -76,15 +76,26 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
     expect(orders.at(-1).auto_audit).toBe(true);
     const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
-    expect(fingerprint(unaudited(orders))).toBe('7617ee3d');
-    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('c42f5e2b');
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('35dcc6ea');
+    // (re-pinned 2026-10-25 merging 1024-geocube-composition-update: geocube styles rewrote the gothic-night preset, so the
+    // kit its variant is named by hashes anew, geocube-gothic-night-variant-9bedf4 -> -f88cc1; nothing else in the orders moved)
+    // (re-pinned 2026-10-25, 1025-land-into-cube: the levels now carry their land. A composed world has always written
+    // style.land, and MEADOWMARK's examples too; the level orders now carry it lowered (the trails' mounds, rocks and
+    // cliff, the climb's relief, the cube's clouds), f8c60bfb -> 2471fa9c, c42f5e2b -> 9ad2a5b7, 35dcc6ea -> 0b5f8e90;
+    // the world itself is unchanged, its print above as it was)
+    // (re-pinned 2026-10-26: a climb after a trail under a level's clouds names the look its own stage draws, the cube's
+    // look under those clouds; the two climbs' meru.after.kit moved, geocube-gothic-night-variant-f88cc1 -> -011c7d, and
+    // nothing else, 2471fa9c -> b771729c)
+    expect(fingerprint(unaudited(orders))).toBe('b771729c');
+    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
     const w = composeGameworld({ prompt: 'a dungeon crawler through haunted crypts with relics and a boss', seed: 1 });
     const read = Object.fromEntries(w.brief.read.map((r) => [r.word, r.decides]));
-    expect(read).toMatchObject({ dungeon: ['building'], crypts: ['building', 'geocube'], relics: ['goal.collect'], boss: ['goal.boss'] });
+    // "dungeon crawler" also names the game: its words decide the intent (intent.js)
+    expect(read).toMatchObject({ dungeon: ['building', 'intent.from=dungeon-crawler'], crawler: ['intent.from=dungeon-crawler'], crypts: ['building', 'geocube'], relics: ['goal.collect'], boss: ['goal.boss'] });
+    expect(w.intent).toEqual({ from: 'dungeon-crawler' });
     const ids = Object.keys(w.levels);
     expect(w.brief.indoors).toEqual({ use: 'crypt', kit: 'gothic-stone', levels: ids });
     for (const id of ids) {
@@ -121,7 +132,7 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const lv = (goal, extra = {}) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], goal } }, ...extra });
     expect(readGameworld(lv({ collect: 'coin', boss: true, health: true })).levels['meadow-ascent'].goal).toEqual({ collect: 'coin', boss: true, health: true });
     expect(() => readGameworld(lv({}))).toThrow(/at least one/);
-    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health\)/);
+    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards\)/);
     expect(() => readGameworld(lv({ collect: 'Big Gems' }))).toThrow(/one lower-case word/);
     expect(() => readGameworld(lv({ boss: 2 }))).toThrow(/boss is true/);
     // a book's world: its hero fights the boss, the goal's play beside the systems' own

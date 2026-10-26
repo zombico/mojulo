@@ -77,7 +77,8 @@ describe('the solve', () => {
       const K = solvePalette({ seed: 5, scheme });
       expect(K.read.scheme).toBe(scheme);
       expect(Object.keys(K.roles).sort()).toEqual([...PALETTE_ROLES].sort());
-      expect(K.checks.map((c) => c.law)).toEqual(PALETTE_LAWS.filter((l) => !l.air || l.air.includes('full')).map((l) => l.law));
+      // (a law marked `values` is read only when the spec names value groups: values.test.js)
+      expect(K.checks.map((c) => c.law)).toEqual(PALETTE_LAWS.filter((l) => (!l.air || l.air.includes('full')) && !l.values).map((l) => l.law));
       for (const law of ['ramps-climb', 'shade-is-colour', 'sky-brightest', 'ui-contrast']) expect(K.checks.find((c) => c.law === law), `${scheme} ${law}`).toMatchObject({ ok: true });
     }
   });

@@ -197,6 +197,14 @@ export const EMIT_FIXTURES = [
   // mass + body; channels/cast-shadows.js). `shadows.cast` swaps the controllable blob for the
   // caster/follow integration; the blob fixture above stays byte-identical (the opt-in pin).
   ['cast-shadows', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: { cast: true } }],
+  // the live light (scene/live-light.js): actor shadows over a baked sun (a floor whose corners carry their sun share, a
+  // textured one welded with it, a pilot that casts and steers the box), the hour's static map, and both together
+  ['live-shadows-actors', {
+    faces: [floor('#445566', { sunShare: [0.6, 0.6, 0, 0] }), quad('#888888', { texture: 'stone', textureLit: true, uv: [[0, 0], [1, 0], [1, 1], [0, 1]], sunShare: 0.4 })],
+    textures: { stone: 'data:image/png;base64,AA==' }, pack: true, entities: ENTITIES, camera: CAMERA, shadows: { actors: true },
+  }],
+  ['live-shadows-hour', { faces: [floor('#445566', { sunShare: [0.6, 0.6, 0, 0] }), quad()], shadows: { hour: true, noCastGroups: ['static'] } }],
+  ['live-shadows-both', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: { actors: true, hour: true }, metersPerUnit: 3.66 }],
   // projectile smoke: the opt-in trail/burst puff block. Same opt-in discipline as shadows.
   ['controllable-smoke', { faces: [floor()], entities: ENTITIES, camera: CAMERA, smoke: true }],
   ['controllable-figure', {
@@ -361,6 +369,22 @@ export const EMIT_FIXTURES = [
     ],
     toon: { ink: { lines: false, widthAbs: 0.002 } },
   }],
+  // creases (channels/creases.js): a wall on a floor (angular), a tree's face beside it (organic: its own group,
+  // drawn black in the mask) and a repeated post (angular instances), in a world with a metre unit
+  ['creases', {
+    faces: [quad('#8a7a5c'), floor('#b8b08a'), quad('#3a6a32', { organic: true })],
+    repeats: [{ template: [quad('#666666')], transforms: [{ pos: [6, 0, 0] }, { pos: [8, 0, 0] }], group: 'furniture:post' }],
+    creases: { ink: '#1b1d3e', wash: 0.5 }, metersPerUnit: 3.66,
+  }],
+  // the cel register's outline and the land class (a cube's island): land inked only against the angular, the outline
+  // round every silhouette
+  ['creases-outline', {
+    faces: [quad('#8a7a5c'), floor('#6a9a42', { organic: 'land' }), quad('#3a6a32', { organic: true })],
+    creases: { line: 0.9, wash: 0.25, outline: { ink: '#0d070d', width: 2 } },
+  }],
+  // live occlusion on the creases' prepass (scene/live-light.js): alone, and with the creases on the one prepass
+  ['occlusion', { faces: [quad('#8a7a5c'), floor('#b8b08a')], occlusion: true }],
+  ['occlusion-creases', { faces: [quad('#8a7a5c'), floor('#b8b08a'), quad('#3a6a32', { organic: true })], creases: { ink: '#1b1d3e' }, occlusion: { strength: 0.8, reach: 0.4, samples: 8 }, metersPerUnit: 3.66 }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

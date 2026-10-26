@@ -124,6 +124,34 @@ describe('the engine skeleton', () => {
     for (const j of json.skins[0].joints) expect(json.nodes[j].children).toBeUndefined();
   });
 
+  it('placed as an entity, it stands where the flat figure stands, facing its way, at any unit scale', () => {
+    // the T rest down both paths — the flat skeleton (VRM-named, under the z-up root: the pack without its `tpose` mark)
+    // and the engine skeleton (a scene root in the VRM space) — the same entity placing each: their hips and hip joints
+    // land on the same glTF-world points, so position, heading, scale and the left side agree (a figure turned the wrong
+    // way swaps its left and right hips)
+    const { tpose: _t, ...plain } = flatT;
+    const entities = [{ id: 'e', body: { figure: 'f' }, transform: { pos: [3, -2, 0.5], heading: 0.7 } }];
+    const worldOf = (json, name) => {
+      const parent = new Map();
+      json.nodes.forEach((n, i) => (n.children || []).forEach((c) => parent.set(c, i)));
+      let i = json.nodes.findIndex((n) => n.name === name), p = [0, 0, 0];
+      while (i >= 0 && i !== undefined) {
+        const n = json.nodes[i], sc = n.scale || [1, 1, 1], t = n.translation || [0, 0, 0];
+        p = qrot(n.rotation || [0, 0, 0, 1], p.map((v, a) => v * sc[a])).map((v, a) => v + t[a]);
+        i = parent.has(i) ? parent.get(i) : -1;
+      }
+      return p;
+    };
+    for (const metersPerUnit of [undefined, 0.3048]) {
+      const glb = (f) => parseGlb(facesToGlb({ faces: [], figures: { f }, entities, ...(metersPerUnit ? { metersPerUnit } : {}) }, { clips: '_all', skinned: true, humanoid: true }).bytes).json;
+      const flat = glb(plain), engine = glb(flatT);
+      expect(engine.scenes[0].nodes.map((n) => engine.nodes[n].name)).toEqual(['mojulo', 'f']);
+      for (const joint of ['f:hips', 'f:leftUpperLeg', 'f:rightUpperLeg']) {
+        worldOf(engine, joint).forEach((c, a) => expect(c, `${joint} ${metersPerUnit ?? 1}`).toBeCloseTo(worldOf(flat, joint)[a], 4));
+      }
+    }
+  });
+
   it('a hero in T: the same, with fingers and toes on the tree', { timeout: 120000 }, async () => {
     const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', gesture: 'guard' }) });
     const { payload } = await resolveWorldScene({ ref: 'sk_test', manifest });

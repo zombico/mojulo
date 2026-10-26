@@ -55,14 +55,20 @@ function rollSetting(rand, s) {
   return rand() < 0.5 || a === b ? [a] : [a, b];
 }
 
+// a `given` setting (registry.js) holds only when the facet's spec already says one of its values
+const givenHolds = (spec, s) => !s.given || Object.entries(s.given).every(([g, vals]) => vals.includes(spec[g]));
+// the settings a roll counts toward a facet's odds: a given one rolls only inside the game that gives it
+const baseSettings = (reg, id) => Object.values(reg[id]).filter((s) => !s.given).length;
+
 export function rollCube(rand, density = 0.2, roll = 'fair') {
   if (!ROLLS.includes(roll)) throw new Error(`cosmos: roll is ${ROLLS.join(' | ')}, not '${roll}'`);
   const reg = capabilityRegistry(), cube = {};
-  const mean = FACETS.reduce((n, { id }) => n + Object.keys(reg[id]).length, 0) / FACETS.length;
+  const mean = FACETS.reduce((n, { id }) => n + baseSettings(reg, id), 0) / FACETS.length;
   for (const { id } of FACETS) {
     const spec = {}, settings = Object.entries(reg[id]);
-    const odds = roll === 'flat' ? density : Math.min(1, (density * mean) / settings.length);
+    const odds = roll === 'flat' ? density : Math.min(1, (density * mean) / baseSettings(reg, id));
     for (const [setting, s] of settings) {
+      if (!givenHolds(spec, s)) continue;
       if (rand() >= odds) continue;
       spec[setting] = rollSetting(rand, s);
     }
@@ -75,9 +81,14 @@ export function nudgeCube(rand, cube) {
   const reg = capabilityRegistry(), out = JSON.parse(JSON.stringify(cube));
   const changes = rand() < 0.5 ? 1 : 2;
   for (let i = 0; i < changes; i++) {
-    const { id } = pick(rand, FACETS), [setting, s] = pick(rand, Object.entries(reg[id]));
+    // (a given setting is changed only in a game that gives it: another draw, a few at most)
+    let id, setting, s;
+    for (let t = 0; t < 8; t++) { ({ id } = pick(rand, FACETS)); [setting, s] = pick(rand, Object.entries(reg[id])); if (givenHolds(out[id] || {}, s)) break; s = null; }
+    if (!s) continue;
     (out[id] ||= {})[setting] = rollSetting(rand, s);
   }
+  // a change that took away what a given setting needs takes the setting with it
+  for (const [id, spec] of Object.entries(out)) for (const [setting] of Object.entries(spec)) if (reg[id]?.[setting] && !givenHolds(spec, reg[id][setting])) delete spec[setting];
   return out;
 }
 

@@ -36,6 +36,10 @@ export const MSG_FOCUS = 'world-focus';
 export const STATIC_GROUP = 'static';
 /** The static group's metal faces, split off so only they carry the page's per-vertex metal data: static too. */
 export const STATIC_METAL_GROUP = 'static:metal';
+/** The static group's `organic` faces (a tree), split off only when a world draws creases: static too, never inked. */
+export const STATIC_ORGANIC_GROUP = 'static:organic';
+/** The static group's land faces (`organic: 'land'`), split off the same way: static too. */
+export const STATIC_LAND_GROUP = 'static:land';
 
 /** The strip's order: ¾ leads because it is the best single reading. */
 export const VIEW_PRESETS = ['threeQuarter', 'front', 'side', 'top'];
@@ -69,5 +73,5 @@ export function isViewReadyMessage(data) {
 /** The selectable groups a ready message carries — `static` (and its metal) dropped, order kept. */
 export function selectableGroups(data) {
   if (!Array.isArray(data?.groups)) return [];
-  return data.groups.filter((g) => typeof g === 'string' && g && g !== STATIC_GROUP && g !== STATIC_METAL_GROUP);
+  return data.groups.filter((g) => typeof g === 'string' && g && g !== STATIC_GROUP && g !== STATIC_METAL_GROUP && g !== STATIC_ORGANIC_GROUP && g !== STATIC_LAND_GROUP);
 }

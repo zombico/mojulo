@@ -141,3 +141,22 @@ describe('the composed hero', () => {
     for (const p of O.patches) expect(applyManifestPatch({ hero: O.mint.args.spec }, p.args.patch).manifest.hero, p.part).toEqual(C.spec);
   });
 });
+
+describe('the skin in the world\'s art direction', () => {
+  const lit = (d = {}, palette = { seed: 7, key: 'low', weight: 0.6 }) => readGameworld({ id: 'w', seed: 8, ...(palette ? { style: { palette } } : {}), levels: { a: { walk: { nodes: { t: { trail: true } } } } }, characters: { direction: { tradition: 'western', ...d }, hero: { looks: { body: { cast: 'female' } } } } });
+  it('reads the world\'s palette into a shade beside the composed hero, painted unless the direction names a shading', () => {
+    expect(composeHero(lit()).skin.shade.steps).toBe(0);
+    expect(composeHero(lit({ shading: 'chiaroscuro' })).skin.shade.curve).toBe('deep');
+    expect(composeHero(lit({ shading: 'none' })).skin).toBeUndefined();
+    expect(composeHero(lit({}, null)).skin).toBeUndefined();
+    expect(() => lit({ shading: 'oil' })).toThrow(/shading/);
+  });
+  it('rides the mint only on a realistic hero, under the hero\'s own shade; any other mints as it did', () => {
+    const G = lit({ shading: 'cel' }), C = composeHero(G);
+    expect(heroOrders(G).mint.args.spec).toEqual(C.spec);
+    const real = heroOrders(G, { composed: { ...C, spec: { ...C.spec, form: 'realistic' } } }).mint.args.spec;
+    expect(real.skin).toEqual(C.skin);
+    const own = heroOrders(G, { composed: { ...C, spec: { ...C.spec, form: 'realistic', skin: { shade: 0.2 } } } }).mint.args.spec;
+    expect(own.skin.shade).toBe(0.2);
+  });
+});

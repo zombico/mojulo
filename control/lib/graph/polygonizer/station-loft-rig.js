@@ -44,7 +44,7 @@
  * contract scene-gltf's skinned writer already has.
  */
 import { articulate, TWIST_REF_NODES, twistPairFor, SCAPULA_POINTS } from './figure-vajra.js';
-import { resolvePose } from './figure-posing.js';
+import { resolvePose, aimsHead } from './figure-posing.js';
 import { matToQuat, frameQuat, twistQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear, faceListToMesh } from '../figures/face-mesh.js';
 import { resolveMaterial, tagFacesWithMetal } from './materials.js';
@@ -54,6 +54,7 @@ import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 import { faceHex } from './face-hex.js';
 import { cellTriangles } from './field-paint.js';
+import { axisTangent } from './normal-bake.js';
 import * as bv from './body-relational-vec.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
@@ -223,7 +224,10 @@ export function validateRig(rig) {
   // from its rest line carried there to its posed line, so the joint between them bends and never twists (a hidden link,
   // not a field of the bone)
   for (const b of bones) if (b.parent) { const P = bones[boneIndex[b.parent]]; if (!P || P === b) throw new Error(`station-loft-rig: bone ${b.id}.parent names unknown bone ${b.parent}`); Object.defineProperty(b, 'parentBone', { value: P, enumerable: false }); }
-  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}) };
+  // `cervical`: a head or neck AIM posed as the cervical spine, within its range (figure-vajra.js CERVICAL_CAP); raw
+  // angles stay each joint's own (a solver's that splits them itself: hero-aura.js's gaze)
+  if (rig.cervical !== undefined && rig.cervical !== true) throw new Error('station-loft-rig: cervical is true or absent');
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}), ...(rig.cervical ? { cervical: true } : {}) };
 }
 
 /**
@@ -334,7 +338,7 @@ export function rigNodesAt(R, pose = {}) {
   // (and the scapula's points where the rig has them: the vajra turns them with the shoulder and the rhythm)
   const coreKeys = [...VAJRA_CORE, ...(rest.pelvisTilt ? ['pelvisTilt'] : []), ...(girdle ? ['girdleL', 'girdleR', 'clavicleL', 'clavicleR', ...['L', 'R'].flatMap((S) => SCAPULA_POINTS.map((k) => `${k}${S}`)).filter((k) => rest[k])] : [])];
   const core = Object.fromEntries(coreKeys.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
-  const posed = withMath(dmath, () => articulate({ ...resolvePose(vajraSpec, core), ...(girdle ? { girdle: true } : {}) }, core));   // shared vajra FK on dmath (util/math-scope.js)
+  const posed = withMath(dmath, () => articulate({ ...resolvePose(vajraSpec, core), ...(girdle ? { girdle: true } : {}), ...(R.cervical && aimsHead(vajraSpec) ? { cervical: true } : {}) }, core));   // shared vajra FK on dmath (util/math-scope.js)
   // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)
   const carried = [...coreKeys, ...TWIST_REF_NODES.filter((k) => posed[k])];
   for (const k of carried) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
@@ -766,8 +770,12 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * `engineLit` (default false → byte-identical output; the plain path with `normals`): the export's engine lights the
  * figure (the lit GLB), so each corner carries its shading normal (`nrm` on a part, float32 per vertex: the weld's, a
  * cell's blended from its face's corners, a held thing's its triangle's) and its colour no baked shade.
+ * `relief` (default null → byte-identical output; with `engineLit` only): the figure's relief as a normal map
+ * (epidermis/dermal-relief.js heroRelief): each corner carries its TANGENT (`tan` on a part, float32 [x, y, z, w] per
+ * vertex: `relief.tangentAt(fi, k)`, a cell's blended from its face's corners, a held thing's laid on its triangle), the
+ * pack the map (`normalTex`: { url, w, h }) on the paint's atlas UVs.
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null } = {}) {
   // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
   // a metal group's packs the metal channel's per-vertex data (`metal`, face-mesh.js), so the page's metal shades the
   // moving parts as it shades the static solid. No metal surface ⇒ nothing tracked, byte-identical
@@ -788,6 +796,15 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   if (corrAt) for (const P of parts) P.cph = [];
   const carryN = !!(engineLit && normals && !character);
   if (carryN) for (const P of parts) P.nrm = [];
+  // (the relief's tangents ride beside the carried normals; a corner's blended ones laid back square to its normal)
+  const carryT = !!(carryN && relief && typeof relief.tangentAt === 'function');
+  if (carryT) for (const P of parts) P.tan = [];
+  const tanOf = (fi, k) => relief.tangentAt(fi, k);
+  const tanMix = (fi, w, n) => {
+    const t = [0, 1, 2].map((q) => w[0] * tanOf(fi, 0)[q] + w[1] * tanOf(fi, 1)[q] + w[2] * tanOf(fi, 2)[q]), d = t[0] * n[0] + t[1] * n[1] + t[2] * n[2];
+    const o = [t[0] - n[0] * d, t[1] - n[1] * d, t[2] - n[2] * d], l = len(o);
+    return l > 1e-12 ? [o[0] / l, o[1] / l, o[2] / l, tanOf(fi, 0)[3]] : axisTangent(n);
+  };
   // the recipe's emissive groups (a lens, a visor slit, a reactor) keep their full colour on the plain path, as the
   // static solid does (layeredFaces); under the character light they ride the pieces. Absent ⇒ byte-identical.
   const glow = new Set(Array.isArray(emissive) ? emissive : []);
@@ -824,7 +841,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
           for (const { w } of T) {
             P.pos.push(...[0, 1, 2].map((q) => w[0] * p[0][q] + w[1] * p[1][q] + w[2] * p[2][q]));
             P.col.push(...(glowing ? cb : [0, 1, 2].map((q) => w[0] * corner[0][q] + w[1] * corner[1][q] + w[2] * corner[2][q])));
-            if (P.nrm) { const n = [0, 1, 2].map((q) => w[0] * normals[fi][0][q] + w[1] * normals[fi][1][q] + w[2] * normals[fi][2][q]), l = len(n) || 1; P.nrm.push(n[0] / l, n[1] / l, n[2] / l); }
+            if (P.nrm) { const n = [0, 1, 2].map((q) => w[0] * normals[fi][0][q] + w[1] * normals[fi][1][q] + w[2] * normals[fi][2][q]), l = len(n) || 1; P.nrm.push(n[0] / l, n[1] / l, n[2] / l); if (P.tan) P.tan.push(...tanMix(fi, w, [n[0] / l, n[1] / l, n[2] / l])); }
             const { jnt, wgt } = blendSkin(skin, tri, w); P.jnt.push(...jnt); P.wgt.push(...wgt);
             if (P.uv) P.uv.push(...pp.white);
           }
@@ -839,17 +856,17 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
         tri.forEach((vi, k) => {
           const at = st.rest ? p[k] : H, d = new Float64Array((1 + pp.targets) * 3);
           for (const [t, f] of st.deltas) for (let q = 0; q < 3; q++) d[3 + t * 3 + q] += f * (p[k][q] - H[q]);
-          P.pos.push(...at); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); P.uv.push(...st.uv(pp.uvAt({ vi }))); P.mph.push({ i: P.pos.length / 3 - 1, d }); if (P.nrm) P.nrm.push(...normals[fi][k]);
+          P.pos.push(...at); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); P.uv.push(...st.uv(pp.uvAt({ vi }))); P.mph.push({ i: P.pos.length / 3 - 1, d }); if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k));
         });
       }
       return;
     }
     P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
-    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); });
+    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
-  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...paint.white); } } }
+  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...paint.white); } } }
   const packedClips = {}, props = [];
   for (const [name, clip] of Object.entries(clips)) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
@@ -879,10 +896,11 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   return {
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
-    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}) } : null)),
+    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
     clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
+    ...(carryT && relief.atlas ? { normalTex: relief.atlas } : {}),
   };
 }
 
@@ -914,9 +932,11 @@ export function auditRig(mesh, skin, R, poses = [{}]) {
     for (const f of frames) { out.maxLengthError = Math.max(out.maxLengthError, f.lengthError); for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out.maxOrthoError = Math.max(out.maxOrthoError, Math.abs(dot(f.m[a], f.m[b]) - (a === b ? 1 : 0))); }
     // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it); a leg
     // given a `feet` target (a gait's footfall, a swing foot on its arc) stands at that target, its toe tip turned with it
+    // (a STANCE stands the toes on the shoe's forepart sole, `toe` metres up, wherever the pose plants them)
+    const up = (p) => (R.stance ? add(p, [0, 0, R.stance.toe]) : p);
     for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) {
       const target = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : null;
-      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], target))] : ((at) => [len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))])(plantedFoot(R, l, pose))));
+      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], up(target)))] : ((at) => [len(sub(nodes[l.toeBase], up(at.toeBase))), len(sub(nodes[l.toeTip], up(at.toeTip)))])(plantedFoot(R, l, pose))));
     }
     out.poses.push({ pose, legs: report.legs });
   }

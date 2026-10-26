@@ -34,7 +34,9 @@
  * Pure; seeded dice only; values only.
  */
 import { STRUCTURE_USES, STRUCTURE_USE_IDS, STRUCTURE_RINGS, STRUCTURE_RING_IDS, STRUCTURE_LAWS, COVERINGS, eyeSpot, geometry as G } from './out-structures.js';
-import { ELEMENT_SETS, seedElements, composeAnchor, deriveSecondary, build as EB } from './out-anchor-elements.js';
+import { ELEMENT_SETS, seedElements, composeAnchor, deriveSecondary, build as EB, OPENING_WORDS, ENTRY_WORDS } from './out-anchor-elements.js';
+import { lightDress, doorDress, shutterDress } from './out-openings.js';
+const pickOf = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
 const { face, roof, wallOf, wallQuad, wallPoly, SIDES, shellAt, shellFaces, lens, disc, point, basis, add3, sub, unit, dice, subSeed, r3, clamp, within } = G;
 
@@ -51,6 +53,8 @@ export const PIECE_KINDS = Object.freeze({
 export const CAPS_FOR = Object.freeze({ block: ['gable', 'hip', 'pyramid', 'flat', 'dome'], drum: ['cone', 'dome', 'flat'], shell: [null] });
 export const DEPTHS = Object.freeze({ mass: 0, cap: 0, annex: 0, tiers: 0, courses: 1, opening: 1, entry: 1, point: 2, chimney: 2, rib: 2, band: 2, socle: 2, cornice: 2, bond: 2, frame: 3, shutters: 3, rim: 3, sill: 3, lintel: 3, quoins: 3 });
 const PITCHED = new Set(['gable', 'hip', 'pyramid']);
+// a solid flat cap's parapet: a wall's thickness (era/solid.js)
+const PARAPET_T = 0.25;
 const COVER_OF = (group) => (group || '').replace('str:', '');
 
 // ── three anchors: element sets, composed (era/out-anchor-elements.js) ──────────────────────────────────────────
@@ -89,14 +93,15 @@ export function decompileAnchor(anchor, id = null) {
     proportions: {
       aspect: r3(Math.max(M.w, M.d) / least), reach: r3(least * 1.15), storeyH: A.storeyH,
       pitch: C && PITCHED.has(C.kind) ? C.pitch : null, rise: M.kind === 'shell' ? M.rise : C?.rise ?? null, eave: C ? r3(C.eave / least) : 0,
-      opening: { w: O.w, h: O.h, sill: O.sill ?? 0.85, by: O.rhythm.by, bay: O.rhythm.bay ?? null, count: O.rhythm.count ?? null },
-      entry: { w: E.w, h: E.h }, annexScale: N?.scale ?? null, tierShrink: M.tiers?.shrink ?? null,
+      opening: { w: O.w, h: O.h, sill: O.sill ?? 0.85, by: O.rhythm.by, bay: O.rhythm.bay ?? null, count: O.rhythm.count ?? null, ...pickOf(O, OPENING_WORDS) },
+      entry: { w: E.w, h: E.h, ...pickOf(E, ENTRY_WORDS) }, annexScale: N?.scale ?? null, tierShrink: M.tiers?.shrink ?? null,
       point: orn.point ? { count: orn.point.count, len: orn.point.len, base: orn.point.base } : null,
       rib: orn.rib ? { count: orn.rib.count, w: orn.rib.w } : null, band: orn.band ? { w: orn.band.w } : null,
       chimney: orn.chimney ? { w: orn.chimney.w } : null, frame: orn.frame ? { member: orn.frame.member } : null,
       socle: orn.socle ? { h: orn.socle.h } : null, cornice: orn.cornice ? { h: orn.cornice.h, proud: orn.cornice.proud } : null,
       sill: orn.sill ? { h: orn.sill.h, over: orn.sill.over } : null, lintel: orn.lintel ? { h: orn.lintel.h, form: orn.lintel.form } : null,
       quoins: orn.quoins ? { w: orn.quoins.w, course: orn.quoins.course } : null,
+      ...(orn.shutters?.form ? { shutters: { form: orn.shutters.form } } : {}),
     },
     values: { storeys: M.storeys, cap: C ? { group: C.group, value: C.value } : null, opening: { group: O.group, value: O.value }, ornaments: Object.fromEntries(Object.entries(orn).map(([k, p]) => [k, { group: p.group, value: p.value }])) },
     courses: !!C?.courses, depths: DEPTHS, variation: 0.1, holds: A.holds, street: A.street, bonds: A.bonds, elements: A.elements, compose: A.compose ?? null,
@@ -123,7 +128,7 @@ const SCALE_LAWS = ['storey', 'door', 'one-leads', 'value-order', 'eye-spot', 'b
  * interest (a focus, a landmark or the accent at 3; near 3, mid 2, far 0). `band` [lo, hi] is the town's heartbeat
  * here: a citizen's storeys inside it (a shell as far as its rise allows). Returns the shape the town places.
  */
-export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null } = {}) {
+export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null, solid = false } = {}) {
   const U = STRUCTURE_USES[use];
   if (!U) throw new Error(`structures: '${use}' is not a use (${STRUCTURE_USE_IDS.join(', ')})`);
   if (!STRUCTURE_RINGS[ring]) throw new Error(`structures: '${ring}' is not a ring (${STRUCTURE_RING_IDS.join(', ')})`);
@@ -145,7 +150,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     if (row) { row.span = r3(Math.min(row.span, span)); row.n++; } else parts.push({ part: name, span: r3(span), built, n: 1 });
     return built === 'geometry';
   };
-  const Lv = LEVEL[ring], faces = [], tile = [];
+  const Lv = LEVEL[ring], faces = [], tile = [], screens = [], glassOf = new Map();
   // a household may mirror its plan: door bay, lights and annex to the other hand
   const mirror = D.R() < 0.5 ? -1 : 1;
   let dared = false;
@@ -232,7 +237,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     let top = z;
     if (PITCHED.has(V.cap)) {
       const form = V.cap === 'pyramid' || (V.cap === 'hip' && Math.max(w, d) / Math.min(w, d) < 1.05) ? (V.cap === 'gable' ? 'gable' : V.cap === 'hip' ? 'hip' : 'pyramid') : V.cap;
-      const R = roof(faces, rect, z, { form, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid });
+      const R = roof(faces, rect, z, { form, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid, solid });
       top = R.ridge;
     } else if (V.cap === 'dome' || V.cap === 'cone') {
       const rx = w / 2 + eave * 0.4, ry = d / 2 + eave * 0.4, rise = capK * Math.min(rx, ry);
@@ -241,7 +246,16 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
       top = r3(z + rise);
     } else if (V.cap === 'flat') {
       const par = 0.7;
-      for (const s of Object.keys(SIDES)) { const W = wallOf(rect, s); wallQuad(faces, W, 0, W.len, z, z + par, 0, 'wall', capV.value); }
+      for (const s of Object.keys(SIDES)) {
+        const W = wallOf(rect, s);
+        wallQuad(faces, W, 0, W.len, z, z + par, 0, 'wall', capV.value);
+        // (solid, era/solid.js: the parapet a wall's thickness, its inner face and its coping)
+        if (solid) {
+          const pt = PARAPET_T, inN = W.n.map((v) => -v);
+          face(faces, [W.at(pt, z, -pt), W.at(W.len - pt, z, -pt), W.at(W.len - pt, z + par, -pt), W.at(pt, z + par, -pt)], inN, 'wall', capV.value * 0.8);
+          face(faces, [W.at(0, z + par, 0), W.at(W.len, z + par, 0), W.at(W.len - pt, z + par, -pt), W.at(pt, z + par, -pt)], [0, 0, 1], 'wall', capV.value);
+        }
+      }
       face(faces, [[rect[0], rect[1], z + 0.05], [rect[2], rect[1], z + 0.05], [rect[2], rect[3], z + 0.05], [rect[0], rect[3], z + 0.05]], [0, 0, 1], 'roof', Math.max(0.1, capV.value - 0.1));
       top = r3(z + par);
     }
@@ -293,7 +307,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     if (aw >= 3 && ad >= 2.4) {
       const left = D.R() < 0.5, x0 = left ? 0 : r3(W0 - aw), arect = round ? [r3(W0 / 2 + (left ? -1 : 1) * (W0 / 2 - aw * 0.45) - aw / 2), r3(D0 - aw * 0.3), 0, 0] : [x0, D0, r3(x0 + aw), r3(D0 + ad)];
       if (round) { arect[2] = r3(arect[0] + aw); arect[3] = r3(arect[1] + aw); }
-      const sub = speakMass(L, arect, Math.max(1, n - 1), storeyH, Lv, dep - 1, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, r3(ridge - 0.6));
+      const sub = speakMass(L, arect, Math.max(1, n - 1), storeyH, Lv, dep - 1, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, r3(ridge - 0.6), solid);
       floor = r3(floor + sub.floor); underRidge = r3(ridge - sub.ridge);
       masses.push({ id: 'annex', rect: arect, n: sub.n, storeyH, eave: sub.ridge });
       why.push(`${deficit} m² short: the language again behind, ${r3(sc * 100)} % its size (an annex, a depth shallower)`);
@@ -312,6 +326,8 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   let bays = 0, bay = 0, lights = 0;
   const party = !round && side === 0 ? ['left', 'right'] : [];
   const shut = has('shutters'), DV = VA.ornaments, flatLight = V.opening === 'rect' || V.opening === 'arch';
+  // (the openings as architecture: only where the language writes them, so a language without them speaks as it did)
+  const dressedLight = OP.frame !== undefined || OP.glazing !== undefined, dressedDoor = ENTRY_WORDS.some((k) => P.entry[k] !== undefined), offLane = new Set();
   if (at('opening') || dep === 0) {
     // at depth 0 there is no entry piece: its door is a mark in the tile
     const t0 = faces.length, u0t = tile.length, geo = at('opening');
@@ -328,13 +344,27 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
         if (OP.kind === 'round' || V.opening === 'round') disc(out, W.at(uc, z0 + hh / 2, 0), W.n, w / 2, Lv.sides + 2, 'opening', VA.opening.value, ex);
         else if (V.opening === 'lens') { if (ok) lens(out, W.at(uc, z0 + hh / 2, 0), W.n, w / 2, Lv.sides, 'lens', VA.opening.value, ring === 'near' ? 2 : 1); else disc(out, W.at(uc, z0 + hh / 2, 0), W.n, w / 2, 6, 'lens', VA.opening.value, ex); }
         else wallPoly(out, W, shape(V.opening, uc, z0, w, hh), 0.03, 'opening', VA.opening.value, ex);
+        // the light built (era/out-openings.js): its frame standing out round it, its glazing, where the language says
+        if (ok && flatLight && dressedLight && at('sill')) {
+          const f0 = out.length;
+          const s0 = screens.length;
+          lightDress(out, W, { kind: V.opening, uc, z0, w, hh, pts: shape(V.opening, uc, z0, w, hh) }, OP, { sill: !!(P.sill && at('sill')), screens });
+          for (let k = s0; k < screens.length; k++) glassOf.set(screens[k], out[f0 - 1]);
+          if (W.n[1] !== -1) for (let k = f0; k < out.length; k++) offLane.add(out[k]);
+        }
         // the light's sill and lintel: the anchor's, at depth 3
         if (flatLight && P.sill && at('sill')) { const sh = r3(P.sill.h * ch), g = gate('sill', sh, 'tile'); EB.sill(g ? faces : tile, W, uc, z0, w, sh, P.sill.over, DV.sill.value, DV.sill.group, g); used.add('sill'); }
         if (flatLight && P.lintel && at('lintel') && z0 + hh + P.lintel.h * ch < (i + 1) * storeyH - 0.05) { const lh = r3(P.lintel.h * ch), g = gate('lintel', lh, 'tile'); EB.lintel(g ? faces : tile, W, uc, z0 + hh, w, lh, P.lintel.form, DV.lintel.value, DV.lintel.group, g); used.add('lintel'); }
         // shutters beside a square light: the anchor's, at depth 3, hung by the households that hang them
         if (shut && V.opening === 'rect' && at('shutters')) {
           const g = gate('shutters', w / 2, 'tile');
-          for (const s of [-1, 1]) wallQuad(g ? faces : tile, W, s < 0 ? uc - w - 0.04 : uc + w / 2 + 0.04, s < 0 ? uc - w / 2 - 0.04 : uc + w + 0.04, z0, z0 + hh, 0.03, 'shutter', VA.ornaments.shutters.value, { ...(g ? {} : { tile: true }), group: VA.ornaments.shutters.group });
+          // (a framed light's shutters hang beside its frame; leaves with a form stand out of the wall)
+          const fo = dressedLight && OP.frame ? r3(Math.max(0.06, OP.frame * 0.9)) : 0, sf = P.shutters?.form;
+          for (const s of [-1, 1]) {
+            const a = s < 0 ? uc - w - 0.04 - fo : uc + w / 2 + 0.04 + fo, b = s < 0 ? uc - w / 2 - 0.04 - fo : uc + w + 0.04 + fo;
+            if (g && sf && sf !== 'flat') shutterDress(faces, W, r3(a), r3(b), z0, z0 + hh, sf, VA.ornaments.shutters.value, { group: VA.ornaments.shutters.group });
+            else wallQuad(g ? faces : tile, W, a, b, z0, z0 + hh, 0.03, 'shutter', VA.ornaments.shutters.value, { ...(g ? {} : { tile: true }), group: VA.ornaments.shutters.group });
+          }
           used.add('shutters');
         }
         if (W.n[1] === -1 && i === 0) openings.push([w, hh]);
@@ -357,6 +387,9 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
       const W = wallOf(rects[0], 'front'), du = clamp((doorBay + 0.5) * bay, 0.62 + doorW / 2, W.len - 0.62 - doorW / 2);
       const dk = V.entryShape === 'arch' ? 'door-arch' : 'rect', dg = gate('door', doorW, 'tile');
       wallPoly(dg ? faces : tile, W, shape(dk, du, 0, doorW, doorH), 0.03, accent ? 'accent' : 'door', 0.3, dg ? {} : { tile: true });
+      // the door built (era/out-openings.js): its leaf, fanlight, surround and steps, where the language says
+      if (dg && dressedDoor && at('sill')) doorDress(faces, W, { kind: dk, uc: du, w: doorW, h: doorH, pts: shape(dk, du, 0, doorW, doorH), room: r3(storeyH - doorH - 0.15) }, P.entry,
+        { value: 0.3, group: accent ? 'str:accent' : 'str:timber', trim: OP.trim, trimValue: OP.trimValue, stone: DV.socle?.group ?? DV.sill?.group ?? 'str:stone', stoneValue: DV.socle?.value ?? DV.sill?.value ?? 0.6, glass: VA.opening.group, glassValue: VA.opening.value, arc: Lv.arc });
       openings.push([doorW, doorH]);
     } else {
       // round masses: a band of lights to a storey on the lane half; the tunnel to the door
@@ -492,14 +525,17 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   // ── the budget: past the ring's (a focus spends the next ring in's), the finest goes into the tile first ──
   const budget = STRUCTURE_RINGS[U.focus || U.dare || accent ? STRUCTURE_RING_IDS[Math.max(0, STRUCTURE_RING_IDS.indexOf(ring) - 1)] : ring].budget;
   const count = () => faces.reduce((a, f) => a + f.corners.length - 2, 0);
-  for (const p of ['quoin', 'lintel', 'sill', 'shutter', 'frame', 'cornice', 'socle']) {
+  // (the openings' dressing, era/out-openings.js, goes before the language's own ornaments: off the lane face first)
+  // (a stained light's panes go after its cames, so a light keeps its colour longest)
+  const ORDER = dressedLight || dressedDoor ? ['quoin', 'lintel', 'sill', 'shutter', 'glazing:off', 'pane:off', 'surround:off', 'frame', 'cornice', 'socle', 'glazing', 'pane', 'surround', 'joint', 'panel'] : ['quoin', 'lintel', 'sill', 'shutter', 'frame', 'cornice', 'socle'];
+  for (const p0 of ORDER) {
     if (count() <= budget) break;
-    const moved = faces.filter((f) => f.part === p);
+    const [p, off] = p0.split(':'), moved = faces.filter((f) => f.part === p && (!off || offLane.has(f)));
     if (!moved.length) continue;
     for (const f of moved) { f.tile = true; tile.push(f); }
-    const keep = faces.filter((f) => f.part !== p); faces.length = 0; faces.push(...keep);
+    const keep = faces.filter((f) => !moved.includes(f)); faces.length = 0; faces.push(...keep);
     for (const row of parts.filter((r) => r.part === (p === 'shutter' ? 'shutters' : p) && r.built === 'geometry')) row.built = 'tile (budget)';
-    why.push(`over the ${ring} budget: its ${p}s into the tile`);
+    why.push(`over the ${ring} budget: its ${p}s${off ? ' off the lane face' : ''} into the tile`);
   }
   // still over: the lights off the lane face go into the tile, the lane's own kept
   if (count() > budget) {
@@ -509,6 +545,8 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     if (off.length) why.push(`over the ${ring} budget: the lights off the lane face into the tile`);
   }
 
+  // (a screen stands only over glass still built: one whose light went into the tile goes with it)
+  const screened = screens.filter((sc) => !glassOf.get(sc)?.tile);
   // ── measures and laws ──
   for (const f of [...faces, ...tile]) f.group ??= stGroup(0).group;
   const tris = count(), geomParts = parts.filter((p) => p.built === 'geometry');
@@ -529,12 +567,12 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   const laws = [...STRUCTURE_LAWS.filter((l) => SCALE_LAWS.includes(l.id)), ...ANCHOR_LAWS].map((l) => ({ law: l.id, want: l.want, why: l.why, ok: l.test(measures), value: l.show(measures) }));
   const sig = [n, masses.length, lights, Math.round((pitch ?? h) * 2), V.tiers ? Math.round(shrink * 10) : 0, Math.round(W0), used.has('rib'), used.has('shutters'), mirror].join(' ');
   return { use, lot, ring, seed, depth: dep, kitId: style.kitId, tokens: style.tokens, language: L.id,
-    dims: { front, side, rear, W0, D0, storeyH, n, axis, form: V.cap ?? V.mass, pitch: pitch ?? 0, eave, jetty: 0, doorW, doorH, bays, bay, need, ground: stGroup(0).group, upper: stGroup(n - 1).group, covering: capV?.group ?? stGroup(0).group, construction: V.mass },
-    why, masses, faces, tile, parts, measures, laws, sig };
+    dims: { front, side, rear, W0, D0, storeyH, n, axis, form: V.cap ?? V.mass, pitch: pitch ?? 0, eave, jetty: 0, doorW, doorH, bays, bay, need, ground: stGroup(0).group, upper: stGroup(n - 1).group, covering: capV?.group ?? stGroup(0).group, construction: V.mass, ...(P.entry.steps >= 0.5 ? { steps: Math.round(P.entry.steps) } : {}) },
+    why, masses, faces, tile, ...(screened.length ? { screens: screened } : {}), parts, measures, laws, sig };
 }
 
 /** The language spoken again for an annex: a smaller mass under the same cap, a depth shallower (its lights at 1). */
-function speakMass(L, rect, n, storeyH, Lv, dep, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, under = Infinity) {
+function speakMass(L, rect, n, storeyH, Lv, dep, round, stGroup, capV, pitch, eave, laid, faces, tile, used, at, under = Infinity, solid = false) {
   const V = L.vocab, w = rect[2] - rect[0], d = rect[3] - rect[1], t0 = faces.length, u0 = tile.length;
   let ridge;
   if (V.mass === 'shell') {
@@ -544,7 +582,7 @@ function speakMass(L, rect, n, storeyH, Lv, dep, round, stGroup, capV, pitch, ea
   } else {
     for (let i = 0; i < n; i++) for (const s of Object.keys(SIDES)) { if (s === 'front') continue; const W = wallOf(rect, s); if (V.mass === 'drum') { /* a drum's annex is a smaller drum */ } wallQuad(faces, W, 0, W.len, r3(i * storeyH), r3((i + 1) * storeyH), 0, 'wall', stGroup(i).value, { group: stGroup(i).group }); }
     const z = r3(n * storeyH);
-    if (V.cap && PITCHED.has(V.cap)) ridge = roof(faces, rect, z, { form: V.cap === 'pyramid' ? 'hip' : V.cap, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid }).ridge;
+    if (V.cap && PITCHED.has(V.cap)) ridge = roof(faces, rect, z, { form: V.cap === 'pyramid' ? 'hip' : V.cap, axis: w >= d ? 'x' : 'y', e: eave, p: pitch, mat: capV.group, value: capV.value, gableMat: stGroup(n - 1).group, gableValue: stGroup(n - 1).value, courses: laid, solid }).ridge;
     else if (V.cap === 'dome') { const rise = (L.proportions.rise ?? 0.8) * Math.min(w, d) / 2; shellFaces(faces, shellAt([(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2], w / 2, d / 2, rise, z), { lon: Math.max(6, Lv.lon - 4), lat: 2 }, 'roof', capV.value); ridge = r3(z + rise); }
     else { face(faces, [[rect[0], rect[1], z], [rect[2], rect[1], z], [rect[2], rect[3], z], [rect[0], rect[3], z]], [0, 0, 1], 'roof', capV?.value ?? 0.5); ridge = z; }
   }

@@ -16,7 +16,10 @@
 export const FIXTURE = [
   ['can you sketch our deployment pipeline as boxes and arrows', 'create_sketch'],
   ['bar chart of last month signups by week', 'create_sketch'],
-  ['paint a moody mountain valley at dusk', 'sketch_what_possible'],
+  // a landscape is a scene: the geocube's land, walkable (card scene), not the old painted landscape
+  ['paint a moody mountain valley at dusk', 'create_sketch'],
+  // an illustration of a thing (a portrait, a picture for a story) stays an illustration
+  ['an illustration of an old lighthouse for the cover of my story, moody and atmospheric', 'sketch_what_possible'],
   ['I want a picture of a woman mid-stride', 'mint_solid'],
   ['recreate the camera angle from this photo I am showing you', 'reference_protocol'],
   ['our company logo in shiny 3D chrome', 'mint_solid'],
@@ -39,6 +42,10 @@ export const FIXTURE = [
   // geocube: a level's look forged first, its room and island checked, then the level built on it
   ['I want a moody castle level where the halls and the grounds outside feel like the same game', 'create_sketch'],
   ['before we build the level, lock down its lighting and colours so the inside and outside match', 'create_sketch'],
+  // a scene: a place to walk with nobody in it and nothing to play, the geocube's path
+  ['Create a walkable scene of a colorful grassy field in the daytime', 'create_sketch', 'path'],
+  ['just a quiet forest trail I can wander down, no game, nobody else there', 'create_sketch', 'path'],
+  ['let me stroll along a sandy beach by the sea, nothing to do there, just the place', 'create_sketch', 'path'],
   // game buildings: a building's rooms laid from its use, in a cube's look
   ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],

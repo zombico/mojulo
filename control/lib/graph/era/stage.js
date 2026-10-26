@@ -45,9 +45,12 @@ import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun.js';
+import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
+import { readBiocube } from './biocube.js';
+import { placeIndoorFauna } from './biocube-fauna.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
 import { withGeocube, geocubePaint } from './geocube.js';
 import { withProgram } from './programs.js';
@@ -284,17 +287,35 @@ const VARIANTS = ['a', 'b', 'c', 'd'];
 /** The recipe's own tiles (`tiles: { wall: { gen, … } }`, tile-specs.js) over the kit's, surface by surface: each spec
  *  becomes a four-variant family named from its numbers, laid where the kit laid its own. A dressing that paves its own
  *  floor (the nave's runner and kerbs) keeps it. */
+const DERIVED_PARTS = Object.freeze({ pillar: 'trim', plinth: 'trim', path: 'floor' });
 function withRecipeTiles(kit, kitId, tiles) {
   if (!tiles || typeof tiles !== 'object' || Array.isArray(tiles)) throw new Error('stage: tiles is { <surface>: { gen, … } }');
-  const out = { ...kit.tiles }, tint = { ...kit.tint };
+  const out = { ...kit.tiles }, tint = { ...kit.tint }, cells = { ...kit.cells };
   for (const [part, spec] of Object.entries(tiles)) {
+    // a part a kit draws in another's tile, a surface of its own when a recipe names one: the PILLARS (pilasters, engaged
+    // columns) and the PLINTH (the baseboard along the walls' feet) in the trim's laying, cells and band, the PATH (the
+    // nave's runner) in the floor's; a pillar upright (a fluted shaft's flutes stand up it)
+    const from = !kit.tiles[part] && DERIVED_PARTS[part];
+    if (from && kit.tiles[from]) {
+      const { key, ...was } = kit.tiles[from], n = normalizeTileSpec(spec, `stage: tiles.${part}`);
+      const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: was.scale ?? 2 } : spec;
+      out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(part === 'pillar' ? { upright: true } : {}), ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
+      if (tint[from]) { const v = r5(tint[from].reduce((a, b) => a + b, 0) / 3); tint[part] = [v, v, v]; }
+      cells[part] = kit.cells[from];
+      continue;
+    }
     if (!kit.tiles[part]) throw new Error(`stage: tiles.${part}: kit '${kitId}' has no ${part} surface (surfaces: ${Object.keys(kit.tiles).join(', ')})`);
     const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
-    out[part] = { ...was, family: tileFamilyOf(spec, `stage: tiles.${part}`), scale: n.scale ?? was.scale ?? 1 };
+    // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at: a floor laid a tile a
+    // bay, at the bay's)
+    const bayFloor = part === 'floor' && kit.bay && kit.shell !== 'lab';
+    const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: bayFloor ? kit.bay : was.scale ?? 2 } : spec;
+    // (a dressed family's every block is its own stone already: two variants, half the bytes, read as varied as four)
+    out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
     // the kit's tint sets the value band a surface lives in; the recipe's own colour is the hue, so keep the band, drop the cast
     if (tint[part]) { const v = r5(tint[part].reduce((a, b) => a + b, 0) / 3); tint[part] = [v, v, v]; }
   }
-  return { ...kit, tiles: out, tint };
+  return { ...kit, tiles: out, tint, cells };
 }
 
 // ── plan ─────────────────────────────────────────────────────────────────────
@@ -434,9 +455,12 @@ export function planStage(m = {}) {
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
-function readShadows(v) {
-  if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: shadows is { torch, sun, cells }');
-  for (const k of Object.keys(v)) if (!(k in SHADOWS)) throw new Error(`stage: shadows.${k} is not a setting (shadows: torch, sun, cells)`);
+function readShadows(v0) {
+  if (v0 === null || typeof v0 !== 'object' || Array.isArray(v0)) throw new Error('stage: shadows is { torch, sun, cells }');
+  // (the page's own keys, the cast channel's and the live light's, are the World page's to read: scene/live-light.js)
+  const v = Object.fromEntries(Object.entries(v0).filter(([k]) => !LIVE_SHADOW_KEYS.includes(k)));
+  if (!Object.keys(v).length) return null;
+  for (const k of Object.keys(v)) if (!(k in SHADOWS)) throw new Error(`stage: shadows.${k} is not a setting (shadows: torch, sun, cells; the page's: ${LIVE_SHADOW_KEYS.join(', ')})`);
   const S = { ...SHADOWS, ...v };
   if (!['off', 'hard', 'soft'].includes(S.torch)) throw new Error("stage: shadows.torch is 'off', 'hard' or 'soft' (a placed light's shadow, its edge soft over the flame's size)");
   if (!(typeof S.sun === 'number' && S.sun >= 0 && S.sun <= 5)) throw new Error('stage: shadows.sun is the sun\'s soft edge in degrees, 0 (hard) to 5');
@@ -449,7 +473,7 @@ export function buildStageGeometry(plan) {
   const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
-    return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
+    return { key: t.family ? `${t.family}-${VARIANTS[variant % (t.variants ?? 4)]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part], ...(t.upright ? { upright: true } : {}) };
   };
   // the floor is paved in BAYS: one flagstone tile spans each structural bay (so its edge joints meet the
   // pilasters), each bay its own variant; a rectangle of floor is split at the bay lines so no face straddles two
@@ -463,7 +487,8 @@ export function buildStageGeometry(plan) {
     const zones = [[-Infinity, c - w - Fd.kerb, Fd.field], [c - w - Fd.kerb, c - w, null], [c - w, c + w, Fd.hex], [c + w, c + w + Fd.kerb, null], [c + w + Fd.kerb, Infinity, Fd.field]];
     for (const [z0, z1, tile] of zones) {
       const a0 = Math.max(alongY ? X0 : Y0, z0), a1 = Math.min(alongY ? X1 : Y1, z1); if (a1 - a0 < 1e-6) continue;
-      const sf = tile ? { ...base, key: tile.key, scale: tile.scale } : { ...trimS, tint: Fd.kerbTint, group: 'stage:floor', cell: base.cell };
+      // (the runner in a recipe's own path when it names one, laid and dirtied as floor)
+      const sf = tile === Fd.hex && kit.tiles.path ? { ...surf('path'), group: 'stage:floor', cell: base.cell } : tile ? { ...base, key: tile.key, scale: tile.scale } : { ...trimS, tint: Fd.kerbTint, group: 'stage:floor', cell: base.cell };
       const o = alongY ? [a0, Y0, 0] : [X0, a0, 0], A = alongY ? [1, 0, 0] : [0, 1, 0], B = alongY ? [0, 1, 0] : [1, 0, 0];
       const la = a1 - a0, lb = alongY ? Y1 - Y0 : X1 - X0;
       panel(out, o, alongY ? A : B, alongY ? la : lb, alongY ? B : A, alongY ? lb : la, [0, 0, 1], { ...sf, uvOf: (p) => [p[0] / sf.scale, p[1] / sf.scale] }, base.cell);
@@ -476,7 +501,7 @@ export function buildStageGeometry(plan) {
     for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
       const a0 = Math.max(X0, r.x0 + i * bx), a1 = Math.min(X1, r.x0 + (i + 1) * bx), b0 = Math.max(Y0, r.y0 + j * by), b1 = Math.min(Y1, r.y0 + (j + 1) * by);
       if (a1 - a0 < 1e-6 || b1 - b0 < 1e-6) continue;
-      const key = `${ft.family}-${VARIANTS[Math.floor(hash3(ri * 97 + i, j, 103) * 4)]}`;
+      const key = `${ft.family}-${VARIANTS[Math.floor(hash3(ri * 97 + i, j, 103) * (ft.variants ?? 4))]}`;
       panel(out, [a0, b0, 0], [1, 0, 0], a1 - a0, [0, 1, 0], b1 - b0, [0, 0, 1], { ...base, key, uvOf: (p) => [(p[0] - r.x0) / bx, (p[1] - r.y0) / by] }, base.cell);
     }
   };
@@ -526,7 +551,7 @@ export function buildStageGeometry(plan) {
     for (let k = 0; k <= n; k++) {
       const u = lines[k];
       if (cuts.some(([c0, c1]) => u > c0 - kit.door.frame - col.r && u < c1 + kit.door.frame + col.r)) continue;
-      engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim);
+      engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim, sf.pillar ?? sf.trim);
       if (k > 0 && k < n && (isPortal || (k - 1) % kit.torch.every === 0)) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
       columns.push({ F, side, u, top: h - kit.cornice.h });
     }
@@ -576,7 +601,8 @@ export function buildStageGeometry(plan) {
     ['-y', '+x', '+y', '-x'].forEach((s, si) => {
       if (r.open.includes(s)) return;
       const F = wallFrame(r, s), cuts = r.openings[s].map((op) => [...openingU(F, op), op.top]).sort((p, q) => p[0] - q[0]);
-      const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell;
+      // (the pillars, a recipe's own surface when it names one: pilasters and engaged columns, else the trim as ever)
+      const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell, pillar = kit.tiles.pillar ? surf('pillar', ri * 4 + si) : trim;
       // the wall: full-height solid spans + the lintel over each opening (a nave composes it per bay instead)
       const flatWall = (u0, u1) => {
         const inBay = cuts.map(([a, b, top]) => [Math.max(a, u0), Math.min(b, u1), top]).filter(([a, b]) => b > a);
@@ -584,9 +610,9 @@ export function buildStageGeometry(plan) {
         for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, wallS, cell);
       };
       if (!nave) flatWall(0, F.len);
-      else naveWall(F, cuts, flatWall, { wall: wallS, trim }, h, s);
+      else naveWall(F, cuts, flatWall, { wall: wallS, trim, pillar }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
-      for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, trim, cell);
+      for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, kit.tiles.plinth ? surf('plinth', ri * 4 + si) : trim, cell);
       wallBox(out, F, 0, F.len, h - kit.cornice.h, h, kit.cornice.out, trim, cell, true);
       // the MOTIF (kit.motif: a frieze tile, art-direction.js): a small pattern carved along the plinth's face, the
       // cornice's, or both — a band a hair proud of the stone it is cut in, its motifs square to the band's height
@@ -645,9 +671,9 @@ export function buildStageGeometry(plan) {
         // the pilaster: its face lit in the trim's fine cells, its sides (seen edge-on) in metre cells; its top and foot
         // are hidden under the cornice and on the plinth
         const z0p = kit.plinth.h, hp = h - kit.cornice.h - z0p, po = kit.pilaster.out, base0 = add(add(F.o, mul(F.U, a)), [0, 0, z0p]);
-        panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, trim, cell);
-        panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), trim, 1);
-        panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, trim, 1);
+        panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, pillar, cell);
+        panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), pillar, 1);
+        panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, pillar, 1);
         pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
         if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
@@ -744,12 +770,17 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return h.every((v) => v === h[0]) ? h : null;
   });
   let hardAt = null;
+  // the live light's SUN SHARE (`sun.share`, a world whose shadows ask for actors or the hour: scene/live-light.js): the
+  // share of each corner's finished light that comes straight from the sun, so the page darkens an actor's shadow by it
+  // and never doubles a baked one. The colour is worked as it always was; the share is read beside it
+  let sunT = null;
   const at = (f, c, k = -1) => {
       const lit = [...ambient];
       if (sun) {
         // daylight: the sun's Lambert where the shadow test reaches it, plus warm bounce off the ground onto faces that look down or sideways
         const lam = Math.max(0, dot(f.normal, sun.dir));
-        if (lam > 0) { const reach = sun.shadow(c, f.normal); for (let k = 0; k < 3; k++) lit[k] += sun.rgb[k] * sun.gain * lam * reach; }
+        if (sun.share) sunT = [0, 0, 0];
+        if (lam > 0) { const reach = sun.shadow(c, f.normal); for (let k = 0; k < 3; k++) lit[k] += sun.rgb[k] * sun.gain * lam * reach; if (sunT) for (let k = 0; k < 3; k++) sunT[k] = sun.rgb[k] * sun.gain * lam * reach; }
         const down = Math.max(0, 0.5 - 0.5 * f.normal[2]);
         for (let k = 0; k < 3; k++) lit[k] += sun.bounce[k] * sun.bounceGain * down;
       }
@@ -766,20 +797,25 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
         else for (let k = 0; k < 3; k++) lit[k] += l.rgb[k] * l.intensity * lam * fall * reach;
       }
       const grime = dirt(f, c);
+      if (sunT) { shareAt = sunShare(lit, lit.map((v, k) => v - sunT[k]), shoulder); sunT = null; }
       return lit.map((v, k) => shoulder(v) * f.tint[k] * grime[k]);
   };
+  let shareAt = 0;
+  const share = sun && sun.share;
   return faces.map((f) => {
     if (!f.tint) return f;   // self-lit (glass): carries its own fill
     const { tint, top, ...rest } = f;
     // a quad gets a colour per corner; an n-gon (a rubble stone) is lit once at its centroid
     if (f.corners.length !== 4) {
       const c = [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length);
-      return { ...rest, fill: rgbHex(at(f, c)) };
+      const fill = rgbHex(at(f, c));
+      return share ? { ...rest, fill, sunShare: shareAt } : { ...rest, fill };
     }
     hardAt = L.length && L.some((l) => l.shadow && l.shadow.hard) ? edge(f) : null;
-    const cols = f.corners.map((c, k) => at(f, c, k));
+    const shares = share ? [] : null;
+    const cols = f.corners.map((c, k) => { const v = at(f, c, k); if (shares) shares.push(shareAt); return v; });
     const mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / cols.length);
-    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
+    return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
@@ -846,8 +882,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
   if (manifest.geocube !== undefined) {
     const P = assembleStageScene(withGeocube(manifest), ctx);
-    // a trail or a terrain asked for: the answer says what the cube painted, on which terrain, and from whom
-    if (manifest.trail !== undefined || manifest.terrain !== undefined) P.painted = geocubePaint(manifest);
+    // a trail, a terrain or a domain asked for: the answer says what the cube painted, on which terrain, and from whom
+    if (manifest.trail !== undefined || manifest.terrain !== undefined || manifest.domain !== undefined) P.painted = geocubePaint(manifest);
     return P;
   }
   const kit = stageKit(resolveKitId(manifest.kit));
@@ -878,6 +914,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
+  const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
+  const roomFauna = Bio?.fauna ? ((F) => (Object.keys(F).length > 1 ? F : null))(placeIndoorFauna(Bio.fauna, { rooms: plan.rooms, seed: Number.isFinite(manifest.seed) ? manifest.seed : 1 })) : null;
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only
   const shell = geom.faces.map((f) => (f.texture === null ? (({ texture, textureLit, uv, ...g }) => g)(f) : f));
@@ -918,7 +956,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     const dir = sunDir(key.elevation, key.azimuth ?? 225), sk = plan.kit.sky;
     // a painted card stops the sun only where it is painted (an awning's stripes, washing, flowers)
     const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
-    return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain,
+    return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain, ...(ctx.liveSun ? { share: true } : {}),
       shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them
@@ -995,6 +1033,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,
     haze: { color: air.fog.color, density: plan.atmosphere && plan.atmosphere.fog ? +(air.fog.density * plan.atmosphere.fog).toFixed(5) : air.fog.density },
     // dust hanging in the air (channels/motes.js), lit by the lights near it; about one mote per two cubic metres at full
+    // a biocube's fauna under a roof (era/biocube-fauna.js placeIndoorFauna): the kinds that live indoors, along the
+    // rooms' walls (channels/fauna.js); nothing grows under a roof, so its flora is not laid. None ⇒ no key
+    ...(roomFauna ? { fauna: roomFauna } : {}),
     ...(plan.atmosphere && plan.atmosphere.dust > 0 ? { motes: {
       count: Math.min(3200, Math.round(plan.atmosphere.dust * 0.55 * plan.rooms.reduce((a, r) => a + (r.x1 - r.x0) * (r.y1 - r.y0) * r.h, 0))),
       boxes: plan.rooms.map((r) => [r.x0, r.y0, 0.2, r.x1, r.y1, r.h].map(r5)), lights: lights.slice(0, 48).map((l) => [...l.at, l.radius * 0.8].map(r5)),

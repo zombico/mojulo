@@ -59,6 +59,10 @@ export const GRASSES = Object.freeze({
   // carpet (habit 'turf'), seen only near
   lawn: { label: 'short grass', H: 0.12, blades: 90, w: 0.0028, B: [0.6, 3], splay: [4, 45], crown: 0.12, culms: 0, head: null, headLen: 0, headW: 0, segs: 3,
     colors: { base: [66, 108, 50], tip: [116, 150, 72] }, dry: 0.03, habit: 'turf', heights: [0.06, 0.15] },
+  // marram (Ammophila arenaria) of the dunes: stiff, rolled, grey-green blades standing in long tufts, sharp-tipped, a
+  // dense pale spike over them
+  marram: { label: 'marram grass', H: 0.85, blades: 55, w: 0.004, B: [0.8, 3.5], splay: [6, 38], crown: 0.07, culms: 3, culmH: 1.2, head: 'spike', headLen: 0.16, headW: 0.016,
+    colors: { base: [96, 116, 90], tip: [164, 170, 132], head: [204, 188, 146] }, dry: 0.3, habit: 'tussock', heights: [0.6, 1.1] },
   // tall tropical grass (Pennisetum purpureum, Imperata, Hyparrhenia): broad, stiff-ish blades, cane culms, bristly spikes
   elephant: { label: 'elephant grass', H: 2, blades: 26, w: 0.025, B: [1.5, 5], splay: [4, 30], crown: 0.2, culms: 8, culmH: 1.3, head: 'spike', headLen: 0.2, headW: 0.025,
     colors: { base: [70, 120, 48], tip: [128, 162, 70], head: [160, 124, 76] }, dry: 0.12, habit: 'sward', heights: [1.8, 3.2] },

@@ -49,7 +49,7 @@ describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
     }
     // the generated stage cards (era/entries.js) share the family but not the entry: a stage is minted as a recipe
     // (and the cards for a kind-generic CHANNEL any base takes through `overrides`: a manual, not a base; each is named here)
-    const CHANNEL_CARDS = ['weather', 'structures', 'science-setting'];
+    const CHANNEL_CARDS = ['weather', 'structures', 'science-setting', 'creases'];
     const worldCards = [...catalog.values()].filter((c) => c.family === 'world' && !c.generated && !CHANNEL_CARDS.includes(c.id));
     expect(worldCards.map((c) => c.id).sort()).toEqual([...WORLD_BASES].sort());
     for (const id of CHANNEL_CARDS) expect(catalog.get(id), `channel card '${id}'`).toMatchObject({ family: 'world', entry: 'compose_world' });
@@ -141,10 +141,10 @@ describe('get_view_vocab reader', () => {
     const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
     expect(entries).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(0);
-    expect(all.cards.length).toBe(71 + entries + stage);   // (71: stadium, a compose_world base, 2026-10-26; 64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, 67: microscopic, 68: quantum, 69: relativistic, 70: science-setting, a channel card, science worlds, 2026-10-19)
+    expect(all.cards.length).toBe(72 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, 67: microscopic, 68: quantum, 69: relativistic, 70: science-setting, a channel card, science worlds, 2026-10-19; 71: creases, a channel card, 2026-10-22; 72: stadium, a compose_world base, 2026-10-26)
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(14 + stage);   // (14: stadium, 2026-10-26; 13: science-setting, a channel card, 2026-10-19)
-    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(15);   // (15: the stadium base, 2026-10-26) the bases, the weather, structures and science-setting channel cards and the generated city-plan card (city rails, 2026-10-12)
+    expect(world.cards.length).toBe(15 + stage);   // (13: science-setting, a channel card, 2026-10-19; 14: creases, a channel card, 2026-10-22; 15: stadium, 2026-10-26)
+    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(16);   // the bases (the stadium base, 2026-10-26), the weather, structures, science-setting and creases channel cards and the generated city-plan card (city rails, 2026-10-12)
     expect(world.cards.filter((c) => c.entry !== 'compose_world').every((c) => c.entry === 'create_sketch')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();

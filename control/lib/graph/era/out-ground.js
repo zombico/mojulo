@@ -14,6 +14,8 @@
  * The level tier (level/ground.js) writes these from its top-down grid; this file only knows metres.
  * Pure: the same dials and edits build the same ground.
  */
+import { JOINT_PATTERNS } from '../polygonizer/landform.js';
+import { readWater } from './out-water.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -27,8 +29,9 @@ export const GROUND_DIALS = Object.freeze({
   drift: 'the slow wander under the beats, a share of the amplitude (0–1, 0.3)',
   bump: '{ height?, scale?, walk? }: the mounds and hollows: metres (bumpiness × 1.1), their size (0.25–4, under 1 broader), the share left on the walk (0–1, 0.12)',
   shapes: '{ reveal?, landmark?, pinch?, crossing? }: each beat\'s { share?, reach? }: how much of the amplitude (a crest) or the depth (a dip) it takes, and how far it reaches in metres',
-  cliff: '{ height?, face? }: the kit\'s cliff down the far side: metres of throw, the face in degrees',
+  cliff: '{ height?, face?, bed?, dip?, joint?, pattern? } | false: the kit\'s cliff down the far side (false: none, the land open on both sides of the trail): metres of throw, the face in degrees, its beds\' thickness in metres and their tilt in degrees, its joints\' spacing in metres and their pattern (blocky, columnar, slabby)',
   edits: 'the ground shaped by hand: a list of raise, lower, flatten, cliff, gorge, ridge',
+  water: '{ lake?, coast?, river?, falls? } | false: the water cut into the land (era/out-water.js): a lake beside the walk, the open side falling to the sea, a river beside the walk, water off the far cliff; false: none',
 });
 /** Each beat's shape on the heartbeat: its share of the amplitude (a crest) or the depth (a dip), and its reach (m).
  *  A reveal climbs over `reach` to its crest and falls 0.7 of it again over `fall`. */
@@ -98,12 +101,20 @@ export function readGround(g, at = 'trail.ground') {
     num(s, 'reach', 2, 60, `${at}.shapes.${b}`, 'metres, 2 to 60');
     num(s, 'fall', 2, 60, `${at}.shapes.${b}`, 'metres, 2 to 60');
   }
-  sub('cliff', ['height', 'face']);
+  if (g.cliff !== false) sub('cliff', ['height', 'face', 'bed', 'dip', 'joint', 'pattern']);
   if (g.cliff) {
     num(g.cliff, 'height', 0, 40, `${at}.cliff`, 'metres of throw, 0 to 40');
     num(g.cliff, 'face', 20, 89, `${at}.cliff`, 'the face in degrees, 20 to 89');
+    // its geology (polygonizer/landform.js strata and joints): the card's own where left out
+    num(g.cliff, 'bed', 0.2, 20, `${at}.cliff`, 'the beds\' thickness in metres, 0.2 to 20');
+    num(g.cliff, 'dip', 0, 40, `${at}.cliff`, 'the beds\' tilt in degrees, 0 to 40');
+    num(g.cliff, 'joint', 0.5, 20, `${at}.cliff`, 'the joints\' spacing in metres, 0.5 to 20');
+    if (g.cliff.pattern !== undefined && !JOINT_PATTERNS[g.cliff.pattern]) throw new Error(`stage: ${at}.cliff.pattern is one of ${Object.keys(JOINT_PATTERNS).join(', ')}`);
   }
   const edits = g.edits === undefined ? undefined : readEdits(g.edits, `${at}.edits`);
+  // (the water, era/out-water.js: a fall wants the far cliff it falls from)
+  const water = readWater(g.water, `${at}.water`);
+  if (water?.falls && g.cliff === false) throw new Error(`stage: ${at}.water.falls drop off the far cliff: a trail with no cliff (cliff: false) has none to fall from`);
   return { ...g, ...(edits ? { edits } : {}) };
 }
 
@@ -179,8 +190,11 @@ export function groundOf(T, C) {
     bumpScale: g.bump?.scale !== undefined ? g.bump.scale : 1,
     bumpWalk: g.bump?.walk !== undefined ? g.bump.walk : C.bump.walk,
     shapes: Object.fromEntries(Object.entries(BEAT_SHAPES).map(([b, d]) => [b, { ...d, ...(sh[b] || {}) }])),
-    cliff: g.cliff || {},
+    // (false: no far cliff, the land open on both sides; out-trail.js siteOf)
+    cliff: g.cliff === false ? false : g.cliff || {},
     edits: g.edits || [],
+    // (the water cut into the land, era/out-water.js: none when absent or false)
+    ...(g.water ? { water: readWater(g.water) } : {}),
   };
 }
 

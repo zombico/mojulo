@@ -14,6 +14,307 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Superheroic pieces: belts, pouches and jackets as cards
+
+- The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
+  hex the buckle wears instead of the band's: a gold buckle on a leather belt), `buckleScale` (× the buckle's face, an
+  emblem buckle) and `width` (× the band's height and thickness, a power belt). `pouches` takes `at: 'waist'` (a UTILITY
+  BELT: the belt at the waist and `count` pouches, 2, 4 or 6, ringing it just under its line, hung on the pelvis's top by
+  shares) and `size`; the belt's dials pass through to its band. A new kind, `thighPouch`: a holster rig strapped round
+  the thigh, the pouch on its outer side (one on the intent's side, `pair` both, `size`). Absent, every dial contributes
+  nothing: a row without them is byte for byte what it was.
+- The comic hero pack's piece cards (`cosmos/packs/comic-hero/pieces.js`): belts (the emblem belt, the power belt, the
+  utility belt and the full one, the sash), pouches (the duty belt, the thigh rig and its pair, the chest rig, the
+  harness, the bandolier) and jackets (the bomber, the moto jacket, the duster, the armoured jacket, the hooded jacket, each
+  the language's `outer` in its own `Outer` colour), worn over a role suit by `withPieces` (a waist belt replaces the
+  suit's, never stacks) and by `memberOrders(id, look, { pieces })`; a word-list outfit (the Movie era's plating suits on
+  the realistic body) takes none and the call says so.
+
+### Headgear spike: masks, visors and helmets
+
+- The `cast` signature (`station-loft-adorn.js`): a mask CAST from the face, not built over the head's bounds. An
+  outline drawn in the eyes' frame (the cranium's eye row, between its inner and outer corner slots), wrapped round the
+  head on a cylinder, a grid over it cast inward onto the skin, its depth smoothed and never below the cast, lifted,
+  thickened and walled. `outline`: `domino` (almond eye holes, over the brows and the bridge, a notch above the nose,
+  points swept up at the temples), `band`, or a polygon with holes. The pack's tiered domino is now this cast.
+- The cast is the MASK BUILDER's primitive, every look words: the outline's dials (`CAST_DIALS`: bridge, cheek, brow,
+  notch or a widow's `peak`, the temples' `wing` and `wingRise`, a `fang` down each cheek, `round` curved or angular), the
+  `eyes` (almond, slit, angular or round; open holes, `lens` covers domed over the eyeball, or `none`), and relief (a
+  raised `rim`, a `ridge` down the middle, panel `seams` by word or line), each face coloured by its triangle so a lens
+  or a rim follows its shape. A plate is a second cast over the first. It reads the anime head's face and pupils too.
+- The pack's builder (`headgear.js` `maskKit({ outline, eyes, detail, plate })`, its words in `MASK_OUTLINES`,
+  `MASK_EYES`, `MASK_DETAIL`) and its variations: pointed, raptor, technical, tactical, hunter, lens, blank and goggle
+  masks. On the anime head the default eyes are opaque covers (its eyes are too large and too drawn to frame), and an
+  open-eyed mask wears covers in its eye shape unless the eyes say `anime: 'open'`.
+- The `cowl` signature: the cast over the whole head, out from its middle on a map laid round the crown, down to an edge
+  set by the head's own heights (`mouth: 'show'` a U under the nose round the mouth and the chin, `'cover'` to the chin
+  over the lips, `'none'` smooth over them: a mask with no mouth), the jaw at the sides and the nape behind; the eyes the
+  cast's, carried onto the map; the ears raised under it; `hair` the hero's hair flowing out of the back in its own
+  colour. The cast and the cowl share one head reader and one grid mesher.
+- The pack's `cowlKit({ hair: 'cover' | 'flow', mouth, domino, eyes, detail })`: the cowl with a domino laid over it by
+  default (a mask's words, or false), the two sharing one eye treatment so their holes meet; the hair hidden under it
+  either way (flowing, its length from the hero's own style); and its variations: the domino, flowing, lens, covered,
+  bare and technical cowls, the full mask and the faceless mask.
+- ORNAMENTS on the cowl, composed with the face as a whole: the eyes are its focus and the domino frames them, so every
+  ornament rides a FACE PATH that carries the domino's own line on over the head (`COWL_PATHS`: brow, echo, temple,
+  parietal, sagittal, cheek, jaw; `align` the domino's dials). Spikes (`bat`, its broad face to the front; `fin`; `cone`;
+  in a row by a profile) and lines (embroidery as stitches, a cord or a double cord). The pack's ornament words
+  (`COWL_ORNAMENTS`: bat ears, a bat crest along the sides, fins, a crown crest, brow, echo and cheek stitches, temple
+  cords, a crown stripe) and compositions (`COWL_DRESS`: gothic, nocturne, aviator, stitched, crowned, owl).
+- The cast's W: the outline's `arm` and `valley` dials raise the domino's points into arms with a dip before the brow, and
+  `sweep` carries the cast off the skin past the head from the temples, so the arms sweep out beyond its silhouette. The
+  owl's W and its variations: the owl, horned owl, barn owl, great owl and night owl cowls, the owl full mask and the owl
+  mask alone, each with its own colours.
+- The `mouthpiece` signature: the lower face's cast, the domino's counterpart, from under the eyes past the chin, its
+  edges set against the head's own heights (`nose`, `mouth`, `chin`, with an offset or a share: 'chin-0.2'), the cloth
+  HANGING straight down below the chin where the skin runs out; `taut` bridging the features (a cloth drawn over them),
+  `bulge` a cup over the mouth, `fold` crisp folded planes (a mecha's plate), a `mouth` cut (a slot, the oni's snarl) with
+  `teeth` and `fangs`, `vents` cut along a polyline, a dark MAW behind every cut, the oni's `wrinkles`, and `fittings`
+  (filters, grilles, ribbed tubes, valves, straps).
+- The pack's mouthpieces (`MOUTHPIECES`, `mouthpieceKit`): the ninja and wraith wraps, the bandanna, the oni mouth, the gas
+  and twin filters, the tube, slatted and mecha masks and the rebreather; and FACE SETS, a cowl with a mouthpiece laid over
+  it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior and the wastelander.
+- A mouthpiece takes a polygon outline (`outline.poly`, its heights words) and vents in any direction (each slot square to
+  its path). The PANELLED mouthpiece (`panelledKit`, `PANELLED.kombat`): the fighting ninja's three panels cast tight on the
+  face, a flat centre with horizontal vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
+  under them so the gaps read as panel lines; in four colourways (frost, venom, ember, jade).
+- EYEGEAR: everything worn over the eyes as one family on the cast, the dominoes its first kind. The cast gains eyegear
+  outlines (`goggles`: two rings and a bridge; `shield`: one wide lens with a nose notch; `visor`: a narrow band), one lens
+  filling the outline (`eyes.shape: 'shield'`), a flat `front` standing off the face (a headset's box), a `strap` cast round
+  the whole head, and `fittings`, now shared with the mouthpiece (`castFittings`), with earpieces, antennas, forward
+  scopes, small lenses and arms. The pack's `EYEGEAR` words and `eyegearKit`: ski, moto and lab goggles, night vision and
+  quad vision, a VR headset, a cyber visor (a glass band, a silver headband, earpieces, antennas, cables) and a spider visor
+  (a lens cluster held on arms from the earpieces); the domino mask cards are eyegear too.
+- The cast's `front` takes `curve` (a curved shield at one distance from the head's axis) and `shell` (the piece a sheet
+  standing off the face: a visor); the fittings' discs are flat-topped with a bevelled edge (no pointed centre), and an
+  earpiece or an antenna stands `out` past the cast, over the hair. The ski goggles are a riot-shield visor standing off
+  the face, the VR headset narrower, the cyber visor bolder; and two visors: the engineer's (a gold band wrapped temple to
+  temple, ridged across) and the optic visor (a dark band with one ruby lens strip across both eyes).
+- HELMETS on the cowl: `pad` (padding under a hard shell), `shell` (its surface bridged round and taut), a `window` (an
+  eyegear outline: the face opening, a visor by `eyes.treat`), `mouth: 'open'` (the whole face shown) and `fittings` on
+  the shell, with a `peak` (a brim). The pack's `HELMETS` and `helmetKit`: the biker's full-face helmet (a smoked visor, a
+  racing stripe), the motocross helmet (an open window, a peak), the jet helmet, the pilot helmet (a jet shell, a dark
+  shield visor standing off, an oxygen mask and its hose, composed from the eyegear and the mouthpiece), the tactical bump
+  helmet and the space helmet.
+- The peak fitting curves (`span`): a strip across the shell's front just over the window, each column standing off along
+  the shell's own outward line, sloping down and lipped up at its edge (it was a flat board standing high on the dome).
+  The motocross helmet is the base of a family built from its dials (`MOTO`: the peak, the window, the chin bar's vents,
+  a visor, a crest, stripes): the enduro, downhill, adventure, BMX, desert and raider helmets.
+- The cast takes a `shift` (its outline moved: goggles pushed up on the forehead, a visor's housing over the brow). The
+  JET PILOT family (`pilotKit`: an open-face shell, a visor housing, the visor down or up, earcups, an oxygen mask and its
+  hose, a boom mic, stripes): the fighter, top, test and helicopter pilots, the aviator's leather cap with goggles up,
+  and the display pilot. The ASTRONAUT family (`astroKit`: a great padded shell, its window a clear, gold or glowing
+  visor, a gold visor shell standing off over it, headlamps, valves, antennas, a crest): the moon, spacewalk, soft,
+  fishbowl and sci-fi space helmets. And sci-fi helmets on the full-face shell: the hunter's (a T visor, a rangefinder),
+  the trooper's (angled eye lenses, a mouth grille), the spartan's (a gold visor, a crest) and the synth's (a glowing strip).
+- The FACELESS helmet: the cowl's `blank` face is one smooth egg, fitted to enclose the whole face (brow, nose and lips)
+  and blended into the skull, so no feature shows through it. Heights on a blank face are read on the egg. Its shell takes
+  panel lines (`panels`, fine cords that stay crisp at any grid; `windowSeam` one round a faceplate). Painted eyes
+  (`eyes.treat: 'paint'`) are flat decals laid on the smoothed shell. `decals` (slots, dots, polys in the eyes' frame)
+  lay paint or, rimmed, cutaways: vents and slots. `facelessKit` composes five optional word libraries (`FACELESS`):
+  - panels: ribbed, plated, kabuto, split, brow band, cheek, jaw plate;
+  - adorn: fins, horns, a crest fin, crown spikes, a ridge, ear discs, antennae;
+  - details: one or two glowing eyes, a grille, hoses, filters, studs;
+  - cuts: a mouth slit, mouth, cheek and temple vents, eye slits, a mono slot, a brow slot;
+  - paint: fox, kabuki, tears, oni, stripes, kintsugi, a third eye, a blush, lips.
+
+  Cards built from it:
+  - segmented: the cyborg ninja, the vented ninja, the hunter, titan and warlock guardians, the ronin and the mono-eye;
+  - porcelain: the fox, kabuki, noh, oni and kintsugi masks.
+- Skulls, gladiators, peaked helms and T-visors on the same builder. The cowl gains:
+  - decal `layer`s, paint over paint, and a `decalLift` for a contoured hood;
+  - `dents`: the shell sculpted, sockets and hollows pressed in, a brow or a chin swelled out;
+  - a `crest` ornament along any path: a blade, or a horsehair plume, rounded and swelling;
+  - a `brim` fitting: a flange round the head, swept up over the face, or behind only as a neck guard;
+  - a `peak` on an open face's edge (a point over the nose), and `openCurve` (how long the edge holds over the eyes).
+
+  Fixes in the same work: height words in a cowl's stroke paths are resolved (they were dropped), a poly window is
+  resampled before it is carried onto the shell (its straight sides cut chords across the polar map: the hunter
+  helmet's T visor arched over the brow), and large decals are subdivided by their size. New words:
+  - `sculpt`: sockets, nasal, cheeks, temples, brow, chin;
+  - paint: skull, skullFace, skullJaw, sugar, cracks;
+  - cuts: grille, eyeHoles, chinVents, teeth;
+  - adorn: band, comb, griffin, plume, transversePlume, brim, neckGuard, templeFlares, rangefinder;
+  - panels: teardrop, sideBands.
+
+  Cards:
+  - skulls: bone skull, painted skull, skull balaclava, sugar skull, skull knight;
+  - gladiators: the fish, griffin and chaser gladiators, the hoplite and the legion helms;
+  - peaked helms: peaked, iron and crowned;
+  - T-visors: the T-visor helm, bronze, night and heavy.
+- Structured masks: the face in flat planes. Two new cowl dials:
+  - `facets`: planes given by azimuth and elevation, each fitted to just clear the face, the shell riding the solid they
+    bound; `nose` leaves the nose out of the fit, so it stands sculpted out of the plates;
+  - `front`: the shell over the face only, from a hairline down to the edge and back to the ears, worn over the hair.
+
+  A front mask's lines stop at its edge. `structuredKit` and `FACETS` (iron, respirator, skull) dress them with the
+  faceless builder's words, plus new ones:
+  - cuts: barredMouth, triGrille, chinVent, visorSlit, lensEyes;
+  - details: rivets, scopeEye, hinges;
+  - panels: tusks, plates.
+
+  Cards (the mask family):
+  - the iron and gilded tyrants;
+  - the dark and chrome-lined respirators;
+  - the clockwork skull and the whaler mask.
+- Ensembles: the body that answers a head. Three changes make a suit harmonize with the headgear:
+  - **Layering:** an armour build takes `with`, a kit worn over the suit, and a head piece in it (on the cranium) takes
+    the suit's helm's place. Before this, a headgear card on an armoured suit replaced the whole `adorn` and the
+    armour was lost.
+  - **The hardsuit's archetype words**, each absent the piece as before (the armour pins hold), documented in the door's
+    manual:
+    - `pauldron` `lames` | `none`, and `pauldronSide`;
+    - `chest` `plates` | `box` | `bands` | `none`;
+    - `arms` `manica` | `gadget` | `none`;
+    - `legs` `greaves` | `ocrea` | `none`;
+    - `skirt` `pteruges` | `tassets`;
+    - `pack` `jet`;
+    - `glow` `lines`;
+    - `collar` `high` | `none`;
+    - `fnSide` and `leadSide`.
+    - `cut` `fitted` | `yoke`: under the fitted cut the chest and back plates end under the collarbone and off the
+      sides, the pauldrons sit on the shoulder's point, and the collar is a gorget at the neck's base, so the torso never
+      wraps the shoulders. Fitted is the default from **armour laws 2** (`ARMOR_LAWS_VERSION`). A build stamped under
+      laws 1 keeps the yoke, pinned by the char test's `LAWS_1`, and the validator accepts any known version.
+    - `build` `plates` | `cylinders`: under cylinders the arms and shins are rigid tubes (the `volume` signature),
+      cuffed in the trim, their girth leaning a little on mass. The thighs keep plates (law 8).
+    - `pack` `tanks`: a back unit, capped at the shoulders' breadth, with two exhaust stacks.
+    - `helm` `shell`: a helm cast over the whole head from the card's `language.helmet` (the cowl's words). A shell helm
+      over visible hair warns, as the kabuto does.
+  - **Cards recompose by law:** a card's `byLaws` lays its later composition over it from an armour law on. grim-scifi
+    is recomposed as the heavy suit: cylinders, a tank unit, tassets, a gorget, ornament 1, and a shell helm with two
+    round amber lenses and a breathing canister. fantasy-space is the light trooper: chest plates, caps and greaves,
+    and a white shell helm with angled dark lenses, a grille and cheek lines. Both pin anew at laws 2, and laws 1
+    keeps them as they were.
+  - **The shoulder is not the torso's** (**hero laws 18**, `tieredKit`): this was the yoke on every armour family on
+    the tiered body.
+    - The tiered body's shoulder balls stand out of the torso's widest rings, and every torso plate stood off them, so
+      a breastplate reaching the shoulder line wrapped the shoulder.
+    - Above the ball's lowest point, a trunk plate that is not a shoulder piece now keeps inside the ball's inner edge.
+      A front or back plate is cut in under the arm by a new shell `armhole` (its side edge eased in above a station),
+      and a wrap ends under the arm.
+    - Pauldrons, pinned pieces and the neck's gorget stand as before.
+    - Heroes stamped 1 to 17 keep their fit (the adult-form chibi's pins hold).
+  - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
+    (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
+    becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.
+    The ensembles are cyborg, hunter, titan, warlock, ronin, gladiator, hoplite, legion, regal, bounty hunter, tyrant,
+    dark lord, assassin, reaper, death knight, operator and shinobi.
+
+  `HARMONY` names the ensemble each head calls for; `memberOrders(id, look, { headgear, ensemble: 'auto' | id })`
+  wears it in place of the costume (tiered body).
+
+- `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
+  dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
+  band and the visor (an `adorn` kit on the cranium), and four helms through the armour's `helm` signature (open, trooper,
+  faceplate, band), each dropping the hair. The realistic armour fit leaves every head piece off the relational head, so a
+  visor or a helm fits the tiered body only and `fitted(id, body)` says so. Worn by `memberOrders(id, look, { headgear })`.
+
+### The half-cape to the hip, and its hood, are worn
+
+- `hem: 'hip'` was no cloak hem word (`outfit-plan.js` hemAt: thigh, knee, calf, shin, ankle), so a cloak asking for it
+  threw inside the piece sorter and was dropped as "not worn" with the throw's message for a word: the street suit's
+  hooded half-cape never rendered, and no hood ever showed. `hip` is now a hem word (the cape ends at the structured
+  pelvis's top, at the thigh's top on a body without one; `HEM_WORDS` names them), and an unknown word is refused by
+  name. A cloak at another hem is byte for byte what it was.
+
+### A leg's cloth stays on its own side
+
+- A limb's cloth field (`body-relational-garment.js` `fieldGarment`) was read by `|x|`, the right limb's field mirrored for
+  both sides. With the legs together at rest the thighs' fields meet at the midline, so a ray from an inner slot never left
+  its own limb, ran on through the mirrored one and landed on its far side: a spike of trouser cloth up to 9 cm across the
+  midline at the inner thigh and the inner shin, which a stand carried out with the leg as a flap bridging the two legs,
+  the cape and the background showing through the openings it left. A left segment now reads the field reflected, a right
+  one as it is; a point that never crossed the midline is byte for byte what it was. The trousers test holds every leg
+  piece to its own side; the byte pins the module reaches hold (no pinned figure had its limbs touching).
+
+### Realistic laws 6: the crotch on every build
+
+- The realistic body finds the crotch no lower than 0.6 W under the hip's joint and draws the pelvis's rings under it
+  in to a cone, on EVERY build (`REALISTIC_LAWS_VERSION` 6, stamped on a new hero's `physique`; laws 5 is the
+  head's relief in the normal bake). Laws 1 to 5 did so
+  only under a physique with a dial set; the athletic base (the build itself, byte for byte, and what a hero gets with
+  no physique named) scanned the midline two widths down, found the thighs touching to the knees, and hung the pelvis
+  between them, so a skin-fit bottom's seat copied a web of cloth down between the legs with a hole at the crotch and
+  the top's hem caught in it. A stored hero keeps its laws and its body.
+
+### The belt's buckle sits on the centre line
+
+- A belt's buckle on a shell or a band (the outfit piece, the word outfits' and the outfit build's belts, the egocube
+  plan's) is seated where the belt's outer skin faces the body's front (station-loft-adorn.js `buckle` → `seatOf`),
+  not at grid row zero, which turns with the ring's own origin and had left the buckle beside the waist's centre. A
+  seat named by row, parameter or `dir` still wins; a mascot's belt and the armour's straps are as they were. The
+  buckle sits on the band's own middle station (the lowest row of a pelvis band juts forward at the pubis) and its
+  plate stands upright. The outfit's `belt` piece takes `at: 'hip'` (the pelvis, as before) or `at: 'waist'` (the
+  torso's narrowest ring between the hips and the shoulders, where a hero's belt over the trunks sits); at the waist
+  the band lies on the top's cloth (a stand-off of the cloth's thickness, not the hip belt's two centimetres, which at
+  the body's narrowest ring stood the band off it like a hoop) with a belt's proportions.
+
+### Hair frames the face: the grown fall as the mint's default, beside the cheek and never on it
+
+- A new hero's fall (long, wavy, layers, angled, curtains; a ponytail or a braid) hangs by the spine law by default:
+  the hero door stamps `hair.spine: 'elastica'` on the landmark head's hair where the recipe is written
+  (`withGrownFall`), so the fall is draped off the head's own skin and frames the face; a hero stored without the word
+  keeps the bytes it was minted with, and a cap, a bun or `none` is left as given. The anime head's hair is its own.
+- The frame principle's other half (hair-spine.js `keepOut`, humanoid-hair.js `fallGuide`): a hairline root that
+  faces forward (the temples, the slots beside the face) is combed sideways and back and leans out, so the fall STARTS
+  beside the face; and where the head's skin faces forward and has a side to it (a cheek, a temple) a lock is pushed
+  sideways and kept the face's gap off, a lock's own radius (10 mm), not the scalp's 3 mm; the lift is capped at three
+  times the shortfall and finished over passes, so no chord is pulled back through the head. Held by test on both
+  presets: a grown long or wavy fall puts no surface sample within 8 mm of the face forward of the ears, and the
+  legacy fall, which has no collider at all, does; a curled fall still never passes into the skull.
+
+### Comic hero pack: the first tesseract, a pack of game cubes
+
+- Planned. A tesseract is a library of cosmos cubes with the look that suits them, shipped as data a creator can
+  write: genre cubes `intent.from` reads as it reads the core fixtures, geocube looks on one dial from cel-and-ink to
+  the realistic hero, and resonance laws that advise a look from the gameplay. The comic hero pack is the first. Six
+  probe cubes dry-run against the registry today: four makeable, two with gaps the core already names
+  (`space.topology=open`, `soul.contest=versus`); the comic look itself is the first gap, with no value to probe yet.
+- The pack's gaps are priced so the sweep ranks them: `planned` rows on the facets, each in its work package
+  (`cosmos/packages.js`). The look: `reality.look=comic-day` and `comic-night` (`comic-look`: a sixth-gen look on the
+  geocube's `cel` register with an ink outline and a bold palette). The blows: `power.mechanics=knockback`, `throw`
+  and `power.rules=super-jump` (`comic-blows`), `power.mechanics=destructible` (`comic-street`). The dress:
+  `soul.equipment=cape` (`cape`, a garment that trails, not a held item). The shot: `time.shots=panel`
+  (`comic-panel`, a beat held as a still with a border and a caption). Every one is absent today and says so; a cube
+  that names one dry-runs `blocked` naming it. The hillclimb page is regenerated.
+- The pack itself, as data (`lib/graph/cosmos/packs/comic-hero/`): six cubes in registry words, each a genre row with
+  the words a brief uses and the planned values it `wants` (`cubes.js`); one look dial from the comic page to the
+  realistic hero, every stop a geocube the tree reads today (`from` a sixth-gen preset, the `cel`, `ink-wash` or
+  `continuous` register over it) with the hero direction that goes with it, its two ends the tree's own `banded` and
+  `material` poles (`looks.js`); five resonance laws in the facet law shape, advice from the gameplay to the look and
+  never a verdict (`resonance.js`); `packReport` dry-runs the cubes and reads each want's status (an unknown want is
+  reported, never thrown) and `qaOrders(look)` sets the table for the eyes gate at one stop: a `create_sketch` of the
+  example gameworld with the pack cube as its intent, the look's direction and a downtown painted by the look's
+  geocube, and the hero at that pole (`pack.js`). Nothing reads the pack yet: the loader seam is next.
+- Every look carries its air: the geocube's `light` (how thick the outside's air is, the sky's fog colour) and the
+  city paint's `hour` and `clouds`, which the QA city is lit and hazed by (city/plan/look.js). A fifth look,
+  `gritty-night`, at the realistic stop: a storm night under a low key, the light shaped in the vertex
+  (`contrast: 'wii'`), the walls dressed from relief at `grit` 0.8 and aged old, the air thick enough to swallow the far
+  towers. Gritty is the material pole with the atmosphere as the light, not another stop of the dial.
+- The pack's characters: a cast of six asks in the egocube's words (an archetype, a role, a build, an age, a motivation
+  and an order, with a brief; the rival the hero's archetype in shadow), five suits as cards built from the hero door's
+  own words (a catsuit and gloves, a cloak hung from the shoulders with a chest emblem, a belt, a field-painted star or
+  diamond, the armored-hero hardsuit, biker leathers), each with a fragment per pole since the realistic body refuses
+  paint and detail, and a compiler (`memberOrders(member, look)`) that rolls the sheet, reads it into a hero plan by the
+  egocube's own compiler, replaces the sheet's cut with the suit, puts the realistic body on at the material pole, and
+  asks the toon the stop wants: the character light with its ink at the comic stop (the silhouette hull the character
+  book never asks for), ink alone at the painted stop, none at the material pole. Every member validates at both poles.
+  The vibe rides inside the spec, since `mint_solid` hands its handler the spec alone and drops a key beside it
+  without a word (the character book's own hero order puts its toon beside the spec, so a gameworld hero minted
+  through `mint_solid` never gets its character light: found, not fixed here). The pack's heroes are never cel shaded:
+  the world walks the registers (cel, ink-wash, continuous), the hero is the western tradition at every stop with no
+  character light and no ink, the standard tiered body shaded smooth at the comic and painted stops and the realistic
+  body at the realistic stop; the suits are cards per body, not per pole.
+- Three costume eras as principles (`costumes.js`), each a card over the role suits: the Silver Age (the classic
+  hero before the dark knight: primaries, a cape, one big emblem, a belt at the waist, flat colour), the Modern (the
+  nineties to now: a dark panelled suit with one accent, a chevron, bracers and kneepads, the cape short or gone) and
+  the Movie Hero (tactical armour over an undersuit, muted metals, no cape: the plating library by word on the
+  realistic body, the hardsuit at low mass over a tactical outfit on the tiered one). `costumeOf(role, era, body)`
+  resolves a costume in the door's own words; every role in every era validates on both bodies. The eras tie to the
+  look dial: each stop suggests one (the page the Silver Age, the cover the Modern, the film the Movie Hero) and a
+  member's order takes another by name.
+
 ### Battle city: sports as a contest over the movement stack
 
 A sports game is two things: what is happening at the ball, and what the game state is. The first is the movement
@@ -629,6 +930,570 @@ KICK-OFF.
     and knights in the candy arcade stadium on a light front. "Robots" is not a mascot word, so that side is people
     (said back). A level's first open still takes about twenty seconds on the shell's loader; not addressed here.
 
+### No flat building polygons: a building's seen edges have thickness
+
+Walls and roofs read paper-thin: a building's outer wall was one skin with its way out punched through it, and every
+roof a single sheet, its overhang a knife edge from below. Now a solid building (`era/solid.js`) has thickness wherever
+its edge can be seen.
+
+- **Roofs are slabs.** A pitched roof's covering, an underside a roof's thickness below it, and a band down every edge
+  no other slope shares (the fascia at the eaves, the verges at a gable); a stage building's flat roof the same. A town's
+  flat cap stands its parapet a wall's thickness, its inner face and its coping laid.
+- **Doorways are cut through the wall.** A stage building's way out has its two jambs, its head and its threshold from
+  the outer face to the inside's.
+- **Who is solid:** a recipe that says `solid: true`, and every world read in gen-7 (the form render). A new world that
+  builds (a stage's `buildings` or `town`, the geocube kind's town, a composed game's levels with buildings) is stamped
+  `solid: true` at mint, so a world minted from now is solid and a row minted before keeps its bytes; `solid: false`
+  keeps the skin. Not solid, every face as it was.
+- **A town law** (`solid`, read only on a solid town): every pitched roof a closed slab, no edge of it open.
+
+### Gen 7: form, not light
+
+The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,
+the era a choice of the read and the export as the engine is. Gen-7 is the form render (a surface carries its material
+and its form, never light, and the renderer lights it); gen-6 is paint (the light held in the colour).
+
+- **The era is the read's.** `resolveWorldScene(sketch, { era })`, the World page's `?era=gen-7` and
+  `export_game { era }` read a world in another era than its cube's, the recipe untouched (its bytes never depend on the
+  era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
+  recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
+- **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
+- **Gen-7 no longer means live light over paint.** The live light's gen-7 defaults (actor shadows, the hour's shadow map,
+  occlusion) are now the light a form render's surfaces are drawn under while it draws them as paint; their reason in
+  `liveLightDefaults`'s `from` reads `form`. A hero's level keeps its actor shadows, and any gen-6 recipe can still ask
+  for the live light with `shadows` and `occlusion`.
+- **The era marks** (`era/era-marks.js`): what each era gives every World page input, in the engine marks' words. Gen-6
+  draws every input as built; gen-7 marks each surface input (the faces' vertex light, painted tiles, ramps, live grass,
+  the rock fabric, baked occlusion, the live light itself) `approximated`, drawn as paint, and every other input
+  neutral. `eraReading(payload, era)` lists what a payload's era drew short of built, and `export_game { era }` answers
+  with it (`era_marks`). A guard holds the marks to the page's own inputs: a new input is classified before it passes.
+
+### Geocube scenes: a place to walk, not a game, on the geocube
+
+A request that asks only for a place (its look, its land, what grows, the sky, the hour) and nothing of a hero, rules,
+levels, story or minds is a scene, not a game. It lands on the geocube, and what it needs is added to the geocube itself,
+so a game's levels on the cube get it too.
+
+- **An open trail** (`trail.ground.cliff: false`): no far cliff. The land is open on both sides of the walk, the meadow's
+  trees, grass and flowers growing on both, no scarp and no geology laid. The stage stands an `overlook` camera, a
+  raised eye off the walk's open side, in place of the cliff-top. A trail with no `cliff`, or one with settings, is the
+  card's far cliff as before.
+- **The cube's far cliff** (`outside.cliff`, and a terrain's own): `false` or the cliff's settings, laid on every trail
+  the cube paints unless the trail names its own: a scene's path and a game's levels alike, with no game-side setting.
+- **The geocube kind shows the path** (`show: 'path'`): the way through the cube's land, a trail stage on its terrain
+  with no town and nobody on it, walked by the stand-in and seen from its overlook. It takes `seed`, `biocube`, `path`
+  (the trail's dress), `hour` and `clouds` as the other shows do, and the cube's `snow`. `show: 'trail'` keeps its
+  meaning: the cube's island walked.
+- **The routing**: a new `scene` routing card sends a walkable scene, a landscape or a nature scene to the geocube's
+  path, with the words a place is asked in mapped onto the cube (an open field to `outside.cliff: false`, wildflowers
+  to the biocube's, the time of day to `hour`). The scene-illustration card keeps illustrations of things (portraits,
+  structural drawings) and no longer sends landscapes to the painted landscape, whose rows render as before. The world
+  and geocube cards point at the scene. Routing-eval rows carry the phrasing "Create a walkable scene of a colorful
+  grassy field in the daytime".
+- **A scene asked in words** (the geocube kind's `words`): `{ kind: 'geocube', words: 'a colorful grassy field in the
+  daytime' }` is read at mint into the cube, `show: 'path'`, `hour`, `clouds` and the path's own `trail` (its dials,
+  mounds, rocks), with the game's own word table: what a word decides for a game's cube it decides for a scene's. A key
+  written beside the words is kept; new words on an edit read again, a key the edit changed stands, and the same cube
+  keeps the colours it was stamped with. The `brief` says what each word decided, what a game's word gave way to (a hero,
+  a goal, a castle to raise) and what went unread. A path draws its own seed at mint, as a trail and a town do.
+- **New words, read by a game and a scene alike**: field, plain, prairie, steppe, grassland, savanna lay the cube open
+  (no far cliff) unless a word names a cliff, a face or beds (plains under basalt cliffs keep them) or the next word is a
+  machine (field cannon); colorful, flowers, flowery, wildflowers, floral, blooming put wildflowers in its grass (the
+  cube's biocube); grassy and grass name the meadow; snowy and snow lay the cube's snow beside the alpine weather;
+  daytime, midday and daylight light it at noon. A composed world that says them lays them on its cube, so its levels
+  take them; one that says none composes as before.
+- **The palette** of a scene's cube: `cube.palette: { heat, weight, activity }` (pick_palette's axes) over the cube's own
+  character, solved by the color theorist and checked by the cube's laws, as any cube's.
+- **Water on the cube's land** (`outside.water`, a terrain's own, a trail's `ground.water`): a lake beside the walk (a
+  basin off it, its water just under the lowest of its shore, a sand shore round it); a coast (the open side runs on
+  past the site's edge and falls through a beach to the sea, which runs to the horizon, the far ridges sinking under it
+  on that side, shells and driftwood on the beach); a river beside the walk (its channel cut, its water falling with the
+  land and climbing no more than a step, shingle on its banks); the falls (a brook along the cliff top, the fall down
+  the face in white water, a pool at its foot, the crossing's stream rising from it). Cut after the walk is laid, so no
+  water moves the walk; drawn in the cube's `colour.water`, a surface, not physics. Laid on every trail the cube paints,
+  a game's levels as well as a scene's path; a trail's own form wins and its `water: false` refuses the cube's. Each body
+  is an anchor and a water hazard on its trail and adds a still (`lake`, `shore`, `river`, `falls`). No grass, tree or
+  boulder stands in it. A trail with none builds as before, to the byte.
+- **The falls draw**: a land's `landmark: falls` (waterfall, falls, cascade) was a named gap since the land merge; it
+  now lowers onto the trail's `ground.water.falls`. A fall keeps the cliff it drops from: an open word gives way to it.
+- **Biomes**: coast, alpine and desert, each a biocube preset (low wind-bent trees and marram; conifer stands, short
+  grass and a few flowers; a lone low tree and sparse needlegrass) and, laid on a cube by its word, the color theorist's
+  own preset for such a place as the palette's character (coastal-noon, alpine-dawn, desert-haze), a desert's sandstone
+  ground weathering to sand, a coast's sea.
+- **New words**, read by a game and a scene alike: lake, lakeside, pond, tarn; beach, ocean, shore, sea (the coast's
+  water); coast, coastal, seaside (the coast biome); river, riverside, stream, brook, creek; cascade; alpine, desert,
+  dunes, arid (their biomes); pine, conifer, spruce, fir (conifer stands on the meadow). A world that says none composes
+  as before.
+- **The painted landscape's glyphs as words**: each glyph card's aliases are read where the shared table reads nothing,
+  and what a card decides is derived from its own numbers: a heartbeat the trail's heartbeat and bumpiness, a scene the
+  cube's flora (conifer stands, a grove or a meadow, an upland with its rocks), a sky the hour and the land's cloud form,
+  a splatch the palette's character as the theorist's axes (heat, weight, activity) read off its seeds, never its
+  colours, and a camera the still the geocube kind is first seen from (the kind's new `camera`: low, overhead, wide,
+  close; a scene's, never a game's). Aliases a sentence uses for other things (water, open, warm…) are no glyph's.
+
+### Normal bake: the realistic head's relief from its own field, in the engine export
+
+- **The bake** (`polygonizer/normal-bake.js`): `bakeFieldNormals` takes a light mesh with its UVs and a signed-distance
+  field, and for every texel of every chart triangle finds its point on the mesh, steps it onto the field's surface and
+  writes the field's own normal there, in the mesh's tangent space, as an RGB8 map. The tangents (`meshTangents`) are
+  built the MikkTSpace way and ride beside the map, so an engine shades in the basis the map was baked in. Where two
+  charts overlap a texel goes to the triangle the chart sees most face-on; a texel turned far from the mesh's normal (a
+  lid's margin) is supersampled so it does not alias into sparks; the charts are dilated, so an engine's mips never pull
+  the background into a seam. Deterministic: a fixed texel order, no dice, dmath's trigonometry. Its gates: a sphere's
+  field on a flat-faced icosphere and a torus's on a coarse grid shade to the analytic normal within a degree.
+- **The realistic head carries it.** The one-skin head is its field netted and simplified; the map puts back what the
+  simplification spent: the lids' crease, the lips' line, the nostrils' wings, the ears' folds
+  (`epidermis/dermal-relief.js`). It is baked on the head's own skin chart (the atlas the base colour already uses), at
+  a size set by the skin's own rung (its target): 512 texels across the head's page, 256 at L1, 128 at L0. The body, the
+  hands and what the hero wears stay flat on the map (their vertex normals shade them as before).
+- **It rides the lit skinned GLB** (`export_model { skinned: true, lit: true }`, and the Godot and Unreal packs under
+  their lit option): the figure's material gains `normalTexture` and its primitive `TANGENT`; the engine skeleton export
+  (the T-pose, `humanoid`) turns the normals and tangents with the mesh. Godot imports the map onto the figure's
+  material and the kernel leaves it there. The Unreal importer binds the map Interchange imports to a lit master of its
+  own (`M_MojuloLitRelief`, written only for an asset that carries one; its green flipped to Unreal's convention).
+  Unity's glTFast and Blender read a glTF normal map as they import the GLB, but the Unity pack ships figures as rigid
+  parts without their atlas, so its ledger says the map stays behind; the Blender pack ships no figure skinned.
+- **Who gets it:** a realistic hero minted from now (realistic laws 5, stamped at mint: its head's fit keeps the neck's
+  column the skin was joined to, so the field can be rebuilt). A hero minted before keeps the bytes it exported; every
+  other form, every unlit or rigid export and the World page are as they were. **The World page looks as before:** its
+  fills are unlit (the light is baked into the vertex colour), so a normal map has nothing to shade there until the page
+  lights a figure live.
+- The GLB reader (`scene-gltf-read.js`) now carries a normal map that rides with its tangents and TEXCOORD_0
+  (`normalMaps`, `ledger.maps_carried`) instead of counting it dropped. The seventh generation's `relief-in-normal` is
+  `partial`: built for the realistic head in an engine export; the body's lofts, the hands, the armour and the page are
+  still to come.
+
+### Land in the level: the composer's land forms drawn
+
+- **A world's land now reaches its levels.** A gameworld's `style.land` (and a level's, over it) names land forms,
+  each a variant and a step from little to many: landscape, rock, strata, face, cloud, landmark. The composer has
+  always written them from words ("misty", "rocky", "a waterfall", "rolling hills") and the bible drew them, but no
+  stage read them: "add a waterfall" changed the recipe and remade nothing. `resolveLevel` now lowers them, through
+  one function (`landToLevel`, gameworld/nature.js, the other way round from `landOfKit`), onto the settings a walk's
+  stages already draw by, so the level recipe carries them and the existing builders draw them:
+  - landscape: the trails' mounds (`trail.ground.bump`, height and size) and the climb's plain (`meru.relief`);
+  - rock: how many boulders a trail strews (`trail.rocks.boulders`);
+  - strata: the trail cliff's beds (`trail.ground.cliff.bed`, and `dip` when tilted);
+  - face: the trail cliff's joints (`trail.ground.cliff.joint`, and `pattern`: columnar, blocky, slabby);
+  - cloud: the level's sky (`clouds` on the level recipe, laid on every stage its geocube paints, as `hour` is);
+  - landmark: a monolith is the trail's landmark stone, at its height (`trail.rocks.landmark`).
+- **What a stage cannot draw is a named gap, never faked geometry.** A tor, a sea stack, a hoodoo, a balanced rock;
+  graded, folded or unconformable beds; fluted or craggy faces; lenticular clouds; an arch, a spire, a butte, a split
+  rock, a landmark's company; terraces on a trail; a sky on a level no cube paints. **A waterfall is one of them:** the
+  only water on a walk is a crossing's stream, fording flat ground, and nothing falls from a cliff. `design_game`'s
+  readout says each gap under `advice.land`, naming its levels, and the bible's land section says, under "In the
+  level", what each form became on each level and what it could not.
+- **Compatibility, said plainly:** composed worlds, and the example worlds that name land (MEADOWMARK among them), lay
+  different levels on their next run: the recipe always said it, and the level now honors it. There is no flag to
+  keep the old levels. What a world's land leaves out stays the kit's own, and a setting a trail or a climb names
+  itself (its bumpiness, its own ground, rocks or relief, the level's ground tune) is kept over the land's. A world
+  with no land emits the bytes it did.
+- New settings, each the card's own number where left out, on readers that already drew the thing: a trail's `rocks`
+  (`boulders` 0 to 24, `landmark` metres), its ground's `cliff` `bed`, `dip`, `joint` and `pattern`, and a level
+  recipe's `clouds` (refused without its geocube).
+- A climb after a trail under a level's clouds opens on its own. The level named its painted look without the clouds,
+  and a climb's `after.kit` (the look the trail before it is drawn in) took that name, but each stage registers the look
+  with them: in a fresh process (an export, the World page) the climb was refused ("after.kit … is not an isekai kit").
+  The level now lowers its look under its clouds, as its stages do. A level with no clouds is unchanged.
+
+### One name: a 3D compiler for agents
+
+- Every surface says the same thing: the README, the npm README, `package.json`, the Claude plugin, `glama.json`,
+  `server.json`, `CLAUDE.md`, the agent reference, and the agent-facing `initialize` preamble and `get_substrate`
+  drawer, which said "a 3D factory with a media studio".
+- The README's first screen leads with what a user gets from a sentence (a room, a chest of drawers, a printable part,
+  a city: source, a model for Blender or Godot, print files at true size, a cutting plan) and shows the dresser's shop
+  sheet; the host list and the footprint move below it.
+- Stale claims swept: local apps and MCP workflows (retired from the listed surface in 3.1.0) left the README's
+  "also in the box"; the tour is labelled as the 2.0.4 page it is; CONTRIBUTING's "Unreal is aligned-for and not
+  built" now names the Unity and Unreal legs; the install map's always-present packs drop the retired office packs;
+  the substrate no longer tells an agent to clone the deprecated external recipe book.
+
+### Rail fixes: what the level demo found
+
+- **A design run that fails partway keeps the record of what it made.** `design_game` `run: true` makes each ready
+  step through the real handlers and records it in the world's `made`; a step that threw left the steps made before
+  it written as rows with no record saved, so the next run read them as edited by hand (`edited`) and left them unless
+  forced. The run now saves the world with the record of the steps that succeeded before it rethrows, and the error
+  reaches the caller as it was; the next run keeps or remakes those steps as usual. A failure before anything was made
+  writes nothing.
+- **Night, and any hour, from a gameworld's style.** A world's or a level's `style.hour` (a level's over the world's,
+  read by the cube's own `readHour`: dawn, morning, noon, afternoon, golden, dusk, night, or 0 to 24) lowers onto each
+  stage its level's geocube paints, the trails and the climb, as the stage's `hour`, over its domain's own; until now
+  night was reachable only through a cube domain's hour. The level recipe takes `hour` beside its `geocube` (refused
+  without one), and a painted stage's `painted` readout names the hour it got. A stage no cube paints (a section in its
+  own kit, a level with no cube, a building, a city, a track) is lit as before and says so as advice on its step in the
+  run (`hour: … is not on one`), never a refusal. The composer reads an hour word (dawn, sunrise, morning, afternoon,
+  sunset, dusk, twilight, evening, night, moonlit) into `style.hour`, unless the cube is lit at that hour already, so
+  "a gothic night" composes as it did and "a sunny island at night" is the island at night. A world with no hour emits
+  the bytes it did. The world card's style line names it.
+
+### Level edit demo: a level made and changed by conversation
+
+- A structure a cube raises `on: 'summit'` stands on a terraced mountain's crown. The climb a level walks up from its
+  trail (the `terraced-mountain` preset) ends in a lookout tier with no height of its own, so the summit came out
+  with no height and the stage was refused; it now stands at the tier's top. A cube whose summit tier has a height
+  places it as before.
+
+### Title cards: the carved letters come back as the game's words
+
+- **`as: 'title'` on a HUD banner row** carves the row's words into 3D letters and puts them on the screen when its
+  event fires, the way a game announces a round, a K.O., a clear, instead of a plate with words on it. The letters are
+  the glyph carver's (`lib/motion/glyph-carver.js`, the letter primitive of the pre-three renderer, until now reached
+  only through the `carved-solid` wordmark and cover titles) extruded with the bevelled carve kernel and tessellated
+  into a GLYPH ATLAS the page lays out by advance, so a `{score}` substituted at play time still carves (the digits
+  ride along with any placeholder). `look` is the entrance and its exit: `slam` (scaled down with an overshoot and a
+  settling tilt; a flash, a jolt and sparks on landing; leaves growing), `rise` (letter by letter from below, stretched,
+  squashing as each lands; leaves falling) or `stamp` (punched in from the eye with a bounce; leaves scattering, each
+  letter on its own line and spin). `style` is the carve: `heavy`, `blocky`, `slick`, `thin`, `italic`. The look is the
+  game's: the composed juice floor's register bakes anime cel bands with an ink hull behind each letter, or western
+  metal with a glint and a drop copy, into vertex colour, unlit, so the scene's lights do not matter. Everything plays
+  on the frame clock from the firing, every number of chance hashed from the firing's count: a capture draws the same.
+  Card `hud-title`; idiom `title(…)`; a `play.parts` banner passes `as`, `look` and `style` through.
+- **Themes: the design styles game titles are set in.** A title row names a `theme` or takes the one its game
+  implies (the juice floor's register and game type: anime action → `cel`, western action → `arcade`, a platformer →
+  `cartoon`, a realistic game → `cinematic`, a western pinball or racer → `speed`; no floor → `arcade`). Each is a
+  whole — the carve, the entrance, the case, the tracking, the size, what stands behind the letters (an ink hull, a
+  drop copy, both, a glow, nothing), a lean, how hard the landing hits, sparks or a halo, the colour token and how long
+  it stands — modelled on the fighting game's announcer, the 8-bit cabinet, the anime cut-in, the platformer's cheer,
+  the prestige card and the racer's readout. Two entrances join for them: `fade` (in slowly, nothing else) and `slide`
+  (in from the right, stretched, streaks behind, out to the left). A dial a row names itself (`look`, `style`,
+  `caps`, `edge`, `color`, `ttl`) wins over the theme's.
+- **The cascade: a play direction dresses its titles.** A world whose play block carries a settled UI direction
+  dresses its title rows from the register the parts are dressed from: `type` ⇒ the carve and the case (system slick,
+  display heavy in capitals, period thin in capitals; a pixel tuning blocky with an ink edge), `frame` ⇒ what stands
+  behind the letters, `motion` ⇒ the entrance, its tempo (the dial's frames against ease's) and its steps (a stepped or
+  mechanical entrance plays in that many held drawings, as the UI's own moves do). Precedence per dial: the row's word
+  > the register (a pin the operator set counts as theirs) > the theme the game implies > the default. The UI board
+  draws a title part as the page would carve it, flat, in every state, in values and dressed, under a line naming
+  the layer that set every dial (`titleDials` with `explain`); a host with no face shows the words. While the
+  direction is proposed the page draws the title in the greybox tokens with the theme's own dials.
+- **Words in the player's language.** A HUD row's `text` may name a word instead of spelling it (`'@fight'`,
+  `'@round'`, `'@gameOver'`, …: the `gameTitles` namespace of the dashboard's own locale catalogs, added to every
+  shipped language), read in the world's top-level `locale` (a shipped code; absent ⇒ `en`). A new language reaches
+  the games and the dashboard at once through `/sync-locales`.
+- **Absence degrades, never breaks.** A title the host cannot carve stays a banner (the browser spells it) and the
+  world's events say why under `titlesFallback`: no face parsed, `opentype.js` absent (an optional dependency), a
+  script that needs a shaping engine (Arabic, Hebrew, Thai, the Indic scripts), a character no face on the host covers.
+  The letters follow the host's faces (`MOJULO_TITLE_FONT` first, then the system's bold display faces, a CJK face
+  after a Latin one); vendor a face to pin them. The engines take a title as a banner in `score.json` (ledger
+  `titles_as_banners`). A world without a title row emits byte-identical pages.
+
+### Resonance: the compiler checks that a composition's combined outcomes are laid
+
+- When values in two or more of the cube's facets are set together, an outcome exists that neither says alone: the
+  seats, the frame and the camera make a co-op screen; a watcher's perception and an unseen goal make a sneak; a party
+  and the escort motive make companions who follow. A RESONANCE names such an outcome (`gameworld/resonance.js`), and
+  the compiler checks itself against it: for a composition, which resonances it opens, whether its steps LAID what
+  each needs, and whether the laid level HOLDS its law. Internal: nothing in the agent's tools or cards, no refusal.
+- **The table and the check.** `RESONANCES` (`{ id, name, of, when, outcome, lowers, laid, law?, voiced? }`, `when`
+  ANDed across its keys, `a|b` inside a key ORed), `resonancesOf(cube)`, `resonanceCheck(cube, orders)`. The first
+  rows are what the compiler already lays: `co-op-screen`, `watched-sneak`, `escorting-party`.
+- **The compiler checks itself.** A design run checks, after its steps, what its cube opens: an opened resonance its
+  steps did not lay, or laid and does not hold, comes back with the run as `resonance` (`compilerGaps`), absent when
+  there is none; nothing refuses. A gate (`resonance.gate.test.js`) makes worlds the ways a creator does (words
+  composed, a quick game) and FIRES on a new gap; its ledger of known gaps only shrinks (a gap filled fails until its
+  line goes). It found three at once: the composed co-op platformer lays no hero per seat on its side camera, the
+  composed stealth game lays no watchers, and the quick sneak lays guards who see where its cube asks for memory. The
+  last is settled the other way: guards stay goldfish, simple and local, so the stealth probe now asks for sight.
+- **The one field the agent reads: `intent.latent`.** The design readout's intent names the outcomes a user voices that
+  the cube is one move from (`latentOf`: it holds some of the row's keys and lacks keys in one facet only), with what it
+  lacks: a side-on platformer is one move from a couch co-op screen (`soul.seats`, `soul.frame`). Absent when there is
+  none; the `gameworld-intent` card names it in one line.
+- **Guards as a level goal.** A level's `goal` takes `guards: true` (`LEVEL_GOAL_PARTS`): the quick sneak's guards on
+  each stage's beats, watching by sight, and the `unseen` mechanic that loses the level when one sees the hero; one
+  figure stands for them all, rolled in the game's setting at `<ref>-guard`. The composer reads guard, sentry, stealth
+  and sneak words into it, so a composed stealth game lays its watchers, and the gate's ledger loses that gap. A level
+  without it lays as before.
+- **The form, before the run.** A row now names what a world must hold before a run can lay it (`form`): each field
+  filled by the composer, which can fill it from the cube, or by the creator (the hero, chosen, never defaulted).
+  `formGaps(world, cube)` says which fields are empty and who fills them; the design readout puts them first as its
+  `form` step (`asks`), and a run's `resonance` gap names the empty fields that left it unlaid. The co-op screen is the
+  first: words that name a couch co-op platformer now write the side camera and lay walks a side camera runs (no
+  climb), and the readout asks for the hero; until there is one the world is walked first person, its camera kept for
+  the run that has its hero. With a book, the composed co-op platformer seats every player on the shared side camera,
+  and the gate's last known gap is gone. The gate's co-op case runs the loop as a creator does: compose, the book the
+  readout asks for, the run.
+
+### Live light defaults: a hero's level, the seventh generation, the tier
+
+The live light below, on by default where it pays, under a budget a phone can carry. The sun does not move: a level is
+lit at one hour, its light baked and its static shadow map drawn once at load; nothing here moves the sun.
+
+- **A hero's level takes actor shadows by default.** A world with a pilot that has a body (a pilotable entity whose
+  body is not `none`; a spectated battle has no pilot) gets `shadows.actors`, so the hero, the seats' bodies, walkers,
+  cars and fauna cast live shadows over the baked sun. Indoors that is the contact blob. The recipe keeps the last
+  word: `shadows: false` (none), `shadows: true` or a blob's tuning (the suit's blob, as asked), `shadows.cast`, or
+  `shadows: { actors: false }` keep the page it had. A stage's bake keys alone (`torch`, `sun`, `cells`) say nothing
+  about the page, so the default goes beside them. **Hero levels change on their next render**: their page gains the
+  actors' map and the bake writes each corner's sun share.
+- **A spectated battle's fighters cast too** (`spectate: true`, no pilot): its entities with a body take
+  `shadows.actors` by default, as a hero does, the recipe's own word kept the same way.
+- **A world whose geocube names the seventh generation turns the live light on** (`geocube: { from, era: 'gen-7' }`,
+  or a gameworld's `style.geocube`, which reaches every level). It gets `shadows: { actors, hour }` and `occlusion`,
+  each the recipe's own where it names it (`hour: false`, `occlusion: false`, ...). gen-6, the default, adds nothing.
+  `geocubeEraOf(manifest)` (era/geocube.js) reads the era of the cube that paints a world.
+- **The quality tier** (`light: { tier: 'auto' | 'off' | 'half' | 'full' }`). Auto reads the screen the game is made
+  for (`screen`): a phone gets half with no default occlusion, a tablet half, a screen (or none named) full. `half`
+  draws the shadow maps at 1024 and the occlusion at a quarter of the frame (alone, its prepass at half the frame;
+  beside the creases, the prepass whole and its pass at a quarter); `full` is 2048 and half the frame, as built. `off`
+  drops the live light: the defaults and the recipe's own asks. A world's `mapSize` still wins. Only `light.tier` is
+  the live light's; other keys of a world's `light` stay their kind's.
+- **The budget probe**: a page given a tier counts what it draws. `__mojLight.budget()` returns the tier, the last
+  frame's renders, shadow passes, shadow maps drawn and shadow draws, and the shadow maps' and the live passes' render
+  targets' sizes. The machine gate holds them in Chrome on a quick game's level: a gen-6 hero, one render and one
+  shadow pass a frame (2 shadow draws), one 2048 map; gen-7, three renders (the prepass, the occlusion, the frame),
+  one shadow pass a frame, the hour's map drawn once in five frames, two 2048 maps, the prepass at the frame's size and
+  the occlusion at half; gen-7 on a tablet, two 1024 maps, the prepass at half and the occlusion at a quarter; on a
+  phone, one render a frame and two 1024 maps; `off`, no live light on the page. Counts, not milliseconds.
+- **Every outdoor kit writes the sun's share** when the page takes actor shadows: the isekai island, nature and jungle
+  bakes, as the stage and the meru already did. The island's pixel-locked faces take theirs from their band (a lit
+  band shares what its tile's value loses to the shade band's; a shaded band none), its material faces and its
+  realistic ground from their light with and without the sun. The city's faces take their key's share by their normal
+  (the city's light is its key's Lambert, with no baked shadow to double); at night the key is the moon, so a moonlit
+  trail, climb or city shares the moon's. Lit windows, signs and shops carry none. Colours are unchanged by it. A city
+  and a geocube specimen take `shadows`, `occlusion` and `light` as world channels, so a city level can opt out.
+- **The hour's map no longer lays moiré on wide terrain.** Under a low sun the static world shadowed itself across the
+  map's own steps: in Chrome on a 600 m rolling terrain with nothing standing on it, 68 % of the ground darkened by
+  over 4 % under a 25° sun and 99.9 % under 15°. The receive patch now reads the receiver's slope in the map from the
+  fragment's own derivatives and adds the depth it climbs across a texel and a half to the bias, capped at eight times
+  the map's own (`receiverBias` in scene/live-light.js mirrors it): 0.01 % and 0.02 % after, and a 12 m tower's shadow
+  still lies on the ground.
+- **The actors' box covers what is near the hero where the frame looks**: 16 m by default (was 12), led 8 m ahead along
+  the camera's ground with one focus (`shadows.lead`, 0 for none; seats still grow the box round their spread). Before,
+  half of the 24 m box round the hero lay behind the camera, and nothing more than 12 m ahead of the hero cast. Measured in
+  Chrome on a standing figure: the shadow's edge 6 mm past the leg (as before) and a 3.8 cm penumbra (3 cm before).
+- The `__mojCast.hour` seam says what it is: it draws the static map for a recipe's hour once at load, and is not a
+  clock. The sun does not move, live or within a level.
+- The cosmos registry: the seventh generation's world note says what naming it turns on; it stays partial (lightmaps
+  and light probes, normal maps on the world, HDR, IBL and height fog planned; a moving sun is not). The hill-climb page
+  is regenerated. The Godot and Roblox legs mark `lightTier` absent.
+- Pins: the three live-shadow emit rows moved (the box, its lead, the hour's bias); every other emit pin is unchanged.
+
+### Live light: actor shadows, the hour's shadow map, occlusion
+
+What does not move stays baked; what moves gets live light on the World page. Each piece is opt-in. A world that asks
+for none of them emits the same bytes as before.
+
+- **Actor shadows over the baked sun** (`shadows: { actors: true }`, beside `cast`). Only what moves casts: the pilot,
+  the seats' bodies, walkers, cars, fauna on the ground, and any subtree a channel hands to `__mojCast.adopt`. The
+  static world only receives. The shadow box follows the pilot, or the centre of the seated pilots when seats play.
+  Where the stage bake lights a world by the sun (a stage kit under the sun, and a meru outside, whose land is baked
+  the same way), it writes each corner's share of its light that comes straight from the sun (`sunShare`; 0 where
+  the baked sun is already shadowed or the face looks away). The page carries the share as a vertex attribute. An
+  actor's shadow darkens a fragment by that share, so it takes a lit floor down to the baked shade beside it and never
+  doubles a baked shadow. A world whose bake writes no share (the island's, a city's, a world with no baked sun)
+  darkens by the cast's `alpha`, as `shadows.cast` does. Leaves, grass and far flora never cast. `cast` with `actors`
+  or `hour` is refused, with a message that says why.
+- A stage's `shadows` takes the page's keys (`cast`, `actors`, `hour` and the cast's tuning) beside its bake's
+  `torch`, `sun` and `cells`; before, they were refused. On a geocube, a recipe's `shadows` that names only page keys
+  keeps the cube's bake shadows under them.
+- **The hour's shadow map** (`shadows: { hour: true }`). The static world is drawn into its own shadow map once at
+  load, and again only when the hour changes (`__mojCast.hour([x, y, z])`, the direction toward the sun). It is never
+  drawn per frame. With `actors`, the actors' map is drawn each frame and the receive patch reads both. The baked
+  per-vertex sun stays the fallback and the light the captures use. The page's probe counts it: `__mojLight.hourMaps`
+  (the times it was asked for) and `hourDraws` (the renders that drew it), beside `frames`. For the one frame the
+  static map is drawn, the actors' map keeps its last frame.
+- **Occlusion on the shared prepass** (`occlusion: true` or `{ strength, reach, samples }`). Live contact shadowing:
+  a hero's feet on the floor, a prop on the ground, what no bake knows. Static occlusion stays baked. The creases'
+  prepass also writes normals when occlusion is on (two render targets in one render). A half-resolution pass then
+  samples a hemisphere (`samples`, 6 to 16) out to `reach` metres, and the composite blurs it on the surface (it never
+  bleeds across an edge) and lays it under fog, as the creases are. A world with both creases and occlusion draws one
+  prepass. The page's probe counts it: `__mojLight.prepassCalls`, `prepasses` (the renders into the prepass target)
+  and `aoPasses`. With occlusion on, the prepass skips the shadow maps, which the frame's own render draws. A camera
+  that is not perspective hides it. `__mojOcclusion.set(on)` turns it off and on. The unshaded export drops it. A
+  world with creases and no occlusion keeps the creases' block as it was.
+- The Godot and Roblox legs mark `occlusion` absent. Neither draws it yet.
+- The cosmos registry says the seventh generation's world is partial, no longer absent (`reality.era=gen-7`,
+  era/eras.js). Its built pieces are the opt-ins above, which a world asks for itself: naming the era does not turn
+  them on yet. Still planned: lightmaps and light probes, normal maps on the world, HDR, IBL and height fog. A world
+  asking for gen-7 now reads as one with a gap, not a blocked one; the Godot and Roblox legs still mark it absent, so
+  those worlds now count as losing it there. The hill-climb page is regenerated.
+- A world with live shadows and occlusion together no longer dies on load: the live light's script and the occlusion
+  block both declared `__mojLight` on one page (a SyntaxError). The occlusion block binds the shared probe under its own
+  name; the two occlusion pins moved, nothing else.
+- An actor's shadow meets its feet. The operator's look found a wide soft smudge that began away from the hero's feet on
+  the trail valley: until the pilot first stepped, and in every capture (which never steps), the actors' box covered
+  the whole stage (550 m across there, a 27 cm texel), and a single-sided caster drew its back faces, so a sole's depth
+  was the floor's own and the contact was lost. The controllable now hands the live light a focus (`__mojCast.focus`)
+  that the pass before every render asks, so the box sits round the pilot from the first frame; the default span is
+  12 m (a box 24 m across round one hero, a centimetre's texel; seats still grow it), the bias a contact's 5 mm, and an
+  adopted subtree casts both its sides. Measured in Chrome on a standing figure: the shadow's edge 6 mm past the leg's
+  face and a 3 cm penumbra (5 cm and 11 cm in the old fit box); on the quick game's hero, 1 mm and 3 to 4 cm.
+- Occlusion no longer lays square halos round grass clumps. The prepass drew every solid with one override material,
+  so an alpha-tested card (a grass clump, a leaf card) occluded as its whole rectangle. A cutout is now drawn with an
+  override that samples its map's alpha and discards under its alphaTest, so it occludes and receives by its blades
+  (the costlier of the two options, one override per class and map: leaving cutouts out of the prepass would have let
+  the floor's contact shadow show through the blades in front of it). Measured in Chrome on a half-transparent card:
+  0.17 darkening at the opaque half's foot, 0 at the transparent half's (0.17 at both before).
+- Indoors the hour's map no longer dims the whole room. An interior (a world that declares itself one, `sky.preset
+  'interior'`: the gothic-stone rooms of a quick game's crypt or tavern) bakes no sun and records no sun share, so every
+  receiver fell back to the cast's alpha under the outdoor sun's map, roof and all: 60,000 to 100,000 pixels of an
+  800 by 500 frame darker in the crypt and tavern. There is no sun for the hour to move there, so it is dropped: an
+  interior asking for `hour` emits the page it would without it (`__mojCast.hour` is a no-op), and renders the same
+  pixels. Outdoor pages are unchanged byte for byte.
+- Indoors an actor lays a soft contact blob under it instead of a shadow off the outdoor sun, still under `actors`.
+  The actors' map is drawn from below, straight up, so each texel holds the lowest surface of what moves above it; a
+  receiver darkens by how much of a small disc round it has something standing within 12 cm, 45 cm and a metre above it
+  (and nothing below), darkest under the feet and fading as the actor leaves the floor. Measured in Chrome: 0.32
+  between a standing figure's feet (the alpha's 0.38 at most), nothing half a metre out, nothing where the outdoor sun
+  would have thrown its shadow, nothing under a box hung 2.2 m up.
+- `export_model` exports a building level. A stage's `program` is its building program (`{ use, seed }`), and the
+  exporter read it as the code kind's, so every quick game's building level was refused ("program.source must be a
+  non-empty string") while the game page played it. Only a workbench's `program` is code now (`hasCodeProgram`).
+- The README capture helper (`docs/images/src/lib/browser.mjs`) runs on Linux: off macOS it routes GL through
+  SwiftShader, which current Chrome builds gate behind `--enable-unsafe-swiftshader`; on those, without the flag, the
+  World page never became capture-ready. It passes the flag, as the scene renderer's own launch does.
+
+### Written intent: compose and quick write the game they are
+
+- A quick game writes its `intent` (`{ from: <genre> }`) when its goal has a genre and the caller wrote none: the genre
+  the world's cube was already read from (a race against rivals a kart race, a shooter with a craft a dogfight), now
+  said in the recipe where the creator can see and change it. The cube does not change, so its concerns, levels and
+  effects lay as before.
+- A composed world writes its `intent` when the prompt's words name one genre clearly (its words matched two at least,
+  and more of them than the next genre's), as it already writes the `feel` they name. One word ("towers", "map") says
+  too little. The words go into the brief's `read`
+  (`intent.from=<genre>`). A tie or no genre writes none, and `design_game` still asks for one with its suggestions.
+  The intent is written before the levels are laid, so the composer's self-check sees the levels the genre's concerns
+  lay: a newly composed world whose prompt names a genre is laid for it.
+- A quick game whose goal is patched afterwards to read as another genre keeps the written one: its readout carries
+  `intent.drift` (`{ written, goal }`) and `design_game` names an `intent` step for it. Said, never rewritten.
+- The `gameworld-intent` card says both.
+- Stored worlds are untouched: nothing rewrites a recipe already minted.
+
+### Local multiplayer: playing together, as settings of the soul facet
+
+- Several players at one machine, on one shared screen: seats (a controller each: a pad, or the keyboard) that take
+  a game's bodies, and settings of the cosmos cube's `soul` facet (`seats`, `contest`, `dependence`, `frame`, `input`,
+  `pool`, `join`) that a game composes, each built once for every composition that asks for it. A cooperative kitchen,
+  a party mash, brothers on a quest and a shared bullet hell are its reference points, not its products. The
+  principles are in `docs/local-multiplayer-principles.md`. A game that asks for no seats is byte for byte as before.
+- **The settings, in the cube.** `soul` holds `seats` (one, two, four), `contest` (co-op, versus, teams,
+  free-for-all), `dependence` (parallel, roles, handoff), `frame` (follow-all, fixed, scroll, split), `input`
+  (real-time, window, turns), `pool` (shared, own) and `join` (drop-in, lobby). One seat is built; what the versus
+  fighter already does (two seats, versus, real time, a fixed stage, its select screen) is partial, said in its note;
+  everything else is absent and priced, the seats kernel and a pilot per seat as packages (`packages.js`). Seven genre
+  probes are reference points of them: a co-op kitchen, a party mash, a co-op platformer, a co-op street brawler, a
+  co-op scrolling shooter, a driver and gunner, and a split-screen deathmatch, each with the words a brief uses for it
+  (`gameworld/intent.js`), so the hill-climb page names what each waits on.
+- **A setting may be given another.** The six settings after `seats` mean something only for a game that seats more
+  than one, so the sweep rolls and nudges them only then (a setting's `given`, `registry.js`), and a facet's odds count
+  its settings that are not given. Without it, half of soul's rolls asked for multiplayer and the ranking of everything
+  else moved.
+- **The pad does what the keyboard does in the pilot scheme.** Reverse view takes the D-pad's down, and a spectator
+  watches the next fighter on RB or the D-pad's right and locks the camera on A, each on its press edge; the pad legend
+  names the reverse view. What a pad already says another way stays so: the left stick strafes under mouselook, the RB
+  chord selects a weapon, kneel descends a glide. A test holds every other pilot action to a pad binding.
+- **Versus reads its players through the controls kernel.** A `versus` scheme (controls/schemes.js: a stick and the
+  input grammar's five buttons, light, medium, heavy, special and throw) holds the bindings the runtime had written by
+  hand. The runtime client comes with the kernel
+  wherever it is inlined (the page, the arena channel, the action lab), and a player's pad is kept by its
+  `Gamepad.index`: a pad that leaves no longer hands its player's place to the other.
+- **The action lab reads through the controls kernel too.** An `action` scheme holds the verbs of the action-game
+  kernel (move, jump, attack, dodge, dash, lock, guard, shoot, switch, sprint) with the keys and pad buttons the lab had
+  by hand; the lab's stick stays analog past its dead zone, the D-pad winning while pressed, and a test holds the lab's
+  old keys and buttons to the scheme. The play itself now reads through the kernel in the pilot runtime, versus and the
+  lab; the shells' menu pollers (play-front, play-shell, game-shell, the rpg and interact channels, the pixelizer's
+  brickster shell) still read button numbers, and move with the seats.
+- **The seats kernel** (`controls/seats-kernel.js`, emitted from its own source as the controls kernel is). A seat is a
+  player position bound to one controller: a pad by its `Gamepad.index`, the keyboard with its mouse (one controller
+  however many keyboards are plugged in: a browser cannot tell them apart), or the touch pad. A controller sits down in
+  the lowest free seat, once; a lost pad keeps its seat, away, until the same pad is back; a leave frees the number for
+  the next to join, and seat numbers never move. Each seat has its four-port colour (P1 red, P2 blue, P3 yellow, P4
+  green). `drop-in` seats at any time, `lobby` only while it is open.
+- **Versus plays on the seats.** Each player sits down with start or light on their own controller (the keyboard's
+  Space too) and reads only it; the pause menu is the seat's that opened it, its panel naming the seat. **Two players
+  on one keyboard is gone**: the keyboard is one controller, so player two takes a pad (the arrows now move the
+  keyboard's own player). The registry says so: two and four seats and drop-in joining are partial, the versus fighter
+  only.
+- **The action runtime takes a seat per body** (the first step of a pilot per seat). A world's `seats: { bodies, drop? }`
+  names the bodies seats 2 to 4 take; each runs its pilot rule on its own seat's input (`input.seats[n]`), and a seat with
+  no player leaves its body to its AI (`drop: 'ai'`) or holds it (`'pause'`). The AI hunts the nearest seated pilot. A
+  world without seats steps as it did; a gameworld lays them (below).
+- **A shared camera frames every seat.** With more than one seat playing, the side and overhead cameras hold the
+  players' centre and stand back until their spread fits the view (50° with 2 m round it), never nearer than their own
+  distance and never past 2.2 × it; past that a world pass holds the leader back and brings the straggler in, so nobody
+  leaves the shot. One seat, or none, and the cameras frame their target as they did.
+- **The World page seats its players.** A world with seats emits the seats kernel beside the controls kernel: any press
+  of a controller (a key, a button, a stick past half; start stays the shell's pause) sits it down, the first to press
+  being seat 1, the world's pilot, which then reads only its own controller; seats 2 to 4 read theirs through the pilot
+  scheme onto `input.seats`. A ring in the seat's colour stands under each seated body and a strip at the top names who
+  is in. Tested in headless Chrome with two stubbed pads (`seats.live.test.js`, e2e). The target lock, the tutorial,
+  the runner and the suit swap stay seat 1's; a world without seats emits as it did.
+- **A gameworld seats its players from its cube.** A world whose intent says `soul.seats` two or four (`intent: { from:
+  'co-op-platformer' }`, or its own `cube.soul`) lays, on every stage the hero walks, a hero per extra seat (`hero-2`…)
+  beside the spawn: the hero itself, dressed as the goal dressed it, on the hero's rule, all on one side. While its seat
+  is empty it follows the hero as a party member does; a seated hero that falls off the world comes back above seat 1;
+  the suit swap never jumps onto another player's body. A ride, a flight, first person, building and city levels seat
+  one. In the cube, `soul.seats` two and four, `contest=co-op`, `dependence=parallel`, `frame=follow-all` (the side and
+  top-down cameras; a third-person camera follows seat 1), `input=real-time` and `join=drop-in` are built, on the web;
+  the co-op platformer and the co-op street brawler now wait only on `pool=own` (each seat its own lives).
+- **Four seats, and the audits with seats.** Four pads take four seats in the order they press, each driving its own
+  body under its own colour (`seats.live.test.js`). A two-seat co-op game made through `design_game` is audited with
+  seat 1, the audit's own pilot, while the empty seat's hero follows; its run and its verdict are the ones the same level
+  without seats gets (`design-game.seats.test.js`, e2e). Godot and Roblox exports name the seats among what they leave.
+  Found on the way, not from the seats: a quick side-on level is never proved beatable by the automatic audit, whose
+  walker seeks the exit in a straight line, which a lane does not run.
+- **Lives per seat.** A world whose cube says `soul.pool` gives its seats lives (`seats.lives`, `pool`): `own`, three
+  for each seat, or `shared`, three a seat in one count. A fall off the world costs one and brings the player back beside
+  a seat still playing (else where they started); a seat with none left sits out, and the level is lost when no seat is
+  left playing. The strip shows each seat's hearts, or the shared count. A shared camera whose own target is out frames
+  the seats still in. Falls only: a hit is still seat 1's hp, and the score stays one count. `soul.pool` own and shared
+  are built (web); the co-op platformer and the co-op street brawler probes are makeable.
+- **The pause is the seat's that opened it.** In both shells (the play shell and the game shell) any pad's start opens
+  the pause and only the same pad's start closes it; the on-screen button still works for anyone. A level with seats
+  tells the shell who sits where (a new `game-seats` sidecar message, level to shell), and the pause panel names the
+  owner's seat in its colour ("paused · P2"). Tested in Chrome with two stubbed pads (`pause-owner.live.test.js`).
+- **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
+  changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
+  setting without the seats says so.
+
+### Unreal takes assets: characters and solids, not games or levels
+
+What reaches Unreal is a GLB's surface: geometry, vertex colour and painted textures travel; the materials and the look
+mojulo draws on the web (its tone, ink, grass, sway, glow, sky, water, effects) do not, and a game's behaviour stayed in
+a kernel of five mechanics. A game or level in Unreal was that surface with nothing mojulo does on it. A character, a
+prop, a building, a robot or anything assembled in mojulo is different: as an asset, its geometry and colour are what
+it is. So Unreal is an asset target now.
+
+- **`export_model { ref, format: 'unreal' }`** writes an asset pack for any row that resolves to a model, beside
+  Blender's `format: 'blender'`: the GLB, the recipe, an editor Python importer, its guide and README. `lit: true`
+  hands the lighting to Unreal; `humanoid: false` keeps a humanoid figure on its flat skeleton.
+  `node scripts/export-unreal.mjs --ref <ref>` writes the same pack and runs the advisory gate when `MOJULO_UNREAL`
+  names an editor. A game is refused with the move: export its characters and solids by their refs.
+- **The importer brings in one asset**, under `/Game/Mojulo/<ref>/`:
+  - its meshes on mojulo's vertex-colour material (unlit, or lit under `lit`);
+  - its own lights;
+  - a preview map with a floor and a day light rig to look at it in.
+- **A character arrives as a character.**
+  - A rigged layered figure ships as one skinned mesh with its clips and face morphs: a SkeletalMesh and an
+    AnimSequence per clip, its clip looping in the preview.
+  - A humanoid one ships as the engine skeleton (VRM-named joints at the T-pose rest), turned to the world's facing.
+  - Its IK Rig (`IK_Mojulo_<figure>`: the hips its root, one chain per limb named as Unreal's mannequin rig names its
+    chains) comes with it, plus an IK Retargeter from the mannequin when the project holds the mannequin's rig (the
+    Third Person template's `IK_Mannequin`, or `MOJULO_SOURCE_IK_RIG`), so the project's own animation plays on the
+    figure. A re-import rebuilds both in place.
+- **Verify** checks the preview map, the imported asset, its materials, its lights, each skinned figure's mesh and clip,
+  and its retarget rig. With a skinned figure, `mojulo-gate.json` also carries a `diagnostics` block, facts not
+  verdicts: the clips' asset names, the meshes' bones, where each mesh hangs in the actor tree, and each import step
+  and whether it held. Every IK Rig and Retargeter call is tried and logged, since Unreal's Python API for them moved
+  between 5.2 and 5.6.
+- **Gone:**
+  - `export_game { target: 'unreal' }`, the game and level packs (the menu and per-level maps, the promoted ground,
+    the colliders and the PlayerStart);
+  - the `MojuloKernel` C++ plugin;
+  - the Night Run worked example, a game played in Unreal.
+
+  The engine registry marks Unreal an art pass, as Blender is.
+- **A placed engine skeleton stands where its entity stands.** A humanoid figure exported as the engine skeleton (a
+  scene root in the VRM space, beside the z-up root) took its entity's z-up placement as is: about a metre off its spot
+  and tipped over. It now takes the placement said in the VRM space, turned half a turn since the VRM front is the
+  figure's back, the world's unit scale applied, and lands where the flat skeleton lands. This applies to every engine
+  and to `export_model { humanoid: true, rest: 'tpose' }`. Only humanoid exports with a placed figure change.
+- Not yet run in Unreal: the importer's run and the eyes gate are the operator's. The clips' asset names are read by
+  exact name, else by the one asset that contains it, and the first gate run pins them.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:
@@ -1035,6 +1900,327 @@ KICK-OFF.
 - **Two views:** every player draws each pane from the side and from a ¾ overhead camera over a floor grid.
 - **One review page** (`viewer.mjs`): every part's player, strobes and machine gate on tabs, for the artifact host.
 
+### The man walks his own wider base
+
+Both casts walked the one calibrated walk (figure-posing.js WALK_MINT under hero-gaits.js HERO_WALK), its feet on a
+narrow base (`stepWidth` 0.05). On the man that read as a catwalk: his ankles came onto one line as they passed, and
+his legs ran 6 cm through each other but for the swing going round the planted leg (the pass, below), a circumduction
+a man's walk does not show.
+
+- HERO_WALK_POLE (hero-gaits.js) is a walk by the hero's silhouette, over HERO_WALK. The man's is `stepWidth` 0.16:
+  his feet land 10 to 11 cm apart (men's heels about 10 to 13), his legs clear each other on their own (by 9 mm on the
+  game body, 23 mm on the realistic) and the swing goes straight through, nothing for the pass to solve. The woman, a
+  child and a chibi keep the narrow walk.
+- It is stamped with the walk at mint (motion-stamp.js stampHero reads the adult cast's silhouette, stampHeroMotion
+  `pole`), so a hero stored before keeps the walk it was written with, and a creator's own `stepWidth` stays theirs.
+
+### The realistic body rounded out
+
+REALISTIC LAWS 4 (body-relational-builds.js `ROUND_OUT`, read by layered.js realisticBuild). Read off each limb's rings
+and the body's CT stack (horizontal cuts every centimetre, the front and side silhouettes and each contour's peaks),
+the athletic builds read as an action figure's in their limbs: each joint pinched between its bellies (the man's thigh
+5.3 cm of girth under his knee just above it, hers 4.2), the wrist half the forearm's belly (14.3 cm against 29; people
+about 0.6), the forearm dropping from its belly to the wrist in a step (2.4 cm of girth per cm), a knot of the
+adductors' origin under the groin, and every limb mass joined in a tight crease.
+
+- The limbs' masses re-proportioned, data only, by mass id: the blend between a limb's masses widened (× 1.35); the
+  forearm's bone fuller at the wrist and its bellies reaching toward it; the outer quadriceps and the hamstrings reaching
+  nearer the knee, the knee's knob slimmer; the adductors' origin a long flat sheet into fuller adductors; the calf's
+  outer head higher and reaching up to the knee, its inner head lower and fuller, the soleus less wide.
+- The rhythm the bellies had is kept, not made a cylinder: the thigh's outside still peaks high (0.45 of the thigh) and
+  its inside low over the knee (0.81), the calf behind at a third of the shank, its inner head the lower.
+- Measured on his limbs: the pinch over the knee 1.8 cm (was 5.3), the wrist 18.7 cm against a 30 cm belly (0.62), the
+  forearm's steepest fall 1.5 cm per cm (was 2.4), the pinch under the knee 0.6 cm (was 1.4); hers 2.5 at the thigh's
+  top (was 4.2 over her knee), the wrist 0.59 of her forearm.
+- The knee and the elbow STITCHED (body-relational.js formSlice `stitch`): the upper segment's last ring and the lower's
+  first are one ring at the joint's plane, the same points (the shank rung 32 round, as the thigh), so the two shells
+  are one surface and the shading welds across it. Handed over by overlapping across the plane, the upper's skin tucked
+  3 mm inside past it, the two skins crossed nearly flat with each its own facets, and every knee and elbow wore a
+  jagged line in the light; a steeper tuck did not clear it (the rings stand 1.4 to 2 cm apart, so the crossing is a
+  facet wide wherever it falls). The stitched end's cap turns back into its own segment. The shared ring keeps the
+  segment's end address (the upper's last station, the lower's first), so dress and armour addressed up to a limb's end
+  (an elbow's plate) still land on it. The gi's sleeve, copied off the arm, stretches 4.8 cm over a sprint's bent elbow
+  (3.2 under the round-out alone, the sleeve smooth there): its test's bound is 5 cm, a spike still tens of centimetres.
+- Not yet: a knee bent past about 100° (the sprint's) folds behind, the thigh's skin passing through the calf's (the
+  blend of the hinge's bones, as before, where the overlap hid a little more of it): a flexion corrective, as the
+  shoulder's, is the fix. The wrist's, the shoulder's and the hip's handovers keep their own seams.
+- A realistic hero stored before keeps its laws and its limbs.
+
+### The game body's head seated on its neck
+
+HERO LAWS 16 (hero-form.js `CERVICAL_LEAN`, tiered-form.js `TIERED_OCCIPUT`, humanoid-head-fit.js's `occiput` move).
+Read on the game body's midline silhouette, the landmark head stood over the body where a person's does (its ear over
+the shoulder joint), but its neck rose all but upright (3°) under the back of the head, and the man's fitted skull was
+short behind the ear (18.5 cm long, the ear at 0.41 of its length from the back; people about 0.45): his skull's back
+stood 2.2 cm behind his nape (people 4 to 5), so in profile his head read hung forward off the neck. The anime heads
+were left as they are.
+
+- The landmark head's neck leans forward up to the skull, as the cervical column runs from C7 up into the skull's
+  base: 6° for the woman, 5° for the man (on every game body that wears the landmark head, the child forms' too).
+- The man's skull is deeper behind the ear (the fitted head's `occiput` feature, set by the tiered face): the points
+  behind the ear root move back, fading out at the ear and below it toward the jaw's angle, so the back of the skull
+  stands out and his hair follows it. The face moves no more than about a millimetre, where the fitted surface's
+  triangles over the crown and the cheek span both halves.
+- Measured on the midline: his skull now stands 4.2 cm behind his nape (was 2.2), his jaw 4.7 cm past his throat (was
+  4.9); hers 5.1 cm (was 4.3) and 6.0 cm (was 6.4).
+- A statue minted now leans its neck the same way (its carved figure is a landmark hero); the realistic body keeps its
+  own neck (realistic laws 3: `heroPlan({ seat: false })`).
+- A hero or a statue stored before keeps its laws, its neck and its skull.
+
+### The realistic neck leans up into the skull
+
+REALISTIC LAWS 3 (body-relational-builds.js `CERVICAL_NECK`, read by layered.js realisticBuild). Measured on the
+midline skin, the realistic hero's head stood where a person's does over the body (the ear over the shoulder joint; C7
+at the cervicale's height, 0.85 of the stature, the craniovertebral angle about 60°, people 50 to 55), but sat forward
+on its own neck: the neck's mass rose straight from the trunk's top, so the nape stood under the back of the skull
+(the woman's occiput 2.8 cm behind it, people 4 to 5) and her jaw jutted 7.2 cm past the throat (people 5.5 to 6.5).
+In profile the head read as hung off the front of a post.
+
+- The neck's column now leans forward from its root up to the skull, as the cervical spine runs from C7 up and forward
+  into the skull's base, and is a little fuller under it. The head stays where its fit sets it; the column's top comes
+  forward under it, by the build's own `lean` (hers further: her jaw had jutted the more). The one skin's seam and the
+  column it blends into the skull follow the neck's rings, so the head's own neck comes with it.
+- The woman's occiput now stands 4.0 to 4.3 cm behind her nape and her jaw 5.5 cm past her throat. The man's occiput
+  3.7 to 3.9 cm behind his nape (it was 3) and his jaw 4.7 cm past his throat (it was 6): a compromise, his jaw already
+  in range before.
+- A realistic hero stored before keeps its laws and its neck.
+- Fixed: the head's piercings, scalp hair and face hair were kept (layered.js) by the head's fit alone, though they are
+  pinned to faces of its skin, which also moves with the neck it is cut on and the rung it is netted at. A hero minted
+  after another of the same face under other laws or another target could wear the other's pins, and fail to compile.
+  They are now kept by the head they were grown on.
+
+### The legs pass each other: the walk's swing goes round the planted leg
+
+The hero's calibrated walk (the door's default, figure-posing.js WALK_MINT and hero-gaits.js HERO_WALK) sets the feet
+on a narrow base, about 5 cm apart, and swings each leg straight forward in its own plane. On every body the swing
+leg's calf ran through the planted one for about a third of each step (measured on the legs' own girths: up to 58 mm
+deep on the realistic woman, 52 mm on the realistic man, 57 mm on the game body's woman), the fuller thighs and the
+wider hips reading it worst.
+
+- THE PASS (hero-stride.js, heroLocomotion). People keep that line without tripping because the swing leg goes AROUND
+  the stance leg: the foot leaves its line after the lift-off (a little hip abduction, circumduction), passes wide at
+  mid-swing with the knee bent and the thigh already ahead of the upright stance thigh, and comes back onto the line
+  only late in the swing, past the planted foot, landing in front of it, the weight over the planted foot the while.
+  The walk now does that: `swingBump` times the excursion (out over the swing's first third, held through the pass,
+  in over its last), and heroLocomotion solves its size, the least that keeps the legs `swingClear` apart (8 mm) at
+  every phase of the swing, on the legs' capsules (`legGirths`, `legClearance`: each leg's radius by its bone's share,
+  read off the body's own rings; the inner thighs' contact under the groin is the body's, never a collision). On the
+  realistic woman the foot goes about 8 cm out at the pass and the legs keep the gap at every phase.
+- A walk minted now carries the dial (HERO_WALK `swingClear`, stamped with the walk) and the body's girths ride its
+  recipe's `locomotion` (layered.js), so the World page, the export and every reader compile the same walk; the solve
+  is kept per rig and body (a page compiles its clips on every read). A walk stored before passes straight through,
+  as it did.
+
+### The cervical chain: a head aim within the neck's range
+
+HERO LAWS 15 (hero-form.js; the rig's `cervical`, figure-vajra.js `CERVICAL_CAP`). A `head` pose word aims the skull's
+axis, atlas to crown, and the vajra swung the skull ALONE at the atlas in a 45° cone, the neck's column still. The
+form's own wave aimed that axis 72° forward on one key, as if it were a gaze, so every hero's wave nodded the skull the
+whole 45° at the atlas and snapped back on the next key: the neck craned down and the face looked up out of it.
+
+- The head and the neck are posed as the CERVICAL SPINE, each segment within its own range, asymmetric as the anatomy
+  is: the neck's column (C2–C7, bending at its root) flexes 35°, extends 55° and bends 35° to the side; the skull on the
+  atlas (occiput–C1) nods 12° forward, 20° back and 6° to the side. Together about 47° of flexion, 75° of extension
+  and 41° of side bend, an adult's cervical range. The axial turn keeps its split (C1–C2 carries most of a glance).
+- A head aim alone is the whole chain's: held to the chain's range in its direction and shared by each segment's share
+  of it, so a nod bends the neck more than the atlas, never the atlas alone. A neck and a head both named are each held
+  to their own. The chain reads AIMS (a direction: the words a clip or an agent writes); raw angles (`{ yaw, pitch,
+  turn }`) stay each joint's own channel, for a solver that splits the neck and the head itself (hero-aura.js's gaze),
+  so the aura's poses and every statue carve as they did.
+- The form's wave holds a small look while the hand waves: the skull tilted about 7° toward the raised hand and about
+  5° back. Laws 1 to 14 keep their wave and the cones, byte for byte; every other figure keeps the cones.
+- The layered vocabulary says what `head: {x,y,z}` is (the skull's axis, not the gaze), and `/hero-live`'s takes say
+  their looks in it.
+
+### The realistic head as one skin
+
+- REALISTIC LAWS 2: A HERO MINTED NOW WEARS ITS HEAD AS ONE SKIN (hero-one-skin.js). The relational head's field is
+  netted whole, globes and ears left out, in place of the pieces the head was cast in (the cranium, the jaw, the visage,
+  the nose, the eyes), whose hand-overs read on the World page as torn sclera at the lower lid, patches at the nose and
+  the lips, and a crescent under each eye. The skin is joined smoothly to the neck and cut off on the neck's seam ring,
+  every seam point a point of its rim. It is netted along its surface (skin-net.js `netSkin`), made sound where the net
+  pinches (`soundMesh`, `closeHoles`), and quadric-simplified (`simplifyMesh`). The eyes, the nose and the mouth keep
+  more of the faces. A layer-1 part may now be given as a mesh (station-loft.js `meshPart`), bound per point and shaded
+  by its own normals. A hero stored under laws 1 keeps its pieces, byte for byte.
+- THE LIPS are cut exactly on their line: each face across it is split there and the points on it doubled, the upper
+  lip's the head's and the lower's the jaw's, so the jaw bone parts them. Each lip is turned in along the cut, and a
+  closed mouth bag sits behind them (`mouth`). A collapse never carries a point across the line, and a point is bound
+  by its side of the cut.
+- THE EYES: each globe is its own closed part (`globeR`, `globeL`), built as rings about its gaze set on its field. The
+  pupil's and the iris's edges are rings of their own, so they read crisp at any count. The skin texture paints the
+  whole skin, and the eyes' paint no longer takes the lids' margins (where the crescents came from).
+- THE FACE RIG on one skin (`oneSkinFollow`): each action moves the rest skin's own points, never re-nets it, so its
+  faces stay. The muscles' beads carry the face. The lids turn about the globe's centre as far as the eye rig's own
+  margins moved: a blink shuts them over the globe, a raised brow lifts the upper lid, a smile's squint the lower. The
+  hair, the brows, the lashes, the beard and the piercings ride the skin (pinned to its faces).
+- A PIPE, NOT A SET OF HEADS: rolled faces no eye has seen (both poles, populations the composer reads differently)
+  each pass the machine gates unattended (hero-one-skin.deep.test.js). The skin, the mouth and the globes are sound,
+  the rim lies on the seam ring, the lips are doubled along the cut, the budget is held, and the head has two open rims
+  and no others. The sweep found what the hand-picked faces hid, now fixed. A rim the net's pinches left touching
+  itself (at the nostrils, the canthi, the sockets) was traced wrong, so its hole stayed open or its fan laid a third
+  face on an edge; it is split into simple loops now (skin-net.js `boundaryLoops`). Crossings near the mouth's
+  corners landed on one spot (welded now). A collapse could leave a face flat against the seam ring's straight front
+  (refused now).
+- The face roll's hairline is held to the skin's own range (face-compose.js): the male band reached under the dermis's
+  0.8, and a face rolled there was refused at mint. The dice are drawn as before, so every other face is as it was.
+- THE HEAD'S BUDGET BY ITS SIZE ON SCREEN (laws 2). The hero's `target` sets the head's rung (a head 200 px tall and
+  over L2, 80 and over L1, under that L0), and the whole head follows it, not just the scalp's blades. The skin is
+  simplified to 30k, 18k or 8k faces (hero-one-skin.js `ONE_SKIN_RUNGS`), and the globes are lighter at L0. The coats
+  under the scalp's blades and the beard's are simplified to the rung's count (hero-head-layers.js `HEAD_BUDGET`). The
+  beard is on the scalp's own rung, not one finer, and the brows are shorter blades, with fewer hairs and no twins at
+  L0. A bearded head drawn for 1080p third-person falls from 124k faces to 51k, and an untargeted one from 191k to
+  118k. A hero drawn for no target keeps its skin whole (the eyes gate's). The hair is lit as one volume about the skin
+  it rides: the one skin has no cranium, and the hair had been lit facet by facet. The scalp's strips lose their faces
+  without area (a blade's segment of no length), so the hair passes its audit. The skin's count rides the head's fit,
+  so what is pinned to it is never worn on another count's faces.
+- THE LIDS' CREASE AND THE BLINK. The upper lid's fold is thinner than a 1.5 mm cell, and the net pinched it into a
+  ragged crease. The skin is now netted at 1 mm (1.2 at L1; L0's head is too small to show it). To afford that, the
+  rim's untangle reads only the faces about the seam ring: it had read the whole head, smoothing the nostrils and
+  the sockets that rightly face its middle. The simplifier also solves its quadric inline. A lid is now its margin's
+  by the distance ALONG the skin from the margin (`oneSkinFollow`'s `faces`): over the lid, into its crease and out
+  over the fold that distance only grows, where the elevation and the radius fold back. The lid turns over the globe
+  and slides under the fold, which stays. The lower lid is held to its margin's radius, so the cheek in front of it is
+  never swung up across the eye. A lid's points are the lid's for every action, so a smile's beads never draw the
+  upper lid down. The beads carry what the lids leave (the fold follows a raised brow, with no tear), and the settle
+  reaches a tenth as far in the eye's footprint, where the fold's layers lie closer than its reach.
+- A clip's keys on the realistic hero carry the face as the landmark head's do (`face: 'smile'`, a word or its
+  channels, and the key's `jaw`), with `head: 'relational'` named or not. They export as morph weights in the clip
+  beside its bones, so a wave can smile and a start can raise the brows on the same beat. Before this, a named relational
+  head refused the key, and its tracks resolved through the anime head's words.
+- THE LASHES CLOSE WITH THE LIDS (relational-face-rig.js `lashBlades`, `turnLashes`). A lash rode the skin by the same
+  Gaussian carry as the brows, and its root's nearest carriers were the fold's: the lid's margin lies within the globe's
+  radius of its centre, where the socket's still points carry nothing. So a blink left the lashes standing up through
+  the shut lid. Each lash is now turned about its eye's centre as its root on the margin turns (the root riding the
+  face's own points), so a shut upper lash points down and out with its lid. The face store's version is 2, so a rig
+  solved before is solved again.
+- THE SHUT LID SHADED AS A LID (scene-gltf.js, the skinned export under the lit handoff). A morph target carried its
+  positions alone, so the skin a blink rolls out from under the fold over the eye kept the normals it had there, facing
+  down and in, and the shut lid read as a dark band across the eye (a ray from the front meets the skin everywhere
+  across the shut eye: the lid was there, shaded as the fold). Every target now carries its NORMAL: the smooth normals
+  of its shape at full weight less the rest's, sparse, the correctives' too (a reader takes a target's missing NORMAL
+  for the rest's). The unlit export writes what it wrote. Still open: the skin's colour near the margin is stretched
+  across the shut lid, and a fleck of the iris shows at the lower margin.
+- `/hero-live`'s ambient blink keeps the wall clock: on a slow frame rate a blink stretched over as many frames as it
+  spanned, and the eyes read shut through a take.
+- `/hero-live`: the hero played as an engine gets it. Each variant (bare, an armour style, a round of its words) is
+  minted through the door and exported as the skinned GLB with every clip, then played in a three.js page beside the
+  mint's read: orbit, the takes, a scrubber, every morph channel live or held by hand, wireframe, bones. `shot.mjs` tiles
+  frames at set moments into a sheet for an agent to read; `--publish` packs the page for an artifact host.
+- Still open: the shut lid ripples a little; a full smile's cheek stands over the lower iris, as the face's field
+  draws it.
+
+### The realistic hero's face: rolled, bounded, aimed
+
+- A REALISTIC HERO WEARS A COMPOSED FACE (face-compose.js, from face harmony): `face: { seed?, ethnicity?, want?,
+  character?, accent?, nose?, beauty?, age? }` on the realistic body's relational head. Minted with no face, it ROLLS
+  one: the seed, the ethnicity (every base population and the mixed) and, with no `cast`, the sex, stamped into the
+  record so it rebuilds as it was (layered.js `withRolledFace`). Named words BOUND the roll (an ethnicity, a list of
+  them for a mix, a cast) and the rest TUNE it. The baseline is HEROIC (`HERO_FACE`): the face drawn toward its
+  population's harmonious mean (beauty 0.75), at prime age. A remake keeps its stamped face unless the order names one.
+- AIMED: `want: { feature: shape }` takes the shapes named in place of the roll's (composeFace's new `want`); every
+  feature still rolls, so the rest of the face is the seed's and a face liked can be kept and aimed piece by piece.
+- On every read the face's relations and eyes shape the relational head (on the pole's own tune: solving one per face
+  costs most of a minute), and its skin lies under the hero's own `skin`: the ancestry's tone, undertone and hair
+  colour, the hairline, marks, a beard, the years. The face rides `recipe.headFit`, so an export's skin charts the head
+  the face shaped. The readout's `hero.realisticFace` says what was rolled (the picks, the character, the ancestry).
+  The composed cut, brows, lashes and piercings are read there but not yet grown on the hero. A hero without a face, and
+  every other form, is as it was.
+
+### The tiered game body: the default at mint
+
+- THE GAME BODY IS THE TIERED FORM: a hero minted with no `form` is stamped `form: 'tiered'` (motion-stamp.js
+  `withDefaultForm`, beside the calibrated walk), at the door, on a design run's remake of a new figure, and on a world's
+  new inline hero; every build and cast takes it (heroic, brute, lithe, stout, canonical, child, chibi, both poles). A
+  hero stored without a form keeps the body it was minted on, byte for byte, and a remake keeps the stored hero's form.
+  The body before it is a word now, `form: 'classic'`, and is deprecated with the streamlined core: still read, and a
+  hero on it (named, or stored without a form) is told so on its readout's warnings.
+- THE TIERED BODY IS SHADED SMOOTH wherever it is drawn: under the character light too (the anime head's look), at the
+  tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
+  35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
+  study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE ROUND CHILD (hero laws 14, anime-looks.js `CHILD_FACE.round`, tiered-form.js `CHILD_SHADE`): the child's
+  jaw and chin rounder, and its figure shaded round so its facets don't read as folds. The chin is broader, shorter
+  and set back, the jaw broad with its corner high, and the lower cheeks full over the jaw line. The boy's chin is no
+  longer narrowed, which drew it to a point under laws 13. Its body and clothes blend across 85° (the tiered body's
+  70°), and its anime face leans 0.85 of the way toward the head's capsule (0.5 on any other face), so the cheeks and
+  the jaw take the light as one round form. Laws 13 children are as they were. The body study frames a large head
+  (the chibi's or the child's) by its own height.
+- THE CHILD FORM (hero laws 13, hero-form.js `CHILD_FORM`; anime-looks.js `CHILD_FACE`): the child drawn as the anime
+  child reads, on the chibi form's base. Its limbs are cylinders, it has no pectoral, mitten hands, round shoes and a
+  short neck. It is rounder: a barrel torso (the waist as wide as the chest, each section toward round) and fuller
+  arms. Its shoulders are narrower, and with a larger head on shorter legs it stands about three and three-quarter
+  heads tall. Its anime face is the child's, under any look or the hero's own words: a short lower face, full cheeks,
+  a small set-back chin, a button nose, a broader head, and eyes set lower, opened taller and with larger irises, a
+  narrower mouth and a thinner brow. On the boy, the male base's long jaw and forward chin are brought toward the
+  female base's. The bare `child` word is now the child build, as `chibi` became the chibi build under laws 6, and a
+  child minted without a head wears the anime head, as a chibi does. Its dress is the chibi's few pieces.
+- THE ADULT-FORM CHIBI, PINNED (`chibi-adult-form.char.test.js`): the laws 12 chibi's record, plan and recipe, bare,
+  in the ranger kit and in the knight's plate, byte for byte; laws 13 builds it the same.
+- THE CHIBI FORM (hero laws 12, hero-form.js `CHIBI_FORM`): the chibi reads as simple solids, not a small adult.
+  Its limbs are cylinders: no muscle shaping, each limb's rings drawn most of the way to their mean radius, the ankle
+  as full as the calf and the knee as full as the thigh. Its chest has no pectoral layer. Its head is larger and its
+  legs, arms and neck shorter, so it stands about two and a half heads tall with its hands at its hips. Its hands are
+  small mittens and its shoes short and round. Another cast is as it was.
+- THE CHIBI'S DRESS (hero laws 12, hero-dress.js `CHIBI_DRESS`): a body that small cannot carry every piece, so the
+  chibi wears only the pieces that say what it is. The ranger kit is its belt and its bossed pauldron, drawn bolder
+  and thicker. An armour build keeps each family's own few pieces (plate: the pauldrons, the breastplate, the greaves;
+  lamellar: the dō and the greaves; the hard-suit: the cuirass, the pauldrons, the boots), never a helm over the face,
+  with fewer, larger lames and no ornament. The build's own dials still win. The plan says `style.body: 'chibi'`, so
+  what it wears reads it; no other plan says it, and every other kit and suit is as it was.
+- THE CHIBI'S CHEST (hero laws 11, hero-form.js `CHIBI_CHEST`): the chibi's chest is wider (×1.25 over the build's)
+  and deeper (×1.3). It meets the shoulder's ring, which the shoulders' span sets, where laws 6 to 10 stepped out to
+  it in a shelf two centimetres tall, front and back. It stands as deep as the belly under it, where it was pinched
+  behind the shelf. Another cast is as it was.
+- A CHIBI WEARS THE ANIME HEAD at mint (motion-stamp.js `withDefaultForm`): a chibi minted on the tiered body without
+  a head of its own is stamped `head: 'anime'`. It keeps the landmark head when it says a word only that head reads
+  (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). A stored chibi keeps its head.
+- THE WEB'S ARMPIT (hero laws 10, tiered-form.js `WEB_ARMPIT`): the fold under a raised arm closed. The web's
+  under-arm slots (its side, back and front toward the trunk) follow the arm more than the rest of their ring, so a
+  raised arm stretches that side instead of folding it back behind the armpit. The cone's slots turn half a slot, off the fold's own axis, where its front and
+  back slots creased. It reaches less far toward the neck, and its weights hand the collarbone to the fold over its
+  length rather than at once. Its rings past the ball turn the in-ball ring onto the arm's way, so it does not twist
+  where it enters the arm, and sit a little inside the arm. Its upper slots stay with the trunk over the chest, and
+  its base sits deeper in the torso. Measured on the male with both arms up and forward: no face of the cone or the
+  web folds over, where laws 9 folded one. Laws 9 rows are as they were.
+- THE SHOULDER CONE (hero laws 9, tiered-form.js `SHOULDER_CONE`): the web's inner fairing, in its group and skinned as
+  it is (the collarbone at its base, the fold at the ball), its rings square to the way from the ball toward the neck's
+  root: from one hidden in the ball to a wide, flattened base held inside the torso's own section. Its upper half rides
+  just over the torso's skin where it would sink under it, so the torso's faceted shoulder corner (the pectoral's top,
+  the trapezius' slope, the shoulder blade) runs into the ball closed; its sides stay under the skin and its underside
+  draws in toward its centre, so it never spans the armpit. Past the ball it runs on INTO THE ARM, round the arm's own
+  axis inside the web at rest, to inside the arm's belly ring, its weights handing the fold to the arm more slowly than
+  the web's: a raised arm's root, which pulled away from the torso's shoulder corner in a V, stays joined to it. The
+  ball is drawn in under the web and the cone (its centre kept), so a raised arm no longer shows it as a jagged band;
+  and the web hugs the arm before it ends (its last ring before the arm's on the arm's own way down) where it met the
+  arm at an angle and showed the meeting as a crease. A small fold remains behind a raised arm's armpit.
+- THE SHOULDER WEB (hero laws 8, tiered-form.js `SHOULDER_WEB`): a sleeve of skin in the arm's own colour group (the
+  top's tone under a shirt, the skin on a bare arm) over the tiered shoulder's ball, from inside the torso's shoulder
+  through the ball's equator to the arm's own belly ring, where it ends on the arm's points and welds into one surface
+  with it. It rides the collarbone, the shoulder's fold and the arm by ring, so it stretches as the arm swings, and it
+  splits with the arm's chain at a target that splits the arm. The ball reads as the deltoid's swell instead of a knob;
+  a tiered hero stamped before keeps its ball bare.
+- THE TIERED LIMB END (hero laws 7, tiered-form.js `tieredJoints` `respace`): a lofted limb stopped short of its bridge
+  (the thigh, at the knee) carries its shaping rings with its end, each by its share of the run, so its last span keeps
+  its length. Laws 1 to 6 left them, and the man's thigh ended in a centimetre-long span: a knight's knee guard built
+  over it splayed past half a metre on the default body. A tiered hero stamped before keeps its thigh.
+- THE TIERED FORM HOLDS THE BUST'S CEILING (hero-form.js `bustCeilingError`): it builds its plan bare and profiles the
+  bust after, so a runaway `body.bust` passed it silently; it is refused by the same words heroPlan says. And its plan
+  carries no −0 (a stored plan reads it back as 0, so a regenerated plan matched the stored one only by its bytes).
+- `core: 'streamlined'` IS DEPRECATED: still read on a hero that names it (the classic body carries it; a new hero that
+  names it is not stamped tiered), and said on its readout's warnings; drop `/hero/core` for the game body.
+- A FLAT CAP CLOSES ITS PART (station-loft.js): each cap now winds against the ring edges it shares with the bands, the
+  bands alone judged by their geometry. A cap whose point sits on its ring's own plane (the tiered form's joints and
+  bridges, where each limb ends on the ring the bridge begins on) had been wound by a coin toss, eight to sixteen faces
+  wound against their neighbours on the upper arms, forearms, thighs, hands and every bridge; every pointed cap winds as
+  it did.
+- A HEELED STANCE PASSES THE RIG GATE (station-loft-rig.js `auditRig`): the planted toe is read on the shoe's forepart
+  sole, `stance.toe` up, where the solver stands it; a footwear card with a heel on the game body (pumps, stilettos)
+  was refused at mint with a planted drift of exactly that lift.
+- THE CHIBI (hero laws 6, hero-form.js `CHIBI`, `lawCast`): the bare `chibi` word reads as the chibi build on the male
+  pole (its child radii), with the head larger (`headScale` × 1.15 over the build's), the arms thinner (× 0.9 over the
+  build's radius) and the neck that carries the head fuller (× 1.45). Laws 1 to 5 stood the bare word on the adult
+  radii, a man's arms and a head no bigger than his; a chibi stamped under them keeps it.
+
 ### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
 
 The realistic body depicts adults; the wearable libraries and the tailor share one set of primitives; the realistic
@@ -1080,6 +2266,435 @@ body catches up to what the authored one wears, and its principles are shared ba
   line a top worn out at the hip, kept on the realistic body, is moved on the game body; the stage now judges by the
   body the hero is on. Down the leg the bodies agree within about two hundredths. The measuring found a cropped woven
   top refused on the game body (its buttons placed below its window); its row now starts on it.
+- ONE CANON ACROSS THE WEARABLES: the footwear, handwear and plating libraries' principles each end on the same law, the
+  canon is the outfit's (the dressed outline's western | anime): no library carries a canon of its own, and what each
+  canon asks of its pieces is the garment principles' (a boot, a gauntlet's cuff, plates standing out among the anime
+  flair pieces; the feet in the value gradient). The outline read measures that gradient now (`values: { chest,
+  feet }`, the shoe's L* against the chest's front) and the anime canon reads it (`gradient`: dark shoes under a light
+  chest).
+- WHAT THE GAME BODY WEARS, SAID: the authored body wears the handwear library's gloves (its own adapter) and every
+  footwear card as plain boots, shoes or sandals; the tailoring words, the plated suits and the footwear cards' own cut
+  are the realistic body's. The hero readout now says so (`realisticOnly`) where it had worn them plain or dropped them
+  in silence; nothing refused.
+- FOOTWEAR CARDS ON THE GAME BODY: every footwear library card past the plain boots, shoes and sandals is the library's
+  on the authored body's structured core too, through an authored foot adapter (`footwear/adapters/authored.js`). The
+  plan keeps the bare foot (hero-foot.js, the same proportions) under the card (`heroPlan({ feet: 'bare' })`); the
+  library reads it up to the toe base, the five toes as one block from that ring on, the leather stood off past the bare
+  foot near each ring; a heeled card stands the rig in its stance, as on the realistic body. A closed shoe's foot is not
+  drawn (the game foot's boxy sections stood past the toe cap the library tucks the leather under); a sandal's straps and
+  sole are on the bare foot. The library takes an adapter's `facets` (a share of its reference resolution: sole and
+  heel outlines, the toe cap, the wraps), the game body's half; absent, as drawn, the realistic pins unchanged. The
+  plain words and the outfit cards' `feet` keep the kernel's shoe, byte for byte; the streamlined core keeps the plain
+  base, said in the readout.
+
+### Unified character: the face harmony's work in the realistic character depictor
+
+- PIERCINGS ON THE HERO (polygonizer/hero-head-layers.js `heroJewellery`): a realistic hero's composed face's piercings
+  (face-compose.js's roll) are grown on its head: the head rebuilt from its fit, pierced on its own chart
+  (epidermis/dermal-jewel.js), mapped into the hero's frame and carried as a pinned part on the visage (`jewel`; the
+  lower lip's labret and lip ring `jewelJaw`, on a face the jaw alone carries, so they follow it), each piece's group its
+  metal's or its gem's (`JewelGold`, `GemRuby` …) with its colour in the palette under the hero's own. A hero with no
+  face, or a face that rolled none, wears none. The readout's `realisticFace.shown` names what the hero wears of its
+  face (its hair, brows, lashes, a styled beard, its piercings); `notYet` is gone, everything it listed now grown.
+- THE SCALP ON THE HERO, A GRASS HAT (hero-head-layers.js `heroHair`; dermal-hair.js `grassHat`, `bladeOf`,
+  `GRASS_HAT`): the stylized meadow's way (vegetation/grass.js) on a head. The scalp is planted as a lawn, a blade from
+  a root every few millimetres (growScalp's strands at that gap: combed down the head, cut by the stylist, hung by
+  their weight, a curl's wound by the lock's keratin hand), each blade a wedge tapering to a point that keeps its
+  strand's shape over the top of the skull and thins along its fall. Dense at the roots, the blades overlap into one
+  dark mass, and their ends read as the strands; coloured up a ramp root to tip (`HairRoot`, `HairShade`, `Hair`,
+  `HairTip` from the hair's colour as the eye averages it), a streak's blades `HairStreak`. Open, double-sided strips,
+  pinned to the visage where the head alone carries it. The cut the face rolled, else its ancestry's with the face's
+  hint over it; a buzz grows none (the painted scalp is the hair). A hero with no face wears none.
+- THE TUFT'S BASE, A COAT (hero-head-layers.js `HAT_CAP`; dermal-hair.js `partDistance`): under the blades, the skin
+  coated half a millimetre deep in the hair's root colour wherever the dermis grows scalp hair (`hairCap`, `HairRoot`:
+  the hairline, a peak and a loss its edge, a bald crown left bare), the groom's part left open so it reads; under a
+  styled beard the same where its locks grow (`hairBeardCoat`, the chin's `hairBeardCoatJaw`, `BeardRoot`). As a
+  tuft's base reads solid, no scalp shows between the blades on a head that has not lost its hair, on any renderer
+  (the coat is geometry in the hair's colour, so it holds where a renderer draws no skin texture).
+- THE HAIR'S DEPICTION AND ITS SCORE (new epidermis/hair-depict.js `depictHair`, `stripMesh`, `capMesh`; new
+  epidermis/hair-score.js `scoreHair`, `rasterize`, `strandMesh`): the grass hat's blades and its coat as plain meshes
+  in the chart's frame, which the hero pins (hero-head-layers.js `pinMesh`) and the depiction solver measures: on the
+  head it grows on, from the front, the lateral, the back and the top, its COVERAGE (the hair-bearing scalp seen bare),
+  its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
+  (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
+  `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE FACE IN PLAY (worlds/world-kinds.js; channels/rig-preview.js; channels/controllable/index.js; world-scene.js
+  `stateFace`; relational-face-rig.js `MOVES`): the realistic hero's face blinks and acts on the World page and in a
+  level, where it rode an export alone. The page's pack carries the face's rows (16-bit steps of each part's own scale,
+  about a micron, `quantMorph`; an export keeps its floats) and its tracks; the clip preview and the controllable player
+  build morph targets on the faced bone meshes (the neutral face, each target's offsets, as the GLB writes them) and set
+  their weights each frame from the playing clip's facial track, the ambient blink (the authored face with its own
+  blinks) over the clips that hold the face, on the page's clock or the world's. A hero in a level plays each state's
+  clip's track under the state's name. A point no target moves 0.1 mm carries no row (the scalp's far hair), which trims
+  the export too. A page or a level without a realistic hero emits none of it, byte-identical; one with it resolves the
+  face's rig on its first build (a minute or two, once per head) and carries its rows.
+  The hero in a level wears its skin too (the controllable player draws a painted body's parts on its atlas, texel ×
+  its lit colour, as the World page draws it), where it played flat grey.
+  What a clip acts reaches the face (relational-face-rig.js `relationalWeights`; hero-react.js `act`; hero-face-action.js
+  `react`): the realistic face reads the brow an acted take draws (its tilt: set, the brows drawn down and together;
+  worried, lifted), so a strike's kiai or a jump's effort shows on it, where only its lids moved; and a blow taken acts a
+  face, a wince or a grit a frame after the impact, the lids squeezed to the half lid at most, back on the authored face
+  as the body gives back (every hero's reactions, the anime and landmark heads' too). In play each one reaches the
+  state that plays it (a swing, a stagger, a jump).
+  The face's rig is solved once per machine (new polygonizer/relational-face-store.js; hero-relational-head.js
+  `faceOnly`; scripts/mojulo-paths.mjs `MOJULO_FACE_RIG_DIR`): its builds make the face alone (the cranium and the jaw,
+  which it keeps as stored, are no longer cast five times over), its rows byte-identical, and a head's solved shapes
+  are kept on disk under the mojulo home (keyed on the face the figure carries, the package version and a store
+  version; the newest two dozen kept), so a realistic hero's page or level after a restart reads them back in a blink
+  where it rebuilt them for most of a minute.
+- THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
+  `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
+  ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and
+  the landmark heads' do: `blink`, `blinkLeft`, `blinkRight`, `smile`, `browRaise`, `browLower`, each the head rebuilt
+  at its own fit with one of its actions at full (the lids, the zygomaticus, the frontalis, the corrugator) less the
+  head at rest; the face alone rebuilt (the visage, the nose, the eyes), the cranium and the jaw under it as stored.
+  What rides the face moves as the skin under it moves (a Gaussian of the face's points near each, `CARRY`), not as the
+  one face it is pinned to tilts: a blink carries its lashes, a raised brow its hairs, a smile the beard on the cheeks,
+  and the scalp's hair stays. A blink also sinks the globe behind the shut lid; the smile keeps a seventh of the head's
+  squint (`smileEyes`). The weights are the western expression channels' (the door's `expression`, a clip key's words,
+  the tracks), so the realistic hero blinks and acts as the landmark hero does; the jaw opens by its bone. A rig costs
+  a few head builds (~2 min, once per head; the World page never asks: it plays no face morphs yet).
+- THE EYE'S SURROUND (hero-relational-head.js `eyeGlobeIn`, `eyeDeflate`, `eyeAround`; the relational head re-pinned):
+  within an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look
+  sees it, easing back out to the skin, and the cranium let down further about each globe. The lower lid is a ledge
+  over the globe, and the face sheet, cast along the face's look, landed now on the ledge's front, now on the globe
+  behind it: its faces bridging the two cut in front of the eye as spikes along the lower lid (on every face, worse in
+  a smile, hiding the iris), and the cranium showed through at the lid's crease and the inner corner.
+- A REALISTIC HERO DRAWN FOR A TARGET COMPILES (layered.js `targetPlan`): the target's density split (era/cast-density.js
+  `densityPlan`, halving a part's slots where its outline misses) is not laid on the realistic body, whose rings give
+  every point themselves: the halved slots named points no ring carried, and any `target` failed at compile
+  (`torso/st0.h0R missing`). Its rings are its own; its target reads the hair's rung, as it did.
+- THE LIGHT TONES AS FAIR SKIN (dermal-map.js `toneAlbedo`'s light knee, `LIGHT`; dermal.test.js re-pinned): the
+  lightest Monk swatches photograph near-white and grey-yellow (MST 1 … 3 at a luminance of ~0.81 … 0.86, paper's),
+  and were taken as the skin's albedo as they are, so a fair hero read as plaster. Above MST 5's luminance a swatch's
+  rise is now pressed to 0.15 of itself (MST 1 … 4 at ~0.56 … 0.58, measured fair skin's ~0.5 … 0.6) and its colour
+  drawn toward a measured fair albedo's red slope (`#dfb8a0`'s) as it nears white, the swatches' order kept; a hex tone the same. MST 5
+  down to the deep knee are their swatches, as before. Every realistic hero of a light tone, a minted one too (its
+  skin regenerates), reads darker and warmer: the default presets' MST 3 among them.
+- THE SKIN ON THE WORLD PAGE (worlds/world-kinds.js; dermal-hero.js `heroSkinPaint`'s `light`): the realistic hero's
+  dermal skin (the body's and the head's maps on one atlas) was an export's alone; the page drew one flat skin colour.
+  The page now wears it too, on its static faces (each lit by its fill over the skin's flat colour, so the texel's
+  colour is lit, not tinted twice) and on its clips' pack, at the page's own sizes (`PAGE_SKIN`: the body's page 1024
+  a side, the head's 2048, so a mole or a birthmark reads at a face's distance; the export's own unchanged; the atlas as
+  wide as its wider page, a narrower one beside white): the skin's tone and grain, the lips, the marks, the painted hair and
+  stubble, and age's fine lines. The atlas's corners are written to a tenth of a texel. A realistic hero's page
+  takes a few seconds more to resolve once (the World page caches it) and carries the atlas and its corners.
+  The body study's `world-skin.mjs` photographs the page itself, the face close and the whole figure.
+- THE BROWS AS A FINE LAWN (hero-head-layers.js `BROW_BLADE`): every brow hair its own thin blade (0.5 mm at its root
+  to a point; the cards gathered hairs 2.5 mm apart into boxes 1.2 mm wide, read as bars), REPEATED once by a seeded
+  die (a twin a fraction of a millimetre across, lifted, shorter) so the brow reads full; its root darker down the
+  hair's ramp (`BrowRoot`, `Brow`), its colour the hair's with its grey, lit as the hair is, as one volume. The lashes
+  a fine open blade each where they were boxes, paying for it: the brows and lashes together cost fewer faces than
+  before (the brows ~12,000, the lashes ~1,400, where they were ~4,900 and ~9,200).
+- THE CRANIUM UNDER A DEEP-SET EYE (hero-relational-head.js; the relational head re-pinned): under the visage the
+  cranium is let down from the deeper of the bare head and the face itself. A rolled face whose eyes sit deeper than
+  the bare head's reach had the cranium stand in front of the globe, a pale sheet over a shut-looking eye.
+- THE HAIR LIT AS ONE VOLUME (station-loft-shade.js `volumeNormals`, a part's `volume: { heart, up }`; the hero's
+  hair, its coat, the beard and the beard's coat: hero-head-layers.js `HAIR_VOLUME`): each corner's shading normal bent
+  out from the head's centre (the cranium's, where it stands) and a fifth toward the sky, the grass's way
+  (vegetation/grass.js volumeLit), so the blades shade as one soft mass, both sides alike, where each lit by its own
+  facing read as flakes. The hair's ramp root to tip gentler (`HAIR_RAMP` 0.7 … 1.12, from 0.45 … 1.3): the bands no
+  longer interleave into a patchwork across the blades. A part without a `volume` is lit as it was.
+- THE BEARD GREYS AT THE ROOT (hero-head-layers.js `BEARD_ROOT`): the beard's root and its coat are its tip's colour,
+  the grey in it, darkened (0.7), where they were the un-greyed colour (×0.6): an old beard read as grey flecks on
+  black.
+- THE DEPICTION SOLVER (new epidermis/hair-solve.js `solveClass`, `candidatesFor`, `prepareCase`; hair-depict.js
+  `hairClass`, `HAIR_DEPICTION`, `depictionOf`): how a groom is cut into the hat's blades is a CLASS's, never a style's
+  own: `rope` (locs, rows), `tied` (a tail, a braid, a bun), `coil`, `standing` (gel, a crest), `cropped`, `short`,
+  `long`. The solver scores each candidate (the blades' width, the turn a kept point needs, how flat a short blade
+  lies, the most spans a blade keeps) on every style of the class and keeps the one every style passes on (no bald
+  spot; the outline within a point of the rung's own) that reads best for its faces; its rows are `HAIR_DEPICTION`,
+  which the hero's hair wears, and a new style is covered by its class's row. The dermis study's `hair-solve.mjs` runs
+  it over the catalog; `hair-sweep.mjs --raw` draws the rung without it.
+- THE BLADE'S RULES (dermal-hair.js `bladeOf`'s `lie`, `cap`, `rope`; `hatStrands`, `hatBlades`, `ROPE_TAILS`): a
+  short blade LIES along the comb, its rise off the head pressed into the head's tangent, its length kept, fading out
+  over 6 … 12 cm (a standing short blade showed its edge: a crop read stippled); a loc's, a row's and a braid's
+  blades are ROPES, as wide to their last span as at the tie; a coil's blade keeps at most `cap` spans. The hat's
+  strands grow once (`hatStrands`) for every way of cutting them (`hatBlades`); a gathered strand names its tail.
+- THE HAT'S LADDER, THE GRASS'S TRICK (dermal-hair.js `HAIR_LADDER`, `hairLevel`; layered.js `heroHairLevel`): fewer
+  blades the smaller the head stands on screen, the survivors wider so the cover holds, as a tuft thins: `L2` every
+  blade (a close-up), `L1` a third of them rooted 1/√⅓ as far apart and wider again (a sixth of L2's faces, the
+  default), `L0` one broad wedge a comb guide (the outline). The rung is the head's height in pixels under the hero's
+  `target` (era/target.js), L1 for a hero drawn for none; the beard a rung finer than the scalp. The readout's
+  `realisticFace.hairLevel` says which.
+- THE FACE'S HAIR ON THE HERO (hero-head-layers.js `heroFaceHair`): a styled beard's locks (dermal-hair.js
+  growBodyHair) as a lawn as the scalp's, a wedge a few millimetres apart (`BeardRoot`, `Beard`), those under the lip
+  line on a face the jaw alone carries (`hairBeardJaw`), the moustache's and the cheeks' the head's (`hairBeard`); the
+  brows and the lashes (see THE BROWS AS A FINE LAWN) from the epidermis, its grooms the ancestry's with the
+  composed face's over them; `Beard` (its grey a third again), `Brow`, `Lash`. Stubble stays the skin's paint. The
+  layers' colours lie over the plan's defaults and under the hero's own `palette` (a named `Hair` wins).
+- THE FACE'S OWN FIT (layered.js `withFaceFit`, the mint's; hero-relational-head.js `relationalHeadRecipe`'s `tune`):
+  the mint solves the realistic face's own tune for its composed relations (head-relational.js `solveTune`, ~45 s,
+  once) and stamps it beside its words, `face.fit: { tune, of }` (`of` the relations' fingerprint), so the hero's head
+  is the face the studies show, not the face on its pole's tune. It rides `headFit.tune`, so the skin (dermal-hero.js),
+  the piercings and the hair chart the same head. A face whose words change since reads a stamp not its own and wears
+  the pole's tune until it is minted again (the readout's `realisticFace.fit` says which). A hero minted before keeps
+  the pole's tune, byte for byte, until reminted.
+- dermal-hair.js `growScalp`'s `strands: false`: the guides and their cards alone, without the strands a render draws
+  (the ladder's outline rung).
+- dermal-jewel.js: each face of the mesh names its piece (`mesh.piece`); the wires are capped and the balls fanned to a
+  single pole point, so every piece is a closed solid with no collapsed face (the hero's audit).
+- dermal-hero.js: what the head wears of its own (`jewel`, `jewelJaw`, the hair to come) never counts as a garment over
+  the body's skin.
+
+### Face harmony: the female differentiated, the look standard, the lips' grain
+
+- The dermis study's lineup takes subjects of its own (`--faces '[{ label, sex, relations, eyes }]'`, the wave's tune
+  solved for each relation set), so a spike's relation sets read side by side, textured and lit; `--lineup-crop face`
+  frames the face from the brow to the chin. The first study: the relational head's female pole differs from the male
+  in the jaw's width and little else (the nose's root and dorsum, the chin's shape, the eyes' size are the male's), and
+  relations alone move the eyes, the lips and the brow but cannot reach the nose's width, the chin's point or the lower
+  face's taper.
+- The relational head's HARMONIC SHAPES, relations the canon's ratios did not reach (head-relational.js `RELATIONS`):
+  `chinWidth` and `chinRound` (the chin's width and its point), `dorsum` (the nose's bridge and root), `gonionDrop`
+  (the jaw's corner), `cheeks` (the cheek's fullness), `lowerCheek` (the lower cheek bowed out over the jaw's body: a softer outline from
+  the cheekbone to the chin), `masseter` (the jaw's muscle), `forehead` (the frontal bulb).
+  Each is an offset from the canon, 0 the canon's own: a face moves from a natural one and never starts from a carved
+  one (no hollowed cheek by default), and both poles' heads are byte for byte as pinned.
+- face-harmony.js: `dimorphRelations(d)`, the relations `d` of the way from the male canon (0) to the female pole (1),
+  −0.25 … 1.5 (a Nordic heroine's bone part of the way, her features the female's); `harmonyMeasures(head)`, calipers
+  on the skin for the chin's width and its fall 10 mm out, the bridge's and the root's width, and the lower face's
+  taper (the width at the mouth and at the gonions over the zygions'). A reading, never a refusal.
+- THE FEMALE POLE moved (approved on the eyes gate): beyond the canon's sex cues, a shorter, less projected nose with a
+  finer bridge and a narrower base, larger eyes, fuller and more forward lips over a finer philtrum, a lighter brow, a
+  narrower jaw and a narrower, pointed chin that no longer recedes, the cheeks fuller and the lower cheek bowed out (a
+  soft outline). Its tune re-solved; the female head re-pinned, the male's unmoved. The hero's eye part closes its
+  outer rings in where they would cast past the face's side (a wider eye on a narrower face), eased over its neighbours.
+- THE FACE COMPOSER (face-compose.js `composeFace({ sex, bucket, seed, character?, accent? })`): many faces that each
+  hold together, never one face under different hair. Per harmonic feature (the chin, the nose, the lips, the cheeks,
+  the outline, the eyes) a few named shapes (`FACE_SHAPES`), each offsets to the relations over the sex's pole and a
+  point on two character axes (soft ↔ angular, delicate ↔ strong); a face rolls its point and takes the shapes near it,
+  each pushed a seeded share, and may carry one accent taken from far off (a strong jaw under fine features). A bucket
+  (`FACE_BUCKETS`) names the egocube ancestries its tone and hair are rolled from; `western` first. The dermis study's
+  `--faces` subjects may name an ancestry and a seed.
+- The composer's PROPORTIONS (`FACE_PROPORTIONS`): what differs person to person whatever the character, rolled after the
+  shapes about the face's own values: the skull's length and breadth, the vault's height (the face's share of the head),
+  the face's, the jaw's and the mouth's widths.
+- The composer's EYE REGION: the eyes' shapes carry the lids (the eye rig's channels: open, large, almond, deep, hooded,
+  soft), a brows feature takes the epidermis cube's groom words (natural, straight, arched, thick, thin), and the eyes'
+  spacing, height, size and tilt are rolled per face; `composeFace` returns `eyes` and `epidermis` with its relations.
+- THE ASIAN BUCKET (East and Southeast Asian ancestry): a bucket's `base` is the population's mean morphology, set before
+  the rolls and measured against what the pole already does (after published East Asian anthropometry: a rounder vault,
+  the inner canthi wider apart, a wider nasal base, a lower and flatter root, a broader bridge, a lighter brow ridge, a
+  rounder forehead, the cheekbones forward). Its LID COVER is rolled per face (monolid, in-fold, parallel, hooded, by the
+  egocube's weights) and owns the fold's channels (`LID_FOLD`) over the character's eye shape; never a slant. Shapes
+  weigh per bucket. `FACE_LIMITS` holds a composed face inside the head's working range, measured by the tune's solve
+  (the nose's projection, the cephalic index): a face asked past it is drawn at it.
+- The composer's GROOMS (`FACE_GROOMS`): the brows' thickness and density and the lashes' density and length rolled per
+  face as shares of their shape's numbers, after its face (a seed keeps its relations); a bucket may carry its own.
+- THE NOSE'S AXIS (`FACE_NOSE`): one roll per face from a short, flat nose (less projected, shorter, smaller, its root
+  lower, its base wider) to a long, pointed one, each bucket setting where its people sit on it and how widely they spread
+  (`nose: { mean, spread }`: the western a little toward long, the asian toward short and flat, both reaching both
+  ends); `composeFace`'s `nose` sets it. The relational head's `noseSize` (0 the canon's) scales the nose's own parts and
+  their places with it, so a small nose is a smaller nose, not the canon's parts crowded; `TUNE_LIMITS` holds the tune's
+  subnasale lift to the poles' own range (chased further, the nose's base rose ~18 mm and drew the upper lip into a snout;
+  the miss is reported instead). Both poles' heads and tunes are unchanged; the head's floor on the nose's projection
+  falls from ~0.265 to 0.2.
+- MORE BUCKETS, from the same principles: `east-asian` (the bucket first built as `asian`), `south-asian` (a longer
+  vault and a narrower face, the root higher than the East Asian, the base moderately wide, the eyes a little larger, the
+  rig's creased lid or a hooded one, the brows and lashes rolled heavier), `southeast-asian` (Filipino and maritime
+  Southeast Asian: a rounder vault, a low broad root and a wider base, the nose leaning short and flat, fuller lips, the
+  lid a parallel crease or the rig's), `latin` (Mexican mestizo: a broader face, high forward cheekbones, the nose spread
+  wide on its axis), `african` (sub-Saharan: a longer vault, a rounder forehead, a much wider base on a low broad root,
+  fuller, taller, more forward lips). A BLEND bucket is one of its buckets per face (`asian`: East or South Asian); a MIX
+  bucket is one, or one with a share of a second, their bases and leanings mixed by the share (`equatorial`: South Asian,
+  Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
+  the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
+  (`tones`, on the Monk scale: `equatorial` is brown, MST 6–8), the ancestry still giving the hair, the undertone and the eyes.
+- THE GEO-ETHNIC CATALOGUE widened: `north-asian` (Mongolia, Korea, northern China, Siberia: a broad round short vault,
+  high flat forward cheekbones, the eyes wide apart under a low flat root, a light brow, thinner lips, the lid most often
+  a monolid or an in-fold), and `asian` the asiatic look pinned on it (North 2 : East 1); `east-asian` East Asian alone.
+  South Asia as its cline: `indo-aryan` (northern India and Pakistan: a long narrow face, a high root, the nose leaning
+  long and aquiline, large deep-set eyes, MST 3–7) and `dravidian` (southern India and Sri Lanka: a wider base, fuller
+  lips, MST 5–9), `south-asian` the mix along it. MENA: `levantine` (a long oval face, a long high-bridged nose, large
+  deep-set eyes, MST 2–6) and `south-mediterranean` (the Maghreb and coastal Egypt: a long narrow face, a straight to
+  aquiline nose, almond eyes, fuller lips, MST 3–7), `mena` the mix between them. A mix may hold its own tones over its
+  buckets' (the equatorial's brown is the mix's, its buckets keep their own).
+- THE HAIR'S CUTS by region (`FACE_HAIR`): a woman's hair texture is rolled from her ancestry's and cut from her bucket's
+  pool for it, as a stylist there would cut it (the Levant and the Maghreb: long blow-dried waves, long defined curls,
+  layered curls, half-up; South Asia: long hair, braided, put up; Mexico: layered curls, a curly crop, a high bun;
+  sub-Saharan Africa: the short afro, the high bun, braids, the bun, the curly crop, the big round afro rare); a texture a
+  pool leaves out keeps the ancestry's own style. The widow's peak's centre part goes only on cuts it suits (a part, no
+  ties, to the shoulder or longer). New cuts (dermal-hair.js): `curly-crop` (~9 cm on top, tapered at the nape and round the ears) and `high-bun` (the hair
+  smoothed up into a top-knot high on the crown).
+- HYBRIDS (`hybridOf`, `HYBRID_TRAITS`): a person of two lineages composed trait by trait, not averaged. Each trait group
+  (the skull, the eyes with their lid cover, the nose with its axis, the cheeks, the lips, the skin's tone, the hair's
+  ancestry and its region's cuts) comes from one parent (the likelier the larger its share) or is blended between them;
+  the face names its sources (`hybrid: { of, with, share, traits }`). `mixed` seeds one from any two base buckets;
+  `composeFace({ parents: { a: w, b: w } })` makes any face one. A cline (`mix`: the South Asian, the equatorial, MENA)
+  still interpolates its neighbours.
+- THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
+  rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
+  behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the
+  front, to the horseshoe; a woman's front kept, the crown and the part thinned): the scalp's region, so the skin and the
+  hair it grows follow together. The composer rolls them last of every face (`FACE_HAIRLINE`), a man's loss far more
+  often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. A face rolled a
+  widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part over any style that has a
+  part (the peak is where the hair parts of itself), with the groom's `framed-layers` move (dermal-hair.js, the
+  Rachel's principles): a smooth crown, the front cut shortest and layered longer toward the back, the ends flipped out so
+  the width sits at the sides at mid-length (the back hanging straight: the groom's `flipBack`, the flip's share behind
+  the ears, absent the whole flip all round), in pieces, within the style's own length. A `blowout` move (the roots lifted
+  well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
+- THE MALE POLE (head-relational.js `RELATION_POLES.male`, empty until now; approved by the operator's eyes): the
+  female's principles at the male's character. The cheeks full and the lower cheek filled (volume, never a hollowed
+  default), a broader, rounder chin that no longer recedes over a wider jaw and a heavier masseter, a shorter nose with a
+  finer bridge and a wider base, fuller lips, the eyes a little more open; `HEAD_TUNES.male` re-solved for it and the
+  male head re-pinned. The male dermis's hairline sits lower (0.88) with a widow's peak (5 mm). The sex axis
+  (`dimorphRelations`) now runs between the two poles. The composer rolls a man about his pole: his hairline lower, the
+  widow's peak more often and more marked and without the women's centre-parted groom, his brows taller and fuller
+  (`FACE_GROOM_SEX`); a woman's rolls are byte-identical.
+- PAINTED SHADING, opt-in (dermal-map.js `shade`, 0 … 1, absent nothing): the occlusion read at a face's reach (the
+  sockets, the hollow under the cheekbone, beside the nose, under the lip and the jaw), multiplied into the colour as a
+  game paints its light in (dermal-texture.js `finishPages`; the head chart's `occlusionAt`). For targets without their
+  own occlusion; an engine that adds its own wants it absent.
+- THE SKIN IN A GAME'S ART DIRECTION (color-theorist/adapters.js `skinDirection(contract, shading)`): the game's solved
+  palette and a shading word (`SKIN_SHADINGS`: painted, cel, graphic, none) read into the character's `shade` (as deep as
+  the key is low and the palette heavy, its colour the palette's fill, banded by the shading) and a light (the palette's
+  key, fill and rim, an exposure by the key). `shade` takes `{ amount, colour, steps }` as well as a number. The dermis
+  study lights a subject by its `light`, so one face reads in each game's light and shade.
+- THE DEEP CURVE (`shade.curve: 'deep'`, the `chiaroscuro` shading): the shade as before until the skin is enclosed
+  deepest, then a near-black in the shade's hue: the nostrils, the mouth's line, the sockets' inner corners, the ear's
+  folds (the knee at 0.9 of the occlusion, the darkest a tenth of the shade's colour: a tight band, tightened at the
+  operator's ask). A near-black only that deep, and only by asking for it.
+- THE WORLD'S SKIN, as data (gameworld/hero-looks.js `worldSkin`): a world with a palette hands its characters the shade
+  its art direction paints (`skinDirection`, the default light kept), `characters.direction.shading` naming how
+  (painted when absent). The composed hero carries it as `skin`; the mint takes it only on a realistic hero, under its
+  own shade, so every hero a world mints today mints as it did.
+- The dermis study's sheen reads the relief layer: each relief class's slopes (its pores and grain, finer than a pixel)
+  widen the highlight, Toksvig's way, so the skin reads satin rather than plastic (`--flat-sheen` for the old lobe).
+- THE SCALP'S STRANDS, finer (dermal-hair.js; the operator's eyes): a drawn strand stands for a ribbon `strandGap` wide,
+  `strandWidth` of it drawn; by the hair's type now (`HAIR_TYPES` `strand`): straight and wavy 1.5 mm and 0.4 (~4.5 hairs a
+  strand, between a lash and a card; were 3 mm and 0.75, ~18), curly 2 mm and 0.5, coily 2.5 mm and 0.6 (a curl keeps its
+  locks' weight). Every scalp's strands change; a groom's own `strandGap` / `strandWidth` still wins.
+- A CURL'S KERATIN (`HAIR_TYPES` `chiral`, hair-spine.js `coilOffsets` `flips` / `taper` / `scale`): curly and coily locks
+  twist each their own way: a share left-handed, the radius ± per lock, the twist reversing along the lock (a kink, as a
+  phone cord's: a few a metre in curls, many in coils), and the hair's weight drawing the coil open toward the root. A
+  coil that names none of these is as it was.
+- THE BEARD'S STYLES (dermal-map.js `beardStyle`, `BEARD_STYLES`: stubble, short-boxed, full, goatee, van-dyke,
+  chin-strap, moustache): a barber's lines over the beard tract (which zones grow: the moustache, the corners, the chin, a
+  soul patch, the cheeks or a strap along the jaw; the cheek line lowered; the neckline under the jaw) and a length a zone.
+  A beard of 6 mm and more grows as LOCKS (dermal-hair.js): ribbons of hair at the hair type's strand, a little coarser,
+  falling under their weight and curling by the man's hair type a step tighter (a coil curling back toward the skin), each
+  lock its own keratin twist (`growBodyHair`'s `type`). Absent, the tract and `stubble` as they were.
+- The beard grows on the whole upper lip (dermal-map.js): the nose's region, whose reach round the columella spans the
+  philtrum, cleared the beard there, so every moustache and every stubble bared the upper lip's middle; the nose now clears
+  the beard only on itself, above its base. Every male skin's upper lip changes.
+- The moustache is trimmed at the lip line, as it usually is: a hair above the upper lip grows no longer than its way down
+  to the lip's border, so none hangs over the lip (a beard of strands, 1.5 mm and longer; the painted shadow as it was);
+  a style may let it over (`overLip`, none does yet).
+- A styled beard is fuller (dermal-map.js `BEARD_ZONES`, the operator's eyes): denser and lifted off the skin by zone, the
+  moustache thickest (2.4 × the tract's hairs, lifted most), the chin and the cheeks full; its locks closer and a little
+  wider where it is denser, and a style long anywhere grows all of itself as locks (its trimmed moustache among them).
+- Under a styled beard the skin is painted in the hair's colour (dermal-texture.js), as the scalp's is under its groom, as
+  much as the hair covers it (the longer and the denser, the more; faded in with the beard's region, so no line marks the
+  style's edge): the gaps between locks foreshortened toward the eye read as beard, not as the shaven shadow's grey. The
+  dermis study shades a beard matte and darker within (coarse hair), and sizes its views with a loop (a head's hair now
+  runs to more points than a call's arguments hold).
+- THE MEN'S PARITY across the buckets (face-compose.js): a man draws his cut from his region's barbers
+  (`FACE_HAIR_MALE`: a default pool for every texture, the MENA, South Asian, Latin and African pools; a curly-haired
+  western man no longer rolls a TWA), his facial hair (`FACE_BEARD`: a style by the bucket's weights, clean the shaven
+  shadow, and the tract's fullness in the bucket's range; East and Southeast Asian beards sparser and more often shaven,
+  after published density; every style reachable everywhere), and the shapes by his sex's weights
+  (`FACE_SEX_WEIGHTS`: the thin and high-arched brow, large eyes, the heart's chin and outline rarer on a man) with
+  shorter lashes. A woman's every roll is byte for byte as it was.
+- A man's loss ends in a HORSESHOE (dermal-map.js): as the front's recession meets the crown's, what is left is a band round
+  the sides and the back, its top level about the parietal ridge and dipping to the sideburn in front; no wedge left at the
+  temple, and no island of hair left by a widow's peak once the front has receded. What the loss leaves a barber keeps
+  short (dermal-hair.js): no lock from the band's top laid over the bald crown. The MENA men's wavy pool crops instead of
+  standing in a curly crop's spikes.
+- THE MEN'S CUTS by culture (dermal-hair.js `SCALP_STYLES`, the cuts a barber in each place would name): the fade, the
+  Caesar, the French crop, the two-block, the pompadour, the slick-back, the high-top, the top-knot; drawn by region
+  (face-compose.js `FACE_HAIR_MALE`: East Asia's two-block and French crop, the Levant's slick-back, the Latin and the
+  Black barbershop's fade and Caesar, South Asia's neat side part; a bucket's `hairMale`). A cut from 2 cm is grown as a
+  cut (its taper, shelf and fringe shape it: a fade fades, a crop is no bowl; a buzz still lies as body hair), and a
+  style may carry its own lock edits.
+- THE BEARD'S GROWTH DIRECTION (dermal-map.js `beardFlow`): the sideburn straight down, the cheek down and toward the chin
+  (the more the lower), the chin down and gathering, the moustache out from the philtrum (flatter toward the corners),
+  under the jaw back toward the throat, the neck down toward its middle about a whorl either side. The beard WRAPS the
+  jaw: under the ear's lobe it reaches back past the sideburn's line, and the neck's top carries it on round.
+- The dermis study's SPLAT (`.claude/skills/dermis-study/splat.mjs`): the skin map's regions as points on the head's
+  surface net, orthographic from any azimuth, the far side culled by the normals, a pale grey where no region weighs;
+  where a region lies, in seconds, before a lit render's minutes.
+- LOCS and CORNROWS, anyone's (dermal-hair.js, the tie's new tails `loc` and `row`): locs, the hair matted into ropes, one
+  from each section of a grid over the scalp, twisting round its rope and hanging to the shoulder; cornrows, plaited flat
+  in rows from the hairline over the crown to the nape (a root joins its nearest row where it is nearest, the scalp parted
+  bare between), a short braid on past it. In the women's and the men's pools of the African groups, and the Latin coily.
+- THE ERAS' CUTS: the mohawk, the fauxhawk (a `strip` cut: the band down the middle kept and standing, the rest clipped),
+  the broccoli (the 2020s' perm), the mullet, the '90s curtains and bowl, the 2000s' emo fringe; some in the men's pools
+  now and then. A style with ties is grown with its ties at any length. The fauxhawk is the 2000s–2010s gelled one:
+  textured spikes worked up, back and in to a ridge (a groom's `gel`, 0 … 1: what stands is turned from the scalp's
+  normal toward that ridge, not fanned out); `spiky` its whole-top variation (a Kisame's), and the SPIKED FADE family:
+  the spiked fade, the high one, the spiked quiff fade and the burst fade's band of spikes. The bowl is clipped short
+  beneath (a root a shelf or a strip clips stays clipped under a line cut).
+- ASYMMETRY (head-relational.js, 0-centred, absent byte-identical): the left eye's, brow's and mouth corner's height, the
+  nose's lean, the left jaw's and cheekbone's width. The composer rolls each face its own (`FACE_ASYMMETRY`, ~1–1.5 mm),
+  never none: a mirror reads uncanny.
+- BEAUTY (face-compose.js `composeFace`'s `beauty`, 0 … 1, `FACE_BEAUTY`): averageness and symmetry, the attractiveness
+  research's steadiest findings: the proportions' and the nose's reach and the shapes' spread drawn toward the bucket's
+  mean, the asymmetry toward slight. The default (0.5) leans to it: most faces typical, the median rather than the
+  extremes; every composed face, women's and men's, changes with it.
+- THE SKIN'S MARKS (dermal-map.js `marks`, `MARK_KINDS`): moles, a beauty mark, birthmarks (a café-au-lait patch, a
+  port-wine stain) at mm on the head, painted into the skin's colour, a stain's edge wandering; the composer rolls up to
+  three moles a face, a beauty mark in its classic places now and then, a birthmark rarely (`FACE_MARKS`).
+- HAIR STREAKS (dermal-hair.js scalp key `streaks`, `STREAK_KINDS`, `STREAK_DYES`): the money pieces framing the face,
+  a chunk at a clump's seat, the under layer, the tips (ombré, from a share along the strand), a scatter of babylights;
+  each strand and card in one carries its `streak` (the dye, linear, and where along it the dye starts). The hair grows
+  exactly as without; absent, no field. A buzz under 2 cm takes none.
+- PIERCINGS (new epidermis/dermal-jewel.js `pierce`, `readPiercings`, `PIERCING_SITES`): the lobe and the upper lobe, the
+  helix, the tragus, the nostril, the septum, the brow, the bridge, the labret, a lip ring, the monroe and the medusa,
+  each placed from the head's landmarks and settled on its surface by the field (the ear's sites from the ear's own
+  samples), in a kind the site takes (stud, a gem set; hoop through its hole, hanging off the tissue's edge; barbell;
+  drop) and a metal; out, the pieces and one mesh (balls, rings, wires) in the chart's frame with its materials.
+- ADORNMENTS in the composer (`FACE_ADORN`), rolled after the marks: each site at its chance by sex (the lobes on most
+  women, few men, every other site rare; a nose stud common in the South Asian buckets), one metal a face; now and then
+  streaks, mostly the salon's lightened dyes, sometimes a fashion colour, as a scalp hint. The rolls before them keep
+  their dice.
+- THE YEARS ON THE SAME ROLL (face-compose.js `composeFace`'s `age`, years 16 … 85, `FACE_AGE`): the rolled face is the
+  person at their prime (28; absent or 28, the face as rolled, byte for byte); other ages keep every roll and the
+  person's styling (the cut, the streaks, the piercings, the marks, the beard's style) and move the years' signs. Older:
+  the soft tissue descends (the jowl and the fold, the cheek's fat from the cheekbone to the jaw, thinner lips set back,
+  a longer nose and ear, hooded lids, the outer canthus down), the skin's `age` and `lines` rise, the hair greys from
+  its onset, a man's temples recede and his loss advances by its destiny, a woman's crown thins late. Younger, to 16:
+  fuller cheeks and lips, a smaller nose, a softer jaw, a man's brow ridge not yet grown, the skin younger. Its own dice
+  (`face-age`): the rate the person ages at, the greying's onset by the ancestry's mean, the loss's destiny, the same at
+  every age of one seed.
+- THE FACE'S LINES AS FOLDS (dermal-map.js `dermalDetail`, dermal-texture.js `FOLD_INK`): each line a tapered polyline
+  painted at two scales, a thin dark core inside a broad smooth shade (`crease`, `soft`), with a faint lift on the roll's
+  lit lip (`lift`), in the skin's own warm shadow rather than grey; broken along its length, wider as it deepens, the
+  crow's feet curved and more of them with depth. The lines no longer read as pencil strokes. Absent `lines`, nothing.
+- THE WRINKLE MAP (dermal-texture.js the FOLD page, `FOLD_SLOPE`; dermal-map.js `FOLD`, `dermalDetail`'s `slope`): the
+  same folds as SHAPE, a narrow valley and the broad roll of skin on its lit side, baked as the height's slope over the
+  head's mm (R toward the figure's right along the chart's `tr`, G up the head along its `ta`, 128 flat; B the valley's
+  cavity), so the light draws a fold and it answers the light's direction: an engine's wrinkle normal map. Only where
+  the face has lines (absent, no page). The dermis study bends its shading by it; `--key` moves the key light (a raking
+  side light shows the folds turn with it). A normal map shades; it casts no shadow and leaves the silhouette smooth.
+- THE FOREHEAD'S FURROWS AS SHAPE (head-relational.js `furrows`, 0 … 1, absent byte-identical): an old forehead's three
+  deep folds cut into the skin, each a tube laid along the forehead by the landmarks, sunk along the skin's normal so a
+  shallow sliver cuts (~0.8 mm at 1), thinning to nothing at its ends, its edge blended soft: real shape, so an engine's
+  light casts it and the profile carries it, under the same lines the paint and the wrinkle map draw. The composer cuts
+  them from the late fifties at the person's rate.
+- THE FOLDS' PAINT BY THE ART DIRECTION (dermal-texture.js `FOLD_INK.lit`): where the light draws a fold (the realistic
+  register, no painted `shade`), the painted core and shade at a little over half; whole where an art direction paints
+  its light in.
+- THE CLOSED MOUTH'S SEAM, EVEN (head-relational.js `SEAM`; the relational head re-pinned): a closed mouth's lip line
+  is cut to one depth all along the lips (~1 mm under the less prominent lip's front, the lips' fronts probed across
+  the mouth, fading at the corners) in place of the lip-line carve, whose depth swung from ~0.6 to ~2.4 mm and, where
+  thin lips parted from it, left a groove under the surface net's cell: drawn as a row of dark notches along the lips,
+  plainest on the men and the old. An open mouth keeps its carve.
+- GREY BROWS AND LASHES (epidermis.js `hair.grey`): the brows' hairs silver at 0.7 of the scalp's share, the lashes' at
+  0.3, each by its own die; the composer passes the years' `grey` on. Absent, none.
+- GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
+  (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
+  the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.
+- THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
+  not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
+- THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
+  as a camera saw it, and the deepest two photograph near-black and grey (less red over blue than MST 6), so MST 9 and 10
+  rendered as dark grey under a white sheen. Below MST 8's luminance a tone is lifted (by a square root under that knee,
+  its order kept) and holds MST 8's red slope, the way measured deep skin stays a red-sloped few percent; the melanin
+  measure (the blood shown, the palms) still reads the swatch. MST 1 … 8, and any hex tone at or above the knee, are
+  byte-identical.
+
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,
@@ -1314,6 +2929,19 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
 - The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.
+- THE PLATES LIE ON THE BODY, THE ARMS OUTSIDE THEM (body-relational-armour.js `PLATE_STAND`, fieldGarment `stand`,
+  `shoulders`, `under`). A trunk plate was cast out to where the trunk's field ends, and that field runs on over the
+  arms hanging beside the chest and the deltoids blended into it: the cuirass was a barrel half again the chest's width
+  (0.25 m from the midline at the chest, the skin at 0.12 to 0.2), the arms inside it from the waist to the shoulder.
+  A trunk plate now stands at most its clearance and 2 cm past the skin; the cuirass's field leaves the deltoids out,
+  and it is worn under the upper arm: within 2.5 cm of the arm (its armhole, and over the shoulder's ball, where the
+  pauldron's cap sits) it eases down onto the skin at its clearance, after the envelope's lift. The arm hangs over its
+  edge, its lames and rerebrace their own. Other garments write what they wrote (the options are off by default).
+- The read judges what the body wears (`dressReadout`). The realistic knight's read had judged every piece of the kit
+  as planned: the breast and back plates, the faulds, the sabatons, the pauldron's facing and the gorget, worn as its own
+  shells or left off, each "does not read" at exposure 0, 12 of its 70 warnings. They are now `dress.unworn`, named and
+  not judged. What remains is real: the straps' buckles buried under the cuirass, the vambraces that never read, and
+  the shells that replaced the kit's pieces carry no signature of their own (the focal pauldron's facing among them).
 
 ### Footwear: a solver library, an adapter per body's foot
 
@@ -2361,6 +3989,964 @@ Opt-in and versioned: a default hero keeps its bytes.
   The City stalker probe now waits on the idiom alone, and a brief's words find it (`gameworld/intent.js`: rooftops,
   swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
   draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.
+
+### Biocube fauna: what lives in a level, beside what grows
+
+A biocube said what grows in a level. It now says what lives there too (`fauna`, beside `flora`). Fauna are never
+enemies: an animal that hunts is a game's foe. There are two tiers. UNIT fauna take up room (a sheep, a deer); FIELD
+fauna are scenery that is never in the way. Not every level wants fauna: a biocube grows none unless asked, and every
+preset's is none, so the geocubes that grow `meadow`, `upland` or `grove` are byte for byte as before.
+
+- **Size classes** (`fauna/size-class.js`): `mini` (insects), `smol` (a mouse to a pet), `chonky` (to a person or
+  cattle), `behemoth` (a hippo, a rhino), `gargantuan` (an elephant and up). Measured, never tagged: a bug by its
+  bauplan's length, an animal by its skeleton's longest extent, so a new species gets its class from the bones it
+  builds.
+- **The document** (`era/biocube-fauna.js`): a preset (`summer-day`: butterflies, gnats, a flock crossing;
+  `summer-night`: fireflies, a few gnats), a document `{ swarms: { <kind>: true | { …settings } | null } }`, or
+  `{ from, swarms }` kind by kind. Every setting is on its rail and told when it is off. Each field kind stands for an
+  animal in the rosters, takes its size class, and keeps to its grounds of the substrate map (`faunaOn`).
+- **The field on a stage** (`placeFauna`, an isekai stage's `biocube.fauna`): gnat clouds over the grass near the way,
+  fireflies by the trees, butterflies over the grass, all on their own ground, off the way and off claimed ground, by
+  the site's dice. The colours are the world's ramps: the soil's darkest for gnats, the gold for fireflies, the gold,
+  violet and fruit for butterflies, the rock's darkest for birds.
+- **The page draws them** (`scene/channels/fauna.js`, `emitThreeWorld({ fauna })`). Each kind is a closed form of the
+  clock, so a pinned frame is reproducible:
+  - gnats are dark specks jittering in a swaying column;
+  - fireflies are glowing points drifting and blinking, a hard core with a soft halo;
+  - butterflies are two wing cards beating along a wandering loop above the grass;
+  - birds are a loose V of beating and gliding silhouettes crossing high overhead every `every` seconds, each pass its
+    own heading, height and count.
+
+  Absent fauna, not one byte. Godot and Roblox mark it absent.
+- **Herds: the unit tier** (`fauna.herds`: `{ <species>: true | { groups, size: [lo, hi] } | null }`; presets
+  `pasture`, sheep in two flocks, and `woodland`, deer and rabbits). Any species of the encyclopedia that can walk a
+  level (`unitOf`): a bug is refused (a mini animal is a swarm), as are an animal of the water and a body with no stride
+  on land, each saying why.
+  - The stage places each herd's ground on the soil off the way, its animals round it, none on a trunk.
+  - Each animal is an `ai` body walking on its species' own gait at that gait's speed (`fauna/rig.js` `gaitStride`), so
+    its feet keep to the ground. Its mind is passive: a grazer crops the grass laid round its herd (`food`), every other
+    animal wanders. No weapon and no side, whatever the species: a wolf in a pasture only wanders.
+  - The world builds each species' rig once from its plan (`worlds/fauna-units.js`), with no stored sketch: its gait
+    plays the runtime's walk, its eating the graze.
+  - A level whose only minds are its fauna shows no AI-attack button.
+- **Killable and pettable herds** (a herd's `killable: false | true | { hp }` and `interact: null | 'pet'`).
+  - Killable: its body takes hits (`hp`, by its size unless named: a rabbit about 25, a sheep about 50, an elephant about
+    180), its rig carries its flinch, fall and rise as the runtime's stagger, topple and getup, and it lies where it
+    falls. It never strikes back. A `defeat-all` that names its foes never counts it (its ids begin `fauna:`).
+  - Petted (`scene/channels/fauna-pet.js`, emitted only when an animal may be): the walker, or the pilot in a game, in
+    reach of one sees the interact key and "pet". The press holds it (the cast's hold: its mind waits), turned to the
+    petter, playing its relax loop under a rising heart for 3 s; then it goes back to grazing. A game's bus hears
+    `petted` { entity, species }. `pasture`'s sheep may be petted.
+  - Petting is the World page's: Godot plays the herds and their hits, not the petting.
+- **Water, indoors and the gargantuan.**
+  - Ducks (`ducks`, a mallard's stand-in): floating on a stage's streams (`era/out-trail.js` `streamSheets`, the water a
+    trail's crossing lays, now shared with what floats on it), paddling, bobbing, tipping up to feed. Preset `brook`.
+  - Indoors (`roaches`, `mice`, preset `cellar`): a room stage lays a biocube's fauna along its rooms' walls
+    (`placeIndoorFauna`; each storey's on its own floor), each critter still a while, then a dash. Nothing grows under
+    a roof: a room stage lays no flora. The kinds keep to their side: herds and outdoor kinds are refused indoors, the
+    indoor kinds outdoors, each saying why.
+  - A biocube of fauna alone (`{ fauna }`) lays no flora of its own: the kit grows its own, byte for byte.
+  - The gargantuan is a rock's or a pillar's scale (an elephant, a giraffe, up to a Gundam's), never a mountain's. A
+    body standing 4 m or more is gargantuan whatever its length (a giraffe). A gargantuan unit is solid and holds
+    (`body.collide`, heavy: a game's player walks round it), stands long between slow wanders, and one past 20 m is
+    refused as a landmark, not fauna. The walk page's eye is no body: it passes through, as through any.
+  - Herds keep to the valley's side of the cliff, as the trees do.
+### Snow: a cube's land under snow, bare trees and footprints
+
+A cube can name its snow (`snow`, `era/snow.js`), and its trail's stage lies under it: snowcapped crags over a line, a
+winter cover or deep snow over the whole land. A biocube's trees can go bare for the season, and the walker leaves
+footprints. A cube that names no snow, and a biocube that names no season, are drawn as before.
+
+- **Where it lies**: over its `line` (metres over the land's lowest ground; absent, everywhere), its edge wandering and
+  held lower on the side turned from the sun (`lee`), on ground level enough to hold it (`hold`: steeper rock stands
+  bare, a cliff's ledge takes it whole), opened in patches by the wind (`drift`). The lying ground is cut where its
+  field crosses, as sand and pavement are; boulder caps take it; the rock flora is buried; a grass lip on a snowy cliff
+  is gone. Gritty, it is laid with the sand's cut, the wind's crust.
+- **Its colour** is the theorist's (`snowRamp`): near-white, cool in its shade (the sky's hue), warm in its light (the
+  sun's), quiet in chroma since the bake blues its shade; it takes the hour as the land does.
+- **The trail** goes trodden snow, packed and greyed, the soil showing through as far as the snow is shallow; its
+  fringe the snow's, no dirt patch over it.
+- **The far ridges** are capped over the line (the whole ridge but its foot without one), the line wandering down the
+  gullies, hazed into each ridge's far stop; the skirt's near bands go white with it.
+- **Under it**: the grass stands through a dusting, thins under a cover and is gone under deep snow (`grassUnder`); a
+  leaf turned up carries it, more of them and further down the deeper it lies (`capOf`), so bushes become mounds; a
+  limb's top takes it too.
+- **The season** (`flora.trees.season: 'bare'`, `era/biocube.js`): what has a fall drops its leaves, every tree and
+  bush its limbs and twigs (a tree with no kind grown as a spray's); the evergreens keep their crowns: the new `spire`
+  form (a cone of near-level tiers in flat drooping fans to a leader: firs, pines), evergreen unless a kind says
+  otherwise, and any kind with `evergreen: true`. The far woods go to the bark's grey-brown.
+- **Footprints** (`scene/channels/snow-prints.js`, a stage's `snowPrints`): the beach's footprint bed
+  (`materials/soft-ground.js`) on its fresh-snow ground, in a window round the walker on the snow; a foot packs the
+  powder and pushes a rim. Only what a foot touched is drawn, a few centimetres nearer the eye along its own ray, so
+  no window shows. The beach's own channel is unchanged. Engines mark it not drawn.
+
+The gallery: `scripts/spikes/geotown/snow.mjs` (none, snowcapped, a cover, deep, deep winter with bare trees and firs, a cover by
+night, a quiet cube, a fir wood; the clump, the trail to the crags, from above, footprints up the trail). The manuals: the
+`geocube` card (`snow`) and the `biocube` card (the season).
+
+### Flora at night: what is drawn in a ramp's stops comes down with the hour
+
+A cube lowered at an hour bakes its land under the hour's light, but a gritty crown's chips and cores, the live grass's
+windows and the rock flora are drawn in a ramp's stops rather than baked, so at dusk and night they kept their noon
+colours over a darkened land. They now come down the ramp by the hour.
+
+- **Measured against the cube's own light**: a cube lowered at an hour keeps its reference's light beside the hour's
+  (`ownLight` on the look's card, `era/geocube.js`); the shift (`hourShift`, `era/isekai.js`) is where the bake lands the
+  foliage under the hour's light against where it lands under the cube's own, in stops, never above 0. A cube at its own
+  hour (a night palette under its own moon, a day cube at noon) and a kit's card move by none.
+- **What moves**: chips and cores by the world foliage's shift, every picked foliage the same stops; the live grass's
+  lit and shade windows; the rock flora down its ramps as far as the foliage dims (`hourDim`), so a bright gold comes
+  as far down as a dark fern; a gritty cube's leaf card tile its window of the foliage moved by the shift; the
+  swatch-coloured flora (shrubs, ikebana solids) dimmed by the same share.
+- **Unchanged**: a cube lowered with no hour, and a kit, are byte-identical. A cube lowered at its own hour draws the same
+  colours, but its look's card carries a new key, so the look's id changes.
+
+The gallery: `scripts/spikes/geotown/night.mjs` (a cube's own palette at noon, dusk and night, and a night palette
+altogether at its own hour).
+
+### Bushes and shrubs: composed in sections, blocking or walked through
+
+A biocube composes a level's bushes (`flora.bushes`, `era/thickets.js`): tree kinds with the trunk taken away (a few
+thin stems from the foot, splayed, finer limbs, a low wide crown), drawn through the trees' own leaf-branch path, chipped
+on a gritty land and plain on a quiet one.
+
+- **Sections**: patches of one kind each, off the trail and clear of the rocks, the trees and each other, mounding
+  toward the middle; no grass grows up through a bush (an avoided thing's own `clearR`, the grass's fixed reach
+  absent it).
+- **Walk**: a kind's `walk: 'block'` stops a walker on the page and is a collider for an engine; `walk: 'through'` is
+  drawn in soft groups (`flora:brush`, `flora:brush-chips`, `flora:brush-wood`) the walker passes through.
+- **In a clump**: an arranged clump's role can be cast as a bush (`clump.hikae: { bush: 0 }`, `filler: { bush: 1 }`), and
+  takes its role's harmony colour as a tree does.
+- **Cost**: a bush's lobes are coarse and it draws no twigs: about 930 faces a bush on a gritty land.
+
+The galleries: `scripts/spikes/geotown/bushes.mjs` (sections) and `clump-harmony.mjs clump-bushes` (clumps grounded on
+shrubs); the manual, the `biocube` card.
+
+### Composed clumps: an ikebana clump cast and coloured by role
+
+An arranged clump (`compose: 'ikebana'`) placed its trees in roles but drew them all one kind and one colour. Now a
+biocube casts them and the colour theorist colours them:
+
+- **The cast** (`flora.trees.clump: { shin, soe, hikae, filler }`): each role's kind by its place in `kinds`, so a clump
+  can contrast a line, a mass and a mound.
+- **The harmony** (`flora.trees.harmony`, `era/flora-colours.js`): the clump's colours by role, solved from the world's
+  foliage: `analogous` (the hue stepping cool to warm), `value` (dark behind to light in front), `accent` (one note
+  turned on the anchor), `season` (the clump turning). The theorist's law: each role steps from the one behind it (an
+  accent stands out), every role off the grass. A role's harmony colour wins over its kind's `leaf`.
+- **Shares** (a kind's `share`): the level's kinds in proportion, a dominant, a subordinate, an accent.
+- **Each stamp its own value**: a kind's stamped trees each a little darker or not, by their own dice
+  (`TREE_BANDS.vary`).
+
+No new geometry: a template for each kind and crown colour the stock takes. The gallery:
+`scripts/spikes/geotown/clump-harmony.mjs`; the manual, the `biocube` card.
+
+### Far grass: the meadow out past the field
+
+The live grass stood only round the walker: past about 13 m its cover fell away and past its radius it was gone, so
+open meadow was turf with tussocks on it and the grass grew in as the walker came close. Now the meadow has a far grass
+of its own (`scene/channels/stage-grass.js`, opt-in on a card's `live.far: { density, width }`, the meadow's on):
+clumps over every cell grass may stand in, the field's own simplest tuft drawn wider and sparser, in the same locked
+ramp and the same wind. Each clump stands by the cover the field has lost at its distance (`farShare`: none near the
+eye, all of it past the field, rising as the field thins), worked in its vertex shader each frame, so walking in, the
+field takes over clump by clump, and walking out the clumps stand back up. A recipe's `grass.far: false` turns it off.
+On the meadow it is about 3,400 clumps, 94k triangles: about an eighth of the field's own budget. The walk in, off and
+on: `scripts/spikes/geotown/far-grass.mjs`.
+
+### Leaf forms: a gritty crown grown as leaf branches
+
+A gritty crown can grow as LEAF BRANCHES instead of one heap of balls: the trunk forks into limbs, the limbs throw leaf
+branches, and each ends in a lobe, an ellipsoid shaped and turned by the form so the leaf pattern reads as the plant's
+own (`era/leaf-forms.js`). Each lobe is cored and chipped as the painted crown is, the chips grained along its length
+and leant as the form holds its leaves; far, the lobes' cores alone carry the tree, coarser.
+
+- **The forms**: `spray` (lobes strung along twigs, the leaves fanned along them), `plate` (flat level discs in tiers
+  round the trunk), `weep` (long drops hanging from arching limbs), `tuft` (small upright brushes at bare limbs' tips),
+  `whorl` (a ring of level spokes round each limb's end); the gallery is `scripts/spikes/geotown/leaf-forms.mjs`.
+- **A level's trees are kinds it composes**, not species looked up from nature. A biocube's `flora.trees.kinds` lists
+  1 to 6: a form's name, or `{ form, scale, trunk, girth, spread, density, stems, splay, branch, split, leaf, bark,
+  barkForm }` (`TREE_KIND_KEYS`): the silhouette, how tall it stands against the level's heights, where its crown
+  starts, its trunk's girth, its crown's spread, its limbs against the form's, how many stems rise from its foot and
+  how far they lean out (two a V), its limbs' thickness and how often each forks again (finer branching), the colours
+  it picks and its bark's marks. Each clump is one kind, by its dice; a cube carries
+  the kinds it wants in its own biocube. On a gritty land each tree grows its kind's crown: a hero whole, the stock
+  stamped from a template for each kind and variant, a far tree its cores coarse and no twigs. A quiet land keeps the
+  balls, and a level that names no kinds is as it was.
+- **The colour theorist offers the trees their colours** (`era/flora-colours.js`): from the world's own foliage, grass,
+  rock and soil, three more foliage colours (deep, young, turned toward the accent or autumn's warm), each kept apart
+  from the grass and from each other, and four barks (warm from the soil, pale from the rock, a cool near-black, and a
+  near-white, a birch's).
+  A kind's `leaf` and `bark` pick from the offer (0 the world's own); which tree takes which is the composition's. Its
+  crown's core and chips stand in the picked foliage, its wood is baked from the picked bark and locked to its ramp.
+  The level side by side, with the offer as swatches: `scripts/spikes/geotown/kinds.mjs`.
+- **Bark's marks** (`matte-paint/dressed.js` BARK_FORM_IDS, the bark cut's `form`): `furrowed` (plates between furrows,
+  as it was), `smooth`, `banded` (dark dashes round the trunk and a few scars, a birch's), `plated` (broad plates parted
+  by deep cracks) and `peeling` (patches in three tones). The tile is a grey the bark's colour multiplies, so a white
+  bark with `banded` marks is a birch. One kind at a time, with its bark close: `scripts/spikes/geotown/tree-kinds.mjs`.
+- **The manual**: the `biocube` sketch-vocab card (`get_sketch_vocab({ id: 'biocube' })`): where a biocube goes, its
+  presets and blocks, the tree kinds and their settings, the theorist's offer and some silhouettes people ask for (a
+  birch, a V, a clump, an umbrella grove); the geocube card points to it from its ingredients.
+
+### Faster gritty builds, and the tests that build them
+
+Byte-identical output throughout: the same stages, faces and texture bytes, checked by hash before and after.
+
+- **The sun's shadow test** (`era/sun.js`) works what a triangle and the sun fix (its edges, `L × ac`, `1/det`) once
+  per triangle, and a query's arithmetic in scalars in the same order, so it allocates nothing. A gritty stage builds
+  in about 60% of the time it took; every sunlit world shares it (stages, jungle, local meru, the road looks).
+- **A detail tile is painted once while it is in use** (`matte-paint/detail.js`): its texels and its shown tile are
+  kept for the few keys in use, and a scree's dice for its levels (`era/scree-tiles.js`), so the page's resolver, the
+  sand and turf cutouts and the scree's levels stop repainting the same 512-texel tile. A gritty stage's textures
+  resolve in under half the time.
+- **The era tests share their builds within a file**: a stage or a street several tests read is built once, the
+  determinism rebuilds left to the suites that own that law, and a street read only for the stage it lowers to is not
+  built at all.
+
+### Creases: the vgl rule as a shader in the World
+
+The vgl rule inks a concave crease (a wall's foot, a tier on the one below, a column on its plinth) and never a convex
+edge or a silhouette. Until now it was baked geometry for box massings only: the stepped pyramid's hairlines and the
+city's `creaseSeams` feather. It is now a pass in the World page over the scene's depth, for any geometry the builders
+mark angular, with a falloff that blends from the corner out. Opt-in: a world that does not ask emits the same bytes.
+
+- **`creases` on any world manifest** (`true`, or `{ ink, line, wash, reach }`). Built for the outcomes outside the game
+  loop: the fractal city (its metro profile too), the city plan, edifices, historic places, the transit kinds and the
+  building interiors. The exported unshaded base drops it, as it drops the other baked shading. `compose_world` takes
+  it as `overrides.creases` on any base, and a stored world takes it by patch (`set /creases true`); the manual is the
+  `creases` view-vocab card. Engines do not draw it yet (marked absent).
+- **How it draws** (`scene/channels/creases.js`). One prepass draws every solid's linear depth and an angular mask
+  into a float target. A pass then reads each pixel's neighbours against its plane: a small disc for the line, a disc
+  of the world reach for the blend. Only rises taller than two pixels count, and the ink fades where the reach spans
+  only a few pixels, so a far facade's window reveals are not hatched. A depth-aware 4x4 composite blends the sampling
+  jitter out.
+- **Only angular surfaces take ink.** A face marked `organic` (the city's trees) is drawn black in the crease mask, so
+  neither it nor the ground at its foot is inked; figures, walkers, cars, water and the sky are never inked.
+- **The colour register** (`era/colour-register.js`). A geocube's `register` was the tone's bands and key; it can now be
+  a NAME that renders the world as a drawing: `cel` (three bands along each ramp, an outline round every form, crisp
+  creases), `ink-wash` (a broad wash pooling in every corner, a fine outline), `wii` (soft creases, the light shaped in
+  the vertex) and `continuous` (the light alone). `{ from, …changes }` varies one; its terms are `steps`, `key`,
+  `outline`, `creases` and `contrast`, and a name keeps the key the cube had or the palette solves. The colour theorist
+  inks it: the outline in the stone's hue and the creases in the shade's, both under every ramp's darkest stop, checked
+  by a cube law, `register-ink`. A world painted by the cube (a stage's `geocube`, the geocube kind, a city plan's
+  `paint.geocube`) draws the register's creases and outline; the world's own `creases` wins, and `false` turns them off.
+  A register's `contrast` is lent to a cube that names none of its own. A cube whose register is `{ steps, key }`
+  reads, lowers and renders as before.
+- **The outline** is a term of the crease pass (`creases.outline`): a line round every silhouette, where a pixel's
+  neighbours find the sky or a surface well behind it. The toon dial's ink hull stays the figures' outline.
+- **Land.** A face may be `organic: 'land'`: inked only where something built meets it, and outlined against what lies
+  behind it but not against the sky at the world's edge. When a world draws creases its land and plant pools take their
+  class from their groups (`scene/crease-roles.js`: the polygon land, a terrain's bake, rocks; the plant pools'
+  species), so nothing is threaded through the land's builders. A gritty land's foliage is organic too: a crown, its
+  core and chips, blossom, grass and the drapes over a cliff's edge, the strand's wrack, a rock's moss, the clouds and
+  the stage's flora (`flora:*`); a trunk and a bamboo's culm are built, so a tree is grounded. A gritty cube whose register
+  names no creases now draws the `wii` register's soft ones (its rooms and its town's stone panel-lined, its foliage
+  left alone); `register.creases: false` draws none. A water sheet hides the bed under it from the pass, and
+  the sky dome is no surface behind anything. The scene's fog takes the ink as it takes the surface under it.
+- **Fixed: vertex contrast in a world not measured in metres.** The contrast's foot and its drift are metres; a city
+  plan's unit is 3.66 m, so the foot covered a whole storey. The payload now carries the world's unit to it.
+
+### Micro matte painting: surfaces painted from relief
+
+Every surface mark becomes relief, painted from a light: an element's face is a seeded height field, lit from a
+chosen direction with its own shadows and hollows, painted by sampling the cube's ramps at the values the light gives,
+and cut to the element's outline as a PNG. No line is drawn; a crack is a groove whose lip catches the light. The
+light is baked into the paint, the house era's way; no normal maps. First stone blocks, then cliffs and rocks painted
+on the road. Existing tiles are untouched: a cube, stage or road that does not ask for it emits the same bytes.
+
+- **The painter** (`lib/graph/matte-paint/`): `paintSurface({ outline, ppm, grit, seed, light, relief, paint })` paints
+  one face and cuts it to its outline as an RGBA PNG, in about a tenth of a second for a 1.2 m block at 256 px/m.
+  The relief comes in layers. `form` makes the chamfered, slightly pillowed face with a ragged arris. `rough` adds
+  undulation and grain, and `tool` the finish's marks (tooled ridges, or a pitched face of tilted facets). `spall`
+  breaks the arrises back along curved fracture planes; where a break falls deep enough the stone is gone and the
+  outline follows. `groove` cuts cracks as tapered V-grooves that wander and fork, and `pit` adds round craters. The
+  light gives each texel a value from its normal, a self-shadow marched over the height field, and darkening in
+  hollows, held at a mean of 1 so the World's vertex light still does the large shading. The paint picks each texel's
+  stop on the material's ramp by that value, then lays on its other layers: patches of a second ramp, mineral flecks,
+  damp at the foot, dirt in the hollows and toward the foot, and moss on what faces up (opt-in). `grit` moves every
+  layer together, and a layer set to `false` adds nothing. Seeded dice only, over the integer-exact noise
+  (`noise/noise.js`), and pinned. Nothing uses it yet: the stone-block wall is next.
+  `scripts/spikes/matte/sheet.mjs` paints a sheet of one block from a cube's ramps.
+- **A rock can be a dressed block.** The rock field (`polygonizer/rock-fracture.js`) takes `base: 'box'`: a box's six
+  faces are the block in place of the random fracture planes round an ellipsoid, so its faces stay whole and the chips
+  find its arrises and corners, breaking along the minerals' cleavage. `chipScale` (0–1) shrinks every fracture level,
+  so a dressed block chips by the centimetre. Both are opt-in; a rock that names neither is the same field.
+  `scripts/spikes/matte/rock-compare.mjs` sets the matte painter beside faces traced from the rock field.
+- **A gritty style's rock takes pixels, near the eye.** "Rock takes no pixels" (the polygon land) now holds for a style
+  that is not gritty. A geocube takes `grit` (0–1), which lowers into its land's `shading.grit`. At `GRIT_PIXELS` (0.35)
+  or over, the land's faces stay exactly the quiet style's, so the polygons carry the far view, and the page is handed
+  the rock's own FABRIC (`matte-paint/fabric.js`). That is its joint sets as planes in world space, read from the joints
+  the landform broke the cliff on (the island's granite: two vertical sets along its strike at the card's spacing,
+  each with minor joints at a third of it; basalt three sets sixty degrees apart; slate a dipping cleavage), and the
+  landform's beds when it has strata. The page's channel (`scene/channels/fabric.js`) draws where those planes cut each
+  cliff face. A joint is a groove whose lips the key light finds; it wanders a little, holds for a stretch and stops.
+  Each block between joints is its own plane, a soft bed is recessed, and the grain shows at its own size. The relief
+  is shaded as a ratio to the face's own light, so where it draws nothing the baked light is untouched. A face along a
+  joint set shows none of it, a face across it shows its lines, the beds stay level round the cliff, and joints fade on
+  slopes gentler than the landform's own joint band. THE VISUAL DOMAIN: each layer fades in once its feature spans a
+  few pixels, and a pixel covering more than the coarsest feature's share does no work, so the detail is a sphere round
+  the eye that ends at the grain. Under the threshold, or with no `grit`, nothing is emitted. The boulders stay polygon
+  for now. `landform.js` records the joints it lays (`s.joints`); its output is unchanged.
+- **A rock's skin.** The land's shading takes `skin` (with `grit`): `true` for the rock's own, or one of `ROCK_SKINS`
+  (`fluted`, `sculpted`, `slabs`, `bedded`; granite's blocky joints give sculpted, basalt's columns fluted, slate's
+  cleavage slabs, a stone with strata bedded). The page then draws the near rock in its CHUNKS rather than its joints'
+  grooves: Voronoi regions in 3D, warped by noise and laid in the fabric's own frame (along the joint strike, across it,
+  up), so the chunks are the blocks the joints bound and every face through one agrees. Each chunk stands proud or sits
+  back by its own dice, its edge rounded into a recess, and one sample toward the sun casts its shadow into the recess
+  beside it. The height bumps the face's light by screen-space derivatives, and the chunks read only on the steep faces
+  the landform broke. A skin's chunks read from farther than a groove, so the visual domain grows to them. Without
+  `skin`, the page's fabric is byte for byte as pinned.
+- **Rock formations.** `skin` also names a formation (`ROCK_FORMATIONS`: `flagstone`, `limestone`, `sandstone`).
+  The page then draws the cliff as erosion leaves it instead of as chunks laid on it. The rock is units up the face, each
+  either a thick bed or a packet of thin ones, and each with its own hardness; the joints cut a run of units into
+  blocks. A soft bed wears back. A hard block holds an overhang over it up to what its hardness and thickness bear,
+  then sheds slabs, and the block above, now undercut, follows; the page traces this four units down. Some blocks fall
+  on their own and leave an irregular scar. The face is broken small by terraced noise: ledges along the beds and
+  steps up the joints, never a network of cells. A few samples toward the sun cast the ledges' shadows. The rock is
+  weathered with a tint for each bed, darker soft beds, warm fresh scars, lichen near the eye, streaks under a proud
+  block, and the land's grass hung over a flagstone's ledges. Every step blends over the pixel's own footprint, so no
+  edge aliases. A face turned from the sun keeps its relief soft, and the light ratio is held closer than a skin's, so
+  a lit ledge is a highlight rather than a glare. The boulders are drawn in the same rock. The formations were found
+  on a CPU study of whole cliffs generated by erosion (`scripts/spikes/matte/cliffs.mjs`). Up close the rock has
+  DEPTH: where a pixel spans under a formation's `near` metres, the view ray is marched into the structure (the blocks'
+  retreat and the soft beds' wear), so a recess is seen into and its far wall hides its floor. The broken small detail
+  goes on in finer octaves down to a few centimetres, with a mineral grain under a centimetre, each layer drawn once
+  it can be seen. Without a formation, the page's fabric is byte for byte as pinned.
+- **Broken edges.** A gritty style's boulders break at their edges, so no long edge reads as a ruled line against the
+  sky. Each boulder's sides and cap are refined into one grid of shared vertices, so it stays closed, open only at its
+  sunk foot. Each vertex is pushed into the rock by a chip field of stepped dice in 3D cells at two sizes: blocky
+  breaks, never a wobble. The chips are strongest on the real edges (the rim, the corners between sides, a ring's bend
+  by its angle) and fade inside them, and the flats undulate a little. The land's shape is otherwise the quiet
+  style's; its baked light differs only where the broken boulders cast their shadows. `boulderFaces` takes `broken`;
+  without it a boulder is byte for byte as it was.
+- **Broken rims and strewn stones** (`local-meru/broken-land.js`). A gritty island's cliff rims break the same way.
+  Each vertex where a cliff face meets the land above it is pushed back into the land, and down a little, by stepped
+  chip dice. The move depends on the vertex alone, so the cliff and the ground beside it keep one corner. Small stones
+  lie about: a few on each boulder's top, pebbles along the paths, and scree fallen out at the cliffs' feet (never in
+  the sea). Each stone is a boulder of a few sides, drawn in the rock's own skin.
+- **A second rock.** The land's shading takes `rocks` (with `skin`): the boulders' own skin or formation, beside the
+  cliff's, drawn by a program of its own. Without `rocks`, a formation takes the boulders too.
+
+### Dressed rooms: the room's stone painted from relief
+
+- **A dressed-stone tile** (`gen: 'dressed'`, `matte-paint/dressed.js`). Ashlar painted by the matte painter as a room
+  tile: courses of big blocks in a running bond, each block its own relief (a pillowed, chamfered form, a tooled face or
+  a pitched rock face, spalls at its arrises, pits), set in recessed mortar, lit from above (a wall's light is the
+  sky's and the lamps'), each block its own tone, mottle and weather. Seamless by construction (whole courses, blocks
+  laid whole and wrapped, the light's march and cavity wrapped: `lightRelief`'s new `tile`). 512 texels a side; its
+  scale is part of its family, and unset it is painted at the metres the kit lays it at. `stone-brick` is untouched.
+- **Pillars, never coursed.** A stage recipe (and a geocube's `surfaces.pillar`) names its pillars' own surface: the
+  pilasters and the engaged columns' shafts, which otherwise draw in the kit's trim. Group `stage:pillar`; the trim's
+  laying, cells and value band; the grime and the nave's moss as on trim; the column's base block and abacus stay trim.
+  A pillar is a shaft, never stacked like a wall: dressed stone's `cut` is `fluted` (vertical channels between narrow
+  fillets, `flutes` a repeat, the arrises nicked here and there) or `shaft` (a plain monolith, its grain up it), both
+  weathered in streaks running down and lit from the upper left so a flute is found. Laid upright: on an engaged column
+  the flutes stand up the shaft. A dressed family draws two variants, not four (every block is its own stone already),
+  halving its bytes. Without a pillar surface a room is byte for byte as it was.
+- **Floors, paths and baseboards.** Dressed stone's `face: 'floor'`: lit from nearly overhead (a floor has no up), each
+  slab dished a little where it is walked and polished on its crests, the dirt in its joints. A floor laid a tile a bay
+  is painted at the bay's metres. Two more surfaces of their own, as the pillars are: the `plinth` (the baseboard along
+  the walls' feet, in the trim's laying; a course of long blocks with no bed joint across it) and the `path` (the nave's
+  runner, in the floor's laying, still floor to the tone and the dirt). A geocube's `surfaces.plinth` reaches the room.
+  Without them a room is byte for byte as it was.
+- **A gritty cube dresses its room.** At `grit` from `GRIT_PIXELS` (the island's own threshold, now in
+  `matte-paint/fabric.js`), a geocube's room is dressed as its outside's rock is drawn near: the wall's stock
+  stone-brick becomes ashlar and the floor's flagstone worn slabs, in the colours they named; the pillars fluted and the
+  plinth a course of long blocks unless the cube names its own; grit sets how much is broken, pitted and worn (a rock
+  face from 0.85). Its tone's `detail` rises with grit (0.45 + 0.45 × grit), so the stone's own light and dark read
+  through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
+  is the first.
+
+### Forest: hollow crowns, clumps arranged, the hero near and the stock far
+
+A gritty crown no longer builds the parts of itself buried inside its other lobes or its neighbours'. A forest's trees
+can stand in arranged clumps, tallest at the back and open toward the trail, and be built by how near the trail they
+are: whole close by, stamped from a few templates further off, a cheap shell far away.
+
+- Every gritty crown is hollowed (`era/isekai.js` `hollowed`): a lobe face whose corners all lie inside another lobe,
+  its own tree's or a neighbour's, is not built, tested against that lobe's own facets. Crown faces fall by about a
+  quarter on a meadow and two fifths in a grove; nothing seen changes. An emission change for every gritty land.
+- Clumps arranged (`trees.compose: 'ikebana'`, `era/nature.js` `arrangedClump`): an odd count of trees, the tallest at
+  the back away from the trail, the next two stepping 0.75 and 0.56 of it out to the sides, fillers lower round the
+  back, the trail's side left open; neighbouring clumps alternate hands.
+- Trees banded by the trail (`trees.bands`, `treeBands`): within `hero` m of the trail's edge (and the named hero)
+  built whole; to `far` m stamped from a few templates as the page's instanced repeats, each template built off the map
+  through the same light, lock and detail and lifted out, a shade tint where the sun misses its crown, casting as its
+  shell; past `far` a shell, each crown mass one coarse lumped blob, no leaf cards.
+- A `forest` biocube preset (era/biocube.js) turns both on: denser, taller clumps.
+- Leaf chips (`era/leaf-chips.js`): a crown as its masses' dark core with rounded cupped chips over it, each low, mid
+  or high in the foliage ramp by the clump's light and the sun's reach; a gallery spike
+  (`scripts/spikes/geotown/chips.mjs`) settles their count, size and cup.
+- Every gritty land's trees are chipped (`era/isekai.js`): a blob crown's masses its core, hollowed across the clump,
+  casting the crown's shadow and drawn in its two darkest stops by the sun; the chips over it lit by the stage's own
+  sun and shadow, those buried in a neighbouring core left out; leaf cards only on bushes now. With the bands, the hero
+  and the stock templates are chipped and a far tree is its core alone. The horizon's clumps keep two flat stops (the
+  gritty leaf texture on crowns is retired). Quiet lands' crowns stay the sixth-gen balls, byte for byte.
+- The page draws a repeat whose template is wholly textured (it was dropped), and a texture only a repeat's template
+  uses is resolved (`scene-three.js`, `worlds/world-scene.js`).
+
+### Rock ground: bare rock and scree drawn, and what grows on them
+
+A cube that names its rock now draws its bare rock and its scree as rock: a limestone cube's pavement in its stone,
+jointed, its scree in loose stones, each meeting the turf in a curve. Lichen crusts the rock, cushion plants and
+stonecrop root in its joints, small ferns in the shaded ones. The gap report ranks what is missing by how much of a
+level its ground covers. A cube that names no rock is drawn as before.
+
+- A land whose shading names a formation (`skin`: limestone, flagstone, sandstone) draws its ground by it
+  (`era/isekai.js` `formationGround`): limestone's and flagstone's turned bedrock as pavement (`isekai:pavement`) in the
+  rock's colour, the talus apron as loose stone (`isekai:talus`) in the rock's leaned to the soil, each line with the
+  turf cut through the cells where its field crosses. No grass on either. `limestone-crags` is the first.
+- Gritty, the pavement is laid with the new `karst` cut: clints in courses parted by deep grikes, some only cracks,
+  weathered rough, the odd pan and crack (`matte-paint/karst.js` the joints); the talus with the `scree` cut, angular
+  stones lying over one another.
+- The rock flora (`era/rock-flora.js`): `lichen-crust` (crusts on the clints, the boulders' and stones' caps and the
+  talus, grey-green or gold), `cushion-plant` (flowering domes), `stonecrop` (mats of fleshy rosettes), `crevice-fern`
+  (in the shaded joints), in the kit's own ramps. The clumps root in the joints the karst tile draws: the placer reads
+  the same joints (`gritty-flora.js` `pavementJoints`).
+- Scree in variety (`matte-paint/dressed.js` `SCREE_FORMS`): blocks, plates, cobbles and rubble, by the rock
+  (`gritty-flora.js` `TALUS_CUTS`: limestone in blocks, flagstone in plates, sandstone in cobbles), and coarse patches
+  of rubble (`isekai:rubble`) wandering through a talus.
+- A gritty talus's edge is its stones thinning out (`isekai.js` `TALUS_EDGE`): within a metre either side of its line
+  the ground is turf and over it a cutout of the scree's own tile keeps fewer of its stones band by band
+  (`era/scree-tiles.js`, whole stones, shaded as the scree is), from nearly all inside to a few strays out on the grass.
+  Where a trail's verge runs beside a talus, the verge's outer bands carry the scree the same way instead of turf
+  (`trail-dress.js` `screeBands`); the stage's own trails keep clear of a talus today.
+- The gap report weighs each gap by the ground it would cover (`measuredShares`, over the cube presets' stage land) and
+  shows the shares and scores; bedrock's cover and clump and scree's cover are no longer empty.
+
+### Sand: the ground drawn as sand, and what lies on it
+
+Where a level's ground is sand, the stage now draws sand there, in the cube's own sand colour, with no grass on it and
+wind ripples on a gritty cube. A new library of what lies on sand (shells, driftwood, sea pebbles) and a dune grass
+fill the gap report's sand row. A land with no sand is drawn as before.
+
+- A sandstone cube's flats are sand on its stage (`era/substrate.js` `turnField`, the formation's turn as a field): the
+  line between sand and turf is cut through the land's cells where the field crosses, not along the grid; no tufts,
+  field or live grass stand on it. A gritty land lays it with the new `sand` cut (`matte-paint/dressed.js`): wind
+  ripples wandering across fine grain, a bright fleck here and there.
+- The strand (`era/strand.js`): `shells`, `driftwood` and `sea-pebbles`, each a row and a builder of small faces in the
+  kit's own ramps (a shell the sand's light end or, a mussel, the rock's dark; driftwood the rock's light end bleached
+  toward the sand; a pebble the rock's). Shells only where a shore says the tide reaches.
+- `marram` joins the grasses (`vegetation/grass.js`): stiff grey-green tufts with a pale spike.
+- Inland sand is dressed: pebbles in drifts, driftwood now and then, marram in sparse clumps in the kit's grass leaned
+  to its sand. A gritty island's beach takes shells along its tide line, driftwood and pebbles above it, and its line
+  with the turf is cut through the cells at the beach's height (`cutFace`) rather than stepping round them. The sand cut
+  is laid in one variant, so its ripples run on across the faces.
+- The gap report reads the strand and the ground cuts (`strand:`, `cut:` refs); the sand's cover is no longer empty.
+
+### The substrate map and the flora gap report
+
+The geocube now says what its ground is (bedrock, scree, soil, sand, wet ground, the path), cell by cell, from what
+its land already knows and its rock's formation; and a generated report sets the flora library against what belongs on
+each, so its gaps are named. Nothing drawn changes yet.
+
+- **The substrate map** (`era/substrate.js` `substrateMap`, `era/substrate-of.js` `substrateOf(manifest)` for a stage
+  recipe). Every land cell is one of `SUBSTRATES` (bedrock, scree, soil, sand, wet, path), by rules in order: the trail
+  and its fringe are path; within a stream's reach the ground is wet; a face past the land's rock slope is bedrock;
+  the talus apron is scree; the rest soil, which the formation turns in patches (`FORMATION_TURNS`: limestone to bare
+  pavement, sandstone's flats to sand, flagstone's slabs through the turf). A geocube's street reads out its ground's
+  shares (`geocube.substrate`).
+- **What belongs where** (`era/substrate-flora.js`). `SUBSTRATE_FLORA`: per substrate, per role (cover, clump,
+  accent, interspacing, canopy) the kinds that belong there and the climates they suit, each a ref into the library
+  (read off its own registries: grasses, wildflowers, species, the flora forms, the trail's patches and stones) or a
+  wanted kind not yet built (`WANTS`, each with its read). `floraGaps()` ranks the wanted kinds by the ground and
+  climates each opens and the empty slots it fills.
+- **The gap report**: [docs/flora-gaps.md](../docs/flora-gaps.md), generated by `npm run flora-gaps`
+  (`scripts/flora-gaps.mjs`), kept current by a test. The spike `scripts/spikes/geotown/substrate.mjs` draws a stage's
+  ground from above in its substrates' colours.
+
+### Trail dress: rubble at the edge, patches on the dirt, and paved trails
+
+A gritty dirt trail is strewn at its edges with the mountain's rubble and worn in patches along it, in its own colours.
+A trail can also be paved, in the same material words the town's streets are dressed in. A quiet trail is drawn as
+before.
+
+- **The dress** (`era/trail-dress.js`, a stage's `trail`, the geocube kind's `path` for the trail a street lies on):
+  `surface` a ground word, `rubble` and `patches`, read and refused by name in the trail grammar.
+- **Rubble at the edge** (`local-meru/broken-land.js` `strewEdge`). The stones a gritty island strews on its boulders'
+  tops and at its cliffs' feet, heaped in clumps along both sides of a dirt trail: thickest at its edge, thinning out
+  across the fringe onto the land, a few smaller ones in on the trail, as many as the grit says. None on ground a town
+  has claimed. `rubble: false` for none.
+- **Patches** (`trailPatches`). Blobs on a gritty dirt trail, laid on its ribbon's own heights a hair over it, each
+  the trail's colour a shade off with a relief of its own, feathered at its edge into the trail's colour: `worn` (lighter, packed smooth), `damp` (darker, smooth),
+  `gravel` (stones close in a bed of grit: a new `gravel` cut in `matte-paint/dressed.js`), `crown` (a strip of turf
+  down the middle, the cart track's), `puddle` (a darker core with no relief in a damp ring). The default is worn, damp
+  and gravel; `patches` names the kinds, `false` none.
+- **The edge blended** (gritty dirt). The trail met its verge on a ruled line, a step in colour along it. Now the verge
+  lanes start in the trail's own colour at its edge and fade to the land's across their width (`verged`), and the
+  trail's dirt spills over the edge (`edgeSpill`): blobs of its own colour and path relief straddling the edge every
+  metre or so a side, reaching out over the verge, each feathered to what lies under its rim, so the edge is ragged.
+- **Paved trails.** `surface`: the dirt (`earth`) by default; the outdoor ones laid in the dirt, `stone-road` (field
+  stones with earth between them: the rooms' rubble floor, `art-direction.js` RUBBLE's `stone-brick` bond) and `gravel`;
+  and the made ones, `flags`, `setts`, `pavement`, `asphalt` and `brick-paving` (the rooms' herringbone floor brick,
+  BRICK_FLOOR's bond). `stone-road`, `brick-paving` and `gravel` are ground words added to `MATERIAL_WORDS`. A paved
+  trail's lanes lean to its word's colour (a stone word without one to the kit's rock), on a gritty land laid with its
+  word's tile for the path's, one tile across the lanes so its joints run on (`matte-paint/detail.js` lays a
+  `stone-brick` spec as a detail, painted in greys under the word's colour; `landscape/surface-textures.js`
+  `bondedBrickTile` its texels). A made one keeps its own edge: its fringe turf to its edge, with no rubble, patches or
+  pebbles. An outdoor one leans part of the way and keeps the dirt trail's edge (the verge from the dirt, a narrower
+  spill, the rubble beside it and more of it in on its border), and its border has sand worked into it (`sandBands`):
+  seven bands along each edge over a metre, each a cutout of the road's own tile (`era/sand-tiles.js`: a share of its
+  cracks in broken runs, then all of them, then broken patches over the stones), the sand coming in a crack at a time
+  from furthest in to mostly sand at the edge, so the road reads its whole width and shows through beneath the sand
+  with no line where the sand begins.
+- **The verge's outer edge** (any gritty trail in the dirt), done the same way (`turfBands`): seven bands of the land's
+  own turf tile cut to its blades, a share of them furthest in on the verge, then all, then patches of sward, a little
+  past the edge onto the land, in the land's colour, so the verge meets the land with no line.
+- The geocube vocab card names the glazings (arabesque, ornamental, stained) and the trail's dress. Tests:
+  `trail-dress.test.js`. The study spike `scripts/spikes/geotown/trail.mjs` frames one stretch of a stage trail on a
+  cube, per dress.
+
+### Window glazing: stained glass, ornament and arabesque, by the style
+
+A style's lights took one of five glazings (diamond lattice, sash, casement, plate, none). Three more now, each tied to
+the style that speaks it: an arabesque star screen from the in-house pattern library, leaded ornament, and stained
+glass in the style's own colours.
+
+- **Arabesque** (`moorish-medina`). A screen of the khatam star field (octagons and their gap squares,
+  `polygonizer/arabesque.js` at its own contact angles) over the glass. Drawn as bars, a screen is hundreds a light, past
+  a house's whole triangle budget, so the budget sent it into the tile, which the town stage never draws. It is one
+  cutout card a light instead (`era/screen-tiles.js`: the field painted white on clear, one cell a tile, the card's own
+  trim colour multiplying it), carried beside the house's faces (`speak`'s `screens`) and stood by the town stage as
+  `town:screen`. A screen whose light went into the tile goes with it. Renderers that draw no textures leave the glass
+  clear.
+- **Ornamental** (`art-deco`). Leading: a border a hand in, a roundel at the head (an arch's spring, three quarters up a
+  square light), a sunburst of rays from it to the border, and two uprights under it, darker than the frame.
+- **Stained** (the new `gothic-parish` starter: coursed stone, a steep slate roof, tall arched lights). Panes behind
+  the lattice's cames, cut to the light's clear, each on the paint's ramp or the lens's by its ring out from the light's
+  heart, its value its own. A tall light's diamonds are sized up to it (some three dozen panes a light, a hand at
+  least). The style's surfaces take the paint the panes use. The house budget sheds panes after cames, so a light keeps
+  its colour longest.
+- The glazing rail names all eight; the existing five glazings are unchanged. Tests: `out-openings.test.js`. The close
+  spike (`scripts/spikes/geotown/close.mjs`) frames the front light square on.
+
+### Gritty flora: the cube's grit draws what grows in detail
+
+A geocube's grit already says how finely its rooms, streets and rock are drawn; the biocube says what grows. Grit now
+reaches the flora too: on a gritty cube the crowns, the trunks, the path and its edge, the grass's light and the
+clouds take detail in the cube's own colours, stronger with more grit. A quiet cube is drawn as before.
+
+- **Leaves and bark** (`era/gritty-flora.js`). On a gritty polygon land the crowns take the `leaves` cut (leaves over
+  one another, now gathered into masses that read from afar, thin and dark between them), a crown's top laid as a
+  floor and its sides as a wall, and the trunks take `bark` up them: grey relief over each face's own colour
+  (`matte-paint/detail.js` layDetail), its strength the land's grit.
+- **The path and its edge.** The trail takes a new `path` cut (packed earth, crumbs, faceted stones pressed into it,
+  worn hollows), the ground and its talus `turf`, and the trail's fringe lanes a new `verge` cut laid across the lane:
+  earth and stones at the path's side giving way to turf at the land's, so path and land meet in a band, not a line
+  (`withGrittyGround`). A town's street keeps its own edge, its kerbs and walks: the land wholly under its paving goes
+  with the trail under it (`stage-buildings.js`), so no blend runs under the street; the trail beyond the town blends as
+  before. The same band laid across a walk is the shape a later street wear would take (water at the kerb, rubble at
+  a derelict wall's foot).
+- **The grass's light.** A gritty land's live grass takes the material light (its ramp read smooth, not banded), the
+  roots darker and the light through the blades stronger as the grit rises (`ao` 0.6 to 0.3, `back` 0.6 to 1); no dry
+  tips, a hue the cube's ramps do not hold.
+- **Crowns in lobes, not domes.** A gritty land's crown masses are each three overlapping lobes, every vertex pushed by
+  a lumpy noise (more with grit), so a crown's outline breaks into clumps, and a face's tint darkens by how deep in
+  the crown it lies: the dark core between the clumps, in the foliage ramp's own stops.
+- **Leaf cards on the crowns' outline.** A gritty cube's look carries the leaf card's tile on its own foliage ramp, and
+  its land stands the kit's leaf cards out of each crown mass (as the realistic pole does), each its band's tile drawn
+  hi-def in the foliage's stops: a crown's edge is leaves, not a dome's curve.
+- **Bushes the same.** A gritty land's bushes are lumped about their own middles as a crown's lobes are and stand leaf
+  cards like a crown's mass. (The lobes are coarse, twenty facets: the cards carry the outline; a gritty grove town is
+  about 64,000 faces against a quiet one's 50,000.)
+- **The clouds, heaped.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the
+  kit's own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest
+  stops, the cutout's edge kept whole, and its outline broken further (small heads on the heads, wisps pulling off the
+  upper edge, the base's line bumped; the big shape the same). Each cloud is a heap of three cards, two smaller set
+  behind it and to a side, one mirrored, so it has depth and shifts as the eye moves.
+
+### The biocube: a level's flora as data
+
+A geocube holds a level's one look; what grows there was each kit card's own numbers. A biocube holds it as data, a
+sibling of the geocube: which trees, in what clusters, how dense the grass, which shrubs and flowers, in the kit's own
+vocabulary so a stage reads it by merging. Fauna later.
+
+- **The card** (`era/biocube.js`). `flora`: `trees` (`clusters` groves of `perCluster` trees `spread` metres round,
+  their `heights`, clear of the trail and the cliff, a `crown`, a `hero` or none), `grass` (tussock `clusters` of
+  `perCluster` tufts, a `scatter` share, the fringe's `fringeEvery`, its `height`, its `kinds` by place from
+  `vegetation/grass.js` GRASSES, the `field` of blades along the trail) or null, `shrubs` (the recipe's own
+  `{ count, bloom, fruit }`) and `flowers` (`{ share, mix }` of `vegetation/wildflowers.js`): the kit card's own keys.
+  Presets `meadow` (the meadow card's own numbers: a meadow stage given it is byte for byte as without), `upland`,
+  `grove`, `bare`; `{ from, …changes }` block by block, every value on its rail and told when it is off.
+- **A stage grows it** (`era/isekai.js`, a stage's `biocube`): its trees and grass laid over the card's, its bushes
+  when the recipe names none, its flowers in the live grass. On a polygon land the grass is the biocube's: the island
+  grows none, a biocube brings back the tufts and the field (the lips' and hats' fringes stay off).
+- **A geocube's street takes one** (the geocube kind's `biocube`, `show: 'town'` or a domain's street).
+- **A cube carries its own** (a geocube's `biocube`, checked when the cube is read): its streets' flora (`show:
+  'town'`, a domain's street, a recipe's `geocube` with a `trail` in the cube's kit) unless the recipe names another.
+  `valley-morning` grows a meadow, `upland-morning` and `limestone-crags` an upland, `jungle-haze` a grove; a cube with
+  none grows nothing on its streets' land, as its island.
+- **Its grass a carpet by default.** A biocube's grass names its live carpet (`grass.live`: `{ kind, density /m²,
+  height }`, the card's `live`; null for none), and a stage whose biocube grows grass lays it wherever the grass grows,
+  as a recipe's `wind` or `grass` did: blades on every grassable cell round the walker, not tufts in clusters with the
+  ground between them. On a polygon land the grass brings back what the island has none of: a big boulder's hat (its
+  top the ground's, a fringe draped over its rim) and the cliff lips' fringes.
+- **Nothing grows on a path.** The trail's fringe tufts stand off it across the trail, not along x, so a slanting
+  stretch keeps them off as a straight one does, and no tuft roots within a hand of it (`nature.js` `grassTufts`: the
+  nature kit's fringe too). The carpet grows only in cells wholly clear of the trail (a cell's tufts stand anywhere in
+  it). A town's street clears what stands on its own paving, its door paths among it, tufts and carpet cells alike.
+- The inventory it was drawn from, and the overlaps left to settle (tree clustering said four ways, grass density
+  five), are the plan's; a cube's own default biocube and the nature kit come next.
+
+### The land drawn as the island's: a cube's town and trail stand on its island's terrain
+
+A geocube's island draws its land as polygons lit by the cube's land rules, and a gritty one draws its rock's own
+formation on its cliffs; the land under its towns and trails was still the isekai kit's pixel-locked tiles and grass
+cards. It is now drawn the island's way, by the island's own functions.
+
+- **The polygon land on an isekai stage** (`era/isekai.js`, a stage's `shading`: the same object the local meru reads,
+  `local-meru/plan.js` `readShading`, now exported). No tiles on the land: cliffs and boulders baked flat per facet, the
+  ground, the talus and the trail smooth at each corner, then the land's rules (`local-meru/shading.js`: crevice,
+  ridge, blend, mix). No grass on it (no tufts, no field, no fringe, no hats, no trail blend, no live grass). A gritty
+  land (`grit` from `GRIT_PIXELS`) breaks its boulders and its cliffs' rims and strews stones
+  (`local-meru/broken-land.js`), and the page draws its rock's fabric near the eye: the site's own strata and joints,
+  the land's `skin` (a formation: beds worn back, overhangs, fallen slabs) and `rocks`. Absent, a stage is byte for
+  byte as it was.
+- **A geocube's town and trail carry it.** `show: 'town'`, a domain's street and a recipe's `geocube` with a `trail`
+  pass the cube's land shading (its outside's `land`, as its island takes it), so every cube's street stands on its
+  island's terrain: a quiet cube's ground smooth and green, a gritty one's crags in their formation. Their grass is
+  gone with it, to come back with the flora. The trees and the clouds are the kit's, as before.
+- **Parked for the flora:** the matte painter's natural cuts, `turf`, `leaves` and `bark` (`matte-paint/dressed.js`,
+  on the dressed tile's rails), grey relief tiles to lay over the ground, a crown and a trunk. Nothing lays them yet.
+- **Valley and facet on the stage.** The land's `valley` (a corner darkened by the sky the land round it takes) and
+  `facet` (the rock drawn toward planes, on the faces' own heights, the ground round it and the land the rest is placed
+  on unmoved) now reach a stage's polygon land too: the island's `valleyOf` and `planarise`, moved unchanged into
+  `local-meru/land-form.js` (the island imports them from there, byte for byte as before).
+- **A gritty land's shadows at a third of the cost.** A broken boulder casts its unbroken shape's shadow (drawn in by an
+  eighth, so no chip lies inside it) and the strewn stones cast none: a gritty meadow stage assembles in about 4 s, not
+  11. Its rock is drawn and lit as before.
+- **The micro-town's `trail` camera** (`show: 'town'`): on the trail's open stretch short of the street, at a person's
+  eye, looking along it toward the town, so the trail's edges into the land and the rocks beside it are seen.
+
+### Geotown structures: doors and windows, the street, the square, the gates
+
+The geotown's buildings up close, and the town round them: its openings as architecture rather than marks on a wall.
+
+- **Openings as architecture** (`era/out-openings.js`). New params on the building language's `light` and `door`
+  elements, held by the street and refused off their rails by name; absent, every town is as it was, byte for byte.
+  A light's `frame` stands a surround proud of the wall with its returns as the reveal, the glass set back in it;
+  its `glazing` lays bars over the glass (`lattice`, leaded diamonds; `sash`, two sashes of small panes with a meeting
+  rail; `casement`, a mullion and a transom; `plate`, one pane), in its `trim` (a surface group, `trimValue` its
+  value). A door's `leaf` is `boards`, `panels` (raised, in two columns) or `glazed` (its upper half glass); its
+  `surround` a `frame`, `pilasters` and an entablature, or a `hood` on brackets; its `fanlight` a glazed transom
+  (`rect`) or a half-round over the head with radial bars (`arch`); its `steps` up to the threshold, and the stage
+  raises the house's floor to meet them. Shutters take a `form` (`boards`, `louvred`) and stand out of the wall. They
+  are a detail's depth (the near ring); over the ring's triangle budget the dressing off the lane face goes into the
+  tile first, then the language's own ornaments, then the lane face's dressing. The style starters take them by period
+  and place (sashes and a fanlight between pilasters for the Georgian terrace, leaded lattices for the Tudor town and
+  the medina, white casements for the Nordic harbour, plate glass in deep reveals under a hood for the Brutalist), and
+  the style's `surfaces-built` law counts a built light's trim as a surface its palette may name.
+- **The street through the town** (`era/stage-street.js`; a stage town's `street: true`, which every geocube town
+  takes). The stretch of trail between a town's first and last house is laid as its language's lane: the anchor's own
+  section (the road in its paving, the edge in its walk's form: a kerb set on end, a flush channel, a boardwalk's
+  fascia, a verge; the walk at its lift) on both sides, draped on the land along the trail; its lamps at their stride,
+  the head reaching over the road, their glass warm; posts along a flush walk; a path of slabs from the walk to each
+  door. The houses are seated to front it: a seat every metre and a half along it either side, just behind the
+  footway, facing it, the seats nearest the town's heart first; a house left no free frontage is not built rather
+  than stacked on another (before, a town's houses scattered over the land, one up a hill, and could stand in one
+  another). The planning pass reserves the street's ground, so nothing grows on it; its trail and growth are cleared.
+  On a gritty cube its setts, flags and slabs are laid from relief (era/town-dress.js `street:*`), a style's `road`
+  and `walk` words over them. The micro-town's `house` camera stands on the road before the first house, its
+  `street` camera on that house's walk looking down it. A stage town that does not ask for its street is as it was.
+
+### Architectural style: the model composes a town's and a city's look, on the cube's materials
+
+A town or a city is not one style: a STYLE says what a place's builders build, and the town, the city and their dress
+follow from it. The buildings' design stays the model's: a style composes the building language's elements and the
+material words, and starters are examples on the rails, never the limit.
+
+- **The style card** (`era/arch-style.js`). A style is a starter's id, a document, or `{ from: <starter>, …changes }`:
+  its `read`, its `class` (ancient or modern), its `language` (an anchor's id, its own elements, or `{ from: <anchor>,
+  elements: { <id>: element | null }, … }` that changes or drops the anchor's elements), its `materials` (a word per
+  surface), its `palette` (a colour per surface, over its word's own) and its `city` (a city grammar's changes, its `grain` the
+  grammar it starts from). Every refusal names the rail and the words it allows.
+- **Material words** (`MATERIAL_WORDS`), each of a class and for a surface: ancient limewash, lime render, ashlar,
+  rubble, hand-made brick, adobe, boards, shingle, thatch, flags, setts, earth; modern wire-cut brick, stucco, sawn
+  stone, precast, concrete, glass, pavement, asphalt; clay tile and slate built in both. A word is a dressed tile (on a
+  gritty cube) and a colour of its own: a lit town face keeps its luminance (the cube's light and the value its language
+  gave it) and leans its hue to the word's (`leanHue`, era/town-dress.js; a pale face that would clip gives up chroma,
+  not light), a city's frame leans as a modern material's does; a quiet cube's street and city take the colours without
+  the relief. What a style does not name keeps the cube's own dress.
+- **Starters** (`STYLE_STARTERS`) across periods and places (a whitewashed island village, a Tudor market town, a
+  Georgian terrace, an adobe pueblo, a Nordic timber harbour, a Moorish medina, Beaux-Arts, Art Deco, Brutalist), each a
+  recipe to take `{ from, …changes }`; each keeps its own laws.
+- **Laws that advise** (`styleLaws`, never refusing): the class against the materials, the cover against the pitch,
+  the value order (wall over roof over opening; a flat roof is not seen), materials that name a surface the language
+  never builds; written back on the specimen (`geocube.style`) as `{ law, ok, value }`.
+- **Wired in.** A settlement's `style`, a cube's `buildings.style` (a settlement's over the cube's; at each level an
+  `anchor` named beside a style speaks over its language), the micro-town's and the micro-city's `style` (over the
+  settlement's anchor), and a city paint's `style` (city/plan/look.js; its class the materials' unless the paint names
+  them). The town speaks the style's language in its street and its houses (a stage town's language written as elements
+  now reaches its houses and their insides too, not only its street) and wears its words; a program on a styled cube
+  speaks its style's language. The city's grammar is the style's language at its `grain` with its changes over it
+  (`styleGrammar`): an ancient city raises no curtain walls and no towers and stands no taller than Haussmann's Paris,
+  a flat-capped language raises no roofs; its walls and ground are dressed in its words (a rhythm takes a word or a
+  list, each building picking one by its dice; glass leaves a building as drawn). Absent a style, as it was, byte for
+  byte.
+
+### Geocube town materials: a cube's town and city painted from relief, at its hours
+
+The island's know-how carried to the cube's architecture: its micro-town and micro-city seen at eye height, lit at its
+hours under its clouds, and a gritty cube's street painted from relief as its rock is.
+
+- **Seen for the architecture.** The micro-town's first cameras are a person's eye nine metres before its first house's
+  front (`house`) and down the street to the rest at their own floors (`street`); the micro-city's, a person's eye on its
+  sidewalk a step and a half out from the block, looking down its first side (`sidewalk`). The trail's and the city's
+  own cameras follow.
+- **The city at the cube's hours.** The micro-city takes `hour` (its domain's unless it names one) and `clouds`, and the
+  city kind's `paint` takes them too (`paint: { geocube, amount?, hour?, clouds? }`, city/plan/look.js `cubeLookSpec`):
+  the cube's reference card relit at that hour (its sun on the hour's arc, weakened by the hour's gain; past dusk none,
+  so the moon lights it and its windows and signs are lit, city/plan/night.js), its dome, ambient and air the hour's, its
+  stars out and its moon on the dome by night, its clouds painted round it. The hour's light and air under clouds are one
+  function for the land and the city (era/geocube-hours.js `hourAir`). A micro-city refuses the live `weather` (its sky is
+  its clouds). A paint without an hour or clouds lights the city as before.
+- **Lime render over stone** (`matte-paint/dressed.js` `cut: 'render'`, on the tile rails with `render`, its coat's
+  colour, and `loss`). The Dust map: the ashlar laid as ever, a smooth coat proud of it, trowelled in soft swells,
+  blotched with damp and streaked by the weather from above, fallen away in broad patches wider than tall (their edges
+  broken finer) to the coursed blocks behind; each patch's lip thins and breaks and casts its shadow onto the stone, and
+  the stone in the hollow is dirtier for having been under the coat. The ashlar's own paint was factored out to share
+  with it, byte for byte. Its noise slides each octave's lattice by whole cells of its own (still periodic): thresholded
+  hard, the shared lattice showed every patch at the repeat's origin.
+- **A gritty cube's street dressed** (`era/town-dress.js`). At `grit` from `GRIT_PIXELS`, a cube's street (`geocubeTown`)
+  carries a `dress`: its plaster walls the lime render (a 3 m repeat, loss from its grit), its stone walls ashlar
+  (rock-faced from 0.85), its plinths and stoops a course of long blocks, in the cube's stone and floor colours. A stage
+  town's `dress` lays each on the walls, gables, socles, quoins, sills and plinths of its standing houses and of the
+  buildings walked into (era/stage-buildings.js), as a DETAIL: the painted tile divided by its own mean in linear light
+  and set to 0.8, the face's own colour and baked light lifted by the inverse (the page multiplies them, `textureLit`),
+  so each wall keeps the cube's paint and the sun, and the stone's relief, its patches and joints ride on them; laid
+  world-locked (u along the wall, v up it, a metre a metre), its two variants by where the wall stands, served by a
+  `detail:` texture resolver painted once a spec. Openings, frames, doors and roofs are as they were. `limestone-crags`'s
+  harbour is built in the timber hall's language (a coursed stone ground storey, lime render above, tile over it): its
+  houses are what its grit dresses. A quiet cube's street, and any town without a dress, is as it was.
+- **Roofs in courses, timber in boards** (`matte-paint/dressed.js` `cut: 'tile' | 'slate' | 'boards'`; the rails' `rows`
+  to 16 and `cols` to 12). Tiles in courses, each course's lower edge ragged a little and lapping proud over the one
+  below so its shadow falls down the slope, each tile rolled across like a pantile, its tone its own, the weather darker
+  toward each course's exposed foot and lichen a fine speckle gathered there at grit (a broad thresholded blotch read as
+  camouflage); slates the same, thin, flat, half-bonded and each laid a little askew; boards upright with gaps between
+  them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gritty cube's street dress
+  lays its tile, slate and shingle roofs (u along the eave, v up the slope: a rise over the pitch's sine) and its timber
+  walls, frames and trims (the tiered houses' boards) the same way; a flat roof is not laid. Thatch is as it was.
+- **Two classes of built material** (`matte-paint/dressed.js`, `city/plan/dress.js`). ANCIENT, hand-worked and
+  lime-bound, worn by loss, spalling and lichen (the render over stone, tooled ashlar, clay tile, slate, boards, flags,
+  and `setts`, a road of small stones in courses, crowned and worn smooth, set in sand); MODERN, machine-made and
+  cement-bound, worn by the weather and never by loss (`brick`, wire-cut in an exact stretcher bond with thin struck
+  joints, a burnt brick now and then, a white bloom low at grit; `concrete`, board-formed in form panels, the boards'
+  grain pressed in, the panels' joints standing as fins, tie holes in rows and a streak run down below each, bug holes;
+  `precast`, chamfered panels with dark sealant joints and the dirt washed down from each; `stucco`, a floated coat with
+  a control joint, hairline cracks and a soft repaint; sawn stone, ashlar with hairline joints and no chips; `pavement`,
+  a sidewalk scored into slabs with a broom finish, a straight crack across a slab or two and round stains; `asphalt`,
+  aggregate in its binder, squares of repair, cracks sealed in tar, oil). A town builds ancient; a city builds modern
+  unless its paint says `materials: 'ancient'` (the micro-city takes `materials`). In a modern city each rhythm offers
+  its materials (punched: brick or stucco; pier: sawn stone or precast; banded: precast or board-formed concrete) and
+  each building takes one by its own dice (its card's frame, body, floors and bays), so a street mixes them; a modern
+  material keeps its own colour (a brick red, concrete grey), the cube's tint kept a third; the roads are asphalt (or
+  setts, ancient). The dice cells snap to the repeat (a cell that did not divide it left a seam), and a crack ends at
+  its slab's joint.
+- **One place asks whether a cube is gritty** (`matte-paint/fabric.js` `grittyOf`, beside `GRIT_PIXELS`): its room,
+  its town's and city's dress and a style's words read it, instead of each its own threshold. Byte for byte as before.
+- **The resampler: painted tiles that do not repeat at scale** (`scene/channels/resample.js`, `matte-paint/detail.js`
+  `resamplePlan`). No AI and no new texels: the page reads a detail tile again at seeded shifts as it draws it, by a plan
+  read off how the tile was built. Coursed work (ashlar, brick, setts, tile, slate) in bands a few courses deep, each
+  read at its own shift down by whole bond periods (so every cut falls on a bed joint and an exact bond holds across it)
+  and along by whole units (or any amount where the head joints are free); boards in upright strips shifted by whole
+  boards; a grid (slabs, panels) in cells of whole units shifted both ways; free work (a render, stucco, asphalt) as
+  three readings at seeded shifts blended on a hexagonal grid, sharpened, the blend's contrast held round the detail's
+  known mean so it neither repeats nor washes out (a render's readings shift down by whole courses, so the stone under
+  its coat runs on across a blend). Over all of it a broad wash of tone, so a street is not one swatch. Every reading
+  takes its gradients from the unshifted uv (no mip seam at a cut); the dice are an integer hash of the cell and the
+  plan's seed. The world sends a plan for each detail tile a page draws (`payload.resample`); the patch replaces the map's
+  read in those meshes' shader; a page with no plan emits nothing of it. Godot and Roblox tile the detail as painted.
+- **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gritty cube (its
+  `paint.geocube`, the micro-city's always) is painted from relief as the cube's town is: the wall a facade's windows
+  are cut through (a card's shirt in the `punched`, `pier` and `banded` rhythms) a lime render broken to the stone, ashlar,
+  or a coat that has weathered rather than fallen; its sidewalks and plazas in worn slabs. A card carries its wall's
+  `dress`, and the card realizer (`architecture/facade-card.js` `projectCardOntoQuad`) lays it on each facet of the shirt,
+  world-locked in metres on the city's units, so a facade's piers and spandrels carry one stone; the windows' body
+  behind, a curtain wall's glass and mullions, metal and the roads are as they were. The tiles a card names are served
+  with the payload (a card's facets are realized on the page, after the scene's textures are gathered). The laying is one
+  module for the town and the city (`matte-paint/detail.js`: the tile, its mean held, the face's paint lifted by it,
+  world-locked as a wall, a roof or a floor); the town's bytes are as they were. A quiet cube's city, and a city no cube
+  paints, is byte for byte as before. (The engines' marks now name the page's `fabric` input: absent in Godot and
+  Roblox, the rock keeping its baked faces.)
+
+### Geocube domains: one cube, many levels
+
+A geocube made one level: its style fused with one room and one island. A cube is now its style (light, palette,
+register, contrast, grit, surfaces, era, target, materials, principles) plus named ingredients (terrains, interiors,
+structures, settlements), and its `domains` are its level configs, each a composition of those ingredients at an hour.
+Expanding a domain lowers it into a level, in the cube's style. The cube offers its domains with a line each, and the
+model picks the one that fits. A cube without domains lowers byte for byte as before.
+
+- **Ingredients apart from the level** (`era/geocube.js`). A terrain in `outside.terrains` may now be a whole land of
+  its own (`tiers`, `island` and `crystals` beside base, land, relief, ground and colour). The inside gains the same
+  shape: `inside.interiors` are the cube's other rooms (`bones`, `size`, `accentWall`), its own named by
+  `inside.interior` (`room` unless named). Terrains and interiors share one set of names.
+- **Domains.** A cube's `domains: { <name>: { reads?, terrain? | interior?, hour? } }` are the levels it makes:
+  outside on one of its terrains at an hour, or inside one of its interiors. A domain never touches the style: light,
+  colour, palette and the rest refuse, with a pointer to `from` on the cube. A cube that names none offers one per
+  terrain and one per interior, so `domain: { terrain: 'x' }` is `terrain: 'x'`, byte for byte.
+- **Domain expansion.** `domain` on a `stage`, the `geocube` kind, a level and a world's style (`style.domain`, the
+  level's own over the world's terrain and the other way round) asks for one: by name, as `{ from: <name>, …changes }`
+  (a change of side takes the other side's ingredients with it), or composed from the cube's own ingredients.
+  `pickDomain` answers as `pickTerrain` does: the level's ask, else the first domain on its heartbeat's terrain, else
+  the cube's first, with what was offered and what was wanted. `expandGeocube` lowers the pick. A stage on an outside
+  domain that names neither trail nor meru stands on the cube's island at the domain's hour (the stage's own hour
+  wins); an inside one is the room. `painted`, the level's `paint` summary and the specimen's `geocube` payload name
+  the domain; a specimen whose cube names more than its own room and land lists the levels it makes.
+- **`limestone-crags` makes four levels** (`GEOCUBE_DOMAINS`, beside its buildings, so the preset's own document does
+  not move): `crag-path` (its crags, a shrine on the top), `cove-dusk` (a sand cove under low crags, at dusk),
+  `harbour-town` (a street up from the cove) and `temple-hall` (a tall nave).
+  Every preset's room, land and dusk land, a stage on each and a painted level render byte for byte as before; the
+  limestone specimen's payload gains its list of domains. Only the automated checks have run; none of them has been
+  looked at.
+- **Structures, the landmarks a domain raises.** A cube's `structures: { <name>: [<structure>…] }` are the landmarks
+  its builders raise: a fractal structure's words each, standing `at` [x, y, z?] or `on: 'summit'` (the climb's top
+  tier, `at` then an offset). A domain stands a set by name or lists its own (`structures`; an interior takes none).
+  `geocubeStructures` paints them from the cube's ramps on the domain's terrain (body the stone, band the trim, crown
+  the accent, plinth the floor; a structure's own palette over them, key by key) and lights them by the cube's key at
+  the domain's hour. The structures channel raises them beside a recipe's own on a stage's climb or a specimen's land,
+  never on a trail. `limestone-crags`'s `crag-path` stands a spire on its top. A domain without structures renders as
+  before.
+- **Settlements, the towns a domain walks through.** A cube's `settlements: { <name>: { town?, houses?, enter?, doors?,
+  anchor? } }` are the towns its builders make: a town plan (`era/out-town.js`) and how much of its street stands and
+  is walked into. A domain names one or writes its own (`settlement`; an interior takes none). `geocubeTown` makes it a
+  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own, painted by the
+  cube (Geocube micro worlds, below). A town
+  domain standing alone walks a trail through its street (a town does not fit on the island); a level lays the street
+  once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains `harbour-town`, a street up
+  from the cove.
+- **A game expands its one cube.** A level on a cube that names its domains, asking for neither a domain nor a
+  terrain, takes the first on its heartbeat's terrain, else the cube's first outside (a cube that names none paints by
+  terrain, as before). `composeGameworld` lends the cube's outside domains to its walks, the ones the prompt's words
+  name first (in the order they are said), then the rest in the cube's order, round again when the walks outnumber
+  them; `brief.domains` records each level's domain and the word that chose it, and the world keeps one cube.
+  `limestone` and `crag` now name `limestone-crags`.
+- **Domain expansion, taught.** The geocube routing card names domains and `domain` and points to a new sketch-vocab
+  card, `geocube` (`get_sketch_vocab({ id: 'geocube' })`): the style, the ingredients, the domains, the four doors
+  and how to choose. No new tool.
+
+### Geocube micro worlds: a town and a city up close
+
+The trail's stand-in, walked through architecture: two more specimens on the geocube kind, each a tiny world that
+builds in seconds, so a cube's town and city can be reviewed at eye height. Showcases, like the trail: no goal, no
+hero, nothing to export.
+
+- **`show: 'town'`, a micro-town** (`era/geocube.js`). A few houses of a town's street on a 12 s trail, in the
+  domain's land and light (its terrain at its hour, `clouds`) and the cube's builders' language: the domain's
+  settlement, else the cube's first, else `MICRO_TOWN` (the smallest town the rails allow, a hamlet on one lane, four
+  houses standing, none entered). The dummy walks the trail's spine a point a metre at the ground's height, and at
+  each house a spur out to a metre and a half before its door and back. `seed` lays the street; a town minted without
+  one draws its own from its ref, as a trail does. `payload.geocube.town` names the settlement, its builders and how
+  many houses stand. About four seconds to build.
+- **`show: 'city'`, a micro-city** (`era/geocube-city.js`). A city plan on a 2 × 2 board (the smallest that makes
+  blocks round a crossing) in the cube's builders' language (its domain's town's, else its buildings', on its base kit
+  when that kit has structure rails, else the meadow's), painted by the cube, no cars, no people; a new city every
+  mint. `hour` and `clouds` refuse: a city is lit by its cube's look. The city kind takes `route` (`ctx`): the sidewalk
+  round the block nearest its core, in its units (`city/plan/pedestrians.js` `blockRing`); a city without it is as it
+  was. The dummy walks it round at `1 / CITY_METERS_PER_UNIT` (`attachDummy`'s `scale`, opt-in: a trail's walker is
+  as it was), a person's height among the city's buildings. Under a second warm.
+- A domain with a town shown on its land is a street on a trail, so it raises no summit structures; nor do a
+  micro-town or a micro-city.
+- **The cube paints its architecture.** A geocube's look carries the cube's own made ramps beside its kit's, under
+  names of their own (`cube-stone`, `cube-trim`, `cube-roof` from the floor, `cube-accent`), so nothing that names a
+  kit's ramp moves. A stage's `town` takes `paint` (`era/stage-buildings.js`): its surface groups re-pointed at the
+  kit's ramps, a ramp the kit lacks passed over; a cube's street (`geocubeTown`) re-points its timber and trim at the
+  cube's trim, its roofs (tile, slate, shingle, thatch) at its floor, its shells at its stone and its painted things at
+  its accent (`CUBE_STREET_PAINT`; plaster and stone walls were already the land's soil and rock, the cube's). Two cubes
+  on one base kit now paint their houses apart. The micro-city leans its skins all the way to the cube
+  (`paint.amount` 1); a game's city level still leans halfway. A street with no `paint` is as it was.
+- Rendered headless (no page errors), not reviewed: the dummy walks the town's trail and its door spurs and stands a
+  person's height on the city's sidewalk; the gothic town's houses stand in cold grey stone, the island's under
+  terracotta, and the island city's facades lean to its stucco, their window bands still the glass's dark.
+
+### Geocube trail: the cube's island, walked by a dummy
+
+The first recipe expansion: a geocube shown one step further in. `show: 'land'` is where a cube's look is judged;
+`show: 'trail'` is the same island laid fresh with every way up drawn and a plain stand-in figure walking it, where
+the walk and the runtime cost are read. A showcase, not a level: no goal, no hero, nothing to export.
+
+- **`show: 'trail'`** on the geocube kind (`era/geocube.js`): the island and its land as `land` lowers them, with
+  every way up drawn (the island's `walk: 'all'` in place of the specimen's `'base'`), walkable from the seam. It takes
+  `hour` and `clouds` as `land` does, and `seed`, which lays the island (its relief, ground and geology); the same seed
+  gives the same bytes. `room` and `land` refuse a `seed` and emit the same bytes as before. With a `domain` (Geocube
+  domains, above) it walks that domain's island: its terrain at its hour, its structures on the rolled top.
+- **A new island every mint.** A trail minted without a seed takes one from its new ref (as a new house does), written
+  into the recipe, so no two mints show the same island and the row re-renders byte for byte. The seed also rolls the
+  way up (`local-meru/roll.js` `rollTiers`): the cube's own tiers, their forms, sides and ways up kept, each mound's
+  height, foot, summit and bulge, each spiral's turns and hand and each tower's deck drawn in a band round the cube's
+  own. A roll is kept only when it breaks no law the cube's own tiers keep (the steps, landings, shelves, a tier inside
+  the top below); else the next, and after eight the cube's own.
+- **The dummy** (`local-meru/dummy.js`). A trail is walked by a stand-in: the protoform in plain clothes, its colours
+  greyed by their own light into a mannequin's, baked once and kept. It walks the island's route on the walkers
+  channel, up to the top and back down to the seam, round and round. The route is laid on the land: each walked
+  stretch every half metre at the ground's height, the flights and landings at their own (`local-meru/scene.js` emits
+  it only when the geocube asks). The walkers channel takes `follow` on one walker (`scene/channels/walkers.js`): the
+  orbit's target rides it and the camera moves with it, so the view still turns and zooms round it; a `follow` button
+  lets it go, the walk takes the camera while it is on, and the chase is seated behind the walker again after. A still
+  capture keeps its own camera. A world without `follow` emits the same bytes. The dummy adds about 4 MB to the page
+  (the clothed bake). A climb is not posed yet: the dummy slides up the ladder in its walk; none of the cubes' trails
+  has one.
+- Planned: a readout, never a gate: the payload's counts (triangles, draw groups, textures and their bytes, page bytes)
+  and, on the page while the dummy walks, frame time and draw calls. `room` and `land` emit the same bytes.
+
+### Geocube hours: one cube at any hour, under a sky painted to match its ground
+
+- **The hour** (`era/geocube-hours.js`). A geocube's outside takes an `hour`: a stage recipe with `geocube` and `meru`
+  or a `trail` (in the cube's look), and the geocube kind's `show: 'land'`; a number from 0 up to 24, or a word on the
+  clock's dial (`dawn`, `morning`, `noon`, `afternoon`, `golden`, `dusk`, `night`). The sixth-gen references are the
+  keyframes (sunshine's noon, colosseum's sunset, dmc3's night, and a twilight between golden and night that no
+  reference paints, so the sky never passes through brown), and the cube's own reference is one of them: its sun on
+  one arc that rises at 6 and sets at 18 (`weather/clock-dial.js`), peaking at the reference's elevation or 58°, turning
+  15° an hour, so at the reference's own hour the light is the reference's. The key warms and dims toward the horizon,
+  then hands over to the cube's moon (or a pale one) past the dial's dusk; the sky, the ambient and the fog's colour
+  move between the keyframes in the cube's own hue, the golden horizon kept the sun's, and the day's sky is back by the
+  time the sun is well up. The air keeps its thickness and the cube its colours (the bake relights the same paint);
+  the water darkens into the night. A moonlit hour draws the night on the dome: the moon where the key is, the stars
+  out as far as the night has come. A cube's contrast is resolved against the hour's light. A room, a room's show and a
+  trail in its own kit refuse an hour. Absent, the outside is byte for byte as it was.
+- **The painted sky** (`matte-paint/sky.js`). A geocube's outside takes `clouds`: `clear`, `fair`, `overcast`, `storm`,
+  `haze` or `high`, or `{ kind, cover, seed }`; or `'weather'`, the sky the recipe's live weather state is painted under
+  (rain and thunder under storm cloud, fog and mist under haze, drizzle and snow under overcast). A band round the dome
+  is painted once on the CPU by the old Photoshop recipe, nothing volumetric: each sheet is a flat deck overhead that a
+  pixel of the band looks up into, so the clouds crowd and stretch toward the horizon by perspective and wrap the dome
+  without a seam; on it, clouds (value fbm, billowed for cumulus) or difference clouds (a storm's churn), stretched along
+  the wind, levels cutting the cover (normalised, so a sheet's levels read as its cover), an emboss toward the sun (the
+  rims that face it lit, the bellies and thick cloud shaded), a gradient map from the belly's colour (the sky overhead,
+  darkened) to the top's (the key, the sun's or the moon's), a silver lining where the sun stands behind thin cloud,
+  far deck fading into the horizon's colour, a haze a veil thickest low; the octaves a pixel can hold, so the horizon
+  does not speckle. The sheets are laid high first. The clouds lean the light as their cloud would: under overcast and
+  storm the key weakens, the shade greys toward the sky, the air thickens and the sun's disc is gone; clouds that follow
+  a live weather lean only the disc (the live channel carries the air). The dome draws the band as a ring inside it that
+  hides the stars, the moon and the sun behind a cloud; a sky without one emits nothing new. Clouds without an hour are
+  at the cube's own. A level minted with a weather keeps its bare dome: following it is opt-in.
+- Planned: the clouds through the cube's ramps, banded to the register on a quiet cube and soft on a gritty one.
+
+### Geocube styles: principles and the laws that check them
+
+A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's
+`why` already carries the principles and the color theorist's laws already name a palette's mistakes; this theme
+joins them. Both keys are opt-in: a spec without `values` and a cube without `avoid` solve and lower byte for byte as
+before.
+
+- **Value groups.** A palette spec takes `values: { groups: 2 | 3, of? }` (`color-theorist/solve.js`,
+  `PALETTE_VALUES`): each land role's lightness band becomes its group's, so the land reads as a few masses of value
+  instead of a continuous spread. Two groups are a figure and its ground (what stands dark, the sky and the ground
+  light); three are a painter's masses (the sky and the stone light, the ground and what is made mid, the leaves dark).
+  `of` moves a role to another group. The key moves every band; the accents are not grouped. Such a spec is also
+  checked by a new law, `value-groups`: each grouped role's middle sits in its band and the groups sit apart.
+  `pick_palette` takes `values`.
+- **A cube's avoid list.** A geocube takes `avoid: [{ line, law }]`: the mistakes its style names, each with the law
+  that measures it (`era/geocube-laws.js`). A law is one of the palette's, read off the contract the cube's colours
+  were solved from, or one of the cube's own: `quiet-surfaces` (every tile's block shift and speckle under a ceiling).
+  Each line is written back with `ok` and `value` when the cube is read; a palette law on a cube whose colours are its
+  own is `ok: null`, unmeasured. The readout rides the specimen's `geocube` payload and a painted stage's `painted`.
+  It advises and never refuses.
+- **A preset from published art direction.** `theatre-grey`: a grey, quiet world staged in pools of light, one red
+  for what matters (a `mono-accent` palette, quiet surfaces, thick air, lab bones). It carries its avoid list, and
+  every line holds under its own palette. Only the automated checks have run; it has not been looked at.
+- **`limestone-crags`, the first terrain past the sixth generation.** Pale limestone crags over a deep blue sea, the
+  rock drawn near in its own beds: `grit` 0.7, the land's `skin` the limestone formation, edges broken and stones
+  strewn. Its palette is the color theorist's, solved round a locked stone and a locked clear sky (a role's hue alone
+  is a pull the solve overrides), with the sky written, since the solve's horizon read lavender. The flagstone and the
+  sandstone stay one override away: `skin` and a palette on the same cube.
 
 ### Epidermis cube: skin and hair as a recipe
 

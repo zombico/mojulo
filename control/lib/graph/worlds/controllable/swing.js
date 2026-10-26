@@ -108,7 +108,7 @@ export function buildSwing(E) {
     if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; return false; }
     const cs = state.colliders;
     if (!cs) return false;
-    const me = !state.pilotId || state.pilotId === e.id, inp = me ? input : {};
+    const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : {};
     const key = !!inp[G.key], pressed = key && !e._gearKey;
     e._gearKey = key;
     const eye = r.eye ?? 0, R = r.collideRadius ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1), g = r.gravity ?? 20 * (r.metre ?? 1);

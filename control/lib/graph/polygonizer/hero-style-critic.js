@@ -19,7 +19,7 @@
  * figure guides), to be tuned at the eyes gate; none is a measurement of a shipped character. */
 
 const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
-const HEAD_SKIN = /^(cranium|jaw|face)$/;
+const HEAD_SKIN = /^(cranium|jaw|face|headSkin)$/;
 const HAND = /^(hand|thumb|index|middle|ring|little)R$/;
 const FOOT = /^(foot|toes)R$/;
 

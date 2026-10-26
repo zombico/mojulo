@@ -67,7 +67,8 @@ export function fitPlates(kit, parts, { density = 0.75 } = {}) {
  * A piece's ROLE on the realistic body, read from its geometry (its carrier, its window, whether it wraps, what it spans),
  * never its family's names, so a style the fit has never seen is fitted by what its pieces cover:
  *   head      on the head or pinned to it (a helm, a neck guard hung from it): not fitted to the relational head yet
- *   neck      a wrap round the neck (a gorget, a collar): optional
+ *   neck      a wrap round the neck (a gorget, a collar), or a trunk plate wholly above the shoulder line at the
+ *             neck's root (a hard-suit's gorget plates, armour laws 2): optional
  *   foot      a wrap round the foot (a sabaton, an armoured boot): the footwear primitive's boot
  *   hoop      a wrap round the trunk (a fauld's lame, a belt, a lamellar row): a field hoop over its window
  *   shoulder  a trunk shell spanning the upper arm (a pauldron's anchor): a cap domed over the shoulder
@@ -84,13 +85,24 @@ export function roleOf(A) {
   if (/^foot[RL]$/.test(A.part) && wrap) return 'foot';
   if ((A.part === 'torso' || A.part === 'pelvis') && wrap) return 'hoop';
   if (A.part === 'torso' && A.mode === 'shell' && (A.over || []).some((o) => /^upperArm/.test(o))) return 'shoulder';
+  // (a trunk plate wholly above the shoulder line, round the neck's root: a gorget's plate, the neck's role)
+  if (A.part === 'torso' && A.mode === 'shell' && Array.isArray(A.t) && Array.isArray(A.s) && Math.min(...A.s) >= NECK_ROOT_S) return 'neck';
   // (a PINNED panel hangs from its pin, a skirt's plate: not the trunk's shell)
   if (A.part === 'torso' && A.mode === 'shell' && Array.isArray(A.t) && !A.pin) return 'panel';
   return null;
 }
-const HEAD_PARTS = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|head)$/;
+const HEAD_PARTS = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|head|headSkin|globe[RL]|mouth)$/;
+/** the torso station above which a plate is at the neck's root, not the chest (the trunk's chest plates end by 3.3) */
+const NECK_ROOT_S = 3.45;
 /** a plate's cloth as a field shell: taut over every dip shorter than 20 cm (the chest one form, not its muscles) */
 const PLATE_CLOTH = { looser: 4, reach: 0.08, taut: true, span: 0.2, along: 2 };
+/** THE PLATE ON ITS BODY: a trunk plate stands at most this far past the skin under it, over its own clearance (`ease`).
+ * The trunk's field runs on out over the arms hanging beside it and the deltoids blended into it, and a ring cast out to
+ * where that field ends wrapped the arms in the cuirass, a barrel half again the chest's width; the arms are the
+ * vambraces' and the pauldrons', worn outside it. The cuirass's own field leaves the deltoids out (`shoulders: false`),
+ * and it is worn UNDER the upper arm (fieldGarment `under`): by the arm, its armhole, and over the shoulder's ball it
+ * lies on the skin, so the arm hangs over its edge and the pauldron's cap covers the shoulder. */
+export const PLATE_STAND = 0.02;
 const CUIRASS_COVERS = ['collar', 'shoulderTop', 'chest', 'breast', 'armpit', 'flank', 'abdomen', 'upperBack', 'back', 'lowerBack'];
 
 /** The trunk's plates, the feet and the shoulders made by their roles (see `roleOf` and the head of this file):
@@ -105,7 +117,7 @@ export function fieldPlates(kit, recipe, R, build, map) {
   if (panels.some((A) => mid(A) < H / 2) && panels.some((A) => mid(A) >= H / 2)) {
     const s0 = Math.min(...panels.map((A) => Math.min(...A.s))), s1 = Math.max(...panels.map((A) => Math.max(...A.s)));
     cuirass = { s0, ease: Math.max(0.008, ...panels.map((A) => A.mugen ?? 0)) };
-    Object.assign(parts, fieldGarment(recipe, R, build, map, { id: 'cuirass', covers: CUIRASS_COVERS, on: ['torso'], ...PLATE_CLOTH, ease: cuirass.ease, group: panels[0].group ?? 'Plate', window: { torso: [s0, s1] } }).parts);
+    Object.assign(parts, fieldGarment(recipe, R, build, map, { id: 'cuirass', covers: CUIRASS_COVERS, on: ['torso'], ...PLATE_CLOTH, ease: cuirass.ease, stand: cuirass.ease + PLATE_STAND, shoulders: false, under: 'upperArm', group: panels[0].group ?? 'Plate', window: { torso: [s0, s1] } }).parts);
     take(panels);
   }
   // THE HOOPS, in the kit's order (its stacking: each one worn over the one before), outside the cuirass; a hoop that
@@ -125,7 +137,7 @@ export function fieldPlates(kit, recipe, R, build, map) {
     made.add(key);
     if (cuirass && A.part === 'torso' && w[1] < cuirass.s0 + 0.12 && w[1] > cuirass.s0 - 0.3) w[1] = cuirass.s0 + 0.12;
     const id = A.id.split('-').slice(1).join('') || 'hoop', e = Math.max(A.mugen ?? 0, hoopEase);
-    Object.assign(parts, fieldGarment(recipe, R, build, map, { id, covers: null, on: [A.part], ...PLATE_CLOTH, ease: e, group: A.group ?? 'Plate', window: { [A.part]: w } }).parts);
+    Object.assign(parts, fieldGarment(recipe, R, build, map, { id, covers: null, on: [A.part], ...PLATE_CLOTH, ease: e, stand: e + PLATE_STAND, group: A.group ?? 'Plate', window: { [A.part]: w } }).parts);
     hoopEase = e + 0.002;
     take([A]);
   }

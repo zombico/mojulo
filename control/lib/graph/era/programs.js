@@ -22,6 +22,7 @@ import { STAGE_KITS, resolveKitId } from './stage.js';
 import { STRUCTURE_USES } from './out-structures.js';
 import { ANCHOR_IDS, ANCHOR_STRUCTURES, decompileAnchor } from './out-anchor-structure.js';
 import { readGeocube, cubeBuildings } from './geocube.js';
+import { readStyle } from './arch-style.js';
 
 // a room: [role, w range, d range, the role it opens off, { h: storeys tall, n: how many, p: the chance it is there,
 // s: its storey, over: true when it is the room over the one it opens off (climbed to by a stair, storeys.js), or the
@@ -220,8 +221,10 @@ export function withProgram(m) {
   const { program, ...rest } = m;
   const cube = m.geocube !== undefined ? readGeocube(m.geocube) : null, seeds = cube ? cubeBuildings(cube) : null;
   const kitId = resolveKitId(m.kit ?? (cube ? cube.inside.bones : 'gothic-stone'));
-  // on a cube, the cube's builders speak (its seeds' anchor) unless the program names a civilization
-  const P = planProgram(program, kitId, { civilization: seeds?.anchor ?? null });
+  // on a cube, the cube's builders speak (its seeds' anchor, else their style's language) unless the program names a
+  // civilization
+  const S = seeds?.anchor === undefined && seeds?.style !== undefined ? readStyle(seeds.style) : null;
+  const P = planProgram(program, kitId, { civilization: seeds?.anchor ?? (S ? S.language.id ?? S.language.doc : null) });
   if (seeds && program && !seeds.uses.some((u) => u.use === program.use)) P.findings.push({ id: 'off-cube', says: `the cube '${cube.id}' does not recommend a ${program.use} (it builds ${seeds.uses.map((u) => u.use).join(', ')}); built anyway` });
   const level = rest.level && typeof rest.level === 'object' && rest.level.goal == null && P.goal ? { ...rest.level, goal: P.goal } : rest.level;
   return {

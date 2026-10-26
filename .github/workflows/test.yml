@@ -18,16 +18,17 @@ jobs:
     name: tests / ${{ matrix.os_node.os }} / node ${{ matrix.os_node.node }} / shard ${{ matrix.shard }}
     strategy:
       fail-fast: false
-      # The byte pins hold on every CPU and Node major they record (lib/util/dmath.js for 3.0's
-      # generators, per-CPU-and-Node tables for 2.1.0's), so CI runs both architectures, both
-      # Node majors, and the engines floor itself. Each leg's suite is split three ways (vitest --shard): the whole
-      # suite is about three quarters of an hour on four cores, too long for one runner.
+      # The byte pins (*.char.test.js, *.trace.test.js) are held on the REFERENCE runtime, Node 22, on both CPUs
+      # (and its engines floor): the same recipe on the same runtime is the same bytes. A newer Node major may round
+      # the last digits of the engine's maths differently, so its leg runs everything but the byte pins (`pins: false`):
+      # across runtimes a render is equal within tolerance, not byte for byte. Each leg's suite is split three ways
+      # (vitest --shard): the whole suite is about three quarters of an hour on four cores, too long for one runner.
       matrix:
         os_node:
-          - { os: ubuntu-latest, node: '22.14.0' }   # the engines floor (22.12 and 22.13 crash in better-sqlite3)
-          - { os: ubuntu-latest, node: '22' }
-          - { os: ubuntu-latest, node: '24' }
-          - { os: macos-latest, node: '22' }
+          - { os: ubuntu-latest, node: '22.14.0', pins: true }   # the engines floor (22.12 and 22.13 crash in better-sqlite3)
+          - { os: ubuntu-latest, node: '22', pins: true }
+          - { os: ubuntu-latest, node: '24', pins: false }
+          - { os: macos-latest, node: '22', pins: true }
         shard: [1, 2, 3]
     runs-on: ${{ matrix.os_node.os }}
     steps:
@@ -47,7 +48,7 @@ jobs:
 
       - name: Test control (shard ${{ matrix.shard }} of 3)
         working-directory: control
-        run: npx vitest run --shard=${{ matrix.shard }}/3
+        run: npx vitest run --shard=${{ matrix.shard }}/3 ${{ !matrix.os_node.pins && '--exclude "**/*.char.test.js" --exclude "**/*.trace.test.js"' || '' }}
 
       # the deep sweeps and the book once a leg, on its first shard
       - name: Deep sweeps (*.deep.test.js)
@@ -62,7 +63,7 @@ jobs:
 
   # The e2e tier (vitest.e2e.config.js): whole worlds through the real handlers and games whose audit walks each
   # level in headless Chrome. A third of the suite's time, so `npm test` leaves it out and it runs here, once, on
-  # one leg; the byte pins it rests on still run on every leg of the matrix above.
+  # one leg; the byte pins it rests on run on every reference leg of the matrix above.
   e2e:
     name: e2e / ubuntu-latest / node 22 / shard ${{ matrix.shard }}
     runs-on: ubuntu-latest

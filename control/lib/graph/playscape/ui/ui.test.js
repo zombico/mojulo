@@ -167,6 +167,19 @@ describe('the board is assembled from tracked pieces', () => {
     expect(boardPieceIds(m)).toEqual(['ui:guide', 'ui:motion', 'ui:part:readout.bar:hp', 'ui:part:banner.banner:level-complete', 'ui:layout', 'ui:wireframe:playing', 'ui:wireframe:won']);
   });
 
+  it('a banner carved (as: title) is drawn as the page would carve it, flat, in every state, with its cascade named', () => {
+    const t = resolvePlayUi(WORLD({ parts: [PARTS.readout.example, { part: 'banner', bind: { on: 'cue:win' }, text: '@levelClear', as: 'title' }, { part: 'banner', bind: { on: 'cue:fight' }, text: 'FIGHT!', as: 'title', theme: 'cel', color: 'harm' }], phases: ['playing', 'won'], ui: { register: 'console', seed: 7 } }), seeded);
+    t.play.ui.status = Object.fromEntries(Object.keys(t.play.ui.status).map((k) => [k, 'approved']));
+    const html = uiBoardHtml(t);
+    expect(boardPieceIds(t)).toContain('ui:part:banner.banner:cue:win');
+    const svgs = (html.match(/class="tt-spec"/g) || []).length, texts = (html.match(/moj-w-title[^>]*>LEVEL CLEAR</g) || []).length;
+    expect(svgs + texts).toBeGreaterThanOrEqual(2 * UI_STATES.length);   // the two rows (values, dressed) in every state: carved where a face is found, the words where not
+    const lines = [...html.matchAll(/theme (\w+) · style (\w+) <span class="src">([^<]*)<\/span>/g)].map((m) => [m[1], m[2], m[3]]);
+    expect(lines).toEqual([['arcade', 'heavy', 'register · type'], ['cel', 'heavy', 'register · type']]);   // console's display type dresses both, over the cel theme's italic
+    expect(html).toContain('look rise <span class="src">register · motion</span>');
+    expect(html).toContain('color harm <span class="src">row</span>');
+  });
+
   it('the reference sheet draws every part × variant in every state, in values and dressed', () => {
     const html = uiSheetHtml({ register: 1 });
     for (const p of PART_IDS) for (const v of PARTS[p].variants) expect(html).toContain(`data-piece="ui:part:${p}.${v}"`);

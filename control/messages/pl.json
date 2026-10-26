@@ -794,5 +794,33 @@
         "other": "Inne"
       }
     }
+  },
+  "gameTitles": {
+    "round": "Runda {round}",
+    "fight": "Walcz!",
+    "ko": "K.O.",
+    "victory": "Zwycięstwo",
+    "defeat": "Porażka",
+    "draw": "Remis",
+    "ready": "Gotowy?",
+    "go": "Start!",
+    "start": "Start",
+    "finish": "Meta",
+    "gameOver": "Koniec gry",
+    "levelClear": "Poziom ukończony",
+    "stageClear": "Etap ukończony",
+    "timeUp": "Koniec czasu",
+    "paused": "Pauza",
+    "perfect": "Perfekcyjnie!",
+    "newRecord": "Nowy rekord",
+    "youWin": "Wygrywasz",
+    "youLose": "Przegrywasz",
+    "wave": "Fala {wave}",
+    "boss": "Boss",
+    "continue": "Kontynuować?",
+    "combo": "Kombo x{combo}",
+    "checkpoint": "Punkt kontrolny",
+    "goal": "Gol!",
+    "bonus": "Bonus"
   }
 }

@@ -4235,6 +4235,7 @@ function assembleFractalCitySceneIn(opts = {}) {
     // sun (sources[0]) → directional cast; for night the downward lamps give grounding blobs.
     groundShadows: unshaded ? false : (opts.groundShadows ?? false),
     creaseSeams: opts.creaseSeams ?? false,            // opt-in vgl concave contact-shadow feather
+    organic: !!opts.creases,                           // the World's crease pass (world-scene ctx.creases): trees tagged organic
     ...(opts.sky ? { sky: opts.sky } : skyTime === 'night' ? { sky: { preset: 'night', stars: true, moon: true, seed: opts.seed ?? 7 } } : skyTime === 'day' ? { sky: { preset: 'day' } } : {}),
   });
   if (unshaded && declaredTime === 'night') {

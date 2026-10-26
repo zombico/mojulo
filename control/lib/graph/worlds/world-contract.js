@@ -25,7 +25,7 @@ export const WORLD_TIERS = Object.freeze([
     id: 'T0', name: 'coherent',
     declares: ['faces', 'fills', 'walk_seat', 'floor_under_spawn', 'units_valid'],
     gate: 'world-scene kinds characterization + engine-portability advisory + Godot locomotion_probe (unlit)',
-    witness: 'the World runtime; Godot / Unity / Unreal unlit',
+    witness: 'the World runtime; Godot / Unity unlit; Unreal as an asset, unlit',
   },
   {
     id: 'T1', name: 'baked',
@@ -48,8 +48,8 @@ export const WORLD_TIERS = Object.freeze([
   {
     id: 'T4', name: 'physical',
     declares: ['lights_physical', 'units_declared'],
-    gate: 'export-unreal.mjs (lights_carried, materials_unlit, clips_bound); the lit eyes gate',
-    witness: 'Unreal 5 (Interchange + Lumen)',
+    gate: 'export-unreal.mjs --lit, the world as one asset (lights_carried, materials_lit); the lit eyes gate',
+    witness: 'Unreal 5 (Interchange + Lumen), as an asset',
   },
 ]);
 

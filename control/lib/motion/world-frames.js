@@ -54,6 +54,7 @@ export async function renderWorldFrames(html, specs, {
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,
       timeout: timeoutMs,
+      protocolTimeout: timeoutMs,   // one page call (a leg's compile, a probe) may take as long as the run may; puppeteer's 180 s otherwise
     });
     const page = await browser.newPage();
     await page.setViewport({ width, height, deviceScaleFactor });
@@ -153,6 +154,7 @@ export async function renderWorldTraversal(html, ticks, {
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,
       timeout: timeoutMs,
+      protocolTimeout: timeoutMs,   // one page call (a leg's compile, a probe) may take as long as the run may; puppeteer's 180 s otherwise
     });
     const page = await browser.newPage();
     await page.setViewport({ width, height, deviceScaleFactor });
@@ -234,7 +236,7 @@ export async function compileWorldWaypoints(html, waypoints, {
   const executablePath = await resolveChromium();
   let browser = null;
   try {
-    browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
+    browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs, protocolTimeout: timeoutMs });
     const page = await browser.newPage();
     await page.setViewport({ width: 320, height: 240 });   // compile pass renders tiny — probes, not pictures
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: timeoutMs });

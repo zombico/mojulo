@@ -1,7 +1,6 @@
 /**
  * engine-score.js — the shared score extraction for engine handoffs
- * (godot-handoff.plan.md "Cross-engine alignment"; consumed by the Godot
- * emitter now, export-unreal U0 next).
+ * (consumed by the Godot, Unity and Roblox legs).
  *
  * The score is the engine-agnostic digest of a resolved world payload:
  * colliders, spawn, cameras, entities, declarative mechanics, audio binding,
@@ -13,7 +12,7 @@
 import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, shootCameraDefs } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
-import { normalizeHud, styleTokens, STYLE_TOKENS, FONT_IDS } from '@/lib/graph/game/hud-widgets';
+import { normalizeHud, styleTokens, STYLE_TOKENS, FONT_IDS, isHudColor } from '@/lib/graph/game/hud-widgets';
 import { cleanDials } from '@/lib/graph/playscape/ui/register';
 import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
 import { crystalRigFor, rigForScore } from './crystal-rig.js';
@@ -92,7 +91,7 @@ function scaleMechanic(m, sv, sn) {
   };
 }
 
-// The locomotion row (export-unreal.plan.md, the walking-suits gap): per
+// The locomotion row (the walking-suits gap): per
 // entity, the GLB animation names a kernel needs to make the figure MOVE —
 // idle / walk / boost, derived from the figure's own clip vocabulary
 // (mojulo rigs name their travel cycle 'forward'; 'walk' is accepted as an
@@ -306,7 +305,7 @@ export function levelSoundtrack(sketch, payload) {
 }
 
 // `engine`: the engine the score is read for (engines/registry.js); its ledger reads the level against that engine's marks.
-// An engine without marks (Unity, Unreal) gets no reading rows and no bus coverage: its kernel runs neither.
+// An engine without marks (Unity) gets no reading rows and no bus coverage: its kernel runs neither.
 export function extractEngineScore(sketch, payload, { posture = null, engine = DEFAULT_ENGINE } = {}) {
   const M = marksOf(engine);
   const manifest = sketch?.manifest ?? {};
@@ -333,7 +332,11 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   const sound = levelSound(payload.audio, sketch?.ref);
   if (sound?.sounds.length) ledger.sfx_carried = { count: sound.sounds.length, note: `action sounds ride score.json \`audio\` (bus events, footsteps, shots, swings) as one-shot WAVs${sound.score.variants > 1 ? `, ${sound.score.variants} takes each` : ''}; the Godot kernel plays them (kernel/sound.gd, an AudioStreamRandomizer per sound on the SFX bus, which ducks the music); Unity and Unreal carry the data` };
   if (sound?.combat) ledger.combat_music_carried = { note: 'the fight score ships beside the soundtrack and the Godot kernel changes to it on the bar line when the tension the level\'s events raise reaches its threshold, and back after the hold (kernel/sound.gd, the page\'s meter); Unity and Unreal play the explore score only' };
-  const hudWidgets = normalizeHud(payload.events?.hud).widgets;
+  // a carved title (hud-widgets.js `as: 'title'`, the web's 3D letters) travels as the kernel's banner: the same words at
+  // the same firing, on a plate; the carve, the look and the entrance stay the web's
+  const hudWidgets = normalizeHud(payload.events?.hud, { register: payload.events?.register }).widgets.map((w) => (w.kind === 'title' ? { kind: 'banner', on: w.on, text: w.caps ? String(w.text).toUpperCase() : w.text, slot: w.slot, ttl: w.ttl, ...(isHudColor(w.color) ? { color: w.color } : {}), ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) } : w));
+  const titleCount = normalizeHud(payload.events?.hud, { register: payload.events?.register }).widgets.filter((w) => w.kind === 'title').length;
+  if (titleCount) ledger.titles_as_banners = { count: titleCount, note: 'carved title cards (the web page\'s 3D letters, their entrance and sparks) ride score.json `hud` as banners: the same words at the same firing, drawn on the kernel\'s plate' };
   if (hudWidgets.length) {
     ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel draws them as the page does (kernel/hud.gd: slots, text / counter / bar / clock, banners, stacking toasts, legends, a part\'s show / hide / state and its phases) in the guide\'s tokens, font and frame and plate dials (`hudStyle`); the register\'s motion, sound, cursor and light stay the web\'s; without a bus the kernels paint their own readout from `mechanics`' };
   }
@@ -364,7 +367,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     .filter((l) => l && Array.isArray(l.position))
     .map((l) => ({ ...l, position: sv(l.position) }));
   if (lights.length) {
-    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel), the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
+    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel)' };
   }
   // The LOOK declaration (shader-look phase 4): the one runtime term the bake cannot carry — a
   // figure's rim `[r,g,b,strength,power]` — rides the score so each engine kernel lowers it to

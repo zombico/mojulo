@@ -15,7 +15,9 @@ process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(path.join(os.tmpdir(), 'mojulo-rea
 
 import { createCharacterHandler } from './create-character.js';
 import { exportModelHandler } from './sketch-model-export.js';
-import { readDermis, skinBase, hexLin } from '../../graph/epidermis/dermal-map.js';
+import { hexLin } from '../../graph/epidermis/dermal-map.js';
+import { SketchRepository } from '../../db/repositories/sketches.js';
+import { expandLayeredManifest } from './layered.js';
 
 describe('the realistic hero, minted and exported', () => {
   it('mints at the door and exports a lit skinned GLB an engine reads: the joints, the clips, the correctives, the normals', async () => {
@@ -35,6 +37,8 @@ describe('the realistic hero, minted and exported', () => {
     const names = root.listMeshes().find((m) => m.listPrimitives().includes(prim)).getExtras()?.targetNames ?? [];
     expect(prim.listTargets().length).toBe(names.length);
     expect(names).toEqual(expect.arrayContaining(['pauldronBagR', 'shoulderLevelL', 'shoulderOverheadR']));
+    // (and its face's, the realistic head's own actions: relational-face-rig.js)
+    expect(names).toEqual(expect.arrayContaining(['blink', 'blinkLeft', 'smile', 'browRaise']));
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];
     for (let i = 0; i < W.getCount(); i += 97) { W.getElement(i, w); expect(Math.abs(w[0] + w[1] + w[2] + w[3] - 1)).toBeLessThan(1e-3); }
@@ -49,8 +53,9 @@ describe('the realistic hero, minted and exported', () => {
     const t = [0, 0]; let onHead = 0;
     for (let i = 0; i < uv.getCount(); i += 13) { uv.getElement(i, t); if (t[1] > (th - 1024) / th) onHead++; }
     expect(onHead).toBeGreaterThan(0);
-    // the skin under the shirt and the trousers: no texel (the atlas's white), its colour the skin's base (the palette's Skin)
-    const base = hexLin(skinBase(readDermis({ from: 'female' }))), C = prim.getAttribute('COLOR_0'), c = [0, 0, 0];
+    // the skin under the shirt and the trousers: no texel (the atlas's white), its colour the skin's base (the palette's
+    // Skin: the hero's own, its rolled face's tone, not a preset's)
+    const base = hexLin(expandLayeredManifest(SketchRepository.getByRef(minted.ref).manifest).recipe.palette.Skin), C = prim.getAttribute('COLOR_0'), c = [0, 0, 0];
     let under = 0;
     for (let i = 0; i < C.getCount(); i++) { C.getElement(i, c); if (Math.max(...c.map((x, k) => Math.abs(x - base[k]))) < 2e-3) { uv.getElement(i, t); if (t[1] < 0.01) under++; } }
     expect(under).toBeGreaterThan(1000);

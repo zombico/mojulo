@@ -4,7 +4,8 @@
  * it: every step that is ready is made through the same handlers an agent would call (the hero through the hero door,
  * the gear through the equipment door, the systems world through create_sketch), at refs derived from the gameworld's
  * own, and recorded in its `made` (gameworld/made.js). A run with nothing changed makes nothing; what the creator edited
- * by hand since a run is left as it is unless `force`. Its answer is the readout: each part's stamp, which steps may
+ * by hand since a run is left as it is unless `force`; a run a step fails partway keeps the record of the steps made
+ * before it, so the next run never reads them as edited. Its answer is the readout: each part's stamp, which steps may
  * start, what was made, and the next moves. The world bible is `/api/sketches/<ref>/bible`, the character bible
  * `…/bible?book=characters`, and with a feel its feel book (`…/bible?book=feel`: the stick view of its controls); the
  * sketch page shows them.
@@ -28,10 +29,11 @@ import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport,
+  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
-import { intentReport } from '@/lib/graph/gameworld/intent.js';
+import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
+import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
@@ -216,16 +218,37 @@ async function runWorld(ref, world, { force = false } = {}) {
   const heroRef = heroRefOf(W, ref);
   const first = runSteps(W, { ref, lookup: heroLookup(heroRef) });
   if (!first.length) return { world: W, ran };
-  await act(first[0]);
-  // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-  for (const step of runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1)) await act(step);
-  return { world: Object.keys(made).length ? { ...W, made } : W, ran };
+  let rest;
+  try {
+    await act(first[0]);
+    // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
+    rest = runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1);
+    for (const step of rest) await act(step);
+  } catch (err) {
+    // a step that throws partway: the steps made before it are rows now, so their record is kept with the world
+    // (else the next run reads them as edited by hand and leaves them); the error reaches the caller as it was
+    const partial = Object.keys(made).length ? { ...W, made } : W;
+    if (JSON.stringify(partial) !== JSON.stringify(world)) {
+      try { await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...partial }, note: 'design_game: the record of a run that failed partway' }); } catch { /* the step's error is the one to say */ }
+    }
+    throw err;
+  }
+  // the compiler's own check (gameworld/resonance.js): what the cube's combined values open that these steps did not
+  // lay, or laid and does not hold; reported with the run, never refused
+  const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order), W);
+  return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(gaps.length ? { resonance: gaps } : {}) };
 }
 
 // the sport game's laws said when they hold too (gameworld/runner.js sportLaws, sportStyle)
 const SPORT_CHECKS = ['characters', 'venue', 'one-look'];
 
 /** Each part's stamp, the steps, what was made, and what to do next. */
+// a world that names land (its style's or a level's): what of it no stage draws, as advice; a world the reader refuses
+// says so elsewhere, so here it says nothing
+const landGapsOf = (world) => {
+  if (!world.style?.land && !Object.values(world.levels ?? {}).some((l) => l?.style?.land)) return [];
+  try { return landAdvice(world); } catch { return []; }
+};
 function readout(ref, world, context = {}) {
   const lookup = world.characters ? heroLookup(heroRefOf(world, ref)) : undefined;
   // a hero edited by hand since the run has moved past its pinned base: said on the base's part, never refused
@@ -280,7 +303,13 @@ function readout(ref, world, context = {}) {
   // the advice: measured, never a verdict on the design
   // what game it is (gameworld/intent.js): the cube the world is, and what that asks of the world
   const intent = intentReport(world);
+  // the form (resonance.js): what the world's cube asks that the world does not hold yet, and who fills it (the hero is
+  // the creator's), said before the run so the run can lay it
+  const form = formGaps(world, cubeOfWorld(world).cube);
+  if (form.length) next.push({ step: 'form', asks: form.map((f) => ({ for: f.row, field: f.field, by: f.by, says: f.says })), card: 'gameworld-next' });
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
+  // a quick game's goal changed since its genre was written: keep the written one or change it, the creator's call
+  if (intent.drift) next.push({ step: 'intent', drift: intent.drift, card: 'gameworld-intent' });
   // the engine the intent names, and what of the world it does not carry: advice, never a refusal
   if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
@@ -294,7 +323,9 @@ function readout(ref, world, context = {}) {
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
-  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
+  // the land its levels cannot draw (gameworld/nature.js landToLevel): each gap, and the levels it is one on
+  const landGaps = landGapsOf(world);
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
@@ -400,11 +431,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
     }
   }
   // the run
-  let ran;
+  let ran, resonance;
   if (run) {
     readGameworld(W);
     const out = await runWorld(ref, W, { force: !!force });
     ran = out.ran;
+    resonance = out.resonance;
     // a run that made and remade nothing writes nothing: no revision, no new head
     if (JSON.stringify(out.world) !== JSON.stringify(W)) {
       await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...out.world } });
@@ -424,8 +456,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet

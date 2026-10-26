@@ -38,15 +38,26 @@ const TRUNK = new Set(['torso', 'neck', 'pelvis']);
 
 /** the parts of a garment `id` on the realistic body (`recipe`, sliced; `map`, its body-part map), as layer-1 parts named
  * `<id>_<segment>`: { parts } */
-export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null, window = null, stand = null }) {
+/** how near a limb a piece worn `under` it lies on the skin (m): the band its edge eases down over */
+export const UNDER_BAND = 0.025;
+
+export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null, window = null, stand = null, shoulders = true, under = null }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
   // (`covers` null: every ring of the segments `on` names, a boot over the whole foot)
   const want = covers ? new Set(covers) : null, arm = limbField(R, B1, 'upperArm');
-  // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it), eased out; a limb's the limb's
-  const trunk = bodyField(R, B1, { extra: arm.prims.filter((p) => /^deltoid/.test(p.id)) });
+  // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it, unless `shoulders` is false: a plate that
+  // ends inboard of the shoulder, the pauldron's), eased out; a limb's the limb's
+  const trunk = bodyField(R, B1, { extra: shoulders ? arm.prims.filter((p) => /^deltoid/.test(p.id)) : [] });
   // (`join`: a limb taken into the trunk's cloth, both sides, so a trunk piece wraps the limb's top)
   const J = join ? limbField(R, B1, join) : null, trunkSd = J ? (q) => smin(trunk.sd(q), J.sd([Math.abs(q[0]), q[1], q[2]]), B1.kMuscle) : (q) => trunk.sd(q);
-  const cloth = (seg) => (TRUNK.has(seg) ? (q) => trunkSd(q) - ease : ((L) => (q) => L.sd([Math.abs(q[0]), q[1], q[2]]) - ease)(limbField(R, B1, seg.replace(/[RL]$/, ''))));
+  // (a limb's field is the right limb's: a left segment reads it REFLECTED, a right one as it is, never by |x|: with the
+  // legs together at rest the thighs' fields meet at the midline, and a ray from an inner slot read by |x| never leaves
+  // its own limb, runs on through the mirrored one and lands on its far side, a 9 cm spike of cloth across the midline)
+  const cloth = (seg) => (TRUNK.has(seg) ? (q) => trunkSd(q) - ease : ((L, m) => (q) => L.sd([m * q[0], q[1], q[2]]) - ease)(limbField(R, B1, seg.replace(/[RL]$/, '')), /L$/.test(seg) ? -1 : 1));
+  // (`under`: a limb the piece is worn under, its field the body's own, not loosened: where the piece comes within
+  // `UNDER_BAND` of it, the piece lies on the skin at its own clearance, eased from where it stands, so the limb passes
+  // over the piece's edge, never out of it: a breastplate's armhole under the arm and the shoulder's ball)
+  const U = under ? limbField(R, B, under) : null, onSkin = U ? (q) => { const t = Math.max(0, Math.min(1, U.sd([Math.abs(q[0]), q[1], q[2]]) / UNDER_BAND)); return 1 - t * t * (3 - 2 * t); } : null;
   const parts = {};
   for (const [seg, P] of Object.entries(recipe.parts)) {
     if (P.layer !== 1 || !P.stations?.length || P.garment) continue;
@@ -88,7 +99,18 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     const piece = { layer: 1, closure: 'closed', garment: true, slots: P.slots, ...(P.slotT ? { slotT: P.slotT } : {}), stations, caps: { back: end(stations[0], stations[1]), tip: end(stations[stations.length - 1], stations[stations.length - 2]) }, group, bind: { ...P.bind, blend } };
     // (the tee's cloth taut along the piece, spanning deeper than the skin's envelope: from the bust's apex over the
     // fold under it, 2 to 3 cm; a fitted shirt's close)
-    parts[`${id}_${seg}`] = envelopePart(piece, { reach, taut, along, ...(span ? { span } : {}), ...(soft ? { soft } : {}) });
+    const made = envelopePart(piece, { reach, taut, along, ...(span ? { span } : {}), ...(soft ? { soft } : {}) });
+    // (worn `under` a limb: by it, the piece eased down onto the skin at its clearance, after the envelope's lift)
+    if (onSkin) made.stations = made.stations.map((st) => {
+      const S = P.stations.find((s0) => s0.id === st.id); if (!S) return st;
+      const c = scl(P.slots.reduce((a, sl) => add(a, S.points[sl]), [0, 0, 0]), 1 / P.slots.length);
+      return { ...st, points: Object.fromEntries(Object.entries(st.points).map(([sl, q]) => {
+        const p = S.points[sl], w = p ? onSkin(q) : 0; if (!(w > 0)) return [sl, q];
+        const hug = add(p, scl(unit(sub(p, c)), ease));
+        return [sl, add(scl(q, 1 - w), scl(hug, w)).map(r6)];
+      })) };
+    });
+    parts[`${id}_${seg}`] = made;
   }
   // THE HANDOVER (`join`): the trunk's piece and the joined limb's cross a few centimetres over the level the trunk's
   // first ring closes at (the seat's lowest ring over the thighs' tops): under it the trunk's piece is let down under the

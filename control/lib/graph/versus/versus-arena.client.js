@@ -241,7 +241,7 @@ const placeFighter = (B, p, F, drawn) => (B.skin ? placeCharacter(B, p, F, drawn
 // ── the fight ────────────────────────────────────────────────────────────────────────────────────────────────
 
 const ROSTER = AV.roster.map((r) => ({ ...r, F: compileFighter(r.recipe) }));
-let match = null, bodies = [], phase = 'wait', waited = 0, pauseIx = 0, lastParams = null;
+let match = null, bodies = [], phase = 'wait', waited = 0, pauseIx = 0, pauseBy = 0, lastParams = null;
 
 installVersusInput((code) => { if (code === 'KeyR' && match && match.mode === 'training') RT.dummy = (RT.dummy + 1) % VS_DUMMY.length; });
 
@@ -283,8 +283,10 @@ function tick() {
     return;
   }
   if (phase === 'paused') {
-    if (any('up') || any('down')) pauseIx = 1 - pauseIx;
-    if (any('ok')) {
+    // the menu is the seat's that opened it: only that player's controller moves it
+    const own = (k) => inp[pauseBy][k];
+    if (own('up') || own('down')) pauseIx = 1 - pauseIx;
+    if (own('ok')) {
       if (pauseIx === 0) phase = 'fight';
       else if (hosted) { post({ moj: AV.wire.outcome, envelope: { result: 'abort', events: [] } }); phase = 'done'; }
       else begin(lastParams);
@@ -296,7 +298,7 @@ function tick() {
     return;
   }
   if (phase !== 'fight') return;
-  if ((inp[0].pause || inp[1].pause) && match.s.phase !== 'matchEnd') { phase = 'paused'; pauseIx = 0; return; }
+  if ((inp[0].pause || inp[1].pause) && match.s.phase !== 'matchEnd') { phase = 'paused'; pauseIx = 0; pauseBy = inp[0].pause ? 0 : 1; return; }
   if (match.slow > 0) { match.slow--; if (match.slow % 3) return; }
   stepMatch(match);
   if (match.end === 150) {

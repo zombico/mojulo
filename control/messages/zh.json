@@ -794,5 +794,33 @@
         "other": "其他"
       }
     }
+  },
+  "gameTitles": {
+    "round": "第 {round} 回合",
+    "fight": "开始战斗！",
+    "ko": "K.O.",
+    "victory": "胜利",
+    "defeat": "失败",
+    "draw": "平局",
+    "ready": "准备好了吗？",
+    "go": "开始！",
+    "start": "开始",
+    "finish": "终点",
+    "gameOver": "游戏结束",
+    "levelClear": "关卡完成",
+    "stageClear": "阶段完成",
+    "timeUp": "时间到",
+    "paused": "已暂停",
+    "perfect": "完美！",
+    "newRecord": "新纪录",
+    "youWin": "你赢了",
+    "youLose": "你输了",
+    "wave": "第 {wave} 波",
+    "boss": "头目",
+    "continue": "继续？",
+    "combo": "{combo} 连击",
+    "checkpoint": "检查点",
+    "goal": "进球！",
+    "bonus": "奖励"
   }
 }

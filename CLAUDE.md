@@ -7,7 +7,7 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard: a 3D factory with a media studio. The agent makes things to Play, Print,
+A local MCP server with a dashboard: a 3D compiler for agents. The agent makes things to Play, Print,
 Read, Hear and Observe by conversation, characters (`create_character`) first among them; each one is a tiny deterministic recipe (a `sketches` row) that
 regenerates on every read and exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Workflows (plans,
 sweeps, stash and cook, catalysts) orchestrate the rest. Mojulo is the agent-driven upstream that feeds those
@@ -35,6 +35,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 - What games can be made, and what to build next: [docs/tool-surface/hillclimb.md](docs/tool-surface/hillclimb.md)
   (generated from the cosmos registry and sweep; internal, not an MCP surface). Read it before picking game work;
   after changing the registry, `npm run tool-surface` (a critical test fails on a stale page). Skill: `/hillclimb`.
+- What grows on what ground, and the flora library's gaps: [docs/flora-gaps.md](docs/flora-gaps.md) (generated from
+  `era/substrate.js` and `era/substrate-flora.js`; after changing either or the library, `npm run flora-gaps`: a test
+  fails on a stale page). Read it before adding flora.
 - Never hardcode an enumerable count in docs (kinds, packs, tools, locales, test files). Point at the
   list that defines it; counts drift the day after they are written.
 - "graph" means three things: `control/lib/graph/` is the geometry library; the contextmap is the
@@ -43,8 +46,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 ## Golden rules
 
 - **Recipes, not renders.** The manifest is the artifact; kernels regenerate on every read, so a kernel's
-  output for given params is a compatibility promise over already-minted rows. Byte-identical re-render is
-  the baseline test for any kernel change. Seeded dice only (`mulberry32`); never `Math.random`, `Date`,
+  output for given params is a compatibility promise over already-minted rows. Byte-identical re-render on the
+  reference runtime (Node 22, both CPUs) is the baseline test for any kernel change; across Node majors a render is
+  equal within tolerance, not byte for byte (CI runs the byte pins on the reference legs only). Seeded dice only (`mulberry32`); never `Math.random`, `Date`,
   `Intl` in a builder. An absent opt-in channel must contribute zero bytes.
 - **Two gates, never conflated.** Machine gate (measured, automated) and eyes gate (a human looks). Never
   claim the eyes gate passed. All gates advise and stamp; none refuse. Say which gate ran and what was seen.
@@ -108,8 +112,9 @@ at any depth, its deep sweeps, and the critical tier for a config change (`scrip
 for a gameworld, city, game or structure kernel change. Do not run whole folders or the whole suite locally. The
 whole suite, `test:deep` and `test:e2e` run in CI, sharded, on every PR, on pushes to `main` and the
 release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run). Before merging
-a branch into a release candidate, run `npm run test:changed -- --since origin/<rc> --depth 2`; CI then runs everything on the
-candidate's push, and a red there is the next fix. A module that reads files beside it is declared in
+a branch into a release candidate, merge the candidate into it, push it and open a pull request from it into the
+candidate: the workflow runs on every pull request (the whole suite, the deep sweeps and the e2e tier, sharded); land it
+on green by fast-forwarding the candidate (work on the next branch meanwhile). A prose-only branch needs no run. CI then runs everything again on the candidate's push, and a red there is the next fix. A module that reads files beside it is declared in
 `scripts/test-changed.mjs` (a reader of code or of data); a guard test names one that is not.
 
 Test the concept, not the catalog. Species, presets, cultures, landmarks and climates are inputs to procedures:
@@ -169,13 +174,15 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`, `roblox-project.js`;
+  Engine legs: `godot-project.js`, `unity-project.js`, `blender-project.js`, `roblox-project.js`; Unreal takes assets,
+  not games or levels (`unreal-project.js`: `export_model { format: 'unreal' }`, a character or solid as GLB + importer);
   one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
   need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL` / `MOJULO_ROJO` + `MOJULO_LUNE`. A runtime kernel (Godot's
   GDScript, Roblox's Luau) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
+  Played as an engine gets it (the skinned GLB, its clips and face morphs, variants bare and armoured): `/hero-live`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
@@ -197,6 +204,10 @@ Pointers only; each target carries its own design notes.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
+- Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
+  by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
+  in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
+  manual: the `hud-title` card. A host that cannot carve shows the banner.
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a

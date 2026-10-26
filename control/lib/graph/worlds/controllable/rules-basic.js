@@ -169,6 +169,26 @@ export function buildRulesBasic(E) {
     e.lookAt = null;
   }
 
+  // THE GROUP FRAME (pilots.plan.md; a world with seats, docs/local-multiplayer-principles.md principle 2): a shared camera
+  // (side, overhead) holds the centre of every seated pilot that is playing, and stands back until their spread fits its
+  // `fov` (50°) with `margin` (2 m) round it: never nearer than the rule's own distance, never past `maxDist` (2.2 × it).
+  // Past that, the group leash below holds the leader back and brings the straggler in. One playing pilot, or a world
+  // with no seats: null, and the camera frames its target as it always did.
+  const playing = (world) => E.pilotsOf(world).filter((p) => !p.downed && !p.gone && p.rule === p.pilotRule);
+  function groupFrame(r, world, dist) {
+    if (!world.seatOf) return null;
+    // (one playing seat frames itself only when it is not the camera's own target: seat 1 out, seat 2 still in)
+    const P = playing(world);
+    if (!P.length || (P.length === 1 && P[0].id === r.target)) return null;
+    const c = [0, 0, 0];
+    for (const p of P) for (let k = 0; k < 3; k++) c[k] += p.transform.pos[k] / P.length;
+    let span = 0;
+    for (const a of P) for (const b of P) span = Math.max(span, Math.hypot(a.transform.pos[0] - b.transform.pos[0], a.transform.pos[1] - b.transform.pos[1]));
+    const half = Math.tan(((r.fov ?? 50) * Math.PI) / 360), margin = r.margin ?? 2, maxDist = r.maxDist ?? dist * 2.2;
+    return { p: c, dist: clamp((span / 2 + margin) / half, dist, maxDist), reach: Math.max(0, maxDist * half - margin) };
+  }
+  E.groupFrame = groupFrame;
+
   // overhead — the ¾ top-down camera: it eases to a pose `dist` back from the target along a FIXED `yaw` (the way the
   // screen's up points; π/2 is north, +y) and raised by `tilt` (radians below the horizon, 60° by default), looking at
   // the target `lookH` above its position. The yaw never follows the target, so north stays up the screen, and the
@@ -177,8 +197,9 @@ export function buildRulesBasic(E) {
   function overhead(e, input, dt, world) {
     const r = e.rule, tgt = world.byId[r.target];
     if (!tgt) return;
-    const yaw = r.yaw ?? HALF_PI, tilt = clamp(r.tilt ?? Math.PI / 3, 0.2, 1.45), dist = r.dist ?? 14, lookH = r.lookH ?? 1;
-    const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt), p = tgt.transform.pos;
+    const yaw = r.yaw ?? HALF_PI, tilt = clamp(r.tilt ?? Math.PI / 3, 0.2, 1.45), lookH = r.lookH ?? 1, G = groupFrame(r, world, r.dist ?? 14);
+    const dist = G ? G.dist : r.dist ?? 14;
+    const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt), p = G ? G.p : tgt.transform.pos;
     const want = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), smooth(r.lerp ?? 8, dt)));
     e.transform.heading = yaw;
@@ -192,13 +213,13 @@ export function buildRulesBasic(E) {
   function side(e, input, dt, world) {
     const r = e.rule, tgt = world.byId[r.target];
     if (!tgt) return;
-    const p = tgt.transform.pos, lane = tgt.rule && tgt.rule.lane;
+    const G = groupFrame(r, world, r.dist ?? 11), p = G ? G.p : tgt.transform.pos, lane = tgt.rule && tgt.rule.lane;
     let want = r.yaw ?? HALF_PI;
     if (Array.isArray(lane) && lane.length >= 2) { const L = laneNear(lane, p[0], p[1]); want = Math.atan2(L.ty, L.tx) + HALF_PI; }
     if (e._sideYaw == null) e._sideYaw = want;   // start square on: no swing on load
     const d = ((want - e._sideYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
     e._sideYaw += d * smooth(r.turnLerp ?? 2.5, dt);
-    const yaw = e._sideYaw, tilt = clamp(r.tilt ?? 0.2, 0, 1.2), dist = r.dist ?? 11, lookH = r.lookH ?? 1.2;
+    const yaw = e._sideYaw, tilt = clamp(r.tilt ?? 0.2, 0, 1.2), dist = G ? G.dist : r.dist ?? 11, lookH = r.lookH ?? 1.2;
     const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt);
     const pos = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
     e.transform.pos = add(e.transform.pos, scl(sub(pos, e.transform.pos), smooth(r.lerp ?? 8, dt)));
@@ -398,6 +419,50 @@ export function buildRulesBasic(E) {
   // redirect keeps the run's speed (× gain) and sends it along the pad; bounce returns the fall (× restitution) and
   // keeps the run. The throw is the platform rule's own momentum: vel z, and `dashVel` (the carry that ends on touchdown).
   const LAUNCH_EPS = 0.05;
+  // THE GROUP LEASH: on a shared camera (side, overhead) a playing pilot more than the frame's reach from the group's
+  // centre is held there, the leader held back and the straggler brought in, so nobody leaves the shot. Nothing without
+  // seats, or with one pilot playing.
+  const GROUP_DIST = { side: 11, overhead: 14 };
+  // SEAT FALLS (pilots.plan.md; a world with seats): a seated body below the floor is brought back beside the others,
+  // just above a playing seat (seat 1's pilot first), else where it started. With lives (state.seatLives) each fall costs
+  // its seat one, or the shared count one; a seat with none left is out (its body gone), and when no seat is left
+  // playing the seats are over (state.seatsOver: the page ends the level, failed). Without lives seat 1's fall is the
+  // level's catch, as before.
+  E.registerWorldPass('seat-falls', (state) => {
+    if (!state.seatOf) return;
+    const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? 1 : state.seatOf[e.id]);
+    for (const e of all) {
+      if (e.gone || e.transform.pos[2] >= state.seatFloor) continue;
+      const n = seatN(e);
+      if (n === 1 && !state.seatLives) continue;
+      if (state.seatLives) {
+        const k = state.seatPool === 'shared' ? 'shared' : n;
+        state.seatLives[k] = Math.max(0, (state.seatLives[k] ?? 0) - 1);
+        if (!state.seatLives[k]) {
+          for (const o of state.seatPool === 'shared' ? all : [e]) { state.seatOut[seatN(o)] = true; o.gone = true; }
+          if (!all.some((o) => !o.gone && o.rule === o.pilotRule)) state.seatsOver = true;
+          continue;
+        }
+      }
+      const to = all.find((p) => p !== e && !p.gone && (p.id === state.pilotId || p.rule === p.pilotRule));
+      const at = to ? to.transform.pos : null, home = state.seatHome && state.seatHome[e.id];
+      e.transform.pos = at ? [at[0], at[1], at[2] + 1] : home ? home.slice() : [e.transform.pos[0], e.transform.pos[1], 0];
+      if (e.vel) e.vel = [0, 0, 0];
+    }
+  });
+
+  E.registerWorldPass('group-leash', (state) => {
+    const cam = state.camera, r = cam && cam.rule;
+    if (!state.seatOf || !r || !GROUP_DIST[r.type]) return;
+    const world = { byId: state.byId, seatOf: state.seatOf, pilotId: state.pilotId };
+    const G = groupFrame(r, world, r.dist ?? GROUP_DIST[r.type]);
+    if (!G) return;
+    for (const p of playing(world)) {
+      const t = p.transform.pos, dx = t[0] - G.p[0], dy = t[1] - G.p[1], d = Math.hypot(dx, dy);
+      if (d > G.reach && d > 0) { t[0] = G.p[0] + (dx * G.reach) / d; t[1] = G.p[1] + (dy * G.reach) / d; }
+    }
+  });
+
   E.registerWorldPass('launch', (state, input, dt) => {
     const pads = state.entities.filter((p) => p.rule && p.rule.type === 'launcher' && !p.gone);
     if (!pads.length) return;
@@ -477,7 +542,7 @@ export function buildRulesBasic(E) {
     e._climbCool = Math.max(0, (e._climbCool || 0) - dt);
     // a hit, a drop or a dormant body lets go
     if (e.staggerT != null || e.dropping || e.dormant || e.downed) { e.climbing = null; return false; }
-    const me = !state.pilotId || state.pilotId === e.id, inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0 };
+    const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0 };
     const eye = e.rule.eye ?? 0, t = e.transform;
     if (!e.climbing) {
       if (e._climbCool > 0) return false;

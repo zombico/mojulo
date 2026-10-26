@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HUD_SLOTS, HUD_KINDS, FONTS, colorCss, hudSlotsUsed, normalizeHud, styleTokens, styleVars, validateHudStyle, MOMENT_KINDS, TOAST_TTL, hudSubst, fmtDelta } from './hud-widgets.js';
+import { HUD_SLOTS, HUD_KINDS, FONTS, colorCss, hudSlotsUsed, normalizeHud, styleTokens, styleVars, validateHudStyle, MOMENT_KINDS, TOAST_TTL, hudSubst, fmtDelta, TITLE_THEMES, TITLE_THEME_IDS, TITLE_LOOKS, TITLE_STYLES, TITLE_EDGES, titleThemeFor, titleDials, titleDialsOfRegister } from './hud-widgets.js';
 
 describe('normalizeHud — the widget language over events.hud', () => {
   it('a legacy { var, label } row is a text readout at top-left (every existing world means what it meant)', () => {
@@ -102,7 +102,13 @@ describe('normalizeHud — the widget language over events.hud', () => {
   it('the closed lists are what the cards say', () => {
     expect(HUD_SLOTS).toEqual(['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right']);
     expect(HUD_KINDS).toEqual(['text', 'counter', 'bar', 'clock']);
-    expect(MOMENT_KINDS).toEqual(['banner', 'toast']);
+    expect(MOMENT_KINDS).toEqual(['banner', 'toast', 'title']);
+    expect(TITLE_THEME_IDS).toEqual(['arcade', 'pixel', 'cel', 'cartoon', 'cinematic', 'speed']);
+    // every theme is whole: a carve, an entrance, an edge, a colour and a time from the closed lists
+    for (const [id, T] of Object.entries(TITLE_THEMES)) {
+      expect(TITLE_STYLES, id).toContain(T.style); expect(TITLE_LOOKS, id).toContain(T.look); expect(TITLE_EDGES, id).toContain(T.edge);
+      expect(typeof T.caps, id).toBe('boolean'); expect(T.ttl, id).toBeGreaterThan(0); expect(T.flash, id).toBeGreaterThanOrEqual(0); expect(T.about, id).toMatch(/\S/);
+    }
     expect(hudSlotsUsed(normalizeHud([{ var: 'a', slot: 'bottom' }, { var: 'b' }, { on: 'x', text: 'y' }]).widgets)).toEqual(['top-left', 'center', 'bottom']);
   });
 });
@@ -132,5 +138,47 @@ describe('style tokens — one shape for the shell theme and a world\'s events.s
     expect(colorCss('harm')).toBe('var(--moj-harm)');
     expect(colorCss('accent2')).toBe('var(--moj-accent2)');
     expect(colorCss('url(x)', 'inherit')).toBe('inherit');
+  });
+});
+
+describe('title themes — the game implies one, a row\'s own dial wins', () => {
+  it('titleThemeFor reads the juice floor; titleDials lays a row\'s dials over its theme', () => {
+    expect(titleThemeFor(null)).toBe('arcade');
+    expect(titleThemeFor({ register: 'anime', flavor: 'action' })).toBe('cel');
+    expect(titleThemeFor({ register: 'western', flavor: 'action' })).toBe('arcade');
+    expect(titleThemeFor({ register: 'anime', flavor: 'platformer' })).toBe('cartoon');
+    expect(titleThemeFor({ register: 'western', flavor: 'realistic' })).toBe('cinematic');
+    expect(titleThemeFor({ register: 'western', flavor: 'pinball' })).toBe('speed');
+    expect(titleThemeFor({ register: 'anime', flavor: 'pinball' })).toBe('arcade');
+    expect(titleDials({ theme: 'pixel' })).toMatchObject({ theme: 'pixel', style: 'blocky', look: 'rise', caps: true, edge: 'ink', color: 'accent', ttl: 2 });
+    expect(titleDials({ theme: 'pixel', look: 'slam', color: 'harm', ttl: 3 })).toMatchObject({ style: 'blocky', look: 'slam', color: 'harm', ttl: 3 });
+    expect(titleDials({})).toMatchObject({ theme: 'arcade', edge: 'both', caps: true });
+    const { widgets, errors } = normalizeHud([{ on: 'x', text: 'go', as: 'title', theme: 'cel', caps: false }, { on: 'y', text: 'y', as: 'title', theme: 'disco', edge: 'halo', caps: 'yes' }]);
+    expect(widgets[0]).toMatchObject({ kind: 'title', theme: 'cel', style: 'italic', look: 'stamp', caps: false, edge: 'ink', tilt: -0.1, ring: true });
+    expect(errors).toEqual(['hud[1].theme must be one of: arcade, pixel, cel, cartoon, cinematic, speed (a title\'s design style)', 'hud[1].edge must be one of: ink, shadow, both, glow, none (what stands behind a title\'s letters)', 'hud[1].caps is true (the words in capitals) or false']);
+  });
+});
+
+describe('the cascade — a settled play direction\'s register dresses the titles as it dresses the parts', () => {
+  it('titleDialsOfRegister: type ⇒ the carve and the case, frame ⇒ the edge, motion ⇒ the entrance, its tempo and its steps; pixel ⇒ blocky', () => {
+    expect(titleDialsOfRegister({ type: 'system', frame: 'none', motion: 'ease' })).toEqual({ dials: { style: 'slick', edge: 'none', look: 'fade', tempo: 1, steps: 0 }, by: { style: 'type', edge: 'frame', look: 'motion', tempo: 'motion', steps: 'motion' } });
+    expect(titleDialsOfRegister({ type: 'display', frame: 'bevel', motion: 'stepped' }).dials).toEqual({ style: 'heavy', caps: true, edge: 'both', look: 'rise', tempo: 0.55, steps: 3 });
+    expect(titleDialsOfRegister({ type: 'period', frame: 'material', motion: 'mechanical' }).dials).toEqual({ style: 'thin', caps: true, edge: 'shadow', look: 'slide', tempo: 0.73, steps: 4 });
+    expect(titleDialsOfRegister({ type: 'system', frame: 'rule', motion: 'snap', pixel: 2 }).dials).toMatchObject({ style: 'blocky', caps: true, edge: 'ink', look: 'slam', steps: 1 });
+    expect(titleDialsOfRegister(null)).toEqual({ dials: {}, by: {} });
+  });
+
+  it('precedence per dial: the row > the register (a pin counted as the operator\'s) > the theme > the default, each named', () => {
+    const reg = { type: 'display', frame: 'none', plate: 'clear', motion: 'ease' };
+    const d = titleDials({ theme: 'cel', edge: 'glow' }, { register: reg, sources: { dials: { type: 'operator', frame: 'register', motion: 'flavor' } }, explain: true });
+    expect([d.style, d.edge, d.look, d.caps, d.tilt, d.tempo]).toEqual(['heavy', 'glow', 'fade', true, -0.1, 1]);
+    expect(d.from).toMatchObject({ style: 'operator', edge: 'row', look: 'flavor', caps: 'operator', tilt: 'theme', tempo: 'flavor', ttl: 'theme' });
+    expect(d.by).toMatchObject({ style: 'type', look: 'motion', caps: 'type' });
+    // without a register the theme speaks, and the page's dials carry no provenance
+    const bare = titleDials({ theme: 'cel' });
+    expect(bare.from).toBeUndefined(); expect(bare).toMatchObject({ style: 'italic', look: 'stamp', tempo: 1, steps: 0 });
+    // normalizeHud hands the register through
+    const { widgets } = normalizeHud([{ on: 'x', text: 'go', as: 'title' }], { register: { type: 'period', frame: 'bevel', motion: 'snap' } });
+    expect(widgets[0]).toMatchObject({ theme: 'arcade', style: 'thin', edge: 'both', look: 'slam', caps: true, tempo: 0.45, steps: 1 });
   });
 });

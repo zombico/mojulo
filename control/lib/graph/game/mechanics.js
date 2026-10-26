@@ -201,7 +201,7 @@ const MECHANICS = {
     },
   },
 
-  // ── the mechanics-vocab V1 words (mechanics-vocab.plan.md) ────────────────────────────────────
+  // ── the mechanics vocabulary's V1 words ────────────────────────────────────
 
   // generic predicate terminal: any numeric truth reaching a threshold → success. Clears the
   // "win condition lives in runtime code" flag class for every level whose victory is a number.

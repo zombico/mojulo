@@ -1,4 +1,4 @@
-/** tiered-form.js — the TIERED base form (`hero.form: 'tiered'`, opt-in): a figure whose triangles are spent where the
+/** tiered-form.js — the TIERED base form (`hero.form: 'tiered'`, the game body: stamped at mint when a hero names no form): a figure whose triangles are spent where the
  * eye reads them, with detail added by tier rather than built at one fixed density.
  *
  * Its first piece is the CHEST. The structured hero's bust is two separate ring20 lens layers cut from the breast's
@@ -14,7 +14,8 @@
  *   tieredJoints(plan)        the plan with a BRIDGE over the elbows, the knees and the wrists
  *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
  *   tieredGarments(plan)      the plan's garments over its bridges, and split wherever their body part is split
- *   tieredKit(kit, plan)      an adornment kit over the joints: a piece over a joint rides its bridge, a pauldron its ball
+ *   tieredKit(kit, plan, { laws })  an adornment kit over the joints: a piece over a joint rides its bridge, a pauldron its
+ *                                   ball, a trunk plate keeps off the shoulder (laws 18)
  *   TIERED_FACE[pole]         the landmark head's defaults by sex: face words, hair, features (humanoid-head.js)
  *   TIERED_FACE_SMOOTH        the landmark head's normals blended toward its ellipsoid
  *   TIERED_FACE_TINT[pole]    the head skin's occlusion and blush (face-tint.js); tieredPole(hero) the head's sex
@@ -28,12 +29,14 @@
  *
  * The placement and the band's rings are starting points judged at the eyes gate (the character board) and read by the
  * chest critic (hero-style-critic.js chestCritic). */
-import { SLOT_FAMILIES, ringPoints, segmentPart, loftPart } from './station-loft-plan.js';
+import { SLOT_FAMILIES, ringPoints, segmentPart, loftPart, trunkPart } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight } from './breast-field.js';
 import { castOf } from './hero-form.js';
 import { heroTarget } from '../era/cast-light.js';
 import { readTarget } from '../era/target.js';
 import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
+import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
+import { childRound } from './anime-looks.js';
 
 /** The field as the unsupported chest places it: the apex `cleft` bust radii off the midline (the equilateral rule
  * against the hero's notch), the inner reach running just past the midline with a fuller profile, so the pair meet low
@@ -47,13 +50,18 @@ const SPLAY = 0.18;
  * the body) blend like the skin (70°), so a form the field draws across the torso's rings reads as one form, not a ring
  * per band; every other group keeps the studio's (station-loft-shade.js STUDIO_SMOOTH_CREASE). */
 export const TIERED_SMOOTH_CREASE = Object.freeze({ Skin: 70, $cloth: 70, Top: 70, Bottom: 70, default: 35 });
+/** THE CHILD'S SHADING (hero laws 14, the child form; hero-form.js CHILD_FORM): read as round. Its body and its clothes
+ * blend across `crease` (wider than the tiered crease, so a ring's or a seam's facet never reads as a fold), and its
+ * anime face leans `face` of the way toward the head's capsule (the proxy's floor, 0.5 on any other face), so the cheeks
+ * and the jaw take the light as one round form, facet lines and all. */
+export const CHILD_SHADE = Object.freeze({ crease: Object.freeze({ Skin: 85, $cloth: 85, Top: 85, Bottom: 85, Shoes: 85, default: 35 }), face: 0.85 });
 /** the apex's height under the chest ring (`st2`), in bust radii: the apex sits low, the lower pole the fuller */
 const APEX_DROP = 0.55;
 /** the rings the chest band gains (u on the torso's stations): enough to carry the fold, the lower pole and the apex */
 const BAND = Object.freeze([1.25, 1.75, 2.25]);
 /** the slots the field is sampled on (right-hand; the torso mirrors them) */
 const SLOTS = Object.freeze(['front', 'frontR', 'frontSideR', 'sideR']);
-const r6 = (v) => Math.round(v * 1e6) / 1e6;
+const r6 = (v) => Math.round(v * 1e6) / 1e6 + 0;   // (+ 0: a −0 is 0, as a stored plan reads it back)
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpV = (a, b, t) => (Array.isArray(a) ? a.map((x, k) => r6(lerp(x, Array.isArray(b) ? b[k] : b, t))) : r6(lerp(a, b, t)));
 
@@ -112,6 +120,8 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const unit3 = (a) => { const l = Math.hypot(...a); return a.map((x) => x / l); };
 const tmpl = (n) => n.replace(/[RL]$/, '$S');
 const twins = (n) => [n, n.replace(/R$/, 'L')];
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const centre = (pts) => { const v = Object.values(pts); return [0, 1, 2].map((k) => v.reduce((t, p) => t + p[k], 0) / v.length); };
 
 /** A part's rings and caps as the plan expands them (station-loft-plan.js expandPlan), unrounded; a rings part's its own. */
@@ -120,6 +130,7 @@ function partRings(plan, seg) {
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) }, style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
   const slots = seg.slots == null ? families[style.limbSlots] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots, e = seg.e ?? style.e;
   if (seg.kind === 'loft') return loftPart(seg.stations, seg.caps, slots, e, { keep: seg.frame === 'keep' });
+  if (seg.kind === 'trunk') { const f = seg.slots ?? style.slots, fam = typeof f === 'string' ? families[f] : f; return trunkPart(seg.stations, seg.caps, fam, e); }
   const J = plan.joints;
   return segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots, e, over: seg.over, mid: seg.mid, rMid: seg.rMid, ...(seg.cap ? { cap: seg.cap } : {}), ...(seg.shape ? { shape: seg.shape } : {}) });
 }
@@ -170,13 +181,16 @@ function chainsOf(joints) {
 /** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one.
  * `list`: the joints to look for (the hero's by default; a creature's from its own chains, creature-drawn.js). */
 export function bridgedChains(plan, list = TIERED_JOINTS) {
-  const names = new Set((plan.segments || []).map((s) => s.name));
-  return chainsOf(list.filter((J) => names.has(J.bridge)));
+  const names = new Set((plan.segments || []).map((s) => s.name)), of = chainsOf(list.filter((J) => names.has(J.bridge)));
+  // (a shoulder web ends on its arm's ring: it splits with the arm's chain, or it would end on half the arm's points)
+  // (the cone ends on its web's ring: it splits with them)
+  for (const n of names) { if (!/^shoulder(Web|Cone)R$/.test(n)) continue; const arm = of.get('upperArmR'); if (arm && !arm.includes(n)) { arm.push(n); of.set(n, arm); } }
+  return of;
 }
 
 /** The plan with its elbows, knees and wrists bridged; a joint whose parts are missing or of a kind it cannot meet, as it was.
  * `list`: the joints (TIERED_JOINTS, the hero's; a creature's own, creature-drawn.js creatureJoints). */
-export function tieredJoints(plan, list = TIERED_JOINTS) {
+export function tieredJoints(plan, list = TIERED_JOINTS, { respace = false } = {}) {
   const segments = plan.segments.map((s) => ({ ...s, ...(s.stations ? { stations: s.stations.map((st) => ({ ...st })) } : {}) }));
   const byName = (n) => segments.find((s) => s.name === n);
   const folds = plan.rig?.folds || {}, families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
@@ -195,6 +209,14 @@ export function tieredJoints(plan, list = TIERED_JOINTS) {
     else {
       const S = U.stations, last = S[S.length - 1], prev = S[S.length - 2], d = unit3(sub3(last.at, prev.at));
       const at = plan.joints[D.from ?? J.lower.replace(/R$/, '')].map((x, k) => r6(x - d[k] * J.reach * rad(last.r)));
+      // (`respace`, hero laws 7: the shaping rings past the last whole station move with the end by their share of the
+      // run, so the end's last span keeps its length; laws 1 to 6 left them, and a short limb's last span, the knee's
+      // under a poleyn, closed to a centimetre)
+      if (respace) {
+        const uOf = (i) => S[i].u ?? S.slice(0, i).filter((x) => x.u === undefined).length, n = S.length - 1, shift = sub3(at, last.at);
+        let k = n - 1; while (k > 0 && S[k].u !== undefined && !Number.isInteger(S[k].u)) k--;
+        for (let j = k + 1; j < n; j++) { const f = (uOf(j) - uOf(k)) / (uOf(n) - uOf(k)); S[j] = { ...S[j], at: S[j].at.map((x, q) => r6(x + shift[q] * f)) }; }
+      }
       S[S.length - 1] = { ...last, at }; U.caps = { ...U.caps, tip: at };
     }
     if (D.kind === 'segment') { Object.assign(D, overshoot(plan, D, [-J.reach, D.over?.[1] ?? 0.6])); D.cap = [0, D.cap?.[1] ?? 0.45]; }
@@ -243,7 +265,82 @@ export const TIERED_SOCKETS = Object.freeze([
 ]);
 
 /** The plan with its sockets' folds: a fold the rig lacks is added (its rest line the limb's), the limb's root rings bound. */
-export function tieredSockets(plan) {
+/** THE SHOULDER WEB (hero laws 8, `web`): a sleeve of skin in the arm's own colour group over the ball, from inside the
+ * torso's shoulder through the ball's equator to the arm's own `st1` ring (its belly), so the ball reads as the
+ * deltoid's swell instead of a knob, and the web stretches as the arm swings. It ENDS ON the arm's ring, the same points
+ * riding the arm alone, so the two weld into one surface there (an overlap would show its crossing as a crease). Each
+ * ring before it at `at` (shares of the ball's radius along the arm from the ball's centre) with its radius `r` (of the
+ * ball's), or `toArm` (that share of the way from the equator to the arm's ring, swelled by `swell`), and its weights by
+ * role: the trunk's bone (the collarbone), the fold (the ball's), the limb. */
+export const SHOULDER_WEB = Object.freeze([
+  Object.freeze({ at: -1.25, r: 0.7, w: { trunk: 0.2, fold: 0.8 } }),
+  Object.freeze({ at: -0.6, r: 0.92, w: { fold: 1 } }),
+  Object.freeze({ at: 0, r: 1.06, w: { fold: 1 } }),
+  Object.freeze({ toArm: 0.5, swell: 1.04, w: { fold: 0.5, limb: 0.5 } }),
+]);
+/** THE WEB'S ARMPIT (hero laws 10, `web: 3`): the web's points on the inside of the arm's bend (its medial slots, toward
+ * the armpit) follow the arm more than its ring does, at its equator and the ring hugging the arm, so a raised arm
+ * stretches the web's armpit side instead of folding it; the deltoid's outer side rides the fold as it did. Laws 9's
+ * web folded behind a raised arm's armpit. The cone's tucked underside between its base and the ball stays with the
+ * trunk by how far it is tucked, and its points over the torso's skin by `overTrunk` of how far they ride over; its rings hand the trunk to the fold more evenly along it (`cone`); its ring is turned half a slot (`turn`), so no point sits on the line the fold turns
+ * about (there the faces either side of it sheared over), it reaches less far toward the neck (`reach`), and its rings
+ * into the arm are its ball ring turned into the arm's way, untwisted, drawn in to `inArm` (round, inside the arm's oval). So the fold's turn never folds the cone over or
+ * swings it out of the torso's back as a fin. */
+export const WEB_ARMPIT = Object.freeze({ slots: Object.freeze(['sideL', 'backL', 'frontL']), rings: Object.freeze({ st2: { fold: 0.55, limb: 0.45 }, st3: { fold: 0.2, limb: 0.8 } }),
+  turn: 0.5, reach: 0.45, inside: 0.55, inArm: 0.85, overTrunk: 0.7, cone: Object.freeze([{ trunk: 1 }, { trunk: 0.75, fold: 0.25 }, { trunk: 0.45, fold: 0.55 }, { trunk: 0.15, fold: 0.85 }]) });
+/** THE SHOULDER CONE (hero laws 9, `web: 2`): the web's INNER fairing, in its group and stretching as it does: its
+ * rings square to the way from the ball toward the neck's root, from one hidden inside the ball (`start` of its radius)
+ * to a wide, flattened base inside the torso (`reach` of the way to the neck hub, `across` the ball's radius front to
+ * back and `up` top to bottom, each point held `inside` the torso's own section at its height). It comes out of the web's
+ * inner side and goes into the torso over the shoulder's top, front and back, so the torso's shoulder corner (the
+ * pectoral's top, the trapezius' slope, the shoulder blade) runs into the ball closed, not at a facet: a ring between
+ * rides `skin` (of the ball's radius) over the torso where it would sink under it, at most `most`, on its upper half
+ * (fully from `top` of its radius up), its sides held under the skin (`sink` of the way to it), and draws in by `tuck` toward its centre on its
+ * lower half (fully from `under` down), so it never spans the armpit and never steps. Rings at `t` (0
+ * in the ball, 1 the base) with their weights by role. Past the ball it runs on INTO THE ARM (`arm`: rings round the
+ * arm's axis at `at` of the ball's radius from its centre with radius `r` of it, then the arm's belly ring drawn in to
+ * `belly`), inside the web at rest, its weights handing the fold to the arm more slowly than the web's, so a raised arm
+ * keeps it round where the web and the ball bunch at the armpit. The ball itself is drawn in to `ball` of its radius
+ * under them (its centre kept), so a raised arm never shows it. At laws 9 the web also HUGS the arm before it ends (`hug`: its last ring before the
+ * arm's the arm's own section that share of the way down to the belly ring, `swell` over it), where laws 8 met the arm at
+ * an angle and showed the meeting as a crease. */
+export const SHOULDER_CONE = Object.freeze({ ball: 0.7, reach: 0.55, start: 0.9, across: 2.1, up: 1.35, inside: 0.85, top: 0.7, under: 0.7, sink: 0.97, tuck: 0.6, most: 0.8, hug: 0.55, swell: 1.05,
+  rings: Object.freeze([Object.freeze({ t: 1, w: { trunk: 1 } }), Object.freeze({ t: 0.66, skin: 0.08, w: { trunk: 0.65, fold: 0.35 } }), Object.freeze({ t: 0.33, skin: 0.06, w: { trunk: 0.3, fold: 0.7 } }), Object.freeze({ t: 0, w: { fold: 1 } })]),
+  arm: Object.freeze([Object.freeze({ at: 0.7, r: 0.9, w: { fold: 0.45, limb: 0.55 } }), Object.freeze({ at: 1.4, r: 0.82, w: { fold: 0.15, limb: 0.85 } }), Object.freeze({ belly: 0.88, w: { limb: 1 } })]) });
+
+
+/** The torso's section at a height (its rings blended, read as an outline in plan, its points in angular order round its
+ * centre): `hold(p, hi)` moves a point toward that centre until it is at most `hi` of the way to the outline (a point
+ * above the top ring first set on it); `clear(p, dir, gap, most)` moves it along `dir` until it stands `gap` outside the
+ * outline, at most `most` (a point already outside, or one that cannot clear, as it was). A plan without a torso leaves
+ * every point. */
+function torsoSection(plan, segments) {
+  const T = segments.find((g) => g.name === 'torso'); if (!T) return { hold: (p) => p, clear: (p) => p };
+  const S = partRings({ ...plan, segments }, T).stations.map((st) => ({ z: centre(st.points)[2], pts: Object.values(st.points), c: centre(st.points) })).sort((a, b) => a.z - b.z);
+  const at = (z0) => {
+    const z = Math.min(Math.max(z0, S[0].z), S[S.length - 1].z - 1e-6), i = Math.max(0, S.findIndex((r) => r.z > z) - 1), A = S[i], B = S[Math.min(i + 1, S.length - 1)];
+    const t = B.z > A.z ? (z - A.z) / (B.z - A.z) : 0, cc = A.c.map((x, q) => x + (B.c[q] - x) * t);
+    const poly = A.pts.map((a, k) => [a[0] + (B.pts[k][0] - a[0]) * t - cc[0], a[1] + (B.pts[k][1] - a[1]) * t - cc[1]]).sort((a, b) => Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0]));
+    return { z, cc, poly };
+  };
+  // (the outline's reach along a ray from the centre: its farthest crossing)
+  const reachOf = (poly, u) => { let reach = 0; for (let k = 0; k < poly.length; k++) { const a = poly[k], b = poly[(k + 1) % poly.length], e = [b[0] - a[0], b[1] - a[1]], den = u[0] * e[1] - u[1] * e[0]; if (Math.abs(den) < 1e-12) continue;
+    const s0 = (a[0] * e[1] - a[1] * e[0]) / den, s1 = (a[0] * u[1] - a[1] * u[0]) / den; if (s0 > 0 && s1 >= 0 && s1 <= 1) reach = Math.max(reach, s0); } return reach; };
+  const depth = (p) => { const { cc, poly } = at(p[2]), v = [p[0] - cc[0], p[1] - cc[1]], L = Math.hypot(...v); if (L < 1e-9 || p[2] > S[S.length - 1].z) return L < 1e-9 ? -1 : 1; return L / reachOf(poly, [v[0] / L, v[1] / L]) - 1; };
+  const hold = (p, hi) => {
+    const { z, cc, poly } = at(p[2]), v = [p[0] - cc[0], p[1] - cc[1]], L = Math.hypot(...v); if (L < 1e-9) return [p[0], p[1], z];
+    const u = [v[0] / L, v[1] / L], reach = reachOf(poly, u), keep = reach > 0 ? Math.min(L, hi * reach) : L;
+    return [cc[0] + u[0] * keep, cc[1] + u[1] * keep, z];
+  };
+  const clear = (p, dir, gap, most) => {
+    if (depth(p) >= 0) return p;
+    const step = most / 40; for (let s = step; s <= most + 1e-12; s += step) { const q = p.map((x, k) => x + dir[k] * s); if (depth(q) >= 0) return p.map((x, k) => x + dir[k] * Math.min(most, s + gap)); }
+    return p;
+  };
+  return { hold, clear };
+}
+
+export function tieredSockets(plan, { web = 0 } = {}) {
   const folds = plan.rig?.folds; if (!folds || !plan.rig.joints) return plan;
   const J = plan.joints, newFolds = { ...folds }; let any = false;
   const segments = plan.segments.map((seg) => {
@@ -270,10 +367,80 @@ export function tieredSockets(plan) {
     const seg = segments.find((g) => g.name === K.limb); if (!seg || !newFolds[tmpl(K.fold)] || !J[K.joint] || !J[K.to]) continue;
     const r = r6(K.ball * rad(seg.rMid ?? seg.rA)), d = unit3(sub3(J[K.to], J[K.joint])), c = J[K.joint].map((x, k) => x + (K.forward ?? 0) * r * (k === 1 ? 1 : 0));
     const slots = SLOT_FAMILIES.ring8, lat = [-60, -30, 0, 30, 60];
-    const stations = lat.map((deg, i) => { const t = (deg * Math.PI) / 180, P = ringPoints(c.map((x, k) => x + d[k] * r * Math.sin(t)), d, r * Math.cos(t), slots);
+    // (laws 9: the ball drawn in under its web and cone, which close the shoulder now, so a raised arm never shows it;
+    // its centre stays, and the web and cone are measured off its full radius)
+    const rb = web >= 2 ? r * SHOULDER_CONE.ball : r;
+    const stations = lat.map((deg, i) => { const t = (deg * Math.PI) / 180, P = ringPoints(c.map((x, k) => x + d[k] * rb * Math.sin(t)), d, rb * Math.cos(t), slots);
       return { id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) }; });
-    balls.push({ name: K.ball && K.limb.replace(/^upperArm/, 'shoulderBall'), kind: 'rings', slots: 'ring8', stations, caps: { back: c.map((x, k) => r6(x - d[k] * r)), tip: c.map((x, k) => r6(x + d[k] * r)) },
+    balls.push({ name: K.ball && K.limb.replace(/^upperArm/, 'shoulderBall'), kind: 'rings', slots: 'ring8', stations, caps: { back: c.map((x, k) => r6(x - d[k] * rb)), tip: c.map((x, k) => r6(x + d[k] * rb)) },
       group: seg.group, mirror: 'name', bind: K.fold });
+  }
+  // (`web`: each ball's web, on the ball's axis and ring family, ending on its arm's own st1 ring)
+  if (web) for (const b of [...balls]) {
+    const K = TIERED_SOCKETS.find((x) => x.limb === b.name.replace(/^shoulderBall/, 'upperArm')), seg = segments.find((g) => g.name === K.limb), slots = SLOT_FAMILIES.ring8;
+    const armRings = familyOf(plan, seg) === 'ring8' ? partRings({ ...plan, segments }, seg).stations : [], arm = armRings.find((st) => st.id === 'st1'), arm0 = armRings.find((st) => st.id === 'st0'); if (!arm) continue;
+    const c = centre(b.stations[2].points), d = unit3(sub3(J[K.to], J[K.joint])), r = r6(K.ball * rad(seg.rMid ?? seg.rA)), role = (x) => (x === 'trunk' ? K.trunk : x === 'limb' ? K.limb : K.fold);
+    const rings = [];
+    for (const W of SHOULDER_WEB) {
+      if (W.toArm === undefined) { rings.push(ringPoints(c.map((x, k) => x + d[k] * r * W.at), d, r * W.r, slots)); continue; }
+      // (laws 9: the arm's own section on its way to the belly ring, a little over it; laws 8: halfway from the equator)
+      const C = SHOULDER_CONE, e = rings[rings.length - 1], hug = web >= 2 && arm0;
+      const P = hug ? Object.fromEntries(slots.map((sl) => [sl, arm0.points[sl].map((x, k) => x + (arm.points[sl][k] - x) * C.hug)])) : Object.fromEntries(slots.map((sl) => [sl, e[sl].map((x, k) => x + (arm.points[sl][k] - x) * W.toArm)])), m = centre(P);
+      rings.push(Object.fromEntries(slots.map((sl) => [sl, P[sl].map((x, k) => m[k] + (x - m[k]) * (hug ? C.swell : W.swell))])));
+    }
+    rings.push(arm.points);
+    const stations = rings.map((P, i) => ({ id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) }));
+    const wOf = (w) => Object.fromEntries(Object.entries(w).map(([k, x]) => [role(k), x])), last = { limb: 1 }, mid = centre(arm.points);
+    // the CONE (laws 9): rings square to the way from the ball to the neck's root, from one hidden inside the ball to a
+    // wide, flattened base inside the torso
+    if (web >= 2 && J.neckHub) {
+      const C = SHOULDER_CONE, to = J.neckHub.map((x, k) => c[k] + (x - c[k]) * (web >= 3 ? WEB_ARMPIT.reach : C.reach)), ax = unit3(sub3(to, c));
+      const fy = unit3([0, 1, 0].map((x, i) => x - ax[i] * ax[1])), up = cross3(ax, fy), uz = up[2] < 0 ? up.map((x) => -x) : up;   // front-back, then the ring's up
+      const torso = torsoSection(plan, segments), ang = slots.map((_, i) => (2 * Math.PI * (i + (web >= 3 ? WEB_ARMPIT.turn : 0))) / slots.length);
+      const ringAt = (t, ry, rz) => { const m = c.map((x, i) => x + (to[i] - x) * t); return Object.fromEntries(slots.map((sl, i) => [sl, m.map((x, q) => x + fy[q] * Math.cos(ang[i]) * ry + uz[q] * Math.sin(ang[i]) * rz)])); };
+      // (how far a slot rides over the skin: fully at and over the ring's middle, falling to tucked at its bottom)
+      const sinOf = (sl) => Math.sin(ang[slots.indexOf(sl)]), over = (sl) => Math.min(1, Math.max(0, sinOf(sl) / C.top)), tuckOf = (sl) => Math.min(1, Math.max(0, -sinOf(sl) / C.under));
+      const cone = C.rings.map((R) => {
+        const P = ringAt(R.t, r * (C.start + (C.across - C.start) * R.t), r * (C.start + (C.up - C.start) * R.t)), m = c.map((x, i) => x + (to[i] - x) * R.t);
+        if (R.t === 1) return Object.fromEntries(slots.map((sl) => [sl, torso.hold(P[sl], web >= 3 ? WEB_ARMPIT.inside : C.inside)]));
+        // (a ring between rides just over the torso's skin where it would sink under it, over the shoulder's top and its
+        // front and back; under the shoulder it draws in toward its centre, so it never spans the armpit)
+        return Object.fromEntries(slots.map((sl) => { const w = R.skin ? over(sl) : 0, under = torso.hold(P[sl], C.sink), outer = w > 0 ? torso.clear(P[sl], unit3(sub3(P[sl], m)), R.skin * r, C.most * r) : P[sl];
+          const out = R.skin ? under.map((x, i) => x + (outer[i] - x) * w) : P[sl], tk = tuckOf(sl);
+          return [sl, out.map((x, i) => x + (m[i] + (P[sl][i] - m[i]) * C.tuck - x) * tk)]; }));
+      });
+      // INTO THE ARM: past the ball the cone runs on round the arm's own axis, a little inside the web and the arm at rest
+      // (so it shows nothing there), its weights handing the fold to the arm more slowly than the web's, so a raised arm
+      // keeps it round where the web and the ball bunch at the armpit; it ends inside the arm's belly ring. Its rings
+      // are lined up slot by slot with the one in the ball (slotMap), as a bridge's are, so the bend never twists.
+      const ringW = (R, i) => (web >= 3 ? WEB_ARMPIT.cone[i] : R.w), ws = [...C.rings.map(ringW)];
+      const inBall = cone[cone.length - 1];
+      for (const E of C.arm) {
+        if (web >= 3) {
+          // (laws 10: the ball's ring itself turned from the cone's way into the arm's, so its slots run on untwisted)
+          const kx = cross3(ax, d), kl = Math.hypot(...kx), kk = kx.map((x) => x / kl), th = Math.atan2(kl, dot3(ax, d)), co = Math.cos(th), si = Math.sin(th);
+          const turn = (o) => { const kd = dot3(kk, o), ko = cross3(kk, o); return [0, 1, 2].map((i) => o[i] * co + ko[i] * si + kk[i] * kd * (1 - co)); };
+          const m0 = centre(inBall), at = E.belly ? centre(arm.points) : c.map((x, i) => x + d[i] * r * E.at), rr = WEB_ARMPIT.inArm * (E.belly ? E.belly * Math.min(...slots.map((sl) => Math.hypot(...sub3(arm.points[sl], at)))) : r * E.r);
+          cone.push(Object.fromEntries(slots.map((sl) => { const o = unit3(turn(sub3(inBall[sl], m0))); return [sl, at.map((x, i) => x + o[i] * rr)]; }))); ws.push(E.w); continue;
+        }
+        const P = E.belly ? Object.fromEntries(slots.map((sl) => { const m = centre(arm.points); return [sl, arm.points[sl].map((x, i) => m[i] + (x - m[i]) * E.belly)]; }))
+          : ringPoints(c.map((x, i) => x + d[i] * r * E.at), d, r * E.r, slots);
+        const turnTo = slotMap(inBall, P, slots); cone.push(Object.fromEntries(slots.map((sl) => [sl, P[turnTo[sl]]]))); ws.push(E.w);
+      }
+      // (laws 10: a tucked point between the base and the ball stays with the trunk by how far it is tucked, so a raised
+      // arm's turn of the fold never swings the cone's underside out of the torso's back as a fin)
+      const tuckedToTrunk = () => Object.fromEntries(C.rings.flatMap((R, i) => (R.skin ? slots.filter((sl) => tuckOf(sl) > 0 || over(sl) > 0).map((sl) => {
+        // (a point over the torso's skin stays with it too, by how far it rides over: a raised arm never lifts it off the chest)
+        const tk = Math.max(tuckOf(sl), WEB_ARMPIT.overTrunk * over(sl)), Rw = ringW(R, i), w = Object.fromEntries([...new Set([...Object.keys(Rw), 'trunk'])].map((k) => [k, r6((Rw[k] ?? 0) * (1 - tk) + (k === 'trunk' ? tk : 0))]));
+        return [`st${i}.${sl}`, wOf(w)]; }) : [])));
+      const endC = centre(cone[cone.length - 1]);
+      balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderCone'), kind: 'rings', slots: 'ring8', stations: cone.map((P, i) => ({ id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) })),
+        caps: { back: to.map((x, i) => r6(x + ax[i] * r * 0.2)), tip: endC.map((x, i) => r6(x + d[i] * r * 0.15)) }, group: seg.group, mirror: 'name',
+        bind: { bone: K.fold, blend: { back: wOf(ws[0]), ...Object.fromEntries(ws.map((w, i) => [`st${i}`, wOf(w)])), tip: wOf(ws[ws.length - 1]), ...(web >= 3 ? tuckedToTrunk() : {}) } } });
+    }
+    balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderWeb'), kind: 'rings', slots: 'ring8', stations,
+      caps: { back: c.map((x, k) => r6(x + d[k] * r * (SHOULDER_WEB[0].at - 0.15))), tip: mid.map((x, k) => r6(x - d[k] * r * 0.15)) },
+      group: seg.group, mirror: 'name', bind: { bone: K.fold, blend: { back: wOf(SHOULDER_WEB[0].w), ...Object.fromEntries(SHOULDER_WEB.map((W, i) => [`st${i}`, wOf(W.w)])), [`st${SHOULDER_WEB.length}`]: wOf(last), ...(web >= 3 ? Object.fromEntries(Object.entries(WEB_ARMPIT.rings).flatMap(([st, w]) => WEB_ARMPIT.slots.map((sl) => [`${st}.${sl}`, wOf(w)]))) : {}), tip: wOf(last) } } });
   }
   if (balls.length) { const i = segments.findIndex((g) => g.name === balls[0].name.replace(/^shoulderBall/, 'upperArm')); segments.splice(i + 1, 0, ...balls); }
   // the SHELL round a socket (the torso's shoulder): a point that shares the trunk bone's lift (the collarbone's) keeps
@@ -292,7 +459,7 @@ export function tieredSockets(plan) {
   const gained = Object.keys(newFolds).filter((ft) => !folds[ft]).map((ft) => ({ id: ft, head: newFolds[ft].head, tail: newFolds[ft].tail, aux: [newFolds[ft].head, newFolds[ft].aim] }));
   const bones = [...plan.rig.bones, ...(gained.length ? [{ perSide: gained }] : [])];
   // a ball takes the dials and the splits its arm takes
-  const withBall = (parts) => { const out = [...parts]; for (const b of balls) for (const S of ['R', 'L', '$S']) { const arm = b.name.replace(/^shoulderBall/, 'upperArm').replace(/R$/, S), n = b.name.replace(/R$/, S); if (out.includes(arm) && !out.includes(n)) out.push(n); } return out; };
+  const withBall = (parts) => { const out = [...parts]; for (const b of balls) for (const S of ['R', 'L', '$S']) { const arm = b.name.replace(/^shoulder(Ball|Web|Cone)/, 'upperArm').replace(/R$/, S), n = b.name.replace(/R$/, S); if (out.includes(arm) && !out.includes(n)) out.push(n); } return out; };
   const dials = plan.dials && Object.fromEntries(Object.entries(plan.dials).map(([k, x]) => [k, Array.isArray(x.parts) ? { ...x, parts: withBall(x.parts) } : x]));
   const refine = plan.body?.refine?.map((e) => (e.slots !== false && Array.isArray(e.parts) ? { ...e, parts: withBall(e.parts) } : e));
   return { ...plan, segments, rig: { ...plan.rig, folds: newFolds, bones }, ...(dials ? { dials } : {}), ...(refine ? { body: { ...plan.body, refine } } : {}) };
@@ -312,6 +479,14 @@ export function tieredSockets(plan) {
  * and a lower lid (the flat stack read as a sticker), the male's lid the heavier.
  * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
  * behind her lips in profile) and rounder (chinPoint; a sharper point read too prominent in three-quarter and profile); the male: a broader jaw, a heavier brow, the chin forward. */
+/** How a hero's figure is shaded smooth (world-kinds.js, and the body study as the World draws it): the crease, and the
+ * landmark head's ellipsoid weight on the tiered form (the child form: its own, CHILD_SHADE, and its face's lean); every
+ * other hero the studio's crease, no ellipsoid */
+export const heroShade = (hero) => (hero?.form === 'tiered'
+  ? (childRound(hero) ? { crease: CHILD_SHADE.crease, ellipsoid: (hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0, face: CHILD_SHADE.face }
+    : { crease: TIERED_SMOOTH_CREASE, ellipsoid: (hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0 })
+  : { crease: STUDIO_SMOOTH_CREASE, ellipsoid: 0 });
+
 export const TIERED_FACE = Object.freeze({
   female: Object.freeze({
     face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.003, chinPoint: 1.06, noseSize: 1.265, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
@@ -324,6 +499,11 @@ export const TIERED_FACE = Object.freeze({
     features: Object.freeze({ eye: 0.85, brow: 1, brows: Object.freeze({ arch: 0.035, head: 1.3, tail: 0.35, lift: 0.7, soft: 0.18 }), bridge: 2.2, wing: Object.freeze({ r: 0.0062, dome: 0.003 }), ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }), ridge: Object.freeze({ f: 0.55, h: 0.005, socket: 0.003, temple: 0.003 }) }),
   }),
 });
+/** THE SKULL'S BACK (hero laws 16, the landmark head's `features.occiput`, humanoid-head-fit.js): the male fit's skull stood
+ * short behind the ear (18.5 cm long, the ear canal at 0.41 of its length from the back, people about 0.45), so in
+ * profile the back of the skull barely cleared the nape (2.2 cm; people 4 to 5) and the head read hung forward off its
+ * neck; his skull's back deeper by this share of the head's height. The female fit's stands as people's. */
+export const TIERED_OCCIPUT = Object.freeze({ male: 1.066 });
 /** The FACE TINT (face-tint.js): a soft occlusion in the skin's folds and a warm blush on the cheeks, the nose's tip
  * and the ears, the female's warmer; the vertex colour a shipped face paints where a texture would. The SOCKET: the
  * brow's shadow over the eye, which a western face always has (the deeper set the male's, on his heavier ridge); its
@@ -347,12 +527,14 @@ export const TIERED_FULL_EAR_TIERS = DENSE_TIERS;
 
 /** The hero with the tiered face's defaults under its own words: the landmark head only (the anime head has its own).
  * The hair default is the record's (layered.js heroRecord stores the female's `bob` when she names none). The ear is the
- * lean one unless the hero's target is a TIERED_FULL_EAR_TIERS tier. */
+ * lean one unless the hero's target is a TIERED_FULL_EAR_TIERS tier. Under hero laws 16 the skull's back
+ * (TIERED_OCCIPUT). */
 export function tieredFace(hero, pole) {
   if ((hero.head ?? 'landmark') !== 'landmark') return hero;
   const F = TIERED_FACE[pole] ?? TIERED_FACE.male, own = hero.face == null ? [] : Array.isArray(hero.face) ? hero.face : [hero.face];
   const target = heroTarget(hero), fullEar = !!target && TIERED_FULL_EAR_TIERS.includes(tierOf(readTarget(target).figurePx).id);
-  return { ...hero, face: [F.face, ...own], faceFeatures: fullEar ? F.features : { ...F.features, earLean: true } };
+  const occiput = (hero.laws ?? 1) >= 16 && TIERED_OCCIPUT[pole] ? { occiput: TIERED_OCCIPUT[pole] } : {};
+  return { ...hero, face: [F.face, ...own], faceFeatures: { ...F.features, ...(fullEar ? {} : { earLean: true }), ...occiput } };
 }
 
 /** The joints a garment crosses (upper limb, lower limb, the bridge between): a piece running to the upper limb's end
@@ -404,11 +586,43 @@ export function tieredGarments(plan) {
  * does, instead of riding the upper bone while the bridge bends under it. A piece on the torso or the neck (a pauldron,
  * a gorget) stands off the shoulders' BALLS as well, which stand out of the torso there. A piece its author
  * pinned keeps its pin. No bridges or balls ⇒ the kit as it was.
+ *
+ * THE SHOULDER IS NOT THE TORSO'S: the torso's top rings run out to the shoulders (the arms hang from their sides), so a
+ * plate on the torso that reaches up there stood off the balls and wrapped the shoulder in a yoke. Above the ball's
+ * lowest point the torso's sides are the shoulder's: a trunk plate that is not a shoulder piece (one that spans the
+ * upper arm: a pauldron's anchor) keeps off them, a front or back plate cut in under the arm (its `armhole`), a wrap (a band, a row,
+ * a hoop) ending under the arm, and it lies under the arm instead of standing off the balls, as the realistic body's
+ * cuirass does (body-relational-armour.js PLATE_STAND). A pinned piece (a skirt's board) and the neck's (a gorget) as
+ * they were. Hero laws 18 (hero-form.js); a hero minted under 1 to 17 keeps its plates standing off the balls.
  */
-export function tieredKit(kit, plan) {
+export function tieredKit(kit, plan, { laws = 1 } = {}) {
   if (!Array.isArray(kit) || !kit.length) return kit;
   const seg = (n) => (plan.segments || []).find((s) => s.name === n.replace(/L$/, 'R'));
   const sideOf = (n) => (/L$/.test(n) ? 'L' : /R$/.test(n) ? 'R' : null);
+  // (the ball's lowest point as a torso station s, by the height of the torso's own stations st0, st1, …, and its inner
+  // edge, the nearest the ball comes to the body's middle: above that point a plate keeps inside it)
+  const T = seg('torso'), ball = seg('shoulderBallR'), Ht = (SLOT_FAMILIES[plan.style?.slots ?? 'ring8'] ?? SLOT_FAMILIES.ring8).length / 2;
+  const sOf = (id) => { const m = /^st(\d+)(?:_st(\d+)_(\d+))?$/.exec(id); return m ? (m[2] === undefined ? +m[1] : +m[1] + ((+m[2] - +m[1]) * +m[3]) / 100) : null; };
+  const rings = (T?.stations || []).map((st) => ({ s: sOf(st.id), z: st.z, rx: st.r?.[0] })).filter((q) => q.s != null && Number.isFinite(q.z) && Number.isFinite(q.rx)).sort((a, b) => a.s - b.s);
+  const ballPts = (ball?.stations || []).flatMap((st) => Object.values(st.points || {}));
+  const sBall = (() => { if (rings.length < 2 || !ballPts.length) return null; const zb = Math.min(...ballPts.map((p) => p[2]));
+    for (let i = 0; i + 1 < rings.length; i++) { const a = rings[i], b = rings[i + 1]; if (zb >= a.z && zb <= b.z && b.z > a.z) return r6(a.s + ((b.s - a.s) * (zb - a.z)) / (b.z - a.z)); } return null; })();
+  const xIn = ballPts.length ? Math.min(...ballPts.map((p) => Math.abs(p[0]))) * 0.92 : null, e = T?.e ?? 2;
+  // the furthest round from the front (in the ring's t) a plate may reach and stay inside the ball over rings s0 → s1:
+  // the torso's ring a superellipse (x = rx·sinθ^(2/e)), t uniform in θ over the ring half
+  const tReach = (s0, s1) => { const rx = Math.max(...rings.filter((q) => q.s >= s0 - 1e-9 && q.s <= s1 + 0.5).map((q) => q.rx), 1e-9);
+    const sn = Math.min(1, (xIn / rx) ** (e / 2)); return r6((Math.asin(sn) / Math.PI) * Ht); };
+  const trunkPlate = (A) => A.part === 'torso' && (A.mode === 'shell' || A.mode === 'band') && !A.pin && !(A.over || []).some((o) => /^upperArm/.test(o));
+  const offShoulder = (A) => { if (sBall == null || !Array.isArray(A.s) || A.s[1] <= sBall) return A;
+    const reach = tReach(Math.max(A.s[0], sBall), A.s[1]);
+    if (Array.isArray(A.t)) { const [t0, t1] = A.t[0] <= A.t[1] ? A.t : [A.t[1], A.t[0]];
+      if (t1 <= reach || t0 >= Ht - reach) return A;                                        // clear of the shoulder
+      // a front or back plate cut in under the arm: its side edge eased in above the ball (station-loft-adorn.js armhole)
+      const edge = A.t[1] >= A.t[0] ? 1 : 0;   // (the window's end toward the side: its t end, unless it runs back to front)
+      if (t0 < reach && t1 <= Ht - reach + 1e-9 && t0 < Ht / 2) return { ...A, armhole: { from: sBall, edge, t: reach } };
+      if (t1 > Ht - reach && t0 >= reach - 1e-9 && t1 > Ht / 2) return { ...A, armhole: { from: sBall, edge: 1 - edge, t: r6(Ht - reach) } }; }
+    // a wrap, or a window across the side: it ends under the arm (its support with it)
+    const top = r6(Math.max(A.s[0] + 0.1, sBall)); return { ...A, s: [A.s[0], top], ...(A.support > top ? { support: top } : {}) }; };
   return kit.map((A) => {
     const S = sideOf(A.part ?? ''), over = A.over || [];
     let B = A;
@@ -419,8 +633,10 @@ export function tieredKit(kit, plan) {
       const mid = r6(((br.stations?.length ?? 2) - 1) / 2), t = Array.isArray(A.t) ? r6((A.t[0] + A.t[1]) / 2) : null;
       B = { ...B, over: [...new Set([...(B.over || []), `${bridge}${S}`])], ...(A.rigid && !A.pin && t != null ? { pin: [mid, t, A.side || S, `${bridge}${S}`] } : {}) };
     }
-    // the balls stand out of the torso at the shoulder: what the torso or the neck carries stands off them
-    if ((A.part === 'torso' || A.part === 'neck') && seg('shoulderBallR')) B = { ...B, over: [...new Set([...(B.over || []), 'shoulderBallR', 'shoulderBallL'])] };
+    // the balls stand out of the torso at the shoulder: what the torso or the neck carries stands off them, but a trunk
+    // plate, which keeps off the shoulder instead
+    if (laws >= 18 && trunkPlate(A) && sBall != null) return offShoulder(B);
+    if ((A.part === 'torso' || A.part === 'neck') && seg('shoulderBallR')) B = { ...B, over: [...new Set([...(B.over || []), 'shoulderBallR', 'shoulderBallL', ...(seg('shoulderWebR') ? ['shoulderWebR', 'shoulderWebL'] : []), ...(seg('shoulderConeR') ? ['shoulderConeR', 'shoulderConeL'] : [])])] };
     return B;
   });
 }

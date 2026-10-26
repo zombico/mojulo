@@ -42,7 +42,15 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // 4800 -> 5000 (2026-10-17): the geocube card took `materials.age` and `outside.crystals` (level age and crystals);
 // it stood at 4873 with them
 // 5000 -> 5200 (2026-10-19): the geocube card took the city-night preset's line (the city stalker); it stands at 5074
-export const STAGE_CARD_BODY_CEILING = 5200;
+// 5000 -> 5400 (2026-10-20): the geocube card took its `avoid` line and the theatre-grey and painted-haze presets (painted-haze since replaced by limestone-crags)
+// (geocube styles); it stood at 5388 with them
+// 5400 -> 5450 (2026-10-21): limestone-crags, the first terrain past the sixth generation, replaced painted-haze with a
+// longer reading and a third avoid line
+// 5450 -> 5650 (2026-10-22): the geocube card's register line names the colour registers (cel, ink-wash, wii) and the
+// register-ink law; it stands at 5602 with them
+// 5650 -> 5800 (2026-10-25): the two lines merged, the city stalker's city-night beside geocube styles' theatre-grey and
+// limestone-crags; it stands at 5729 with all three
+export const STAGE_CARD_BODY_CEILING = 5800;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -251,10 +259,11 @@ export function geocubeCard() {
     'THE CUBE',
     '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below), sky? { zenith, horizon, fog? } (the outside\'s; the reference\'s dome where none) }',
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
-    '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
+    '  register  { steps (0 … 8 bands), key (0..1) } or a name: cel (bands, outline, crisp creases), ink-wash, wii, continuous; { from, …changes } (outline?, creases?, contrast?). Inked by the theorist; a world\'s own creases win (card creases)',
     '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation, metal } | false: Wii-era shading in the vertex (metal: metal takes the occlusion too)',
     '  materials? true | { age?, <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); age new | worn | old | ancient tarnishes bronze to verdigris, blackens steel; cloth and leather painted (a group may name silk, velvet, wool, denim …); a hero takes it through its geocube',
     '  palette   a pick_palette spec: the color theorist decides the colours, seeded where the cube is stored (a preset\'s character with it); the solve writes colour, shade, register.key, the moon and light.sky. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\', and a world on a cube alone takes the cube\'s for its HUD.',
+    '  avoid?    [{ line, law }]: the mistakes the style names, each measured by a law as the cube is read (a pick_palette law, quiet-surfaces, or register-ink) and written back as ok, value. Advice, never a refusal.',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
     '  outside   { base (an isekai card), tiers, island, land (LAND RULES), relief? rolling | craggy | eroded | terraced | dune | { from, … }, ground? { from: <painted-landscape: heartbeat, splatch, seed>, span (m; 40–60 reads at a level\'s scale), height (m) }, crystals? <gem> | { gem, where: crags | hollows, count, size (m), glow }, terrain?, terrains? }',
@@ -267,7 +276,7 @@ export function geocubeCard() {
   return {
     id: 'geocube', name: 'Geocube (a level\'s look, forged first)', family: 'world', entry: 'create_sketch', generated: true,
     summary: 'One style for a level\'s inside and outside: forge the cube, check its room and island specimens, then build the level on it.',
-    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen", "a Wii-era look", "vertex colour contrast"',
+    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen", "a Wii-era look", "vertex colour contrast", "a cel-shaded look", "toon outline on my level", "inked like a drawing"',
     body: lines.join('\n'),
   };
 }

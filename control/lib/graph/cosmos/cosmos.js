@@ -11,6 +11,8 @@
  *                         makeable  every value built
  *                         gaps      some value local or partial (named)
  *                         blocked   some value absent (named)
+ *                       plus `advice`: [{ law, says }] when a facet's law over the cube's values fires (soul.js
+ *                       `laws`: a first-person camera seating several players needs a view each), absent otherwise;
  *                       plus `engines`: { [engine]: { ok, lost, approximated } } for each engine with a runtime
  *                       kernel (scene/engines/registry.js): the values the web builds (any status but absent) that its
  *                       export loses (marked absent) and those it carries simpler; only a loss fails `ok`
@@ -80,5 +82,7 @@ export function dryRun(cube) {
   }
   const verdict = blocked.length ? 'blocked' : gaps.length ? 'gaps' : 'makeable';
   for (const e of MARKED_ENGINES) engines[e].ok = !engines[e].lost.length;
-  return { verdict, blocked, gaps, engines, facets };
+  // a facet's laws over the whole cube: advice, never a verdict
+  const advice = FACETS.flatMap((f) => (f.laws || []).map((L) => ({ law: `${f.id}.${L.id}`, says: L.advice(cube) })).filter((a) => a.says));
+  return { verdict, blocked, gaps, engines, facets, ...(advice.length ? { advice } : {}) };
 }

@@ -7,8 +7,9 @@
  */
 import { audioChannelScript } from './audio.js';
 import { buildupChannelScript } from './buildup.js';
-import { castShadowScript } from './cast-shadows.js';
+import { castShadowScript, liveBudgetScript } from './cast-shadows.js';
 import { crystalChannelScript } from './crystal.js';
+import { creasesChannelScript } from './creases.js';
 import { metalChannelScript } from './metal.js';
 import { cometChannelScript } from './comet.js';
 import { deformChannelScript } from './deform.js';
@@ -216,6 +217,14 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // gated on a group carrying metal faces (metal-surfaces S3)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojMetal'] },        // surface and lookup-row counts, for probes
+  { key: 'creases', anchor: 'pre-runtime', script: creasesChannelScript,
+    normalizeIn: 'emitThreeWorld',     // readCreases over payload.creases; organic faces split off, angular meshes marked
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojCreases', '__creasePrepass'] },   // the live handle; the prepass scene-three splices before each render
+  { key: 'lightBudget', anchor: 'pre-runtime', script: liveBudgetScript,
+    normalizeIn: 'emitThreeWorld',     // gated on payload.lightTier (world-scene's liveLightDefaults) with a live light on
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojLight'] },        // budget(): renders, shadow passes and draws a frame, map and target sizes
   { key: 'fx', anchor: 'post-step', script: fxChannelScript,
     normalizeIn: 'emitThreeWorld',     // presence decides controllable's exposeBodies
     requiresOptional: ['__BUS', '__mojCtrl'] },   // assigns the scene-three-emitted `let stepFx`
@@ -386,6 +395,7 @@ export { jetChannelScript } from './jet.js';
 export { aquaPatchScript } from './aqua-glsl.js';
 export { wetSandScript } from './wet-sand.js';
 export { softGroundScript } from './soft-ground.js';
+export { snowPrintsScript } from './snow-prints.js';
 export { toonInkScript } from './toon-ink.js';
 export { drawLayersScript, drawLayerGroup, DRAW_LAYER_KEYS } from './draw-layers.js';
 export { walkModeScript } from './walk.js';
@@ -398,4 +408,4 @@ export { walkersChannelScript } from './walkers.js';
 export { rigPreviewChannelScript } from './rig-preview.js';
 export { strokeOverlayChannelScript } from './stroke-overlay.js';
 export { carsChannelScript } from './cars.js';
-export { castShadowScript } from './cast-shadows.js';
+export { castShadowScript, liveShadowScript, liveBudgetScript } from './cast-shadows.js';

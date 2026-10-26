@@ -31,6 +31,8 @@ import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
+import { readTrailDress } from './trail-dress.js';
+import { layWater, WATER } from './out-water.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -74,8 +76,9 @@ const C = OUT_TRAIL;
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after? } (or true)');
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds'];
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after?, surface?, rubble?, patches?, rocks? } (or true)');
+  // (its dress, `surface`, `rubble`, `patches`, is the stage's to draw: era/trail-dress.js reads it)
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches', 'rocks'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -105,8 +108,23 @@ export function readOutTrail(t, depth = 0) {
     if (rest.id === undefined || prev.id === id) throw new Error('stage: trail.after names the trail it follows by an id of its own (trail.after.id), not this trail\'s');
     after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
   }
-  const ground = readGround(t.ground);
-  return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
+  readTrailDress(t);
+  const ground = readGround(t.ground), rocks = readRocks(t.rocks);
+  return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds), ...(rocks ? { rocks } : {}) };
+}
+
+/**
+ * The trail's ROCKS (`trail.rocks`, absent: the card's own): `boulders` how many it strews beside the walk (the card's
+ * `rubble.boulders`), `landmark` the metres its landmark beat's stone stands (the card's least size the trailhead
+ * sees, else). The stones are the card's pooled rocks either way; this only says how many, and how tall the one is.
+ */
+export function readRocks(r) {
+  if (r === undefined) return null;
+  if (!r || typeof r !== 'object' || Array.isArray(r)) throw new Error('stage: trail.rocks is { boulders?, landmark? }');
+  for (const k of Object.keys(r)) if (!['boulders', 'landmark'].includes(k)) throw new Error(`stage: trail.rocks.${k} is not a rocks setting (boulders, landmark)`);
+  if (r.boulders !== undefined && !(Number.isInteger(r.boulders) && r.boulders >= 0 && r.boulders <= 24)) throw new Error('stage: trail.rocks.boulders is how many boulders it strews beside the walk, 0 to 24');
+  if (r.landmark !== undefined && !(typeof r.landmark === 'number' && r.landmark >= 2 && r.landmark <= 30)) throw new Error('stage: trail.rocks.landmark is the metres its landmark stone stands, 2 to 30');
+  return { ...r };
 }
 
 /** The beats in walking order, drawn by dice when the recipe names none: a reveal, a landmark and a pocket always (a
@@ -261,6 +279,18 @@ function joinOf(prev) {
   return { from: P.id, x: prev.trailX(D), slope: P.trailSlope(D), z: P.smoothAt(P.L), cliff: prev.cliffX(D), ground: (x) => prev.groundBase(x, D), whole: (x) => prev.ground(x, D), origin: r5(prev.origin + D) };
 }
 const JOIN = 24, SEAM = 12;
+// an open trail's cliff line: this far past the site's back edge, out of every placement's reach
+const OPEN_BEYOND = 40;
+// a pooled rock (nature.js rockFaces) stands its size × the card's rock unit × (CROWN × its `tall` − SINK) over the ground:
+// its crown at 0.45 of its size, sunk 0.3 of it
+const CROWN = 0.45, SINK = 0.3;
+/** The metres a landmark stone of `size` stands on a card (its rock unit). */
+export const landmarkStands = (st, size) => size * (CROWN * C.landmark.tall - SINK) * st.rubble.unit;
+/** The sizes the landmark's stone is tried at: the card's, or the one the trail's `rocks.landmark` (metres) stands at. */
+function landmarkSizes(st, T) {
+  if (T.rocks?.landmark === undefined) return C.landmark.sizes;
+  return [r5(T.rocks.landmark / landmarkStands(st, 1))];
+}
 
 function siteOf(st, plan) {
   const { T, G, S, W, D, trailX, trailSlope, sOf, beats } = plan;
@@ -276,13 +306,17 @@ function siteOf(st, plan) {
   const fringeAt = (y) => st.trail.fringe * (1 + st.trail.fringeVary * (vnoise(y * 0.22, 4.5, S + 83) - 0.5) * 2);
   const lineDist = (x, y) => Math.abs(x - trailX(y)) / Math.sqrt(1 + trailSlope(y) ** 2);
   const edge = (y) => halfWAt(y) + fringeAt(y);
-  // the CLIFF breathes with the beats: drawn in at a pinch, pushed back at a reveal
-  const cliffRaw = (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
+  // the CLIFF breathes with the beats: drawn in at a pinch, pushed back at a reveal. An OPEN trail (`ground.cliff: false`)
+  // has none: its line stands past the site's back edge, so the whole site is the open side (the meadow on both sides of
+  // the walk, nature.js), no scarp and no geology are laid, and no beat moves it
+  const open = G.cliff === false, Gc = open ? {} : G.cliff;
+  const cliffRaw = open ? () => -Lf.back - OPEN_BEYOND : (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
   const J = plan.join, seamW = (y) => (J ? 1 - smooth(0, SEAM, y) : 0);
   const cliff0 = (y) => cliffRaw(y) + (J ? (1 - smooth(0, JOIN, y)) * (J.cliff - cliffRaw(0)) : 0);
   const cliffX = (y) => {
     let x = cliff0(y);
     const k = 1 - seamW(y);   // (at a seam the followed trail's cliff holds: no beat moves it there)
+    if (open) return x;
     for (const b of at('pinch')) x = mix(x, Math.max(x, trailX(y) - edge(y) - 6), k * near(b, y, 5));
     for (const b of at('reveal')) x -= 3 * k * near(b, y, 8);
     return x;
@@ -304,6 +338,8 @@ function siteOf(st, plan) {
   });
   const pits = at('pit').map((b) => ({ b, y: b.y, w: C.pit.w, depth: C.pit.depth }));
   const streams = at('crossing').map((b) => ({ b, y: b.y }));
+  // the WATER (out-water.js, `ground.water`): laid after the walk; a coast runs the ground on past the plan's edge
+  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast ? W + WATER.coast.room : W;
 
   // ── pass 1: ROUGH — the heartbeat under the trail, the beats' edges, the bumps ──
   const B = G.B, fk = G.bumpScale;
@@ -322,7 +358,7 @@ function siteOf(st, plan) {
     }
     return z + bump(x, y) * (G.bumpWalk + (1 - G.bumpWalk) * smooth(e, e + 5, d));
   };
-  const grid = () => landformGrid({ x0: -Lf.back, x1: W, y0: 0, y1: D, res: Math.round(D / Lf.cell) + 1 });
+  const grid = () => landformGrid({ x0: -Lf.back, x1: Wg, y0: 0, y1: D, res: Math.round(D / Lf.cell) + 1 });
   const rough = bakeGrid(grid(), field(plan.baseRoughAt));
   const edited = G.edits.length > 0, editOpts = { gridX, gridY, walkAt: (y) => plan.smoothAt(sOf(y)) };
   if (edited) applyEdits(rough, G.edits, editOpts);
@@ -346,10 +382,12 @@ function siteOf(st, plan) {
   const eased = g.z.slice();
   const valley = (x, y) => gridSample({ ...g, z: eased }, x, y);
   const path = []; for (let y = -8; y <= D + 8; y += 2) path.push([cliffX(y), y]);
-  applyLandform(g, [
-    { op: 'scarp', path, throw: G.cliff.height ?? Lf.throw, face: G.cliff.face ?? Lf.face, side: 'left', rough: 0.02, taper: 0 },
-    { op: 'strata', thickness: Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4 },
-    { op: 'joints', rock: 'granite', spacing: Lf.joint, steep: 40 },
+  applyLandform(g, open ? [] : [
+    { op: 'scarp', path, throw: Gc.height ?? Lf.throw, face: Gc.face ?? Lf.face, side: 'left', rough: 0.02, taper: 0 },
+    // (the beds and the joints: the card's, unless the trail's ground names its cliff's; a dip tilts the beds along the
+    // walk, a pattern turns the joints from the granite's blocks)
+    { op: 'strata', thickness: Gc.bed ?? Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4, ...(Gc.dip ? { dip: Gc.dip, dipAz: 90 } : {}) },
+    { op: 'joints', rock: 'granite', ...(Gc.pattern ? { pattern: Gc.pattern } : {}), spacing: Gc.joint ?? Lf.joint, steep: 40 },
     { op: 'talus', angle: 34, cliff: 50, retreat: Lf.retreat, scree: Lf.scree, rmin: 0.25, rmax: 1.3 },
   ], { seed: `out-trail-${S}` });
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
@@ -378,6 +416,8 @@ function siteOf(st, plan) {
       for (let i = 0; i < g.nx; i++) { const w = walkLevel(gridX(g, i), y); if (w <= 0) continue; const q = j * g.nx + i; g.z[q] = mix(g.z[q], baseZ[q] + lift, w); }
     }
   }
+  // the WATER cut into the ground, after the walk is laid and clear of it (out-water.js)
+  const WB = Wr ? layWater(Wr, { st, g, trailX, edge, cliffX, open, W, Wg, D, S, beats, streams, pockets, marks, pits }) : null;
   // the PITS, cut last so nothing fills them: across the walk and a little wider, the ground whole beyond (the way round)
   for (const p of pits) for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const x = gridX(g, i), y = gridY(g, j), d = lineDist(x, y), e = edge(y);
@@ -398,7 +438,8 @@ function siteOf(st, plan) {
     || at('reveal').some((b) => x > trailX(y) && Math.abs(sOf(y) - b.s) < 10)
     || marks.some((m) => Math.hypot(x - m.x, y - m.y) < m.size + 2)
     || pits.some((p) => Math.abs(y - p.y) < p.w + 2)
-    || streams.some((s) => Math.abs(y - s.y) < 3);
+    || streams.some((s) => Math.abs(y - s.y) < 3)
+    || (WB !== null && WB.clear(x, y));
   // the foci (where the eye lands, nature.js inRadius): the trailhead, and every beat; a pinch is framed as a gate
   const foci = beats.filter((b) => b.kind !== 'exit').map((b) => ({ name: b.id, y: b.y, r: b.kind === 'trailhead' ? 11 : 9, x: trailX(b.y), ...(b.kind === 'pinch' ? { gate: true } : {}) }));
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
@@ -406,7 +447,9 @@ function siteOf(st, plan) {
   // that shows it); the open side first, then the cliff's, and the least stone that is seen wins
   const eyeOf = (b) => [trailX(b.y), b.y, ground(trailX(b.y), b.y) + 1.7];
   for (const m of marks) {
-    const tries = C.landmark.sizes.flatMap((size) => [1, -1].map((side) => ({ size, x: side > 0 ? Math.min(W - 5, trailX(m.y) + m.off) : Math.max(cliffX(m.y) + 6, trailX(m.y) - m.off) })));
+    const tries0 = landmarkSizes(st, T).flatMap((size) => [1, -1].map((side) => ({ size, x: side > 0 ? Math.min(W - 5, trailX(m.y) + m.off) : Math.max(cliffX(m.y) + 6, trailX(m.y) - m.off) })));
+    // (out of the water: a stone off a lake's shore, a river's banks, a beach, while either side has room)
+    const dry = WB ? tries0.filter((c) => !WB.clear(c.x, m.y)) : tries0, tries = dry.length ? dry : tries0;
     const eyes = beats.filter((b, i) => i === 0 || b.s <= m.b.s - 15).map(eyeOf);
     const seenBy = (c, es) => es.some((e) => sightClear(ground, e, [c.x, m.y, ground(c.x, m.y) + c.size * 0.6 * C.landmark.tall]));
     const ok = tries.find((c) => seenBy(c, eyes.slice(0, 1))) || tries.find((c) => seenBy(c, eyes)) || tries[tries.length - 2];
@@ -414,11 +457,14 @@ function siteOf(st, plan) {
   }
   const rocks = marks.map((m, i) => ({ x: m.x, y: m.y, size: m.size, detail: 1, v: i, role: 'landmark', node: m.b.id, tall: C.landmark.tall }));
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
+  // (the water's anchors and hazards on the trail, as a ford's are)
+  if (WB) { const tid = `out-trail:${plan.id}`; out.anchors.push(...[...WB.anchors, ...WB.hazards].map((a) => ({ ...a, trail: tid }))); out.hazards.push(...WB.hazards.map((a) => ({ ...a, trail: tid }))); }
   const origin = J ? J.origin : 0;
-  const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius,
-    clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin };
+  const site = { W: Wg, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius, ...(open ? { open: true } : {}),
+    clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin, ...(T.rocks?.boulders !== undefined ? { boulders: T.rocks.boulders } : {}),
+    ...(WB ? { water: WB, wet: WB.bare } : {}) };
   // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail
-  site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff });
+  site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff && !open });
   out.anchors.push(...boundAnchors(site, site.bounds).map((a) => ({ ...a, trail: `out-trail:${plan.id}` })));
   return site;
 }
@@ -488,17 +534,24 @@ export function outTrailPayload(site) {
   };
 }
 
+/** The water a crossing fords, as sheets: each stream's line `y`, its half width `w`, where it rises (`x0`, at the
+ *  cliff's foot past the talus) and runs out (`x1`), and its surface `z(x)` a little over the bed. None without a trail's
+ *  crossings. (What floats on it reads the same water: era/biocube-fauna.js.) */
+export function streamSheets(site, st) {
+  const x1 = site.W, w = C.stream.w * 0.9;
+  return (site.out?.streams ?? []).map((s) => ({ y: s.y, w, x0: site.cliffX(s.y) + (st.cliff ? st.cliff.talus : 3), x1, z: (x) => site.ground(x, s.y) + C.stream.water * 0.55 }));
+}
+
 /** The water a crossing fords: a sheet down the stream's bed across the site, a little over the bed wherever the bed
  *  runs (so it follows the ground as a stream does), sky-tinted, drawn after the bake. */
 export function streamFaces(site, st) {
-  const out = [], x1 = site.W, n = 40, w = C.stream.w * 0.9;
-  for (const s of site.out.streams) {
+  // (and the trail's water, out-water.js: its lake, its sea, its river, its falls; none without)
+  const out = site.water ? [...site.water.faces] : [], n = 40;
+  for (const { y, w, x0, x1, z } of streamSheets(site, st)) {
     // it rises at the cliff's foot (past the talus), and runs out across the valley
-    const x0 = site.cliffX(s.y) + (st.cliff ? st.cliff.talus : 3);
-    const z = (x) => site.ground(x, s.y) + C.stream.water * 0.55;
     for (let i = 0; i < n; i++) {
       const xa = mix(x0, x1, i / n), xb = mix(x0, x1, (i + 1) / n);
-      out.push({ corners: [[xa, s.y - w, z(xa)], [xb, s.y - w, z(xb)], [xb, s.y + w, z(xb)], [xa, s.y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
+      out.push({ corners: [[xa, y - w, z(xa)], [xb, y - w, z(xb)], [xb, y + w, z(xb)], [xa, y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
         fill: st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', cornerAlpha: [0.55, 0.55, 0.55, 0.55], group: 'trail:water' });
     }
   }

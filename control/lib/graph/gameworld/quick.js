@@ -144,6 +144,7 @@ import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { quickGenre } from './intent.js';
 import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
 import { ALIEN_PALETTES } from '../transformation/alien-body.js';
 import { SCHEME_DIALS } from '../transformation/schemes.js';
@@ -751,6 +752,9 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
+  // what game it is (intent.js): the genre its cube is read from, written so the creator sees it and can change it; the
+  // cube is the same either way. A goal with no genre, or an intent the caller wrote, writes none
+  const genre = rest.intent === undefined ? quickGenre(quick) : null, intent = genre ? { intent: { from: genre } } : {};
   const kit = style?.kit ?? 'trail-valley';
   // one rule for open ground (era/stage.js isGroundKit): a room kit had a shell, passed, and failed deep in the stage
   if (!isGroundKit(kit)) throw fail(`: style.kit ${STAGE_KITS[resolveKitId(kit)] ? roomKitDoor(kit).replace('levels.<id>.building', 'quick.building').replace(' (a quick game: quick.building)', '') : `'${kit}' is not a stage kit`} (open ground: ${GROUND_KITS.join(', ')})`);
@@ -777,6 +781,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
       style: { ...(style ?? {}), kit },
       levels: { run: { name: name ?? id, runner: quick.runner ?? true } },
       quick: { ...quick, hero: quick.hero ?? {} },
+      ...intent,
     };
   }
   const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
@@ -790,6 +795,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
     style: { ...(style ?? {}), kit },
     levels,
     quick,
+    ...intent,
   };
 }
 
@@ -1114,11 +1120,13 @@ function standFoe(figures, entities, id, ref, at, back, look = null) {
  *   boss      a foe at the end of the level's last stage, fought turn by turn (a battle's foe, the last one's hp): its
  *             fall ends the level, in place of the exit
  *   health    hp on the HUD, the level lost at none (fail-on-death), the stage's hazards hurting (avoid's)
+ *   guards    watchers on each stage's beats who see (a sneak's guards: guardPosts), the level lost when one sees the
+ *             hero (unseen); their figure is the world's (`goalCast`'s caller stands them: levels.js GUARDS)
  * Numbers: the hero's hp a battle's, a hazard's bite a quarter of it, the boss the last foe's hp, a blow short of its
  * atk, so a fight fought by attacks alone is won with hp to spare.
  */
 export const LEVEL_GOAL = Object.freeze({ hp: BATTLE.hp, hit: BATTLE.atk, hazard: BATTLE.hp / 4, boss: { hp: BATTLE.foeHp.at(-1), atk: BATTLE.foeAtk.at(-1) - 1 } });
-export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health']);
+export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards']);
 
 /** A level goal's mechanics on one stage (`ends`: stageEnds'); `last`: the level's last stage, where its boss stands. */
 export function levelGoalMechanics(goal, ends, { last = false } = {}) {
@@ -1133,6 +1141,7 @@ export function levelGoalMechanics(goal, ends, { last = false } = {}) {
   if (hazards.length) out.push({ kind: 'hazard-damage', startHp: LEVEL_GOAL.hp, hazards });
   // the boss's blows take the hp a battle's fail-on-death owns; health shows it on the HUD (a hit's cost named)
   if (goal.health || boss) out.push({ kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, ...(goal.health ? { hits: LEVEL_GOAL.hit } : {}) });
+  if (goal.guards) out.push({ kind: 'unseen' });
   out.push(boss ? { kind: 'win-when', when: { var: 'won', gte: 1 }, event: 'battles:won' } : exit);
   return out;
 }

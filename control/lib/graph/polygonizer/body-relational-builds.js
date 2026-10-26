@@ -244,6 +244,25 @@ const SHALLA = {
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
 
+/**
+ * THE CERVICAL NECK (realistic laws 3): the neck's column leaning forward up to the skull, as the cervical spine does
+ * (from C7 up and forward into the skull's base), and a little fuller under it. The column had risen straight from the
+ * trunk's top, so the nape stood under the back of the skull (the occiput 2.4 cm behind it; people 4 to 5) and the jaw
+ * jutted 7 to 8 cm past the throat (people 5.5 to 6.5): the head read as hung off the front of a post. The head stays
+ * where its fit sets it (the ear over the shoulder); the column's top comes forward under it by `lean` (of W) and widens
+ * by `top`, its root where it was, each build its own (`name`).
+ */
+export const CERVICAL_NECK = Object.freeze({
+  // (her jaw had jutted the more, 7 cm past the throat, and her nape stood the further back: the column comes the further
+  // forward; his jaw already stood 6 cm past his throat, his occiput alone short behind his nape)
+  shalla: Object.freeze({ lean: 0.18, top: 1.2 }),
+  norrin: Object.freeze({ lean: 0.1, top: 1.2 }),
+});
+export function cervicalNeck(build, name) {
+  const { lean, top } = CERVICAL_NECK[name];
+  return { ...build, base: build.base.map((m) => (m.id === 'neck' ? { ...m, cone: [m.cone[0], [m.cone[1][0], m.cone[1][1] + lean, m.cone[1][2]]], r: [m.r[0], m.r[1] * top] } : m)) };
+}
+
 /** THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the build as authored (the athletic base). `bulk` the muscles'
  * mass (their bellies across, how proud they stand; the bones and the joints as they are; on the plus side the arms set
  * out with the shoulders' muscle, the V of a superhero), `tone` their definition (the blends tighter or looser, the
@@ -343,3 +362,62 @@ export function physique(build, dials = 'athletic') {
 }
 
 
+
+/**
+ * THE ROUND-OUT (realistic laws 4): the limbs' masses re-proportioned so each segment flows into the next, the way a
+ * person's limb does, where the builds had read as an action figure's: each joint pinched between its bellies (the thigh
+ * 5 cm of girth under the knee just above it, the wrist half the forearm's belly, people about 0.6), the forearm dropping
+ * from its belly to the wrist in a step, a knot of the adductors' origin under the groin, and the limbs' masses joined
+ * in tight creases. Read off the body's CT stack (horizontal cuts every centimetre) and each part's rings, and held to the
+ * figure-drawing rhythm the bellies already had (the thigh's outside peaking high and its inside low over the knee, the
+ * calf behind at a third of the shank, its inner head lower and fuller than the outer): the joints filled, the bellies
+ * kept, not a cylinder. Data only, by mass id over a build's limbs: `kLimb` the limbs' blend widened (× the build's), and
+ * per limb each named mass's `s` moved and its radii scaled ([along, round, out]: `along` lengthens a belly toward its
+ * neighbours, `across` scales round and out). Every edit is relative, so a physique's dials stand over it.
+ */
+export const ROUND_OUT = Object.freeze({
+  kLimb: 1.35,
+  // the hinges' segments stitched on one ring at the joint's plane (body-relational.js formSlice `stitch`), the shank
+  // rung as the thigh is so the ring is shared point for point
+  stitch: Object.freeze([Object.freeze(['thigh', 'shank']), Object.freeze(['upperArm', 'foreArm'])]),
+  around: Object.freeze({ shank: 32 }),
+  limbs: Object.freeze({
+    // the forearm: the bone fuller at the wrist and the wrist's mass a little longer and flatter (wider than deep), the
+    // bellies reaching further toward the wrist, so the forearm tapers instead of stepping down to a stalk
+    foreArm: Object.freeze({
+      radiusUlna: { end: 1.38 },
+      wrist: { s: 0.95, along: 1.3, round: 1.08, out: 0.8 },
+      brachioradialis: { s: 0.24, along: 1.15 }, flexors: { s: 0.31, along: 1.22 }, extensors: { s: 0.33, along: 1.22 },
+    }),
+    // the thigh: the outer quadriceps and the hamstrings reaching nearer the knee (round its outside and back the femur's
+    // cone alone had met it), the vastus medialis's teardrop longer, the knee's knob slimmer; the adductors' origin a
+    // long flat sheet into fuller adductors, the sweep's shoulder under the glute lower
+    thigh: Object.freeze({
+      vastusLateralis: { s: 0.56, along: 1.25 }, vastusMedialis: { along: 1.25 }, hamstrings: { s: 0.55, along: 1.2 },
+      knee: { across: 0.92 },
+      sweep: { bead: [1, 0.78] },
+      adductorOrigin: { s: 0.2, along: 1.4, round: 0.82, out: 0.8 }, adductors: { s: 0.3, along: 1.22, out: 1.1 },
+    }),
+    // the shank: the knee's knob slimmer and longer, the calf's outer head higher and reaching up to the knee, its inner
+    // head lower and fuller (seen from the front the inner calf the prouder and the lower), the soleus less wide
+    shank: Object.freeze({
+      knee: { along: 1.2, across: 0.9 },
+      gastrocnemiusLateral: { s: 0.23, along: 1.25, out: 1.05 }, gastrocnemiusMedial: { s: 0.3, along: 1.15, round: 1.05, out: 1.12 },
+      soleus: { round: 0.85 },
+    }),
+  }),
+});
+/** one mass under a ROUND_OUT edit: `s`, a cone's `end` radius, a chain's `bead` [index, × radius], an egg's radii */
+function roundMass(m, e) {
+  if (m.chain) return e.bead ? { ...m, chain: m.chain.map((b, i) => (i === e.bead[0] ? [b[0], b[1], b[2], b[3] * e.bead[1]] : b)) } : m;
+  if (m.cone) return e.end ? { ...m, r: [m.r[0], m.r[1] * e.end] } : m;
+  const across = e.across ?? 1;
+  return { ...m, ...(e.s !== undefined ? { s: e.s } : {}), r: [m.r[0] * (e.along ?? 1), m.r[1] * (e.round ?? across), m.r[2] * (e.out ?? across)] };
+}
+/** a build under the ROUND-OUT (realistic laws 4) */
+export function roundOut(build) {
+  const R = ROUND_OUT;
+  const limbs = Object.fromEntries(Object.entries(build.limbs).map(([k, L]) => [k, R.limbs[k] ? { ...L, masses: L.masses.map((m) => (R.limbs[k][m.id] ? roundMass(m, R.limbs[k][m.id]) : m)) } : L]));
+  const rung = Object.fromEntries(Object.entries(limbs).map(([k, L]) => [k, R.around[k] ? { ...L, around: R.around[k] } : L]));
+  return { ...build, kLimb: build.kLimb * R.kLimb, limbs: rung, stitch: R.stitch };
+}

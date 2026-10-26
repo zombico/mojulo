@@ -8,6 +8,7 @@ import { hexRgb, rgbHex } from './geom.js';
 import { CURRENT_GEN_REFERENCES, CURRENT_GEN_REFERENCE_IDS } from './current-gen.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
+import { farShare, stageGrassScript } from '../scene/channels/stage-grass.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 
 // the isekai meadow (isekai.js): machine checks for the style card's principles
@@ -166,6 +167,26 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(on.length).toBeLessThan(STAGE_PAGE_BUDGET);
     // the static floor is the same with or without the wind
     expect(JSON.stringify(W.faces)).toBe(JSON.stringify(p.faces));
+  });
+
+  it('stands far grass where the field has thinned: the card\'s clumps, the field\'s loss of cover, off by the recipe', () => {
+    expect(LG.far).toEqual(ISEKAI_MEADOW.live.far);
+    // (the far grass is what the field's cover has lost: none near the eye, all of it past the field, rising between)
+    const at = (d) => farShare(d, LG);
+    expect(at(0)).toBe(0);
+    expect(at(LG.near)).toBe(0);
+    expect(at(LG.radius)).toBe(1);
+    expect(at(LG.radius * 2)).toBe(1);
+    const mids = [0.4, 0.6, 0.8, 0.95].map((f) => at(LG.radius * f));
+    expect(mids.every((v, i) => v >= 0 && v <= 1 && (i === 0 || v >= mids[i - 1]))).toBe(true);
+    expect(mids.some((v) => v > 0 && v < 1)).toBe(true);
+    // (on the page only when the payload asks; a recipe turns it off)
+    const page = (q) => stageGrassScript({ ...q.liveGrass, wind: q.liveGrass.wind });
+    expect(page(W)).toContain('THE FAR GRASS');
+    const off = assembleStageScene({ ...M, wind: true, grass: { far: false } });
+    expect('far' in off.liveGrass).toBe(false);
+    expect(page(off)).not.toContain('THE FAR GRASS');
+    expect(() => assembleStageScene({ ...M, wind: true, grass: { far: 'yes' } })).toThrow(/grass.far/);
   });
 
   it('ships the ground: heights over the landform grid, and a mask that keeps grass off the trail, the rocks, the trunks and the cliff', () => {

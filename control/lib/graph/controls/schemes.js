@@ -73,9 +73,10 @@ const PILOT = {
     // a body with forms (controllable/forms.js): robot ↔ vehicle, on the press
     { id: 'transform', label: 'transform', group: 'move', in: MOVE, bind: { keyboard: ['KeyB'], gamepad: ['ls'] } },
     { id: 'aiToggle', label: 'AI attack on / off', group: 'world', in: MOVE, bind: { keyboard: ['KeyG'], gamepad: ['select'] } },
-    { id: 'reverseView', label: 'reverse view', group: 'camera', in: MOVE, bind: { keyboard: ['KeyV'] } },
-    { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'] } },
-    { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'] } },
+    // (a pad's: D-pad down swings the chase camera; watching, RB or D-pad right is the next fighter, A locks)
+    { id: 'reverseView', label: 'reverse view', group: 'camera', in: MOVE, bind: { keyboard: ['KeyV'], gamepad: ['down'] } },
+    { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'], gamepad: ['rb', 'right'] } },
+    { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'], gamepad: ['south'] } },
     { id: 'pause', label: 'pause', group: 'system', in: [...MOVE, 'spectate'], bind: { keyboard: ['Escape'], gamepad: ['start'] } },
     // use / talk / open, live only in reach: E strafes anywhere else, and the runtime keeps it from strafing in reach
     { id: 'interact', label: 'use / talk', group: 'world', in: ['reach'], bind: { keyboard: ['KeyE'], gamepad: ['west'], xr: ['left.squeeze'] } },
@@ -116,6 +117,7 @@ const PILOT = {
       { ids: ['lock'], label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
+      { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
       { ids: ['pause'], label: 'pause' },
     ],
     xr: [
@@ -302,5 +304,61 @@ const SHELL = {
   legend: { gamepad: [{ ids: ['pause'], label: 'pause' }] },
 };
 
-export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL };
+// THE VERSUS FIGHTER (lib/graph/versus): a stick and the five buttons of the versus input grammar (versus-input.js:
+// L, M, H light, medium and heavy, S the special, T the throw), read the same in a fight and in its menus. Each player
+// is a controller (controls/seats-kernel.js): the keyboard is one, its directions WASD or the arrows; a pad another, the
+// D-pad or the left stick, A light, X medium, Y heavy, B special, either bumper the throw.
+const VS_IN = ['fight'];
+const VERSUS = {
+  id: 'versus',
+  label: 'versus fighter: a stick and five buttons',
+  contexts: VS_IN,
+  actions: [
+    { id: 'up', label: 'up / jump', group: 'move', in: VS_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
+    { id: 'down', label: 'down / crouch', group: 'move', in: VS_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: VS_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: VS_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
+    { id: 'light', label: 'light', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyJ'], gamepad: ['south'] } },
+    { id: 'medium', label: 'medium', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyK'], gamepad: ['west'] } },
+    { id: 'heavy', label: 'heavy', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyL'], gamepad: ['north'] } },
+    { id: 'special', label: 'special', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyU'], gamepad: ['east'] } },
+    { id: 'throw', label: 'throw', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyI'], gamepad: ['rb', 'lb'] } },
+    { id: 'start', label: 'start / pause', group: 'system', in: VS_IN, bind: { keyboard: ['Enter'], gamepad: ['start'] } },
+    { id: 'back', label: 'back', group: 'system', in: VS_IN, bind: { keyboard: ['Escape'], gamepad: ['select'] } },
+  ],
+  legend: {
+    keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['light', 'medium', 'heavy', 'special', 'throw'], label: 'light / medium / heavy / special / throw' }, { ids: ['start'], label: 'pause' }],
+    gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['light', 'medium', 'heavy', 'special', 'throw'], label: 'light / medium / heavy / special / throw' }, { ids: ['start'], label: 'pause' }],
+  },
+};
+// THE ACTION VERBS (gameworld/feel: the action lab and its kernel's buttons, kernel.js BTN): move, jump, attack, dodge,
+// dash, lock, guard, shoot, switch, sprint. A direction's first pad control is the D-pad, its second the left stick, so
+// `axis` reads the stick analog and the D-pad wins while pressed.
+const ACT_IN = ['play'];
+const ACTION = {
+  id: 'action',
+  label: 'action game: move, jump, attack, dodge, guard',
+  contexts: ACT_IN,
+  actions: [
+    { id: 'up', label: 'up', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
+    { id: 'down', label: 'down', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
+    { id: 'jump', label: 'jump', group: 'move', in: ACT_IN, bind: { keyboard: ['Space'], gamepad: ['south'] } },
+    { id: 'sprint', label: 'sprint', group: 'move', hold: true, in: ACT_IN, bind: { keyboard: ['Shift'], gamepad: ['lt', 'ls'] } },
+    { id: 'dodge', label: 'dodge', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyK'], gamepad: ['east'] } },
+    { id: 'dash', label: 'dash', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyL'], gamepad: ['rb'] } },
+    { id: 'attack', label: 'attack', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'] } },
+    { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ACT_IN, bind: { keyboard: ['KeyU'], gamepad: ['rt'] } },
+    { id: 'shoot', label: 'shoot', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyF'], gamepad: ['north'] } },
+    { id: 'lock', label: 'target lock', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyI', 'KeyQ'], gamepad: ['lb', 'rs'] } },
+    { id: 'switch', label: 'switch weapon', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyZ'], gamepad: ['select'] } },
+  ],
+  legend: {
+    keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'dodge', 'guard'], label: 'jump / attack / dodge / guard' }, { ids: ['dash', 'lock', 'shoot', 'sprint'], label: 'dash / lock / shoot / sprint' }],
+    gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'dodge', 'guard'], label: 'jump / attack / dodge / guard' }, { ids: ['dash', 'lock', 'shoot', 'sprint'], label: 'dash / lock / shoot / sprint' }],
+  },
+};
+
+export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, action: ACTION };
 export const SCHEME_IDS = Object.keys(SCHEMES);

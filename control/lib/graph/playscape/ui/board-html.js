@@ -27,6 +27,8 @@ import { PARTS, PART_IDS, UI_STATES, readPart } from './parts.js';
 import { UI_REGIONS, REGION_CELLS, REGION_BUDGETS, regionClass } from './regions.js';
 import { REGISTER_STOPS, STOP_IDS, DIAL_IDS, DIAL_ABOUT, registerCss, dialsAt, stopOf, fontOfType } from './register.js';
 import { motionSheet } from './motion.js';
+import { titleDials } from '../../game/hud-widgets.js';
+import { titleSpecimenSvg } from '../../game/title-carve.js';
 import { borderCss, BORDER_ELEMENTS } from './borders.js';
 import { UI_ITEMS, GREYBOX_TOKENS, phasesOf } from './direction.js';
 import { uiAdvice, DEFAULT_REGION, MOMENTS, FOCUS } from './laws.js';
@@ -213,6 +215,13 @@ function specimen(part, variant, state, p = PARTS[part].example) {
     return `<div class="${cls}"${accent}><span class="moj-lbl">${label}</span><span class="moj-val">${val}</span></div>`;
   }
   if (part === 'toast') return `<div class="${cls}"${accent}>${variant === 'change' ? '+5' : esc(sample(p.text || '-20'))}</div>`;
+  // a banner carved (as: 'title'): the title as the page would carve it, flat, dressed by the stage's tokens through the
+  // cascade (register ⇒ carve, case, edge, entrance); the words as text when the host has no face to carve from
+  if (part === 'banner' && p.as === 'title') {
+    const d = titleDials(p, { register: guideOf() });
+    const svg = titleSpecimenSvg(sample(titleWordOf(p.text || 'TITLE')), d);
+    return `<div class="${cls} moj-w-title" style="background:none;border:0;padding:0${hue ? `;color:${esc(hue)}` : ''}">${svg || esc(sample(titleWordOf(p.text || 'TITLE')))}</div>`;
+  }
   if (PROPOSED[part]) return PROPOSED[part]({ cls, accent, label, variant, p, sample, state });
   return `<div class="${cls}"${accent}>${esc(sample(p.text || part))}</div>`;
 }
@@ -222,12 +231,24 @@ function specimen(part, variant, state, p = PARTS[part].example) {
 const DRAINED = '--moj-harm:#bdbdbd;--moj-value:#e0e0e0;--moj-goal:#9e9e9e';
 const stageCss = (scope, tokens, font, dials, drain = false, guide = null) => `${scope}{${styleVars({ ...tokens, font })}${drain ? `;${DRAINED}` : ''};font-family:var(--moj-font);color:var(--moj-ink);background:var(--moj-bg)}${dials ? registerCss({ ...dials, surface: 'overlay' }, scope) : ''}${guide && (guide.border || guide.pixel) ? borderCss({ elements: guide.border ? guide.border.elements : [], pixel: guide.pixel || 0, plate: dials.plate }, scope) : ''}`;
 
+// the register a title specimen is dressed by: the dressed row's guide (its dials and pixel), none on the values row
+let _stageGuide = null;
+const guideOf = () => (_stageGuide ? { ..._stageGuide.dials, ...(_stageGuide.pixel ? { pixel: _stageGuide.pixel } : {}) } : null);
+const titleWordOf = (t) => (typeof t === 'string' && t[0] === '@' ? t.slice(1).replace(/([A-Z])/g, ' $1').toUpperCase() : t);   // a word key reads as its English on the board
+/** The cascade a title part is dressed by, for the board's provenance line: each dial, its value and the layer that set it. */
+export function titleCascadeLine(p, guide) {
+  const d = titleDials(p, { register: guide ? { ...guide.dials, ...(guide.pixel ? { pixel: guide.pixel } : {}) } : null, sources: guide && guide.sources, explain: true });
+  const say = (k) => `${k} ${esc(String(d[k]))} <span class="src">${esc(d.from[k] === 'register' || d.from[k] === 'operator' || d.from[k] === 'flavor' ? `${d.from[k]} · ${d.by[k]}` : d.from[k])}</span>`;
+  return `<p class="note">theme ${esc(d.theme)} · ${['style', 'look', 'caps', 'edge', 'tempo', 'steps', 'color'].map(say).join(' · ')}</p>`;
+}
+
 /** ui:part:<part>.<variant> — the part in every state, in values (greybox) and dressed (the guide). */
 export function piecePart(part, variant, guide, p, of = '') {
   const id = `ui:part:${part}.${variant}${of ? `:${of}` : ''}`, k = id.replace(/[^a-z0-9]/gi, '-');
   const css = `<style>${stageCss(`.v-${k}`, GREYBOX_TOKENS, 'system', null, true)}${guide ? stageCss(`.d-${k}`, guide.tokens, guide.font, guide.dials, false, guide) : ''}</style>`;
-  const row = (cls, name) => `<div><b>${esc(part)}</b> ${esc(variant)}${of ? ` · ${esc(of)}` : ''}<br><small style="color:#9a958c">${name}</small></div>${UI_STATES.map((s) => `<div class="pu-stage ${cls}">${specimen(part, variant, s, p)}</div>`).join('')}`;
-  return piece(id, `${css}${row(`v-${k}`, 'values')}${guide ? row(`d-${k}`, 'dressed') : ''}`);
+  const row = (cls, name, g) => { _stageGuide = g; const out = `<div><b>${esc(part)}</b> ${esc(variant)}${of ? ` · ${esc(of)}` : ''}<br><small style="color:#9a958c">${name}</small></div>${UI_STATES.map((s) => `<div class="pu-stage ${cls}">${specimen(part, variant, s, p)}</div>`).join('')}`; _stageGuide = null; return out; };
+  const titled = part === 'banner' && p && p.as === 'title';
+  return piece(id, `${css}${row(`v-${k}`, 'values', null)}${guide ? row(`d-${k}`, 'dressed', guide) : ''}${titled ? `<div style="grid-column:1/-1">${titleCascadeLine(p, guide)}</div>` : ''}`);
 }
 
 /** ui:layout — the grid, the parts in each region (all phases), the budget and the advice. */

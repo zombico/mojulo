@@ -10,6 +10,7 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { stampSolid } from '@/lib/graph/era/solid';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
@@ -90,6 +91,7 @@ import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { strengthSpecErrors } from '@/lib/graph/strength/index';
 import { bodyTypeErrors } from '@/lib/graph/worlds/controllable/body-types';
 import { inferHouse } from '@/lib/graph/structure/infer';
+import { sceneOfWords } from '@/lib/graph/gameworld/scene-words';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -309,13 +311,48 @@ function expandDiagramManifest(manifest) {
  */
 function newHouseSeed(m, ref) {
   if (m?.kind !== 'floorplan' || m.seed !== undefined) return m;
-  let seed;
+  return { ...m, seed: newSeedOf(ref) };
+}
+
+/** A new row's own seed: from its ref when the caller names one (the same ref, the same seed), else at random. */
+function newSeedOf(ref) {
   if (typeof ref === 'string' && ref) {
     let h = 0x811c9dc5;
     for (let i = 0; i < ref.length; i += 1) { h ^= ref.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-    seed = (h % 2147483646) + 1;
-  } else seed = randomInt(1, 2147483647);
-  return { ...m, seed };
+    return (h % 2147483646) + 1;
+  }
+  return randomInt(1, 2147483647);
+}
+
+/** A geocube's trail (or micro-town, or micro-city) draws its own seed as a new house does, so no two mints lay the same island or
+ * street (era/geocube.js). A seed written is kept, and a row already one keeps what it renders from. */
+const SEEDED_SHOWS = ['trail', 'path', 'town', 'city'];
+function newTrailSeed(m, ref, existing) {
+  if (m?.kind !== 'geocube' || !SEEDED_SHOWS.includes(m.show) || m.seed !== undefined) return m;
+  if (existing?.kind === 'geocube' && existing.show === m.show) return m;
+  return { ...m, seed: newSeedOf(ref) };
+}
+
+/** A scene asked in words (the geocube kind's `words`): read into its keys (gameworld/scene-words.js), each one the
+ * recipe does not write itself. On an edit, new words read again: a key the edit left as the words had written it is
+ * the new words', one the edit changed is the edit's. The same words are not read again: the keys stand as edited. */
+const SCENE_KEYS = ['cube', 'show', 'hour', 'clouds', 'trail', 'camera'];
+function expandSceneWords(m, existing) {
+  if (m?.kind !== 'geocube' || m.words === undefined) return m;
+  if (existing?.kind === 'geocube' && existing.words === m.words) return m;
+  let S;
+  try { S = sceneOfWords(m.words, { seed: Number.isInteger(m.seed) ? m.seed : 1 }); } catch (err) { throw new Error(`Invalid world manifest (kind 'geocube'): ${err.message}`); }
+  const prior = existing?.kind === 'geocube' && existing.words !== undefined ? existing : null;
+  const out = { ...m, brief: S.brief };
+  for (const k of SCENE_KEYS) {
+    const edited = m[k] !== undefined && !(prior && JSON.stringify(prior[k]) === JSON.stringify(m[k]));
+    if (edited) continue;
+    if (S[k] !== undefined) out[k] = S[k]; else delete out[k];
+  }
+  // (the same cube read again keeps the colours it was stamped with: a word that changes the land does not re-roll them)
+  const fromOf = (c) => (typeof c === 'string' ? c : c?.from);
+  if (prior?.cube?.palette !== undefined && out.cube === S.cube && fromOf(S.cube) === fromOf(prior.cube)) out.cube = { ...(typeof S.cube === 'string' ? { from: S.cube } : S.cube), palette: prior.cube.palette };
+  return out;
 }
 
 /** A gameworld manifest read and returned as written, or the reader's refusal. The hero its pages compose (and its
@@ -588,9 +625,16 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   manifest = resolveArt(resolveArtPalette(resolveTonePalette(resolveStagePalette(manifest))));
   // an interior's palette (color-theorist/stamp.js): rolled for a new room that names no style, kept by an edit
   manifest = stampTerrainPalette(stampLookPalette(stampInteriorPalette(manifest, existingSketch?.manifest ?? null)));
+  // a scene asked in words (gameworld/scene-words.js): its words read into the geocube kind's keys here, at authoring
+  // time, before its cube's palette is stamped; the build reads the keys
+  manifest = expandSceneWords(manifest, existingSketch?.manifest ?? null);
   // every geocube it names given its palette's seed: the color theorist decides a cube's colours; a cube an edit
   // leaves as it was is left (color-theorist/stamp.js)
   manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
+  // a new world that builds is solid (era/solid.js: no flat building polygons); an edit or a restore keeps the row's own
+  if (!existingSketch && !restore) manifest = stampSolid(manifest);
+  // a geocube's trail its own seed, a new island
+  manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
   manifest = resolvePlayUi(manifest);
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;

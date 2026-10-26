@@ -27,6 +27,7 @@
  *
  * Coordinates are the followed trail's site (x across, y along, z up, metres). Pure numbers; nothing builds a face.
  */
+import { ROCK_SKIN_IDS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { lookOf } from '../era/style/looks.js';
 import { outTrailSite } from '../era/out-trail.js';
 import { madeLaws } from '../era/out-made.js';
@@ -111,13 +112,27 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *           so a cliff reads as a few planes of stone and not as a checkerboard of half-metre quads
  *   valley  0..1: how far the land darkens toward `shade` where its horizon is high (the foot of a slope, a hollow,
  *           a gully), read over tens of metres where crevice and ridge read a metre
+ *   grit    0..1 (opt-in; absent, the land is as it was): how gritty the style is. Rock takes no pixels in a quiet style;
+ *           at GRIT_PIXELS or over, the page draws the rock's own fabric on its cliff faces where they are near
+ *           (matte-paint/fabric.js, scene/channels/fabric.js): the faces are the quiet style's, byte for byte
+ *   skin    (with grit) true or a skin's name (matte-paint/fabric.js ROCK_SKINS): the rock drawn near in its chunks,
+ *           Voronoi regions laid in its fabric's frame, rather than in its joints' grooves alone
+ *           or a formation's (ROCK_FORMATIONS): the cliff and its boulders as erosion leaves them, beds and fallen blocks
+ *   rocks   (with skin) the boulders' own skin, any skin's or formation's name: a second rock beside the cliff's
  */
+/** How gritty a style must be before its rock takes pixels (a quiet style keeps polygon rock). */
+export { GRIT_PIXELS };
 export const SHADING = Object.freeze({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6, shade: '#4c68b2', sun: 1.5, mix: 0, facet: 0, valley: 0 });
-function readShading(v) {
+/** A land's `shading` read and checked (absent or false: null), its settings over SHADING. */
+export function readShading(v) {
   if (v === undefined || v === false) return null;
   if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade, sun, mix, facet, valley }');
   const o = v === true ? {} : v;
-  for (const k of Object.keys(o)) if (!(k in SHADING)) throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')})`);
+  for (const k of Object.keys(o)) if (!(k in SHADING) && k !== 'grit' && k !== 'skin' && k !== 'rocks') throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')}, grit, skin, rocks)`);
+  if (o.skin !== undefined && !(o.skin === true || o.skin === false || ROCK_SKIN_IDS.includes(o.skin))) throw new Error(`local-meru: shading.skin is true (the rock's own, by its pattern) or one of ${ROCK_SKIN_IDS.join(', ')}: the chunks a gritty style's rock is drawn in near the eye`);
+  if (o.rocks !== undefined && !ROCK_SKIN_IDS.includes(o.rocks)) throw new Error(`local-meru: shading.rocks is one of ${ROCK_SKIN_IDS.join(', ')}: the boulders' own skin, beside the cliff's`);
+  if (o.rocks !== undefined && (o.skin === undefined || o.skin === false)) throw new Error('local-meru: shading.rocks names the boulders\' skin beside the cliff\'s: it wants a skin');
+  if (o.grit !== undefined && !(typeof o.grit === 'number' && o.grit >= 0 && o.grit <= 1)) throw new Error('local-meru: shading.grit is 0..1, how gritty the style is (rock takes pixels from GRIT_PIXELS)');
   const S = { ...SHADING, ...o };
   if (typeof S.smooth !== 'boolean') throw new Error('local-meru: shading.smooth is true (ground smoothed across the grid) or false (every quad its own facet)');
   for (const k of ['crevice', 'ridge', 'blend']) if (!(typeof S[k] === 'number' && S[k] >= 0 && S[k] <= 1)) throw new Error(`local-meru: shading.${k} is 0..1`);

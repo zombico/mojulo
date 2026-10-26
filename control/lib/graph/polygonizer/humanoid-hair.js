@@ -105,6 +105,19 @@ export function resolveHair(spec) {
   return { style, ...controls, ...(spine !== undefined ? { spine: resolveSpine(spine) } : {}) };
 }
 /** Error strings (empty = valid): an unknown style, an unknown control, a ratio that is not a positive number. */
+/** The grown fall as the mint's default (hair-spine.js): a style that falls or hangs a tail, given no `spine` word, is
+ * stamped `spine: 'elastica'` where the recipe is WRITTEN, so a new hero's fall hangs by the spine law, is draped off
+ * the head and frames the face, while a hero stored without the word keeps the bytes it was minted with (resolveHair
+ * stores the word only when given). `none`, a cap and a bun are left as they are: the word would be idle on them. */
+export function withGrownFall(spec) {
+  if (spec === undefined || spec === null) return spec;
+  let resolved; try { resolved = resolveHair(spec); } catch { return spec; }
+  if (resolved.spine !== undefined || !HAIR_LIBRARY[resolved.style]) return spec;
+  const style = HAIR_LIBRARY[resolved.style];
+  if (!style.fall && !(style.tail && style.tail.kind !== 'bun')) return spec;
+  return [...(Array.isArray(spec) ? spec : [spec]), { spine: 'elastica' }];
+}
+
 export function validateHair(spec, label = 'hair') {
   if (spec === undefined || spec === null) return [];
   const list = Array.isArray(spec) ? spec : [spec], errs = [];
@@ -254,7 +267,8 @@ function buildFall(carrier, style, c, lowK) {
     // the curtain's faces are chords: corners outside a curved cheek can still span a face that dips under it. The
     // midpoint of every edge and diagonal and every face's centre is tested; one under the skin lifts its corners by its push
     // (the root ring too: its chords between slots dip under the curved skull; the cap covers the lift)
-    for (let it = 0; it < 8; it++) {
+    // (the face's gap lifts a chord beside the cheek further than the scalp's did, and a capped lift finishes over passes)
+    for (let it = 0; it < 24; it++) {
       let moved = false;
       for (let j = 0; j <= steps; j++) for (let k = 0; k < N; k++) {
         const k1 = (k + 1) % N;
@@ -282,6 +296,9 @@ function buildFall(carrier, style, c, lowK) {
  * column is the head's proportion). `gap` is the least stand-off of hair from skin. The ears are their own parts,
  * pinned after the hair, and are not in it. */
 const HAIR_GAP = 0.003;
+/** the least stand-off of hair from the FACE (the forward- and sideways-facing skin: a cheek, a temple): a lock's own
+ * radius, so a fall hangs beside the cheek and never on it (hair-spine.js keepOut `frame` + `faceGap`) */
+const FACE_GAP = 0.010;
 function headCollider(carrier, inner) {
   // one surface per part: the cranium and the jaw interpenetrate at the nape, and a nearest sample from the other
   // part's inner side would read a point inside the skull as outside
@@ -293,7 +310,7 @@ function headCollider(carrier, inner) {
       if (side === 'L' && (t === 0 || t === MID * 4)) continue;
       const f = frameAt(carrier, name, [r / 4, t / 4], side); pts.push(f.origin); nrm.push(f.normal);
     }
-    skins.push({ surface: { pts, nrm, gap: HAIR_GAP, reach: 0.04, frame: true } });
+    skins.push({ surface: { pts, nrm, gap: HAIR_GAP, reach: 0.04, frame: true, faceGap: FACE_GAP } });
   }
   const os = inner.map((a) => a.origin), ys = os.map((p) => p[1]), xs = os.map((p) => p[0]), cz = os.reduce((s, p) => s + p[2], 0) / os.length;
   const top = frameAt(carrier, 'cranium', [CROWN_ROW, 0], 'R').origin;
@@ -304,17 +321,24 @@ function headCollider(carrier, inner) {
 /** the spine's region of a fall slot: the front (the slots that frame the face), the sides, the back */
 const regionOf = (k) => { const { t } = slotOf(k); return t <= 4 ? 'front' : t <= 6 ? 'sides' : 'back'; };
 
+/** the frame comb (hair frames the face): a root whose hairline faces FORWARD (the temples, the slots beside the face)
+ * is combed sideways and back by this much of its forward facing, and leans out this much more, so the fall STARTS
+ * beside the face and never crosses the cheek; a root facing straight forward (the centre of the brow) keeps its side */
+const FRAME_SIDE = 0.8, FRAME_BACK = 0.3, FRAME_LEAN = 0.35;
 /** one fall guide: rooted just off the hairline and combed straight down with a little lift out from the head (more
  * with volume; never toward the face), held straight for the root zone, then hanging by the elastica at the spine's
  * stiffness. The comb is gravity, not the scalp's slope: high on the skull "down the surface" runs outward, and the head
- * below a hairline root is no wider than the root, so a lock that leaves straight down clears it (as today's fall does). */
+ * below a hairline root is no wider than the root, so a lock that leaves straight down clears it (as today's fall does).
+ * A root that faces forward takes the frame comb besides: lateral and back, leaning out, the fall beside the face. */
 function fallGuide(at, L, c, W, k = 0) {
   const n = at.normal;
   const root = add(at.origin, mul(n, 0.003));
   L = Math.max(L, 0.008);   // a slot that does not fall still stands off the scalp (as today's border does): no ring folds to a point
   // the lift is small: a cantilever only ever bends toward its load, so an outward lean at the root survives to the tip
-  const loft = Math.max(0.02, Math.min(0.3, 0.07 + 0.12 * (c.volume - 1)));
-  const out = Math.hypot(n[0], Math.min(0, n[1])) > 1e-6 ? unit([n[0], Math.min(0, n[1]), 0]) : [0, 0, 0];
+  const fwd = Math.max(0, n[1]), sideness = Math.min(1, Math.abs(n[0]) / 0.15);
+  const loft = Math.max(0.02, Math.min(0.3, 0.07 + 0.12 * (c.volume - 1))) + FRAME_LEAN * fwd * sideness;
+  const lateral = n[0] + Math.sign(n[0] || 1) * FRAME_SIDE * fwd * sideness, back = Math.min(0, n[1]) - FRAME_BACK * fwd * sideness;
+  const out = Math.hypot(lateral, back) > 1e-6 ? unit([lateral, back, 0]) : [0, 0, 0];
   const aim = unit(add([0, 0, -1], mul(out, loft)));
   const hold = W.hold ?? Math.min(0.3, 0.05 * c.volume);
   return coilSpine(lockSpine({ root, aim, L, B: lockB(W.stiffness ?? 'soft', L), hold, wind: W.wind, n: coilSteps(W.curl, 16) }), W.curl, L, out, true, (k >> 1) * 2.39996);

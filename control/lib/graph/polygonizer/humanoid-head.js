@@ -197,7 +197,8 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral', features = null } = {}) {
   // FEATURES (opt-in, the tiered form's: tiered-form.js TIERED_FACE): the eyes', brows' and ears' sizes, the ears set
   // in, a lower lip and the lips' colour (`lipTint`: the skin times [r, g, b], so the lips follow any skin), the lean ear
-  // (`earLean`, head-ear.js). Absent ⇒ every feature as before, byte-identical.
+  // (`earLean`, head-ear.js), the skull's back deeper (`occiput`, humanoid-head-fit.js). Absent ⇒ every feature as before,
+  // byte-identical.
   const ft = features || {};
   if (!HEAD_PRESETS[preset]) throw new Error(`humanoid: unknown head preset '${preset}'`);
   if (!HEAD_REGISTERS[register]) throw new Error(`humanoid: unknown register '${register}'`);
@@ -205,7 +206,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   { const errs = westernExpressionErrors(expression); if (errs.length) throw new Error(`humanoid: ${errs.join('; ')}`); }
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('humanoid: head scale must be positive');
   for (const [k, v] of Object.entries(shape)) if (!(k in HEAD_SHAPE_DEFAULTS) || !(Number.isFinite(v) && v > 0)) throw new Error(`humanoid: invalid head shape '${k}' (have ${Object.keys(HEAD_SHAPE_DEFAULTS).join(', ')})`);
-  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}) }, pole = HEAD_PRESETS[preset];
+  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}), ...(ft.occiput ? { occiput: ft.occiput } : {}) }, pole = HEAD_PRESETS[preset];
   const fit = HEAD_SOURCES[preset] === 'fit', anchors = humanoidAnchors(preset, knobs);
   const rows = fit ? null : landmarkRows(anchors, pole, knobs);
   const sh = { width: HEAD_WIDTH[preset], jaw: 1, nose: 1.05,
@@ -344,7 +345,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
     // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner
-    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, inner: 'EarInner', sparse: register === 'lowpoly', lean: !!ft.earLean });
+    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, ...(ft.earAngle !== undefined ? { angle: ft.earAngle } : {}), inner: 'EarInner', sparse: register === 'lowpoly', lean: !!ft.earLean });
     parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);

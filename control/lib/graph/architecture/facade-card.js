@@ -24,6 +24,7 @@
 import { scaleHex, litFactor, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
 import { resolveMetalSurface, metalSurfaceError } from '../materials/metal-surface.js';
+import { layDetail } from '../matte-paint/detail.js';
 
 // A metal facade's defaults (metal-surfaces S5): brushed aluminium rainscreen panels, panel width in world units
 // (the edifice builds in feet, so ~5 ft cassettes), and the open joint between them.
@@ -323,6 +324,12 @@ export function projectCardOntoQuad(corners, card, { lit = 1, relief = 0.12, inc
   // and the exporters read the tag; the flat fills above stay the CSS-3D and far read
   const metal = card.material === 'metal' ? card.metal : card.frameMetal;
   if (metal) tagFacesWithMaterial(out.slice(struct), resolveMaterial(metal));
+  // the wall the windows are cut through, painted from relief (a gritty cube's city, city/plan/dress.js): each facet of
+  // the shirt laid world-locked, so its piers and spandrels carry one stone; the windows' body behind is as it was
+  if (card.dress && !metal) {
+    const D = card.dress;
+    for (let i = struct; i < out.length; i++) { const c = out[i].corners[0]; out[i] = layDetail(out[i], { key: D.keys[Math.floor(Math.abs(c[0] * 0.37 + c[1] * 0.61 + c[2] * 0.13)) % 2], metres: D.metres, unit: D.unit }); }
+  }
   return out;
 }
 

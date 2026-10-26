@@ -88,3 +88,35 @@ describe('versus runtime: the swing trail in a fight kind\'s look', () => {
     expect(glow.at.some((t) => t % 2 === 1)).toBe(true);
   });
 });
+
+// the players' controls come through the controls kernel (controls/schemes.js `versus`), each player a SEAT bound to one
+// controller (controls/seats-kernel.js): the keyboard is one controller, every pad another, kept by its Gamepad.index
+describe('versus runtime: each player is a controller', () => {
+  const pad = (index, pressed = [], axes = [0, 0, 0, 0]) => ({ index, connected: true, id: 'Xbox pad', axes, buttons: Array.from({ length: 17 }, (_, b) => ({ pressed: pressed.includes(b), value: pressed.includes(b) ? 1 : 0 })) });
+  const boot = (pads) => new Function('window', 'navigator', `${src}\nRT.muted = true;\nreturn { rawInput, menuInput, RT, BTN, seats: () => VS_SEATS };`)({}, { getGamepads: () => pads.list });
+  it('a player sits down with start or light on their own controller, and reads only it', () => {
+    const pads = { list: [pad(0)] }, R = boot(pads);
+    R.RT.held.add('KeyJ'); R.menuInput(); R.RT.held.clear();          // the keyboard sits down: player one
+    pads.list = [pad(0, [9])]; R.menuInput(); pads.list = [pad(0)];    // the pad's start: player two
+    expect(R.seats().seats.map((x) => [x.n, x.controller])).toEqual([[1, 'keyboard'], [2, 'pad:0']]);
+    R.RT.held.add('ArrowLeft'); R.RT.held.add('KeyU');
+    pads.list = [pad(0, [2, 4], [0.8, 0.9, 0, 0])]; R.menuInput();   // X (medium), LB (throw); the stick right and down
+    expect(R.rawInput(0)).toEqual({ x: -1, y: 0, b: R.BTN.S, start: false, back: false });
+    expect(R.rawInput(1)).toEqual({ x: 1, y: -1, b: R.BTN.M | R.BTN.T, start: false, back: false });
+  });
+  it('the keyboard seats one player however its keys are pressed', () => {
+    const pads = { list: [] }, R = boot(pads);
+    R.RT.held.add('KeyJ'); R.menuInput(); R.RT.held.add('Enter'); R.menuInput();
+    expect(R.seats().seats.map((x) => x.controller)).toEqual(['keyboard']);
+    expect(R.rawInput(1).b).toBe(0);
+  });
+  it('a pad keeps its player when it is unplugged, and the other pad never takes its place', () => {
+    const pads = { list: [pad(0, [0]), pad(1, [0])] }, R = boot(pads);
+    R.menuInput();
+    pads.list = [null, pad(1, [3])]; R.menuInput();   // player one's pad unplugged
+    expect(R.rawInput(0).b).toBe(0);
+    expect(R.rawInput(1).b).toBe(R.BTN.H);
+    pads.list = [pad(0, [3]), pad(1)]; R.menuInput();
+    expect(R.rawInput(0).b).toBe(R.BTN.H);
+  });
+});

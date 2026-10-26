@@ -277,6 +277,67 @@ import { emitThreeWorld } from './scene-three.js';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
+// Re-pinned 2026-10-24 (local multiplayer phase 2: the controller seams): the pilot scheme the page embeds binds a pad
+// to reverse view (D-pad down) and the watch controls (RB or D-pad right, A), and the runtime reads them on their press
+// edges through `__padNow` (the pilot's pad, else the first connected). On the `controllable` fixture 2 lines are
+// replaced (the scheme's JSON, the mapping comment) and 17 added; every fixture that embeds the runtime re-pinned with it.
+
+// Re-pinned 2026-10-24 (local multiplayer phase 2: versus through the controls kernel): the `versus` fixture alone. Its
+// embedded runtime now leads with the controls kernel, the keyboard and gamepad families and the `versus` scheme
+// resolved for each player (player two's keyboard an override), and `rawInput` reads through them, a player's pad kept
+// by its Gamepad.index; the hand-written key lists and button numbers are gone.
+
+// Re-pinned 2026-10-24 (local multiplayer phase 3: the seats): the `versus` fixture alone. Its runtime leads with the
+// seats kernel beside the controls kernel, the second keyboard's override is gone, and `rawInput` reads each player's
+// seat (a controller each, polled from menuInput); the arena client's pause is the seat's that opened it.
+
+// Re-pinned 2026-10-24 (pilots, phase 1: the sim seats): the runtime the page embeds reads `spec.seats` (absent here) into
+// `seatOf`, hands each body its own seat's input through `seatInput`, and the rules' "is this input mine" tests and the
+// mind's target add a seated body (`seated`, `nearestPilot`); a 'seats' pre-step. On the `controllable` fixture 15 lines
+// are replaced by their seat-aware forms and 56 added; every fixture that embeds the runtime re-pinned with it. A world
+// without seats steps as before (worlds/controllable/seats.test.js, and every sim suite unchanged).
+
+// Re-pinned 2026-10-24 (pilots, phase 2: the group frame): the side and overhead cameras the runtime embeds hold the
+// group of playing seats (`groupFrame`) when a world seats more than one, and a 'group-leash' world pass keeps them inside
+// the frame's reach. On the `controllable` fixture 4 lines are replaced (the two cameras' framing) and 40 added; every
+// fixture that embeds the runtime re-pinned with it. One seat, or none: the cameras frame their target as before.
+
+// Re-pinned 2026-10-24 (pilots, phase 4: the lowering): the runtime the page embeds keeps a seat's `floor` (a seated body
+// below it comes back above seat 1, in the 'seats' pre-step) and its suit swap skips a seated body. On the `controllable`
+// fixture 5 lines are replaced (the seats comment, the swap's list, the pre-step's close) and 14 written in their place;
+// every fixture that embeds the runtime re-pinned with it. A world without seats steps as before.
+
+// Re-pinned 2026-10-25 (lives per seat): the runtime the page embeds counts a world's seat lives (`seats.lives`, `pool`)
+// and moves a seated body's fall from the 'seats' pre-step into a 'seat-falls' world pass (back beside a playing seat, a
+// life spent, a seat out at none), and its shared camera frames a lone playing seat that is not its target. On the
+// `controllable` fixture 11 lines are replaced and 48 written in their place; every fixture that embeds the runtime
+// re-pinned with it. A world without seats steps as before.
+
+// Pinned 2026-10-25 (live light, phases 1 and 2: actor shadows, the hour's map): three new rows (`live-shadows-actors`,
+// `live-shadows-hour`, `live-shadows-both`) and no existing hash moved. A face's `sunShare` is packed, and the live
+// shadow block written, only when a world's `shadows` asks for `actors` or `hour`.
+
+// Pinned 2026-10-25 (live light, phase 3: occlusion on the shared prepass): two new rows (`occlusion`,
+// `occlusion-creases`) and no existing hash moved. Without `occlusion` the creases' block is the one it was.
+// Re-pinned 2026-10-25 (live light, the probe binding): `occlusion` and `occlusion-creases` only. The occlusion block
+// binds the shared __mojLight probe as __crLight, since the live light's script declares __mojLight on the same page.
+
+// Re-pinned 2026-10-25 (live light, the actors' box at the feet): `live-shadows-actors`, `live-shadows-hour` and
+// `live-shadows-both` only. The actors' box follows a focus the pass before every render asks (captures included), its
+// default span is 12 m (was 30), its bias a contact's 5 mm (was 2 cm), and an adopted subtree casts both its sides; the
+// hour-only row moves with the span in its config and the seam's no-op `focus`. No other hash moved.
+
+// Re-pinned 2026-10-25 (live light, cutouts in the occlusion prepass): `occlusion` and `occlusion-creases` only. The
+// prepass draws an alpha-tested mesh (a leaf card, a grass clump) with an override that samples its map's alpha and
+// discards under its alphaTest, so its transparent texels no longer occlude as a rectangle. The creases' own block
+// (creases without occlusion) is unchanged.
+
+// Re-pinned 2026-10-26 (live light defaults): `live-shadows-actors`, `live-shadows-hour` and `live-shadows-both` only.
+// The actors' box is 16 m by default (was 12), led 8 m ahead along the camera's ground with one focus (`lead`); the
+// hour's map reads its receiver's slope into its bias (`csLitR`: no moire under a low sun), and the `hour` seam's comment
+// says the sun does not move. The occlusion rows are unchanged (the half tier's strings are written only with a tier),
+// and so is every other hash: the defaults resolve in world-scene, never in the emitter.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

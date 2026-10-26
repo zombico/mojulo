@@ -179,3 +179,21 @@ describe('sweep', () => {
     }
   });
 });
+
+// a `given` setting (soul's seat settings, given more than one seat) means something only inside the game that gives it
+describe('given settings', () => {
+  const reg = capabilityRegistry();
+  const given = Object.entries(reg).flatMap(([f, ss]) => Object.entries(ss).filter(([, s]) => s.given).map(([k, s]) => [f, k, s.given]));
+  const holds = (spec, g) => Object.entries(g).every(([k, vals]) => vals.includes(spec?.[k]));
+  it('a roll sets one only in a game that gives it, and a nudge never leaves one without it', () => {
+    expect(given.length).toBeGreaterThan(0);
+    const rand = mulberry32(3), seated = FIXTURES.find((f) => f.cube.soul?.seats === 'four');
+    let seen = 0;
+    for (let i = 0; i < 400; i++) {
+      for (const cube of [rollCube(rand, 0.6), nudgeCube(rand, seated.cube)]) {
+        for (const [f, k, g] of given) if (cube[f]?.[k] !== undefined) { seen++; expect(holds(cube[f], g), `${f}.${k} in ${JSON.stringify(cube[f])}`).toBe(true); }
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+});

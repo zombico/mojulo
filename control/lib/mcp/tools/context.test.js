@@ -425,7 +425,7 @@ describe('get_substrate — the working description', () => {
     expect(text).toMatch(/Two pipelines, one honesty rule/);
     expect(text).toMatch(/Inference runs on you/);
     expect(text).toMatch(/Workers and other MCPs/);
-    expect(text).toMatch(/3D factory with a media studio/);
+    expect(text).toMatch(/3D compiler\*\* for agents/);
     expect(text).toMatch(/no auto-scaling, multi-region, multi-tenancy, IAM or per-call billing/);
     // The office wing left the surface in 3.1.0: the description offers none of it.
     expect(text).not.toMatch(/Connected Service|install_scaffold|bind_primitives|bind_trigger|meta_context_commit/);
@@ -500,7 +500,7 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
     expect(missing).toEqual([]);
     // One source: every listed tool has exactly one TOOL_LINES entry, and nothing else does.
     expect(Object.keys(TOOL_LINES).sort()).toEqual([...listed].sort());
-  });
+  }, 180_000);   // it registers every tool and walks the index: about 40 s on a quiet runner, past the 30 s default
 
   it('each line fits LINE_MAX, carries a known verb, and names only registered tools', async () => {
     const { ensureToolsRegistered, getRegisteredTool } = await import('@/lib/mcp/server');

@@ -240,16 +240,28 @@ export function buildMind(E) {
           const dd = ddx * ddx + ddy * ddy;
           if (dd < bd) { bd = dd; target = o; }
         }
-      } else if (world.pilotId && world.byId[world.pilotId] !== skip) target = world.byId[world.pilotId];
+      } else target = nearestPilot(e, world, skip);
     }
     return target;
+  }
+
+  // the nearest seated pilot (seat 1's, and with spec.seats each seat's, core.js pilotsOf) but `skip`; one seat: the pilot
+  function nearestPilot(e, world, skip) {
+    if (!world.seatOf) { const p = world.pilotId ? world.byId[world.pilotId] : null; return p && p !== skip ? p : null; }
+    let best = null, bd = Infinity;
+    for (const p of E.pilotsOf(world)) {
+      if (p === skip || p.downed) continue;
+      const d = Math.hypot(p.transform.pos[0] - e.transform.pos[0], p.transform.pos[1] - e.transform.pos[1]);
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best;
   }
 
   // threatOf(e, world) — what PREY runs from: the nearest of the pilot and every hunting mind (`motivation: 'hunt'`)
   // not on its own team. Without hunting minds in the world this is the pilot, as before.
   function threatOf(e, world) {
     if (!world || !world.byId) return null;
-    let best = world.pilotId && world.byId[world.pilotId] !== e ? world.byId[world.pilotId] : null;
+    let best = nearestPilot(e, world, e);
     let bd = best ? Math.hypot(best.transform.pos[0] - e.transform.pos[0], best.transform.pos[1] - e.transform.pos[1]) : Infinity;
     for (const id in world.byId) {
       const o = world.byId[id];
@@ -435,8 +447,7 @@ export function buildMind(E) {
       }
       if (best) return best;
     }
-    const p = world.pilotId ? world.byId[world.pilotId] : null;
-    return p && p !== e ? p : null;
+    return nearestPilot(e, world, e);
   }
   // home: `rule.post`, else where it was placed (kept the first time it is asked)
   const homeOf = (e, r) => (Array.isArray(r.post) ? r.post : (e.home || (e.home = (e.spawn ? e.spawn.pos : e.transform.pos).slice())));

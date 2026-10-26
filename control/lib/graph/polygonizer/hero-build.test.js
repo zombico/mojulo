@@ -4,11 +4,14 @@
 // landmarks; `scale` on a worn head is refused with a pointer to tune.stature; the child-coded guard reads the RESOLVED
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
-import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET, LEG_LENGTH, ARM_LENGTH } from './hero-form.js';
+import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET, LEG_LENGTH, ARM_LENGTH, CHIBI } from './hero-form.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
-import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures } from '../../mcp/tools/layered.js';
+import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures, heroReadout, heroPlanOf, CLASSIC_DEPRECATED, STREAMLINED_DEPRECATED } from '../../mcp/tools/layered.js';
+import { heroShade, TIERED_SMOOTH_CREASE, WEB_ARMPIT, CHILD_SHADE } from './tiered-form.js';
+import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
+import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
 
 const expand = (spec, opts) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec, opts) });
 const torsoRing = (plan, id) => plan.segments.find((s) => s.name === 'torso').stations.find((st) => st.id === id);
@@ -146,10 +149,34 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(5);
+    expect(HERO_LAWS_VERSION).toBe(18);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 5/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 18/)]);
+  });
+  it('laws 15 poses the head and the neck as the cervical chain and holds the wave\'s small look; laws 14 keeps its plan', () => {
+    const at = (laws) => heroPlanOf({ ...heroRecord({ cast: 'female' }), laws }), p14 = at(14), p15 = at(15);
+    expect(p15.rig.cervical).toBe(true); expect(p14.rig.cervical).toBeUndefined();
+    const heads = (p) => p.clips.wave.map((k) => k.head ?? null);
+    expect(heads(p14)).toEqual([null, { x: 0.1, y: 0.95, z: 0.3 }, null, null]);
+    expect(heads(p15)[0]).toBeNull(); expect(new Set(heads(p15).slice(1).map((h) => JSON.stringify(h))).size).toBe(1);
+    // (the wave's look on the rig: a few degrees, the neck's column carrying more of it than the atlas)
+    const R = validateRig(expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'female' }), laws: 15 } }).recipe.rig), deg = (r) => (r * 180) / Math.PI, side = (N) => [deg(Math.atan2(N.headBase[0] - N.neckHub[0], N.headBase[2] - N.neckHub[2])), deg(Math.atan2(N.headTop[0] - N.headBase[0], N.headTop[2] - N.headBase[2]))];
+    const [r0, r1] = side(rigNodesAt(R, {}).nodes), [n, h] = side(rigNodesAt(R, p15.clips.wave[2]).nodes);
+    expect(n - r0).toBeGreaterThan(2); expect(n - r0).toBeLessThan(10); expect(Math.abs(h - n - (r1 - r0))).toBeLessThan(n - r0);
+  });
+  it('laws 16 seats the head on its neck: the landmark neck leans forward up to the skull, hers the more; his skull deeper behind, the face and hers untouched', () => {
+    const at = (cast, laws) => heroPlanOf({ ...heroRecord({ cast, form: 'tiered' }), laws });
+    const lean = (p) => { const S = p.segments.find((s) => s.name === 'neck').stations, a = S[1].at, b = S[3].at; return (Math.atan2(b[1] - a[1], b[2] - a[2]) * 180) / Math.PI; };
+    const skull = (p) => p.include.flatMap((inc) => Object.values(inc.parts.cranium?.stations ?? []).flatMap((st) => Object.values(st.points)));
+    const m15 = at('male', 15), m16 = at('male', 16), f15 = at('female', 15), f16 = at('female', 16);
+    expect(lean(m16) - lean(m15)).toBeGreaterThan(1.5); expect(lean(f16) - lean(m16)).toBeGreaterThan(0.5);
+    const back = (P) => Math.min(...P.map((q) => q[1])), A = skull(m15), B = skull(m16), mid = (back(A) + Math.max(...A.map((q) => q[1]))) / 2;
+    expect(back(A) - back(B)).toBeGreaterThan(0.01);
+    // (the face's points stand within a millimetre or so: the fitted surface's triangles over the crown and the cheek span
+    // both halves, so a ray at the front can meet one the back moved)
+    expect(A.length).toBe(B.length); A.forEach((q, i) => { if (q[1] > mid) expect(Math.hypot(...q.map((v, a) => v - B[i][a]))).toBeLessThan(0.0015); });
+    expect(skull(f16)).toEqual(skull(f15));
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -204,6 +231,133 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     const child = { cast: { pole: 'female', build: HERO_BUILD_NAMES.find((n) => castOf({ pole: 'female', build: n }).child) } };
     expect(J(child, 5)).toEqual(J(child, 4));
   });
+  it('laws 6, the chibi: the bare word is the build, its head larger, its arms thinner, its neck fuller; another cast is as it was', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).plan;
+    const zs = (p) => p.include.find((i) => i.name === 'head').parts.cranium.stations.flatMap((st) => Object.values(st.points).map((q) => q[2]));
+    const head = (p) => Math.max(...zs(p)) - Math.min(...zs(p)), seg = (p, n) => p.segments.find((g) => g.name === n), arm = (p) => seg(p, 'upperArmR').rA[1];
+    const chibi = { cast: 'chibi' }, build = { cast: { pole: 'male', build: 'chibi' } }, five = at(chibi, 5), six = at(chibi, 6);
+    expect(head(six) / head(at(build, 5))).toBeCloseTo(CHIBI.headScale, 3); expect(head(six)).toBeGreaterThan(head(five));
+    expect(arm(six)).toBeLessThan(arm(five)); expect(arm(six) / arm(at(build, 5))).toBeCloseTo(CHIBI.arm, 3);
+    // the hero's own arm over the law's: the bare word and the build alike
+    expect(seg(at({ ...chibi, body: { arm: 0.05 } }, 6), 'upperArmR')).toEqual(seg(at({ ...build, body: { arm: 0.05 } }, 6), 'upperArmR'));
+    const adult = { cast: { pole: 'female', build: 'lithe' } };
+    expect(at(adult, 6)).toEqual(at(adult, 5));
+  });
+  it('laws 7, the tiered limb end: a lofted limb\'s shaping rings move with its end, its last span kept; another form is as it was', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).plan;
+    const thigh = (p) => p.segments.find((g) => g.name === 'thighR').stations, span = (S) => S[S.length - 2].at[2] - S[S.length - 1].at[2];
+    const tiered = { cast: 'male', form: 'tiered' }, six = thigh(at(tiered, 6)), seven = thigh(at(tiered, 7)), whole = thigh(at({ cast: 'male', form: 'classic' }, 7));
+    expect(seven.at(-1).at).toEqual(six.at(-1).at);   // the end where the bridge begins, as it was
+    expect(span(six)).toBeLessThan(0.02);   // (laws 6: the knee's last span closed to a centimetre or so)
+    // the span's share of the whole limb's last run as on the whole limb (the ring at its u)
+    const share = (S) => span(S) / (S[S.length - 3].at[2] - S[S.length - 1].at[2]);
+    expect(share(seven)).toBeCloseTo(share(whole), 2);
+    expect(at({ cast: 'male', form: 'classic' }, 7)).toEqual(at({ cast: 'male', form: 'classic' }, 6));
+  });
+  it('laws 8, the shoulder web: over the ball in the arm\'s group, ending on the arm\'s own ring, closed, split with its arm; laws 7 has none', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    const tiered = { cast: 'male', form: 'tiered' }, R = at(tiered, 8);
+    expect(at(tiered, 7).parts.shoulderWebR).toBeUndefined();
+    for (const S of ['R', 'L']) {
+      const w = R.parts[`shoulderWeb${S}`], arm = R.parts[`upperArm${S}`], st1 = arm.stations.find((st) => st.id === 'st1');
+      expect(w.group).toBe(arm.group);
+      expect(w.stations.at(-1).points).toEqual(st1.points);   // one surface with the arm there: the same points
+      const A = auditLayered(compileLayered(R)); expect(A[`shoulderWeb${S}`]).toMatchObject({ windingErrors: 0, boundaryEdges: 0, degenerate: 0 });
+    }
+    // (a bare arm's web is skin, as the arm is; a target that splits the arm splits the web with it)
+    expect(at({ ...tiered, detail: 'swimsuit' }, 8).parts.shoulderWebR.group).toBe('Skin');
+    const big = at({ ...tiered, target: '4k' }, 8); expect(big.parts.shoulderWebR.slots.length).toBe(big.parts.upperArmR.slots.length);
+    // the classic body has no ball and so no web
+    expect(at({ cast: 'male', form: 'classic' }, 8).parts.shoulderWebR).toBeUndefined();
+  }, 120_000);
+  it('laws 9, the shoulder cone: the web\'s inner fairing in its group, closed, held in the torso at its base, split with the arm; the web hugs the arm; laws 8 as it was', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    const tiered = { cast: 'male', form: 'tiered' }, R = at(tiered, 9), eight = at(tiered, 8);
+    expect(eight.parts.shoulderConeR).toBeUndefined();
+    const A = auditLayered(compileLayered(R));
+    for (const S of ['R', 'L']) { expect(R.parts[`shoulderCone${S}`].group).toBe(R.parts[`upperArm${S}`].group); expect(A[`shoulderCone${S}`]).toMatchObject({ windingErrors: 0, boundaryEdges: 0, degenerate: 0 }); }
+    // (its base ring wider than its ball end: a cone from the ball toward the trunk; its ball end inside the ball)
+    const ring = (st) => Object.values(st.points), span = (st) => { const P = ring(st); return Math.max(...P.map((p) => Math.hypot(p[1] - P[0][1], p[2] - P[0][2]))); };
+    const cone = R.parts.shoulderConeR.stations; expect(span(cone[0])).toBeGreaterThan(span(cone[cone.length - 1]));
+    // (it runs on into the arm, ending inside the arm's belly ring; the ball drawn in under it)
+    const mid = (st) => { const P = ring(st); return [0, 1, 2].map((k) => P.reduce((t, p) => t + p[k], 0) / P.length); }, belly = mid(R.parts.upperArmR.stations.find((st) => st.id === 'st1'));
+    expect(Math.hypot(...mid(cone[cone.length - 1]).map((x, k) => x - belly[k]))).toBeLessThan(1e-3);
+    expect(span(R.parts.shoulderBallR.stations[2])).toBeLessThan(span(eight.parts.shoulderBallR.stations[2]));
+    // (laws 9: the web's ring before the arm's lies on the arm's way down; laws 8's was halfway from the equator)
+    expect(R.parts.shoulderWebR.stations.at(-2).points).not.toEqual(eight.parts.shoulderWebR.stations.at(-2).points);
+    expect(R.parts.shoulderWebR.stations.at(-1).points).toEqual(eight.parts.shoulderWebR.stations.at(-1).points);
+    const big = at({ ...tiered, target: '4k' }, 9); expect(big.parts.shoulderConeR.slots.length).toBe(big.parts.upperArmR.slots.length);
+  }, 120_000);
+  it('laws 10, the web\'s armpit: no face of the cone or the web folds over with the arm raised; laws 9 folded one', () => {
+    // a fold is two neighbouring faces of one part that face the same way at the bind and opposite ways posed
+    const folds = (laws, pose) => {
+      const m = expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'male', form: 'tiered' }, { staleScale: true }), laws } });
+      const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
+      const posed = skinLayered(mesh, bindLayered(mesh, m.recipe, R), boneFrames(R, R.joints, rigNodesAt(R, pose).nodes));
+      const sub = (a, b) => a.map((x, k) => x - b[k]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const nrm = (V, [a, b, c]) => { const u = sub(V[b], V[a]), v = sub(V[c], V[a]), n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; return n.map((x) => x / (Math.hypot(...n) || 1)); };
+      let n = 0;
+      for (const part of ['shoulderConeR', 'shoulderWebR']) {
+        const F = mesh.faces.filter((f) => f.every((v) => mesh.provenance[v].part === part)), edges = new Map();
+        F.forEach((f, i) => f.forEach((a, k) => { const b = f[(k + 1) % 3], key = a < b ? `${a},${b}` : `${b},${a}`; (edges.get(key) ?? edges.set(key, []).get(key)).push(i); }));
+        for (const fs of edges.values()) if (fs.length === 2 && dot(nrm(mesh.vertices, F[fs[0]]), nrm(mesh.vertices, F[fs[1]])) > 0 && dot(nrm(posed, F[fs[0]]), nrm(posed, F[fs[1]])) < -0.5) n++;
+      }
+      return n;
+    };
+    const up = { armR: 'up', armL: 'up' };
+    expect(folds(9, up)).toBeGreaterThan(0);
+    expect(folds(10, up)).toBe(0); expect(folds(10, { armR: 'forward', armL: 'forward' })).toBe(0);
+    // (the web's under-arm slots carry their own blend toward the arm; laws 9's web has none)
+    const at = (laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'male', form: 'tiered' }, { staleScale: true }), laws } }).recipe.parts.shoulderWebR.bind.blend;
+    for (const sl of WEB_ARMPIT.slots) { expect(at(10)[`st2.${sl}`]).toBeDefined(); expect(at(9)[`st2.${sl}`]).toBeUndefined(); }
+  }, 120_000);
+  it('laws 11, the chibi\'s chest: it meets the shoulder\'s ring without a shelf and stands as deep as the belly; another cast as it was', () => {
+    const torso = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe.parts.torso.stations;
+    const half = (st, k) => { const P = Object.values(st.points).map((p) => p[k]); return (Math.max(...P) - Math.min(...P)) / 2; }, z = (st) => Math.min(...Object.values(st.points).map((p) => p[2]));
+    // the step out from the chest's ring to the armpit's, per metre of rise: laws 10's chibi a shelf, laws 11's no steeper than the man's slope tenfold
+    const step = (S) => { const a = S.find((st) => st.id === 'st2'), b = S.find((st) => st.id === 'st2_st3_50'); return (half(b, 0) - half(a, 0)) / (z(b) - z(a)); };
+    const chibi = { cast: 'chibi', form: 'tiered', head: 'anime' }, man = { cast: 'male', form: 'tiered' };
+    expect(step(torso(chibi, 10))).toBeGreaterThan(2);
+    expect(step(torso(chibi, 11))).toBeLessThan(1);
+    const deep = (S) => half(S.find((st) => st.id === 'st2'), 1) / half(S.find((st) => st.id === 'st1_st2_50'), 1);
+    expect(deep(torso(chibi, 10))).toBeLessThan(0.8); expect(deep(torso(chibi, 11))).toBeGreaterThan(0.9);
+    expect(torso(man, 11)).toEqual(torso(man, 10));
+  }, 120_000);
+  it('laws 12, the chibi form: limbs cylinders, no pectoral, a larger head on a shorter body, small hands and round shoes; another cast as it was', () => {
+    const R = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    const chibi = { cast: 'chibi', form: 'tiered', head: 'anime' }, twelve = R(chibi, 12), eleven = R(chibi, 11);
+    // a limb's taper: its widest ring over its narrowest, across (the shank: the calf over the ankle)
+    const taper = (rc, name) => { const S = rc.parts[name].stations, w = S.map((st) => { const P = Object.values(st.points).map((p) => p[0]); return Math.max(...P) - Math.min(...P); }); return Math.max(...w) / Math.min(...w); };
+    for (const limb of ['shankR', 'upperArmR']) expect(taper(twelve, limb), limb).toBeLessThan(taper(eleven, limb));
+    expect(eleven.parts.pectoralR).toBeDefined(); expect(twelve.parts.pectoralR).toBeUndefined();
+    // the head a larger share of the height; the hand shorter
+    const share = (rc) => { const J = rc.rig.joints; return (J.headTop.at[2] - J.headBase.at[2]) / J.headTop.at[2]; };
+    expect(share(twelve)).toBeGreaterThan(share(eleven));
+    const len = (rc) => { const J = rc.rig.joints; return Math.hypot(...[0, 1, 2].map((k) => J.knucklesR.at[k] - J.wristR.at[k])); };
+    expect(len(twelve)).toBeLessThan(len(eleven));
+    const shoe = (rc) => { const J = rc.rig.joints; return J.toeTipR.at[1] - J.ankleR.at[1]; }, wide = (rc) => Math.max(...Object.values(rc.parts.footR.stations[0].points).map((p) => Math.abs(p[0] - rc.rig.joints.ankleR.at[0])));
+    expect(shoe(twelve)).toBeLessThan(shoe(eleven)); expect(wide(twelve)).toBeGreaterThan(wide(eleven));
+    // (a man is as he was; a stored chibi under laws 11 too)
+    const man = { cast: 'male', form: 'tiered' };
+    expect(R(man, 12)).toEqual(R(man, 11));
+  }, 120_000);
+  it('laws 13, the child form: the bare word is the child build; a barrel torso, fuller arms, no pectoral, a larger head; the chibi and a man as they were', () => {
+    const R = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    // (the bare word: under laws 12 the figure cast on a man's radii, under 13 the child build, as the build itself is)
+    const word = { cast: 'child', form: 'tiered', head: 'anime' }, build = { cast: { pole: 'male', build: 'child' }, form: 'tiered', head: 'anime' };
+    const twelve = R(build, 12), thirteen = R(build, 13);
+    expect(R(word, 13)).toEqual(thirteen); expect(R(word, 12)).not.toEqual(twelve);
+    const half = (st, k) => { const P = Object.values(st.points).map((p) => p[k]); return (Math.max(...P) - Math.min(...P)) / 2; };
+    const round = (rc) => { const st = rc.parts.torso.stations.find((x) => x.id === 'st1'); return half(st, 1) / half(st, 0); };
+    expect(round(thirteen)).toBeGreaterThan(round(twelve));
+    const arm = (rc) => half(rc.parts.upperArmR.stations[Math.floor(rc.parts.upperArmR.stations.length / 2)], 0);
+    expect(arm(thirteen)).toBeGreaterThan(arm(twelve));
+    expect(twelve.parts.pectoralR).toBeDefined(); expect(thirteen.parts.pectoralR).toBeUndefined();
+    const share = (rc) => { const J = rc.rig.joints; return (J.headTop.at[2] - J.headBase.at[2]) / J.headTop.at[2]; };
+    expect(share(thirteen)).toBeGreaterThan(share(twelve));
+    expect(heroPlanOf({ ...heroRecord(build, { staleScale: true }), laws: 13 }).style.body).toBe('child');
+    for (const spec of [{ cast: 'chibi', form: 'tiered', head: 'anime' }, { cast: 'male', form: 'tiered' }]) expect(R(spec, 13), spec.cast).toEqual(R(spec, 12));
+  }, 120_000);
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk
     const off = (c) => Object.values(CAST_PRESETS[c].dials).reduce((t, v) => t + Math.abs(v - 1), 0);
@@ -216,3 +370,24 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
   });
 });
 
+
+describe('the game bodies: the tiered form, and the deprecated ones said on the readout', () => {
+  it('the classic body (named, or stored without a form) and the streamlined core are said deprecated; the tiered is not', () => {
+    const warn = (spec) => { const hero = heroRecord(spec); return heroReadout(hero, heroPlanOf(hero), null, []).warnings ?? []; };
+    expect(warn({ cast: 'male', form: 'classic' })).toContain(CLASSIC_DEPRECATED);
+    expect(warn({ cast: 'male' })).toContain(CLASSIC_DEPRECATED);
+    expect(warn({ cast: 'male', core: 'streamlined' })).toEqual(expect.arrayContaining([STREAMLINED_DEPRECATED]));
+    expect(warn({ cast: 'male', core: 'streamlined' })).not.toContain(CLASSIC_DEPRECATED);
+    for (const form of ['tiered', 'realistic']) expect(warn({ cast: 'male', form })).not.toContain(CLASSIC_DEPRECATED);
+  }, 120_000);
+  it('the tiered body is shaded at its own crease (the anime head\'s too), its landmark head toward its ellipsoid; another the studio\'s', () => {
+    expect(heroShade({ form: 'tiered' }).crease).toBe(TIERED_SMOOTH_CREASE); expect(heroShade({ form: 'tiered' }).ellipsoid).toBeTruthy();
+    expect(heroShade({ form: 'tiered', head: 'anime' })).toEqual({ crease: TIERED_SMOOTH_CREASE, ellipsoid: 0 });
+    for (const h of [{ form: 'classic' }, {}, undefined]) expect(heroShade(h)).toEqual({ crease: STUDIO_SMOOTH_CREASE, ellipsoid: 0 });
+    // (laws 14: the child shaded round, its crease wider and its face leaning toward the head's capsule; laws 13 as the tiered)
+    const child = { form: 'tiered', head: 'anime', cast: { build: 'child' } };
+    expect(heroShade({ ...child, laws: 14 })).toEqual({ crease: CHILD_SHADE.crease, ellipsoid: 0, face: CHILD_SHADE.face });
+    expect(heroShade({ ...child, laws: 13 })).toEqual({ crease: TIERED_SMOOTH_CREASE, ellipsoid: 0 });
+    for (const k of ['Skin', 'Top']) expect(CHILD_SHADE.crease[k]).toBeGreaterThan(TIERED_SMOOTH_CREASE[k]);
+  });
+});

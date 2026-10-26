@@ -70,7 +70,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 - **Video:** `forge_motion { subject: { world_ref }, shot: { motion: 'plan' } }` (GIF / MP4; `params.shot` for one shot). Set pieces, transitions and roll render; gizmos never do.
 - **Blender:** `export: 'blender'` on that forge (or `node scripts/export-blender-film.mjs --motion <mo_…>`) writes one shot file per plan shot under `shots/`; `film_shots.py` lays them out as cuts, a Blender camera and a timeline marker each, keyed on exactly the frames the render captured. The world is frozen at its export pose; roll is not carried (the film cameras track a target).
-- **glTF / Godot / Unity / Unreal:** a world GLB carries the plan as animated cameras — `shot:<camera>` (its keyed range, world-clock seconds) and `shot:program` (the edit from 0, STEP so cuts are cuts), roll included; field of view is the first frame's (core glTF cannot animate it). Godot's importer brings them in as Camera3D nodes with their animations on the imported AnimationPlayer.
+- **glTF / Godot / Unity:** a world GLB carries the plan as animated cameras — `shot:<camera>` (its keyed range, world-clock seconds) and `shot:program` (the edit from 0, STEP so cuts are cuts), roll included; field of view is the first frame's (core glTF cannot animate it). Godot's importer brings them in as Camera3D nodes with their animations on the imported AnimationPlayer.
 
 ## Readout (the machine gate)
 

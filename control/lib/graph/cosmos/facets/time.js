@@ -96,6 +96,8 @@ export const TIME = Object.freeze({
         // banter rides the shot (10-11: the sweep paired them in worlds neither made alone): one package, one build
         banter: { ...SHOT, roblox: 'approximated', status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; a portrait beside them on a board (shots board); no face set yet' },
         // built 10-19 (the strategy board): a scene told on the board itself, its slots before and after a battle
+        // priced 10-25 (the comic hero pack): the comic panel, a shot held still with a border and a caption
+        panel: { ...SHOT, ...WEB, status: 'absent', effort: 'S', pkg: 'comic-panel', requires: ['time.shots=staged'], note: 'a beat held as a still: the frame drawn in a border, a caption box, an onomatopoeia over the blow; cut back to play' },
         board: { ...SHOT, ...WEB, status: 'built', requires: ['space.board=spots'], lowers: 'lib/graph/board/board-page.js', note: 'the tactical camera cut to whoever the shot names, from the front; the words over the speaker; a speaking figure gestures; a close portrait beside (talk.portrait); a battle held for its before and after slots' },
       },
     },

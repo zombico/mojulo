@@ -51,9 +51,11 @@ export const TEXT_READERS = Object.freeze([
 export const DATA_READERS = Object.freeze([
   'app/api/sketches/[ref]/model.glb/route.js', 'lib/app-mcp-scaffold/install.js', 'lib/graph/beats/beats-vocab/loader.js',
   'lib/graph/creature-heads/index.js', 'lib/graph/game/hud-cards/loader.js', 'lib/graph/game/mechanic-cards/loader.js',
+  'lib/graph/game/title-carve.js', 'lib/graph/game/title-words.js',
   'lib/graph/game/slice-cards/loader.js', 'lib/graph/image-outcomes/fonts/font-shelf.js', 'lib/graph/image-outcomes/render-store.js',
   'lib/graph/image-outcomes/sheet-store.js', 'lib/graph/manji-programs/loader.js', 'lib/graph/motion-vocab/loader.js',
-  'lib/graph/painted-landscape-cards/loader.js', 'lib/graph/polygonizer/humanoid-head-fit.js', 'lib/graph/polygonizer/skin-store.js',
+  'lib/graph/painted-landscape-cards/loader.js', 'lib/graph/polygonizer/humanoid-head-fit.js', 'lib/graph/polygonizer/relational-face-store.js',
+  'lib/graph/polygonizer/skin-store.js',
   'lib/graph/scene/emit-util.js', 'lib/graph/scene/mesh-store.js', 'lib/graph/scene/scene-three.js', 'lib/graph/sketch-vocab/loader.js',
   'lib/graph/solid-vocab/loader.js', 'lib/graph/views/recipe-book/cards.js', 'lib/graph/views/view-vocab/loader.js',
   'lib/graph/voice/voice-sample-store.js', 'lib/graph/worlds/world-scene.js', 'lib/mcp/adapters/loader.js', 'lib/mcp/catalysts/loader.js',

@@ -105,7 +105,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   blend: { station: { bone: w }, 'station.slot': { bone: w } } }` (the overshoot ring at a joint shared with the
   neighbour; a `station.slot` entry weighs that one point over its station's, a form in a ring with its own bone); a pinned
   detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
-  'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
+  'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`: the skull's axis, atlas to crown, not the gaze:
+  `up` is level, a little `forward` a nod; a hero under laws 15 shares it down the neck within the cervical range) plus `crouch` (0–1, toes planted),
   `heelL/R` (metatarsus degrees about the toe base, − lifts the heel), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
   the hip joints': 1 puts each ankle under its hip), `stagger` (+ the left foot forward, a share of the leg's height),
   and every chain channel. A rig's `hands: { R, L }` (carrier bone, wrist joint, `axes: { flex, deviation, twist }`, the
@@ -188,12 +189,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 
 - **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
   face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
-  a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
+  a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`; on the game body,
+  the tiered form, stamped `form: 'tiered'` at mint when none is named and shaded smooth; `'realistic'` the realistic
+  body; `'classic'`, deprecated, the body before it, what a hero stored without a form keeps, said on its readout) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`: its joints on the adult radii) — or a POLE WITH A BUILD, `{ pole: 'female', build:
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
   percentages of hers, so a broad young woman is a build, not a tune past its range; `{ build: 'child' }` (pole `male`
-  unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
+  unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded (a chibi or a child minted without a head, or a landmark head's word, wears the anime head; the chibi, the adult-form chibi, is drawn as simple solids, cylinder limbs and mitten hands, the child as the same rounder, a barrel torso and fuller arms, with the anime child's face, both wearing only a kit's or a suit's few signature pieces) — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
   body proportion lab's contract. Controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
   `neck`, `legs` (joints move, the soles stay on the ground), `armLength` (the upper arm and forearm, so a body shortened
   by `legs` and `torso` does not keep a grown arm that hangs to its knees); widths `shoulders` (the arm chain rides out, the yoke widens),
@@ -419,8 +422,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `fist`, `point`, `grip`, degrees of curl −25 … 100 over the relaxed hand, or `{ thumb, index, middle, ring, little }`);
   the guard closes the fists, a hand holding gear grips it in every key, the wave opens the hand palm to the front. A
   streamlined hero keeps its mitten and refuses those words. Hip armour hangs
-  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
-  before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
+  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` (deprecated: said on
+  the readout, and a hero naming it keeps the classic body) is the hero before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
 <!-- /section -->
@@ -567,7 +570,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   its `Tie` tone; open, the lapels run to the hem; a woman's closes left over right; the cards `business` and
   `doublebreasted` are suits with ties, `skirtsuit` and `trousersuit` a woman's); `waistcoat: true | { front, buttons:
   3–6 }` a waistcoat between the shirt and the jacket, no belt (on the realistic body its own V and buttons, its
-  armholes; `Waistcoat` tone; the card `threepiece`); `panels: [{ at: back | front | sides
+  armholes; `Waistcoat` tone; the card `threepiece`; on the game body the tailoring and a plated suit
+  are worn plain or not at all, said in the readout's `realisticOnly`; gloves and footwear cards are worn on both, the
+  game body's shoes at half the realistic polygons, its foot bare under a sandal and not drawn under a closed shoe); `panels: [{ at: back | front | sides
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose
@@ -804,7 +809,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   becomes painted rim, and a row of rivets under 2 px one rivet. A held item's lathes, sweeps and gems follow the pixels
   it covers. Garments take their part's split, and a sleeve or trouser leg over both limbs of a joint covers the
   bridge between them; a couter or poleyn rides its joint's bridge, and a torso or neck piece stands off the shoulder
-  balls. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
+  balls, the web of skin over each (the arm's colour, from inside the torso to the arm's belly, stretching as it swings)
+  and the cone under it that runs the torso's shoulder into the ball. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
 - **The realistic body (`form: 'realistic'`).** The hero's body re-sampled onto the form field: bone where it shows and
   the muscle masses placed from the rig's joints, summed into one skin, denser than authored (the torso 48 round, 64 on
   the female, with the bust in the field), the shoulder girdle with a blade, and morph-like correctives a raised arm
@@ -815,7 +821,26 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   of fat, height the stature a tenth either way); the hero stores it stamped `laws: 1`. Revise with
   `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. Its head is the RELATIONAL head unless `head` says
   `landmark` or `none`: a cranium, a visage, a nose, eyes and ears, each sampled from its own direction and shaded by
-  the head's field; bald, its jaw opening on the rig. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
+  the head's field; bald, its jaw opening on the rig. Its FACE is composed (face-compose.js): per feature a named shape,
+  the features agreeing by their character, drawn from a population's rolls. A realistic hero minted with no `face` gets
+  one ROLLED: its seed, its ethnicity and (with no `cast`) its sex, stamped at mint, at prime age on the HEROIC
+  baseline (drawn toward its population's harmonious mean). Named words BOUND the roll and the rest TUNE it:
+  `face: { seed?, ethnicity?, want?, character?, accent?, nose?, beauty?, age? }`. `ethnicity`: `western`,
+  `north-asian`, `east-asian`, `southeast-asian`, `indo-aryan`, `dravidian`, `african`, `latin`, `levantine`,
+  `south-mediterranean`, the regions `asian`, `south-asian`, `equatorial`, `mena`, or `mixed`; a list of the base ones
+  is a mix of them. `want` AIMS the face at shapes, the rest the seed's: `chin` pointed | soft | heart | strong, `nose`
+  button | fine | soft | classical, `lips` full | pout | lower | fine, `cheeks` sculpted | full | apple, `outline` oval |
+  heart | round | square, `eyes` open | large | almond | deep | hooded | soft, `brows` by the epidermis's shapes.
+  `character: [soft −1 … angular 1, delicate −1 … strong 1]` sets the whole face's harmony; `accent` one feature taken
+  far from it (memorable) or `false`; `nose` its axis (−1 short and flat … 1 long and pointed); `beauty` 0 … 1
+  (0.75 the heroic baseline; lower, more character); `age` in years (16 … 85). Another `seed` is another face with the
+  same words: re-roll with `set /hero/face/seed <n>`, keep what you like and aim the rest. The readout's
+  `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
+  (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
+  its HAIR is the composed cut (or its ancestry's) grown as an engine's hair cards, its PIERCINGS the face's, each piece
+  in its metal; the brows, the lashes and a styled beard are read but not yet grown (the beard is painted). The mint
+  solves the face's own FIT (`fit`, stamped beside its words, ~45 s once) so the head is the one the face studies show;
+  a face whose words change wears its pole's fit until it is minted again. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
   an OUTFIT CARD (`outfit: { type: 'outfit', style }`), the other words and a `stylism` are worn on its parts by
   the same cloth (each garment one piece over the segments it covers, the layers apart, collars standing, short
@@ -859,9 +884,18 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     - plate: `pauldron` (`spaulder` | `bell`), `focalSide`, `fnSide` (the arm that carries function takes the first
       bracer);
     - lamellar: `crest` (`crescent` | `kuwagata` | `sun`);
-    - hardsuit: `helm` (`power` | `trooper` | `faceplate`), `pauldron` (`dome` | `cap` | `segmented`), `chest`
-      (`plain` | `reactor`), `pack` (`power` | `none`), `segments` 1–3 (the panel lines), `focal`
-      (`helm` | `pauldron` | `reactor`).
+    - hardsuit: `helm` (`power` | `trooper` | `faceplate` | `shell` | `none`; `shell` a helm cast over the whole head,
+      its words the card's `language.helmet`: the cowl's window, blank face, facets, eyes, decals, panels, fittings),
+      `pauldron` (`dome` | `cap` | `segmented` | `lames` | `none`; `pauldronSide` `both` | `R` | `L`), `chest` (`plain` |
+      `reactor` | `plates` | `box` | `bands` | `none`), `pack` (`power` | `jet` | `tanks` | `none`), `segments` 1–3 (the
+      panel lines), `build` (`plates` | `cylinders`: the limbs in rigid tubes, the heavy suit), `focal` (`helm` |
+      `pauldron` | `reactor`),
+      and the archetype words, each absent the piece as it was: `arms` (`panels` | `manica` on `fnSide` | `gadget` |
+      `none`), `legs` (`panels` | `greaves` | `ocrea` on `leadSide` | `none`), `skirt` (`none` | `pteruges` |
+      `tassets`), `glow` (`none` | `lines`), `collar` (`band` | `high` | `none`), `cut` (`fitted`, the default from armour
+      laws 2: the plates under the collarbone, the shoulders the pauldrons', a gorget for the collar | `yoke`, laws 1's).
+    A card's `byLaws` (`{ "2": { dials, language, tones } }`) recomposes it from that armour law on; a build stamped
+    under an earlier law keeps the card it was minted with.
   - `theme` (plate suits): `death-knight`, `radiant`, or an inline card from `control/lib/graph/themes/`. A theme is a
     motif vocabulary carried down the suit, not a skin:
     - the primary motif (a skull, a sun boss) sits full size at the focal piece, then smaller at the partner, chest,
@@ -872,6 +906,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     - glyphs mark the plain fields (runes).
     A theme may add a helm, a tabard and a belt. It leans the dials and language between the style's and the
     build's own, and its tones layer over the style's. Patch `set /hero/adorn/theme 'radiant'`.
+  - `with`: a KIT worn over the suit (`[{ id, mode, part, …, signature }]`), after it: a helmet or a mask in it (a piece
+    on the cranium) takes the suit's helm's place, so a head of its own sits on any armour.
   - The laws, as worn:
     - one focal piece per suit, every piece sized to its body part;
     - a plate never crosses a joint (each rides one bone, and cops cap a joint from one side);

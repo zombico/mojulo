@@ -8,7 +8,8 @@
  *   heroDermis(mesh, recipe, { sex, dermis, page, headPage }) → { pages: { body, head? }, faceOf(fi) → { page, uv } | null }
  *   heroSkinPaint(mesh, recipe, opts)  → the PAINT a figure's pack carries (station-loft-rig.js packLayeredRig `paint`, as
  *                                        skin-paint.js's): the two pages' albedo on one atlas (the body's over the head's),
- *                                        each skin face's corners on it, the rest on its white texel; the GLB's base colour
+ *                                        each skin face's corners on it, the rest on its white texel; the GLB's base colour,
+ *                                        and the World page's (its static faces lit by `light`, layeredFaces `paint`)
  *
  * A face is the skin's when its part is the body's or the head's and its group is `Skin` (a painted band, a garment, an
  * eye's globe or the mouth keep their colours: null). The head's points let down inside another part's skin (the
@@ -17,7 +18,7 @@
  */
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { HEAD_TUNES } from '../polygonizer/hero-relational-head.js';
-import { readDermis, skinBase } from './dermal-map.js';
+import { readDermis, skinBase, toSrgb } from './dermal-map.js';
 import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
 import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
@@ -35,8 +36,15 @@ export function heroDermisSpec(hero) {
   return { spec, base: skinBase(readDermis(spec)) };
 }
 
+const hex3 = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const toHex = (c) => `#${c.map((x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0')).join('')}`;
+
 /** the relational head's parts on the hero */
-const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/;
+const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|headSkin)$/;
+/** what the head wears of its own (hero-head-layers.js: its jewellery, its hair) and what is set in its one skin (the
+ * globes, the mouth: hero-one-skin.js): never a garment over the body's skin */
+const HEAD_LAYER = /^(jewel|jewelJaw|hair\w*|globe[RL]|mouth)$/;
 /** the body's skin parts (dermal-body.js charts them) */
 const BODY = /^(torso|neck|pelvis|upperArm[RL]|foreArm[RL]|hand[RL]|thumb[RL]|index[RL]|middle[RL]|ring[RL]|little[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL])$/;
 /** a head point this far inside its field (m) is let down under another part's skin */
@@ -70,7 +78,7 @@ export function heroDermis(mesh, recipe, { sex = recipe.headFit?.sex ?? 'male', 
  */
 export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
   const V = mesh.vertices, F = mesh.faces, partOf = (vi) => mesh.provenance[vi].part, boneOf = (part) => recipe.parts[part]?.bind?.bone;
-  const cover = []; F.forEach((t, fi) => { const p = partOf(t[0]); if (!HEAD.test(p) && !BODY.test(p) && mesh.groups[fi] !== 'Skin') cover.push(fi); });
+  const cover = []; F.forEach((t, fi) => { const p = partOf(t[0]); if (!HEAD.test(p) && !BODY.test(p) && !HEAD_LAYER.test(p) && mesh.groups[fi] !== 'Skin') cover.push(fi); });
   if (!cover.length) return null;
   // the bones beside each bone: those sharing a joint (a head or a tail)
   const bones = recipe.rig?.bones || [], ends = new Map(bones.map((b) => [b.id, [b.head, b.tail].filter(Boolean)])), beside = new Map();
@@ -109,8 +117,10 @@ export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
  * `stand` a hero point in the head's frame, and `shown(v)`: a head point on its surface (an ear on the ear's), not let
  * down inside it under another part */
 function headFrame(mesh, recipe) {
-  const { sex, k, ty, men } = recipe.headFit, H = relationalHead({ sex, tune: HEAD_TUNES[sex] });
-  const plain = relationalHead({ sex, tune: HEAD_TUNES[sex], ears: false });
+  const { sex, k, ty, men, relations, eyes } = recipe.headFit, own = { ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) };
+  const tune = recipe.headFit.tune ?? HEAD_TUNES[sex];
+  const H = relationalHead({ sex, tune, ...own });
+  const plain = relationalHead({ sex, tune, ears: false, ...own });
   const stand = (p) => ({ x: p[0] / k, y: (p[1] - ty) / k, z: (p[2] - men) / k });
   const shown = (v) => (/^ear/.test(mesh.provenance[v].part) ? H : plain).field(stand(mesh.vertices[v])) * k >= -HIDDEN;
   return { H, plain, stand, k, shown };
@@ -147,16 +157,18 @@ function headSkin(mesh, recipe, D, page) {
   const normals = vertexNormals(vertices, faces), byPart = new Map();
   src.forEach((v, i) => {
     const id = mesh.pointIds[v], part = mesh.provenance[v].part, rest = id.slice(part.length + 1), d = rest.lastIndexOf('.'); if (d < 0) return;
-    let m = byPart.get(part); if (!m) { m = new Map((recipe.parts[part]?.stations || []).map((st) => [st.id, st.normals])); byPart.set(part, m); }
+    let m = byPart.get(part); if (!m) { const P = recipe.parts[part]; m = P?.mesh ? new Map([['st0', P.mesh.normals]]) : new Map((P?.stations || []).map((st) => [st.id, st.normals])); byPart.set(part, m); }
     const n = m.get(rest.slice(0, d))?.[rest.slice(d + 1)]; if (n) normals[i] = n;
   });
   // skin: every point but a globe's (a layer let down under another is skin too: unseen, its texels cost nothing, and
   // where two cross the one on top is a little inside the field); SHOWN: on the head's surface (an ear on the ear's), not
   // let down inside it, so the layers under the face neither cast occlusion on it nor take any
-  const skin = src.map((v) => !H.paint?.(stand(mesh.vertices[v])));
+  // (the ONE SKIN, hero-one-skin.js, holds no globe: its lids' margins touch the globes, and the paint there names the
+  // globe; its Mouth, the lips turned in, is no skin)
+  const one = recipe.headFit.skin === 'one', skin = src.map((v) => one || !H.paint?.(stand(mesh.vertices[v])));
   const shown = src.map(shownAt);
   const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi] });
-  const skinFace = faces.map((t) => t.every((vi) => skin[vi]));
+  const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout);
   return { chart, layout, maps, local, skinFace };
 }
@@ -169,17 +181,29 @@ function headSkin(mesh, recipe, D, page) {
  */
 export function heroSkinPaint(mesh, recipe, opts = {}) {
   const H = heroDermis(mesh, recipe, opts), B = H.pages.body, Hd = H.pages.head ?? null;
-  const W = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, TH = BH + HH;
+  // (the atlas as wide as the wider page: the body's at the top left, the head's under it; a page narrower than the
+  // atlas leaves white beside it)
+  const BW = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, W = Math.max(BW, HW), TH = BH + HH;
   const px = new Uint8Array(W * TH * 4).fill(255);
-  px.set(B.albedo.subarray(0, W * BH * 4), 0);
+  for (let y = 0; y < BH; y++) px.set(B.albedo.subarray(y * BW * 4, (y + 1) * BW * 4), y * W * 4);
   if (Hd) for (let y = 0; y < HH; y++) px.set(Hd.albedo.subarray(y * HW * 4, (y + 1) * HW * 4), ((BH + y) * W) * 4);
   // (a page's [s, t], t up, onto the atlas's)
-  const onBody = ([s, t]) => [s, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
+  const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
-  mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) fis.set(fi, f.uv.map(f.page === 'head' ? onHead : onBody)); });
+  // (each corner's place to a tenth of a texel: the page writes them as text)
+  const q = W > 1024 ? 1e5 : 1e4, r5 = ([s, t]) => [Math.round(s * q) / q, Math.round(t * q) / q];
+  const onHeadPage = new Set();
+  mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) { fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); if (f.page === 'head') onHeadPage.add(fi); } });
   let face = -1;
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, TH).toString('base64')}`;
   const uvAt = (ref) => { const c = fis.get(face); if (!c || ref.vi === undefined) return white; const k = mesh.faces[face].indexOf(ref.vi); return k < 0 ? white : c[k]; };
-  return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt,
-    atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0 };
+  // (a static face's LIGHT, the World page's: its lit fill over the skin's flat colour, the palette's Skin, so the texel,
+  // which carries the skin's colour, is lit and not tinted twice; the pack's corners are the light alone already)
+  const base = hex3(typeof recipe.palette?.Skin === 'string' ? recipe.palette.Skin : '#d9a77e').map(lin), lights = new Map();
+  const light = (fill) => { let h = lights.get(fill); if (!h) lights.set(fill, h = toHex(hex3(fill).map((c, i) => toSrgb(Math.min(1, lin(c) / Math.max(1e-6, base[i])))))); return h; };
+  // (`faceUV(fi)` a skin face's three corners on the atlas, null off it; `onHead(fi)` a face on the head's page; `pages` the
+  // atlas's layout: what the normal bake reads, epidermis/dermal-relief.js)
+  return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
+    atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0,
+    faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH] } };
 }

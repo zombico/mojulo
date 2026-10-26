@@ -16,11 +16,10 @@ import { renderBed, renderSound } from './engine-audio.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
 import { bakeFps, bakeImport } from './godot-bake.js';
-import { isHumanoidRig, humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
-import { withProfileJoints } from '../figures/rig-tpose.js';
-import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, layeredFigure, levelContract } from './engines/pack.js';
+import { isHumanoidRig } from '../polygonizer/figure-humanoid-map.js';
+import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, figureClip, figureSkeleton, layeredFigure, levelContract } from './engines/pack.js';
 
-export { layeredFigure, levelContract };
+export { figureClip, layeredFigure, levelContract };
 
 // cwd-anchored (the control process and the CLI both run from control/) —
 // lib files may be bundled, so import.meta-relative paths are not reliable.
@@ -29,13 +28,6 @@ const kernelDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot
 const toDb = (v) => (Number.isFinite(v) && v > 0 ? 20 * Math.log10(v) : null);
 
 const refuse = (sketch, ref) => refusePixelizer(sketch, ref, "a 2D reducer is not a scene; it takes the arcade leg (export_game { target: 'godot' } on the game row)");
-
-/** The clip a figure's scene plays: `idle` when it has one, else the first clip with more than one key, else the first
- * (a one-key stand holds). */
-export function figureClip(recipeClips = {}, names = Object.keys(recipeClips || {})) {
-  if (names.includes('idle')) return 'idle';
-  return names.find((c) => Array.isArray(recipeClips?.[c]) && recipeClips[c].length > 1) ?? names[0] ?? null;
-}
 
 // a quaternion [x, y, z, w] applied to a vector
 const rotate = ([x, y, z, w], [vx, vy, vz]) => {
@@ -175,12 +167,14 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       // the humanoid's engine skeleton: its joints (the profile's inserted ones and the weightless wrist and ankle leaves
       // among them) and the VRM names its BoneMap maps Godot's humanoid profile onto
       ...(!engine && Array.isArray(f.bones) && isHumanoidRig(f.bones) ? { humanoidRig: true } : {}),
-      ...(engine ? (() => { const bones = withProfileJoints(engine).bones, { names, leaves } = humanoidBonesFor(bones); return { joints: bones.length + leaves.length, humanoid: [...names.values(), ...leaves.map((l) => l.vrm)] }; })() : {}),
+      ...(engine ? figureSkeleton(f, engine) : {}),
       // `ambientOver`: the exported clips the face-only ambient blink layers over (the GLB's names; scene-gltf writes the same)
       ...(anime ? { anime: true, seconds: Object.fromEntries(clipNames.map((c) => [c, f.clips[c].s ?? 1])), face: !!f.face, ambientOver: f.face?.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
       // the LANDMARK hero's face (western-face-rig.js): the same face scene (figure_face.gd: the authored face on ready, the
       // ambient blink layered); its clips keep their one second and its view as before
       ...(!anime && f.face ? { face: true, ambientOver: f.face.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
+      // THE RELIEF (epidermis/dermal-relief.js): a lit figure carrying its normal map and tangents, said by its ledger
+      ...(lit && f.normalTex ? { relief: true } : {}),
     };
   })() : null;
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);

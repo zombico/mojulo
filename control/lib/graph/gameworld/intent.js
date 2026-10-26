@@ -20,17 +20,23 @@
  *                            heuristic over words, said to be one, for the agent (the real reader of a brief) to pick
  *                            from or ask about. It suggests a starting cube and refuses nothing.
  *   readIntent(v)            → { from, cube, why } or null; throws, teaching
+ *   quickGenre(quick)        → the genre id a quick goal is, or null (the `from` a quick game's cube is read from, and
+ *                            the intent quickWorld writes)
  *   cubeOfWorld(world)       → { cube, from, said: [<facet.setting>] } the cube the world is: its genre's, then what the
  *                            world's own settings imply, then its intent's own values (`said`: the ones the intent wrote)
- *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, target? }
+ *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, drift?, target?,
+ *                            latent? } (latent: the resonances a user voices that the cube is one move from, resonance.js)
  *                            the readout's: the world's cube read (cosmos dryRun's verdict), what it asks of the world,
- *                            for a world that wrote no intent the genres its brief's words suggest, and with a target
+ *                            for a world that wrote no intent the genres its brief's words suggest, for a quick game
+ *                            whose goal now reads as another genre than its written one `drift: { written, goal }`
+ *                            (the written one holds until the creator changes it), and with a target
  *                            { engine, carries, lost: ['facet.setting=value'], partly: [...], says } (dryRun's engines)
  */
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { validateCube, dryRun } from '../cosmos/cosmos.js';
 import { MARKED_ENGINES, engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
+import { latentOf } from './resonance.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { resolveSport } from '../contest/sports.js';
 
@@ -63,6 +69,13 @@ const WORDS = Object.freeze({
   tactics: ['tactics', 'tactical', 'final fantasy tactics', 'fire emblem', 'srpg', 'strategy rpg', 'grid', 'squares', 'high ground', 'positioning'],
   rts: ['rts', 'real-time strategy', 'real time strategy', 'starcraft', 'command and conquer', 'army', 'armies', 'build orders', 'base building', 'harvesters'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
+  'co-op-kitchen': ['co-op cooking', 'cooking together', 'kitchen', 'orders', 'chefs', 'overcooked'],
+  'party-mash': ['party game', 'party games', 'mash', 'button mash', 'minigames', 'mini-games', 'mario party'],
+  'co-op-platformer': ['co-op platformer', 'platform together', 'with my brother', 'with friends', 'couch co-op', 'local co-op'],
+  'co-op-brawler': ['beat em up', "beat 'em up", 'beat-em-up', 'brawler with friends', 'street brawler', 'final fight', 'belt scroller'],
+  'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter', 'run and gun together'],
+  'driver-and-gunner': ['driver and gunner', 'one drives one shoots', 'turret', 'gunner'],
+  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
   // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
   'athletics-meet': ['athletics', 'athletic', 'olympic', 'olympics', 'track and field', 'sprint', 'sprinting', '100m', 'hurdles', 'long jump', 'high jump', 'javelin', 'shot put', 'decathlon', 'relay', 'meet'],
@@ -115,11 +128,17 @@ export function readIntent(v) {
 
 const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
 
+/** The genre a quick goal is, or null: a race against rivals is a kart race (its cube a loop's), alone a time trial; a
+ * shooter with a craft is a dogfight, a space craft's a space shooter, an atmosphere craft's air combat; a contest is its
+ * sport's genre. */
+export function quickGenre(Q) {
+  if (!Q) return null;
+  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
+}
+
 export function cubeOfWorld(world) {
   const I = readIntent(world?.intent), Q = world?.quick;
-  // a race against rivals is a kart race (its cube a loop's); alone, a time trial
-  // a shooter with a craft is a dogfight: a space craft's a space shooter, an atmosphere craft's air combat
-  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal])) ?? null;
+  const from = I?.from ?? quickGenre(Q);
   const cube = clone(from ? CUBES[from] : {});
   // what the world's own settings imply
   if (world?.camera) put(cube, 'space', 'camera', world.camera);
@@ -150,11 +169,17 @@ export function intentReport(world) {
   const { cube, from } = cubeOfWorld(world), written = world?.intent !== undefined;
   const brief = typeof world?.brief === 'string' ? world.brief : world?.brief?.prompt ?? world?.brief?.text ?? '';
   const suggest = !written && !world?.quick && brief ? suggestGenres(brief) : [];
-  const target = readIntent(world?.intent)?.target ?? null, run = dryRun(cube);
+  const I = readIntent(world?.intent), target = I?.target ?? null, run = dryRun(cube);
+  // a quick game's written genre against what its goal reads as now (a goal patched since): said, never rewritten
+  const reads = quickGenre(world?.quick), drift = I?.from && reads && reads !== I.from ? { written: I.from, goal: reads } : null;
+  // what the cube is one move from (gameworld/resonance.js): an outcome a user voices, the values it still lacks
+  const latent = latentOf(cube);
   return {
     from, written, verdict: run.verdict,
     concerns: concernsOf(cube).map(({ asks: _, ...c }) => c),
     ...(suggest.length ? { suggest: suggest.map((g) => ({ id: g.id, matched: g.matched })) } : {}),
+    ...(drift ? { drift } : {}),
     ...(target ? { target: targetAdvice(target, run.engines[target]) } : {}),
+    ...(latent.length ? { latent } : {}),
   };
 }

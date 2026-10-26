@@ -33,7 +33,7 @@ describe('a cube solved from its palette', () => {
       const own = readGeocube(id);
       expect(own.colour).toEqual(GEOCUBE_PRESETS[id].colour);
       expect(own.palette).toBeUndefined();
-      expect(own.light.sky).toBeUndefined();
+      expect(own.light.sky).toEqual(GEOCUBE_PRESETS[id].light.sky);   // (its own when it writes one, else none)
       expect(readGeocube({ from: id, palette: { heat: 0.4 } }).colour).toEqual(own.colour);
       expect(readGeocube({ from: id, palette: false }).colour).toEqual(own.colour);
     }

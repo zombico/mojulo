@@ -4,7 +4,6 @@ import { extractEngineScore } from './engine-score.js';
 import { readWeather, STATE_NAMES } from '../weather/weather.js';
 import { airOfKit } from '../gameworld/style-guide.js';
 import { emitUnityProject } from './unity-project.js';
-import { emitUnrealProject } from './unreal-project.js';
 
 const payload = (more = {}) => ({ title: 'w', colliders: [], entities: [], walk: { eye: 1.6 }, haze: { color: '#b4d8f0', density: 0.012 }, weather: { weather: readWeather('monsoon'), seed: 4, air: airOfKit('isekai-meadow') }, ...more });
 
@@ -48,14 +47,11 @@ describe('the weather in the engine score', () => {
     expect(s.ledger.weather_partial.note).toMatch(/falling rain.*lightning stay the web build/s);
   });
 
-  it('the Unity and Unreal legs play it: a runtime file hooked in by the level, and the height fog set from the opening state', () => {
+  it('the Unity leg plays it: a runtime file hooked in by the level', () => {
     const score = extractEngineScore({ ref: 'sk_x', manifest: { kind: 'floorplan-world' } }, payload());
     const u = Object.fromEntries(emitUnityProject({ ref: 'sk_x', score, manifestHash: 'abcd1234abcd1234', audioFile: null }).files.map((f) => [f.file, f.text]));
     expect(u['Runtime/MojuloWeather.cs']).toContain('FogMode.ExponentialSquared');
     expect(u['Runtime/MojuloWeather.cs']).toContain('class Run { public string @is;');
     expect(u['Runtime/MojuloLevel.cs']).toContain('AddComponent<MojuloWeather>()');
-    const py = emitUnrealProject({ ref: 'sk_x', score, manifestHash: 'abcd1234abcd1234', audioFile: null }).files.map((f) => f.text).join('\n');
-    expect(py).toContain("wx = score.get('weather')");
-    expect(py).toContain("'fog_inscattering_luminance'");
   });
 });

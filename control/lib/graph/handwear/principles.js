@@ -22,4 +22,8 @@
 //      COLOURWAY (`skin`) recolours any card.
 //   7. A CARD'S TONES ARE SUGGESTIONS. The ones it (or its skin) names stand over a palette's defaults; the operator's own
 //      palette over all.
+//   8. THE CANON IS THE OUTFIT'S. A glove has no canon of its own: it is read in the one the outfit is designed to, by the
+//      dressed outline (dress-outline.js: western | anime, docs/garment-principles.md). In anime/game a gauntlet's flared
+//      cuff standing out past the forearm is one of the one to three flair pieces, the rest of the arm close; western, a
+//      glove the hand's own size.
 export const HANDWEAR_LAWS_VERSION = 1;

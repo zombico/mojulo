@@ -91,7 +91,7 @@ describe('extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 
   });
 });
 
-describe('extractEngineScore — the locomotion row (export-unreal U2, the walking-suits gap)', () => {
+describe('extractEngineScore — the locomotion row (the walking-suits gap)', () => {
   const rigPayload = () => ({
     ...payload(),
     entities: [
@@ -197,6 +197,17 @@ describe('the HUD widget list rides the score as data (hud-widgets.js)', () => {
     const bare = extractEngineScore(sketch(), { faces: [] });
     expect(bare.hud).toBeUndefined();
     expect(bare.ledger.hud_declared).toBeUndefined();
+  });
+
+  it('a carved title travels as the kernel\'s banner: the same words at the same firing, and the ledger says so', () => {
+    const payload = { faces: [], events: { reactions: [{ on: 'x', do: 'emit', type: 'y' }], hud: [{ on: 'fight', text: 'FIGHT!', as: 'title', look: 'stamp', style: 'blocky', color: 'harm', ttl: 2.5 }, { on: 'go', text: 'GO' }] } };
+    const score = extractEngineScore(sketch(), payload);
+    expect(score.hud).toEqual([
+      { kind: 'banner', on: 'fight', text: 'FIGHT!', slot: 'center', ttl: 2.5, color: 'harm' },
+      { kind: 'banner', on: 'go', text: 'GO', slot: 'center', ttl: 2 },
+    ]);
+    expect(score.ledger.titles_as_banners.count).toBe(1);
+    expect(extractEngineScore(sketch(), { faces: [], events: { reactions: [{ on: 'x', do: 'emit', type: 'y' }], hud: [{ on: 'go', text: 'GO' }] } }).ledger.titles_as_banners).toBeUndefined();
   });
 });
 

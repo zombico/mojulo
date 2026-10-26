@@ -38,6 +38,13 @@ export function hasProgram(manifest) {
   return !!(manifest && manifest.program && typeof manifest.program === 'object');
 }
 
+/** Does a ROW of any kind carry a code program? Only a workbench does (the code kind mints `kind: 'workbench'`). A stage's
+ *  `program` is its building program (`{ use, seed }`, era/programs.js), never code: a kind-blind reader (the exporter)
+ *  asks this, so a building level is not taken for a program missing its source. */
+export function hasCodeProgram(manifest) {
+  return hasProgram(manifest) && (manifest.kind === 'workbench' || manifest.kind === undefined);
+}
+
 // Newell normal of a polygon → unit vector (z-up world, like every face lister)
 function newellNormal(corners) {
   let nx = 0, ny = 0, nz = 0;

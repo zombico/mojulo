@@ -179,6 +179,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     const spec = withReact(react, G.battles.foe ?? BATTLE_FOE), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} foe`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'foe', ref: foeRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   } else if (bossed(G)) steps.push(bossStep(G, ref, { ready: true }));
+  if (guarded(G)) steps.push(guardStep(G, ref, { ready: true }));
   // the minigames' keepers (minigames.js): one figure, minted as a hero is, standing at every stall
   const keeperRef = G.minigames ? childRef(ref, 'keeper') : null;
   if (keeperRef) {
@@ -327,15 +328,20 @@ export function storyReport(world, { ref = 'gw' } = {}) {
 }
 
 /** LEVEL GOALS (a level's `goal`, world.js): each stage its goal's mechanics and its cast (quick.js levelGoalMechanics,
- * levelGoalCast), the boss at the end of its level's last stage (`lastOf`: each level's last stage that takes a goal);
- * a level with none passes nothing, so it lays as it always did (reach its exit). */
+ * levelGoalCast), the boss at the end of its level's last stage (`lastOf`: each level's last stage that takes a goal),
+ * a sneak's guards on every stage's beats (quick.js guardPosts, one figure for them all at `<ref>-guard`); a level with
+ * none passes nothing, so it lays as it always did (reach its exit). */
 const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
+// the cameras that watch a hero (levels.js levelOrder refuses them without one)
+const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);
+const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
 function goalArgs(G, s, lastOf, ref) {
   const goal = G.levels[s.level]?.goal;
   if (!goal) return {};
   const last = lastOf[s.level] === s.index, boss = goal.boss ? childRef(ref, 'foe') : null;
-  return { goal: (ends) => levelGoalMechanics(goal, ends, { last }), goalCast: (ends) => levelGoalCast(goal, ends, { last, ref: boss, look: G.battles?.foe }), ...(goal.collect ? { legend: 'I  bag' } : {}) };
+  const guards = goal.guards ? { guards: { ref: childRef(ref, 'guard'), posts: (ends) => guardPosts({}, ends) } } : {};
+  return { goal: (ends) => levelGoalMechanics(goal, ends, { last }), goalCast: (ends) => levelGoalCast(goal, ends, { last, ref: boss, look: G.battles?.foe }), ...guards, ...(goal.collect ? { legend: 'I  bag' } : {}) };
 }
 /** The boss's figure: a foe rolled in the game's setting as a quick battle's are (cast-setting.js), made through the
  * hero door at `<ref>-foe` (the door makes a `foe` step a figure: design-game.js), one for every boss in the world. */
@@ -343,6 +349,12 @@ function bossStep(G, ref, ready) {
   const Q = { goal: 'battle' }, F = quickFigure(G, Q, 'foe', settingOfGame(G, Q));
   const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} boss`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
   return { key: 'foe', ref: childRef(ref, 'foe'), ...ready, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
+}
+/** The guards' figure: a sneak's guard rolled in the game's setting, made as the boss is at `<ref>-guard`. */
+function guardStep(G, ref, ready) {
+  const Q = { goal: 'sneak' }, F = quickFigure(G, Q, 'guard', settingOfGame(G, Q));
+  const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} guard`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
+  return { key: 'guard', ref: childRef(ref, 'guard'), ...ready, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
 }
 
 /** A world before its people's steps: no character book, so no hero and no systems. Each stage a level walked in first
@@ -355,12 +367,16 @@ function worldSteps(world, G, ref) {
   const ground = ['world', 'nature', 'civilizations', 'key'];
   const steps = [], stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
-  // a level goal's boss (levels.<id>.goal.boss): its figure made first, on the world's own parts
+  // a camera that watches a hero waits for one (the form's hero, resonance.js): before its people the world is walked
+  // first person, its camera kept for the run that has its hero
+  const W = HERO_CAMERAS.includes(G.camera) ? (({ camera: _c, ...g }) => g)(G) : G;
+  // a level goal's boss and guards (levels.<id>.goal.boss, .guards): their figures made first, on the world's own parts
   if (bossed(G)) steps.push(bossStep(G, ref, settled(ground)));
+  if (guarded(G)) steps.push(guardStep(G, ref, settled(ground)));
   const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...goalArgs(G, s, lastOf, ref), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...goalArgs(G, s, lastOf, ref), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {

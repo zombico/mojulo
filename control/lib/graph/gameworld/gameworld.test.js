@@ -68,7 +68,12 @@ describe('gameworld', () => {
 
   it('a resolved level lays out as the level a creator would write by hand', () => {
     const R = resolveLevel(MEADOWMARK, 'meadow-ascent');
-    const hand = { kit: 'isekai-meadow', seed: 8, nodes: { trailhead: { trail: { heartbeat: 0.8, bumpiness: 0.6 } }, approach: { trail: { heartbeat: 0.95, bumpiness: 0.6 } }, lookout: { meru: { preset: 'mountain-lookout' } } } };
+    // (re-pinned 2026-10-25, 1025-land-into-cube: the levels now carry their land. MEADOWMARK's style.land, written all
+    // along, is lowered onto what its stages draw by: its downs size the trails' mounds (their height the trails' own
+    // bumpiness) and lay the climb's plain in relief, a few rocks strew four boulders, its monolith is the landmark stone;
+    // the tor's shape and the monolith's company are gaps, said in the readout, never drawn)
+    const land = { ground: { bump: { scale: 0.33 } }, rocks: { boulders: 4, landmark: 6.32 } };
+    const hand = { kit: 'isekai-meadow', seed: 8, nodes: { trailhead: { trail: { heartbeat: 0.8, bumpiness: 0.6, ...land } }, approach: { trail: { heartbeat: 0.95, bumpiness: 0.6, ...land } }, lookout: { meru: { preset: 'mountain-lookout', relief: { from: 'rolling', height: 2.75, scale: 37.63 } } } } };
     expect(layLevel(R.level)).toEqual(layLevel(hand));
   });
 

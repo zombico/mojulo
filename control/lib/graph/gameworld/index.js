@@ -2,7 +2,7 @@
  * Gameworlds: a world above its levels (world.js), its graph (graph.js), its style guide (style-guide.js) and its
  * bible (bible-html.js).
  */
-export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, CRAFTED, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
+export { readGameworld, resolveLevel, resolveWorld, landAdvice, levelSeed, WORLD_STYLE, CIVILIZATION, CRAFTED, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
 export { craftTech, craftKindOf, craftDomain, CRAFT_KINDS, CRAFT_KIND_IDS, CRAFT_TRAITS } from './tech-crafter.js';
 export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS, CAST_PART } from './characters.js';
 export { resolveBook, characterParts, characterState, approveCharacter, characterReady } from './character-review.js';
@@ -21,7 +21,7 @@ export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_
 export { basePrint, pinBase, verifyBase, revisionLookup } from './hero-base.js';
 export { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 export { styleGuide, airOfKit, kitCard, languageCard, fortCard, groundCard, civilizationCard } from './style-guide.js';
-export { natureCard, colorKey, landOfKit, landFor, RAMP_KEY } from './nature.js';
+export { natureCard, colorKey, landOfKit, landFor, landToLevel, RAMP_KEY } from './nature.js';
 export { gameworldBibleHtml } from './bible-html.js';
 export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH } from './examples.js';
 export { characterBibleHtml } from './character-bible-html.js';

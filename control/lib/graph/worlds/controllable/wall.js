@@ -93,7 +93,7 @@ export function buildWall(E) {
     if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing) { e.walling = null; return false; }
     const cs = state.colliders;
     if (!cs) return false;
-    const me = !state.pilotId || state.pilotId === e.id, inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0 };
+    const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0 };
     const r = e.rule, D = dials(r), t = e.transform, R = r.collideRadius ?? 0, eye = r.eye ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1);
     if (!e.walling) {
       if (e._wallCool > 0) return false;
