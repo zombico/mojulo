@@ -50,7 +50,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf }
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
-import { readEra } from '@/lib/graph/era/eras';
+import { readEra, ERAS } from '@/lib/graph/era/eras';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle, titleThemeFor } from '@/lib/graph/game/hud-widgets';
 import { hasTitleWords, localizeHudRows, readTitleLocale } from '@/lib/graph/game/title-words';
@@ -275,6 +275,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // THE ERA IS THE READ'S (era/eras.js: an era is a render of the same recipe, as the engine is): `era` on the read or
   // the export, the cube's own by default, the recipe never written by it. Absent ⇒ the cube's, every byte as it was
   const era = viewOpts.era !== undefined ? readEra(viewOpts.era) : geocubeEraOf(sketch.manifest);
+  // NO FLAT BUILDING POLYGONS (era/solid.js): the recipe's `solid` (stamped at mint on a world that builds), or every
+  // world read in the form render; the builders read it from the ctx. Absent and gen-6: the skin as it was
+  const solidAsked = sketch.manifest.solid;
+  if (solidAsked !== undefined && typeof solidAsked !== 'boolean') throw new Error('solid is true (a building\'s every seen edge has thickness: its roofs slabs, its doorways cut through its walls; era/solid.js) or false');
+  const solid = solidAsked === true || ERAS[era]?.surface === 'form';
   const liveL = unshaded ? null : liveLightDefaults(sketch.manifest, {
     era, screen: sketch.manifest.screen != null ? readScreen(sketch.manifest.screen) : null });
   const ctx = {
@@ -285,6 +290,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     view: viewOpts.view,
     render: viewOpts.render,
     ref: sketch.ref,
+    // (solid: the builders' thickness, above; only when on, so a ctx without it is as it was)
+    ...(solid ? { solid: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
