@@ -17,6 +17,7 @@ import path from 'node:path';
 import { assessPortability } from './engine-portability.js';
 import { emitUnityProject, emitUnityGame, unityGuid, unityMeta, UNITY_LEG_VERSION } from './unity-project.js';
 import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder } from './engines/pack.js';
+import { reliefOnRecord } from '../epidermis/dermal-relief.js';
 
 const refuse = (sketch, ref) => refusePixelizer(sketch, ref, 'a 2D reducer is not a scene (export-unity.plan.md)');
 
@@ -52,6 +53,8 @@ export async function buildUnityWorldPack({ ref, outDir, clips = '_all', posture
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — game scope is the Y1 track (export-unity.plan.md)`);
   const { kind, exported, score, soundtrack } = await resolveLevel(sketch, { engine: 'unity', clips, posture, lit });
+  // (a hero whose lit skinned export carries its relief, which the pack's rigid figures leave behind: its ledger says so)
+  const relief = lit && reliefOnRecord(manifest.hero);
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
@@ -63,7 +66,7 @@ export async function buildUnityWorldPack({ ref, outDir, clips = '_all', posture
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'unity' });
   const emitted = emitUnityProject({
     ref, score, manifestHash, audioFile,
-    remint: `node scripts/export-unity.mjs --ref ${ref}`,
+    remint: `node scripts/export-unity.mjs --ref ${ref}`, ...(relief ? { relief } : {}),
   });
   const written = await writePack({ outDir, binaries, emitted, portability, manifestHash });
   return {

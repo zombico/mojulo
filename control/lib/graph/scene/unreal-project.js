@@ -25,7 +25,116 @@ export const unrealAssetName = (ref) => String(ref).replace(/[^A-Za-z0-9]/g, '_'
 
 /* ------------------------------------------------------------- python --- */
 
-function importerPy({ ref, lit = false, figureClips = {} } = {}) {
+/** THE RELIEF (a lit figure carrying a glTF normal map: the realistic hero's, epidermis/dermal-relief.js): its slots go
+ * onto M_MojuloLitRelief, the lit twin with a NormalTex input, the normal map Interchange imported bound to it as a
+ * normal map (no sRGB, normal-map compression, the green flipped from glTF's OpenGL convention to Unreal's DirectX one).
+ * Rebinds the swap's ensure_master, first_texture and unlit_instance; absent, the importer is the one before it. */
+const RELIEF_PY = `
+# RELIEF: the figure carries its relief as a glTF normal map on its base colour's UVs, its TANGENT beside its NORMAL (a
+# realistic hero, lit). Its slots go onto M_MojuloLitRelief (the lit twin, a NormalTex input) with the normal map
+# Interchange imported bound to it; the swap finds the two textures by Interchange's parameter names.
+RELIEF = True
+NORMAL_OF = {}
+
+
+def ensure_master():
+    path = MAT_ROOT + '/M_MojuloLitRelief'
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        return unreal.EditorAssetLibrary.load_asset(path)
+    unreal.EditorAssetLibrary.make_directory(MAT_ROOT)
+    tools = unreal.AssetToolsHelpers.get_asset_tools()
+    mat = tools.create_asset('M_MojuloLitRelief', MAT_ROOT, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    ml = unreal.MaterialEditingLibrary
+    tex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -600, -200)
+    tex.set_editor_property('parameter_name', 'BaseTex')
+    white = unreal.EditorAssetLibrary.load_asset('/Engine/EngineResources/WhiteSquareTexture')
+    if white is not None:
+        tex.set_editor_property('texture', white)
+    vc = ml.create_material_expression(mat, unreal.MaterialExpressionVertexColor, -600, 100)
+    mul = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -300, -50)
+    ml.connect_material_expressions(tex, 'RGB', mul, 'A')
+    ml.connect_material_expressions(vc, '', mul, 'B')
+    ml.connect_material_property(mul, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -300, 200)
+    rough.set_editor_property('parameter_name', 'Roughness')
+    rough.set_editor_property('default_value', 0.85)
+    ml.connect_material_property(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    ntex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -600, 400)
+    ntex.set_editor_property('parameter_name', 'NormalTex')
+    ntex.set_editor_property('sampler_type', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+    flat = unreal.EditorAssetLibrary.load_asset('/Engine/EngineMaterials/FlatNormal')
+    if flat is not None:
+        ntex.set_editor_property('texture', flat)
+    ml.connect_material_property(ntex, 'RGB', unreal.MaterialProperty.MP_NORMAL)
+    ml.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(path)
+    return mat
+
+
+def textures_of(mat_iface):
+    # (base, normal): the textures Interchange put on its own material instance, told apart by their parameter's name
+    base, normal = None, None
+    try:
+        if isinstance(mat_iface, unreal.MaterialInstance):
+            for tpv in mat_iface.get_editor_property('texture_parameter_values'):
+                t = tpv.get_editor_property('parameter_value')
+                if t is None:
+                    continue
+                name = str(tpv.get_editor_property('parameter_info').get_editor_property('name')).lower()
+                if 'normal' in name:
+                    normal = normal or t
+                else:
+                    base = base or t
+    except Exception:  # noqa: BLE001 — texture recovery is best-effort
+        pass
+    return base, normal
+
+
+def as_normal_map(t):
+    # a glTF normal map as Unreal reads one: linear, normal-map compression, the green flipped (glTF's is OpenGL's)
+    try:
+        t.set_editor_property('srgb', False)
+        t.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_NORMALMAP)
+        t.set_editor_property('flip_green_channel', True)
+        unreal.EditorAssetLibrary.save_loaded_asset(t)
+    except Exception as e:  # noqa: BLE001 — UNPINNED property names
+        unreal.log_warning('[mojulo] normal map settings: ' + str(e))
+    return t
+
+
+def first_texture(mat_iface):
+    base, normal = textures_of(mat_iface) if mat_iface is not None else (None, None)
+    if base is not None and normal is not None:
+        NORMAL_OF[base.get_path_name()] = normal
+    return base
+
+
+def unlit_instance(master, tex, cache, prefix=None):
+    key = tex.get_path_name() if tex is not None else '__white__'
+    if key in cache:
+        return cache[key]
+    name = (prefix or 'MI_MojuloLitRelief_') + (tex.get_name() if tex is not None else 'White')
+    path = MAT_ROOT + '/' + name
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        mic = unreal.EditorAssetLibrary.load_asset(path)
+    else:
+        tools = unreal.AssetToolsHelpers.get_asset_tools()
+        mic = tools.create_asset(name, MAT_ROOT, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        unreal.MaterialEditingLibrary.set_material_instance_parent(mic, master)
+        if tex is not None:
+            unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mic, 'BaseTex', tex)
+        normal = NORMAL_OF.get(key)
+        if normal is not None and prefix is None:
+            unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mic, 'NormalTex', as_normal_map(normal))
+            note('relief', instance=name, normal=normal.get_path_name())
+        unreal.EditorAssetLibrary.save_asset(path)
+    cache[key] = mic
+    return mic
+
+`;
+
+function importerPy({ ref, lit = false, figureClips = {}, relief = false } = {}) {
   return `# generated by mojulo export-unreal — do not hand-edit; re-mint from recipe/
 """Mojulo asset importer (Unreal editor Python).
 
@@ -715,7 +824,7 @@ def preview_rig():
         unreal.log_warning('[mojulo] sky light setup: ' + str(e))
 
 
-def glb_light_count(glb_path):
+${lit && relief ? RELIEF_PY : ''}def glb_light_count(glb_path):
     """The lights the GLB carries (KHR_lights_punctual on its nodes): what Interchange should bring into the map."""
     doc = glb_doc(glb_path, 'light scan') or {}
     return sum(1 for n in doc.get('nodes') or [] if 'KHR_lights_punctual' in (n.get('extensions') or {}))
@@ -984,10 +1093,10 @@ ${RETARGET_NOTE(`Content/Mojulo/${name}`)}` : ''}
  * emitUnrealAsset — one asset's pack text: the importer, the guide, the README. The assembler (unreal-pack.js) ships
  * model.glb and recipe/ beside them.
  */
-export function emitUnrealAsset({ ref, kind = null, title = null, manifestHash, lit = false, figure = null, remint = null }) {
-  const name = unrealAssetName(ref), heading = title ?? ref;
+export function emitUnrealAsset({ ref, kind = null, title = null, manifestHash, lit = false, figure = null, remint = null, relief = false }) {
+  const name = unrealAssetName(ref), heading = title ?? ref, bound = !!(lit && relief);
   const files = [
-    { file: 'import_mojulo.py', text: importerPy({ ref, lit, figureClips: figure ? { [figure.name]: `${figure.name}:${figure.clip}` } : {} }) },
+    { file: 'import_mojulo.py', text: importerPy({ ref, lit, figureClips: figure ? { [figure.name]: `${figure.name}:${figure.clip}` } : {}, relief: bound }) },
     { file: 'IMPORT-GUIDE.md', text: importGuide({ ref, title: heading, figure, lit }) },
     {
       file: 'README.md',
@@ -1002,7 +1111,7 @@ project — follow \`IMPORT-GUIDE.md\`.
 
 Unreal takes mojulo's assets, not its games or levels.
 
-- travels: the geometry at its own scale, its vertex colours and painted textures${lit ? ' (as real PBR materials Unreal lights)' : ' (unlit, the light baked into them)'}, the GLB's lights${figure ? ', the figure\'s skeleton, clips and face morphs' : ''}
+- travels: the geometry at its own scale, its vertex colours and painted textures${lit ? ' (as real PBR materials Unreal lights)' : ' (unlit, the light baked into them)'}, the GLB's lights${figure ? ', the figure\'s skeleton, clips and face morphs' : ''}${bound ? ', and the figure\'s relief (a normal map baked from its own field, its tangents beside it, on the lit material\'s NormalTex)' : ''}
 - one material: every slot takes mojulo's vertex-colour material; there are no per-surface materials (skin, cloth, metal) to swap yet
 - stays mojulo's: the look the web build draws over the surface (its tone, ink, grass, sway, glow, sky, water, effects) and any game behaviour
 

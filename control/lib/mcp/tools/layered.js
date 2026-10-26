@@ -258,7 +258,8 @@ function realisticRecipe(recipe, hero) {
   // and the brows on the target's rung; a hero drawn for no target its skin whole: hero-one-skin.js ONE_SKIN_RUNGS,
   // hero-head-layers.js HEAD_BUDGET)
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null });
+  // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field)
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -323,13 +324,14 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null } = {}) {
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false } = {}) {
   const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
-  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung]);
+  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
   else {
-    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(rung ? { opts: { oneSkin: ONE_SKIN_RUNGS[rung] } } : {}) });
+    const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
+    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(Object.keys(opts).length ? { opts } : {}) });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
@@ -699,8 +701,10 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
  * `physique` at mint, so a later retune never moves a stored hero. 2: the relational head as ONE SKIN (hero-one-skin.js);
  * 3: the neck's column leaning forward up to the skull (body-relational-builds.js CERVICAL_NECK); 4: the limbs' masses
- * rounded out, each joint filled between its bellies (body-relational-builds.js ROUND_OUT) */
-export const REALISTIC_LAWS_VERSION = 4;
+ * rounded out, each joint filled between its bellies (body-relational-builds.js ROUND_OUT); 5: the one skin's relief
+ * baked from its own field into a normal map on the lit engine export (epidermis/dermal-relief.js; its fit keeps the
+ * neck's column it was joined to, `headFit.column`, so the field can be rebuilt), the body as laws 4 built it */
+export const REALISTIC_LAWS_VERSION = 5;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
@@ -1470,7 +1474,8 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     // the painterly look (era/looks.js): its conventions built and still planned
     ...(hero.painterly ? { painterly: lookReadout('painterly-toon') } : {}),
     ...(budget && heroTarget(hero) ? { density: { ...castDensityReadout(plan, heroTarget(hero), budget.triangles), era: heroEra(hero), ...(hero.geocube ? { geocube: readGeocube(hero.geocube).id } : {}),
-      ...((pl) => (pl.length ? { planned: pl } : {}))(eraCastConventions(heroEra(hero)).filter((c) => c.status === 'planned').map((c) => c.id)) } } : {}),
+      ...((pl) => (pl.length ? { planned: pl } : {}))(eraCastConventions(heroEra(hero)).filter((c) => c.status === 'planned').map((c) => c.id)),
+      ...((pt) => (pt.length ? { partial: pt } : {}))(eraCastConventions(heroEra(hero)).filter((c) => c.status === 'partial').map((c) => c.id)) } } : {}),
     ...(warnings.length ? { warnings } : {}) };
 }
 

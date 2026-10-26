@@ -49,8 +49,15 @@ const playerSuit = (score) => {
 /** The honest-loss ledger for one level. Since 0.2.0 the mechanics vocabulary
  * is interpreted live by Runtime/MojuloLevel.cs — only out-of-vocabulary
  * gameplay and non-geometry channels remain losses. */
-export function unityLevelLedger(score, { gameMode = false } = {}) {
+export function unityLevelLedger(score, { gameMode = false, relief = false } = {}) {
   const ledger = { ...score.ledger };
+  // a lit figure carrying its relief (the realistic hero's normal map, epidermis/dermal-relief.js): a Unity pack ships its
+  // figures as rigid parts, without their skin's atlas, so the map does not ride the pack. Absent ⇒ no line.
+  if (relief) {
+    ledger.relief_not_carried = {
+      note: 'the figure\'s relief (a normal map baked from its own field, with its tangents) rides the lit skinned GLB, and this pack ships its figures as rigid parts without their skin\'s atlas: it does not travel here. export_model { skinned: true, lit: true } writes the GLB that carries it, which glTFast imports with the map on its lit material and the tangents as given',
+    };
+  }
   // skin-over-mesh phase 3: textures are a CARRIED line — glTFast imports the
   // GLB's TEXCOORD_0 + embedded PNGs as albedo maps, no importer work needed.
   if (Array.isArray(score.textures) && score.textures.length) {
@@ -1679,9 +1686,9 @@ const readmeProvenance = ({ ref, manifestHash, remint }) => `## Provenance
  * The assembler (unity-pack.js) ships model.glb, score.json, recipe/, audio/,
  * portability.json, and mints .meta files for everything.
  */
-export function emitUnityProject({ ref, score, manifestHash, packFolder = 'MojuloPack', audioFile = null, remint = null }) {
+export function emitUnityProject({ ref, score, manifestHash, packFolder = 'MojuloPack', audioFile = null, remint = null, relief = false }) {
   const title = score.title ?? ref;
-  const ledger = unityLevelLedger(score);
+  const ledger = unityLevelLedger(score, relief ? { relief } : {});
   const files = [
     ...kernelFiles({ packFolder }),
     { file: 'IMPORT-GUIDE.md', text: importGuideWorld({ title, refName: ref, score, ledger }) },

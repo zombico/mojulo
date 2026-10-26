@@ -5,7 +5,8 @@
  * CRT frame. A level's era is its geocube's; a hero in the cube takes it.
  *
  * Each era `extends` the one before and adds its conventions. Every convention carries a status (`built`: mojulo makes
- * it today; `planned`: named so a readout can say it is missing, never claimed). `world` is the world side's status in
+ * it today; `partial`: made for part of the cast, its `note` says which; `planned`: named so a readout can say it is
+ * missing, never claimed). `world` is the world side's status in
  * the cosmos reality facet's terms (built | partial | absent). Data, not code paths.
  */
 export const ERAS = Object.freeze({
@@ -29,7 +30,8 @@ export const ERAS = Object.freeze({
     cast: Object.freeze({
       light: 'live-key-over-baked-indirect',
       conventions: Object.freeze([
-        { id: 'relief-in-normal', line: 'Seams, folds and plate edges live in a normal map baked from the figure\'s own field.', status: 'planned' },
+        // partial: the realistic hero's one-skin head, on the lit engine export (epidermis/dermal-relief.js)
+        { id: 'relief-in-normal', line: 'Seams, folds and plate edges live in a normal map baked from the figure\'s own field.', status: 'partial', note: 'built for the realistic hero\'s head (its one skin and ears, minted under realistic laws 5) on the lit engine export; planned: its body, hands and armour, the game body and the anime heads, and the World page (its fills are unlit)' },
         { id: 'albedo-unlit', line: 'Vertex colour holds the material\'s colour and its cavity only; the light is live.', status: 'planned' },
         { id: 'material-by-response', line: 'Skin, cloth, metal and visor are told apart by how they reflect, each its own material.', status: 'planned' },
         { id: 'hair-cards', line: 'Hair as alpha cards over a scalp cap.', status: 'planned' },
