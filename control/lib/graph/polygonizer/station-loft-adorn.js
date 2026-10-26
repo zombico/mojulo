@@ -631,7 +631,8 @@ function castMouthpiece(fig, S) {
 //   earpiece { r, h, cap?, out }  a disc at the temple, `out` (m) past the cast (over the hair);  antenna { len, r, back, up }  a spike off the cast, back and up
 //   scope { r, len, lensGroup }  a tube standing forward with a lens at its end (night vision)
 //   lens { r, h }  a small domed lens (`group` default MaskLens);  arm { to, r }  a rigid bar standing off the cast to `to`
-//   peak { w, len, t, tilt, taper }  a brim standing forward off the cast (a motocross helmet's peak)
+//   peak { span, len, t, tilt, curl, droop }  a brim curved across the shell's front (a motocross helmet's peak); without
+//         `span` { w, len, t, tilt, taper } a flat board
 function castFittings(S, { on, nOf, hz, d, th }) {
   const out = [], Z = hz;
   // (a fitting's disc FLAT on top, its edge bevelled to `bevel` of its radius: a lens, a cap, a scope's glass, never the
@@ -658,6 +659,13 @@ function castFittings(S, { on, nOf, hz, d, th }) {
     if (F.kind === 'lens') { const p = on(fx, fz, -0.0005); if (!p) continue; out.push({ ...disc(p, nOf(fx, fz), F.r ?? 0.006, F.h ?? 0.004, 14, 0.6), group: F.group ?? 'MaskLens' }); continue; }
     if (F.kind === 'arm') { const [tx, tz0] = F.to, tz = Z(tz0), pts = Array.from({ length: 10 }, (_, i) => { const t = i / 9; return on(fx + (tx - fx) * t, fz + (tz - fz) * t, (F.lift ?? 0.004) + (F.arch ?? 0.006) * dmath.sin(Math.PI * t)); }).filter(Boolean);
       if (pts.length > 3) out.push({ ...sweep(pts, pts.slice(0, -1).map(() => F.r ?? 0.0025), 6), group: g }); continue; }
+    // (a CURVED peak, `span` (eye units either side of `at`): a strip across the shell's front, each column standing off
+    // along the shell's own outward line there, sloping down `tilt`, `len` long, its edge lipped up `curl` (m), thinner there)
+    if (F.kind === 'peak' && F.span) { const K = 11, len = F.len ?? 0.055, tl = F.tilt ?? 0.35, t = F.t ?? 0.004, cu = F.curl ?? 0.006;
+      const cols = Array.from({ length: K }, (_, i) => { const q = -1 + (2 * i) / (K - 1), X = fx + q * F.span, zz = fz - (F.droop ?? 0.12) * q * q, p0 = on(X, zz, -0.003); if (!p0) return null;
+        const n0 = nOf(X, zz), h = unit([n0[0], n0[1], 0]), fwd = unit(add(mul(h, dmath.cos(tl)), [0, 0, -dmath.sin(tl)])), L = len * (1 - 0.35 * q * q), tip = add(add(p0, mul(fwd, L)), [0, 0, cu]), tt = t * (1 - 0.3 * Math.abs(q));
+        return [add(p0, [0, 0, tt / 2]), add(tip, [0, 0, tt * 0.3]), add(tip, [0, 0, -tt * 0.3]), add(p0, [0, 0, -tt / 2])]; }).filter(Boolean);
+      if (cols.length > 3) out.push({ ...loftParts(cols, mean(cols[0]), mean(cols[cols.length - 1])), group: g }); continue; }
     if (F.kind === 'peak') { const p = on(fx, fz, -0.002); if (!p) continue; const n0 = nOf(fx, fz), fwd = unit(add(mul(unit([n0[0], n0[1], 0]), dmath.cos(F.tilt ?? 0.25)), [0, 0, -dmath.sin(F.tilt ?? 0.25)])), side = unit(cross([0, 0, 1], fwd)), w = F.w ?? 0.14, len = F.len ?? 0.06, t = F.t ?? 0.004;
       const ring = (c, hw, tt) => [add(add(c, mul(side, -hw)), [0, 0, tt]), add(add(c, mul(side, hw)), [0, 0, tt]), add(add(c, mul(side, hw)), [0, 0, -tt]), add(add(c, mul(side, -hw)), [0, 0, -tt])];
       const A = ring(add(p, mul(fwd, -0.006)), w / 2, t / 2), B = ring(add(p, mul(fwd, len)), (w / 2) * (F.taper ?? 0.85), t / 2); out.push({ ...loftParts([A, B], mean(A), mean(B)), group: g }); continue; }

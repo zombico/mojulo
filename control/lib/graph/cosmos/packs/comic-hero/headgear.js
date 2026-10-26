@@ -227,10 +227,23 @@ export const EYEGEAR = Object.freeze({
 // openings by the cowl's mouth words and a `window`, a visor in it by `eyes.treat`; fittings and ornaments on the shell
 const VISOR = (o = {}) => ({ treat: 'lens', group: 'HelmetVisor', dome: 0.004, ...o });
 const STRIPE = [{ kind: 'lines', path: 'sagittal', style: 'double', w: 0.006, apart: 0.012, group: 'HelmetTrim' }];
+// THE MOTOCROSS family: one shell and its dials (a curved PEAK over the window, the WINDOW, the chin bar's VENTS, a VISOR in
+// the window, a CREST over the crown, STRIPES), each variation the motocross helmet with some of them changed
+const MOTO = ({ peak = {}, window = {}, vents = null, visor = false, crest = null, stripe = true, mouth = 'cover', jaw = 1.0 } = {}) => ({
+  mouth, jaw, nape: 0.05, pad: 0.02, shell: 24, thick: 0.004, window: { shape: 'shield', w: 2.3, top: 1.1, bottom: -0.8, notch: 0.3, ...window },
+  eyes: visor ? VISOR(typeof visor === 'object' ? visor : {}) : { treat: 'open' }, rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' }, ...(crest ? { ridge: crest } : {}),
+  fittings: [...(peak === false ? [] : [{ kind: 'peak', at: [0, (window.top ?? 1.1) + 0.32], span: 1.7, len: 0.055, tilt: 0.38, curl: 0.006, droop: 0.15, group: 'HelmetTrim', ...peak }]),
+    ...(vents ? [{ kind: 'grille', at: [0, 'mouth-0.15'], rows: vents, w: 0.55, step: 0.2, bar: 0.0028, group: 'HelmetTrim' }] : [])],
+  ...(stripe ? { ornaments: STRIPE } : {}) });
 export const HELMETS = Object.freeze({
   fullFace: { mouth: 'cover', jaw: 0.95, nape: 0.05, pad: 0.018, shell: 24, thick: 0.004, window: { shape: 'shield', w: 2.35, top: 1.15, bottom: -0.95, notch: 0.15 }, eyes: VISOR(), rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' }, ornaments: STRIPE },
-  motocross: { mouth: 'cover', jaw: 1.0, nape: 0.05, pad: 0.02, shell: 24, thick: 0.004, window: { shape: 'shield', w: 2.3, top: 1.1, bottom: -0.8, notch: 0.3 }, eyes: { treat: 'open' }, rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' },
-    fittings: [{ kind: 'peak', at: [0, 1.85], w: 0.17, len: 0.075, tilt: 0.3, group: 'HelmetTrim' }], ornaments: STRIPE },
+  motocross: MOTO(),
+  enduro: MOTO({ peak: { len: 0.045, span: 1.5 }, vents: 3 }),                                                     // a shorter peak, a vented chin bar
+  downhill: MOTO({ peak: { span: 1.65, len: 0.05, tilt: 0.38 }, window: { w: 2.45, top: 1.2, bottom: -0.9, notch: 0.25 }, vents: 2 }),   // a wide window for big goggles, a broad peak
+  adventure: MOTO({ peak: { len: 0.05, tilt: 0.45 }, visor: { group: 'HelmetVisor' }, stripe: false }),                // a smoked visor under the peak: the dual-sport
+  bmx: MOTO({ peak: { len: 0.06, tilt: 0.5, curl: 0.008 }, vents: 4, window: { w: 2.2, top: 1.05, bottom: -0.75 } }),   // a steep peak, a heavily vented chin bar
+  desert: MOTO({ mouth: 'open', jaw: 0.7, peak: { len: 0.05, span: 1.6, tilt: 0.3 }, stripe: false }),                // the vintage open face under a peak
+  raider: MOTO({ peak: { len: 0.05, span: 1.55, tilt: 0.42 }, window: { shape: 'visor', w: 2.3, h: 0.8, curve: 0.05 }, visor: { group: 'HelmetVisor' }, crest: { w: 0.22, h: 0.006 }, vents: 2 }),   // a narrow visor slot, a crest over the crown
   jet: { mouth: 'open', opening: 1.2, brow: 1.45, jaw: 0.75, nape: 0.05, pad: 0.016, shell: 24, thick: 0.004, rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' } },
   tactical: { mouth: 'open', opening: 1.25, brow: 1.55, jaw: 0.25, nape: 0.02, pad: 0.014, shell: 20, thick: 0.004, rim: { w: 0.08, h: 0.0015, group: 'HelmetTrim' },
     fittings: [{ kind: 'earpiece', at: [0, 2.35], r: 0.014, h: 0.008, group: 'HelmetTrim', capGroup: 'HelmetTrim' }, { kind: 'earpiece', at: [2.9, 0.9], r: 0.012, h: 0.006, group: 'HelmetTrim', capGroup: 'HelmetTrim' }, { kind: 'earpiece', at: [-2.9, 0.9], r: 0.012, h: 0.006, group: 'HelmetTrim', capGroup: 'HelmetTrim' }] },
@@ -258,6 +271,12 @@ export const HEADGEAR = Object.freeze({
   // ── HELMETS ──
   bikerHelmet: HELMETED('the biker helmet: a full-face shell, a smoked visor, a double racing stripe over the crown; the rider', 'fullFace', { Helmet: '#c62828', HelmetVisor: '#20252c', HelmetTrim: '#f2f2f2' }),
   motocrossHelmet: HELMETED('the motocross helmet: a full-face shell with an open window for goggles, a peak over the brow, a stripe; the dirt racer', 'motocross', { Helmet: '#f2c230', HelmetTrim: '#1b1d22' }),
+  enduroHelmet: HELMETED('the enduro helmet: the motocross shell with a shorter peak and a vented chin bar; the trail rider', 'enduro', { Helmet: '#ff6a13', HelmetTrim: '#1b1d22' }),
+  downhillHelmet: HELMETED('the downhill helmet: a wide window for big goggles, a broad peak, a vented chin bar; the mountain racer', 'downhill', { Helmet: '#2b6cb0', HelmetTrim: '#f2f2f2' }),
+  adventureHelmet: HELMETED('the adventure helmet: a smoked visor under a short peak; the dual-sport traveller', 'adventure', { Helmet: '#d9d6cc', HelmetTrim: '#3a3d43', HelmetVisor: '#23282f' }),
+  bmxHelmet: HELMETED('the BMX helmet: a steep peak, a heavily vented chin bar, a stripe; the street rider', 'bmx', { Helmet: '#1f9e5a', HelmetTrim: '#101215' }),
+  desertHelmet: HELMETED('the desert helmet: a vintage open face under a peak; the rally rider', 'desert', { Helmet: '#c9b48a', HelmetTrim: '#5a3b22' }),
+  raiderHelmet: HELMETED('the raider helmet: a narrow visor slot, a crest over the crown, a peak, a vented chin; the wasteland raider', 'raider', { Helmet: '#3a3530', HelmetTrim: '#b3261e', HelmetVisor: '#151719' }),
   jetHelmet: HELMETED('the jet helmet: an open-face shell, the whole face shown, a rim round the opening; the scooter rider', 'jet', { Helmet: '#e8e2d4', HelmetTrim: '#6b4a2b' }),
   pilotHelmet: HELMETED('the pilot helmet: an open-face shell, a dark visor standing off over the eyes, an oxygen mask with its hose; the ace', () => [...helmetKit('jet', { over: { brow: 1.6 } }),
     ...eyegearKit({ outline: { shape: 'shield', w: 2.2, top: 1.25, bottom: -0.5, notch: 0.35 }, eyes: { treat: 'lens', shape: 'shield', inset: [0.96, 0.9], dome: 0, group: 'HelmetVisor' }, group: 'HelmetTrim', thick: 0.003, front: { curve: true, shell: true, out: 0.026, max: 0.045 } }, { id: 'pilotVisor' }),

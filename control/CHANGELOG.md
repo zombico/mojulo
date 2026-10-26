@@ -96,6 +96,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   racing stripe), the motocross helmet (an open window, a peak), the jet helmet, the pilot helmet (a jet shell, a dark
   shield visor standing off, an oxygen mask and its hose, composed from the eyegear and the mouthpiece), the tactical bump
   helmet and the space helmet.
+- The peak fitting curves (`span`): a strip across the shell's front just over the window, each column standing off along
+  the shell's own outward line, sloping down and lipped up at its edge (it was a flat board standing high on the dome).
+  The motocross helmet is the base of a family built from its dials (`MOTO`: the peak, the window, the chin bar's vents,
+  a visor, a crest, stripes): the enduro, downhill, adventure, BMX, desert and raider helmets.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
