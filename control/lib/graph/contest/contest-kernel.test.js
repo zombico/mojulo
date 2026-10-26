@@ -3,7 +3,7 @@
 // (no bounce, three touches, side-out), a sprint (the gun, the false start, placings by time), the long jump
 // (attempts, the foul, the best), a goal game (the clock's periods, a draw or overtime, a free restart).
 import { describe, it, expect } from 'vitest';
-import { buildContest, contestRead, contestStart, contestLegal, contestApply, contestDisplay, contestRegion, contestInside, contestSideOf, contestPlayers, contestLieOf } from './contest-kernel.js';
+import { buildContest, contestRead, contestStart, contestLegal, contestApply, contestDisplay, contestRegion, contestInside, contestSideOf, contestPlayers, contestLieOf, contestServeRegion } from './contest-kernel.js';
 import { tennis } from './fixtures/tennis.js';
 import { golf, bowling, soccer, hockey } from './sports.js';
 import { volleyball } from './fixtures/volleyball.js';
@@ -237,11 +237,51 @@ describe('volleyball: no bounce, three touches, side-out', () => {
     r = play(V, r.S, [srvTouch, { kind: 'touch', who: `${rec}1`, at: [0, Y(rec, 3)] }, { kind: 'touch', who: `${rec}1`, at: [0, Y(rec, 2)] }]);
     expect(r.calls.at(-1)).toMatchObject({ side: srv, why: 'double-touch' });
     r = play(V, r.S, [srvTouch, { kind: 'touch', who: `${rec}1`, at: [0, Y(rec, 3)] }, { kind: 'touch', who: `${rec}2`, at: [0, Y(rec, 2)] }, { kind: 'bounce', at: [0, Y(srv, 4)] }]);
-    expect(r.calls.at(-1)).toMatchObject({ kind: 'point', side: rec, why: 'double-bounce' });
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'point', side: rec, why: 'down' });   // no bounce let: simply down
     expect(r.S.server).toBe(rec); expect(r.S.restart.who).toBe(`${rec}2`);   // side-out: the receivers serve, rotated one
     expect(r.S.score[rec][0]).toBe(1); expect(r.S.score[srv][0]).toBe(2);
     r = play(V, r.S, [srvTouch, { kind: 'bounce', at: [0, Y(srv, 20)] }]);   // the serve long: one fault is the point
     expect(r.calls.at(-1)).toMatchObject({ kind: 'point', side: srv, why: 'double-fault' });
+  });
+});
+
+describe('the arcade rules\' serve and rally words', () => {
+  // a small court of the arcade's (arcade-rules.js writes these words): one fixture per word
+  const court = { frame: [2, 4], mirror: 'half-turn', regions: { half: { rect: [-1, -2, 1, 0] }, 'service-right': { rect: [0, -2, 1, 0] }, 'service-left': { rect: [-1, -2, 0, 0] } } };
+  const spec = (serve, rally = {}) => ({ shape: 'match', court, scoring: { ladder: [{ unit: 'game', to: 11, by: 2 }, { unit: 'match', to: 1 }] }, serve: { into: 'half', faults: 1, ...serve }, rally: { in: 'half', ...rally } });
+  const at = (side, y, x = 0) => [x, side === 'a' ? -y : y];
+  const serve = (S) => ({ kind: 'touch', who: S.restart.who, at: at(S.server, 2.3) });
+  it('a serve that bounces on its own half first: that bounce, then the other half\'s; straight over it is a fault', () => {
+    const C = contestRead(spec({ bounce: 'own', rotate: 'point', every: 2 })), S0 = contestStart(C, 4), sv = S0.server, rc = sv === 'a' ? 'b' : 'a';
+    expect(C.serve.bounce).toBe('own');
+    let r = play(C, S0, [serve, { kind: 'bounce', at: at(sv, 1) }, { kind: 'bounce', at: at(rc, 1.5) }, { kind: 'bounce', at: at(rc, 3) }]);
+    expect(r.calls.map((c) => c.kind)).toEqual(['serve', 'point']);
+    expect(r.calls.at(-1)).toMatchObject({ side: sv, why: 'double-bounce' });   // in, and never returned
+    r = play(C, r.S, [serve, { kind: 'bounce', at: at(rc, 1.5) }]);
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'point', side: rc, why: 'double-fault' });   // one fault the point
+    expect(r.S.server).toBe(rc);   // two points served: the serve passes
+  });
+  it('the box by the server\'s own score (even the first, odd the second), not the points played', () => {
+    const C = contestRead(spec({ into: ['service-right', 'service-left'], rotate: 'side-out', by: 'score' }, { bounces: 0 }));
+    const S0 = contestStart(C, 4), sv = S0.server;
+    expect(contestServeRegion(C, S0)).toBe('service-right');
+    const S1 = { ...S0, score: { ...S0.score, [sv]: [3, 0] }, played: 2 };
+    expect(contestServeRegion(C, S1)).toBe('service-left');   // the points played say right; the server's 3 says left
+    expect(contestServeRegion(contestRead(spec({ into: ['service-right', 'service-left'] })), S1)).toBe('service-right');
+    expect(() => contestRead(spec({ by: 'set' }))).toThrow(/serve\.by is points .* or score/);
+    expect(() => contestRead(spec({ bounce: 'twice' }))).toThrow(/serve\.bounce is own/);
+  });
+  it('the two-bounce rule: the return and the third shot off the bounce; a volley before is the point; then volleys play', () => {
+    const C = contestRead(spec({}, { mustBounce: 2 })), S0 = contestStart(C, 4), sv = S0.server, rc = sv === 'a' ? 'b' : 'a';
+    const hit = (side, who = `${side}1`) => ({ kind: 'touch', who, at: at(side, 1.5) });
+    // the return volleyed before its bounce: the serve's point (the kernel's volleyed serve); the third shot volleyed: the rule's
+    let r = play(C, S0, [serve, { kind: 'bounce', at: at(rc, 1) }, hit(rc), hit(sv)]);
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'point', side: rc, why: 'volley-before-bounce' });
+    r = play(C, r.S, [serve, { kind: 'bounce', at: at(r.S.server === 'a' ? 'b' : 'a', 1) }]);
+    const s2 = r.S.server, r2 = s2 === 'a' ? 'b' : 'a';
+    r = play(C, r.S, [hit(r2), { kind: 'bounce', at: at(s2, 1) }, hit(s2), hit(r2)]);   // off the bounce twice, then a volley
+    expect(r.calls.filter((c) => c.kind === 'point')).toEqual([]);
+    expect(() => contestRead(spec({}, { mustBounce: 2, bounces: 0 }))).toThrow(/mustBounce asks a bounce/);
   });
 });
 

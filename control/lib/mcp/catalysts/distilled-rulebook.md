@@ -26,6 +26,12 @@ calls every point, fault, out, foul, goal, roll and restart from that data. Your
 which of the rulebook's sentences are the kernel's, which are the ball's or the body's, which the primitives cannot
 carry at all. The last kind is written down by name. Nothing is approximated in silence.
 
+**First, the arcade rules.** Many ball games are already in the book as ARCADE CARDS (`lib/graph/contest/arcade-rules.js`,
+read through `get_game_vocab({ id: 'contest-arcade' })`): a sport distilled to modules (its court, score, serve,
+rally, body), each card naming what it leaves out. A variant of one is a word, not a rulebook: `{ id, from: <card>,
+…a module's words }` (`{ id: 'pong-21', from: 'pingpong', score: { to: 21 } }`). Use this catalyst when the modules
+cannot say the rules: the deeper implementation, written out whole, with its own `omits`.
+
 The book's own sports are the worked examples: read `lib/graph/contest/sports.js` through
 `get_game_vocab({ id: 'gameworld-quick-contest' })` and the kernel's shape through the error it throws when a spec
 is wrong (it teaches). Tennis is a net game written out, golf and bowling are turn sports, soccer and hockey are

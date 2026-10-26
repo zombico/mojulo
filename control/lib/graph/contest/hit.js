@@ -48,6 +48,12 @@ export const HIT_VERBS = Object.freeze({
   throw: Object.freeze({ arc: 30, lift: 20, spin: 'back', rate: 5, power: 0.6, hands: 1, swing: null }),
   bat: Object.freeze({ arc: 25, lift: 15, spin: 'back', rate: 30, power: 1.5, hands: 2, swing: 'bat' }),
   putt: Object.freeze({ arc: 0, lift: 0, spin: 'top', rate: 2, power: 0.1, hands: 2, swing: null }),
+  // the underarm serve (pickleball's, badminton's low serve) and badminton's clear,
+  // the overhead that lifts the shuttle to the back: no clip yet
+  underhand: Object.freeze({ arc: 8, lift: 14, spin: 'back', rate: 6, power: 0.8, hands: 1, swing: null }),
+  clear: Object.freeze({ arc: 28, lift: 22, spin: 'none', rate: 0, power: 1, hands: 1, swing: null }),
+  // table tennis's short serve, struck down onto the server's own half off the open hand
+  drop: Object.freeze({ arc: -16, lift: 12, spin: 'none', rate: 0, power: 0.6, hands: 1, swing: null }),
   // the turn sports' (turn-sim.js): the club's launch is the verb's arc and backspin, the charge the tip's share; the
   // bowling roll leaves the hand flat with its hook as the stick's spin
   drive: Object.freeze({ arc: 11, lift: 5, spin: 'back', rate: 45, power: 1, hands: 2, swing: null }),
@@ -141,13 +147,16 @@ export function hitVelocity({ verb, register = 'realistic', facing = 0, stick = 
 /**
  * THE AIMED ELEVATION — the arc that lands a shot of speed v from height h at range D on gravity g, in degrees: the low
  * arc, lifted until it clears the cord by a hand when it would not (`net`: { at, height }, the cord so far along the
- * path and so high; the shot then lands longer for it), or 45 when nothing reaches. A mind reads its stick from it; the
- * realistic register's player must find it.
+ * path and so high, cleared by `margin`, a hand (0.2 m) unless said; the shot then lands longer for it), or 45 when
+ * nothing reaches. A mind reads its stick from it; the
+ * realistic register's player must find it. `drag` (per metre, ball-card.js airDrag): the shot flown through its own
+ * air, a shuttle's, in place of the vacuum's closed form.
  */
-export function aimedElevation(v, h, D, g, net = null) {
-  const range = (th) => { const s = Math.sin(th), co = Math.cos(th); const vz = v * s, disc = vz * vz + 2 * g * h; return disc < 0 ? 0 : (v * co * (vz + Math.sqrt(disc))) / g; };
-  const zAt = (th, d) => { const co = Math.cos(th); return h + d * Math.tan(th) - (g * d * d) / (2 * v * v * co * co); };
-  const clears = (th) => !net || !(net.at > 0) || net.at >= range(th) || zAt(th, net.at) >= net.height + 0.2;   // a cord past the landing is no cord
+export function aimedElevation(v, h, D, g, net = null, drag = 0) {
+  const F = drag > 0 ? dragFlights(v, h, g, drag) : null;
+  const range = F ? (th) => F(th).range : (th) => { const s = Math.sin(th), co = Math.cos(th); const vz = v * s, disc = vz * vz + 2 * g * h; return disc < 0 ? 0 : (v * co * (vz + Math.sqrt(disc))) / g; };
+  const zAt = F ? (th, d) => F(th).zAt(d) : (th, d) => { const co = Math.cos(th); return h + d * Math.tan(th) - (g * d * d) / (2 * v * v * co * co); };
+  const clears = (th) => !net || !(net.at > 0) || net.at >= range(th) || zAt(th, net.at) >= net.height + (net.margin ?? 0.2);   // a cord past the landing is no cord
   const Q = Math.PI / 4;
   if (range(Q) < D) return 45;
   let lo = -0.3, hi = Q;
@@ -162,16 +171,45 @@ export function aimedElevation(v, h, D, g, net = null) {
 /**
  * THE AIMED SHOT — the arcade's (the cartoon tennis lands where it aims): the fastest speed up to `v` whose arc clears
  * the cord and still lands at D, and that arc. A shot too fast to land in gives up speed for its depth; nothing is ever
- * aimed into the net or past the line on purpose.  → { speed, elevationDeg }
+ * aimed into the net or past the line on purpose. `slack`: how far past D a landing still fits (half a metre; a
+ * table's game less).  → { speed, elevationDeg }
  */
-export function aimedShot(v, h, D, g, net = null) {
-  const landsAt = (u) => { const th = (aimedElevation(u, h, D, g, net) * Math.PI) / 180, s = Math.sin(th), co = Math.cos(th); const vz = u * s, disc = vz * vz + 2 * g * h; return disc < 0 ? 0 : (u * co * (vz + Math.sqrt(disc))) / g; };
-  const fits = (u) => landsAt(u) <= D + 0.5;
-  if (fits(v)) return { speed: hr4(v), elevationDeg: aimedElevation(v, h, D, g, net) };
+export function aimedShot(v, h, D, g, net = null, drag = 0, slack = 0.5) {
+  const landsAt = drag > 0 ? (u) => dragFlights(u, h, g, drag)((aimedElevation(u, h, D, g, net, drag) * Math.PI) / 180).range
+    : (u) => { const th = (aimedElevation(u, h, D, g, net) * Math.PI) / 180, s = Math.sin(th), co = Math.cos(th); const vz = u * s, disc = vz * vz + 2 * g * h; return disc < 0 ? 0 : (u * co * (vz + Math.sqrt(disc))) / g; };
+  const fits = (u) => landsAt(u) <= D + slack;
+  if (fits(v)) return { speed: hr4(v), elevationDeg: aimedElevation(v, h, D, g, net, drag) };
   let lo = 4, hi = v;
-  if (!fits(lo)) return { speed: hr4(lo), elevationDeg: aimedElevation(lo, h, D, g, net) };
-  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
-  return { speed: hr4(lo), elevationDeg: aimedElevation(lo, h, D, g, net) };
+  if (!fits(lo)) return { speed: hr4(lo), elevationDeg: aimedElevation(lo, h, D, g, net, drag) };
+  for (let i = 0; i < (drag > 0 ? 20 : 40); i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+  return { speed: hr4(lo), elevationDeg: aimedElevation(lo, h, D, g, net, drag) };
+}
+
+/**
+ * A shot's flights through its own air (`drag`, per metre: the quadratic drag's ½ρAC_d/m, a shuttle's), flown as a point
+ * at 120 Hz by the midpoint rule from height h at speed v: → th ↦ { range, zAt(d) } (memoised by the elevation). The aim through the air the
+ * vacuum's closed form cannot say.
+ */
+function dragFlights(v, h, g, k) {
+  const memo = new Map(), dt = 1 / 120;
+  return (th) => {
+    if (memo.has(th)) return memo.get(th);
+    let x = 0, z = h, vx = v * Math.cos(th), vz = v * Math.sin(th), range = 0;
+    const xs = [0], zs = [h];
+    for (let i = 0; i < 1200; i++) {
+      // the midpoint rule: the drag read half a step on, so the coarse step keeps the landing to a few centimetres
+      const s0 = Math.hypot(vx, vz), mx = vx - k * s0 * vx * dt / 2, mz = vz - (g + k * s0 * vz) * dt / 2, sm = Math.hypot(mx, mz);
+      const px = x, pz = z;
+      x += mx * dt; z += mz * dt; vx -= k * sm * mx * dt; vz -= (g + k * sm * mz) * dt;
+      xs.push(x); zs.push(z);
+      if (z <= 0) { range = px + (x - px) * (pz / (pz - z)); break; }
+      range = x;
+    }
+    const zAt = (d) => { for (let i = 1; i < xs.length; i++) if (xs[i] >= d) { const f = (d - xs[i - 1]) / Math.max(1e-9, xs[i] - xs[i - 1]); return zs[i - 1] + (zs[i] - zs[i - 1]) * f; } return -Infinity; };
+    const out = { range, zAt };
+    memo.set(th, out);
+    return out;
+  };
 }
 
 /** The hit on a sim body: the impulse that takes it from its velocity to the hit's, its new spin, and the kernel's fact. */

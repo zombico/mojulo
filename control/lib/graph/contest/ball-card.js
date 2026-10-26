@@ -17,6 +17,7 @@
  *   ballOf(sport | spec)        the ball resolved: a sport's, or { mass, radius, restitution?, friction?, aero? }
  *   ballBody(sport, register, { id?, position?, velocity? })   → a physics-sim body spec
  *   ballForces(sport, register, { id? })                        → the force rules the ball needs ([] without air)
+ *   airDrag(sport)                                              → ½ρAC_d/m of a ball whose air is its own (0 else)
  *   ballGravity(register, g?)                                   → the sim's gravity vector for the card
  *   rallySpeed(register, hits, base)                            → the speed a clean hit leaves the ball at, after `hits`
  *                                                                 clean hits in the rally (the arcade's growing rally)
@@ -49,6 +50,14 @@ export const BALLS = Object.freeze({
   puck: { mass: 0.163, radius: 0.0381, restitution: 0.35, friction: 0.05, aero: null, cited: false, words: 'a puck (a disc on a sphere\'s card)' },
   // ITTF: 2.7 g, 40 mm; a rebound of 24 to 26 cm from 30.5 cm reads e ≈ 0.89 to 0.92
   pingpong: { mass: 0.0027, radius: 0.02, restitution: rebound(25, 30.5), friction: 0.3, aero: null, cited: false, words: 'a table-tennis ball' },
+  // USA Pickleball: 22.1 to 26.5 g, 73.5 to 75.5 mm across; a rebound of 30 to 34 in from 78 in reads e ≈ 0.62 to 0.66;
+  // its holes slow it, which the card leaves to the arcade's air (none) and to real air's soccer curves
+  pickleball: { mass: 0.026, radius: 0.0372, restitution: rebound(32, 78), friction: 0.3, aero: null, cited: false, words: 'a pickleball' },
+  // BWF: 4.74 to 5.50 g, a skirt 58 to 68 mm across; a shuttle is no sphere and its air is its own in EVERY register
+  // (`ownAir`: without its drag it is a ball): it rides the sphere's card at the skirt's radius with a flat drag
+  // coefficient of about 0.6 and no lift, which gives a terminal speed near 6.3 m/s (the literature measures 6.5 to 7,
+  // Cooke, Sports Engineering 1999), and almost no bounce: it lands dead
+  shuttle: { mass: 0.0051, radius: 0.033, restitution: 0.1, friction: 0.8, aero: { cdSup: 0.6, cdSub: 0.6, crisis: false, spin: false }, ownAir: true, cited: true, words: 'a shuttlecock (a skirt on a sphere\'s card, its own drag)' },
 });
 export const BALL_IDS = Object.freeze(Object.keys(BALLS));
 
@@ -102,11 +111,19 @@ export function ballBody(sport, register = 'realistic', { id = 'ball', position 
   };
 }
 
-/** The force rules the ball needs: the real-air rule on it (its cited aero, or soccer's), or none. */
+/** The force rules the ball needs: the real-air rule on it (its cited aero, or soccer's), or none; a ball whose air is
+ * its own (the shuttle's) carries it in every register. */
 export function ballForces(sport, register = 'realistic', { id = 'ball' } = {}) {
   const b = ballOf(sport), c = readBallCard(register);
-  if (!c.air) return [];
+  if (!c.air && !b.ownAir) return [];
   return [{ kind: 'aero', on: [id], rho: RHO_SEA_LEVEL, ...(b.aero ?? SOCCER_AERO), ...(c.spinDecay ? { spinDecay: c.spinDecay } : {}) }];
+}
+
+/** A ball's own air as the aim reads it: ½ρAC_d/m per metre for a ball whose air is its own (the shuttle's), else 0. */
+export function airDrag(sport) {
+  const b = ballOf(sport);
+  if (!b.ownAir) return 0;
+  return br4((0.5 * RHO_SEA_LEVEL * Math.PI * b.radius * b.radius * b.aero.cdSup) / b.mass);
 }
 
 /** The sim's gravity for the card (the platformer's ball falls slower). */

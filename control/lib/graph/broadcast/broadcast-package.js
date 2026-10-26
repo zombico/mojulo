@@ -258,7 +258,7 @@ export const WHY_WORDS = Object.freeze({
   'double-touch': 'DOUBLE TOUCH', 'volleyed-serve': 'VOLLEYED', 'touched-own-serve': 'OWN SERVE', 'net-touch': 'NET TOUCH',
   'foot-fault': 'FOOT FAULT', 'double-fault': 'DOUBLE FAULT', winner: 'WINNER', ace: 'ACE', offside: 'OFFSIDE', charge: 'CHARGE',
   'throw-in': 'THROW-IN', corner: 'CORNER', 'goal-kick': 'GOAL KICK', free: 'FREE KICK', kickoff: 'KICK-OFF',
-  water: 'IN THE WATER', 'picked-up': 'PICKED UP',
+  water: 'IN THE WATER', 'picked-up': 'PICKED UP', down: 'IN', 'volley-before-bounce': 'TWO-BOUNCE RULE', 'no-own-bounce': 'NO BOUNCE ON THE SERVE', kitchen: 'KITCHEN',
   '-3': 'ALBATROSS', '-2': 'EAGLE', '-1': 'BIRDIE', 0: 'PAR', 1: 'BOGEY', 2: 'DOUBLE BOGEY', 3: 'TRIPLE BOGEY',
 });
 

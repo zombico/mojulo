@@ -28,10 +28,15 @@
  *   hockey({ periods?, seconds? })   four-a-side on a rink with boards (the puck never goes out), overtime on a tie;
  *                              the blue-line offside is not the ball rule and is left out
  *
+ * The arcade cards (arcade-rules.js: ping pong, pickleball, badminton …) are the book's too, each composed from its
+ * card's modules by its family; `{ id, from: <card>, …words }` is a variant composed the same way.
+ *
  * The court is the singles court: 8.23 m across, 23.77 m long, the net at y = 0, side a's end at y < 0. Regions are
  * written for side a and mirrored half-turn for side b, so the box on a's right is diagonal from b's right. A course's
  * frame is the hole's: the tee at the near end (y < 0), the cup far; the lane runs along +y from the foul line.
  */
+import { ARCADE_SPORTS, ARCADE_SPORT_IDS, arcadeCard, composeArcade } from './arcade-rules.js';
+
 const HALF_W = 8.23 / 2, HALF_L = 23.77 / 2, SERVICE = 6.4;
 
 export function tennis({ sets = 2 } = {}) {
@@ -190,6 +195,8 @@ export const SPORTS = Object.freeze({
     hook: Object.freeze({ rate: 4 }),   // rev/s of side roll at the stick's full lift (the lane's friction turns it into about a metre of curve)
     swing: Object.freeze({ tipSpeed: 40, charge: 1.0, spread: 3 }),   // the arm's at the release (the roll's power is a fifth of it); a narrow aim: the pocket is a hand wide
   }),
+  // the arcade cards that play on the court or the course, composed from their modules
+  ...Object.fromEntries(ARCADE_SPORT_IDS.filter((id) => composeArcade(ARCADE_SPORTS[id]).shape !== 'team').map((id) => [id, Object.freeze(composeArcade(ARCADE_SPORTS[id], id))])),
 });
 export const TEAM_SPORTS = Object.freeze({
   soccer: Object.freeze({
@@ -243,6 +250,7 @@ const sfail = (m) => { throw new Error(`contest: ${m}`); };
  * sim reads checked for presence (their values the sim's to refuse). `shape`, when given, is the shape asked for.
  */
 export function resolveSport(v, shape = null) {
+  if (isObj(v) && v.from !== undefined) return resolveVariant(v, shape);
   if (typeof v === 'string') {
     const s = SPORTS[v] ?? TEAM_SPORTS[v];
     if (!s) sfail(`sport '${v}' is one of ${[...SPORT_IDS, ...TEAM_SPORT_IDS].join(', ')}, or a sport written out { id, shape, words, spec, … }`);
@@ -267,6 +275,16 @@ export function resolveSport(v, shape = null) {
   if (v.omits !== undefined && !(Array.isArray(v.omits) && v.omits.every((o) => typeof o === 'string'))) sfail('omits is a list of words: what the rulebook says that the primitives do not carry');
   const { spec, ...rest } = v;
   return { ...rest, spec: () => JSON.parse(JSON.stringify(spec)), written: true };
+}
+
+/** An arcade variant: { id, from: <an arcade card>, …the modules' words } composed through the card's family. */
+function resolveVariant(v, shape) {
+  if (typeof v.id !== 'string' || !/^[a-z][a-z0-9-]{1,31}$/.test(v.id)) sfail('an arcade variant has an id: a short lower-case name');
+  if (SPORTS[v.id] || TEAM_SPORTS[v.id]) sfail(`'${v.id}' is the book's: name the variant its own id (${v.id}-21, mini-${v.id})`);
+  let s;
+  try { s = composeArcade(arcadeCard(v), v.from); } catch (e) { sfail(e.message.replace(/^arcade: /, '')); }
+  if (shape && s.shape !== shape) sfail(`'${v.id}' (from ${v.from}) is a ${s.shape === 'match' ? 'net game' : s.shape === 'turns' ? 'turn sport' : 'team goal game'}: it plays on ${SHAPE_SIM[s.shape]}`);
+  return { id: v.id, ...s };
 }
 
 /** The sport's dials a page carries (its spec compiled apart): the book's by id, a written-out one whole. */

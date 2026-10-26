@@ -9,6 +9,9 @@ import { contestInside } from './contest-kernel.js';
 import { aimedElevation, aimedShot } from './hit.js';
 import { MOTION_FLAVORS } from '../gameworld/feel/motion.js';
 import { serveStick } from './contest-mind.js';
+import { ARCADE_SPORT_IDS } from './arcade-rules.js';
+import { resolveSport } from './sports.js';
+import { airDrag } from './ball-card.js';
 
 const ctxOf = (spec) => matchContext(matchArenaData(spec));
 const run = (ctx, padsAt, until, frames = 20000) => { const S = newMatch(ctx); let n = 0; while (!until(S) && n++ < frames) stepMatch(S, padsAt ? padsAt(S) : [], ctx); return S; };
@@ -113,5 +116,64 @@ describe('pure and seeded', () => {
     expect(a.f).toBeGreaterThan(MATCH_FPS);
     const c = cloneMatch(a); c.p[0].x = 99; expect(a.p[0].x).not.toBe(99);
     expect(contestInside(ctx.C, 'half', 'a', [0, -1])).toBe(true);
+  });
+});
+
+// the arcade rules' dials on the court, each on the card that carries it (chosen in code)
+const cardWith = (pick) => ARCADE_SPORT_IDS.find((id) => pick(resolveSport(id)));
+const rallies = (S) => { const out = []; let k = 0; for (const c of S.calls) { if (c.kind === 'hit') k++; if (c.kind === 'point' || c.kind === 'fault' || c.kind === 'let') { out.push(k); k = 0; } } return out; };
+
+describe('the arcade rules on the court', () => {
+  it('a raised bed: the court a slab whose top is the bed, the floor below it, the net on it; a stroke never from under it', () => {
+    const sport = cardWith((s) => s.bed), ctx = ctxOf({ sport, players: 0, register: 'action', seed: 2 }), S = newMatch(ctx);
+    const bed = ctx.sport.bed.height, [, floor, ground, net] = S.sim.bodies;
+    expect(floor).toMatchObject({ id: 'floor', collider: 'aabb' });
+    expect(floor.position[2] + floor.half[2]).toBeCloseTo(bed, 6);
+    expect(ground).toMatchObject({ id: 'ground', collider: 'plane' });
+    expect(net.position[2] - net.half[2]).toBeCloseTo(bed, 3);
+    // the arcade's serve bounces on its own half first, every time; every stroke is over the bed's top
+    const E = run(ctx, null, (S) => S.over, 60 * 300);
+    expect(E.over).toBe(true);
+    const hits = calls(E, 'hit');
+    for (const h of hits) expect(h.at[2]).toBeGreaterThan(bed);
+    expect(hits.filter((h) => h.aim && h.aim.own).length).toBe(calls(E, 'serve').length);
+    expect(E.calls.filter((c) => c.kind === 'point' && (c.why === 'double-fault' || c.why === 'own-side')).length).toBe(0);
+  });
+  it('the realistic serve that bounces on its own half: the mind finds the lift on a copy of the physics, and it lands', () => {
+    const sport = cardWith((s) => s.spec().serve.bounce === 'own'), ctx = ctxOf({ sport, players: 0, register: 'realistic', seed: 2 });
+    const S = run(ctx, null, (S) => calls(S, 'point').length >= 6, 60 * 120);
+    expect(S.calls.filter((c) => c.kind === 'point' && c.why === 'double-fault').length).toBeLessThan(3);
+  });
+  it('a no-volley region: a volley struck from it is the foul of its name and the point; off the bounce it plays', () => {
+    const sport = cardWith((s) => s.noVolley), ctx = ctxOf({ sport, players: 1, register: 'realistic', seed: 2 });
+    const volley = (bounces) => {
+      const S = newMatch(ctx), a1 = S.p[0], b = S.sim.bodies[0];
+      S.K = { ...S.K, phase: 'live', restart: null, server: 'b', ball: { side: 'b', lastSide: 'b', lastWho: 'b1', bounces, touches: 1, serving: false, netted: false, passAt: null, returns: 2 } };
+      S.phase = 'live'; S.ball.held = null;
+      Object.assign(a1, { x: 0, y: -1, vx: 0, vy: 0 });
+      b.position = [0.4, -0.7, 1.2]; b.velocity = [0, 0, 0];
+      for (let i = 0; i < 40 && !calls(S, 'point').length && !calls(S, 'hit').length; i++) stepMatch(S, [i === 0 ? SWING : REST], ctx);
+      return S;
+    };
+    const S = volley(0);
+    expect(calls(S, 'foul')[0]).toMatchObject({ foul: ctx.sport.noVolley, who: 'a1', cost: 'point' });
+    expect(calls(S, 'point')[0]).toMatchObject({ side: 'b', why: ctx.sport.noVolley });
+    expect(calls(volley(1), 'foul')).toEqual([]);   // off the bounce: no foul
+  });
+  it('the arcade\'s slip: the computer lets the card\'s share of balls go, so a small court\'s rally ends; without it, it runs on', () => {
+    const sport = cardWith((s) => s.slip && s.bed);
+    const longest = (v) => Math.max(0, ...rallies(run(ctxOf({ sport: v, players: 0, register: 'action', seed: 4 }), null, (S) => calls(S, 'point').length >= 6, 60 * 90)));
+    const without = run(ctxOf({ sport: { id: 'no-slip', from: sport, cpu: { slip: 0 } }, players: 0, register: 'action', seed: 4 }), null, (S) => calls(S, 'hit').length >= 60, 60 * 90);
+    expect(calls(without, 'point').length).toBe(0);   // sixty hits and no point: the minds never miss on a table
+    expect(longest(sport)).toBeLessThan(60);
+  });
+  it('a ball whose air is its own (the shuttle): the aim flies it through that air and lands at the depth', () => {
+    const ball = resolveSport(cardWith((s) => airDrag(s.ball) > 0)).ball, k = airDrag(ball), g = 9.81;
+    const A = aimedShot(30, 2, 8, g, { at: 4, height: 1.524 }, k);
+    // the shot flown as a point in that air (a finer step than the aim's) lands at the aim's depth
+    let x = 0, z = 2, vx = A.speed * Math.cos(A.elevationDeg * Math.PI / 180), vz = A.speed * Math.sin(A.elevationDeg * Math.PI / 180), cleared = false;
+    while (z > 0) { const sp = Math.hypot(vx, vz), dt = 1 / 1000; vx -= k * sp * vx * dt; vz -= (g + k * sp * vz) * dt; const px = x; x += vx * dt; z += vz * dt; if (px < 4 && x >= 4) cleared = z > 1.524; }
+    expect(x).toBeGreaterThan(7.6); expect(x).toBeLessThan(8.5); expect(cleared).toBe(true);
+    expect(aimedShot(30, 2, 8, g, { at: 4, height: 1.524 }).speed).toBeLessThan(A.speed);   // the vacuum gives speed up: the air shortens it
   });
 });

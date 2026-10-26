@@ -2,7 +2,7 @@
 // the cards' ladder, a body and its forces, the growing rally, and the live sim's air held to physics/flight.js (the
 // oracle) on the soccer free-kick launch.
 import { describe, it, expect } from 'vitest';
-import { BALLS, BALL_CARDS, BALL_REGISTERS, readBallCard, ballOf, ballBody, ballForces, ballGravity, rallySpeed, ballReport } from './ball-card.js';
+import { BALLS, BALL_CARDS, BALL_REGISTERS, readBallCard, ballOf, ballBody, ballForces, ballGravity, rallySpeed, ballReport, airDrag } from './ball-card.js';
 import { flightPath, PROJECTILES, RHO_SEA_LEVEL } from '../physics/flight.js';
 import { createState, step } from '../worlds/physics-sim.js';
 
@@ -11,7 +11,7 @@ describe('the cards and the balls', () => {
     expect(BALL_REGISTERS).toEqual(['realistic', 'action', 'platformer', 'pinball']);
     for (const [id, b] of Object.entries(BALLS)) {
       expect(b.mass, id).toBeGreaterThan(0); expect(b.radius, id).toBeGreaterThan(0);
-      expect(b.restitution, id).toBeGreaterThan(0.2);   // the bowling ball is dead on the lane; every other ball lively expect(b.restitution, id).toBeLessThanOrEqual(1);
+      if (!b.ownAir) expect(b.restitution, id).toBeGreaterThan(0.2);   // the bowling ball is dead on the lane; every ball but the shuttle lively expect(b.restitution, id).toBeLessThanOrEqual(1);
       expect(typeof b.cited, id).toBe('boolean');
     }
     expect(BALLS.soccer.cited).toBe(true); expect(BALLS.soccer.aero).toBe(PROJECTILES.soccer.aero);
@@ -34,6 +34,15 @@ describe('the cards and the balls', () => {
     expect(ballBody('pingpong', 'pinball').restitution).toBe(1);
     expect(ballReport('pingpong', 'pinball').notes[0]).toMatch(/lossless at most/);
     expect(ballGravity('platformer')).toEqual([0, 0, -5.886]); expect(ballGravity('realistic')).toEqual([0, 0, -9.81]);
+  });
+  it('a ball whose air is its own (the shuttle) flies in it on every register, toward its terminal speed; the aim reads its drag', () => {
+    const own = Object.keys(BALLS).find((id) => BALLS[id].ownAir), plain = Object.keys(BALLS).find((id) => !BALLS[id].ownAir);
+    for (const r of BALL_REGISTERS) expect(ballForces(own, r).map((f) => f.kind), r).toEqual(['aero']);
+    expect(ballForces(plain, 'action')).toEqual([]);
+    expect(airDrag(plain)).toBe(0);
+    const k = airDrag(own), st = createState({ gravity: [0, 0, -9.81], bodies: [ballBody(own, 'action', { position: [0, 0, 500], velocity: [0, 0, 0] })], forces: ballForces(own, 'action') });
+    for (let i = 0; i < 600; i++) step(st, 1 / 60);
+    expect(-st.bodies[0].velocity[2]).toBeCloseTo(Math.sqrt(9.81 / k), 1);   // ten seconds down: at the terminal speed its drag says
   });
   it('the rally grows by the card: not at all in realistic, eight per cent a hit to one and a half in action, unbounded in pinball', () => {
     expect(rallySpeed('realistic', 12, 20)).toBe(20);

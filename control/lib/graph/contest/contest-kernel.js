@@ -31,9 +31,13 @@
  *                  resets it and adds one to the next; the top unit's win ends the match; a unit with no `to` is won by
  *                  the clock (the most at the end); names: what each count is called (tennis's 0 15 30 40)
  *       serve?: { into: <region> | [regions, cycled by the game's points], faults?: 2, let?: true, rotate?: 'game' | 'point'
- *                 | 'side-out', every?: n (points a 'point' rotation serves in a row; 1) }
+ *                 | 'side-out', every?: n (points a 'point' rotation serves in a row; 1), by?: 'points' (the regions cycled
+ *                 by the game's points played) | 'score' (by the server's own score: even the first, odd the second,
+ *                 badminton's), bounce?: 'own' (the serve bounces on the server's own half first, then in the region:
+ *                 table tennis's) }
  *       rally?: { in?: <region> ('half'), bounces?: 1 (a side may let it bounce so many times), touches?: 1 (a side may touch
- *                 it so many times before it crosses), sameTwice?: true (one player twice in a row) }
+ *                 it so many times before it crosses), sameTwice?: true (one player twice in a row), mustBounce?: n (the
+ *                 first n returns after the serve must bounce before they are struck: pickleball's two-bounce rule) }
  *       clock?: { periods: n, seconds: n, overtime?: seconds (on a tie; absent: a draw) }
  *       fouls?: { <kind>: 'fault' | 'point' | 'free' | 'warn' }  what a reported foul costs: a serve fault, the point, a free
  *                 restart for the other side, a warning
@@ -157,24 +161,34 @@ export function buildContest() {
     C.scoring = { points, ladder: readLadder(spec.scoring.ladder) };
     if (spec.serve !== undefined) {
       const s = spec.serve;
-      if (!isObj(s)) fail('serve is { into, faults?, let?, rotate?, every? }');
-      only(s, ['into', 'faults', 'let', 'rotate', 'every'], 'serve');
+      if (!isObj(s)) fail('serve is { into, faults?, let?, rotate?, every?, by?, bounce? }');
+      only(s, ['into', 'faults', 'let', 'rotate', 'every', 'by', 'bounce'], 'serve');
       const into = Array.isArray(s.into) ? s.into : [s.into];
       if (!into.length || !into.every((n) => typeof n === 'string' && C.court.regions[n])) fail(`serve.into is a region of the court (${Object.keys(C.court.regions).join(', ')}), or a list of them cycled by the game's points`);
       if (s.faults !== undefined && !isCount(s.faults)) fail('serve.faults is how many faults lose the point (2)');
       if (s.rotate !== undefined && !ROTATES.includes(s.rotate)) fail(`serve.rotate is ${ROTATES.join(' | ')}`);
       if (s.every !== undefined && !isCount(s.every)) fail('serve.every is the points a server serves in a row');
+      if (s.by !== undefined && !['points', 'score'].includes(s.by)) fail('serve.by is points (the regions cycled by the points played) or score (by the server\'s own score, even then odd)');
+      if (s.bounce !== undefined && s.bounce !== 'own') fail('serve.bounce is own: the serve bounces on the server\'s half first');
       C.serve = { into: into.slice(), faults: s.faults ?? 2, let: s.let !== false, rotate: s.rotate ?? 'game', every: s.every ?? 1 };
+      // (the arcade rules' words, on the compiled contest only when given: a contest without them reads as it always has)
+      if (s.by === 'score') C.serve.by = 'score';
+      if (s.bounce) C.serve.bounce = s.bounce;
     } else C.serve = null;
     if (spec.rally !== undefined) {
       const r = spec.rally;
-      if (!isObj(r)) fail('rally is { in?, bounces?, touches?, sameTwice? }');
-      only(r, ['in', 'bounces', 'touches', 'sameTwice'], 'rally');
+      if (!isObj(r)) fail('rally is { in?, bounces?, touches?, sameTwice?, mustBounce? }');
+      only(r, ['in', 'bounces', 'touches', 'sameTwice', 'mustBounce'], 'rally');
       const inside = r.in ?? 'half';
       if (!C.court.regions[inside]) fail(`rally.in is a region of the court (${Object.keys(C.court.regions).join(', ')}): where a bounce is in`);
       if (r.bounces !== undefined && !(Number.isInteger(r.bounces) && r.bounces >= 0)) fail('rally.bounces is 0 or more');
       if (r.touches !== undefined && !isCount(r.touches)) fail('rally.touches is 1 or more');
       C.rally = { in: inside, bounces: r.bounces ?? 1, touches: r.touches ?? 1, sameTwice: r.sameTwice !== false };
+      if (r.mustBounce !== undefined) {
+        if (!isCount(r.mustBounce)) fail('rally.mustBounce is 1 or more: the returns after the serve that must bounce first');
+        if (C.rally.bounces < 1) fail('rally.mustBounce asks a bounce, and rally.bounces is 0');
+        C.rally.mustBounce = r.mustBounce;
+      }
     } else C.rally = null;
     if (C.serve && !C.rally) C.rally = { in: C.court.regions.half ? 'half' : fail('a served match names rally.in (or a region called half)'), bounces: 1, touches: 1, sameTwice: true };
     if (spec.clock !== undefined) {
@@ -352,7 +366,7 @@ export function buildContest() {
   }
 
   const serverId = (C, S) => playerOf(C, S.server, S.serverIndex[S.server] % C.players);
-  const serveInto = (C, S) => C.serve.into[S.played % C.serve.into.length];
+  const serveInto = (C, S) => C.serve.into[(C.serve.by === 'score' ? S.score[S.server][0] : S.played) % C.serve.into.length];
 
   function nextServe(C, S, calls) {
     S.faults = 0; S.ball = newBall(); S.phase = 'serve';
@@ -390,6 +404,9 @@ export function buildContest() {
       if (S.phase !== 'over') nextServe(C, S, calls);
     } else { S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: opp(side) }; }
   }
+
+  // a ball let bounce once too often: tennis's not-up; where no bounce is let (a shuttle, a volleyball), simply down
+  const downWhy = (C) => (C.rally.bounces === 0 ? 'down' : 'double-bounce');
 
   function fault(C, S, calls, why) {
     S.faults += 1;
@@ -473,6 +490,11 @@ export function buildContest() {
         if (!C.rally.sameTwice && B.lastWho === who) { rallyTo(C, S, opp(side), 'double-touch', calls); return; }
       } else {
         if (B.serving && B.bounces === 0 && C.rally.bounces > 0 && B.lastSide !== null) { rallyTo(C, S, opp(side), 'volleyed-serve', calls); return; }
+        // the two-bounce rule: the first returns are struck off the bounce, never on the volley
+        if (C.rally.mustBounce) {
+          if ((B.returns || 0) < C.rally.mustBounce && B.bounces === 0) { rallyTo(C, S, opp(side), 'volley-before-bounce', calls); return; }
+          B.returns = (B.returns || 0) + 1;
+        }
         B.touches = 1; B.bounces = 0; B.serving = false; B.netted = false;
       }
       B.lastSide = side; B.lastWho = who; B.side = side;
@@ -507,11 +529,16 @@ export function buildContest() {
       const p = at(f), on = sideOf(C, p);
       if (on === null) { rallyTo(C, S, opp(B.lastSide), 'net', calls); return; }
       if (B.serving && B.bounces === 0) {
+        // a serve that bounces on its own half first (table tennis's): that bounce, then the region's
+        if (C.serve.bounce === 'own' && !B.own) {
+          if (on === B.lastSide && inside(C, C.rally.in, on, p)) { B.own = true; return; }
+          fault(C, S, calls, on === B.lastSide ? 'out' : 'no-own-bounce'); return;
+        }
         const ok = inside(C, serveInto(C, S), on, p) && on !== B.lastSide;
         if (!ok) { fault(C, S, calls, on === B.lastSide ? 'own-side' : 'out'); return; }
         if (B.netted && C.serve.let) { S.last = { kind: 'let' }; calls.push({ kind: 'let' }); S.ball = newBall(); S.phase = 'serve'; S.restart = { kind: 'serve', side: S.server, who: serverId(C, S) }; return; }
         B.serving = false; B.netted = false; B.bounces = 1; B.side = on; B.touches = 0;
-        if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), 'double-bounce', calls);
+        if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), downWhy(C), calls);
         return;
       }
       if (on === B.lastSide) { rallyTo(C, S, opp(on), 'own-side', calls); return; }
@@ -519,7 +546,7 @@ export function buildContest() {
       if (B.side === on && B.bounces >= C.rally.bounces) { rallyTo(C, S, opp(on), 'double-bounce', calls); return; }
       if (!inside(C, C.rally.in, on, p)) { rallyTo(C, S, opp(B.lastSide), 'out', calls); return; }
       B.side = on; B.bounces += 1; B.touches = 0;
-      if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), 'double-bounce', calls);
+      if (B.bounces > C.rally.bounces) rallyTo(C, S, opp(on), downWhy(C), calls);
       return;
     }
     fail(`no fact '${k}' in a match (touch, bounce, net, out, foul, score, tick, resume)`);
@@ -796,7 +823,10 @@ export function buildContest() {
     return { phase: S.phase, score: out, server: S.server, clock: S.clock ? clone(S.clock) : null, restart: S.restart ? clone(S.restart) : null, winner: S.winner };
   }
 
-  return { read, start, legal, apply, display, region, inside, sideOf, lieOf, players, SIDES, SHAPES };
+  /** The region the serve the state names is aimed into (the receiver's side), or null when no serve is due. */
+  const serveRegion = (C, S) => (C.serve && S.server ? serveInto(C, S) : null);
+
+  return { read, start, legal, apply, display, region, inside, sideOf, lieOf, players, serveRegion, SIDES, SHAPES };
 }
 
 const _contest = buildContest();
@@ -810,3 +840,4 @@ export const contestInside = _contest.inside;
 export const contestSideOf = _contest.sideOf;
 export const contestLieOf = _contest.lieOf;
 export const contestPlayers = _contest.players;
+export const contestServeRegion = _contest.serveRegion;

@@ -69,7 +69,7 @@ function stMatch(S) {
       max('rally', c.side, hits.length); max('rally', loser, hits.length);
       if (c.why === 'double-fault') add('doubles', loser);
       else if (server && c.side === server && !hits.includes(loser)) add('aces', server);
-      else if (last === c.side && (c.why === 'double-bounce' || c.why === 'own-side')) add('winners', c.side);
+      else if (last === c.side && (c.why === 'double-bounce' || c.why === 'down' || c.why === 'own-side')) add('winners', c.side);
       else if (last === loser && (c.why === 'out' || c.why === 'net' || c.why === 'own-side')) add('errors', loser);
       hits = [];
     }

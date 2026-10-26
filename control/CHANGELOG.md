@@ -461,6 +461,47 @@ that every contest page draws through. The arena hands it a feed (what the score
   - **Seen, said:** the surfaces move the exhibitions' points, aces and winners a little; the rallies stay short on
     every surface while the minds rarely return a serve.
 
+### Arcade rules: the ball games distilled to modules
+
+The ball games at the level an arcade plays them, each a CARD of modules (its court, its score, its serve, its rally,
+its ball, its body) that its family composes into a sport the book resolves by name and the shape's sim plays. A
+variant is a word over a card (`{ id, from: <card>, …a module's words }`), so "ping pong to twenty-one" is not a
+rulebook; a rulebook the modules cannot say stays the distilled-rulebook catalyst's, written out whole. Every card
+names what the full rules say that the arcade leaves out (`omits`). Planned, by family: the net games, then
+volleyball's sides of more than one, basketball's hoop, the carry games (rugby, American football), the innings
+games (baseball, cricket).
+
+- **The kit and the net family** (`contest/arcade-rules.js`), built: the net family's modules and three cards on the
+  court sim. Table tennis: the table a raised bed, the serve bounced on its own half first, to eleven by two, two serves
+  each. Pickleball: the underhand serve into the diagonal box past the kitchen, the two-bounce rule, a volley from the
+  kitchen the point, to eleven by two, the rally's winner serving. Badminton: the shuttle, which never bounces, the low
+  serve, to twenty-one by two. The arcade rules' card, `get_game_vocab({ id: 'contest-arcade' })`, names the modules
+  and every card; the contest card names the sports from the book's lists and points at it.
+  - **The kernel's words** (`contest-kernel.js`): `serve.bounce: 'own'` (the serve's own bounce first), `serve.by:
+    'score'` (the box by the server's own score, even then odd), `rally.mustBounce` (the first returns off the bounce),
+    and a point where no bounce is let is called `down` (the broadcast's IN), not `double-bounce`; each absent on the
+    book's sports, which read as before.
+  - **The court sim's dials** (`match-sim.js`), each absent on tennis: a raised bed (the court a slab at its height, the
+    room's floor below it, the players kept to its ends, no stroke from under it), the body scaled to the game's size, a
+    no-volley region (a volley struck from it is the foul of its name), and an arcade serve that must bounce at home
+    first, aimed by flying it on a copy of the sim's own physics (the realistic mind finds its lift the same way). A
+    card's `cpu.slip` is the computer's unforced error, so a small court's rally ends.
+  - **The ball card** (`ball-card.js`): the pickleball and the shuttle, whose air is its own on every register (its
+    drag, a terminal speed near 6.3 m/s); the arcade aims a ball with its own air through that air (`hit.js`,
+    the midpoint rule over the flight), and the hit's verbs gain the underhand serve, the clear and table tennis's
+    drop serve.
+  - **The page** (`match-arena.client.js`): the table drawn with its lines and net on top, the camera nearer and
+    lower for a small court, the scoreboard's columns and straps from the ladder (SETS GAMES PTS for tennis, GAMES PTS
+    for a rally game), the paddle as short as the reach, the ball in its colour.
+  - **Held:** the new words on a small court each (the own bounce and its fault, the box by the score, the two-bounce
+    rule); a card composes to a sport the kernel reads, a variant moves one word, the refusals teach; every card, in
+    a short variant, plays an exhibition to its end (the deep sweep); the bed's slab and net, every stroke over the
+    bed and every arcade serve home first; the realistic table serve lands; the kitchen's foul and its absence off the
+    bounce; the slip ends a table's rally that otherwise never does; the shuttle's aim lands where it aims in its air;
+    each new court plays in the page to the state the same match reaches in Node.
+  - **Seen, said:** the minds rarely play the kitchen (they stay back), so its foul comes from a player at the pad;
+    the receiver's returns on the court sim remain the weak point the tennis stats showed.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:

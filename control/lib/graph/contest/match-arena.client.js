@@ -109,23 +109,32 @@ scene.add(dressing);
 // court frame → stage: the net's centre is (0, NET_Y, 0)
 const toStage = (x, y, z = 0) => [x, y + NET_Y, z];
 function box(w, d, h, x, y, z, mat) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, d, h), mat); m.position.set(x, y, z); dressing.add(m); return m; }
+// a raised bed (the table, arcade-rules.js): the court its top, its lines and net on it; the lines thinner to its size
+const BED = CA.sport.bed ? CA.sport.bed.height : 0, LINE = BED ? 0.02 : 0.05;
 function lineRect(r) {   // a court-frame rect's four lines on the floor
-  const [x0, y0, x1, y1] = r, t = 0.05;
-  box(x1 - x0 + t, t, 0.012, (x0 + x1) / 2, NET_Y + y0, 0.006, WHITE); box(x1 - x0 + t, t, 0.012, (x0 + x1) / 2, NET_Y + y1, 0.006, WHITE);
-  box(t, y1 - y0 + t, 0.012, x0, NET_Y + (y0 + y1) / 2, 0.006, WHITE); box(t, y1 - y0 + t, 0.012, x1, NET_Y + (y0 + y1) / 2, 0.006, WHITE);
+  const [x0, y0, x1, y1] = r, t = LINE, z = BED + 0.006;
+  box(x1 - x0 + t, t, 0.012, (x0 + x1) / 2, NET_Y + y0, z, WHITE); box(x1 - x0 + t, t, 0.012, (x0 + x1) / 2, NET_Y + y1, z, WHITE);
+  box(t, y1 - y0 + t, 0.012, x0, NET_Y + (y0 + y1) / 2, z, WHITE); box(t, y1 - y0 + t, 0.012, x1, NET_Y + (y0 + y1) / 2, z, WHITE);
 }
 function dressCourt() {
+  if (BED) {
+    // the table: its top a dark blue slab, four legs, its lines on top
+    box(CT.width, CT.length, 0.04, 0, NET_Y, BED - 0.02, new THREE.MeshBasicMaterial({ color: 0x1d4f7a }));
+    for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box(0.05, 0.05, BED - 0.04, x * (CT.halfW - 0.15), NET_Y + y * (CT.halfL - 0.25), (BED - 0.04) / 2, POST);
+  }
   for (const side of ['a', 'b']) for (const name of Object.keys(CT.regions)) { if (name === 'backcourt') continue; lineRect(contestRegion(CA.C, name, side).rect); }
   // the net: two posts past the sidelines, the band along the top, the mesh a dark pane
-  const half = CT.halfW + CT.net.beyond, h = CT.net.height;
-  box(0.08, 0.08, CT.net.posts, -half, NET_Y, CT.net.posts / 2, POST); box(0.08, 0.08, CT.net.posts, half, NET_Y, CT.net.posts / 2, POST);
-  box(half * 2, 0.03, 0.06, 0, NET_Y, h - 0.03, WHITE);
-  const pane = new THREE.Mesh(new THREE.BoxGeometry(half * 2, 0.01, h - 0.06), new THREE.MeshBasicMaterial({ color: 0x1b1f28, transparent: true, opacity: 0.55, depthWrite: false }));
-  pane.position.set(0, NET_Y, (h - 0.06) / 2); dressing.add(pane);
+  const half = CT.halfW + CT.net.beyond, h = CT.net.height, band = Math.min(0.06, h * 0.2), post = Math.min(0.08, h * 0.3);
+  box(post, post, CT.net.posts, -half, NET_Y, BED + CT.net.posts / 2, POST); box(post, post, CT.net.posts, half, NET_Y, BED + CT.net.posts / 2, POST);
+  box(half * 2, Math.min(0.03, h * 0.1), band, 0, NET_Y, BED + h - band / 2, WHITE);
+  const pane = new THREE.Mesh(new THREE.BoxGeometry(half * 2, 0.01, h - band), new THREE.MeshBasicMaterial({ color: 0x1b1f28, transparent: true, opacity: 0.55, depthWrite: false }));
+  pane.position.set(0, NET_Y, BED + (h - band) / 2); dressing.add(pane);
 }
 dressCourt();
 
 const LIMB_R = 0.055;
+// the racquet's length: a paddle or a bat as short as the sport's reach is (its `pace`), the racquet's otherwise
+const RQ = 0.55 * (CA.sport.pace && CA.sport.pace.reach ? CA.sport.pace.reach : 1);
 function makePlayer(color) {
   const near = new THREE.MeshBasicMaterial({ color, vertexColors: true });
   const group = new THREE.Group();
@@ -178,7 +187,7 @@ function posePlayer(B, P) {
     const N = placeAthlete(B, { ...J, pelvis: [x, y, hipZ], neck }, { face: [0, s] });
     const w = N.wristR, e = N.elbowR, d = [w[0] - e[0], w[1] - e[1], w[2] - e[2]], n = Math.hypot(d[0], d[1], d[2]) || 1, h = N.hand || 0.09;
     const g = [w[0] + (d[0] / n) * h, w[1] + (d[1] / n) * h, w[2] + (d[2] / n) * h];
-    seg(B.racquet, g, [g[0] + (d[0] / n) * 0.55, g[1] + (d[1] / n) * 0.55, g[2] + (d[2] / n) * 0.55], LIMB_R * 0.6);
+    seg(B.racquet, g, [g[0] + (d[0] / n) * RQ, g[1] + (d[1] / n) * RQ, g[2] + (d[2] / n) * RQ], LIMB_R * 0.6);
     return;
   }
   seg(B.trunk, [x, y, hipZ], neck, LIMB_R * 1.8);
@@ -188,19 +197,21 @@ function posePlayer(B, P) {
   }
   // the racquet: from the right wrist on along the forearm's line, a little longer
   const w = J.wristR, e = J.elbowR, d = [w[0] - e[0], w[1] - e[1], w[2] - e[2]], n = Math.hypot(d[0], d[1], d[2]) || 1;
-  seg(B.racquet, w, [w[0] + (d[0] / n) * 0.55, w[1] + (d[1] / n) * 0.55, w[2] + (d[2] / n) * 0.55], LIMB_R * 0.6);
+  seg(B.racquet, w, [w[0] + (d[0] / n) * RQ, w[1] + (d[1] / n) * RQ, w[2] + (d[2] / n) * RQ], LIMB_R * 0.6);
   B.head.fill.position.set(head[0], head[1], head[2]); B.head.fill.scale.setScalar(0.11);
   B.head.ink.position.copy(B.head.fill.position); B.head.ink.scale.setScalar(0.11 * 1.12);
   B.shadow.position.set(x, y, 0.01);
 }
-const ballMesh = new THREE.Mesh(GEO_BALL, new THREE.MeshBasicMaterial({ color: 0xd9e84a, vertexColors: true }));
+// the ball in its colour: a table-tennis ball's white, a shuttle's, the felt yellow of a tennis ball otherwise
+const ballMesh = new THREE.Mesh(GEO_BALL, new THREE.MeshBasicMaterial({ color: { pingpong: 0xf6f1e4, shuttle: 0xfbfbf8 }[CA.sport.ball] ?? 0xd9e84a, vertexColors: true }));
 const ballInk = new THREE.Mesh(GEO_BALL, INK);
 const ballShadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
 scene.add(ballMesh, ballInk, ballShadow);
 function placeBall(S) {
   const b = S.sim.bodies[0], r = Math.max(0.075, b.radius), [x, y, z] = toStage(b.position[0], b.position[1], b.position[2]);
   ballMesh.position.set(x, y, z); ballMesh.scale.setScalar(r); ballInk.position.set(x, y, z); ballInk.scale.setScalar(r * 1.15);
-  ballShadow.position.set(x, y, 0.012); ballShadow.scale.setScalar(r * Math.max(0.5, 1.4 - z * 0.15));
+  const onBed = BED && Math.abs(b.position[0]) <= CT.halfW && Math.abs(b.position[1]) <= CT.halfL, sz = onBed ? BED + 0.012 : 0.012;
+  ballShadow.position.set(x, y, sz); ballShadow.scale.setScalar(r * Math.max(0.5, 1.4 - (z - sz) * 0.15));
 }
 
 // ── the match ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -235,6 +246,8 @@ const STATS = BC.stats || null, COLS = () => [0, 1].map((i) => ({ name: sideName
 const statsNow = () => contestStats(S, 'match');
 const withStats = (line, side, rows) => { const extra = STATS && rows && rows.length ? statLine(statsNow(), side, rows) : ''; return extra ? `${line} · ${extra}` : line; };
 let games = 0;
+// the ladder's counts as the board names them, the top first: SETS, GAMES, PTS (tennis), GAMES, PTS (a rally game)
+const UNITS = CA.C.scoring.ladder.map((u, i) => Object.assign(new String(i === 0 ? 'PTS' : `${CA.C.scoring.ladder[i - 1].unit.toUpperCase()}S`), { ix: i })).reverse();
 // the director: each call on its plate; in the dead ball after a point, a game or the match, the closeup on its winner
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
@@ -243,14 +256,14 @@ function readCalls() {
     const side = c.kind === 'over' ? c.winner : c.side;
     if (q.cut === 'winner' && (side === 'a' || side === 'b')) {
       const P = S.p[sideIx(side)], [x, y] = toStage(P.x, P.y), sc = S.K.score[side], op = S.K.score[side === 'a' ? 'b' : 'a'];
-      const line = `${c.kind === 'over' ? 'THE MATCH' : q.text} · SETS ${sc[2] ?? 0}–${op[2] ?? 0} · GAMES ${sc[1] ?? 0}–${op[1] ?? 0}`;
+      const line = [c.kind === 'over' ? 'THE MATCH' : q.text, ...UNITS.slice(0, -1).map((u) => `${u} ${sc[u.ix] ?? 0}–${op[u.ix] ?? 0}`)].join(' · ');
       const strap = q.unit || c.kind === 'over' ? { name: sideName(sideIx(side)), line: c.kind === 'over' && STATS ? withStats(line, side, STATS.strap) : line, tag: side === 'a' ? '1' : '2', color: sideIx(side) } : null;
       tvCut(TV, { on: [x, y, 0], hold: c.kind === 'over' ? 110 : 54, ...(strap ? { strap } : {}) });
     }
     // at a changeover (the end of an odd game: the players change ends), the stats panel
     if (c.kind === 'game' && STATS && STATS.at === 'changeover' && ++games % 2 === 1 && S.K.phase !== 'over') tvPanel(TV, statPanel(statsNow(), STATS.panel, COLS(), `${SPORT} · changeover`));
     if (c.kind === 'over') {
-      const rows = ['a', 'b'].sort((p, q2) => (p === c.winner ? -1 : q2 === c.winner ? 1 : 0)).map((side, k) => ({ place: k + 1, name: sideName(sideIx(side)), color: sideIx(side), value: String(c.score[side][c.score[side].length - 1]), note: withStats('sets', side, STATS && STATS.board) }));
+      const rows = ['a', 'b'].sort((p, q2) => (p === c.winner ? -1 : q2 === c.winner ? 1 : 0)).map((side, k) => ({ place: k + 1, name: sideName(sideIx(side)), color: sideIx(side), value: String(c.score[side][c.score[side].length - 1]), note: withStats(UNITS[0].toLowerCase(), side, STATS && STATS.board) }));
       tvBoard(TV, { title: `${SPORT} · final`, rows, foot: hosted ? null : 'press start to play again' });
     }
   }
@@ -271,13 +284,15 @@ function tick() {
   }
 }
 
+// the broadcast camera behind side a's end, nearer and lower for a small court (a table, a pickleball court)
+const CAM = CT.halfL >= 8 ? { back: 10.5, up: 6.5, ahead: 1.5, low: 0.4 } : { back: 3.4 + CT.halfL * 0.6, up: BED + 2 + CT.halfL * 0.45, ahead: CT.halfL * 0.15, low: BED };
 function frameCamera() {
   const b = S.sim.bodies[0];
   const wantX = (S.p[0].x + S.p[1].x) / 2 * 0.5 + b.position[0] * 0.2;
   cam.x += (wantX - cam.x) * 0.06;
   if (camera.fov !== 44) { camera.fov = 44; camera.updateProjectionMatrix(); }
-  camera.position.set(cam.x, NET_Y - CT.halfL - 10.5, 6.5);
-  const look = [cam.x * 0.5, NET_Y + 1.5, 0.4];
+  camera.position.set(cam.x, NET_Y - CT.halfL - CAM.back, CAM.up);
+  const look = [cam.x * 0.5, NET_Y + CAM.ahead, CAM.low];
   camera.lookAt(look[0], look[1], look[2]);
   tvShot(TV, camera, look);
 }
@@ -286,8 +301,8 @@ const POINT_CELL = { deuce: '40', advantage: 'AD', '-': '40' };
 function feedOf(d) {
   const pa = d.score.a[0], tab = d.faults === 1 && S.K.phase === 'serve' ? 'second serve' : pa === 'deuce' ? 'deuce' : pa === 'advantage' ? `advantage ${sideName(0)}` : d.score.b[0] === 'advantage' ? `advantage ${sideName(1)}` : null;
   return {
-    title: CA.title || SPORT, cols: ['SETS', 'GAMES', 'PTS'], hot: 2,
-    rows: ['a', 'b'].map((side, i) => { const sc = d.score[side]; return { name: sideName(i), color: i, cells: [sc[2], sc[1], POINT_CELL[sc[0]] ?? sc[0]], mark: d.server === side ? 'serve' : null }; }),
+    title: CA.title || SPORT, cols: UNITS.map(String), hot: UNITS.length - 1,
+    rows: ['a', 'b'].map((side, i) => { const sc = d.score[side]; return { name: sideName(i), color: i, cells: UNITS.map((u) => (u.ix === 0 ? POINT_CELL[sc[0]] ?? sc[0] : sc[u.ix])), mark: d.server === side ? 'serve' : null }; }),
     tab,
     hint: ctx.players > 0 && TV.f < 600 ? `${sideName(0)} · W A S D move · F swing` : null,
   };

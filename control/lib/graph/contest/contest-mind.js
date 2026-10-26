@@ -38,6 +38,8 @@ export const MIND_LEVELS = Object.freeze({
 });
 export const MIND_LEVEL_IDS = Object.freeze(Object.keys(MIND_LEVELS));
 const PREDICT_EVERY = 6;   // frames between reads of the landing
+// the arcade's unforced error (a sport's `slip`, arcade-rules.js): the share of balls the computer lets go, by its level
+const SLIP_SCALE = Object.freeze({ novice: 2, regular: 1, veteran: 0.5, ace: 0.25 });
 
 function mindDice(M) {
   M.r = (M.r + 0x6D2B79F5) >>> 0;
@@ -102,7 +104,10 @@ export function aimStick(ctx, S, verb, from, to) {
   const D = Math.hypot(to[0] - from[0], to[1] - from[1]), netAt = D * (Math.abs(from[1]) / Math.max(1e-6, Math.abs(to[1] - from[1])));
   const speed = hitVelocity({ verb, register: ctx.register, tipSpeed: ctx.body.tipSpeed, hits: S.ball.hits }).speed;
   if (!(speed > 0)) return 0;
-  const th = aimedElevation(speed, from[2], D, -S.sim.gravity[2], { at: netAt, height: ctx.sport.net.height });
+  // (a raised bed, the table: the heights over it; a ball whose air is its own, flown through it)
+  const bed = ctx.sport.bed ? ctx.sport.bed.height : 0;
+  const th = ctx.drag ? aimedElevation(speed, from[2] - bed, D, -S.sim.gravity[2], { at: netAt, height: ctx.sport.net.height }, ctx.drag)
+    : aimedElevation(speed, from[2] - bed, D, -S.sim.gravity[2], { at: netAt, height: ctx.sport.net.height });
   // the realistic ball flies in air, which shortens it: a little more lift than the vacuum says
   const air = ctx.register === 'realistic' ? 1.5 : 0;
   return mclamp((th + air - V.arc) / V.lift, -1, 1);
@@ -114,13 +119,58 @@ const mclamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
  * The stick that serves into the box the point names (S.serveTarget, match-sim.js) from where the server stands: its
  * x the azimuth across the register's spread (right aims right), its y the lift that lands the serve there.
  */
-export function serveStick(ctx, S, P) {
+export function serveStick(ctx, S, P, sim = null) {
   const box = S.serveTarget, facing = P.side === 'a' ? Math.PI / 2 : -Math.PI / 2;
   const az = Math.atan2(box[1] - P.y, box[0] - P.x);
   let d = az - facing; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
   const x = mclamp(-d / (ctx.spread * Math.PI / 180), -1, 1);
-  const y = aimStick(ctx, S, ctx.sport.strokes.serve, [P.x, P.y, ctx.sport.serve.hand], box);
+  // a serve that bounces on its own half first (table tennis's): the lift found by flying the serve on a copy, in the
+  // realistic register (the arcade's sim aims it itself)
+  const y = ctx.C.serve.bounce === 'own' ? (ctx.register === 'realistic' && sim ? ownBounceStick(ctx, S, P, sim, x, box) : 0)
+    : aimStick(ctx, S, ctx.sport.strokes.serve, [P.x, P.y, ctx.sport.serve.hand], box);
   return { x: mr4(x), y: mr4(y) };
+}
+
+/**
+ * A launch flown on a copy of the match's physics: the ball set at `from` with `velocity` (and `spin`), stepped until
+ * its second contact with the court or the floor, the net, or the steps run out. → { contacts: [[x, y], …], net }
+ */
+export function probeFlight(sim, state, from, velocity, spin = [0, 0, 0], { steps = 150, dt = 1 / 60 } = {}) {
+  const copy = JSON.parse(JSON.stringify(state)), b = copy.bodies.find((x) => x.id === 'ball');
+  b.position = from.slice(); b.velocity = velocity.slice(); b.angularVelocity = spin.slice(); b.resting = false;
+  const contacts = [];
+  let was = false;
+  for (let i = 0; i < steps; i++) {
+    sim.step(copy, dt);
+    if (copy.contacts.some((c) => (c.a === 'ball' || c.b === 'ball') && (c.a === 'net' || c.b === 'net'))) return { contacts, net: true };
+    const on = copy.contacts.some((c) => (c.a === 'ball' || c.b === 'ball') && (c.a === 'floor' || c.b === 'floor' || c.a === 'ground' || c.b === 'ground'));
+    if (on && !was) { contacts.push([b.position[0], b.position[1]]); if (contacts.length >= 2) break; }
+    was = on;
+  }
+  return { contacts, net: false };
+}
+
+/** The realistic serve's lift that bounces it on its own half and then deep on the receiver's: read on the probe. */
+function ownBounceStick(ctx, S, P, sim, x, box) {
+  const verb = ctx.sport.strokes.serve, sign = P.side === 'a' ? 1 : -1, facing = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+  const ball = S.sim.bodies.find((b) => b.id === 'ball'), from = ball.position.slice();
+  // where the second bounce lands for a lift: its depth past the net on the receiver's side (−1 for a fault short of it)
+  const depth = (y) => {
+    const H = hitVelocity({ verb, register: ctx.register, facing, stick: [x, y], tipSpeed: ctx.body.tipSpeed, hits: 0 });
+    const F = probeFlight(sim, S.sim, from, H.velocity, H.angularVelocity);
+    if (F.contacts.length && F.contacts[0][1] * sign > 0) return Infinity;   // no bounce on its own half: too long
+    if (F.net || F.contacts.length < 2) return -1;
+    return F.contacts[1][1] * sign;
+  };
+  // (the depth is no monotone function of the lift, a steep serve kicking up short and a flat one into the net: the
+  // lifts scanned, the one landing nearest the box's depth kept)
+  const want = box[1] * sign;
+  let best = 0, off = Infinity;
+  for (let i = 0; i <= 16; i++) {
+    const y = -1 + i / 8, d = depth(y);
+    if (d > 0 && d !== Infinity && Math.abs(d - want) < off) { off = Math.abs(d - want); best = y; }
+  }
+  return best;
 }
 const mr4 = (v) => Math.round(v * 10000) / 10000;
 
@@ -142,7 +192,7 @@ export function courtMind(M, S, who, ctx, sim) {
   if (S.K.phase === 'serve' && S.ball.held === who && S.dead === 0) {
     M.wait = Math.max(0, M.wait - dt);
     if (M.wait > 0) return { x: 0, y: 0, b: 0 };
-    const aim = serveStick(ctx, S, P);
+    const aim = serveStick(ctx, S, P, sim);
     const x = aim.x + (mindDice(M) - 0.5) * L.wobble, y = aim.y + (mindDice(M) - 0.5) * L.wobble * 0.5;
     return { x: mclamp(x, -1, 1), y: mclamp(y, -1, 1), b: 1 };
   }
@@ -152,7 +202,8 @@ export function courtMind(M, S, who, ctx, sim) {
   // read the ball's way every few frames while it comes: where it crosses my depth, or dies short; then move after
   // the reaction, so the ball comes to the racquet side
   if (coming) {
-    if (S.f - M.read >= PREDICT_EVERY) { M.read = S.f; M.landing = predictCrossing(sim, S.sim, P.y, sign); }
+    // (over a raised bed, the table, the ball is met as it crosses the table's end, before it drops below it)
+    if (S.f - M.read >= PREDICT_EVERY) { M.read = S.f; M.landing = predictCrossing(sim, S.sim, ctx.sport.bed ? -sign * court.halfL : P.y, sign); }
     M.react = Math.max(0, M.react - dt);
   } else { M.react = L.react; M.landing = null; }
   // the home: the centre mark a step behind the baseline
@@ -172,7 +223,13 @@ export function courtMind(M, S, who, ctx, sim) {
   const lead = body.swing * 0.5, g = -S.sim.gravity[2];
   const bx = ball.position[0] + ball.velocity[0] * lead, by = ball.position[1] + ball.velocity[1] * lead, bz = ball.position[2] + ball.velocity[2] * lead - 0.5 * g * lead * lead;
   const dist = Math.hypot(bx - P.x, by - P.y), approaching = ball.velocity[1] * sign < 0.5;
-  const swing = by * sign < 0 && dist <= body.reach * 0.9 && bz < 2.4 && approaching && !P.swing && S.ball.held === null;
+  const swing = by * sign < 0 && dist <= body.reach * 0.9 && bz < 2.4 && (!ctx.sport.bed || bz > ctx.sport.bed.height) && approaching && !P.swing && S.ball.held === null;
+  if (swing && ctx.sport.slip) {
+    // the arcade's unforced error: once a ball, the level's share of the sport's slip lets it go by
+    const ball = `${S.rallies}:${S.ball.hits}`;
+    if (M.slipOf !== ball) { M.slipOf = ball; M.slipped = mindDice(M) < ctx.sport.slip * SLIP_SCALE[M.level]; }
+    if (M.slipped) return { x: stick[0], y: stick[1], b: 0 };
+  }
   if (swing) {
     // the aim: a third of the spread toward its chosen side (a rally, not a winner every ball), the level's wobble on it
     const aimX = mclamp(M.aim * 0.3 + (mindDice(M) - 0.5) * L.wobble, -1, 1);

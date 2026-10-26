@@ -11,7 +11,7 @@ const FLOOR = { corners: [[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]], fill:
 
 describe('the book\'s turn sports and reading a game', () => {
   it('golf and bowling are the book\'s turn sports, their specs the kernel reads; the dials carry no code; the court refuses them', () => {
-    expect(TURN_SPORT_IDS).toEqual(['golf', 'bowling']); expect(MATCH_SPORT_IDS).toEqual(['tennis']);
+    expect(TURN_SPORT_IDS).toEqual(['golf', 'bowling']); expect(MATCH_SPORT_IDS[0]).toBe('tennis'); expect(MATCH_SPORT_IDS.filter((id) => TURN_SPORT_IDS.includes(id))).toEqual([]);
     expect(contestRead(golf({ holes: 2 })).rounds.map((r) => r.par)).toEqual(GOLF_HOLES.slice(0, 2).map((h) => h.par));
     expect(() => golf({ holes: 9 })).toThrow(/golf plays 1 to 3 holes/); expect(() => bowling({ frames: 12 })).toThrow(/bowling is 1 to 10 frames/);
     expect(contestRead(bowling({ frames: 3 })).rounds.length).toBe(3);

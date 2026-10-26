@@ -162,7 +162,7 @@ import { presetWords } from '../contest/sport-presets.js';
 import { readMatch, matchManifest } from '../contest/match-arena.js';
 import { readTurns, turnsManifest } from '../contest/turn-arena.js';
 import { readTeam, teamManifest, teamArenaData } from '../contest/team-arena.js';
-import { resolveSport } from '../contest/sports.js';
+import { resolveSport, MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS } from '../contest/sports.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 
@@ -183,7 +183,7 @@ export const QUICK_GOALS = Object.freeze({
   fight: 'a 1v1 fighter from the side, every fighter a character the character loop designs: roster, arenas, rounds, timer, rules',
   meet: 'an athletic meet in an arena (the contest kernel the referee): a sprint, the hurdles or the long jump in lanes, up to four local players on one keyboard, the rest the computer\'s; the gun, a false start, the clock or the measure, the placings',
   tabletop: 'a board game lifted into a hologram arena, the tabletop kernel the referee: chess, checkers or a game of moves written out, its pieces summoned as holograms, a capture an attack and a piece destroyed, the life points on the overlay; you against the computer, hot-seat, or an exhibition',
-  contest: 'a sport in an arena, the contest kernel the referee: a net game (tennis) on two pads, a turn sport (golf, bowling) hot-seat on one, a team goal game (soccer, hockey) on two; the computer takes what nobody holds; a sport not in the book is written out (the distilled-rulebook catalyst)',
+  contest: 'a sport in an arena, the contest kernel the referee: a net game on two pads, a turn sport hot-seat on one, a team goal game on two; the computer takes what nobody holds; an arcade card\'s variant is its modules\' words, a rulebook beyond them written out (the distilled-rulebook catalyst)',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
@@ -518,7 +518,7 @@ function readSport(Q0) {
   readQuickVenue(Q);
   try {
     if (Q.goal === 'meet') { readMeet(pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts', 'broadcast'])); return; }
-    if (Q.sport === undefined) throw new Error('contest: sport names the sport: tennis (a net game), golf or bowling (a turn sport), soccer or hockey (a team goal game), or a sport written out { id, shape, words, spec, … }');
+    if (Q.sport === undefined) throw new Error(`contest: sport names the sport: ${MATCH_SPORT_IDS.join(', ')} (a net game), ${TURN_SPORT_IDS.join(' or ')} (a turn sport), ${TEAM_SPORT_IDS.join(' or ')} (a team goal game), an arcade card's variant { id, from, … }, or a sport written out { id, shape, words, spec, … }`);
     const sp = resolveSport(Q.sport);
     const own = { match: ['sets', 'surface'], turns: ['seats', 'rounds'], team: ['periods', 'seconds'] };
     for (const [shape, ks] of Object.entries(own)) if (shape !== sp.shape) for (const k of ks) if (Q[k] !== undefined) throw new Error(`contest: ${k} belongs to a ${shape === 'match' ? 'net game' : shape === 'turns' ? 'turn sport' : 'team goal game'}; ${sp.id} is a ${sp.shape === 'match' ? 'net game' : sp.shape === 'turns' ? 'turn sport' : 'team goal game'}`);

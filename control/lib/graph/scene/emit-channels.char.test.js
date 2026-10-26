@@ -249,6 +249,12 @@ import { emitThreeWorld } from './scene-three.js';
 // because each contest block now inlines broadcast/broadcast.client.js before its arena client, the arena clients draw
 // their overlay through it (the bug, the call plates, the closeup, the board) and the page's data carries the resolved
 // package (`broadcast`: the card, the colours, the metals, the cues). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: the net family): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
+// the modules every contest block inlines by source changed: the kernel (the own-bounce serve, the box by the server's
+// score, the two-bounce rule, a no-bounce rally's point called `down`), the ball card (the pickleball, the shuttle's own
+// air), the hit (the underhand, clear and drop verbs, the aim through a ball's own air), the stats (`down` a winner)
+// and the broadcast's words; the court block's sim, mind and client too (the raised bed, the body's scale, the
+// no-volley foul, the slip, the ladder's scoreboard). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

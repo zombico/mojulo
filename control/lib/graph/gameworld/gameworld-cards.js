@@ -44,6 +44,7 @@ import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { SPORT_PRESETS } from '../contest/sport-presets.js';
+import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS } from '../contest/sports.js';
 import { GENRES, genreCube } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { RIDES } from './ride.js';
@@ -358,15 +359,13 @@ const QUICK_LEVERS = {
     '  athletes: \'chibi\' (a super-deformed body) | \'mascot\': rolled so, kitted as far as the shape allows; a list mixes in { mascot, kit? }',
   ],
   contest: () => [
-    '  sport: tennis (a net game: two pads, WASD + F or the arrows + right Shift) | golf | bowling (a turn sport, hot-seat on one',
-    '    pad: aim with the stick, hold to charge, release) | soccer | hockey (a team goal game: two pads in the screen\'s directions, a tap',
-    '    passes, a hold shoots); the computer the rest.  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace',
-    '  register: realistic | action | platformer | pinball (the ball and the body)',
-    '  tennis: sets 1..3, surface clay | hard | grass; golf: rounds 1..3, seats 1..8; bowling: rounds 1..10, seats; soccer, hockey: periods 1..4, seconds 20..900',
+    `  sport: a net game, two pads (WASD + F | arrows + right Shift): ${MATCH_SPORT_IDS.join(' | ')}; a turn sport, hot-seat`,
+    `    (aim, hold, release): ${TURN_SPORT_IDS.join(' | ')}; a team goal game, two pads (a tap passes, a hold shoots): ${TEAM_SPORT_IDS.join(' | ')}`,
+    '  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace  register: realistic | action | platformer | pinball',
+    '  sets 1..3 (a net game\'s, to win), surface clay | hard | grass (tennis); rounds (golf 1..3, bowling 1..10), seats 1..8; periods 1..4, seconds 20..900',
     `  preset: ${Object.entries(SPORT_PRESETS).filter(([s]) => s !== 'meet').map(([s, b]) => `${s} ${Object.keys(b).join('|')}`).join('; ')}`,
-    '  a sport not in the book: written out { id, shape: match | turns | team, words, spec, … } (get_catalyst: distilled-rulebook)',
+    '  a variant: { id, from: <an arcade card>, …its modules\' words } (get_game_vocab({ id: \'contest-arcade\' })); beyond, written out (distilled-rulebook)',
     ...BROADCAST_LEVER,
-    '  the kernel calls every point, foul and restart (the broadcast\'s stats fold its calls)',
     '  athletes: \'chibi\' | \'mascot\' | [{ ref } | { mascot, kit? } | { hero words }] | false; absent, rolled (kits: a side\'s each)',
     '  venue: <preset> | { … } | false   the stadium (view-vocab stadium); absent, the sport\'s',
   ],

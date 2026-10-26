@@ -17,7 +17,7 @@ import { settingOfGame } from './cast-setting.js';
 
 /** Pickleball written out as a net game: tennis's shape with its own court, ladder and serve, a shuttle-less ball. */
 const pickleball = () => ({
-  id: 'pickleball', shape: 'match', words: 'pickleball: an underhand serve, side-out scoring to eleven by two, the kitchen a no-volley zone',
+  id: 'pickleball-sideout', shape: 'match', words: 'pickleball: an underhand serve, side-out scoring to eleven by two, the kitchen a no-volley zone',
   spec: { ...tennis({ sets: 1 }), title: 'Pickleball', court: { frame: [6.1, 13.41], mirror: 'half-turn', regions: { half: { rect: [-3.05, -6.705, 3.05, 0] }, 'service-right': { rect: [0, -6.705, 3.05, -2.13] }, 'service-left': { rect: [-3.05, -6.705, 0, -2.13] }, kitchen: { rect: [-3.05, -2.13, 3.05, 0] } } }, scoring: { points: 'serve', ladder: [{ unit: 'game', to: 11, by: 2 }] }, serve: { into: ['service-right', 'service-left'], faults: 1, let: false, rotate: 'side-out' }, rally: { in: 'half', bounces: 1, touches: 1 }, fouls: {} },
   omits: ['the kitchen as a no-volley zone (the kernel has no volley rule by region)', 'the double-bounce rule on the return of serve'],
   ball: { mass: 0.024, radius: 0.037, restitution: 0.6, friction: 0.4 }, players: 1,
@@ -32,7 +32,7 @@ describe('the sport goals', () => {
     expect(() => readQuick({ goal: 'meet', hero: {} })).toThrow(/a meet takes goal, event, lanes/);
     expect(() => readQuick({ goal: 'meet', camera: 'fixed' })).toThrow(/a sport is seen from its arena/);
     expect(() => readQuick({ goal: 'contest' })).toThrow(/sport names the sport: tennis/);
-    expect(() => readQuick({ goal: 'contest', sport: 'cricket' })).toThrow(/sport 'cricket' is one of tennis, golf, bowling, soccer, hockey, or a sport written out/);
+    expect(() => readQuick({ goal: 'contest', sport: 'cricket' })).toThrow(/sport 'cricket' is one of tennis, golf, bowling, .*soccer, hockey, or a sport written out/);
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', seats: 2 })).toThrow(/seats belongs to a turn sport; tennis is a net game/);
     expect(() => readQuick({ goal: 'contest', sport: 'golf', rounds: 9 })).toThrow(/rounds for golf is 1 to 3/);
     expect(() => readQuick({ goal: 'contest', sport: 'soccer', periods: 9 })).toThrow(/periods is 1 to 4/);
@@ -92,15 +92,15 @@ describe('a sport written out (the distilled rulebook\'s product)', () => {
     expect(() => resolveSport({ ...P, shape: 'duel' })).toThrow(/shape is match \| turns \| team/);
     expect(() => resolveSport({ ...P, net: undefined })).toThrow(/a written-out match sport carries ball, players, strokes, net, serve, receive, home \(missing net\)/);
     expect(() => resolveSport({ ...P, spec: { ...P.spec, shape: 'turns' } })).toThrow(/a match sport's spec has shape 'match'/);
-    expect(() => resolveSport(P, 'turns')).toThrow(/'pickleball' is written as a match: it plays on the court/);
+    expect(() => resolveSport(P, 'turns')).toThrow(/'pickleball-sideout' is written as a match: it plays on the court/);
     expect(() => resolveSport({ ...P, omits: 'none' })).toThrow(/omits is a list of words/);
     // the quick goal reads it, its level carries the sport whole, the court's data compiles it
     expect(() => readQuick({ goal: 'contest', sport: P, players: 2 })).not.toThrow();
-    expect(() => readQuick({ goal: 'contest', sport: P, seats: 2 })).toThrow(/seats belongs to a turn sport; pickleball is a net game/);
+    expect(() => readQuick({ goal: 'contest', sport: P, seats: 2 })).toThrow(/seats belongs to a turn sport; pickleball-sideout is a net game/);
     const [L] = sportArenas({ goal: 'contest', sport: P, players: 2 }, { title: 'Pickleball', seed: 1 });
-    expect(L.id).toBe('court'); expect(L.manifest.court.sport).toMatchObject({ id: 'pickleball' }); expect(L.manifest.court.sport.written).toBeUndefined();
+    expect(L.id).toBe('court'); expect(L.manifest.court.sport).toMatchObject({ id: 'pickleball-sideout' }); expect(L.manifest.court.sport.written).toBeUndefined();
     const D = matchArenaData(L.manifest.court);
-    expect(D.C.court.regions.kitchen).toBeTruthy(); expect(D.sport).toMatchObject({ id: 'pickleball', written: true, net: { height: 0.86 } }); expect(D.sport.spec).toBeUndefined();
+    expect(D.C.court.regions.kitchen).toBeTruthy(); expect(D.sport).toMatchObject({ id: 'pickleball-sideout', written: true, net: { height: 0.86 } }); expect(D.sport.spec).toBeUndefined();
     expect(D.court.halfL).toBeCloseTo(6.705, 3);
     // a turn sport written out: mini golf, the book's holes cut to its own, the cup and the lies its own
     const mini = { id: 'mini-golf', shape: 'turns', words: 'mini golf: putts only, two holes, hot-seat', spec: { ...golf({ holes: 2 }), title: 'Mini golf' }, ball: 'golf', seats: 1, clubs: [{ verb: 'putt' }], lies: { tee: 1, fairway: 1, green: 0.8, rough: 2 }, cup: { radius: 0.054, capture: 2 }, swing: { tipSpeed: 20, charge: 1, spread: 20 }, holes: golf({ holes: 2 }).rounds.map((r) => ({ par: r.par })) };
@@ -108,6 +108,14 @@ describe('a sport written out (the distilled rulebook\'s product)', () => {
     const T = turnsArenaData({ sport: mini, rounds: 1, seats: 2 });
     expect(T.C.rounds.length).toBe(1); expect(T.sport.clubs).toEqual([{ verb: 'putt' }]); expect(T.course.rounds.length).toBe(1);
     expect(() => readQuick({ goal: 'contest', sport: mini, rounds: 3 })).toThrow(/rounds for mini-golf is 1 to 2/);
+  });
+  it('an arcade card\'s variant rides the quick goal: its level carries the variant\'s words, the court composes them again', () => {
+    const v = { id: 'pong-21', from: 'pingpong', score: { to: 21 } };
+    const [L] = sportArenas({ goal: 'contest', sport: v, players: 1 }, { title: 'Pong', seed: 1 });
+    expect(L.manifest.court.sport).toEqual(v);
+    const D = matchArenaData(L.manifest.court);
+    expect(D.C.scoring.ladder[0].to).toBe(21); expect(D.sport).toMatchObject({ id: 'pong-21', bed: { height: 0.76 } });
+    expect(() => readQuick({ goal: 'contest', sport: { id: 'pong-x', from: 'pingpong', wings: 1 } })).toThrow(/a net card has no 'wings'/);
   });
 });
 
