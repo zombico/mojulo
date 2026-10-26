@@ -820,6 +820,14 @@ its edge can be seen.
   keeps the skin. Not solid, every face as it was.
 - **A town law** (`solid`, read only on a solid town): every pitched roof a closed slab, no edge of it open.
 
+### The cube's light: one light from the palette and the hour
+
+- Planned. A cube's light is recipe: its palette (the color theorist's solve, seeded by the game design loop) and its
+  hour give one light, `{ key, sky, ambient, shade, fog, water }`, that gen-6 bakes into its fills and gen-7 hands to
+  the renderer. Today the palette sets the colours, the tone key, the moon, the sky and the shade, but the sun's colour
+  and the ambient come from the reference's keyframes, the live light's shadow falls toward black rather than the
+  shade, and the gen-7 read takes the preset's colours and a sun of its own. An unseeded cube's light stays byte for byte.
+
 ### Gen 7: form, not light
 
 The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,
