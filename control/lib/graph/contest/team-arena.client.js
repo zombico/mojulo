@@ -296,7 +296,8 @@ function frameCamera() {
 const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function feedOf(d) {
   const me = S.p.find((P) => P.id === S.active.a), periods = ctx.C.clock ? ctx.C.clock.periods : 0;
-  const restart = d.restart && S.K.phase !== 'live' && !d.carry ? (BC.why[d.restart.kind] || d.restart.kind) : null;
+  // (a hoop game starts at the tip-off and inbounds after a basket: no kick in it)
+  const restart = d.restart && S.K.phase !== 'live' && !d.carry ? (HOOP && d.restart.kind === 'kickoff' ? (S.K.score && (S.K.score.a.some((v) => v > 0) || S.K.score.b.some((v) => v > 0)) ? 'INBOUND' : 'TIP-OFF') : BC.why[d.restart.kind] || d.restart.kind) : null;
   // a carry game's tab: the down and the distance, or the tackle's count, and whose ball
   const ord = (n) => ['', '1st', '2nd', '3rd', '4th'][n] || `${n}th`;
   const toGo = d.carry && d.carry.down ? (CARRY.yards ? Math.max(1, Math.round(d.carry.toGo / 0.9144)) : d.carry.toGo) : 0;

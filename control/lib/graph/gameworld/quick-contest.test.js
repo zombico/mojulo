@@ -205,7 +205,9 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     expect(keys(st)).toEqual(['athlete', 'level-arena-course', 'game']);
     expect(st[0].order.mint.spec).toEqual({ cast: 'female' });
     expect(st[1].order.manifest.turns.athletes).toEqual(['my-bowler', st[0].ref, 'my-bowler']);
-    expect(st[2].laws).toBeUndefined();
+    // (no rolled cast's setting law: the operator's own; the sport's laws say who plays each seat)
+    expect(st[2].laws.map((l) => l.law)).toEqual(['characters', 'venue', 'one-look']);
+    expect(st[2].laws[0].says).toBe('3 seats played by 2 characters in their own bodies (cycled over the seats)');
   });
   it('refuses what is not an athlete; an arena refuses more athletes than slots', () => {
     expect(() => readQuick({ goal: 'meet', athletes: 'four' })).toThrow(/athletes is false \(the stick figures\), 'chibi' or 'mascot' \(the rolled athletes in that form\), or 1 to 12 athletes/);

@@ -44,7 +44,7 @@ import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { SPORT_PRESETS } from '../contest/sport-presets.js';
-import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS } from '../contest/sports.js';
+import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS } from '../contest/sports.js';
 import { GENRES, genreCube } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { RIDES } from './ride.js';
@@ -357,10 +357,16 @@ const QUICK_LEVERS = {
     '    rolled in the game\'s setting (its tradition: anime or western) in sports kit, a team\'s sides in their colours',
     '  kits: [{ colours?, pattern?: hoops | stripes | band | sleeves | yoke | sides, trim?, socks? }] the rolled athletes\' kits, cycled',
     '  athletes: \'chibi\' (a super-deformed body) | \'mascot\': rolled so, kitted as far as the shape allows; a list mixes in { mascot, kit? }',
+    '  concept: \'<the player\'s idea>\' ("a neon night meet, anime"): read into the words above under yours (the contest card\'s)',
   ],
   contest: () => [
     `  sport: a net game, two pads (WASD + F | arrows + right Shift): ${MATCH_SPORT_IDS.join(' | ')}; a turn sport, hot-seat`,
-    `    (aim, hold, release): ${TURN_SPORT_IDS.join(' | ')}; a team goal game, two pads (a tap passes, a hold shoots): ${TEAM_SPORT_IDS.join(' | ')}`,
+    `    (aim, hold, release): ${TURN_SPORT_IDS.join(' | ')}; a team goal game, two pads (a tap passes, a hold shoots): ${TEAM_SPORT_IDS.join(' | ')};`,
+    `    a bat-and-ball game, two pads (the press pitches or swings, timed): ${INNINGS_SPORT_IDS.join(' | ')} (innings 1..9, overs 1..20 cricket's)`,
+    '  concept: \'<the player\'s idea>\' ("cats vs dogs at night", "red robots vs blue knights, retro arcade"): read into the words',
+    '    below (sides, colours, animal mascots, venue, light, look, register, broadcast) UNDER yours; rules never (the card\'s).',
+    '    The readout\'s `concept` says each word read, unread, left; say it to the player, then edit by words',
+    '  teams: [{ name?, colour?, mascot? }] x2: a side\'s name, shirt (kits, broadcast and shell share it), its players mascots of a brief',
     '  players: 0..2 (0 an exhibition)  level: novice | regular | veteran | ace  register: realistic | action | platformer | pinball',
     '  sets 1..3 (a net game\'s, to win), surface clay | hard | grass (tennis); rounds (golf 1..3, bowling 1..10), seats 1..8; periods 1..4, seconds 20..900',
     `  preset: ${Object.entries(SPORT_PRESETS).filter(([s]) => s !== 'meet').map(([s, b]) => `${s} ${Object.keys(b).join('|')}`).join('; ')}`,
@@ -527,6 +533,16 @@ function quickCard() {
   );
 }
 
+// a sport's (meet, contest): the few levers beside its own it takes, and what its answer is made of
+const sportShared = () => [
+  `levers a sport takes beside its own: screen: ${Object.keys(SCREENS).join(' | ')} | { … }; theme: { accent?, bg?, … } the shell's skin`,
+  '  (absent: solved from the sides\' colours in the venue\'s light); world: { id, name?, seed?, style?: { kit } } (the setting rolled in)',
+  '',
+  'THE ANSWER: the sport made: its athletes, each a CHARACTER in its own body (<ref>-athlete…; athletes: false alone leaves',
+  'stick figures), the arena level in its venue, the game in the light play shell with its play link; laws: cast (who plays',
+  'each slot), arena (the venue round the play), style (one palette over kits, graphics and shell; one drawing tradition).',
+  'A level\'s first open resolves its arena and bodies (seconds), cached after. Whether it plays well is the creator\'s to judge.',
+];
 function quickGoalCard(goal) {
   const own = QUICK_LEVERS[goal]();
   return lines(
@@ -536,7 +552,7 @@ function quickGoalCard(goal) {
     own.length ? 'its levers, all optional:' : 'no levers of its own.',
     ...own,
     '',
-    ...quickShared(),
+    ...(goal === 'meet' || goal === 'contest' ? sportShared() : quickShared()),
   );
 }
 

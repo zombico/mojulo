@@ -203,6 +203,9 @@ export const COLLISION_FIXTURE = [
   ['a two-player tennis game', 'design_game'],
   ['mini golf I can play against the computer, three holes', 'design_game'],
   ['five-a-side football with my brother on the second controller', 'design_game'],
+  // the player's idea over a sport's rules (quick.concept): the sport is still the quick path's
+  ['a cats vs dogs basketball game at night with retro TV graphics', 'design_game'],
+  ['baseball with red robots against blue knights in a neon dome', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],

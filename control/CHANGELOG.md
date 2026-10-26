@@ -585,6 +585,50 @@ games (baseball, cricket).
     walk, the catcher, stolen bases and force plays, leg before wicket, the wide and the no ball, run outs and nine or
     eleven a side are the cards' omissions.
 
+### Sport concept: the player's idea on top of the rules
+
+When a player makes a sport game, the players are characters, the arena is a venue round the play, the player's own
+idea is laid over the sport's rules, and one style holds across the kits, the graphics and the shell; each is said back
+in `design_game`'s readout. An audit through the real path first (each arcade card minted by `design_game`, opened in
+the game shell through the dashboard's server): every card already minted characters (six faces cycled over a large
+side) and stood in a lit stadium, with no page error and no black frame; the shell was the stock beige; a level's first
+open resolves its arena and bodies for about twenty seconds on a blank loader, cached after; basketball's tab said
+KICK-OFF.
+
+- **The concept** (`gameworld/sport-concept.js`, `quick.concept` on the contest and meet goals), built: a few words
+  ("cats vs dogs at night", "red robots vs blue knights, retro arcade") read against a lexicon into the quick words
+  around the rules, laid under the creator's own as a sport preset's are (their word always wins; a venue's and a
+  broadcast's word by word, the teams side by side): the sides about a "vs" (a name each, a colour word its shirt, an
+  animal its players that animal's mascots), colour words for the sides' shirts, an animal for every side, the venue's
+  light (night, dusk, golden, day), its house (colosseum, arcade, municipal, olympic, the patron's dome), its livery,
+  its land and a roof, the drawing tradition (anime, western), chibi or mascot bodies, the register and the broadcast
+  package. The rules are the card's: a number or a rule word is never read and is said back, and so is a word nothing
+  reads. A course keeps its stage and its seats (said back as `left`). The readout's `concept` gives each word read
+  and what it decided.
+  - **`teams`** on a two-sided contest: `[{ name?, colour?, mascot? }]` × 2, a side's broadcast name, its shirt (the
+    kits', the graphics' and the shell's) and the brief its players are rolled from as mascots.
+- **One style** (`gameworld/runner.js`): a sport game's shell is themed by the color theorist round its sides'
+  colours in its venue's light (night and dusk a low key, noon a high one) where it was the stock skin; a one-a-side
+  court's players wear their side's colour (a game played in whites, its trim), as a team's always did, so the kits
+  and the graphics agree; the athletes take the concept's drawing tradition.
+- **The machine gate, said** (`design_game`): the sport game's step carries three laws, `cast` (a character in every
+  slot, the faces counted; `athletes: false` the stick figures, advised), `arena` (the stadium round the play, at its
+  time; a bare stage said) and `style` (one palette over kits, graphics and shell, one drawing; a western cast in an
+  anime stadium advised); when they hold the readout says them as the game's `checked`.
+- **Exposed**: the contest card names the bat-and-ball sports, `concept` and `teams`, and a sport's answer (the
+  characters, the venue, the laws) in place of the levers a sport refuses; the meet card takes `concept`; the
+  game-design routing card names the concept, with two routing rows for concept-shaped asks. Basketball's tab calls
+  its restart a tip-off, then an inbound.
+  - **Held:** the reader's laws (the sides, colours, an animal, the venue's nesting, a later word winning, the rule
+    words, the refusals), the concept under the creator's words, a course keeping its stage, the arena carrying the
+    teams; the run's mascots per side and the side colour on the kits; the three laws and the shell's theme; the same
+    concept running the same steps; a concept game through `design_game` (its readout, its stadium at night, six
+    bodies on the page, the checked laws).
+  - **Seen, said:** two concept games opened in the shell through the dashboard's server: cats and dogs as mascots
+    under a night stadium, the CATS and DOGS names on the board, the front screen dark in the game's palette; robots
+    and knights in the candy arcade stadium on a light front. "Robots" is not a mascot word, so that side is people
+    (said back). A level's first open still takes about twenty seconds on the shell's loader; not addressed here.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:

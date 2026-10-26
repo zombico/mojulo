@@ -272,6 +272,8 @@ import { emitThreeWorld } from './scene-three.js';
 // the kernel every contest block inlines reads an innings game (strikes, outs, the bases or the runs, the overs, the side
 // retired), the broadcast's cues and plates name its calls and the stats fold counts them; the new `innings` fixture pins
 // the field's page (the bat sim, the diamond and the oval). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (sport concept: the arena and the cast): the `pitch` fixture re-pins because the pitch client calls a
+// hoop game's restart a tip-off or an inbound, never a kick-off. Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

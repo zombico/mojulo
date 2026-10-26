@@ -39,7 +39,12 @@ import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots,
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
-import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { sportTeams } from './sport-concept.js';
+import { resolveSport } from '../contest/sports.js';
+import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
+import { LANE_KITS } from '../broadcast/broadcast-package.js';
+import { SPORT_KITS } from '../sportswear/kits.js';
+import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -390,8 +395,11 @@ function chibiSpec(spec) {
   return { ...rest, ...(hair ? { hair } : {}), cast: { pole, build: 'chibi' }, head: 'anime', headScale: CHIBI_HEAD };
 }
 
-function sportAthletes(G, Q, ref) {
+function sportAthletes(G, Q, ref, tradition = null) {
   if (Q.athletes === false) return { refs: null, steps: [], laws: [] };
+  // the setting's drawing tradition, the concept's when it names one (anime | western), the world's kit's otherwise
+  const inSetting = () => (tradition ? { ...settingOfGame(G, Q), tradition } : settingOfGame(G, Q));
+  const T = Q.teams ?? null;
   const slots = sportSlots(Q), steps = [], name = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
   let thesis = null;
   const stepOf = (key, F) => {
@@ -411,7 +419,7 @@ function sportAthletes(G, Q, ref) {
   const keyAt = (k) => (k ? `athlete-${k + 1}` : 'athlete');
   if (Array.isArray(Q.athletes)) {
     let made = 0;
-    const setting = Q.athletes.some((e) => e.mascot !== undefined) ? settingOfGame(G, Q) : null;
+    const setting = Q.athletes.some((e) => e.mascot !== undefined) ? inSetting() : null;
     const pool = Q.athletes.map((e) => {
       if (typeof e.ref === 'string') return e.ref;
       const key = keyAt(made++);
@@ -422,12 +430,13 @@ function sportAthletes(G, Q, ref) {
     });
     return { refs: Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]), steps, laws: [] };
   }
-  const setting = settingOfGame(G, Q), form = typeof Q.athletes === 'string' ? Q.athletes : null;
+  const setting = inSetting(), form = typeof Q.athletes === 'string' ? Q.athletes : null;
   let reads = null, pending = [];
   const roll = (k, opts) => {
-    if (form === 'mascot') {
-      // (a rank's members each a mascot of their own in the rank's kit; a person's kit words are the mascot's)
-      const st = mascotStep(keyAt(k), {}, opts.kit, setting, k ? `quick/athlete/${k + 1}` : 'quick/athlete');
+    if (form === 'mascot' || opts.brief) {
+      // (a rank's members each a mascot of their own in the rank's kit; a person's kit words are the mascot's; a team's
+      // `mascot` the brief its side's are rolled from)
+      const st = mascotStep(keyAt(k), opts.brief ? { brief: opts.brief } : {}, opts.kit, setting, k ? `quick/athlete/${k + 1}` : 'quick/athlete');
       reads ??= [thesis].filter(Boolean);
       steps.push(st);
       return { ref: st.ref, F: { spec: { kit: opts.kit } } };
@@ -449,21 +458,58 @@ function sportAthletes(G, Q, ref) {
     refs = [];
     let k = 0;
     ['a', 'b'].forEach((side, s) => {
-      const kit = { sport, colours: [SIDE_KITS[side], SIDE_SECOND[side], SIDE_TRIM[side]], ...own(s) }, rank = [];
-      for (let i = 0; i < faces; i++) rank.push(roll(k++, { kit, ...(rank.length && form !== 'mascot' ? { uniform: rank[0].F.spec } : {}) }));
+      const kit = { sport, colours: [T?.[s]?.colour ?? SIDE_KITS[side], SIDE_SECOND[side], SIDE_TRIM[side]], ...own(s) }, rank = [], brief = T?.[s]?.mascot;
+      for (let i = 0; i < faces; i++) rank.push(roll(k++, { kit, ...(brief ? { brief } : {}), ...(rank.length && form !== 'mascot' && !brief ? { uniform: rank[0].F.spec } : {}) }));
       const keeper = keeperAt >= 0 ? roll(k++, { kit: { sport: sport === 'soccer' ? 'keeper' : sport, colours: [KEEPER_SHIRT[side], SIDE_TRIM[side], SIDE_SECOND[side]] } }).ref : null;
       for (let i = 0, f = 0; i < per; i++) refs.push(i === keeperAt ? keeper : rank[f++ % rank.length].ref);
     });
     says = `two sides of ${faces} ${form === 'mascot' ? 'mascots' : form === 'chibi' ? 'chibi faces' : 'faces'} each, one ${sport} kit a side in its colour${keeperAt >= 0 ? ', a keeper each in a kit of its own' : ''}`;
   } else {
     // one each, the sport's kit in their own colour (or the kits' words, a court's two players one a side)
-    const pool = Array.from({ length: Math.min(ATHLETE_POOL, slots.n) }, (_, k) => roll(k, { kit: { sport, ...own(k) } }).ref);
+    // (two sides of one: each player in their side's colour, the graphics' (a team's own when it names one; a sport
+    // played in whites wears them whoever plays, the side's colour its trim), its mascot brief for its player; lanes
+    // and seats each in their own)
+    const sideColour = (k) => (slots.sides ? T?.[k]?.colour ?? SIDE_KITS['ab'[k]] : null), whites = SPORT_KITS[sport]?.whites ? SPORT_KITS[sport].colours : null;
+    const sideKit = (k) => (!sideColour(k) ? {} : { colours: whites ? [whites[0], whites[1], sideColour(k)] : [sideColour(k)] });
+    const pool = Array.from({ length: Math.min(ATHLETE_POOL, slots.n) }, (_, k) => roll(k, { kit: { sport, ...sideKit(k), ...own(k) }, ...(T?.[k]?.mascot ? { brief: T[k].mascot } : {}) }).ref);
     refs = Array.from({ length: slots.n }, (_, i) => pool[i % pool.length]);
     says = `${pool.length} ${form ? `${form} ` : ''}${pool.length === 1 ? 'athlete' : 'athletes'} in ${sport} kit${slots.n > pool.length ? ` over ${slots.n} ${Q.goal === 'meet' ? 'lanes' : 'seats'}` : ''}`;
   }
   const laws = [{ concern: 'cast', law: 'setting', holds: !pending.length,
     says: `the athletes rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${says}${reads ? `; ${reads.slice(0, 2).join('; ')}` : ''}${pending.length ? ` (${[...new Set(pending)].join('; ')})` : ''}` }];
   return { refs, steps, laws };
+}
+
+/**
+ * A sport game's ONE STYLE: its sides' colours (the teams', the broadcast's, else the side kits; a meet's lanes) are the
+ * kits', the graphics' and the shell's, the shell's palette solved round them in the venue's light (night and dusk a low
+ * key, noon a high one); its athletes drawn in one tradition with the stadium's look. → { theme, law }
+ */
+function sportStyle(G, Q, manifest, tradition) {
+  const B = typeof Q.broadcast === 'object' && Q.broadcast ? Q.broadcast : {};
+  const lanes = Q.goal === 'meet' || (() => { try { return resolveSport(Q.sport).shape === 'turns'; } catch { return false; } })();
+  const sides = B.sides ?? (lanes ? LANE_KITS.slice(0, 2) : (Q.teams ?? [{}, {}]).map((t, i) => t.colour ?? SIDE_KITS['ab'[i]]));
+  const v = manifest.kind === 'stadium' ? { preset: manifest.preset, look: manifest.look ?? STADIUM_PRESETS[manifest.preset]?.look, time: manifest.time ?? STADIUM_PRESETS[manifest.preset]?.time } : null;
+  const key = !v ? 'mid' : v.time === 'night' || v.time === 'dusk' ? 'low' : v.time === 'day' ? 'high' : 'mid';
+  const theme = gameTheme(solvePalette({ seed: 1, key, hues: { accent: sides[0], accent2: sides[1] ?? sides[0] } }));
+  const drawn = tradition ?? settingOfGame(G, Q).tradition ?? null;
+  const clash = v && ((v.look === 'anime' && drawn === 'western') || (tradition === 'anime' && v.look === 'shaded' && manifest.look === 'shaded'));
+  const law = { concern: 'style', law: 'one-look', holds: !clash,
+    says: `one palette: the ${lanes ? 'first lanes\' colours' : 'sides'} ${sides.slice(0, 2).join(' and ')} on ${lanes ? '' : 'the kits, '}the broadcast and the shell (a ${key} key${v ? `, ${v.time}` : ''}); the athletes drawn ${drawn ?? 'as the world draws'}${v ? ` in the ${v.preset} stadium (${v.look})` : ' on the stage'}${clash ? `: a ${drawn} cast in a ${v.look} stadium reads as two games (venue.look ${drawn === 'western' ? 'shaded' : 'anime'}, or the concept's words for both)` : ''}` };
+  return { theme, law };
+}
+/** The arena and the cast, as the machine gate sees them: a dressed venue, and a character in every slot. */
+function sportLaws(Q, A, manifest) {
+  const slots = A.refs ? A.refs.length : 0, faces = A.refs ? new Set(A.refs).size : 0;
+  const sided = Q.goal === 'contest' && (() => { try { return resolveSport(Q.sport).shape !== 'turns'; } catch { return false; } })();
+  const place = Q.goal === 'meet' ? 'lane' : sided ? 'slot' : 'seat';
+  const cast = A.refs
+    ? { concern: 'cast', law: 'characters', holds: true, says: `${slots} ${place}${slots === 1 ? '' : 's'} played by ${faces} ${faces === 1 ? 'character' : 'characters'} in their own bodies${faces < slots ? (sided ? ' (a side\'s faces cycled over its places)' : ` (cycled over the ${place}s)`) : ''}` }
+    : { concern: 'cast', law: 'characters', holds: false, says: 'athletes: false: the arena\'s stick figures play it, no characters (leave athletes out to roll them, or name them)' };
+  const arena = manifest.kind === 'stadium'
+    ? { concern: 'arena', law: 'venue', holds: true, says: `the arena stands in the ${manifest.preset} stadium${manifest.time ? ` at ${manifest.time}` : ''}: its bowl, its crowd and its sky round the play` }
+    : { concern: 'arena', law: 'venue', holds: Q.goal === 'contest' && (() => { try { return resolveSport(Q.sport).shape === 'turns'; } catch { return false; } })(), says: `the arena on its stage (the ${manifest.kit} kit${manifest.stands ? ', its stands' : ''})${Q.venue === false ? ': venue false; a stadium preset puts a bowl and a crowd round it' : ''}` };
+  return [cast, arena];
 }
 
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the
@@ -506,11 +552,15 @@ function quickSteps(world, G, ref, lookup) {
   // each slot an athlete (a character in its own body) unless the quick spec says false
   if (Q.goal === 'meet' || Q.goal === 'contest') {
     const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
-    const A = sportAthletes(G, Q, ref);
+    // the player's concept and the teams' own words laid under the creator's (quick.js sportWords)
+    const Q1 = sportWords(Q), QS = Q1.teams ? { ...Q1, teams: sportTeams(Q1) } : Q1, concept = sportConceptOf(Q);
+    const A = sportAthletes(G, QS, ref, concept?.tradition ?? null);
     const arenas = sportArenas(Q, { title, seed, athletes: A.refs }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
-    const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
-    return [...A.steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(A.laws.length ? { laws: A.laws } : {}) }];
+    const style = sportStyle(G, QS, arenas[0].manifest, concept?.tradition ?? null);
+    const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', theme: Q.theme ?? paletteTheme(G) ?? style.theme, ...(G.screen ? { screen: G.screen } : {}) };
+    const laws = [...A.laws, ...sportLaws(QS, A, arenas[0].manifest), style.law];
+    return [...A.steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), laws }];
   }
   // a board game lifted (tabletop/holo-arena.js): one level, the hologram arena as a stage carrying the game and the
   // hosted level's contract; the game plays it in the shell. No hero, no trail: the pieces are the game's

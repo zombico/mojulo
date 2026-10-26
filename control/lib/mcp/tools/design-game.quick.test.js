@@ -157,6 +157,21 @@ describe('design_game quick', () => {
     expect(stored('hd-level-arena-track')).toMatchObject({ kind: 'stadium', meet: { event: 'hurdles', lanes: 3 }, game: { levelRef: 'track' } });
   }, 240_000);
 
+  it('a concept over a sport\'s rules: the player\'s idea read into the sides, the mascots and the venue, said back; the shell themed from the sides', async () => {
+    const out = await designGameHandler({ quick: { goal: 'contest', sport: 'basketball', players: 0, concept: 'cats vs dogs at night, first to 21', world: { id: 'cvd', name: 'Cats v Dogs' } }, ref: 'cvd' });
+    expect(out.concept).toMatchObject({ prompt: 'cats vs dogs at night, first to 21', read: ['cats vs dogs: side a: Cats, cat mascots, side b: Dogs, dog mascots', 'night: venue.time night'] });
+    expect(out.concept.rules).toMatch(/^first, 21: the rules are the sport's/);
+    expect(out.ran.filter((r) => r.key.startsWith('athlete'))).toHaveLength(6);
+    // the machine gate said back: who plays, the arena, the one style
+    expect(out.ran.find((r) => r.key === 'game').checked).toEqual([expect.stringMatching(/^cast: 6 slots played by 6 characters/), expect.stringMatching(/^arena: the arena stands in the football stadium at night/), expect.stringMatching(/^style: one palette/)]);
+    expect(stored('cvd-athlete')).toMatchObject({ kind: 'layered' });
+    const L = stored('cvd-level-arena-pitch');
+    expect(L).toMatchObject({ kind: 'stadium', preset: 'football', time: 'night', pitch: { sport: 'basketball', broadcast: { names: ['Cats', 'Dogs'] } } });
+    expect(stored('cvd-game').theme).toMatchObject({ accent: expect.stringMatching(/^#/), bg: expect.stringMatching(/^#/) });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('cvd-level-arena-pitch'), { live: true });
+    expect(Object.keys(payload.pitch.bodies)).toHaveLength(6);
+  }, 240_000);
+
   it('tabletop: a board game lifted into a hologram arena is one level and the game in one call; the page plays it on the holo channel', async () => {
     const out = await designGameHandler({ quick: { goal: 'tabletop', game: 'chess', players: 1, level: 'easy', world: { id: 'kaiba-dome', name: 'Kaiba Dome' } }, ref: 'kd' });
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-arena-arena', 'make'], ['game', 'make']]);

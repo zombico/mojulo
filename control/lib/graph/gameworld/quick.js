@@ -164,6 +164,8 @@ import { readTurns, turnsManifest } from '../contest/turn-arena.js';
 import { readTeam, teamManifest, teamArenaData } from '../contest/team-arena.js';
 import { readInnings, inningsManifest } from '../contest/innings-arena.js';
 import { resolveSport, MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS, SHAPE_WORDS } from '../contest/sports.js';
+import { readSportConcept, sportTeams } from './sport-concept.js';
+import { SIDE_KITS as BROADCAST_SIDE_KITS } from '../broadcast/broadcast-package.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 
@@ -220,7 +222,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -495,9 +497,9 @@ export function readQuick(Q) {
 }
 
 // what a sport takes (a contest is its own simulation on the World page: no hero, trail, building, ride or run)
-const SPORT_KEYS = ['event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'surface', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'preset', 'innings', 'overs'];
-const MEET_KEYS = ['goal', 'event', 'lanes', 'players', 'register', 'distance', 'attempts', 'athletes', 'kits', 'broadcast', 'venue', 'preset', 'theme', 'screen'];
-const CONTEST_KEYS = ['goal', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'surface', 'rounds', 'periods', 'seconds', 'innings', 'overs', 'athletes', 'kits', 'broadcast', 'venue', 'preset', 'theme', 'screen'];
+const SPORT_KEYS = ['event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'surface', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'preset', 'innings', 'overs', 'concept', 'teams'];
+const MEET_KEYS = ['goal', 'event', 'lanes', 'players', 'register', 'distance', 'attempts', 'athletes', 'kits', 'broadcast', 'venue', 'preset', 'concept', 'theme', 'screen'];
+const CONTEST_KEYS = ['goal', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'surface', 'rounds', 'periods', 'seconds', 'innings', 'overs', 'athletes', 'kits', 'broadcast', 'venue', 'preset', 'concept', 'teams', 'theme', 'screen'];
 const pick = (Q, keys) => Object.fromEntries(keys.filter((k) => Q[k] !== undefined).map((k) => [k, Q[k]]));
 /** The sport's words read by its arena (contest/*-arena.js), the refusal its own. */
 /** The sport's own preset (contest/sport-presets.js) under the words given: a word given moves its part, keeps the rest. */
@@ -510,11 +512,57 @@ export function withSportPreset(Q) {
   const { preset: _p, ...given } = Q;
   return { ...words, ...given };
 }
+/**
+ * A sport's quick words with its concept read under them (gameworld/sport-concept.js: the player's idea around the
+ * rules) and its preset's: the creator's own words always win, a venue's and a broadcast's word by word, the teams side
+ * by side. A course (a turn sport) keeps its stage: the concept's venue words are left for a stadium's sport. Without a
+ * concept, the preset's words alone, as before.
+ */
+export function sportWords(Q0) {
+  const Q = withSportPreset(Q0);
+  if (Q.concept === undefined) return Q;
+  const { words: C } = readSportConcept(Q.concept), out = { ...Q };
+  if (C.register !== undefined && Q.register === undefined) out.register = C.register;
+  if (C.athletes !== undefined && Q.athletes === undefined) out.athletes = C.athletes;
+  if (C.broadcast && Q.broadcast !== false) out.broadcast = { ...C.broadcast, ...(typeof Q.broadcast === 'string' ? { package: Q.broadcast } : Q.broadcast ?? {}) };
+  if (C.venue && Q.venue !== false) {
+    const given = typeof Q.venue === 'string' ? { preset: Q.venue } : Q.venue ?? {}, home = quickVenueOf({ ...Q, venue: undefined, concept: undefined });
+    const v = { ...C.venue, ...given, ...(C.venue.bowl || given.bowl ? { bowl: { ...C.venue.bowl, ...given.bowl } } : {}) };
+    if (v.preset === undefined && home !== undefined) v.preset = home;
+    if (v.preset !== undefined) out.venue = v;
+  }
+  if (C.teams && Q.goal === 'contest' && twoSided(Q)) out.teams = C.teams.map((t, i) => ({ ...t, ...(Q.teams?.[i] ?? {}) }));
+  return out;
+}
+const twoSided = (Q) => { try { return resolveSport(Q.sport).shape !== 'turns'; } catch { return false; } };
+/** The concept's reading for the readout (what each word decided, what nothing read, the rule words left to the card). */
+export function sportConceptOf(Q) {
+  if (Q.concept === undefined) return null;
+  const R = readSportConcept(Q.concept), course = Q.goal === 'contest' && !twoSided(Q);
+  const left = [...(course && R.words.venue ? ['the venue\'s words: a course keeps its stage'] : []), ...(course && R.words.teams ? ['the sides: a turn sport\'s seats are its players'] : [])];
+  return { prompt: Q.concept, read: R.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(R.tradition ? { tradition: R.tradition } : {}), ...(R.unread.length ? { unread: R.unread } : {}), ...(left.length ? { left } : {}), ...(R.rules.length ? { rules: `${R.rules.join(', ')}: the rules are the sport's (its own words: sets, innings, overs, periods, a variant), never a concept's` } : {}) };
+}
+/** The broadcast's words with the teams' names and colours under the creator's own. */
+function teamsBroadcast(Q) {
+  const T = Q.teams;
+  if (!T || Q.broadcast === false) return Q.broadcast;
+  const B = typeof Q.broadcast === 'string' ? { package: Q.broadcast } : Q.broadcast ?? {};
+  const names = T.every((t) => t.name) ? T.map((t) => t.name) : null, sides = T.some((t) => t.colour) ? T.map((t, i) => t.colour ?? BROADCAST_SIDE_KITS[i]) : null;
+  if (!names && !sides) return Q.broadcast;
+  return { ...(names ? { names } : {}), ...(sides ? { sides } : {}), ...B };
+}
+
 function readSport(Q0) {
   const keys = Q0.goal === 'meet' ? MEET_KEYS : CONTEST_KEYS;
   if (Q0.camera !== undefined) throw fail('.camera: a sport is seen from its arena\'s camera (the broadcast, the end, the follow)');
   for (const k of Object.keys(Q0)) if (!keys.includes(k)) throw fail(`.${k}: a ${Q0.goal} takes ${keys.join(', ')} (${Q0.goal === 'meet' ? 'its runners are its lanes' : 'its players are its pads'})`);
-  const Q = withSportPreset(Q0);
+  if (Q0.concept !== undefined) readSportConcept(Q0.concept);
+  if (Q0.teams !== undefined) {
+    if (Q0.goal !== 'contest' || !twoSided(Q0)) throw fail('.teams name a two-sided contest\'s sides (a net game, a team game, a bat-and-ball game): a meet\'s lanes and a course\'s seats are its players');
+    sportTeams(Q0);
+  }
+  const Q1 = sportWords(Q0), T = Q1.teams !== undefined ? sportTeams(Q1) : null;
+  const Q = T ? { ...Q1, teams: T, broadcast: teamsBroadcast({ ...Q1, teams: T }) } : Q1;
   readSportAthletes(Q);
   readQuickVenue(Q);
   try {
@@ -592,7 +640,8 @@ function readSportAthletes(Q) {
 /** A sport's level: the arena as a stage recipe carrying its play, with the game contract a hosted level speaks (the
  * page posts READY, takes INIT, posts the OUTCOME: contest/*-arena.client.js). One level, named for its ground. */
 export function sportArenas(Q0, { title, seed = 1, athletes = null } = {}) {
-  const Q = withSportPreset(Q0), venue = quickVenueOf(Q), own = { ...(athletes ? { athletes } : {}), ...(venue ? { venue } : {}) };
+  const Q1 = sportWords(Q0), T = Q1.teams ? sportTeams(Q1) : null, Q = T ? { ...Q1, teams: T, broadcast: teamsBroadcast({ ...Q1, teams: T }) } : Q1;
+  const venue = quickVenueOf(Q), own = { ...(athletes ? { athletes } : {}), ...(venue ? { venue } : {}) };
   const contract = (id, text) => ({ levelRef: id, consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text } });
   if (Q.goal === 'meet') {
     const m = meetManifest({ ...pick(Q, ['event', 'lanes', 'players', 'register', 'distance', 'attempts', 'broadcast']), seed, ...(title ? { title } : {}), ...own });
