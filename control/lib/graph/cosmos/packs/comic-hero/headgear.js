@@ -168,7 +168,7 @@ const PANEL = { taut: 0.55, thick: 0.0028, lift: 0.0018, rim: { w: 0.08, h: 0.00
 export const PANELLED = Object.freeze({
   kombat: {
     centre: { ...PANEL, outline: { poly: [[-0.6, 'nose*0.55'], [0.6, 'nose*0.55'], [0.62, 'chin-0.45'], [-0.62, 'chin-0.45']] },
-      vents: [-0.33, -0.11, 0.11, 0.33].map((x) => ({ path: [[x, 'mouth+0.3'], [x, 'mouth-0.6']], h: 0.09 })) },
+      vents: ['mouth+0.2', 'mouth-0.05', 'mouth-0.3', 'mouth-0.55'].map((z) => ({ path: [[-0.4, z], [0.4, z]], h: 0.09 })) },   // four horizontal slits across the centre
     side: { ...PANEL, outline: { poly: [[0.72, 'nose*0.55'], [1.5, 'nose*0.25'], [2.35, 'nose*0.05'], [2.45, 'mouth-0.1'], [1.6, 'chin-0.05'], [0.74, 'chin-0.4']] } },
   },
 });

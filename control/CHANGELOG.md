@@ -76,7 +76,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior and the wastelander.
 - A mouthpiece takes a polygon outline (`outline.poly`, its heights words) and vents in any direction (each slot square to
   its path). The PANELLED mouthpiece (`panelledKit`, `PANELLED.kombat`): the fighting ninja's three panels cast tight on the
-  face, a flat centre with vertical vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
+  face, a flat centre with horizontal vents and the sides angled back to the cheekbones and the jaw, a thin dark backing
   under them so the gaps read as panel lines; in four colourways (frost, venom, ember, jade).
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
