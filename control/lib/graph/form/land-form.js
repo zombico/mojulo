@@ -18,12 +18,14 @@
 import { hexToRgb } from '../color-theorist/oklab.js';
 import { strHash } from '../city/plan/dice.js';
 
-/** A class: the cube colour it takes, its roughness, its tone (× the colour) and how far a face's tone may wander. */
+/** A class: the cube colour it takes, its roughness, its tone (× the colour) and how far a face's tone may wander. The
+ *  colour is the palette's target (era/cube-light.js solves it into a base), so a class never re-darkens it: cliff and
+ *  rock are the stone the palette names (the theorist's seen laws caught a 0.8 on the rock as stone out of order). */
 export const LAND_CLASSES = Object.freeze({
   sand: { colour: 'sand', rough: 0.95, tone: 1, vary: 0.04 },
   ground: { colour: 'grass', rough: 0.9, tone: 1, vary: 0.07 },
-  cliff: { colour: 'stone', rough: 0.85, tone: 0.92, vary: 0.06 },
-  rock: { colour: 'stone', rough: 0.8, tone: 0.8, vary: 0.08 },
+  cliff: { colour: 'stone', rough: 0.85, tone: 1, vary: 0.06 },
+  rock: { colour: 'stone', rough: 0.8, tone: 1, vary: 0.08 },
   trail: { colour: 'floor', rough: 0.9, tone: 1, vary: 0.04 },
   water: { colour: 'water', rough: 0.06, tone: 1, vary: 0 },
 });

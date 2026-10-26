@@ -37,16 +37,22 @@ const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const keyOf = (i) => { const F = L.faces[i]; return F.cls ? `${F.cls}${F.under ? ':under' : F.wet ? ':wet' : ''}` : 'unread'; };
 const order = P.faces.map((_, i) => i).sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : keyOf(a) > keyOf(b) ? 1 : a - b));
 const dot = (n) => n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2];
-const pos = [], c6 = [], c7 = [], bk = [], ranges = [];
+// and the seen laws' id: the role a face shows (cliff and rock the stone, ground the grass, dry sand, the trail the floor,
+// the sea) × 4, + 1 turned to the hour's sun (within ~40° of square to it: the palette's lit colour is a face square to the
+// sun, so a steep face lit at a glance is not compared with a flat one), 2 turned away
+const SEEN_ROLES = ['stone', 'grass', 'sand', 'floor', 'water'], roleOf = { cliff: 'stone', rock: 'stone', ground: 'grass', sand: 'sand', trail: 'floor', water: 'water' };
+const pos = [], c6 = [], c7 = [], bk = [], sid = [], ranges = [];
 for (const i of order) {
   const f = P.faces[i], F = L.faces[i], key = keyOf(i), n = f.normal || [0, 0, 1];
   const bucket = F.cls === 'cliff' ? (dot(n) >= 0.5 ? 1 : dot(n) <= 0.05 ? 2 : 0) : F.cls === 'sand' && !F.under ? (F.wet ? 3 : 4) : 0;
+  const role = F.cls && !F.under && !F.wet ? SEEN_ROLES.indexOf(roleOf[F.cls]) + 1 : 0, facing = dot(n) >= 0.75 ? 1 : dot(n) <= 0.05 ? 2 : 0;
+  const seenId = role && facing ? role * 4 + facing : 0;
   const fills = f.cornerFills || f.corners.map(() => f.fill), alpha = f.cornerAlpha || f.corners.map(() => 1);
   const base = F.cls ? F.base : hexRgb(f.fill);
   let R = ranges[ranges.length - 1];
   if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });
   for (let k = 1; k + 1 < f.corners.length; k++) for (const j of [0, k, k + 1]) {
-    pos.push(...f.corners[j]); c6.push(...hexRgb(fills[j]), Math.round(alpha[j] * 255)); c7.push(...base, Math.round(alpha[j] * 255)); bk.push(bucket); R.count += 1;
+    pos.push(...f.corners[j]); c6.push(...hexRgb(fills[j]), Math.round(alpha[j] * 255)); c7.push(...base, Math.round(alpha[j] * 255)); bk.push(bucket); sid.push(seenId); R.count += 1;
   }
 }
 // the shadow's frame: what stands above the water, not the sea's floor or the sea to the horizon
@@ -69,7 +75,8 @@ const data = {
   classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
   cameras: [...P.cameras.map((c) => ({ name: c.name, ...c.worldFraming })), shore], shoreSun, ranges,
   light: { sun: light.sun.linear, ambient: light.ambient.linear, swatches: ['stone', 'grass', 'sand', 'floor', 'water'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
-  pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)),
+  pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)), sid: b64(Uint8Array.from(sid)), seenRoles: SEEN_ROLES,
+  palette: { sky: light.ambient.color, targets: Object.fromEntries(SEEN_ROLES.map((r) => [r, { lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade }])) },
 };
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
 
@@ -103,7 +110,7 @@ const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 // (the fills and colours are sRGB bytes; three's vertex colours are linear)
 const LIN = Float32Array.from({ length: 256 }, (_, v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
 const linear = (b) => Float32Array.from(b, (v, i) => (i % 4 === 3 ? v / 255 : LIN[v]));
-const POS = new Float32Array(bytes(D.pos).buffer), C6 = linear(bytes(D.c6)), C7 = linear(bytes(D.c7)), BK = bytes(D.bk);
+const POS = new Float32Array(bytes(D.pos).buffer), C6 = linear(bytes(D.c6)), C7 = linear(bytes(D.c7)), BK = bytes(D.bk), SID = bytes(D.sid);
 const cv = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
@@ -121,7 +128,7 @@ function part(R, colours, extra = {}) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(POS.subarray(R.start * 3, (R.start + R.count) * 3), 3));
   g.setAttribute('color', new THREE.BufferAttribute(colours.subarray(R.start * 4, (R.start + R.count) * 4), 4));
-  if (extra.bucket) g.setAttribute('bucket', new THREE.BufferAttribute(BK.subarray(R.start, R.start + R.count), 1));
+  if (extra.bucket) { g.setAttribute('bucket', new THREE.BufferAttribute(BK.subarray(R.start, R.start + R.count), 1)); g.setAttribute('seenid', new THREE.BufferAttribute(SID.subarray(R.start, R.start + R.count), 1)); }
   return g;
 }
 const fog = () => new THREE.FogExp2(new THREE.Color(D.haze.color), D.haze.density);
@@ -160,8 +167,8 @@ for (const R of D.ranges) {
   seven.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
 // the gate's buckets: a flat pass, each face in its bucket's colour, the sea hiding what is under it
 const ids = new THREE.Scene(); ids.background = new THREE.Color(0);
-const idMat = new THREE.ShaderMaterial({ vertexShader: 'attribute float bucket; varying float b; void main() { b = bucket; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: 'varying float b; void main() { gl_FragColor = vec4(b / 255.0, 0.0, 0.0, 1.0); }', side: THREE.DoubleSide });
+const idMat = new THREE.ShaderMaterial({ vertexShader: 'attribute float bucket; attribute float seenid; varying float b; varying float s; void main() { b = bucket; s = seenid; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'varying float b; varying float s; void main() { gl_FragColor = vec4(b / 255.0, s / 255.0, 0.0, 1.0); }', side: THREE.DoubleSide });
 for (const R of D.ranges) ids.add(new THREE.Mesh(part(R, C7, { bucket: true }), idMat));
 
 // the sun: the hour's, turned and raised from it by the sliders
@@ -203,18 +210,31 @@ function draw() {
 }
 addEventListener('resize', draw);
 
-// the machine gate: each half drawn to a target the size of one half, the bucket pass beside it, each bucket's mean
-// luminance (and the wet and dry sand's brightest twentieth, where a glint shows)
-function readScene(scene, w, h, linear) {
-  const rt = new THREE.WebGLRenderTarget(w, h, { colorSpace: linear ? THREE.LinearSRGBColorSpace : THREE.SRGBColorSpace });
-  renderer.setRenderTarget(rt); renderer.render(scene, camera); const px = new Uint8Array(w * h * 4); renderer.readRenderTargetPixels(rt, 0, 0, w, h, px);
+// the machine gate: each half drawn across the whole screen (through the tone curve, as it is seen), the id pass beside
+// it, each bucket's mean luminance (and the wet and dry sand's brightest twentieth, where a glint shows), and each role's
+// mean colour lit and in shade (the seen laws' samples)
+// (the id pass to a target of the screen's size with no antialiasing: blended edges would make ids that are no face's)
+function readIds() {
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, rt = new THREE.WebGLRenderTarget(w, h, { samples: 0 });
+  fit(w, h); renderer.setRenderTarget(rt); renderer.render(ids, camera); const px = new Uint8Array(w * h * 4); renderer.readRenderTargetPixels(rt, 0, 0, w, h, px);
   renderer.setRenderTarget(null); rt.dispose(); return px;
 }
+function readScreen(scene) {
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  renderer.setRenderTarget(null); renderer.setScissorTest(false); renderer.setViewport(0, 0, cv.clientWidth, cv.clientHeight); fit(w, h);
+  renderer.render(scene, camera); const px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px); return px;
+}
+const hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
 function buckets(px, id) {
-  const S = {}; for (let i = 0; i < id.length; i += 4) { const b = id[i]; if (!b) continue; const y = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]; (S[b] ??= []).push(y); }
-  const name = { 1: 'cliffToSun', 2: 'cliffAway', 3: 'wetSand', 4: 'drySand' }, out = {};
+  const S = {}, C = {}; for (let i = 0; i < id.length; i += 4) {
+    const b = id[i], s = id[i + 1];
+    if (b) (S[b] ??= []).push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]);
+    if (s) { const a = (C[s] ??= [0, 0, 0, 0]); a[0] += px[i]; a[1] += px[i + 1]; a[2] += px[i + 2]; a[3] += 1; }
+  }
+  const name = { 1: 'cliffToSun', 2: 'cliffAway', 3: 'wetSand', 4: 'drySand' }, out = {}, roles = {};
   for (const [b, ys] of Object.entries(S)) { ys.sort((a, c) => a - c); out[name[b]] = { px: ys.length, mean: +(ys.reduce((a, c) => a + c, 0) / ys.length).toFixed(1), top: +ys[Math.floor(ys.length * 0.95)].toFixed(1), peak: +ys[Math.floor(ys.length * 0.99)].toFixed(1) }; }
-  return out;
+  for (const [s, a] of Object.entries(C)) if (a[3] >= 40) { const r = D.seenRoles[Math.floor(s / 4) - 1]; (roles[r] ??= {})[s % 4 === 1 ? 'lit' : 'shade'] = hex(a.slice(0, 3).map((v) => v / a[3])); }
+  return Object.assign(out, { roles });
 }
 // the swatches: a patch of each role's base square to the sun, then under the sky alone, drawn to the screen through
 // the same tone curve and read back against the palette's targets
@@ -235,15 +255,15 @@ window.measure = ({ camera: name, sun } = {}) => {
   if (name) frame(name);
   const before = [Number(az.value), Number(el.value)];
   sun ??= [0, Math.round(hourEl * 180 / Math.PI)]; az.value = sun[0]; el.value = sun[1];
-  sunNow(); const w = 640, h = 480; fit(w, h);
-  const id = readScene(ids, w, h, true), g6 = buckets(readScene(six, w, h), id), g7 = buckets(readScene(seven, w, h), id);
+  sunNow();
+  const id = readIds(), g6 = buckets(readScreen(six), id), g7 = buckets(readScreen(seven), id);
   // the wet band's sheen: the same view with its roughness the dry sand's, so what remains is what the wet's gloss adds
   let sheen = null;
-  if (wetMat && g7.wetSand) { const r = wetMat.roughness; wetMat.roughness = D.classes.sand; const matte = buckets(readScene(seven, w, h), id).wetSand; wetMat.roughness = r; sheen = { glossy: g7.wetSand, matte }; }
+  if (wetMat && g7.wetSand) { const r = wetMat.roughness; wetMat.roughness = D.classes.sand; const matte = buckets(readScreen(seven), id).wetSand; wetMat.roughness = r; sheen = { glossy: g7.wetSand, matte }; }
   az.value = before[0]; el.value = before[1]; sunNow(); draw();
   return { camera: name || sel.value, sun, gen6: g6, gen7: g7, sheen, shadowPasses, frames, unread: D.unread };
 };
-window.shoreSun = D.shoreSun; window.ready = true;
+window.shoreSun = D.shoreSun; window.palette = D.palette; window.ready = true;
 setSun(0, hourEl * 180 / Math.PI); frame(D.cameras[0].name);
 </script></body></html>`;
 fs.writeFileSync(out, html);

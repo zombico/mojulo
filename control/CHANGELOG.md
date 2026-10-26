@@ -826,6 +826,10 @@ A cube's light is recipe: its palette (the color theorist's solve, seeded by the
 light, that gen-6 bakes into its fills and gen-7 hands to the renderer. Gen-6's colours are what is seen; gen-7's seen
 colour is base × light, so the palette's colours are targets and the base colours and the light are solved together.
 
+- **The light is the theorist's** (`color-theorist/light.js`, `solveLight({ targets, sky, sun, contrast })`, the tone
+  curve, `seen`): the color theorist owns mood → palette → light; the cube composes (`era/cube-light.js` hands it the
+  cube's colours, its sky and key at the hour and the reference's contrast). No orchestrator over the cube: it keeps
+  choosing the reference, the hour, the register, the contrast and the grit.
 - **The palette solves the light** (`era/cube-light.js`, `cubeLight(cube, { hour })`), built: a role's colour is its lit
   target (a face square to the sun), its shade target the lit one times one shade tint common to every role (so one sun
   meets them all); the sky's light takes the cube's sky at its hour (the palette's, when solved), the sun the hour's key;
@@ -837,6 +841,14 @@ colour is base × light, so the palette's colours are targets and the base colou
   sky light are the solve's, in three's units (π × the levels); `window.swatches()` draws a patch of each role square to
   the sun and under the sky alone and reads it off the screen: on island-noon and under a seeded palette every shade
   lands on its target to the byte and every lit patch within 5 of 255 (the materials' own sheen square to the sun).
+- **Seen laws: the theorist tests what is rendered** (`color-theorist/seen.js`, `seenLaws(seen, palette)`): each role's
+  colours as rendered, lit and turned away, against the palette that asked for them: `targets` (the swatches on their
+  targets), `value-order` (roles the palette parts clearly in lightness keep that order), `accent` (the most chromatic
+  seen), `shade-is-a-colour` (never black, and toward the sky's hue from its lit colour). Advice, never a refusal; a law
+  with nothing to read is left out. `scripts/spikes/form/island-gate.mjs` runs them on both halves of the island: on
+  island-noon gen-7 meets every law but one gen-6 shares (the sea reads lighter than the grass in both, where the
+  palette asks it darker: gen-6's alpha over pale sand, gen-7's sky in it). They caught the form read's own class tones
+  (cliff × 0.92, rock × 0.8) darkening the palette's stone: the classes now show the stone the palette names.
 - **Seen, said:** the sky in the gen-7 sea's reflection lifts it over its target. Still to come: gen-6 reading the same
   light (its shading, contrast and sky), the live light's shadow falling toward the shade rather than black, and the
   palette's own light colour on the sun. An unseeded cube's payload is byte for byte as it was (nothing reads the
