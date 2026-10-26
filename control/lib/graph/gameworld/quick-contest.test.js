@@ -40,11 +40,11 @@ describe('the sport goals', () => {
     expect(() => readQuick({ goal: 'contest', sport: 'bowling', rounds: 3 })).not.toThrow();
     expect(() => readQuick({ goal: 'meet', event: 'hurdles', lanes: 4, players: 2, distance: 110 })).not.toThrow();
   });
-  it('a meet\'s game is one level, the track as a stage carrying the meet and a hosted level\'s contract; a contest\'s the court, the course or the pitch', () => {
+  it('a meet\'s game is one level, the track in its stadium carrying the meet and a hosted level\'s contract; a contest\'s the court, the course or the pitch', () => {
     const steps = runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2, athletes: false } }), { ref: 'gw_meet' });
     expect(steps.map((s) => s.key)).toEqual(['level-arena-track', 'game']);
     const level = steps[0].order.manifest;
-    expect(level).toMatchObject({ kind: 'stage', meet: { event: 'hurdles', lanes: 4, players: 2, seed: 3 }, game: { levelRef: 'track', produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} } } });
+    expect(level).toMatchObject({ kind: 'stadium', preset: 'olympic', meet: { event: 'hurdles', lanes: 4, players: 2, seed: 3, venue: 'olympic' }, game: { levelRef: 'track', produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} } } });
     expect(validateLevelContract(level.game, { slices: [] }).ok).toBe(true);
     expect(steps[1].order).toMatchObject({ title: 'relay', allow_unaudited: true, shell: 'play', levels: [{ ref: steps[0].ref, title: level.title }] });
     for (const [spec, id, key] of [[{ goal: 'contest', sport: 'tennis', players: 2, athletes: false }, 'court', 'court'], [{ goal: 'contest', sport: 'golf', rounds: 2, athletes: false }, 'course', 'turns'], [{ goal: 'contest', sport: 'hockey', players: 1, athletes: false }, 'pitch', 'pitch']]) {
@@ -56,6 +56,15 @@ describe('the sport goals', () => {
     // the same world runs the same steps
     expect(runSteps(quickWorld({ id: 'relay', seed: 3, quick: { goal: 'meet', event: 'hurdles', lanes: 4, players: 2, athletes: false } }), { ref: 'gw_meet' })).toEqual(steps);
     expect(steps[0].order.manifest.meet.athletes).toBeUndefined();
+  });
+  it('a sport stands in its kind\'s stadium unless it names its own venue or none; a course keeps its stage', () => {
+    const level = (q) => runSteps(quickWorld({ id: 'v', quick: { athletes: false, ...q } }), { ref: 'gw_v' })[0].order.manifest;
+    expect(level({ goal: 'contest', sport: 'hockey' })).toMatchObject({ kind: 'stadium', preset: 'football', pitch: { venue: 'football' } });
+    expect(level({ goal: 'contest', sport: 'tennis', venue: { preset: 'colosseum', time: 'dusk' } })).toMatchObject({ kind: 'stadium', preset: 'colosseum', time: 'dusk' });
+    expect(level({ goal: 'contest', sport: 'tennis', venue: false }).kind).toBe('stage');
+    expect(level({ goal: 'contest', sport: 'golf' }).kind).toBe('stage');
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', venue: 'wembley' })).toThrow(/\.venue 'wembley' is one of/);
+    expect(() => readQuick({ goal: 'reach', venue: 'olympic' })).toThrow(/\.venue belongs to the meet, contest and tabletop goals/);
   });
   it('a contest\'s genre is its sport\'s shape; the cube it implies is the probe\'s', () => {
     expect(QUICK_GENRE.meet).toBe('athletics-meet'); expect(QUICK_GENRE.contest).toBe('net-game');

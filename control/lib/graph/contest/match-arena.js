@@ -26,6 +26,7 @@ import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { readAthletes } from './athletes.js';
+import { readVenue, venueManifest } from '../stadium/venue.js';
 
 export const COURT_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 const GRAPH = join(moduleDir(import.meta.url, 'lib/graph/contest'), '..');
@@ -49,7 +50,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The match's words, checked. */
 export function readMatch(spec = {}) {
   if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title?, athletes? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title, athletes)`);
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes', 'venue'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title, athletes, venue)`);
   const M = { ...MATCH_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course, a team game on a pitch), or a net game written out`);
   try { resolveSport(M.sport, 'match'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -62,7 +63,7 @@ export function readMatch(spec = {}) {
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
   const athletes = readAthletes(M.athletes, 2, fail);   // side a's player, then side b's
-  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}) };
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -79,6 +80,10 @@ export function matchCourt(M) {
 export function matchManifest(spec = {}) {
   const M = readMatch(spec), T = matchCourt(M);
   const title = M.title ?? `${typeof M.sport === 'string' ? M.sport : M.sport.id} · ${M.players === 2 ? 'two players' : M.players === 1 ? 'you against the computer' : 'an exhibition'}`;
+  const camera = { name: 'broadcast', worldFraming: { cameraPosition: [0, r3(T.netY - T.halfL - 12), 7], lookAt: [0, T.netY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } };
+  const channel = { court: { ...M, ...(M.title ? {} : { title }) } };
+  // (in a stadium when the arena names one: its room the field, its camera its own)
+  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.sport === 'tennis' ? 'grass' : 'hard', camera, title, channel });
   return {
     kind: 'stage',
     kit: M.kit,
@@ -89,8 +94,8 @@ export function matchManifest(spec = {}) {
     rooms: [{ id: 'court', x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d, h: T.room.h, open: ['-y'] }],
     lights: 'auto',
     ...(M.crowd ? { stands: { from: r3(T.room.d - 0.5), rows: M.crowd.rows, fill: M.crowd.fill, shade: 0.62, seed: M.seed } } : {}),
-    camera: { name: 'broadcast', worldFraming: { cameraPosition: [0, r3(T.netY - T.halfL - 12), 7], lookAt: [0, T.netY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } },
-    court: { ...M, ...(M.title ? {} : { title }) },
+    camera,
+    ...channel,
   };
 }
 

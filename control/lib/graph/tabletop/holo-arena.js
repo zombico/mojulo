@@ -32,6 +32,7 @@ import { shapeOf } from './tabletop-shapes.js';
 import { lattice } from '../polygonizer/lattice.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+import { readVenue, venueManifest } from '../stadium/venue.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/tabletop');
 /** The arena's client as a classic-script fragment (import lines and `export ` stripped). */
@@ -53,7 +54,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const even = (v) => 2 * Math.ceil(v / 2);   // the stage's rooms sit on a one-metre grid: even metres keep the centre whole
 const fail = (m) => { throw new Error(`holo: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['game', 'human', 'players', 'level', 'seed', 'kit', 'look', 'crowd', 'title'];
+const KEYS = ['game', 'human', 'players', 'level', 'seed', 'kit', 'look', 'crowd', 'title', 'venue'];
 
 /** The game the kernel plays, dealt, and the family it is: only a game of moves is lifted yet. */
 function holoGame(H) {
@@ -84,6 +85,7 @@ export function readHolo(spec = {}) {
   return {
     game: H.game, ...(H.human !== undefined ? { human: H.human } : {}), players: H.players, level: H.level, seed: H.seed, kit: H.kit,
     ...(H.look ? { look: H.look } : {}), crowd: H.crowd === false ? false : { rows: 3, fill: 0.7, ...(H.crowd ?? {}) }, ...(H.title ? { title: H.title } : {}),
+    ...(H.venue ? { venue: readVenue(H.venue, fail) } : {}),
   };
 }
 
@@ -101,6 +103,10 @@ export function holoBoard(H, G = holoGame(H).G) {
 export function holoManifest(spec = {}) {
   const H = readHolo(spec), { G } = holoGame(H), B = holoBoard(H, G);
   const title = H.title ?? `${G.title ?? 'board game'} · holo arena`;
+  const camera = { name: 'duelist', worldFraming: { cameraPosition: [0, r3(B.centre[1] - B.L.size[1] / 2 - B.podium - 1), 6], lookAt: [0, B.centre[1], B.centre[2]], horizontalFov: 58, pictureCenter: [640, 360] } };
+  const channel = { holo: { ...H, ...(H.title ? {} : { title }) } };
+  // (in a stadium when the arena names one: its room the field, its camera its own)
+  if (H.venue) return venueManifest(H.venue, { room: { x: r3(-B.room.w / 2), y: 0, w: B.room.w, d: B.room.d }, surface: 'holo', camera, title, channel });
   return {
     kind: 'stage',
     kit: H.kit,
@@ -111,8 +117,8 @@ export function holoManifest(spec = {}) {
     rooms: [{ id: 'arena', x: r3(-B.room.w / 2), y: 0, w: B.room.w, d: B.room.d, h: B.room.h, open: ['-y'] }],
     lights: 'auto',
     ...(H.crowd ? { stands: { from: r3(B.room.d - 0.5), rows: H.crowd.rows, fill: H.crowd.fill, shade: 0.55, seed: H.seed } } : {}),
-    camera: { name: 'duelist', worldFraming: { cameraPosition: [0, r3(B.centre[1] - B.L.size[1] / 2 - B.podium - 1), 6], lookAt: [0, B.centre[1], B.centre[2]], horizontalFov: 58, pictureCenter: [640, 360] } },
-    holo: { ...H, ...(H.title ? {} : { title }) },
+    camera,
+    ...channel,
   };
 }
 

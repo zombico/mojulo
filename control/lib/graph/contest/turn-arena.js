@@ -20,6 +20,7 @@ import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { readAthletes } from './athletes.js';
+import { readVenue, venueManifest } from '../stadium/venue.js';
 
 export const TURNS_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 export const TURNS_PAGE_MODULES = Object.freeze([
@@ -39,7 +40,7 @@ const roundsOf = (sport) => { const sp = resolveSport(sport, 'turns'); return sp
 /** The game's words, checked. */
 export function readTurns(spec = {}) {
   if (!isObj(spec)) fail('a turn sport is { sport?, seats?, players?, register?, level?, rounds?, seed?, kit?, look?, crowd?, title?, athletes? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'seats', 'players', 'register', 'level', 'rounds', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes'].includes(k)) fail(`a turn sport has no '${k}' (sport, seats, players, register, level, rounds, seed, kit, look, crowd, title, athletes)`);
+  for (const k of Object.keys(spec)) if (!['sport', 'seats', 'players', 'register', 'level', 'rounds', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes', 'venue'].includes(k)) fail(`a turn sport has no '${k}' (sport, seats, players, register, level, rounds, seed, kit, look, crowd, title, athletes, venue)`);
   const M = { ...TURNS_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !TURN_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${TURN_SPORT_IDS.join(', ')} (a turn sport; a net game plays on a court, a team game on a pitch), or a turn sport written out`);
   try { resolveSport(M.sport, 'turns'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -54,7 +55,7 @@ export function readTurns(spec = {}) {
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
   const athletes = readAthletes(M.athletes, M.seats, fail);   // a seat's golfer or bowler each
-  return { sport: sportKeyOf(M.sport), seats: M.seats, players: M.players, register: M.register, level: M.level, rounds, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}) };
+  return { sport: sportKeyOf(M.sport), seats: M.seats, players: M.players, register: M.register, level: M.level, rounds, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -82,6 +83,10 @@ export function turnsManifest(spec = {}) {
   const M = readTurns(spec), T = turnsCourse(M);
   const R = roundsOf(M.sport);
   const title = M.title ?? `${typeof M.sport === 'string' ? M.sport : M.sport.id} · ${M.rounds} ${R.words} · ${M.players >= 2 ? `${M.players} players` : M.players === 1 ? (M.seats > 1 ? 'you against the computer' : 'solo') : 'an exhibition'}`;
+  const camera = { name: 'follow', worldFraming: { cameraPosition: [0, r3(T.originY - T.depth / 2 - 10), 6], lookAt: [0, T.originY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } };
+  const channel = { turns: { ...M, ...(M.title ? {} : { title }) } };
+  // (in a stadium when the arena names one: its room the field, its camera its own)
+  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.sport === 'bowling' ? 'wood' : 'grass', camera, title, channel });
   return {
     kind: 'stage',
     kit: M.kit,
@@ -92,8 +97,8 @@ export function turnsManifest(spec = {}) {
     rooms: [{ id: 'course', x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d, h: T.room.h, open: ['-y'] }],
     lights: 'auto',
     ...(M.crowd ? { stands: { from: r3(T.room.d - 0.5), rows: M.crowd.rows, fill: M.crowd.fill, shade: 0.62, seed: M.seed } } : {}),
-    camera: { name: 'follow', worldFraming: { cameraPosition: [0, r3(T.originY - T.depth / 2 - 10), 6], lookAt: [0, T.originY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } },
-    turns: { ...M, ...(M.title ? {} : { title }) },
+    camera,
+    ...channel,
   };
 }
 

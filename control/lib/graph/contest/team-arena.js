@@ -18,6 +18,7 @@ import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { readAthletes } from './athletes.js';
+import { readVenue, venueManifest } from '../stadium/venue.js';
 
 export const PITCH_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 export const PITCH_PAGE_MODULES = Object.freeze([
@@ -40,7 +41,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The game's words, checked. */
 export function readTeam(spec = {}) {
   if (!isObj(spec)) fail('a team game is { sport?, players?, register?, level?, periods?, seconds?, seed?, kit?, look?, crowd?, title?, athletes? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'periods', 'seconds', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes'].includes(k)) fail(`a team game has no '${k}' (sport, players, register, level, periods, seconds, seed, kit, look, crowd, title, athletes)`);
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'periods', 'seconds', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes', 'venue'].includes(k)) fail(`a team game has no '${k}' (sport, players, register, level, periods, seconds, seed, kit, look, crowd, title, athletes, venue)`);
   const M = { ...TEAM_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !TEAM_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${TEAM_SPORT_IDS.join(', ')} (a team goal game; a net game plays on a court, a turn sport on a course), or a team game written out`);
   try { resolveSport(M.sport, 'team'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -54,7 +55,7 @@ export function readTeam(spec = {}) {
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
   const athletes = readAthletes(M.athletes, TEAM_ATHLETES, fail);   // side a's in its roles' order, then side b's
-  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, ...(M.periods !== undefined ? { periods: M.periods } : {}), ...(M.seconds !== undefined ? { seconds: M.seconds } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}) };
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, ...(M.periods !== undefined ? { periods: M.periods } : {}), ...(M.seconds !== undefined ? { seconds: M.seconds } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -79,6 +80,10 @@ export function teamPitch(M) {
 export function teamManifest(spec = {}) {
   const M = readTeam(spec), T = teamPitch(M);
   const title = M.title ?? `${typeof M.sport === 'string' ? M.sport : M.sport.id} · ${M.players === 2 ? 'two players' : M.players === 1 ? 'you against the computer' : 'an exhibition'}`;
+  const camera = { name: 'end', worldFraming: { cameraPosition: [0, r3(T.originY - T.halfL - 14), 12], lookAt: [0, T.originY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } };
+  const channel = { pitch: { ...M, ...(M.title ? {} : { title }) } };
+  // (in a stadium when the arena names one: its room the field, its camera its own)
+  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.sport === 'hockey' ? 'ice' : 'grass', camera, title, channel });
   return {
     kind: 'stage',
     kit: M.kit,
@@ -89,8 +94,8 @@ export function teamManifest(spec = {}) {
     rooms: [{ id: 'pitch', x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d, h: T.room.h, open: ['-y'] }],
     lights: 'auto',
     ...(M.crowd ? { stands: { from: r3(T.room.d - 0.5), rows: M.crowd.rows, fill: M.crowd.fill, shade: 0.62, seed: M.seed } } : {}),
-    camera: { name: 'end', worldFraming: { cameraPosition: [0, r3(T.originY - T.halfL - 14), 12], lookAt: [0, T.originY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } },
-    pitch: { ...M, ...(M.title ? {} : { title }) },
+    camera,
+    ...channel,
   };
 }
 

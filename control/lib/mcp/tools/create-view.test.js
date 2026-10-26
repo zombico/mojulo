@@ -15,6 +15,7 @@ beforeEach(() => {
 
 const WORLD_BASES = [
   'city',
+  'stadium',
   'transport-hub',
   'controllable',
   'action',
@@ -140,10 +141,10 @@ describe('get_view_vocab reader', () => {
     const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
     expect(entries).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(0);
-    expect(all.cards.length).toBe(70 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, 67: microscopic, 68: quantum, 69: relativistic, 70: science-setting, a channel card, science worlds, 2026-10-19)
+    expect(all.cards.length).toBe(71 + entries + stage);   // (71: stadium, a compose_world base, 2026-10-26; 64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, 67: microscopic, 68: quantum, 69: relativistic, 70: science-setting, a channel card, science worlds, 2026-10-19)
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(13 + stage);   // (13: science-setting, a channel card, 2026-10-19)
-    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(14);   // the bases, the weather, structures and science-setting channel cards and the generated city-plan card (city rails, 2026-10-12)
+    expect(world.cards.length).toBe(14 + stage);   // (14: stadium, 2026-10-26; 13: science-setting, a channel card, 2026-10-19)
+    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(15);   // (15: the stadium base, 2026-10-26) the bases, the weather, structures and science-setting channel cards and the generated city-plan card (city rails, 2026-10-12)
     expect(world.cards.filter((c) => c.entry !== 'compose_world').every((c) => c.entry === 'create_sketch')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();

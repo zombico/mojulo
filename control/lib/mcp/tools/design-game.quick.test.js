@@ -137,13 +137,13 @@ describe('design_game quick', () => {
     expect(payload.haze.color).toBe(payload.bg);
   }, 240_000);
 
-  it('contest and meet: a sport is one level, the arena as a stage carrying the play and a hosted level\'s contract, the game in one call; the page runs the sport\'s channel', async () => {
+  it('contest and meet: a sport is one level, the arena in its stadium carrying the play and a hosted level\'s contract, the game in one call; the page runs the sport\'s channel', async () => {
     const out = await designGameHandler({ quick: { goal: 'contest', sport: 'tennis', players: 2, register: 'action', world: { id: 'centre-court', name: 'Centre Court' } }, ref: 'cc' });
     // each side an athlete, a character rolled in the game's setting and made through the hero door, in its own body
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['athlete', 'make'], ['athlete-2', 'make'], ['level-arena-court', 'make'], ['game', 'make']]);
     expect(stored('cc-athlete')).toMatchObject({ kind: 'layered', hero: { kit: { sport: 'tennis' } } });
     const L = stored('cc-level-arena-court');
-    expect(L).toMatchObject({ kind: 'stage', court: { sport: 'tennis', players: 2, register: 'action' }, game: { levelRef: 'court', produces: { results: ['success', 'fail'], events: [] } } });
+    expect(L).toMatchObject({ kind: 'stadium', preset: 'centre-court', court: { sport: 'tennis', players: 2, register: 'action' }, game: { levelRef: 'court', produces: { results: ['success', 'fail'], events: [] } } });
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('cc-level-arena-court'), { live: true });
     expect(payload.court).toMatchObject({ sport: { id: 'tennis' }, players: 2, athletes: ['cc-athlete', 'cc-athlete-2'] }); expect(payload.court.C.shape).toBe('match');
     expect(Object.keys(payload.court.bodies).sort()).toEqual(['cc-athlete', 'cc-athlete-2']);
@@ -154,7 +154,7 @@ describe('design_game quick', () => {
     expect(G).toMatchObject({ title: 'Centre Court', shell: 'play' }); expect(G.levels.map((l) => l.ref)).toEqual(['cc-level-arena-court']);
     const meet = await designGameHandler({ quick: { goal: 'meet', event: 'hurdles', lanes: 3, players: 1, athletes: false, world: { id: 'hurdles' } }, ref: 'hd' });
     expect(meet.ran.map((r) => r.key)).toEqual(['level-arena-track', 'game']);
-    expect(stored('hd-level-arena-track')).toMatchObject({ kind: 'stage', meet: { event: 'hurdles', lanes: 3 }, game: { levelRef: 'track' } });
+    expect(stored('hd-level-arena-track')).toMatchObject({ kind: 'stadium', meet: { event: 'hurdles', lanes: 3 }, game: { levelRef: 'track' } });
   }, 240_000);
 
   it('tabletop: a board game lifted into a hologram arena is one level and the game in one call; the page plays it on the holo channel', async () => {

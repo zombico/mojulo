@@ -27,6 +27,7 @@ import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { MEET_REGISTER_IDS } from './meet-sim.js';
 import { readAthletes } from './athletes.js';
+import { readVenue, venueManifest } from '../stadium/venue.js';
 
 export const MEET_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 const SRC = moduleDir(import.meta.url, 'lib/graph/contest');
@@ -50,7 +51,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The meet's words, checked. */
 export function readMeet(spec = {}) {
   if (!isObj(spec)) fail('a meet is { event, lanes?, players?, register?, distance?, attempts?, seed?, kit?, look?, crowd?, title?, athletes? }');
-  for (const k of Object.keys(spec)) if (!['event', 'lanes', 'players', 'register', 'distance', 'attempts', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes'].includes(k)) fail(`a meet has no '${k}' (event, lanes, players, register, distance, attempts, seed, kit, look, crowd, title, athletes)`);
+  for (const k of Object.keys(spec)) if (!['event', 'lanes', 'players', 'register', 'distance', 'attempts', 'seed', 'kit', 'look', 'crowd', 'title', 'athletes', 'venue'].includes(k)) fail(`a meet has no '${k}' (event, lanes, players, register, distance, attempts, seed, kit, look, crowd, title, athletes, venue)`);
   const M = { ...MEET_DEFAULTS, ...spec };
   const E = MEET_EVENTS[M.event];
   if (!E) fail(`event '${M.event}' is one of ${MEET_EVENT_IDS.join(', ')}`);
@@ -68,7 +69,7 @@ export function readMeet(spec = {}) {
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
   const athletes = readAthletes(M.athletes, M.lanes, fail);   // a lane's runner each
-  return { event: M.event, lanes: M.lanes, players: M.players, register: M.register, distance, ...(attempts ? { attempts } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}) };
+  return { event: M.event, lanes: M.lanes, players: M.players, register: M.register, distance, ...(attempts ? { attempts } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(athletes ? { athletes } : {}), ...(M.venue ? { venue: readVenue(M.venue, fail) } : {}) };
 }
 
 /** The contest kernel's spec for the meet's event. */
@@ -93,6 +94,10 @@ export function meetManifest(spec = {}) {
   const M = readMeet(spec), T = meetTrack(M);
   const title = M.title ?? `${M.event} · ${M.lanes} lanes`;
   const camDist = Math.max(10, M.lanes * LANE_W * 1.6);
+  const camera = { name: 'broadcast', worldFraming: { cameraPosition: [T.x0 + 8, r3(-camDist * 0.2), 3], lookAt: [T.x0 + 8, r3(T.room.d / 2), 1], horizontalFov: 64, pictureCenter: [640, 360] } };
+  const channel = { meet: { ...M, ...(M.title ? {} : { title }) } };
+  // (in a stadium when the arena names one: its room the field, its camera its own)
+  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: 'track', camera, title, channel });
   return {
     kind: 'stage',
     kit: M.kit,
@@ -103,8 +108,8 @@ export function meetManifest(spec = {}) {
     rooms: [{ id: 'track', x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d, h: T.room.h, open: ['-y'] }],
     lights: 'auto',
     ...(M.crowd ? { stands: { from: r3(T.room.d - 0.5), rows: M.crowd.rows, fill: M.crowd.fill, shade: 0.62, seed: M.seed } } : {}),
-    camera: { name: 'broadcast', worldFraming: { cameraPosition: [T.x0 + 8, r3(-camDist * 0.2), 3], lookAt: [T.x0 + 8, r3(T.room.d / 2), 1], horizontalFov: 64, pictureCenter: [640, 360] } },
-    meet: { ...M, ...(M.title ? {} : { title }) },
+    camera,
+    ...channel,
   };
 }
 

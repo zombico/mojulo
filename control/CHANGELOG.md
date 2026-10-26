@@ -318,6 +318,39 @@ and a ball card's on the ball. Planned, in order:
     summons, spells and responses, the tabletop kernel's own Duel Monsters shape, are the next lifts), characters as
     pieces (the athletes' bodies on the board), sound. The eyes gate is open: the frames looked at were machine
     screenshots of exhibitions and one scripted move, not play.
+- **The stadium: the Mojulo Olympics' venues**, built, with a stopping point. A sport is played inside a place, never
+  against a flat dark colour, and tennis is no longer held to the town square unless the game asks for it. A venue is
+  composed from the building designer's parts and recomposed by its words: a patron of sport and the arts builds them
+  in every degree of realism.
+  - **The bowl** (`stadium/bowl.js`): the seating as one round form, all polygons. A ring that follows a superellipse
+    (an ellipse up to a rounded box), sized so the field's corners sit on it; a pitch wall of boards, raked tiers
+    two rows to a step with aisles, a concourse with a band of glass boxes, an upper tier, a parapet; the outer wall
+    in a facade card (glass, brick, metal) between pilasters, or an amphitheatre's storeys of arches with cornices;
+    a roof (a canopy with its truss and rafters, the canopy hung from a ring of masts by stays, or a dome of ribs to
+    an open eye); open sides left out and their ends capped; screens on the rim; a landmark (the cauldron on its
+    pylon, an arch sprung over the far stand); the infield in the field's surface, the apron (a running track's
+    lanes), the plaza outside. A full house is a MOSAIC of colours on the treads, never figures: the crowd costs
+    nothing past the steps it sits on. Every face is wound to the side it is seen from, so the hour's relight reads it.
+  - **The venue** (`stadium/stadium.js`, the `stadium` kind and a `compose_world` base): the field, the bowl in a
+    livery (its colour set, any colour over it), floodlight masts (the track's set piece), a skyline of the fractal
+    structures' lean towers past the rim, hazed into the sky, on ground that reaches past them, and the race's hours
+    (day, golden, dusk, night; after dark the masts and the cauldron light the field). Presets: `olympic`,
+    `centre-court`, `football`, `colosseum`, `patron-dome`, `arcade`, `anime`, `municipal`, each named for the games it
+    suits; any word over one moves that part alone. The look is the degree of realism: shaded, anime (banded) or
+    voxel. The manual is the `stadium` view-vocab card.
+  - **A game's venue** (`stadium/venue.js`): the court, the pitch, the meet, the course and the holo arena each take
+    `venue`, a preset or a stadium's words. The arena's room becomes the field, its camera and its channel stay its own,
+    and the bowl's camera side stands back until the camera is inside the pitch wall. Without the word an arena mints
+    its stage recipe as before. The quick goals take `venue` and default a meet to `olympic`, a net game to
+    `centre-court` and a team game to `football`; a course and a board game keep their stage, and `venue: false` keeps
+    any stage.
+  - **Held:** the same words are the same stadium; refusals teach; the ring passes through the field's corners at any
+    shape; an open side leaves nothing standing there; the skyline stands on the ground; each arena stands in a venue
+    by its word with its camera and channel, and without it stays a stage.
+  - **Not built, said:** a roof over a field that closes, banners and sponsors' boards, crowd motion (a wave, the
+    mosaic flickering), an athletics stadium's field events laid in the infield, sound. The eyes gate is open: the
+    frames looked at were machine screenshots of each preset from inside and outside, and of a court, a pitch, a
+    rink, a meet and a holo duel in their venues.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

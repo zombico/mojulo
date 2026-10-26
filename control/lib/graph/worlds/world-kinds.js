@@ -508,6 +508,13 @@ export const WORLD_KINDS = {
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
   },
+  // a sport's venue (stadium/stadium.js): the field, grandstands and their crowd, floodlight masts, a skyline and a sky at
+  // its hour, composed from the track's set pieces, a kit's ramps on its pole and the fractal structures. Not walked: a
+  // sport's channel (court, pitch, meet, turns, holo) owns the camera
+  stadium: {
+    title: 'mojulo stadium',
+    resolve: async (m, ctx) => (await import('@/lib/graph/stadium/stadium.js')).assembleStadiumScene(m, { title: ctx.title === 'mojulo stadium' ? undefined : ctx.title }),
+  },
   // a tactics board (board/board-scene.js): square spots over a geocube's ground (its diorama, rooms or land), units on
   // them, played with the tactical camera. Not walked: the board owns the camera and the keys
   board: {
