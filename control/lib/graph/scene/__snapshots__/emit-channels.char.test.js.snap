@@ -72,6 +72,8 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > heat-sphere emits byte-identically 1`] = `"44a43ac4da31836f9c76aed232c84c3cd71743ac6c63e6590748f83e499df6aa"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > holo emits byte-identically 1`] = `"f4c0a7a9ff4b7a2e6abcfd9acf5a97d405bf6b089ca3904e86b74c185a14664b"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink emits byte-identically 1`] = `"17e3b773b61037107d96d5d95213abc1f1ebe1e0c04b01b2f12975f777cf32d9"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink-capture emits byte-identically 1`] = `"7b71eef623d91e681aab8efe7748afd80cb511a3faa6394defa71b853391432c"`;

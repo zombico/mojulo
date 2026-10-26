@@ -1255,6 +1255,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
     payload.pitch = teamArenaData(sketch.manifest.pitch, { bodies: await athleteBodies(sketch.manifest.pitch.athletes) });
   }
+  // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
+  // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).
+  if (payload && sketch.manifest.holo && typeof sketch.manifest.holo === 'object') {
+    const { holoArenaData } = await import('@/lib/graph/tabletop/holo-arena.js');
+    payload.holo = holoArenaData(sketch.manifest.holo);
+  }
   // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
   // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
   // (a city's `board` is its plan's street grid, city/plan: never spots)

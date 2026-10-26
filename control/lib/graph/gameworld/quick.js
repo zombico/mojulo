@@ -81,6 +81,9 @@
  *                                           // { ref } } (one made with create_character); the fight read off the sheet,
  *                                           // the entry's style?, signature?, weapon?, library?, normals?, specials?,
  *                                           // super?, tune? over it; four sheets (one per style) if absent
+ *     game?, human?, lift?: 'holo',        // tabletop: the board game (chess, checkers, one written out), the player you
+ *                                           // are, and its depiction: lifted into a hologram arena (tabletop/holo-arena.js),
+ *                                           // players 0..2 and level as a contest's
  *     athletes?: false | [<athlete>, …],   // meet, contest: who plays, each slot (a lane, a side's player, a seat) a
  *                                           // CHARACTER in its own body on the arena's page (contest/athletes.js): { ref }
  *                                           // (one made with create_character) or a hero-door spec made by the run, cycled
@@ -142,6 +145,7 @@ import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
 import { fighterSpec, defaultFighters } from '../versus/versus-sheet.js';
 import { readMeet, meetManifest } from '../contest/meet-arena.js';
+import { readHolo, holoManifest, HOLO_LIFTS } from '../tabletop/holo-arena.js';
 import { readMatch, matchManifest } from '../contest/match-arena.js';
 import { readTurns, turnsManifest } from '../contest/turn-arena.js';
 import { readTeam, teamManifest, teamArenaData } from '../contest/team-arena.js';
@@ -165,6 +169,7 @@ export const QUICK_GOALS = Object.freeze({
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   fight: 'a 1v1 fighter from the side, every fighter a character the character loop designs: roster, arenas, rounds, timer, rules',
   meet: 'an athletic meet in an arena (the contest kernel the referee): a sprint, the hurdles or the long jump in lanes, up to four local players on one keyboard, the rest the computer\'s; the gun, a false start, the clock or the measure, the placings',
+  tabletop: 'a board game lifted into a hologram arena, the tabletop kernel the referee: chess, checkers or a game of moves written out, its pieces summoned as holograms, a capture an attack and a piece destroyed, the life points on the overlay; you against the computer, hot-seat, or an exhibition',
   contest: 'a sport in an arena, the contest kernel the referee: a net game (tennis) on two pads, a turn sport (golf, bowling) hot-seat on one, a team goal game (soccer, hockey) on two; the computer takes what nobody holds; a sport not in the book is written out (the distilled-rulebook catalyst)',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
@@ -201,7 +206,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'game', 'human', 'lift'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -467,8 +472,10 @@ export function readQuick(Q) {
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.goal === 'fight') readFight(Q);
-  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  for (const k of ['game', 'human', 'lift']) if (Q.goal !== 'tabletop' && Q[k] !== undefined) throw fail(`.${k} belongs to the tabletop goal`);
   if (Q.goal === 'meet' || Q.goal === 'contest') readSport(Q);
+  if (Q.goal === 'tabletop') readTabletop(Q);
   return Q;
 }
 
@@ -529,6 +536,21 @@ export function sportArenas(Q, { title, seed = 1, athletes = null } = {}) {
   if (sp.shape === 'turns') { const m = turnsManifest({ ...pick(Q, ['sport', 'seats', 'players', 'register', 'level', 'rounds']), seed, ...(title ? { title } : {}), ...own }); return [{ id: 'course', name: m.title, manifest: { ...m, game: contract('course', 'the round') } }]; }
   const m = teamManifest({ ...pick(Q, ['sport', 'players', 'register', 'level', 'periods', 'seconds']), seed, ...(title ? { title } : {}), ...own });
   return [{ id: 'pitch', name: m.title, manifest: { ...m, game: contract('pitch', 'the match') } }];
+}
+
+// what a board game takes, lifted (tabletop/holo-arena.js: the tabletop kernel the referee, the arena its depiction)
+const TABLETOP_KEYS = ['goal', 'game', 'human', 'players', 'level', 'lift', 'theme', 'screen'];
+function readTabletop(Q) {
+  if (Q.camera !== undefined) throw fail('.camera: a board game is seen from its arena\'s camera, behind your podium');
+  for (const k of Object.keys(Q)) if (!TABLETOP_KEYS.includes(k)) throw fail(`.${k}: a tabletop takes ${TABLETOP_KEYS.join(', ')} (its pieces are its game's)`);
+  if (Q.lift !== undefined && !HOLO_LIFTS.includes(Q.lift)) throw fail(`.lift is ${HOLO_LIFTS.join(' | ')} (the depiction; the game on its own page is create_game { tabletop })`);
+  try { readHolo(pick(Q, ['game', 'human', 'players', 'level'])); } catch (e) { throw fail(`: ${e.message.replace(/^holo: /, '')}`); }
+}
+/** A board game's level: the hologram arena as a stage carrying the game and a hosted level's contract. */
+export function tabletopArenas(Q, { title, seed = 1 } = {}) {
+  const m = holoManifest({ ...pick(Q, ['game', 'human', 'players', 'level']), seed, ...(title ? { title } : {}) });
+  const contract = { levelRef: 'holo', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the duel' } };
+  return [{ id: 'arena', name: m.title, manifest: { ...m, game: contract } }];
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)

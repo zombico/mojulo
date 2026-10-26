@@ -361,6 +361,13 @@ const QUICK_LEVERS = {
     '  the rules are the kernel\'s: it calls every point, out, foul and restart; the agent never adjudicates',
     '  athletes: [{ ref } | { <hero-door words> }] cycled, or false (sticks); absent, rolled in the game\'s setting and its tradition',
   ],
+  tabletop: () => [
+    '  game: chess | checkers | a game of moves written out in the tabletop kernel\'s words (get_game_vocab({ id: \'tabletop\' }))',
+    '  players: 0 (an exhibition) | 1 (you against the computer) | 2 (hot-seat)   level: easy | fair | hard   human: the player you are',
+    '  lift: holo (the default): the board projected between two podiums, each piece a hologram of its body; a move glides, a capture',
+    '    is an attack and a piece destroyed, a promotion a pillar of light, CHECK and the end on the banners; the life points fall with',
+    '    each piece lost and mate takes them to zero. The kernel is the referee; a euro, tile, card or round game stays on its own page',
+  ],
   avoid: () => [],
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,

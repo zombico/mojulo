@@ -231,6 +231,13 @@ import { emitThreeWorld } from './scene-three.js';
 // rounded up to even metres (the stage kind's one-metre grid, met when the first quick game minted one), which moves
 // the page's own data (the room, the court's origin on the stage); the `pitch` room was on the grid already. Every
 // other page is byte-identical.
+// Pinned 2026-10-26 (battle city: the athletes): the `meet`, `court`, `turns` and `pitch` fixtures re-pin for their
+// clients' source (each draws a slot's athlete in its own body when the arena carries bodies; the fixtures carry none,
+// so no figure module is inlined). Every other page is byte-identical.
+// Pinned 2026-10-26 (battle city: the holo lift): the `holo` fixture joins the matrix (a board game lifted into a
+// hologram arena: the tabletop kernel and its mind from their closures and the arena's client in one block, its own
+// frame step `stepHolo`, the camera owned). Every other page is byte-identical, and a page without a `holo` key emits
+// no block.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

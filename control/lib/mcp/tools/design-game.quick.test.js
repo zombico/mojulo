@@ -157,6 +157,17 @@ describe('design_game quick', () => {
     expect(stored('hd-level-arena-track')).toMatchObject({ kind: 'stage', meet: { event: 'hurdles', lanes: 3 }, game: { levelRef: 'track' } });
   }, 240_000);
 
+  it('tabletop: a board game lifted into a hologram arena is one level and the game in one call; the page plays it on the holo channel', async () => {
+    const out = await designGameHandler({ quick: { goal: 'tabletop', game: 'chess', players: 1, level: 'easy', world: { id: 'kaiba-dome', name: 'Kaiba Dome' } }, ref: 'kd' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-arena-arena', 'make'], ['game', 'make']]);
+    expect(stored('kd-level-arena-arena')).toMatchObject({ kind: 'stage', holo: { game: 'chess', players: 1, level: 'easy' }, game: { levelRef: 'holo' } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('kd-level-arena-arena'), { live: true });
+    expect(payload.holo).toMatchObject({ game: 'chess', players: 1, human: 'white' }); expect(payload.holo.L.cells.length).toBe(64);
+    const page = emitThreeWorld({ ...payload, inline: true });
+    expect(page).toContain('const HOLO_ARENA = '); expect(page).toContain('stepHolo = stepHoloArena');
+    expect(stored('kd-game')).toMatchObject({ title: 'Kaiba Dome', shell: 'play' });
+  }, 240_000);
+
   it('fly in space: a space craft\'s map is space (rocks, stars, no ground), its gates a race with nothing to land on', async () => {
     const out = await designGameHandler({ quick: { goal: 'fly', craft: 'fighter', airspace: { space: { asteroids: 'sparse' } }, world: { id: 'belt' } }, ref: 'sp' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);

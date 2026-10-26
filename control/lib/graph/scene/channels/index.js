@@ -19,6 +19,7 @@ import { gameChannelScript } from './game.js';
 import { versusChannelScript } from './versus.js';
 import { boardChannelScript } from './board.js';
 import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript } from './contest.js';
+import { holoChannelScript } from './holo.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
@@ -264,6 +265,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a team goal game on a pitch (lib/graph/contest); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojPitch'] },        // the match's state and phase, for probes
+  { key: 'holo', anchor: 'post-capture', script: holoChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a board game lifted into a hologram arena (lib/graph/tabletop); it owns the camera
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojHolo'] },         // the duel's state, its moves and its phase, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -350,6 +355,7 @@ export { shootSetScript } from './shoot-set.js';
 export { versusChannelScript } from './versus.js';
 export { boardChannelScript } from './board.js';
 export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript } from './contest.js';
+export { holoChannelScript } from './holo.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';

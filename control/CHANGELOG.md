@@ -256,6 +256,40 @@ and a ball card's on the ball. Planned, in order:
     character's walk, sprint or swing clips), a kick, a header or a tackle on the pitch (the stride carries the ball),
     a racquet or a club as gear, the realistic body's outfit on the page's rigid parts (the card is chosen, not looked
     at). The eyes gate is open: the frames looked at were machine screenshots of exhibitions, not play.
+- **The holo lift: a board game in a hologram arena**, built for the games of moves, with a stopping point. Battle
+  city run back to the tabletop: Duelist Kingdom's way of showing a simple game, the duelists on podiums at either
+  end and the board projected between them, every piece a hologram and every event of the game staged. The lift is
+  optional and depiction only: the tabletop kernel stays the referee, and the same game still plays as its own page.
+  - **The arena** (`tabletop/holo-arena.js`): `readHolo` (the tabletop manifest's game, a book game or one written
+    out, the seat player 1 holds, players 0 an exhibition, 1 against the computer or 2 hot-seat, the computer's
+    level, the seed, the stage kit), `holoBoard` (the lattice at a cell sized to the arena, floating over the floor,
+    a podium behind each side), `holoManifest` (the venue as a stage recipe carrying the `holo` key, a camera behind
+    player 1's podium) and `holoArenaData` (the game dealt, each kind's body resolved from the meeple shelf, its value,
+    the duelists and their lights, the level wire). A euro, tile, card or round game is refused by name: it plays on
+    its own page.
+  - **The page** (`holo-arena.client.js`, `scene/channels/holo.js`): one block inlining the kernel and the mind from
+    their closures and the client. A projector disc with lit rings and beams, the board as panes of light with lit
+    edges and a scan sweeping across, each duelist's podium in its colour (the side to move brighter). Each piece is a
+    hologram of its body (a cut-out, a turned profile, a box, a group as real geometry): a translucent body lit at its
+    rim with scan lines, its edges in light, a glow under it. What the kernel says is staged as BEATS, played one after
+    another while the state is already ahead: the opening summon (the army out of beams of light, about two seconds), an
+    attack (the attacker turns and a beam crosses to its victim), a destroy (the victim shatters into light), a move
+    (a glide, a leap higher, a castling partner beside it), a promotion (a pillar of light, the piece remade), a flip
+    (a convert), CHECK and the end on the banners. LIFE POINTS on the overlay fall with the destroy beat by the piece's
+    share of the army; mate takes the loser's to zero. The camera stands behind the person's podium, swings to whoever
+    is to move in hot-seat, sways in an exhibition and leans toward each beat. Click a piece, then a lit cell (a
+    capture red); a promotion or a drop with a choice asks which. The hosted wire as the sports' (READY, INIT,
+    OUTCOME). The probe (`__mojHolo`) runs plies at once, names the beat on stage and the beats seen, and clicks a
+    cell as the pointer would.
+  - **The door** (`design_game({ quick: { goal: 'tabletop', game, players?, level?, human?, lift: 'holo' } })`): one
+    level, the arena in the play shell, its quick card, a line on the tabletop card, the registry's lattice note.
+  - **Held:** the minds' duel in the page is Node's move for move (checkers and chess, `holo-page.live.test.js`); a
+    capture stages attack, destroy, move in that order; a person's seat waits for them and two clicks play a move; a
+    page without the key emits no block (the `holo` emit fixture pinned, every other page byte-identical).
+  - **Not built, said:** the euro, tile, card and round families (the dice as a shaker reveal and the card duel with
+    summons, spells and responses, the tabletop kernel's own Duel Monsters shape, are the next lifts), characters as
+    pieces (the athletes' bodies on the board), sound. The eyes gate is open: the frames looked at were machine
+    screenshots of exhibitions and one scripted move, not play.
 
 ### Chatbot sweep: what the chatbot factory left behind
 
