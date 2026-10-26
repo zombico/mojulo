@@ -268,6 +268,10 @@ import { emitThreeWorld } from './scene-three.js';
 // broadcast's cues and plates name its calls and the stats count its conversion, and the minds (the carry mind, its role
 // lines) the court, turns and pitch inline; the pitch block's sim and client too (the carry mode, the field's lines, the
 // posts, the line markers, the oval). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: the innings games): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
+// the kernel every contest block inlines reads an innings game (strikes, outs, the bases or the runs, the overs, the side
+// retired), the broadcast's cues and plates name its calls and the stats fold counts them; the new `innings` fixture pins
+// the field's page (the bat sim, the diamond and the oval). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

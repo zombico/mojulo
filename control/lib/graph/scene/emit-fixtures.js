@@ -21,6 +21,7 @@ import { meetArenaData } from '../contest/meet-arena.js';
 import { matchArenaData } from '../contest/match-arena.js';
 import { turnsArenaData } from '../contest/turn-arena.js';
 import { teamArenaData } from '../contest/team-arena.js';
+import { inningsArenaData } from '../contest/innings-arena.js';
 import { holoArenaData } from '../tabletop/holo-arena.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
@@ -272,6 +273,8 @@ export const EMIT_FIXTURES = [
   // holo (a board game lifted into a hologram arena): the kernel and the mind from their closures and the arena's
   // client in one block, its own frame step (`stepHolo`), the camera owned
   ['holo', { faces: [floor()], holo: holoArenaData({ game: 'checkers', players: 1 }) }],
+  // innings (a bat-and-ball game on a field): the innings block, its own frame step (`stepInnings`), the camera owned
+  ['innings', { faces: [floor()], innings: inningsArenaData({ sport: 'baseball', players: 1, innings: 1 }) }],
   // board (a tactics board over the ground): the board kernel, the tactical camera and the page in one block, its own
   // frame step (`stepBoard`), the camera owned
   ['board', { faces: [floor()], board: boardChannelData(layBoard({ seed: 'fixture', cols: 4, rows: 4 }), { units: [{ id: 'a', side: 'p', at: 'A1' }, { id: 'b', side: 'q', at: 'D4' }] }) }],

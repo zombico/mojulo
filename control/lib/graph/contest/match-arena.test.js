@@ -13,7 +13,7 @@ describe('the sports and reading a court', () => {
     expect(SPORT_IDS).toContain('tennis');
     expect(contestRead(tennis({ sets: 1 })).scoring.ladder.at(-1).to).toBe(1);
     expect(sportOf('tennis').ball).toBe('tennis');
-    expect(() => sportOf('cricket')).toThrow(/sport 'cricket' is one of tennis/);
+    expect(() => sportOf('quidditch')).toThrow(/sport 'quidditch' is one of tennis/);
     const dials = sportDials('tennis');
     expect(dials.spec).toBeUndefined(); expect(dials).toMatchObject({ id: 'tennis', ball: 'tennis', players: 1, strokes: { fore: 'forehand', back: 'backhand', serve: 'serve' } });
     expect(JSON.parse(JSON.stringify(dials))).toEqual(dials);

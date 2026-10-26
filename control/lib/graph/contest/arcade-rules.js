@@ -163,6 +163,20 @@ function composeCarry(card) {
   };
 }
 
+// ── the innings family's modules ───────────────────────────────────────────────────────────────────────────────
+
+function composeInnings(card) {
+  for (const k of ['innings', 'field', 'pitch', 'bat', 'fielders', 'runner']) if (card[k] === undefined) afail(`an innings card names ${k}`);
+  const title = card.title;
+  const spec = ({ innings, overs } = {}) => ({ shape: 'innings', title, players: card.fielders.length, innings: { ...card.innings, ...(innings !== undefined ? { innings } : {}), ...(overs !== undefined ? { overs } : {}) } });
+  return {
+    shape: 'innings', words: card.words, spec, ball: card.ball, side: card.fielders.length,
+    field: { ...card.field }, pitch: { ...card.pitch }, bat: { ...card.bat }, fielders: card.fielders.map((f) => f.slice()), runner: { ...card.runner },
+    ...(card.zone ? { zone: { ...card.zone } } : {}), ...(card.stumps ? { stumps: { ...card.stumps } } : {}),
+    catchReach: card.catchReach ?? 1.6,
+  };
+}
+
 export const ARCADE_FAMILIES = freeze({
   net: {
     shape: 'match', sim: 'the court (match-sim.js)', says: 'two ends and a net: a serve, a rally the kernel calls, points to games',
@@ -198,6 +212,17 @@ export const ARCADE_FAMILIES = freeze({
       'play { tipSpeed, reach, charge, pass, dribble } (hands: caught, carried, passed)   ground { roll, bounce? }',
     ],
     compose: composeCarry,
+  },
+  innings: {
+    shape: 'innings', sim: 'the field (bat-sim.js)', says: 'one side bats, the other fields, a ball at a time: strikes and outs, the bases or the runs, over the fence',
+    modules: ['innings', 'field', 'pitch', 'zone', 'stumps', 'bat', 'fielders', 'runner', 'catchReach', 'ball'],
+    doc: [
+      'innings { innings?, outs, strikes?, overs? + balls?, runs: bases | runs } (the kernel\'s)   field { fence, fenceHeight?, fair? (the lines\' half-angle), bounce? }',
+      'pitch { at, hand, speed, length? [near, far] (a bowler\'s bounce) }   zone { x, z: [low, high] } (the strike zone)   stumps { x, z } (bowled)',
+      'bat { reach, exit, loft, spray } (the swing\'s contact and launch)   fielders [[x, y], …] (the first throws it)   catchReach',
+      'runner { each (seconds a base or a run), gather, throw, home, first? }',
+    ],
+    compose: composeInnings,
   },
 });
 
@@ -309,6 +334,36 @@ export const ARCADE_SPORTS = freeze({
     roles: { qb: [0, -4], receiver: [-9, -0.5], wideout: [9, -0.5], tight: [-3, -1], back: [2, -6] },
     play: { tipSpeed: 18, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 }, ground: { roll: 3, bounce: 0.55 }, gap: 1.5,
     omits: ['eleven a side, the snap from a center and the huddle', 'kickoffs and punts (a possession starts at the 25; after four downs the ball turns over where it lies)', 'penalties, the two-point try and the field goal', 'blocking (the line is a formation, the defence runs at the ball)'],
+  },
+  baseball: {
+    family: 'innings', title: 'Baseball, three innings',
+    words: 'baseball: three strikes and out, three outs a side, the runners round the bases, a home run over the fence, three innings',
+    ball: 'baseball',
+    // MLB: the mound 60 ft 6 in (18.44 m) from the plate, the bases 90 ft (27.43 m) apart; a short park's fence
+    innings: { innings: 3, outs: 3, strikes: 3, runs: 'bases' },
+    field: { fence: 95, fenceHeight: 3, fair: 45, bounce: 0.45 },
+    pitch: { at: [0, 18.44], hand: 1.8, speed: 36 },
+    zone: { x: 0.25, z: [0.5, 1.1] },
+    bat: { reach: 0.8, exit: 38, loft: 24, spray: 38 },
+    fielders: [[0, 18.44], [17, 25], [7, 36], [-7, 36], [-17, 25], [-28, 62], [0, 72], [28, 62]],
+    catchReach: 1.4,
+    runner: { each: 4.2, gather: 0.5, throw: 32, home: [0, 0], first: [19.4, 19.4] },
+    omits: ['balls and the walk (a pitch out of the zone and let go is pitched again)', 'the catcher, stolen bases and the force play beyond first', 'nine a side (the pitcher and seven field)', 'extra innings (a tie stands)', 'the infield fly and the sacrifice'],
+  },
+  cricket: {
+    family: 'innings', title: 'Cricket, two overs',
+    words: 'cricket: six balls an over, two overs and three wickets a side, bowled or caught, four along the ground over the rope and six on the full, the chase',
+    ball: 'cricket',
+    // MCC: the pitch 22 yards (20.12 m) wicket to wicket, the stumps 9 in wide (0.229 m) and 28 in high (0.711 m)
+    innings: { innings: 1, outs: 3, overs: 2, balls: 6, runs: 'runs' },
+    field: { fence: 55, fenceHeight: 0, bounce: 0.55 },
+    pitch: { at: [0, 20.12], hand: 2.1, speed: 30, length: [3, 8] },
+    stumps: { x: 0.12, z: 0.71 },
+    bat: { reach: 0.9, exit: 34, loft: 16, spray: 75 },
+    fielders: [[0, 20.12], [-14, 26], [14, 26], [-30, 14], [30, 14], [-24, 42], [24, 42], [0, 48], [-12, -10], [12, -10]],
+    catchReach: 1.2,
+    runner: { each: 3.1, gather: 0.7, throw: 26, home: [0, 0] },
+    omits: ['leg before wicket, the wide and the no ball', 'eleven a side and the batting order (three wickets, a side\'s innings)', 'run outs and the non-striker\'s end', 'the spin, the swing and the seam (a delivery is a line, a length and a pace)', 'the follow-on and a second innings'],
   },
 });
 export const ARCADE_SPORT_IDS = Object.freeze(Object.keys(ARCADE_SPORTS));

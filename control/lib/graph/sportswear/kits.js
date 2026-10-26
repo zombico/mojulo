@@ -42,6 +42,8 @@ export const SPORT_KITS = Object.freeze({
   basketball: { words: 'a basketball vest and long shorts', top: 'tank', bottom: 'longShorts', socks: 'ankle', trim: ['hem', 'shortsStripe'], colours: ['#f2a03d', '#1d2433', '#ffffff'], shorts: 0, socksOf: 2 },
   volleyball: { words: 'a volleyball shirt and short shorts', top: 'tee', bottom: 'shorts', socks: 'ankle', trim: ['collar', 'cuffs'], colours: ['#2a9d8f', '#1d2433', '#ffffff'], shorts: 1, socksOf: 2 },
   golf: { words: 'a golfer: a polo and trousers', top: 'tee', bottom: 'trousers', socks: 'none', trim: ['collar'], colours: ['#f2efe6', '#2b3a55', '#2b3a55'], shorts: 1, socksOf: 1 },
+  baseball: { words: 'a baseball uniform: a jersey with sleeves to the elbow, pants to the knee, long socks', top: 'tee', bottom: 'pants', socks: 'knee', trim: ['collar', 'cuffs'], colours: ['#f2efe6', '#1f3a68', '#c8102e'], shorts: 1, socksOf: 1, pattern: 'sleeves' },
+  cricket: { words: 'cricket whites: a collared shirt and trousers, a county colour at the collar', top: 'tee', bottom: 'trousers', socks: 'none', trim: ['collar'], colours: ['#f4f1e8', '#f4f1e8', '#1d4f91'], shorts: 0, socksOf: 1, whites: true },
   bowling: { words: 'a bowling shirt and trousers', top: 'tee', bottom: 'trousers', socks: 'none', trim: ['collar', 'cuffs'], colours: ['#2a6f97', '#1d2433', '#f2c14e'], shorts: 1, socksOf: 1, pattern: 'yoke' },
 });
 export const KIT_SPORTS = Object.freeze(Object.keys(SPORT_KITS));
@@ -133,5 +135,5 @@ export function kitDress(kit, { realistic = false } = {}) {
 /** A sport's book id (contest/sports.js) or a meet's to its card; a sport written out by its shape. */
 export function kitSportOf(word) {
   if (SPORT_KITS[word]) return word;
-  return { meet: 'track', match: 'tennis', turns: 'golf', team: 'soccer' }[word] ?? 'soccer';
+  return { meet: 'track', match: 'tennis', turns: 'golf', team: 'soccer', innings: 'baseball' }[word] ?? 'soccer';
 }

@@ -11,12 +11,14 @@
  * are mulberry32 on the state (S.r) from the contest's seed (the toss, the gun's delay), and `apply` returns a new
  * state, so the same start and the same facts are the same contest to the byte.
  *
- * Three shapes of contest, one kernel:
+ * Four shapes of contest, one kernel:
  *   match   sides, a ball, possession, a court of named regions mirrored for the other side, a ladder of scoring
  *           units (points into games into sets), a serve or a kickoff as the restart, a clock with periods
  *   meet    an athletic event: lanes, a set and a gun, a false start, a measure (time, distance, height), attempts
  *   turns   a turn sport: seats played hot-seat, one shot at a time, the ball's rest the shot's end; rounds (holes,
  *           frames) each seat plays in turn; the score the strokes (the fewest win) or the pins (tenpin's marks)
+ *   innings a bat-and-ball game: one side bats while the other fields, a ball at a time; outs end a side's innings
+ *           (strikes make one, baseball's), overs may too (cricket's); runs round the bases or between the wickets
  *
  *   read(spec) → C   the contest compiled; throws on what it cannot read, teaching the shape
  *     spec: {
@@ -58,6 +60,12 @@
  *       — a meet —
  *       event: { kind, lanes: n, measure: 'time' | 'distance' | 'height', best?: 'low' | 'high' (time: low), attempts?: n
  *                (a measured event; 1), falseStart?: 'disqualify' | 'warn' (a warning, then disqualified) }
+ *       — innings —
+ *       innings: { innings?: n (each side bats so many times; 1), outs: n (end a side's innings), strikes?: n (bases:
+ *                  so many strikes are an out, a foul never the last), overs?: n and balls: n (an innings ends after so
+ *                  many overs of so many balls), runs: 'bases' (runners round the bases, home a run: baseball's) |
+ *                  'runs' (runs between the wickets, a boundary's: cricket's) }   the side batting second wins the
+ *                  moment it passes the first (the chase, the walk-off); a tie stands
  *       — turns —
  *       players: n (the seats, 1 to 8, played hot-seat in order: p1, p2 …)
  *       course?: { frame, regions } (no sides: every region as authored, the first that holds a point the ball's lie)
@@ -90,6 +98,9 @@
  *                    { kind: 'mark', who, value, foul? }
  *     facts (turns): { kind: 'shot', who } (the ball struck: a stroke, a roll) | { kind: 'rest', at } (strokes: where it
  *                    came to rest) | { kind: 'rest', standing } (pins: how many still stand)
+ *     facts (innings): a ball's end: { kind: 'strike', why: missed | looking | foul } | { kind: 'dot' } | { kind: 'out',
+ *                    why: caught | bowled | thrown-out | … } | { kind: 'hit', bases: 1 … 4 } (bases) | { kind: 'runs',
+ *                    runs, boundary? } (runs)
  *   display(C, S) → { score: { a: [words], b: [words] }, phase, clock }   the scoreboard's words (deuce, advantage);
  *                                turns: the card, each seat's rounds and total (tenpin's marks and running totals)
  *   region(C, name, side, round?) → the shape on that side (turns: the round's course); inside(C, name, side, p);
@@ -99,7 +110,7 @@
 
 export function buildContest() {
   const SIDES = ['a', 'b'];
-  const SHAPES = ['match', 'meet', 'turns'];
+  const SHAPES = ['match', 'meet', 'turns', 'innings'];
   const TURN_KINDS = ['strokes', 'pins'];
   const MIRRORS = ['half-turn', 'reflect'];
   const MEASURES = ['time', 'distance', 'height'];
@@ -322,6 +333,20 @@ export function buildContest() {
     }
   }
 
+  function readInnings(spec, C) {
+    only(spec, ['shape', 'title', 'players', 'court', 'innings'], 'an innings game');
+    C.court = spec.court !== undefined ? readCourt(spec.court) : null;
+    const k = spec.innings;
+    if (!isObj(k)) fail('innings is { innings?, outs, strikes?, overs?, balls?, runs: bases | runs }');
+    only(k, ['innings', 'outs', 'strikes', 'overs', 'balls', 'runs'], 'innings');
+    if (!isCount(k.outs)) fail('innings.outs is how many outs end a side\'s innings');
+    if (!['bases', 'runs'].includes(k.runs)) fail('innings.runs is bases (runners round the bases, baseball\'s) or runs (run between the wickets, cricket\'s)');
+    for (const w of ['innings', 'strikes', 'overs', 'balls']) if (k[w] !== undefined && !isCount(k[w])) fail(`innings.${w} is a count`);
+    if (k.overs !== undefined && k.balls === undefined) fail('innings.overs needs balls: the deliveries an over is');
+    if (k.runs === 'runs' && k.strikes !== undefined) fail('innings.strikes belong to a game of bases');
+    C.innings = { innings: k.innings ?? 1, outs: k.outs, strikes: k.strikes ?? null, overs: k.overs ?? null, balls: k.balls ?? null, runs: k.runs };
+  }
+
   function read(spec) {
     if (!isObj(spec)) fail('a contest is an object: { shape: match | meet | turns, … }');
     if (!SHAPES.includes(spec.shape)) fail(`shape is ${SHAPES.join(' | ')}`);
@@ -332,7 +357,7 @@ export function buildContest() {
       if (!isObj(spec.roles) || !Object.keys(spec.roles).length) fail('roles is { <role>: { home: <region> } }, a side\'s players in order');
       C.roles = spec.roles;   // checked against the court below
     }
-    if (C.shape === 'match') readMatch(spec, C); else if (C.shape === 'meet') readMeet(spec, C); else readTurns(spec, C);
+    if (C.shape === 'match') readMatch(spec, C); else if (C.shape === 'meet') readMeet(spec, C); else if (C.shape === 'innings') readInnings(spec, C); else readTurns(spec, C);
     if (C.roles) {
       if (C.shape !== 'match') fail('roles belong to a match');
       for (const [role, r] of Object.entries(C.roles)) {
@@ -930,23 +955,110 @@ export function buildContest() {
 
   function start(C, seed = 1) {
     if (!Number.isInteger(seed)) fail('seed is a whole number');
-    return C.shape === 'meet' ? startMeet(C, seed) : C.shape === 'turns' ? startTurns(C, seed) : startMatch(C, seed);
+    return C.shape === 'meet' ? startMeet(C, seed) : C.shape === 'turns' ? startTurns(C, seed) : C.shape === 'innings' ? startInnings(C, seed) : startMatch(C, seed);
+  }
+
+  // ── an innings game ──────────────────────────────────────────────────────────────────────────────────────────
+
+  function startInnings(C, seed) {
+    const S = { r: seed >>> 0, n: 0, phase: 'live', first: null, batting: null, inning: 1, half: 0, outs: 0, strikes: 0, balls: 0, overs: 0, bases: [false, false, false], runs: { a: [], b: [] }, total: { a: 0, b: 0 }, winner: null, last: null };
+    S.first = rnd(S) < 0.5 ? 'a' : 'b'; S.batting = S.first; S.runs[S.batting].push(0);
+    return S;
+  }
+  const lastInning = (C, S) => S.inning === C.innings.innings;
+  function inningsOver(C, S, calls) {
+    S.phase = 'over'; S.winner = S.total.a === S.total.b ? null : S.total.a > S.total.b ? 'a' : 'b';
+    calls.push({ kind: 'over', winner: S.winner, score: { a: [S.total.a], b: [S.total.b] } });
+  }
+  /** A side's innings done: the other side in, or the next inning, or the end (the second side ahead after the
+   * first's last innings need not bat). */
+  function sideOver(C, S, calls) {
+    const second = opp(S.first);
+    if (S.half === 1 && lastInning(C, S)) return inningsOver(C, S, calls);
+    if (S.half === 0 && lastInning(C, S) && S.total[second] > S.total[S.first]) return inningsOver(C, S, calls);
+    if (S.half === 0) { S.half = 1; S.batting = second; } else { S.half = 0; S.inning += 1; S.batting = S.first; }
+    S.outs = 0; S.strikes = 0; S.balls = 0; S.overs = 0; S.bases = [false, false, false]; S.runs[S.batting].push(0);
+    calls.push({ kind: 'side', batting: S.batting, inning: S.inning, half: S.half });
+  }
+  function scoreRuns(C, S, n) {
+    S.total[S.batting] += n; S.runs[S.batting][S.runs[S.batting].length - 1] += n;
+  }
+  /** The ball done: an over counted (cricket's), the innings over at its overs; the chase or the walk-off ends it. */
+  function ballDone(C, S, calls) {
+    if (S.phase === 'over') return;
+    let ended = false;
+    if (C.innings.balls && ++S.balls >= C.innings.balls) {
+      S.balls = 0; S.overs += 1; ended = true;
+      calls.push({ kind: 'end-over', side: S.batting, overs: S.overs });
+    }
+    if (S.half === 1 && lastInning(C, S) && S.total[S.batting] > S.total[S.first]) return inningsOver(C, S, calls);
+    if (ended && C.innings.overs && S.overs >= C.innings.overs) sideOver(C, S, calls);
+  }
+  function outOf(C, S, why, calls) {
+    S.outs += 1; S.strikes = 0;
+    calls.push({ kind: 'out', side: S.batting, why, outs: S.outs });
+    S.last = { kind: 'out', why };
+    if (S.outs >= C.innings.outs) { sideOver(C, S, calls); return true; }
+    return false;
+  }
+
+  function applyInnings(C, S, f, calls) {
+    if (S.phase === 'over') return;
+    const k = f.kind, side = S.batting;
+    if (k === 'strike') {
+      if (!C.innings.strikes) { calls.push({ kind: 'dot', side }); return ballDone(C, S, calls); }   // a game of runs: a ball missed is a dot
+      if (f.why === 'foul' && S.strikes === C.innings.strikes - 1) { calls.push({ kind: 'strike', side, why: 'foul', count: S.strikes }); return; }
+      S.strikes += 1;
+      calls.push({ kind: 'strike', side, why: f.why ?? 'missed', count: S.strikes });
+      if (S.strikes >= C.innings.strikes) { if (!outOf(C, S, 'struck-out', calls)) ballDone(C, S, calls); return; }
+      return;
+    }
+    if (k === 'dot') { calls.push({ kind: 'dot', side }); return ballDone(C, S, calls); }
+    if (k === 'out') { if (!outOf(C, S, typeof f.why === 'string' ? f.why : 'out', calls)) ballDone(C, S, calls); return; }
+    if (k === 'hit') {
+      if (C.innings.runs !== 'bases') fail('a hit fact belongs to a game of bases; a game of runs takes { kind: runs, runs }');
+      const b = f.bases;
+      if (!(Number.isInteger(b) && b >= 1 && b <= 4)) fail('a hit fact\'s bases is 1 to 4 (4: a home run)');
+      // every runner on so many bases, the batter to the base it reached; the ones home score
+      let runs = 0; const next = [false, false, false];
+      for (let i = 2; i >= 0; i--) if (S.bases[i]) { if (i + b >= 3) runs += 1; else next[i + b] = true; }
+      if (b >= 4) runs += 1; else next[b - 1] = true;
+      S.bases = next; S.strikes = 0;
+      scoreRuns(C, S, runs);
+      calls.push({ kind: 'base-hit', side, bases: b, runs });
+      S.last = { kind: 'hit', bases: b, runs };
+      return ballDone(C, S, calls);
+    }
+    if (k === 'runs') {
+      if (C.innings.runs !== 'runs') fail('a runs fact belongs to a game of runs; a game of bases takes { kind: hit, bases }');
+      if (!(Number.isInteger(f.runs) && f.runs >= 0 && f.runs <= 6)) fail('a runs fact\'s runs is 0 to 6');
+      scoreRuns(C, S, f.runs);
+      calls.push({ kind: 'runs', side, runs: f.runs, ...(f.boundary ? { boundary: true } : {}) });
+      S.last = { kind: 'runs', runs: f.runs };
+      return ballDone(C, S, calls);
+    }
+    fail(`no fact '${k}' in an innings game (strike, dot, out, hit, runs)`);
+  }
+
+  function displayInnings(C, S) {
+    return { phase: S.phase, score: { a: [String(S.total.a)], b: [String(S.total.b)] }, innings: { inning: S.inning, of: C.innings.innings, half: S.half, batting: S.batting, first: S.first, outs: S.outs, strikes: S.strikes, balls: S.balls, overs: S.overs, bases: S.bases.slice(), runs: clone(S.runs) }, winner: S.winner };
   }
 
   function apply(C, S, fact) {
     if (!isObj(fact) || typeof fact.kind !== 'string') fail('a fact is { kind, … }');
     const next = clone(S), calls = [];
     next.n += 1;
-    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else if (C.shape === 'turns') applyTurns(C, next, fact, calls); else applyMatch(C, next, fact, calls);
+    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else if (C.shape === 'turns') applyTurns(C, next, fact, calls); else if (C.shape === 'innings') applyInnings(C, next, fact, calls); else applyMatch(C, next, fact, calls);
     return { S: next, calls };
   }
 
-  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : C.shape === 'turns' ? legalTurns(C, S, who) : legalMatch(C, S, who));
+  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : C.shape === 'turns' ? legalTurns(C, S, who) : C.shape === 'innings' ? { side: sideOfId(who), may: S.phase === 'over' ? [] : sideOfId(who) === S.batting ? ['bat'] : ['field'] } : legalMatch(C, S, who));
 
   /** The scoreboard's words: the tennis game's 0 15 30 40, deuce and advantage, else the counts. */
   function display(C, S) {
     if (C.shape === 'meet') return { phase: S.phase, t: S.t, lanes: clone(S.lanes), placings: S.placings ? clone(S.placings) : null };
     if (C.shape === 'turns') return displayTurns(C, S);
+    if (C.shape === 'innings') return displayInnings(C, S);
     const L = C.scoring.ladder, out = { a: [], b: [] };
     for (let i = 0; i < L.length; i++) {
       const a = S.score.a[i], b = S.score.b[i], u = L[i];

@@ -386,6 +386,55 @@ describe('a carry game: plays, tackles or downs, the pass forward, a try and its
   });
 });
 
+describe('an innings game: outs end a side, runs by where the ball goes', () => {
+  const bases = (k = {}) => contestRead({ shape: 'innings', innings: { innings: 2, outs: 3, strikes: 3, runs: 'bases', ...k } });
+  const overs = (k = {}) => contestRead({ shape: 'innings', innings: { outs: 10, overs: 1, balls: 6, runs: 'runs', ...k } });
+  const out = { kind: 'out', why: 'caught' };
+  it('reads its words and refuses the ones that do not belong', () => {
+    expect(bases().innings).toEqual({ innings: 2, outs: 3, strikes: 3, overs: null, balls: null, runs: 'bases' });
+    expect(() => contestRead({ shape: 'innings', innings: { outs: 3, runs: 'goals' } })).toThrow(/bases .* or runs/);
+    expect(() => overs({ balls: undefined })).toThrow(/needs balls/);
+    expect(() => overs({ strikes: 3 })).toThrow(/game of bases/);
+    expect(() => contestApply(bases(), contestStart(bases(), 1), { kind: 'runs', runs: 4 })).toThrow(/game of bases/);
+    expect(() => contestApply(overs(), contestStart(overs(), 1), { kind: 'hit', bases: 1 })).toThrow(/game of runs/);
+  });
+  it('bases: three strikes an out (a foul never the third), three outs the side; a hit moves every runner so many bases, home scores', () => {
+    const C = bases(), S0 = contestStart(C, 3), bat = S0.batting;
+    let r = play(C, S0, [{ kind: 'strike' }, { kind: 'strike', why: 'foul' }, { kind: 'strike', why: 'foul' }]);
+    expect(r.S.strikes).toBe(2);
+    r = play(C, r.S, [{ kind: 'strike', why: 'looking' }]);
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'out', why: 'struck-out', outs: 1 });
+    r = play(C, r.S, [{ kind: 'hit', bases: 1 }, { kind: 'hit', bases: 2 }]);
+    expect(r.S.bases).toEqual([false, true, true]);
+    r = play(C, r.S, [{ kind: 'hit', bases: 4 }]);
+    expect(r.calls.at(-1)).toEqual({ kind: 'base-hit', side: bat, bases: 4, runs: 3 });
+    expect(r.S.total[bat]).toBe(3);
+    r = play(C, r.S, [out, out]);
+    expect(kinds(r.calls)).toEqual(['out', 'out', 'side']);
+    expect(r.S).toMatchObject({ batting: bat === 'a' ? 'b' : 'a', half: 1, outs: 0, bases: [false, false, false] });
+    expect(contestDisplay(C, r.S).score[bat]).toEqual(['3']);
+  });
+  it('the second side ahead after the first\'s last innings does not bat; a walk-off ends it the moment it leads', () => {
+    const C = bases({ innings: 1 }), S0 = contestStart(C, 3), first = S0.batting, second = first === 'a' ? 'b' : 'a';
+    let r = play(C, S0, [{ kind: 'hit', bases: 4 }, out, out, out]);
+    expect(r.S.batting).toBe(second);
+    r = play(C, r.S, [{ kind: 'hit', bases: 4 }]);
+    expect(r.S.phase).toBe('live');
+    r = play(C, r.S, [{ kind: 'hit', bases: 4 }]);
+    expect(r.calls.at(-1)).toEqual({ kind: 'over', winner: second, score: { [first]: [1], [second]: [2] } });
+    expect(contestLegal(C, r.S)).toEqual({ side: null, may: [] });
+  });
+  it('runs: a ball missed is a dot, six balls an over, the overs the innings; the chase ends when it passes the target', () => {
+    const C = overs(), S0 = contestStart(C, 3), first = S0.batting, second = first === 'a' ? 'b' : 'a';
+    let r = play(C, S0, [{ kind: 'strike' }, { kind: 'runs', runs: 4, boundary: true }, { kind: 'dot' }, { kind: 'runs', runs: 1 }, out, { kind: 'runs', runs: 6, boundary: true }]);
+    expect(kinds(r.calls)).toEqual(['dot', 'runs', 'dot', 'runs', 'out', 'runs', 'end-over', 'side']);
+    expect(r.S.total[first]).toBe(11);
+    r = play(C, r.S, [{ kind: 'runs', runs: 6 }, { kind: 'runs', runs: 6 }]);
+    expect(r.calls.at(-1)).toMatchObject({ kind: 'over', winner: second });
+    expect(contestDisplay(C, r.S).innings).toMatchObject({ batting: second, balls: 2, overs: 0 });
+  });
+});
+
 describe('a goal game\'s outs and offside', () => {
   const G = contestRead(soccer());
   const play = (S, facts) => { const calls = []; for (const f of facts) { const r = contestApply(G, S, f); S = r.S; calls.push(...r.calls); } return { S, calls }; };

@@ -467,7 +467,7 @@ The ball games at the level an arcade plays them, each a CARD of modules (its co
 its ball, its body) that its family composes into a sport the book resolves by name and the shape's sim plays. A
 variant is a word over a card (`{ id, from: <card>, …a module's words }`), so "ping pong to twenty-one" is not a
 rulebook; a rulebook the modules cannot say stays the distilled-rulebook catalyst's, written out whole. Every card
-names what the full rules say that the arcade leaves out (`omits`). Planned, by family: the net games, then
+names what the full rules say that the arcade leaves out (`omits`). Built, by family: the net games, then
 volleyball's sides of more than one, basketball's hoop, the carry games (rugby, American football), the innings
 games (baseball, cricket).
 
@@ -558,6 +558,32 @@ games (baseball, cricket).
   - **Seen, said:** the arcade football scores high (about a touchdown a minute between two computer sides, as an
     arcade football game does); the rugby is tight. The ruck, the scrum and the lineout, kicking in open play, eleven a
     side, punts and penalties are the cards' omissions.
+- **The innings games: baseball and cricket** (`arcade-rules.js` the innings family, `contest-kernel.js` the `innings`
+  shape, `bat-sim.js`, `innings-arena.js`), built: one side bats, the other fields, a ball at a time. The kernel's new
+  shape: strikes and outs (a foul never the third strike), three outs the side retired, a hit moving every runner so
+  many bases and the ones home scoring; or a game of runs: a ball missed a dot, six balls an over, the overs a side's
+  innings, a boundary four or six; the second side ahead after the first's last innings does not bat, and the chase or
+  the walk-off ends the game the ball it leads. The bat sim: the pitch through the zone or the ball bowled at a length,
+  the swing timed against the ball's arrival (early or late a strike, inside the window the contact's quality and its
+  spray off the stick), the struck ball flown on the physics and its end read ahead on a copy of it the moment it is
+  struck (over the fence or the rope on the full, a foul outside the lines, caught where a fielder reaches the landing
+  in the ball's hang time, else fielded and thrown out at first or the bases the runner makes before the throw, the
+  runs the batters cross); a ball let go is a strike in the zone and pitched again out of it, a dot or bowled into the
+  stumps. The page lays a diamond (the infield, the bases, the mound, the foul lines, the fence) or an oval (the square,
+  the pitch, the stumps, the rope), the fielders at their spots and the camera behind the batter; the broadcast calls
+  STRIKE, FOUL BALL, STRUCK OUT, CAUGHT, OUT AT FIRST, BOWLED, SINGLE to HOME RUN!, FOUR!, SIX!, SIDE RETIRED and the end
+  of the over, and the stats count runs, hits, home runs and strikeouts or runs, fours, sixes and wickets. The quick
+  goal takes `sport: 'baseball' | 'cricket'` with `innings` and `overs`, in the football stadium; the kits gain a
+  baseball uniform and cricket whites. The distilled-rulebook catalyst names the shape.
+  - **Held:** the kernel's strikes, outs, bases, runs, overs, the side, the second side not batting and the chase's
+    end; the swing's window one unbroken run of frames, a press early a strike; a ball let go in a game of runs never a
+    strike; every struck ball ruled once; an exhibition of each to its end, the same pads the same game to the byte;
+    the plates and the stats; every card's short variant to its end (the deep sweep, now on three shapes); the page of
+    each at the Node state.
+  - **Seen, said:** between computer sides the baseball is home runs, singles and outs (the fielders reach the gaps,
+    so a double or a triple is rare), about four runs in three innings; the cricket's boundaries are mostly sixes. The
+    walk, the catcher, stolen bases and force plays, leg before wicket, the wide and the no ball, run outs and nine or
+    eleven a side are the cards' omissions.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

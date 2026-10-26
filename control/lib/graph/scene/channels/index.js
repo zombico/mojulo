@@ -18,7 +18,7 @@ import { fxChannelScript } from './fx.js';
 import { gameChannelScript } from './game.js';
 import { versusChannelScript } from './versus.js';
 import { boardChannelScript } from './board.js';
-import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript } from './contest.js';
+import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 import { holoChannelScript } from './holo.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
@@ -269,6 +269,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a board game lifted into a hologram arena (lib/graph/tabletop); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojHolo'] },         // the duel's state, its moves and its phase, for probes
+  { key: 'innings', anchor: 'post-capture', script: inningsChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a bat-and-ball game on a field (lib/graph/contest); it owns the camera
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojInnings'] },      // the game's state and phase, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -354,7 +358,7 @@ export { shootChannelScript } from './shoot.js';
 export { shootSetScript } from './shoot-set.js';
 export { versusChannelScript } from './versus.js';
 export { boardChannelScript } from './board.js';
-export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript } from './contest.js';
+export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 export { holoChannelScript } from './holo.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';

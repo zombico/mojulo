@@ -17,7 +17,7 @@ describe('the cards and the balls', () => {
     expect(BALLS.soccer.cited).toBe(true); expect(BALLS.soccer.aero).toBe(PROJECTILES.soccer.aero);
     expect(BALLS.tennis.restitution).toBeCloseTo(Math.sqrt(141 / 254), 3);
     expect(() => readBallCard('arcade')).toThrow(/register 'arcade' is one of realistic, action, platformer, pinball/);
-    expect(() => ballOf('cricket')).toThrow(/'cricket' is not a ball here \(soccer, tennis/);
+    expect(() => ballOf('quidditch')).toThrow(/'quidditch' is not a ball here \(soccer, tennis/);
     expect(() => ballOf({ mass: 1 })).toThrow(/\{ mass \(kg\), radius \(m\)/);
     expect(ballOf({ mass: 0.1, radius: 0.05 })).toMatchObject({ id: 'custom', restitution: 0.7, cited: false });
   });

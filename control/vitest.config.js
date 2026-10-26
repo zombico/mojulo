@@ -26,6 +26,7 @@ export const E2E = [
   'lib/graph/contest/athletes-page.live.test.js',
   'lib/graph/contest/arcade-page.live.test.js',
   'lib/graph/contest/arcade-pitch.live.test.js',
+  'lib/graph/contest/innings-page.live.test.js',
   'lib/graph/tabletop/holo-page.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',

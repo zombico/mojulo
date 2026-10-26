@@ -22,6 +22,7 @@
  *   turns  strokes: to par, putts, fairways, greens in regulation, penalties; pins: pinfall, strikes, spares, opens,
  *          ball speed
  *   meet   time, place; hurdles: hurdles hit; a jump: best, fouls, run-up
+ *   innings runs, hits, home runs, struck out (bases); runs, fours, sixes (runs); outs: each side's at the bat
  * A row the sport cannot have (a hurdle in a sprint) is left out. Pure: no dice, no clock; absent, nothing reads it.
  */
 
@@ -46,6 +47,8 @@ const ST_ROWS = {
   ],
   race: [['time', 'time', 'time', 's', 'low'], ['place', 'place', 'pl', 'n', 'low'], ['clips', 'hurdles hit', 'hit', 'n', 'low']],
   jump: [['best', 'best jump', 'best', 'm', 'high'], ['place', 'place', 'pl', 'n', 'low'], ['fouls', 'fouls', 'fouls', 'n', 'low'], ['runup', 'run-up speed', 'run-up', 'kmh', 'high']],
+  bases: [['runs', 'runs', 'R', 'n', 'high'], ['hits', 'hits', 'H', 'n', 'high'], ['homers', 'home runs', 'HR', 'n', 'high'], ['strikeouts', 'struck out', 'K', 'n', 'low'], ['outs', 'outs', 'outs', 'n', 'low']],
+  runs: [['runs', 'runs', 'R', 'n', 'high'], ['fours', 'fours', '4s', 'n', 'high'], ['sixes', 'sixes', '6s', 'n', 'high'], ['outs', 'wickets lost', 'wkts', 'n', 'low']],
 };
 export const STAT_ROWS = Object.freeze(Object.fromEntries(Object.entries(ST_ROWS).map(([k, rows]) => [k, Object.freeze(rows.map(([id, words, short, unit, better]) => Object.freeze({ id, words, short, unit, better })))])));
 
@@ -167,12 +170,26 @@ function stMeet(S) {
   return { shape: 'meet', by: 'lane', ids, rows: stTable(kind, ids, v, keep) };
 }
 
+/** An innings game's: each side's at the bat (its runs, its hits and home runs or its boundaries, its outs). */
+function stInnings(S) {
+  const ids = ['a', 'b'], v = {}, add = (row, id, n = 1) => { v[row] ??= {}; v[row][id] = (v[row][id] ?? 0) + n; };
+  let kind = S.scoring ?? 'bases';   // the sim names its game; a bare log reads it from its calls
+  for (const c of S.calls) {
+    if (c.kind === 'base-hit') { add('runs', c.side, c.runs); add('hits', c.side); if (c.bases === 4) add('homers', c.side); }
+    else if (c.kind === 'runs') { kind = 'runs'; add('runs', c.side, c.runs); if (c.boundary && c.runs === 4) add('fours', c.side); if (c.boundary && c.runs === 6) add('sixes', c.side); }
+    else if (c.kind === 'out') { add('outs', c.side); if (c.why === 'struck-out') add('strikeouts', c.side); if (c.why === 'bowled') kind = 'runs'; }
+    else if (c.kind === 'dot' || c.kind === 'end-over') kind = 'runs';
+  }
+  return { shape: 'innings', by: 'side', ids, rows: stTable(kind, ids, v) };
+}
+
 export function contestStats(S, shape) {
   if (shape === 'match') return stMatch(S);
+  if (shape === 'innings') return stInnings(S);
   if (shape === 'team') return stTeam(S);
   if (shape === 'turns') return stTurns(S);
   if (shape === 'meet') return stMeet(S);
-  throw new Error(`contest stats: no shape '${shape}' (match, team, turns, meet)`);
+  throw new Error(`contest stats: no shape '${shape}' (match, team, turns, meet, innings)`);
 }
 
 /** A value as the broadcast shows it. */

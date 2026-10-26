@@ -227,6 +227,7 @@ export const TEAM_SPORT_IDS = Object.freeze(Object.keys(TEAM_SPORTS));
 export const SPORT_IDS = Object.freeze(Object.keys(SPORTS));
 export const MATCH_SPORT_IDS = Object.freeze(SPORT_IDS.filter((id) => SPORTS[id].shape === 'match'));
 export const TURN_SPORT_IDS = Object.freeze(SPORT_IDS.filter((id) => SPORTS[id].shape === 'turns'));
+export const INNINGS_SPORT_IDS = Object.freeze(SPORT_IDS.filter((id) => SPORTS[id].shape === 'innings'));
 
 export function sportOf(id) {
   const s = SPORTS[id];
@@ -239,8 +240,11 @@ const WRITTEN_DIALS = Object.freeze({
   match: ['ball', 'players', 'strokes', 'net', 'serve', 'receive', 'home'],
   turns: ['ball', 'seats', 'clubs', 'lies', 'swing'],
   team: ['ball', 'side', 'goal', 'homes', 'kick', 'ground', 'press'],
+  innings: ['ball', 'side', 'field', 'pitch', 'bat', 'fielders', 'runner'],
 });
-const SHAPE_SIM = Object.freeze({ match: 'the court (match-sim.js)', turns: 'the course (turn-sim.js)', team: 'the pitch (team-sim.js)' });
+const SHAPE_SIM = Object.freeze({ match: 'the court (match-sim.js)', turns: 'the course (turn-sim.js)', team: 'the pitch (team-sim.js)', innings: 'the field (bat-sim.js)' });
+/** A shape in the words a sport is called by. */
+export const SHAPE_WORDS = Object.freeze({ match: 'net game', turns: 'turn sport', team: 'team goal game', innings: 'bat-and-ball game' });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const sfail = (m) => { throw new Error(`contest: ${m}`); };
 
@@ -256,7 +260,7 @@ export function resolveSport(v, shape = null) {
   if (typeof v === 'string') {
     const s = SPORTS[v] ?? TEAM_SPORTS[v];
     if (!s) sfail(`sport '${v}' is one of ${[...SPORT_IDS, ...TEAM_SPORT_IDS].join(', ')}, or a sport written out { id, shape, words, spec, … }`);
-    if (shape && s.shape !== shape) sfail(`sport '${v}' is a ${s.shape === 'match' ? 'net game' : s.shape === 'turns' ? 'turn sport' : 'team goal game'}: it plays on ${SHAPE_SIM[s.shape]}`);
+    if (shape && s.shape !== shape) sfail(`sport '${v}' is a ${SHAPE_WORDS[s.shape]}: it plays on ${SHAPE_SIM[s.shape]}`);
     return { id: v, ...s };
   }
   if (!isObj(v)) sfail('a sport is a name from the book, or one written out { id, shape, words, spec, … }');
@@ -273,7 +277,7 @@ export function resolveSport(v, shape = null) {
   const turnKind = v.shape === 'turns' && isObj(v.spec.turn) ? v.spec.turn.kind : null;
   const need = [...WRITTEN_DIALS[v.shape], ...(turnKind === 'strokes' ? ['cup', 'holes'] : turnKind === 'pins' ? ['lane', 'pins', 'hook'] : [])];
   const missing = need.filter((k) => v[k] === undefined);
-  if (missing.length) sfail(`a written-out ${v.shape} sport carries ${need.join(', ')} (missing ${missing.join(', ')}); the book's ${v.shape === 'match' ? 'tennis' : v.shape === 'turns' ? 'golf and bowling' : 'soccer and hockey'} show the dials`);
+  if (missing.length) sfail(`a written-out ${v.shape} sport carries ${need.join(', ')} (missing ${missing.join(', ')}); the book's ${v.shape === 'match' ? 'tennis' : v.shape === 'turns' ? 'golf and bowling' : v.shape === 'innings' ? 'baseball and cricket' : 'soccer and hockey'} show the dials`);
   if (v.omits !== undefined && !(Array.isArray(v.omits) && v.omits.every((o) => typeof o === 'string'))) sfail('omits is a list of words: what the rulebook says that the primitives do not carry');
   const { spec, ...rest } = v;
   return { ...rest, spec: () => JSON.parse(JSON.stringify(spec)), written: true };
@@ -285,7 +289,7 @@ function resolveVariant(v, shape) {
   if (SPORTS[v.id] || TEAM_SPORTS[v.id]) sfail(`'${v.id}' is the book's: name the variant its own id (${v.id}-21, mini-${v.id})`);
   let s;
   try { s = composeArcade(arcadeCard(v), v.from); } catch (e) { sfail(e.message.replace(/^arcade: /, '')); }
-  if (shape && s.shape !== shape) sfail(`'${v.id}' (from ${v.from}) is a ${s.shape === 'match' ? 'net game' : s.shape === 'turns' ? 'turn sport' : 'team goal game'}: it plays on ${SHAPE_SIM[s.shape]}`);
+  if (shape && s.shape !== shape) sfail(`'${v.id}' (from ${v.from}) is a ${SHAPE_WORDS[s.shape]}: it plays on ${SHAPE_SIM[s.shape]}`);
   return { id: v.id, ...s };
 }
 
