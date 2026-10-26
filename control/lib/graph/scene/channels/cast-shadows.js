@@ -140,8 +140,10 @@ for (const m of solids) {
 // FOLLOW), two maps instead of one:
 //   • ACTORS: only what moves casts (the pilot and the seats' bodies, walkers, cars, fauna on the ground, a subtree a
 //     channel hands to `adopt`), into a map three draws each frame; the static world never casts there, it receives;
-//   • HOUR: the static world in its own map (`__hrL`), drawn once at load and again only when the hour changes
-//     (`window.__mojCast.hour([x, y, z])`): its shadow's `autoUpdate` is off, so three skips it on every other frame.
+//   • HOUR: the static world in its own map (`__hrL`), drawn once at load, and again only when `__mojCast.hour([x, y,
+//     z])` is called: its shadow's `autoUpdate` is off, so three skips it on every other frame.
+//     THE SUN DOES NOT MOVE, live or within a level (the operator's principle, era/geocube-hours.js): the `hour` seam
+//     redraws the static map for a recipe's hour once at load; it is not a clock. Never drive it per frame or on a timer.
 //     For the frame it is drawn, the static solids cast and the actors do not, and the actors' map holds its last
 //     frame (the same frame's map would hold the static world). `__mojHourPass` (spliced before every render) arms it
 //     and restores the flags on the next frame.
@@ -173,7 +175,8 @@ export function liveShadowScript(cfg) {
   const light = (v) => `const ${v} = new THREE.DirectionalLight(0xffffff, 1);   // invisible to the MeshBasic fills: only its shadow camera matters
 ${v}.castShadow = true; ${v}.shadow.mapSize.set(__CS.mapSize, __CS.mapSize);
 scene.add(${v}); scene.add(${v}.target);`;
-  const tap = (p) => `csLit( ${p}Map, v${p === 'cs' ? 'Cs' : 'Hr'}Coord, ${p}Bias, ${p}Texel )`;
+  // (the hour's map is read with its receiver's slope in its bias, csLitR: the static world casts and receives there)
+  const tap = (p) => `csLit${p === 'hr' ? 'R' : ''}( ${p}Map, v${p === 'cs' ? 'Cs' : 'Hr'}Coord, ${p}Bias, ${p}Texel )`;
   const litExpr = B ? '1.0 - csBlob( csMap, vCsCoord )' : A && H ? `min( ${tap('cs')}, ${tap('hr')} )` : A ? tap('cs') : tap('hr');
   const vDecl = [A ? 'uniform mat4 csMat;\\nvarying vec4 vCsCoord;\\n' : '', H ? 'uniform mat4 hrMat;\\nvarying vec4 vHrCoord;\\n' : ''].join('');
   const fDecl = [A ? `uniform sampler2DShadow csMap;\\nuniform float csBias;\\nuniform float csTexel;\\n${B ? 'uniform vec2 csBlobK;\\n' : ''}varying vec4 vCsCoord;\\n` : '', H ? 'uniform sampler2DShadow hrMap;\\nuniform float hrBias;\\nuniform float hrTexel;\\nvarying vec4 vHrCoord;\\n' : ''].join('');
@@ -219,7 +222,7 @@ const __csActorBias = __CS.bias || 0.005 / (__CS.unit || 1);${B ? `
 const __csBlobU = { value: new THREE.Vector2() };` : ''}
 ${B ? `const __csSeatA = (half, x, y, z) => { __csSeat(__csL, __csBiasU, half, x, y, z, __csActorBias); const c = __csL.shadow.camera; __csBlobU.value.set(1 / (c.far - c.near), 1 / (2 * half)); };
 ` : ''}${seatA('__csR, __csC.x, __csC.y, __csC.z')};   // FIT until a focus follows
-let __csFollowing = false, __csFocus = null;
+let __csFollowing = false, __csFocus = null;${cfg.lead ? ' const __csFw = new THREE.Vector3();' : ''}
 const __csSteer = () => { const f = __csFocus && __csFocus(); if (f) window.__mojCast.follow(f[0], f[1], f[2], f[3] || 0); };` : ''}${H ? `
 // THE HOUR'S MAP: in the scene, its autoUpdate off, so three draws it only when __mojHourPass arms it (at load, and
 // when the hour changes); FIT over the whole static stage, its bias a few of its own texels (statics cast and receive)
@@ -261,7 +264,15 @@ const __csFS = '${fDecl}#ifdef CS_SUN\\nvarying float vCsSun;\\n#endif\\n'
   + '  if ( !( sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0 ) ) return 1.0;\\n'
   + '  float z = sc.z - bias, t = texel * 0.9;\\n'
   + '  return 0.25 * ( texture( map, vec3( sc.xy + vec2( -t, -t ), z ) ) + texture( map, vec3( sc.xy + vec2( t, -t ), z ) )\\n'
-  + '                + texture( map, vec3( sc.xy + vec2( -t, t ), z ) ) + texture( map, vec3( sc.xy + vec2( t, t ), z ) ) );\\n}\\n'${B ? `
+  + '                + texture( map, vec3( sc.xy + vec2( -t, t ), z ) ) + texture( map, vec3( sc.xy + vec2( t, t ), z ) ) );\\n}\\n'${H ? `
+  // the hour's map, where the static world shadows itself: the bias grows with the receiver's own slope in the map (its
+  // light-space depth's derivatives, solved for dz/du and dz/dv), a texel and a half's climb, capped at eight times the
+  // map's own; without it a low sun over wide terrain lays the map's steps on the ground as moire (live-light.js receiverBias)
+  + 'float csLitR( sampler2DShadow map, vec4 co, float bias, float texel ) {\\n'
+  + '  vec3 sc = co.xyz / co.w, dx = dFdx( sc ), dy = dFdy( sc );\\n'
+  + '  float det = dx.x * dy.y - dx.y * dy.x;\\n'
+  + '  vec2 g = abs( det ) > 1e-14 ? vec2( dy.y * dx.z - dx.y * dy.z, dx.x * dy.z - dy.x * dx.z ) / det : vec2( 0.0 );\\n'
+  + '  return csLit( map, co, bias + min( 8.0 * bias, 1.5 * texel * ( abs( g.x ) + abs( g.y ) ) ), texel );\\n}\\n'` : ''}${B ? `
   // the contact blob: per band, the share of a disc (its centre and six round it) whose lowest actor surface stands
   // above this receiver within the band's height (the map is drawn from below: depth grows upward) with nothing below
   + 'float csBlob( sampler2DShadow map, vec4 co ) {\\n'
@@ -316,14 +327,19 @@ window.__mojCast = {   // the channel's public seam: dynamic channels hand their
   adopt(root) { root.traverse((o) => { if (o.isMesh && o.material && !o.material.transparent) { o.castShadow = true; if (o.material.shadowSide == null) o.material.shadowSide = THREE.DoubleSide; } }); },
   // tighten the actors' box round the action (the pilot, or the seats' centre with \`r\` their spread)
   follow(x, y, z, r = 0) {
-    __csFollowing = true;
+    __csFollowing = true;${cfg.lead ? `
+    // one focus (no seats' spread): the box led ahead along the camera's ground, where the frame looks, the hero kept
+    // inside it behind its middle
+    if (!r) { camera.getWorldDirection(__csFw); x += __csFw.x * __CS.lead; y += __csFw.y * __CS.lead; }` : ''}
     ${seatA('Math.max(__CS.span, r + __CS.span * 0.5), x, y, z')};
   },
   // the focus the box follows, asked before every render: fn() → [x, y, z, spread] (or nothing: the box stays)
   focus(fn) { __csFocus = typeof fn === 'function' ? fn : null; },` : `
   adopt() {}, follow() {}, focus() {},`}${H ? `
   hourLight: __hrL, hourMapU: __hrMapU,
-  // the hour changed: the sun's new direction (toward it, z-up); the static map is drawn again on the next frame
+  // the recipe's hour (toward its sun, z-up): the static map drawn for it on the next frame. THE SUN DOES NOT MOVE,
+  // live or within a level: this redraws the map once at load for the hour a recipe names; it is not a clock, and is
+  // never driven per frame or on a timer
   hour(toLight) { if (toLight) __csDir.set(toLight[0], toLight[1], toLight[2]).normalize(); __hrSeat();${A ? ` if (!__csFollowing) ${seatA('__csR, __csC.x, __csC.y, __csC.z')};` : ''} __hrDirty = true; },` : cfg.indoor ? `
   hour() {},   // indoors: no sun to move` : ''}
 };
@@ -333,5 +349,45 @@ for (const m of solids) {
   // lazy map binds: a map exists after its first shadow pass, at the top of the render that first draws these fills
   m.onBeforeRender = () => {${A ? ' if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture;' : ''}${H ? ' if (!__hrMapU.value && __hrL.shadow.map) __hrMapU.value = __hrL.shadow.map.depthTexture;' : ''} };${H ? `
   m.onBeforeShadow = __hrSeen;` : ''}
+}`;
+}
+
+// In-page script: the LIVE LIGHT'S BUDGET (a page world-scene gave a tier: scene/live-light.js liveLightDefaults), what
+// the page draws a frame, counted (never timed: a software GPU's milliseconds mean nothing). It wraps the renderer's
+// render (every scene render: the frame, the prepass, the occlusion and ink passes) and its shadow map's (the maps drawn
+// inside a render and the draws they took, from the renderer's own call count either side of it); a render to the screen
+// closes a frame. `__mojLight.budget()` → { tier, frames, frame: the last frame's { renders, shadowPasses, shadowMaps,
+// shadowDraws, draws }, maps: the shadow maps' sizes, targets: the live passes' render targets' sizes }.
+export function liveBudgetScript(T) {
+  return `
+// --- live light's budget (tier '${T.tier}'): what the page draws a frame, counted ---
+{
+  const __lbL = window.__mojLight = Object.assign(window.__mojLight || {}, { tier: '${T.tier}' });
+  let __lbCur = { renders: 0, shadowPasses: 0, shadowMaps: 0, shadowDraws: 0, draws: 0 }, __lbLast = null, __lbFrames = 0;
+  const __lbR = renderer.render.bind(renderer), __lbSM = renderer.shadowMap, __lbS = __lbSM.render.bind(__lbSM);
+  renderer.render = (s, c) => {
+    __lbCur.renders++;
+    const out = __lbR(s, c);
+    __lbCur.draws += renderer.info.render.calls;
+    if (renderer.getRenderTarget() === null && s === scene) { __lbLast = __lbCur; __lbFrames++; __lbCur = { renders: 0, shadowPasses: 0, shadowMaps: 0, shadowDraws: 0, draws: 0 }; }
+    return out;
+  };
+  __lbSM.render = (lights, s, c) => {
+    let n = 0;
+    if (__lbSM.enabled && (__lbSM.autoUpdate || __lbSM.needsUpdate)) for (const l of lights) if (l.castShadow && (l.shadow.autoUpdate || l.shadow.needsUpdate)) n++;
+    const c0 = renderer.info.render.calls, out = __lbS(lights, s, c);
+    if (n) { __lbCur.shadowPasses++; __lbCur.shadowMaps += n; __lbCur.shadowDraws += renderer.info.render.calls - c0; }
+    return out;
+  };
+  const __lbSize = (t) => (t ? [t.width, t.height] : null);
+  __lbL.budget = () => {
+    const maps = [];
+    scene.traverse((o) => { if (o.isLight && o.castShadow && o.shadow) maps.push(o.shadow.mapSize.x); });
+    const targets = {};
+    if (typeof __crRT !== 'undefined') targets.prepass = __lbSize(__crRT);
+    if (typeof __aoRT !== 'undefined') targets.occlusion = __lbSize(__aoRT);
+    if (typeof __crInkRT !== 'undefined') targets.ink = __lbSize(__crInkRT);
+    return { tier: '${T.tier}', frames: __lbFrames, frame: __lbLast, maps, targets };
+  };
 }`;
 }

@@ -23,9 +23,10 @@ export const ERAS = Object.freeze({
   }),
   'gen-7': Object.freeze({
     reads: 'the seventh generation (360, PS3: Halo 3, Skyrim)', extends: 'gen-6',
-    // partial: the live light's pieces are built as a world's own opt-ins (`shadows.actors`, `shadows.hour`, `occlusion`);
-    // naming the era does not turn them on yet
-    world: Object.freeze({ status: 'partial', lowers: 'lib/graph/scene/live-light.js', note: 'built as opt-ins the world asks for itself, not by naming the era: actor shadows over the baked sun, the hour\'s shadow map, contact occlusion (SSAO); planned: lightmaps and light probes, normal maps on the world, HDR, IBL, height fog' }),
+    // partial: naming the era turns the live light on (scene/live-light.js liveLightDefaults), each piece the recipe's own
+    // where it says, all of it under the quality tier. The sun does not move, live or within a level: a level is lit at
+    // one hour, so a moving sun is not planned here
+    world: Object.freeze({ status: 'partial', lowers: 'lib/graph/scene/live-light.js', note: 'on when a world\'s geocube names it: actor shadows over the baked sun, the hour\'s shadow map (drawn once at load: the sun does not move), contact occlusion (SSAO), each the recipe\'s to turn off and all under the quality tier (light.tier, by the screen: a phone takes half, without occlusion); planned: lightmaps and light probes, normal maps on the world, HDR, IBL, height fog' }),
     cast: Object.freeze({
       light: 'live-key-over-baked-indirect',
       conventions: Object.freeze([

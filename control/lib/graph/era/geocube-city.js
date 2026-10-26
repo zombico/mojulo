@@ -23,7 +23,8 @@ import { civilizationGrammar } from '../city/plan/civilization.js';
 // (the paint all the way: a city's skins wholly the cube's stone, trim and accent, so its architecture is reviewed in the
 // cube's colours; a game's city level leans halfway, city/plan/look.js)
 export const MICRO_CITY = Object.freeze({ board: Object.freeze({ cols: 2, rows: 2 }), cars: false, people: 0, amount: 1 });
-const KEYS = ['kind', 'cube', 'show', 'title', 'walk', 'seed', 'domain', 'hour', 'clouds', 'materials', 'style'];
+// (and the page's live light, which world-scene reads: shadows, occlusion, light.tier; scene/live-light.js)
+const KEYS = ['kind', 'cube', 'show', 'title', 'walk', 'seed', 'domain', 'hour', 'clouds', 'materials', 'style', 'shadows', 'occlusion', 'light'];
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 
 /** The micro-city a geocube's `show: 'city'` builds: its city manifest, and what it was built from. */

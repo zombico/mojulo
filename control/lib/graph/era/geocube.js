@@ -83,6 +83,7 @@
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
+ *   geocubeEraOf(manifest)         the era (era/eras.js) of the cube a world manifest is painted by, or null
  */
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
@@ -976,6 +977,19 @@ export function geocubeRegisterOf(manifest) {
   return registerCreases(readGeocube(spec));
 }
 
+/**
+ * The ERA a world manifest is drawn in (era/eras.js): the era of the cube that paints it (a stage's `geocube`, the
+ * geocube kind's `cube`, a city's `paint.geocube`), or null when no cube paints it. A hero's cube lights the hero
+ * only: none. The live light reads it (scene/live-light.js liveLightDefaults: gen-7 turns it on).
+ */
+export function geocubeEraOf(manifest) {
+  const m = manifest ?? {};
+  if (m.kind === 'layered') return null;
+  const spec = cubeSpecOf(m);
+  if (spec === undefined || spec === null) return null;
+  return readGeocube(spec).era;
+}
+
 const readHourOf = (v) => { try { return readHour(v); } catch (err) { return no(err.message); } };
 const readCloudsOf = (v) => { try { return readClouds(v); } catch (err) { return no(err.message); } };
 // a recipe's clouds: a sky of its own, or 'weather', the sky its live weather state is painted under (opt-in: a level
@@ -1155,7 +1169,8 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path); build a level on a cube with a stage recipe's geocube`);
+  // (and the page's live light, which world-scene reads: shadows, occlusion, light.tier; scene/live-light.js)
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'shadows', 'occlusion', 'light'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path; the page's live light: shadows, occlusion, light); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
   // a domain shows the level it makes: its room, or its land (or its land walked, `trail`), at its hour unless the
   // recipe names one

@@ -4,6 +4,9 @@
 //     already shadows alone; a world that bakes no sun darkens both by the cast's alpha;
 //   · the hour's map: drawn once at load, never per frame, and again once when the hour changes; it shadows the floor;
 //   · occlusion: one prepass a frame with creases and occlusion both on; contact darkens the floor at a box's foot.
+//   · the defaults (live-light-defaults): the hour's map lays no moire on wide terrain under a low sun and keeps a
+//     caster's shadow; the half tier's occlusion still darkens a box's foot; the pass budget per tier on a hero's level
+//     (renders, shadow passes and draws a frame, map and target sizes: counts, never milliseconds).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { emitThreeWorld } from './scene-three.js';
@@ -117,7 +120,7 @@ describe('live light in Chrome', () => {
   it('a standing figure\'s shadow meets its foot and keeps a narrow edge: the box follows the focus from the first frame', async () => {
     if (!browser) return;
     const s = await figureShadow({ focus: true });
-    expect(s.half).toBe(12);   // the box round the focus, at the default span, in the first frame asked
+    expect(s.half).toBe(16);   // the box round the focus, at the default span, in the first frame asked
     expect(s.dmax).toBeGreaterThan(0.5);   // the leg's shadow takes the lit floor down by its share (0.7)
     // (in SwiftShader: a gap of -0.006 m, the edge 6 mm past the leg's face, and a 0.03 m penumbra; with no focus, the
     // FIT box over the stage, 0.05 and 0.11; before 1025, back faces cast and the floor under the foot was half lit)
@@ -282,4 +285,123 @@ describe('live light in Chrome', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 90000);
+
+  // a 600 m terrain, rolling a metre or two (its own rises cast a little, honestly), its sun share 0.7; a walker's eye
+  // looking far over it under a low sun. Every darkening the hour's map lays where nothing stands is the map shadowing
+  // the ground with itself
+  const TERRAIN = (() => {
+    const N = 60, S = 600, z = (x, y) => 1.2 * Math.sin(x * 0.031) * Math.cos(y * 0.027) + 0.6 * Math.sin(x * 0.11 + y * 0.07), out = [];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x0 = -S / 2 + (i * S) / N, x1 = x0 + S / N, y0 = -S / 2 + (j * S) / N, y1 = y0 + S / N;
+      out.push({ corners: [[x0, y0, z(x0, y0)], [x1, y0, z(x1, y0)], [x1, y1, z(x1, y1)], [x0, y1, z(x0, y1)]], fill: '#b0b0b0', sunShare: 0.7 });
+    }
+    return out;
+  })();
+  async function hourDark(faces, elevationDeg) {
+    const e = (elevationDeg * Math.PI) / 180, toLight = [Math.cos(e) * 0.6, Math.cos(e) * 0.8, Math.sin(e)], TW = 640, TH = 400;
+    const TCAM = { pos: [0, -250, 3.5], target: [0, 50, 0], vfov: 50 };
+    const lum = async (shadows) => {
+      const page = await browser.newPage();
+      await page.setViewport({ width: TW, height: TH });
+      await page.setContent(emitThreeWorld({ viewBox: { width: TW, height: TH }, inline: true, capture: true, hud: false, faces, ...(shadows ? { shadows } : {}) }), { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => window.__mojCapture && window.__mojCapture.ready, { timeout: 30000 });
+      const d = await page.evaluate((CAM) => {
+        window.__mojCapture.frame(CAM); window.__mojCapture.frame(CAM);
+        const cv = document.querySelector('canvas'), c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height;
+        const g = c2.getContext('2d'); g.drawImage(cv, 0, 0);
+        const px = g.getImageData(0, 0, c2.width, c2.height).data, out = [];
+        for (let i = 0; i < px.length; i += 4) out.push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]);
+        return out;
+      }, TCAM);
+      await page.close();
+      return d;
+    };
+    const base = await lum(null), hour = await lum({ hour: true, toLight });
+    let ground = 0, dark = 0;
+    for (let i = 0; i < base.length; i++) { if (base[i] < 20) continue; ground++; if (1 - hour[i] / Math.max(1, base[i]) > 0.04) dark++; }
+    return dark / ground;
+  }
+
+  it('the hour\'s map lays no moire on wide terrain under a low sun, and keeps a caster\'s shadow on it', async () => {
+    if (!browser) return;
+    // (in SwiftShader, before the receiver's slope was in the bias: 99.9 % of the ground darkened under a 15° sun, 68 %
+    // under 25°; after: 0.02 % and 0.01 %)
+    for (const el of [15, 25]) expect(await hourDark(TERRAIN, el)).toBeLessThan(0.005);
+    // a 12 m tower 70 m ahead of the eye: its shadow lies on the ground, so some of it darkens, and no more than that
+    const tower = boxFaces([14, -184, 0], [20, -178, 12], '#b0b0b0');
+    const withTower = await hourDark([...TERRAIN, ...tower], 25);
+    expect(withTower).toBeGreaterThan(0.001);
+    expect(withTower).toBeLessThan(0.05);
+  }, 180000);
+
+  it('the half tier\'s occlusion still darkens the floor at a box\'s foot, alone and beside the creases', async () => {
+    if (!browser) return;
+    const faces = [half(-24, 24), ...boxFaces([-1, -1, 0], [1, 1, 2])];
+    for (const creases of [false, true]) {
+      const { page, errors } = await open({ faces, ...(creases ? { creases: true } : {}), occlusion: { strength: 1, reach: 0.8 }, lightTier: { tier: 'half', mapSize: 1024, ao: 0.5 } });
+      for (let i = 0; i < 2; i++) await frameRow(page);
+      const on = await frameRow(page);
+      const off = await (async () => { await page.evaluate(() => window.__mojOcclusion.set(false)); return frameRow(page); })();
+      const diff = on.map((v, i) => off[i] - v);
+      const b = await page.evaluate(() => window.__mojLight.budget());
+      expect(Math.max(...diff)).toBeGreaterThan(0.04);
+      expect(diff[2]).toBeLessThan(0.02);
+      // alone the prepass at half the frame and its pass at a quarter; beside the creases the prepass whole, its pass a quarter
+      expect(b.targets.prepass).toEqual(creases ? [W, H] : [W / 2, H / 2]);
+      expect(b.targets.occlusion).toEqual([W / 4, H / 4]);
+      expect(errors).toEqual([]);
+      await page.close();
+    }
+  }, 120000);
+
+  it('the pass budget on a hero\'s level, by tier: what a frame renders and draws, never how long it takes', async () => {
+    if (!browser) return;
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const { quickWorld } = await import('../gameworld/quick.js');
+    const { readGameworld } = await import('../gameworld/world.js');
+    const { gameStages, stageLevelOrder } = await import('../gameworld/levels.js');
+    // a quick game's level (a trail on the valley's cube at golden hour), its hero a body of its own (no stored figure)
+    const level = (geocube, extra = {}) => {
+      const Wd = quickWorld({ id: 'gate', quick: { goal: 'reach' }, style: { geocube, hour: 'golden' } }), G = readGameworld(Wd), [stage] = gameStages(Wd);
+      const m = stageLevelOrder(G, stage, { ref: 'x', heroRef: 'h' }).args.manifest, [hero, ...rest] = m.entities;
+      return { ...m, figures: undefined, entities: [{ ...hero, body: { type: 'mesh', shape: 'box', size: [0.5, 0.4, 1.8] } }, ...rest], ...extra };
+    };
+    const VW = 800, VH = 500, G7 = { from: 'valley-morning', era: 'gen-7' };
+    const measure = async (m) => {
+      const { payload } = await resolveWorldScene({ manifest: m, title: 'gate' });
+      const page = await browser.newPage(), errors = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      page.on('console', (x) => { if (x.type() === 'error') errors.push(x.text()); });
+      await page.setViewport({ width: VW, height: VH });
+      await page.setContent(emitThreeWorld({ ...payload, viewBox: { width: VW, height: VH }, inline: true, capture: true, hud: false, walk: true }), { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => window.__mojCapture && window.__mojCapture.ready, { timeout: 120000 });
+      const r = await page.evaluate(() => { for (let i = 0; i < 4; i++) window.__mojCapture.frame(); const L = window.__mojLight; return L ? { ...L, budget: L.budget ? L.budget() : undefined } : {}; });
+      await page.close();
+      return { ...r, errors, payload };
+    };
+    // a hero on the gen-6 cube, a screen's tier: the actors' map each frame, nothing else
+    const g6 = await measure(level('valley-morning'));
+    expect(g6.payload.shadows).toEqual({ actors: true });
+    expect(g6.budget).toMatchObject({ tier: 'full', maps: [2048], targets: {} });
+    expect(g6.budget.frame).toMatchObject({ renders: 1, shadowPasses: 1, shadowMaps: 1 });
+    expect(g6.budget.frame.shadowDraws).toBeLessThanOrEqual(4);   // what moves, not the stage (2 in SwiftShader)
+    // gen-7, full: the hour's map drawn once in five frames; the prepass and the occlusion pass each frame
+    const g7 = await measure(level(G7));
+    expect(g7.budget).toMatchObject({ tier: 'full', maps: [2048, 2048], targets: { prepass: [VW, VH], occlusion: [VW / 2, VH / 2] } });
+    expect(g7.budget.frame).toMatchObject({ renders: 3, shadowPasses: 1, shadowMaps: 1 });
+    expect(g7.budget.frame.shadowDraws).toBeLessThanOrEqual(4);
+    expect([g7.hourMaps, g7.hourDraws]).toEqual([1, 1]);
+    // gen-7 on a tablet: half, the maps at 1024, the occlusion at a quarter of the frame
+    const tab = await measure(level(G7, { screen: 'tablet' }));
+    expect(tab.budget).toMatchObject({ tier: 'half', maps: [1024, 1024], targets: { prepass: [VW / 2, VH / 2], occlusion: [VW / 4, VH / 4] } });
+    expect(tab.budget.frame.renders).toBe(3);
+    // gen-7 on a phone: half, no occlusion by default: one render a frame, the actors' map in it
+    const phone = await measure(level(G7, { screen: 'phone' }));
+    expect(phone.budget).toMatchObject({ tier: 'half', maps: [1024, 1024], targets: {} });
+    expect(phone.budget.frame).toMatchObject({ renders: 1, shadowPasses: 1, shadowMaps: 1 });
+    // off: no live light on the page at all
+    const off = await measure(level(G7, { light: { tier: 'off' } }));
+    expect(off.budget).toBeUndefined();
+    for (const r of [g6, g7, tab, phone, off]) expect(r.errors).toEqual([]);
+  }, 300000);
 });

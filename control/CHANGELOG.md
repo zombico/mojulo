@@ -166,6 +166,59 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   and the gate's last known gap is gone. The gate's co-op case runs the loop as a creator does: compose, the book the
   readout asks for, the run.
 
+### Live light defaults: a hero's level, the seventh generation, the tier
+
+The live light below, on by default where it pays, under a budget a phone can carry. The sun does not move: a level is
+lit at one hour, its light baked and its static shadow map drawn once at load; nothing here moves the sun.
+
+- **A hero's level takes actor shadows by default.** A world with a pilot that has a body (a pilotable entity whose
+  body is not `none`; a spectated battle has no pilot) gets `shadows.actors`, so the hero, the seats' bodies, walkers,
+  cars and fauna cast live shadows over the baked sun. Indoors that is the contact blob. The recipe keeps the last
+  word: `shadows: false` (none), `shadows: true` or a blob's tuning (the suit's blob, as asked), `shadows.cast`, or
+  `shadows: { actors: false }` keep the page it had. A stage's bake keys alone (`torch`, `sun`, `cells`) say nothing
+  about the page, so the default goes beside them. **Hero levels change on their next render**: their page gains the
+  actors' map and the bake writes each corner's sun share.
+- **A world whose geocube names the seventh generation turns the live light on** (`geocube: { from, era: 'gen-7' }`,
+  or a gameworld's `style.geocube`, which reaches every level). It gets `shadows: { actors, hour }` and `occlusion`,
+  each the recipe's own where it names it (`hour: false`, `occlusion: false`, ...). gen-6, the default, adds nothing.
+  `geocubeEraOf(manifest)` (era/geocube.js) reads the era of the cube that paints a world.
+- **The quality tier** (`light: { tier: 'auto' | 'off' | 'half' | 'full' }`). Auto reads the screen the game is made
+  for (`screen`): a phone gets half with no default occlusion, a tablet half, a screen (or none named) full. `half`
+  draws the shadow maps at 1024 and the occlusion at a quarter of the frame (alone, its prepass at half the frame;
+  beside the creases, the prepass whole and its pass at a quarter); `full` is 2048 and half the frame, as built. `off`
+  drops the live light: the defaults and the recipe's own asks. A world's `mapSize` still wins. Only `light.tier` is
+  the live light's; other keys of a world's `light` stay their kind's.
+- **The budget probe**: a page given a tier counts what it draws. `__mojLight.budget()` returns the tier, the last
+  frame's renders, shadow passes, shadow maps drawn and shadow draws, and the shadow maps' and the live passes' render
+  targets' sizes. The machine gate holds them in Chrome on a quick game's level: a gen-6 hero, one render and one
+  shadow pass a frame (2 shadow draws), one 2048 map; gen-7, three renders (the prepass, the occlusion, the frame),
+  one shadow pass a frame, the hour's map drawn once in five frames, two 2048 maps, the prepass at the frame's size and
+  the occlusion at half; gen-7 on a tablet, two 1024 maps, the prepass at half and the occlusion at a quarter; on a
+  phone, one render a frame and two 1024 maps; `off`, no live light on the page. Counts, not milliseconds.
+- **Every outdoor kit writes the sun's share** when the page takes actor shadows: the isekai island, nature and jungle
+  bakes, as the stage and the meru already did. The island's pixel-locked faces take theirs from their band (a lit
+  band shares what its tile's value loses to the shade band's; a shaded band none), its material faces and its
+  realistic ground from their light with and without the sun. The city's faces take their key's share by their normal
+  (the city's light is its key's Lambert, with no baked shadow to double); at night the key is the moon, so a moonlit
+  trail, climb or city shares the moon's. Lit windows, signs and shops carry none. Colours are unchanged by it. A city
+  and a geocube specimen take `shadows`, `occlusion` and `light` as world channels, so a city level can opt out.
+- **The hour's map no longer lays moiré on wide terrain.** Under a low sun the static world shadowed itself across the
+  map's own steps: in Chrome on a 600 m rolling terrain with nothing standing on it, 68 % of the ground darkened by
+  over 4 % under a 25° sun and 99.9 % under 15°. The receive patch now reads the receiver's slope in the map from the
+  fragment's own derivatives and adds the depth it climbs across a texel and a half to the bias, capped at eight times
+  the map's own (`receiverBias` in scene/live-light.js mirrors it): 0.01 % and 0.02 % after, and a 12 m tower's shadow
+  still lies on the ground.
+- **The actors' box covers what is near the hero where the frame looks**: 16 m by default (was 12), led 8 m ahead along
+  the camera's ground with one focus (`shadows.lead`, 0 for none; seats still grow the box round their spread). Before,
+  half of the 24 m box round the hero lay behind the camera, and nothing more than 12 m ahead of the hero cast. Measured in
+  Chrome on a standing figure: the shadow's edge 6 mm past the leg (as before) and a 3.8 cm penumbra (3 cm before).
+- The `__mojCast.hour` seam says what it is: it draws the static map for a recipe's hour once at load, and is not a
+  clock. The sun does not move, live or within a level.
+- The cosmos registry: the seventh generation's world note says what naming it turns on; it stays partial (lightmaps
+  and light probes, normal maps on the world, HDR, IBL and height fog planned; a moving sun is not). The hill-climb page
+  is regenerated. The Godot and Roblox legs mark `lightTier` absent.
+- Pins: the three live-shadow emit rows moved (the box, its lead, the hour's bias); every other emit pin is unchanged.
+
 ### Live light: actor shadows, the hour's shadow map, occlusion
 
 What does not move stays baked; what moves gets live light on the World page. Each piece is opt-in. A world that asks

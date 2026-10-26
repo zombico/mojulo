@@ -121,17 +121,21 @@ describe('live light: the World page', () => {
   it('hour: its light draws only when armed; with actors both maps are read', () => {
     const page = emitThreeWorld({ faces: [floor()], shadows: { hour: true } });
     expect(page).toContain('__hrL.shadow.autoUpdate = false;');
-    expect(page).toContain('float lit = csLit( hrMap, vHrCoord, hrBias, hrTexel );');
+    expect(page).toContain('float lit = csLitR( hrMap, vHrCoord, hrBias, hrTexel );');   // the receiver's slope in its bias
     expect(page).not.toContain('__csL');
     const both = emitThreeWorld({ faces: [floor()], shadows: { actors: true, hour: true } });
-    expect(both).toContain('float lit = min( csLit( csMap, vCsCoord, csBias, csTexel ), csLit( hrMap, vHrCoord, hrBias, hrTexel ) );');
+    expect(both).toContain('float lit = min( csLit( csMap, vCsCoord, csBias, csTexel ), csLitR( hrMap, vHrCoord, hrBias, hrTexel ) );');
     expect(() => emitThreeWorld({ faces: [floor()], shadows: { cast: true, hour: true } })).toThrow(/not both/);
   });
 
-  it('the actors\' box is 12 metres in the world\'s units round one hero unless the world names its span', () => {
-    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true } })).toContain('"span":12');
-    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true }, metersPerUnit: 3 })).toContain('"span":4,"unit":3');
-    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true, span: 30 } })).toContain('"span":30');
+  it('the actors\' box is 16 metres in the world\'s units, led 8 ahead along the camera, unless the world names them', () => {
+    const page = emitThreeWorld({ faces: [floor()], shadows: { actors: true } });
+    expect(page).toContain('"span":16,"lead":8');
+    expect(page).toContain('if (!r) { camera.getWorldDirection(__csFw); x += __csFw.x * __CS.lead; y += __csFw.y * __CS.lead; }');
+    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true }, metersPerUnit: 3 })).toContain('"span":5.3333,"lead":2.6667,"unit":3');
+    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true, span: 30, lead: 0 } })).toContain('"span":30,"lead":0');
+    expect(emitThreeWorld({ faces: [floor()], shadows: { actors: true, lead: 0 } })).not.toContain('__csFw');   // no lead: the box round the focus
+    expect(emitThreeWorld({ faces: [floor()], shadows: { hour: true } })).not.toContain('"lead"');   // no actors, no lead
   });
 });
 

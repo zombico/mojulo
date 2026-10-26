@@ -473,7 +473,7 @@ export const WORLD_KINDS = {
     // its masses as the volumetric fog's and the cloud deck's solids (`fog`, `clouds`: a level's segment and its ring)
     fogBoxes: (m) => cityFogBoxes(m).map((b) => boxFromFootprint(b, { up: 'z' })),
     // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
-    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title, creases: ctx.creases }))),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title, creases: ctx.creases, ...(ctx.liveSun ? { liveSun: true } : {}) }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
@@ -525,7 +525,7 @@ export const WORLD_KINDS = {
     // (era/geocube-city.js) is the city plan's, in its units: the dummy stands a person's height in them
     resolve: (m, ctx) => {
       if (m.show === 'city') {
-        const { city, cube, pick, style } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true }), { metersPerUnit: CITY_METERS_PER_UNIT });
+        const { city, cube, pick, style } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true, ...(ctx.liveSun ? { liveSun: true } : {}) }), { metersPerUnit: CITY_METERS_PER_UNIT });
         return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) } }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}) }, assembleStageScene);

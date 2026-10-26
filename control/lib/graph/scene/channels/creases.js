@@ -234,13 +234,20 @@ void main() {
  * The prepass block with OCCLUSION on (`occ`: readOcclusion's terms), the creases' with it when `cfg` is set (null: the
  * occlusion alone). One prepass into two targets; the ink pass when creases are on, the occlusion pass, their composites.
  */
-function prepassWithOcclusion(cfg, occ, metersPerUnit) {
+function prepassWithOcclusion(cfg, occ, metersPerUnit, aoHalf = false) {
   const unit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
+  // THE HALF TIER (aoHalf, scene/live-light.js TIER_TERMS): the occlusion at half the cost. Alone, the prepass at half the
+  // frame and its pass at half that (a quarter); beside the creases (whose ink wants the whole frame) the prepass whole
+  // and the occlusion pass at a quarter. The composite reads the frame's pixel in the prepass by its share of the frame,
+  // and its 4x4 occlusion texels at a quarter. As built (aoHalf false), every string below is the full tier's
+  const pre = aoHalf && !cfg, step = aoHalf && cfg ? 4 : 2;
+  const fragOcc = step === 4 ? OCC_FRAG.replace('fc = hp * 2.0 + 0.5;', 'fc = hp * 4.0 + 1.5;') : OCC_FRAG;
+  const compOcc = aoHalf ? OCC_COMPOSITE.replace('vec2 h = floor(fc * 0.5);', 'vec2 h = floor(fc * 0.25);') : OCC_COMPOSITE;
   const reachUnits = cfg ? Math.round((cfg.reach / unit) * 1e4) / 1e4 : 0;
   const occReach = Math.round((occ.reach / unit) * 1e4) / 1e4;
   const kern = occlusionKernel(occ.samples);
   return `
-// --- ${cfg ? 'creases and occlusion' : 'occlusion'} (opt-in ${cfg ? "'creases' + " : ''}'occlusion'): one prepass into two targets (depth and mask, normal)${cfg ? ', the vgl rule over the depth' : ''}, contact occlusion at half resolution ---
+// --- ${cfg ? 'creases and occlusion' : 'occlusion'} (opt-in ${cfg ? "'creases' + " : ''}'occlusion'): one prepass into two targets (depth and mask, normal)${cfg ? ', the vgl rule over the depth' : ''}, contact occlusion at ${aoHalf ? 'a quarter of the frame (the half tier)' : 'half resolution'} ---
 const __crRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, count: 2 });
 const __crVS = 'varying float vZ;\\nvarying vec3 vVP;\\n#include <common>\\n#include <skinning_pars_vertex>\\nvoid main() {\\n#include <skinbase_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n#include <project_vertex>\\nvZ = -mvPosition.z;\\nvVP = vec3(mvPosition.xy, -mvPosition.z);\\n}';
 // (the second target: the face's normal in the creases' view frame, x right, y up, z forward; turned to the camera)
@@ -274,10 +281,10 @@ const __aoRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format
 const __aoU = { uZM: { value: __crRT.textures[0] }, uN: { value: __crRT.textures[1] }, uRes: { value: new THREE.Vector2() }, uFov: { value: 1 }, uReach: { value: ${occReach} },
   uKern: { value: ${JSON.stringify(kern)}.map((k) => new THREE.Vector3(k[0], k[1], k[2])) } };
 const __aoScene = new THREE.Scene();
-const __aoPassQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __aoU, defines: { KERN: ${kern.length} }, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(OCC_FRAG)}, depthTest: false, depthWrite: false }));
+const __aoPassQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __aoU, defines: { KERN: ${kern.length} }, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(fragOcc)}, depthTest: false, depthWrite: false }));
 __aoPassQuad.frustumCulled = false; __aoScene.add(__aoPassQuad);
-const __aoCU = { uZM: __aoU.uZM, uAO: { value: __aoRT.texture }, uRes: __aoU.uRes, uHalf: { value: new THREE.Vector2() }, uFog: { value: new THREE.Vector3() }, uStrength: { value: ${occ.strength} } };
-const __aoQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __aoCU, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(OCC_COMPOSITE)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor }));
+const __aoCU = { uZM: __aoU.uZM, uAO: { value: __aoRT.texture }, uRes: ${pre ? '{ value: new THREE.Vector2() }' : '__aoU.uRes'}, uHalf: { value: new THREE.Vector2() }, uFog: { value: new THREE.Vector3() }, uStrength: { value: ${occ.strength} } };
+const __aoQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __aoCU, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(compOcc)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor }));
 __aoQuad.frustumCulled = false; __aoQuad.renderOrder = 99998;   // under the creases' ink, the fog and the effects layers
 scene.add(__aoQuad);
 const __crFw = new THREE.Vector3(), __crRi = new THREE.Vector3(), __crUp = new THREE.Vector3(), __crSz = new THREE.Vector2(), __crCc = new THREE.Color();${cfg ? `
@@ -293,8 +300,8 @@ const __creasePrepass = () => {
   __aoQuad.visible = __mojOcclusion.on && __persp;
   if (${cfg ? '!__crQuad.visible && ' : ''}!__aoQuad.visible) return;
   renderer.getSize(__crSz); const __dpr = renderer.getPixelRatio();
-  const __w = Math.max(1, Math.round(__crSz.x * __dpr)), __h = Math.max(1, Math.round(__crSz.y * __dpr));
-  if (__crRT.width !== __w || __crRT.height !== __h) { __crRT.setSize(__w, __h);${cfg ? ' __crInkRT.setSize(__w, __h);' : ''} __aoRT.setSize(Math.max(1, __w >> 1), Math.max(1, __h >> 1)); }
+  const __w = Math.max(1, Math.round(__crSz.x * __dpr${pre ? ' * 0.5' : ''})), __h = Math.max(1, Math.round(__crSz.y * __dpr${pre ? ' * 0.5' : ''}));
+  if (__crRT.width !== __w || __crRT.height !== __h) { __crRT.setSize(__w, __h);${cfg ? ' __crInkRT.setSize(__w, __h);' : ''} __aoRT.setSize(Math.max(1, __w >> ${step === 4 ? 2 : 1}), Math.max(1, __h >> ${step === 4 ? 2 : 1})); }
   const __sw = [];
   scene.traverseVisible((o) => {
     if (o === scene) return;
@@ -322,7 +329,7 @@ const __creasePrepass = () => {
     renderer.setClearColor(__crCc, __ca);
   }` : ''}
   if (__aoQuad.visible) {
-    __aoU.uRes.value.set(__w, __h); __aoU.uFov.value = camera.fov * Math.PI / 180; __aoCU.uHalf.value.set(__aoRT.width, __aoRT.height); __aoCU.uFog.value.set(__fv[0], __fv[1], __fv[2]);
+    __aoU.uRes.value.set(__w, __h);${pre ? ' __aoCU.uRes.value.set(Math.max(1, Math.round(__crSz.x * __dpr)), Math.max(1, Math.round(__crSz.y * __dpr)));' : ''} __aoU.uFov.value = camera.fov * Math.PI / 180; __aoCU.uHalf.value.set(__aoRT.width, __aoRT.height); __aoCU.uFog.value.set(__fv[0], __fv[1], __fv[2]);
     // the occlusion pass: half the resolution, into its own target, read back (blurred on the surface) by its composite
     renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(__aoRT); renderer.clear(); renderer.render(__aoScene, camera); renderer.setRenderTarget(null); __crLight.aoPasses++;
     renderer.setClearColor(__crCc, __ca);
@@ -336,8 +343,8 @@ const __creasePrepass = () => {
  * world units (absent: 1); `occlusion` (readOcclusion's terms, scene/live-light.js) puts the occlusion on the same
  * prepass. Without it the block is the creases' alone, as it always was.
  */
-export function creasesChannelScript(cfg, { metersPerUnit = null, occlusion = null } = {}) {
-  if (occlusion) return prepassWithOcclusion(cfg, occlusion, metersPerUnit);
+export function creasesChannelScript(cfg, { metersPerUnit = null, occlusion = null, aoHalf = false } = {}) {
+  if (occlusion) return prepassWithOcclusion(cfg, occlusion, metersPerUnit, aoHalf);
   const reachUnits = Math.round((cfg.reach / (Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1)) * 1e4) / 1e4;
   return `
 // --- creases (opt-in 'creases'): the vgl rule over the scene's depth, angular surfaces only; the outline when asked ---
