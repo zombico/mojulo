@@ -438,7 +438,7 @@ const easeS = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 
 // snapped onto the outline and the eyes' outlines, each corner cast to its depth (`depthAt`), smoothed but never below
 // the cast (`bridge(x, z)`: corners bridged harder, a covered mouth's), lifted, thickened with RELIEF and walled, each
 // outer triangle in its GROUP; `place(x, z, r, off)` the corner's point, `axisOf(p)` the point it faces away from
-function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null, bumps = [] }) {
+function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null, bumps = [], bridgePasses = 8 }) {
   const treat = S.eyes?.treat ?? 'open', cut = treat === 'open' ? holes : [], covered = treat === 'open' ? [] : holes;
   const inside = (x, z) => pip(outer, x, z) && !cut.some((H) => pip(H, x, z));
   const xs = outer.map((p) => p[0]), zs = outer.map((p) => p[1]), X0 = Math.min(...xs) - cell, Z0 = Math.min(...zs) - cell, NX = Math.ceil((Math.max(...xs) - X0) / cell) + 2, NZ = Math.ceil((Math.max(...zs) - Z0) / cell) + 2;
@@ -454,7 +454,7 @@ function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null
   const miss = [...r.values()].filter((v) => v === null).length; if (miss > r.size / 2) return [];
   const fallback = Math.max(...[...r.values()].filter((v) => v !== null)); for (const [kk, v] of r) if (v === null) r.set(kk, fallback);
   const smooth = (passes, only = null) => { for (let pass = 0; pass < passes; pass++) { const n = new Map(); for (const [kk, v] of r) { if (only && !only(used.get(kk))) { n.set(kk, v); continue; } const [i, j] = kk.split(',').map(Number), nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => r.get(`${i + a},${j + b}`)).filter((x) => x !== undefined); n.set(kk, Math.max(v, (2 * v + nb.reduce((a, x) => a + x, 0)) / (2 + nb.length))); } r = n; } };
-  smooth(2); if (bridge) smooth(8, (q) => bridge(q.x, q.z));
+  if (!S.crisp) smooth(2); if (bridge) smooth(bridgePasses, (q) => bridge(q.x, q.z));
   // RELIEF on the outer face (m, by the corner's place in the map): a covered eye DOMED over the eyeball (`eyes.dome`), a
   // raised RIM along the outline (`rim` { w, h }), a RIDGE down the middle (`ridge` { w, h }), the caller's BUMPS (an ear
   // under a cowl: { at: [x, z], r, h }), each eased to nothing at its width; the SEAMS (words or polylines) pressed in a hair
@@ -510,6 +510,86 @@ function castMask(fig, S) {
     return add(add(add(q0, mul(T, (Math.abs(X) - Math.abs(Xc)) * thE * r)), [0, 0, (Z - Zc) * d]), mul(N, lean * (Z - Zc) * d)); };
   const { outer, holes } = castOutline(S);
   return castGrid(S, { outer, holes, cell: S.cell ?? 0.06, depthAt, place, axisOf: (p) => [ax[0], ax[1], p[2]] });
+}
+// THE MOUTHPIECE (SIGNATURES.mouthpiece): the lower face's cast, the domino's counterpart: from under the eyes down past the
+// chin, its edges set by the head's own heights in the eyes' frame (the eyes at Z 0; `nose`, `mouth` and `chin` the head's
+// rows as Z), the cloth below the chin HANGING straight down where the skin runs out; `taut` bridging the features (a
+// cloth drawn over the nose and the mouth), `bulge` a cup pushed forward over the mouth, `mouth` a cut (a slot, a snarl)
+// with `teeth` and `fangs`, `wrinkles` raised on the cheeks, `fittings` on it (filters, grilles, tubes, valves, straps)
+function castMouthpiece(fig, S) {
+  const H = castHead(fig, S); if (!H) return [];
+  const { lo, hi, eR, c0, d, hit } = H, ax = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2], R = Math.max(0.03, Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2);
+  const thE = eR ? Math.atan2(Math.abs(eR[0] - ax[0]), eR[1] - ax[1]) : d / R, dirAt = (X) => { const th = X * thE; return [dmath.sin(th), dmath.cos(th), 0]; };
+  const raw = (X, Z) => { const dir = dirAt(X), t = hit([ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, c0[2] + Z * d], mul(dir, -1)); return t === null ? null : 0.4 - t; };
+  const zU = (z) => (z - c0[2]) / d, nose = zU(H.zNose ?? lo[2] + 0.32 * (hi[2] - lo[2])), mouthZ = zU(H.zMouth ?? lo[2] + 0.22 * (hi[2] - lo[2])), chin = zU(lo[2]);
+  // the HANG: below the skin (the chin's underside, the neck the cast does not read) the cloth falls straight from the skin's
+  // lowest point in that column, found by bisection, `hang` (0 to 1) of the way back under the jaw
+  const bots = new Map(), botAt = (X) => { const k = X.toFixed(5); if (!bots.has(k)) { let lo2 = chin - 4, hi2 = nose; if (raw(X, hi2) === null) { bots.set(k, hi2); return hi2; } for (let i = 0; i < 18; i++) { const m = (lo2 + hi2) / 2; if (raw(X, m) === null) lo2 = m; else hi2 = m; } bots.set(k, hi2); } return bots.get(k); };
+  const skinAt = (X, Z) => { const r = raw(X, Z); if (r !== null) return r; const Zb = botAt(X); return Z < Zb ? raw(X, Zb) : null; };
+  // the FOLD (`fold` { centre, angle, tilt }): the piece's face crisp folded planes instead of the skin's cast: a flat centre
+  // panel `centre` (eye units) either side of the middle, the side panels falling back `angle` (m per eye unit) beyond it,
+  // the whole leaning `tilt` (m per eye unit) forward toward the chin; set out to clear the skin's highest point under it
+  let depthAt = skinAt;
+  if (S.fold) { const Fd = { centre: 0.55, angle: 0.012, tilt: 0.004, ...S.fold }, F = (X, Z) => -Math.max(0, Math.abs(X) - Fd.centre) * Fd.angle - Z * Fd.tilt; let k = -Infinity;
+    for (let X = -3; X <= 3; X += 0.15) for (let Zz = -4.5; Zz <= 0.5; Zz += 0.15) { const r = skinAt(X, Zz); if (r !== null && Math.abs(X) <= (S.outline?.side ?? 2.9) && Zz <= 0) k = Math.max(k, r - F(X, Zz)); }
+    if (Number.isFinite(k)) depthAt = (X, Z) => k + F(X, Z); }
+  const place = (X, Z, r, off) => { const dir = dirAt(X), Zb = botAt(X); const z = Z < Zb ? Zb : Z, p = [ax[0] + dir[0] * (r + off), ax[1] + dir[1] * (r + off), c0[2] + z * d];
+    return Z < Zb ? add(p, add([0, 0, (Z - Zb) * d], mul([dir[0], dir[1], 0], -(S.hang ?? 0.15) * (Zb - Z) * d))) : p; };
+  // THE OUTLINE (eye units; `top` its height under the eyes (default halfway to the nose), `dip` the top's V over the nose
+  // (negative: an arch), `side` how far round toward the ears, `bottom` under the chin, `point` a bandanna's point hanging
+  // below it, `straight` the top edge straight across)
+  // (a height may be a WORD against the head: 'nose', 'mouth', 'chin', with an offset or a share: 'nose+0.55', 'chin-0.2',
+  // 'nose*0.35')
+  const hz = (v) => { if (typeof v !== 'string') return v; const m = v.match(/^(nose|mouth|chin)(?:([+*-])([\d.]+))?$/); if (!m) throw new Error(`mouthpiece: '${v}' is not a height (nose, mouth, chin, ± or * a number)`);
+    const b = { nose, mouth: mouthZ, chin }[m[1]], k = m[3] === undefined ? 0 : +m[3]; return m[2] === '+' ? b + k : m[2] === '-' ? b - k : m[2] === '*' ? b * k : b; };
+  const O0 = { top: 0.5 * nose, dip: 0, side: 2.9, bottom: chin - 0.9, point: 0, ...(S.outline || {}) }, O = { ...O0, top: hz(O0.top), bottom: hz(O0.bottom) }, top = O.top, sd = O.side;
+  const half = [{ x: 0, z: top - O.dip }, { x: 0.9, z: top + (O.straight ? 0 : 0.05) }, { x: 1.9, z: top + (O.straight ? 0 : 0.22) }, { x: sd, z: top + (O.straight ? 0 : 0.1) }, { x: sd + 0.15, z: mouthZ }, { x: sd - 0.25, z: O.bottom + 0.6 },
+    { x: 1.6, z: O.bottom + 0.1 }, ...(O.point > 0 ? [{ x: 0.7, z: O.bottom - 0.25 * O.point }, { x: 0, z: O.bottom - O.point }] : [{ x: 0.7, z: O.bottom }, { x: 0, z: O.bottom }])];
+  const outer = [...half.map((p) => [p.x, p.z]), ...half.slice(1, -1).reverse().map((p) => [-p.x, p.z])].reverse();
+  // the MOUTH's cut: `slot` (a narrow opening) | `snarl` (wide, its corners pulled down, the oni's) | none; `w`, `h` its size
+  const M = S.mouth ? { shape: 'snarl', w: 1.15, h: 0.75, ...(typeof S.mouth === 'object' ? S.mouth : { shape: S.mouth }) } : null, zc = mouthZ + (M?.lift ?? 0.05);
+  const topE = (x) => (M.shape === 'slot' ? zc + 0.14 * M.h : zc + 0.5 * M.h - 0.75 * M.h * (x / M.w) ** 2), botE = (x) => (M.shape === 'slot' ? zc - 0.14 * M.h : zc - 0.5 * M.h - 0.15 * M.h * (x / M.w) ** 2 + 0.2 * M.h * Math.abs(x / M.w));
+  const mouthHole = M ? [...Array.from({ length: 13 }, (_, i) => { const x = -M.w + (2 * M.w * i) / 12; return [x, topE(x)]; }), ...Array.from({ length: 13 }, (_, i) => { const x = M.w - (2 * M.w * i) / 12; return [x, botE(x)]; })] : null;
+  // VENTS (`vents`: [{ path: [[X, Z], …], h }]: slots cut along a polyline, `h` tall (eye units), each backed by the maw):
+  // a mecha's faceplate vents following its fold, \_/ across
+  const ventHoles = (S.vents || []).map((V) => { const P = V.path.map(([x, z]) => [x, hz(z)]), h = (V.h ?? 0.16) / 2; return [...P.map(([x, z]) => [x, z + h]), ...[...P].reverse().map(([x, z]) => [x, z - h])]; });
+  const holes = [...(mouthHole ? [mouthHole] : []), ...ventHoles];
+  const bumps = [...(S.bulge ? [{ at: [0, mouthZ + 0.1], r: S.bulge.r ?? 1.5, h: S.bulge.h ?? S.bulge }] : []), ...(S.wrinkles ? [1, -1].flatMap((sg) => [{ at: [sg * 1.45, nose - 0.35], r: 0.45, h: 0.004 }, { at: [sg * 1.75, mouthZ + 0.1], r: 0.4, h: 0.0035 }]) : [])];
+  const S2 = { ...S, eyes: undefined, ...(S.fold ? { seams: [...(S.seams || []), [[0, top - O.dip - 0.1], [0, O.bottom - O.point]]], seamGroup: S.seamGroup ?? S.group } : {}) };
+  const out = castGrid(S2, { outer, holes, cell: S.cell ?? 0.07, depthAt, place, axisOf: (p) => [ax[0], ax[1], p[2]], bridge: S.taut ? () => true : null, bridgePasses: S.taut ? Math.round(6 + 14 * S.taut) : 8, bumps });
+  if (!out.length) return out;
+  // the MAW behind the cut (`maw` false: none): a dark backing cast over the opening just behind the piece's face, so the
+  // mouth reads as a hollow, not as the lips under it
+  if (S.maw !== false) for (const Hh of holes) { const cx = Hh.reduce((a, q) => a + q[0], 0) / Hh.length, cz = Hh.reduce((a, q) => a + q[1], 0) / Hh.length;
+    out.push(...castGrid({ group: S.mawGroup ?? 'MaskMaw', lift: (S.lift ?? 0.0025) * 0.6, thick: 0.0008, crisp: S.crisp }, { outer: Hh.map(([x, z]) => [cx + (x - cx) * 1.06, cz + (z - cz) * 1.12]), holes: [], cell: 0.04, depthAt, place, axisOf: (p) => [ax[0], ax[1], p[2]] })); }
+  // a point on the piece's outer face (the cast's raw depth there, its bumps added; `off` m past it) and its outward normal
+  const lift = S.lift ?? 0.0025, th = S.thick ?? 0.003, bumpAt = (X, Z) => bumps.reduce((a, B) => a + B.h * easeS(1 - Math.hypot(X - B.at[0], Z - B.at[1]) / B.r), 0);
+  const on = (X, Z, off = 0, r0 = null) => { const r = r0 ?? depthAt(X, Z); return r === null ? null : place(X, Z, r, lift + th + bumpAt(X, Z) + off); };
+  const nOf = (X, Z) => { const a = on(X, Z), b = on(X + 0.05, Z), c = on(X, Z + 0.05); if (!a || !b || !c) return dirAt(X); let n = unit(cross(sub(b, a), sub(c, a))); if (dot(n, dirAt(X)) < 0) n = mul(n, -1); return n; };
+  // TEETH along the cut's edges (`teeth` n a row, `toothGroup`), each a small block standing in from the edge at the edge's
+  // own depth; FANGS (`fangs`) at the corners, the upper pointing down, the lower up
+  if (M && S.teeth) { const n = S.teeth, tw = (1.6 * M.w) / n, tg = S.toothGroup ?? 'MaskTeeth';
+    for (const [edge, sgn] of [[topE, -1], [botE, 1]]) for (let i = 0; i < n; i++) { const x = -0.8 * M.w + tw * (i + 0.5), z0 = edge(x), r0 = depthAt(x, z0 - sgn * 0.08), len = (M.h * 0.32) * (1 - 0.25 * Math.abs(x / M.w));
+      if (r0 === null) continue; const ring = (z) => [on(x - tw * 0.42, z, -0.002, r0), on(x + tw * 0.42, z, -0.002, r0), on(x + tw * 0.42, z, 0.0015, r0), on(x - tw * 0.42, z, 0.0015, r0)];
+      const A = ring(z0 - sgn * 0.05), B = ring(z0 + sgn * len); if ([...A, ...B].some((q) => !q)) continue; out.push({ ...loftParts([A, B], mean(A), mean(B)), group: tg }); }
+    if (S.fangs) for (const sg of [1, -1]) for (const [edge, sgn] of [[topE, -1], [botE, 1]]) { const x = sg * 0.62 * M.w, z0 = edge(x), p = on(x, z0 - sgn * 0.05, 0.0005); if (!p) continue; out.push({ ...cone(p, unit(add([0, 0, sgn], mul(nOf(x, z0), 0.15))), (M.h * 0.6) * d, tw * 0.45 * d, 6), group: tg }); } }
+  // FITTINGS (`fittings`: [{ kind, at: [X, Z], … }] in the eyes' frame, the mouth's height `mouth` as a word for Z):
+  //   filter { r, h, cap? }   a canister standing off the piece, its cap's grid a ring
+  //   grille { bars, w, rows? } horizontal bars across the front
+  //   tube { to: [X, Z], r, ribs? } a ribbed hose arching off the piece to `to`
+  //   valve { r }  a small disc;  strap { to: [X, Z], w }  a band from the piece back round the head
+  const Z = hz;
+  for (const F0 of S.fittings || []) { const mir = F0.side === 'L', F = mir ? { ...F0, at: [-(F0.at?.[0] ?? 0), F0.at?.[1] ?? 'mouth'], ...(F0.to ? { to: [-F0.to[0], F0.to[1]] } : {}) } : F0;
+    const g = F.group ?? 'MaskFitting', [fx, fz0] = F.at ?? [0, 'mouth'], fz = Z(fz0);
+    if (F.kind === 'filter' || F.kind === 'valve') { const p = on(fx, fz, -0.001); if (!p) continue; const n = unit(add(nOf(fx, fz), [0, 0, F.tilt ?? -0.2])), r = F.r ?? (F.kind === 'valve' ? 0.009 : 0.017), h = F.h ?? (F.kind === 'valve' ? 0.005 : 0.016);
+      out.push({ ...disc(p, n, r, h, 18, 0.82), group: g }); if (F.kind === 'filter' && F.cap !== false) out.push({ ...disc(add(p, mul(n, h * 0.95)), n, r * 0.72, h * 0.25, 18, 0.7), group: F.capGroup ?? 'MaskFilter' }); continue; }
+    if (F.kind === 'grille') { const rows = F.rows ?? 3, w = F.w ?? 0.75; for (let k = 0; k < rows; k++) { const zz = fz + (k - (rows - 1) / 2) * (F.step ?? 0.22), pts = Array.from({ length: 9 }, (_, i) => on(fx - w + (2 * w * i) / 8, zz, 0.0012)).filter(Boolean); if (pts.length > 2) out.push({ ...sweep(pts, pts.slice(0, -1).map(() => F.bar ?? 0.0022), 6, { squash: [1, 0.6] }), group: g }); } continue; }
+    if (F.kind === 'tube') { const [tx, tz0] = F.to, tz = Z(tz0), K = 12, r = F.r ?? 0.005, arch = F.arch ?? 0.012;
+      const pts = Array.from({ length: K }, (_, i) => { const t = i / (K - 1), X = fx + (tx - fx) * t, Zz = fz + (tz - fz) * t; return on(X, Zz, r * 0.6 + arch * dmath.sin(Math.PI * t)); }).filter(Boolean);
+      if (pts.length > 3) { out.push({ ...sweep(pts, pts.slice(0, -1).map(() => r), 8), group: g }); for (let i = 1; i < pts.length - 1; i += 2) if (F.ribs !== false) out.push({ ...disc(pts[i], unit(sub(pts[i + 1], pts[i - 1])), r * 1.25, r * 0.5, 10, 0.9), group: g }); } continue; }
+    if (F.kind === 'strap') { const [tx, tz0] = F.to, tz = Z(tz0), pts = Array.from({ length: 14 }, (_, i) => { const t = i / 13; return on(fx + (tx - fx) * t, fz + (tz - fz) * t, -th * 0.4); }).filter(Boolean);
+      if (pts.length > 3) out.push({ ...sweep(pts, pts.slice(0, -1).map(() => (F.w ?? 0.008) / 2), 4, { squash: [1, 0.3] }), group: F.group ?? 'MaskStrap' }); continue; } }
+  return out;
 }
 // THE COWL (SIGNATURES.cowl): the cast over the whole head, out from its middle on a map laid round the crown
 // (x, z) = (ρ sin θ, ρ cos θ), θ round from the front, ρ down from the crown (radians: π/2 the head's middle height); the
@@ -945,6 +1025,15 @@ export const SIGNATURES = {
    * gap, apart, group (default MaskStitch) }.
    * { mouth?, opening?, jaw?, nape?, eyes?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, align?, lift?, thick?, cell? } */
   cowl: (fig, _g, _b, S) => castCowl(fig, S),
+  /** a MOUTHPIECE (castMouthpiece): the lower face's cast, from under the eyes past the chin, hanging where the skin runs
+   * out: `outline` { top, dip, side, bottom, point, straight } in the eyes' frame against the head's own heights; `taut`
+   * (0 to 1) bridging the features, a cloth drawn over them; `bulge` (m, or { h, r }) a cup over the mouth; `fold` a
+   * centre fold; `mouth` 'slot' | 'snarl' | { shape, w, h } cut, with `teeth` (a row's count) and `fangs`; `wrinkles` the
+   * oni's cheeks; `vents` [{ path, h }] slots cut along a polyline; `fold` { centre, angle, tilt } crisp folded planes
+   * for the face (a mecha's plate), `crisp` unsmoothed; the maw behind every cut; `fittings` [{ kind: filter | grille |
+   * tube | valve | strap, at, … }]. Relief as the cast's.
+   * { outline?, taut?, bulge?, fold?, hang?, mouth?, teeth?, fangs?, toothGroup?, wrinkles?, fittings?, rim?, seams?, lift?, thick?, cell? } */
+  mouthpiece: (fig, _g, _b, S) => castMouthpiece(fig, S),
   /** a RESPIRATOR: a cup over the nose and the mouth (the cyberpunk gas mask), sized from the head's own bounds as the helm
    * is (`parts`, default cranium + jaw; `pad` off the head), the head's superellipse section (`n`) spanning `spread`
    * radians either side of the front from `low` (helm heights, 0 under the chin) to `high` (default just under the eye

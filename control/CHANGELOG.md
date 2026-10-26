@@ -65,6 +65,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `sweep` carries the cast off the skin past the head from the temples, so the arms sweep out beyond its silhouette. The
   owl's W and its variations: the owl, horned owl, barn owl, great owl and night owl cowls, the owl full mask and the owl
   mask alone, each with its own colours.
+- The `mouthpiece` signature: the lower face's cast, the domino's counterpart, from under the eyes past the chin, its
+  edges set against the head's own heights (`nose`, `mouth`, `chin`, with an offset or a share: 'chin-0.2'), the cloth
+  HANGING straight down below the chin where the skin runs out; `taut` bridging the features (a cloth drawn over them),
+  `bulge` a cup over the mouth, `fold` crisp folded planes (a mecha's plate), a `mouth` cut (a slot, the oni's snarl) with
+  `teeth` and `fangs`, `vents` cut along a polyline, a dark MAW behind every cut, the oni's `wrinkles`, and `fittings`
+  (filters, grilles, ribbed tubes, valves, straps).
+- The pack's mouthpieces (`MOUTHPIECES`, `mouthpieceKit`): the ninja and wraith wraps, the bandanna, the oni mouth, the gas
+  and twin filters, the tube, slatted and mecha masks and the rebreather; and FACE SETS, a cowl with a mouthpiece laid over
+  it in its own colour (`MaskMouth`): the shinobi, the revenant, the oni warrior, the wastelander and the mecha face.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

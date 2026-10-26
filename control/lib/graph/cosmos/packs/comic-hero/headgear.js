@@ -20,7 +20,7 @@ const HELM = (shape) => ({ id: 'cranium-helm', mode: 'shell', part: 'cranium', s
 const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' };
 // (a kit's colours: the helm in the suit's secondary, the visor, the lenses and a visor band in its accent, the face plate
 // dark; the era palettes name none of these groups, and grey on grey hides a T visor)
-const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c' });
+const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c', MaskTeeth: P.MaskTeeth ?? '#efe9d8', MaskFitting: P.MaskFitting ?? '#7d848e', MaskFilter: P.MaskFilter ?? '#2b2f36', MaskStrap: P.MaskStrap ?? '#1d1f24', MaskMaw: P.MaskMaw ?? '#140808', MaskMouth: P.MaskMouth ?? P.Mask ?? '#15171c' });
 // (a helm drops the hair; a visor keeps it)
 const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
@@ -139,10 +139,61 @@ export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eye
 // (a cowl card may carry its own colours, over the suit's: the cowl, its domino panel, its lenses)
 const COWLED = (reads, words, palette = null) => ({ reads, family: 'cowl', words, at: { tiered: (spec) => withHelm(palette ? { ...spec, palette: { ...(spec.palette || {}), ...palette } } : spec, cowlKit({ ...words, head: spec.head, heroHair: spec.hair })) } });
 
+// ── THE MOUTHPIECE: the lower face's cast (station-loft-adorn.js `mouthpiece`), the domino's counterpart; worn alone, under
+// a domino, or with a cowl that shows the mouth. Its words, against the head's own heights (Z: the eyes 0, `nose`,
+// `mouth`, `chin` the head's rows): the cloth's TAUT pull, its outline, a cut MOUTH with teeth, and FITTINGS
+export const MOUTHPIECES = Object.freeze({
+  ninja: { taut: 1, fold: true, outline: { straight: true, side: 3.1 }, hang: 0.1 },                                                   // cloth drawn flat over the nose and the mouth, a centre fold
+  wraith: { taut: 0.9, fold: true, outline: { dip: 0.35, side: 3.0 }, rim: { w: 0.12, h: 0.0012 }, hang: 0.1 },                        // the ninja's cloth cut in a V over the nose, its edge raised
+  bandanna: { taut: 0.85, outline: { straight: true, side: 3.2, point: 2.4 }, hang: 0.05, thick: 0.002 },                              // a kerchief, its point hanging below the chin
+  oni: { taut: 0.45, outline: { top: 'nose+0.55', side: 2.45, bottom: 'chin-0.45' }, mouth: 'snarl', teeth: 8, fangs: true, wrinkles: true, thick: 0.004, rim: { w: 0.1, h: 0.0015 } },   // a lacquered plate, a snarling mouth, teeth and fangs
+  gasFilter: { taut: 0.6, bulge: 0.014, outline: { top: 'nose*0.35', side: 2.5, bottom: 'chin-0.2' }, fittings: [{ kind: 'filter', at: [0, 'mouth-0.3'], r: 0.019, h: 0.02 }, ...['R', 'L'].flatMap((S) => [{ kind: 'strap', side: S, at: [2.4, 'nose*0.3'], to: [4.3, 'nose*0.1'] }, { kind: 'strap', side: S, at: [2.3, 'mouth-0.8'], to: [4.2, 'mouth-0.4'] }])] },
+  twinFilter: { taut: 0.6, bulge: 0.012, outline: { top: 'nose*0.35', side: 2.6, bottom: 'chin-0.2' }, fittings: [{ kind: 'filter', at: [1.35, 'mouth'], tilt: -0.1 }, { kind: 'filter', at: [-1.35, 'mouth'], tilt: -0.1 }, { kind: 'valve', at: [0, 'mouth-0.35'] }] },
+  tubes: { taut: 0.7, outline: { top: 'nose+0.2', side: 2.6, bottom: 'chin-0.3' }, fittings: [{ kind: 'grille', at: [0, 'mouth'], rows: 3, w: 0.55 }, ...[0.45, 0.85].flatMap((x) => [{ kind: 'tube', at: [x, 'mouth-0.15'], to: [x + 1.7, 'chin-0.1'] }, { kind: 'tube', at: [-x, 'mouth-0.15'], to: [-x - 1.7, 'chin-0.1'] }])] },
+  slatted: { taut: 0.8, outline: { top: 'nose*0.4', side: 2.7, bottom: 'chin-0.3', straight: true }, fittings: [{ kind: 'grille', at: [0, 'mouth'], rows: 5, w: 0.95, step: 0.2, bar: 0.0026 }, { kind: 'valve', at: [0, 'chin+0.2'] }] },
+  // the MECHA faceplate: crisp folded planes (a flat centre, the sides falling back: \_/ in plan), a V at the chin, two
+  // vents stacked one over the other, each following the fold (\_/ across), the fold lines marked
+  mecha: { fold: { centre: 0.45, angle: 0.03, tilt: 0.004 }, crisp: true, thick: 0.004, outline: { top: 'nose*0.3', straight: true, side: 1.85, bottom: 'chin-0.3', point: 0.7 },
+    vents: [{ path: [[-0.88, 'mouth+0.32'], [-0.45, 'mouth+0.02'], [0.45, 'mouth+0.02'], [0.88, 'mouth+0.32']], h: 0.15 }, { path: [[-0.88, 'mouth-0.16'], [-0.45, 'mouth-0.46'], [0.45, 'mouth-0.46'], [0.88, 'mouth-0.16']], h: 0.15 }],
+    rim: { w: 0.08, h: 0.0012, group: 'MaskTrim' } },
+  rebreather: { taut: 0.5, bulge: { h: 0.012, r: 1.0 }, outline: { top: 'nose-0.15', side: 1.55, bottom: 'chin+0.35', straight: true }, fittings: [{ kind: 'valve', at: [0, 'mouth-0.2'] }, { kind: 'tube', at: [0.9, 'mouth-0.3'], to: [2.9, 'chin-0.6'], r: 0.006, arch: 0.016 }] },
+});
+// (a height word: 'nose', 'mouth', 'chin', or one of them with an offset or a share ('nose+0.55', 'chin-0.2', 'nose*0.35'),
+// resolved by the cast against the head; the kit carries it as written)
+/** a mouthpiece's kit from its word (MOUTHPIECES) or its own data, `over` its words' changes; `lift` over a domino or a cowl */
+export function mouthpieceKit(word = 'ninja', { over = {}, lift = null, id = 'mouthpiece', group = 'Mask' } = {}) {
+  const W = typeof word === 'object' ? word : MOUTHPIECES[word];
+  if (!W) throw new Error(`comic-hero: no mouthpiece '${word}' (known: ${Object.keys(MOUTHPIECES).join(', ')})`);
+  return [{ id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group, rigid: true, stack: false, ghost: true,
+    signature: { kind: 'mouthpiece', group, ...W, ...over, ...(lift !== null ? { lift } : {}) } }];
+}
+// a FACE SET: a cowl and a mouthpiece laid over it (its own group, MaskMouth), read as one face: the cowl's words, the
+// mouthpiece's word, their colours
+const FACE_SET = (reads, cowl, mouth, palette = null) => ({ reads, family: 'face', words: { cowl, mouthpiece: mouth },
+  at: { tiered: (spec) => withHelm(palette ? { ...spec, palette: { ...(spec.palette || {}), ...palette } } : spec, [...cowlKit({ ...cowl, head: spec.head, heroHair: spec.hair }), ...mouthpieceKit(mouth, { lift: 0.0042, group: 'MaskMouth' })]) } });
+const MOUTHED = (reads, word, palette = null) => ({ reads, family: 'mouthpiece', words: { mouthpiece: word }, at: { tiered: (spec) => withKit(palette ? { ...spec, palette: { ...(spec.palette || {}), ...palette } } : spec, mouthpieceKit(word)) } });
+
 // the masks' VARIATIONS, each the builder's words (tiered: the cast rides the landmark head)
 const MASK = (reads, words) => ({ reads, family: 'mask', words, at: { tiered: (spec) => withKit(spec, maskKit({ ...words, head: spec.head })) } });
 
 export const HEADGEAR = Object.freeze({
+  // ── MOUTHPIECES (the lower face) ──
+  // ── FACE SETS: a cowl with a mouthpiece over it ──
+  shinobi: FACE_SET('the shinobi: a black cowl with slit eyes, the black wrap drawn over the nose and the mouth; the assassin', { domino: false, eyes: 'slit' }, 'ninja', { Mask: '#16171b', MaskMouth: '#0f1013' }),
+  revenant: FACE_SET('the revenant: a black cowl, a bold wrap cut in a V over the nose; the vengeful spirit', { domino: false, eyes: 'slit' }, 'wraith', { Mask: '#141518', MaskMouth: '#c9a227' }),
+  oniWarrior: FACE_SET('the oni warrior: a dark cowl and domino, the red lacquered oni mouth over the jaw; the demon samurai', { domino: 'pointed' }, 'oni', { Mask: '#1b1a1d', MaskDomino: '#2c2a30', MaskMouth: '#8e1a15', MaskTeeth: '#efe9d8' }),
+  wastelander: FACE_SET('the wastelander: a cowl with white lenses, a gas filter over the nose and the mouth; the scavenger', { domino: 'technical', eyes: 'lens' }, 'gasFilter', { Mask: '#3b3529', MaskDomino: '#4d4536', MaskMouth: '#2a2d33', MaskFilter: '#c9a227' }),
+  ninjaWrap: MOUTHED('the ninja wrap: black cloth drawn flat over the nose and the mouth, a centre fold, to the neck; the shadow', 'ninja', { Mask: '#16171b' }),
+  wraithWrap: MOUTHED('the wraith wrap: the ninja\'s cloth cut in a V over the nose, its edge raised, in a bold colour; the revenant', 'wraith', { Mask: '#c9a227' }),
+  bandanna: MOUTHED('the bandanna: a red kerchief over the nose and the mouth, its point hanging below the chin; the outlaw', 'bandanna', { Mask: '#a8231c' }),
+  oniMouth: MOUTHED('the oni mouth: a red lacquered plate over the nose and the jaw, a snarling mouth, white teeth and fangs, wrinkled cheeks; the demon', 'oni', { Mask: '#8e1a15', MaskTeeth: '#efe9d8' }),
+  gasFilter: MOUTHED('the gas filter: a cup over the nose and the mouth, one canister at the front, straps behind; the toxic-alley runner', 'gasFilter', { Mask: '#2a2d33', MaskFitting: '#7d848e', MaskFilter: '#c9a227' }),
+  twinFilter: MOUTHED('the twin filter: a cup with a canister at each side, a valve at the chin; the hazmat operative', 'twinFilter', { Mask: '#33363d', MaskFitting: '#5d636c', MaskFilter: '#b3261e' }),
+  tubeMask: MOUTHED('the tube mask: a plate over the mouth, a grille, ribbed tubes running back to the jaw; the brute', 'tubes', { Mask: '#3a3a36', MaskFitting: '#7a7a72' }),
+  slattedMask: MOUTHED('the slatted mask: a flat plate over the lower face, five vent slats, a valve at the chin; the enforcer', 'slatted', { Mask: '#26292f', MaskFitting: '#9aa1ab' }),
+  mechaPlate: MOUTHED('the mecha faceplate: a white plate in crisp folded planes, a V at the chin, two vents following the fold; the pilot\'s machine', 'mecha', { Mask: '#e8eaee', MaskSeam: '#5b6270', MaskTrim: '#b3261e', MaskMaw: '#15171c' }),
+  mechaFace: FACE_SET('the mecha face: a white cowl with a technical domino and gold six-sided lenses, the folded faceplate with its vents; the mobile suit', { domino: 'technical', eyes: { shape: 'angular', size: [0.8, 0.42], tilt: 0.25, treat: 'lens', group: 'MaskLens' } }, 'mecha', { Mask: '#e8eaee', MaskDomino: '#2a2f39', MaskLens: '#f2c94c', MaskMouth: '#e8eaee', MaskSeam: '#5b6270', MaskTrim: '#b3261e', MaskMaw: '#15171c' }),
+  rebreather: MOUTHED('the rebreather: a small cup over the mouth, a valve, a hose to the side; the diver', 'rebreather', { Mask: '#1f2a33', MaskFitting: '#c9a227' }),
   // ── COWLS over the whole head (the cast's `cowl`) ──
   dominoCowl: COWLED('the domino cowl: the head covered, the domino over the eyes, the mouth and the chin bare; the night vigilante', {}),
   flowingCowl: COWLED('the flowing cowl: the domino cowl with the hero\'s own hair flowing out of the back; the acrobat', { hair: 'flow' }),
