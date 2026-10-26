@@ -457,7 +457,7 @@ const easeS = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 
 // snapped onto the outline and the eyes' outlines, each corner cast to its depth (`depthAt`), smoothed but never below
 // the cast (`bridge(x, z)`: corners bridged harder, a covered mouth's), lifted, thickened with RELIEF and walled, each
 // outer triangle in its GROUP; `place(x, z, r, off)` the corner's point, `axisOf(p)` the point it faces away from
-function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null, bumps = [], bridgePasses = 8, outerOff = null }) {
+function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null, bumps = [], bridgePasses = 8, outerOff = null, innerOff = null }) {
   const treat = S.eyes?.treat ?? 'open', cut = treat === 'open' ? holes : [], covered = treat === 'open' ? [] : holes;
   const inside = (x, z) => pip(outer, x, z) && !cut.some((H) => pip(H, x, z));
   const xs = outer.map((p) => p[0]), zs = outer.map((p) => p[1]), X0 = Math.min(...xs) - cell, Z0 = Math.min(...zs) - cell, NX = Math.ceil((Math.max(...xs) - X0) / cell) + 2, NZ = Math.ceil((Math.max(...zs) - Z0) / cell) + 2;
@@ -482,7 +482,7 @@ function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null
   const relief = (x, z) => domeAt(x, z) + (S.rim ? (S.rim.h ?? 0.0015) * easeS(1 - ringDist(x, z, outer) / (S.rim.w ?? 0.14)) : 0) + (S.ridge ? (S.ridge.h ?? 0.002) * easeS(1 - Math.abs(x) / (S.ridge.w ?? 0.25)) * (pip(outer, x, z) ? 1 : 0) : 0)
     + bumps.reduce((a, B) => a + B.h * easeS(1 - Math.hypot(x - B.at[0], z - B.at[1]) / B.r), 0) - (seams.some((L) => segDist(x, z, L) < sw) ? 0.0006 : 0);
   const lift = S.lift ?? 0.0025, th = S.thick ?? 0.003, pts = {};
-  for (const [kk, q] of used) { const rr = r.get(kk); pts[`o${kk}`] = place(q.x, q.z, rr, (outerOff ? outerOff(q.x, q.z, rr) : lift + th) + relief(q.x, q.z)); pts[`i${kk}`] = place(q.x, q.z, rr, lift); }
+  for (const [kk, q] of used) { const rr = r.get(kk); pts[`o${kk}`] = place(q.x, q.z, rr, (outerOff ? outerOff(q.x, q.z, rr) : lift + th) + relief(q.x, q.z)); pts[`i${kk}`] = place(q.x, q.z, rr, innerOff ? innerOff(q.x, q.z, rr) : lift); }
   // (each outer triangle's group: its middle inside a covered eye, a lens; on a seam, the seam; two corners on the
   // outline, the rim's strip along the edge; else the mask's. The inside and the walls the mask's, the walls the rim's)
   const G = S.group, gOf = (T) => { const Q = T.map((k) => used.get(k)), x = (Q[0].x + Q[1].x + Q[2].x) / 3, z = (Q[0].z + Q[1].z + Q[2].z) / 3;
@@ -533,8 +533,14 @@ function castMask(fig, S) {
   let outerOff = null;
   if (S.front) { let y0 = -Infinity; const xs = outer.map((q) => q[0]), zs = outer.map((q) => q[1]);
     for (let X = Math.min(...xs); X <= Math.max(...xs); X += 0.1) for (let Zz = Math.min(...zs); Zz <= Math.max(...zs); Zz += 0.1) if (pip(outer, X, Zz)) { const r = depthAt(X, Zz); if (r !== null) y0 = Math.max(y0, ax[1] + r * dmath.cos(X * thE)); }
-    const yF = y0 + (S.front.out ?? 0.02), mx = S.front.max ?? 0.06; outerOff = (X, Z, r) => { const c = Math.max(0.25, dmath.cos(X * thE)); return Math.min(mx, Math.max((S.lift ?? 0.0025) + (S.thick ?? 0.003), (yF - ax[1]) / c - r)); }; }
-  const out = castGrid(S, { outer, holes, cell: S.cell ?? 0.06, depthAt, place, axisOf, outerOff });
+    const yF = y0 + (S.front.out ?? 0.02), mx = S.front.max ?? 0.06, base = (S.lift ?? 0.0025) + (S.thick ?? 0.003);
+    // (`curve`: a curved SHIELD instead of a plane, the front at one distance from the head's axis, `out` past the skin's
+    // farthest point inside the outline)
+    let rF = -Infinity; if (S.front.curve) for (let X = Math.min(...xs); X <= Math.max(...xs); X += 0.1) for (let Zz = Math.min(...zs); Zz <= Math.max(...zs); Zz += 0.1) if (pip(outer, X, Zz)) { const r = depthAt(X, Zz); if (r !== null) rF = Math.max(rF, r); }
+    outerOff = S.front.curve ? (X, Z, r) => Math.min(mx, Math.max(base, rF + (S.front.out ?? 0.02) - r)) : (X, Z, r) => { const c = Math.max(0.25, dmath.cos(X * thE)); return Math.min(mx, Math.max(base, (yF - ax[1]) / c - r)); }; }
+  // (`front.shell`: the piece a sheet standing off at the front, its inner face its outer's less its thickness: a visor)
+  const innerOff = S.front?.shell ? (X, Z, r) => Math.max(S.lift ?? 0.0025, outerOff(X, Z, r) - (S.thick ?? 0.003)) : null;
+  const out = castGrid(S, { outer, holes, cell: S.cell ?? 0.06, depthAt, place, axisOf, outerOff, innerOff });
   if (!out.length) return out;
   // a STRAP round the head (`strap` { z, h, lift, group }): a band cast round the whole head at height `z` (eye units),
   // `h` tall, standing `lift` off the skin (over the hair at its root)
@@ -622,11 +628,14 @@ function castMouthpiece(fig, S) {
 // outward normal, `hz` the height words:
 //   filter { r, h, cap? }  a canister;  valve { r }  a small disc;  grille { rows, w, step, bar }  bars across the front
 //   tube { to, r, ribs?, arch }  a ribbed hose arching to `to`;  strap { to, w }  a band lying on the cast to `to`
-//   earpiece { r, h, cap? }  a disc at the temple;  antenna { len, r, back, up }  a spike off the cast, back and up
+//   earpiece { r, h, cap?, out }  a disc at the temple, `out` (m) past the cast (over the hair);  antenna { len, r, back, up }  a spike off the cast, back and up
 //   scope { r, len, lensGroup }  a tube standing forward with a lens at its end (night vision)
 //   lens { r, h }  a small domed lens (`group` default MaskLens);  arm { to, r }  a rigid bar standing off the cast to `to`
 function castFittings(S, { on, nOf, hz, d, th }) {
   const out = [], Z = hz;
+  // (a fitting's disc FLAT on top, its edge bevelled to `bevel` of its radius: a lens, a cap, a scope's glass, never the
+  // shared disc's pointed centre)
+  const disc = (c, n, r, h, m = 16, bevel = 0.85) => loftParts([ringAt(c, n, r, m), ringAt(add(c, mul(n, h * 0.7)), n, r, m), ringAt(add(c, mul(n, h)), n, r * bevel, m)], sub(c, mul(n, 0.002)), add(c, mul(n, h)));
   // FITTINGS (`fittings`: [{ kind, at: [X, Z], … }] in the eyes' frame, the mouth's height `mouth` as a word for Z):
   //   filter { r, h, cap? }   a canister standing off the piece, its cap's grid a ring
   //   grille { bars, w, rows? } horizontal bars across the front
@@ -640,9 +649,9 @@ function castFittings(S, { on, nOf, hz, d, th }) {
     if (F.kind === 'tube') { const [tx, tz0] = F.to, tz = Z(tz0), K = 12, r = F.r ?? 0.005, arch = F.arch ?? 0.012;
       const pts = Array.from({ length: K }, (_, i) => { const t = i / (K - 1), X = fx + (tx - fx) * t, Zz = fz + (tz - fz) * t; return on(X, Zz, r * 0.6 + arch * dmath.sin(Math.PI * t)); }).filter(Boolean);
       if (pts.length > 3) { out.push({ ...sweep(pts, pts.slice(0, -1).map(() => r), 8), group: g }); for (let i = 1; i < pts.length - 1; i += 2) if (F.ribs !== false) out.push({ ...disc(pts[i], unit(sub(pts[i + 1], pts[i - 1])), r * 1.25, r * 0.5, 10, 0.9), group: g }); } continue; }
-    if (F.kind === 'earpiece') { const p = on(fx, fz, -0.002); if (!p) continue; const n = nOf(fx, fz), r = F.r ?? 0.022, h = F.h ?? 0.012;
+    if (F.kind === 'earpiece') { const p = on(fx, fz, (F.out ?? 0) - 0.002); if (!p) continue; const n = nOf(fx, fz), r = F.r ?? 0.022, h = F.h ?? 0.012;
       out.push({ ...disc(p, n, r, h, 20, 0.85), group: g }); if (F.cap !== false) out.push({ ...disc(add(p, mul(n, h * 0.9)), n, r * 0.55, h * 0.3, 16, 0.75), group: F.capGroup ?? 'MaskTrim' }); continue; }
-    if (F.kind === 'antenna') { const p = on(fx, fz, -0.001); if (!p) continue; const n = nOf(fx, fz), dir = unit(add(add(mul(n, F.out ?? 0.25), [0, -(F.back ?? 1), 0]), [0, 0, F.up ?? 0.5])); out.push({ ...cone(p, dir, F.len ?? 0.07, F.r ?? 0.004, 6), group: g }); continue; }
+    if (F.kind === 'antenna') { const p = on(fx, fz, (F.out ?? 0) - 0.001); if (!p) continue; const n = nOf(fx, fz), dir = unit(add(add(mul(n, F.out ?? 0.25), [0, -(F.back ?? 1), 0]), [0, 0, F.up ?? 0.5])); out.push({ ...cone(p, dir, F.len ?? 0.07, F.r ?? 0.004, 6), group: g }); continue; }
     if (F.kind === 'scope') { const p = on(fx, fz, -0.002); if (!p) continue; const n = unit(add(nOf(fx, fz), [0, 0.6, 0])), r = F.r ?? 0.012, len = F.len ?? 0.04, K = 4, P = Array.from({ length: K }, (_, i) => add(p, mul(n, (len * i) / (K - 1))));
       out.push({ ...sweep(P, P.slice(0, -1).map((_, i) => r * (i === 0 ? 1.15 : 1)), 16), group: g }); out.push({ ...disc(add(p, mul(n, len)), n, r * 0.85, r * 0.25, 16, 0.85), group: F.lensGroup ?? 'MaskLens' }); continue; }
     if (F.kind === 'lens') { const p = on(fx, fz, -0.0005); if (!p) continue; out.push({ ...disc(p, nOf(fx, fz), F.r ?? 0.006, F.h ?? 0.004, 14, 0.6), group: F.group ?? 'MaskLens' }); continue; }

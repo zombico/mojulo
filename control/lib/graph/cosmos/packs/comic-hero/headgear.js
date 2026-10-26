@@ -199,21 +199,29 @@ const MOUTHED = (reads, word, palette = null) => ({ reads, family: 'mouthpiece',
 // (a band of glass, a flat-fronted box, earpieces, antennas, scopes, lens clusters). Each word the cast's own data
 const LENS = (o = {}) => ({ treat: 'lens', group: 'EyeLens', ...o });
 export const EYEGEAR = Object.freeze({
-  ski: { outline: { shape: 'shield', w: 2.5, top: 1.15, bottom: -1.0, notch: 0.5 }, eyes: LENS({ shape: 'shield', inset: [0.86, 0.7], dome: 0.009 }), group: 'EyeFrame', thick: 0.006, lift: 0.003, rim: { w: 0.2, h: 0.003, group: 'EyeTrim' }, strap: { z: 0.1, h: 0.6 } },
+  // (the ski visor a curved SHIELD standing off the face: one orange lens over the eyes and the brow, a thin frame round it)
+  ski: { outline: { shape: 'shield', w: 2.55, top: 1.55, bottom: -1.15, notch: 0.4 }, eyes: LENS({ shape: 'shield', inset: [0.93, 0.86], dome: 0 }), group: 'EyeFrame', thick: 0.0035, lift: 0.003, front: { curve: true, shell: true, out: 0.022, max: 0.05 }, rim: { w: 0.1, h: 0.0015, group: 'EyeTrim' }, strap: { z: 0.2, h: 0.6 } },
   moto: { outline: { shape: 'goggles', r: 0.92, bridge: 0.28 }, eyes: LENS({ shape: 'round', size: [0.7, 0.7], dome: 0.007 }), group: 'EyeFrame', thick: 0.007, lift: 0.003, rim: { w: 0.12, h: 0.003, group: 'EyeTrim' }, strap: { z: 0, h: 0.42 } },
   lab: { outline: { shape: 'goggles', r: 0.78, bridge: 0.22 }, eyes: LENS({ shape: 'round', size: [0.62, 0.6], dome: 0.005 }), group: 'EyeFrame', thick: 0.005, lift: 0.0025, strap: { z: 0, h: 0.26 } },
   nightVision: { outline: { shape: 'goggles', r: 0.85, bridge: 0.3 }, eyes: { treat: 'none' }, group: 'EyeFrame', thick: 0.008, lift: 0.003, strap: { z: 0.2, h: 0.5 },
     fittings: [{ kind: 'scope', at: [1, 0], r: 0.014, len: 0.065, group: 'EyeFrame', lensGroup: 'EyeGlow' }, { kind: 'scope', at: [-1, 0], r: 0.014, len: 0.065, group: 'EyeFrame', lensGroup: 'EyeGlow' }] },
   quadVision: { outline: { shape: 'shield', w: 2.4, top: 0.95, bottom: -0.8, notch: 0.45 }, eyes: { treat: 'none' }, group: 'EyeFrame', thick: 0.008, lift: 0.003, strap: { z: 0.15, h: 0.5 },
     fittings: [[0.7, 0.25], [-0.7, 0.25], [1.75, 0.05], [-1.75, 0.05]].map(([x, z]) => ({ kind: 'scope', at: [x, z], r: 0.012, len: 0.07, group: 'EyeFrame', lensGroup: 'EyeGlow' })) },
-  vr: { outline: { shape: 'shield', w: 2.45, top: 1.3, bottom: -1.05, notch: 0.55 }, eyes: { treat: 'none', dome: 0 }, group: 'EyeFrame', front: { out: 0.022, max: 0.065 }, rim: { w: 0.14, h: 0.0015, group: 'EyeTrim' }, strap: { z: 0.15, h: 0.75, lift: 0.007 } },
-  cyber: { outline: { shape: 'visor', w: 2.7, h: 0.62, curve: 0.08 }, eyes: { treat: 'none' }, group: 'EyeLens', thick: 0.004, lift: 0.004, rim: { w: 0.08, h: 0.0012, group: 'EyeFrame' }, strap: { z: 0.55, h: 0.18, group: 'EyeFrame', lift: 0.006 },
-    fittings: [{ kind: 'earpiece', at: [3.25, 0.1], r: 0.02, h: 0.01, group: 'EyeFrame', capGroup: 'EyeGlow' }, { kind: 'earpiece', at: [-3.25, 0.1], r: 0.02, h: 0.01, group: 'EyeFrame', capGroup: 'EyeGlow' },
-      ...[1, -1].flatMap((sg) => [{ kind: 'antenna', at: [sg * 3.45, 0.35], len: 0.06, r: 0.0035, back: 1, up: 0.55, group: 'EyeFrame' }, { kind: 'tube', at: [sg * 3.2, -0.25], to: [sg * 2.9, 'chin-1.2'], r: 0.0022, ribs: false, arch: 0.004, group: 'EyeFrame' }])] },
+  vr: { outline: { shape: 'shield', w: 2.05, top: 1.3, bottom: -1.05, notch: 0.55 }, eyes: { treat: 'none', dome: 0 }, group: 'EyeFrame', front: { out: 0.022, max: 0.065 }, rim: { w: 0.14, h: 0.0015, group: 'EyeTrim' }, strap: { z: 0.15, h: 0.75, lift: 0.007 } },
+  cyber: { outline: { shape: 'visor', w: 2.75, h: 1.0, curve: 0.08 }, eyes: { treat: 'none', dome: 0 }, group: 'EyeLens', thick: 0.003, lift: 0.004, front: { curve: true, shell: true, out: 0.01, max: 0.03 }, rim: { w: 0.08, h: 0.0012, group: 'EyeFrame' }, strap: { z: 0.55, h: 0.18, group: 'EyeFrame', lift: 0.006 },
+    fittings: [{ kind: 'earpiece', at: [3.25, 0.1], r: 0.024, h: 0.012, out: 0.014, group: 'EyeFrame', capGroup: 'EyeGlow' }, { kind: 'earpiece', at: [-3.25, 0.1], r: 0.024, h: 0.012, out: 0.014, group: 'EyeFrame', capGroup: 'EyeGlow' },
+      ...[1, -1].flatMap((sg) => [{ kind: 'antenna', at: [sg * 3.45, 0.35], out: 0.014, len: 0.06, r: 0.0035, back: 1, up: 0.55, group: 'EyeFrame' }, { kind: 'tube', at: [sg * 3.2, -0.25], to: [sg * 2.9, 'chin-1.2'], r: 0.0022, ribs: false, arch: 0.004, group: 'EyeFrame' }])] },
   spider: { outline: { shape: 'visor', w: 2.25, h: 0.5, curve: 0.12 }, eyes: { treat: 'none' }, group: 'EyeFrame', thick: 0.004, lift: 0.004, strap: { z: 2.0, h: 0.22, lift: 0.006 },
     fittings: [...[[0.55, 0.07, 0.009], [1.05, 0.12, 0.01], [1.55, 0.04, 0.008], [0.82, -0.12, 0.0065], [1.32, -0.1, 0.0065], [1.9, -0.05, 0.005]].flatMap(([x, z, r]) => [{ kind: 'lens', at: [x, z], r, h: r * 0.8, group: 'EyeGlow' }, { kind: 'lens', at: [-x, z], r, h: r * 0.8, group: 'EyeGlow' }]),
-      { kind: 'earpiece', at: [3.2, -0.1], r: 0.018, group: 'EyeFrame', capGroup: 'EyeGlow' }, { kind: 'earpiece', at: [-3.2, -0.1], r: 0.018, group: 'EyeFrame', capGroup: 'EyeGlow' },
+      { kind: 'earpiece', at: [3.2, -0.1], r: 0.02, out: 0.012, group: 'EyeFrame', capGroup: 'EyeGlow' }, { kind: 'earpiece', at: [-3.2, -0.1], r: 0.02, out: 0.012, group: 'EyeFrame', capGroup: 'EyeGlow' },
       { kind: 'arm', at: [2.3, 0.05], to: [3.1, -0.05], r: 0.0028, group: 'EyeFrame' }, { kind: 'arm', at: [-2.3, 0.05], to: [-3.1, -0.05], r: 0.0028, group: 'EyeFrame' }] },
+  // the ENGINEER's visor: a bright band wrapped temple to temple, standing off the face, ridged across, small connectors
+  // where it meets the temples
+  engineer: { outline: { shape: 'visor', w: 3.0, h: 0.62, curve: 0.04 }, eyes: { treat: 'none', dome: 0 }, group: 'EyeFrame', thick: 0.003, lift: 0.004, front: { curve: true, shell: true, out: 0.012, max: 0.03 },
+    seams: [-0.2, -0.07, 0.06, 0.19].map((z) => [[-2.7, z + 0.04], [0, z + 0.04], [2.7, z + 0.04]]), seamGroup: 'EyeTrim', seamW: 0.03,
+    fittings: [{ kind: 'earpiece', at: [3.05, 0.04], r: 0.011, h: 0.008, out: 0.006, group: 'EyeTrim', capGroup: 'EyeFrame' }, { kind: 'earpiece', at: [-3.05, 0.04], r: 0.011, h: 0.008, out: 0.006, group: 'EyeTrim', capGroup: 'EyeFrame' }] },
+  // the OPTIC blast visor: a dark band round to the temples, one ruby lens strip across both eyes, a band round the head
+  optic: { outline: { shape: 'visor', w: 2.7, h: 0.9, curve: 0.06 }, eyes: LENS({ shape: 'shield', inset: [0.9, 0.36], dome: 0, group: 'EyeGlow' }), group: 'EyeFrame', thick: 0.004, lift: 0.004, front: { curve: true, shell: true, out: 0.008, max: 0.025 }, rim: { w: 0.1, h: 0.0012, group: 'EyeTrim' }, strap: { z: 0.1, h: 0.4 } },
 });
 /** an eyegear's kit from its word (EYEGEAR) or its own data: the cast carried by a ghost shell on the cranium */
 export function eyegearKit(word, { id = 'eyegear', over = {} } = {}) {
@@ -235,6 +243,8 @@ export const HEADGEAR = Object.freeze({
   quadVision: EYEWEAR('the quad vision: a goggle with four scopes, the outer two splayed, green lenses aglow; the special operator', 'quadVision', { EyeFrame: '#17191d', EyeGlow: '#5dff7a', EyeStrap: '#17191d' }),
   vrHeadset: EYEWEAR('the VR headset: a white box over the eyes, its front flat, a dark gasket, a broad strap; the netrunner', 'vr', { EyeFrame: '#f4f5f7', EyeTrim: '#22252b', EyeStrap: '#2a2d33' }),
   cyberVisor: EYEWEAR('the cyber visor: a band of dark glass over the eyes, a silver band round the head, earpieces with cyan lights, antennas and cables; the cyborg agent', 'cyber', { EyeFrame: '#c7ccd4', EyeLens: '#14202a', EyeGlow: '#58e1ff', EyeStrap: '#c7ccd4' }),
+  engineerVisor: EYEWEAR('the engineer\'s visor: a gold band wrapped from temple to temple, standing off the face, ridged across, small connectors at the temples; the blind engineer', 'engineer', { EyeFrame: '#d9b45a', EyeTrim: '#7a6230' }),
+  opticVisor: EYEWEAR('the optic visor: a dark band round to the temples with one ruby lens strip across both eyes, a band round the head; the optic blaster', 'optic', { EyeFrame: '#2a2a33', EyeTrim: '#c9a227', EyeGlow: '#e0202a', EyeStrap: '#2a2a33' }),
   spiderVisor: EYEWEAR('the spider visor: a dark visor with a cluster of small glowing lenses, earpieces and the arms that hold it, a band over the crown; the sniper', 'spider', { EyeFrame: '#2c1f3d', EyeGlow: '#ff5ca8', EyeStrap: '#2c1f3d' }),
   // ── MOUTHPIECES (the lower face) ──
   // ── FACE SETS: a cowl with a mouthpiece over it ──

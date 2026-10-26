@@ -85,6 +85,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   scopes, small lenses and arms. The pack's `EYEGEAR` words and `eyegearKit`: ski, moto and lab goggles, night vision and
   quad vision, a VR headset, a cyber visor (a glass band, a silver headband, earpieces, antennas, cables) and a spider visor
   (a lens cluster held on arms from the earpieces); the domino mask cards are eyegear too.
+- The cast's `front` takes `curve` (a curved shield at one distance from the head's axis) and `shell` (the piece a sheet
+  standing off the face: a visor); the fittings' discs are flat-topped with a bevelled edge (no pointed centre), and an
+  earpiece or an antenna stands `out` past the cast, over the hair. The ski goggles are a riot-shield visor standing off
+  the face, the VR headset narrower, the cyber visor bolder; and two visors: the engineer's (a gold band wrapped temple to
+  temple, ridged across) and the optic visor (a dark band with one ruby lens strip across both eyes).
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
