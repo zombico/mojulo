@@ -733,7 +733,7 @@ export function registerExportGameTools() {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
         target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'roblox'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`roblox` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
-        era: { type: 'string', enum: ['gen-6', 'gen-7'], description: "Optional. The era the pages are drawn in, the game's cube's by default: the same recipe, another render (`gen-7`: the form render, its surfaces drawn as paint under live light until it draws them). Web and desktop only." },
+        era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'Optional. The era its pages are drawn in, the cube\'s by default: the same recipe, another render. Web and desktop.' },
         cdn: { type: 'boolean', description: "web target only (a desktop app always inlines). Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
       },
       required: ['ref'],
