@@ -71,6 +71,21 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 - Today, per side: `pauldronBag`, `pauldronCap`, `pauldronDeltoid` (torso and upper arm), `shoulderLevel`,
   `shoulderOverhead` (torso).
 
+## The relief (realistic laws 5)
+
+A hero minted under realistic laws 5 carries its head's relief to an engine. The one skin is its field netted and
+quadric-simplified; the lit skinned GLB (`export_model { skinned: true, lit: true }`, and the engine packs under their
+lit option) bakes the field's own normal into a tangent-space normal map on the skin's atlas (the base colour's UVs) and
+writes it as the figure material's `normalTexture`, each vertex's `TANGENT` beside its `NORMAL`
+(`epidermis/dermal-relief.js` over `polygonizer/normal-bake.js`). The field is rebuilt from the recipe: the head's own
+(`headFit`), joined to the neck's column, whose rings above the seam the fit keeps (`headFit.column`, laws 5 only); each
+ear its own. The map's size follows the skin's rung (512 texels across the head's page, 256 at L1, 128 at L0). Only
+the head (`headSkin`, `earR`, `earL`) is baked: every other texel is flat, so the body, the hands and what the hero
+wears shade by their vertex normals as before. A hero minted under laws 4 or earlier, an unlit export and the World
+page carry none (the page's fills are unlit). Godot, Unity's glTFast and Blender read the map as they import the GLB;
+the Unreal importer binds it to its lit master (`M_MojuloLitRelief`); a Unity world pack ships figures as rigid parts,
+so the map stays behind there and its ledger says so.
+
 ## Not yet
 
 The correctives ride the skinned GLB (`scene-gltf.js` `addSkinnedRigFigure`, when the export asks for blend shapes as

@@ -18,8 +18,10 @@ import { ERAS, ERA_IDS, eraCastConventions } from '../../era/eras.js';
 const eraGodot = (row) => (row.status === 'built' ? 'approximated' : 'absent');
 function castStatus(id) {
   const planned = eraCastConventions(id).filter((c) => c.status === 'planned').map((c) => c.id);
-  return planned.length
-    ? { status: 'partial', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target; planned: ${planned.join(', ')}` }
+  // (a convention made for part of the cast says which, after the planned ones)
+  const partial = eraCastConventions(id).filter((c) => c.status === 'partial').map((c) => `${c.id} (${c.note})`);
+  return planned.length || partial.length
+    ? { status: 'partial', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target${planned.length ? `; planned: ${planned.join(', ')}` : ''}${partial.length ? `; partial: ${partial.join('; ')}` : ''}` }
     : { status: 'built', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: 'its density set by the target' };
 }
 

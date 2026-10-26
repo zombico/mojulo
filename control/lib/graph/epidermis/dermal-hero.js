@@ -192,7 +192,8 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
   // (each corner's place to a tenth of a texel: the page writes them as text)
   const q = W > 1024 ? 1e5 : 1e4, r5 = ([s, t]) => [Math.round(s * q) / q, Math.round(t * q) / q];
-  mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); });
+  const onHeadPage = new Set();
+  mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) { fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); if (f.page === 'head') onHeadPage.add(fi); } });
   let face = -1;
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, TH).toString('base64')}`;
   const uvAt = (ref) => { const c = fis.get(face); if (!c || ref.vi === undefined) return white; const k = mesh.faces[face].indexOf(ref.vi); return k < 0 ? white : c[k]; };
@@ -200,6 +201,9 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   // which carries the skin's colour, is lit and not tinted twice; the pack's corners are the light alone already)
   const base = hex3(typeof recipe.palette?.Skin === 'string' ? recipe.palette.Skin : '#d9a77e').map(lin), lights = new Map();
   const light = (fill) => { let h = lights.get(fill); if (!h) lights.set(fill, h = toHex(hex3(fill).map((c, i) => toSrgb(Math.min(1, lin(c) / Math.max(1e-6, base[i])))))); return h; };
+  // (`faceUV(fi)` a skin face's three corners on the atlas, null off it; `onHead(fi)` a face on the head's page; `pages` the
+  // atlas's layout: what the normal bake reads, epidermis/dermal-relief.js)
   return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
-    atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0 };
+    atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0,
+    faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH] } };
 }

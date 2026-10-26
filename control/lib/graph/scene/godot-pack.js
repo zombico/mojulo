@@ -173,6 +173,8 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       // the LANDMARK hero's face (western-face-rig.js): the same face scene (figure_face.gd: the authored face on ready, the
       // ambient blink layered); its clips keep their one second and its view as before
       ...(!anime && f.face ? { face: true, ambientOver: f.face.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
+      // THE RELIEF (epidermis/dermal-relief.js): a lit figure carrying its normal map and tangents, said by its ledger
+      ...(lit && f.normalTex ? { relief: true } : {}),
     };
   })() : null;
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);

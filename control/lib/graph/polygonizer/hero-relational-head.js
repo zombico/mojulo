@@ -561,6 +561,9 @@ function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, in
     d.parts = [...d.parts.slice(0, i).filter((n) => !gone.has(n)), ...HEADS, ...d.parts.slice(i).filter((n) => !gone.has(n) && !HEADS.includes(n))];
   }
   const kept = new Set(neck.stations.slice(0, seam + 1).map((s) => s.id));
+  // (the column's rings above the seam, which the skin was joined to: kept on the fit when asked, `opts.column`, so the
+  // skin's own field can be rebuilt from the minted recipe: oneSkinFields, the normal bake's)
+  const column = opts.column ? neck.stations.slice(seam + 1).map((st) => neck.slots.map((s) => rp(st.points[s]))) : null;
   neck.stations = neck.stations.slice(0, seam + 1);
   neck.caps = { ...neck.caps, tip: rp([c0[0], c0[1], c0[2] + 0.004]) };
   if (neck.bind?.blend) {
@@ -577,10 +580,32 @@ function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, in
   for (const d of Object.values(r.dials || {})) if (Array.isArray(d.parts)) d.parts = d.parts.filter((n) => parts[n] || !HEADS.includes(n));
   // (the skin's own density when a target set it: what is pinned to its faces is kept by the fit, and must not be worn
   // on another count's faces)
-  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}), skin: 'one', ...(opts.oneSkin?.faces ? { skinFaces: opts.oneSkin.faces } : {}) };
+  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}), skin: 'one', ...(opts.oneSkin?.faces ? { skinFaces: opts.oneSkin.faces } : {}), ...(column ? { column } : {}) };
   const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
   at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));
   return r;
+}
+
+/**
+ * THE ONE SKIN'S OWN FIELDS, rebuilt from a minted recipe (its `headFit` and its neck): what the normal bake reads
+ * (normal-bake.js, epidermis/dermal-relief.js). `skin` the head's field (globes and ears out) joined smoothly to the
+ * neck's column, as the net was (oneSkinRecipe): the minted neck keeps its rings only to the seam, so the column's rings
+ * above it ride the fit (`headFit.column`, kept when the head was asked for it: realistic laws 5); `earR`, `earL` each
+ * ear's own field, the left the right's mirror; `landmark(name)` a head landmark (head-relational.js points: eyeR, prn,
+ * sto, chR …) in the hero's frame. The hero's frame, metres, q = [x, y, z]. null for a head that is not one skin, or
+ * whose fit keeps no column (a hero minted before laws 5).
+ */
+export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
+  const fit = recipe?.headFit, minted = recipe?.parts?.neck;
+  if (!fit || fit.skin !== 'one' || !Array.isArray(fit.column) || !(minted?.stations?.length >= 2) || !HEAD_TUNES[fit.sex]) return null;
+  // (the neck's column as the net was joined to it: its two rings under the seam, then the rings the fit kept above)
+  const at = (pts) => ({ points: Object.fromEntries(minted.slots.map((s, j) => [s, pts[j]])) });
+  const neck = { slots: minted.slots, stations: [...minted.stations.slice(-2), ...fit.column.map(at)] };
+  const own = { ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}) };
+  const { k, ty, men } = fit, inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
+  const head = relationalHead({ sex: fit.sex, tune: fit.tune ?? HEAD_TUNES[fit.sex], ears: false, globes: false, ...own });
+  const fH = inHead(head.field), fN = neckField(neck), earR = head.earFields.find((e) => e.side === 'R'), fE = earR ? inHead(earR.field) : null;
+  return { skin: (q) => smin(fH(q), fN(q), join), head: fH, ...(fE ? { earR: fE, earL: (q) => fE([-q[0], q[1], q[2]]) } : {}), landmark: (name) => (head.points[name] ? [head.points[name].x * k, head.points[name].y * k + ty, head.points[name].z * k + men] : null) };
 }
 
 /** how one skin FOLLOWS an action (oneSkinFollow): the muscle's beads near a point carry it (a Gaussian of the bead's

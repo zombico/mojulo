@@ -43,7 +43,7 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.triangleCount} triangles${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, loops ${figure.clip})` : ''}`);
   const manifestHash = packHash(manifest);
   const emitted = emitUnrealAsset({
-    ref, kind: manifest.kind ?? kind, title: sketch.title ?? manifest.title ?? ref, manifestHash, lit, figure,
+    ref, kind: manifest.kind ?? kind, title: sketch.title ?? manifest.title ?? ref, manifestHash, lit, figure, ...(lit && fig?.[1]?.normalTex ? { relief: true } : {}),
     remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}${humanoid ? '' : ' --no-humanoid'}`,
   });
   const { written } = await emitFolder({ outDir, files: [

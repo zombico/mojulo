@@ -542,7 +542,10 @@ const figureLedger = (f) => (f.anime ? {
   figure_skinned: {
     note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface) and, when Godot's default 30 fps would cut across the clips' keys, bakes them at the rate their keys land on (animation/fps)`,
   },
-  figure_normals: { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
+  // (a figure carrying its relief, the realistic hero's under --lit: epidermis/dermal-relief.js)
+  figure_normals: f.relief
+    ? { note: 'under --lit the skinned mesh carries the skin\'s own shading normals and its relief: a normal map baked from the figure\'s field on its skin\'s atlas (TEXCOORD_0, the base colour\'s), each vertex\'s TANGENT beside its NORMAL; Godot\'s glTF import puts the map on the figure\'s StandardMaterial3D (normal_enabled) and keeps the tangents, and the kernel leaves a figure\'s material as imported (_fix_materials sets its vertex colour only; the tone skips figures). The default export travels unlit, with neither' }
+    : { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
   ...humanoidLedger(f),
 });
 

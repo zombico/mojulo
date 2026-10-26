@@ -14,6 +14,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Normal bake: the realistic head's relief from its own field, in the engine export
+
+- **The bake** (`polygonizer/normal-bake.js`): `bakeFieldNormals` takes a light mesh with its UVs and a signed-distance
+  field, and for every texel of every chart triangle finds its point on the mesh, steps it onto the field's surface and
+  writes the field's own normal there, in the mesh's tangent space, as an RGB8 map. The tangents (`meshTangents`) are
+  built the MikkTSpace way and ride beside the map, so an engine shades in the basis the map was baked in. Where two
+  charts overlap a texel goes to the triangle the chart sees most face-on; a texel turned far from the mesh's normal (a
+  lid's margin) is supersampled so it does not alias into sparks; the charts are dilated, so an engine's mips never pull
+  the background into a seam. Deterministic: a fixed texel order, no dice, dmath's trigonometry. Its gates: a sphere's
+  field on a flat-faced icosphere and a torus's on a coarse grid shade to the analytic normal within a degree.
+- **The realistic head carries it.** The one-skin head is its field netted and simplified; the map puts back what the
+  simplification spent: the lids' crease, the lips' line, the nostrils' wings, the ears' folds
+  (`epidermis/dermal-relief.js`). It is baked on the head's own skin chart (the atlas the base colour already uses), at
+  a size set by the skin's own rung (its target): 512 texels across the head's page, 256 at L1, 128 at L0. The body, the
+  hands and what the hero wears stay flat on the map (their vertex normals shade them as before).
+- **It rides the lit skinned GLB** (`export_model { skinned: true, lit: true }`, and the Godot and Unreal packs under
+  their lit option): the figure's material gains `normalTexture` and its primitive `TANGENT`; the engine skeleton export
+  (the T-pose, `humanoid`) turns the normals and tangents with the mesh. Godot imports the map onto the figure's
+  material and the kernel leaves it there. The Unreal importer binds the map Interchange imports to a lit master of its
+  own (`M_MojuloLitRelief`, written only for an asset that carries one; its green flipped to Unreal's convention).
+  Unity's glTFast and Blender read a glTF normal map as they import the GLB, but the Unity pack ships figures as rigid
+  parts without their atlas, so its ledger says the map stays behind; the Blender pack ships no figure skinned.
+- **Who gets it:** a realistic hero minted from now (realistic laws 5, stamped at mint: its head's fit keeps the neck's
+  column the skin was joined to, so the field can be rebuilt). A hero minted before keeps the bytes it exported; every
+  other form, every unlit or rigid export and the World page are as they were. **The World page looks as before:** its
+  fills are unlit (the light is baked into the vertex colour), so a normal map has nothing to shade there until the page
+  lights a figure live.
+- The GLB reader (`scene-gltf-read.js`) now carries a normal map that rides with its tangents and TEXCOORD_0
+  (`normalMaps`, `ledger.maps_carried`) instead of counting it dropped. The seventh generation's `relief-in-normal` is
+  `partial`: built for the realistic head in an engine export; the body's lofts, the hands, the armour and the page are
+  still to come.
+
 ### Land in the level: the composer's land forms drawn
 
 - **A world's land now reaches its levels.** A gameworld's `style.land` (and a level's, over it) names land forms,

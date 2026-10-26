@@ -148,10 +148,21 @@ export function tposeRig(fig) {
   fig.parts.forEach((P, pi) => { if (!P) return; const a = f32(P.pos), b = moved[pi]; for (let k = 2; k < a.length; k += 3) { z0 = Math.min(z0, a[k]); z1 = Math.min(z1, b[k]); zTop = Math.max(zTop, b[k]); } });
   const lift = Number.isFinite(z0) && Number.isFinite(z1) ? z0 - z1 : 0;
   const up = (p) => [p[0], p[1], p[2] + lift];
+  // a part carrying its relief (`tan`: epidermis/dermal-relief.js, with its corners' `nrm`) turns its normals and tangents
+  // with the mesh: each by its vertex's bones' turns, blended by its weights, the tangent laid back square to the normal
+  const turned = (P, pi) => {
+    const nrm = f32(P.nrm), tan = f32(P.tan), jnt = P.jnt ? u8(P.jnt) : null, wgt = P.wgt ? f32(P.wgt) : null, N = new Array(nrm.length), Tn = new Array(tan.length);
+    const turn = (v, k) => { if (!jnt) return qrot(T[pi].q, v); let w = [0, 0, 0]; for (let s = 0; s < 4; s++) { const a = wgt[4 * k + s]; if (a) w = add(w, qrot(T[jnt[4 * k + s]].q, v).map((c) => c * a)); } return w; };
+    for (let k = 0; k < nrm.length / 3; k++) {
+      const n = unit(turn([nrm[3 * k], nrm[3 * k + 1], nrm[3 * k + 2]], k)), t0 = turn([tan[4 * k], tan[4 * k + 1], tan[4 * k + 2]], k), d = t0[0] * n[0] + t0[1] * n[1] + t0[2] * n[2], t = unit(sub(t0, n.map((c) => c * d)));
+      N[3 * k] = n[0]; N[3 * k + 1] = n[1]; N[3 * k + 2] = n[2]; Tn[4 * k] = t[0]; Tn[4 * k + 1] = t[1]; Tn[4 * k + 2] = t[2]; Tn[4 * k + 3] = tan[4 * k + 3];
+    }
+    return { nrm: b64f32(N), tan: b64f32(Tn) };
+  };
   const parts = fig.parts.map((P, pi) => {
     if (!P) return null;
     const b = moved[pi]; for (let k = 2; k < b.length; k += 3) b[k] += lift;
-    return { ...P, pos: b64f32(b) };
+    return { ...P, pos: b64f32(b), ...(typeof P.tan === 'string' && typeof P.nrm === 'string' ? turned(P, pi) : {}) };
   });
   const inv = T.map((t) => qconj(t.q));
   const clips = Object.fromEntries(Object.entries(fig.clips || {}).map(([name, c]) => {
@@ -197,7 +208,14 @@ export function vrmSpacePack(fig) {
       for (let k = 0; k < d.length; k += 3) { const v = C([d[k], d[k + 1], d[k + 2]]); o[k] = v[0]; o[k + 1] = v[1]; o[k + 2] = v[2]; }
       morph = { ...morph, d: Buffer.from(o.buffer).toString('base64') };
     }
-    return { ...P, pos: b64f32(out), ...(morph ? { morph } : {}) };
+    // (a part carrying its relief: its normals and tangents through C too, the tangents' handedness kept, C a rotation)
+    const relief = typeof P.tan === 'string' && typeof P.nrm === 'string' ? (() => {
+      const n = f32(P.nrm), t = f32(P.tan), N = new Array(n.length), Tn = new Array(t.length);
+      for (let k = 0; k < n.length; k += 3) { const v = C([n[k], n[k + 1], n[k + 2]]); N[k] = v[0]; N[k + 1] = v[1]; N[k + 2] = v[2]; }
+      for (let k = 0; k < t.length; k += 4) { const v = C([t[k], t[k + 1], t[k + 2]]); Tn[k] = v[0]; Tn[k + 1] = v[1]; Tn[k + 2] = v[2]; Tn[k + 3] = t[k + 3]; }
+      return { nrm: b64f32(N), tan: b64f32(Tn) };
+    })() : null;
+    return { ...P, pos: b64f32(out), ...(morph ? { morph } : {}), ...(relief || {}) };
   });
   const clips = Object.fromEntries(Object.entries(fig.clips || {}).map(([name, c]) => {
     const b = c.b.slice(), nb = fig.bones.length;

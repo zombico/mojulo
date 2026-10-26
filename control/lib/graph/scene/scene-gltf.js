@@ -439,7 +439,7 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, normalTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
       // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
       baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
@@ -449,6 +449,8 @@ class GlbBuilder {
     // texture × material: the surface tile rides as the lit albedo (a marble floor with sheen)
     if (baseColorTexture != null) pbr.baseColorTexture = { index: baseColorTexture };
     const mat = { doubleSided: true, pbrMetallicRoughness: pbr };
+    // a tangent-space normal map on TEXCOORD_0 (a figure's relief: the primitive carries TANGENT beside it)
+    if (normalTexture != null) mat.normalTexture = { index: normalTexture };
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
     // A glowing surface (a pot-light lens): core emissiveFactor, plus KHR_materials_emissive_strength
@@ -746,7 +748,12 @@ class GlbBuilder {
     // THE PAINTED FACE (face-paint-rig.js, the pack's `paintTex`): one textured material over the figure, its texel ×
     // COLOR_0 (an unpainted corner samples the atlas's white tile, so its colour is as before). Absent ⇒ byte-identical.
     const tex = fig.paintTex ? this.imageFromDataUrl(fig.paintTex.url) : null;
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex }) : this.surfaceMaterial({ name: `fig:${name}` });
+    // THE RELIEF (epidermis/dermal-relief.js, the pack's `normalTex` and each part's `tan`), under the lit handoff only: the
+    // figure's normal map on the paint's UVs, its corners' TANGENT beside their NORMAL, so an engine lights the relief in
+    // the basis it was baked in. Absent ⇒ byte-identical.
+    const relief = this.lit && tex !== null && fig.normalTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.nrm === 'string' && typeof p.tan === 'string'));
+    const ntex = relief ? this.imageFromDataUrl(fig.normalTex.url) : null;
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}) }) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
@@ -805,7 +812,9 @@ class GlbBuilder {
     const corrT = !parents && Array.isArray(fig.correctives?.targets) ? fig.correctives.targets.length : 0, corrAt = [], corrRow = [];
     // under the lit handoff, a pack whose every part carries its corners' shading normals (`nrm`: packLayeredRig engineLit,
     // the realistic body's weld) writes those instead of the triangles' own
-    const carried = this.lit && !parents && fig.parts.every((p) => !p || typeof p.nrm === 'string') && fig.parts.some(Boolean) ? [] : null;
+    // (the engine skeleton writes them too when the figure carries its relief: rig-tpose.js re-rests them with the mesh)
+    const carried = this.lit && (!parents || ntex !== null) && fig.parts.every((p) => !p || typeof p.nrm === 'string') && fig.parts.some(Boolean) ? [] : null;
+    const tangents = carried && ntex !== null ? [] : null;
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -847,6 +856,7 @@ class GlbBuilder {
         for (let k = 0; k < mi.length; k++) { morphAt.push(base + mi[k]); morphRow.push(md.subarray(k * W, k * W + W)); }
       }
       if (carried) { const n = b64ToF32(part.nrm); if (n.length !== d.vertexCount * 3) throw new Error(`skinned export: rig '${name}' part ${bone.id} normals do not match its vertices`); for (let i = 0; i < n.length; i++) carried.push(n[i]); }
+      if (tangents) { const t = b64ToF32(part.tan); if (t.length !== d.vertexCount * 4) throw new Error(`skinned export: rig '${name}' part ${bone.id} tangents do not match its vertices`); for (let i = 0; i < t.length; i++) tangents.push(t[i]); }
       if (corrT && part.corrective) {
         const ci = b64ToU32(part.corrective.i), cd = b64ToF32(part.corrective.d), W = corrT * 3;
         if (cd.length !== ci.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} corrective rows do not match their vertices`);
@@ -862,14 +872,14 @@ class GlbBuilder {
     if (morphAt.length) morphAt.forEach((g, k) => { const r = morphRow[k]; for (let c = 0; c < 3; c++) positions[g * 3 + c] = pos[g * 3 + c] - r[c]; });
     // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
     // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
-    let A = { P: positions, C: Float32Array.from(col), J: Uint16Array.from(jnt), W: Float32Array.from(wgt), U: uvs ? Float32Array.from(uvs) : null, N: this.lit ? (carried ? Float32Array.from(carried) : restNormals(positions, idx)) : null }, I = idx;
+    let A = { P: positions, C: Float32Array.from(col), J: Uint16Array.from(jnt), W: Float32Array.from(wgt), U: uvs ? Float32Array.from(uvs) : null, N: this.lit ? (carried ? Float32Array.from(carried) : restNormals(positions, idx)) : null, T: tangents ? Float32Array.from(tangents) : null }, I = idx;
     // THE WELD (the carried normals' pack, or a figure that asks, `weld`: the realistic body's, lit or not): its corners
     // alike in everything one vertex (weldCorners), five or six to one on the hero; its targets' rows follow their vertex.
     // Any other figure: every byte as before.
-    const weld = (carried || (fig.weld === true && !parents)) ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), ...(A.N ? [[A.N, 3]] : [])], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
+    const weld = (carried || (fig.weld === true && !parents)) ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), ...(A.N ? [[A.N, 3]] : []), ...(A.T ? [[A.T, 4]] : [])], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
     if (weld) {
       const pick = (a, w) => { if (!a) return a; const out = new a.constructor(weld.count * w); weld.keep.forEach((c, v) => { for (let k = 0; k < w; k++) out[v * w + k] = a[c * w + k]; }); return out; };
-      A = { P: pick(A.P, 3), C: pick(A.C, 3), J: pick(A.J, 4), W: pick(A.W, 4), U: pick(A.U, 2), N: pick(A.N, 3) };
+      A = { P: pick(A.P, 3), C: pick(A.C, 3), J: pick(A.J, 4), W: pick(A.W, 4), U: pick(A.U, 2), N: pick(A.N, 3), T: pick(A.T, 4) };
       I = idx.map((i) => weld.of[i]);
       vertices = weld.count;
     }
@@ -880,6 +890,7 @@ class GlbBuilder {
       WEIGHTS_0: this.floatAccessor(A.W, 4),
       ...(A.U ? { TEXCOORD_0: this.floatAccessor(A.U, 2) } : {}),
       ...(A.N ? { NORMAL: this.floatAccessor(A.N, 3) } : {}),
+      ...(A.T ? { TANGENT: this.floatAccessor(A.T, 4) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(I)) };
