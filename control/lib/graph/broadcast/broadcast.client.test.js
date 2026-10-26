@@ -13,7 +13,7 @@ import { meetArenaData } from '../contest/meet-arena.js';
 import { MEET_PAGE_MODULES } from '../scene/channels/contest.js';
 import { broadcastData } from './broadcast-package.js';
 
-const API = ['newBroadcast', 'tvNames', 'tvAdvance', 'tvCall', 'tvPlate', 'tvStrap', 'tvOpen', 'tvBoard', 'tvCut', 'tvShot', 'tvDraw'];
+const API = ['newBroadcast', 'tvNames', 'tvAdvance', 'tvCall', 'tvPlate', 'tvStrap', 'tvOpen', 'tvBoard', 'tvPanel', 'tvCut', 'tvShot', 'tvDraw'];
 const lib = new Function(`${graphSource('broadcast/broadcast.client.js')}\nreturn { ${API.join(', ')} };`)();
 // a 2D context that records what is written and draws nothing
 function stubCanvas() {
@@ -112,6 +112,24 @@ describe('the broadcast client', () => {
   });
 });
 
+describe('the stats panel', () => {
+  it('draws the stats head to head at a break, the lead lit, then goes; the results board takes its place', () => {
+    const TV = lib.newBroadcast(broadcastData()), g = stubCanvas();
+    lib.tvPanel(TV, { title: 'tennis · changeover', cols: [{ name: 'P1', color: 0 }, { name: 'CPU', color: 1 }], rows: [{ words: 'aces', cells: ['3', '1'], lead: 0 }, { words: '1st serve in', cells: ['64%', '70%'], lead: 1 }] });
+    step(TV, TV.P.in * 4);
+    lib.tvDraw(TV, g, 1280, 720, null);
+    for (const w of ['TENNIS · CHANGEOVER', 'P1', 'CPU', 'ACES', '3', '1', '1ST SERVE IN', '64%', '70%']) expect(g.said).toContain(w);
+    step(TV, TV.panel.hold + TV.P.in + TV.P.out + 2);
+    lib.tvDraw(TV, g, 1280, 720, null);
+    expect(TV.panel).toBeNull();
+    lib.tvPanel(TV, { title: 'x', cols: [], rows: [{ words: 'a', cells: ['1'] }] });
+    lib.tvBoard(TV, { title: 'final', rows: [] });
+    expect(TV.panel).toBeNull();
+    lib.tvPanel(TV, { title: 'x', cols: [], rows: [{ words: 'a', cells: ['1'] }] });
+    expect(TV.panel).toBeNull();   // nothing over the board
+  });
+});
+
 describe('every contest page is broadcast', () => {
   const CONTEST = join(moduleDir(import.meta.url, 'lib/graph/broadcast'), '..', 'contest');
   it('inlines the client before its arena and draws through it', () => {
@@ -131,5 +149,20 @@ describe('every contest page is broadcast', () => {
     expect(meetArenaData({ event: 'sprint', lanes: 6 }).broadcast.colors).toHaveLength(6);
     expect(turnsArenaData({ sport: 'golf', seats: 3, register: 'platformer' }).broadcast.package).toBe('arcade');
     expect(teamArenaData({ sport: 'soccer', broadcast: { names: ['Reds', 'Blues'] } }).broadcast.names).toEqual(['Reds', 'Blues']);
+  });
+  it('carries each contest\'s stats coverage, the recipe\'s rows over it, or none; every page folds and shows them', () => {
+    expect(matchArenaData({ sport: 'tennis' }).broadcast.stats).toMatchObject({ at: 'changeover', panel: expect.arrayContaining(['aces']) });
+    expect(teamArenaData({ sport: 'soccer', broadcast: { stats: { panel: ['possession'] } } }).broadcast.stats).toMatchObject({ at: 'period', panel: ['possession'] });
+    expect(meetArenaData({ event: 'sprint', broadcast: { stats: false } }).broadcast.stats).toBeNull();
+    expect(() => matchArenaData({ sport: 'tennis', broadcast: { stats: { panel: 'aces' } } })).toThrow(/stats.panel is a list of up to 10 row ids/);
+    expect(() => matchArenaData({ sport: 'tennis', broadcast: { stats: { when: 'now' } } })).toThrow(/stats has no 'when'/);
+    expect(broadcastData(undefined, { where: 'tabletop' }).stats).toBeUndefined();   // a page without coverage carries none
+    const lists = { 'meet-arena.client.js': MEET_PAGE_MODULES, 'match-arena.client.js': COURT_PAGE_MODULES, 'turn-arena.client.js': TURNS_PAGE_MODULES, 'team-arena.client.js': PITCH_PAGE_MODULES };
+    for (const [client, mods] of Object.entries(lists)) {
+      const at = (end) => mods.findIndex((m) => m.endsWith(end));
+      expect(at('contest-stats.js'), client).toBeGreaterThanOrEqual(0); expect(at('contest-stats.js')).toBeLessThan(at(client));
+      const src = readFileSync(join(moduleDir(import.meta.url, 'lib/graph/broadcast'), '..', 'contest', client), 'utf8');
+      for (const use of ['contestStats(', 'statCompact(', 'BC.stats'].map((u) => (client === 'match-arena.client.js' || client === 'turn-arena.client.js' ? u : u.replace('BC.stats', '.broadcast.stats')))) expect(src, `${client} uses ${use}`).toContain(use);
+    }
   });
 });

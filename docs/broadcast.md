@@ -24,6 +24,35 @@ The TV graphics over a contest page: what a network's graphics department hands 
 One plate holds the frame. A weightier call takes it at once, an equal one once the plate on screen has been read,
 and a lighter one waits its turn (one word waits: the weightiest). Nothing is raised over the open.
 
+## The stats
+
+What a broadcast counts, it counts from the referee. Each sim keeps a log of the kernel's calls and its own events, each
+stamped with its frame: a serve and its faults, a point and why, a hit and its speed, a kick, a save, a goal, a ball out
+and its restart, a lie, a holed ball, a roll and its mark, a finish, a mark and a take-off.
+[contest-stats.js](../control/lib/graph/contest/contest-stats.js) folds that log into a sport's stats. It runs the same
+on the page (inlined after the sim, before this client) and in Node, and it never adds a judgement of its own.
+
+| Shape | Stats |
+|---|---|
+| a net game (by side) | points won, aces (the server's points the receiver never touched), double faults, 1st serve in, winners and errors (by the last hit), longest rally, fastest serve |
+| a goal game (by side) | goals, shots (a kick the sim calls `goalward`: struck at the goal from the attacking half, or any goal or save), on target, possession (the time since each side's last kick, play live), passes (to a team-mate), corners, fouls, offsides, saves |
+| a turn sport (by seat) | golf: to par, putts, fairways, greens in regulation, penalties; bowling: pinfall, strikes, spares, open frames, ball speed |
+| a meet (by lane) | time and place, hurdles hit; a jump's best, fouls and run-up speed |
+
+A share with nothing to share (a first-serve percentage before a player has served) shows as a dash.
+
+The broadcast shows them where the sport pauses (`STAT_COVERAGE` in the package):
+
+- **The stats panel** (`tvPanel`): head to head, the stat's words between the two columns (or before a column a seat),
+  the one best value lit in its side's colour. Shown at a tennis changeover, at half time or the end of a period, after
+  every hole and every third frame. Nothing is raised over the results board.
+- **The lower third:** the match's last closeup, a scorer, a strike or a spare, a jump's mark, each with its line's stats.
+- **The results board:** a stat beside each place (aces, shots, putts, strikes, hurdles hit, fouls, run-up).
+- **The outcome:** a hosted level's OUTCOME carries `stats.contest` (`{ <stat>: { <side, seat or lane>: n } }`).
+
+`broadcast.stats` on the recipe: `false` turns the stats graphics off; `{ panel?, strap?, board?: [stat ids], at? }`
+chooses the rows and the break over the contest's coverage.
+
 ## The packages
 
 | Package | Look | Motion | Register default |
@@ -98,6 +127,7 @@ for any kernel call without a cue: a new call kind gets a row in `CALL_CUES`, or
 
 ## Gates
 
-- **Machine:** the package and client suites (headless, on a stub canvas), the arenas' reads, the quick goal's lever,
-  the emit pins, and the contest pages' live probes in Chromium.
+- **Machine:** the package and client suites (headless, on a stub canvas), the stats folds on written-out call logs and
+  on a real game against the kernel's score, the arenas' reads, the quick goal's lever, the emit pins, and the contest
+  pages' live probes in Chromium.
 - **Eyes:** the operator's. Screenshots were taken while building; nobody has watched a broadcast yet.

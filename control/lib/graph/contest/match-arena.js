@@ -36,7 +36,7 @@ export const graphSource = (rel) => readFileSync(join(GRAPH, rel), 'utf8').repla
 /** The modules the court page inlines, in the order each only uses names from the ones before it. */
 export const COURT_PAGE_MODULES = Object.freeze([
   'physics/flight.js', 'contest/ball-card.js', 'polygonizer/hero-swing.js', 'contest/hit.js', 'worlds/physics-sim.js',
-  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/match-sim.js', 'broadcast/broadcast.client.js', 'contest/match-arena.client.js',
+  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/match-sim.js', 'contest/contest-stats.js', 'broadcast/broadcast.client.js', 'contest/match-arena.client.js',
 ]);
 
 export const MATCH_DEFAULTS = Object.freeze({ sport: 'tennis', players: 1, register: 'realistic', level: 'regular', sets: 1, seed: 1, kit: 'island-plaza' });

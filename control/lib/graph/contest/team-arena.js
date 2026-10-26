@@ -24,7 +24,7 @@ import { readVenue, venueManifest } from '../stadium/venue.js';
 export const PITCH_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 export const PITCH_PAGE_MODULES = Object.freeze([
   'physics/flight.js', 'contest/ball-card.js', 'polygonizer/hero-swing.js', 'contest/hit.js', 'worlds/physics-sim.js',
-  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/team-sim.js', 'broadcast/broadcast.client.js', 'contest/team-arena.client.js',
+  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/team-sim.js', 'contest/contest-stats.js', 'broadcast/broadcast.client.js', 'contest/team-arena.client.js',
 ]);
 export const TEAM_DEFAULTS = Object.freeze({ sport: 'soccer', players: 1, register: 'realistic', level: 'regular', seed: 1, kit: 'island-plaza' });
 /** Each side's kit colour, the broadcast's own when the recipe names none (broadcast-package.js SIDE_KITS, the page's

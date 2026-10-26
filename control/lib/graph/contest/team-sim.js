@@ -140,7 +140,12 @@ function kick(S, ctx, P, facing, power) {
   const H = hitBall({ ball: b, who: P.id, at: [b.position[0], b.position[1]], verb: K.verb, register: ctx.register, facing, stick: [0, power > 0.7 ? -0.55 : -0.75], tipSpeed: gr3(K.tipSpeed * power), hits: 0 });
   b.velocity = H.velocity.slice(); b.angularVelocity = H.angularVelocity.slice(); b.resting = false;
   P.kicks += 1; P.facing = facing;
-  S.calls.push({ kind: 'kick', who: P.id, speed: H.speed, power: gr3(power), f: S.f });
+  // goalward: struck in the attacking half along a line that meets the attacking goal line within a goal's width of the
+  // posts (an attempt on goal, on target or not: the stats' shot, contest-stats.js)
+  const s = signOf(P.side), dy = Math.sin(facing) * s, gy = s * ctx.court.halfL;
+  const cross = dy > 0.05 && b.position[1] * s > 0 ? b.position[0] + Math.cos(facing) * ((gy - b.position[1]) / Math.sin(facing)) : null;
+  const goalward = cross !== null && Math.abs(cross) < ctx.sport.goal.width * 1.5;
+  S.calls.push({ kind: 'kick', who: P.id, speed: H.speed, power: gr3(power), ...(goalward ? { goalward: true } : {}), f: S.f });
   return true;
 }
 

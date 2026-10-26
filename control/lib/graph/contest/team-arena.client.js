@@ -18,7 +18,7 @@
  * the pitch's own), and posts the OUTCOME at the end: success when a player's side won (or drew, or no player holds a
  * side: an exhibition), fail otherwise, the score as stats. On its own it starts at once and runs again on start.
  */
-/* global PITCH_ARENA, THREE, scene, camera, controls, wrap, newTeam, stepTeam, teamContext, teamDisplay, GPAD, TEAM_FPS, athleteRig, placeAthlete, strideStick, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvCut, tvShot, tvDraw */
+/* global PITCH_ARENA, THREE, scene, camera, controls, wrap, newTeam, stepTeam, teamContext, teamDisplay, GPAD, TEAM_FPS, athleteRig, placeAthlete, strideStick, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvPanel, tvCut, tvShot, tvDraw, contestStats, statPanel, statLine, statCompact */
 
 const PA = PITCH_ARENA, PT = PA.court, SP = PA.sport;
 const hosted = window.parent !== window;
@@ -158,20 +158,27 @@ const NAMES = {
   unit: (k) => (k === 'score' ? SCORE_WORD : k),
   period: (c) => (c.period < ctx.C.clock.periods ? (ctx.C.clock.periods === 2 ? 'HALF TIME' : `END OF PERIOD ${c.period}`) : 'FULL TIME'),
 };
+// the stats the coverage shows (broadcast-package.js STAT_COVERAGE: the panel at each break of the clock, the scorer's
+// strap and the board), folded from the game's calls when shown (contest-stats.js); null when the recipe turns them off
+const STATS = PA.broadcast.stats || null, COLS = () => ['a', 'b'].map((side) => ({ name: sideName(side), color: sideIx(side) }));
+const statsNow = () => contestStats(S, 'team');
+const withStats = (line, side, rows) => { const extra = STATS && rows && rows.length ? statLine(statsNow(), side, rows) : ''; return extra ? `${line} · ${extra}` : line; };
 // the director: each call on its plate; after a goal, in the dead ball, the closeup on whoever touched it last
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
     const c = S.calls[calls], q = tvCall(TV, c, NAMES);
     if (c.kind === 'over') {
       const sides = c.winner === 'b' ? ['b', 'a'] : ['a', 'b'];
-      tvBoard(TV, { title: `${SPORT} · full time`, rows: sides.map((side, k) => ({ place: c.winner ? k + 1 : 1, name: sideName(side), color: sideIx(side), value: String(S.K.score[side][0]) })), foot: hosted ? null : 'press start to play again' });
+      tvBoard(TV, { title: `${SPORT} · full time`, rows: sides.map((side, k) => ({ place: c.winner ? k + 1 : 1, name: sideName(side), color: sideIx(side), value: String(S.K.score[side][0]), ...(STATS ? { note: withStats('', side, STATS.board).replace(/^ · /, '') } : {}) })), foot: hosted ? null : 'press start to play again' });
     }
+    // at a break in the clock (half time, the end of a period), the stats panel
+    if (c.kind === 'period' && STATS && STATS.at === 'period' && S.K.phase !== 'over') tvPanel(TV, statPanel(statsNow(), STATS.panel, COLS(), `${SPORT} · ${NAMES.period(c).toLowerCase()}`));
     if (!q || c.kind !== 'score') continue;
     const P = S.p.find((x) => x.id === lastWho), own = P && P.side !== c.side;
     if (!P) continue;
     const d = teamDisplay(S, ctx);
     // a high angle: at eye level the players between the scorer and the camera fill the shot
-    tvCut(TV, { on: [P.x, P.y + OY, 0], hold: 84, dist: 6, rise: 2.6, strap: { name: own ? `${sideName(P.side)} · own ${SCORE_WORD}` : `${sideName(P.side)} · ${P.role || 'scorer'}`, line: `${sideName('a')} ${d.score.a[0]} – ${d.score.b[0]} ${sideName('b')}`, tag: P.id.slice(1), color: sideIx(P.side) } });
+    tvCut(TV, { on: [P.x, P.y + OY, 0], hold: 84, dist: 6, rise: 2.6, strap: { name: own ? `${sideName(P.side)} · own ${SCORE_WORD}` : `${sideName(P.side)} · ${P.role || 'scorer'}`, line: withStats(`${sideName('a')} ${d.score.a[0]} – ${d.score.b[0]} ${sideName('b')}`, P.side, STATS && STATS.strap), tag: P.id.slice(1), color: sideIx(P.side) } });
   }
 }
 function tick() {
@@ -187,7 +194,7 @@ function tick() {
   if (S.over) {
     const mine = ['a', 'b'].filter((side, i) => i < ctx.players);
     const won = ctx.players === 0 || S.winner === null || mine.includes(S.winner);
-    if (hosted) { post({ moj: PA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { pitch: { winner: S.winner, score: S.K.score } } } }); phase = 'done'; }
+    if (hosted) { post({ moj: PA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { pitch: { winner: S.winner, score: S.K.score }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

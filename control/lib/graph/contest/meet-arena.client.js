@@ -18,7 +18,7 @@
  * player holds a lane: an exhibition), fail otherwise, the placings as stats. On its own it starts at once and runs
  * again on start.
  */
-/* global MEET_ARENA, THREE, scene, camera, controls, wrap, newMeet, stepMeet, meetContext, meetLanes, PAD, HURDLE, FPS, athleteRig, placeAthlete, newBroadcast, tvNames, tvAdvance, tvCall, tvPlate, tvOpen, tvBoard, tvCut, tvShot, tvDraw */
+/* global MEET_ARENA, THREE, scene, camera, controls, wrap, newMeet, stepMeet, meetContext, meetLanes, PAD, HURDLE, FPS, athleteRig, placeAthlete, newBroadcast, tvNames, tvAdvance, tvCall, tvPlate, tvOpen, tvBoard, tvCut, tvShot, tvDraw, contestStats, statLine, statCompact */
 
 const MA = MEET_ARENA, TK = MA.track;
 // the lanes' athletes in their own bodies, when the track carries them (athlete.client.js inlined before this)
@@ -200,20 +200,24 @@ if (hosted) {
 const laneName = (i) => tvNames(BC, MA.lanes, ctx ? ctx.players : MA.players)[i];
 const runnerIx = (id) => S.r.findIndex((r) => r.id === id);
 const NAMES = { who: (id) => { const i = runnerIx(id); return { name: `${laneName(i)} · LANE ${S.r[i].lane + 1}`, color: i }; } };
+// the stats the coverage shows (broadcast-package.js STAT_COVERAGE: a jump's strap, the board's notes), folded from the
+// event's calls when shown (contest-stats.js); null when the recipe turns them off
+const STATS = MA.broadcast.stats || null, statsNow = () => contestStats(S, 'meet');
+const withStats = (line, who, rows) => { const extra = STATS && rows && rows.length ? statLine(statsNow(), who, rows.filter((r) => statsNow().rows.some((x) => x.id === r))) : ''; return extra ? `${line} · ${extra}` : line; };
 // the director: the starter's calls and the field's on their plates; a closeup only once no player's lane still runs
 const playerRunning = () => S.r.some((r, i) => i < ctx.players && !r.done && !r.dq);
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
     const c = S.calls[calls], q = tvCall(TV, c, NAMES);
     if (c.kind === 'over') {
-      const rows = S.placings.map((p) => { const i = runnerIx(p.who); return { place: p.place ?? null, name: laneName(i), color: i, note: `lane ${S.r[i].lane + 1}`, value: p.dq ? 'DQ' : MA.event.measure === 'time' ? fmt(p.value) : p.value === null ? 'NM' : `${p.value.toFixed(2)} m` }; });
+      const rows = S.placings.map((p) => { const i = runnerIx(p.who); return { place: p.place ?? null, name: laneName(i), color: i, note: withStats(`lane ${S.r[i].lane + 1}`, p.who, STATS && STATS.board), value: p.dq ? 'DQ' : MA.event.measure === 'time' ? fmt(p.value) : p.value === null ? 'NM' : `${p.value.toFixed(2)} m` }; });
       tvBoard(TV, { title: `${EVENT_TITLE} · result`, rows, foot: hosted ? null : 'press start to run again' });
     }
     if (!q || !q.cut || playerRunning()) continue;
     const i = runnerIx(c.who);
     if (i < 0) continue;
     const r = S.r[i];
-    tvCut(TV, { on: [TK.x0 + r.x, TK.lanesY[r.lane], 0], hold: 70, strap: { name: laneName(i), line: c.kind === 'finish' ? `first across · ${fmt(c.t)}` : c.kind === 'mark' ? (c.foul ? `attempt ${c.attempt} · foul` : `attempt ${c.attempt} · ${c.value.toFixed(2)} m`) : 'false start', tag: String(r.lane + 1), color: i } });
+    tvCut(TV, { on: [TK.x0 + r.x, TK.lanesY[r.lane], 0], hold: 70, strap: { name: laneName(i), line: c.kind === 'finish' ? `first across · ${fmt(c.t)}` : c.kind === 'mark' ? (c.foul ? `attempt ${c.attempt} · foul` : withStats(`attempt ${c.attempt} · ${c.value.toFixed(2)} m`, c.who, STATS && STATS.strap)) : 'false start', tag: String(r.lane + 1), color: i } });
   }
 }
 function tick() {
@@ -228,7 +232,7 @@ function tick() {
   if (S.over) {
     const mine = S.placings.filter((p) => S.r.find((r) => r.id === p.who).lane < ctx.players);
     const won = ctx.players === 0 || mine.some((p) => p.place === 1);
-    if (hosted) { post({ moj: MA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { meet: { placings: S.placings } } } }); phase = 'done'; }
+    if (hosted) { post({ moj: MA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { meet: { placings: S.placings }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

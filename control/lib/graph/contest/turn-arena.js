@@ -26,7 +26,7 @@ import { readVenue, venueManifest } from '../stadium/venue.js';
 export const TURNS_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 export const TURNS_PAGE_MODULES = Object.freeze([
   'physics/flight.js', 'contest/ball-card.js', 'polygonizer/hero-swing.js', 'contest/hit.js', 'worlds/physics-sim.js',
-  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/turn-sim.js', 'broadcast/broadcast.client.js', 'contest/turn-arena.client.js',
+  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/turn-sim.js', 'contest/contest-stats.js', 'broadcast/broadcast.client.js', 'contest/turn-arena.client.js',
 ]);
 export const TURNS_DEFAULTS = Object.freeze({ sport: 'golf', seats: 1, players: 1, register: 'realistic', level: 'regular', seed: 1, kit: 'island-plaza' });
 export const COURSE_RUN_OFF = Object.freeze({ side: 6, end: 8 });

@@ -21,7 +21,7 @@
  * the court's own), and posts the OUTCOME when the match is over: success when side a (the first player's) won, or an
  * exhibition ended; fail otherwise. On its own it starts at once and plays again on start.
  */
-/* global COURT_ARENA, THREE, scene, camera, controls, wrap, newMatch, stepMatch, matchContext, matchDisplay, MPAD, MATCH_FPS, contestRegion, athleteRig, placeAthlete, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvCut, tvStrap, tvShot, tvDraw */
+/* global COURT_ARENA, THREE, scene, camera, controls, wrap, newMatch, stepMatch, matchContext, matchDisplay, MPAD, MATCH_FPS, contestRegion, athleteRig, placeAthlete, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvPanel, tvCut, tvStrap, tvShot, tvDraw, contestStats, statPanel, statLine, statCompact */
 
 const CA = COURT_ARENA, CT = CA.court, NET_Y = CT.netY;
 // the sides' athletes in their own bodies, when the court carries them (athlete.client.js inlined before this)
@@ -213,7 +213,7 @@ function begin(params = {}) {
   ctx = matchContext({ ...CA, players: params.players ?? CA.players, register: params.register ?? CA.register, level: params.level ?? CA.level, seed: params.seed ?? CA.seed });
   S = newMatch(ctx);
   bodies = S.p.map((_, i) => (ATH && ATH.has(i) ? makeAthlete(i) : makePlayer(COLORS[i])));
-  calls = 0;
+  calls = 0; games = 0;
   tvOpen(TV, { title: CA.title || SPORT, rows: [0, 1].map((i) => ({ name: sideName(i), color: i })) });
   phase = 'match';
 }
@@ -229,6 +229,12 @@ if (hosted) {
 const sideName = (i) => tvNames(BC, 2, ctx ? ctx.players : CA.players)[i];
 const sideIx = (side) => (side === 'a' ? 0 : 1);
 const NAMES = { side: (side) => ({ name: sideName(sideIx(side)), color: sideIx(side) }) };
+// the stats the coverage shows (broadcast-package.js STAT_COVERAGE: the panel at the changeovers, the match's strap and
+// the board), folded from the match's calls when shown (contest-stats.js); null when the recipe turns them off
+const STATS = BC.stats || null, COLS = () => [0, 1].map((i) => ({ name: sideName(i), color: i }));
+const statsNow = () => contestStats(S, 'match');
+const withStats = (line, side, rows) => { const extra = STATS && rows && rows.length ? statLine(statsNow(), side, rows) : ''; return extra ? `${line} · ${extra}` : line; };
+let games = 0;
 // the director: each call on its plate; in the dead ball after a point, a game or the match, the closeup on its winner
 function readCalls() {
   for (; calls < S.calls.length; calls++) {
@@ -237,11 +243,14 @@ function readCalls() {
     const side = c.kind === 'over' ? c.winner : c.side;
     if (q.cut === 'winner' && (side === 'a' || side === 'b')) {
       const P = S.p[sideIx(side)], [x, y] = toStage(P.x, P.y), sc = S.K.score[side], op = S.K.score[side === 'a' ? 'b' : 'a'];
-      const strap = q.unit || c.kind === 'over' ? { name: sideName(sideIx(side)), line: `${c.kind === 'over' ? 'THE MATCH' : q.text} · SETS ${sc[2] ?? 0}–${op[2] ?? 0} · GAMES ${sc[1] ?? 0}–${op[1] ?? 0}`, tag: side === 'a' ? '1' : '2', color: sideIx(side) } : null;
+      const line = `${c.kind === 'over' ? 'THE MATCH' : q.text} · SETS ${sc[2] ?? 0}–${op[2] ?? 0} · GAMES ${sc[1] ?? 0}–${op[1] ?? 0}`;
+      const strap = q.unit || c.kind === 'over' ? { name: sideName(sideIx(side)), line: c.kind === 'over' && STATS ? withStats(line, side, STATS.strap) : line, tag: side === 'a' ? '1' : '2', color: sideIx(side) } : null;
       tvCut(TV, { on: [x, y, 0], hold: c.kind === 'over' ? 110 : 54, ...(strap ? { strap } : {}) });
     }
+    // at a changeover (the end of an odd game: the players change ends), the stats panel
+    if (c.kind === 'game' && STATS && STATS.at === 'changeover' && ++games % 2 === 1 && S.K.phase !== 'over') tvPanel(TV, statPanel(statsNow(), STATS.panel, COLS(), `${SPORT} · changeover`));
     if (c.kind === 'over') {
-      const rows = ['a', 'b'].sort((p, q2) => (p === c.winner ? -1 : q2 === c.winner ? 1 : 0)).map((side, k) => ({ place: k + 1, name: sideName(sideIx(side)), color: sideIx(side), value: String(c.score[side][c.score[side].length - 1]), note: 'sets' }));
+      const rows = ['a', 'b'].sort((p, q2) => (p === c.winner ? -1 : q2 === c.winner ? 1 : 0)).map((side, k) => ({ place: k + 1, name: sideName(sideIx(side)), color: sideIx(side), value: String(c.score[side][c.score[side].length - 1]), note: withStats('sets', side, STATS && STATS.board) }));
       tvBoard(TV, { title: `${SPORT} · final`, rows, foot: hosted ? null : 'press start to play again' });
     }
   }
@@ -257,7 +266,7 @@ function tick() {
   readCalls();
   if (S.over && S.dead === 0) {
     const won = ctx.players === 0 || S.winner === 'a';
-    if (hosted) { post({ moj: CA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { court: { winner: S.winner, score: S.K.score } } } }); phase = 'done'; }
+    if (hosted) { post({ moj: CA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { court: { winner: S.winner, score: S.K.score }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

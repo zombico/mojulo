@@ -16,6 +16,8 @@
  *   tvStrap(TV, { name, line?, tag?, color, hold? })   the lower third
  *   tvOpen(TV, { title, sub?, rows: [{ name, color }] })   the title card the broadcast opens on
  *   tvBoard(TV, { title, rows: [{ place?, name, color, value, note? }], foot? })   the results
+ *   tvPanel(TV, { title, cols: [{ name, color }], rows: [{ words, cells: [string], lead? }], hold? })   the stats at a
+ *                                             break (contest/contest-stats.js statPanel): head to head, the lead lit
  *   tvCut(TV, { on: [x, y, z], hold?, lift?, rise?, dist?, fov?, strap? })   the director's closeup on a point of the stage (the
  *                                             arena says when: the dead ball)
  *   tvShot(TV, camera, look)                  the closeup laid over the arena's shot (call after it sets the camera)
@@ -24,10 +26,10 @@
  *
  * color is an index into the package's colours (the sides', lanes' or seats'). Tones: side, gold, warn, go, neutral.
  */
-/* exported newBroadcast, tvNames, tvAdvance, tvCall, tvPlate, tvStrap, tvOpen, tvBoard, tvCut, tvShot, tvDraw */
+/* exported newBroadcast, tvNames, tvAdvance, tvCall, tvPlate, tvStrap, tvOpen, tvBoard, tvPanel, tvCut, tvShot, tvDraw */
 
 function newBroadcast(BC) {
-  return { BC, P: BC.card, f: 0, plate: null, queued: null, leaving: [], strap: null, bugBox: null, open: null, board: null, cut: null, cells: {}, tab: null, bugAt: 0, finishes: 0, g: null };
+  return { BC, P: BC.card, f: 0, plate: null, queued: null, leaving: [], strap: null, bugBox: null, open: null, board: null, panel: null, cut: null, cells: {}, tab: null, bugAt: 0, finishes: 0, g: null };
 }
 function tvAdvance(TV) { TV.f += 1; }
 
@@ -152,8 +154,9 @@ function tvNextPlate(TV) {
   TV.plate = { ...TV.queued, at: Math.max(TV.f, TV.queued.at) }; TV.queued = null;
 }
 function tvStrap(TV, q) { TV.strap = { ...q, at: TV.f, hold: Math.round(TV.P.hold * (q.hold ?? 1.4)) }; }
-function tvOpen(TV, q) { TV.open = { ...q, at: TV.f, hold: Math.round(TV.P.hold * 1.3) }; TV.bugAt = TV.f + TV.P.in + TV.open.hold + TV.P.out; TV.board = null; TV.plate = null; TV.queued = null; TV.strap = null; TV.cut = null; TV.cells = {}; TV.finishes = 0; }
-function tvBoard(TV, q) { TV.board = { ...q, at: TV.f + Math.round(TV.P.hold * 0.6) }; }
+function tvOpen(TV, q) { TV.open = { ...q, at: TV.f, hold: Math.round(TV.P.hold * 1.3) }; TV.bugAt = TV.f + TV.P.in + TV.open.hold + TV.P.out; TV.board = null; TV.panel = null; TV.plate = null; TV.queued = null; TV.strap = null; TV.cut = null; TV.cells = {}; TV.finishes = 0; }
+function tvBoard(TV, q) { TV.board = { ...q, at: TV.f + Math.round(TV.P.hold * 0.6) }; TV.panel = null; }
+function tvPanel(TV, q) { if (!TV.board && q && q.rows && q.rows.length) TV.panel = { ...q, at: TV.f, hold: Math.round(TV.P.hold * (q.hold ?? 2.6)) }; }
 function tvCut(TV, q) {
   if (!TV.P.closeups) { if (q.strap) tvStrap(TV, q.strap); return; }
   TV.cut = { lift: 1, rise: 0.6, dist: 6.5, fov: 32, hold: 80, ...q, at: TV.f };
@@ -260,6 +263,7 @@ function tvDraw(TV, g, W, H, feed) {
   if (TV.plate) { tvDrawPlate(TV, TV.plate, W, H, S); if (tvLife(TV, TV.plate.at, TV.plate.hold).gone) TV.plate = null; }
   tvNextPlate(TV);
   if (TV.open) { tvDrawOpen(TV, W, H, S); if (tvLife(TV, TV.open.at, TV.open.hold).gone) TV.open = null; }
+  if (TV.panel && !TV.board) tvDrawPanel(TV, W, H, S);
   if (TV.board) tvDrawBoard(TV, W, H, S);
   g.globalAlpha = 1;
 }
@@ -479,4 +483,48 @@ function tvDrawBoard(TV, W, H, S) {
     g.restore();
   });
   if (q.foot) { const fy = top + hh + 4 * S + rows.length * (rh + 3 * S) + 18 * S; g.save(); g.globalAlpha = tvClamp((age - TV.P.in * 2) / 20) * (0.6 + 0.3 * Math.sin(TV.f * 0.08)); tvText(TV, tvUp(q.foot), W / 2, fy, 12 * S, '#ffffff', 'center', 700); g.restore(); }
+}
+
+// the stats panel: a title plate, the sides' chips over their columns, a row a stat with its words beside the values
+// (head to head: the words between two columns; more places: the words first), the leading value on its side's colour
+function tvDrawPanel(TV, W, H, S) {
+  const q = TV.panel, g = TV.g, BC = TV.BC, L = tvLife(TV, q.at, q.hold);
+  if (L.gone) { TV.panel = null; return; }
+  if (L.age < 0) return;
+  const cols = q.cols || [], rows = q.rows || [], two = cols.length === 2;
+  const rh = 28 * S, hh = 40 * S, w = Math.min((two ? 520 : 400 + 92 * cols.length) * S, W * 0.86), x = W / 2 - w / 2;
+  const top = Math.max(H * 0.2, H * 0.58 - (hh + rh * (rows.length + 1)) / 2);
+  const wordsW = two ? w * 0.44 : w * 0.38, cw = two ? (w - wordsW) / 2 : (w - wordsW) / Math.max(1, cols.length);
+  const colX = (i) => (two ? (i === 0 ? x + cw / 2 : x + w - cw / 2) : x + wordsW + cw * (i + 0.5));
+  const wordsX = two ? W / 2 : x + rh * 0.5;
+  g.save();
+  g.globalAlpha = tvClamp(L.k * 2) * (1 - L.x);
+  g.translate(0, L.x * 30 * S);
+  if (tvEnter(TV, L, W / 2, top + hh / 2)) {
+    const ink = tvPlateAt(TV, x, top, w, hh, BC.metal.accent ? 'gold' : 'neutral', null, (L.age - TV.P.in) / (TV.P.sheen * 1.5 || 1));
+    tvText(TV, tvUp(q.title || 'stats'), W / 2, top + hh * 0.55, hh * 0.46, ink, 'center');
+  }
+  // the places' chips over their columns
+  const y0 = top + hh + 3 * S;
+  tvPlateAt(TV, x, y0, w, rh, 'neutral', null, null, 0);
+  cols.forEach((c, i) => {
+    const col = BC.colors[c.color], cx = colX(i), name = tvUp(c.name), nw = Math.min(cw - 6 * S, tvTextW(TV, name, rh * 0.46, 800) + rh * 0.8);
+    if (col) { g.fillStyle = tvGrad(TV, y0 + 2, y0 + rh - 2, tvRampStops(col)); g.fillRect(cx - nw / 2, y0 + 3 * S, nw, rh - 6 * S); }
+    tvText(TV, name, cx, y0 + rh * 0.54, rh * 0.46, col ? col.ink : BC.glassInk, 'center', 800);
+  });
+  rows.forEach((r, i) => {
+    const age = L.age - TV.P.in - i * 4;
+    if (age < 0) return;
+    const k = TV_EASE[TV.P.ease](tvClamp(age / TV.P.in)), y = y0 + (i + 1) * (rh + 2 * S);
+    g.save(); g.globalAlpha *= tvClamp(k * 2); g.translate(0, (1 - k) * 10 * S);
+    tvPlateAt(TV, x, y, w, rh, 'neutral', null, null, 0);
+    tvText(TV, tvUp(r.words), wordsX, y + rh * 0.54, rh * 0.42, 'rgba(255,255,255,0.78)', two ? 'center' : 'left', 600);
+    (r.cells || []).forEach((cell, j) => {
+      const cx = colX(j), lead = r.lead === j, col = BC.colors[cols[j] && cols[j].color];
+      if (lead && col) { const bw = Math.max(rh * 1.6, tvTextW(TV, cell, rh * 0.56, 900) + rh * 0.7); g.fillStyle = tvGrad(TV, y + 3, y + rh - 3, tvRampStops(col)); g.fillRect(cx - bw / 2, y + 3 * S, bw, rh - 6 * S); }
+      tvText(TV, cell, cx, y + rh * 0.55, rh * 0.56, lead && col ? col.ink : BC.glassInk, 'center', lead ? 900 : 700);
+    });
+    g.restore();
+  });
+  g.restore();
 }

@@ -19,7 +19,7 @@
  * seed over the course's own), and posts the OUTCOME at the end: success when a player's seat won (or no player holds
  * a seat: an exhibition), fail otherwise, the totals as stats. On its own it starts at once and runs again on start.
  */
-/* global TURNS_ARENA, THREE, scene, camera, controls, wrap, newTurns, stepTurns, turnContext, turnsDisplay, targetOf, clubOf, TPAD, TURN_FPS, athleteRig, placeAthlete, swingStick, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvCut, tvStrap, tvShot, tvDraw */
+/* global TURNS_ARENA, THREE, scene, camera, controls, wrap, newTurns, stepTurns, turnContext, turnsDisplay, targetOf, clubOf, TPAD, TURN_FPS, athleteRig, placeAthlete, swingStick, newBroadcast, tvNames, tvAdvance, tvCall, tvOpen, tvBoard, tvPanel, tvCut, tvStrap, tvShot, tvDraw, contestStats, statPanel, statLine, statCompact */
 
 const TA = TURNS_ARENA, CO = TA.course, SP = TA.sport;
 const hosted = window.parent !== window;
@@ -161,6 +161,11 @@ if (hosted) {
   post({ moj: TA.wire.ready, contractVersion: TA.wire.version, levelRef: 'turns' });
 }
 const strokes = () => ctx.kind === 'strokes';
+// the stats the coverage shows (broadcast-package.js STAT_COVERAGE: the panel when a round is through, a strike's or a
+// holed ball's strap and the board), folded from the round's calls when shown (contest-stats.js); null when turned off
+const STATS = BC.stats || null, statsNow = () => contestStats(S, 'turns'), firstSeat = () => Object.keys(S.K.cards).sort()[0];
+const withStats = (line, id, rows) => { const extra = STATS && rows && rows.length ? statLine(statsNow(), id, rows) : ''; return extra ? (line ? `${line} · ${extra}` : extra) : line; };
+const seatCols = (st) => st.ids.map((id) => ({ name: seatName(id), color: seatIx(id) }));
 const NAMES = {
   who: (id) => ({ name: seatName(id), color: seatIx(id) }),
   round: (c) => (strokes() ? `hole ${c.round}` : `frame ${c.round}`),
@@ -174,10 +179,15 @@ function readCalls() {
       const ids = Object.keys(S.K.totals).sort((a, b) => (strokes() ? S.K.totals[a] - S.K.totals[b] : S.K.totals[b] - S.K.totals[a]));
       const seats = turnsDisplay(S, ctx).seats, toPar = (id) => { const t = seats.find((x) => x.id === id).toPar; return t === null || t === undefined ? '' : t === 0 ? 'E' : t > 0 ? `+${t}` : String(t); };
       let place = 0, prev = null;
-      const rows = ids.map((id, k) => { if (S.K.totals[id] !== prev) { place = k + 1; prev = S.K.totals[id]; } return { place, name: seatName(id), color: seatIx(id), value: String(S.K.totals[id]), note: strokes() ? toPar(id) : '' }; });
+      const rows = ids.map((id, k) => { if (S.K.totals[id] !== prev) { place = k + 1; prev = S.K.totals[id]; } return { place, name: seatName(id), color: seatIx(id), value: String(S.K.totals[id]), note: withStats(strokes() ? toPar(id) : '', id, STATS && STATS.board) }; });
       tvBoard(TV, { title: `${SPORT} · final`, rows, foot: hosted ? null : 'press start to play again' });
     }
-    if (q && q.strap && (c.mark === 'strike' || c.mark === 'spare')) tvStrap(TV, { name: seatName(c.who), line: `frame ${c.round} · ${c.mark}`, tag: String(seatIx(c.who) + 1), color: seatIx(c.who), hold: 0.9 });
+    if (q && q.strap && (c.mark === 'strike' || c.mark === 'spare')) tvStrap(TV, { name: seatName(c.who), line: withStats(`frame ${c.round} · ${c.mark}`, c.who, STATS && STATS.strap), tag: String(seatIx(c.who) + 1), color: seatIx(c.who), hold: 0.9 });
+    // a round through (the turn back to the first seat): the stats panel, after every hole, every third frame
+    if (c.kind === 'turn' && STATS && STATS.at === 'round' && c.who === firstSeat() && c.round > 1 && (strokes() || (c.round - 1) % 3 === 0) && Object.keys(S.K.cards).length > 1) {
+      const st = statsNow();
+      tvPanel(TV, statPanel(st, STATS.panel, seatCols(st), `${(TA.sport.id || 'the game').replace(/-/g, ' ')} · after ${strokes() ? 'hole' : 'frame'} ${c.round - 1}`));
+    }
     if (!q || q.cut !== 'ball') continue;
     const b = S.sim.bodies[0];
     tvCut(TV, { on: [b.position[0], b.position[1] + OY, 0], hold: 60, lift: 0.25, rise: 0.5, dist: 2.6, fov: 36, strap: { name: seatName(c.who), line: `hole ${c.round} · ${c.strokes} ${c.strokes === 1 ? 'stroke' : 'strokes'}${c.par ? ` · par ${c.par}` : ''}`, tag: String(seatIx(c.who) + 1), color: seatIx(c.who) } });
@@ -196,7 +206,7 @@ function tick() {
   if (S.over) {
     const mine = Object.keys(S.K.cards).filter((id) => Number(id.slice(1)) - 1 < ctx.players);
     const won = ctx.players === 0 || (S.winner !== null ? mine.includes(S.winner) : (S.K.tied || []).some((id) => mine.includes(id)));
-    if (hosted) { post({ moj: TA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { turns: { winner: S.winner, tied: S.K.tied, totals: S.K.totals } } } }); phase = 'done'; }
+    if (hosted) { post({ moj: TA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { turns: { winner: S.winner, tied: S.K.tied, totals: S.K.totals }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

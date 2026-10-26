@@ -265,10 +265,24 @@ export const WHY_WORDS = Object.freeze({
 // ── the recipe's word ────────────────────────────────────────────────────────────────────────────────────────
 
 const fail = (where, m) => { throw new Error(`${where}: broadcast ${m}`); };
-const KEYS = ['package', 'sides', 'names', 'closeups', 'accent'];
+const KEYS = ['package', 'sides', 'names', 'closeups', 'accent', 'stats'];
+/**
+ * What each contest's coverage counts and when (contest/contest-stats.js rows; a row the sport has not is skipped):
+ * `panel` the rows of the stats panel at a break (`at`: changeover | period | round), `strap` the rows a lower third's
+ * line shows at the closeup the stats speak to (the match's end, a goal, a holed ball, a strike), `board` the rows the
+ * results board notes. A book sport's own lean (contest/sport-presets.js) is laid over its shape's.
+ */
+export const STAT_COVERAGE = Object.freeze({
+  court: Object.freeze({ at: 'changeover', panel: ['points', 'aces', 'doubles', 'firstIn', 'winners', 'errors', 'serve'], strap: ['aces', 'winners'], board: ['aces'] }),
+  pitch: Object.freeze({ at: 'period', panel: ['possession', 'shots', 'onTarget', 'passes', 'corners', 'fouls', 'saves'], strap: ['shots', 'onTarget'], board: ['shots'] }),
+  turns: Object.freeze({ at: 'round', panel: ['toPar', 'putts', 'fairways', 'greens', 'penalties', 'pinfall', 'strikes', 'spares', 'opens', 'speed'], strap: ['putts', 'greens', 'strikes', 'spares'], board: ['putts', 'strikes'] }),
+  meet: Object.freeze({ at: 'over', panel: [], strap: ['runup'], board: ['clips', 'fouls', 'runup'] }),
+});
+const STAT_WORDS = ['at', 'panel', 'strap', 'board'];
 /**
  * The `broadcast` key, checked: a package's name, or { package?, sides?: ['#rrggbb', …] (the sides', lanes' or seats'
- * colours, in order), names?: [string, …] (the players as the straps name them), closeups?: boolean, accent?: a metal }.
+ * colours, in order), names?: [string, …] (the players as the straps name them), closeups?: boolean, accent?: a metal,
+ * stats?: false (no stats graphics) | { panel?, strap?, board?: [row ids], at? } over the contest's STAT_COVERAGE }.
  */
 export function readBroadcast(v, where = 'contest') {
   if (v === undefined || v === true) return {};
@@ -280,15 +294,23 @@ export function readBroadcast(v, where = 'contest') {
   if (v.names !== undefined && !(Array.isArray(v.names) && v.names.length <= 8 && v.names.every((n) => typeof n === 'string' && n.length >= 1 && n.length <= 18))) fail(where, 'names is up to 8 names, each 1 to 18 characters (the players in order)');
   if (v.closeups !== undefined && typeof v.closeups !== 'boolean') fail(where, 'closeups is true or false (the director\'s cut to a player in the dead ball)');
   if (v.accent !== undefined && !METAL_NAMES.includes(v.accent)) fail(where, `accent '${v.accent}' is a metal: ${METAL_NAMES.join(', ')}`);
+  if (v.stats !== undefined && v.stats !== false) {
+    if (!isObj(v.stats)) fail(where, 'stats is false or { panel?, strap?, board?: [the stats\' row ids], at?: changeover | period | round | over }');
+    for (const k of Object.keys(v.stats)) {
+      if (!STAT_WORDS.includes(k)) fail(where, `stats has no '${k}' (${STAT_WORDS.join(', ')})`);
+      if (k === 'at' ? !['changeover', 'period', 'round', 'over'].includes(v.stats.at) : !(Array.isArray(v.stats[k]) && v.stats[k].length <= 10 && v.stats[k].every((r) => typeof r === 'string' && /^[a-zA-Z]{1,20}$/.test(r)))) fail(where, `stats.${k} is ${k === 'at' ? 'changeover, period, round or over' : 'a list of up to 10 row ids (contest-stats.js STAT_ROWS)'}`);
+    }
+  }
   return { ...v, ...(v.sides ? { sides: v.sides.map((c) => c.toLowerCase()) } : {}) };
 }
 
 /**
  * The page's data: the package's card, the colours (the recipe's or the kits', separated, each its ramp and ink), the
- * metals as gradient stops (the rim, the accent, the medals, the sheen), the cues and the words. `kind` is how the
- * contest is divided (sides: two; lanes or seats: up to eight), `count` how many.
+ * metals as gradient stops (the rim, the accent, the medals, the sheen), the cues and the words, and a contest's stats
+ * coverage (STAT_COVERAGE under `statLean`, a sport's own, under the recipe's `stats`). `kind` is how the contest is
+ * divided (sides: two; lanes or seats: up to eight), `count` how many.
  */
-export function broadcastData(v, { register = 'realistic', count = 2, kind = 'sides', where = 'contest', look = null, fallback = null } = {}) {
+export function broadcastData(v, { register = 'realistic', count = 2, kind = 'sides', where = 'contest', look = null, fallback = null, statLean = null } = {}) {
   const B = readBroadcast(v, where);
   const id = B.package ?? fallback ?? REGISTER_PACKAGE[register] ?? 'network', base = BROADCAST_PACKAGES[id];
   const P = look && id === 'table' ? { ...base, ...(look.glass ? { glass: look.glass } : {}), ...(look.inlay ? { inlay: look.inlay } : {}) } : base;
@@ -310,6 +332,8 @@ export function broadcastData(v, { register = 'realistic', count = 2, kind = 'si
     names: B.names ?? null,
     cues: CALL_CUES,
     why: WHY_WORDS,
+    // the stats graphics a contest's coverage shows (absent on a page without coverage: the board games')
+    ...(STAT_COVERAGE[where] ? { stats: B.stats === false ? null : { ...STAT_COVERAGE[where], ...(statLean ?? {}), ...(B.stats ?? {}) } } : {}),
   };
 }
 /** The contrast each colour's ink reads at (for the tests and the report: never under 4.5). */

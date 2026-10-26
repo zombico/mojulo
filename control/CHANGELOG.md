@@ -426,6 +426,26 @@ that every contest page draws through. The arena hands it a feed (what the score
   system's condensed face, falling back per package). The eyes gate is open: screenshots were taken while building
   (the open, the bug, the calls, the closeups, the boards, in each package), and nobody has watched a broadcast yet.
 
+### Sports, native: each sport's stats and presets
+
+- **The stats solver** (`contest/contest-stats.js`), built: a sport's stats folded from the log its sim already keeps
+  (the kernel's calls and the sim's events, frame-stamped), the kernel the referee and nothing judged anew. A net game:
+  points won, aces, double faults, 1st serve in, winners, errors, longest rally, fastest serve. A goal game: goals,
+  shots, on target, possession, passes, corners, fouls, offsides, saves (a shot is a kick the team sim now marks
+  `goalward`: struck at the goal from the attacking half; the sim's physics untouched). Golf: to par, putts, fairways,
+  greens in regulation, penalties. Bowling: pinfall, strikes, spares, open frames, ball speed. A meet: time, place,
+  hurdles hit, a jump's best, fouls and run-up. Inlined into each contest page and run in Node alike.
+- **The broadcast shows them** (`broadcast/`): the stats panel (`tvPanel`, head to head, the lead lit in its side's
+  colour) at the sport's breaks (a tennis changeover, half time, after every hole and every third frame), the stats on
+  the lower thirds that speak to them and beside each place on the results board; each contest's coverage
+  (`STAT_COVERAGE`), and `broadcast.stats` on the recipe (`false`, or the rows and the break). A hosted level's OUTCOME
+  carries `stats.contest`.
+  - **Held:** each fold on a written-out call log (what each stat counts); a real game's goals equal the kernel's
+    score and every goal and save is a shot on target; the panel draws and goes, and never over the board; every
+    contest page folds and shows them; the emit pins of the four contest pages re-pinned, every other page identical.
+  - **Seen, said:** the tennis minds rarely return a serve (about seven points in ten end with the receiver never
+    touching the ball, in both the realistic and the action registers): the stats show it, the sims are not retuned here.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:

@@ -15,7 +15,7 @@ import { graphSource, COURT_PAGE_MODULES } from '../../contest/match-arena.js';
 import { TURNS_PAGE_MODULES } from '../../contest/turn-arena.js';
 import { PITCH_PAGE_MODULES } from '../../contest/team-arena.js';
 
-export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', '../broadcast/broadcast.client.js', 'meet-arena.client.js']);
+export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'contest-stats.js', '../broadcast/broadcast.client.js', 'meet-arena.client.js']);
 
 // A sport whose arena carries its athletes' bodies (contest/athletes.js) inlines the figure that poses them before the
 // arena's client: the versus rig and figure (the segments a bone rides), the athlete's pose and its meshes. Without
