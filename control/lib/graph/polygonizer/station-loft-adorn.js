@@ -452,6 +452,11 @@ function castHead(fig, S) {
     return best; };
   return { tri, lo, hi, eR, eL, c0, d, hit, zMouth: zAt('st0'), zNose: zAt('st1'), ears: [ear('R'), ear('L')].filter(Boolean) };
 }
+// an outline resampled evenly into `n` points (closed), so its straight sides bend with a curved map rather than cut
+// across it as chords
+const evenRing = (R, n = 56) => { const L = [0]; for (let i = 1; i <= R.length; i++) L.push(L[i - 1] + Math.hypot(R[i % R.length][0] - R[i - 1][0], R[i % R.length][1] - R[i - 1][1]));
+  return Array.from({ length: n }, (_, k) => { const s0 = (L[R.length] * k) / n; let i = 1; while (i < R.length && L[i] < s0) i++; const a = R[i - 1], b = R[i % R.length], f = (s0 - L[i - 1]) / Math.max(1e-9, L[i] - L[i - 1]); return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }); };
+const perimeter = (R) => R.reduce((a, q, i) => a + Math.hypot(q[0] - R[(i + 1) % R.length][0], q[1] - R[(i + 1) % R.length][1]), 0);
 const easeS = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 - 2 * v); };
 // the GRID a cast is meshed on, in its own map's (x, z): the cells inside `outer` and outside the open eyes, their corners
 // snapped onto the outline and the eyes' outlines, each corner cast to its depth (`depthAt`), smoothed but never below
@@ -498,13 +503,13 @@ function castGrid(S, { outer, holes, cell, depthAt, place, axisOf, bridge = null
   // wound outward: the outer face of the first cell faces away from its axis, else every face turned
   const f0 = faces[0].map((k) => pts[k]), nrm = cross(sub(f0[1], f0[0]), sub(f0[2], f0[0])), out0 = sub(f0[0], axisOf(f0[0]));
   const flip = dot(nrm, out0) < 0, rnd = (P) => Object.fromEntries(Object.entries(P).map(([k, p]) => [k, p.map((v) => Math.round(v * 1e6) / 1e6)]));
-  // DECALS (`decals` [{ ring, group, map? }], outlines on the map): flat skins laid a hair over the outer face as it was smoothed
+  // DECALS (`decals` [{ ring, group, map?, layer? }], outlines on the map; a higher `layer` lies over a lower): flat skins laid a hair over the outer face as it was smoothed
   // (its depth read bilinearly off the grid's corners), rings drawn in from the outline to its middle so each bends with it
   const rGrid = (x, z) => { const fi = (x - X0) / cell, fj = (z - Z0) / cell, i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j, c = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]].map(([a, b]) => r.get(`${a},${b}`));
     return c.every((q) => q !== undefined) ? (1 - u) * (1 - v) * c[0] + u * (1 - v) * c[1] + u * v * c[2] + (1 - u) * v * c[3] : Math.max(...c.filter((q) => q !== undefined), depthAt(x, z) ?? 0); };
   // (`map` carries a ring drawn in another frame onto the grid's, its rings drawn in there: a long slot is an arc on a polar map)
-  const decalMeshes = decals.flatMap(({ ring, group, map = (q) => q }) => { const n = ring.length, K = 4, cx = ring.reduce((a, q) => a + q[0], 0) / n, cz = ring.reduce((a, q) => a + q[1], 0) / n, P = {}, F = [];
-    for (let k = 0; k <= K; k++) ring.forEach(([x, z], i) => { const [X, Z] = map([cx + ((x - cx) * k) / K, cz + ((z - cz) * k) / K]); P[`${k}.${i}`] = place(X, Z, rGrid(X, Z), lift + th + relief(X, Z) + 0.0012); });
+  const decalMeshes = decals.flatMap(({ ring, group, map = (q) => q, layer = 0 }) => { const n = ring.length, cx = ring.reduce((a, q) => a + q[0], 0) / n, cz = ring.reduce((a, q) => a + q[1], 0) / n, P = {}, F = [], K = Math.min(14, Math.max(4, Math.ceil(Math.max(...ring.map(([x, z]) => Math.hypot(x - cx, z - cz))) / 0.15)));   // (rings in by its size)
+    for (let k = 0; k <= K; k++) ring.forEach(([x, z], i) => { const [X, Z] = map([cx + ((x - cx) * k) / K, cz + ((z - cz) * k) / K]); P[`${k}.${i}`] = place(X, Z, rGrid(X, Z), lift + th + relief(X, Z) + 0.0012 + 0.0008 * layer + (S.decalLift ?? 0)); });
     for (let k = 0; k < K; k++) for (let i = 0; i < n; i++) { const a = `${k}.${i}`, b = `${k}.${(i + 1) % n}`, c = `${k + 1}.${(i + 1) % n}`, e = `${k + 1}.${i}`; F.push([a, b, c], [a, c, e]); }
     const big = F.map((f) => f.map((q) => P[q])).map((T) => ({ T, n: cross(sub(T[1], T[0]), sub(T[2], T[0])) })).reduce((A, B) => (Math.hypot(...B.n) > Math.hypot(...A.n) ? B : A)), inward = dot(big.n, sub(big.T[0], axisOf(big.T[0]))) < 0;
     return [{ points: rnd(P), faces: inward ? F.map((f) => [...f].reverse()) : F, group }]; });
@@ -643,9 +648,10 @@ function castMouthpiece(fig, S) {
 //   earpiece { r, h, cap?, out }  a disc at the temple, `out` (m) past the cast (over the hair);  antenna { len, r, back, up }  a spike off the cast, back and up
 //   scope { r, len, lensGroup }  a tube standing forward with a lens at its end (night vision)
 //   lens { r, h }  a small domed lens (`group` default MaskLens);  arm { to, r }  a rigid bar standing off the cast to `to`
+//   brim { th, len, tilt, t, lift, drop, taper }  a flange round the head (a cowl's only: it needs the head's frame)
 //   peak { span, len, t, tilt, curl, droop }  a brim curved across the shell's front (a motocross helmet's peak); without
 //         `span` { w, len, t, tilt, taper } a flat board
-function castFittings(S, { on, nOf, hz, d, th }) {
+function castFittings(S, { on, nOf, hz, d, th, thE = 0.45 }) {
   const out = [], Z = hz;
   // (a fitting's disc FLAT on top, its edge bevelled to `bevel` of its radius: a lens, a cap, a scope's glass, never the
   // shared disc's pointed centre)
@@ -669,6 +675,17 @@ function castFittings(S, { on, nOf, hz, d, th }) {
     if (F.kind === 'scope') { const p = on(fx, fz, -0.002); if (!p) continue; const n = unit(add(nOf(fx, fz), [0, 0.6, 0])), r = F.r ?? 0.012, len = F.len ?? 0.04, K = 4, P = Array.from({ length: K }, (_, i) => add(p, mul(n, (len * i) / (K - 1))));
       out.push({ ...sweep(P, P.slice(0, -1).map((_, i) => r * (i === 0 ? 1.15 : 1)), 16), group: g }); out.push({ ...disc(add(p, mul(n, len)), n, r * 0.85, r * 0.25, 16, 0.85), group: F.lensGroup ?? 'MaskLens' }); continue; }
     if (F.kind === 'lens') { const p = on(fx, fz, -0.0005); if (!p) continue; out.push({ ...disc(p, nOf(fx, fz), F.r ?? 0.006, F.h ?? 0.004, 14, 0.6), group: F.group ?? 'MaskLens' }); continue; }
+    // (a BRIM: a flange standing off round the head at height `at[1]`, from `th[0]` to `th[1]` radians round from the front
+    // (the whole way round by default; behind only, a neck guard), `len` (m) out, sloping down `tilt`, `t` thick, its
+    // front `lift`ed (eye units, the brim swept up over the face), its back `drop`ped)
+    if (F.kind === 'brim') { const [a0, a1] = F.th ?? [-Math.PI, Math.PI], full = a1 - a0 >= 2 * Math.PI - 1e-6, K = full ? 48 : Math.max(8, Math.round(24 * (a1 - a0) / Math.PI)), len = F.len ?? 0.03, tl = F.tilt ?? 0.25, t = F.t ?? 0.003;
+      const rows = []; for (let i = 0; i <= K; i++) { const a = a0 + ((a1 - a0) * i) / K, fr = (1 + dmath.cos(a)) / 2, zz = fz + (F.lift ?? 0) * fr ** 2 - (F.drop ?? 0) * (1 - fr) ** 2, p = on(a / thE, zz, -0.002); if (!p) continue;
+        const n0 = nOf(a / thE, zz), h = unit([n0[0], n0[1], 0]), fw = unit(add(mul(h, dmath.cos(tl)), [0, 0, -dmath.sin(tl)])), L = len * (F.taper ? 1 - F.taper * fr : 1), q = add(p, mul(fw, L));
+        rows.push([p, q, add(q, [0, 0, -t * 0.6]), add(p, [0, 0, -t])]); }
+      if (rows.length > 2) { const pts = {}, faces = [], n = rows.length, M = full ? n : n - 1; rows.forEach((R, i) => R.forEach((v, k) => { pts[`${i}.${k}`] = v.map((x) => Math.round(x * 1e6) / 1e6); }));
+        for (let i = 0; i < M; i++) { const j = (i + 1) % n; for (let k = 0; k < 4; k++) { const k2 = (k + 1) % 4; faces.push([`${i}.${k}`, `${j}.${k}`, `${j}.${k2}`], [`${i}.${k}`, `${j}.${k2}`, `${i}.${k2}`]); } }
+        if (!full) for (const i of [0, n - 1]) faces.push(i ? [`${i}.2`, `${i}.1`, `${i}.0`] : [`${i}.0`, `${i}.1`, `${i}.2`], i ? [`${i}.3`, `${i}.2`, `${i}.0`] : [`${i}.0`, `${i}.2`, `${i}.3`]);
+        out.push({ points: pts, faces, group: g }); } continue; }
     if (F.kind === 'arm') { const [tx, tz0] = F.to, tz = Z(tz0), pts = Array.from({ length: 10 }, (_, i) => { const t = i / 9; return on(fx + (tx - fx) * t, fz + (tz - fz) * t, (F.lift ?? 0.004) + (F.arch ?? 0.006) * dmath.sin(Math.PI * t)); }).filter(Boolean);
       if (pts.length > 3) out.push({ ...sweep(pts, pts.slice(0, -1).map(() => F.r ?? 0.0025), 6), group: g }); continue; }
     // (a CURVED peak, `span` (eye units either side of `at`): a strip across the shell's front, each column standing off
@@ -722,7 +739,9 @@ function castCowl(fig, S) {
   const zBrow = c0[2] + (S.brow ?? 1.3) * d;
   const edgeZ = (th) => { const a = Math.abs(th), back = easeS((a - Math.PI / 2) / (Math.PI / 2)), side = zJaw + (zNape - zJaw) * back;
     // (open: the whole face shown, the edge over the brow in front, down the cheeks to the jaw: an open-face helmet)
-    if (mouth === 'open') return a < wO ? zBrow - (zBrow - zJaw) * easeS(a / wO) ** 1.4 : side;
+    // (`peak` { depth, w }: the edge over the brow dipping to a point over the nose, `depth` eye units, `w` radians wide)
+    // (`openCurve` how long the edge holds high across the eyes before it drops to the jaw)
+    if (mouth === 'open') return a < wO ? zBrow - (zBrow - zJaw) * easeS(a / wO) ** (S.openCurve ?? 1.4) - (S.peak ? (S.peak.depth ?? 0.8) * d * Math.max(0, 1 - a / (S.peak.w ?? 0.35)) : 0) : side;
     if (mouth !== 'show') return a < Math.PI / 2 ? zChin + (side - zChin) * easeS((a - 0.35) / (Math.PI / 2 - 0.35)) : side;
     // (shown: the edge under the nose, running down across the cheeks to the jaw's corner, a U round the mouth and chin)
     const open = zNose - 0.003 - (zNose - 0.003 - zJaw) * Math.min(1, (a / wO) ** 1.6); return a < wO ? open : side; };
@@ -734,7 +753,7 @@ function castCowl(fig, S) {
   const thE = eR ? Math.atan2(Math.abs(eR[0] - C[0]), eR[1] - C[1]) : 0.45;
   // (a WINDOW, `window` an eyegear outline (shape: shield | visor | goggles, or a poly), in place of the eyes: a helmet's
   // face opening, open or a visor by `eyes.treat`)
-  const { holes: eyeHoles } = S.window ? { holes: [castOutline({ outline: S.window }).outer] } : castOutline(S), holes = eyeHoles.map((Hh) => Hh.map(([X, Z]) => toMap(X * thE, rhoAt(X * thE, c0[2] + Z * d))));
+  const { holes: eyeHoles } = S.window ? { holes: [castOutline({ outline: S.window }).outer].map((R) => (S.window.poly ? evenRing(R, Math.min(160, Math.max(48, Math.round(perimeter(R) / 0.1)))) : R)) } : castOutline(S), holes = eyeHoles.map((Hh) => Hh.map(([X, Z]) => toMap(X * thE, rhoAt(X * thE, c0[2] + Z * d))));
   // a covered mouth with no mouth (`mouth: 'none'`): the skin over the lips bridged smooth
   const zLip = zNose + 0.004, bridge = mouth === 'none' ? (x, z) => { const [th, rho] = ofMap(x, z); if (Math.abs(th) > 0.7) return false; const zz = zOf(th, rho); return zz !== null && zz < zLip; } : null;
   // the EARS under the cowl, the landmark head's (its side slot between rows 3 and 4): bumps, so they stay under it
@@ -746,16 +765,17 @@ function castCowl(fig, S) {
   // eye) or, with a `rim` (a fine cord round its edge) in a dark group, a CUTAWAY: a slot, a vent, a recess cut in the
   // shell. Off the middle each is mirrored to the other side unless `mirror: false`
   const decalRing = (D) => { const [ax, az0] = D.at ?? [0, 0], az = hz(az0), tl = D.tilt ?? 0, c = dmath.cos(tl), sn = dmath.sin(tl), rot = ([x, z]) => [ax + x * c - z * sn, az + x * sn + z * c];
-    if (D.shape === 'poly') return D.points.map(rot);
+    if (D.shape === 'poly') return D.points.map(([x, z]) => rot([x, typeof z === 'string' ? hz(z) - az : z]));
     const w = D.w ?? 0.3, h = D.h ?? (D.shape === 'dot' ? w : 0.08), N = 28; if (D.shape !== 'dot' && h > w) return decalRing({ ...D, w: h, h: w, tilt: tl + Math.PI / 2 });
     if (D.shape === 'dot') return Array.from({ length: N }, (_, i) => { const a = (2 * Math.PI * i) / N; return rot([w * dmath.cos(a), h * dmath.sin(a)]); });
     // (a SLOT: a stadium `w` half-long, `h` half-high, its ends round)
     const r = Math.min(w, h), L = Math.max(0, w - r), half = N / 2; return Array.from({ length: N }, (_, i) => { const right = i < half, a = (right ? -Math.PI / 2 : Math.PI / 2) + (Math.PI * (i % half)) / (half - 1); return rot([(right ? L : -L) + r * dmath.cos(a), r * dmath.sin(a)]); }); };
-  // (each outline resampled evenly, so a slot's long sides bend with the shell rather than cut under it as chords)
-  const even = (R, n = 56) => { const L = [0]; for (let i = 1; i <= R.length; i++) L.push(L[i - 1] + Math.hypot(R[i % R.length][0] - R[i - 1][0], R[i % R.length][1] - R[i - 1][1]));
-    return Array.from({ length: n }, (_, k) => { const s0 = (L[R.length] * k) / n; let i = 1; while (i < R.length && L[i] < s0) i++; const a = R[i - 1], b = R[i % R.length], f = (s0 - L[i - 1]) / Math.max(1e-9, L[i] - L[i - 1]); return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }); };
-  const decalSpecs = (S.decals || []).flatMap((D) => { const R = even(decalRing(D)), mid = Math.abs((D.at ?? [0])[0]) < 1e-9 && D.shape !== 'poly'; return [R, ...(D.mirror === false || mid ? [] : [R.map(([x, z]) => [-x, z]).reverse()])].map((ring) => ({ ...D, ring })); });
+  const decalSpecs = (S.decals || []).flatMap((D) => { const R0 = decalRing(D), R = evenRing(R0, Math.min(160, Math.max(56, Math.round(perimeter(R0) / 0.08)))), mid = Math.abs((D.at ?? [0])[0]) < 1e-9 && D.shape !== 'poly'; return [R, ...(D.mirror === false || mid ? [] : [R.map(([x, z]) => [-x, z]).reverse()])].map((ring) => ({ ...D, ring })); });
   const ofEyes = ([X, Z]) => toMap(X * thE, rhoAt(X * thE, c0[2] + Z * d));
+  // DENTS (`dents`: [{ at: [X, Z], r, h, mirror? }] in the eyes' frame, `r` in eye units, `h` (m) pressed in, out if
+  // negative): the shell SCULPTED, a skull's sockets and nasal hollow, a cheekbone; off the middle each mirrored
+  const dents = (S.dents || []).flatMap((D) => { const [X, Z0] = D.at, Z = hz(Z0), c = ofEyes([X, Z]), e = ofEyes([X + (D.r ?? 0.6), Z]), r = Math.hypot(e[0] - c[0], e[1] - c[1]);
+    return [[X, Z], ...(D.mirror === false || Math.abs(X) < 1e-9 ? [] : [[-X, Z]])].map((q) => ({ at: ofEyes(q), r, h: -(D.h ?? 0.004) })); });
   // (PANEL LINES, `panels`: polylines of points in the eyes' frame [X, Z] or on the map { th, rho }, carried onto the map as
   // the shell's seams: grooves `seamDepth` deep in `seamGroup`, the segments of a segmented helmet)
   // (PANEL LINES, `panels`: polylines in the eyes' frame [X, Z] or on the map { th, rho }, drawn on the shell as fine dark
@@ -766,8 +786,8 @@ function castCowl(fig, S) {
   // (a HARD SHELL: `pad` (m) of padding under it, its surface bridged `shell` passes everywhere: a helmet, round and taut)
   // (PAINTED eyes, `eyes.treat: 'paint'`: the eyes' shapes laid on the shell as flat decals in `eyes.group`, crisp at any
   // grid, the shell whole under them: a porcelain mask's)
-  const paint = S.eyes?.treat === 'paint', pad = S.pad ?? 0, Sg = { ...S, ...(paint ? { eyes: { ...S.eyes, treat: 'none' } } : {}), ...(pad ? { lift: (S.lift ?? 0.0025) + pad } : {}), ...(panelLines.length ? { ornaments: [...(S.ornaments || []), ...panelLines] } : {}) };
-  const out = castGrid(Sg, { outer, holes: paint ? [] : holes, cell: S.cell ?? 0.05, depthAt, place, axisOf: () => C, bridge: S.shell ? () => true : bridge, bridgePasses: S.shell ?? 8, bumps: pad ? [] : bumps, decals: [...(paint ? holes.map((ring) => ({ ring, group: S.eyes.group ?? 'Lens' })) : []), ...decalSpecs.map((D) => ({ ring: D.ring, map: ofEyes, group: D.group ?? 'MaskSeam' }))] });
+  const paint = S.eyes?.treat === 'paint', pad = S.pad ?? 0, Sg = { ...S, ...(paint ? { eyes: { ...S.eyes, treat: 'none' } } : {}), ...(pad ? { lift: (S.lift ?? 0.0025) + pad } : {}), ...(panelLines.length || S.ornaments?.length ? { ornaments: [...(S.ornaments || []), ...panelLines].map((O) => (Array.isArray(O.path) ? { ...O, path: O.path.map((q) => (typeof q.Z === 'string' ? { ...q, Z: hz(q.Z) } : q)) } : O)) } : {}) };   // (a path's heights may be words)
+  const out = castGrid(Sg, { outer, holes: paint ? [] : holes, cell: S.cell ?? 0.05, depthAt, place, axisOf: () => C, bridge: S.shell ? () => true : bridge, bridgePasses: S.shell ?? 8, bumps: [...(pad ? [] : bumps), ...dents], decals: [...(paint ? holes.map((ring) => ({ ring, group: S.eyes.group ?? 'Lens' })) : []), ...decalSpecs.map((D) => ({ ring: D.ring, map: ofEyes, group: D.group ?? 'MaskSeam', layer: D.layer ?? 0 }))] });
   // HAIR FLOWING out of the back (`hair` { len, n?, spread?, group? }: the hero's own hair, its colour the Hair group's):
   // clumps from a tie at the back of the head at the eyes' height, falling and fanning, fixed by a pattern (no dice)
   if (S.hair && out.length) { const T = S.hair, nC = T.n ?? 9, len = T.len ?? 0.25, th0 = Math.PI, rho0 = rhoAt(th0, c0[2] - 0.01), D0 = dir(th0, rho0), r0 = castDir(D0) ?? 0.09;
@@ -782,7 +802,7 @@ function castCowl(fig, S) {
   if (S.fittings?.length && out.length) { const top = (Sg.lift ?? 0.0025) + (S.thick ?? 0.003) + (S.shell ? 0.004 : 0);
     const on = (X, Z, off = 0) => { const th = X * thE, D = dir(th, rhoAt(th, c0[2] + Z * d)), r = rAt(D); return r === null ? null : add(C, mul(D, r + top + off)); };
     const nOf = (X, Z) => { const a = on(X, Z), b = on(X + 0.05, Z), c = on(X, Z + 0.05); if (!a || !b || !c) return [0, 1, 0]; const cr = cross(sub(b, a), sub(c, a)); if (Math.hypot(...cr) < 1e-12) return unit(sub(a, C)); let n = unit(cr); if (dot(n, sub(a, C)) < 0) n = mul(n, -1); return n; };
-    out.push(...castFittings(S, { on, nOf, hz, d, th: S.thick ?? 0.003 })); }
+    out.push(...castFittings(S, { on, nOf, hz, d, th: S.thick ?? 0.003, thE })); }
   return out;
 }
 // ─── the COWL'S ORNAMENTS (SIGNATURES.cowl `ornaments`): spikes and lines on the cowl, along the FACE'S PATHS ───
@@ -837,6 +857,21 @@ function cowlOrnaments(S, F) {
         out.push({ ...loftParts(rings, add(f.p, mul(U, -0.006)), add(mean(rings[K - 1]), mul(U, len * 0.04))), group: g }); });
       continue;
     }
+    // CREST: a blade standing on the path (the comb over a gladiator's crown, a crest across it), `len` (m) high by
+    // `profile` (arch | lead | even | rise | fall), rising between the surface's normal and up (`up`), `thick` (m) at its
+    // root; `style: 'plume'` a horsehair crest, thick, swelling and rounded over
+    if (O.kind === 'crest') { const N = O.samples ?? (O.style === 'plume' ? 40 : 28), P = sample(path, N, -0.002), len = O.len ?? 0.04, up = O.up ?? 0.6, plume = O.style === 'plume', th0 = O.thick ?? (plume ? 0.012 : 0.003);
+      const prof = O.profile === 'arch' || O.profile === undefined ? (q) => 0.35 + 0.65 * dmath.pow(dmath.sin(Math.PI * Math.min(1, Math.max(0, 0.08 + 0.84 * q))), 0.7) : O.profile === 'lead' ? (q) => 1 - 0.55 * q : PROFILE[O.profile] ?? PROFILE.even;
+      // (a section per sample, round from one side's root over the top to the other's: a blade's narrow top, a plume's
+      // swelling to its widest two thirds up and rounding over)
+      const sec = plume ? [[1, 0], [1.25, 0.45], [1.15, 0.8], [0.6, 1.0], [-0.6, 1.0], [-1.15, 0.8], [-1.25, 0.45], [-1, 0]] : [[1, 0], [0.3, 1], [-0.3, 1], [-1, 0]], M = sec.length;
+      const rows = P.map((f, i) => { const q = i / Math.max(1, P.length - 1), h = len * prof(q), U = unit(add(mul(f.n, 1 - up), [0, 0, up])), Sd = unit(cross(f.t, U)), base = add(f.p, mul(U, -0.002));
+        return sec.map(([sx, sz]) => add(add(base, mul(Sd, sx * th0 / 2)), mul(U, sz * (h + 0.002)))); });
+      if (rows.length > 2) { const pts = {}, faces = [], n = rows.length; rows.forEach((R, i) => R.forEach((v, k) => { pts[`${i}.${k}`] = v.map((x) => Math.round(x * 1e6) / 1e6); }));
+        for (let i = 0; i + 1 < n; i++) for (let k = 0; k + 1 < M; k++) faces.push([`${i}.${k}`, `${i + 1}.${k}`, `${i + 1}.${k + 1}`], [`${i}.${k}`, `${i + 1}.${k + 1}`, `${i}.${k + 1}`]);
+        for (let k = 1; k + 1 < M; k++) faces.push(['0.0', `0.${k}`, `0.${k + 1}`], [`${n - 1}.${k + 1}`, `${n - 1}.${k}`, `${n - 1}.0`]);
+        out.push({ points: pts, faces, group: O.group ?? S.group }); }
+      continue; }
     // LINES (embroidery): along the path on the cowl, `style` 'stitch' (dashes, `dash` and `gap` m) | 'cord' (a raised cord)
     // | 'double' (two cords `apart` m either side), `w` the thread's width (m)
     const P = sample(path, O.samples ?? 48, 0.0009), w = O.w ?? 0.0022, style = O.style ?? 'stitch';
@@ -1173,8 +1208,9 @@ export const SIGNATURES = {
    * `window` (an eyegear outline: the face opening, a visor by `eyes.treat`), `mouth: 'open'` (an open face) and `fittings`.
    * `panels` (polylines in the eyes' frame or on the map) drawn as fine panel lines (`panelW`): a segmented shell;
    * `windowSeam` one round the window. `eyes.treat: 'paint'` the eyes laid on as decals; `decals` shapes painted on or,
-   * rimmed, cut away (slots, vents). `blank` (true | { wide, up, down, out }) a face with no features: a smooth egg.
-   * { mouth?, opening?, jaw?, nape?, brow?, eyes?, window?, pad?, shell?, panels?, panelW?, windowSeam?, blank?, decals?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, fittings?, align?, lift?, thick?, cell? } */
+   * rimmed, cut away (slots, vents), stacked by `layer`. `dents` sculpt it (sockets, hollows). `peak` dips an open face's
+   * edge to a point over the nose. Ornaments add `crest` (a blade or a plume along a path); fittings `brim`. `blank` (true | { wide, up, down, out }) a face with no features: a smooth egg.
+   * { mouth?, opening?, jaw?, nape?, brow?, eyes?, window?, pad?, shell?, panels?, panelW?, windowSeam?, blank?, decals?, dents?, peak?, openCurve?, decalLift?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, fittings?, align?, lift?, thick?, cell? } */
   cowl: (fig, _g, _b, S) => castCowl(fig, S),
   /** a MOUTHPIECE (castMouthpiece): the lower face's cast, from under the eyes past the chin, hanging where the skin runs
    * out: `outline` { top, dip, side, bottom, point, straight } in the eyes' frame against the head's own heights; `taut`

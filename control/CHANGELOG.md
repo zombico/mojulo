@@ -121,6 +121,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Cards built from it:
   - segmented: the cyborg ninja, the vented ninja, the hunter, titan and warlock guardians, the ronin and the mono-eye;
   - porcelain: the fox, kabuki, noh, oni and kintsugi masks.
+- Skulls, gladiators, peaked helms and T-visors on the same builder. The cowl gains:
+  - decal `layer`s, paint over paint, and a `decalLift` for a contoured hood;
+  - `dents`: the shell sculpted, sockets and hollows pressed in, a brow or a chin swelled out;
+  - a `crest` ornament along any path: a blade, or a horsehair plume, rounded and swelling;
+  - a `brim` fitting: a flange round the head, swept up over the face, or behind only as a neck guard;
+  - a `peak` on an open face's edge (a point over the nose), and `openCurve` (how long the edge holds over the eyes).
+
+  Fixes in the same work: height words in a cowl's stroke paths are resolved (they were dropped), a poly window is
+  resampled before it is carried onto the shell (its straight sides cut chords across the polar map: the hunter
+  helmet's T visor arched over the brow), and large decals are subdivided by their size. New words:
+  - `sculpt`: sockets, nasal, cheeks, temples, brow, chin;
+  - paint: skull, skullFace, skullJaw, sugar, cracks;
+  - cuts: grille, eyeHoles, chinVents, teeth;
+  - adorn: band, comb, griffin, plume, transversePlume, brim, neckGuard, templeFlares, rangefinder;
+  - panels: teardrop, sideBands.
+
+  Cards:
+  - skulls: bone skull, painted skull, skull balaclava, sugar skull, skull knight;
+  - gladiators: the fish, griffin and chaser gladiators, the hoplite and the legion helms;
+  - peaked helms: peaked, iron and crowned;
+  - T-visors: the T-visor helm, bronze, night and heavy.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
