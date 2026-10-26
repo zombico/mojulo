@@ -16,12 +16,13 @@ import { TEAM_SPORT_IDS, resolveSport, sportDialsOf, sportKeyOf } from './sports
 import { TEAM_REGISTER_IDS } from './team-sim.js';
 import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
+import { readBroadcast, broadcastData } from '../broadcast/broadcast-package.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 
 export const PITCH_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 export const PITCH_PAGE_MODULES = Object.freeze([
   'physics/flight.js', 'contest/ball-card.js', 'polygonizer/hero-swing.js', 'contest/hit.js', 'worlds/physics-sim.js',
-  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/team-sim.js', 'contest/team-arena.client.js',
+  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/team-sim.js', 'broadcast/broadcast.client.js', 'contest/team-arena.client.js',
 ]);
 export const TEAM_DEFAULTS = Object.freeze({ sport: 'soccer', players: 1, register: 'realistic', level: 'regular', seed: 1, kit: 'island-plaza' });
 export const PITCH_RUN_OFF = Object.freeze({ side: 5, end: 8 });
@@ -34,8 +35,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** The game's words, checked. */
 export function readTeam(spec = {}) {
-  if (!isObj(spec)) fail('a team game is { sport?, players?, register?, level?, periods?, seconds?, seed?, kit?, look?, crowd?, title? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'periods', 'seconds', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a team game has no '${k}' (sport, players, register, level, periods, seconds, seed, kit, look, crowd, title)`);
+  if (!isObj(spec)) fail('a team game is { sport?, players?, register?, level?, periods?, seconds?, seed?, kit?, look?, crowd?, title?, broadcast? }');
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'periods', 'seconds', 'seed', 'kit', 'look', 'crowd', 'title', 'broadcast'].includes(k)) fail(`a team game has no '${k}' (sport, players, register, level, periods, seconds, seed, kit, look, crowd, title, broadcast)`);
   const M = { ...TEAM_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !TEAM_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${TEAM_SPORT_IDS.join(', ')} (a team goal game; a net game plays on a court, a turn sport on a course), or a team game written out`);
   try { resolveSport(M.sport, 'team'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -48,7 +49,8 @@ export function readTeam(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, ...(M.periods !== undefined ? { periods: M.periods } : {}), ...(M.seconds !== undefined ? { seconds: M.seconds } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+  const broadcast = M.broadcast === undefined ? undefined : readBroadcast(M.broadcast, 'team');
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, ...(M.periods !== undefined ? { periods: M.periods } : {}), ...(M.seconds !== undefined ? { seconds: M.seconds } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(broadcast ? { broadcast } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -92,5 +94,5 @@ export function teamManifest(spec = {}) {
 export function teamArenaData(v = {}) {
   const M = readTeam(v), T = teamPitch(M);
   const C = contestRead(specOf(M));
-  return { ...M, sport: teamSportDials(M.sport), C, court: T, wire: PITCH_WIRE };
+  return { ...M, sport: teamSportDials(M.sport), C, court: T, wire: PITCH_WIRE, broadcast: broadcastData(M.broadcast, { register: M.register, count: 2, kind: 'sides', where: 'pitch' }) };
 }

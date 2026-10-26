@@ -201,6 +201,9 @@ Pointers only; each target carries its own design notes.
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a
   gameworld's `juice`); the proving ground and its board are `control/scripts/spikes/effects/`.
+- Broadcast: [broadcast/](control/lib/graph/broadcast/) (the TV graphics over every contest page: the packages, the colour
+  theory, metal from measured reflectance, a cue per kernel call, the director's closeup; a contest's `broadcast` key):
+  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails.
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
   law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
   picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).

@@ -231,6 +231,10 @@ import { emitThreeWorld } from './scene-three.js';
 // rounded up to even metres (the stage kind's one-metre grid, met when the first quick game minted one), which moves
 // the page's own data (the room, the court's origin on the stage); the `pitch` room was on the grid already. Every
 // other page is byte-identical.
+// Re-pinned 2026-10-26 (tv animator: the broadcast package): the `meet`, `court`, `turns` and `pitch` fixtures re-pin
+// because each contest block now inlines broadcast/broadcast.client.js before its arena client, the arena clients draw
+// their overlay through it (the bug, the call plates, the closeup, the board) and the page's data carries the resolved
+// package (`broadcast`: the card, the colours, the metals, the cues). Every other page is byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

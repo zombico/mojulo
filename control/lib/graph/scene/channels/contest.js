@@ -15,7 +15,7 @@ import { graphSource, COURT_PAGE_MODULES } from '../../contest/match-arena.js';
 import { TURNS_PAGE_MODULES } from '../../contest/turn-arena.js';
 import { PITCH_PAGE_MODULES } from '../../contest/team-arena.js';
 
-export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'meet-arena.client.js']);
+export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', '../broadcast/broadcast.client.js', 'meet-arena.client.js']);
 
 export function meetChannelScript(cfg) {
   const lib = MEET_PAGE_MODULES.map(contestSource).join('\n');

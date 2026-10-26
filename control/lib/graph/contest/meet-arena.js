@@ -24,6 +24,7 @@ import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { contestRead } from './contest-kernel.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
+import { readBroadcast, broadcastData } from '../broadcast/broadcast-package.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { MEET_REGISTER_IDS } from './meet-sim.js';
 
@@ -48,8 +49,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** The meet's words, checked. */
 export function readMeet(spec = {}) {
-  if (!isObj(spec)) fail('a meet is { event, lanes?, players?, register?, distance?, attempts?, seed?, kit?, look?, crowd?, title? }');
-  for (const k of Object.keys(spec)) if (!['event', 'lanes', 'players', 'register', 'distance', 'attempts', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a meet has no '${k}' (event, lanes, players, register, distance, attempts, seed, kit, look, crowd, title)`);
+  if (!isObj(spec)) fail('a meet is { event, lanes?, players?, register?, distance?, attempts?, seed?, kit?, look?, crowd?, title?, broadcast? }');
+  for (const k of Object.keys(spec)) if (!['event', 'lanes', 'players', 'register', 'distance', 'attempts', 'seed', 'kit', 'look', 'crowd', 'title', 'broadcast'].includes(k)) fail(`a meet has no '${k}' (event, lanes, players, register, distance, attempts, seed, kit, look, crowd, title, broadcast)`);
   const M = { ...MEET_DEFAULTS, ...spec };
   const E = MEET_EVENTS[M.event];
   if (!E) fail(`event '${M.event}' is one of ${MEET_EVENT_IDS.join(', ')}`);
@@ -66,7 +67,8 @@ export function readMeet(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  return { event: M.event, lanes: M.lanes, players: M.players, register: M.register, distance, ...(attempts ? { attempts } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+  const broadcast = M.broadcast === undefined ? undefined : readBroadcast(M.broadcast, 'meet');
+  return { event: M.event, lanes: M.lanes, players: M.players, register: M.register, distance, ...(attempts ? { attempts } : {}), seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(broadcast ? { broadcast } : {}) };
 }
 
 /** The contest kernel's spec for the meet's event. */
@@ -113,6 +115,6 @@ export function meetArenaData(v = {}) {
   return {
     ...M, track: T,
     event: { kind: M.event, measure: MEET_EVENTS[M.event].measure, distance: M.distance, hurdles: T.hurdles, ...(T.board !== undefined ? { board: T.board } : {}), ...(M.attempts ? { attempts: M.attempts } : {}), words: MEET_EVENTS[M.event].words },
-    C, wire: MEET_WIRE,
+    C, wire: MEET_WIRE, broadcast: broadcastData(M.broadcast, { register: M.register, count: M.lanes, kind: 'lanes', where: 'meet' }),
   };
 }

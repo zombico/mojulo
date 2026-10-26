@@ -332,6 +332,8 @@ function systemsCard() {
 // `gameworld-quick-<goal>` is that card with one goal's play and its own levers in full. A new goal is a row in
 // QUICK_LEVERS (and its card), never more bytes on the index: the agent that knows the goal reads one card.
 const HERO_WORDS = '{ <hero-door words> }';
+// the TV graphics a sport is shown in (broadcast/broadcast-package.js), one lever on both sport goals
+const BROADCAST_LEVER = ['  broadcast: network | stadium | arcade | clean | { package?, sides?, names?, closeups?, accent? }   TV graphics'];
 const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
@@ -345,6 +347,7 @@ const QUICK_LEVERS = {
     '  event: sprint | hurdles | longJump   lanes: 1..8 (one: a time trial)   players: 0..4, the lanes people hold on one keyboard',
     '    (P1 F runs, G hops; P2 J, K; P3 Z, X; P4 , .; gamepads by index); the other lanes are the computer\'s',
     '  register: realistic | action | platformer | pinball (the body\'s pace)   distance: m (the event\'s)   attempts: n (the long jump\'s, 3)',
+    ...BROADCAST_LEVER,
     '  the level is the arena (a stage with stands, contest/meet-arena.js), the referee the contest kernel: no hero, camera, climb or building',
   ],
   contest: () => [
@@ -356,7 +359,8 @@ const QUICK_LEVERS = {
     '  a sport not in the book is WRITTEN OUT and played on its shape\'s sim: sport: { id, shape: match | turns | team, words, spec (the contest',
     '    kernel\'s data), omits?: [what the rulebook says the primitives do not carry], …the shape\'s dials } — the distilled-rulebook catalyst',
     '    (get_catalyst) distills a rulebook into one; contest/sports.js shows tennis, golf, bowling, soccer and hockey written out',
-    '  the rules are the kernel\'s: it calls every point, out, foul and restart; the agent never adjudicates',
+    ...BROADCAST_LEVER,
+    '  the rules are the kernel\'s: it calls every point, out, foul and restart, never the agent',
   ],
   avoid: () => [],
   race: () => [

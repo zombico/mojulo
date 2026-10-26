@@ -222,6 +222,50 @@ and a ball card's on the ball. Planned, in order:
   contest (every sport value is `absent` on Godot and Roblox, the page's own simulation); the shapes the sims lack
   (a hoop, a wicket, a wall game) are refused by name, not approximated.
 
+### TV animator: the broadcast package over the contest pages
+
+The battle city pages each drew their own overlay: flat black boxes and outlined words. They are now covered as
+television covers a sport, by one sport-blind package (`lib/graph/broadcast/`, [docs/broadcast.md](../docs/broadcast.md))
+that every contest page draws through. The arena hands it a feed (what the scoreboard says) and the kernel's calls
+(what the referee said). Built:
+
+- **The package** (`broadcast-package.js`): four looks as cards (`network`, `stadium`, `arcade` and `clean`). Each sets
+  type, glass, rim and accent metals, an easing curve, durations, slant, corner, ink and letterbox. The register picks
+  one when the recipe does not (realistic → network, action → stadium, platformer and pinball → arcade).
+  - Colour theory on `dmath`: the kits are kept apart in OKLab, and again under deutan and protan simulation; a
+    clash wears its alternate.
+  - The ink on a colour is chosen by WCAG contrast; every default kit reads at 4.5:1 or more.
+  - Each kit is an OKLCH ramp clamped into gamut, and a kit lost in the glass is keylined.
+  - Lanes and seats default to the Okabe–Ito set.
+  - The metals are a bevel reflecting a studio sweep, weighted by the metal's measured reflectance
+    (`materials/metal-surface.js`); cel packages band them hard.
+  - A cue for every call the contest kernel makes, or a silence by name; the referee's reasons in broadcast words.
+- **The client** (`broadcast.client.js`, inlined before each arena client):
+  - The open, then the bug. Its rows roll a changed value and flash the row's colour; the hot column sits on the
+    accent metal; the clock and period, and the tab, sit beside and beneath it.
+  - The call plate. One holds the frame by weight: a weightier call takes it, an equal one once read, a lighter one
+    waits, and nothing goes up over the open. A plate drops below the bug rather than cross it.
+  - The lower third, the meter, and the results board with gold, silver and bronze medals (the bug steps aside for it).
+  - The director's closeup, laid over the arena's own shot and given back, letterboxed, with a slow push and a held
+    camera's drift. The graphics run on their own frame count and never touch the game.
+- **The four pages draw through it.** The players' kits are the broadcast's colours. The closeups:
+  - the court: on the point's winner in the dead ball, with a lower third at a game and the match;
+  - the meet: on the winner or a jump's landing once no player's lane still runs;
+  - the course: on the cup when the ball is holed; a strike or a spare names the bowler without a cut (the deck after
+    a roll is an empty pit);
+  - the pitch: on whoever touched the ball last before a goal, from a high angle over the players between; an own goal
+    is named so.
+- **The `broadcast` key** on the four arenas (`readBroadcast`: a package's name, or `{ package?, sides?, names?,
+  closeups?, accent? }`), carried into each page's data, and a lever on the `meet` and `contest` quick goals and their
+  cards. A sport written out with the distilled-rulebook catalyst is broadcast with no code; the catalyst says so.
+- **Guards:** a kernel call kind with no cue fails `broadcast-package.test.js`. A `*-arena.client.js` that does not
+  inline and draw through the client fails `broadcast.client.test.js`.
+- The `meet`, `court`, `turns` and `pitch` emit fixtures re-pin for the inlined client and the page's `broadcast` data;
+  every other page is byte-identical. The contest pages' live probes still equal Node's frame for frame.
+- Stopping point: no replay (a replay wants a buffer of the sim's frames), no sound, no web font (the type is the
+  system's condensed face, falling back per package). The eyes gate is open: screenshots were taken while building
+  (the open, the bug, the calls, the closeups, the boards, in each package), and nobody has watched a broadcast yet.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:

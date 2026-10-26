@@ -23,6 +23,7 @@ import { MATCH_SPORT_IDS, resolveSport, sportDialsOf, sportKeyOf } from './sport
 import { MATCH_REGISTER_IDS } from './match-sim.js';
 import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
+import { readBroadcast, broadcastData } from '../broadcast/broadcast-package.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 
 export const COURT_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
@@ -32,7 +33,7 @@ export const graphSource = (rel) => readFileSync(join(GRAPH, rel), 'utf8').repla
 /** The modules the court page inlines, in the order each only uses names from the ones before it. */
 export const COURT_PAGE_MODULES = Object.freeze([
   'physics/flight.js', 'contest/ball-card.js', 'polygonizer/hero-swing.js', 'contest/hit.js', 'worlds/physics-sim.js',
-  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/match-sim.js', 'contest/match-arena.client.js',
+  'contest/contest-kernel.js', 'contest/contest-mind.js', 'contest/match-sim.js', 'broadcast/broadcast.client.js', 'contest/match-arena.client.js',
 ]);
 
 export const MATCH_DEFAULTS = Object.freeze({ sport: 'tennis', players: 1, register: 'realistic', level: 'regular', sets: 1, seed: 1, kit: 'island-plaza' });
@@ -46,8 +47,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** The match's words, checked. */
 export function readMatch(spec = {}) {
-  if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title? }');
-  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title)`);
+  if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title?, broadcast? }');
+  for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title', 'broadcast'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title, broadcast)`);
   const M = { ...MATCH_DEFAULTS, ...spec };
   if (typeof M.sport === 'string' && !MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course, a team game on a pitch), or a net game written out`);
   try { resolveSport(M.sport, 'match'); } catch (e) { fail(e.message.replace(/^contest: /, '')); }
@@ -59,7 +60,8 @@ export function readMatch(spec = {}) {
   if (!ARENA_KITS.includes(M.kit)) fail(`kit '${M.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (M.crowd !== undefined && M.crowd !== false && !isObj(M.crowd)) fail('crowd is false or { rows?, fill? }');
   if (M.title !== undefined && typeof M.title !== 'string') fail('title is a string');
-  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}) };
+  const broadcast = M.broadcast === undefined ? undefined : readBroadcast(M.broadcast, 'court');
+  return { sport: sportKeyOf(M.sport), players: M.players, register: M.register, level: M.level, sets: M.sets, seed: M.seed, kit: M.kit, ...(M.look ? { look: M.look } : {}), crowd: M.crowd === false ? false : { rows: 3, fill: 0.8, ...(M.crowd ?? {}) }, ...(M.title ? { title: M.title } : {}), ...(broadcast ? { broadcast } : {}) };
 }
 
 /** The sport's dials the page carries (its spec is compiled apart). */
@@ -95,5 +97,5 @@ export function matchManifest(spec = {}) {
 export function matchArenaData(v = {}) {
   const M = readMatch(v), T = matchCourt(M);
   const C = contestRead(resolveSport(M.sport, 'match').spec({ sets: M.sets }));
-  return { ...M, sport: sportDials(M.sport), C, court: T, wire: COURT_WIRE };
+  return { ...M, sport: sportDials(M.sport), C, court: T, wire: COURT_WIRE, broadcast: broadcastData(M.broadcast, { register: M.register, count: 2, kind: 'sides', where: 'court' }) };
 }
