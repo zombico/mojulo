@@ -32,6 +32,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Headgear spike: masks, visors and helmets
 
+- The `cast` signature (`station-loft-adorn.js`): a mask CAST from the face, not built over the head's bounds. An
+  outline drawn in the eyes' frame (the cranium's eye row, between its inner and outer corner slots), wrapped round the
+  head on a cylinder, a grid over it cast inward onto the skin, its depth smoothed and never below the cast, lifted,
+  thickened and walled. `outline`: `domino` (almond eye holes, over the brows and the bridge, a notch above the nose,
+  points swept up at the temples), `band`, or a polygon with holes. The pack's tiered domino is now this cast.
+
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
   band and the visor (an `adorn` kit on the cranium), and four helms through the armour's `helm` signature (open, trooper,

@@ -43,7 +43,7 @@ describe('comic hero pack: headgear (the spike)', () => {
     expect(() => withHeadgear({}, 'realistic', 'trooperHelm')).toThrow(/not fitted to the realistic body/);
     expect(() => withHeadgear({}, 'tiered', 'crown')).toThrow(/no headgear 'crown'/);
   });
-  it('a helmet drops the hair; a domino is paint on the tiered head and the dermis\'s war paint on the realistic one; each validates', () => {
+  it('a helmet drops the hair; a domino is cast from the face on the tiered head and the dermis\'s war paint on the realistic one; each validates', () => {
     for (const id of HEADGEAR_IDS) for (const look of ['comic-day', 'realistic-city']) {
       if (!fitted(id, look === 'comic-day' ? 'tiered' : 'realistic')) continue;
       const { mint } = memberOrders('hero', look, { era: 'modern', headgear: id });
@@ -54,7 +54,7 @@ describe('comic hero pack: headgear (the spike)', () => {
     const bare = memberOrders('hero', 'comic-day', { era: 'modern' }).mint.args.spec;
     expect(bare.outfit?.type).toBe('outfit'); expect(bare.hair).not.toBe('none'); expect(bare.palette).toBeTruthy();
     const T = memberOrders('hero', 'comic-day', { headgear: 'domino' }).mint.args.spec, R = memberOrders('hero', 'realistic-city', { headgear: 'domino' }).mint.args.spec;
-    expect(T.paint.some((p) => p.part === 'cranium' && p.group === 'Mask')).toBe(true);
+    expect(T.adorn.some((A) => A.signature?.kind === 'cast' && A.part === 'cranium')).toBe(true);
     expect(R.skin.paint.pattern).toBe('mask');
   });
 });

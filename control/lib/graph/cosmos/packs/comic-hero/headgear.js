@@ -20,7 +20,7 @@ const HELM = (shape) => ({ id: 'cranium-helm', mode: 'shell', part: 'cranium', s
 const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' };
 // (a kit's colours: the helm in the suit's secondary, the visor, the lenses and a visor band in its accent, the face plate
 // dark; the era palettes name none of these groups, and grey on grey hides a T visor)
-const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099' });
+const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c' });
 // (a helm drops the hair; a visor keeps it)
 const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
@@ -39,6 +39,9 @@ const POINTS = { u: 0.9, a: 0.6, len: 0.06, r: 0.014, out: 0.1, up: 1, back: -0.
 // a RESPIRATOR kit: the cup over the nose and the mouth, carried by a ghost shell (no plate drawn), its filters in the trim
 const RESPIRATOR = (over = {}) => ({ id: 'respirator', mode: 'shell', part: 'cranium', s: [6.6, 8], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Suit', rigid: true, stack: false, ghost: true,
   signature: { kind: 'respirator', group: 'Helm', filters: { count: 2, group: 'Trim' }, grille: 3, grilleGroup: 'Trim', ...over } });
+// a CAST mask kit: the outline cast from the face (station-loft-adorn.js `cast`), carried by a ghost shell on the cranium
+const CAST = (outline, over = {}) => ({ id: `cast${outline[0].toUpperCase()}${outline.slice(1)}`, mode: 'shell', part: 'cranium', s: [6.6, 8], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Mask', rigid: true, stack: false, ghost: true,
+  signature: { kind: 'cast', group: 'Mask', outline, ...over } });
 // GOGGLES: a plate over each eye carrying a round lens (the boss)
 const GOGGLES = ['R', 'L'].map((S) => ({ id: `goggle${S}`, mode: 'shell', part: 'cranium', side: S, s: EYE_ROWS, t: [0.3, 5.6], nt: 6, ns: 2, mugen: 0.01, thick: 0.004, onTop: true, rigid: true, edge: 'roll', group: 'Visor',
   signature: { kind: 'boss', r: 0.017, h: 0.008, k: 'mid', j: 'mid', group: 'Lens' } }));
@@ -60,8 +63,8 @@ export const HEADGEAR = Object.freeze({
     at: { tiered: (spec) => withHelm(spec, [COWL({ visor: 'lenses' }, POINTS), RESPIRATOR({ filters: { count: 1, group: 'Trim' }, grille: 2 })]) } },
   hoodedMask: { reads: 'the hooded mask: the half-cape\'s cowl drawn close over the respirator and goggles; the smog-city vigilante', family: 'respirator',
     at: { tiered: (spec) => withPiece(withKit(spec, [RESPIRATOR(), ...GOGGLES]), COWL_HOOD), realistic: null } },
-  domino: { reads: 'the domino: a mask painted across the eyes, nose bridge to temple; the acrobat, the sidekick', family: 'mask',
-    at: { tiered: (spec) => ({ ...spec, paint: [...(Array.isArray(spec.paint) ? spec.paint : spec.paint ? [spec.paint] : []), { part: 'cranium', u: EYE_ROWS, t: [0.05, 0.78], group: MASK_GROUP }], palette: { ...(spec.palette || {}), [MASK_GROUP]: spec.palette?.[MASK_GROUP] ?? '#15171c' } }),
+  domino: { reads: 'the domino: a mask cast from the face, over the brow, the bridge and the cheekbones, almond eye holes, points flaring at the temples; the acrobat, the sidekick', family: 'mask',
+    at: { tiered: (spec) => withKit(spec, [CAST('domino')]),
       realistic: (spec) => ({ ...spec, skin: { ...(spec.skin && typeof spec.skin === 'object' ? spec.skin : {}), paint: { pattern: 'mask', colour: '#15171c', amount: 1 } } }) } },
   cowl: { reads: 'the cowl: the half-cape\'s hood drawn close round the face; the night vigilante', family: 'mask',
     at: { tiered: (spec) => withPiece(spec, COWL_HOOD), realistic: (spec) => withPiece(spec, COWL_HOOD) } },
