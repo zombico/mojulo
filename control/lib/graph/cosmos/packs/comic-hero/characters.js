@@ -9,6 +9,8 @@
  *   rollMember(id, { seed })                 → the egocube sheet (deterministic in the seed)
  *   memberOrders(id, lookId, { seed, era })  → { sheet: { facets, reading }, era, mint: { tool: 'mint_solid', args } }
  *                                            `era` a costume era (costumes.js); the look's stop suggests one (ERA_OF_STOP)
+ *                                            `ensemble` the body that answers the head (ensembles.js) in place of the
+ *                                            costume: an ensemble id, or 'auto' for the one the headgear calls for (HARMONY)
  *   bodyOf(lookId)                           → 'tiered' | 'realistic' (the look's stop's body, looks.js DIAL)
  */
 import { rollEgocube } from '../../../egocube/egocube.js';
@@ -18,6 +20,7 @@ import { SUIT_KEYS } from './suits.js';
 import { costumeOf, ERA_OF_STOP, ERAS } from './costumes.js';
 import { withPieces } from './pieces.js';
 import { withHeadgear } from './headgear.js';
+import { ensembleOf, HARMONY, SKIN_TONE } from './ensembles.js';
 import { lookOf, DIAL } from './looks.js';
 
 export const bodyOf = (lookId) => DIAL.find((d) => d.id === lookOf(lookId).stop).body;
@@ -30,7 +33,7 @@ export function rollMember(id, { seed = 1 } = {}) {
 // the body words the realistic form refuses (layered.js realisticErrors): addressed on the stylized body's rings
 const STYLIZED_ONLY = ['detail', 'body', 'girth', 'paint'];
 
-export function memberOrders(id, lookId, { seed = 1, era: eraIn, pieces = [], headgear = null } = {}) {
+export function memberOrders(id, lookId, { seed = 1, era: eraIn, pieces = [], headgear = null, ensemble = null } = {}) {
   const m = castMember(id), L = lookOf(lookId), body = bodyOf(lookId), sheet = rollMember(id, { seed });
   const era = eraIn ?? ERA_OF_STOP[L.stop];
   if (!ERAS[era]) throw new Error(`comic-hero: no era '${era}' (known: ${Object.keys(ERAS).join(', ')})`);
@@ -38,9 +41,15 @@ export function memberOrders(id, lookId, { seed = 1, era: eraIn, pieces = [], he
   if (plan.create.as !== 'hero') throw new Error(`comic-hero: ${id} rolled a ${plan.create.as}, not a person`);
   const spec = { ...plan.create.spec };
   for (const k of SUIT_KEYS) delete spec[k];
-  const { palette: suitPalette, ...dress } = withPieces(costumeOf(m.suit, era, body), pieces);
+  // (an ENSEMBLE dresses the body in the head's language in place of the costume, tiered as the headgear is)
+  const eid = ensemble === 'auto' ? HARMONY[headgear] : ensemble;
+  if (ensemble && !eid) throw new Error(`comic-hero: no ensemble answers the headgear '${headgear}' (HARMONY names: ${Object.keys(HARMONY).join(', ')})`);
+  if (eid && body !== 'tiered') throw new Error(`comic-hero: ensembles dress the tiered body (the look '${lookId}' is ${body})`);
+  const { palette: suitPalette, ...dress } = withPieces(eid ? ensembleOf(eid, headgear) : costumeOf(m.suit, era, body), pieces);
   Object.assign(spec, dress);
   spec.palette = { ...(spec.palette || {}), ...suitPalette };
+  // (a group an ensemble leaves bare takes the figure's skin: the gladiator's chest)
+  for (const [g, v] of Object.entries(spec.palette)) if (v === SKIN_TONE) spec.palette[g] = spec.palette.Skin ?? '#e0b9a0';
   spec.gesture = m.gesture;
   if (body === 'realistic') { spec.form = 'realistic'; for (const k of STYLIZED_ONLY) delete spec[k]; }
   // (the headgear worn over a COPY: a card returns a new spec, no card the one it was given)

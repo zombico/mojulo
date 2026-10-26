@@ -11,6 +11,7 @@
  *   HEADGEAR_IDS, fitted(id, body)
  *   withHeadgear(spec, body, id) → the spec wearing it, or throws naming the bodies it fits
  */
+import { isArmorBuild } from '../../../armor/expand.js';
 const MASK_GROUP = 'Mask';
 // the landmark head's cranium: rows 4 the eyes, 5 the brow; a paint's t in shares of the ring half (0 the front, 1 the back): the bridge is 1 slot of 8 in, the side 6
 const EYE_ROWS = [3.6, 5.3];
@@ -22,7 +23,8 @@ const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' 
 // dark; the era palettes name none of these groups, and grey on grey hides a T visor)
 const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c', MaskTeeth: P.MaskTeeth ?? '#efe9d8', MaskFitting: P.MaskFitting ?? '#7d848e', MaskFilter: P.MaskFilter ?? '#2b2f36', MaskStrap: P.MaskStrap ?? '#1d1f24', MaskMaw: P.MaskMaw ?? '#140808', MaskMouth: P.MaskMouth ?? P.Mask ?? '#15171c', EyeFrame: P.EyeFrame ?? '#1b1d22', EyeLens: P.EyeLens ?? '#9fc6c9', EyeStrap: P.EyeStrap ?? '#1b1d22', EyeTrim: P.EyeTrim ?? '#8a9099', EyeGlow: P.EyeGlow ?? '#5dff7a', Helmet: P.Helmet ?? '#d0d3d8', HelmetVisor: P.HelmetVisor ?? '#20252c', HelmetTrim: P.HelmetTrim ?? '#1b1d22', GoldVisor: P.GoldVisor ?? '#d4a73a', HelmetSeam: P.HelmetSeam ?? '#2a2e35', Faceplate: P.Faceplate ?? '#2a2f39', MaskBone: P.MaskBone ?? '#ece6d6', Plume: P.Plume ?? '#b3261e', HelmetCut: P.HelmetCut ?? '#0b0c0f', MaskBlush: P.MaskBlush ?? '#e58f9e', MaskGold: P.MaskGold ?? '#d4a73a' });
 // (a helm drops the hair; a visor keeps it)
-const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
+// (over an ARMOUR BUILD the kit rides its `with`, so the suit stays and the head piece takes the helm's place)
+const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: isArmorBuild(spec.adorn) ? { ...spec.adorn, with: [...(spec.adorn.with || []), ...kit] } : [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
 const withPiece = (spec, piece) => { const O = spec.outfit; if (!O || O.type !== 'outfit') throw new Error('comic-hero: a cowl rides an outfit build\'s cloak'); return { ...spec, outfit: { ...O, pieces: [...(O.pieces || []).filter((p) => p.kind !== 'cloak'), piece] } }; };
 const COWL_HOOD = { kind: 'cloak', hood: { open: 28 }, wrap: 0.5, hem: 'hip' };
@@ -408,8 +410,8 @@ export const FACETS = Object.freeze({
 export function structuredKit({ facets = 'iron', nose = true, top = 2.3, w = 1.25, ...words } = {}) {
   return facelessKit({ face: null, eyes: false, blank: false, pad: 0.005, panels: [], ...words, over: { front: { w, top, topSide: top - 0.9 }, facets: typeof facets === 'string' ? FACETS[facets] : facets, nose, shell: 4, cell: 0.03, rim: { w: 0.06, h: 0.0015, group: 'HelmetTrim' }, ...(words.over || {}) } });
 }
-const MASKED = (reads, kit, palette) => ({ reads, family: 'mask', at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, kit(spec)) } });
-const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', at: { tiered: (spec) => withHelm({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, typeof kit === 'function' ? kit(spec) : helmetKit(kit)) } });
+const MASKED = (reads, kit, palette) => ({ reads, family: 'mask', palette, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, kit(spec)) } });
+const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', palette, at: { tiered: (spec) => withHelm({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, typeof kit === 'function' ? kit(spec) : helmetKit(kit)) } });
 /** an eyegear's kit from its word (EYEGEAR) or its own data: the cast carried by a ghost shell on the cranium */
 export function eyegearKit(word, { id = 'eyegear', over = {} } = {}) {
   const W = typeof word === 'object' ? word : EYEGEAR[word];

@@ -9,8 +9,9 @@
 //   language  plate: { pauldron: 'spaulder' | 'bell', focalSide: 'R' | 'L', fnSide: 'R' | 'L' } — the focal shoulder and
 //             the arm that carries function (a bow arm takes the first bracer)
 //             lamellar: { crest: 'crescent' | 'kuwagata' | 'sun' }
-//             hardsuit: { helm: 'power' | 'trooper' | 'faceplate' | 'none' (bareheaded: an anime head wears none yet), pauldron: 'dome' | 'cap' | 'segmented', chest:
-//             'plain' | 'reactor', pack: 'power' | 'none', segments: 1–3 (the panel lines), focal: 'helm' | 'pauldron' |
+//             hardsuit: { helm: 'power' | 'trooper' | 'faceplate' | 'none' (bareheaded: an anime head wears none yet), pauldron: 'dome' | 'cap' | 'segmented' |
+//             'lames' | 'none', chest: 'plain' | 'reactor' | 'plates' | 'box' | 'bands' | 'none', pack: 'power' | 'jet' | 'none', segments: 1–3 (the
+//             panel lines), and the archetype words (hardsuit.js HARD_WORDS: arms, legs, skirt, glow, collar, pauldronSide), focal: 'helm' | 'pauldron' |
 //             'reactor', focalSide }
 //   tones     group → '#hex': the piece groups (plate: Plate, Trim, Rivet, Accent, Leather; lamellar: Lacquer, Odoshi,
 //             Kanamono, Crest; hardsuit: Plate, Helm, Visor, Lens, Face, Trim, Emblem, Reactor, Suit) and the layer
@@ -26,7 +27,8 @@ import { validateMaterialRef } from '../polygonizer/materials.js';
 export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
-const HARD = { helm: ['power', 'trooper', 'faceplate', 'none'], pauldron: ['dome', 'cap', 'segmented'], chest: ['plain', 'reactor'], pack: ['power', 'none'], focal: ['helm', 'pauldron', 'reactor'] };
+const HARD = { helm: ['power', 'trooper', 'faceplate', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'none'], focal: ['helm', 'pauldron', 'reactor'],
+  arms: ['panels', 'manica', 'gadget', 'none'], legs: ['panels', 'greaves', 'ocrea', 'none'], skirt: ['none', 'pteruges', 'tassets'], glow: ['none', 'lines'], collar: ['band', 'high', 'none'], pauldronSide: ['both', 'R', 'L'] };
 
 export const SEEDED_ARMOR = Object.freeze({
   knight: {
@@ -112,7 +114,7 @@ export function validateArmorCard(card, at = 'style') {
   if (card.family === 'hardsuit') {
     for (const [k, vs] of Object.entries(HARD)) if (L[k] !== undefined && !vs.includes(L[k])) errs.push(`${at}.language.${k}: one of ${vs.join(', ')}`);
     if (L.segments !== undefined && !(Number.isInteger(L.segments) && L.segments >= 1 && L.segments <= 3)) errs.push(`${at}.language.segments: an integer 1–3 (the panel lines)`);
-    if (L.focalSide !== undefined && !SIDES.includes(L.focalSide)) errs.push(`${at}.language.focalSide: 'R' | 'L'`);
+    for (const k of ['focalSide', 'fnSide', 'leadSide']) if (L[k] !== undefined && !SIDES.includes(L[k])) errs.push(`${at}.language.${k}: 'R' | 'L'`);
   }
   for (const [g, v] of Object.entries(card.tones || {})) if (!isHex(v)) errs.push(`${at}.tones.${g}: a "#rrggbb" colour`);
   if (card.emissive !== undefined && !(Array.isArray(card.emissive) && card.emissive.every((g) => typeof g === 'string'))) errs.push(`${at}.emissive: a list of group names`);

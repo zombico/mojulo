@@ -7,6 +7,7 @@ import { PIECES, PIECE_IDS, withPieces } from './pieces.js';
 import { HEADGEAR, HEADGEAR_IDS, fitted, withHeadgear } from './headgear.js';
 import { costumeOf } from './costumes.js';
 import { memberOrders } from './characters.js';
+import { ENSEMBLES, HARMONY } from './ensembles.js';
 import { OUTFIT_KIND_NAMES } from '../../../polygonizer/outfit-plan.js';
 import { validateHeroSpec } from '../../../../mcp/tools/layered.js';
 
@@ -56,5 +57,19 @@ describe('comic hero pack: headgear (the spike)', () => {
     const T = memberOrders('hero', 'comic-day', { headgear: 'domino' }).mint.args.spec, R = memberOrders('hero', 'realistic-city', { headgear: 'domino' }).mint.args.spec;
     expect(T.adorn.some((A) => A.signature?.kind === 'cast' && A.part === 'cranium')).toBe(true);
     expect(R.skin.paint.pattern).toBe('mask');
+  });
+});
+
+describe('comic hero pack: ensembles (the body that answers a head)', () => {
+  it('every head\'s ensemble validates through the door; the head rides over the armour build in place of its helm; a bare group is the skin', () => {
+    for (const [head, id] of Object.entries(HARMONY)) {
+      expect(ENSEMBLES[id], `${head} → ${id}`).toBeTruthy();
+      const { spec } = memberOrders('hero', 'comic-day', { headgear: head, ensemble: 'auto' }).mint.args;
+      expect(validateHeroSpec(spec), `${head} in ${id}`).toEqual([]);
+      if (ENSEMBLES[id].armor) expect(spec.adorn.type === 'armor' && spec.adorn.with.some((A) => A.part === 'cranium'), head).toBe(true);
+    }
+    const G = memberOrders('hero', 'comic-day', { headgear: 'fishGladiator', ensemble: 'auto' }).mint.args.spec;
+    expect(G.palette.Top).toBe(G.palette.Skin ?? '#e0b9a0');
+    expect(() => memberOrders('hero', 'comic-day', { headgear: 'domino', ensemble: 'auto' })).toThrow(/no ensemble answers/);
   });
 });

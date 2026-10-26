@@ -8,6 +8,7 @@
 //               leaning the dials and language between the style's and the build's own
 //     wear      the optional pieces the realistic body wears only when named (['gorget']); the authored body wears its own
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
+//     with      a KIT worn over the suit (a helmet, a mask, a cape's clasp): appended after it; a head piece replaces the helm
 //
 // The hero record stores these words; `hero-dress.dressPlan` calls `expandArmor` with the register's ring halves, and
 // the kit is baked like any other (station-loft-adorn.js). Pure and deterministic: no dice, fixed order.
@@ -51,6 +52,8 @@ export function validateArmor(build) {
   // a theme's language leans the style's family words: the same choices as the card's own
   const TL = card && !validateArmorCard(card).length ? themeOf(build.theme)?.language?.[card.family] : undefined;
   if (TL !== undefined) errs.push(...validateArmorCard({ family: card.family, language: TL }, 'adorn.theme').filter((e) => e.includes('language')).map((e) => e.replace('adorn.theme.language.', `adorn.theme.language.${card.family}.`)));
+  // `with`: a kit worn over the build (hero-dress.js dressPlan), each adornment its own data (the adornment layer judges it)
+  if (build.with !== undefined && !(Array.isArray(build.with) && build.with.every((a) => a && typeof a === 'object' && !Array.isArray(a) && typeof a.id === 'string'))) errs.push('adorn.with: a KIT worn over the armour, [{ id, mode, part, …, signature }]');
   if (build.laws !== undefined && build.laws !== ARMOR_LAWS_VERSION) errs.push(`adorn.laws: ${build.laws} is unknown — this kernel carries armour laws ${ARMOR_LAWS_VERSION}`);
   return errs;
 }

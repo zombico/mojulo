@@ -333,7 +333,10 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
   if (detail === 'swimsuit') swimsuit(plan, figure);
   else if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
-  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = overChest(overPelvis(A.kit, ctx), ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
+  // (`with`: a kit worn over the build, after it; a head piece in it (on the cranium: a helmet, a mask) replaces the
+  // armour's own helm)
+  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx), W = adorn.with || [], head = W.some((a) => a.part === 'cranium');
+    plan.adorn = overChest(overPelvis([...(head ? A.kit.filter((a) => a.part !== 'cranium') : A.kit), ...W], ctx), ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
   else if (wantAdorn) plan.adorn = overChest(overPelvis(typeof adorn === 'string' ? rangerKit(ctx) : adorn, ctx), ctx);
   if (wantPaint) plan.paint = lowerPaint(paint, plan);
   let built = null;

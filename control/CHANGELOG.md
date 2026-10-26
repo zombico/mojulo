@@ -157,6 +157,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - the iron and gilded tyrants;
   - the dark and chrome-lined respirators;
   - the clockwork skull and the whaler mask.
+- Ensembles: the body that answers a head. Three changes make a suit harmonize with the headgear:
+  - **Layering:** an armour build takes `with`, a kit worn over the suit, and a head piece in it (on the cranium) takes
+    the suit's helm's place. Before this, a headgear card on an armoured suit replaced the whole `adorn` and the
+    armour was lost.
+  - **The hardsuit's archetype words**, each absent the piece as before (the armour pins hold), documented in the door's
+    manual:
+    - `pauldron` `lames` | `none`, and `pauldronSide`;
+    - `chest` `plates` | `box` | `bands` | `none`;
+    - `arms` `manica` | `gadget` | `none`;
+    - `legs` `greaves` | `ocrea` | `none`;
+    - `skirt` `pteruges` | `tassets`;
+    - `pack` `jet`;
+    - `glow` `lines`;
+    - `collar` `high` | `none`;
+    - `fnSide` and `leadSide`.
+  - **`comic-hero/ensembles.js`:** the ensembles, each an undersuit and its cloth plus the hardsuit in those words
+    (or the lamellar ronin, or the themed death knight). Each is coloured from the headgear card's palette: the shell
+    becomes the plates, its trim the trim, its seams the undersuit, its glow the lights. A group left `skin` is bare.
+    The ensembles are cyborg, hunter, titan, warlock, ronin, gladiator, hoplite, legion, regal, bounty hunter, tyrant,
+    dark lord, assassin, reaper, death knight, operator and shinobi.
+
+  `HARMONY` names the ensemble each head calls for; `memberOrders(id, look, { headgear, ensemble: 'auto' | id })`
+  wears it in place of the costume (tiered body).
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor
