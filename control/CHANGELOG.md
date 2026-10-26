@@ -822,11 +822,25 @@ its edge can be seen.
 
 ### The cube's light: one light from the palette and the hour
 
-- Planned. A cube's light is recipe: its palette (the color theorist's solve, seeded by the game design loop) and its
-  hour give one light, `{ key, sky, ambient, shade, fog, water }`, that gen-6 bakes into its fills and gen-7 hands to
-  the renderer. Today the palette sets the colours, the tone key, the moon, the sky and the shade, but the sun's colour
-  and the ambient come from the reference's keyframes, the live light's shadow falls toward black rather than the
-  shade, and the gen-7 read takes the preset's colours and a sun of its own. An unseeded cube's light stays byte for byte.
+A cube's light is recipe: its palette (the color theorist's solve, seeded by the game design loop) and its hour give one
+light, that gen-6 bakes into its fills and gen-7 hands to the renderer. Gen-6's colours are what is seen; gen-7's seen
+colour is base × light, so the palette's colours are targets and the base colours and the light are solved together.
+
+- **The palette solves the light** (`era/cube-light.js`, `cubeLight(cube, { hour })`), built: a role's colour is its lit
+  target (a face square to the sun), its shade target the lit one times one shade tint common to every role (so one sun
+  meets them all); the sky's light takes the cube's sky at its hour (the palette's, when solved), the sun the hour's key;
+  their split is the reference's contrast; the light's level is as bright as the brightest base needs to stay a
+  believable material (luminance 0.85), so a dark palette gets a dim light. The targets are undone through sRGB and the
+  renderer's tone curve (Khronos neutral, `toneNeutral` and its inverse) first. At another hour the bases stay and the
+  light moves. A colour one sun cannot reach is held at the edge and named (`checks`), advice never a refusal.
+- **The gen-7 island reads it** (`scripts/spikes/form/island.mjs`, `--palette <seed>`): its land's bases and its sun and
+  sky light are the solve's, in three's units (π × the levels); `window.swatches()` draws a patch of each role square to
+  the sun and under the sky alone and reads it off the screen: on island-noon and under a seeded palette every shade
+  lands on its target to the byte and every lit patch within 5 of 255 (the materials' own sheen square to the sun).
+- **Seen, said:** the sky in the gen-7 sea's reflection lifts it over its target. Still to come: gen-6 reading the same
+  light (its shading, contrast and sky), the live light's shadow falling toward the shade rather than black, and the
+  palette's own light colour on the sun. An unseeded cube's payload is byte for byte as it was (nothing reads the
+  light yet).
 
 ### Gen 7: form, not light
 

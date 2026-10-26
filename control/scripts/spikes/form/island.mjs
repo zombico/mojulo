@@ -1,12 +1,14 @@
 // THE PATHLESS ISLAND, READ IN THE FORM RENDER (gen-7's first composed scene): the geocube island's land, one recipe,
 // drawn twice from the same camera. Left, gen-6: each face's fill, the light baked in, drawn unlit (as the World page
-// draws it). Right, gen-7: each face's material (form/land-form.js: the cube's colour for its class, no light), lit by
-// one sun at the cube's hour and the sky, its shadow map drawn once; the sea a glossy surface with the sky in it, the sand
-// under its line wet. The sun can be moved to show the right side is lit (never to animate the hour).
+// draws it). Right, gen-7: each face's material (form/land-form.js over the bases the palette solves, era/cube-light.js:
+// the cube's colours are targets, the base colours and one light solved to show them), lit by that sun and sky light at
+// the cube's hour, its shadow map drawn once; the sea a glossy surface with the sky in it, the sand under its line wet.
+// The sun can be moved to show the right side is lit (never to animate the hour).
 // `window.measure()` is the machine gate: cliff faces turned to the hour's sun against those turned away, wet sand
-// against dry, in both halves, and the shadow passes drawn. The look is the operator's.
+// against dry, in both halves, and the shadow passes drawn; with `swatches`, a patch of each role square to the sun and
+// one under the sky alone, read off the screen against the palette's targets. The look is the operator's.
 //
-//   node scripts/spikes/form/island.mjs [--out <file.html>] [--cube island-noon] [--cdn]
+//   node scripts/spikes/form/island.mjs [--out <file.html>] [--cube island-noon] [--palette <seed>] [--cdn]
 import fs from 'node:fs';
 import path from 'node:path';
 import { register } from 'node:module';
@@ -15,16 +17,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
 register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href, pathToFileURL(`${CONTROL}/`).href);
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
-const { readGeocube } = await import('../../../lib/graph/era/geocube.js');
+const { readGeocube, GEOCUBE_PALETTES } = await import('../../../lib/graph/era/geocube.js');
+const { cubeLight } = await import('../../../lib/graph/era/cube-light.js');
 const { landForm, LAND_CLASSES, DEEP_FADE } = await import('../../../lib/graph/form/land-form.js');
 const { b64, safeJson, CDN_IMPORTMAP, inlineImportmap } = await import('../../../lib/graph/scene/emit-util.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
-const out = path.resolve(arg('--out', 'island.html')), cube = arg('--cube', 'island-noon'), cdn = process.argv.includes('--cdn');
+const out = path.resolve(arg('--out', 'island.html')), id = arg('--cube', 'island-noon'), seed = arg('--palette'), cdn = process.argv.includes('--cdn');
+// (a seeded palette as the game design loop stamps it: the preset's character, the seed)
+const cube = seed === undefined ? id : { from: id, palette: { ...GEOCUBE_PALETTES[id], seed: Number(seed) } };
 
 const { payload: P } = await resolveWorldScene({ title: 'island', manifest: { kind: 'geocube', cube, show: 'land' } }, {});
-const colour = readGeocube(cube).colour, sun = P.sky.sun.dir;
-const L = landForm(P.faces, colour, { seed: 1 });
+const C = readGeocube(cube), light = cubeLight(C), sun = light.sun.dir;
+const L = landForm(P.faces, light.bases, { seed: 1 });
 
 // faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours
 // and the gate's bucket: 1 a cliff turned to the hour's sun, 2 one turned away, 3 wet sand, 4 dry sand
@@ -61,8 +66,9 @@ const shoreSun = [Math.round((Math.atan2(along[1], along[0]) - Math.atan2(sun[1]
 const data = {
   cube, sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, haze: P.haze, box, waterZ: L.waterZ, unread: L.unread, deep: L.deep,
   seabed: { x: [Math.min(...seaX), Math.max(...seaX)], y: [Math.min(...seaY), Math.max(...seaY)], z: L.waterZ - DEEP_FADE - 1 },
-  water: colour.water, classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, C]) => [k, C.rough])),
+  classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
   cameras: [...P.cameras.map((c) => ({ name: c.name, ...c.worldFraming })), shore], shoreSun, ranges,
+  light: { sun: light.sun.linear, ambient: light.ambient.linear, swatches: ['stone', 'grass', 'sand', 'floor', 'water'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
   pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)),
 };
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -128,11 +134,14 @@ for (const R of D.ranges) {
 }
 // gen-7: the material, lit
 const seven = new THREE.Scene(); seven.fog = fog(); seven.add(skyDome());
+// (the sky in the sea's reflections only: the land's light is the solved sun and sky light, nothing over it)
 const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(); envScene.add(skyDome());
-seven.environment = pm.fromScene(envScene, 0, 1, 6000).texture; seven.environmentIntensity = 0.8;
+const skyEnv = pm.fromScene(envScene, 0, 1, 6000).texture;
+// the solved light in three's units: its diffuse is base × light / π, so each light is π × the solve's level
+const solved = (lin) => { const m = Math.max(...lin, 1e-9); return [new THREE.Color().setRGB(lin[0] / m, lin[1] / m, lin[2] / m, THREE.LinearSRGBColorSpace), Math.PI * m]; };
+seven.add(new THREE.AmbientLight(...solved(D.light.ambient)));
 let wetMat = null;
-// (three's sun: a face square to it shows its colour × intensity / π, so near π shows the material as it is)
-const sunLight = new THREE.DirectionalLight(0xfff4e2, 3.4); sunLight.castShadow = true;
+const sunLight = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;
 const [bx, by, bz] = D.box, mid = new THREE.Vector3((bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2, (bz[0] + bz[1]) / 2), rad = Math.hypot(bx[1] - bx[0], by[1] - by[0], bz[1] - bz[0]) / 2;
 Object.assign(sunLight.shadow.camera, { left: -rad, right: rad, top: rad, bottom: -rad, near: 0.5, far: rad * 4 });
 sunLight.shadow.mapSize.set(4096, 4096); sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.04;
@@ -140,7 +149,7 @@ sunLight.target.position.copy(mid); seven.add(sunLight, sunLight.target);
 for (const R of D.ranges) {
   const water = R.key === 'water';
   const m = water
-    ? new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.2 })
+    ? new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.04, envMap: skyEnv, envMapIntensity: 1.2 })
     : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, flatShading: true, side: THREE.DoubleSide });
   const g = part(R, C7); if (water) g.computeVertexNormals();   // (the land is shaded flat, its normals the faces'; the sea's are its own)
   const mesh = new THREE.Mesh(g, m); mesh.castShadow = !water; mesh.receiveShadow = true; seven.add(mesh);
@@ -207,6 +216,21 @@ function buckets(px, id) {
   for (const [b, ys] of Object.entries(S)) { ys.sort((a, c) => a - c); out[name[b]] = { px: ys.length, mean: +(ys.reduce((a, c) => a + c, 0) / ys.length).toFixed(1), top: +ys[Math.floor(ys.length * 0.95)].toFixed(1), peak: +ys[Math.floor(ys.length * 0.99)].toFixed(1) }; }
   return out;
 }
+// the swatches: a patch of each role's base square to the sun, then under the sky alone, drawn to the screen through
+// the same tone curve and read back against the palette's targets
+function swatches() {
+  const W = D.light.swatches, n = W.length, S = new THREE.Scene(), cam = new THREE.OrthographicCamera(-n, n, 1, -1, 0.1, 10);
+  cam.position.set(0, 0, 5); cam.lookAt(0, 0, 0);
+  const sunS = new THREE.DirectionalLight(...solved(D.light.sun)); sunS.position.set(0, 0, 10); S.add(sunS, new THREE.AmbientLight(...solved(D.light.ambient)));
+  W.forEach((w, i) => { const q = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(...w.base, THREE.LinearSRGBColorSpace), roughness: 1, metalness: 0 })); q.position.x = -n + 1 + 2 * i; S.add(q); });
+  const gl = renderer.getContext(), read = () => W.map((_, i) => { const px = new Uint8Array(4); gl.readPixels(Math.round(((1 + 2 * i) / (2 * n)) * gl.drawingBufferWidth), Math.round(gl.drawingBufferHeight / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return '#' + [...px.slice(0, 3)].map((v) => v.toString(16).padStart(2, '0')).join(''); });
+  renderer.setRenderTarget(null); renderer.setViewport(0, 0, cv.clientWidth, cv.clientHeight);
+  renderer.render(S, cam); const lit = read(); sunS.intensity = 0; renderer.render(S, cam); const shade = read();
+  const off = (a, b) => Math.max(...[1, 3, 5].map((k) => Math.abs(parseInt(a.slice(k, k + 2), 16) - parseInt(b.slice(k, k + 2), 16))));
+  draw();
+  return W.map((w, i) => ({ role: w.role, lit: lit[i], want: w.lit, litOff: off(lit[i], w.lit), shade: shade[i], wantShade: w.shade, shadeOff: off(shade[i], w.shade) }));
+}
+window.swatches = swatches;
 window.measure = ({ camera: name, sun } = {}) => {
   if (name) frame(name);
   const before = [Number(az.value), Number(el.value)];
