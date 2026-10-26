@@ -14,6 +14,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### A leg's cloth stays on its own side
+
+- A limb's cloth field (`body-relational-garment.js` `fieldGarment`) was read by `|x|`, the right limb's field mirrored for
+  both sides. With the legs together at rest the thighs' fields meet at the midline, so a ray from an inner slot never left
+  its own limb, ran on through the mirrored one and landed on its far side: a spike of trouser cloth up to 9 cm across the
+  midline at the inner thigh and the inner shin, which a stand carried out with the leg as a flap bridging the two legs,
+  the cape and the background showing through the openings it left. A left segment now reads the field reflected, a right
+  one as it is; a point that never crossed the midline is byte for byte what it was. The trousers test holds every leg
+  piece to its own side; the byte pins the module reaches hold (no pinned figure had its limbs touching).
+
 ### Realistic laws 5: the crotch on every build
 
 - The realistic body finds the crotch no lower than 0.6 W under the hip's joint and draws the pelvis's rings under it
