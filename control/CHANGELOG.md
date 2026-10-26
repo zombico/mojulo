@@ -37,6 +37,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   head on a cylinder, a grid over it cast inward onto the skin, its depth smoothed and never below the cast, lifted,
   thickened and walled. `outline`: `domino` (almond eye holes, over the brows and the bridge, a notch above the nose,
   points swept up at the temples), `band`, or a polygon with holes. The pack's tiered domino is now this cast.
+- The cast is the MASK BUILDER's primitive, every look words: the outline's dials (`CAST_DIALS`: bridge, cheek, brow,
+  notch or a widow's `peak`, the temples' `wing` and `wingRise`, a `fang` down each cheek, `round` curved or angular), the
+  `eyes` (almond, slit, angular or round; open holes, `lens` covers domed over the eyeball, or `none`), and relief (a
+  raised `rim`, a `ridge` down the middle, panel `seams` by word or line), each face coloured by its triangle so a lens
+  or a rim follows its shape. A plate is a second cast over the first. It reads the anime head's face and pupils too.
+- The pack's builder (`headgear.js` `maskKit({ outline, eyes, detail, plate })`, its words in `MASK_OUTLINES`,
+  `MASK_EYES`, `MASK_DETAIL`) and its variations: pointed, raptor, technical, tactical, hunter, lens, blank and goggle
+  masks. On the anime head the default eyes are opaque covers (its eyes are too large and too drawn to frame), and an
+  open-eyed mask wears covers in its eye shape unless the eyes say `anime: 'open'`.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

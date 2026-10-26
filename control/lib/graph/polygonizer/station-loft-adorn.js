@@ -366,19 +366,44 @@ function plaqueAt(fig, beneath, S) {
 // ─── the CAST mask (SIGNATURES.cast): an outline in the eyes' frame cast onto the face ───
 const pip = (P, x, z) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, zi] = P[i], [xj, zj] = P[j]; if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c; } return c; };
 const nearestOn = (P, x, z) => { let best = null, bd = Infinity; for (let i = 0; i < P.length; i++) { const [ax, az] = P[i], [bx, bz] = P[(i + 1) % P.length], dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz || 1e-12, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L)), px = ax + t * dx, pz = az + t * dz, d = (px - x) ** 2 + (pz - z) ** 2; if (d < bd) { bd = d; best = [px, pz]; } } return best; };
-const almond = (cx, rx, rz, tilt, n = 24) => Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * i) / n, x = rx * dmath.cos(a), z = rz * Math.sign(dmath.sin(a)) * Math.abs(dmath.sin(a)) ** 0.8 * (1 - Math.abs(dmath.cos(a)) ** 4) ** 0.6, c = dmath.cos(tilt), sn = dmath.sin(tilt) * Math.sign(cx); return [cx + x * c - z * sn, x * sn + z * c]; });
+// an EYE's outline in the eyes' frame round its centre `cx` (±1), its outer corner toward the temple: `almond` (pointed at
+// both corners), `slit` (an almond pressed thin), `angular` (a six-sided eye, its outer corner swept up), `round`
+const eyeShape = (shape, cx, rx, rz, tilt, n = 24) => {
+  const out = Math.sign(cx), rot = ([x, z]) => { const c = dmath.cos(tilt), sn = dmath.sin(tilt) * out; return [cx + x * c - z * sn, x * sn + z * c]; };
+  if (shape === 'angular') return [[-rx, -0.05 * rz], [-0.45 * rx, rz * 0.85], [0.55 * rx, rz], [rx, rz * 0.35], [0.7 * rx, -rz * 0.55], [-0.35 * rx, -rz * 0.8]].map(([x, z]) => rot([x * out, z]));
+  if (shape === 'round') return Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * i) / n; return rot([rx * dmath.cos(a), rz * dmath.sin(a)]); });
+  const k = shape === 'slit' ? 0.4 : 1;
+  return Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * i) / n, x = rx * dmath.cos(a), z = k * rz * Math.sign(dmath.sin(a)) * Math.abs(dmath.sin(a)) ** 0.8 * (1 - Math.abs(dmath.cos(a)) ** 4) ** 0.6; return rot([x, z]); });
+};
+// Chaikin's corner cutting, `passes` times, the points flagged sharp kept (a temple's point, a widow's peak)
+const chaikin = (P, passes) => { let Q = P; for (let it = 0; it < passes; it++) { const R = []; for (let i = 0; i < Q.length; i++) { const a = Q[i], b = Q[(i + 1) % Q.length];
+  if (a.sharp) R.push(a); else if (!R.length || R[R.length - 1] !== a) R.push({ x: 0.75 * a.x + 0.25 * b.x, z: 0.75 * a.z + 0.25 * b.z });
+  if (!b.sharp) R.push({ x: 0.25 * a.x + 0.75 * b.x, z: 0.25 * a.z + 0.75 * b.z }); } Q = R; } return Q; };
+/** the cast's OUTLINE in the eyes' frame from its dials (see SIGNATURES.cast), the right half mirrored; its eye shapes */
+export const CAST_DIALS = Object.freeze({ bridge: 0.5, cheek: 0.95, brow: 1.18, notch: 0.3, peak: 0, wing: 2.75, wingRise: 0.85, fang: 0, round: 1 });
 function castOutline(S) {
-  const [rx, rz] = S.eye ?? [0.6, 0.36], tilt = S.tilt ?? 0.1, holes = [almond(1, rx, rz, tilt), almond(-1, rx, rz, tilt)];
-  if (S.outline && typeof S.outline === 'object') return { outer: S.outline.poly, holes: S.outline.holes ?? holes };
+  const E = S.eyes ?? {}, [rx, rz] = E.size ?? S.eye ?? [0.6, 0.36], tilt = E.tilt ?? S.tilt ?? 0.1, shape = E.shape ?? 'almond';
+  const holes = [eyeShape(shape, 1, rx, rz, tilt), eyeShape(shape, -1, rx, rz, tilt)];
+  if (S.outline && typeof S.outline === 'object' && S.outline.poly) return { outer: S.outline.poly, holes: S.outline.holes ?? holes };
   if (S.outline === 'band') return { outer: [[-2.3, -0.62], [2.3, -0.62], [2.3, 0.7], [-2.3, 0.7]], holes };
-  // (the domino over the brows and down to the cheekbones: up over the bridge, dipping to a notch above the nose, its
-  // outer ends swept up and out to points at the temples)
-  const w = S.wing ?? 2.75, half = [[0, -0.5], [0.3, -0.78], [0.9, -0.95], [1.55, -0.85], [2.1, -0.5], [2.45, 0.05], [w, 0.85], [2.2, 0.95], [1.6, 1.12], [0.95, 1.18], [0.4, 1.05], [0, 0.88]];
-  return { outer: [...half, ...half.slice(1, -1).reverse().map(([x, z]) => [-x, z])], holes };
+  const D = { ...CAST_DIALS, ...(S.outline && typeof S.outline === 'object' ? S.outline : {}) }, w = D.wing;
+  // the right half, from the bridge's foot round the cheek to the temple's point and back along the brow to the middle
+  const half = [{ x: 0, z: -D.bridge, sharp: D.round < 1 }, { x: 0.3, z: -(D.cheek - 0.17) }, { x: 0.9, z: -D.cheek }, { x: 1.55, z: -(D.cheek - 0.1) },
+    ...(D.fang > 0 ? [{ x: 1.85, z: -(D.cheek + D.fang), sharp: true }, { x: 2.05, z: -0.55 * D.cheek }] : [{ x: 2.1, z: -0.53 * D.cheek }]),
+    { x: w - 0.3, z: 0.05 }, { x: w, z: D.wingRise, sharp: true }, { x: w - 0.55, z: Math.max(D.wingRise + 0.1, D.brow - 0.25) }, { x: 1.6, z: D.brow - 0.06 }, { x: 0.95, z: D.brow },
+    ...(D.peak > 0 ? [{ x: 0.35, z: D.brow - 0.1 - D.notch * 0.5 }, { x: 0, z: D.brow + D.peak, sharp: true }] : [{ x: 0.4, z: D.brow - 0.13 }, { x: 0, z: D.brow - D.notch, sharp: D.round < 1 }])];
+  const ring = [...half, ...half.slice(1, -1).reverse().map((p) => ({ ...p, x: -p.x }))];
+  return { outer: chaikin(ring, Math.round(2 * Math.max(0, Math.min(1, D.round)))).map((p) => [p.x, p.z]), holes };
 }
+// the SEAMS a technical cast carries, by word, in the eyes' frame (polylines; each mirrored but the centre's)
+const SEAM_WORDS = { centre: [[[0, -1.2], [0, 1.6]]], brow: [[[-2.2, 0.62], [-1.2, 0.72], [0, 0.6], [1.2, 0.72], [2.2, 0.62]]], cheek: [[[1.55, -0.3], [2.2, -0.75]], [[-1.55, -0.3], [-2.2, -0.75]]],
+  temple: [[[1.62, 0.12], [2.5, 0.6]], [[-1.62, 0.12], [-2.5, 0.6]]] };
+const segDist = (x, z, L) => { let b = Infinity; for (let i = 0; i + 1 < L.length; i++) { const [ax, az] = L[i], [bx, bz] = L[i + 1], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1e-12))); b = Math.min(b, Math.hypot(ax + t * dx - x, az + t * dz - z)); } return b; };
+const ringDist = (x, z, P) => segDist(x, z, [...P, P[0]]);
 function castMask(fig, S) {
   const tri = []; const take = (P) => { if (!P?.faces || !P.points) return; const F = Array.isArray(P.faces) ? P.faces : Object.values(P.faces); for (const f of F) for (let k = 1; k + 1 < f.length; k++) { const a = P.points[f[0]], b = P.points[f[k]], c = P.points[f[k + 1]]; if (a && b && c) tri.push([a, b, c]); } };
-  for (const n of S.parts || ['cranium', 'jaw']) take(fig.mesh.parts[n]);
+  // (the skin it is cast onto: the named parts, by default the landmark head's cranium and jaw and the anime head's face)
+  for (const n of S.parts || ['cranium', 'jaw', 'face']) take(fig.mesh.parts[n]);
   const over = S.over ? new RegExp(S.over) : /^(brow|lid)(R|L)?$/;
   for (const [k, P] of Object.entries(fig.parts || {})) if (over.test(k)) take(P);
   if (!tri.length) return [];
@@ -391,7 +416,9 @@ function castMask(fig, S) {
   // (the landmark head draws its eye a little past the middle of its corners, `eyeAt` of the way from the inner to the outer)
   const pre = Cr ? Object.keys(Cr.points)[0].split('/')[0] : '', eyeAt = S.eyeAt ?? 0.565;
   const corner = (S0) => { const a = Cr?.points?.[`${pre}/${eyeRow?.id}.inner${S0}`], b = Cr?.points?.[`${pre}/${eyeRow?.id}.outer${S0}`]; return a && b ? add(a, mul(sub(b, a), eyeAt)) : null; };
-  const eR = eyeRow ? corner('R') : null, eL = eyeRow ? corner('L') : null;
+  // (a head that draws its pupils as parts by the time it is dressed, the anime head's: their middles)
+  const pupil = (S0) => mid(fig.mesh.parts[`pupil${S0}`]) ?? mid(fig.parts?.[`pupil${S0}`]) ?? mid(fig.mesh.parts[`iris${S0}`]) ?? mid(fig.parts?.[`iris${S0}`]);
+  const eR = (eyeRow && corner('R')) || pupil('R'), eL = (eyeRow && corner('L')) || pupil('L');
   const c0 = eR && eL ? mul(add(eR, eL), 0.5) : [(lo[0] + hi[0]) / 2, hi[1], lo[2] + 0.55 * (hi[2] - lo[2])];
   const d = eR && eL ? Math.max(0.012, Math.abs(eR[0] - eL[0]) / 2) : 0.032;
   // the cylinder the outline wraps round: its axis vertical through the head's middle, its radius the head's half-depth
@@ -403,29 +430,52 @@ function castMask(fig, S) {
   const castAt = (X, Z) => { const dir = dirAt(X), z = c0[2] + Z * d, o = [ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, z], ray = mul(dir, -1); let best = null;
     for (const [a, b, c] of tri) { const e1 = sub(b, a), e2 = sub(c, a), h = cross(ray, e2), det = dot(e1, h); if (Math.abs(det) < 1e-14) continue; const f = 1 / det, sv = sub(o, a), u = f * dot(sv, h); if (u < 0 || u > 1) continue; const q = cross(sv, e1), v = f * dot(ray, q); if (v < 0 || u + v > 1) continue; const t = f * dot(e2, q); if (t > 1e-6 && (best === null || t < best)) best = t; }
     return best === null ? null : 0.4 - best; };   // the skin's distance from the axis along the ray
-  const { outer, holes } = castOutline(S), cell = S.cell ?? 0.06, inside = (x, z) => pip(outer, x, z) && !holes.some((H) => pip(H, x, z));
+  const { outer, holes } = castOutline(S), cell = S.cell ?? 0.06, treat = S.eyes?.treat ?? 'open', cut = treat === 'open' ? holes : [];
+  const inside = (x, z) => pip(outer, x, z) && !cut.some((H) => pip(H, x, z));
   const xs = outer.map((p) => p[0]), zs = outer.map((p) => p[1]), X0 = Math.min(...xs) - cell, Z0 = Math.min(...zs) - cell, NX = Math.ceil((Math.max(...xs) - X0) / cell) + 2, NZ = Math.ceil((Math.max(...zs) - Z0) / cell) + 2;
   const keep = new Set(); for (let i = 0; i < NX - 1; i++) for (let j = 0; j < NZ - 1; j++) if (inside(X0 + (i + 0.5) * cell, Z0 + (j + 0.5) * cell)) keep.add(`${i},${j}`);
   // the corners the kept cells use, those outside the shape snapped onto its nearest edge (the outline, or an eye hole's)
-  const used = new Map(), uv = (i, j) => { const kk = `${i},${j}`; if (!used.has(kk)) { let x = X0 + i * cell, z = Z0 + j * cell;
-      if (!inside(x, z)) { const cands = [nearestOn(outer, x, z), ...holes.map((H) => nearestOn(H, x, z))].sort((A, B) => (A[0] - x) ** 2 + (A[1] - z) ** 2 - ((B[0] - x) ** 2 + (B[1] - z) ** 2)); [x, z] = cands[0]; }
-      used.set(kk, { x, z }); } return kk; };
+  // (`edge`: the corner lies on the outline, `eye` on an eye's; a covered eye's outline is snapped to too, so a lens's
+  // colour, cut by the faces, follows its shape instead of the grid's steps)
+  const covered = treat === 'open' ? [] : holes, used = new Map(), uv = (i, j) => { const kk = `${i},${j}`; if (!used.has(kk)) { let x = X0 + i * cell, z = Z0 + j * cell, edge = false, eye = false;
+      if (!inside(x, z)) { const cands = [[nearestOn(outer, x, z), 'edge'], ...cut.map((H) => [nearestOn(H, x, z), 'eye'])].sort(([A], [B]) => (A[0] - x) ** 2 + (A[1] - z) ** 2 - ((B[0] - x) ** 2 + (B[1] - z) ** 2)); [x, z] = cands[0][0]; edge = cands[0][1] === 'edge'; eye = !edge; }
+      else for (const H of covered) { const q = nearestOn(H, x, z); if (Math.hypot(q[0] - x, q[1] - z) < 0.5 * cell) { [x, z] = q; eye = true; break; } }
+      used.set(kk, { x, z, edge, eye }); } return kk; };
   for (const kk of keep) { const [i, j] = kk.split(',').map(Number); uv(i, j); uv(i + 1, j); uv(i + 1, j + 1); uv(i, j + 1); }
   // the cast depth, smoothed twice over the grid's neighbours and never below the cast (the mask lies on the face's peaks)
   let r = new Map([...used].map(([kk, q]) => [kk, castAt(q.x, q.z)]));
   const miss = [...r.values()].filter((v) => v === null).length; if (miss > r.size / 2) return [];
   const fallback = Math.max(...[...r.values()].filter((v) => v !== null)); for (const [kk, v] of r) if (v === null) r.set(kk, fallback);
   for (let pass = 0; pass < 2; pass++) { const n = new Map(); for (const [kk, v] of r) { const [i, j] = kk.split(',').map(Number), nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => r.get(`${i + a},${j + b}`)).filter((x) => x !== undefined); n.set(kk, Math.max(v, (2 * v + nb.reduce((a, x) => a + x, 0)) / (2 + nb.length))); } r = n; }
+  // RELIEF on the outer face (m, by the corner's place in the eyes' frame): a raised RIM along the outline (`rim` { w, h }),
+  // a RIDGE down the middle (`ridge` { w, h }: a crest over the bridge), each eased to nothing at its width; the SEAMS
+  // (`seams`: words or polylines) pressed in a hair
+  const seams = (S.seams || []).flatMap((x) => (typeof x === 'string' ? SEAM_WORDS[x] ?? [] : [x])), sw = S.seamW ?? 0.045;
+  const ease = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 - 2 * v); };
+  // a covered eye (a lens, or no eyes at all) DOMED over the eye, `eyes.dome` (m) at its middle, eased out past its outline,
+  // so the eyeball and its lids under the cast stay under it
+  const dome = treat === 'open' ? 0 : S.eyes?.dome ?? 0.006, domeAt = (x, z) => (dome ? dome * Math.max(...holes.map((H) => (pip(H, x, z) ? 1 : ease(1 - ringDist(x, z, H) / 0.3)))) : 0);
+  const relief = (x, z) => domeAt(x, z) + (S.rim ? (S.rim.h ?? 0.0015) * ease(1 - ringDist(x, z, outer) / (S.rim.w ?? 0.14)) : 0) + (S.ridge ? (S.ridge.h ?? 0.002) * ease(1 - Math.abs(x) / (S.ridge.w ?? 0.25)) * (pip(outer, x, z) ? 1 : 0) : 0)
+    - (seams.some((L) => segDist(x, z, L) < sw) ? 0.0006 : 0);
   const lift = S.lift ?? 0.0025, th = S.thick ?? 0.003, pts = {}, at = (kk, off) => { const q = used.get(kk), dir = dirAt(q.x); return [ax[0] + dir[0] * (r.get(kk) + off), ax[1] + dir[1] * (r.get(kk) + off), c0[2] + q.z * d]; };
-  for (const kk of used.keys()) { pts[`o${kk}`] = at(kk, lift + th); pts[`i${kk}`] = at(kk, lift); }
-  const faces = [], edges = new Map();
+  for (const [kk, q] of used) { pts[`o${kk}`] = at(kk, lift + th + relief(q.x, q.z)); pts[`i${kk}`] = at(kk, lift); }
+  // each outer face's GROUP by its cell's middle: a lens cover's (`eyes.treat: 'lens'`, `eyes.group`), a seam's (`seamGroup`),
+  // the rim's (`rim.group`), else the mask's; the inside and the walls the mask's
+  // (by each triangle: its middle inside a covered eye, a lens; on a seam, the seam; two corners on the outline, the rim's
+  // strip along the edge)
+  const G = S.group, gOf = (T) => { const Q = T.map((k) => used.get(k)), x = (Q[0].x + Q[1].x + Q[2].x) / 3, z = (Q[0].z + Q[1].z + Q[2].z) / 3;
+    if (treat === 'lens' && holes.some((H) => pip(H, x, z))) return S.eyes.group ?? 'Lens';
+    if (seams.length && S.seamGroup && seams.some((L) => segDist(x, z, L) < sw)) return S.seamGroup;
+    if (S.rim?.group && Q.filter((q) => q.edge).length >= 2) return S.rim.group;
+    return G; };
+  const faces = [], fg = [], edges = new Map();
   for (const kk of keep) { const [i, j] = kk.split(',').map(Number), C = [`${i},${j}`, `${i + 1},${j}`, `${i + 1},${j + 1}`, `${i},${j + 1}`];
-    faces.push([`o${C[0]}`, `o${C[1]}`, `o${C[2]}`], [`o${C[0]}`, `o${C[2]}`, `o${C[3]}`], [`i${C[2]}`, `i${C[1]}`, `i${C[0]}`], [`i${C[3]}`, `i${C[2]}`, `i${C[0]}`]);
+    faces.push([`o${C[0]}`, `o${C[1]}`, `o${C[2]}`], [`o${C[0]}`, `o${C[2]}`, `o${C[3]}`], [`i${C[2]}`, `i${C[1]}`, `i${C[0]}`], [`i${C[3]}`, `i${C[2]}`, `i${C[0]}`]); fg.push(gOf([C[0], C[1], C[2]]), gOf([C[0], C[2], C[3]]), G, G);
     for (let e = 0; e < 4; e++) { const a = C[e], b = C[(e + 1) % 4], key = a < b ? `${a}|${b}` : `${b}|${a}`; const E = edges.get(key); if (E) E.n++; else edges.set(key, { a, b, n: 1 }); } }
-  for (const { a, b, n } of edges.values()) if (n === 1) faces.push([`o${b}`, `o${a}`, `i${a}`], [`o${b}`, `i${a}`, `i${b}`]);
+  for (const { a, b, n } of edges.values()) if (n === 1) { faces.push([`o${b}`, `o${a}`, `i${a}`], [`o${b}`, `i${a}`, `i${b}`]); fg.push(S.rim?.group ?? G, S.rim?.group ?? G); }
   // wound outward: the outer face of the first cell faces away from the axis, else every face turned
   const f0 = faces[0].map((k) => pts[k]), nrm = cross(sub(f0[1], f0[0]), sub(f0[2], f0[0])), out0 = sub(f0[0], [ax[0], ax[1], f0[0][2]]);
-  return [{ points: Object.fromEntries(Object.entries(pts).map(([k, p]) => [k, p.map((v) => Math.round(v * 1e6) / 1e6)])), faces: dot(nrm, out0) < 0 ? faces.map((f) => [...f].reverse()) : faces, group: S.group }];
+  return [{ points: Object.fromEntries(Object.entries(pts).map(([k, p]) => [k, p.map((v) => Math.round(v * 1e6) / 1e6)])), faces: dot(nrm, out0) < 0 ? faces.map((f) => [...f].reverse()) : faces, ...(fg.some((g) => g !== G) ? { faceGroups: fg } : {}), group: G }];
 }
 
 export const SIGNATURES = {
@@ -725,11 +775,15 @@ export const SIGNATURES = {
    * on z 0; the head's `eyeR`/`eyeL` details, else the cranium's eye row), wrapped round the head on a cylinder through
    * its middle; a grid over it (`cell`, units) is cast inward onto the skin (`parts`, default cranium + jaw) and the
    * details riding it (`over`, default the brows and the lids), its depth smoothed but never below the cast, then lifted
-   * `lift` (m) and made `thick` (m) deep, its edge closed by a wall. `outline`: 'domino' (two almond eye holes, the
-   * bridge, a notch over the nose and points flaring up at the temples) | 'band' (a straight band with eye holes) |
-   * { poly: [[x, z], …], holes?: [[[x, z], …], …] } in the eyes' frame. `eye` [rx, rz] the eye holes' half-sizes, `wing`
-   * how far past the eyes the temples' points reach, `tilt` the eye holes' slant (radians, the outer corner up).
-   * { parts?, over?, outline?, eye?, wing?, tilt?, lift?, thick?, cell? } */
+   * `lift` (m) and made `thick` (m) deep, its edge closed by a wall. THE MASK BUILDER'S PRIMITIVE: every look is words.
+   * `outline`: dials over the domino (CAST_DIALS: `bridge` the foot over the nose, `cheek` the depth under the eyes, `brow`
+   * the top over them, `notch` its dip in the middle or `peak` a widow's point rising there, `wing` and `wingRise` the
+   * temples' points, `fang` a point down each cheek, `round` 1 curved, 0 angular) | 'band' | { poly, holes? } in the
+   * eyes' frame. `eyes` { shape: almond | slit | angular | round, size: [rx, rz], tilt, treat: 'open' (holes) | 'lens'
+   * (covers in `group`, default Lens) | 'none' (the mask whole), dome: m a covered eye bulges over the eyeball }. Relief and detail: `rim` { w, h, group? } a raised edge,
+   * `ridge` { w, h } a crest down the middle, `seams` words (centre, brow, cheek, temple) or polylines pressed in, in
+   * `seamGroup`. Plates are a second cast over the first (a smaller outline, a larger `lift`).
+   * { parts?, over?, outline?, eyes?, rim?, ridge?, seams?, seamW?, seamGroup?, lift?, thick?, cell?, eyeAt?, eyeRow? } */
   cast: (fig, _g, _b, S) => castMask(fig, S),
   /** a RESPIRATOR: a cup over the nose and the mouth (the cyberpunk gas mask), sized from the head's own bounds as the helm
    * is (`parts`, default cranium + jaw; `pad` off the head), the head's superellipse section (`n`) spanning `spread`
