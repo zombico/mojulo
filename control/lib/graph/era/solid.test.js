@@ -70,3 +70,15 @@ describe('a solid building on a stage', () => {
     expect(rest(solid)).toBe(rest(plain));
   }, 60000);
 });
+
+describe('a solid world read: the recipe\'s word, or the era', () => {
+  it('a geocube town asked solid, or read in gen-7, builds its houses solid; asked nothing at gen-6, as it was', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const town = (extra = {}, opts = {}) => resolveWorldScene({ title: 't', manifest: { kind: 'geocube', cube: 'island-noon', show: 'town', seed: 3, ...extra } }, opts).then((r) => r.payload.faces.filter((f) => String(f.group).startsWith('town:')).length);
+    const [plain, asked, gen7, refused] = [await town(), await town({ solid: true }), await town({}, { era: 'gen-7' }), await town({ solid: false })];
+    expect(asked).toBeGreaterThan(plain);
+    expect(gen7).toBe(asked);
+    expect(refused).toBe(plain);
+    await expect(town({ solid: 'yes' })).rejects.toThrow(/solid is true/);
+  }, 120000);
+});

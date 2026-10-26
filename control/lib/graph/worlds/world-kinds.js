@@ -514,7 +514,7 @@ export const WORLD_KINDS = {
     title: 'mojulo stage',
     walk: true,
     ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
-    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}) }),
+    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}) }),
   },
   // a geocube (era/geocube.js): one style for a level's inside and outside, shown as one of its two specimens, the
   // bare room or the island landform, each built by the stage. A level is then a stage recipe with `geocube`.
@@ -529,7 +529,7 @@ export const WORLD_KINDS = {
         const { city, cube, pick, style } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true, ...(ctx.liveSun ? { liveSun: true } : {}) }), { metersPerUnit: CITY_METERS_PER_UNIT });
         return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) } }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
-      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}) }, assembleStageScene);
+      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
   },
