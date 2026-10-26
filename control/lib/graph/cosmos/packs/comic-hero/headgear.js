@@ -20,7 +20,7 @@ const HELM = (shape) => ({ id: 'cranium-helm', mode: 'shell', part: 'cranium', s
 const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' };
 // (a kit's colours: the helm in the suit's secondary, the visor, the lenses and a visor band in its accent, the face plate
 // dark; the era palettes name none of these groups, and grey on grey hides a T visor)
-const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a' });
+const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c' });
 // (a helm drops the hair; a visor keeps it)
 const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
@@ -47,6 +47,10 @@ export const MASK_OUTLINES = Object.freeze({
   raptor: { wing: 3.0, wingRise: 1.75, peak: 0.62, fang: 0.38, cheek: 0.85, round: 0 },                    // angular, a high peak, fangs down the cheeks
   technical: { brow: 1.1, notch: 0.12, wing: 2.6, wingRise: 0.55, cheek: 1.0, bridge: 0.62, round: 0 },     // angular planes, a flat brow
   hunter: { brow: 0.92, notch: 0, wing: 3.3, wingRise: 0.32, cheek: 0.68, bridge: 0.42, round: 0 },          // a narrow band swept back to the temples
+  owl: { brow: 1.5, notch: 0.5, wing: 4.3, wingRise: 2.3, arm: 0.95, valley: 0.2, cheek: 1.05, bridge: 1.4, round: 0.4, sweep: { from: 2.3, flare: 1.1 } },   // the owl's W: a facial disc with a V brow and a beak over the nose, its arms swept out past the head like a horned owl's tufts
+  hornedOwl: { brow: 1.5, notch: 0.6, wing: 4.0, wingRise: 2.6, arm: 0.7, valley: 0.35, cheek: 1.0, bridge: 1.35, round: 0.3, sweep: { from: 2.3, flare: 0.85 } },   // the W's arms narrow and raised: a horned owl's ear tufts
+  barnOwl: { brow: 1.35, notch: 0.75, wing: 3.6, wingRise: 1.35, arm: 1.15, valley: 0.1, cheek: 1.2, bridge: 1.25, round: 0.8, sweep: { from: 2.3, flare: 1.2 } },   // a heart-shaped disc, short arms laid flat out
+  greatOwl: { brow: 1.45, notch: 0.45, wing: 5.0, wingRise: 1.7, arm: 1.0, valley: 0.25, cheek: 1.0, bridge: 1.45, round: 0, sweep: { from: 2.3, flare: 1.4 } },   // angular, the arms swept long and wide like wings
 });
 export const MASK_EYES = Object.freeze({
   open: { shape: 'almond', treat: 'open' },                                                                // holes framing the eyes
@@ -90,8 +94,31 @@ const GOGGLES = ['R', 'L'].map((S) => ({ id: `goggle${S}`, mode: 'shell', part: 
 // length from the hero's hair style); `mouth` 'show' (open under the nose) | 'cover' (over the lips) | 'none' (smooth: a
 // mask with no mouth); `domino` a mask's words laid over it (the domino by default) or false; `eyes` shared by the cowl
 // and its domino, so the holes meet (on the anime head the opaque covers by default, as a mask's); `detail` the cowl's own
+// ── THE COWL'S ORNAMENTS: spikes and lines on the face's paths (station-loft-adorn.js COWL_PATHS), each a word ──
+export const COWL_ORNAMENTS = Object.freeze({
+  batEars: [{ kind: 'spikes', path: 'parietal', shape: 'bat', at: 0.3, len: 0.07, w: 0.05, up: 0.9, lean: 0.06, thick: 0.009 }],         // two tall ears off the top of the sides
+  batCrest: [{ kind: 'spikes', path: 'parietal', shape: 'bat', count: 4, len: 0.06, w: 0.032, profile: 'lead', up: 0.7, lean: 0.15 }],   // spikes along the top of each side, the first tallest
+  finEars: [{ kind: 'spikes', path: 'temple', shape: 'fin', at: 0.85, len: 0.07, w: 0.05, up: 0.45, lean: 0.35 }],              // a fin swept back off each temple
+  crest: [{ kind: 'spikes', path: 'sagittal', shape: 'cone', count: 7, len: 0.03, w: 0.016, profile: 'crown', up: 0.2 }],       // a row of points over the crown
+  browStitch: [{ kind: 'lines', path: 'brow', style: 'stitch' }],                                                                 // stitches over the domino's top edge
+  echoStitch: [{ kind: 'lines', path: 'echo', style: 'stitch' }],                                                                 // stitches round the domino, a step out
+  templeCords: [{ kind: 'lines', path: 'temple', style: 'cord' }],                                                                // a cord from the domino's points up the sides
+  crownStripe: [{ kind: 'lines', path: 'sagittal', style: 'double' }],                                                           // a double cord over the crown
+  cheekStitch: [{ kind: 'lines', path: 'cheek', style: 'stitch' }],                                                               // stitches off the domino's corners to the jaw
+  owlTufts: [{ kind: 'spikes', path: 'parietal', shape: 'fin', face: 'front', at: 0.06, len: 0.045, w: 0.04, up: 0.5, lean: 0.65, thick: 0.007, group: 'MaskDomino' }],   // feather tufts at the front of the top of the sides
+  featherBrow: [{ kind: 'lines', path: 'brow', style: 'double', apart: 0.003 }],                                                  // a double line over the facial disc
+});
+// COMPOSITIONS: ornament sets read with the face as a whole (the domino's lines carried on): a word or a list of words
+export const COWL_DRESS = Object.freeze({
+  gothic: ['batEars', 'browStitch'],               // the ears rise where the domino's points aim, the brow echoes its top
+  nocturne: ['batCrest', 'templeCords'],           // spikes along the sides, cords from the domino's points into them
+  aviator: ['finEars', 'crownStripe'],             // fins swept back from the temples, a stripe over the crown
+  stitched: ['echoStitch', 'cheekStitch', 'browStitch'],   // the rag doll: the domino stitched round, lines off its corners
+  crowned: ['crest', 'echoStitch'],                // points over the crown, the domino outlined
+  owl: ['featherBrow', 'crownStripe'],             // the disc's brow lined, a stripe over the crown
+});
 const FLOW = { long: 0.32, wavy: 0.3, layers: 0.3, ponytail: 0.34, braid: 0.34, curtains: 0.16, bob: 0.14, bun: 0.1 };
-export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eyes = null, detail = 'plain', head = 'landmark', heroHair = null, id = 'cowl' } = {}) {
+export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eyes = null, detail = 'plain', dress = null, ornaments = null, head = 'landmark', heroHair = null, id = 'cowl' } = {}) {
   if (!['cover', 'flow'].includes(hair)) throw new Error(`comic-hero: cowl hair '${hair}' (cover, flow)`);
   if (!['show', 'cover', 'none'].includes(mouth)) throw new Error(`comic-hero: cowl mouth '${mouth}' (show, cover, none)`);
   const words = domino === false ? null : typeof domino === 'string' ? { outline: domino } : domino;
@@ -100,13 +127,17 @@ export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eye
   // (the domino reads on the cowl by its edge: a rim raised in shading, unless its own detail names one)
   if (!mk.signature.rim) mk.signature.rim = { w: 0.16, h: 0.0016 };
   const style = typeof heroHair === 'string' ? heroHair : heroHair?.style, len = FLOW[style] ?? 0.2;
+  // (the ornaments: a composition's words (`dress`), then words or entries of their own (`ornaments`), aligned to the domino)
+  const words2 = [...(dress ? (Array.isArray(dress) ? dress : [dress]).flatMap((w) => { if (!COWL_DRESS[w]) throw new Error(`comic-hero: no cowl dress '${w}' (known: ${Object.keys(COWL_DRESS).join(', ')})`); return COWL_DRESS[w]; }) : []), ...(ornaments || [])];
+  const orn = words2.flatMap((w) => (typeof w === 'string' ? (COWL_ORNAMENTS[w] ?? (() => { throw new Error(`comic-hero: no cowl ornament '${w}' (known: ${Object.keys(COWL_ORNAMENTS).join(', ')})`); })()) : [w]));
   const D = typeof detail === 'object' ? detail : MASK_DETAIL[detail] ?? MASK_DETAIL.plain;
   const cowl = { id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Mask', rigid: true, stack: false, ghost: true,
     // (close to the skin, a thin cloth: the cowl's silhouette the head's own)
-    signature: { kind: 'cowl', group: 'Mask', mouth, eyes: E, lift: 0.0015, thick: 0.0025, ...D, ...(hair === 'flow' ? { hair: { len } } : {}) } };
+    signature: { kind: 'cowl', group: 'Mask', mouth, eyes: E, lift: 0.0015, thick: 0.0025, ...D, ...(hair === 'flow' ? { hair: { len } } : {}), ...(orn.length ? { ornaments: orn, align: mk.signature.outline } : {}) } };
   return words ? [cowl, mk] : [cowl];
 }
-const COWLED = (reads, words) => ({ reads, family: 'cowl', words, at: { tiered: (spec) => withHelm(spec, cowlKit({ ...words, head: spec.head, heroHair: spec.hair })) } });
+// (a cowl card may carry its own colours, over the suit's: the cowl, its domino panel, its lenses)
+const COWLED = (reads, words, palette = null) => ({ reads, family: 'cowl', words, at: { tiered: (spec) => withHelm(palette ? { ...spec, palette: { ...(spec.palette || {}), ...palette } } : spec, cowlKit({ ...words, head: spec.head, heroHair: spec.hair })) } });
 
 // the masks' VARIATIONS, each the builder's words (tiered: the cast rides the landmark head)
 const MASK = (reads, words) => ({ reads, family: 'mask', words, at: { tiered: (spec) => withKit(spec, maskKit({ ...words, head: spec.head })) } });
@@ -120,6 +151,19 @@ export const HEADGEAR = Object.freeze({
   fullMask: COWLED('the full mask: the whole head covered, no mouth, white lenses, no domino; the wall-crawler', { mouth: 'none', domino: false, eyes: 'lens' }),
   facelessMask: COWLED('the faceless mask: the whole head covered, no mouth, no eyes; the blank', { mouth: 'none', domino: false, eyes: 'blank' }),
   bareCowl: COWLED('the bare cowl: the head covered, eye holes cut, no domino, the mouth shown; the thief', { domino: false }),
+  gothicCowl: COWLED('the gothic cowl: the domino cowl with bat ears rising where the domino aims, stitches over the brow; the dark knight', { dress: 'gothic' }),
+  nocturneCowl: COWLED('the nocturne cowl: spikes along the top of each side, cords from the domino\'s points into them; the night stalker', { dress: 'nocturne', domino: 'pointed' }),
+  aviatorCowl: COWLED('the aviator cowl: fins swept back off the temples, a double stripe over the crown, lens eyes; the flier', { dress: 'aviator', eyes: 'lens' }),
+  stitchedCowl: COWLED('the stitched cowl: the domino stitched round, lines off its corners to the jaw, the brow stitched; the rag-doll vigilante', { dress: 'stitched' }),
+  crownedCowl: COWLED('the crowned cowl: points over the crown, the domino outlined, the hair flowing; the prince of thieves', { dress: 'crowned', hair: 'flow' }),
+  owlCowl: COWLED('the owl cowl: a dark cowl, the domino an owl\'s W, a facial disc with a V brow and a beak over the nose, its arms swept out past the head, round lenses; the night owl', { domino: 'owl', eyes: 'roundLens', dress: 'owl' }, { Mask: '#2b2a27', MaskDomino: '#57524a', MaskLens: '#f0e6c8', MaskStitch: '#a89a7a' }),
+  hornedOwlCowl: COWLED('the horned owl cowl: the W\'s arms narrow and raised like ear tufts, slanted slits, points over the crown; the hunter of the night', { domino: 'hornedOwl', eyes: 'slit', ornaments: ['crest'] }, { Mask: '#26231f', MaskDomino: '#4a4238', MaskStitch: '#8f7f62' }),
+  barnOwlCowl: COWLED('the barn owl cowl: a pale heart-shaped disc, its short arms laid flat out, round dark lenses, a tan cowl; the white ghost', { domino: 'barnOwl', eyes: 'roundLens', ornaments: ['echoStitch'] }, { Mask: '#b48a5a', MaskDomino: '#efe6d6', MaskLens: '#1d1a17', MaskStitch: '#8c6a43' }),
+  greatOwlCowl: COWLED('the great owl cowl: angular, the W\'s arms swept long and wide like wings, six-sided lenses, cords from its points; the strategist', { domino: 'greatOwl', eyes: 'angularLens', ornaments: ['templeCords'] }, { Mask: '#1f2126', MaskDomino: '#3a3f4a', MaskLens: '#f2d88a', MaskStitch: '#c9a64a' }),
+  nightOwlCowl: COWLED('the night owl cowl: the owl\'s W stitched round in gold, the brow lined, the hair flowing; the duelist', { domino: 'owl', eyes: 'roundLens', hair: 'flow', ornaments: ['echoStitch', 'featherBrow'] }, { Mask: '#1a1b20', MaskDomino: '#2c2e36', MaskLens: '#f0e6c8', MaskStitch: '#d1b062' }),
+  owlFullMask: COWLED('the owl full mask: the whole head covered, no mouth, the owl\'s W over round lenses; the silent', { domino: 'owl', eyes: 'roundLens', mouth: 'none', dress: 'owl' }, { Mask: '#2b2a27', MaskDomino: '#57524a', MaskLens: '#f0e6c8', MaskStitch: '#a89a7a' }),
+  owlMask: { reads: 'the owl mask: the owl\'s W alone, no cowl, its arms sweeping past the head, round lenses; the masked owl', family: 'mask', words: { outline: 'owl', eyes: 'roundLens' },
+    at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), Mask: '#3b372f', MaskLens: '#f0e6c8' } }, maskKit({ outline: 'owl', eyes: 'roundLens', head: spec.head })) } },
   technicalCowl: COWLED('the technical cowl: the head covered, a technical domino with lenses and seams, a crest over the crown; the gadgeteer', { domino: { outline: 'technical', detail: 'technical' }, eyes: 'angularLens', detail: { ridge: { w: 0.22, h: 0.002 } } }),
   pointedMask: MASK('the pointed mask: the domino swept to long points at the temples, a widow\'s peak at the brow; the aerialist', { outline: 'pointed' }),
   raptorMask: MASK('the raptor mask: angular, a high peak, fangs down the cheeks, slanted slits; the predator', { outline: 'raptor', eyes: 'slit' }),

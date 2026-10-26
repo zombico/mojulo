@@ -55,6 +55,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   default (a mask's words, or false), the two sharing one eye treatment so their holes meet; the hair hidden under it
   either way (flowing, its length from the hero's own style); and its variations: the domino, flowing, lens, covered,
   bare and technical cowls, the full mask and the faceless mask.
+- ORNAMENTS on the cowl, composed with the face as a whole: the eyes are its focus and the domino frames them, so every
+  ornament rides a FACE PATH that carries the domino's own line on over the head (`COWL_PATHS`: brow, echo, temple,
+  parietal, sagittal, cheek, jaw; `align` the domino's dials). Spikes (`bat`, its broad face to the front; `fin`; `cone`;
+  in a row by a profile) and lines (embroidery as stitches, a cord or a double cord). The pack's ornament words
+  (`COWL_ORNAMENTS`: bat ears, a bat crest along the sides, fins, a crown crest, brow, echo and cheek stitches, temple
+  cords, a crown stripe) and compositions (`COWL_DRESS`: gothic, nocturne, aviator, stitched, crowned, owl).
+- The cast's W: the outline's `arm` and `valley` dials raise the domino's points into arms with a dip before the brow, and
+  `sweep` carries the cast off the skin past the head from the temples, so the arms sweep out beyond its silhouette. The
+  owl's W and its variations: the owl, horned owl, barn owl, great owl and night owl cowls, the owl full mask and the owl
+  mask alone, each with its own colours.
 
 - `cosmos/packs/comic-hero/headgear.js`: the domino (a second-skin paint band across the landmark head's eyes; the
   dermis's war paint `mask` on the realistic head), the cowl (the half-cape's hood drawn close, both bodies), the visor

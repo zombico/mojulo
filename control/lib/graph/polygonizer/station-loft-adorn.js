@@ -380,7 +380,7 @@ const chaikin = (P, passes) => { let Q = P; for (let it = 0; it < passes; it++) 
   if (a.sharp) R.push(a); else if (!R.length || R[R.length - 1] !== a) R.push({ x: 0.75 * a.x + 0.25 * b.x, z: 0.75 * a.z + 0.25 * b.z });
   if (!b.sharp) R.push({ x: 0.25 * a.x + 0.75 * b.x, z: 0.25 * a.z + 0.75 * b.z }); } Q = R; } return Q; };
 /** the cast's OUTLINE in the eyes' frame from its dials (see SIGNATURES.cast), the right half mirrored; its eye shapes */
-export const CAST_DIALS = Object.freeze({ bridge: 0.5, cheek: 0.95, brow: 1.18, notch: 0.3, peak: 0, wing: 2.75, wingRise: 0.85, fang: 0, round: 1 });
+export const CAST_DIALS = Object.freeze({ bridge: 0.5, cheek: 0.95, brow: 1.18, notch: 0.3, peak: 0, wing: 2.75, wingRise: 0.85, fang: 0, round: 1, arm: 0, valley: 0.25 });
 function castOutline(S) {
   const E = S.eyes ?? {}, [rx, rz] = E.size ?? S.eye ?? [0.6, 0.36], tilt = E.tilt ?? S.tilt ?? 0.1, shape = E.shape ?? 'almond';
   const holes = [eyeShape(shape, 1, rx, rz, tilt), eyeShape(shape, -1, rx, rz, tilt)];
@@ -390,7 +390,10 @@ function castOutline(S) {
   // the right half, from the bridge's foot round the cheek to the temple's point and back along the brow to the middle
   const half = [{ x: 0, z: -D.bridge, sharp: D.round < 1 }, { x: 0.3, z: -(D.cheek - 0.17) }, { x: 0.9, z: -D.cheek }, { x: 1.55, z: -(D.cheek - 0.1) },
     ...(D.fang > 0 ? [{ x: 1.85, z: -(D.cheek + D.fang), sharp: true }, { x: 2.05, z: -0.55 * D.cheek }] : [{ x: 2.1, z: -0.53 * D.cheek }]),
-    { x: w - 0.3, z: 0.05 }, { x: w, z: D.wingRise, sharp: true }, { x: w - 0.55, z: Math.max(D.wingRise + 0.1, D.brow - 0.25) }, { x: 1.6, z: D.brow - 0.06 }, { x: 0.95, z: D.brow },
+    // (an ARM, `arm` > 0: the point raised into an arm `arm` wide at its root, a VALLEY between it and the brow, so the top
+    // edge reads as a W: the arms up at the sides, the brow over each eye, the middle's notch or peak)
+    ...(D.arm > 0 ? [{ x: w - 0.3 - 0.35 * D.arm, z: 0.1 + 0.3 * (D.wingRise - 0.85) }, { x: w, z: D.wingRise, sharp: true }, { x: w - 0.35 * D.arm, z: D.wingRise - 0.25 }, { x: 2.0, z: D.brow - D.valley, sharp: D.round < 1 }, { x: 1.55, z: D.brow - 0.04 }]
+      : [{ x: w - 0.3, z: 0.05 }, { x: w, z: D.wingRise, sharp: true }, { x: w - 0.55, z: Math.max(D.wingRise + 0.1, D.brow - 0.25) }, { x: 1.6, z: D.brow - 0.06 }]), { x: 0.95, z: D.brow },
     ...(D.peak > 0 ? [{ x: 0.35, z: D.brow - 0.1 - D.notch * 0.5 }, { x: 0, z: D.brow + D.peak, sharp: true }] : [{ x: 0.4, z: D.brow - 0.13 }, { x: 0, z: D.brow - D.notch, sharp: D.round < 1 }])];
   const ring = [...half, ...half.slice(1, -1).reverse().map((p) => ({ ...p, x: -p.x }))];
   return { outer: chaikin(ring, Math.round(2 * Math.max(0, Math.min(1, D.round)))).map((p) => [p.x, p.z]), holes };
@@ -486,8 +489,25 @@ function castMask(fig, S) {
   const ax = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2], R = Math.max(0.03, Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2);
   const thE = eR ? Math.atan2(Math.abs(eR[0] - ax[0]), eR[1] - ax[1]) : d / R;
   const dirAt = (X) => { const th = X * thE; return [dmath.sin(th), dmath.cos(th), 0]; };
-  const depthAt = (X, Z) => { const dir = dirAt(X), t = hit([ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, c0[2] + Z * d], mul(dir, -1)); return t === null ? null : 0.4 - t; };
-  const place = (X, Z, r, off) => { const dir = dirAt(X); return [ax[0] + dir[0] * (r + off), ax[1] + dir[1] * (r + off), c0[2] + Z * d]; };
+  const raw = (X, Z) => { const dir = dirAt(X), t = hit([ax[0] + dir[0] * 0.4, ax[1] + dir[1] * 0.4, c0[2] + Z * d], mul(dir, -1)); return t === null ? null : 0.4 - t; };
+  const onSkin = (X, Z, r, off) => { const dir = dirAt(X); return [ax[0] + dir[0] * (r + off), ax[1] + dir[1] * (r + off), c0[2] + Z * d]; };
+  // the SWEEP (`sweep` { from, flare }, or the outline's): past `from` (eye units across) the cast leaves the skin and carries
+  // straight on, along the head's tangent there flared `flare` out, its height rising with the outline's: the W's arms
+  // past the head's silhouette. Its root is the skin's at `from`, at the highest height the skin is there
+  // (above the brow an arm leaves the skin at its VALLEY, not at `from`, so it never wraps over the skull; where it rises past
+  // the skin it grows straight up from the skin's top at its root, found by bisection, so its root never jumps)
+  const SW = S.sweep ?? S.outline?.sweep ?? null, X0 = SW?.from ?? 2.3, flare = SW?.flare ?? 0.7, OD = { ...CAST_DIALS, ...(typeof S.outline === 'object' ? S.outline : {}) };
+  const zS = OD.brow - OD.valley, xV = Math.min(X0, 2.0), from = (Z) => X0 - (X0 - xV) * easeS((Z - zS) / 0.5), tops = new Map();
+  const topAt = (Xc) => { const k = Xc.toFixed(5); if (!tops.has(k)) { let lo = -2, hi = 6; if (raw(Xc, lo) === null) { tops.set(k, lo); return lo; } for (let i = 0; i < 18; i++) { const m = (lo + hi) / 2; if (raw(Xc, m) === null) hi = m; else lo = m; } tops.set(k, lo); } return tops.get(k); };
+  const flap = (X, Z) => SW && Math.abs(X) > from(Z);
+  // (its root no higher than `root` (eye units over the brow; the head narrows above, and an arm rooted there would follow
+  // it in over the crown): above it the arm rises from the root, leaning `lean` out as it goes)
+  const zRoot = OD.brow + (SW?.root ?? 0.35), lean = SW?.lean ?? 0.35;
+  const rootOf = (X, Z) => { const Xc = Math.sign(X) * from(Z); return [Xc, Math.min(Z, zRoot, topAt(Xc))]; };
+  const depthAt = (X, Z) => { if (flap(X, Z)) { const [Xc, Zc] = rootOf(X, Z); return raw(Xc, Zc); } return raw(X, Z); };
+  const place = (X, Z, r, off) => { if (!flap(X, Z)) return onSkin(X, Z, r, off);
+    const sg = Math.sign(X), [Xc, Zc] = rootOf(X, Z), q0 = onSkin(Xc, Zc, r, off), t0 = Xc * thE, N = [dmath.sin(t0), dmath.cos(t0), 0], T = unit(add(mul([dmath.cos(t0), -dmath.sin(t0), 0], sg), mul(N, flare)));
+    return add(add(add(q0, mul(T, (Math.abs(X) - Math.abs(Xc)) * thE * r)), [0, 0, (Z - Zc) * d]), mul(N, lean * (Z - Zc) * d)); };
   const { outer, holes } = castOutline(S);
   return castGrid(S, { outer, holes, cell: S.cell ?? 0.06, depthAt, place, axisOf: (p) => [ax[0], ax[1], p[2]] });
 }
@@ -537,6 +557,70 @@ function castCowl(fig, S) {
     for (let i = 0; i < nC; i++) { const ph = i * 2.39996, L = len * (1 - 0.25 * hsh(i, 1)), sp = (T.spread ?? 0.3) * (0.5 + hsh(i, 2)), side = add(mul([1, 0, 0], dmath.cos(ph)), mul([0, -0.7, 0], dmath.sin(ph))), K = 7;
       const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1); return add(add(add(root, mul(bk, L * 0.28 * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]), mul(side, sp * L * dmath.pow(t, 0.9))); });
       out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, rr * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
+  if (S.ornaments?.length && out.length) out.push(...cowlOrnaments(S, { C, dir, castDir, rhoAt, toMap, thE, c0, d }));
+  return out;
+}
+// ─── the COWL'S ORNAMENTS (SIGNATURES.cowl `ornaments`): spikes and lines on the cowl, along the FACE'S PATHS ───
+// The face read as a whole: the eyes are its focus and the domino frames them, so every path is the domino's own line
+// carried on over the head. A path is points in the eyes' frame ({ X, Z }: X ±1 the eyes, Z up in half their spacing)
+// or on the cowl's map ({ th, rho }: θ round from the front, ρ down from the crown), each side's mirrored (`side: 'both'`)
+// `align` the domino's dials (CAST_DIALS: its wing, wingRise and brow), so the paths meet its edges
+export const COWL_PATHS = Object.freeze(['brow', 'echo', 'temple', 'parietal', 'sagittal', 'cheek', 'jaw']);
+function facePath(name, A, mirror) {
+  const D = { ...CAST_DIALS, ...(A || {}) }, sx = mirror ? -1 : 1, E = (X, Z) => ({ X: sx * X, Z }), M = (th, rho) => ({ th: sx * th, rho });
+  if (name === 'brow') return [E(0.25, D.brow + 0.22), E(0.95, D.brow + 0.32), E(1.6, D.brow + 0.24), E(D.wing - 0.45, D.wingRise + 0.32)];   // over the domino's top edge
+  if (name === 'echo') return castOutline({ outline: A || {} }).outer.filter(([X]) => X >= -0.02).map(([X, Z]) => E(Math.max(0, X) * 1.14, Z * 1.2 + 0.04));   // the domino's outline, a step out (its right half, mirrored for the left)
+  if (name === 'temple') return [E(D.wing + 0.15, D.wingRise + 0.12), E(D.wing + 0.45, D.wingRise + 0.8), M(1.05, 0.45)];   // the domino's point carried up to the top of the side
+  if (name === 'parietal') return [M(0.55, 0.36), M(0.95, 0.4), M(1.35, 0.47), M(1.8, 0.56), M(2.25, 0.66)];   // along the top of the side, front to back
+  if (name === 'sagittal') return [E(0, D.brow + 0.45), M(0, 0.55), M(0, 0.12), M(Math.PI, 0.3), M(Math.PI, 0.9), M(Math.PI, 1.5)];   // over the crown from the brow
+  if (name === 'cheek') return [E(1.6, -(D.cheek + 0.05)), E(2.1, -(D.cheek + 0.55)), E(2.45, -(D.cheek + 1.1))];   // off the domino's lower corner toward the jaw
+  if (name === 'jaw') return [E(1.2, -(D.cheek + 1.25)), E(2.2, -(D.cheek + 1.05)), M(1.7, 1.55), M(2.4, 1.6)];
+  throw new Error(`cowl: no path '${name}' (${COWL_PATHS.join(', ')})`);
+}
+function cowlOrnaments(S, F) {
+  const { C, dir, castDir, rhoAt, thE, c0, d } = F, top = (S.lift ?? 0.0025) + (S.thick ?? 0.003);
+  // a path point on the map, then on the cowl's outer face (`off` m past it), with the surface's frame there
+  const onMap = (q) => (q.th !== undefined ? [q.th, q.rho] : [q.X * thE, rhoAt(q.X * thE, c0[2] + q.Z * d)]);
+  const surf = (th, rho, off = 0) => { const D = dir(th, rho), r = castDir(D); return r === null ? null : add(C, mul(D, r + top + off)); };
+  const frame = (th, rho, off = 0) => { const p = surf(th, rho, off), e = 0.01, a = surf(th + e, rho, off), b = surf(th, rho + e, off); if (!p || !a || !b) return null;
+    let n = unit(cross(sub(a, p), sub(b, p))); if (dot(n, sub(p, C)) < 0) n = mul(n, -1); return { p, n, round: unit(sub(a, p)) }; };
+  // a path sampled into `k` points evenly along its map length, each on the cowl with its frame and its tangent
+  const sample = (path, k, off) => { const Q = path.map(onMap), L = [0]; for (let i = 1; i < Q.length; i++) L.push(L[i - 1] + Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]));
+    const at = (s0) => { let i = 1; while (i < Q.length - 1 && L[i] < s0) i++; const f = (s0 - L[i - 1]) / Math.max(1e-9, L[i] - L[i - 1]); return [Q[i - 1][0] + (Q[i][0] - Q[i - 1][0]) * f, Q[i - 1][1] + (Q[i][1] - Q[i - 1][1]) * f]; };
+    const pts = Array.from({ length: k }, (_, i) => { const [th, rho] = at((L[L.length - 1] * i) / Math.max(1, k - 1)); return frame(th, rho, off); }).filter(Boolean);
+    return pts.map((P, i) => ({ ...P, t: unit(sub(pts[Math.min(i + 1, pts.length - 1)].p, pts[Math.max(i - 1, 0)].p)) })); };
+  const sides = (O) => (O.side === 'R' ? [false] : O.side === 'L' ? [true] : O.path === 'sagittal' ? [false] : [false, true]);
+  const PROFILE = { even: () => 1, rise: (q) => 0.55 + 0.45 * q, fall: (q) => 1 - 0.45 * q, crown: (q) => 0.6 + 0.4 * dmath.sin(Math.PI * q), lead: (q) => (q < 0.01 ? 1 : 0.55 + 0.25 * (1 - q)) };
+  const out = [];
+  for (const O of S.ornaments) for (const mir of sides(O)) {
+    const path = Array.isArray(O.path) ? O.path : facePath(O.path, S.align, mir), g = O.group ?? (O.kind === 'spikes' ? S.group : 'MaskStitch');
+    if (O.kind === 'spikes') {
+      // SPIKES: `count` blades along the path (one: at `at` of its length), `len` (m) high, `w` (m) wide at the root, by
+      // `profile`; each rising between the surface's normal and up (`up`), leaning `lean` out; `shape` 'bat' (a flat blade,
+      // its front edge straight and its back curved in to the tip: the bat's ear) | 'fin' (a blade swept back) | 'cone'
+      const n = O.count ?? 1, P = sample(path, n === 1 ? 41 : n, 0.0005), pick = n === 1 ? [P[Math.round((O.at ?? 0.5) * (P.length - 1))]] : P, prof = PROFILE[O.profile ?? 'even'] ?? PROFILE.even;
+      pick.forEach((f, i) => { if (!f) return; const q = pick.length === 1 ? 0 : i / (pick.length - 1), len = (O.len ?? 0.06) * prof(q), w = (O.w ?? 0.034) * Math.sqrt(prof(q)), up = O.up ?? 0.75, side = mir ? -1 : 1;
+        // (`face`: which way the blade's broad side looks: 'front' (its width round the head: a bat's ear, seen whole from
+        // the front) | 'along' (its width along the path: a fin, seen whole from the side); the bat faces front by default)
+        const facing = O.face ?? ((O.shape ?? 'bat') === 'bat' ? 'front' : 'along'), T0 = facing === 'front' ? f.round : f.t;
+        const U = unit(add(mul(f.n, 1 - up), [0, 0, up])), T = unit(sub(T0, mul(U, dot(T0, U)))), N = unit(cross(T, U)), outN = dot(N, f.n) < 0 ? mul(N, -1) : N, th = O.thick ?? 0.006, K = 7;
+        if ((O.shape ?? 'bat') === 'cone') { out.push({ ...cone(add(f.p, mul(U, -0.004)), unit(add(U, mul(outN, O.lean ?? 0.15))), len, w / 2, 7), group: g }); return; }
+        const back = (O.shape === 'fin') ? -1 : 1;   // a fin sweeps its tip back along the path, the bat's rises over its root
+        const rings = Array.from({ length: K }, (_, k) => { const t = k / (K - 1), h = len * t, fx = -w / 2 + w * 0.12 * t + (O.shape === 'fin' ? -w * 0.9 * t * t * back : 0), bx = w / 2 - w * (O.shape === 'fin' ? 0.3 * t : dmath.pow(t, 0.55)) * 0.9;
+          const c = add(add(f.p, mul(U, h - 0.004)), mul(outN, (O.lean ?? 0.12) * h)), tk = th * (1 - 0.75 * t) / 2;
+          return [add(add(c, mul(T, fx)), mul(outN, tk)), add(add(c, mul(T, bx)), mul(outN, tk)), add(add(c, mul(T, bx)), mul(outN, -tk)), add(add(c, mul(T, fx)), mul(outN, -tk))]; });
+        out.push({ ...loftParts(rings, add(f.p, mul(U, -0.006)), add(mean(rings[K - 1]), mul(U, len * 0.04))), group: g }); });
+      continue;
+    }
+    // LINES (embroidery): along the path on the cowl, `style` 'stitch' (dashes, `dash` and `gap` m) | 'cord' (a raised cord)
+    // | 'double' (two cords `apart` m either side), `w` the thread's width (m)
+    const P = sample(path, O.samples ?? 48, 0.0009), w = O.w ?? 0.0022, style = O.style ?? 'stitch';
+    const cord = (Q, off = 0) => { const pts = Q.map((f) => add(f.p, mul(unit(cross(f.n, f.t)), off))); if (pts.length < 3) return; out.push({ ...sweep(pts, pts.slice(0, -1).map(() => w / 2), 5, { squash: [1, 0.5] }), group: g }); };
+    if (style === 'cord') cord(P);
+    else if (style === 'double') { cord(P, O.apart ?? 0.0035); cord(P, -(O.apart ?? 0.0035)); }
+    else { let run = [], acc = 0, on = true; const dash = O.dash ?? 0.006, gap = O.gap ?? 0.004;
+      for (let i = 0; i < P.length; i++) { if (on) run.push(P[i]); if (i + 1 < P.length) { acc += Math.hypot(...sub(P[i + 1].p, P[i].p)); if (acc >= (on ? dash : gap)) { if (on && run.length >= 2) { const a = run[0].p, b = run[run.length - 1].p, m3 = [a, mul(add(a, b), 0.5), b]; out.push({ ...sweep(m3, [w / 2, w / 2], 4, { squash: [1, 0.5] }), group: g }); } run = []; acc = 0; on = !on; } } } }
+  }
   return out;
 }
 
@@ -840,8 +924,9 @@ export const SIGNATURES = {
    * `lift` (m) and made `thick` (m) deep, its edge closed by a wall. THE MASK BUILDER'S PRIMITIVE: every look is words.
    * `outline`: dials over the domino (CAST_DIALS: `bridge` the foot over the nose, `cheek` the depth under the eyes, `brow`
    * the top over them, `notch` its dip in the middle or `peak` a widow's point rising there, `wing` and `wingRise` the
-   * temples' points, `fang` a point down each cheek, `round` 1 curved, 0 angular) | 'band' | { poly, holes? } in the
-   * eyes' frame. `eyes` { shape: almond | slit | angular | round, size: [rx, rz], tilt, treat: 'open' (holes) | 'lens'
+   * temples' points, `fang` a point down each cheek, `round` 1 curved, 0 angular, `arm` the points raised into arms with a
+   * `valley` before the brow: a W) | 'band' | { poly, holes? } in the eyes' frame; `sweep` { from, flare } (or the
+   * outline's own): past `from` the cast leaves the skin and sweeps on past the head (the W's arms). `eyes` { shape: almond | slit | angular | round, size: [rx, rz], tilt, treat: 'open' (holes) | 'lens'
    * (covers in `group`, default Lens) | 'none' (the mask whole), dome: m a covered eye bulges over the eyeball }. Relief and detail: `rim` { w, h, group? } a raised edge,
    * `ridge` { w, h } a crest down the middle, `seams` words (centre, brow, cheek, temple) or polylines pressed in, in
    * `seamGroup`. Plates are a second cast over the first (a smaller outline, a larger `lift`).
@@ -853,7 +938,12 @@ export const SIGNATURES = {
    * head builds them flat when its kit carries a cowl), raised a little under it (`ears` false: neither);
    * `hair` { len, n?, spread?, r?, group? } the hero's hair flowing out of the back in its own colour. Relief as the
    * cast's (`rim`, `ridge`: a crest over the crown, `seams`). A domino over it is a cast with a larger `lift`.
-   * { mouth?, opening?, jaw?, nape?, eyes?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, lift?, thick?, cell? } */
+   * ORNAMENTS on it (`ornaments`: [{ kind: 'spikes' | 'lines', path, side?, … }]) ride the FACE'S PATHS (COWL_PATHS:
+   * brow, echo, temple, parietal, sagittal, cheek, jaw; or a path of its own), each the domino's line carried on over the
+   * head (`align`: the domino's dials, so they meet its edges): spikes { shape: bat | fin | cone, face: front | along, count, at, len, w,
+   * profile: even | rise | fall | crown | lead, up, lean, thick, group }; lines { style: stitch | cord | double, w, dash,
+   * gap, apart, group (default MaskStitch) }.
+   * { mouth?, opening?, jaw?, nape?, eyes?, ears?, earR?, earH?, hair?, rim?, ridge?, seams?, ornaments?, align?, lift?, thick?, cell? } */
   cowl: (fig, _g, _b, S) => castCowl(fig, S),
   /** a RESPIRATOR: a cup over the nose and the mouth (the cyberpunk gas mask), sized from the head's own bounds as the helm
    * is (`parts`, default cranium + jaw; `pad` off the head), the head's superellipse section (`n`) spanning `spread`
