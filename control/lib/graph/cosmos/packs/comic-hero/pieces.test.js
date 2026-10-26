@@ -37,7 +37,7 @@ describe('comic hero pack: piece cards', () => {
 
 describe('comic hero pack: headgear (the spike)', () => {
   it('each card reads and names a family; a mask fits both bodies, a visor and a helmet the tiered body only', () => {
-    for (const id of HEADGEAR_IDS) { const H = HEADGEAR[id]; expect(H.reads && ['mask', 'visor', 'helmet', 'cowl', 'respirator'].includes(H.family), id).toBe(true); expect(fitted(id, 'tiered'), id).toBe(true); }
+    for (const id of HEADGEAR_IDS) { const H = HEADGEAR[id]; expect(H.reads && ['mask', 'visor', 'helmet', 'cowl', 'respirator', 'mouthpiece', 'face'].includes(H.family), id).toBe(true); expect(fitted(id, 'tiered'), id).toBe(true); }
     expect(fitted('domino', 'realistic') && fitted('cowl', 'realistic')).toBe(true);
     expect(fitted('trooperHelm', 'realistic') || fitted('visorBand', 'realistic')).toBe(false);
     expect(() => withHeadgear({}, 'realistic', 'trooperHelm')).toThrow(/not fitted to the realistic body/);
@@ -48,7 +48,7 @@ describe('comic hero pack: headgear (the spike)', () => {
       if (!fitted(id, look === 'comic-day' ? 'tiered' : 'realistic')) continue;
       const { mint } = memberOrders('hero', look, { era: 'modern', headgear: id });
       expect(validateHeroSpec(mint.args.spec), `${id} on ${look}`).toEqual([]);
-      if (['helmet', 'cowl'].includes(HEADGEAR[id].family)) expect(mint.args.spec.hair).toBe('none');
+      if (['helmet', 'cowl'].includes(HEADGEAR[id].family) || (HEADGEAR[id].family === 'face')) expect(mint.args.spec.hair).toBe('none');
     }
     // (no headgear: the spec as the costume made it, its outfit and hair kept)
     const bare = memberOrders('hero', 'comic-day', { era: 'modern' }).mint.args.spec;
