@@ -17,7 +17,7 @@ describe('eras are looks; the target is density', () => {
     expect(Object.keys(REALITY.settings.era.values)).toEqual(ERA_IDS);
     expect(REALITY.settings.cast.values['gen-6'].status).toBe('built');
     expect(REALITY.settings.cast.values['gen-7']).toMatchObject({ status: 'partial', note: expect.stringMatching(/relief-in-normal/) });
-    expect(REALITY.settings.era.values['gen-7']).toMatchObject({ status: 'partial', godot: 'absent', note: expect.stringMatching(/the form render .* is not built: .* as paint under the live light.*planned: surfaces as material/) });
+    expect(REALITY.settings.era.values['gen-7']).toMatchObject({ status: 'partial', godot: 'absent', note: expect.stringMatching(/the form render .* is built for a geocube's island and trail .* and for a room under no sun .* as paint under the live light.*planned: every other surface as material/) });
   });
 
   it('a target reads words or numbers and refuses with the lists', () => {
