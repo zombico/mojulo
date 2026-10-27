@@ -47,6 +47,17 @@ the story. The city plan and the historic city follow on the same rules.
   the folk sheet lists each (`domiciles`: its notation, its partner and children). The operator asks a shape for every
   house (`folk.domicile: 'D + 0'`) or for one (`folk.domiciles: { <lot key>: 'D of F (P + C2)' }`). Machine gate:
   `domicile.test.js`, `folk.test.js`; eyes gate not run.
+- **Bodies by tier, dressed by role and culture** (`folk/bodies.js`). `folkBodies(folk, { kit, setting })` says
+  what to mint and who wears what, without minting: the people the player goes to (a service's first person: the
+  keeper, the master, the elder, the captain) each get a body of their own; everyone else is pooled as a quick game's
+  crowd is, the first few of each pool minted as themselves (`folk.pool`, 3 by default) and the rest wearing one of
+  theirs, of their own pole when the pool has one. A pool never lends across a uniform or from a grown body to a
+  child. The culture is the town's: its kit's underlayer and its setting's ramps dress everyone, so the same role in
+  two worlds dresses two ways. The role is the service's: a uniform service is worn by all its people as its first
+  person wears it, each on their own face, and the watch carries the guard's gear for the era. A market town of about
+  115 people is 25 bodies. `quickFigure`'s two dressings are now shared helpers (`gameworld/cast-setting.js`
+  `wearUnderlayer`, `wearUniform`); its figures are byte-identical. Machine gate: `bodies.test.js` and the 20 test
+  files the change reaches (14 byte pins); eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 

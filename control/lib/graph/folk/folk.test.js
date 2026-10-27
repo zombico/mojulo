@@ -21,9 +21,9 @@ const BANDS = Object.keys(AGES);
 
 describe('folk: the words', () => {
   it('reads true or absent as every default, and refuses an unknown word naming the known ones', () => {
-    expect(readFolk()).toEqual({ cap: FOLK_CAP.default });
-    expect(readFolk(true)).toEqual({ cap: FOLK_CAP.default });
-    expect(() => readFolk({ crowd: 3 })).toThrow(/'crowd' is not a folk word \(seed, cap, domicile, domiciles\)/);
+    expect(readFolk()).toEqual({ cap: FOLK_CAP.default, pool: 3 });
+    expect(readFolk(true)).toEqual({ cap: FOLK_CAP.default, pool: 3 });
+    expect(() => readFolk({ crowd: 3 })).toThrow(/'crowd' is not a folk word \(seed, cap, domicile, domiciles, pool\)/);
     expect(() => readFolk({ domicile: 'D + Q' })).toThrow(/a domicile is/);
     expect(() => readFolk({ cap: 0 })).toThrow(/cap is a whole number/);
   });

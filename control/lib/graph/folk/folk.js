@@ -5,7 +5,8 @@
  * the counter, a hall for the watch to answer to). Make one villager and one shopkeeper and the rest becomes obvious:
  * the egocube cast's fractal (egocube/cast.js, docs/egocube.md "The fractal") turned from story relations to the town's.
  *
- *   readFolk(spec)                                  → { seed?, cap, domicile?, domiciles? } or throws, naming the known words
+ *   readFolk(spec)                                  → { seed?, cap, pool, domicile?, domiciles? } or throws, naming the known words
+ *     pool       how many people each body pool mints as themselves (bodies.js)
  *     domicile   one house shape for every house ('D + 0', 'D + P', 'D of F (P + Cx)', 'D + Cx': domicile.js)
  *     domiciles  { <lot key>: shape } a house's own, over `domicile`
  *   folkOfTown(town, { seed?, setting?, folk? })    → the folk sheet
@@ -38,8 +39,10 @@ import { ROLES, ROOTS, RELATIONS, FOLK_PULL } from './roles.js';
 import { SERVICES } from './services.js';
 import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
-export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles']);
+export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool']);
 export const FOLK_CAP = Object.freeze({ default: 60, max: 400 });
+// how many people a body pool mints as themselves (bodies.js): a quick game's crowd is three faces (CAST_POOL)
+export const FOLK_POOL = Object.freeze({ default: 3, max: 8 });
 // a household, a rank: at most this many grown under one person
 const MAX_GROWN = 4;
 
@@ -48,7 +51,7 @@ const hash = (text) => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i+
 
 /** A recipe's `folk`, checked. `true` or absent is every default. */
 export function readFolk(spec) {
-  if (spec === undefined || spec === true) return { cap: FOLK_CAP.default };
+  if (spec === undefined || spec === true) return { cap: FOLK_CAP.default, pool: FOLK_POOL.default };
   if (!isObj(spec)) throw new Error(`folk: give true or { ${FOLK_KEYS.join(', ')} }`);
   for (const k of Object.keys(spec)) if (!FOLK_KEYS.includes(k)) throw new Error(`folk: '${k}' is not a folk word (${FOLK_KEYS.join(', ')})`);
   if (spec.seed !== undefined && !(Number.isInteger(spec.seed) && spec.seed > 0)) throw new Error('folk: seed is a whole number above 0 (the town\'s, when left out)');
@@ -57,7 +60,9 @@ export function readFolk(spec) {
   const domicile = spec.domicile !== undefined ? readDomicile(spec.domicile) : undefined;
   if (spec.domiciles !== undefined && !isObj(spec.domiciles)) throw new Error('folk: domiciles is { <lot key>: a domicile } (a house\'s own shape, over domicile)');
   const domiciles = spec.domiciles ? Object.fromEntries(Object.entries(spec.domiciles).map(([k, d]) => [k, readDomicile(d)])) : undefined;
-  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}) };
+  const pool = spec.pool ?? FOLK_POOL.default;
+  if (!(Number.isInteger(pool) && pool >= 1 && pool <= FOLK_POOL.max)) throw new Error(`folk: pool is a whole number from 1 to ${FOLK_POOL.max} (how many people each body pool mints as themselves; ${FOLK_POOL.default} when left out)`);
+  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}) };
 }
 
 /** A lot's key: its frontage and where along it (the farm's and the square's, where they stand). */
