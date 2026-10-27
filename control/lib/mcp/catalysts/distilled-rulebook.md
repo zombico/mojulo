@@ -72,9 +72,10 @@ first thing you say.
 2. **Name the shape.** Sides that never mix across a net → `match` on the court (tennis, pickleball, badminton,
    volleyball). One shot at a time, the ball's rest the shot's end → `turns` on the course (golf, mini golf,
    bowling, bocce by its shape). Teams that intermix with a goal and a clock → `team` on the pitch (soccer,
-   handball, hockey, futsal). Anything else (basketball's hoop, cricket's wicket, a racket game off a wall) is not
-   a shape the sims play yet: say so, stop, and offer the nearest shape with its `omits` if the operator wants
-   that anyway.
+   handball, hockey, futsal; a hoop or a carry over a line by the arcade cards' `hoop` and `carry` words). One side
+   batting, the other fielding, a ball at a time → `innings` on the field (baseball, cricket, softball by its
+   shape). Anything else (a racket game off a wall, a ball game on horseback) is not a shape the sims play yet: say
+   so, stop, and offer the nearest shape with its `omits` if the operator wants that anyway.
 3. **Distil the kernel's data.** Write `spec` field by field: the court's frame from the rulebook's dimensions,
    its regions for side a (the other side is the mirror: `half-turn` when the diagonal matters, `reflect` when it
    does not), the ladder from the lowest unit up, the serve or the clock, the rally's counts, the fouls and what
@@ -106,8 +107,9 @@ first thing you say.
 - **The court is the rulebook's, in metres, for side a.** Side a's end is y < 0; the net or the halfway line is y
   = 0. A region that is the same for both sides (the pitch, the centre circle) is `shared: true`.
 - **Scoring is a ladder.** Rally points into games into sets (tennis); goals decided by the clock (soccer: a unit
-  with no `to`); frames with tenpin's marks (bowling: the kernel's own). A sport whose scoring is none of these
-  (cricket's innings, basketball's shot clock) is the shape question again.
+  with no `to`); frames with tenpin's marks (bowling: the kernel's own); runs by the innings (baseball's bases,
+  cricket's overs: the `innings` shape's own). A sport whose scoring is none of these (basketball's shot clock, a
+  game of tricks) is the shape question again.
 - **Hot-seat against local pads.** A turn sport is one pad passed round (`seats`); a match or a team game two pads
   (`players`); the computer takes what nobody holds, at the mind's level. Split screen and online play are out of
   scope: say so when asked.

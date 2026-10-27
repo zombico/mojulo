@@ -91,9 +91,9 @@ export const OUTFIT_KINDS = Object.freeze({
     const z0 = B.top.z - 0.03 * B.k, rise = (p.rise ?? 0.16) * B.k, z1 = (B.neckTop ?? B.top.z) + rise, th = 0.01 * B.k;
     const pts = [[ny - 0.01 * B.k, z0, nr * 1.5], [ny - 0.03 * B.k, z0 + 0.45 * (z1 - z0), nr * 1.9], [ny - 0.06 * B.k, z1, nr * (p.flare ?? 2.5)]];
     return { segments: [boardOf(p.id ?? 'collar', pts, th, G(p), { bone: 'torso', blend: { st2: { torso: 0.7, neck: 0.3 }, tip: { torso: 0.7, neck: 0.3 } } })] }; } },
-  // L3: a MANTLE over the shoulders
+  // L3: a MANTLE over the shoulders (`shoulder`: a shoulder piece, which the trunk plates' cut leaves whole: tiered-form.js)
   mantle: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => { const a = B.ringAt(B.torso, B.shoulder - 0.09 * B.k).s, b = B.uTop(B.torso) - 0.05;
-    return { adorn: [shell(p.id ?? 'mantle', 'torso', [a, b], { nt: 16, ns: 3, mugen: r3(0.035 * B.k), thick: r3(0.016 * B.k), group: G(p), ...(p.clasp === false ? { signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.003 * B.k), count: 1, m: 6, group: G(p) } } : { signature: { kind: 'buckle', k: 0, j: 2, w: r3(0.05 * B.k), h: r3(0.04 * B.k), bar: r3(0.008 * B.k), standoff: r3(0.008 * B.k), group: G({ colour: p.claspColour ?? 'trim' }) } }) })] }; } },
+    return { adorn: [shell(p.id ?? 'mantle', 'torso', [a, b], { nt: 16, ns: 3, mugen: r3(0.035 * B.k), thick: r3(0.016 * B.k), group: G(p), shoulder: true, ...(p.clasp === false ? { signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.003 * B.k), count: 1, m: 6, group: G(p) } } : { signature: { kind: 'buckle', k: 0, j: 2, w: r3(0.05 * B.k), h: r3(0.04 * B.k), bar: r3(0.008 * B.k), standoff: r3(0.008 * B.k), group: G({ colour: p.claspColour ?? 'trim' }) } }) })] }; } },
   // L5: a SASH at the natural waist, a BELT on the hip line, a BALDRIC across the chest
   // a SASH is cloth (the secondary; the accent, where the chroma is spent, when it is the focal); only its buckle is the
   // trim's metal

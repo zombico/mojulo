@@ -185,7 +185,7 @@ export async function resolveBakes(manifest) {
       out[p.id] = floormapPayload(readFloormap(p.baked.floormap));
     } else if (p.baked.world) {
       const { resolveWorldScene } = await import('../../worlds/world-scene.js');
-      out[p.id] = (await resolveWorldScene({ ref: `walkmesh-${p.id}`, render_mode: 'world', manifest: p.baked.world })).payload;
+      out[p.id] = (await resolveWorldScene({ ref: `walkmesh-${p.id}`, render_mode: 'world', manifest: p.baked.world }, { paint: true })).payload;
     }
   }
   return out;

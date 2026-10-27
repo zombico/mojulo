@@ -41,7 +41,7 @@ export const PARTS = Object.freeze({
   },
   banner: {
     variants: ['banner'], bind: 'on', rung: 2, page: true,
-    about: 'a moment: big words when the bus emits an event, held for ttl seconds, replacing the last; as: \'title\' carves the words into 3D letters put on the screen in a design theme (arcade | pixel | cel | cartoon | cinematic | speed; the game\'s own by default), each dial of which the part may name (look, style, caps, edge, color), and a text may name a word in the world\'s language (\'@fight\')',
+    about: 'a moment: big words when the bus emits an event, held for ttl seconds, replacing the last; as: \'title\' carves the words into 3D letters put on the screen in a design theme (arcade | pixel | cel | cartoon | cinematic | speed; the game\'s own by default), each dial of which the part may name (look, style, caps, edge, color, material, block), and a text may name a word in the world\'s language (\'@fight\')',
     example: { part: 'banner', bind: { on: 'level-complete' }, text: 'Cleared!', at: 'center' },
   },
   toast: {
@@ -202,7 +202,7 @@ export function readPart(p, i = 0) {
     const slot = region ? { slot: region } : {};
     const pass = (keys) => Object.fromEntries(keys.filter((k) => p[k] !== undefined).map((k) => [k, p[k]]));
     if (p.part === 'readout') row = { var: b.var, as: variant, ...slot, ...pass(['label', 'max', 'color']) };
-    else if (p.part === 'banner') row = { on: b.on, ...pass(['text', 'as', 'theme', 'look', 'style', 'caps', 'edge']), ...slot, ...pass(['ttl', 'color']) };
+    else if (p.part === 'banner') row = { on: b.on, ...pass(['text', 'as', 'theme', 'look', 'style', 'caps', 'edge', 'material', 'block', 'blockColor']), ...slot, ...pass(['ttl', 'color']) };
     else if (p.part === 'toast') row = variant === 'change' ? { var: b.var, as: 'toast', ...pass(['text']), ...slot, ...pass(['ttl', 'color']) } : { on: b.on, as: 'toast', ...pass(['text']), ...slot, ...pass(['ttl', 'color']) };
     else row = { ...pass(['text']), ...slot, ...pass(['ttl', 'color']) };
     // a part a cue names (show / hide / state: the ui-<id> vars) keeps its id on the row, so the page gates it

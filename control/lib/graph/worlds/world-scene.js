@@ -35,6 +35,7 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
+import { formRoomMaps } from '@/lib/graph/form/room-form';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
@@ -97,6 +98,8 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * assembler. `payload` is null when the kind has no World form (the assembleRoomScene
  * fallback returns null for any non-room manifest). Async because the workbench path
  * resolves label-wrap textures (which may render referenced sketches to SVG).
+ * `paint: true` (an engine or file export): a read in the form render keeps its surfaces as paint, since the export
+ * carries no live light to draw the form render's material by (form/room-form.js).
  */
 /** A hero's FACE under the runtime's state names (`clips` each state's clip, `own` the hero's clips by their names): a
  * state's facial track its clip's, the ambient blink over a state whose clip it played over or that has no track of
@@ -299,6 +302,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (form: a read in the form render (gen-7), for the builders that make more of the land for it: the meru island's
     // broken boulders, rims and strewn stones; only when on, so a gen-6 ctx is as it was)
     ...(ERAS[era]?.surface === 'form' ? { form: true } : {}),
+    // (formLit: a room under no sun drawn by the form render, its corners holding no light and its lights live on the page:
+    // era/stage.js, form/room-form.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
+    // engine or file export, which carries its surfaces as paint until it carries materials) keeps the paint)
+    ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { formLit: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
@@ -367,7 +374,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
         ({ faces, textures } = readBoundMeshScene(bound.path, {}));
       } else {
-        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}) });
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}), ...(viewOpts.paint ? { paint: true } : {}) });
         faces = inner.payload?.faces || [];
         textures = inner.payload?.textures || {};
       }
@@ -585,6 +592,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (manifestTex && typeof manifestTex === 'object') {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
     }
+    // THE FORM RENDER INDOORS (form/room-form.js): a room that sent its lights to be lit live has its tiles read as
+    // material, each key's colour under no light in place of its paint, its normal and occlusion beside it
+    if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
+      const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
+      Object.assign(textures, F.textures);
+      payload.form = { ...payload.form, room: { ...R, maps: F.maps } };
+    }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
     const plans = resamplePlans(Object.keys(textures).filter((k) => k.startsWith('detail:')));
@@ -685,11 +700,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
-  const shadowsOut = liveL ? liveL.shadows : sketch.manifest.shadows;
+  // (a room lit live in the form render owns its shadows: its lights' own maps, channels/form.js; the live light's actors'
+  // map is drawn under a light the room's material would be lit by, so it gives way)
+  const shadowsOut = payload && payload.form && payload.form.room ? null : liveL ? liveL.shadows : sketch.manifest.shadows;
+  // (the actors it would have cast cast in the room's own lights instead: channels/form.js `actors`)
+  if (payload && payload.form && payload.form.room && liveL && liveL.shadows && liveL.shadows.actors) payload.form = { ...payload.form, room: { ...payload.form.room, actors: true } };
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
+  // (the form render's casters under the same tier: half the maps a side and half as many on a half tier, none off)
+  if (payload && payload.form && payload.form.room) { const T = liveL && liveL.tier ? liveL.tier.tier : 'off'; payload.form = { ...payload.form, room: { ...payload.form.room, shadows: T === 'off' ? { count: 0 } : T === 'half' ? { count: 2, size: 256 } : { count: 4, size: 512 } } }; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
@@ -697,7 +718,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // biocube's moss), drawn
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was
-  if (payload && !unshaded && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
+  if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
     const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
     const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
@@ -705,7 +726,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = F?.moss ?? 0, sward = F?.grass?.sward;
     const drifts = readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}) });
-    if (read) payload.form = formPayload(read);
+    if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     // (the gen-6 live grass's blades go with the painted land: the form render's grass is its own; its wind stays, and the
     // crowns' sway in it, so the form's grass bends in the same gusts as the trees; channels/form-grass.js)
     if (read && payload.liveGrass) {
@@ -1423,6 +1444,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { teamArenaData } = await import('@/lib/graph/contest/team-arena.js');
     const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
     payload.pitch = teamArenaData(sketch.manifest.pitch, { bodies: await athleteBodies(sketch.manifest.pitch.athletes) });
+  }
+  // a bat-and-ball game on a field (contest/innings-arena.js): the sport, the players, the register, the contest
+  // compiled, the level wire's names; the page's innings channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.innings && typeof sketch.manifest.innings === 'object') {
+    const { inningsArenaData } = await import('@/lib/graph/contest/innings-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.innings = inningsArenaData(sketch.manifest.innings, { bodies: await athleteBodies(sketch.manifest.innings.athletes) });
   }
   // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
   // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).

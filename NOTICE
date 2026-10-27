@@ -41,3 +41,8 @@ Its hypot follows V8's Math.hypot, and its exp V8's exact exp(1), under this lic
 control/lib/graph/figures/library/quaternius-ual.js carries animation clips derived from Quaternius's Universal
 Animation Library (free edition, https://quaternius.com), released under CC0 1.0. No notice is required; the credit
 is given with thanks.
+
+control/lib/graph/image-outcomes/fonts/archivo-black.ttf is Archivo Black, unmodified, under the SIL Open Font
+License, Version 1.1, whose full text ships beside it as archivo-black.OFL.txt:
+
+  Copyright 2017 The Archivo Black Project Authors (https://github.com/Omnibus-Type/ArchivoBlack)

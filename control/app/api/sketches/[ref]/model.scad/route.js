@@ -47,7 +47,7 @@ export async function GET(request, { params }) {
     const scaleRaw = Number.parseFloat(new URL(request.url).searchParams.get('scale'));
     const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? scaleRaw : null;
 
-    const { payload, kind } = await resolveWorldScene(sketch);
+    const { payload, kind } = await resolveWorldScene(sketch, { paint: true });
     const exported = payload
       ? scadExport({
         manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : withEquipment(sketch.manifest),

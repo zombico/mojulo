@@ -22,6 +22,7 @@
  *   turns  strokes: to par, putts, fairways, greens in regulation, penalties; pins: pinfall, strikes, spares, opens,
  *          ball speed
  *   meet   time, place; hurdles: hurdles hit; a jump: best, fouls, run-up
+ *   innings runs, hits, home runs, struck out (bases); runs, fours, sixes (runs); outs: each side's at the bat
  * A row the sport cannot have (a hurdle in a sprint) is left out. Pure: no dice, no clock; absent, nothing reads it.
  */
 
@@ -46,6 +47,8 @@ const ST_ROWS = {
   ],
   race: [['time', 'time', 'time', 's', 'low'], ['place', 'place', 'pl', 'n', 'low'], ['clips', 'hurdles hit', 'hit', 'n', 'low']],
   jump: [['best', 'best jump', 'best', 'm', 'high'], ['place', 'place', 'pl', 'n', 'low'], ['fouls', 'fouls', 'fouls', 'n', 'low'], ['runup', 'run-up speed', 'run-up', 'kmh', 'high']],
+  bases: [['runs', 'runs', 'R', 'n', 'high'], ['hits', 'hits', 'H', 'n', 'high'], ['homers', 'home runs', 'HR', 'n', 'high'], ['strikeouts', 'struck out', 'K', 'n', 'low'], ['outs', 'outs', 'outs', 'n', 'low']],
+  runs: [['runs', 'runs', 'R', 'n', 'high'], ['fours', 'fours', '4s', 'n', 'high'], ['sixes', 'sixes', '6s', 'n', 'high'], ['outs', 'wickets lost', 'wkts', 'n', 'low']],
 };
 export const STAT_ROWS = Object.freeze(Object.fromEntries(Object.entries(ST_ROWS).map(([k, rows]) => [k, Object.freeze(rows.map(([id, words, short, unit, better]) => Object.freeze({ id, words, short, unit, better })))])));
 
@@ -59,10 +62,15 @@ const stTable = (kind, ids, values, keep = null) => STAT_ROWS[kind].filter((r) =
 function stMatch(S) {
   const ids = ['a', 'b'], v = {}, add = (row, id, n = 1) => { v[row] ??= {}; v[row][id] = (v[row][id] ?? 0) + n; }, max = (row, id, n) => { v[row] ??= {}; v[row][id] = Math.max(v[row][id] ?? 0, n); };
   let server = null, hits = [], firsts = { a: 0, b: 0 }, firstFaults = { a: 0, b: 0 };
-  for (const c of S.calls) {
-    if (c.kind === 'serve') { server = stSide(c.who); hits = []; if (c.faults === 0) firsts[server] += 1; }
+  S.calls.forEach((c, i) => {
+    // (the serve's own stroke is the hit just before its call, whatever the card names the stroke: it opens the rally
+    // and its speed is the serve's)
+    if (c.kind === 'serve') {
+      server = stSide(c.who); const struck = S.calls[i - 1]?.kind === 'hit' && stSide(S.calls[i - 1].who) === server ? S.calls[i - 1] : null;
+      hits = struck ? [server] : []; if (struck) max('serve', server, stKmh(struck.speed)); if (c.faults === 0) firsts[server] += 1;
+    }
     else if (c.kind === 'fault') { if (c.faults === 1) firstFaults[c.side] += 1; hits = []; }
-    else if (c.kind === 'hit') { hits.push(stSide(c.who)); if (c.verb === 'serve') max('serve', stSide(c.who), stKmh(c.speed)); }
+    else if (c.kind === 'hit') hits.push(stSide(c.who));
     else if (c.kind === 'point') {
       add('points', c.side);
       const loser = c.side === 'a' ? 'b' : 'a', last = hits[hits.length - 1] ?? null;
@@ -73,7 +81,7 @@ function stMatch(S) {
       else if (last === loser && (c.why === 'out' || c.why === 'net' || c.why === 'own-side')) add('errors', loser);
       hits = [];
     }
-  }
+  });
   for (const id of ids) { v.firstIn ??= {}; v.firstIn[id] = stPct(firsts[id] - firstFaults[id], firsts[id]); }
   return { shape: 'match', by: 'side', ids, rows: stTable('match', ids, v) };
 }
@@ -96,7 +104,9 @@ function stTeam(S) {
     } else if (c.kind === 'save') {
       const keeper = stSide(c.who); add('saves', keeper); onTarget(keeper === 'a' ? 'b' : 'a'); lastKick = null;
     } else if (c.kind === 'score') {
-      add('goals', c.side); onTarget(c.side); close(c.f);
+      add('goals', c.side, c.points ?? 1); onTarget(c.side); close(c.f);   // (a basket its points)
+    } else if (c.kind === 'conversion') {
+      if (c.good) add('goals', c.side, c.points);   // (a carry game's conversion: its points beside the try's)
     } else if (c.kind === 'out') {
       if (c.restart?.kind === 'corner') add('corners', c.restart.side);
       close(c.f);
@@ -165,12 +175,26 @@ function stMeet(S) {
   return { shape: 'meet', by: 'lane', ids, rows: stTable(kind, ids, v, keep) };
 }
 
+/** An innings game's: each side's at the bat (its runs, its hits and home runs or its boundaries, its outs). */
+function stInnings(S) {
+  const ids = ['a', 'b'], v = {}, add = (row, id, n = 1) => { v[row] ??= {}; v[row][id] = (v[row][id] ?? 0) + n; };
+  let kind = S.scoring ?? 'bases';   // the sim names its game; a bare log reads it from its calls
+  for (const c of S.calls) {
+    if (c.kind === 'base-hit') { add('runs', c.side, c.runs); add('hits', c.side); if (c.bases === 4) add('homers', c.side); }
+    else if (c.kind === 'runs') { kind = 'runs'; add('runs', c.side, c.runs); if (c.boundary && c.runs === 4) add('fours', c.side); if (c.boundary && c.runs === 6) add('sixes', c.side); }
+    else if (c.kind === 'out') { add('outs', c.side); if (c.why === 'struck-out') add('strikeouts', c.side); if (c.why === 'bowled') kind = 'runs'; }
+    else if (c.kind === 'dot' || c.kind === 'end-over') kind = 'runs';
+  }
+  return { shape: 'innings', by: 'side', ids, rows: stTable(kind, ids, v) };
+}
+
 export function contestStats(S, shape) {
   if (shape === 'match') return stMatch(S);
+  if (shape === 'innings') return stInnings(S);
   if (shape === 'team') return stTeam(S);
   if (shape === 'turns') return stTurns(S);
   if (shape === 'meet') return stMeet(S);
-  throw new Error(`contest stats: no shape '${shape}' (match, team, turns, meet)`);
+  throw new Error(`contest stats: no shape '${shape}' (match, team, turns, meet, innings)`);
 }
 
 /** A value as the broadcast shows it. */

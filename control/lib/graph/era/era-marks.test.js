@@ -9,9 +9,10 @@ import { MARKS } from '../scene/engines/marks.js';
 const sorted = (a) => [...a].sort();
 
 describe('the era marks: every page input, every era', () => {
-  it('the surface and neutral inputs are the page\'s inputs, each once (a new input is classified here first)', () => {
+  it('the surface, neutral and form inputs are the page\'s inputs, each once (a new input is classified here first)', () => {
     expect(sorted([...SURFACE_INPUTS, ...NEUTRAL_INPUTS, ...FORM_INPUTS])).toEqual(sorted(pageInputs()));
     expect(SURFACE_INPUTS.filter((k) => NEUTRAL_INPUTS.includes(k) || FORM_INPUTS.includes(k))).toEqual([]);
+    expect(NEUTRAL_INPUTS.filter((k) => FORM_INPUTS.includes(k))).toEqual([]);
   });
 
   it('every era has a table over them, each row keyed by its own era alone', () => {

@@ -100,7 +100,7 @@ export function startingForms(payload) {
  * → { kind, payload, exported, score, fig, engine: the engine-skeleton figure, bus, soundtrack, sound }
  */
 export async function resolveLevel(levelSketch, { engine, clips, posture = null, lit = false, figure = false, humanoid = false }) {
-  const { payload: resolved, kind } = await resolveWorldScene(levelSketch, { ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
+  const { payload: resolved, kind } = await resolveWorldScene(levelSketch, { paint: true, ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
   const payload = startingForms(resolved);
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);

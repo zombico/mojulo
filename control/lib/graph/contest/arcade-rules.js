@@ -28,7 +28,10 @@
  *   receive { behind, aside }   home { behind }   (metres behind the baseline: negative, inside the court)
  *   rally   { bounces?, touches?, mustBounce? }   fouls { <kind>: cost }   noVolley: <region> (a volley struck from it
  *           is the foul of its name)
- *   body    { tip?, reach?, speed? }   the register's body scaled for the game's size (a table's reach, a paddle's tip)
+ *   players a side's players (1; volleyball's pair 2): each at its home across the side (home.aside)
+ *   assist  'pass': a side's touches before its last placed for a teammate in every register (volleyball's bump and set)
+ *   body    { tip?, reach?, speed?, up?, bare? }   the register's body scaled for the game's size (a table's reach, a
+ *           paddle's tip), how high it reaches (a jump's), bare hands (no racquet drawn)
  *   strokes { fore?, back?, serve? }   the hit's verbs (hit.js HIT_VERBS)
  *   cpu     { slip }   the computer's unforced error: the share of balls it lets go at the regular level (its level
  *           scales it, contest-mind.js); a small court's rally otherwise never ends
@@ -58,7 +61,7 @@ function netCourt(c, serve) {
 /** The score: rally points to a count by a lead, games to the match; or the tennis ladder. */
 function netScore(s, games, rally) {
   if (s.tennis) return { points: 'rally', ladder: [{ unit: 'game', to: 4, by: 2, names: ['0', '15', '30', '40'] }, { unit: 'set', to: 6, by: 2 }, { unit: 'match', to: games }] };
-  return { points: rally, ladder: [{ unit: 'game', to: s.to, by: s.by ?? 2 }, { unit: 'match', to: games }] };
+  return { points: rally, ladder: [{ unit: s.unit ?? 'game', to: s.to, by: s.by ?? 2 }, { unit: 'match', to: games }] };
 }
 
 /** The serve's kernel words: the regions, who serves next, the box by what, the own bounce. */
@@ -75,43 +78,158 @@ const NET_STROKES = Object.freeze({ fore: 'forehand', back: 'backhand', serve: '
 
 function composeNet(card) {
   for (const k of ['court', 'net', 'score', 'serve', 'receive', 'home']) if (!isObj(card[k])) afail(`a net card names ${k}`);
+  // a no-volley zone: a region the court lays, its foul costing the point (the one cost the match restarts from: a free
+  // ball or a warning would leave the rally dead, a fault would swallow the volley)
+  if (card.noVolley !== undefined) {
+    const regions = netCourt(card.court, card.serve).regions;
+    if (typeof card.noVolley !== 'string' || !regions[card.noVolley]) afail(`noVolley names a region the court lays (${Object.keys(regions).join(', ')}; a kitchen needs court.kitchen)`);
+    if (card.fouls?.[card.noVolley] !== 'point') afail(`fouls.${card.noVolley} is 'point': a volley from the ${card.noVolley} costs the point (the match restarts from a point, not from a free ball, a warning or a fault)`);
+  }
   const serve = card.serve, title = card.title;
   const spec = ({ sets } = {}) => {
     const games = sets ?? card.score.games ?? 1;
     return {
-      shape: 'match', title, players: 1,
+      shape: 'match', title, players: card.players ?? 1,
       court: netCourt(card.court, serve),
       scoring: netScore(card.score, games, card.score.side ? 'serve' : 'rally'),
       serve: netServe(serve),
-      rally: { in: 'half', bounces: card.rally?.bounces ?? 1, touches: card.rally?.touches ?? 1, ...(card.rally?.mustBounce ? { mustBounce: card.rally.mustBounce } : {}) },
+      rally: { in: 'half', bounces: card.rally?.bounces ?? 1, touches: card.rally?.touches ?? 1, ...(card.rally?.sameTwice === false ? { sameTwice: false } : {}), ...(card.rally?.mustBounce ? { mustBounce: card.rally.mustBounce } : {}) },
       ...(card.fouls ? { fouls: { ...card.fouls } } : {}),
     };
   };
   return {
-    shape: 'match', words: card.words, spec, ball: card.ball, players: 1,
+    shape: 'match', words: card.words, spec, ball: card.ball, players: card.players ?? 1,
     strokes: { ...NET_STROKES, ...(card.strokes ?? {}) },
     net: { height: card.net.height, posts: card.net.posts ?? card.net.height, beyond: card.net.beyond ?? 0.914 },
     serve: { behind: serve.behind, aside: serve.aside, hand: serve.hand },
     receive: { ...card.receive }, home: { ...card.home },
     ...(card.court.bed ? { bed: { height: card.court.bed } } : {}),
     ...(card.noVolley ? { noVolley: card.noVolley } : {}),
-    ...(card.body ? { pace: { ...card.body } } : {}),
+    ...(card.body && ['tip', 'reach', 'speed'].some((k) => card.body[k] !== undefined) ? { pace: Object.fromEntries(['tip', 'reach', 'speed'].filter((k) => card.body[k] !== undefined).map((k) => [k, card.body[k]])) } : {}),
+    ...(card.body?.up ? { reachUp: card.body.up } : {}),
+    ...(card.body?.bare ? { bare: true } : {}),
+    ...(card.assist ? { assist: card.assist } : {}),
     ...(card.cpu?.slip ? { slip: card.cpu.slip } : {}),
+  };
+}
+
+// ── the goal family's modules ──────────────────────────────────────────────────────────────────────────────────
+
+/** A goal game's court: the floor shared, each side's half, its key (the box by its goal). Side a's goal is at y < 0. */
+function goalCourt(c) {
+  const W = r4(c.width / 2), L = r4(c.length / 2), key = c.key ?? [4.9, 5.8];
+  return { frame: [c.width, c.length], mirror: 'reflect', regions: { pitch: { rect: [-W, -L, W, L], shared: true }, half: { rect: [-W, -L, W, 0] }, box: { rect: [-r4(key[0] / 2), -L, r4(key[0] / 2), r4(-L + key[1])] } } };
+}
+
+function composeGoal(card) {
+  for (const k of ['court', 'goal', 'score', 'roles', 'play']) if (!isObj(card[k])) afail(`a goal card names ${k}`);
+  const roles = Object.keys(card.roles), title = card.title;
+  const spec = ({ periods, seconds } = {}) => ({
+    shape: 'match', title, players: roles.length,
+    roles: Object.fromEntries(roles.map((r) => [r, { home: 'pitch' }])),
+    court: goalCourt(card.court),
+    scoring: { ladder: [{ unit: card.score.unit ?? 'goal' }] },
+    clock: { periods: periods ?? card.score.periods ?? 2, seconds: seconds ?? card.score.seconds ?? 120, ...(card.score.overtime ? { overtime: card.score.overtime } : {}) },
+    ...(card.fouls ? { fouls: { ...card.fouls } } : {}),
+    ...(card.outs ? { outs: { ...card.outs } } : {}),
+  });
+  const P = card.play;
+  return {
+    shape: 'team', words: card.words, spec, ball: card.ball, side: roles.length,
+    goal: { ...card.goal, ...(card.goal.hoop ? { hoop: { ...card.goal.hoop } } : {}) },
+    homes: Object.fromEntries(roles.map((r) => [r, card.roles[r].slice()])),
+    kick: { verb: P.verb ?? 'kick', tipSpeed: P.tipSpeed, reach: P.reach, charge: P.charge, pass: P.pass, dribble: P.dribble },
+    ground: { roll: card.ground?.roll ?? 3, boards: !!card.ground?.boards, ...(card.ground?.bounce ? { bounce: card.ground.bounce } : {}) },
+    press: card.press ?? 7,
+    ...(P.hands ? { hands: true } : {}),
+  };
+}
+
+// ── the carry family's modules ─────────────────────────────────────────────────────────────────────────────────
+
+function composeCarry(card) {
+  for (const k of ['court', 'posts', 'carry', 'score', 'roles', 'play']) if (!isObj(card[k])) afail(`a carry card names ${k}`);
+  const roles = Object.keys(card.roles), title = card.title, c = card.court, line = r4(c.length / 2), W = r4(c.width / 2), L = r4(line + c.ingoal);
+  const spec = ({ periods, seconds } = {}) => ({
+    shape: 'match', title, players: roles.length,
+    roles: Object.fromEntries(roles.map((r) => [r, { home: 'pitch' }])),
+    court: { frame: [c.width, r4(c.length + 2 * c.ingoal)], mirror: 'reflect', regions: { pitch: { rect: [-W, -L, W, L], shared: true }, half: { rect: [-W, -L, W, 0] }, 'in-goal': { rect: [-W, -L, W, -line] } } },
+    scoring: { ladder: [{ unit: 'point' }] },
+    clock: { periods: periods ?? card.score.periods ?? 2, seconds: seconds ?? card.score.seconds ?? 150 },
+    carry: { ...card.carry, line },
+  });
+  const P = card.play;
+  return {
+    shape: 'team', words: card.words, spec, ball: card.ball, side: roles.length,
+    goal: { posts: { ...card.posts, y: card.posts.at === 'end' ? L : line } },
+    homes: Object.fromEntries(roles.map((r) => [r, card.roles[r].slice()])),
+    kick: { verb: 'throw', tipSpeed: P.tipSpeed, reach: P.reach, charge: P.charge, pass: P.pass, dribble: P.dribble },
+    ground: { roll: card.ground?.roll ?? 3, boards: false, ...(card.ground?.bounce ? { bounce: card.ground.bounce } : {}) },
+    press: 0, hands: true,
+    carry: { line, ingoal: c.ingoal, gap: card.gap ?? 2, lines: card.court.lines ?? 10, style: card.carry.downs ? 'downs' : 'tackles', ...(c.yards ? { yards: true } : {}) },
+  };
+}
+
+// ── the innings family's modules ───────────────────────────────────────────────────────────────────────────────
+
+function composeInnings(card) {
+  for (const k of ['innings', 'field', 'pitch', 'bat', 'fielders', 'runner']) if (card[k] === undefined) afail(`an innings card names ${k}`);
+  const title = card.title;
+  const spec = ({ innings, overs } = {}) => ({ shape: 'innings', title, players: card.fielders.length, innings: { ...card.innings, ...(innings !== undefined ? { innings } : {}), ...(overs !== undefined ? { overs } : {}) } });
+  return {
+    shape: 'innings', words: card.words, spec, ball: card.ball, side: card.fielders.length,
+    field: { ...card.field }, pitch: { ...card.pitch }, bat: { ...card.bat }, fielders: card.fielders.map((f) => f.slice()), runner: { ...card.runner },
+    ...(card.zone ? { zone: { ...card.zone } } : {}), ...(card.stumps ? { stumps: { ...card.stumps } } : {}),
+    catchReach: card.catchReach ?? 1.6,
   };
 }
 
 export const ARCADE_FAMILIES = freeze({
   net: {
     shape: 'match', sim: 'the court (match-sim.js)', says: 'two ends and a net: a serve, a rally the kernel calls, points to games',
-    modules: ['court', 'net', 'score', 'serve', 'receive', 'home', 'rally', 'fouls', 'noVolley', 'body', 'strokes', 'ball', 'cpu'],
+    modules: ['players', 'court', 'net', 'score', 'serve', 'receive', 'home', 'rally', 'fouls', 'noVolley', 'assist', 'body', 'strokes', 'ball', 'cpu'],
     doc: [
       'court { width, length, bed? (a table\'s height), service? { from, to } (the boxes off the net), kitchen? (a no-volley depth) }',
-      'net { height, posts?, beyond? }   score { to, by?, games?, side? (only the server scores) } | { tennis: true }',
+      'players (a side: 1, 2 …)   net { height, posts?, beyond? }   score { to, by?, games?, unit?, side? (only the server scores) } | { tennis: true }',
       'serve { into: diagonal | half, faults?, let?, turns?: game | n | winner, court?: points | score, bounce?: own, behind, aside, hand }',
-      'rally { bounces?, touches?, mustBounce? }   fouls { <kind>: point | … }   noVolley: <region>   receive, home { behind, aside? }',
-      'body { tip?, reach?, speed? } (the body scaled)   strokes { fore?, back?, serve? } (hit verbs)   ball   cpu { slip }',
+      'rally { bounces?, touches?, sameTwice?, mustBounce? }   fouls { <kind>: point | … }   noVolley: <region>   receive, home { behind, aside? }',
+      'assist: pass (the touches before the last placed for a teammate)   body { tip?, reach?, speed?, up? (the reach up), bare? }',
+      'strokes { fore?, back?, serve? } (hit verbs)   ball   cpu { slip }',
     ],
     compose: composeNet,
+  },
+  goal: {
+    shape: 'team', sim: 'the pitch (team-sim.js)', says: 'two goals and a clock: the sides mix, the ball carried, passed and shot, the most scored wins',
+    modules: ['court', 'goal', 'score', 'roles', 'play', 'ground', 'press', 'fouls', 'outs', 'ball'],
+    doc: [
+      'court { width, length, key? [width, depth] (the box by each goal) }   roles { <role>: [x, y] } (a side\'s players, side a\'s homes)',
+      'goal { width, height } (a mouth) | { hoop: { height, radius, out, board: [w, h], range }, three } (a ring; three points past `three`)',
+      'score { unit?, periods?, seconds?, overtime? }   fouls { contact: free }   outs { side?: throw-in, end?: corner }',
+      'play { verb?, hands?, tipSpeed, reach, charge, pass, dribble } (hands: caught, held, thrown)   ground { roll, boards?, bounce? }   press',
+    ],
+    compose: composeGoal,
+  },
+  carry: {
+    shape: 'team', sim: 'the pitch (team-sim.js)', says: 'carry it over their line: tackles or downs, passes back or one forward, a try and its conversion kick',
+    modules: ['court', 'posts', 'carry', 'score', 'roles', 'play', 'ground', 'gap', 'ball'],
+    doc: [
+      'court { width, length (line to line), ingoal, lines? (every so many metres), yards? (the distance said in yards) }   posts { width, bar, height, at?: end }',
+      'carry { try, called?, conversion?, convertFrom?, start, tackles? | downs? + gain?, forward?: never | once, drop?, out? } (the kernel\'s)',
+      'score { periods?, seconds? }   roles { <role>: [x, behind] } (the formation round the ball; the first takes it)   gap (the defence\'s line)',
+      'play { tipSpeed, reach, charge, pass, dribble } (hands: caught, carried, passed)   ground { roll, bounce? }',
+    ],
+    compose: composeCarry,
+  },
+  innings: {
+    shape: 'innings', sim: 'the field (bat-sim.js)', says: 'one side bats, the other fields, a ball at a time: strikes and outs, the bases or the runs, over the fence',
+    modules: ['innings', 'field', 'pitch', 'zone', 'stumps', 'bat', 'fielders', 'runner', 'catchReach', 'ball'],
+    doc: [
+      'innings { innings?, outs, strikes?, overs? + balls?, runs: bases | runs } (the kernel\'s)   field { fence, fenceHeight?, fair? (the lines\' half-angle), bounce? }',
+      'pitch { at, hand, speed, length? [near, far] (a bowler\'s bounce) }   zone { x, z: [low, high] } (the strike zone)   stumps { x, z } (bowled)',
+      'bat { reach, exit, loft, spray } (the swing\'s contact and launch)   fielders [[x, y], …] (the first throws it)   catchReach',
+      'runner { each (seconds a base or a run), gather, throw, home, first? }',
+    ],
+    compose: composeInnings,
   },
 });
 
@@ -166,6 +284,94 @@ export const ARCADE_SPORTS = freeze({
     body: { tip: 1, reach: 1.15, speed: 0.9 }, cpu: { slip: 0.08 },
     omits: ['the cap at thirty (a game is won by two, however long)', 'the serve struck below 1.15 m and the server\'s feet still', 'the faults of a shuttle caught or slung on the racquet', 'doubles\' service courts'],
   },
+  volleyball: {
+    family: 'net', title: 'Beach volleyball',
+    words: 'beach volleyball, two a side: three touches a side, never twice in a row, the ball never down, rally points to twenty-one',
+    ball: 'volleyball', players: 2,
+    // FIVB beach: the court 16 × 8 m, the net 2.43 m (men's); a set to 21 by two, the match the best of three
+    court: { width: 8, length: 16 },
+    net: { height: 2.43, posts: 2.55, beyond: 0.5 },
+    score: { to: 21, by: 2, games: 2, unit: 'set' },
+    serve: { into: 'half', faults: 1, let: false, turns: 'winner', behind: 0.6, aside: 1, hand: 2.7 },
+    receive: { behind: -2.5, aside: 2 }, home: { behind: -3, aside: 2 },
+    rally: { bounces: 0, touches: 3, sameTwice: false },
+    assist: 'pass',
+    strokes: { fore: 'spike', back: 'spike', serve: 'float' },
+    body: { reach: 0.8, up: 3.1, bare: true }, cpu: { slip: 0.04 },
+    omits: ['the third set to fifteen', 'changing ends every seven points', 'the block not counted as a touch', 'the open-hand tip and the double contact on a set', 'six a side, the rotation and the libero (the indoor game is a sport written out)'],
+  },
+  basketball: {
+    family: 'goal', title: 'Basketball, three a side',
+    words: 'full-court basketball, three a side: dribble, pass and shoot at the ring, two points inside the arc and three beyond it, four quarters',
+    ball: 'basketball',
+    // FIBA: the court 28 × 15 m; the ring 3.05 m up, 45 cm across, its centre 1.575 m out from the end line; the board
+    // 1.8 × 1.05 m, its foot 2.9 m up; the three-point line 6.75 m from the ring's centre; the key 4.9 × 5.8 m
+    court: { width: 15, length: 28, key: [4.9, 5.8] },
+    goal: { hoop: { height: 3.05, radius: 0.225, out: 1.575, board: [1.8, 1.05], range: 7.6 }, three: 6.75 },
+    score: { unit: 'point', periods: 4, seconds: 120, overtime: 60 },
+    roles: { guard: [0, -2], forward: [-4, -6], center: [3, -9] },
+    play: { verb: 'throw', hands: true, tipSpeed: 14, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 },
+    ground: { roll: 0.8, bounce: 0.85 }, press: 6,
+    fouls: { contact: 'free' }, outs: { side: 'throw-in' },
+    omits: ['five a side (three play the full court here)', 'the shot clock and the eight seconds to cross half way', 'travelling, the double dribble and the backcourt', 'free throws (a foul gives the ball back where it happened)', 'the inbound under the basket after a score (a check at the centre)', 'goaltending'],
+  },
+  rugby: {
+    family: 'carry', title: 'Rugby, five a side',
+    words: 'rugby five a side: run it and pass it back or flat, six tackles and the ball turns over, a try five and its conversion two',
+    ball: 'rugby',
+    // a short field for five (the full one is 100 × 70 m, its in-goals up to 22 m); the posts 5.6 m apart, the bar 3 m up
+    court: { width: 40, length: 60, ingoal: 6, lines: 10 },
+    posts: { width: 5.6, bar: 3, height: 7 },
+    carry: { try: 5, called: 'try', conversion: 2, convertFrom: 15, start: 20, tackles: 6, forward: 'never', drop: 'turnover', out: 'turnover' },
+    score: { periods: 2, seconds: 150 },
+    roles: { half: [0, -1], forward: [-3, -2], centre: [5, -3], wing: [-10, -5], fullback: [2, -9] },
+    play: { tipSpeed: 18, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 }, ground: { roll: 3, bounce: 0.6 }, gap: 4,
+    omits: ['fifteen (or seven) a side on the full field', 'the ruck and the maul (a tackle is rugby league\'s: the side keeps the ball, six times)', 'the scrum and the lineout (a knock-on or a ball out turns it over where it was)', 'kicking in open play, the drop goal and the penalty kick', 'the conversion taken in line with the try (the arcade kicks it from in front)'],
+  },
+  football: {
+    family: 'carry', title: 'American football, five a side',
+    words: 'American football five a side: four downs to gain ten yards, one forward pass a play from behind the line, a touchdown six and the extra point one',
+    ball: 'football',
+    // a short field for five (the NFL's is 100 yards between the goal lines, its end zones 10 yards deep); the posts
+    // 18 ft 6 in apart on the end line, the bar 10 ft up; the ball at the 25 to start, the extra point from the 15
+    court: { width: 30, length: 64, ingoal: 9.14, lines: 9.144, yards: true },
+    posts: { width: 5.64, bar: 3.05, height: 9, at: 'end' },
+    carry: { try: 6, called: 'touchdown', conversion: 1, convertFrom: 13.7, start: 22.9, downs: 4, gain: 9.14, forward: 'once', drop: 'down', out: 'down' },
+    score: { periods: 2, seconds: 150 },
+    roles: { qb: [0, -4], receiver: [-9, -0.5], wideout: [9, -0.5], tight: [-3, -1], back: [2, -6] },
+    play: { tipSpeed: 18, reach: 1, charge: 0.8, pass: 0.4, dribble: 3 }, ground: { roll: 3, bounce: 0.55 }, gap: 1.5,
+    omits: ['eleven a side, the snap from a center and the huddle', 'kickoffs and punts (a possession starts at the 25; after four downs the ball turns over where it lies)', 'penalties, the two-point try and the field goal', 'blocking (the line is a formation, the defence runs at the ball)'],
+  },
+  baseball: {
+    family: 'innings', title: 'Baseball, three innings',
+    words: 'baseball: three strikes and out, three outs a side, the runners round the bases, a home run over the fence, three innings',
+    ball: 'baseball',
+    // MLB: the mound 60 ft 6 in (18.44 m) from the plate, the bases 90 ft (27.43 m) apart; a short park's fence
+    innings: { innings: 3, outs: 3, strikes: 3, runs: 'bases' },
+    field: { fence: 95, fenceHeight: 3, fair: 45, bounce: 0.45 },
+    pitch: { at: [0, 18.44], hand: 1.8, speed: 36 },
+    zone: { x: 0.25, z: [0.5, 1.1] },
+    bat: { reach: 0.8, exit: 38, loft: 24, spray: 38 },
+    fielders: [[0, 18.44], [17, 25], [7, 36], [-7, 36], [-17, 25], [-28, 62], [0, 72], [28, 62]],
+    catchReach: 1.4,
+    runner: { each: 4.2, gather: 0.5, throw: 32, home: [0, 0], first: [19.4, 19.4] },
+    omits: ['balls and the walk (a pitch out of the zone and let go is pitched again)', 'the catcher, stolen bases and the force play beyond first', 'nine a side (the pitcher and seven field)', 'extra innings (a tie stands)', 'the infield fly and the sacrifice'],
+  },
+  cricket: {
+    family: 'innings', title: 'Cricket, two overs',
+    words: 'cricket: six balls an over, two overs and three wickets a side, bowled or caught, four along the ground over the rope and six on the full, the chase',
+    ball: 'cricket',
+    // MCC: the pitch 22 yards (20.12 m) wicket to wicket, the stumps 9 in wide (0.229 m) and 28 in high (0.711 m)
+    innings: { innings: 1, outs: 3, overs: 2, balls: 6, runs: 'runs' },
+    field: { fence: 55, fenceHeight: 0, bounce: 0.55 },
+    pitch: { at: [0, 20.12], hand: 2.1, speed: 30, length: [3, 8] },
+    stumps: { x: 0.12, z: 0.71 },
+    bat: { reach: 0.9, exit: 34, loft: 16, spray: 75 },
+    fielders: [[0, 20.12], [-14, 26], [14, 26], [-30, 14], [30, 14], [-24, 42], [24, 42], [0, 48], [-12, -10], [12, -10]],
+    catchReach: 1.2,
+    runner: { each: 3.1, gather: 0.7, throw: 26, home: [0, 0] },
+    omits: ['leg before wicket, the wide and the no ball', 'eleven a side and the batting order (three wickets, a side\'s innings)', 'run outs and the non-striker\'s end', 'the spin, the swing and the seam (a delivery is a line, a length and a pace)', 'the follow-on and a second innings'],
+  },
 });
 export const ARCADE_SPORT_IDS = Object.freeze(Object.keys(ARCADE_SPORTS));
 
@@ -194,19 +400,33 @@ export function composeArcade(card, id = null) {
   return { ...sport, arcade: { family: card.family, ...(id ? { card: id } : {}) }, omits: [...(card.omits ?? [])] };
 }
 
-/** The arcade rules' card, served by get_game_vocab({ id: 'contest-arcade' }): the families, their modules, the cards. */
-export function arcadeRulesCard() {
+/**
+ * The arcade rules' cards, served by get_game_vocab: `contest-arcade` the index (how a card is played and varied, each
+ * family and its cards), `contest-arcade-<family>` a family's modules and its cards with what each leaves out. → the
+ * card, or null for an id that is not one
+ */
+export function arcadeRulesCard(id = 'contest-arcade') {
+  const cardsOf = (fam) => ARCADE_SPORT_IDS.filter((c) => ARCADE_SPORTS[c].family === fam);
+  if (id === 'contest-arcade') {
+    const body = [
+      'THE ARCADE RULES — the ball games at the level an arcade plays them, each a card of modules its family composes',
+      '(contest/arcade-rules.js). Play one by name: design_game({ quick: { goal: \'contest\', sport: \'<card>\' } }).',
+      'A VARIANT moves a word: sport: { id, from: <card>, …a module\'s words } (laid over that module\'s, one level deep;',
+      'words, title and omits replace), e.g. { id: \'pong-21\', from: \'pingpong\', score: { to: 21 } }. A rulebook the modules',
+      'cannot say is written out whole: get_catalyst({ id: \'distilled-rulebook\' }).',
+      '',
+      ...Object.entries(ARCADE_FAMILIES).flatMap(([fam, f]) => [`${fam} (${f.sim}): ${f.says}`, `  cards: ${cardsOf(fam).join(', ')}   modules and omissions: get_game_vocab({ id: 'contest-arcade-${fam}' })`]),
+    ].join('\n');
+    return { id, name: 'The arcade rules', summary: 'the ball games distilled to modules: a card per sport, a variant a word', when: 'an arcade sport or a variant of one', scope: 'rail', body };
+  }
+  const fam = typeof id === 'string' && id.startsWith('contest-arcade-') ? id.slice('contest-arcade-'.length) : null, f = ARCADE_FAMILIES[fam];
+  if (!f) return null;
   const body = [
-    'THE ARCADE RULES — the ball games at the level an arcade plays them, each a card of modules its family composes',
-    '(contest/arcade-rules.js). Play one by name: design_game({ quick: { goal: \'contest\', sport: \'<card>\' } }).',
-    'A VARIANT moves a word: sport: { id, from: <card>, …a module\'s words } (laid over that module\'s, one level deep;',
-    'words, title and omits replace), e.g. { id: \'pong-21\', from: \'pingpong\', score: { to: 21 } }. A rulebook the modules',
-    'cannot say is written out whole: get_catalyst({ id: \'distilled-rulebook\' }).',
+    `THE ARCADE RULES, the ${fam} family (${f.sim}): ${f.says}. Its modules, a card's words:`,
+    ...f.doc.map((d) => `  ${d}`),
     '',
-    ...Object.entries(ARCADE_FAMILIES).flatMap(([id, f]) => [`${id} (${f.sim}): ${f.says}`, ...f.doc.map((d) => `  ${d}`)]),
-    '',
-    'the cards, each with what the full rules say that the arcade leaves out:',
-    ...ARCADE_SPORT_IDS.flatMap((id) => { const c = ARCADE_SPORTS[id]; return [`  ${id} (${c.family}): ${c.words}`, `    omits: ${c.omits.join('; ')}`]; }),
+    'its cards, each with what the full rules say that the arcade leaves out:',
+    ...cardsOf(fam).flatMap((c) => [`  ${c}: ${ARCADE_SPORTS[c].words}`, `    omits: ${ARCADE_SPORTS[c].omits.join('; ')}`]),
   ].join('\n');
-  return { id: 'contest-arcade', name: 'The arcade rules', summary: 'the ball games distilled to modules: a card per sport, a variant a word', when: 'an arcade sport or a variant of one', scope: 'rail', body };
+  return { id, name: `The arcade rules: ${fam}`, summary: `the ${fam} family's modules and cards`, when: `an arcade ${fam} game`, scope: 'rail', body };
 }

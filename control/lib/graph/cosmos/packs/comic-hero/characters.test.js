@@ -1,7 +1,8 @@
 // The comic hero pack's characters: a cast member is an egocube ask that rolls the same sheet for the same seed, reads
 // into a hero spec the door validates on either body, wears the pack's suit for that body (never the sheet's own cut),
 // and is never cel shaded: no toon at any stop, the realistic body at the realistic stop, the tiered body elsewhere.
-// One case per procedure, chosen from the cast in code.
+// One case per procedure, chosen from the cast in code: a suit's outfit or its armour build (every suit and every member
+// on both bodies: comic-hero.deep.test.js).
 import { describe, it, expect } from 'vitest';
 import { CAST, castMember } from './cast.js';
 import { SUITS, SUIT_KEYS, suitOf } from './suits.js';
@@ -11,6 +12,8 @@ import { SPEC_KEYS } from '../../../egocube/egocube.js';
 import { validateHeroSpec } from '../../../../mcp/tools/layered.js';
 
 const byBody = Object.fromEntries(Object.keys(LOOKS).map((id) => [bodyOf(id), id]));
+const armoured = (suit) => !!SUITS[suit].at.tiered.adorn;
+const PICKS = [CAST.find((m) => !armoured(m.suit)), CAST.find((m) => armoured(m.suit))];
 
 describe('comic hero pack: cast', () => {
   it('every member asks in egocube words, wears a suit the pack has, and rolls the same sheet for the same seed', () => {
@@ -33,8 +36,8 @@ describe('comic hero pack: cast', () => {
 });
 
 describe('comic hero pack: suits', () => {
-  it('each suit has a fragment for both bodies, writing only suit keys, and the realistic one never paints', () => {
-    for (const [id, S] of Object.entries(SUITS)) {
+  it('a suit has a fragment for both bodies, writing only suit keys, and the realistic one never paints', () => {
+    for (const id of PICKS.map((m) => m.suit)) {
       for (const body of ['tiered', 'realistic']) {
         const { palette, ...frag } = suitOf(id, body);
         expect(palette, id).toBeTruthy();
@@ -47,8 +50,8 @@ describe('comic hero pack: suits', () => {
 });
 
 describe('comic hero pack: member orders', () => {
-  it('every member validates on both bodies: the suit over the sheet\'s plan, the realistic body at the realistic stop, no toon', () => {
-    for (const m of CAST) {
+  it('a member validates on both bodies: the suit over the sheet\'s plan, the realistic body at the realistic stop, no toon', () => {
+    for (const m of PICKS) {
       for (const [body, look] of Object.entries(byBody)) {
         const { mint, sheet } = memberOrders(m.id, look);
         const { vibe: _v, ...fields } = mint.args.spec;

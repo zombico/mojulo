@@ -167,6 +167,30 @@ describe('the arcade rules on the court', () => {
     expect(calls(without, 'point').length).toBe(0);   // sixty hits and no point: the minds never miss on a table
     expect(longest(sport)).toBeLessThan(60);
   });
+  it('a side of more than one: its players at their homes across it, the pad on its active one (never the last to touch), the passes placed for a teammate', () => {
+    const sport = cardWith((s) => s.players > 1 && s.assist === 'pass'), ctx = ctxOf({ sport, players: 1, register: 'action', seed: 6 }), S = newMatch(ctx);
+    const n = ctx.C.players;
+    expect(S.p.map((P) => P.id)).toEqual([...Array.from({ length: n }, (_, i) => `a${i + 1}`), ...Array.from({ length: n }, (_, i) => `b${i + 1}`)]);
+    expect(S.minds.length).toBe(2 * n);
+    const rc = S.K.server === 'a' ? 'b' : 'a', xs = S.p.filter((P) => P.side === rc).map((P) => P.x);
+    expect(new Set(xs).size).toBe(n);   // across the side, not stacked
+    // the pad moves side a's active player only; an exhibition's every touch obeys the rally (no side touches four times,
+    // nobody twice in a row) and each placed pass is played next by the teammate it was placed for, or dies on its side
+    const E = run(ctxOf({ sport, players: 0, register: 'action', seed: 6 }), null, (S) => S.over || calls(S, 'point').length >= 12, 60 * 240);
+    expect(E.calls.filter((c) => c.kind === 'point' && (c.why === 'touches' || c.why === 'double-touch' || c.why === 'touched-own-serve')).length).toBe(0);
+    const hits = calls(E, 'hit'), passes = hits.filter((h) => h.pass);
+    expect(passes.length).toBeGreaterThan(5);
+    for (const p of passes) {
+      const next = E.calls.find((c) => c.f > p.f && (c.kind === 'hit' || c.kind === 'point'));
+      if (next && next.kind === 'hit') expect(next.who).toBe(p.pass.for);
+    }
+    // a three-touch rally: a bump, a set, then over the net
+    expect(hits.some((h, i) => h.verb === 'bump' && hits[i + 1] && hits[i + 1].verb === 'set' && hits[i + 2] && !hits[i + 2].pass)).toBe(true);
+    // the pad: with a player at it, side a's active player is the one it drives
+    const H = newMatch(ctx);
+    for (let i = 0; i < 400; i++) stepMatch(H, [{ x: 1, y: 0, b: 0 }], ctx);
+    expect(H.active.a).toMatch(/^a/);
+  });
   it('a ball whose air is its own (the shuttle): the aim flies it through that air and lands at the depth', () => {
     const ball = resolveSport(cardWith((s) => airDrag(s.ball) > 0)).ball, k = airDrag(ball), g = 9.81;
     const A = aimedShot(30, 2, 8, g, { at: 4, height: 1.524 }, k);

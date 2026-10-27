@@ -319,6 +319,12 @@ function readEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: groundSampler(P.faces ?? [], /:rock$/), enumerable: false });
   // what stands solid on it (boxes), for a law to keep a track clear; not data either
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
+  // the town's houses as they stand (stage-buildings.js `town-<use>-<n>`): each door, the way it faces out and, walked
+  // into, its rooms; where the folk stand (folk-cast.js). Not data either: a house the street had no frontage for is
+  // not here
+  const townDoors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && /^(house|building)-town-/.test(a.id) && Array.isArray(a.at) && Array.isArray(a.N))
+    .map((a) => ({ id: a.id.replace(/^(house|building)-/, ''), use: a.use, at: a.at, N: a.N, enter: a.enter ?? null, ...(Array.isArray(a.rooms) ? { rooms: a.rooms } : {}) }));
+  Object.defineProperty(out, 'townDoors', { value: townDoors, enumerable: false });
   return out;
 }
 
@@ -623,7 +629,7 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests'];
 function mergePlay(base, extra) {
   if (!base) return extra;
   const out = { ...base, ...extra };
@@ -685,7 +691,8 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   // (a party all with the pilot from the start carries no flag between levels)
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
-  if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
+  // (beside a stage's own: a town's sidequests, folk-cast.js)
+  if (G.quests?.length) play = { ...(play ?? {}), quests: [...(play?.quests ?? []), ...levelQuests(G.quests)], carry: STORY_SLICE };
   if (scenes.length) {
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)

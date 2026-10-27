@@ -1230,6 +1230,13 @@ function tieredBust(hero) {
 }
 /** The hero's form plan: today's, or with `form: 'tiered'` the tiered base (tiered-form.js): the bust as a profile on
  * the torso's rings in place of its own domes. */
+/** Whether a hero's kit carries a cowl that presses its ears: in its adorn list, or in an armour build's `with` (the kit
+ *  worn over the armour); a cowl's `ears: false` leaves them. */
+export function cowlPressesEars(hero) {
+  const kit = Array.isArray(hero?.adorn) ? hero.adorn : Array.isArray(hero?.adorn?.with) ? hero.adorn.with : [];
+  return kit.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false);
+}
+
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
   const pole = tieredPole(hero);
@@ -1250,7 +1257,7 @@ function heroFormPlanOf(hero) {
   if ((hero.head ?? 'landmark') === 'landmark') {
     // (a COWL in the kit presses the ears to the head, as a cowl's cloth does: they stand off it at a small angle and
     // lift, so the cowl passes close over them; its `ears: false` leaves them as they are. No cowl: the ears as before)
-    const cowled = Array.isArray(hero.adorn) && hero.adorn.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false);
+    const cowled = cowlPressesEars(hero);
     const features = cowled ? { ...(hero.faceFeatures ?? {}), earAngle: 0.03, earLift: 0 } : hero.faceFeatures;
     return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }

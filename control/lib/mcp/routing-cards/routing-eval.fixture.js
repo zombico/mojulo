@@ -73,6 +73,9 @@ export const FIXTURE = [
   ['a roguelike where my gear persists across floors', 'create_game'],
   // a board game against the computer: create_game's tabletop, not its levels
   ['I want to play chess against the computer', 'create_game', 'tabletop'],
+  // a board game stood up as a hologram in an arena is the quick rail's tabletop goal; a floodlit ground is the stadium base
+  ['a board game projected as a hologram in the middle of an arena, against the computer', 'design_game', 'tabletop'],
+  ['a floodlit football stadium with stands all round that I can walk through', 'compose_world', 'stadium'],
   ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
   // mobile genres: the match-3 saga is a reducer game, not a world game
   ['a candy crush kind of game with a level map and stars', 'create_pixelizer_game'],
@@ -198,6 +201,8 @@ export const COLLISION_FIXTURE = [
   // a dungeon crawler is a world of levels from a sentence: design_game's compose, not create_game's hand assembly
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
+  // a town's people (characters.folk): NPCs to chat with, a shopkeeper's errands, the same nurse in every town
+  ['fill my village with people who chat and give me little errands to run', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
   ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
@@ -210,6 +215,9 @@ export const COLLISION_FIXTURE = [
   ['a two-player tennis game', 'design_game'],
   ['mini golf I can play against the computer, three holes', 'design_game'],
   ['five-a-side football with my brother on the second controller', 'design_game'],
+  // the player's idea over a sport's rules (quick.concept): the sport is still the quick path's
+  ['a cats vs dogs basketball game at night with retro TV graphics', 'design_game'],
+  ['baseball with red robots against blue knights in a neon dome', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],

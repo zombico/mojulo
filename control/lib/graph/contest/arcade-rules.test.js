@@ -41,13 +41,28 @@ describe('a card composed', () => {
   });
 });
 
-describe('the arcade rules\' card', () => {
-  it('names each family\'s modules and every card with its words and what it leaves out, small', () => {
-    const c = arcadeRulesCard();
-    expect(c.id).toBe('contest-arcade');
-    expect(Buffer.byteLength(c.body)).toBeLessThan(4096);
-    for (const [id, f] of Object.entries(ARCADE_FAMILIES)) { expect(c.body).toContain(`${id} (`); expect(c.body).toContain(f.says); }
-    for (const id of ARCADE_SPORT_IDS) { expect(c.body).toContain(`  ${id} (`); for (const o of ARCADE_SPORTS[id].omits) expect(c.body).toContain(o); }
-    expect(c.body).toContain('distilled-rulebook');
+describe('the arcade rules\' cards', () => {
+  it('the index names each family and its cards; a family\'s card its modules and every card with what it leaves out; each small', () => {
+    const I = arcadeRulesCard();
+    expect(I.id).toBe('contest-arcade');
+    expect(I.body).toContain('distilled-rulebook');
+    for (const [fam, f] of Object.entries(ARCADE_FAMILIES)) {
+      expect(I.body).toContain(f.says); expect(I.body).toContain(`contest-arcade-${fam}`);
+      const F = arcadeRulesCard(`contest-arcade-${fam}`);
+      expect(Buffer.byteLength(F.body), fam).toBeLessThan(4096);
+      for (const d of f.doc) expect(F.body).toContain(d);
+      for (const id of ARCADE_SPORT_IDS.filter((c) => ARCADE_SPORTS[c].family === fam)) { expect(I.body).toContain(id); for (const o of ARCADE_SPORTS[id].omits) expect(F.body).toContain(o); }
+    }
+    expect(Buffer.byteLength(I.body)).toBeLessThan(4096);
+    expect(arcadeRulesCard('contest-arcade-nope')).toBeNull();
+  });
+});
+
+describe('a no-volley zone a variant can play', () => {
+  it('the court lays it and its foul costs the point; a cost the match cannot restart from is refused', () => {
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball' }))).not.toThrow();
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball', fouls: { kitchen: 'free' } }))).toThrow(/fouls\.kitchen is 'point'/);
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball', fouls: { kitchen: 'fault' } }))).toThrow(/fouls\.kitchen is 'point'/);
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball', noVolley: 'nowhere' }))).toThrow(/noVolley names a region the court lays/);
   });
 });

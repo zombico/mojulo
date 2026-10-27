@@ -86,38 +86,54 @@ const rampAt = (R, t) => { const x = clamp(t, 0, 1) * (R.length - 1), i = Math.m
 
 /**
  * A dressed face as the form render's material (gen-7: form/relief-material.js): the same relief, its colour under no
- * light, its slope a normal map, its hollows occlusion. The modern and natural cuts read so (each paints through paintedTile);
- * any other cut is not drawn as material yet, and says so.
+ * light, its slope a normal map, its hollows occlusion. Every cut reads so: each lights its relief through `relit` and
+ * returns through `painted`, which keep the relief and paint the colour under no light when the cut is read as material.
  *   dressedMaterial(cfg, { size, seed, rough }) → { W, H, px, baseColor, normal, orm, height }
  */
 export function dressedMaterial(cfgIn, { size = 512, seed = 1, rough = 0.85 } = {}) {
-  const cut = cfgIn.cut ?? 'ashlar', T = MODERN[cut] ? MODERN : NATURAL[cut] ? NATURAL : null;
-  if (!T) throw new Error(`dressed: the form render reads the modern and natural cuts as material so far (${[...Object.keys(MODERN), ...Object.keys(NATURAL)].join(', ')}); '${cut}' is still drawn as paint`);
-  const M = T[cut]({ ...DRESSED_DEFAULTS, ...cfgIn, _material: { rough } }, size, seed);
-  if (!M.normal) throw new Error(`dressed: '${cut}' does not paint through the shared pass, so it cannot be read as material yet`);
-  return M;
+  return dressedOf({ ...DRESSED_DEFAULTS, ...cfgIn, _material: { rough } }, size, seed);
 }
 
 export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
-  const cut = cfgIn.cut ?? 'ashlar';
-  if (cut === 'fluted' || cut === 'shaft') return shaftTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
-  if (cut === 'tile' || cut === 'slate') return roofTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
-  if (cut === 'boards') return boardsTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
-  if (MODERN[cut]) return MODERN[cut]({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
-  if (NATURAL[cut]) return NATURAL[cut]({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
-  const c = { ...DRESSED_DEFAULTS, ...cfgIn }, W = size, H = size, M = c.metres, px = M / size, g = c.grit;
+  return dressedOf({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
+}
+
+// the light a cut's relief is painted under (light.js), or, read as material (`c._material`), no light: value 1 and no
+// cavity, so the colour pass paints the material's own colour; the relief and its real light are kept for the material
+function relit(c, field, light) {
+  const n = field.W * field.H, lit = lightRelief({ ...field, inside: new Float32Array(n).fill(1) }, light);
+  if (!c._material) return lit;
+  c._material.field = field; c._material.lit = lit;
+  return { value: new Float32Array(n).fill(1), cavity: new Float32Array(n), convex: lit.convex, up: lit.up };
+}
+// the paint, or (read as material) the colour under no light with the relief's normal, occlusion and roughness
+function painted(c, rgb, W, H) {
+  if (!c._material) return { rgb, W, H };
+  const { field, lit, rough } = c._material;
+  if (!field) throw new Error(`dressed: cut '${c.cut}' paints without lighting a relief, so it has no material`);
+  return reliefMaterial({ ...field, tile: true }, { base: rgb, cavity: lit.cavity, convex: lit.convex, rough });
+}
+
+function dressedOf(c, size, seed) {
+  const cut = c.cut;
+  if (cut === 'fluted' || cut === 'shaft') return shaftTile(c, size, seed);
+  if (cut === 'tile' || cut === 'slate') return roofTile(c, size, seed);
+  if (cut === 'boards') return boardsTile(c, size, seed);
+  if (MODERN[cut]) return MODERN[cut](c, size, seed);
+  if (NATURAL[cut]) return NATURAL[cut](c, size, seed);
+  const W = size, H = size, M = c.metres, px = M / size, g = c.grit;
   const { height, owner, lx, ly, blocks } = ashlarField(c, W, H, seed);
   if (cut === 'render') return renderTile(c, { W, H, px, height, owner, lx, ly, blocks }, seed);
   const floor = c.face === 'floor';
   // (a floor is worn where it is walked: each slab's face dished a little and polished on its crests)
   if (floor) for (let k = 0; k < W * H; k++) if (owner[k] >= 0) { const B = blocks[owner[k]], u = lx[k] / B.w - 0.5, v = ly[k] / B.h - 0.5; height[k] -= 0.003 * (0.4 + g) * (1 - 4 * (u * u + v * v)); }
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, floor ? FLOOR_LIGHT : LIGHT);
+  const lit = relit(c, { W, H, px, height }, floor ? FLOOR_LIGHT : LIGHT);
   const stone = rampOf(c.stone), mortar = rampOf(c.mortar), rgb = Buffer.alloc(W * H * 3);
   for (let k = 0; k < W * H; k++) {
     const col = ashlarColour(c, k, lit, owner, blocks, lx, ly, stone, mortar, floor);
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
-  return { rgb, W, H };
+  return painted(c, rgb, W, H);
 }
 
 // a block's own tone, a mottle across its face at two scales, the weather darker toward its foot, dirt in the hollows
@@ -192,7 +208,7 @@ function renderTile(c, F, seed) {
       height[k] = Math.max(height[k], z * (w > 0.02 ? 1 : 0));
     }
   }
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, LIGHT);
+  const lit = relit(c, { W, H, px, height }, LIGHT);
   const stone = rampOf(c.stone), mortar = rampOf(c.mortar), plaster = rampOf(coat), rgb = Buffer.alloc(W * H * 3);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
@@ -208,7 +224,7 @@ function renderTile(c, F, seed) {
     }
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
-  return { rgb, W, H };
+  return painted(c, rgb, W, H);
 }
 
 // periodic value noise: a lattice of `n` cells a repeat on each axis, wrapped, so a tile built of it has no seam
@@ -259,7 +275,7 @@ function shaftTile(c, size, seed) {
     if (ph < c.pit * 0.12) { const dx = (x / 0.03 - ci - 0.5), dy = (y / 0.03 - cj - 0.5), r = Math.hypot(dx, dy); if (r < 0.3) z -= 0.0015 * (1 - r / 0.3); }
     height[k] = z; arris[k] = ar;
   }
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, SHAFT_LIGHT);
+  const lit = relit(c, { W, H, px, height }, SHAFT_LIGHT);
   const stone = rampOf(c.stone), rgb = Buffer.alloc(W * H * 3);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
@@ -268,7 +284,7 @@ function shaftTile(c, size, seed) {
     const col = rampAt(stone, 0.56 + (lit.value[k] - 1) * 1.2 + mot - streak - 0.25 * lit.cavity[k] * (0.4 + 0.6 * g) + 0.05 * arris[k]);
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
-  return { rgb, W, H };
+  return painted(c, rgb, W, H);
 }
 
 /** A roof's repeat: tiles or slates in lapped courses. */
@@ -291,7 +307,7 @@ function roofTile(c, size, seed) {
     if (dj < gap) z -= 0.004 * (1 - dj / gap);
     height[k] = z; tone[k] = (hash01(r % c.rows, col, seed + 9) - 0.5) * 2 * c.vary / 255; edge[k] = fy;
   }
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, LIGHT);
+  const lit = relit(c, { W, H, px, height }, LIGHT);
   const body = rampOf(c.stone), rgb = Buffer.alloc(W * H * 3), lichen = [176, 178, 120];
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
@@ -304,7 +320,7 @@ function roofTile(c, size, seed) {
     if (L > at) col = col.map((v, q) => v + (lichen[q] - v) * clamp((L - at) * 4, 0, 0.3));
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
-  return { rgb, W, H };
+  return painted(c, rgb, W, H);
 }
 
 /** A timber wall's repeat: vertical boards, their gaps, grain, knots and weather. */
@@ -321,7 +337,7 @@ function boardsTile(c, size, seed) {
     if (h < 0.35) { const kx = (0.25 + 0.5 * hash01(b, cy, seed + 25)) * bw, ky = (cy + 0.2 + 0.6 * hash01(b, cy, seed + 27)) * 0.5, d = Math.hypot((fx * bw - kx) * 2.2, y - ky); if (d < 0.03) { z -= 0.0012 * (1 - d / 0.03); knot[k] = 1 - d / 0.03; } }
     height[k] = z; tone[k] = (hash01(b, 3, seed + 29) - 0.5) * 2 * c.vary / 255;
   }
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, SHAFT_LIGHT);
+  const lit = relit(c, { W, H, px, height }, SHAFT_LIGHT);
   const wood = rampOf(c.stone), rgb = Buffer.alloc(W * H * 3);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
@@ -329,7 +345,7 @@ function boardsTile(c, size, seed) {
     const col = rampAt(wood, 0.55 + (lit.value[k] - 1) * 1.2 + tone[k] + grain - streak - 0.25 * knot[k] - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
-  return { rgb, W, H };
+  return painted(c, rgb, W, H);
 }
 
 // ── the modern class ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -340,20 +356,12 @@ function boardsTile(c, size, seed) {
 function paintedTile(c, size, light, shape, colour) {
   const W = size, H = size, M = c.metres, px = M / size, height = new Float32Array(W * H);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) height[j * W + i] = shape((i + 0.5) * px, (j + 0.5) * px, j * W + i);
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, light), rgb = Buffer.alloc(W * H * 3);
-  if (c._material) {
-    const none = { value: new Float32Array(W * H).fill(1), cavity: new Float32Array(W * H), convex: lit.convex, up: lit.up };
-    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-      const k = j * W + i, col = colour((i + 0.5) * px, (j + 0.5) * px, k, none);
-      rgb[k * 3] = Math.round(clamp(col[0], 0, 255)); rgb[k * 3 + 1] = Math.round(clamp(col[1], 0, 255)); rgb[k * 3 + 2] = Math.round(clamp(col[2], 0, 255));
-    }
-    return reliefMaterial({ W, H, px, height, tile: true }, { base: rgb, cavity: lit.cavity, convex: lit.convex, rough: c._material.rough });
-  }
+  const lit = relit(c, { W, H, px, height }, light), rgb = Buffer.alloc(W * H * 3);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const k = j * W + i, col = colour((i + 0.5) * px, (j + 0.5) * px, k, lit);
     rgb[k * 3] = Math.round(clamp(col[0], 0, 255)); rgb[k * 3 + 1] = Math.round(clamp(col[1], 0, 255)); rgb[k * 3 + 2] = Math.round(clamp(col[2], 0, 255));
   }
-  return { rgb, W, H };
+  return painted(c, rgb, W, H);
 }
 // a wrapped grid's cell dice (cells of about `cell` metres, snapped to a whole number round a repeat of M, so the grid
 // wraps with it)

@@ -260,9 +260,10 @@ export async function getGameVocabHandler(input) {
     return { ok: true, card: tabletopCard(), _telemetrySignal: { id_requested: true, found: true } };
   }
   // the arcade rules' card (the contest goal's sports as modules): served by id, named on the contest card
-  if (id === 'contest-arcade') {
+  if (id === 'contest-arcade' || (typeof id === 'string' && id.startsWith('contest-arcade-'))) {
     const { arcadeRulesCard } = await import('@/lib/graph/contest/arcade-rules');
-    return { ok: true, card: arcadeRulesCard(), _telemetrySignal: { id_requested: true, found: true } };
+    const card = arcadeRulesCard(id);
+    if (card) return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
   // a quick goal's card and a genre's card: served by id, named on their index cards, not listed
   const sub = id ? quickGoalCardById(id) ?? genreCardById(id) : null;
@@ -277,7 +278,7 @@ export async function getGameVocabHandler(input) {
   if (id) {
     const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'tabletop', 'contest-arcade', 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'tabletop', 'contest-arcade', 'contest-arcade-<family>', 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }

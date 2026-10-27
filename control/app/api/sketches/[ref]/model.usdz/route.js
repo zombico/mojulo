@@ -37,7 +37,7 @@ export async function GET(request, { params }) {
     if (!sketch.manifest) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
     }
-    const { payload } = await resolveWorldScene(sketch);
+    const { payload } = await resolveWorldScene(sketch, { paint: true });
     const unitMm = deriveStlScale(unitsLabel(sketch.manifest));   // the manifest's label, else the kind family's authoring unit (world-units.js)
     const exported = payload
       ? facesToUsdz(payload, { generator: `mojulo ${ref}`, title: sketch.title || sketch.manifest?.title || ref, metersPerUnit: unitMm != null ? unitMm / 1000 : 1 })
