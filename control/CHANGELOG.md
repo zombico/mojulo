@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Foe classes: the hostile encounter primitive
+
+A game fights things, and mojulo had seven separate notions of a foe: the quick goals' battle, shooter and defence
+tables, the level goal's boss, the party battle's `FOE_PRESETS`, the strategy board's tower-defence, tactics and
+skirmish units, and the dogfight's wing. Each one has its own stats, placement and escalation, and they share no words.
+The platformer, the runner and the dungeon have no foes at all: the platform rule has no contact damage, no stomp and
+no patrol. No beast can strike, and a beast foe cannot be oozed. This theme builds the concept layer every action game
+fights through. A **foe class** says how a hostile thing moves, how it attacks, how it decides (the Mind gem's matrix:
+motivation and aggressiveness, with rank and skill applied on top) and what body it needs (measured from the body, never
+authored). It names no species, skin or clip, so a goomba and a level-one foot soldier are one class dressed two ways.
+Rank is not a class: any class can be a minion or a boss. Non-human foes come first, and the dressing layer (skins
+through the character designer, clips fitted to the class's timing, factions) is later work. Nothing has landed yet.
+
 ### Carved glyphs: the letter primitive grows up
 
 The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
