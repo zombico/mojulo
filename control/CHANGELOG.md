@@ -289,6 +289,26 @@ through the character designer, clips fitted to the class's timing, factions) is
   deterministically, with a bestiary standing one. All ten variations built across seven seeds. Eyes: all ten were
   minted and rendered from the front, three-quarter and side (no shoulder spikes left), the two heads were turned, and
   a zombie and a skeleton played their walk. Eyes gate: the operator's to judge.
+- **The skeleton's skull is its own bones, its jaw a separate bone** (`undead/skull.js`; the operator: "improve the
+  skull, give it anatomical jaw separation"). A head card's rows are sections taken front to back, which can't raise a
+  mandible's ramus to its hinge, so the skeleton's skull is now built from body parts, as its ribs and pelvis are:
+  - a domed braincase, widest at the temples;
+  - a face under the forehead: the brow, the orbits, the cheeks, the upper jaw;
+  - cheekbone arches from the cheek back to before the ear;
+  - dark round openings for the orbits and the nose;
+  - an arc of upper teeth on the face;
+  - a mandible whose halves each rise from a condyle under the arch, run down the ramus to the angle, then forward to
+    the chin, carrying their own lower teeth.
+
+  The mandible and its teeth ride the rig's jaw bone, hinged at the condyles, so the jaw opens away from the skull. A
+  skeleton's rest hangs it a few degrees open (the card's `jaw`), so the separation shows. The rig's head bone points
+  at the face, as a head card's points to its snout; aimed at the crown, the rest pose had turned the skull face-down.
+  The derived `skull` head card stays in the library for any creature that wants it; the skeleton no longer wears it.
+
+  Machine gate: the skull's parts, the jaw's parts on the jaw bone and the rest on the head, the condyle under the
+  arch, the ramus's fall, the halves meeting at the chin, and the rig's hinge at the condyle with the head bone toward
+  the face. Eyes: the skull rendered alone closed and with the jaw dropped 22°, and on all five skeletons, facing
+  forward with the jaw hanging slightly open. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

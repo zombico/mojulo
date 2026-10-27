@@ -42,5 +42,6 @@ export function undeadBody(form, { build = 'canonical', pole = 'male', k, g, che
   const out = card.form === 'bone' ? bonePasses(base, card, { k, g, chest, hips, rand }) : fleshPasses(base, card, { k, g, rand });
   // (the arms built where the rest holds them: ./passes.js poseArms)
   const P = poseArms(out.body, posture(card, rand));
-  return { id, card, body: out.body, lost: out.lost ?? null, frameParts: out.frameParts ?? [], posture: P, head: UNDEAD_HEADS[form] };
+  // (a skeleton's skull is its own bones, ./skull.js: it wears no head card)
+  return { id, card, body: out.body, lost: out.lost ?? null, frameParts: out.frameParts ?? [], posture: P, head: out.skull ? null : UNDEAD_HEADS[form], skull: out.skull ?? null };
 }

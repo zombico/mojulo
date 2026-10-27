@@ -516,20 +516,22 @@ function formCreature(sheet, title) {
   const { dials, rig, clips } = dialsAndRig(U.body, stance);
   const names = new Set(U.body.segments.flatMap((x) => (x.mirror === 'name' ? [x.name, x.name.replace(/R$/, 'L')] : [x.name])));
   // the dials over the parts this body has (a skeleton has no belly, and its frame hinges with its torso)
-  for (const [id, d] of Object.entries(dials)) if (Array.isArray(d.parts)) d.parts = [...d.parts, ...(id === 'lean' ? U.frameParts : [])].filter((n) => names.has(n) || ['cranium', 'jaw'].includes(n));
+  // (a head card's parts, cranium and jaw, only where the form wears one: a skeleton's skull is its own bones)
+  for (const [id, d] of Object.entries(dials)) if (Array.isArray(d.parts)) d.parts = [...d.parts, ...(id === 'lean' ? U.frameParts : [])].filter((n) => names.has(n) || (U.head && ['cranium', 'jaw'].includes(n)));
+  // the skull's own points for the rig's head and jaw bones: its crown, and the jaw hinged at its condyles to its chin
+  if (U.skull) Object.assign(rig.joints, { headTop: { at: U.skull.rig.headTop }, jawHinge: { at: U.skull.rig.jawHinge, rides: 'head' }, jawTip: { at: U.skull.rig.jawTip, rides: 'head' } });
   if (U.card.form === 'bone') delete dials.gut;
+  // (the head card's include dial, only where a head card is worn)
+  if (!U.head) delete dials.head;
   // (a hunch past the living's: the dead fold further forward than a body standing would)
   if (dials.lean) dials.lean = { ...dials.lean, max: Math.max(dials.lean.max, P.lean + 10) };
   const READY = { armL: P.arms.L, armR: P.arms.R, elbowL: 'slight', elbowR: 'slight', grip: 12, jaw: P.jaw, crouch: P.crouch, head: P.head };
   clips.idle = [READY, { ...READY, crouch: r3(P.crouch + 0.03), head: { ...P.head, x: r3(P.head.x * 0.6) } }];
   const tone = legible(sheet.ancestry.colours.Skin);
-  const palette = { Torso: tone, Pelvis: tone, Neck: tone, Legs: tone, Feet: tone, Arms: tone, Hands: tone, Claws: tone, Crease: shade(tone, -0.25), Pad: shade(tone, -0.1), PadInner: shade(tone, -0.15) };
-  const hp = headPlan(U.head, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(U.head).palette && !(HEAD_LIBRARY[U.head].keep || []).includes(grp)).map(([grp, t]) => [grp, shade(tone, t)])) });
-  if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
-  // (no smaller than half: the head's sockets and regions are projected onto it, and under that they miss; a short body
-  // with a big skull reads as the squat dead do)
-  hp.units = { scale: r3(Math.max(0.5, (hp.units?.scale ?? 1) * k)), offset: hp.units?.offset ?? [0, 0, 0] };
-  const heads = [{ name: 'head', plan: hp, expression: { jawOpen: P.jaw }, on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
+  const palette = { Torso: tone, Pelvis: tone, Neck: tone, Legs: tone, Feet: tone, Arms: tone, Hands: tone, Claws: tone, Crease: shade(tone, -0.25), Pad: shade(tone, -0.1), PadInner: shade(tone, -0.15),
+    // (a bone skull's openings are dark, so they read as holes; its teeth a shade off the bone)
+    ...(U.skull ? { Skull: tone, Jaw: tone, Socket: '#1a1816', Teeth: shade(tone, 0.06) } : {}) };
+  const heads = U.head ? headsOf(U.head, tone, k, P) : [];
   const limbs = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL'].filter((n) => names.has(n));
   const plan = {
     schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
@@ -540,7 +542,17 @@ function formCreature(sheet, title) {
       ...(U.card.form === 'flesh' ? { volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)]] } : {}) },
     adorn: [], palette,
   };
-  return { plan, k, legs: 'plantigrade', head: { id: U.head, provisional: false }, stance, cover: { tiles: [], locks: [] }, kit: null, topo: {}, shapes: [], undead: { form, variant: U.id, reads: U.card.reads, lost: U.lost } };
+  return { plan, k, legs: 'plantigrade', head: { id: U.head ?? 'bones', provisional: false }, stance, cover: { tiles: [], locks: [] }, kit: null, topo: {}, shapes: [], undead: { form, variant: U.id, reads: U.card.reads, lost: U.lost } };
+}
+
+// a form's head card (the zombie's gaunt face), scaled to its body
+function headsOf(id, tone, k, P) {
+  const hp = headPlan(id, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(id).palette && !(HEAD_LIBRARY[id].keep || []).includes(grp)).map(([grp, t]) => [grp, shade(tone, t)])) });
+  if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
+  // (no smaller than half: the head's sockets and regions are projected onto it, and under that they miss; a short body
+  // with a big skull reads as the squat dead do)
+  hp.units = { scale: r3(Math.max(0.5, (hp.units?.scale ?? 1) * k)), offset: hp.units?.offset ?? [0, 0, 0] };
+  return [{ name: 'head', plan: hp, expression: { jawOpen: P.jaw }, on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
 }
 
 // ══════════ the hero door ══════════
@@ -698,7 +710,7 @@ function thesisOf(sheet, door, built) {
   const sil = derivesOf(sheet, ['silhouette']).map(readDerive).find((r) => r.family === 'silhouette')?.word || 'column';
   const iconic = (sheet.notes.cover || sheet.notes.ornament || sheet.notes.dress || [])[0]?.line || 'none named';
   if (door === 'hero') return `${sil} · biped, ${sheet.facets.build} · a ${sheet.ancestry.kind === 'human' ? 'human' : 'near-human'} face · ${iconic} · ${Math.round(HEIGHT[sheet.facets.build] * AGE_SCALE[sheet.facets.age] * 100) / 100} m`;
-  const head = built.head.standIn ? `head pending (the ${built.head.id} stands in)` : `${HEAD_LIBRARY[built.head.id].head} (${built.head.id}${built.head.provisional ? ', provisional' : ''})`;
+  const head = built.head.standIn ? `head pending (the ${built.head.id} stands in)` : `${HEAD_LIBRARY[built.head.id]?.head ?? 'a skull of its own bones'} (${built.head.id}${built.head.provisional ? ', provisional' : ''})`;
   return `${sil} · ${built.legs} biped${built.stance.lean > 8 ? ', leaning forward' : ''} · ${head} · ${iconic} · ${Math.round(built.k * 200) / 100} m`;
 }
 

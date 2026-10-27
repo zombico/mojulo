@@ -32,6 +32,30 @@ describe('a skeleton is its frame', () => {
     expect(B.frameParts).toContain('rib0L');
     expect(B.frameParts).not.toContain('iliumR');
   });
+  it('its skull is bones: a braincase and a face, the arches, the openings, both rows of teeth and a mandible of its own', () => {
+    const B = body(id), names = B.body.segments.map((s) => s.name);
+    for (const n of ['braincase', 'face', 'zygomaR', 'socketR', 'nasal', 'mandibleR']) expect(names).toContain(n);
+    expect(names.filter((n) => /^toothU\dR$/.test(n)).length).toBeGreaterThan(2);
+    expect(names.filter((n) => /^toothL\dR$/.test(n)).length).toBeGreaterThan(2);
+    // the jaw is separate: the mandible and the lower teeth ride the rig's jaw bone, the rest of the skull its head
+    expect(seg(B, 'mandibleR').bind.bone).toBe('jaw');
+    expect(seg(B, 'toothL0R').bind.bone).toBe('jaw');
+    expect(seg(B, 'toothU0R').bind.bone).toBe('head');
+    expect(seg(B, 'braincase').bind.bone).toBe('head');
+    // the mandible rises from its condyle, under the cheekbone's back end, down the ramus, to the chin
+    const M = seg(B, 'mandibleR').stations.map((st) => st.at), Z = seg(B, 'zygomaR').stations.map((st) => st.at);
+    expect(M[0][2]).toBeLessThan(Z.at(-1)[2]);
+    expect(M[0][2] - M[2][2]).toBeGreaterThan(0.05);
+    expect(M.at(-1)[0]).toBe(0);
+    expect(B.head).toBeNull();
+  });
+  it('the rig hinges the jaw at the condyles and points the head at the face', () => {
+    const sheet = rollEgocube({ facets: { ancestry: 'skeleton', build: 'canonical', role: 'frontline' }, seed: 2 });
+    const plan = planFromSheet(sheet).create.spec.plan, J = plan.rig.joints, cond = plan.segments.find((s) => s.name === 'mandibleR').stations[0].at;
+    expect(J.jawHinge.at[2]).toBeCloseTo(cond[2], 3);
+    expect(J.headTop.at[1]).toBeGreaterThan(plan.joints.neckTop[1]);
+    expect(plan.heads).toEqual([]);
+  });
   it('every long bone is a shaft with knobbed ends', () => {
     const B = body(id), femur = seg(B, 'thighR');
     expect(r(femur.rA)).toBeGreaterThan(r(femur.rMid) * 1.4);

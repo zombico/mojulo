@@ -10,6 +10,8 @@
  *
  * Each returns { body, lost? } (lost: { part, side }). Pure: the dice are the caller's (`rand`, a seeded stream).
  */
+import { skullFrame } from './skull.js';
+
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]);
 const sub = (a, b) => a.map((x, i) => x - b[i]);
@@ -137,10 +139,14 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
       return { name: `rib${i}R`, kind: 'loft', stations: at.map((p) => ({ at: p.map(r3), r: ribR })), group: 'Torso', tint: '#cccccc', mirror: 'name', bind: { bone: 'torso' } };
     }),
   ];
-  body.segments = [...keep.filter((s) => s.name === 'pelvis'), ...frame, ...keep.filter((s) => s.name !== 'pelvis')];
+  // the skull as bones (./skull.js): a braincase and a face, the cheekbones, the openings, the teeth and a mandible of
+  // its own on the rig's jaw, sized with the skeleton's bones
+  const skull = skullFrame(body.J.neckTop, { k, s: r3(1 + (Bw.ends - 1) * 0.35) });
+  Object.assign(body.joints, skull.joints);
+  body.segments = [...keep.filter((s) => s.name === 'pelvis'), ...frame, ...keep.filter((s) => s.name !== 'pelvis'), ...skull.segments];
   const lost = lossy ? lose(body, card, rand) : null;
   // (the frame's parts the lean hinges with the torso: not the pelvis's, which stay planted with the legs)
-  return { body, lost, frameParts: frame.filter((s) => s.group !== 'Pelvis').flatMap((s) => (s.mirror === 'name' ? [s.name, s.name.replace(/R$/, 'L')] : [s.name])) };
+  return { body, lost, skull, frameParts: [...frame.filter((s) => s.group !== 'Pelvis').flatMap((s) => (s.mirror === 'name' ? [s.name, s.name.replace(/R$/, 'L')] : [s.name])), ...skull.headParts, ...skull.jawParts] };
 }
 
 // ── the rest the body stands in ──
