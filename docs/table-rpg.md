@@ -192,6 +192,15 @@ building's style (a temple celestial, a keep dwarven) and leaves an artifact wit
 before the boss. The book's **Arms and artifacts** chapter photographs each artifact and gives its rules, its look in
 words and where it is found.
 
+**Loot** is arms of every kind, rolled. A table written as loot words (`loot: { n, rank, era, style, forms }`) is rolled
+out by the module (`table-rpg-loot.js`) into a row per artifact and the artifacts themselves: each a form (`LOOT_FORMS`:
+the sword family's blades, a spear, a halberd, a hand axe, a mace, a maul, a quarterstaff, a sceptre, a wand, a rod, a
+staff of power, the bows, the shields, and in a modern or a future world the guns), in a style (one of the samples'
+looks a piece when the table names none), its bonus by the rank of what guards it, and its look rising with it: more
+ornament, more stylized, a stone that glows. A foe's `loot` names the table rolled when it is beaten; a starter's boss
+keeps a hoard and its bandits their spoils. The equipment kernel gained what the loot needed: the staff's blade heads
+(`spear`, `axe`, `halberd`) and its `reach` (`arm`, a haft; `wand`), a haft held in the fist as a blade is.
+
 ## The game book
 
 The book is the product a table game is used through, and the first game type with a direct use for PDF. The module

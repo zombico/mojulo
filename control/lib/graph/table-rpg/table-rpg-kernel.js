@@ -25,7 +25,7 @@
  *       link: { a, b, kind?: 'open' | 'door' | 'stair' | 'locked' | 'secret', key?: <item id>, force?: <difficulty>,
  *               oneWay?: true, search?: <difficulty> }
  *     foes?: { <id>: { name?, rank: 1–5, text?, stats?: { hp, defence, attack, damage, xp }, faction?,
- *                     heeds?: [talk], scorns?: [talk] } }
+ *                     heeds?: [talk], scorns?: [talk], loot?: <table id> } }   loot: rolled when it is beaten
  *     factions?: { <id>: { name?, text?, standing?: −2 … 2, allies?: [faction], rivals?: [faction] } }
  *     items?: { <id>: { name?, kind?: 'key' | 'treasure' | 'heal' | 'weapon' | 'armour', heal?: 'some' | 'all' | <dice>,
  *                       bonus?: 1–3, faculty?, text? } }
@@ -351,6 +351,10 @@ export function buildTableRpg() {
       if (I.bonus !== undefined && !(ARMS[I.kind] && Number.isInteger(I.bonus) && I.bonus >= 1 && I.bonus <= 3)) no(`item '${id}': a bonus (1 to 3) is a weapon's or an armour's`);
       if (I.faculty !== undefined && !(I.kind === 'weapon' && abilityOf(sys, I.faculty))) no(`item '${id}': a faculty is a weapon's, one of ${FACULTY.join(', ')} or the card's abilities`);
       if (I.heal !== undefined && I.heal !== 'some' && I.heal !== 'all') parseDice(I.heal);
+    }
+    for (const [id, f] of Object.entries(foes)) if (f.loot !== undefined) {
+      if (!tables[f.loot]) no(`foe '${id}' drops '${f.loot}', which is no table`);
+      if ((tables[f.loot].rows ?? []).some((r) => r.foes?.length)) no(`foe '${id}' drops '${f.loot}', a table that calls up foes: loot gives items`);
     }
     for (const [id, t] of Object.entries(tables)) {
       if (!Array.isArray(t.rows) || !t.rows.length) no(`table '${id}': rows are [{ on, text, foes?, item? }]`);
@@ -735,6 +739,8 @@ export function buildTableRpg() {
       for (const r of Fa.rivals) shift[r] = (shift[r] || 0) + 1;
     }
     standingBy(K, S, shift, lines);
+    // what the fallen leave: each kind of foe beaten rolls its loot once
+    for (const id of new Set(F.foes.map((f) => f.id))) if (K.foes[id].loot && !S.over) rollTable(K, S, K.foes[id].loot, lines);
     gainXp(K, S, xp, lines);
     outcome(K, S, lines);
   }

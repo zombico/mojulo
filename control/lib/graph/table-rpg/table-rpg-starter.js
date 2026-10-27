@@ -37,6 +37,8 @@ const RELIC_OF = {
   lab: { name: 'the prototype', kind: 'weapon', bonus: 1, faculty: 'agility', text: 'Nobody signed it out.', build: { item: 'carbine', style: 'future' } },
 };
 const RELIC = { name: 'the old blade', kind: 'weapon', bonus: 1, text: 'Older than the place it was left in.', build: { item: 'sword' } };
+// the era a building's loot is of (table-rpg-loot.js): a lab's arms are the future's
+const ERA_OF = { lab: 'future' };
 // the fantasy a building lends the beasts of its cast (mutagen/oozes/)
 const OOZE_OF = { crypt: 'skeletal', tomb: 'zombie', lab: 'techno' };
 const cap = (s) => String(s).replace(/^./, (c) => c.toUpperCase());
@@ -66,7 +68,9 @@ function starterParts({ use, seed = 1, town = 'Hollowmere' }) {
       routes: [{ a: home, b: 'crossroads', days: 1, danger: 'road' }, { a: 'crossroads', b: place, days: 1, danger: 'road' }],
     },
     dungeons: { [did]: { ...dungeon, wander: 'wander' } },
-    foes: { [slug(minion)]: { name: minion, rank: 1 }, [slug(boss)]: { name: boss, rank: 3, text: `the ${words(use)}'s master` }, bandit: { name: 'Bandit', rank: 1 } },
+    // the boss keeps a hoard and the road's bandits their spoils, arms of every kind rolled by the loot words
+    // (table-rpg-loot.js), a lab's of the future
+    foes: { [slug(minion)]: { name: minion, rank: 1 }, [slug(boss)]: { name: boss, rank: 3, text: `the ${words(use)}'s master`, loot: 'hoard' }, bandit: { name: 'Bandit', rank: 1, loot: 'spoils' } },
     ...(STYLE_OF[use] ? { gear: { style: STYLE_OF[use] } } : {}),
     items: { ...items, relic: RELIC_OF[use] ?? RELIC, prize: { name: 'the prize', kind: 'treasure', text: 'What the town sent you for.' }, salve: { name: 'a salve', kind: 'heal', heal: 'some' } },
     tables: {
@@ -75,6 +79,8 @@ function starterParts({ use, seed = 1, town = 'Hollowmere' }) {
         { on: 2, text: 'A traveller trades you a salve.', item: 'salve' },
         { on: [3, 6], text: 'The road is quiet.' },
       ] },
+      hoard: { name: `The ${boss.toLowerCase()}'s hoard`, loot: { n: 6, rank: 3, era: ERA_OF[use] ?? 'myth' } },
+      spoils: { name: 'Bandit spoils', loot: { n: 4, rank: 1, era: ERA_OF[use] ?? 'myth' } },
       wander: { name: `In the ${words(use)}`, die: '1d6', rows: [
         { on: 1, text: `A ${minion.toLowerCase()} finds you.`, foes: [slug(minion)] },
         { on: [2, 6], text: 'Only the dark, and your own breath.' },

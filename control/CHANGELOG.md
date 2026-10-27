@@ -14,6 +14,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: loot, arms of every kind, and the equipment kernel's hafts and blade heads
+
+- **The equipment kernel** (`equipment/items.js`): the staff takes three blade heads, `spear` (a point, the sword's
+  own blade loft in the `blade` word's outline), `axe` (a bearded blade and a poll at the haft's top) and `halberd`
+  (the axe's blade low on the head, a point through it, a spike behind), none carrying a stone, and a `reach`: `long`
+  (the staff as it was, byte for byte), `arm` (a haft: an axe, a mace, a warhammer, a sceptre) and `wand`. The hero
+  holds a staff of the `arm` or `wand` reach as a blade (`polygonizer/hero-gear.js`); a long staff keeps its hold. The
+  equipment card names them.
+- **Loot** (`table-rpg-loot.js`): a table written as loot words (`n`, `rank`, `era`, `style`, `forms`) is rolled out
+  into its rows and its artifacts, arms of every kind the kernel makes (`LOOT_FORMS`), each in a style, its bonus by
+  the rank and its look rising with it (ornament, stylize, a glowing stone). A foe's `loot` table is rolled in the
+  kernel when it is beaten (once a kind of foe a fight). A starter's boss keeps a hoard and its bandits their spoils
+  (a lab's of the future). The mender's mace and the warrior's axe are hafts now (`WEAPON_GEAR`).
+
+Machine gate: the equipment suite (each blade head closed, deterministic, stoneless and seated on its haft; a reach's
+length; every existing pin unchanged), the hero gear suite (a haft held as a blade), the arms suite (loot words refused
+by name; the rows and artifacts, the same every time, the rank's bonus and look, distinct forms; the era, the forms and
+the style; the module's own item winning; a beaten foe's drop, rolled once a kind; a loot table that calls up foes
+refused; the starter's hoard and spoils, a lab's of the future; the hoard in the Arms chapter), and the live suite (a
+crypt's hoard photographed, a mender holding its mace). Eyes gate not run: the author looked at the new heads, a hoard
+and the mender's hold; the operator has not.
+
 ### Table RPG: arms and artifacts, made by the equipment kernel
 
 - **In the rules**: items of kind `weapon` and `armour` are artifacts with a portable `bonus` (1 to 3; a weapon's

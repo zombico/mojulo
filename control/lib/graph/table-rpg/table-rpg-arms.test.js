@@ -5,6 +5,7 @@ import { readModule } from './table-rpg-module.js';
 import { readGear, itemBuildOf, memberGear, foeGear, WEAPON_GEAR, ROLE_ARMS } from './table-rpg-gear.js';
 import { tableRpgBook } from './table-rpg-book.js';
 import { validateBuild } from '../equipment/expand.js';
+import { withLoot } from './table-rpg-loot.js';
 import { SUNKEN_CHAPEL } from './fixtures/sunken-chapel.js';
 
 // one system per resolution procedure, picked off the catalog
@@ -135,5 +136,71 @@ describe('the arms as the equipment kernel makes them', () => {
     expect(html).toMatch(/the Ossuary \(the Sunken Chapel\)/);
     const bare = { ...SUNKEN_CHAPEL, items: Object.fromEntries(Object.entries(SUNKEN_CHAPEL.items).filter(([id]) => id !== 'bone-knife')), dungeons: { chapel: { ...SUNKEN_CHAPEL.dungeons.chapel, rooms: SUNKEN_CHAPEL.dungeons.chapel.rooms.map((r) => (r.id === 'ossuary' ? { ...r, items: [{ item: 'silver-ring', hidden: true }] } : r)) } } };
     expect(tableRpgBook(readModule(bare).K).html).not.toContain('id="arms"');
+  });
+});
+
+describe('loot: arms of every kind rolled from a table, made by the equipment kernel', () => {
+  it('refuses loot words it cannot read, teaching', () => {
+    const at = (loot) => () => withLoot({ tables: { h: { loot } } });
+    expect(at({ n: 20 })).toThrow(/loot.n is 2 to 12/);
+    expect(at({ rank: 0 })).toThrow(/loot.rank is 1 to 5/);
+    expect(at({ era: 'bronze' })).toThrow(/loot.era is myth, modern, future/);
+    expect(at({ forms: ['bazooka'] })).toThrow(/loot.forms are some of/);
+    expect(at({ size: 2 })).toThrow(/loot.size is not a loot word/);
+    expect(() => withLoot({ tables: { h: { loot: {}, rows: [] } } })).toThrow(/loot words or rows, not both/);
+  });
+
+  it('a loot table is written out as its rows and its artifacts, the same every time; the rank sets the bonus and the look', () => {
+    const M = withLoot({ seed: 4, tables: { hoard: { name: 'The hoard', loot: { n: 5, rank: 5 } } } });
+    expect(M.tables.hoard).toMatchObject({ name: 'The hoard', die: '1d5' });
+    expect(M.tables.hoard.rows.map((r) => r.item)).toEqual(['hoard-1', 'hoard-2', 'hoard-3', 'hoard-4', 'hoard-5']);
+    expect(withLoot({ seed: 4, tables: { hoard: { loot: { n: 5, rank: 5 } } } }).items).toEqual(M.items);
+    for (const I of Object.values(M.items)) {
+      expect(I.bonus).toBe(3);
+      expect(validateBuild({ type: 'equipment', ...I.build })).toEqual([]);
+      if (!['pistol', 'carbine', 'shotgun'].includes(I.build.item)) expect(I.build.dials.ornament).toBe(3);
+    }
+    // distinct forms until the pool runs dry
+    expect(new Set(Object.values(M.items).map((I) => I.name.split(' ').pop())).size).toBe(5);
+    expect(Object.values(withLoot({ tables: { s: { loot: { n: 4, rank: 1 } } } }).items).every((I) => I.bonus === 1)).toBe(true);
+  });
+
+  it('an era says what is found; forms and a style narrow it; an item the module writes wins field by field', () => {
+    const items = (loot) => Object.values(withLoot({ tables: { h: { loot: { n: 8, ...loot } } } }).items);
+    expect(items({ era: 'future' }).filter((I) => ['pistol', 'carbine', 'shotgun'].includes(I.build.item)).every((I) => I.build.style === 'future')).toBe(true);
+    expect(items({ era: 'myth' }).some((I) => ['pistol', 'carbine', 'shotgun'].includes(I.build.item))).toBe(false);
+    expect(new Set(items({ forms: ['axe', 'spear'], n: 4 }).map((I) => I.build.parts.head))).toEqual(new Set(['axe', 'spear']));
+    expect(items({ style: 'elven', forms: ['sword'], n: 2 }).every((I) => I.build.style === 'elven' && / elven sword$/.test(I.name))).toBe(true);
+    const own = withLoot({ items: { 'h-1': { artifact: 'x1' } }, tables: { h: { loot: { n: 2 } } } }).items['h-1'];
+    expect(own).toMatchObject({ artifact: 'x1', kind: expect.any(String), build: expect.any(Object) });
+  });
+
+  it('a beaten foe drops its loot into the bag; one talked aside drops nothing; a loot table that calls up foes is refused', () => {
+    const LOOTED = (extra = {}) => HALL({ foes: { guard: { name: 'Guard', rank: 1, loot: 'purse' } }, tables: { purse: { die: '1d2', rows: [{ on: [1, 2], text: 'A blade.', item: 'axe' }] } }, ...extra });
+    expect(() => tableCompile(LOOTED({ tables: { purse: { die: '1d2', rows: [{ on: [1, 2], text: 'More!', foes: ['guard'] }] } } }))).toThrow(/a table that calls up foes/);
+    expect(() => tableCompile(LOOTED({ foes: { guard: { rank: 1, loot: 'chest' } } }))).toThrow(/drops 'chest', which is no table/);
+    for (let seed = 1; seed < 40; seed++) {
+      const K = tableCompile(LOOTED({ seed }));
+      let S = tableStart(K).S, lines = [];
+      for (const c of ['enter', 'go hall']) S = tableAct(K, S, c).S;
+      for (let n = 0; n < 60 && S.fight && !S.over; n++) { const r = tableApply(K, S, tableLegal(K, S).find((m) => m.verb === 'attack')); S = r.S; lines.push(...r.lines); }
+      if (S.fight || S.over) continue;
+      expect(lines.join('\n')).toMatch(/A blade\./);
+      expect(S.bag.axe).toBe(1);   // two guards, one kind: rolled once
+      return;
+    }
+    throw new Error('no fight won under seed 40');
+  });
+
+  it('a starter\'s boss keeps a hoard and its bandits their spoils; a lab\'s are the future\'s', () => {
+    const { module, K } = readModule({ starter: { use: 'crypt' } });
+    expect(K.foes['barrow-lord'].loot).toBe('hoard');
+    expect(K.foes.bandit.loot).toBe('spoils');
+    expect(K.tables.hoard.rows).toHaveLength(6);
+    expect(Object.keys(module.items).filter((id) => /^hoard-/.test(id)).every((id) => module.items[id].bonus === 2)).toBe(true);
+    const lab = readModule({ starter: { use: 'lab' } }).module;
+    expect(lab.tables.hoard.loot.era).toBe('future');
+    // the hoard's artifacts are in the book's Arms chapter, found on their table
+    expect(tableRpgBook(K).html).toContain(`on ${K.tables.hoard.name}`);
   });
 });

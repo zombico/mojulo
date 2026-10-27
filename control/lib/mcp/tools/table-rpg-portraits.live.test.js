@@ -64,4 +64,20 @@ describe('the party photographed', () => {
       writeFileSync(`${process.env.TABLE_RPG_SHOTS}/armed-hero.jpg`, Buffer.from(portraits.hero.figure.split(',')[1], 'base64'));
     }
   }, 300000);
+
+  it('loot: a crypt\'s hoard of arms of every kind photographed, and a mender holding its mace on a haft', async () => {
+    if (!browser) return;
+    await createGameHandler({ title: 'Hoard', table_rpg: { starter: { use: 'crypt' }, party: [{ id: 'mender', egocube: { facets: { role: 'support' } } }] }, ref: 'pt_loot' });
+    const m = SketchRepository.getByRef('pt_loot').manifest;
+    const { portraits, items, missing } = await tableRpgPortraits(m, { paper: '#f0e6d2' });
+    expect(missing).toEqual([]);
+    const hoard = Object.keys(items).filter((id) => /^hoard-/.test(id));
+    expect(hoard).toHaveLength(6);
+    for (const id of hoard) expect(items[id].figure.length).toBeGreaterThan(6000);
+    if (process.env.TABLE_RPG_SHOTS) {
+      const { writeFileSync } = await import('node:fs');
+      for (const id of hoard) writeFileSync(`${process.env.TABLE_RPG_SHOTS}/${id}.jpg`, Buffer.from(items[id].figure.split(',')[1], 'base64'));
+      writeFileSync(`${process.env.TABLE_RPG_SHOTS}/mender.jpg`, Buffer.from(portraits.mender.figure.split(',')[1], 'base64'));
+    }
+  }, 300000);
 });

@@ -26,11 +26,11 @@ const BUILD_KEYS = ['item', 'style', 'dials', 'parts', 'gem', 'seed'];
 export const GEAR_KEYS = Object.freeze(['style', 'foes']);
 
 /** A rules card's weapon by its name, as the equipment kernel makes it: a blade its blade, a mace a staff's mace head,
- * a spell a staff with a stone in its claw. A weapon the kernel has no shape for (a chain, a rite) is held by nothing. */
+ * a spell a staff with a stone in its claw, an axe a hand axe and a mace a haft (the staff's `arm` reach). A weapon the kernel has no shape for (a chain, a rite) is held by nothing. */
 export const WEAPON_GEAR = Object.freeze({
-  sword: { item: 'sword' }, blade: { item: 'sword' }, axe: { item: 'sword', parts: { blade: 'cleaver' } },
+  sword: { item: 'sword' }, blade: { item: 'sword' }, axe: { item: 'staff', parts: { head: 'axe', reach: 'arm' } },
   'short blade': { item: 'dagger' }, knife: { item: 'dagger' }, scalpel: { item: 'dagger', dials: { mass: 0.7 } },
-  staff: { item: 'staff' }, mace: { item: 'staff', parts: { head: 'mace' } }, hammer: { item: 'staff', parts: { head: 'mace' }, dials: { mass: 1.4 } },
+  staff: { item: 'staff' }, mace: { item: 'staff', parts: { head: 'mace', reach: 'arm' } }, hammer: { item: 'staff', parts: { head: 'mace', reach: 'arm' }, dials: { mass: 1.4 } },
   bolt: { item: 'staff', parts: { head: 'claw', focus: 'head' }, gem: 'amethyst' }, hex: { item: 'staff', parts: { head: 'crescent', focus: 'head' }, gem: 'opal' },
   bow: { item: 'bow' }, rifle: { item: 'carbine' }, revolver: { item: 'pistol' },
 });

@@ -2,27 +2,36 @@
 // law was found:
 //   staff   the focal at the END of a long shaft (law 6). Heads: plain · branch (grown by the pipe model, law 7,
 //           cradling a stone at its girdle) · claw (prongs orbiting the stone) · crescent (a boss inside a moon, with
-//           wings) · block (a reliquary with a face-set stone) · mace · ringed (a loop hung with rings)
+//           wings) · block (a reliquary with a face-set stone) · mace · ringed (a loop hung with rings) · spear (a
+//           point, the sword's own blade loft in the language's `blade`, on a socket) · axe (a bearded blade to one side
+//           and a poll to the other) · halberd (the axe's blade, a point above it, a spike behind). Its `reach`: long
+//           (the staff, a spear, a halberd) · arm (a haft: an axe, a mace, a warhammer, a sceptre) · wand
 //   bow     a focal that IS a curve (`curve`, `length`), or the riser under the hand when it carries a stone. Limbs:
 //           longbow · recurve · horn · yumi (the grip a third of the way up). Tips: leaf · wing · spike · horn
 //   shield  a focal on a FACE (law 1b), with leading lines from the rim into it. Outlines: round · heater · kite.
 //           Devices: chevron · rays · bands · spikes · mon · wings · vine
 import { focalStone, recedeRole, focalGrow as growOf, lerp } from './principles.js';
 import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon, girdleOf } from './shapes.js';
+import { bladeLoft } from './sword.js';
 
 export const ITEMS = Object.freeze({ staff: { L: 175, R: 1.6 }, bow: { L: 180, W: 3.0, T: 2.2, brace: 16 }, shield: { R: 38, H: 72, T: 1.8 } });
 /** the staff heads that carry no stone (every other head cradles one) */
-export const GEMLESS_HEADS = Object.freeze(['plain', 'mace', 'ringed']);
+export const GEMLESS_HEADS = Object.freeze(['plain', 'mace', 'ringed', 'spear', 'axe', 'halberd']);
+/** a staff's reach: its length and its girth against the staff's, and where the hand takes it (a share of the length) */
+export const REACH = Object.freeze({ long: { L: 1, R: 1, grip: 0.56 }, arm: { L: 0.46, R: 1.05, grip: 0.22 }, wand: { L: 0.2, R: 0.62, grip: 0.3 } });
 
 // ---------------------------------------------------------------- staff
-function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng }) {
-  const L = ITEMS.staff.L * law.length, R = ITEMS.staff.R * law.hilt ** 0.5 * d.mass ** 0.5;
+function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng, edge }) {
+  const reach = REACH[lang.reach] ?? REACH.long;
+  const L = ITEMS.staff.L * law.length * reach.L, R = ITEMS.staff.R * law.hilt ** 0.5 * d.mass ** 0.5 * reach.R;
   const head = lang.head, fit = mat(roles.fittings), acc = mat(roles.accent);
   const st = gem ? focalStone({ stylize: d.stylize, host: R * 2.6 }) : null;
   const trace = {};
   if (st) trace.focal = { at: 'head', gem: gem.gem, size: r3(st.size), share: r3(st.size / (2 * R)), setting: st.setting };
   // head height budget, from the focal
-  const HH = st ? st.size * 1.9 + R * 2 : head === 'plain' ? R * 5 : R * 9 * focalGrow;
+  // (a blade head is sized by its blade: a spear's point, an axe's beard, a halberd's both)
+  const blade = { spear: R * 15 * focalGrow, axe: R * 7 * focalGrow, halberd: R * 15 * focalGrow }[head];
+  const HH = st ? st.size * 1.9 + R * 2 : head === 'plain' ? R * 5 : blade ?? R * 9 * focalGrow;
   const zTop = L - HH;
   push(m, 'lathes', { group: 'heel', axisFrom: P(0, 0, 0), axisTo: P(0, 0, 6), profile: [{ t: 0, radius: r3(R * 0.55) }, { t: 0.2, radius: r3(R * 1.12) }, { t: 1, radius: r3(R * 1.08) }], ...fit });
   if (lang.shaftForm === 'gnarled') {
@@ -31,7 +40,7 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng }) {
     for (let i = 0; i <= n; i++) { const t = i / n; path.push([1.1 * R * Math.sin(2.3 * Math.PI * t + 0.7) * (0.6 + 0.4 * rng()), 0.9 * R * Math.sin(1.7 * Math.PI * t), 5 + t * (zTop - 4.5)]); }
     push(m, 'lofts', ribbon({ path, w: (t) => R * (1.08 - 0.18 * t) * (1 + knots.reduce((a, k) => a + 0.28 * Math.exp(-(((t - k) / 0.025) ** 2)), 0)), h: () => 0, round: true, role: roles.shaft, group: 'shaft', minF }));
   } else push(m, 'lathes', { group: 'shaft', axisFrom: P(0, 0, 5), axisTo: P(0, 0, zTop + 0.5), profile: [{ t: 0, radius: r3(R) }, { t: 0.5, radius: r3(R * 0.94) }, { t: 1, radius: r3(R * 0.9) }], ...mat(roles.shaft) });
-  const gz = 0.56 * L, gl = 22;  // the grip band, where the hand goes
+  const gz = reach.grip * L, gl = Math.min(22, 0.3 * L);  // the grip band, where the hand goes
   push(m, 'lathes', { group: 'grip', axisFrom: P(0, 0, gz - gl / 2), axisTo: P(0, 0, gz + gl / 2), profile: Array.from({ length: 9 }, (_, i) => ({ t: r3(i / 8), radius: r3(R * (i % 2 ? 1.13 : 1.06)) })), ...mat(roles.wrap) });
   push(m, 'lathes', { group: 'collar', axisFrom: P(0, 0, zTop - 3 * law.hilt), axisTo: P(0, 0, zTop + 1), profile: [{ t: 0, radius: r3(R * 0.95) }, { t: 0.4, radius: r3(R * 1.3) }, { t: 1, radius: r3(R * 1.15) }], ...acc });
   const sockets = { grip: { origin: A(0, 0, gz), axis: [0, 0, 1], length: gl }, tip: { origin: A(0, 0, L) }, heel: { origin: A(0, 0, 0) } };
@@ -120,6 +129,34 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng }) {
       const p = [a * Math.cos(t) * (1 - 0.35 * Math.max(0, s) ** 3), 0, zb + b * (1 + s) * (1 + 0.28 * Math.max(0, s) ** 6)];
       push(m, 'sweeps', { group: 'head', path: circle([p[0], p[1], p[2] - rr + tube], rr, 24, 'yz'), radius: r3(Math.max(minF / 2, tube * 0.55)), sides: 6, ...acc }); }
     sockets.focal = { origin: A(0, 0, zb + b) };
+  } else if (head === 'spear' || head === 'axe' || head === 'halberd') {
+    const blades = mat(roles.blade ?? roles.fittings), eg = { fuller: 0, bevel: 0.45, ...edge };
+    // the axe's blade: its height, its reach from the haft, its cheek at the eye; on an axe it sits at the haft's top,
+    // on a halberd low on the head with the point rising through it
+    const he = blade * (head === 'axe' ? 0.4 : 0.26), reachX = he * (head === 'axe' ? 1.25 : 1.5), cheek = he * 0.42;
+    const zc = head === 'axe' ? zTop + blade - cheek * 1.15 : zTop + blade * 0.32;
+    // the socket the head is set on, up the shaft's top (through the eye, where there is one)
+    const sockTop = head === 'spear' ? zTop + R * 4 : zc + cheek * 1.05;
+    push(m, 'lathes', { group: 'head', axisFrom: P(0, 0, zTop), axisTo: P(0, 0, sockTop), profile: [{ t: 0, radius: r3(R * 1.15) }, { t: 0.5, radius: r3(R * 1.05) }, { t: 1, radius: r3(R * 0.8) }], ...fit });
+    const zPoint = head === 'axe' ? null : zTop + R * 3.5;
+    if (zPoint !== null) {
+      // the point: the sword's own blade loft, its outline the language's blade (a leaf when it names none)
+      const pL = head === 'halberd' ? blade * 0.5 : blade - R * 3.5;
+      push(m, 'lofts', { group: 'head', ...bladeLoft({ variant: lang.blade ?? 'leaf', L: pL, W: R * 3.4 * (head === 'halberd' ? 0.8 : 1) * focalGrow ** 0.5, T: R * 0.6, z0: zPoint, edge: { ...eg, barbs: 0 }, rng, role: roles.blade ?? roles.fittings }) });
+    }
+    if (head !== 'spear') {
+      // the axe's blade, flat in the plane the haft swings in: a cheek at the haft, the edge an arc, the beard dropping
+      // below it; a poll behind (a hammer's face on an axe, a spike on a halberd)
+      const edgePts = []; for (let i = 0; i <= 12; i++) { const t = i / 12, z = he * (1 - 2 * t) - (t > 0.5 ? he * 0.35 * ((t - 0.5) / 0.5) ** 1.5 : 0); edgePts.push([R * 0.9 + reachX * (1 + 0.12 * Math.sin(Math.PI * t)), z]); }
+      const outline = [[R * 0.9, cheek], ...edgePts, [R * 0.9 + reachX * 0.45, -cheek * 0.7], [R * 0.9, -cheek]];
+      const thick = Math.max(minF, R * 0.42);
+      push(m, 'extrudes', { group: 'head', profile: { points: outline.map(([x, z]) => [r3(-x), r3(z)]) }, axisFrom: P(0, -thick / 2, zc), axisTo: P(0, thick / 2, zc), ...blades });
+      // the eye round the haft
+      push(m, 'extrudes', { group: 'head', profile: { rect: { w: R * 2.6, h: cheek * 2.2, r: R * 0.4 } }, axisFrom: P(0, -R * 1.2, zc), axisTo: P(0, R * 1.2, zc), ...fit });
+      if (head === 'axe') push(m, 'extrudes', { group: 'head', profile: { rect: { w: R * 1.6, h: cheek * 1.6, r: R * 0.2 } }, axisFrom: P(-R * 0.9, 0, zc), axisTo: P(-R * 2.6, 0, zc), ...fit });
+      else push(m, 'lathes', { group: 'head', axisFrom: P(-R * 0.9, 0, zc), axisTo: P(-R * 0.9 - he * 1.1, 0, zc + he * 0.2), profile: [{ t: 0, radius: r3(R * 0.9) }, { t: 1, radius: 0 }], ...fit });
+      sockets.focal = { origin: A(R + reachX, 0, zc) };
+    } else sockets.focal = { origin: A(0, 0, zPoint + (blade - R * 3.5) * 0.4) };
   }
   return { sockets, trace, length: L };
 }
@@ -241,7 +278,7 @@ export function buildItem({ item, card, d, law, roles, gem: g, lang, seed }) {
   const minF = law.minFeature * (ITEMS[item].L || ITEMS[item].H * 1.5);
   const m = {};
   const rng = mulberry32(seed * 2654435761 + item.length * 97 + (card.id || '').length);
-  const r = ({ staff, bow, shield })[item](m, { d, law, roles, gem, lang, minF, focalGrow: growOf(d.stylize), rng });
+  const r = ({ staff, bow, shield })[item](m, { d, law, roles, gem, lang, minF, focalGrow: growOf(d.stylize), rng, edge: card.edge ?? {} });
   // law 7: a barked part (the shaft role on a shaft, a branch, a limb or a riser) wears the trees' bark. The tile is
   // in stem radii (crack spacing ∝ thickness), coarser when stylized (law 4); the monomer keeps its tint as the plain
   // colour for a consumer without textures.

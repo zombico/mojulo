@@ -9,7 +9,7 @@
  *     `starter: { use }` fills what the module leaves out, a party rolled when it names none (table-rpg-starter.js);
  *     members' personas rolled (table-rpg-party.js); `cast` the antagonists rolled as a character graph into factions and foes
  *     (table-rpg-cast.js); `gear` the game's arms language and an item's `build` its look, checked by the equipment
- *     kernel (table-rpg-gear.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
+ *     kernel (table-rpg-gear.js); a table written as `loot` words its artifacts rolled out (table-rpg-loot.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
  *   refereePacket(K, { tape? }) → markdown   the rules in a paragraph and how their dice read, the card's attribution if it carries one, the party's
  *     sheets and how each was rolled, the world, each dungeon's key room by room, the foes in the system's numbers, the
  *     tables, the goal; and a dice tape (`tape: n` rolls of the d20, d6, d10 and d100) so an agent referee rolls nothing
@@ -26,6 +26,7 @@ import { withPersonas } from './table-rpg-party.js';
 import { withStarter } from './table-rpg-starter.js';
 import { withCast } from './table-rpg-cast.js';
 import { readGear } from './table-rpg-gear.js';
+import { withLoot } from './table-rpg-loot.js';
 import { checkDungeon } from './table-rpg-dungeon.js';
 import { checkWorld } from './table-rpg-world.js';
 
@@ -36,7 +37,7 @@ const words = (s) => String(s).replace(/[-_]/g, ' ');
 export function readModule(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`table rpg: a module is { ${TABLE_RPG_KEYS.join(', ')} }`);
   for (const k of Object.keys(raw)) if (!TABLE_RPG_KEYS.includes(k)) throw new Error(`table rpg: unknown key '${k}' (keys: ${TABLE_RPG_KEYS.join(', ')})`);
-  const module = readGear(withCast(withPersonas(withStarter({ ...raw, system: systemOf(raw.system ?? 'target') }))));
+  const module = readGear(withCast(withPersonas(withLoot(withStarter({ ...raw, system: systemOf(raw.system ?? 'target') })))));
   const K = tableCompile(module);
   const goalRoom = (id) => {
     const G = module.goal;
