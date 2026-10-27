@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // table-rpg — a pen-and-paper module played in text at the terminal: the table RPG kernel
 // (lib/graph/table-rpg/) with a prompt, no picture. The module is the bundled test module (The Sunken
-// Chapel) unless a JSON file is named; the system any of the book's (d20 when none).
+// Chapel) unless a JSON file is named; the rules a starter's (target when none) or the module's own card.
 //
 //   node scripts/table-rpg.mjs [--module <file.json>] [--system <id>]     play: type a move, `help` for the moves, `quit`
 //   node scripts/table-rpg.mjs --packet [--tape <n>]                      the referee packet (markdown) and exit
@@ -23,7 +23,7 @@ if (argv.includes('--help')) {
 }
 const file = opt('--module');
 const raw = file ? JSON.parse(readFileSync(file, 'utf8')) : SUNKEN_CHAPEL;
-const system = opt('--system') ?? raw.system ?? 'd20';
+const system = opt('--system') ?? raw.system ?? 'target';
 let read;
 try { read = readModule({ ...raw, system }); } catch (err) { console.error(err.message); process.exit(1); }
 const { K, checks } = read;

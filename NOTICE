@@ -46,18 +46,3 @@ control/lib/graph/image-outcomes/fonts/archivo-black.ttf is Archivo Black, unmod
 License, Version 1.1, whose full text ships beside it as archivo-black.OFL.txt:
 
   Copyright 2017 The Archivo Black Project Authors (https://github.com/Omnibus-Type/ArchivoBlack)
-
-control/lib/graph/table-rpg/table-rpg-systems.js states three games' mechanics in its own words, under their Creative
-Commons licenses (no rule text is copied; each card carries its attribution, printed by whatever plays it):
-
-  This work includes material from the System Reference Document 5.2 ("SRD 5.2") by Wizards of the Coast LLC,
-  available at https://www.dndbeyond.com/srd. The SRD 5.2 is licensed under the Creative Commons Attribution 4.0
-  International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.
-
-  This work is based on Fate Core System and Fate Accelerated Edition (found at https://www.faterpg.com/), products of
-  Evil Hat Productions, LLC, developed, authored, and edited by Leonard Balsera, Brian Engard, Jeremy Keller, Ryan
-  Macklin, Mike Olson, Clark Valentine, Amanda Valentine, Fred Hicks, and Rob Donoghue, and licensed for our use under
-  the Creative Commons Attribution 3.0 Unported license (https://creativecommons.org/licenses/by/3.0/).
-
-  This work is based on Ironsworn (found at https://www.ironswornrpg.com), created by Shawn Tomkin, and licensed for
-  our use under the Creative Commons Attribution 4.0 International license (https://creativecommons.org/licenses/by/4.0/).

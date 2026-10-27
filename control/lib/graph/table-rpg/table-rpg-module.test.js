@@ -15,15 +15,15 @@ import { rpgInit, rpgStart, rpgRound, rpgTargets } from '../playscape/rpg/kernel
 const chapel = () => JSON.parse(JSON.stringify(SUNKEN_CHAPEL.dungeons.chapel));
 
 describe('the module: read, checked, said as text', () => {
-  it('takes a system by id (d20 when none) and refuses a key it does not know', () => {
-    expect(readModule(SUNKEN_CHAPEL).K.sys.name).toBe('d20');
-    expect(readModule({ ...SUNKEN_CHAPEL, system: 'ladder' }).K.sys.check.kind).toBe('ladder');
-    expect(() => readModule({ ...SUNKEN_CHAPEL, system: 'gurps' })).toThrow(/no system 'gurps'/);
+  it('takes a starter by id (target when none) and refuses a key it does not know', () => {
+    expect(readModule(SUNKEN_CHAPEL).K.sys.name).toBe('target');
+    expect(readModule({ ...SUNKEN_CHAPEL, system: 'shifts' }).K.sys.check.kind).toBe('shifts');
+    expect(() => readModule({ ...SUNKEN_CHAPEL, system: 'gurps' })).toThrow(/no starter 'gurps'.*written out as a card/);
     expect(() => readModule({ ...SUNKEN_CHAPEL, map: {} })).toThrow(new RegExp(`unknown key 'map' \\(keys: ${TABLE_RPG_KEYS.join(', ')}\\)`));
   });
 
-  it('a system written out plays as a named one does, and a broken one is refused, teaching', () => {
-    const own = { ...TABLE_RPG_SYSTEMS.moves, name: 'my hack' };
+  it('a rules card written out plays as a starter does, and a broken one is refused, teaching', () => {
+    const own = { ...TABLE_RPG_SYSTEMS.bands, name: 'my hack' };
     expect(readModule({ ...SUNKEN_CHAPEL, system: own }).K.sys.name).toBe('my hack');
     expect(() => readModule({ ...SUNKEN_CHAPEL, system: { ...own, faculties: { ...own.faculties, stealth: 'luck' } } })).toThrow(/faculty 'stealth' names no ability/);
   });
@@ -36,7 +36,7 @@ describe('the module: read, checked, said as text', () => {
   });
 
   it('the referee packet: the rules, the attribution, the party as rolled, every room, the foes in the system\'s numbers, the tape', () => {
-    for (const id of ['d20', 'moves']) {
+    for (const id of ['target', 'bands']) {
       const { K } = readModule({ ...SUNKEN_CHAPEL, system: id });
       const P = refereePacket(K, { tape: 8 });
       expect(P).toMatch(/^# The Sunken Chapel/);
@@ -45,11 +45,11 @@ describe('the module: read, checked, said as text', () => {
       expect(P).toContain(`- d20: ${tableTape(K.seed, 20, 8).join(' ')}`);
       expect(P).toMatch(/a silver ring \(hidden: a search finds it\)/);
     }
-    const d20 = refereePacket(readModule(SUNKEN_CHAPEL).K);
-    expect(d20).toContain('System Reference Document 5.2');
-    expect(d20).toMatch(/\*\*Barrow Wight\*\* \(rank 3, .*\): HP 22, defence 13/);
-    expect(refereePacket(readModule({ ...SUNKEN_CHAPEL, system: 'moves' }).K)).toMatch(/\*\*Barrow Wight\*\* .*: harm track 6, deals 2 harm/);
-    expect(refereePacket(readModule({ ...SUNKEN_CHAPEL, system: 'classic' }).K)).not.toMatch(/^> /m);
+    const target = refereePacket(readModule(SUNKEN_CHAPEL).K);
+    expect(target).not.toMatch(/^> /m);
+    expect(refereePacket(readModule({ ...SUNKEN_CHAPEL, system: { ...TABLE_RPG_SYSTEMS.under, attribution: 'Rules by the table.' } }).K)).toContain('> Rules by the table.');
+    expect(target).toMatch(/\*\*Barrow Wight\*\* \(rank 3, .*\): HP 22, defence 13/);
+    expect(refereePacket(readModule({ ...SUNKEN_CHAPEL, system: 'bands' }).K)).toMatch(/\*\*Barrow Wight\*\* .*: harm track 6, deals 2 harm/);
   });
 
   it('a game played by its command list is the same game every time: the list is the save', () => {
@@ -111,7 +111,7 @@ describe('dungeons: read for whether they play', () => {
       expect(dungeon.rooms.find((x) => x.id === dungeon.goal).foes).toEqual(['barrow-wight']);
       expect(dungeonFromProgram({ use, seed: 3 })).toEqual(dungeonFromProgram({ use, seed: 3 }));
       // and it plays: the kernel takes it as a module's dungeon
-      const K = tableCompile({ ...SUNKEN_CHAPEL, system: TABLE_RPG_SYSTEMS.d20, items: { ...SUNKEN_CHAPEL.items, ...items },
+      const K = tableCompile({ ...SUNKEN_CHAPEL, system: TABLE_RPG_SYSTEMS.target, items: { ...SUNKEN_CHAPEL.items, ...items },
         dungeons: { chapel: dungeon }, goal: { room: `chapel/${dungeon.goal}` }, beats: [] });
       expect(Object.keys(K.D.chapel.rooms)).toHaveLength(dungeon.rooms.length);
     }
@@ -133,7 +133,7 @@ describe('the world and the party, read by the rest of mojulo', () => {
   });
 
   it('a persona from the egocube: who wears the sheet, and the class from its role when none is named', () => {
-    const m = withPersonas({ ...SUNKEN_CHAPEL, party: [{ id: 'nell', egocube: true }, { id: 'odo', class: 'wizard', egocube: { brief: 'a gentle old scholar' } }] });
+    const m = withPersonas({ ...SUNKEN_CHAPEL, party: [{ id: 'nell', egocube: true }, { id: 'odo', class: 'adept', egocube: { brief: 'a gentle old scholar' } }] });
     expect(m.party[0].role).toBe(m.party[0].persona.role);
     expect(m.party[0].egocube).toMatchObject({ seed: 7, path: 'party/nell' });
     expect(m.party[1].role).toBeUndefined();
@@ -145,7 +145,7 @@ describe('the world and the party, read by the rest of mojulo', () => {
   });
 
   it('the party fights in the live RPG as rolled: its classes, its levels, its abilities as the live stats', () => {
-    for (const id of ['d20', 'action']) {
+    for (const id of ['target', 'challenge']) {
       const { K } = readModule({ ...SUNKEN_CHAPEL, system: id });
       const live = toLiveParty(K);
       expect(live.party.map((p) => p.class)).toEqual(K.party.map((p) => TABLE_RPG_SYSTEMS[id].classes[p.class].live));

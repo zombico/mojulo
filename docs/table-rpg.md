@@ -11,8 +11,8 @@ composed from, how the game type is exposed without a new tool, and what is stil
 Code: [control/lib/graph/table-rpg/](../control/lib/graph/table-rpg/). Play it now from `control/`:
 
 ```bash
-node scripts/table-rpg.mjs                       # the bundled test module, d20, at a prompt (`help`, `quit`)
-node scripts/table-rpg.mjs --system moves        # the same module under another system
+node scripts/table-rpg.mjs                       # the bundled test module, the target starter, at a prompt (`help`, `quit`)
+node scripts/table-rpg.mjs --system bands        # the same module under another procedure
 node scripts/table-rpg.mjs --packet              # the referee packet an agent runs the game from
 node scripts/table-rpg.mjs --commands 'travel standing-stones; look; roll 3d6'
 ```
@@ -29,52 +29,44 @@ node scripts/table-rpg.mjs --commands 'travel standing-stones; look; roll 3d6'
 
 ## Research
 
-### The book systems are families of one procedure each
+### Rules are procedures, and a game is a choice of one
 
-Every pen-and-paper system answers three questions: how a character is made, how an uncertain action is decided, and
-how a fight is settled. Across published games the second answer falls into a handful of **resolution procedures**,
-and a system is mostly the choice of one, plus its numbers:
+Every pen-and-paper game answers three questions: how a character is made, how an uncertain action is decided, and
+how a fight is settled. The second answer falls into a handful of **resolution procedures**, and a game is mostly the
+choice of one plus its numbers. Mojulo holds the procedures; the numbers are a card.
 
-| Procedure (`check.kind`) | The roll | Read as | Family |
-|---|---|---|---|
-| `d20` | 1d20 + modifier (+ proficiency) vs a difficulty class | pass / fail, natural 20 and 1 | the SRD 5.2 d20 games |
-| `under` | 1d20 at or under the ability | pass / fail | the old-school games (three dice in order) |
-| `bands` | 2d6 + stat | 10+ hit, 7–9 hit at a cost, 6- miss | the 2d6 "moves" family |
-| `ladder` | 4dF + approach vs a rung | shifts: tie at a cost, +3 with style | Fate Core / Fate Accelerated |
-| `percentile` | d100 at or under a score | a fifth of it critical, 96+ fumble | the percentile family |
-| `action` | d6 + stat vs two d10 | strong hit, weak hit, miss; doubles twist | Ironsworn |
+| Procedure (`check.kind`) | The roll | Read as |
+|---|---|---|
+| `target` | 1d20 + modifier (+ a trained bonus) vs a target number | pass / fail, natural 20 and 1 |
+| `under` | 1d20 at or under the ability | pass / fail, 1 and 20 |
+| `bands` | 2d6 + stat | 10+ hit, 7–9 hit at a cost, 6- miss |
+| `shifts` | 4dF + stat vs a rung | the margin as shifts: a tie at a cost, three over a critical |
+| `percent` | d100 at or under a score | a fifth of it critical, 96+ fumble |
+| `challenge` | d6 + stat vs two d10 | strong hit, weak hit, miss; matching d10s twist it |
 
 The kernel normalises every procedure to one **band** (crit, success, partial, fail, fumble), so everything above
-the roll (traps, searches, forcing a door, a fight, a level) is written once. The systems themselves are data
-(`TABLE_RPG_SYSTEMS` in `table-rpg-systems.js`), and a system can be written out in a module the way a board game is
-written out for the tabletop type.
+the roll (traps, searches, forcing a door, a fight, a level) is written once.
 
-Character creation varies along a few axes that the card states as data: the abilities and their span; the
-**generation method** (rolled in order, rolled and placed by the class, a fixed array placed by the class, points
-bought against a budget); the modifier rule (a step, a table, none); hit points (a hit die maxed at first level, a
-fixed track, derived from abilities); and **progression** (experience thresholds, a mark on every miss, milestones).
+Character creation varies along a few axes the card states as data: the abilities and their span; the **generation
+method** (rolled in order, rolled and placed by the class, an array placed by the class, points bought against a
+budget); the modifier rule (a step, a table, none); hit points (a hit die maxed at first level, a fixed track, derived
+from abilities); and **progression** (experience thresholds, a mark on every miss, milestones).
 
-Fights differ most in one thing: **who rolls**. In the d20, old-school, ladder and percentile games foes take turns
-and roll their own attacks. In the 2d6 and action families the players roll every die: a foe hurts only when a
-player's roll fails or succeeds at a cost (`combat.foesAct: false`, `combat.costOn`).
+Fights differ most in one thing: **who rolls**. Under `target`, `under`, `shifts` and `percent` foes take turns and
+roll their own attacks. Under `bands` and `challenge` the players roll every die: a foe hurts only on the bands the
+card says cost (`combat.foesAct: false`, `combat.costOn`).
 
-### Licensing: what can be encoded
+### Affordances, not implementations
 
-Rules as mechanics are not copyrightable; the text that states them is. The cards state mechanics in mojulo's own
-words, and three come from openly licensed references, each carrying its attribution (printed by the referee packet
-and listed in `NOTICE`):
+Mojulo ships one **starter** card per procedure (`TABLE_RPG_SYSTEMS` in `table-rpg-systems.js`): generic, named for
+the procedure, in mojulo's own words and numbers. It does not hold any published game. A game the person names is
+written out as a card by their own model from the rules they supply, the way the tabletop type has a board game
+written out; the kernel's `compile` checks the card and says what is missing, and a card may carry its own
+`attribution`, which the referee packet prints. The fine tuning (a game's exact tables, its class list, its foes) is
+the person's model's; mojulo's part is the procedures, the portable words, the checks and the text play.
 
-| Source | License | Used |
-|---|---|---|
-| System Reference Document 5.2 (Wizards of the Coast) | CC BY 4.0, irrevocable | the `d20` card: abilities, modifiers, the array and point buy, the XP thresholds |
-| Fate Core / Fate Accelerated SRD (Evil Hat) | CC BY 3.0 | the `ladder` card: approaches, 4dF, the ladder |
-| Ironsworn SRD (Shawn Tomkin) | CC BY 4.0 (the rulebook text itself is BY-NC-SA, not used) | the `action` card: the action roll, the five stats |
-| Cairn (Yochai Gal) | CC BY-SA 4.0 | not used: share-alike would bind the recipe book |
-| Pathfinder 2e Remaster | ORC | not used yet; mechanics licensed, setting reserved |
-
-The `classic`, `moves` and `percentile` cards are generic family mechanics with no source text and invented names.
-No published setting, monster or adventure is encoded; a module asked for by a published name is written out from
-the rules the person explains, as the tabletop type does with board games.
+Disclosure, in one line: *the rules starters are generic procedures in mojulo's own words and numbers; a named game is
+written out by the person's model from rules the person supplies.*
 
 ### Playing in text
 
@@ -82,7 +74,7 @@ A text RPG needs a referee. Three ways to have one, all supported by the same ke
 
 1. **The kernel referees** (`tableAct`): a typed command, the dice, the outcome in prose. Solo play and the page.
 2. **The agent referees in prose** from the **referee packet** (`refereePacket`): the rules digest, the sheets as
-   rolled, every room keyed, the foes in the system's numbers, the tables, and a **dice tape** of pre-rolled d20, d6,
+   rolled, every room keyed, the foes in the card's numbers, the tables, and a **dice tape** of pre-rolled d20, d6,
    d10 and d100 for the seed, read in order, so the agent never chooses a roll.
 3. **A person referees** at a real table from the same packet.
 
@@ -109,17 +101,17 @@ needs to leave the table, which matches mojulo's posture that play data stays cl
 
 ## The concept: a module written in portable words
 
-A module never names a system's numbers. It says:
+A module never names a card's numbers. It says:
 
-- a check's **faculty**: might, agility, grit, wits, insight, presence, stealth (`FACULTIES`), each system mapping
-  them onto its own abilities (insight is Wisdom in d20, Careful in the ladder, Wits in the action family);
-- a **difficulty**: easy, medium, hard (a DC, a shift, a rung or a share of the score, as the system reads it);
-- a foe's **rank** from 1 (a minion) to 5 (a boss), statted by the system's own `foes` table; a trap's harm as a rank;
+- a check's **faculty**: might, agility, grit, wits, insight, presence, stealth (`FACULTIES`), each card mapping
+  them onto its own abilities (insight is Wisdom in the target starter, Careful in shifts, Wits in challenge);
+- a **difficulty**: easy, medium, hard (a target number, a shift, a rung or a share of the score, as the card reads it);
+- a foe's **rank** from 1 (a minion) to 5 (a boss), statted by the card's own `foes` table; a trap's harm as a rank;
 - a member's **role** (the egocube's roles: frontline, flanker, support, controller, caster, ranged, non-combatant),
-  played as the system's first class that takes it;
+  played as the card's first class that takes it;
 - healing as `some` or `all`.
 
-So one scenario plays under every system: the bundled test module (`fixtures/sunken-chapel.js`) is played through to
+So one scenario plays under every card: the bundled test module (`fixtures/sunken-chapel.js`) is played through to
 its goal under each resolution procedure in the tests. Character creation stays scoped to the one game: the party is
 the module's, rolled on the module's seed, one stream per member, so adding a member never moves another's dice.
 
@@ -143,22 +135,24 @@ The game rail already makes a game whose characters are rolled sheets: `design_g
 fighters' egocube sheets, mints each fighter through `create_character { egocube }`, and stores a game row of its own
 engine. The table RPG takes the same path:
 
-- `design_game({ quick: { goal: 'table-rpg', system?, … the module } })`: the members' sheets (egocube), their bodies
-  when asked for, the game row `{ kind: 'game', engine: 'table-rpg', title, tableRpg: <module> }`; the answer carries
+- `design_game({ quick: { goal: 'table-rpg', system?: <a starter's id or a card written out>, … the module } })`:
+  the members' sheets (egocube), their bodies when asked for, the game row `{ kind: 'game', engine: 'table-rpg', title, tableRpg: <module> }`; the answer carries
   the referee packet. `quick` is an untyped object in the tool's schema, so the `tools/list` payload does not move.
 - The engine's branches beside the tabletop type's: the `update_sketch` gate, the play route, the export.
-- Cards: `get_game_vocab({ id: 'table-rpg' })` (a guide, a card per system, the dungeon and world grammar) and a
-  routing card whose phrasings are pen-and-paper ones (game master, roll for stats, character sheet, one-shot,
-  theatre of the mind), with collision rows against the live RPG.
+- Cards: `get_game_vocab({ id: 'table-rpg' })` (a guide, the rules-card grammar with a starter per procedure, the
+  dungeon and world grammar) and a routing card whose phrasings are pen-and-paper ones (game master, roll for stats,
+  character sheet, one-shot, theatre of the mind), with collision rows against the live RPG.
 - The two RPGs read apart: the **live RPG** is "battles in the 3D field, a party in the game you walk"; the **table
-  RPG** is "a pen-and-paper game played in text, rolled from a book system".
+  RPG** is "a pen-and-paper game played in text, rolled from a rules card".
 
 ## Gaps
 
 - No MCP door yet (the next layer); the game plays from the kernel, the tests and the CLI.
+- A balance probe: a module autoplayed over many seeds (how often it is won, who falls, how long the fights run), so a
+  card the person's model writes is measured rather than tuned by hand. The tests hold the starters to one such run.
 - Spells, class features, conditions, equipment beyond a weapon, saving throws, skills apart from abilities, and
   morale or reaction rolls: the cards hold the procedures, not the catalogues.
-- Ladder aspects and invokes, the 2d6 family's moves as written moves, the action family's momentum and progress
-  tracks: simplified to checks, harm and a health track.
+- Narrative currencies (aspects, momentum, written moves, progress tracks) as their own procedures: simplified for
+  now to checks, harm and a health track; a card cannot yet declare one.
 - A dungeon's lowering: a tree of rooms lays through `planProgram`, a loop needs its own layout pass.
 - A room's own check beyond a trap, NPC talk, shops and rumours in towns.

@@ -1,5 +1,5 @@
 /**
- * THE TABLE RPG KERNEL — a pen-and-paper game played in text: a party rolled from a book system (table-rpg-systems.js),
+ * THE TABLE RPG KERNEL — a pen-and-paper game played in text: a party rolled from a rules card (table-rpg-systems.js),
  * a world of places and roads, dungeons of rooms, links, locks and keys, foes by rank, tables and an oracle, played by
  * typed commands, every die rolled in the open and said in the transcript. No picture is needed to play it; a page or
  * an engine draws over the same state later.
@@ -148,13 +148,14 @@ export function buildTableRpg() {
     return score;
   }
   const abilityOf = (sys, f) => (sys.abilities.includes(f) ? f : sys.faculties[f]);
-  function proficiency(level) { return 2 + Math.floor((Math.max(1, level) - 1) / 4); }
+  // the card's trained bonus at a level (none when the card has none)
+  function trained(sys, level) { const T = sys.check.trained; return T ? T.base + Math.floor((Math.max(1, level) - 1) / T.every) : 0; }
 
   function checkSystem(sys) {
     const where = `system '${sys.name || '(written out)'}'`;
     if (!Array.isArray(sys.abilities) || !sys.abilities.length) no(`${where}: abilities are a list of ids`);
     for (const f of FACULTY) if (!sys.abilities.includes((sys.faculties || {})[f])) no(`${where}: faculty '${f}' names no ability`);
-    if (!['d20', 'under', 'bands', 'ladder', 'percentile', 'action'].includes(sys.check?.kind)) no(`${where}: check.kind is d20, under, bands, ladder, percentile or action`);
+    if (!['target', 'under', 'bands', 'shifts', 'percent', 'challenge'].includes(sys.check?.kind)) no(`${where}: check.kind is target, under, bands, shifts, percent or challenge`);
     for (const d of DIFF) if (typeof sys.check.difficulty?.[d] !== 'number') no(`${where}: check.difficulty.${d} is a number`);
     if (!Array.isArray(sys.foes) || sys.foes.length !== 5) no(`${where}: foes are five ranks`);
     if (!isObj(sys.classes) || !Object.keys(sys.classes).length) no(`${where}: classes are { <id>: { priority, weapon } }`);
@@ -241,7 +242,7 @@ export function buildTableRpg() {
     let said;
     if (sys.hp.kind === 'die') { pc.maxHp += g.gain; pc.hp += g.gain; said = `${g.gain} more hit points${g.text ? ` (${g.text})` : ''}`; }
     else {
-      const hi = (sys.range || [0, 99])[1], step = sys.check.kind === 'percentile' ? 5 : 1;
+      const hi = (sys.range || [0, 99])[1], step = sys.check.kind === 'percent' ? 5 : 1;
       const a = cls.priority.find((x) => pc.scores[x] + step <= hi) ?? null;
       if (a) { pc.scores[a] += step; pc.mods[a] = modOf(sys, pc.scores[a]); said = `${sys.names?.[a] ?? a} rises to ${pc.scores[a]}`; }
       else said = 'every ability at its peak';
@@ -265,13 +266,13 @@ export function buildTableRpg() {
     const score = pc.scores[a], m = modOf(sys, score), D = diffOf(sys, difficulty), kind = sys.check.kind;
     const label = `${pc.name}, ${sys.names?.[a] ?? a}${FACULTY.includes(faculty) && faculty !== a ? ` (${faculty})` : ''}`;
     let band, total, text;
-    if (kind === 'd20') {
+    if (kind === 'target') {
       const r = roll(S, '1d20');
-      const prof = sys.check.bonus === 'proficiency' && sys.classes[pc.class].priority.slice(0, 2).includes(a) ? proficiency(pc.level) : 0;
+      const prof = sys.classes[pc.class].priority.slice(0, 2).includes(a) ? trained(sys, pc.level) : 0;
       const dc = vs ?? D.n;
       total = r.total + m + prof;
       band = r.nat === 20 ? 'crit' : r.nat === 1 ? 'fumble' : total >= dc ? 'success' : 'fail';
-      text = `${label}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)} trained` : ''} = ${num(total)} vs ${vs !== undefined ? 'defence' : 'DC'} ${dc}`;
+      text = `${label}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)} trained` : ''} = ${num(total)} vs ${vs !== undefined ? 'defence' : 'target'} ${dc}`;
     } else if (kind === 'under') {
       const r = roll(S, '1d20'), target = score + (vs !== undefined ? 0 : D.n);
       total = r.total;
@@ -282,24 +283,24 @@ export function buildTableRpg() {
       total = r.total + score + D.n;
       band = total >= 12 ? 'crit' : total >= 10 ? 'success' : total >= 7 ? 'partial' : 'fail';
       text = `${label}: ${r.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''} = ${num(total)}`;
-    } else if (kind === 'ladder') {
+    } else if (kind === 'shifts') {
       const r = roll(S, '4dF'), rung = vs ?? D.n;
       total = r.total + score;
       const shifts = total - rung;
       band = shifts >= 3 ? 'crit' : shifts > 0 ? 'success' : shifts === 0 ? 'partial' : 'fail';
       text = `${label}: ${r.text} ${signed(score)} = ${num(total)} vs ${rung} (${signed(shifts)} shifts)`;
       return { band, total, text: `${text}: ${BANDS[band]}.`, shifts };
-    } else if (kind === 'percentile') {
+    } else if (kind === 'percent') {
       const r = roll(S, '1d100'), want = typeof difficulty === 'number' ? difficulty : Math.max(1, Math.min(99, Math.floor(score * D.n)));
       total = r.total;
       band = total <= Math.max(1, Math.floor(want / 5)) ? 'crit' : total <= want ? 'success' : total >= (want < 50 ? 96 : 100) ? 'fumble' : 'fail';
       text = `${label}: ${r.text} under ${want}`;
-    } else {   // action
+    } else {   // challenge
       const a6 = roll(S, '1d6'), c = [die(S, 10), die(S, 10)];
       total = Math.min(10, a6.total + score + D.n);
       const beat = c.filter((x) => total > x).length, match = c[0] === c[1];
       band = beat === 2 ? (match ? 'crit' : 'success') : beat === 1 ? 'partial' : match ? 'fumble' : 'fail';
-      text = `${label}: action ${a6.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''} = ${num(total)} vs challenge [${c.join(' ')}]${match ? ' (a match)' : ''}`;
+      text = `${label}: ${a6.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''} = ${num(total)} vs challenge [${c.join(' ')}]${match ? ' (a match)' : ''}`;
     }
     return { band, total, text: `${text}: ${BANDS[band]}.` };
   }
@@ -308,7 +309,7 @@ export function buildTableRpg() {
   function compile(module) {
     if (!isObj(module)) no('a module is { system, party, world, dungeons?, foes?, items?, tables?, beats?, goal, hook? }');
     const sys = module.system;
-    if (!isObj(sys)) no('system is a card (table-rpg-systems.js: d20, classic, moves, ladder, percentile, action, or one written out)');
+    if (!isObj(sys)) no('system is a rules card (table-rpg-systems.js: a starter, or one written out)');
     checkSystem(sys);
     const seed = module.seed ?? 1;
     if (!Number.isInteger(seed) || seed < 0) no('seed is a whole number, 0 or more');
@@ -578,7 +579,7 @@ export function buildTableRpg() {
     let order;
     const pcs = standing(K, S).map((p) => ({ side: 'pc', id: p.id, i: p.i }));
     const fs = C.foesAct ? foes.map((f) => ({ side: 'foe', id: f.key })) : [];
-    if (C.initiative === 'd20') {
+    if (C.initiative === 'roll') {
       const rolled = [...pcs.map((p) => ({ ...p, n: roll(S, '1d20').total + S.party[p.i].mods[abilityOf(K.sys, 'agility')], t: 0 })), ...fs.map((f, j) => ({ ...f, n: roll(S, '1d20').total + Math.floor(foes[j].rank / 2), t: 1 }))];
       order = rolled.sort((a, b) => b.n - a.n || a.t - b.t);
       lines.push(`Initiative: ${order.map((o) => `${o.side === 'pc' ? K.party[o.i].name : foes.find((f) => f.key === o.id).name} ${o.n}`).join(', ')}.`);
@@ -620,12 +621,12 @@ export function buildTableRpg() {
       const hit = r.nat === 20 || (r.nat !== 1 && total >= target.defence);
       lines.push(`${f.name} strikes at ${target.name}: ${r.text} ${signed(f.st.attack)} = ${total} vs defence ${target.defence}: ${r.nat === 20 ? 'a critical hit' : hit ? 'a hit' : 'a miss'}.`);
       if (hit) { const d = roll(S, f.st.damage), extra = r.nat === 20 ? roll(S, f.st.damage.replace(/[+-]\d+$/, '')).total : 0; lines.push(`Damage ${d.text}${extra ? ` + ${extra} critical` : ''}.`); hurt(K, S, target, Math.max(1, d.total + extra), lines); }
-    } else if (sys.check.kind === 'ladder') {
+    } else if (sys.check.kind === 'shifts') {
       const a = roll(S, '4dF'), d = roll(S, '4dF'), def = target.scores[abilityOf(sys, 'agility')];
       const shifts = a.total + f.st.attack - (d.total + def);
       lines.push(`${f.name} attacks ${target.name}: ${a.text} ${signed(f.st.attack)} = ${num(a.total + f.st.attack)} vs ${target.name}'s defence ${d.text} ${signed(def)} = ${num(d.total + def)}: ${shifts > 0 ? `${shifts} shift${shifts === 1 ? '' : 's'} of stress` : 'defended'}.`);
       if (shifts > 0) hurt(K, S, target, shifts, lines);
-    } else {   // percentile: the foe's chance out of a hundred
+    } else {   // percent: the foe's chance out of a hundred
       const r = roll(S, '1d100'), hit = r.total <= f.st.attack;
       lines.push(`${f.name} attacks ${target.name}: ${r.text} under ${f.st.attack}: ${hit ? 'a hit' : 'a miss'}.`);
       if (hit) { const d = roll(S, f.st.damage); lines.push(`Damage ${d.text}.`); hurt(K, S, target, Math.max(1, d.total), lines); }
@@ -637,12 +638,12 @@ export function buildTableRpg() {
     let band, shifts = 0;
     if (C.defence === 'armour') {
       const a = abilityOf(sys, w.faculty), m = pc.mods[a];
-      const prof = sys.check.bonus === 'proficiency' ? proficiency(pc.level) : 0;
+      const prof = trained(sys, pc.level);
       const r = roll(S, '1d20'), total = r.total + m + prof;
       band = r.nat === 20 ? 'crit' : r.nat === 1 ? 'fail' : total >= f.st.defence ? 'success' : 'fail';
       lines.push(`${pc.name} attacks ${f.name} with the ${w.name}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)}` : ''} = ${total} vs defence ${f.st.defence}: ${band === 'crit' ? 'a critical hit' : band === 'success' ? 'a hit' : 'a miss'}.`);
     } else {
-      const r = resolve(K, S, pc, w.faculty, sys.check.kind === 'ladder' ? undefined : 'medium', sys.check.kind === 'ladder' ? { vs: f.st.defence + roll(S, '4dF').total } : {});
+      const r = resolve(K, S, pc, w.faculty, sys.check.kind === 'shifts' ? undefined : 'medium', sys.check.kind === 'shifts' ? { vs: f.st.defence + roll(S, '4dF').total } : {});
       band = r.band; shifts = r.shifts ?? 0;
       lines.push(`${pc.name} attacks ${f.name} with the ${w.name}. ${r.text}`);
       mark(K, S, pc, band, lines);

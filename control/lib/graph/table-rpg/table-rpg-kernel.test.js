@@ -67,27 +67,27 @@ describe('the dice: notation, seeded, said in the open', () => {
 });
 
 describe('a character sheet: rolled from the book, on its own stream', () => {
-  const d20 = TABLE_RPG_SYSTEMS.d20;
+  const card = TABLE_RPG_SYSTEMS.target;
   it('each generation method: rolled and placed by the class, an array placed, points bought', () => {
-    const rolled = tableSheet(d20, { id: 'a', class: 'fighter' }, 1);
-    const pr = d20.classes.fighter.priority;
+    const rolled = tableSheet(card, { id: 'a', class: 'warrior' }, 1);
+    const pr = card.classes.warrior.priority;
     for (let i = 1; i < pr.length; i++) expect(rolled.scores[pr[i - 1]]).toBeGreaterThanOrEqual(rolled.scores[pr[i]]);
-    expect(rolled.maxHp).toBe(d20.classes.fighter.hitDie + rolled.mods.con);
+    expect(rolled.maxHp).toBe(card.classes.warrior.hitDie + rolled.mods.con);
     expect(rolled.mods.str).toBe(Math.floor((rolled.scores.str - 10) / 2));
-    const arr = tableSheet(d20, { id: 'a', class: 'wizard', method: 'array' }, 1);
+    const arr = tableSheet(card, { id: 'a', class: 'adept', method: 'array' }, 1);
     expect(arr.scores.int).toBe(15);
-    expect(Object.values(arr.scores).sort((x, y) => y - x)).toEqual([15, 14, 13, 12, 10, 8]);
-    const bought = tableSheet(d20, { id: 'a', class: 'rogue', method: 'pointbuy', scores: { str: 8, dex: 15, con: 14, int: 12, wis: 10, cha: 13 } }, 1);
+    expect(Object.values(arr.scores).sort((x, y) => y - x)).toEqual([...card.generate.methods.array.values]);
+    const bought = tableSheet(card, { id: 'a', class: 'scout', method: 'pointbuy', scores: { str: 8, dex: 15, con: 14, int: 12, wis: 10, cha: 13 } }, 1);
     expect(bought.scores.dex).toBe(15);
-    expect(() => tableSheet(d20, { id: 'a', class: 'rogue', method: 'pointbuy', scores: { str: 15, dex: 15, con: 15, int: 15, wis: 8, cha: 8 } }, 1)).toThrow(/budget is 27/);
+    expect(() => tableSheet(card, { id: 'a', class: 'scout', method: 'pointbuy', scores: { str: 15, dex: 15, con: 15, int: 15, wis: 8, cha: 8 } }, 1)).toThrow(/budget is 30/);
   });
 
   it('three dice in order stay in order; a member\'s dice never move another\'s', () => {
-    const classic = TABLE_RPG_SYSTEMS.classic;
-    const s = tableSheet(classic, { id: 'b', class: 'thief' }, 3);
+    const classic = TABLE_RPG_SYSTEMS.under;
+    const s = tableSheet(classic, { id: 'b', class: 'scout' }, 3);
     expect(s.rolls.slice(0, 6).map((t) => t.split(' ')[0])).toEqual(['Str', 'Dex', 'Con', 'Int', 'Wis', 'Cha']);
-    const K1 = compiled('d20', { party: [{ id: 'alys', role: 'frontline' }] });
-    const K2 = compiled('d20', { party: [{ id: 'wren', role: 'flanker' }, { id: 'alys', role: 'frontline' }] });
+    const K1 = compiled('target', { party: [{ id: 'alys', role: 'frontline' }] });
+    const K2 = compiled('target', { party: [{ id: 'wren', role: 'flanker' }, { id: 'alys', role: 'frontline' }] });
     expect(K2.party[1].scores).toEqual(K1.party[0].scores);
   });
 
@@ -117,8 +117,8 @@ describe('resolution: every procedure reads as one band', () => {
         expect(r.text).toMatch(/→/);
       }
       expect(bands.has('success') && bands.has('fail')).toBe(true);
-      // the 2d6, fudge and action families have a middle band; the d20 and percentile ones do not
-      expect(bands.has('partial')).toBe(['bands', 'ladder', 'action'].includes(kind));
+      // the bands, shifts and challenge procedures have a middle band; target, under and percent do not
+      expect(bands.has('partial')).toBe(['bands', 'shifts', 'challenge'].includes(kind));
     }
   });
 
@@ -131,18 +131,18 @@ describe('resolution: every procedure reads as one band', () => {
   });
 
   it('a faculty is the system\'s ability; an unknown one is refused, teaching', () => {
-    const K = compiled('action'), pc = { ...K.party[0], i: 0 };
-    expect(tableResolve(K, { r: 1 }, pc, 'stealth', 'medium').text).toMatch(/Shadow \(stealth\)/);
+    const K = compiled('challenge'), pc = { ...K.party[0], i: 0 };
+    expect(tableResolve(K, { r: 1 }, pc, 'stealth', 'medium').text).toMatch(/Guile \(stealth\)/);
     expect(() => tableResolve(K, { r: 1 }, pc, 'luck', 'medium')).toThrow(/is a faculty/);
   });
 });
 
 describe('play in text: the module from its hook to its end', () => {
   it('is pure, and its source runs alone (a page emits it): the same commands are the same game', () => {
-    const K = compiled('d20');
+    const K = compiled('target');
     expect(play(K)).toEqual(play(K));
     const page = new Function(`return (${buildTableRpg.toString()})();`)();
-    const Kp = page.compile({ ...SUNKEN_CHAPEL, system: TABLE_RPG_SYSTEMS.d20 });
+    const Kp = page.compile({ ...SUNKEN_CHAPEL, system: TABLE_RPG_SYSTEMS.target });
     let a = page.start(Kp), b = tableStart(K);
     expect(a.lines).toEqual(b.lines);
     for (const c of ['travel standing-stones', 'look', 'roll 3d6', 'ask is anyone watching likely', 'check stealth hard']) {
@@ -166,7 +166,7 @@ describe('play in text: the module from its hook to its end', () => {
   });
 
   it('a lock holds without its key; a hidden way shows once searched for; a taken item leaves the room', () => {
-    const K = compiled('d20');
+    const K = compiled('target');
     let { S } = tableStart(K);
     for (const c of ['travel standing-stones', 'travel barrow-hill', 'enter']) S = tableAct(K, S, c).S;
     S = { ...S, at: { place: 'barrow-hill', dungeon: 'chapel', room: 'crypt-stair' }, cleared: { 'chapel/nave': 1 }, sprung: { 'chapel/crypt-stair': 1 } };
@@ -186,7 +186,7 @@ describe('play in text: the module from its hook to its end', () => {
   });
 
   it('typed words: a room or a foe by name or id, a free check, a roll, the oracle; anything else lists the moves', () => {
-    const K = compiled('moves');
+    const K = compiled('bands');
     let { S } = tableStart(K);
     expect(tableParse(K, S, 'travel the standing stones')).toMatchObject({ verb: 'travel', to: 'standing-stones' });
     expect(tableParse(K, S, 'check presence easy by tamsin')).toMatchObject({ verb: 'check', faculty: 'presence', difficulty: 'easy', by: 'tamsin' });
@@ -201,8 +201,8 @@ describe('play in text: the module from its hook to its end', () => {
     expect(S.turn).toBe(1);
   });
 
-  it('the players roll every die: a foe hurts only on a cost or a miss (the 2d6 and action families)', () => {
-    for (const id of [BY_KIND.bands, BY_KIND.action]) {
+  it('the players roll every die: a foe hurts only on the bands the card says cost', () => {
+    for (const id of [BY_KIND.bands, BY_KIND.challenge]) {
       const { lines } = play(compiled(id));
       const text = lines.join('\n');
       expect(text).not.toMatch(/strikes at|attacks Alys|attacks Wren|attacks Tamsin/);
@@ -214,17 +214,17 @@ describe('play in text: the module from its hook to its end', () => {
   });
 
   it('progression is the system\'s: experience from foes, marks from misses, levels at milestones', () => {
-    const xp = play(compiled(BY_KIND.d20)).lines.join('\n');
+    const xp = play(compiled(BY_KIND.target)).lines.join('\n');
     expect(xp).toMatch(/The party earns \d+ experience/);
     const miss = play(compiled(BY_KIND.bands));
     expect(miss.S.party.some((p) => p.marks > 0 || p.level > 1)).toBe(true);
-    const mile = play(compiled(BY_KIND.ladder)).lines.join('\n');
+    const mile = play(compiled(BY_KIND.shifts)).lines.join('\n');
     expect(mile).toMatch(/reaches level 2/);
     expect(mile).not.toMatch(/experience/);
   });
 
   it('the party falls: the tale ends lost, and nothing moves after', () => {
-    const K = compiled('d20', { foes: { ...SUNKEN_CHAPEL.foes, ghoul: { name: 'Ghoul', rank: 5 } } });
+    const K = compiled('target', { foes: { ...SUNKEN_CHAPEL.foes, ghoul: { name: 'Ghoul', rank: 5 } } });
     const { S, lines } = play(K, ROUTE.slice(0, 4));
     expect(S.over).toEqual({ won: false, reason: 'the party falls' });
     expect(lines.at(-1)).toBe('The party falls. The tale ends here.');
@@ -232,14 +232,14 @@ describe('play in text: the module from its hook to its end', () => {
   });
 
   it('refuses a module that cannot play, saying what to write', () => {
-    expect(() => compiled('d20', { party: [] })).toThrow(/party is 1 to 6/);
-    expect(() => compiled('d20', { party: [{ id: 'x', role: 'dancer' }] })).toThrow(/a role a class takes/);
-    expect(() => compiled('d20', { goal: { item: 'grail' } })).toThrow(/goal.item 'grail' is no item/);
+    expect(() => compiled('target', { party: [] })).toThrow(/party is 1 to 6/);
+    expect(() => compiled('target', { party: [{ id: 'x', role: 'dancer' }] })).toThrow(/a role a class takes/);
+    expect(() => compiled('target', { goal: { item: 'grail' } })).toThrow(/goal.item 'grail' is no item/);
     const bad = JSON.parse(JSON.stringify(SUNKEN_CHAPEL));
     bad.dungeons.chapel.links.push({ a: 'nave', b: 'attic' });
-    expect(() => compiled('d20', bad)).toThrow(/names a room that is none/);
+    expect(() => compiled('target', bad)).toThrow(/names a room that is none/);
     bad.dungeons.chapel.links.pop();
     bad.dungeons.chapel.links.push({ a: 'nave', b: 'porch', kind: 'locked' });
-    expect(() => compiled('d20', bad)).toThrow(/needs a key or a force/);
+    expect(() => compiled('target', bad)).toThrow(/needs a key or a force/);
   });
 });

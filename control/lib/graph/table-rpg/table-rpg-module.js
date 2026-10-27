@@ -5,9 +5,9 @@
  * packet an agent runs the game from in prose, and the transcript of a game played by commands. A game in text needs
  * nothing else; a page, a map and a walkable level are drawn over the same module later.
  *
- *   readModule(module) → { K, module, checks }   module.system an id (table-rpg-systems.js) or a card written out;
+ *   readModule(module) → { K, module, checks }   module.system a starter's id (table-rpg-systems.js) or a rules card written out;
  *     members' personas rolled (table-rpg-party.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
- *   refereePacket(K, { tape? }) → markdown   the system in a paragraph and how its dice read, the attribution, the party's
+ *   refereePacket(K, { tape? }) → markdown   the rules in a paragraph and how their dice read, the card's attribution if it carries one, the party's
  *     sheets and how each was rolled, the world, each dungeon's key room by room, the foes in the system's numbers, the
  *     tables, the goal; and a dice tape (`tape: n` rolls of the d20, d6, d10 and d100) so an agent referee rolls nothing
  *     it could choose
@@ -28,7 +28,7 @@ const words = (s) => String(s).replace(/[-_]/g, ' ');
 export function readModule(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`table rpg: a module is { ${TABLE_RPG_KEYS.join(', ')} }`);
   for (const k of Object.keys(raw)) if (!TABLE_RPG_KEYS.includes(k)) throw new Error(`table rpg: unknown key '${k}' (keys: ${TABLE_RPG_KEYS.join(', ')})`);
-  const module = withPersonas({ ...raw, system: systemOf(raw.system ?? 'd20') });
+  const module = withPersonas({ ...raw, system: systemOf(raw.system ?? 'target') });
   const K = tableCompile(module);
   const goalRoom = (id) => {
     const G = module.goal;
@@ -56,13 +56,15 @@ export function playScript(K, commands = []) {
 /** How the system's dice read, in a paragraph: what to roll for a check, a fight, a level. */
 function rulesDigest(sys) {
   const D = sys.check.difficulty;
+  const sgn = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+  const T = sys.check.trained;
   const check = {
-    d20: `Roll 1d20, add the ability's modifier (and the proficiency bonus, ${2} at first level, when the ability is one of the class's two best); meet the DC to pass: easy ${D.easy}, medium ${D.medium}, hard ${D.hard}. A natural 20 is a critical, a natural 1 a fumble.`,
-    under: `Roll 1d20 and pass at or under the ability score, ${D.easy > 0 ? '+' : ''}${D.easy} when easy, ${D.hard} when hard. A 1 is a critical, a 20 a fumble.`,
-    bands: `Roll 2d6 and add the stat (${D.easy > 0 ? '+' : ''}${D.easy} when easy, ${D.hard} when hard): 10 or more a hit, 7–9 a hit at a cost, 6 or less a miss (and the referee makes a move).`,
-    ladder: `Roll four fudge dice (−1, 0, +1 each) and add the approach; beat the rung (easy ${D.easy}, medium ${D.medium}, hard ${D.hard}): a tie succeeds at a cost, three over is success with style.`,
-    percentile: 'Roll d100 at or under the score to pass (doubled when easy, halved when hard); a fifth of it or less is a critical, 96 and over a fumble.',
-    action: `Roll the action die (d6), add the stat (${D.easy > 0 ? '+' : ''}${D.easy} when easy, ${D.hard} when hard), against two challenge dice (d10): beat both a strong hit, one a weak hit, neither a miss; matching challenge dice twist the result.`,
+    target: `Roll 1d20 and add the ability's modifier${T ? ` (and the trained bonus, ${T.base} at first level, when the ability is one of the class's two best)` : ''}; meet the target to pass: easy ${D.easy}, medium ${D.medium}, hard ${D.hard}. A natural 20 is a critical, a natural 1 a fumble.`,
+    under: `Roll 1d20 and pass at or under the ability score, ${sgn(D.easy)} when easy, ${sgn(D.hard)} when hard. A 1 is a critical, a 20 a fumble.`,
+    bands: `Roll 2d6 and add the stat (${sgn(D.easy)} when easy, ${sgn(D.hard)} when hard): 10 or more a hit, 7–9 a hit at a cost, 6 or less a miss.`,
+    shifts: `Roll four fudge dice (−1, 0 or +1 each) and add the stat; beat the rung (easy ${D.easy}, medium ${D.medium}, hard ${D.hard}): a tie succeeds at a cost, three over is a critical.`,
+    percent: `Roll d100 at or under the score to pass (× ${D.easy} when easy, × ${D.hard} when hard); a fifth of it or less is a critical, 96 and over a fumble.`,
+    challenge: `Roll a d6 and add the stat (${sgn(D.easy)} when easy, ${sgn(D.hard)} when hard), against two d10: beat both a strong hit, one a weak hit, neither a miss; matching d10s twist the result.`,
   }[sys.check.kind];
   const fight = sys.combat.foesAct
     ? (sys.combat.defence === 'armour' ? 'In a fight, roll initiative; an attack is 1d20 plus the weapon\'s modifier against the foe\'s defence, then the weapon\'s damage. Foes attack on their turns.' : 'In a fight, every side acts in turn; an attack is a check against the foe\'s own roll or score. Foes attack on their turns.')
@@ -106,7 +108,7 @@ export function refereePacket(K, { tape = 20 } = {}) {
   for (const [id, F] of Object.entries(K.foes)) {
     const st = K.foeStats(id);
     const said = sys.combat.defence === 'armour' ? `HP ${st.hp}, defence ${st.defence}, attack ${st.attack >= 0 ? '+' : ''}${st.attack}, damage ${st.damage}, ${st.xp} XP`
-      : sys.combat.foesAct ? `${sys.check.kind === 'ladder' ? 'stress' : 'HP'} ${st.hp}, ${sys.check.kind === 'ladder' ? `skill +${st.attack}, defence +${st.defence}` : `attack ${st.attack}%, damage ${st.damage}`}`
+      : sys.combat.foesAct ? `${sys.check.kind === 'shifts' ? 'stress' : 'HP'} ${st.hp}, ${sys.check.kind === 'shifts' ? `skill +${st.attack}, defence +${st.defence}` : `attack ${st.attack}%, damage ${st.damage}`}`
         : `harm track ${st.hp}, deals ${st.damage} harm`;
     out.push(`- **${F.name ?? words(id)}** (rank ${F.rank}${F.text ? `, ${F.text}` : ''}): ${said}.`);
   }
