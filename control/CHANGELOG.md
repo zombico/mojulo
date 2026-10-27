@@ -1323,17 +1323,21 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   the gen-6 live grass's wind and its crowns' sway with its blades off (`field: false`, channels/stage-grass.js; a
   gen-6 page as it was), so the grass waves as one with the trees, a gust's band a shade brighter as it passes. A
   drift's forms draw its kind's one grid (a sparse kind a wide grid), so the drifts cost a fifth of what they did.
-- **Gen-7 trees, first look: grown wood, cloned sprays, bark by parallax** (a spike: `scripts/spikes/form/tree.mjs`, one
-  tree near, mid and far under a sun you turn). A grown tree (vegetation/grow.js) read as form, no light baked in
-  (`form/tree-form.js`): its wood the grower's axes as tubes with smooth normals, cut by diameter, a ring every few radii,
-  the bark's coordinates in tiles; its foliage SITES, the leafy shoots gathered into cells a spray long, each with its
-  scale (the cell's leaf area, × a crown fill), the crown's own shade as occlusion and a rank. The sprays
-  (`vegetation/sprays.js`): a twig and its leaves as its species carries them, the architecture's phyllotaxis (the
-  golden angle round the twig, or two ranks level either side) and the leaf's outline (an oak's lobes, an ovate blade, a
-  broad one), each leaf folded on its midrib; a few seeded patterns per species, cloned over the crown, their normals bent
-  toward the crown's outside, a little light through them. Far off a crown keeps fewer sites, the kept ones grown to hold
-  the cover: never a ball, never a swap. The bark (`form/bark-material.js`): the fracture model's own colour, its
-  relief's normal, the fissures' occlusion and the relief, marched by parallax near.
+- **Gen-7 trees, first look: grown wood, clumps with near sprays, bark by parallax** (a spike:
+  `scripts/spikes/form/tree.mjs`, one tree near, mid and far under a sun you turn). A grown tree (vegetation/grow.js) read
+  as form, no light baked in (`form/tree-form.js`): its wood the grower's axes as tubes with smooth normals, cut at 6 cm,
+  a ring every few radii, the bark's coordinates in tiles; its foliage gathered from the leafy shoots into CLUMPS (cells
+  1.5 m wide) and spray SITES (0.6 m), each facing out of the crown, scaled to hold its cell's leaf area (× a crown fill),
+  the crown's own shade as occlusion, a rank. The crown is clumps everywhere (`vegetation/sprays.js` leafClump: a rosette
+  of six oversized leaves of the species' outline, simplified and blunt, 36 triangles), and near the eye the SPRAYS come
+  in inside them, each whole at its own distance, as the clumps draw in: the grass's carpet and blades, nothing from
+  nothing; a clump and the sprays of its cell hold the same leaf area (leafHolds). A spray: a twig and its leaves as its
+  species carries them, the architecture's phyllotaxis (the golden angle, or two ranks level either side) and the leaf's
+  outline (an oak's lobes, an ovate or a broad blade), each leaf folded on its midrib. Every leaf's normal bent toward the
+  crown's outside, a little light through it. Far off a crown keeps fewer clumps, the kept ones grown to hold the cover:
+  never a ball, never a swap. The oak (13 m) draws 6.9k leaf triangles at mid and 2.6k far, against the sprays' 41k and
+  19k; its wood 8.2k. The bark (`form/bark-material.js`): the fracture model's own colour, its relief's normal, the
+  fissures' occlusion and the relief, marched by parallax near.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { treeForm, TREE_FORM } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
+import { leafHolds } from '../vegetation/sprays.js';
 
 const SP = 'cherry', T = treeForm(SP, { seed: 7 });
 
@@ -42,4 +43,13 @@ describe('treeForm', () => {
   it('cuts the wood by diameter: a thicker cut draws less', () => {
     expect(treeForm(SP, { seed: 7, minDiameter: 0.08 }).wood.idx.length).toBeLessThan(T.wood.idx.length);
   }, 60_000);
+
+  it('its clumps and its sprays hold the same leaf area: the crown is clumps everywhere and the sprays come in inside them', () => {
+    const H = leafHolds(SP), area = (list, holds) => list.reduce((a, s) => a + s.s * s.s * holds, 0);
+    expect(T.clumps.length).toBeLessThan(T.sites.length);
+    const a = area(T.clumps, H.clump), b = area(T.sites, H.spray);
+    expect(Math.abs(a - b) / b).toBeLessThan(0.3);
+    // (each faces out of the crown)
+    for (const c of T.clumps) expect(Math.hypot(...c.o)).toBeCloseTo(1, 3);
+  });
 });

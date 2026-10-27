@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { leafSpray, leafOutline, SPRAY_LEAVES } from './sprays.js';
+import { leafSpray, leafClump, leafHolds, leafOutline, SPRAY_LEAVES, CLUMP } from './sprays.js';
 import { SPECIES } from './species.js';
 import { ARCHITECTURES } from './grow.js';
 import { TONES } from './tree-mesh.js';
@@ -33,5 +33,19 @@ describe('sprays', () => {
     // (how far the leaves' tips stray out of the twig's horizontal plane: a distichous spray stays flat)
     const spread = (sp) => { const L = leafSpray(sp, { seed: 1 }).tris.filter((t) => t.kind === 'leaf'); return Math.max(...L.flatMap((t) => t.p.map((p) => Math.abs(p[2] - 0)))) / Math.max(...L.flatMap((t) => t.p.map((p) => Math.abs(p[1])))); };
     expect(spread(distich)).toBeLessThan(spread(spiral));
+  });
+
+  it('a clump is the crown\'s mass: a rosette of the outline\'s leaves, fewer triangles a leaf it holds than a spray', () => {
+    for (const [, sp] of byOutline) {
+      const C = leafClump(sp, { seed: 2 }), H = leafHolds(sp), S = leafSpray(sp, { seed: 2 });
+      expect(leafClump(sp, { seed: 2 })).toEqual(C);
+      expect(C.tris.filter((t) => t.kind === 'leaf').length).toBe(C.tris.length);
+      expect(C.leaves).toBe(CLUMP.leaves);
+      // (a clump holds many leaves' area; per leaf held, a tenth of a spray's triangles or less)
+      expect(H.clump).toBeGreaterThan(H.spray * 4);
+      expect(C.tris.length / H.clump).toBeLessThan((S.tris.length / H.spray) / 8);
+      // (facing out: its leaves rise toward +z)
+      const z = C.tris.flatMap((t) => t.p.map((p) => p[2])); expect(Math.max(...z)).toBeGreaterThan(-Math.min(...z));
+    }
   });
 });
