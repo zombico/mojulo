@@ -6,8 +6,8 @@
  * elsewhere. Never cel shaded: no character light and no ink on any member (the world carries the register; the hero
  * is shaded smooth, as the tiered body is by default, or lit on material on the realistic one).
  *
- *   rollMember(id, { seed })                 → the egocube sheet (deterministic in the seed)
- *   memberOrders(id, lookId, { seed, era })  → { sheet: { facets, reading }, era, mint: { tool: 'mint_solid', args } }
+ *   rollMember(id, { seed, pole })           → the egocube sheet (deterministic in the seed); `pole` in place of the member's
+ *   memberOrders(id, lookId, { seed, era, pole })  → { sheet: { facets, reading }, era, mint: { tool: 'mint_solid', args } }
  *                                            `era` a costume era (costumes.js); the look's stop suggests one (ERA_OF_STOP)
  *                                            `ensemble` the body that answers the head (ensembles.js) in place of the
  *                                            costume: an ensemble id, or 'auto' for the one the headgear calls for (HARMONY)
@@ -25,16 +25,16 @@ import { lookOf, DIAL } from './looks.js';
 
 export const bodyOf = (lookId) => DIAL.find((d) => d.id === lookOf(lookId).stop).body;
 
-export function rollMember(id, { seed = 1 } = {}) {
+export function rollMember(id, { seed = 1, pole } = {}) {
   const m = castMember(id);
-  return rollEgocube({ brief: m.brief, facets: m.facets, seed, path: 'hero' });
+  return rollEgocube({ brief: m.brief, facets: pole ? { ...m.facets, pole } : m.facets, seed, path: 'hero' });
 }
 
 // the body words the realistic form refuses (layered.js realisticErrors): addressed on the stylized body's rings
 const STYLIZED_ONLY = ['detail', 'body', 'girth', 'paint'];
 
-export function memberOrders(id, lookId, { seed = 1, era: eraIn, pieces = [], headgear = null, ensemble = null } = {}) {
-  const m = castMember(id), L = lookOf(lookId), body = bodyOf(lookId), sheet = rollMember(id, { seed });
+export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = [], headgear = null, ensemble = null } = {}) {
+  const m = castMember(id), L = lookOf(lookId), body = bodyOf(lookId), sheet = rollMember(id, { seed, pole });
   const era = eraIn ?? ERA_OF_STOP[L.stop];
   if (!ERAS[era]) throw new Error(`comic-hero: no era '${era}' (known: ${Object.keys(ERAS).join(', ')})`);
   const plan = planFromSheet(sheet, { dress: 'designed', title: `${m.name} (${lookId})` });

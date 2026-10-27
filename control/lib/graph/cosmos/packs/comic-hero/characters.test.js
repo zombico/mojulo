@@ -27,6 +27,13 @@ describe('comic hero pack: cast', () => {
     expect(a.facets.archetype).toBe('hero');
     expect(() => castMember('narrator')).toThrow(/no cast member 'narrator' \(known: hero/);
   });
+  it('the cast is mixed at every seed: each member names its pole, and an order may name another', () => {
+    for (const seed of [1, 2]) expect(new Set(CAST.map((m) => rollMember(m.id, { seed }).facets.pole)), `seed ${seed}`).toEqual(new Set(['male', 'female']));
+    const m = CAST[0], other = m.facets.pole === 'male' ? 'female' : 'male';
+    expect(rollMember(m.id).facets.pole).toBe(m.facets.pole);
+    expect(rollMember(m.id, { pole: other }).facets.pole).toBe(other);
+    expect(memberOrders(m.id, byBody.tiered, { pole: other }).mint.args.spec.cast).toBe(other);
+  });
   it('a shadow is read from the motivation: the rival is the hero\'s archetype in shadow', () => {
     const hero = rollMember('hero'), rival = rollMember('rival');
     expect([hero.facets.archetype, rival.facets.archetype]).toEqual(['hero', 'hero']);
