@@ -72,6 +72,20 @@ plan and the historic city follow on the same rules.
   in another locale hears it until the book is in the catalogs. `stageEnds` carries the town's doors off its data
   (`townDoors`), so every level order without folk reads as it did; a world that asks for no folk is untouched.
   Machine gate: `folk-cast.test.js`, `lines.test.js` and the test files the change reaches; eyes gate not run.
+- **Sidequests: a checklist a town's person gives, and the chains they make** (`folk.sidequests`,
+  `folk/sidequests.js`). `{ id, giver, steps: [{ talk: who } | { reach: house }], name?, ask?, thanks?, after?, back? }`:
+  the giver (a role, a role and its count like `townie-3`, or a person's path) offers it; taken, its steps are a
+  checklist in the level's journal, walked in order (talk to another of the folk, who is then part of the chain, or go
+  to one of the town's houses), and done, the player goes back to the giver to finish it. A sidequest `after` another
+  is offered once that one is finished: a chain, giver to giver. Each lives in the first town that holds all its people.
+  The words are the operator's (`ask`, `thanks`, a step's `say`, `name`, `log`); left out, the ask is a slot
+  (`[Keeper: the errand]`) and the rest plain words that only move it on ("Talk to the Master", "Return to the
+  Keeper"). A person in a sidequest dispatches their talk: each of their entries (a hand-in, a step, an offer) keeps a
+  hold var read when the level starts and when a flag it reads is set, and the talk press opens the first whose hold is
+  on, else their chitchat, so one menu opens and no chain runs past the bus's depth (at most five entries a person;
+  past it, the lowest-ranked are left out). A stage's sidequests join the world's own `quests` in its journal, never
+  replace them. Machine gate: `sidequests.test.js`, and `folk-cast.test.js` walking a chain of two through the bus
+  (offer, take, the step, the thanks, the next offer); eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 

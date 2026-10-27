@@ -61,7 +61,7 @@ export function mergeExtras(a, b) {
   if (!a) return b;
   if (!b) return a;
   const play = { ...(a.play ?? {}), ...(b.play ?? {}) };
-  for (const k of ['cues', 'minigames', 'spots', 'menus']) if (a.play?.[k] && b.play?.[k]) play[k] = [...a.play[k], ...b.play[k]];
+  for (const k of ['cues', 'minigames', 'spots', 'menus', 'quests']) if (a.play?.[k] && b.play?.[k]) play[k] = [...a.play[k], ...b.play[k]];
   const mechanics = [...(a.mechanics ?? [])];
   for (const m of b.mechanics ?? []) if (!mechanics.some((x) => x.kind === m.kind && x.slice === m.slice)) mechanics.push(m);
   return { ...a, ...b, figures: { ...(a.figures ?? {}), ...(b.figures ?? {}) }, entities: [...(a.entities ?? []), ...(b.entities ?? [])], play, mechanics };

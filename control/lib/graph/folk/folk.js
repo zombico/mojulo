@@ -8,6 +8,7 @@
  *   readFolk(spec)                                  → { seed?, cap, pool, domicile?, domiciles? } or throws, naming the known words
  *     pool       how many people each body pool mints as themselves (bodies.js)
  *     say        { <person path | role>: text | [text, …] } the operator's words in place of the line book's (lines.js)
+ *     sidequests [{ id, giver, steps, … }] checklists the folk give, and the chains they make (sidequests.js)
  *     domicile   one house shape for every house ('D + 0', 'D + P', 'D of F (P + Cx)', 'D + Cx': domicile.js)
  *     domiciles  { <lot key>: shape } a house's own, over `domicile`
  *   folkOfTown(town, { seed?, setting?, folk? })    → the folk sheet
@@ -38,9 +39,10 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { ROLES, ROOTS, RELATIONS, FOLK_PULL } from './roles.js';
 import { SERVICES } from './services.js';
+import { readSidequests } from './sidequests.js';
 import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
-export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say']);
+export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests']);
 export const FOLK_CAP = Object.freeze({ default: 60, max: 400 });
 // how many people a body pool mints as themselves (bodies.js): a quick game's crowd is three faces (CAST_POOL)
 export const FOLK_POOL = Object.freeze({ default: 3, max: 8 });
@@ -66,7 +68,7 @@ export function readFolk(spec) {
   if (spec.say !== undefined && !(isObj(spec.say) && Object.values(spec.say).every((v) => (typeof v === 'string' && v) || (Array.isArray(v) && v.length && v.every((t) => typeof t === 'string' && t))))) {
     throw new Error('folk: say is { <person path | role>: text | [text, …] }: the words a person (or every person of a role) says in place of the line book\'s');
   }
-  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}) };
+  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}) };
 }
 
 /** A lot's key: its frontage and where along it (the farm's and the square's, where they stand). */

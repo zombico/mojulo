@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
 import { gameStages, stageEnds } from './levels.js';
 import { stageFolk } from './folk-cast.js';
+import { whoOf } from '../folk/sidequests.js';
 import { fingerprint as fingerprintOf } from './review.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { menuVar } from '../playscape/ui/cues.js';
@@ -76,4 +77,50 @@ describe('folk on a stage: a town\'s people stood by their houses', () => {
     const said = townLevel(runSteps(withTown({ say: { keeper: 'Welcome in.' } }), { ref: 'gw' })).order.manifest;
     expect(said.play.menus.filter((m) => m.who === 'Keeper').every((m) => m.lines.join() === 'Welcome in.')).toBe(true);
   });
+
+  it('walks a sidequest and its chain through the talk: offer, take, the step, the thanks, then the next one', () => {
+    const quests = [
+      { id: 'parcel', giver: 'keeper', steps: [{ talk: 'elder' }] },
+      { id: 'reply', giver: 'elder', after: 'parcel', ask: 'Take my answer back, would you?', steps: [{ talk: 'keeper', say: 'Good news, then.' }] },
+    ];
+    const W2 = withTown({ sidequests: quests }), G = readGameworld(W2), st = gameStages(G).find((s) => s.manifest?.town), plan = stageFolk(G, st);
+    const M = townLevel(runSteps(W2, { ref: 'gw' })).order.manifest;
+    expect(M.play.quests.map((q) => q.id)).toEqual(['sq-parcel', 'sq-reply']);
+    const ev = lowerPlay(M, { player: 'player' }), bus = createBusState(ev, []);
+    const pump = (events) => { processEvents(bus, events); for (let k = 0; k < 40; k++) { const w = watchEvents(bus); if (!w.length) break; processEvents(bus, w); } };
+    pump(ev.initial ?? []);
+    const menus = M.play.menus.map((m) => m.id), open = () => menus.filter((m) => bus.vars[menuVar(m)]);
+    const idOf = (word) => `folk-${fingerprintOf(whoOf(plan.folk, word).path)}`;
+    const posOf = (word) => M.entities.find((e) => e.id === idOf(word)).transform.pos;
+    const talk = (word) => {
+      for (const m of open()) pump([{ type: `menu-close:${m}` }]);
+      const [x, y] = posOf(word), zone = ev.sources.find((s) => s.use && s.prompt === 'Talk' && Math.hypot(s.at[0] - x, s.at[1] - y) < 0.01);
+      pump([{ type: `use-${zone.use}` }]);
+      expect(open().length).toBe(1);
+      return open()[0];
+    };
+    const flag = (f) => bus.vars[`flag-${f}`];
+    // the elder has nothing for us yet: their chitchat; the keeper offers the parcel
+    expect(talk('elder')).toBe(`talk-${idOf('elder')}`);
+    expect(talk('keeper')).toBe('sq-parcel-offer');
+    pump([{ type: 'menu-pick:sq-parcel-offer:0' }]);
+    expect(flag('sq-parcel')).toBe(1);
+    // under way, the keeper chats (the journal says what is next)
+    expect(talk('keeper')).toBe(`talk-${idOf('keeper')}`);
+    // the step: the elder takes it, then the keeper thanks us
+    expect(talk('elder')).toBe('sq-parcel-1');
+    expect(flag('sq-parcel-1')).toBe(1);
+    expect(talk('keeper')).toBe('sq-parcel-thanks');
+    expect(flag('sq-parcel-back')).toBe(1);
+    // the chain: the elder now offers the reply, in the operator's words
+    expect(talk('elder')).toBe('sq-reply-offer');
+    expect(M.play.menus.find((m) => m.id === 'sq-reply-offer').lines).toEqual(['Take my answer back, would you?']);
+    pump([{ type: 'menu-pick:sq-reply-offer:0' }]);
+    expect(talk('keeper')).toBe('sq-reply-1');
+    expect(talk('elder')).toBe('sq-reply-thanks');
+    // all done: back to their chitchat
+    expect(talk('keeper')).toBe(`talk-${idOf('keeper')}`);
+    expect(talk('elder')).toBe(`talk-${idOf('elder')}`);
+  });
 });
+

@@ -35,7 +35,7 @@ import { gearOrders } from './world-gear.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
-import { stageFolk, folkExtra, folkMintKey } from './folk-cast.js';
+import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
@@ -213,6 +213,8 @@ export function runSteps(world, { ref, lookup } = {}) {
   // the towns' folk (characters.folk, folk-cast.js): each body a step, minted as a hero is, once per town however many
   // stages meet it; none when the world asks for none
   const folks = stages.map((s) => (s.building?.ref ? null : stageFolk(G, s))), folkRef = {};
+  // each sidequest in the first town that holds its people (folk-cast.js)
+  placeSidequests(folks);
   for (const F of folks) for (const m of F?.bodies.mints ?? []) {
     const key = folkMintKey(F, m);
     if (folkRef[key]) continue;
