@@ -9,8 +9,12 @@
  * grid with turntable cameras — so a fleet-library candidate (a new livery, a tuned preset) can be
  * eyeballed before it is committed to the registry.
  *
+ * A RACE MACHINE is an instance too: { racer: <a racer's recipe> } or { supercar: <a supercar's spec> }, each wearing its
+ * `theme` (car-designer/vehicle-theme.js: a starter, its variation, or a card of the user's own), so a theme is tried on
+ * the grid before a race wears it.
+ *
  * Orbit-only (like `planetary`): no CSS-3D /scene path, no /scene PNG thumbnail.
- * Stored manifest: { kind:'vehicle-instance', type, decoration?, pose?, viewBox?, title? }.
+ * Stored manifest: { kind:'vehicle-instance', type | racer | supercar, decoration?, pose?, viewBox?, title? }.
  *
  * Design: control/lib/graph/meta-fabricator.plan.md.
  */
@@ -19,10 +23,12 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
 import { planInstance } from '@/lib/graph/meta-fabricator';
 
-export function mintVehicleInstance({ title, type, decoration, pose, viewBox, ref, folderRef } = {}) {
+export async function mintVehicleInstance({ title, type, racer, supercar, decoration, pose, viewBox, ref, folderRef } = {}) {
   const manifest = {
     kind: 'vehicle-instance',
-    type,
+    ...(type !== undefined ? { type } : {}),
+    ...(racer !== undefined ? { racer } : {}),
+    ...(supercar !== undefined ? { supercar } : {}),
     ...(decoration && typeof decoration === 'object' ? { decoration } : {}),
     ...(pose && typeof pose === 'object' ? { pose } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
@@ -30,10 +36,10 @@ export function mintVehicleInstance({ title, type, decoration, pose, viewBox, re
   };
 
   // Validate the instance is buildable + return a face/family readout (no geometry stored).
-  const { stats } = planInstance(manifest);
+  const { stats } = await planInstance(manifest);
 
   const sketch = SketchRepository.create({
-      title: title || `${stats.type} · ${stats.family}`,
+      title: title || `${stats.type ?? stats.archetype ?? stats.preset} · ${stats.family}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
 
@@ -47,11 +53,11 @@ export function mintVehicleInstance({ title, type, decoration, pose, viewBox, re
 }
 
 export async function previewVehicleInstanceHandler(input) {
-  if (!input || typeof input !== 'object' || !input.type) {
-    throw new Error('preview_vehicle_instance requires a `type` (a registered vehicle preset, e.g. "airliner" or "sedan")');
+  if (!input || typeof input !== 'object' || !(input.type || input.racer || input.supercar)) {
+    throw new Error('preview_vehicle_instance requires a `type` (a registered vehicle preset, e.g. "airliner" or "sedan"), or a race machine: `racer` or `supercar` (its recipe, with its `theme`)');
   }
-  const { title, type, decoration, pose, viewBox, ref, folder_ref: folderRef } = input;
-  return mintVehicleInstance({ title, type, decoration, pose, viewBox, ref, folderRef });
+  const { title, type, racer, supercar, decoration, pose, viewBox, ref, folder_ref: folderRef } = input;
+  return mintVehicleInstance({ title, type, racer, supercar, decoration, pose, viewBox, ref, folderRef });
 }
 
 export function registerPreviewVehicleTools() {
@@ -75,6 +81,8 @@ export function registerPreviewVehicleTools() {
       type: 'object',
       properties: {
         type: { type: 'string', description: 'The registered vehicle preset to render (e.g. "airliner", "widebody", "regional", "bizjet", "sedan", "suv", "taxi", "cityBus", "boxTruck", "streetcar"). Unknown types are rejected with the list of families/presets.' },
+        racer: { type: 'object', description: "A cartoon racer's recipe in place of a type: { archetype?, build?, age?, brief?, seed?, parts?, shade?, theme? } (theme: a starter's name, { from, variant }, or a card of your own: the `vehicle` solid card)." },
+        supercar: { type: 'object', description: "A supercar's spec in place of a type: { preset?, seed?, surface?, theme? }." },
         decoration: {
           type: 'object',
           description: "Optional family-appropriate decoration. Aircraft: { scheme: '<livery name>' } (classic/teal/crimson/forest/ember/royal/sky/sand) or { scheme: <index> }. Cars: { paint: '#hex', hull: '<name>' } (hull: standard/coupe/chopped/wide/narrow/lowered/lifted). Box vehicles ignore it (livery is baked into the body cards). Omit for the authored default.",
@@ -85,7 +93,7 @@ export function registerPreviewVehicleTools() {
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
       },
-      required: ['type'],
+      required: [],
     },
     handler: previewVehicleInstanceHandler,
   });

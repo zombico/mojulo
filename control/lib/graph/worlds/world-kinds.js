@@ -670,8 +670,9 @@ export const WORLD_KINDS = {
   'vehicle-instance': {
     // no default title — assembleInstanceStudio applies its own when the sketch carries none.
     title: undefined,
+    // (a race machine's instance, { racer } or { supercar }, its theme worn: the family layer builds it)
     resolve: (m, ctx) => assembleInstanceStudio(
-      { type: m.type, family: m.family, decoration: m.decoration },
+      { type: m.type, family: m.family, decoration: m.decoration, ...(m.racer ? { racer: m.racer } : {}), ...(m.supercar ? { supercar: m.supercar } : {}) },
       { pose: m.pose, viewBox: m.viewBox, title: ctx.title },
     ),
   },

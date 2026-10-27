@@ -35,11 +35,14 @@
  *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
  *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
  *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
- *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning?, light? }; balanced,
+ *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning?, light?, theme? }; balanced,
  *                                           // each on its own physics (shade 'gloss', the default: bevelled parts, its
  *                                           // tyres turned, smooth light; 'smooth' without the tyres; 'cel' flat), lit in
  *                                           // the form render (light 'form', the default: its materials lit by the page;
  *                                           // 'paint' its light baked), each driver rolled in the game's setting
+ *     series?: <theme>,                     // race: a theme (car-designer/vehicle-theme.js: a starter's name, a card, or
+ *                                           // { from, …a card's keys }) every racer or supercar without its own wears,
+ *                                           // each car its own variation of it (the first the theme itself)
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (by default, rolled in the game's setting:
  *                                           // gameworld/cast-setting.js)
@@ -137,7 +140,8 @@ import { shooterPole, readPole } from './shooter-pole.js';
 import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
 import { composeSupercar, SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
-import { supercarRule } from '../car-designer/supercar-figure.js';
+import { supercarRule, supercarOfSpec } from '../car-designer/supercar-figure.js';
+import { readTheme, seriesTheme } from '../car-designer/vehicle-theme.js';
 import { paintHex, liveryOf } from '../car-designer/vehicle-livery.js';
 import { solveLiveries } from '../color-theorist/livery.js';
 import { RACE_MOOD_IDS, RACE_MOODS, moodOf, moodGround } from '../roads/race-mood.js';
@@ -222,7 +226,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -357,12 +361,17 @@ export function readQuick(Q) {
     if (list === null ? !(Q.supercars >= 2 && Q.supercars <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail(`.supercars is how many cars (2 to 8), or a list of them: each { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery?, seed? }`);
     if (list) list.forEach((c, k) => {
       const at = `.supercars[${k}]`;
-      if (!isObj(c)) throw fail(`${at} is { preset?, paint?, livery?, seed? }`);
-      for (const key of Object.keys(c)) if (!['preset', 'paint', 'livery', 'seed'].includes(key)) throw fail(`${at}.${key} is not one of preset, paint, livery, seed`);
+      if (!isObj(c)) throw fail(`${at} is { preset?, paint?, livery?, seed?, theme? }`);
+      for (const key of Object.keys(c)) if (!['preset', 'paint', 'livery', 'seed', 'theme'].includes(key)) throw fail(`${at}.${key} is not one of preset, paint, livery, seed, theme`);
+      if (c.theme !== undefined) try { readTheme(c.theme); } catch (e) { throw fail(`${at}.theme: ${e.message.replace(/^vehicle-theme: /, '')}`); }
       if (c.preset !== undefined && !SUPERCAR_LIBRARY[c.preset]) throw fail(`${at}.preset is one of ${Object.keys(SUPERCAR_LIBRARY).join(', ')}`);
       if (c.seed !== undefined && !Number.isInteger(c.seed)) throw fail(`${at}.seed is a whole number`);
       try { if (c.paint !== undefined) paintHex(c.paint); liveryOf(c.livery, c.paint ?? 'scarlet'); } catch (e) { throw fail(`${at}: ${e.message.replace(/^vehicle-odm: /, '')}`); }
     });
+  }
+  if (Q.series !== undefined) {
+    if (Q.racers === undefined && Q.supercars === undefined) throw fail('.series themes a field: name racers or supercars');
+    try { readTheme(Q.series); } catch (e) { throw fail(`.series: ${e.message.replace(/^vehicle-theme: /, '')}`); }
   }
   if (Q.mood !== undefined) {
     if (!RACE_MOODS[Q.mood]) throw fail(`.mood is one of ${RACE_MOOD_IDS.map((m) => `${m} (${RACE_MOODS[m].reads})`).join('; ')}`);
@@ -892,16 +901,21 @@ export const raceRivals = (quick) => Array.from({ length: quick.racers !== undef
  * its rule the sports class at its own frame, at the race's tuning (arcade unless named) and conditions, and its
  * figure the recipe the page draws it by, lit in the race's mood. → { field: [{ spec, figure, rule }] } */
 export function quickSupercars(quick, seed = 1) {
-  const given = Array.isArray(quick.supercars) ? quick.supercars : Array.from({ length: quick.supercars }, () => ({}));
-  const presets = Object.keys(SUPERCAR_LIBRARY), unpainted = given.filter((c) => c.paint === undefined).length;
+  // (a field in a series: every car without its own theme wears it, each its own variation; a themed car is painted by it)
+  const listed = Array.isArray(quick.supercars) ? quick.supercars : Array.from({ length: quick.supercars }, () => ({}));
+  const given = quick.series === undefined ? listed : listed.map((c, k) => (c.theme === undefined ? { ...c, theme: seriesTheme(quick.series, k) } : c));
+  const painted = (c) => c.paint !== undefined || (c.theme !== undefined && readTheme(c.theme).palette?.body !== undefined);
+  const presets = Object.keys(SUPERCAR_LIBRARY), unpainted = given.filter((c) => !painted(c)).length;
   const solved = unpainted ? solveLiveries({ n: unpainted, seed, ...(quick.mood ? { against: moodGround(moodOf(quick.mood)) } : {}) }).liveries : [];
   let u = 0;
   const field = given.map((c, k) => {
-    const L = c.paint === undefined ? solved[u++] : null;
-    const surface = L ? { paint: L.paint, livery: c.livery ?? { pattern: L.pattern, secondary: L.secondary } } : { paint: c.paint, ...(c.livery ? { livery: c.livery } : {}) };
+    const L = painted(c) ? null : solved[u++];
+    const surface = L ? { paint: L.paint, livery: c.livery ?? { pattern: L.pattern, secondary: L.secondary } } : { ...(c.paint !== undefined ? { paint: c.paint } : {}), ...(c.livery ? { livery: c.livery } : {}) };
+    // (a themed car's preset its own, else its theme's, else the library's in turn)
+    const theme = c.theme !== undefined ? readTheme(c.theme) : null;
     // (minted streamlined and in the form render: car-designer/vehicle-odm-surface.js `line`, supercar-figure.js `light`)
-    const spec = { preset: c.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface: { ...surface, line: 'streamline' }, ...(quick.mood ? { mood: quick.mood } : {}), light: 'form' };
-    const design = composeSupercar({ preset: spec.preset, seed: spec.seed, surface: { ...surface, quality: 'game' } }).design;
+    const spec = { preset: c.preset ?? theme?.supercar?.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface: { ...surface, line: 'streamline' }, ...(quick.mood ? { mood: quick.mood } : {}), light: 'form', ...(c.theme !== undefined ? { theme: c.theme } : {}) };
+    const design = c.theme !== undefined ? supercarOfSpec({ ...spec, surface: { ...surface } }).car.design : composeSupercar({ preset: spec.preset, seed: spec.seed, surface: { ...surface, quality: 'game' } }).design;
     return { spec, figure: { supercar: spec }, rule: { ...supercarRule(design, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } };
   });
   return { field };
@@ -911,7 +925,7 @@ export function quickSupercars(quick, seed = 1) {
  * its figure resolves through) and the drive rule its own machine plays by, at the race's tuning (arcade unless named)
  * and conditions. → { field: [{ spec, archetype, rule }], balance, changes } */
 export function quickRacers(quick, seed = 1, setting) {
-  const { racers, balance, changes } = solveRoster(quick.racers, { seed, ...(setting ? { setting } : {}) });
+  const { racers, balance, changes } = solveRoster(quick.racers, { seed, ...(setting ? { setting } : {}), ...(quick.series !== undefined ? { series: quick.series } : {}) });
   const field = racers.map((r) => ({ spec: r.spec, archetype: r.archetype, rule: { ...racerRule(r.S, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } }));
   return { field, balance, changes };
 }

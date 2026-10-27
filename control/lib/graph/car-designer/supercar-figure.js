@@ -2,7 +2,7 @@
  * THE SUPERCAR ON THE GRID — a composed supercar (vehicle-library.js) as a vehicle rig a race drives, on the rule its
  * own frame gives the sports class, lit in the race's mood.
  *
- *   supercarFigure(spec)          spec { preset?, seed?, surface?, mood? } → the rig (vehicle-rig.js packVehicleFigure):
+ *   supercarFigure(spec)          spec { preset?, seed?, surface?, mood?, light?, theme? } → the rig (vehicle-rig.js packVehicleFigure):
  *                                 root, four wheels (wheelFL … wheelRR, the hubs the design's anchors) and the lamps'
  *                                 bones (lampHead, lampBrake: the status slots the page lights), its `live` (the front
  *                                 wheels steer, the body leans, squats and dives about the wheelbase's middle, a car's
@@ -13,6 +13,8 @@
  *   supercarRule(design, opts)    the sports class (roads/vehicles.js) at the design's length, width, height,
  *                                 wheelbase, track and wheel radius, at a tuning and in conditions
  *   readSupercarSpec(spec)        the spec checked (throws naming what is wrong)
+ *   supercarOfSpec(spec)          the spec's composed car, its theme read (vehicle-theme.js: its supercar words, its
+ *                                 palette as the paint and the livery, under the spec's own surface)
  *
  * The game quality's mesh (vehicle-odm-surface.js), each face its baked fill; in a mood each face is lit again from its
  * albedo and corner normals under the mood's key and ambient (roads/race-mood.js), the lamps left as they shine.
@@ -27,9 +29,10 @@ import { JUICE, STATUS, MOTION, FX, bakeJuice } from './juice.js';
 import { VEHICLES, ruleOf } from '../roads/vehicles.js';
 import { moodOf, relightAlbedo, RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { formLight } from './form-light.js';
+import { readTheme, themeMaterials, trimTint, glowRow } from './vehicle-theme.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
-const SPEC_KEYS = ['preset', 'seed', 'surface', 'mood', 'light'];
+const SPEC_KEYS = ['preset', 'seed', 'surface', 'mood', 'light', 'theme'];
 export function readSupercarSpec(spec = {}) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error('supercar: a spec is { preset?, seed?, surface?, mood? }');
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) throw new Error(`supercar: '${k}' is not one of ${SPEC_KEYS.join(', ')}`);
@@ -37,7 +40,35 @@ export function readSupercarSpec(spec = {}) {
   if (spec.seed !== undefined && !Number.isInteger(spec.seed)) throw new Error('supercar: seed is a whole number');
   if (spec.mood !== undefined && !RACE_MOOD_IDS.includes(spec.mood)) throw new Error(`supercar: mood is one of ${RACE_MOOD_IDS.join(', ')}`);
   if (spec.light !== undefined && !['form', 'paint'].includes(spec.light)) throw new Error('supercar: light is form (its materials lit by the page: the seventh generation\'s) or paint (its light baked in)');
+  if (spec.theme !== undefined) try { readTheme(spec.theme); } catch (e) { throw new Error(`supercar: a theme: ${e.message.replace(/^vehicle-theme: /, '')}`); }
   return spec;
+}
+
+// a theme's livery (the vehicle sheet's words) as the supercar's pattern
+const PATTERN_OF = { mono: 'mono', 'two-tone': 'split', striped: 'stripes', numbered: 'mono' };
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+/** A spec's car: its theme read (vehicle-theme.js), its preset and surface words the spec's over the theme's, its paint
+ * and livery the theme's palette unless the spec's surface names them, composed at a quality. → { car, theme, preset } */
+export function supercarOfSpec(spec = {}, { quality = 'game' } = {}) {
+  const theme = spec.theme !== undefined ? readTheme(spec.theme) : null, T = theme?.supercar ?? {}, P = theme?.palette ?? {};
+  const { preset: themePreset, ...styles } = T;
+  const preset = spec.preset ?? themePreset ?? 'razor';
+  const dress = theme ? { ...styles, ...(P.body ? { paint: P.body } : {}), ...(theme.livery || P.skin ? { livery: { pattern: PATTERN_OF[theme.livery ?? 'mono'], ...(P.skin ? { secondary: P.skin } : {}) } } : {}) } : {};
+  const car = composeSupercar({ preset, seed: spec.seed ?? 1, surface: { ...dress, ...(spec.surface ?? {}), quality } });
+  return { car, theme, preset };
+}
+/** A themed car's faces: the trim's metal on its alloy (each colour carried over in proportion), and (a skin that
+ * glows) the livery's second colour its own glowing material. */
+export function themeFaces(faces, theme, car) {
+  const tint = trimTint(theme), glowHex = theme?.finish?.glow?.includes('skin') ? car.livery?.secondary ?? null : null;
+  if (!tint && !glowHex) return faces;
+  return faces.map((f) => {
+    if (glowHex && f.material === 'paint' && f.albedo === glowHex) return { ...f, material: glowRow('skin') };
+    if (!tint || f.material !== 'alloy' || !f.albedo) return f;
+    const k = hexRgb(tint).map((v, i) => v / Math.max(1, hexRgb(f.albedo)[i])), by = (h) => rgbHex(hexRgb(h).map((v, i) => v * k[i]));
+    return { ...f, albedo: tint, fill: by(f.fill), ...(f.cornerFills ? { cornerFills: f.cornerFills.map(by) } : {}) };
+  });
 }
 
 /** The sports class at the design's own frame (its mass, power and grip the class's). */
@@ -74,11 +105,18 @@ const fan = (f) => {
 };
 const mid = (fs) => { const p = fs.flatMap((f) => f.corners); return [0, 1, 2].map((k) => r4(p.reduce((s, q) => s + q[k], 0) / p.length)); };
 
+// the car's material rows in its theme's finish; a glowing skin glows in the livery's second colour as it is drawn
+const themedMaterials = (car, theme) => {
+  const M = themeMaterials(car.materials, theme), g = glowRow('skin');
+  return M[g] && car.livery?.secondary ? { ...M, [g]: { ...M[g], emissive: car.livery.secondary } } : M;
+};
+export { themedMaterials };
+
 export function supercarFigure(spec = {}, { form: formRead = false } = {}) {
   readSupercarSpec(spec);
   // the form render: the spec's word, else the read's era (a gen-7 read: world-scene.js)
   const form = spec.light === 'form' || (spec.light === undefined && formRead);
-  const car = composeSupercar({ preset: spec.preset ?? 'razor', seed: spec.seed ?? 1, surface: { ...(spec.surface ?? {}), quality: 'game' } });
+  const { car, theme } = supercarOfSpec(spec);
   const mood = spec.mood ? moodOf(spec.mood) : null, A = car.design.topology.anchors;
   // a face as the rig draws it: its fill (in a mood, lit again from its albedo; a lamp shines as it is)
   const lamp = (f) => f.material === 'lamp' || f.material === 'tail';
@@ -88,11 +126,11 @@ export function supercarFigure(spec = {}, { form: formRead = false } = {}) {
     const lit = (n) => relightAlbedo(f.albedo, n, mood, undefined, { figure: true });
     return { corners: f.corners, fill: lit(f.outNormal), cornerFills: (f.cornerNormals ?? f.corners.map(() => f.outNormal)).map(lit) };
   };
-  const shell = [...car.faces.body, ...car.faces.detail].flatMap(fan);
+  const shell = themeFaces([...car.faces.body, ...car.faces.detail], theme, car).flatMap(fan);
   const head = shell.filter((f) => f.part === 'headlamp'), brake = shell.filter((f) => f.part === 'taillamp');
   const root = shell.filter((f) => f.part !== 'headlamp' && f.part !== 'taillamp');
   // the wheels: one list in the order they were built, port front and rear, then starboard front and rear
-  const W = car.faces.wheels.flatMap(fan), q = W.length / 4;
+  const W = themeFaces(car.faces.wheels, theme, car).flatMap(fan), q = W.length / 4;
   const wheels = [['wheelFL', 0, A.wheelFL], ['wheelRL', 1, A.wheelRL], ['wheelFR', 2, A.wheelFR], ['wheelRR', 3, A.wheelRR]].map(([id, k, hub]) => ({ id, hub: hub.map(r4), faces: W.slice(k * q, (k + 1) * q) }));
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: w.id, head: w.hub })), ...(head.length ? [{ id: 'lampHead', head: mid(head) }] : []), ...(brake.length ? [{ id: 'lampBrake', head: mid(brake) }] : [])];
   const buckets = new Map([['root', root.map(draw)], ...wheels.map((w) => [w.id, w.faces.map(draw)]), ...(head.length ? [['lampHead', head.map(draw)]] : []), ...(brake.length ? [['lampBrake', brake.map(draw)]] : [])]);
@@ -126,7 +164,7 @@ export function supercarFigure(spec = {}, { form: formRead = false } = {}) {
   const formOf = form ? new Map([['root', root], ...wheels.map((w) => [w.id, w.faces])]) : null;
   return {
     ...packVehicleFigure(bones, buckets, { rolls: wheels.map((w) => w.id), packed: true, ...(form ? { form: formOf } : {}) }),
-    ...(form ? { form: formLight(mood, car.materials) } : {}),
+    ...(form ? { form: formLight(mood, themedMaterials(car, theme)) } : {}),
     live, juice,
     figH: r4(Math.max(...shell.flatMap((f) => f.corners.map((p) => p[2])))),
     wheelbase: r4(WB), wheelRadius: r4(F.wheelRadius), warnings: [],

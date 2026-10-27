@@ -4,6 +4,8 @@
  *   shadeRacerFaces(faces, { palette, motif, sun }) → faces with `fill`, `cornerFills`, `albedo`, `material`,
  *                                                     `outNormal`, `cornerNormals`
  *
+ * `materials`: { slot: material } over the slots' own (a theme's colour that glows: vehicle-theme.js `glow:accent`).
+ *
  * Corner normals are averaged over the faces that share a corner in the same paint slot and lie within the motif's
  * crease angle, so a lofted shell grades and a chamfer stays a line. Each corner is lit by the racer's own toon light
  * (racer.js `lit`) with its shadow step softened to a band across n·L, and the underside's darkening the same; a lamp
@@ -70,8 +72,12 @@ function toon(base, value, n, sun) {
   return rgbHex(lit.map((x, i) => (dark[i] + (x - dark[i]) * t) * under));
 }
 
-export function shadeRacerFaces(faces, { palette, motif, sun }) {
+// (the materials a face shines in its own colour, never shaded: the lamps, and a theme's colour that glows)
+const LIT = new Set(['lamp', 'tail']);
+const shines = (material) => LIT.has(material) || material.startsWith('glow:');
+export function shadeRacerFaces(faces, { palette, motif, sun, materials = null }) {
   const slots = faces.map((f) => f.slot ?? f.group), normals = faces.map((f) => newell(f.corners));
+  const matOf = (slot) => materials?.[slot] ?? materialOfSlot(slot);
   const crease = Math.cos(((CREASE[motif] ?? 45) * Math.PI) / 180), shared = new Map();
   const key = (i, p) => `${slots[i]}:${p.join(',')}`;
   faces.forEach((f, i) => { for (const p of f.corners) { const k = key(i, p); if (!shared.has(k)) shared.set(k, []); shared.get(k).push(i); } });
@@ -81,8 +87,8 @@ export function shadeRacerFaces(faces, { palette, motif, sun }) {
       const near = shared.get(key(i, p)).filter((j) => dot(normals[i], normals[j]) > crease);
       return unit(near.reduce((s, j) => s.map((x, k) => x + normals[j][k]), [0, 0, 0]));
     });
-    const out = { corners: f.corners, albedo, material: materialOfSlot(slot), outNormal: normals[i].map(r4), cornerNormals: cornerNormals.map((n) => n.map(r4)) };
-    if (EMISSIVE.has(slot)) { const c = rgbHex(base.map((x) => x * (1 + (value - 0.6) * 0.35))); return { ...out, fill: c, cornerFills: f.corners.map(() => c) }; }
+    const material = matOf(slot), out = { corners: f.corners, albedo, material, outNormal: normals[i].map(r4), cornerNormals: cornerNormals.map((n) => n.map(r4)) };
+    if (shines(material)) { const c = rgbHex(base.map((x) => x * (1 + (value - 0.6) * 0.35))); return { ...out, fill: c, cornerFills: f.corners.map(() => c) }; }
     return { ...out, fill: toon(base, value, normals[i], sun), cornerFills: cornerNormals.map((n) => toon(base, value, n, sun)) };
   });
 }
@@ -91,7 +97,7 @@ export function shadeRacerFaces(faces, { palette, motif, sun }) {
 export function racerReviewInput(S) {
   const faces = { root: S.faces.root, wheels: S.faces.wheels.flatMap((w) => w.faces), bones: S.faces.bones.flatMap((b) => b.faces) };
   if (!faces.root.every((f) => f.material && f.albedo)) throw new Error('car-designer: a racer opens in the review solved with shade: \'smooth\'');
-  return { faces, materials: KART_MATERIALS, census: S.census };
+  return { faces, materials: S.materials ?? KART_MATERIALS, census: S.census };
 }
 
 /**
@@ -115,7 +121,7 @@ export function bakeWheel(faces) {
   const out = faces.map((f) => ({ ...f, cornerFills: [...(f.cornerFills ?? f.corners.map(() => f.fill))], cornerAlbedo: f.corners.map(() => f.albedo) }));
   corner.forEach(([fi, j], vi) => {
     const f = out[fi];
-    if (EMISSIVE_MATERIALS.has(f.material)) return;
+    if (EMISSIVE_MATERIALS.has(f.material) || f.material.startsWith('glow:')) return;
     const k = (1 - WHEEL_BAKE.occlusion * ch.occlusion[vi]) * (1 + (f.material === 'chrome' ? WHEEL_BAKE.chromeEdge : WHEEL_BAKE.edge) * ch.edge[vi]);
     const scale = (h) => rgbHex(hexRgb(h).map((x) => x * k));
     f.cornerFills[j] = scale(f.cornerFills[j]);

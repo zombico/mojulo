@@ -16,15 +16,15 @@
  * family; then the machine that betters it) until the field fails less, each change kept with its reason.
  *
  *   racerSpec(entry, k, seed, setting?)   an entry (an archetype, a brief in words, or { archetype?, build?, age?,
- *                                 brief?, facets?, seed?, parts?, shade?, tuning?, light? }) → the recipe { facets, brief?,
- *                                 seed, parts?, shade, tuning?, setting?, light } (minted gloss in the form render unless
- *                                 the entry names its own)
+ *                                 brief?, facets?, seed?, parts?, shade?, tuning?, light?, theme? }) → the recipe { facets,
+ *                                 brief?, seed, parts?, shade, tuning?, setting?, light, theme? } (minted gloss in the form
+ *                                 render unless the entry names its own; `theme` vehicle-theme.js's, as written)
  *   racerOf(spec, { form? })      → { R, S } the reading and the solved machine (what a figures entry resolves through;
  *                                   `form`, a gen-7 read, or the spec's `light: 'form'`: its materials for the page)
  *   racerMeasures(S)              → { top, pull, corner, turn, heft }
  *   racerRule(S, { tuning, conditions })   the drive rule the machine plays by (arcade by default)
  *   balanceOf(measures)           → { holds, best: { measure: [i] }, everything: [i], bettered: [{ i, by }] }
- *   solveRoster(entries | n, { seed, setting? })   → { racers: [{ spec, archetype, R, S, measures, rule }], balance, changes }
+ *   solveRoster(entries | n, { seed, setting?, series? })   → { racers: [{ spec, archetype, R, S, measures, rule }], balance, changes }
  *
  * Pure and deterministic: a roster of n draws distinct archetypes in a seeded order.
  */
@@ -37,12 +37,13 @@ import { envelopeOf, ruleOf, wheelPower } from '../roads/vehicles.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { racerFromSheet, solveRacer, SHADES } from './racer.js';
 import { PARTS } from './parts.js';
+import { readTheme, seriesTheme } from './vehicle-theme.js';
 
 const G = 9.81, RHO = 1.225;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`car-designer: ${m}`);
-const SPEC_KEYS = ['archetype', 'build', 'age', 'brief', 'facets', 'seed', 'parts', 'shade', 'tuning', 'light'];
+const SPEC_KEYS = ['archetype', 'build', 'age', 'brief', 'facets', 'seed', 'parts', 'shade', 'tuning', 'light', 'theme'];
 const TUNINGS = ['person', 'mascot'];
 
 export const MEASURES = Object.freeze({ top: 'top speed', pull: 'pull', corner: 'cornering', turn: 'turn-in', heft: 'weight in a bump' });
@@ -73,19 +74,21 @@ export function racerSpec(entry, k = 0, seed = 1, setting) {
   if (entry.shade !== undefined && !SHADES.includes(entry.shade)) throw fail(`a racer's shade is one of ${SHADES.join(', ')}`);
   if (entry.tuning !== undefined && !TUNINGS.includes(entry.tuning)) throw fail(`a racer's tuning is ${TUNINGS.join(' or ')} (mascot: its driver drawn as its mascot)`);
   if (entry.light !== undefined && !['form', 'paint'].includes(entry.light)) throw fail('a racer\'s light is form (its materials lit by the page: the seventh generation\'s) or paint (its light baked in)');
+  if (entry.theme !== undefined) try { readTheme(entry.theme); } catch (e) { throw fail(`a racer's theme: ${e.message.replace(/^vehicle-theme: /, '')}`); }
   const facets = { ...(entry.facets ?? {}), ...Object.fromEntries(['archetype', 'build', 'age'].filter((x) => entry[x] !== undefined).map((x) => [x, entry[x]])) };
-  return { facets, ...(entry.brief ? { brief: entry.brief } : {}), seed: entry.seed ?? s0, ...(entry.parts ? { parts: entry.parts } : {}), shade: entry.shade ?? MINT.shade, ...inGame(entry.tuning), light: entry.light ?? MINT.light };
+  return { facets, ...(entry.brief ? { brief: entry.brief } : {}), seed: entry.seed ?? s0, ...(entry.parts ? { parts: entry.parts } : {}), shade: entry.shade ?? MINT.shade, ...inGame(entry.tuning), light: entry.light ?? MINT.light, ...(entry.theme !== undefined ? { theme: entry.theme } : {}) };
 }
 
 /** A recipe's reading and machine. */
 export function racerOf(spec, { form = false } = {}) {
+  const theme = spec.theme !== undefined ? readTheme(spec.theme) : null;
   const sheet = rollEgocube({ facets: spec.facets ?? {}, ...(spec.brief ? { brief: spec.brief } : {}), seed: spec.seed ?? 1, ...(spec.setting ? { setting: spec.setting } : {}) });
   // a mascot racer: the machine read off the person, the driver in the seat its mascot (in the game's setting, kept on the sheet)
-  const R0 = racerFromSheet(sheet, { seed: spec.seed ?? 1 });
+  const R0 = racerFromSheet(sheet, { seed: spec.seed ?? 1, ...(theme ? { theme } : {}) });
   const R = spec.tuning === 'mascot' ? { ...R0, mascot: { plan: mascotPlanFromSheet(mascotOfPerson(sheet)).create.spec.plan } } : R0;
   // (the form render: the recipe's word, else the read's era)
   const lit = spec.light === 'form' || (spec.light === undefined && form);
-  return { R, S: solveRacer(R, { seed: spec.seed ?? 1, parts: spec.parts ?? {}, ...(spec.shade ? { shade: spec.shade } : {}), ...(lit ? { form: true } : {}) }) };
+  return { R, S: solveRacer(R, { seed: spec.seed ?? 1, parts: spec.parts ?? {}, ...(spec.shade ? { shade: spec.shade } : {}), ...(lit ? { form: true } : {}), ...(theme ? { theme } : {}) }) };
 }
 
 /** A machine's five measures, read off its derived physics. */
@@ -111,8 +114,11 @@ export function balanceOf(ms) {
 }
 
 /** A field of racers, balanced. `field`: n (2 to 8, a seeded draw of distinct archetypes) or a list of entries.
- * `setting`, the game's (egocube/setting.js): its genre's archetype lean weights the draw, and every racer is rolled in it. */
-export function solveRoster(field, { seed = 1, setting } = {}) {
+ * `setting`, the game's (egocube/setting.js): its genre's archetype lean weights the draw, and every racer is rolled in it.
+ * `series`, a theme (vehicle-theme.js) every racer without its own wears, each its own variation of it (the first the
+ * theme itself). */
+export function solveRoster(field, { seed = 1, setting, series } = {}) {
+  if (series !== undefined) try { readTheme(series); } catch (e) { throw fail(`a series: ${e.message.replace(/^vehicle-theme: /, '')}`); }
   let entries;
   if (Number.isInteger(field)) {
     if (field < 1 || field > 8) throw fail('a roster is 1 to 8 racers');
@@ -127,7 +133,7 @@ export function solveRoster(field, { seed = 1, setting } = {}) {
   } else if (Array.isArray(field) && field.length >= 1 && field.length <= 8) entries = field;
   else throw fail('a roster is a number of racers (1 to 8) or a list of them (an archetype, a brief, or { archetype?, … })');
   const racers = entries.map((e, k) => {
-    const spec = racerSpec(e, k, seed, setting), { R, S } = racerOf(spec);
+    const own = racerSpec(e, k, seed, setting), spec = series !== undefined && own.theme === undefined ? { ...own, theme: seriesTheme(series, k) } : own, { R, S } = racerOf(spec);
     return { spec, archetype: R.archetype, R, S, measures: racerMeasures(S) };
   });
   // the lean: a racer bettered everywhere by another (or best everywhere) takes a runner-up engine or tyre that gives
@@ -141,10 +147,12 @@ export function solveRoster(field, { seed = 1, setting } = {}) {
     // the bettered first, then those that better them (a machine best everywhere gives something up)
     for (const i of [...new Set([...B.bettered.map((b) => b.i), ...B.everything, ...B.bettered.map((b) => b.by)])]) {
       const r = racers[i], by = B.bettered.find((b) => b.i === i)?.by ?? null, over = B.bettered.find((b) => b.by === i)?.i ?? null;
+      // (a family its theme names is swapped only to another of the theme's own)
+      const prefer = r.spec.theme !== undefined ? readTheme(r.spec.theme).prefer ?? {} : {};
       for (const fam of LEANS) {
         if (r.spec.parts?.[fam]) continue;
         // its runners-up first, then the rest of the family
-        const alts = [...(r.S.suggestions[fam] ?? []).map((x) => x.id), ...Object.keys(PARTS).filter((k) => PARTS[k].family === fam)];
+        const alts = prefer[fam] !== undefined ? [].concat(prefer[fam] ?? []) : [...(r.S.suggestions[fam] ?? []).map((x) => x.id), ...Object.keys(PARTS).filter((k) => PARTS[k].family === fam)];
         for (const id of [...new Set(alts)]) {
           if (id === r.S.ids[fam]) continue;
           const alt = { id };

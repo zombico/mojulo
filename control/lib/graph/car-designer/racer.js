@@ -59,6 +59,7 @@ import { mascotDriver } from './mascot-driver.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { shadeRacerFaces, rimLamps, LAMP_RIM, KART_MATERIALS, bakeWheel } from './racer-shade.js';
 import { formLight } from './form-light.js';
+import { PALETTE_SLOTS, themeMaterials, trimTint, glowRow } from './vehicle-theme.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 /** Toward the chase camera: behind, a little to the side and above (the hero angle). */
@@ -83,8 +84,9 @@ const ERA_OF_ARCHETYPE = { sage: 'vintage', ruler: 'classic', creator: 'future',
 const EXAGGERATION = { jester: 0.95, innocent: 0.9, outlaw: 0.85, hero: 0.8, lover: 0.75, explorer: 0.75, caregiver: 0.75, everyman: 0.7, creator: 0.75, magician: 0.75, sage: 0.6, ruler: 0.6 };
 const CANOPY = ['ruler', 'sage', 'magician'];
 
-/** A driver's machine read off its Egocube sheet: the vehicle sheet's facets, each with its reason. */
-export function racerFromSheet(sheet, { seed = 1 } = {}) {
+/** A driver's machine read off its Egocube sheet: the vehicle sheet's facets, each with its reason (a theme's shape and
+ * livery over the driver's: vehicle-theme.js). */
+export function racerFromSheet(sheet, { seed = 1, theme = null } = {}) {
   const f = sheet.facets, { outfit } = outfitFromSheet(sheet), I = outfit.intent, reads = [], want = {};
   const read = (facet, value, why) => { want[facet] = value; reads.push({ facet, value, why }); };
   const bound = f.order >= 0.5, shadow = sheet.reading?.reads !== 'light' && sheet.reading?.t > 0.5;
@@ -104,6 +106,9 @@ export function racerFromSheet(sheet, { seed = 1 } = {}) {
   read('wear', shadow ? 'used' : 'pristine', shadow ? `the shadow reading (${sheet.reading?.shadow}): run hard` : 'the light reading: kept bright');
   read('stance', f.build === 'brute' || f.role === 'frontline' ? 'raised' : f.build === 'lithe' || f.role === 'flanker' ? 'low' : 'level', f.build === 'brute' || f.role === 'frontline' ? 'heavy: lifted on big tyres' : f.build === 'lithe' || f.role === 'flanker' ? 'light: low to the road' : 'an ordinary ride');
   read('exaggeration', EXAGGERATION[f.archetype] ?? 0.75, `the ${f.archetype}'s caricature`);
+  // the theme's words over the driver's: its shape and its livery, each read in place of the driver's
+  const themed = { ...(theme?.shape ?? {}), ...(theme?.livery ? { livery: theme.livery } : {}) };
+  for (const [facet, value] of Object.entries(themed)) { want[facet] = value; reads[reads.findIndex((r) => r.facet === facet)] = { facet, value, why: `the theme${theme.name ? ` (${theme.name})` : ''}` }; }
   const vehicle = rollVehicleSheet({ facets: { pole: 'racer', class: 'kart', drive: 'rear', ...want }, seed });
   // the driver seated, as a chibi stand-in: a big head on a short body
   const S = (HEIGHT[f.build] ?? 1.9) * (AGE_SCALE[f.age] ?? 1) * 0.62, g = GIRTH[f.build] ?? 1;
@@ -235,10 +240,17 @@ export const BEVEL = 0.3;
 // the gloss wheel's decals in the machine's own palette: the tread blocks its tyre a stop down, the sidewall's stripe its
 // trim, the rim's lip and boss polished
 const scaleHex = (h, k) => `#${[1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(h.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join('')}`;
-const wheelPalette = (PAL) => ({ 'wheel:groove': scaleHex(PAL['tech:cable'] ?? '#2a2b2e', 0.72), 'wheel:stripe': PAL['tech:trim'] ?? PAL['tech:skin'] ?? '#e8e8e8', 'wheel:lip': '#d8dde3', 'wheel:boss': '#c9cfd6' });
+const wheelPalette = (PAL, metal = null) => ({ 'wheel:groove': scaleHex(PAL['tech:cable'] ?? '#2a2b2e', 0.72), 'wheel:stripe': PAL['tech:trim'] ?? PAL['tech:skin'] ?? '#e8e8e8', 'wheel:lip': metal ?? '#d8dde3', 'wheel:boss': metal ? scaleHex(metal, 0.92) : '#c9cfd6' });
 
-/** Solve a racer's machine from its reading. `parts`: { family: id } pins. */
-export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form = false } = {}) {
+// a theme's preference over the fits (its first part ahead of any fit, the rest after it in turn); a pin over both
+const PREFER = 4;
+const prefList = (v) => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
+
+/** Solve a racer's machine from its reading. `parts`: { family: id } pins. `theme`: a card (vehicle-theme.js readTheme):
+ * the parts it prefers, its palette, its finish. */
+export function solveRacer(R, { parts: pins0 = {}, seed = 1, shade = 'cel', form = false, theme = null } = {}) {
+  // (a family the theme leaves off is as a pin of null; the creator's own pins over it)
+  const pins = { ...Object.fromEntries(Object.entries(theme?.prefer ?? {}).filter(([, v]) => v === null)), ...pins0 };
   if (!SHADES.includes(shade)) throw new Error(`car-designer: shade is one of ${SHADES.join(', ')}, not '${shade}'`);
   // (the smooth finish's parts are bevelled, so its light has a shoulder to grade: blocks.js `bevel`; the laws judge
   // the plain parts, so a finish never changes the machine, and the bevelled ones are built once they are done)
@@ -248,7 +260,8 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
   const changes = [], suggestions = {}, chosen = [], ranked = {}, tried = {};
   // each family's rows scored; the best taken (or the pinned), the runners-up kept
   const rank = (family, rows) => {
-    const scored = Object.entries(rows).filter(([, r]) => r.family === family).map(([id, r]) => ({ id, ...scoreOf(r, ctx), j: rnd() * 0.01 })).sort((a, b) => b.s + b.j - (a.s + a.j) || (a.id < b.id ? -1 : 1));
+    const pref = prefList(theme?.prefer?.[family]);
+    const scored = Object.entries(rows).filter(([, r]) => r.family === family).map(([id, r]) => { const o = { id, ...scoreOf(r, ctx), j: rnd() * 0.01 }, i = pref.indexOf(id); if (i >= 0) { o.s += PREFER - i * 0.5; o.why = [...o.why, 'the theme']; } return o; }).sort((a, b) => b.s + b.j - (a.s + a.j) || (a.id < b.id ? -1 : 1));
     suggestions[family] = scored.slice(0, 3).map((x) => ({ id: x.id, score: r4(x.s), why: x.why.join(', ') || 'no fit named' }));
     ranked[family] = scored;
     return scored;
@@ -277,7 +290,8 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
 
   const ids = { wheel: pick('wheel', PARTS), engine: pick('engine', Object.fromEntries(Object.entries(PARTS).filter(([, r]) => r.family !== 'engine' || (r.fits.engine?.[v.engine] ?? 0) > 0))), exhaust: null, aero: pick('aero', PARTS), nose: pick('nose', PARTS), lamps: pick('lamps', PARTS), tail: pick('tail', PARTS), seat: pick('seat', PARTS), steering: pick('steering', PARTS), cockpit: v.cockpit === 'open' ? null : pick('cockpit', PARTS), fender: pick('fender', PARTS), booster: pick('booster', PARTS) };
   ids.exhaust = pick('exhaust', PARTS);
-  const [heroId, heroWhy] = HERO_OF[R.archetype] ?? ['flag', 'a pennant'];
+  const themeHero = prefList(theme?.prefer?.hero)[0];
+  const [heroId, heroWhy] = themeHero ? [themeHero, 'the theme\'s'] : HERO_OF[R.archetype] ?? ['flag', 'a pennant'];
   shape();
   rank('hero', PARTS); if (pins.hero !== null) { const h = pins.hero ?? heroId; if (!PARTS[h] || PARTS[h].family !== 'hero') throw new Error(`car-designer: no hero part '${h}'`); ids.hero = h; chosen.push({ family: 'hero', id: h, why: pins.hero ? 'pinned' : heroWhy }); }
 
@@ -431,11 +445,16 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
   if (shade !== 'cel') { bevelled = shade === 'gloss' ? { bevel: BEVEL, lathe: true } : { bevel: BEVEL }; shape(); state = place(); }
 
   // ── paint, bones, the figure ──
-  const PAL = { ...paintOf(R), ...(stand.palette || {}) }, liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
+  // (a theme's palette over the outfit's, slot by slot; its trim's metal where it names no trim; a mascot's own last)
+  const tint = trimTint(theme), themed = Object.fromEntries(Object.entries({ ...(tint ? { trim: tint } : {}), ...(theme?.palette ?? {}) }).map(([k, hex]) => [PALETTE_SLOTS[k], hex]));
+  const PAL = { ...paintOf(R), ...themed, ...(stand.palette || {}) }, liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
+  // (the theme's finish: its material rows; a colour that glows its own material, shining as a lamp does)
+  const glows = theme?.finish?.glow ?? [], materials = themeMaterials(KART_MATERIALS, theme);
+  const glow = glows.length ? Object.fromEntries(glows.map((g) => [PALETTE_SLOTS[g], glowRow(g)])) : null;
   const paint = shade !== 'cel'
-    ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: { ...PAL, 'lamp:rim': LAMP_RIM, ...(shade === 'gloss' ? wheelPalette(PAL) : {}) }, motif: v.motif, sun: SUN })
+    ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: { ...PAL, 'lamp:rim': LAMP_RIM, ...(shade === 'gloss' ? wheelPalette(PAL, tint) : {}) }, motif: v.motif, sun: SUN, ...(glow ? { materials: glow } : {}) })
     : (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
   // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
   // (and R4's status slots: the head lamps, the brake lamps, the hero piece, each a bone its tint is set on)
@@ -468,7 +487,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
   // (in the form render, a finished racer's bones but its lamps carry their material form: vehicle-rig.js packFormMesh;
   // a cel racer is a look of its own and stays as it is drawn)
   const formOf = form && shade !== 'cel' ? new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.filter((o) => o.id !== 'lampHead' && o.id !== 'lampBrake').map((o) => [o.id, o.faces])]) : null;
-  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone), ...(formOf ? { form: formOf } : {}) }), ...(formOf ? { form: formLight(null, KART_MATERIALS) } : {}), live, juice: figJuice, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
+  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone), ...(formOf ? { form: formOf } : {}) }), ...(formOf ? { form: formLight(null, materials) } : {}), live, juice: figJuice, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
 
   // ── the readout: physics derived from what was built ──
   const K = VEHICLES.kart, eng = PARTS[ids.engine], bb = boxOf(body.faces), vol = (bb.hi[0] - bb.lo[0]) * (bb.hi[1] - bb.lo[1]) * (bb.hi[2] - bb.lo[2]);
@@ -493,6 +512,6 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
     frame: Object.fromEntries(Object.entries({ ...F, L: body.L, tailY: body.tailY, noseY: body.noseY }).map(([k, x]) => [k, r4(x)])),
     body: bodyId, chosen, suggestions, ids: { body: bodyId, ...ids },
     faces: { root, wheels: wheelFaces, bones: others }, figure, anchors: state.anchors, juice, status: STATUS, motion: MOTION,
-    physics, census, laws: failing, changes,
+    physics, census, laws: failing, changes, ...(theme && shade !== 'cel' ? { materials } : {}),
   };
 }
