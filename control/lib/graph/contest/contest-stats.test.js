@@ -55,6 +55,10 @@ describe('the stats of a goal game', () => {
     expect(val(st, 'possession').a + val(st, 'possession').b).toBe(100);
   });
 
+  it('a basket counts its points', () => {
+    const S = log({ kind: 'live' }, { kind: 'kick', who: 'a1', power: 0.85, goalward: true, points: 3 }, { kind: 'score', side: 'a', points: 3 }, { kind: 'live' }, { kind: 'kick', who: 'b1', power: 0.85, goalward: true, points: 2 }, { kind: 'score', side: 'b', points: 2 });
+    expect(val(contestStats(S, 'team'), 'goals')).toEqual({ a: 3, b: 2 });
+  });
   it('agrees with the kernel on a real game: the goals its score, a shot for every goal and save', () => {
     const ctx = teamContext(teamArenaData({ sport: 'soccer', players: 0, seed: 4, periods: 1, seconds: 60 }));
     const S = newTeam(ctx);
@@ -100,5 +104,20 @@ describe('the stats of a turn sport and a meet', () => {
     const sj = contestStats(jump, 'meet');
     expect(val(sj, 'best')).toEqual({ r1: 6.1 }); expect(val(sj, 'fouls')).toEqual({ r1: 1 }); expect(val(sj, 'runup')).toEqual({ r1: 32 });
     expect(() => contestStats(race, 'chess')).toThrow(/no shape 'chess'/);
+  });
+});
+
+describe('the stats of an innings game', () => {
+  it('bases: runs and hits from the hits, a home run its own row, outs and strikeouts against the side batting', () => {
+    const S = log({ kind: 'base-hit', side: 'a', bases: 1, runs: 0 }, { kind: 'base-hit', side: 'a', bases: 4, runs: 2 }, { kind: 'out', side: 'a', why: 'struck-out' }, { kind: 'out', side: 'b', why: 'caught' });
+    const st = contestStats(S, 'innings');
+    expect(st.rows.map((r) => r.id)).toEqual(STAT_ROWS.bases.map((r) => r.id));
+    expect(val(st, 'runs')).toEqual({ a: 2, b: 0 }); expect(val(st, 'hits')).toEqual({ a: 2, b: 0 }); expect(val(st, 'homers')).toEqual({ a: 1, b: 0 });
+    expect(val(st, 'strikeouts')).toEqual({ a: 1, b: 0 }); expect(val(st, 'outs')).toEqual({ a: 1, b: 1 });
+  });
+  it('runs: the boundaries their own rows, wickets lost; the sim\'s game named before any run is', () => {
+    const st = contestStats(log({ kind: 'runs', side: 'b', runs: 4, boundary: true }, { kind: 'runs', side: 'b', runs: 6, boundary: true }, { kind: 'runs', side: 'b', runs: 2 }, { kind: 'out', side: 'b', why: 'bowled' }), 'innings');
+    expect(val(st, 'runs')).toEqual({ a: 0, b: 12 }); expect(val(st, 'fours')).toEqual({ a: 0, b: 1 }); expect(val(st, 'sixes')).toEqual({ a: 0, b: 1 }); expect(val(st, 'outs')).toEqual({ a: 0, b: 1 });
+    expect(contestStats({ scoring: 'runs', ...log({ kind: 'out', side: 'a', why: 'caught' }) }, 'innings').rows.map((r) => r.id)).toEqual(STAT_ROWS.runs.map((r) => r.id));
   });
 });

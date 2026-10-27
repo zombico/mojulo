@@ -52,6 +52,8 @@ export const HIT_VERBS = Object.freeze({
   // the overhead that lifts the shuttle to the back: no clip yet
   underhand: Object.freeze({ arc: 8, lift: 14, spin: 'back', rate: 6, power: 0.8, hands: 1, swing: null }),
   clear: Object.freeze({ arc: 28, lift: 22, spin: 'none', rate: 0, power: 1, hands: 1, swing: null }),
+  // volleyball's float serve: struck flat from the raised hand, no spin, the speed a court of eight metres takes
+  float: Object.freeze({ arc: 4, lift: 10, spin: 'none', rate: 0, power: 0.6, hands: 1, swing: null }),
   // table tennis's short serve, struck down onto the server's own half off the open hand
   drop: Object.freeze({ arc: -16, lift: 12, spin: 'none', rate: 0, power: 0.6, hands: 1, swing: null }),
   // the turn sports' (turn-sim.js): the club's launch is the verb's arc and backspin, the charge the tip's share; the

@@ -11,7 +11,7 @@ describe('the sport kits', () => {
   it('reads the words and refuses what is not a kit, teaching', () => {
     expect(readKit('soccer')).toEqual([]);
     expect(readKit({ sport: 'hockey', colours: ['#112233'], pattern: 'hoops', trim: false, socks: 'ankle' })).toEqual([]);
-    expect(readKit('cricket')[0]).toMatch(/'cricket' is not a sport's kit/);
+    expect(readKit('quidditch')[0]).toMatch(/'quidditch' is not a sport's kit/);
     expect(readKit({ colours: ['red'] })[0]).toMatch(/kit.colours: 1 to 3 colours/);
     expect(readKit({ pattern: 'tartan' })[0]).toMatch(/kit.pattern: one of plain, hoops/);
     expect(readKit({ number: 10 })[0]).toMatch(/kit.number: not a kit word/);
@@ -36,7 +36,7 @@ describe('the sport kits', () => {
 
   it('is a word on the hero door: stored as words, worn on the body, the pattern painted over the shirt only', () => {
     expect(validateHeroSpec({ cast: 'male', kit: { sport: 'soccer', pattern: 'stripes' } })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', kit: 'cricket' }).join(' ')).toMatch(/not a sport's kit/);
+    expect(validateHeroSpec({ cast: 'male', kit: 'quidditch' }).join(' ')).toMatch(/not a sport's kit/);
     const spec = { cast: 'male', kit: { sport: 'soccer', colours: ['#c8102e', '#ffffff', '#111111'], pattern: 'hoops' } };
     expect(heroRecord(spec).kit).toEqual(spec.kit);
     expect(heroRecord(spec).paint).toBeUndefined();

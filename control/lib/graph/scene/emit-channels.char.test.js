@@ -255,6 +255,25 @@ import { emitThreeWorld } from './scene-three.js';
 // air), the hit (the underhand, clear and drop verbs, the aim through a ball's own air), the stats (`down` a winner)
 // and the broadcast's words; the court block's sim, mind and client too (the raised bed, the body's scale, the
 // no-volley foul, the slip, the ladder's scoreboard). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: volleyball): the `court`, `turns` and `pitch` fixtures re-pin because the minds
+// (the side mind for a side of more than one) and the hit's verbs (the float serve) they inline changed, and the court's
+// sim and client too (the players from the kernel's, the active player, the placed pass, the side's colours, bare
+// hands). The meet inlines neither and is unchanged; every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: basketball): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because the
+// kernel every contest block inlines reads a score fact's points, the broadcast client calls a basket by them and the
+// stats count them, and the minds (the hands mind) the court, turns and pitch inline; the pitch block's sim and client
+// too (the hoop, the hands, the hardwood). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: the carry games): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
+// the kernel every contest block inlines reads a carry game (its plays, tackles, downs, passes, try and conversion), the
+// broadcast's cues and plates name its calls and the stats count its conversion, and the minds (the carry mind, its role
+// lines) the court, turns and pitch inline; the pitch block's sim and client too (the carry mode, the field's lines, the
+// posts, the line markers, the oval). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (arcade rules: the innings games): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
+// the kernel every contest block inlines reads an innings game (strikes, outs, the bases or the runs, the overs, the side
+// retired), the broadcast's cues and plates name its calls and the stats fold counts them; the new `innings` fixture pins
+// the field's page (the bat sim, the diamond and the oval). Every other page is byte-identical.
+// Re-pinned 2026-10-26 (sport concept: the arena and the cast): the `pitch` fixture re-pins because the pitch client calls a
+// hoop game's restart a tip-off or an inbound, never a kick-off. Every other page is byte-identical.
 // Re-pinned 2026-10-26 (review fixes): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because every contest
 // block inlines contest/contest-stats.js by source, and a serve's speed and opening hit are now read from the hit before
 // its call; the pitch block's sim leaves the rink's goal mouths open in its end boards. Every other page is

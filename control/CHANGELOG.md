@@ -335,6 +335,52 @@ the broadcast package can cover, as it covers a contest.
   that inline the client, so it is its own step. The voxel pole's stands, a stadium section the track runs through and the
   pit building's suites are not built.
 
+### Carved glyphs: the letter primitive grows up
+
+The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
+font covers, styled and extruded. Its legacy stack (materials, a bevelled carve, inner glow, the outer form-effects,
+the materialize reveals) reached the page only in part. This theme brings the primitive's pieces up first, then
+spreads carved letters to where the page draws words.
+
+- **The shelf's display face ships with the repo.** Archivo Black (SIL OFL 1.1) is vendored at
+  `lib/graph/image-outcomes/fonts/archivo-black.ttf`, its license text beside it and its notice in `NOTICE`. The shelf
+  says a recipe names a face by key "so a cover carves identically on any host", but no face was ever vendored: the
+  key fell back to whatever the host had (Arial Black on a Mac, DejaVu Sans Bold on Linux), so the same cover carved
+  in a different face per machine. A cover or title naming the default face now carves in Archivo Black everywhere:
+  on a host that fell back, its letters change once, to the face the recipe always meant. The other shelf faces (IM
+  Fell English, Great Vibes, Inter) stay unvendored until something carves in them. Machine gate: the cover suites
+  pass on the vendored face; eyes gate not run.
+- **`material` on a title row: what the carved letters are made of** (`game/title-material.js`). A title's letters
+  took the register's paint (anime cel bands, western lambert and a glint) in the title's colour; the carver's legacy
+  material shelf (the `carved-solid` wordmark's `material`) never reached them. A row may now name one. A **metal**
+  (`chrome`, `gold`, `silver`, `copper`, `bronze`, `brass`, `steel`, `titanium`, `aluminium` … and the shelf's
+  `gunmetal`, which reads as steel) is the chrome logo: each letter's face and bevel reflect the studio sweep the
+  broadcast's metal reflects (`metalStops`: the softbox, the dark horizon under the middle, the floor's bounce, in the
+  metal's measured reflectance), drawn from a two-column texture by the vertex's height in the line, so every letter
+  shares one horizon; three hard bands in the anime register; the walls the metal's middle, lit. A **finish** (any other
+  shelf row or its alias: `stone`, `wood`, `plastic`, `glass`, `neon`, `marble` …) shades by its row (cel bands, a glint,
+  emission, glass's opacity, held through the entrance's fade) in the row's colour, or the row's own when it names none.
+  The material's colours are decoded from sRGB as the world's baked colours are. The idiom `title(…)` and a `play.parts`
+  banner pass it; card `hud-title`. No theme names a material, and a world whose titles name none emits the title block
+  byte for byte as before (the material code is spliced only when a title names one). Machine gate: the title layer's
+  suite drives a metal, a finish and glass through the emitted page against stubs; a bad word fails the gate with the
+  shelf's words. Eyes gate not run: the author's own renders (chrome, gold, copper, marble, glass, neon titles in
+  headless Chromium) showed the sweep reading as chrome and gold; glass reads murky, its walls and a glow edge showing
+  through.
+- **`block` on a title row: the depth made to show.** A title's letters face the screen, so the carve's depth was a sliver
+  and they read as a raised face. A row may name a block (`title-channel.js`, only spliced when a title names one):
+  `drop` pulls each letter's back ring deep, down and to the right (the comic and cartoon block letter), `perspective`
+  pulls it toward a vanishing point under the word (the action-movie logo), `stack` stands six receding copies behind
+  it in alternating shades (the comic masthead's construction, `comicWordmark`'s block copies, now in 3D). The face and
+  its bevel keep their look (paint or material); the sides take `blockColor` or the face's hue darkened, lit by the way
+  each wall faces (the right side bright, the underside dark), two flat tones in the anime register, shading toward the
+  back in the western. A block is the drop, so it replaces a `shadow` edge; the ink hull outlines the whole block. The
+  idiom, `play.parts` banners and card `hud-title` take it. A world whose titles name no block emits the title block
+  byte for byte as before. Machine gate: the title layer's suite checks the face unmoved and uncoloured, the drop's back
+  ring moved by one offset, the perspective's back narrower than its face, the stack's steps and their fade, and the
+  closed words. Eyes gate not run: the author's renders of each block over a walk stage read as block letters once the
+  drop copy was taken off a blocked title (it stood in front of the sides).
+
 ### Superheroic pieces: belts, pouches and jackets as cards
 
 - The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
@@ -1098,7 +1144,7 @@ The ball games at the level an arcade plays them, each a CARD of modules (its co
 its ball, its body) that its family composes into a sport the book resolves by name and the shape's sim plays. A
 variant is a word over a card (`{ id, from: <card>, …a module's words }`), so "ping pong to twenty-one" is not a
 rulebook; a rulebook the modules cannot say stays the distilled-rulebook catalyst's, written out whole. Every card
-names what the full rules say that the arcade leaves out (`omits`). Planned, by family: the net games, then
+names what the full rules say that the arcade leaves out (`omits`). Built, by family: the net games, then
 volleyball's sides of more than one, basketball's hoop, the carry games (rugby, American football), the innings
 games (baseball, cricket).
 
@@ -1134,6 +1180,133 @@ games (baseball, cricket).
     the receiver's returns on the court sim remain the weak point the tennis stats showed.
   - **Refused:** a card's `noVolley` names a region its court lays, and its foul there is `'point'` (a free ball or a
     warning would leave the rally dead and the match frozen).
+- **Volleyball on the court** (`arcade-rules.js` `volleyball`, `match-sim.js`), built: beach volleyball, two a side,
+  three touches a side and never twice in a row, the ball never down, rally points to twenty-one, the rally's winner
+  serving (a float serve). The court sim takes a side of more than one (the kernel's `players`): each player at its home
+  across the side, the pad on the side's ACTIVE player (the one to play the ball: never the last to touch it, else the
+  nearest), its teammates the minds'. The card's `assist: 'pass'` places the side's touches before its last for a
+  teammate in every register (the bump to the setter's spot by the net, the set to the attacker's), and its last goes
+  over as the register strikes it; a body reaches as high as its `up` (a jump's); bare hands draw no racquet. The side
+  mind runs the active player to where the ball comes down (its own physics on a copy) and the others to the set and
+  the attack. A tennis court replays as before (one a side, the same minds and seeds).
+  - **Held:** the players and minds from the kernel's, across the side; every touch inside the rally's rule; each
+    placed pass played next by the teammate it was placed for; a bump, a set and an attack in one rally; the pad on
+    side a's active player; the page plays it to the Node state.
+  - **Seen, said:** in the realistic register the minds rarely return a float serve (the body's realistic build-up is
+    slow for a court of eight metres): an ace is most points there; the arcade registers rally.
+- **Basketball on the pitch** (`arcade-rules.js` the goal family and its `basketball` card, `team-sim.js`), built:
+  full-court basketball three a side, four quarters, two points inside the arc and three beyond it. The goal family
+  composes a team game from its modules (the court and its key, the goal a mouth or a HOOP, the score's unit and clock,
+  the roles' homes, the play by foot or by HANDS, the ground, the outs). The pitch sim's hoop is a ring of the physics'
+  spheres and a backboard over each end, so a shot rattles in or out by the physics; a basket is the ball dropping
+  through the ring, its points the shot's (the kernel's score fact now carries `points`, a goal as ever without them).
+  The hands: the ball caught (never as it leaves the hand, a shot only on its way down), held and dribbled at the
+  holder's side inside the lines, a tap passes to the teammate along the stick (led by the pass's flight), a hold
+  shoots on a steep arc at a speed found by flying the ball alone in the sim's own physics, the charge off its sweet
+  spot, the range and a defender's hand its miss; an opponent at the ball long enough steals it. The side with the ball
+  takes its roles' spots in the attacking half and the other marks its man; the hands mind drives, works the ball and
+  shoots in range from in front of the ring. The page lays the hardwood, the key, the arcs, the rings, their nets and
+  boards; the broadcast calls a basket by its points (THREE!), and the stats count them. Soccer and hockey replay as
+  before; the arcade rules' card is now an index (`contest-arcade`) and a card per family (`contest-arcade-<family>`).
+  - **Held:** a score's points in the kernel; a shot at the sweet spot drops through for two inside and three beyond,
+    off it no basket; the catch, the dribble at the side, the pass caught by its teammate, the steal; the stats' points;
+    every card's short variant to its end (the deep sweep, now on both shapes); the page plays it to the Node state.
+  - **Seen, said:** an exhibition scores about seven points in two minutes with about half the shots made; the
+    blocks, the shot clock, travelling and free throws are the card's omissions.
+- **The carry games: rugby and American football** (`arcade-rules.js` the carry family, `contest-kernel.js` `carry`,
+  `team-sim.js`), built: five a side on a short field. The kernel's carry module: possession and plays (the line of
+  scrimmage where each starts), a tackle ending one, the ball kept for so many tackles (rugby league's six, then the
+  handover) or downs to gain the next first down (four to gain ten yards), a pass forward never fair or fair once a
+  play from behind the line, a dropped ball and a ball out each a down or a turnover, a try (or touchdown) its points
+  and then the conversion kicked from in front for its own, no play restarted on a try line. The pitch sim's carry
+  mode: each play the side with the ball in its formation round it and its first role holding it, live at once; an
+  opponent kept at the carrier a moment tackles it; over the line a try; the conversion kicked at the posts, through
+  between the uprights over the bar or not; a pass tells the kernel where from and to; a carrier a step slower than its
+  chasers. The carry mind: the quarterback drops back and throws to the most open receiver once the routes have run,
+  the rugby carrier passes back to a teammate in space when a tackle comes, the carrier runs for the line away from the
+  nearest defender; the role players run support lines and routes, a man each and a deep zone, and pursue on a
+  cut-off angle, converging on a pass's receiver while the ball flies. The page lays the field's lines, the in-goals
+  in the sides' colours, the H posts, the line of scrimmage and the line to gain, an oval ball; the tab reads
+  "2nd & 6" in yards or "tackle 3 of 6"; the broadcast calls TRY!, TOUCHDOWN!, the conversion, FIRST DOWN, HANDOVER,
+  TURNOVER ON DOWNS, INTERCEPTED, KNOCK-ON and FORWARD PASS, and the stats count the conversion's points.
+  - **Held:** the kernel's six tackles to the handover, a first down for the gain and the turnover on downs, the
+    forward pass once and its second the down lost, never in rugby, the knock-on, the try and its conversion; the
+    play's formation and the snap, the tackle where it was made, the try over the line and the conversion good at the
+    sweet spot and no good off it; the plates; every card's short variant to its end; the page at the Node state for a
+    game of tackles and one of downs.
+  - **Seen, said:** the arcade football scores high (about a touchdown a minute between two computer sides, as an
+    arcade football game does); the rugby is tight. The ruck, the scrum and the lineout, kicking in open play, eleven a
+    side, punts and penalties are the cards' omissions.
+- **The innings games: baseball and cricket** (`arcade-rules.js` the innings family, `contest-kernel.js` the `innings`
+  shape, `bat-sim.js`, `innings-arena.js`), built: one side bats, the other fields, a ball at a time. The kernel's new
+  shape: strikes and outs (a foul never the third strike), three outs the side retired, a hit moving every runner so
+  many bases and the ones home scoring; or a game of runs: a ball missed a dot, six balls an over, the overs a side's
+  innings, a boundary four or six; the second side ahead after the first's last innings does not bat, and the chase or
+  the walk-off ends the game the ball it leads. The bat sim: the pitch through the zone or the ball bowled at a length,
+  the swing timed against the ball's arrival (early or late a strike, inside the window the contact's quality and its
+  spray off the stick), the struck ball flown on the physics and its end read ahead on a copy of it the moment it is
+  struck (over the fence or the rope on the full, a foul outside the lines, caught where a fielder reaches the landing
+  in the ball's hang time, else fielded and thrown out at first or the bases the runner makes before the throw, the
+  runs the batters cross); a ball let go is a strike in the zone and pitched again out of it, a dot or bowled into the
+  stumps. The page lays a diamond (the infield, the bases, the mound, the foul lines, the fence) or an oval (the square,
+  the pitch, the stumps, the rope), the fielders at their spots and the camera behind the batter; the broadcast calls
+  STRIKE, FOUL BALL, STRUCK OUT, CAUGHT, OUT AT FIRST, BOWLED, SINGLE to HOME RUN!, FOUR!, SIX!, SIDE RETIRED and the end
+  of the over, and the stats count runs, hits, home runs and strikeouts or runs, fours, sixes and wickets. The quick
+  goal takes `sport: 'baseball' | 'cricket'` with `innings` and `overs`, in the football stadium; the kits gain a
+  baseball uniform and cricket whites. The distilled-rulebook catalyst names the shape.
+  - **Held:** the kernel's strikes, outs, bases, runs, overs, the side, the second side not batting and the chase's
+    end; the swing's window one unbroken run of frames, a press early a strike; a ball let go in a game of runs never a
+    strike; every struck ball ruled once; an exhibition of each to its end, the same pads the same game to the byte;
+    the plates and the stats; every card's short variant to its end (the deep sweep, now on three shapes); the page of
+    each at the Node state.
+  - **Seen, said:** between computer sides the baseball is home runs, singles and outs (the fielders reach the gaps,
+    so a double or a triple is rare), about four runs in three innings; the cricket's boundaries are mostly sixes. The
+    walk, the catcher, stolen bases and force plays, leg before wicket, the wide and the no ball, run outs and nine or
+    eleven a side are the cards' omissions.
+
+### Sport concept: the player's idea on top of the rules
+
+When a player makes a sport game, the players are characters, the arena is a venue round the play, the player's own
+idea is laid over the sport's rules, and one style holds across the kits, the graphics and the shell; each is said back
+in `design_game`'s readout. An audit through the real path first (each arcade card minted by `design_game`, opened in
+the game shell through the dashboard's server): every card already minted characters (six faces cycled over a large
+side) and stood in a lit stadium, with no page error and no black frame; the shell was the stock beige; a level's first
+open resolves its arena and bodies for about twenty seconds on a blank loader, cached after; basketball's tab said
+KICK-OFF.
+
+- **The concept** (`gameworld/sport-concept.js`, `quick.concept` on the contest and meet goals), built: a few words
+  ("cats vs dogs at night", "red robots vs blue knights, retro arcade") read against a lexicon into the quick words
+  around the rules, laid under the creator's own as a sport preset's are (their word always wins; a venue's and a
+  broadcast's word by word, the teams side by side): the sides about a "vs" (a name each, a colour word its shirt, an
+  animal its players that animal's mascots), colour words for the sides' shirts, an animal for every side, the venue's
+  light (night, dusk, golden, day), its house (colosseum, arcade, municipal, olympic, the patron's dome), its livery,
+  its land and a roof, the drawing tradition (anime, western), chibi or mascot bodies, the register and the broadcast
+  package. The rules are the card's: a number or a rule word is never read and is said back, and so is a word nothing
+  reads. A course keeps its stage and its seats (said back as `left`). The readout's `concept` gives each word read
+  and what it decided.
+  - **`teams`** on a two-sided contest: `[{ name?, colour?, mascot? }]` × 2, a side's broadcast name, its shirt (the
+    kits', the graphics' and the shell's) and the brief its players are rolled from as mascots.
+- **One style** (`gameworld/runner.js`): a sport game's shell is themed by the color theorist round its sides'
+  colours in its venue's light (night and dusk a low key, noon a high one) where it was the stock skin; a one-a-side
+  court's players wear their side's colour (a game played in whites, its trim), as a team's always did, so the kits
+  and the graphics agree; the athletes take the concept's drawing tradition.
+- **The machine gate, said** (`design_game`): the sport game's step carries three laws, `cast` (a character in every
+  slot, the faces counted; `athletes: false` the stick figures, advised), `arena` (the stadium round the play, at its
+  time; a bare stage said) and `style` (one palette over kits, graphics and shell, one drawing; a western cast in an
+  anime stadium advised); when they hold the readout says them as the game's `checked`.
+- **Exposed**: the contest card names the bat-and-ball sports, `concept` and `teams`, and a sport's answer (the
+  characters, the venue, the laws) in place of the levers a sport refuses; the meet card takes `concept`; the
+  game-design routing card names the concept, with two routing rows for concept-shaped asks. Basketball's tab calls
+  its restart a tip-off, then an inbound.
+  - **Held:** the reader's laws (the sides, colours, an animal, the venue's nesting, a later word winning, the rule
+    words, the refusals), the concept under the creator's words, a course keeping its stage, the arena carrying the
+    teams; the run's mascots per side and the side colour on the kits; the three laws and the shell's theme; the same
+    concept running the same steps; a concept game through `design_game` (its readout, its stadium at night, six
+    bodies on the page, the checked laws).
+  - **Seen, said:** two concept games opened in the shell through the dashboard's server: cats and dogs as mascots
+    under a night stadium, the CATS and DOGS names on the board, the front screen dark in the game's palette; robots
+    and knights in the candy arcade stadium on a light front. "Robots" is not a mascot word, so that side is people
+    (said back). A level's first open still takes about twenty seconds on the shell's loader; not addressed here.
 
 ### No flat building polygons: a building's seen edges have thickness
 

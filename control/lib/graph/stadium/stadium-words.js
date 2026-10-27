@@ -53,7 +53,7 @@ export const STADIUM_PRESET_IDS = Object.freeze(Object.keys(STADIUM_PRESETS));
 const KEYS = ['kind', 'field', 'preset', 'palette', 'look', 'time', 'ground', 'livery', 'colours', 'bowl', 'masts', 'skyline', 'camera', 'viewBox', 'title', 'seed'];
 const BOWL_KEYS = ['shape', 'rows', 'rise', 'roof', 'facade', 'crowd', 'gap', 'clear', 'open', 'apron', 'screens', 'landmark'];
 // the keys a world's channels read beside the venue (world-scene.js lays them over any kind's payload)
-const CHANNEL_KEYS = ['court', 'pitch', 'meet', 'turns', 'holo', 'game', 'events', 'play', 'audio', 'structures', 'weather', 'backdrop'];
+const CHANNEL_KEYS = ['court', 'pitch', 'meet', 'turns', 'holo', 'innings', 'game', 'events', 'play', 'audio', 'structures', 'weather', 'backdrop'];
 
 /** The words, the preset's under them, checked. */
 export function readStadium(m = {}) {

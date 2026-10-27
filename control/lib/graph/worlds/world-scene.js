@@ -1412,6 +1412,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
     payload.pitch = teamArenaData(sketch.manifest.pitch, { bodies: await athleteBodies(sketch.manifest.pitch.athletes) });
   }
+  // a bat-and-ball game on a field (contest/innings-arena.js): the sport, the players, the register, the contest
+  // compiled, the level wire's names; the page's innings channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.innings && typeof sketch.manifest.innings === 'object') {
+    const { inningsArenaData } = await import('@/lib/graph/contest/innings-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.innings = inningsArenaData(sketch.manifest.innings, { bodies: await athleteBodies(sketch.manifest.innings.athletes) });
+  }
   // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
   // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).
   if (payload && sketch.manifest.holo && typeof sketch.manifest.holo === 'object') {

@@ -32,7 +32,9 @@ describe('the sport goals', () => {
     expect(() => readQuick({ goal: 'meet', hero: {} })).toThrow(/a meet takes goal, event, lanes/);
     expect(() => readQuick({ goal: 'meet', camera: 'fixed' })).toThrow(/a sport is seen from its arena/);
     expect(() => readQuick({ goal: 'contest' })).toThrow(/sport names the sport: tennis/);
-    expect(() => readQuick({ goal: 'contest', sport: 'cricket' })).toThrow(/sport 'cricket' is one of tennis, golf, bowling, .*soccer, hockey, or a sport written out/);
+    expect(() => readQuick({ goal: 'contest', sport: 'quidditch' })).toThrow(/sport 'quidditch' is one of tennis, golf, bowling, .*baseball, cricket, soccer, hockey, .*or a sport written out/);
+    expect(() => readQuick({ goal: 'contest', sport: 'baseball', overs: 2 })).toThrow(/overs belong to a game of overs; baseball counts its innings by outs/);
+    expect(() => readQuick({ goal: 'contest', sport: 'cricket', overs: 2 })).not.toThrow();
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', seats: 2 })).toThrow(/seats belongs to a turn sport; tennis is a net game/);
     expect(() => readQuick({ goal: 'contest', sport: 'golf', rounds: 9 })).toThrow(/rounds for golf is 1 to 3/);
     expect(() => readQuick({ goal: 'contest', sport: 'soccer', periods: 9 })).toThrow(/periods is 1 to 4/);
@@ -56,7 +58,7 @@ describe('the sport goals', () => {
     expect(level).toMatchObject({ kind: 'stadium', preset: 'olympic', meet: { event: 'hurdles', lanes: 4, players: 2, seed: 3, venue: 'olympic' }, game: { levelRef: 'track', produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} } } });
     expect(validateLevelContract(level.game, { slices: [] }).ok).toBe(true);
     expect(steps[1].order).toMatchObject({ title: 'relay', allow_unaudited: true, shell: 'play', levels: [{ ref: steps[0].ref, title: level.title }] });
-    for (const [spec, id, key] of [[{ goal: 'contest', sport: 'tennis', players: 2, athletes: false }, 'court', 'court'], [{ goal: 'contest', sport: 'golf', rounds: 2, athletes: false }, 'course', 'turns'], [{ goal: 'contest', sport: 'hockey', players: 1, athletes: false }, 'pitch', 'pitch']]) {
+    for (const [spec, id, key] of [[{ goal: 'contest', sport: 'tennis', players: 2, athletes: false }, 'court', 'court'], [{ goal: 'contest', sport: 'golf', rounds: 2, athletes: false }, 'course', 'turns'], [{ goal: 'contest', sport: 'hockey', players: 1, athletes: false }, 'pitch', 'pitch'], [{ goal: 'contest', sport: 'baseball', innings: 2, athletes: false }, 'innings', 'innings']]) {
       const st = runSteps(quickWorld({ id: `g-${id}`, quick: spec }), { ref: `gw_${id}` });
       expect(st.map((s) => s.key)).toEqual([`level-arena-${id}`, 'game']);
       expect(st[0].order.manifest[key]).toMatchObject({ sport: spec.sport }); expect(st[0].order.manifest.game.levelRef).toBe(id);
@@ -72,12 +74,13 @@ describe('the sport goals', () => {
     expect(level({ goal: 'contest', sport: 'tennis', venue: { preset: 'colosseum', time: 'dusk' } })).toMatchObject({ kind: 'stadium', preset: 'colosseum', time: 'dusk' });
     expect(level({ goal: 'contest', sport: 'tennis', venue: false }).kind).toBe('stage');
     expect(level({ goal: 'contest', sport: 'golf' }).kind).toBe('stage');
+    expect(level({ goal: 'contest', sport: 'cricket' })).toMatchObject({ kind: 'stadium', preset: 'football', innings: { venue: 'football' } });
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', venue: 'wembley' })).toThrow(/\.venue 'wembley' is one of/);
     expect(() => readQuick({ goal: 'reach', venue: 'olympic' })).toThrow(/\.venue belongs to the meet, contest and tabletop goals/);
   });
   it('a contest\'s genre is its sport\'s shape; the cube it implies is the probe\'s', () => {
     expect(QUICK_GENRE.meet).toBe('athletics-meet'); expect(QUICK_GENRE.contest).toBe('net-game');
-    expect(contestGenre('tennis')).toBe('net-game'); expect(contestGenre('bowling')).toBe('turn-sport'); expect(contestGenre('soccer')).toBe('team-goal-game'); expect(contestGenre('cricket')).toBe('net-game');
+    expect(contestGenre('tennis')).toBe('net-game'); expect(contestGenre('bowling')).toBe('turn-sport'); expect(contestGenre('soccer')).toBe('team-goal-game'); expect(contestGenre('cricket')).toBe('turn-sport'); expect(contestGenre('quidditch')).toBe('net-game');
     expect(cubeOfWorld(quickWorld({ id: 'x', quick: { goal: 'contest', sport: 'soccer' } })).from).toBe('team-goal-game');
     expect(cubeOfWorld(quickWorld({ id: 'y', quick: { goal: 'meet', event: 'sprint' } })).from).toBe('athletics-meet');
   });
@@ -168,7 +171,7 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: 'giant' })).toThrow(/'giant' is not a form the run rolls \(chibi, mascot\)/);
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: { colour: 'red' } }] })).toThrow(/\.mascot is true or \{ brief\?, facets\?, seed\? \}/);
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: true, cast: 'male' }] })).toThrow(/a mascot is \{ mascot/);
-    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: true, kit: 'cricket' }] })).toThrow(/'cricket' is not a sport's kit/);
+    expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: [{ mascot: true, kit: 'quidditch' }] })).toThrow(/'quidditch' is not a sport's kit/);
     expect(() => readQuick({ goal: 'contest', sport: 'tennis', athletes: 'mascot', kits: [{ colours: ['#112233'] }] })).not.toThrow();
   });
   it('a team\'s sides are each a rank of faces in one kit, its shirt the side\'s colour, a keeper in a kit of its own', () => {
@@ -202,7 +205,9 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     expect(keys(st)).toEqual(['athlete', 'level-arena-course', 'game']);
     expect(st[0].order.mint.spec).toEqual({ cast: 'female' });
     expect(st[1].order.manifest.turns.athletes).toEqual(['my-bowler', st[0].ref, 'my-bowler']);
-    expect(st[2].laws).toBeUndefined();
+    // (no rolled cast's setting law: the operator's own; the sport's laws say who plays each seat)
+    expect(st[2].laws.map((l) => l.law)).toEqual(['characters', 'venue', 'one-look']);
+    expect(st[2].laws[0].says).toBe('3 seats played by 2 characters in their own bodies (cycled over the seats)');
   });
   it('refuses what is not an athlete; an arena refuses more athletes than slots', () => {
     expect(() => readQuick({ goal: 'meet', athletes: 'four' })).toThrow(/athletes is false \(the stick figures\), 'chibi' or 'mascot' \(the rolled athletes in that form\), or 1 to 12 athletes/);

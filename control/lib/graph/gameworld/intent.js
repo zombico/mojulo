@@ -80,7 +80,7 @@ const WORDS = Object.freeze({
   // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
   'athletics-meet': ['athletics', 'athletic', 'olympic', 'olympics', 'track and field', 'sprint', 'sprinting', '100m', 'hurdles', 'long jump', 'high jump', 'javelin', 'shot put', 'decathlon', 'relay', 'meet'],
   'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pong', 'pickleball', 'squash', 'rally', 'serve', 'net game', 'racket', 'racquet'],
-  'turn-sport': ['golf', 'mini golf', 'minigolf', 'putting', 'bowling', 'curling', 'darts', 'billiards', 'pool table', 'snooker', 'bocce', 'petanque'],
+  'turn-sport': ['golf', 'mini golf', 'minigolf', 'putting', 'bowling', 'curling', 'darts', 'billiards', 'pool table', 'snooker', 'bocce', 'petanque', 'baseball', 'softball', 'home run', 'wicket', 'innings'],
   'team-goal-game': ['soccer', 'football', 'futsal', 'hockey', 'basketball', 'handball', 'lacrosse', 'rugby', 'water polo', 'dodgeball', 'sports game', 'sports', 'goalkeeper', 'offside', 'team sport'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));
@@ -94,7 +94,8 @@ export const QUICK_GENRE = Object.freeze({
 });
 /** A contest's genre is its sport's shape: a net game, a turn sport, a team goal game (a sport it cannot read: the net game's). */
 export function contestGenre(sport) {
-  try { const sp = resolveSport(sport); return sp.shape === 'turns' ? 'turn-sport' : sp.shape === 'team' ? 'team-goal-game' : 'net-game'; } catch { return 'net-game'; }
+  // (a bat-and-ball game is a ball at a time, the turn sport's genre)
+  try { const sp = resolveSport(sport); return sp.shape === 'turns' || sp.shape === 'innings' ? 'turn-sport' : sp.shape === 'team' ? 'team-goal-game' : 'net-game'; } catch { return 'net-game'; }
 }
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
