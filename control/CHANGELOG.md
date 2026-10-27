@@ -26,6 +26,19 @@ the same service in every town) is seeded from the game, not the town. Their min
 Their lines are placeholder slots (`[Keeper: greeting]`) until the operator directs the words: mojulo never writes
 the story. The city plan and the historic city follow on the same rules.
 
+- **The folk sheet: a town's people from its lots** (`lib/graph/folk/`). `folkOfTown(town)` reads a designed town
+  (`era/out-town.js`): each lot's use roots its first person (`roles.js` `ROOTS`: a dwelling a townie, a shop its
+  keeper, a workshop its master, a barn a farmhand, the hall its elder, the tower its captain), who grows the rest
+  (the household, an apprentice, the watch: their number from the lot's storeys). Each person is an Egocube rolled on
+  the folk seed and their path alone: the role's combat role asked, its age and archetype leaned, motivation pulled
+  toward the light, kin sharing their household's ancestry, so a town only grows. Each role SEEKS others (a counter
+  a supplier, a watch a hall to answer to), and an unmet one is an open need on the sheet: what the town is missing,
+  said, never refused. The services (`services.js`: merchant, smith, counsel, watch) each lower onto a menu, an effect
+  or a mind the game already runs, or are a gap that says what is missing (the smith: no menu mends gear yet). Every
+  person carries their room in their lot's inside and their line slots, never words. A cap (`folk.cap`, 60 by default)
+  gives every lot its first person before anyone's household. Nothing reaches a level yet: bodies, standing them in
+  play and their talk come next. Machine gate: `folk.test.js`; eyes gate not run.
+
 ### Carved glyphs: the letter primitive grows up
 
 The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
