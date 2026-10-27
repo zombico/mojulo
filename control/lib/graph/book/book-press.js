@@ -101,6 +101,10 @@ figure.plate svg{display:block;max-width:100%;height:auto;margin:0 auto;max-heig
 figcaption{font-size:.85em;color:var(--muted);font-style:italic;text-align:center;margin-top:.2em}
 pre.mono{font:${(S.pt * 0.9).toFixed(1)}pt/1.45 var(--mono);white-space:pre-wrap;margin:.3em 0 .8em;break-inside:avoid}
 .lines i{display:block;height:6.5mm;border-bottom:.5pt solid var(--rule)}
+.lineup{display:flex;justify-content:center;gap:4mm;margin:6mm auto 4mm;flex-wrap:wrap}.lineup figure{margin:0;width:${S.onePage ? '22mm' : '38mm'}}
+.lineup img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:1.5mm;border:.6pt solid var(--rule)}.lineup figcaption{font-style:normal;margin-top:1mm}
+.sheet-head{display:flex;gap:5mm;align-items:flex-start}.sheet-head>div{flex:1;min-width:0}
+.sheet-head img.bust{width:42mm;height:42mm;object-fit:cover;border-radius:1.5mm;border:.8pt solid var(--ink);flex:none}
 .pages>section.page{break-before:page}.pages>section.page:first-child{break-before:avoid}
 @media screen{.pages>section.page+section.page{margin-top:14mm;padding-top:10mm;border-top:1pt dashed var(--rule)}}
 `;

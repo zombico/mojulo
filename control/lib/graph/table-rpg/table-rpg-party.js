@@ -5,10 +5,12 @@
  * Character creation stays the module's own: the sheet is rolled by the system (table-rpg-kernel.js `sheet`), the
  * persona only says who wears it, and the class it plays when the member names none (the persona's role).
  *
- *   withPersonas(module) → module   each member with `egocube: true | { brief?, facets? }` given `persona` (and `role`
+ *   withPersonas(module) → module   each member with `egocube: true | { brief?, facets? } | { roll }` given `persona` (and `role`
  *                                   from it when it names neither a class nor a role, and a name rolled when it has
- *                                   none, its archetype the epithet: Corwen the Sage); the egocube sheet kept on the
- *                                   member as `egocube` for the character door
+ *                                   none, its archetype the epithet: Corwen the Sage); the roll kept on the member as
+ *                                   `egocube.roll`, the very roll an egocube row stores (create_sketch kind 'egocube'),
+ *                                   so the body the character door draws from it is the persona's own
+ *   memberSeed(seed, id) → n         a member's own seed: its persona and its body roll on it
  *   rollName(seed, id) → name        a given name from syllables, on the member's own stream (no culture's names)
  *   toLiveParty(K) → play.rpg       { party: [{ id, name, class, level, bonus }] }: each member as the live class its
  *                                   system class plays as, its abilities read as the live stats (the card's `live`
@@ -25,14 +27,18 @@ export function rollName(seed, id) {
   return ONSETS[Math.floor(r() * ONSETS.length)] + ENDS[Math.floor(r() * ENDS.length)];
 }
 
+export const memberSeed = (seed, id) => 1 + Math.floor(streamOf(seed, 'table-member', id)() * 2147483646);
+
 export function withPersonas(module) {
   const seed = module.seed ?? 1;
   const party = (module.party ?? []).map((p) => {
     if (!p.egocube) return p;
     const ask = p.egocube === true ? {} : p.egocube;
-    const sheet = rollEgocube({ seed, path: `party/${p.id}`, brief: ask.brief ?? '', facets: ask.facets ?? {} });
+    // a roll kept as it was rolled (a game that made its members' characters stores it), or one rolled from the words
+    const roll = ask.roll ?? { seed: memberSeed(seed, p.id), ...(ask.brief ? { brief: ask.brief } : {}), ...(ask.facets ? { facets: ask.facets } : {}) };
+    const sheet = rollEgocube(roll);
     const persona = { archetype: sheet.reading.archetype, epithet: `the ${sheet.reading.archetype}`, shadow: sheet.reading.shadow, role: sheet.facets.role, reads: sheet.reads.join('; ') };
-    const out = { ...p, persona, egocube: { seed, path: sheet.path, ...(ask.brief ? { brief: ask.brief } : {}), ...(ask.facets ? { facets: ask.facets } : {}) } };
+    const out = { ...p, persona, egocube: { roll } };
     if (p.class === undefined && p.role === undefined) out.role = sheet.facets.role;
     if (p.name === undefined) out.name = rollName(seed, p.id);
     return out;

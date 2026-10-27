@@ -296,7 +296,8 @@ function withHandoff(result, context, artifact) {
 }
 
 // `deps.smoke`: false skips the desktop smoke (the CLI runs its own, with --electron / --no-gate); { find, run } inject it.
-// `deps.printPdf`: the printer a table game's book goes through (book/book-pdf.js's by default; tests inject one).
+// `deps.printPdf`: the printer a table game's book goes through (book/book-pdf.js's by default; tests inject one);
+// `deps.portraits`: its party's photographer (table-rpg-portraits.js's by default; tests inject one).
 export async function exportGameHandler(input, context = {}, deps = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
   const { ref, target, posture = null, cdn: cdnInput = false, era } = input;
@@ -551,9 +552,12 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
 
   // ── table-rpg branch: a table game's page is single-file, the kernel inside it; its book and its characters printed ──
   if (manifest.engine === 'table-rpg') {
-    const { emitTableRpgGame, tableRpgBookOf } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+    const { emitTableRpgGame, tableRpgBookOf, tableRpgPaper } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
     await write('game.html', emitTableRpgGame(manifest, { title: sketch.title, bookHref: 'book.html' }));
-    const book = tableRpgBookOf(manifest, { title: sketch.title }).html, characters = tableRpgBookOf(manifest, { title: sketch.title, parts: ['party'] }).html;
+    // the party's characters photographed for the book (a browser on the machine; none, and the sheets print without)
+    const shoot = deps.portraits ?? (await import('./table-rpg-portraits.js')).tableRpgPortraits;
+    const { portraits, missing } = await shoot(manifest, { paper: tableRpgPaper(manifest) });
+    const book = tableRpgBookOf(manifest, { title: sketch.title, portraits }).html, characters = tableRpgBookOf(manifest, { title: sketch.title, parts: ['party'], portraits }).html;
     await write('book.html', book);
     await write('characters.html', characters);
     // the PDFs need a browser: one already on the machine prints them; none, and the pages print from any browser
@@ -573,6 +577,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       book_url: `${outcomeUrlFor(ref)}${printed === true ? 'book.pdf' : 'book.html'}`,
       characters_url: `${outcomeUrlFor(ref)}${printed === true ? 'characters.pdf' : 'characters.html'}`,
       files, total_bytes: totalBytes,
+      ...(missing.length ? { portraits_missing: missing } : {}),
       note: `A table game: game.html plays in text anywhere, file:// included; book.html is its game book and characters.html its party's sheets${printed === true ? ', each printed beside it as a PDF' : `. No PDF was printed (${printed}): open a page in any browser and print it, or point MOJULO_CHROMIUM at a browser and export again`}.`,
     }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }

@@ -4,13 +4,17 @@
  * `table_rpg`, its play page and its game book regenerated from the keys on every read.
  *
  *   tableRpg: { <the module's keys: system, starter, party, world, dungeons, foes, items, tables, beats, goal, hook,
- *               ending, seed, title>, book?: <a book style: book/book-style.js> }
+ *               ending, seed, title>, book?: <a book style: book/book-style.js>, characters?: false }
+ *     characters: the party made real characters through the character loop when the game is minted (true unless
+ *     false: create_game, lib/mcp/tools/table-rpg-portraits.js), each member's `character: <ref>` then written in
  *
  *   readTableRpg(tableRpg) → { K, module, checks, style }   throws, teaching (the module's, then the style's)
  *   buildTableRpgGameManifest({ title?, tableRpg }) → manifest   refuses a game that cannot play
  *   emitTableRpgGame(manifest, { title?, bookHref? }) → html      the play page (table-rpg-page.js)
- *   tableRpgBookOf(manifest, { title?, parts?, style? }) → { html, findings }   the game book (table-rpg-book.js);
- *     parts narrows it (the party alone: its characters' sheets to print)
+ *   tableRpgBookOf(manifest, { title?, parts?, style?, portraits? }) → { html, findings }   the game book
+ *     (table-rpg-book.js); parts narrows it (the party alone: its characters' sheets to print); portraits the members'
+ *     photographs, taken by the caller (they need the characters' rows and a browser)
+ *   tableRpgPaper(manifest, { style? }) → hex   the paper the book is printed on (a photograph is taken on it)
  *   tableRpgReadout(K, checks) → { party, findings }   what character creation made (each sheet as rolled, who wears
  *     it), and what the checks found: the mint's answer
  */
@@ -20,12 +24,13 @@ import { tableRpgBook } from './table-rpg-book.js';
 import { readBookStyle } from '../book/book-style.js';
 import { tableSheetLines } from './table-rpg-kernel.js';
 
-export const TABLE_RPG_GAME_KEYS = Object.freeze([...TABLE_RPG_KEYS, 'book']);
+export const TABLE_RPG_GAME_KEYS = Object.freeze([...TABLE_RPG_KEYS, 'book', 'characters']);
 
 export function readTableRpg(tableRpg) {
   if (!tableRpg || typeof tableRpg !== 'object' || Array.isArray(tableRpg)) throw new Error(`table rpg: table_rpg is { ${TABLE_RPG_GAME_KEYS.join(', ')} } (get_game_vocab({ id: 'table-rpg' }))`);
   for (const k of Object.keys(tableRpg)) if (!TABLE_RPG_GAME_KEYS.includes(k)) throw new Error(`table rpg: unknown key '${k}' (keys: ${TABLE_RPG_GAME_KEYS.join(', ')})`);
-  const { book, ...raw } = tableRpg;
+  const { book, characters, ...raw } = tableRpg;
+  if (characters !== undefined && typeof characters !== 'boolean') throw new Error('table rpg: characters is true (the party made real characters, the default) or false');
   const { K, module, checks } = readModule(raw);
   const style = readBookStyle(book ?? 'tome');
   return { K, module, checks, style: book ?? 'tome', findings: style.findings };
@@ -47,11 +52,15 @@ export function emitTableRpgGame(manifest, { title, bookHref } = {}) {
   return tableRpgPageHtml(module, { title: title ?? manifest.title, style, ...(bookHref ? { bookHref } : {}) });
 }
 
-export function tableRpgBookOf(manifest, { title, parts, style } = {}) {
+export function tableRpgBookOf(manifest, { title, parts, style, portraits } = {}) {
   const T = tableOf(manifest);
   const { K, style: own } = readTableRpg(T);
   if (title ?? manifest.title) K.title = title ?? manifest.title;
-  return tableRpgBook(K, { style: style ?? own, ...(parts ? { parts } : {}) });
+  return tableRpgBook(K, { style: style ?? own, ...(parts ? { parts } : {}), ...(portraits ? { portraits } : {}) });
+}
+
+export function tableRpgPaper(manifest, { style } = {}) {
+  return readBookStyle(style ?? tableOf(manifest).book ?? 'tome').colours.paper;
 }
 
 export function tableRpgReadout(K, checks) {

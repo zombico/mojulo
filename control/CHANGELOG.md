@@ -14,6 +14,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: the party made characters, photographed into the book
+
+- **The character loop at mint**: `create_game({ table_rpg })` makes each party member rolled on the egocube a real
+  character — an egocube row from the very roll its persona came from, then `create_character { egocube }`, children
+  of the game's ref, as the fight goal makes its fighters — and records it on the member (`character: <ref>`, the roll
+  kept as `egocube: { roll }` so the stored party reads back the same persona). `characters: false` skips it; a member
+  may name a character already made. The answer names each member's character
+  (`lib/mcp/tools/table-rpg-portraits.js`).
+- **Portraits**: the book photographs each character's World page in headless Chromium (the character bible's colour
+  turnaround: its palette, its light), a three-quarter figure framed by its height and a bust at the head and
+  shoulders, on the book's own paper, kept per character revision; the party lined up on the title page, each bust
+  heading its sheet (`tableRpgBook`'s `portraits`). The `/bible` route and `export_game` take them; without a browser
+  the sheets print without, and the export names who was not photographed.
+- A persona now rolls on the member's own seed (`memberSeed`) with the default path, the roll an egocube row stores.
+
+Machine gate: the door's suite (a member made a character: its sheet and body rows, the member recording it, the stored
+roll reading back the persona; the export with photographs injected), the book's (the line-up and the busts placed,
+none without), and a live suite in the e2e tier photographing a made character (a figure and a bust, read again from
+memory). Eyes gate not run: the author read a starter game's printed book with its three characters; the operator has
+not.
+
 ### Table RPG: the game type, its page, its export and character creation
 
 The table game becomes a game type beside the board games: `create_game({ table_rpg })`, engine `table-rpg`, its own

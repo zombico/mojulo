@@ -12,7 +12,8 @@
  * served as its plan book (lib/graph/city/plan/book-html.js). A historic scene (kind 'historic') is served as its field guide
  * (lib/graph/historic/field-guide.js): what the solver chose, the record it stands on, and the knob for each. A table game
  * (a game row, engine 'table-rpg') is served as its game book (lib/graph/table-rpg/table-rpg-book.js), in its own style or
- * `?style=<preset>`, the whole book or `?parts=party` (its characters' sheets alone; parts a comma list).
+ * `?style=<preset>`, the whole book or `?parts=party` (its characters' sheets alone; parts a comma list), its party's
+ * characters photographed into it when a browser is at hand.
  */
 
 import { NextResponse } from 'next/server';
@@ -52,10 +53,13 @@ export async function GET(request, { params }) {
       html = await cachedPage(`guide:${ref}:${sketch.updatedAt}`, () => historicGuideHtml({ ...sketch.manifest, title: sketch.title || sketch.manifest.title }, { ref }));
       base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'historic'}-field-guide`;
     } else if (sketch.manifest?.kind === 'game' && sketch.manifest.engine === 'table-rpg') {
-      const { tableRpgBookOf } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+      const { tableRpgBookOf, tableRpgPaper } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+      const { tableRpgPortraits } = await import('@/lib/mcp/tools/table-rpg-portraits');
       const parts = request.nextUrl.searchParams.get('parts'), style = request.nextUrl.searchParams.get('style');
       try {
-        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
+        // the party's characters photographed on the book's paper (kept per character revision; none without a browser)
+        const { portraits } = await tableRpgPortraits(sketch.manifest, { paper: tableRpgPaper(sketch.manifest, style ? { style } : {}) });
+        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, portraits, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
       } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }

@@ -3,7 +3,7 @@ import { readModule, refereePacket, playScript, TABLE_RPG_KEYS } from './table-r
 import { checkDungeon } from './table-rpg-dungeon.js';
 import { dungeonFromProgram } from './table-rpg-program.js';
 import { checkWorld, toEpochMap } from './table-rpg-world.js';
-import { withPersonas, toLiveParty } from './table-rpg-party.js';
+import { withPersonas, toLiveParty, memberSeed } from './table-rpg-party.js';
 import { TABLE_RPG_SYSTEMS } from './table-rpg-systems.js';
 import { tableCompile, tableTape } from './table-rpg-kernel.js';
 import { SUNKEN_CHAPEL } from './fixtures/sunken-chapel.js';
@@ -135,7 +135,7 @@ describe('the world and the party, read by the rest of mojulo', () => {
   it('a persona from the egocube: who wears the sheet, and the class from its role when none is named', () => {
     const m = withPersonas({ ...SUNKEN_CHAPEL, party: [{ id: 'nell', egocube: true }, { id: 'odo', class: 'adept', egocube: { brief: 'a gentle old scholar' } }] });
     expect(m.party[0].role).toBe(m.party[0].persona.role);
-    expect(m.party[0].egocube).toMatchObject({ seed: 7, path: 'party/nell' });
+    expect(m.party[0].egocube.roll.seed).toBe(memberSeed(7, 'nell'));
     expect(m.party[1].role).toBeUndefined();
     expect(typeof m.party[1].persona.reads).toBe('string');
     expect(withPersonas(m)).toEqual(withPersonas(m));

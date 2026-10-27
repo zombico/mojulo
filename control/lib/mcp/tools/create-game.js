@@ -237,9 +237,21 @@ async function mintTableRpg(input, context) {
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
   if (folderRef !== undefined && !SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   const { buildTableRpgGameManifest, readTableRpg, tableRpgReadout } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
-  const manifest = buildTableRpgGameManifest({ title, tableRpg });
-  const { K, checks, findings } = readTableRpg(tableRpg);
+  let manifest = buildTableRpgGameManifest({ title, tableRpg });
   const sketch = SketchRepository.create({ title: manifest.title, manifest, ref, ...(folderRef ? { folderRef } : {}) });
+  // the party made real characters through the character loop (its sheets and its bodies, children of the game's
+  // ref), each recorded on its member, unless the game says characters: false
+  let made = [];
+  if (tableRpg.characters !== false) {
+    const { makePartyCharacters } = await import('./table-rpg-portraits.js');
+    const out = await makePartyCharacters({ ref: sketch.ref, tableRpg, title: manifest.title });
+    made = out.made;
+    if (made.length) {
+      manifest = { ...manifest, tableRpg: out.tableRpg };
+      SketchRepository.update({ ref: sketch.ref, manifest });
+    }
+  }
+  const { K, checks, findings } = readTableRpg(manifest.tableRpg);
   const at = encodeURIComponent(sketch.ref), playUrl = `/api/sketches/${at}/game`;
   const { party, findings: found } = tableRpgReadout(K, checks);
   return {
@@ -247,7 +259,7 @@ async function mintTableRpg(input, context) {
     ref: sketch.ref,
     engine: 'table-rpg',
     rules: K.sys.name,
-    party,
+    party: party.map((p) => ({ ...p, ...(made.find((m) => m.id === p.id) ? { character: made.find((m) => m.id === p.id).character } : {}) })),
     ...(found.length || findings.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f }))] } : {}),
     url: `/sketches/${at}`,
     playUrl,

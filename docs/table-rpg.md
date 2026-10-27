@@ -158,6 +158,12 @@ store and no levels. One property on the door, no new tool (the flat payload pin
   they are (a persona, a name when none, the role when none), three rolled when no party is named (a frontline, a
   flanker, a support). The mint's answer says every sheet as rolled and how it was made; the checks' findings ride
   beside it, advice only.
+- **The party's bodies**: each member rolled on the egocube is made a real character through the character loop at mint
+  (an egocube row from the very roll its persona came from, then `create_character { egocube }`, as the fight goal makes
+  its fighters), recorded on the member as `character: <ref>`; `characters: false` skips it, and a member may name one
+  already made. The book photographs each character's World page in headless Chromium (the character bible's colour
+  turnaround): the party lined up on the title page, each bust heading its sheet, on the book's own paper; without a
+  browser the sheets print without them.
 - **Where it is**: played at `/api/sketches/<ref>/game` (the text page: the kernel's own closure, the moves as buttons
   and typed, every die in the open, the moves kept in the player's browser as the save); its book at `/bible`
   (`?parts=party` the characters' sheets alone, `?style=` another preset); the rail's exits play, book and characters.

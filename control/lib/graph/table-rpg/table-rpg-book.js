@@ -7,7 +7,10 @@
  *
  *   tableRpgBook(K, { style?, tape?, parts? }) → { html, findings }   style a book style (book/book-style.js: a
  *     preset's key or its parts; 'tome' when none); tape the dice tape's length (20; 0 leaves it out); parts the
- *     chapters to print, of BOOK_PARTS (['party']: the characters' sheets alone); findings the style's advice
+ *     chapters to print, of BOOK_PARTS (['party']: the characters' sheets alone); portraits each member's
+ *     photographs ({ <id>: { figure, bust } }, image URIs: lib/mcp/tools/table-rpg-portraits.js), the figures lined up
+ *     on the title page and each bust heading its sheet (none: no picture, the sheet as it was); findings the style's
+ *     advice
  *   BOOK_PARTS   the chapters in their order
  */
 import { bookHtml, esc, heading, para, aside, keyed, facts, statBlock, rollTable, grid, plate, mono, lines } from '../book/book-press.js';
@@ -32,11 +35,13 @@ function goalWords(K) {
   return `see the story through (${G.flag})`;
 }
 
-function titlePage(K) {
+function titlePage(K, portraits) {
+  const line = K.party.filter((p) => portraits[p.id]?.figure);
   const party = K.party.map((p) => `${p.name} the ${p.className}`);
   return `<h1>${esc(K.title)}</h1>`
     + (K.M.hook ? `<p class="sub">${esc(K.M.hook)}</p>` : '')
     + `<p class="sub">An adventure for ${K.party.length === 1 ? 'one' : K.party.length} — ${esc(list(party))} — played by the ${esc(K.sys.name)} rules.</p>`
+    + (line.length ? `<div class="lineup">${line.map((p) => `<figure><img src="${esc(portraits[p.id].figure)}" alt="${esc(p.name)}"><figcaption>${esc(p.name)}</figcaption></figure>`).join('')}</div>` : '')
     + '<p class="mark">a mojulo table game</p>';
 }
 
@@ -101,7 +106,7 @@ function tables(K) {
     + ((K.M.beats ?? []).length ? heading('Beats', 3) + facts(K.M.beats.map((b) => [words(b.at.includes('/') ? b.at.split('/')[1] : K.places[b.at]?.name ?? b.at), `${b.text}${b.milestone ? ' (a milestone)' : ''}`])) : '');
 }
 
-function sheet(K, p) {
+function sheet(K, p, portrait) {
   const sys = K.sys;
   const scores = sys.abilities.map((a) => [sys.names?.[a] ?? a, p.scores[a], sys.modifier.kind === 'none' ? undefined : signed(p.mods[a])]);
   // a short track is boxes to tick; a long one a number to keep
@@ -110,27 +115,28 @@ function sheet(K, p) {
   const w = p.weapon, ab = sys.abilities.includes(w.faculty) ? w.faculty : sys.faculties[w.faculty];
   const weapon = `${w.name}${w.dice ? `, ${w.dice}` : w.harm !== undefined ? `, harm ${w.harm}` : ''} (${sys.names?.[ab] ?? ab})`;
   const prog = sys.progression.kind === 'xp' ? ['experience', `0 of ${sys.progression.thresholds[1]} for level 2`] : sys.progression.kind === 'misses' ? ['marks', `○ `.repeat(sys.progression.at).trim()] : ['levels', 'at the story\'s milestones'];
-  return `<section class="page">${heading(`${p.name}${p.persona?.epithet ? `, ${p.persona.epithet}` : ''}`, 3)}`
+  const who = heading(`${p.name}${p.persona?.epithet ? `, ${p.persona.epithet}` : ''}`, 3)
     + para(`${p.className} — ${sys.classes[p.class].about}.`)
-    + (p.persona ? aside(esc(p.persona.reads), { label: 'Who they are' }) : '')
+    + (p.persona ? aside(esc(p.persona.reads), { label: 'Who they are' }) : '');
+  return `<section class="page">${portrait?.bust ? `<div class="sheet-head"><img class="bust" src="${esc(portrait.bust)}" alt="${esc(p.name)}"><div>${who}</div></div>` : who}`
     + grid(scores) + grid(vit)
     + facts([['weapon', weapon], prog, ['made', `${p.method}: ${p.rolls.join('; ')}`]])
     + heading('Notes', 4) + lines(8) + '</section>';
 }
 
-export function tableRpgBook(K, { style = 'tome', tape = 20, parts } = {}) {
+export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = {} } = {}) {
   if (parts !== undefined && !(Array.isArray(parts) && parts.length && parts.every((p) => BOOK_PARTS.includes(p)))) throw new Error(`table rpg book: parts are some of ${BOOK_PARTS.join(', ')}`);
   const S = readBookStyle(style);
   // a one-sheet format carries what the table needs in play: the title, the dungeons, the foes, the tables
   const keep = new Set(parts ?? (S.onePage ? ['title', 'dungeons', 'foes', 'tables'] : BOOK_PARTS));
   const chapters = [
-    { id: 'title', kind: 'title', body: titlePage(K) },
+    { id: 'title', kind: 'title', body: titlePage(K, portraits) },
     { id: 'running', title: 'Running the game', body: running(K) },
     { id: 'world', title: 'The world', body: world(K) },
     ...Object.values(K.D).map((D) => ({ id: `dungeon-${D.id}`, title: cap(D.name), body: dungeon(K, D) })),
     { id: 'foes', title: 'Foes', body: foes(K) },
     ...(Object.keys(K.tables).length || (K.M.beats ?? []).length ? [{ id: 'tables', title: 'Tables', body: tables(K) }] : []),
-    { id: 'party', title: 'The party', kind: 'pages', body: K.party.map((p) => sheet(K, p)).join('') },
+    { id: 'party', title: 'The party', kind: 'pages', body: K.party.map((p) => sheet(K, p, portraits[p.id])).join('') },
     ...(tape ? [{ id: 'tape', title: 'The dice', body: para('Read in order, one die at a time: the game is fair and can be played again the same way.') + mono([20, 6, 10, 100].map((s) => `d${String(s).padEnd(3)} ${tableTape(K.seed, s, tape).map((v) => String(v).padStart(String(s).length)).join(' ')}`).join('\n')) }] : []),
     { id: 'colophon', title: 'Colophon', body: para(`Rules: the ${K.sys.name} card.${K.sys.attribution ? ` ${K.sys.attribution}` : ''}`) + para(`Set in ${list([...new Set(Object.values(S.faces))].map((f) => words(f)))}; the ${S.style} style, ${S.look} on ${S.paper}. Made with mojulo from the module's recipe: the same recipe prints the same book.`) },
   ];

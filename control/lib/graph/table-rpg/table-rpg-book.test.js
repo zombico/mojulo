@@ -81,6 +81,16 @@ describe('the game book: the module set by the press', () => {
     for (const id of ['title', 'running', 'world', 'dungeon-chapel', 'foes', 'tables', 'party', 'tape', 'colophon']) expect(whole).toContain(`id="${id}"`);
   });
 
+  it('the party\'s photographs: the figures lined up on the title page, each bust heading its sheet; none, none drawn', () => {
+    const K = read(), id = K.party[0].id;
+    const portraits = { [id]: { figure: 'data:image/jpeg;base64,FIG', bust: 'data:image/jpeg;base64,BUST' } };
+    const { html } = tableRpgBook(K, { portraits });
+    expect(html).toContain(`<div class="lineup"><figure><img src="data:image/jpeg;base64,FIG" alt="${K.party[0].name}">`);
+    expect(html).toContain('<div class="sheet-head"><img class="bust" src="data:image/jpeg;base64,BUST"');
+    expect((html.match(/class="bust"/g) ?? []).length).toBe(1);
+    expect(tableRpgBook(K).html).not.toMatch(/class="lineup"|class="bust"/);
+  });
+
   it('says the style\'s advice, and refuses a style it does not know', () => {
     expect(tableRpgBook(read(), { style: 'screen' }).findings[0].text).toMatch(/screen look/);
     expect(() => tableRpgBook(read(), { style: 'glossy' })).toThrow(/no style 'glossy'/);
