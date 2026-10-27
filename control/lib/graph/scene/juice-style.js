@@ -18,15 +18,22 @@
  *              how many echoes, the shake, the impact's flash, how strongly the effects rim-light the characters, and
  *              a slight change of shape (round sparks in a platformer, streaks at speed)
  *
+ *   FIDELITY   how finely it is drawn (JUICE_FIDELITIES), the venue's or the era's: voxel (blocks: cube particles on
+ *              twos, no thrown light), paint (the sixth generation: sprites over painted light, a flash's light laid on
+ *              the ground as a pool), form (the seventh: the flash throws light on the lit world, a bloom round every hot
+ *              core, sparks by the dozen), or era (the read's: gen-6 paint, gen-7 form). Absent: the floor's own
+ *
  * and DIALS over both (JUICE_DIALS): any one number of the composition, pinned. What stays GLOBAL is the floor's own:
  * a line stays a line, a laser one beam, an attack lands on its target (its landing re-read), the white core reads
  * first in greys, a warm bolt burns and a pale ray crackles, the hand is the attack's.
  *
  *   fxStyle: true                          the floor as it always was (FX_STYLE, byte for byte)
- *   fxStyle: { register?, look?, flavor?, …dials }  a composed floor: register anime (its look isekai) by default,
- *                                          flavor action; a look names its register
+ *   fxStyle: { register?, look?, flavor?, fidelity?, …dials }  a composed floor: register anime (its look isekai) by
+ *                                          default, flavor action; a look names its register
+ *   fidelityOfRead(fidelity, era)  'era' at a read: gen-7 form, else paint (any other word itself)
  *
- *   JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS   the registers and their looks, the game types, the dials
+ *   JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_FIDELITIES, JUICE_DIALS   the registers and their looks, the game
+ *                               types, the fidelities, the dials
  *   readJuiceStyle(v, where)    → { register, look, flavor, …dials } checked (teaches on a bad word)
  *   juiceFloor(style)           → the floor: FX_STYLE's numbers composed, and the composed fields (composed: true)
  *   juiceSignature(F)           → { look, time }: what tells one composition from another
@@ -124,6 +131,34 @@ export const JUICE_FLAVORS = Object.freeze({
 });
 export const JUICE_FLAVOR_IDS = Object.freeze(Object.keys(JUICE_FLAVORS));
 
+/** The fidelities: how finely the effects are drawn, the venue's drawing or the era's. `glyph` every particle's shape
+ *  (null: the look's and the game type's), `fps` its drawings a second (null: theirs), `light` × the light a flash
+ *  throws, `pool` a flash's light laid on the ground as a painted pool (its strength, 0 none), `bloom` a halo round
+ *  every hot core (its strength), `sparks` and `smoke` × theirs. */
+export const JUICE_FIDELITIES = Object.freeze({
+  voxel: {
+    era: null,
+    says: 'blocks: every particle a little cube tumbling on twos, a flash a flat square of light on the ground, no thrown light',
+    glyph: 'cube', fps: 12, light: 0, pool: 0.7, bloom: 0, sparks: 0.8, smoke: 0.7,
+  },
+  paint: {
+    era: 'gen-6',
+    says: 'the sixth generation: additive sprites over painted light; a flash\'s light laid on the ground as a pool, the world being paint and taking no lamp',
+    glyph: null, fps: null, light: 0.5, pool: 1, bloom: 0, sparks: 1, smoke: 1,
+  },
+  form: {
+    era: 'gen-7',
+    says: 'the seventh generation: the flash throws its light on the lit world, a bloom round every hot core, sparks by the dozen, smoke that lingers',
+    glyph: null, fps: null, light: 1.4, pool: 0, bloom: 1, sparks: 1.4, smoke: 1.2,
+  },
+});
+export const JUICE_FIDELITY_IDS = Object.freeze([...Object.keys(JUICE_FIDELITIES), 'era']);
+/** A fidelity at a read: 'era' the read's (gen-7 form, else paint), any other word itself, none none. */
+export function fidelityOfRead(fidelity, era) {
+  if (fidelity === undefined || fidelity === null) return fidelity;
+  return fidelity === 'era' ? (era === 'gen-7' ? 'form' : 'paint') : fidelity;
+}
+
 /** The dials: one number (or switch) of the composition pinned over both cards. [lo, hi, what it is] */
 export const JUICE_DIALS = Object.freeze({
   rate: [0.25, 4, 'how fast the effect plays (× its own pace)'],
@@ -147,7 +182,7 @@ export const JUICE_DIALS = Object.freeze({
   motes: 'switch',
   comic: 'switch',
 });
-const STYLE_KEYS = ['register', 'look', 'flavor', 'trailColor', ...Object.keys(JUICE_DIALS)];
+const STYLE_KEYS = ['register', 'look', 'flavor', 'fidelity', 'trailColor', ...Object.keys(JUICE_DIALS)];
 
 /** A composed style's words, checked. */
 export function readJuiceStyle(v, where = 'fxStyle') {
@@ -161,6 +196,10 @@ export function readJuiceStyle(v, where = 'fxStyle') {
   if (JUICE_LOOKS[look].register !== register) throw new Error(`${where}.look '${look}' is the ${JUICE_LOOKS[look].register} register's: ${register} is drawn ${JUICE_REGISTERS[register].looks.join(' | ')}`);
   if (!JUICE_FLAVORS[flavor]) throw new Error(`${where}.flavor is ${JUICE_FLAVOR_IDS.join(' | ')} (the game type's animation)`);
   const out = { register, look, flavor };
+  if (v.fidelity !== undefined) {
+    if (!JUICE_FIDELITY_IDS.includes(v.fidelity)) throw new Error(`${where}.fidelity is ${JUICE_FIDELITY_IDS.join(' | ')} (how finely the effects are drawn: the venue's drawing or the era's)`);
+    out.fidelity = v.fidelity;
+  }
   if (v.trailColor !== undefined) {
     const c = v.trailColor;
     if (!((typeof c === 'string' && (TRAIL_SOURCES.includes(c) || HEX.test(c))) || (Array.isArray(c) && c.length === 3 && c.every((x) => num(x) && x >= 0 && x <= 1)))) throw new Error(`${where}.trailColor is ${TRAIL_SOURCES.join(' | ')}, '#rrggbb' or [r, g, b] (a function goes to resolveTrailColor)`);
@@ -175,11 +214,12 @@ export function readJuiceStyle(v, where = 'fxStyle') {
   return out;
 }
 
-// a glyph through the look's shape, then the game type's, then how the look draws it
-const glyphMap = (Rg, Fl) => {
+// a glyph through the look's shape, then the game type's, then how the look draws it, then the fidelity's (a voxel
+// world's every particle a cube)
+const glyphMap = (Rg, Fl, Fi) => {
   const out = {};
   for (const g of ['dot', 'soft', 'streak', 'drop', 'flake', 'leaf', 'spark', 'chip']) {
-    const a = Rg.glyphs[g] ?? g, b = Fl.glyphs[a] ?? a, c = Rg.draw[b] ?? b;
+    const a = Rg.glyphs[g] ?? g, b = Fl.glyphs[a] ?? a, c = Fi?.glyph ?? Rg.draw[b] ?? b;
     if (c !== g) out[g] = c;
   }
   return out;
@@ -188,10 +228,12 @@ const glyphMap = (Rg, Fl) => {
 /** The floor a composed style asks for: FX_STYLE's shape with its numbers composed, and the composed fields. */
 export function juiceFloor(style) {
   const S = readJuiceStyle(style), Rg = JUICE_LOOKS[S.look], Fl = JUICE_FLAVORS[S.flavor], F = FX_STYLE;
+  // (the fidelity: 'era' unresolved, as a read without one, is the sixth generation's paint)
+  const Fi = S.fidelity ? JUICE_FIDELITIES[fidelityOfRead(S.fidelity, null)] : null;
   const pick = (k, v) => (S[k] !== undefined ? S[k] : v);
-  const glyphs = glyphMap(Rg, Fl);
-  const sparkK = pick('sparks', Fl.sparks);
-  const fps = S.fps !== undefined ? (S.fps || null) : Fl.fps === 'every' ? null : Rg.fps;
+  const glyphs = glyphMap(Rg, Fl, Fi);
+  const sparkK = pick('sparks', Fl.sparks * (Fi ? Fi.sparks : 1));
+  const fps = S.fps !== undefined ? (S.fps || null) : Fi?.fps ?? (Fl.fps === 'every' ? null : Rg.fps);
   return Object.freeze({
     ...F,
     composed: true, register: S.register, look: S.look, flavor: S.flavor,
@@ -207,7 +249,9 @@ export function juiceFloor(style) {
     rate: pick('rate', Fl.rate), fps,
     glyphs: Object.freeze(glyphs), sparkK, sparkLife: Fl.sparkLife,
     comic: pick('comic', Rg.comic), glow: Rg.glow, onions: Rg.onions, debris: Rg.debris, halo: pick('halo', Rg.halo), motes: pick('motes', Rg.motes), tint: pick('tint', Rg.tint), edge: Rg.edge, cel: Rg.cel,
-    shakeK: pick('shake', Fl.shake), lightK: pick('light', Rg.light), smokeK: pick('smoke', Rg.smoke),
+    shakeK: pick('shake', Fl.shake), lightK: pick('light', r3(Rg.light * (Fi ? Fi.light : 1))), smokeK: pick('smoke', r3(Rg.smoke * (Fi ? Fi.smoke : 1))),
+    // the fidelity: a flash's light laid on the ground as a pool, a bloom round its hot core (each a strength, 0 none)
+    ...(Fi ? { fidelity: fidelityOfRead(S.fidelity, null), pool: Fi.pool, bloom: Fi.bloom } : {}),
     starK: r3(pick('star', Rg.star * Fl.star)),
     // the characters' rim: the look's (how narrow, a soft fade or a cel band, how a status's coat is lifted) at the game
     // type's strength
@@ -223,7 +267,7 @@ export function juiceFloor(style) {
 /** What tells one composition from another: its look (values and shape) and its time. */
 export function juiceSignature(F) {
   const look = [F.look, F.cel ? 'cel bands' : 'soft glow', F.ink ? `ink ${F.ink}` : 'no ink', F.companions ? 'companions' : 'one colour', F.halo ? 'halo' : 'no halo', F.motes ? 'motes' : 'no motes', F.tint ? `smoke tinted ${F.tint}` : 'grey smoke', F.comic ? 'comic burst' : 'no burst',
-    `sparks ${F.sparks.glyph}×${F.sparks.count}`, F.trail.life ? `trail ${F.trail.kind} ${F.trail.life}s over ${F.trail.min} m/s` : 'no trail', F.rim.k ? `rim ${F.rim.band ? 'cel band' : `soft p${F.rim.p}`} ×${F.rim.k}` : 'no rim', `smoke ×${F.smokeK}`, `light ×${F.lightK}`, F.fps ? `${F.fps} drawings/s` : 'every frame'].join(' · ');
+    ...(F.fidelity ? [`${F.fidelity}${F.pool ? ` pool ${F.pool}` : ''}${F.bloom ? ` bloom ${F.bloom}` : ''}`] : []), `sparks ${F.sparks.glyph}×${F.sparks.count}`, F.trail.life ? `trail ${F.trail.kind} ${F.trail.life}s over ${F.trail.min} m/s` : 'no trail', F.rim.k ? `rim ${F.rim.band ? 'cel band' : `soft p${F.rim.p}`} ×${F.rim.k}` : 'no rim', `smoke ×${F.smokeK}`, `light ×${F.lightK}`, F.fps ? `${F.fps} drawings/s` : 'every frame'].join(' · ');
   const time = [`rate ×${F.rate}`, F.charge.time ? `charge ${F.charge.time}s` : 'no charge', `stretch ${F.stretch}`, `arc ${F.arc}`, `${F.echoes} echoes @${F.echoLag}s`, `shake ×${F.shakeK}`, `flash ×${F.starK}`].join(' · ');
   return { look, time };
 }

@@ -50,6 +50,16 @@ export const CEL_GLYPHS_SRC = `(window.__mojGlyphs.cdot || Object.assign(window.
   };
 })()))`;
 
+// the voxel glyph (a floor at the voxel fidelity, scene/juice-style.js): a little block seen from above at three quarters,
+// its top lit, its sides a stop and two down, so a cloud of them reads as a voxel world's debris. Emitted only where used
+export const VOXEL_GLYPHS = Object.freeze(['cube']);
+export const VOXEL_GLYPHS_SRC = `(window.__mojGlyphs.cube || Object.assign(window.__mojGlyphs, (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d');
+  const face = (pts, c) => { x.fillStyle = c; x.beginPath(); pts.forEach(([a, b]) => x.lineTo(a, b)); x.closePath(); x.fill(); };
+  face([[32, 6], [58, 19], [32, 32], [6, 19]], '#ffffff'); face([[6, 19], [32, 32], [32, 60], [6, 46]], '#c4c4c4'); face([[32, 32], [58, 19], [58, 46], [32, 60]], '#8c8c8c');
+  return { cube: { tex: new THREE.CanvasTexture(cv), add: false } };
+})()))`;
+
 // the particle glyphs, drawn white (a sprite's colour tints them); additive ones glow, the rest lie over the scene
 export const GLYPHS_SRC = `window.__mojGlyphs || (window.__mojGlyphs = (() => {
   const mk = (draw) => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = x.strokeStyle = '#fff'; draw(x); return new THREE.CanvasTexture(cv); };
@@ -101,7 +111,7 @@ function __sprStep(P, pts, fade, show) {
 }
 function __sprDrop(P) { for (const s of P.sprs) { scene.remove(s); s.material.dispose(); } for (const r of P.rings) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); } }`;
 
-export function momentScript(kinds, { fx = false, fps = false, cel = false, aura = false } = {}) {
+export function momentScript(kinds, { fx = false, fps = false, cel = false, aura = false, voxel = false, pool = false, bloom = false } = {}) {
   const K = kinds.filter((k) => MOMENTS[k]), shake = kinds.includes('shake'), boom = kinds.includes('explosion');
   const spec = Object.fromEntries(K.map((k) => [k, { ...MOMENTS[k], key: MOMENT_KEYS[k] }]));
   const bolt = K.some((k) => MOMENTS[k].bolt), light = boom || K.some((k) => MOMENTS[k].light);
@@ -112,7 +122,13 @@ const __moTint = (M) => { const c = M.color; if (Array.isArray(c)) return c; if 
 const __moCol = ${safeJson(FIRE_COLORANTS)};
 const __moRgb = (c) => (Array.isArray(c) ? c : typeof c === 'string' && __moCol[c] ? __moCol[c] : typeof c === 'string' && c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255) : [1, 1, 1]);
 const __moGlyph = ${GLYPHS_SRC};${cel ? `
-${CEL_GLYPHS_SRC};` : ''}${aura ? `\n// an aura: a blast's fire as spirit onions and rings of spikes (playscape/elements/aura.js)\nconst __moAU = ${AURA_SRC};` : ''}
+${CEL_GLYPHS_SRC};` : ''}${voxel ? `
+${VOXEL_GLYPHS_SRC};` : ''}${pool || bloom ? `
+// a fidelity's light (scene/juice-style.js): the pool, a flash's light painted on the ground (soft, or a flat square at
+// the voxel fidelity); the bloom, a wide halo round a hot core
+const __moFi = (() => { const mk = (draw) => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; draw(cv.getContext('2d')); return new THREE.CanvasTexture(cv); };
+  const rad = (stops) => mk((x) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); for (const [o, a] of stops) g.addColorStop(o, 'rgba(255,255,255,' + a + ')'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); });
+  return { pool: rad([[0, 0.85], [0.35, 0.5], [0.75, 0.12], [1, 0]]), square: mk((x) => { x.fillStyle = 'rgba(255,255,255,0.75)'; x.fillRect(20, 20, 88, 88); x.fillStyle = 'rgba(255,255,255,0.35)'; x.fillRect(6, 6, 116, 116); }), bloom: rad([[0, 0.6], [0.2, 0.32], [0.55, 0.08], [1, 0]]) }; })();` : ''}${aura ? `\n// an aura: a blast's fire as spirit onions and rings of spikes (playscape/elements/aura.js)\nconst __moAU = ${AURA_SRC};` : ''}
 const __moSpray = ${sprayPoints.toString()};
 ${SPRAY_SRC.replace(/__spr/g, '__moSpr')}${bolt ? `
 const __moBolt = ${strikeBolt.toString()};
@@ -155,7 +171,9 @@ function __moMake(M) {
   I.rings = (S.rings || (S.ring ? [S.ring] : [])).map((R) => {
     const m = R.air ? new THREE.Sprite(mat(new THREE.SpriteMaterial({ map: __moAir, color: 0xeef6ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))) : new THREE.Mesh(new THREE.RingGeometry(R.dark ? 0.7 : 0.88, 1, 48), mat(new THREE.MeshBasicMaterial({ color: R.dark ? 0x000000 : 0xd8ecff, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: R.dark ? THREE.NormalBlending : THREE.AdditiveBlending })));
     m.position.set(at[0], at[1], at[2] + (R.air ? 0.8 : 0.015) * I.sc); m.raycast = function () {}; m.visible = false; scene.add(m); I.extra.push(m); return [R, m];
-  });${boom ? `
+  });${pool ? `
+  if (S.pool) { const c = S.pool.color || [1, 0.9, 0.7]; I.pool = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat(new THREE.MeshBasicMaterial({ map: S.pool.square ? __moFi.square : __moFi.pool, color: new THREE.Color(c[0], c[1], c[2]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); I.pool.position.set(at[0], at[1], at[2] + 0.02); I.pool.raycast = function () {}; I.pool.visible = false; scene.add(I.pool); I.extra.push(I.pool); }` : ''}${bloom ? `
+  if (S.bloom) { const c = S.bloom.color || [1, 0.95, 0.85]; I.bloom = new THREE.Sprite(mat(new THREE.SpriteMaterial({ map: __moFi.bloom, color: new THREE.Color(c[0], c[1], c[2]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); I.bloom.raycast = function () {}; I.bloom.renderOrder = 9; I.bloom.visible = false; scene.add(I.bloom); I.extra.push(I.bloom); }` : ''}${boom ? `
   if (S.scorch) { I.scorch = new THREE.Mesh(new THREE.CircleGeometry(1, 40), mat(new THREE.MeshBasicMaterial({ map: __moScorch, color: 0x000000, transparent: true, depthWrite: false }))); I.scorch.position.set(at[0], at[1], at[2] + 0.01); I.scorch.raycast = function () {}; I.scorch.visible = false; scene.add(I.scorch); I.extra.push(I.scorch); }
   if (S.comic) { I.comic = new THREE.Sprite(mat(new THREE.SpriteMaterial({ map: __moComic(S.comic.spikes), transparent: true, depthWrite: false }))); I.comic.raycast = function () {}; I.comic.renderOrder = 12; I.comic.visible = false; scene.add(I.comic); I.extra.push(I.comic); }` : ''}${bolt ? `
   if (S.bolt) {
@@ -175,7 +193,9 @@ function __moStep(I, age) {
   const big = (pts) => (sc === 1 ? pts : pts.map((q) => ({ ...q, p: [at[0] + (q.p[0] - at[0]) * sc, at[1] + (q.p[1] - at[1]) * sc, at[2] + (q.p[2] - at[2]) * sc], s: q.s * sc })));
   I.sprays.forEach((P) => __moSprStep(P, big(__moSpray(P.S, at, age, false)), 1, true));
   if (I.star) { const u = (age - (S.star.delay || 0)) / S.star.life; I.star.visible = u >= 0 && u < 1; I.star.position.set(at[0], at[1], at[2] + S.star.z * sc); const k = sm(u * 4) * (1 - u); I.star.scale.setScalar(sc * S.star.size * (0.4 + 0.8 * Math.sqrt(Math.max(0, Math.min(1, u))))); I.star.material.opacity = Math.min(1, 1.6 * k); I.star.material.rotation = age * 0.6; }
-  for (const [R, m] of I.rings) {
+${pool ? `  if (I.pool) { const P = S.pool, u = (age - (P.delay || 0)) / P.life; I.pool.visible = u >= 0 && u < 1; if (I.pool.visible) { I.pool.scale.setScalar(P.r * sc * (0.7 + 0.3 * sm(u * 5))); I.pool.material.opacity = P.k * 0.8 * sm(u * 12) * (1 - u) * (1 - u); } }
+` : ''}${bloom ? `  if (I.bloom) { const B = S.bloom, u = (age - (B.delay || 0)) / B.life; I.bloom.visible = u >= 0 && u < 1; if (I.bloom.visible) { I.bloom.position.set(at[0], at[1], at[2] + B.z * sc); I.bloom.scale.setScalar(B.size * sc * (0.75 + 0.25 * sm(u * 3))); I.bloom.material.opacity = B.k * 0.9 * sm(u * 10) * (1 - u); } }
+` : ''}  for (const [R, m] of I.rings) {
     // out along the ground (a scorch ring quick, then still), in to the middle, or swelling round it
     const u = (age - (R.delay || 0)) / R.life; m.visible = u >= 0 && u < 1; if (!m.visible) continue;
     const r = R.inward ? R.r * (1 - u) + 0.05 : 0.05 + R.r * (R.dark ? Math.sqrt(Math.min(1, u * 3)) : Math.sqrt(u));

@@ -218,6 +218,12 @@ function __updateGearLines() {
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
+  // and its FIDELITY (car-designer/juice.js RIG_FIDELITIES: a voxel venue's cubes, a banded one's cel discs, the seventh
+  // generation's bloom) — emitted only when some figure's juice names one.
+  const figHasJuiceFid = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && f.juice.fidelity);
+  // and a HERO's movement juice (gameworld/feel/hero-juice.js: the platformer's and pinball's), read off the platform
+  // rule's facts — emitted only when some figure's juice is a hero's.
+  const figHasHeroJuice = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && f.juice.hero);
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
@@ -957,7 +963,22 @@ function __rjWhen(n, F) {
   }
   return 0;
 }
-const __rjMatch = (at, kind) => at === kind || (at.indexOf('.') < 0 && kind.split('.')[0] === at);
+const __rjMatch = (at, kind) => at === kind || (at.indexOf('.') < 0 && kind.split('.')[0] === at);${figHasJuiceFid ? `
+// a particle at its juice's fidelity: a voxel venue's a tumbling block, a banded one's a flat cel disc (three hard bands),
+// the seventh generation's spark a hot core in a wide bloom; the soft sprite otherwise
+const __rjFidTex = {};
+function __rjTexOf(fid, spark) {
+  const key = fid === 'form' ? (spark ? 'bloom' : null) : fid === 'voxel' || fid === 'banded' ? fid : null;
+  if (!key) return __rjTexture();
+  if (__rjFidTex[key]) return __rjFidTex[key];
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const face = (pts, col) => { g.fillStyle = col; g.beginPath(); pts.forEach(([a, b]) => g.lineTo(a, b)); g.closePath(); g.fill(); };
+  const disc = (r, col) => { g.fillStyle = col; g.beginPath(); g.arc(32, 32, r, 0, 7); g.fill(); };
+  if (key === 'voxel') { face([[32, 6], [58, 19], [32, 32], [6, 19]], '#ffffff'); face([[6, 19], [32, 32], [32, 60], [6, 46]], '#c4c4c4'); face([[32, 32], [58, 19], [58, 46], [32, 60]], '#8c8c8c'); }
+  else if (key === 'banded') { disc(30, 'rgba(255,255,255,0.35)'); disc(22, 'rgba(255,255,255,0.7)'); disc(12, '#ffffff'); }
+  else { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.12, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.28)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+  return (__rjFidTex[key] = new THREE.CanvasTexture(c));
+}` : ''}
 function __rjBuild(fig, group, boneMeshes) {
   const J = fig.juice, anchors = J.anchors.map((a) => {
     const loc = new THREE.Object3D(); loc.position.set(a.at[0], a.at[1], a.at[2]);
@@ -1139,7 +1160,11 @@ function __rjSpawn(rj, row, a, e, F, tier) {
   p.c0 = new THREE.Color(c0); p.c1 = new THREE.Color(c1);
   p.s0 = row.size * D * (spark ? 1 : 0.8); p.s1 = spark ? p.s0 * 0.3 : p.s0 * 2.6;
   p.o0 = spark ? 1 : look === 'puff' ? 0.75 : 0.6;
-  p.spr.material.blending = spark ? THREE.AdditiveBlending : THREE.NormalBlending; p.spr.material.needsUpdate = true;
+  p.spr.material.blending = spark ? THREE.AdditiveBlending : THREE.NormalBlending;${figHasJuiceFid ? `
+  // (at a fidelity: its particle's shape; a block is solid, never added light; a bloom is wider than its core)
+  const fid = rj.J.fidelity; p.spr.material.map = __rjTexOf(fid, spark); p.spin = 0; p.spr.material.rotation = 0;
+  if (fid === 'voxel') { p.spr.material.blending = THREE.NormalBlending; p.o0 = 1; p.s0 *= 0.8; p.s1 = p.s0 * (spark ? 0.5 : 1.4); p.spin = (__rjRnd() - 0.5) * 9; }
+  else if (fid === 'form' && spark) { p.s0 *= 1.7; p.s1 = p.s0 * 0.35; }` : ''} p.spr.material.needsUpdate = true;
   p.spr.visible = true; rj.alive[key] = (rj.alive[key] || 0) + 1;
 }
 function __rjRing(rj, row, e) {
@@ -1220,7 +1245,26 @@ function __rjPools(d) {
     const s = k.size * (0.2 + 0.8 * Math.sqrt(u)); k.m.scale.set(s, s, s); k.m.material.opacity = 0.5 * (1 - u) * (1 - u);
   }
 }
-function __updateRacerJuice(dt) {
+${figHasHeroJuice ? `// a HERO's facts (gameworld/feel/hero-juice.js), the platform rule's as this frame leaves them: its speed along the
+// ground, a jump's frame and an air jump's, the landing's and how hard, a hard stop, its share of the top speed, a surge,
+// the charge, a blow taken (its hits counted up), a bump (speed lost in an instant)
+function __rjHero(rj, e, F, d) {
+  // (its speed along the ground from how far it went: the rule moves a body directly, its vel the vertical's; a jump
+  // across the map, a respawn, read as none)
+  const p = e.transform.pos, R = e.rule || {}, step = rj.hpos && d > 0 ? Math.hypot(p[0] - rj.hpos[0], p[1] - rj.hpos[1]) / d : 0, sp = step > 60 ? 0 : step; rj.hpos = [p[0], p[1]];
+  const acc = d > 0 ? (sp - (rj.hv || 0)) / d : 0; rj.hv = sp; rj.hacc = (rj.hacc || 0) + (acc - (rj.hacc || 0)) * Math.min(1, d * 8);
+  const air = e.airJumpsUsed || 0, hits = e.hits || 0;
+  F.speed = sp; F.accel = rj.hacc; F.grounded = e.grounded ? 1 : 0;
+  F.airJump = air > (rj.air || 0) ? 1 : 0; F.takeoff = e.jumped && !F.airJump ? 1 : 0; rj.air = air;
+  F.landed = e.landed ? 1 : 0; F.fall = Math.abs(e.landVel || 0);
+  F.brake = e.grounded && rj.hacc < -14 && sp > 1 ? 1 : 0;
+  F.topShare = sp / Math.max(4, e.boosting && R.boostSpeed ? R.boostSpeed : R.speed || 6);
+  F.surge = e.boosting ? 1 : Math.max(0, Math.min(1, (rj.hacc - 6) / 10));
+  F.charging = e.charging ? 1 : 0; F.charge = e.chargeFrac || 0;
+  F.hit = hits > (rj.hits || 0) ? 1 : 0; rj.hits = hits;
+  rj.himp = Math.max(0, (rj.himp || 0) - d); F.impact = acc < -40 && rj.himp === 0 ? 1 : 0; if (F.impact) rj.himp = 0.5;
+}
+` : ''}function __updateRacerJuice(dt) {
   const d = Math.min(0.05, dt || 0), t = __world.time || 0;
   for (const e of __world.entities) {
     const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig, rj = rf && rf.rj;
@@ -1237,7 +1281,8 @@ function __updateRacerJuice(dt) {
     const boosting = e.boosting || (e.boostT || 0) > 0 ? 1 : 0, boostStart = boosting && !rj.wasBoost ? 1 : 0; rj.wasBoost = !!boosting;
     const topShare = Math.abs(vv) / Math.max(6, R.topSpeed || 13), surge = boosting ? 1 : Math.max(0, Math.min(1, (rj.accel - 4) / 6));
     const F = { speed: Math.abs(e.speed || 0), throttle: e.throttle || 0, braking: e.braking ? 1 : 0, steer: e.steerAngle || 0, skidding: e.skidding ? 1 : 0, skidTime: rj.skidT, corner, cornerTime: rj.cornerT, landed: e.landed ? 1 : 0, boosting, boostStart, accel: rj.accel, topShare, surge, impact, hit: e.hit || e.hitStart ? 1 : 0, charge: e.boostCharge != null ? e.boostCharge : (e.charge || 0), shield: e.shield ? 1 : 0, invulnerable: e.invulnerable || e.star ? 1 : 0, item: e.item ? 1 : 0, offroad: ${driveSurface ? `(__surface(e.transform.pos) || { mu: 1 }).mu < 0.85 ? 1 : 0` : '0'}, damage: hp };
-    for (const row of rj.J.rows) {
+${figHasHeroJuice ? `    if (rj.J.hero) __rjHero(rj, e, F, d);
+` : ''}    for (const row of rj.J.rows) {
       const on = !!__rjWhen(row.when, F);
       if (row.look === 'flame') continue;
       if (row.look === 'ring') { if (on) __rjRing(rj, row, e); continue; }
@@ -1267,7 +1312,8 @@ function __updateRacerJuice(dt) {
     if (u >= 1) { p.on = false; p.spr.visible = false; p.rj.alive[p.key]--; continue; }
     p.vel[2] += p.grav * d; const drag = Math.max(0, 1 - d * 2.2); p.vel[0] *= drag; p.vel[1] *= drag;
     p.spr.position.x += p.vel[0] * d; p.spr.position.y += p.vel[1] * d; p.spr.position.z = Math.max(0.02, p.spr.position.z + p.vel[2] * d);
-    const s = p.s0 + (p.s1 - p.s0) * u; p.spr.scale.set(s, s, s);
+    const s = p.s0 + (p.s1 - p.s0) * u; p.spr.scale.set(s, s, s);${figHasJuiceFid ? `
+    if (p.spin) p.spr.material.rotation += p.spin * d;` : ''}
     p.spr.material.color.copy(p.c0).lerp(p.c1, u); p.spr.material.opacity = p.o0 * (1 - u) * (1 - u * 0.3);
   }
   for (const g of __rjRings) {

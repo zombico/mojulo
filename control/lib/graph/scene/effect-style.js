@@ -30,7 +30,8 @@
  *   styleEvents(events, F?)              a world's lowered events with every beam and explosion raised (its landings re-read)
  *   puffSpec(is)                   a preset puff as an explosion's spec, or null when it stays the moment's own
  *   (a composed floor's events also carry `rim`, the characters' rim light from the effects (effect-rim.js), and their
- *   statuses' coats in the look's rim)
+ *   statuses' coats in the look's rim; a floor at a fidelity, juice-style.js JUICE_FIDELITIES, lays an explosion's
+ *   `pool`, its light painted on the ground, and its `bloom`, a halo round its hot core)
  */
 import { beamLanding } from '../playscape/elements/beams.js';
 import { MOMENTS, MOMENT_KEYS } from '../playscape/elements/moments.js';
@@ -166,7 +167,8 @@ function composeBeam(B, seed, F) {
 // how long an explosion plays: its last part out (explosions.js readExplosion's reckoning)
 function durOf(X) {
   const ends = [...X.parts.map((p) => (p.delay || 0) + (p.stagger || 0) + p.life * 1.15 + ((p.trail || 1) - 1) * (p.lag || 0)), ...(X.rings || []).map((g) => (g.delay || 0) + g.life),
-    X.star ? (X.star.delay || 0) + X.star.life : 0, X.aura ? X.aura.delay + X.aura.life : 0, X.scorch ? (X.scorch.delay || 0) + X.scorch.life : 0, X.comic ? (X.comic.delay || 0) + X.comic.life : 0];
+    X.star ? (X.star.delay || 0) + X.star.life : 0, X.aura ? X.aura.delay + X.aura.life : 0, X.scorch ? (X.scorch.delay || 0) + X.scorch.life : 0, X.comic ? (X.comic.delay || 0) + X.comic.life : 0,
+    X.pool ? (X.pool.delay || 0) + X.pool.life : 0, X.bloom ? (X.bloom.delay || 0) + X.bloom.life : 0];
   return Math.round((Math.max(...ends) + 0.1) * 1000) / 1000;
 }
 
@@ -213,6 +215,10 @@ function composeExplosion(X, F) {
   // debris: dark specks thrown from the blow (not a key part: a cue's colour leaves them dark)
   if (F.debris && flash) parts.push(fastSpray({ ...FX_STYLE.sparks, glyph: 'chip', count: 16, from: 'point', z: [0.3, 0.3], v: 6.5, el: [15, 75], gravity: 9.8, spin: 3, life: 0.9, size: 0.07, env: 'steady', delay: +(((flash.delay || 0) * r)).toFixed(3), color: [0.11, 0.11, 0.13] }, r));
   if (fire) out.aura = { A: { ...scaleAura(AURAS.burst, +(fire.size / 0.75).toFixed(3)), color: own.map((x, i) => +(x + ([1, 0.82, 0.15][i] - x) * 0.35).toFixed(3)) }, life: sc(fire.life, 0.9 / r), delay: sc(fire.delay || 0, 1 / r) };
+  // the fidelity's light: a painted pool where the flash's light falls (a paint world takes no lamp), a bloom round its
+  // hot core (the seventh generation's), each in its colour, as long as the flash it answers
+  if (F.pool && out.light) out.pool = { r: +(1.2 + 0.35 * Math.sqrt(X.light.k)).toFixed(3), k: F.pool, life: sc(out.light.life * 1.6, 1), delay: out.light.delay || 0, color: own, ...(F.fidelity === 'voxel' ? { square: true } : {}) };
+  if (F.bloom && flash) out.bloom = { size: +((out.star ? out.star.size : 1.4) * 2.6).toFixed(3), k: F.bloom, life: sc((out.star || out.light).life * 1.5, 1), delay: flash.delay || 0, z: flash.z ?? 1, color: own };
   if (X.comic) out.comic = t(X.comic);
   else if (F.comic && X.star) out.comic = { size: sc(out.star.size, 0.8), spikes: 12, life: sc(X.star.life * 1.6, 1 / r), delay: out.star.delay || 0 };
   if (X.scorch && num(X.scorch.delay)) out.scorch = { ...X.scorch, delay: sc(X.scorch.delay, 1 / r) };
