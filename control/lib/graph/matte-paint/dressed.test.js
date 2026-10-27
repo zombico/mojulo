@@ -179,7 +179,8 @@ describe('the modern class and the roads', () => {
 });
 
 describe('the made class: the bay\'s steel, sheet and poured faces', () => {
-  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated', 'perforated', 'terrazzo', 'glazed', 'studded', 'seam', 'acoustic'];
+  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated', 'perforated', 'terrazzo', 'glazed', 'studded', 'seam', 'acoustic',
+    'matte', 'carbon', 'drywall', 'carpet', 'vinyl', 'laminate', 'porcelain', 'veneer'];
   const H = (cut, over = {}) => { const M = dressedMaterial({ ...CFG, cut, metres: 1, rows: 4, cols: 2, ...over }, { size: 128, seed: 3 }); return { M, at: (x, y) => M.height[Math.floor(y * 128) * 128 + Math.floor(x * 128)] }; };
   it('each cut is seamless, its own bytes, on the rails, and read as material from a relief', () => {
     for (const cut of MADE) {
@@ -211,6 +212,23 @@ describe('the made class: the bay\'s steel, sheet and poured faces', () => {
     // a poured floor is smooth: its relief its joints' and little more
     const epoxy = H('epoxy', { cols: 1 });
     expect(Math.max(...epoxy.M.height)).toBeLessThan(0.002);
+  });
+  it('the coats and the everyday: a fold, a twill, a checker of pile, a book-matched leaf', () => {
+    const base = (cut, over) => { const M = dressedMaterial({ ...CFG, cut, ...over }, { size: 128, seed: 3 }); return (i, j) => { const k = (j * 128 + i) * 3; return M.baseColor[k] + M.baseColor[k + 1] + M.baseColor[k + 2]; }; };
+    // (a matte sheet rolls away at its fold: its edge under its field)
+    const matte = H('matte', { rows: 1, cols: 1, grit: 0 });
+    expect(matte.at(0.002, 0.5)).toBeLessThan(matte.at(0.5, 0.5) - 0.0002);
+    // (a 2×2 twill: a tow's cell the same as the one a step along the diagonal, unlike the one two across)
+    const tw = base('carbon', { metres: 0.384, stone: [40, 40, 44], mortar: [40, 40, 44], grit: 0 }), cell = 128 / 32, at = (i, j) => tw(Math.floor((i + 0.5) * cell), Math.floor((j + 0.5) * cell));
+    let diag = 0, across = 0;
+    for (let i = 0; i < 28; i++) for (let j = 0; j < 28; j++) { diag += Math.abs(at(i, j) - at(i + 1, j + 1)); across += Math.abs(at(i, j) - at(i + 2, j)); }
+    expect(diag).toBeLessThan(across * 0.25);
+    // (carpet tiles quarter-turned: neighbours apart, diagonals alike)
+    const cp = base('carpet', { metres: 1, cols: 2, grit: 0 }), mean = (ti, tj) => { let s = 0; for (let j = 8; j < 56; j++) for (let i = 8; i < 56; i++) s += cp(ti * 64 + i, tj * 64 + j); return s / 48 / 48; };
+    expect(Math.abs(mean(0, 0) - mean(1, 0))).toBeGreaterThan(4 * Math.abs(mean(0, 0) - mean(1, 1)));
+    // (veneer book-matched: each panel's second leaf its first's mirror)
+    const vn = base('veneer', { metres: 1, cols: 2, grit: 0 });
+    for (const j of [10, 70, 120]) for (const i of [3, 12, 25]) expect(vn(i, j)).toBe(vn(63 - i, j));
   });
 });
 

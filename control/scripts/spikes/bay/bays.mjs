@@ -27,11 +27,14 @@ const CAMS = {
   roof: { pos: [8, 38, 1.8], target: [0, 20, 9], vfov: 70 },
   catwalk: { pos: [2, 30, 5.9], target: [10, 18, 4.5], vfov: 70 },
   'bay-2': { pos: [3, 44.5, 1.7], target: [3, 64, 5], vfov: 66 },
+  // (the services up close: a breaker panel by the doorway, the soffit with its panel out over the corridor)
+  services: { pos: [1.2, 7.5, 1.6], target: [4.6, 12, 1.2], vfov: 60 },
+  soffit: { pos: [3, 10.5, 1.5], target: [3, 3, 3.7], vfov: 70 },
 };
 const W = 1120, H = 700;
 fs.mkdirSync(out, { recursive: true });
 const pages = [];
-for (const reg of ['military', 'utility', 'science']) {
+for (const reg of ['military', 'utility', 'science', 'everyday']) {
   if (only && !only.includes(reg)) continue;
   const manifest = { kind: 'stage', kit: `bay-${reg}`, ...SUITE };
   const B = assembleStageScene(manifest, {}).bay;

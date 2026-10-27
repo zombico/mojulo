@@ -18,9 +18,12 @@
  *             downlight under a catwalk): seats (`fixture`: strip, highbay, inset, lamp, cove, down, daylight)
  *   overhead  something hangs: the roof's members, ducts and lamps; a taller room's bridge crane (rails on corbels down
  *             both long walls, a girder across in the secondary paint, a stripe across its top at each end, cables to a
- *             hook block);
- *             a low room's services
+ *             hook block, where the register takes one: `B.craned`); a low room's services
  *   two scales a tall room's catwalk along its long wall: a person's height beside the room's
+ *   services the wiring a building runs on, shown: an electrical box every few bays with its conduit to the crown, a
+ *             breaker panel by each doorway, cables slung from hooks under a tall room's crown and under a catwalk's deck,
+ *             and in a low room one soffit panel out, hanging from its edge, the plenum's dark over it and the wiring
+ *             sagging down through it
  *   colour    a register's SECONDARY paint on the door frames, the railings, the girder, the pilasters' foot band and one
  *             of the services; the hazard stripe only where it lies flat (the floor's edges, the pad, a threshold, a
  *             stair's nosings, the top of a girder's ends)
@@ -29,9 +32,9 @@
  * the shin for walls: channels/walk.js), so a catwalk keeps rules: it is railed on every edge over a drop but its
  * ENTRIES; it is always entered by a stair at its near end, and a long one also by a stair coming in square to it through
  * a gap in its front railing at its far end; an entry is at least `Cw.entry` wide; every railing carries a perforated
- * INFILL from just over the deck to the top rail, so it stops a walker at any height the walk's rays cast; a stair is
- * railed down its open side with a skirt to the floor (no one walks in under it), its foot open onto a clear landing at
- * least `Cw.landing` deep; the deck shows no
+ * INFILL from just over the deck to the top rail, so it stops a walker at any height the walk's rays cast; a stair
+ * carries a BANISTER down its open side along its pitch (where a walker may go under it is a game's pathing, not the
+ * stair's), its foot open onto a clear landing at least `Cw.landing` deep; the deck shows no
  * face where a stair arrives (the shin's ray would stop the climb).
  *
  *   bayRoom(out, r, ri, kit, surf) → { seats, bays, structure }   faces into `out`; `surf(part)` the stage's surface
@@ -169,14 +172,62 @@ export function bayRoom(out, r, ri, kit, surf) {
       out.push(lit([onWall(F, a, Cr.out * 0.4, zc1 + 0.003), onWall(F, b, Cr.out * 0.4, zc1 + 0.003), onWall(F, b, Cr.out * 0.4 + 0.07, zc1 + 0.003), onWall(F, a, Cr.out * 0.4 + 0.07, zc1 + 0.003)], Z, Co.fill, 'stage:lamp', `0 0 12px 5px ${Co.color}`, 2.5));
       seats.push({ at: P(onWall(F, (a + b) / 2, Cr.out + 0.3, zc1 + 0.45)), n: Z, color: Co.color, intensity: Co.intensity, radius: Co.radius, fixture: 'cove' });
     }
+    // the services on the wall: an electrical box every few bays with its conduit up to the crown, a breaker panel by
+    // each doorway with its conduits, and in a tall room cables slung along under the crown from hooks at the pilasters
+    const Sv = B.services, cab = S('cabinet'), cable = surf('cable');
+    const clear = (a, b) => lines.every((u) => b < u - Pl.w / 2 - 0.05 || a > u + Pl.w / 2 + 0.05) && framed.every(([fa, fb]) => b < fa - 0.2 || a > fb + 0.2) && a > 0.3 && b < F.len - 0.3;
+    const indicator = (u, z, off) => out.push(lit([onWall(F, u - 0.03, off + 0.002, z), onWall(F, u + 0.03, off + 0.002, z), onWall(F, u + 0.03, off + 0.002, z + 0.03), onWall(F, u - 0.03, off + 0.002, z + 0.03)], F.N, Sv.indicator, 'stage:lamp', null, 2));
+    if (isLong(s)) for (let k = 0; k < n; k += Sv.every) {
+      const X = Sv.box, u = lines[k] + Pl.w / 2 + X.inset;
+      if (!clear(u, u + X.w) || X.z + X.h > zc0 - 0.3) continue;
+      wallBox(out, F, u, u + X.w, X.z, X.z + X.h, X.d, cab, 1);
+      indicator(u + X.w * 0.8, X.z + X.h * 0.8, X.d);
+      tubeAB(out, onWall(F, u + X.w / 2, Sv.conduit.off, X.z + X.h), onWall(F, u + X.w / 2, Sv.conduit.off, zc0), Sv.conduit.r, 6, steel);
+      structure.services = (structure.services || 0) + 1;
+    }
+    for (const [c0, c1, top] of cuts) {
+      const Q = Sv.panel, u = c1 + Dr.frame + Q.gap;
+      if (!clear(u, u + Q.w) || Q.z + Q.h > zc0 - 0.3) continue;
+      wallBox(out, F, u, u + Q.w, Q.z, Q.z + Q.h, Q.d, cab, 1);
+      // (its door: a seam standing a hair proud, a handle, the lamps of its breakers)
+      wallBox(out, F, u + 0.03, u + Q.w - 0.03, Q.z + 0.03, Q.z + Q.h - 0.03, Q.d + 0.012, cab, 1);
+      wallBox(out, F, u + Q.w - 0.1, u + Q.w - 0.07, Q.z + Q.h * 0.45, Q.z + Q.h * 0.6, Q.d + 0.04, steel, 1);
+      for (let i = 0; i < 3; i++) indicator(u + 0.12 + i * 0.08, Q.z + Q.h - 0.12, Q.d + 0.012);
+      for (let i = 0; i < 3; i++) tubeAB(out, onWall(F, u + Q.w * (0.25 + 0.25 * i), Sv.conduit.off, Q.z + Q.h), onWall(F, u + Q.w * (0.25 + 0.25 * i), Sv.conduit.off, zc0), Sv.conduit.r, 6, steel);
+      structure.services = (structure.services || 0) + 1;
+      void top;
+    }
+    if (tall && isLong(s)) {
+      const zh = zc0 - Sv.hook.drop, off = Cr.out + 0.1;
+      for (let k = 0; k < n; k++) {
+        const a = lines[k] + Pl.w / 2, b = lines[k + 1] - Pl.w / 2;
+        if (framed.some(([fa, fb, top]) => fb > a && fa < b && top > zh - 0.6)) continue;
+        Sv.cables.forEach((cr, i) => sagCable(out, onWall(F, a, off + i * 0.05, zh), onWall(F, b, off + i * 0.05, zh), Sv.sag + 0.08 * i, cr, i % 2 ? cable : surf('services')));
+      }
+    }
     bays.push(...lines.slice(0, -1).map((u0, k) => ({ F, side: s, k, u0, u1: lines[k + 1] })));
   }
 
   // ── the roof ──
   const beamS = surf('beam');
   if (roof === 'soffit') {
-    const sof = S('soffit');
-    panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, DOWN, sof, sof.cell);
+    const sof = S('soffit'), Ho = B.services.hole;
+    // one panel out (in a bay by the dice, off the strips' line): the soffit laid round its hole, the plenum's dark over
+    // it, the panel hanging from one edge, the wiring sagging down through it
+    const hl = mids[Math.floor(dice(21) * mids.length) % mids.length] + (run / nRun) * 0.25, hs = s0 + span * 0.72;
+    const [hx0, hy0] = at(hs - Ho.w / 2, hl - Ho.l / 2, 0), [hx1, hy1] = at(hs + Ho.w / 2, hl + Ho.l / 2, 0), X0 = Math.min(hx0, hx1), X1 = Math.max(hx0, hx1), Y0 = Math.min(hy0, hy1), Y1 = Math.max(hy0, hy1);
+    const sofRect = (x0, y0, x1, y1) => panel(out, [x0, y0, h], [1, 0, 0], x1 - x0, [0, 1, 0], y1 - y0, DOWN, sof, sof.cell);
+    sofRect(r.x0, r.y0, r.x1, Y0); sofRect(r.x0, Y1, r.x1, r.y1); sofRect(r.x0, Y0, X0, Y1); sofRect(X1, Y0, r.x1, Y1);
+    const dark = { key: null, scale: 1, tint: B.services.plenum, group: 'stage:plenum' }, zp = h + Ho.plenum, z0uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    quad(out, [[X0, Y0, zp], [X1, Y0, zp], [X1, Y1, zp], [X0, Y1, zp]], DOWN, dark, null, null, z0uv);
+    quad(out, [[X0, Y0, h], [X1, Y0, h], [X1, Y0, zp], [X0, Y0, zp]], [0, 1, 0], dark, null, null, z0uv);
+    quad(out, [[X0, Y1, h], [X1, Y1, h], [X1, Y1, zp], [X0, Y1, zp]], [0, -1, 0], dark, null, null, z0uv);
+    quad(out, [[X0, Y0, h], [X0, Y1, h], [X0, Y1, zp], [X0, Y0, zp]], [1, 0, 0], dark, null, null, z0uv);
+    quad(out, [[X1, Y0, h], [X1, Y1, h], [X1, Y1, zp], [X1, Y0, zp]], [-1, 0, 0], dark, null, null, z0uv);
+    const tilt = Ho.hang, dh = Ho.w * Math.cos(tilt), dz = Ho.w * Math.sin(tilt), hinge = (lv) => at(hs - Ho.w / 2, lv, h - 0.01), free = (lv) => at(hs - Ho.w / 2 + dh, lv, h - 0.01 - dz);
+    quad(out, [hinge(hl - Ho.l / 2), hinge(hl + Ho.l / 2), free(hl + Ho.l / 2), free(hl - Ho.l / 2)], alongY ? [Math.sin(tilt), 0, -Math.cos(tilt)] : [0, Math.sin(tilt), -Math.cos(tilt)], sof, null, null, [[0, 0], [Ho.l / sof.scale, 0], [Ho.l / sof.scale, Ho.w / sof.scale], [0, Ho.w / sof.scale]]);
+    B.services.cables.forEach((cr, i) => sagCable(out, at(hs - Ho.w * 0.3 + i * 0.12, hl - Ho.l * 0.6, h + Ho.plenum * 0.6), at(hs - Ho.w * 0.1 + i * 0.1, hl + Ho.l * 0.6, h + Ho.plenum * 0.5), Ho.droop + 0.15 * i, cr, i % 2 ? surf('cable') : surf('services'), 8));
+    structure.openPanel = P([(X0 + X1) / 2, (Y0 + Y1) / 2, h]);
     const St = B.ceilingStrip, Ls = L.ceilingStrip, half = (span * St.share) / 2, sc = (s0 + s1) / 2;
     for (const l of mids) {
       bbox(at(sc - half, l - St.w, h - St.h), at(sc + half, l + St.w, h), steel, ['+z']);
@@ -260,7 +311,7 @@ export function bayRoom(out, r, ri, kit, surf) {
 
   // ── a taller room's bridge crane ──
   const Cn = B.crane;
-  if (tall && h >= Cn.min && span >= Cn.minSpan && zc1 - Cn.below > 5) {
+  if (B.craned !== false && tall && h >= Cn.min && span >= Cn.minSpan && zc1 - Cn.below > 5) {
     const zR = zc1 - Cn.below, off = Pl.out + Cn.rail.w / 2 + 0.05, rails = [s0 + off, s1 - off];
     for (const sr of rails) {
       bbox(at(sr - Cn.rail.w / 2, l0, zR - Cn.rail.h), at(sr + Cn.rail.w / 2, l1, zR), steel, alongY ? ['-y', '+y'] : ['-x', '+x']);
@@ -324,15 +375,22 @@ export function bayRoom(out, r, ri, kit, surf) {
         sheet(onWall(F, u, o0, 0), onWall(F, u, o1, 0), cz + Cw.infill[0], cz + Cw.infill[1], cz + Cw.infill[0], cz + Cw.infill[1], F.U);
       };
       across(endU);
-      // the near stair: treads rising along the wall to the deck's near end, a nosing striped on each, the open side
-      // railed with a skirt down to the floor; its foot open
+      // a banister along a stair's pitch: posts on the treads, a handrail and a mid rail in the secondary paint, the infill
+      // between them from the treads up; under the stair left open (where a walker may go is the game's pathing)
+      const banister = (pa, pb, za, zb) => {
+        const np = Math.max(1, Math.round(Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / Cw.post));
+        for (let i = 0; i <= np; i++) { const t = i / np, x = pa[0] + (pb[0] - pa[0]) * t, y = pa[1] + (pb[1] - pa[1]) * t, z = za + (zb - za) * t; bbox([x - 0.03, y - 0.03, z], [x + 0.03, y + 0.03, z + Cw.rail], steel); }
+        for (const zr of [Cw.rail, Cw.rail / 2]) tubeAB(out, [pa[0], pa[1], za + zr], [pb[0], pb[1], zb + zr], 0.03, 6, paint);
+        sheet(pa, pb, za + Cw.infill[0], za + Cw.infill[1], zb + Cw.infill[0], zb + Cw.infill[1], [pb[1] - pa[1], pa[0] - pb[0], 0].map((v) => v / Math.hypot(pb[0] - pa[0], pb[1] - pa[1])));
+      };
+      // the near stair: treads rising along the wall to the deck's near end, a nosing striped on each, a banister down
+      // its open side; its foot open
       for (let i = 0; i < nSteps; i++) {
         const u = startU + i * going, z = (i + 1) * riseH;
         flat([onWall(F, u, o0, z), onWall(F, u + going, o0, z), onWall(F, u + going, o1, z), onWall(F, u, o1, z)], gr, going, Cw.d);
         flat([onWall(F, u, o0, z + LIFT), onWall(F, u + Cw.nosing, o0, z + LIFT), onWall(F, u + Cw.nosing, o1, z + LIFT), onWall(F, u, o1, z + LIFT)], hz, Cw.nosing, Cw.d);
       }
-      tubeAB(out, onWall(F, startU, o1 - 0.03, Cw.rail), onWall(F, landU, o1 - 0.03, cz + Cw.rail), 0.03, 6, paint);
-      sheet(onWall(F, startU, o1 - 0.03, 0), onWall(F, landU, o1 - 0.03, 0), 0, Cw.rail, 0, cz + Cw.rail, F.N);
+      banister(onWall(F, startU, o1 - 0.03, 0), onWall(F, landU, o1 - 0.03, 0), riseH, cz);
       const entries = [{ by: 'stair', at: 'near', width: r5(Cw.d), landing: r5(startU) }];
       // the second stair: square to the wall, from the floor out in the room up to the gap
       if (second) {
@@ -342,12 +400,12 @@ export function bayRoom(out, r, ri, kit, surf) {
           flat([onWall(F, ua, oa, z), onWall(F, ub, oa, z), onWall(F, ub, ob, z), onWall(F, ua, ob, z)], gr, ub - ua, going);
           flat([onWall(F, ua, ob - Cw.nosing, z + LIFT), onWall(F, ub, ob - Cw.nosing, z + LIFT), onWall(F, ub, ob, z + LIFT), onWall(F, ua, ob, z + LIFT)], hz, ub - ua, Cw.nosing);
         }
-        for (const u of [ua + 0.03, ub - 0.03]) {
-          tubeAB(out, onWall(F, u, oOut, Cw.rail), onWall(F, u, o1, cz + Cw.rail), 0.03, 6, paint);
-          sheet(onWall(F, u, oOut, 0), onWall(F, u, o1, 0), 0, Cw.rail, 0, cz + Cw.rail, F.U);
-        }
+        for (const u of [ua + 0.03, ub - 0.03]) banister(onWall(F, u, oOut, 0), onWall(F, u, o1, 0), riseH, cz);
         entries.push({ by: 'stair', at: 'front', width: r5(ub - ua), landing: r5(s1 - s0 - oOut) });
       }
+      // cable bundles slung under the deck from bracket to bracket
+      const brackets = [landU, ...[...Array(nb - 1)].map((_, k) => (F.len * (k + 1)) / nb).filter((u) => u > landU && u < endU), endU];
+      for (let k = 0; k + 1 < brackets.length; k++) B.services.cables.slice(0, 2).forEach((cr, i) => sagCable(out, onWall(F, brackets[k], o0 + 0.25 + i * 0.12, cz - Cw.fascia - 0.03), onWall(F, brackets[k + 1], o0 + 0.25 + i * 0.12, cz - Cw.fascia - 0.03), B.services.sag + 0.1 * i, cr, i % 2 ? surf('cable') : surf('services')));
       // downlights under the deck between its brackets, in the secondary light
       const Ld = L.down;
       for (let u = landU + 1.5; u < endU - 1; u += Cw.downEvery) {
@@ -362,6 +420,14 @@ export function bayRoom(out, r, ri, kit, surf) {
   return { seats, bays, structure };
 }
 
+// a cable sagging from a to b by `sag` at its middle (a parabola: a slack cable's catenary, near enough), in n lengths
+function sagCable(out, a, b, sag, r, sf, n = 6) {
+  let prev = a;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t - 4 * sag * t * (1 - t)];
+    tubeAB(out, prev, p, r, 5, sf); prev = p;
+  }
+}
 // a long wall's u for a run line l (the wall frame runs along the run)
 function uOfL(F, l) { return Math.abs(F.U[0]) > 0.5 ? (l - F.o[0]) * F.U[0] : (l - F.o[1]) * F.U[1]; }
 // a triangle as a quad with its last corner doubled (the mesh and the bake take quads), its uv the wall's

@@ -52,16 +52,34 @@ gen-7 room bake; the same recipe read in gen-6 is drawn as paint. Built so far:
 - **Walkways are entered and their banisters block**: a catwalk is railed on every edge over a drop but its entries; it
   always has a stair head to enter by, and a long one a stair at each end; an entry is at least a door wide; every
   railing carries a perforated infill from the deck to its top rail, so it stops a walker at any height the walk's rays
-  cast (the page walks on the real geometry); a stair is railed down its open side to the floor, so no one walks under it,
-  and its foot opens onto a clear landing. Walked by the page's own walk (its eye and shin rays, its step and its body's
-  radius on three's raycaster over the stage's faces: `scripts/spikes/bay/walkways.mjs`): up the near stair onto the
-  deck, along it, stopped by the front and the far railings and by the stair's skirt, up the second stair through its
+  cast (the page walks on the real geometry); a stair carries a banister up its open side along its pitch, the floor
+  under the flight left open (where a walker may go is a game's pathing, not the stair's), and its foot opens onto a
+  clear landing. Walked by the page's own walk (its eye and shin rays, its step and its body's radius on three's
+  raycaster over the stage's faces: `scripts/spikes/bay/walkways.mjs`): up the near stair onto the deck, along it,
+  stopped by the front and the far railings, held on the treads by the stair's banister, up the second stair through its
   gap, in every register. The first walk found the near stair's foot 0.6 m off the end wall behind a pilaster, out of a
   walker's reach: hence the landing.
 - **A secondary colour and secondary light**: each register paints a secondary colour on its door frames, railings, the
   crane's girder, the pilasters' foot band and its colour-coded services, and lights in secondary colours (a cove washing
   up the wall from the crown, the doorway's signal lamp, a downlight under a catwalk), whose hue the bake carries. The
   hazard stripe is rationed to what lies flat: floor edges, step nosings, the pad, a girder's ends.
+- **Services**: an electrical box every few bays on a long wall with its conduit up to the crown, a breaker panel by each
+  doorway (its door, handle and breaker lamps, three conduits up), cables slung from hooks under a tall room's crown and
+  bundled under a catwalk's deck, and in a low room one soffit panel out, hanging from its hinge with the plenum's dark
+  over it and the wiring drooping through.
+- **Matte and carbon fibre**: `matte` (a powder-coated sheet: rolled folds, a fine orange peel, burnished where a hand
+  rubs) and `carbon` (a 2×2 twill of tows, warp and weft catching the light apart, under a clear coat) join the made
+  class. The military register takes a matte wall and matte cabinets, the utility matte cabinets, the science a carbon
+  kick band and carbon or matte white cabinets.
+- **Everyday materials and the `everyday` register**: `drywall` (taped joints feathered under the paint, filled screw
+  dimples, a patched ding), `carpet` (loop-pile tiles quarter-turned, a tweed fleck), `vinyl` (composition tile marbled
+  and quarter-turned, heel marks), `laminate` (printed planks whose print comes round every third, bevelled joints),
+  `porcelain` (large rectified tiles, each crowned or cupped a hair) and `veneer` (book-matched leaves of flat-cut
+  figure). `bay-everyday` lays them for an office, a school, a clinic or a big-box store on the shell turned down (a
+  register's `shell` overrides part of the shell's numbers): a rubber base, a slim pilaster, a bulkhead crown, a hollow
+  metal door frame 1.8 × 2.7 m, no grating band, no pad, no crane (`craned`), no bracing; neutral air over the lab look
+  (a kit's `ambient`, used when the recipe names no look), an exit sign's green over each door, aluminium nosings for a
+  hazard stripe.
 - **Rooms to walk** (`scripts/spikes/bay/bays.mjs`): a corridor opening into a tall bay in each register, in gen-6 and
   gen-7, captured from the corridor, inside the bay and up at its roof; no page errors. The materials' sheet is
   `scripts/spikes/bay/cuts.mjs`.

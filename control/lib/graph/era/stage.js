@@ -371,8 +371,10 @@ export function planStage(m = {}) {
   // the art direction's dials first, the recipe's own over them, kind by kind
   const icp0 = readInterceptors(m), icpAll = { ...(kit.intercept || {}), ...(icp0 || {}) }, icp = Object.values(icpAll).some((v) => v > 0) ? icpAll : null;
   const refId = resolveLook(m.reference || kit0.reference || 'gothic-night');
-  const ref = SIXTH_GEN_REFERENCES[refId];
-  if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
+  const ref0 = SIXTH_GEN_REFERENCES[refId];
+  if (!ref0) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
+  // (a kit may carry its own air over its look's, a room the look's light without its hue: the recipe's own look keeps its own)
+  const ref = kit0.ambient && !m.reference ? { ...ref0, light: { ...ref0.light, ambient: kit0.ambient } } : ref0;
   // a sunlit kit (the plaza) is lit by its look's key: a look with no sun has nothing to light it with
   if (kit0.sun && !ref.light.key) throw new Error(`stage: kit '${kitId}' is lit by the sun; give it a look with one (${SIXTH_GEN_LOOK_IDS.filter((l) => SIXTH_GEN_REFERENCES[resolveLook(l)].light.key).join(', ')})`);
   if (!Array.isArray(m.rooms) || !m.rooms.length) throw new Error('stage: needs a non-empty `rooms` array ({ id, x, y, w, d, h })');

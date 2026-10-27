@@ -70,7 +70,7 @@ const KIT_STARTERS = {
   'island-plaza': { rooms: [{ id: 'plaza', x: 0, y: 0, w: 26, d: 22, h: 12, open: ['-y', '+x'] }] },
   'research-lab': { rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }] },
   // a corridor opening into a tall bay: the passage pressing in, then the bay with its crane and catwalk
-  ...Object.fromEntries(['military', 'utility', 'science'].map((r) => [`bay-${r}`, { rooms: [{ id: 'corridor', x: 0, y: 0, w: 6, d: 12, h: 3.5 }, { id: 'bay', x: -6, y: 12, w: 18, d: 30, h: 12 }], links: [{ from: 'corridor', to: 'bay' }] }])),
+  ...Object.fromEntries(['military', 'utility', 'science', 'everyday'].map((r) => [`bay-${r}`, { rooms: [{ id: 'corridor', x: 0, y: 0, w: 6, d: 12, h: 3.5 }, { id: 'bay', x: -6, y: 12, w: 18, d: 30, h: 12 }], links: [{ from: 'corridor', to: 'bay' }] }])),
 };
 
 /** How people ask for each kit, in plain words: the search line leads with these. */
@@ -83,6 +83,7 @@ const KIT_WORDS = {
   'bay-military': ['military hangar', 'armoury or bunker', 'steel-plated base interior'],
   'bay-utility': ['warehouse', 'industrial depot', 'plant room'],
   'bay-science': ['clean lab', 'white research facility', 'control room'],
+  'bay-everyday': ['office building interior', 'school or clinic corridors', 'big-box store'],
   'trail-valley': ['mountain trail', 'valley path', 'cliffside walk'],
   'jungle-trail': ['dense jungle', 'rainforest path', 'misty jungle'],
   'isekai-meadow': ['anime meadow', 'fantasy grassland', 'open field'],

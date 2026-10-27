@@ -25,6 +25,18 @@ describe('the bay kits', () => {
     expect(planStage(SUITE).refId).toBe(planStage({ ...SUITE, reference: 'lab-dark' }).refId);
   });
 
+  it('the everyday register turns the shell down: no grating band, no pad, no crane, no bracing; a rubber base and a slim pilaster', () => {
+    const E = STAGE_KITS['bay-everyday'], g = buildStageGeometry(planStage({ ...SUITE, kit: 'bay-everyday' })), [, big] = g.bayRooms;
+    expect(E.B.base.h).toBeLessThan(KIT.B.base.h);
+    expect(E.B.pilaster.out).toBeLessThan(KIT.B.pilaster.out);
+    expect(g.faces.filter((f) => f.group === 'stage:band').length).toBe(0);
+    expect(big.pad).toBeUndefined();
+    expect(big.braced).toBeUndefined();
+    expect(big.crane).toBeUndefined();
+    expect(big.walkways.length).toBe(1);
+    expect(assembleStageScene({ ...SUITE, kit: 'bay-everyday' }, {}).bay.laws.filter((l) => !l.ok)).toEqual([]);
+  });
+
   it('a room takes its surfaces from the register\'s alternates by its dice: the same room the same, the offer kept', () => {
     for (const [part, took] of Object.entries(tall.surfaces)) expect(KIT.B.options[part]).toContain(took);
     expect(buildStageGeometry(planStage(SUITE)).bayRooms[1].surfaces).toEqual(tall.surfaces);
@@ -64,6 +76,12 @@ describe('the bay shell', () => {
     expect(tallest).toBeLessThan(0.2);
   });
 
+  it('services: boxes and panels on the walls, cables slung, and a low room\'s soffit one panel out over the plenum', () => {
+    expect(tall.services).toBeGreaterThan(0);
+    expect(low.openPanel).toBeDefined();
+    for (const g of ['stage:cabinet', 'stage:cable', 'stage:plenum']) expect(inGroup(g).length, g).toBeGreaterThan(0);
+  });
+
   it('read in the form render, its lamps go to the page; a lamp inset in the floor stays in the bake', () => {
     const P = assembleStageScene(SUITE, { formLit: true }), kinds = new Set(P.form.room.lights.map((l) => l.live));
     expect(kinds).toEqual(new Set([true, false]));
@@ -85,8 +103,8 @@ describe('a walkway is entered, and its banisters block', () => {
     expect(W.infill[1]).toBeGreaterThanOrEqual(C.shin[1]);
     const infill = inGroup('stage:infill');
     expect(infill.length).toBeGreaterThan(0);
-    // (the stair's skirt comes down to the floor: no one walks in under it)
-    expect(Math.min(...infill.flatMap((f) => f.corners.map((c) => c[2])))).toBe(0);
+    // (the stair's banister rides its pitch: the infill starts over the treads, the floor under the flight left open)
+    expect(Math.min(...infill.flatMap((f) => f.corners.map((c) => c[2])))).toBeGreaterThan(0);
   });
   it('the laws read it so, and every one holds on the suite', () => {
     const laws = assembleStageScene(SUITE, {}).bay.laws;

@@ -2,7 +2,7 @@
 // (channels/walk.js: a ray down from the eye finds the floor, rays at the eye and at the shin stop a step, the body's
 // radius kept off what they hit), run in node on three's raycaster over the stage's faces. The machine gate for the
 // walkway's rules: up the near stair onto the deck; along the deck to its far end; stopped by the front railing, by the
-// far end's railing and by the stair's skirt from the floor; up the second stair through its gap.
+// far end's railing and by the stair's banister over its open side; up the second stair through its gap.
 //
 //   node scripts/spikes/bay/walkways.mjs [--kit bay-military]
 import { register } from 'node:module';
@@ -60,9 +60,9 @@ check('the front railing blocks', Math.abs(front.feet - cz) < 0.05, front);
 // on the deck, at its far end, on into the end railing
 const far = walk(P(W.deck[1] - 2, o, cz), U, 2);
 check('the far end railing blocks', Math.abs(far.feet - cz) < 0.05, far);
-// from the floor beside the near stair, walking in at its side: the skirt stops it, the feet stay on the floor
-const skirt = walk(P((W.stairs[0][0] + W.stairs[0][1]) / 2, o + 2.5), neg(N), 2);
-check('the stair\'s skirt blocks from the floor', skirt.feet < 0.05 && Math.abs(skirt.at[0] - P(0, o + 2.5)[0]) + Math.abs(skirt.at[1] - P(0, o + 2.5)[1]) > 0, skirt);
+// on the near stair halfway up, walking off its open side: the banister holds the feet on the treads
+const mid = (W.stairs[0][0] + W.stairs[0][1]) / 2, half = walk(P(mid, o, cz), N, 2);
+check('the stair\'s banister blocks its open side', half.feet > 0.25 * cz && half.feet < 0.75 * cz, half);
 // up the second stair, through its gap, onto the deck
 if (W.stairs[1]) {
   const [ga, gb] = W.stairs[1], sLen = Math.ceil(cz / 0.19) * 0.27;
