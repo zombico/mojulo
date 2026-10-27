@@ -156,8 +156,10 @@ async function photograph(sketch, paper, body = 'person') {
   // an object (an artifact) is one shot, seen a little from above: a long upright one (a staff, a sword, a bow) in a
   // tall frame its height fills, anything else in a square
   if (body === 'object') {
-    const tallOne = tall > long * 1.6, W = tallOne ? Math.round(SIZE * 0.45) : SIZE, H = tallOne ? Math.round(SIZE * 1.3) : SIZE, lensH = H / (2 * FOCAL);
-    const cam = orbitCamera({ azimuthDegrees: 140, elevationDegrees: 18, target: center, distance: Math.max(tall * 0.53, long * 0.55 * (H / W)) / lensH, focalPixels: FOCAL, size: H });
+    // (by its whole extent: an axe's blade is a few vertices beside a haft's thousands, and must not be trimmed away)
+    const across = Math.max(hi[0] - lo[0], hi[1] - lo[1]), whole = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    const tallOne = tall > across * 1.6, W = tallOne ? Math.round(SIZE * 0.45) : SIZE, H = tallOne ? Math.round(SIZE * 1.3) : SIZE, lensH = H / (2 * FOCAL);
+    const cam = orbitCamera({ azimuthDegrees: 140, elevationDegrees: 18, target: whole, distance: Math.max(tall * 0.53, across * 0.55 * (H / W)) / lensH, focalPixels: FOCAL, size: H });
     const page = emitThreeWorld({ ...payload, faces, sky: null, bg: paper, wireframe: false, walk: false, spin: false, decollide: true, hud: false, inline: true, capture: true, xr: null });
     const { pngs } = await renderWorldFrames(page, [{ pos: cam.position, target: cam.meta.target, vfov: 2 * Math.atan((H / 2) / FOCAL) * 180 / Math.PI }], { width: W, height: H, deviceScaleFactor: 2 });
     return { figure: `data:image/jpeg;base64,${(await sharp(pngs[0]).jpeg({ quality: 86 }).toBuffer()).toString('base64')}`, frame: tallOne ? 'tall' : 'square' };
