@@ -48,7 +48,7 @@ describe('comic hero pack: costume eras', () => {
       expect(got).toBe(era);
     }
     expect(memberOrders('hero', 'dcau-golden').era).toBe('silver');
-    expect(memberOrders('hero', 'anime-day').era).toBe('modern');
+    expect(memberOrders('hero', 'anime-day').era).toBe('silver');
     expect(memberOrders('hero', 'realistic-night').era).toBe('movie');
   });
 });

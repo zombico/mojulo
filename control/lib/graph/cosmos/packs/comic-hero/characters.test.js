@@ -1,12 +1,13 @@
 // The comic hero pack's characters: a cast member is an egocube ask that rolls the same sheet for the same seed, reads
 // into a hero spec the door validates on either body, wears the pack's suit for that body (never the sheet's own cut),
-// and is never cel shaded: no toon at any stop, the realistic body at the realistic stop, the tiered body elsewhere.
+// and takes its stop's light: the anime head at the anime stop, the look's cube baked on it where the look bakes, the
+// realistic body at the realistic stop, never a toon beside the spec.
 // One case per procedure, chosen from the cast in code: a suit's outfit or its armour build (every suit and every member
 // on both bodies: comic-hero.deep.test.js).
 import { describe, it, expect } from 'vitest';
 import { CAST, castMember } from './cast.js';
 import { SUITS, SUIT_KEYS, suitOf } from './suits.js';
-import { rollMember, memberOrders, bodyOf } from './characters.js';
+import { rollMember, memberOrders, bodyOf, animeHair } from './characters.js';
 import { LOOKS } from './looks.js';
 import { SPEC_KEYS } from '../../../egocube/egocube.js';
 import { validateHeroSpec } from '../../../../mcp/tools/layered.js';
@@ -82,8 +83,24 @@ describe('comic hero pack: member orders', () => {
     expect(boss.adorn).toMatchObject({ type: 'armor', style: 'armored-hero' });
     expect(boss.outfit).toBeUndefined();
   });
-  it('never cel shaded: no toon at any stop, the tiered body at the comic and painted stops, the realistic body at the realistic one', () => {
+  it('takes its stop\'s light: the anime head under its own light, the noir baked in its cube, no toon anywhere', () => {
     for (const look of Object.keys(LOOKS)) expect(memberOrders('hero', look).mint.args.spec.toon, look).toBeUndefined();
+    // the anime stop: the sheet rolled in the anime setting, so the egocube reads it onto the anime head; no cube on the
+    // hero, which would replace the anime head's character light with the cube's cast light
+    const anime = memberOrders('hero', 'anime-day'), plain = memberOrders('hero', 'dcau-golden');
+    expect([anime.mint.args.spec.head, anime.mint.args.spec.proportions, anime.mint.args.spec.geocube]).toEqual(['anime', 'anime', undefined]);
+    const { vibe: _v, ...fields } = anime.mint.args.spec;
+    expect(validateHeroSpec(fields)).toEqual([]);
+    // (the setting is a rule, never a lean: the same facets as the roll without it)
+    expect(anime.sheet.facets).toEqual(plain.sheet.facets);
+    // the golden hour: the landmark head, wearing the look's cube, so the hero is lit by its world's light and rim
+    expect([plain.mint.args.spec.head, plain.mint.args.spec.geocube]).toEqual([undefined, LOOKS['dcau-golden'].geocube]);
+    expect(memberOrders('hero', 'realistic-night').mint.args.spec.geocube).toBeUndefined();
+    // an armour on the anime head goes bareheaded (no helm is fitted to it); on the landmark head it keeps its helm
+    const boss = CAST.find((m) => armoured(m.suit)).id;
+    expect([memberOrders(boss, 'anime-day').mint.args.spec.adorn.language.helm, memberOrders(boss, 'dcau-golden').mint.args.spec.adorn.language?.helm]).toEqual(['none', undefined]);
+    // a landmark cut is drawn in the anime family of its class
+    expect([animeHair('bun', 'female'), animeHair('bob', 'female'), animeHair('taper', 'male'), animeHair('long', 'male')]).toEqual(['hime', 'bob', 'short', 'long']);
     expect([bodyOf('anime-day'), bodyOf('dcau-golden'), bodyOf('realistic-night')]).toEqual(['tiered', 'tiered', 'realistic']);
     expect(memberOrders('hero', 'realistic-night').mint.args.spec.paint).toBeUndefined();
   });

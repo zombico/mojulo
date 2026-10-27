@@ -24,6 +24,9 @@
  *                              lights it at and the `clouds` over it
  *                     level    the QA level it is seen on: 'city' (a downtown painted by the cube, the default) or
  *                              'trail' (open ground: the city kind lights itself and never draws the isekai bake)
+ *                     bake     the hero wears the look's cube, baked in its light (era/cast-light.js: the key, the tinted
+ *                              ambient, the ground's bounce, the rim); absent, the hero's own light (the anime head's
+ *                              character light, which a cube on the hero would replace)
  *                     hero     the gameworld `characters.direction` for it, plus `form` where the body is the realistic one
  *   lookOf(id)      one, or throws naming the known ids
  *
@@ -50,9 +53,11 @@ export const LOOKS = Object.freeze({
     // the gritty look as the baseline (the light shaped in the vertex, vertex-contrast.js wii; the walls and the rock dressed
     // from relief at grit) under the desert-dusk reference's low warm key, the air thick enough to warm the distance; the
     // colours the theorist's, full where they look good: rust and ochre lit warm, the stone and the shade a cool teal against them
-    geocube: { from: 'jungle-haze', light: { reference: 'desert-dusk', outsideFog: 1.4 }, contrast: 'wii', grit: 0.8, materials: { age: 'worn' },
+    // (the cast's rim in the cube's own sky, strong enough to hold a backlit figure's outline: a dark suit keeps its form)
+    geocube: { from: 'jungle-haze', light: { reference: 'desert-dusk', outsideFog: 1.4, rim: { strength: 0.9, power: 2.5 } }, contrast: 'wii', grit: 0.8, materials: { age: 'worn' },
       palette: { intent: 'a dusty frontier at golden hour: rust and ochre ground under a warm low sun, the stone and the shade cool against it', key: 'mid', heat: 0.6, weight: 0.2, activity: 0.3, scheme: 'split-complementary', hue: '#b07a48', hues: { sky: 60 }, seed: 5 } },
     paint: { hour: 'golden', clouds: 'fair', materials: 'modern' },
+    bake: true,
     hero: { tradition: 'western', from: 'world', primary: 'the silhouette', secondary: 'the emblem' },
     why: ['The sky is the brightest thing: a warm gold the figures stand against, backlit.', 'Warm against cool: rust and ochre in the low sun, the stone and the shade a cool teal; colour where it looks good.', 'The air is warm and thick: the distance sinks into the sky\'s colour.', 'The ground is worn and dusty, drawn from relief; the light is baked.'],
   },

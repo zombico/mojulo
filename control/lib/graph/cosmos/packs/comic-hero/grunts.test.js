@@ -59,6 +59,12 @@ describe('comic hero pack: grunts', () => {
       }
     }
   });
+  it('takes its stop\'s light as the heroes do: the anime head in the anime family of its cut, the cube where the look bakes', () => {
+    const o = gruntOrders(SUITED, 'anime-day', { seed: 3 }), b = gruntOrders(SUITED, 'dcau-golden', { seed: 3 });
+    expect([o.mint.args.spec.head, o.mint.args.spec.geocube, valid(o)]).toEqual(['anime', undefined, []]);
+    expect(['short', 'bob', 'long', 'hime']).toContain(o.mint.args.spec.hair.style);
+    expect([b.mint.args.spec.head, b.mint.args.spec.geocube, b.grunt.kind]).toEqual([undefined, LOOKS['dcau-golden'].geocube, o.grunt.kind]);
+  });
   it('refuses what it does not know by name', () => {
     expect(() => gruntOrders('pirates', byBody.tiered)).toThrow(/no grunt style 'pirates' \(known: streetGang/);
     expect(() => gruntOrders(SUITED, byBody.tiered, { kind: 'admiral' })).toThrow(/has no kind 'admiral' \(known:/);

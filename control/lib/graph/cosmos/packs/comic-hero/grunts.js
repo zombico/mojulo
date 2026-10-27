@@ -21,7 +21,8 @@
  *                                → [gruntOrders …] the crew: `count` grunts, round(ratio × count) of them women
  * The heads are the tiered body's (headgear.js): on the realistic body a grunt goes bareheaded. A sleeveless top (the
  * bruiser's tank, the punks') bares the arms on the realistic body only: the tiered body paints its skin under the cloth
- * in the top's colour. Never cel shaded.
+ * in the top's colour. A grunt takes its stop's light as the heroes do (characters.js registerOf): the anime head at
+ * the anime stop (its cut the anime family of the faction's, animeHair), the look's cube on it where the look bakes.
  */
 import { rollEgocube } from '../../../egocube/egocube.js';
 import { planFromSheet } from '../../../egocube/plan.js';
@@ -29,10 +30,9 @@ import { mulberry32 } from '../../../polygonizer/floorplan-glyphs.js';
 import { SUIT_KEYS } from './suits.js';
 import { withHeadgear } from './headgear.js';
 import { withItems, swingOf, ITEMS } from './items.js';
-import { lookOf, DIAL } from './looks.js';
+import { bodyOf, registerOf, animeHair } from './characters.js';
 
 export const GRUNT_RATIO = 0.3;
-const bodyOf = (lookId) => DIAL.find((d) => d.id === lookOf(lookId).stop).body;
 const STYLIZED_ONLY = ['detail', 'body', 'girth', 'paint'];
 
 // ── the cloth, in the outfit grammar (outfit/styles.js): a build over a seeded card, its language and its pieces ──
@@ -249,14 +249,16 @@ export function gruntOrders(styleId, lookId, { seed = 1, index = 0, kind: kindIn
   const head = body === 'tiered' && K.heads ? pick(r, K.heads) : null, stand = pick(r, K.stands), swingRoll = r();
   const vary = Object.fromEntries(Object.entries(CW.vary || {}).map(([g, list]) => [g, pick(r, list)]));
 
-  const sheet = rollEgocube({ brief: `${S.name}: ${K.reads}`, facets: { ...S.facets, pole, build, age }, seed: hash(styleId, seed, index, 'face') % 2147483647, path: 'hero' });
+  const R = registerOf(lookId);
+  const sheet = rollEgocube({ brief: `${S.name}: ${K.reads}`, facets: { ...S.facets, pole, build, age }, seed: hash(styleId, seed, index, 'face') % 2147483647, path: 'hero', ...(R.setting ? { setting: R.setting } : {}) });
   const title = `${S.name} · ${kind} ${index + 1}`;
   const plan = planFromSheet(sheet, { dress: 'designed', title });
   if (plan.create.as !== 'hero') throw new Error(`comic-hero: a ${S.name} grunt rolled a ${plan.create.as}, not a person`);
   const spec = { ...plan.create.spec };
   for (const k of SUIT_KEYS) delete spec[k];
   spec.outfit = K.dress(pole, body);
-  spec.hair = { style: hairStyle };
+  // (the faction's cut, in the anime head's family where the stop draws that head)
+  spec.hair = { style: R.setting ? animeHair(hairStyle, pole) : hairStyle };
   // (the guard's rear fist opened on a woman's frame, where its values sink the forearm: the rival's fix, cast.js)
   spec.gesture = stand === 'guard' && pole === 'female' ? ['guard', { elbowR: 130 }] : stand;
   if (body === 'realistic') { spec.form = 'realistic'; for (const k of STYLIZED_ONLY) delete spec[k]; }
@@ -266,6 +268,7 @@ export function gruntOrders(styleId, lookId, { seed = 1, index = 0, kind: kindIn
   if (itemIds.length) worn.gear = withItems(worn, itemIds, body).gear;
   const swing = K.swing && swingRoll < K.swing ? swingOf(itemIds) : null;
   if (swing && ITEMS[itemIds.find((i) => ITEMS[i].swing === swing)]?.slot === 'right') worn.gesture = swing;
+  if (R.geocube) worn.geocube = R.geocube;
   delete worn.toon;
   return {
     grunt: { style: styleId, kind, pole, colourway: cwId, index, build, age, head, items: itemIds },

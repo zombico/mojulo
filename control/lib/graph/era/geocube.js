@@ -4,8 +4,10 @@
  *
  *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
  *             thick the outside's air is against the reference's (`outsideFog`), the inside's `shadows` (the
- *             stage's: torch, sun, cells; the gen-6 upgrades by default), and the outside's `sky` (zenith, horizon,
- *             fog; the reference's dome and fog colour where it names none)
+ *             stage's: torch, sun, cells; the gen-6 upgrades by default), the outside's `sky` (zenith, horizon,
+ *             fog; the reference's dome and fog colour where it names none), and the cast's `rim` ({ strength?, power? }:
+ *             the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent, the reference's horizon at
+ *             the cast light's own strength)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
@@ -435,7 +437,7 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'rim'], 'light');
   c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   const ref = SIXTH_GEN_REFERENCES[resolveLook(c.light.reference)];
@@ -451,6 +453,13 @@ export function readGeocube(spec) {
     only(c.light.moon, ['color', 'elevation', 'azimuth', 'gain'], 'light.moon');
     if (!HEX.test(c.light.moon.color ?? '')) no('light.moon.color is a #rrggbb colour');
     for (const k of ['elevation', 'azimuth', 'gain']) if (!Number.isFinite(c.light.moon[k])) no(`light.moon.${k} is a number`);
+  }
+  // (the cast's rim, era/cast-light.js: its strength and its falloff, in the cube's own sky)
+  if (c.light.rim !== undefined) {
+    if (!isObj(c.light.rim)) no('light.rim is { strength?, power? }: the cast\'s rim in the cube\'s own sky');
+    only(c.light.rim, ['strength', 'power'], 'light.rim');
+    if (c.light.rim.strength !== undefined && !(c.light.rim.strength >= 0 && c.light.rim.strength <= 1.5)) no('light.rim.strength is how bright the rim is, 0 to 1.5');
+    if (c.light.rim.power !== undefined && !(c.light.rim.power >= 1 && c.light.rim.power <= 8)) no('light.rim.power is how tight the rim hugs the outline, 1 (wide) to 8 (a thin line)');
   }
   c.light.outsideFog ??= 1;
   if (!(c.light.outsideFog > 0 && c.light.outsideFog <= 4)) no('light.outsideFog is the outside\'s fog against the reference\'s, above 0 and at most 4');
