@@ -875,9 +875,12 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
   recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
 - **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
-- **Island noon's meru island, at a game's scale and geo only** (`era/geocube.js` MERU_BASES, MERU_ISLE): the seed a path
-  is grown on, shown bare, three times the island (mounds 18 m and 15 m, every slope's angle kept; beach 27 m, sea 9 m
-  deep, a 13.5 m high side), in both eras; the other cubes keep the shared island. Local meru's island gains `cell` (the
+- **The meru island, every cube's outside, at a game's scale and geo only** (`era/geocube.js` MERU_BASES, MERU_ISLE):
+  the seed a path is grown on, shown bare, three times the island (mounds 18 m and 15 m, every slope's angle kept; beach
+  27 m, sea 9 m deep, a 13.5 m high side), in both eras; island-noon's first, then the standard: every preset's land and
+  a written cube's default (the upland's painted ground three times its span and height with it; limestone-crags' cove,
+  a domain terrain of its own, keeps its own island). Each cube's land show emits differently; none is more faces than
+  before (limestone-crags 57,882 → 40,373 with its strand and stones). Local meru's island gains `cell` (the
   land's quads where no path joins: 1.5 m here), `scale` (the metres its shape held fixed scale with it), `cover: 'soil'`
   (bare soil, `isekai:soil`, and scree where it slopes under raised land, `isekai:scree`; no grass) and `walk: 'none'`
   (no walk: flown and zoomed, walking is the path's; the 24 stray trail faces at the seam were the old approach), each
@@ -885,10 +888,17 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   quads scale with the cell and the merged seabed spans 16 m. The shore: the shallows' floor fades corner by corner
   over its own depth into the sea's own body (never a darker one), lit as one surface, so in gen-7 the shallows read
   lighter than the open sea and the floor falls away without steps (the gate's two shore readings, both eras).
-- **The layered ground** (the island spike): rock, scree, soil and sand as layers, every land corner weighted by the
-  classes round it, foothill scree within 6 m of rock and seeded scree patches over the soil; the renderer blends their
-  materials by height (each layer's relief decides its border), along each face's dominant axis, the colour varying
-  about each layer's palette-solved base. Two natural cuts join the matte painter (`matte-paint/dressed.js`): `crag` (a
+- **The layered ground** (`form/land-layers.js`, read by the island spike): rock, scree, soil and sand as layers worn
+  into one another over metres, never along the land's cells. Rock is where the geometry has it; scree fans from its
+  foot (up to 8 m, its reach wandering) over soil and beach, and lies in seeded patches; soil and sand are parted by a
+  signed distance across their border (sand up to 3.5 m into the soil in tongues, soil 2.5 m onto the beach); all but
+  the rock smoothed over 3 m, so no border steps with the 1.5 m cells. The trail's path is a mask at its own resolution
+  (0.25 m, a ragged worn edge) for the path to blend into. In the spike (6.5's beach and scree the bar): the layers in
+  texture arrays, blended by each one's height and a per-pixel noise; the scree thinning by its stones' own dice
+  (`screeDice`, whole stones kept, the ground between); the land shaded smooth (normals averaged within 55°, a cliff's
+  edge kept); the wet line by height per pixel; the sea one surface faded in over the depth under it, so the waterline
+  is the beach's own contour; `--hour` (moonlight after dark, the bases kept) and `--stone` (the rock's colour, a lock);
+  close views of the mound's foot and the beach at wide, eye, close and down. Two natural cuts join the matte painter (`matte-paint/dressed.js`): `crag` (a
   weathered rock face: lumps, beds each its own tone with a ledge at its foot, joints cut up it) and `soil` (loose dirt:
   clods, crumbs, small stones); `dressedMaterial` reads the natural cuts as material. The basis a path will blend into.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the

@@ -134,10 +134,11 @@ import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
-// island-noon's MERU ISLAND (the operator, 1026): the seed a path is grown on, at a game's scale and geo only. Three
-// times the island (its mounds 18 m and 15 m, every slope's angle kept; its beach, sea and high side with them), its land
-// in 1.5 m quads (the detail left to the material), its seabed merged; bare soil and scree, no grass; no walk (flown and
-// zoomed: walking is the path's). The other cubes keep the shared island.
+// the MERU ISLAND, every cube's outside (the operator, 1026: island-noon's first, then the standard): the seed a path is
+// grown on, at a game's scale and geo only. Three times the shared island (its mounds 18 m and 15 m, every slope's angle
+// kept; its beach, sea and high side with them), its land in 1.5 m quads (the detail left to the material), its seabed
+// merged; bare soil and scree, no grass; no walk (flown and zoomed: walking is the path's). TWO_BASES and ISLE stay as
+// the scale it is drawn from and as a domain's own terrain's.
 const MERU_BASES = TWO_BASES.map(({ height, foot, summit, ...t }) => ({ ...t, height: height * 3, foot: foot * 3, summit: summit * 3 }));
 const MERU_ISLE = { geology: true, walk: 'none', seabed: 'merged', cell: 1.5, scale: 3, cover: 'soil', beach: 27, sea: 2.1, depth: 9, high: { height: 13.5 } };
 const STONE = { gen: 'stone-brick', stone: [150, 150, 150], mortar: [88, 88, 88], rows: 6, cols: 4, mortarThick: 0.1, vary: 28, grain: 11, bevel: 0.2, accent: 0.14, accentDark: 40, accentLight: 26, seed: 13 };
@@ -146,10 +147,11 @@ const ROCK = { gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 };
 const LAND = { smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 };
 // the upland's ground: a rocky heartbeat at the level's own scale (local-meru/ground.js), and the land words that
 // read it: surfaces mixed at their seams, rock in planes, the valleys' shade
-const UPLAND = { from: { heartbeat: 'rocky-irregular', splatch: 'verdure-trio', seed: 'g2' }, span: 45, height: 3.5 };
+// (at the meru island's scale: three times the span and the height, its slopes kept)
+const UPLAND = { from: { heartbeat: 'rocky-irregular', splatch: 'verdure-trio', seed: 'g2' }, span: 135, height: 10.5 };
 const UPLAND_LAND = { ...LAND, mix: 1, facet: 4, valley: 0.7 };
-// and its island's flat seabed drawn as a few large quads (most of the faces, under the deep water)
-const UPLAND_ISLE = { ...ISLE, seabed: 'merged' };
+// and its island the meru island (its seabed already merged)
+const UPLAND_ISLE = MERU_ISLE;
 // the gen-6 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
 // torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
 const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
@@ -166,7 +168,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     register: { steps: 0, key: 0.3 },
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
     why: [
       'Stone is cool blue-grey, never warm: the only warm light is fire.',
       'One accent, a deep red, on one wall inside; outside it lives only in the light.',
@@ -197,7 +199,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     register: { steps: 0, key: 0.4 },
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'research-lab', size: [12, 12, 7], accentWall: '+y' },
-    outside: { base: 'isekai-bamboo', tiers: TWO_BASES, island: ISLE, land: { ...LAND, crevice: 0.4, ridge: 0.2 } },
+    outside: { base: 'isekai-bamboo', tiers: MERU_BASES, island: MERU_ISLE, land: { ...LAND, crevice: 0.4, ridge: 0.2 } },
     why: [
       'One family of olives and muds: concrete, ground and leaf share it.',
       'The light is soft and filmic through haze; contrast stays low.',
@@ -213,7 +215,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     contrast: 'wii',
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
     why: [
       'The contrast lives in the vertex: the sky on every top, the ground under every overhang.',
       'A wall is darker at its foot and lighter toward the eaves.',
@@ -231,7 +233,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     materials: true,
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: UPLAND_ISLE, land: UPLAND_LAND, ground: UPLAND },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: UPLAND_ISLE, land: UPLAND_LAND, ground: UPLAND },
     why: [
       'The contrast lives in the vertex: the sky on every top, the ground under every overhang.',
       'A wall is darker at its foot and lighter toward the eaves.',
@@ -250,7 +252,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     register: { steps: 0, key: 0.3 },
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
     why: [
       'Concrete is a cool grey and asphalt darker still: the warmth is only in the windows and the lamps.',
       'One accent, a hot pink, on the signs alone.',
@@ -265,7 +267,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     register: { steps: 0, key: 0.42 },
     surfaces: { wall: QUIET_STONE, floor: QUIET_FLAGS, accent: ROCK },
     inside: { bones: 'research-lab', size: [12, 12, 7], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
     why: [
       'Volumes are simple and strong; the surfaces are quiet, so the light does the drawing.',
       'Grey, cool and low in colour: the world is nearly without hue.',
@@ -291,7 +293,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     grit: 0.7,
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: { ...LAND, skin: 'limestone' } },
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: { ...LAND, skin: 'limestone' } },
     why: [
       'The rock is drawn as erosion leaves it: beds of their own hardness, joints, fallen blocks and their scars.',
       'Far, the polygons carry the crags; nearer, the rock refines, down to its grain, and never sooner than it can be seen.',
@@ -537,7 +539,7 @@ export function readGeocube(spec) {
     }
   }
   if (!ISEKAI_STYLES[c.outside.base] || !SWATCHES[c.outside.base]) no(`outside.base '${c.outside.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
-  c.outside.tiers ??= TWO_BASES; c.outside.island ??= ISLE; c.outside.land ??= LAND;
+  c.outside.tiers ??= MERU_BASES; c.outside.island ??= MERU_ISLE; c.outside.land ??= LAND;
   if (!Array.isArray(c.outside.tiers) || !c.outside.tiers.length) no('outside.tiers is the landform\'s tiers (local meru), one or more');
   if (c.outside.land !== false) only(c.outside.land, LAND_WORDS, 'outside.land');
   // buildings (optional): the seeds a world on this cube builds from
