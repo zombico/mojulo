@@ -5,7 +5,7 @@
 ## The row
 
 ```json
-{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "material"?, "slot"?: "center", "ttl"?, "color"? }
+{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "material"?, "block"?, "blockColor"?, "slot"?: "center", "ttl"?, "color"? }
 ```
 
 A title is set in a **theme**, a whole graphic-design style — the carve, the entrance, the case, the tracking,
@@ -58,6 +58,13 @@ camera for `ttl` seconds (the theme's), its entrance and exit inside that time.
   and words like `marble` or `ceramic`) shades the letters its way in `color`, or in its own colour when the row names
   none. No theme names one: a title without it is painted as before. `{ "on": "ko", "text": "K.O.", "as": "title",
   "material": "chrome" }`.
+- `block` — the letters' depth made to show, the 3D block letter beyond a raised face: `drop` (deep, down and to the
+  right: the comic and cartoon block, COURSE CLEAR), `perspective` (deep, the sides running back to a point under the
+  word: the action-movie logo), `stack` (the comic masthead's receding copies, a stepped stack in alternating shades:
+  POW!), `none` (default). The sides are `blockColor` (hex or a semantic name) or the face's own hue darkened (a metal's:
+  the sweep under its horizon); two flat tones in the anime look, shading toward the back in the western. A block is
+  the drop, so it takes the place of a `shadow` edge (`both` keeps the ink). Combines with `material` and any carve:
+  `{ "on": "win", "text": "VICTORY", "as": "title", "material": "gold", "block": "drop" }`.
 - `slot` — `center` (default); `top` / `bottom` raise or lower the word. Corners read as their edge.
 
 ## The cascade: a play direction dresses its titles

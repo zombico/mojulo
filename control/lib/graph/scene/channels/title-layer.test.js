@@ -4,7 +4,7 @@ import { EMIT_FIXTURES } from '../emit-fixtures.js';
 import { emitThreeWorld } from '../scene-three.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 import { titleFontsFound } from '../../game/title-carve.js';
-import { titleHex } from './title-channel.js';
+import { titleHex, titleBlock } from './title-channel.js';
 import { resolvePlayUi } from '../../playscape/ui/direction.js';
 
 // ── the title layer (title-channel.js): a HUD banner `as: 'title'` as carved 3D letters on the page ──
@@ -27,6 +27,18 @@ describe('title-channel — the colour the letters are baked in', () => {
     expect(titleHex('accent', { accent: '#5fe6d6' })).toBe('#5fe6d6');
     expect(titleHex(undefined, { accent: '#5fe6d6' })).toBe('#5fe6d6');
     expect(titleHex('accent2', {})).toBe('#e8b96a');
+  });
+});
+
+describe('title-channel — a block\'s colours', () => {
+  it('the sides are the face\'s own hue darkened, the far edge darker again; a named side colour is taken as it is', () => {
+    const lum = (h) => [1, 3, 5].reduce((s, i) => s + parseInt(h.slice(i, i + 2), 16), 0);
+    const red = titleBlock('drop', '#ff5a4d');
+    expect(red.kind).toBe('drop');
+    expect(lum(red.side)).toBeLessThan(lum('#ff5a4d')); expect(lum(red.edge)).toBeLessThan(lum(red.side));
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(red.side.slice(i, i + 2), 16));
+    expect(r).toBeGreaterThan(g); expect(r).toBeGreaterThan(b);   // still red
+    expect(titleBlock('stack', '#ff5a4d', '#ffd24d').side).toBe('#ffd24d');
   });
 });
 
@@ -58,6 +70,8 @@ describe('world-scene — the title gate', () => {
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', look: 'explode' }] }))).rejects.toThrow(/look must be one of: slam, rise, stamp, fade, slide/);
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', style: 'comic' }] }))).rejects.toThrow(/style must be one of: heavy, blocky, slick, thin, italic/);
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', material: 'plasma' }] }))).rejects.toThrow(/material must name a metal \(chrome, gold/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', block: 'emboss' }] }))).rejects.toThrow(/block must be one of: none, drop, perspective, stack/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', block: 'drop', blockColor: 'teal' }] }))).rejects.toThrow(/blockColor is a hex colour/);
   });
 
   it('a world without a title row carries no title bytes (the events-hud fixture)', () => {
@@ -106,7 +120,7 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
   class V3 { constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; } set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; } copy(v) { this.x = v.x; this.y = v.y; this.z = v.z; return this; } setScalar(s) { return this.set(s, s, s); } multiplyScalar(k) { this.x *= k; this.y *= k; this.z *= k; return this; } }
   class Obj { constructor() { this.position = new V3(); this.scale = new V3(1, 1, 1); this.rotation = new V3(); this.quaternion = { copy() { return this; } }; this.children = []; this.visible = true; } add(o) { this.children.push(o); return this; } remove(o) { this.children = this.children.filter((c) => c !== o); return this; } }
   class Mat { constructor(o = {}) { Object.assign(this, { opacity: 1, rotation: 0 }, o); this.disposed = false; } dispose() { this.disposed = true; } }
-  class Geo { setAttribute(k, a) { this[k] = a; } dispose() {} }
+  class Geo { constructor() { this.attributes = {}; } setAttribute(k, a) { this[k] = a; this.attributes[k] = a; } dispose() {} }
   const THREE = {
     Group: Obj, Mesh: class extends Obj { constructor(g, m) { super(); this.geometry = g; this.material = m; } }, Sprite: class extends Obj { constructor(m) { super(); this.material = m; } },
     BufferGeometry: Geo, BufferAttribute: class { constructor(a, n) { this.array = a; this.itemSize = n; } }, RingGeometry: class extends Geo {},
@@ -199,6 +213,55 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     expect(ice.material.opacity).toBeCloseTo(0.5 * go.material.opacity, 5);
     h.sync(1200, []);
     expect(ice.material.opacity).toBeCloseTo(0.5 * go.material.opacity, 5);
+  });
+
+  it('a block makes the depth show: drop pulls the back down-right, perspective toward a point under the word, stack stands copies behind; the face keeps its look', async () => {
+    const rows = [
+      { on: 'drop', text: 'KO', as: 'title', block: 'drop', blockColor: '#ffd24d', edge: 'both' },
+      { on: 'persp', text: 'KO', as: 'title', block: 'perspective' },
+      { on: 'stack', text: 'KO', as: 'title', block: 'stack', edge: 'both' },
+      { on: 'flat', text: 'KO', as: 'title', edge: 'both' },
+    ];
+    const html = emitThreeWorld(await titled({}, rows));
+    const widgets = JSON.parse(html.match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]).filter((w) => w.kind === 'title');
+    expect(widgets.map((w) => w.blk && [w.blk.kind, w.blk.side])).toEqual([['drop', '#ffd24d'], ['perspective', widgets[1].blk.side], ['stack', widgets[2].blk.side], undefined]);
+    expect(html).toContain('__ttBlock');
+    expect(emitThreeWorld(await titled())).not.toContain('__ttBlock');   // no block named: none of its code
+
+    const h = await mount({}, rows);
+    h.sync(0, []); h.bus.log.push(...rows.map((r) => ({ type: r.on }))); h.sync(0, []);
+    const L = (on) => run(h, on).letters[0];
+    const flat = L('flat').m.geometry, drop = L('drop').m.geometry, persp = L('persp').m.geometry;
+    const zs = (g) => { const z = []; for (let i = 2; i < g.position.array.length; i += 3) z.push(g.position.array[i]); return z; };
+    // the flat letter is the atlas's sliver; the blocks go deep
+    expect(Math.min(...zs(flat))).toBeGreaterThan(-0.4);
+    expect(Math.min(...zs(drop))).toBeLessThan(-0.6); expect(Math.min(...zs(persp))).toBeLessThan(-0.6);
+    // the face is where it was, in its colour: every vertex at z = 0 sits and is coloured as the flat letter's
+    const P0 = flat.position.array, P1 = drop.position.array;
+    for (let i = 0; i < P0.length; i += 3) if (P0[i + 2] === 0) { expect(P1[i]).toBe(P0[i]); expect(P1[i + 1]).toBe(P0[i + 1]); }
+    // drop: the back ring moved down and to the right, by one offset
+    const back = []; for (let i = 0; i < P0.length; i += 3) if (P0[i + 2] < -0.2) back.push([P1[i] - P0[i], P1[i + 1] - P0[i + 1]]);
+    expect(back.length).toBeGreaterThan(0);
+    expect(new Set(back.map(([dx, dy]) => dx.toFixed(4) + ',' + dy.toFixed(4))).size).toBe(1);
+    expect(back[0][0]).toBeGreaterThan(0); expect(back[0][1]).toBeLessThan(0);
+    // perspective: the back ring pulled toward a point under the word, so it is narrower than the face
+    const span = (g, back) => { const xs = []; for (let i = 0; i < g.position.array.length; i += 3) if ((g.position.array[i + 2] < -0.2) === back) xs.push(g.position.array[i]); return Math.max(...xs) - Math.min(...xs); };
+    expect(span(persp, true)).toBeLessThan(span(persp, false));
+    // the sides are the block's colour (yellow: red above blue), the face is not
+    const C = drop.color.array; let sideYellow = 0;
+    for (let i = 0; i < C.length; i += 3) if (P0[i + 2] < -0.2 && C[i] > C[i + 2] * 2) sideYellow++;
+    expect(sideYellow).toBeGreaterThan(0);
+    // the block is the drop: no drop copy stands in front of it; the ink hull stays
+    expect(L('drop').shadow).toBeNull(); expect(L('drop').hull).toBeTruthy();
+    expect(L('flat').shadow).toBeTruthy();
+    // stack: six copies behind, stepping down-right and back, the last in the edge colour; they fade with the letter
+    const st = L('stack').stack;
+    expect(st).toHaveLength(6);
+    for (let i = 1; i < st.length; i++) { expect(st[i].position.x).toBeGreaterThan(st[i - 1].position.x); expect(st[i].position.y).toBeLessThan(st[i - 1].position.y); expect(st[i].position.z).toBeLessThan(st[i - 1].position.z); }
+    expect(st.at(-1).material.color.c).toBe(widgets[2].blk.edge);
+    expect(L('stack').shadow).toBeNull(); expect(L('stack').hull).toBeTruthy();   // the steps are the drop here too
+    h.sync(1000 * 1.8 - 1, []);
+    for (const s of st) expect(s.material.opacity).toBeCloseTo(L('stack').m.material.opacity, 6);
   });
 
   it('slam: oversized at first, then its size, a flash and sparks on landing, growing out at the end; the same frame twice', async () => {

@@ -9,13 +9,15 @@
  *   banner   { on: '<busEventPattern>', text, slot?: 'center', ttl?: 2, color? }
  *   toast    { on, text, as: 'toast', slot?: 'center', ttl?: 0.8, color? }   — a banner that STACKS
  *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
- *   title    { on, text, as: 'title', theme?, slot?: 'center', ttl?, color?, look?, style?, caps?, edge?, material? }
+ *   title    { on, text, as: 'title', theme?, slot?: 'center', ttl?, color?, look?, style?, caps?, edge?, material?,
+ *              block?, blockColor? }
  *            — a banner CARVED: its words as 3D letters put on the screen (title-carve.js, the glyph carver's
  *            letters) in a design THEME (TITLE_THEMES: arcade, pixel, cel, cartoon, cinematic, speed; the game's own
  *            by default, titleThemeFor), each dial of which a row may name itself: `look` the entrance (TITLE_LOOKS),
  *            `style` the carve (TITLE_STYLES), `caps`, `edge` (TITLE_EDGES), `color`, `ttl`, and `material` what the
  *            letters are made of (title-material.js: a metal reflecting a studio sweep, or a shelf finish; no theme sets
- *            one). A text may name a word in the world's language: '@fight' (title-words.js)
+ *            one), `block` the depth made to show (TITLE_BLOCKS) in `blockColor`. A text may name a word in the world's
+ *            language: '@fight' (title-words.js)
  *   legend   { text, slot?: 'bottom', ttl? }
  *
  * Any row may carry `id` (a part's: a cue shows, hides or restates it through the bus vars ui-<id> = 0 | 1 and
@@ -58,6 +60,10 @@ export const TITLE_STYLES = ['heavy', 'blocky', 'slick', 'thin', 'italic'];
 // what stands behind a title's letters: ink (a dark hull round each letter), shadow (a dark copy offset behind), both,
 // glow (a copy in the title's colour, added, larger), none
 export const TITLE_EDGES = ['ink', 'shadow', 'both', 'glow', 'none'];
+// a title's depth made to show (title-channel.js): none (the letters face the screen, the carve's depth a sliver), drop
+// (deep, down and to the right: the comic and cartoon block letter), perspective (deep, the sides running to a
+// vanishing point under the word: the action-movie logo), stack (the comic masthead's receding copies, stepped)
+export const TITLE_BLOCKS = ['none', 'drop', 'perspective', 'stack'];
 /**
  * TITLE THEMES — the graphic-design styles game titles are set in, each a whole: the carve, the entrance, the case,
  * the tracking, the size, what stands behind the letters, a lean, how hard the landing hits (flash 0..1), whether it
@@ -153,6 +159,11 @@ export function titleDials(r, ctx = {}) {
     out.material = material; from.material = 'row';
     const m = titleMaterial(material);
     if (m.base && from.color !== 'row') { out.color = m.base; from.color = 'material'; }
+  }
+  // the block: the row's word only, like the material (no theme sets one, so a title without it is unchanged)
+  if (TITLE_BLOCKS.includes(r.block) && r.block !== 'none') {
+    out.block = r.block; from.block = 'row';
+    if (isHudColor(r.blockColor)) { out.blockColor = r.blockColor; from.blockColor = 'row'; }
   }
   return ctx.explain ? { ...out, from, by } : out;
 }
@@ -322,8 +333,10 @@ export function normalizeHud(rows, ctx = {}) {
         if (r.style !== undefined && !TITLE_STYLES.includes(r.style)) errors.push(`${where}.style must be one of: ${TITLE_STYLES.join(', ')} (a title's carve)`);
         if (r.edge !== undefined && !TITLE_EDGES.includes(r.edge)) errors.push(`${where}.edge must be one of: ${TITLE_EDGES.join(', ')} (what stands behind a title's letters)`);
         if (r.caps !== undefined && typeof r.caps !== 'boolean') errors.push(`${where}.caps is true (the words in capitals) or false`);
+        if (r.block !== undefined && !TITLE_BLOCKS.includes(r.block)) errors.push(`${where}.block must be one of: ${TITLE_BLOCKS.join(', ')} (a title's depth made to show)`);
+        if (r.blockColor !== undefined && !isHudColor(r.blockColor)) errors.push(`${where}.blockColor is a hex colour or a semantic name (harm, value, goal, accent, accent2): the block's sides`);
         if (r.material !== undefined && !titleMaterialName(r.material)) errors.push(`${where}.material must name a metal (chrome, gold, silver, copper, bronze, brass, steel, titanium …) or a finish (stone, wood, plastic, satin, glass, neon, cel …): what a title's letters are made of`);
-        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl, material: r.material }, { register: ctx.register });
+        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl, material: r.material, block: r.block, blockColor: r.blockColor }, { register: ctx.register });
         widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ...d, ...gate });
         return;
       }

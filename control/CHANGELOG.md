@@ -46,6 +46,19 @@ spreads carved letters to where the page draws words.
   shelf's words. Eyes gate not run: the author's own renders (chrome, gold, copper, marble, glass, neon titles in
   headless Chromium) showed the sweep reading as chrome and gold; glass reads murky, its walls and a glow edge showing
   through.
+- **`block` on a title row: the depth made to show.** A title's letters face the screen, so the carve's depth was a sliver
+  and they read as a raised face. A row may name a block (`title-channel.js`, only spliced when a title names one):
+  `drop` pulls each letter's back ring deep, down and to the right (the comic and cartoon block letter), `perspective`
+  pulls it toward a vanishing point under the word (the action-movie logo), `stack` stands six receding copies behind
+  it in alternating shades (the comic masthead's construction, `comicWordmark`'s block copies, now in 3D). The face and
+  its bevel keep their look (paint or material); the sides take `blockColor` or the face's hue darkened, lit by the way
+  each wall faces (the right side bright, the underside dark), two flat tones in the anime register, shading toward the
+  back in the western. A block is the drop, so it replaces a `shadow` edge; the ink hull outlines the whole block. The
+  idiom, `play.parts` banners and card `hud-title` take it. A world whose titles name no block emits the title block
+  byte for byte as before. Machine gate: the title layer's suite checks the face unmoved and uncoloured, the drop's back
+  ring moved by one offset, the perspective's back narrower than its face, the stack's steps and their fade, and the
+  closed words. Eyes gate not run: the author's renders of each block over a walk stage read as block letters once the
+  drop copy was taken off a blocked title (it stood in front of the sides).
 
 ### Superheroic pieces: belts, pouches and jackets as cards
 

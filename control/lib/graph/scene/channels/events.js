@@ -12,7 +12,7 @@ import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
 import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
-import { titleScript, titleHex } from './title-channel.js';
+import { titleScript, titleHex, titleBlock } from './title-channel.js';
 import { titleMaterial } from '../../game/title-material.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
@@ -79,7 +79,13 @@ function hudScript(widgets, style, register, menus = null, titles = null, juice 
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || w.kind === 'title' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
-  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? { hex: titleHex(w.color, style), ...(w.material ? { mat: titleMaterial(w.material, { cel: juice !== 'western' }) } : {}) } : {}) }));
+  const titleRow = (w) => {
+    const hex = titleHex(w.color, style), mat = w.material ? titleMaterial(w.material, { cel: juice !== 'western' }) : null;
+    // a block's sides: the row's colour, or the face's own darkened (a metal's: the sweep under its horizon)
+    const blk = w.block ? titleBlock(w.block, mat && mat.metal ? mat.stops[5][1] : hex, w.blockColor ? titleHex(w.blockColor, style) : null) : null;
+    return { hex, ...(mat ? { mat } : {}), ...(blk ? { blk } : {}) };
+  };
+  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? titleRow(w) : {}) }));
   const gated = widgets.some((w) => w.id || w.when);
   const on = (x) => (gated ? ` && __hudOn(${x})` : '');
   const titled = !!titles && widgets.some((w) => w.kind === 'title');
@@ -187,7 +193,7 @@ function __syncHud(t, incoming) {
   for (const b of __hudBanners) if (b.until && (t || 0) >= b.until) { b.el.classList.add('moj-hidden'); b.until = 0; }
   for (const l of __hudTimed) if (l.until >= 0 && (t || 0) - __hudT0 >= l.until) { l.el.classList.add('moj-hidden'); l.until = -1; }${titled ? `
   __ttStep(t || 0);` : ''}
-}${titled ? titleScript(titles, { register: juice, material: widgets.some((w) => w.kind === 'title' && w.material) }) : ''}`;
+}${titled ? titleScript(titles, { register: juice, material: widgets.some((w) => w.kind === 'title' && w.material), block: widgets.some((w) => w.kind === 'title' && w.block) }) : ''}`;
 }
 
 // In-page script: the EVENTS channel — the in-world bus (event-bus.plan.md). This is the MEMBRANE
