@@ -31,13 +31,14 @@ export const ERAS = Object.freeze({
   }),
   'gen-7': Object.freeze({
     reads: 'the seventh generation (360, PS3: Halo 3, Skyrim)', extends: 'gen-6',
-    // the form render: a surface carries its material and its form, never light, and the renderer lights it. Its
-    // surfaces are not built yet: a gen-7 read draws each as paint under the live light (scene/live-light.js
-    // liveLightDefaults), and the era marks name each one it does. The sun does not move, live or within a level: a level
+    // the form render: a surface carries its material and its form, never light, and the renderer lights it. Built for a
+    // room under no sun (form/room-form.js: its tiles as material, its placed lights live, the nearest casting); every
+    // other surface a gen-7 read draws as paint under the live light (scene/live-light.js liveLightDefaults), and the era
+    // marks name each one it does. The sun does not move, live or within a level: a level
     // is lit at one hour, so a moving sun is not planned here. (The live light over paint is gen-6's to opt into as well:
     // a recipe's `shadows` and `occlusion`, a hero's level's actor shadows.)
     surface: 'form',
-    world: Object.freeze({ status: 'partial', lowers: 'lib/graph/scene/live-light.js', note: 'the form render (material and geometry, lit by the renderer) is not built: a gen-7 read (the read\'s or the export\'s `era`, or the cube\'s) draws each surface as paint under the live light, actor shadows, the hour\'s shadow map (drawn once at load: the sun does not move) and contact occlusion (SSAO) under the quality tier, and the era marks (era/era-marks.js) name every surface it draws so; planned: surfaces as material (base colour without light, normal, occlusion, roughness), relief as geometry near the eye, lightmaps and light probes, HDR, IBL, height fog' }),
+    world: Object.freeze({ status: 'partial', lowers: 'lib/graph/scene/live-light.js', note: 'the form render (material and geometry, lit by the renderer) is built for a room under no sun (form/room-form.js: its tiles read as material, colour under no light, normal, occlusion and roughness; its placed lights lit live, the nearest four casting from cube maps drawn when they move); elsewhere a gen-7 read (the read\'s or the export\'s `era`, or the cube\'s) draws each surface as paint under the live light, actor shadows, the hour\'s shadow map (drawn once at load: the sun does not move) and contact occlusion (SSAO) under the quality tier, and the era marks (era/era-marks.js) name every surface it draws so; planned: the outside\'s surfaces as material, a sunlit or night room\'s, relief as geometry near the eye, lightmaps and light probes, HDR, IBL, height fog' }),
     cast: Object.freeze({
       light: 'live-key-over-baked-indirect',
       conventions: Object.freeze([

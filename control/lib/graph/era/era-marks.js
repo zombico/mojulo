@@ -11,7 +11,7 @@
  * each; until it draws one, a gen-7 read draws it as paint under the live light and reads `approximated`, never built.
  * A gap is named, never approximated silently: eraReading lists every surface a payload carries that its era draws so.
  *
- * The two lists below are closed over emitThreeWorld's parameters (engines/mark-sources.js pageInputs): a new page input
+ * The lists below are closed over emitThreeWorld's parameters (engines/mark-sources.js pageInputs): a new page input
  * is classified here before the ratchet (era-marks.test.js) passes.
  *
  * Pure data and one read. No builder is imported.
@@ -40,14 +40,21 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings',
 ]);
 
+/** The form render's own inputs: what a gen-7 read draws as material and live light (form/room-form.js: a room's tiles
+ *  as material, its placed lights live, scene/channels/form.js). Never carried by a gen-6 read. */
+export const FORM_INPUTS = Object.freeze(['form']);
+// a payload that carries the form render's room: its faces and their tiles are drawn as material, lit live
+const FORMED = new Set(['faces', 'textures']);
+
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';
 const LIVE_HOW = 'the live light darkening paint: the form render will light material with it';
 const g6 = markRow('gen-6'), g7 = markRow('gen-7');
 
 /** Each era's marks over every World page input: { [era]: { [input]: row } }. */
 export const ERA_PAGE_MARKS = Object.freeze({
-  'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS].map((k) => [k, g6('built')]))),
+  'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS, ...FORM_INPUTS].map((k) => [k, g6('built')]))),
   'gen-7': Object.freeze(Object.fromEntries([
+    ...FORM_INPUTS.map((k) => [k, g7('built', 'a room\'s tiles read as material (colour under no light, normal, occlusion, roughness) and its placed lights lit live, the nearest casting')]),
     ...SURFACE_INPUTS.map((k) => [k, g7('approximated', LIVE.has(k) ? LIVE_HOW : PAINT_HOW)]),
     ...NEUTRAL_INPUTS.map((k) => [k, Object.freeze({ 'gen-7': 'built', neutral: true })]),
   ])),
@@ -61,9 +68,9 @@ const carried = (v) => v !== undefined && v !== null && v !== false && !(Array.i
  */
 export function eraReading(payload, era) {
   readEra(era);
-  const marks = ERA_PAGE_MARKS[era], out = { era, surface: ERAS[era].surface, approximated: [], absent: [] };
+  const marks = ERA_PAGE_MARKS[era], out = { era, surface: ERAS[era].surface, approximated: [], absent: [] }, formed = carried(payload?.form);
   for (const [input, row] of Object.entries(marks)) {
-    if (row[era] === 'built' || !carried(payload?.[input])) continue;
+    if (row[era] === 'built' || !carried(payload?.[input]) || (formed && FORMED.has(input))) continue;
     out[row[era]].push({ input, how: row.how });
   }
   return out;

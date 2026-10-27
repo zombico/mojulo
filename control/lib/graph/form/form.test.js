@@ -38,7 +38,17 @@ describe('a dressed brick as material', () => {
     expect(Buffer.compare(A.normal, B.normal)).toBe(0);
     expect(Buffer.compare(A.baseColor, B.baseColor)).toBe(0);
     expect(Buffer.compare(A.baseColor, dressedTile(CFG, { size: 64, seed: 3 }).rgb)).not.toBe(0);
-    expect(() => dressedMaterial({ ...CFG, cut: 'ashlar' })).toThrow(/still drawn as paint/);
+  });
+
+  it('a room\'s cuts read so too: the ashlar\'s joints are occluded, a flute tilts the normal both ways across the shaft', () => {
+    const stone = [170, 160, 140], mortar = [110, 104, 96];
+    const ashlar = dressedMaterial({ cut: 'ashlar', stone, mortar, rows: 2, cols: 2, metres: 1 }, { size: 64, seed: 3 });
+    const red = (buf, ch) => Array.from({ length: buf.length / 3 }, (_, k) => buf[k * 3 + ch]);
+    expect(Math.min(...red(ashlar.orm, 0))).toBeLessThan(200);
+    expect(Math.max(...red(ashlar.orm, 0))).toBe(255);
+    const fluted = dressedMaterial({ cut: 'fluted', stone, mortar, flutes: 4, metres: 1 }, { size: 64, seed: 3 }), nx = red(fluted.normal, 0);
+    expect(Math.min(...nx)).toBeLessThan(110);
+    expect(Math.max(...nx)).toBeGreaterThan(146);
   });
 
   it('the bond\'s bricks stand where the paint\'s are: a brick\'s middle is its face, the joint under it the mortar', () => {

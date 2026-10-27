@@ -46,6 +46,8 @@ import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun.js';
 import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
+import { readFormLight, TWIN_MID, twinMeanValue } from '../form/room-form.js';
+import { FORM_PAGE } from '../scene/channels/form.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
@@ -818,6 +820,59 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
+/** The form render's corners (form/room-form.js): each its material's colour, the tint under its dirt, no light. */
+export function albedoFaces(faces, dirt = () => [1, 1, 1]) {
+  const at = (f, c) => { const g = dirt(f, c); return f.tint.map((v, k) => v * g[k]); };
+  return faces.map((f) => {
+    if (!f.tint) return f;
+    const { tint, top, ...rest } = f;
+    if (f.corners.length !== 4) return { ...rest, fill: rgbHex(at(f, [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length))) };
+    const cols = f.corners.map((c) => at(f, c)), mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / 4);
+    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
+  });
+}
+/** A toned room read as form (tone.js): its colour is its ramps' laid over its light, so it has no material colour of its
+ *  own. Each corner's is what the toned page paints it under its own lamps (`ref`, the bake: its lit value, times the
+ *  page's `gain`, banded, picked off its ramp), divided by the light the form page will lay on it there (FORM_PAGE: the
+ *  ambient lifted, each lamp's falloff, the bounce, the exposure; a twin tile's middle under it, room-form.js TWIN_MID),
+ *  so the room reads as its art direction and the live light adds its relief and its shadows. A `keep` group keeps its
+ *  bake's tint. */
+export function formToneFaces(raw, ref, T, gain, lights, ambient) {
+  const keep = new Set(T.keep), lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4), enc = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+  const band = (x) => { x = Math.min(1, Math.max(0, x)); return T.steps > 0.5 ? (Math.min(Math.floor(x * T.steps), T.steps - 1) + 0.5) / T.steps : x; };
+  const ramps = Object.fromEntries(Object.entries(T.ramps).map(([n, R]) => [n, R.map(hexRgb)]));
+  const at = (R, t) => { const x = Math.min(1, Math.max(0, t)) * (R.length - 1), i = Math.min(R.length - 2, Math.floor(x)), f = x - i; return R[i].map((v, k) => v + (R[i + 1][k] - v) * f); };
+  const Fp = FORM_PAGE, amb = ambient.map((v) => lin(v) * Fp.ambientGain), L = lights.map((l) => ({ at: l.at, R: l.radius, rgb: hexRgb(l.color).map(lin), I: l.intensity ** Fp.gamma }));
+  // the light the form page lays at a corner (channels/form.js: the falloff, the bounce's wider reach, the ambient)
+  const laid = (c, n) => {
+    const e = [...amb];
+    for (const l of L) {
+      const d = sub(l.at, c), r = Math.hypot(d[0], d[1], d[2]), ndl = r > 1e-6 ? Math.max(0, dot(n, d) / r) : 1;
+      const t = Math.max(0, 1 - Math.max(r, 1.1) / l.R), tb = Math.max(0, 1 - Math.max(r, 1.1) / (l.R * Fp.reach));
+      const w = l.I * ((t * t) ** Fp.fall * ndl + Fp.bounce * (tb * tb) ** Fp.fall * (0.6 + 0.4 * ndl));
+      for (let k = 0; k < 3; k++) e[k] += l.rgb[k] * w;
+    }
+    return e.map((v) => v * Fp.exposure);
+  };
+  const colour = (f, fill, c) => {
+    // (a twin's own value moves the colour along the ramp, as the toned page's `detail` does: its mean, here; its texels
+    // ride on the material's colour, room-form.js)
+    const twin = typeof f.texture === 'string' && /^(value|shade):/.test(f.texture), mv = twin ? twinMeanValue(f.texture) : null;
+    const v = lum(hexRgb(fill)), shift = mv !== null ? (mv - (T.texture === 'shade' ? 0.9 : 0.5)) * T.detail : 0;
+    const col = at(ramps[T.groups[f.group] ?? T.default], band(v * gain) + shift), e = laid(c, f.normal), under = twin ? TWIN_MID : 1;
+    return rgbHex(col.map((x, k) => Math.min(1, enc(lin(x) / Math.max(1e-3, e[k] * under)))));
+  };
+  return raw.map((f, i) => {
+    const g = ref[i];
+    if (!f.tint || keep.has(f.group)) return g;
+    const { tint, top, ...rest } = f;
+    if (f.corners.length !== 4) return { ...rest, fill: colour(f, g.fill, [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length)) };
+    const cols = f.corners.map((c, k) => colour(f, g.cornerFills[k], c));
+    const mean = [0, 1, 2].map((k) => cols.reduce((s, h) => s + hexRgb(h)[k], 0) / 4);
+    return { ...rest, fill: rgbHex(mean), cornerFills: cols };
+  });
+}
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
@@ -970,9 +1025,18 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     const occ = base.filter((f) => f.group !== 'stage:glass' && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => ({ ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   })() : ls);
+  const dirt = () => makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt);
+  // THE FORM RENDER INDOORS (a read in an era whose surface is form, gen-7: form/room-form.js): a room under no sun keeps
+  // no light in its corners, only its material's colour (its tint and its dirt), and its placed lights go to the page,
+  // which lights the room live (scene/channels/form.js). A sunlit or night stage is drawn as paint. A toned room's colour
+  // is its ramps' laid over its light (tone.js): read as form, each corner carries its paint over the light the page will
+  // lay there (formToneFaces), and the page lights it as any room
+  const form = !!ctx.form && !ctx.unshaded && !daylight && !plan.night;
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt), sun);
+    : form && plan.tone ? (() => { const all = [...lights, ...braziers, ...(dress ? dress.pools : [])], ref = bakeStageLight(raw, all, ambient, dirt()); return formToneFaces(raw, ref, plan.tone, exposureOf(ref, plan.tone), all, ambient); })()
+      : form ? albedoFaces(raw, dirt())
+      : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
@@ -1027,6 +1091,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(live ? { fireSources: [...torches.map((l) => ({ kind: 'torch', at: P([l.at[0], l.at[1], l.at[2] - 0.04]), ...(Fk && Fk.torch ? { size: Fk.torch } : {}), ...((plan.atmosphere && plan.atmosphere.flicker) || (plan.kit.dress && plan.kit.dress.flicker) ? { pace: (plan.atmosphere && plan.atmosphere.flicker) || plan.kit.dress.flicker } : {}), baked: true })),
       ...braziers.map((b) => ({ kind: 'brazier', at: b.at, size: b.size, baked: true }))] } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
+    // the form render's light (form/room-form.js): the placed lights, the braziers and the bake's pools, lit live over the
+    // ambient the bake would have laid; only a room read in the form render
+    ...(form ? { form: { lights: readFormLight([...lights, ...braziers, ...(dress ? dress.pools : [])]), ambient: ambient.map(r5), ...(plan.tone ? { detail: plan.tone.detail } : {}) } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
@@ -1061,7 +1128,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     rooms: stageRooms(plan), anchors, colliders,
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
-    ...(plan.tone ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
+    ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },
   };

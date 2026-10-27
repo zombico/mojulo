@@ -178,6 +178,7 @@ export const PAGE_MARKS = Object.freeze({
   turns: m(A, 'the turn sport (contest/turn-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   pitch: m(A, 'the team goal game (contest/team-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   innings: m(A, 'the bat-and-ball game (contest/bat-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
+  form: m(A, 'a room read in the form render (gen-7: form/room-form.js) is lit by the page\'s own channel (scene/channels/form.js); the engine packs refuse an era, so no Godot leg carries it'),
   holo: m(A, 'the hologram arena (tabletop/holo-arena.client.js, scene/channels/holo.js) is the page\'s own: the tabletop kernel and its mind play in the page, nothing in the kernel plays it'),
   screen: m(P, 'project.godot\'s [display] holds the frame the game is made for (its viewport, stretch and handheld orientation) and an upright screen\'s cameras hold its width (kernel/level.gd); the touch pad and the safe-area zones are the page\'s'),
   runner: m(A, 'the endless run (its lanes, rows, hurdles and crash: worlds/controllable/runner.js) is the page\'s'),

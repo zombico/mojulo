@@ -14,6 +14,45 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Gen-7 rooms: a room's surfaces as material, its lights live
+
+The form render's first place: a room under no sun, read in gen-7 (`?era=gen-7`, `export_game { era }`, a cube that names
+the seventh generation), has its tiles read as material and its placed lights lit live, where gen-6 paints the light into
+each tile and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
+
+- **Every dressed cut reads as material** (`dressedMaterial`, matte-paint/dressed.js): the ashlar wall and floor, the
+  fluted and plain shafts, lime render, roof tiles and slates, boards, and the natural cuts beside the modern ones. Each
+  cut lights its relief through one helper, which, read as material, paints the colour under no light and keeps the
+  relief for its normal, occlusion and roughness. The paint is unchanged (its pins hold).
+- **A room's tiles as material** (`form/room-form.js`): a dressed family from its relief (each joint, flute and chip its
+  own slope); any other tile from its painted light read back as height, as the seventh generation's own tools pulled a
+  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). A
+  generated tile now records the spec it was painted from (`generatedSpecOf`, landscape/surface-textures.js).
+- **No light in the corners** (era/stage.js): a room read in the form render bakes each corner its material's colour,
+  its tint under its dirt, and hands the page its placed lights, braziers and the nave's sun pools (`form: { lights,
+  ambient }`). A sunlit or night stage stays paint. A toned room (tone.js) has no material colour of its own (its
+  ramps colour its light), so each corner carries what the toned page paints it under its lamps, over the light the form
+  page will lay there: the room reads as its art direction, and the live light adds its relief and its shadows.
+- **The page lights it** (`scene/channels/form.js`): every surface of the room a lit material, flat-shaded with its
+  normal map's frame from the screen's derivatives, under the room's lights falling off by the bake's own law, an indirect
+  of the bake's ambient and a bounce off each light (what a lightmap holds), occluded by the material's hollows, and
+  tone-mapped. The four lights nearest the eye cast from cube maps, a fixed pool laid over the nearest as the eye walks,
+  each map drawn when its light changes and never per frame; the light tier halves them (two at 256) or drops them (off).
+  The live light's actors' map gives way in such a room, since its light would light the material: what moves (a hero,
+  walkers, cars, fauna) casts in the room's own lights instead, the nearest light's map drawn each frame, so a hero
+  throws its shadow from the torch beside it. `window.__mojForm` is the probe. Measured in Chrome on five rooms from each room's spawn: a lit room's mean luminance within 1 % of its
+  gen-6 paint (brick hall 34.3 against 33.9, crypt 31.4 against 31.4), the nave within 13 %; the gritty cube's toned
+  room 145 against 184 (its accent wall's colour is still short of its ramp's).
+- **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
+  walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
+  page draws the form render.
+- **The era marks**: `form` is the form render's own input, built in gen-7; a payload that carries it reads its faces and
+  tiles as material, no longer approximated. The engine packs refuse an era, so no Godot or Roblox leg carries it (both
+  mark it absent). The seventh generation's world note says what is built.
+- **Rooms to walk** (`scripts/spikes/form/rooms.mjs`): a brick hall (wire-cut brick, fluted pilasters, a plinth course,
+  worn floor slabs), a rendered vault, the crypt, the gritty cube's room and the nave, each written as a walkable World
+  page in both eras and captured side by side, wide and close by a torch.
+
 ### Carved glyphs: the letter primitive grows up
 
 The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
