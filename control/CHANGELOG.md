@@ -901,6 +901,22 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   close views of the mound's foot and the beach at wide, eye, close and down. Two natural cuts join the matte painter (`matte-paint/dressed.js`): `crag` (a
   weathered rock face: lumps, beds each its own tone with a ledge at its foot, joints cut up it) and `soil` (loose dirt:
   clods, crumbs, small stones); `dressedMaterial` reads the natural cuts as material. The basis a path will blend into.
+- **The geocube's trail in gen-7, rendered the island's way** (the spike, `--show path --biocube <id> --dress {…}`): the
+  meru island stays geo only; what it proved renders the cube's own trail and its flora. The trail's crowns and trunks
+  read as form (`land-form.js` classes `crown` foliage, `wood` the floor darkened; a cliff's grass `lip` and a boulder's
+  mossy `hat` the grass), the cover's slot turf on a green land, foothill scree from cliffs only. The scree's larger
+  stones stood up as real ones (`form/land-stones.js`: by a level face's area × its scree share, most small, sunk, one of
+  four shapes; drawn instanced and smooth, the crag's skin, casting from 0.18 m), parallax on the scree near, the normal
+  map beyond. The trail's DRESS with degrees (6.5's words, era/trail-dress.js): `rubble` 0–1 (stones along its verge,
+  smaller than a talus's), `dust` 0–1 (a pale powder worn out onto the land), `clay` 0–1, patches (worn, damp, gravel) as
+  materials, a `sand` surface. Its dirt two new natural cuts, `powder` (dry dirt's dense fine grain, pits, scuffs,
+  crumbs) and `clay` (rounded clods cracked across where it dried), in the theorist's two tones of the floor
+  (`color-theorist/ground.js` `soilTones`: powder lighter and quieter toward the light's hue, clay darker and fuller
+  toward red, the floor their mean): the road's clay core and its powder edge overlapping in broken alpha. The path's
+  mask carries a signed distance (`dist`, `inside`), so its edge feathers into the ribbon as well as out of it and never
+  runs along the ribbon's line. Fixed on the way: a layer's height lift scaled by its presence (a trace never wins on its
+  relief); a kept scree stone takes its stone's colour; the sea's mirror solve clamped (its NaN had reached every base
+  through `land-form`'s deep term, now only where the floor is lost into it).
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

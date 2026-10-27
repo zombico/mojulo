@@ -34,6 +34,13 @@ export const LAND_CLASSES = Object.freeze({
   rock: { colour: 'stone', rough: 0.8, tone: 1, vary: 0.08 },
   trail: { colour: 'floor', rough: 0.9, tone: 1, vary: 0.04 },
   water: { colour: 'water', rough: 0.06, tone: 1, vary: 0 },
+  // the green over the rock: a cliff's grass lip and a boulder's mossy cap (era/isekai.js), the cube's grass
+  lip: { colour: 'grass', rough: 0.9, tone: 1, vary: 0.07 },
+  hat: { colour: 'grass', rough: 0.9, tone: 0.95, vary: 0.07 },
+  // a trail's flora (era/isekai.js, its crowns and trunks): the cube's foliage, and its floor darkened for the bark (a
+  // cube names no bark of its own)
+  crown: { colour: 'foliage', rough: 0.85, tone: 1, vary: 0.08 },
+  wood: { colour: 'floor', rough: 0.9, tone: 0.5, vary: 0.05 },
 });
 /** Wet sand: how high above the water's line, its colour (× dry) and its roughness. */
 export const WET_BAND = 0.3, WET_TONE = 0.68, WET_ROUGH = 0.25;
@@ -59,7 +66,8 @@ const clsOf = (group) => { const m = /^isekai:([a-z]+)$/.exec(String(group || ''
 const byte = (v) => Math.max(0, Math.min(255, Math.round(v)));
 
 export function landForm(faces, colour, { seed = 1, wetBand = WET_BAND } = {}) {
-  for (const c of new Set(Object.values(LAND_CLASSES).map((C) => C.colour))) if (!/^#[0-9a-f]{6}$/i.test(colour?.[c] || '')) throw new Error(`land-form: colour.${c} is a #rrggbb (the cube's key colours)`);
+  // (the colours the faces' classes take: a land with no flora needs no foliage)
+  for (const c of new Set(faces.map((f) => clsOf(f.group)).filter(Boolean).map((k) => LAND_CLASSES[k].colour))) if (!/^#[0-9a-f]{6}$/i.test(colour?.[c] || '')) throw new Error(`land-form: colour.${c} is a #rrggbb (the cube's key colours)`);
   const water = faces.filter((f) => clsOf(f.group) === 'water').map((f) => f.corners[0][2]).sort((a, b) => a - b);
   const waterZ = water.length ? water[water.length >> 1] : null;
   const tone = toneField(seed), deep = hexToRgb(colour.water).map((v) => byte(v * DEEP_TONE));
@@ -76,7 +84,7 @@ export function landForm(faces, colour, { seed = 1, wetBand = WET_BAND } = {}) {
     const wet = under || (cls === 'sand' && waterZ !== null && Math.min(...zs) < waterZ + wetBand);
     const k = t * (under ? UNDER_TONE : wet ? WET_TONE : 1), own = hexToRgb(colour[C.colour]);
     // (clear water keeps its sand until it is deep: lost by the square of the depth's share)
-    const at = (z) => { const lost = under ? Math.max(0, Math.min(1, (waterZ - z) / fade)) ** 2 : 0; return own.map((v, c) => byte(v * k * (1 - lost) + deep[c] * lost)); };
+    const at = (z) => { const lost = under ? Math.max(0, Math.min(1, (waterZ - z) / fade)) ** 2 : 0; return own.map((v, c) => byte(v * k * (1 - lost) + (lost ? deep[c] * lost : 0))); };
     return { cls, base: at(mid[2]), rough: wet ? WET_ROUGH : C.rough, wet, under, ...(under ? { corners: zs.map(at) } : {}) };
   });
   return { faces: out, waterZ, deep, unread };

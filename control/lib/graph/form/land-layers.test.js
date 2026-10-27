@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { landLayers, LAYER_OF, FOOT, SAND_REACH, SMOOTH, PATH_EDGE } from './land-layers.js';
+import { landLayers, LAYER_OF, FOOT, SAND_REACH, SMOOTH, PATH_EDGE, PATH_REACH } from './land-layers.js';
 
 // a grid of 1.5 m quads over x, y in 0..45: rock where x < 6, sand where y < 3, soil elsewhere
 const CELL = 1.5, N = 30;
@@ -75,6 +75,15 @@ describe('the land\'s layers', () => {
     for (let x = 9; x < 27; x += 0.25) { let d = 0; while (maskAt(M, x, 18.8 + d + M.cell) > 0.02) d += M.cell; reach.push(d); }
     expect(Math.max(...reach) - Math.min(...reach)).toBeGreaterThan(0.25);
     expect(M.z[Math.round((18 - M.origin[1]) / M.cell) * M.size[0] + Math.round((15 - M.origin[0]) / M.cell)]).toBeCloseTo(0.04, 6);
+    // the distance to the trail: none on it, a metre at a metre off its edge, the verge's reach at most
+    const distAt = (x, y) => M.dist[Math.round((y - M.origin[1]) / M.cell) * M.size[0] + Math.round((x - M.origin[0]) / M.cell)];
+    expect(distAt(15, 18)).toBe(0);
+    expect(Math.abs(distAt(15, 18.8 + 1) - 1)).toBeLessThanOrEqual(M.cell);   // (within a texel)
+    expect(Math.max(...M.dist)).toBeLessThanOrEqual(PATH_REACH);
+    // and how deep in it: none off it, its half width (0.8 m) at its middle, within a texel
+    const inAt = (x, y) => M.inside[Math.round((y - M.origin[1]) / M.cell) * M.size[0] + Math.round((x - M.origin[0]) / M.cell)];
+    expect(inAt(15, 21)).toBe(0);
+    expect(Math.abs(inAt(15, 18) - 0.8)).toBeLessThanOrEqual(M.cell * 1.5);
   });
 
   it('seeded: the same faces give the same weights and mask, byte for byte', () => {

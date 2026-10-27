@@ -9,7 +9,7 @@
  *       `layered(i)`: face i is ground the layers cover (a land class, not under the sea, not water).
  *       `weightAt(corner)`: the four natural layers' weights at a layered face's corner (rock, scree, soil, sand; summing
  *         to 1). Rock is where the land's geometry has it (the classes of the faces round the corner). The rest are worn
- *         into one another over metres, never along the faces' edges: scree FANS from the foot of the rock over the soil
+ *         into one another over metres, never along the faces' edges: scree FANS from the foot of a cliff over the soil
  *         and onto the beach (its reach wandering along the foot, up to FOOT metres); the soil and the sand are parted by
  *         a smooth signed distance across their border, the sand reaching up into the soil (up to SAND_REACH metres, in
  *         tongues) and the soil down onto the top of the beach (up to SOIL_REACH); seeded patches of scree lie over the
@@ -20,7 +20,9 @@
  *         and `z`, one per texel, row by row from the origin) over the trail faces' footprint. A path 1.6 m wide on 1.5 m
  *         land cells would read as a zig-zag of corners, so its weight is a map at its own resolution, as an engine's
  *         painted layer is: 1 inside a trail face, easing to 0 over a ragged PATH_EDGE outside (worn edges, never a
- *         ruled line); `z` the trail's height there, so a reader can keep the path off the flank under a shelf. Every
+ *         ruled line); `dist` the plan distance to the trail (0 on it, to PATH_REACH: the verge a trail's dress lays its
+ *         dust and rubble in); `inside` how deep in the trail (its distance to the nearest point off it: 0 off it, its
+ *         half width at its middle; with `dist`, a signed distance across its edge); `z` the trail's height there, so a reader can keep the path off the flank under a shelf. Every
  *         other layer is scaled by (1 − path); the path is ground, so a reader lays it on what faces up.
  *
  * Pure and seeded: the same faces, the same weights and mask, byte for byte. Nothing in the recipe reads it.
@@ -43,6 +45,8 @@ export const WANDER = 5, WANDER_LEAST = 0.3;
 export const SMOOTH = 3;
 /** The path's mask: its texel (metres), how far past the trail it wears out (metres, at most), and its edge's wander (metres). */
 export const PATH_CELL = 0.25, PATH_EDGE = 0.9, PATH_WANDER = 1.6;
+/** How far past the trail the mask reads its distance (metres): its verge, where a trail's dust and rubble lie. */
+export const PATH_REACH = 3;
 
 const ease = (t) => t * t * (3 - 2 * t);
 // a smooth field in 0..1 over the ground: seeded values at a lattice, blended between
@@ -69,7 +73,7 @@ function planDistance(cs, x, y) {
 
 function pathMask(trail, seed) {
   if (!trail.length) return null;
-  const reach = PATH_EDGE + 1e-9, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
+  const reach = PATH_REACH + 1e-9, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
   for (const cs of trail) for (const c of cs) for (const k of [0, 1]) { lo[k] = Math.min(lo[k], c[k]); hi[k] = Math.max(hi[k], c[k]); }
   const origin = lo.map((v) => Math.floor((v - reach) / PATH_CELL) * PATH_CELL);
   const nx = Math.ceil((hi[0] + reach - origin[0]) / PATH_CELL) + 1, ny = Math.ceil((hi[1] + reach - origin[1]) / PATH_CELL) + 1;
@@ -91,7 +95,25 @@ function pathMask(trail, seed) {
     const edge = PATH_EDGE * (0.33 + 0.67 * wander(origin[0] + i * PATH_CELL, origin[1] + j * PATH_CELL));
     weight[k] = d <= 0 ? 1 : d >= edge ? 0 : 1 - ease(d / edge);
   }
-  return { origin, cell: PATH_CELL, size: [nx, ny], weight, z };
+  // (and the distance itself, to PATH_REACH: the verge a dress lays its dust and rubble in)
+  for (let k = 0; k < dist.length; k++) dist[k] = Math.min(PATH_REACH, dist[k]);
+  // (and how deep a texel lies inside the trail: its distance to the nearest texel off it, a two-pass chamfer over the
+  // grid, so a reader can tell the trail's middle from its edge)
+  const inside = new Float32Array(nx * ny), D2 = PATH_CELL * Math.SQRT2;
+  for (let k = 0; k < inside.length; k++) inside[k] = dist[k] > 0 ? 0 : Infinity;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i; let v = inside[k];
+    if (i > 0) v = Math.min(v, inside[k - 1] + PATH_CELL);
+    if (j > 0) { v = Math.min(v, inside[k - nx] + PATH_CELL); if (i > 0) v = Math.min(v, inside[k - nx - 1] + D2); if (i < nx - 1) v = Math.min(v, inside[k - nx + 1] + D2); }
+    inside[k] = v;
+  }
+  for (let j = ny - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
+    const k = j * nx + i; let v = inside[k];
+    if (i < nx - 1) v = Math.min(v, inside[k + 1] + PATH_CELL);
+    if (j < ny - 1) { v = Math.min(v, inside[k + nx] + PATH_CELL); if (i < nx - 1) v = Math.min(v, inside[k + nx + 1] + D2); if (i > 0) v = Math.min(v, inside[k + nx - 1] + D2); }
+    inside[k] = v;
+  }
+  return { origin, cell: PATH_CELL, size: [nx, ny], weight, dist, inside, z };
 }
 
 export function landLayers(faces, form, { seed = 1 } = {}) {
@@ -100,19 +122,20 @@ export function landLayers(faces, form, { seed = 1 } = {}) {
   const W = new Map();
   faces.forEach((f, i) => {
     if (!layered(i)) return;
-    for (const c of f.corners) { const k = keyAt(c), w = W.get(k) ?? W.set(k, { at: c, w: [0, 0, 0, 0] }).get(k); w.w[LAYER_OF[F[i].cls]] += 1; }
+    for (const c of f.corners) { const k = keyAt(c), w = W.get(k) ?? W.set(k, { at: c, w: [0, 0, 0, 0] }).get(k); w.w[LAYER_OF[F[i].cls]] += 1; if (F[i].cls === 'cliff') w.cliff = true; }
   });
   // the nearest corner of a layer: a bucket grid of the corners where the geometry lays it
-  const nearestOf = (li, cell) => {
+  const nearestOf = (li, cell, only = () => true) => {
     const B = new Map(), key = (i, j) => `${i},${j}`;
-    for (const v of W.values()) if (v.w[li] > 0) { const k = key(Math.floor(v.at[0] / cell), Math.floor(v.at[1] / cell)); (B.get(k) ?? B.set(k, []).get(k)).push(v.at); }
+    for (const v of W.values()) if (v.w[li] > 0 && only(v)) { const k = key(Math.floor(v.at[0] / cell), Math.floor(v.at[1] / cell)); (B.get(k) ?? B.set(k, []).get(k)).push(v.at); }
     return (x, y) => {
       let d = Infinity; const bi = Math.floor(x / cell), bj = Math.floor(y / cell);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const c of B.get(key(bi + a, bj + b)) || []) d = Math.min(d, Math.hypot(c[0] - x, c[1] - y));
       return d;
     };
   };
-  const nearRock = nearestOf(0, FOOT), nearSand = nearestOf(3, SAND_REACH), nearSoil = nearestOf(2, SOIL_REACH);
+  // (the scree is a cliff's: a boulder on the grass sheds none)
+  const nearRock = nearestOf(0, FOOT, (v) => v.cliff), nearSand = nearestOf(3, SAND_REACH), nearSoil = nearestOf(2, SOIL_REACH);
   const patch = lattice(seed, 'scree-patch-v1', PATCH), wFoot = lattice(seed, 'foot-reach-v1', WANDER), wSand = lattice(seed, 'sand-reach-v1', WANDER), wSoil = lattice(seed, 'soil-reach-v1', WANDER);
   // (1 at the source, easing to 0 at a reach that wanders along the border between WANDER_LEAST and the whole)
   const worn = (d, most, wander, x, y) => { const r = most * (WANDER_LEAST + (1 - WANDER_LEAST) * wander(x, y)); return d >= r ? 0 : 1 - ease(d / r); };

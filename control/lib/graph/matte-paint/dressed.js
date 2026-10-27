@@ -48,7 +48,8 @@
  * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
  * rounded plates between furrows running up and forking; `'path'` (a floor) packed earth, crumbs, pebbles pressed into
- * it, worn hollows; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
+ * it, worn hollows; `'powder'` (a floor) dry dirt, a soft fine grain scuffed into faint drifts, a few crumbs, almost no
+ * relief; `'clay'` (a floor) cohesive dirt in rounded clods cracked apart where it dried, pores in their faces; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
  * wandering across fine grains, a bright fleck here and there; `'karst'` (a floor) a limestone pavement: clints in
  * courses (`rows`, `cols`) parted by deep grikes (matte-paint/karst.js, the joints shared with what roots in them),
  * solution pans, lichen rosettes a shade apart; `'scree'` (a floor) angular stones lying close and over one another,
@@ -692,6 +693,44 @@ const NATURAL = {
       clod[k] = lump / 0.005 + (st > 0 ? 0.5 : 0);
       return lump + st + 0.0008 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5) + 0.003 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 7);
     }, (x, y, k, lit) => rampAt(body, 0.54 + (lit.value[k] - 1) * 1.2 + 0.06 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 13) + 0.05 * clod[k] - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // POWDER, dry dirt from above (silt and fine sand with nothing to bind it): a dense fine grain pricked with pits, faint
+  // drifts scuffed long across it, crumbs and grit lying on it (the darker ones small stones); little relief, its density
+  // the grain's, which the light reads as it turns
+  powder(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), crumb = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      let cr = 0, dark = 0;
+      marksNear(x, y, M, 0.03, 2, seed + 11, (cx, cy, h, cs) => {
+        if (h(3) > 0.3 + 0.2 * g) return;
+        const d = Math.hypot(x - cx, y - cy) / (cs * (0.12 + 0.2 * h(4)));
+        if (d < 1) { const v = 0.0016 * (0.5 + h(6)) * Math.sqrt(1 - d * d); if (v > cr) { cr = v; dark = h(7) < 0.3 ? 1 : 0; } }
+      });
+      crumb[k] = cr > 0 ? (dark ? -1 : 1) : 0;
+      const pit = 0.0012 * Math.max(0, sfbm(x, y, M, 0.01, 0.01, 1, seed + 19) - 0.5);
+      return 0.0016 * sfbm(x, y, M, 0.008, 0.008, 2, seed + 3) + 0.0022 * sfbm(x, y, M, 0.7, 0.1, 2, seed + 5) + 0.0018 * sfbm(x, y, M, 0.22, 0.22, 2, seed + 7) - pit + cr;
+    }, (x, y, k, lit) => rampAt(body, 0.6 + (lit.value[k] - 1) * 1.3 + 0.07 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 13) + 0.04 * sfbm(x, y, M, 0.03, 0.03, 2, seed + 23) + 0.05 * crumb[k] - 0.3 * lit.cavity[k]));
+  },
+  // CLAY, cohesive dirt from above: clods lying close, each a rounded lump of its own size (most small, some large), its
+  // top domed and a shade of its own, the fines between them low and grainy; drying cracks running across the clods at a
+  // larger scale (not round each one), deep and dark; pores pricked in their faces
+  clay(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), tone = new Float32Array(size * size), crack = new Float32Array(size * size), lump = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      let top = 0, t1 = 0;
+      marksNear(x, y, M, 0.06, 2, seed + 11, (cx, cy, h, cs) => {
+        const r = cs * (0.3 + 0.55 * h(4) ** 1.5), a = h(8) * Math.PI, ux = Math.cos(a), uy = Math.sin(a), dx = x - cx, dy = y - cy;
+        const d = Math.hypot((dx * ux + dy * uy) * (1 + 0.3 * h(5)), -dx * uy + dy * ux) / r;
+        if (d < 1) { const v = 0.011 * (0.45 + 0.55 * h(6)) * (r / cs) * (1 - d * d) ** 0.6; if (v > top) { top = v; t1 = (h(7) - 0.5) * 2 * c.vary / 255; } }
+      });
+      // (the drying cracks: a coarser field's cell borders, where its two nearest seeds are nearly as near)
+      let d1 = Infinity, d2 = Infinity;
+      marksNear(x, y, M, 0.3, 1, seed + 29, (cx, cy) => { const d = Math.hypot(x - cx, y - cy); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; });
+      const cr = (1 - smoothstep(0, 0.006 + 0.006 * g, d2 - d1)) * (top > 0 ? 1 : 0.3);
+      tone[k] = t1; crack[k] = cr; lump[k] = top > 0 ? 1 : 0;
+      const pore = 0.001 * Math.max(0, sfbm(x, y, M, 0.007, 0.007, 1, seed + 17) - 0.55), fines = 0.0012 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 3);
+      return top * (1 - cr) - 0.005 * cr - pore * lump[k] + fines * (1 - lump[k]) + 0.0015 * sfbm(x, y, M, 0.2, 0.2, 2, seed + 9);
+    }, (x, y, k, lit) => rampAt(body, 0.53 + (lit.value[k] - 1) * 1.25 + tone[k] - 0.14 * crack[k] - 0.04 * (1 - lump[k]) + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // a CRAG, a weathered rock face (u along it, v up it): the stone bulged and lumped, laid in beds (each its own tone, a
   // ledge at its foot), broken by joints running up it (wandering, V-cut), a fine grain over all; read near, at a cliff

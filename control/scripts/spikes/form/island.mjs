@@ -8,13 +8,14 @@
 // against dry, in both halves, and the shadow passes drawn; with `swatches`, a patch of each role square to the sun and
 // one under the sky alone, read off the screen against the palette's targets. The look is the operator's.
 //
-// `--show trail` lays the island from a seed (`--seed`) and its trail, drawn as the path layer worn into the ground.
+// `--show trail` lays the island from a seed (`--seed`) and its trail; `--show path` the cube's own trail (its land, not
+// the island) with `--biocube` its flora, the crowns the cube's foliage and the trunks bark, lit.
 //
 // `--hour` reads the island at another hour (a number 0–24 or a word: dawn … night, the moon the key after dark): the
 // bases the palette solves stay as at the cube's own hour, only the light moves. `--stone` writes the rock's colour (a
 // lock over the preset's or the palette's).
 //
-//   node scripts/spikes/form/island.mjs [--out <file.html>] [--cube island-noon] [--palette <seed>] [--hour <h>] [--stone #rrggbb] [--show land|trail] [--seed <n>] [--cdn]
+//   node scripts/spikes/form/island.mjs [--out <file.html>] [--cube island-noon] [--palette <seed>] [--hour <h>] [--stone #rrggbb] [--show land|trail|path] [--seed <n>] [--biocube <id>] [--dress '{"surface":"earth|sand","rubble":0-1,"dust":0-1,"clay":0-1,"patches":[…]}'] [--cdn]
 import fs from 'node:fs';
 import path from 'node:path';
 import { register } from 'node:module';
@@ -31,24 +32,35 @@ const { landForm, LAND_CLASSES, DEEP_FADE, DEEP_TONE, UNDER_TONE, WET_BAND, WET_
 const { b64, safeJson, CDN_IMPORTMAP, inlineImportmap } = await import('../../../lib/graph/scene/emit-util.js');
 const { dressedMaterial, screeDice } = await import('../../../lib/graph/matte-paint/dressed.js');
 const { encodePng } = await import('../../../lib/graph/landscape/surface-textures.js');
-const { landLayers, LAYER_OF } = await import('../../../lib/graph/form/land-layers.js');
+const { landLayers, LAYER_OF, PATH_REACH } = await import('../../../lib/graph/form/land-layers.js');
+const { landStones, SHAPES } = await import('../../../lib/graph/form/land-stones.js');
+const { soilTones } = await import('../../../lib/graph/color-theorist/ground.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = path.resolve(arg('--out', 'island.html')), id = arg('--cube', 'island-noon'), seed = arg('--palette'), cdn = process.argv.includes('--cdn');
-const show = arg('--show', 'land'), landSeed = Number(arg('--seed', 1));
+const show = arg('--show', 'land'), landSeed = Number(arg('--seed', 1)), biocube = arg('--biocube');
+// the TRAIL'S DRESS in gen-7 (6.5's words, era/trail-dress.js, with degrees): `surface` 'earth' (packed dirt) or 'sand',
+// `rubble` 0–1 (stones along its verge and a few on it; true 0.5), `dust` 0–1 (a pale fine dust worn out from it onto
+// the land), `clay` 0–1 (how much of its dirt is clay's clods, the rest dry powder: the theorist's two tones of its floor), `patches` the kinds it is worn in (worn lighter, damp darker and glossier, gravel)
+const dressIn = JSON.parse(arg('--dress', '{}')), dress = { surface: dressIn.surface ?? 'earth', rubble: typeof dressIn.rubble === 'number' ? dressIn.rubble : dressIn.rubble === false ? 0 : 0.5,
+  dust: dressIn.dust ?? 0.3, clay: dressIn.clay ?? 0.45, patches: dressIn.patches === false ? [] : dressIn.patches ?? ['worn', 'damp', 'gravel'] };
 // (a seeded palette as the game design loop stamps it: the preset's character, the seed)
 const stone = arg('--stone'), hourArg = arg('--hour'), hour = hourArg === undefined ? undefined : /^[\d.]+$/.test(hourArg) ? Number(hourArg) : hourArg;
 const cube = seed === undefined && !stone ? id : { from: id, ...(seed === undefined ? {} : { palette: { ...GEOCUBE_PALETTES[id], seed: Number(seed) } }), ...(stone ? { colour: { stone } } : {}) };
 
-const { payload: P } = await resolveWorldScene({ title: 'island', manifest: { kind: 'geocube', cube, show, ...(show === 'land' ? {} : { seed: landSeed }), ...(hour === undefined ? {} : { hour }) } }, {});
+const { payload: P0 } = await resolveWorldScene({ title: 'island', manifest: { kind: 'geocube', cube, show, ...(show === 'land' ? {} : { seed: landSeed }), ...(hour === undefined ? {} : { hour }), ...(biocube ? { biocube } : {}), ...(show === 'path' ? { path: { rubble: dress.rubble > 0, patches: dress.patches.filter((k) => ['worn', 'damp', 'gravel', 'crown', 'puddle'].includes(k)).length ? dress.patches.filter((k) => ['worn', 'damp', 'gravel', 'crown', 'puddle'].includes(k)) : false } } : {}) } }, {});
+// (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
+// yet, so left out of both halves)
+const CARDS = new Set(['isekai:grass', 'isekai:cloud']), P = { ...P0, faces: P0.faces.filter((f) => !CARDS.has(f.group)) };
 const { HOUR_WORDS } = await import('../../../lib/graph/era/geocube-hours.js');
 const C = readGeocube(cube), own = cubeLight(C), light = hour === undefined ? own : cubeLight(C, { hour: typeof hour === 'string' ? HOUR_WORDS[hour] : hour }), sun = light.sun.dir;
 // THE SEA, a mirror over a body: from the island camera's view down onto it, the palette's sea colour is what the sky it
 // reflects (the dome at that angle, as the page draws it) and its body under the light show together, the floor under
 // it showing through its alpha (the deep water's colour, the body's own: solved twice)
-const isleCam = P.cameras.find((c) => c.name === 'island').worldFraming, [cx, cy, cz] = isleCam.cameraPosition, [lx, ly, lz] = isleCam.lookAt;
+// (a land with no island camera, the path's: its first)
+const isleCam = (P.cameras.find((c) => c.name === 'island') ?? P.cameras[0]).worldFraming, [cx, cy, cz] = isleCam.cameraPosition, [lx, ly, lz] = isleCam.lookAt;
 const view = (Math.atan2(cz - lz, Math.hypot(cx - lx, cy - ly)) * 180) / Math.PI, up = Math.sin((view * Math.PI) / 180) ** 0.6;
-const lin = (c) => c.map((v) => decodeSrgb(v / 255)), hexL = (c) => '#' + c.map((v) => Math.round(encodeSrgb(Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
+const lin = (c) => c.map((v) => decodeSrgb(v / 255)), hexL = (c) => '#' + c.map((v) => Math.round(encodeSrgb(Math.max(0, Math.min(1, v))) * 255).toString(16).padStart(2, '0')).join('');
 // (solved at the cube's own hour, as every base is: at another hour the sea keeps its body and the light moves)
 const sees = hexL(lin(own.sky.horizon).map((v, k) => v * (1 - up) + lin(own.sky.zenith)[k] * up));
 const at = { ambient: own.ambient.linear, sun: own.sun.linear }, mirror = (under) => solveMirror({ target: C.colour.water, sees, view, light: at, cos: own.sun.dir[2], alpha: 0.9, under });
@@ -63,8 +75,12 @@ const L = landForm(P.faces, bases, { seed: 1 });
 // colours hold on average.
 const LAYERS = [
   { id: 'rock', cut: 'crag', metres: 4, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 4, role: 'stone' },
-  { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' }, { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' },
-  { id: 'path', cut: 'path', metres: 1.5, role: 'floor' }];
+  // (the cover's slot: soil on a bare land, the meru island's; turf in the palette's grass on a green one, a trail's)
+  L.faces.some((F) => F.cls === 'ground') && !L.faces.some((F) => F.cls === 'soil') ? { id: 'grass', cut: 'turf', metres: 1.5, role: 'grass' } : { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' },
+  { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' },
+  dress.surface === 'sand' ? { id: 'path', cut: 'sand', metres: 1.5, role: 'sand' } : { id: 'path', cut: 'powder', metres: 1.2, role: 'floor' },
+  // (the dirt's other half: clay's clods)
+  { id: 'clay', cut: 'clay', metres: 1.4, role: 'floor' }];
 const TEX = 512, AW = TEX * 3, AH = TEX * 2, LY = landLayers(P.faces, L, { seed: 3 }), layered = (F, i) => LY.layered(i) && !!F;
 const A = { base: Buffer.alloc(AW * AH * 3), normal: Buffer.alloc(AW * AH * 3), orm: Buffer.alloc(AW * AH * 3) }, means = [];
 LAYERS.forEach((Ly, li) => {
@@ -84,10 +100,11 @@ const png = (b) => `data:image/png;base64,${encodePng(b, AW, AH).toString('base6
 const SC = LAYERS.find((Ly) => Ly.id === 'scree'), dice = screeDice({ cut: 'scree', metres: SC.metres, stone: [170, 160, 140], grit: 0.5 }, { size: TEX, seed: 3 });
 const dicePng = `data:image/png;base64,${encodePng(Buffer.from(Array.from(dice, (v) => Math.round((v >= 0 ? Math.min(0.99, v) : 1) * 255)).flatMap((v) => [v, v, v])), TEX, TEX).toString('base64')}`;
 // the path's mask as the page reads it: the weight a byte, the trail's height two (over the trail's own span)
-const PM = LY.path, pathTex = PM && (() => {
+// (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways)
+const SD_IN = 1.5, PM = LY.path, pathTex = PM && (() => {
   let zlo = Infinity, zhi = -Infinity; for (let k = 0; k < PM.z.length; k++) if (PM.weight[k] > 0) { zlo = Math.min(zlo, PM.z[k]); zhi = Math.max(zhi, PM.z[k]); }
   const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(PM.weight.length * 4);
-  for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = q >> 8; px[k * 4 + 2] = q & 255; px[k * 4 + 3] = 255; }
+  for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - PM.inside[k] + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
   return { origin: PM.origin, size: PM.size, metres: PM.size.map((n) => n * PM.cell), cell: PM.cell, z: [zlo, span], px: b64(px) };
 })();
 const roleBase = LAYERS.map((Ly) => hexRgb(bases[Ly.role]));
@@ -134,9 +151,10 @@ const box = [0, 1, 2].map((k) => [Math.min(...land.map((c) => c[k])), Math.max(.
 // the SHORE: a camera standing on the wet line looking along the beach, and a low sun ahead along it (where a glint shows
 // and the island, to one side, shades nothing); the beach chosen in code, the wet face furthest out on the island
 // camera's side
-const isle = P.cameras.find((c) => c.name === 'island')?.worldFraming.lookAt || [0, 0, 0];
+const isle = (P.cameras.find((c) => c.name === 'island') ?? P.cameras[0])?.worldFraming.lookAt || [0, 0, 0];
 const wetMids = P.faces.flatMap((f, i) => (L.faces[i].wet && !L.faces[i].under ? [[0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length)] : []));
-const shoreAt = wetMids.reduce((a, m) => (m[0] > a[0] ? m : a), wetMids[0]);
+// (a land with no sea, the path's: no shore, its readings and its camera left out)
+const hasSea = L.waterZ !== null && wetMids.length > 0, shoreAt = hasSea ? wetMids.reduce((a, m) => (m[0] > a[0] ? m : a), wetMids[0]) : [isle[0] + 1, isle[1], isle[2]];
 const out2 = [shoreAt[0] - isle[0], shoreAt[1] - isle[1]], ol = Math.hypot(...out2), d2 = out2.map((v) => v / ol);
 const along = [-d2[1], d2[0]];
 const shore = { name: 'shore', cameraPosition: [shoreAt[0] + d2[0], shoreAt[1] + d2[1], shoreAt[2] + 1.7], lookAt: [shoreAt[0] + along[0] * 25, shoreAt[1] + along[1] * 25, L.waterZ], horizontalFov: 70 };
@@ -148,12 +166,34 @@ const footAt = best((w) => Math.min(w[1], w[2]) * (w[0] === 0 ? 1 : 0)), beachAt
 const closeOn = (name, q, back, high) => { const o = [q[0] - isle[0], q[1] - isle[1]], l = Math.hypot(...o) || 1, d = o.map((v) => v / l); return { name, cameraPosition: [q[0] + d[0] * back, q[1] + d[1] * back, q[2] + high], lookAt: [q[0] - d[0] * 2, q[1] - d[1] * 2, q[2]], horizontalFov: 60 }; };
 const look = (name, q, back, high, ahead = 2) => ({ ...closeOn(name, q, back, high), lookAt: (() => { const o = [q[0] - isle[0], q[1] - isle[1]], l = Math.hypot(...o) || 1; return [q[0] - (o[0] / l) * ahead, q[1] - (o[1] / l) * ahead, q[2]]; })() });
 const borders = [['foot', footAt], ['beach', beachAt]].flatMap(([n, q]) => [look(`${n}-wide`, q, 14, 9), look(`${n}-eye`, q, 6, 1.7, 4), look(`${n}-close`, q, 2.5, 1.4, 0.5), look(`${n}-down`, q, 0.05, 2.6, 0.05)]);
+// the TREES, with a biocube: from the trail at eye height toward the crown nearest it, and from further off and higher
+const fmid = (f) => [0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length);
+const crownMids = P.faces.filter((f, i) => L.faces[i].cls === 'crown').map(fmid), trailMids = P.faces.filter((f, i) => L.faces[i].cls === 'trail').map(fmid);
+const treeCams = crownMids.length && trailMids.length ? (() => {
+  let best = null;
+  for (let k = 0; k < crownMids.length; k += 7) for (let j = 0; j < trailMids.length; j += 3) { const d = Math.hypot(crownMids[k][0] - trailMids[j][0], crownMids[k][1] - trailMids[j][1]); if (d > 6 && (!best || d < best.d)) best = { d, c: crownMids[k], t: trailMids[j] }; }
+  const { c: cr, t: tr } = best, u = [cr[0] - tr[0], cr[1] - tr[1]], l = Math.hypot(...u), d = u.map((v) => v / l);
+  return [{ name: 'trees-eye', cameraPosition: [tr[0], tr[1], tr[2] + 1.7], lookAt: [cr[0], cr[1], cr[2] - 2], horizontalFov: 70 },
+    // (from out over the island's edge, above: never through a mound)
+    (() => { const o = [cr[0] - isle[0], cr[1] - isle[1]], ol = Math.hypot(...o) || 1; return { name: 'trees-wide', cameraPosition: [cr[0] + (o[0] / ol) * 24, cr[1] + (o[1] / ol) * 24, cr[2] + 16], lookAt: [cr[0], cr[1], cr[2] - 4], horizontalFov: 60 }; })()];
+})() : [];
+// the TRAIL seen as 6.5's sheets see it: along it at eye height, close ahead, from its edge across, straight down; at its
+// middle ribbon face, looking the way it runs there
+const trailCams = trailMids.length > 8 ? (() => {
+  const T = P.faces.filter((f, i) => L.faces[i].cls === 'trail'), m = T[T.length >> 1], c = fmid(m), e = [m.corners[1][0] - m.corners[0][0], m.corners[1][1] - m.corners[0][1]];
+  // (its run: from this ribbon face's middle to one a few faces on)
+  const n2 = fmid(T[Math.min(T.length - 1, (T.length >> 1) + 6)]), u0 = [n2[0] - c[0], n2[1] - c[1]], ul = Math.hypot(...u0) || 1, u = u0.map((v) => v / ul), sd = [-u[1], u[0]];
+  return [{ name: 'trail-along', cameraPosition: [c[0] - u[0] * 4, c[1] - u[1] * 4, c[2] + 1.7], lookAt: [c[0] + u[0] * 8, c[1] + u[1] * 8, c[2]], horizontalFov: 70 },
+    { name: 'trail-close', cameraPosition: [c[0] - u[0] * 1.5, c[1] - u[1] * 1.5, c[2] + 1.3], lookAt: [c[0] + u[0] * 1.5, c[1] + u[1] * 1.5, c[2]], horizontalFov: 70 },
+    { name: 'trail-edge', cameraPosition: [c[0] + sd[0] * 3.2, c[1] + sd[1] * 3.2, c[2] + 1.5], lookAt: [c[0] - sd[0] * 1, c[1] - sd[1] * 1, c[2]], horizontalFov: 70 },
+    { name: 'trail-down', cameraPosition: [c[0] + u[0] * 0.05, c[1] + u[1] * 0.05, c[2] + 3.2], lookAt: [c[0], c[1], c[2]], horizontalFov: 70 }];
+})() : [];
 const shoreSun = [Math.round((Math.atan2(along[1], along[0]) - Math.atan2(sun[1], sun[0])) * 180 / Math.PI), 10];
 // THE SEA ONE SURFACE: the payload's sea faces end on whole cells, so their edge on the beach is a saw; the gen-7 half
 // draws the sea as one plane at the line instead (where it meets the beach is then the beach's own contour) and fades
 // it in over the depth under it (to DEPTH_MAX, the floor's fade: the shallows show their sand), read from the land
 // rasterized from above (DEPTH_CELL metres; DEPTH_MAX deep a byte)
-const DEPTH_CELL = 0.5, DEPTH_MAX = DEEP_FADE, depthMap = L.waterZ === null ? null : (() => {
+const DEPTH_CELL = 0.5, DEPTH_MAX = DEEP_FADE, depthMap = !hasSea ? null : (() => {
   // (over the land's own box and a margin: past it the sea is deep)
   const x0 = box[0][0] - 10, y0 = box[1][0] - 10, nx = Math.ceil((box[0][1] + 10 - x0) / DEPTH_CELL) + 1, ny = Math.ceil((box[1][1] + 10 - y0) / DEPTH_CELL) + 1;
   const top = new Float32Array(nx * ny).fill(-Infinity);
@@ -175,18 +215,28 @@ const DEPTH_CELL = 0.5, DEPTH_MAX = DEEP_FADE, depthMap = L.waterZ === null ? nu
   for (let q = 0; q < nx * ny; q++) { const d = top[q] === -Infinity ? DEPTH_MAX : Math.max(0, Math.min(DEPTH_MAX, L.waterZ - top[q])); px[q * 4] = Math.round((d / DEPTH_MAX) * 255); px[q * 4 + 3] = 255; }
   return { origin: [x0, y0], cell: DEPTH_CELL, size: [nx, ny], max: DEPTH_MAX, px: b64(px) };
 })();
+// THE SCREE'S STONES (form/land-stones.js): the larger stones stood up as real ones where the scree is, lit and shadowed;
+// the finer ones stay the layer's (its normal map, its parallax near)
+// the DIRT'S TWO TONES (color-theorist/ground.js soilTones): the floor's powder and clay as targets, their bases the floor's
+// solved base moved by each target's share of the floor's (so the light that shows the floor shows them)
+const tones = soilTones(C.colour.floor, light.sun.color), floorLin = lin(hexRgb(C.colour.floor));
+const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
+const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble }), stoneBase = light.linearBases.stone;
+const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
 const data = {
   depth: depthMap,
   cube, sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, haze: P.haze, box, waterZ: L.waterZ, unread: L.unread, deep: L.deep,
-  seabed: { x: [Math.min(...seaX), Math.max(...seaX)], y: [Math.min(...seaY), Math.max(...seaY)], z: L.waterZ - DEEP_FADE - 1 },
+  seabed: hasSea ? { x: [Math.min(...seaX), Math.max(...seaX)], y: [Math.min(...seaY), Math.max(...seaY)], z: L.waterZ - DEEP_FADE - 1 } : null,
   classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
-  cameras: [...P.cameras.map((c) => ({ name: c.name, ...c.worldFraming })), shore, ...borders], shoreSun, ranges,
+  cameras: [...P.cameras.map((c) => ({ name: c.name, ...c.worldFraming })), ...(hasSea ? [shore] : []), ...borders, ...treeCams, ...trailCams], shoreSun, ranges,
   // the shore's reading: a line from where the water begins (2 m past the wet line) straight out to sea, at its face
-  shoreLine: Array.from({ length: 41 }, (_, i) => [shoreAt[0] + d2[0] * (i + 2), shoreAt[1] + d2[1] * (i + 2), L.waterZ]),
+  shoreLine: !hasSea ? [] : Array.from({ length: 41 }, (_, i) => [shoreAt[0] + d2[0] * (i + 2), shoreAt[1] + d2[1] * (i + 2), L.waterZ]),
   light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { view: Math.round(view * 10) / 10, fresnel: water.fresnel, sees, base: bases.water, target: C.colour.water, ...(water.unreached ? { unreached: true } : {}) },
     swatches: ['stone', 'grass', 'sand', 'floor'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
   pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)), sid: b64(Uint8Array.from(sid)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)), wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH }, seenRoles: SEEN_ROLES,
-  layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF), pathBase: light.linearBases.floor, dice: dicePng, size: TEX }, path: pathTex,
+  dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN },
+  stones: { n: STONES.length, shapes: SHAPES, base: stoneBase, px: b64(new Uint8Array(stonePack.buffer)) },
+  layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF), pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX }, path: pathTex,
   palette: { sky: light.ambient.color, targets: Object.fromEntries(SEEN_ROLES.map((r) => [r, { lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade }])) },
 };
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -270,9 +320,9 @@ const mipped = (t, srgb) => { t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE
 async function layerArray(u, srgb) {
   const im = await loadImg(u), T = D.layers.size, cv2 = document.createElement('canvas'); cv2.width = im.width; cv2.height = im.height;
   const x = cv2.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
-  const data = new Uint8Array(T * T * 4 * 5);
-  for (let i = 0; i < 5; i++) data.set(x.getImageData((i % 3) * T, Math.floor(i / 3) * T, T, T).data, i * T * T * 4);
-  return mipped(new THREE.DataArrayTexture(data, T, T, 5), srgb);
+  const data = new Uint8Array(T * T * 4 * 6);
+  for (let i = 0; i < 6; i++) data.set(x.getImageData((i % 3) * T, Math.floor(i / 3) * T, T, T).data, i * T * T * 4);
+  return mipped(new THREE.DataArrayTexture(data, T, T, 6), srgb);
 }
 const [tBase, tNorm, tOrm] = await Promise.all([layerArray(D.layers.base, true), layerArray(D.layers.normal), layerArray(D.layers.orm)]);
 const tDice = mipped(await new THREE.TextureLoader().loadAsync(D.layers.dice), false); tDice.minFilter = THREE.NearestMipmapNearestFilter; tDice.magFilter = THREE.NearestFilter;
@@ -281,12 +331,12 @@ const pathMap = D.path ? new THREE.DataTexture(bytes(D.path.px), D.path.size[0],
 pathMap.magFilter = pathMap.minFilter = THREE.LinearFilter; pathMap.needsUpdate = true;
 const LAYER_U = { tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
   tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
-  uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
+  uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
 function layeredGround(m, roughScale) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
     sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
-    sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[5];\\nuniform vec3 uMean[5];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase;\\nuniform vec4 uWet;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
+    sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[6];\\nuniform vec3 uMean[6];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
   vec3 nW = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ), aN = abs( nW );
   vec2 uvW; vec3 tT, tB;
   if ( aN.z >= aN.x && aN.z >= aN.y ) { uvW = vWPos.xy; tT = vec3( 1.0, 0.0, 0.0 ); tB = vec3( 0.0, 1.0, 0.0 ); }
@@ -294,43 +344,90 @@ function layeredGround(m, roughScale) {
   else { uvW = vec2( -vWPos.x * sign( nW.y ), vWPos.z ); tT = vec3( -sign( nW.y ), 0.0, 0.0 ); tB = vec3( 0.0, 0.0, 1.0 ); }
   // the path: the mask at this point of the plan, on ground that faces up and at the trail's own height (not the flank
   // under a shelf), every natural layer giving way to it
-  float pw = 0.0;
+  float pw = 0.0, pd = 99.0;
   if ( uHasPath > 0.5 ) {
     vec2 pu = ( vWPos.xy - uPathO ) / uPathM;
     if ( pu.x > 0.0 && pu.y > 0.0 && pu.x < 1.0 && pu.y < 1.0 ) {
       vec4 pm = texture2D( tPath, pu );
-      float pz = uPathZ.x + ( pm.g * 255.0 * 256.0 + pm.b * 255.0 ) / 65535.0 * uPathZ.y;
-      pw = pm.r * smoothstep( 0.6, 0.85, nW.z ) * ( 1.0 - smoothstep( 0.6, 1.5, abs( vWPos.z - pz ) ) );
+      float pz = uPathZ.x + ( pm.b * 255.0 * 256.0 + pm.a * 255.0 ) / 65535.0 * uPathZ.y;
+      float onIt = smoothstep( 0.6, 0.85, nW.z ) * ( 1.0 - smoothstep( 0.6, 1.5, abs( vWPos.z - pz ) ) );
+      pd = onIt > 0.0 ? pm.g * ( uSdIn + uDress.z ) - uSdIn : 99.0;
+      // (the path's edge from the signed distance, broken by noise at two scales and wandering in its reach: it feathers
+      // into the ribbon as well as out of it, so where the colour turns is never the ribbon's edge)
+      float eN = vn( vWPos.xy / 0.9 + 3.7 ) * 0.65 + vn( vWPos.xy / 0.22 + 8.1 ) * 0.35 - 0.5, eW = 0.35 + 0.55 * vn( vWPos.xy / 1.6 + 1.3 );
+      pw = ( 1.0 - smoothstep( -0.25, eW, pd + eN * 0.75 ) ) * onIt;
     }
   }
-  float hgt[5]; vec3 bs[5]; vec3 ns[5]; vec2 rs[5];
-  for ( int i = 0; i < 5; i++ ) {
-    vec3 a = vec3( uvW / uTile[ i ], float( i ) );
+  float hgt[6]; vec3 bs[6]; vec3 ns[6]; vec2 rs[6];
+  // the scree's PARALLAX (near, and only where there is scree): its height map marched along the view in the face's
+  // frame, so its stones stand up and hide what is behind them; fading out with distance to the flat map
+  vec2 scUV = uvW / uTile[ 1 ];
+  float camD = length( cameraPosition - vWPos ), pomK = 1.0 - smoothstep( 18.0, 36.0, camD );
+  if ( vSplat.y > 0.001 && pomK > 0.0 ) {
+    vec3 V = normalize( cameraPosition - vWPos ), vt = vec3( dot( V, tT ), dot( V, tB ), dot( V, nW ) );
+    vec2 gx = dFdx( scUV ), gy = dFdy( scUV ), dP = vt.xy / max( vt.z, 0.25 ) * ( 0.08 / uTile[ 1 ] ) * pomK / 16.0;
+    float lay = 0.0, hh = 1.0 - textureGrad( tOrm, vec3( scUV, 1.0 ), gx, gy ).b;
+    for ( int k = 0; k < 16; k++ ) { if ( lay >= hh ) break; scUV -= dP; hh = 1.0 - textureGrad( tOrm, vec3( scUV, 1.0 ), gx, gy ).b; lay += 1.0 / 16.0; }
+  }
+  // the CLAY's parallax, cheap: one fetch of its height and the coordinate offset along the view by it, near only
+  vec2 clUV = uvW / uTile[ 5 ];
+  if ( pw > 0.001 && uClay > 0.0 && camD < 30.0 ) {
+    vec3 V2 = normalize( cameraPosition - vWPos ), vt2 = vec3( dot( V2, tT ), dot( V2, tB ), dot( V2, nW ) );
+    clUV -= vt2.xy / max( vt2.z, 0.3 ) * ( texture( tOrm, vec3( clUV, 5.0 ) ).b - 0.5 ) * ( 0.035 / uTile[ 5 ] ) * ( 1.0 - smoothstep( 15.0, 30.0, camD ) );
+  }
+  for ( int i = 0; i < 6; i++ ) {
+    vec3 a = vec3( i == 1 ? scUV : i == 5 ? clUV : uvW / uTile[ i ], float( i ) );
     vec4 o = texture( tOrm, a );
     hgt[ i ] = o.b; rs[ i ] = o.rg;
     bs[ i ] = texture( tBase, a ).rgb / uMean[ i ];
     ns[ i ] = texture( tNorm, a ).xyz * 2.0 - 1.0;
   }
-  float ws[5]; ws[0] = vSplat.x * ( 1.0 - pw ); ws[1] = vSplat.y * ( 1.0 - pw ); ws[2] = vSplat.z * ( 1.0 - pw ); ws[3] = vSplat.w * ( 1.0 - pw ); ws[4] = pw;
+  // (the trail's dirt two: powder and clay by a wandering field, its share of clay the dress's)
+  float clayK = clamp( uClay * ( 1.0 + 2.2 * ( vn( vWPos.xy / 1.6 + 91.0 ) * 0.7 + vn( vWPos.xy / 0.55 + 13.0 ) * 0.3 - 0.5 ) ), 0.0, 1.0 );
+  // (the ROAD's core: deeper in than its edge, its own border broken by its own noise; the clay's clods there, the dry
+  // powder out at the edge: the two overlap in ragged alpha, never along a line)
+  float cN = vn( vWPos.xy / 0.7 + 21.0 ) * 0.6 + vn( vWPos.xy / 0.18 + 5.5 ) * 0.4 - 0.5;
+  float core = pd < 98.0 ? 1.0 - smoothstep( -0.7, -0.1, pd + cN * 0.6 ) : 0.0;
+  clayK = clamp( clayK * mix( 0.25, 1.0, core ) + core * 0.35 * step( 0.001, uClay ), 0.0, 1.0 );
+  float ws[6]; ws[0] = vSplat.x * ( 1.0 - pw ); ws[1] = vSplat.y * ( 1.0 - pw ); ws[2] = vSplat.z * ( 1.0 - pw ); ws[3] = vSplat.w * ( 1.0 - pw ); ws[4] = pw * ( 1.0 - clayK ); ws[5] = pw * clayK;
   // (each layer present here nudged by its own noise over the plan, a few metres across: the corners' weights run
   // straight across a triangle, the border they give must not)
   // the scree thins out by its stones: a stone is kept whole where its dice fall under the scree's share here (nudged
   // like the rest), and then it lies over whatever else is here; between the kept stones the others show
-  float wsum = max( 1e-4, ws[0] + ws[1] + ws[2] + ws[3] + ws[4] ), sh = ws[1] / wsum;
+  float wsum = max( 1e-4, ws[0] + ws[1] + ws[2] + ws[3] + ws[4] + ws[5] ), sh = ws[1] / wsum;
   float sn = vn( vWPos.xy / 2.5 + 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + 5.1 ) * 0.3 - 0.5;
-  float kept = sh > 0.001 ? step( texture( tDice, uvW / uTile[ 1 ] ).r, min( 1.0, sh * 1.2 + sn * 0.3 ) ) : 0.0;
+  // (the trail's verge: its rubble's share, the stones the dice keep along its edges as the real ones lie, a few on it)
+  float vergeW = uDress.x * ( pd <= 0.05 ? 0.15 : exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) ) * smoothstep( 0.6, 0.85, nW.z );
+  sh = max( sh, pd < 98.0 ? vergeW * 0.9 : 0.0 );
+  float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 ) ) : 0.0;
   float top = 0.0;
-  for ( int i = 0; i < 5; i++ ) {
+  for ( int i = 0; i < 6; i++ ) {
     float nz = vn( vWPos.xy / 2.5 + float( i ) * 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + float( i ) * 5.1 ) * 0.3 - 0.5;
-    ws[ i ] = i == 1 ? kept * 4.0 : ws[ i ] > 0.001 ? ws[ i ] + hgt[ i ] * 0.35 + nz * 0.35 : 0.0; top = max( top, ws[ i ] );
+    // (a layer's relief and its noise lift it as far as it is here: a trace of turf under the trail never wins on its blades)
+    ws[ i ] = i == 1 ? kept * 4.0 : ws[ i ] > 0.001 ? ws[ i ] + ( hgt[ i ] * 0.35 + nz * 0.35 ) * min( 1.0, ws[ i ] * 3.0 ) : 0.0; top = max( top, ws[ i ] );
   }
   float tw = 0.0; vec3 mb = vec3( 0.0 ), mn = vec3( 0.0 ); vec2 mr = vec2( 0.0 );
-  for ( int i = 0; i < 5; i++ ) { float w = max( ws[ i ] - ( top - 0.08 ), 0.0 ); tw += w; mb += bs[ i ] * w; mr += rs[ i ] * w; mn += ns[ i ] * w; ws[ i ] = w; }
+  for ( int i = 0; i < 6; i++ ) { float w = max( ws[ i ] - ( top - 0.08 ), 0.0 ); tw += w; mb += bs[ i ] * w; mr += rs[ i ] * w; mn += ns[ i ] * w; ws[ i ] = w; }
   mb /= max( 1e-4, tw ); mr /= max( 1e-4, tw ); mn = normalize( mn );
+  // the trail's PATCHES (its dress's kinds): blobs along it a couple of metres across, on its own share only: worn lighter
+  // and smoother, damp darker and glossier, gravel the scree's small stones
+  float tsh = ( ws[ 4 ] + ws[ 5 ] ) / max( 1e-4, tw );
+  float pkW = smoothstep( 0.62, 0.72, vn( vWPos.xy / 2.2 + 11.0 ) ) * uPatch.x * tsh, pkD = smoothstep( 0.7, 0.8, vn( vWPos.xy / 2.0 + 37.0 ) ) * uPatch.y * tsh;
+  float pkG = smoothstep( 0.6, 0.7, vn( vWPos.xy / 1.8 + 71.0 ) ) * uPatch.z * tsh;
+  mb = mix( mb, bs[ 1 ], pkG ); mn = normalize( mix( mn, ns[ 1 ], pkG ) ); mr = mix( mr, rs[ 1 ], pkG );
+  mb *= mix( 1.0, 1.15, pkW ) * mix( 1.0, 0.78, pkD ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), 0.5 * pkW ) ); mr.y = mix( mr.y, 0.45, pkD );
+  // the trail's DUST: a pale fine powder worn out from it over the land (its reach wandering), thinner on the trail
+  // itself; it pales, flattens and dulls what it lies on
+  float dust = uDress.y * ( pd < 98.0 ? ( 1.0 - smoothstep( 0.1, uDress.z * ( 0.45 + 0.55 * vn( vWPos.xy / 3.0 + 5.0 ) ), pd ) ) * mix( 0.45, 1.0, smoothstep( 0.0, 0.6, pd ) ) : 0.0 ) * smoothstep( 0.6, 0.85, nW.z );
   // (the path's own base under its share: the floor the palette names, whatever the ground round it)
   diffuseColor.rgb = mix( diffuseColor.rgb, uPathBase, ws[ 4 ] / max( 1e-4, tw ) );
+  diffuseColor.rgb = mix( diffuseColor.rgb, uClayBase, ws[ 5 ] / max( 1e-4, tw ) );
+  // (and a kept scree stone its stone's, wherever it lies: on a trail the corners under it are the land's, not rock's)
+  diffuseColor.rgb = mix( diffuseColor.rgb, uStoneBase, ws[ 1 ] / max( 1e-4, tw ) );
   diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
   roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );
+  vec3 dustC = mix( uPathBase, vec3( dot( uPathBase, vec3( 0.2126, 0.7152, 0.0722 ) ) ), 0.35 ) * 1.25 * mix( vec3( 1.0 ), mb, 0.3 );
+  diffuseColor.rgb = mix( diffuseColor.rgb, dustC, dust * 0.85 ); roughnessFactor = mix( roughnessFactor, 1.0, dust ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), dust * 0.6 ) );
   // (the sand WET by its height over the water, at this point, not face by face: the line it leaves follows the
   // shore smoothly, wandering a little, and only the sand's share darkens and shines; under the line its own colour
   // takes over, the sea's)
@@ -375,8 +472,48 @@ if (D.depth) {
   m.customProgramCacheKey = () => 'sea-plane';
   const sea = new THREE.Mesh(g, m); sea.receiveShadow = true; seven.add(sea);
 }
+// the stones: a few shapes (an icosahedron's corners pushed about by their dice, squashed along its up), each drawn
+// instanced, every stone turned to its ground's normal, yawed by its index, toned about the stone's solved base
+if (D.stones.n) {
+  const SP = new Float32Array(bytes(D.stones.px).buffer), per = 9, hsh = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(...D.stones.base.map((v) => Math.min(1, v)), THREE.LinearSRGBColorSpace), roughness: 0.85, metalness: 0 });
+  // (its skin the rock layer's, the crag's, mapped in the world along the dominant axis as the ground's is, its colour
+  // about the layer's mean over the stone's solved base)
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { tBase: LAYER_U.tBase, uTile0: { value: D.layers.tile[0] / 6 }, uMean0: { value: LAYER_U.uMean.value[0] } });
+    sh.vertexShader = 'varying vec3 vSW;\\nvarying vec3 vSN;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vec4 sw = modelMatrix * instanceMatrix * vec4( transformed, 1.0 ); vSW = sw.xyz; vSN = normalize( mat3( modelMatrix * instanceMatrix ) * objectNormal );');
+    sh.fragmentShader = 'uniform sampler2DArray tBase;\\nuniform float uTile0;\\nuniform vec3 uMean0;\\nvarying vec3 vSW;\\nvarying vec3 vSN;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  vec3 aN = abs( vSN ); vec2 su = aN.z >= aN.x && aN.z >= aN.y ? vSW.xy : aN.x >= aN.y ? vSW.yz : vSW.xz;\\n  diffuseColor.rgb *= texture( tBase, vec3( su / uTile0, 0.0 ) ).rgb / uMean0;');
+  };
+  mat.customProgramCacheKey = () => 'scree-stone';
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), qy = new THREE.Quaternion(), up = new THREE.Vector3(0, 0, 1), nv = new THREE.Vector3(), pv = new THREE.Vector3(), sv = new THREE.Vector3(), col = new THREE.Color();
+  for (let v = 0; v < D.stones.shapes; v++) {
+    const g = new THREE.IcosahedronGeometry(1, 1), P = g.attributes.position;
+    // (a corner's push keyed to where it is, so the copies of a shared corner move together and the stone stays whole;
+    // its normal the sphere's, squashed with it: shaded round, never faceted)
+    const N = new Float32Array(P.count * 3);
+    for (let k = 0; k < P.count; k++) {
+      const x = P.getX(k), y = P.getY(k), z = P.getZ(k), f = 0.75 + 0.5 * hsh(v * 17 + Math.round(x * 9), Math.round(y * 9) * 3 + Math.round(z * 9));
+      P.setXYZ(k, x * f, y * f, z * f * 0.62); const l = Math.hypot(x, y, z / 0.62); N.set([x / l, y / l, z / 0.62 / l], k * 3);
+    }
+    g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+    // (a stone under CAST_R casts nothing: its shadow is finer than the map's texel, a smudge beside it)
+    const CAST_R = 0.18;
+    for (const big of [true, false]) {
+    const idx = []; for (let i = 0; i < D.stones.n; i++) if (SP[i * per + 8] === v && (SP[i * per + 3] >= CAST_R) === big) idx.push(i);
+    if (!idx.length) continue;
+    const im = new THREE.InstancedMesh(g, mat, idx.length);
+    idx.forEach((i, k) => {
+      const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
+      q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);
+      m4.compose(pv.set(SP[o], SP[o + 1], SP[o + 2]), q, sv.set(r * (0.9 + 0.3 * hsh(i, 1)), r * (0.8 + 0.3 * hsh(i, 2)), r)); im.setMatrixAt(k, m4);
+      im.setColorAt(k, col.setRGB(SP[o + 7], SP[o + 7], SP[o + 7]));
+    });
+    im.castShadow = big; im.receiveShadow = true; seven.add(im);
+    }
+  }
+}
 // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
-{ const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
+if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
   seven.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
 // the gate's buckets: a flat pass, each face in its bucket's colour, the sea hiding what is under it
 const ids = new THREE.Scene(); ids.background = new THREE.Color(0);
@@ -467,6 +604,7 @@ window.swatches = swatches;
 // the shore, read from straight above (flown over it, an orthographic eye 60 m up): each half's luminance along the line
 // from the wet line out to sea: the shallows should read lighter than the deep, and the floor fall away without steps
 window.shoreReading = () => {
+  if (!D.shoreLine.length) return null;
   const L = D.shoreLine, a = L[0], z = L[L.length - 1], mid = [(a[0] + z[0]) / 2, (a[1] + z[1]) / 2, a[2]], half = 26;
   const eye = new THREE.OrthographicCamera(-half, half, half, -half, 1, 400); eye.position.set(mid[0], mid[1], mid[2] + 60); eye.up.set(z[0] - a[0], z[1] - a[1], 0); eye.lookAt(...mid);
   const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, v = new THREE.Vector3(), cam = camera;

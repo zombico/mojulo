@@ -7,6 +7,11 @@
  *   terrainRamps(contract, beds)  → a painted terrain's { soil, stone, scree, beds: [×beds] }
  *   atlasGround(contract, sky)    → a composed world's ramps { forest, low, high, rock, snow, sand, silt, water, deep }
  *                                   and its sky { zenith, horizon, …the climate's own }
+ *   soilTones(floor, light?)      → { powder, clay }: the two dirts a palette's floor colour is made of, as targets
+ *                                   (#rrggbb). Dry powder (silt and fine sand, unbound) lighter and quieter, its hue drawn
+ *                                   toward the light's (dry dust takes the key's warmth); clay (cohesive, holding water,
+ *                                   iron in it) darker and fuller, its hue turned toward red. Either way the floor's own
+ *                                   colour is their mean, so a ground of both reads as the palette named it.
  *
  * The climate keeps the geography (its snowline, its treeline, where the sand lies); the palette colours it. Pure.
  */
@@ -47,4 +52,13 @@ export function atlasGround(K, sky = {}) {
     },
     sky: { ...sky, zenith: hexToRgb(K.roles.sky[1]), horizon: hexToRgb(K.roles.sky[4]) },
   };
+}
+
+/** The two dirts of a floor: lighter and quieter toward the light's hue (powder), darker and fuller toward red (clay),
+ * about the floor itself. */
+export const SOIL_TONE = Object.freeze({ dL: 0.06, powderC: 0.7, clayC: 1.25, powderTurn: 0.25, clayTurn: 0.3, red: 32 });
+export function soilTones(floor, light) {
+  const [L, C, h] = lchOf(hexToRgb(floor)), hL = light ? lchOf(hexToRgb(light))[2] : h, T = SOIL_TONE;
+  const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+  return { powder: hex(oklch(L + T.dL, C * T.powderC, mixHue(h, hL, T.powderTurn))), clay: hex(oklch(L - T.dL, C * T.clayC, mixHue(h, T.red, T.clayTurn))) };
 }
