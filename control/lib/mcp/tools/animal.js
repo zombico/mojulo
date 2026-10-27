@@ -31,7 +31,7 @@ import { renderAnimalToSvg, ANIMAL_VIEWS } from '@/lib/graph/polygonizer/figure-
 import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
-import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
+import { SPECIES as FAUNA, speciesPlan, speciesParams, stanceOf } from '@/lib/graph/fauna/species';
 import { withMotion, motionGaits, motionBehaviors, motionReactions, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
@@ -45,7 +45,7 @@ import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
 import { oozeBody, oozeMotion } from '@/lib/graph/mutagen/rig';
-import { oozeSetting, settingToon } from '@/lib/graph/mutagen/setting';
+import { oozeSetting, settingToon, dressCoat } from '@/lib/graph/mutagen/setting';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
 // The MAKER door: a species-free body maker (fauna/makers/) called with params, merged over its family's table.
@@ -174,6 +174,12 @@ export async function createAnimalHandler(input) {
   let setting = null;
   try { setting = oozeSetting(input.setting); } catch (err) { throw new Error(`animal: ${err.message} — read get_solid_vocab({ id: 'animal' }) (In a game's look)`); }
   if (setting && (maker || archetype || bug)) throw new Error('`setting` dresses a `species` (a ring plan) in its game\'s look; a maker body, an archetype or a bug takes none yet');
+  // THE COAT IN ITS WORLD (opt-in `coat: 'world'`, a game's foes: gameworld/foes.js): the animal's own colours taken to
+  // the setting's ramps (mutagen/setting.js dressCoat); its face's details stay its own. Absent ⇒ the species' own coat
+  const coatWorld = input.coat !== undefined && input.coat !== null;
+  if (coatWorld && input.coat !== 'world') throw new Error('animal: `coat` is \'world\' (the animal\'s own colours taken to its game\'s ramps) or left out');
+  if (coatWorld && !(setting && Array.isArray(setting.ramps) && setting.ramps.length)) throw new Error('animal: `coat: \'world\'` dresses the coat from a `setting`\'s ramps: pass the game\'s setting (its kit\'s ramps)');
+  if (coatWorld && (maker || archetype || bug)) throw new Error('`coat` dresses a `species`\' own colours; a maker body, an archetype or a bug takes none yet');
   if (maker !== undefined && maker !== null) {
     if (species || archetype || bug) throw new Error('pass `maker` (+ `params`) OR `species` OR `archetype` OR `bug`, not several');
     if (typeof params === 'string' && /^\s*[{[]/.test(params)) { try { params = JSON.parse(params); } catch { /* rejected below */ } }
@@ -257,10 +263,11 @@ export async function createAnimalHandler(input) {
     // OOZES: the form laid over the species' params before its body is built; absent (or every strength 0) ⇒ the
     // species' own plan, byte-identical, and nothing stored. An oozed creature is a body of its own (mutagen/rig.js):
     // its skeleton follows its size and grows bones for its grafts, and its gaits are its own (grafted wings fly)
-    const B = oozed ? oozeBody(species, { ooze, seed, stylism, ...(setting ? { setting } : {}) }) : null, M = B?.mutagen ?? null, rid = B?.rid ?? species;
+    const coatLedger = [], colors = coatWorld ? dressCoat(speciesParams(species).colors, setting, coatLedger) : null;
+    const B = oozed ? oozeBody(species, { ooze, seed, stylism, ...(setting ? { setting } : {}), ...(colors ? { colors } : {}) }) : null, M = B?.mutagen ?? null, rid = B?.rid ?? species;
     const toon = settingToon(setting);
     const motion = motionSpec(rid, input.motion);
-    const seat = B?.report ?? {}, plan = M ? B.plan : speciesPlan(species);
+    const seat = B?.report ?? {}, plan = M ? B.plan : colors ? buildFauna({ ...speciesParams(species), colors }) : speciesPlan(species);
     const moved = motion ? withMotion(plan, rid, motion.gaits, motion.keys, motion) : plan;
     if (motion && M) moved.motion = oozeMotion(moved.motion, species, { oozes: M.oozes, seed: M.seed, stylism });
     const res = await createLayeredPlanHandler({
@@ -268,7 +275,7 @@ export async function createAnimalHandler(input) {
       ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, ...(stylism ? { stylism } : {}), ...(setting ? { setting } : {}) } } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
+    return { ...res, species, ...(coatWorld ? { coat: { in: 'world', dressed: coatLedger } } : {}), ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

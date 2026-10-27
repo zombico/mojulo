@@ -9,6 +9,7 @@ import { composeLive, composeControllable, EMISSION, emissionSource } from './co
 import { FOE_CLASSES } from '../../foes/index.js';
 import { MOVES, ATTACKS } from '../../foes/vocab.js';
 import { resolveFoe } from '../../foes/resolve.js';
+import { controllableChannelScript } from '../../scene/channels/controllable/index.js';
 
 const E = composeLive();
 const DT = 1 / 30;
@@ -132,5 +133,11 @@ describe('the opt-in', () => {
   it('is emitted only into a page that asks for it', () => {
     expect(emissionSource()).not.toContain('buildFoe');
     expect(emissionSource({ foe: true })).toContain('buildFoe');
+  });
+  it('a page splices the foe hp bar only when a body asks for it', () => {
+    const plain = [pilot([0, 0, 0]), { id: 'm', team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 20 }, transform: { pos: [3, 0, 0] } }];
+    const asks = [plain[0], { ...plain[1], body: { ...plain[1].body, hpBar: 'target' } }];
+    expect(controllableChannelScript(plain, null, {})).not.toContain('__foeTarget');
+    expect(controllableChannelScript(asks, null, {})).toContain('__foeTarget');
   });
 });

@@ -127,6 +127,30 @@ through the character designer, clips fitted to the class's timing, factions) is
   - the five read as five animals, and the dire bear reads as a brute;
   - a frog hopper is green in green grass and nearly vanishes, and a long, low walker sinks into a kit's knee-high
     grass. Both are silhouette and value, for the read's pass.
+- **A foe's hp bar only while the hero targets it, and never over its body** (the operator's note on the first
+  render). A level lays `body.hpBar: 'target'` on its foes. The World page then shows one bar at a time: over the
+  pilot's lock target, else over the foe nearest the way the pilot faces (within that foe's width and 30 m; a ground
+  hero aims where it faces). The bar sits above the drawn model's top, measured once from its mesh against its own
+  group, or under its feet when the top would leave the screen. Every other enemy bar keeps its rule. A page whose
+  bodies ask for no foe bar is byte for byte as it was (the code is spliced only when one does).
+- **The foes in their world's look** (the operator's second note: what gets pulled in matches the world's style guide
+  and its colour theorist).
+  - The run hands each bestiary beast its world's setting (`settingOfGame`): its tradition's light (the anime
+    world's character light, the same register as its hero), and what an ooze makes dressed from the kit's ramps
+    (the colour theorist's, when the world names a palette).
+  - **The animal door's `coat: 'world'`** (opt-in, with a `setting`; `mutagen/setting.js dressCoat`) takes an
+    animal's own colours (its coat and markings, not its face's details) to the hue and chroma of the nearest stop of
+    a ramp of its hue and value, at its own value, so its light and dark markings keep their contrast. A colour no
+    stop is near keeps its own, and so does a whole coat in a world too far from it (a dark bear in a pastel world).
+    Colours only: the body, its rig and its rid are the species'.
+  - Where the world has ramps, a foe asks for its coat in them. In the meadow demo the guinea pig's orange coat
+    becomes the world's warm timber brown, its white socks and belly the world's cream, its markings kept.
+
+  Machine gate: the coat's laws (its own value, the face kept, nothing near ⇒ its own), the door's (it dresses and
+  says which moved; refused without ramps or with another word), the page's splice (only when a body asks), the
+  gameworld's (the beast step carries the setting and the coat; a foe lays its bar). In the page (headless Chromium):
+  aiming at one of two foes shows its bar alone, above it, and facing away shows none. Eyes gate, as stills: the bar
+  stands clear above the guinea pig, the boar and the bear.
 
 ### Carved glyphs: the letter primitive grows up
 

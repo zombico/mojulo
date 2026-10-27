@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, fieldedIds, stompOf, SWARM } from './foes.js';
 import { FEELS } from './feel/cards.js';
 import { MADE_KEY } from './made.js';
+import { settingOfGame } from './cast-setting.js';
 import { readGameworld, runSteps, MEADOWMARK_HERO } from './index.js';
 import { LEVEL_GOAL } from './quick.js';
 import { FOE_CLASSES } from '../foes/index.js';
@@ -64,6 +65,8 @@ describe('a stage\'s foes', () => {
     expect(e.rule.mind).toEqual(f.entity.rule.mind);
     expect(X.figures['foe-a-1'].heroRef).toBe('w-foes-a');
     expect(X.pilot.body.hittable).toBe(true);
+    // its hp bar shows only while the hero targets it, clear of its body (the World page's foe bars)
+    expect(e.body.hpBar).toBe('target');
     // a hero with legs stomps them, by the action lab's platformer card when its world's feel does not stomp
     expect(X.pilot.rule.stomp).toEqual(stompOf(G));
     expect(stompOf(G)).toMatchObject({ low: FEELS.platformer.land.low, mercy: FEELS.platformer.hit.mercy / 60 });
@@ -101,6 +104,9 @@ describe('the run', () => {
     expect(beast.ref).toBe('gw-foes-a');
     // (the run's record keeps it: made.js)
     expect(MADE_KEY.test(beast.key)).toBe(true);
+    // in its world's look: the world's setting, and its coat in the world's colours where the world has ramps
+    expect(beast.order.animal.setting).toEqual(settingOfGame(readGameworld(W)));
+    if (beast.order.animal.setting.ramps?.length) expect(beast.order.animal.coat).toBe('world');
     expect(beast.order.animal).toMatchObject(skin);
     const stood = steps.filter((s) => s.key.startsWith(`level-${lv0}-`)).map((s) => s.order.manifest).filter((m) => m.entities.some((e) => e.team === 'foes'));
     expect(stood.length).toBeGreaterThan(0);

@@ -124,7 +124,8 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
       id: p.id, team: 'foes',
       rule: { ...f.entity.rule, ...b.rule, ...loadout },
       ...(f.entity.weapon ? { weapon: f.entity.weapon } : {}),
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, ...(f.scale !== 1 ? { scale: f.scale } : {}) },
+      // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
+      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', ...(f.scale !== 1 ? { scale: f.scale } : {}) },
       transform: { pos: p.at, heading: p.heading },
     });
   }

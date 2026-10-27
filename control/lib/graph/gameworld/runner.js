@@ -362,8 +362,15 @@ function goalArgs(G, s, lastOf, ref) {
   return { ...own, goal: (ends) => (foePlacements(G, s.level, ends).length ? withFoeHits(mech(ends)) : mech(ends)) };
 }
 /** The bestiary's figures (foes.js): a beast for each entry some level stands, at `<ref>-foes-<id>`, made through the
- * animal door with its skin's oozes; and the refs each stage's foes stand on. */
-const foeSteps = (G, ref, ready) => fieldedIds(G).map((id) => ({ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), foeLook(bestiaryOf(G)[id]), `${G.name ?? G.id} ${id}`), ...ready }));
+ * animal door with its skin's oozes, in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what
+ * an ooze makes dressed from its kit's ramps, the colour theorist's when the world names a palette, and its own coat
+ * taken to them: animal.js `coat: 'world'`), as its people are;
+ * and the refs each stage's foes stand on. */
+const foeSteps = (G, ref, ready) => {
+  // (its coat in the world's colours too, where the world has ramps: a foe belongs to its world's palette)
+  const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {};
+  return fieldedIds(G).map((id) => ({ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(bestiaryOf(G)[id]), setting, ...coat }, `${G.name ?? G.id} ${id}`), ...ready }));
+};
 const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, childRef(ref, `foes-${id}`)]));
 // a stage's foes as its extra (foes.js hostileCast), or null when its level stands none
 const hostileOf = (G, s, refs, hero) => (G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, ends, { refs, hero }) : null);

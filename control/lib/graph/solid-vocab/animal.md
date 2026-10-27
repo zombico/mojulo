@@ -204,6 +204,12 @@ hue and value, so the creature keeps its three values. The animal's own coat, a 
 stays chrome) and a signal colour the world has no ramp for stay their own. The result's `ooze.setting` lists every
 colour it moved, from what, to which ramp's stop, and the light it took. Absent: as before.
 
+`spec.coat: 'world'` (with a `setting` that has `ramps`) takes the animal's OWN colours into the world too: its coat and
+markings each take the hue and chroma of the nearest ramp stop of its hue and value, at its own value, so its light and
+dark markings keep their contrast (a game's foes ask for it: an enemy belongs to its world's palette). Its face's details
+(eyes, ink, teeth, nose, mouth) stay its own, and so does a colour no stop is near. Colours only: the body and its rig are
+the species'. The result's `coat.dressed` lists what moved.
+
 ### stylism: design notes that style a creature up
 
 `stylism: { register?, detail?, focal?, motif? }` (with or without `ooze`) is the hero door's stylism tuner compressed

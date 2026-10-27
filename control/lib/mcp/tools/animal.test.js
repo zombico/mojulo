@@ -191,6 +191,17 @@ describe("mint_solid kind 'animal' — oozes", () => {
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'dire', setting: { tradition: 'noir' } } })).rejects.toThrow(/In a game's look/);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', setting: { tradition: 'anime' } } })).rejects.toThrow(/dresses a `species`/);
   });
+
+  // THE COAT IN ITS WORLD (`coat: 'world'`, a game's foes): the species' own colours dressed from the setting's ramps,
+  // its rig untouched; refused without ramps to dress from
+  it("coat: 'world' dresses the animal's own colours from its game's ramps, and says which moved", async () => {
+    const ramps = [{ name: 'timber', stops: ['#3a2a1e', '#6a4a30', '#9a7048'] }];
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_coat_world', spec: { species: 'wolf', coat: 'world', setting: { tradition: 'western', ramps } } });
+    expect(res.coat.in).toBe('world');
+    expect(res.coat.dressed.length).toBeGreaterThan(0);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', coat: 'world' } })).rejects.toThrow(/pass the game's setting/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', coat: 'plaid', setting: { ramps } } })).rejects.toThrow(/`coat` is 'world'/);
+  });
 });
 
 describe("mint_solid kind 'animal' — the maker door", () => {

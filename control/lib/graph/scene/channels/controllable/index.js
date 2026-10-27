@@ -171,6 +171,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
+  // a FOE's hp bar (`body.hpBar: 'target'`, gameworld/foes.js): shown only over the one foe the pilot targets (its lock,
+  // else the nearest its aim crosses), never over the body: above the drawn model's top, or under its feet when the top
+  // leaves the screen. No body asks for one → the emitted channel is byte-identical
+  const foeBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'target');
   // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
   // entity carries a gear → the emitted channel is byte-identical
   // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
@@ -2493,7 +2497,35 @@ for (const e of __world.entities) {
   el.appendChild(fl); wrap.appendChild(el);
   __ehp.push({ id: e.id, el: el, fill: fl });
 }
-const __ehpV = __ehp.length ? new THREE.Vector3() : null;
+const __ehpV = __ehp.length ? new THREE.Vector3() : null;${foeBars ? `
+// the one foe the pilot targets: its lock's, else the foe nearest the way it faces (a ground hero aims where it
+// faces: the angle on the ground, within the foe's own width and 30 m), the nearer of two equally in line
+function __foeTarget(pilot) {
+  if (!pilot) return null;
+  if (__world.lock && __world.lock.target) return __world.lock.target;
+  const h = pilot.transform.heading, p = pilot.transform.pos;
+  let best = null, bestS = Infinity;
+  for (const e of __world.entities) {
+    if (!(e.body && e.body.hpBar === 'target') || e.gone || e.downed || e === pilot) continue;
+    const dx = e.transform.pos[0] - p[0], dy = e.transform.pos[1] - p[1], d = Math.hypot(dx, dy);
+    if (d > 30 || d < 1e-6) continue;
+    const a = Math.abs(((Math.atan2(dy, dx) - h + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+    const w = (e.body.egg && e.body.egg.a) || e.body.radius || 0.5;
+    if (a <= 0.2 + Math.atan(w / d) && a * 10 + d < bestS) { bestS = a * 10 + d; best = e.id; }
+  }
+  return best;
+}
+// a foe body's drawn top above its feet (m), measured once from its mesh against its own group (where it is drawn,
+// whatever the entity did this frame); its bar stands clear of it
+const __foeTop = {}, __foeBox = new THREE.Box3();
+function __foeTopOf(e) {
+  if (__foeTop[e.id] != null) return __foeTop[e.id];
+  const g = __bodies[e.id]; if (!g) return 1;
+  g.updateMatrixWorld(true);
+  __foeBox.setFromObject(g);
+  const top = __foeBox.max.z - g.position.z;
+  return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
+}` : ''}
 function __updateEnemyHp() {
   if (!__ehp.length) return;
   const pilot = (__world.pilotId && __world.byId[__world.pilotId]) || null;
@@ -2507,9 +2539,24 @@ function __updateEnemyHp() {
     const ez = pilot.weapon ? (pilot.weapon.eye || 0) : (pilot.collideVol ? pilot.collideVol.cz : 12);
     eye = [pilot.transform.pos[0], pilot.transform.pos[1], pilot.transform.pos[2] + ez];
   }
-  camera.updateMatrixWorld();
+  camera.updateMatrixWorld();${foeBars ? `
+  const __foeT = __foeTarget(pilot);` : ''}
   for (const r of __ehp) {
-    const e = __world.byId[r.id];
+    const e = __world.byId[r.id];${foeBars ? `
+    if (e && e.body && e.body.hpBar === 'target') {
+      if (e.id !== __foeT || e.gone || e.downed) { r.el.style.display = 'none'; continue; }
+      const top = __foeTopOf(e);
+      __ehpV.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + top + 0.25).project(camera);
+      if (__ehpV.y > 0.94) __ehpV.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - 0.2).project(camera);
+      if (__ehpV.z >= 1) { r.el.style.display = 'none'; continue; }
+      r.el.style.display = '';
+      r.el.style.left = ((__ehpV.x * 0.5 + 0.5) * cw) + 'px';
+      r.el.style.top = ((-__ehpV.y * 0.5 + 0.5) * ch) + 'px';
+      const cur = Number.isFinite(e.body.hp) ? Math.max(0, e.body.hp) : e.hpMax, frac = Math.max(0, Math.min(1, cur / e.hpMax));
+      r.fill.style.width = (frac * 100).toFixed(1) + '%';
+      r.fill.style.background = frac < 0.3 ? '#ff2e2e' : '#ff5a5a';
+      continue;
+    }` : ''}
     // gone covers both the vanished wreck (finisher) and a DORMANT tutorial seat parked at its
     // authored pose — neither should float a bar over empty air.
     if (!e || e === pilot || e.gone) { r.el.style.display = 'none'; continue; }
