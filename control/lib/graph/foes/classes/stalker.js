@@ -7,6 +7,7 @@ export const foe = {
   attack: { kind: 'strike', timing: { startup: 24, active: 6, recovery: 24 }, reach: 1.4 },
   mind: { aggressiveness: 'opportunist', perception: 'memory', pathing: 'navmesh' },
   fits: { support: ['four', 'two'], size: ['chonky', 'behemoth'] },
+  presence: 0.9,
   toll: { downs: 2, harm: 2 }, stomp: 'blow', threat: 3,
   standIn: 'wolf',
 };

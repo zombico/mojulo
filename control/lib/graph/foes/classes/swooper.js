@@ -7,6 +7,7 @@ export const foe = {
   attack: { kind: 'contact' },
   mind: { aggressiveness: 'bold' },
   fits: { size: ['mini', 'smol', 'chonky'] },
+  presence: 0.5,
   toll: { downs: 1, harm: 1 }, stomp: 'blow', threat: 2,
   standIn: 'fruitBat',
 };

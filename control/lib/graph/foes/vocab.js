@@ -13,12 +13,16 @@
  *                active, recovery in frames at 60 Hz; startup is the telegraph), and what lowers it
  *   STOMPS       what a stomp on its head does: blow (a stomp is one of the hero's blows), hurts (the stomper is hurt),
  *                bounce (it bounces the stomper and takes nothing)
- *   FOE_RANKS    per mind rank (mind/vocab.js RANKS): × the class's downs and × its threat. A minion's downs times the
+ *   FOE_RANKS    per mind rank (mind/vocab.js RANKS): × the class's downs, × its threat and × its presence (a boss
+ *                stands taller than the minions of its class). A minion's downs times the
  *                rank's, times HERO.blow, meets the rank's typical health (mind/vocab.js RANK_HP), so a resolved foe
  *                never draws the mind's advisory
  *   HERO         the frame a class is measured in: the hero's run (m/s, the platform rule's default speed), its health,
  *                the health one of its blows takes and the health one hit on it costs (the mind's frame: relative to
- *                the hero's 100; a level goal's 20 hp and its 2 a hit are the same tenth)
+ *                the hero's 100; a level goal's 20 hp and its 2 a hit are the same tenth), and its height (m): a
+ *                class's PRESENCE is its body's size (its longest extent, nose to tail or wing to wing) as a share of
+ *                it, so a foe reads at a game's size whatever animal plays it (a guinea pig walker is a metre long,
+ *                not 25 cm)
  *
  * Status words as the cosmos registry says them: built · partial · local · absent. Pure data.
  */
@@ -31,7 +35,7 @@ export const PACES = Object.freeze({
   fast: 1.15,
 });
 
-export const HERO = Object.freeze({ run: 6, hp: 100, blow: 20, hit: 10 });
+export const HERO = Object.freeze({ run: 6, hp: 100, blow: 20, hit: 10, height: 1.7 });
 
 const MIND = 'lib/graph/worlds/controllable/mind.js';
 const GROUP = 'lib/graph/worlds/controllable/group.js';
@@ -139,8 +143,8 @@ export const STOMPS = Object.freeze({
 });
 
 export const FOE_RANKS = Object.freeze({
-  minion: { downs: 1, threat: 1 },
-  elite: { downs: 3, threat: 2 },
-  miniboss: { downs: 6, threat: 5 },
-  boss: { downs: 15, threat: 12 },
+  minion: { downs: 1, threat: 1, presence: 1 },
+  elite: { downs: 3, threat: 2, presence: 1.15 },
+  miniboss: { downs: 6, threat: 5, presence: 1.4 },
+  boss: { downs: 15, threat: 12, presence: 1.8 },
 });

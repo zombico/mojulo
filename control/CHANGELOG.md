@@ -108,6 +108,25 @@ through the character designer, clips fitted to the class's timing, factions) is
   stun, hurting only while it charges; a diver's brace, dive, climb and perch; a lurker's wake; a touch and its mercy;
   a stomp's blow and its held bounce; a spiny stomp; a big one's bounce), plus a world without a foe stepping
   identically and the opt-in's emission. Eyes gate not run: no foe has been watched moving.
+- **What a first render found** (a five-class demo world made with design_game, exported as a World page and played
+  in headless Chromium):
+  - **The run could not record a foe's beast.** `made.js` refused the `foes-<id>` key, so the first entry's mint broke
+    the run's record. It now keeps it.
+  - **A foe with a blade was not drawn.** The World page draws a body with a loadout as its slots' figures, one per
+    weapon, and a blade slot naming none left the brute, the stalker and the lurker invisible. A foe's slot now names
+    its own figure.
+  - **The stand-ins were at life size,** a 25 cm guinea pig hidden in the grass. A class now has a **presence**, its
+    body's size (its longest extent) as a share of the hero's height (1.7 m), grown by rank (an elite ×1.15, a
+    miniboss ×1.4, a boss ×1.8). The resolver gives the `stature` the foe reads at and the `scale` that draws the
+    grown body there; the level draws it at that scale (`body.scale`, the page's own opt-in) and sizes its collision
+    and hit volume to match. The class decides the read and the animal the look: a walker is about a metre long
+    whatever plays it, a brute about 2.4 m.
+
+  After the fixes, the stomp lands in the page: a walker dropped on goes from 20 hp to 0 and topples, and the hero
+  bounces at 4.9 m/s. Eyes gate, as seen in still frames (no one has played it):
+  - the five read as five animals, and the dire bear reads as a brute;
+  - a frog hopper is green in green grass and nearly vanishes, and a long, low walker sinks into a kit's knee-high
+    grass. Both are silhouette and value, for the read's pass.
 
 ### Carved glyphs: the letter primitive grows up
 

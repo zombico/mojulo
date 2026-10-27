@@ -9,8 +9,8 @@
  *                     move's and its attack's lowerings, so a class is built only when everything it does runs
  *
  * A row: { id, reads, move, pace?, attack: { kind, pattern?, timing?, reach?, zone? }, mind: { aggressiveness,
- * motivation?, perception?, pathing? }, fits: { support?, size?, gaits?, wings? }, toll: { downs, harm }, stomp,
- * threat, standIn }. `mind.motivation` defaults to the move's; rank and skill are the foe's, never the class's.
+ * motivation?, perception?, pathing? }, fits: { support?, size?, gaits?, wings? }, presence (its body's size, its
+ * longest extent, as a share of the hero's height), toll: { downs, harm }, stomp, threat, standIn }. `mind.motivation` defaults to the move's; rank and skill are the foe's, never the class's.
  *
  * Pure; reads the mind's vocabulary and the engines' marks only (no fauna), so the cosmos facets can import it.
  */
@@ -29,7 +29,7 @@ import { foe as lurker } from './classes/lurker.js';
 import { foe as brute } from './classes/brute.js';
 import { foe as stalker } from './classes/stalker.js';
 
-const ROW_KEYS = ['id', 'reads', 'move', 'pace', 'attack', 'mind', 'fits', 'toll', 'stomp', 'threat', 'standIn'];
+const ROW_KEYS = ['id', 'reads', 'move', 'pace', 'attack', 'mind', 'fits', 'presence', 'toll', 'stomp', 'threat', 'standIn'];
 const ATTACK_KEYS = ['kind', 'pattern', 'timing', 'reach', 'zone'];
 const TIMING_KEYS = ['startup', 'active', 'recovery'];
 const MIND_KEYS = ['motivation', 'aggressiveness', 'perception', 'pathing'];
@@ -72,6 +72,7 @@ export function validateClass(row) {
   for (const s of row.fits.size ?? []) known(at('fits.size'), s, SIZES);
   if (row.fits.gaits !== undefined && !(Array.isArray(row.fits.gaits) && row.fits.gaits.length)) throw new Error(`foe class: ${at('fits.gaits')} is a list of gait words, any of which the body has`);
   if (row.fits.wings !== undefined && typeof row.fits.wings !== 'boolean') throw new Error(`foe class: ${at('fits.wings')} is true or false`);
+  if (!(Number.isFinite(row.presence) && row.presence > 0 && row.presence <= 4)) throw new Error(`foe class: ${at('presence')} is its body's size (its longest extent) as a share of the hero's height, above 0 and at most 4`);
   closed(at('toll'), row.toll || {}, ['downs', 'harm']);
   count(at('toll.downs'), row.toll?.downs, 1); count(at('toll.harm'), row.toll?.harm, 0);
   known(at('stomp'), row.stomp, STOMPS);

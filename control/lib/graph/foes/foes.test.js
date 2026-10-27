@@ -8,6 +8,7 @@ import { MOVES, ATTACKS, FOE_RANKS, PACES, HERO } from './vocab.js';
 import { resolveFoe } from './resolve.js';
 import { fitOf, checkFit, bodyOf } from './fit.js';
 import { OOZES, resolveMutagen } from '../mutagen/index.js';
+import { SPECIES } from '../fauna/species.js';
 import { foeClassValues } from './cosmos.js';
 import { SIZE_CLASS_IDS } from '../fauna/size-class.js';
 import { RANKS, RANK_HP } from '../mind/vocab.js';
@@ -124,6 +125,15 @@ describe('foe resolver', () => {
     }
     const duel = resolveFoe({ class: BLADE.id, rank: 'boss' });
     expect(duel.mind.situations.strike.repertoire).toBeTruthy();
+  });
+  it('a foe reads at its class\'s presence, grown by rank, whatever animal plays it', () => {
+    const f = resolveFoe({ class: GROUNDED.id }), boss = resolveFoe({ class: GROUNDED.id, rank: 'boss' });
+    expect(f.stature).toBeCloseTo(GROUNDED.presence * HERO.height, 2);
+    expect(f.measured.extent * f.scale).toBeCloseTo(f.stature, 1);
+    expect(boss.stature).toBeCloseTo(f.stature * FOE_RANKS.boss.presence, 2);
+    // a skin of another size reads at the same presence: the class decides the read, the animal the look
+    const other = Object.keys(SPECIES).find((s) => s !== GROUNDED.standIn && fitOf(GROUNDED.id, s).ok);
+    expect(resolveFoe({ class: GROUNDED.id, skin: { species: other } }).stature).toBe(f.stature);
   });
   it('a pace is a share of the hero\'s run, in the frame it is given', () => {
     const paced = pick('with a pace', (c) => !!c.pace);

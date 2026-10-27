@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, fieldedIds, stompOf, SWARM } from './foes.js';
 import { FEELS } from './feel/cards.js';
+import { MADE_KEY } from './made.js';
 import { readGameworld, runSteps, MEADOWMARK_HERO } from './index.js';
 import { LEVEL_GOAL } from './quick.js';
 import { FOE_CLASSES } from '../foes/index.js';
@@ -70,6 +71,11 @@ describe('a stage\'s foes', () => {
     expect(e.rule.foe ?? null).toEqual(f.entity.rule.foe ?? null);
     expect(hostileCast(world(null, undefined), 'one', ENDS, { refs: {} })).toBeNull();
   });
+  it('a foe with a blade is drawn: its slot names its own figure (the World page draws a loadout body by its slots)', () => {
+    const BLADE = CLASSES.find((c) => resolveFoe({ class: c.id }).entity.rule.loadout);
+    const X = hostileCast(world({ a: { class: BLADE.id } }, true), 'one', ENDS, { refs: { a: 'w-foes-a' } });
+    for (const e of X.entities) for (const slot of e.rule.loadout) expect(slot.figure).toBe(e.body.figure);
+  });
   it('the hero\'s hp takes their hits: the goal\'s own hp, else one laid before its terminal', () => {
     const exit = { kind: 'reach-exit', at: [0, 0, 0] };
     expect(withFoeHits([exit])).toEqual([{ kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit }, exit]);
@@ -93,6 +99,8 @@ describe('the run', () => {
     const steps = runSteps(W, { ref: 'gw' });
     const beast = steps.find((s) => s.key === 'foes-a');
     expect(beast.ref).toBe('gw-foes-a');
+    // (the run's record keeps it: made.js)
+    expect(MADE_KEY.test(beast.key)).toBe(true);
     expect(beast.order.animal).toMatchObject(skin);
     const stood = steps.filter((s) => s.key.startsWith(`level-${lv0}-`)).map((s) => s.order.manifest).filter((m) => m.entities.some((e) => e.team === 'foes'));
     expect(stood.length).toBeGreaterThan(0);

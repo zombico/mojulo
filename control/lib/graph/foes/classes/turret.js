@@ -7,6 +7,7 @@ export const foe = {
   attack: { kind: 'shot', pattern: 'aimed' },
   mind: { aggressiveness: 'bold' },
   fits: {},
+  presence: 0.7,
   toll: { downs: 2, harm: 1 }, stomp: 'blow', threat: 2,
   standIn: 'kingCobra',
 };

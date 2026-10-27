@@ -7,6 +7,7 @@ export const foe = {
   attack: { kind: 'contact' },
   mind: { aggressiveness: 'relentless' },
   fits: { support: ['four', 'two', 'none'], size: ['mini', 'smol'] },
+  presence: 0.35,
   toll: { downs: 1, harm: 1 }, stomp: 'blow', threat: 1,
   standIn: 'rat',
 };

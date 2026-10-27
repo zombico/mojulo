@@ -100,9 +100,10 @@ export function foePlacements(G, level, ends) {
   return out;
 }
 
-// a beast's body in the field, by its grown size (foes/fit.js bodyOf): what it collides with and where it is hit
-function beastBody(measured) {
-  const { extent, height } = measured;
+// a beast's body in the field, by its grown size (foes/fit.js bodyOf) drawn at its game scale (its class's presence):
+// what it collides with and where it is hit
+function beastBody(measured, scale) {
+  const extent = measured.extent * scale, height = measured.height * scale;
   return {
     rule: { eye: 0, step: 0.3, stride: r3(Math.max(0.3, extent * 0.6)), collideRadius: r3(clamp(extent * 0.25, 0.15, 2.5)), collideHeight: r3(Math.max(0.2, height)) },
     egg: { a: r3(clamp(extent * 0.3, 0.2, 3)), c: r3(Math.max(0.15, height / 2)), cz: r3(Math.max(0.15, height / 2)) },
@@ -114,13 +115,16 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   if (!P.length) return null;
   const figures = {}, entities = [];
   for (const p of P) {
-    const f = resolveFoe({ ...p.entry, ...(p.group ? { group: p.group } : {}) }), b = beastBody(f.measured);
+    const f = resolveFoe({ ...p.entry, ...(p.group ? { group: p.group } : {}) }), b = beastBody(f.measured, f.scale);
     figures[p.id] = foeFigure(refs[p.eid], { species: f.body });
+    // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
+    // per weapon, so a slot naming none would leave the body undrawn)
+    const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: p.id })) } : {};
     entities.push({
       id: p.id, team: 'foes',
-      rule: { ...f.entity.rule, ...b.rule },
+      rule: { ...f.entity.rule, ...b.rule, ...loadout },
       ...(f.entity.weapon ? { weapon: f.entity.weapon } : {}),
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg },
+      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, ...(f.scale !== 1 ? { scale: f.scale } : {}) },
       transform: { pos: p.at, heading: p.heading },
     });
   }

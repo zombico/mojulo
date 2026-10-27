@@ -4,9 +4,11 @@
  * report, not a second check's), its toll in the hero's frame, its attack's timing and what lowers it today.
  *
  *   resolveFoe({ class, rank?, skill?, skin?, group? }, { hero? })
- *     → { class, rank, skill, body, skin, measured, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind,
+ *     → { class, rank, skill, body, skin, measured, stature, scale, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind,
  *         timing, pattern?, reach?, zone? }, stomp, threat, status, marks, short, advisories }
- *     `skin` the species and what grows it, as the animal door takes them; `measured` the grown body (./fit.js bodyOf)
+ *     `skin` the species and what grows it, as the animal door takes them; `measured` the grown body (./fit.js bodyOf);
+ *     `stature` the size it reads at in the game, its longest extent (its class's presence × its rank's × the hero's
+ *     height), and `scale` the factor that draws the grown body at it
  *     rank    mind/vocab.js RANKS (minion default): × the class's downs and threat (./vocab.js FOE_RANKS)
  *     skill   mind/vocab.js SKILLS (regular default)
  *     skin    { species?, ooze?, stylism? }: the body it plays on, grown by its oozes and checked against the class
@@ -97,8 +99,11 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   const resolved = resolveMind({ motivation: mind.motivation, aggressiveness: mind.aggressiveness, rank, skill }, entity);
   const { status, marks, short } = classStatus(c);
   const attack = { kind: c.attack.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}) };
+  // its PRESENCE: the size it reads at in the game (its longest extent, the class's share of the hero's height grown by
+  // rank), the body drawn at the scale that takes its grown extent there
+  const stature = r3(c.presence * R.presence * hero.height), scale = r3(stature / Math.max(0.01, measured.extent));
   return {
-    class: c.id, rank, skill, body: species, skin: { species, ...grown }, measured, entity, mind: resolved,
+    class: c.id, rank, skill, body: species, skin: { species, ...grown }, measured, stature, scale, entity, mind: resolved,
     toll: { downs, harm: c.toll.harm, hp: entity.body.hp, damage },
     attack, stomp: c.stomp, threat: c.threat * R.threat, status, marks, short, advisories: resolved.advisories,
   };
