@@ -31,6 +31,8 @@ describe('the era marks: every page input, every era', () => {
     const g7 = ERA_PAGE_MARKS['gen-7'];
     for (const k of SURFACE_INPUTS) expect(g7[k], k).toMatchObject({ 'gen-7': 'approximated', how: expect.stringMatching(/paint/) });
     for (const k of NEUTRAL_INPUTS) expect(g7[k], k).toEqual({ 'gen-7': 'built', neutral: true });
+    // (and what it draws as material, built)
+    for (const k of FORM_INPUTS) expect(g7[k], k).toMatchObject({ 'gen-7': 'built' });
     expect(ERAS['gen-6'].surface).toBe('paint');
     expect(ERAS['gen-7'].surface).toBe('form');
   });

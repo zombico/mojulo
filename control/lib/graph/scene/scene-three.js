@@ -78,6 +78,7 @@ import { faunaPetScript } from './channels/fauna-pet.js';
 import { wetRoadScript } from './channels/wet-road.js';
 import { weatherScript, weatherForces } from './channels/weather.js';
 import { toneScript } from './channels/tone.js';
+import { formLandScript } from './channels/form-land.js';
 import { fabricScript } from './channels/fabric.js';
 import { formScript, FORM_PAGE } from './channels/form.js';
 import { stageGrassScript } from './channels/stage-grass.js';
@@ -681,6 +682,12 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const flickerBlock = flicker && Array.isArray(flicker.lamps) && flicker.lamps.length ? stageFlickerScript(flicker) : '';
   // dust in a stage's air (channels/motes.js); absent ⇒ no bytes
   const motesBlock = motes && motes.count > 0 ? motesScript(motes) : '';
+  // the form render indoors (channels/form.js): a room's surfaces lit as material by its placed lights; none → not one byte
+  const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : null;
+  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, shadows: { ...FORM_PAGE.shadows, ...(formRoom.shadows || {}) }, maps: formRoom.maps || {} }) : '';
+  // (what moves casts in the room's lights, the nearest's map drawn each frame: the actors flag their meshes as under the
+  // live light's actors, which a room in the form render does not carry)
+  const formActors = !!(formRoom && formRoom.actors);
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
   const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) || formActors ? { cast: true } : {}) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted
@@ -689,13 +696,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const weatherBlock = weather && weather.weather ? weatherScript({ radius: mesh.radius || 40, fog: haze && Number.isFinite(haze.density) && typeof haze.color === 'string' ? { color: haze.color, density: haze.density } : null, forces: weatherForces(events), ...weather }) : '';
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
+  // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
+  const formLandBlock = form && form.land ? formLandScript(form.land) : '';
   // a gritty style's rock fabric (channels/fabric.js): the near rock drawn from its own joints and beds; none → not one byte
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
-  // the form render indoors (channels/form.js): a room's surfaces lit as material by its placed lights; none → not one byte
-  const formBlock = form && Array.isArray(form.lights) ? formScript({ ...FORM_PAGE, ...form, shadows: { ...FORM_PAGE.shadows, ...(form.shadows || {}) }, maps: form.maps || {} }) : '';
-  // (what moves casts in the room's lights, the nearest's map drawn each frame: the actors flag their meshes as under the
-  // live light's actors, which a room in the form render does not carry)
-  const formActors = !!(formBlock && form.actors);
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
   const grassBlock = liveGrass && liveGrass.grid && liveGrass.wind ? stageGrassScript(liveGrass) : '';
   // WebXR (opt-in, interchange-seams.plan.md seam 7): `xr: true` or { eye, speed, snap(deg) }. The
@@ -1456,7 +1460,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${formBlock}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${wetRoadBlock}${weatherBlock}${toneBlock}${fabricBlock}${grassBlock}${fireBlock}${shallowsBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${snowPrintsBlock}${scienceBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${wetRoadBlock}${weatherBlock}${toneBlock}${fabricBlock}${grassBlock}${fireBlock}${shallowsBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${snowPrintsBlock}${scienceBlock}${formLandBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

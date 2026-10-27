@@ -168,7 +168,7 @@ describe('live light defaults: a world resolved', () => {
     // (a room under no sun is the form render's: its own lights cast, the actors in the nearest; channels/form.js)
     const g7 = (await resolveWorldScene(sk({ from: 'gothic-night', era: 'gen-7' }))).payload;
     expect(g7.shadows).toBeUndefined();
-    expect(g7.form).toMatchObject({ actors: true, shadows: { count: 4, size: 512 } });
+    expect(g7.form.room).toMatchObject({ actors: true, shadows: { count: 4, size: 512 } });
     expect(g7.occlusion).toEqual({ ...OCCLUSION_DEFAULTS });
     expect(g7.lightTier.tier).toBe('full');
     const g6 = (await resolveWorldScene(sk('gothic-night'))).payload;
@@ -178,14 +178,14 @@ describe('live light defaults: a world resolved', () => {
     // on a phone: half, and no default occlusion
     const phone = (await resolveWorldScene(sk({ from: 'gothic-night', era: 'gen-7' }, { screen: 'phone' }))).payload;
     expect(phone.lightTier).toEqual({ tier: 'half', mapSize: 1024, ao: 0.5 });
-    expect(phone.form.shadows).toEqual({ count: 2, size: 256 });
+    expect(phone.form.room.shadows).toEqual({ count: 2, size: 256 });
     expect(phone.occlusion).toBeUndefined();
   }, 60000);
   it('the era is the read\'s: the same recipe in the other era, the recipe untouched; an unknown era teaches', async () => {
     const { resolveWorldScene } = await import('../worlds/world-scene.js');
     const manifest = { kind: 'stage', geocube: 'gothic-night' }, before = structuredClone(manifest);
     const g7 = (await resolveWorldScene({ manifest, title: 't' }, { era: 'gen-7' })).payload;
-    expect(g7.form.actors).toBe(true);
+    expect(g7.form.room.actors).toBe(true);
     // (an engine or file export reads it as paint: no material to draw, the live light as it was)
     const asPaint = (await resolveWorldScene({ manifest, title: 't' }, { era: 'gen-7', paint: true })).payload;
     expect(asPaint.form).toBeUndefined();

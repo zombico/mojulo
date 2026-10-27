@@ -30,41 +30,41 @@ describe('a tile read as material', () => {
 });
 
 describe('a room in the form render', () => {
-  const formed = assembleStageScene(ROOM, { form: true }), painted = assembleStageScene(ROOM, {});
+  const formed = assembleStageScene(ROOM, { formLit: true }), painted = assembleStageScene(ROOM, {});
 
   it('its corners hold its material\'s colour, never light: a light turned up moves the paint, not the form', () => {
     const lamp = (intensity) => ({ ...ROOM, lights: [{ at: [3, 0.4, 2.6], intensity, radius: 7 }] });
     const fills = (m, ctx) => assembleStageScene(m, ctx).faces.map((f) => f.cornerFills ? f.cornerFills.join() : f.fill);
-    expect(fills(lamp(3), { form: true })).toEqual(fills(lamp(1), { form: true }));
+    expect(fills(lamp(3), { formLit: true })).toEqual(fills(lamp(1), { formLit: true }));
     expect(fills(lamp(3), {})).not.toEqual(fills(lamp(1), {}));
     expect(painted.form).toBeUndefined();
   });
 
   it('its placed lights go to the page, one for each the bake would have laid', () => {
-    expect(formed.form.lights).toHaveLength(1);
-    expect(formed.form.lights[0]).toMatchObject({ at: [3, 0.4, 2.6], intensity: 1.5, radius: 7 });
-    expect(formed.form.lights.every((l) => l.cast)).toBe(true);
-    expect(formed.form.ambient).toHaveLength(3);
+    expect(formed.form.room.lights).toHaveLength(1);
+    expect(formed.form.room.lights[0]).toMatchObject({ at: [3, 0.4, 2.6], intensity: 1.5, radius: 7 });
+    expect(formed.form.room.lights.every((l) => l.cast)).toBe(true);
+    expect(formed.form.room.ambient).toHaveLength(3);
   });
 
   it('a toned room is lit as form: its ramps ride in its corners, the page\'s tone pass is not drawn', () => {
-    const toned = { ...ROOM, tone: 'noir' }, P = assembleStageScene(toned, { form: true });
-    expect(P.form.lights.length).toBeGreaterThan(0);
+    const toned = { ...ROOM, tone: 'noir' }, P = assembleStageScene(toned, { formLit: true });
+    expect(P.form.room.lights.length).toBeGreaterThan(0);
     expect(P.tone).toBeUndefined();
     expect(assembleStageScene(toned, {}).tone).toBeDefined();
   });
 
   it('a sunlit stage stays paint', () => {
-    expect(assembleStageScene({ kind: 'stage', kit: 'island-plaza', reference: 'island-noon', rooms: [{ id: 'a', x: 0, y: 0, w: 10, d: 10, h: 6 }] }, { form: true }).form).toBeUndefined();
+    expect(assembleStageScene({ kind: 'stage', kit: 'island-plaza', reference: 'island-noon', rooms: [{ id: 'a', x: 0, y: 0, w: 10, d: 10, h: 6 }] }, { formLit: true }).form).toBeUndefined();
   });
 
   it('the page draws it only when carried, and the era marks read its faces as material', () => {
     const tiny = { faces: [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], fill: '#808080', group: 'stage:floor' }], inline: true };
     expect(emitThreeWorld(tiny)).not.toContain('__mojForm');
-    const page = emitThreeWorld({ ...tiny, form: { lights: [{ at: [0, 0, 2], rgb: [1, 0.7, 0.4], intensity: 1.5, radius: 6, cast: true }], ambient: [0.2, 0.2, 0.2], maps: {} } });
+    const page = emitThreeWorld({ ...tiny, form: { room: { lights: [{ at: [0, 0, 2], rgb: [1, 0.7, 0.4], intensity: 1.5, radius: 6, cast: true }], ambient: [0.2, 0.2, 0.2], maps: {} } } });
     expect(page).toContain('__mojForm');
     expect(page).toContain('THREE.NeutralToneMapping');
     expect(eraReading({ faces: tiny.faces }, 'gen-7').approximated.map((r) => r.input)).toContain('faces');
-    expect(eraReading({ faces: tiny.faces, form: { lights: [] } }, 'gen-7').approximated.map((r) => r.input)).not.toContain('faces');
+    expect(eraReading({ faces: tiny.faces, form: { room: { lights: [] } } }, 'gen-7').approximated.map((r) => r.input)).not.toContain('faces');
   });
 });

@@ -40,13 +40,14 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings',
 ]);
 
-/** The form render's own inputs: what a gen-7 read draws as material and live light (form/room-form.js: a room's tiles
- *  as material, its placed lights live, scene/channels/form.js). Never carried by a gen-6 read. */
+/** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):
+ *  `form.land` a geocube's island or trail (form/land-read.js), `form.room` a room under no sun (form/room-form.js). */
 export const FORM_INPUTS = Object.freeze(['form']);
-// a payload that carries the form render's room: its faces and their tiles are drawn as material, lit live
+// a payload that carries the form render: its faces and their tiles are drawn as material, lit live
 const FORMED = new Set(['faces', 'textures']);
 
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';
+const FORM_HOW = { form: 'the land as material under the cube\'s light (form/land-read.js, channels/form-land.js): a geocube\'s island or trail; a room\'s tiles as material under its placed lights, lit live, the nearest casting (form/room-form.js, channels/form.js)' };
 const LIVE_HOW = 'the live light darkening paint: the form render will light material with it';
 const g6 = markRow('gen-6'), g7 = markRow('gen-7');
 
@@ -54,9 +55,9 @@ const g6 = markRow('gen-6'), g7 = markRow('gen-7');
 export const ERA_PAGE_MARKS = Object.freeze({
   'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS, ...FORM_INPUTS].map((k) => [k, g6('built')]))),
   'gen-7': Object.freeze(Object.fromEntries([
-    ...FORM_INPUTS.map((k) => [k, g7('built', 'a room\'s tiles read as material (colour under no light, normal, occlusion, roughness) and its placed lights lit live, the nearest casting')]),
     ...SURFACE_INPUTS.map((k) => [k, g7('approximated', LIVE.has(k) ? LIVE_HOW : PAINT_HOW)]),
     ...NEUTRAL_INPUTS.map((k) => [k, Object.freeze({ 'gen-7': 'built', neutral: true })]),
+    ...FORM_INPUTS.map((k) => [k, g7('built', FORM_HOW[k])]),
   ])),
 });
 

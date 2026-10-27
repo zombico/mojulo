@@ -54,7 +54,7 @@ for (const [name, R] of Object.entries(ROOMS)) {
     const file = path.join(out, `${name}-${era}.html`);
     fs.writeFileSync(file, html);
     pages.push({ name, era, file, payload, ms });
-    console.log(`${name} ${era}: ${ms} ms, ${payload.faces.length} faces, page ${(html.length / 1e6).toFixed(2)} MB${payload.form ? `, ${payload.form.lights.length} lights, ${Object.keys(payload.form.maps).length} maps (${Object.values(payload.form.maps).filter((m) => m.read === 'relief').length} from relief)` : ''}`);
+    console.log(`${name} ${era}: ${ms} ms, ${payload.faces.length} faces, page ${(html.length / 1e6).toFixed(2)} MB${payload.form?.room ? `, ${payload.form.room.lights.length} lights, ${Object.keys(payload.form.room.maps).length} maps (${Object.values(payload.form.room.maps).filter((m) => m.read === 'relief').length} from relief)` : ''}`);
   }
 }
 

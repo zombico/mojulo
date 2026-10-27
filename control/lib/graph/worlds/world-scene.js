@@ -47,7 +47,9 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { readHour } from '@/lib/graph/era/geocube-hours';
+import { landRead, formPayload, DRESS_DEFAULT } from '@/lib/graph/form/land-read';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
@@ -295,10 +297,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     ref: sketch.ref,
     // (solid: the builders' thickness, above; only when on, so a ctx without it is as it was)
     ...(solid ? { solid: true } : {}),
-    // (form: the read is the form render's, era/eras.js: a builder that can draw its surfaces as material and its lights
-    // live does, a room first: era/stage.js, form/room-form.js; the unshaded export bakes none of it)
-    // (`paint: true` on the read: an engine or file export, which carries the surfaces as paint until it carries materials)
-    ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { form: true } : {}),
+    // (form: a read in the form render (gen-7), for the builders that make more of the land for it: the meru island's
+    // broken boulders, rims and strewn stones; only when on, so a gen-6 ctx is as it was)
+    ...(ERAS[era]?.surface === 'form' ? { form: true } : {}),
+    // (formLit: a room under no sun drawn by the form render, its corners holding no light and its lights live on the page:
+    // era/stage.js, form/room-form.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
+    // engine or file export, which carries its surfaces as paint until it carries materials) keeps the paint)
+    ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { formLit: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
@@ -587,11 +592,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // THE FORM RENDER INDOORS (form/room-form.js): a room that sent its lights to be lit live has its tiles read as
     // material, each key's colour under no light in place of its paint, its normal and occlusion beside it
-    if (payload.form && Array.isArray(payload.form.lights)) {
+    if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
-      const F = formRoomMaps(keys, payload.form.detail !== undefined ? { detail: payload.form.detail } : {});
+      const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
       Object.assign(textures, F.textures);
-      payload.form = { ...payload.form, maps: F.maps };
+      payload.form = { ...payload.form, room: { ...R, maps: F.maps } };
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
@@ -695,17 +700,27 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
   // (a room lit live in the form render owns its shadows: its lights' own maps, channels/form.js; the live light's actors'
   // map is drawn under a light the room's material would be lit by, so it gives way)
-  const shadowsOut = payload && payload.form ? null : liveL ? liveL.shadows : sketch.manifest.shadows;
+  const shadowsOut = payload && payload.form && payload.form.room ? null : liveL ? liveL.shadows : sketch.manifest.shadows;
   // (the actors it would have cast cast in the room's own lights instead: channels/form.js `actors`)
-  if (payload && payload.form && liveL && liveL.shadows && liveL.shadows.actors) payload.form = { ...payload.form, actors: true };
+  if (payload && payload.form && payload.form.room && liveL && liveL.shadows && liveL.shadows.actors) payload.form = { ...payload.form, room: { ...payload.form.room, actors: true } };
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
   // (the form render's casters under the same tier: half the maps a side and half as many on a half tier, none off)
-  if (payload && payload.form) { const T = liveL && liveL.tier ? liveL.tier.tier : 'off'; payload.form = { ...payload.form, shadows: T === 'off' ? { count: 0 } : T === 'half' ? { count: 2, size: 256 } : { count: 4, size: 512 } }; }
+  if (payload && payload.form && payload.form.room) { const T = liveL && liveL.tier ? liveL.tier.tier : 'off'; payload.form = { ...payload.form, room: { ...payload.form.room, shadows: T === 'off' ? { count: 0 } : T === 'half' ? { count: 2, size: 256 } : { count: 4, size: 512 } } }; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
+  // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
+  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones), drawn
+  // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
+  // its patches. Any other read, and the unshaded export: none, every byte as it was
+  if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
+    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
+    const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
+    const read = landRead(payload, readGeocube(M.cube), { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress });
+    if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+  }
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word

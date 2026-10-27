@@ -75,3 +75,18 @@ describe('a dressed brick as material', () => {
     expect(() => brickBond({ rows: 0, cols: 2 }, { width: 1, height: 1 })).toThrow(/a bond is/);
   });
 });
+
+describe('the natural cuts as material: a crag and loose soil', () => {
+  it('each reads as the maps an engine lights, the same bytes each time; a crag is bedded (its ledges a row apart)', () => {
+    for (const cut of ['crag', 'soil']) {
+      const A = dressedMaterial({ cut, metres: 2, stone: [170, 160, 140] }, { size: 64, seed: 3 }), B = dressedMaterial({ cut, metres: 2, stone: [170, 160, 140] }, { size: 64, seed: 3 });
+      expect(Buffer.compare(A.normal, B.normal), cut).toBe(0);
+      expect(A.orm.length).toBe(64 * 64 * 3);
+    }
+    // the crag's beds: the height's mean across each row steps (a ledge) more than it wanders across each column
+    const C = dressedMaterial({ cut: 'crag', metres: 2, stone: [170, 160, 140] }, { size: 64, seed: 3 }), n = 64;
+    const row = (j) => C.height.slice(j * n, (j + 1) * n).reduce((s, v) => s + v, 0) / n, col = (i) => Array.from({ length: n }, (_, j) => C.height[j * n + i]).reduce((s, v) => s + v, 0) / n;
+    const spread = (f) => { const v = Array.from({ length: n }, (_, k) => f(k)); return Math.max(...v) - Math.min(...v); };
+    expect(spread(row)).toBeGreaterThan(spread(col));
+  });
+});

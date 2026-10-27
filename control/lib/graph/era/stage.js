@@ -1031,7 +1031,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // which lights the room live (scene/channels/form.js). A sunlit or night stage is drawn as paint. A toned room's colour
   // is its ramps' laid over its light (tone.js): read as form, each corner carries its paint over the light the page will
   // lay there (formToneFaces), and the page lights it as any room
-  const form = !!ctx.form && !ctx.unshaded && !daylight && !plan.night;
+  const form = !!ctx.formLit && !ctx.unshaded && !daylight && !plan.night;
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : form && plan.tone ? (() => { const all = [...lights, ...braziers, ...(dress ? dress.pools : [])], ref = bakeStageLight(raw, all, ambient, dirt()); return formToneFaces(raw, ref, plan.tone, exposureOf(ref, plan.tone), all, ambient); })()
@@ -1093,7 +1093,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
     // the form render's light (form/room-form.js): the placed lights, the braziers and the bake's pools, lit live over the
     // ambient the bake would have laid; only a room read in the form render
-    ...(form ? { form: { lights: readFormLight([...lights, ...braziers, ...(dress ? dress.pools : [])]), ambient: ambient.map(r5), ...(plan.tone ? { detail: plan.tone.detail } : {}) } } : {}),
+    ...(form ? { form: { room: { lights: readFormLight([...lights, ...braziers, ...(dress ? dress.pools : [])]), ambient: ambient.map(r5), ...(plan.tone ? { detail: plan.tone.detail } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
