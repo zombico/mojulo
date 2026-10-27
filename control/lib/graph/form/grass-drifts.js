@@ -35,8 +35,9 @@ export const FLOWER_COLOURS = Object.freeze({
   poppy: { petal: [214, 56, 44], eye: [52, 40, 46] },
 });
 const STEM = [86, 128, 60];
-/** Variants grown per form, and the levels near and far. */
-const VARIANTS = 2, NEAR = 'L1', FAR = 'L0';
+/** Variants grown per form (each draws its kind's whole grid on the page: a variant costs a grid), and the levels near
+ *  and far. */
+const VARIANTS = 1, NEAR = 'L1', FAR = 'L0';
 /** The flowers' heads, × the library's: read over the blades at a walker's distance (gen-6's stylized field reads them
  *  at twice and more). */
 export const FLOWER_SIZE = 1.7;

@@ -187,6 +187,11 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect('far' in off.liveGrass).toBe(false);
     expect(page(off)).not.toContain('THE FAR GRASS');
     expect(() => assembleStageScene({ ...M, wind: true, grass: { far: 'yes' } })).toThrow(/grass.far/);
+    // (a form page's blades off: the wind and the crowns kept, the blades' field not emitted)
+    const still = stageGrassScript({ ...W.liveGrass, field: false });
+    expect(still).not.toContain('THE FAR GRASS');
+    expect(still).toContain('mojWindAt');
+    expect(still.length).toBeLessThan(page(W).length);
   });
 
   it('ships the ground: heights over the landform grid, and a mask that keeps grass off the trail, the rocks, the trunks and the cliff', () => {

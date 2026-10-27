@@ -981,6 +981,18 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   broken straw lying splayed), or any other kind, by `grassTuft`; the wildflowers by `wildflower`; near grown full, far
   plain. A kind taller than the short sward stands in the blades' place, a lower one and the flowers among them; their
   colours the library's carried into the cube's light by the ratio its grass was solved by.
+- **The grass's carpet, its density and its wind.** Nothing sprouts from nothing: wherever grass grows a carpet stands to
+  the sward's height, the ground drawn again as thin shells (a grid that walks with the camera, ten shells near, half
+  far off), each keeping its slice of the strands, drawn from the blades' own numbers (spacing, height, lean, the
+  base-to-tip shade, the short sward's dark twin), a standing drift's colour and height over it and a low one's tint;
+  it thins far off and flattens into the ground's lines. The blades stand inside it and dissolve into it past their
+  reach at most of their height, never shrinking out. The far brush's rows (fins three ways, their lines wandering) are
+  gone. The tall sward is denser (its grids 0.34 m and 0.17 m
+  apart, from 0.42 and 0.21); each short bristle has a darker twin just behind it, a line of shade that gives the pile
+  its depth. Grass, points and drifts bend in the page's one gust field (channels/terrain-wind.js): a form page keeps
+  the gen-6 live grass's wind and its crowns' sway with its blades off (`field: false`, channels/stage-grass.js; a
+  gen-6 page as it was), so the grass waves as one with the trees, a gust's band a shade brighter as it passes. A
+  drift's forms draw its kind's one grid (a sparse kind a wide grid), so the drifts cost a fifth of what they did.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

@@ -706,9 +706,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const drifts = readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}) });
     if (read) payload.form = formPayload(read);
-    // (the gen-6 live grass, its blade cards and its swaying painted crowns, goes with the painted land: the form render's
-    // grass and trees are its own)
-    if (read && payload.liveGrass) delete payload.liveGrass;
+    // (the gen-6 live grass's blades go with the painted land: the form render's grass is its own; its wind stays, and the
+    // crowns' sway in it, so the form's grass bends in the same gusts as the trees; channels/form-grass.js)
+    if (read && payload.liveGrass) {
+      const { grid, wind, crowns, seed, cards, petals } = payload.liveGrass;
+      if (wind && grid) payload.liveGrass = { grid, wind, crowns, seed, cards, field: false, ...(petals ? { petals } : {}) };
+      else delete payload.liveGrass;
+    }
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }

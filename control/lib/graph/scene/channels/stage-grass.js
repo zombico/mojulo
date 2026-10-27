@@ -465,7 +465,8 @@ const PETALS = `
  *  [{ lo, sc, q, H, tris }], variants: [{ L2, L1, L0 }], size, radius, near, tile, density, height, px, drawTris, seed,
  *  sheen, contact?: { …GRASS_CONTACT_DEFAULTS, eye }, real?: { ao, back, dry, sun, sunColor }, far?: { density, width },
  *  taker, cards: [group],
- *  crowns: { groups, phi, reach, flutter, from, full } | null, wind } */
+ *  crowns: { groups, phi, reach, flutter, from, full } | null, wind, field?: false (the blades not drawn: the wind and the
+ *  crowns' sway kept, the form render's grass drawing its own in the same gusts; channels/form-grass.js) } */
 export function stageGrassScript(cfg) {
   const { wind, ...rest } = cfg, lg = safeJson(rest);
   return `
@@ -482,5 +483,5 @@ export function stageGrassScript(cfg) {
   window.__mojTerrain = window.__mojTerrain || { kernel: { groundAt }, cfg: {}, stat: {} };
   window.__mojTerrain.stageHeights = Z; window.__mojTerrain.stageMask = dec(G.m); window.__mojStageLG = LG;
 })();
-${terrainWindScript(wind)}${FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
+${terrainWindScript(wind)}${cfg.field === false ? '' : FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
 }
