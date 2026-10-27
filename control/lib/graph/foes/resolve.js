@@ -13,8 +13,9 @@
  *     height), and `scale` the factor that draws the grown body at it
  *     rank    mind/vocab.js RANKS (minion default): × the class's downs and threat (./vocab.js FOE_RANKS)
  *     skill   mind/vocab.js SKILLS (regular default)
- *     skin    { species?, ooze?, stylism? }: the body it plays on, grown by its oozes and checked against the class
- *             (./fit.js, on the grown body); absent, its `standIn`
+ *     skin    { species?, ooze?, stylism? }: the beast it plays on, grown by its oozes and checked against the class
+ *             (./fit.js, on the grown body); absent, its `standIn`. Or { people, facets? }: a person or a non-human
+ *             people (./people.js), made by the character loop, at its own height (`body` null; `skin` the people)
  *     group   the id a swarm's members share (rule.mind.group); absent, the class's id
  *     hero    the frame (./vocab.js HERO): its run sets a pace's speed, its blow and its hit price the toll
  *
@@ -25,7 +26,8 @@
  */
 import { PACES, MOVES, ATTACKS, FOE_RANKS, HERO } from './vocab.js';
 import { foeClass, classStatus } from './index.js';
-import { checkFit } from './fit.js';
+import { checkFit, checkFitPeople } from './fit.js';
+import { readPeopleSkin } from './people.js';
 import { RANKS, SKILLS } from '../mind/vocab.js';
 import { resolveMind } from '../mind/resolve.js';
 import { RANGED } from '../gameworld/feel/kernel.js';
@@ -70,15 +72,15 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) throw new Error(`foe: no key '${k}' (known: ${SPEC_KEYS.join(', ')})`);
   const c = foeClass(spec.class), rank = spec.rank ?? 'minion', skill = spec.skill ?? 'regular';
   check('rank', rank, RANKS); check('skill', skill, SKILLS);
-  if (spec.skin !== undefined) {
-    if (!spec.skin || typeof spec.skin !== 'object') throw new Error('foe: .skin is { species?, ooze?, stylism? }');
-    for (const k of Object.keys(spec.skin)) if (!SKIN_KEYS.includes(k)) throw new Error(`foe: .skin has no key '${k}' (known: ${SKIN_KEYS.join(', ')})`);
-  }
-  const species = spec.skin?.species ?? c.standIn;
-  const grown = { ...(spec.skin?.ooze !== undefined ? { ooze: spec.skin.ooze } : {}), ...(spec.skin?.stylism !== undefined ? { stylism: spec.skin.stylism } : {}) };
-  const errs = mutagenErrors(grown.ooze, undefined, grown.stylism);
+  if (spec.skin !== undefined && (!spec.skin || typeof spec.skin !== 'object')) throw new Error('foe: .skin is { species?, ooze?, stylism? } (a beast) or { people, facets? } (a person or a people)');
+  // a PEOPLE (./people.js): a person or a non-human people on two legs at its own stature, made by the character loop
+  const people = spec.skin?.people !== undefined ? readPeopleSkin(spec.skin) : null;
+  if (spec.skin !== undefined && !people) for (const k of Object.keys(spec.skin)) if (!SKIN_KEYS.includes(k)) throw new Error(`foe: .skin has no key '${k}' (a beast's: ${SKIN_KEYS.join(', ')}; a people's: people, facets)`);
+  const species = people ? null : spec.skin?.species ?? c.standIn;
+  const grown = people ? {} : { ...(spec.skin?.ooze !== undefined ? { ooze: spec.skin.ooze } : {}), ...(spec.skin?.stylism !== undefined ? { stylism: spec.skin.stylism } : {}) };
+  const errs = people ? [] : mutagenErrors(grown.ooze, undefined, grown.stylism);
   if (errs.length) throw new Error(`foe: .skin: ${errs.join('; ')}`);
-  const { body: measured } = checkFit(c.id, species, grown);
+  const { body: measured } = people ? checkFitPeople(c.id, people) : checkFit(c.id, species, grown);
 
   const M = MOVES[c.move], W = ATTACKS[c.attack.kind];
   const A = { ...W, ...c.attack, timing: { ...(W.timing || {}), ...(c.attack.timing || {}) } };
@@ -102,14 +104,17 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
 
   const resolved = resolveMind({ motivation: mind.motivation, aggressiveness: mind.aggressiveness, rank, skill }, entity);
   const { status, marks, short } = classStatus(c);
-  // the blow its body deals it by (a melee attack, on a body that can strike: fauna/behavior/strike.js), at its timing
-  const strike = A.verb === 'melee' && strikesOf(species).length ? { ...A.timing } : null;
+  // the blow its body deals it by (a melee attack, on a body that can strike: fauna/behavior/strike.js), at its timing; a
+  // people's swing is its role's attack (egocube/moves.js), not a beast's strike
+  const strike = !people && A.verb === 'melee' && strikesOf(species).length ? { ...A.timing } : null;
   const attack = { kind: c.attack.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}) };
   // its PRESENCE: the size it reads at in the game (its longest extent, the class's share of the hero's height grown by
   // rank), the body drawn at the scale that takes its grown extent there
-  const stature = r3(c.presence * R.presence * hero.height), scale = r3(stature / Math.max(0.01, measured.extent));
+  // (a people stands at its own height, grown only by its rank: a class's presence is a beast's word)
+  const stature = people ? r3(measured.height * R.presence) : r3(c.presence * R.presence * hero.height);
+  const scale = people ? r3(R.presence) : r3(stature / Math.max(0.01, measured.extent));
   return {
-    class: c.id, rank, skill, body: species, skin: { species, ...grown }, measured, stature, scale, entity, mind: resolved,
+    class: c.id, rank, skill, body: species, skin: people ?? { species, ...grown }, measured, stature, scale, entity, mind: resolved,
     toll: { downs, harm: c.toll.harm, hp: entity.body.hp, damage },
     attack, strike, stomp: c.stomp, threat: c.threat * R.threat, status, marks, short, advisories: resolved.advisories,
   };

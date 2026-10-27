@@ -42,6 +42,7 @@ import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES } from './foes.js';
 import { VANISHES } from './vanish.js';
+import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
@@ -536,7 +537,8 @@ function foesCard() {
     'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }. skin: the',
     '        animal door\'s words (a species, the oozes that grow it: dire, mythical, frost …); absent, the class\'s stand-in.',
     '        A skin that does not fit its class is refused, saying why (a swooper needs wings; an ooze grows the body it',
-    '        is measured on).',
+    '        is measured on). Or skin: { people, facets? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
+    '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height.',
     'levels.<id>.foes   true (the bestiary; every class on its stand-in when the world keeps none) or { from?: [<id>],',
     '        count? }: one foe on each free beat of a trail stage (the exit and the trailhead clear), cycling through from;',
     `        count stands that many (up to ${MAX_FOES}), the extra round the beats. A swarm stands a pack of ${SWARM}. A stage they`,

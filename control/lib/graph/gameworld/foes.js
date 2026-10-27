@@ -2,7 +2,9 @@
  * A GAMEWORLD'S FOES: the foe classes (lib/graph/foes/) a world fields and where its levels stand them. The world keeps
  * a BESTIARY, each entry a class at a rank on a skin; a level names which of them stand on its trails.
  *
- *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }   // the world's bestiary
+ *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? } | { people, facets? }, vanish? } }
+ *                                                                                        // the world's bestiary: a skin is a
+ *                                                                                        // beast, or a person or a people
  *
  * A downed foe goes as the game's style guide says (vanish.js: a fade, a sink, motes, a blink or a puff, after it lies
  * a moment); an entry's `vanish` names its own. No carcass is kept.
@@ -20,6 +22,9 @@
  *   fieldedIds(G)                       → the bestiary ids some level stands, in bestiary order (each one figure to make)
  *   foeLook(entry)                      → { species, ooze?, stylism?, strike? }: the animal door's look for its figure
  *                                         (`strike` its blow's timing, minted as the beast's strike clip)
+ *   peopleRollOf(G, id, entry)          → a people's egocube roll (foes/people.js): its sheet is made at foes-<id>-sheet
+ *                                         and the character from it at foes-<id>, through its own door with its moves
+ *   isPeople(entry)                     → the entry is skinned as a person or a people, not a beast
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
  *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
  *                                         entities, and a hittable pilot; null when nothing stands
@@ -32,12 +37,17 @@
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
-import { foeFigure, facing } from './stage-figures.js';
+import { foeFigure, fieldFigure, facing } from './stage-figures.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { readVanish, vanishOf } from './vanish.js';
+import { peopleRoll, peopleSeed } from '../foes/people.js';
+import { rollEgocube } from '../egocube/egocube.js';
+import { statureOf } from '../egocube/cast.js';
+import { fieldOf } from './casting.js';
+import { settingOfGame } from './cast-setting.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish'];
@@ -88,6 +98,11 @@ export function fieldedIds(G) {
 
 export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}) }; };
 
+/** A people's roll (foes/people.js): its class's role, its people and facets, in the game's setting, on the entry's own
+ * seed. The run makes its sheet from it, and the field rolls the same sheet to draw it. */
+export const peopleRollOf = (G, id, entry) => peopleRoll(entry.skin, foeClass(entry.class), { seed: peopleSeed(G.seed, id), setting: settingOfGame(G) });
+export const isPeople = (entry) => entry?.skin?.people !== undefined;
+
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
 // the k-th of n bodies round a point, `r` out, the first on it
 const round = (at, k, n, r) => (k === 0 ? at : [r3(at[0] + r * Math.cos((2 * Math.PI * k) / n)), r3(at[1] + r * Math.sin((2 * Math.PI * k) / n)), at[2]]);
@@ -118,13 +133,32 @@ function beastBody(measured, scale) {
   };
 }
 
+// a people's body in the field: a person's, at its rolled stature grown by its rank
+function peopleBody(height, scale) {
+  const h = height * scale;
+  return {
+    rule: { eye: 0, step: 0.3, stride: r3(1.6 * scale), collideRadius: r3(0.3 * scale), collideHeight: r3(h) },
+    egg: { a: r3(PERSON.a * scale), c: r3(h / 2), cz: r3(h / 2) },
+  };
+}
+
 export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   const P = foePlacements(G, level, ends);
   if (!P.length) return null;
-  const figures = {}, entities = [];
+  const figures = {}, entities = [], sheets = {};
   for (const p of P) {
-    const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) }), b = beastBody(f.measured, f.scale);
-    figures[p.id] = foeFigure(refs[p.eid], { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
+    const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
+    let b;
+    if (isPeople(p.entry)) {
+      // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
+      // below the hero door on its creature clips), drawn from the sheet the run made it from
+      const sheet = sheets[p.eid] ?? (sheets[p.eid] = rollEgocube(peopleRollOf(G, p.eid, p.entry)));
+      figures[p.id] = fieldFigure(refs[p.eid], fieldOf({ body: 'person', sheet }));
+      b = peopleBody(statureOf({ body: 'person', sheet }), f.scale);
+    } else {
+      b = beastBody(f.measured, f.scale);
+      figures[p.id] = foeFigure(refs[p.eid], { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
+    }
     // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
     // per weapon, so a slot naming none would leave the body undrawn)
     const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: p.id })) } : {};

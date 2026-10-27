@@ -7,6 +7,8 @@
  *   fitOf(classId, species, { ooze?, stylism? })  → { ok, misses: [why …], body: { support, wings, swimmer, size,
  *                            extent, height, scale, gaits } }
  *   checkFit(classId, species, grown?)  the same, throwing the misses when it does not fit
+ *   fitOfPeople(classId, skin) · checkFitPeople(classId, skin)   the same for a people (./people.js: a person or a
+ *                            non-human people, on two legs at its own stature)
  *   bodyOf(species, { ooze?, stylism? })  the body measured: an ooze GROWS it (mutagen/compose.js: a uniform `scale`,
  *                            never a joint), so its size class is the grown body's (a dire wolf is a wolf × 1.45)
  *
@@ -21,6 +23,7 @@ import { resolveMutagen } from '../mutagen/index.js';
 import { motionGaits } from '../fauna/rig.js';
 import { MOVES } from './vocab.js';
 import { foeClass } from './index.js';
+import { peopleBody } from './people.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -36,8 +39,9 @@ const NEEDS = {
   wings: (b) => (b.wings ? null : 'it needs wings, and the body has none'),
 };
 
-export function fitOf(classId, species, grown = {}) {
-  const c = foeClass(classId), b = bodyOf(species, grown), F = c.fits, misses = [];
+// the class's asks against a measured body
+function fitWith(c, b) {
+  const F = c.fits, misses = [];
   for (const n of MOVES[c.move].needs) { const m = NEEDS[n](b); if (m) misses.push(`${c.move}: ${m}`); }
   if (F.support && !F.support.includes(b.support)) misses.push(`support: it stands on ${F.support.join(' | ')}, the body on ${b.support}`);
   if (F.size && !F.size.includes(b.size)) misses.push(`size: it is ${F.size.join(' | ')}, the body ${b.size}`);
@@ -45,6 +49,16 @@ export function fitOf(classId, species, grown = {}) {
   if (F.wings === true && !b.wings) misses.push('wings: it flies, and the body has none');
   if (F.wings === false && b.wings) misses.push('wings: it keeps to the ground, and the body has wings');
   return { ok: misses.length === 0, misses, body: b };
+}
+
+export const fitOf = (classId, species, grown = {}) => fitWith(foeClass(classId), bodyOf(species, grown));
+/** A people's fit (./people.js): a two-legged body at its own stature, checked as a species' is. */
+export const fitOfPeople = (classId, skin) => fitWith(foeClass(classId), peopleBody(skin));
+
+export function checkFitPeople(classId, skin) {
+  const f = fitOfPeople(classId, skin);
+  if (!f.ok) throw new Error(`foe: a ${classId} does not fit a ${skin.people} (${f.misses.join('; ')})`);
+  return f;
 }
 
 export function checkFit(classId, species, grown = {}) {

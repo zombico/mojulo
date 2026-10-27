@@ -49,7 +49,7 @@ import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
-import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits } from './foes.js';
+import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, peopleRollOf, isPeople } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
@@ -370,7 +370,17 @@ function goalArgs(G, s, lastOf, ref) {
 const foeSteps = (G, ref, ready) => {
   // (its coat in the world's colours too, where the world has ramps: a foe belongs to its world's palette)
   const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {};
-  return fieldedIds(G).map((id) => ({ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(bestiaryOf(G)[id]), setting, ...coat }, `${G.name ?? G.id} ${id}`), ...ready }));
+  return fieldedIds(G).flatMap((id) => {
+    const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
+    if (!isPeople(entry)) return [{ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(entry), setting, ...coat }, title), ...ready }];
+    // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
+    // from it through its own door, its moves on it (a fighter's two steps: the sheet, then the character)
+    const roll = peopleRollOf(G, id, entry), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foes-${id}-sheet`);
+    return [
+      { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
+      { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title }, print: fingerprint({ roll, moves: true }) },
+    ];
+  });
 };
 const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, childRef(ref, `foes-${id}`)]));
 // a stage's foes as its extra (foes.js hostileCast), or null when its level stands none

@@ -242,6 +242,27 @@ through the character designer, clips fitted to the class's timing, factions) is
   kinds absent unless named (old transits byte-identical). In the demo page, one foe per register was killed and
   filmed with the page clock stepped by hand: the frog squashed and puffed, the bug swelled, flashed and burst, the
   swooper was thrown and faded, the rodent fell and sank, the bear fell and dissolved. Eyes gate: the operator's to judge.
+- **Human and humanoid foes** (`foes/people.js`; the operator: "extend this to human and humanoid foes"). A bestiary skin
+  may now be a people instead of a species: `skin: { people: 'human' | <lineage>, facets? }`. The lineages are the
+  egocube's: orcish, undead, infernal, draconic, dwarven, sylvan, feline, lupine, ursine, avian and insectoid.
+  - A people is measured as a two-legged, wingless body at its own stature, and its class checks it as it checks a
+    beast. Walker, charger, turret, lobber, brute and stalker take one. Swooper (wings), hopper (hops), swarm (small
+    bodies) and lurker (four legs or none) refuse it, saying why.
+  - It fights in its class's role (`peopleRole`): a shot is ranged; a lob or a spray is a caster's; an opportunist, a
+    lurker or a pack is a flanker; a blade, a touch or a charge is frontline.
+  - It stands at its own height, grown only by its rank; a class's presence is a beast's word.
+  - The run rolls its sheet in the game's setting on the entry's own seed (`foes-<id>-sheet`, an egocube), then makes
+    the character from it (`foes-<id>`, `create_character { egocube }`). The sheet's humanity picks its door: the hero
+    door, or the creature loop below `DOOR_H`. The egocube manifest takes a new `moves: true`, so a lone sheet gets its
+    moves (a swing by role, the stagger, the knockdown and getup) as a cast member does.
+  - On the field it plays those moves as `casting.js` `fieldOf` draws them, with a person's body for collision and
+    hits. It dies and goes by the world's disposal like any foe.
+
+  Machine gate: a people's body, fit, role and stature; the steps, their keys and the sheet's roll; a people on each
+  door drawn with its moves on the field; a lone sheet's `moves`; beasts unchanged. In the demo page the bestiary
+  stood a dire bear, an orc brute, a human bandit, an undead walker, an insectoid charger (on the creature loop) and a
+  human gunner, all in the world's colours. The orc and the insectoid, struck down, played their knockdown, lay, and
+  dissolved into the world's motes. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

@@ -12,6 +12,9 @@ import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { strikeWindow } from '../fauna/behavior/strike.js';
+import { peopleRollOf } from './foes.js';
+import { rollEgocube } from '../egocube/egocube.js';
+import { PEOPLE } from '../foes/people.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const SOLO = CLASSES.find((c) => !MOVES[c.move].group);
@@ -130,6 +133,28 @@ describe('the run', () => {
     expect(a.motion.strike).toEqual(resolveFoe({ class: BLADE.id }).attack.timing);
     expect(a).not.toHaveProperty('strike');
     expect(Array.isArray(b.motion)).toBe(true);
+  });
+  it('a person or a people is rolled in the world\'s setting and made by the character loop, its moves on it', () => {
+    const W = heroWith({ a: { class: SOLO.id, skin: { people: 'orcish' } } }, true);
+    const steps = runSteps(W, { ref: 'gw' }), sheet = steps.find((x) => x.key === 'foes-a-sheet'), made = steps.find((x) => x.key === 'foes-a');
+    expect(MADE_KEY.test(sheet.key)).toBe(true);
+    expect(sheet.order.manifest).toMatchObject({ kind: 'egocube', moves: true, roll: { facets: { ancestry: 'orcish' }, setting: settingOfGame(readGameworld(W)) } });
+    expect(made.order).toEqual({ egocube: sheet.ref, title: made.order.title });
+    expect(made.order.animal).toBeUndefined();
+  });
+  it('a people plays its own moves on the field, on the door its humanity takes, at a person\'s body', () => {
+    // (a people whose roll falls below the hero door, and one above it: chosen by rolling, not by name)
+    const doorOf = (people) => rollEgocube(peopleRollOf(readGameworld(world({ a: { class: SOLO.id, skin: { people } } }, true)), 'a', { class: SOLO.id, skin: { people } })).ancestry.door;
+    const below = PEOPLE.find((x) => doorOf(x) === 'creature'), above = PEOPLE.find((x) => doorOf(x) === 'hero');
+    for (const people of [above, below]) {
+      const G = world({ a: { class: SOLO.id, skin: { people } } }, true), X = hostileCast(G, 'one', ENDS, { refs: { a: 'w-foes-a' } });
+      const fig = X.figures['foe-a-1'], e = X.entities[0];
+      expect(fig.heroRef).toBe('w-foes-a');
+      expect(fig.moves).toMatchObject({ topple: expect.any(String), swing_neutral: expect.any(String) });
+      if (people === below) expect(fig.walker).toBe(true); else expect(fig.library).toBeTruthy();
+      expect(e.rule.collideHeight).toBeGreaterThan(1.5);
+      expect(e.body.vanish).toBeTruthy();
+    }
   });
   it('a battle\'s beast foe may be grown, and its figure is minted with what grows it', () => {
     const W = { ...MEADOWMARK_HERO, battles: { foe: { species: 'wolf', ooze: 'dire' } } };
