@@ -1365,6 +1365,12 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   conifer). The sprays take a bush's LEAF where they took a species (`vegetation/sprays.js`: its size, outline and
   phyllotaxis, or a needle habit at a bush's scale); a tree's sprays, clumps and form are as they were. A bush's clumps
   draw 0.2k to 2.2k triangles; far, its outline from clumps alone.
+- **Gen-7 bushes in their season** (`bushForm(kind, { adorn: 'bloom' | 'fruit' })`, the page's season buttons). In flower:
+  blossoms, five petals round an eye, on the outer clumps facing out; in fruit: glossy berry clusters hanging under the
+  outer, lower ones (an inner clump carries neither). Each habit its colours (BUSH_ADORN: the laurel white with red
+  berries, the forsythia gold, the broom yellow, the hosta lilac, the juniper's berries blue), at most 90 blossoms and 24
+  clusters a bush (about 1.4k and 1k triangles), drawn 2.4 times their size so they read at a walker's distance, as the
+  grass's flowers are. Green unless asked: the same bush, nothing added.
 - **The trunks stand in the wind.** The live wind (scene/channels/stage-grass.js CROWNS) bent a tree's wood by its height
   alone, so a trunk bowed with its crown. Each built tree's stems now ship with the crowns (`liveGrass.crowns.trunks`,
   era/isekai.js trunkSway: foot to top with their radii, a sakura's too) and the page weighs every wood vertex by how far

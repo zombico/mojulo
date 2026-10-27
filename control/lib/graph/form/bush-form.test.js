@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bushForm, BUSH_HABITS, BUSH_FORM } from './bush-form.js';
+import { bushForm, bushBlossom, bushBerries, BUSH_HABITS, BUSH_FORM, BUSH_ADORN, ADORN } from './bush-form.js';
 import { leafClump, leafSpray, leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 
@@ -59,6 +59,36 @@ describe('a bush read as form', () => {
     expect(B.pad).toBe(false);
     expect('needles' in bushForm(byShape('dome'), { seed: 1 })).toBe(false);
     expect(() => bushForm('nope')).toThrow(/bush habit/);
+  });
+});
+
+describe('a bush in its season', () => {
+  const f = byShape('dome');
+  it('is green unless it is asked: the same bush, nothing added', () => {
+    const G = bushForm(f, { seed: 6 });
+    expect('blooms' in G).toBe(false);
+    expect(JSON.stringify(bushForm(f, { seed: 6, adorn: 'bloom' }).clumps)).toBe(JSON.stringify(G.clumps));
+    expect(() => bushForm(f, { adorn: 'snow' })).toThrow(/adorn/);
+  });
+
+  it('blooms on its outside, facing out, up to its cap', () => {
+    const B = bushForm(f, { seed: 6, adorn: 'bloom', height: 1.2 });
+    expect(B.blooms.length).toBeGreaterThan(10);
+    expect(B.blooms.length).toBeLessThanOrEqual(ADORN.cap[0]);
+    expect(B.look).toEqual(BUSH_ADORN[f].bloom);
+    for (const b of B.blooms) expect(b.o[0] * b.p[0] + b.o[1] * b.p[1] + b.o[2] * Math.max(0.05, b.p[2])).toBeGreaterThan(0);
+    // (a blossom read at a walker's distance: larger than the habit's own)
+    const span = Math.max(...bushBlossom(B.look).flatMap((t) => t.p.map((q) => Math.hypot(q[0], q[1]))));
+    expect(span).toBeCloseTo(B.look.r * ADORN.size, 3);
+  });
+
+  it('fruits under its outer, lower leaves: clusters hanging, not on top', () => {
+    const B = bushForm(f, { seed: 6, adorn: 'fruit', height: 1.2 });
+    expect(B.berries.length).toBeGreaterThan(3);
+    expect(B.berries.length).toBeLessThanOrEqual(ADORN.cap[1]);
+    for (const b of B.berries) { expect(b.p[2]).toBeLessThan(B.height); expect(b.n).toBeGreaterThanOrEqual(ADORN.berries[0]); }
+    // (a cluster hangs from its stalk's top: every berry below it)
+    for (const t of bushBerries(B.look, 4, 1)) for (const q of t.p) expect(q[2]).toBeLessThanOrEqual(1e-9);
   });
 });
 

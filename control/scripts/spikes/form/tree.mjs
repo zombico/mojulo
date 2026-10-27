@@ -13,7 +13,7 @@
 //   node scripts/spikes/form/tree.mjs [--out <file.html>] [--cdn] [--species oak,beech,cherry] [--bushes spray,plate,…] [--seed 1234]
 import fs from 'node:fs';
 import { treeForm } from '../../../lib/graph/form/tree-form.js';
-import { bushForm, BUSH_HABITS } from '../../../lib/graph/form/bush-form.js';
+import { bushForm, bushBlossom, bushBerries, BUSH_HABITS, ADORN } from '../../../lib/graph/form/bush-form.js';
 import { barkMaterial } from '../../../lib/graph/form/bark-material.js';
 import { leafSpray, leafClump } from '../../../lib/graph/vegetation/sprays.js';
 import { encodePng } from '../../../lib/graph/landscape/surface-textures.js';
@@ -35,7 +35,13 @@ const trees = [...species, ...bushes.map((f) => `bush:${f}`)].map((sp) => {
   const geo = (S) => ({ p: S.tris.flatMap((t) => t.p.flat().map((v) => Math.round(v * 1e4) / 1e4)), c: S.tris.flatMap((t) => { const c = lin(t.c); return [...c, ...c, ...c]; }), tris: S.tris.length });
   const sprays = Array.from({ length: SPRAYS }, (_, k) => geo(leafSpray(lf, { seed: seed * 31 + k })));
   const clumps = Array.from({ length: CLUMPS }, (_, k) => geo(leafClump(lf, { seed: seed * 17 + k })));
-  return { species: sp, height: T.height, ...(T.detail ? { detail: T.detail } : {}), wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
+  // (a bush's seasons: its blossoms, facing out, and its berry clusters, one geometry a cluster size)
+  const season = !bush ? null : Object.fromEntries(['bloom', 'fruit'].map((a) => {
+    const A = bushForm(sp.slice(5), { seed, adorn: a });
+    return [a, a === 'bloom' ? { list: A.blooms, geos: [geo({ tris: bushBlossom(A.look) })] }
+      : { list: A.berries, geos: Array.from({ length: ADORN.berries[1] - ADORN.berries[0] + 1 }, (_, k) => geo({ tris: bushBerries(A.look, ADORN.berries[0] + k, seed + k) })) }];
+  }));
+  return { species: sp, height: T.height, ...(T.detail ? { detail: T.detail } : {}), ...(season ? { season } : {}), wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
     bark: { metres: B.metres, depth: B.depth, base: png(B.baseColor, B.W, B.H), normal: png(B.normal, B.W, B.H), orm: png(B.orm, B.W, B.H), height: png(B.height, B.W, B.H) } };
 });
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -57,6 +63,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
   <div class="group" id="sp"></div>
   <div class="group" id="cam"><button data-c="near">Near</button><button data-c="mid">Mid</button><button data-c="far">Far</button><button data-c="bark">Bark</button></div>
   <label>Sun <input id="sun" type="range" min="0" max="360" value="130"></label>
+  <div class="group" id="season"><button data-a="green" aria-pressed="true">Green</button><button data-a="bloom">In flower</button><button data-a="fruit">In fruit</button></div>
   <button id="pom" aria-pressed="true">Bark parallax</button>
   <span id="stats"></span>
 </header>
@@ -163,7 +170,21 @@ function build(T) {
   }
   T.clumpGeo.forEach((G, k) => leaves.push(crownMesh(G, T.clumps.filter((_, i) => i % T.clumpGeo.length === k), 'clump')));
   T.sprays.forEach((G, k) => sprays.push(crownMesh(G, T.sites.filter((_, i) => i % T.sprays.length === k), 'spray')));
-  return { group: g, leaves, sprays, woodTris: T.wood.idx.length / 3, T, centre: C };
+  // its seasons (a bush's): blossoms facing out, berry clusters hanging, glossy; shown by the season buttons
+  const seasons = {};
+  if (T.season) for (const [a, S] of Object.entries(T.season)) {
+    const sg = new THREE.Group(); seasons[a] = { group: sg, tris: 0 };
+    S.geos.forEach((G, k) => {
+      const list = a === 'bloom' ? S.list : S.list.filter((b) => b.n - ${ADORN.berries[0]} === k); if (!list.length) return;
+      const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(G.p, 3)); bg.setAttribute('color', new THREE.Float32BufferAttribute(G.c, 3)); bg.computeVertexNormals();
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: a === 'fruit' ? 0.3 : 0.7, metalness: 0, side: THREE.DoubleSide });
+      const im = new THREE.InstancedMesh(bg, mat, list.length);
+      list.forEach((b, i) => { if (a === 'bloom') q.setFromUnitVectors(AX.clump, new THREE.Vector3(...b.o)); else q.identity(); m4.compose(new THREE.Vector3(...b.p), q, new THREE.Vector3(b.s, b.s, b.s)); im.setMatrixAt(i, m4); });
+      im.castShadow = false; im.receiveShadow = true; sg.add(im); seasons[a].tris += list.length * G.tris;
+    });
+    sg.visible = false; g.add(sg);
+  }
+  return { group: g, leaves, sprays, seasons, woodTris: T.wood.idx.length / 3, T, centre: C };
 }
 
 const built = {};
@@ -172,9 +193,14 @@ function show(sp) {
   current = built[sp] || (built[sp] = build(TREES.find((t) => t.species === sp))); scene.add(current.group);
   const H = Math.max(2, current.T.height); sun.shadow.camera.left = sun.shadow.camera.bottom = -H; sun.shadow.camera.right = sun.shadow.camera.top = H; sun.shadow.camera.far = H * 6; sun.shadow.camera.updateProjectionMatrix();
   for (const b of document.querySelectorAll('#sp button')) b.setAttribute('aria-pressed', String(b.dataset.s === sp));
-  aimSun(); view(lastView);
+  aimSun(); view(lastView); setSeason(season);
 }
-let lastView = 'near';
+let lastView = 'near', season = 'green';
+function setSeason(a) {
+  season = a; for (const b of document.querySelectorAll('#season button')) b.setAttribute('aria-pressed', String(b.dataset.a === a));
+  for (const t of Object.values(built)) for (const [k, S] of Object.entries(t.seasons)) S.group.visible = k === a;
+}
+for (const b of document.querySelectorAll('#season button')) b.onclick = () => setSeason(b.dataset.a);
 function view(c) {
   lastView = c; const H = current.T.height, C = current.centre;
   // (a bush: near at a walker's arm, mid a few steps off, far across a glade; its stems' bark at its foot)
@@ -200,7 +226,8 @@ function lod() {
   let tris = 0; for (const L of current.leaves) { L.im.count = Math.max(1, Math.round(L.n * keep)); L.U.uGrow.value = Math.min(LOD.grow, 1 / Math.sqrt(keep)); L.U.uEye.value.copy(camera.position); tris += L.im.count * L.tris; }
   // (the sprays drawn: those near enough to have come in)
   let near = 0; for (const S of current.sprays) { S.U.uEye.value.copy(camera.position); for (const s of S.list) if (camera.position.distanceTo(new THREE.Vector3(...s.p)) < (current.T.detail || LOD.detail)[1]) { near++; tris += S.tris; } }
-  return { keep, leafTris: tris, sprays: near };
+  const S = current.seasons[season]; if (S) tris += S.tris;
+  return { keep, leafTris: tris, sprays: near, season };
 }
 let stat = {};
 window.measure = () => ({ species: current.T.species, height: current.T.height, clumps: current.T.clumps.length, sites: current.T.sites.length, woodTris: current.woodTris, ...stat });
