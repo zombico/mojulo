@@ -151,8 +151,10 @@ export function bakeVehicleRig(manifest = {}, { keys = 12, targetH = null } = {}
  * `packed`: each part indexed and quantized (rig-bake packRigMesh, the unit rigs' form) instead of float32 soup.
  * Shared by the assembler bake above and the car designer's lofted vehicles (car-designer/realistic.js).
  */
-export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, packed = false } = {}) {
+export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, packed = false, form = null } = {}) {
   const parts = bones.map((b) => {
+    // (a bone drawn in the form render carries its material form instead of its baked fill: packFormMesh)
+    if (form && form.has(b.id)) return { form: packFormMesh(form.get(b.id)) };
     const fs = buckets.get(b.id) || [];
     if (!fs.length) return null;
     const gm = faceListToMesh(fs);
@@ -182,5 +184,48 @@ export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, pac
     bones,
     parts,
     clips: { roll: { k: keys, b: flat } },
+  };
+}
+
+/**
+ * A bone's faces in the FORM render (era/eras.js gen-7: a surface carries its material and its form, never light, and
+ * the renderer lights it): each face's material slot, its albedo (no light in it) and its crease-aware corner normals
+ * (car-designer/vehicle-surface-finish.js), packed as one indexed mesh grouped by material. Positions quantized on 16
+ * bits over the bone's box (packRigMesh's), normals on 8 signed bits, the albedo linear on 8; a vertex shared only where
+ * its position, normal and colour agree, so a panel's crease stays a crease.
+ *   → { o, s, n, q, nrm, col, idx, groups: [[start, count, slot]…], mats: [slot names] }
+ */
+export function packFormMesh(faces) {
+  const lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  const mats = [...new Set(faces.map((f) => f.material))].sort();
+  const all = faces.flatMap((f) => f.corners);
+  const lo = [0, 1, 2].map((k) => Math.min(...all.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...all.map((p) => p[k])));
+  const o = lo.map(r4), st = lo.map((v, k) => Number((((hi[k] - v) / 65535) || 0).toPrecision(8)));
+  const qv = (v, k) => (st[k] ? Math.max(0, Math.min(65535, Math.round((v - o[k]) / st[k]))) : 0);
+  const i8 = (v) => Math.max(-127, Math.min(127, Math.round(v * 127)));
+  const q = [], nrm = [], col = [], idx = [], groups = [], seen = new Map();
+  for (const [mi, m] of mats.entries()) {
+    const start = idx.length;
+    for (const f of faces) {
+      if (f.material !== m) continue;
+      const c = lin(f.albedo ?? f.fill).map((v) => Math.round(v * 255) / 255), ns = f.cornerNormals ?? f.corners.map(() => f.outNormal ?? [0, 0, 1]);
+      const vi = f.corners.map((p, j) => {
+        const n = ns[j], key = `${mi}|${qv(p[0], 0)},${qv(p[1], 1)},${qv(p[2], 2)}|${i8(n[0])},${i8(n[1])},${i8(n[2])}|${c.join(',')}`;
+        let u = seen.get(key);
+        if (u === undefined) { u = q.length / 3; seen.set(key, u); q.push(qv(p[0], 0), qv(p[1], 1), qv(p[2], 2)); nrm.push(i8(n[0]), i8(n[1]), i8(n[2])); col.push(...c); }
+        return u;
+      });
+      for (let j = 1; j + 1 < vi.length; j++) idx.push(vi[0], vi[j], vi[j + 1]);
+    }
+    groups.push([start, idx.length - start, mi]);
+  }
+  const n = q.length / 3;
+  return {
+    o, s: st, n,
+    q: Buffer.from(new Uint16Array(q).buffer).toString('base64'),
+    nrm: Buffer.from(new Int8Array(nrm).buffer).toString('base64'),
+    col: b64u8(col),
+    idx: Buffer.from((n > 65535 ? Uint32Array : Uint16Array).from(idx).buffer).toString('base64'),
+    groups, mats,
   };
 }

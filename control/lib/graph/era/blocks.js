@@ -16,9 +16,10 @@
  * shape: every block has a `many` dial (0…1, little to many) its parts can appear at (`many: 0.5`) or count by.
  *
  *   readBlock(block, library?)            → the block, checked (throws naming what is wrong)
- *   buildBlock(block, { params, seed, ring, library, many, bevel }) → { faces, parts, params, box, ring, counted }
+ *   buildBlock(block, { params, seed, ring, library, many, bevel, lathe }) → { faces, parts, params, box, ring, counted }
  *                                         (`bevel`, opt-in: a share of each drawn part's least size its capped prisms
- *                                         are bevelled by; absent, nothing changes)
+ *                                         are bevelled by; `lathe`, opt-in: a wheel turned as a tyre with a rounded
+ *                                         shoulder (latheTyre) instead of a prism; absent, nothing changes)
  *   blockLaws(block, built)               → [{ law, want, ok, value }]
  *   blockPaint(kitId, finish)             → a structure paint with the technology groups resolved by a finish
  *
@@ -140,6 +141,24 @@ function inset(o, d) {
   return o.map((p, i) => { const a = N[(i + o.length - 1) % o.length], b = N[i], k = d / (1 + a[0] * b[0] + a[1] * b[1]); return [p[0] + (a[0] + b[0]) * k, p[1] + (a[1] + b[1]) * k]; });
 }
 /**
+ * A TYRE TURNED ON A LATHE (`ex.lathe`): the wheel prim's round, not its prism. A profile across the tread (a crowned
+ * tread, a rounded shoulder, the sidewall bulging a touch before it tucks to the bead) swept round the axis in twice
+ * the prism's sides (24 to 48), each sidewall a ring down to the bead (inside it, the wheel's own rim). Inside the
+ * plain wheel's bounds: nothing grows.
+ */
+function latheTyre(out, p, ex) {
+  const ax = AXES[p.axis ?? 'y'], c = [0, 0, p.r], n = Math.max(24, Math.min(48, 2 * (p.sides ?? 12))), w = p.w / 2, r = p.r;
+  const u = Math.abs(ax[0]) > 0.5 ? [0, 1, 0] : [1, 0, 0], v = [0, 0, 1];
+  // across the tread from one bead to the other: [axial share of the half width, radius share]
+  const prof = [[-1, 0.62], [-1, 0.8], [-0.97, 0.9], [-0.86, 0.97], [-0.62, 1], [0, 1], [0.62, 1], [0.86, 0.97], [0.97, 0.9], [1, 0.8], [1, 0.62]];
+  const at = (k, j) => { const a = (2 * Math.PI * j) / n + Math.PI / n, [s, q] = prof[k]; return add3(add3(add3(c, ax, s * w), u, Math.cos(a) * q * r), v, Math.sin(a) * q * r); };
+  for (let j = 0; j < n; j++) for (let k = 0; k + 1 < prof.length; k++) {
+    const q = [at(k, j), at(k, j + 1), at(k + 1, j + 1), at(k + 1, j)], m = q.reduce((s, x) => add3(s, x, 0.25), [0, 0, 0]);
+    face(out, q, sub(m, add3(c, ax, prof[k][0] * w * 0.6 + prof[k + 1][0] * w * 0.4)), ex.part, ex.value, ex.extra);
+  }
+}
+
+/**
  * A bevelled prism: the outline's corners rounded (a polygon of six sides or fewer: a box, a panel, a fin; a rounder
  * outline is round already) and both ends eased into their caps over `segs` steps, so a light smoothed across creases
  * has a shoulder to grade. Drawn inside the plain prism's bounds: nothing grows. The bevel is `ex.bevel` metres, held
@@ -239,7 +258,7 @@ export const PRIMITIVES = Object.freeze({
     } },
   wheel: { read: 'a wheel of radius r, w wide, turning about its axis (x or y), standing on the ground', rails: { r: R(0.05, 6), w: R(0.03, 3), sides: R(6, 24, true) },
     least: (p) => 2 * p.r,   // a wheel reads by its round, seen side on
-    build(out, p, ex) { const ax = AXES[p.axis ?? 'y'], c = [0, 0, p.r]; prism(out, add3(c, ax, -p.w / 2), add3(c, ax, p.w / 2), ring2(p.sides ?? 12, p.r, Math.PI / (p.sides ?? 12)), ex); } },
+    build(out, p, ex) { if (ex.lathe) { latheTyre(out, p, ex); return; } const ax = AXES[p.axis ?? 'y'], c = [0, 0, p.r]; prism(out, add3(c, ax, -p.w / 2), add3(c, ax, p.w / 2), ring2(p.sides ?? 12, p.r, Math.PI / (p.sides ?? 12)), ex); } },
   track: { read: 'a running track: a loop len long, its ends round (radius r), w wide, along x', rails: { len: R(0.4, 30), r: R(0.1, 3), w: R(0.1, 3), sides: R(3, 8, true) },
     least: (p) => 2 * p.r,   // a track reads by its height, seen side on
     build(out, p, ex) {
@@ -359,7 +378,7 @@ const place = (f, at, yaw) => ({ ...f, corners: f.corners.map((p) => add3(yawed(
  * tile (marks, never counted) and a signature part's loss recorded; child blocks built in their own frames and set in.
  * → { faces, parts: [{ id, role, prim|block, least, shown: 'geometry'|'tile'|'absent', n }], params, box, ring, counted }
  */
-export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many, at = [0, 0, 0], yaw = 0, depth = 0, bevel = 0 } = {}) {
+export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many, at = [0, 0, 0], yaw = 0, depth = 0, bevel = 0, lathe = false } = {}) {
   readBlock(B, library);
   if (depth > 6) throw new Error(`blocks: '${B.id}' nests blocks more than six deep`);
   // a held block is judged at arm's length unless a ring is asked for
@@ -388,9 +407,10 @@ export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many,
         // (a bevel's steps by the part's size, as the supercar's detail: a small part a chamfer, a large one rounded;
         // a part under the eye spot too, the caller having asked: a machine seen closer than its ring)
         if (bevel > 0) { ex.bevel = bevel * rec.least; ex.segs = rec.least >= 0.2 ? 2 : 1; }
+        if (lathe) ex.lathe = true;
         Pr.build(local, q, ex, eye);
       } else {
-        const child = buildBlock(library[p.block], { params: p.params ?? {}, seed: subSeed(seed, `${p.id}:${k}`), ring: rg, library, many: P.many, depth: depth + 1, bevel });
+        const child = buildBlock(library[p.block], { params: p.params ?? {}, seed: subSeed(seed, `${p.id}:${k}`), ring: rg, library, many: P.many, depth: depth + 1, bevel, ...(lathe ? { lathe } : {}) });
         rec.least = r3(Math.min(...child.parts.filter((c) => c.shown === 'geometry').map((c) => c.least), Infinity));
         rec.children = child.parts;
         if (!child.parts.some((c) => c.shown === 'geometry')) rec.shown = 'tile';

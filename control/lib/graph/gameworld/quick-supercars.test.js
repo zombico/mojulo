@@ -27,7 +27,9 @@ describe('a field of supercars', () => {
     const Q = race({ supercars: [{}, given, {}, {}], mood: 'night' }), { field } = quickSupercars(Q, 3);
     const cards = Object.keys(SUPERCAR_LIBRARY);
     expect(field.map((c) => c.spec.preset)).toEqual([cards[0], 'touring', cards[2], cards[3]]);
-    expect(field[1].spec.surface).toEqual({ paint: given.paint, livery: given.livery });
+    // (a given livery kept; every car minted streamlined, in the form render)
+    expect(field[1].spec.surface).toEqual({ paint: given.paint, livery: given.livery, line: 'streamline' });
+    expect(field.every((c) => c.spec.light === 'form')).toBe(true);
     for (const c of field) expect(c.figure).toEqual({ supercar: c.spec });
     expect(field.every((c) => c.spec.mood === 'night')).toBe(true);
     const ground = moodGround(moodOf('night'));

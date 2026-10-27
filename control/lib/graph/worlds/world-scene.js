@@ -827,7 +827,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no racer is resolved, byte-identical.
         if (rawSpec.racer && typeof rawSpec.racer === 'object') {
           const { racerOf } = await import('@/lib/graph/car-designer/roster.js');
-          payload.figures[name] = racerOf(rawSpec.racer).S.figure;
+          // (read in the form render, gen-7, a finished racer carries its materials for the page to light)
+          payload.figures[name] = racerOf(rawSpec.racer, { form: ERAS[era]?.surface === 'form' }).S.figure;
           continue;
         }
         // SUPERCAR bodies (car-designer/supercar-figure.js): a figures-map entry may be a composed supercar's recipe
@@ -836,7 +837,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no supercar is resolved, byte-identical.
         if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
           const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
-          payload.figures[name] = supercarFigure(rawSpec.supercar);
+          // (read in the form render, gen-7, its body and wheels carry their materials for the page to light)
+          payload.figures[name] = supercarFigure(rawSpec.supercar, { form: ERAS[era]?.surface === 'form' });
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms

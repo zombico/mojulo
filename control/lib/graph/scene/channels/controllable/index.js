@@ -148,7 +148,7 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -168,6 +168,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // a body in the FORM render (era/eras.js gen-7: vehicle-rig.js packFormMesh, a supercar's `form`): its bones' material
+  // slots drawn with physical materials, lit by the world's sun and an environment of its sky. No form body → the
+  // emitted channel is byte-identical.
+  const figHasForm = Object.values(figures || {}).some((f) => f && f.rig && f.form && Array.isArray(f.parts) && f.parts.some((p) => p && p.form));
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
@@ -570,7 +574,65 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
 // The q branch is emitted only when some figure carries it (figHasQ, same gating pattern as
 // figHasSpec) so a page without unit rigs stays byte-identical.${figHasQ ? `
 function __decodeU16(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint16Array(u.buffer); }
-function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}
+function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}${figHasForm ? `
+// ---- the form render (gen-7): a body's material slots (paint under clearcoat, glass, alloy, rubber, carbon, the lamps)
+// drawn with physical materials, lit by the world's own sun, a hemisphere of its sky and ground, and reflecting an
+// environment made of that sky; the body casts and takes the live shadows. Tone-mapped in its own shader (the world's
+// paint is not), so a lit body sits in the painted world ----
+const __FORM_SUN = ${JSON.stringify(formSun || [0.55, 0.4, 0.72])};
+function __formBytes(s, T) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); }
+const __formSrgb = (c) => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
+let __formEnvTex = null, __formLit = false;
+function __formEnv(F) {
+  if (__formEnvTex) return __formEnvTex;
+  // the sky as a room: zenith over horizon over the ground, and the sun a hot disc where it stands
+  const room = new THREE.Scene(), z = __formSrgb(F.sky.zenith), h = __formSrgb(F.sky.horizon), g = __formSrgb(F.sky.ground);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+    uniforms: { uZ: { value: new THREE.Vector3(z.r, z.g, z.b) }, uH: { value: new THREE.Vector3(h.r, h.g, h.b) }, uG: { value: new THREE.Vector3(g.r, g.g, g.b) } },
+    vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 uZ; uniform vec3 uH; uniform vec3 uG; varying vec3 vD; void main(){ float e = vD.z; vec3 c = e > 0.0 ? mix(uH, uZ, pow(e, 0.6)) : mix(uH * 0.9, uG, pow(min(1.0, -e * 4.0), 0.7)); gl_FragColor = vec4(c, 1.0); }' }));
+  dome.rotation.x = 0; room.add(dome);
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(F.key[0], F.key[1], F.key[2]).multiplyScalar(14 * F.keyIntensity) }));
+  sun.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(44); room.add(sun);
+  const pm = new THREE.PMREMGenerator(renderer); __formEnvTex = pm.fromScene(room, 0.015).texture; pm.dispose();
+  return __formEnvTex;
+}
+// the key: the shadow lights the page already casts with take the key's colour and strength (they were white and seen by
+// nothing lit); with none, a key of its own along the sun. A hemisphere of the sky over the ground fills it.
+function __formLights(F) {
+  if (__formLit) return; __formLit = true;
+  setTimeout(() => {
+    const key = new THREE.Color(F.key[0], F.key[1], F.key[2]), casters = [];
+    scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) casters.push(o); });
+    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; }
+    else { const l = new THREE.DirectionalLight(key, F.keyIntensity); l.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(100); scene.add(l); scene.add(l.target); }
+    const hemi = new THREE.HemisphereLight(__formSrgb(F.sky.zenith), __formSrgb(F.sky.ground), F.ambient * 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);
+  }, 0);
+}
+// how much of the sky each slot throws back: polished metal most, the clearcoat and the glass, then the rest
+const ENV_GAIN = { alloy: 1.6, paint: 0.95, glass: 1.2, carbon: 0.8, brake: 1.1 };
+// (a material each bone: the status tints its own uniforms on it; the program is shared)
+function __formMat(F, name) {
+  const P = F.materials[name] || {}, ex = F.exposure || 1;
+  const m = new THREE.MeshPhysicalMaterial({ ...P, vertexColors: true, side: THREE.DoubleSide, envMap: __formEnv(F), envMapIntensity: ENV_GAIN[name] ?? 0.85 });
+  // (a filmic curve on the lit colour, before it is encoded: the world's paint is drawn as it is)
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <tonemapping_fragment>', '{ vec3 x = gl_FragColor.rgb * ' + ex.toFixed(3) + '; gl_FragColor.rgb = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }\\n#include <tonemapping_fragment>'); };
+  return m;
+}
+function __formBone(fig, P) {
+  const F = fig.form, geo = new THREE.BufferGeometry(), q = __formBytes(P.q, Uint16Array), p = new Float32Array(P.n * 3);
+  for (let i = 0; i < p.length; i += 3) { p[i] = P.o[0] + q[i] * P.s[0]; p[i + 1] = P.o[1] + q[i + 1] * P.s[1]; p[i + 2] = P.o[2] + q[i + 2] * P.s[2]; }
+  geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(__formBytes(P.nrm, Int8Array), 3, true));
+  geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(P.col), 3, true));
+  geo.setIndex(new THREE.BufferAttribute(P.n > 65535 ? __formBytes(P.idx, Uint32Array) : __formBytes(P.idx, Uint16Array), 1));
+  for (const [start, count, mi] of P.groups) geo.addGroup(start, count, mi);
+  geo.computeBoundingSphere();
+  __formLights(F);
+  const mesh = new THREE.Mesh(geo, P.mats.map((name) => __formMat(F, name)));
+  mesh.receiveShadow = true;
+  return mesh;
+}` : ''}
 ${figHasFace ? `function __rigU32(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Uint32Array(u.buffer); }
 // the face's targets on one bone mesh: its corners at the neutral face, each target's offsets (as the GLB writes them)
 function __mq(m) { const b = atob(m.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Int16Array(u.buffer), f = new Float32Array(q.length); for (let i = 0; i < q.length; i++) f[i] = q[i] * m.s; return f; }   // the page's 16-bit rows
@@ -601,7 +663,14 @@ function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader()
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
-    if (!part) return null;
+    if (!part) return null;${figHasForm ? `
+    if (part.form && fig.form) {
+      const mesh = __formBone(fig, part.form);${castHook}
+      mesh.matrixAutoUpdate = false;
+      mesh.frustumCulled = false;
+      group.add(mesh);
+      return mesh;
+    }` : ''}
     const geo = new THREE.BufferGeometry();${figHasQ ? `
     if (part.q) {
       const q = __decodeU16(part.q), o = part.o, s = part.s, p = new Float32Array(part.n * 3);
@@ -909,13 +978,23 @@ function __rjBuild(fig, group, boneMeshes) {
   const st = boneMeshes.map((m) => {
     if (!m) return null;
     const u = { uTint: { value: new THREE.Vector3(1, 1, 1) }, uMix: { value: 0 }, uMixCol: { value: new THREE.Color(1, 1, 1) }, uAdd: { value: new THREE.Vector3() } };
+${figHasForm ? `
+    for (const mt of [].concat(m.material)) {
+      const prev = mt.onBeforeCompile;
+      mt.onBeforeCompile = (sh) => {
+        if (prev) prev(sh);
+        Object.assign(sh.uniforms, u);
+        sh.fragmentShader = 'uniform vec3 uTint;\\nuniform float uMix;\\nuniform vec3 uMixCol;\\nuniform vec3 uAdd;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb * uTint, uMixCol, uMix) + uAdd;\\n#include <dithering_fragment>');
+      };
+      mt.needsUpdate = true;
+    }` : `
     const prev = m.material.onBeforeCompile;
     m.material.onBeforeCompile = (sh) => {
       if (prev) prev(sh);
       Object.assign(sh.uniforms, u);
       sh.fragmentShader = 'uniform vec3 uTint;\\nuniform float uMix;\\nuniform vec3 uMixCol;\\nuniform vec3 uAdd;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb * uTint, uMixCol, uMix) + uAdd;\\n#include <dithering_fragment>');
     };
-    m.material.needsUpdate = true;
+    m.material.needsUpdate = true;`}
     return u;
   });
   const boneOf = (id) => fig.bones.findIndex((b) => b.id === id), slot = {};

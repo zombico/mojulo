@@ -35,9 +35,11 @@
  *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
  *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
  *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
- *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning? }; balanced, each
- *                                           // on its own physics (shade 'smooth': bevelled parts, smooth light; 'cel' the
- *                                           // default), each driver rolled in the game's setting
+ *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning?, light? }; balanced,
+ *                                           // each on its own physics (shade 'gloss', the default: bevelled parts, its
+ *                                           // tyres turned, smooth light; 'smooth' without the tyres; 'cel' flat), lit in
+ *                                           // the form render (light 'form', the default: its materials lit by the page;
+ *                                           // 'paint' its light baked), each driver rolled in the game's setting
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (by default, rolled in the game's setting:
  *                                           // gameworld/cast-setting.js)
@@ -897,7 +899,8 @@ export function quickSupercars(quick, seed = 1) {
   const field = given.map((c, k) => {
     const L = c.paint === undefined ? solved[u++] : null;
     const surface = L ? { paint: L.paint, livery: c.livery ?? { pattern: L.pattern, secondary: L.secondary } } : { paint: c.paint, ...(c.livery ? { livery: c.livery } : {}) };
-    const spec = { preset: c.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface, ...(quick.mood ? { mood: quick.mood } : {}) };
+    // (minted streamlined and in the form render: car-designer/vehicle-odm-surface.js `line`, supercar-figure.js `light`)
+    const spec = { preset: c.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface: { ...surface, line: 'streamline' }, ...(quick.mood ? { mood: quick.mood } : {}), light: 'form' };
     const design = composeSupercar({ preset: spec.preset, seed: spec.seed, surface: { ...surface, quality: 'game' } }).design;
     return { spec, figure: { supercar: spec }, rule: { ...supercarRule(design, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } };
   });

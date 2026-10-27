@@ -10,6 +10,9 @@
  *        id, score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice,
  *        status, motion, physics, census, laws, changes }
  *
+ * `form` (a gen-7 read: era/eras.js): a finished racer's bones but its lamps carry their material form for the page to
+ * light (vehicle-rig.js packFormMesh, form-light.js); a cel racer stays as it is drawn.
+ * `shade`: 'gloss' is 'smooth' with its tyres turned on a lathe (blocks.js `lathe`: a crowned tread, a rounded shoulder).
  * `shade`: 'cel' (the default) paints each face one colour under a two-step light; 'smooth' bevels the parts (their
  * corners rounded, their ends eased, inside the plain part's bounds) and lights them as racer-shade.js does: the same
  * light baked per corner across normals smoothed within a slot up to the motif's crease, lamps unshaded and rimmed
@@ -54,7 +57,8 @@ import { VEHICLES } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { mascotDriver } from './mascot-driver.js';
 import { mulberry32 } from '../vegetation/grow.js';
-import { shadeRacerFaces, rimLamps, LAMP_RIM } from './racer-shade.js';
+import { shadeRacerFaces, rimLamps, LAMP_RIM, KART_MATERIALS } from './racer-shade.js';
+import { formLight } from './form-light.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 /** Toward the chase camera: behind, a little to the side and above (the hero angle). */
@@ -223,13 +227,13 @@ function fan(faces) {
   return faces.flatMap((f) => { const n = f.corners.length; if (n <= 4) return [f]; const out = []; for (let i = 1; i + 1 < n; i += 2) out.push({ ...f, corners: (i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1]).map((j) => f.corners[j]) }); return out; });
 }
 
-export const SHADES = Object.freeze(['cel', 'smooth']);
+export const SHADES = Object.freeze(['cel', 'smooth', 'gloss']);
 const FACE_BUDGET = 4000;
 /** The smooth finish's bevel: a share of each part's least size. */
 export const BEVEL = 0.3;
 
 /** Solve a racer's machine from its reading. `parts`: { family: id } pins. */
-export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}) {
+export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form = false } = {}) {
   if (!SHADES.includes(shade)) throw new Error(`car-designer: shade is one of ${SHADES.join(', ')}, not '${shade}'`);
   // (the smooth finish's parts are bevelled, so its light has a shoulder to grade: blocks.js `bevel`; the laws judge
   // the plain parts, so a finish never changes the machine, and the bevelled ones are built once they are done)
@@ -418,21 +422,21 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}
   }
   const failing = L.filter((l) => !l.ok).map(({ law, detail }) => ({ law, detail }));
   // (the plain machine's height, which the physics reads: a bevel rounds a top edge down)
-  const plainH = shade === 'smooth' ? r4(Math.max(...[body.faces, ...state.placed.map((p) => p.faces), ...state.wheels.map((w) => w.faces), stand.faces].flat().flatMap((f) => f.corners.map((c) => c[2])))) : null;
-  if (shade === 'smooth') { bevelled = { bevel: BEVEL }; shape(); state = place(); }
+  const plainH = shade !== 'cel' ? r4(Math.max(...[body.faces, ...state.placed.map((p) => p.faces), ...state.wheels.map((w) => w.faces), stand.faces].flat().flatMap((f) => f.corners.map((c) => c[2])))) : null;
+  if (shade !== 'cel') { bevelled = shade === 'gloss' ? { bevel: BEVEL, lathe: true } : { bevel: BEVEL }; shape(); state = place(); }
 
   // ── paint, bones, the figure ──
   const PAL = { ...paintOf(R), ...(stand.palette || {}) }, liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
-  const paint = shade === 'smooth'
+  const paint = shade !== 'cel'
     ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: { ...PAL, 'lamp:rim': LAMP_RIM }, motif: v.motif, sun: SUN })
     : (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
   // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
   // (and R4's status slots: the head lamps, the brake lamps, the hero piece, each a bone its tint is set on)
   const boneOf = (p) => p.bone ?? (p.family === 'steering' ? 'steering' : PARTS[p.id]?.mount === 'mast' ? 'mast' : p.family === 'lamps' ? 'lampHead' : p.family === 'tail' ? 'lampBrake' : p.family === 'hero' ? 'hero' : null);
   // (the smooth finish rims a lamp: its faces turned from its lens dark, so a thin light reads against loud paint)
-  const slotted = (p) => { const fs = p.faces.map((f) => ({ ...f, slot: slotOf(p, f) })); return shade === 'smooth' ? rimLamps(fs, [0, F.WB / 2, F.deck / 2]) : fs; };
+  const slotted = (p) => { const fs = p.faces.map((f) => ({ ...f, slot: slotOf(p, f) })); return shade !== 'cel' ? rimLamps(fs, [0, F.WB / 2, F.deck / 2]) : fs; };
   const own = new Map();
   for (const p of state.placed) { const b = boneOf(p); if (!b) continue; if (!own.has(b)) own.set(b, { head: p.at.map(r4), faces: [] }); own.get(b).faces.push(...slotted(p)); }
   const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !boneOf(p)).flatMap(slotted), ...stand.faces];
@@ -455,7 +459,10 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}
   const slots = { ...(own.has('lampHead') ? { head: 'lampHead' } : {}), ...(own.has('lampBrake') ? { brake: 'lampBrake' } : {}), ...(own.has('hero') ? { accent: 'hero' } : own.has('mast') ? { accent: 'mast' } : {}) };
   const more = [{ kind: 'body', at: [0, r4(F.WB / 2), r4(V.deck * 0.8)], dir: [0, 0, 1] }, { kind: 'driver', at: stand.head.map(r4), dir: [0, 0, 1] }];
   const figJuice = bakeJuice(juiceRows, [...state.anchors, ...more].map((a) => ({ ...a, bone: a.kind.startsWith('contact') ? null : 'root' })), r4(F.D), { slots });
-  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone) }), live, juice: figJuice, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
+  // (in the form render, a finished racer's bones but its lamps carry their material form: vehicle-rig.js packFormMesh;
+  // a cel racer is a look of its own and stays as it is drawn)
+  const formOf = form && shade !== 'cel' ? new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.filter((o) => o.id !== 'lampHead' && o.id !== 'lampBrake').map((o) => [o.id, o.faces])]) : null;
+  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone), ...(formOf ? { form: formOf } : {}) }), ...(formOf ? { form: formLight(null, KART_MATERIALS) } : {}), live, juice: figJuice, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
 
   // ── the readout: physics derived from what was built ──
   const K = VEHICLES.kart, eng = PARTS[ids.engine], bb = boxOf(body.faces), vol = (bb.hi[0] - bb.lo[0]) * (bb.hi[1] - bb.lo[1]) * (bb.hi[2] - bb.lo[2]);

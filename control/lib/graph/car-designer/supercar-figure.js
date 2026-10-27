@@ -16,6 +16,9 @@
  *
  * The game quality's mesh (vehicle-odm-surface.js), each face its baked fill; in a mood each face is lit again from its
  * albedo and corner normals under the mood's key and ambient (roads/race-mood.js), the lamps left as they shine.
+ * In the FORM render (`light: 'form'`, or a gen-7 read: era/eras.js) the body and the wheels carry their material form
+ * instead (vehicle-rig.js packFormMesh) and `form` says how the page lights them (formLight): the page draws them with
+ * physical materials under the world's own sun and an environment of its sky (controllable channel).
  * Deterministic: the spec is the recipe.
  */
 import { composeSupercar, SUPERCAR_LIBRARY } from './vehicle-library.js';
@@ -23,15 +26,17 @@ import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { JUICE, STATUS, MOTION, FX, bakeJuice } from './juice.js';
 import { VEHICLES, ruleOf } from '../roads/vehicles.js';
 import { moodOf, relightAlbedo, RACE_MOOD_IDS } from '../roads/race-mood.js';
+import { formLight } from './form-light.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
-const SPEC_KEYS = ['preset', 'seed', 'surface', 'mood'];
+const SPEC_KEYS = ['preset', 'seed', 'surface', 'mood', 'light'];
 export function readSupercarSpec(spec = {}) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error('supercar: a spec is { preset?, seed?, surface?, mood? }');
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) throw new Error(`supercar: '${k}' is not one of ${SPEC_KEYS.join(', ')}`);
   if (spec.preset !== undefined && !Object.hasOwn(SUPERCAR_LIBRARY, spec.preset)) throw new Error(`supercar: preset is one of ${Object.keys(SUPERCAR_LIBRARY).join(', ')}`);
   if (spec.seed !== undefined && !Number.isInteger(spec.seed)) throw new Error('supercar: seed is a whole number');
   if (spec.mood !== undefined && !RACE_MOOD_IDS.includes(spec.mood)) throw new Error(`supercar: mood is one of ${RACE_MOOD_IDS.join(', ')}`);
+  if (spec.light !== undefined && !['form', 'paint'].includes(spec.light)) throw new Error('supercar: light is form (its materials lit by the page: the seventh generation\'s) or paint (its light baked in)');
   return spec;
 }
 
@@ -69,8 +74,10 @@ const fan = (f) => {
 };
 const mid = (fs) => { const p = fs.flatMap((f) => f.corners); return [0, 1, 2].map((k) => r4(p.reduce((s, q) => s + q[k], 0) / p.length)); };
 
-export function supercarFigure(spec = {}) {
+export function supercarFigure(spec = {}, { form: formRead = false } = {}) {
   readSupercarSpec(spec);
+  // the form render: the spec's word, else the read's era (a gen-7 read: world-scene.js)
+  const form = spec.light === 'form' || (spec.light === undefined && formRead);
   const car = composeSupercar({ preset: spec.preset ?? 'razor', seed: spec.seed ?? 1, surface: { ...(spec.surface ?? {}), quality: 'game' } });
   const mood = spec.mood ? moodOf(spec.mood) : null, A = car.design.topology.anchors;
   // a face as the rig draws it: its fill (in a mood, lit again from its albedo; a lamp shines as it is)
@@ -114,10 +121,15 @@ export function supercarFigure(spec = {}) {
     const side = (sg) => brake.filter((f) => Math.sign(f.corners.reduce((a, p) => a + p[0], 0)) === sg);
     juice.trails = { bone: 'lampBrake', at: [-1, 1].map(side).filter((fs) => fs.length).map(mid), colour: TRAIL.colour, width: TRAIL.width, life: TRAIL.life, points: TRAIL.points, minSpeed: TRAIL.minSpeed, amount: r4(TRAIL.amount * dark), brake: TRAIL.brake };
   }
+  // in the form render the body and the wheels carry their material form; the lamps stay as they shine (their bones the
+  // status slots the page lights)
+  const formOf = form ? new Map([['root', root], ...wheels.map((w) => [w.id, w.faces])]) : null;
   return {
-    ...packVehicleFigure(bones, buckets, { rolls: wheels.map((w) => w.id), packed: true }),
+    ...packVehicleFigure(bones, buckets, { rolls: wheels.map((w) => w.id), packed: true, ...(form ? { form: formOf } : {}) }),
+    ...(form ? { form: formLight(mood, car.materials) } : {}),
     live, juice,
     figH: r4(Math.max(...shell.flatMap((f) => f.corners.map((p) => p[2])))),
     wheelbase: r4(WB), wheelRadius: r4(F.wheelRadius), warnings: [],
   };
 }
+
