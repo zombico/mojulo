@@ -15,7 +15,8 @@
  *   readLevelFoes(LF, bestiary, at)     → { from, count? }: the level's word read against the bestiary
  *   bestiaryOf(G)                       → the entries the world fields: its own, or one per class (keyed by class)
  *   fieldedIds(G)                       → the bestiary ids some level stands, in bestiary order (each one figure to make)
- *   foeLook(entry)                      → { species, ooze?, stylism? }: the animal door's look for its figure
+ *   foeLook(entry)                      → { species, ooze?, stylism?, strike? }: the animal door's look for its figure
+ *                                         (`strike` its blow's timing, minted as the beast's strike clip)
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
  *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
  *                                         entities, and a hittable pilot; null when nothing stands
@@ -78,7 +79,7 @@ export function fieldedIds(G) {
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
-export const foeLook = (entry) => resolveFoe(entry).skin;
+export const foeLook = (entry) => { const f = resolveFoe(entry); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}) }; };
 
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
 // the k-th of n bodies round a point, `r` out, the first on it
@@ -116,7 +117,7 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   const figures = {}, entities = [];
   for (const p of P) {
     const f = resolveFoe({ ...p.entry, ...(p.group ? { group: p.group } : {}) }), b = beastBody(f.measured, f.scale);
-    figures[p.id] = foeFigure(refs[p.eid], { species: f.body });
+    figures[p.id] = foeFigure(refs[p.eid], { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
     // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
     // per weapon, so a slot naming none would leave the body undrawn)
     const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: p.id })) } : {};

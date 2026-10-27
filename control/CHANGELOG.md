@@ -171,6 +171,31 @@ through the character designer, clips fitted to the class's timing, factions) is
   the coat's (a quiet brown never becomes a teal). In the page: the bear's 23 parts now pack character-lit with ink,
   as the hero's 59 do. Eyes gate, as stills beside the hero: the bear and the boar read two-tone and inked in the
   hero's light, no longer faceted.
+- **A beast deals its blow** (`fauna/behavior/strike.js`). A new one-shot clip, `strike`, is built from the body's
+  own solved poses, the same way its reactions are. It passes through three poses:
+  - stand: where it starts;
+  - windup: a body on legs crouches, head down, drawn back a twelfth of its length; a legless body rears into its
+    strike coil;
+  - blow: a body on legs springs forward a fifth of its length; a legless body darts three head lengths the way its
+    head points.
+
+  A swimmer has no strike yet. The timing is the attack's own `{ startup, active, recovery }` in frames at 60 Hz: the
+  startup gathers and holds the windup (the telegraph), the active frames hold the blow, and the recovery eases home.
+  `strikeWindow(timing)` gives the blow's share of the clip.
+  - The animal door takes `'strike'` among its motion words, or `{ strike: { startup, active, recovery } }`. Its result
+    reports the clip's `seconds` and the `blow` window. Without it, the motion is as it was.
+  - A foe whose attack is a blade (brute, stalker, lurker) is minted with its strike at its class's timing
+    (`resolveFoe().strike`, `foeLook`, the runner's beast step). Its figure plays that strike for every swing
+    direction. Its blade slot's `strikeContact` is now the blow's window, so the hit lands where the clip shows the
+    blow. Before, the stock window (0.28 to 0.62) let a brute's hit land in the middle of its windup.
+
+  Machine gate: the strike's laws (it starts and ends on the stand; on legs the windup's snout is lower and behind the
+  stand and the blow's reaches past it; a legless body rears and then darts; a swimmer refuses; the frames are
+  deterministic), the door's words and refusals, the gameworld's blade foe (its beast is minted with the strike, its
+  figure maps the swing to it, its contact window is the blow's), and a non-striking foe's motion keeps its word form.
+  In the demo page the dire bear's swing played under its own mind: crouched and drawn back through the startup,
+  sprung into the hero on the blow, with the impact landing inside the window (t 0.52 to 0.61), then home. Eyes gate:
+  the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

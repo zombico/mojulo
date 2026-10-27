@@ -19,10 +19,13 @@
  *                          a jog to cross the field, and the moves its rig can solve (a stance, a strike, the reactions,
  *                          the fall); a showcase pose is a person's
  *   beastGaitsOf(species)→ [walk, run]: the two gaits a beast crosses the field in (fauna/locomotion), slowest first
- *   beastMovesOf(species)→ { motion: [gaits…, reactions…], states }: a beast's animal `motion` (its two gaits and its
- *                          flinch, fall and rise: fauna/behavior/react.js) and the field states they play
- *   beastFieldOf(species) → a beast's figure on the level map: its own gaits as the walker's states, its reactions as
- *                          its moves (a cast's beast, a battle's beast foe); throws for a species the fauna does not know
+ *   beastMovesOf(species, { strike? })→ { motion: [gaits…, reactions…], states }: a beast's animal `motion` (its two
+ *                          gaits and its flinch, fall and rise: fauna/behavior/react.js) and the field states they play;
+ *                          with `strike` (true, or its attack's { startup, active, recovery }) and a body that can deal
+ *                          one (fauna/behavior/strike.js), the motion's object form carrying it, played by the swing
+ *   beastFieldOf(species, { strike? }) → a beast's figure on the level map: its own gaits as the walker's states, its
+ *                          reactions (and its strike) as its moves (a cast's beast, a battle's beast foe, a fielded
+ *                          foe); throws for a species the fauna does not know
  *   REACT_MOTION          the reactions any person a run makes may carry (a world's `moves`): a hit, a stagger, the
  *                          fall and the rise, as hero motion words
  *   reactStatesOf(words)  → the field states the reactions among a figure's motion words play, or null (none)
@@ -31,6 +34,7 @@
  */
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { motionGaits, motionReactions } from '../fauna/rig.js';
+import { strikesOf } from '../fauna/behavior/strike.js';
 
 export const READY_OF_ROLE = Object.freeze({ frontline: 'guard', flanker: 'low', support: 'centre', controller: 'centre', caster: 'centre', ranged: 'athletic' });
 export const ATTACK_OF_ROLE = Object.freeze({ frontline: 'cross', flanker: 'jab', ranged: 'jab', controller: 'josephPoint', caster: 'jotaroPoint', support: 'fistToSky' });
@@ -89,15 +93,19 @@ export function beastGaitsOf(species) {
 }
 
 /** A beast's motion: its two gaits and its reactions (a swimmer has none); and the field states the reactions play. */
-export function beastMovesOf(species) {
-  const reacts = motionReactions(species);
+// (every way a mind swings plays the one blow: a beast has no cleave of its own yet)
+const SWINGS = ['neutral', 'forward', 'back', 'left', 'right'];
+export function beastMovesOf(species, { strike } = {}) {
+  const reacts = motionReactions(species), gaits = beastGaitsOf(species);
+  // (a strike at its attack's timing: the motion's object form; without one the words, as always)
+  const struck = strike && strikesOf(species).length ? strike : null;
   return {
-    motion: [...beastGaitsOf(species), ...reacts],
-    states: reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {},
+    motion: struck ? { gaits, ...(reacts.length ? { reactions: reacts } : {}), strike: struck } : [...gaits, ...reacts],
+    states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, 'strike'])) : {}) },
   };
 }
 
-export function beastFieldOf(species) {
-  const g = beastGaitsOf(species), M = beastMovesOf(species);
+export function beastFieldOf(species, { strike } = {}) {
+  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike });
   return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }

@@ -11,6 +11,7 @@ import { LEVEL_GOAL } from './quick.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
+import { strikeWindow } from '../fauna/behavior/strike.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const SOLO = CLASSES.find((c) => !MOVES[c.move].group);
@@ -79,6 +80,13 @@ describe('a stage\'s foes', () => {
     const X = hostileCast(world({ a: { class: BLADE.id } }, true), 'one', ENDS, { refs: { a: 'w-foes-a' } });
     for (const e of X.entities) for (const slot of e.rule.loadout) expect(slot.figure).toBe(e.body.figure);
   });
+  it('a foe with a blade swings on its body\'s own strike, and its hit lands on the blow\'s frames', () => {
+    const BLADE = CLASSES.find((c) => resolveFoe({ class: c.id }).strike);
+    const f = resolveFoe({ class: BLADE.id }), X = hostileCast(world({ a: { class: BLADE.id } }, true), 'one', ENDS, { refs: { a: 'w-foes-a' } });
+    expect(f.strike).toEqual(f.attack.timing);
+    expect(X.entities[0].rule.loadout[0].strikeContact).toEqual(strikeWindow(f.attack.timing));
+    expect(X.figures['foe-a-1'].moves).toMatchObject({ swing_neutral: 'strike', swing_forward: 'strike' });
+  });
   it('the hero\'s hp takes their hits: the goal\'s own hp, else one laid before its terminal', () => {
     const exit = { kind: 'reach-exit', at: [0, 0, 0] };
     expect(withFoeHits([exit])).toEqual([{ kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit }, exit]);
@@ -114,6 +122,14 @@ describe('the run', () => {
     // the other levels are as they were
     const plain = prints(runSteps(MEADOWMARK_HERO, { ref: 'gw' }));
     for (const s of steps.filter((x) => x.key.startsWith('level-') && !x.key.startsWith(`level-${lv0}-`))) expect(s.print).toBe(plain[s.key]);
+  });
+  it('a blade\'s beast is minted with its strike at its attack\'s timing; a toucher\'s motion is its words, as before', () => {
+    const BLADE = CLASSES.find((c) => resolveFoe({ class: c.id }).strike), TOUCH = CLASSES.find((c) => !resolveFoe({ class: c.id }).strike);
+    const steps = runSteps(heroWith({ a: { class: BLADE.id }, b: { class: TOUCH.id } }, true), { ref: 'gw' });
+    const a = steps.find((s) => s.key === 'foes-a').order.animal, b = steps.find((s) => s.key === 'foes-b').order.animal;
+    expect(a.motion.strike).toEqual(resolveFoe({ class: BLADE.id }).attack.timing);
+    expect(a).not.toHaveProperty('strike');
+    expect(Array.isArray(b.motion)).toBe(true);
   });
   it('a battle\'s beast foe may be grown, and its figure is minted with what grows it', () => {
     const W = { ...MEADOWMARK_HERO, battles: { foe: { species: 'wolf', ooze: 'dire' } } };

@@ -109,10 +109,11 @@ const keepReact = (on, patch) => (on && patch ? patch.map((op) => (op.op === 'se
 const REACT_STATES = reactStatesOf(Object.keys(REACT_MOTION));
 // a figure that is a beast (a look naming a `species`): made through the animal door with its two gaits and its reactions
 // (design-game.js realizes an `animal` order); it plays its own on the field (stage-figures.js foeFigure). A look may grow
-// it (a bestiary's skin: `{ species, ooze?, stylism? }`, foes.js); a species alone orders as it always did
+// it (a bestiary's skin: `{ species, ooze?, stylism? }`, foes.js) and arm it (`strike`, its blow's timing: the strike
+// clip its swing plays); a species alone orders as it always did
 const beastStep = (key, ref, look, title) => {
-  const L = typeof look === 'string' ? { species: look } : look;
-  const animal = { ...L, motion: beastMovesOf(L.species).motion };
+  const { strike, ...L } = typeof look === 'string' ? { species: look } : look;
+  const animal = { ...L, motion: beastMovesOf(L.species, { strike }).motion };
   return { key, ref, ready: true, order: { animal, title }, print: fingerprint({ animal }) };
 };
 // a mascot's own one-shots (egocube/mascot-form.js `reactions`)

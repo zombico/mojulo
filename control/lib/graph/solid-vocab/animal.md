@@ -48,6 +48,10 @@ REACTIONS ride it too, on any body with legs: `flinch` (dropped low on bent legs
 stand), `fall` (onto its side, gathering speed) and `rise` (back up onto its feet), each a one-shot between poses its own
 body solves (`['walk', 'trot', 'flinch', 'fall', 'rise']`, or `{ reactions: 'all' }`). A legless body takes them on its
 own coil: it rears back into its strike coil to flinch and falls laid out flat; a swimmer has none yet.
+The STRIKE is the blow it deals: `'strike'` among the words, or `{ strike: { startup, active, recovery } }` at its
+attack's timing (frames at 60 Hz; a jab's by default), one clip named `strike`. A body on legs crouches, head down
+(the telegraph), then springs a fifth of its length forward; a legless one rears into its coil and darts. The result
+says its `seconds` and the `blow` window, the share of the clip where the hit lands. A swimmer has none yet.
 
 ## The maker door — a NEW fish or snake from parameters
 

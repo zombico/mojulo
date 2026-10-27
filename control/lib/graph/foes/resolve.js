@@ -5,7 +5,9 @@
  *
  *   resolveFoe({ class, rank?, skill?, skin?, group? }, { hero? })
  *     → { class, rank, skill, body, skin, measured, stature, scale, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind,
- *         timing, pattern?, reach?, zone? }, stomp, threat, status, marks, short, advisories }
+ *         timing, pattern?, reach?, zone? }, strike, stomp, threat, status, marks, short, advisories }
+ *     `strike` the timing its body deals a melee attack's blow by (its clip: fauna/behavior/strike.js), null when its
+ *     attack is no blade's or its body cannot strike (a swimmer)
  *     `skin` the species and what grows it, as the animal door takes them; `measured` the grown body (./fit.js bodyOf);
  *     `stature` the size it reads at in the game, its longest extent (its class's presence × its rank's × the hero's
  *     height), and `scale` the factor that draws the grown body at it
@@ -28,6 +30,7 @@ import { RANKS, SKILLS } from '../mind/vocab.js';
 import { resolveMind } from '../mind/resolve.js';
 import { RANGED } from '../gameworld/feel/kernel.js';
 import { mutagenErrors } from '../mutagen/index.js';
+import { strikesOf, strikeWindow } from '../fauna/behavior/strike.js';
 
 const FPS = 60;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -43,7 +46,8 @@ function armed(rule, entity, A, damage) {
   const t = A.timing;
   if (A.verb === 'melee') {
     Object.assign(rule, { meleeSeek: true, meleeCombo: false });
-    rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS) }];
+    // (the hit lands on the blow's own frames: the window the beast's strike clip shows it in, fauna/behavior/strike.js)
+    rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), strikeContact: strikeWindow(t) }];
   } else if (A.fireClass) {
     entity.weapon = { fireClass: A.fireClass, damage };
   }
@@ -98,6 +102,8 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
 
   const resolved = resolveMind({ motivation: mind.motivation, aggressiveness: mind.aggressiveness, rank, skill }, entity);
   const { status, marks, short } = classStatus(c);
+  // the blow its body deals it by (a melee attack, on a body that can strike: fauna/behavior/strike.js), at its timing
+  const strike = A.verb === 'melee' && strikesOf(species).length ? { ...A.timing } : null;
   const attack = { kind: c.attack.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}) };
   // its PRESENCE: the size it reads at in the game (its longest extent, the class's share of the hero's height grown by
   // rank), the body drawn at the scale that takes its grown extent there
@@ -105,6 +111,6 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   return {
     class: c.id, rank, skill, body: species, skin: { species, ...grown }, measured, stature, scale, entity, mind: resolved,
     toll: { downs, harm: c.toll.harm, hp: entity.body.hp, damage },
-    attack, stomp: c.stomp, threat: c.threat * R.threat, status, marks, short, advisories: resolved.advisories,
+    attack, strike, stomp: c.stomp, threat: c.threat * R.threat, status, marks, short, advisories: resolved.advisories,
   };
 }

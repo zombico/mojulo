@@ -34,6 +34,7 @@ import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan, speciesParams, stanceOf } from '@/lib/graph/fauna/species';
 import { withMotion, motionGaits, motionBehaviors, motionReactions, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
+import { strikesOf, strikeTiming, strikeSeconds, strikeWindow } from '@/lib/graph/fauna/behavior/strike';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
 import { FAMILIES } from '@/lib/graph/fauna/families';
 import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
@@ -68,32 +69,40 @@ const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(BUG_SPECIES),
 const legStance = (n) => ({ 6: 'hexapod', 8: 'octopod', 10: 'decapod', 14: 'isopod' }[n] || (n > 14 ? 'myriapod' : `${n}-legged`));
 
 /**
- * `motion` → `{ gaits, keys }` (plus `behaviors`, `variants` and `reactions` when any are named) or null: `true` / 'all'
- * (every gait the species has), a word or a list of them (gait, behavior and reaction words, `['walk', 'relax',
- * 'flinch']`), or `{ gaits?, behaviors?, variants?, reactions?, keys? }` (`behaviors: 'all'` for every behavior the
- * species can be posed doing, `reactions: 'all'` its flinch, fall and rise; `gaits` defaults to every gait only when
- * no behavior or reaction is named). Throws a teaching error naming what it can do.
+ * `motion` → `{ gaits, keys }` (plus `behaviors`, `variants`, `reactions` and `strike` when any are named) or null:
+ * `true` / 'all' (every gait the species has), a word or a list of them (gait, behavior and reaction words and
+ * 'strike', `['walk', 'relax', 'flinch', 'strike']`), or `{ gaits?, behaviors?, variants?, reactions?, strike?, keys? }`
+ * (`behaviors: 'all'` for every behavior the species can be posed doing, `reactions: 'all'` its flinch, fall and rise,
+ * `strike: true` the blow it deals at a jab's timing or `{ startup, active, recovery }` at its attack's, frames at 60 Hz;
+ * `gaits` defaults to every gait only when no behavior, reaction or strike is named). Throws a teaching error naming
+ * what it can do.
  */
 export function motionSpec(species, motion) {
   if (motion === undefined || motion === null || motion === false) return null;
-  const have = motionGaits(species), does = motionBehaviors(species), reacts = motionReactions(species);
-  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}; reacts: ${reacts.join(', ') || 'none yet'}`;
+  const have = motionGaits(species), does = motionBehaviors(species), reacts = motionReactions(species), strikes = strikesOf(species).length > 0;
+  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}; reacts: ${reacts.join(', ') || 'none yet'}; strikes: ${strikes ? 'yes' : 'not yet'}`;
   const words = typeof motion === 'string' && motion !== 'all' ? [motion] : Array.isArray(motion) ? motion : null;
-  const REACTION_WORDS = ['flinch', 'fall', 'rise'];
-  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter((w) => !BEHAVIORS[w] && !REACTION_WORDS.includes(w)), behaviors: words.filter((w) => BEHAVIORS[w]), reactions: words.filter((w) => REACTION_WORDS.includes(w)) } : motion;
-  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait, behavior or reaction word, a list of them, or { gaits, behaviors, reactions, keys } — ${say}`);
+  const REACTION_WORDS = ['flinch', 'fall', 'rise'], other = (w) => !BEHAVIORS[w] && !REACTION_WORDS.includes(w) && w !== 'strike';
+  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter(other), behaviors: words.filter((w) => BEHAVIORS[w]), reactions: words.filter((w) => REACTION_WORDS.includes(w)), ...(words.includes('strike') ? { strike: true } : {}) } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait, behavior or reaction word or 'strike', a list of them, or { gaits, behaviors, reactions, strike, keys } — ${say}`);
   const behaviors = o.behaviors === 'all' ? does : o.behaviors === undefined ? [] : [o.behaviors].flat();
   const reactions = o.reactions === 'all' ? reacts : o.reactions === undefined ? [] : [o.reactions].flat();
   for (const w of reactions) if (!reacts.includes(w)) throw new Error(`no reaction '${w}' — ${say}`);
-  const gaits = o.gaits === undefined ? (behaviors.length || reactions.length ? [] : have) : [o.gaits].flat();
+  const strike = o.strike === undefined || o.strike === false ? undefined : o.strike;
+  if (strike !== undefined) {
+    if (!strikes) throw new Error(`'${species}' cannot strike yet (a swimmer and a body on folded wings have no strike) — ${say}`);
+    if (strike !== true && (typeof strike !== 'object' || Array.isArray(strike) || Object.keys(strike).some((k) => !['startup', 'active', 'recovery'].includes(k)))) throw new Error('`motion.strike` is true or { startup?, active?, recovery? } (frames at 60 Hz)');
+    if (strike !== true) strikeTiming(strike);
+  }
+  const gaits = o.gaits === undefined ? (behaviors.length || reactions.length || strike ? [] : have) : [o.gaits].flat();
   for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
   const variants = o.variants ?? {};
   if (typeof variants !== 'object' || Array.isArray(variants)) throw new Error('`motion.variants` is { <behavior>: <strategy> }');
   try { checkBehaviors(species, behaviors, variants); } catch (err) { throw new Error(`${err.message} — ${say}`); }
-  if (!gaits.length && !behaviors.length && !reactions.length) throw new Error(`\`motion\` names no clip — ${say}`);
+  if (!gaits.length && !behaviors.length && !reactions.length && !strike) throw new Error(`\`motion\` names no clip — ${say}`);
   const keys = o.keys ?? 24;
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
-  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}), ...(reactions.length ? { reactions } : {}) };
+  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}), ...(reactions.length ? { reactions } : {}), ...(strike ? { strike: strike === true ? true : strikeTiming(strike) } : {}) };
 }
 
 /**
@@ -275,7 +284,7 @@ export async function createAnimalHandler(input) {
       ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, ...(stylism ? { stylism } : {}), ...(setting ? { setting } : {}) } } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(coatWorld ? { coat: { in: 'world', dressed: coatLedger } } : {}), ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
+    return { ...res, species, ...(coatWorld ? { coat: { in: 'world', dressed: coatLedger } } : {}), ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}), ...(motion.strike ? { strike: { seconds: strikeSeconds(motion.strike === true ? undefined : motion.strike), blow: strikeWindow(motion.strike === true ? undefined : motion.strike) } } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is
