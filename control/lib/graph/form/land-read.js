@@ -7,12 +7,14 @@
  * (the matte painter's natural cuts) in one atlas each for base, normal and orm (height in blue); the sea's depth over
  * the land; the dirt's tones (color-theorist/ground.js soilTones).
  *
- *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss? }) → { P, L, light, sun, bases, ranges, pos,
- *       c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the grass' map and
- *       rows when asked }
+ *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss?, sward? }) → { P, L, light, sun, bases,
+ *       ranges, pos, c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the
+ *       grass' map and rows when asked }
  *     payload: a resolved geocube payload (its faces, cameras, sky); cube: the resolved cube (era/geocube.js readGeocube);
  *     hour: an hour (a number) the light is read at, the bases kept at the cube's own; dress: a trail's dress
- *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows; relief:
+ *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows ('map':
+ *     the map alone, the page grows its brush); sward: how long it is (the biocube's `flora.grass.sward`: 'tall',
+ *     'short' or { short: 0–1 }), in the map's fourth channel; relief:
  *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`; moss:
  *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
@@ -36,6 +38,9 @@ import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+/** The sward's short areas: the field's cell (metres) and the seam a short area eases into a tall one over (a share of
+ *  the grass). */
+export const SWARD_CELL = 22, SWARD_SEAM = 0.12;
 /** The gen-6 grass's blade cards (era/isekai.js): left out of the read, and out of the form render's page. */
 export const GRASS_CARDS = 'isekai:grass';
 /** The rock's relief when none is asked for: the ledged face (form/rock-relief.js). */
@@ -73,7 +78,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0 } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall' } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -227,7 +232,15 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     }
     let zlo = Infinity, zhi = -Infinity; for (const z of top) if (z > -Infinity) { zlo = Math.min(zlo, z); zhi = Math.max(zhi, z); }
     const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(nx * ny * 4);
-    for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = 255; }
+    // (the sward: how long the grass is, a mood's choice: tall everywhere, short everywhere, or a share of the grass laid as
+    // short areas a couple of dozen metres across, each wholly one or the other, eased over a seam: the field's rank over
+    // the grass's own cells, so the share is the land's whatever its size)
+    const shortShare = sward === 'short' ? 1 : sward === 'tall' || !sward ? 0 : sward.short, cellXY = (q) => [x0 + (q % nx) * GCELL, y0 + Math.floor(q / nx) * GCELL];
+    const swardF = (x, y) => 0.7 * lat(x, y, SWARD_CELL, 'sward') + 0.3 * lat(x, y, SWARD_CELL / 3, 'sward2');
+    const ranks = shortShare > 0 && shortShare < 1 ? Float64Array.from(cov.reduce((a, c, q) => (c > 0 ? (a.push(swardF(...cellXY(q))), a) : a), [])).sort() : null;
+    const rankOf = (f) => { let lo = 0, hi = ranks.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ranks[m] < f) lo = m + 1; else hi = m; } return lo / Math.max(1, ranks.length); };
+    const shortAt = (x, y) => (shortShare >= 1 ? 1 : shortShare <= 0 || !ranks.length ? 0 : ease(Math.min(1, Math.max(0, (shortShare - rankOf(swardF(x, y))) / SWARD_SEAM + 0.5))));
+    for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(shortAt(...cellXY(q)) * 255); }
     const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
     return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at };
   })() : null;
@@ -236,7 +249,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // where grass grows; the page dissolves them in past the near blades
   const ROW = 0.9, SEG = 0.8, brush = { pos: [], uvh: [] }, cx0 = (box[0][0] + box[0][1]) / 2, cy0 = (box[1][0] + box[1][1]) / 2, half = Math.hypot(box[0][1] - box[0][0], box[1][1] - box[1][0]) / 2;
   const u01b = (k) => strHash(k) / 4294967296;
-  if (grassMap) for (let dir = 0; dir < 3; dir++) {
+  // (`grass: 'map'`, the World page's read: the map alone, the page grows its brush; channels/form-grass.js)
+  if (grassMap && withGrass !== 'map') for (let dir = 0; dir < 3; dir++) {
     const a = (dir * Math.PI) / 3 + 0.21, ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
     for (let r = -half; r <= half; r += ROW) for (let u = -half; u < half; u += SEG) {
       // (the row's offset at each end: its own wander, shared by the fins either side so the row runs on unbroken)
@@ -258,7 +272,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
 }
 
 export function formPayload(R) {
-  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss } = R;
+  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss, grassMap } = R;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
@@ -276,6 +290,8 @@ export function formPayload(R) {
       pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => r4(v * 0.82)),
       green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX, ...(moss ? { moss } : {}) },
     path: pathTex, depth: depthMap,
+    // (the grass's ground map: its height and where grass grows, at GCELL; channels/form-grass.js draws the grass from it)
+    grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass },
     // (the relief's heights in 16 bits over its range, row by row up the face)
     relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
   };

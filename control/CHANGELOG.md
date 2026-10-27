@@ -965,6 +965,13 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   drops the gen-6 grass's blade cards and its live grass (world-scene): the form render's grass is its own. In their
   place, optional moss: the biocube's `flora.moss` (0–1, none unless asked), drawn by the form channel on rock whose
   relief faces up, in patches, in the undergrowth's cushions under the palette's grass. Gen-6 is as it was.
+- **Gen-7 grass on the World page, and its sward.** A form page draws its grass as polygons
+  (`scene/channels/form-grass.js`): clumps of blades instanced on grids that walk with the camera, the brush's rows
+  grown on the page from the land read's ground map (`grass: 'map'`: height, where grass grows, and the sward, so no
+  rows ride the payload). The sward is a mood's word, the biocube's `flora.grass.sward`: `'tall'` (a meadow, the
+  default), `'short'` (a lawn, a pasture: fewer, lower blades in crossed pairs, turned away from the trail) or
+  `{ short: 0–1 }`, that share of the land's grass laid as short areas a couple of dozen metres across, each wholly one
+  or the other and eased over a seam, never sprinkled together. The card's gen-6 grass is as it was.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

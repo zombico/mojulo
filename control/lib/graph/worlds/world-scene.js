@@ -699,9 +699,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && !unshaded && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
     const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
     const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
-    // (the rock's moss: the biocube's `flora.moss`, the recipe's biocube or else the cube's; none without)
-    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, moss = bio ? readBiocube(bio).flora?.moss ?? 0 : 0;
-    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, ...(moss ? { moss } : {}) });
+    // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
+    // the recipe's biocube or else the cube's, none without)
+    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = F?.moss ?? 0, sward = F?.grass?.sward;
+    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}) });
     if (read) payload.form = formPayload(read);
     // (the gen-6 live grass, its blade cards and its swaying painted crowns, goes with the painted land: the form render's
     // grass and trees are its own)

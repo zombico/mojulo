@@ -106,4 +106,14 @@ describe('nothing grows on a path', () => {
     expect(readBiocube({ from: 'meadow', flora: { moss: null } }).flora.moss).toBeUndefined();
     expect(() => readBiocube({ from: 'meadow', flora: { moss: 2 } })).toThrow(/flora\.moss/);
   });
+
+  it('the sward is a mood\'s word: tall, short or a share of short areas; the card\'s grass is as it was', () => {
+    expect(readBiocube('meadow').flora.grass.sward).toBeUndefined();
+    expect(readBiocube({ from: 'meadow', flora: { grass: { sward: 'short' } } }).flora.grass.sward).toBe('short');
+    expect(readBiocube({ from: 'meadow', flora: { grass: { sward: { short: 0.4 } } } }).flora.grass.sward).toEqual({ short: 0.4 });
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { sward: 'mown' } } })).toThrow(/flora\.grass\.sward/);
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { sward: { short: 2 } } } })).toThrow(/flora\.grass\.sward/);
+    const short = readBiocube({ from: 'meadow', flora: { grass: { sward: 'short' } } });
+    expect(withFlora(ISEKAI_MEADOW, short).grass).toEqual(withFlora(ISEKAI_MEADOW, readBiocube('meadow')).grass);
+  });
 });

@@ -14,6 +14,7 @@
  * the land is lit once. `window.__formReady` when it has drawn (its textures load first).
  */
 import { safeJson } from '../emit-util.js';
+import { formGrassScript } from './form-grass.js';
 
 export function formLandScript(form) {
   return `
@@ -366,6 +367,7 @@ export function formLandScript(form) {
       }
     }
   }
+${formGrassScript()}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
