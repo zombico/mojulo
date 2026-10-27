@@ -21,7 +21,13 @@ describe('rollCube', () => {
     const full = rollCube(mulberry32(1), 1, 'flat');
     expect(Object.keys(full)).toEqual(['reality', 'space', 'power', 'soul', 'mind', 'time']);
     const reg = capabilityRegistry();
-    for (const [f, spec] of Object.entries(full)) expect(Object.keys(spec), f).toEqual(Object.keys(reg[f]));
+    // every setting whose `given` holds (the together-settings only in a game that seats several: soul.seats two or
+    // four); the law, not one seed's luck at the seats die (a setting added before them moves it)
+    const holds = (spec, s) => !s.given || Object.entries(s.given).every(([g, vals]) => vals.includes(spec[g]));
+    for (const [f, spec] of Object.entries(full)) expect(Object.keys(spec), f).toEqual(Object.keys(reg[f]).filter((k) => holds(spec, reg[f][k])));
+    // and some seed rolls a game that gives them: every setting set
+    const seated = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => rollCube(mulberry32(n), 1, 'flat')).find((c) => ['two', 'four'].includes(c.soul.seats));
+    expect(Object.keys(seated.soul)).toEqual(Object.keys(reg.soul));
     expect(() => rollCube(mulberry32(1), 0.2, 'loaded')).toThrow(/roll is fair \| flat/);
   });
   it('gives every facet about the same settings on the fair roll, whatever its size', () => {

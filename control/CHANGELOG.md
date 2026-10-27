@@ -104,6 +104,16 @@ plan and the historic city follow on the same rules.
   by side when several stop at one. A walker is talked to where they stand: each place's talk is on from their arrival
   until the hour takes them on. Without `folk.day`, no clock and everyone stands, as before. Machine gate:
   `routines.test.js`, and `folk-cast.test.js` driving a walker's arrival through the bus; eyes gate not run.
+- **The folk on the agent's surface.** No new tool: the folk are an argument on the gameworld door. A rail card,
+  `gameworld-folk` ("The town's people", `get_game_vocab({ id: 'gameworld-folk' })`), says the whole of
+  `characters.folk` (houses and their shapes, the line book and `say`, sidequests, the recurring, the day), held to its
+  words by the cards' test; the story card points to it. `design_game`'s routing card hears "a town full of
+  villagers I can talk to, with side quests", and the routing eval asks it in other words ("fill my village with
+  people who chat and give me little errands to run" → `design_game`). The cosmos has `soul.folk` (none | town, web
+  only; Godot and Roblox absent), so the sweep ranks it, and the hillclimb page is regenerated. The sweep's test now
+  states its law (every setting whose `given` holds is set at density 1) rather than one seed's roll of the seats die,
+  which a setting added before them moves. Machine gate: the cards', routing cards' and cosmos tests, the critical
+  tier; the routing gates 2a and 2b (retrieval, in context) run in CI, not here; eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 
