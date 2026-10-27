@@ -29,6 +29,7 @@ export const E2E = [
   'lib/graph/contest/innings-page.live.test.js',
   'lib/graph/tabletop/holo-page.live.test.js',
   'lib/graph/book/book-pdf.live.test.js',
+  'lib/graph/table-rpg/table-rpg-page.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',

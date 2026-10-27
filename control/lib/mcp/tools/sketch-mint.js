@@ -1056,6 +1056,11 @@ export async function updateSketchHandler(input) {
     const { emitTabletopGame } = await import('../../graph/tabletop/tabletop-manifest.js');
     try { emitTabletopGame(manifest); } catch (err) { throw new Error(`Invalid board game: ${err.message}`); }
     nextManifest = manifest;
+  } else if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'table-rpg') {
+    // A table game (lib/graph/table-rpg): no store, no levels. Its gate is that the module plays and its page is made.
+    const { emitTableRpgGame } = await import('../../graph/table-rpg/table-rpg-manifest.js');
+    try { emitTableRpgGame(manifest); } catch (err) { throw new Error(`Invalid table game: ${err.message}`); }
+    nextManifest = manifest;
   } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so

@@ -201,7 +201,7 @@ export function buildTableRpg() {
     const short = (a) => (sys.names?.[a] ?? a).slice(0, 3);
     const place = (values) => {
       [...values].sort((a, b) => b - a).forEach((v, i) => { scores[order[i]] = v; });
-      rolls.push(`placed best first: ${order.map((a) => `${short(a)} ${scores[a]}`).join(', ')}`);
+      rolls.push(`placed best first: ${order.map((a) => `${short(a)} ${num(scores[a])}`).join(', ')}`);
     };
     if (M.dice) {
       const inOrder = M.order === 'in-order' && p.assign === undefined;
@@ -504,10 +504,10 @@ export function buildTableRpg() {
     const sys = K.sys;
     return K.party.map((p, i) => {
       const s = S.party[i];
-      const ab = sys.abilities.map((a) => `${(sys.names?.[a] ?? a).slice(0, 3)} ${s.scores[a]}${sys.modifier.kind !== 'none' ? ` (${signed(s.mods[a])})` : ''}`).join(' · ');
+      const ab = sys.abilities.map((a) => `${(sys.names?.[a] ?? a).slice(0, 3)} ${num(s.scores[a])}${sys.modifier.kind !== 'none' ? ` (${signed(s.mods[a])})` : ''}`).join(' · ');
       const w = p.weapon.dice ? `${p.weapon.name} ${p.weapon.dice}` : p.weapon.harm !== undefined ? `${p.weapon.name}, harm ${p.weapon.harm}` : p.weapon.name;
       const prog = sys.progression.kind === 'xp' ? ` · XP ${s.xp}` : sys.progression.kind === 'misses' ? ` · marks ${s.marks}/${sys.progression.at}` : '';
-      return `${p.name} — ${p.className} ${s.level} · HP ${s.hp}/${s.maxHp}${sys.combat.defence === 'armour' ? ` · defence ${p.defence}` : ''} · ${ab} · ${w}${prog}`;
+      return `${p.name}${p.persona?.epithet ? `, ${p.persona.epithet}` : ''} — ${p.className} ${s.level} · HP ${s.hp}/${s.maxHp}${sys.combat.defence === 'armour' ? ` · defence ${p.defence}` : ''} · ${ab} · ${w}${prog}`;
     });
   }
 

@@ -5,8 +5,9 @@
  * story's beats; the party's sheets, a page each, as rolled; the dice tape; the colophon. The same module and the same
  * style give the same page; headless Chromium prints it (book/book-pdf.js).
  *
- *   tableRpgBook(K, { style?, tape? }) → { html, findings }   style a book style (book/book-style.js: a preset's key
- *     or its parts; 'tome' when none); tape the dice tape's length (20; 0 leaves it out); findings the style's advice
+ *   tableRpgBook(K, { style?, tape?, parts? }) → { html, findings }   style a book style (book/book-style.js: a
+ *     preset's key or its parts; 'tome' when none); tape the dice tape's length (20; 0 leaves it out); parts the
+ *     chapters to print, of BOOK_PARTS (['party']: the characters' sheets alone); findings the style's advice
  *   BOOK_PARTS   the chapters in their order
  */
 import { bookHtml, esc, heading, para, aside, keyed, facts, statBlock, rollTable, grid, plate, mono, lines } from '../book/book-press.js';
@@ -109,17 +110,19 @@ function sheet(K, p) {
   const w = p.weapon, ab = sys.abilities.includes(w.faculty) ? w.faculty : sys.faculties[w.faculty];
   const weapon = `${w.name}${w.dice ? `, ${w.dice}` : w.harm !== undefined ? `, harm ${w.harm}` : ''} (${sys.names?.[ab] ?? ab})`;
   const prog = sys.progression.kind === 'xp' ? ['experience', `0 of ${sys.progression.thresholds[1]} for level 2`] : sys.progression.kind === 'misses' ? ['marks', `○ `.repeat(sys.progression.at).trim()] : ['levels', 'at the story\'s milestones'];
-  return `<section class="page">${heading(`${p.name}`, 3)}`
-    + para(`${p.className} — ${sys.classes[p.class].about}.${p.persona ? ` ${p.persona.reads}` : ''}`)
+  return `<section class="page">${heading(`${p.name}${p.persona?.epithet ? `, ${p.persona.epithet}` : ''}`, 3)}`
+    + para(`${p.className} — ${sys.classes[p.class].about}.`)
+    + (p.persona ? aside(esc(p.persona.reads), { label: 'Who they are' }) : '')
     + grid(scores) + grid(vit)
     + facts([['weapon', weapon], prog, ['made', `${p.method}: ${p.rolls.join('; ')}`]])
     + heading('Notes', 4) + lines(8) + '</section>';
 }
 
-export function tableRpgBook(K, { style = 'tome', tape = 20 } = {}) {
+export function tableRpgBook(K, { style = 'tome', tape = 20, parts } = {}) {
+  if (parts !== undefined && !(Array.isArray(parts) && parts.length && parts.every((p) => BOOK_PARTS.includes(p)))) throw new Error(`table rpg book: parts are some of ${BOOK_PARTS.join(', ')}`);
   const S = readBookStyle(style);
   // a one-sheet format carries what the table needs in play: the title, the dungeons, the foes, the tables
-  const keep = S.onePage ? new Set(['title', 'dungeons', 'foes', 'tables']) : new Set(BOOK_PARTS);
+  const keep = new Set(parts ?? (S.onePage ? ['title', 'dungeons', 'foes', 'tables'] : BOOK_PARTS));
   const chapters = [
     { id: 'title', kind: 'title', body: titlePage(K) },
     { id: 'running', title: 'Running the game', body: running(K) },

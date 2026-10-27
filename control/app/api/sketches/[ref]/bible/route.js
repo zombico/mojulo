@@ -10,7 +10,9 @@
  * schedules and the checks read from the recipe, the row's World framed in its Walk tab. A downloaded book leaves the
  * World out (its frame would point back at this dashboard) and says how to export one. A city plan (kind 'city') is
  * served as its plan book (lib/graph/city/plan/book-html.js). A historic scene (kind 'historic') is served as its field guide
- * (lib/graph/historic/field-guide.js): what the solver chose, the record it stands on, and the knob for each.
+ * (lib/graph/historic/field-guide.js): what the solver chose, the record it stands on, and the knob for each. A table game
+ * (a game row, engine 'table-rpg') is served as its game book (lib/graph/table-rpg/table-rpg-book.js), in its own style or
+ * `?style=<preset>`, the whole book or `?parts=party` (its characters' sheets alone; parts a comma list).
  */
 
 import { NextResponse } from 'next/server';
@@ -49,6 +51,15 @@ export async function GET(request, { params }) {
     } else if (sketch.manifest?.kind === 'historic') {
       html = await cachedPage(`guide:${ref}:${sketch.updatedAt}`, () => historicGuideHtml({ ...sketch.manifest, title: sketch.title || sketch.manifest.title }, { ref }));
       base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'historic'}-field-guide`;
+    } else if (sketch.manifest?.kind === 'game' && sketch.manifest.engine === 'table-rpg') {
+      const { tableRpgBookOf } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+      const parts = request.nextUrl.searchParams.get('parts'), style = request.nextUrl.searchParams.get('style');
+      try {
+        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
+      } catch (err) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'table-game'}${parts ? `-${parts.replace(/,/g, '-')}` : '-book'}`;
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
@@ -66,7 +77,7 @@ export async function GET(request, { params }) {
     } else {
       return NextResponse.json({
         eligible: false,
-        reason: `'/bible' serves a gameworld, a building (floorplan, store, restaurant, mall), a city plan or a historic scene only (this sketch is '${sketch.manifest?.kind}').`,
+        reason: `'/bible' serves a gameworld, a building (floorplan, store, restaurant, mall), a city plan, a historic scene or a table game only (this sketch is '${sketch.manifest?.kind}').`,
       }, { status: 422 });
     }
     return new Response(html, {

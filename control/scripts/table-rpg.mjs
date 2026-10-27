@@ -6,19 +6,24 @@
 //   node scripts/table-rpg.mjs [--module <file.json>] [--system <id>]     play: type a move, `help` for the moves, `quit`
 //   node scripts/table-rpg.mjs --packet [--tape <n>]                      the referee packet (markdown) and exit
 //   node scripts/table-rpg.mjs --commands 'travel standing-stones; look'  play those moves, print the transcript, exit
-//   node scripts/table-rpg.mjs --book <out.html> [--style <preset>] [--pdf <out.pdf>]
+//   node scripts/table-rpg.mjs --book <out.html> [--style <preset>] [--parts party,…] [--pdf <out.pdf>]
 //                                                         the game book (the press's page), and its print by headless
 //                                                         Chromium when --pdf names a file
 //
 // The command list is the save: the same module and the same commands are the same game, die for die.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { readModule, refereePacket, playScript } from '../lib/graph/table-rpg/table-rpg-module.js';
-import { tableStart, tableAct, tableLegal } from '../lib/graph/table-rpg/table-rpg-kernel.js';
-import { TABLE_RPG_SYSTEM_IDS } from '../lib/graph/table-rpg/table-rpg-systems.js';
-import { SUNKEN_CHAPEL } from '../lib/graph/table-rpg/fixtures/sunken-chapel.js';
-import { tableRpgBook } from '../lib/graph/table-rpg/table-rpg-book.js';
-import { BOOK_STYLES } from '../lib/graph/book/book-style.js';
+import { register } from 'node:module';
+
+// the table's modules reach the building programs and the browser through imports by the `@/` alias, which plain Node
+// resolves only with the stdio entry's loader
+register('./mcp-stdio-loader.mjs', import.meta.url);
+const { readModule, refereePacket, playScript } = await import('../lib/graph/table-rpg/table-rpg-module.js');
+const { tableStart, tableAct, tableLegal } = await import('../lib/graph/table-rpg/table-rpg-kernel.js');
+const { TABLE_RPG_SYSTEM_IDS } = await import('../lib/graph/table-rpg/table-rpg-systems.js');
+const { SUNKEN_CHAPEL } = await import('../lib/graph/table-rpg/fixtures/sunken-chapel.js');
+const { tableRpgBook } = await import('../lib/graph/table-rpg/table-rpg-book.js');
+const { BOOK_STYLES } = await import('../lib/graph/book/book-style.js');
 
 const argv = process.argv.slice(2);
 const opt = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined; };
@@ -36,13 +41,10 @@ for (const [where, c] of [['world', checks.world], ...Object.entries(checks.dung
 
 if (opt('--book') !== undefined || opt('--pdf') !== undefined) {
   let book;
-  try { book = tableRpgBook(K, { style: opt('--style') ?? 'tome' }); } catch (err) { console.error(err.message); process.exit(1); }
+  try { book = tableRpgBook(K, { style: opt('--style') ?? 'tome', ...(opt('--parts') ? { parts: opt('--parts').split(',') } : {}) }); } catch (err) { console.error(err.message); process.exit(1); }
   for (const f of book.findings) console.error(`${f.level} (style): ${f.text}`);
   if (opt('--book')) { writeFileSync(opt('--book'), book.html); console.error(`book: ${opt('--book')} (${Math.round(book.html.length / 1024)} KB)`); }
   if (opt('--pdf')) {
-    // the printer reaches the browser through modules that import by the `@/` alias, which plain Node resolves only
-    // with the stdio entry's loader
-    (await import('node:module')).register('./mcp-stdio-loader.mjs', import.meta.url);
     const { printPdf } = await import('../lib/graph/book/book-pdf.js');
     try { writeFileSync(opt('--pdf'), await printPdf(book.html, { allowFetch: false })); console.error(`pdf: ${opt('--pdf')}`); } catch (err) { console.error(`pdf: ${err.message}`); process.exit(1); }
   }

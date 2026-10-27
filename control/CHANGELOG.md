@@ -14,6 +14,39 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: the game type, its page, its export and character creation
+
+The table game becomes a game type beside the board games: `create_game({ table_rpg })`, engine `table-rpg`, its own
+page and its own book, no store and no levels. One property on the door, no new tool; the tools/list payload stays
+under its pin. The map: [docs/table-rpg.md](../docs/table-rpg.md).
+
+- **The row** (`lib/graph/table-rpg/table-rpg-manifest.js`): `{ kind: 'game', engine: 'table-rpg', title, tableRpg }`,
+  the module's keys and a `book` style; the page, the book and the sheets regenerate from it; `update_sketch` plays an
+  edit through the kernel first (refused, `Invalid table game`, when it cannot play).
+- **The starter** (`table-rpg-starter.js`): `starter: { use: 'crypt' }` makes a whole game from a building's program —
+  a town, the road and its table, the dungeon with its loop, lock and key, minions and the boss guarding the prize, a
+  wandering table, the goal; what the module writes itself wins.
+- **Character creation**: the party rolled by the card's method, each member on its own dice, `egocube` rolling who
+  they are (a persona, a name rolled from syllables when none, the role when none); three rolled when no party is
+  named. The mint's answer says every sheet as rolled and how it was made, and the checks' findings (advice).
+- **The page** (`table-rpg-page.js`): the kernel's own closure on one self-contained page in the book's look and
+  faces, the transcript, the moves offered as buttons and typed, every die in the open; the moves kept in the player's
+  browser are the save, replayed on load.
+- **Where it is**: `/api/sketches/<ref>/game` the page; `/bible` the game book (`?parts=party` the characters' sheets
+  alone, `?style=`); the game rail's exits play, book and characters; playtest refuses (no levels to open).
+- **Export**: `export_game` writes `game.html`, `book.html`, `characters.html`, and `book.pdf` and `characters.pdf`
+  through a browser already on the machine (an export never fetches one: without it the pages print from any browser,
+  and the answer says so), with the recipe and a README.
+- **Cards**: `get_game_vocab({ id: 'table-rpg' })` (the grammar, every starter, character creation and the book's
+  styles, read from their tables); the routing card `table-rpg` with pen-and-paper phrasings and collision rows
+  against the live RPG. `scripts/table-rpg.mjs --parts party` prints the characters alone.
+
+Machine gate: the door's suite (a starter's mint and its sheets, the page and the book from the row, a module written
+out, refusals, the checks advising, the update gate, the export with a printer injected and without one, the card),
+the starter and naming tests, the routing-card and tool-description suites, and two live suites in the e2e tier (the
+page in a browser playing Node's game line for line and replaying its kept moves on reload; the book printed). Eyes
+gate not run: the author looked at the page and a characters print; the operator has not.
+
 ### Books: a press, a style library, and the game book printed to PDF
 
 A book mojulo makes is one self-contained page that reads on a screen and prints as a book, and headless Chromium
@@ -52,7 +85,7 @@ preset and read the pages (fixing four column and map faults on the way); the op
 A tabletop role-playing game as a recipe, the concept layer: a module (a rules card, a party rolled from it, a world, its
 dungeons, foes, items, tables, beats and a goal) played fully in text, every die rolled in the open, before any page
 or picture. The map, the research behind it and what each part is composed from: [docs/table-rpg.md](../docs/table-rpg.md).
-No MCP surface changes in this theme; the game type it becomes is a quick goal of `design_game`, the next step.
+No MCP surface changes in this theme; the game type it becomes is the next theme.
 
 - **Rules as procedures** (`lib/graph/table-rpg/table-rpg-systems.js`): a rules card is a resolution procedure and its
   numbers (a d20 against a target, a d20 rolled under, 2d6 in bands, fudge dice for shifts, d100 under a score, a d6

@@ -163,3 +163,39 @@ describe('the world and the party, read by the rest of mojulo', () => {
     expect(toLiveParty(strong).party[0].bonus.atk).toBeGreaterThan(toLiveParty(weak).party[0].bonus.atk);
   });
 });
+
+describe('the starter and character creation: a whole game from a few words', () => {
+  it('a building\'s program fills what the module leaves out, and plays: one program per plan shape, picked off the table', async () => {
+    const { withStarter, STARTER_PARTY } = await import('./table-rpg-starter.js');
+    const shapes = [...new Set(Object.values(PROGRAMS).map((P) => P.shape))];
+    for (const shape of shapes) {
+      const use = Object.keys(PROGRAMS).find((u) => PROGRAMS[u].shape === shape);
+      const { K, checks } = readModule({ title: 'T', starter: { use } });
+      expect(Object.values(checks.dungeons).every((c) => c.ok), use).toBe(true);
+      expect(checks.world.ok).toBe(true);
+      expect(K.party.map((p) => p.persona.role)).toEqual([...STARTER_PARTY]);
+      expect(playScript(K, ['look']).lines.join('\n')).toContain(K.M.hook);
+      expect(withStarter({ starter: { use } })).toEqual(withStarter({ starter: { use } }));
+    }
+  });
+
+  it('what the module writes wins over the starter; a starter that is not one is refused', async () => {
+    const { withStarter } = await import('./table-rpg-starter.js');
+    const own = withStarter({ starter: { use: 'crypt' }, hook: 'Mine.', party: [{ id: 'a', role: 'caster' }] });
+    expect(own.hook).toBe('Mine.');
+    expect(own.party).toEqual([{ id: 'a', role: 'caster' }]);
+    expect(own.starter).toBeUndefined();
+    expect(() => withStarter({ starter: { use: 'crypt', size: 3 } })).toThrow(/starter.size is not a setting/);
+    expect(() => withStarter({ starter: 'crypt' })).toThrow(/starter is \{ use/);
+  });
+
+  it('a member rolled with no name gets one on its own stream, its archetype the epithet; a named one keeps its name', async () => {
+    const { rollName } = await import('./table-rpg-party.js');
+    expect(rollName(7, 'pc-1')).toBe(rollName(7, 'pc-1'));
+    expect(rollName(7, 'pc-1')).toMatch(/^[A-Z][a-z]+$/);
+    const m = withPersonas({ seed: 7, party: [{ id: 'pc-1', egocube: true }, { id: 'pc-2', name: 'Ada', egocube: true }] });
+    expect(m.party[0].name).toBe(rollName(7, 'pc-1'));
+    expect(m.party[0].persona.epithet).toBe(`the ${m.party[0].persona.archetype}`);
+    expect(m.party[1].name).toBe('Ada');
+  });
+});

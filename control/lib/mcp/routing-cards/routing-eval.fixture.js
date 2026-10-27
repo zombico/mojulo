@@ -77,6 +77,9 @@ export const FIXTURE = [
   ['a board game projected as a hologram in the middle of an arena, against the computer', 'design_game', 'tabletop'],
   ['a floodlit football stadium with stands all round that I can walk through', 'compose_world', 'stadium'],
   ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
+  // a pen-and-paper RPG played in text and printed: create_game's table_rpg, not the live RPG's battles in a 3D field
+  ['be my game master: roll up three characters and run a one-shot dungeon in text', 'create_game', 'table_rpg'],
+  ['make a printable tabletop RPG adventure with character sheets', 'create_game', 'table_rpg'],
   // mobile genres: the match-3 saga is a reducer game, not a world game
   ['a candy crush kind of game with a level map and stars', 'create_pixelizer_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
@@ -204,6 +207,9 @@ export const COLLISION_FIXTURE = [
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
   ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
+  // the table RPG and the live RPG share "RPG", "party" and "dungeon": the pen and paper is the table's, the 3D field the rail's
+  ['roll stats for my character sheet, 4d6 drop the lowest, for a pen-and-paper game', 'create_game', 'table_rpg'],
+  ['a JRPG where my party walks a dungeon and fights turn-based battles', 'design_game'],
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],

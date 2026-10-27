@@ -24,8 +24,8 @@ node scripts/table-rpg.mjs --book out.html --pdf out.pdf --style zine   # the ga
 |---|---|---|
 | Concept (built) | the kernel: dice, resolution, sheets, the world, dungeons, fights, tables, the oracle, the transcript | `table-rpg-kernel.js` |
 | Game book (built) | the module as a book in a style, printed to PDF: maps, keyed rooms, stat blocks, roll tables, sheets | `table-rpg-book.js`, `table-rpg-maps.js`, the press ([books.md](books.md)) |
-| Game type (next) | one more game on the game rail, a quick goal of `design_game`: no new MCP tool | below, "Exposure" |
-| Text page (next) | the kernel's closure emitted into a console page (transcript and a command line) | the tabletop kernel's `toString()` discipline |
+| Game type (built) | `create_game({ table_rpg })`, the board-game type's sibling: the row, the page, the book, the export | below |
+| Text page (built) | the kernel's closure in a page: the transcript, the moves as buttons, a line to type | `table-rpg-page.js` |
 | UI | the map, the sheets and a dice tray over the text page | later |
 | Walkable dungeon | the dungeon lowered to a stage and its rooms, the party to `play.rpg` | later; the shapes are already chosen to land there |
 
@@ -143,26 +143,36 @@ attribution when it carries one). A one-sheet format keeps what the table needs 
 foes, the tables): the one-page adventure. The maps are drawn in the look's colours; a dungeon's numbers are its
 key's (`roomNumbers`), so the map and the text never disagree.
 
-## Exposure: one game type, no new tool
+## The game type: `create_game({ table_rpg })`
 
-The game rail already makes a game whose characters are rolled sheets: `design_game`'s quick goal `fight` writes the
-fighters' egocube sheets, mints each fighter through `create_character { egocube }`, and stores a game row of its own
-engine. The table RPG takes the same path:
+The table game is a sibling of the board-game type (`create_game({ tabletop })`): its own engine, its own page, no
+store and no levels. One property on the door, no new tool.
 
-- `design_game({ quick: { goal: 'table-rpg', system?: <a starter's id or a card written out>, … the module } })`:
-  the members' sheets (egocube), their bodies when asked for, the game row `{ kind: 'game', engine: 'table-rpg', title, tableRpg: <module> }`; the answer carries
-  the referee packet. `quick` is an untyped object in the tool's schema, so the `tools/list` payload does not move.
-- The engine's branches beside the tabletop type's: the `update_sketch` gate, the play route, the export; the game
-  book served beside the other books (the `/bible` route) and written by `export_game` with its PDF.
-- Cards: `get_game_vocab({ id: 'table-rpg' })` (a guide, the rules-card grammar with a starter per procedure, the
-  dungeon and world grammar) and a routing card whose phrasings are pen-and-paper ones (game master, roll for stats,
-  character sheet, one-shot, theatre of the mind), with collision rows against the live RPG.
-- The two RPGs read apart: the **live RPG** is "battles in the 3D field, a party in the game you walk"; the **table
-  RPG** is "a pen-and-paper game played in text, rolled from a rules card".
+- **The row**: `{ kind: 'game', engine: 'table-rpg', title, tableRpg: <the module's keys, book?> }`
+  (`table-rpg-manifest.js`). The page, the book and the sheets regenerate from it on every read; `update_sketch`
+  plays an edit through the kernel before it lands.
+- **The quickest game**: `table_rpg: { starter: { use: 'crypt' }, system? }` (`table-rpg-starter.js`): a town, the road
+  and its table, the building's program as a dungeon (a loop, the goal locked and keyed, minions, the boss guarding the
+  prize, a wandering table), the goal to bring the prize back. What the module writes itself wins over the starter's.
+- **Character creation** is the party: each member rolled by the card's method on its own dice, `egocube` rolling who
+  they are (a persona, a name when none, the role when none), three rolled when no party is named (a frontline, a
+  flanker, a support). The mint's answer says every sheet as rolled and how it was made; the checks' findings ride
+  beside it, advice only.
+- **Where it is**: played at `/api/sketches/<ref>/game` (the text page: the kernel's own closure, the moves as buttons
+  and typed, every die in the open, the moves kept in the player's browser as the save); its book at `/bible`
+  (`?parts=party` the characters' sheets alone, `?style=` another preset); the rail's exits play, book and characters.
+- **Export**: `export_game` writes `game.html`, `book.html`, `characters.html`, and `book.pdf` and `characters.pdf` when
+  a browser is on the machine (never fetched for an export: without one, the pages print from any browser), with the
+  recipe and a README.
+- **Cards**: `get_game_vocab({ id: 'table-rpg' })` (the grammar, every starter, character creation, the book's
+  styles, read from the tables that define them); a routing card whose phrasings are pen-and-paper ones, with
+  collision rows against the live RPG ("a JRPG where my party walks a dungeon" stays `design_game`'s).
+- The two RPGs read apart: the **live RPG** is battles in a 3D field, a gameworld on `design_game`; the **table RPG**
+  is a pen-and-paper game played in text and printed. When the walkable dungeon lands, the table game lifts into a
+  gameworld there (its dungeon a stage, its party `play.rpg`), which is where `design_game` meets it.
 
 ## Gaps
 
-- No MCP door yet (the next layer); the game plays from the kernel, the tests and the CLI.
 - A balance probe: a module autoplayed over many seeds (how often it is won, who falls, how long the fights run), so a
   card the person's model writes is measured rather than tuned by hand. The tests hold the starters to one such run.
 - Spells, class features, conditions, equipment beyond a weapon, saving throws, skills apart from abilities, and
