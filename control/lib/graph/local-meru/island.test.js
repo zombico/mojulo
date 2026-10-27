@@ -16,6 +16,24 @@ const of = (p, g) => p.faces.filter((f) => f.group === g);
 const mid = (f) => [0, 1, 2].map((k) => f.corners.reduce((s, c) => s + c[k], 0) / f.corners.length);
 
 describe('local meru: the island', () => {
+  it('drops a walker on its own ground, however high it stands over the stage\'s join', () => {
+    // (the meru island's high side, 13.5 m up, stands over the join at the origin; the join's own height is the stage's)
+    const high = meru({ geology: true, walk: 'none', high: { height: 13.5 } }), [x, y, z] = high.walk.spawn;
+    // (the land under the spawn: every face whose plan holds it, its height there)
+    const at = high.faces.flatMap((f) => { const c = f.corners, out = [];
+      for (let k = 1; k + 1 < c.length; k++) { const [a, q, d] = [c[0], c[k], c[k + 1]], det = (q[1] - d[1]) * (a[0] - d[0]) + (d[0] - q[0]) * (a[1] - d[1]);
+        if (Math.abs(det) < 1e-12) continue;
+        const l1 = ((q[1] - d[1]) * (x - d[0]) + (d[0] - q[0]) * (y - d[1])) / det, l2 = ((d[1] - a[1]) * (x - d[0]) + (a[0] - d[0]) * (y - d[1])) / det;
+        if (l1 >= -1e-9 && l2 >= -1e-9 && l1 + l2 <= 1 + 1e-9) out.push(l1 * a[2] + l2 * q[2] + (1 - l1 - l2) * d[2]); }
+      return out; });
+    const ground = Math.max(...at);
+    expect(ground).toBeGreaterThan(5);
+    // (standing over it at an eye's height, give or take the hand it is dropped from; the seam's eye the same)
+    expect(z - ground).toBeGreaterThanOrEqual(1.7);
+    expect(z - ground).toBeLessThan(2);
+    expect(high.cameras.find((c) => c.name === 'seam').worldFraming.cameraPosition[2]).toBeCloseTo(z, 5);
+  });
+
   it('reads its settings and refuses what it does not know', () => {
     expect(readLocalMeru({ island: true }).island).toMatchObject({ beach: 9, sea: 0.7, depth: 3, high: { height: 4.5, span: 110 } });
     expect(readLocalMeru({}).island).toBeUndefined();

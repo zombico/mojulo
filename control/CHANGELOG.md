@@ -950,6 +950,10 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   one does (`ctx.form`, set by the world's read for a 'form' era and passed by the stage and geocube kinds; the island at
   `FORM_GRIT` unless its style is grittier): its boulders broken at their edges, its cliffs' rims broken, stones strewn
   on the boulders' tops, along the paths and at the cliffs' feet, its beach's strand. Gen-6 is as it was.
+- **Fixed: the walk dropped you inside the island.** The walk's spawn and the `seam` camera stood at the stage's join,
+  1.7 m over its own height, under the meru island's high side (13.5 m up at the join): walking began 11.8 m inside the
+  land and fell through it. On an island the spawn now stands on the island's own ground at the join, dropped from a
+  hand over it (`SPAWN_CLEAR`, so the walk's ground ray starts above the faces), in both eras.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
