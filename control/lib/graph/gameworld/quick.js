@@ -777,6 +777,15 @@ export function goalMechanics(quick, ends) {
       // on a roadway (roads/contract.js): its own checkpoints, the last its finish; a lap goes round `laps` times
       if (ends.roadway) {
         const T = ends.roadway;
+        // a duel (a Race of Champions' lanes): you in lane one, a rival in lane two on its own checkpoints; a car's lap
+        // is one leg, its next the other, so two laps are the whole loop
+        if (T.duel) {
+          const D = T.duel, n = quick.laps ?? 2;
+          if (rivals.length > 1) throw new Error('gameworld: quick.rivals on a duel is 1 (a Race of Champions races two cars), or none against the clock');
+          if (!(n === 1 || n % 2 === 0)) throw new Error('gameworld: quick.laps on a duel is 1, or an even number (each lap one lane\'s half: two laps the whole loop)');
+          const mine = n === 1 ? D.legs[0] : [...D.legs[0], ...D.legs[1]], theirs = n === 1 ? D.legs[1] : [...D.legs[1], ...D.legs[0]];
+          return [{ kind: 'laps', checkpoints: mine, laps: n === 1 ? 1 : n / 2, ...race, ...(rivals.length ? { rivalCheckpoints: { [rivals[0]]: theirs } } : {}) }];
+        }
         return [{ kind: 'laps', checkpoints: T.checkpoints, ...(T.closed ? { laps: quick.laps ?? RACE.laps } : {}), ...race }];
       }
       // round a loop (lay-concerns.js loopSite): checkpoints about every RACE.leg metres of its line, the last its start
@@ -958,7 +967,9 @@ function roadwayCast(rivals, T, ride) {
     const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: mine ? mine.rule.collideRadius : RACE.body, ...(ramps.length ? { ramps } : {}) };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });
   });
-  return { figures, entities, pilot: { rule: { collideRadius: ride.field ? ride.field[0].rule.collideRadius : RACE.body }, transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
+  // (a duel's player is in lane one whatever the field: its grid's second slot)
+  const you = T.duel ? T.duel.grid[1] : slot(rivals.length);
+  return { figures, entities, pilot: { rule: { collideRadius: ride.field ? ride.field[0].rule.collideRadius : RACE.body }, transform: { pos: you.at, heading: you.heading } } };
 }
 
 export function guardPosts(quick, ends) {

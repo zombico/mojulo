@@ -14,6 +14,8 @@
  *   the lap sees most unless a word names farms, a town, or the wilderness
  *   its stands are the stadium's section (stadium/stand.js: raked tiers, the crowd, a canopy, glass boxes) on every
  *   pole but the voxel's, whose cubes keep the set piece's block (stamped at mint: `scape.stands`)
+ *   a Race of Champions (a stadium race, head to head, a colosseum, an Olympic stadium, a dome) is a duel: two lanes
+ *   and a crossover (course.js designDuel) inside that stadium's bowl (`scape.venue`), the football ground's unless named
  *
  *   readTrackIntent(intent) → { track: { class, form, length, twist, elevation?, ramps?, crossing? }, set, pole, look,
  *                               vehicle, landmark?, surrounds?: { land?, settlement? }, reads: [{ phrase, decided }],
@@ -65,6 +67,12 @@ export const TRACK_LEXICON = Object.freeze({
   'voxel': { pole: 'voxel' }, 'voxels': { pole: 'voxel' }, 'blocky': { pole: 'voxel' }, 'cubes': { pole: 'voxel' },
   'shaded': { pole: 'shaded' }, 'smooth': { pole: 'shaded' }, 'gouraud': { pole: 'shaded' }, 'sunshine': { pole: 'shaded' }, 'mario sunshine': { pole: 'shaded' },
   'kingdom hearts': { pole: 'shaded' }, 'gamecube': { pole: 'shaded' }, 'ps2': { pole: 'shaded' }, 'sixth gen': { pole: 'shaded' }, 'sixth-gen': { pole: 'shaded' },
+  // a stadium's duel (course.js designDuel): two lanes and a crossover, inside a stadium's bowl (stadium/stadium.js)
+  'race of champions': { class: 'stadium', duel: true, venue: 'football' }, 'stadium race': { class: 'stadium', duel: true, venue: 'football' },
+  'stadium track': { class: 'stadium', duel: true, venue: 'football' }, 'stadium racing': { class: 'stadium', duel: true, venue: 'football' },
+  'head to head': { class: 'stadium', duel: true, venue: 'football' }, 'olympic stadium': { class: 'stadium', duel: true, venue: 'olympic' },
+  'colosseum': { class: 'stadium', duel: true, venue: 'colosseum' }, 'football stadium': { class: 'stadium', duel: true, venue: 'football' },
+  'dome': { class: 'stadium', duel: true, venue: 'patron-dome' },
   'battle racer': { class: 'kart', set: 'kart' }, 'battle racing': { class: 'kart', set: 'kart' }, 'kart battle': { class: 'kart', set: 'kart' },
 });
 /** A scene's common words, said in the land tunnel's own (what it reads: its traits and colour phrases). */
@@ -77,8 +85,8 @@ export const SCENE_WORDS = Object.freeze({
   volcanic: 'basalt, black ground, red sky', moor: 'umber grass, sparse', jungle: 'lush, moss trees',
 });
 /** A class's length (m), the car it is raced in. */
-const LENGTH = Object.freeze({ kart: 700, circuit: 2200, rally: 1400, stage: 2000 });
-const VEHICLE = Object.freeze({ kart: 'kart', circuit: 'sports', rally: 'rally' });
+const LENGTH = Object.freeze({ kart: 700, circuit: 2200, rally: 1400, stage: 2000, stadium: 420 });
+const VEHICLE = Object.freeze({ kart: 'kart', circuit: 'sports', rally: 'rally', stadium: 'rally' });
 const PHRASES = Object.keys(TRACK_LEXICON).sort((a, b) => b.length - a.length);
 const FILLER = new Set(['a', 'an', 'the', 'of', 'and', 'with', 'in', 'on', 'by', 'at', 'through', 'track', 'course', 'road', 'race', 'racing', 'level', 'some', 'lots']);
 
@@ -101,22 +109,23 @@ export function readTrackIntent(intent = '') {
   // (a kart track voxel: the battle racer's look, cubes under the isekai light; a circuit realistic)
   const form = got.form ?? 'circuit', pole = got.pole ?? (set === 'kart' ? 'voxel' : 'material');
   const base = form === 'stage' ? LENGTH.stage : LENGTH[cls] ?? LENGTH.circuit;
-  const track = { class: cls, form, length: Math.round(base * (got.length ?? 1)), twist: got.twist ?? (cls === 'kart' ? 0.5 : 0.4),
+  const track = { class: cls, form, length: Math.round(base * (got.length ?? 1)), twist: got.twist ?? (cls === 'kart' ? 0.5 : 0.4), ...(got.duel && form !== 'stage' ? { duel: true } : {}),
     ...(got.elevation ? { elevation: got.elevation } : {}), ...(got.ramps ? { ramps: got.ramps } : {}), ...(got.crossing ? { crossing: true } : {}) };
   // the look: the scene's words, the pole said in the tunnel's terms (realistic, or stylized) when no word did
   const said = scene.join(' ');
   const look = `${pole === 'material' && !/\b(realistic|realism|naturalistic|lifelike|photoreal)\b/.test(said) ? 'realistic ' : pole !== 'material' && !/\bstyli[sz]ed\b/.test(said) ? 'stylized ' : ''}${said}`.trim() || (pole === 'material' ? 'realistic green grass' : 'stylized green grass');
   // the surrounds: the land the words name (a course's mountains are the land's too), the settlement they name
   const surrounds = { ...(got.land ? { land: got.land } : {}), ...(got.settlement ? { settlement: got.settlement } : {}) };
-  return { track, set, pole, look, vehicle: VEHICLE[cls] ?? 'sports', ...(got.landmark ? { landmark: got.landmark } : {}), ...(Object.keys(surrounds).length ? { surrounds } : {}), reads, unread: [] };
+  return { track, set, pole, look, vehicle: VEHICLE[cls] ?? 'sports', ...(got.venue && track.duel ? { venue: got.venue } : {}), ...(got.landmark ? { landmark: got.landmark } : {}), ...(Object.keys(surrounds).length ? { surrounds } : {}), reads, unread: [] };
 }
 
 /** A roadway manifest from words: the course designed by the seed, the look composed wherever it is drawn. */
 export function composeTrack(intent, { seed = 1 } = {}) {
   const R = readTrackIntent(intent), T = R.track;
   if (!TRACK_FORMS.includes(T.form)) throw new Error(`trackscape: form ${T.form}`);
-  const course = { class: T.class, length: T.length, twist: T.twist, seed, ...(T.elevation ? { elevation: T.elevation } : {}), ...(T.ramps ? { ramps: T.ramps } : {}), ...(T.crossing ? { crossing: true } : {}), ...(T.form === 'stage' ? { closed: false } : {}) };
-  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' ? { pole: R.pole } : {}) }, scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
+  // (a duel is two lanes and a crossover: no hills, ramps or crossing of its own)
+  const course = T.duel ? { class: T.class, length: T.length, twist: T.twist, seed, duel: true } : { class: T.class, length: T.length, twist: T.twist, seed, ...(T.elevation ? { elevation: T.elevation } : {}), ...(T.ramps ? { ramps: T.ramps } : {}), ...(T.crossing ? { crossing: true } : {}), ...(T.form === 'stage' ? { closed: false } : {}) };
+  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' ? { pole: R.pole } : {}) }, scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
 }
 
 /** A gameworld from words: its look the words', its one level the track drawn in it (the world and the track together). */

@@ -20,7 +20,8 @@
  *                         colliders added. `m.scape`: true, or { set?, seed?, landmark? (a block's id), arena? (false: none), surrounds? (false: the flat field;
  *                         or { land?: hills | mountains | mesas | flat, settlement?: village | farms | town | none, seed? }), local? (false:
  *                         the zones unbuilt; or { <zone>: { seed?, skip?, upTo? } }), upTo? (every area's last pass), stands? ('block', the set piece's, when
- *                         absent; 'bowl' or { rows?, roof?, facade?, crowd?, screens?, livery? }: the stadium's section, stadium/stand.js) }; the kit is
+ *                         absent; 'bowl' or { rows?, roof?, facade?, crowd?, screens?, livery? }: the stadium's section, stadium/stand.js), venue? (a stadium
+ *                         preset or a stadium's words, stadium/venue.js: the track inside its bowl, which is then the whole dressing) }; the kit is
  *                         `m.kit` (the meadow if none)
  *   scapeThings(pieces) → things for the eye (each piece at its centre, its least extent, its interest)
  *
@@ -36,6 +37,7 @@ import { buildLocalAreas } from './local-area.js';
 import { trackKit } from './track-kit.js';
 import { planSurrounds } from './surrounds.js';
 import { readStands } from '../stadium/stand.js';
+import { trackVenue } from '../stadium/stadium.js';
 
 // a course's land when no word names one: mountains under a sharp course, hills otherwise
 const landOf = (m) => ((m.course?.elevation?.amplitude ?? 0) >= 20 ? 'mountains' : 'hills');
@@ -50,6 +52,9 @@ export function planScapedTrack(m = {}) {
   const opts = m.scape === true ? {} : m.scape;
   const set = opts.set ?? SET_OF_CLASS[plan.course.class] ?? 'gt', seed = Number.isInteger(opts.seed) ? opts.seed : Number.isInteger(m.seed) ? m.seed : 1;
   const K = trackKit(m.kit ?? 'isekai-meadow'), X = plan.X, a = plan.alignment, L = a.length;
+  // a stadium round the track (`venue`, stadium/stadium.js trackVenue): the bowl is the dressing, so no arena, no
+  // surrounds and no set pieces unless the words ask for them
+  if (opts.venue) return venueTrack(plan, opts, K);
   // the landmark the set can build at its largest (its rails' tops): the planner searches only where that reads
   const lmId = opts.landmark ?? SETS[set].landmark, LB = TRACK_BLOCKS[lmId];
   const top = buildBlock(LB, { params: Object.fromEntries(Object.entries(LB.params).filter(([, r]) => typeof r[0] === 'number').map(([k, r]) => [k, r[1]])), library: TRACK_BLOCKS }).box.size;
@@ -114,6 +119,23 @@ export function planScapedTrack(m = {}) {
     faces: [...plan.faces, ...faces],
     colliders: [...plan.colliders, ...colliders],
     scape: { set, kit: K.id, slots: scape.slots, keepClear: scape.keepClear, corners: scape.corners, pieces, ...(arena ? { arena, absorbed } : {}), ...(local ? { local: local.areas } : {}), ...(sur ? { surrounds: sur.report } : {}), census: { blank: census.blank, seconds: census.seconds.length, corners: census.corners, landmarkSeen: census.landmarkSeen, rhythm: census.rhythm }, laws },
+  };
+}
+
+// the track in its stadium: the bowl round the footprint's box, a margin of the class's run-off past it; what the eye
+// meets the bowl's four sides, each a focus as tall as the stands
+function venueTrack(plan, opts, K) {
+  const X = plan.X, xs = plan.stations.map((p) => p.x), ys = plan.stations.map((p) => p.y), pad = X.outer + 3;
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+  const V = trackVenue(opts.venue, { field: { x: r3(x0), y: r3(y0), w: r3(x1 - x0), d: r3(y1 - y0) }, K });
+  const g = plan.groundAt(V.centre[0], V.centre[1]);
+  const sides = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([u, w]) => ({ kind: 'stadium', interest: 'focus', at: [V.centre[0] + u * V.half[0], V.centre[1] + w * V.half[1], g + V.top / 2], span: V.top, top: g + V.top }));
+  const census = driverEye(plan, sides, { ground: plan.groundAt });
+  return {
+    ...plan,
+    faces: [...plan.faces, ...V.faces],
+    scape: { venue: { preset: V.preset, livery: V.livery, reach: V.reach, top: V.top }, pieces: [], census: { blank: census.blank, seconds: census.seconds.length, corners: census.corners, landmarkSeen: census.landmarkSeen, rhythm: census.rhythm }, laws: [] },
+    lamps: V.lamps,
   };
 }
 
