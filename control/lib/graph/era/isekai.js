@@ -1246,8 +1246,21 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
     ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
-    ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns } : null, wind: W,
+    ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns, ...trunkSway(trees) } : null, wind: W,
   };
+}
+
+/**
+ * The trunks the live wind leaves standing (stage-grass.js CROWNS): each built tree's stems as segments, foot to top
+ * with their radii, x0 y0 z0 x1 y1 z1 r0 r1 each (Float32, b64), and the wood that stands on them (`rigid`). The page
+ * weighs a wood vertex's sway by how far it stands off its trunk, so the limbs bend from where they leave it and the
+ * trunk not at all. None when no tree records one (a stamped stock tree's template is never swayed)
+ */
+export const TRUNK_LIMB = 1;
+function trunkSway(trees) {
+  const seg = [];
+  for (const t of trees) for (const T of t.trunks || []) for (let i = 0; i + 1 < T.pts.length; i++) seg.push(...T.pts[i], ...T.pts[i + 1], T.radii[i], T.radii[i + 1]);
+  return seg.length ? { rigid: ['isekai:wood'], trunks: b64(Float32Array.from(seg)), limb: TRUNK_LIMB } : {};
 }
 
 /**
@@ -1395,6 +1408,7 @@ export function sakuraFaces(st, site, trees) {
     const tdir = [Math.sin(lean) * Math.cos(ta), Math.sin(lean) * Math.sin(ta), Math.cos(lean)], r0 = C.trunk * h, base = [t.x, t.y, z0];
     const fork = addv(base, mul(tdir, h * C.fork)), mid = addv(addv(base, mul(tdir, h * C.fork * 0.5)), [(H(3, 947) - 0.5) * 0.06 * h, (H(4, 953) - 0.5) * 0.06 * h, 0]);
     limb(wood, [base, mid, fork], [r0 * 1.3, r0, r0 * 0.88], 7, sc);
+    t.trunks = [{ pts: [base, mid, fork], radii: [r0 * 1.3, r0, r0 * 0.88] }];
     const tips = [], blobs = [], joints = []; let id = 0;
     const grow = (p, az, gen, r, len) => {
       const my = id++, el = ((Ti.rise[gen] + (hash3(k, 200 + my, 1001) - 0.5) * 16) * Math.PI) / 180, d = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
@@ -1574,6 +1588,8 @@ function treeFaces(st, site, trees, grit = 0) {
       // (several stems, `stems`: each from the foot, leaning out `splay` degrees on its own side to its own top, the
       // limbs shared among their tops: two a V; thinner each, as one trunk's wood is shared)
       const ns = K.stems ?? 1, forks = ns > 1 ? [] : null;
+      // (each stem kept on the tree, `trunks`: the live wind bends its limbs and leaves, never it; stage-grass.js CROWNS)
+      t.trunks = [];
       if (ns > 1) {
         const yawS = 2 * Math.PI * hash3(k, 14, 4133), lean = Math.tan(((K.splay ?? 16) * Math.PI) / 180), rise = fork[2] - z0;
         for (let q = 0; q < ns; q++) {
@@ -1581,9 +1597,9 @@ function treeFaces(st, site, trees, grit = 0) {
           const top = [ck[0] + ca * lean * rise, ck[1] + sa * lean * rise, fork[2] - rise * 0.06 * q], foot = [t.x + ca * g * 0.5, t.y + sa * g * 0.5, z0];
           const midS = [mix(foot[0], top[0], 0.45) + ca * lean * rise * 0.08, mix(foot[1], top[1], 0.45) + sa * lean * rise * 0.08, mix(z0, top[2], 0.45)];
           tube(wood, [foot, midS, top], [g * 0.78, g * 0.62, g * 0.5], 6, wt, 'isekai:wood');
-          forks.push(top);
+          forks.push(top); t.trunks.push({ pts: [foot, midS, top], radii: [g * 0.78, g * 0.62, g * 0.5] });
         }
-      } else tube(wood, stem, [g, g * 0.85, g * 0.72, g * 0.62], 6, wt, 'isekai:wood');
+      } else { tube(wood, stem, [g, g * 0.85, g * 0.72, g * 0.62], 6, wt, 'isekai:wood'); t.trunks.push({ pts: stem, radii: [g, g * 0.85, g * 0.72, g * 0.62] }); }
       const G = leafForm(form, { base: [t.x, t.y, z0], h: hk, c: ck, Rc: Rk, seed: k, density: K.density ?? 1, forks, branch: K.branch ?? 1, split: K.split ?? 0 });
       for (const l of G.limbs) tube(wood, l.pts, l.radii, 5, wt, 'isekai:wood');
       // (a bush draws no twigs: too fine to see at its size; but leafless, the twigs are all it has)
@@ -1607,6 +1623,7 @@ function treeFaces(st, site, trees, grit = 0) {
     }
     const trunk = [0, 0.35, 0.7, 1].map((f) => [t.x + bend[0] * f * f + (c[0] - t.x) * f, t.y + bend[1] * f * f + (c[1] - t.y) * f, z0 + (c[2] - z0) * f]);
     tube(out, trunk, [C.trunk * h, C.trunk * h * 0.8, C.trunk * h * 0.62, C.trunk * h * 0.5], 6, st.tint.wood, 'isekai:wood');
+    t.trunks = [{ pts: trunk, radii: [C.trunk * h, C.trunk * h * 0.8, C.trunk * h * 0.62, C.trunk * h * 0.5] }];
     const Ms = t.hero ? st.trees.hero.masses : C.masses, n = Ms[0] + Math.floor(hash3(k, 5, 957) * (Ms[1] - Ms[0] + 1)), yaw = 2 * Math.PI * hash3(k, 6, 959);
     const masses = [{ at: [c[0], c[1], c[2] + 0.38 * Rc], r: 0.6 * Rc }];
     t.crownAt = c.map(r5); t.crownR = r5(Rc);   // where the crown hangs (the live channel's petals fall from it)

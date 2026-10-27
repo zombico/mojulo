@@ -1355,6 +1355,12 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   lying along their branches, a pine's spiky tufts; clumps on finer cells (a conifer's crown is narrow) and a fuller fill.
   A needled broadleaf row (the fir) takes the conifers' rules; an evergreen broadleaf (the umbrella tree) and the figs
   (their own rows, vegetation/ficus.js) the trees'. The spruce draws 5.6k needle triangles at mid, the pine 6.9k.
+- **The trunks stand in the wind.** The live wind (scene/channels/stage-grass.js CROWNS) bent a tree's wood by its height
+  alone, so a trunk bowed with its crown. Each built tree's stems now ship with the crowns (`liveGrass.crowns.trunks`,
+  era/isekai.js trunkSway: foot to top with their radii, a sakura's too) and the page weighs every wood vertex by how far
+  it stands off its trunk: none on the trunk's skin, all of it a metre out, so the limbs bend from where they leave it
+  and the leaves sway as they did. Both renders of a trail take it (the form render keeps the crowns' sway). A stamped
+  stock tree never swayed and still does not; bamboo's culms, which flex, keep bending.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

@@ -194,6 +194,21 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(still.length).toBeLessThan(page(W).length);
   });
 
+  it('stands the trunks: each built tree\'s stems ship with the crowns, the wood weighed off them on the page', () => {
+    const S = dec(LG.crowns.trunks), trees = W.faces.filter((f) => f.group === 'isekai:wood');
+    expect(LG.crowns.rigid).toEqual(['isekai:wood']);
+    expect(S.length % 8).toBe(0);
+    expect(S.length).toBeGreaterThan(0);
+    // (every segment rises, its radii a trunk's, and stands where the wood is)
+    for (let k = 0; k < S.length; k += 8) {
+      expect(S[k + 5]).toBeGreaterThan(S[k + 2]);
+      expect(S[k + 6]).toBeGreaterThan(0);
+      expect(S[k + 7]).toBeLessThanOrEqual(S[k + 6] + 1e-6);
+      expect(trees.some((f) => Math.hypot(f.corners[0][0] - S[k], f.corners[0][1] - S[k + 1]) < 1)).toBe(true);
+    }
+    expect(stageGrassScript(LG)).toContain('THE TRUNKS STAND');
+  });
+
   it('ships the ground: heights over the landform grid, and a mask that keeps grass off the trail, the rocks, the trunks and the cliff', () => {
     expect(dec(LG.grid.z).length).toBe(LG.grid.nx * LG.grid.ny);
     expect(mask.length).toBe(CX * (LG.grid.ny - 1));
