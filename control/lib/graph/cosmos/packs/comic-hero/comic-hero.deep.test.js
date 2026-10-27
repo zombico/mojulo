@@ -1,6 +1,6 @@
-// The comic hero pack, swept: every piece card, headgear card, ensemble head, suit, cast member and era through the
-// hero door's validator on the bodies it fits (pieces, costumes and characters .test.js hold the concepts, one case
-// per family or path).
+// The comic hero pack, swept: every piece card, headgear card, accessory card, item card, ensemble head, suit, cast
+// member and era through the hero door's validator on the bodies it fits (pieces, accessories, items, costumes and
+// characters .test.js hold the concepts, one case per family or path).
 import { describe, it, expect } from 'vitest';
 import { PIECE_IDS } from './pieces.js';
 import { HEADGEAR, HEADGEAR_IDS, fitted } from './headgear.js';
@@ -10,7 +10,9 @@ import { SUITS, SUIT_KEYS, suitOf } from './suits.js';
 import { CAST } from './cast.js';
 import { LOOKS } from './looks.js';
 import { memberOrders, bodyOf } from './characters.js';
-import { validateHeroSpec } from '../../../../mcp/tools/layered.js';
+import { ACCESSORIES, ACCESSORY_IDS, accessoryFits } from './accessories.js';
+import { ITEM_IDS } from './items.js';
+import { validateHeroSpec, heroRecord, heroPlanOf, sortPieces } from '../../../../mcp/tools/layered.js';
 
 const byBody = Object.fromEntries(Object.keys(LOOKS).map((id) => [bodyOf(id), id]));
 const valid = (spec) => { const { vibe: _v, ...fields } = spec; return validateHeroSpec(fields); };
@@ -27,6 +29,26 @@ describe('the comic hero pack, swept', () => {
         if (e.length) failing.push({ headgear: id, look, e });
         if (['helmet', 'cowl', 'face'].includes(HEADGEAR[id].family) && spec.hair !== 'none') failing.push({ headgear: id, look, hair: spec.hair });
       }
+    }
+    expect(failing).toEqual([]);
+  }, 120_000);
+
+  it('every accessory card validates and is worn on the bodies it fits; every item card validates on both bodies', () => {
+    const failing = [];
+    for (const look of ['comic-day', 'realistic-city']) {
+      const body = bodyOf(look);
+      for (const id of ACCESSORY_IDS) {
+        if (!accessoryFits(id, body)) continue;
+        const spec = (({ vibe: _v, ...f }) => f)(memberOrders('hero', look, { era: 'modern', accessories: [id] }).mint.args.spec);
+        const e = validateHeroSpec(spec);
+        if (e.length) failing.push({ accessory: id, look, e });
+        if (ACCESSORIES[id].pieces) { const hero = heroRecord(spec), { unworn } = sortPieces(heroPlanOf(hero), hero.outfit); if (unworn.length) failing.push({ accessory: id, look, unworn }); }
+      }
+      for (const id of ITEM_IDS) { const e = valid(memberOrders('hero', look, { era: 'modern', items: [id] }).mint.args.spec); if (e.length) failing.push({ item: id, look, e }); }
+    }
+    for (const m of CAST) for (const look of ['comic-day', 'realistic-city']) {
+      const e = valid(memberOrders(m.id, look, { items: 'signature' }).mint.args.spec);
+      if (e.length) failing.push({ member: m.id, look, signature: m.items, e });
     }
     expect(failing).toEqual([]);
   }, 120_000);
