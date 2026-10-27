@@ -309,6 +309,29 @@ through the character designer, clips fitted to the class's timing, factions) is
   arch, the ramus's fall, the halves meeting at the chin, and the rig's hinge at the condyle with the head bone toward
   the face. Eyes: the skull rendered alone closed and with the jaw dropped 22°, and on all five skeletons, facing
   forward with the jaw hanging slightly open. Eyes gate: the operator's to judge.
+- **The skull's profile, made accurate** (`undead/skull.js`; the operator: "from the side the skull looks too weird").
+  Seen from the side, the face hung under the braincase like a box, the jaw was two sticks, and the orbits stuck out
+  past the brow. Now:
+  - the braincase is long, its back full behind the ear;
+  - the face is deep enough front to back to carry a full upper row of teeth, incisors, canine, premolars and
+    molars, set along the arch back toward the ramus, with the lower row just inside them;
+  - the brow and the band under the orbits stand forward, the nasal bones project from between the orbits, and the
+    outer orbit rim is a ridge from the brow to the cheek;
+  - the cheekbone and its arch are plates standing on their edge, running back to just before the ear opening, with
+    the mastoid behind it;
+  - the orbits are a little wider than tall, look slightly outward and sit behind the rims; the nasal opening is a
+    tall pear;
+  - the mandible is a plate: a broad, near-upright ramus from the condyle to a sharp angle, a coronoid process rising
+    in front of the condyle under the arch, and a tall body running forward to the chin.
+
+  A loft could not hold a plate on a level, turning run: its rings took their front from +y off the axis, so on a jaw
+  turning toward its chin the tall radius swung sideways. Lofts now take an opt-in `frame: 'up'`
+  (`station-loft-plan.js` `ringFront`). On any mostly level run, the front is +z off the axis, kept on the side of
+  the previous ring; a steep run takes +y. Lofts without it are unchanged, byte for byte.
+
+  Machine gate: the ramus's fall from condyle to angle, the jaw's body taller than it is thick, the teeth running
+  back from the incisors to the molars, and every byte pin the loft change reaches. Eyes: the skull alone from the
+  side, three-quarter and front, closed and with the jaw dropped 22°. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

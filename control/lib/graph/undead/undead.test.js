@@ -8,7 +8,7 @@ import { UNDEAD_CARDS, UNDEAD_FORMS, variantOf, undeadBody } from './index.js';
 import { biped, MASS } from '../egocube/plan.js';
 import { planFromSheet } from '../egocube/plan.js';
 import { rollEgocube } from '../egocube/egocube.js';
-import { validatePlan, expandPlan } from '../polygonizer/station-loft-plan.js';
+import { validatePlan, expandPlan, loftPart, SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { FOE_CLASSES } from '../foes/index.js';
 
@@ -45,8 +45,16 @@ describe('a skeleton is its frame', () => {
     // the mandible rises from its condyle, under the cheekbone's back end, down the ramus, to the chin
     const M = seg(B, 'mandibleR').stations.map((st) => st.at), Z = seg(B, 'zygomaR').stations.map((st) => st.at);
     expect(M[0][2]).toBeLessThan(Z.at(-1)[2]);
-    expect(M[0][2] - M[2][2]).toBeGreaterThan(0.05);
+    const angle = M.reduce((lo, p, i) => (p[1] < M[1][1] + 0.02 && p[2] < M[lo][2] ? i : lo), 0);
+    expect(M[0][2] - M[angle][2]).toBeGreaterThan(0.05);
     expect(M.at(-1)[0]).toBe(0);
+    // a plate: the jaw's body stands on its edge, taller than it is thick (the loft's `up` frame)
+    const ring = Object.values(loftPart(seg(B, 'mandibleR').stations, null, SLOT_FAMILIES.limb6, 2, { up: true }).stations[angle + 2].points);
+    const span = (k) => Math.max(...ring.map((p) => p[k])) - Math.min(...ring.map((p) => p[k]));
+    expect(span(2)).toBeGreaterThan(2 * span(0));
+    // the teeth run back along the arch from the incisors to the molars
+    const T = names.filter((n) => /^toothU\dR$/.test(n)).map((n) => B.body.joints[`${n}a`]);
+    expect(T[0][1] - T.at(-1)[1]).toBeGreaterThan(0.04);
     expect(B.head).toBeNull();
   });
   it('the rig hinges the jaw at the condyles and points the head at the face', () => {
