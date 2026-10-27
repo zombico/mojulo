@@ -173,6 +173,25 @@ a tail does not shrink it; a beast's bust at its head where its plan seats it, p
 higher; a mascot's bust its whole head): the leaders lined up in the Factions chapter, each bust in
 its entry, a foe of no faction over its stat block.
 
+## Arms and artifacts
+
+The rules keep arms portable: an item of kind `weapon` or `armour` is an **artifact** with a `bonus` of 1 to 3 (a
+weapon's `faculty`, if it names one, the one it strikes with). `equip <item>` puts it in a member's hands (the one
+named, or the best at what it asks), the arm it replaces going back to the bag; a member may start with `arms`. A
+weapon adds its bonus to the attack and to the harm in every way the dice read; an armour adds its bonus to the defence
+where the card counts one, and elsewhere turns that much of each blow (never below one).
+
+What the arms **look like** is mojulo's equipment kernel (`equipment/`, the `equipment` solid card): an item's `build`
+is its words (an item, a style sample or card, dials, parts, a stone), checked by the kernel itself, and `gear: { style,
+foes }` is the game's arms language (`table-rpg-gear.js`). At mint each item with a build is minted as an equipment
+item (`artifact: <ref>`), and each member made a character on the hero door holds its class's weapon as the kernel
+makes it (`WEAPON_GEAR`: a sword its sword, a mace a staff's mace head, a spell a staff with a stone in its claw; a
+weapon the kernel has no shape for, a chain or a rite, is held by nothing), or the artifact it starts with; a person of
+the cast holds its role's arms (`ROLE_ARMS`) in the foes' style, brutal when none. A starter arms its people in its
+building's style (a temple celestial, a keep dwarven) and leaves an artifact with its key, to be found and taken up
+before the boss. The book's **Arms and artifacts** chapter photographs each artifact and gives its rules, its look in
+words and where it is found.
+
 ## The game book
 
 The book is the product a table game is used through, and the first game type with a direct use for PDF. The module
@@ -223,7 +242,7 @@ store and no levels. One property on the door, no new tool (the flat payload pin
 
 - A balance probe: a module autoplayed over many seeds (how often it is won, who falls, how long the fights run), so a
   card the person's model writes is measured rather than tuned by hand. The tests hold the starters to one such run.
-- Spells, class features, conditions, equipment beyond a weapon, saving throws, skills apart from abilities, and
+- Spells, class features, conditions, equipment beyond a weapon and an armour artifact, saving throws, skills apart from abilities, and
   morale or reaction rolls: the cards hold the procedures, not the catalogues. A faction's foes are talked to
   (parley, threaten, bribe), but they do not break and run on their own yet.
 - The cast's other uses: a town's people as a cast (the mentor, a herald), bonds within the party, standing that opens

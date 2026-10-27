@@ -130,6 +130,15 @@ describe('create_game — a table game (table_rpg)', () => {
     expect(readTableRpg(SketchRepository.getByRef('tr_cast').manifest.tableRpg).K.foes.lieutenant.persona).toMatchObject({ body: 'beast', species: 'wolf' });
   }, 120000);
 
+  it('arms and artifacts: the member holds its class\'s weapon in the game\'s style, the relic minted as an item of its own', async () => {
+    const out = await createGameHandler({ title: 'Armed', table_rpg: { starter: { use: 'temple' }, party: [{ id: 'hero', egocube: { facets: { role: 'frontline' } } }] }, ref: 'tr_arms' });
+    const hero = SketchRepository.getByRef('tr_arms-hero').manifest.hero;
+    expect(hero.gear.right).toMatchObject({ item: 'sword', style: 'celestial' });
+    expect(SketchRepository.getByRef('tr_arms-item-relic').manifest).toMatchObject({ kind: 'workbench', build: { type: 'equipment', item: 'staff', style: 'celestial', gem: 'diamond' } });
+    expect(SketchRepository.getByRef('tr_arms').manifest.tableRpg.items.relic).toEqual({ artifact: 'tr_arms-item-relic' });
+    expect(out.findings?.filter((f) => f.where === 'characters') ?? []).toEqual([]);
+  }, 120000);
+
   it('get_game_vocab serves the table games\' card: the keys, every starter, character creation, the book', async () => {
     const { card } = await getGameVocabHandler({ id: 'table-rpg' });
     expect(card.body).toContain('table_rpg: {');

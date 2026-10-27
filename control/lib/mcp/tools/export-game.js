@@ -557,8 +557,8 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     // the party's and the cast's characters photographed for the book (a browser on the machine; none, and the sheets
     // print without)
     const shoot = deps.portraits ?? (await import('./table-rpg-portraits.js')).tableRpgPortraits;
-    const { portraits, foes: foePortraits, missing } = await shoot(manifest, { paper: tableRpgPaper(manifest) });
-    const book = tableRpgBookOf(manifest, { title: sketch.title, portraits, foePortraits }).html, characters = tableRpgBookOf(manifest, { title: sketch.title, parts: ['party'], portraits }).html;
+    const { portraits, foes: foePortraits, items: itemPortraits, missing } = await shoot(manifest, { paper: tableRpgPaper(manifest) });
+    const book = tableRpgBookOf(manifest, { title: sketch.title, portraits, foePortraits, itemPortraits }).html, characters = tableRpgBookOf(manifest, { title: sketch.title, parts: ['party'], portraits }).html;
     await write('book.html', book);
     await write('characters.html', characters);
     // the PDFs need a browser: one already on the machine prints them; none, and the pages print from any browser

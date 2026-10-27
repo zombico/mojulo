@@ -50,4 +50,18 @@ describe('the party photographed', () => {
       for (const [id, shot] of Object.entries(foes)) for (const k of ['figure', 'bust']) writeFileSync(`${process.env.TABLE_RPG_SHOTS}/${id}-${k}.jpg`, Buffer.from(shot[k].split(',')[1], 'base64'));
     }
   }, 300000);
+
+  it('arms and artifacts: the member photographed holding its weapon, the relic photographed as an object', async () => {
+    if (!browser) return;
+    await createGameHandler({ title: 'Armed', table_rpg: { starter: { use: 'temple' }, party: [{ id: 'hero', egocube: { facets: { role: 'frontline' } } }] }, ref: 'pt_arms' });
+    const m = SketchRepository.getByRef('pt_arms').manifest;
+    const { portraits, items, missing } = await tableRpgPortraits(m, { paper: '#f0e6d2' });
+    expect(missing).toEqual([]);
+    expect(items.relic.figure.length).toBeGreaterThan(8000);
+    if (process.env.TABLE_RPG_SHOTS) {
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(`${process.env.TABLE_RPG_SHOTS}/relic.jpg`, Buffer.from(items.relic.figure.split(',')[1], 'base64'));
+      writeFileSync(`${process.env.TABLE_RPG_SHOTS}/armed-hero.jpg`, Buffer.from(portraits.hero.figure.split(',')[1], 'base64'));
+    }
+  }, 300000);
 });

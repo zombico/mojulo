@@ -1,7 +1,8 @@
 /**
  * THE SUNKEN CHAPEL — a test module written in portable words only (roles, ranks, faculties, difficulty words), so it
  * plays under every system: a village, two days of road, a ruined chapel over a crypt. The chapel has a loop (nave,
- * gallery, stair), a lock whose key lies off the main way, a hidden way to an ossuary, a trap, a wandering table and
+ * gallery, stair), a lock whose key lies off the main way, a hidden way to an ossuary (and an artifact in it, the bone
+ * knife, its look the equipment kernel's words), a trap, a wandering table and
  * the goal, the saint's bell, in the reliquary behind the locked crypt. Test data: no picture, no level.
  */
 export const SUNKEN_CHAPEL = Object.freeze({
@@ -37,7 +38,7 @@ export const SUNKEN_CHAPEL = Object.freeze({
         { id: 'nave', name: 'the Nave', text: 'Pews rotted to their nails. Something moves between them.', foes: ['ghoul', 'grave-rat'] },
         { id: 'vestry', name: 'the Vestry', text: 'Mouldered robes on hooks; a box under the bench.', items: ['iron-key', 'tonic'] },
         { id: 'gallery', name: 'the Gallery', text: 'A narrow walk above the nave, its rail long gone.', search: 'medium' },
-        { id: 'ossuary', name: 'the Ossuary', text: 'Skulls stacked to the ceiling, every one facing the door.', items: [{ item: 'silver-ring', hidden: true }] },
+        { id: 'ossuary', name: 'the Ossuary', text: 'Skulls stacked to the ceiling, every one facing the door.', items: [{ item: 'silver-ring', hidden: true }, { item: 'bone-knife', hidden: true }] },
         { id: 'crypt-stair', name: 'the Crypt Stair', text: 'Steps worn into a dip, going down.', trap: { faculty: 'agility', difficulty: 'medium', harm: 1, text: 'A step gives way under the first foot.' } },
         { id: 'crypt', name: 'the Crypt', text: 'Low vaults and stone biers. One bier is empty.', foes: ['barrow-wight'] },
         { id: 'reliquary', name: 'the Reliquary', text: 'A small round room, and on a plinth the bell.', items: ['saint-bell'] },
@@ -64,6 +65,7 @@ export const SUNKEN_CHAPEL = Object.freeze({
     'iron-key': { name: 'the iron key', kind: 'key', text: 'Heavy, black, and cold to hold.' },
     tonic: { name: 'a tonic', kind: 'heal', heal: 'some' },
     'silver-ring': { name: 'a silver ring', kind: 'treasure' },
+    'bone-knife': { name: 'the bone knife', kind: 'weapon', bonus: 1, faculty: 'agility', text: 'Yellowed, thin, and sharper than it should be.', build: { item: 'dagger', style: 'brutal' } },
     'saint-bell': { name: 'the bell of Saint Wend', kind: 'treasure', text: 'Small enough to hold in one hand.' },
   },
   tables: {

@@ -8,7 +8,8 @@
  *   readModule(module) → { K, module, checks }   module.system a starter's id (table-rpg-systems.js) or a rules card written out;
  *     `starter: { use }` fills what the module leaves out, a party rolled when it names none (table-rpg-starter.js);
  *     members' personas rolled (table-rpg-party.js); `cast` the antagonists rolled as a character graph into factions and foes
- *     (table-rpg-cast.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
+ *     (table-rpg-cast.js); `gear` the game's arms language and an item's `build` its look, checked by the equipment
+ *     kernel (table-rpg-gear.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
  *   refereePacket(K, { tape? }) → markdown   the rules in a paragraph and how their dice read, the card's attribution if it carries one, the party's
  *     sheets and how each was rolled, the world, each dungeon's key room by room, the foes in the system's numbers, the
  *     tables, the goal; and a dice tape (`tape: n` rolls of the d20, d6, d10 and d100) so an agent referee rolls nothing
@@ -24,17 +25,18 @@ import { tableCompile, tableStart, tableAct, tableSheetLines, tableTape } from '
 import { withPersonas } from './table-rpg-party.js';
 import { withStarter } from './table-rpg-starter.js';
 import { withCast } from './table-rpg-cast.js';
+import { readGear } from './table-rpg-gear.js';
 import { checkDungeon } from './table-rpg-dungeon.js';
 import { checkWorld } from './table-rpg-world.js';
 
-export const TABLE_RPG_KEYS = Object.freeze(['title', 'seed', 'system', 'starter', 'hook', 'goal', 'ending', 'party', 'world', 'dungeons', 'foes', 'factions', 'cast', 'items', 'tables', 'beats']);
+export const TABLE_RPG_KEYS = Object.freeze(['title', 'seed', 'system', 'starter', 'hook', 'goal', 'ending', 'party', 'world', 'dungeons', 'foes', 'factions', 'cast', 'items', 'gear', 'tables', 'beats']);
 
 const words = (s) => String(s).replace(/[-_]/g, ' ');
 
 export function readModule(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`table rpg: a module is { ${TABLE_RPG_KEYS.join(', ')} }`);
   for (const k of Object.keys(raw)) if (!TABLE_RPG_KEYS.includes(k)) throw new Error(`table rpg: unknown key '${k}' (keys: ${TABLE_RPG_KEYS.join(', ')})`);
-  const module = withCast(withPersonas(withStarter({ ...raw, system: systemOf(raw.system ?? 'target') })));
+  const module = readGear(withCast(withPersonas(withStarter({ ...raw, system: systemOf(raw.system ?? 'target') }))));
   const K = tableCompile(module);
   const goalRoom = (id) => {
     const G = module.goal;

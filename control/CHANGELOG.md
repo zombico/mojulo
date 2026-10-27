@@ -14,6 +14,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: arms and artifacts, made by the equipment kernel
+
+- **In the rules**: items of kind `weapon` and `armour` are artifacts with a portable `bonus` (1 to 3; a weapon's
+  `faculty` the one it strikes with), taken up with `equip <item> [by <member>]` (the arm replaced goes back to the
+  bag), or held from the start (`arms` on a member). A weapon's bonus rides the attack and the harm under every
+  resolution procedure; an armour's the defence where the card counts one, else it turns that much of each blow.
+- **In the look** (`table-rpg-gear.js`): an item's `build` is the equipment kernel's words, checked by it; `gear: {
+  style, foes }` the game's arms language. At mint each item with a build is minted as an equipment item (`artifact:
+  <ref>`); a member made a character holds its class's weapon as the kernel makes it (`WEAPON_GEAR`) or the artifact it
+  starts with, in the game's style; a person of the cast its role's arms (`ROLE_ARMS`) in the foes' style.
+- **The starter** arms its people in its building's style and leaves an artifact with its key (a crypt's barrow blade,
+  a keep's warden's shield, a temple's rite staff …). Its foes and items now sit beside the module's, merged by id (a
+  character recorded on the starter's boss no longer drops the starter's other foes).
+- **The book's Arms and artifacts chapter**: each artifact photographed as an object, its rules, its look in words and
+  where it is found; the Sunken Chapel's ossuary hides the bone knife.
+
+Machine gate: the arms suite (artifacts refused that cannot be read; equip, its swap and its words; the weapon's bonus
+in the roll under three procedures; the armour on the defence and turning a blow; the builds checked by the equipment
+kernel, the class weapon and the starting artifact held, the cast's role arms; the starter's relic with the key, its
+style and the merge by id; the chapter), the door's (a member holding a celestial sword, the relic minted as an
+equipment item), and the live suite (the armed member and the relic photographed). Eyes gate not run: the author
+looked at the armed member and the relic; the operator has not.
+
 ### Table RPG: the cast's beasts made game creatures by the mutagen
 
 - **The egocube cast carries an ooze**: a beast member (`body: 'beast'`) takes `ooze`, the mutagen's words, carried to

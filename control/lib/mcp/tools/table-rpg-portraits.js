@@ -19,11 +19,16 @@
  * revision of the character and the paper. Chromium is an optional worker: without one, no photograph, and the sheets
  * keep their frame.
  *
- *   makeTableCharacters({ ref, tableRpg, title }) → { tableRpg, made: [{ id | foe, sheet, member?, character }],
- *     failed: [{ foe, why }] }   rows written
+ * ARMS: a member made on the hero door holds its class's weapon (or the artifact it starts with) as the equipment
+ * kernel makes it, in the game's arms style; a person of the cast its role's arms in the foes' style (table-rpg-gear.js).
+ * ARTIFACTS: each item with a `build` is minted as an equipment item (`mint_solid { kind: 'equipment' }`), recorded on
+ * its item as `artifact: <ref>`, and photographed as an object.
+ *
+ *   makeTableCharacters({ ref, tableRpg, title }) → { tableRpg, made: [{ id | foe | item, sheet?, member?, character |
+ *     artifact }], failed: [{ foe | item, why }] }   rows written
  *   tableRpgPortraits(manifest, { paper? }) → { portraits: { <id>: { figure, bust } }, foes: { <foe id>: { figure,
- *     bust } }, missing: [{ id | foe, why }] }   figure and bust are image data URIs, framed by the body's own extent
- *     (a figure standing or a beast on four feet, the bust at the top of it, its head)
+ *     bust } }, items: { <item id>: { figure, frame: 'tall' | 'square' } }, missing: [{ id | foe | item, why }] }   image data URIs, framed by the
+ *     body's own extent (a figure standing or a beast on four feet, the bust at its head; an object its longest run)
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { readTableRpg } from '@/lib/graph/table-rpg/table-rpg-manifest';
@@ -32,9 +37,16 @@ import { createSketchHandler } from './sketch-mint.js';
 import { createCharacterHandler } from './create-character.js';
 import { castRequestOf, beastWords, CAST_LEADERS, CAST_PATH } from '@/lib/graph/table-rpg/table-rpg-cast';
 import { beastMovesOf } from '@/lib/graph/egocube/moves.js';
+import { egocubeCreate, rollStored } from '@/lib/graph/egocube/kind.js';
+import { itemBuildOf, memberGear, foeGear } from '@/lib/graph/table-rpg/table-rpg-gear';
+import { mintSolidHandler } from './mint-solid.js';
+
+// arms in hand for a person on the hero door (the hero's `gear`: the equipment kernel's builds); a body below the hero
+// door, a beast or a mascot holds nothing
+const armed = (cube, gear, member) => (gear && egocubeCreate(rollStored(cube), member ? { member } : {}).create.as === 'hero' ? { spec: { gear } } : {});
 
 export async function makeTableCharacters({ ref, tableRpg, title }) {
-  const { module } = readTableRpg(tableRpg);
+  const { module, K } = readTableRpg(tableRpg);
   const made = [];
   const party = [];
   for (const p of module.party) {
@@ -43,7 +55,10 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
     if (p.character || !p.egocube?.roll) { party.push(own); continue; }
     const sheetRef = childRef(ref, `${p.id}-sheet`), charRef = childRef(ref, p.id);
     await createSketchHandler({ title: `${title} · ${p.name} (sheet)`, ref: sheetRef, manifest: { kind: 'egocube', roll: p.egocube.roll } });
-    await createCharacterHandler({ egocube: sheetRef, title: `${title} · ${p.name}`, ref: charRef });
+    // the member holds its class's weapon as the equipment kernel makes it (or the artifact it starts with), in the
+    // game's arms style
+    const kp = K.party.find((q) => q.id === p.id);
+    await createCharacterHandler({ egocube: sheetRef, title: `${title} · ${p.name}`, ref: charRef, ...armed({ kind: 'egocube', roll: p.egocube.roll }, memberGear(module, K, kp)) });
     made.push({ id: p.id, sheet: sheetRef, character: charRef });
     party.push({ ...own, egocube: { roll: p.egocube.roll }, character: charRef });
   }
@@ -59,7 +74,7 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
       if (F.character) continue;
       const charRef = childRef(ref, `cast-${part}`);
       try {
-        await createCharacterHandler({ egocube: castRef, member: CAST_PATH[part], title: `${title} · ${F.persona.name ?? F.name}`, ref: charRef });
+        await createCharacterHandler({ egocube: castRef, member: CAST_PATH[part], title: `${title} · ${F.persona.name ?? F.name}`, ref: charRef, ...armed({ kind: 'egocube', cast: request }, foeGear(module, F), CAST_PATH[part]) });
         record(id, charRef);
         made.push({ foe: id, sheet: castRef, member: CAST_PATH[part], character: charRef });
       } catch (err) { failed.push({ foe: id, why: err.message.split('\n')[0] }); }
@@ -85,7 +100,20 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
       made.push({ foe: id, sheet: sheetRef, character: charRef });
     } catch (err) { failed.push({ foe: id, why: err.message.split('\n')[0] }); }
   }
-  return { tableRpg: { ...tableRpg, party, ...(Object.keys(foes).length ? { foes } : {}) }, made, failed };
+  // the ARTIFACTS: each item with a build minted as an equipment item of its own (a workbench row the kernel expands),
+  // recorded on its item as `artifact: <ref>`
+  const items = { ...(tableRpg.items ?? {}) };
+  for (const id of Object.keys(module.items ?? {})) {
+    const build = itemBuildOf(module, id), I = module.items[id];
+    if (!build || I.artifact) continue;
+    const itemRef = childRef(ref, `item-${id}`);
+    try {
+      await mintSolidHandler({ kind: 'equipment', spec: build, title: `${title} · ${I.name ?? id}`, ref: itemRef });
+      items[id] = { ...(items[id] ?? {}), artifact: itemRef };
+      made.push({ item: id, artifact: itemRef });
+    } catch (err) { failed.push({ item: id, why: err.message.split('\n')[0] }); }
+  }
+  return { tableRpg: { ...tableRpg, party, ...(Object.keys(foes).length ? { foes } : {}), ...(Object.keys(items).length ? { items } : {}) }, made, failed };
 }
 
 const PHOTOS = new Map();   // key → Promise<{ figure, bust }>: a photograph is seconds; a book is read again and again
@@ -125,6 +153,15 @@ async function photograph(sketch, paper, body = 'person') {
     const inside = nt.every((c, k) => c >= lo[k] - 0.05 && c <= hi[k] + 0.05);
     if (inside && head.length >= 8) bustTarget = [0, 1, 2].map((k) => head.reduce((a, v) => a + v[k], 0) / head.length);
   }
+  // an object (an artifact) is one shot, seen a little from above: a long upright one (a staff, a sword, a bow) in a
+  // tall frame its height fills, anything else in a square
+  if (body === 'object') {
+    const tallOne = tall > long * 1.6, W = tallOne ? Math.round(SIZE * 0.45) : SIZE, H = tallOne ? Math.round(SIZE * 1.3) : SIZE, lensH = H / (2 * FOCAL);
+    const cam = orbitCamera({ azimuthDegrees: 140, elevationDegrees: 18, target: center, distance: Math.max(tall * 0.53, long * 0.55 * (H / W)) / lensH, focalPixels: FOCAL, size: H });
+    const page = emitThreeWorld({ ...payload, faces, sky: null, bg: paper, wireframe: false, walk: false, spin: false, decollide: true, hud: false, inline: true, capture: true, xr: null });
+    const { pngs } = await renderWorldFrames(page, [{ pos: cam.position, target: cam.meta.target, vfov: 2 * Math.atan((H / 2) / FOCAL) * 180 / Math.PI }], { width: W, height: H, deviceScaleFactor: 2 });
+    return { figure: `data:image/jpeg;base64,${(await sharp(pngs[0]).jpeg({ quality: 86 }).toBuffer()).toString('base64')}`, frame: tallOne ? 'tall' : 'square' };
+  }
   const shots = [
     // the figure: its height filling nine tenths of the frame (the lens's half-height at a distance d is d·SIZE/2FOCAL),
     // or a long body its length, seen three-quarters, aimed at the middle of its extent
@@ -159,5 +196,11 @@ export async function tableRpgPortraits(manifest, { paper = '#ffffff' } = {}) {
     if (!F.character) continue;
     try { foes[id] = await shoot(F.character, paper, F.persona?.body ?? (F.beast ? 'beast' : undefined)); } catch (err) { missing.push({ foe: id, why: err.message.split('\n')[0] }); }
   }
-  return { portraits, foes, missing };
+  // the artifacts: each item minted as an object, one shot
+  const items = {};
+  for (const [id, I] of Object.entries(module.items ?? {})) {
+    if (!I.artifact) continue;
+    try { items[id] = await shoot(I.artifact, paper, 'object'); } catch (err) { missing.push({ item: id, why: err.message.split('\n')[0] }); }
+  }
+  return { portraits, foes, items, missing };
 }

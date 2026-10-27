@@ -90,7 +90,7 @@ function personaOf(m, name, relation) {
     reads = `${what}; ${R.reads === 'shadow' ? `${A.shadow.name}: ${A.shadow.reads}` : A.light.reads}; motivation ${t.motivation}, order ${t.order}`;
   }
   return {
-    ...(name ? { name } : {}), epithet, archetype: R.archetype, body,
+    ...(name ? { name } : {}), epithet, archetype: R.archetype, body, role: (m.temperament ?? m.sheet.facets).role,
     ...(m.beast ? { species: m.beast.species, ...(m.beast.ooze !== undefined ? { ooze: m.beast.ooze } : {}) } : {}), reads, ...(relation ? { relation } : {}),
   };
 }

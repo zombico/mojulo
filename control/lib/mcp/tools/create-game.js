@@ -261,7 +261,7 @@ async function mintTableRpg(input, context) {
     rules: K.sys.name,
     party: party.map((p) => ({ ...p, ...(made.find((m) => m.id === p.id) ? { character: made.find((m) => m.id === p.id).character } : {}) })),
     ...(factions ? { factions: factions.map((F) => ({ ...F, characters: Object.fromEntries(made.filter((m) => m.foe && K.foes[m.foe]?.faction === F.id).map((m) => [m.foe, m.character])) })) } : {}),
-    ...(found.length || findings.length || failed.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f })), ...failed.map((f) => ({ where: 'characters', level: 'advice', text: `${f.foe} was not made a character: ${f.why}` }))] } : {}),
+    ...(found.length || findings.length || failed.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f })), ...failed.map((f) => ({ where: 'characters', level: 'advice', text: `${f.foe ?? f.item} was not made ${f.item ? 'an artifact' : 'a character'}: ${f.why}` }))] } : {}),
     url: `/sketches/${at}`,
     playUrl,
     bookUrl: `/api/sketches/${at}/bible`,

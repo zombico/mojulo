@@ -13,7 +13,9 @@
  *     lib/mcp/tools/table-rpg-portraits.js), the figures lined up on the title page and each bust heading its sheet
  *     (none: no picture, the sheet as it was); foePortraits the foes' ({ <foe id>: { figure, bust } }: the cast's
  *     leaders lined up in the Factions chapter, each bust in its entry; a foe of no faction, its bust over its stat
- *     block); findings the style's advice
+ *     block); itemPortraits the artifacts' ({ <item id>: { figure, frame? } }, a tall frame printed as a tall strip: each over its entry in the Arms chapter, which
+ *     prints when the module has arms or artifacts: each with its rules, its look in words and where it is found);
+ *     findings the style's advice
  *   BOOK_PARTS   the chapters in their order
  */
 import { bookHtml, esc, heading, para, aside, keyed, facts, statBlock, rollTable, grid, plate, mono, lines } from '../book/book-press.js';
@@ -23,7 +25,7 @@ import { roomNumbers, dungeonMapSvg, worldMapSvg, factionMapSvg } from './table-
 import { beastWords } from './table-rpg-cast.js';
 import { tableTape, TABLE_RPG_FACULTIES, TABLE_RPG_STANDING, TABLE_RPG_TALK } from './table-rpg-kernel.js';
 
-export const BOOK_PARTS = Object.freeze(['title', 'running', 'world', 'dungeons', 'foes', 'factions', 'tables', 'party', 'tape', 'colophon']);
+export const BOOK_PARTS = Object.freeze(['title', 'running', 'world', 'dungeons', 'foes', 'factions', 'arms', 'tables', 'party', 'tape', 'colophon']);
 
 const words = (s) => String(s).replace(/[-_]/g, ' ');
 const cap = (s) => String(s).replace(/^./, (c) => c.toUpperCase());
@@ -132,6 +134,33 @@ function factions(K, shots) {
   return out.join('');
 }
 
+// an artifact's look in words, from its build: its style, its item, its parts, its stone
+function lookWords(K, I) {
+  const b = I.build, style = b.style ?? K.M.gear?.style ?? 'historical', parts = Object.entries(b.parts ?? {}).filter(([k]) => k !== 'focus').map(([k, v]) => `${v} ${k}`);
+  const gem = b.gem && (typeof b.gem === 'string' ? b.gem : b.gem.gem);
+  return `${typeof style === 'string' ? style : style.id ?? 'its own'} ${words(b.item)}${parts.length ? `, ${list(parts)}` : ''}${gem ? `, a ${gem}` : ''}`;
+}
+// where an item is found: a dungeon's room by its key number, a table's row, a member's hands
+function foundAt(K, id) {
+  const at = [];
+  for (const D of Object.values(K.D)) { const num = roomNumbers(D); for (const R of Object.values(D.rooms)) if (R.items.some((x) => x.item === id)) at.push(`${num[R.id]}, ${R.name} (${D.name})`); }
+  for (const [tid, T] of Object.entries(K.tables)) if (T.rows.some((r) => r.item === id)) at.push(`on ${T.name ?? words(tid)}`);
+  for (const p of K.M.party ?? []) if ((p.arms ?? []).includes(id)) at.push(`in ${K.party.find((q) => q.id === p.id).name}'s hands`);
+  return at;
+}
+function arms(K, shots) {
+  const rows = Object.entries(K.items).filter(([, I]) => I.build || I.kind === 'weapon' || I.kind === 'armour');
+  const out = [para('Arms are taken up with equip (the best at what they ask, or one named: equip <item> by <member>). A weapon adds its bonus to its wielder\'s attack and to its harm, and strikes with its own faculty if it names one; an armour adds its bonus to the defence, or turns that much of each blow taken (never below one).')];
+  for (const [id, I] of rows) {
+    const rules = I.kind === 'weapon' || I.kind === 'armour' ? [['kind', `${I.kind}, +${I.bonus ?? 1}${I.faculty ? `, strikes with ${I.faculty}` : ''}`]] : [['kind', I.kind ?? 'treasure']];
+    const where = foundAt(K, id);
+    out.push(`<section class="artifact">${shots[id]?.figure ? `<img${shots[id].frame === 'tall' ? ' class="tall"' : ''} src="${esc(shots[id].figure)}" alt="${esc(I.name ?? words(id))}">` : ''}`
+      + heading(cap(I.name ?? words(id)), 4) + (I.text ? para(I.text) : '')
+      + facts([...rules, ...(I.build ? [['look', lookWords(K, I)]] : []), ...(where.length ? [['found', list(where)]] : [])]) + '</section>');
+  }
+  return out.join('');
+}
+
 function tables(K) {
   return Object.entries(K.tables).map(([id, T]) => rollTable(T.die ?? '1d6', T.rows.map((r) => [Array.isArray(r.on) ? `${r.on[0]}–${r.on[1]}` : String(r.on), r.text]), { title: T.name ?? words(id) })).join('')
     + ((K.M.beats ?? []).length ? heading('Beats', 3) + facts(K.M.beats.map((b) => [words(b.at.includes('/') ? b.at.split('/')[1] : K.places[b.at]?.name ?? b.at), `${b.text}${b.milestone ? ' (a milestone)' : ''}`])) : '');
@@ -155,7 +184,7 @@ function sheet(K, p, portrait) {
     + heading('Notes', 4) + lines(8) + '</section>';
 }
 
-export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = {}, foePortraits = {} } = {}) {
+export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = {}, foePortraits = {}, itemPortraits = {} } = {}) {
   if (parts !== undefined && !(Array.isArray(parts) && parts.length && parts.every((p) => BOOK_PARTS.includes(p)))) throw new Error(`table rpg book: parts are some of ${BOOK_PARTS.join(', ')}`);
   const S = readBookStyle(style);
   // a one-sheet format carries what the table needs in play: the title, the dungeons, the foes, the tables
@@ -167,6 +196,7 @@ export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = 
     ...Object.values(K.D).map((D) => ({ id: `dungeon-${D.id}`, title: cap(D.name), body: dungeon(K, D) })),
     { id: 'foes', title: 'Foes', body: foes(K, foePortraits) },
     ...(Object.keys(K.factions).length ? [{ id: 'factions', title: 'Factions', body: factions(K, foePortraits) }] : []),
+    ...(Object.values(K.items).some((I) => I.build || I.kind === 'weapon' || I.kind === 'armour') ? [{ id: 'arms', title: 'Arms and artifacts', body: arms(K, itemPortraits) }] : []),
     ...(Object.keys(K.tables).length || (K.M.beats ?? []).length ? [{ id: 'tables', title: 'Tables', body: tables(K) }] : []),
     { id: 'party', title: 'The party', kind: 'pages', body: K.party.map((p) => sheet(K, p, portraits[p.id])).join('') },
     ...(tape ? [{ id: 'tape', title: 'The dice', body: para('Read in order, one die at a time: the game is fair and can be played again the same way.') + mono([20, 6, 10, 100].map((s) => `d${String(s).padEnd(3)} ${tableTape(K.seed, s, tape).map((v) => String(v).padStart(String(s).length)).join(' ')}`).join('\n')) }] : []),

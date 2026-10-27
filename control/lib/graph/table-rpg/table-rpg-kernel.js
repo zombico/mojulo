@@ -13,7 +13,8 @@
  *     title?, seed?, system: <a card (table-rpg-systems.js systemOf)>,
  *     hook?: 'the scenario in a breath', goal: { item } | { room: '<dungeon>/<room>' } | { place } | { cleared: '<dungeon>/<room>' } | { flag },
  *     ending?: 'said when the goal is met',
- *     party: [{ id, name?, class? | role?, method?, assign?: [ability], scores?: { ability: n }, level?, persona? }]
+ *     party: [{ id, name?, class? | role?, method?, assign?: [ability], scores?: { ability: n }, level?, persona?,
+ *              arms?: [item id] }]   arms: the weapon and the armour it starts with in hand
  *       1 to 6; `role` the portable word (an egocube role: frontline, flanker, support, controller, caster, ranged,
  *       non-combatant), played as the system's first class that takes it
  *     world: { start, places: [{ id, name?, kind?: 'town' | 'wild' | 'dungeon' | 'landmark', text?, dungeon? }],
@@ -26,7 +27,10 @@
  *     foes?: { <id>: { name?, rank: 1–5, text?, stats?: { hp, defence, attack, damage, xp }, faction?,
  *                     heeds?: [talk], scorns?: [talk] } }
  *     factions?: { <id>: { name?, text?, standing?: −2 … 2, allies?: [faction], rivals?: [faction] } }
- *     items?: { <id>: { name?, kind?: 'key' | 'treasure' | 'heal', heal?: 'some' | 'all' | <dice>, text? } }
+ *     items?: { <id>: { name?, kind?: 'key' | 'treasure' | 'heal' | 'weapon' | 'armour', heal?: 'some' | 'all' | <dice>,
+ *                       bonus?: 1–3, faculty?, text? } }
+ *       a weapon or an armour is an ARTIFACT a member takes up (`equip`): a weapon's bonus on its attack and its harm (its
+ *       faculty, if it names one, the one it strikes with), an armour's on the defence or off each blow taken
  *     tables?: { <id>: { name?, die, rows: [{ on: n | [lo, hi], text, foes?: [foe id], item? }] } }
  *     beats?: [{ id, at: '<place>' | '<dungeon>/<room>', text, sets?: <flag>, milestone?: true }]
  *   }
@@ -68,6 +72,8 @@ export function buildTableRpg() {
   const DIFF = ['easy', 'medium', 'hard'];
   const BANDS = { crit: 'a critical', success: 'a success', partial: 'a success at a cost', fail: 'a failure', fumble: 'a fumble' };
   const GOOD = { crit: 1, success: 1, partial: 1 };
+  const ITEM_KINDS = ['key', 'treasure', 'heal', 'weapon', 'armour'];
+  const ARMS = { weapon: 1, armour: 1 };
   const TALK = { parley: 'presence', threaten: 'might', bribe: 'presence' };
   const STANDING = ['hostile', 'wary', 'neutral', 'friendly', 'allied'];   // −2 … 2
 
@@ -272,7 +278,7 @@ export function buildTableRpg() {
     return { n: sys.check.difficulty[d], word: d };
   }
   // a check by a sheet: the faculty (or ability) the system rolls with, the difficulty, what the roll said
-  function resolve(K, S, pc, faculty, difficulty, { vs } = {}) {
+  function resolve(K, S, pc, faculty, difficulty, { vs, plus = 0 } = {}) {
     const sys = K.sys, a = abilityOf(sys, faculty);
     if (!a) no(`'${faculty}' is a faculty (${FACULTY.join(', ')}) or an ability (${sys.abilities.join(', ')})`);
     const score = pc.scores[a], m = modOf(sys, score), D = diffOf(sys, difficulty), kind = sys.check.kind;
@@ -282,37 +288,37 @@ export function buildTableRpg() {
       const r = roll(S, '1d20');
       const prof = sys.classes[pc.class].priority.slice(0, 2).includes(a) ? trained(sys, pc.level) : 0;
       const dc = vs ?? D.n;
-      total = r.total + m + prof;
+      total = r.total + m + prof + plus;
       band = r.nat === 20 ? 'crit' : r.nat === 1 ? 'fumble' : total >= dc ? 'success' : 'fail';
-      text = `${label}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)} trained` : ''} = ${num(total)} vs ${vs !== undefined ? 'defence' : 'target'} ${dc}`;
+      text = `${label}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)} trained` : ''}${plus ? ` ${signed(plus)} arms` : ''} = ${num(total)} vs ${vs !== undefined ? 'defence' : 'target'} ${dc}`;
     } else if (kind === 'under') {
-      const r = roll(S, '1d20'), target = score + (vs !== undefined ? 0 : D.n);
+      const r = roll(S, '1d20'), target = score + (vs !== undefined ? 0 : D.n) + plus;
       total = r.total;
       band = r.nat === 1 ? 'crit' : r.nat === 20 ? 'fumble' : total <= target ? 'success' : 'fail';
-      text = `${label}: ${r.text} under ${target}`;
+      text = `${label}: ${r.text} under ${target}${plus ? ` (${signed(plus)} arms)` : ''}`;
     } else if (kind === 'bands') {
       const r = roll(S, '2d6');
-      total = r.total + score + D.n;
+      total = r.total + score + D.n + plus;
       band = total >= 12 ? 'crit' : total >= 10 ? 'success' : total >= 7 ? 'partial' : 'fail';
-      text = `${label}: ${r.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''} = ${num(total)}`;
+      text = `${label}: ${r.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''}${plus ? ` ${signed(plus)} arms` : ''} = ${num(total)}`;
     } else if (kind === 'shifts') {
       const r = roll(S, '4dF'), rung = vs ?? D.n;
-      total = r.total + score;
+      total = r.total + score + plus;
       const shifts = total - rung;
       band = shifts >= 3 ? 'crit' : shifts > 0 ? 'success' : shifts === 0 ? 'partial' : 'fail';
-      text = `${label}: ${r.text} ${signed(score)} = ${num(total)} vs ${rung} (${signed(shifts)} shifts)`;
+      text = `${label}: ${r.text} ${signed(score)}${plus ? ` ${signed(plus)} arms` : ''} = ${num(total)} vs ${rung} (${signed(shifts)} shifts)`;
       return { band, total, text: `${text}: ${BANDS[band]}.`, shifts };
     } else if (kind === 'percent') {
-      const r = roll(S, '1d100'), want = typeof difficulty === 'number' ? difficulty : Math.max(1, Math.min(99, Math.floor(score * D.n)));
+      const r = roll(S, '1d100'), want = Math.min(99, (typeof difficulty === 'number' ? difficulty : Math.max(1, Math.min(99, Math.floor(score * D.n)))) + 5 * plus);
       total = r.total;
       band = total <= Math.max(1, Math.floor(want / 5)) ? 'crit' : total <= want ? 'success' : total >= (want < 50 ? 96 : 100) ? 'fumble' : 'fail';
       text = `${label}: ${r.text} under ${want}`;
     } else {   // challenge
       const a6 = roll(S, '1d6'), c = [die(S, 10), die(S, 10)];
-      total = Math.min(10, a6.total + score + D.n);
+      total = Math.min(10, a6.total + score + D.n + plus);
       const beat = c.filter((x) => total > x).length, match = c[0] === c[1];
       band = beat === 2 ? (match ? 'crit' : 'success') : beat === 1 ? 'partial' : match ? 'fumble' : 'fail';
-      text = `${label}: ${a6.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''} = ${num(total)} vs challenge [${c.join(' ')}]${match ? ' (a match)' : ''}`;
+      text = `${label}: ${a6.text} ${signed(score)}${D.n ? ` ${signed(D.n)} ${D.word}` : ''}${plus ? ` ${signed(plus)} arms` : ''} = ${num(total)} vs challenge [${c.join(' ')}]${match ? ' (a match)' : ''}`;
     }
     return { band, total, text: `${text}: ${BANDS[band]}.` };
   }
@@ -341,6 +347,9 @@ export function buildTableRpg() {
     }
     for (const [id, I] of Object.entries(items)) {
       if (!ID.test(id)) no(`item id '${id}' is lower case, digits and dashes`);
+      if (I.kind !== undefined && !ITEM_KINDS.includes(I.kind)) no(`item '${id}': kind is ${ITEM_KINDS.join(', ')}`);
+      if (I.bonus !== undefined && !(ARMS[I.kind] && Number.isInteger(I.bonus) && I.bonus >= 1 && I.bonus <= 3)) no(`item '${id}': a bonus (1 to 3) is a weapon's or an armour's`);
+      if (I.faculty !== undefined && !(I.kind === 'weapon' && abilityOf(sys, I.faculty))) no(`item '${id}': a faculty is a weapon's, one of ${FACULTY.join(', ')} or the card's abilities`);
       if (I.heal !== undefined && I.heal !== 'some' && I.heal !== 'all') parseDice(I.heal);
     }
     for (const [id, t] of Object.entries(tables)) {
@@ -406,6 +415,8 @@ export function buildTableRpg() {
       if (!ID.test(p.id ?? '')) no(`a party member's id '${p.id}' is lower case, digits and dashes`);
       if (seen.has(p.id)) no(`two party members are '${p.id}'`);
       seen.add(p.id);
+      const kinds = (p.arms ?? []).map((i) => { if (!ARMS[items[i]?.kind]) no(`party member '${p.id}' starts with '${i}', which is no weapon or armour`); return items[i].kind; });
+      if (new Set(kinds).size < kinds.length) no(`party member '${p.id}' starts with two of one kind (a weapon and an armour at most)`);
       if (p.class === undefined) {
         const cls = Object.keys(sys.classes).find((c) => (sys.classes[c].roles || []).includes(p.role));
         if (!cls) no(`party member '${p.id}': give a class (${Object.keys(sys.classes).join(', ')}) or a role a class takes (${[...new Set(Object.values(sys.classes).flatMap((c) => c.roles || []))].join(', ')})`);
@@ -434,7 +445,7 @@ export function buildTableRpg() {
   function start(K) {
     const S = {
       r: hash(`${K.seed}|session-v1`), at: { place: K.M.world.start }, from: null,
-      party: K.party.map((p) => ({ id: p.id, hp: p.hp, maxHp: p.maxHp, level: p.level, xp: 0, marks: 0, scores: { ...p.scores }, mods: { ...p.mods } })),
+      party: K.party.map((p) => ({ id: p.id, hp: p.hp, maxHp: p.maxHp, level: p.level, xp: 0, marks: 0, scores: { ...p.scores }, mods: { ...p.mods }, arms: Object.fromEntries((K.M.party.find((q) => q.id === p.id)?.arms ?? []).map((i) => [K.items[i].kind, i])) })),
       bag: {}, flags: {}, open: {}, found: {}, taken: {}, cleared: {}, searched: {}, seen: {}, sprung: {}, beats: {}, wounds: {},
       standing: Object.fromEntries(Object.values(K.factions).map((F) => [F.id, F.standing ?? 0])), day: 1, fight: null, over: null, turn: 0,
     };
@@ -460,6 +471,15 @@ export function buildTableRpg() {
     const d = typeof h === 'number' ? K.sys.foes[h - 1].damage : h;
     return typeof d === 'number' ? { n: d, text: null } : (() => { const r = roll(S, d); return { n: Math.max(1, r.total), text: r.text }; })();
   }
+  // the artifact a member holds of a kind, and its bonus (an artifact names 1 to 3; one that names none, 1)
+  const armsOf = (K, S, pc, kind) => { const id = S.party[pc.i].arms?.[kind]; return id ? { id, I: K.items[id], b: K.items[id].bonus ?? 1 } : null; };
+  // a blow from a foe, less what the armour turns (never below 1); an armour system counts it on the defence instead
+  function struck(K, S, pc, n, lines) {
+    const A = K.sys.combat.defence === 'armour' ? null : armsOf(K, S, pc, 'armour');
+    if (A && n > 1) lines.push(`${cap(itemName(K, A.id))} turns ${Math.min(A.b, n - 1)}.`);
+    hurt(K, S, pc, A ? Math.max(1, n - A.b) : n, lines);
+  }
+  const guardOf = (K, S, pc) => pc.defence + (K.sys.combat.defence === 'armour' ? armsOf(K, S, pc, 'armour')?.b ?? 0 : 0);
   function hurt(K, S, pc, n, lines) {
     const P = S.party[pc.i];
     P.hp = Math.max(0, P.hp - n);
@@ -530,7 +550,8 @@ export function buildTableRpg() {
       const ab = sys.abilities.map((a) => `${(sys.names?.[a] ?? a).slice(0, 3)} ${num(s.scores[a])}${sys.modifier.kind !== 'none' ? ` (${signed(s.mods[a])})` : ''}`).join(' · ');
       const w = p.weapon.dice ? `${p.weapon.name} ${p.weapon.dice}` : p.weapon.harm !== undefined ? `${p.weapon.name}, harm ${p.weapon.harm}` : p.weapon.name;
       const prog = sys.progression.kind === 'xp' ? ` · XP ${s.xp}` : sys.progression.kind === 'misses' ? ` · marks ${s.marks}/${sys.progression.at}` : '';
-      return `${p.name}${p.persona?.epithet ? `, ${p.persona.epithet}` : ''} — ${p.className} ${s.level} · HP ${s.hp}/${s.maxHp}${sys.combat.defence === 'armour' ? ` · defence ${p.defence}` : ''} · ${ab} · ${w}${prog}`;
+      const arms = Object.values(s.arms ?? {}).map((id) => `${itemName(K, id)} (+${K.items[id].bonus ?? 1})`);
+      return `${p.name}${p.persona?.epithet ? `, ${p.persona.epithet}` : ''} — ${p.className} ${s.level} · HP ${s.hp}/${s.maxHp}${sys.combat.defence === 'armour' ? ` · defence ${guardOf(K, S, { ...p, i })}` : ''} · ${ab} · ${w}${arms.length ? ` · in hand: ${list(arms)}` : ''}${prog}`;
     });
   }
 
@@ -646,33 +667,35 @@ export function buildTableRpg() {
     const target = up[die(S, up.length) - 1];
     const sys = K.sys;
     if (sys.combat.defence === 'armour') {
-      const r = roll(S, '1d20'), total = r.total + f.st.attack;
-      const hit = r.nat === 20 || (r.nat !== 1 && total >= target.defence);
-      lines.push(`${f.name} strikes at ${target.name}: ${r.text} ${signed(f.st.attack)} = ${total} vs defence ${target.defence}: ${r.nat === 20 ? 'a critical hit' : hit ? 'a hit' : 'a miss'}.`);
+      const r = roll(S, '1d20'), total = r.total + f.st.attack, def = guardOf(K, S, target);
+      const hit = r.nat === 20 || (r.nat !== 1 && total >= def);
+      lines.push(`${f.name} strikes at ${target.name}: ${r.text} ${signed(f.st.attack)} = ${total} vs defence ${def}: ${r.nat === 20 ? 'a critical hit' : hit ? 'a hit' : 'a miss'}.`);
       if (hit) { const d = roll(S, f.st.damage), extra = r.nat === 20 ? roll(S, f.st.damage.replace(/[+-]\d+$/, '')).total : 0; lines.push(`Damage ${d.text}${extra ? ` + ${extra} critical` : ''}.`); hurt(K, S, target, Math.max(1, d.total + extra), lines); }
     } else if (sys.check.kind === 'shifts') {
       const a = roll(S, '4dF'), d = roll(S, '4dF'), def = target.scores[abilityOf(sys, 'agility')];
       const shifts = a.total + f.st.attack - (d.total + def);
       lines.push(`${f.name} attacks ${target.name}: ${a.text} ${signed(f.st.attack)} = ${num(a.total + f.st.attack)} vs ${target.name}'s defence ${d.text} ${signed(def)} = ${num(d.total + def)}: ${shifts > 0 ? `${shifts} shift${shifts === 1 ? '' : 's'} of stress` : 'defended'}.`);
-      if (shifts > 0) hurt(K, S, target, shifts, lines);
+      if (shifts > 0) struck(K, S, target, shifts, lines);
     } else {   // percent: the foe's chance out of a hundred
       const r = roll(S, '1d100'), hit = r.total <= f.st.attack;
       lines.push(`${f.name} attacks ${target.name}: ${r.text} under ${f.st.attack}: ${hit ? 'a hit' : 'a miss'}.`);
-      if (hit) { const d = roll(S, f.st.damage); lines.push(`Damage ${d.text}.`); hurt(K, S, target, Math.max(1, d.total), lines); }
+      if (hit) { const d = roll(S, f.st.damage); lines.push(`Damage ${d.text}.`); struck(K, S, target, Math.max(1, d.total), lines); }
     }
   }
   // a member's blow: the system's attack, its damage, its cost when the players roll every die
   function attack(K, S, pc, f, lines) {
-    const sys = K.sys, w = pc.weapon, C = sys.combat;
+    const sys = K.sys, C = sys.combat, W = armsOf(K, S, pc, 'weapon');
+    // an artifact in hand strikes with its own faculty, if it names one, and adds its bonus to the blow and the harm
+    const w = W ? { ...pc.weapon, name: itemName(K, W.id).replace(/^(the|a|an) /, ''), ...(W.I.faculty ? { faculty: W.I.faculty } : {}) } : pc.weapon, plus = W ? W.b : 0;
     let band, shifts = 0;
     if (C.defence === 'armour') {
       const a = abilityOf(sys, w.faculty), m = pc.mods[a];
       const prof = trained(sys, pc.level);
-      const r = roll(S, '1d20'), total = r.total + m + prof;
+      const r = roll(S, '1d20'), total = r.total + m + prof + plus;
       band = r.nat === 20 ? 'crit' : r.nat === 1 ? 'fail' : total >= f.st.defence ? 'success' : 'fail';
-      lines.push(`${pc.name} attacks ${f.name} with the ${w.name}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)}` : ''} = ${total} vs defence ${f.st.defence}: ${band === 'crit' ? 'a critical hit' : band === 'success' ? 'a hit' : 'a miss'}.`);
+      lines.push(`${pc.name} attacks ${f.name} with the ${w.name}: ${r.text} ${signed(m)}${prof ? ` ${signed(prof)}` : ''}${plus ? ` ${signed(plus)}` : ''} = ${total} vs defence ${f.st.defence}: ${band === 'crit' ? 'a critical hit' : band === 'success' ? 'a hit' : 'a miss'}.`);
     } else {
-      const r = resolve(K, S, pc, w.faculty, sys.check.kind === 'shifts' ? undefined : 'medium', sys.check.kind === 'shifts' ? { vs: f.st.defence + roll(S, '4dF').total } : {});
+      const r = resolve(K, S, pc, w.faculty, sys.check.kind === 'shifts' ? undefined : 'medium', { plus, ...(sys.check.kind === 'shifts' ? { vs: f.st.defence + roll(S, '4dF').total } : {}) });
       band = r.band; shifts = r.shifts ?? 0;
       lines.push(`${pc.name} attacks ${f.name} with the ${w.name}. ${r.text}`);
       mark(K, S, pc, band, lines);
@@ -682,9 +705,9 @@ export function buildTableRpg() {
       if (C.damage === 'dice') {
         const a = abilityOf(sys, w.faculty), m = sys.modifier.kind === 'none' ? 0 : pc.mods[a];
         const d = roll(S, w.dice), extra = band === 'crit' ? roll(S, w.dice.replace(/[+-]\d+$/, '')).total : 0;
-        n = Math.max(1, d.total + m + extra);
-        lines.push(`Damage ${d.text}${m ? ` ${signed(m)}` : ''}${extra ? ` + ${extra} critical` : ''} = ${n}.`);
-      } else if (C.damage === 'harm') n = (w.harm ?? 1) + (band === 'crit' ? 1 : 0);
+        n = Math.max(1, d.total + m + extra + plus);
+        lines.push(`Damage ${d.text}${m ? ` ${signed(m)}` : ''}${plus ? ` ${signed(plus)}` : ''}${extra ? ` + ${extra} critical` : ''} = ${n}.`);
+      } else if (C.damage === 'harm') n = (w.harm ?? 1) + (band === 'crit' ? 1 : 0) + plus;
       else n = band === 'partial' ? 0 : Math.max(1, shifts);
       if (n > 0) {
         f.hp = Math.max(0, f.hp - n);
@@ -694,7 +717,7 @@ export function buildTableRpg() {
     // the players roll every die: a foe hurts on the bands the system says cost (a miss, and in some a hit at a cost)
     if (!C.foesAct && (C.costOn ?? ['partial', 'fail', 'fumble']).includes(band) && f.hp > 0) {
       lines.push(`${f.name} strikes back.`);
-      hurt(K, S, pc, f.st.damage, lines);
+      struck(K, S, pc, f.st.damage, lines);
     }
   }
   function won(K, S, lines) {
@@ -836,6 +859,7 @@ export function buildTableRpg() {
       if (P.dungeon) out.push({ name: 'enter', verb: 'enter' });
     }
     for (const i of heal) out.push({ name: `use ${i}`, verb: 'use', item: i });
+    for (const i of Object.keys(S.bag)) if (S.bag[i] > 0 && ARMS[K.items[i]?.kind]) out.push({ name: `equip ${i}`, verb: 'equip', item: i });
     if (Object.keys(K.factions).length) out.push({ name: 'factions', verb: 'factions' });
     out.push({ name: 'rest', verb: 'rest' });
     out.push({ name: 'check <faculty> [easy|medium|hard|n] [by <member>]', verb: 'check', template: true });
@@ -867,6 +891,12 @@ export function buildTableRpg() {
       if (who && !K.party.some((p) => p.id === who)) return null;
       return { name: t, verb: 'check', faculty, difficulty, by: who };
     }
+    if (verb === 'equip' && rest.includes('by') && !S.fight) {
+      const by = rest.indexOf('by'), who = rest.slice(by + 1).join('-'), what = slug(rest.slice(0, by).join(' '));
+      const mv = L.find((m) => m.verb === 'equip' && (m.item === what || slug(itemName(K, m.item)) === what));
+      if (mv && K.party.some((p) => p.id === who)) return { ...mv, name: t, by: who };
+      return null;
+    }
     if (verb === 'roll' && rest.length) { try { parseDice(rest.join('')); return { name: t, verb: 'roll', dice: rest.join('') }; } catch { return null; } }
     if (verb === 'ask') {
       const odds = ['likely', 'even', 'unlikely'].includes(rest[rest.length - 1]) ? rest[rest.length - 1] : 'even';
@@ -884,6 +914,15 @@ export function buildTableRpg() {
     else if (v === 'sheet') lines.push(...sheetLines(K, S));
     else if (v === 'factions') lines.push(...factionLines(K, S));
     else if (TALK[v]) talk(K, S, pcOf(K, S, mv.by), v, mv.item, lines);
+    else if (v === 'equip') {
+      // taken up by the one named, else by the best at what it asks (a weapon its faculty or might, an armour grit)
+      const I = K.items[mv.item], pc = mv.by ? pcOf(K, S, mv.by) : best(K, S, I.kind === 'weapon' ? I.faculty ?? 'might' : 'grit');
+      const P = S.party[pc.i], was = P.arms?.[I.kind];
+      S.bag[mv.item] -= 1;
+      if (was) S.bag[was] = (S.bag[was] || 0) + 1;
+      P.arms = { ...(P.arms ?? {}), [I.kind]: mv.item };
+      lines.push(`${pc.name} ${I.kind === 'weapon' ? 'takes up' : 'puts on'} ${itemName(K, mv.item)} (+${I.bonus ?? 1})${was ? `, and puts ${itemName(K, was)} by` : ''}.`);
+    }
     else if (v === 'roll') lines.push(roll(S, mv.dice).text);
     else if (v === 'ask') oracle(S, mv.odds, lines, mv.question);
     else if (v === 'table') rollTable(K, S, mv.table, lines);

@@ -59,8 +59,8 @@ export async function GET(request, { params }) {
       try {
         // the party's and the cast's characters photographed on the book's paper (kept per character revision; none
         // without a browser)
-        const { portraits, foes: foePortraits } = await tableRpgPortraits(sketch.manifest, { paper: tableRpgPaper(sketch.manifest, style ? { style } : {}) });
-        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, portraits, foePortraits, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
+        const { portraits, foes: foePortraits, items: itemPortraits } = await tableRpgPortraits(sketch.manifest, { paper: tableRpgPaper(sketch.manifest, style ? { style } : {}) });
+        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, portraits, foePortraits, itemPortraits, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
       } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
