@@ -97,6 +97,8 @@ export function formLandScript(form) {
         pw = ( 1.0 - smoothstep( -0.25, eW, pd + eN * 0.75 ) ) * onIt;
       }
     }
+    // (a face with no natural layer, the trail's own ribbons and the walls of its shelves: the path's material all over it)
+    if ( vSplat.x + vSplat.y + vSplat.z + vSplat.w < 0.01 ) pw = 1.0;
     float hgt[7]; vec3 bs[7]; vec3 ns[7]; vec2 rs[7];
     // the scree's PARALLAX (near, and only where there is scree): its height map marched along the view in the face's
     // frame, so its stones stand up and hide what is behind them; fading out with distance to the flat map
@@ -175,7 +177,9 @@ export function formLandScript(form) {
     // (the trail's verge: its rubble's share, the stones the dice keep along its edges as the real ones lie, a few on it)
     float vergeW = uDress.x * ( pd <= 0.05 ? 0.15 : exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) ) * smoothstep( 0.6, 0.85, nW.z );
     sh = max( sh, pd < 98.0 ? vergeW * 0.9 : 0.0 );
-    float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 ) ) : 0.0;
+    // (the noise nudges the share as far as there is one: where the scree is a trace, a trace of its stones, never a
+    // scatter of them far from any scree)
+    float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 * min( 1.0, sh * 4.0 ) ) ) : 0.0;
     float top = 0.0, steepF = 1.0 - smoothstep( 0.5, 0.8, abs( nW.z ) );
     for ( int i = 0; i < 7; i++ ) {
       float nz = vn( vWPos.xy / 2.5 + float( i ) * 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + float( i ) * 5.1 ) * 0.3 - 0.5;
@@ -224,8 +228,10 @@ export function formLandScript(form) {
   // the ROCK'S RELIEF (form/rock-relief.js): the cliff's steep faces cut finer and pushed in and out along their normals by
   // the relief's map, sampled along both side axes and blended as the rock's texture is (its beds level on either);
   // nothing moves on level ground (benches and tops stay as walked) or at a corner another class shares (no cracks), and a
-  // face left whole has its every edge so; normals rebuilt over the points the cut faces share
-  const RF = D.relief && (() => { const q = new Uint16Array(bytes(D.relief.px).buffer), lo = D.relief.lo, sp = D.relief.hi - D.relief.lo; return { N: D.relief.size, T: D.relief.tile, h: Float32Array.from(q, (v) => lo + (v / 65535) * sp) }; })();
+  // face left whole has its every edge so; normals rebuilt over the points the cut faces share. It only carves: the map's
+  // highest point at the land as built, so nothing stands proud of it (a house set against a cliff, a stair at its foot
+  // stay in front of the rock; the walker, who stands on the land as built, never stands inside it)
+  const RF = D.relief && (() => { const q = new Uint16Array(bytes(D.relief.px).buffer), sp = D.relief.hi - D.relief.lo; return { N: D.relief.size, T: D.relief.tile, h: Float32Array.from(q, (v) => (v / 65535 - 1) * sp) }; })();
   const sst = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   const steepOf = (nz) => 1 - sst(0.5, 0.8, Math.abs(nz));
   function reliefAt(x, y, z, nx, ny, nz) {

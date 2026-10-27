@@ -954,6 +954,12 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   1.7 m over its own height, under the meru island's high side (13.5 m up at the join): walking began 11.8 m inside the
   land and fell through it. On an island the spawn now stands on the island's own ground at the join, dropped from a
   hand over it (`SPAWN_CLEAR`, so the walk's ground ray starts above the faces), in both eras.
+- **Fixed in the gen-7 channel, found looking at the trail, path and town shows:** a face with no natural layer (the
+  trail's own ribbons and the walls of its shelves) took no material at all and drew black; it takes the path's. The
+  scree's stones kept by their dice scattered as pale flakes far from any scree (the noise nudged a share that was a
+  trace); the noise now nudges only as far as there is scree. And the rock's relief only carves: its highest point at
+  the land as built, so nothing set against a cliff (a house, a stair) is overgrown and the walker never stands inside
+  the rock.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
