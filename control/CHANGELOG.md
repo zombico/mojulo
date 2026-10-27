@@ -14,6 +14,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### NPC generator: a town's people grown from its lots
+
+A town already says who lives in it: each lot's use implies a person (a shop its keeper, a workshop its master, a tower
+its watch), and each person implies others (the apprentice, the household over the counter, the watch's captain). This
+theme grows a gameworld town's people that way, as the egocube cast grows from its anchor: path-keyed, so a town only
+grows and adding a lot never moves anyone already rolled. NPCs are not party members. Each is rolled from the town's
+culture and their role: the role and the culture give the uniform, the seed gives the face. A **townie** lives and
+talks; a **service** (a merchant is one) opens a menu the game already has; a **recurring** person (the same face at
+the same service in every town) is seeded from the game, not the town. Their minds keep to the town or the service.
+Their lines are placeholder slots (`[Keeper: greeting]`) until the operator directs the words: mojulo never writes
+the story. The city plan and the historic city follow on the same rules.
+
 ### Carved glyphs: the letter primitive grows up
 
 The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
