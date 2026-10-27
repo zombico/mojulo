@@ -51,7 +51,8 @@
  * it, worn hollows; `'powder'` (a floor) dry dirt, a soft fine grain scuffed into faint drifts, a few crumbs, almost no
  * relief; `'clay'` (a floor) cohesive dirt in rounded clods cracked apart where it dried, pores in their faces;
  * `'undergrowth'` (a floor) what grows under grass: short stubble every way, moss cushions and small round leaves, thin
- * in patches; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
+ * in patches; `'strata'` (u along, v up) a bedded cliff at a cliff's scale: beds of their own thickness, hard ones proud
+ * and soft ones weathered back, joints staggered bed to bed, a master joint or two through, stains down from the ledges; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
  * wandering across fine grains, a bright fleck here and there; `'karst'` (a floor) a limestone pavement: clints in
  * courses (`rows`, `cols`) parted by deep grikes (matte-paint/karst.js, the joints shared with what roots in them),
  * solution pans, lichen rosettes a shade apart; `'scree'` (a floor) angular stones lying close and over one another,
@@ -774,6 +775,61 @@ const NATURAL = {
       const joint = -0.015 * Math.max(0, 1 - d / (0.025 * (0.6 + g)));
       return lump + ledge + joint + 0.0015 * sfbm(x, y, M, 0.02, 0.02, 2, seed + 9);
     }, (x, y, k, lit) => rampAt(body, 0.5 + (lit.value[k] - 1) * 1.1 + 0.12 * (bed[k] - 0.5) + 0.04 * sfbm(x, y, M, 0.25, 0.25, 3, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // STRATA, a bedded cliff at a cliff's scale (u along it, v up it; the form render's rock, read from the beach and up
+  // close): beds of their own thickness (most thin, a few thick), each hard and standing proud or soft and weathered back
+  // into a hollow, its edges rounded, a parting groove between; joints crossing a bed and stopping at its parting, each
+  // bed's own (staggered, never ruled through), most short, a master joint or two through every bed; lumps, pits in the
+  // soft beds, a fine grain; each bed its own tone, stains streaking down from the ledges
+  strata(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), bedOf = new Int32Array(size * size), stain = new Float32Array(size * size);
+    // (the beds' thicknesses, whole round the repeat; their partings wander, together)
+    const nb = Math.max(3, Math.round(M / 0.55)), wd = Array.from({ length: nb }, (_, b) => 0.3 + 1.4 * hash01(b, 2, seed) ** 1.6), ws = wd.reduce((s, w) => s + w, 0);
+    const edges = [0]; for (const w of wd) edges.push(edges[edges.length - 1] + (w / ws) * M);
+    const hard = wd.map((_, b) => hash01(b, 7, seed)), tone = wd.map((_, b) => hash01(b, 3, seed));
+    // (each bed's joints: spaced by its thickness, as a bed's joints are, from one to three times it; a quarter missing,
+    // a third running only part way across the bed from one parting)
+    const joints = wd.map((_, b) => {
+      const t = edges[b + 1] - edges[b], n = Math.max(1, Math.round(M / clamp(t * (1 + 2 * hash01(b, 11, seed)), 0.25, 3))), off = hash01(b, 13, seed) * M, out = [];
+      for (let k = 0; k < n; k++) {
+        const h = (q) => hash01(b * 31 + k, q, seed);
+        if (h(17) < 0.25) continue;
+        const part = h(31) < 0.35, from = part && h(37) < 0.5 ? 1 - (0.3 + 0.5 * h(41)) : 0, to = part && from === 0 ? 0.3 + 0.5 * h(41) : 1;
+        out.push({ x: (off + ((k + 0.5 + 0.6 * (h(19) - 0.5)) / n) * M) % M, w: 0.008 + 0.016 * h(23), d: 0.008 + 0.012 * h(29), from, to });
+      }
+      return out;
+    });
+    const masters = hash01(0, 37, seed) < 0.6 ? [{ x: hash01(1, 41, seed) * M, w: 0.022, d: 0.018 }] : [];
+    const wrap = (d) => { d = Math.abs(d) % M; return Math.min(d, M - d); };
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const yy = (((y + 0.12 * sfbm(x, y, M, 1.6, 0.8, 2, seed + 5) + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 6)) % M) + M) % M;
+      let b = 0; while (b < nb - 1 && yy >= edges[b + 1]) b++;
+      const t = edges[b + 1] - edges[b], f = (yy - edges[b]) / t;
+      // (a hard bed's edges broken back where pieces fell away; the parting a groove, faint in places)
+      const e = Math.max(0, Math.min(f, 1 - f) * t - hard[b] * 0.05 * Math.max(0, sfbm(x, y, M, 0.35, 0.25, 2, seed + 47)));
+      bedOf[k] = b;
+      const parting = 0.006 * (0.3 + 0.7 * smoothstep(-0.3, 0.3, sfbm(x, y, M, 0.9, 0.9, 2, seed + 53)));
+      // (a soft bed weathered back into a hollow, a hard one proud; both rounded at their edges)
+      const bed = -0.028 * (1 - hard[b]) * Math.sin(Math.PI * f) ** 0.6 - 0.012 * (1 - smoothstep(0, 0.08, e)) - parting * (1 - smoothstep(0, 0.015, e));
+      // (the joints wander at two scales and swell and narrow along their length)
+      let jn = 0;
+      const wob = 0.05 * sfbm(x, y, M, 0.3, 0.6, 2, seed + 7) + 0.015 * sfbm(x, y, M, 0.08, 0.08, 1, seed + 8), swell = 0.6 + 0.8 * (0.5 + 0.5 * sfbm(x, y, M, 0.5, 0.3, 2, seed + 59));
+      for (const J of joints[b]) {
+        if (f < J.from || f > J.to) continue;
+        const d = wrap(x + wob - J.x), w = J.w * swell, end = smoothstep(0, 0.12, Math.min(f - J.from, J.to - f) + (J.from === 0 ? 0.12 : 0) * (J.to === 1 ? 1 : 0));
+        if (d < w) jn = Math.min(jn, -J.d * (1 - d / w) * (J.from === 0 && J.to === 1 ? 1 : end));
+      }
+      for (const J of masters) { const d = wrap(x + wob * 2.5 - J.x), w = J.w * swell; if (d < w) jn = Math.min(jn, -J.d * (1 - d / w)); }
+      // (weathering over all: lumps at a few scales, pits in the soft beds, a fine grain)
+      const lump = 0.03 * sfbm(x, y, M, 0.7, 0.45, 4, seed + 3) + 0.01 * (1 - Math.abs(sfbm(x, y, M, 0.2, 0.2, 2, seed + 4)));
+      const pit = (1 - hard[b]) * 0.003 * Math.max(0, sfbm(x, y, M, 0.02, 0.02, 1, seed + 19) - 0.45);
+      // (the stains: long streaks down the face, from the ledges' run-off)
+      stain[k] = smoothstep(0.1, 0.45, sfbm(x, y, M, 0.35, 2, 2, seed + 43)) * (0.4 + 0.6 * hard[b]);
+      return bed + jn + lump - pit + 0.0015 * sfbm(x, y, M, 0.02, 0.02, 2, seed + 9);
+    }, (x, y, k, lit) => {
+      const b = bedOf[k];
+      return rampAt(body, 0.5 + (lit.value[k] - 1) * 1.1 + 0.12 * (tone[b] - 0.5) + 0.04 * (hard[b] - 0.5) - 0.07 * stain[k] + 0.05 * sfbm(x, y, M, 0.25, 0.25, 3, seed + 13) - 0.3 * lit.cavity[k] * (0.6 + 0.4 * g));
+    });
   },
   // SAND from above: wind ripples across it (a crest every few centimetres, wandering and forking as the wind shifts),
   // the grains fine between them, a bright grit here and there (a shell's fleck)

@@ -93,7 +93,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // materials by them, by height. A layer's texture modulates its palette-solved base about its own mean, so the palette's
   // colours hold on average.
   const LAYERS = [
-    { id: 'rock', cut: 'crag', metres: 4, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 4, role: 'stone' },
+    { id: 'rock', cut: 'strata', metres: 6, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 4, role: 'stone' },
     // (the cover's slot: dirt, on every land; on a green one the undergrowth grows over it, its own slot last)
     { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' },
     { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' },

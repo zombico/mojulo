@@ -925,6 +925,14 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   every other page byte-identical. The layers' textures are the cuts', no cube's: painted once per process (a page after
   the first resolves in ~2.5 s, not ~18). Era marks: `form` a surface input, built in gen-7; Godot and Roblox do not carry
   it yet.
+- **The gen-7 cliff, bedded rock instead of a jigsaw:** the crag cut's even grid (a bed every 0.35 m, a joint every
+  0.9 m, on a 4 m tile) read from the beach as puzzle pieces. A new natural cut, `strata` (`matte-paint/dressed.js`),
+  is the form render's rock: beds of their own thickness (most thin, a few thick), hard ones proud and soft ones
+  weathered back, their edges broken; joints spaced by their bed's thickness and stopping at its partings (staggered,
+  some running part way), a master joint now and then; stains streaking down from the ledges. In the channel the rock is
+  sampled along both side axes where a face turns between them (its beds never snap round a cone), with parallax near,
+  and dirt settles on its ledges (where its own relief faces up) in a tone toward the dry powder's. The crag cut and
+  every gen-6 page unchanged.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

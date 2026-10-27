@@ -122,13 +122,37 @@ export function formLandScript(form) {
       float l3 = 0.0, h3 = 1.0 - texture( tOrm, vec3( ugUV, 6.0 ) ).b;
       for ( int k = 0; k < 4; k++ ) { if ( l3 >= h3 ) break; ugUV -= dU; h3 = 1.0 - texture( tOrm, vec3( ugUV, 6.0 ) ).b; l3 += 0.25; }
     }
+    // the ROCK: on a face turning between the two side axes (a cone's flank) sampled along both and blended, half each at
+    // the turn, so its beds (level in the world on either axis) never snap; its PARALLAX near, where there is rock
+    vec2 rkUV = uvW / uTile[ 0 ], rk2 = vec2( 0.0 ); vec3 rT2 = tT, rB2 = tB; float rkB = 0.0;
+    if ( aN.z < max( aN.x, aN.y ) && vSplat.x > 0.001 ) {
+      float bx = aN.x / max( 1e-4, aN.x + aN.y );
+      if ( aN.x >= aN.y ) { rk2 = vec2( -vWPos.x * sign( nW.y ), vWPos.z ); rT2 = vec3( -sign( nW.y ), 0.0, 0.0 ); rkB = 0.5 * ( 1.0 - smoothstep( 0.0, 0.12, bx - 0.5 ) ); }
+      else { rk2 = vec2( vWPos.y * sign( nW.x ), vWPos.z ); rT2 = vec3( 0.0, sign( nW.x ), 0.0 ); rkB = 0.5 * ( 1.0 - smoothstep( 0.0, 0.12, 0.5 - bx ) ); }
+      rB2 = vec3( 0.0, 0.0, 1.0 ); rk2 /= uTile[ 0 ];
+    }
+    if ( vSplat.x > 0.05 && camD < 26.0 ) {
+      vec3 V4 = normalize( cameraPosition - vWPos ), vt4 = vec3( dot( V4, tT ), dot( V4, tB ), dot( V4, nW ) );
+      vec2 gx4 = dFdx( rkUV ), gy4 = dFdy( rkUV ), dR = vt4.xy / max( vt4.z, 0.3 ) * ( 0.06 / uTile[ 0 ] ) * ( 1.0 - smoothstep( 14.0, 26.0, camD ) ) / 8.0;
+      float l4 = 0.0, h4 = 1.0 - textureGrad( tOrm, vec3( rkUV, 0.0 ), gx4, gy4 ).b;
+      for ( int k = 0; k < 8; k++ ) { if ( l4 >= h4 ) break; rkUV -= dR; h4 = 1.0 - textureGrad( tOrm, vec3( rkUV, 0.0 ), gx4, gy4 ).b; l4 += 0.125; }
+    }
     for ( int i = 0; i < 7; i++ ) {
-      vec3 a = vec3( i == 1 ? scUV : i == 5 ? clUV : i == 6 ? ugUV : uvW / uTile[ i ], float( i ) );
+      vec3 a = vec3( i == 0 ? rkUV : i == 1 ? scUV : i == 5 ? clUV : i == 6 ? ugUV : uvW / uTile[ i ], float( i ) );
       vec4 o = texture( tOrm, a );
       hgt[ i ] = o.b; rs[ i ] = o.rg;
       bs[ i ] = texture( tBase, a ).rgb / uMean[ i ];
       ns[ i ] = texture( tNorm, a ).xyz * 2.0 - 1.0;
     }
+    if ( rkB > 0.001 ) {
+      vec3 a2 = vec3( rk2, 0.0 ); vec4 o2 = texture( tOrm, a2 ); vec3 n2 = texture( tNorm, a2 ).xyz * 2.0 - 1.0;
+      // (the second sample's normal into the world by its own frame, then into the first's)
+      vec3 w1 = tT * ns[ 0 ].x + tB * ns[ 0 ].y + nW * ns[ 0 ].z, w2 = rT2 * n2.x + rB2 * n2.y + nW * n2.z, wb = normalize( mix( w1, w2, rkB ) );
+      ns[ 0 ] = vec3( dot( wb, tT ), dot( wb, tB ), dot( wb, nW ) );
+      hgt[ 0 ] = mix( hgt[ 0 ], o2.b, rkB ); rs[ 0 ] = mix( rs[ 0 ], o2.rg, rkB ); bs[ 0 ] = mix( bs[ 0 ], texture( tBase, a2 ).rgb / uMean[ 0 ], rkB );
+    }
+    // (dirt settles on the rock's ledges: where its own relief faces up, and more on a face that leans back)
+    float ledge = vSplat.x > 0.001 ? smoothstep( 0.5, 0.85, ( tT * ns[ 0 ].x + tB * ns[ 0 ].y + nW * ns[ 0 ].z ).z ) * ( 0.55 + 0.45 * vn( vWPos.xy / 1.2 + vWPos.z * 0.7 + 63.0 ) ) + 0.3 * smoothstep( 0.62, 0.85, nW.z ) * smoothstep( 0.5, 0.75, vn( vWPos.xy / 2.0 + 29.0 ) ) : 0.0;
     // (the trail's dirt two: powder and clay by a wandering field, its share of clay the dress's)
     float clayK = clamp( uClay * ( 1.0 + 2.2 * ( vn( vWPos.xy / 1.6 + 91.0 ) * 0.7 + vn( vWPos.xy / 0.55 + 13.0 ) * 0.3 - 0.5 ) ), 0.0, 1.0 );
     // (the ROAD's core: deeper in than its edge, its own border broken by its own noise; the clay's clods there, the dry
@@ -140,6 +164,7 @@ export function formLandScript(form) {
     float gcov = uHasG > 0.5 ? texture2D( tGrassL, ( vWPos.xy - uGOl ) / uGMl ).b : 1.0;
     float ugK = uUnder * clamp( 0.62 + 0.5 * ( vn( vWPos.xy / 3.5 + 47.0 ) - 0.5 ), 0.0, 1.0 ) * mix( 0.6, 1.0, gcov );
     float ws[7]; ws[0] = vSplat.x * ( 1.0 - pw ); ws[1] = vSplat.y * ( 1.0 - pw ); ws[2] = vSplat.z * ( 1.0 - pw ) * ( 1.0 - ugK ); ws[3] = vSplat.w * ( 1.0 - pw ); ws[4] = pw * ( 1.0 - clayK ); ws[5] = pw * clayK; ws[6] = vSplat.z * ( 1.0 - pw ) * ugK;
+    float toDirt = ws[ 0 ] * min( 1.0, ledge ) * 0.7; ws[ 0 ] -= toDirt; ws[ 2 ] += toDirt; float dirtFrac = toDirt / max( 1e-4, ws[ 2 ] );
     // (each layer present here nudged by its own noise over the plan, a few metres across: the corners' weights run
     // straight across a triangle, the border they give must not)
     // the scree thins out by its stones: a stone is kept whole where its dice fall under the scree's share here (nudged
@@ -175,6 +200,8 @@ export function formLandScript(form) {
     diffuseColor.rgb = mix( diffuseColor.rgb, uUnderBase, ws[ 6 ] / max( 1e-4, tw ) );
     // (and a kept scree stone its stone's, wherever it lies: on a trail the corners under it are the land's, not rock's)
     diffuseColor.rgb = mix( diffuseColor.rgb, uStoneBase, ws[ 1 ] / max( 1e-4, tw ) );
+    // (the ledges' dirt toward the dry powder's tone: the rock's own grit and the dust blown onto it)
+    diffuseColor.rgb = mix( diffuseColor.rgb, mix( diffuseColor.rgb, uPathBase, 0.55 ), dirtFrac * ws[ 2 ] / max( 1e-4, tw ) );
     diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
     roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );
     vec3 dustC = mix( uPathBase, vec3( dot( uPathBase, vec3( 0.2126, 0.7152, 0.0722 ) ) ), 0.35 ) * 1.25 * mix( vec3( 1.0 ), mb, 0.3 );
