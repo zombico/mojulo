@@ -1345,7 +1345,16 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   grown with it. A cell past its cap takes more clumps or sprays, not a bigger one, so a leaf stays near its size. Its
   leaves sitting on its newest shoots only, its crown is filled to a dome: the envelope the leafy shoots outline round
   the crown's axis (slice by slice, sector by sector, smoothed), a clump wherever its surface has none near, every clump
-  of a shoot kept. The oak draws 15k leaf triangles at mid and 8k far; its wood 6.9k.
+  of a shoot kept. The oak draws 15k leaf triangles at mid and 8k far; its wood 6.9k. The re-standing aims each species
+  at the top of its height range (`heights`, within ×1–2): the beech 17 m, the umbrella tree 7 m.
+- **Gen-7 conifers and evergreens.** The conifers (vegetation/conifer.js: spruce, silver fir, Scots pine, grown by rule
+  at their age, not re-stood) read as form with their slender limbs drawn, cheaply (rings far apart, four sides), and
+  their foliage needles (`vegetation/sprays.js` needleHabit, from conifer-mesh.js HABIT: no cut-out, so a needle is a
+  tooth on a strip's edge): near, a spruce's shoots bristling all round, a silver fir's flat two-ranked fronds, a pine's
+  whorls of bare shoots ending in bursts of long needles; the crown's mass a fir's or a spruce's drooping toothed pads
+  lying along their branches, a pine's spiky tufts; clumps on finer cells (a conifer's crown is narrow) and a fuller fill.
+  A needled broadleaf row (the fir) takes the conifers' rules; an evergreen broadleaf (the umbrella tree) and the figs
+  (their own rows, vegetation/ficus.js) the trees'. The spruce draws 5.6k needle triangles at mid, the pine 6.9k.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

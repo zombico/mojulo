@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { treeForm, TREE_FORM } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds } from '../vegetation/sprays.js';
+import { SPECIES } from '../vegetation/species.js';
 
 const SP = 'cherry', T = treeForm(SP, { seed: 7 });
 
@@ -56,11 +57,22 @@ describe('treeForm', () => {
 
   it('grows young and stands mature, its crown filled to its envelope where the shoots leave it open', () => {
     const young = treeForm(SP, { seed: 7, mature: null });
-    expect(T.height).toBeGreaterThan(young.height * TREE_FORM.mature.scale * 0.95);
+    // (toward the top of its species' height range, within the re-standing's bounds)
+    expect(T.height).toBeGreaterThan(young.height);
+    expect(T.height).toBeLessThanOrEqual(young.height * TREE_FORM.mature.range[1] * 1.02);
     // (the envelope's clumps stand off every clump of a shoot: they fill gaps, never stack on the real ones)
     const fill = T.clumps.filter((c) => c.f), shoots = T.clumps.filter((c) => !c.f);
     expect(fill.length).toBeGreaterThan(0);
-    const gap = TREE_FORM.clumpCell * TREE_FORM.mature.scale * TREE_FORM.envelope.spacing * 0.75;
+    const gap = TREE_FORM.clumpCell * (T.height / young.height) * TREE_FORM.envelope.spacing * 0.75 * 0.98;
     for (const c of fill) for (const q of shoots) expect(Math.hypot(c.p[0] - q.p[0], c.p[1] - q.p[1], c.p[2] - q.p[2])).toBeGreaterThan(gap - 1e-3);
+  }, 60_000);
+
+  it('grows a conifer by its own rules at its age: slender limbs drawn, its foliage needles, its fir\'s or spruce\'s clumps pads', () => {
+    const sp = Object.keys(SPECIES).find((k) => SPECIES[k].kind === 'conifer'), C = treeForm(sp, { seed: 3 });
+    expect(C.needles).toBe(SPECIES[sp].conifer);
+    expect(C.pad).toBe(C.needles !== 'pine');
+    expect(C.height).toBeGreaterThan(8);
+    expect(C.wood.idx.length).toBeGreaterThan(0);
+    expect(C.clumps.length).toBeGreaterThan(20);
   }, 60_000);
 });

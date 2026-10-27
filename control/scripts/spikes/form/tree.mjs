@@ -18,7 +18,7 @@ import { CDN_IMPORTMAP, inlineImportmap } from '../../../lib/graph/scene/emit-ut
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = arg('--out', 'tree.html'), cdn = process.argv.includes('--cdn'), seed = Number(arg('--seed', 1234));
-const species = arg('--species', 'oak,beech,cherry').split(',');
+const species = arg('--species', 'oak,beech,cherry,spruce,silverfir,pine,fir,schefflera').split(',');
 const SPRAYS = 3, CLUMPS = 3;
 /** Far off: the share of clumps kept at a distance (m), the kept ones grown to hold the cover; near: where the sprays come
  *  in (m: whole within the first, none past the second), the clumps drawn in to `draw` where they are whole. */
@@ -31,7 +31,7 @@ const trees = species.map((sp) => {
   const geo = (S) => ({ p: S.tris.flatMap((t) => t.p.flat().map((v) => Math.round(v * 1e4) / 1e4)), c: S.tris.flatMap((t) => { const c = lin(t.c); return [...c, ...c, ...c]; }), tris: S.tris.length });
   const sprays = Array.from({ length: SPRAYS }, (_, k) => geo(leafSpray(sp, { seed: seed * 31 + k })));
   const clumps = Array.from({ length: CLUMPS }, (_, k) => geo(leafClump(sp, { seed: seed * 17 + k })));
-  return { species: sp, height: T.height, wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps,
+  return { species: sp, height: T.height, wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
     bark: { metres: B.metres, depth: B.depth, base: png(B.baseColor, B.W, B.H), normal: png(B.normal, B.W, B.H), orm: png(B.orm, B.W, B.H), height: png(B.height, B.W, B.H) } };
 });
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -143,7 +143,11 @@ function build(T) {
     mat.customProgramCacheKey = () => 'crown';
     const im = new THREE.InstancedMesh(sg, mat, list.length);
     list.forEach((s, i) => {
-      const f = new THREE.Vector3(...(kind === 'clump' ? s.o : s.d)); q.setFromUnitVectors(AX[kind], f); roll.setFromAxisAngle(f, s.r * 40); q.premultiply(roll);
+      if (kind === 'clump' && T.pad) {
+        // (a needle pad lies along its branch: its length the branch's run, level, its face to the sky)
+        const x = new THREE.Vector3(s.d[0], s.d[1], 0); if (x.lengthSq() < 1e-6) x.set(s.o[0], s.o[1], 0); if (x.lengthSq() < 1e-6) x.set(1, 0, 0); x.normalize();
+        const z = new THREE.Vector3(0, 0, 1), y = z.clone().cross(x); q.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+      } else { const f = new THREE.Vector3(...(kind === 'clump' ? s.o : s.d)); q.setFromUnitVectors(AX[kind], f); roll.setFromAxisAngle(f, s.r * 40); q.premultiply(roll); }
       m4.compose(new THREE.Vector3(...s.p), q, new THREE.Vector3(s.s, s.s, s.s)); im.setMatrixAt(i, m4);
       const tone = 0.62 + 0.38 * s.e; im.setColorAt(i, new THREE.Color(tone, tone, tone));
       out.set(s.o, i * 3);

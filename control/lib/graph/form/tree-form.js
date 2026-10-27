@@ -11,11 +11,13 @@
  * by the scale squared) and its clumps' cells grown with it. Its leaves sit on its newest shoots only (a shell at the limbs'
  * tips, gaps between), so its crown is filled to a dome: the ENVELOPE the leafy shoots outline round the crown's axis
  * (slice by slice up it, sector by sector round it, smoothed), a clump wherever its surface has none near; the gathered
- * clumps, the real shoots, all kept.
+ * clumps, the real shoots, all kept. A conifer (vegetation/conifer.js, grown by rule) is grown at its age and not re-stood;
+ * its slender limbs drawn finer (TREE_FORM.conifer); its foliage needles (vegetation/sprays.js needleHabit), a fir's or a
+ * spruce's clumps pads lying along their branches (`pad`), a pine's tufts facing out. A fig grows from its own row.
  *
  *   treeForm(species, { seed?, years?, mature?, minDiameter?, cell?, clumpCell? }) → { species, height, wood, clumps,
- *       sites, bark }
- *     mature: { scale, cambium } the re-standing (TREE_FORM.mature), or null for the tree as grown
+ *       sites, bark, needles?, pad? }
+ *     mature: the re-standing, TREE_FORM.mature's rule or { scale, cambium }, or null for the tree as grown
  *     wood:  { pos, nrm, uv, idx } flat arrays (metres; uv in bark tiles: u round the trunk, v up it), the axes whose
  *            diameter reaches `minDiameter` as grown (the pipe model's cut: a thinner axis is carried by the leaves)
  *     clumps, sites: [{ p, d, o, s, e, r }] one or more a cell of the leafy shoots (`clumpCell` m, a clump's; `cell` m, a spray's;
@@ -27,9 +29,11 @@
  * Deterministic from the seed.
  */
 import { grow, restand, ARCHITECTURES, vec } from '../vegetation/grow.js';
+import { growConifer } from '../vegetation/conifer.js';
+import { FIGS } from '../vegetation/ficus.js';
 import { axisChains } from '../vegetation/tree-mesh.js';
 import { SPECIES } from '../vegetation/species.js';
-import { leafHolds } from '../vegetation/sprays.js';
+import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import * as dmath from '../../util/dmath.js';
 
@@ -46,19 +50,33 @@ export const TREE_FORM = Object.freeze({ minDiameter: 0.06, ring: 6, ringMin: 0.
   // (the envelope: its sectors round the axis, the spacing of its clumps on the surface, × a clump's cell, and their size,
   // × the clump cap)
   envelope: Object.freeze({ sectors: 24, spacing: 0.6, size: 1 }),
-  // (a mature tree from a young one: an oak's 20 years, 13 m and a trunk 0.36 m across, re-stood at 19 m and 1.1 m)
-  mature: Object.freeze({ scale: 1.45, cambium: 2.2 }) });
+  // (a conifer: its wood's cut (its limbs are slender: a pad must sit on one) and its needles' fill)
+  conifer: Object.freeze({ minDiameter: 0.025, fill: 4, ringMin: 0.4, thinSides: 4, clumpCell: 0.75 }),
+  // (a mature tree from a young one: scaled toward the top of its species' height range (`toHeight` of it), within
+  // `range`, its girth's thickening × `cambium`: an oak's 20 years, 13 m and a trunk 0.36 m across, re-stood at 19 m and
+  // 1.1 m)
+  mature: Object.freeze({ toHeight: 0.95, range: Object.freeze([1, 2]), cambium: 2.2 }) });
 const sidesOf = (r) => (r > 0.15 ? 14 : r > 0.06 ? 10 : r > 0.025 ? 7 : 5);
 
 function hashN(n) { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; }
 
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell } = {}) {
-  const S = SPECIES[species]; if (!S || S.kind !== 'tree') throw new Error(`tree-form: '${species}' is not a tree species`);
-  const arch = S.leafLife || S.over ? { ...ARCHITECTURES[S.arch], ...(S.over || {}), ...(S.leafLife ? { leafLife: S.leafLife } : {}) } : S.arch;
-  const young = grow(arch, { years: years ?? (S.growth ? S.growth[S.growth.length - 1].years : S.years), seed });
-  const k = mature ? mature.scale : 1, plant = restand(young, mature ? { scale: k, cambium: mature.cambium } : {}), height = plant.height;
-  // (the cut, and a clump's bounds, follow the re-standing: the same limbs drawn, the same masses held)
-  const cut = minDiameter * k * (mature ? mature.cambium : 1);
+  const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
+  const conifer = S.kind === 'conifer', needles = needleHabit(species);
+  let plant, height, k = 1;
+  if (conifer) { plant = growConifer(S.conifer, { seed, stand: S.stand ?? 0, ...(years ? { years } : {}) }); height = plant.H; mature = null; }
+  else {
+    const arch = S.fig ? FIGS[S.fig] : S.leafLife || S.over ? { ...ARCHITECTURES[S.arch], ...(S.over || {}), ...(S.leafLife ? { leafLife: S.leafLife } : {}) } : S.arch;
+    const young = grow(arch, { years: years ?? (S.growth ? S.growth[S.growth.length - 1].years : S.years), seed });
+    if (mature && mature.scale === undefined) { const h0 = young.nodes.reduce((a, n) => (n.died ? a : Math.max(a, n.pos[2])), 0); mature = { scale: Math.min(mature.range[1], Math.max(mature.range[0], (S.heights[1] * mature.toHeight) / Math.max(1e-6, h0))), cambium: mature.cambium }; }
+    k = mature ? mature.scale : 1; plant = restand(young, mature ? { scale: k, cambium: mature.cambium } : {}); height = plant.height;
+  }
+  // (the cut, and a clump's bounds, follow the re-standing: the same limbs drawn, the same masses held; needles, a
+  // conifer's or a needled row's, sit on slender limbs: their cut, their cell and their fill)
+  const cambium = mature ? mature.cambium : 1;
+  const cut = needles ? TREE_FORM.conifer.minDiameter * k : minDiameter * k * cambium, fill = needles ? TREE_FORM.conifer.fill : TREE_FORM.fill;
+  if (needles) clumpCell = TREE_FORM.conifer.clumpCell;
+  const thinR = 0.025 * Math.max(1, k * cambium * 0.5);
   // the wood: each axis thick enough a tube along its chain (parallel-transported rings), its normals the rings' own
   // outward directions (smooth round, so the sun turns across a limb), its bark's coordinates in tiles: round the axis
   // the tile's count its base girth asks (no seam), up it its arc length
@@ -67,8 +85,10 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
     if (ch.dMax < cut || ch.pts.length < 2) continue;
     // (rings by arc length: one every few radii, a thick limb's far apart, a twig's close)
     const keep = [0]; let acc = 0;
-    for (let i = 1; i < ch.pts.length; i++) { acc += len(sub(ch.pts[i], ch.pts[i - 1])); if (i === ch.pts.length - 1 || acc >= Math.max(TREE_FORM.ringMin, TREE_FORM.ring * ch.rs[i])) { keep.push(i); acc = 0; } }
-    const pts = keep.map((i) => ch.pts[i]), rs = keep.map((i) => ch.rs[i]), m = pts.length, k = sidesOf(rs[0]), around = Math.max(1, Math.round((2 * Math.PI * rs[0]) / BARK_TILE_M));
+    // (a conifer's slender limbs: rings far apart, four sides: each only carries its pads)
+    const ringMin = needles ? TREE_FORM.conifer.ringMin : TREE_FORM.ringMin;
+    for (let i = 1; i < ch.pts.length; i++) { acc += len(sub(ch.pts[i], ch.pts[i - 1])); if (i === ch.pts.length - 1 || acc >= Math.max(ringMin, TREE_FORM.ring * ch.rs[i])) { keep.push(i); acc = 0; } }
+    const pts = keep.map((i) => ch.pts[i]), rs = keep.map((i) => ch.rs[i]), m = pts.length, k = needles && rs[0] < thinR ? TREE_FORM.conifer.thinSides : sidesOf(rs[0]), around = Math.max(1, Math.round((2 * Math.PI * rs[0]) / BARK_TILE_M));
     const T = pts.map((_, i) => unit(sub(pts[Math.min(m - 1, i + 1)], pts[Math.max(0, i - 1)])));
     let N = Math.abs(T[0][2]) < 0.9 ? unit(cross([0, 0, 1], T[0])) : unit(cross([1, 0, 0], T[0])), s = 0;
     const base = pos.length / 3;
@@ -101,7 +121,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
     return [...cells.values()].flatMap((c) => {
       const p0 = mul(c.p, 1 / c.n), d = len(c.d) > 1e-6 ? unit(c.d) : [0, 0, 1];
       // (the cell's leaf area, in what one holds at scale 1; past the cap, shared by more of them)
-      const area = (c.leaves * TREE_FORM.fill * k * k) / per, m = Math.max(1, Math.ceil(area / (cap * cap))), sc = Math.max(TREE_FORM.scale[0], Math.sqrt(area / m));
+      const area = (c.leaves * fill * k * k) / per, m = Math.max(1, Math.ceil(area / (cap * cap))), sc = Math.max(TREE_FORM.scale[0], Math.sqrt(area / m));
       return Array.from({ length: m }, (_, j) => {
         const h = (q) => hashN(c.id * 131 + j * 17 + q + salt * 7), off = j === 0 ? [0, 0, 0] : [h(1) - 0.5, h(2) - 0.5, h(3) - 0.5].map((v) => v * 2 * TREE_FORM.spread * size);
         const p = add(p0, off), o0 = sub(p, centre);
@@ -137,5 +157,5 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
     }
   }
   clumps.sort((a, b) => a.r - b.r);
-  return { species, height: r4(height), wood: { pos, nrm, uv, idx }, clumps, sites, bark: S.bark || 'beech' };
+  return { species, height: r4(height), wood: { pos, nrm, uv, idx }, clumps, sites, bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine' } : {}) };
 }

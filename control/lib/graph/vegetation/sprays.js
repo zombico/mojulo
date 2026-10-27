@@ -15,10 +15,19 @@
 //     in metres, the twig from the origin along +x, up +z; c the albedo (sRGB bytes), never lit
 //   leafClump(species, { seed }) → { tris, leaves }  in metres, round the origin, facing +z
 //   leafHolds(species) → { spray, clump }: how many of the species' leaves a spray's and a clump's leaf area holds
+//
+// NEEDLES (the conifers, conifer.js, and a needled broadleaf row such as the fir): no leaf, a needle habit
+// (conifer-mesh.js HABIT): the page draws no cut-out, so a needle is a tooth on a strip's edge, and the edge reads as
+// needles. Spray: a shoot and its side shoots as their habit carries them (spruce's brush all round, silver fir's flat
+// two-ranked frond, pine's whorl of bare shoots each ending in a burst of long needles). Clump: a fir's or a spruce's
+// drooping pad along its branch, its rim toothed (facing +z, its branch along +x), a pine's spiky tuft (facing +z).
+//   needleHabit(species) → the habit's key, or null for a leaved tree
 // Deterministic from the seed (mulberry32).
 import { mulberry32, ARCHITECTURES } from './grow.js';
 import { SPECIES } from './species.js';
 import { TONES } from './tree-mesh.js';
+import { HABIT } from './conifer-mesh.js';
+import { CONIFERS } from './conifer.js';
 import { mix } from './util.js';
 import * as dmath from '../../util/dmath.js';
 
@@ -44,6 +53,74 @@ const leafArea = (tris) => tris.filter((t) => t.kind === 'leaf').reduce((a, { p:
   const u = B.map((v, i) => v - A[i]), v = C.map((x, i) => x - A[i]);
   return a + 0.5 * dmath.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]);
 }, 0);
+/** A species' needle habit (conifer-mesh.js HABIT): a conifer's own, a needled broadleaf row's a silver fir's; null for leaves. */
+export function needleHabit(species) {
+  const S = SPECIES[species]; if (!S) return null;
+  if (S.kind === 'conifer') return S.conifer;
+  return S.kind === 'tree' && ARCHITECTURES[S.arch] && ARCHITECTURES[S.arch].needles ? 'silverfir' : null;
+}
+/** The needles' shapes: a spray's shoot (m), a clump's pad or tuft (m), and how many grower needle units a square metre of
+ *  needled strip stands for (the leaf area's unit, for the holds). */
+export const NEEDLES = Object.freeze({ shoot: 0.36, pad: Object.freeze([1.3, 0.85]), tuft: 0.6, droop: Object.freeze({ spruce: 0.5, silverfir: 0.22 }) });
+const toneOf = (h, t) => mix(HABIT[h].tone[0], HABIT[h].tone[1], t);
+// a toothed strip from a to b, its teeth on both edges along `side`, leaning forward: the edge reads as needles
+function teeth(tris, a, b, side, h, c) {
+  const H = HABIT[h], v = H.volume || 1, nd = H.needle * v, st = H.step * v, d = b.map((x, i) => x - a[i]), L = dmath.hypot(...d), t = d.map((x) => x / L), n = Math.max(1, Math.round(L / st));
+  for (let i = 0; i < n; i++) {
+    const p0 = a.map((x, k) => x + d[k] * i / n), p1 = a.map((x, k) => x + d[k] * (i + 1) / n), m = p0.map((x, k) => (x + p1[k]) / 2);
+    for (const sg of [-1, 1]) tris.push({ p: [p0, p1, m.map((x, k) => x + side[k] * sg * nd + t[k] * H.lean * nd)], c, kind: 'leaf' });
+  }
+}
+function needleSpray(h, seed) {
+  const rng = mulberry32((seed * 2654435761 + 53) >>> 0), L = NEEDLES.shoot, tris = [], H = HABIT[h], c = () => toneOf(h, 0.3 + 0.6 * rng());
+  if (h === 'pine') {
+    // (a whorl of three bare shoots, each ending in a burst of long needles round its tip)
+    for (let k = 0; k < 3; k++) {
+      const az = (k * 120 + rng() * 30) * DEG, d = unit3([0.8, 0.6 * Math.cos(az), 0.6 * Math.sin(az)]), tip = d.map((x) => x * L * 0.7), col = c(), nl = H.needle * (H.volume || 1) * 1.6;
+      tris.push({ p: [[0, -0.004, 0], tip, [0, 0.004, 0]], c: TONES.shoot, kind: 'wood' });
+      for (let q = 0; q < 9; q++) {
+        const a2 = (q * 40 + rng() * 20) * DEG, out = unit3(d.map((x, i) => x * 0.9 + [0, Math.cos(a2), Math.sin(a2)][i] * 0.75));
+        const w = [0, -out[2], out[1]].map((x) => x * 0.004 / (Math.hypot(out[1], out[2]) || 1));
+        tris.push({ p: [tip.map((x, i) => x + w[i]), tip.map((x, i) => x - w[i]), tip.map((x, i) => x + out[i] * nl)], c: col, kind: 'leaf' });
+      }
+    }
+    return { tris, leaves: 27 };
+  }
+  // (the main shoot and side shoots: spruce bristling all round, the fir flat in its plane)
+  const flat = H.form === 'spray', main = [[0, 0, 0], [L, 0, 0]];
+  tris.push({ p: [[0, -0.004, 0], [L, 0, 0], [0, 0.004, 0]], c: TONES.shoot, kind: 'wood' });
+  teeth(tris, ...main, [0, 1, 0], h, c()); if (!flat) teeth(tris, ...main, [0, 0, 1], h, c());
+  for (let k = 0; k < (flat ? 4 : 2); k++) {
+    const at = L * (0.3 + 0.2 * Math.floor(k / 2)), sg = k % 2 ? 1 : -1, a = (45 + rng() * 15) * DEG, len = L * (flat ? 0.5 : 0.55);
+    const b = [at + Math.cos(a) * len, sg * Math.sin(a) * len, flat ? 0 : -0.04 * rng()], side = unit3([-Math.sin(a) * sg, Math.cos(a), 0]);
+    teeth(tris, [at, 0, 0], b, flat ? side : [0, 0, 1], h, c());
+  }
+  return { tris, leaves: 1 };
+}
+function needleClump(h, seed) {
+  const rng = mulberry32((seed * 2654435761 + 71) >>> 0), tris = [], H = HABIT[h], nd = H.needle * (H.volume || 1) * 2.4;
+  if (h === 'pine') {
+    // (a spiky tuft: long needles from its heart, over the half it faces and round its sides)
+    const R = NEEDLES.tuft;
+    for (let q = 0; q < 14; q++) {
+      const az = q * 137.5 * DEG, el = Math.acos(1 - 1.4 * (q + 0.5) / 14), out = [Math.sin(el) * Math.cos(az), Math.sin(el) * Math.sin(az), Math.cos(el)];
+      const w = unit3([-out[1], out[0], 0.0001]).map((x) => x * 0.03), r = R * (0.75 + 0.4 * rng());
+      tris.push({ p: [w, w.map((x) => -x), out.map((x) => x * r)], c: toneOf(h, 0.25 + 0.7 * rng()), kind: 'leaf' });
+    }
+    return { tris };
+  }
+  // (a pad along its branch: an oval fanned from its heart, its rim drooping and toothed, darker at the heart)
+  const [PL, PW] = NEEDLES.pad, dr = NEEDLES.droop[h] ?? 0.3, n = 8, ctr = [PL * 0.45, 0, 0.04], heart = toneOf(h, 0.15);
+  const rim = Array.from({ length: n }, (_, j) => { const a = (j / n) * 2 * Math.PI, x = Math.cos(a) * PL * 0.5, y = Math.sin(a) * PW * 0.5, r2 = (x * x) / (PL * PL * 0.25) + (y * y) / (PW * PW * 0.25);
+    return [ctr[0] + x * (0.9 + 0.2 * rng()), y * (0.9 + 0.2 * rng()), ctr[2] - dr * r2 * PW * 0.5 - (x > 0 ? 0.05 : 0)]; });
+  for (let j = 0; j < n; j++) {
+    const a = rim[j], b = rim[(j + 1) % n], c = toneOf(h, 0.45 + 0.5 * rng()), mid = a.map((x, i) => (x + b[i]) / 2), out = unit3([mid[0] - ctr[0], mid[1], 0]);
+    tris.push({ p: [ctr, a, b], c: mix(heart, c, 0.5), kind: 'leaf' }, { p: [a, b, mid.map((x, i) => x + out[i] * nd - (i === 2 ? nd * 0.3 : 0))], c, kind: 'leaf' });
+  }
+  return { tris };
+}
+const needleUnit = (h) => { const L = (CONIFERS[h] || CONIFERS.silverfir).leafSize; return L * L * 0.25; };
+
 const speciesOf = (species) => { const S = SPECIES[species]; if (!S || S.kind !== 'tree') throw new Error(`sprays: '${species}' is not a tree species`); return { S, A: { ...ARCHITECTURES[S.arch], ...(S.over || {}) }, O: SPRAY_LEAVES[leafOutline(species)] }; };
 
 /** The leaf outlines: each a list of half-widths (× the leaf's length) at even steps from the petiole to the tip (each
@@ -77,6 +154,7 @@ export function leafOutline(species) {
  * each on its petiole at SPRAY.angle off the twig, hanging a little.
  */
 export function leafSpray(species, { seed = 1, leaves = null, size = 1 } = {}) {
+  const nh = needleHabit(species); if (nh) return needleSpray(nh, seed);
   const { S, A, O } = speciesOf(species), rng = mulberry32((seed * 2654435761 + 41) >>> 0);
   const L = A.leafSize * (S.leafScale || 1) * size, length = L * SPRAY.twig, tris = [];
   const twigC = TONES.shoot, tw = Math.max(0.003, L * 0.04);
@@ -98,6 +176,7 @@ export function leafSpray(species, { seed = 1, leaves = null, size = 1 } = {}) {
  * tilted off the clump's facing (+z) and turned round it, their petioles lifted a little off the centre: a cupped dome.
  */
 export function leafClump(species, { seed = 1 } = {}) {
+  const nh = needleHabit(species); if (nh) return needleClump(nh, seed);
   const { S, A, O } = speciesOf(species), rng = mulberry32((seed * 2654435761 + 97) >>> 0), L = A.leafSize * (S.leafScale || 1) * CLUMP.size, tris = [];
   for (let k = 0; k < CLUMP.leaves; k++) {
     const az = (k * 360 / CLUMP.leaves + (rng() - 0.5) * 40) * DEG, tilt = (CLUMP.tilt[0] + (CLUMP.tilt[1] - CLUMP.tilt[0]) * rng()) * DEG;
@@ -110,6 +189,7 @@ export function leafClump(species, { seed = 1 } = {}) {
 /** How many of a species' leaves (a spray's mean leaf) a spray's and a clump's leaf area hold: the scales a crown's
  *  cells take so a clump and the sprays of its cell hold the same leaf area. */
 export function leafHolds(species) {
-  const sp = leafSpray(species, { seed: 1 }), per = leafArea(sp.tris) / sp.leaves;
+  const nh = needleHabit(species), sp = leafSpray(species, { seed: 1 }), per = nh ? needleUnit(nh) : leafArea(sp.tris) / sp.leaves;
+  if (nh) return { spray: Math.round((leafArea(sp.tris) / per) * 100) / 100, clump: Math.round((leafArea(leafClump(species, { seed: 1 }).tris) / per) * 100) / 100 };
   return { spray: sp.leaves, clump: Math.round((leafArea(leafClump(species, { seed: 1 }).tris) / per) * 100) / 100 };
 }
