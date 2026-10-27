@@ -139,5 +139,36 @@ describe('folk on a stage: a town\'s people stood by their houses', () => {
     // her sidequest lives in the first town that holds it, and only there
     expect(towns.map((t) => (t.order.manifest.play.quests ?? []).map((q) => q.id))).toEqual([['sq-herbs'], []]);
   });
+
+  it('keeps a day on the level\'s clock when asked: walkers walk it, and are talked to where they stand', () => {
+    const M = townLevel(runSteps(withTown({ day: { start: 8 } }), { ref: 'gw' })).order.manifest;
+    expect(M.game.mechanics.filter((m) => m.kind === 'clock')).toEqual([{ kind: 'clock', start: 8, rate: 2 }]);
+    expect(M.play.routines.length).toBeGreaterThan(0);
+    const walker = M.play.routines[0].who, home = `${walker}-home`, away = M.play.routines[0].plan[0].to;
+    expect(M.entities.find((e) => e.id === walker).rule.speed).toBeGreaterThan(0);
+    // the people the player comes looking for keep their place
+    const keepers = M.play.menus.filter((m) => m.who === 'Keeper' || m.who === 'Elder').map((m) => m.id.replace(/^talk-/, ''));
+    for (const k of keepers) expect(M.play.routines.some((r) => r.who === k)).toBe(false);
+    // the bus: their talk is on where they arrive, off as the hour takes them on
+    const ev = lowerPlay(M, { player: 'player' }), bus = createBusState(ev, []);
+    const pump = (events) => { processEvents(bus, events); for (let k = 0; k < 40; k++) { const w = watchEvents(bus); if (!w.length) break; processEvents(bus, w); } };
+    pump(ev.initial ?? []);
+    const spot = (id) => M.play.spots.find((x) => x.id === id).at;
+    const zoneAt = (at) => ev.sources.find((z) => z.use && z.prompt === 'Talk' && Math.hypot(z.at[0] - at[0], z.at[1] - at[1]) < 0.01);
+    const chat = menuVar(`talk-${walker}`);
+    const press = (at) => { bus.vars[chat] = 0; pump([{ type: `use-${zoneAt(at).use}` }]); return bus.vars[chat] === 1; };
+    pump([{ type: 'arrive', entity: walker, at: away, last: 1 }]);
+    expect(press(spot(away))).toBe(true);
+    expect(press(spot(home))).toBe(false);
+    pump([{ type: 'arrive', entity: walker, at: home, last: 1 }]);
+    expect(press(spot(home))).toBe(true);
+    expect(press(spot(away))).toBe(false);
+  });
+
+  it('keeps no day, and no clock, unless asked', () => {
+    const M = townLevel(S).order.manifest;
+    expect(M.play.routines).toBeUndefined();
+    expect(M.game.mechanics.some((m) => m.kind === 'clock')).toBe(false);
+  });
 });
 

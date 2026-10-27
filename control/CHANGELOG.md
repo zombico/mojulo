@@ -94,6 +94,16 @@ plan and the historic city follow on the same rules.
   dress them alike mint them once. The talk box names them, and a sidequest names them by their id (`giver: 'joy'`).
   Machine gate: `folk.test.js`, `lines.test.js`, `bodies.test.js`, and `folk-cast.test.js` standing one in both towns
   of a two-town game; eyes gate not run.
+- **The folk's day** (`folk.day`, `folk/routines.js`). With `folk.day: true` (or `{ start, rate }`), the town keeps a day
+  on the level's clock: the level gains the clock mechanic (its hour on the HUD, its sky dark at night, so it is the
+  operator's to ask for), and the households, the children and the watch walk the existing routines
+  (`play.routines`): a grown person out mid-morning to a counter or a neighbour's door and home by evening, a child out
+  on the street before their house, the watch round three houses and back to the tower at night, every hour and choice
+  on the person's own die. The people the player comes looking for keep their place: a service's first person, one met
+  in every town, anyone in a sidequest. Places out are on the street before a house (a walk is a straight line), side
+  by side when several stop at one. A walker is talked to where they stand: each place's talk is on from their arrival
+  until the hour takes them on. Without `folk.day`, no clock and everyone stands, as before. Machine gate:
+  `routines.test.js`, and `folk-cast.test.js` driving a walker's arrival through the bus; eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 

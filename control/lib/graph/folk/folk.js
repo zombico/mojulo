@@ -10,6 +10,7 @@
  *     say        { <person path | role>: text | [text, …] } the operator's words in place of the line book's (lines.js)
  *     sidequests [{ id, giver, steps, … }] checklists the folk give, and the chains they make (sidequests.js)
  *     recurring  { <id>: { role, name? } } the people met in every town (RECURRING below)
+ *     day        true | { start?, rate? } the folk keep a day on the level's clock (routines.js), which the level then has
  *     domicile   one house shape for every house ('D + 0', 'D + P', 'D of F (P + Cx)', 'D + Cx': domicile.js)
  *     domiciles  { <lot key>: shape } a house's own, over `domicile`
  *   folkOfTown(town, { seed?, setting?, folk? })    → the folk sheet
@@ -42,9 +43,10 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { ROLES, ROOTS, RELATIONS, FOLK_PULL } from './roles.js';
 import { SERVICES } from './services.js';
 import { readSidequests } from './sidequests.js';
+import { readDay } from './routines.js';
 import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
-export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests', 'recurring']);
+export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests', 'recurring', 'day']);
 const RECURRING_ID = /^[a-z][a-z0-9-]{0,23}$/;
 export const FOLK_CAP = Object.freeze({ default: 60, max: 400 });
 // how many people a body pool mints as themselves (bodies.js): a quick game's crowd is three faces (CAST_POOL)
@@ -72,7 +74,7 @@ export function readFolk(spec) {
     throw new Error('folk: say is { <person path | role>: text | [text, …] }: the words a person (or every person of a role) says in place of the line book\'s');
   }
   const recurring = spec.recurring !== undefined ? readRecurring(spec.recurring) : undefined;
-  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}), ...(recurring ? { recurring } : {}) };
+  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}), ...(recurring ? { recurring } : {}), ...(spec.day !== undefined && spec.day !== false ? { day: readDay(spec.day) } : {}) };
 }
 
 /**

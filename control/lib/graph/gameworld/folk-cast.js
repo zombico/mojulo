@@ -16,7 +16,8 @@
  * WHERE THEY STAND. By their house (`town-<use>-<n>`, the stage's `townDoors`): a service's first person inside at
  * its room when the house is walked into (the elder on the dais, the master at the work floor), else beside the door;
  * the rest of the house in a row along the frontage beside it, clear of the way in, facing out. A house the street
- * had no frontage for stands no one. They stand: a routine to walk is a later step.
+ * had no frontage for stands no one. With `folk.day`, the households, the children and the watch keep a day from
+ * there on the level's clock (folk/routines.js), which the level then has; everyone else keeps their place.
  *
  * WHAT THEY SAY. A talk menu each (playscape/ui/menus.js), opened by using them (a `use` cue, the interact key): the
  * line book's chitchat and service talk (folk/lines.js), or the operator's `folk.say`. Never the plot.
@@ -29,7 +30,8 @@ import { folkBodies } from '../folk/bodies.js';
 import { linesFor, speakerOf } from '../folk/lines.js';
 import { sidequestsOn, lowerSidequests, dispatchCues, whoOf } from '../folk/sidequests.js';
 import { settingOfGame } from './cast-setting.js';
-import { libraryFigure, stand } from './stage-figures.js';
+import { libraryFigure, stand, standRule } from './stage-figures.js';
+import { folkDay } from '../folk/routines.js';
 import { fingerprint } from './review.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -37,6 +39,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const OUT = 1.4, ASIDE = 1.6, STEP = 1.1;
 // how near the player stands to talk (m)
 const REACH = 1.6;
+// a walker's pace (m/s): a stroll, the farmhands' own
+const STROLL = 1.4;
 
 export function stageFolk(G, stage) {
   const ask = G?.characters?.folk, town = stage?.manifest?.town;
@@ -48,7 +52,7 @@ export function stageFolk(G, stage) {
   const setting = settingOfGame({ ...G, style: { ...(G.style ?? {}), kit } });
   const folk = folkOfTown({ seed: street.seed, heartbeat: street.town.heartbeat, lots }, { setting, folk: ask, gameSeed: Number.isInteger(G.seed) ? G.seed : 1 });
   const bodies = folkBodies(folk, { kit, setting, pool: ask.pool });
-  return { town: fingerprint({ kit, town, seed: stage.manifest.seed ?? null }), kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}) };
+  return { town: fingerprint({ kit, town, seed: stage.manifest.seed ?? null }), kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}), ...(ask.day ? { day: ask.day } : {}) };
 }
 
 // (one met in every town is keyed by their look: towns that dress them alike mint them once)
@@ -101,23 +105,43 @@ export function folkExtra(plan, refOf) {
         heading = r3(Math.atan2(ny, nx));
       }
       stand(part, id, libraryFigure(refOf(bodyOf.get(p.path))), at, heading);
-      stood.set(p.path, { id, at });
+      stood.set(p.path, { id, at, heading, house: door.id });
     }
     if (!part.entities.length) return null;
     // the sidequests this stage holds whose people all stand (a house the street had no frontage for stands no one)
     const quests = (plan.sidequests ?? []).filter((q) => [q.giver, ...q.steps.filter((s) => s.talk).map((s) => s.talk)].every((w) => stood.has(whoOf(plan.folk, w)?.path)) && q.steps.every((s) => !s.reach || doors.has(s.reach)));
     const SQ = quests.length ? lowerSidequests(quests, plan.folk, { idOf: (path) => stood.get(path).id, houseAt: (h) => doors.get(h).at.slice(0, 2), speakerOf }) : null;
-    // each one's talk: their chitchat, opened by using them; one in a sidequest's chain dispatches first to its menus
+    // THE DAY (folk.day): who keeps one walks it on the level's clock; the people the player comes looking for keep
+    // their place (a service's first, one met in every town, anyone in a sidequest)
+    const inQuest = new Set(Object.keys(SQ?.talks ?? {}));
+    const D = plan.day ? folkDay(plan.folk, { stood, doors, keep: new Set(plan.folk.people.filter((p) => (!p.parent && (p.service || p.recurring)) || inQuest.has(stood.get(p.path)?.id)).map((p) => p.path)) }) : null;
+    const spotAt = new Map((D?.spots ?? []).map((x) => [x.id, x.at]));
+    // each one's talk: their chitchat, opened by using them; one in a sidequest's chain dispatches first to its menus;
+    // one who keeps a day is talked to where they stand, each place's talk on while they are there (`folk-at-<id>`)
     for (const p of plan.folk.people) {
       const S = stood.get(p.path);
       if (!S) continue;
       const { id, at } = S, chat = `talk-${id}`, { speaker, lines } = linesFor(p, plan.folk, { say: plan.say });
       menus.push({ id: chat, kind: 'talk', who: speaker, lines });
+      const posts = D?.posts[id];
+      if (posts) {
+        const e = part.entities.find((x) => x.id === id), here = `folk-at-${id}`, R = D.routines.find((r) => r.who === id);
+        e.rule = standRule({ speed: STROLL });
+        cues.push({ id: `${id}-away`, when: { start: true }, then: { set: here, to: -1 } });
+        for (const h of R.plan.map((x) => x.hour)) cues.push({ id: `${id}-off-${h}`, when: { var: 'hour', eq: h }, then: { set: here, to: -1 } });
+        posts.forEach((spot, k) => {
+          const [x, y] = spotAt.get(spot);
+          cues.push({ id: `${id}-on-${k}`, when: { arrive: { who: id, at: spot } }, then: { set: here, to: k } });
+          cues.push({ id: k ? `${id}-talk-${k}` : `${id}-talk`, when: { use: { at: [x, y], r: REACH }, prompt: 'Talk' }, if: { var: here, eq: k }, then: { open: chat } });
+        });
+        continue;
+      }
       const own = SQ?.talks[id];
       if (!own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { open: chat } }); continue; }
       // (its use cue opens nothing itself: its `cue:<id>` event is the press the dispatch reads)
       cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { emit: `folk-talk:${id}` } }, ...dispatchCues(id, own, chat, `${id}-talk`).cues);
     }
-    return { ...part, play: { menus: [...menus, ...(SQ?.menus ?? [])], cues: [...cues, ...(SQ?.cues ?? [])], ...(SQ ? { quests: SQ.quests } : {}) } };
+    return { ...part, play: { menus: [...menus, ...(SQ?.menus ?? [])], cues: [...cues, ...(SQ?.cues ?? [])], ...(SQ ? { quests: SQ.quests } : {}), ...(D?.walkers.length ? { spots: D.spots, routines: D.routines } : {}) },
+      ...(D?.walkers.length ? { mechanics: [{ kind: 'clock', start: plan.day.start, rate: plan.day.rate }] } : {}) };
   };
 }
