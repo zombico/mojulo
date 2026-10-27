@@ -1338,6 +1338,14 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   never a ball, never a swap. The oak (13 m) draws 6.9k leaf triangles at mid and 2.6k far, against the sprays' 41k and
   19k; its wood 8.2k. The bark (`form/bark-material.js`): the fracture model's own colour, its relief's normal, the
   fissures' occlusion and the relief, marched by parallax near.
+- **Gen-7 trees stand mature.** The grower's age costs past youth (an oak's 20 years grow in seconds, 30 in a minute, 40
+  run out of nodes), so a tree is grown young and re-stood mature (vegetation/grow.js `restand`: scaled ×1.45, its
+  girth's thickening ×2.2, settled under its own weight: the oak 19 m with a trunk 1.1 m across, from 13 m and 0.36 m),
+  its crown carrying leaves over its larger surface (the fill by the scale squared), its clumps' cells and the wood's cut
+  grown with it. A cell past its cap takes more clumps or sprays, not a bigger one, so a leaf stays near its size. Its
+  leaves sitting on its newest shoots only, its crown is filled to a dome: the envelope the leafy shoots outline round
+  the crown's axis (slice by slice, sector by sector, smoothed), a clump wherever its surface has none near, every clump
+  of a shoot kept. The oak draws 15k leaf triangles at mid and 8k far; its wood 6.9k.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

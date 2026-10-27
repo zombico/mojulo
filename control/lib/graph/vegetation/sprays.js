@@ -52,11 +52,11 @@ const speciesOf = (species) => { const S = SPECIES[species]; if (!S || S.kind !=
  *  blunt (a sharp sinus at a clump's size reads as a shard). */
 export const SPRAY_LEAVES = Object.freeze({
   // a beech's or a cherry's blade: widest a little below the middle, to a point
-  ovate: Object.freeze({ w: [0.3, 0.2], fold: 0.35, leaves: 8, clump: Object.freeze([0.3, 0.22]) }),
+  ovate: Object.freeze({ w: [0.3, 0.2], fold: 0.35, leaves: 8, clump: Object.freeze([0.32]) }),
   // an oak's: rounded lobes, deep sinuses between them
   lobed: Object.freeze({ w: [0.26, 0.12, 0.3, 0.13, 0.2], fold: 0.25, leaves: 5, clump: Object.freeze([0.28, 0.24]) }),
   // a broad blade for the big-leaved (the umbrella tree's leaflets, the figs')
-  broad: Object.freeze({ w: [0.38, 0.26], fold: 0.3, leaves: 6, clump: Object.freeze([0.38, 0.3]) }),
+  broad: Object.freeze({ w: [0.38, 0.26], fold: 0.3, leaves: 6, clump: Object.freeze([0.4]) }),
 });
 /** A clump: its leaves (a rosette round its centre), their length (× the species' leaf), how far each tilts off the
  *  clump's facing (degrees), and its own little lift (× its leaves' length): a cupped dome. */

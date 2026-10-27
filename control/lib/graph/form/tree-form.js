@@ -5,17 +5,28 @@
  * and SITES where a spray is cloned near the eye (vegetation/sprays.js), a clump and the sprays of its cell holding the same
  * leaf area: the crown is clumps everywhere, the sprays coming in inside them close by, never from nothing.
  *
- *   treeForm(species, { seed?, years?, minDiameter?, cell?, clumpCell? }) → { species, height, wood, clumps, sites, bark }
+ * The grower's age is costly past youth (an oak's 20 years grow in seconds, 30 in a minute, 40 run out of nodes), so a
+ * tree is grown young and RE-STOOD mature (vegetation/grow.js restand: the whole tree scaled, its girth's secondary
+ * thickening multiplied, then settled under its own weight), its crown carrying leaves over its larger surface (the fill
+ * by the scale squared) and its clumps' cells grown with it. Its leaves sit on its newest shoots only (a shell at the limbs'
+ * tips, gaps between), so its crown is filled to a dome: the ENVELOPE the leafy shoots outline round the crown's axis
+ * (slice by slice up it, sector by sector round it, smoothed), a clump wherever its surface has none near; the gathered
+ * clumps, the real shoots, all kept.
+ *
+ *   treeForm(species, { seed?, years?, mature?, minDiameter?, cell?, clumpCell? }) → { species, height, wood, clumps,
+ *       sites, bark }
+ *     mature: { scale, cambium } the re-standing (TREE_FORM.mature), or null for the tree as grown
  *     wood:  { pos, nrm, uv, idx } flat arrays (metres; uv in bark tiles: u round the trunk, v up it), the axes whose
- *            diameter reaches `minDiameter` (the pipe model's cut: a thinner axis is carried by the leaves)
- *     clumps, sites: [{ p, d, o, s, e, r }] one a cell of the leafy shoots (`clumpCell` m, a clump's; `cell` m, a spray's
+ *            diameter reaches `minDiameter` as grown (the pipe model's cut: a thinner axis is carried by the leaves)
+ *     clumps, sites: [{ p, d, o, s, e, r }] one or more a cell of the leafy shoots (`clumpCell` m, a clump's; `cell` m, a spray's;
+ *            and the clumps the envelope adds on its surface, `f: 1`)
  *            length): p the shoots' centroid, d their mean direction, o out from the crown's centre, s the scale its leaf
  *            area is the cell's at (× fill: √(fill × leaves / the leaves one holds, vegetation/sprays.js leafHolds)), e the
  *            crown's light there (the grower's own shadow grid, 0..1: kept for occlusion, never as baked light), r a rank
  *            (dice, 0..1: a far crown keeps its clumps below a share, the kept ones grown to hold the cover)
  * Deterministic from the seed.
  */
-import { grow, measure, ARCHITECTURES, vec } from '../vegetation/grow.js';
+import { grow, restand, ARCHITECTURES, vec } from '../vegetation/grow.js';
 import { axisChains } from '../vegetation/tree-mesh.js';
 import { SPECIES } from '../vegetation/species.js';
 import { leafHolds } from '../vegetation/sprays.js';
@@ -28,22 +39,32 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
  *  least `ringMin` m apart), a spray's cell and a clump's (m), and how far a clump or a spray may grow or shrink to hold
  *  its cell's leaf area (`fill`: the crown's leaf area over the grower's, the read a stylized crown asks: full, not
  *  botanical). */
-export const TREE_FORM = Object.freeze({ minDiameter: 0.06, ring: 6, ringMin: 0.15, cell: 0.6, clumpCell: 1.5, scale: Object.freeze([0.6, 2.6]), fill: 2.4 });
+export const TREE_FORM = Object.freeze({ minDiameter: 0.06, ring: 6, ringMin: 0.15, cell: 0.6, clumpCell: 1.5, scale: Object.freeze([0.6, 2.6]), fill: 1.6,
+  // (past its cap a cell takes more clumps or sprays, not a bigger one: a leaf stays near its size, the masses fill the
+  // crown's volume; `spread` how far apart in the cell, × the cell)
+  cap: Object.freeze({ clump: 1.6, spray: 2.2 }), spread: 0.35,
+  // (the envelope: its sectors round the axis, the spacing of its clumps on the surface, × a clump's cell, and their size,
+  // × the clump cap)
+  envelope: Object.freeze({ sectors: 24, spacing: 0.6, size: 1 }),
+  // (a mature tree from a young one: an oak's 20 years, 13 m and a trunk 0.36 m across, re-stood at 19 m and 1.1 m)
+  mature: Object.freeze({ scale: 1.45, cambium: 2.2 }) });
 const sidesOf = (r) => (r > 0.15 ? 14 : r > 0.06 ? 10 : r > 0.025 ? 7 : 5);
 
 function hashN(n) { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; }
 
-export function treeForm(species, { seed = 1, years = null, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell } = {}) {
+export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell } = {}) {
   const S = SPECIES[species]; if (!S || S.kind !== 'tree') throw new Error(`tree-form: '${species}' is not a tree species`);
   const arch = S.leafLife || S.over ? { ...ARCHITECTURES[S.arch], ...(S.over || {}), ...(S.leafLife ? { leafLife: S.leafLife } : {}) } : S.arch;
-  const plant = grow(arch, { years: years ?? (S.growth ? S.growth[S.growth.length - 1].years : S.years), seed });
-  const height = measure(plant).height;
+  const young = grow(arch, { years: years ?? (S.growth ? S.growth[S.growth.length - 1].years : S.years), seed });
+  const k = mature ? mature.scale : 1, plant = restand(young, mature ? { scale: k, cambium: mature.cambium } : {}), height = plant.height;
+  // (the cut, and a clump's bounds, follow the re-standing: the same limbs drawn, the same masses held)
+  const cut = minDiameter * k * (mature ? mature.cambium : 1);
   // the wood: each axis thick enough a tube along its chain (parallel-transported rings), its normals the rings' own
   // outward directions (smooth round, so the sun turns across a limb), its bark's coordinates in tiles: round the axis
   // the tile's count its base girth asks (no seam), up it its arc length
   const pos = [], nrm = [], uv = [], idx = [];
   for (const ch of axisChains(plant)) {
-    if (ch.dMax < minDiameter || ch.pts.length < 2) continue;
+    if (ch.dMax < cut || ch.pts.length < 2) continue;
     // (rings by arc length: one every few radii, a thick limb's far apart, a twig's close)
     const keep = [0]; let acc = 0;
     for (let i = 1; i < ch.pts.length; i++) { acc += len(sub(ch.pts[i], ch.pts[i - 1])); if (i === ch.pts.length - 1 || acc >= Math.max(TREE_FORM.ringMin, TREE_FORM.ring * ch.rs[i])) { keep.push(i); acc = 0; } }
@@ -70,21 +91,51 @@ export function treeForm(species, { seed = 1, years = null, minDiameter = TREE_F
   // crown, each scaled to hold its cell's leaves
   const leafy = plant.nodes.filter((n) => !n.died && n.leaves), holds = leafHolds(species);
   const centre = mul(leafy.reduce((a, n) => add(a, n.pos), [0, 0, 0]), 1 / Math.max(1, leafy.length));
-  const gather = (size, per, salt) => {
+  const gather = (size, per, salt, cap) => {
     const cells = new Map();
     for (const n of leafy) {
       const key = n.pos.map((v) => Math.floor(v / size)).join(',');
       let c = cells.get(key); if (!c) cells.set(key, (c = { p: [0, 0, 0], d: [0, 0, 0], n: 0, leaves: 0, id: n.id }));
       c.p = add(c.p, n.pos); c.d = add(c.d, n.dir); c.n++; c.leaves += n.leaves;
     }
-    return [...cells.values()].map((c) => {
-      const p = mul(c.p, 1 / c.n), d = len(c.d) > 1e-6 ? unit(c.d) : [0, 0, 1];
-      // (out of the crown: from its centre, a little up, as a crown's outside faces the sky)
-      const o0 = sub(p, centre), o = unit([o0[0], o0[1], o0[2] * 0.8 + 0.4 * Math.max(0.5, len(o0))]);
-      const sc = Math.min(TREE_FORM.scale[1], Math.max(TREE_FORM.scale[0], Math.sqrt((c.leaves * TREE_FORM.fill) / per)));
-      return { p: p.map(r4), d: d.map(r4), o: o.map(r4), s: r4(sc), e: r4(Math.min(1, plant.exposure(p))), r: r4(hashN(c.id * 3 + salt + seed * 7919)) };
+    return [...cells.values()].flatMap((c) => {
+      const p0 = mul(c.p, 1 / c.n), d = len(c.d) > 1e-6 ? unit(c.d) : [0, 0, 1];
+      // (the cell's leaf area, in what one holds at scale 1; past the cap, shared by more of them)
+      const area = (c.leaves * TREE_FORM.fill * k * k) / per, m = Math.max(1, Math.ceil(area / (cap * cap))), sc = Math.max(TREE_FORM.scale[0], Math.sqrt(area / m));
+      return Array.from({ length: m }, (_, j) => {
+        const h = (q) => hashN(c.id * 131 + j * 17 + q + salt * 7), off = j === 0 ? [0, 0, 0] : [h(1) - 0.5, h(2) - 0.5, h(3) - 0.5].map((v) => v * 2 * TREE_FORM.spread * size);
+        const p = add(p0, off), o0 = sub(p, centre);
+        // (out of the crown: from its centre, a little up, as a crown's outside faces the sky)
+        const o = unit([o0[0], o0[1], o0[2] * 0.8 + 0.4 * Math.max(0.5, len(o0))]);
+        return { p: p.map(r4), d: d.map(r4), o: o.map(r4), s: r4(sc), e: r4(Math.min(1, plant.exposure(p))), r: r4(hashN(c.id * 3 + j * 101 + salt + seed * 7919)) };
+      });
     }).sort((a, b) => a.r - b.r);
   };
-  const clumps = gather(clumpCell, holds.clump, 1), sites = gather(cell, holds.spray, 2);
+  const clumps = gather(clumpCell * k, holds.clump, 1, TREE_FORM.cap.clump), sites = gather(cell, holds.spray, 2, TREE_FORM.cap.spray);
+  // the envelope: how far out the leafy shoots reach round the crown's axis, slice by slice and sector by sector; empty
+  // bins taken from their neighbours, then smoothed; a clump on its surface wherever none stands near
+  const E = TREE_FORM.envelope, gap = clumpCell * k * E.spacing, nt = E.sectors, zs = leafy.map((n) => n.pos[2]);
+  const z0 = Math.min(...zs), z1 = Math.max(...zs), nz = Math.max(2, Math.ceil((z1 - z0) / gap)), dz = (z1 - z0) / nz, TAU = 2 * Math.PI;
+  let R = Array.from({ length: nz }, () => new Float64Array(nt));
+  for (const n of leafy) {
+    const dx = n.pos[0] - centre[0], dy = n.pos[1] - centre[1], iz = Math.min(nz - 1, Math.floor((n.pos[2] - z0) / Math.max(1e-9, dz)));
+    const it = Math.floor(((Math.atan2(dy, dx) / TAU) + 1) * nt) % nt; R[iz][it] = Math.max(R[iz][it], Math.hypot(dx, dy));
+  }
+  const at = (G, i, j) => G[Math.min(nz - 1, Math.max(0, i))][((j % nt) + nt) % nt];
+  for (let pass = 0; pass < 3; pass++) R = R.map((row, i) => row.map((v, j) => (v > 0 ? v : 0.85 * Math.max(at(R, i - 1, j), at(R, i + 1, j), at(R, i, j - 1), at(R, i, j + 1)))));
+  R = R.map((row, i) => row.map((v, j) => 0.4 * v + 0.15 * (at(R, i - 1, j) + at(R, i + 1, j) + at(R, i, j - 1) + at(R, i, j + 1))));
+  const near = (p) => clumps.some((c) => (c.p[0] - p[0]) ** 2 + (c.p[1] - p[1]) ** 2 + (c.p[2] - p[2]) ** 2 < (gap * 0.75) ** 2);
+  for (let i = 0; i < nz; i++) for (let j = 0; j < nt; j++) {
+    const r = R[i][j]; if (r < gap * 0.25) continue;
+    // (the surface's normal: out round the axis, tipped by how the envelope narrows up it; the top slice faces the sky)
+    const slope = (at(R, i + 1, j) - at(R, i - 1, j)) / (2 * dz), m = Math.max(1, Math.round(((r * TAU) / nt) * dz / (gap * gap)));
+    for (let q = 0; q < m; q++) {
+      const h = (w) => hashN((i * nt + j) * 977 + q * 31 + w + seed * 13), th = ((j + h(1)) / nt) * TAU, z = z0 + (i + h(2)) * dz;
+      const p = [centre[0] + r * Math.cos(th), centre[1] + r * Math.sin(th), z]; if (near(p)) continue;
+      const o = unit([Math.cos(th), Math.sin(th), -slope + (i === nz - 1 ? 1.5 : 0.3)]);
+      clumps.push({ p: p.map(r4), d: o.map(r4), o: o.map(r4), s: r4(TREE_FORM.cap.clump * E.size * (0.85 + 0.3 * h(3))), e: r4(Math.min(1, plant.exposure(p))), r: r4(h(4)), f: 1 });
+    }
+  }
+  clumps.sort((a, b) => a.r - b.r);
   return { species, height: r4(height), wood: { pos, nrm, uv, idx }, clumps, sites, bark: S.bark || 'beech' };
 }

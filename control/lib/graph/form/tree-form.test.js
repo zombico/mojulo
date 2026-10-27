@@ -30,14 +30,15 @@ describe('treeForm', () => {
   it('gathers the leafy shoots into sites a spray long, each scaled within its bounds, in rank order, lit by the crown\'s own shade only as occlusion', () => {
     expect(T.sites.length).toBeGreaterThan(10);
     for (const s of T.sites) {
-      expect(s.s).toBeGreaterThanOrEqual(TREE_FORM.scale[0]); expect(s.s).toBeLessThanOrEqual(TREE_FORM.scale[1]);
+      expect(s.s).toBeGreaterThanOrEqual(TREE_FORM.scale[0]);
       expect(Math.hypot(...s.d)).toBeCloseTo(1, 3);
       expect(s.e).toBeGreaterThanOrEqual(0); expect(s.e).toBeLessThanOrEqual(1);
     }
     for (let i = 1; i < T.sites.length; i++) expect(T.sites[i].r).toBeGreaterThanOrEqual(T.sites[i - 1].r);
-    // (no two sites in one cell)
-    const cells = new Set(T.sites.map((s) => s.p.map((v) => Math.floor(v / TREE_FORM.cell)).join(',')));
-    expect(cells.size).toBeGreaterThan(T.sites.length * 0.8);
+    // (a cell takes more sites past its cap rather than a bigger one: none past it, and most cells keep one)
+    for (const x of T.sites) expect(x.s).toBeLessThanOrEqual(TREE_FORM.cap.spray + 1e-3);
+    const cells = new Set(T.sites.map((x) => x.p.map((v) => Math.floor(v / TREE_FORM.cell)).join(',')));
+    expect(cells.size).toBeGreaterThan(T.sites.length * 0.5);
   });
 
   it('cuts the wood by diameter: a thicker cut draws less', () => {
@@ -45,11 +46,21 @@ describe('treeForm', () => {
   }, 60_000);
 
   it('its clumps and its sprays hold the same leaf area: the crown is clumps everywhere and the sprays come in inside them', () => {
-    const H = leafHolds(SP), area = (list, holds) => list.reduce((a, s) => a + s.s * s.s * holds, 0);
-    expect(T.clumps.length).toBeLessThan(T.sites.length);
-    const a = area(T.clumps, H.clump), b = area(T.sites, H.spray);
+    const H = leafHolds(SP), area = (list, holds) => list.reduce((a, s) => a + s.s * s.s * holds, 0), shoots = T.clumps.filter((c) => !c.f);
+    expect(shoots.length).toBeLessThan(T.sites.length);
+    const a = area(shoots, H.clump), b = area(T.sites, H.spray);
     expect(Math.abs(a - b) / b).toBeLessThan(0.3);
     // (each faces out of the crown)
     for (const c of T.clumps) expect(Math.hypot(...c.o)).toBeCloseTo(1, 3);
   });
+
+  it('grows young and stands mature, its crown filled to its envelope where the shoots leave it open', () => {
+    const young = treeForm(SP, { seed: 7, mature: null });
+    expect(T.height).toBeGreaterThan(young.height * TREE_FORM.mature.scale * 0.95);
+    // (the envelope's clumps stand off every clump of a shoot: they fill gaps, never stack on the real ones)
+    const fill = T.clumps.filter((c) => c.f), shoots = T.clumps.filter((c) => !c.f);
+    expect(fill.length).toBeGreaterThan(0);
+    const gap = TREE_FORM.clumpCell * TREE_FORM.mature.scale * TREE_FORM.envelope.spacing * 0.75;
+    for (const c of fill) for (const q of shoots) expect(Math.hypot(c.p[0] - q.p[0], c.p[1] - q.p[1], c.p[2] - q.p[2])).toBeGreaterThan(gap - 1e-3);
+  }, 60_000);
 });
