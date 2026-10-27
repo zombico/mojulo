@@ -78,6 +78,36 @@ through the character designer, clips fitted to the class's timing, factions) is
   gate: the shelf's laws and the gameworld's (the bestiary, placement on a stage's beats, the hits, a bestiary that
   moves no print, a level that does, a grown battle foe) pass. Eyes gate not
   run: no level with foes has been played.
+- **The foes' own moves and the hero body to body with them** (`worlds/controllable/foe.js`, an opt-in builder). A
+  body whose rule carries `foe` (laid by the resolver) runs its own move in place of the mind:
+  - **pace:** walks its stretch, turning at an end, at a wall and at a ledge, so it never walks off its floor;
+  - **hop:** the same stretch in hops, travelling only in the air;
+  - **dive:** a flier weaves round its perch, braces for a hero inside its radius, dives at where the hero stood and
+    climbs back;
+  - **rush:** turns to the hero, braces, charges its locked line, and is stunned by a wall;
+  - **lurk:** lies still until a hero comes near, then hands over to the mind for good.
+
+  After every step each pilot meets each foe it overlaps. Falling onto its head is a stomp: a blow of the hero's and
+  a bounce (higher with the jump held), the stomper hurt instead on a spiny foe, only bounced on a big one. Any other
+  overlap with a foe that hurts by touch (a charger only while it charges) is a hit on the hero: counted on the bus's
+  `hit:<pilot>`, which the level's hp takes, knocked back, then spared for its mercy. The hero's stomp numbers are its
+  feel card's when that card stomps, else the action lab's platformer card's (0.6 m, 1.8 m held, a second's mercy). They
+  are laid only where foes stand.
+  - **The mind learns the touch** (`mind/`). A body that hurts by touch is measured to have `contact`, so `close-in`
+    and `brawl` take it, and a new strike, `touch`, runs into the target. A pacer or a hopper is `ambient`: it never
+    engages, it is in the way. A touch closes to the body (a short `standoff`), not to a gun's.
+  - **Every class is now built on the web:** walker, hopper, charger, swooper, swarm and lurker join turret, lobber,
+    brute and stalker. No engine kernel plays a foe's own move yet: those classes are absent in Godot and Roblox, and
+    the export says so. The `hostile-encounters` package has no gaps left, and the regenerated hill-climb page lists
+    every class built.
+
+  The builder wraps the `ai` rule and `stepWorld`, as the hitstop does, so the pinned pipeline order is untouched. It
+  is emitted only into a page whose world stands a foe; a world without one steps byte for byte as the engine without
+  it. Machine gate: the runtime's laws drive each move and each meeting through the real engine, with every foe
+  resolved from the shelf (a pacer's end, ledge and wall; a hopper off the ground; a rusher's brace, charge and wall
+  stun, hurting only while it charges; a diver's brace, dive, climb and perch; a lurker's wake; a touch and its mercy;
+  a stomp's blow and its held bounce; a spiny stomp; a big one's bounce), plus a world without a foe stepping
+  identically and the opt-in's emission. Eyes gate not run: no foe has been watched moving.
 
 ### Carved glyphs: the letter primitive grows up
 

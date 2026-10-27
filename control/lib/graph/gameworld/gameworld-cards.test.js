@@ -7,6 +7,8 @@ import { ELEMENT_WORDS, IDIOMS, SYSTEM_KINDS, VIBES, RAILS, CLASS_SLOTS, TRADITI
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
+import { FOE_CLASSES } from '../foes/index.js';
+import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 
 // the words only the test fixtures use: none may reach anything an agent reads while designing
 const FIXTURE_WORDS = (() => {
@@ -22,7 +24,7 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-story', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
     // kits beside the city's stalker words, 4157 bytes)
@@ -37,6 +39,7 @@ describe('the rail\'s cards', () => {
     on('gameworld-actions', [...Object.keys(IDIOMS), ...Object.keys(SYSTEM_KINDS), ...Object.keys(LOOKS), ...BEAM_NAMES]);
     on('gameworld-adornment', RAILS.flatMap((r) => r.stems));
     on('gameworld-equipment', Object.keys(CLASS_SLOTS));
+    on('gameworld-foes', [...Object.keys(FOE_CLASSES), ...Object.keys(MOVES), ...Object.keys(ATTACKS), ...Object.keys(STOMPS), ...Object.keys(FOE_RANKS)]);
   });
 
   it('a growing family is an index and a card per member: a quick goal, a genre', () => {

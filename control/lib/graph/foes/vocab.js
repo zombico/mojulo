@@ -5,11 +5,12 @@
  *
  *   PACES        a mover's speed, as a share of the hero's run (HERO.run), slowest first
  *   MOVES        how it moves: each its line, what it needs of a body (`needs`: ground | wings), what it lays on the
- *                mind (`mind`) and on the rule (`rule`), and what lowers it today (`status`, `lowers`, an engine's mark
- *                read from the mind it rides on, `rides`, or written per engine)
- *   ATTACKS      how it hurts: each its line, the Power verb it holds (`verb`: what the mind measures), its default
- *                timing in the lab's words (feel/kernel.js SPAR: startup, active, recovery in frames at 60 Hz; startup
- *                is the telegraph), and what lowers it
+ *                mind (`mind`) and on the rule (`rule`), its own move's numbers (`own`, the rule's `foe` record:
+ *                worlds/controllable/foe.js plays a move the mind does not), and what lowers it today (`status`,
+ *                `lowers`, an engine's mark read from the mind it rides on, `rides`, or written per engine)
+ *   ATTACKS      how it hurts: each its line, the Power verb it holds (`verb`: what the mind measures; `contact` a
+ *                touch, `during` when only then), its default timing in the lab's words (feel/kernel.js SPAR: startup,
+ *                active, recovery in frames at 60 Hz; startup is the telegraph), and what lowers it
  *   STOMPS       what a stomp on its head does: blow (a stomp is one of the hero's blows), hurts (the stomper is hurt),
  *                bounce (it bounces the stomper and takes nothing)
  *   FOE_RANKS    per mind rank (mind/vocab.js RANKS): × the class's downs and × its threat. A minion's downs times the
@@ -36,6 +37,10 @@ const MIND = 'lib/graph/worlds/controllable/mind.js';
 const GROUP = 'lib/graph/worlds/controllable/group.js';
 const PKG = 'hostile-encounters';
 
+// a foe's own moves (worlds/controllable/foe.js): played on the web; no engine kernel plays them yet
+const FOE = 'lib/graph/worlds/controllable/foe.js';
+const WEB_ONLY = { godot: 'absent', roblox: 'absent' };
+
 export const MOVES = Object.freeze({
   hold: {
     line: 'stands where it is put and turns to the hero in range',
@@ -44,9 +49,8 @@ export const MOVES = Object.freeze({
   },
   pace: {
     line: 'walks a stretch and turns at its ends, at a ledge and at a wall',
-    needs: ['ground'], mind: { motivation: 'wander' },
-    status: 'absent', effort: 'M', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'the mind has no route: a patrol is its own rule (tutorial.js), web only; the stretch, the ledge and the wall turn are the mind\'s to learn',
+    needs: ['ground'], mind: { motivation: 'ambient' }, own: { stretch: 6, drop: 1 },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   chase: {
     line: 'hunts the hero down, sliding along what is in its way',
@@ -55,9 +59,8 @@ export const MOVES = Object.freeze({
   },
   hop: {
     line: 'moves in hops, each a short leap toward where it is going',
-    needs: ['ground'], mind: { motivation: 'wander' }, rule: { jumpSpeed: 5 },
-    status: 'absent', effort: 'M', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'the mind walks; a mind that leaves the ground to travel does not exist',
+    needs: ['ground'], mind: { motivation: 'ambient' }, own: { stretch: 6, drop: 1, hop: { period: 0.8, air: 0.6, height: 0.8 } },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   drift: {
     line: 'hangs in the air and weaves, circling what it fights',
@@ -66,21 +69,18 @@ export const MOVES = Object.freeze({
   },
   dive: {
     line: 'drifts, then swoops at the hero on a telegraph and climbs back',
-    needs: ['wings'], mind: { motivation: 'hunt' }, rule: { flier: true },
-    status: 'absent', effort: 'M', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'a flier circles (the mind\'s circle); the telegraphed swoop and the climb back do not exist',
+    needs: ['wings'], mind: { motivation: 'hunt' }, rule: { flier: true }, own: { dive: { altitude: 3, radius: 9, speed: 9, cooldown: 2 } },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   rush: {
     line: 'sees the hero, braces, and charges in a straight line; a wall stuns it',
-    needs: ['ground'], mind: { motivation: 'hunt' }, rule: { boost: true },
-    status: 'partial', effort: 'M', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'the mind\'s boost bursts and its tackle run; the brace, the locked line and the wall stun do not',
+    needs: ['ground'], mind: { motivation: 'hunt' }, own: { drop: 1, rush: { range: 14, speed: 10, run: 16, stun: 1.5 } },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   lurk: {
     line: 'lies still and unseen until the hero is near, then wakes and hunts',
-    needs: ['ground'], mind: { motivation: 'hunt' },
-    status: 'partial', effort: 'S', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'a foe minted asleep and woken by a cue runs (a defence\'s waves); a wake on the hero\'s nearness does not',
+    needs: ['ground'], mind: { motivation: 'hunt' }, own: { lurk: { radius: 4 } },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   swarm: {
     line: 'many as one: a pack that fans out, rings the hero and closes, a few at a time',
@@ -97,9 +97,8 @@ const AI_ATTACK = { godot: 'approximated', roblox: 'approximated' };
 export const ATTACKS = Object.freeze({
   contact: {
     line: 'touching it hurts',
-    verb: null,
-    status: 'absent', effort: 'M', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'a body hurts only by a strike or a round; a touch from the side that costs the hero, and the stomp from above, do not exist; nor does a mind verb for it, so a hunter that hurts by touch resolves to ignore what it notices',
+    verb: 'contact',
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   strike: {
     line: 'a blow at blade range, telegraphed by its wind-up',
@@ -123,9 +122,8 @@ export const ATTACKS = Object.freeze({
   },
   charge: {
     line: 'its charge is the blow: whatever it runs into is hit',
-    verb: 'dash', timing: { startup: 36, active: 40, recovery: 30 },
-    status: 'absent', effort: 'M', pkg: PKG, godot: 'absent', roblox: 'absent',
-    note: 'the mind\'s tackle beats a swing at close range; a charge that hits whatever its line meets does not exist',
+    verb: 'contact', during: 'charge', timing: { startup: 36, recovery: 30 },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
   },
   none: {
     line: 'it does not attack',

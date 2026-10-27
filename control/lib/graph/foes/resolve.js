@@ -47,6 +47,18 @@ function armed(rule, entity, A, damage) {
   }
 }
 
+// the rule's `foe` record: a move of its own (its numbers; a dive's telegraph and a rush's brace and recovery its
+// attack's own frames), a touch (its harm, and when), the stomp; null for a class the mind plays whole and that never
+// touches (a turret, a brute)
+function foeRecord(c, M, A) {
+  const own = M.own ? structuredClone(M.own) : null, t = A.timing;
+  if (own?.dive) own.dive.telegraph = r3((t.startup ?? 30) / FPS);
+  if (own?.rush) Object.assign(own.rush, { brace: r3((t.startup ?? 30) / FPS), recover: r3((t.recovery ?? 30) / FPS) });
+  const touch = A.verb === 'contact';
+  if (!own && !touch && c.stomp === 'blow') return null;
+  return { move: c.move, ...(own || {}), ...(touch ? { touch: c.toll.harm, ...(A.during ? { during: A.during } : {}) } : {}), stomp: c.stomp };
+}
+
 export function resolveFoe(spec, { hero = HERO } = {}) {
   if (!spec || typeof spec !== 'object') throw new Error('foe: a foe is { class, rank?, skill?, skin?, group? }');
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) throw new Error(`foe: no key '${k}' (known: ${SPEC_KEYS.join(', ')})`);
@@ -76,6 +88,11 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   const rule = { type: 'ai', dodge: false, mind, ...(c.pace ? { speed: r3(PACES[c.pace] * hero.run) } : {}), ...(M.rule || {}) };
   const entity = { rule, body: { hp: downs * hero.blow } };
   armed(rule, entity, A, damage);
+  // what the mind does not play (worlds/controllable/foe.js): its own move's numbers, the touch it hurts by, the stomp
+  const own = foeRecord(c, M, A);
+  if (own) rule.foe = own;
+  // a touch closes to the body, not to a gun's standoff
+  if (A.verb === 'contact') rule.standoff = r3(Math.max(0.3, (rule.collideRadius ?? 0.3)));
 
   const resolved = resolveMind({ motivation: mind.motivation, aggressiveness: mind.aggressiveness, rank, skill }, entity);
   const { status, marks, short } = classStatus(c);

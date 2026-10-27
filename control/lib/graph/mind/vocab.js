@@ -97,6 +97,7 @@ export const ACTIONS = Object.freeze({
   dodge:  'an evasive roll',
   tackle: 'a body-check that beats a swing',
   jump:   'leaves the ground',
+  contact: 'hurts by touch: it runs into its target (a foe class\'s contact or charge: rule.foe.touch)',
 });
 export const CAPABILITY = Object.freeze({
   flier:   'moves freely in three dimensions (flight or the void)',

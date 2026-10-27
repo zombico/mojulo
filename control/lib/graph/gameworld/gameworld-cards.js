@@ -494,7 +494,7 @@ function battlesCard() {
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
     '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
-    '        a beast on its own gaits (a wolf pack, a dire wolf pack); walk up to one to fight.',
+    '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
@@ -546,8 +546,7 @@ function foesCard() {
     'CLASSES (built unless marked: what does not run yet is said):',
     ...Object.values(FOE_CLASSES).map(row),
     '',
-    `MOVES   ${Object.entries(MOVES).map(([k, M]) => `${k} (${M.line})`).join('; ')}.`,
-    `ATTACKS ${Object.entries(ATTACKS).map(([k, A]) => `${k} (${A.line})`).join('; ')}.`,
+    `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')} (each class above reads as its own).`,
     `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
     'A world without foes, or a level without them, is laid as it was.',
   );

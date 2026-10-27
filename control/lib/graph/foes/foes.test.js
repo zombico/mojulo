@@ -19,7 +19,8 @@ const pick = (what, pred) => { const c = CLASSES.find(pred); if (!c) throw new E
 const verbOf = (c) => ATTACKS[c.attack.kind].verb;
 const BLADE = pick('with a blade', (c) => verbOf(c) === 'melee');
 const GUN = pick('with a weapon', (c) => !!ATTACKS[c.attack.kind].fireClass);
-const TOUCH = pick('with no verb', (c) => ATTACKS[c.attack.kind].verb === null && c.attack.kind !== 'none');
+const TOUCH = pick('that hurts by touch', (c) => ATTACKS[c.attack.kind].verb === 'contact' && !ATTACKS[c.attack.kind].during && MOVES[c.move].rides);
+const OWN = pick('with a move of its own', (c) => !!MOVES[c.move].own);
 const PACK = pick('that groups', (c) => !!MOVES[c.move].group);
 const FLIER = pick('that flies', (c) => MOVES[c.move].needs.includes('wings'));
 const GROUNDED = pick('on the ground', (c) => MOVES[c.move].needs.includes('ground') && c.fits.wings !== true);
@@ -48,18 +49,24 @@ describe('foe shelf', () => {
     expect(() => validateClass({ ...BLADE, colour: 'red' })).toThrow(/no key 'colour'/);
     expect(() => foeClass('dragon')).toThrow(/no class 'dragon' \(known: /);
   });
-  it('a class\'s status is the worse of its move\'s and its attack\'s, and names what is short', () => {
-    const S = classStatus(TOUCH);
-    expect(S.status).not.toBe('built');
-    expect(S.short.some((s) => s.startsWith(`attack ${TOUCH.attack.kind}`))).toBe(true);
+  it('a class\'s status and each engine\'s mark are the worse of its move\'s and its attack\'s', () => {
+    const rank = { built: 0, approximated: 1, absent: 2 };
+    const markOf = (w, e) => w[e] ?? 'built';
+    for (const c of [OWN, BLADE]) {
+      const S = classStatus(c), M = MOVES[c.move], A = ATTACKS[c.attack.kind];
+      if (M.status === 'built' && A.status === 'built') expect(S.status).toBe('built');
+      if (!M.rides) expect(rank[S.marks.godot]).toBeGreaterThanOrEqual(Math.max(rank[markOf(M, 'godot')], rank[markOf(A, 'godot')]));
+    }
     const built = pick('that is built', (c) => classStatus(c).status === 'built');
     expect(classStatus(built).short).toEqual([]);
   });
-  it('the cosmos reads each class as a value, priced in the package while it is short', () => {
+  it('the cosmos reads each class as a value: its engine marks the worst of what it does there', () => {
     const V = foeClassValues();
     expect(Object.keys(V)).toEqual(Object.keys(FOE_CLASSES));
-    expect(V[TOUCH.id].pkg).toBe('hostile-encounters');
-    expect(V[TOUCH.id].godot).toBe('absent');
+    // a move of its own runs on the web alone (worlds/controllable/foe.js): no engine plays it yet
+    expect(V[OWN.id].godot).toBe(MOVES[OWN.move].godot);
+    expect(V[OWN.id].status).toBe('built');
+    expect(V[OWN.id].pkg).toBeUndefined();
   });
 });
 
@@ -78,12 +85,23 @@ describe('foe resolver', () => {
     expect(f.entity.weapon.fireClass).toBe(ATTACKS[GUN.attack.kind].fireClass);
     expect(f.mind.situations.strike.strategy).toBe('fire-burst');
   });
-  it('a class with no verb yet lays none, and says so by its status', () => {
+  it('a class that hurts by touch lays its touch, closes to its body and strikes by running into it', () => {
     const f = resolveFoe({ class: TOUCH.id });
     expect(f.entity.rule.loadout).toBeUndefined();
     expect(f.entity.weapon).toBeUndefined();
-    expect(f.mind.situations.strike.strategy).toBe('none');
-    expect(f.status).not.toBe('built');
+    expect(f.entity.rule.foe).toMatchObject({ move: TOUCH.move, touch: TOUCH.toll.harm, stomp: TOUCH.stomp });
+    expect(f.entity.rule.standoff).toBeLessThan(1);
+    expect(f.mind.actions.contact).toBe(true);
+    expect(f.mind.situations.strike.strategy).toBe('touch');
+  });
+  it('a move of its own lays its numbers on the rule, a telegraph its attack\'s own frames', () => {
+    const f = resolveFoe({ class: OWN.id });
+    expect(f.entity.rule.foe.move).toBe(OWN.move);
+    for (const k of Object.keys(MOVES[OWN.move].own)) expect(f.entity.rule.foe).toHaveProperty(k);
+    const braced = pick('that braces', (c) => !!MOVES[c.move].own?.rush), R = resolveFoe({ class: braced.id }).entity.rule.foe.rush;
+    expect(R.brace).toBeCloseTo((ATTACKS[braced.attack.kind].timing.startup) / 60, 3);
+    // a class the mind plays whole and that never touches lays no record
+    expect(resolveFoe({ class: GUN.id }).entity.rule.foe).toBeUndefined();
   });
   it('a pack shares a group, the class\'s id unless the foe names one', () => {
     expect(resolveFoe({ class: PACK.id }).entity.rule.mind.group.id).toBe(PACK.id);

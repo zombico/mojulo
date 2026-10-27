@@ -19,6 +19,7 @@
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
  *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
  *                                         entities, and a hittable pilot; null when nothing stands
+ *   stompOf(G)                          → the hero's stomp where foes stand: { low, high, blow, mercy }
  *   withFoeHits(mechanics)              → a level's mechanics with the hero's hp taking each hit (fail-on-death `hits`):
  *                                         the goal's own when it has one, else one laid before its terminal
  *
@@ -29,6 +30,9 @@ import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { foeFigure, facing } from './stage-figures.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
+import { HERO } from '../foes/vocab.js';
+import { FEELS, FPS } from './feel/cards.js';
+import { feelCard } from './feel/lower.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin'];
@@ -120,9 +124,19 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
       transform: { pos: p.at, heading: p.heading },
     });
   }
-  // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at)
-  const pilot = { body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
+  // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
+  // a hero with legs stomps them (worlds/controllable/foe.js)
+  const pilot = { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
   return { figures, entities, pilot };
+}
+
+/** The hero's stomp (worlds/controllable/foe.js `rule.stomp`): the world's feel card's bounce when it stomps (its
+ * `land: stomp`), else the action lab's platformer card's; a blow of the hero's (HERO.blow, the foes' hp frame); the
+ * mercy after a touch, its card's `hit.mercy` frames. */
+export function stompOf(G) {
+  const own = G.feel ? feelCard(G.feel) : null, C = own && own.land?.model === 'stomp' ? own : FEELS.platformer;
+  const r3 = (v) => Math.round(v * 1000) / 1000, mercy = (own ?? C).hit?.mercy || C.hit.mercy;
+  return { low: C.land.low, high: r3(C.land.high), blow: HERO.blow, mercy: r3(mercy / FPS) };
 }
 
 export function withFoeHits(mechanics) {

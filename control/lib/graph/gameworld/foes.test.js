@@ -2,7 +2,8 @@
 // they stand, and nothing laid where none is named. Placement is tested on a stage's own ends (its beats), the runner on
 // the hero sample: a bestiary alone mints nothing, a level that stands foes mints one beast per entry it fields.
 import { describe, it, expect } from 'vitest';
-import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, fieldedIds, SWARM } from './foes.js';
+import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, fieldedIds, stompOf, SWARM } from './foes.js';
+import { FEELS } from './feel/cards.js';
 import { readGameworld, runSteps, MEADOWMARK_HERO } from './index.js';
 import { LEVEL_GOAL } from './quick.js';
 import { FOE_CLASSES } from '../foes/index.js';
@@ -62,6 +63,11 @@ describe('a stage\'s foes', () => {
     expect(e.rule.mind).toEqual(f.entity.rule.mind);
     expect(X.figures['foe-a-1'].heroRef).toBe('w-foes-a');
     expect(X.pilot.body.hittable).toBe(true);
+    // a hero with legs stomps them, by the action lab's platformer card when its world's feel does not stomp
+    expect(X.pilot.rule.stomp).toEqual(stompOf(G));
+    expect(stompOf(G)).toMatchObject({ low: FEELS.platformer.land.low, mercy: FEELS.platformer.hit.mercy / 60 });
+    expect(hostileCast(G, 'one', ENDS, { refs: { a: 'w-foes-a' }, hero: false }).pilot.rule).toBeUndefined();
+    expect(e.rule.foe ?? null).toEqual(f.entity.rule.foe ?? null);
     expect(hostileCast(world(null, undefined), 'one', ENDS, { refs: {} })).toBeNull();
   });
   it('the hero\'s hp takes their hits: the goal\'s own hp, else one laid before its terminal', () => {
