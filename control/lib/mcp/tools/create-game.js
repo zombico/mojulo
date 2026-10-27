@@ -239,13 +239,13 @@ async function mintTableRpg(input, context) {
   const { buildTableRpgGameManifest, readTableRpg, tableRpgReadout } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
   let manifest = buildTableRpgGameManifest({ title, tableRpg });
   const sketch = SketchRepository.create({ title: manifest.title, manifest, ref, ...(folderRef ? { folderRef } : {}) });
-  // the party made real characters through the character loop (its sheets and its bodies, children of the game's
-  // ref), each recorded on its member, unless the game says characters: false
-  let made = [];
+  // the party and the cast's leaders made real characters through the character loop (their sheets and their bodies,
+  // children of the game's ref), each recorded on its member or its foe, unless the game says characters: false
+  let made = [], failed = [];
   if (tableRpg.characters !== false) {
-    const { makePartyCharacters } = await import('./table-rpg-portraits.js');
-    const out = await makePartyCharacters({ ref: sketch.ref, tableRpg, title: manifest.title });
-    made = out.made;
+    const { makeTableCharacters } = await import('./table-rpg-portraits.js');
+    const out = await makeTableCharacters({ ref: sketch.ref, tableRpg, title: manifest.title });
+    made = out.made; failed = out.failed;
     if (made.length) {
       manifest = { ...manifest, tableRpg: out.tableRpg };
       SketchRepository.update({ ref: sketch.ref, manifest });
@@ -260,8 +260,8 @@ async function mintTableRpg(input, context) {
     engine: 'table-rpg',
     rules: K.sys.name,
     party: party.map((p) => ({ ...p, ...(made.find((m) => m.id === p.id) ? { character: made.find((m) => m.id === p.id).character } : {}) })),
-    ...(factions ? { factions } : {}),
-    ...(found.length || findings.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f }))] } : {}),
+    ...(factions ? { factions: factions.map((F) => ({ ...F, characters: Object.fromEntries(made.filter((m) => m.foe && K.foes[m.foe]?.faction === F.id).map((m) => [m.foe, m.character])) })) } : {}),
+    ...(found.length || findings.length || failed.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f })), ...failed.map((f) => ({ where: 'characters', level: 'advice', text: `${f.foe} was not made a character: ${f.why}` }))] } : {}),
     url: `/sketches/${at}`,
     playUrl,
     bookUrl: `/api/sketches/${at}/bible`,

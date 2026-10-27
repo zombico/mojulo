@@ -14,6 +14,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: the cast's leaders made characters, human or not, photographed into the book
+
+- **Any body**: `cast.people: { <part>: { body?, species?, brief?, facets?, mascot? } }` says what a part of the cast
+  is, in the egocube cast's own member words: a person (the default), a beast-kin, a beast (a real species) or a
+  mascot. Each foe's persona is read from its body and its temperament (`persona.body`, `persona.species`).
+- **Made at mint**: the cast is stored as an egocube cast row (`castRequestOf`: the very request the game reads), and
+  the mastermind, the lieutenant and the rival are made characters by their member paths through `create_character`
+  (the hero, creature and animal doors, a mascot as a creature), as is a foe rolled alone on the egocube; each
+  recorded as its foe's `character: <ref>`, named in the answer's factions. A body the loop cannot make is advised and
+  the game goes on (`makeTableCharacters`, formerly `makePartyCharacters`).
+- **Photographed**: the foes that are characters are photographed as the party is, framed by the body's own extent (a
+  long body by its length between its 2nd and 98th percentiles, a mascot's bust its whole head); the Factions chapter
+  lines the leaders up and puts each bust in its entry, a foe of no faction gets its bust over its stat block. The
+  `/bible` route and `export_game` take them (`foePortraits`).
+
+Machine gate: the factions suite (each body's persona; an unknown body word refused; the chapter's line-up and busts
+placed, none without), the door's (a cast row, the three leaders made with a beast among them, recorded on their foes,
+the game reading the beast as its lieutenant), and the live suite photographing a beast-kin, a wolf and a mascot (a
+figure and a bust each). Eyes gate not run: the author looked at the six photographs and a beast-kin's; the operator
+has not.
+
 ### Table RPG: factioned encounters from the egocube's cast
 
 - **Factions, standing and talk in the kernel**: a module's `factions` (standing −2 hostile … 2 allied, allies,

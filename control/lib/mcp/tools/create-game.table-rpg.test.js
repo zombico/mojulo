@@ -116,6 +116,18 @@ describe('create_game — a table game (table_rpg)', () => {
     expect(out.findings.filter((f) => f.where === 'factions').map((f) => f.text.match(/\((\w+), of/)[1]).sort()).toEqual(['lieutenant', 'rival']);
   });
 
+  it('the cast\'s leaders made characters whatever their bodies: a cast row, a body each by its member path, recorded on its foe', async () => {
+    const out = await createGameHandler({ title: 'Wolf Hall', table_rpg: { starter: { use: 'keep' }, cast: { people: { lieutenant: { body: 'beast', species: 'wolf' } } }, party: [{ id: 'x', role: 'frontline' }] }, ref: 'tr_cast' });
+    expect(SketchRepository.getByRef('tr_cast-cast').manifest).toMatchObject({ kind: 'egocube', cast: { cast: { 'mastermind/lieutenant': { body: 'beast', species: 'wolf' } } } });
+    const stored = SketchRepository.getByRef('tr_cast').manifest.tableRpg.foes;
+    expect(stored).toMatchObject({ castellan: { character: 'tr_cast-cast-mastermind' }, lieutenant: { character: 'tr_cast-cast-lieutenant' }, rival: { character: 'tr_cast-cast-rival' } });
+    for (const r of ['mastermind', 'lieutenant', 'rival']) expect(SketchRepository.getByRef(`tr_cast-cast-${r}`)).toBeTruthy();
+    expect(out.factions[0].characters).toEqual({ castellan: 'tr_cast-cast-mastermind', lieutenant: 'tr_cast-cast-lieutenant' });
+    // the game reads the very cast the row stores: the beast is the game's lieutenant
+    const { readTableRpg } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+    expect(readTableRpg(SketchRepository.getByRef('tr_cast').manifest.tableRpg).K.foes.lieutenant.persona).toMatchObject({ body: 'beast', species: 'wolf' });
+  }, 120000);
+
   it('get_game_vocab serves the table games\' card: the keys, every starter, character creation, the book', async () => {
     const { card } = await getGameVocabHandler({ id: 'table-rpg' });
     expect(card.body).toContain('table_rpg: {');

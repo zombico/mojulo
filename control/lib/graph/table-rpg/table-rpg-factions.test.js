@@ -134,7 +134,7 @@ describe('the cast: the antagonists as a character graph on the egocube', () => 
     expect(CAST_PARTS.map((p) => M.foes[p].faction)).toEqual(['mastermind', 'mastermind', 'mastermind', 'rival', 'rival']);
     expect(M.foes.mastermind.persona).toMatchObject({ relation: 'mastermind' });
     expect(M.foes.troop.name).toMatch(new RegExp(`^${M.foes.mastermind.name}'s `));
-    expect(M.cast).toBeUndefined();
+    expect(M.cast).toEqual({ seed: 5, as: Object.fromEntries(CAST_PARTS.map((p) => [p, p])) });
     expect(withCast({ seed: 5, cast: true, foes: {} })).toEqual(M);
     expect(withCast({ seed: 6, cast: true, foes: {} }).foes.mastermind.name).not.toBe(M.foes.mastermind.name);
     expect(() => withCast({ cast: { as: { boss: 'x' } } })).toThrow(/cast.as.boss is not a part of the cast/);
@@ -167,5 +167,23 @@ describe('the factions in print', () => {
     expect(tableRpgBook(readModule(SUNKEN_CHAPEL).K).html).not.toContain('id="factions"');
     expect(factionMapSvg(K).match(/class="tie rivals"/g)).toHaveLength(1);
     expect(refereePacket(K)).toContain('## Factions');
+  });
+
+  it('the cast photographed: the leaders lined up in the chapter, a bust in each entry; a foe of no faction over its block', () => {
+    const K = cast(), shot = (n) => ({ figure: `data:image/jpeg;base64,F${n}`, bust: `data:image/jpeg;base64,B${n}` });
+    const { html } = tableRpgBook(K, { foePortraits: { 'barrow-wight': shot(1), rival: shot(2), 'grave-rat': shot(3) } });
+    expect(html).toMatch(/<div class="lineup cast"><figure><img src="data:image\/jpeg;base64,F1"/);
+    expect(html).toContain('<img class="bust" src="data:image/jpeg;base64,B2" alt=""><b>Daven</b>');
+    expect(html).toContain('<img class="foe-bust" src="data:image/jpeg;base64,B3" alt="Grave Rat">');
+    expect(tableRpgBook(K).html).not.toMatch(/class="lineup cast"|class="bust"|class="foe-bust"/);
+  });
+
+  it('a part of any body: a beast, a mascot, a beast-kin each a persona from its body and its temperament', () => {
+    const M = withCast({ seed: 5, foes: {}, cast: { people: { mastermind: { body: 'beast', species: 'wolf' }, lieutenant: { body: 'beastkin' }, rival: { body: 'mascot' } } } });
+    expect(M.foes.mastermind.persona).toMatchObject({ body: 'beast', species: 'wolf' });
+    expect(M.foes.mastermind.persona.reads).toMatch(/^a wolf; /);
+    expect(M.foes.lieutenant.persona.reads).toMatch(/^a beast-kin, /);
+    expect(M.foes.rival.persona.reads).toMatch(/^a mascot, /);
+    expect(() => withCast({ foes: {}, cast: { people: { rival: { wings: true } } } })).toThrow(/cast.people.rival.wings is not a body word/);
   });
 });

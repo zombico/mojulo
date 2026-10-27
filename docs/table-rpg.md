@@ -149,11 +149,22 @@ The **cast** writes them from the egocube when the author does not (`cast: true`
 antagonists against the party's lead, and `withCast` writes them as two factions, the mastermind's (wary) and the
 rival's (neutral), each the other's rival, every foe a persona (its reading, what it wants, by what rule). What a foe
 listens to comes from its mind: self-serving heeds a bribe and selfless scorns one; bound heeds a parley and scorns a
-threat; free heeds a threat and scorns a parley. `as` lays the parts onto the module's own foes (with a starter, its
+threat; free heeds a threat and scorns a parley. `people: { <part>: { body, species?, … } }` says what a part is: a
+person (the default), a beast-kin (a lineage below the hero door), a beast (a real species) or a mascot, each a persona
+read from its body and its temperament. `as` lays the parts onto the module's own foes (with a starter, its
 boss, minions and road bandits take them unasked), and what the module writes wins. The mint's answer names the
 factions and their people and advises on any placed in no room and on no table; the book prints a Factions chapter
 (the party and the factions as a diagram, the talk and the standing ladder in the card's numbers, each faction's
 people by rank), and the referee packet the same in prose.
+
+At mint the cast is stored as an **egocube cast row** of the very request the game reads, and its leaders (the
+mastermind, the lieutenant, the rival) are made characters by their member paths, as `create_character { egocube,
+member }` makes them: a person or a beast-kin on the hero and creature doors, a beast on the animal door, a mascot as a
+creature. A foe rolled alone on the egocube is made as a party member is. Each is recorded on its foe (`character:
+<ref>`); a body the loop cannot make is advised, and the game goes on without it. The book photographs them as it does
+the party, framed by the body's own extent (a figure's height, a beast's length between its 2nd and 98th percentiles, so
+a tail does not shrink it; a mascot's bust its whole head): the leaders lined up in the Factions chapter, each bust in
+its entry, a foe of no faction over its stat block.
 
 ## The game book
 
@@ -208,8 +219,8 @@ store and no levels. One property on the door, no new tool (the flat payload pin
 - Spells, class features, conditions, equipment beyond a weapon, saving throws, skills apart from abilities, and
   morale or reaction rolls: the cards hold the procedures, not the catalogues. A faction's foes are talked to
   (parley, threaten, bribe), but they do not break and run on their own yet.
-- The cast's other uses: a town's people as a cast (the mentor, a herald), bonds within the party, the cast's leaders
-  made characters and photographed like the party, standing that opens or shuts a beat.
+- The cast's other uses: a town's people as a cast (the mentor, a herald), bonds within the party, standing that opens
+  or shuts a beat.
 - Narrative currencies (aspects, momentum, written moves, progress tracks) as their own procedures: simplified for
   now to checks, harm and a health track; a card cannot yet declare one.
 - A dungeon's lowering: a tree of rooms lays through `planProgram`, a loop needs its own layout pass.

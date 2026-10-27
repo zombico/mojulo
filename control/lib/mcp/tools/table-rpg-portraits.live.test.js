@@ -31,4 +31,20 @@ describe('the party photographed', () => {
     const bare = { ...m, tableRpg: { ...m.tableRpg, party: [{ id: 'x', role: 'caster' }] } };
     expect((await tableRpgPortraits(bare)).missing[0]).toMatchObject({ id: 'x' });
   }, 300000);
+
+  it('the cast\'s leaders, human and not: a beast-kin, a beast and a mascot each photographed, the bust at its head', async () => {
+    if (!browser) return;
+    const people = { mastermind: { body: 'beastkin' }, lieutenant: { body: 'beast', species: 'wolf' }, rival: { body: 'mascot' } };
+    const out = await createGameHandler({ title: 'Held', table_rpg: { starter: { use: 'keep' }, cast: { people }, party: [{ id: 'x', role: 'frontline' }] }, ref: 'pt_cast' });
+    expect(out.findings?.filter((f) => f.where === 'characters') ?? []).toEqual([]);
+    const m = SketchRepository.getByRef('pt_cast').manifest;
+    const { foes, missing } = await tableRpgPortraits(m, { paper: '#f0e6d2' });
+    expect(missing.filter((x) => x.foe)).toEqual([]);
+    expect(Object.keys(foes).sort()).toEqual(['castellan', 'lieutenant', 'rival']);
+    for (const shot of Object.values(foes)) for (const k of ['figure', 'bust']) expect(shot[k].length).toBeGreaterThan(8000);
+    if (process.env.TABLE_RPG_SHOTS) {
+      const { writeFileSync } = await import('node:fs');
+      for (const [id, shot] of Object.entries(foes)) for (const k of ['figure', 'bust']) writeFileSync(`${process.env.TABLE_RPG_SHOTS}/${id}-${k}.jpg`, Buffer.from(shot[k].split(',')[1], 'base64'));
+    }
+  }, 300000);
 });

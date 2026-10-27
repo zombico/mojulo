@@ -53,11 +53,11 @@ export function emitTableRpgGame(manifest, { title, bookHref } = {}) {
   return tableRpgPageHtml(module, { title: title ?? manifest.title, style, ...(bookHref ? { bookHref } : {}) });
 }
 
-export function tableRpgBookOf(manifest, { title, parts, style, portraits } = {}) {
+export function tableRpgBookOf(manifest, { title, parts, style, portraits, foePortraits } = {}) {
   const T = tableOf(manifest);
   const { K, style: own } = readTableRpg(T);
   if (title ?? manifest.title) K.title = title ?? manifest.title;
-  return tableRpgBook(K, { style: style ?? own, ...(parts ? { parts } : {}), ...(portraits ? { portraits } : {}) });
+  return tableRpgBook(K, { style: style ?? own, ...(parts ? { parts } : {}), ...(portraits ? { portraits } : {}), ...(foePortraits ? { foePortraits } : {}) });
 }
 
 export function tableRpgPaper(manifest, { style } = {}) {

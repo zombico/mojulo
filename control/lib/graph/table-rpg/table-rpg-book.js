@@ -5,13 +5,15 @@
  * story's beats; the party's sheets, a page each, as rolled; the dice tape; the colophon. The same module and the same
  * style give the same page; headless Chromium prints it (book/book-pdf.js).
  *
- *   tableRpgBook(K, { style?, tape?, parts? }) → { html, findings }   style a book style (book/book-style.js: a
- *     preset's key or its parts; 'tome' when none); tape the dice tape's length (20; 0 leaves it out); parts the
- *     chapters to print, of BOOK_PARTS (factions when the module has them: their diagram, how talk and standing run,
- *     each faction's people by rank with who they are and what they listen to) (['party']: the characters' sheets alone); portraits each member's
- *     photographs ({ <id>: { figure, bust } }, image URIs: lib/mcp/tools/table-rpg-portraits.js), the figures lined up
- *     on the title page and each bust heading its sheet (none: no picture, the sheet as it was); findings the style's
- *     advice
+ *   tableRpgBook(K, { style?, tape?, parts?, portraits?, foePortraits? }) → { html, findings }   style a book style
+ *     (book/book-style.js: a preset's key or its parts; 'tome' when none); tape the dice tape's length (20; 0 leaves it
+ *     out); parts the chapters to print, of BOOK_PARTS (['party']: the characters' sheets alone; factions when the module
+ *     has them: their diagram, how talk and standing run, each faction's people by rank with who they are and what they
+ *     listen to); portraits each member's photographs ({ <id>: { figure, bust } }, image URIs:
+ *     lib/mcp/tools/table-rpg-portraits.js), the figures lined up on the title page and each bust heading its sheet
+ *     (none: no picture, the sheet as it was); foePortraits the foes' ({ <foe id>: { figure, bust } }: the cast's
+ *     leaders lined up in the Factions chapter, each bust in its entry; a foe of no faction, its bust over its stat
+ *     block); findings the style's advice
  *   BOOK_PARTS   the chapters in their order
  */
 import { bookHtml, esc, heading, para, aside, keyed, facts, statBlock, rollTable, grid, plate, mono, lines } from '../book/book-press.js';
@@ -98,15 +100,18 @@ function dungeon(K, D) {
   return out.join('');
 }
 
-function foes(K) {
-  return Object.entries(K.foes).map(([id, F]) => statBlock(cap(F.name ?? words(id)), foeRows(K, id), { note: `rank ${F.rank}${F.faction ? `, ${K.factions[F.faction].name}` : ''}${F.text ? `: ${F.text}` : ''}` })).join('');
+function foes(K, shots) {
+  return Object.entries(K.foes).map(([id, F]) => (shots[id]?.bust && !F.faction ? `<img class="foe-bust" src="${esc(shots[id].bust)}" alt="${esc(F.name ?? id)}">` : '') + statBlock(cap(F.name ?? words(id)), foeRows(K, id), { note: `rank ${F.rank}${F.faction ? `, ${K.factions[F.faction].name}` : ''}${F.text ? `: ${F.text}` : ''}` })).join('');
 }
 
 const ear = (F) => [F.heeds?.length ? `heeds ${list(F.heeds.map((t) => `a ${t === 'threaten' ? 'threat' : t}`))}` : null, F.scorns?.length ? `scorns ${list(F.scorns.map((t) => `a ${t === 'threaten' ? 'threat' : t}`))}` : null].filter(Boolean).join('; ');
 
-function factions(K) {
+function factions(K, shots) {
   const D = K.sys.check.difficulty, word = (n) => TABLE_RPG_STANDING[n + 2];
   const out = [plate(factionMapSvg(K), { caption: 'The factions: where each stands with the party at the start, and with each other', span: true })];
+  // the cast's leaders as they stand, a square each: a beast is longer than it is tall
+  const led = Object.entries(K.foes).filter(([id, f]) => f.faction && shots[id]?.figure).sort(([, a], [, b]) => b.rank - a.rank);
+  if (led.length) out.push(`<div class="lineup cast">${led.map(([id, f]) => `<figure><img src="${esc(shots[id].figure)}" alt="${esc(f.persona?.name ?? f.name ?? id)}"><figcaption>${esc(f.persona?.name && f.persona.name !== f.name ? `${f.persona.name}, ${f.name}` : f.name ?? words(id))}</figcaption></figure>`).join('')}</div>`);
   out.push(para(`A fight with a faction's foes is spoken to through its leader, the highest-ranked of them standing. On a member's turn, once a fight, they may parley (${TABLE_RPG_TALK.parley}), threaten (${TABLE_RPG_TALK.threaten}) or bribe with a treasure (${TABLE_RPG_TALK.bribe}). A success and the foes stand aside, the room passed and their experience earned: a parley or a bribe raises the faction's standing a step, a threat lowers it. At a cost they stand aside and nothing changes, though a threatened leader strikes first. A failure and the fight goes on; a fumble lowers the standing too. Foes beaten lower their faction and its allies a step, and raise its rivals one.`));
   out.push(facts([['hostile', 'will not hear you'], ['wary', `hard (${D.hard})`], ['neutral', `medium (${D.medium})`], ['friendly', `easy (${D.easy})`], ['allied', 'they stand aside unasked']]));
   out.push(para('A leader who heeds a talk makes it a step easier; one who scorns it, a step harder.'));
@@ -119,7 +124,7 @@ function factions(K) {
         const who = [P?.name && P.name !== f.name ? P.name : null, rel].filter(Boolean).join(', ');
         const says = [who || null, P?.reads ? cap(P.reads) : null, ear(f) ? cap(ear(f)) : null].filter(Boolean);
         const leads = P?.relation ? ['mastermind', 'rival'].includes(P.relation) : f.rank === members[0][1].rank;
-        return aside(`<b>${esc(cap(f.name ?? words(id)))}</b>, rank ${f.rank}${says.length ? `: ${esc(says.join('. '))}.` : '.'}`, { label: leads ? 'Leads' : 'Serves' });
+        return aside(`${shots[id]?.bust ? `<img class="bust" src="${esc(shots[id].bust)}" alt="">` : ''}<b>${esc(cap(f.name ?? words(id)))}</b>, rank ${f.rank}${says.length ? `: ${esc(says.join('. '))}.` : '.'}`, { label: leads ? 'Leads' : 'Serves' });
       }).join('');
     out.push(heading(cap(F.name), 3) + body);
   }
@@ -149,7 +154,7 @@ function sheet(K, p, portrait) {
     + heading('Notes', 4) + lines(8) + '</section>';
 }
 
-export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = {} } = {}) {
+export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = {}, foePortraits = {} } = {}) {
   if (parts !== undefined && !(Array.isArray(parts) && parts.length && parts.every((p) => BOOK_PARTS.includes(p)))) throw new Error(`table rpg book: parts are some of ${BOOK_PARTS.join(', ')}`);
   const S = readBookStyle(style);
   // a one-sheet format carries what the table needs in play: the title, the dungeons, the foes, the tables
@@ -159,8 +164,8 @@ export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = 
     { id: 'running', title: 'Running the game', body: running(K) },
     { id: 'world', title: 'The world', body: world(K) },
     ...Object.values(K.D).map((D) => ({ id: `dungeon-${D.id}`, title: cap(D.name), body: dungeon(K, D) })),
-    { id: 'foes', title: 'Foes', body: foes(K) },
-    ...(Object.keys(K.factions).length ? [{ id: 'factions', title: 'Factions', body: factions(K) }] : []),
+    { id: 'foes', title: 'Foes', body: foes(K, foePortraits) },
+    ...(Object.keys(K.factions).length ? [{ id: 'factions', title: 'Factions', body: factions(K, foePortraits) }] : []),
     ...(Object.keys(K.tables).length || (K.M.beats ?? []).length ? [{ id: 'tables', title: 'Tables', body: tables(K) }] : []),
     { id: 'party', title: 'The party', kind: 'pages', body: K.party.map((p) => sheet(K, p, portraits[p.id])).join('') },
     ...(tape ? [{ id: 'tape', title: 'The dice', body: para('Read in order, one die at a time: the game is fair and can be played again the same way.') + mono([20, 6, 10, 100].map((s) => `d${String(s).padEnd(3)} ${tableTape(K.seed, s, tape).map((v) => String(v).padStart(String(s).length)).join(' ')}`).join('\n')) }] : []),

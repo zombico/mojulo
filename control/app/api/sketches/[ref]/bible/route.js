@@ -57,9 +57,10 @@ export async function GET(request, { params }) {
       const { tableRpgPortraits } = await import('@/lib/mcp/tools/table-rpg-portraits');
       const parts = request.nextUrl.searchParams.get('parts'), style = request.nextUrl.searchParams.get('style');
       try {
-        // the party's characters photographed on the book's paper (kept per character revision; none without a browser)
-        const { portraits } = await tableRpgPortraits(sketch.manifest, { paper: tableRpgPaper(sketch.manifest, style ? { style } : {}) });
-        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, portraits, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
+        // the party's and the cast's characters photographed on the book's paper (kept per character revision; none
+        // without a browser)
+        const { portraits, foes: foePortraits } = await tableRpgPortraits(sketch.manifest, { paper: tableRpgPaper(sketch.manifest, style ? { style } : {}) });
+        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, portraits, foePortraits, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
       } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
