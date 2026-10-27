@@ -12,11 +12,13 @@
  *   a course is designed from the seed (no two the same), a lap unless a word asks for a stage
  *   the land round it is hills unless a word names another (mountains, a canyon's mesas, plains), with a village where
  *   the lap sees most unless a word names farms, a town, or the wilderness
+ *   its stands are the stadium's section (stadium/stand.js: raked tiers, the crowd, a canopy, glass boxes) on every
+ *   pole but the voxel's, whose cubes keep the set piece's block (stamped at mint: `scape.stands`)
  *
  *   readTrackIntent(intent) → { track: { class, form, length, twist, elevation?, ramps?, crossing? }, set, pole, look,
  *                               vehicle, landmark?, surrounds?: { land?, settlement? }, reads: [{ phrase, decided }],
  *                               unread: [words] }
- *   composeTrack(intent, { seed? }) → a roadway manifest ({ form, course, kit: { look }, scape: { set, seed }, seed })
+ *   composeTrack(intent, { seed? }) → a roadway manifest ({ form, course, kit: { look }, scape: { set, seed, stands? }, seed })
  *                               with `reads` and `vehicle` beside it: drawn by the roadway kind (track first)
  *   composeTrackWorld(intent, { seed?, id? }) → a gameworld recipe whose look is the words' and whose one level is the
  *                               track drawn in it (world and track together)
@@ -114,7 +116,7 @@ export function composeTrack(intent, { seed = 1 } = {}) {
   const R = readTrackIntent(intent), T = R.track;
   if (!TRACK_FORMS.includes(T.form)) throw new Error(`trackscape: form ${T.form}`);
   const course = { class: T.class, length: T.length, twist: T.twist, seed, ...(T.elevation ? { elevation: T.elevation } : {}), ...(T.ramps ? { ramps: T.ramps } : {}), ...(T.crossing ? { crossing: true } : {}), ...(T.form === 'stage' ? { closed: false } : {}) };
-  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' ? { pole: R.pole } : {}) }, scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
+  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' ? { pole: R.pole } : {}) }, scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
 }
 
 /** A gameworld from words: its look the words', its one level the track drawn in it (the world and the track together). */

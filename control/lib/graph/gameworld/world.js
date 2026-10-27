@@ -136,6 +136,7 @@ import { civilizationGrammar } from '../city/plan/civilization.js';
 import { TRACK_FORMS } from '../roads/track.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
+import { readStands } from '../stadium/stand.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
@@ -529,7 +530,9 @@ export function readGameworld(W) {
       if (Rw.mood !== undefined && !RACE_MOOD_IDS.includes(Rw.mood)) throw new Error(`gameworld: ${at}.roadway.mood is one of ${RACE_MOOD_IDS.join(', ')}`);
       if (Rw.kit !== undefined && Rw.kit !== true && Rw.kit !== false && typeof Rw.kit !== 'string' && !(isObj(Rw.kit) && typeof Rw.kit.look === 'string')) throw new Error(`gameworld: ${at}.roadway.kit is true (the world's look), a kit's id, or a look in words ({ look })`);
       const SU = Rw.scape?.surrounds, okSurrounds = SU === undefined || SU === true || SU === false || (isObj(SU) && Object.keys(SU).every((k) => ['land', 'settlement', 'seed'].includes(k)) && (SU.land === undefined || LANDS[SU.land]) && (SU.settlement === undefined || SETTLEMENTS.includes(SU.settlement)));
-      if (Rw.scape !== undefined && Rw.scape !== true && Rw.scape !== false && !(isObj(Rw.scape) && Object.keys(Rw.scape).every((k) => ['set', 'seed', 'landmark', 'surrounds'].includes(k)) && (Rw.scape.set === undefined || SETS[Rw.scape.set]) && (Rw.scape.landmark === undefined || TRACK_BLOCKS[Rw.scape.landmark]) && okSurrounds)) throw new Error(`gameworld: ${at}.roadway.scape is true or { set?: ${Object.keys(SETS).join(' | ')}, seed?, landmark?, surrounds?: false | { land?: ${Object.keys(LANDS).join(' | ')}, settlement?: ${SETTLEMENTS.join(' | ')}, seed? } }`);
+      if (Rw.scape !== undefined && Rw.scape !== true && Rw.scape !== false && !(isObj(Rw.scape) && Object.keys(Rw.scape).every((k) => ['set', 'seed', 'landmark', 'surrounds', 'stands'].includes(k)) && (Rw.scape.set === undefined || SETS[Rw.scape.set]) && (Rw.scape.landmark === undefined || TRACK_BLOCKS[Rw.scape.landmark]) && okSurrounds)) throw new Error(`gameworld: ${at}.roadway.scape is true or { set?: ${Object.keys(SETS).join(' | ')}, seed?, landmark?, surrounds?: false | { land?: ${Object.keys(LANDS).join(' | ')}, settlement?: ${SETTLEMENTS.join(' | ')}, seed? }, stands?: block | bowl | { rows?, roof?, facade?, crowd?, screens?, livery? } }`);
+      // (the stands' words checked as the track reads them: stadium/stand.js)
+      if (isObj(Rw.scape) && Rw.scape.stands !== undefined) { try { readStands(Rw.scape.stands); } catch (e) { throw new Error(`gameworld: ${at}.roadway.scape.${e.message.replace(/^trackscape: /, '')}`); } }
     } else if (L.city !== undefined) {
       // a city level: a planned city (city/plan/), built in its civilization's language, played by its segments
       if (L.walk !== undefined || L.building !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building or a city, one of them`);

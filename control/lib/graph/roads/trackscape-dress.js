@@ -19,7 +19,8 @@
  *   planScapedTrack(m)  → planTrack(m) with `scape: { slots, pieces, census, laws, set, arena, absorbed }`, the pieces' faces and their
  *                         colliders added. `m.scape`: true, or { set?, seed?, landmark? (a block's id), arena? (false: none), surrounds? (false: the flat field;
  *                         or { land?: hills | mountains | mesas | flat, settlement?: village | farms | town | none, seed? }), local? (false:
- *                         the zones unbuilt; or { <zone>: { seed?, skip?, upTo? } }), upTo? (every area's last pass) }; the kit is
+ *                         the zones unbuilt; or { <zone>: { seed?, skip?, upTo? } }), upTo? (every area's last pass), stands? ('block', the set piece's, when
+ *                         absent; 'bowl' or { rows?, roof?, facade?, crowd?, screens?, livery? }: the stadium's section, stadium/stand.js) }; the kit is
  *                         `m.kit` (the meadow if none)
  *   scapeThings(pieces) → things for the eye (each piece at its centre, its least extent, its interest)
  *
@@ -34,6 +35,7 @@ import { planArena, zoneOf, ARENA } from './arena-plan.js';
 import { buildLocalAreas } from './local-area.js';
 import { trackKit } from './track-kit.js';
 import { planSurrounds } from './surrounds.js';
+import { readStands } from '../stadium/stand.js';
 
 // a course's land when no word names one: mountains under a sharp course, hills otherwise
 const landOf = (m) => ((m.course?.elevation?.amplitude ?? 0) >= 20 ? 'mountains' : 'hills');
@@ -100,7 +102,8 @@ export function planScapedTrack(m = {}) {
     }
   }
   // the local areas (local-area.js): each zone built on its own, in passes (ground, massing, elements, dressing)
-  const local = arena && opts.local !== false ? buildLocalAreas(plan, arena, { K, seed, local: opts.local ?? {}, upTo: opts.upTo ?? 'dressing' }) : null;
+  const stands = readStands(opts.stands, plan.course.class);
+  const local = arena && opts.local !== false ? buildLocalAreas(plan, arena, { K, seed, local: opts.local ?? {}, upTo: opts.upTo ?? 'dressing', ...(stands ? { stands } : {}) }) : null;
   if (local) { faces.push(...local.faces); colliders.push(...local.colliders); }
   // the eye again, on what was built (a zone not yet built to its elements counts as what will stand there)
   const built = local ? local.things : [];
