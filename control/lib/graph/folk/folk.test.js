@@ -9,6 +9,7 @@ import { PROGRAMS } from '../era/programs.js';
 import { structureStyle } from '../era/out-structures.js';
 import { designTown } from '../era/out-town.js';
 import { AGES } from '../egocube/facets.js';
+import { SHAPES } from './domicile.js';
 
 // the smallest town that roots every procedure: a lot per use, along one lane
 const lot = (use, s, band = [2, 3]) => ({ use, route: 'lane', side: 'left', s, band });
@@ -77,8 +78,8 @@ describe('folk: the domicile, a house round its dweller', () => {
     const houses = F.people.filter((p) => !p.parent && ROLES[p.role].house).map((p) => p.path);
     expect(F.domiciles.map((d) => d.dweller)).toEqual(houses);
     for (const d of F.domiciles) {
-      expect(d.notation).toMatch(/^D (\+ 0|\+ P|of F \(P \+ C\d\))$/);
-      expect(d.partner === null).toBe(d.shape === 'alone');
+      expect(d.notation).toMatch(/^D (\+ 0|\+ P|of F \(P \+ C\d\)|\+ C\d)$/);
+      expect(d.partner === null).toBe(!SHAPES[d.shape].partner);
       if (d.partner) expect(d.partner).toBe(`${d.dweller}/partner`);
       d.children.forEach((c, i) => expect(c).toBe(`${d.dweller}/child-${i + 1}`));
     }
@@ -92,6 +93,12 @@ describe('folk: the domicile, a house round its dweller', () => {
       for (const c of d.children) expect(band(at(c))).toBeLessThan(band(at(d.dweller)));
     }
     expect(big.domiciles.some((d) => d.shape === 'family')).toBe(true);
+  });
+
+  it('keeps a single parent\'s house without a partner', () => {
+    const one = folkOfTown(town([lot('dwelling', 1)]), { folk: { domicile: 'D + C2' } });
+    expect(one.domiciles[0]).toMatchObject({ shape: 'single', notation: 'D + C2', partner: null });
+    expect(one.domiciles[0].children.length).toBe(2);
   });
 
   it('keeps a shape the operator asked, for every house or for one', () => {

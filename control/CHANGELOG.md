@@ -40,7 +40,7 @@ the story. The city plan and the historic city follow on the same rules.
   play and their talk come next. Machine gate: `folk.test.js`; eyes gate not run.
 - **The domicile: a house round its dweller** (`folk/domicile.js`). A house's unit is the DWELLER, the lot's first
   person, and the house is written as the egocube cast writes a request: `D + 0` (alone), `D + P` (with a partner),
-  `D of F (P + Cx)` (a family of x children). The dweller's age says what the house can be (a youth lives alone or
+  `D of F (P + Cx)` (a family of x children), `D + Cx` (a single parent). The dweller's age says what the house can be (a youth lives alone or
   with a partner, an elder's children have mostly grown), rolled on the house's own die; no house is headed by a
   child; children are younger than the dweller and share their ancestry, a partner is near their age and their own
   person, their pole rolled as anyone's. A townie's house and the household over a keeper's counter are domiciles;

@@ -6,7 +6,7 @@
  * the egocube cast's fractal (egocube/cast.js, docs/egocube.md "The fractal") turned from story relations to the town's.
  *
  *   readFolk(spec)                                  → { seed?, cap, domicile?, domiciles? } or throws, naming the known words
- *     domicile   one house shape for every house ('D + 0', 'D + P', 'D of F (P + Cx)': domicile.js)
+ *     domicile   one house shape for every house ('D + 0', 'D + P', 'D of F (P + Cx)', 'D + Cx': domicile.js)
  *     domiciles  { <lot key>: shape } a house's own, over `domicile`
  *   folkOfTown(town, { seed?, setting?, folk? })    → the folk sheet
  *     town     a designed town (era/out-town.js designTown): its `lots` (use, route, side, s or front, band) and seed
@@ -36,7 +36,7 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { ROLES, ROOTS, RELATIONS, FOLK_PULL } from './roles.js';
 import { SERVICES } from './services.js';
-import { readDomicile, rollDomicile, notationOf, DWELLER, partnerLean, childLean } from './domicile.js';
+import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
 export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles']);
 export const FOLK_CAP = Object.freeze({ default: 60, max: 400 });
@@ -115,7 +115,7 @@ export function folkOfTown(town, { seed, setting, folk } = {}) {
     const first = personOf({ path: `${key}/${roleId}`, lot, key, roleId, lean: role.house ? DWELLER : null }, ctx);
     const asked = role.house ? F.domiciles?.[key] ?? F.domicile : undefined;
     const house = role.house ? { ...(asked ?? rollDomicile(first.sheet.facets.age, mulberry32(hash(`${s}::folk::${key}::domicile`)), lot.band)), asked: !!asked } : null;
-    const members = house ? [...(house.shape === 'alone' ? [] : [{ as: 'partner', path: 'partner' }]), ...Array.from({ length: house.children }, (_, i) => ({ as: 'child', path: `child-${i + 1}` }))] : [];
+    const members = house ? [...(SHAPES[house.shape].partner ? [{ as: 'partner', path: 'partner' }] : []), ...Array.from({ length: house.children }, (_, i) => ({ as: 'child', path: `child-${i + 1}` }))] : [];
     lots.push({ lot, key, roleId, first, house, members, grows, kept: false, grown: [] });
   }
   // every lot's first person, then the households in lot order, while the cap lasts; past it, only counted
