@@ -54,7 +54,8 @@ import { assembleIsekaiScene } from './isekai.js';
 import { readBiocube } from './biocube.js';
 import { placeIndoorFauna } from './biocube-fauna.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
-import { withGeocube, geocubePaint } from './geocube.js';
+import { withGeocube, geocubePaint, geocubeBones } from './geocube.js';
+import { readInHall, planInHall, hallAnchors, inHallLaws } from './in-hall.js';
 import { withProgram } from './programs.js';
 import { withBuildings } from './stage-buildings.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
@@ -930,8 +931,31 @@ function splitCard(f, nu, nv) {
   return out;
 }
 
+/**
+ * A HALL (in-hall.js): its beats laid as rooms on the kit's grid (the recipe's kit, else its cube's interior's bones),
+ * built as any rooms are, its anchors (beats and ports) and its readout (`payload.hall`: the beats, the ports and the
+ * laws, measured on the stage's own plan) added. The hall writes the rooms, their links and its ways.
+ */
+export function withHall(manifest) {
+  const { hall: h, ...m } = manifest;
+  for (const k of ['rooms', 'links', 'ways', 'program']) if (m[k] !== undefined) throw new Error(`stage: hall lays the rooms, their links and its ways: a recipe with a hall names no ${k}`);
+  const H = readInHall(h), kitId = resolveKitId(m.kit ?? (m.geocube !== undefined ? geocubeBones(m.geocube, m.domain) : 'gothic-stone')), kit = stageKit(kitId);
+  if (!kit || GROUND_SHELLS.includes(kit.shell) || kit.shell === 'plaza') throw new Error(`stage: hall: kit '${kitId}' is not a room kit with ceilings (a hall is walked under a roof)`);
+  const hall = planInHall(kit, H, Number.isFinite(m.seed) ? m.seed : 1);
+  return { manifest: { ...m, ...(m.kit === undefined && m.geocube === undefined ? { kit: kitId } : {}), rooms: hall.rooms, links: hall.links, ways: hall.ways }, hall, H };
+}
+function assembleHall(manifest, ctx) {
+  const { manifest: m, hall, H } = withHall(manifest), P = assembleStageScene(m, ctx);
+  const plan = planStage(m.geocube !== undefined ? withGeocube(m) : m), anchors = hallAnchors(hall, plan);
+  P.anchors = [...(P.anchors || []), ...anchors];
+  P.hall = { id: hall.id, beats: hall.beats, ports: anchors.filter((a) => a.kind === 'port').map(({ id, as, room, side, at, N }) => ({ id, as, room, side, at, N })), laws: inHallLaws(hall, H, plan) };
+  return P;
+}
+
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
+  // a recipe's `hall` (in-hall.js): rooms strung on a walk, laid from the hall's beats before its cube lowers
+  if (manifest.hall !== undefined) return assembleHall(manifest, ctx);
   // a recipe's `program` (programs.js): a building's rooms and doorways laid from its use, before its cube lowers
   if (manifest.program !== undefined) return assembleStageScene(withProgram(manifest), ctx);
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
