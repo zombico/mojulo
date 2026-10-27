@@ -8,8 +8,9 @@
  * as `character: <ref>`; a member that already names one keeps it.
  * The CAST (table-rpg-cast.js) is written as an egocube cast row from the very request the game reads, and each of its
  * leaders (the mastermind, the lieutenant, the rival) made by its member path, whatever its body: a person or a
- * beast-kin on the hero and creature doors, a beast on the animal door, a mascot as a creature. A foe rolled alone on
- * the egocube is made as a member is. The game records each on its foe as `character: <ref>`. A body the loop cannot
+ * beast-kin on the hero and creature doors, a beast on the animal door (a game creature by its oozes), a mascot as a
+ * creature. A foe that is a beast (`beast: { species, ooze? }`) is made on the animal door, its oozes the mutagen's; a
+ * foe rolled alone on the egocube is made as a member is. The game records each on its foe as `character: <ref>`. A body the loop cannot
  * make is said (`failed`), and the game goes on without it.
  *
  * Photographed: each member's character on its World page (the colour the dashboard shows: its palette, its toon light)
@@ -29,7 +30,8 @@ import { readTableRpg } from '@/lib/graph/table-rpg/table-rpg-manifest';
 import { childRef } from '@/lib/graph/gameworld/runner';
 import { createSketchHandler } from './sketch-mint.js';
 import { createCharacterHandler } from './create-character.js';
-import { castRequestOf, CAST_LEADERS, CAST_PATH } from '@/lib/graph/table-rpg/table-rpg-cast';
+import { castRequestOf, beastWords, CAST_LEADERS, CAST_PATH } from '@/lib/graph/table-rpg/table-rpg-cast';
+import { beastMovesOf } from '@/lib/graph/egocube/moves.js';
 
 export async function makeTableCharacters({ ref, tableRpg, title }) {
   const { module } = readTableRpg(tableRpg);
@@ -63,8 +65,18 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
       } catch (err) { failed.push({ foe: id, why: err.message.split('\n')[0] }); }
     }
   }
+  // a foe that is a beast: the animal door, the species made a game creature by its oozes, on its two gaits
   for (const [id, F] of Object.entries(module.foes)) {
-    if (leaders.has(id) || F.character || !F.egocube?.roll) continue;
+    if (leaders.has(id) || F.character || !F.beast) continue;
+    const charRef = childRef(ref, `foe-${id}`);
+    try {
+      await createCharacterHandler({ as: 'animal', spec: { species: F.beast.species, motion: beastMovesOf(F.beast.species).motion, ...(F.beast.ooze !== undefined ? { ooze: F.beast.ooze } : {}) }, title: `${title} · ${F.name ?? id} (${beastWords(F.beast).slice(2)})`, ref: charRef });
+      record(id, charRef);
+      made.push({ foe: id, character: charRef });
+    } catch (err) { failed.push({ foe: id, why: err.message.split('\n')[0] }); }
+  }
+  for (const [id, F] of Object.entries(module.foes)) {
+    if (leaders.has(id) || F.character || F.beast || !F.egocube?.roll) continue;
     const sheetRef = childRef(ref, `foe-${id}-sheet`), charRef = childRef(ref, `foe-${id}`);
     try {
       await createSketchHandler({ title: `${title} · ${F.name ?? id} (sheet)`, ref: sheetRef, manifest: { kind: 'egocube', roll: F.egocube.roll } });
@@ -103,7 +115,16 @@ async function photograph(sketch, paper, body = 'person') {
   const upright = tall >= long, center = [(sx[0] + sx[1]) / 2, (sy[0] + sy[1]) / 2, (lo[2] + hi[2]) / 2];
   // a mascot's head is half of it: its bust is the head whole; a person's the head and shoulders; a beast's its head
   const B = body === 'mascot' ? { drop: 0.3, half: 0.34 } : upright ? { drop: 0.13, half: null } : { drop: 0.13, half: Math.max(tall * 0.42, long * 0.22) / tall };
-  const bustTarget = [at(0), at(1), hi[2] - tall * B.drop];
+  let bustTarget = [at(0), at(1), hi[2] - tall * B.drop];
+  // a long body's head is where its plan seats it (a species' neckTop, the head carried forward of it), not its top: a
+  // wing, a horn or a crest can stand higher than the head
+  const J = sketch.manifest?.plan?.joints, nt = J?.neckTop, nb = J?.neckBase;
+  if (!upright && nt && nb) {
+    const d = [nt[0] - nb[0], nt[1] - nb[1]], n = Math.hypot(d[0], d[1]) || 1, f = [d[0] / n, d[1] / n];
+    const head = source.vertices.filter((v) => (v[0] - nt[0]) * f[0] + (v[1] - nt[1]) * f[1] >= 0 && Math.hypot(v[0] - nt[0], v[1] - nt[1], v[2] - nt[2]) < long * 0.3);
+    const inside = nt.every((c, k) => c >= lo[k] - 0.05 && c <= hi[k] + 0.05);
+    if (inside && head.length >= 8) bustTarget = [0, 1, 2].map((k) => head.reduce((a, v) => a + v[k], 0) / head.length);
+  }
   const shots = [
     // the figure: its height filling nine tenths of the frame (the lens's half-height at a distance d is d·SIZE/2FOCAL),
     // or a long body its length, seen three-quarters, aimed at the middle of its extent
@@ -136,7 +157,7 @@ export async function tableRpgPortraits(manifest, { paper = '#ffffff' } = {}) {
   // the foes that are characters: the cast's leaders, a foe rolled alone, one the module names
   for (const [id, F] of Object.entries(module.foes)) {
     if (!F.character) continue;
-    try { foes[id] = await shoot(F.character, paper, F.persona?.body); } catch (err) { missing.push({ foe: id, why: err.message.split('\n')[0] }); }
+    try { foes[id] = await shoot(F.character, paper, F.persona?.body ?? (F.beast ? 'beast' : undefined)); } catch (err) { missing.push({ foe: id, why: err.message.split('\n')[0] }); }
   }
   return { portraits, foes, missing };
 }

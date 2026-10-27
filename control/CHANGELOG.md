@@ -14,6 +14,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: the cast's beasts made game creatures by the mutagen
+
+- **The egocube cast carries an ooze**: a beast member (`body: 'beast'`) takes `ooze`, the mutagen's words, carried to
+  the animal door when it is made (`egocube/cast.js`, `egocube/kind.js`): the species made a game creature, its limbs
+  and rig its own. Absent, the animal as it was.
+- **The table game uses it**: a beast among the cast's leaders is a creature unless it says otherwise: its own `ooze`,
+  else `LEADER_OOZE` (the mastermind mythical, the lieutenant and the rival dire) with the cast's `ooze` theme over all;
+  a starter lends its building's (a crypt skeletal, a tomb zombie, a lab techno); `ooze: null` keeps the animal. Any
+  foe may be `beast: { species, ooze? }`, made on the animal door at mint, photographed over its stat block and said in
+  it ('a zombie rat'); the Sunken Chapel's grave rat is one (`table-rpg-cast.js`, `table-rpg-portraits.js`).
+- **A beast's bust at its head**: framed where its plan seats the head (forward of `neckTop`), not at its highest
+  point, which a wing or a horn can be.
+
+Machine gate: the cast and kind suites (an ooze refused off a beast and unknown; carried to the animal door's spec, none
+without), the factions suite (the part's fantasy, the theme, null, the starter's; a beast foe's words and its refusals),
+the door's (a wolf lieutenant made dire, its row carrying the ooze), and the live suite (a crypt's wolf mastermind
+mythical and skeletal, a zombie rat, each photographed). Eyes gate not run: the author looked at the bone wolf and the
+zombie rat; the operator has not.
+
 ### Table RPG: the cast's leaders made characters, human or not, photographed into the book
 
 - **Any body**: `cast.people: { <part>: { body?, species?, brief?, facets?, mascot? } }` says what a part of the cast

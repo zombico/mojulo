@@ -118,7 +118,9 @@ describe('create_game — a table game (table_rpg)', () => {
 
   it('the cast\'s leaders made characters whatever their bodies: a cast row, a body each by its member path, recorded on its foe', async () => {
     const out = await createGameHandler({ title: 'Wolf Hall', table_rpg: { starter: { use: 'keep' }, cast: { people: { lieutenant: { body: 'beast', species: 'wolf' } } }, party: [{ id: 'x', role: 'frontline' }] }, ref: 'tr_cast' });
-    expect(SketchRepository.getByRef('tr_cast-cast').manifest).toMatchObject({ kind: 'egocube', cast: { cast: { 'mastermind/lieutenant': { body: 'beast', species: 'wolf' } } } });
+    // the beast that serves is a game creature: dire, the mutagen's ooze carried to the animal door
+    expect(SketchRepository.getByRef('tr_cast-cast').manifest).toMatchObject({ kind: 'egocube', cast: { cast: { 'mastermind/lieutenant': { body: 'beast', species: 'wolf', ooze: 'dire' } } } });
+    expect(SketchRepository.getByRef('tr_cast-cast-lieutenant').manifest).toMatchObject({ ooze: { oozes: [{ id: 'dire' }] } });
     const stored = SketchRepository.getByRef('tr_cast').manifest.tableRpg.foes;
     expect(stored).toMatchObject({ castellan: { character: 'tr_cast-cast-mastermind' }, lieutenant: { character: 'tr_cast-cast-lieutenant' }, rival: { character: 'tr_cast-cast-rival' } });
     for (const r of ['mastermind', 'lieutenant', 'rival']) expect(SketchRepository.getByRef(`tr_cast-cast-${r}`)).toBeTruthy();

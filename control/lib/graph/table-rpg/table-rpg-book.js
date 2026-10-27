@@ -20,6 +20,7 @@ import { bookHtml, esc, heading, para, aside, keyed, facts, statBlock, rollTable
 import { readBookStyle } from '../book/book-style.js';
 import { rulesDigest, foeRows } from './table-rpg-module.js';
 import { roomNumbers, dungeonMapSvg, worldMapSvg, factionMapSvg } from './table-rpg-maps.js';
+import { beastWords } from './table-rpg-cast.js';
 import { tableTape, TABLE_RPG_FACULTIES, TABLE_RPG_STANDING, TABLE_RPG_TALK } from './table-rpg-kernel.js';
 
 export const BOOK_PARTS = Object.freeze(['title', 'running', 'world', 'dungeons', 'foes', 'factions', 'tables', 'party', 'tape', 'colophon']);
@@ -101,7 +102,7 @@ function dungeon(K, D) {
 }
 
 function foes(K, shots) {
-  return Object.entries(K.foes).map(([id, F]) => (shots[id]?.bust && !F.faction ? `<img class="foe-bust" src="${esc(shots[id].bust)}" alt="${esc(F.name ?? id)}">` : '') + statBlock(cap(F.name ?? words(id)), foeRows(K, id), { note: `rank ${F.rank}${F.faction ? `, ${K.factions[F.faction].name}` : ''}${F.text ? `: ${F.text}` : ''}` })).join('');
+  return Object.entries(K.foes).map(([id, F]) => (shots[id]?.bust && !F.faction ? `<img class="foe-bust" src="${esc(shots[id].bust)}" alt="${esc(F.name ?? id)}">` : '') + statBlock(cap(F.name ?? words(id)), foeRows(K, id), { note: `rank ${F.rank}${F.faction ? `, ${K.factions[F.faction].name}` : ''}${F.text ? `: ${F.text}` : ''}${F.beast ? ` (${beastWords(F.beast)})` : ''}` })).join('');
 }
 
 const ear = (F) => [F.heeds?.length ? `heeds ${list(F.heeds.map((t) => `a ${t === 'threaten' ? 'threat' : t}`))}` : null, F.scorns?.length ? `scorns ${list(F.scorns.map((t) => `a ${t === 'threaten' ? 'threat' : t}`))}` : null].filter(Boolean).join('; ');

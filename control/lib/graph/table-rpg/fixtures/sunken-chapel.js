@@ -55,7 +55,7 @@ export const SUNKEN_CHAPEL = Object.freeze({
     },
   },
   foes: {
-    'grave-rat': { name: 'Grave Rat', rank: 1, text: 'fat, pale and bold' },
+    'grave-rat': { name: 'Grave Rat', rank: 1, text: 'fat, pale and bold', beast: { species: 'rat', ooze: 'zombie' } },
     footpad: { name: 'Footpad', rank: 1, text: 'a knife and a hungry look' },
     ghoul: { name: 'Ghoul', rank: 2, text: 'grey skin and long nails' },
     'barrow-wight': { name: 'Barrow Wight', rank: 3, text: 'a crowned corpse that rises from its bier' },

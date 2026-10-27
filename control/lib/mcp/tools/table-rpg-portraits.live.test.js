@@ -32,15 +32,18 @@ describe('the party photographed', () => {
     expect((await tableRpgPortraits(bare)).missing[0]).toMatchObject({ id: 'x' });
   }, 300000);
 
-  it('the cast\'s leaders, human and not: a beast-kin, a beast and a mascot each photographed, the bust at its head', async () => {
+  it('the cast\'s leaders, human and not: a beast-kin, a beast made a creature, a mascot, and a beast foe, each photographed', async () => {
     if (!browser) return;
-    const people = { mastermind: { body: 'beastkin' }, lieutenant: { body: 'beast', species: 'wolf' }, rival: { body: 'mascot' } };
-    const out = await createGameHandler({ title: 'Held', table_rpg: { starter: { use: 'keep' }, cast: { people }, party: [{ id: 'x', role: 'frontline' }] }, ref: 'pt_cast' });
+    // in a crypt: the wolf that leads is mythical and of bone (its part's fantasy and the building's), the rat a zombie
+    const people = { mastermind: { body: 'beast', species: 'wolf' }, lieutenant: { body: 'beastkin' }, rival: { body: 'mascot' } };
+    const rat = { name: 'Grave Rat', rank: 1, beast: { species: 'rat', ooze: 'zombie' } };
+    const out = await createGameHandler({ title: 'Held', table_rpg: { starter: { use: 'crypt' }, cast: { people }, foes: { rat }, party: [{ id: 'x', role: 'frontline' }] }, ref: 'pt_cast' });
+    expect(SketchRepository.getByRef('pt_cast-cast').manifest.cast.cast.mastermind.ooze).toEqual(['mythical', 'skeletal']);
     expect(out.findings?.filter((f) => f.where === 'characters') ?? []).toEqual([]);
     const m = SketchRepository.getByRef('pt_cast').manifest;
     const { foes, missing } = await tableRpgPortraits(m, { paper: '#f0e6d2' });
     expect(missing.filter((x) => x.foe)).toEqual([]);
-    expect(Object.keys(foes).sort()).toEqual(['castellan', 'lieutenant', 'rival']);
+    expect(Object.keys(foes).sort()).toEqual(['barrow-lord', 'lieutenant', 'rat', 'rival']);
     for (const shot of Object.values(foes)) for (const k of ['figure', 'bust']) expect(shot[k].length).toBeGreaterThan(8000);
     if (process.env.TABLE_RPG_SHOTS) {
       const { writeFileSync } = await import('node:fs');

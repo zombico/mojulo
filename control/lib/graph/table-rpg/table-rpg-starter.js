@@ -22,6 +22,8 @@ const FOES_OF = {
   temple: ['Zealot', 'High Priest'], tavern: ['Thug', 'Boss'], guardhouse: ['Guard', 'Captain'], library: ['Living Book', 'Archivist'],
   lab: ['Escaped Experiment', 'Director'], tower: ['Sentry', 'Warden'],
 };
+// the fantasy a building lends the beasts of its cast (mutagen/oozes/)
+const OOZE_OF = { crypt: 'skeletal', tomb: 'zombie', lab: 'techno' };
 const cap = (s) => String(s).replace(/^./, (c) => c.toUpperCase());
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const words = (s) => String(s).replace(/[-_]/g, ' ');
@@ -73,9 +75,10 @@ export function withStarter(module) {
     delete rest.starter;
     out = { ...parts, ...rest };
     // a cast takes the starter's people: the boss leads it, the minions are its troops, the road's bandits the rival's
-    if (module.cast && !(module.cast !== true && module.cast.as)) {
-      const [minion, boss] = FOES_OF[S.use] ?? ['Prowler', 'Master'];
-      out.cast = { ...(module.cast === true ? {} : module.cast), as: { mastermind: slug(boss), troop: slug(minion), hand: 'bandit' } };
+    // and a beast of the cast takes the building's fantasy (a crypt's bone, a lab's machine)
+    if (module.cast) {
+      const [minion, boss] = FOES_OF[S.use] ?? ['Prowler', 'Master'], own = module.cast === true ? {} : module.cast;
+      out.cast = { ...own, ...(own.as ? {} : { as: { mastermind: slug(boss), troop: slug(minion), hand: 'bandit' } }), ...(own.ooze === undefined && OOZE_OF[S.use] ? { ooze: OOZE_OF[S.use] } : {}) };
     }
   }
   if (out.party === undefined) out = { ...out, party: STARTER_PARTY.map((role, i) => ({ id: `pc-${i + 1}`, egocube: { facets: { role } } })) };

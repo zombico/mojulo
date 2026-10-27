@@ -151,7 +151,13 @@ rival's (neutral), each the other's rival, every foe a persona (its reading, wha
 listens to comes from its mind: self-serving heeds a bribe and selfless scorns one; bound heeds a parley and scorns a
 threat; free heeds a threat and scorns a parley. `people: { <part>: { body, species?, … } }` says what a part is: a
 person (the default), a beast-kin (a lineage below the hero door), a beast (a real species) or a mascot, each a persona
-read from its body and its temperament. `as` lays the parts onto the module's own foes (with a starter, its
+read from its body and its temperament. A beast is a **game creature**, not a zoo animal: the mutagen's oozes
+(`mutagen/oozes/`: dire, mythical, skeletal, zombie, frost, fire, storm, venom, shadow, crystal, techno …) make the
+species over, its limbs and rig its own. A beast part takes its own `ooze`, or its part's fantasy (`LEADER_OOZE`: the
+mastermind mythical, the lieutenant and the rival dire) with the cast's `ooze` over all, its theme (a starter lends
+its building's: a crypt skeletal, a tomb zombie, a lab techno); `ooze: null` keeps the animal as it is. Any foe may be
+a beast of its own, `beast: { species, ooze? }` (the Sunken Chapel's grave rat is a zombie rat), made on the animal
+door at mint and photographed over its stat block. `as` lays the parts onto the module's own foes (with a starter, its
 boss, minions and road bandits take them unasked), and what the module writes wins. The mint's answer names the
 factions and their people and advises on any placed in no room and on no table; the book prints a Factions chapter
 (the party and the factions as a diagram, the talk and the standing ladder in the card's numbers, each faction's
@@ -163,7 +169,8 @@ member }` makes them: a person or a beast-kin on the hero and creature doors, a 
 creature. A foe rolled alone on the egocube is made as a party member is. Each is recorded on its foe (`character:
 <ref>`); a body the loop cannot make is advised, and the game goes on without it. The book photographs them as it does
 the party, framed by the body's own extent (a figure's height, a beast's length between its 2nd and 98th percentiles, so
-a tail does not shrink it; a mascot's bust its whole head): the leaders lined up in the Factions chapter, each bust in
+a tail does not shrink it; a beast's bust at its head where its plan seats it, past a wing or a horn that stands
+higher; a mascot's bust its whole head): the leaders lined up in the Factions chapter, each bust in
 its entry, a foe of no faction over its stat block.
 
 ## The game book

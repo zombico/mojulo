@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { tableCompile, tableStart, tableLegal, tableApply, tableAct, TABLE_RPG_STANDING } from './table-rpg-kernel.js';
 import { systemOf } from './table-rpg-systems.js';
-import { withCast, earOf, CAST_PARTS } from './table-rpg-cast.js';
+import { withCast, earOf, castRequestOf, beastWords, CAST_PARTS, CAST_PATH, LEADER_OOZE } from './table-rpg-cast.js';
 import { readModule, refereePacket } from './table-rpg-module.js';
 import { tableRpgBook } from './table-rpg-book.js';
 import { factionMapSvg } from './table-rpg-maps.js';
@@ -181,9 +181,29 @@ describe('the factions in print', () => {
   it('a part of any body: a beast, a mascot, a beast-kin each a persona from its body and its temperament', () => {
     const M = withCast({ seed: 5, foes: {}, cast: { people: { mastermind: { body: 'beast', species: 'wolf' }, lieutenant: { body: 'beastkin' }, rival: { body: 'mascot' } } } });
     expect(M.foes.mastermind.persona).toMatchObject({ body: 'beast', species: 'wolf' });
-    expect(M.foes.mastermind.persona.reads).toMatch(/^a wolf; /);
+    expect(M.foes.mastermind.persona.reads).toMatch(/^a mythical wolf; /);
     expect(M.foes.lieutenant.persona.reads).toMatch(/^a beast-kin, /);
     expect(M.foes.rival.persona.reads).toMatch(/^a mascot, /);
     expect(() => withCast({ foes: {}, cast: { people: { rival: { wings: true } } } })).toThrow(/cast.people.rival.wings is not a body word/);
+  });
+
+  it('a beast of the cast is a game creature by the mutagen\'s oozes: the part\'s own fantasy and the cast\'s theme; null the animal', () => {
+    const beast = (part, own = {}, ooze) => castRequestOf({ cast: { ...(ooze ? { ooze } : {}), people: { [part]: { body: 'beast', species: 'wolf', ...own } } } }).cast[CAST_PATH[part].slice('hero/'.length)];
+    expect(beast('mastermind').ooze).toBe(LEADER_OOZE.mastermind);
+    expect(beast('mastermind', {}, 'frost').ooze).toEqual([LEADER_OOZE.mastermind, 'frost']);
+    expect(beast('lieutenant', { ooze: null })).not.toHaveProperty('ooze');
+    expect(beast('rival', { ooze: { id: 'venom', strength: 0.5 } }).ooze).toEqual({ id: 'venom', strength: 0.5 });
+    // a person takes no ooze; a starter lends the building's fantasy to the cast's beasts
+    expect(castRequestOf({ cast: { ooze: 'frost' } }).cast.mastermind).not.toHaveProperty('ooze');
+    expect(readModule({ starter: { use: 'crypt' }, cast: true }).module.cast.ooze).toBe('skeletal');
+    expect(() => withCast({ foes: {}, cast: { ooze: 'slimy' } })).toThrow(/unknown ooze "slimy"/);
+  });
+
+  it('a foe that is a beast: a species made a creature, said in its stat block; a species or an ooze it cannot read refused', () => {
+    expect(beastWords({ species: 'fruitBat', ooze: ['shadow', 'dire'] })).toBe('a shadow, dire fruit bat');
+    const { K } = readModule(SUNKEN_CHAPEL);
+    expect(tableRpgBook(K).html).toContain('(a zombie rat)');
+    expect(() => readModule({ ...SUNKEN_CHAPEL, foes: { ...SUNKEN_CHAPEL.foes, footpad: { rank: 1, beast: { species: 'dragon' } } } })).toThrow(/beast is \{ species: <a fauna species/);
+    expect(() => readModule({ ...SUNKEN_CHAPEL, foes: { ...SUNKEN_CHAPEL.foes, footpad: { rank: 1, beast: { species: 'rat', ooze: 'slimy' } } } })).toThrow(/unknown ooze/);
   });
 });
