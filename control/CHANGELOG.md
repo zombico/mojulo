@@ -25,7 +25,35 @@ fights through. A **foe class** says how a hostile thing moves, how it attacks, 
 motivation and aggressiveness, with rank and skill applied on top) and what body it needs (measured from the body, never
 authored). It names no species, skin or clip, so a goomba and a level-one foot soldier are one class dressed two ways.
 Rank is not a class: any class can be a minion or a boss. Non-human foes come first, and the dressing layer (skins
-through the character designer, clips fitted to the class's timing, factions) is later work. Nothing has landed yet.
+through the character designer, clips fitted to the class's timing, factions) is later work.
+
+- **The shelf** (`lib/graph/foes/`). A class is a row (`classes/<id>.js`), checked as it loads against the vocabulary
+  (`vocab.js`):
+  - MOVES: hold, pace, chase, hop, drift, dive, rush, lurk, swarm.
+  - ATTACKS: contact, strike, shot, lob, spray, charge, none, each strike timed in the action lab's words (startup is
+    the telegraph).
+  - A stomp's effect: blow, hurts or bounce.
+  - PACES: speed as a share of the hero's run.
+
+  There are ten classes: walker, hopper, charger, swooper, turret, lobber, swarm, lurker, brute and stalker. Each names
+  the bodies it fits (support, size class, gaits, wings), measured from a fauna species (`fit.js`), and a stand-in
+  species it plays on until it is skinned. `resolveFoe({ class, rank?, skill?, skin? })` (`resolve.js`) gives:
+  - the controllable `ai` entity it plays as;
+  - the mind resolved on that entity (`mind/resolve.js`), so the mind reports an attack the body cannot carry out;
+  - its toll in the hero's frame (hp from its downs × the rank's × a blow, damage from its harm × a hit). Every rank
+    lands on the mind's typical health, so no resolved foe draws the mind's advisory.
+
+  A skin that does not fit is refused, with the reason.
+- **The Mind facet's `foes` setting** (`cosmos/facets/mind.js`, read by `foes/cosmos.js`). Each class is a value.
+  Its status and its Godot and Roblox marks are found from its move and its attack, never written by hand. Built
+  today: turret, lobber, brute and stalker. Partial: lurker. Absent: walker, hopper, charger, swooper and swarm, each
+  waiting on the touch, the pace, the hop, the dive or the charge. Those gaps are the `hostile-encounters` package (L).
+  On the regenerated hill-climb page it lifts 41 of 500 rolled worlds, the most of any package. The rest of the page
+  moved because a new setting changes the rolls.
+
+  Machine gate: the laws (one class per procedure: a blade, a weapon, no verb yet, a pack, a flier, rank, pace, fit)
+  and the deep sweep (every class at every rank on its stand-in, every class against the fauna roster) pass, as do the
+  registry and sweep suites. Nothing reaches a world yet, so no pin moved. Eyes gate: nothing to see.
 
 ### Carved glyphs: the letter primitive grows up
 
