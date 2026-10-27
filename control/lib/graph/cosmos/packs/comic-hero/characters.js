@@ -11,6 +11,11 @@
  *                                            `era` a costume era (costumes.js); the look's stop suggests one (ERA_OF_STOP)
  *                                            `ensemble` the body that answers the head (ensembles.js) in place of the
  *                                            costume: an ensemble id, or 'auto' for the one the headgear calls for (HARMONY)
+ *                                            `accessories` accessory cards worn over the dress (accessories.js)
+ *                                            `items` item cards in the gear's slots (items.js), or 'signature' for the
+ *                                            member's own (cast.js `items`); `swing` stands the hero in a swing: true for
+ *                                            the word the first item card suits, or a swing word. None of the three ⇒
+ *                                            the orders exactly as without them
  *   bodyOf(lookId)                           → 'tiered' | 'realistic' (the look's stop's body, looks.js DIAL)
  */
 import { rollEgocube } from '../../../egocube/egocube.js';
@@ -20,6 +25,8 @@ import { SUIT_KEYS } from './suits.js';
 import { costumeOf, ERA_OF_STOP, ERAS } from './costumes.js';
 import { withPieces } from './pieces.js';
 import { withHeadgear } from './headgear.js';
+import { withAccessories } from './accessories.js';
+import { withItems, swingOf } from './items.js';
 import { ensembleOf, HARMONY, SKIN_TONE } from './ensembles.js';
 import { lookOf, DIAL } from './looks.js';
 
@@ -33,7 +40,7 @@ export function rollMember(id, { seed = 1, pole } = {}) {
 // the body words the realistic form refuses (layered.js realisticErrors): addressed on the stylized body's rings
 const STYLIZED_ONLY = ['detail', 'body', 'girth', 'paint'];
 
-export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = [], headgear = null, ensemble = null } = {}) {
+export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = [], headgear = null, ensemble = null, accessories = [], items = [], swing = null } = {}) {
   const m = castMember(id), L = lookOf(lookId), body = bodyOf(lookId), sheet = rollMember(id, { seed, pole });
   const era = eraIn ?? ERA_OF_STOP[L.stop];
   if (!ERAS[era]) throw new Error(`comic-hero: no era '${era}' (known: ${Object.keys(ERAS).join(', ')})`);
@@ -45,7 +52,7 @@ export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = 
   const eid = ensemble === 'auto' ? HARMONY[headgear] : ensemble;
   if (ensemble && !eid) throw new Error(`comic-hero: no ensemble answers the headgear '${headgear}' (HARMONY names: ${Object.keys(HARMONY).join(', ')})`);
   if (eid && body !== 'tiered') throw new Error(`comic-hero: ensembles dress the tiered body (the look '${lookId}' is ${body})`);
-  const { palette: suitPalette, ...dress } = withPieces(eid ? ensembleOf(eid, headgear) : costumeOf(m.suit, era, body), pieces);
+  const { palette: suitPalette, ...dress } = withAccessories(withPieces(eid ? ensembleOf(eid, headgear) : costumeOf(m.suit, era, body), pieces), accessories, body);
   Object.assign(spec, dress);
   spec.palette = { ...(spec.palette || {}), ...suitPalette };
   // (a group an ensemble leaves bare takes the figure's skin: the gladiator's chest)
@@ -55,6 +62,14 @@ export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = 
   // (the headgear worn over a COPY: a card returns a new spec, no card the one it was given)
   const worn = withHeadgear({ ...spec }, body, headgear);
   for (const k of Object.keys(spec)) delete spec[k]; Object.assign(spec, worn);
+  // (the items in their slots, and a swing to stand in: absent ⇒ no `gear` key and the member's own gesture)
+  const itemIds = items === 'signature' ? (m.items || []) : items == null ? [] : Array.isArray(items) ? items : [items];
+  if (itemIds.length) spec.gear = withItems(spec, itemIds, body).gear;
+  if (swing) {
+    const word = swing === true ? swingOf(itemIds) : swing;
+    if (!word) throw new Error(`comic-hero: no item card worn names a swing (items: ${itemIds.join(', ') || 'none'})`);
+    spec.gesture = word;
+  }
   // `vibe` is the hero door's own key (layered.js HERO_DOOR_KEYS) and rides INSIDE `spec`: mint_solid hands its handler
   // the spec alone (mint-solid.js mergeTop), so a key beside it is dropped without a word. No `toon`: never cel shaded
   delete spec.toon;
