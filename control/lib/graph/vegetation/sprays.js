@@ -22,6 +22,10 @@
 // two-ranked frond, pine's whorl of bare shoots each ending in a burst of long needles). Clump: a fir's or a spruce's
 // drooping pad along its branch, its rim toothed (facing +z, its branch along +x), a pine's spiky tuft (facing +z).
 //   needleHabit(species) → the habit's key, or null for a leaved tree
+//
+// A LEAF instead of a species (a bush's, form/bush-form.js: no grower, no row): { leafSize m, outline (SPRAY_LEAVES),
+// phyllo: 'spiral' | 'distichous' } or { needle: a HABIT key, scale (× the habit's shoot and pad) }; every builder here
+// takes one where it takes a species.
 // Deterministic from the seed (mulberry32).
 import { mulberry32, ARCHITECTURES } from './grow.js';
 import { SPECIES } from './species.js';
@@ -55,6 +59,7 @@ const leafArea = (tris) => tris.filter((t) => t.kind === 'leaf').reduce((a, { p:
 }, 0);
 /** A species' needle habit (conifer-mesh.js HABIT): a conifer's own, a needled broadleaf row's a silver fir's; null for leaves. */
 export function needleHabit(species) {
+  if (species && typeof species === 'object') return species.needle ?? null;
   const S = SPECIES[species]; if (!S) return null;
   if (S.kind === 'conifer') return S.conifer;
   return S.kind === 'tree' && ARCHITECTURES[S.arch] && ARCHITECTURES[S.arch].needles ? 'silverfir' : null;
@@ -119,9 +124,13 @@ function needleClump(h, seed) {
   }
   return { tris };
 }
+// (a leaf's needles at its own scale: a bush's shoots and pads smaller than a tree's)
+const scaled = (S, leaf) => (leaf && typeof leaf === 'object' && leaf.scale && leaf.scale !== 1 ? { ...S, tris: S.tris.map((t) => ({ ...t, p: t.p.map((q) => q.map((v) => v * leaf.scale)) })) } : S);
 const needleUnit = (h) => { const L = (CONIFERS[h] || CONIFERS.silverfir).leafSize; return L * L * 0.25; };
 
-const speciesOf = (species) => { const S = SPECIES[species]; if (!S || S.kind !== 'tree') throw new Error(`sprays: '${species}' is not a tree species`); return { S, A: { ...ARCHITECTURES[S.arch], ...(S.over || {}) }, O: SPRAY_LEAVES[leafOutline(species)] }; };
+const speciesOf = (species) => {
+  if (species && typeof species === 'object') return { S: { leafScale: 1 }, A: { leafSize: species.leafSize, phyllo: species.phyllo || 'spiral' }, O: SPRAY_LEAVES[species.outline] };
+  const S = SPECIES[species]; if (!S || S.kind !== 'tree') throw new Error(`sprays: '${species}' is not a tree species`); return { S, A: { ...ARCHITECTURES[S.arch], ...(S.over || {}) }, O: SPRAY_LEAVES[leafOutline(species)] }; };
 
 /** The leaf outlines: each a list of half-widths (× the leaf's length) at even steps from the petiole to the tip (each
  *  half-blade a fan from the petiole: two triangles a leaf per point), how far the blade folds up along its midrib (× the
@@ -143,6 +152,7 @@ export const SPRAY = Object.freeze({ twig: 2.4, angle: 52, droop: 0.25 });
 
 /** The outline a species' leaves take. */
 export function leafOutline(species) {
+  if (species && typeof species === 'object') return species.outline;
   if (species === 'oak') return 'lobed';
   const S = SPECIES[species]; const A = S && ARCHITECTURES[S.arch];
   return A && A.leafSize >= 0.14 ? 'broad' : 'ovate';
@@ -154,7 +164,7 @@ export function leafOutline(species) {
  * each on its petiole at SPRAY.angle off the twig, hanging a little.
  */
 export function leafSpray(species, { seed = 1, leaves = null, size = 1 } = {}) {
-  const nh = needleHabit(species); if (nh) return needleSpray(nh, seed);
+  const nh = needleHabit(species); if (nh) return scaled(needleSpray(nh, seed), species);
   const { S, A, O } = speciesOf(species), rng = mulberry32((seed * 2654435761 + 41) >>> 0);
   const L = A.leafSize * (S.leafScale || 1) * size, length = L * SPRAY.twig, tris = [];
   const twigC = TONES.shoot, tw = Math.max(0.003, L * 0.04);
@@ -176,7 +186,7 @@ export function leafSpray(species, { seed = 1, leaves = null, size = 1 } = {}) {
  * tilted off the clump's facing (+z) and turned round it, their petioles lifted a little off the centre: a cupped dome.
  */
 export function leafClump(species, { seed = 1 } = {}) {
-  const nh = needleHabit(species); if (nh) return needleClump(nh, seed);
+  const nh = needleHabit(species); if (nh) return scaled(needleClump(nh, seed), species);
   const { S, A, O } = speciesOf(species), rng = mulberry32((seed * 2654435761 + 97) >>> 0), L = A.leafSize * (S.leafScale || 1) * CLUMP.size, tris = [];
   for (let k = 0; k < CLUMP.leaves; k++) {
     const az = (k * 360 / CLUMP.leaves + (rng() - 0.5) * 40) * DEG, tilt = (CLUMP.tilt[0] + (CLUMP.tilt[1] - CLUMP.tilt[0]) * rng()) * DEG;

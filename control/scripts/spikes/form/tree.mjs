@@ -7,10 +7,13 @@
 // outside so the crown takes the sun as one volume, the light through a leaf a little fill in its shade, its tone the
 // crown's own shade (the grower's shadow grid) as occlusion. Far off the crown keeps fewer clumps, each grown to hold the
 // cover: never a ball, never a swap. `window.measure()` reads what is drawn. The look is the operator's.
+// The BUSHES (form/bush-form.js: a bush kind's habit, its stems and its clumps laid over its outline) on the same page,
+// by their leaf form (`--bushes`).
 //
-//   node scripts/spikes/form/tree.mjs [--out <file.html>] [--cdn] [--species oak,beech,cherry] [--seed 1234]
+//   node scripts/spikes/form/tree.mjs [--out <file.html>] [--cdn] [--species oak,beech,cherry] [--bushes spray,plate,…] [--seed 1234]
 import fs from 'node:fs';
 import { treeForm } from '../../../lib/graph/form/tree-form.js';
+import { bushForm, BUSH_HABITS } from '../../../lib/graph/form/bush-form.js';
 import { barkMaterial } from '../../../lib/graph/form/bark-material.js';
 import { leafSpray, leafClump } from '../../../lib/graph/vegetation/sprays.js';
 import { encodePng } from '../../../lib/graph/landscape/surface-textures.js';
@@ -18,7 +21,8 @@ import { CDN_IMPORTMAP, inlineImportmap } from '../../../lib/graph/scene/emit-ut
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = arg('--out', 'tree.html'), cdn = process.argv.includes('--cdn'), seed = Number(arg('--seed', 1234));
-const species = arg('--species', 'oak,beech,cherry,spruce,silverfir,pine,fir,schefflera').split(',');
+const species = arg('--species', 'oak,beech,cherry,spruce,silverfir,pine,fir,schefflera').split(',').filter(Boolean);
+const bushes = arg('--bushes', Object.keys(BUSH_HABITS).join(',')).split(',').filter(Boolean);
 const SPRAYS = 3, CLUMPS = 3;
 /** Far off: the share of clumps kept at a distance (m), the kept ones grown to hold the cover; near: where the sprays come
  *  in (m: whole within the first, none past the second), the clumps drawn in to `draw` where they are whole. */
@@ -26,12 +30,12 @@ const LOD = { near: 25, far: 90, keep: 0.35, grow: 1.7, detail: [6, 16], draw: 0
 
 const lin = (c) => c.map((v) => { v /= 255; return Math.round((v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
 const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
-const trees = species.map((sp) => {
-  const T = treeForm(sp, { seed }), B = barkMaterial(T.bark);
+const trees = [...species, ...bushes.map((f) => `bush:${f}`)].map((sp) => {
+  const bush = sp.startsWith('bush:'), T = bush ? bushForm(sp.slice(5), { seed }) : treeForm(sp, { seed }), B = barkMaterial(T.bark), lf = bush ? T.leaf : sp;
   const geo = (S) => ({ p: S.tris.flatMap((t) => t.p.flat().map((v) => Math.round(v * 1e4) / 1e4)), c: S.tris.flatMap((t) => { const c = lin(t.c); return [...c, ...c, ...c]; }), tris: S.tris.length });
-  const sprays = Array.from({ length: SPRAYS }, (_, k) => geo(leafSpray(sp, { seed: seed * 31 + k })));
-  const clumps = Array.from({ length: CLUMPS }, (_, k) => geo(leafClump(sp, { seed: seed * 17 + k })));
-  return { species: sp, height: T.height, wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
+  const sprays = Array.from({ length: SPRAYS }, (_, k) => geo(leafSpray(lf, { seed: seed * 31 + k })));
+  const clumps = Array.from({ length: CLUMPS }, (_, k) => geo(leafClump(lf, { seed: seed * 17 + k })));
+  return { species: sp, height: T.height, ...(T.detail ? { detail: T.detail } : {}), wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
     bark: { metres: B.metres, depth: B.depth, base: png(B.baseColor, B.W, B.H), normal: png(B.normal, B.W, B.H), orm: png(B.orm, B.W, B.H), height: png(B.height, B.W, B.H) } };
 });
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -119,7 +123,7 @@ function build(T) {
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(G.p, 3)); sg.setAttribute('color', new THREE.Float32BufferAttribute(G.c, 3)); sg.computeVertexNormals();
     const out = new Float32Array(list.length * 3);
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
-    const U = { uGrow: { value: 1 }, uEye: { value: new THREE.Vector3() }, uDetail: { value: new THREE.Vector3(LOD.detail[0], LOD.detail[1], LOD.draw) }, uSpray: { value: kind === 'spray' ? 1 : 0 } };
+    const U = { uGrow: { value: 1 }, uEye: { value: new THREE.Vector3() }, uDetail: { value: new THREE.Vector3((T.detail || LOD.detail)[0], (T.detail || LOD.detail)[1], LOD.draw) }, uSpray: { value: kind === 'spray' ? 1 : 0 } };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U);
       sh.vertexShader = 'attribute vec3 aOut;\\nuniform float uGrow, uSpray;\\nuniform vec3 uEye, uDetail;\\nvarying float vFade;\\n' + sh.vertexShader
@@ -166,21 +170,22 @@ const built = {};
 function show(sp) {
   if (current) scene.remove(current.group);
   current = built[sp] || (built[sp] = build(TREES.find((t) => t.species === sp))); scene.add(current.group);
-  const H = current.T.height; sun.shadow.camera.left = sun.shadow.camera.bottom = -H; sun.shadow.camera.right = sun.shadow.camera.top = H; sun.shadow.camera.far = H * 6; sun.shadow.camera.updateProjectionMatrix();
+  const H = Math.max(2, current.T.height); sun.shadow.camera.left = sun.shadow.camera.bottom = -H; sun.shadow.camera.right = sun.shadow.camera.top = H; sun.shadow.camera.far = H * 6; sun.shadow.camera.updateProjectionMatrix();
   for (const b of document.querySelectorAll('#sp button')) b.setAttribute('aria-pressed', String(b.dataset.s === sp));
   aimSun(); view(lastView);
 }
 let lastView = 'near';
 function view(c) {
   lastView = c; const H = current.T.height, C = current.centre;
-  const at = { near: [H * 0.9, -H * 0.55, 1.7], mid: [H * 2.2, -H * 1.3, H * 0.4], far: [70, -45, 6], bark: [1.1, -0.9, 1.4] }[c];
-  const look = c === 'bark' ? [0, 0, 1.3] : c === 'near' ? [C[0], C[1], H * 0.45] : [C[0], C[1], H * 0.5];
+  // (a bush: near at a walker's arm, mid a few steps off, far across a glade; its stems' bark at its foot)
+  const B = H < 4, at = B ? { near: [H * 1.3, -H * 0.9, 1.5], mid: [H * 3.2, -H * 2.2, 1.6], far: [24, -16, 2.5], bark: [0.5, -0.4, 0.35] }[c] : { near: [H * 0.9, -H * 0.55, 1.7], mid: [H * 2.2, -H * 1.3, H * 0.4], far: [70, -45, 6], bark: [1.1, -0.9, 1.4] }[c];
+  const look = c === 'bark' ? [0, 0, B ? 0.15 : 1.3] : c === 'near' ? [C[0], C[1], H * 0.45] : [C[0], C[1], H * 0.5];
   camera.position.set(...at); controls.target.set(...look); controls.update();
   for (const b of document.querySelectorAll('#cam button')) b.setAttribute('aria-pressed', String(b.dataset.c === c));
 }
 function aimSun() {
   const a = (+document.getElementById('sun').value * Math.PI) / 180, H = current ? current.T.height : 10;
-  sun.position.set(Math.cos(a) * H * 2.5, Math.sin(a) * H * 2.5, H * 2.2); sun.target.position.set(0, 0, H * 0.4);
+  const D = Math.max(H, 4); sun.position.set(Math.cos(a) * D * 2.5, Math.sin(a) * D * 2.5, D * 2.2); sun.target.position.set(0, 0, H * 0.4);
 }
 for (const t of TREES) { const b = document.createElement('button'); b.textContent = t.species; b.dataset.s = t.species; b.onclick = () => show(t.species); document.getElementById('sp').appendChild(b); }
 for (const b of document.querySelectorAll('#cam button')) b.onclick = () => view(b.dataset.c);
@@ -194,7 +199,7 @@ function lod() {
   const keep = d <= LOD.near ? 1 : Math.max(LOD.keep, 1 - (1 - LOD.keep) * Math.min(1, (d - LOD.near) / (LOD.far - LOD.near)));
   let tris = 0; for (const L of current.leaves) { L.im.count = Math.max(1, Math.round(L.n * keep)); L.U.uGrow.value = Math.min(LOD.grow, 1 / Math.sqrt(keep)); L.U.uEye.value.copy(camera.position); tris += L.im.count * L.tris; }
   // (the sprays drawn: those near enough to have come in)
-  let near = 0; for (const S of current.sprays) { S.U.uEye.value.copy(camera.position); for (const s of S.list) if (camera.position.distanceTo(new THREE.Vector3(...s.p)) < LOD.detail[1]) { near++; tris += S.tris; } }
+  let near = 0; for (const S of current.sprays) { S.U.uEye.value.copy(camera.position); for (const s of S.list) if (camera.position.distanceTo(new THREE.Vector3(...s.p)) < (current.T.detail || LOD.detail)[1]) { near++; tris += S.tris; } }
   return { keep, leafTris: tris, sprays: near };
 }
 let stat = {};

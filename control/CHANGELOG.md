@@ -1355,6 +1355,16 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   lying along their branches, a pine's spiky tufts; clumps on finer cells (a conifer's crown is narrow) and a fuller fill.
   A needled broadleaf row (the fir) takes the conifers' rules; an evergreen broadleaf (the umbrella tree) and the figs
   (their own rows, vegetation/ficus.js) the trees'. The spruce draws 5.6k needle triangles at mid, the pine 6.9k.
+- **Gen-7 bushes, first look** (`form/bush-form.js`, on the tree page: `scripts/spikes/form/tree.mjs --bushes`). A bush kind
+  (era/thickets.js: a leaf form with the trunk taken away) drawn from the trees' parts, no grower: a few thin stems from
+  its foot as tubes (form/tree-form.js pushTube, lifted out of the tree's wood), its foliage the trees' clumps laid over the
+  outline its habit draws, a layer inside for depth, and its sprays coming in inside them close by (3 to 8 m: a bush is
+  small and stands by the walk). Each leaf form a habit (BUSH_HABITS): a dome of small leaves (box, laurel), a low wide
+  mound of needle pads (juniper), arches from the foot with leaves along their outer half (forsythia), a vase of upright
+  stems with spiky brushes (broom, heather), long leaves in rings from the ground (hosta, fern), a small cone (a dwarf
+  conifer). The sprays take a bush's LEAF where they took a species (`vegetation/sprays.js`: its size, outline and
+  phyllotaxis, or a needle habit at a bush's scale); a tree's sprays, clumps and form are as they were. A bush's clumps
+  draw 0.2k to 2.2k triangles; far, its outline from clumps alone.
 - **The trunks stand in the wind.** The live wind (scene/channels/stage-grass.js CROWNS) bent a tree's wood by its height
   alone, so a trunk bowed with its crown. Each built tree's stems now ship with the crowns (`liveGrass.crowns.trunks`,
   era/isekai.js trunkSway: foot to top with their radii, a sakura's too) and the page weighs every wood vertex by how far

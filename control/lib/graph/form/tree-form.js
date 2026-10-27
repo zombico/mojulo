@@ -58,7 +58,30 @@ export const TREE_FORM = Object.freeze({ minDiameter: 0.06, ring: 6, ringMin: 0.
   mature: Object.freeze({ toHeight: 0.95, range: Object.freeze([1, 2]), cambium: 2.2 }) });
 const sidesOf = (r) => (r > 0.15 ? 14 : r > 0.06 ? 10 : r > 0.025 ? 7 : 5);
 
-function hashN(n) { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; }
+/** One axis as a tube into W ({ pos, nrm, uv, idx }): `k` sides, rings parallel-transported along `pts` with radii `rs`,
+ *  its normals the rings' own outward directions, its bark's coordinates in tiles (round it the count its base girth
+ *  asks, up it its arc length); `tip`: the last ring drawn in to a point's third (an axis that ends). */
+export function pushTube(W, pts, rs, k, tip) {
+  const { pos, nrm, uv, idx } = W, m = pts.length, around = Math.max(1, Math.round((2 * Math.PI * rs[0]) / BARK_TILE_M));
+  const T = pts.map((_, i) => unit(sub(pts[Math.min(m - 1, i + 1)], pts[Math.max(0, i - 1)])));
+  let N = Math.abs(T[0][2]) < 0.9 ? unit(cross([0, 0, 1], T[0])) : unit(cross([1, 0, 0], T[0])), s = 0;
+  const base = pos.length / 3;
+  for (let i = 0; i < m; i++) {
+    N = unit(sub(N, mul(T[i], dot(N, T[i])))); if (len(N) < 1e-6) N = unit(cross([0, 0, 1], T[i]));
+    const B = cross(T[i], N); if (i > 0) s += len(sub(pts[i], pts[i - 1]));
+    const r = i === m - 1 && tip ? rs[i] * 0.3 : rs[i];
+    for (let j = 0; j <= k; j++) {
+      const a = (2 * Math.PI * j) / k, o = add(mul(N, dmath.cos(a)), mul(B, dmath.sin(a)));
+      pos.push(...add(pts[i], mul(o, r)).map(r4)); nrm.push(...o.map(r4)); uv.push(r4((j / k) * around), r4(s / BARK_TILE_M));
+    }
+  }
+  for (let i = 0; i < m - 1; i++) for (let j = 0; j < k; j++) {
+    const a = base + i * (k + 1) + j, b = a + k + 1;
+    idx.push(a, a + 1, b + 1, a, b + 1, b);
+  }
+}
+
+export function hashN(n) { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; }
 
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
@@ -88,24 +111,8 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
     // (a conifer's slender limbs: rings far apart, four sides: each only carries its pads)
     const ringMin = needles ? TREE_FORM.conifer.ringMin : TREE_FORM.ringMin;
     for (let i = 1; i < ch.pts.length; i++) { acc += len(sub(ch.pts[i], ch.pts[i - 1])); if (i === ch.pts.length - 1 || acc >= Math.max(ringMin, TREE_FORM.ring * ch.rs[i])) { keep.push(i); acc = 0; } }
-    const pts = keep.map((i) => ch.pts[i]), rs = keep.map((i) => ch.rs[i]), m = pts.length, k = needles && rs[0] < thinR ? TREE_FORM.conifer.thinSides : sidesOf(rs[0]), around = Math.max(1, Math.round((2 * Math.PI * rs[0]) / BARK_TILE_M));
-    const T = pts.map((_, i) => unit(sub(pts[Math.min(m - 1, i + 1)], pts[Math.max(0, i - 1)])));
-    let N = Math.abs(T[0][2]) < 0.9 ? unit(cross([0, 0, 1], T[0])) : unit(cross([1, 0, 0], T[0])), s = 0;
-    const base = pos.length / 3;
-    for (let i = 0; i < m; i++) {
-      N = unit(sub(N, mul(T[i], dot(N, T[i])))); if (len(N) < 1e-6) N = unit(cross([0, 0, 1], T[i]));
-      const B = cross(T[i], N); if (i > 0) s += len(sub(pts[i], pts[i - 1]));
-      // (the last ring of an axis that ends draws in to its tip)
-      const r = i === m - 1 && !ch.continues ? rs[i] * 0.3 : rs[i];
-      for (let j = 0; j <= k; j++) {
-        const a = (2 * Math.PI * j) / k, o = add(mul(N, dmath.cos(a)), mul(B, dmath.sin(a)));
-        pos.push(...add(pts[i], mul(o, r)).map(r4)); nrm.push(...o.map(r4)); uv.push(r4((j / k) * around), r4(s / BARK_TILE_M));
-      }
-    }
-    for (let i = 0; i < m - 1; i++) for (let j = 0; j < k; j++) {
-      const a = base + i * (k + 1) + j, b = a + k + 1;
-      idx.push(a, a + 1, b + 1, a, b + 1, b);
-    }
+    const pts = keep.map((i) => ch.pts[i]), rs = keep.map((i) => ch.rs[i]), k = needles && rs[0] < thinR ? TREE_FORM.conifer.thinSides : sidesOf(rs[0]);
+    pushTube({ pos, nrm, uv, idx }, pts, rs, k, !ch.continues);
   }
   // the clumps and the sites: the leafy shoots gathered into cells a clump wide and a spray long, each facing out of the
   // crown, each scaled to hold its cell's leaves
