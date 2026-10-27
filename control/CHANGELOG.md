@@ -14,6 +14,42 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: a pen-and-paper game played in text first
+
+A tabletop role-playing game as a recipe, the concept layer: a module (a system, a party rolled from it, a world, its
+dungeons, foes, items, tables, beats and a goal) played fully in text, every die rolled in the open, before any page
+or picture. The map, the research behind it and what each part is composed from: [docs/table-rpg.md](../docs/table-rpg.md).
+No MCP surface changes in this theme; the game type it becomes is a quick goal of `design_game`, the next step.
+
+- **The book systems as data** (`lib/graph/table-rpg/table-rpg-systems.js`): each a resolution procedure (a d20
+  against a DC, a d20 rolled under, 2d6 in bands, four fudge dice on the ladder, d100 under a score, an action die
+  against two challenge dice), with its abilities, generation methods (rolled in order, rolled and placed by the class,
+  an array, points bought), modifiers, hit points, foe ranks, progression and classes. Mechanics in mojulo's own
+  words; the cards from the SRD 5.2, Fate Core and Ironsworn carry their Creative Commons attributions, also in
+  `NOTICE`.
+- **The kernel** (`table-rpg-kernel.js`): one closure a page can emit by `toString()` (held equal by a test), pure and
+  seeded. Dice notation (NdS, d%, dF, keep and drop, exploding), every procedure read as one band, character sheets
+  on their own stream per member, the point-crawl world and its days of road, dungeon rooms and links (locked, secret,
+  one way, forced), traps, searches, fights (the system's initiative; foes that roll, or players who roll every die and
+  take harm on the bands the system says cost), experience, marks on a miss or milestones, rests, tables, a yes/no
+  oracle and a dice tape. `legal` / `parse` / `apply` give a typed game its moves; the command list is the save.
+- **Portable words**: a module names a faculty, a difficulty word, a foe's rank and a member's role, and the system
+  says each in its own numbers, so one scenario plays under every system. The test module (`fixtures/sunken-chapel.js`:
+  a village, a road, a chapel with a loop, a lock and its key, a hidden way, a trap, a wandering table) is played to
+  its goal under each procedure.
+- **Composed with the rest of mojulo**: a member's persona from the egocube (the sheet `create_character { egocube }`
+  draws a body from), the party lowered to the live RPG's `play.rpg` and fought by its battle kernel
+  (`table-rpg-party.js`), a dungeon drawn from a building's program (`table-rpg-program.js`), the world lowered to the
+  epoch map (`table-rpg-world.js`), a dungeon read for whether it plays (`table-rpg-dungeon.js`: reach with keys, a
+  key behind its own lock, a lock with no key, the goal, the way back, loops and dead ends, advisory), and the referee
+  packet an agent runs a game from in prose (`table-rpg-module.js`).
+- **`scripts/table-rpg.mjs`**: the module at a terminal prompt, its referee packet, or a command list's transcript.
+
+Machine gate: the table RPG suites (the dice, each generation method, each procedure's bands, the whole module under
+each procedure, the closure against the live copy, the dungeon findings on sound and broken graphs, a program's
+dungeon per plan shape, the epoch map through `readMapSpec`, the live party through `readRpg` and a round of the
+battle kernel). Eyes gate not run: the author read the transcripts and the packet under every system.
+
 ### Carved glyphs: the letter primitive grows up
 
 The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
