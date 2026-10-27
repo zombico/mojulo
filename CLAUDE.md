@@ -197,9 +197,11 @@ Pointers only; each target carries its own design notes.
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+- Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
+  one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
   generic starter each and no published game, portable words, the kernel a page emits; composed with the egocube, the
-  live RPG, programs and the epoch map): [docs/table-rpg.md](docs/table-rpg.md); play it with
+  live RPG, programs and the epoch map; its game book on the press): [docs/table-rpg.md](docs/table-rpg.md); play it with
   `node scripts/table-rpg.mjs`. "Tabletop" is the board-game type.
 - Fractal structures: [fractal-structure/](control/lib/graph/fractal-structure/) (towers from a plan, a rise, a crown and
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).

@@ -15,6 +15,7 @@ node scripts/table-rpg.mjs                       # the bundled test module, the 
 node scripts/table-rpg.mjs --system bands        # the same module under another procedure
 node scripts/table-rpg.mjs --packet              # the referee packet an agent runs the game from
 node scripts/table-rpg.mjs --commands 'travel standing-stones; look; roll 3d6'
+node scripts/table-rpg.mjs --book out.html --pdf out.pdf --style zine   # the game book, and its print
 ```
 
 ## Layers
@@ -22,6 +23,7 @@ node scripts/table-rpg.mjs --commands 'travel standing-stones; look; roll 3d6'
 | Layer | What it is | Where |
 |---|---|---|
 | Concept (built) | the kernel: dice, resolution, sheets, the world, dungeons, fights, tables, the oracle, the transcript | `table-rpg-kernel.js` |
+| Game book (built) | the module as a book in a style, printed to PDF: maps, keyed rooms, stat blocks, roll tables, sheets | `table-rpg-book.js`, `table-rpg-maps.js`, the press ([books.md](books.md)) |
 | Game type (next) | one more game on the game rail, a quick goal of `design_game`: no new MCP tool | below, "Exposure" |
 | Text page (next) | the kernel's closure emitted into a console page (transcript and a command line) | the tabletop kernel's `toString()` discipline |
 | UI | the map, the sheets and a dice tray over the text page | later |
@@ -129,6 +131,18 @@ the module's, rolled on the module's seed, one stream per member, so adding a me
 | Fights in 3D | the live RPG's encounters | a room's foes become `play.rpg` encounters; not built |
 | Board play at the table | the tabletop type (`tabletop/`) | separate: a board or card minigame inside a scenario stays a tabletop game |
 
+## The game book
+
+The book is the product a table game is used through, and the first game type with a direct use for PDF. The module
+is set by the press ([books.md](books.md)) in a style from its library (a look, a format, faces): a title page; how
+the rules run, in the card's own numbers, with the faculties and difficulties; the world, its point-crawl map and its
+places lettered; each dungeon, its flowchart map and its rooms keyed by the map's numbers (ways, doors, stairs, locks
+and their keys, hidden ways and the search that finds them, traps, foes, what fires on first entering); the foes as
+stat blocks; the tables; the party's sheets, a page each, as rolled; the dice tape; the colophon (a card's own
+attribution when it carries one). A one-sheet format keeps what the table needs in play (the title, the dungeons, the
+foes, the tables): the one-page adventure. The maps are drawn in the look's colours; a dungeon's numbers are its
+key's (`roomNumbers`), so the map and the text never disagree.
+
 ## Exposure: one game type, no new tool
 
 The game rail already makes a game whose characters are rolled sheets: `design_game`'s quick goal `fight` writes the
@@ -138,7 +152,8 @@ engine. The table RPG takes the same path:
 - `design_game({ quick: { goal: 'table-rpg', system?: <a starter's id or a card written out>, … the module } })`:
   the members' sheets (egocube), their bodies when asked for, the game row `{ kind: 'game', engine: 'table-rpg', title, tableRpg: <module> }`; the answer carries
   the referee packet. `quick` is an untyped object in the tool's schema, so the `tools/list` payload does not move.
-- The engine's branches beside the tabletop type's: the `update_sketch` gate, the play route, the export.
+- The engine's branches beside the tabletop type's: the `update_sketch` gate, the play route, the export; the game
+  book served beside the other books (the `/bible` route) and written by `export_game` with its PDF.
 - Cards: `get_game_vocab({ id: 'table-rpg' })` (a guide, the rules-card grammar with a starter per procedure, the
   dungeon and world grammar) and a routing card whose phrasings are pen-and-paper ones (game master, roll for stats,
   character sheet, one-shot, theatre of the mind), with collision rows against the live RPG.

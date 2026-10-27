@@ -11,6 +11,8 @@
  *     sheets and how each was rolled, the world, each dungeon's key room by room, the foes in the system's numbers, the
  *     tables, the goal; and a dice tape (`tape: n` rolls of the d20, d6, d10 and d100) so an agent referee rolls nothing
  *     it could choose
+ *   rulesDigest(card) → text   how the card's dice read, in a paragraph (the packet's and the book's)
+ *   foeRows(K, foe) → [[label, value]]   a foe's numbers as the card states them
  *   playScript(K, commands) → { S, lines }   a game from its opening through each command (the command list is the save:
  *     play state never needs to leave the table)
  *   TABLE_RPG_KEYS
@@ -54,7 +56,7 @@ export function playScript(K, commands = []) {
 }
 
 /** How the system's dice read, in a paragraph: what to roll for a check, a fight, a level. */
-function rulesDigest(sys) {
+export function rulesDigest(sys) {
   const D = sys.check.difficulty;
   const sgn = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
   const T = sys.check.trained;
@@ -72,6 +74,15 @@ function rulesDigest(sys) {
   const level = sys.progression.kind === 'xp' ? 'Defeated foes give experience; a level comes at each threshold.'
     : sys.progression.kind === 'misses' ? `Every miss marks experience; ${sys.progression.at} marks give a level.` : 'A level comes at the story\'s milestones.';
   return `${check} ${fight} ${level}`;
+}
+
+/** A foe's numbers as the card states them, [label, value] pairs: a stat block's lines. */
+export function foeRows(K, id) {
+  const sys = K.sys, st = K.foeStats(id);
+  if (sys.combat.defence === 'armour') return [['HP', st.hp], ['defence', st.defence], ['attack', `${st.attack >= 0 ? '+' : ''}${st.attack}`], ['damage', st.damage], ['XP', st.xp]];
+  if (sys.check.kind === 'shifts') return [['stress', st.hp], ['skill', `+${st.attack}`], ['defence', `+${st.defence}`]];
+  if (sys.combat.foesAct) return [['HP', st.hp], ['attack', `${st.attack}%`], ['damage', st.damage]];
+  return [['harm track', st.hp], ['deals', `${st.damage} harm`]];
 }
 
 export function refereePacket(K, { tape = 20 } = {}) {
@@ -106,10 +117,7 @@ export function refereePacket(K, { tape = 20 } = {}) {
   }
   out.push('', '## Foes', '');
   for (const [id, F] of Object.entries(K.foes)) {
-    const st = K.foeStats(id);
-    const said = sys.combat.defence === 'armour' ? `HP ${st.hp}, defence ${st.defence}, attack ${st.attack >= 0 ? '+' : ''}${st.attack}, damage ${st.damage}, ${st.xp} XP`
-      : sys.combat.foesAct ? `${sys.check.kind === 'shifts' ? 'stress' : 'HP'} ${st.hp}, ${sys.check.kind === 'shifts' ? `skill +${st.attack}, defence +${st.defence}` : `attack ${st.attack}%, damage ${st.damage}`}`
-        : `harm track ${st.hp}, deals ${st.damage} harm`;
+    const said = foeRows(K, id).map(([k, v]) => `${k} ${v}`).join(', ');
     out.push(`- **${F.name ?? words(id)}** (rank ${F.rank}${F.text ? `, ${F.text}` : ''}): ${said}.`);
   }
   if (Object.keys(K.tables).length) {

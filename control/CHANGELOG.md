@@ -14,6 +14,39 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Books: a press, a style library, and the game book printed to PDF
+
+A book mojulo makes is one self-contained page that reads on a screen and prints as a book, and headless Chromium
+prints it to PDF: the first PDF the export stack writes. The table RPG's game book is the first book on it. The map:
+[docs/books.md](../docs/books.md).
+
+- **The style library** (`lib/graph/book/book-style.js`): a style is a look (a presentation theme token, the words
+  decks and charts already use; recoloured by a `palette`), a format (one column held in the hand, two columns on a
+  full page, one landscape sheet in three panels, a form a page), a paper, and faces for text, titles and tables (font
+  shelf keys); presets compose them (`tome`, `zine`, `dossier`, `pamphlet`, `screen`). A dark look printed is advised
+  against, never refused.
+- **The press** (`book-press.js`): `@page` sets the paper, margins, running title and page numbers; text flows in the
+  format's columns; keyed entries, stat blocks, roll tables, boxed notes and figures stay whole across a break; the
+  faces the style uses are inlined as `@font-face`, only theirs (a style's page carries no other face's bytes). Pure.
+- **The printer** (`book-pdf.js`): `printPdf(html)` through `scene/chromium.js` (consent to fetch, never under the
+  plugin profile): the page's own paper, the colours printed, tagged, the headings as the outline.
+- **Faces on the shelf**: Crimson Text (a book's text), Courier Prime (its typewriter) and IM Fell English vendored
+  from google/fonts, unmodified, each beside its OFL text, in `fonts/LICENSES.md` and `NOTICE`; `fontFaceCss(key,
+  styles)` gives a book a vendored face. IM Fell English was already a shelf face falling back to the host's: a cover
+  naming `im-fell` (the novel cover's title) now carves in it everywhere, its letters changing once, to the face the
+  recipe always meant.
+- **The game book** (`lib/graph/table-rpg/table-rpg-book.js`, `table-rpg-maps.js`): a module as a book — the title
+  page, how the rules run in the card's numbers, the world and its point-crawl map, each dungeon's flowchart map and
+  its rooms keyed by the map's own numbers, the foes as stat blocks, the tables, the party's sheets a page each, the
+  dice tape, the colophon (a card's attribution when it carries one). A one-sheet format keeps what the table needs in
+  play: the one-page adventure. `scripts/table-rpg.mjs --book out.html --pdf out.pdf --style <preset>`.
+
+Machine gate: the press and style suites (presets, formats, refusals, the faces inlined per role and only the used
+ones, the blocks kept whole), the maps (every room once with its key's number, every link by its kind, every road with
+its days), the book (keys, sheets, the tape, a card's own words, the one-sheet cut), and the live suite in the e2e tier
+printing a book and a one-sheet pamphlet (the pages, the faces embedded). Eyes gate not run: the author printed every
+preset and read the pages (fixing four column and map faults on the way); the operator has not.
+
 ### Table RPG: a pen-and-paper game played in text first
 
 A tabletop role-playing game as a recipe, the concept layer: a module (a rules card, a party rolled from it, a world, its
