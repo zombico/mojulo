@@ -1371,6 +1371,14 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   berries, the forsythia gold, the broom yellow, the hosta lilac, the juniper's berries blue), at most 90 blossoms and 24
   clusters a bush (about 1.4k and 1k triangles), drawn 2.4 times their size so they read at a walker's distance, as the
   grass's flowers are. Green unless asked: the same bush, nothing added.
+- **The switch keeps the silhouette.** Near the eye a crown's sprays came in as its clumps drew in to 0.4, so a bush kept
+  half its outline at the switch (0.5 to 0.65, overlap over union) and a cherry 0.8. Now the clumps hold their size and
+  the sprays come in over them as detail: a bush's sprays from each clump's heart, radiating in its plane to inside its
+  rim (their reach the clump's radius × `reach`, BUSH_FORM), a tree's in their own cells (the page's `LOD.draw` 1). The
+  tree page's gate, `window.silhouette()`: the plant from one camera drawn far (clumps alone) and as drawn, each outline
+  against white with its leaves' gaps closed, their overlap over union. Every bush and tree measured holds 0.91 to 1.0,
+  nothing of the far outline lost (the near adds at most a sliver past it). The juniper's pads smaller and closer (its
+  near read as big dark discs over the sprays).
 - **The trunks stand in the wind.** The live wind (scene/channels/stage-grass.js CROWNS) bent a tree's wood by its height
   alone, so a trunk bowed with its crown. Each built tree's stems now ship with the crowns (`liveGrass.crowns.trunks`,
   era/isekai.js trunkSway: foot to top with their radii, a sakura's too) and the page weighs every wood vertex by how far

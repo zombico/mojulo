@@ -26,7 +26,7 @@ const bushes = arg('--bushes', Object.keys(BUSH_HABITS).join(',')).split(',').fi
 const SPRAYS = 3, CLUMPS = 3;
 /** Far off: the share of clumps kept at a distance (m), the kept ones grown to hold the cover; near: where the sprays come
  *  in (m: whole within the first, none past the second), the clumps drawn in to `draw` where they are whole. */
-const LOD = { near: 25, far: 90, keep: 0.35, grow: 1.7, detail: [6, 16], draw: 0.4 };
+const LOD = { near: 25, far: 90, keep: 0.35, grow: 1.7, detail: [6, 16], draw: 1 };
 
 const lin = (c) => c.map((v) => { v /= 255; return Math.round((v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
 const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
@@ -41,7 +41,7 @@ const trees = [...species, ...bushes.map((f) => `bush:${f}`)].map((sp) => {
     return [a, a === 'bloom' ? { list: A.blooms, geos: [geo({ tris: bushBlossom(A.look) })] }
       : { list: A.berries, geos: Array.from({ length: ADORN.berries[1] - ADORN.berries[0] + 1 }, (_, k) => geo({ tris: bushBerries(A.look, ADORN.berries[0] + k, seed + k) })) }];
   }));
-  return { species: sp, height: T.height, ...(T.detail ? { detail: T.detail } : {}), ...(season ? { season } : {}), wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
+  return { species: sp, height: T.height, ...(T.detail ? { detail: T.detail, draw: T.draw } : {}), ...(season ? { season } : {}), wood: T.wood, sites: T.sites, clumps: T.clumps, sprays, clumpGeo: clumps, pad: !!T.pad,
     bark: { metres: B.metres, depth: B.depth, base: png(B.baseColor, B.W, B.H), normal: png(B.normal, B.W, B.H), orm: png(B.orm, B.W, B.H), height: png(B.height, B.W, B.H) } };
 });
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -82,7 +82,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x4a5a34, 1.3));
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.6); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; scene.add(sun, sun.target);
 const ground = new THREE.Mesh(new THREE.CircleGeometry(220, 64), new THREE.MeshStandardMaterial({ color: 0x5f8a3c, roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
-const tl = new THREE.TextureLoader(), POM = { on: { value: 1 } };
+const tl = new THREE.TextureLoader(), POM = { on: { value: 1 } }, FAR = { value: 0 };
 let current = null;
 
 // the bark: its own colour, its relief's normal, the fissures' occlusion and its roughness, and the relief marched by
@@ -128,19 +128,19 @@ function build(T) {
   const AX = { clump: new THREE.Vector3(0, 0, 1), spray: new THREE.Vector3(1, 0, 0) };
   function crownMesh(G, list, kind) {
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(G.p, 3)); sg.setAttribute('color', new THREE.Float32BufferAttribute(G.c, 3)); sg.computeVertexNormals();
-    const out = new Float32Array(list.length * 3);
+    const out = new Float32Array(list.length * 3), draw = new Float32Array(list.length);
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
-    const U = { uGrow: { value: 1 }, uEye: { value: new THREE.Vector3() }, uDetail: { value: new THREE.Vector3((T.detail || LOD.detail)[0], (T.detail || LOD.detail)[1], LOD.draw) }, uSpray: { value: kind === 'spray' ? 1 : 0 } };
+    const U = { uGrow: { value: 1 }, uEye: { value: new THREE.Vector3() }, uDetail: { value: new THREE.Vector3((T.detail || LOD.detail)[0], (T.detail || LOD.detail)[1], LOD.draw) }, uSpray: { value: kind === 'spray' ? 1 : 0 }, uFar: FAR };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U);
-      sh.vertexShader = 'attribute vec3 aOut;\\nuniform float uGrow, uSpray;\\nuniform vec3 uEye, uDetail;\\nvarying float vFade;\\n' + sh.vertexShader
+      sh.vertexShader = 'attribute vec3 aOut;\\nattribute float aDraw;\\nuniform float uGrow, uSpray, uFar;\\nuniform vec3 uEye, uDetail;\\nvarying float vFade;\\n' + sh.vertexShader
         .replace('#include <begin_vertex>', [
           // (near the eye: each spray comes in whole at its own distance, growing from a third of its size inside its clump;
           // a clump draws in as its sprays come)
           'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz;',
-          'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
+          'float nearF = ( 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) ) ) * ( 1.0 - uFar );',
           'float hI = fract( sin( dot( ipos.xy, vec2( 12.9898, 78.233 ) ) + ipos.z * 4.13 ) * 43758.5453 ) * 0.7, inF = smoothstep( hI, hI + 0.3, nearF );',
-          'float k = uSpray > 0.5 ? mix( 0.35, 1.0, inF ) * step( 0.001, inF ) : uGrow * mix( 1.0, uDetail.z, nearF );',
+          'float k = uSpray > 0.5 ? mix( 0.35, 1.0, inF ) * step( 0.001, inF ) : uGrow * mix( 1.0, aDraw, nearF );',
           'vFade = 1.0;',
           'vec3 transformed = position * k;'].join('\\n'))
         // (a leaf's normal bent toward the crown's outside: the crown takes the sun as one volume)
@@ -162,8 +162,11 @@ function build(T) {
       m4.compose(new THREE.Vector3(...s.p), q, new THREE.Vector3(s.s, s.s, s.s)); im.setMatrixAt(i, m4);
       const tone = 0.62 + 0.38 * s.e; im.setColorAt(i, new THREE.Color(tone, tone, tone));
       out.set(s.o, i * 3);
+      // (how far a clump draws in as its sprays come: the plant's own, or the page's; a clump the envelope added, with no
+      // sprays of its own to take its place, not at all: the outline holds)
+      draw[i] = s.f ? 1 : (T.draw ?? LOD.draw);
     });
-    sg.setAttribute('aOut', new THREE.InstancedBufferAttribute(out, 3));
+    sg.setAttribute('aOut', new THREE.InstancedBufferAttribute(out, 3)); sg.setAttribute('aDraw', new THREE.InstancedBufferAttribute(draw, 1));
     // (the clumps cast the crown's shadow; the sprays, near only, do not)
     im.castShadow = kind === 'clump'; im.receiveShadow = true; g.add(im);
     return { im, n: list.length, U, tris: G.tris, list };
@@ -204,6 +207,7 @@ for (const b of document.querySelectorAll('#season button')) b.onclick = () => s
 function view(c) {
   lastView = c; const H = current.T.height, C = current.centre;
   // (a bush: near at a walker's arm, mid a few steps off, far across a glade; its stems' bark at its foot)
+  if (c === 'close') { const R = Math.max(2, H * 0.3); camera.position.set(C[0] + R + 5, C[1] - 4, C[2] * 0.8); controls.target.set(...C); controls.update(); return; }
   const B = H < 4, at = B ? { near: [H * 1.3, -H * 0.9, 1.5], mid: [H * 3.2, -H * 2.2, 1.6], far: [24, -16, 2.5], bark: [0.5, -0.4, 0.35] }[c] : { near: [H * 0.9, -H * 0.55, 1.7], mid: [H * 2.2, -H * 1.3, H * 0.4], far: [70, -45, 6], bark: [1.1, -0.9, 1.4] }[c];
   const look = c === 'bark' ? [0, 0, B ? 0.15 : 1.3] : c === 'near' ? [C[0], C[1], H * 0.45] : [C[0], C[1], H * 0.5];
   camera.position.set(...at); controls.target.set(...look); controls.update();
@@ -229,7 +233,25 @@ function lod() {
   const S = current.seasons[season]; if (S) tris += S.tris;
   return { keep, leafTris: tris, sprays: near, season };
 }
+// THE SILHOUETTE GATE: the plant from this camera twice, clumps alone (as from afar: no sprays, no draw-in) and as drawn
+// (the sprays in, the clumps drawn in), each its outline against white with no light; their overlap over their union
+// (1: the switch keeps the outline) and how much of the far outline the near one keeps
+window.silhouette = () => {
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, keepBg = scene.background, keepFog = scene.fog, keepTone = renderer.toneMapping;
+  const lights = []; scene.traverse((o) => { if (o.isLight) { lights.push([o, o.intensity]); o.intensity = 0; } });
+  scene.background = new THREE.Color(1, 1, 1); scene.fog = null; ground.visible = false; renderer.toneMapping = THREE.NoToneMapping;
+  const mask = (far) => { FAR.value = far; lod(); renderer.render(scene, camera); const px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px); const m = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) m[i] = px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2] < 600 ? 1 : 0; return m; };
+  // (the outline, not the leaves' gaps: each mask closed, grown and shrunk again by a sliver of the view)
+  const r = Math.max(2, Math.round(w / 120)), grow = (m, on) => { const o = new Uint8Array(m.length); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = on ? 0 : 1; for (let dy = -r; dy <= r && (on ? !v : v); dy += r) for (let dx = -r; dx <= r; dx += r) { const yy = y + dy, xx = x + dx; const q = yy < 0 || yy >= h || xx < 0 || xx >= w ? 0 : m[yy * w + xx]; if (on && q) { v = 1; break; } if (!on && !q) { v = 0; break; } } o[y * w + x] = v; } return o; };
+  const close = (m) => grow(grow(m, true), false);
+  const score = (F, N) => { let both = 0, any = 0, f = 0, n = 0; for (let i = 0; i < F.length; i++) { both += F[i] & N[i]; any += F[i] | N[i]; f += F[i]; n += N[i]; } return { both, any, f, n }; };
+  const F0 = mask(1), N0 = mask(0), { both, any, f, n } = score(F0, N0), S = score(close(F0), close(N0));
+  FAR.value = 0; scene.background = keepBg; scene.fog = keepFog; ground.visible = true; renderer.toneMapping = keepTone; for (const [o, v] of lights) o.intensity = v;
+  const k3 = (v) => Math.round(v * 1000) / 1000;
+  return { outline: k3(S.both / Math.max(1, S.any)), outlineArea: k3(S.n / Math.max(1, S.f)), iou: k3(both / Math.max(1, any)), kept: k3(both / Math.max(1, f)), area: k3(n / Math.max(1, f)) };
+};
 let stat = {};
+window.view = view;
 window.measure = () => ({ species: current.T.species, height: current.T.height, clumps: current.T.clumps.length, sites: current.T.sites.length, woodTris: current.woodTris, ...stat });
 renderer.setAnimationLoop(() => {
   stat = lod(); controls.update(); renderer.render(scene, camera);

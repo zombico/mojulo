@@ -36,6 +36,19 @@ describe('a bush read as form', () => {
     }
   });
 
+  it('keeps its outline when its sprays come in: the clumps never draw in, each spray from a clump\'s heart, inside its rim', () => {
+    for (const f of CASES) {
+      const B = bushForm(f, { seed: 2, height: 1.2 });
+      expect(B.draw).toBe(1);
+      const hearts = new Set(B.clumps.map((c) => c.p.join()));
+      for (const s of B.sites) {
+        // (a spray stands at a clump's heart, a sliver out along its facing)
+        expect(B.clumps.some((c) => Math.hypot(s.p[0] - c.p[0], s.p[1] - c.p[1], s.p[2] - c.p[2]) < 0.05)).toBe(true);
+      }
+      expect(hearts.size).toBe(B.clumps.length);
+    }
+  });
+
   it('is a crown with no trunk: its stems rise from the foot, thin, and a rosette has none', () => {
     const dome = bushForm(byShape('dome'), { seed: 3, height: 1.2 }), { pos } = dome.wood;
     expect(dome.wood.idx.length).toBeGreaterThan(0);

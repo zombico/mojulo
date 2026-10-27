@@ -19,7 +19,7 @@
  * Deterministic from the seed.
  */
 import { vec } from '../vegetation/grow.js';
-import { leafHolds, needleHabit } from '../vegetation/sprays.js';
+import { leafClump, leafSpray, needleHabit } from '../vegetation/sprays.js';
 import { pushTube, hashN } from './tree-form.js';
 import { readBush } from '../era/thickets.js';
 import * as dmath from '../../util/dmath.js';
@@ -41,9 +41,9 @@ const TAU = 2 * Math.PI;
  */
 export const BUSH_HABITS = Object.freeze({
   spray: Object.freeze({ shape: 'dome', radius: 1, fill: 1.35, dense: 1, leaf: Object.freeze({ leafSize: 0.045, outline: 'ovate', phyllo: 'spiral' }), reads: 'a dome of small leaves: box, laurel' }),
-  plate: Object.freeze({ shape: 'mound', radius: 1.7, fill: 1.2, dense: 1.5, leaf: Object.freeze({ needle: 'silverfir', scale: 0.4 }), reads: 'a low wide mound, its pads level in layers: juniper' }),
+  plate: Object.freeze({ shape: 'mound', radius: 1.7, fill: 1.3, dense: 1.1, reach: 0.65, sprays: 2, leaf: Object.freeze({ needle: 'silverfir', scale: 0.26 }), reads: 'a low wide mound, its pads level in layers: juniper' }),
   weep: Object.freeze({ shape: 'fountain', radius: 1.25, fill: 1.15, dense: 1, leaf: Object.freeze({ leafSize: 0.05, outline: 'ovate', phyllo: 'distichous' }), reads: 'arches from the foot, leaves along them: forsythia' }),
-  tuft: Object.freeze({ shape: 'upright', radius: 0.8, fill: 1.1, dense: 1.3, leaf: Object.freeze({ needle: 'pine', scale: 0.45 }), reads: 'a vase of upright stems, brushes at their tips: broom, heather' }),
+  tuft: Object.freeze({ shape: 'upright', radius: 0.8, fill: 1.1, dense: 1.3, reach: 0.55, leaf: Object.freeze({ needle: 'pine', scale: 0.45 }), reads: 'a vase of upright stems, brushes at their tips: broom, heather' }),
   whorl: Object.freeze({ shape: 'rosette', radius: 1.2, fill: 1, dense: 1, leaf: Object.freeze({ leafSize: 0.12, outline: 'broad', phyllo: 'spiral' }), reads: 'long leaves in rings from the ground: hosta, fern' }),
   spire: Object.freeze({ shape: 'cone', radius: 0.6, fill: 1.2, dense: 1.6, leaf: Object.freeze({ needle: 'spruce', scale: 0.3 }), reads: 'a small cone: a dwarf conifer' }),
 });
@@ -64,8 +64,10 @@ export const BUSH_ADORN = Object.freeze({
  *  their `size` × the habit's (read at a walker's distance, as the grass's flowers are: form/grass-drifts.js FLOWER_SIZE). */
 export const ADORN = Object.freeze({ blooms: 3, fruit: 0.6, berries: Object.freeze([3, 6]), cap: Object.freeze([90, 24]), size: 2.4 });
 /** The clumps' spacing on the outline (× a clump's span), the inner layer's depth (× the radius) and share, the sprays a
- *  clump holds near at most, and the stems' sides. */
-export const BUSH_FORM = Object.freeze({ spacing: 0.85, inner: Object.freeze([0.55, 0.25]), sprays: 2, sides: 5, skirt: 0.12, detail: Object.freeze([3, 8]) });
+ *  clump's heart throws near (to its rim), the stems' sides, the skirt's lift (× height), where the sprays come in (m)
+ *  and how far a clump draws in under them (× its size: not at all, so the outline never shrinks; the sprays come in over
+ *  it as detail), and how far a spray reaches (× the clump's radius: inside its outline, never past it). */
+export const BUSH_FORM = Object.freeze({ spacing: 0.85, inner: Object.freeze([0.55, 0.25]), sprays: 3, sides: 5, skirt: 0.12, detail: Object.freeze([3, 8]), draw: 1, reach: 0.8 });
 
 /** The outline's radius at height z (0..h) for an envelope shape, 0 past it. */
 function outline(shape, z, h, R) {
@@ -85,7 +87,7 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
   const dice = (a, b = 0) => hashN(seed * 7919 + a * 131 + b * 17);
   // a clump's span: its leaves' reach (sprays.js CLUMP, a leaf 3.5 times the leaf's, tilted out), or a pad's length
   const span = needles ? (needles === 'pine' ? 1.2 : 1.1) * leaf.scale : leaf.leafSize * 3.5 * 1.8, gap = span * BUSH_FORM.spacing / Math.sqrt(K.density) / H.dense;
-  const holds = leafHolds(leaf), clumps = [], sites = [], W = { pos: [], nrm: [], uv: [], idx: [] };
+  const clumps = [], sites = [], W = { pos: [], nrm: [], uv: [], idx: [] };
   const clump = (p, o, d, e, s) => clumps.push({ p: p.map(r4), d: unit(d).map(r4), o: unit(o).map(r4), s: r4(s * H.fill), e: r4(Math.max(0, Math.min(1, e))), r: r4(dice(clumps.length, 3)) });
   const girth = K.girth * h, ns = K.stems, splay = (K.splay * Math.PI) / 180, yaw0 = TAU * dice(1);
 
@@ -144,12 +146,19 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
       }
     }
   }
-  // the sprays near: a clump's leaf area shared by up to BUSH_FORM.sprays of them inside it, each turned along it
-  const per = Math.min(BUSH_FORM.sprays, Math.max(1, Math.ceil(holds.clump / holds.spray))), ss = Math.max(0.6, Math.min(2.2, Math.sqrt(holds.clump / (per * holds.spray))));
-  for (const [ci, c] of clumps.entries()) for (let j = 0; j < per; j++) {
-    const a = TAU * dice(60 + j, ci), off = [dmath.cos(a) * span * 0.25, dmath.sin(a) * span * 0.25, (dice(61 + j, ci) - 0.5) * span * 0.2];
-    const d = unit(add(c.o, [dmath.cos(a) * 0.8, dmath.sin(a) * 0.8, 0]));
-    sites.push({ p: add(c.p, off).map(r4), d: d.map(r4), o: c.o, s: r4(ss), e: c.e, r: r4(dice(62 + j, ci)) });
+  // the sprays near, the clump's outline kept: BUSH_FORM.sprays of them from its heart, radiating in its plane (a little
+  // out of it) to its rim, each scaled so its reach is the clump's: the near leaves fill what the far clump drew
+  // (a clump's radius round its own middle, square to its facing; a spray's reach from its foot: a pad is drawn from its
+  // branch out, a spray from its twig's foot)
+  const pts = (T) => T.tris.flatMap((t) => t.p), C = pts(leafClump(leaf, { seed: 1 })), mid = [0, 1].map((k) => (Math.min(...C.map((q) => q[k])) + Math.max(...C.map((q) => q[k]))) / 2);
+  const ss = (H.reach ?? BUSH_FORM.reach) * Math.max(...C.map((q) => Math.hypot(q[0] - mid[0], q[1] - mid[1]))) / Math.max(...pts(leafSpray(leaf, { seed: 1 })).map((q) => Math.hypot(...q)));
+  const per = H.sprays ?? BUSH_FORM.sprays;
+  for (const [ci, c] of clumps.entries()) {
+    const t1 = Math.abs(c.o[2]) > 0.95 ? [1, 0, 0] : unit(cross(c.o, [0, 0, 1])), t2 = cross(c.o, t1), a0 = TAU * dice(60, ci);
+    for (let j = 0; j < per; j++) {
+      const a = a0 + (TAU * j) / per, u = add(mul(t1, dmath.cos(a)), mul(t2, dmath.sin(a)));
+      sites.push({ p: add(c.p, mul(c.o, span * 0.04 * c.s)).map(r4), d: unit(add(mul(u, 0.88), mul(c.o, 0.4))).map(r4), o: c.o, s: r4(ss * c.s), e: c.e, r: r4(dice(62 + j, ci)) });
+    }
   }
   // its season: blossoms on the outer clumps, facing out a little off their leaves; or berries hanging under the outer,
   // lower ones (an inner clump, in the bush's shade, carries neither)
@@ -167,7 +176,7 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
   }
   clumps.sort((a, b) => a.r - b.r); sites.sort((a, b) => a.r - b.r); blooms.sort((a, b) => a.r - b.r).splice(ADORN.cap[0]); berries.sort((a, b) => a.r - b.r).splice(ADORN.cap[1]);
   // (a bush's sprays come in closer than a tree's: it is small, and stands by the walk)
-  return { form: K.form, detail: BUSH_FORM.detail, height: r4(h), radius: r4(R), wood: W, clumps, sites, leaf, bark: 'beech', ...(adorn ? { adorn, blooms, berries, look: BUSH_ADORN[K.form][adorn] } : {}), ...(needles ? { needles, pad: false } : {}) };
+  return { form: K.form, detail: BUSH_FORM.detail, draw: H.draw ?? BUSH_FORM.draw, height: r4(h), radius: r4(R), wood: W, clumps, sites, leaf, bark: 'beech', ...(adorn ? { adorn, blooms, berries, look: BUSH_ADORN[K.form][adorn] } : {}), ...(needles ? { needles, pad: false } : {}) };
 }
 
 /** A blossom: five petals round an eye, cupped a little, facing +z; each petal two facets so a sun finds them. */
