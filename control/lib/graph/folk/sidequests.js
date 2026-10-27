@@ -5,7 +5,8 @@
  * `back: false`). A sidequest `after` another is offered only once that one is finished: a chain, giver to giver.
  *
  *   folk.sidequests: [{ id, giver, name?, ask?, thanks?, after?, back?, steps: [{ talk: who, say?, log? } | { reach: house, log? }] }]
- *     who     a person of the town: their role ('keeper', the first), a role and its count ('townie-3'), or their path
+ *     who     a person of the town: their role ('keeper', the first), a role and its count ('townie-3'), their path, or
+ *             a recurring person's id ('jenny')
  *     house   one of the town's houses as the street stands them ('town-hall-1')
  *     ask     what the giver asks, `thanks` what they say at the end, a talk step's `say` what that person says: the
  *             operator's words. Left out, the ask is a slot (`[Keeper: the errand]`) and the rest the book's plain words.
@@ -71,9 +72,10 @@ export function readSidequests(list) {
   return out;
 }
 
-/** The person a word names: a path, a role (its first in the town), or a role and its count ('townie-3'). */
+/** The person a word names: a path, a recurring person's id, a role (its first in the town), or a role and its count
+ * ('townie-3'). */
 export function whoOf(folk, word) {
-  const byPath = folk.people.find((p) => p.path === word);
+  const byPath = folk.people.find((p) => p.path === word || p.recurring === word);
   if (byPath) return byPath;
   const m = /^([a-z]+)(?:-(\d+))?$/.exec(word);
   if (!m) return null;

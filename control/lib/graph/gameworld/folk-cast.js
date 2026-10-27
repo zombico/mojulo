@@ -7,7 +7,8 @@
  *     the stage's town: the street's own lots (era/stage-buildings.js streetLots), its people grown from them in the
  *     game's setting on the stage's kit (cast-setting.js settingOfGame), their bodies by tier (folk/bodies.js)
  *   folkMintKey(plan, mint)        the run's step key for a body: the town and the mint, so a town met on two stages
- *                                  (the same kit, recipe and seed) is minted once and is the same people
+ *                                  (the same kit, recipe and seed) is minted once and is the same people; one met in
+ *                                  every town (folk.js RECURRING), by their look, so towns that dress them alike share it
  *   placeSidequests(plans)         each of `folk.sidequests` to the first stage whose town holds it (→ the ids none holds)
  *   folkExtra(plan, refOf)         → (ends) → a stage extra (stage-figures.js): figures, entities, their talk and the
  *                                  stage's sidequests (folk/sidequests.js: the journal's quests, their menus, the cues)
@@ -45,12 +46,13 @@ export function stageFolk(G, stage) {
   const lots = street.lots.map(({ l }) => l), houseOf = {};
   street.lots.forEach(({ l }, n) => { houseOf[lotKey(l)] = `town-${l.use}-${n + 1}`; });
   const setting = settingOfGame({ ...G, style: { ...(G.style ?? {}), kit } });
-  const folk = folkOfTown({ seed: street.seed, heartbeat: street.town.heartbeat, lots }, { setting, folk: ask });
+  const folk = folkOfTown({ seed: street.seed, heartbeat: street.town.heartbeat, lots }, { setting, folk: ask, gameSeed: Number.isInteger(G.seed) ? G.seed : 1 });
   const bodies = folkBodies(folk, { kit, setting, pool: ask.pool });
   return { town: fingerprint({ kit, town, seed: stage.manifest.seed ?? null }), kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}) };
 }
 
-export const folkMintKey = (plan, mint) => `folk-${plan.town}-${mint.key}`;
+// (one met in every town is keyed by their look: towns that dress them alike mint them once)
+export const folkMintKey = (plan, mint) => (mint.recurring ? `folk-${mint.recurring}-${fingerprint({ spec: mint.spec, toon: mint.toon ?? null })}` : `folk-${plan.town}-${mint.key}`);
 
 /** The room of a house walked into where a person is kept: its id, or its id numbered past the first. */
 const roomOf = (door, room) => (room && door.rooms ? door.rooms.find((r) => r.id === room || r.id.startsWith(`${room}-`)) ?? null : null);

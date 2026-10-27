@@ -84,3 +84,21 @@ describe('folk bodies: the fractal', () => {
     expect(JSON.stringify(more.mints.slice(0, B.mints.length))).toBe(JSON.stringify(B.mints));
   });
 });
+
+describe('folk bodies: one met in every town', () => {
+  it('gives them a body of their own, the same face in every town, the town\'s cloth', () => {
+    const at = (kit, s0) => {
+      const setting = settingOfGame({ seed: 8, style: { kit } });
+      const F2 = folkOfTown({ seed: s0, lots: [lot('shop', 1)] }, { setting, gameSeed: 3, folk: { recurring: { joy: { role: 'keeper' } } } });
+      return folkBodies(F2, { kit, setting }).mints.find((m) => m.recurring === 'joy');
+    };
+    const a = at(KIT, 8), b = at(KIT, 21);
+    const other = Object.keys(UNDERLAYERS).find((k) => k !== KIT && UNDERLAYERS[k].style === UNDERLAYERS[KIT].style && JSON.stringify(UNDERLAYERS[k].language) !== JSON.stringify(UNDERLAYERS[KIT].language));
+    const c = at(other, 8);
+    expect(a.tier).toBe('own');
+    expect(b.spec).toEqual(a.spec);
+    expect(face(c.spec)).toEqual(face(a.spec));
+    expect(c.spec.outfit.language).toEqual(UNDERLAYERS[other].language);
+  });
+});
+

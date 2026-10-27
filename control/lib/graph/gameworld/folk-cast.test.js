@@ -122,5 +122,22 @@ describe('folk on a stage: a town\'s people stood by their houses', () => {
     expect(talk('keeper')).toBe(`talk-${idOf('keeper')}`);
     expect(talk('elder')).toBe(`talk-${idOf('elder')}`);
   });
+
+  it('stands one met in every town in each town that has their role, on a body minted for their look', () => {
+    const both = { ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, folk: { recurring: { joy: { role: 'keeper', name: 'Nurse Joy' } }, sidequests: [{ id: 'herbs', giver: 'joy', steps: [{ talk: 'elder' }] }] } },
+      levels: Object.fromEntries(Object.entries(MEADOWMARK_HERO.levels).map(([id, L]) => [id, { ...L, places: { town: true, street: { houses: 6, enter: 2 } } }])) };
+    const steps = runSteps(both, { ref: 'gw' }), joySteps = steps.filter((x) => x.key.startsWith('folk-joy-'));
+    expect(joySteps.length).toBeGreaterThan(0);
+    const towns = steps.filter((x) => x.key.startsWith('level-') && x.order.manifest.entities?.some((e) => e.id.startsWith('folk-')));
+    expect(towns.length).toBe(2);
+    const joyRefs = new Set(joySteps.map((x) => x.ref));
+    for (const t of towns) {
+      const M = t.order.manifest, joy = M.play.menus.find((m) => m.who === 'Nurse Joy');
+      expect(joy).toBeDefined();
+      expect(M.entities.some((e) => e.id.startsWith('folk-') && joyRefs.has(M.figures[e.id].heroRef))).toBe(true);
+    }
+    // her sidequest lives in the first town that holds it, and only there
+    expect(towns.map((t) => (t.order.manifest.play.quests ?? []).map((q) => q.id))).toEqual([['sq-herbs'], []]);
+  });
 });
 

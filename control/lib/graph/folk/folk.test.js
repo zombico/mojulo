@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { folkOfTown, readFolk, lotKey, placeholderLine, FOLK_CAP } from './folk.js';
+import { folkOfTown, readFolk, readRecurring, lotKey, placeholderLine, FOLK_CAP } from './folk.js';
 import { ROLES, ROOTS, RELATIONS } from './roles.js';
 import { SERVICES } from './services.js';
 import { MENU_KINDS } from '../playscape/ui/menus.js';
@@ -23,7 +23,7 @@ describe('folk: the words', () => {
   it('reads true or absent as every default, and refuses an unknown word naming the known ones', () => {
     expect(readFolk()).toEqual({ cap: FOLK_CAP.default, pool: 3 });
     expect(readFolk(true)).toEqual({ cap: FOLK_CAP.default, pool: 3 });
-    expect(() => readFolk({ crowd: 3 })).toThrow(/'crowd' is not a folk word \(seed, cap, domicile, domiciles, pool, say, sidequests\)/);
+    expect(() => readFolk({ crowd: 3 })).toThrow(/'crowd' is not a folk word \(seed, cap, domicile, domiciles, pool, say, sidequests, recurring\)/);
     expect(() => readFolk({ domicile: 'D + Q' })).toThrow(/a domicile is/);
     expect(() => readFolk({ cap: 0 })).toThrow(/cap is a whole number/);
   });
@@ -195,3 +195,44 @@ describe('folk: on a designed town', () => {
     expect(F.heartbeat).toBe(T.heartbeat);
   });
 });
+
+describe('folk: recurring, the ones met in every town', () => {
+  const JOY = { joy: { role: 'keeper', name: 'Nurse Joy' } };
+  const here = folkOfTown({ seed: 8, lots: [lot('shop', 1), lot('shop', 9), lot('dwelling', 17)] }, { gameSeed: 3, folk: { recurring: JOY } });
+  const there = folkOfTown({ seed: 21, lots: [lot('dwelling', 2), lot('shop', 30)] }, { gameSeed: 3, folk: { recurring: JOY } });
+  const joyOf = (F) => F.people.find((p) => p.recurring === 'joy');
+
+  it('reads who they are and refuses a role no lot is for, teaching', () => {
+    expect(readRecurring(JOY)).toEqual(JOY);
+    expect(() => readRecurring({ joy: { role: 'apprentice' } })).toThrow(/a role a town's lot is for \(townie, keeper/);
+    expect(() => readRecurring({ Joy: { role: 'keeper' } })).toThrow(/lowercase id/);
+    expect(() => readRecurring({ joy: { role: 'keeper', hat: 1 } })).toThrow(/'hat'|hat is not a recurring word/);
+  });
+
+  it('is the first of their role in every town that has it: one face, one name, on the game\'s seed', () => {
+    const a = joyOf(here), b = joyOf(there);
+    expect(a.sheet).toEqual(b.sheet);
+    expect(a.name).toBe('Nurse Joy');
+    expect(a.path).not.toBe(b.path);
+    expect(here.people.filter((p) => p.role === 'keeper')[0]).toBe(a);
+    expect(here.people.filter((p) => p.role === 'keeper')[1].recurring).toBeUndefined();
+    // the rest of each town is its own
+    expect(here.people.find((p) => p.role === 'townie' && !p.parent).sheet).not.toEqual(there.people.find((p) => p.role === 'townie' && !p.parent).sheet);
+    // another game, another face
+    expect(joyOf(folkOfTown({ seed: 8, lots: [lot('shop', 1)] }, { gameSeed: 4, folk: { recurring: JOY } })).sheet).not.toEqual(a.sheet);
+  });
+
+  it('keeps a house of the town\'s own, their children born of them', () => {
+    const fam = folkOfTown({ seed: 8, lots: [lot('shop', 1)] }, { gameSeed: 3, folk: { recurring: JOY, domicile: 'D of F (P + C2)' } });
+    const kids = fam.people.filter((p) => p.as === 'child');
+    expect(kids.length).toBe(2);
+    for (const k of kids) expect(k.sheet.facets.ancestry).toBe(joyOf(fam).sheet.facets.ancestry);
+  });
+
+  it('is nowhere in a town without their role, and a second of one role is its second', () => {
+    expect(joyOf(folkOfTown({ seed: 8, lots: [lot('dwelling', 1)] }, { gameSeed: 3, folk: { recurring: JOY } }))).toBeUndefined();
+    const two = folkOfTown({ seed: 8, lots: [lot('shop', 1), lot('shop', 9)] }, { gameSeed: 3, folk: { recurring: { ...JOY, jenny: { role: 'keeper' } } } });
+    expect(two.people.filter((p) => p.role === 'keeper').map((p) => p.recurring)).toEqual(['joy', 'jenny']);
+  });
+});
+

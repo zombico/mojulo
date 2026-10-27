@@ -10,7 +10,7 @@
  *     kit       the town's kit: its world's underlayer is what the folk wear (hero-looks.js UNDERLAYERS), unless the era
  *               dresses each person as their rolled look (a modern or a future world: egocube/plan.js KIT_ERAS)
  *     pool      how many people a pool mints as themselves (FOLK_POOL)
- *   mints     [{ key, of, tier, spec, toon? }]   one per body to make: `of` the person it was rolled for
+ *   mints     [{ key, of, tier, spec, toon?, recurring? }]   one per body to make: `of` the person it was rolled for
  *   people    [{ path, tier, body }]             every person and the mint they wear
  *   uniforms  { <service>: key }                 the mint whose clothes a service's people wear
  *
@@ -30,7 +30,7 @@ import { SERVICES } from './services.js';
 import { FOLK_POOL } from './folk.js';
 
 export const TIERS = Object.freeze({
-  own: 'a body of their own: the people the player goes to (a service\'s first person)',
+  own: 'a body of their own: the people the player goes to (a service\'s first person) and the ones met in every town',
   pooled: 'one of a few bodies their pool mints: the households, the apprentices, the watch',
 });
 
@@ -38,7 +38,7 @@ const hash = (text) => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i+
 /** A mint's key: the person it was rolled for, short and stable. */
 export const mintKey = (path) => `folk-${hash(path).toString(36)}`;
 
-const tierOf = (p) => (!p.parent && p.service ? 'own' : 'pooled');
+const tierOf = (p) => (!p.parent && (p.service || p.recurring) ? 'own' : 'pooled');
 const stageOf = (p) => (p.sheet.facets.age === 'child' ? 'child' : 'grown');
 
 export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}) {
@@ -67,7 +67,7 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
     const tier = tierOf(p);
     if (tier === 'own') {
       const key = mintKey(p.path);
-      mints.push({ key, of: p.path, tier, ...dress(p) });
+      mints.push({ key, of: p.path, tier, ...(p.recurring ? { recurring: p.recurring } : {}), ...dress(p) });
       people.push({ path: p.path, tier, body: key });
       continue;
     }

@@ -285,7 +285,8 @@ export function runSteps(world, { ref, lookup } = {}) {
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
     // its town's folk beside them; alone, beside the goal's own cast, which an extra would otherwise stand in for
-    const folk = folks[i] ? folkExtra(folks[i], (m) => folkRef[folkMintKey(folks[i], { key: m })]) : null;
+    const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
+    const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))]) : null;
     const goalCast = folk && !fight && !stall ? goalArgs(G, s, lastOf, ref).goalCast : null;
     const extra = composeExtras(fight, stall, goalCast, folk);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};

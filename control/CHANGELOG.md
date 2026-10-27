@@ -86,6 +86,14 @@ plan and the historic city follow on the same rules.
   past it, the lowest-ranked are left out). A stage's sidequests join the world's own `quests` in its journal, never
   replace them. Machine gate: `sidequests.test.js`, and `folk-cast.test.js` walking a chain of two through the bus
   (offer, take, the step, the thanks, the next offer); eyes gate not run.
+- **Recurring: the ones met in every town** (`folk.recurring`, the Officer Jenny of a game). `{ <id>: { role, name? } }`:
+  in each town that has the role, its first person of the role is them (a second of one role, its second), rolled on
+  the game's seed at their own id, never the town's: one face and one name everywhere. What they wear is each town's
+  (its cloth, its service's uniform) and so is their house, their children born of them: a cousin in every town, who
+  says so ("Family resemblance. We get that a lot."). Their body is their own and keyed by their look, so towns that
+  dress them alike mint them once. The talk box names them, and a sidequest names them by their id (`giver: 'joy'`).
+  Machine gate: `folk.test.js`, `lines.test.js`, `bodies.test.js`, and `folk-cast.test.js` standing one in both towns
+  of a two-town game; eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 

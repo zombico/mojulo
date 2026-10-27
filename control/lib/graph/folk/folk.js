@@ -9,6 +9,7 @@
  *     pool       how many people each body pool mints as themselves (bodies.js)
  *     say        { <person path | role>: text | [text, …] } the operator's words in place of the line book's (lines.js)
  *     sidequests [{ id, giver, steps, … }] checklists the folk give, and the chains they make (sidequests.js)
+ *     recurring  { <id>: { role, name? } } the people met in every town (RECURRING below)
  *     domicile   one house shape for every house ('D + 0', 'D + P', 'D of F (P + Cx)', 'D + Cx': domicile.js)
  *     domiciles  { <lot key>: shape } a house's own, over `domicile`
  *   folkOfTown(town, { seed?, setting?, folk? })    → the folk sheet
@@ -17,7 +18,8 @@
  *   placeholderLine(person, slot)                   → '[Keeper: greeting]': a line's slot, never its words
  *
  * The sheet: { seed, heartbeat?, people, domiciles, needs, gaps, unrooted, capped }
- *   people    [{ path, lot, use, role, title, as, parent, service, uniform, room, slots, sheet }] in lot order, a
+ *   people    [{ path, lot, use, role, title, as, parent, service, uniform, room, slots, sheet, recurring?, name? }] in
+ *             lot order, a
  *             lot's first person then the people it grows. `sheet` is the person's Egocube (egocube.js rollEgocube).
  *   domiciles [{ lot, dweller, shape, notation, asked, partner, children }] each house whose dweller is in town: its
  *             shape rolled from the dweller's age on the house's own die (or asked), `partner` and `children` the paths
@@ -42,7 +44,8 @@ import { SERVICES } from './services.js';
 import { readSidequests } from './sidequests.js';
 import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
-export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests']);
+export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests', 'recurring']);
+const RECURRING_ID = /^[a-z][a-z0-9-]{0,23}$/;
 export const FOLK_CAP = Object.freeze({ default: 60, max: 400 });
 // how many people a body pool mints as themselves (bodies.js): a quick game's crowd is three faces (CAST_POOL)
 export const FOLK_POOL = Object.freeze({ default: 3, max: 8 });
@@ -68,7 +71,27 @@ export function readFolk(spec) {
   if (spec.say !== undefined && !(isObj(spec.say) && Object.values(spec.say).every((v) => (typeof v === 'string' && v) || (Array.isArray(v) && v.length && v.every((t) => typeof t === 'string' && t))))) {
     throw new Error('folk: say is { <person path | role>: text | [text, …] }: the words a person (or every person of a role) says in place of the line book\'s');
   }
-  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}) };
+  const recurring = spec.recurring !== undefined ? readRecurring(spec.recurring) : undefined;
+  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}), ...(recurring ? { recurring } : {}) };
+}
+
+/**
+ * RECURRING: the people met in every town, the Officer Jenny of a game. `{ <id>: { role, name? } }`: in each town that has
+ * that role, its first person of the role is them (a second of one role, its second), rolled at `folk/recurring/<id>`
+ * on the GAME's seed, never the town's: one face, one name, everywhere. What they wear is each town's (its cloth, its
+ * service's uniform), and so is their house: a cousin in every town. A role whose people head no lot roots none.
+ */
+export function readRecurring(R) {
+  const roots = [...new Set(Object.values(ROOTS))];
+  if (!isObj(R) || !Object.keys(R).length) throw new Error('folk: recurring is { <id>: { role, name? } }: the people met in every town that has their role');
+  return Object.fromEntries(Object.entries(R).map(([id, r]) => {
+    if (!RECURRING_ID.test(id)) throw new Error(`folk: recurring '${id}' is a lowercase id ("jenny"), up to 24 letters`);
+    if (!isObj(r)) throw new Error(`folk: recurring.${id} is { role, name? }`);
+    for (const k of Object.keys(r)) if (k !== 'role' && k !== 'name') throw new Error(`folk: recurring.${id}.${k} is not a recurring word (role, name)`);
+    if (!roots.includes(r.role)) throw new Error(`folk: recurring.${id}.role is a role a town's lot is for (${roots.join(', ')})`);
+    if (r.name !== undefined && !(typeof r.name === 'string' && r.name.trim() && r.name.length <= 40)) throw new Error(`folk: recurring.${id}.name is what the talk box calls them, up to 40 letters`);
+    return [id, { role: r.role, ...(r.name ? { name: r.name.trim() } : {}) }];
+  }));
 }
 
 /** A lot's key: its frontage and where along it (the farm's and the square's, where they stand). */
@@ -98,22 +121,27 @@ function grownCount(n, lot, rand) {
 /** A line's slot as the box shows it until the operator gives the words. */
 export const placeholderLine = (person, slot) => `[${person.title}: ${slot}]`;
 
-function personOf({ path, lot, key, roleId, as = null, parent = null, lean = null }, { seed, setting }) {
+function personOf({ path, lot, key, roleId, as = null, parent = null, lean = null, recurring = null }, { seed, gameSeed, setting }) {
   const role = ROLES[roleId], rel = as ? RELATIONS[as] : null, service = role.service ? SERVICES[role.service] : null;
   const facets = { ...role.facets, ...(rel?.born && parent ? { ancestry: parent.sheet.facets.ancestry } : {}) };
-  const sheet = rollEgocube({ facets, seed, path: `folk/${path}`, ...(setting ? { setting } : {}), lean: leanOf(role.lean, rel?.lean, lean), pull: { ...FOLK_PULL, ...role.pull } });
+  // (one met in every town is rolled on the game's seed at their own id: the same sheet wherever they stand)
+  const roll = recurring ? { seed: gameSeed, path: `folk/recurring/${recurring.id}` } : { seed, path: `folk/${path}` };
+  const sheet = rollEgocube({ facets, ...roll, ...(setting ? { setting } : {}), lean: leanOf(role.lean, rel?.lean, lean), pull: { ...FOLK_PULL, ...role.pull } });
   return {
     path, lot: key, use: lot.use, role: roleId, title: role.title, as, parent: parent?.path ?? null,
     service: role.service ?? null, uniform: service?.uniform ? role.service : null, room: service?.room ?? (isObj(role.room) ? role.room[lot.use] : role.room) ?? null,
-    slots: [...role.slots, ...(service?.slots ?? [])], sheet,
+    slots: [...role.slots, ...(service?.slots ?? [])], sheet, ...(recurring ? { recurring: recurring.id, ...(recurring.name ? { name: recurring.name } : {}) } : {}),
   };
 }
 
-export function folkOfTown(town, { seed, setting, folk } = {}) {
+export function folkOfTown(town, { seed, gameSeed, setting, folk } = {}) {
   if (!isObj(town) || !Array.isArray(town.lots)) throw new Error('folk: give a designed town (era/out-town.js designTown): its lots root its people');
   const F = readFolk(folk);
   const s = F.seed ?? seed ?? town.seed ?? 1;
-  const ctx = { seed: s, setting };
+  const ctx = { seed: s, gameSeed: gameSeed ?? s, setting };
+  // each role's recurring people, in the order written: the first of the role in a town is the first of them
+  const recur = {}, met = {};
+  for (const [id, r] of Object.entries(F.recurring ?? {})) (recur[r.role] ??= []).push({ id, ...r });
   const unrooted = [], lots = [];
   for (const lot of town.lots) {
     const key = lotKey(lot), roleId = ROOTS[lot.use];
@@ -123,7 +151,8 @@ export function folkOfTown(town, { seed, setting, folk } = {}) {
     const rand = mulberry32(hash(`${s}::folk::${key}::grows`));
     const grows = role.grows.map((g) => ({ ...g, n: grownCount(g.n, lot, rand) }));
     // a house's dweller is rolled first: their age says what the house can be (domicile.js), on the house's own die
-    const first = personOf({ path: `${key}/${roleId}`, lot, key, roleId, lean: role.house ? DWELLER : null }, ctx);
+    const recurring = recur[roleId]?.[met[roleId] = (met[roleId] ?? -1) + 1] ?? null;
+    const first = personOf({ path: `${key}/${roleId}`, lot, key, roleId, lean: role.house ? DWELLER : null, recurring }, ctx);
     const asked = role.house ? F.domiciles?.[key] ?? F.domicile : undefined;
     const house = role.house ? { ...(asked ?? rollDomicile(first.sheet.facets.age, mulberry32(hash(`${s}::folk::${key}::domicile`)), lot.band)), asked: !!asked } : null;
     const members = house ? [...(SHAPES[house.shape].partner ? [{ as: 'partner', path: 'partner' }] : []), ...Array.from({ length: house.children }, (_, i) => ({ as: 'child', path: `child-${i + 1}` }))] : [];

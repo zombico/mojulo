@@ -51,4 +51,12 @@ describe('folk lines: chitchat from the book, never the plot', () => {
     expect(linesFor(keeper, F, { say: { keeper: 'Welcome to the shop.' } })).toEqual({ speaker: 'Keeper', lines: ['Welcome to the shop.'], said: true });
     expect(linesFor(villager, F, { say: { keeper: 'x', [villager.path]: ['One.', 'Two.'] } }).lines).toEqual(['One.', 'Two.']);
   });
+
+  it('names one met in every town, and has them say the family likeness', () => {
+    const T = folkOfTown({ seed: 8, lots: [lot('shop', 1)] }, { folk: { recurring: { joy: { role: 'keeper', name: 'Nurse Joy' } } } });
+    const joy = T.people.find((p) => p.recurring === 'joy'), { speaker, lines } = linesFor(joy, T);
+    expect(speaker).toBe('Nurse Joy');
+    expect(lines.some((l) => LINE_BOOK.recurring.includes(l))).toBe(true);
+  });
 });
+

@@ -6,7 +6,7 @@
  *
  *   linesFor(person, folk, { say? })   → { speaker, lines: [text, …] } the person's talk, seeded by their path
  *     say   the operator's words, by a person's path or a role: they replace the book's
- *   speakerOf(person)                  → the name the talk box shows ('Keeper', 'Villager', 'Child')
+ *   speakerOf(person)                  → the name the talk box shows (a recurring person's name, 'Keeper', 'Villager', 'Child')
  *   LINE_BOOK                          the book: greetings by temperament, a word on their work by role, on their house
  *                                      by its shape, on the town by its size and by what it is missing, a farewell
  *
@@ -63,6 +63,8 @@ export const LINE_BOOK = F({
     village: F({ own: F(['A hall with hardly anyone to gather in it.']), about: F(['The hall stands half empty most days.']) }),
     provisions: F({ own: F(['Nobody here sells anything. We trade over the fence.']), about: F(['Nobody here sells anything. Folk trade over the fence.']) }),
   }),
+  // one met in every town (folk.js RECURRING): the family likeness, said for them
+  recurring: F(['You look like you\'ve met my cousin.', 'Everyone says I look just like someone in the last town.', 'Family resemblance. We get that a lot.', 'My sister works the same job, two towns over.']),
   farewell: F({
     light: F(['Safe travels.', 'Take care of yourself.', 'Come back any time.', 'Good luck out there.']),
     turning: F(['Right then.', 'Off you go.', 'See you around.']),
@@ -72,7 +74,7 @@ export const LINE_BOOK = F({
 });
 
 /** The name the talk box shows. */
-export const speakerOf = (p) => (p.sheet.facets.age === 'child' ? 'Child' : p.role === 'townie' ? 'Villager' : p.title);
+export const speakerOf = (p) => p.name ?? (p.sheet.facets.age === 'child' ? 'Child' : p.role === 'townie' ? 'Villager' : p.title);
 
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 // the person's temper for the book: a child's own, else the archetype's reading (light, turning, shadow)
@@ -96,6 +98,7 @@ export function linesFor(person, folk, { say } = {}) {
   const bye = pick(rand, LINE_BOOK.farewell[temper]), coin = rand();
   // what they say past their work: their house if they keep one, else what the town lacks, else the town itself;
   // a child says nothing of either
-  const middle = child ? null : houseLine && coin < 0.5 ? houseLine : needLine || townLine || houseLine;
+  const kin = pick(rand, LINE_BOOK.recurring);
+  const middle = person.recurring ? kin : child ? null : houseLine && coin < 0.5 ? houseLine : needLine || townLine || houseLine;
   return { speaker, lines: [greet, work, ...(middle ? [middle] : []), bye] };
 }
