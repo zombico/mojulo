@@ -91,6 +91,10 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
   const P = (p) => p.map((x) => r3(x * k)), R = (r) => r3(r * k * g);
   const end = (x) => R(x * Bw.ends), shaft = (x) => R(x * Bw.shaft);
   const J = body.J;
+  // the neck a skeleton's length: the cervical run is short, the skull sitting low on it (moved in place: the rig's
+  // head bone and the skull read the same point)
+  const NECK = 0.6, nt = add(J.neckBase, mul(sub(J.neckTop, J.neckBase), NECK)).map(r3);
+  for (let i = 0; i < 3; i++) J.neckTop[i] = nt[i];
   // the spine: three joints up the back from the pelvis to the neck
   Object.assign(body.joints, { spine0: P([0, -0.05, 0.98]), spine1: P([0, -0.085, 1.2]), spine2: P([0, -0.075, 1.42]), sternumTop: P([0, 0.125, 1.47]), sternumLow: P([0, 0.115, 1.27]) });
   const knee = (s, [a, m, b]) => ({ ...s, rA: end(a), rB: end(b ?? a), rMid: shaft(m), mid: 0.5, over: [0.35, 0.35] });

@@ -347,6 +347,11 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: each run's vertebrae, rising in order, broader than the core, each process behind its body, the
   bones they ride, the thoracic in the lean. Eyes: the skull alone from three views; the soldier and the giant from
   the front, three-quarter and side. Eyes gate: the operator's to judge.
+- **The skeleton's neck, shortened** (`undead/passes.js`; the operator: "neck is a bit too long"). The cervical run is
+  now 0.6 of the living biped's, so the skull sits low on its six vertebrae. The neck's top is moved in place, so the
+  rig's head bone and the skull read the same point. Machine gate: the neck's length against the body's height,
+  under 0.7 of the living biped's. Eyes: the soldier and the giant from three views. Eyes gate: the operator's to
+  judge.
 
 ### Carved glyphs: the letter primitive grows up
 

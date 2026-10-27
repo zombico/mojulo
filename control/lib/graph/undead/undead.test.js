@@ -42,6 +42,9 @@ describe('a skeleton is its frame', () => {
     expect(V[0].bind.bone).toBe('pelvis');
     expect(V.at(-1).bind.bone).toBe('neck');
     expect(B.frameParts).toContain('thoracic5');
+    // the neck a skeleton's: shorter than the living biped's, the skull low on it
+    const living = biped({ k: 1, g: 1, legs: 'plantigrade', fingers: 4 }).joints, len = (J) => Math.hypot(...J.neckTop.map((v, i) => v - J.neckBase[i]));
+    expect(len(B.body.joints) / B.body.joints.neckBase[2]).toBeLessThan(0.7 * len(living) / living.neckBase[2]);
   });
   it('its skull is bones: a braincase and a face, the arches, the openings, both rows of teeth and a mandible of its own', () => {
     const B = body(id), names = B.body.segments.map((s) => s.name);
