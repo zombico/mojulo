@@ -80,6 +80,32 @@ gen-7 room bake; the same recipe read in gen-6 is drawn as paint. Built so far:
   metal door frame 1.8 × 2.7 m, no grating band, no pad, no crane (`craned`), no bracing; neutral air over the lab look
   (a kit's `ambient`, used when the recipe names no look), an exit sign's green over each door, aluminium nosings for a
   hazard stripe.
+- **Ducts and vents** (`era/bay-air.js`): the duct in each tall roof's own zone, round spiral or rectangular by register
+  (through a truss's web, a sleeve where it passes a beam's, over a vault's ties, a header across each sawtooth), its
+  couplings or flanges, hanger rods up to the roof (a trapeze under a rectangular one), and a terminal each bay: a drum
+  louvre on a drop from a round duct, a grille in each side of a rectangular one, the bay under the crane's girder left
+  clear; a coffered roof's diffusers in its unlit coffers; in a low room square 4-way diffusers in the soffit, a return
+  grille in it and one low on a long wall. Built as relief (stepped cones, angled blades, the dark behind). A tall
+  room's first outside end wall breathes through a weather louvre in its middle bay, in place of that bay's window.
+- **Glass** (`era/bay-glass.js`): windows where a wall faces out (no room against it): a ribbon of clerestory a bay at a
+  time under a tall room's crown (kept clear of the catwalk's rail on its wall), punched windows or a high slot in a low
+  room by register, each in the wall's reveal with mullions, head and sill rails and a sill board, the daylight beyond
+  as a sky gradient at the wall's outer face, a daylight seat inside, and each pane's light laid on the floor as a sun
+  patch along the register's sun. A glazed booth in a tall room's corner off the catwalk's wall (a control room, a site
+  office, a meeting pod): storefront mullions over a solid dado, or full-height glass with a three-row frit band at
+  walking height, a glazed door standing open (it walks in; its glass stops a walker), a transom, a roof with a
+  downlight, a desk with its screens lit toward the glass. Clear, wired or frosted, frit, glint, sky and sun patch are
+  each their own group (a group's opacity is its own), all out of the shadow occluders (`stage.js`). In gen-7 a pane
+  reflects the room by Fresnel (`channels/form.js`: Schlick from F0 0.04, the floor's dark below its horizon, the lamps'
+  light above) and the glints are hidden; in gen-6 it is a flat alpha with two glints. A law, `glass-marked`: every pane
+  whose foot a walker reaches carries its band.
+- **The construction catalog grows, and the bay reads it**: HVAC (spiral and rectangular ducts, a square diffuser, a drum
+  louvre, a return grille, a weather louvre, a hanger rod), glass (float, low-iron, laminated, wired, acid-etched:
+  thickness, transmittance, reflectance, edge tint, haze; `construction/glazing.js` `glassLook` reads one as a pane) and
+  floor finishes (carpet tile, VCT, porcelain, laminate, oak veneer) join `construction/catalog.js`. The bay registers lay
+  their block from masonry's `UNITS.cmu`, their drywall from the gypsum sheet, their lay-in tile, floors and veneer from
+  their catalog units, their ducts and terminals from the HVAC entries, their panes from the glass, so a house and a bay
+  agree on what a block, a board or a pane is.
 - **Rooms to walk** (`scripts/spikes/bay/bays.mjs`): a corridor opening into a tall bay in each register, in gen-6 and
   gen-7, captured from the corridor, inside the bay and up at its roof; no page errors. The materials' sheet is
   `scripts/spikes/bay/cuts.mjs`.

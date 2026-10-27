@@ -68,6 +68,25 @@ describe('the bay shell', () => {
     expect(bare('beams', { h: 3.5 }).structure.roof).toBe('soffit');
   });
 
+  it('the air: a duct in every tall roof, hung from it, a terminal each bay; a coffer\'s diffusers; a low room\'s and its return', () => {
+    const n = Math.round(30 / KIT.bay);
+    for (const roof of ['beams', 'truss', 'vault', 'sawtooth']) {
+      const A = bare(roof).structure.air;
+      expect(A.runs, roof).toBeGreaterThan(0);
+      expect(A.hangers, roof).toBeGreaterThanOrEqual(A.runs * 2);
+      // (one bay's terminal gives way to the crane's girder)
+      expect(A.terminals, roof).toBeGreaterThanOrEqual(roof === 'sawtooth' ? (n - 1) * 2 : n - 1);
+    }
+    expect(bare('coffer').structure.air.terminals).toBeGreaterThan(0);
+    const lo = bare('beams', { h: 3.5 }).structure.air;
+    expect(lo.terminals).toBeGreaterThan(0);
+    expect(lo.returns).toBeGreaterThanOrEqual(2);
+    // (a tall room's outside end wall breathes through a weather louvre)
+    expect(tall.air.louvre).toBe(true);
+    // (a round duct in one register, a rectangular one in another: the catalog's)
+    expect(new Set(BAY_REGISTERS.map((r) => STAGE_KITS[`bay-${r}`].B.air.duct.shape))).toEqual(new Set(['round', 'rect']));
+  });
+
   it('colour: the secondary paint and light are the register\'s own; the hazard stripe lies flat or small', () => {
     expect(geom.seats.some((s) => s.fixture === 'cove' && s.color === KIT.B.light.cove.color)).toBe(true);
     const hz = inGroup('stage:hazard'), upright = hz.filter((f) => Math.abs(f.normal[2]) < 0.5);
@@ -86,6 +105,31 @@ describe('the bay shell', () => {
     const P = assembleStageScene(SUITE, { formLit: true }), kinds = new Set(P.form.room.lights.map((l) => l.live));
     expect(kinds).toEqual(new Set([true, false]));
     expect(readFormLight([{ at: [0, 0, 0], radius: 2, fixture: 'inset' }], [[1, 1, 1]])[0].live).toBe(false);
+  });
+});
+
+describe('glass', () => {
+  it('windows only where a wall faces out: none in a wall another room stands against, the sun laid on the floor', () => {
+    expect(tall.glass.windows).toBeGreaterThan(0);
+    expect(low.glass.windows).toBeGreaterThan(0);
+    // (the low room's far wall is the tall room's: no pane in it)
+    const panes = geom.faces.filter((f) => ['stage:pane', 'stage:wired'].includes(f.group));
+    expect(panes.filter((f) => f.corners.every((c) => Math.abs(c[1] - 12) < 0.6 && c[0] > 0 && c[0] < 6)).length).toBe(0);
+    expect(tall.glass.patches).toBeGreaterThan(0);
+    expect(inGroup('stage:sky').length).toBe(tall.glass.windows + low.glass.windows);
+  });
+  it('a tall room\'s booth: its panes clear glass, those a walker reaches banded, over a dado or not by register', () => {
+    for (const reg of BAY_REGISTERS) {
+      const b = buildStageGeometry(planStage({ ...SUITE, kit: `bay-${reg}` })).bayRooms[1].glass.booth;
+      expect(b, reg).toBeTruthy();
+      expect(b.unmarked, reg).toBe(0);
+      if (!b.dado) expect(b.marked, reg).toBeGreaterThan(1);
+    }
+    expect(inGroup('stage:frit').length).toBeGreaterThan(0);
+  });
+  it('every pane is untinted (the bake leaves it) and carries the catalog\'s glass', () => {
+    const look = KIT.B.glass.look;
+    for (const f of inGroup('stage:pane')) { expect(f.tint).toBeUndefined(); expect(f.alpha).toBe(look.alpha); }
   });
 });
 
@@ -108,7 +152,7 @@ describe('a walkway is entered, and its banisters block', () => {
   });
   it('the laws read it so, and every one holds on the suite', () => {
     const laws = assembleStageScene(SUITE, {}).bay.laws;
-    expect(laws.map((l) => l.law)).toEqual(['layers', 'overhead', 'two-scales', 'walkway-entries', 'banisters-block', 'two-ways-in', 'accent']);
+    expect(laws.map((l) => l.law)).toEqual(['layers', 'overhead', 'two-scales', 'walkway-entries', 'banisters-block', 'two-ways-in', 'glass-marked', 'accent']);
     expect(laws.filter((l) => !l.ok)).toEqual([]);
   });
 });

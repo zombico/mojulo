@@ -49,6 +49,7 @@ import { plazaWall } from './plaza.js';
 import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun.js';
 import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readFormLight, twinMeanValue } from '../form/room-form.js';
+import { GLASS_GROUPS } from './bay-glass.js';
 import { solveRoomLight, referenceLamp, paintAtReference, paintMean, linHex, falloff, ROOM_LIGHT } from '../form/room-light.js';
 import { decodeSrgb, encodeSrgb } from '../color-theorist/light.js';
 import { assembleNatureScene } from './nature.js';
@@ -72,6 +73,9 @@ import { resolveTerrainWind } from '../vegetation/wind.js';
 import { standsRepeats } from './stands.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
+// (glass, every kind of it, lets the light through: out of the shadow occluders)
+const GLASS = new Set(GLASS_GROUPS);
+
 export const STAGE_KITS = ({
   'gothic-stone': Object.freeze({
     grid: 1, bay: 4, wall: 0.5,   // wall = thickness between neighbouring rooms (each room's interior sits wall/2 inside its box)
@@ -573,7 +577,7 @@ export function buildStageGeometry(plan) {
     const w = r.x1 - r.x0, d = r.y1 - r.y0, h = r.h;
     if (kit.shell === 'bay') {
       // a bay is its own floor, walls and roof too (bay.js): its structure goes to the laws and the dressing
-      const L = bayRoom(out, r, ri, kit, surf);
+      const L = bayRoom(out, r, ri, kit, surf, plan.rooms);
       seats.push(...L.seats); dressBays.push(...L.bays); bayRooms.push({ r, ...L.structure });
       return;
     }
@@ -1077,7 +1081,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // a painted card stops the sun only where it is painted (an awning's stripes, washing, flowers)
     const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
     return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain, ...(ctx.liveSun ? { share: true } : {}),
-      shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
+      shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => !GLASS.has(f.group) && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them
   const raw0 = dress ? [...base, ...dress.blends(base)] : base;
@@ -1087,7 +1091,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // torch shadows (`shadows.torch`): each placed light and brazier tests what stands between it and a corner; the
   // occluders are what the sun's are, and a painted card stops nothing (its alpha is not tested from a point)
   const shadowed = (ls) => (plan.shadows && plan.shadows.torch !== 'off' && !ctx.unshaded ? (() => {
-    const occ = base.filter((f) => f.group !== 'stage:glass' && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
+    const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => ({ ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   })() : ls);
   const dirt = () => makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt);
@@ -1098,7 +1102,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const form = !!ctx.formLit && !ctx.unshaded && !daylight && !plan.night;
   const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
   const formTest = (ls) => {
-    const occ = base.filter((f) => f.group !== 'stage:glass' && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
+    const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   };
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),

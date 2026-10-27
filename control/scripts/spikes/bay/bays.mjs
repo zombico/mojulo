@@ -30,6 +30,12 @@ const CAMS = {
   // (the services up close: a breaker panel by the doorway, the soffit with its panel out over the corridor)
   services: { pos: [1.2, 7.5, 1.6], target: [4.6, 12, 1.2], vfov: 60 },
   soffit: { pos: [3, 10.5, 1.5], target: [3, 3, 3.7], vfov: 70 },
+  // (the air: up at the duct's line in the bay)
+  air: { pos: [1, 19, 1.7], target: [-2.2, 30, 9.5], vfov: 66 },
+  // (the glass: the booth in its corner, a ribbon of windows up a long wall)
+  booth: { pos: [5, 24, 1.7], target: [-4, 15.5, 1.3], vfov: 62 },
+  window: { pos: [7, 27, 1.7], target: [-6, 34, 7.5], vfov: 66 },
+  louvre: { pos: [3, 30, 2], target: [3, 12, 7.5], vfov: 70 },
 };
 const W = 1120, H = 700;
 fs.mkdirSync(out, { recursive: true });

@@ -2,7 +2,8 @@
 // (channels/walk.js: a ray down from the eye finds the floor, rays at the eye and at the shin stop a step, the body's
 // radius kept off what they hit), run in node on three's raycaster over the stage's faces. The machine gate for the
 // walkway's rules: up the near stair onto the deck; along the deck to its far end; stopped by the front railing, by the
-// far end's railing and by the stair's banister over its open side; up the second stair through its gap.
+// far end's railing and by the stair's banister over its open side; up the second stair through its gap; stopped by
+// the booth's glass and let in by its open door.
 //
 //   node scripts/spikes/bay/walkways.mjs [--kit bay-military]
 import { register } from 'node:module';
@@ -68,6 +69,15 @@ if (W.stairs[1]) {
   const [ga, gb] = W.stairs[1], sLen = Math.ceil(cz / 0.19) * 0.27;
   const second = walk(P((ga + gb) / 2, 0.42 + 1.4 + sLen + 1.5), neg(N), 4);
   check('up the second stair through its gap', Math.abs(second.feet - cz) < 0.05, second);
+}
+// the booth: its glass side stops a walker; its open door lets one in
+const Bo = R.glass.booth;
+if (Bo) {
+  const bp = (x, y) => [Bo.at[0] + Bo.ex[0] * x + Bo.ey[0] * y, Bo.at[1] + Bo.ex[1] * x + Bo.ey[1] * y, 0], local = (q) => [(q[0] - Bo.at[0]) * Bo.ex[0] + (q[1] - Bo.at[1]) * Bo.ex[1], (q[0] - Bo.at[0]) * Bo.ey[0] + (q[1] - Bo.at[1]) * Bo.ey[1]];
+  const glass = walk(bp(Bo.w + 2, Bo.d / 2), Bo.ex.map((v) => -v), 2), gl = local(glass.at);
+  check('the booth\'s glass blocks', gl[0] > Bo.w, { ...glass, local: gl });
+  const mid = (Bo.door[0] + Bo.door[1]) / 2, inn = walk(bp(mid, Bo.d + 2), Bo.ey.map((v) => -v), 0.4), il = local(inn.at);
+  check('in through the booth\'s open door', il[1] < Bo.d - 0.3 && il[1] > 0, { ...inn, local: il });
 }
 console.log(checks.every((c) => c.ok) ? 'every walkway rule walks' : 'a walkway rule failed');
 process.exit(checks.every((c) => c.ok) ? 0 : 1);
