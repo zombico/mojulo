@@ -80,7 +80,7 @@ import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { stampAuthoredMotion } from '@/lib/graph/polygonizer/motion-stamp.js';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
-import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
+import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec, assertHeroNameFree } from '@/lib/mcp/tools/layered';
 import { rollStored } from '@/lib/graph/egocube/kind.js';
 import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeWork } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -722,6 +722,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
         // otherwise pass silently)
         const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
         const prev = existingSketch?.manifest;
+        // a named hero's name is its own on this machine: an edit that names it, or renames it, is held to that
+        if (manifest.hero.name && manifest.hero.name !== prev?.hero?.name) assertHeroNameFree(manifest.hero.name, existingSketch?.ref ?? ref);
         if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the stored plan differs from what the hero generates now (hand-edited under /plan, or the hero\'s generator changed since it was stored); this /hero edit regenerated the plan and replaced it (a layered row keeps no revisions, so the old plan is not archived)');
         manifest = expandLayeredManifest(manifest, { from: 'hero' });
       } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });

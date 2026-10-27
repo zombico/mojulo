@@ -58,6 +58,22 @@ function heroLookup(heroRef) {
   return Object.assign(lookup, { head: row.manifest, headRev, heroSpec: hero ? Object.fromEntries(HERO_FIELDS.filter((k) => hero[k] !== undefined).map((k) => [k, hero[k]])) : null });
 }
 
+/** A NAMED HERO's ref, found by its name (create_character spec.name; names are a hero's own on this machine), or the
+ * call refused naming what it found: none by that name, or a ref beside it that is another hero's. */
+function namedHeroRef(name, ref) {
+  if (typeof name !== 'string' || !name.trim()) throw new Error('design_game: a hero named by name is { name: \'<its name>\' } (create_character spec.name)');
+  const row = SketchRepository.heroByName(name);
+  if (!row) throw new Error(`design_game: no hero named '${name}' on this machine (name one with create_character { as: 'hero', spec: { name } }, or adopt one by its ref)`);
+  if (ref !== undefined && ref !== row.ref) throw new Error(`design_game: the hero named '${name}' is '${row.ref}', not '${ref}': give the name or the ref`);
+  return row.ref;
+}
+/** A world whose character book names its hero by name, with the named hero's ref written beside it. */
+function withNamedHero(world) {
+  const H = isObj(world) && isObj(world.characters) && isObj(world.characters.hero) ? world.characters.hero : null;
+  if (!H || H.name === undefined) return world;
+  return { ...world, characters: { ...world.characters, hero: { ...H, ref: namedHeroRef(H.name, H.ref) } } };
+}
+
 /** Has the hero a run made been edited by hand since? (Its row no longer prints as the run left it.) */
 const handEdited = (world, lookup) => !!(world.made?.hero && lookup?.head && fingerprint(lookup.head) !== world.made.hero.stored);
 
@@ -368,7 +384,9 @@ export async function designGameHandler(input, context = {}) {
   if (quick !== undefined && written !== undefined) throw new Error('design_game: `quick` writes the world itself; pass the world\'s own settings (id, name, style …) beside the goal as quick.world, or a whole `world` without quick');
   // the interpreter (gameworld/compose.js): a few words read into a whole world, stored as `world` is
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
-  const world = compose !== undefined ? composedWorld(compose) : quick !== undefined ? quickWorld({ ...(isObj(quick.world) ? quick.world : {}), quick: Object.fromEntries(Object.entries(quick).filter(([k]) => k !== 'world')) }) : written;
+  // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
+  const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
+  const world = withNamedHero(compose !== undefined ? composedWorld(compose) : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
   const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {

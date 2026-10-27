@@ -47,6 +47,7 @@ import { bakeSampler, stackTints, stackFace, bakePieces } from '@/lib/graph/poly
 import { levelClothBake, recipeTones } from '@/lib/graph/materials/dress-materials';
 import { readGeocube } from '@/lib/graph/era/geocube';
 import { fieldPaintOf, fieldColours } from '@/lib/graph/polygonizer/field-paint';
+import { heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
 import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
 import { TIERED_FACE_TINT, tieredPole, heroShade } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
@@ -695,6 +696,9 @@ export const WORLD_KINDS = {
       // surfaces tagged; its base below. Absent ⇒ byte-identical.
       const creature = !m.hero && m.statue ? m.statue : null;
       if (creature) { const errs = validateCreatureStatue(creature); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); m = { ...m, recipe: carveCreatureRecipe(m.recipe, creature) }; }
+      // A NAMED HERO'S EMBLEM (hero-emblem.js, `hero.emblem`): lowered to field paint under the row's own, on the place it is
+      // worn, its roles coloured from the palette as it reads now. Absent ⇒ the row's field paint as it is
+      if (m.hero?.emblem) m = { ...m, fieldPaint: heroFieldPaint(m) };
       // FIELD PAINT (field-paint.js, opt-in `fieldPaint`): the colours its entries name join the palette. Absent ⇒ as before
       if (Array.isArray(m.fieldPaint) && m.fieldPaint.length) { const fcol = fieldColours(m.fieldPaint); if (Object.keys(fcol).length) m = { ...m, recipe: { ...m.recipe, palette: { ...(m.recipe.palette || {}), ...fcol } } }; }
       // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),

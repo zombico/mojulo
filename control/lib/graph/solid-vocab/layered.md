@@ -656,6 +656,22 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   not that it is wanted. Tones the detail needs (`TopFold`, `Quilt`, `Cuff`, `Patch`, …) derive from `Top` / `Bottom` /
   `Shoes`; any tone the operator names wins.
 <!-- /section -->
+<!-- section: hero-identity | A named hero | name and emblem: the hero's own name on this machine, its mark pasted as SVG paths, adopted by name -->
+  A NAMED HERO is the hero with an identity that travels with it into any game on this machine (`hero-emblem.js`).
+  `name: 'Nightjar'` is its own here: a second hero is refused the same name (case and spacing aside), naming the hero
+  that holds it; the row is titled by it, and a rename retitles a row titled by its old name. A game adopts it by name:
+  `design_game` with `characters.hero: { name: 'Nightjar', … }` (or a quick game's `hero: { name }`) writes the hero's ref
+  beside the name and plays it as an adopted hero; a name no hero holds is refused.
+  `emblem: { layers: [{ path, role?, color? }], at?, size?, offset? }` is its MARK (a logo, an insignia), each layer one
+  SVG path's `d` pasted as drawn (holes, curves and arcs kept), painted in order, the field first and a charge over it.
+  A layer's colour is its ROLE's: `field` (the palette's `EmblemField`, else `OutfitAccent`, else `Trim`), `charge`
+  (`EmblemCharge`, else `OutfitBase`, else `Top`), `outline` (`EmblemOutline`, else `Shoes`); a first layer with no role
+  is the field, the rest charges; `color: '#rrggbb'` fixes a layer's own. `at` `chest` (the default) | `back`; `size` its
+  larger side, a share of the place (0.3 on the chest); `offset` [dx, dy] from the place's centre. It is kept as given
+  and drawn at every read as field paint (`fieldPaint`, under the row's own) on the torso and every layer worn over it,
+  so it lands on the suit, the top or a catsuit's painted skin whatever the body; patch `/hero/emblem`. The mint's
+  readout counts each layer's faces under `fieldPaint`. The anime head's character light does not draw it yet.
+<!-- /section -->
 <!-- section: hero-stand | The stand | gesture: the pose the figure holds -->
   THE STAND. `gesture` is the pose the figure holds, in the rig's own pose words: `relaxed` (weight on the left leg,
   hips and chest counter-turned, the shoulder line dropping to the support side, the head tilted toward the high
