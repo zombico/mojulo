@@ -208,8 +208,10 @@ export function packFormMesh(faces) {
     const start = idx.length;
     for (const f of faces) {
       if (f.material !== m) continue;
-      const c = lin(f.albedo ?? f.fill).map((v) => Math.round(v * 255) / 255), ns = f.cornerNormals ?? f.corners.map(() => f.outNormal ?? [0, 0, 1]);
+      const ns = f.cornerNormals ?? f.corners.map(() => f.outNormal ?? [0, 0, 1]);
+      // (a corner's own albedo where the face carries one: a painted decoration, a gloss wheel's occlusion)
       const vi = f.corners.map((p, j) => {
+        const c = lin(f.cornerAlbedo?.[j] ?? f.albedo ?? f.fill).map((v) => Math.round(v * 255) / 255);
         const n = ns[j], key = `${mi}|${qv(p[0], 0)},${qv(p[1], 1)},${qv(p[2], 2)}|${i8(n[0])},${i8(n[1])},${i8(n[2])}|${c.join(',')}`;
         let u = seen.get(key);
         if (u === undefined) { u = q.length / 3; seen.set(key, u); q.push(qv(p[0], 0), qv(p[1], 1), qv(p[2], 2)); nrm.push(i8(n[0]), i8(n[1]), i8(n[2])); col.push(...c); }

@@ -11,6 +11,9 @@ import { packFormMesh } from '../vehicle-designer/vehicle-rig.js';
 import { formLight } from './form-light.js';
 import { VEHICLE_MATERIALS } from './vehicle-surface-finish.js';
 import { controllableChannelScript } from '../scene/channels/controllable/index.js';
+import { bakeWheel, KART_MATERIALS, materialOfSlot } from './racer-shade.js';
+import { buildBlock } from '../era/blocks.js';
+import { PARTS } from './parts.js';
 
 const preset = Object.keys(SUPERCAR_LIBRARY).find((p) => SUPERCAR_LIBRARY[p].brief.aero === 'track') ?? Object.keys(SUPERCAR_LIBRARY)[0];
 const faces = (c) => Object.values(c.faces).flat();
@@ -86,5 +89,50 @@ describe('the form render', () => {
     expect(lit).toContain('[0.4,-0.3,0.86]');
     expect(paint).not.toContain('__formBone');
     expect(paint).not.toContain('MeshPhysicalMaterial');
+  });
+});
+
+describe('the gloss wheel', () => {
+  const wheelIds = Object.keys(PARTS).filter((id) => PARTS[id].family === 'wheel');
+  const box = (fs) => [0, 1, 2].map((k) => [Math.min(...fs.flatMap((f) => f.corners.map((p) => p[k]))), Math.max(...fs.flatMap((f) => f.corners.map((p) => p[k])))]);
+  it('turns its tyre and its rim on the lathe within the wheel\'s own radius and width, its decals tagged', () => {
+    for (const id of [wheelIds[0], wheelIds[wheelIds.length - 1]]) {
+      const P = { r: 0.3, w: 0.2 }, plain = buildBlock(PARTS[id].block, { params: P }).faces, lathe = buildBlock(PARTS[id].block, { params: P, lathe: true }).faces;
+      // (the plain prism's box is its polygon's; the lathe's round reaches the radius itself, no further, and no wider)
+      const a = box(plain), b = box(lathe);
+      expect(b[0][0], id).toBeGreaterThanOrEqual(a[0][0] - 1e-3);
+      expect(b[0][1], id).toBeLessThanOrEqual(a[0][1] + 1e-3);
+      for (const f of lathe) for (const [, y, z] of f.corners) expect(Math.hypot(y, z - P.r), id).toBeLessThanOrEqual(P.r + 1e-3);
+      const decals = new Set(lathe.map((f) => f.decal).filter(Boolean));
+      for (const d of ['groove', 'stripe']) expect(decals.has(d), `${id} ${d}`).toBe(true);
+      expect(lathe.length).toBeGreaterThan(plain.length);
+      for (const f of lathe) { expect(f.corners.length).toBeGreaterThanOrEqual(3); expect(f.corners.flat().every(Number.isFinite)).toBe(true); }
+    }
+    // a running drum turned as a dish: its lip, its dish and its boss
+    const rimmed = wheelIds.find((id) => PARTS[id].block.parts.some((p) => p.prim === 'drum' && p.role === 'running'));
+    const tags = new Set(buildBlock(PARTS[rimmed].block, { params: { r: 0.3, w: 0.2 }, lathe: true }).faces.map((f) => f.decal));
+    for (const d of ['lip', 'dish', 'boss']) expect(tags.has(d), d).toBe(true);
+    expect(materialOfSlot('wheel:lip')).toBe('chrome');
+    expect(materialOfSlot('wheel:groove')).toBe('tread');
+    expect(KART_MATERIALS.chrome.metalness).toBe(1);
+  });
+  it('paints its occlusion and its edges and no light that would turn with it: the same bake at any turn of the wheel', () => {
+    const { S } = racerOf({ facets: { archetype: 'ruler' }, seed: 3, shade: 'gloss' });
+    const faces = S.faces.wheels[0].faces, hub = S.faces.wheels[0].hub;
+    for (const f of faces) { expect(f.cornerAlbedo).toHaveLength(f.corners.length); expect(f.cornerAlbedo.every((h) => /^#[0-9a-f]{6}$/.test(h))).toBe(true); }
+    // some corner darkened by the occlusion (the bead in the dish), none lifted past its slot's own colour twice over
+    expect(faces.some((f) => f.cornerAlbedo.some((h) => h !== f.albedo))).toBe(true);
+    // turned a third of a turn about its axle: every corner bakes the same
+    const turn = (a) => faces.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => { const dy = y - hub[1], dz = z - hub[2]; return [x, hub[1] + dy * Math.cos(a) - dz * Math.sin(a), hub[2] + dy * Math.sin(a) + dz * Math.cos(a)]; }) }));
+    const strip = (fs) => fs.map((f) => ({ ...f, cornerFills: f.corners.map(() => f.fill), cornerAlbedo: undefined }));
+    const at0 = bakeWheel(strip(faces)), at1 = bakeWheel(strip(turn((2 * Math.PI) / 3)));
+    const diff = at0.flatMap((f, i) => f.cornerAlbedo.map((h, j) => Math.abs(parseInt(h.slice(1, 3), 16) - parseInt(at1[i].cornerAlbedo[j].slice(1, 3), 16))));
+    expect(Math.max(...diff)).toBeLessThanOrEqual(3);
+  }, 60000);
+  it('carries each corner\'s painted albedo into its form', () => {
+    const P = packFormMesh([{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], material: 'paint', albedo: '#808080', cornerAlbedo: ['#808080', '#404040', '#808080', '#808080'], cornerNormals: [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]] }]);
+    expect(P.n).toBe(4);
+    const c = Buffer.from(P.col, 'base64');
+    expect(new Set(Array.from(c)).size).toBe(2);
   });
 });

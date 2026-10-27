@@ -57,7 +57,7 @@ import { VEHICLES } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { mascotDriver } from './mascot-driver.js';
 import { mulberry32 } from '../vegetation/grow.js';
-import { shadeRacerFaces, rimLamps, LAMP_RIM, KART_MATERIALS } from './racer-shade.js';
+import { shadeRacerFaces, rimLamps, LAMP_RIM, KART_MATERIALS, bakeWheel } from './racer-shade.js';
 import { formLight } from './form-light.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -231,6 +231,11 @@ export const SHADES = Object.freeze(['cel', 'smooth', 'gloss']);
 const FACE_BUDGET = 4000;
 /** The smooth finish's bevel: a share of each part's least size. */
 export const BEVEL = 0.3;
+
+// the gloss wheel's decals in the machine's own palette: the tread blocks its tyre a stop down, the sidewall's stripe its
+// trim, the rim's lip and boss polished
+const scaleHex = (h, k) => `#${[1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(h.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join('')}`;
+const wheelPalette = (PAL) => ({ 'wheel:groove': scaleHex(PAL['tech:cable'] ?? '#2a2b2e', 0.72), 'wheel:stripe': PAL['tech:trim'] ?? PAL['tech:skin'] ?? '#e8e8e8', 'wheel:lip': '#d8dde3', 'wheel:boss': '#c9cfd6' });
 
 /** Solve a racer's machine from its reading. `parts`: { family: id } pins. */
 export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form = false } = {}) {
@@ -430,7 +435,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
   const paint = shade !== 'cel'
-    ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: { ...PAL, 'lamp:rim': LAMP_RIM }, motif: v.motif, sun: SUN })
+    ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: { ...PAL, 'lamp:rim': LAMP_RIM, ...(shade === 'gloss' ? wheelPalette(PAL) : {}) }, motif: v.motif, sun: SUN })
     : (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
   // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
   // (and R4's status slots: the head lamps, the brake lamps, the hero piece, each a bone its tint is set on)
@@ -441,7 +446,8 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel', form 
   for (const p of state.placed) { const b = boneOf(p); if (!b) continue; if (!own.has(b)) own.set(b, { head: p.at.map(r4), faces: [] }); own.get(b).faces.push(...slotted(p)); }
   const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !boneOf(p)).flatMap(slotted), ...stand.faces];
   const root = paint(rootRaw);
-  const wheelFaces = state.wheels.map((w) => ({ bone: w.bone, hub: w.hub, faces: paint(w.faces) }));
+  // (the gloss wheel: its decals each a slot of their own, then its painted light: racer-shade.js bakeWheel)
+  const wheelFaces = state.wheels.map((w) => ({ bone: w.bone, hub: w.hub, faces: shade === 'gloss' ? bakeWheel(paint(w.faces.map((f) => (f.decal && f.decal !== 'dish' ? { ...f, slot: `wheel:${f.decal}` } : f)))) : paint(w.faces) }));
   const others = [...own.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, o]) => ({ id, head: o.head, faces: paint(o.faces) }));
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheelFaces.map((w) => ({ id: w.bone, head: w.hub })), ...others.map((o) => ({ id: o.id, head: o.head }))];
   const M = MOTION, heroMoves = ids.hero ? PARTS[ids.hero].moves ?? [] : [];

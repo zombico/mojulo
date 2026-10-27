@@ -11,16 +11,21 @@
  * colour a face. Faces arrive fanned (at most four corners) and rounded; nothing here rolls a die.
  */
 import { VEHICLE_MATERIALS } from './vehicle-surface-finish.js';
+import { bakeChannels } from '../polygonizer/surface-bake.js';
 
 /** A slot's material: the supercar's rows, and cloth for the driver's suit. */
 export const KART_MATERIALS = Object.freeze({
   ...VEHICLE_MATERIALS,
   cloth: Object.freeze({ metalness: 0, roughness: 0.82 }),
+  // the gloss wheel's: the tread blocks rougher than the rubber they stand in, the rim's lip and boss polished chrome
+  tread: Object.freeze({ metalness: 0, roughness: 0.97 }),
+  chrome: Object.freeze({ metalness: 1, roughness: 0.1 }),
 });
 const MATERIAL_OF = Object.freeze({
   'tech:body': 'paint', 'tech:skin': 'paint', 'str:paint': 'paint', 'driver:helmet': 'paint',
   'tech:trim': 'alloy', 'tech:frame': 'carbon', 'tech:glass': 'glass', 'tech:light': 'lamp', 'lamp:brake': 'tail',
   'tech:cable': 'rubber', seat: 'seal', 'driver:suit': 'cloth', 'driver:glove': 'seal', 'lamp:rim': 'seal',
+  'wheel:groove': 'tread', 'wheel:stripe': 'paint', 'wheel:lip': 'chrome', 'wheel:boss': 'chrome',
 });
 export const materialOfSlot = (slot) => MATERIAL_OF[slot] ?? 'paint';
 const EMISSIVE = new Set(['tech:light', 'lamp:brake']);
@@ -88,3 +93,34 @@ export function racerReviewInput(S) {
   if (!faces.root.every((f) => f.material && f.albedo)) throw new Error('car-designer: a racer opens in the review solved with shade: \'smooth\'');
   return { faces, materials: KART_MATERIALS, census: S.census };
 }
+
+/**
+ * THE GLOSS WHEEL'S PAINTED LIGHT — the character bake stack's cheats (polygonizer/surface-bake.js, the sixth
+ * generation's painted light) on a wheel, as decoration: its corners darkened by occlusion (the tyre's bead in the rim,
+ * the dish under its lip, the spokes' roots) and lifted at an edge (the lip's rim, a tread block's shoulder). Only the
+ * channels a turning wheel keeps: a sky band, a height or a rise would turn with it. The baked fills take it (the paint
+ * render) and so does each corner's albedo (`cornerAlbedo`: the form render paints the decoration and lights the rest).
+ *   bakeWheel(faces) → the faces, each with its corners' fills and albedo so painted
+ */
+const WHEEL_BAKE = Object.freeze({ occlusion: 0.6, edge: 0.32, chromeEdge: 0.55 });
+export function bakeWheel(faces) {
+  if (!faces.length) return faces;
+  const vertices = [], provenance = [], tris = [], corner = [];
+  faces.forEach((f, fi) => {
+    const base = vertices.length;
+    f.corners.forEach((p, j) => { vertices.push(p); provenance.push({ part: f.material }); corner.push([fi, j]); });
+    for (let j = 1; j + 1 < f.corners.length; j++) tris.push([base, base + j, base + j + 1]);
+  });
+  const ch = bakeChannels({ vertices, faces: tris, provenance });
+  const out = faces.map((f) => ({ ...f, cornerFills: [...(f.cornerFills ?? f.corners.map(() => f.fill))], cornerAlbedo: f.corners.map(() => f.albedo) }));
+  corner.forEach(([fi, j], vi) => {
+    const f = out[fi];
+    if (EMISSIVE_MATERIALS.has(f.material)) return;
+    const k = (1 - WHEEL_BAKE.occlusion * ch.occlusion[vi]) * (1 + (f.material === 'chrome' ? WHEEL_BAKE.chromeEdge : WHEEL_BAKE.edge) * ch.edge[vi]);
+    const scale = (h) => rgbHex(hexRgb(h).map((x) => x * k));
+    f.cornerFills[j] = scale(f.cornerFills[j]);
+    f.cornerAlbedo[j] = scale(f.cornerAlbedo[j]);
+  });
+  return out;
+}
+const EMISSIVE_MATERIALS = new Set(['lamp', 'tail']);

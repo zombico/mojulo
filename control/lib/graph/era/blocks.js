@@ -19,7 +19,9 @@
  *   buildBlock(block, { params, seed, ring, library, many, bevel, lathe }) → { faces, parts, params, box, ring, counted }
  *                                         (`bevel`, opt-in: a share of each drawn part's least size its capped prisms
  *                                         are bevelled by; `lathe`, opt-in: a wheel turned as a tyre with a rounded
- *                                         shoulder (latheTyre) instead of a prism; absent, nothing changes)
+ *                                         shoulder (latheTyre) and a running drum as a deep-dish rim (latheRim)
+ *                                         instead of prisms, each tagged with its painted decals; absent, nothing
+ *                                         changes)
  *   blockLaws(block, built)               → [{ law, want, ok, value }]
  *   blockPaint(kitId, finish)             → a structure paint with the technology groups resolved by a finish
  *
@@ -143,8 +145,8 @@ function inset(o, d) {
 /**
  * A TYRE TURNED ON A LATHE (`ex.lathe`): the wheel prim's round, not its prism. A profile across the tread (a crowned
  * tread, a rounded shoulder, the sidewall bulging a touch before it tucks to the bead) swept round the axis in twice
- * the prism's sides (24 to 48), each sidewall a ring down to the bead (inside it, the wheel's own rim). Inside the
- * plain wheel's bounds: nothing grows.
+ * the prism's sides (24 to 48), each sidewall a ring down to the bead (inside it, the wheel's own rim). Within the
+ * wheel's own radius and width: the true round, where the prism was a polygon inside it.
  */
 function latheTyre(out, p, ex) {
   const ax = AXES[p.axis ?? 'y'], c = [0, 0, p.r], n = Math.max(24, Math.min(48, 2 * (p.sides ?? 12))), w = p.w / 2, r = p.r;
@@ -152,9 +154,38 @@ function latheTyre(out, p, ex) {
   // across the tread from one bead to the other: [axial share of the half width, radius share]
   const prof = [[-1, 0.62], [-1, 0.8], [-0.97, 0.9], [-0.86, 0.97], [-0.62, 1], [0, 1], [0.62, 1], [0.86, 0.97], [0.97, 0.9], [1, 0.8], [1, 0.62]];
   const at = (k, j) => { const a = (2 * Math.PI * j) / n + Math.PI / n, [s, q] = prof[k]; return add3(add3(add3(c, ax, s * w), u, Math.cos(a) * q * r), v, Math.sin(a) * q * r); };
+  // the painted decals the racer's gloss finish reads (`decal`): tread blocks checkered across the crown and the
+  // shoulders, a stripe round each sidewall
+  // (a block two facets long, staggered row to row: a tread, not a chequer)
+  const decalOf = (k, j) => (k >= 3 && k <= 6 ? ((Math.floor(j / 2) + (k >= 5 ? 1 : 0)) % 2 ? 'groove' : null) : k === 1 || k === 8 ? 'stripe' : null);
   for (let j = 0; j < n; j++) for (let k = 0; k + 1 < prof.length; k++) {
-    const q = [at(k, j), at(k, j + 1), at(k + 1, j + 1), at(k + 1, j)], m = q.reduce((s, x) => add3(s, x, 0.25), [0, 0, 0]);
-    face(out, q, sub(m, add3(c, ax, prof[k][0] * w * 0.6 + prof[k + 1][0] * w * 0.4)), ex.part, ex.value, ex.extra);
+    const q = [at(k, j), at(k, j + 1), at(k + 1, j + 1), at(k + 1, j)], m = q.reduce((s, x) => add3(s, x, 0.25), [0, 0, 0]), d = decalOf(k, j);
+    face(out, q, sub(m, add3(c, ax, prof[k][0] * w * 0.6 + prof[k + 1][0] * w * 0.4)), ex.part, ex.value, d ? { ...ex.extra, decal: d } : ex.extra);
+  }
+}
+
+/**
+ * A RIM TURNED ON A LATHE (`ex.lathe`, a running drum: a wheel's rim, its cap, its hub): a cartoon deep dish in place of
+ * a flat drum. From its inner face out along its axis: the barrel, then at the outer face a raised lip, a step down into
+ * a dish a quarter of the drum's length deep, and a boss rising at its middle. Tagged for the gloss finish (`decal`:
+ * lip, dish, boss). Inside the plain drum's bounds: nothing grows.
+ */
+function latheRim(out, p, ex) {
+  const ax = AXES[p.axis ?? 'z'], n = Math.max(24, Math.min(48, 2 * (p.sides ?? 12))), R = p.r, h = p.h, deep = Math.min(h * 0.25, R * 0.45);
+  const u = Math.abs(ax[0]) > 0.5 ? [0, 1, 0] : [1, 0, 0], v = Math.abs(ax[2]) > 0.5 ? [0, 1, 0] : [0, 0, 1];
+  // [axial distance from the inner face, radius share, decal]: the profile from the inner face's centre round to the boss's
+  const prof = [[0, 0, null], [0, 1, null], [h - deep * 0.15, 1, null], [h, 0.97, 'lip'], [h, 0.86, 'lip'], [h - deep, 0.8, 'dish'], [h - deep, 0.3, 'dish'], [h - deep * 0.45, 0.2, 'boss'], [h - deep * 0.45, 0, 'boss']];
+  const at = (k, j) => { const a = (2 * Math.PI * j) / n + Math.PI / n, [x, q] = prof[k]; return add3(add3(add3([0, 0, 0], ax, x), u, Math.cos(a) * q * R), v, Math.sin(a) * q * R); };
+  for (let j = 0; j < n; j++) for (let k = 0; k + 1 < prof.length; k++) {
+    const q = [at(k, j), at(k, j + 1), at(k + 1, j + 1), at(k + 1, j)], d = prof[k + 1][2];
+    // (its outward side: off the axis for the barrel and the dish's wall, along it for a face across it)
+    const across = Math.abs(prof[k][0] - prof[k + 1][0]) < 1e-9, m = q.reduce((s, x) => add3(s, x, 0.25), [0, 0, 0]);
+    const toward = across ? ax.map((t) => t * (prof[k][0] < h / 2 ? -1 : 1)) : sub(m, add3([0, 0, 0], ax, (prof[k][0] + prof[k + 1][0]) / 2));
+    // (the dish's inner wall faces in toward the axis: it is seen from outside the wheel, looking into the dish)
+    const wall = k === 4 ? toward.map((t) => -t) : toward;
+    // (at the axis two corners are one: a triangle)
+    const same = (a, b) => dot(sub(a, b), sub(a, b)) < 1e-14, tri = q.filter((x, i) => !same(x, q[(i + 1) % 4]));
+    face(out, tri, wall, ex.part, ex.value, d ? { ...ex.extra, decal: d } : ex.extra);
   }
 }
 
@@ -208,7 +239,7 @@ export const PRIMITIVES = Object.freeze({
     } },
   drum: { read: 'a cylinder of radius r, h long along its axis', rails: { r: R(0.02, 30), h: R(0.02, 60), sides: R(5, 32, true) },
     least: (p) => Math.min(2 * p.r, p.h),
-    build(out, p, ex) { prism(out, [0, 0, 0], AXES[p.axis ?? 'z'].map((v) => v * p.h), ring2(p.sides ?? 12, p.r, Math.PI / (p.sides ?? 12)), ex); } },
+    build(out, p, ex) { if (ex.lathe && ex.extra?.role === 'running') { latheRim(out, p, ex); return; } prism(out, [0, 0, 0], AXES[p.axis ?? 'z'].map((v) => v * p.h), ring2(p.sides ?? 12, p.r, Math.PI / (p.sides ?? 12)), ex); } },
   tube: { read: 'a round member from one point to another', rails: { r: R(0.01, 6), sides: R(4, 16, true) },
     least: (p) => 2 * p.r,
     build(out, p, ex) { prism(out, p.from, p.to, ring2(p.sides ?? 6, p.r), ex); } },
