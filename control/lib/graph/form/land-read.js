@@ -7,16 +7,18 @@
  * (the matte painter's natural cuts) in one atlas each for base, normal and orm (height in blue); the sea's depth over
  * the land; the dirt's tones (color-theorist/ground.js soilTones).
  *
- *   landRead(payload, cube, { hour?, dress?, grass? }) → { P, L, light, sun, bases, ranges, pos, c7, spl, nrm, faceOf,
- *       cornerOf, …the layers, the mask, the depth, the stones, the grass' map and rows when asked }
+ *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed? }) → { P, L, light, sun, bases, ranges, pos,
+ *       c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the grass' map and
+ *       rows when asked }
  *     payload: a resolved geocube payload (its faces, cameras, sky); cube: the resolved cube (era/geocube.js readGeocube);
  *     hour: an hour (a number) the light is read at, the bases kept at the cube's own; dress: a trail's dress
- *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows.
+ *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows; relief:
+ *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
  *     for a payload with no land.
  *   formPayload(read) → the World page's `form` input (scene/channels/form-land.js draws it): the land's vertices
- *     (base64), its ranges, the light, the layers' textures, the mask, the depth, the stones, the dress, and `hides`
- *     (the painted groups it draws in their place). Plain data, JSON-safe.
+ *     (base64), its ranges, the light, the layers' textures, the mask, the depth, the stones, the dress, the relief,
+ *     and `hides` (the painted groups it draws in their place). Plain data, JSON-safe.
  *
  * Pure, seeded: the same payload and cube, the same read, byte for byte. Nothing in a recipe reads it.
  */
@@ -30,8 +32,11 @@ import { landLayers, LAYER_OF, PATH_REACH } from './land-layers.js';
 import { strHash } from '../city/plan/dice.js';
 import { landStones, SHAPES } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
+import { readRelief, reliefMap } from './rock-relief.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+/** The rock's relief when none is asked for: the ledged face (form/rock-relief.js). */
+export const RELIEF_DEFAULT = 'ledged';
 /** A trail's dress when none is written: rubble half, a little dust, some clay, the three patch kinds. */
 export const DRESS_DEFAULT = Object.freeze({ surface: 'earth', rubble: 0.5, dust: 0.3, clay: 0.45, patches: Object.freeze(['worn', 'damp', 'gravel']) });
 
@@ -65,7 +70,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3 } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -244,11 +249,13 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
 
   return { P, L, own, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, roleBase, FADE, underAt,
     ranges, pos, c7, spl, nrm, faceOf, cornerOf, land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, DEPTH_CELL, DEPTH_MAX, depthMap,
-    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, ROW, SEG, brush, dress };
+    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, ROW, SEG, brush, dress,
+    // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
+    relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
 
 export function formPayload(R) {
-  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress } = R;
+  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief } = R;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
@@ -264,5 +271,7 @@ export function formPayload(R) {
       pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => r4(v * 0.82)),
       green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX },
     path: pathTex, depth: depthMap,
+    // (the relief's heights in 16 bits over its range, row by row up the face)
+    relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
   };
 }

@@ -933,6 +933,15 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   sampled along both side axes where a face turns between them (its beds never snap round a cone), with parallax near,
   and dirt settles on its ledges (where its own relief faces up) in a tone toward the dry powder's. The crag cut and
   every gen-6 page unchanged.
+- **The rock's relief, a heartbeat at a cliff's scale** (`form/rock-relief.js`): the heartbeat's words and fields
+  (`readEdits`, `editField`) over a tile of rock face, u along it and v up it: `pulse` (a swell and bumps), `marks`
+  (`cliff` a ledge, `gorge` a crack or chimney, `ridge` a rib, `raise` and `lower` a bulge or scoop; at most a metre),
+  `why`, presets `ledged`, `cracked` and `ribbed` copied with `from`. `reliefMap` makes the face's heights, wrapping,
+  its mean taken out; the seed nudges each mark, so one relief gives many faces of a kind. The land read carries it
+  (`relief`, `ledged` by default) and the page cuts the cliff's steep faces finer and pushes them in and out along
+  their normals by it: benches and tops stay as walked, no crack where the cliff meets another class, the ledges' own
+  shadows cast. Display only: walking keeps the land as built. Also in the channel: scree lies no steeper than its
+  angle of repose, and on a steep face the rock's relief decides where the soil shows.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

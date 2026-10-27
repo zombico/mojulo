@@ -169,17 +169,21 @@ export function formLandScript(form) {
     // straight across a triangle, the border they give must not)
     // the scree thins out by its stones: a stone is kept whole where its dice fall under the scree's share here (nudged
     // like the rest), and then it lies over whatever else is here; between the kept stones the others show
-    float wsum = max( 1e-4, ws[0] + ws[1] + ws[2] + ws[3] + ws[4] + ws[5] + ws[6] ), sh = ws[1] / wsum;
+    float wsum = max( 1e-4, ws[0] + ws[1] + ws[2] + ws[3] + ws[4] + ws[5] + ws[6] ), sh = ws[1] / wsum * smoothstep( 0.55, 0.8, nW.z );
+    // (scree lies no steeper than its angle of repose, ~38°: on a cliff's face its share is none, whatever its corners say)
     float sn = vn( vWPos.xy / 2.5 + 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + 5.1 ) * 0.3 - 0.5;
     // (the trail's verge: its rubble's share, the stones the dice keep along its edges as the real ones lie, a few on it)
     float vergeW = uDress.x * ( pd <= 0.05 ? 0.15 : exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) ) * smoothstep( 0.6, 0.85, nW.z );
     sh = max( sh, pd < 98.0 ? vergeW * 0.9 : 0.0 );
     float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 ) ) : 0.0;
-    float top = 0.0;
+    float top = 0.0, steepF = 1.0 - smoothstep( 0.5, 0.8, abs( nW.z ) );
     for ( int i = 0; i < 7; i++ ) {
       float nz = vn( vWPos.xy / 2.5 + float( i ) * 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + float( i ) * 5.1 ) * 0.3 - 0.5;
       // (a layer's relief and its noise lift it as far as it is here: a trace of turf under the trail never wins on its blades)
-      ws[ i ] = i == 1 ? kept * 4.0 : ws[ i ] > 0.001 ? ws[ i ] + ( hgt[ i ] * 0.35 + nz * 0.35 ) * min( 1.0, ws[ i ] * 3.0 ) : 0.0; top = max( top, ws[ i ] );
+      // (on a steep face the relief decides more and the noise breaks finer: the soil and scree lie in the rock's joints
+      // and soft beds, their border the strata's, never the line a corner's weight runs across a face)
+      float nzF = vn( vWPos.xy / 0.35 + vWPos.z * 1.7 + float( i ) * 3.1 ) - 0.5;
+      ws[ i ] = i == 1 ? kept * 4.0 : ws[ i ] > 0.001 ? ws[ i ] + ( hgt[ i ] * mix( 0.35, 0.95, steepF ) + nz * 0.35 + nzF * 0.35 * steepF ) * min( 1.0, ws[ i ] * 3.0 ) : 0.0; top = max( top, ws[ i ] );
     }
     float tw = 0.0; vec3 mb = vec3( 0.0 ), mn = vec3( 0.0 ); vec2 mr = vec2( 0.0 );
     for ( int i = 0; i < 7; i++ ) { float w = max( ws[ i ] - ( top - 0.08 ), 0.0 ); tw += w; mb += bs[ i ] * w; mr += rs[ i ] * w; mn += ns[ i ] * w; ws[ i ] = w; }
@@ -217,6 +221,72 @@ export function formLandScript(form) {
     m.customProgramCacheKey = () => 'layered-ground';
     return m;
   }
+  // the ROCK'S RELIEF (form/rock-relief.js): the cliff's steep faces cut finer and pushed in and out along their normals by
+  // the relief's map, sampled along both side axes and blended as the rock's texture is (its beds level on either);
+  // nothing moves on level ground (benches and tops stay as walked) or at a corner another class shares (no cracks), and a
+  // face left whole has its every edge so; normals rebuilt over the points the cut faces share
+  const RF = D.relief && (() => { const q = new Uint16Array(bytes(D.relief.px).buffer), lo = D.relief.lo, sp = D.relief.hi - D.relief.lo; return { N: D.relief.size, T: D.relief.tile, h: Float32Array.from(q, (v) => lo + (v / 65535) * sp) }; })();
+  const sst = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const steepOf = (nz) => 1 - sst(0.5, 0.8, Math.abs(nz));
+  function reliefAt(x, y, z, nx, ny, nz) {
+    const st = steepOf(nz); if (st <= 0) return 0;
+    const { N, T, h } = RF, samp = (u, v) => {
+      const fx = (((u / T) % 1) + 1) % 1 * N - 0.5, fy = (((v / T) % 1) + 1) % 1 * N - 0.5, i = Math.floor(fx), j = Math.floor(fy), ax = fx - i, ay = fy - j;
+      const at = (a, b) => h[(((b % N) + N) % N) * N + (((a % N) + N) % N)];
+      return (at(i, j) * (1 - ax) + at(i + 1, j) * ax) * (1 - ay) + (at(i, j + 1) * (1 - ax) + at(i + 1, j + 1) * ax) * ay;
+    };
+    const aX = Math.abs(nx), aY = Math.abs(ny), bx = aX / Math.max(1e-4, aX + aY);
+    const [u1, u2, w2] = aX >= aY ? [y * Math.sign(nx), -x * Math.sign(ny), 0.5 * (1 - sst(0, 0.12, bx - 0.5))] : [-x * Math.sign(ny), y * Math.sign(nx), 0.5 * (1 - sst(0, 0.12, 0.5 - bx))];
+    return st * ((1 - w2) * samp(u1, z) + w2 * samp(u2, z));
+  }
+  function reliefPart(R) {
+    const key = (x, y, z) => Math.round(x * 500) + ',' + Math.round(y * 500) + ',' + Math.round(z * 500), NS = 6;
+    const others = new Set(); for (const Q of D.ranges) if (Q !== R) for (let v = Q.start; v < Q.start + Q.count; v++) others.add(key(POS[v * 3], POS[v * 3 + 1], POS[v * 3 + 2]));
+    const P = [], CO = [], SP = [], NI = [], WK = [], cut = [];
+    const push = (p, c, s, n, w, k) => { P.push(p[0], p[1], p[2]); CO.push(c[0], c[1], c[2], c[3]); SP.push(s[0], s[1], s[2], s[3]); NI.push(n[0], n[1], n[2]); WK.push(w); cut.push(k); };
+    const corner = (v) => ({ p: [POS[v * 3], POS[v * 3 + 1], POS[v * 3 + 2]], c: [C7[v * 4], C7[v * 4 + 1], C7[v * 4 + 2], C7[v * 4 + 3]], s: [SPL[v * 4], SPL[v * 4 + 1], SPL[v * 4 + 2], SPL[v * 4 + 3]], n: [NRM[v * 3] / 127, NRM[v * 3 + 1] / 127, NRM[v * 3 + 2] / 127] });
+    const mix3 = (A, B, Cc, a, b, c) => A.map((_, k) => A[k] * c + B[k] * a + Cc[k] * b);
+    for (let v = R.start; v < R.start + R.count; v += 3) {
+      const K = [corner(v), corner(v + 1), corner(v + 2)], free = K.map((q) => (others.has(key(...q.p)) ? 0 : 1));
+      // (left whole: every corner shared, or every corner level, so its every edge stands still on the cut side too)
+      if (free.every((f) => !f) || K.every((q) => steepOf(q.n[2]) <= 0)) { for (const q of K) push(q.p, q.c, q.s, q.n, 0, 0); continue; }
+      const idx = (i, j) => i * (NS + 1) - (i * (i - 1)) / 2 + j, pts = [];
+      for (let i = 0; i <= NS; i++) for (let j = 0; j <= NS - i; j++) {
+        const a = i / NS, b = j / NS, c = 1 - a - b, p = mix3(K[0].p, K[1].p, K[2].p, a, b, c), nr = mix3(K[0].n, K[1].n, K[2].n, a, b, c), l = Math.hypot(...nr) || 1, n = nr.map((x) => x / l);
+        const w = free[0] * c + free[1] * a + free[2] * b, d = w * reliefAt(p[0], p[1], p[2], n[0], n[1], n[2]);
+        pts.push([p.map((x, k) => x + n[k] * d), mix3(K[0].c, K[1].c, K[2].c, a, b, c), mix3(K[0].s, K[1].s, K[2].s, a, b, c), n, w * steepOf(n[2])]);
+      }
+      const tri = (q0, q1, q2) => { for (const q of [q0, q1, q2]) { const t = pts[q]; push(t[0], t[1], t[2], t[3], t[4], 1); } };
+      for (let i = 0; i < NS; i++) for (let j = 0; j < NS - i; j++) {
+        tri(idx(i, j), idx(i + 1, j), idx(i, j + 1));
+        if (j < NS - i - 1) tri(idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1));
+      }
+    }
+    // (the cut faces' normals: each point's the area-weighted mean of the faces round it, by where it stands; blended back
+    // to the land's own where nothing moved, so the cut and the whole meet without a crease)
+    const n = P.length / 3, acc = new Map(), fn = new Float32Array(n * 3);
+    for (let t = 0; t < n; t += 3) {
+      if (!cut[t]) continue;
+      const a = t * 3, e1 = [P[a + 3] - P[a], P[a + 4] - P[a + 1], P[a + 5] - P[a + 2]], e2 = [P[a + 6] - P[a], P[a + 7] - P[a + 1], P[a + 8] - P[a + 2]];
+      const cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      for (let k = 0; k < 3; k++) { const q = key(P[(t + k) * 3], P[(t + k) * 3 + 1], P[(t + k) * 3 + 2]), s = acc.get(q) ?? [0, 0, 0]; s[0] += cr[0]; s[1] += cr[1]; s[2] += cr[2]; acc.set(q, s); }
+    }
+    for (let v = 0; v < n; v++) {
+      let nx = NI[v * 3], ny = NI[v * 3 + 1], nz = NI[v * 3 + 2];
+      if (cut[v]) {
+        const s = acc.get(key(P[v * 3], P[v * 3 + 1], P[v * 3 + 2])), l = Math.hypot(...s) || 1, k = sst(0, 0.25, WK[v]);
+        nx += (s[0] / l - nx) * k; ny += (s[1] / l - ny) * k; nz += (s[2] / l - nz) * k;
+      }
+      const l = Math.hypot(nx, ny, nz) || 1; fn[v * 3] = nx / l; fn[v * 3 + 1] = ny / l; fn[v * 3 + 2] = nz / l;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(Float32Array.from(CO), 4));
+    g.setAttribute('splat', new THREE.BufferAttribute(Uint8Array.from(SP, (x) => Math.round(x)), 4, true));
+    g.setAttribute('normal', new THREE.BufferAttribute(fn, 3));
+    window.__formRelief = { triangles: n / 3, cut: cut.filter(Boolean).length / 3 };
+    return g;
+  }
   const sunLight = window.__formSun = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;
   const [bx, by, bz] = D.box, mid = new THREE.Vector3((bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2, (bz[0] + bz[1]) / 2), rad = Math.hypot(bx[1] - bx[0], by[1] - by[0], bz[1] - bz[0]) / 2;
   Object.assign(sunLight.shadow.camera, { left: -rad, right: rad, top: rad, bottom: -rad, near: 0.5, far: rad * 4 });
@@ -234,7 +304,7 @@ export function formLandScript(form) {
     if (ground) layeredGround(m, 1);
     // (the land is shaded flat, its normals the faces'; the sea's are its own; the shallows' floor, all but level, lit as
     // one surface facing up, so its faces never show through the sea as facets)
-    const floor = R.key === 'sand:under', g = part(R, C7, { splat: ground, smooth: !water && !floor && R.key !== 'unread' });
+    const floor = R.key === 'sand:under', g = RF && R.key === 'cliff' ? reliefPart(R) : part(R, C7, { splat: ground, smooth: !water && !floor && R.key !== 'unread' });
     if (water) g.computeVertexNormals();
     if (floor) g.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from({ length: R.count * 3 }, (_, i) => (i % 3 === 2 ? 1 : 0)), 3));
     const mesh = new THREE.Mesh(g, m); mesh.castShadow = !water; mesh.receiveShadow = true; scene.add(mesh); __formMeshes.push(mesh);
