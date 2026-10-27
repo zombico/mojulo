@@ -49,13 +49,22 @@ export const BLADE_KEEP = 0.8;
  *  flattens into the ground (m), each sward's strands (the carpet's height, m, the blades' tops; the strands' cell, m;
  *  their width at the foot, × the cell; their lean, × the height; a dark twin, the short sward's), and how low it sits
  *  right by the eye, where the blades are the grass (× its height). */
+/** A blade's height over its clump's, by its cell's dice: the least and the spread (a tall sward wandering, a short one
+ *  near one height); and a carpet strand's over the carpet's. */
+export const BLADE_RISE = Object.freeze({ tall: Object.freeze([0.5, 0.55]), short: Object.freeze([0.85, 0.2]) });
+export const STRAND_RISE = Object.freeze([0.55, 0.45]);
+const meanOf = (r) => r[0] + r[1] / 2;
+// (the carpet's height: its strands' mean top where the sward's blades' mean top is, so a blade hands over at its own height)
+const carpetHeight = (id, rise) => { const T = GRASS_TIERS.find((t) => t.id === id); return Math.round((T.scale * meanOf([T.clump.height[0], T.clump.height[1] - T.clump.height[0]]) * meanOf(rise)) / meanOf(STRAND_RISE) * 1000) / 1000; };
 export const CARPET = Object.freeze({ radius: 40, cell: 1, shells: 10, farShells: 0.5, thin: [18, 32], flat: [30, 40],
-  tall: Object.freeze({ height: 0.55, cell: 0.085, width: 0.32, lean: 0.25 }),
-  short: Object.freeze({ height: 0.21, cell: 0.042, width: 0.34, lean: 0.12, twin: true }),
+  // (each sward's strands: blades seen wide, fewer and coarser than the blades they stand for, two to a cell)
+  tall: Object.freeze({ height: carpetHeight('tall', BLADE_RISE.tall), cell: 0.16, width: 0.46, thick: 0.17, lean: 0.25 }),
+  short: Object.freeze({ height: carpetHeight('short', BLADE_RISE.short), cell: 0.075, width: 0.46, thick: 0.2, lean: 0.12, twin: true }),
   near: 0.18 });
 /** A drift's tint on the carpet over it (× its plants' mean colour): a kind that stands takes it whole and its height, a
  *  low one tints it. */
-export const CARPET_DRIFT = Object.freeze({ stands: 1, among: 0.35 });/** The wind on a blade: its top's lean per m/s of gust (× its height, at most `max`), and its quiver (× its height). */
+export const CARPET_DRIFT = Object.freeze({ stands: 1, among: 0.35 });
+/** The wind on a blade: its top's lean per m/s of gust (× its height, at most `max`), and its quiver (× its height). */
 export const GRASS_WIND = Object.freeze({ lean: 0.055, max: 0.85, quiver: 0.035, sheen: 0.12 });
 /** The drifts' grids, for a kind that stands, one that lies among the blades, and the flowers: near (the plant grown
  *  full) and far (plain), spacing and reach (m), and how many cells hold a plant. One plant a cell, its form by the
@@ -160,7 +169,7 @@ export function formGrassScript() {
             'mine *= 1.0 - step( 0.5, dot( texture( tDrift, ( wpG - uGO ) / uGM ), uReplace ) );',
             'float keepG = step( fract( hsh.y * 13.7 + hsh.x * 3.1 ), gq.b * ( uShort > 0.5 ? 2.0 : 1.2 ) ) * mine;   // (fewer clumps where the grass thins, by their dice; a pile thins late)',
             // (a short sward near one height, a pile; a tall one wandering)
-            'float hsG = keepG * smoothstep( 0.08, 0.6, gq.b ) * ( uShort > 0.5 ? 0.85 + 0.2 * hsh.y : 0.5 + 0.55 * hsh.y ) * mix( ${BLADE_KEEP}, 1.0, fadeG ) * ease * uHs;',
+            'float hsG = keepG * smoothstep( 0.08, 0.6, gq.b ) * ( uShort > 0.5 ? ${BLADE_RISE.short[0]} + ${BLADE_RISE.short[1]} * hsh.y : ${BLADE_RISE.tall[0]} + ${BLADE_RISE.tall[1]} * hsh.y ) * mix( ${BLADE_KEEP}, 1.0, fadeG ) * ease * uHs;',
             'float pd = pdAt( wpG );',
             // (a short clump turned away from the trail, by the mask's slope, a little off; a tall one any way)
             'vec2 away = vec2( pdAt( wpG + vec2( 0.4, 0.0 ) ) - pdAt( wpG - vec2( 0.4, 0.0 ) ), pdAt( wpG + vec2( 0.0, 0.4 ) ) - pdAt( wpG - vec2( 0.0, 0.4 ) ) );',
@@ -245,6 +254,7 @@ export function formGrassScript() {
       const CU = { ...GU, uGS: { value: new THREE.Vector2(Gm.size[0], Gm.size[1]) }, uCP: { value: new THREE.Vector4(CP.radius, CP.cell, CP.shells, CP.farShells) },
         uThin: { value: new THREE.Vector4(CP.thin[0], CP.thin[1], CP.flat[0], CP.flat[1]) }, uTallC: { value: new THREE.Vector4(CP.tall.height, CP.tall.cell, CP.tall.width, CP.tall.lean) },
         uShortC: { value: new THREE.Vector4(CP.short.height, CP.short.cell, CP.short.width, CP.short.lean) }, uNearC: { value: CP.near },
+        uThick: { value: new THREE.Vector2(CP.tall.thick, CP.short.thick) },
         uDTone: { value: tone.map((t) => new THREE.Vector4(...t)) }, uDH: { value: dh }, uTwin: { value: new THREE.Vector2(TWIN.back, TWIN.height) }, uTwinS: { value: TWIN.shade } };
       const cm = new THREE.MeshStandardMaterial({ color: grassCol, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
       cm.onBeforeCompile = (sh) => {
@@ -271,22 +281,25 @@ export function formGrassScript() {
             'vec3 objectNormal = vec3( 0.0, 0.0, 1.0 );',
             'vT = tC; vSw = gq.a; vCov = gq.b * keepS * step( 0.004, hC ); vXY = wpC; vDr = dq;'].join('\\n'))
           .replace('#include <begin_vertex>', 'vec3 transformed = vec3( wpC, gzAt( wpC ) + 0.01 + tC * hC ) + fgBend( wpC, hC, tC, 0.0 ) * 0.6;');
-        sh.fragmentShader = 'uniform vec4 uTallC, uShortC;\\nuniform vec4 uDTone[4];\\nuniform vec2 uTwin;\\nuniform float uTwinS;\\nvarying float vT, vSw, vCov;\\nvarying vec2 vXY;\\nvarying vec4 vDr;\\n'
-          // (a strand's slice at height t: a strand a cell, jittered, its height and lean its own, tapering to its tip;
-          // its coordinate up the strand, or -1 where this shell has none here)
-          + 'float strand( vec2 p, float t, vec4 C, float off, float hk ) { vec2 c = floor( p / C.y ); vec2 h = fract( sin( vec2( dot( c, vec2( 127.1, 311.7 ) ), dot( c, vec2( 269.5, 183.3 ) ) ) ) * 43758.5453 );'
-          + ' float hs = ( 0.55 + 0.45 * h.y ) * hk; if ( t > hs ) return -1.0; vec2 d = vec2( cos( h.x * 6.2832 ), sin( h.x * 6.2832 ) );'
-          + ' vec2 ctr = ( c + 0.2 + 0.6 * h ) * C.y + d * ( C.w * t * t / hs ) * C.y * 4.0 + off * d; float r = C.z * C.y * ( 1.0 - t / hs );'
-          + ' return length( p - ctr ) < r ? t / hs : -1.0; }\\n'
+        sh.fragmentShader = 'uniform vec4 uTallC, uShortC;\\nuniform vec2 uThick;\\nuniform vec4 uDTone[4];\\nuniform vec2 uTwin;\\nuniform float uTwinS;\\nvarying float vT, vSw, vCov;\\nvarying vec2 vXY;\\nvarying vec4 vDr;\\n'
+          // (a strand's slice at height t: a blade seen wide, a strand a cell of a lattice shifted by sh, jittered, its height,
+          // facing and lean its own, wide along its facing and thin across it, tapering to its tip; its coordinate up the
+          // strand, or -1 where this shell has none here)
+          + 'float strand( vec2 p, float t, vec4 C, float th, vec2 sh, float off, float hk ) { vec2 q = p / C.y + sh, c = floor( q ); vec2 h = fract( sin( vec2( dot( c, vec2( 127.1, 311.7 ) ), dot( c, vec2( 269.5, 183.3 ) ) ) ) * 43758.5453 );'
+          + ' float hs = ( ${STRAND_RISE[0]} + ${STRAND_RISE[1]} * h.y ) * hk; if ( t > hs ) return -1.0; vec2 d = vec2( cos( h.x * 6.2832 ), sin( h.x * 6.2832 ) );'
+          + ' vec2 ctr = c + 0.25 + 0.5 * h + d * ( C.w * t * t / hs ) * 4.0 + off * d / C.y; vec2 r = q - ctr; float k = 1.0 - t / hs;'
+          + ' return abs( dot( r, d ) ) < C.z * k && abs( r.x * d.y - r.y * d.x ) < th * ( 0.4 + 0.6 * k ) ? t / hs : -1.0; }\\n'
           + sh.fragmentShader
           .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;')
           .replace('#include <color_fragment>', [
             '#include <color_fragment>',
             '  if ( vCov < 0.02 ) discard;',
             '  bool shortS = vSw > 0.5; vec4 C = shortS ? uShortC : uTallC;',
-            '  float u = strand( vXY, vT, C, 0.0, 1.0 ), dk = 0.0;',
+            '  float th = shortS ? uThick.y : uThick.x, u = strand( vXY, vT, C, th, vec2( 0.0 ), 0.0, 1.0 ), dk = 0.0;',
+            // (two strands a cell, the second on a lattice shifted half a cell: wide coverage from few strands)
+            '  if ( u < 0.0 ) u = strand( vXY, vT, C, th, vec2( 0.5 ), 0.0, 1.0 );',
             // (the short sward's dark twin: a little behind, lower, its own shade)
-            '  if ( u < 0.0 && shortS ) { u = strand( vXY, vT, C, uTwin.x, uTwin.y ); dk = 1.0; }',
+            '  if ( u < 0.0 && shortS ) { u = strand( vXY, vT, C, th, vec2( 0.0 ), uTwin.x, uTwin.y ); dk = 1.0; }',
             // (fewer strands where the grass thins, by their cell's dice)
             '  vec2 cc = floor( vXY / C.y ); if ( u < 0.0 || fract( sin( dot( cc, vec2( 41.3, 289.1 ) ) ) * 43758.5453 ) > vCov * 1.3 ) discard;',
             '  float tn = 0.85 + 0.3 * fract( sin( dot( cc, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );',

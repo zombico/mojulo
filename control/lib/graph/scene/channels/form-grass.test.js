@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { GRASS_TIERS, CARPET, BLADE_KEEP, formGrassScript } from './form-grass.js';
+import { GRASS_TIERS, CARPET, BLADE_KEEP, BLADE_RISE, STRAND_RISE, formGrassScript } from './form-grass.js';
 import { SWARDS } from '../../era/biocube.js';
 
 // a clump's triangles: each blade a strip of segments, two triangles a segment (the tip narrowed, not closed); a
@@ -31,13 +31,15 @@ describe('form grass', () => {
     const tall = GRASS_TIERS.find((t) => t.id === 'tall'), short = GRASS_TIERS.find((t) => t.id === 'short');
     expect(CARPET.radius).toBeGreaterThan(tall.reach);
     expect(CARPET.flat[0]).toBeGreaterThan(tall.reach);
-    // (the carpet's top where the blades' tops are: the tall clump's mean height, the short bed's)
-    const top = (T) => T.scale * (T.clump.height[0] + T.clump.height[1]) / 2;
-    expect(CARPET.tall.height).toBeGreaterThan(top(tall) * 0.6);
-    expect(CARPET.tall.height).toBeLessThan(top(tall) * 1.1);
-    expect(CARPET.short.height).toBeGreaterThan(top(short) * 0.8);
+    // (the carpet's strands' mean top where the sward's blades' mean top is: a blade hands over at its own height)
+    const mean = (r) => r[0] + r[1] / 2, bladeTop = (T, rise) => T.scale * (T.clump.height[0] + T.clump.height[1]) / 2 * mean(rise);
+    expect(CARPET.tall.height * mean(STRAND_RISE)).toBeCloseTo(bladeTop(tall, BLADE_RISE.tall), 2);
+    expect(CARPET.short.height * mean(STRAND_RISE)).toBeCloseTo(bladeTop(short, BLADE_RISE.short), 2);
     expect(BLADE_KEEP).toBeGreaterThanOrEqual(0.7);
-    // (its strands the blades' numbers: the short sward's finer, with its dark twin)
+    // (its strands blades seen wide: coarser than the blades they stand for, wide along their facing, thin across; the
+    // short sward's finer, with its dark twin)
+    for (const S of [CARPET.tall, CARPET.short]) expect(S.width).toBeGreaterThan(S.thick * 2);
+    expect(CARPET.tall.cell).toBeGreaterThan(tall.spacing / 3);
     expect(CARPET.short.cell).toBeLessThan(CARPET.tall.cell);
     expect(CARPET.short.twin).toBe(true);
     expect(GRASS_TIERS.some((t) => t.sward === 'any')).toBe(false);

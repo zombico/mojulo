@@ -1311,8 +1311,10 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   colours the library's carried into the cube's light by the ratio its grass was solved by.
 - **The grass's carpet, its density and its wind.** Nothing sprouts from nothing: wherever grass grows a carpet stands to
   the sward's height, the ground drawn again as thin shells (a grid that walks with the camera, ten shells near, half
-  far off), each keeping its slice of the strands, drawn from the blades' own numbers (spacing, height, lean, the
-  base-to-tip shade, the short sward's dark twin), a standing drift's colour and height over it and a low one's tint;
+  far off), each keeping its slice of the strands: blades seen wide (wide along their facing, thin across, leaning,
+  the blades' base-to-tip shade, the short sward's dark twin), two to a coarser cell, so it covers widely with less
+  detail; its height derived from the blades' (its strands' mean top at their mean top: 0.825 m tall, 0.265 m short),
+  so a blade hands over at its own height; a standing drift's colour and height over it and a low one's tint;
   it thins far off and flattens into the ground's lines. The blades stand inside it and dissolve into it past their
   reach at most of their height, never shrinking out. The far brush's rows (fins three ways, their lines wandering) are
   gone. The tall sward is denser (its grids 0.34 m and 0.17 m
