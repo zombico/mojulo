@@ -1,9 +1,11 @@
-// The form render indoors (room-form.js, era/stage.js, scene/channels/form.js): a room read in gen-7 keeps no light in
-// its corners, sends its placed lights to the page, and has its tiles read as material; anything else is as it was.
+// The form render indoors (room-form.js, room-light.js, era/stage.js, scene/channels/form.js): a room read in gen-7 is
+// baked with its colour and its light apart (the light solved from its palette, each lamp's shadow tested), its lamps
+// sent to the page to light the relief, its tiles read as material; anything else is as it was.
 import { describe, expect, it } from 'vitest';
 import { formMaterialOf, formRoomMaps, readFormLight } from './room-form.js';
 import { tileFamilyOf } from '../era/tile-specs.js';
-import { assembleStageScene } from '../era/stage.js';
+import { assembleStageScene, formLightFaces } from '../era/stage.js';
+import { makePointShadow } from '../era/sun.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { eraReading } from '../era/era-marks.js';
 
@@ -17,34 +19,55 @@ describe('a tile read as material', () => {
     for (const m of ['base', 'normal', 'orm']) expect(relief[m]).toMatch(/^data:image\/png;base64,/);
     expect(formMaterialOf('stucco').read).toBe('luminance');
     expect(formMaterialOf('card:leaf')).toBe(null);
-    const { textures, maps } = formRoomMaps(['stucco', `${fam}-a`, 'stucco']);
-    expect(Object.keys(maps)).toEqual([`${fam}-a`, 'stucco']);
+    const { textures, maps } = formRoomMaps(['stucco', `${fam}-a`, 'stucco', 'card:leaf']);
+    expect(Object.keys(maps)).toEqual(['card:leaf', `${fam}-a`, 'stucco']);
     expect(textures.stucco).toBe(formMaterialOf('stucco').base);
+    // (a card keeps its paint: only its mean goes to the page, which divides it by that)
+    expect(textures['card:leaf']).toBeUndefined();
+    expect(maps['card:leaf'].read).toBe('paint');
+    // its relief's height packed for the parallax, its depth within the bounds, its mean the colour's
+    expect(relief.depth).toBeGreaterThan(0);
+    expect(maps.stucco.mean.every((v) => v > 0 && v < 1)).toBe(true);
   });
 
-  it('the page\'s lights: colour 0..1, the bake\'s intensity and radius; a pool lights and never casts', () => {
-    const [torch, pool] = readFormLight([{ at: [1, 2, 3], color: '#ff8040', intensity: 1.5, radius: 7, fixture: 'torch' }, { at: [0, 0, 0.1], color: '#ffffff', intensity: 0.6, radius: 4, fixture: 'pool' }]);
-    expect(torch).toEqual({ at: [1, 2, 3], rgb: [1, 0.502, 0.251], intensity: 1.5, radius: 7, cast: true });
-    expect(pool.cast).toBe(false);
+  it('the page\'s lamps: each its solved key and radius; a pool is baked only, never lit live', () => {
+    const [torch, pool] = readFormLight([{ at: [1, 2, 3], color: '#ff8040', intensity: 1.5, radius: 7, fixture: 'torch' }, { at: [0, 0, 0.1], color: '#ffffff', intensity: 0.6, radius: 4, fixture: 'pool' }], [[2, 1, 0.5], [0.3, 0.3, 0.3]]);
+    expect(torch).toEqual({ at: [1, 2, 3], key: [2, 1, 0.5], radius: 7, live: true });
+    expect(pool.live).toBe(false);
   });
 });
 
 describe('a room in the form render', () => {
   const formed = assembleStageScene(ROOM, { formLit: true }), painted = assembleStageScene(ROOM, {});
 
-  it('its corners hold its material\'s colour, never light: a light turned up moves the paint, not the form', () => {
-    const lamp = (intensity) => ({ ...ROOM, lights: [{ at: [3, 0.4, 2.6], intensity, radius: 7 }] });
-    const fills = (m, ctx) => assembleStageScene(m, ctx).faces.map((f) => f.cornerFills ? f.cornerFills.join() : f.fill);
-    expect(fills(lamp(3), { formLit: true })).toEqual(fills(lamp(1), { formLit: true }));
-    expect(fills(lamp(3), {})).not.toEqual(fills(lamp(1), {}));
+  it('its corners carry its colour and its light apart: the light falls off from the lamp, the colour does not', () => {
+    const lit = formed.faces.filter((f) => f.cornerLight && f.group === 'stage:floor');
+    expect(lit.length).toBeGreaterThan(0);
+    const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], d = (c) => Math.hypot(c[0] - 3, c[1] - 0.4);
+    const corners = lit.flatMap((f) => f.corners.map((c, k) => [d(c), lum(f.cornerLight[k])])).sort((a, b) => a[0] - b[0]);
+    expect(corners[0][1]).toBeGreaterThan(corners[corners.length - 1][1]);
     expect(painted.form).toBeUndefined();
+    expect(painted.faces.some((f) => f.cornerLight)).toBe(false);
   });
 
-  it('its placed lights go to the page, one for each the bake would have laid', () => {
+  it('a lamp lights only the corners it can see: behind a wall, the ambient alone', () => {
+    const quad = (z, group) => ({ corners: [[0, 0, z], [2, 0, z], [2, 2, z], [0, 2, z]], normal: [0, 0, 1], tint: [0.6, 0.6, 0.6], group });
+    const floor = quad(0, 'stage:floor'), lid = { ...quad(1, 'stage:prop'), normal: [0, 0, -1] };
+    const lamp = { at: [1, 1, 2], color: '#ffa850', intensity: 1.5, radius: 7, fixture: 'torch' };
+    const run = (faces, shadowed) => formLightFaces(faces, [shadowed ? { ...lamp, shadow: makePointShadow(faces, lamp.at, { radius: 7 }) } : lamp], [0.2, 0.2, 0.25]);
+    const open = run([floor], true), shut = run([floor, lid], true);
+    expect(shut.faces[0].cornerLight[0]).toEqual(shut.light.ambient.map((v) => Math.round(v * 1e4) / 1e4));
+    expect(open.faces[0].cornerLight[0][0]).toBeGreaterThan(open.light.ambient[0]);
+    // (and the colour is the same either way: the base its palette asks for)
+    expect(shut.faces[0].cornerFills).toEqual(open.faces[0].cornerFills);
+  });
+
+  it('its lamps go to the page with their solved light, one for each the bake laid', () => {
     expect(formed.form.room.lights).toHaveLength(1);
-    expect(formed.form.room.lights[0]).toMatchObject({ at: [3, 0.4, 2.6], intensity: 1.5, radius: 7 });
-    expect(formed.form.room.lights.every((l) => l.cast)).toBe(true);
+    expect(formed.form.room.lights[0]).toMatchObject({ at: [3, 0.4, 2.6], radius: 7, live: true });
+    expect(formed.form.room.lights[0].key.every((v) => v > 0)).toBe(true);
     expect(formed.form.room.ambient).toHaveLength(3);
+    expect(formed.form.room.fall).toBeGreaterThan(0);
   });
 
   it('a toned room is lit as form: its ramps ride in its corners, the page\'s tone pass is not drawn', () => {
@@ -61,9 +84,11 @@ describe('a room in the form render', () => {
   it('the page draws it only when carried, and the era marks read its faces as material', () => {
     const tiny = { faces: [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], fill: '#808080', group: 'stage:floor' }], inline: true };
     expect(emitThreeWorld(tiny)).not.toContain('__mojForm');
-    const page = emitThreeWorld({ ...tiny, form: { room: { lights: [{ at: [0, 0, 2], rgb: [1, 0.7, 0.4], intensity: 1.5, radius: 6, cast: true }], ambient: [0.2, 0.2, 0.2], maps: {} } } });
+    const page = emitThreeWorld({ ...tiny, form: { room: { lights: [{ at: [0, 0, 2], key: [2, 1.4, 0.7], radius: 6, live: true }], ambient: [0.05, 0.05, 0.06], fall: 2, maps: {} } } });
     expect(page).toContain('__mojForm');
     expect(page).toContain('THREE.NeutralToneMapping');
+    // (no shadow maps of its own: the lamps' shadows are baked)
+    expect(page).not.toContain('castShadow = true');
     expect(eraReading({ faces: tiny.faces }, 'gen-7').approximated.map((r) => r.input)).toContain('faces');
     expect(eraReading({ faces: tiny.faces, form: { room: { lights: [] } } }, 'gen-7').approximated.map((r) => r.input)).not.toContain('faces');
   });

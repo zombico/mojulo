@@ -300,8 +300,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (form: a read in the form render (gen-7), for the builders that make more of the land for it: the meru island's
     // broken boulders, rims and strewn stones; only when on, so a gen-6 ctx is as it was)
     ...(ERAS[era]?.surface === 'form' ? { form: true } : {}),
-    // (formLit: a room under no sun drawn by the form render, its corners holding no light and its lights live on the page:
-    // era/stage.js, form/room-form.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
+    // (formLit: a room under no sun drawn by the form render, its colour and its light baked apart by its palette's solve
+    // and its relief lit on the page: era/stage.js, form/room-light.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
     // engine or file export, which carries its surfaces as paint until it carries materials) keeps the paint)
     ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { formLit: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
@@ -565,7 +565,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
   if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
   // the live occlusion pass (ctx.occlusion above): the World page reads the resolved terms; stills and exports ignore them
-  if (payload && ctx.occlusion && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
+  // (a room in the form render bakes its occlusion with its light, form/room-light.js: it takes the live pass only when its
+  // recipe asks for it, not by its era's default)
+  const formRoomOcc = payload && payload.form && payload.form.room && liveL && liveL.from && liveL.from.occlusion === 'form';
+  if (payload && ctx.occlusion && !formRoomOcc && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the
@@ -590,8 +593,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (manifestTex && typeof manifestTex === 'object') {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
     }
-    // THE FORM RENDER INDOORS (form/room-form.js): a room that sent its lights to be lit live has its tiles read as
-    // material, each key's colour under no light in place of its paint, its normal and occlusion beside it
+    // THE FORM RENDER INDOORS (form/room-form.js): a room baked for the form render has its tiles read as material, each
+    // key's colour under no light in place of its paint, its normal, occlusion, height and mean beside it
     if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
       const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
@@ -698,17 +701,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
-  // (a room lit live in the form render owns its shadows: its lights' own maps, channels/form.js; the live light's actors'
-  // map is drawn under a light the room's material would be lit by, so it gives way)
-  const shadowsOut = payload && payload.form && payload.form.room ? null : liveL ? liveL.shadows : sketch.manifest.shadows;
-  // (the actors it would have cast cast in the room's own lights instead: channels/form.js `actors`)
-  if (payload && payload.form && payload.form.room && liveL && liveL.shadows && liveL.shadows.actors) payload.form = { ...payload.form, room: { ...payload.form.room, actors: true } };
+  // (a room in the form render, under no sun, bakes its lamps' shadows: of the live light it keeps what moves, the actors)
+  const shadowsOut = payload && payload.form && payload.form.room ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
-  // (the form render's casters under the same tier: half the maps a side and half as many on a half tier, none off)
-  if (payload && payload.form && payload.form.room) { const T = liveL && liveL.tier ? liveL.tier.tier : 'off'; payload.form = { ...payload.form, room: { ...payload.form.room, shadows: T === 'off' ? { count: 0 } : T === 'half' ? { count: 2, size: 256 } : { count: 4, size: 512 } } }; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material

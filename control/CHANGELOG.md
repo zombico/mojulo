@@ -49,35 +49,48 @@ way a trail is, planned into rooms, links and two ports, built by the stage as a
   ports, the sightline, each ceiling) and its laws, captured from the mouth and from the squeeze into the reveal. Every
   law holds on all three.
 
-### Gen-7 rooms: a room's surfaces as material, its lights live
+### Gen-7 rooms: a room's surfaces as material, its light solved from its palette
 
 The form render's first place: a room under no sun, read in gen-7 (`?era=gen-7`, `export_game { era }`, a cube that names
-the seventh generation), has its tiles read as material and its placed lights lit live, where gen-6 paints the light into
-each tile and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
+the seventh generation), has its tiles read as material and its light solved from its palette and baked apart from its
+colour, as a seventh-generation lightmap was; the page lights only the relief. Gen-6 paints the light into each tile
+and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
 
 - **Every dressed cut reads as material** (`dressedMaterial`, matte-paint/dressed.js): the ashlar wall and floor, the
   fluted and plain shafts, lime render, roof tiles and slates, boards, and the natural cuts beside the modern ones. Each
   cut lights its relief through one helper, which, read as material, paints the colour under no light and keeps the
-  relief for its normal, occlusion and roughness. The paint is unchanged (its pins hold).
+  relief for its normal, occlusion, roughness and height. The paint is unchanged (its pins hold).
 - **A room's tiles as material** (`form/room-form.js`): a dressed family from its relief (each joint, flute and chip its
   own slope); any other tile from its painted light read back as height, as the seventh generation's own tools pulled a
-  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). A
-  generated tile now records the spec it was painted from (`generatedSpecOf`, landscape/surface-textures.js).
-- **No light in the corners** (era/stage.js): a room read in the form render bakes each corner its material's colour,
-  its tint under its dirt, and hands the page its placed lights, braziers and the nave's sun pools (`form.room: {
-  lights, ambient }`). A sunlit or night stage stays paint. A toned room (tone.js) has no material colour of its own (its
-  ramps colour its light), so each corner carries what the toned page paints it under its lamps, over the light the form
-  page will lay there: the room reads as its art direction, and the live light adds its relief and its shadows.
-- **The page lights it** (`scene/channels/form.js`): every surface of the room a lit material, flat-shaded with its
-  normal map's frame from the screen's derivatives, under the room's lights falling off by the bake's own law, an indirect
-  of the bake's ambient and a bounce off each light (what a lightmap holds), occluded by the material's hollows, and
-  tone-mapped. The four lights nearest the eye cast from cube maps, a fixed pool laid over the nearest as the eye walks,
-  each map drawn when its light changes and never per frame; the light tier halves them (two at 256) or drops them (off).
-  The live light's actors' map gives way in such a room, since its light would light the material: what moves (a hero,
-  walkers, cars, fauna) casts in the room's own lights instead, the nearest light's map drawn each frame, so a hero
-  throws its shadow from the torch beside it. `window.__mojForm` is the probe. Measured in Chrome on five rooms from each room's spawn: a lit room's mean luminance within 1 % of its
-  gen-6 paint (brick hall 34.3 against 33.9, crypt 31.4 against 31.4), the nave within 13 %; the gritty cube's toned
-  room 145 against 184 (its accent wall's colour is still short of its ramp's).
+  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). Each
+  carries its height in the ORM's blue (the island's convention), its relief's `depth` and its `mean` colour; a card
+  keeps its paint and sends only its mean. A generated tile now records the spec it was painted from
+  (`generatedSpecOf`, landscape/surface-textures.js).
+- **The light a room's palette asks for** (`form/room-light.js`, over the colour theorist's `solveLight`): what each
+  surface's paint shows at arm's length from the room's median lamp is a target; the bases (each surface's colour under
+  no light) and the lamps' light are solved together, as the island solves its sun for its palette. The hues are the ones
+  the paint shows (it mixes its light in display units, so a torch shows far less orange than its colour decoded), and
+  the contrast is the paint's, held so the lamps always shape the room. A toned room's colour is its ramps' (tone.js): its
+  targets are its ramps' colours at its key, its light neutral, its contrast its ramp's own.
+- **Baked as a lightmap** (`formLightFaces`, era/stage.js): each corner carries its base under its dirt and, apart, its
+  light (`cornerLight`, linear): the ambient, every placed light, brazier and pool by its solved key, its falloff and its
+  cosine where its shadow test sees the corner (whatever the recipe's `shadows.torch`), and a bounce in its own room. The
+  packer carries the light per vertex (`aLit`, face-mesh.js and scene-three.js; a page without it carries none of it),
+  the corner's occlusion on the light, not the colour. A sunlit or night stage stays paint.
+- **The page lights only the relief** (`scene/channels/form.js`): each surface's material is the paint's (three's basic
+  material; no light of three's is evaluated) multiplied by its baked light, the tile divided by its mean so the base sets
+  the colour. Near the eye the four lamps nearest it light the relief (the normal map against the face's own) and add a
+  sheen, scaled by how lit the bake says that spot is, so nothing shines in a baked shadow; a lamp entering or leaving
+  the four fades. Nearer still each tile's height is marched along the view (parallax occlusion, as the island's scree),
+  so a joint sinks and a stone stands. No shadow maps: the live light keeps only what moves (the actors' contact
+  shadow), and its contact occlusion is the recipe's to ask for (the bake holds the room's). A toned room's void and haze
+  are its ramp's darkest colour. Tone-mapped (Neutral, exposure 1: what the solve solved for). `window.__mojForm` is the
+  probe. Measured in Chrome (SwiftShader) on the gritty cube's temple hall from its mouth: a frame 1225 ms against gen-6's
+  616 (the first cut, every lamp live and four casting, took 2263 against 432); without the live light's actors' map,
+  879, and without relief and parallax, 595. Five rooms from each room's spawn: the brick hall's mean luminance 28.4
+  against its gen-6 paint's 33.9, the crypt 27.9 against 31.4, the nave 30 against 34.3; the gritty cube's toned room
+  darker than its paint, which is lit almost flat, and its marble's veins grey where the toned page carries them along
+  the ramp.
 - **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
   walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
   page draws the form render.

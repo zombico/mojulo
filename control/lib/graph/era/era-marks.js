@@ -43,11 +43,11 @@ export const NEUTRAL_INPUTS = Object.freeze([
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):
  *  `form.land` a geocube's island or trail (form/land-read.js), `form.room` a room under no sun (form/room-form.js). */
 export const FORM_INPUTS = Object.freeze(['form']);
-// a payload that carries the form render: its faces and their tiles are drawn as material, lit live
+// a payload that carries the form render: its faces and their tiles are drawn as material
 const FORMED = new Set(['faces', 'textures']);
 
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';
-const FORM_HOW = { form: 'the land as material under the cube\'s light (form/land-read.js, channels/form-land.js): a geocube\'s island or trail; a room\'s tiles as material under its placed lights, lit live, the nearest casting (form/room-form.js, channels/form.js)' };
+const FORM_HOW = { form: 'the land as material under the cube\'s light (form/land-read.js, channels/form-land.js): a geocube\'s island or trail; a room\'s tiles as material over its light solved from its palette and baked with its shadows, the nearest lamps lighting its relief (form/room-form.js, form/room-light.js, channels/form.js)' };
 const LIVE_HOW = 'the live light darkening paint: the form render will light material with it';
 const g6 = markRow('gen-6'), g7 = markRow('gen-7');
 

@@ -209,19 +209,19 @@ export function decollideExceptBound(faces) {
 // index (a quad sends 4 vertices, not 6) — and its baked colour sent as 8-bit sRGB, decoded in-page back to linear
 // (the display is 8-bit sRGB, so the picture is the same). Absent ⇒ every page is byte-identical.
 const toSrgb8 = (c) => { const v = Math.min(1, Math.max(0, c)); return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255); };
-function packTex(g, suns = null) {
-  const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [], sun = suns ? [] : null;
+function packTex(g, suns = null, lits = null) {
+  const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [], sun = suns ? [] : null, lit = lits ? [] : null;
   for (let i = 0; i < n; i++) {
     const p = [g.positions[3 * i], g.positions[3 * i + 1], g.positions[3 * i + 2]], q = [g.uvs[2 * i], g.uvs[2 * i + 1]];
     const c = [toSrgb8(g.colors[3 * i]), toSrgb8(g.colors[3 * i + 1]), toSrgb8(g.colors[3 * i + 2])];
     // (a vertex's sun share, the live light's, welds with it: two corners that differ in it stay two)
-    const k = `${Math.fround(p[0])},${Math.fround(p[1])},${Math.fround(p[2])},${Math.fround(q[0])},${Math.fround(q[1])},${c}${sun ? `,${Math.fround(suns[i])}` : ''}`;
+    const k = `${Math.fround(p[0])},${Math.fround(p[1])},${Math.fround(p[2])},${Math.fround(q[0])},${Math.fround(q[1])},${c}${sun ? `,${Math.fround(suns[i])}` : ''}${lit ? `,${Math.fround(lits[3 * i])},${Math.fround(lits[3 * i + 1])},${Math.fround(lits[3 * i + 2])}` : ''}`;
     let v = seen.get(k);
-    if (v === undefined) { v = pos.length / 3; seen.set(k, v); pos.push(...p); uv.push(...q); col.push(...c); if (sun) sun.push(suns[i]); }
+    if (v === undefined) { v = pos.length / 3; seen.set(k, v); pos.push(...p); uv.push(...q); col.push(...c); if (sun) sun.push(suns[i]); if (lit) lit.push(lits[3 * i], lits[3 * i + 1], lits[3 * i + 2]); }
     idx.push(v);
   }
   const wide = pos.length / 3 > 65535;
-  return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}), ...(sun ? { sun: b64(new Float32Array(sun)) } : {}) };
+  return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}), ...(sun ? { sun: b64(new Float32Array(sun)) } : {}), ...(lit ? { lt: b64(new Float32Array(lit)) } : {}) };
 }
 
 // THE SCREEN'S ZONES (game/screen.js): a game made for a screen lays its level UI out once, by the page's
@@ -248,6 +248,8 @@ const SCREEN_ZONES_CSS = [
 
 export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
+  // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
+  const litPack = !!(form && form.room && Array.isArray(form.room.lights));
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -481,7 +483,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // textured sub-groups (label wraps): one { key, pos, uv } per texture, rendered as a
     // MeshBasicMaterial({ map }). Empty for every existing scene → no behavior change.
     // (a texture group's sun share rides with it when the live light asks: liveShadows below)
-    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => (pack && !g.specs ? { key, ...packTex(g, liveShadows && g.suns ? g.suns : null), lit: !!g.lit } : { key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}), ...(liveShadows && g.suns ? { sun: b64(g.suns) } : {}) }));
+    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => (pack && !g.specs ? { key, ...packTex(g, liveShadows && g.suns ? g.suns : null, litPack && g.lits ? g.lits : null), lit: !!g.lit } : { key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}), ...(liveShadows && g.suns ? { sun: b64(g.suns) } : {}), ...(litPack && g.lits ? { lt: b64(g.lits) } : {}) }));
     // per-group translucency (cellular-view jelly + organelles): a face-level `alpha` < 1 turns
     // the whole group into a transparent mesh. null/absent → opaque, unchanged for every existing
     // scene. Stays a real group mesh (raycastable for picks, togglable to wireframe).
@@ -507,7 +509,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
     // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
     const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets), ...(gm.metP ? { p: b64(gm.metP) } : {}) } : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && creaseOf(fs) ? { crease: creaseOf(fs) } : {}), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}) };
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && creaseOf(fs) ? { crease: creaseOf(fs) } : {}), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}), ...(litPack && gm.lits ? { lt: b64(gm.lits) } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
@@ -682,14 +684,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const flickerBlock = flicker && Array.isArray(flicker.lamps) && flicker.lamps.length ? stageFlickerScript(flicker) : '';
   // dust in a stage's air (channels/motes.js); absent ⇒ no bytes
   const motesBlock = motes && motes.count > 0 ? motesScript(motes) : '';
-  // the form render indoors (channels/form.js): a room's surfaces lit as material by its placed lights; none → not one byte
+  // the form render indoors (channels/form.js): a room's surfaces as material over its baked light; none → not one byte
   const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : null;
-  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, shadows: { ...FORM_PAGE.shadows, ...(formRoom.shadows || {}) }, maps: formRoom.maps || {} }) : '';
-  // (what moves casts in the room's lights, the nearest's map drawn each frame: the actors flag their meshes as under the
-  // live light's actors, which a room in the form render does not carry)
-  const formActors = !!(formRoom && formRoom.actors);
+  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, pom: { ...FORM_PAGE.pom, ...(formRoom.pom || {}) }, relief: { ...FORM_PAGE.relief, ...(formRoom.relief || {}) }, maps: formRoom.maps || {} }) : '';
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
-  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) || formActors ? { cast: true } : {}) : '';
+  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) ? { cast: true } : {}) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted
   const wetRoadBlock = wetRoad && Array.isArray(wetRoad.quads) && wetRoad.quads.length ? wetRoadScript(wetRoad) : '';
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
@@ -889,7 +888,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(Number.isFinite(shadows.fitMin) && shadows.fitMin > 0 ? { fitMin: shadows.fitMin } : {}),
   }) : '';
   // (walkers, cars and the controllable bodies flag themselves as casters for `cast` and for `actors`)
-  const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors) || formActors;
+  const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors);
   const castShadowBlock = castShadows ? castShadowScript({
     toLight: Array.isArray(castShadows.toLight) && castShadows.toLight.length === 3 ? castShadows.toLight
       : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
@@ -990,7 +989,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // none ⇒ no bytes
   const faunaPets = Object.fromEntries(entityList.filter((e) => e.pet && typeof e.id === 'string').map((e) => [e.id, e.pet]));
   const faunaPetBlock = hasControllable && Object.keys(faunaPets).length ? faunaPetScript({ pets: faunaPets }) : '';
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows: formActors ? { actors: true } : shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear))  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear))  }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -1150,7 +1149,8 @@ for (const grp of GROUPS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(grp.pos), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(grp.col), 3));${liveShadows ? `
-  if (grp.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(grp.sun), 1));   // the baked sun's share (live light)` : ''}
+  if (grp.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(grp.sun), 1));   // the baked sun's share (live light)` : ''}${litPack ? `
+  if (grp.lt) geo.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(grp.lt), 3));   // the baked light (the form render indoors)` : ''}
   geo.computeBoundingSphere();
   const translucent = typeof grp.alpha === 'number' && grp.alpha < 1;
   const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: ${hasSingleSide ? 'grp.singleSide ? THREE.FrontSide : THREE.DoubleSide' : 'THREE.DoubleSide'}, transparent: grp.hideable || translucent, opacity: translucent ? grp.alpha : 1, depthWrite: !translucent });
@@ -1174,7 +1174,8 @@ for (const grp of GROUPS) {
     const tg = new THREE.BufferGeometry();
     tg.setAttribute('position', new THREE.BufferAttribute(decodeF32(t.pos), 3));
     tg.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));${liveShadows ? `
-    if (t.sun) tg.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(t.sun), 1));` : ''}${pack ? `
+    if (t.sun) tg.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(t.sun), 1));` : ''}${litPack ? `
+    if (t.lt) tg.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(t.lt), 3));` : ''}${pack ? `
     if (t.c8) { const c8 = decodeU8(t.c8), lin = new Float32Array(c8.length); for (let i = 0; i < c8.length; i++) lin[i] = __SRGB_LIN[c8[i]]; t.col = null; tg.setAttribute('color', new THREE.BufferAttribute(lin, 3)); const ib = decodeU8(t.idx); tg.setIndex(new THREE.BufferAttribute(t.wide ? new Uint32Array(ib.buffer) : new Uint16Array(ib.buffer), 1)); }` : ''}
     // MULTIPLY-lit textures (textureLit faces, e.g. asphalt roads/ground) carry the baked
     // per-vertex colour so the GPU does texel * bakedLight. lit ONLY controls that multiply;
