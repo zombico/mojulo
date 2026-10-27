@@ -36,6 +36,7 @@ const { landLayers, LAYER_OF, PATH_REACH } = await import('../../../lib/graph/fo
 const { strHash } = await import('../../../lib/graph/city/plan/dice.js');
 const { landStones, SHAPES } = await import('../../../lib/graph/form/land-stones.js');
 const { soilTones } = await import('../../../lib/graph/color-theorist/ground.js');
+const { landRead } = await import('../../../lib/graph/form/land-read.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = path.resolve(arg('--out', 'island.html')), id = arg('--cube', 'island-noon'), seed = arg('--palette'), cdn = process.argv.includes('--cdn');
@@ -50,116 +51,29 @@ const stone = arg('--stone'), hourArg = arg('--hour'), hour = hourArg === undefi
 const cube = seed === undefined && !stone ? id : { from: id, ...(seed === undefined ? {} : { palette: { ...GEOCUBE_PALETTES[id], seed: Number(seed) } }), ...(stone ? { colour: { stone } } : {}) };
 
 const { payload: P0 } = await resolveWorldScene({ title: 'island', manifest: { kind: 'geocube', cube, show, ...(show === 'land' ? {} : { seed: landSeed }), ...(hour === undefined ? {} : { hour }), ...(biocube ? { biocube } : {}), ...(show === 'path' ? { path: { rubble: dress.rubble > 0, patches: dress.patches.filter((k) => ['worn', 'damp', 'gravel', 'crown', 'puddle'].includes(k)).length ? dress.patches.filter((k) => ['worn', 'damp', 'gravel', 'crown', 'puddle'].includes(k)) : false } } : {}) } }, {});
-// (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
-// yet, so left out of both halves)
-const CARDS = new Set(['isekai:grass', 'isekai:cloud']), P = { ...P0, faces: P0.faces.filter((f) => !CARDS.has(f.group)) };
 const { HOUR_WORDS } = await import('../../../lib/graph/era/geocube-hours.js');
-const C = readGeocube(cube), own = cubeLight(C), light = hour === undefined ? own : cubeLight(C, { hour: typeof hour === 'string' ? HOUR_WORDS[hour] : hour }), sun = light.sun.dir;
-// THE SEA, a mirror over a body: from the island camera's view down onto it, the palette's sea colour is what the sky it
-// reflects (the dome at that angle, as the page draws it) and its body under the light show together, the floor under
-// it showing through its alpha (the deep water's colour, the body's own: solved twice)
-// (a land with no island camera, the path's: its first)
-const isleCam = (P.cameras.find((c) => c.name === 'island') ?? P.cameras[0]).worldFraming, [cx, cy, cz] = isleCam.cameraPosition, [lx, ly, lz] = isleCam.lookAt;
-const view = (Math.atan2(cz - lz, Math.hypot(cx - lx, cy - ly)) * 180) / Math.PI, up = Math.sin((view * Math.PI) / 180) ** 0.6;
-const lin = (c) => c.map((v) => decodeSrgb(v / 255)), hexL = (c) => '#' + c.map((v) => Math.round(encodeSrgb(Math.max(0, Math.min(1, v))) * 255).toString(16).padStart(2, '0')).join('');
-// (solved at the cube's own hour, as every base is: at another hour the sea keeps its body and the light moves)
-const sees = hexL(lin(own.sky.horizon).map((v, k) => v * (1 - up) + lin(own.sky.zenith)[k] * up));
-const at = { ambient: own.ambient.linear, sun: own.sun.linear }, mirror = (under) => solveMirror({ target: C.colour.water, sees, view, light: at, cos: own.sun.dir[2], alpha: 0.9, under });
-let water = mirror('#000000');
-water = mirror(seen(water.base.map((v) => v * DEEP_TONE), at, 0));
-const bases = { ...light.bases, water: hexL(water.base) };
-const L = landForm(P.faces, bases, { seed: 1 });
-
-// THE LAYERED GROUND (the plan's phase 2, form/land-layers.js): every land corner carries a weight for each natural layer
-// (rock, scree, soil, sand) and the path is a mask at its own resolution over the trail; the renderer blends the layers'
-// materials by them, by height. A layer's texture modulates its palette-solved base about its own mean, so the palette's
-// colours hold on average.
-const LAYERS = [
-  { id: 'rock', cut: 'crag', metres: 4, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 4, role: 'stone' },
-  // (the cover's slot: dirt, on every land; on a green one the undergrowth grows over it, its own slot last)
-  { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' },
-  { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' },
-  dress.surface === 'sand' ? { id: 'path', cut: 'sand', metres: 1.5, role: 'sand' } : { id: 'path', cut: 'powder', metres: 1.2, role: 'floor' },
-  // (the dirt's other half: clay's clods)
-  { id: 'clay', cut: 'clay', metres: 1.4, role: 'floor' },
-  // (what grows under the grass, over the dirt, on a green land)
-  { id: 'undergrowth', cut: 'undergrowth', metres: 1.0, role: 'grass' }];
-const GREEN = L.faces.some((F) => F.cls === 'ground');
-const TEX = 512, AW = TEX * 3, AH = TEX * 3, LY = landLayers(P.faces, L, { seed: 3 }), layered = (F, i) => LY.layered(i) && !!F;
-const A = { base: Buffer.alloc(AW * AH * 3), normal: Buffer.alloc(AW * AH * 3), orm: Buffer.alloc(AW * AH * 3) }, means = [];
-LAYERS.forEach((Ly, li) => {
-  const M = dressedMaterial({ cut: Ly.cut, metres: Ly.metres, stone: [170, 160, 140], grit: 0.5 }, { size: TEX, seed: 3, rough: 0.9 });
-  let lo = Infinity, hi = -Infinity; for (const v of M.height) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  const ox = (li % 3) * TEX, oy = Math.floor(li / 3) * TEX, sum = [0, 0, 0];
-  for (let j = 0; j < TEX; j++) for (let i = 0; i < TEX; i++) {
-    const k = j * TEX + i, o = ((oy + j) * AW + ox + i) * 3;
-    for (let c = 0; c < 3; c++) { A.base[o + c] = M.baseColor[k * 3 + c]; A.normal[o + c] = M.normal[k * 3 + c]; sum[c] += decodeSrgb(M.baseColor[k * 3 + c] / 255); }
-    A.orm[o] = M.orm[k * 3]; A.orm[o + 1] = M.orm[k * 3 + 1]; A.orm[o + 2] = Math.round(((M.height[k] - lo) / Math.max(1e-9, hi - lo)) * 255);
-  }
-  means.push(sum.map((v) => Math.round((v / (TEX * TEX)) * 1e4) / 1e4));
-});
-const png = (b) => `data:image/png;base64,${encodePng(b, AW, AH).toString('base64')}`;
-// the scree's dice (matte-paint/dressed.js `screeDice`, the same tile): each stone's own, 1 between them, so a scree
-// thinning out keeps whole stones by their dice and the ground shows between (era/scree-tiles.js, 6.5's edge)
-const SC = LAYERS.find((Ly) => Ly.id === 'scree'), dice = screeDice({ cut: 'scree', metres: SC.metres, stone: [170, 160, 140], grit: 0.5 }, { size: TEX, seed: 3 });
-const dicePng = `data:image/png;base64,${encodePng(Buffer.from(Array.from(dice, (v) => Math.round((v >= 0 ? Math.min(0.99, v) : 1) * 255)).flatMap((v) => [v, v, v])), TEX, TEX).toString('base64')}`;
-// the path's mask as the page reads it: the weight a byte, the trail's height two (over the trail's own span)
-// (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways)
-const SD_IN = 1.5, PM = LY.path, pathTex = PM && (() => {
-  let zlo = Infinity, zhi = -Infinity; for (let k = 0; k < PM.z.length; k++) if (PM.weight[k] > 0) { zlo = Math.min(zlo, PM.z[k]); zhi = Math.max(zhi, PM.z[k]); }
-  const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(PM.weight.length * 4);
-  for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - PM.inside[k] + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
-  return { origin: PM.origin, size: PM.size, metres: PM.size.map((n) => n * PM.cell), cell: PM.cell, z: [zlo, span], px: b64(px) };
-})();
-// (the cover's dirt, under the undergrowth on a green land, the theorist's humus; the bare island's soil its own floor)
-const roleBase = LAYERS.map((Ly, li) => (li === 2 && GREEN ? hexL(lin(hexRgb(soilTones(C.colour.floor).humus)).map((v, c) => light.linearBases.floor[c] * v / Math.max(1e-6, lin(hexRgb(C.colour.floor))[c]))) : bases[Ly.role])).map((h) => hexRgb(h));
-// the sand under the line, corner by corner, as form/land-form.js fades it into the deep water's colour: every sand
-// face, the ones the line crosses too, so the sand meets its shallows without a step at a face's edge
-const sandZ = P.faces.flatMap((f, i) => (L.faces[i].cls === 'sand' ? f.corners.map((c) => c[2]) : []));
-const FADE = L.waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, L.waterZ - Math.min(L.waterZ, ...sandZ)), sandBase = hexRgb(bases.sand);
-const underAt = (z) => { const lost = Math.min(1, Math.max(0, (L.waterZ - z) / FADE)) ** 2; return sandBase.map((v, c) => Math.round(v * UNDER_TONE * (1 - lost) + L.deep[c] * lost)); };
-
-// faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours
-// and the gate's bucket: 1 a cliff turned to the hour's sun, 2 one turned away, 3 wet sand, 4 dry sand
-const keyOf = (i) => { const F = L.faces[i]; return F.cls ? `${F.cls}${F.under ? ':under' : F.wet ? ':wet' : ''}` : 'unread'; };
-const order = P.faces.map((_, i) => i).sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : keyOf(a) > keyOf(b) ? 1 : a - b));
+// THE LAND READ AS FORM (form/land-read.js, lifted out of this page for the World page's `form` channel)
+const C = readGeocube(cube), R = landRead(P0, C, { hour: hour === undefined ? undefined : typeof hour === 'string' ? HOUR_WORDS[hour] : hour, dress, grass: true });
+const { P, L, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, ranges, pos, c7, spl, nrm, faceOf, cornerOf,
+  land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, depthMap, dirtBase, STONES, stonePack, stoneBase, grassMap, brush } = R;
+// the gate's own readings per vertex, from its face and corner: the gen-6 half's fill; the bucket (1 a cliff turned to the
+// hour's sun, 2 one turned away, 3 wet sand, 4 dry sand); the seen laws' id: the role a face shows (cliff and rock the
+// stone, ground the grass, dry sand, the trail the floor, the sea) × 4, + 1 turned to the hour's sun (within ~40° of square
+// to it: the palette's lit colour is a face square to the sun, so a steep face lit at a glance is not compared with a flat
+// one), 2 turned away
 const dot = (n) => n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2];
-// and the seen laws' id: the role a face shows (cliff and rock the stone, ground the grass, dry sand, the trail the floor,
-// the sea) × 4, + 1 turned to the hour's sun (within ~40° of square to it: the palette's lit colour is a face square to the
-// sun, so a steep face lit at a glance is not compared with a flat one), 2 turned away
 const SEEN_ROLES = ['stone', 'grass', 'sand', 'floor', 'water'], roleOf = { cliff: 'stone', rock: 'stone', scree: 'stone', ground: 'grass', soil: 'floor', sand: 'sand', trail: 'floor', water: 'water' };
-// the land SHADED SMOOTH (6.5's lesson: a faceted ground draws its faces' edges through every transition): a corner's
-// normal the mean of the faces round it that lie within CREASE of the face's own, so a cliff's edge stays crisp
-const CREASE = Math.cos((55 * Math.PI) / 180), nKey = (c) => `${Math.round(c[0] * 100)},${Math.round(c[1] * 100)},${Math.round(c[2] * 100)}`, NB = new Map();
-P.faces.forEach((f, i) => { if (!L.faces[i].cls || L.faces[i].cls === 'water' || L.faces[i].under) return; const n = f.normal || [0, 0, 1]; for (const c of f.corners) (NB.get(nKey(c)) ?? NB.set(nKey(c), []).get(nKey(c))).push(n); });
-const smoothAt = (c, n) => { const m = [0, 0, 0]; for (const q of NB.get(nKey(c)) || [n]) if (q[0] * n[0] + q[1] * n[1] + q[2] * n[2] >= CREASE) { m[0] += q[0]; m[1] += q[1]; m[2] += q[2]; } const l = Math.hypot(...m) || 1; return m.map((v) => Math.round((v / l) * 127)); };
-const pos = [], c6 = [], c7 = [], bk = [], sid = [], spl = [], nrm = [], ranges = [];
-for (const i of order) {
-  const f = P.faces[i], F = L.faces[i], key = keyOf(i), n = f.normal || [0, 0, 1];
+const c6 = [], bk = [], sid = [];
+for (let v = 0; v < faceOf.length; v++) {
+  const i = faceOf[v], j = cornerOf[v], f = P.faces[i], F = L.faces[i], n = f.normal || [0, 0, 1];
   const bucket = F.cls === 'cliff' ? (dot(n) >= 0.5 ? 1 : dot(n) <= 0.05 ? 2 : 0) : F.cls === 'sand' && !F.under ? (F.wet ? 3 : 4) : 0;
   const role = F.cls && !F.under && !F.wet ? SEEN_ROLES.indexOf(roleOf[F.cls]) + 1 : 0, facing = dot(n) >= 0.75 ? 1 : dot(n) <= 0.05 ? 2 : 0;
-  const seenId = role && facing ? role * 4 + facing : 0;
   const fills = f.cornerFills || f.corners.map(() => f.fill), alpha = f.cornerAlpha || f.corners.map(() => 1);
-  // (a layered face's corner: its layers' weights, and its base their solved bases by weight; wet sand keeps its own)
-  const wAt = (j) => (layered(F, i) ? LY.weightAt(f.corners[j]) : F.under ? [0, 0, 0, 1] : [0, 0, 0, 0]);
-  const base = F.cls ? F.base : hexRgb(f.fill), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? [0, 1, 2].map((c) => Math.round(wAt(j).reduce((s, x, li) => s + x * roleBase[li][c], 0))) : base);
-  let R = ranges[ranges.length - 1];
-  if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });
-  for (let k = 1; k + 1 < f.corners.length; k++) for (const j of [0, k, k + 1]) {
-    pos.push(...f.corners[j]); c6.push(...hexRgb(fills[j]), Math.round(alpha[j] * 255)); c7.push(...baseAt(j), Math.round(alpha[j] * 255)); bk.push(bucket); sid.push(seenId); spl.push(...wAt(j).map((x) => Math.round(x * 255))); nrm.push(...smoothAt(f.corners[j], n)); R.count += 1;
-  }
+  c6.push(...hexRgb(fills[j]), Math.round(alpha[j] * 255)); bk.push(bucket); sid.push(role && facing ? role * 4 + facing : 0);
 }
-// the shadow's frame: what stands above the water, not the sea's floor or the sea to the horizon
-const land = P.faces.filter((f, i) => L.faces[i].cls && L.faces[i].cls !== 'water' && !L.faces[i].under).flatMap((f) => f.corners);
-const sea = P.faces.filter((f, i) => L.faces[i].cls === 'water').flatMap((f) => f.corners), seaX = sea.map((c) => c[0]), seaY = sea.map((c) => c[1]);
-const box = [0, 1, 2].map((k) => [Math.min(...land.map((c) => c[k])), Math.max(...land.map((c) => c[k]))]);
 // the SHORE: a camera standing on the wet line looking along the beach, and a low sun ahead along it (where a glint shows
 // and the island, to one side, shades nothing); the beach chosen in code, the wet face furthest out on the island
 // camera's side
-const isle = (P.cameras.find((c) => c.name === 'island') ?? P.cameras[0])?.worldFraming.lookAt || [0, 0, 0];
-const wetMids = P.faces.flatMap((f, i) => (L.faces[i].wet && !L.faces[i].under ? [[0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length)] : []));
-// (a land with no sea, the path's: no shore, its readings and its camera left out)
-const hasSea = L.waterZ !== null && wetMids.length > 0, shoreAt = hasSea ? wetMids.reduce((a, m) => (m[0] > a[0] ? m : a), wetMids[0]) : [isle[0] + 1, isle[1], isle[2]];
 const out2 = [shoreAt[0] - isle[0], shoreAt[1] - isle[1]], ol = Math.hypot(...out2), d2 = out2.map((v) => v / ol);
 const along = [-d2[1], d2[0]];
 const shore = { name: 'shore', cameraPosition: [shoreAt[0] + d2[0], shoreAt[1] + d2[1], shoreAt[2] + 1.7], lookAt: [shoreAt[0] + along[0] * 25, shoreAt[1] + along[1] * 25, L.waterZ], horizontalFov: 70 };
@@ -194,95 +108,6 @@ const trailCams = trailMids.length > 8 ? (() => {
     { name: 'trail-down', cameraPosition: [c[0] + u[0] * 0.05, c[1] + u[1] * 0.05, c[2] + 3.2], lookAt: [c[0], c[1], c[2]], horizontalFov: 70 }];
 })() : [];
 const shoreSun = [Math.round((Math.atan2(along[1], along[0]) - Math.atan2(sun[1], sun[0])) * 180 / Math.PI), 10];
-// THE SEA ONE SURFACE: the payload's sea faces end on whole cells, so their edge on the beach is a saw; the gen-7 half
-// draws the sea as one plane at the line instead (where it meets the beach is then the beach's own contour) and fades
-// it in over the depth under it (to DEPTH_MAX, the floor's fade: the shallows show their sand), read from the land
-// rasterized from above (DEPTH_CELL metres; DEPTH_MAX deep a byte)
-const DEPTH_CELL = 0.5, DEPTH_MAX = DEEP_FADE, depthMap = !hasSea ? null : (() => {
-  // (over the land's own box and a margin: past it the sea is deep)
-  const x0 = box[0][0] - 10, y0 = box[1][0] - 10, nx = Math.ceil((box[0][1] + 10 - x0) / DEPTH_CELL) + 1, ny = Math.ceil((box[1][1] + 10 - y0) / DEPTH_CELL) + 1;
-  const top = new Float32Array(nx * ny).fill(-Infinity);
-  P.faces.forEach((f, i) => {
-    if (!L.faces[i].cls || L.faces[i].cls === 'water') return;
-    for (let k = 1; k + 1 < f.corners.length; k++) {
-      const [a, b, c] = [f.corners[0], f.corners[k], f.corners[k + 1]], det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
-      if (Math.abs(det) < 1e-9) continue;
-      const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - x0) / DEPTH_CELL)), i1 = Math.min(nx - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - x0) / DEPTH_CELL));
-      const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1], c[1]) - y0) / DEPTH_CELL)), j1 = Math.min(ny - 1, Math.ceil((Math.max(a[1], b[1], c[1]) - y0) / DEPTH_CELL));
-      for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) {
-        const x = x0 + ii * DEPTH_CELL, y = y0 + j * DEPTH_CELL, l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / det, l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / det, l3 = 1 - l1 - l2;
-        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
-        const z = l1 * a[2] + l2 * b[2] + l3 * c[2], q = j * nx + ii; if (z > top[q]) top[q] = z;
-      }
-    }
-  });
-  const px = new Uint8Array(nx * ny * 4);
-  for (let q = 0; q < nx * ny; q++) { const d = top[q] === -Infinity ? DEPTH_MAX : Math.max(0, Math.min(DEPTH_MAX, L.waterZ - top[q])); px[q * 4] = Math.round((d / DEPTH_MAX) * 255); px[q * 4 + 3] = 255; }
-  return { origin: [x0, y0], cell: DEPTH_CELL, size: [nx, ny], max: DEPTH_MAX, px: b64(px) };
-})();
-// THE SCREE'S STONES (form/land-stones.js): the larger stones stood up as real ones where the scree is, lit and shadowed;
-// the finer ones stay the layer's (its normal map, its parallax near)
-// the DIRT'S TWO TONES (color-theorist/ground.js soilTones): the floor's powder and clay as targets, their bases the floor's
-// solved base moved by each target's share of the floor's (so the light that shows the floor shows them)
-const tones = soilTones(C.colour.floor, light.sun.color), floorLin = lin(hexRgb(C.colour.floor));
-const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
-const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble }), stoneBase = light.linearBases.stone;
-const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
-// THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
-// off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways
-const GCELL = 0.5, grassMap = GREEN ? (() => {
-  const x0 = box[0][0] - 2, y0 = box[1][0] - 2, nx = Math.ceil((box[0][1] + 2 - x0) / GCELL) + 1, ny = Math.ceil((box[1][1] + 2 - y0) / GCELL) + 1;
-  const top = new Float32Array(nx * ny).fill(-Infinity), cov = new Float32Array(nx * ny);
-  P.faces.forEach((f, i) => {
-    const F = L.faces[i]; if (!F.cls || F.cls === 'water' || F.cls === 'crown' || F.cls === 'wood') return;
-    const n = f.normal || [0, 0, 1], green = F.cls === 'ground' && n[2] > 0.75 ? 1 : 0;
-    for (let k = 1; k + 1 < f.corners.length; k++) {
-      const [a, b, c] = [f.corners[0], f.corners[k], f.corners[k + 1]], det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
-      if (Math.abs(det) < 1e-9) continue;
-      const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - x0) / GCELL)), i1 = Math.min(nx - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - x0) / GCELL));
-      const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1], c[1]) - y0) / GCELL)), j1 = Math.min(ny - 1, Math.ceil((Math.max(a[1], b[1], c[1]) - y0) / GCELL));
-      for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) {
-        const x = x0 + ii * GCELL, y = y0 + j * GCELL, l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / det, l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / det, l3 = 1 - l1 - l2;
-        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
-        const z = l1 * a[2] + l2 * b[2] + l3 * c[2], q = j * nx + ii; if (z > top[q]) { top[q] = z; cov[q] = green; }
-      }
-    }
-  });
-  // (and where grass grows at all: a field wandering at two scales, so the land has its bare stretches, the grass thinning
-  // out toward them rather than stopping at a line)
-  const lat = (x, y, cell, tag) => { const u = x / cell, v = y / cell, i = Math.floor(u), j = Math.floor(v), e = (t) => t * t * (3 - 2 * t), a = e(u - i), b = e(v - j), h = (p, q) => strHash(`3|${tag}|${p},${q}`) / 4294967296;
-    return (h(i, j) * (1 - a) + h(i + 1, j) * a) * (1 - b) + (h(i, j + 1) * (1 - a) + h(i + 1, j + 1) * a) * b; };
-  const ease = (t) => t * t * (3 - 2 * t);
-  for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - 0.27) / 0.2))); }
-  // (off the trail: the path's mask takes the grass, its weight past a half)
-  if (PM) for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
-    const x = x0 + ii * GCELL, y = y0 + j * GCELL, pi = Math.round((x - PM.origin[0]) / PM.cell), pj = Math.round((y - PM.origin[1]) / PM.cell);
-    if (pi >= 0 && pj >= 0 && pi < PM.size[0] && pj < PM.size[1]) { const d = PM.dist[pj * PM.size[0] + pi] - PM.inside[pj * PM.size[0] + pi]; cov[j * nx + ii] *= Math.min(1, Math.max(0, (d - 0.1) / 0.6)); }
-  }
-  let zlo = Infinity, zhi = -Infinity; for (const z of top) if (z > -Infinity) { zlo = Math.min(zlo, z); zhi = Math.max(zhi, z); }
-  const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(nx * ny * 4);
-  for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = 255; }
-  const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
-  return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at };
-})() : null;
-// the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
-// rows weave rather than rule, each fin from the ground up a height that wanders (its bristles drawn on the page), only
-// where grass grows; the page dissolves them in past the near blades
-const ROW = 0.9, SEG = 0.8, brush = { pos: [], uvh: [] }, cx0 = (box[0][0] + box[0][1]) / 2, cy0 = (box[1][0] + box[1][1]) / 2, half = Math.hypot(box[0][1] - box[0][0], box[1][1] - box[1][0]) / 2;
-const u01b = (k) => strHash(k) / 4294967296;
-if (grassMap) for (let dir = 0; dir < 3; dir++) {
-  const a = (dir * Math.PI) / 3 + 0.21, ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
-  for (let r = -half; r <= half; r += ROW) for (let u = -half; u < half; u += SEG) {
-    // (the row's offset at each end: its own wander, shared by the fins either side so the row runs on unbroken)
-    const off = (uu) => (u01b(`w|${dir}|${r.toFixed(2)}|${uu.toFixed(2)}`) - 0.5) * ROW * 0.7;
-    const P0 = [cx0 + ux * u + vx * (r + off(u)), cy0 + uy * u + vy * (r + off(u))], P1 = [cx0 + ux * (u + SEG) + vx * (r + off(u + SEG)), cy0 + uy * (u + SEG) + vy * (r + off(u + SEG))];
-    const g0 = grassMap.at(...P0), g1 = grassMap.at(...P1);
-    if (!g0 || !g1 || g0.c < 0.5 || g1.c < 0.5) continue;
-    const h0 = (0.18 + 0.24 * u01b(`b|${dir}|${r.toFixed(2)}|${u.toFixed(2)}`)) * (0.5 + 0.5 * g0.c), h1 = (0.18 + 0.24 * u01b(`b|${dir}|${r.toFixed(2)}|${(u + SEG).toFixed(2)}`)) * (0.5 + 0.5 * g1.c);
-    const q = [[...P0, g0.z - 0.02], [...P1, g1.z - 0.02], [...P1, g1.z + h1], [...P0, g0.z + h0]];
-    for (const k of [0, 1, 2, 0, 2, 3]) { brush.pos.push(...q[k]); brush.uvh.push(u + (k === 1 || k === 2 ? SEG : 0), k >= 2 ? 1 : 0, k === 2 ? h1 : k === 3 ? h0 : 0); }
-  }
-}
 const data = {
   depth: depthMap,
   cube, sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, haze: P.haze, box, waterZ: L.waterZ, unread: L.unread, deep: L.deep,

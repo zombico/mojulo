@@ -917,6 +917,14 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   runs along the ribbon's line. Fixed on the way: a layer's height lift scaled by its presence (a trace never wins on its
   relief); a kept scree stone takes its stone's colour; the sea's mirror solve clamped (its NaN had reached every base
   through `land-form`'s deep term, now only where the floor is lost into it).
+- **The World page draws the island as form** (a geocube's land at `?era=gen-7`, every preset): the spike's read lifted
+  out as `form/land-read.js` (`landRead(payload, cube, { hour, dress })`, the spike its first caller; `formPayload` the
+  page's input), drawn by a new channel, `scene/channels/form-land.js` (the layered ground, the stones, the sea plane, a
+  sun and a sky light it adds; the painted land groups it replaces hidden, everything else painted kept untouched under
+  its tone curve). One new page input, `form`, present only on a gen-7 read of a geocube with land: every gen-6 page and
+  every other page byte-identical. The layers' textures are the cuts', no cube's: painted once per process (a page after
+  the first resolves in ~2.5 s, not ~18). Era marks: `form` a surface input, built in gen-7; Godot and Roblox do not carry
+  it yet.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

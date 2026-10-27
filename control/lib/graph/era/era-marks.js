@@ -40,16 +40,21 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo',
 ]);
 
+/** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one). */
+export const FORM_INPUTS = Object.freeze(['form']);
+
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';
+const FORM_HOW = { form: 'the land as material under the cube\'s light (form/land-read.js, channels/form-land.js): a geocube\'s island or trail' };
 const LIVE_HOW = 'the live light darkening paint: the form render will light material with it';
 const g6 = markRow('gen-6'), g7 = markRow('gen-7');
 
 /** Each era's marks over every World page input: { [era]: { [input]: row } }. */
 export const ERA_PAGE_MARKS = Object.freeze({
-  'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS].map((k) => [k, g6('built')]))),
+  'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS, ...FORM_INPUTS].map((k) => [k, g6('built')]))),
   'gen-7': Object.freeze(Object.fromEntries([
     ...SURFACE_INPUTS.map((k) => [k, g7('approximated', LIVE.has(k) ? LIVE_HOW : PAINT_HOW)]),
     ...NEUTRAL_INPUTS.map((k) => [k, Object.freeze({ 'gen-7': 'built', neutral: true })]),
+    ...FORM_INPUTS.map((k) => [k, g7('built', FORM_HOW[k])]),
   ])),
 });
 
