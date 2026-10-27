@@ -219,11 +219,16 @@ function __elEncaseDrop(E) {
   for (const q of E.glints) { scene.remove(q.s); q.s.material.dispose(); }
 }
 `;
-const TRANSIT = `// TRANSITS: how a character comes or goes (spawn / vanish \`with\`, transfigure). Coming, the real
+// the fades a body goes by (vanish.js VANISHES, a downed foe's disposal); each one's code is emitted only when named,
+// so a page that names none keeps every byte
+const FADES = Object.freeze({ fade: 0.8, sink: 1.6, motes: 1.6, blink: 0.9 });
+const transitSrc = (kinds) => {
+  const has = (k) => kinds.includes(k), fades = Object.keys(FADES).filter(has);
+  return `// TRANSITS: how a character comes or goes (spawn / vanish \`with\`, transfigure). Coming, the real
 // body plays it (its materials faded, clipped, wired); going, a GHOST does: a copy of its meshes where it stood, since
 // the body itself is hidden the moment it is gone. Each runs once on the world clock from the op's own time.
-const __TR_DUR = { smoke: 1.1, hologram: 1.4, scan: 1.3, transporter: 1.6, galvatron: 2.0 };
-const __TR_COL = { hologram: [0.4, 0.9, 1], scan: [1, 0.45, 0.15], transporter: [0.6, 0.85, 1], galvatron: [0.72, 0.45, 1] };
+const __TR_DUR = { smoke: 1.1, hologram: 1.4, scan: 1.3, transporter: 1.6, galvatron: 2.0${fades.map((k) => `, ${k}: ${FADES[k]}`).join('')} };
+const __TR_COL = { hologram: [0.4, 0.9, 1], scan: [1, 0.45, 0.15], transporter: [0.6, 0.85, 1], galvatron: [0.72, 0.45, 1]${has('motes') ? ', motes: [1, 0.86, 0.5]' : ''} };
 const __trLive = {};
 const __trTex = (stops) => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); for (const [o, a] of stops) g.addColorStop(o, 'rgba(255,255,255,' + a + ')'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); };
 const __trSoft = __trTex([[0, 0.95], [0.5, 0.45], [1, 0]]), __trDot = __trTex([[0, 1], [0.3, 0.5], [1, 0]]);
@@ -270,7 +275,7 @@ function __trMake(e, T, now) {
   if (!body) return I;
   if (dir === 'out') { I.ghost = __trGhost(body); I.meshes = I.ghost.meshes; } else { I.meshes = __trMeshes(body); I.skin = __trSkin(I.meshes); I.skin.set(0); }
   I.box = __trBounds(I.meshes); I.c = I.box.getCenter(new THREE.Vector3());
-  const col = __TR_COL[is] || [1, 1, 1];
+  const col = ${has('motes') ? 'T.rgb || ' : ''}__TR_COL[is] || [1, 1, 1];
   if (is === 'smoke') for (let i = 0; i < 18; i++) I.sprs.push(__trSpr(__trSoft, [0.86, 0.86, 0.88], THREE.NormalBlending));
   if (is === 'hologram' || is === 'galvatron') I.wires = __trWire(I.meshes, col);
   if (is === 'scan') {
@@ -283,7 +288,14 @@ function __trMake(e, T, now) {
     for (const m of [disc, ring]) { m.material.userData.__fire = true; m.raycast = function () {}; m.renderOrder = 9; m.position.set(I.c.x, I.c.y, 0); scene.add(m); I.extra.push(m); }
   }
   if (is === 'transporter') { I.to = __trPts(I.meshes, 48, 3.3); for (let i = 0; i < 48; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending)); }
-  if (is === 'galvatron' && dir === 'out') { I.from = __trPts(I.meshes, 72, 7.7); I.to = null; I.into = T.to; for (let i = 0; i < 72; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending)); }
+  if (is === 'galvatron' && dir === 'out') { I.from = __trPts(I.meshes, 72, 7.7); I.to = null; I.into = T.to; for (let i = 0; i < 72; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending)); }${has('motes') ? `
+  // motes: the body cut by a level rising from its feet (going) or its head (coming), a glint let go where the level passes
+  if (is === 'motes') {
+    renderer.localClippingEnabled = true;
+    I.plane = new THREE.Plane(new THREE.Vector3(0, 0, dir === 'out' ? 1 : -1), 0);
+    if (dir === 'out') { for (const m of I.ghost.mats) { m.clippingPlanes = [I.plane]; m.needsUpdate = true; } } else I.skin.clip([I.plane]);
+    I.from = __trPts(I.meshes, 40, 5.3); for (let i = 0; i < 40; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending));
+  }` : ''}
   return I;
 }
 function __trStep(I, u, W) {
@@ -323,7 +335,29 @@ function __trStep(I, u, W) {
         s.scale.setScalar(0.09); s.material.opacity = Math.sin(Math.PI * Math.min(1, (u - 0.15) / 0.7));
       });
     } else { skin(__trSm((u - 0.7) / 0.25)); wire(__trSm((u - 0.5) / 0.2) * (1 - __trSm((u - 0.85) / 0.15))); }
-  }
+  }${has('fade') ? `
+  else if (I.is === 'fade') skin(__trSm(out ? 1 - u : u));` : ''}${has('sink') ? `
+  else if (I.is === 'sink') {
+    // into its own ground: down by its height, fading over the last half (coming, it only fades in: the body is real)
+    if (out) { I.ghost.g.position.z = -h * __trSm(u); skin(1 - __trSm((u - 0.5) / 0.5)); } else skin(__trSm(u));
+  }` : ''}${has('motes') ? `
+  else if (I.is === 'motes') {
+    const v = __trSm(Math.min(1, u / 0.75)), lv = out ? I.box.min.z - 0.02 + (h + 0.04) * v : I.box.max.z + 0.02 - (h + 0.04) * (1 - v);
+    I.plane.constant = out ? -lv : lv; skin(1);
+    I.sprs.forEach((s, i) => {
+      const p = I.from[i], free = out ? (lv - p.z) / Math.max(0.2, h) : (p.z - lv) / Math.max(0.2, h);
+      if (free <= 0) { s.visible = false; return; }
+      // (a glint's size and rise go with the body's height: a bear's are a bear's, a rat's a rat's)
+      const k = Math.min(1, free * 1.4), a = __trH(i, 8) * 6.283, up = (out ? 1 : -1) * (0.5 + 0.6 * h) * k * (0.6 + 0.6 * __trH(i, 9));
+      s.visible = true; s.position.set(p.x + Math.cos(a + k * 2) * 0.15 * k, p.y + Math.sin(a + k * 2) * 0.15 * k, p.z + up);
+      s.scale.setScalar(Math.max(0.08, 0.14 * h) * (1 - 0.5 * k)); s.material.opacity = Math.sin(Math.PI * k) * (1 - __trSm((u - 0.85) / 0.15));
+    });
+  }` : ''}${has('blink') ? `
+  else if (I.is === 'blink') {
+    // on and off, faster as it goes (an arcade foe's going), gone for the last fifth
+    const v = out ? u : 1 - u, on = v < 0.8 && Math.floor(v * (8 + 26 * v)) % 2 === 0;
+    skin(on ? 1 : 0);
+  }` : ''}
 }
 function __trDrop(I) {
   for (const s of I.sprs) { scene.remove(s); s.material.dispose(); }
@@ -347,6 +381,10 @@ function __stepTransits() {
   }
 }
 `;
+};
+
+/** The fades a downed body goes by (gameworld/vanish.js), beside the transits. */
+export const FADE_KINDS = Object.freeze(Object.keys(FADES));
 
 /** The transits a world's events play (spawn / vanish with, transfigure), in first-named order. */
 export function transitKinds(events) {
@@ -377,7 +415,7 @@ ${SPRAY_SRC}` : ''}${bolts ? `
 const __BOLT = ${safeJson(BOLT_SHAPE)};
 const kokusenBolts = (() => { const TAU = 6.283185307179586, frac = (x) => x - Math.floor(x), h3 = (a, b, c) => frac(Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453); return ${kokusenBolts.toString()}; })();` : ''}
 const __elTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.5)'); g.addColorStop(0.6, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
-${transits.length ? `${TRANSIT}
+${transits.length ? `${transitSrc(transits)}
 ` : ''}const __elLive = {}, __elDying = {};   // '<who>|<is>' → what draws it; and what is fading out
 ${surf || encase ? `${SURF}` : ''}${encase ? `
 ${ENCASE}` : ''}

@@ -196,6 +196,30 @@ through the character designer, clips fitted to the class's timing, factions) is
   In the demo page the dire bear's swing played under its own mind: crouched and drawn back through the startup,
   sprung into the hero on the blow, with the impact landing inside the window (t 0.52 to 0.61), then home. Eyes gate:
   the operator's to judge.
+- **A downed foe goes as its game's style guide says** (`gameworld/vanish.js`, `worlds/controllable/vanish.js`). Before,
+  a killed foe lay where it fell for good. Now it lies a moment, then fades away; no carcass is kept. There are five
+  ways it can go, each played by the page on a ghost of its body (beside the cast's transits in `status-channel.js`):
+  - `fade`: it fades where it lies;
+  - `sink`: it sinks into its own ground as it fades;
+  - `motes`: it dissolves from the ground up into glints that drift up, sized to the body;
+  - `blink`: it blinks out, faster and faster;
+  - `smoke`: it goes in a puff.
+
+  The game's juice picks one (the world's word, else what `juice: 'auto'` would lay):
+  - a platformer goes in a puff and a pinball table blinks, both at once;
+  - an isekai look dissolves into motes, coloured by the world palette's accent (else the element's colour, else the
+    power colour);
+  - a cel look blinks;
+  - a material look sinks in a realistic game and fades otherwise.
+
+  How long it lies first is the game type's (`LINGER`). A bestiary entry may name its own: `vanish: <kind>` or
+  `{ is?, linger? }`. The runtime piece is an opt-in builder, emitted only into a page with a body carrying
+  `body.vanish`. The page emits each fade's code only when the world names it, so every other page keeps every byte.
+
+  Machine gate: the table's reads (one per branch), the entry's word over the world's, the motes' colour, the fielded
+  foe carrying its way out, the runtime's lie-then-go (and a body without one staying down), the opt-in's absence, and
+  each fade's code absent unless named, with the old transits byte-identical. In the demo page the five foes, one way
+  each, were killed and filmed: each fell, lay 1.4 s, then went as named. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

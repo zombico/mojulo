@@ -217,6 +217,8 @@ export const EVENT_MARKS = Object.freeze({
   fxStyle: m(A, 'the style floor (scene/effect-style.js) raises the page\'s beams and explosions as it draws them: the moments travel as authored'),
   rim: m(A, 'the characters\' rim light from the effects round them (scene/effect-rim.js) is the page\'s: the kernel\'s characters wear none'),
   trail: m(A, 'a weapon\'s swing trail (scene/channels/trail-channel.js) is the page\'s: the kernel\'s swings leave none'),
+
+  vanish: m(A, 'a downed foe\'s disposal (its fade: gameworld/vanish.js, the page\'s transits) is the page\'s: a downed body stays down'),
 });
 /** The events keys an export carries (bus.json or score.json), whatever their mark. */
 export const EVENT_CARRIED = Object.freeze(Object.keys(EVENT_MARKS));

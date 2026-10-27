@@ -1199,6 +1199,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const se = validateHudStyle(ev.style, 'events.style');
       if (se.length) throw new Error(`events.style is invalid — see get_game_vocab({ id: 'hud-style' }):\n- ${se.join('\n- ')}`);
     }
+    // the fades its downed bodies go by (a body's `vanish`, gameworld/vanish.js), played by the page's events. A world
+    // with no events has no page to play them on, and its downed bodies simply go
+    const vanish = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.body && e.body.vanish && e.body.vanish.is).filter((k) => typeof k === 'string'))] : [];
+    if (vanish.length) ev = { ...ev, vanish };
     payload.events = ev;
     payload.nonBakeable = true;
   }

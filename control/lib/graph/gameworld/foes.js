@@ -2,7 +2,10 @@
  * A GAMEWORLD'S FOES: the foe classes (lib/graph/foes/) a world fields and where its levels stand them. The world keeps
  * a BESTIARY, each entry a class at a rank on a skin; a level names which of them stand on its trails.
  *
- *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? } } }   // the world's bestiary
+ *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }   // the world's bestiary
+ *
+ * A downed foe goes as the game's style guide says (vanish.js: a fade, a sink, motes, a blink or a puff, after it lies
+ * a moment); an entry's `vanish` names its own. No carcass is kept.
  *   levels.<id>.foes?: true | { from?: ['<id>'], count? }                                // who stands on its trails
  *
  * `true` stands the whole bestiary (every class on its stand-in, when the world keeps none), one foe on each of a trail
@@ -34,9 +37,12 @@ import { LEVEL_GOAL, PERSON } from './quick.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
+import { readVanish, vanishOf } from './vanish.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish'];
+// the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js)
+const specOf = ({ vanish, ...spec }) => spec;
 const LEVEL_KEYS = ['from', 'count'];
 export const SWARM = 3;
 export const MAX_FOES = 32;
@@ -45,15 +51,16 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 export function readBestiary(F) {
-  if (!isObj(F) || !Object.keys(F).length) throw new Error('gameworld: foes is the bestiary, { <id>: { class, rank?, skill?, skin? } }, at least one (or leave it out)');
+  if (!isObj(F) || !Object.keys(F).length) throw new Error('gameworld: foes is the bestiary, { <id>: { class, rank?, skill?, skin?, vanish? } }, at least one (or leave it out)');
   const out = {};
   for (const [id, e] of Object.entries(F)) {
     const at = `gameworld: foes.${id}`;
     if (!ID.test(id)) throw new Error(`${at}: an id is a short lower-case name (letters, digits, hyphens)`);
-    if (!isObj(e)) throw new Error(`${at} is { class, rank?, skill?, skin? } (classes: ${Object.keys(FOE_CLASSES).join(', ')})`);
+    if (!isObj(e)) throw new Error(`${at} is { class, rank?, skill?, skin?, vanish? } (classes: ${Object.keys(FOE_CLASSES).join(', ')})`);
     for (const k of Object.keys(e)) if (!ENTRY_KEYS.includes(k)) throw new Error(`${at}.${k} is not a foe setting (${ENTRY_KEYS.join(', ')})`);
-    try { resolveFoe(e); } catch (err) { throw new Error(`${at}: ${err.message.replace(/^foe: /, '')}`); }
-    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}) };
+    try { resolveFoe(specOf(e)); } catch (err) { throw new Error(`${at}: ${err.message.replace(/^foe: /, '')}`); }
+    const vanish = e.vanish !== undefined ? readVanish(e.vanish, `${at}.vanish`) : undefined;
+    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(vanish !== undefined ? { vanish } : {}) };
   }
   return out;
 }
@@ -79,7 +86,7 @@ export function fieldedIds(G) {
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
-export const foeLook = (entry) => { const f = resolveFoe(entry); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}) }; };
+export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}) }; };
 
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
 // the k-th of n bodies round a point, `r` out, the first on it
@@ -116,7 +123,7 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   if (!P.length) return null;
   const figures = {}, entities = [];
   for (const p of P) {
-    const f = resolveFoe({ ...p.entry, ...(p.group ? { group: p.group } : {}) }), b = beastBody(f.measured, f.scale);
+    const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) }), b = beastBody(f.measured, f.scale);
     figures[p.id] = foeFigure(refs[p.eid], { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
     // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
     // per weapon, so a slot naming none would leave the body undrawn)
@@ -126,7 +133,7 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
       rule: { ...f.entity.rule, ...b.rule, ...loadout },
       ...(f.entity.weapon ? { weapon: f.entity.weapon } : {}),
       // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', ...(f.scale !== 1 ? { scale: f.scale } : {}) },
+      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry) },
       transform: { pos: p.at, heading: p.heading },
     });
   }

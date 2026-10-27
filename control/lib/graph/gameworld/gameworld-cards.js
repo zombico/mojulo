@@ -41,6 +41,7 @@ import { CAMERAS } from './cameras.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES } from './foes.js';
+import { VANISHES } from './vanish.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
@@ -532,7 +533,7 @@ function foesCard() {
     '  needs, never a species or a skin. A goomba and a level-one foot soldier are one class dressed two ways. Rank is',
     '  not a class: any class is a minion, an elite, a miniboss or a boss.',
     '',
-    'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? } } }. skin: the',
+    'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }. skin: the',
     '        animal door\'s words (a species, the oozes that grow it: dire, mythical, frost …); absent, the class\'s stand-in.',
     '        A skin that does not fit its class is refused, saying why (a swooper needs wings; an ooze grows the body it',
     '        is measured on).',
@@ -548,6 +549,9 @@ function foesCard() {
     '',
     `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')} (each class above reads as its own).`,
     `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
+    `VANISH  a downed foe lies a moment, then goes as the game's juice says (no carcass): ${Object.keys(VANISHES).join(', ')}`,
+    '        (a platformer\'s puff, an anime RPG\'s motes in the palette, a western sink or fade). An entry\'s vanish:',
+    '        <word> | { is?, linger? } names its own.',
     'A world without foes, or a level without them, is laid as it was.',
   );
 }

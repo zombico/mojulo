@@ -10,7 +10,7 @@ import { sceneScript } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
-import { statusElements, statusScript, transitKinds } from './status-channel.js';
+import { statusElements, statusScript, transitKinds, FADE_KINDS } from './status-channel.js';
 import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
 import { titleScript, titleHex, titleBlock } from './title-channel.js';
 import { titleMaterial } from '../../game/title-material.js';
@@ -221,7 +221,9 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
   const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
-  const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
+  const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
+  // and how its downed bodies go (`vanish`, the fades the world-scene lays: gameworld/vanish.js), cast or not
+  const trs = Array.isArray(events.vanish) ? [...trs0, ...events.vanish.filter((k) => FADE_KINDS.includes(k) && !trs0.includes(k))] : trs0;
   const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
   // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none
