@@ -103,7 +103,8 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
         caps: { back: P([0, -0.06, 0.82]), tip: P([0, -0.06, 1.01]) } });
       continue;
     }
-    if (s.name === 'neck') { keep.push({ ...s, rA: R(0.028 * Bw.shaft), rB: R(0.024 * Bw.shaft) }); continue; }
+    // (the neck a slim core through its vertebrae: the frame's `cervical`)
+    if (s.name === 'neck') { keep.push({ ...s, rA: R(0.009 * Bw.shaft), rB: R(0.008 * Bw.shaft) }); continue; }
     if (/^thigh/.test(s.name)) { keep.push(knee(s, BONE.femur)); continue; }
     if (/^shin/.test(s.name)) { keep.push(knee(s, BONE.tibia)); continue; }
     if (/^upperArm/.test(s.name)) { keep.push(knee(s, BONE.humerus)); continue; }
@@ -116,11 +117,13 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
   }
   for (const s of keep) if (s.rMid === undefined) delete s.rMid;
   const ribR = R(0.011 * Bw.ribs), cw = chest * g;
+  // the spine's core: slim, the discs between its vertebrae (the segments stay whole: the rig binds and the lean dial
+  // hinges by them)
   const frame = [
-    { name: 'spineLow', kind: 'segment', from: 'spine0', to: 'spine1', rA: R(0.034 * Bw.shaft), rB: R(0.03 * Bw.shaft), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'pelvis', blend: { st2: { pelvis: 0.5, torso: 0.5 }, tip: { torso: 1 } } } },
+    { name: 'spineLow', kind: 'segment', from: 'spine0', to: 'spine1', rA: R(0.016 * Bw.shaft), rB: R(0.013 * Bw.shaft), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'pelvis', blend: { st2: { pelvis: 0.5, torso: 0.5 }, tip: { torso: 1 } } } },
     // (named `torso`: the dials and the rig's lean hinge the body by its torso part)
-    { name: 'torso', kind: 'segment', from: 'spine1', to: 'spine2', rA: R(0.03 * Bw.shaft), rB: R(0.028 * Bw.shaft), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'torso' } },
-    { name: 'spineHigh', kind: 'segment', from: 'spine2', to: 'neckBase', rA: R(0.028 * Bw.shaft), rB: R(0.026 * Bw.shaft), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'torso', blend: { tip: { neck: 1 } } } },
+    { name: 'torso', kind: 'segment', from: 'spine1', to: 'spine2', rA: R(0.012 * Bw.shaft), rB: R(0.011 * Bw.shaft), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'torso' } },
+    { name: 'spineHigh', kind: 'segment', from: 'spine2', to: 'neckBase', rA: R(0.011 * Bw.shaft), rB: R(0.01 * Bw.shaft), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'torso', blend: { tip: { neck: 1 } } } },
     { name: 'sternum', kind: 'segment', from: 'sternumTop', to: 'sternumLow', rA: R(0.022 * Bw.ribs), rB: R(0.016 * Bw.ribs), group: 'Torso', tint: '#cccccc', mirror: 'plane', bind: { bone: 'torso' } },
     // the hip blades: each a flared rim from the sacrum up over the hip and round to the front, and the arch below it
     // from the hip socket in to the midline (the femur's head seats between them)
@@ -138,6 +141,8 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
       const at = [[0.03 * k, -0.075 * k, zz(0)], [x * 0.62, -0.1 * k, zz(-0.012)], [x * 0.97, -0.02 * k, zz(-0.035)], [x * 0.9, 0.065 * k, zz(-0.06)], [x * (front ? 0.5 : 0.62), 0.11 * k, zz(-0.08)], ...(front ? [[0.028 * k, 0.12 * k, zz(-0.09)]] : [])];
       return { name: `rib${i}R`, kind: 'loft', stations: at.map((p) => ({ at: p.map(r3), r: ribR })), group: 'Torso', tint: '#cccccc', mirror: 'name', bind: { bone: 'torso' } };
     }),
+    // the vertebrae on the core, each its body and its spinous process back
+    ...vertebrae(body.joints, { k, g, s: Bw.shaft }),
   ];
   // the skull as bones (./skull.js): a braincase and a face, the cheekbones, the openings, the teeth and a mandible of
   // its own on the rig's jaw, sized with the skeleton's bones
@@ -147,6 +152,35 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
   const lost = lossy ? lose(body, card, rand) : null;
   // (the frame's parts the lean hinges with the torso: not the pelvis's, which stay planted with the legs)
   return { body, lost, skull, frameParts: [...frame.filter((s) => s.group !== 'Pelvis').flatMap((s) => (s.mirror === 'name' ? [s.name, s.name.replace(/R$/, 'L')] : [s.name])), ...skull.headParts, ...skull.jawParts] };
+}
+
+// ── the spine's vertebrae ──
+// each run of the column: its joints up the core, how many vertebrae, the body's [half width, half height share of
+// the spacing, half depth], the spinous process's [length back, drop, radius] (template metres), the bone it rides
+const COLUMN = [
+  { id: 'lumbar', path: ['spine0', 'spine1'], n: 5, body: [0.026, 0.33, 0.017], process: [0.034, 0.004, 0.007], bone: (i) => (i < 2 ? 'pelvis' : 'torso'), group: 'Torso' },
+  { id: 'thoracic', path: ['spine1', 'spine2', 'neckBase'], n: 12, body: [0.017, 0.32, 0.013], process: [0.04, 0.022, 0.005], bone: () => 'torso', group: 'Torso' },
+  { id: 'cervical', path: ['neckBase', 'neckTop'], n: 6, body: [0.014, 0.3, 0.011], process: [0.024, 0.006, 0.005], bone: () => 'neck', group: 'Neck' },
+];
+/** The vertebrae along the core's joints: each a short plate (thin up the column, broad across) at its place by arc
+ * length, its back drawn out to the spinous process, pointing back off the column (`frame: 'up'` keeps a level run tall).
+ * The run's first starts half a step in, so the runs meet without a vertebra shared. */
+export function vertebrae(J, { k, g, s = 1 }) {
+  const len = (v) => Math.hypot(...v), unit = (v) => mul(v, 1 / (len(v) || 1));
+  return COLUMN.flatMap(({ id, path, n, body: [w, hs, d], process: [pl, pd, pr], bone, group }) => {
+    const pts = path.map((j) => J[j]), seg = pts.slice(1).map((p, i) => len(sub(p, pts[i]))), L = seg.reduce((a, b) => a + b, 0), step = L / n;
+    const at = (t) => { let u = t; for (let i = 0; i < seg.length; i++) { if (u <= seg[i] || i === seg.length - 1) { const f = u / seg[i]; return { c: add(pts[i], mul(sub(pts[i + 1], pts[i]), f)), up: unit(sub(pts[i + 1], pts[i])) }; } u -= seg[i]; } };
+    return Array.from({ length: n }, (_, i) => {
+      const { c, up } = at((i + 0.5) * step);
+      // back: −y square to the column; the body's height a share of the step, so a disc of core shows between
+      const back = unit(sub([0, -1, 0], mul(up, -up[1]))), h = step * hs, W = w * k * g * s, D = d * k * s;
+      const P = (v) => v.map(r3), tip = add(add(c, mul(back, D + pl * k * s)), mul(up, -pd * k));
+      return { name: `${id}${i}`, kind: 'loft', frame: 'up', stations: [
+        { at: P(add(c, mul(back, -D))), r: [r3(W * 0.9), r3(h)] }, { at: P(add(c, mul(back, D * 0.4))), r: [r3(W), r3(h)] },
+        { at: P(add(c, mul(back, D * 1.3))), r: [r3(W * 0.55), r3(h * 0.8)] }, { at: P(tip), r: [r3(pr * k * s * 0.7), r3(pr * k * s)] },
+      ], group, tint: '#cccccc', mirror: 'plane', bind: { bone: bone(i) } };
+    });
+  });
 }
 
 // ── the rest the body stands in ──

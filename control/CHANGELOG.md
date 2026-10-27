@@ -332,6 +332,21 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the ramus's fall from condyle to angle, the jaw's body taller than it is thick, the teeth running
   back from the incisors to the molars, and every byte pin the loft change reaches. Eyes: the skull alone from the
   side, three-quarter and front, closed and with the jaw dropped 22°. Eyes gate: the operator's to judge.
+- **A cleaner orbit, and a segmented spine** (`undead/skull.js`, `undead/passes.js`; the operator: "clean it up so
+  there's less elements around the eye orbit. give the spine segmentation").
+  - The orbit: the separate outer rim and the cheekbone's body under it are gone, so from the side the brow, the
+    socket and one cheekbone remain. The cheekbone is a single plate on its edge from under the orbit's outer
+    corner back along the arch to the ear.
+  - The spine: vertebrae up the column by arc length along the spine's own joints: five lumbar, twelve thoracic and
+    six cervical. Each is a broad, short body, thin up the column, drawn back to its spinous process. The lumbar
+    processes are short and level, the thoracic long and angled down, the neck's short. A slim core runs through
+    them, standing for the discs. The old spine segments stay as that core, so the rig binds and the lean dial
+    hinges by them as before. The lowest two vertebrae ride the pelvis, the neck's ride the neck and the rest ride
+    the torso.
+
+  Machine gate: each run's vertebrae, rising in order, broader than the core, each process behind its body, the
+  bones they ride, the thoracic in the lean. Eyes: the skull alone from three views; the soldier and the giant from
+  the front, three-quarter and side. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

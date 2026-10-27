@@ -31,6 +31,17 @@ describe('a skeleton is its frame', () => {
     // the pelvis stays out of the lean; the ribs hinge with it
     expect(B.frameParts).toContain('rib0L');
     expect(B.frameParts).not.toContain('iliumR');
+    // the spine is segmented: vertebrae up the column from the sacrum to the skull, each broader than the core it rides
+    // and drawn back to its process; the lowest ride the pelvis, the neck's the neck, the rest the torso
+    const V = B.body.segments.filter((s) => /^(lumbar|thoracic|cervical)\d+$/.test(s.name));
+    for (const run of ['lumbar', 'thoracic', 'cervical']) expect(V.filter((s) => s.name.startsWith(run)).length).toBeGreaterThan(3);
+    const zs = V.map((s) => s.stations[0].at[2]);
+    expect(zs).toEqual([...zs].sort((a, b) => a - b));
+    expect(V[0].stations[1].r[0]).toBeGreaterThan(1.4 * seg(B, 'spineLow').rA);
+    for (const v of V) expect(v.stations.at(-1).at[1]).toBeLessThan(v.stations[0].at[1]);
+    expect(V[0].bind.bone).toBe('pelvis');
+    expect(V.at(-1).bind.bone).toBe('neck');
+    expect(B.frameParts).toContain('thoracic5');
   });
   it('its skull is bones: a braincase and a face, the arches, the openings, both rows of teeth and a mandible of its own', () => {
     const B = body(id), names = B.body.segments.map((s) => s.name);

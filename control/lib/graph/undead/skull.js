@@ -5,10 +5,10 @@
  *
  *   braincase   a long domed trunk from the skull's base to its crown, widest at the temples, its back full
  *   face        the front below the forehead: the orbits, the cheeks, the upper jaw above the teeth
- *   rims        the brow ridge over the orbits and the rim below them; the nasal bridge out between them
- *   cheekbones  the body under each orbit flowing into the arch, plates on their edge, back to just before the ear
+ *   brow        the ridge over the orbits, part of the face; the nasal bridge out between them
+ *   cheekbones  one plate on its edge each, from under the orbit's outer corner back along the arch to before the ear
  *   the ear     its opening, and the mastoid pointing down behind it
- *   openings    dark in the face, sunk so the rims make the profile: the orbits and the nasal cavity
+ *   openings    dark in the face, sunk so the brow and the cheek make the profile: the orbits, the nasal cavity
  *   teeth       the upper row, incisors to molars along the arch under the face (riding the head), the lower on the mandible
  *   mandible    a plate, each half from its condyle under the arch, down the broad ramus to a sharp angle, forward along
  *               the tall body to a chin that stands out, where the halves meet; the coronoid process up in front of the condyle;
@@ -46,18 +46,15 @@ export function skullFrame(N, { k, s = 1 }) {
   // run straight across the face), the forehead
   trunk('face', [[-0.008, 0.04, 0.034, 0.078], [0.012, 0.046, 0.038, 0.076], [0.035, 0.056, 0.04, 0.074], [0.055, 0.064, 0.04, 0.074], [0.078, 0.066, 0.036, 0.074], [0.097, 0.068, 0.044, 0.072], [0.112, 0.062, 0.03, 0.07]],
     [[0, 0.08, -0.018], [0, 0.07, 0.122]], 'Skull');
-  // the orbit's outer rim, from the brow's end down to the cheek
-  loft('orbitRimR', [[0.056, 0.098, 0.1], [0.061, 0.095, 0.088], [0.062, 0.096, 0.074], [0.059, 0.099, 0.062], [0.052, 0.104, 0.055]], [[0.007, 0.008], [0.006, 0.008], [0.006, 0.008], [0.006, 0.007], [0.006, 0.006]], 'Skull');
-  // the cheekbone's body under the orbit, flowing back into the arch: plates standing on their edge, the arch to just
-  // before the ear
-  loft('malarR', [[0.05, 0.1, 0.054], [0.063, 0.087, 0.05], [0.068, 0.072, 0.046]], [[0.011, 0.015], [0.01, 0.014], [0.007, 0.011]], 'Skull');
-  loft('zygomaR', [[0.066, 0.076, 0.047], [0.071, 0.045, 0.044], [0.072, 0.015, 0.042], [0.066, -0.006, 0.04]], [[0.005, 0.009], [0.005, 0.007], [0.005, 0.007], [0.006, 0.009]], 'Skull');
+  // the cheekbone: one plate on its edge from under the orbit's outer corner back along the arch to just before the ear
+  loft('zygomaR', [[0.05, 0.098, 0.054], [0.064, 0.08, 0.049], [0.071, 0.048, 0.045], [0.072, 0.016, 0.042], [0.066, -0.006, 0.04]],
+    [[0.01, 0.013], [0.008, 0.011], [0.005, 0.008], [0.005, 0.007], [0.006, 0.009]], 'Skull');
   // the nasal bridge, out from between the orbits (the profile's nose), its aperture under it
   bar('nasalBone', [0, 0.112, 0.09], [0, 0.126, 0.064], [0.009, 0.006], 'Skull', 'plane');
   // behind the ear: the ear's opening and the mastoid pointing down
   bar('earR', [0.064, -0.014, 0.036], [0.073, -0.011, 0.039], [0.008, 0.008], 'Socket', 'name', false, 'ring12');
   bar('mastoidR', [0.058, -0.026, 0.03], [0.054, -0.02, -0.004], [0.013, 0.006], 'Skull', 'name');
-  // the openings, sunk into the face so they read as holes from the front and leave the rims the profile; each orbit
+  // the openings, sunk into the face so they read as holes from the front and leave the bone the profile; each orbit
   // looks a little outward, as the skull's do (round: a ring of twelve, not the limb's six)
   // (the orbits a little wider than tall; the nasal opening a tall pear, narrow above)
   add({ name: 'socketR', kind: 'loft', frame: 'up', slots: 'ring12', stations: [{ at: P([0.024, 0.09, 0.077]), r: R([0.021, 0.019]) }, { at: P([0.034, 0.107, 0.076]), r: R([0.021, 0.018]) }], group: 'Socket', tint: '#cccccc', mirror: 'name', bind: B });
