@@ -107,7 +107,7 @@ export const ATTACKS = Object.freeze({
     status: 'built', lowers: MELEE, ...AI_ATTACK,
   },
   shot: {
-    line: 'fires at the hero, a pattern from the lab\'s shots (feel/kernel.js RANGED)',
+    line: 'fires at the hero in a pattern from the action lab\'s shots (one aimed, a spread, a ring to jump)',
     verb: 'ranged', fireClass: 'sight', pattern: 'aimed', timing: { startup: 20 },
     status: 'built', lowers: RANGED, ...AI_ATTACK,
   },

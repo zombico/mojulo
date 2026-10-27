@@ -54,6 +54,30 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the laws (one class per procedure: a blade, a weapon, no verb yet, a pack, a flier, rank, pace, fit)
   and the deep sweep (every class at every rank on its stand-in, every class against the fauna roster) pass, as do the
   registry and sweep suites. Nothing reaches a world yet, so no pin moved. Eyes gate: nothing to see.
+- **A gameworld fields its foes** (`gameworld/foes.js`). The world keeps a bestiary, `foes: { <id>: { class, rank?,
+  skill?, skin?: { species?, ooze?, stylism? } } }`, each entry read at once: a bad word, or a skin that does not fit
+  its class, is refused, naming it. A level stands them with `foes: true | { from?, count? }`. It puts one foe on each
+  free beat of a trail stage (the trailhead and the exit stay clear), cycling the bestiary; `count` stands more, round
+  the beats. A swarm stands a pack of three sharing one group. With `true` and no bestiary, every class stands on its
+  stand-in. Each foe stands as its class resolves: the `ai` entity on the foes' side, hittable, its health its rank's
+  and its collision and hit volume its grown body's. Where they stand, the hero is hittable and its hp takes their
+  hits: the level goal's own hp when it has one, otherwise a fail-on-death laid before the goal's terminal. The run
+  mints one beast per entry a level fields, at `<ref>-foes-<id>`, through the animal door with its skin's oozes.
+  - **An ooze grows the body a fit is measured on** (`foes/fit.js bodyOf`). A dire wolf's size class is the wolf's
+    × 1.45, and the mythical ooze's own stylism heightens it further. A growth past what a class fits is refused.
+  - **A battle's or a quick game's beast foe may be grown.** `battles.foe` and `quick.foe` take
+    `{ species, ooze?, stylism? }` (`readBeastFoe`), and the figure is minted with what grows it. A species alone
+    orders as it did, print for print.
+  - **The rail card `gameworld-foes`** (get_game_vocab) is generated from the shelf. It lists each class with what
+    does not run yet, the moves, the attacks and the stomp words. The game-design routing card points at it, and a
+    routing-eval row asks for foes in colloquial words.
+
+  A world without `foes`, and a bestiary no level stands, lays and mints as before: the runner's prints are unchanged.
+  Not yet carried: each class's own harm (every hit costs the level goal's one hit), the moves and attacks the shelf
+  marks absent (a walker stands and wanders; nothing hurts by touch), and foes in buildings, cities and runs. Machine
+  gate: the shelf's laws and the gameworld's (the bestiary, placement on a stage's beats, the hits, a bestiary that
+  moves no print, a level that does, a grown battle foe) pass. Eyes gate not
+  run: no level with foes has been played.
 
 ### Carved glyphs: the letter primitive grows up
 

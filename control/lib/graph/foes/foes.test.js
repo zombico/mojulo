@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { FOE_CLASSES, foeClass, validateClass, classStatus, SIZES } from './index.js';
 import { MOVES, ATTACKS, FOE_RANKS, PACES, HERO } from './vocab.js';
 import { resolveFoe } from './resolve.js';
-import { fitOf, checkFit } from './fit.js';
+import { fitOf, checkFit, bodyOf } from './fit.js';
+import { OOZES, resolveMutagen } from '../mutagen/index.js';
 import { foeClassValues } from './cosmos.js';
 import { SIZE_CLASS_IDS } from '../fauna/size-class.js';
 import { RANKS, RANK_HP } from '../mind/vocab.js';
@@ -118,9 +119,23 @@ describe('foe resolver', () => {
     expect(() => resolveFoe({ class: GROUNDED.id, skin: { species: swimmer } })).toThrow(/needs ground/);
     expect(() => resolveFoe({ class: GROUNDED.id, skin: { species: 'unicorn' } })).toThrow(/no fauna species 'unicorn'/);
   });
+  it('an ooze grows the body it is measured on: its size class is the grown body\'s, and a growth past the class refuses', () => {
+    // (the growth as the mutagen composes it: an ooze's own stylism heightens its form)
+    const id = Object.keys(OOZES).find((o) => (OOZES[o].form?.scale ?? 1) > 1.5), scale = resolveMutagen(id, { key: GROUNDED.standIn }).form.scale;
+    const plain = bodyOf(GROUNDED.standIn), grown = bodyOf(GROUNDED.standIn, { ooze: id });
+    expect(grown.scale).toBe(scale);
+    expect(grown.extent).toBeCloseTo(plain.extent * scale, 2);
+    const f = resolveFoe({ class: GROUNDED.id, skin: { ooze: { id, strength: 0 } } });
+    expect(f.skin).toEqual({ species: GROUNDED.standIn, ooze: { id, strength: 0 } });
+    // a class held to the smallest bodies, on its stand-in grown past them
+    const small = pick('held small', (c) => c.fits.size && !c.fits.size.includes('behemoth') && !c.fits.size.includes('gargantuan'));
+    const tooBig = Object.keys(OOZES).find((o) => !fitOf(small.id, small.standIn, { ooze: o }).ok);
+    if (tooBig) expect(() => resolveFoe({ class: small.id, skin: { ooze: tooBig } })).toThrow(/does not fit a grown/);
+  });
   it('refuses words it does not know, naming the known', () => {
     expect(() => resolveFoe({ class: BLADE.id, rank: 'general' })).toThrow(/rank 'general'.*minion/);
-    expect(() => resolveFoe({ class: BLADE.id, skin: { ooze: 'dire' } })).toThrow(/no key 'ooze'/);
+    expect(() => resolveFoe({ class: BLADE.id, skin: { colour: 'red' } })).toThrow(/no key 'colour'/);
+    expect(() => resolveFoe({ class: BLADE.id, skin: { ooze: 'plaid' } })).toThrow(/unknown ooze "plaid"/);
     expect(() => resolveFoe({ class: BLADE.id, level: 3 })).toThrow(/no key 'level'/);
   });
   it('is deterministic: the same foe resolves to the same bytes', () => {

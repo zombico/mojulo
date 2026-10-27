@@ -4,23 +4,31 @@
  * the way the mind measures a body's verbs (mind/measure.js). A class asks (./vocab.js MOVES `needs`, the row's `fits`);
  * the body answers.
  *
- *   fitOf(classId, species)  → { ok, misses: [why …], body: { support, wings, swimmer, size, gaits } }
- *   checkFit(classId, species)  the same, throwing the misses when it does not fit
+ *   fitOf(classId, species, { ooze?, stylism? })  → { ok, misses: [why …], body: { support, wings, swimmer, size,
+ *                            extent, height, scale, gaits } }
+ *   checkFit(classId, species, grown?)  the same, throwing the misses when it does not fit
+ *   bodyOf(species, { ooze?, stylism? })  the body measured: an ooze GROWS it (mutagen/compose.js: a uniform `scale`,
+ *                            never a joint), so its size class is the grown body's (a dire wolf is a wolf × 1.45)
  *
+ * An ooze's chimera grafts (wings at 0.66) are not measured yet: an oozed body has the species' own wings and gaits.
  * A fauna species only (the ring-plan bodies the animal door mints and the oozes grow); a bug, a maker or an archetype
  * throws: they fight in a later step. Pure and deterministic; a species' skeleton is built once (the fauna caches).
  */
 import { SPECIES } from '../fauna/species.js';
 import { capabilitiesOf } from '../fauna/behavior/capabilities.js';
-import { sizeClassOf } from '../fauna/size-class.js';
+import { extentOf, heightOf, classOfExtent } from '../fauna/size-class.js';
+import { resolveMutagen } from '../mutagen/index.js';
 import { motionGaits } from '../fauna/rig.js';
 import { MOVES } from './vocab.js';
 import { foeClass } from './index.js';
 
-function bodyOf(species) {
+const r3 = (v) => Math.round(v * 1000) / 1000;
+
+export function bodyOf(species, { ooze, stylism } = {}) {
   if (!SPECIES[species]) throw new Error(`foe: no fauna species '${species}' (a foe's body is a fauna species: create_character { as: 'animal' }'s)`);
-  const cap = capabilitiesOf(species);
-  return { support: cap.support, wings: cap.wings, swimmer: cap.swimmer, size: sizeClassOf(species).class, gaits: motionGaits(species) };
+  const cap = capabilitiesOf(species), M = resolveMutagen(ooze, { key: species, stylism }), scale = M?.form?.scale ?? 1;
+  const extent = r3(extentOf(species) * scale), height = r3(heightOf(species) * scale);
+  return { support: cap.support, wings: cap.wings, swimmer: cap.swimmer, size: classOfExtent(extent, height), extent, height, scale, gaits: motionGaits(species) };
 }
 
 const NEEDS = {
@@ -28,8 +36,8 @@ const NEEDS = {
   wings: (b) => (b.wings ? null : 'it needs wings, and the body has none'),
 };
 
-export function fitOf(classId, species) {
-  const c = foeClass(classId), b = bodyOf(species), F = c.fits, misses = [];
+export function fitOf(classId, species, grown = {}) {
+  const c = foeClass(classId), b = bodyOf(species, grown), F = c.fits, misses = [];
   for (const n of MOVES[c.move].needs) { const m = NEEDS[n](b); if (m) misses.push(`${c.move}: ${m}`); }
   if (F.support && !F.support.includes(b.support)) misses.push(`support: it stands on ${F.support.join(' | ')}, the body on ${b.support}`);
   if (F.size && !F.size.includes(b.size)) misses.push(`size: it is ${F.size.join(' | ')}, the body ${b.size}`);
@@ -39,8 +47,8 @@ export function fitOf(classId, species) {
   return { ok: misses.length === 0, misses, body: b };
 }
 
-export function checkFit(classId, species) {
-  const f = fitOf(classId, species);
-  if (!f.ok) throw new Error(`foe: a ${classId} does not fit a ${species} (${f.misses.join('; ')})`);
+export function checkFit(classId, species, grown = {}) {
+  const f = fitOf(classId, species, grown);
+  if (!f.ok) throw new Error(`foe: a ${classId} does not fit a ${grown.ooze ? 'grown ' : ''}${species} (${f.misses.join('; ')})`);
   return f;
 }

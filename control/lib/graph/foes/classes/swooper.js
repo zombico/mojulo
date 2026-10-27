@@ -6,7 +6,7 @@ export const foe = {
   move: 'dive', pace: 'quick',
   attack: { kind: 'contact' },
   mind: { aggressiveness: 'bold' },
-  fits: { wings: true, size: ['mini', 'smol', 'chonky'] },
+  fits: { size: ['mini', 'smol', 'chonky'] },
   toll: { downs: 1, harm: 1 }, stomp: 'blow', threat: 2,
   standIn: 'fruitBat',
 };

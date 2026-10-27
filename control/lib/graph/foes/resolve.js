@@ -4,11 +4,13 @@
  * report, not a second check's), its toll in the hero's frame, its attack's timing and what lowers it today.
  *
  *   resolveFoe({ class, rank?, skill?, skin?, group? }, { hero? })
- *     → { class, rank, skill, body, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind, timing, pattern?,
- *         reach?, zone? }, stomp, threat, status, marks, short, advisories }
+ *     → { class, rank, skill, body, skin, measured, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind,
+ *         timing, pattern?, reach?, zone? }, stomp, threat, status, marks, short, advisories }
+ *     `skin` the species and what grows it, as the animal door takes them; `measured` the grown body (./fit.js bodyOf)
  *     rank    mind/vocab.js RANKS (minion default): × the class's downs and threat (./vocab.js FOE_RANKS)
  *     skill   mind/vocab.js SKILLS (regular default)
- *     skin    { species }: the body it plays on, checked against the class (./fit.js); absent, its `standIn`
+ *     skin    { species?, ooze?, stylism? }: the body it plays on, grown by its oozes and checked against the class
+ *             (./fit.js, on the grown body); absent, its `standIn`
  *     group   the id a swarm's members share (rule.mind.group); absent, the class's id
  *     hero    the frame (./vocab.js HERO): its run sets a pace's speed, its blow and its hit price the toll
  *
@@ -23,10 +25,11 @@ import { checkFit } from './fit.js';
 import { RANKS, SKILLS } from '../mind/vocab.js';
 import { resolveMind } from '../mind/resolve.js';
 import { RANGED } from '../gameworld/feel/kernel.js';
+import { mutagenErrors } from '../mutagen/index.js';
 
 const FPS = 60;
 const r3 = (v) => Math.round(v * 1000) / 1000;
-const SKIN_KEYS = ['species'];
+const SKIN_KEYS = ['species', 'ooze', 'stylism'];
 const SPEC_KEYS = ['class', 'rank', 'skill', 'skin', 'group'];
 
 function check(what, v, table) {
@@ -50,11 +53,14 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   const c = foeClass(spec.class), rank = spec.rank ?? 'minion', skill = spec.skill ?? 'regular';
   check('rank', rank, RANKS); check('skill', skill, SKILLS);
   if (spec.skin !== undefined) {
-    if (!spec.skin || typeof spec.skin !== 'object') throw new Error('foe: .skin is { species }');
+    if (!spec.skin || typeof spec.skin !== 'object') throw new Error('foe: .skin is { species?, ooze?, stylism? }');
     for (const k of Object.keys(spec.skin)) if (!SKIN_KEYS.includes(k)) throw new Error(`foe: .skin has no key '${k}' (known: ${SKIN_KEYS.join(', ')})`);
   }
   const species = spec.skin?.species ?? c.standIn;
-  checkFit(c.id, species);
+  const grown = { ...(spec.skin?.ooze !== undefined ? { ooze: spec.skin.ooze } : {}), ...(spec.skin?.stylism !== undefined ? { stylism: spec.skin.stylism } : {}) };
+  const errs = mutagenErrors(grown.ooze, undefined, grown.stylism);
+  if (errs.length) throw new Error(`foe: .skin: ${errs.join('; ')}`);
+  const { body: measured } = checkFit(c.id, species, grown);
 
   const M = MOVES[c.move], W = ATTACKS[c.attack.kind];
   const A = { ...W, ...c.attack, timing: { ...(W.timing || {}), ...(c.attack.timing || {}) } };
@@ -75,7 +81,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   const { status, marks, short } = classStatus(c);
   const attack = { kind: c.attack.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}) };
   return {
-    class: c.id, rank, skill, body: species, entity, mind: resolved,
+    class: c.id, rank, skill, body: species, skin: { species, ...grown }, measured, entity, mind: resolved,
     toll: { downs, harm: c.toll.harm, hp: entity.body.hp, damage },
     attack, stomp: c.stomp, threat: c.threat * R.threat, status, marks, short, advisories: resolved.advisories,
   };

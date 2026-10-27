@@ -204,7 +204,7 @@ export const SHOOT = Object.freeze({
   gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
 });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
-const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
+export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the

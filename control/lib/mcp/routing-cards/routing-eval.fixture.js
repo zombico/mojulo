@@ -205,6 +205,8 @@ export const COLLISION_FIXTURE = [
   // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
   ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
+  // foes on a gameworld's trails (gameworld-foes): a class at a rank on a skin, not a new tool
+  ['fill the levels of my game with monsters to fight, small critters you jump on and a big nasty beast near the end', 'design_game'],
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['an endless runner for my phone where you swipe to dodge', 'design_game'],
