@@ -35,6 +35,10 @@ export const ITEMS = Object.freeze({
     { item: 'sword', style: 'eastern' }),
   combatKnife: card('the combat knife: a dagger at the left hip, hilt forward; the mercenary, the commando', 'blade', ['modern', 'movie'], 'hip',
     { item: 'dagger', style: 'historical' }),
+  drawnKnife: card('the drawn knife: a dagger in the fist, point forward; the street tough, the assassin', 'blade', ['modern', 'movie'], 'right',
+    { item: 'dagger', style: 'historical' }, 'thrust'),
+  machete: card('the machete: a heavy single-edged blade in the fist; the jungle raider, the cartel heavy', 'blade', ['modern', 'movie'], 'right',
+    { item: 'sword', style: 'brutal' }, 'chop'),
   // ── STAVES (in the right hand, near upright, the heel above the floor) ──
   boStaff: card('the bo staff: a plain turned staff; the acrobat, the martial artist', 'staff', ['silver', 'modern'], 'right',
     { item: 'staff', style: 'historical' }, 'plant'),

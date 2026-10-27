@@ -12,6 +12,7 @@ import { LOOKS } from './looks.js';
 import { memberOrders, bodyOf } from './characters.js';
 import { ACCESSORIES, ACCESSORY_IDS, accessoryFits } from './accessories.js';
 import { ITEM_IDS } from './items.js';
+import { GRUNT_STYLES, gruntOrders } from './grunts.js';
 import { validateHeroSpec, heroRecord, heroPlanOf, sortPieces } from '../../../../mcp/tools/layered.js';
 
 const byBody = Object.fromEntries(Object.keys(LOOKS).map((id) => [bodyOf(id), id]));
@@ -82,6 +83,16 @@ describe('the comic hero pack, swept', () => {
       if (e.length) failing.push({ member: m.id, look, era, e });
       if (era && got !== era) failing.push({ member: m.id, look, era, got });
       if (mint.args.spec.toon !== undefined || mint.args.spec.form !== (body === 'realistic' ? 'realistic' : undefined)) failing.push({ member: m.id, look, era, body: mint.args.spec.form, toon: mint.args.spec.toon });
+    }
+    expect(failing).toEqual([]);
+  }, 120_000);
+
+  it('every grunt faction, kind and pole validates on both bodies, in each of its colourways', () => {
+    const failing = [];
+    for (const [s, S] of Object.entries(GRUNT_STYLES)) for (const kind of Object.keys(S.kinds)) for (const pole of ['male', 'female']) for (const look of Object.values(byBody)) for (const colourway of Object.keys(S.colourways)) {
+      const o = gruntOrders(s, look, { kind, pole, colourway });
+      const e = valid(o.mint.args.spec);
+      if (e.length) failing.push({ s, kind, pole, look, colourway, e });
     }
     expect(failing).toEqual([]);
   }, 120_000);
