@@ -40,6 +40,9 @@ export const IN_HALL = Object.freeze({
   speed: 4.5, pace: 1.3, run: [8, 20, 12], explore: [60, 150], height: [3, 12, 5],
   // how far a room's depth may be stretched past its beat's range to make the run
   stretch: 1.5,
+  // the lowest a room's ceiling comes down, metres: a squeeze presses in, but its doorway (half a metre under it,
+  // stage.js) stays a full metre over the walker's eye
+  floor: 3.5,
   // each beat: its room (w across the walk, d along it, metres; h its share of the hall's height), its DWELL (seconds an
   // explorer spends there) and its words
   beats: Object.freeze({
@@ -147,7 +150,7 @@ export function planInHall(kit, H, seed = 1) {
     // the heartbeat: the beat's share of the hall's height and its width, swung harder the higher the heartbeat
     const hf = 1 + (B.h - 1) * swing, wide = kind === 'reveal' ? 0.4 + 0.6 * H.heartbeat * u + 0.2 * (1 - H.heartbeat) : u;
     return { id: `${kind}-${counts[kind]}`, kind, i, w: even(B.w[0] + (B.w[1] - B.w[0]) * Math.min(1, wide)), d: B.d[0] + (B.d[1] - B.d[0]) * v,
-      h: Math.max(2.5, Math.round(H.height * hf * 2) / 2) };
+      h: Math.max(C.floor, Math.round(H.height * hf * 2) / 2) };
   });
   const spine = beats.filter((b) => b.kind !== 'pocket');
   // THE RUN: the spine's depths drawn in their ranges, scaled together to the run's length, each held to its range

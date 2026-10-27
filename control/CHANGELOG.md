@@ -29,7 +29,8 @@ way a trail is, planned into rooms, links and two ports, built by the stage as a
   (compression, then release), the landmark neither first nor past the middle (the mouth sees it), a pocket off the
   room before it; drawn by the seed when the recipe names none, a reveal, a landmark and a pocket always.
 - **The plan** (`planInHall`): a straight spine from the mouth, each room centred on one axis with an even width, so
-  every doorway stands on it; the heartbeat swings each beat's height and width; the spine's depths drawn in their
+  every doorway stands on it; the heartbeat swings each beat's height and width, no ceiling under 3.5 m (`IN_HALL.floor`:
+  a squeeze's doorway stays a full metre over the walker's eye); the spine's depths drawn in their
   ranges and scaled together to the run; a pocket off the side of the room before it, no deeper than its host; the
   landmark's link last, so the kit's dressing seats its set piece there; a mouth through the first room's `-y` and an
   exit through the last's `+y` (`exit: 'none'`, a dead end ending at its landmark). `mouth` and `exit` say how each is
