@@ -221,3 +221,10 @@ describe('the athletes: a sport played by characters in their own bodies', () =>
     expect(matchArenaData({})).not.toHaveProperty('bodies');
   });
 });
+
+describe('a team game\'s periods asked on the quick goal', () => {
+  it('`seconds` is a contest\'s dial too, read with its sport; the other goals keep it to survive and deathmatch', () => {
+    expect(() => readQuick({ goal: 'contest', sport: 'soccer', seconds: 90 })).not.toThrow();
+    expect(() => readQuick({ goal: 'collect', seconds: 30 })).toThrow(/\.seconds belongs to the survive and deathmatch goals/);
+  });
+});

@@ -274,6 +274,10 @@ import { emitThreeWorld } from './scene-three.js';
 // the field's page (the bat sim, the diamond and the oval). Every other page is byte-identical.
 // Re-pinned 2026-10-26 (sport concept: the arena and the cast): the `pitch` fixture re-pins because the pitch client calls a
 // hoop game's restart a tip-off or an inbound, never a kick-off. Every other page is byte-identical.
+// Re-pinned 2026-10-26 (review fixes): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because every contest
+// block inlines contest/contest-stats.js by source, and a serve's speed and opening hit are now read from the hit before
+// its call; the pitch block's sim leaves the rink's goal mouths open in its end boards. Every other page is
+// byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

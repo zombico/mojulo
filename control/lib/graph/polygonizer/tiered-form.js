@@ -592,8 +592,8 @@ export function tieredGarments(plan) {
  * lowest point the torso's sides are the shoulder's: a trunk plate that is not a shoulder piece (one that spans the
  * upper arm: a pauldron's anchor) keeps off them, a front or back plate cut in under the arm (its `armhole`), a wrap (a band, a row,
  * a hoop) ending under the arm, and it lies under the arm instead of standing off the balls, as the realistic body's
- * cuirass does (body-relational-armour.js PLATE_STAND). A pinned piece (a skirt's board) and the neck's (a gorget) as
- * they were. Hero laws 18 (hero-form.js); a hero minted under 1 to 17 keeps its plates standing off the balls.
+ * cuirass does (body-relational-armour.js PLATE_STAND). A pinned piece (a skirt's board), a shoulder piece by its own
+ * word (`shoulder`: a mantle) and the neck's (a gorget) as they were; a wrap's cut never raises its top. Hero laws 18 (hero-form.js); a hero minted under 1 to 17 keeps its plates standing off the balls.
  */
 export function tieredKit(kit, plan, { laws = 1 } = {}) {
   if (!Array.isArray(kit) || !kit.length) return kit;
@@ -612,7 +612,8 @@ export function tieredKit(kit, plan, { laws = 1 } = {}) {
   // the torso's ring a superellipse (x = rx·sinθ^(2/e)), t uniform in θ over the ring half
   const tReach = (s0, s1) => { const rx = Math.max(...rings.filter((q) => q.s >= s0 - 1e-9 && q.s <= s1 + 0.5).map((q) => q.rx), 1e-9);
     const sn = Math.min(1, (xIn / rx) ** (e / 2)); return r6((Math.asin(sn) / Math.PI) * Ht); };
-  const trunkPlate = (A) => A.part === 'torso' && (A.mode === 'shell' || A.mode === 'band') && !A.pin && !(A.over || []).some((o) => /^upperArm/.test(o));
+  // (a shoulder piece by its own word, `shoulder`, a mantle's: cloth that covers the shoulders is not a trunk plate)
+  const trunkPlate = (A) => A.part === 'torso' && (A.mode === 'shell' || A.mode === 'band') && !A.pin && !A.shoulder && !(A.over || []).some((o) => /^upperArm/.test(o));
   const offShoulder = (A) => { if (sBall == null || !Array.isArray(A.s) || A.s[1] <= sBall) return A;
     const reach = tReach(Math.max(A.s[0], sBall), A.s[1]);
     if (Array.isArray(A.t)) { const [t0, t1] = A.t[0] <= A.t[1] ? A.t : [A.t[1], A.t[0]];
@@ -622,7 +623,7 @@ export function tieredKit(kit, plan, { laws = 1 } = {}) {
       if (t0 < reach && t1 <= Ht - reach + 1e-9 && t0 < Ht / 2) return { ...A, armhole: { from: sBall, edge, t: reach } };
       if (t1 > Ht - reach && t0 >= reach - 1e-9 && t1 > Ht / 2) return { ...A, armhole: { from: sBall, edge: 1 - edge, t: r6(Ht - reach) } }; }
     // a wrap, or a window across the side: it ends under the arm (its support with it)
-    const top = r6(Math.max(A.s[0] + 0.1, sBall)); return { ...A, s: [A.s[0], top], ...(A.support > top ? { support: top } : {}) }; };
+    const top = r6(Math.min(A.s[1], Math.max(A.s[0] + 0.1, sBall))); return { ...A, s: [A.s[0], top], ...(A.support > top ? { support: top } : {}) }; };
   return kit.map((A) => {
     const S = sideOf(A.part ?? ''), over = A.over || [];
     let B = A;

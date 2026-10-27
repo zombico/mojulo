@@ -73,6 +73,9 @@ export const FIXTURE = [
   ['a roguelike where my gear persists across floors', 'create_game'],
   // a board game against the computer: create_game's tabletop, not its levels
   ['I want to play chess against the computer', 'create_game', 'tabletop'],
+  // a board game stood up as a hologram in an arena is the quick rail's tabletop goal; a floodlit ground is the stadium base
+  ['a board game projected as a hologram in the middle of an arena, against the computer', 'design_game', 'tabletop'],
+  ['a floodlit football stadium with stands all round that I can walk through', 'compose_world', 'stadium'],
   ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
   // mobile genres: the match-3 saga is a reducer game, not a world game
   ['a candy crush kind of game with a level map and stars', 'create_pixelizer_game'],

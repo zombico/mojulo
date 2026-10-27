@@ -57,3 +57,12 @@ describe('the arcade rules\' cards', () => {
     expect(arcadeRulesCard('contest-arcade-nope')).toBeNull();
   });
 });
+
+describe('a no-volley zone a variant can play', () => {
+  it('the court lays it and its foul costs the point; a cost the match cannot restart from is refused', () => {
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball' }))).not.toThrow();
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball', fouls: { kitchen: 'free' } }))).toThrow(/fouls\.kitchen is 'point'/);
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball', fouls: { kitchen: 'fault' } }))).toThrow(/fouls\.kitchen is 'point'/);
+    expect(() => composeArcade(arcadeCard({ id: 'pb-x', from: 'pickleball', noVolley: 'nowhere' }))).toThrow(/noVolley names a region the court lays/);
+  });
+});
