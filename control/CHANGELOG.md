@@ -14,6 +14,52 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Carved glyphs: the letter primitive grows up
+
+The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
+font covers, styled and extruded. Its legacy stack (materials, a bevelled carve, inner glow, the outer form-effects,
+the materialize reveals) reached the page only in part. This theme brings the primitive's pieces up first, then
+spreads carved letters to where the page draws words.
+
+- **The shelf's display face ships with the repo.** Archivo Black (SIL OFL 1.1) is vendored at
+  `lib/graph/image-outcomes/fonts/archivo-black.ttf`, its license text beside it and its notice in `NOTICE`. The shelf
+  says a recipe names a face by key "so a cover carves identically on any host", but no face was ever vendored: the
+  key fell back to whatever the host had (Arial Black on a Mac, DejaVu Sans Bold on Linux), so the same cover carved
+  in a different face per machine. A cover or title naming the default face now carves in Archivo Black everywhere:
+  on a host that fell back, its letters change once, to the face the recipe always meant. The other shelf faces (IM
+  Fell English, Great Vibes, Inter) stay unvendored until something carves in them. Machine gate: the cover suites
+  pass on the vendored face; eyes gate not run.
+- **`material` on a title row: what the carved letters are made of** (`game/title-material.js`). A title's letters
+  took the register's paint (anime cel bands, western lambert and a glint) in the title's colour; the carver's legacy
+  material shelf (the `carved-solid` wordmark's `material`) never reached them. A row may now name one. A **metal**
+  (`chrome`, `gold`, `silver`, `copper`, `bronze`, `brass`, `steel`, `titanium`, `aluminium` … and the shelf's
+  `gunmetal`, which reads as steel) is the chrome logo: each letter's face and bevel reflect the studio sweep the
+  broadcast's metal reflects (`metalStops`: the softbox, the dark horizon under the middle, the floor's bounce, in the
+  metal's measured reflectance), drawn from a two-column texture by the vertex's height in the line, so every letter
+  shares one horizon; three hard bands in the anime register; the walls the metal's middle, lit. A **finish** (any other
+  shelf row or its alias: `stone`, `wood`, `plastic`, `glass`, `neon`, `marble` …) shades by its row (cel bands, a glint,
+  emission, glass's opacity, held through the entrance's fade) in the row's colour, or the row's own when it names none.
+  The material's colours are decoded from sRGB as the world's baked colours are. The idiom `title(…)` and a `play.parts`
+  banner pass it; card `hud-title`. No theme names a material, and a world whose titles name none emits the title block
+  byte for byte as before (the material code is spliced only when a title names one). Machine gate: the title layer's
+  suite drives a metal, a finish and glass through the emitted page against stubs; a bad word fails the gate with the
+  shelf's words. Eyes gate not run: the author's own renders (chrome, gold, copper, marble, glass, neon titles in
+  headless Chromium) showed the sweep reading as chrome and gold; glass reads murky, its walls and a glow edge showing
+  through.
+- **`block` on a title row: the depth made to show.** A title's letters face the screen, so the carve's depth was a sliver
+  and they read as a raised face. A row may name a block (`title-channel.js`, only spliced when a title names one):
+  `drop` pulls each letter's back ring deep, down and to the right (the comic and cartoon block letter), `perspective`
+  pulls it toward a vanishing point under the word (the action-movie logo), `stack` stands six receding copies behind
+  it in alternating shades (the comic masthead's construction, `comicWordmark`'s block copies, now in 3D). The face and
+  its bevel keep their look (paint or material); the sides take `blockColor` or the face's hue darkened, lit by the way
+  each wall faces (the right side bright, the underside dark), two flat tones in the anime register, shading toward the
+  back in the western. A block is the drop, so it replaces a `shadow` edge; the ink hull outlines the whole block. The
+  idiom, `play.parts` banners and card `hud-title` take it. A world whose titles name no block emits the title block
+  byte for byte as before. Machine gate: the title layer's suite checks the face unmoved and uncoloured, the drop's back
+  ring moved by one offset, the perspective's back narrower than its face, the stack's steps and their fade, and the
+  closed words. Eyes gate not run: the author's renders of each block over a walk stage read as block letters once the
+  drop copy was taken off a blocked title (it stood in front of the sides).
+
 ### Superheroic pieces: belts, pouches and jackets as cards
 
 - The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
