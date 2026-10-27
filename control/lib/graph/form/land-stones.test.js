@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { landLayers } from './land-layers.js';
-import { landStones, STONE_SIZES } from './land-stones.js';
+import { landStones, stoneForms, STONE_SIZES, STONE_BULK, SHAPES } from './land-stones.js';
 
 // a field of 1.5 m quads: a cliff's wall (standing faces) along x = 6, soil past it; the scree fans from its foot
 const CELL = 1.5, N = 24;
@@ -54,5 +54,25 @@ describe('the scree\'s stones', () => {
     const mid = many.filter((s) => s.at[0] > 16 && s.at[0] < 28 && Math.abs(s.at[1] - 18) < 0.5).length, edge = many.filter((s) => s.at[0] > 16 && s.at[0] < 28 && Math.abs(Math.abs(s.at[1] - 18) - 1.3) < 0.5).length;
     expect(edge).toBeGreaterThan(mid);
     expect(landStones(faces, L, { seed: 2, rubble: 1 })).toEqual(S);
+  });
+
+  it('the stones\' shapes are broken rock: chipped near, the block\'s facets far, each of a stone\'s bulk, the same each time', () => {
+    const F = stoneForms({ rock: 'granite', seed: 5 });
+    expect(F.near.length).toBe(SHAPES);
+    for (const k of ['near', 'far']) for (const f of F[k]) {
+      const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+      for (let i = 0; i < f.pos.length; i += 3) for (let c = 0; c < 3; c++) { lo[c] = Math.min(lo[c], f.pos[i + c]); hi[c] = Math.max(hi[c], f.pos[i + c]); }
+      const half = lo.map((v, c) => (hi[c] - v) / 2);
+      expect(Math.cbrt(half[0] * half[1] * half[2])).toBeCloseTo(STONE_BULK, 5);
+      // (a stone lies on its flattest side)
+      expect(half[2]).toBeLessThan(Math.max(half[0], half[1]));
+      for (let i = 0; i < f.nrm.length; i += 3) expect(Math.hypot(f.nrm[i], f.nrm[i + 1], f.nrm[i + 2])).toBeCloseTo(1, 4);
+    }
+    // (the far one its block alone, a few dozen facets; the near one chipped, many more)
+    expect(F.far[0].pos.length / 9).toBeLessThan(80);
+    expect(F.near[0].pos.length / 9).toBeGreaterThan(3 * (F.far[0].pos.length / 9));
+    // (the same rock and seed, the same shapes; another seed, others)
+    const G = stoneForms({ rock: 'granite', seed: 6 });
+    expect(Buffer.from(G.far[0].pos.buffer).equals(Buffer.from(F.far[0].pos.buffer))).toBe(false);
   });
 });

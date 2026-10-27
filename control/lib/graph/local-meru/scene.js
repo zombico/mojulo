@@ -386,6 +386,9 @@ function groundRoute(route, heightAt) {
   return out;
 }
 
+/** How broken a gen-7 island's rock is when its style says nothing grittier (the grit the broken land reads). */
+export const FORM_GRIT = 0.6;
+
 export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   if (!st) throw new Error(`stage: meru: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
@@ -403,7 +406,9 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const built = [...p.tiers.filter((t) => t.form === 'tower').flatMap((t) => towerFaces(t, made, seed)), ...p.links.filter((L) => L.via === 'climb').flatMap((L) => ladderFaces(L.climb, made))];
   // a few boulders round the first tier's foot, off the approach
   // (a gritty style's boulders break at their edges: their silhouettes a broken rock's, not ruled lines; isekai.js)
-  const GR = p.recipe.shading && p.recipe.shading.grit, broken = GR !== undefined && GR >= GRIT_PIXELS ? GR : 0;
+  // (and every island read in the form render, gen-7, breaks so: its rock drawn as material wants a broken rock's edges,
+  // at FORM_GRIT unless the style is grittier; ctx.form, worlds/world-scene.js)
+  const GR = p.recipe.shading && p.recipe.shading.grit, broken = GR !== undefined && GR >= GRIT_PIXELS ? GR : ctx.form ? FORM_GRIT : 0;
   const t0 = p.tiers[0], c = t0.centre, foot = t0.form === 'mound' ? t0.foot : t0.half * 2, rocks = [];
   for (let i = 0; i < 9; i++) {
     const a = TAU * hash3(i, 3, seed + 401), r = foot * planFactor(t0.sides, t0.turnAt, a) + 1.5 + 6 * hash3(i, 5, seed + 403), x = c[0] + Math.cos(a) * r, y = c[1] + Math.sin(a) * r;

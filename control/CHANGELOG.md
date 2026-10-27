@@ -942,6 +942,14 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   their normals by it: benches and tops stay as walked, no crack where the cliff meets another class, the ledges' own
   shadows cast. Display only: walking keeps the land as built. Also in the channel: scree lies no steeper than its
   angle of repose, and on a steep face the rock's relief decides where the soil shows.
+- **Gen-7 rocks, as the rock studies break them.** The scree's stones are no longer jittered icosahedra: `stoneForms`
+  (`form/land-stones.js`) breaks each of their shapes with the rock field (`polygonizer/rock-fracture.js`: the
+  minerals' cleavage, a block of planar fractures, chips at halving scales), chipped for the stones that cast, the
+  block's few dozen facets for the small, each laid on its flattest side, its normals creased so a fracture's edge stays
+  sharp; no light baked in, so every instance turns freely. And an island read in the form render breaks as a gritty
+  one does (`ctx.form`, set by the world's read for a 'form' era and passed by the stage and geocube kinds; the island at
+  `FORM_GRIT` unless its style is grittier): its boulders broken at their edges, its cliffs' rims broken, stones strewn
+  on the boulders' tops, along the paths and at the cliffs' feet, its beach's strand. Gen-6 is as it was.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

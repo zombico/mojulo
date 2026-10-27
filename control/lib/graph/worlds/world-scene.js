@@ -294,6 +294,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     ref: sketch.ref,
     // (solid: the builders' thickness, above; only when on, so a ctx without it is as it was)
     ...(solid ? { solid: true } : {}),
+    // (form: a read in the form render (gen-7), for the builders that make more of the land for it: the meru island's
+    // broken boulders, rims and strewn stones; only when on, so a gen-6 ctx is as it was)
+    ...(ERAS[era]?.surface === 'form' ? { form: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to

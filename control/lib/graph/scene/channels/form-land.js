@@ -321,8 +321,8 @@ export function formLandScript(form) {
     m.customProgramCacheKey = () => 'sea-plane';
     const sea = new THREE.Mesh(g, m); sea.receiveShadow = true; scene.add(sea);
   }
-  // the stones: a few shapes (an icosahedron's corners pushed about by their dice, squashed along its up), each drawn
-  // instanced, every stone turned to its ground's normal, yawed by its index, toned about the stone's solved base
+  // the stones: a few shapes (broken as the rock studies break a rock), each drawn instanced, every stone turned to its
+  // ground's normal, yawed by its index (no light is baked in them, so a turn is free), toned about the stone's base
   if (D.stones.n) {
     const SP = new Float32Array(bytes(D.stones.px).buffer), per = 9, hsh = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
     const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(...D.stones.base.map((v) => Math.min(1, v)), THREE.LinearSRGBColorSpace), roughness: 0.85, metalness: 0 });
@@ -335,22 +335,17 @@ export function formLandScript(form) {
     };
     mat.customProgramCacheKey = () => 'scree-stone';
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), qy = new THREE.Quaternion(), up = new THREE.Vector3(0, 0, 1), nv = new THREE.Vector3(), pv = new THREE.Vector3(), sv = new THREE.Vector3(), col = new THREE.Color();
+    // (each shape as the rock studies break a rock: chipped for the stones that cast, its block of fractures for the
+    // small; creased normals, so a fracture's edge stays sharp; land-stones.js stoneForms)
+    const formGeo = (F) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bytes(F.pos).buffer), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(bytes(F.nrm).buffer), 3, true)); return g; };
     for (let v = 0; v < D.stones.shapes; v++) {
-      const g = new THREE.IcosahedronGeometry(1, 1), P = g.attributes.position;
-      // (a corner's push keyed to where it is, so the copies of a shared corner move together and the stone stays whole;
-      // its normal the sphere's, squashed with it: shaded round, never faceted)
-      const N = new Float32Array(P.count * 3);
-      for (let k = 0; k < P.count; k++) {
-        const x = P.getX(k), y = P.getY(k), z = P.getZ(k), f = 0.75 + 0.5 * hsh(v * 17 + Math.round(x * 9), Math.round(y * 9) * 3 + Math.round(z * 9));
-        P.setXYZ(k, x * f, y * f, z * f * 0.62); const l = Math.hypot(x, y, z / 0.62); N.set([x / l, y / l, z / 0.62 / l], k * 3);
-      }
-      g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+      const geo = { true: formGeo(D.stones.forms.near[v]), false: formGeo(D.stones.forms.far[v]) };
       // (a stone under CAST_R casts nothing: its shadow is finer than the map's texel, a smudge beside it)
       const CAST_R = 0.18;
       for (const big of [true, false]) {
       const idx = []; for (let i = 0; i < D.stones.n; i++) if (SP[i * per + 8] === v && (SP[i * per + 3] >= CAST_R) === big) idx.push(i);
       if (!idx.length) continue;
-      const im = new THREE.InstancedMesh(g, mat, idx.length);
+      const im = new THREE.InstancedMesh(geo[big], mat, idx.length);
       idx.forEach((i, k) => {
         const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
         q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);

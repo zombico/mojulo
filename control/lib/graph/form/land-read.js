@@ -30,7 +30,7 @@ import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
 import { landLayers, LAYER_OF, PATH_REACH } from './land-layers.js';
 import { strHash } from '../city/plan/dice.js';
-import { landStones, SHAPES } from './land-stones.js';
+import { landStones, stoneForms, SHAPES } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
 
@@ -266,7 +266,9 @@ export function formPayload(R) {
     wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH },
     light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { base: bases.water } },
     dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN },
-    stones: { n: STONES.length, shapes: SHAPES, base: stoneBase, px: b64(new Uint8Array(stonePack.buffer)) },
+    // (the stones' shapes as the rock studies break a rock, form/land-stones.js stoneForms: chipped near, the block far)
+    stones: { n: STONES.length, shapes: SHAPES, base: stoneBase, px: b64(new Uint8Array(stonePack.buffer)),
+      forms: Object.fromEntries(Object.entries(stoneForms()).map(([k, L]) => [k, L.map((f) => ({ pos: b64(new Uint8Array(f.pos.buffer)), nrm: b64(Int8Array.from(f.nrm, (x) => Math.round(x * 127))) }))])) },
     layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF),
       pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => r4(v * 0.82)),
       green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX },
