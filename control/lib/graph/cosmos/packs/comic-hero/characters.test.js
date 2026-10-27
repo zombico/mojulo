@@ -84,7 +84,7 @@ describe('comic hero pack: member orders', () => {
   });
   it('never cel shaded: no toon at any stop, the tiered body at the comic and painted stops, the realistic body at the realistic one', () => {
     for (const look of Object.keys(LOOKS)) expect(memberOrders('hero', look).mint.args.spec.toon, look).toBeUndefined();
-    expect([bodyOf('comic-night'), bodyOf('painted-dusk'), bodyOf('realistic-city'), bodyOf('gritty-night')]).toEqual(['tiered', 'tiered', 'realistic', 'realistic']);
-    expect(memberOrders('hero', 'realistic-city').mint.args.spec.paint).toBeUndefined();
+    expect([bodyOf('anime-day'), bodyOf('dcau-golden'), bodyOf('realistic-night')]).toEqual(['tiered', 'tiered', 'realistic']);
+    expect(memberOrders('hero', 'realistic-night').mint.args.spec.paint).toBeUndefined();
   });
 });

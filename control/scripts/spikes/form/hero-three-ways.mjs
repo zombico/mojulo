@@ -7,7 +7,7 @@
 // bounce as a hemisphere, the horizon as a rim from behind), and the page prints the theorist's reads beside them: the
 // machine gate. How it looks is the operator's.
 //
-//   node scripts/spikes/form/hero-three-ways.mjs [--member hero] [--look comic-day] [--era silver] [--out <file.html>] [--cdn]
+//   node scripts/spikes/form/hero-three-ways.mjs [--member hero] [--look dcau-golden] [--era silver] [--out <file.html>] [--cdn]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,7 +21,7 @@ process.env.SQLITE_PATH = ':memory:'; process.env.MOJULO_SEMANTIC_INDEX_DISABLED
 process.env.MOJULO_OUTCOMES_DIR ??= path.join(os.tmpdir(), 'hero-three-ways');
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
-const member = arg('--member', 'hero'), lookId = arg('--look', 'comic-day'), era = arg('--era', undefined);
+const member = arg('--member', 'hero'), lookId = arg('--look', 'dcau-golden'), era = arg('--era', undefined);
 const out = path.resolve(arg('--out', 'hero-three-ways.html')), cdn = process.argv.includes('--cdn');
 
 const { memberOrders } = await import('@/lib/graph/cosmos/packs/comic-hero/characters.js');

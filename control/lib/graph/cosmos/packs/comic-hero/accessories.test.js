@@ -14,7 +14,7 @@ import { validateHeroSpec, heroRecord, heroPlanOf, sortPieces } from '../../../.
 const FAMILIES = ['neck', 'shoulders', 'arm', 'carried', 'eyegear'];
 const firstOfFamily = (ids, cards) => [...new Set(ids.map((id) => cards[id].family))].map((f) => ids.find((id) => cards[id].family === f));
 const fields = (spec) => { const { vibe: _v, ...f } = spec; return f; };
-const LOOK = { tiered: 'comic-day', realistic: 'realistic-city' };
+const LOOK = { tiered: 'dcau-golden', realistic: 'realistic-night' };
 
 describe('comic hero pack: accessory cards', () => {
   it('each card reads, names a family, eras and bodies, and only words the door has (an outfit kind, an eyegear word)', () => {

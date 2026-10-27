@@ -14,6 +14,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The comic hero pack in three registers: anime, DCAU, realistic
+
+The pack's look dial (`cosmos/packs/comic-hero/looks.js`) is three registers, each with its own light, in place of the
+comic page, the painted cover and the film. The world and the hero take the same one. The eyes gate is the operator's.
+
+- **anime** (`anime-day`): the isekai shell's own light (era/isekai.js). Every colour sits on its ramp; rock and cliff
+  are drawn lit or in shade by tile per facet; the grass wears hats; the sky is painted. The cube's outside has no
+  polygon land (`outside.land: false`), which drew over all of it: a geocube on the isekai shell with the land on reads
+  as flat green ground and bare boulders. A lilac stone and a sand ground, so the grass and the sky carry the hue. Not
+  the `cel` register: the anime look is not inked. Its hero direction is the anime tradition (the anime head under its
+  character light). Its QA level is a field's trail, since the city kind lights itself and never draws the isekai bake
+  (`qaLevel`).
+- **dcau** (`dcau-golden`): the gritty look at golden hour, after the operator's reference (a seventh-generation
+  western at sunset). A low warm sun behind lit cloud (the `desert-dusk` reference's key), the figures backlit against
+  the brightest thing in the frame, dusty ground drawn from relief (`grit` 0.8, `contrast: 'wii'`), a warm haze that
+  sinks the distance (`outsideFog` 1.4). The light is baked (gen-6). The colours are the theorist's: rust and ochre lit
+  warm, the stone and the shade a cool teal against them, colour where it looks good. The hero is the tiered body.
+- **realistic** (`realistic-night`): the seventh generation (`era: 'gen-7'` on the cube), the realistic body. Parked:
+  at night there is no sun, so gen-7 draws a night city as gen-6 until its lamps cast live.
+- The costume eras tie to the new stops (`ERA_OF_STOP`: anime the Modern, dcau the Silver Age, realistic the Movie
+  Hero). Each cube names a look on the new dial, and the resonance laws advise the new stops (`bursts-want-drawn`,
+  `night-wants-backlight`).
+- Found and not fixed:
+  - A night reference pins a solved cube's sky to its own dark dome (`geocube.js` solveInto), so a night cube's sky is
+    always near-black.
+  - The micro-town's houses paint at day value under a night sky.
+  - The gritty city dress lays its materials' own pale concrete over the cube's value, so a sidewalk stays pale at night.
+  - The city's signs burn in the city's own pink, not the cube's accent.
+  - The cast light's rim takes the reference dome's horizon, never a cube's written sky.
+
 ### Grunt style packs: the crews a hero fights through
 
 - The comic hero pack's grunts (`cosmos/packs/comic-hero/grunts.js`). Each FACTION is a style pack in the hero door's

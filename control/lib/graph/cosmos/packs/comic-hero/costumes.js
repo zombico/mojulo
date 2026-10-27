@@ -4,7 +4,7 @@
  * language. An era never invents a garment: every costume is the hero door's own words (a `paint`, an outfit build and
  * its designed pieces, a chest motif worked in thread, the armored-hero hardsuit, the footwear, handwear and plating
  * libraries by word on the realistic body). The eras tie together through the look dial: each stop suggests an era
- * (ERA_OF_STOP: the comic page the Silver Age, the painted cover the Modern, the film the Movie Hero), and the operator
+ * (ERA_OF_STOP: the golden-hour film the Silver Age, the anime field the Modern, the film the Movie Hero), and the operator
  * may name another.
  *
  *   ERAS                         { silver, modern, movie }: { name, reads, principles: [words], palette: { <group>: hex } }
@@ -52,7 +52,7 @@ export const ERAS = Object.freeze({
   },
 });
 export const ERA_IDS = Object.freeze(Object.keys(ERAS));
-export const ERA_OF_STOP = Object.freeze({ comic: 'silver', painted: 'modern', realistic: 'movie' });
+export const ERA_OF_STOP = Object.freeze({ anime: 'modern', dcau: 'silver', realistic: 'movie' });
 
 const SKIN = { fit: 'skin', feet: 'boots', top: { family: 'knit', sleeve: 'long', hem: 'hip' }, bottom: { family: 'knit', leg: 'long', cut: 'skinny' } };
 const TACTICAL = { fit: 'fitted', feet: 'boots', top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long', cut: 'tapered' } };

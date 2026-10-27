@@ -21,7 +21,7 @@ const valid = (spec) => { const { vibe: _v, ...fields } = spec; return validateH
 describe('the comic hero pack, swept', () => {
   it('every piece card and every fitted headgear card validates on the hero on both bodies', () => {
     const failing = [];
-    for (const look of ['comic-day', 'realistic-city']) {
+    for (const look of ['dcau-golden', 'realistic-night']) {
       for (const id of PIECE_IDS) { const e = valid(memberOrders('hero', look, { era: 'modern', pieces: [id] }).mint.args.spec); if (e.length) failing.push({ piece: id, look, e }); }
       for (const id of HEADGEAR_IDS) {
         if (!fitted(id, bodyOf(look))) continue;
@@ -36,7 +36,7 @@ describe('the comic hero pack, swept', () => {
 
   it('every accessory card validates and is worn on the bodies it fits; every item card validates on both bodies', () => {
     const failing = [];
-    for (const look of ['comic-day', 'realistic-city']) {
+    for (const look of ['dcau-golden', 'realistic-night']) {
       const body = bodyOf(look);
       for (const id of ACCESSORY_IDS) {
         if (!accessoryFits(id, body)) continue;
@@ -47,7 +47,7 @@ describe('the comic hero pack, swept', () => {
       }
       for (const id of ITEM_IDS) { const e = valid(memberOrders('hero', look, { era: 'modern', items: [id] }).mint.args.spec); if (e.length) failing.push({ item: id, look, e }); }
     }
-    for (const m of CAST) for (const look of ['comic-day', 'realistic-city']) {
+    for (const m of CAST) for (const look of ['dcau-golden', 'realistic-night']) {
       const e = valid(memberOrders(m.id, look, { items: 'signature' }).mint.args.spec);
       if (e.length) failing.push({ member: m.id, look, signature: m.items, e });
     }
@@ -58,7 +58,7 @@ describe('the comic hero pack, swept', () => {
     const failing = [];
     for (const [head, id] of Object.entries(HARMONY)) {
       if (!ENSEMBLES[id]) { failing.push({ head, missing: id }); continue; }
-      const { spec } = memberOrders('hero', 'comic-day', { headgear: head, ensemble: 'auto' }).mint.args;
+      const { spec } = memberOrders('hero', 'dcau-golden', { headgear: head, ensemble: 'auto' }).mint.args;
       const e = validateHeroSpec(spec);
       if (e.length) failing.push({ head, id, e });
       if (ENSEMBLES[id].armor && !(spec.adorn.type === 'armor' && spec.adorn.with.some((A) => A.part === 'cranium'))) failing.push({ head, id, helm: 'kept' });

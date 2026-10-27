@@ -15,7 +15,7 @@ import { validateHeroSpec, heroRecord, expandLayeredManifest } from '../../../..
 const FAMILIES = ['shield', 'blade', 'staff', 'bow', 'sidearm', 'longGun'];
 const firstOfFamily = (ids, cards) => [...new Set(ids.map((id) => cards[id].family))].map((f) => ids.find((id) => cards[id].family === f));
 const fields = (spec) => { const { vibe: _v, ...f } = spec; return f; };
-const LOOK = { tiered: 'comic-day', realistic: 'realistic-city' };
+const LOOK = { tiered: 'dcau-golden', realistic: 'realistic-night' };
 
 describe('comic hero pack: item cards', () => {
   it('each card reads, names a family, eras and a slot, and its build passes the door\'s gear validator', () => {

@@ -53,13 +53,12 @@ are the machine gate, never a render.
 
 The pack's looks, read at gen-7 on the pack's own cast (`hero-light.test.js` holds the concepts):
 
-- **Day looks hold.** On `comic-day` and `painted-dusk` the key is about 2.6× the shade side. Every pack emblem holds
-  its step lit and in shade, and the figure stands well off the sky.
-- **Night looks read flat.** On `comic-night` and `gritty-night` the city-night reference's light is mostly fill: the
-  key side is 1.36× and 1.12× the shade side, against a wanted 1.6×. The figure's shade side is within 0.02 to 0.08 L
-  of the night horizon, so the rim carries the outline. Gen-6 hides this, because the bake's ambient floor lifts the
-  shade. A live rig shows it. The theorist's move at night is a deeper fill and a stronger moon key, or a rim as the
-  key light.
+- **Day looks hold.** On `anime-day` the key is about 2.6× the shade side, and on `dcau-golden` (a low warm sun)
+  about 2×. Every pack emblem holds its step lit and in shade, and the figure stands well off the sky.
+- **The night look reads flat.** On `realistic-night` the city-night reference's light is mostly fill: the key side is
+  1.36× the shade side, against a wanted 1.6×, and the figure's shade side is within 0.08 L of the night horizon, so the
+  rim carries the outline. Gen-6 hides this, because the bake's ambient floor lifts the shade. A live rig shows it. The
+  theorist's move at night is a deeper fill and a stronger moon key, or a rim as the key light.
 - **Very dark groups are holes in any shade.** Black hair, and the Modern and Movie eras' near-black boots and gloves,
   fall under the crush floor. That is the rim's job, or a lifted albedo.
 - **The realistic body's plating has no material row.** The Movie Hero on the realistic body wears the plating library
@@ -68,7 +67,7 @@ The pack's looks, read at gen-7 on the pack's own cast (`hero-light.test.js` hol
 
 ## The spike
 
-`node control/scripts/spikes/form/hero-three-ways.mjs [--member hero] [--look comic-day] [--era silver] [--out f.html]`
+`node control/scripts/spikes/form/hero-three-ways.mjs [--member hero] [--look dcau-golden] [--era silver] [--out f.html]`
 mints a pack member through the door, wearing its look's cube with materials named. It shows the hero three ways:
 
 - (a) the paint, gen-6 as the GLB draws it;
