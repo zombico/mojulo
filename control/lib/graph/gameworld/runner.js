@@ -35,6 +35,7 @@ import { gearOrders } from './world-gear.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
+import { stageFolk, folkExtra, folkMintKey } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
@@ -209,6 +210,17 @@ export function runSteps(world, { ref, lookup } = {}) {
   const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
+  // the towns' folk (characters.folk, folk-cast.js): each body a step, minted as a hero is, once per town however many
+  // stages meet it; none when the world asks for none
+  const folks = stages.map((s) => (s.building?.ref ? null : stageFolk(G, s))), folkRef = {};
+  for (const F of folks) for (const m of F?.bodies.mints ?? []) {
+    const key = folkMintKey(F, m);
+    if (folkRef[key]) continue;
+    folkRef[key] = childRef(ref, key);
+    const spec = withReact(react, m.spec), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${m.of}`, spec, ...(m.toon ? { toon: m.toon } : {}) };
+    steps.push({ key, ref: folkRef[key], ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
+    if (ownMoves) ownMoves[folkRef[key]] = REACT_STATES;
+  }
   // a book fighting on boards is travelled from its epochs' maps (board-levels.js): each epoch's stages its map's dots, in
   // place of an interconnected world's ways
   const epochs = G.battles?.on === 'board' ? bookEpochs(G, stages) : [];
@@ -270,7 +282,10 @@ export function runSteps(world, { ref, lookup } = {}) {
     const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
-    const extra = composeExtras(fight, stall);
+    // its town's folk beside them; alone, beside the goal's own cast, which an extra would otherwise stand in for
+    const folk = folks[i] ? folkExtra(folks[i], (m) => folkRef[folkMintKey(folks[i], { key: m })]) : null;
+    const goalCast = folk && !fight && !stall ? goalArgs(G, s, lastOf, ref).goalCast : null;
+    const extra = composeExtras(fight, stall, goalCast, folk);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);

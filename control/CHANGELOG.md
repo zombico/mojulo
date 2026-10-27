@@ -23,8 +23,9 @@ grows and adding a lot never moves anyone already rolled. NPCs are not party mem
 culture and their role: the role and the culture give the uniform, the seed gives the face. A **townie** lives and
 talks; a **service** (a merchant is one) opens a menu the game already has; a **recurring** person (the same face at
 the same service in every town) is seeded from the game, not the town. Their minds keep to the town or the service.
-Their lines are placeholder slots (`[Keeper: greeting]`) until the operator directs the words: mojulo never writes
-the story. The city plan and the historic city follow on the same rules.
+What they say past the plot is written for them: chitchat and a service's own talk, from a seeded line book. The plot
+is never written: a quest giver's lines and a scene's stay slots (`[Elder: the village]`) for the operator. The city
+plan and the historic city follow on the same rules.
 
 - **The folk sheet: a town's people from its lots** (`lib/graph/folk/`). `folkOfTown(town)` reads a designed town
   (`era/out-town.js`): each lot's use roots its first person (`roles.js` `ROOTS`: a dwelling a townie, a shop its
@@ -35,9 +36,8 @@ the story. The city plan and the historic city follow on the same rules.
   a supplier, a watch a hall to answer to), and an unmet one is an open need on the sheet: what the town is missing,
   said, never refused. The services (`services.js`: merchant, smith, counsel, watch) each lower onto a menu, an effect
   or a mind the game already runs, or are a gap that says what is missing (the smith: no menu mends gear yet). Every
-  person carries their room in their lot's inside and their line slots, never words. A cap (`folk.cap`, 60 by default)
-  gives every lot its first person before anyone's household. Nothing reaches a level yet: bodies, standing them in
-  play and their talk come next. Machine gate: `folk.test.js`; eyes gate not run.
+  person carries their room in their lot's inside and their line slots (the plot's). A cap (`folk.cap`, 60 by default)
+  gives every lot its first person before anyone's household. Machine gate: `folk.test.js`; eyes gate not run.
 - **The domicile: a house round its dweller** (`folk/domicile.js`). A house's unit is the DWELLER, the lot's first
   person, and the house is written as the egocube cast writes a request: `D + 0` (alone), `D + P` (with a partner),
   `D of F (P + Cx)` (a family of x children), `D + Cx` (a single parent). The dweller's age says what the house can be (a youth lives alone or
@@ -58,6 +58,20 @@ the story. The city plan and the historic city follow on the same rules.
   115 people is 25 bodies. `quickFigure`'s two dressings are now shared helpers (`gameworld/cast-setting.js`
   `wearUnderlayer`, `wearUniform`); its figures are byte-identical. Machine gate: `bodies.test.js` and the 20 test
   files the change reaches (14 byte pins); eyes gate not run.
+- **The folk in a gameworld town, and what they say** (`characters.folk`, `gameworld/folk-cast.js`, `folk/lines.js`).
+  A world with `characters.folk: true` (or the folk's words: `seed`, `cap`, `pool`, `domicile`, `domiciles`, `say`)
+  grows each town a level lays from the street's own lots (`era/stage-buildings.js` `streetLots`, the houses
+  `town-<use>-<n>`): each body is a run step minted as a hero is, once per town however many stages meet it, and each
+  person stands by their own house, beside its door and clear of the way in, or, a service's first person in a house
+  walked into, inside at their room (the elder on the dais). Each has a talk menu opened by the interact key. Their
+  lines come from a line book, picked on the person's own die: a greeting by their temper (an archetype's light or
+  shadow, a child's own), a word on their work, on their house or on their town, and a farewell; the town's open
+  needs are said aloud, first-hand by the one who has the need and second-hand by anyone else ("Nobody here sells
+  anything. Folk trade over the fence."). `folk.say` gives the operator's words by a person's path or a role. They
+  stand still for now, and the watch keeps no post yet (a guard mind would fight the hero). The book is English; a world
+  in another locale hears it until the book is in the catalogs. `stageEnds` carries the town's doors off its data
+  (`townDoors`), so every level order without folk reads as it did; a world that asks for no folk is untouched.
+  Machine gate: `folk-cast.test.js`, `lines.test.js` and the test files the change reaches; eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 

@@ -319,6 +319,12 @@ function readEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: groundSampler(P.faces ?? [], /:rock$/), enumerable: false });
   // what stands solid on it (boxes), for a law to keep a track clear; not data either
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
+  // the town's houses as they stand (stage-buildings.js `town-<use>-<n>`): each door, the way it faces out and, walked
+  // into, its rooms; where the folk stand (folk-cast.js). Not data either: a house the street had no frontage for is
+  // not here
+  const townDoors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && /^(house|building)-town-/.test(a.id) && Array.isArray(a.at) && Array.isArray(a.N))
+    .map((a) => ({ id: a.id.replace(/^(house|building)-/, ''), use: a.use, at: a.at, N: a.N, enter: a.enter ?? null, ...(Array.isArray(a.rooms) ? { rooms: a.rooms } : {}) }));
+  Object.defineProperty(out, 'townDoors', { value: townDoors, enumerable: false });
   return out;
 }
 
