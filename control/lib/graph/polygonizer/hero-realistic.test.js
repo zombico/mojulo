@@ -125,6 +125,9 @@ describe('the realistic hero at the door', () => {
     expect(validateHeroSpec({ form: 'realistic', face: { want: { chin: 'square' } } })).toEqual([expect.stringMatching(/face.want.chin: one of/)]);
     expect(validateHeroSpec({ form: 'realistic', face: { ethnicity: ['western'] } })[0]).toMatch(/face.ethnicity/);
     expect(validateHeroSpec({ form: 'realistic', face: { tilt: 1 } })[0]).toMatch(/face.tilt: not a realistic face's word/);
+    // (the scalp's cut by word: a style, a groom on one, or none; a cut it cannot read refused by name)
+    for (const scalp of ['long', { style: 'ponytail', spacing: 0.02 }, 'none']) expect(validateHeroSpec({ form: 'realistic', face: { scalp } })).toEqual([]);
+    expect(validateHeroSpec({ form: 'realistic', face: { scalp: 'mohican' } })[0]).toMatch(/^face\.scalp: unknown style 'mohican'/);
     expect(adultsOnly({ form: 'realistic', cast: 'child', face: { seed: 2 } }).face).toBeUndefined();
   }, 240_000);
   it('wears its face\'s hair: the beard (its locks under the lip on the jaw), the brows and the lashes, in the hair\'s own colour over the plan\'s', () => {

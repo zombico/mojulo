@@ -18,12 +18,16 @@
  */
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { HEAD_TUNES } from '../polygonizer/hero-relational-head.js';
-import { readDermis, skinBase, toSrgb } from './dermal-map.js';
+import { readDermis, skinBase, toSrgb, hairColourOf } from './dermal-map.js';
 import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
 import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
 import { layoutDermis, paintDermis } from './dermal-texture.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
+import { strandPage, strandCellUV } from './hair-strands.js';
+
+// the strand strip's size on the atlas (no wider than the atlas)
+const STRAND_ATLAS = Object.freeze({ w: 1024, h: 256 });
 
 /**
  * The hero's DERMIS spec (the door's `skin`, layered.js): the cast's preset with the body's own over it (BODY_DERMIS),
@@ -183,10 +187,20 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const H = heroDermis(mesh, recipe, opts), B = H.pages.body, Hd = H.pages.head ?? null;
   // (the atlas as wide as the wider page: the body's at the top left, the head's under it; a page narrower than the
   // atlas leaves white beside it)
-  const BW = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, W = Math.max(BW, HW), TH = BH + HH;
+  // THE HAIR CARDS (realistic laws 7, hair-depict.js stripMesh `card`): a face whose corners all sit on a card draws the
+  // strand page (hair-strands.js), a strip under the head's page, its colour the band's still (the strands are white) and
+  // its edge the strands' alpha. No card, no strip: the atlas as before, byte for byte.
+  const cards = new Map();
+  mesh.faces.forEach((tri, fi) => { if (tri.every((vi) => mesh.provenance?.[vi]?.card)) cards.set(fi, tri.map((vi) => mesh.provenance[vi].card)); });
+  const BW = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, W = Math.max(BW, HW);
+  const SW = cards.size ? Math.min(W, STRAND_ATLAS.w) : 0, SH = cards.size ? STRAND_ATLAS.h : 0, TH = BH + HH + SH;
   const px = new Uint8Array(W * TH * 4).fill(255);
   for (let y = 0; y < BH; y++) px.set(B.albedo.subarray(y * BW * 4, (y + 1) * BW * 4), y * W * 4);
   if (Hd) for (let y = 0; y < HH; y++) px.set(Hd.albedo.subarray(y * HW * 4, (y + 1) * HW * 4), ((BH + y) * W) * 4);
+  // (the strands the hero's own: its pigment against the cards' colour, the hair's mean, and its share gone grey)
+  const hairHex = typeof recipe.palette?.Hair === 'string' ? recipe.palette.Hair : null, pigment = hairColourOf(H.dermis);
+  const dye = hairHex && pigment.every(Number.isFinite) ? { tint: hex3(hairHex).map(lin).map((m, i) => pigment[i] / Math.max(1e-6, m)), grey: H.dermis.grey ?? 0 } : null;
+  if (SH) { const S = strandPage({ w: SW, h: SH, dye }); for (let y = 0; y < SH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + y) * W) * 4); }
   // (a page's [s, t], t up, onto the atlas's)
   const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
@@ -194,6 +208,8 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const q = W > 1024 ? 1e5 : 1e4, r5 = ([s, t]) => [Math.round(s * q) / q, Math.round(t * q) / q];
   const onHeadPage = new Set();
   mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) { fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); if (f.page === 'head') onHeadPage.add(fi); } });
+  const onStrands = ([s, t]) => [(s * SW) / W, 1 - (BH + HH + (1 - t) * SH) / TH], cardUVs = new Map();
+  for (const [fi, cs] of cards) if (!fis.has(fi)) cardUVs.set(fi, cs.map(([a, l, cell]) => r5(onStrands(strandCellUV(cell, [a, l])))));
   let face = -1;
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, TH).toString('base64')}`;
   const uvAt = (ref) => { const c = fis.get(face); if (!c || ref.vi === undefined) return white; const k = mesh.faces[face].indexOf(ref.vi); return k < 0 ? white : c[k]; };
@@ -205,5 +221,7 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   // atlas's layout: what the normal bake reads, epidermis/dermal-relief.js)
   return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
     atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0,
-    faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH] } };
+    faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH] },
+    // (`cardUV(fi)` a hair card face's three corners on the strand strip, null off one; `alphaMask` the atlas has edges)
+    ...(cardUVs.size ? { cardUV: (fi) => cardUVs.get(fi) ?? null, alphaMask: true } : {}) };
 }

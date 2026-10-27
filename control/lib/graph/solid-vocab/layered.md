@@ -856,7 +856,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   same words: re-roll with `set /hero/face/seed <n>`, keep what you like and aim the rest. The readout's
   `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
   (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
-  its HAIR is the composed cut (or its ancestry's) grown as an engine's hair cards, its PIERCINGS the face's, each piece
+  its HAIR is the composed cut (or its ancestry's; `scalp` names one instead: a style such as `long`, `ponytail`, `crop`,
+  `{ style, …its groom }`, or `'none'`) grown as an engine's hair cards, its PIERCINGS the face's, each piece
   in its metal; the brows, the lashes and a styled beard are read but not yet grown (the beard is painted). The mint
   solves the face's own FIT (`fit`, stamped beside its words, ~45 s once) so the head is the one the face studies show;
   a face whose words change wears its pole's fit until it is minted again. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also

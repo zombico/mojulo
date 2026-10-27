@@ -14,6 +14,57 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic wardrobe: the legendary merc
+
+The realistic register's character and clothing raised toward the seventh generation at its best: a middle-aged
+legendary mercenary in tactical gear, face and hair showing, as the game model (the skinned GLB an engine plays). Then
+the same man in a leather jacket. The eyes gate is the operator's.
+
+- **Hair as alpha cards** (realistic laws 7, `REALISTIC_LAWS_VERSION`). The scalp's blades and the beard's locks were
+  opaque ribbons (the grass hat): up close they drew as shards. They are now cards that carry a strand texture.
+  - A card runs full width to its end (`HAIR_CARD.tip` of its root, never a point), each point its place across and
+    along it (`hair-depict.js` `stripMesh` `card`), carried through the pin and the compile to the mesh's provenance.
+  - The texture (`epidermis/hair-strands.js` `strandPage`): fine white strands, each tapering, waving and ending at a
+    length of its own, filled at the root, with alpha between them. A card draws one of its cells by its index.
+  - The texture is a strip under the head's page on the skin's atlas (`dermal-hero.js` `heroSkinPaint` `cardUV`), so
+    the figure stays one material; a card's colour is its band's, the root darker than the tip, as before.
+  - The figure's material is alpha tested (`alphaMode: 'MASK'`, cutoff 0.4, double sided) when its atlas carries the
+    strip, on the GLB (`scene-gltf.js`) and the World page.
+  - The strands are the hero's own: most are its pigment, a share (its `grey`) the cards' mean colour, so a greying man
+    reads salt and pepper. The mean alone washed every strand grey once the cards showed it lit.
+  - A hero minted before keeps its grass hat: the cards are its laws'.
+- **`face.scalp`**: the realistic face's cut by word (a style such as `long`, `ponytail` or `crop`, `{ style, …its
+  groom }`, or `'none'`) in place of the one its ancestry rolls. Before, the cut could not be named.
+- **The kit as pieces** (realistic laws 8, `polygonizer/body-relational-kit.js`). The authored kernel made each piece
+  a slab lifted off the skin's envelope. It never saw the tailor's cloth (it looked for a garment by a name the tailor
+  no longer gives), so straps and pouches sat inside the shirt, and the belt was two of the cloth's rings copied, so it
+  rippled with them. Now each is made as the thing it is, on what the body wears:
+  - **A belt is one mass** (`beltOn`): its section read off everything worn at its height across its whole width,
+    the hollows spanned as a cinched belt spans them (the section's hull), the same section top to bottom, its edges
+    rounded. Its buckle is a frame (`frameBuckle`: four bars, a tongue, the belt's tail through it, a keeper loop).
+    It is fitted over what is under it (the piece it is on, the trunk's cloth inside that, the belts before it, the
+    skin): a garment wider than it there is worn over it and clears it, as before, and a sleeve hanging beside the waist
+    is no girth. A belt within a hand's width of one already made shares its height, cinched over it: a duty belt rides
+    over the trousers' belt, never a band of its own above it.
+  - **A pouch is a piece** (`pouchOn`): a body with rounded corners and a bevelled front, its back pressed flat to
+    whatever stands out most under its footprint, a lid flap over its top with a rounded fold, a closure tab and its
+    snap, a seam bead down each front edge. It hangs on its own belt (its top a little over the belt's) and rides it
+    rigidly. A thigh rig hangs from the belt above it by a strap down the hip.
+  - **Webbing lies on the cloth** (`webbingOn`): along its path, each point lifted over the farthest thing worn within
+    the strap's width, the lift eased along, so it lies on the outermost layer (the shirt, a belt) and never stands off
+    or sinks. An end that runs to a belt is fastened to it: carried down the body to just over the belt, a ladder lock
+    there and a tab over the belt's face. A strap along a path one is already laid on is that strap (a rig's shoulder
+    straps and a harness worn with it).
+  - A band round a thigh is a belt on that leg's cloth, read off that leg alone, no higher than a hand under the crotch.
+- **The cloth's folds** (realistic laws 8, `polygonizer/body-relational-folds.js`): the folds a game draws, not a
+  simulation's, a few broad ridges that keep reading as the body moves (each rides the cloth's own weights, so a bend
+  closes the crescents it shows). Crescents inside the elbows and behind the knees, stacked rolls over the boots and at
+  the cuffs, the shirt bloused over its belt with gathers under it and flat where the belt cinches. A ridge only ever
+  stands out from the cloth, its crease side sharp and its other side soft, its size the cloth's weight by the
+  garment's role (`FOLD_CLOTH`: a knit small, canvas sharper, a heavy layer broad, leather broadest). The cloth is
+  refined where a fold lies, its new rings' weights mixed from their neighbours; a piece a garment is worn over is left.
+- A hero minted before keeps what its laws made; a hero minted now is stamped laws 8 (`REALISTIC_LAWS_VERSION`).
+
 ### Named heroes and their marks
 
 A hero can carry marks of its own (a logo, an emblem, an insignia) pasted as an SVG path, and a game that adopts it

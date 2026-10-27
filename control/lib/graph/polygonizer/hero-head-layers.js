@@ -95,7 +95,9 @@ function pinMesh(frame, toHero, M, pin, group, { volume = null } = {}) {
     for (const f of M.faces) for (let e = 0; e < 3; e++) { const a = f[e], b = f[(e + 1) % 3], kk = a < b ? `${a}|${b}` : `${b}|${a}`; count.set(kk, (count.get(kk) || 0) + 1); }
     boundary = [...count].filter(([, n]) => n === 1).map(([kk]) => kk.split('|').map((v) => `v${v}`));
   }
-  return { layer: 2, closure: M.closure, pin, group, offsets, faces, ...(boundary ? { boundary } : {}), ...(Object.keys(groups).length ? { groups } : {}), ...(volume ? { volume } : {}) };
+  // (an alpha card's points' places on it, hair-depict.js stripMesh `card`: carried to the compiled mesh's provenance)
+  const cardUV = M.uv ? Object.fromEntries(M.uv.map((t, i) => [`v${i}`, t.map(r6)])) : null;
+  return { layer: 2, closure: M.closure, pin, group, offsets, faces, ...(boundary ? { boundary } : {}), ...(Object.keys(groups).length ? { groups } : {}), ...(volume ? { volume } : {}), ...(cardUV ? { cardUV } : {}) };
 }
 /** the beard's: one colour, its own */
 const BEARD_BANDS = Object.freeze([[0.4, 'BeardRoot'], [1.01, 'Beard']]);
@@ -140,14 +142,15 @@ const volumeOf = (skinName) => (skinName === 'headSkin' ? { heart: 'headSkin' } 
  * the coat alone. `dermis` the hero's (its colour, its
  * hairline and loss). Deterministic.
  */
-export function heroHair(recipe, dermis, scalp, { level = 'L1', budget = false } = {}) {
+export function heroHair(recipe, dermis, scalp, { level = 'L1', budget = false, cards = false } = {}) {
   const fit = recipe.headFit;
   if (!fit || !scalp || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {}, counts: null };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
   const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) });
   // THE GRASS HAT: the scalp a lawn of blades, combed, cut and hung, its coat under them (epidermis/hair-depict.js)
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
-  const { blades, strips: strips0, cap: cap0, counts } = depictHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre });
+  // (`cards`, realistic laws 7: the blades as alpha cards, each point's place on its card kept for the strand texture)
+  const { blades, strips: strips0, cap: cap0, counts } = depictHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, cards });
   // (on the budget: the coat simplified, and the strips' faces without area let go, a blade's segment of no length)
   const cap = budget ? leanCoat(cap0, HEAD_BUDGET[level]?.coat) : cap0, strips = budget ? solidStrips(strips0) : strips0;
   if (!strips && !cap) return { parts: {}, palette: {}, counts };
@@ -191,9 +194,10 @@ function clumps(strands, cell) {
  * hat's tufts are: dermal-hair.js grassHat; stubble stays the skin's paint), its locks under the lip line riding the jaw (`hairBeardJaw`), the moustache and the
  * cheeks' above it the head (`hairBeard`); the BROWS and the LASHES (epidermis.js, `epidermis` its spec) a thin card a hair
  * (`hairBrows`, `hairLashes`). `Beard` the hair's colour, its grey a third again; `Brow` its colour with less grey;
- * `Lash` darker. `type` the scalp's hair type (the beard curls by it). Deterministic.
+ * `Lash` darker. `type` the scalp's hair type (the beard curls by it). `cards` (realistic laws 7) the beard's locks as alpha
+ * cards on the strand texture, as the scalp's are. Deterministic.
  */
-export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1', budget = false } = {}) {
+export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1', budget = false, cards: asCards = false } = {}) {
   const fit = recipe.headFit;
   if (!fit || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis);
@@ -214,7 +218,7 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     for (const [bone, name, near] of [['head', 'hairBeard', at(L.n)], ['jaw', 'hairBeardJaw', at(L.pg)]]) {
       if (!cards[bone].length) continue;
       const pin = visagePin(visage, compiled, bone, near, skinName); if (!pin) continue;
-      parts[name] = pinMesh(pinFrame(compiled, pin), toHero, stripMesh(cards[bone], BEARD_BANDS, { centre }), pin, 'BeardRoot', { volume });
+      parts[name] = pinMesh(pinFrame(compiled, pin), toHero, stripMesh(cards[bone], BEARD_BANDS, { centre, card: asCards }), pin, 'BeardRoot', { volume });
     }
     // (the beard's coat under it, as the scalp's: where the style grows locks, the skin painted the beard's root; split
     // at the lip line as the beard is, the chin's riding the jaw)

@@ -23,6 +23,9 @@ describe('the face in play', () => {
     const painted = { ...fig, paintTex: { url: 'data:image/png;base64,AA', w: 2, h: 2, white: [0, 0] }, parts: [{ ...fig.parts[0], uv: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }] };
     const js = controllableChannelScript(ent, null, { hero: painted });
     for (const needle of ['function __rigTex(fig)', "geo.setAttribute('uv'", '...(map ? { map } : {})']) expect(js).toContain(needle);
+    expect(js).not.toContain('alphaTest');
+    // (an atlas with edges, the hero's hair cards: alpha tested)
+    expect(controllableChannelScript(ent, null, { hero: { ...painted, paintTex: { ...painted.paintTex, alphaMask: true } } })).toContain('alphaTest: 0.4');
   });
   it('plays each state\'s clip\'s track under the state\'s name, the ambient blink over the rest', () => {
     const own = { idle: { k: 1 }, walk: { k: 2 } }, lib = { k: 3 };

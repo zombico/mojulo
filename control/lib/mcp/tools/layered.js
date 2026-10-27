@@ -90,6 +90,7 @@ import { handwearAuthored } from '@/lib/graph/handwear/adapters/authored';
 import { loosePants, LOOSE_GARMENTS } from '@/lib/graph/polygonizer/body-relational-drape';
 import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi';
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
+import { kitPieces } from '@/lib/graph/polygonizer/body-relational-kit';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
@@ -293,17 +294,22 @@ function realisticRecipe(recipe, hero) {
   const scalp = faceScalp(hero, face), dermis = heroDermisSpec(faceSkin(hero)).spec;
   // (the hair's rung on the grass's ladder by the head's size on screen: the hero's target, else a third of the blades)
   const level = heroHairLevel(hero);
-  if (scalp) wear(hairOf(H, dermis, scalp, level, one));
+  // (under laws 7 its blades as ALPHA CARDS on the strand texture, hair-depict.js stripMesh `card`: the grass hat before)
+  if (scalp) wear(hairOf(H, dermis, scalp, level, one, laws >= 7));
   // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}) }));
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 7 ? { cards: true } : {}) }));
   return out;
 }
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
  * face rolled one (a style), else the face's hint over the ancestry's (a peak's part, the streaks); null for none */
 function faceScalp(hero, C) {
+  // (the door's own cut, `face.scalp`, over whatever the face and its ancestry roll)
+  const own = hero.face?.scalp;
+  if (own === 'none') return null;
+  if (own !== undefined) return { ...(typeof own === 'string' ? { style: own } : own), seed: hero.face.seed ?? 1 };
   const A = readAncestry({ id: C.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   if (C.scalp?.style) return { ...C.scalp, seed: hero.face.seed ?? 1 };
   if (!A.scalp || A.scalp === 'none') return null;
@@ -327,10 +333,10 @@ function faceHairOf(S, dermis, opts) {
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
-function hairOf(S, dermis, scalp, level, budget = false) {
-  const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget]);
+function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
+  const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget, cards]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroHair(S, dermis, scalp, { level, budget }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = heroHair(S, dermis, scalp, { level, budget, cards }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -465,7 +471,9 @@ function realisticExpand(plan, hero) {
   if (plan.garments?.length || (Array.isArray(plan.paint) && plan.paint.some((x) => Array.isArray(x?.part)))) {
     // (a jacket's fronts close as the figure's do: a man's right over his left, a woman's left over her right)
     const B = realisticBuild(hero), RS = validateRig(S.rig);
-    wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : [], plan.tailoring && { ...plan.tailoring, over: femaleOf(hero) ? 'left' : 'right' });
+    // (under realistic laws 8 the kit HUGS: a belt one mass fitted to what is worn at its height, body-relational-kit.js)
+    const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1;
+    wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : [], plan.tailoring && { ...plan.tailoring, over: femaleOf(hero) ? 'left' : 'right' }, { hug: laws >= 8 });
     // what the expander placed on a worn piece (a row of buttons, an embroidered emblem, a painted trim) moved to the cloth
     // it is now (its alias), its stations' `u` shifted where the piece was merged (and turned, `k`, on a skirt carried
     // down from its coat: its hem the lowest `u`) and a limb's `run` taken as its `u`; with no window of its own, the
@@ -484,6 +492,14 @@ function realisticExpand(plan, hero) {
     const hangs = (g) => (/^(panel|cape|hood)$/.test(g.fit) ? { ...g, over: [...(g.over || []), ...(g.fit === 'panel' ? trunkCloth : allCloth)] } : g);
     plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
       ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
+  }
+  // THE KIT'S PIECES (realistic laws 8, body-relational-kit.js): a pouch, a strap and a leg's band made as the things they
+  // are on what the body wears, its belts among it, in place of the authored kernel's slabs on the skin's envelope
+  if (wear && plan.adorn?.length && ((hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1) >= 8) {
+    const L1 = compileLayered({ schema: 'layered-v1', frame: S.frame, dials: {}, parts: Object.fromEntries(['torso', 'pelvis', 'thighR', 'thighL'].filter((k) => S.parts[k]).map((k) => [k, S.parts[k]])) }, {}, { details: false, creases: false }).parts;
+    const K = kitPieces(S, wear.parts, plan.adorn, { L1 });
+    Object.assign(wear.parts, K.parts);
+    plan = { ...plan, adorn: plan.adorn.filter((A) => !K.taken.has(A.id)) };
   }
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length && !handWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
@@ -727,8 +743,11 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * baked from its own field into a normal map on the lit engine export (epidermis/dermal-relief.js; its fit keeps the
  * neck's column it was joined to, `headFit.column`, so the field can be rebuilt), the body as laws 4 built it; 6: the
  * crotch and the pelvis's cone under it on every build, the athletic base included (body-relational.js, the hip's
- * handover) */
-export const REALISTIC_LAWS_VERSION = 6;
+ * handover); 7: the scalp's blades as alpha cards carrying a strand texture on the skin's atlas, the figure's material
+ * alpha tested (epidermis/hair-strands.js, hair-depict.js stripMesh `card`), where laws 6 drew opaque blades; 8: the kit
+ * as pieces fitted to what the body wears (body-relational-kit.js): a belt one mass round everything at its height, its
+ * buckle a frame, where laws 7 copied the cloth's rings and so rippled with them */
+export const REALISTIC_LAWS_VERSION = 8;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
@@ -941,7 +960,7 @@ export const FACE_ETHNICITIES = Object.freeze(Object.keys(FACE_BUCKETS));
 /** the ethnicities a roll draws from when none is named: every base population, and the mixed */
 const BASE_ETHNICITIES = Object.keys(FACE_BUCKETS).filter((k) => FACE_BUCKETS[k].ancestry);
 export const ROLLED_ETHNICITIES = Object.freeze([...BASE_ETHNICITIES, 'mixed']);
-const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit'];
+const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit', 'scalp'];
 /** THE FACE'S OWN FIT (head-relational.js solveTune: the skin's masses tuned so it lands on its composed relations, as the
  * studies show it; the pole's tune serves a face near its pole, close but not exact). Solved once at mint (~45 s) and
  * stamped, `fit: { tune, of }`, `of` the fingerprint of the relations it was solved for: a face whose words have changed
@@ -966,6 +985,8 @@ function realisticFaceErrors(f) {
   if (f.nose !== undefined && !(Number.isFinite(f.nose) && f.nose >= -1 && f.nose <= 1)) errs.push('face.nose: −1 (short and flat) … 1 (long and pointed)');
   if (f.beauty !== undefined && !(Number.isFinite(f.beauty) && f.beauty >= 0 && f.beauty <= 1)) errs.push('face.beauty: 0 (every roll at its full reach) … 1 (the population\'s mean)');
   if (f.age !== undefined && !(Number.isFinite(f.age) && f.age >= FACE_AGE.range[0] && f.age <= FACE_AGE.range[1])) errs.push(`face.age: years, ${FACE_AGE.range.join(' … ')} (the roll is the person at ${FACE_AGE.prime})`);
+  // (the scalp's cut by word, in place of the one the face rolls: a style, or a groom on one)
+  if (f.scalp !== undefined && f.scalp !== 'none') try { readScalp(f.scalp); } catch (e) { errs.push(`face.${String(e.message).split('\n')[0]} (face.scalp: a style, { style, …its groom }, or 'none')`); }
   if (f.fit !== undefined && !(f.fit && typeof f.fit === 'object' && typeof f.fit.of === 'string' && f.fit.tune && typeof f.fit.tune === 'object' && Object.entries(f.fit.tune).every(([k, v]) => FIT_KEYS.includes(k) && Number.isFinite(v) && Math.abs(v) < 0.5))) errs.push('face.fit: the face\'s own fit as the mint stamps it ({ tune, of }); leave it out and the next mint solves it');
   return errs;
 }
