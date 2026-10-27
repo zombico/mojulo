@@ -49,7 +49,9 @@
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
  * rounded plates between furrows running up and forking; `'path'` (a floor) packed earth, crumbs, pebbles pressed into
  * it, worn hollows; `'powder'` (a floor) dry dirt, a soft fine grain scuffed into faint drifts, a few crumbs, almost no
- * relief; `'clay'` (a floor) cohesive dirt in rounded clods cracked apart where it dried, pores in their faces; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
+ * relief; `'clay'` (a floor) cohesive dirt in rounded clods cracked apart where it dried, pores in their faces;
+ * `'undergrowth'` (a floor) what grows under grass: short stubble every way, moss cushions and small round leaves, thin
+ * in patches; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
  * wandering across fine grains, a bright fleck here and there; `'karst'` (a floor) a limestone pavement: clints in
  * courses (`rows`, `cols`) parted by deep grikes (matte-paint/karst.js, the joints shared with what roots in them),
  * solution pans, lichen rosettes a shade apart; `'scree'` (a floor) angular stones lying close and over one another,
@@ -731,6 +733,30 @@ const NATURAL = {
       const pore = 0.001 * Math.max(0, sfbm(x, y, M, 0.007, 0.007, 1, seed + 17) - 0.55), fines = 0.0012 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 3);
       return top * (1 - cr) - 0.005 * cr - pore * lump[k] + fines * (1 - lump[k]) + 0.0015 * sfbm(x, y, M, 0.2, 0.2, 2, seed + 9);
     }, (x, y, k, lit) => rampAt(body, 0.53 + (lit.value[k] - 1) * 1.25 + tone[k] - 0.14 * crack[k] - 0.04 * (1 - lump[k]) + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // UNDERGROWTH from above, what grows under the grass and between its blades: short stubble every way, cushions of moss
+  // and small round leaves (clover, seedlings) lying on it, the dirt showing through small gaps; read over a dirt ground
+  undergrowth(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), kind = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      // (its gaps small, a few centimetres: thinning over metres is the ground's to lay, a tile's would show its repeat)
+      const thin = smoothstep(-0.2, 0.2, sfbm(x, y, M, 0.08, 0.08, 2, seed + 5) + 0.35 - 0.2 * g);
+      let z = 0, leaf = 0;
+      marksNear(x, y, M, 0.02, 3, seed + 11, (cx, cy, h, cs) => {
+        if (h(7) > thin) return;
+        const a = h(3) * Math.PI, ux = Math.cos(a), uy = Math.sin(a), L = cs * (1.1 + 0.9 * h(4)), wd = cs * 0.16, dx = x - cx, dy = y - cy;
+        const t = clamp(dx * ux + dy * uy, -L / 2, L / 2), d = Math.hypot(dx - t * ux, dy - t * uy);
+        if (d < wd) { const v = 0.004 * (0.5 + 0.5 * h(5)) * (1 - (2 * t / L) ** 2) * Math.sqrt(1 - d / wd); if (v > z) z = v; }
+      });
+      // (moss cushions and small round leaves: domes over the stubble)
+      marksNear(x, y, M, 0.05, 1, seed + 23, (cx, cy, h, cs) => {
+        if (h(3) > 0.35 * thin) return;
+        const r = cs * (0.18 + 0.2 * h(4)), d = Math.hypot(x - cx, y - cy) / r;
+        if (d < 1) { const v = 0.006 * (0.6 + 0.4 * h(6)) * Math.sqrt(1 - d * d); if (v > z) { z = v; leaf = h(8) < 0.5 ? 1 : 2; } }
+      });
+      kind[k] = z > 0 ? leaf : -1;
+      return z + 0.0008 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 3) - 0.002 * (1 - thin);
+    }, (x, y, k, lit) => rampAt(body, 0.55 + (lit.value[k] - 1) * 1.3 + 0.05 * sfbm(x, y, M, 0.25, 0.25, 2, seed + 13) + (kind[k] === 1 ? -0.06 : kind[k] === 2 ? 0.06 : kind[k] < 0 ? -0.1 : 0) - 0.4 * lit.cavity[k]));
   },
   // a CRAG, a weathered rock face (u along it, v up it): the stone bulged and lumped, laid in beds (each its own tone, a
   // ledge at its foot), broken by joints running up it (wandering, V-cut), a fine grain over all; read near, at a cliff

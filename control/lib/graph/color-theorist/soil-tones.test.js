@@ -20,6 +20,10 @@ describe('soilTones', () => {
     expect(hueGap(P[2], lch(light)[2])).toBeLessThan(hueGap(h, lch(light)[2]));
     expect(hueGap(Q[2], 32)).toBeLessThan(hueGap(h, 32));
     expect(Math.abs((P[0] + Q[0]) / 2 - L)).toBeLessThan(0.01);
+    // (and humus, the soil under living cover: darker and quieter than the clay)
+    const Hm = lch(soilTones(floor, light).humus);
+    expect(Hm[0]).toBeLessThan(Q[0]);
+    expect(Hm[1]).toBeLessThan(C);
   });
 
   it('with no light named, powder keeps the floor\'s hue', () => {

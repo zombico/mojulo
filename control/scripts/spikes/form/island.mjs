@@ -33,6 +33,7 @@ const { b64, safeJson, CDN_IMPORTMAP, inlineImportmap } = await import('../../..
 const { dressedMaterial, screeDice } = await import('../../../lib/graph/matte-paint/dressed.js');
 const { encodePng } = await import('../../../lib/graph/landscape/surface-textures.js');
 const { landLayers, LAYER_OF, PATH_REACH } = await import('../../../lib/graph/form/land-layers.js');
+const { strHash } = await import('../../../lib/graph/city/plan/dice.js');
 const { landStones, SHAPES } = await import('../../../lib/graph/form/land-stones.js');
 const { soilTones } = await import('../../../lib/graph/color-theorist/ground.js');
 
@@ -75,13 +76,16 @@ const L = landForm(P.faces, bases, { seed: 1 });
 // colours hold on average.
 const LAYERS = [
   { id: 'rock', cut: 'crag', metres: 4, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 4, role: 'stone' },
-  // (the cover's slot: soil on a bare land, the meru island's; turf in the palette's grass on a green one, a trail's)
-  L.faces.some((F) => F.cls === 'ground') && !L.faces.some((F) => F.cls === 'soil') ? { id: 'grass', cut: 'turf', metres: 1.5, role: 'grass' } : { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' },
+  // (the cover's slot: dirt, on every land; on a green one the undergrowth grows over it, its own slot last)
+  { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' },
   { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' },
   dress.surface === 'sand' ? { id: 'path', cut: 'sand', metres: 1.5, role: 'sand' } : { id: 'path', cut: 'powder', metres: 1.2, role: 'floor' },
   // (the dirt's other half: clay's clods)
-  { id: 'clay', cut: 'clay', metres: 1.4, role: 'floor' }];
-const TEX = 512, AW = TEX * 3, AH = TEX * 2, LY = landLayers(P.faces, L, { seed: 3 }), layered = (F, i) => LY.layered(i) && !!F;
+  { id: 'clay', cut: 'clay', metres: 1.4, role: 'floor' },
+  // (what grows under the grass, over the dirt, on a green land)
+  { id: 'undergrowth', cut: 'undergrowth', metres: 1.0, role: 'grass' }];
+const GREEN = L.faces.some((F) => F.cls === 'ground');
+const TEX = 512, AW = TEX * 3, AH = TEX * 3, LY = landLayers(P.faces, L, { seed: 3 }), layered = (F, i) => LY.layered(i) && !!F;
 const A = { base: Buffer.alloc(AW * AH * 3), normal: Buffer.alloc(AW * AH * 3), orm: Buffer.alloc(AW * AH * 3) }, means = [];
 LAYERS.forEach((Ly, li) => {
   const M = dressedMaterial({ cut: Ly.cut, metres: Ly.metres, stone: [170, 160, 140], grit: 0.5 }, { size: TEX, seed: 3, rough: 0.9 });
@@ -107,7 +111,8 @@ const SD_IN = 1.5, PM = LY.path, pathTex = PM && (() => {
   for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - PM.inside[k] + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
   return { origin: PM.origin, size: PM.size, metres: PM.size.map((n) => n * PM.cell), cell: PM.cell, z: [zlo, span], px: b64(px) };
 })();
-const roleBase = LAYERS.map((Ly) => hexRgb(bases[Ly.role]));
+// (the cover's dirt, under the undergrowth on a green land, the theorist's humus; the bare island's soil its own floor)
+const roleBase = LAYERS.map((Ly, li) => (li === 2 && GREEN ? hexL(lin(hexRgb(soilTones(C.colour.floor).humus)).map((v, c) => light.linearBases.floor[c] * v / Math.max(1e-6, lin(hexRgb(C.colour.floor))[c]))) : bases[Ly.role])).map((h) => hexRgb(h));
 // the sand under the line, corner by corner, as form/land-form.js fades it into the deep water's colour: every sand
 // face, the ones the line crosses too, so the sand meets its shallows without a step at a face's edge
 const sandZ = P.faces.flatMap((f, i) => (L.faces[i].cls === 'sand' ? f.corners.map((c) => c[2]) : []));
@@ -223,6 +228,61 @@ const tones = soilTones(C.colour.floor, light.sun.color), floorLin = lin(hexRgb(
 const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
 const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble }), stoneBase = light.linearBases.stone;
 const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
+// THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
+// off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways
+const GCELL = 0.5, grassMap = GREEN ? (() => {
+  const x0 = box[0][0] - 2, y0 = box[1][0] - 2, nx = Math.ceil((box[0][1] + 2 - x0) / GCELL) + 1, ny = Math.ceil((box[1][1] + 2 - y0) / GCELL) + 1;
+  const top = new Float32Array(nx * ny).fill(-Infinity), cov = new Float32Array(nx * ny);
+  P.faces.forEach((f, i) => {
+    const F = L.faces[i]; if (!F.cls || F.cls === 'water' || F.cls === 'crown' || F.cls === 'wood') return;
+    const n = f.normal || [0, 0, 1], green = F.cls === 'ground' && n[2] > 0.75 ? 1 : 0;
+    for (let k = 1; k + 1 < f.corners.length; k++) {
+      const [a, b, c] = [f.corners[0], f.corners[k], f.corners[k + 1]], det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+      if (Math.abs(det) < 1e-9) continue;
+      const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - x0) / GCELL)), i1 = Math.min(nx - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - x0) / GCELL));
+      const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1], c[1]) - y0) / GCELL)), j1 = Math.min(ny - 1, Math.ceil((Math.max(a[1], b[1], c[1]) - y0) / GCELL));
+      for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) {
+        const x = x0 + ii * GCELL, y = y0 + j * GCELL, l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / det, l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / det, l3 = 1 - l1 - l2;
+        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+        const z = l1 * a[2] + l2 * b[2] + l3 * c[2], q = j * nx + ii; if (z > top[q]) { top[q] = z; cov[q] = green; }
+      }
+    }
+  });
+  // (and where grass grows at all: a field wandering at two scales, so the land has its bare stretches, the grass thinning
+  // out toward them rather than stopping at a line)
+  const lat = (x, y, cell, tag) => { const u = x / cell, v = y / cell, i = Math.floor(u), j = Math.floor(v), e = (t) => t * t * (3 - 2 * t), a = e(u - i), b = e(v - j), h = (p, q) => strHash(`3|${tag}|${p},${q}`) / 4294967296;
+    return (h(i, j) * (1 - a) + h(i + 1, j) * a) * (1 - b) + (h(i, j + 1) * (1 - a) + h(i + 1, j + 1) * a) * b; };
+  const ease = (t) => t * t * (3 - 2 * t);
+  for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - 0.27) / 0.2))); }
+  // (off the trail: the path's mask takes the grass, its weight past a half)
+  if (PM) for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
+    const x = x0 + ii * GCELL, y = y0 + j * GCELL, pi = Math.round((x - PM.origin[0]) / PM.cell), pj = Math.round((y - PM.origin[1]) / PM.cell);
+    if (pi >= 0 && pj >= 0 && pi < PM.size[0] && pj < PM.size[1]) { const d = PM.dist[pj * PM.size[0] + pi] - PM.inside[pj * PM.size[0] + pi]; cov[j * nx + ii] *= Math.min(1, Math.max(0, (d - 0.1) / 0.6)); }
+  }
+  let zlo = Infinity, zhi = -Infinity; for (const z of top) if (z > -Infinity) { zlo = Math.min(zlo, z); zhi = Math.max(zhi, z); }
+  const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(nx * ny * 4);
+  for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = 255; }
+  const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
+  return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at };
+})() : null;
+// the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
+// rows weave rather than rule, each fin from the ground up a height that wanders (its bristles drawn on the page), only
+// where grass grows; the page dissolves them in past the near blades
+const ROW = 0.9, SEG = 0.8, brush = { pos: [], uvh: [] }, cx0 = (box[0][0] + box[0][1]) / 2, cy0 = (box[1][0] + box[1][1]) / 2, half = Math.hypot(box[0][1] - box[0][0], box[1][1] - box[1][0]) / 2;
+const u01b = (k) => strHash(k) / 4294967296;
+if (grassMap) for (let dir = 0; dir < 3; dir++) {
+  const a = (dir * Math.PI) / 3 + 0.21, ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
+  for (let r = -half; r <= half; r += ROW) for (let u = -half; u < half; u += SEG) {
+    // (the row's offset at each end: its own wander, shared by the fins either side so the row runs on unbroken)
+    const off = (uu) => (u01b(`w|${dir}|${r.toFixed(2)}|${uu.toFixed(2)}`) - 0.5) * ROW * 0.7;
+    const P0 = [cx0 + ux * u + vx * (r + off(u)), cy0 + uy * u + vy * (r + off(u))], P1 = [cx0 + ux * (u + SEG) + vx * (r + off(u + SEG)), cy0 + uy * (u + SEG) + vy * (r + off(u + SEG))];
+    const g0 = grassMap.at(...P0), g1 = grassMap.at(...P1);
+    if (!g0 || !g1 || g0.c < 0.5 || g1.c < 0.5) continue;
+    const h0 = (0.18 + 0.24 * u01b(`b|${dir}|${r.toFixed(2)}|${u.toFixed(2)}`)) * (0.5 + 0.5 * g0.c), h1 = (0.18 + 0.24 * u01b(`b|${dir}|${r.toFixed(2)}|${(u + SEG).toFixed(2)}`)) * (0.5 + 0.5 * g1.c);
+    const q = [[...P0, g0.z - 0.02], [...P1, g1.z - 0.02], [...P1, g1.z + h1], [...P0, g0.z + h0]];
+    for (const k of [0, 1, 2, 0, 2, 3]) { brush.pos.push(...q[k]); brush.uvh.push(u + (k === 1 || k === 2 ? SEG : 0), k >= 2 ? 1 : 0, k === 2 ? h1 : k === 3 ? h0 : 0); }
+  }
+}
 const data = {
   depth: depthMap,
   cube, sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, haze: P.haze, box, waterZ: L.waterZ, unread: L.unread, deep: L.deep,
@@ -235,8 +295,10 @@ const data = {
     swatches: ['stone', 'grass', 'sand', 'floor'].map((r) => ({ role: r, base: light.linearBases[r], lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade })) },
   pos: b64(Float32Array.from(pos)), c6: b64(Uint8Array.from(c6)), c7: b64(Uint8Array.from(c7)), bk: b64(Uint8Array.from(bk)), sid: b64(Uint8Array.from(sid)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)), wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH }, seenRoles: SEEN_ROLES,
   dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN },
+  grass: grassMap ? { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass,
+    brushPos: b64(new Uint8Array(Float32Array.from(brush.pos).buffer)), brushUvh: b64(new Uint8Array(Float32Array.from(brush.uvh).buffer)) } : null,
   stones: { n: STONES.length, shapes: SHAPES, base: stoneBase, px: b64(new Uint8Array(stonePack.buffer)) },
-  layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF), pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX }, path: pathTex,
+  layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF), pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => Math.round(v * 0.82 * 1e4) / 1e4), green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX }, path: pathTex,
   palette: { sky: light.ambient.color, targets: Object.fromEntries(SEEN_ROLES.map((r) => [r, { lit: light.targets[r].reached ?? C.colour[r], shade: light.targets[r].shade }])) },
 };
 const importmap = cdn ? CDN_IMPORTMAP : inlineImportmap();
@@ -320,23 +382,23 @@ const mipped = (t, srgb) => { t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE
 async function layerArray(u, srgb) {
   const im = await loadImg(u), T = D.layers.size, cv2 = document.createElement('canvas'); cv2.width = im.width; cv2.height = im.height;
   const x = cv2.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
-  const data = new Uint8Array(T * T * 4 * 6);
-  for (let i = 0; i < 6; i++) data.set(x.getImageData((i % 3) * T, Math.floor(i / 3) * T, T, T).data, i * T * T * 4);
-  return mipped(new THREE.DataArrayTexture(data, T, T, 6), srgb);
+  const data = new Uint8Array(T * T * 4 * 7);
+  for (let i = 0; i < 7; i++) data.set(x.getImageData((i % 3) * T, Math.floor(i / 3) * T, T, T).data, i * T * T * 4);
+  return mipped(new THREE.DataArrayTexture(data, T, T, 7), srgb);
 }
 const [tBase, tNorm, tOrm] = await Promise.all([layerArray(D.layers.base, true), layerArray(D.layers.normal), layerArray(D.layers.orm)]);
 const tDice = mipped(await new THREE.TextureLoader().loadAsync(D.layers.dice), false); tDice.minFilter = THREE.NearestMipmapNearestFilter; tDice.magFilter = THREE.NearestFilter;
 // (the path's mask: the weight in red, the trail's height in green and blue; none without a trail)
 const pathMap = D.path ? new THREE.DataTexture(bytes(D.path.px), D.path.size[0], D.path.size[1], THREE.RGBAFormat) : new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
 pathMap.magFilter = pathMap.minFilter = THREE.LinearFilter; pathMap.needsUpdate = true;
-const LAYER_U = { tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
+const LAYER_U = { tGrassL: { value: new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat) }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 }, tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
   tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
-  uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
+  uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
 function layeredGround(m, roughScale) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
     sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
-    sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[6];\\nuniform vec3 uMean[6];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
+    sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
   vec3 nW = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ), aN = abs( nW );
   vec2 uvW; vec3 tT, tB;
   if ( aN.z >= aN.x && aN.z >= aN.y ) { uvW = vWPos.xy; tT = vec3( 1.0, 0.0, 0.0 ); tB = vec3( 0.0, 1.0, 0.0 ); }
@@ -358,7 +420,7 @@ function layeredGround(m, roughScale) {
       pw = ( 1.0 - smoothstep( -0.25, eW, pd + eN * 0.75 ) ) * onIt;
     }
   }
-  float hgt[6]; vec3 bs[6]; vec3 ns[6]; vec2 rs[6];
+  float hgt[7]; vec3 bs[7]; vec3 ns[7]; vec2 rs[7];
   // the scree's PARALLAX (near, and only where there is scree): its height map marched along the view in the face's
   // frame, so its stones stand up and hide what is behind them; fading out with distance to the flat map
   vec2 scUV = uvW / uTile[ 1 ];
@@ -375,8 +437,16 @@ function layeredGround(m, roughScale) {
     vec3 V2 = normalize( cameraPosition - vWPos ), vt2 = vec3( dot( V2, tT ), dot( V2, tB ), dot( V2, nW ) );
     clUV -= vt2.xy / max( vt2.z, 0.3 ) * ( texture( tOrm, vec3( clUV, 5.0 ) ).b - 0.5 ) * ( 0.035 / uTile[ 5 ] ) * ( 1.0 - smoothstep( 15.0, 30.0, camD ) );
   }
-  for ( int i = 0; i < 6; i++ ) {
-    vec3 a = vec3( i == 1 ? scUV : i == 5 ? clUV : uvW / uTile[ i ], float( i ) );
+  // the UNDERGROWTH's parallax: a short march (four steps) near, where the green land's cover is
+  vec2 ugUV = uvW / uTile[ 6 ];
+  if ( uUnder > 0.5 && vSplat.z > 0.05 && camD < 20.0 ) {
+    vec3 V3 = normalize( cameraPosition - vWPos ), vt3 = vec3( dot( V3, tT ), dot( V3, tB ), dot( V3, nW ) );
+    vec2 dU = vt3.xy / max( vt3.z, 0.3 ) * ( 0.02 / uTile[ 6 ] ) * ( 1.0 - smoothstep( 10.0, 20.0, camD ) ) / 4.0;
+    float l3 = 0.0, h3 = 1.0 - texture( tOrm, vec3( ugUV, 6.0 ) ).b;
+    for ( int k = 0; k < 4; k++ ) { if ( l3 >= h3 ) break; ugUV -= dU; h3 = 1.0 - texture( tOrm, vec3( ugUV, 6.0 ) ).b; l3 += 0.25; }
+  }
+  for ( int i = 0; i < 7; i++ ) {
+    vec3 a = vec3( i == 1 ? scUV : i == 5 ? clUV : i == 6 ? ugUV : uvW / uTile[ i ], float( i ) );
     vec4 o = texture( tOrm, a );
     hgt[ i ] = o.b; rs[ i ] = o.rg;
     bs[ i ] = texture( tBase, a ).rgb / uMean[ i ];
@@ -389,25 +459,28 @@ function layeredGround(m, roughScale) {
   float cN = vn( vWPos.xy / 0.7 + 21.0 ) * 0.6 + vn( vWPos.xy / 0.18 + 5.5 ) * 0.4 - 0.5;
   float core = pd < 98.0 ? 1.0 - smoothstep( -0.7, -0.1, pd + cN * 0.6 ) : 0.0;
   clayK = clamp( clayK * mix( 0.25, 1.0, core ) + core * 0.35 * step( 0.001, uClay ), 0.0, 1.0 );
-  float ws[6]; ws[0] = vSplat.x * ( 1.0 - pw ); ws[1] = vSplat.y * ( 1.0 - pw ); ws[2] = vSplat.z * ( 1.0 - pw ); ws[3] = vSplat.w * ( 1.0 - pw ); ws[4] = pw * ( 1.0 - clayK ); ws[5] = pw * clayK;
+  // (the cover on a green land: the undergrowth over the dirt, thinning in wandering patches)
+  float gcov = uHasG > 0.5 ? texture2D( tGrassL, ( vWPos.xy - uGOl ) / uGMl ).b : 1.0;
+  float ugK = uUnder * clamp( 0.62 + 0.5 * ( vn( vWPos.xy / 3.5 + 47.0 ) - 0.5 ), 0.0, 1.0 ) * mix( 0.6, 1.0, gcov );
+  float ws[7]; ws[0] = vSplat.x * ( 1.0 - pw ); ws[1] = vSplat.y * ( 1.0 - pw ); ws[2] = vSplat.z * ( 1.0 - pw ) * ( 1.0 - ugK ); ws[3] = vSplat.w * ( 1.0 - pw ); ws[4] = pw * ( 1.0 - clayK ); ws[5] = pw * clayK; ws[6] = vSplat.z * ( 1.0 - pw ) * ugK;
   // (each layer present here nudged by its own noise over the plan, a few metres across: the corners' weights run
   // straight across a triangle, the border they give must not)
   // the scree thins out by its stones: a stone is kept whole where its dice fall under the scree's share here (nudged
   // like the rest), and then it lies over whatever else is here; between the kept stones the others show
-  float wsum = max( 1e-4, ws[0] + ws[1] + ws[2] + ws[3] + ws[4] + ws[5] ), sh = ws[1] / wsum;
+  float wsum = max( 1e-4, ws[0] + ws[1] + ws[2] + ws[3] + ws[4] + ws[5] + ws[6] ), sh = ws[1] / wsum;
   float sn = vn( vWPos.xy / 2.5 + 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + 5.1 ) * 0.3 - 0.5;
   // (the trail's verge: its rubble's share, the stones the dice keep along its edges as the real ones lie, a few on it)
   float vergeW = uDress.x * ( pd <= 0.05 ? 0.15 : exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) ) * smoothstep( 0.6, 0.85, nW.z );
   sh = max( sh, pd < 98.0 ? vergeW * 0.9 : 0.0 );
   float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 ) ) : 0.0;
   float top = 0.0;
-  for ( int i = 0; i < 6; i++ ) {
+  for ( int i = 0; i < 7; i++ ) {
     float nz = vn( vWPos.xy / 2.5 + float( i ) * 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + float( i ) * 5.1 ) * 0.3 - 0.5;
     // (a layer's relief and its noise lift it as far as it is here: a trace of turf under the trail never wins on its blades)
     ws[ i ] = i == 1 ? kept * 4.0 : ws[ i ] > 0.001 ? ws[ i ] + ( hgt[ i ] * 0.35 + nz * 0.35 ) * min( 1.0, ws[ i ] * 3.0 ) : 0.0; top = max( top, ws[ i ] );
   }
   float tw = 0.0; vec3 mb = vec3( 0.0 ), mn = vec3( 0.0 ); vec2 mr = vec2( 0.0 );
-  for ( int i = 0; i < 6; i++ ) { float w = max( ws[ i ] - ( top - 0.08 ), 0.0 ); tw += w; mb += bs[ i ] * w; mr += rs[ i ] * w; mn += ns[ i ] * w; ws[ i ] = w; }
+  for ( int i = 0; i < 7; i++ ) { float w = max( ws[ i ] - ( top - 0.08 ), 0.0 ); tw += w; mb += bs[ i ] * w; mr += rs[ i ] * w; mn += ns[ i ] * w; ws[ i ] = w; }
   mb /= max( 1e-4, tw ); mr /= max( 1e-4, tw ); mn = normalize( mn );
   // the trail's PATCHES (its dress's kinds): blobs along it a couple of metres across, on its own share only: worn lighter
   // and smoother, damp darker and glossier, gravel the scree's small stones
@@ -418,10 +491,11 @@ function layeredGround(m, roughScale) {
   mb *= mix( 1.0, 1.15, pkW ) * mix( 1.0, 0.78, pkD ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), 0.5 * pkW ) ); mr.y = mix( mr.y, 0.45, pkD );
   // the trail's DUST: a pale fine powder worn out from it over the land (its reach wandering), thinner on the trail
   // itself; it pales, flattens and dulls what it lies on
-  float dust = uDress.y * ( pd < 98.0 ? ( 1.0 - smoothstep( 0.1, uDress.z * ( 0.45 + 0.55 * vn( vWPos.xy / 3.0 + 5.0 ) ), pd ) ) * mix( 0.45, 1.0, smoothstep( 0.0, 0.6, pd ) ) : 0.0 ) * smoothstep( 0.6, 0.85, nW.z );
+  float dust = ( 1.0 - 0.7 * ws[ 6 ] / max( 1e-4, tw ) ) * uDress.y * ( pd < 98.0 ? ( 1.0 - smoothstep( 0.1, uDress.z * ( 0.45 + 0.55 * vn( vWPos.xy / 3.0 + 5.0 ) ), pd ) ) * mix( 0.45, 1.0, smoothstep( 0.0, 0.6, pd ) ) : 0.0 ) * smoothstep( 0.6, 0.85, nW.z );
   // (the path's own base under its share: the floor the palette names, whatever the ground round it)
   diffuseColor.rgb = mix( diffuseColor.rgb, uPathBase, ws[ 4 ] / max( 1e-4, tw ) );
   diffuseColor.rgb = mix( diffuseColor.rgb, uClayBase, ws[ 5 ] / max( 1e-4, tw ) );
+  diffuseColor.rgb = mix( diffuseColor.rgb, uUnderBase, ws[ 6 ] / max( 1e-4, tw ) );
   // (and a kept scree stone its stone's, wherever it lies: on a trail the corners under it are the land's, not rock's)
   diffuseColor.rgb = mix( diffuseColor.rgb, uStoneBase, ws[ 1 ] / max( 1e-4, tw ) );
   diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
@@ -511,6 +585,84 @@ if (D.stones.n) {
     im.castShadow = big; im.receiveShadow = true; seven.add(im);
     }
   }
+}
+// THE GRASS: near, clumps of blades on a grid that walks with the camera (each clump's place, turn, height and tone its
+// world cell's dice, so nothing shuffles as the eye moves; within its last reach it shrinks and dissolves, never swaps);
+// far, the brush fins, dissolving in over the same band. Both read the ground map (height, and where grass grows).
+if (D.grass) {
+  const Gm = D.grass, gmap = new THREE.DataTexture(bytes(Gm.px), Gm.size[0], Gm.size[1], THREE.RGBAFormat); gmap.magFilter = gmap.minFilter = THREE.NearestFilter; gmap.needsUpdate = true;
+  const GR = 13, SP = 0.42, GU = { tGrass: { value: gmap }, uGO: { value: new THREE.Vector2(Gm.origin[0] - Gm.cell / 2, Gm.origin[1] - Gm.cell / 2) }, uGM: { value: new THREE.Vector2(Gm.size[0] * Gm.cell, Gm.size[1] * Gm.cell) },
+    uGZ: { value: new THREE.Vector2(...Gm.z) }, uSp: { value: SP }, uGR: { value: GR }, uHs: { value: 1 } };
+  // (the ground's undergrowth reads the same map: thin where the grass is)
+  const gmapL = new THREE.DataTexture(bytes(Gm.px), Gm.size[0], Gm.size[1], THREE.RGBAFormat); gmapL.magFilter = gmapL.minFilter = THREE.LinearFilter; gmapL.needsUpdate = true;
+  LAYER_U.tGrassL.value = gmapL; LAYER_U.uGOl.value.copy(GU.uGO.value); LAYER_U.uGMl.value.copy(GU.uGM.value); LAYER_U.uHasG.value = 1;
+  const grassCol = new THREE.Color().setRGB(...Gm.base.map((v) => Math.min(1, v)), THREE.LinearSRGBColorSpace);
+  const GHEAD = 'uniform sampler2D tGrass;\\nuniform vec2 uGO, uGM, uGZ;\\nuniform float uSp, uGR, uHs;\\n';
+  // (a clump: five blades, each a tapered strip in three segments, leaning and bending its own way)
+  const bp = [], bt = [], bi = [], hb = (a, b) => { const x = Math.sin(a * 91.7 + b * 47.3) * 43758.5453; return x - Math.floor(x); };
+  for (let b = 0; b < 5; b++) {
+    const yaw = b * 1.2566 + hb(b, 1), r = 0.03 + 0.09 * hb(b, 2), ox = Math.cos(yaw * 1.7) * r, oy = Math.sin(yaw * 1.7) * r, ht = 0.65 + 0.35 * hb(b, 3), lean = 0.12 + 0.18 * hb(b, 4), w = 0.022 + 0.01 * hb(b, 5);
+    const base = bp.length / 3;
+    for (let k = 0; k <= 3; k++) {
+      const t = k / 3, wd = w * (1 - t * 0.92), dx = Math.cos(yaw) * lean * t * t, dy = Math.sin(yaw) * lean * t * t, sx = -Math.sin(yaw) * wd, sy = Math.cos(yaw) * wd;
+      bp.push(ox + dx - sx, oy + dy - sy, ht * t, ox + dx + sx, oy + dy + sy, ht * t); bt.push(t, t);
+    }
+    for (let k = 0; k < 3; k++) { const a = base + k * 2; bi.push(a, a + 1, a + 3, a, a + 3, a + 2); }
+  }
+  const bg = new THREE.InstancedBufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(bp, 3)); bg.setAttribute('bt', new THREE.Float32BufferAttribute(bt, 1)); bg.setIndex(bi);
+  bg.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(bp.length).fill(0).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+  // (a TIER: the clump instanced on its own grid, SPt apart out to GRt; the far tier and, inside it, a finer near one, both
+  // drawn there, so up close the grass is twice as dense, the near dissolving into the far)
+  const tier = (SPt, GRt, hs, key) => {
+  const tg = bg.clone(), offs = []; const n = Math.ceil(GRt / SPt); for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) if (Math.hypot(i, j) * SPt <= GRt + SPt) offs.push(i, j);
+  tg.setAttribute('aOff', new THREE.InstancedBufferAttribute(new Float32Array(offs), 2)); tg.instanceCount = offs.length / 2;
+  const TU = { ...GU, uSp: { value: SPt }, uGR: { value: GRt }, uHs: { value: hs } };
+  const bm = new THREE.MeshStandardMaterial({ color: grassCol, roughness: 0.75, metalness: 0, side: THREE.DoubleSide });
+  bm.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, TU);
+    sh.vertexShader = GHEAD + 'attribute vec2 aOff;\\nattribute float bt;\\nvarying float vBt;\\nvarying float vFade;\\nvarying float vTone;\\n' + sh.vertexShader
+      .replace('#include <beginnormal_vertex>', [
+        'vec2 cellG = floor( cameraPosition.xy / uSp ) + aOff;',
+        'vec2 hsh = fract( sin( vec2( dot( cellG, vec2( 12.9898, 78.233 ) ), dot( cellG, vec2( 39.3468, 11.135 ) ) ) ) * 43758.5453 );',
+        'vec2 wpG = ( cellG + hsh ) * uSp;',
+        'vec4 gq = texture( tGrass, ( wpG - uGO ) / uGM );',
+        'float gz = uGZ.x + ( gq.r * 255.0 * 256.0 + gq.g * 255.0 ) / 65535.0 * uGZ.y;',
+        'float fadeG = 1.0 - smoothstep( uGR * 0.55, uGR * 0.95, length( wpG - cameraPosition.xy ) );',
+        'float keepG = step( fract( hsh.y * 13.7 + hsh.x * 3.1 ), gq.b * 1.2 );   // (fewer clumps where the grass thins, by their dice)',
+        'float hsG = keepG * smoothstep( 0.08, 0.6, gq.b ) * ( 0.5 + 0.55 * hsh.y ) * mix( 0.35, 1.0, fadeG ) * uHs;',
+        'float yawG = hsh.x * 6.2831; mat2 rotG = mat2( cos( yawG ), sin( yawG ), -sin( yawG ), cos( yawG ) );',
+        'vec3 objectNormal = normalize( vec3( rotG * vec2( 0.35, 0.0 ), 1.0 ) );',
+        'vBt = bt; vFade = fadeG; vTone = 0.85 + 0.3 * fract( hsh.x * 7.31 );'].join('\\n'))
+      .replace('#include <begin_vertex>', '// (no grass here: the clump gathered to a point, not laid flat)\\n  vec3 transformed = vec3( wpG + rotG * position.xy * step( 0.001, hsG ), gz + position.z * hsG );');
+    sh.fragmentShader = 'varying float vBt;\\nvarying float vFade;\\nvarying float vTone;\\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>\\n  if ( fract( sin( dot( floor( gl_FragCoord.xy ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ) > vFade ) discard;\\n  diffuseColor.rgb *= mix( 0.45, 1.1, vBt ) * vTone;');
+  };
+  bm.customProgramCacheKey = () => key;
+  const blades = new THREE.Mesh(tg, bm); blades.frustumCulled = false; blades.receiveShadow = true; seven.add(blades);
+  };
+  tier(SP, GR, 1, 'grass-blades'); tier(0.21, 5, 0.85, 'grass-blades-near');
+
+  // the brush fins: bristles drawn in the fin (each strand its own height and lean, a few missing), dissolving in past
+  // the blades' reach; their normals the ground's, so a field of them shades as ground cover, not as walls
+  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bytes(Gm.brushPos).buffer), 3)); fg.setAttribute('uvh', new THREE.BufferAttribute(new Float32Array(bytes(Gm.brushUvh).buffer), 3));
+  fg.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(fg.attributes.position.count * 3).fill(0).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+  const fm = new THREE.MeshStandardMaterial({ color: grassCol, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  fm.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, GU);
+    sh.vertexShader = GHEAD + 'attribute vec3 uvh;\\nvarying vec3 vUvh;\\nvarying vec3 vFW;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vUvh = uvh; vFW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+    sh.fragmentShader = GHEAD + 'varying vec3 vUvh;\\nvarying vec3 vFW;\\nfloat hb1( float a ) { return fract( sin( a * 127.1 ) * 43758.5453 ); }\\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', [
+        '#include <color_fragment>',
+        '  float fadeIn = smoothstep( uGR * 0.5, uGR * 0.9, length( vFW.xy - cameraPosition.xy ) );',
+        '  if ( fract( sin( dot( floor( gl_FragCoord.xy ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ) > fadeIn ) discard;',
+        '  float su = vUvh.x * 60.0, si = floor( su ) + floor( vFW.x * 3.1 + vFW.y * 5.7 ) * 131.0, top = 0.35 + 0.65 * hb1( si );',
+        '  float hv = vUvh.y * ( vUvh.z > 0.0 ? 1.0 : 1.0 ), lean = ( hb1( si + 3.0 ) - 0.5 ) * 0.6 * hv;',
+        '  float wdt = mix( 0.85, 0.2, hv / top ), cx = abs( fract( su + lean ) - 0.5 ) * 2.0;',
+        '  if ( hv > top || cx > wdt || hb1( si + 7.0 ) < 0.12 ) discard;',
+        '  diffuseColor.rgb *= mix( 0.5, 1.05, hv / top ) * ( 0.85 + 0.3 * hb1( si + 11.0 ) );'].join('\\n'));
+  };
+  fm.customProgramCacheKey = () => 'grass-brush';
+  const fins = new THREE.Mesh(fg, fm); fins.receiveShadow = true; seven.add(fins);
 }
 // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
 if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
