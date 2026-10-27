@@ -14,6 +14,49 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Gen-7 rooms: a room's surfaces as material, its lights live
+
+The form render's first place: a room under no sun, read in gen-7 (`?era=gen-7`, `export_game { era }`, a cube that names
+the seventh generation), has its tiles read as material and its placed lights lit live, where gen-6 paints the light into
+each tile and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
+
+- **Every dressed cut reads as material** (`dressedMaterial`, matte-paint/dressed.js): the ashlar wall and floor, the
+  fluted and plain shafts, lime render, roof tiles and slates, boards, and the natural cuts beside the modern ones. Each
+  cut lights its relief through one helper, which, read as material, paints the colour under no light and keeps the
+  relief for its normal, occlusion and roughness. The paint is unchanged (its pins hold).
+- **A room's tiles as material** (`form/room-form.js`): a dressed family from its relief (each joint, flute and chip its
+  own slope); any other tile from its painted light read back as height, as the seventh generation's own tools pulled a
+  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). A
+  generated tile now records the spec it was painted from (`generatedSpecOf`, landscape/surface-textures.js).
+- **No light in the corners** (era/stage.js): a room read in the form render bakes each corner its material's colour,
+  its tint under its dirt, and hands the page its placed lights, braziers and the nave's sun pools (`form.room: {
+  lights, ambient }`). A sunlit or night stage stays paint. A toned room (tone.js) has no material colour of its own (its
+  ramps colour its light), so each corner carries what the toned page paints it under its lamps, over the light the form
+  page will lay there: the room reads as its art direction, and the live light adds its relief and its shadows.
+- **The page lights it** (`scene/channels/form.js`): every surface of the room a lit material, flat-shaded with its
+  normal map's frame from the screen's derivatives, under the room's lights falling off by the bake's own law, an indirect
+  of the bake's ambient and a bounce off each light (what a lightmap holds), occluded by the material's hollows, and
+  tone-mapped. The four lights nearest the eye cast from cube maps, a fixed pool laid over the nearest as the eye walks,
+  each map drawn when its light changes and never per frame; the light tier halves them (two at 256) or drops them (off).
+  The live light's actors' map gives way in such a room, since its light would light the material: what moves (a hero,
+  walkers, cars, fauna) casts in the room's own lights instead, the nearest light's map drawn each frame, so a hero
+  throws its shadow from the torch beside it. `window.__mojForm` is the probe. Measured in Chrome on five rooms from each room's spawn: a lit room's mean luminance within 1 % of its
+  gen-6 paint (brick hall 34.3 against 33.9, crypt 31.4 against 31.4), the nave within 13 %; the gritty cube's toned
+  room 145 against 184 (its accent wall's colour is still short of its ramp's).
+- **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
+  walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
+  page draws the form render.
+- **One input with the island's** (1026-gen7-island, merged): the page's `form` is `{ land, room }`, the island's land
+  (`form.land`, `channels/form-land.js`) and a room (`form.room`, `channels/form.js`), each drawn by its own channel. The
+  island's `ctx.form` (a builder makes more of the land for the form render: broken boulders, rims, strewn stones; every
+  read) stays its own; a room's unlit corners are `ctx.formLit` (a page's read only).
+- **The era marks**: `form` is the form render's own input, built in gen-7; a payload that carries it reads its faces and
+  tiles as material, no longer approximated. The engine packs refuse an era, so no Godot or Roblox leg carries it (both
+  mark it absent). The seventh generation's world note says what is built.
+- **Rooms to walk** (`scripts/spikes/form/rooms.mjs`): a brick hall (wire-cut brick, fluted pilasters, a plinth course,
+  worn floor slabs), a rendered vault, the crypt, the gritty cube's room and the nave, each written as a walkable World
+  page in both eras and captured side by side, wide and close by a torch.
+
 ### NPC generator: a town's people grown from its lots
 
 A town already says who lives in it: each lot's use implies a person (a shop its keeper, a workshop its master, a tower
@@ -1105,6 +1148,50 @@ its edge can be seen.
   keeps the skin. Not solid, every face as it was.
 - **A town law** (`solid`, read only on a solid town): every pitched roof a closed slab, no edge of it open.
 
+### The cube's light: one light from the palette and the hour
+
+A cube's light is recipe: its palette (the color theorist's solve, seeded by the game design loop) and its hour give one
+light, that gen-6 bakes into its fills and gen-7 hands to the renderer. Gen-6's colours are what is seen; gen-7's seen
+colour is base × light, so the palette's colours are targets and the base colours and the light are solved together.
+
+- **The light is the theorist's** (`color-theorist/light.js`, `solveLight({ targets, sky, sun, contrast })`, the tone
+  curve, `seen`): the color theorist owns mood → palette → light; the cube composes (`era/cube-light.js` hands it the
+  cube's colours, its sky and key at the hour and the reference's contrast). No orchestrator over the cube: it keeps
+  choosing the reference, the hour, the register, the contrast and the grit.
+- **The palette solves the light** (`era/cube-light.js`, `cubeLight(cube, { hour })`), built: a role's colour is its lit
+  target (a face square to the sun), its shade target the lit one times one shade tint common to every role (so one sun
+  meets them all); the sky's light takes the cube's sky at its hour (the palette's, when solved), the sun the hour's key;
+  their split is the reference's contrast; the light's level is as bright as the brightest base needs to stay a
+  believable material (luminance 0.85), so a dark palette gets a dim light. The targets are undone through sRGB and the
+  renderer's tone curve (Khronos neutral, `toneNeutral` and its inverse) first. At another hour the bases stay and the
+  light moves. A colour one sun cannot reach is held at the edge and named (`checks`), advice never a refusal.
+- **The gen-7 island reads it** (`scripts/spikes/form/island.mjs`, `--palette <seed>`): its land's bases and its sun and
+  sky light are the solve's, in three's units (π × the levels); `window.swatches()` draws a patch of each role square to
+  the sun and under the sky alone and reads it off the screen: on island-noon and under a seeded palette every shade
+  lands on its target to the byte and every lit patch within 5 of 255 (the materials' own sheen square to the sun).
+- **Seen laws: the theorist tests what is rendered** (`color-theorist/seen.js`, `seenLaws(seen, palette)`): each role's
+  colours as rendered, lit and turned away, against the palette that asked for them: `targets` (the swatches on their
+  targets), `value-order` (roles the palette parts clearly in lightness keep that order), `accent` (the most chromatic
+  seen), `shade-is-a-colour` (never black, and toward the sky's hue from its lit colour). Advice, never a refusal; a law
+  with nothing to read is left out. `scripts/spikes/form/island-gate.mjs` runs them on both halves of the island: on
+  island-noon gen-7 meets every law but one gen-6 shares (the sea reads lighter than the grass in both, where the
+  palette asks it darker: gen-6's alpha over pale sand, gen-7's sky in it). They caught the form read's own class tones
+  (cliff × 0.92, rock × 0.8) darkening the palette's stone: the classes now show the stone the palette names.
+- **The sun takes the palette's light** (`era/geocube.js` `light.sun: { color }`): a solved day palette writes its light as
+  its sun's colour, as a night's is its moon's (the reference keeps the sun's arc and strength); a cube may write it; the
+  cube's light reads it as the sun's hue. An unseeded cube has none and reads as before.
+- **The sea, a mirror over a body** (`color-theorist/light.js` `solveMirror`): what is seen is the sky it reflects
+  (Fresnel at the eye's angle down onto it, F0 0.04) and its body under the light, through its alpha; the body is solved
+  so the palette's sea is what is seen from a view, and where the sky reflected already outshines the target the solve
+  says so. The island's sea is one surface (its clearcoat, a second reflection, gone), solved from the island camera's
+  14°: gen-7's sea now reads as gen-6's (#74bee4 for #77b7d4), both lighter than the palette's #3a9cc6, which a calm sea
+  reflecting that sky cannot show from so low (the sky alone outshines it in red): the seen law says so in both eras.
+- **Seen, said:** the shallows' pale ring is gen-6's and not yet gen-7's (the sand under the shallows reads dark through
+  the sea), the stepped floor under them shows through as streaks near the shore, and the cliffs' shadows on the sea
+  fall a dark navy (no light scattered in the water). Still to come: gen-6 reading the same
+  light (its shading, contrast and sky). An unseeded cube's payload is byte for byte as it was (nothing reads the
+  light yet).
+
 ### Gen 7: form, not light
 
 The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,
@@ -1116,6 +1203,89 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
   recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
 - **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
+- **The meru island, every cube's outside, at a game's scale and geo only** (`era/geocube.js` MERU_BASES, MERU_ISLE):
+  the seed a path is grown on, shown bare, three times the island (mounds 18 m and 15 m, every slope's angle kept; beach
+  27 m, sea 9 m deep, a 13.5 m high side), in both eras; island-noon's first, then the standard: every preset's land and
+  a written cube's default (the upland's painted ground three times its span and height with it; limestone-crags' cove,
+  a domain terrain of its own, keeps its own island). Each cube's land show emits differently; none is more faces than
+  before (limestone-crags 57,882 → 40,373 with its strand and stones). Local meru's island gains `cell` (the
+  land's quads where no path joins: 1.5 m here), `scale` (the metres its shape held fixed scale with it), `cover: 'soil'`
+  (bare soil, `isekai:soil`, and scree where it slopes under raised land, `isekai:scree`; no grass) and `walk: 'none'`
+  (no walk: flown and zoomed, walking is the path's; the 24 stray trail faces at the seam were the old approach), each
+  as it always was when absent, byte for byte. 10,714 faces for five times the land (the old island 32,013); its sea's
+  quads scale with the cell and the merged seabed spans 16 m. The shore: the shallows' floor fades corner by corner
+  over its own depth into the sea's own body (never a darker one), lit as one surface, so in gen-7 the shallows read
+  lighter than the open sea and the floor falls away without steps (the gate's two shore readings, both eras).
+- **The layered ground** (`form/land-layers.js`, read by the island spike): rock, scree, soil and sand as layers worn
+  into one another over metres, never along the land's cells. Rock is where the geometry has it; scree fans from its
+  foot (up to 8 m, its reach wandering) over soil and beach, and lies in seeded patches; soil and sand are parted by a
+  signed distance across their border (sand up to 3.5 m into the soil in tongues, soil 2.5 m onto the beach); all but
+  the rock smoothed over 3 m, so no border steps with the 1.5 m cells. The trail's path is a mask at its own resolution
+  (0.25 m, a ragged worn edge) for the path to blend into. In the spike (6.5's beach and scree the bar): the layers in
+  texture arrays, blended by each one's height and a per-pixel noise; the scree thinning by its stones' own dice
+  (`screeDice`, whole stones kept, the ground between); the land shaded smooth (normals averaged within 55°, a cliff's
+  edge kept); the wet line by height per pixel; the sea one surface faded in over the depth under it, so the waterline
+  is the beach's own contour; `--hour` (moonlight after dark, the bases kept) and `--stone` (the rock's colour, a lock);
+  close views of the mound's foot and the beach at wide, eye, close and down. Two natural cuts join the matte painter (`matte-paint/dressed.js`): `crag` (a
+  weathered rock face: lumps, beds each its own tone with a ledge at its foot, joints cut up it) and `soil` (loose dirt:
+  clods, crumbs, small stones); `dressedMaterial` reads the natural cuts as material. The basis a path will blend into.
+- **The geocube's trail in gen-7, rendered the island's way** (the spike, `--show path --biocube <id> --dress {…}`): the
+  meru island stays geo only; what it proved renders the cube's own trail and its flora. The trail's crowns and trunks
+  read as form (`land-form.js` classes `crown` foliage, `wood` the floor darkened; a cliff's grass `lip` and a boulder's
+  mossy `hat` the grass), the cover's slot turf on a green land, foothill scree from cliffs only. The scree's larger
+  stones stood up as real ones (`form/land-stones.js`: by a level face's area × its scree share, most small, sunk, one of
+  four shapes; drawn instanced and smooth, the crag's skin, casting from 0.18 m), parallax on the scree near, the normal
+  map beyond. The trail's DRESS with degrees (6.5's words, era/trail-dress.js): `rubble` 0–1 (stones along its verge,
+  smaller than a talus's), `dust` 0–1 (a pale powder worn out onto the land), `clay` 0–1, patches (worn, damp, gravel) as
+  materials, a `sand` surface. Its dirt two new natural cuts, `powder` (dry dirt's dense fine grain, pits, scuffs,
+  crumbs) and `clay` (rounded clods cracked across where it dried), in the theorist's two tones of the floor
+  (`color-theorist/ground.js` `soilTones`: powder lighter and quieter toward the light's hue, clay darker and fuller
+  toward red, the floor their mean): the road's clay core and its powder edge overlapping in broken alpha. The path's
+  mask carries a signed distance (`dist`, `inside`), so its edge feathers into the ribbon as well as out of it and never
+  runs along the ribbon's line. Fixed on the way: a layer's height lift scaled by its presence (a trace never wins on its
+  relief); a kept scree stone takes its stone's colour; the sea's mirror solve clamped (its NaN had reached every base
+  through `land-form`'s deep term, now only where the floor is lost into it).
+- **The World page draws the island as form** (a geocube's land at `?era=gen-7`, every preset): the spike's read lifted
+  out as `form/land-read.js` (`landRead(payload, cube, { hour, dress })`, the spike its first caller; `formPayload` the
+  page's input), drawn by a new channel, `scene/channels/form-land.js` (the layered ground, the stones, the sea plane, a
+  sun and a sky light it adds; the painted land groups it replaces hidden, everything else painted kept untouched under
+  its tone curve). One new page input, `form` (its land `form.land`), present only on a gen-7 read of a geocube with land: every gen-6 page and
+  every other page byte-identical. The layers' textures are the cuts', no cube's: painted once per process (a page after
+  the first resolves in ~2.5 s, not ~18). Era marks: `form` a surface input, built in gen-7; Godot and Roblox do not carry
+  it yet.
+- **The gen-7 cliff, bedded rock instead of a jigsaw:** the crag cut's even grid (a bed every 0.35 m, a joint every
+  0.9 m, on a 4 m tile) read from the beach as puzzle pieces. A new natural cut, `strata` (`matte-paint/dressed.js`),
+  is the form render's rock: beds of their own thickness (most thin, a few thick), hard ones proud and soft ones
+  weathered back, their edges broken; joints spaced by their bed's thickness and stopping at its partings (staggered,
+  some running part way), a master joint now and then; stains streaking down from the ledges. In the channel the rock is
+  sampled along both side axes where a face turns between them (its beds never snap round a cone), with parallax near,
+  and dirt settles on its ledges (where its own relief faces up) in a tone toward the dry powder's. The crag cut and
+  every gen-6 page unchanged.
+- **The rock's relief, a heartbeat at a cliff's scale** (`form/rock-relief.js`): the heartbeat's words and fields
+  (`readEdits`, `editField`) over a tile of rock face, u along it and v up it: `pulse` (a swell and bumps), `marks`
+  (`cliff` a ledge, `gorge` a crack or chimney, `ridge` a rib, `raise` and `lower` a bulge or scoop; at most a metre),
+  `why`, presets `ledged`, `cracked` and `ribbed` copied with `from`. `reliefMap` makes the face's heights, wrapping,
+  its mean taken out; the seed nudges each mark, so one relief gives many faces of a kind. The land read carries it
+  (`relief`, `ledged` by default) and the page cuts the cliff's steep faces finer and pushes them in and out along
+  their normals by it: benches and tops stay as walked, no crack where the cliff meets another class, the ledges' own
+  shadows cast. Display only: walking keeps the land as built. Also in the channel: scree lies no steeper than its
+  angle of repose, and on a steep face the rock's relief decides where the soil shows.
+- **Gen-7 rocks, as the rock studies break them.** The scree's stones are no longer jittered icosahedra: `stoneForms`
+  (`form/land-stones.js`) breaks each of their shapes with the rock field (`polygonizer/rock-fracture.js`: the
+  minerals' cleavage, a block of planar fractures, chips at halving scales), chipped for the stones that cast, the
+  block's few dozen facets for the small, each laid on its flattest side, its normals creased so a fracture's edge stays
+  sharp; no light baked in, so every instance turns freely. And an island read in the form render breaks as a gritty
+  one does (`ctx.form`, set by the world's read for a 'form' era and passed by the stage and geocube kinds; the island at
+  `FORM_GRIT` unless its style is grittier): its boulders broken at their edges, its cliffs' rims broken, stones strewn
+  on the boulders' tops, along the paths and at the cliffs' feet, its beach's strand. Gen-6 is as it was.
+- **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
+  geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
+  colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
+  metres, never its fill; the sand at the water's line wet (darker, glossy), the shallows' floor lost by depth into deep
+  water's colour. One sun at the cube's hour, the sky's light, the shadow map drawn once per placing of the sun; the page
+  adds a shore camera on the wet line. `window.measure()` is the machine gate: cliff faces turned to the hour's sun read
+  brighter than those turned away and swap when the sun is turned, where gen-6 reads the same under every sun; wet sand
+  darker than dry, and what its gloss adds under a low sun. The eyes gate is the operator's.
 - **Gen-7 no longer means live light over paint.** The live light's gen-7 defaults (actor shadows, the hour's shadow map,
   occlusion) are now the light a form render's surfaces are drawn under while it draws them as paint; their reason in
   `liveLightDefaults`'s `from` reads `form`. A hero's level keeps its actor shadows, and any gen-6 recipe can still ask

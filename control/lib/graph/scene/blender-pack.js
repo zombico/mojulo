@@ -77,7 +77,7 @@ function collectionsFor(inventory, groups) {
 // when it is lit), at `fireT` seconds, else at the time the fire reads best.
 async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, outDir, writeOut }) {
   let live = payload;
-  if (!shaded) ({ payload: live } = await resolveWorldScene(sketch, {}));
+  if (!shaded) ({ payload: live } = await resolveWorldScene(sketch, { paint: true }));
   if (!live || !live.fire) return null;
   const { air, wind } = fireAirFor(manifest, live);
   const world = live.fire.spread ? fireWorldFor(live) : null;
@@ -118,7 +118,7 @@ export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = nu
   const manifest = refuse(sketch, ref);
   const declaredPosture = resolvePosture(posture, manifest);
 
-  const { payload: resolved, kind } = await resolveWorldScene(sketch, base === 'shaded' ? {} : { unshaded: true });
+  const { payload: resolved, kind } = await resolveWorldScene(sketch, base === 'shaded' ? { paint: true } : { unshaded: true });
   if (!resolved) {
     throw new Error(`'${ref}': kind '${manifest.kind ?? kind ?? '?'}' resolves to no traversable scene — the Blender pack covers the object / figure / world kinds export_model covers`);
   }
