@@ -14,6 +14,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Named heroes and their marks
+
+A hero can carry marks of its own (a logo, an emblem, an insignia) pasted as an SVG path, and a game that adopts it
+keeps them. The first steps toward a named hero, an identity that travels with the row into any game on this machine.
+
+- **A mark** (`polygonizer/field-paint.js`): a field-paint shape `{ path: '<an SVG path d>' }`.
+  - The path is drawn as pasted: every outline and its holes (even-odd), its curves, and its arcs as arcs.
+  - It is fitted into the entry's `size` by its larger side, with its y turned up, then simplified to a millimetre on
+    a chest emblem (`MARK`) and cut as convex pieces (`markPolys`).
+  - It is refused by name when it does not read as a path, when a key stands beside it, or when it would take more
+    pieces than a cut holds.
+  - One colour per path: a two-colour emblem is two entries, the charge after the field.
+- **Part words**: field paint's `part` takes a suffix (`'*_torso'`: every layer worn over the torso). So
+  `['torso', '*_torso']` is the chest whatever is worn on it, the top or the suit or a catsuit's painted skin, and
+  the outermost layer shows. Seen on the tiered and the realistic bodies.
+- **Arcs**: `parseSvgPath` draws an arc along the arc when asked (`arcs: true`, `carve-solid.js` `arcPoints`). A carved
+  solid's arcs are still read as lines, so its bytes never move.
+- **An adopted hero keeps its marks when equipped.** A game equips a hero it adopted (or one edited by hand) over the
+  hero's own row. It used to rebuild that copy from the door's words alone, dropping the row's `fieldPaint`, `strokes`,
+  `bake`, `rim` and `hullShade` (`gameworld/runner.js`). They now ride; a hero the run makes has none of its own.
+- The `layered` manual card names the mark and the suffix.
+- Found and not fixed: the anime head's character light draws no field-paint cells, so a mark on an anime hero is not
+  seen. The light splits each face into its lit and shade pieces; the cells must be cut first.
+
 ### The comic hero pack in three registers: anime, DCAU, realistic
 
 The pack's look dial (`cosmos/packs/comic-hero/looks.js`) is three registers, each with its own light, in place of the

@@ -112,6 +112,11 @@ const MASCOT_REACT_STATES = Object.freeze({ stagger: 'flinch', topple: 'fall', g
 
 // the door gaits a pilot carries (player.js plays its own jog and walk over the library's)
 const gaitsOf = (spec) => (spec && isObj(spec.motion) ? Object.keys(spec.motion) : null);
+// the row's own surface work beside its hero (layered.js HERO_DOOR_KEYS): its field paint (an emblem on its chest), its
+// strokes, its bake, its rim and its hull's shade. An adopted or a hand-edited hero is built over its row, so the
+// equipped hero wears them too; a hero the run makes has none of its own
+const ROW_SURFACES = Object.freeze(['fieldPaint', 'strokes', 'bake', 'rim', 'hullShade']);
+const rowSurfaces = (head) => (isObj(head) ? Object.fromEntries(ROW_SURFACES.filter((k) => head[k] !== undefined).map((k) => [k, head[k]])) : {});
 
 /** The hero's ref: the one the world adopts (`characters.hero.ref`, or a quick game's `quick.hero.ref`, made with
  * create_character), else the one a run makes at `<ref>-hero`. */
@@ -143,7 +148,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   const Q = equippedHero(G, { composed: { spec: edited ? lookup.heroSpec : hero.spec } });
   if (Q) {
     // the motion's gaits and clips ride; the stand that shows the gear (HOLD_STAND) wins over the motion's own
-    const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}) };
+    const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}), ...(edited ? rowSurfaces(lookup.head) : {}) };
     // an adopted hero's light is its own row's (create_character's `toon`), not the tradition's
     const toon = adopted ? lookup?.head?.toon : hero.mint.toon;
     const { toon: _t, ...mint } = hero.mint;

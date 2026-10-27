@@ -46,11 +46,14 @@ creature's markings. Under the CHARACTER LIGHT (the anime look's step) the bake 
 is; `characterLight: true` lays the bake over its tones per corner. Patch `/bake`. Absent, every byte is identical.
 `fieldPaint: [{ part, chart?, shape | pattern, at?, size?, rotate?, group, color?, only? }]` (any layered row) is FIELD
 PAINT: shapes cut into the faces, so a line crosses a face at any angle and finer than a ring (band paint is the ring's
-height). `part` a name, a list or a prefix `'adorn.torso-tabard*'`; `chart` `front` (default) | `back` | `left` |
+height). `part` a name, a list, a prefix `'adorn.torso-tabard*'` or a suffix `'*_torso'` (every layer worn over the
+torso: `['torso', '*_torso']` is the chest whatever is worn on it); `chart` `front` (default) | `back` | `left` |
 `right` | `top` | `bottom` (a projection over the parts' box, x to the viewer's right, y up: any part, a worn shell too)
 or `ring` (a body part's rings: x round it, 0.5 the front, y along it, 0 → 1); `at` / `size` shares of the chart;
 `shape` rect | circle | diamond | shield | cross | star | `{ motif, w? }` (a motif filled) | `{ poly }` | `{ polys }`
-(convex, in −1…1); or `pattern` `{ cells: hex | scale | square | brick, grid: [nx, ny], gap? }` | `{ bands, gap?,
+(convex, in −1…1) | `{ path: '<an SVG path d>' }` (a MARK: a logo, an emblem or an insignia pasted as drawn, its holes,
+curves and arcs kept, fitted into `size` by its larger side; one colour a path, so a two-colour emblem is two entries,
+the charge after the field; refused by name when it does not read or is too detailed to cut); or `pattern` `{ cells: hex | scale | square | brick, grid: [nx, ny], gap? }` | `{ bands, gap?,
 axis? }`. Painted in order; `only` repaints only those groups; `color` names the group's colour. The studio's faces and
 the rig pack carry the cells (the character light does not yet). The mint reads out what each entry touched.
 `rim: [r, g, b, strength, power]` (rigged recipes) adds a cool/warm fresnel edge light to the figure's
