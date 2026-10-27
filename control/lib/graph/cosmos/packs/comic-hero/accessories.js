@@ -4,7 +4,7 @@
  * words, as the piece cards are (pieces.js). Two procedures, never new geometry:
  *   an OUTFIT PIECE   kinds the outfit catalogue already has (outfit-plan.js OUTFIT_KINDS: the `medallion` mounted on
  *                     the harness, `torc`, `bow` at the collar as a scarf's knot, `mantle` and its clasp, `armRings`,
- *                     `prayerBand`, `streamers`, `feathers`, `satchel`, `toolRoll`, `quiver`, `pack`, `charms`), riding
+ *                     `prayerBand`, `streamers`, `feathers`, `satchel`, `toolRoll`, `quiver`, `pack`), riding
  *                     the suit's outfit BUILD on either body (the realistic body wears an outfit build's pieces over its
  *                     envelope), each one the door wears on a person's landmarks (layered.js sortPieces); a word-list
  *                     outfit (the Movie era's plating suits on the realistic body) and an armour build take none, and
@@ -56,8 +56,6 @@ export const ACCESSORIES = Object.freeze({
     pieces: [{ kind: 'quiver' }] },
   fieldPack: { reads: 'the field pack: a pack on the back; the explorer, the soldier', family: 'carried', eras: ['movie'],
     pieces: [{ kind: 'pack' }] },
-  hipCharms: { reads: 'the hip charms: a bell and a bone on a cord at one hip; the trickster, the occultist', family: 'carried', eras: ['modern'],
-    pieces: [{ kind: 'charms' }] },
   // ── EYEGEAR: goggles worn pushed up on the forehead (the tiered body's landmark head) ──
   gogglesUp: { reads: 'the goggles pushed up: round tinted goggles in leather cups riding on the forehead; the speedster, the pilot', family: 'eyegear', eras: ['silver', 'modern'], bodies: ['tiered'],
     eyegear: { word: 'moto', over: UP }, palette: { EyeFrame: '#5a3b22', EyeTrim: '#b08d3c', EyeLens: '#8fb9bd', EyeStrap: '#4a3020' } },
@@ -72,6 +70,7 @@ export const ACCESSORY_GAPS = Object.freeze({
   dogTags: 'no tag on a chain: the hung necklace is the gap above',
   wristGadget: 'no worn gadget on the forearm outside armour: the hardsuit\'s `arms: \'gadget\'` is armour language (the hunter and bounty hunter ensembles)',
   capeClasp: 'no clasp on the cloak itself: the mantle carries the clasp (claspedMantle)',
+  hipCharms: 'the `charms` piece throws on a person\'s tiered body (its cord finds no seat on the pelvis: "Cannot destructure property \'c\' of seatOf(...)"): a door fix, not a card',
 });
 
 export const accessoryFits = (id, body) => (ACCESSORIES[id]?.bodies ?? BOTH).includes(body);
