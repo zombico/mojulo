@@ -14,6 +14,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The bay kit: modern interiors from the hangar's principles
+
+A modern interior kit for the stage, read from the mobile-suit Depot's elements (a structural grid, a divide, a big
+door, pads, a runway of lights, a gantry, racks, a stair) and the principles that made the crypt and the temple
+striking: structure as the ornament, a wall's base, field and crown, the floor as the map, light as composition, two
+scales side by side, something hanging, depth through openings, wear that shows use, an accent rationed. Lit by the
+gen-7 room bake; the same recipe read in gen-6 is drawn as paint. Built so far:
+
+- **Modern materials** (`matte-paint/dressed.js`): new dressed cuts, each a relief, so the form render reads its
+  normal, occlusion and height (the parallax) from it: steel `plate` (seams, welds, rivet rows, paint wear), diamond
+  `tread`, concrete `block`, sheet `panel`, poured `epoxy`, bar `grating` and `corrugated` sheet. A recipe names them as
+  any dressed cut (`gen: 'dressed', cut`).
+- **The bay shell** (`era/bay.js`, `shell: 'bay'`): every part placed from the room's bays. Pilasters at the bay lines,
+  each with a light strip down its face; every solid wall a base (a kick band standing proud), a field and a crown,
+  broken round each doorway, which is framed with jambs and a head in hazard paint and a lamp over it. The floor is
+  zoned: an epoxy field, a band of grating at the walls' feet, a hazard line between them, lamps inset at the band's edge
+  on the bay lines, and a pad marked in a big room's middle. A tall room (6.5 m and over) has a corrugated deck, I-beams
+  across the short span on the bay lines, a duct, and lamps hung between the beams. A taller one (9 m) adds a bridge
+  crane: rails on corbels, a hazard-painted girder, a trolley, cables to a hook block. From 7.5 m there is a catwalk on
+  the long wall with the fewest doorways, with a grating deck, brackets, a railing, a toe board and a stair up to it.
+  A low room has a panel soffit with strips across it and two pipes along it. The catwalk and the stair are not walked
+  yet.
+- **Three registers** (`style/bay-kits.js`), each kit `bay-<register>` on the same shell: `bay-military` (steel plate on
+  a dark kick band, corrugated crowns, a dark epoxy floor, cool strips), `bay-utility` (concrete block over a painted
+  block base, yellow steel pilasters, a sealed concrete floor, warm lamps), `bay-science` (white panels over a teal base
+  band, a pale poured floor, cold strips). A kit may name the sixth-gen look it defaults to (`reference`); the bay kits
+  take the lab's (`lab-dark`). The fixtures are seats with a word (`strip`, `highbay`, `inset`, `lamp`), never a torch's
+  flame; a lamp inset in the floor is held by the bake alone (the page's near lamps are the strong ones).
+- **Rooms to walk** (`scripts/spikes/bay/bays.mjs`): a corridor opening into a tall bay in each register, in gen-6 and
+  gen-7, captured from the corridor, inside the bay and up at its roof; no page errors. The materials' sheet is
+  `scripts/spikes/bay/cuts.mjs`.
+
 ### In-hall: rooms strung on a walk, the interior trail
 
 The out-trail strings beats on a spine outdoors; a hall strings rooms on a walk indoors, the first rung of the rooms'
@@ -71,8 +103,11 @@ and bakes every lamp into the corners. The same recipe read in gen-6 is byte for
   surface's paint shows at arm's length from the room's median lamp is a target; the bases (each surface's colour under
   no light) and the lamps' light are solved together, as the island solves its sun for its palette. The hues are the ones
   the paint shows (it mixes its light in display units, so a torch shows far less orange than its colour decoded), and
-  the contrast is the paint's, held so the lamps always shape the room. A toned room's colour is its ramps' (tone.js): its
-  targets are its ramps' colours at its key, its light neutral, its contrast its ramp's own.
+  the contrast is the paint's, held so the lamps always shape the room. The levels are solved under a light without hue,
+  so each base keeps its paint's hue, and the ambient and each lamp bring their own: a surface by a warm lamp warms and
+  one in the shade cools wherever it stands, as on the paint (solving every base against the median lamp's hue left
+  surfaces lit by a lamp of another colour off: a bay's ceiling under its white lamps read brown). A toned room's colour
+  is its ramps' (tone.js): its targets are its ramps' colours at its key, its light neutral, its contrast its ramp's own.
 - **Baked as a lightmap** (`formLightFaces`, era/stage.js): each corner carries its base under its dirt and, apart, its
   light (`cornerLight`, linear): the ambient, every placed light, brazier and pool by its solved key, its falloff and its
   cosine where its shadow test sees the corner (whatever the recipe's `shadows.torch`), and a bounce in its own room. The

@@ -40,6 +40,8 @@ import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
+import { bayRoom } from './bay.js';
+import { bayKit, BAY_REGISTERS } from './style/bay-kits.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -221,6 +223,10 @@ STAGE_KITS['research-lab'] = Object.freeze({
   },
   dress: RESEARCH_LAB,
 });
+// The BAY kits (era/bay.js, style/bay-kits.js): a modern room whose structure is its ornament, in three registers
+// (military, utility, science): the layered wall, the zoned floor, strips on the pilasters, lamps between the beams, a
+// crane and a catwalk in a tall room.
+for (const reg of BAY_REGISTERS) STAGE_KITS[`bay-${reg}`] = bayKit(reg);
 // The CATACOMB: burial galleries cut into soft rock (style/catacomb.js, dressed by era/crypt.js like the crypt): the
 // gothic-stone shell's proportions pared down to carved piers, a low plinth and cornice, walls and vault one warm tufa,
 // the vault sooted darker, the floor worn flags in earth; round-headed passages and barrel vaults throughout.
@@ -269,6 +275,7 @@ export const STAGE_KIT_PROPORTIONS = Object.freeze({
   'gothic-nave': ['bay', 'plinth', 'cornice', 'torch', 'column', 'arcade', 'vault'],
   'island-plaza': ['bay'],
   'research-lab': ['bay'],
+  ...Object.fromEntries(BAY_REGISTERS.map((r) => [`bay-${r}`, ['bay']])),
 });
 /** Kit ids a recipe may still carry from before a kit was renamed: read as the kit it became. */
 export const STAGE_KIT_ALIASES = Object.freeze({ 'delfino-plaza': 'island-plaza' });
@@ -312,7 +319,7 @@ function withRecipeTiles(kit, kitId, tiles) {
     const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
     // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at: a floor laid a tile a
     // bay, at the bay's)
-    const bayFloor = part === 'floor' && kit.bay && kit.shell !== 'lab';
+    const bayFloor = part === 'floor' && kit.bay && kit.shell !== 'lab' && kit.shell !== 'bay';
     const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: bayFloor ? kit.bay : was.scale ?? 2 } : spec;
     // (a dressed family's every block is its own stone already: two variants, half the bytes, read as varied as four)
     out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
@@ -363,7 +370,7 @@ export function planStage(m = {}) {
   // INTERCEPTORS (`growth`, `litter`, `cracks`: interceptors.js): detail grown on the built rooms, never colliding
   // the art direction's dials first, the recipe's own over them, kind by kind
   const icp0 = readInterceptors(m), icpAll = { ...(kit.intercept || {}), ...(icp0 || {}) }, icp = Object.values(icpAll).some((v) => v > 0) ? icpAll : null;
-  const refId = resolveLook(m.reference || 'gothic-night');
+  const refId = resolveLook(m.reference || kit0.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
   if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   // a sunlit kit (the plaza) is lit by its look's key: a look with no sun has nothing to light it with
@@ -474,7 +481,7 @@ function readShadows(v0) {
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
-  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [];
+  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [], bayRooms = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % (t.variants ?? 4)]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part], ...(t.upright ? { upright: true } : {}) };
@@ -510,7 +517,7 @@ export function buildStageGeometry(plan) {
     }
   };
   const plaza = kit.shell === 'plaza';
-  const B = plaza ? kit.step.width : kit.shell === 'lab' ? 0 : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
+  const B = plaza ? kit.step.width : kit.shell === 'lab' || kit.shell === 'bay' ? 0 : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
   // A NAVE wall, bay by bay: an engaged column at each bay line; between them a blind pointed arcade arch, a string
   // course, and a lancet window whose glass glows cool and lights the bay; a bay holding a doorway stays flat.
   const naveWall = (F, cuts, flatWall, sf, h, side) => {
@@ -562,6 +569,12 @@ export function buildStageGeometry(plan) {
   };
   plan.rooms.forEach((r, ri) => {
     const w = r.x1 - r.x0, d = r.y1 - r.y0, h = r.h;
+    if (kit.shell === 'bay') {
+      // a bay is its own floor, walls and roof too (bay.js): its structure goes to the laws and the dressing
+      const L = bayRoom(out, r, ri, kit, surf);
+      seats.push(...L.seats); dressBays.push(...L.bays); bayRooms.push({ r, ...L.structure });
+      return;
+    }
     if (kit.shell === 'lab') {
       // a lab is its own floor, walls and roof (lab.js); its bays and structure go to the dressing
       const L = labRoom(out, r, ri, kit, surf, plan.decay ? { k: plan.decay.k, seed: plan.decay.seed, pick: plan.decay.picks[ri] } : null);
@@ -710,7 +723,7 @@ export function buildStageGeometry(plan) {
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)
   const lit = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
-  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}) };
+  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -853,6 +866,7 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   const shares = raw.map((f) => (!f.tint ? null : f.corners.length !== 4 ? [sharesAt(f, centroid(f))] : f.corners.map((c) => sharesAt(f, c))));
   const median = (xs) => { const v = xs.sort((x, y) => x - y); return v.length ? v[Math.floor(v.length / 2)] : 0; };
   const lit6 = paintAtReference(ambient6, referenceLamp(lights));
+  const L6 = 0.2126 * lit6[0] + 0.7152 * lit6[1] + 0.0722 * lit6[2];
   // the target each surface's paint shows at the reference (a role: its tile, its tint, and a toned room's ramp: its grey
   // over the room's middle grey lands on the key, as the toned page's gain brings it there). A toned room's colour is its
   // own concern (tone.js): its light is neutral, so its ramps' colours hold in its shade as by its lamps, and its contrast
@@ -874,7 +888,8 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
       targets[r] = rgbHex(onRamp(ramps[tone.groups[f.group] ?? tone.default], band((tone.key * grey(f.tint)) / midGrey) + shift));
     } else {
       const m = paintMean(f.texture);
-      targets[r] = linHex(m.map((mk, k) => mk * lin(Math.min(1, lit6[k] * f.tint[k]))));
+      // (the paint under a light of the reference's level and no hue: the lamps bring their hue to it, form/room-light.js)
+      targets[r] = linHex(m.map((mk, k) => mk * lin(Math.min(1, L6 * f.tint[k]))));
     }
     return r;
   };

@@ -32,8 +32,10 @@ import { paintMean } from './room-light.js';
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
 
-/** How rough each dressed cut is (the rest are stone's 0.85): wood a little less, glazed and machine faces less again. */
-export const FORM_ROUGH = Object.freeze({ boards: 0.72, brick: 0.82, precast: 0.7, stucco: 0.8, tile: 0.6, slate: 0.55, pavement: 0.88 });
+/** How rough each dressed cut is (the rest are stone's 0.85): wood a little less, glazed and machine faces less again,
+ *  painted steel and a poured floor least (their sheen is what the near lamps find: scene/channels/form.js). */
+export const FORM_ROUGH = Object.freeze({ boards: 0.72, brick: 0.82, precast: 0.7, stucco: 0.8, tile: 0.6, slate: 0.55, pavement: 0.88,
+  plate: 0.5, tread: 0.42, block: 0.92, panel: 0.55, epoxy: 0.3, grating: 0.55, corrugated: 0.5 });
 /** A painted tile read back as relief: metres of height a unit of luminance stands for, over a nominal metre a repeat. */
 export const LUMINANCE_RELIEF = 0.006;
 
@@ -155,5 +157,7 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
  *  `radius`, and `live` (a lamp the page may light the relief by; a pool is light a bake lays where a window or an oculus
  *  would throw it: baked only). */
 export function readFormLight(lights, keys) {
-  return lights.map((l, i) => ({ at: l.at.map(r4), key: keys[i].map(r4), radius: r4(l.radius), live: l.fixture !== 'pool' }));
+  return lights.map((l, i) => ({ at: l.at.map(r4), key: keys[i].map(r4), radius: r4(l.radius), live: !QUIET.has(l.fixture) }));
 }
+// (lamps the bake holds alone: a pool, and a lamp inset in the floor, too weak to find a relief from the eye)
+const QUIET = new Set(['pool', 'inset']);

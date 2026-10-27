@@ -14,14 +14,17 @@
  *   paintMean(key) → a tile's painted mean (linear rgb, the paint the sixth generation draws): what its colour stands for
  *   solveRoomLight({ targets, ambient, lights, neutral?, contrast? }) → { ambient, keys, bases, level, unreached }
  *     targets   { role: '#rrggbb' } what each surface shows at the reference, its lamp the median one
- *     neutral   a light without hue (a toned room: its colour is its ramps', tone.js); `contrast` one asked for
+ *     neutral   a light without hue (a toned room: its colour is its ramps', tone.js), its lamps and ambient too;
+ *               `contrast` one asked for
  *     ambient   the paint's ambient (0..1 rgb, era/stage.js ambientOf): the shade's hue, and with the median lamp at the
  *               reference the contrast (how much of the light a surface turned from every lamp keeps)
  *     lights    the placed lights (stage.js: at, color, intensity, radius)
  *     → ambient (linear rgb, base-multiplier units: out = base × light), keys (each lamp's light where its falloff is
  *       whole, linear rgb: its hue, its intensity over the median's; at d it gives key × falloff(d, its radius) × cos), bases ({ role: linear rgb }), level, unreached
  *
- * The page lights by it (scene/channels/form.js: out = base × (the baked light) + what the near lamps add to the relief);
+ * The levels are solved under a light without hue (each base keeps its paint's hue); the ambient and each lamp carry
+ * their own hue, as the paint's light does. The page lights by it (scene/channels/form.js: out = base × (the baked
+ * light) + what the near lamps add to the relief);
  * three's lights would be π × these. Pure: no dice.
  */
 import { solveLight, decodeSrgb, encodeSrgb, luminance } from '../color-theorist/light.js';
@@ -60,8 +63,6 @@ export function paintMean(key) {
 }
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 1; };
-// a colour as a linear hue of luminance 1
-const hueOf = (h) => { const c = rgbOf(h).map(decodeSrgb), y = luminance(c) || 1; return c.map((v) => v / y); };
 
 /** The median lamp (by intensity, then radius): the one the targets are read under. */
 export function referenceLamp(lights) {
@@ -78,8 +79,6 @@ export function paintAtReference(ambient, { color, intensity, radius }) {
   const c = rgbOf(color), g = Math.max(0, 1 - ROOM_LIGHT.at / radius) ** 2;
   return ambient.map((a, k) => shoulder(a + c[k] * intensity * g));
 }
-// a linear colour as the hex of its hue (its brightest channel at 1)
-const hueHex = (lin) => { const m = Math.max(...lin, 1e-6); return linHex(lin.map((v) => Math.max(0, v) / m)); };
 
 export function solveRoomLight({ targets, ambient, lights, neutral = false, contrast: asked }) {
   const ref = referenceLamp(lights), amb = ambient.map(decodeSrgb), at = falloff(ROOM_LIGHT.at, ref.radius);
@@ -92,10 +91,14 @@ export function solveRoomLight({ targets, ambient, lights, neutral = false, cont
   // CONTRAST_MOST: under no sun the lamps are the light, so a paint whose ambient drowns them, a room toned off an
   // outdoor look's sky, still takes its shape from them)
   const contrast = Math.min(CONTRAST_MOST, Math.max(0.02, asked ?? luminance(amb) / Math.max(1e-4, luminance(lit))));
-  const S = solveLight({ targets, sky: neutral ? '#ffffff' : hueHex(amb.map((v) => Math.max(v, 1e-4))), sun: neutral ? '#ffffff' : hueHex(shown(ref)), contrast });
+  // the LEVELS are solved under a light without hue, so each base keeps its paint's own hue (its target is the paint
+  // under such a light: era/stage.js formLightFaces); the ambient and each lamp then bring their own hue, as the paint's
+  // light does, so a surface by a warm lamp warms and one in the shade cools wherever it is, not only at the reference
+  const S = solveLight({ targets, sky: '#ffffff', sun: '#ffffff', contrast });
+  const hue = (lin) => { const y = luminance(lin); return y > 1e-6 ? lin.map((v) => Math.max(0, v) / y) : [1, 1, 1]; };
+  const ambY = luminance(S.ambient), keyY = luminance(S.sun) / at;
   // each lamp's light where its falloff is whole (square to it, inside `near`): its hue as the paint shows it, the solved
   // key's luminance brought back from the reference, in the median's share
-  const keyY = luminance(S.sun) / at;
-  const keys = lights.map((l) => (neutral ? [1, 1, 1] : hueOf(hueHex(shown(l)))).map((v) => v * keyY * (l.intensity / ref.intensity)));
-  return { ambient: S.ambient, keys, bases: S.bases, level: S.level, contrast, unreached: S.unreached };
+  const keys = lights.map((l) => (neutral ? [1, 1, 1] : hue(shown(l))).map((v) => v * keyY * (l.intensity / ref.intensity)));
+  return { ambient: neutral ? S.ambient : hue(amb.map((v) => Math.max(v, 1e-5))).map((v) => v * ambY), keys, bases: S.bases, level: S.level, contrast, unreached: S.unreached };
 }

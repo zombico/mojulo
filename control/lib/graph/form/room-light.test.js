@@ -4,19 +4,25 @@ import { describe, expect, it } from 'vitest';
 import { solveRoomLight, falloff, referenceLamp, ROOM_LIGHT, CONTRAST_MOST } from './room-light.js';
 import { seen, luminance, BASE_MAX } from '../color-theorist/light.js';
 
-const LAMPS = [{ color: '#ffa850', intensity: 1.7, radius: 7.5 }, { color: '#ffa850', intensity: 1.2, radius: 6 }, { color: '#e8f0ff', intensity: 2.4, radius: 9 }];
-const TARGETS = { brick: '#8a4a36', stone: '#8c867a', marble: '#b89a7c' };
+const LAMPS = [{ color: '#ffa850', intensity: 1.7, radius: 7.5 }, { color: '#ffa850', intensity: 1.2, radius: 6 }, { color: '#a8c8ff', intensity: 2.4, radius: 9 }];
+const TARGETS = { brick: '#8a4a36', stone: '#8c867a', marble: '#ada296' };
 
 describe('a room\'s light solved from its palette', () => {
   const S = solveRoomLight({ targets: TARGETS, ambient: [0.28, 0.32, 0.43], lights: LAMPS });
 
-  it('each surface shows its target at the reference, square to the median lamp', () => {
-    const ref = referenceLamp(LAMPS), i = LAMPS.indexOf(ref), sun = S.keys[i].map((v) => v * falloff(ROOM_LIGHT.at, ref.radius));
+  it('under a light of the solved level and no hue, each surface shows its target at the reference', () => {
+    const ref = referenceLamp(LAMPS), i = LAMPS.indexOf(ref), y = (c) => luminance(c), keyY = y(S.keys[i]) * falloff(ROOM_LIGHT.at, ref.radius);
     expect(ref.intensity).toBe(1.7);
     for (const [role, hex] of Object.entries(TARGETS)) {
-      const got = seen(S.bases[role], { ambient: S.ambient, sun }, 1), want = [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
+      const got = seen(S.bases[role], { ambient: [1, 1, 1].map(() => y(S.ambient)), sun: [keyY, keyY, keyY] }, 1), want = [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
       [1, 3, 5].forEach((k, c) => expect(Math.abs(parseInt(got.slice(k, k + 2), 16) - want[c]), role).toBeLessThanOrEqual(3));
     }
+  });
+
+  it('each lamp brings its own hue, the ambient its own: a warm torch warms, a cold lamp cools', () => {
+    expect(S.keys[0][0]).toBeGreaterThan(S.keys[0][2]);
+    expect(S.keys[2][2]).toBeGreaterThan(S.keys[2][0]);
+    expect(S.ambient[2]).toBeGreaterThan(S.ambient[0]);
   });
 
   it('the brightest base is as bright as a material may be; a lamp\'s light is in its intensity\'s share', () => {

@@ -54,7 +54,7 @@ export const STAGE_CARD_BODY_CEILING = 5800;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
-const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab']);
+const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab', 'bay']);
 
 /** A recipe each kit is known to build (the shapes its own tests mint); an open-ground kit needs only its id. */
 const KIT_STARTERS = {
@@ -69,6 +69,8 @@ const KIT_STARTERS = {
   'gothic-nave': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 24, h: 13 }] },
   'island-plaza': { rooms: [{ id: 'plaza', x: 0, y: 0, w: 26, d: 22, h: 12, open: ['-y', '+x'] }] },
   'research-lab': { rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }] },
+  // a corridor opening into a tall bay: the passage pressing in, then the bay with its crane and catwalk
+  ...Object.fromEntries(['military', 'utility', 'science'].map((r) => [`bay-${r}`, { rooms: [{ id: 'corridor', x: 0, y: 0, w: 6, d: 12, h: 3.5 }, { id: 'bay', x: -6, y: 12, w: 18, d: 30, h: 12 }], links: [{ from: 'corridor', to: 'bay' }] }])),
 };
 
 /** How people ask for each kit, in plain words: the search line leads with these. */
@@ -78,6 +80,9 @@ const KIT_WORDS = {
   'gothic-nave': ['cathedral', 'church nave', 'stained glass hall'],
   'island-plaza': ['sunny town square', 'mediterranean plaza', 'fountain square'],
   'research-lab': ['sci-fi lab', 'research base', 'industrial facility interior'],
+  'bay-military': ['military hangar', 'armoury or bunker', 'steel-plated base interior'],
+  'bay-utility': ['warehouse', 'industrial depot', 'plant room'],
+  'bay-science': ['clean lab', 'white research facility', 'control room'],
   'trail-valley': ['mountain trail', 'valley path', 'cliffside walk'],
   'jungle-trail': ['dense jungle', 'rainforest path', 'misty jungle'],
   'isekai-meadow': ['anime meadow', 'fantasy grassland', 'open field'],

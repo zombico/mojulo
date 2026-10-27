@@ -54,7 +54,8 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 // a stage kit's place in words, for the kits whose name carries none (the rest read as they are: trail-valley,
 // jungle-trail, isekai-meadow, island-plaza …).
-const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-nave': 'cathedral', 'isekai-bamboo': 'bamboo grove', 'isekai-sakura': 'garden', 'alien-night': 'alien planet', 'research-lab': 'abandoned research lab' };
+const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-nave': 'cathedral', 'isekai-bamboo': 'bamboo grove', 'isekai-sakura': 'garden', 'alien-night': 'alien planet', 'research-lab': 'abandoned research lab',
+  'bay-military': 'military hangar station', 'bay-utility': 'industrial warehouse station', 'bay-science': 'research lab' };
 
 // ── the style: the orchestra (field) or electronic (club) ─────────────────────
 // A scene whose words say the future, a machine, a screen or a dance floor is scored electronic. The point the place
