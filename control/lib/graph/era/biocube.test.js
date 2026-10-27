@@ -99,4 +99,11 @@ describe('nothing grows on a path', () => {
     const paved = T.faces.filter((f) => /^street:(road|walk)$/.test(f.group) && f.normal[2] > 0.7).map((f) => f.corners.map((c) => [c[0], c[1]]));
     expect(T.faces.filter((f) => /:ground$/.test(f.group || '') && f.corners.every((c) => onPath(paved, c[0], c[1]))).length).toBe(0);
   }, 60000);
+
+  it('moss on the rock is asked for, never a preset\'s: a share 0–1, null for none, refused past it', () => {
+    expect(readBiocube('meadow').flora.moss).toBeUndefined();
+    expect(readBiocube({ from: 'meadow', flora: { moss: 0.6 } }).flora.moss).toBe(0.6);
+    expect(readBiocube({ from: 'meadow', flora: { moss: null } }).flora.moss).toBeUndefined();
+    expect(() => readBiocube({ from: 'meadow', flora: { moss: 2 } })).toThrow(/flora\.moss/);
+  });
 });

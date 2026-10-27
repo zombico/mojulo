@@ -567,14 +567,18 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
   // (on a polygon land the grass is a biocube's: the island grows none of its own; with it, a boulder big enough wears
   // its hat again, its top the ground's)
-  const grows = !!st.grass && (!SH || !!B), hatOf = (b) => grows && b.s >= st.boulder.minHat;
+  // (read in the form render, gen-7: no fringe draped over a cliff's lip or a boulder's rim, and no grass cap on a boulder:
+  // they are painted cards and painted tops, tricks the material render does not keep; the rock stays rock, its moss the
+  // form's own, optional; ctx.form, worlds/world-scene.js)
+  const drapes = !ctx.form;
+  const grows = !!st.grass && (!SH || !!B), hatOf = (b) => drapes && grows && b.s >= st.boulder.minHat;
   const capSnow = (f) => SF && f.normal[2] > SN.hold && SF(...mean(f.corners), f.normal) > 0;
   const asCap = (b) => (f) => (capSnow(f) ? { ...asRock(f), group: 'isekai:snow', tint: landTint['isekai:snow'] } : SH && hatOf(b) ? { ...asRock(f), group: 'isekai:ground', tint: landTint['isekai:ground'] } : asRock(f));
   const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff').map(asRock), ...boulders.flatMap((b) => [...b.sides.map(asRock), ...b.cap.map(asCap(b))])] : [];
   if (!SH) for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
   const H = st.hat, fringes = [];
   for (const b of boulders) {
-    const hatted = SH ? hatOf(b) : b.s >= st.boulder.minHat;
+    const hatted = SH ? hatOf(b) : drapes && b.s >= st.boulder.minHat;
     if (!SH) {
       const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
       for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
@@ -588,7 +592,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const Lp = st.lip;
   // (a card with no grass, an airless one's, drapes no fringe over its cliff lips and stands no blades)
-  for (const l of grows ? (inSnow ? ground.lips.filter((q) => !inSnow(q.a)) : ground.lips) : []) {
+  for (const l of grows && drapes ? (inSnow ? ground.lips.filter((q) => !inSnow(q.a)) : ground.lips) : []) {
     drape(fringes, l.a, l.b, addv(l.a, mul(l.down, Lp.fringe * 2)), addv(l.b, mul(l.down, Lp.fringe * 2)), Lp.fringe, Lp.out, l.out, null, Lp.scale, 'isekai:lip');
     fringes[fringes.length - 1].lit = lit(mean([l.a, l.b]), [0, 0, 1]) && dot(l.out, dir) > -0.35;
   }

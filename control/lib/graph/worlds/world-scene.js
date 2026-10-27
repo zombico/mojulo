@@ -47,8 +47,9 @@ import { readWeather } from '@/lib/graph/weather/weather';
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
-import { landRead, formPayload, DRESS_DEFAULT } from '@/lib/graph/form/land-read';
+import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
@@ -691,14 +692,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
-  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones), drawn
+  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones, the
+  // biocube's moss), drawn
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was
   if (payload && !unshaded && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
     const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
     const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
-    const read = landRead(payload, readGeocube(M.cube), { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress });
+    // (the rock's moss: the biocube's `flora.moss`, the recipe's biocube or else the cube's; none without)
+    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, moss = bio ? readBiocube(bio).flora?.moss ?? 0 : 0;
+    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, ...(moss ? { moss } : {}) });
     if (read) payload.form = formPayload(read);
+    // (the gen-6 live grass, its blade cards and its swaying painted crowns, goes with the painted land: the form render's
+    // grass and trees are its own)
+    if (read && payload.liveGrass) delete payload.liveGrass;
+    // (and its blade cards, never walked on: gone from the page, not only hidden)
+    if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.

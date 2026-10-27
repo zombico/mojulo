@@ -24,6 +24,9 @@
  *   flora.shrubs   { count, bloom, fruit } | null: bushes by the trail (era/shrubs.js, a recipe's own `shrubs`)
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
+ *   flora.moss     0–1 | absent: moss on the rock (a cliff's ledges, a boulder's top: where the rock faces up, in
+ *                  patches), as much as it says; read by the form render (gen-7), where the gen-6 grass fringes and caps
+ *                  are not drawn
  *   flora.bushes   { kinds, sections? } | absent: bushes and shrubs composed in SECTIONS (era/thickets.js), each kind a
  *                  leaf form with its trunk taken away, blocking a walker or walked through
  *
@@ -223,13 +226,15 @@ export function readBiocube(spec) {
   const base = spec.from === undefined ? null : BIOCUBE_PRESETS[spec.from] ?? no(`from '${spec.from}' is not a biocube (${BIOCUBE_IDS.join(', ')})`);
   if (faunaOnly) return { id: spec.id ?? 'biocube', title: spec.title ?? 'Biocube', reads: spec.reads ?? '', flora: null, fauna: readFauna(spec.fauna) };
   const F0 = base ? base.flora : {}, F1 = spec.flora ?? {};
-  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, bushes? }');
-  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'bushes'], 'flora');
+  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, moss?, bushes? }');
+  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'moss', 'bushes'], 'flora');
   // (each block over the preset's: an object merged, null or a whole block in its place)
   const over = (k) => (F1[k] === undefined ? F0[k] : F1[k] === null || !isObj(F0[k]) ? F1[k] : { ...F0[k], ...F1[k] });
   // (bushes composed in sections, era/thickets.js: only where a document names them, so a preset reads as it did)
-  const bu = over('bushes') ?? null;
-  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(bu ? { bushes: bu } : {}) };
+  const bu = over('bushes') ?? null, mo = over('moss') ?? null;
+  // (moss on the rock: only where a document names it, so a preset reads as it did)
+  if (mo !== null && !(typeof mo === 'number' && mo >= 0 && mo <= 1)) no('flora.moss is how much moss the rock wears, 0 to 1 (null: none)');
+  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(mo ? { moss: mo } : {}), ...(bu ? { bushes: bu } : {}) };
   if (flora.trees === undefined) no('flora.trees is wanted (a document names its trees, or builds from a preset)');
   checkTrees(flora.trees); checkGrass(flora.grass); checkFlowers(flora.flowers);
   if (flora.bushes) checkBushes(flora.bushes, { no, num, int, range, keys, isObj, LEAF_OFFER, BARK_OFFER, BARK_FORM_IDS });

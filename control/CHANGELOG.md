@@ -960,6 +960,11 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   trace); the noise now nudges only as far as there is scree. And the rock's relief only carves: its highest point at
   the land as built, so nothing set against a cliff (a house, a stair) is overgrown and the walker never stands inside
   the rock.
+- **Gen-7 flora, phase 0: the tricks out, moss in.** A read in the form render draws no fringe over a cliff's lip or a
+  boulder's rim and no grass cap on a boulder (era/isekai.js, `ctx.form`): painted cards and painted tops. A form page
+  drops the gen-6 grass's blade cards and its live grass (world-scene): the form render's grass is its own. In their
+  place, optional moss: the biocube's `flora.moss` (0–1, none unless asked), drawn by the form channel on rock whose
+  relief faces up, in patches, in the undergrowth's cushions under the palette's grass. Gen-6 is as it was.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

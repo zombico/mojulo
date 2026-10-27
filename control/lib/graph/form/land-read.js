@@ -7,13 +7,14 @@
  * (the matte painter's natural cuts) in one atlas each for base, normal and orm (height in blue); the sea's depth over
  * the land; the dirt's tones (color-theorist/ground.js soilTones).
  *
- *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed? }) → { P, L, light, sun, bases, ranges, pos,
+ *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss? }) → { P, L, light, sun, bases, ranges, pos,
  *       c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the grass' map and
  *       rows when asked }
  *     payload: a resolved geocube payload (its faces, cameras, sky); cube: the resolved cube (era/geocube.js readGeocube);
  *     hour: an hour (a number) the light is read at, the bases kept at the cube's own; dress: a trail's dress
  *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows; relief:
- *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`.
+ *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`; moss:
+ *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
  *     for a payload with no land.
  *   formPayload(read) → the World page's `form` input (scene/channels/form-land.js draws it): the land's vertices
@@ -35,6 +36,8 @@ import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+/** The gen-6 grass's blade cards (era/isekai.js): left out of the read, and out of the form render's page. */
+export const GRASS_CARDS = 'isekai:grass';
 /** The rock's relief when none is asked for: the ledged face (form/rock-relief.js). */
 export const RELIEF_DEFAULT = 'ledged';
 /** A trail's dress when none is written: rubble half, a little dust, some clay, the three patch kinds. */
@@ -70,12 +73,12 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3 } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0 } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
   // yet, so left out of both halves)
-  const CARDS = new Set(['isekai:grass', 'isekai:cloud']), P = { ...P0, faces: P0.faces.filter((f) => !CARDS.has(f.group)) };
+  const CARDS = new Set([GRASS_CARDS, 'isekai:cloud']), P = { ...P0, faces: P0.faces.filter((f) => !CARDS.has(f.group)) };
   const own = cubeLight(C), light = hour === undefined ? own : cubeLight(C, { hour }), sun = light.sun.dir;
   // THE SEA, a mirror over a body: from the island camera's view down onto it, the palette's sea colour is what the sky it
   // reflects (the dome at that angle, as the page draws it) and its body under the light show together, the floor under
@@ -249,13 +252,13 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
 
   return { P, L, own, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, roleBase, FADE, underAt,
     ranges, pos, c7, spl, nrm, faceOf, cornerOf, land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, DEPTH_CELL, DEPTH_MAX, depthMap,
-    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, ROW, SEG, brush, dress,
+    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, ROW, SEG, brush, dress, moss,
     // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
     relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
 
 export function formPayload(R) {
-  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief } = R;
+  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss } = R;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
@@ -271,7 +274,7 @@ export function formPayload(R) {
       forms: Object.fromEntries(Object.entries(stoneForms()).map(([k, L]) => [k, L.map((f) => ({ pos: b64(new Uint8Array(f.pos.buffer)), nrm: b64(Int8Array.from(f.nrm, (x) => Math.round(x * 127))) }))])) },
     layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF),
       pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => r4(v * 0.82)),
-      green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX },
+      green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX, ...(moss ? { moss } : {}) },
     path: pathTex, depth: depthMap,
     // (the relief's heights in 16 bits over its range, row by row up the face)
     relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
