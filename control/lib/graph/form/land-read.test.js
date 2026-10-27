@@ -44,6 +44,20 @@ describe('landRead', () => {
     expect(third.filter((v) => v === 0 || v === 255).length / third.length).toBeGreaterThan(0.7);
   }, 120_000);
 
+  it('the drifts hold their shares of the land\'s grass, no two in one cell', () => {
+    const R = landRead(payload('grass'), C, { grass: 'map', drifts: [{ id: 'wheat', share: 0.3 }, { id: 'chaff', share: 0.2 }] });
+    const px = Buffer.from(formPayload(R).grass.px, 'base64'), dp = Buffer.from(formPayload(R).grass.drifts.px, 'base64');
+    let n = 0; const got = [0, 0];
+    for (let q = 0; q < px.length / 4; q++) {
+      if (px[q * 4 + 2] === 0) { expect(dp[q * 4] + dp[q * 4 + 1]).toBe(0); continue; }
+      n++; if (dp[q * 4] > 127) got[0]++; if (dp[q * 4 + 1] > 127) got[1]++;
+      expect(dp[q * 4] > 127 && dp[q * 4 + 1] > 127).toBe(false);
+    }
+    expect(got[0] / n).toBeCloseTo(0.3, 1);
+    expect(got[1] / n).toBeCloseTo(0.2, 1);
+    expect(formPayload(R).grass.drifts.kinds.map((k) => k.id)).toEqual(['wheat', 'chaff']);
+  }, 120_000);
+
   it('a payload with no land reads as nothing', () => {
     expect(landRead({ faces: [{ group: 'meru:stone', corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0]] }], cameras: [] }, C)).toBeNull();
   });

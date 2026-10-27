@@ -7,14 +7,16 @@
  * (the matte painter's natural cuts) in one atlas each for base, normal and orm (height in blue); the sea's depth over
  * the land; the dirt's tones (color-theorist/ground.js soilTones).
  *
- *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss?, sward? }) → { P, L, light, sun, bases,
+ *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss?, sward?, drifts? }) → { P, L, light,
+ *       sun, bases,
  *       ranges, pos, c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the
  *       grass' map and rows when asked }
  *     payload: a resolved geocube payload (its faces, cameras, sky); cube: the resolved cube (era/geocube.js readGeocube);
  *     hour: an hour (a number) the light is read at, the bases kept at the cube's own; dress: a trail's dress
  *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows ('map':
  *     the map alone, the page grows its brush); sward: how long it is (the biocube's `flora.grass.sward`: 'tall',
- *     'short' or { short: 0–1 }), in the map's fourth channel; relief:
+ *     'short' or { short: 0–1 }), in the map's fourth channel; drifts: wheat, chaff, any grass kind and the flowers in
+ *     areas of their own (form/grass-drifts.js readDrifts: [{ id, share, mix? }]), a channel each of a second map; relief:
  *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`; moss:
  *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
@@ -36,6 +38,7 @@ import { strHash } from '../city/plan/dice.js';
 import { landStones, stoneForms, SHAPES } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
+import { DRIFT_CELL, DRIFT_SEAM, driftForms } from './grass-drifts.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 /** The sward's short areas: the field's cell (metres) and the seam a short area eases into a tall one over (a share of
@@ -78,7 +81,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall' } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [] } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -235,20 +238,36 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // (the sward: how long the grass is, a mood's choice: tall everywhere, short everywhere, or a share of the grass laid as
     // short areas a couple of dozen metres across, each wholly one or the other, eased over a seam: the field's rank over
     // the grass's own cells, so the share is the land's whatever its size)
-    const shortShare = sward === 'short' ? 1 : sward === 'tall' || !sward ? 0 : sward.short, cellXY = (q) => [x0 + (q % nx) * GCELL, y0 + Math.floor(q / nx) * GCELL];
+    // (a cell of grass: one the map shows as any cover at all)
+    const shortShare = sward === 'short' ? 1 : sward === 'tall' || !sward ? 0 : sward.short, cellXY = (q) => [x0 + (q % nx) * GCELL, y0 + Math.floor(q / nx) * GCELL], isGrass = (q) => Math.round(cov[q] * 255) > 0;
     const swardF = (x, y) => 0.7 * lat(x, y, SWARD_CELL, 'sward') + 0.3 * lat(x, y, SWARD_CELL / 3, 'sward2');
-    const ranks = shortShare > 0 && shortShare < 1 ? Float64Array.from(cov.reduce((a, c, q) => (c > 0 ? (a.push(swardF(...cellXY(q))), a) : a), [])).sort() : null;
+    const ranks = shortShare > 0 && shortShare < 1 ? Float64Array.from(cov.reduce((a, c, q) => (isGrass(q) ? (a.push(swardF(...cellXY(q))), a) : a), [])).sort() : null;
     const rankOf = (f) => { let lo = 0, hi = ranks.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ranks[m] < f) lo = m + 1; else hi = m; } return lo / Math.max(1, ranks.length); };
     const shortAt = (x, y) => (shortShare >= 1 ? 1 : shortShare <= 0 || !ranks.length ? 0 : ease(Math.min(1, Math.max(0, (shortShare - rankOf(swardF(x, y))) / SWARD_SEAM + 0.5))));
     for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(shortAt(...cellXY(q)) * 255); }
+    // (the drifts: each its own field at a finer cell, ranked to its share over the grass's cells no drift named before it
+    // has taken, a channel each; so each holds its share of the land's grass, and no two share a cell)
+    const dpx = drifts.length ? new Uint8Array(nx * ny * 4) : null, nGrass = cov.reduce((a, c, q) => a + (isGrass(q) ? 1 : 0), 0);
+    drifts.forEach((Dr, k) => {
+      const f = (x, y) => 0.7 * lat(x, y, DRIFT_CELL, `drift:${Dr.id}`) + 0.3 * lat(x, y, DRIFT_CELL / 3, `drift2:${Dr.id}`);
+      const free = (q) => { if (!isGrass(q)) return false; for (let e = 0; e < k; e++) if (dpx[q * 4 + e] > 127) return false; return true; };
+      const R = []; for (let q = 0; q < nx * ny; q++) if (free(q)) R.push(f(...cellXY(q)));
+      if (!R.length) return;
+      const S = Float64Array.from(R).sort(), share = Math.min(1, (Dr.share * nGrass) / S.length);
+      const rank = (v) => { let lo = 0, hi = S.length; while (lo < hi) { const m = (lo + hi) >> 1; if (S[m] < v) lo = m + 1; else hi = m; } return lo / S.length; };
+      for (let q = 0; q < nx * ny; q++) if (free(q)) dpx[q * 4 + k] = Math.round((share >= 1 ? 1 : ease(Math.min(1, Math.max(0, (share - rank(f(...cellXY(q)))) / DRIFT_SEAM + 0.5)))) * 255);
+    });
     const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
-    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at };
+    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}) };
   })() : null;
   // the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
   // rows weave rather than rule, each fin from the ground up a height that wanders (its bristles drawn on the page), only
   // where grass grows; the page dissolves them in past the near blades
   const ROW = 0.9, SEG = 0.8, brush = { pos: [], uvh: [] }, cx0 = (box[0][0] + box[0][1]) / 2, cy0 = (box[1][0] + box[1][1]) / 2, half = Math.hypot(box[0][1] - box[0][0], box[1][1] - box[1][0]) / 2;
   const u01b = (k) => strHash(k) / 4294967296;
+  // (the drifts' plants, the library's, their colours carried into the cube's light by the ratio its grass was solved by)
+  const gTarget = C.colour.grass ? lin(hexRgb(C.colour.grass)) : null;
+  const driftKinds = grassMap?.drift ? drifts.map((d) => driftForms(d, gTarget ? light.linearBases.grass.map((v, k) => v / Math.max(1e-6, gTarget[k])) : [1, 1, 1])) : null;
   // (`grass: 'map'`, the World page's read: the map alone, the page grows its brush; channels/form-grass.js)
   if (grassMap && withGrass !== 'map') for (let dir = 0; dir < 3; dir++) {
     const a = (dir * Math.PI) / 3 + 0.21, ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
@@ -266,13 +285,13 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
 
   return { P, L, own, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, roleBase, FADE, underAt,
     ranges, pos, c7, spl, nrm, faceOf, cornerOf, land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, DEPTH_CELL, DEPTH_MAX, depthMap,
-    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, ROW, SEG, brush, dress, moss,
+    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, driftKinds, ROW, SEG, brush, dress, moss,
     // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
     relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
 
 export function formPayload(R) {
-  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss, grassMap } = R;
+  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss, grassMap, driftKinds } = R;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
@@ -291,7 +310,9 @@ export function formPayload(R) {
       green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX, ...(moss ? { moss } : {}) },
     path: pathTex, depth: depthMap,
     // (the grass's ground map: its height and where grass grows, at GCELL; channels/form-grass.js draws the grass from it)
-    grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass },
+    grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass,
+      // (the drifts: their map, a channel each, and their plants)
+      ...(driftKinds ? { drifts: { px: grassMap.drift, kinds: driftKinds } } : {}) },
     // (the relief's heights in 16 bits over its range, row by row up the face)
     relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
   };

@@ -972,6 +972,15 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   default), `'short'` (a lawn, a pasture: fewer, lower blades in crossed pairs, turned away from the trail) or
   `{ short: 0–1 }`, that share of the land's grass laid as short areas a couple of dozen metres across, each wholly one
   or the other and eased over a seam, never sprinkled together. The card's gen-6 grass is as it was.
+- **The short sward is a bed, and the grass has drifts.** A short sward is drawn as a bed of bristles (a triangle each,
+  scattered over the whole cell, near one height, lit as one pile), so it reads as a toothbrush's even pile, not as
+  tufts. Drifts stand in areas of their own inside the sward (`form/grass-drifts.js`): the biocube's
+  `flora.grass.drifts` { <grass kind>: share } (at most three) and `flora.flowers` (now drawn by the form render too),
+  each its share of the land's grass, no two in one cell. Their plants are the library's, grown before light: the grass
+  library's two new kinds, `wheat` (stiff culms over few blades, bowed gold spikes, mostly straw) and `chaff` (short
+  broken straw lying splayed), or any other kind, by `grassTuft`; the wildflowers by `wildflower`; near grown full, far
+  plain. A kind taller than the short sward stands in the blades' place, a lower one and the flowers among them; their
+  colours the library's carried into the cube's light by the ratio its grass was solved by.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few

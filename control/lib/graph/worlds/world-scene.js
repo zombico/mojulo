@@ -50,6 +50,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, 
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
@@ -700,9 +701,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
     const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
-    // the recipe's biocube or else the cube's, none without)
+    // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
     const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = F?.moss ?? 0, sward = F?.grass?.sward;
-    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}) });
+    const drifts = readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
+    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}) });
     if (read) payload.form = formPayload(read);
     // (the gen-6 live grass, its blade cards and its swaying painted crowns, goes with the painted land: the form render's
     // grass and trees are its own)

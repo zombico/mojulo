@@ -22,7 +22,9 @@
  *                  round the walker, { kind, density /m², height }, the card's `live`, laid wherever the grass grows,
  *                  or null for none); `sward` how long the grass is, a mood's choice: 'tall' (a meadow, the default),
  *                  'short' (a lawn, a pasture) or { short: 0–1 } (that share of it laid as short areas, each wholly one
- *                  or the other; read by the form render, gen-7). null: no grass
+ *                  or the other; read by the form render, gen-7); `drifts` other grasses standing in areas of their own,
+ *                  { <grass kind>: share 0–1 } (wheat, chaff, any of GRASSES; at most three; the form render's, gen-7).
+ *                  null: no grass
  *   flora.shrubs   { count, bloom, fruit } | null: bushes by the trail (era/shrubs.js, a recipe's own `shrubs`)
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
@@ -192,7 +194,8 @@ function checkTrees(t) {
 function checkGrass(g) {
   if (g === null) return;
   if (!isObj(g)) no('flora.grass is null (none) or { clusters, perCluster, spacing, scatter, fringeEvery, height, kinds?, field? }');
-  keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field', 'live', 'sward'], 'flora.grass');
+  keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field', 'live', 'sward', 'drifts'], 'flora.grass');
+  if (g.drifts !== undefined && !(isObj(g.drifts) && Object.keys(g.drifts).length <= 3 && Object.entries(g.drifts).every(([k, v]) => GRASS_IDS.includes(k) && Number.isFinite(v) && v >= 0 && v <= 1))) no(`flora.grass.drifts is { <grass kind>: share 0–1 }, at most three, the kinds of ${GRASS_IDS.join(', ')} (that share of the land's grass in drifts of the kind)`);
   if (g.sward !== undefined && !SWARDS.includes(g.sward) && !(isObj(g.sward) && Object.keys(g.sward).length === 1 && Number.isFinite(g.sward.short) && g.sward.short >= 0 && g.sward.short <= 1)) no(`flora.grass.sward is ${SWARDS.map((w) => `'${w}'`).join(' or ')}, or { short: 0–1 } (that share of the land's grass laid as short areas)`);
   int(g.clusters, 0, 200, 'flora.grass.clusters'); range(g.perCluster, 1, 40, 'flora.grass.perCluster', true); num(g.spacing, 0.1, 2, 'flora.grass.spacing');
   num(g.scatter, 0, 1, 'flora.grass.scatter'); num(g.fringeEvery, 0.2, 5, 'flora.grass.fringeEvery'); range(g.height, 0.1, 3, 'flora.grass.height');
@@ -260,8 +263,8 @@ export function withFlora(card, cube) {
   const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(kinds ? { leafKinds: kinds } : {}),
     ...(clump ? { leafClump: clump } : {}), ...(harmony ? { leafHarmony: harmony } : {}) };
   if (T.hero === null) trees.hero = null;
-  // (the sward is the form render's, gen-7: the card's grass is as it was)
-  const { live: GL, sward: _sw, ...G0 } = G ?? {};
+  // (the sward and the drifts are the form render's, gen-7: the card's grass is as it was)
+  const { live: GL, sward: _sw, drifts: _dr, ...G0 } = G ?? {};
   const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };
   // (the live carpet: the card's, its kind, density and height the cube's)
   const live = GL && card.live ? { ...card.live, ...GL } : card.live;

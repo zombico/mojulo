@@ -116,4 +116,13 @@ describe('nothing grows on a path', () => {
     const short = readBiocube({ from: 'meadow', flora: { grass: { sward: 'short' } } });
     expect(withFlora(ISEKAI_MEADOW, short).grass).toEqual(withFlora(ISEKAI_MEADOW, readBiocube('meadow')).grass);
   });
+
+  it('drifts are other grasses in areas of their own: a grass kind and a share, at most three; the card\'s grass as it was', () => {
+    const W = readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 0.2, chaff: 0.1 } } } });
+    expect(W.flora.grass.drifts).toEqual({ wheat: 0.2, chaff: 0.1 });
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { drifts: { barley: 0.2 } } } })).toThrow(/flora\.grass\.drifts/);
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 2 } } } })).toThrow(/flora\.grass\.drifts/);
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 0.1, chaff: 0.1, sedge: 0.1, lawn: 0.1 } } } })).toThrow(/at most three/);
+    expect(withFlora(ISEKAI_MEADOW, W).grass).toEqual(withFlora(ISEKAI_MEADOW, readBiocube('meadow')).grass);
+  });
 });
