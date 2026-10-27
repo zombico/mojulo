@@ -217,7 +217,7 @@ export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 
     given: SPEC_KEYS.filter((k) => k in given),
     ...(setting !== undefined ? { setting } : {}),   // the game it was rolled for: its tradition is the body's rule (plan.js)
     reading: { archetype: f.archetype, shadow: ARCHETYPES[f.archetype].shadow.name, ...reading },
-    ancestry: { id: f.ancestry, kind: anc.kind, reads: anc.reads, door: anc.door, colours: anc.colours, ...(anc.plan && Object.keys(anc.plan).length ? { plan: anc.plan } : {}) },
+    ancestry: { id: f.ancestry, kind: anc.kind, reads: anc.reads, door: anc.door, colours: anc.colours, ...(anc.plan && Object.keys(anc.plan).length ? { plan: anc.plan } : {}), ...(anc.form ? { form: anc.form } : {}) },
     reads: summary(f, anc),
     notes, derives,
     unread: { words: fromBrief.unread, channels: Object.keys(notes).filter((c) => !derives[c] && !(c === 'colouring' && anc.colours.Skin)) },   // the swatches carry colouring

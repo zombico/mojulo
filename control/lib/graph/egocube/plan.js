@@ -28,6 +28,7 @@ import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
+import { undeadBody } from '../undead/index.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -137,7 +138,7 @@ export const MASS = Object.freeze({
   pole: { male: { chest: 0.3, shoulder: 0.33, hips: 0.22, keel: 0.02, bust: 0 }, female: { chest: 0.26, shoulder: 0.27, hips: 0.25, keel: 0, bust: 0.03 } },
   waist: { lithe: 0.6, heroic: 0.6, canonical: 0.68, stout: 0.86, brute: 0.82 },
 });
-function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical', wings = false, arms2 = false }) {
+export function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical', wings = false, arms2 = false }) {
   const P = (p) => mul(p, k), R = (r) => (Array.isArray(r) ? r.map((x) => r3(x * k * g)) : r3(r * k * g));
   const M = MASS.pole[pole] ?? MASS.pole.male, Wst = M.chest * (MASS.waist[build] ?? MASS.waist.canonical);
   // the shoulder joint sits just inside the shoulder line (the template's 0.37 inside its 0.40)
@@ -213,7 +214,7 @@ function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 
   return { J, joints, segments, details, FINGERS, fingerJoints, hasTail: !!T, extraArms, arms2 };
 }
 
-function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 = false }, stance) {
+export function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 = false }, stance) {
   const legParts = ['thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', 'toesR', 'toesL'];
   const fingerParts = FINGERS.flatMap((X) => ['R', 'L'].flatMap((S) => [`finger${X}1${S}`, `finger${X}2${S}`]));
   const armParts = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'handR', 'handL', ...fingerParts, ...extraArms];
@@ -505,6 +506,43 @@ function creature(sheet, title) {
   return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo, shapes };
 }
 
+/** A FORM (a lineage carrying `form`: the undead, lib/graph/undead): its body built and passed there from this biped, its
+ * rig this door's, its head the form's, its rest the card's posture. Form only: the palette is the cover's one tone. */
+function formCreature(sheet, title) {
+  const f = sheet.facets, form = sheet.ancestry.form;
+  const k = r3((HEIGHT[f.build] * AGE_SCALE[f.age]) / 2.0), g = GIRTH[f.build], M = MASS.pole[f.pole] ?? MASS.pole.male;
+  const U = undeadBody(form, { build: f.build, pole: f.pole, k, g, chest: M.chest, hips: M.hips, seed: sheet.seed, biped });
+  const P = U.posture, stance = { lean: P.lean, crouch: P.crouch, guard: false };
+  const { dials, rig, clips } = dialsAndRig(U.body, stance);
+  const names = new Set(U.body.segments.flatMap((x) => (x.mirror === 'name' ? [x.name, x.name.replace(/R$/, 'L')] : [x.name])));
+  // the dials over the parts this body has (a skeleton has no belly, and its frame hinges with its torso)
+  for (const [id, d] of Object.entries(dials)) if (Array.isArray(d.parts)) d.parts = [...d.parts, ...(id === 'lean' ? U.frameParts : [])].filter((n) => names.has(n) || ['cranium', 'jaw'].includes(n));
+  if (U.card.form === 'bone') delete dials.gut;
+  // (a hunch past the living's: the dead fold further forward than a body standing would)
+  if (dials.lean) dials.lean = { ...dials.lean, max: Math.max(dials.lean.max, P.lean + 10) };
+  const READY = { armL: P.arms.L, armR: P.arms.R, elbowL: 'slight', elbowR: 'slight', grip: 12, jaw: P.jaw, crouch: P.crouch, head: P.head };
+  clips.idle = [READY, { ...READY, crouch: r3(P.crouch + 0.03), head: { ...P.head, x: r3(P.head.x * 0.6) } }];
+  const tone = legible(sheet.ancestry.colours.Skin);
+  const palette = { Torso: tone, Pelvis: tone, Neck: tone, Legs: tone, Feet: tone, Arms: tone, Hands: tone, Claws: tone, Crease: shade(tone, -0.25), Pad: shade(tone, -0.1), PadInner: shade(tone, -0.15) };
+  const hp = headPlan(U.head, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(U.head).palette && !(HEAD_LIBRARY[U.head].keep || []).includes(grp)).map(([grp, t]) => [grp, shade(tone, t)])) });
+  if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
+  // (no smaller than half: the head's sockets and regions are projected onto it, and under that they miss; a short body
+  // with a big skull reads as the squat dead do)
+  hp.units = { scale: r3(Math.max(0.5, (hp.units?.scale ?? 1) * k)), offset: hp.units?.offset ?? [0, 0, 0] };
+  const heads = [{ name: 'head', plan: hp, expression: { jawOpen: P.jaw }, on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
+  const limbs = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL'].filter((n) => names.has(n));
+  const plan = {
+    schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
+    symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed (a lost or uneven arm authored on both sides)' },
+    style: { slots: 'ring12', e: 2.2 },
+    joints: U.body.joints, segments: U.body.segments, heads, details: [], dials, rig, clips,
+    body: { refine: [{ parts: limbs }, ...(U.card.form === 'flesh' ? [{ parts: ['torso'], slots: false }] : [])],
+      ...(U.card.form === 'flesh' ? { volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)]] } : {}) },
+    adorn: [], palette,
+  };
+  return { plan, k, legs: 'plantigrade', head: { id: U.head, provisional: false }, stance, cover: { tiles: [], locks: [] }, kit: null, topo: {}, shapes: [], undead: { form, variant: U.id, reads: U.card.reads, lost: U.lost } };
+}
+
 // ══════════ the hero door ══════════
 
 export const BUILD_TUNE = Object.freeze({ lithe: { shoulders: 0.92, waist: 0.92, hips: 0.95 }, canonical: {}, heroic: { shoulders: 1.12, legs: 1.05, depth: 1.05 }, stout: { stature: 0.92, waist: 1.12, depth: 1.1 }, brute: { shoulders: 1.2, waist: 1.1, depth: 1.15, upperArm: 1.2, forearm: 1.2, thigh: 1.15 } });
@@ -702,11 +740,11 @@ export function planFromSheet(sheet, { title, dress } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
   if (door === 'creature') {
-    const built = creature(sheet, name);
+    const built = sheet.ancestry.form ? formCreature(sheet, name) : creature(sheet, name);
     // a people near the beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet); one with enough of a
     // person in it is clothed from the cut, which reads its anatomy (breeches over furred legs, a short coat over a tail,
     // no sleeves on wings, a kilt over plated legs)
-    if (dress === 'designed') { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
+    if (dress === 'designed' && !built.undead) { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }

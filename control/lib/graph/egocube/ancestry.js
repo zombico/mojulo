@@ -182,6 +182,24 @@ export const LINEAGES = Object.freeze({
       { at: 0.3, ch: 'frame', line: 'a second pair of arms', derives: ['pass = masses'] },
     ],
   },
+  // THE UNDEAD FORMS (lib/graph/undead): no humanity left to roll a face from, so always the creature door; the body is
+  // the form library's, its variation by the build (a brute's zombie the hulk, its skeleton the giant)
+  zombie: {
+    reads: 'the walking dead', humanity: [0, 0.2], form: 'zombie', cover: { grey: '#9a9a90', green: '#8a9a7a', blue: '#7a8a9a' },
+    built: 'the undead form library (lib/graph/undead): wasted or swollen, hunched, the arms out, a seeded loss; the gaunt head (creature-heads/derive.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'a body kept and wrong: {pick}', pick: ['wasted to the bone', 'swollen', 'hunched and reaching'] },
+      { at: 1, ch: 'structure', line: 'a dead face: sunken eyes, the jaw slack' },
+    ],
+  },
+  skeleton: {
+    reads: 'a walking skeleton', humanity: [0, 0.05], form: 'skeleton', cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): a spine, curved ribs, a pelvis basin, knobbed bones; the skull head (creature-heads/derive.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bare bone: no flesh at all' },
+      { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
+    ],
+  },
 });
 
 export function ancestryIds(custom = {}) { return [...HUMAN_IDS, ...Object.keys(LINEAGES), ...Object.keys(custom)]; }
@@ -264,5 +282,7 @@ export function resolveAncestry(id, rand, h, custom = {}) {
   }
   const gaps = door === 'hero' && lin.cues.some((c) => h <= c.at && /ornament|cover/.test(c.ch))
     ? [`${lin.reads} on the hero door: ${lin.built}`] : [];
-  return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints };
+  // (a form, the undead's: the body is its library's, so the creature door whatever the roll)
+  if (lin.form) door = 'creature';
+  return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints, ...(lin.form ? { form: lin.form } : {}) };
 }

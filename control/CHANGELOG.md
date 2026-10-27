@@ -263,6 +263,32 @@ through the character designer, clips fitted to the class's timing, factions) is
   stood a dire bear, an orc brute, a human bandit, an undead walker, an insectoid charger (on the creature loop) and a
   human gunner, all in the world's colours. The orc and the insectoid, struck down, played their knockdown, lay, and
   dissolved into the world's motes. Eyes gate: the operator's to judge.
+- **Undead forms: zombies and skeletons** (`lib/graph/undead/`; the operator: "core models for enemies we didn't have
+  before … we focus on form"). These are new bodies, not paint: creature-loop ring plans built on the creature biped
+  and rigged by its own rig, so each is minted, animated and fielded as any creature is. Each variation is a card
+  (`undead/cards.js`) whose words the passes apply (`undead/passes.js`). The egocube build picks the variation.
+  - Zombies: shambler, gaunt, bloated, hulk, fresh. Their flesh is wasted or swollen, they are hunched, the head hangs
+    and cocks, the jaw is slack, the arms reach out. One arm may be swollen and the other withered (each side authored
+    on its own), and a seeded loss can take a forearm or a hand (its bones stay in the rig, so every clip still plays).
+  - Skeletons: soldier, slender, squat, giant, knight. The trunk is replaced by its frame: a spine, curved ribs (the
+    low ones floating), a breastbone, collarbones, a sacrum with hip blades and an arch. Every long bone is a shaft
+    with knobbed ends, and the bones' weights scale by the card.
+  - The arms are built in their posture: each arm's joints are turned about its shoulder to where the rest pose holds
+    it, and the rest asks for that direction turned by the lean. A rest pose that swung an arm far from its build had
+    stretched the shoulder's skin into spikes.
+  - Two derived heads (`creature-heads/derive.js`), both from the bear's skull by moving its rows: a human `skull`
+    (narrower, a round dome, a flat face, open dark sockets, small teeth) and a `gaunt` dead face (the same shape, with
+    sunken eyes, a small nose and ears). A form's head is never drawn below half scale, since its sockets miss when
+    projected onto a smaller skull.
+  - The lineages `zombie` and `skeleton` (`egocube/ancestry.js`) carry the `form`, which the creature door hands to the
+    library. A bestiary skin is then `{ people: 'skeleton', facets: { build: 'brute' } }`. The egocube exports `biped`
+    and `dialsAndRig` for it; any other creature builds as before.
+
+  Machine gate: the frame's parts, the knobbed bones, waste, bloat and the heavy arm, a seeded loss that keeps the plan
+  building, the arms built forward with their rest, and both lineages on the creature door building a valid plan
+  deterministically, with a bestiary standing one. All ten variations built across seven seeds. Eyes: all ten were
+  minted and rendered from the front, three-quarter and side (no shoulder spikes left), the two heads were turned, and
+  a zombie and a skeleton played their walk. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 
