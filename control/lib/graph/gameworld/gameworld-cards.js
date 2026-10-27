@@ -549,9 +549,10 @@ function foesCard() {
     '',
     `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')} (each class above reads as its own).`,
     `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
-    `VANISH  a downed foe lies a moment, then goes as the game's juice says (no carcass): ${Object.keys(VANISHES).join(', ')}`,
-    '        (a platformer\'s puff, an anime RPG\'s motes in the palette, a western sink or fade). An entry\'s vanish:',
-    '        <word> | { is?, linger? } names its own.',
+    `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
+    '        A platformer squashes it, a pinball table pops it, an action game throws it back along the blow, a',
+    '        realistic one lets it fall and lie; then the look fades it (anime RPG motes in the palette, cel blink, western',
+    '        sink or fade). An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch } names its own.',
     'A world without foes, or a level without them, is laid as it was.',
   );
 }

@@ -220,6 +220,28 @@ through the character designer, clips fitted to the class's timing, factions) is
   foe carrying its way out, the runtime's lie-then-go (and a body without one staying down), the opt-in's absence, and
   each fade's code absent unless named, with the old transits byte-identical. In the demo page the five foes, one way
   each, were killed and filmed: each fell, lay 1.4 s, then went as named. Eyes gate: the operator's to judge.
+- **A foe dies in its game type's animation register** (the operator: "different games deal with death and disposal in
+  the animation registers native to their style"). Each game type (`DEATHS`, read from the juice's flavor) now says how
+  the foe dies and how long it lies, not only how it fades:
+  - platformer: squashed flat with a bounce, then a puff, at once (`squash`);
+  - pinball: swollen under a white flash, then burst into glints, at once (`pop`);
+  - action: thrown back along the killing blow and off the ground (`die: 'launch'`, run by the vanish builder), lying
+    0.7 s from where it lands;
+  - realistic: falls on its own fall clip and lies 1.4 s.
+
+  After an action or realistic death, the look's fade plays (motes, blink, sink or fade). An entry may name
+  `die: fall | launch`. A squash or a pop named alone plays at once, as in its own game type. The page emits both new
+  kinds only when they are named.
+- **A foe no longer explodes when it dies.** The engine's death burst (`combat-match.js`) is a mecha suit's: every
+  downed unit threw a fireball and a splash stagger. It had been doing this to every foe since they were first
+  fielded. A body that vanishes now latches it off (the vanish builder sets `deathBurstDone` before each step). The
+  engine's source is unchanged, so every other page keeps its bytes.
+
+  Machine gate: the death table by game type, a named beat playing at once, the launch's flight (off the ground,
+  along the blow, landing, then lying), the burst withheld from a vanishing body and kept for one without, and the new
+  kinds absent unless named (old transits byte-identical). In the demo page, one foe per register was killed and
+  filmed with the page clock stepped by hand: the frog squashed and puffed, the bug swelled, flashed and burst, the
+  swooper was thrown and faded, the rodent fell and sank, the bear fell and dissolved. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

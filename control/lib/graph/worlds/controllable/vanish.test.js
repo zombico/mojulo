@@ -26,12 +26,38 @@ describe('a downed body goes', () => {
     expect(st.byId.b.gone).toBeFalsy();
     expect(st.byId.b.transit).toBeUndefined();
   });
+  it('it never explodes (the suit\'s death burst is a mecha\'s), where a body without one still does', () => {
+    const st = E.createWorld({ entities: [body('a', [0, 0, 0], { is: 'fade', linger: 1 }), body('b', [9, 0, 0])] });
+    run(st, 1);
+    st.byId.a.downed = true; st.byId.b.downed = true;
+    run(st, 2);
+    expect((st.bursts || []).map((u) => u.pos[0])).toEqual([9]);
+  });
   it('a standing body never goes, and a zero linger goes at once', () => {
     const st = E.createWorld({ entities: [body('a', [0, 0, 0], { is: 'blink', linger: 0 }), body('c', [3, 0, 0], { is: 'fade', linger: 0 })] });
     st.byId.a.downed = true;
     run(st, 1);
     expect(st.byId.a.gone).toBe(true);
     expect(st.byId.c.gone).toBeFalsy();
+  });
+});
+
+describe('an action game\'s death: the blow is the verb', () => {
+  it('it is thrown back along the blow, off the ground, and lies where it lands; its linger counts from there', () => {
+    const st = E.createWorld({ entities: [body('hero', [0, 0, 0]), body('a', [1, 0, 0], { is: 'fade', linger: 0.2, die: 'launch' })] });
+    run(st, 1);
+    st.byId.a.downed = true; st.byId.a.lastHitBy = 'hero';
+    let top = 0;
+    for (let i = 0; i < 6; i++) { run(st, 1); top = Math.max(top, st.byId.a.transform.pos[2]); }
+    expect(top).toBeGreaterThan(0.1);   // off the ground
+    run(st, 12);
+    const a = st.byId.a;
+    expect(a.transform.pos[0]).toBeGreaterThan(2);   // away from the hero, along the blow
+    expect(Math.abs(a.transform.pos[1])).toBeLessThan(1e-9);
+    expect(a.vanishThrow.landed).toBe(true);
+    expect(a.transform.pos[2]).toBe(0);
+    run(st, 20);
+    expect(a.gone).toBe(true);
   });
 });
 

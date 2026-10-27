@@ -14,10 +14,14 @@ const ENDS = { spawn: [0, 0, 0], exit: [30, 0, 0], beats: BEATS };
 const walk = { walk: { nodes: { a: { trail: {} } } } };
 
 describe('how a downed foe goes', () => {
-  it('as its game\'s style guide says: a game type that goes at once, else the look\'s own', () => {
-    expect(vanishOfGame(G({ flavor: 'platformer' }))).toMatchObject({ is: 'smoke', linger: LINGER.platformer });
-    expect(vanishOfGame(G({ flavor: 'pinball' }))).toMatchObject({ is: 'blink', linger: 0 });
-    expect(vanishOfGame(G({ look: 'isekai', flavor: 'action' }))).toMatchObject({ is: 'motes', linger: LINGER.action });
+  it('in its game type\'s register: a platformer squashes, a pinball table pops, an action game throws, a realistic one falls', () => {
+    expect(vanishOfGame(G({ flavor: 'platformer' }))).toMatchObject({ is: 'squash', linger: 0 });
+    expect(vanishOfGame(G({ flavor: 'pinball' }))).toMatchObject({ is: 'pop', linger: 0 });
+    expect(vanishOfGame(G({ look: 'isekai', flavor: 'action' }))).toMatchObject({ is: 'motes', die: 'launch', linger: LINGER.action });
+    expect(vanishOfGame(G({ look: 'isekai', flavor: 'realistic' }))).toMatchObject({ is: 'motes', die: 'fall', linger: LINGER.realistic });
+    expect(LINGER.realistic).toBeGreaterThan(LINGER.action);
+  });
+  it('and the others fade in the look\'s own way', () => {
     expect(vanishOfGame(G({ look: 'cel', flavor: 'action' })).is).toBe('blink');
     expect(vanishOfGame(G({ register: 'western', flavor: 'realistic' }))).toMatchObject({ is: 'sink', linger: LINGER.realistic });
     expect(vanishOfGame(G({ register: 'western', flavor: 'action' })).is).toBe('fade');
@@ -28,7 +32,12 @@ describe('how a downed foe goes', () => {
   it('motes take the world palette\'s colour; a bestiary entry names its own way and how long it lies', () => {
     const W = G({ look: 'isekai', flavor: 'action' }), m = vanishOfGame(W);
     expect(m.rgb).toHaveLength(3);
-    expect(vanishOf(W, { class: 'walker', vanish: 'blink' })).toEqual({ is: 'blink', linger: m.linger });
+    expect(vanishOf(W, { class: 'walker', vanish: 'blink' })).toEqual({ is: 'blink', linger: m.linger, die: m.die });
+    expect(vanishOf(W, { class: 'walker', vanish: { die: 'fall' } }).die).toBe('fall');
+    // a squash or a pop is a death beat of its own: named alone, at once, whatever the world's lie
+    expect(vanishOf(W, { class: 'walker', vanish: 'pop' })).toMatchObject({ is: 'pop', linger: 0, die: 'fall' });
+    expect(vanishOf(W, { class: 'walker', vanish: { is: 'squash', linger: 1 } }).linger).toBe(1);
+    expect(() => readVanish({ die: 'explode' }, 'foes.a.vanish')).toThrow(/die/);
     expect(vanishOf(W, { class: 'walker', vanish: { linger: 3 } })).toMatchObject({ is: 'motes', linger: 3, rgb: m.rgb });
     expect(() => readVanish('explode', 'foes.a.vanish')).toThrow(/no vanish 'explode'/);
     expect(() => readVanish({ linger: -1 }, 'foes.a.vanish')).toThrow(/linger/);
@@ -37,7 +46,7 @@ describe('how a downed foe goes', () => {
   it('a fielded foe carries its way out; no carcass is kept', () => {
     const W = readGameworld({ id: 'w', juice: { flavor: 'platformer' }, foes: { a: { class: 'walker' }, b: { class: 'walker', vanish: 'motes' } }, levels: { one: { ...walk, foes: { count: 2 } } } });
     const X = hostileCast(W, 'one', ENDS, { refs: { a: 'w-a', b: 'w-b' } });
-    expect(X.entities.map((e) => e.body.vanish.is)).toEqual(['smoke', 'motes']);
+    expect(X.entities.map((e) => e.body.vanish.is)).toEqual(['squash', 'motes']);
   });
   it('the page plays a fade only when its world names one', () => {
     for (const k of Object.keys(VANISHES).filter((x) => x !== 'smoke')) {

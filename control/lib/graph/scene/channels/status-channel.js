@@ -221,7 +221,7 @@ function __elEncaseDrop(E) {
 `;
 // the fades a body goes by (vanish.js VANISHES, a downed foe's disposal); each one's code is emitted only when named,
 // so a page that names none keeps every byte
-const FADES = Object.freeze({ fade: 0.8, sink: 1.6, motes: 1.6, blink: 0.9 });
+const FADES = Object.freeze({ fade: 0.8, sink: 1.6, motes: 1.6, blink: 0.9, squash: 0.85, pop: 0.7 });
 const transitSrc = (kinds) => {
   const has = (k) => kinds.includes(k), fades = Object.keys(FADES).filter(has);
   return `// TRANSITS: how a character comes or goes (spawn / vanish \`with\`, transfigure). Coming, the real
@@ -296,7 +296,11 @@ function __trMake(e, T, now) {
     if (dir === 'out') { for (const m of I.ghost.mats) { m.clippingPlanes = [I.plane]; m.needsUpdate = true; } } else I.skin.clip([I.plane]);
     I.from = __trPts(I.meshes, 40, 5.3); for (let i = 0; i < 40; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending));
   }` : ''}
-  return I;
+${has('squash') ? `  // squash: flattened onto its feet with a bounce, held, then a little puff (a platformer's boop)
+  if (is === 'squash') for (let i = 0; i < 10; i++) I.sprs.push(__trSpr(__trSoft, [0.95, 0.95, 0.97], THREE.NormalBlending));
+` : ''}${has('pop') ? `  // pop: swollen and flashed white, then burst into streaks flying out (a pinball's)
+  if (is === 'pop') { I.flash = __trSpr(__trSoft, [1, 1, 1], THREE.AdditiveBlending); I.sprs.push(I.flash); for (let i = 0; i < 28; i++) I.sprs.push(__trSpr(__trDot, [1, 0.9, 0.55], THREE.AdditiveBlending)); }
+` : ''}  return I;
 }
 function __trStep(I, u, W) {
   const out = I.dir === 'out', h = I.box.max.z - I.box.min.z, C = I.c, skin = (op) => { if (out) for (const m of I.ghost.mats) m.opacity = op; else I.skin.set(op); };
@@ -352,14 +356,44 @@ function __trStep(I, u, W) {
       s.visible = true; s.position.set(p.x + Math.cos(a + k * 2) * 0.15 * k, p.y + Math.sin(a + k * 2) * 0.15 * k, p.z + up);
       s.scale.setScalar(Math.max(0.08, 0.14 * h) * (1 - 0.5 * k)); s.material.opacity = Math.sin(Math.PI * k) * (1 - __trSm((u - 0.85) / 0.15));
     });
-  }` : ''}${has('blink') ? `
+  }` : ''}${has('squash') || has('pop') ? `
+  else if (I.is === 'squash' || I.is === 'pop') __trBeat(I, u, out, h, C, skin);` : ''}${has('blink') ? `
   else if (I.is === 'blink') {
     // on and off, faster as it goes (an arcade foe's going), gone for the last fifth
     const v = out ? u : 1 - u, on = v < 0.8 && Math.floor(v * (8 + 26 * v)) % 2 === 0;
     skin(on ? 1 : 0);
   }` : ''}
 }
-function __trDrop(I) {
+${has('squash') || has('pop') ? `// the ghost scaled about its feet (xy across, z up)
+function __trScale(I, sxy, sz) { const g = I.ghost.g, C = I.c, z0 = I.box.min.z; g.scale.set(sxy, sxy, sz); g.position.set(C.x * (1 - sxy), C.y * (1 - sxy), z0 * (1 - sz)); }
+function __trBeat(I, u, out, h, C, skin) {
+  if (!out) { skin(__trSm(u)); return; }   // (coming, the body only fades in)
+  const r = Math.max(I.box.max.x - I.box.min.x, I.box.max.y - I.box.min.y) * 0.5 + 0.1;
+  if (I.is === 'squash') {
+    // down to a quarter in a tenth, bounced back up a little and settled, held, then gone in a puff
+    const k = u < 0.1 ? __trSm(u / 0.1) : 1, q = Math.min(1, Math.max(0, (u - 0.1) / 0.2)), b = Math.sin(q * Math.PI) * 0.12 * (1 - q);
+    __trScale(I, 1 + 0.4 * k - b, 1 - 0.75 * k + b);
+    skin(u < 0.35 ? 1 : 1 - __trSm((u - 0.35) / 0.12));
+    I.sprs.forEach((s, i) => {
+      const v = (u - 0.35) / 0.65, a = (i / I.sprs.length) * 6.283 + __trH(i, 1), d = r * (0.4 + 0.8 * Math.sqrt(Math.max(0, v)));
+      s.visible = v > 0; s.position.set(C.x + Math.cos(a) * d, C.y + Math.sin(a) * d, I.box.min.z + 0.1 + 0.35 * Math.max(0, v));
+      s.scale.setScalar(r * (0.6 + 0.6 * Math.max(0, v))); s.material.opacity = 0.9 * (1 - Math.max(0, v));
+    });
+  } else {
+    // swollen and stretched up over a quarter under a white flash that peaks as it bursts; then streaks out and up
+    const k = __trSm(Math.min(1, u / 0.25));
+    if (u < 0.25) { __trScale(I, 1 + 0.25 * k, 1 + 0.45 * k); skin(1); } else skin(0);
+    const fl = u < 0.25 ? k : 1 - __trSm((u - 0.25) / 0.2);
+    I.flash.visible = fl > 0.01; I.flash.position.set(C.x, C.y, C.z); I.flash.scale.setScalar(r * (1.6 + 1.6 * k)); I.flash.material.opacity = fl;
+    I.sprs.forEach((s, i) => {
+      if (s === I.flash) return;
+      const v = (u - 0.25) / 0.75, a = (i / I.sprs.length) * 6.283, up = __trH(i, 3) - 0.2, sp = r * (1.5 + 2.5 * __trH(i, 4)), e = 1 - Math.pow(1 - Math.max(0, v), 2.5);
+      s.visible = v > 0 && v < 1; s.position.set(C.x + Math.cos(a) * sp * e, C.y + Math.sin(a) * sp * e, C.z + up * sp * e);
+      s.scale.setScalar(r * 0.35 * (1.3 - v)); s.material.opacity = 1 - Math.max(0, v);
+    });
+  }
+}
+` : ''}function __trDrop(I) {
   for (const s of I.sprs) { scene.remove(s); s.material.dispose(); }
   for (const l of I.wires) { if (l.parent) l.parent.remove(l); l.geometry.dispose(); l.material.dispose(); }
   for (const m of I.extra) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
