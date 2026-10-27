@@ -1323,6 +1323,17 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   the gen-6 live grass's wind and its crowns' sway with its blades off (`field: false`, channels/stage-grass.js; a
   gen-6 page as it was), so the grass waves as one with the trees, a gust's band a shade brighter as it passes. A
   drift's forms draw its kind's one grid (a sparse kind a wide grid), so the drifts cost a fifth of what they did.
+- **Gen-7 trees, first look: grown wood, cloned sprays, bark by parallax** (a spike: `scripts/spikes/form/tree.mjs`, one
+  tree near, mid and far under a sun you turn). A grown tree (vegetation/grow.js) read as form, no light baked in
+  (`form/tree-form.js`): its wood the grower's axes as tubes with smooth normals, cut by diameter, a ring every few radii,
+  the bark's coordinates in tiles; its foliage SITES, the leafy shoots gathered into cells a spray long, each with its
+  scale (the cell's leaf area, × a crown fill), the crown's own shade as occlusion and a rank. The sprays
+  (`vegetation/sprays.js`): a twig and its leaves as its species carries them, the architecture's phyllotaxis (the
+  golden angle round the twig, or two ranks level either side) and the leaf's outline (an oak's lobes, an ovate blade, a
+  broad one), each leaf folded on its midrib; a few seeded patterns per species, cloned over the crown, their normals bent
+  toward the crown's outside, a little light through them. Far off a crown keeps fewer sites, the kept ones grown to hold
+  the cover: never a ball, never a swap. The bark (`form/bark-material.js`): the fracture model's own colour, its
+  relief's normal, the fissures' occlusion and the relief, marched by parallax near.
 - **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
   geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
   colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
