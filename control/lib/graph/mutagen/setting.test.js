@@ -75,6 +75,10 @@ describe('mutagen: an animal\'s own coat in its world (coat: \'world\')', () => 
     }
     for (const k of ['iris', 'ink', 'sclera', 'nose', 'teeth', 'mouth']) if (colors[k]) expect(out[k]).toBe(colors[k]);
   });
+  it('a quiet coat keeps its hue family: a dull brown never becomes a teal, whatever quiet stop is nearest in value', () => {
+    const brown = { coat: '#4a3c32' }, teal = [{ name: 'foliage', stops: ['#144549', '#1e4e52'] }];
+    expect(dressCoat(brown, { ramps: teal })).toEqual(brown);
+  });
   it('no ramps, or no stop near, and the coat is its own', () => {
     expect(dressCoat(colors, { tradition: 'anime' })).toBe(colors);
     const far = dressCoat(colors, { ramps: [{ name: 'neon', stops: ['#00ffcc', '#ff00aa'] }] });

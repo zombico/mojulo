@@ -20,8 +20,8 @@
 //   dressCoat(colors, setting, ledger = [])  → the animal's own colours IN THE WORLD (an animal door's `coat: 'world'`,
 //                                            a game's foes: gameworld/foes.js): its coat and markings each taken to the
 //                                            hue and chroma of the nearest stop of a ramp of its hue and value (found as
-//                                            a made colour's is), at its OWN value, so its markings keep their light and
-//                                            dark; a face's details (eyes, ink, teeth, nose, mouth) stay its own, and a
+//                                            a made colour's is, and always of its own hue family unless it is a true
+//                                            grey), at its OWN value, so its markings keep their light and dark; a face's details (eyes, ink, teeth, nose, mouth) stay its own, and a
 //                                            colour no stop is near keeps its own. Each move ledgered
 //   dressPush(push, setting, ledger = [], { motif, coat })   → the push with its made colours dressed from the ramps,
 //                                            each move ledgered { at, from, to, ramp }; `motif: 'only'` dresses the
@@ -106,6 +106,8 @@ export function dressPush(push, setting, ledger = [], { motif = false, coat } = 
   return out;
 }
 
+// below this chroma a coat colour is a true grey, with no hue of its own to keep
+const GREY_C = 4;
 // a face's details: what reads the animal's expression, never the world's
 const FACE_COLORS = Object.freeze(['iris', 'ink', 'sclera', 'pupil', 'nose', 'teeth', 'mouth', 'tongue', 'lid', 'eye']);
 export function dressCoat(colors, setting, ledger = []) {
@@ -113,7 +115,9 @@ export function dressCoat(colors, setting, ledger = []) {
   if (!colors || !Array.isArray(ramps) || !ramps.length) return colors;
   const out = {};
   for (const [k, v] of Object.entries(colors)) {
-    const best = typeof v === 'string' && HEX.test(v) && !FACE_COLORS.includes(k) ? stopsFor(v, ramps)[0] : null;
+    // (a coat keeps its hue family: a quiet brown is still a brown, never a teal; only a true grey takes any quiet stop)
+    const own = typeof v === 'string' && HEX.test(v) && !FACE_COLORS.includes(k) ? hexLch(v) : null;
+    const best = own ? stopsFor(v, ramps).find((c) => own[1] < GREY_C || hueGap(own[2], hexLch(c.stop)[2]) <= RAMP_HUE) : null;
     // (the stop's hue and chroma, the animal's own value: its markings keep their light and dark)
     const to = best ? (() => { const [L] = hexLch(v), [, C, h] = hexLch(best.stop); return lchHex(L, C, h).toLowerCase(); })() : null;
     if (to && to !== v.toLowerCase()) { out[k] = to; ledger.push({ at: `colors.${k}`, from: v, to, ramp: best.ramp }); }

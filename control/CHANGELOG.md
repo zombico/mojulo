@@ -151,6 +151,26 @@ through the character designer, clips fitted to the class's timing, factions) is
   gameworld's (the beast step carries the setting and the coat; a foe lays its bar). In the page (headless Chromium):
   aiming at one of two foes shows its bar alone, above it, and facing away shows none. Eyes gate, as stills: the bar
   stands clear above the guinea pig, the boar and the bear.
+- **A game's animals in the hero's light** (the operator: the bear's light was not the hero's, nor the world's). Two
+  causes, both fixed:
+  - **A moving animal packed plain.** The World page packs an animal with motion through its fauna rig, and that call
+    took no character light. Under one, the smoothing is off too, so a game's animal was the Lambert bake, faceted,
+    while its hero was cel-lit and inked. Under a character light a moving animal (fauna or bug) now packs as a hero
+    does: the same lit pieces (the step, the shades, the split) and the ink. An animal with motion minted with a
+    game's setting draws differently from now on, as its light always asked.
+  - **Its key was its own.** A built animal with a game's default light (`toon.light: true`) was lit as a still's
+    creature, by `CREATURE_KEY` (the character key turned 35° for a creature standing square to the camera) and a
+    softer step. In a game it stands beside the hero and turns as the hero does, so it now takes the hero's key and
+    step (the default character light), keeping the creature's shades by value so a dark coat's form still reads. A
+    drawn creature, and any animal named its own light, is as it was.
+- **A quiet coat keeps its hue family.** `coat: 'world'` took a dull brown (chroma 10, below the neutral line) to
+  any quiet stop nearest in value, and the demo's boar came out teal from the foliage ramp. A coat colour now takes
+  only a stop of its own hue family, unless it is a true grey (chroma under 4). The boar keeps its brown.
+
+  Machine gate: the setting's light test (a game's animal is lit by the hero's key and step and keeps shades by value),
+  the coat's (a quiet brown never becomes a teal). In the page: the bear's 23 parts now pack character-lit with ink,
+  as the hero's 59 do. Eyes gate, as stills beside the hero: the bear and the boar read two-tone and inked in the
+  hero's light, no longer faceted.
 
 ### Carved glyphs: the letter primitive grows up
 
