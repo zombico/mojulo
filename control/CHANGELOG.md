@@ -87,10 +87,10 @@ and bakes every lamp into the corners. The same recipe read in gen-6 is byte for
   are its ramp's darkest colour. Tone-mapped (Neutral, exposure 1: what the solve solved for). `window.__mojForm` is the
   probe. Measured in Chrome (SwiftShader) on the gritty cube's temple hall from its mouth: a frame 1225 ms against gen-6's
   616 (the first cut, every lamp live and four casting, took 2263 against 432); without the live light's actors' map,
-  879, and without relief and parallax, 595. Five rooms from each room's spawn: the brick hall's mean luminance 28.4
-  against its gen-6 paint's 33.9, the crypt 27.9 against 31.4, the nave 30 against 34.3; the gritty cube's toned room
-  darker than its paint, which is lit almost flat, and its marble's veins grey where the toned page carries them along
-  the ramp.
+  879, and without relief and parallax, 595. Five rooms from each room's spawn: the brick hall's mean luminance 26.9
+  against its gen-6 paint's 33.9, the rendered vault 31.8 against 38.5, the crypt 26.6 against 31.4, the nave 29.3
+  against 34.3 (the lamps fall off faster in linear light than the paint's square did); the gritty cube's toned room 118
+  against 184, its paint lit almost flat, and its marble's veins grey where the toned page carries them along the ramp.
 - **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
   walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
   page draws the form render.
