@@ -29,15 +29,24 @@ the story. The city plan and the historic city follow on the same rules.
 - **The folk sheet: a town's people from its lots** (`lib/graph/folk/`). `folkOfTown(town)` reads a designed town
   (`era/out-town.js`): each lot's use roots its first person (`roles.js` `ROOTS`: a dwelling a townie, a shop its
   keeper, a workshop its master, a barn a farmhand, the hall its elder, the tower its captain), who grows the rest
-  (the household, an apprentice, the watch: their number from the lot's storeys). Each person is an Egocube rolled on
+  (an apprentice, the watch: their number from the lot's storeys). Each person is an Egocube rolled on
   the folk seed and their path alone: the role's combat role asked, its age and archetype leaned, motivation pulled
-  toward the light, kin sharing their household's ancestry, so a town only grows. Each role SEEKS others (a counter
+  toward the light, so a town only grows. Each role SEEKS others (a counter
   a supplier, a watch a hall to answer to), and an unmet one is an open need on the sheet: what the town is missing,
   said, never refused. The services (`services.js`: merchant, smith, counsel, watch) each lower onto a menu, an effect
   or a mind the game already runs, or are a gap that says what is missing (the smith: no menu mends gear yet). Every
   person carries their room in their lot's inside and their line slots, never words. A cap (`folk.cap`, 60 by default)
   gives every lot its first person before anyone's household. Nothing reaches a level yet: bodies, standing them in
   play and their talk come next. Machine gate: `folk.test.js`; eyes gate not run.
+- **The domicile: a house round its dweller** (`folk/domicile.js`). A house's unit is the DWELLER, the lot's first
+  person, and the house is written as the egocube cast writes a request: `D + 0` (alone), `D + P` (with a partner),
+  `D of F (P + Cx)` (a family of x children). The dweller's age says what the house can be (a youth lives alone or
+  with a partner, an elder's children have mostly grown), rolled on the house's own die; no house is headed by a
+  child; children are younger than the dweller and share their ancestry, a partner is near their age and their own
+  person, their pole rolled as anyone's. A townie's house and the household over a keeper's counter are domiciles;
+  the folk sheet lists each (`domiciles`: its notation, its partner and children). The operator asks a shape for every
+  house (`folk.domicile: 'D + 0'`) or for one (`folk.domiciles: { <lot key>: 'D of F (P + C2)' }`). Machine gate:
+  `domicile.test.js`, `folk.test.js`; eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 
