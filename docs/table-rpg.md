@@ -146,7 +146,7 @@ key's (`roomNumbers`), so the map and the text never disagree.
 ## The game type: `create_game({ table_rpg })`
 
 The table game is a sibling of the board-game type (`create_game({ tabletop })`): its own engine, its own page, no
-store and no levels. One property on the door, no new tool.
+store and no levels. One property on the door, no new tool (the flat payload pin re-pinned for it, with its reason).
 
 - **The row**: `{ kind: 'game', engine: 'table-rpg', title, tableRpg: <the module's keys, book?> }`
   (`table-rpg-manifest.js`). The page, the book and the sheets regenerate from it on every read; `update_sketch`

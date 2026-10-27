@@ -393,7 +393,7 @@ export function registerGameTools() {
         },
         table_rpg: {
           type: 'object',
-          description: "A pen-and-paper RPG played in text instead of levels (no store): { starter?: { use }, system?, party?, world?, dungeons?, foes?, items?, tables?, goal?, book? }; characters rolled from the rules, a game book printed. get_game_vocab({ id: 'table-rpg' }).",
+          description: "A pen-and-paper RPG played in text, its characters rolled, its book printed (no store, no levels): get_game_vocab({ id: 'table-rpg' }).",
         },
         store: {
           type: 'object',

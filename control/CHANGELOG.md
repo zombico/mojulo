@@ -17,8 +17,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### Table RPG: the game type, its page, its export and character creation
 
 The table game becomes a game type beside the board games: `create_game({ table_rpg })`, engine `table-rpg`, its own
-page and its own book, no store and no levels. One property on the door, no new tool; the tools/list payload stays
-under its pin. The map: [docs/table-rpg.md](../docs/table-rpg.md).
+page and its own book, no store and no levels. One property on the door, no new tool; the flat tools/list payload's
+pin rises 212,300 → 212,500 for it (measured 212,353). The map: [docs/table-rpg.md](../docs/table-rpg.md).
 
 - **The row** (`lib/graph/table-rpg/table-rpg-manifest.js`): `{ kind: 'game', engine: 'table-rpg', title, tableRpg }`,
   the module's keys and a `book` style; the page, the book and the sheets regenerate from it; `update_sketch` plays an
