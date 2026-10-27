@@ -109,12 +109,20 @@ describe('create_game — a table game (table_rpg)', () => {
     expect(readTableRpg(SketchRepository.getByRef('tr_solo').manifest.tableRpg).K.party[0].name).toBe(out.party[0].name);
   }, 120000);
 
+  it('a cast on a starter: the answer names its factions and their people, and advises on the ones placed nowhere', async () => {
+    const out = await createGameHandler({ title: 'The Held Keep', table_rpg: { starter: { use: 'keep' }, cast: true, characters: false } });
+    expect(out.factions.map((F) => [F.id, F.standing])).toEqual([['mastermind', 'wary'], ['rival', 'neutral']]);
+    expect(out.factions[0].people[0]).toMatch(/^castellan: Castellan, rank 3, /);
+    expect(out.findings.filter((f) => f.where === 'factions').map((f) => f.text.match(/\((\w+), of/)[1]).sort()).toEqual(['lieutenant', 'rival']);
+  });
+
   it('get_game_vocab serves the table games\' card: the keys, every starter, character creation, the book', async () => {
     const { card } = await getGameVocabHandler({ id: 'table-rpg' });
     expect(card.body).toContain('table_rpg: {');
     for (const id of TABLE_RPG_SYSTEM_IDS) expect(card.body).toContain(`${id} (`);
     expect(card.body).toContain('CHARACTER CREATION is the party');
     expect(card.body).toContain('never guessed');
+    expect(card.body).toContain('cast: true');
     await expect(getGameVocabHandler({ id: 'table-rpgs' })).rejects.toThrow(/Known: .*table-rpg/);
   });
 });

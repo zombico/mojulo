@@ -9,6 +9,8 @@
  *   roomNumbers(D) → { <room id>: n }       the key's numbers: the dungeon's rooms in their written order, from 1
  *   dungeonMapSvg(K, dungeonId, { legend? }) → svg
  *   worldMapSvg(K) → svg
+ *   factionMapSvg(K) → svg   the factions as the party meets them: the party above, each faction a box below it with its
+ *     standing at the start on the line between them, rivals joined by a dashed line, allies by a solid one
  * A map's size is its drawing's at MM a unit (width and height in millimetres), so a small map stays small on the page.
  *
  *   rankLayout(ids, edges, start) → { at: { id: [x, y] }, ranks: [[id]] }   ranks by distance from the start, each
@@ -144,4 +146,40 @@ export function worldMapSvg(K) {
     out.push(`<g class="place" id="place-${esc(id)}">${placeMark(P.kind, X(id), Y(id))}<text x="${r1(X(id))}" y="${r1(Y(id) + 11)}" font-size="5" text-anchor="middle" fill="currentColor" stroke="none">${esc(P.name.replace(/^the /i, ''))}</text>${id === K.M.world.start ? `<text x="${r1(X(id))}" y="${r1(Y(id) - 8)}" font-size="3.8" text-anchor="middle" fill="var(--accent,currentColor)" stroke="none">start</text>` : ''}</g>`);
   }
   return `${svgOpen(W, H, 'Map of the world')}${out.join('')}</svg>`;
+}
+
+export function factionMapSvg(K) {
+  const F = Object.values(K.factions), STAND = ['hostile', 'wary', 'neutral', 'friendly', 'allied'];
+  const w = (F_) => Math.max(40, F_.name.length * 2.7 + 10), gap = 18, boxH = 16;
+  const widths = F.map(w), W = Math.max(60, widths.reduce((a, b) => a + b, 0) + gap * (F.length - 1) + 16);
+  const X = [];
+  let x = 8;
+  for (const bw of widths) { X.push(x + bw / 2); x += bw + gap; }
+  const py = 12, fy = 52, H = fy + boxH / 2 + 8 + (F.length > 2 ? 14 : 0);
+  const out = [];
+  F.forEach((f, i) => {
+    const n = f.standing ?? 0;
+    out.push(`<path class="standing" d="M${r1(W / 2)} ${py + 6} L${r1(X[i])} ${fy - boxH / 2}" fill="none" stroke="var(--muted,currentColor)"/>`);
+    out.push(`<text x="${r1((W / 2 + X[i]) / 2 + (X[i] < W / 2 ? -3 : X[i] > W / 2 ? 3 : 2))}" y="${r1((py + fy) / 2)}" font-size="4.2" text-anchor="${X[i] < W / 2 ? 'end' : 'start'}" fill="var(--accent,currentColor)" stroke="none">${STAND[n + 2]}</text>`);
+  });
+  const drawn = new Set();
+  F.forEach((f, i) => {
+    for (const [kind, others] of [['rivals', f.rivals], ['allies', f.allies]]) for (const o of others) {
+      const j = F.findIndex((g) => g.id === o), key = [kind, ...[f.id, o].sort()].join('|');
+      if (j < 0 || drawn.has(key)) continue;
+      drawn.add(key);
+      const [a, b] = i < j ? [i, j] : [j, i], dash = kind === 'rivals' ? ' stroke-dasharray="2.4 1.6"' : '';
+      if (b - a === 1) {
+        out.push(`<path class="tie ${kind}" d="M${r1(X[a] + widths[a] / 2)} ${fy} L${r1(X[b] - widths[b] / 2)} ${fy}" fill="none"${dash}/>`);
+        out.push(`<text x="${r1((X[a] + widths[a] / 2 + X[b] - widths[b] / 2) / 2)}" y="${fy - 2}" font-size="3.8" text-anchor="middle" fill="var(--muted,currentColor)" stroke="none">${kind}</text>`);
+      } else {
+        const low = fy + boxH / 2 + 10;
+        out.push(`<path class="tie ${kind}" d="M${r1(X[a])} ${fy + boxH / 2} Q${r1((X[a] + X[b]) / 2)} ${low + 6} ${r1(X[b])} ${fy + boxH / 2}" fill="none"${dash}/>`);
+        out.push(`<text x="${r1((X[a] + X[b]) / 2)}" y="${low + 5}" font-size="3.8" text-anchor="middle" fill="var(--muted,currentColor)" stroke="none">${kind}</text>`);
+      }
+    }
+  });
+  out.push(`<g class="party"><circle cx="${r1(W / 2)}" cy="${py}" r="5" fill="var(--accent,currentColor)" stroke="none"/><text x="${r1(W / 2)}" y="${py - 7}" font-size="4.4" text-anchor="middle" fill="currentColor" stroke="none">the party</text></g>`);
+  F.forEach((f, i) => out.push(`<g class="faction" id="faction-${esc(f.id)}"><rect x="${r1(X[i] - widths[i] / 2)}" y="${fy - boxH / 2}" width="${r1(widths[i])}" height="${boxH}" rx="2" fill="var(--paper,#fff)"/><text x="${r1(X[i])}" y="${fy + 1.8}" font-size="5" text-anchor="middle" fill="currentColor" stroke="none">${esc(f.name)}</text></g>`));
+  return `${svgOpen(W, H, 'The factions and the party')}${out.join('')}</svg>`;
 }

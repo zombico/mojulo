@@ -15,8 +15,9 @@
  *     (table-rpg-book.js); parts narrows it (the party alone: its characters' sheets to print); portraits the members'
  *     photographs, taken by the caller (they need the characters' rows and a browser)
  *   tableRpgPaper(manifest, { style? }) → hex   the paper the book is printed on (a photograph is taken on it)
- *   tableRpgReadout(K, checks) → { party, findings }   what character creation made (each sheet as rolled, who wears
- *     it), and what the checks found: the mint's answer
+ *   tableRpgReadout(K, checks) → { party, factions?, findings }   what character creation made (each sheet as rolled,
+ *     who wears it), the factions and their people by rank, and what the checks found (a faction's foe placed in no
+ *     room and on no table among them): the mint's answer
  */
 import { readModule, TABLE_RPG_KEYS } from './table-rpg-module.js';
 import { tableRpgPageHtml } from './table-rpg-page.js';
@@ -69,9 +70,17 @@ export function tableRpgReadout(K, checks) {
     id: p.id, name: p.name, class: p.class, sheet: lines[i], made: `${p.method}: ${p.rolls.join('; ')}`,
     ...(p.persona ? { persona: p.persona.reads } : {}),
   }));
+  const placed = new Set([...Object.values(K.D).flatMap((D) => Object.values(D.rooms).flatMap((R) => R.foes ?? [])), ...Object.values(K.tables).flatMap((T) => T.rows.flatMap((r) => r.foes ?? []))]);
+  const STAND = ['hostile', 'wary', 'neutral', 'friendly', 'allied'];
+  const factions = Object.values(K.factions).map((F) => ({
+    id: F.id, name: F.name, standing: STAND[(F.standing ?? 0) + 2],
+    people: Object.entries(K.foes).filter(([, f]) => f.faction === F.id).sort(([, a], [, b]) => b.rank - a.rank)
+      .map(([id, f]) => `${id}: ${f.name ?? id}, rank ${f.rank}${f.persona ? `, ${[f.persona.name !== f.name ? f.persona.name : null, f.persona.epithet].filter(Boolean).join(', ')}` : ''}${f.heeds?.length ? `; heeds ${f.heeds.join(', ')}` : ''}${f.scorns?.length ? `; scorns ${f.scorns.join(', ')}` : ''}`),
+  }));
   const findings = [
     ...checks.world.findings.map((f) => ({ where: 'world', ...f })),
     ...Object.entries(checks.dungeons).flatMap(([id, c]) => c.findings.map((f) => ({ where: id, ...f }))),
+    ...Object.entries(K.foes).filter(([id, f]) => f.faction && !placed.has(id)).map(([id, f]) => ({ where: 'factions', level: 'advice', text: `${f.name ?? id} (${id}, of ${K.factions[f.faction].name}) is in no room and on no table: place it, or leave it to the referee` })),
   ];
-  return { party, findings };
+  return { party, ...(factions.length ? { factions } : {}), findings };
 }

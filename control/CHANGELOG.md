@@ -14,6 +14,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Table RPG: factioned encounters from the egocube's cast
+
+- **Factions, standing and talk in the kernel**: a module's `factions` (standing −2 hostile … 2 allied, allies,
+  rivals) and a foe's `faction`, `heeds` and `scorns`. A fight is spoken to through its leader, the highest-ranked
+  foe standing: `parley` (presence), `threaten` (might) or `bribe <treasure>` (presence), once a fight, the standing
+  setting the difficulty and what the leader heeds or scorns a step. Talked aside, the foes stand aside and their
+  experience is earned; a parley or a bribe warms the faction, a threat cools it, a fumble cools it. Beaten, a
+  faction's foes cool it and its allies and warm its rivals. Allied foes stand aside unasked. The `factions` move says
+  where the party stands (`table-rpg-kernel.js`).
+- **The cast** (`table-rpg-cast.js`): `cast: true | { seed?, as? }` rolls the journey's antagonists on the egocube
+  (`rollCast`) and writes them as the mastermind's faction (leader, lieutenant, troops; wary) and the rival's (the
+  rival and its hands; neutral), rivals of each other, each foe a persona with what it listens to read from its
+  motivation and order. `as` lays the parts on the module's own foes, a starter's boss, minions and bandits unasked;
+  what the module writes wins. A foe's `egocube: true` rolls it a persona alone.
+- **In print and in the answer**: the book's Factions chapter (a diagram of the party and the factions, the talk and
+  the standing ladder in the card's numbers, each faction's people by rank), the referee packet's Factions section,
+  and `create_game`'s answer naming the factions and their people, advising on any placed in no room and on no table.
+
+Machine gate: the factions suite (a faction it cannot read refused; the difficulty by standing and by what the leader
+heeds or scorns, hostile unheard; a parley, a threat and a bribe that land, each on a seed found in code; standing after
+a fight won across allies and rivals; allied foes standing aside; no factions move without factions; the cast's parts,
+ranks, factions and determinism; `as` and the starter; the chapter, the diagram and the packet) and the door's (a cast
+on a starter: the factions named, the unplaced advised). Eyes gate not run: the author looked at the chapter's page;
+the operator has not.
+
 ### Table RPG: the party made characters, photographed into the book
 
 - **The character loop at mint**: `create_game({ table_rpg })` makes each party member rolled on the egocube a real

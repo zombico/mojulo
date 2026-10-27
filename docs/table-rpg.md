@@ -124,12 +124,36 @@ the module's, rolled on the module's seed, one stream per member, so adding a me
 | A pure stepper a page can emit | the tabletop kernel's discipline (`tabletop/tabletop-kernel.js`) | one closure, `toString()`-equal (tested), `legal` / `apply`, mulberry32 on the state |
 | Seeded streams | `city/plan/dice.js` (`streamOf` convention) | `<seed>\|<layer>-v1\|<key>`: sheet, session, tape |
 | Who a character is | the egocube (`egocube/egocube.js` `rollEgocube`) | `egocube: true \| { brief, facets }` on a member: a persona, and the class from its role; the same sheet `create_character { egocube }` draws a body from |
+| Factioned encounters | the egocube's cast (`egocube/cast.js` `rollCast`) | `cast: true \| { as }` (`table-rpg-cast.js`): the journey's mastermind, lieutenant and troops as one faction, the rival and its hands as its rival, each a persona; what a foe listens to read from its motivation and order (`earOf`); the kernel's factions, standing and talk play it |
 | Stats and level progression in a live game | the live RPG (`playscape/rpg/`) | `toLiveParty`: each sheet as a `play.rpg` member of the live class its class plays as, its abilities read as the live stats; `readRpg` takes it and the battle kernel fights it (tested) |
 | A dungeon from a building | programs (`era/programs.js`) | `dungeonFromProgram({ use })`: the program's rooms by role, a loop, the goal locked and keyed; the use rides along for the lowering |
 | A world map in 3D | the epoch map (`board/board-map.js`) | `toEpochMap`: places as dots, roads as roads; `readMapSpec` takes it (tested) |
 | The walkable dungeon | the stage and atlas (`era/stage.js`, `era/doors.js`, `era/atlas.js`) | the target of the lowering: rooms and links, `doors[].locked: '<item>'`, items; not built |
 | Fights in 3D | the live RPG's encounters | a room's foes become `play.rpg` encounters; not built |
 | Board play at the table | the tabletop type (`tabletop/`) | separate: a board or card minigame inside a scenario stays a tabletop game |
+
+## Factions and the cast
+
+A fight is spoken to through its **leader**, the highest-ranked foe standing who belongs to a faction. On a member's
+turn, once a fight, the party may **parley** (presence), **threaten** (might) or **bribe** with a treasure (presence;
+never the goal). The faction's **standing** with the party, −2 to 2, sets the difficulty: hostile will not hear,
+wary hard, neutral medium, friendly easy, and an allied faction's foes stand aside unasked. A leader who heeds a talk
+makes it a step easier; one who scorns it a step harder (past hard, it is not offered). A success and the foes stand
+aside: the room is passed and their experience earned, a parley or a bribe warms the faction a step, a threat cools
+it. At a cost they stand aside and nothing changes (a threatened leader strikes first). A failure and the fight goes
+on; a fumble cools it too. Foes beaten cool their faction and its allies a step and warm its rivals one, so the
+standing is a ledger of how the party has played. All of it is portable words: `factions`, a foe's `faction`, `heeds`
+and `scorns`.
+
+The **cast** writes them from the egocube when the author does not (`cast: true`): `rollCast` rolls the journey's
+antagonists against the party's lead, and `withCast` writes them as two factions, the mastermind's (wary) and the
+rival's (neutral), each the other's rival, every foe a persona (its reading, what it wants, by what rule). What a foe
+listens to comes from its mind: self-serving heeds a bribe and selfless scorns one; bound heeds a parley and scorns a
+threat; free heeds a threat and scorns a parley. `as` lays the parts onto the module's own foes (with a starter, its
+boss, minions and road bandits take them unasked), and what the module writes wins. The mint's answer names the
+factions and their people and advises on any placed in no room and on no table; the book prints a Factions chapter
+(the party and the factions as a diagram, the talk and the standing ladder in the card's numbers, each faction's
+people by rank), and the referee packet the same in prose.
 
 ## The game book
 
@@ -182,8 +206,11 @@ store and no levels. One property on the door, no new tool (the flat payload pin
 - A balance probe: a module autoplayed over many seeds (how often it is won, who falls, how long the fights run), so a
   card the person's model writes is measured rather than tuned by hand. The tests hold the starters to one such run.
 - Spells, class features, conditions, equipment beyond a weapon, saving throws, skills apart from abilities, and
-  morale or reaction rolls: the cards hold the procedures, not the catalogues.
+  morale or reaction rolls: the cards hold the procedures, not the catalogues. A faction's foes are talked to
+  (parley, threaten, bribe), but they do not break and run on their own yet.
+- The cast's other uses: a town's people as a cast (the mentor, a herald), bonds within the party, the cast's leaders
+  made characters and photographed like the party, standing that opens or shuts a beat.
 - Narrative currencies (aspects, momentum, written moves, progress tracks) as their own procedures: simplified for
   now to checks, harm and a health track; a card cannot yet declare one.
 - A dungeon's lowering: a tree of rooms lays through `planProgram`, a loop needs its own layout pass.
-- A room's own check beyond a trap, NPC talk, shops and rumours in towns.
+- A room's own check beyond a trap, talk outside a fight, shops and rumours in towns.

@@ -7,7 +7,8 @@
  *
  *   tableRpgBook(K, { style?, tape?, parts? }) → { html, findings }   style a book style (book/book-style.js: a
  *     preset's key or its parts; 'tome' when none); tape the dice tape's length (20; 0 leaves it out); parts the
- *     chapters to print, of BOOK_PARTS (['party']: the characters' sheets alone); portraits each member's
+ *     chapters to print, of BOOK_PARTS (factions when the module has them: their diagram, how talk and standing run,
+ *     each faction's people by rank with who they are and what they listen to) (['party']: the characters' sheets alone); portraits each member's
  *     photographs ({ <id>: { figure, bust } }, image URIs: lib/mcp/tools/table-rpg-portraits.js), the figures lined up
  *     on the title page and each bust heading its sheet (none: no picture, the sheet as it was); findings the style's
  *     advice
@@ -16,10 +17,10 @@
 import { bookHtml, esc, heading, para, aside, keyed, facts, statBlock, rollTable, grid, plate, mono, lines } from '../book/book-press.js';
 import { readBookStyle } from '../book/book-style.js';
 import { rulesDigest, foeRows } from './table-rpg-module.js';
-import { roomNumbers, dungeonMapSvg, worldMapSvg } from './table-rpg-maps.js';
-import { tableTape, TABLE_RPG_FACULTIES } from './table-rpg-kernel.js';
+import { roomNumbers, dungeonMapSvg, worldMapSvg, factionMapSvg } from './table-rpg-maps.js';
+import { tableTape, TABLE_RPG_FACULTIES, TABLE_RPG_STANDING, TABLE_RPG_TALK } from './table-rpg-kernel.js';
 
-export const BOOK_PARTS = Object.freeze(['title', 'running', 'world', 'dungeons', 'foes', 'tables', 'party', 'tape', 'colophon']);
+export const BOOK_PARTS = Object.freeze(['title', 'running', 'world', 'dungeons', 'foes', 'factions', 'tables', 'party', 'tape', 'colophon']);
 
 const words = (s) => String(s).replace(/[-_]/g, ' ');
 const cap = (s) => String(s).replace(/^./, (c) => c.toUpperCase());
@@ -98,7 +99,31 @@ function dungeon(K, D) {
 }
 
 function foes(K) {
-  return Object.entries(K.foes).map(([id, F]) => statBlock(cap(F.name ?? words(id)), foeRows(K, id), { note: `rank ${F.rank}${F.text ? `: ${F.text}` : ''}` })).join('');
+  return Object.entries(K.foes).map(([id, F]) => statBlock(cap(F.name ?? words(id)), foeRows(K, id), { note: `rank ${F.rank}${F.faction ? `, ${K.factions[F.faction].name}` : ''}${F.text ? `: ${F.text}` : ''}` })).join('');
+}
+
+const ear = (F) => [F.heeds?.length ? `heeds ${list(F.heeds.map((t) => `a ${t === 'threaten' ? 'threat' : t}`))}` : null, F.scorns?.length ? `scorns ${list(F.scorns.map((t) => `a ${t === 'threaten' ? 'threat' : t}`))}` : null].filter(Boolean).join('; ');
+
+function factions(K) {
+  const D = K.sys.check.difficulty, word = (n) => TABLE_RPG_STANDING[n + 2];
+  const out = [plate(factionMapSvg(K), { caption: 'The factions: where each stands with the party at the start, and with each other', span: true })];
+  out.push(para(`A fight with a faction's foes is spoken to through its leader, the highest-ranked of them standing. On a member's turn, once a fight, they may parley (${TABLE_RPG_TALK.parley}), threaten (${TABLE_RPG_TALK.threaten}) or bribe with a treasure (${TABLE_RPG_TALK.bribe}). A success and the foes stand aside, the room passed and their experience earned: a parley or a bribe raises the faction's standing a step, a threat lowers it. At a cost they stand aside and nothing changes, though a threatened leader strikes first. A failure and the fight goes on; a fumble lowers the standing too. Foes beaten lower their faction and its allies a step, and raise its rivals one.`));
+  out.push(facts([['hostile', 'will not hear you'], ['wary', `hard (${D.hard})`], ['neutral', `medium (${D.medium})`], ['friendly', `easy (${D.easy})`], ['allied', 'they stand aside unasked']]));
+  out.push(para('A leader who heeds a talk makes it a step easier; one who scorns it, a step harder.'));
+  for (const F of Object.values(K.factions)) {
+    const members = Object.entries(K.foes).filter(([, f]) => f.faction === F.id).sort(([, a], [, b]) => b.rank - a.rank);
+    const rel = [...(F.allies.length ? [['allies', list(F.allies.map((a) => K.factions[a].name))]] : []), ...(F.rivals.length ? [['rivals', list(F.rivals.map((a) => K.factions[a].name))]] : [])];
+    const body = (F.text ? para(F.text) : '') + facts([['at the start', word(F.standing ?? 0)], ...rel])
+      + members.map(([id, f]) => {
+        const P = f.persona, rel = P?.relation && !P.relation.startsWith('one of') ? `the ${P.relation}` : P?.relation;
+        const who = [P?.name && P.name !== f.name ? P.name : null, rel].filter(Boolean).join(', ');
+        const says = [who || null, P?.reads ? cap(P.reads) : null, ear(f) ? cap(ear(f)) : null].filter(Boolean);
+        const leads = P?.relation ? ['mastermind', 'rival'].includes(P.relation) : f.rank === members[0][1].rank;
+        return aside(`<b>${esc(cap(f.name ?? words(id)))}</b>, rank ${f.rank}${says.length ? `: ${esc(says.join('. '))}.` : '.'}`, { label: leads ? 'Leads' : 'Serves' });
+      }).join('');
+    out.push(heading(cap(F.name), 3) + body);
+  }
+  return out.join('');
 }
 
 function tables(K) {
@@ -135,6 +160,7 @@ export function tableRpgBook(K, { style = 'tome', tape = 20, parts, portraits = 
     { id: 'world', title: 'The world', body: world(K) },
     ...Object.values(K.D).map((D) => ({ id: `dungeon-${D.id}`, title: cap(D.name), body: dungeon(K, D) })),
     { id: 'foes', title: 'Foes', body: foes(K) },
+    ...(Object.keys(K.factions).length ? [{ id: 'factions', title: 'Factions', body: factions(K) }] : []),
     ...(Object.keys(K.tables).length || (K.M.beats ?? []).length ? [{ id: 'tables', title: 'Tables', body: tables(K) }] : []),
     { id: 'party', title: 'The party', kind: 'pages', body: K.party.map((p) => sheet(K, p, portraits[p.id])).join('') },
     ...(tape ? [{ id: 'tape', title: 'The dice', body: para('Read in order, one die at a time: the game is fair and can be played again the same way.') + mono([20, 6, 10, 100].map((s) => `d${String(s).padEnd(3)} ${tableTape(K.seed, s, tape).map((v) => String(v).padStart(String(s).length)).join(' ')}`).join('\n')) }] : []),

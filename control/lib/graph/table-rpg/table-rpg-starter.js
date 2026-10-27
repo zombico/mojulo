@@ -72,6 +72,11 @@ export function withStarter(module) {
     const rest = { ...module };
     delete rest.starter;
     out = { ...parts, ...rest };
+    // a cast takes the starter's people: the boss leads it, the minions are its troops, the road's bandits the rival's
+    if (module.cast && !(module.cast !== true && module.cast.as)) {
+      const [minion, boss] = FOES_OF[S.use] ?? ['Prowler', 'Master'];
+      out.cast = { ...(module.cast === true ? {} : module.cast), as: { mastermind: slug(boss), troop: slug(minion), hand: 'bandit' } };
+    }
   }
   if (out.party === undefined) out = { ...out, party: STARTER_PARTY.map((role, i) => ({ id: `pc-${i + 1}`, egocube: { facets: { role } } })) };
   return out;

@@ -23,11 +23,21 @@
  *               trap?: { faculty, difficulty?, harm: <rank 1–5> | <dice>, text? }, search?: <difficulty> }
  *       link: { a, b, kind?: 'open' | 'door' | 'stair' | 'locked' | 'secret', key?: <item id>, force?: <difficulty>,
  *               oneWay?: true, search?: <difficulty> }
- *     foes?: { <id>: { name?, rank: 1–5, text?, stats?: { hp, defence, attack, damage, xp } } }
+ *     foes?: { <id>: { name?, rank: 1–5, text?, stats?: { hp, defence, attack, damage, xp }, faction?,
+ *                     heeds?: [talk], scorns?: [talk] } }
+ *     factions?: { <id>: { name?, text?, standing?: −2 … 2, allies?: [faction], rivals?: [faction] } }
  *     items?: { <id>: { name?, kind?: 'key' | 'treasure' | 'heal', heal?: 'some' | 'all' | <dice>, text? } }
  *     tables?: { <id>: { name?, die, rows: [{ on: n | [lo, hi], text, foes?: [foe id], item? }] } }
  *     beats?: [{ id, at: '<place>' | '<dungeon>/<room>', text, sets?: <flag>, milestone?: true }]
  *   }
+ *   FACTIONS AND TALK. A fight is spoken to through its leader, the highest-ranked foe standing who belongs to a faction:
+ *   on a member's turn it may parley (presence), threaten (might) or bribe with a treasure (presence), once a fight. The
+ *   faction's standing sets the difficulty (hostile will not hear, wary hard, neutral medium, friendly easy; an allied
+ *   faction's foes stand aside unasked), a step easier for a talk the leader heeds, a step harder for one it scorns.
+ *   A success and they stand aside (the room is passed, the foes' experience earned): a parley or a bribe raises the
+ *   standing, a threat lowers it; at a cost they stand aside and nothing changes (a threat: the leader strikes first);
+ *   a failure and the fight goes on, a fumble lowering the standing too. Foes beaten lower their faction and its allies
+ *   a step and raise its rivals one.
  *   Portable words (the system says them in its own numbers): a faculty (might, agility, grit, wits, insight, presence,
  *   stealth, or one of the system's own abilities), a difficulty (easy | medium | hard, or the system's own number: a DC,
  *   a shift, a rung, a percent), a foe's rank (and a trap's harm as the harm of a foe of that rank), a member's role, a
@@ -49,7 +59,7 @@
  *   resolve(K, S, pc, faculty, difficulty) → { band, total, text }   band: crit | success | partial | fail | fumble
  *
  *   S: { r, at: { place, dungeon?, room? }, from, party: [{ id, hp, maxHp, level, xp, marks, scores, mods }], bag,
- *        flags, open, found, taken, cleared, searched, seen, sprung, beats, wounds, day, fight, over, turn }
+ *        flags, open, found, taken, cleared, searched, seen, sprung, beats, wounds, standing, day, fight, over, turn }
  *   over: null | { won: bool, reason }
  */
 
@@ -58,6 +68,8 @@ export function buildTableRpg() {
   const DIFF = ['easy', 'medium', 'hard'];
   const BANDS = { crit: 'a critical', success: 'a success', partial: 'a success at a cost', fail: 'a failure', fumble: 'a fumble' };
   const GOOD = { crit: 1, success: 1, partial: 1 };
+  const TALK = { parley: 'presence', threaten: 'might', bribe: 'presence' };
+  const STANDING = ['hostile', 'wary', 'neutral', 'friendly', 'allied'];   // −2 … 2
 
   // ── dice ────────────────────────────────────────────────────────────────────────────────────────────────────────────
   function hash(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h | 0; }
@@ -314,9 +326,18 @@ export function buildTableRpg() {
     const seed = module.seed ?? 1;
     if (!Number.isInteger(seed) || seed < 0) no('seed is a whole number, 0 or more');
     const foes = module.foes ?? {}, items = module.items ?? {}, tables = module.tables ?? {}, dungeons = module.dungeons ?? {};
+    const factions = module.factions ?? {};
+    if (!isObj(factions)) no('factions is { <id>: { name?, text?, standing?: −2 … 2, allies?, rivals? } }');
+    for (const [id, F] of Object.entries(factions)) {
+      if (!ID.test(id)) no(`faction id '${id}' is lower case, digits and dashes`);
+      if (F.standing !== undefined && !(Number.isInteger(F.standing) && F.standing >= -2 && F.standing <= 2)) no(`faction '${id}': standing is −2 (hostile) to 2 (allied)`);
+      for (const k of ['allies', 'rivals']) for (const o of F[k] ?? []) if (!factions[o] || o === id) no(`faction '${id}': ${k} names '${o}', which is no other faction`);
+    }
     for (const [id, f] of Object.entries(foes)) {
       if (!ID.test(id)) no(`foe id '${id}' is lower case, digits and dashes`);
       if (!(Number.isInteger(f.rank) && f.rank >= 1 && f.rank <= 5)) no(`foe '${id}': rank is 1 (a minion) to 5 (a boss)`);
+      if (f.faction !== undefined && !factions[f.faction]) no(`foe '${id}' belongs to '${f.faction}', which is no faction`);
+      for (const k of ['heeds', 'scorns']) for (const t of f[k] ?? []) if (!TALK[t]) no(`foe '${id}': ${k} is some of ${Object.keys(TALK).join(', ')}`);
     }
     for (const [id, I] of Object.entries(items)) {
       if (!ID.test(id)) no(`item id '${id}' is lower case, digits and dashes`);
@@ -405,7 +426,8 @@ export function buildTableRpg() {
       if (String(b.at).includes('/')) roomRef(b.at, `beat '${b.id}' at`); else if (!places[b.at]) no(`beat '${b.id}' is at '${b.at}', which is no place`);
     }
     const foeStats = (id) => { const f = foes[id]; return { ...sys.foes[f.rank - 1], ...(f.stats ?? {}) }; };
-    return { M: module, sys, seed, foes, items, tables, places, D, party, foeStats, title: module.title ?? 'A table game' };
+    const fac = Object.fromEntries(Object.entries(factions).map(([id, F]) => [id, { ...F, id, name: F.name ?? words(id), allies: F.allies ?? [], rivals: F.rivals ?? [] }]));
+    return { M: module, sys, seed, foes, items, tables, places, D, party, foeStats, factions: fac, title: module.title ?? 'A table game' };
   }
 
   // ── the state ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -413,7 +435,8 @@ export function buildTableRpg() {
     const S = {
       r: hash(`${K.seed}|session-v1`), at: { place: K.M.world.start }, from: null,
       party: K.party.map((p) => ({ id: p.id, hp: p.hp, maxHp: p.maxHp, level: p.level, xp: 0, marks: 0, scores: { ...p.scores }, mods: { ...p.mods } })),
-      bag: {}, flags: {}, open: {}, found: {}, taken: {}, cleared: {}, searched: {}, seen: {}, sprung: {}, beats: {}, wounds: {}, day: 1, fight: null, over: null, turn: 0,
+      bag: {}, flags: {}, open: {}, found: {}, taken: {}, cleared: {}, searched: {}, seen: {}, sprung: {}, beats: {}, wounds: {},
+      standing: Object.fromEntries(Object.values(K.factions).map((F) => [F.id, F.standing ?? 0])), day: 1, fight: null, over: null, turn: 0,
     };
     const lines = [`== ${K.title} ==`];
     if (K.M.hook) lines.push(K.M.hook);
@@ -575,6 +598,12 @@ export function buildTableRpg() {
     });
     const C = K.sys.combat;
     const told = new Set();
+    const lead = leaderOf(K, foes);
+    if (lead && S.standing[lead.faction] >= 2) {
+      lines.push(`${list(foes.map((f) => f.name))}: ${K.factions[lead.faction].name}, allied to you. They stand aside.`);
+      if (where) S.cleared[where] = 1;
+      return;
+    }
     lines.push(`Foes! ${list(foes.map((f) => { const t = K.foes[f.id].text, say = t && !told.has(f.id) ? `${f.name} (${t})` : f.name; told.add(f.id); return say; }))}.`);
     let order;
     const pcs = standing(K, S).map((p) => ({ side: 'pc', id: p.id, i: p.i }));
@@ -674,8 +703,71 @@ export function buildTableRpg() {
     lines.push(F.foes.length > 1 ? 'The foes are beaten.' : `${F.foes[0].name} is beaten.`);
     if (F.where) S.cleared[F.where] = 1;
     S.fight = null;
+    // a faction's dead are remembered: by it and its allies against you, by its rivals for you
+    const shift = {};
+    for (const id of new Set(F.foes.map((f) => K.foes[f.id].faction).filter(Boolean))) {
+      const Fa = K.factions[id];
+      shift[id] = (shift[id] || 0) - 1;
+      for (const a of Fa.allies) shift[a] = (shift[a] || 0) - 1;
+      for (const r of Fa.rivals) shift[r] = (shift[r] || 0) + 1;
+    }
+    standingBy(K, S, shift, lines);
     gainXp(K, S, xp, lines);
     outcome(K, S, lines);
+  }
+
+  // ── factions and talk ───────────────────────────────────────────────────────────────────────────────────────────────
+  // the one a fight is spoken to through: the highest-ranked foe standing who belongs to a faction
+  function leaderOf(K, foes) {
+    let L = null;
+    for (const f of foes) { const fa = K.foes[f.id].faction; if (f.hp > 0 && fa && (!L || f.rank > L.rank)) L = { ...f, faction: fa }; }
+    return L;
+  }
+  const standingWord = (n) => `${STANDING[n + 2]} (${n > 0 ? `+${n}` : num(n)})`;
+  function standingBy(K, S, shift, lines) {
+    const moved = [];
+    for (const [id, d] of Object.entries(shift)) {
+      const was = S.standing[id], now = Math.max(-2, Math.min(2, was + d));
+      if (now !== was) { S.standing[id] = now; moved.push(`${K.factions[id].name} ${standingWord(now)}`); }
+    }
+    if (moved.length) lines.push(`Standing: ${list(moved)}.`);
+  }
+  // how hard a talk is with this leader: by its faction's standing, a step for what it heeds or scorns; null: not heard
+  function talkDifficulty(K, S, lead, verb) {
+    const F = K.foes[lead.id];
+    const at = 1 - S.standing[lead.faction] + ((F.scorns ?? []).includes(verb) ? 1 : 0) - ((F.heeds ?? []).includes(verb) ? 1 : 0);
+    return S.standing[lead.faction] <= -2 || at > 2 ? null : DIFF[Math.max(0, at)];
+  }
+  function talk(K, S, pc, verb, item, lines) {
+    const F = S.fight, lead = leaderOf(K, F.foes), Fa = K.factions[lead.faction];
+    F.talked = 1;
+    const say = { parley: `${pc.name} calls for a parley with ${lead.name}`, threaten: `${pc.name} threatens ${lead.name}`, bribe: `${pc.name} offers ${lead.name} ${itemName(K, item)}` }[verb];
+    const r = resolve(K, S, pc, TALK[verb], talkDifficulty(K, S, lead, verb));
+    lines.push(`${say} (${Fa.name}, ${STANDING[S.standing[Fa.id] + 2]}). ${r.text}`);
+    mark(K, S, pc, r.band, lines);
+    if (GOOD[r.band]) {
+      if (verb === 'bribe') { S.bag[item] -= 1; lines.push(`${cap(itemName(K, item))} changes hands.`); }
+      if (verb === 'threaten' && r.band === 'partial') { lines.push(`${lead.name} strikes before giving way.`); hurt(K, S, pc, harmOf(K, S, lead.st.damage).n, lines); }
+      lines.push(`${list(F.foes.filter((f) => f.hp > 0).map((f) => f.name))} stand${F.foes.filter((f) => f.hp > 0).length === 1 ? 's' : ''} aside.`);
+      const xp = F.foes.reduce((a, f) => a + (f.st.xp || 0), 0);
+      if (F.where) S.cleared[F.where] = 1;
+      S.fight = null;
+      if (r.band !== 'partial') standingBy(K, S, { [Fa.id]: verb === 'threaten' ? -1 : 1 }, lines);
+      gainXp(K, S, xp, lines);
+      outcome(K, S, lines);
+      return;
+    }
+    lines.push(`${lead.name} will hear no more of it.`);
+    if (r.band === 'fumble') standingBy(K, S, { [Fa.id]: -1 }, lines);
+    next(S); run(K, S, lines);
+  }
+  function factionLines(K, S) {
+    const out = ['The factions:'];
+    for (const F of Object.values(K.factions)) {
+      const rel = [F.allies.length ? `allied to ${list(F.allies.map((a) => K.factions[a].name))}` : null, F.rivals.length ? `rivals of ${list(F.rivals.map((a) => K.factions[a].name))}` : null].filter(Boolean);
+      out.push(`  ${F.name}: ${standingWord(S.standing[F.id])}${rel.length ? `; ${rel.join('; ')}` : ''}`);
+    }
+    return out;
   }
 
   // ── the end ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -716,6 +808,13 @@ export function buildTableRpg() {
       for (const f of S.fight.foes) if (f.hp > 0) out.push({ name: `attack ${f.key}`, verb: 'attack', foe: f.key, by: pc.id });
       for (const i of heal) out.push({ name: `use ${i}`, verb: 'use', item: i, by: pc.id });
       if (S.fight.where && (S.from || S.at.room === K.D[S.at.dungeon].entry)) out.push({ name: 'flee', verb: 'flee', by: pc.id });
+      const lead = !S.fight.talked && leaderOf(K, S.fight.foes);
+      if (lead) {
+        if (talkDifficulty(K, S, lead, 'parley')) out.push({ name: 'parley', verb: 'parley', by: pc.id });
+        if (talkDifficulty(K, S, lead, 'threaten')) out.push({ name: 'threaten', verb: 'threaten', by: pc.id });
+        if (talkDifficulty(K, S, lead, 'bribe')) for (const i of Object.keys(S.bag)) if (S.bag[i] > 0 && K.items[i]?.kind === 'treasure' && i !== K.M.goal.item) out.push({ name: `bribe ${i}`, verb: 'bribe', item: i, by: pc.id });
+      }
+      if (Object.keys(K.factions).length) out.push({ name: 'factions', verb: 'factions' });
       return out;
     }
     const R = room(K, S);
@@ -737,6 +836,7 @@ export function buildTableRpg() {
       if (P.dungeon) out.push({ name: 'enter', verb: 'enter' });
     }
     for (const i of heal) out.push({ name: `use ${i}`, verb: 'use', item: i });
+    if (Object.keys(K.factions).length) out.push({ name: 'factions', verb: 'factions' });
     out.push({ name: 'rest', verb: 'rest' });
     out.push({ name: 'check <faculty> [easy|medium|hard|n] [by <member>]', verb: 'check', template: true });
     out.push({ name: 'roll <dice>', verb: 'roll', template: true });
@@ -782,6 +882,8 @@ export function buildTableRpg() {
     if (v === 'look') lines.push(...describe(K, S));
     else if (v === 'map') lines.push(...mapLines(K, S));
     else if (v === 'sheet') lines.push(...sheetLines(K, S));
+    else if (v === 'factions') lines.push(...factionLines(K, S));
+    else if (TALK[v]) talk(K, S, pcOf(K, S, mv.by), v, mv.item, lines);
     else if (v === 'roll') lines.push(roll(S, mv.dice).text);
     else if (v === 'ask') oracle(S, mv.odds, lines, mv.question);
     else if (v === 'table') rollTable(K, S, mv.table, lines);
@@ -896,11 +998,13 @@ export function buildTableRpg() {
     return { S, lines: [`"${text}" is not a move now. ${S.fight ? `${pcOf(K, S, S.fight.order[S.fight.turn].id).name} acts. ` : ''}Moves: ${can.join(' · ')}.`] };
   }
 
-  return { FACULTY, DIFF, roll, parseDice, tape, sheet, modOf, resolve, compile, start, legal, parse, apply, act, describe, sheetLines, mapLines };
+  return { FACULTY, DIFF, STANDING, TALK, roll, parseDice, tape, sheet, modOf, resolve, compile, start, legal, parse, apply, act, describe, sheetLines, mapLines };
 }
 
 const _rpg = buildTableRpg();
 export const TABLE_RPG_FACULTIES = _rpg.FACULTY;
+export const TABLE_RPG_STANDING = _rpg.STANDING;
+export const TABLE_RPG_TALK = _rpg.TALK;
 export const tableRoll = _rpg.roll;
 export const tableParseDice = _rpg.parseDice;
 export const tableTape = _rpg.tape;

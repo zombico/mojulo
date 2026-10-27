@@ -253,13 +253,14 @@ async function mintTableRpg(input, context) {
   }
   const { K, checks, findings } = readTableRpg(manifest.tableRpg);
   const at = encodeURIComponent(sketch.ref), playUrl = `/api/sketches/${at}/game`;
-  const { party, findings: found } = tableRpgReadout(K, checks);
+  const { party, factions, findings: found } = tableRpgReadout(K, checks);
   return {
     ok: true,
     ref: sketch.ref,
     engine: 'table-rpg',
     rules: K.sys.name,
     party: party.map((p) => ({ ...p, ...(made.find((m) => m.id === p.id) ? { character: made.find((m) => m.id === p.id).character } : {}) })),
+    ...(factions ? { factions } : {}),
     ...(found.length || findings.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f }))] } : {}),
     url: `/sketches/${at}`,
     playUrl,

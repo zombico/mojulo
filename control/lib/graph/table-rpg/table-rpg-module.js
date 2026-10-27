@@ -7,7 +7,8 @@
  *
  *   readModule(module) → { K, module, checks }   module.system a starter's id (table-rpg-systems.js) or a rules card written out;
  *     `starter: { use }` fills what the module leaves out, a party rolled when it names none (table-rpg-starter.js);
- *     members' personas rolled (table-rpg-party.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
+ *     members' personas rolled (table-rpg-party.js); `cast` the antagonists rolled as a character graph into factions and foes
+ *     (table-rpg-cast.js); checks: { world, dungeons: { <id>: checkDungeon } }. Throws, teaching
  *   refereePacket(K, { tape? }) → markdown   the rules in a paragraph and how their dice read, the card's attribution if it carries one, the party's
  *     sheets and how each was rolled, the world, each dungeon's key room by room, the foes in the system's numbers, the
  *     tables, the goal; and a dice tape (`tape: n` rolls of the d20, d6, d10 and d100) so an agent referee rolls nothing
@@ -22,17 +23,18 @@ import { systemOf } from './table-rpg-systems.js';
 import { tableCompile, tableStart, tableAct, tableSheetLines, tableTape } from './table-rpg-kernel.js';
 import { withPersonas } from './table-rpg-party.js';
 import { withStarter } from './table-rpg-starter.js';
+import { withCast } from './table-rpg-cast.js';
 import { checkDungeon } from './table-rpg-dungeon.js';
 import { checkWorld } from './table-rpg-world.js';
 
-export const TABLE_RPG_KEYS = Object.freeze(['title', 'seed', 'system', 'starter', 'hook', 'goal', 'ending', 'party', 'world', 'dungeons', 'foes', 'items', 'tables', 'beats']);
+export const TABLE_RPG_KEYS = Object.freeze(['title', 'seed', 'system', 'starter', 'hook', 'goal', 'ending', 'party', 'world', 'dungeons', 'foes', 'factions', 'cast', 'items', 'tables', 'beats']);
 
 const words = (s) => String(s).replace(/[-_]/g, ' ');
 
 export function readModule(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`table rpg: a module is { ${TABLE_RPG_KEYS.join(', ')} }`);
   for (const k of Object.keys(raw)) if (!TABLE_RPG_KEYS.includes(k)) throw new Error(`table rpg: unknown key '${k}' (keys: ${TABLE_RPG_KEYS.join(', ')})`);
-  const module = withPersonas(withStarter({ ...raw, system: systemOf(raw.system ?? 'target') }));
+  const module = withCast(withPersonas(withStarter({ ...raw, system: systemOf(raw.system ?? 'target') })));
   const K = tableCompile(module);
   const goalRoom = (id) => {
     const G = module.goal;
@@ -121,6 +123,16 @@ export function refereePacket(K, { tape = 20 } = {}) {
   for (const [id, F] of Object.entries(K.foes)) {
     const said = foeRows(K, id).map(([k, v]) => `${k} ${v}`).join(', ');
     out.push(`- **${F.name ?? words(id)}** (rank ${F.rank}${F.text ? `, ${F.text}` : ''}): ${said}.`);
+  }
+  if (Object.keys(K.factions).length) {
+    const word = ['hostile', 'wary', 'neutral', 'friendly', 'allied'];
+    out.push('', '## Factions', '', 'A fight with a faction\'s foes is spoken to through its leader (the highest rank standing): parley (presence), threaten (might) or bribe with a treasure (presence), once a fight. Standing sets the difficulty: hostile will not hear, wary hard, neutral medium, friendly easy, allied stand aside unasked; a step easier for what the leader heeds, harder for what it scorns. Success: they stand aside (a parley or bribe +1 standing, a threat −1); at a cost they stand aside, nothing changes (a threatened leader strikes first); a fumble −1. Foes beaten: their faction and its allies −1, its rivals +1.', '');
+    for (const F of Object.values(K.factions)) {
+      out.push(`- **${F.name}**: ${word[(F.standing ?? 0) + 2]} at the start${F.allies.length ? `; allies ${F.allies.map((a) => K.factions[a].name).join(', ')}` : ''}${F.rivals.length ? `; rivals ${F.rivals.map((a) => K.factions[a].name).join(', ')}` : ''}.${F.text ? ` ${F.text}` : ''}`);
+      for (const [id, f] of Object.entries(K.foes).filter(([, f]) => f.faction === F.id).sort(([, a], [, b]) => b.rank - a.rank)) {
+        out.push(`  - ${f.name ?? words(id)} (rank ${f.rank})${f.persona ? `: ${[f.persona.name && f.persona.name !== f.name ? f.persona.name : null, f.persona.relation].filter(Boolean).join(', ')}${f.persona.relation || (f.persona.name && f.persona.name !== f.name) ? '. ' : ''}${f.persona.reads}` : ''}${f.heeds?.length ? `; heeds ${f.heeds.join(', ')}` : ''}${f.scorns?.length ? `; scorns ${f.scorns.join(', ')}` : ''}`);
+      }
+    }
   }
   if (Object.keys(K.tables).length) {
     out.push('', '## Tables', '');
