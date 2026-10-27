@@ -40,7 +40,7 @@ import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
-import { bayRoom } from './bay.js';
+import { bayRoom, bayLaws } from './bay.js';
 import { bayKit, BAY_REGISTERS } from './style/bay-kits.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
@@ -1162,6 +1162,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // the form render's light (form/room-light.js): the lamps the bake laid (placed lights, braziers, pools), each its solved
     // key, the ambient and the falloff, for the page to light the relief by; a toned room's void; only a room read in the
     // form render
+    // the bay shell's readout (bay.js): what each room built (its roof, its walkways and their entries) and its laws
+    ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
     ...(formLit ? { form: { room: { lights: readFormLight(formLamps, formLit.light.keys), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },

@@ -23,6 +23,12 @@ export const CUTS = {
   epoxy: { cut: 'epoxy', face: 'floor', stone: [92, 104, 112], mortar: [40, 42, 44], cols: 1, rows: 1, grit: 0.5 },
   grating: { cut: 'grating', face: 'floor', stone: [140, 142, 140], mortar: [24, 24, 26], cols: 1, rows: 1, grit: 0.5, metres: 1 },
   corrugated: { cut: 'corrugated', stone: [110, 120, 112], mortar: [80, 80, 80], cols: 12, rows: 1, grit: 0.5 },
+  perforated: { cut: 'perforated', stone: [150, 156, 160], mortar: [20, 20, 22], cols: 1, rows: 1, grit: 0.4, metres: 0.5 },
+  terrazzo: { cut: 'terrazzo', face: 'floor', stone: [200, 196, 186], mortar: [90, 96, 104], cols: 2, rows: 2, grit: 0.3 },
+  glazed: { cut: 'glazed', stone: [210, 226, 222], mortar: [150, 156, 154], cols: 8, rows: 16, grit: 0.4, metres: 1.2 },
+  studded: { cut: 'studded', face: 'floor', stone: [60, 64, 66], mortar: [40, 40, 40], cols: 1, rows: 1, grit: 0.5, metres: 1 },
+  seam: { cut: 'seam', stone: [130, 60, 50], mortar: [80, 80, 80], cols: 4, rows: 1, grit: 0.5 },
+  acoustic: { cut: 'acoustic', stone: [220, 218, 210], mortar: [200, 200, 196], cols: 4, rows: 4, grit: 0.4, metres: 2.4 },
 };
 const W = size, cols = 4, sheet = Buffer.alloc(W * cols * W * Object.keys(CUTS).length * 3);
 const put = (rgb, col, row) => { for (let j = 0; j < W; j++) rgb.copy(sheet, ((row * W + j) * W * cols + col * W) * 3, j * W * 3, (j + 1) * W * 3); };

@@ -54,7 +54,12 @@
  * (a floor) a poured coat, saw-cut joints (`cols` a repeat), a broadcast fleck, the lanes tracked; `'grating'` (a
  * floor) bar grating read opaque, bearing bars every 30 mm, cross bars every 100 mm over a dark pit; `'corrugated'` a
  * trapezoid sheet profile (`cols` ribs a repeat), lapped at the repeat's top with fasteners on the crowns, the weather
- * streaked down.
+ * streaked down; `'perforated'` punched metal, round holes on a staggered pitch over the dark behind; `'terrazzo'` (a
+ * floor) chips of marble at two sizes in a polished matrix, divider strips in a grid; `'glazed'` ceramic tile (`cols` ×
+ * `rows`) in grout, each tile's glaze a hair domed and its own shade, crazed at grit; `'studded'` (a floor) rubber with
+ * round studs, their tops scuffed; `'seam'` standing-seam cladding (`cols` panels a repeat), a folded rib between the
+ * pans, the weather down from the top; `'acoustic'` fissured lay-in tiles in a T-bar grid (`cols` a repeat), stained at
+ * grit.
  *
  * The NATURAL class, the land a town stands in (era/gritty-land.js): `cut: 'turf'` (a floor) a sward from above, blades
  * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
@@ -691,6 +696,103 @@ const MADE = {
       if (bar[k] === 2) return rampAt(body, 0.62 + v + 0.08 * g * clamp(sfbm(x, y, M, 0.3, 0.6, 2, seed + 5) + 0.3, 0, 1));
       if (bar[k] === 1) return rampAt(body, 0.48 + v - 0.2 * lit.cavity[k]);
       return rampAt(pit, 0.25 + 0.1 * sfbm(x, y, M, 0.15, 0.15, 2, seed + 7) - 0.3 * lit.cavity[k]);
+    });
+  },
+  // punched metal: round holes on a staggered pitch (`cols` holes across a repeat's row of 10 cm), the sheet's edge a
+  // plain margin at the repeat's border; the dark behind each hole, the sheet's face a little worn at grit
+  perforated(c, size, seed) {
+    const M = c.metres, g = c.grit, p = snapCell(M, 0.1 / Math.max(1, c.cols)), hr = p * 0.3, body = rampOf(c.stone), back = rampOf(c.mortar ?? [20, 20, 22]);
+    const hole = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const row = Math.floor(y / (p * 0.866)), xo = row % 2 ? p / 2 : 0, dy = toLattice(y, p * 0.866, p * 0.433), dx = toLattice(x, p, xo + p / 2), d = Math.hypot(dx, dy);
+      hole[k] = d < hr ? 1 : 0;
+      return d < hr ? -0.006 : 0.0002 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1;
+      if (hole[k]) return rampAt(back, 0.2);
+      return rampAt(body, 0.6 + v + 0.04 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 5) * (0.4 + g) - 0.2 * lit.cavity[k]);
+    });
+  },
+  // terrazzo: chips of marble (`mortar` the chips' colour, the matrix `stone`) in a ground and polished matrix, a divider
+  // strip in a grid (`cols` a repeat); flat, its chips flush
+  terrazzo(c, size, seed) {
+    const M = c.metres, g = c.grit, sw = M / c.cols, body = rampOf(c.stone), chip = rampOf(c.mortar), chipK = new Float32Array(size * size), strip = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / sw) * sw, fy = y - Math.floor(y / sw) * sw;
+      if (Math.min(fx, sw - fx, fy, sw - fy) < 0.004) { strip[k] = 1; return 0.0002; }
+      // chips at two sizes on wrapped grids, each its own tone
+      for (const [cell, share, q] of [[0.06, 0.6, 3], [0.025, 0.55, 7]]) {
+        const cc = snapCell(M, cell), hx = cellHash(x, y, M, cc, seed + q), cx = (Math.floor(x / cc) + 0.25 + 0.5 * hx) * cc, cy = (Math.floor(y / cc) + 0.25 + 0.5 * cellHash(x, y, M, cc, seed + q + 1)) * cc;
+        if (hx < share && Math.hypot(x - cx, (y - cy) * 1.3) < cc * 0.32) { chipK[k] = 0.3 + 0.7 * cellHash(x, y, M, cc, seed + q + 2); break; }
+      }
+      return 0.00008 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 11) - 0.0001 * g * clamp(sfbm(x, y, M, 0.3, 1, 2, seed + 13), 0, 1);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.0;
+      if (strip[k]) return [176, 160, 120].map((q) => q * (0.85 + 0.3 * v));
+      if (chipK[k] > 0) return rampAt(chip, 0.35 + 0.5 * chipK[k] + v);
+      return rampAt(body, 0.6 + v + 0.02 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 15));
+    });
+  },
+  // glazed ceramic tile: `cols` × `rows` tiles a repeat, a grout joint between them, each tile's glaze a hair domed and a
+  // shade its own, a crazed glaze at grit
+  glazed(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, th = M / c.rows, jt = 0.005, body = rampOf(c.stone), grout = rampOf(c.mortar), tone = new Float32Array(size * size), joint = new Uint8Array(size * size), craze = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const ti = Math.floor(x / tw), tj = Math.floor(y / th), fx = x - ti * tw, fy = y - tj * th, d = Math.min(fx, tw - fx, fy, th - fy);
+      tone[k] = (hash01(ti % c.cols, tj % c.rows, seed + 3) - 0.5) * 0.7 * c.vary / 255;
+      if (d < jt / 2) { joint[k] = 1; return -0.0015; }
+      craze[k] = g > 0.3 ? 1 - smoothstep(0.0008, 0.002, Math.abs(sfbm(x, y, M, 0.04, 0.04, 2, seed + 5))) : 0;
+      // (the glaze pillowed: highest in the tile's middle, rolling down to the grout)
+      return 0.0004 * Math.min(1, d / 0.004) + 0.0006 * (1 - ((2 * fx) / tw - 1) ** 4) * (1 - ((2 * fy) / th - 1) ** 4) - 0.0001 * craze[k];
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.05;
+      if (joint[k]) return rampAt(grout, 0.5 + v);
+      return rampAt(body, 0.62 + v + tone[k] - 0.06 * craze[k] + 0.08 * lit.convex[k]);
+    });
+  },
+  // studded rubber: round studs on a square pitch, the sheet's seams `cols` a repeat; the studs' tops scuffed lighter
+  studded(c, size, seed) {
+    const M = c.metres, g = c.grit, p = snapCell(M, 0.04), sr = 0.012, sw = M / c.cols, body = rampOf(c.stone), top = new Float32Array(size * size), seam = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / sw) * sw, fy = y - Math.floor(y / sw) * sw;
+      if (Math.min(fx, sw - fx, fy, sw - fy) < 0.0015) { seam[k] = 1; return -0.001; }
+      const d = Math.hypot(toLattice(x, p, p / 2), toLattice(y, p, p / 2));
+      top[k] = d < sr * 0.7 ? 1 : 0;
+      return dome(d, sr, 0.0025) + 0.0001 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1 - 0.25 * lit.cavity[k];
+      if (seam[k]) return rampAt(body, 0.25 + v);
+      return rampAt(body, 0.55 + v + top[k] * 0.08 * (0.3 + g) * clamp(sfbm(x, y, M, 0.3, 0.3, 2, seed + 5) + 0.4, 0, 1));
+    });
+  },
+  // standing-seam cladding: panels `cols` a repeat, each seam a raised rib folded up between them, the pans between flat
+  // with a faint stiffening ripple; the weather streaked down from the top
+  seam(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, body = rampOf(c.stone), rib = new Uint8Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / pw) * pw, d = Math.min(fx, pw - fx);
+      if (d < 0.012) { rib[k] = 1; return 0.025 * Math.cos((d / 0.012) * Math.PI / 2); }
+      return 0.0006 * Math.sin((fx / pw) * Math.PI * 6) * (d > 0.05 ? 1 : d / 0.05);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.2 - 0.2 * lit.cavity[k];
+      const streak = Math.max(0, sfbm(x, y, M, 0.06, 1.4, 2, seed + 5) - 0.05) * (0.04 + 0.18 * g);
+      return rampAt(body, 0.6 + v + 0.03 * rib[k] - streak);
+    });
+  },
+  // fissured acoustic tile in a T-bar grid: `cols` tiles a repeat, the grid a bar proud under them, each tile's face
+  // pocked with fissures and pinholes, a stain or two at grit
+  acoustic(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, bar = rampOf(c.mortar), body = rampOf(c.stone), grid = new Uint8Array(size * size), stain = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / tw) * tw, fy = y - Math.floor(y / tw) * tw, d = Math.min(fx, tw - fx, fy, tw - fy);
+      if (d < 0.008) { grid[k] = 1; return 0.004; }
+      stain[k] = clamp((sfbm(x, y, M, 0.25, 0.25, 3, seed + 9) - 0.4) * 3, 0, 1) * g;
+      const fiss = Math.abs(sfbm(x, y, M, 0.015, 0.03, 2, seed + 3));
+      return -0.0012 * (1 - smoothstep(0.02, 0.08, fiss)) - (cellHash(x, y, M, 0.006, seed + 5) < 0.08 ? 0.0008 : 0) - 0.003 * clamp(1 - (d - 0.008) / 0.01, 0, 1);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1;
+      if (grid[k]) return rampAt(bar, 0.6 + v);
+      return rampAt(body, 0.65 + v - 0.25 * lit.cavity[k] - 0.12 * stain[k]);
     });
   },
   // corrugated sheet: a trapezoid profile across u (`cols` ribs a repeat), the sheets lapped at the repeat's edge, a row

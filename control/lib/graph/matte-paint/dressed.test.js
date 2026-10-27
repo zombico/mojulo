@@ -179,7 +179,7 @@ describe('the modern class and the roads', () => {
 });
 
 describe('the made class: the bay\'s steel, sheet and poured faces', () => {
-  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated'];
+  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated', 'perforated', 'terrazzo', 'glazed', 'studded', 'seam', 'acoustic'];
   const H = (cut, over = {}) => { const M = dressedMaterial({ ...CFG, cut, metres: 1, rows: 4, cols: 2, ...over }, { size: 128, seed: 3 }); return { M, at: (x, y) => M.height[Math.floor(y * 128) * 128 + Math.floor(x * 128)] }; };
   it('each cut is seamless, its own bytes, on the rails, and read as material from a relief', () => {
     for (const cut of MADE) {

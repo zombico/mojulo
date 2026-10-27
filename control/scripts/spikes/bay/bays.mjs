@@ -17,11 +17,16 @@ const { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } = await import('@
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = path.resolve(arg('--out', 'bay-kits')), only = arg('--only', null)?.split(','), capture = !process.argv.includes('--no-capture'), cdn = process.argv.includes('--cdn');
 // a corridor (a squeeze) into a tall bay (the reveal)
-const SUITE = { rooms: [{ id: 'corridor', x: 0, y: 0, w: 6, d: 12, h: 3.5 }, { id: 'bay', x: -6, y: 12, w: 18, d: 30, h: 12 }], links: [{ from: 'corridor', to: 'bay' }] };
+// a corridor (a squeeze) into a tall bay (the reveal), on into a second bay (its roof by its own dice)
+const SUITE = { rooms: [{ id: 'corridor', x: 0, y: 0, w: 6, d: 12, h: 3.5 }, { id: 'bay', x: -6, y: 12, w: 18, d: 30, h: 12 }, { id: 'bay-2', x: -4, y: 42, w: 14, d: 24, h: 9 }], links: [{ from: 'corridor', to: 'bay' }, { from: 'bay', to: 'bay-2' }] };
+// and a hall on the kit, to walk (the in-hall grammar: a squeeze, a reveal, the landmark, a squeeze, a rest)
+const HALL = { seed: 4, hall: { beats: ['squeeze', 'reveal', 'landmark', 'squeeze', 'rest'], height: 7, heartbeat: 0.9, run: 16, mouth: 'door' } };
 const CAMS = {
   corridor: { pos: [3, 1.2, 1.7], target: [3, 20, 2.6], vfov: 62 },
   bay: { pos: [-4.2, 14, 1.7], target: [8, 36, 4.5], vfov: 66 },
-  roof: { pos: [10.5, 40, 2.2], target: [0, 20, 9], vfov: 70 },
+  roof: { pos: [8, 38, 1.8], target: [0, 20, 9], vfov: 70 },
+  catwalk: { pos: [2, 30, 5.9], target: [10, 18, 4.5], vfov: 70 },
+  'bay-2': { pos: [3, 44.5, 1.7], target: [3, 64, 5], vfov: 66 },
 };
 const W = 1120, H = 700;
 fs.mkdirSync(out, { recursive: true });
@@ -29,7 +34,12 @@ const pages = [];
 for (const reg of ['military', 'utility', 'science']) {
   if (only && !only.includes(reg)) continue;
   const manifest = { kind: 'stage', kit: `bay-${reg}`, ...SUITE };
-  const S = assembleStageScene(manifest, {}).bayRooms ?? null;
+  const B = assembleStageScene(manifest, {}).bay;
+  console.log(`${reg}: ${B.rooms.map((r) => `${r.id} ${r.roof}`).join(', ')}; laws ${B.laws.map((l) => `${l.law} ${l.ok ? 'ok' : 'NO'}`).join(', ')}`);
+  for (const era of ['gen-6', 'gen-7']) {
+    const hall = { kind: 'stage', kit: `bay-${reg}`, ...HALL }, { payload } = await resolveWorldScene({ ref: `bay-hall-${reg}`, title: `Bay hall · ${reg} · ${era}`, manifest: hall }, { era, live: true });
+    fs.writeFileSync(path.join(out, `hall-${reg}-${era}.html`), emitThreeWorld({ ...payload, title: `Bay hall · ${reg} · ${era}`, walk: payload.walk ?? true, inline: !cdn, cdn }));
+  }
   for (const era of ['gen-6', 'gen-7']) {
     const t0 = Date.now();
     const { payload } = await resolveWorldScene({ ref: `bay-${reg}`, title: `Bay · ${reg} · ${era}`, manifest }, { era, live: true });

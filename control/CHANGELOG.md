@@ -32,16 +32,36 @@ gen-7 room bake; the same recipe read in gen-6 is drawn as paint. Built so far:
   zoned: an epoxy field, a band of grating at the walls' feet, a hazard line between them, lamps inset at the band's edge
   on the bay lines, and a pad marked in a big room's middle. A tall room (6.5 m and over) has a corrugated deck, I-beams
   across the short span on the bay lines, a duct, and lamps hung between the beams. A taller one (9 m) adds a bridge
-  crane: rails on corbels, a hazard-painted girder, a trolley, cables to a hook block. From 7.5 m there is a catwalk on
-  the long wall with the fewest doorways, with a grating deck, brackets, a railing, a toe board and a stair up to it.
-  A low room has a panel soffit with strips across it and two pipes along it. The catwalk and the stair are not walked
-  yet.
+  crane: rails on corbels, a girder, a trolley, cables to a hook block. From 7.5 m there is a catwalk on the long wall
+  with the fewest doorways, with a grating deck, brackets, a railing, a toe board and a stair up to it. A low room has a
+  soffit with strips across it and two services along it. Each stage carries the shell's readout and laws
+  (`payload.bay`: each room's roof, surfaces and walkways; layers, overhead, two scales, walkway entries, banisters,
+  two ways in, the accent's share).
 - **Three registers** (`style/bay-kits.js`), each kit `bay-<register>` on the same shell: `bay-military` (steel plate on
   a dark kick band, corrugated crowns, a dark epoxy floor, cool strips), `bay-utility` (concrete block over a painted
   block base, yellow steel pilasters, a sealed concrete floor, warm lamps), `bay-science` (white panels over a teal base
   band, a pale poured floor, cold strips). A kit may name the sixth-gen look it defaults to (`reference`); the bay kits
   take the lab's (`lab-dark`). The fixtures are seats with a word (`strip`, `highbay`, `inset`, `lamp`), never a torch's
   flame; a lamp inset in the floor is held by the bake alone (the page's near lamps are the strong ones).
+- **More materials, alternates per room**: punched `perforated` metal, `terrazzo`, `glazed` ceramic tile, `studded`
+  rubber, standing-`seam` cladding and fissured `acoustic` ceiling tile join the made class. A register offers alternates
+  for its surfaces and each room takes one by its dice: a building's rooms differ and still speak one language.
+- **Roof systems**: a tall room's roof is one of `beams`, `truss` (open-web, a Warren web), `vault` (arched ribs, a
+  corrugated barrel, tie rods), `sawtooth` (glazed north lights, daylight seats) or `coffer` (a concrete waffle, a lamp
+  in each coffer), from its register's list by the room's dice; a braced register crosses its end bays with X-bracing.
+- **Walkways are entered and their banisters block**: a catwalk is railed on every edge over a drop but its entries; it
+  always has a stair head to enter by, and a long one a stair at each end; an entry is at least a door wide; every
+  railing carries a perforated infill from the deck to its top rail, so it stops a walker at any height the walk's rays
+  cast (the page walks on the real geometry); a stair is railed down its open side to the floor, so no one walks under it,
+  and its foot opens onto a clear landing. Walked by the page's own walk (its eye and shin rays, its step and its body's
+  radius on three's raycaster over the stage's faces: `scripts/spikes/bay/walkways.mjs`): up the near stair onto the
+  deck, along it, stopped by the front and the far railings and by the stair's skirt, up the second stair through its
+  gap, in every register. The first walk found the near stair's foot 0.6 m off the end wall behind a pilaster, out of a
+  walker's reach: hence the landing.
+- **A secondary colour and secondary light**: each register paints a secondary colour on its door frames, railings, the
+  crane's girder, the pilasters' foot band and its colour-coded services, and lights in secondary colours (a cove washing
+  up the wall from the crown, the doorway's signal lamp, a downlight under a catwalk), whose hue the bake carries. The
+  hazard stripe is rationed to what lies flat: floor edges, step nosings, the pad, a girder's ends.
 - **Rooms to walk** (`scripts/spikes/bay/bays.mjs`): a corridor opening into a tall bay in each register, in gen-6 and
   gen-7, captured from the corridor, inside the bay and up at its roof; no page errors. The materials' sheet is
   `scripts/spikes/bay/cuts.mjs`.

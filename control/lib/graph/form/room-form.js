@@ -35,7 +35,8 @@ const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toStrin
 /** How rough each dressed cut is (the rest are stone's 0.85): wood a little less, glazed and machine faces less again,
  *  painted steel and a poured floor least (their sheen is what the near lamps find: scene/channels/form.js). */
 export const FORM_ROUGH = Object.freeze({ boards: 0.72, brick: 0.82, precast: 0.7, stucco: 0.8, tile: 0.6, slate: 0.55, pavement: 0.88,
-  plate: 0.5, tread: 0.42, block: 0.92, panel: 0.55, epoxy: 0.3, grating: 0.55, corrugated: 0.5 });
+  plate: 0.5, tread: 0.42, block: 0.92, panel: 0.55, epoxy: 0.3, grating: 0.55, corrugated: 0.5,
+  perforated: 0.5, terrazzo: 0.22, glazed: 0.18, studded: 0.75, seam: 0.45, acoustic: 0.95 });
 /** A painted tile read back as relief: metres of height a unit of luminance stands for, over a nominal metre a repeat. */
 export const LUMINANCE_RELIEF = 0.006;
 
