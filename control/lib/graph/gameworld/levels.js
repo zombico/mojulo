@@ -227,7 +227,8 @@ export function roadwayEnds(manifest) {
   if (ROAD_ENDS.size > 16) ROAD_ENDS.clear();
   let plan;
   try { plan = manifest.scape ? planScapedTrack(manifest) : planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
-  const T = trackContract(plan), surface = trackSurface(plan), pole = T.grid[0];
+  // (a duel's player starts in lane one: its grid's second slot, lane two's the rival's)
+  const T = trackContract(plan), surface = trackSurface(plan), pole = T.duel ? T.duel.grid[1] : T.grid[0];
   const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
   const at = (x, y) => surface([x, y, 1e4]);
   for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: trackLaws(trackCensus(plan)) })) Object.defineProperty(out, k, { value: v, enumerable: false });

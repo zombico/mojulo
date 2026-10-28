@@ -41,11 +41,13 @@ export const STAGE_START = 30, STAGE_FINISH = 11;
 export { SURFACES };
 
 /** Per class: the road's surface, an edge line's width, kerbs (on the corners), run-off (and its surface outside a
- *  corner), a barrier. Each side sums with half the road to half the class's footprint. */
+ *  corner), a barrier, and `skirt` (the material of a wall down from a raised road: earth, unless the class says).
+ *  Each side sums with half the road to half the class's footprint. */
 export const TRACK_TEMPLATES = Object.freeze({
   kart: Object.freeze({ road: 'asphalt', edgeLine: 0.2, kerb: 1.0, runoff: 4, runoffSurface: 'grass', outside: 'grass', barrier: Object.freeze({ kind: 'tyres', w: 0.9, h: 0.8, hex: '#2c2c2e' }) }),
   circuit: Object.freeze({ road: 'asphalt', edgeLine: 0.25, kerb: 1.2, runoff: 8, runoffSurface: 'grass', outside: 'gravel', barrier: Object.freeze({ kind: 'armco', w: 0.3, h: 0.75, hex: '#b4b8bb' }) }),
   rally: Object.freeze({ road: 'gravel', edgeLine: 0, kerb: 0, runoff: 2.5, runoffSurface: 'grass', outside: 'grass', barrier: null }),
+  stadium: Object.freeze({ road: 'asphalt', edgeLine: 0.2, kerb: 0, runoff: 0.4, runoffSurface: 'asphalt', outside: 'asphalt', barrier: Object.freeze({ kind: 'wall', w: 0.6, h: 1.0, hex: '#d4d1ca' }), skirt: 'concrete' }),
 });
 export const TRACK_FORMS = Object.freeze(['circuit', 'stage']);
 const COLOR = { kerbRed: '#c8302c', kerbWhite: '#eeeeea', line: '#eceae3', check: '#1d1d1f', lip: '#e2b62a', fill: '#b9ab8f', concrete: '#cdc9bf' };
@@ -144,7 +146,7 @@ export function planTrack(m = {}) {
       } else {
         const ga = groundAt(ea[0], ea[1]), gb = groundAt(eb[0], eb[1]);
         // the ground sits SINK under every edge by design: a wall stands only where the road is higher than that
-        if (ea[2] - ga > SINK + 0.1 || eb[2] - gb > SINK + 0.1) faces.push(wall('earth', [ea, eb, [eb[0], eb[1], Math.min(gb, eb[2])], [ea[0], ea[1], Math.min(ga, ea[2])]], COLOR.fill, [A.x, A.y]));
+        if (ea[2] - ga > SINK + 0.1 || eb[2] - gb > SINK + 0.1) faces.push(wall(T.skirt ?? 'earth', [ea, eb, [eb[0], eb[1], Math.min(gb, eb[2])], [ea[0], ea[1], Math.min(ga, ea[2])]], T.skirt ? COLOR.concrete : COLOR.fill, [A.x, A.y]));
       }
     }
     // a crossing's deck: its soffit under the whole footprint
@@ -164,7 +166,8 @@ export function planTrack(m = {}) {
     }
   };
   const lines = { start: a.closed ? 0 : STAGE_START, finish: a.closed ? 0 : L - STAGE_FINISH };
-  for (const s of a.closed ? [0] : [lines.start, lines.finish]) across(s, 1, COLOR.check, Math.round((2 * X.road) / 0.5));
+  // (a duel's second lane starts beside the first: its line too, half the alignment on)
+  for (const s of a.closed ? [0, ...(course.duel ? [course.duel.starts[1]] : [])] : [lines.start, lines.finish]) across(s, 1, COLOR.check, Math.round((2 * X.road) / 0.5));
   for (const r of course.ramps) if (r.lip) across(r.lip.s - 0.6, 0.5, COLOR.lip);
 
   // the kit's wear on the road: the racing line rubbered dark through every corner, and repairs
