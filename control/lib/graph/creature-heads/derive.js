@@ -165,6 +165,26 @@ export const HEAD_DERIVATIONS = Object.freeze({
     palette: { Snout: '#c9a650', Jowl: '#b8953f', Palate: '#7a6230', Jaw: '#b8953f', NosePad: '#3a3026' },
     keep: ['Snout', 'Jowl', 'Palate', 'Jaw'],
   },
+  serpent: {
+    from: 'wolf', reads: 'a snake: a flat skull wide at the jaw\'s hinge, a short blunt snout, lidless slit-pupilled eyes, the forked tongue', family: 'reptile', head: 'snake', serves: ['serpentine'],
+    // (from the wolf, drawn about the origin as every derivation's base is: the dragon, the nearer skull, is drawn in
+    // metres where it sits, and the row moves' heights scaled it from the floor)
+    units: { scale: 0.7 },
+    // (a flat wedge: the crown lowered, the snout drawn in toward the mouth line so the mouth stays shut, where squeezing
+    // the jaw about its own middle opened it)
+    moves: [
+      { op: 'length', k: 0.86, about: 0 },
+      { op: 'skull', pivot: -0.02, width: 1.18, height: 0.48, back: 0.92 },
+      { op: 'muzzle', pivot: 0, length: 0.72, width: 1.0 },
+      { op: 'taper', from: 0, x: 0.55, z: 0.62 },
+    ],
+    // (lidless: the orbit open round the eye; the pupil a slit)
+    eye: { shift: [0.3, -0.05], R: 0.022, pupil: 'slit' },
+    regions: { orbit: { open: [0.85, 0.82], reach: [0.008, 0.01, 0.01], tuck: 0.002, bulk: [0.002, 0.003], thickness: 0.004 }, whiskers: null, tiles: [], nostril: { r: 0.0035, squash: [1.6, 1], slide: 0.3 },
+      tongue: { at: [0.6, 0.02], to: 3.6, slide: 0.06, width: 0.05, thickness: 0.016, lift: 0, seat: 0.003, groove: 0.35, tip: 'fork', forkDepth: 0.3, forkSpread: 0.36, curlMax: 2.2, swayMax: 0.9, droop: 0.9 } },
+    ornaments: { drop: ['ear', 'nose', 'teeth'] },
+    palette: { Iris: '#c9b03a', Pupil: '#0e0e0c', Tongue: '#3a1a22' },
+  },
   mandibled: {
     from: 'bear', reads: 'an insect: a short face pitched down, compound eyes, mandibles where the mouth is, short antennae', family: 'insect', head: 'mandibles', serves: ['insectoid'],
     units: { scale: 0.72 },

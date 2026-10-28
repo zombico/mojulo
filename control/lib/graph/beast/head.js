@@ -16,7 +16,9 @@
  */
 import { beastCard } from './tiered.js';
 import { scaleOf } from './topology.js';
-import { HEAD_LIBRARY, headFor } from '../creature-heads/index.js';
+import { HEAD_LIBRARY, headFor, headPlan } from '../creature-heads/index.js';
+import { deriveHead } from '../creature-heads/derive.js';
+import { validateHead, headFromPlan } from '../polygonizer/station-loft-head.js';
 import { libraryHead } from '../egocube/plan.js';
 import { partRings } from '../polygonizer/tiered-form.js';
 import { SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
@@ -42,12 +44,27 @@ export const NECK_LEAN = 26;
 export const NAPE = Object.freeze({ rings: Object.freeze([Object.freeze({ t: 0.45, flare: 1.08, w: 0.75 }), Object.freeze({ t: 1, flare: 1.3, w: 0.5 })]), into: 0.6, top: 0.62 });
 
 export const BEAST_HEADS = Object.freeze(['person', ...Object.keys(HEAD_LIBRARY)]);
+/** a designed head's words (a derivation of a library skull: creature-heads/derive.js) */
+export const DESIGNED_HEAD_KEYS = Object.freeze(['from', 'name', 'moves', 'eye', 'regions', 'ornaments', 'palette']);
+export const isDesigned = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.from === 'string';
+/** Error strings for a designed head (empty = valid): its words, its skull, and the head it derives standing whole */
+export function designedHeadErrors(w) {
+  const errs = [];
+  for (const k of Object.keys(w)) if (!DESIGNED_HEAD_KEYS.includes(k)) errs.push(`beast.head.${k}: not a word of a designed head (${DESIGNED_HEAD_KEYS.join(', ')})`);
+  if (!HEAD_LIBRARY[w.from]) errs.push(`beast.head.from: the library skull it is drawn from (${Object.keys(HEAD_LIBRARY).join(', ')})`);
+  if (w.moves !== undefined && !(Array.isArray(w.moves) && w.moves.every((m) => m && ['length', 'skull', 'muzzle', 'taper', 'drop'].includes(m.op)))) errs.push('beast.head.moves: row moves, each { op: length | skull | muzzle | taper | drop, … } (creature-heads/derive.js)');
+  if (errs.length) return errs;
+  try { const hp = deriveHead(headPlan(w.from), w); validateHead(hp); headFromPlan(hp); } catch (err) { errs.push(`beast.head: the head drawn from '${w.from}' does not stand: ${err.message}`); }
+  return errs;
+}
 
 export function beastHeadOf(hero) {
   const card = beastCard(hero); if (!card) return null;
   const word = hero.beast.head;
   if (word === 'person') return null;
   if (word && HEAD_LIBRARY[word]) return { id: word };
+  // (a head DESIGNED from a library skull, the creature-from-sheet catalyst's way: its derivation, creature-heads/derive.js)
+  if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
   // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)
   if (hero.head !== undefined && hero.head !== 'none') return null;
   const lib = headFor(card.kin);
@@ -56,14 +73,15 @@ export function beastHeadOf(hero) {
 
 export function beastHead(plan, hero) {
   const H = beastHeadOf(hero); if (!H || !plan.rig) return plan;
-  const card = beastCard(hero), skin = plan.palette?.Skin ?? '#8a7a6a';
+  // (its colour the coat's: a kin whose coat is its own groups', the lamia's, its coat's first, not the skin of its torso)
+  const card = beastCard(hero), skin = (card.coat ? plan.palette?.[card.coat[0]] : null) ?? plan.palette?.Skin ?? '#8a7a6a';
   // the neck leaned forward about its root, its length kept: the head base (a core joint, so the rig's rest) moves
   const J0 = plan.joints, nh = J0.neckHub, hb = J0.headBase, L = Math.hypot(...sub(hb, nh)), a = (NECK_LEAN * Math.PI) / 180;
   const headBase = [hb[0], r6(nh[1] + L * Math.sin(a)), r6(nh[2] + L * Math.cos(a))];
   plan = { ...plan, joints: { ...J0, headBase }, rig: { ...plan.rig, joints: { ...plan.rig.joints, headBase: { ...plan.rig.joints.headBase, at: headBase } } } };
   // (under a cover carried as material, beast/cover.js, the head's details by what reads at the hero's target, the drawn
   // creature's rule: a tuft too short to break the outline is the material's, not a card; its eyes as drawn)
-  const hp0 = libraryHead(H.id, { skin, lineage: card.kin, k: scaleOf(plan) });
+  const hp0 = libraryHead(H.id, { skin, lineage: card.kin, k: scaleOf(plan), derive: H.derive ?? null });
   const hp = beastCoverOf(hero) ? headAtTier(hp0, pxPerMetre(readTarget(hero.target ?? DEFAULT_TARGET), planHeight(plan)) * (hp0.units?.scale ?? 1), { eyes: 1 }) : hp0;
   const segments = plan.segments.filter((s) => s.name !== 'head');
   const rigJoints = { ...plan.rig.joints, headTop: { at: 'head.cranium.tip' }, jawHinge: { at: 'head.jawOpen.pivot', rides: 'head' }, jawTip: { at: 'head.jaw.tip', rides: 'head' } };

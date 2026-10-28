@@ -381,6 +381,54 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   between them. Eyes gate: the operator's to judge. Not yet: a snake's head, slit pupils and scaled cheeks on a
   person's head, a constrictor's grapple, swimming.
 
+- **Each sheet its own beast: the creature-from-sheet flow on the seventh generation** (`creature-heads/derive.js`,
+  `beast/head.js`, `egocube/plan.js`). The catalyst that made the first non-human peoples (`creature-from-sheet`: a
+  head derived from the nearest library skull, masses designed before detail, "design, never copy") had no landing on
+  the tiered body. Every kin wore its library head and its card's masses, and two wolf-kin were the same wolf. Its
+  steps are reviewed against the seventh generation, and these are adapted:
+  - **The serpent skull** (`HEAD_DERIVATIONS.serpent`). Drawn from the wolf by row moves: a flat crown, wide at the
+    jaw's hinge, a short wedge drawn in toward the mouth line so the mouth stays shut, lidless slit-pupilled eyes up on
+    the skull's edge, the forked tongue, no ears and no teeth. It serves the snake-kin, so the lamia is the
+    snake-headed lady. The dragon, the nearer skull, is drawn in metres where it sits: the row moves scale heights
+    about the origin, so they pulled its crown down from two metres while its snout stayed up.
+  - **A designed head** (`beast.head: { from, moves?, eye?, regions?, ornaments?, palette? }`). A head drawn from a
+    library skull by the catalyst's method is the beast's head word. It is derived before it is scaled to the body
+    (`egocube/plan.js` `libraryHead` `derive`), and the door refuses a skull the library does not hold, a word it does
+    not know, a move it cannot make, or a head that does not stand.
+  - **Each sheet's head** (`sheetHead`). The route draws the kin's skull again for every sheet. The sheet's structure
+    notes bias it: a long muzzle longer, a short or blunt one shorter, a broad or heavy head wider, a narrow or slender
+    one narrower. A variation seeded from the sheet moves the skull's length and width, its crown's height, the
+    muzzle's length and width and the eye's size, each within a band (`SHEET_HEAD`) that keeps the kin's read. A skull
+    drawn in place (the dragon's) keeps its crown's height. One sheet always draws the same head.
+  - **Designed masses** (`beast.mass` over the card's, `beast.hump`, `beast.keel`). The route draws them per sheet
+    (`sheetMass`): the kin's girths leaned by the sheet's silhouette word (the catalyst's THESIS: a needle lean, a bell
+    full at the hips, a barrel round with a hump, a column straight) and varied within a band (`SHEET_MASS`).
+  - **A coil is dressed above its hips.** A clothed snake-kin wears the top hemmed at the waist and its upper pieces.
+    It wears no bottom (every cut hangs from the thighs), no coat (its tail hangs below the hip ring the coil
+    replaces), no feet and no piece seated on a leg. The ledger says the lower dress is pending.
+  - **A charm seats on its cord** (`station-loft-adorn.js` `facePoint`). A grid two rows deep has no interior, and
+    the seat search walked only interiors, so a designed outfit's charms on the tiered body threw for a person as for a
+    beast-kin. Such a grid is now searched whole; every other grid is searched as before.
+
+  - **The catalyst says so** (`catalysts/creature-from-sheet.md`, "On the seventh generation"): where each of its steps
+    lands on the tiered body, the designer's words (`beast.head` as a derivation, `beast.mass`, `hump`, `keel`), and
+    that a people with no card, or a sheet asked with `gen: 6`, stays on the ring plan it teaches.
+
+  Not adapted yet: the catalyst's DRESS for a beast below the clothed line (its adornments are still pending on the
+  tiered body) and its COLOUR's paler underside.
+
+  Machine gate (`beast/sheet.test.js`):
+  - the serpent skull standing whole, flatter than its source, its pupils slit, no ears or teeth;
+  - a designed head worn with its own rows, and the door's refusals;
+  - two sheets' heads apart and one sheet's deterministic, within the bands, the dragon's crown kept;
+  - the masses within their band over the silhouette's lean, the door's bounds, a heavier trunk a wider one;
+  - the coil's dress;
+  - the charms seated on a person and on a beast-kin.
+
+  Eyes: the four trial peoples remade from new sheets, two seeds each: the cat-kin, the corvid, the bug scavenger (a
+  flanking insectoid explorer) and the snake-headed lady, each dressed by its sheet. Eyes gate: the operator's to
+  judge.
+
 ### Foe classes: the hostile encounter primitive
 
 A game fights things, and mojulo had seven separate notions of a foe: the quick goals' battle, shooter and defence

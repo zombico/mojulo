@@ -79,6 +79,24 @@ Without a checkout, ledger the notes by hand: each note `carried` (and where) or
 The plan grammar is `get_solid_vocab({ id: 'layered' })` (the Plan, Body detail and adornment sections). The creature
 loop's own card (`creature-from-plan`) holds the ring-plan forms and the art direction; this card adds the sheet.
 
+## On the seventh generation (the tiered body)
+
+A people the beast cards know (lib/graph/beast/cards.js: the bear-, wolf-, cat-, dragon-, bird-, insect- and snake-kin)
+no longer takes the ring plan by hand: its sheet routes to the HERO door on the tiered body, its notes as `beast` words
+(`egocube/plan.js` `beastOf`; the ledger says where each landed). The loop's steps land there:
+- READ, DOOR, TOPOLOGY: the route (legs, a tail or an abdomen, arm-wings, a second pair of arms, a coil: words, not
+  joint tables).
+- HEAD: the kin's library skull, DRAWN AGAIN FOR THE SHEET (its structure notes and a seeded variation within a band),
+  stored as a derivation on `beast.head`. A designer's own head is the same word: `beast.head: { from: <library skull>,
+  moves, eye, regions, ornaments, palette }`, the row moves below. A new skull good enough for a people goes into the
+  library's derivations, as the snake's did.
+- MASSES: the kin's card leaned by the sheet's silhouette word and varied per sheet; a designer's own over it:
+  `beast.mass` (trunk, waist, hips, neck, upperArm, foreArm, hand, thigh, shank, foot), `beast.hump`, `beast.keel`.
+- COVER and ORNAMENTS: the coat as a material (`beast.cover`), the outline breakers as parts (`ridge`, `ruff`, claws).
+- DRESS: a sheet person enough wears its cut (a coil above its hips); adornment below the clothed line is pending.
+Fix by `update_character` on `/hero/beast/...`. A people with no card (one of the operator's own), or any sheet asked
+with `gen: 6`, stays on the ring plan this card teaches below.
+
 ## Topology: what the frame notes ask for
 
 - **Biped, digitigrade** (`legs = digitigrade`): hip → knee (forward) → hock (behind, raised) → toe base → toe tip, as

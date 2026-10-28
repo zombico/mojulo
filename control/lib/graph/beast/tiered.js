@@ -30,7 +30,7 @@ import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS, BEAST_ABDOMENS } from './topology
 import { BEAST_RIDGES, BEAST_RUFFS } from './detail.js';
 import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
 import { isArmorBuild } from '../armor/expand.js';
-import { beastHeadOf, BEAST_HEADS } from './head.js';
+import { beastHeadOf, BEAST_HEADS, isDesigned, designedHeadErrors } from './head.js';
 import { COVER_KINDS } from './cover.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -76,14 +76,16 @@ export function beastCard(hero) {
   const B = hero?.beast;
   if (!B || !BEAST_KINS[B.kin]) return null;
   const K = BEAST_KINS[B.kin];
-  return { ...K, kin: B.kin, legs: B.legs ?? K.legs ?? 'plantigrade', fingers: B.fingers ?? K.fingers, toes: B.toes ?? K.toes, claws: B.claws ?? K.claws };
+  // (its masses DESIGNED: the operator's or the sheet's girths over the card's, its hump and keel its own)
+  return { ...K, kin: B.kin, legs: B.legs ?? K.legs ?? 'plantigrade', fingers: B.fingers ?? K.fingers, toes: B.toes ?? K.toes, claws: B.claws ?? K.claws,
+    mass: { ...K.mass, ...(B.mass ?? {}) }, hump: B.hump ?? K.hump ?? 0, keel: B.keel ?? K.keel ?? 0 };
 }
 
 export function beastErrors(spec) {
   const B = spec?.beast;
   if (B === undefined || B === null) return [];
   if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, toes?, claws?, tail?, wings?, arms? }`];
-  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'cover', 'expression'];
+  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'cover', 'expression', 'mass', 'hump', 'keel'];
   for (const k of Object.keys(B)) if (!WORDS.includes(k)) errs.push(`beast.${k}: not a word of the beast (${WORDS.join(', ')})`);
   if (!BEAST_KINS[B.kin]) errs.push(`beast.kin: one of ${BEAST_KIN_IDS.join(', ')}`);
   if (B.legs !== undefined && !BEAST_LEGS.includes(B.legs)) errs.push(`beast.legs: ${BEAST_LEGS.join(' | ')}`);
@@ -97,10 +99,16 @@ export function beastErrors(spec) {
   else if ((B.abdomen ?? BEAST_KINS[B.kin]?.abdomen ?? 'none') !== 'none' && (B.tail ?? BEAST_KINS[B.kin]?.tail ?? 'none') !== 'none') errs.push("beast.abdomen: an abdomen rides the tail's bones; a kin carries a tail or an abdomen (tail: 'none', or abdomen: 'none')");
   if (B.ridge !== undefined && !BEAST_RIDGES.includes(B.ridge)) errs.push(`beast.ridge: ${BEAST_RIDGES.join(' | ')} (a crest of spines down the back and the tail)`);
   if (B.ruff !== undefined && !BEAST_RUFFS.includes(B.ruff)) errs.push(`beast.ruff: ${BEAST_RUFFS.join(' | ')} (heavy tufts round the neck's root)`);
+  if (B.mass !== undefined) {
+    if (!B.mass || typeof B.mass !== 'object' || Array.isArray(B.mass)) errs.push(`beast.mass: { ${BEAST_MASS_KEYS.join(', ')} }, each a girth against a person's (0.5 … 2)`);
+    else for (const [k, v] of Object.entries(B.mass)) if (!BEAST_MASS_KEYS.includes(k)) errs.push(`beast.mass.${k}: not a mass of the beast (${BEAST_MASS_KEYS.join(', ')})`); else if (!(Number.isFinite(v) && v >= 0.5 && v <= 2)) errs.push(`beast.mass.${k}: a girth against a person's, 0.5 … 2`);
+  }
+  for (const k of ['hump', 'keel']) if (B[k] !== undefined && !(Number.isFinite(B[k]) && B[k] >= 0 && B[k] <= 1)) errs.push(`beast.${k}: 0 … 1 (the ${k === 'hump' ? 'upper back\'s mass under the neck' : 'chest\'s front swelling forward'})`);
   if (B.expression !== undefined && !(B.expression && typeof B.expression === 'object' && !Array.isArray(B.expression) && Object.values(B.expression).every((v) => Number.isFinite(v) && v >= -1 && v <= 1))) errs.push("beast.expression: the library head's expression controls, each −1 … 1 ({ browRaise, browFurrow, sneer, earAttitude, lidClose, cornerRetract … }: station-loft-head.js)");
   if (B.cover !== undefined && !COVER_KINDS.includes(B.cover)) errs.push(`beast.cover: ${COVER_KINDS.join(' | ')} (its coat carried as a material: relief, normal, occlusion and height)`);
-  if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')} (the kin's own by default; 'person' keeps a person's head)`);
-  else if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);
+  if (isDesigned(B.head)) errs.push(...designedHeadErrors(B.head));
+  else if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')}, or a head designed from one ({ from, moves?, eye?, regions?, ornaments?, palette? }: creature-heads/derive.js) (the kin's own by default; 'person' keeps a person's head)`);
+  if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${isDesigned(B.head) ? `designed from ${B.head.from}` : B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);
   // (a paw on a raised hock takes nothing cut for a person's foot: a shoe was drawn over the metatarsus, an armour
   // build's sabatons refused its missing toes by a part's name)
   const legs = B.legs ?? BEAST_KINS[B.kin]?.legs ?? 'plantigrade';
@@ -138,6 +146,8 @@ export function beastRest(card) {
   return { hinge: hunch, crouch, armR: { ...arm }, armL: { ...arm, x: -arm.x }, elbowR: 'slight', elbowL: 'slight', neck: { pitch: r3(hunch * 0.3) }, head: { yaw: 0, pitch: r3(hunch * 0.35) } };
 }
 
+/** the masses a card names and a beast may design (cards.js `mass`) */
+export const BEAST_MASS_KEYS = Object.freeze(['trunk', 'waist', 'hips', 'neck', 'upperArm', 'foreArm', 'hand', 'thigh', 'shank', 'foot']);
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function beastWords(hero) {
   const card = beastCard(hero);
