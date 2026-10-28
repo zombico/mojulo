@@ -84,4 +84,12 @@ describe('what a house is for, stamped at mint', () => {
     await expect(mint({ purpose: 'demo' })).rejects.toThrow(/purpose: one of game, show/);
     await expect(mint({ allowance: { room: 900 } })).rejects.toThrow(/allowance: a game's/);
   });
+
+  it('a new house wears a home\'s windows (houseLook 2); its own kept; a bad one refused', async () => {
+    const mint = (extra) => createSketchHandler({ title: 'home', manifest: { kind: 'floorplan', title: 'home', seed: 3, ...extra } });
+    const stored = async (extra) => SketchRepository.getByRef((await mint(extra)).ref).manifest;
+    expect((await stored({})).houseLook).toBe(2);
+    expect((await stored({ houseLook: 1 })).houseLook).toBe(1);
+    await expect(mint({ houseLook: 7 })).rejects.toThrow(/houseLook: one of 1, 2/);
+  });
 });

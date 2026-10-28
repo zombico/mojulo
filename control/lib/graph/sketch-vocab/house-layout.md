@@ -39,6 +39,10 @@ is a `manifest`.
 - `purpose` — what the house is for, stamped at mint: `'show'` (a house: every piece as drawn, every table set) or
   `'game'` (a `level`: each piece at a coarser grain, nothing on a table, a room's pieces laid in rank within
   `allowance: { room }` faces, what the room is for always standing). A game's World reads its spend as `rails`.
+- `houseLook` — `2`, stamped at mint: a home's windows, drawn from the house's `design.tradition` and its family
+  (North American double-hung, six-over-six, casement, picture, prairie; European casement, tilt-turn, transom,
+  French; Japanese aluminium `slider`), never the steel `crittall` grid, which a house may still name. `1` or absent:
+  the windows a house had before.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
 - Openings: a new house is minted with `windows: true` (every bedroom needs one for egress; `false` for none);
   `entryDoor` and `ceilings` are opt-in on a plan you give.

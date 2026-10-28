@@ -179,6 +179,43 @@ export function houseStyleKey(input = {}) {
   return `plan:${fnv1a(JSON.stringify(plan))}`;
 }
 
+// HOME WINDOWS (a house of `houseLook: 2`, stamped at mint since architect mode): a home's windows are a home's, drawn from
+// its tradition's (the house's `design.tradition`: North American, European, Asian) and its family's, never the steel
+// grid of a workshop. Crittall stays in the catalog (finishes/index.js) for the buildings that want it, and for a house
+// that names it. A frame of null wears the house's trim.
+export const HOUSE_LOOKS = Object.freeze([1, 2]);
+export const WINDOW_REGIONS = Object.freeze({ 'north-american': 'north-american', british: 'european', metric: 'european', japanese: 'asian' });
+const ANTHRACITE = '#383e42', BLACK = '#2a2d31', BRONZE = '#3a2a20', ALUMINIUM = '#b9bdc1', DARK_ALU = '#5b5148';
+export const HOME_WINDOWS = Object.freeze({
+  'north-american': {
+    cottage: { windowStyle: ['double-hung', 'six-over-six', 'cottage', 'colonial'], windowFrameTint: [null] },
+    brick: { windowStyle: ['double-hung', 'six-over-six', 'colonial'], windowFrameTint: [null] },
+    modern: { windowStyle: ['casement', 'picture', 'double-hung'], windowFrameTint: [BLACK, null] },
+    tofu: { windowStyle: ['picture', 'casement'], windowFrameTint: [null, BLACK] },
+    mission: { windowStyle: ['casement', 'prairie', 'double-hung'], windowFrameTint: [null, BRONZE] },
+  },
+  european: {
+    cottage: { windowStyle: ['casement', 'cottage'], windowFrameTint: [null] },
+    brick: { windowStyle: ['six-over-six', 'casement', 'transom'], windowFrameTint: [null] },
+    modern: { windowStyle: ['german', 'picture', 'casement'], windowFrameTint: [ANTHRACITE, null] },
+    tofu: { windowStyle: ['german', 'picture'], windowFrameTint: [ANTHRACITE, null] },
+    mission: { windowStyle: ['casement', 'french'], windowFrameTint: [null, BRONZE] },
+  },
+  asian: {
+    cottage: { windowStyle: ['slider', 'casement'], windowFrameTint: [ALUMINIUM, DARK_ALU] },
+    brick: { windowStyle: ['slider', 'casement'], windowFrameTint: [ALUMINIUM, DARK_ALU] },
+    modern: { windowStyle: ['slider', 'picture'], windowFrameTint: [ALUMINIUM, DARK_ALU] },
+    tofu: { windowStyle: ['slider', 'picture'], windowFrameTint: [ALUMINIUM, DARK_ALU] },
+    mission: { windowStyle: ['slider', 'casement'], windowFrameTint: [DARK_ALU, ALUMINIUM] },
+  },
+});
+/** A house's `houseLook`: 1 (absent: as every house before architect mode) or 2 (a home's windows). */
+export function readLook(v) {
+  if (v === undefined || v === null) return 1;
+  if (!HOUSE_LOOKS.includes(v)) throw new Error(`houseLook: one of ${HOUSE_LOOKS.join(', ')} (2: a home's windows from its tradition; 1 or absent: as before)`);
+  return v;
+}
+
 /**
  * `style` (a family name, 'auto', or absent) → the finish knobs it supplies, plus the resolved
  * `styleName`. Absent ⇒ {} (the house is untouched). An unknown name fails loudly, naming the
@@ -188,8 +225,11 @@ export function houseStyleKey(input = {}) {
  * `finishes` knobs in the same roll, each from its own stream like every pick: its doors, the wider window
  * list, the window frames, a floor per room kind, a wall treatment and a wallpaper (lib/graph/finishes/).
  * A house without it draws exactly what it always did.
+ *
+ * `houseLook: 2` (stamped at mint since architect mode) draws the windows a home has (HOME_WINDOWS), by its `tradition`
+ * (the house's design tradition; absent, North American) and its family, each from its own stream.
  */
-export function houseStyleOpts(style, key, view, { finishes = false } = {}) {
+export function houseStyleOpts(style, key, view, { finishes = false, look = 1, tradition = null } = {}) {
   if (style == null || style === false) return {};
   if (style !== 'auto' && !HOUSE_STYLES[style]) {
     throw new Error(`unknown house style '${style}' — styles: auto, ${HOUSE_STYLE_NAMES.join(', ')}`);
@@ -208,6 +248,11 @@ export function houseStyleOpts(style, key, view, { finishes = false } = {}) {
     out[knob] = knob === 'finish' ? FINISHES[v] : v;
   }
   if (finishes && def.finishes) for (const [knob, list] of Object.entries(def.finishes)) out[knob] = pick(key, `${name}|${knob}`, list);
+  if (readLook(look) >= 2) {
+    const region = WINDOW_REGIONS[tradition || 'north-american'] || 'north-american', home = HOME_WINDOWS[region][name];
+    out.windowStyle = pick(key, `${name}|home-window|${region}`, home.windowStyle);
+    out.windowFrameTint = pick(key, `${name}|home-frame|${region}`, home.windowFrameTint);
+  }
   out.furnishFinish = out.finish;
   delete out.finish;
   return out;

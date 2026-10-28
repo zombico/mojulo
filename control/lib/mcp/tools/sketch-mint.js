@@ -75,7 +75,7 @@ import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
-import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { houseStyleOpts, houseStyleKey, readLook } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
@@ -478,6 +478,10 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // show's, every piece at its best. Stamped, so a row minted before purposes is built as it was
     finalized = { ...finalized, purpose: purposeAtMint(finalized) };
     allowanceOf(finalized);   // a malformed allowance refuses here, naming what it is
+    // and a home's look (floorplan-styles.js HOME_WINDOWS): its windows from its tradition, never a workshop's steel
+    // grid; stamped, so every house minted before keeps its windows
+    if (finalized.houseLook === undefined) finalized = { ...finalized, houseLook: 2 };
+    readLook(finalized.houseLook);
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
     // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out

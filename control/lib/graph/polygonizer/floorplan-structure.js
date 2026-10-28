@@ -1294,7 +1294,8 @@ function openingAssemblyFaces(run, op, baseZ, o) {
     // explicit (op.style / o.windowStyle) or defaulted from the facade: siding→colonial grid,
     // brick→2-over-2 double-hung, tofu→clean picture pane.
     const style = winStyle;
-    const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : 0.8);
+    // (a home's muntins, houseLook 2, are a home's: slim bars, not the frame's own width)
+    const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : (o.houseLook ?? 1) >= 2 ? 0.5 : 0.8);
     const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
     const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
     if (style === 'casement' || (style === 'plain' && W > (o.windowMullionAt ?? FLOORPLAN_DEFAULTS.windowMullionAt))) {
@@ -1326,6 +1327,9 @@ function openingAssemblyFaces(run, op, baseZ, o) {
       hbar(split);
       const cols = Math.max(2, Math.round(W / 1.1));
       for (let i = 1; i < cols; i += 1) bar(ga + (i * W) / cols - mt / 2, ga + (i * W) / cols + mt / 2, split, gz1);
+    } else if (style === 'slider') {
+      const mid = (ga + gb) / 2;                                        // two sashes sliding past: the meeting stiles side by side
+      vbar(mid - mt * 0.7); vbar(mid + mt * 0.7);
     } else if (style === 'six-over-six') {
       hbar((gz0 + gz1) / 2);                                            // two sashes, each three across and two up
       for (let i = 1; i < 3; i += 1) vbar(ga + (i * W) / 3);
@@ -1964,7 +1968,7 @@ function fitWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o, fit) {
 export function structurizeFloorplan(input = {}, opts = {}) {
   // a house style (floorplan-styles.js) supplies defaults under the manifest's own keys; the
   // stacked house resolves it once and passes `_styled`, so a level never re-draws it
-  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto' });
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto', ...homeLook(input, opts) });
   const given = { ...styled, ...opts };
   const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...given };
   const plan = Array.isArray(input.rooms)
@@ -2224,6 +2228,9 @@ export function renderFloorplanToHtml(input = {}, opts = {}) {
  * inline the three.js vendor bundle (required by renderWorldToPng for headless
  * rasterization).
  */
+// a house's look (`houseLook`) and tradition for its style roll (floorplan-styles.js HOME_WINDOWS): absent, look 1, as before
+const homeLook = (input, opts) => ({ look: opts.houseLook ?? input.houseLook ?? 1, tradition: (opts.design ?? input.design)?.tradition ?? null });
+
 // a game's spend, room by room (era/compose-purpose.js): collected while the rooms are furnished, read out beside the
 // faces as `rails` (the page draws none of it); absent a purpose with an allowance, no collector and no key
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -2741,7 +2748,7 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
  * @returns {{ meru, levels:[{ index, role, baseZ, structure }], faces, footprint }}
  */
 export function structurizeHouse(input = {}, opts = {}) {
-  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto' });
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto', ...homeLook(input, opts) });
   const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...styled, ...opts, _styled: true };
   // tofu is a HIGH-CEILING modern read — raise the storey heights for that style (the meru
   // stacks the taller floors, stairs scale their rise to match) unless the caller set heights.
