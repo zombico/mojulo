@@ -192,6 +192,36 @@ export function pouchOn(o, { a, b, out }, worn, { w, h, d, flap = 0.3, group = '
   return parts;
 }
 
+/** the holster's measures (shares of its own size, or m) */
+export const HOLSTER = Object.freeze({ muzzle: 0.68, slide: 0.035, grip: 0.1, gripRake: 0.36, strap: 0.02, hang: 0.08 });
+
+/** A SHOULDER HOLSTER and its pistol, level under the arm: the holster `w` long along `fwd` (its mouth forward), `h` tall
+ * and `d` deep, its back pressed to what stands out most under it (`worn`), tapering to the muzzle's end; out of its
+ * mouth the pistol's slide and its grip, raked down and forward to the hand; a retention strap over the frame with its
+ * snap; a hanger strap up under the arm to the harness. → { name: part } (`group` the holster's, `gun` the pistol's,
+ * `metal` the snap's) */
+export function holsterOn(o, { fwd, up, out }, worn, { w, h, d, group = 'Leather', gun = 'Buckle', metal = 'Buckle', id }) {
+  const H = HOLSTER, back = standOut(worn, o, out, fwd, up, w + 0.01, h + 0.01) + POUCH.gap, c = add(o, scl(out, back)), parts = {};
+  const at = (x, y, z) => add(c, add(add(scl(fwd, x), scl(up, y)), scl(out, z)));
+  // THE HOLSTER: rings along its length in its section (up, out), the muzzle's end the smaller
+  const ring = (x, k) => roundRect(at(x, 0, d / 2), up, out, h * k, d * (0.8 + 0.2 * k), Math.min(h, d) * 0.3);
+  const xs = [-w / 2, -w / 4, 0, w / 4, w / 2], rings = xs.map((x) => ring(x, H.muzzle + (1 - H.muzzle) * ((x + w / 2) / w)));
+  parts[`${id}Body`] = tube(rings, at(-w / 2 - 0.0008, 0, d / 2), at(w / 2 + 0.0008, 0, d / 2));
+  // THE PISTOL out of its mouth: the slide's rear level with the holster's top, the grip raked down and forward
+  const slideAt = at(w / 2 + H.slide / 2, h * 0.22, 0.003), gripDir = unitv(add(scl(fwd, H.gripRake), scl(up, -1)));
+  const slide = block(slideAt, out, fwd, { w: h * 0.45, h: H.slide, thick: d * 0.78 });
+  const gripAt = add(at(w / 2 + H.slide * 0.7, h * 0.1, 0.003), scl(gripDir, H.grip / 2)), grip = block(gripAt, out, gripDir, { w: 0.03, h: H.grip, thick: d * 0.82 });
+  parts[`${id}Slide`] = { ...slide, group: gun }; parts[`${id}Grip`] = { ...grip, group: gun };
+  // THE RETENTION: a strap over the frame behind the grip, its snap on the holster's face
+  parts[`${id}Strap`] = block(at(w / 2 - 0.006, h * 0.18, d + 0.0004), out, up, { w: H.strap, h: h * 0.7, thick: 0.0025 });
+  parts[`${id}Snap`] = { ...block(at(w / 2 - 0.006, -h * 0.12, d + 0.0028), out, up, { w: 0.011, h: 0.011, thick: 0.0022 }), group: metal };
+  // THE HANGER: a strap from the holster's top up under the arm, toward the harness over the shoulder
+  const base = Array.from({ length: 5 }, (_, k) => at(0, h / 2 + (H.hang * k) / 4, -back));
+  parts[`${id}Hanger`] = webbingOn(base, base.map(() => out), worn, { w: 0.022, t: 0.0025 });
+  for (const k of Object.keys(parts)) parts[k].group ??= group;
+  return parts;
+}
+
 /** WEBBING along a path of `bases` (points on the body, each its normal `ns`), laid on what is worn there: each point
  * lifted over the farthest any of `worn` stands within the strap's width (the cloth, a belt), the lift smoothed along,
  * so the strap lies flat on the outermost layer and never stands off or sinks; `w` wide, `t` thick. → the strip */
@@ -238,6 +268,10 @@ export function kitPieces(S, cloth, kit, { L1 }) {
   const parts = {}, taken = new Set(), laid = new Set(), waists = new Set();
   const skin = ['torso', 'pelvis', 'neck', 'thighR', 'thighL', 'upperArmR', 'upperArmL'].map((k) => S.parts[k]).filter(Boolean);
   const worn = [...skin, ...Object.values(cloth)].flatMap(pointsOf);
+  // (a piece on the trunk lies on the trunk and what is worn on it: an arm hanging beside it is no surface, and a holster
+  // pressed to it rode on the arm)
+  const ARM = /^(upperArm|foreArm|hand)[RL]$|_(arm|upperArm|foreArm)[RL]$/;
+  const trunkWorn = [...skin, ...Object.values(cloth)].filter((P) => !Object.entries({ ...S.parts, ...cloth }).some(([k, Q]) => Q === P && ARM.test(k))).flatMap(pointsOf);
   const belts = Object.entries(cloth).filter(([k]) => BELT_PART.test(k));
   for (const A of kit || []) {
     if (!A || typeof A.id !== 'string' || typeof A.part !== 'string') continue;
@@ -245,6 +279,7 @@ export function kitPieces(S, cloth, kit, { L1 }) {
     if (!Pskin || !L1[A.part]) continue;
     // (each frame read OUT from the part's own axis: an address's normal comes out of its neighbours' handedness, which a
     // reshaped part can turn over, and a pouch laid along it went into the body)
+    const onTrunk = /^(torso|pelvis)$/.test(A.part), lie = onTrunk ? trunkWorn : worn;
     const at = (s, t, side) => {
       const F = frameAt(L1, A.part, [s, t], side), st = Pskin.stations.reduce((b, x) => (Math.abs(middle(x)[2] - F.origin[2]) < Math.abs(middle(b)[2] - F.origin[2]) ? x : b)), c = middle(st);
       return F.normal[0] * (F.origin[0] - c[0]) + F.normal[1] * (F.origin[1] - c[1]) < 0 ? { ...F, normal: scl(F.normal, -1) } : F;
@@ -258,7 +293,12 @@ export function kitPieces(S, cloth, kit, { L1 }) {
       const belt = (own.length ? own : belts).map(([k, P]) => { const near = pointsOf(P).filter((q) => Math.hypot(q[0] - f.origin[0], q[1] - f.origin[1]) < 0.08); return near.length ? [k, P, Math.max(...near.map((q) => q[2]))] : null; })
         .filter((x) => x && Math.abs(x[2] - f.origin[2]) < h + (own.length ? 0.1 : 0)).sort((x, y) => Math.abs(x[2] - f.origin[2]) - Math.abs(y[2] - f.origin[2]))[0];
       const o = belt ? [f.origin[0], f.origin[1], belt[2] + 0.004 - h / 2] : f.origin;
-      const made = pouchOn(o, { a, b, out }, worn, { w, h, d, flap: typeof sig.flap === 'number' ? sig.flap : 0.3, group: A.group ?? 'Leather', metal: 'Buckle', id: A.id });
+      // (a gun harness's pieces under the arms: the holster and its pistol, level, its mouth forward; a magazine carrier,
+      // its pouches level and stacked, their flaps forward)
+      const fwd = a[1] >= 0 ? a : scl(a, -1);
+      const made = sig.holster ? holsterOn(f.origin, { fwd, up: b, out }, lie, { w, h, d, group: A.group ?? 'Leather', gun: sig.gun ?? 'Buckle', id: A.id })
+        : sig.mags ? Object.assign({}, ...Array.from({ length: sig.mags }, (_, k) => pouchOn(add(f.origin, scl(b, (k - (sig.mags - 1) / 2) * (h / sig.mags + 0.002))), { a: b, b: fwd, out }, lie, { w: h / sig.mags, h: w, d, flap: 0.22, group: A.group ?? 'Leather', metal: 'Buckle', id: `${A.id}${k}` })))
+        : pouchOn(o, { a, b, out }, lie, { w, h, d, flap: typeof sig.flap === 'number' ? sig.flap : 0.3, group: A.group ?? 'Leather', metal: 'Buckle', id: A.id });
       const carrier = belt ? belt[1] : Pskin, wgt = weightAt(carrier, o);
       for (const [k, P] of Object.entries(made)) parts[`${k}_kit`] = { ...P, bind: rigidBind(P, carrier.bind.bone, wgt) };
       // (a thigh rig HANGS from the belt above it: a strap from the belt's lower edge down the hip to the pouch's top)
@@ -318,7 +358,7 @@ export function kitPieces(S, cloth, kit, { L1 }) {
         if (end) for (const F of fit) { bases.push(F.origin); ns.push(F.normal); } else for (const F of fit) { bases.unshift(F.origin); ns.unshift(F.normal); }
         locks.push({ end, top: B[0], bottom: B[1] });
       }
-      const strap = webbingOn(bases, ns, worn, { w: sw, t: stt });
+      const strap = webbingOn(bases, ns, lie, { w: sw, t: stt });
       parts[`${A.id}_kit`] = { ...strap, group: A.group ?? 'Leather', bind: bindNearest(strap, Pskin) };
       for (const L of locks) {
         const st = L.end ? strap.stations[strap.stations.length - 1] : strap.stations[0], [p0, p1, p2] = strap.slots.slice(0, 3).map((sl) => st.points[sl]);

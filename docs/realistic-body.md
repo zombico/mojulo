@@ -28,7 +28,11 @@ with `--hero '{"form":"realistic", …}'`, coloured by body part with `--map`.
 `hero.form: 'realistic'`, `hero.physique: { from?: 'athletic'|'skinny'|'heavyset'|'jacked', bulk?, tone?, weight?,
 height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ from }`). Its head is the relational head unless `head` names another
 (`'landmark'`, `'none'`). The build is the cast's pole's
-(`cast: 'male'` → norrin, `'female'` → shalla). The plan is laid out with the hero's tune times the build's.
+(`cast: 'male'` → norrin, `'female'` → shalla). The plan is laid out with the hero's tune times the build's. Under
+realistic laws 9 the man's hip sockets come in with his narrowed frame (`MALE_HIPS`, `withHipSpan` on the rig before the
+slice reads it): the build narrows the shoulders, and on the heroic cast's hips every male physique had read a woman's
+waist to hip from behind and in profile. The tune's `hips` widens the pelvis's girth only, never the sockets. The
+kit and the cloth are made by the rules in [garment-principles.md](garment-principles.md#the-kit-as-pieces-the-cloth-as-it-folds-realistic-laws-8).
 
 ## The recipe
 

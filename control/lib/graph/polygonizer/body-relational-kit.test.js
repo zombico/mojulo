@@ -4,7 +4,7 @@
 // lies on the outermost thing it crosses; a fold only ever stands out from the cloth, where its motif lies, and never
 // on cloth a belt cinches or a garment is worn over.
 import { describe, it, expect } from 'vitest';
-import { beltOn, frameBuckle, pouchOn, webbingOn, KIT } from './body-relational-kit.js';
+import { beltOn, frameBuckle, pouchOn, webbingOn, holsterOn, KIT } from './body-relational-kit.js';
 import { foldCloth, FOLD_CLOTH } from './body-relational-folds.js';
 import { ringSlots } from './body-relational-resample.js';
 
@@ -58,6 +58,24 @@ describe('a pouch', () => {
     const top = Math.max(...pts(P.pouchBody).map((q) => q[2]));
     expect(Math.max(...pts(P.pouchFlap).map((q) => q[2]))).toBeGreaterThan(top);
     expect(Math.max(...pts(P.pouchFlap).map((q) => q[1]))).toBeGreaterThan(Math.max(...pts(P.pouchBody).map((q) => q[1])));
+  });
+});
+
+describe('a shoulder holster', () => {
+  it('carries its pistol level, the grip raked down and forward out of its mouth, its back on the body, a hanger up', () => {
+    // (the ribs a flat side at x = 0.15, the holster's length along +y, forward)
+    const worn = range(-0.15, 0.15, 31).flatMap((y) => range(1.1, 1.4, 31).map((z) => [0.15, y, z]));
+    const H = holsterOn([0.15, 0, 1.22], { fwd: [0, 1, 0], up: [0, 0, 1], out: [1, 0, 0] }, worn, { w: 0.19, h: 0.05, d: 0.032, id: 'h', gun: 'Gun' });
+    expect(Object.keys(H).sort()).toEqual(['hBody', 'hGrip', 'hHanger', 'hSlide', 'hSnap', 'hStrap']);
+    expect(Math.min(...pts(H.hBody).map((q) => q[0]))).toBeGreaterThan(0.15);
+    // (the muzzle's end the smaller: the holster tapers back)
+    const span = (P, y0) => { const q = pts(P).filter((p) => Math.abs(p[1] - y0) < 0.002); return Math.max(...q.map((p) => p[2])) - Math.min(...q.map((p) => p[2])); };
+    expect(span(H.hBody, -0.095)).toBeLessThan(span(H.hBody, 0.095));
+    // (the pistol out of the mouth, forward of it; the grip lower and further forward than the slide; both the gun's)
+    const mean = (P, k) => pts(P).reduce((t, q) => t + q[k], 0) / pts(P).length;
+    expect(mean(H.hSlide, 1)).toBeGreaterThan(0.095); expect(mean(H.hGrip, 2)).toBeLessThan(mean(H.hSlide, 2)); expect(mean(H.hGrip, 1)).toBeGreaterThan(mean(H.hSlide, 1));
+    expect([H.hSlide.group, H.hGrip.group]).toEqual(['Gun', 'Gun']);
+    expect(Math.max(...pts(H.hHanger).map((q) => q[2]))).toBeGreaterThan(1.22 + 0.05);
   });
 });
 

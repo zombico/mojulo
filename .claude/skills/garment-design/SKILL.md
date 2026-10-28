@@ -8,7 +8,10 @@ description: Design an outfit for a hero on the realistic body from a brief, the
 A garment here is DATA: stylism words or an outfit card, worn on the realistic body by the tailor
 (`control/lib/graph/polygonizer/body-relational-tailor.js`, `body-relational-wear.js`). This skill is the designer's
 order of moves over them. Read [docs/garment-principles.md](../../../docs/garment-principles.md) before the first
-brief of a session: it is the why behind every choice below.
+brief of a session: it is the why behind every choice below. Its kit and folds section says how the realistic body
+makes a belt, a strap, a pouch or a holster and folds the cloth (`body-relational-kit.js`, `body-relational-folds.js`):
+pick the pieces by word (an outfit card's `pieces`, a vest's `cut`), and read a piece that hangs open, floats or sinks
+as a finding against those rules, not a word to tune round.
 
 Never hand-build a garment, and never edit a kernel to land one brief. When the words cannot say what a brief asks,
 name the missing primitive or card field and stop there: that is a change of its own, with its own plan.

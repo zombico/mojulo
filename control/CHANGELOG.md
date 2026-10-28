@@ -59,6 +59,13 @@ the same man in a leather jacket. The eyes gate is the operator's.
     the same webbing round the body just over the belt, made once for every strap that ends at its height. Each strap
     is cut where it first comes down to the band (never run along it), set onto it and locked there. Its ends had hung
     open at the sides.
+  - **A gun harness** (an outfit's vest `cut: 'holster'`, `outfit-plan.js`): the harness's straps, a pistol holstered
+    level under the off arm and a double magazine carrier level under the draw arm (`side` the draw hand's), in place
+    of the rig's magazine pouches across the chest. On the realistic body the pieces (`holsterOn`: the holster tapering
+    to the muzzle's end, the pistol's slide and its grip raked down and forward out of its mouth, a retention strap and
+    its snap, a hanger up to the harness; the magazines two pouches turned level, flaps forward); elsewhere the authored
+    kernel's boxes. A piece on the trunk lies on the trunk: an arm hanging beside it is no surface (a holster pressed
+    to it had ridden on the arm).
   - Each frame a piece is laid by is read out from its part's own axis: an address's normal comes from its neighbours'
     handedness, which a reshaped part can turn over, and a pouch laid along it went into the body.
   - A band round a thigh is a belt on that leg's cloth, read off that leg alone, no higher than a hand under the crotch.
@@ -77,6 +84,12 @@ the same man in a leather jacket. The eyes gate is the operator's.
   (`hipSpan` 0.78, about 17 cm apart), the knees under them as they were, before the slice reads the rig: waist to hip
   0.85 … 0.91 across the physiques (athletic 0.88), the hips 4 to 5 cm narrower. The female build is as it was. The
   hero's `tune.hips` widens the pelvis's girth only, never the sockets.
+- **A man's run** (`hero-gaits.js` `HERO_RUN_POLE`): the jog and the sprint as stamped for a man land on a wider base
+  (feet about 9 cm apart, legs never crossing), the pelvis turning and swaying less, the shoulders more against it. The
+  run as minted (feet nearly on one line, the pelvis turning 8°) read as a woman's on
+  a man. The woman keeps it. Stamped where a hero is written, as the walk's pole is: a hero stored before keeps its run.
+- The principles of the kit and the folds are written down: [garment-principles.md](../docs/garment-principles.md) has
+  them as rules, the realistic body's contract points at them, and `/garment-design` reads a piece against them.
 - A hero minted before keeps what its laws made; a hero minted now is stamped laws 9 (`REALISTIC_LAWS_VERSION`).
 
 ### Named heroes and their marks
