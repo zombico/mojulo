@@ -33,7 +33,10 @@ import { BEAST_RIDGES, BEAST_RUFFS } from './detail.js';
 import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
 import { isArmorBuild } from '../armor/expand.js';
 import { beastHeadOf, BEAST_HEADS, isDesigned, designedHeadErrors } from './head.js';
-import { COVER_KINDS } from './cover.js';
+import { coverErrors, coverQualities } from './cover.js';
+import { beastOozeOf } from './ooze.js';
+import { colorWords, COLOR_WORDS } from '../mutagen/push.js';
+import { oozeErrors } from '../mutagen/compose.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -74,20 +77,35 @@ export const SERPENT_GAIT = Object.freeze({ walk: Object.freeze({ stanceKnee: 0,
   sprint: Object.freeze({ strideLength: 0.32, stanceKnee: 0, swingTuck: 0, hipDrive: 0, flightLift: 0, lean: 0.12, spineGive: 0 }) });
 const CLAW = { blunt: { length: 2.2, root: 0.8, curl: 0.35 }, long: { length: 4, root: 0.85, curl: 0.55 } }, CLAW_POINT = 0.12;
 
+const colourWordsOf = (L, coat) => {
+  const W = colorWords(coat), word = (c) => (COLOR_WORDS.includes(c) ? W[c] : c);
+  return { ...L, ...(L.claw ? { claw: { ...L.claw, color: word(L.claw.color) } } : {}), ...(L.spines ? { spines: { ...L.spines, color: word(L.spines.color) } } : {}),
+    ...(L.eyes ? { eyes: { ...L.eyes, color: word(L.eyes.color) } } : {}), groups: Object.fromEntries(Object.entries(L.groups).map(([g, v]) => [g, { ...v, color: word(v.color) }])),
+    push: L.push.tints ? { ...L.push, tints: L.push.tints.map((t) => ({ ...t, color: word(t.color), ...(t.lightColor ? { lightColor: word(t.lightColor) } : {}) })) } : L.push };
+};
+
 export function beastCard(hero) {
   const B = hero?.beast;
   if (!isPlain(B) || (B.kin !== undefined && !BEAST_KINS[B.kin])) return null;
   // (the neutral base, the kin's preset over it, the hero's own words over both: a beast with no kin is its words alone)
   const K = { ...BEAST_BASE, ...(B.kin !== undefined ? BEAST_KINS[B.kin] : {}) }, own = (k) => B[k] ?? K[k];
-  return { ...K, kin: B.kin, legs: own('legs'), fingers: own('fingers'), toes: own('toes'), claws: own('claws'), claw: B.clawTone ?? K.claw,
-    tail: own('tail'), abdomen: own('abdomen'), ridge: own('ridge'), ruff: own('ruff'), hair: own('hair'), cover: own('cover'),
+  // (an OOZE over all of it, the animal door's compositions lowered onto the anatomy (./ooze.js): it grows the masses, adds
+  // a crest or a ruff, styles the cover and tones the claws; a word the hero names itself stands)
+  // (an ooze's colour words, the coat's own: mutagen/push.js colorWords, against the hero's coat or its kin's)
+  const L0 = beastOozeOf(B), L = L0 && colourWordsOf(L0, hero.palette?.Skin ?? kinCoat(B.kin)), cover = isPlain(B.cover) ? B.cover.kind : B.cover ?? (L?.smooth ? 'none' : K.cover);
+  const mass = { ...K.mass, ...(B.mass ?? {}) };
+  if (L) for (const [k, v] of Object.entries(L.mass)) mass[k] = Math.min(2, Math.max(0.5, Math.round((mass[k] ?? 1) * v * 1000) / 1000));
+  return { ...K, kin: B.kin, legs: own('legs'), fingers: own('fingers'), toes: own('toes'), claws: own('claws'), claw: B.clawTone ?? L?.claw?.color ?? K.claw,
+    tail: own('tail'), abdomen: own('abdomen'), ridge: B.ridge ?? (L?.ridge ? 'spines' : K.ridge), ruff: B.ruff ?? (L?.ruff ? 'ruff' : K.ruff), hair: own('hair'),
+    // (its cover a kind, or a kind with its qualities: cover.js COVER_STYLE; an ooze's qualities under its own)
+    cover, coverStyle: { ...(L && cover !== 'none' ? coverQualities(cover, L.cover) : {}), ...(isPlain(B.cover) ? (({ kind: _k, ...q }) => q)(B.cover) : {}) },
     coat: BEAST_COATS[own('coat')] ?? null, rest: B.hunch !== undefined ? { ...K.rest, hunch: B.hunch } : K.rest,
     // (its masses DESIGNED: the operator's or the sheet's girths over the card's, its hump and keel its own)
-    mass: { ...K.mass, ...(B.mass ?? {}) }, hump: own('hump'), keel: own('keel') };
+    mass, hump: own('hump'), keel: own('keel'), ...(L ? { ooze: L } : {}) };
 }
 
 /** the beast's words, each a part of its anatomy (cards.js names the principle behind each) */
-export const BEAST_WORDS = Object.freeze(['kin', 'legs', 'fingers', 'toes', 'claws', 'clawTone', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'hair', 'cover', 'coat', 'expression', 'mass', 'hump', 'keel', 'hunch']);
+export const BEAST_WORDS = Object.freeze(['kin', 'legs', 'fingers', 'toes', 'claws', 'clawTone', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'hair', 'cover', 'coat', 'expression', 'mass', 'hump', 'keel', 'hunch', 'ooze', 'seed']);
 /** the hunch's range, degrees the trunk hinges forward over the hips (the walk's tilt is capped there too) */
 export const BEAST_HUNCH = 35;
 
@@ -119,7 +137,8 @@ export function beastErrors(spec) {
   if (B.hunch !== undefined && !(Number.isFinite(B.hunch) && B.hunch >= 0 && B.hunch <= BEAST_HUNCH)) errs.push(`beast.hunch: 0 … ${BEAST_HUNCH}, degrees the trunk hinges forward over the hips`);
   for (const k of ['hump', 'keel']) if (B[k] !== undefined && !(Number.isFinite(B[k]) && B[k] >= 0 && B[k] <= 1)) errs.push(`beast.${k}: 0 … 1 (the ${k === 'hump' ? 'upper back\'s mass under the neck' : 'chest\'s front swelling forward'})`);
   if (B.expression !== undefined && !(B.expression && typeof B.expression === 'object' && !Array.isArray(B.expression) && Object.values(B.expression).every((v) => Number.isFinite(v) && v >= -1 && v <= 1))) errs.push("beast.expression: the library head's expression controls, each −1 … 1 ({ browRaise, browFurrow, sneer, earAttitude, lidClose, cornerRetract … }: station-loft-head.js)");
-  if (B.cover !== undefined && !COVER_KINDS.includes(B.cover)) errs.push(`beast.cover: ${COVER_KINDS.join(' | ')} (its coat carried as a material: relief, normal, occlusion and height)`);
+  errs.push(...coverErrors(B.cover), ...oozeErrors(B.ooze, 'beast.ooze'));
+  if (B.seed !== undefined && !(Number.isInteger(B.seed) && B.seed >= 0)) errs.push('beast.seed: a non-negative integer (it places its oozes\' dice)');
   if (isDesigned(B.head)) errs.push(...designedHeadErrors(B.head));
   else if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')}, or a head designed from one ({ from, moves?, eye?, regions?, ornaments?, palette? }: creature-heads/derive.js) (the kin's own by default; 'person' keeps a person's head)`);
   if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${isDesigned(B.head) ? `designed from ${B.head.from}` : B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);

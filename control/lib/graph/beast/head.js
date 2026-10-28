@@ -62,15 +62,33 @@ export function beastHeadOf(hero) {
   const card = beastCard(hero); if (!card) return null;
   const word = hero.beast.head;
   if (word === 'person') return null;
-  if (word && HEAD_LIBRARY[word]) return { id: word };
-  // (a head DESIGNED from a library skull, the creature-from-sheet catalyst's way: its derivation, creature-heads/derive.js)
-  if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
-  // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)
-  if (hero.head !== undefined && hero.head !== 'none') return null;
-  // (a kin's own skull by default; a beast of its words alone keeps a person's head until it names one)
-  const lib = card.kin !== undefined ? headFor(card.kin) : null;
-  return lib ? { id: lib.id } : null;
+  const H = (() => {
+    if (word && HEAD_LIBRARY[word]) return { id: word };
+    // (a head DESIGNED from a library skull, the creature-from-sheet catalyst's way: its derivation, creature-heads/derive.js)
+    if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
+    // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)
+    if (hero.head !== undefined && hero.head !== 'none') return null;
+    // (a kin's own skull by default; a beast of its words alone keeps a person's head until it names one)
+    const lib = card.kin !== undefined ? headFor(card.kin) : null;
+    return lib ? { id: lib.id } : null;
+  })();
+  return H && card.ooze ? oozedHead(H, card.ooze) : H;
 }
+
+/** an ooze's head over the beast's (./ooze.js): its row moves after the head's own (a skull drawn in metres where it sits,
+ * the dragon's, takes no height), its eye grown, its iris the ooze's colour; the head grown on the neck by its headScale */
+function oozedHead(H, L) {
+  const own = H.derive ?? {}, base = headPlan(H.id), inPlace = !base.units;
+  const moves = (L.head.moves ?? []).map((m) => (inPlace && m.op === 'skull' ? (({ height: _h, ...x }) => x)(m) : m));
+  const R0 = own.eye?.R ?? base.regions?.eye?.R;
+  const derive = { ...own, ...(moves.length ? { moves: [...(own.moves ?? []), ...moves] } : {}),
+    ...(L.head.eye && R0 ? { eye: { ...(own.eye ?? {}), R: Math.round(R0 * L.head.eye * 1e5) / 1e5 } } : {}),
+    ...(L.eyes ? { palette: { ...(own.palette ?? {}), Iris: L.eyes.color } } : {}) };
+  return { id: H.id, ...(Object.keys(derive).length ? { derive } : {}), ...(L.headScale ? { scale: L.headScale } : {}) };
+}
+
+/** the head's rest face: an ooze's controls added under the beast's own (the beast's word for a control stands) */
+const oozedFace = (L, own = {}) => ({ ...(L?.expression ?? {}), ...own });
 
 export function beastHead(plan, hero) {
   const H = beastHeadOf(hero); if (!H || !plan.rig) return plan;
@@ -82,7 +100,7 @@ export function beastHead(plan, hero) {
   plan = { ...plan, joints: { ...J0, headBase }, rig: { ...plan.rig, joints: { ...plan.rig.joints, headBase: { ...plan.rig.joints.headBase, at: headBase } } } };
   // (under a cover carried as material, beast/cover.js, the head's details by what reads at the hero's target, the drawn
   // creature's rule: a tuft too short to break the outline is the material's, not a card; its eyes as drawn)
-  const hp0 = libraryHead(H.id, { skin, lineage: card.kin, k: scaleOf(plan), derive: H.derive ?? null });
+  const hp0 = libraryHead(H.id, { skin, lineage: card.kin, k: scaleOf(plan) * (H.scale ?? 1), derive: H.derive ?? null });
   const hp = beastCoverOf(hero) ? headAtTier(hp0, pxPerMetre(readTarget(hero.target ?? DEFAULT_TARGET), planHeight(plan)) * (hp0.units?.scale ?? 1), { eyes: 1 }) : hp0;
   const segments = plan.segments.filter((s) => s.name !== 'head');
   const rigJoints = { ...plan.rig.joints, headTop: { at: 'head.cranium.tip' }, jawHinge: { at: 'head.jawOpen.pivot', rides: 'head' }, jawTip: { at: 'head.jaw.tip', rides: 'head' } };
@@ -112,6 +130,6 @@ export function beastHead(plan, hero) {
     }
   }
   const lean = dials.lean?.parts; if (Array.isArray(lean) && segments.some((s) => s.name === 'nape') && lean.includes('neck')) dials.lean = { ...dials.lean, parts: [...lean, 'nape'] };
-  return { ...plan, segments, heads: [{ name: 'head', plan: hp, expression: { ...(hero.beast.expression ?? {}) }, on: 'headBase', bind: { cranium: 'head', jaw: 'jaw' } }], dials,
+  return { ...plan, segments, heads: [{ name: 'head', plan: hp, expression: oozedFace(card.ooze, hero.beast.expression), on: 'headBase', bind: { cranium: 'head', jaw: 'jaw' } }], dials,
     rig: { ...plan.rig, joints: rigJoints, bones, chains } };
 }

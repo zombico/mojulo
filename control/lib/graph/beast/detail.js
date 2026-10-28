@@ -38,7 +38,8 @@ const RUFF = Object.freeze({ rows: Object.freeze([{ dz: 0.01, from: 80, to: 180,
 
 export function detailOf(hero) {
   const card = beastCard(hero); if (!card) return null;
-  return { ridge: card.ridge, ruff: card.ruff };
+  // (an ooze's crest in its own group and at its own height: ./ooze.js, ./style.js)
+  return { ridge: card.ridge, ruff: card.ruff, spines: card.ooze?.spines ?? null };
 }
 
 // a trunk's back-centre and its section at height z (the stations blended), among the trunk's segments
@@ -64,14 +65,15 @@ export function beastDetail(plan, hero) {
   };
   // THE RIDGE: up the neck's back, down the trunk's back-centre, down the tail's top
   if (D.ridge === 'spines') {
+    const SG = D.spines ? 'Spines' : 'Claws', SK = D.spines?.scale ?? 1;
     const hub = at('neckHub'), base = at('headBase'), neck = segments.find((s) => s.name === 'neck'), ax = unit(sub(base, hub));
     const back = unit([0, -ax[2], ax[1]]), rN = Array.isArray(neck?.rA) ? neck.rA[1] : neck?.rA ?? 0.05;
-    RIDGE.neck.forEach((h, i) => { const t = 0.3 + 0.35 * i, p = add(lerp(hub, base, t), mul(back, rN * (1 - 0.15 * t))); fin(`spineNeck${i}`, p, back, mul(ax, -1), h * k, 0.55 * h * k, 'neck', 'Claws'); });
+    RIDGE.neck.forEach((h, i) => { const t = 0.3 + 0.35 * i, p = add(lerp(hub, base, t), mul(back, rN * (1 - 0.15 * t))); fin(`spineNeck${i}`, p, back, mul(ax, -1), h * k * SK, 0.55 * h * k * SK, 'neck', SG); });
     const top = hub[2] - 0.03 * k, low = (at('pelvisHub') ?? J.hip)[2] + 0.04 * k, n = RIDGE.back.length, navel = at('navel')?.[2] ?? (top + low) / 2;
     RIDGE.back.forEach((h, i) => {
       const z = top + (low - top) * (i / (n - 1)), X = sectionAt(segments, z), p = [0, X.yc - X.ry, z];
       const bone = z > navel ? 'torso' : z > (at('pelvisHub')?.[2] ?? 0) + 0.06 * k ? 'lumbar' : 'pelvis';
-      fin(`spineBack${i}`, p, [0, -1, 0], [0, 0, -1], h * k, 0.55 * h * k, bone, 'Claws');
+      fin(`spineBack${i}`, p, [0, -1, 0], [0, 0, -1], h * k * SK, 0.55 * h * k * SK, bone, SG);
     });
     const tail = segments.find((s) => s.name === 'tail' && s.kind === 'loft');
     if (tail) {
@@ -79,7 +81,7 @@ export function beastDetail(plan, hero) {
       RIDGE.tail.forEach((h, j) => {
         const i = j + 1; if (i >= m) return;
         const u = unit(sub(S[i + 1].at, S[i - 1].at)), up = unit(sub([0, 0, 1], mul(u, u[2]))), p = add(S[i].at, mul(up, S[i].r));
-        fin(`spineTail${j}`, p, up, u, h * k, 0.6 * h * k, `tail${Math.min(i, m - 1)}`, 'Claws');
+        fin(`spineTail${j}`, p, up, u, h * k * SK, 0.6 * h * k * SK, `tail${Math.min(i, m - 1)}`, SG);
       });
     }
   }

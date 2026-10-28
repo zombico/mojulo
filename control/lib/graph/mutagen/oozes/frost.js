@@ -12,6 +12,7 @@ export const ooze = {
     marks: [
       { on: ['torso', 'neck'], kind: 'band', t: [0, 0.22], group: 'Rime', color: '#f2fbff' },
     ],
+    cover: { tipped: 0.8, sheen: 'glossy' },
     eyes: { color: '#7fe8ff', glow: true },
     surfaces: { Hackle: 'glass' },
   },

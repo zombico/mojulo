@@ -92,7 +92,12 @@ snake-kin, or one of your own) no longer takes the ring plan by hand: its sheet 
   library's derivations, as the snake's did.
 - MASSES: the kin's card leaned by the sheet's silhouette word and varied per sheet; a designer's own over it:
   `beast.mass` (trunk, waist, hips, neck, upperArm, foreArm, hand, thigh, shank, foot), `beast.hump`, `beast.keel`.
-- COVER and ORNAMENTS: the coat as a material (`beast.cover`), the outline breakers as parts (`ridge`, `ruff`, claws).
+- COVER and ORNAMENTS: the coat as a material (`beast.cover`, a kind or `{ kind, length?, size?, shape?, sheen?,
+  tipped? }`: sleek or shaggy fur, fine or keeled scales, a matte, glossy or metal sheen, frosted tips), the outline
+  breakers as parts (`ridge`, `ruff`, claws).
+- OOZES: the animal door's compositions on the beast-kin (`beast.ooze: ['frost', { id: 'venom', strength: 0.5 }]`,
+  `beast.seed`): its tone, crest, claws, eyes, head moves, materials and cover. Its marks wait for a biped's pattern
+  solver (a quadruped's windows read inside out on an upright body); its size is the tune's stature.
 - DRESS: a sheet person enough wears its cut (a coil above its hips); adornment below the clothed line is pending.
 - A PEOPLE OF YOUR OWN (a lineage the presets do not know) is composed the same way: its notes read by the cue
   lexicon (lib/graph/beast/lexicon.js) as anatomy words, its skull the library's nearest by its family words, what the
