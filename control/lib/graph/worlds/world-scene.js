@@ -1242,7 +1242,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // (and each status a body is born under, its look drawn as a cue's would be: foes/states.js)
       const born = [...new Set(sketch.manifest.entities.flatMap((e) => (e && e.body && e.body.born && e.body.born.statuses ? Object.keys(e.body.born.statuses) : [])))];
       const { LOOKS } = born.length ? await import('@/lib/graph/playscape/elements/elements.js') : { LOOKS: {} };
-      const bornLooks = Object.fromEntries(born.filter((n) => LOOKS[n] && !(ev.looks && ev.looks[n])).map((n) => [n, LOOKS[n]]));
+      // (a state may leave its look's coat off, `coat: false`: a foe's flaming, whose fire is its look)
+      const coatless = (n) => sketch.manifest.entities.every((e) => !(e && e.body && e.body.born && e.body.born.statuses && e.body.born.statuses[n]) || e.body.born.statuses[n].coat === false);
+      const bornLooks = Object.fromEntries(born.filter((n) => LOOKS[n] && !(ev.looks && ev.looks[n])).map((n) => [n, coatless(n) ? { ...LOOKS[n], coat: false } : LOOKS[n]]));
       ev = { ...ev, layer0: true, ...(born.length ? { born, looks: { ...(ev.looks || {}), ...bornLooks } } : {}) };
     }
     payload.events = ev;
