@@ -506,6 +506,16 @@ class GlbBuilder {
     return this.json.materials.length - 1;
   }
 
+  // A beast-kin's COVER (beast/cover.js): the lit PBR material over its tile's maps — the base × COLOR_0 (the coat), the
+  // tangent-space normal, occlusion (R) and roughness (G) from one ORM image (roughness's factor 1, metal's 0: it has
+  // none), and the height in the extras for an engine that reads parallax or displacement
+  coverMaterial(name, t, C) {
+    const m = this.pbrMaterial({ metallic: 0, roughness: 1, baseColorTexture: t.base, normalTexture: t.normal, name }), mat = this.json.materials[m];
+    if (t.orm != null) { mat.pbrMetallicRoughness.metallicRoughnessTexture = { index: t.orm }; mat.occlusionTexture = { index: t.orm }; }
+    mat.extras = { mojulo: { cover: true, ...(t.height != null ? { height: { index: t.height } } : {}), tile: C.size, depth: C.depth } };
+    return m;
+  }
+
   // The surface material for a plain group: unlit (the mojulo look, default) or — in the
   // lit handoff — a real dielectric PBR at the export's roughness. One switch, every path.
   surfaceMaterial(opts = {}) {
@@ -753,8 +763,14 @@ class GlbBuilder {
     // the basis it was baked in. Absent ⇒ byte-identical.
     const relief = this.lit && tex !== null && fig.normalTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.nrm === 'string' && typeof p.tan === 'string'));
     const ntex = relief ? this.imageFromDataUrl(fig.normalTex.url) : null;
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}) }) : this.surfaceMaterial({ name: `fig:${name}` });
-    const uvs = tex !== null ? [] : null;
+    // THE COVER (beast/cover.js, the pack's `coverTex` and each part's `uv` and `tan`), under the lit handoff only, on a
+    // figure without the paint: the cover's tile over the figure (glTF's default sampler repeats it), its base × COLOR_0,
+    // its normal, its occlusion and roughness (one ORM image, as glTF reads them), and its height in the material's
+    // extras (`mojulo.height`: an engine that reads parallax or displacement binds it). Absent ⇒ byte-identical.
+    const covered = this.lit && tex === null && fig.coverTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.uv === 'string' && typeof p.nrm === 'string' && typeof p.tan === 'string'));
+    const ctex = covered ? Object.fromEntries(['base', 'normal', 'orm', 'height'].map((k) => [k, this.imageFromDataUrl(fig.coverTex[k])])) : null;
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
+    const uvs = tex !== null || ctex ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
     // toon.bake, skinned leg (shader-look phase 3): per PART (the channel's rig hook builds per part,
@@ -814,7 +830,7 @@ class GlbBuilder {
     // the realistic body's weld) writes those instead of the triangles' own
     // (the engine skeleton writes them too when the figure carries its relief: rig-tpose.js re-rests them with the mesh)
     const carried = this.lit && (!parents || ntex !== null) && fig.parts.every((p) => !p || typeof p.nrm === 'string') && fig.parts.some(Boolean) ? [] : null;
-    const tangents = carried && ntex !== null ? [] : null;
+    const tangents = carried && (ntex !== null || ctex) ? [] : null;
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -846,7 +862,7 @@ class GlbBuilder {
       }
       for (let i = 0; i < d.colors.length; i++) col.push(d.colors[i]);
       // (the atlas's [s, t], t up, to glTF's v down)
-      if (uvs) { const u = typeof part.uv === 'string' ? b64ToF32(part.uv) : null; for (let i = 0; i < d.vertexCount; i++) uvs.push(u ? u[2 * i] : fig.paintTex.white[0], 1 - (u ? u[2 * i + 1] : fig.paintTex.white[1])); }
+      if (uvs) { const u = typeof part.uv === 'string' ? b64ToF32(part.uv) : null; for (let i = 0; i < d.vertexCount; i++) uvs.push(u ? u[2 * i] : fig.paintTex.white[0], 1 - (u ? u[2 * i + 1] : fig.paintTex.white[1])); }   // (a cover's tile too: every part carries its uv)
       if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
       else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
       if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null, ...(Number.isInteger(part.inkFaces) ? { inkFaces: part.inkFaces } : {}), ...(part.ranges ? { ranges: part.ranges } : {}) });

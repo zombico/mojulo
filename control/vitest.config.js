@@ -18,6 +18,7 @@ export const E2E = [
   'lib/mcp/tools/design-game.quick.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',
+  'lib/mcp/tools/export-model.beast.test.js',
   'lib/graph/board/board-page.live.test.js',
   'lib/graph/contest/meet-page.live.test.js',
   'lib/graph/contest/court-page.live.test.js',

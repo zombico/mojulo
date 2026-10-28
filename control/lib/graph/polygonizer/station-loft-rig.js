@@ -774,8 +774,13 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * (epidermis/dermal-relief.js heroRelief): each corner carries its TANGENT (`tan` on a part, float32 [x, y, z, w] per
  * vertex: `relief.tangentAt(fi, k)`, a cell's blended from its face's corners, a held thing's laid on its triangle), the
  * pack the map (`normalTex`: { url, w, h }) on the paint's atlas UVs.
+ * `cover` (default null → byte-identical output; with `engineLit` only, on a figure without the paint): the figure's
+ * COVER as a tiling material (beast/cover.js coverMap: a beast-kin's fur, scales, chitin or feathers): each corner its
+ * place on the tile (`uv`: `cover.uvAt(fi, k)`, a cell's blended from its face's corners, a held thing's the tile's flat
+ * patch) and its TANGENT (`cover.tangentAt(fi, k)`), the pack the maps (`coverTex`: { base, normal, orm, height, size,
+ * depth }, each a PNG data URL).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
   // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
   // a metal group's packs the metal channel's per-vertex data (`metal`, face-mesh.js), so the page's metal shades the
   // moving parts as it shades the static solid. No metal surface ⇒ nothing tracked, byte-identical
@@ -797,9 +802,13 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   const carryN = !!(engineLit && normals && !character);
   if (carryN) for (const P of parts) P.nrm = [];
   // (the relief's tangents ride beside the carried normals; a corner's blended ones laid back square to its normal)
-  const carryT = !!(carryN && relief && typeof relief.tangentAt === 'function');
+  // (or the cover's, on its tile's UVs, where there is no paint to carry a relief: beast/cover.js)
+  const carryC = !!(carryN && !pp && cover && typeof cover.uvAt === 'function' && typeof cover.tangentAt === 'function');
+  const carryT = !!(carryN && ((relief && typeof relief.tangentAt === 'function') || carryC));
   if (carryT) for (const P of parts) P.tan = [];
-  const tanOf = (fi, k) => relief.tangentAt(fi, k);
+  if (carryC) for (const P of parts) P.uv = [];
+  const tanOf = (fi, k) => (carryC ? cover.tangentAt(fi, k) : relief.tangentAt(fi, k));
+  const coverUV = (fi, w) => { const a = cover.uvAt(fi, 0), b = cover.uvAt(fi, 1), c = cover.uvAt(fi, 2); return [w[0] * a[0] + w[1] * b[0] + w[2] * c[0], w[0] * a[1] + w[1] * b[1] + w[2] * c[1]]; };
   const tanMix = (fi, w, n) => {
     const t = [0, 1, 2].map((q) => w[0] * tanOf(fi, 0)[q] + w[1] * tanOf(fi, 1)[q] + w[2] * tanOf(fi, 2)[q]), d = t[0] * n[0] + t[1] * n[1] + t[2] * n[2];
     const o = [t[0] - n[0] * d, t[1] - n[1] * d, t[2] - n[2] * d], l = len(o);
@@ -843,7 +852,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
             P.col.push(...(glowing ? cb : [0, 1, 2].map((q) => w[0] * corner[0][q] + w[1] * corner[1][q] + w[2] * corner[2][q])));
             if (P.nrm) { const n = [0, 1, 2].map((q) => w[0] * normals[fi][0][q] + w[1] * normals[fi][1][q] + w[2] * normals[fi][2][q]), l = len(n) || 1; P.nrm.push(n[0] / l, n[1] / l, n[2] / l); if (P.tan) P.tan.push(...tanMix(fi, w, [n[0] / l, n[1] / l, n[2] / l])); }
             const { jnt, wgt } = blendSkin(skin, tri, w); P.jnt.push(...jnt); P.wgt.push(...wgt);
-            if (P.uv) P.uv.push(...pp.white);
+            if (P.uv) P.uv.push(...(carryC ? coverUV(fi, w) : pp.white));
           }
         }
       }
@@ -862,11 +871,11 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
       return;
     }
     P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
-    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
+    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(fi, k) : painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
-  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...paint.white); } } }
+  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(-1, 0) : paint.white)); } } }
   const packedClips = {}, props = [];
   for (const [name, clip] of Object.entries(clips)) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
@@ -900,7 +909,8 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
-    ...(carryT && relief.atlas ? { normalTex: relief.atlas } : {}),
+    ...(carryT && !carryC && relief.atlas ? { normalTex: relief.atlas } : {}),
+    ...(carryC ? { coverTex: { ...cover.maps } } : {}),
   };
 }
 

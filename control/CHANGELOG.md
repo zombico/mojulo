@@ -45,7 +45,7 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   and the elbow's regions now count every ring of their bridge (`hero-stretch.js` `STRETCH_REGIONS`), where the limbs'
   own end rings stay rigid and read 1. A classic body has no bridges and reads as it did.
 - **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, toes?, claws?,
-  tail?, wings?, arms?, head? }`.
+  tail?, wings?, arms?, head?, cover? }`.
   The kin is a card (`beast/cards.js`) of words, never geometry:
   - `reads`: what the kin reads as;
   - `fingers`: 3 or 4, the thumb among them; `toes`: 3, 4 or 5; `tail`: the tail it carries;
@@ -69,8 +69,7 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
 
   The legs are the hero's word, not the kin's (a lineage stands digitigrade by how far from a person its sheet rolled).
   Refused: an unknown kin or word, a beast off the tiered body, and a beast that is undead too. A hero without `beast`
-  is unchanged. Not yet carried, each its own step: cover as material (relief to normal, occlusion and height) in place
-  of cards, and the egocube's route from a sheet to the card.
+  is unchanged. Not yet carried: the egocube's route from a sheet to the card.
 
   Machine gate (`beast/tiered.test.js`):
   - the words recorded, the operator's own over them;
@@ -193,6 +192,51 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   All six kin mint through `create_character` with no core advisory. Eyes: the six heads through the gaits, the nape
   from the side and behind before and after the lean. The library head's own back rows still show a little of their
   low-poly rim from behind. Eyes gate: the operator's to judge.
+- **Cover as form, not cards** (`beast/cover.js`, `beast.cover`: none, fur, scales, chitin or feathers; its default the
+  kin's: fur for the bear-, wolf- and cat-kin, scales for the dragon-kin, feathers for the bird-kin, chitin for the
+  insect-kin). The sixth generation built a coat as cards, half the biped's triangles. The seventh carries it as a
+  material an engine lights.
+  - **The tile.** Each kind is a tileable relief: a height field in metres on a 128-texel square, deterministic on its
+    kind. Fur is strands lying down the body; scales and feathers are shingles in offset rows, each over the row above,
+    a feather's vane narrowing to its tip; chitin is plates with grooves at their joints.
+  - **The maps.** The form render's material reads the relief (`form/relief-material.js`) into glTF's maps: a base grey
+    the vertex colour multiplies (the coat, darker in its hollows), the tangent-space normal, occlusion and roughness in
+    one ORM image, and the height.
+  - **The flat patch.** A flat patch at the tile's origin is level, white and unoccluded. A face the cover does not
+    reach (the head, the claws, the eyes) samples it, so one material serves the whole figure.
+  - **The mapping** (`coverMap`). The coat (a beast is bare, so its skin and the groups its clothes would be, its head
+    excepted) is mapped by each part's own rings. The tile's u is a slot's place round them, a whole number of tiles so
+    the wrap is seamless; its v is a station's arc length along their centres, so a curved tail, a flaring socket and the
+    shoulder's funnel map as they run. A first mapping about one straight axis per part swung the tile round them. A cap's
+    point takes its face's way round, and each corner's tangent is built the MikkTSpace way.
+  - **The export.** It rides the lit skinned GLB (`export_model { skinned: true, lit: true }`). A beast-kin is now lit by
+    the engine as the realistic body is: its corners carry their shading normals and no baked shade
+    (`world-kinds.js`). The rig pack carries the cover only when asked (`packLayeredRig` `cover`): each corner's place
+    on the tile and its tangent, and the maps (`coverTex`). The writer (`scene-gltf.js` `coverMaterial`) makes the
+    figure's material from them: the base and the normal, the ORM image as occlusion and metallic-roughness (roughness
+    factor 1, metal 0), the height in the material's extras (`mojulo.height`, with the tile and the depth) for an engine
+    that reads parallax or displacement. glTF's default sampler repeats the tile. Absent, every pack and every file is
+    byte for byte as before.
+  - **The head's tufts.** Under a cover, the library head's details are spent by what reads at the hero's target, the
+    drawn creature's rule (`creature-drawn.js` `headAtTier`, its eyes as drawn): a tuft too short to break the outline is
+    the material's, not a card.
+  - **The page.** The World page draws the cover as paint, the coat's colour (its fills are unlit), until it lights a
+    figure live.
+
+  Machine gate (`beast/cover.test.js`; `export-model.beast.test.js`, on the E2E list):
+  - each tile seamless at its edges, within its depth, deterministic, its flat patch level and white;
+  - a hollow occluded more than a crest;
+  - the coat mapped by its rings: the head and the claws on the flat patch, every tangent unit and square to its
+    normal, no face taken the long way round the wrap;
+  - the pack byte for byte without a cover, and no cover carried unlit;
+  - the kin's cover, the operator's word over it, and fewer head tufts under it;
+  - minted and exported, the GLB's skinned mesh carrying TEXCOORD_0, NORMAL and TANGENT, and a material with the four
+    maps, a zero metal factor, the extras and the walk;
+  - with `cover: 'none'`, none of them.
+
+  Eyes: the four tiles' maps side by side, and the wolf-kin with its fur and without, lit by three.js in the hero-live
+  viewer (`/hero-live`, the same GLB an engine gets). The fur's relief reads on the body, and the head drops its tuft
+  cards (8,812 triangles to 7,096). Eyes gate: the operator's to judge.
 
 ### Foe classes: the hostile encounter primitive
 

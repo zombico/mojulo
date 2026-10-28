@@ -2,9 +2,9 @@
  * THE BEAST-KIN ON THE TIERED BODY: a non-human people built on the hero's own game body (polygonizer/tiered-form.js), so
  * a bear-kin has a person's shoulders under its web and cone, bridged elbows and knees, hands and a rig every hero clip
  * plays on, where the sixth generation stood it on the creature biped (egocube/plan.js `biped`). A hero carries it as
- * `beast: { kin, legs?, fingers?, toes?, claws?, tail?, wings?, arms?, head? }` (the hero door's field), its kin a card
- * (./cards.js); its legs ./legs.js; what its frame adds (the tail, the arm-wings, the second arms) ./topology.js; its
- * head ./head.js.
+ * `beast: { kin, legs?, fingers?, toes?, claws?, tail?, wings?, arms?, head?, cover? }` (the hero door's field), its kin
+ * a card (./cards.js); its legs ./legs.js; what its frame adds (the tail, the arm-wings, the second arms) ./topology.js;
+ * its head ./head.js; its coat as a material ./cover.js.
  *
  *   beastCard(hero)          → the card a hero's beast stands for, its own words over the kin's, or null
  *   beastWords(spec)         → the hero's words for its kin, under the spec's own (the hero door records them at mint,
@@ -29,6 +29,7 @@ import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS } from './topology.js';
 import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
 import { isArmorBuild } from '../armor/expand.js';
 import { beastHeadOf, BEAST_HEADS } from './head.js';
+import { COVER_KINDS } from './cover.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -65,7 +66,7 @@ export function beastErrors(spec) {
   const B = spec?.beast;
   if (B === undefined || B === null) return [];
   if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, toes?, claws?, tail?, wings?, arms? }`];
-  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'wings', 'arms', 'head'];
+  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'wings', 'arms', 'head', 'cover'];
   for (const k of Object.keys(B)) if (!WORDS.includes(k)) errs.push(`beast.${k}: not a word of the beast (${WORDS.join(', ')})`);
   if (!BEAST_KINS[B.kin]) errs.push(`beast.kin: one of ${BEAST_KIN_IDS.join(', ')}`);
   if (B.legs !== undefined && !BEAST_LEGS.includes(B.legs)) errs.push(`beast.legs: ${BEAST_LEGS.join(' | ')}`);
@@ -75,6 +76,7 @@ export function beastErrors(spec) {
   if (B.tail !== undefined && !BEAST_TAILS.includes(B.tail)) errs.push(`beast.tail: ${BEAST_TAILS.join(' | ')}`);
   if (B.wings !== undefined && !BEAST_WINGS.includes(B.wings)) errs.push(`beast.wings: ${BEAST_WINGS.join(' | ')} (the flight feathers trailing from the forearm and the hand)`);
   if (B.arms !== undefined && !BEAST_ARMS.includes(B.arms)) errs.push(`beast.arms: ${BEAST_ARMS.join(' | ')} (a second pair under the first)`);
+  if (B.cover !== undefined && !COVER_KINDS.includes(B.cover)) errs.push(`beast.cover: ${COVER_KINDS.join(' | ')} (its coat carried as a material: relief, normal, occlusion and height)`);
   if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')} (the kin's own by default; 'person' keeps a person's head)`);
   else if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);
   // (a paw on a raised hock takes nothing cut for a person's foot: a shoe was drawn over the metatarsus, an armour

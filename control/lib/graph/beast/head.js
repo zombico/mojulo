@@ -20,6 +20,10 @@ import { HEAD_LIBRARY, headFor } from '../creature-heads/index.js';
 import { libraryHead } from '../egocube/plan.js';
 import { partRings } from '../polygonizer/tiered-form.js';
 import { SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
+import { headAtTier } from '../polygonizer/creature-drawn.js';
+import { readTarget, pxPerMetre, DEFAULT_TARGET } from '../era/target.js';
+import { planHeight } from '../era/cast-density.js';
+import { beastCoverOf } from './cover.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
 const sub = (a, b) => a.map((x, i) => x - b[i]);
@@ -57,7 +61,10 @@ export function beastHead(plan, hero) {
   const J0 = plan.joints, nh = J0.neckHub, hb = J0.headBase, L = Math.hypot(...sub(hb, nh)), a = (NECK_LEAN * Math.PI) / 180;
   const headBase = [hb[0], r6(nh[1] + L * Math.sin(a)), r6(nh[2] + L * Math.cos(a))];
   plan = { ...plan, joints: { ...J0, headBase }, rig: { ...plan.rig, joints: { ...plan.rig.joints, headBase: { ...plan.rig.joints.headBase, at: headBase } } } };
-  const hp = libraryHead(H.id, { skin, lineage: card.kin, k: scaleOf(plan) });
+  // (under a cover carried as material, beast/cover.js, the head's details by what reads at the hero's target, the drawn
+  // creature's rule: a tuft too short to break the outline is the material's, not a card; its eyes as drawn)
+  const hp0 = libraryHead(H.id, { skin, lineage: card.kin, k: scaleOf(plan) });
+  const hp = beastCoverOf(hero) ? headAtTier(hp0, pxPerMetre(readTarget(hero.target ?? DEFAULT_TARGET), planHeight(plan)) * (hp0.units?.scale ?? 1), { eyes: 1 }) : hp0;
   const segments = plan.segments.filter((s) => s.name !== 'head');
   const rigJoints = { ...plan.rig.joints, headTop: { at: 'head.cranium.tip' }, jawHinge: { at: 'head.jawOpen.pivot', rides: 'head' }, jawTip: { at: 'head.jaw.tip', rides: 'head' } };
   const bones = plan.rig.bones.some((b) => b.id === 'jaw') ? plan.rig.bones : [...plan.rig.bones, { id: 'jaw', head: 'jawHinge', tail: 'jawTip' }];
