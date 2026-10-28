@@ -265,6 +265,107 @@ and bakes every lamp into the corners. The same recipe read in gen-6 is byte for
   worn floor slabs), a rendered vault, the crypt, the gritty cube's room and the nave, each written as a walkable World
   page in both eras and captured side by side, wide and close by a torch.
 
+### NPC generator: a town's people grown from its lots
+
+A town already says who lives in it: each lot's use implies a person (a shop its keeper, a workshop its master, a tower
+its watch), and each person implies others (the apprentice, the household over the counter, the watch's captain). This
+theme grows a gameworld town's people that way, as the egocube cast grows from its anchor: path-keyed, so a town only
+grows and adding a lot never moves anyone already rolled. NPCs are not party members. Each is rolled from the town's
+culture and their role: the role and the culture give the uniform, the seed gives the face. A **townie** lives and
+talks; a **service** (a merchant is one) opens a menu the game already has; a **recurring** person (the same face at
+the same service in every town) is seeded from the game, not the town. Their minds keep to the town or the service.
+What they say past the plot is written for them: chitchat and a service's own talk, from a seeded line book. The plot
+is never written: a quest giver's lines and a scene's stay slots (`[Elder: the village]`) for the operator. The city
+plan and the historic city follow on the same rules.
+
+- **The folk sheet: a town's people from its lots** (`lib/graph/folk/`). `folkOfTown(town)` reads a designed town
+  (`era/out-town.js`): each lot's use roots its first person (`roles.js` `ROOTS`: a dwelling a townie, a shop its
+  keeper, a workshop its master, a barn a farmhand, the hall its elder, the tower its captain), who grows the rest
+  (an apprentice, the watch: their number from the lot's storeys). Each person is an Egocube rolled on
+  the folk seed and their path alone: the role's combat role asked, its age and archetype leaned, motivation pulled
+  toward the light, so a town only grows. Each role SEEKS others (a counter
+  a supplier, a watch a hall to answer to), and an unmet one is an open need on the sheet: what the town is missing,
+  said, never refused. The services (`services.js`: merchant, smith, counsel, watch) each lower onto a menu, an effect
+  or a mind the game already runs, or are a gap that says what is missing (the smith: no menu mends gear yet). Every
+  person carries their room in their lot's inside and their line slots (the plot's). A cap (`folk.cap`, 60 by default)
+  gives every lot its first person before anyone's household. Machine gate: `folk.test.js`; eyes gate not run.
+- **The domicile: a house round its dweller** (`folk/domicile.js`). A house's unit is the DWELLER, the lot's first
+  person, and the house is written as the egocube cast writes a request: `D + 0` (alone), `D + P` (with a partner),
+  `D of F (P + Cx)` (a family of x children), `D + Cx` (a single parent). The dweller's age says what the house can be (a youth lives alone or
+  with a partner, an elder's children have mostly grown), rolled on the house's own die; no house is headed by a
+  child; children are younger than the dweller and share their ancestry, a partner is near their age and their own
+  person, their pole rolled as anyone's. A townie's house and the household over a keeper's counter are domiciles;
+  the folk sheet lists each (`domiciles`: its notation, its partner and children). The operator asks a shape for every
+  house (`folk.domicile: 'D + 0'`) or for one (`folk.domiciles: { <lot key>: 'D of F (P + C2)' }`). Machine gate:
+  `domicile.test.js`, `folk.test.js`; eyes gate not run.
+- **Bodies by tier, dressed by role and culture** (`folk/bodies.js`). `folkBodies(folk, { kit, setting })` says
+  what to mint and who wears what, without minting: the people the player goes to (a service's first person: the
+  keeper, the master, the elder, the captain) each get a body of their own; everyone else is pooled as a quick game's
+  crowd is, the first few of each pool minted as themselves (`folk.pool`, 3 by default) and the rest wearing one of
+  theirs, of their own pole when the pool has one. A pool never lends across a uniform or from a grown body to a
+  child. The culture is the town's: its kit's underlayer and its setting's ramps dress everyone, so the same role in
+  two worlds dresses two ways. The role is the service's: a uniform service is worn by all its people as its first
+  person wears it, each on their own face, and the watch carries the guard's gear for the era. A market town of about
+  115 people is 25 bodies. `quickFigure`'s two dressings are now shared helpers (`gameworld/cast-setting.js`
+  `wearUnderlayer`, `wearUniform`); its figures are byte-identical. Machine gate: `bodies.test.js` and the 20 test
+  files the change reaches (14 byte pins); eyes gate not run.
+- **The folk in a gameworld town, and what they say** (`characters.folk`, `gameworld/folk-cast.js`, `folk/lines.js`).
+  A world with `characters.folk: true` (or the folk's words: `seed`, `cap`, `pool`, `domicile`, `domiciles`, `say`)
+  grows each town a level lays from the street's own lots (`era/stage-buildings.js` `streetLots`, the houses
+  `town-<use>-<n>`): each body is a run step minted as a hero is, once per town however many stages meet it, and each
+  person stands by their own house, beside its door and clear of the way in, or, a service's first person in a house
+  walked into, inside at their room (the elder on the dais). Each has a talk menu opened by the interact key. Their
+  lines come from a line book, picked on the person's own die: a greeting by their temper (an archetype's light or
+  shadow, a child's own), a word on their work, on their house or on their town, and a farewell; the town's open
+  needs are said aloud, first-hand by the one who has the need and second-hand by anyone else ("Nobody here sells
+  anything. Folk trade over the fence."). `folk.say` gives the operator's words by a person's path or a role. They
+  stand still for now, and the watch keeps no post yet (a guard mind would fight the hero). The book is English; a world
+  in another locale hears it until the book is in the catalogs. `stageEnds` carries the town's doors off its data
+  (`townDoors`), so every level order without folk reads as it did; a world that asks for no folk is untouched.
+  Machine gate: `folk-cast.test.js`, `lines.test.js` and the test files the change reaches; eyes gate not run.
+- **Sidequests: a checklist a town's person gives, and the chains they make** (`folk.sidequests`,
+  `folk/sidequests.js`). `{ id, giver, steps: [{ talk: who } | { reach: house }], name?, ask?, thanks?, after?, back? }`:
+  the giver (a role, a role and its count like `townie-3`, or a person's path) offers it; taken, its steps are a
+  checklist in the level's journal, walked in order (talk to another of the folk, who is then part of the chain, or go
+  to one of the town's houses), and done, the player goes back to the giver to finish it. A sidequest `after` another
+  is offered once that one is finished: a chain, giver to giver. Each lives in the first town that holds all its people.
+  The words are the operator's (`ask`, `thanks`, a step's `say`, `name`, `log`); left out, the ask is a slot
+  (`[Keeper: the errand]`) and the rest plain words that only move it on ("Talk to the Master", "Return to the
+  Keeper"). A person in a sidequest dispatches their talk: each of their entries (a hand-in, a step, an offer) keeps a
+  hold var read when the level starts and when a flag it reads is set, and the talk press opens the first whose hold is
+  on, else their chitchat, so one menu opens and no chain runs past the bus's depth (at most five entries a person;
+  past it, the lowest-ranked are left out). A stage's sidequests join the world's own `quests` in its journal, never
+  replace them. Machine gate: `sidequests.test.js`, and `folk-cast.test.js` walking a chain of two through the bus
+  (offer, take, the step, the thanks, the next offer); eyes gate not run.
+- **Recurring: the ones met in every town** (`folk.recurring`, the Officer Jenny of a game). `{ <id>: { role, name? } }`:
+  in each town that has the role, its first person of the role is them (a second of one role, its second), rolled on
+  the game's seed at their own id, never the town's: one face and one name everywhere. What they wear is each town's
+  (its cloth, its service's uniform) and so is their house, their children born of them: a cousin in every town, who
+  says so ("Family resemblance. We get that a lot."). Their body is their own and keyed by their look, so towns that
+  dress them alike mint them once. The talk box names them, and a sidequest names them by their id (`giver: 'joy'`).
+  Machine gate: `folk.test.js`, `lines.test.js`, `bodies.test.js`, and `folk-cast.test.js` standing one in both towns
+  of a two-town game; eyes gate not run.
+- **The folk's day** (`folk.day`, `folk/routines.js`). With `folk.day: true` (or `{ start, rate }`), the town keeps a day
+  on the level's clock: the level gains the clock mechanic (its hour on the HUD, its sky dark at night, so it is the
+  operator's to ask for), and the households, the children and the watch walk the existing routines
+  (`play.routines`): a grown person out mid-morning to a counter or a neighbour's door and home by evening, a child out
+  on the street before their house, the watch round three houses and back to the tower at night, every hour and choice
+  on the person's own die. The people the player comes looking for keep their place: a service's first person, one met
+  in every town, anyone in a sidequest. Places out are on the street before a house (a walk is a straight line), side
+  by side when several stop at one. A walker is talked to where they stand: each place's talk is on from their arrival
+  until the hour takes them on. Without `folk.day`, no clock and everyone stands, as before. Machine gate:
+  `routines.test.js`, and `folk-cast.test.js` driving a walker's arrival through the bus; eyes gate not run.
+- **The folk on the agent's surface.** No new tool: the folk are an argument on the gameworld door. A rail card,
+  `gameworld-folk` ("The town's people", `get_game_vocab({ id: 'gameworld-folk' })`), says the whole of
+  `characters.folk` (houses and their shapes, the line book and `say`, sidequests, the recurring, the day), held to its
+  words by the cards' test; the story card points to it. `design_game`'s routing card hears "a town full of
+  villagers I can talk to, with side quests", and the routing eval asks it in other words ("fill my village with
+  people who chat and give me little errands to run" → `design_game`). The cosmos has `soul.folk` (none | town, web
+  only; Godot and Roblox absent), so the sweep ranks it, and the hillclimb page is regenerated. The sweep's test now
+  states its law (every setting whose `given` holds is set at density 1) rather than one seed's roll of the seats die,
+  which a setting added before them moves. Machine gate: the cards', routing cards' and cosmos tests, the critical
+  tier; the routing gates 2a and 2b (retrieval, in context) run in CI, not here; eyes gate not run.
+
 ### Carved glyphs: the letter primitive grows up
 
 The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
