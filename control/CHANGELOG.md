@@ -14,6 +14,86 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Hostile non-human body: the beast-kin on the seventh generation
+
+A beast-type humanoid foe (a bestiary skin `{ people: lupine | ursine | feline | draconic | avian | insectoid }` rolled
+below the hero door) was built on the creature biped: the Pale Warden's ring plan, with a library head swapped onto its
+neck stub. The undead left that body for the tiered hero; the beast-kin did not. Measured with the hero's own stretch
+audit (walk, jog and sprint on the creature's vajra rig):
+- the biped's knees pinch to 0.28–0.32 of their rest section in the sprint and twist up to 42°, where the tiered
+  hero's knee bridge holds 0.76;
+- its arm tubes push out of a box trunk that has no shoulders;
+- fur and scale cards are half its triangles;
+- the opt-in bridges (`style.drawn`) fold five faces at the forearm. They are the tiered body's bridges without its
+  fold bones, hinge zones or sockets.
+
+This theme freezes the biped as the sixth generation, and stands the beast-kin on the tiered body.
+
+- **The sixth generation, held** (`egocube/creature-gen6.char.test.js`). The biped and its library heads stay as they
+  are for every row minted on them. One sheet per procedure the biped runs is pinned byte for byte, its plan, its
+  recipe and its mesh: digitigrade legs with a tail (designed and in its kit), plantigrade legs, wings on the arms, and a
+  second pair of arms. Each sheet is found in code from the lineages' rolls, dressed as the cube dresses it. The
+  creature-door undead's skull and gaunt face (`creature-heads/derive.js`) are named sixth-generation; the undead stand
+  on the tiered body with their own.
+- **A refined station's weights sum to one** (`station-loft-body.js` `extendBinds`). A station refined between two
+  uneven neighbours blended its weights by u and rounded them without settling, missing 1 by a millionth. The bind
+  then refused it, so a species bound to its skeleton and given `style.drawn` (a tail loft's stations) could not be
+  rigged. The blend now settles whenever its rounding misses 1. A blend that already summed to 1 is untouched.
+- **The stretch audit reads the body the door mints** (`scripts/hero-stretch.mjs`). The script built `heroRecord({ cast })`
+  without the mint's default form, so it audited the deprecated classic body. It now stamps the tiered body;
+  `--body classic` audits the other. The form slice (`--form`) reads its build as before. On the tiered body the knee's
+  and the elbow's regions now count every ring of their bridge (`hero-stretch.js` `STRETCH_REGIONS`), where the limbs'
+  own end rings stay rigid and read 1. A classic body has no bridges and reads as it did.
+- **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, claws? }`.
+  The kin is a card (`beast/cards.js`) of words, never geometry:
+  - `reads`: what the kin reads as;
+  - `fingers`: 3 or 4, the thumb among them;
+  - `claws`: none, blunt or long, and their tone;
+  - `mass`: each part family's girth against a person's, and the waist on top of the trunk (over 1 a barrel, under 1
+    a wasp's waist);
+  - `rest`: the hunch, the knees and the arms' hang.
+
+  The door records the card's words under the spec's own, as the undead's are, so an edit reaches them (`beastWords`):
+  - bald, the body bare in one coat (its lineage's first swatch unless the palette names a skin), the feet bare;
+  - the rest as the hero's gesture, the idle breathing in it, the walk tilted by the hunch.
+
+  The girths go on the hero's plan before the tiered passes (`beastFlesh`), so the bridges, the shoulder's ball, web
+  and cone are built on the body as it now is. The waist's swell is centred on the torso's narrowest section, fading up
+  the chest and to nothing by the hip joint. A barrel's depth goes forward (its back held), so the seat still stands
+  behind the lower back; a pinch draws in all round. After the tiered passes (`beastHands`):
+  - the hand keeps the card's fingers. The outer ones go from the skin and the dials, and the rig stays whole, so every
+    clip plays.
+  - a hooked claw comes out of each kept digit's tip and each toe's. It is a four-station loft that curls toward the
+    palm or the floor, riding the digit's last bone.
+
+  The legs are the hero's word, not the kin's (a lineage stands digitigrade by how far from a person its sheet rolled):
+  `digitigrade` is refused until the tiered body stands on it. Also refused: an unknown kin or word, a beast off the
+  tiered body, and a beast that is undead too. A hero without `beast` is unchanged. Not yet carried, each its own step:
+  the beast head on the tiered neck (the hero's own head is worn meanwhile), digitigrade legs, the tail, arm-wings and
+  the second pair of arms on a generic socket, cover as material (relief to normal, occlusion and height) in place of
+  cards, and the egocube's route from a sheet to the card.
+
+  Machine gate (`beast/tiered.test.js`):
+  - the words recorded, the operator's own over them;
+  - a barrel's waist swelling past its chest, its back held and its centre forward; a wasp's waist pinching inside it;
+  - the forearm at the card's girth, and the shoulder's ball on the thicker arm;
+  - three fingers kept with the rig whole and the dials pruned;
+  - a claw past each digit's tip on its last bone, long ones longer than blunt, none on a clawless kin;
+  - the bind and the rig audit clean;
+  - refusals;
+  - the stretch audit through walk, jog and sprint. The barrel kin on the brute build pinches above 0.7 and no worse
+    than the brute hero, and folds no more.
+
+  The audit over each kin (8 phases a gait), against the creature biped's sprint knee of 0.28–0.32:
+  - bear-kin on the brute: 0.81;
+  - insect-kin on the lithe: 0.72;
+  - wolf-kin: 0.76;
+  - dragon-kin on the heroic: 0.80.
+
+  Minted through `create_character`, the male kin draw no core advisory. A female barrel kin is told its waist is as
+  wide as its hips, which is the barrel's read. Eyes: front, side and the gaits, cropped to the hand and the foot.
+  Eyes gate: the operator's to judge.
+
 ### Foe classes: the hostile encounter primitive
 
 A game fights things, and mojulo had seven separate notions of a foe: the quick goals' battle, shooter and defence

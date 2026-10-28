@@ -18,6 +18,10 @@
  * the hair and the swatches; a sheet rolled in an anime game's setting (setting.js) gets the anime head, its
  * proportions, the character light (`create.toon`), its graphic face and its own expression and hair words, and a sheet
  * rolled in any setting is clothed in its world's colours. Pure and deterministic: the same sheet, the same call.
+ *
+ * THE SIXTH GENERATION: the creature door's biped (`biped`, `dialsAndRig`) with a library head on its neck stub is the
+ * beast-kin's sixth-generation body. Its seventh stands on the tiered body (lib/graph/beast); this one stays as it is for
+ * every row minted on it, held byte for byte by creature-gen6.char.test.js.
  */
 import { readDerive, dialKey } from './channels.js';
 import { ARCHETYPE_IDS, ROLES } from './facets.js';

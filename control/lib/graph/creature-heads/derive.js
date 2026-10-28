@@ -117,6 +117,8 @@ const HUMAN_SKULL_MOVES = [
   { op: 'muzzle', pivot: -0.02, length: 0.16, width: 0.85, height: 1.2 },
 ];
 
+// (the skull and the gaunt face are the SIXTH GENERATION's: drawn for the undead on the creature door, which stand on the
+// tiered body now, lib/graph/undead, with their own skull and the landmark face; kept for the rows minted with them)
 export const HEAD_DERIVATIONS = Object.freeze({
   skull: {
     from: 'bear', reads: 'a human skull: a tall dome, a flat face, empty sockets, the teeth bared', family: 'mammal', head: 'skull', serves: ['skeleton'],
