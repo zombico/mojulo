@@ -7,6 +7,7 @@
 //
 //   --out    live.mjs's out dir (default <tmp>/hero-live); writes shots/sheet.png and one PNG per frame
 //   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
+//            look?: { bone, from?: [x, y, z], dist?, fov? } (a closeup on a bone's head as posed: foreArmR the elbow),
 //            wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //
@@ -61,6 +62,7 @@ try {
       H.view(S.view ?? 'vFace');
       H.seek(S.phase ?? 0.5);
       if (S.hold) H.hold(S.hold);
+      if (S.look) H.look(S.look);
       const s = H.state(); return `${s.variant} · ${s.take} · ${s.view.slice(1)} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;
     }, S);
     await new Promise((r) => setTimeout(r, 400));

@@ -167,7 +167,8 @@ async function load(v) {
   const root = gltf.scene; let body = null;
   root.traverse((o) => {
     if (o.isMesh && /static/.test(o.name)) o.visible = false;   // (the export's ground slab)
-    if (o.isSkinnedMesh) { body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+    // (the body the largest skinned mesh: a held prop, a pose's pistol, is skinned to the hand too, and framed alone)
+    if (o.isSkinnedMesh) { if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
   });
   for (const m of [body?.material].flat().filter(Boolean)) { m.roughness = 0.62; m.metalness = 0; m.needsUpdate = true; }
   root.updateMatrixWorld(true);
@@ -340,6 +341,15 @@ const ready = selectVariant(M.variants[0].id);
 window.heroLive = {
   ready, manifest: M,
   variant: (id) => selectVariant(id), take: (name) => play(name, { fade: 0 }), view: (id) => frame(id), seek, pause: setPaused,
+  // (a closeup on a BONE as posed at this moment: its head, from a direction in the page's space (y up, the figure facing
+  // −z), `dist` away; a joint's fold is its child bone's head: the elbow is foreArmR's)
+  look: ({ bone, from = [0, 0.25, -1], dist = 0.45, fov = 30 }) => {
+    const L = cur(); if (!L?.body) return false;
+    // (three.js strips the `:` of a node name on load: `body:foreArmR` is `bodyforeArmR`)
+    const b = L.body.skeleton.bones.find((x) => x.name === bone || x.name.endsWith(bone)); if (!b) return false;
+    L.root.updateMatrixWorld(true); const at = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld), d = new THREE.Vector3(...from).normalize();
+    camera.fov = fov; camera.updateProjectionMatrix(); controls.target.copy(at); camera.position.copy(at.clone().addScaledVector(d, dist)); controls.update(); return true;
+  },
   hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
   state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
