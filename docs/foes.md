@@ -38,7 +38,7 @@ on a shelf is a row, pointing at primitives that already exist.
 | Modes | the forms it is defeated through | `body.modes` (`worlds/controllable/vanish.js`) | a mode |
 | States | what it is born under | `states` (`foes/states.js` FOE_STATES) | a row |
 | Death | how layer 0 is destroyed | `vanish` (`gameworld/vanish.js`: `die`, `sever`, `by`, `inside`) | a row, or a foe's own `by` |
-| Relations | the other foes whose fate it shares | `summons` (`gameworld/foes.js`, played by `worlds/controllable/summon.js`) | a row of what happens to them when it is reeling or down |
+| Relations | the other foes whose fate it shares | `summons`, `pair` (`gameworld/foes.js`, played by `worlds/controllable/summon.js`, `pair.js`) | a row of what happens to them when it is reeling or down |
 
 Every hostile is stood through ONE step, `standFoe` (`gameworld/foes.js`): the bestiary's foes, a shooter's hunters
 and a sneak's guards alike. It lays the class's mind and attack and layer 0's whole package (the hit egg and health,
@@ -92,6 +92,18 @@ the bestiary, so a summons is a skeleton, a zombie, a model or a foe with modes,
 
 `bound: false` summons fight on when it falls. Awake, the summons hunt as one pack (`group.js`: their sight shared, as
 many pressing in at a time as may be up). A summoner does not call a summoner.
+
+### Relations: a pair
+
+`pair: { foe, cover?, down?, swap? }` stands another entry beside it, two foes as one encounter, each its own bar
+(Scylla and Charybdis, the twin princes). The two share a fate by rows:
+
+| When one… | the other… |
+| --- | --- |
+| reels (`cover`, on by default) | goes to its side and stands over it (the mind's escort) until it is up |
+| falls (`down: 'enrage'`, the default) | enrages: relentless, quicker, powered up for good |
+| takes a killing blow (`down: 'revive'`) | keeps it from dying while it stands: the blow fells it (knocked down, up at half its health, as a mode's defeat), and only both felled together finishes them, each falling once |
+| drops under its `swap` share | holds the field alone while the other leaves in smoke and comes back, as hurt as it left |
 
 ### Win conditions: the encounter has no bar
 
@@ -170,6 +182,8 @@ name none. The discipline for adding one:
 - `scene/channels/controllable/target-rim.test.js`: the target rim on the bar's pick, on whatever body it wears.
 - `gameworld/stand-foe.test.js`: the sight words lowered, refused by name; layer 0 laid by the stand step with a game's
   numbers last; a shooter's foes stood as hunters.
+- `worlds/controllable/pair.test.js`: the cover and its end, the enrage, the revive's felling and both felled together,
+  the swap and the return; absent, no code.
 - `worlds/controllable/summon.test.js`: the call (near, capped, its wind-up broken by a blow), the slack while it reels,
   the strings cut on its fall and the uncalled dropped, an unbound summons fighting on; absent, no code.
 - `scene/rig-import.test.js`: a model's bones by each convention's names, its frame its body's whatever the file's, each

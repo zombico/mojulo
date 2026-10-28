@@ -181,6 +181,20 @@ describe('the run', () => {
     expect(() => readBestiary({ boss: { class: 'summoner', summons: { foe: 'boss' } } })).toThrow(/another foe of the bestiary/);
     expect(() => readBestiary({ b: { class: 'summoner', summons: { foe: 'c' } }, c: { class: 'summoner', summons: { foe: 'b' } } })).toThrow(/does not call a summoner/);
   });
+  it('a pair stands its partner beside it, each naming the other with the same rows; fielded, counted, refused by name', () => {
+    const W = { scylla: { class: SOLO.id, pair: { foe: 'charybdis', down: 'revive', swap: 0.4 } }, charybdis: { class: SOLO.id } };
+    const G = world(W, { from: ['scylla'], count: 1, win: 'clear' });
+    expect(fieldedIds(G)).toEqual(['scylla', 'charybdis']);
+    const X = hostileCast(G, 'one', ENDS, { refs: { scylla: 'w-foes-scylla', charybdis: 'w-foes-charybdis' } });
+    const a = X.entities.find((e) => e.id === 'foe-scylla-1'), b = X.entities.find((e) => e.id === 'foe-scylla-1-p');
+    expect(a.rule.pair).toEqual({ with: b.id, cover: true, down: 'revive', swap: 0.4, back: 6 });
+    expect(b.rule.pair).toEqual({ ...a.rule.pair, with: a.id });
+    expect(X.figures[b.id].heroRef ?? X.figures[b.id].library).toBeTruthy();
+    expect(withFoeWin(G, 'one', ENDS, [{ kind: 'reach-exit', at: ENDS.exit }])).toEqual([{ kind: 'defeat-all', who: 'foe-*', count: 2, label: 'Down' }]);
+    expect(() => readBestiary({ a: { class: SOLO.id, pair: { foe: 'a' } } })).toThrow(/another foe of the bestiary/);
+    expect(() => readBestiary({ a: { class: SOLO.id, pair: { foe: 'b' } }, b: { class: SOLO.id, pair: { foe: 'a' } } })).toThrow(/has a relation of its own/);
+    expect(() => readBestiary({ a: { class: SOLO.id, pair: { foe: 'b', down: 'flee' } }, b: { class: SOLO.id } })).toThrow(/down is what one does when the other falls/);
+  });
   it('a stage won by clearing it ends when every foe on it falls, a summoner\'s summons counted; else by its exit', () => {
     const W = { boss: { class: 'summoner', summons: { foe: 'bones', count: 2 } }, bones: { class: SOLO.id } };
     const mech = [{ kind: 'fail-on-death', startHp: 20 }, { kind: 'reach-exit', at: ENDS.exit, radius: 2.5 }];

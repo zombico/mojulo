@@ -1248,9 +1248,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some(wrecks)) ev = { ...ev, wreck: true };
     // and whether it has LAYER-0 foes (a body with modes, or born under a state: docs/foes.md): a look laid on a foe is laid
     // on the body it wears now, given the normals a rig body lacks
-    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.body && ((Array.isArray(e.body.modes) && e.body.modes.length > 1) || e.body.born))) {
-      // (and each status a body is born under, its look drawn as a cue's would be: foes/states.js)
-      const born = [...new Set(sketch.manifest.entities.flatMap((e) => (e && e.body && e.body.born && e.body.born.statuses ? Object.keys(e.body.born.statuses) : [])))];
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && ((e.body && ((Array.isArray(e.body.modes) && e.body.modes.length > 1) || e.body.born)) || (e.rule && e.rule.pair)))) {
+      // (and each status a body is born under, its look drawn as a cue's would be: foes/states.js; and the power-up a
+      // pair's survivor takes on when its partner falls: worlds/controllable/pair.js)
+      const raged = sketch.manifest.entities.some((e) => e && e.rule && e.rule.pair && e.rule.pair.down === 'enrage') ? ['power-up'] : [];
+      const born = [...new Set([...sketch.manifest.entities.flatMap((e) => (e && e.body && e.body.born && e.body.born.statuses ? Object.keys(e.body.born.statuses) : [])), ...raged])];
       const { LOOKS } = born.length ? await import('@/lib/graph/playscape/elements/elements.js') : { LOOKS: {} };
       // (a state may leave its look's coat off, `coat: false`: a foe's flaming, whose fire is its look)
       const coatless = (n) => sketch.manifest.entities.every((e) => !(e && e.body && e.body.born && e.body.born.statuses && e.body.born.statuses[n]) || e.body.born.statuses[n].coat === false);

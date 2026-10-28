@@ -59,13 +59,28 @@ import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair'];
 // the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's)
-const specOf = ({ vanish, states, summons, ...spec }) => spec;
+const specOf = ({ vanish, states, summons, pair, ...spec }) => spec;
 /** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
  * calls, the hero's distance that starts them, how far round it they arrive (m) and the transit they arrive by. */
 export const SUMMON = Object.freeze({ count: 3, at: 2, every: 4, radius: 14, ring: 1.8, with: 'smoke' });
 const SUMMONS_KEYS = ['foe', 'count', 'bound'];
+/** A pair's rows (worlds/controllable/pair.js): what one does when its partner fell (`down`), and how far it stands off. */
+export const PAIR_DOWNS = Object.freeze(['enrage', 'revive']);
+const PAIR = Object.freeze({ apart: 2.5, back: 6 });
+const PAIR_KEYS = ['foe', 'cover', 'down', 'swap'];
+// a pair's `pair` (docs/foes.md, relations): another entry of the bestiary that stands with it, the two sharing a fate
+function readPair(v, at, id, F) {
+  if (!isObj(v)) throw new Error(`${at} is { foe, cover?, down?, swap? }: the bestiary's foe it stands with, whether each covers the other reeling (true), what one does when the other falls (${PAIR_DOWNS.join(' | ')}: enrage) and the share of its health under which it swaps out`);
+  for (const k of Object.keys(v)) if (!PAIR_KEYS.includes(k)) throw new Error(`${at}.${k} is not a pair setting (${PAIR_KEYS.join(', ')})`);
+  if (!F[v.foe] || v.foe === id) throw new Error(`${at}.foe is another foe of the bestiary (${Object.keys(F).filter((k) => k !== id).join(', ') || 'none yet'})`);
+  if (F[v.foe].pair !== undefined || F[v.foe].summons !== undefined) throw new Error(`${at}.foe: '${v.foe}' has a relation of its own (a pair stands with a foe that has none)`);
+  if (v.cover !== undefined && typeof v.cover !== 'boolean') throw new Error(`${at}.cover is true (each covers the other reeling) or false`);
+  if (v.down !== undefined && !PAIR_DOWNS.includes(v.down)) throw new Error(`${at}.down is what one does when the other falls: ${PAIR_DOWNS.join(' | ')}`);
+  if (v.swap !== undefined && !(Number.isFinite(v.swap) && v.swap > 0 && v.swap < 1)) throw new Error(`${at}.swap is the share of its health under which one leaves the field while the other stands, 0 … 1`);
+  return { foe: v.foe, ...(v.cover !== undefined ? { cover: v.cover } : {}), ...(v.down !== undefined ? { down: v.down } : {}), ...(v.swap !== undefined ? { swap: v.swap } : {}) };
+}
 // a summoner's `summons` (foes/classes/summoner.js): another entry of the bestiary, how many it is minted with, and whether
 // its fate is bound to the summoner's
 function readSummons(v, at, id, F) {
@@ -106,6 +121,8 @@ export function readBestiary(F) {
     if (e.class === 'summoner' && e.summons === undefined) throw new Error(`${at}: a summoner names what it calls, summons: { foe, count?, bound? }`);
     if (e.summons !== undefined && e.class !== 'summoner') throw new Error(`${at}.summons: only a summoner calls (its class is ${e.class})`);
     if (e.summons !== undefined) out[id].summons = readSummons(e.summons, `${at}.summons`, id, F);
+    if (e.pair !== undefined && e.summons !== undefined) throw new Error(`${at}: a summoner and a pair are two relations; name one`);
+    if (e.pair !== undefined) out[id].pair = readPair(e.pair, `${at}.pair`, id, F);
   }
   return out;
 }
@@ -130,8 +147,8 @@ export function readLevelFoes(LF, bestiary, at) {
 export function fieldedIds(G) {
   const used = new Set();
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
-  // (and what a summoner it fields calls)
-  for (const id of [...used]) { const S = bestiaryOf(G)[id]?.summons; if (S) used.add(S.foe); }
+  // (and what a summoner it fields calls, and who a pair stands with)
+  for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
@@ -245,7 +262,15 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   const standOne = (p, more = {}) => standFoe(G, part, p, { ref: refs[p.eid], more, ctx });
   const B = bestiaryOf(G);
   for (const p of P) {
-    const S = p.entry.summons;
+    const S = p.entry.summons, Q = p.entry.pair;
+    if (Q) {
+      // a PAIR (worlds/controllable/pair.js): its partner stands beside it, each naming the other
+      const h = p.heading ?? 0, side = [Math.cos(h + Math.PI / 2) * PAIR.apart, Math.sin(h + Math.PI / 2) * PAIR.apart];
+      const pid = `${p.id}-p`, rows = { cover: Q.cover ?? true, down: Q.down ?? 'enrage', ...(Q.swap !== undefined ? { swap: Q.swap, back: PAIR.back } : {}) };
+      standOne(p, { rule: { pair: { with: pid, ...rows } } });
+      standOne({ id: pid, eid: Q.foe, entry: B[Q.foe], at: [r3(p.at[0] + side[0]), r3(p.at[1] + side[1]), p.at[2]], heading: p.heading }, { rule: { pair: { with: p.id, ...rows } } });
+      continue;
+    }
     if (!S) { standOne(p); continue; }
     // a SUMMONER (foes/classes/summoner.js): its summons minted with it, asleep where it stands, called a few at a time
     // (worlds/controllable/summon.js); bound, they fall with it
@@ -275,7 +300,7 @@ export function withFoeWin(G, level, ends, mechanics) {
   const LF = G.levels[level]?.foes;
   if (LF === undefined || readLevelFoes(LF, G.foes, `levels.${level}`).win !== 'clear') return mechanics;
   const B = bestiaryOf(G), P = foePlacements(G, level, ends);
-  const count = P.reduce((n, p) => n + 1 + (B[p.eid]?.summons ? B[p.eid].summons.count ?? SUMMON.count : 0), 0);
+  const count = P.reduce((n, p) => n + 1 + (B[p.eid]?.summons ? B[p.eid].summons.count ?? SUMMON.count : 0) + (B[p.eid]?.pair ? 1 : 0), 0);
   if (!count) return mechanics;
   const clear = { kind: 'defeat-all', who: 'foe-*', count, label: 'Down' };
   return mechanics.some((m) => m.kind === 'reach-exit') ? mechanics.map((m) => (m.kind === 'reach-exit' ? clear : m)) : [...mechanics, clear];

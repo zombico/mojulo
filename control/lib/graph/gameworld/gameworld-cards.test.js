@@ -28,7 +28,9 @@ describe('the rail\'s cards', () => {
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
     // kits beside the city's stalker words, 4157 bytes)
-    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4224 };
+    // the foes card too (2026-10-28): its row per class (the guard, the hunter and the summoner joined) beside the
+    // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member
+    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4224, 'gameworld-foes': 4608 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

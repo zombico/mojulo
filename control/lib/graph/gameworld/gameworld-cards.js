@@ -40,7 +40,7 @@ import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './qui
 import { CAMERAS } from './cameras.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
-import { SWARM, MAX_FOES } from './foes.js';
+import { SWARM, MAX_FOES, PAIR_DOWNS } from './foes.js';
 import { VANISHES, SEVERS } from './vanish.js';
 import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
@@ -551,6 +551,9 @@ function foesCard() {
     '',
     `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')}.`,
     'SUMMONS a summoner\'s: { foe, count?, bound? }: another entry, asleep till called; bound (true), they fall with it.',
+    `PAIR    an entry's pair: { foe, cover?, down?: ${PAIR_DOWNS.join(' | ')}, swap? }: its partner stands beside it, each its own bar;`,
+    '        each covers the other reeling; one whose partner falls enrages, or (revive) both must fall together; swap: under',
+    '        that share of its health one leaves the field while the other stands, and comes back.',
     `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
     `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
     '        A platformer squashes it, an action game throws it back, a realistic one lets it fall; then the look fades it.',

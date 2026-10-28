@@ -712,6 +712,22 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **A pair: two foes as one encounter** (`pair: { foe, cover?, down?: enrage | revive, swap? }`;
+  `worlds/controllable/pair.js`; the operator's Scylla and Charybdis: "both on the field. one stunned. one switch out.
+  one die first", "the orchestration of S&C means 'sometimes they are together, sometimes autonomous'"). The second
+  relation on the shelf: an entry's partner stands beside it, each with its own bar and layer 0, the two sharing a fate
+  by rows. Reeling, one is covered (its partner goes to its side and stands over it, the mind's escort, until it is up).
+  Fallen, its partner enrages (relentless, quicker, the power-up look for good); or, `revive`, neither dies while the
+  other stands: a killing blow fells it (combat-hit's `noDestroy`, as a mode's defeat: knocked down, up at half its
+  health), and only both felled together finishes them, each falling once, so a win counting the fallen counts each
+  once. Under its `swap` share one leaves in smoke while the other holds the field, and comes back as hurt as it left.
+  A clear counts the partner. Emitted only into a page whose world has a pair.
+  - The foes card's ceiling is re-pinned (4608 bytes, its reason beside it): its row per class grew by three and the
+    relations' words joined it; the class shelf is a growing family, due to become an index and a card per member.
+
+  Machine gate: each row on the live runtime (the cover and its end, the enrage, the felling and both felled together,
+  the swap and the return); the bestiary's pair stood with symmetric rows, fielded, counted, refused by name. Eyes: not
+  yet looked at.
 - **Encounters are won, not drained** (`levels.<id>.foes.win: exit | clear`; the operator: "the encounter doesnt have a bar,
   it has win cons", "encoutner win con canbe kill all enemies"). A stage its foes stand on is won by its exit (as before)
   or by clearing it: every foe stood on it down, a summoner's summons counted (those it never called are dropped as it
