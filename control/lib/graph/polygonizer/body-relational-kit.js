@@ -235,7 +235,7 @@ const BELT_PART = /^(belt|\w*Belt)_[a-z]+$/;
  * → { parts, taken } (`taken` the kit's ids made here, for the authored kernel to leave). Deterministic.
  */
 export function kitPieces(S, cloth, kit, { L1 }) {
-  const parts = {}, taken = new Set(), laid = new Set();
+  const parts = {}, taken = new Set(), laid = new Set(), waists = new Set();
   const skin = ['torso', 'pelvis', 'neck', 'thighR', 'thighL', 'upperArmR', 'upperArmL'].map((k) => S.parts[k]).filter(Boolean);
   const worn = [...skin, ...Object.values(cloth)].flatMap(pointsOf);
   const belts = Object.entries(cloth).filter(([k]) => BELT_PART.test(k));
@@ -243,7 +243,12 @@ export function kitPieces(S, cloth, kit, { L1 }) {
     if (!A || typeof A.id !== 'string' || typeof A.part !== 'string') continue;
     const sig = A.signature, Pskin = S.parts[A.part];
     if (!Pskin || !L1[A.part]) continue;
-    const at = (s, t, side) => frameAt(L1, A.part, [s, t], side);
+    // (each frame read OUT from the part's own axis: an address's normal comes out of its neighbours' handedness, which a
+    // reshaped part can turn over, and a pouch laid along it went into the body)
+    const at = (s, t, side) => {
+      const F = frameAt(L1, A.part, [s, t], side), st = Pskin.stations.reduce((b, x) => (Math.abs(middle(x)[2] - F.origin[2]) < Math.abs(middle(b)[2] - F.origin[2]) ? x : b)), c = middle(st);
+      return F.normal[0] * (F.origin[0] - c[0]) + F.normal[1] * (F.origin[1] - c[1]) < 0 ? { ...F, normal: scl(F.normal, -1) } : F;
+    };
     if (A.mode === 'shell' && sig?.kind === 'pack' && !sig.soft && Array.isArray(A.s) && Array.isArray(A.t)) {
       const W = byShare(Pskin, A), f = at((W.s[0] + W.s[1]) / 2, (W.t[0] + W.t[1]) / 2, A.side ?? 'R');
       const out = unitv([f.normal[0], f.normal[1], 0]), b = [0, 0, 1], a = unitv(cross(b, out)), h = sig.h, w = sig.w, d = sig.d;
@@ -278,7 +283,30 @@ export function kitPieces(S, cloth, kit, { L1 }) {
       // a tab from the lock down over the belt's face, round it)
       const beltTop = (q) => { const zs = belts.flatMap(([, P]) => pointsOf(P).filter((r) => Math.hypot(r[0] - q[0], r[1] - q[1]) < 0.1).map((r) => r[2])); return zs.length ? [Math.max(...zs), Math.min(...zs)] : null; };
       const locks = [];
-      for (const end of [0, 1]) {
+      // (a strap whose two ends meet, a hand apart at the waist, is ANCHORED to a WAIST STRAP round the body there: a band
+      // of the same webbing round the trunk just over the belt, made once for every strap that ends at its height, each
+      // strap cut at the band's middle and locked to it; a rig's X never hangs open at the sides)
+      const e0 = A.path[0], e1 = A.path[A.path.length - 1], loop = e0[2] === e1[2] && len(sub(bases[0], bases[bases.length - 1])) < 0.1;
+      if (loop) {
+        const B = beltTop(bases[0]), zBand = Math.max(Math.min(bases[0][2], bases[bases.length - 1][2]), B ? B[0] + 0.002 : -Infinity) + sw / 2;
+        // (each end cut where it first comes down to the band's top, never run along it, then set straight down onto it)
+        const top = zBand + sw / 2;
+        while (bases.length > 3 && bases[0][2] < top) { bases.shift(); ns.shift(); }
+        while (bases.length > 3 && bases[bases.length - 1][2] < top) { bases.pop(); ns.pop(); }
+        bases.unshift([bases[0][0], bases[0][1], zBand]); ns.unshift(ns[0]);
+        bases.push([bases[bases.length - 1][0], bases[bases.length - 1][1], zBand]); ns.push(ns[ns.length - 1]);
+        const key = `${A.part}:${Math.round(zBand * 50)}`;
+        if (!waists.has(key)) {
+          waists.add(key);
+          const trunk = Object.entries(cloth).filter(([k, P]) => (P.garment && /_(body|torso|pelvis)$/.test(k)) || BELT_PART.test(k)), near = (P) => { const st = P.stations.reduce((b, x) => (Math.abs(middle(x)[2] - zBand) < Math.abs(middle(b)[2] - zBand) ? x : b)); return Math.abs(middle(st)[2] - zBand) < 0.03 ? st : null; };
+          const radius = (P) => { const st = near(P), c = st && middle(st); return st ? P.slots.reduce((t, sl) => t + Math.hypot(st.points[sl][0] - c[0], st.points[sl][1] - c[1]), 0) / P.slots.length : -1; };
+          const on = trunk.filter(([, P]) => P.garment).map(([, P]) => P).sort((x, y) => radius(y) - radius(x))[0] ?? Pskin;
+          const band = beltOn(on, [...trunk.map(([, P]) => P), Pskin, ...(S.parts.pelvis ? [S.parts.pelvis] : [])].flatMap(pointsOf), zBand, { width: sw, thick: stt });
+          if (band) parts[`${A.id}Waist_kit`] = { ...band, group: A.group ?? 'Leather' };
+        }
+        locks.push({ end: 0, join: true }, { end: 1, join: true });
+      }
+      for (const end of loop ? [] : [0, 1]) {
         const q = end ? bases[bases.length - 1] : bases[0], B = beltTop(q), addr = end ? A.path[A.path.length - 1] : A.path[0];
         if (!B || q[2] > B[0] + 0.2) continue;
         const keep = (p) => p[2] >= B[0] + 0.012;
@@ -297,6 +325,7 @@ export function kitPieces(S, cloth, kit, { L1 }) {
         const mid = mean([p0, p1]), n = unitv(sub(p2, p1)), tag = `${A.id}Lock${L.end ? 'B' : 'A'}`;
         const lock = block(mid, n, [0, 0, 1], { w: sw + 0.008, h: 0.02, thick: 0.0045 });
         parts[`${tag}_kit`] = { ...lock, group: 'Buckle', bind: bindNearest(lock, Pskin) };
+        if (L.join) continue;
         // (the tab: from the lock down over the belt, lying on it)
         const down = [mid, [mid[0], mid[1], L.bottom - 0.004]], tab = webbingOn([down[0], mean(down), down[1]], [n, n, n], worn, { w: sw * 0.8, t: stt });
         parts[`${tag}Tab_kit`] = { ...tab, group: A.group ?? 'Leather', bind: bindNearest(tab, Pskin) };

@@ -202,3 +202,18 @@ describe('the realistic hero at the door', () => {
     expect(Object.keys(at({ seed: 2, ethnicity: 'western' }).recipe.parts).some((k) => /^jewel/.test(k))).toBe(false);
   }, 300_000);
 });
+
+describe('the man\'s hips (realistic laws 9)', async () => {
+  const { coreMeasures, CORE_BANDS } = await import('./hero-core-measures.js');
+  const read = (spec) => { const hero = heroRecord({ form: 'realistic', head: 'none', ...spec }), m = expandLayeredManifest({ kind: 'layered', hero }), J = m.recipe.rig.joints;
+    return { core: coreMeasures(heroPlanOf(hero), compileLayered(m.recipe, m.dials)), hipX: (J.hipR.at ?? J.hipR)[0] }; };
+  it('brings a man\'s hip sockets in, out of the woman\'s band; laws 8 as it was, a woman as she is', () => {
+    const now = read({ cast: 'male' }), before = read({ cast: 'male', physique: { from: 'athletic', laws: 8 } });
+    expect(now.hipX).toBeLessThan(before.hipX * 0.9);
+    expect(before.core.waistToHip).toBeLessThan(CORE_BANDS.female.waistToHip[1]);
+    expect(now.core.waistToHip).toBeGreaterThan(CORE_BANDS.female.waistToHip[1] + 0.02);
+    expect(now.core.hip_m).toBeLessThan(before.core.hip_m - 0.03);
+    const her = read({ cast: 'female' }), herBefore = read({ cast: 'female', physique: { from: 'athletic', laws: 8 } });
+    expect(her.hipX).toBe(herBefore.hipX); expect(her.core).toEqual(herBefore.core);
+  }, 120_000);
+});

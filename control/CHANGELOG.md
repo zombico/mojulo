@@ -55,6 +55,12 @@ the same man in a leather jacket. The eyes gate is the operator's.
     or sinks. An end that runs to a belt is fastened to it: carried down the body to just over the belt, a ladder lock
     there and a tab over the belt's face. A strap along a path one is already laid on is that strap (a rig's shoulder
     straps and a harness worn with it).
+  - **A rig's X is anchored to a waist strap**: straps whose two ends meet at the waist (a harness's) end on a band of
+    the same webbing round the body just over the belt, made once for every strap that ends at its height. Each strap
+    is cut where it first comes down to the band (never run along it), set onto it and locked there. Its ends had hung
+    open at the sides.
+  - Each frame a piece is laid by is read out from its part's own axis: an address's normal comes from its neighbours'
+    handedness, which a reshaped part can turn over, and a pouch laid along it went into the body.
   - A band round a thigh is a belt on that leg's cloth, read off that leg alone, no higher than a hand under the crotch.
 - **The cloth's folds** (realistic laws 8, `polygonizer/body-relational-folds.js`): the folds a game draws, not a
   simulation's, a few broad ridges that keep reading as the body moves (each rides the cloth's own weights, so a bend
@@ -63,7 +69,15 @@ the same man in a leather jacket. The eyes gate is the operator's.
   stands out from the cloth, its crease side sharp and its other side soft, its size the cloth's weight by the
   garment's role (`FOLD_CLOTH`: a knit small, canvas sharper, a heavy layer broad, leather broadest). The cloth is
   refined where a fold lies, its new rings' weights mixed from their neighbours; a piece a garment is worn over is left.
-- A hero minted before keeps what its laws made; a hero minted now is stamped laws 8 (`REALISTIC_LAWS_VERSION`).
+- **The man's hips** (realistic laws 9, `body-relational-builds.js` `MALE_HIPS`). The male build narrowed the
+  shoulders (its tune, 0.8) but stood on the heroic cast's hip joints, 22 cm apart, the pelvis's skin carried out to
+  them. So every male physique had a pinched waist over wide hips, waist to hip 0.76 … 0.79, inside the female band
+  (`hero-core-measures.js` `CORE_BANDS`), and from behind and in profile a turntable read a woman. The door warned "the
+  waist is narrow for the hips" on every male realistic hero. The hip sockets now come in with the narrowed frame
+  (`hipSpan` 0.78, about 17 cm apart), the knees under them as they were, before the slice reads the rig: waist to hip
+  0.85 … 0.91 across the physiques (athletic 0.88), the hips 4 to 5 cm narrower. The female build is as it was. The
+  hero's `tune.hips` widens the pelvis's girth only, never the sockets.
+- A hero minted before keeps what its laws made; a hero minted now is stamped laws 9 (`REALISTIC_LAWS_VERSION`).
 
 ### Named heroes and their marks
 

@@ -11,9 +11,10 @@ import { ringSlots } from './body-relational-resample.js';
 const SLOTS = ringSlots(16);
 const angle = (j) => (2 * Math.PI * j) / SLOTS.length;
 /** a tube up the z axis (or along `axis` from `base`), its radius `r(θ, z)` at each of its stations' heights */
-function tube(zs, r, { group = 'Bottom', bone = 'pelvis' } = {}) {
-  return { layer: 1, closure: 'closed', garment: true, group, slots: SLOTS, bind: { bone, blend: {} },
-    stations: zs.map((z, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(SLOTS.map((sl, j) => [sl, [Math.sin(angle(j)) * r(angle(j), z), Math.cos(angle(j)) * r(angle(j), z), z]])) })),
+function tube(zs, r, { group = 'Bottom', bone = 'pelvis', slots = SLOTS } = {}) {
+  const ang = (j) => (2 * Math.PI * j) / slots.length;
+  return { layer: 1, closure: 'closed', garment: true, group, slots, bind: { bone, blend: {} },
+    stations: zs.map((z, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(slots.map((sl, j) => [sl, [Math.sin(ang(j)) * r(ang(j), z), Math.cos(ang(j)) * r(ang(j), z), z]])) })),
     caps: { back: [0, 0, zs[0] - 0.001], tip: [0, 0, zs[zs.length - 1] + 0.001] } };
 }
 const pts = (P) => P.stations.flatMap((st) => Object.values(st.points));
@@ -99,5 +100,30 @@ describe('the cloth\'s folds', () => {
     foldCloth(P, { joints, order: ['top', 'bottom', 'outer'] });
     expect(P.top_armR).toEqual(before);
     expect(P.outer_armR.stations.length).toBeGreaterThan(21);
+  });
+});
+
+describe('a rig\'s straps on a body', async () => {
+  const { kitPieces } = await import('./body-relational-kit.js');
+  const { compileLayered } = await import('./station-loft.js');
+  // (a torso up the z axis, a shirt over it, and two straps each from one side of the waist over a shoulder and back to
+  // the same side, an X: the harness's walk on the torso's addresses, its half ring 8 slots)
+  const torso = { ...tube(range(1.0, 1.45, 10), () => 0.14, { bone: 'torso' }), garment: undefined, group: 'Skin' };
+  // (the shirt as dense as a tailor's cloth: a strap lies on the points under it)
+  const shirt = tube(range(1.0, 1.45, 46), () => 0.146, { group: 'Top', bone: 'torso', slots: ringSlots(48) });
+  const L1 = compileLayered({ schema: 'layered-v1', dials: {}, parts: { torso } }, {}, { details: false, creases: false }).parts;
+  const X = (id, side, other) => ({ id, mode: 'strap', part: 'torso', width: 0.04, thick: 0.003, group: 'Strap', path: [[1, 4.2, side], [5, 7, side], [8.8, 5, other], [5, 1, other], [1, 3.8, side]] });
+  it('anchors straps whose ends meet at the waist to one waist strap round the body, each cut on it', () => {
+    const { parts, taken } = kitPieces({ parts: { torso } }, { top_body: shirt }, [X('harnessR', 'L', 'R'), X('harnessL', 'R', 'L')], { L1 });
+    expect([...taken].sort()).toEqual(['harnessL', 'harnessR']);
+    const waist = Object.keys(parts).filter((k) => /Waist_kit$/.test(k));
+    expect(waist).toEqual(['harnessRWaist_kit']);
+    // (round the whole body: every slot of it out over the shirt)
+    for (const q of pts(parts.harnessRWaist_kit)) expect(radius(q), `waist ${q}`).toBeGreaterThan(0.146);
+    // (each strap's ends on the band, its lowest point the band's middle, never run past it)
+    const W = pts(parts.harnessRWaist_kit), mid = (Math.min(...W.map((q) => q[2])) + Math.max(...W.map((q) => q[2]))) / 2;
+    for (const k of ['harnessR_kit', 'harnessL_kit']) expect(Math.min(...pts(parts[k]).map((q) => q[2]))).toBeGreaterThan(mid - 0.01);
+    // (and every strap lies out over the shirt, its frames read out from the torso's axis whatever their handedness)
+    for (const k of ['harnessR_kit', 'harnessL_kit']) for (const q of pts(parts[k])) if (q[2] > 1.05 && q[2] < 1.4) expect(radius(q), `${k} ${q}`).toBeGreaterThan(0.146);
   });
 });
