@@ -30,7 +30,7 @@
  */
 import { streamOf } from '../city/plan/dice.js';
 import { vnoise } from '../era/dirt.js';
-import { dermisAt, hairColourOf, linHex, hexLin, HEAD_LEVELS, beardStyleOf, GREY_HAIR } from './dermal-map.js';
+import { dermisAt, hairColourOf, linHex, hexLin, HEAD_LEVELS, beardStyleOf, GREY_HAIR, sideburnHold } from './dermal-map.js';
 import { HAIR_COLOURS } from '../egocube/ancestry.js';
 import { lockSpine, lockB, coilSpine, drapeSpine, keepOut } from '../polygonizer/hair-spine.js';
 
@@ -970,7 +970,8 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     if (C.taper) L = Math.min(L, C.taper.min + (L - C.taper.min) * smooth(C.taper.rise[0], C.taper.rise[1], r));
     if (C.shelf && r < C.shelf.rise && ad(a.around, 0) > 0.12) L = Math.min(L, C.shelf.min);
     if (C.strip && p && Math.abs(p[0] - hb.c[0]) > C.strip.width) L = Math.min(L, C.strip.min);
-    return L * k;
+    // (the sideburn held to the beard's cheek, where the face grows one: dermal-map.js sideburnHold)
+    return Math.max(L * k, sideburnHold(a, D) / 1000);
   };
   return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, clipOf, bands: tails.flatMap((t) => t.bands), tails: tails.map((t) => ({ kind: t.kind, tie: t.T.ti, pts: t.pts, r: t.r })), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }

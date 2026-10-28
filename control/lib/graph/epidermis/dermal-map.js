@@ -600,6 +600,28 @@ export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairCo
  * share the follicles' own unevenness moves it by.
  */
 export const CLIPPER = Object.freeze({ shell: 4, cover: 1.4, max: 0.9, mottle: 0.3, meet: 1.5 });
+/**
+ * THE SIDEBURN (realistic laws 10, a barber's connection): where the face grows a beard, a band in front of the ear from
+ * the beard's top (`below` mm under the sideburn's foot) up into the scalp (full to `full` mm over the foot, let go by
+ * `up`), `inner` mm in front of the hairline's sideburn line and `outer` mm behind it, wears the beard's cheek length, so
+ * a fade runs down into the beard and never leaves bare skin between them (the dermis's own sideburn is a sliver, and
+ * the skin under it vellus); no beard, none: a skin fade takes the sideburn as it takes the rest.
+ * → { w 0 … 1, mm } at an address of the relational head, or null.
+ */
+export const SIDEBURN = Object.freeze({ below: 14, full: 18, up: 38, inner: 12, outer: 6 });
+export function sideburnOf(A, D) {
+  if (!A?.marks || A.feature || D.sex !== 'male') return null;
+  const BS = D.beardStyle ? beardStyleOf(D.beardStyle) : null;
+  const mm = BS ? (BS.zones.cheeks || BS.strap ? BS.lengths.cheek : 0) : D.beard > 0 ? D.stubble ?? 0 : 0;
+  if (!(mm > 0)) return null;
+  const M = A.marks.points, q = headXY(A), x = Math.abs(q.X), por = M[`porion${q.X >= 0 ? 'R' : 'L'}`] || M.porion, sideX = Math.abs(por.X) - 16;
+  const footY = por.Y - 4 - (D.sideburn ?? 0);
+  const across = smooth(sideX - 6 - SIDEBURN.inner, sideX - 6, x) * (1 - smooth(sideX + 2, sideX + 2 + SIDEBURN.outer, x));
+  const w = across * smooth(footY - SIDEBURN.below - 6, footY - SIDEBURN.below, q.Y) * (1 - smooth(footY + SIDEBURN.full, footY + SIDEBURN.up, q.Y));
+  return w > 0.001 ? { w, mm } : null;
+}
+/** the length (mm) the sideburn holds the scalp's hair to at an address (0 off it): its band's weight × the beard's length */
+export const sideburnHold = (A, D) => { const s = sideburnOf(A, D); return s ? s.w * s.mm : 0; };
 /** the share of the skin clipped hair `mm` long covers (0 … CLIPPER.max) */
 export const clipCover = (mm) => CLIPPER.max * (1 - Math.exp(-Math.max(0, mm) / CLIPPER.cover));
 export const GREY_HAIR = Object.freeze(hexLin('#cdc8bf'));

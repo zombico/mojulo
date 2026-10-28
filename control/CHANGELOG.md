@@ -79,6 +79,11 @@ The eyes gate is the operator's.
     and smeared its shadow); the recipe's `hairClip` carries it as a grid over the head for the skin's paint
     (`dermal-texture.js` `paintDermis` `clip`). The fade's cards fringe the hairline alone, never the fade's line. Never
     a solid helmet down to a fade's foot, never a stubble's blotchy coat.
+  - THE SIDEBURN connects a fade to a beard, as a barber leaves it (`dermal-map.js` `sideburnOf`): where the face grows
+    a beard, a band in front of the ear, from the beard's top up into the scalp, wears the beard's cheek length, both in
+    the scalp's clipped length and in the paint (the dermis's own sideburn is a sliver over vellus skin, so a skin fade
+    left bare skin between the hair and the beard). The beard's paint over it adds only what the band left, so their
+    overlap is never darker. A shaven face's fade takes the sideburn as it takes the rest.
 - A hero minted before keeps its blades byte for byte: the locks are its laws'.
 
 ### The realistic wardrobe: the legendary merc

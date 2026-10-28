@@ -6,8 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { relationalHeadChart } from './dermal-head.js';
-import { readDermis, CLIPPER, clipCover } from './dermal-map.js';
-import { readScalp, SCALP_STYLES } from './dermal-hair.js';
+import { readDermis, CLIPPER, clipCover, sideburnOf } from './dermal-map.js';
+import { readScalp, growScalp, SCALP_STYLES } from './dermal-hair.js';
 import { hairClass } from './hair-depict.js';
 import { lockHair, lockStrands, beardShell, lockStyleAt, readStylize, surfaceClear, lockClass, HAIR_LOCKS, LOCK_GROUPS, LOCK_TIP, LOCK_FADE } from './hair-locks.js';
 import { overlapHair } from './hair-score.js';
@@ -79,6 +79,16 @@ describe('the lock hair', () => {
     // (the shadow's share by length: clipper 0 about a third, clipper 1 about four fifths, never the whole skin)
     expect(clipCover(0.8)).toBeGreaterThan(0.3); expect(clipCover(0.8)).toBeLessThan(0.45); expect(clipCover(3)).toBeGreaterThan(0.7); expect(clipCover(30)).toBeLessThanOrEqual(CLIPPER.max);
   }, 120_000);
+  it('the SIDEBURN connects a fade to a beard: a band in front of the ear in the beard\'s length where the face grows one, none on a shaven face', () => {
+    const beard = readDermis({ from: 'male', beardStyle: 'short-boxed' }), shaven = readDermis({ from: 'male', beard: 0 });
+    const band = chart.samples.map((a) => sideburnOf(a, beard)).filter(Boolean);
+    expect(band.some((b) => b.w > 0.9)).toBe(true); expect(band[0].mm).toBeGreaterThan(CLIPPER.shell);
+    expect(chart.samples.some((a) => sideburnOf(a, shaven))).toBe(false);
+    // (and the groom's clipped length there holds it: a skin fade's sideburn at the beard's cheek, never the fade's foot)
+    const G = growScalp(chart, beard, readScalp({ style: 'fade', spacing: 0.02 }), { colliders: ['head'], strands: false });
+    const i = chart.samples.findIndex((a) => sideburnOf(a, beard)?.w > 0.9);
+    expect(G.clipOf(chart.samples[i], chart.vertices[i]) * 1000).toBeGreaterThan(CLIPPER.shell);
+  }, 60_000);
   it('a falling curly groom is drawn as flows; standing coils are the sculpted volume', () => {
     const coils = Object.keys(SCALP_STYLES).map((k) => readScalp(k)).filter((S) => hairClass(S) === 'coil');
     const falls = coils.find((S) => (S.stand ?? 0) < 0.3 && S.length >= 0.15), stands = coils.find((S) => (S.stand ?? 0) >= 0.5);

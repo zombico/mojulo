@@ -103,7 +103,7 @@ export const LOCK_MIN = 0.006;
 /** CLIPPED HAIR's grid for the painter (`grid` cells round the head and along it) and how far past a shell's edge (m) the
  * scalp is looked at for clipped hair (a fade's line, not a hairline: no cards there); a clipped shell's edge smoothed
  * `smooth` rounds (a fade's line runs across the chart's cells: fewer leave it wavy) */
-export const LOCK_CLIP = Object.freeze({ grid: 48, past: 0.004, smooth: 12 });
+export const LOCK_CLIP = Object.freeze({ grid: 72, past: 0.004, smooth: 12 });
 /** the clipped lengths (mm, at the chart's points) as a grid over the head's addresses: { n, mm } (row by along, −1 where
  * no scalp point falls, each cell its points' mean, under 99 mm) */
 function clipGrid(chart, cutMm) {

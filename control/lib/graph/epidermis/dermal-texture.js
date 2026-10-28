@@ -30,7 +30,7 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover, sideburnOf } from './dermal-map.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
@@ -110,7 +110,7 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, 
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
       grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
       texel: (px, py) => addressAt(chart, r, (px + 0.5) / r.w * (1 + r.extra), (py + 0.5) / r.h),
-      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard } } : {}),
+      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}),
     });
   }
   return finishPages(P, chart, faceUVs(chart, layout), D, layout);
@@ -156,7 +156,11 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     // length on, the paint under the shell as it was)
     const mm = clip?.at && scalpW > 0.01 ? clip.at(A) : null, mottle = (k) => 1 - CLIPPER.mottle / 2 + CLIPPER.mottle * vnoise(A.around * A.girth * 1000 / 2, A.along * A.length * 1000 / 2, D.seed + k);
     // (in the shell's own colour, its share reaching the whole by the shell's length: the fade meets the shell, no ledge)
-    if (mm !== null && mm < CLIPPER.shell) col = mixc(col, hairLin, Math.min(1, clipCover(mm) * mottle(31) + (1 - clipCover(mm)) * smooth(CLIPPER.shell - CLIPPER.meet, CLIPPER.shell, mm)) * scalpW);
+    // (and the SIDEBURN where the face grows a beard: its band in the beard's length, over whatever skin is under it)
+    const sb = clip?.head ? sideburnOf(A, D) : null, sbShare = sb ? clipCover(sb.mm) * mottle(41) * sb.w : 0;
+    let sbApplied = 0;
+    if (mm !== null && mm < CLIPPER.shell) { const sh = Math.max(sbShare, Math.min(1, clipCover(mm) * mottle(31) + (1 - clipCover(mm)) * smooth(CLIPPER.shell - CLIPPER.meet, CLIPPER.shell, mm)) * scalpW); col = mixc(col, hairLin, sh); sbApplied = sh; }
+    else if (sbShare > 0 && !(scalpW > 0.01 && scalp)) { col = mixc(col, hairLin, sbShare); sbApplied = sbShare; }
     else if (scalpW > 0.01) {
       if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
@@ -170,7 +174,9 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       const bl = lerp((s) => (s.hair.tract === 'beard' ? s.hair.length : 0)), bw = lerp((s) => s.regions.beard || 0);
       // (under `clip` a stubble, a clipper's beard under the shell's length, its shadow by its length as the scalp's is)
       const share = (clip?.beard && bl < CLIPPER.shell ? clipCover(bl) * mottle(37) : 0.85 * smooth(0.5, 8, bl)) * Math.min(1, 0.5 + 0.35 * beardD / 55) * smooth(0.3, 0.8, bw);
-      if (share > 0) col = mixc(col, hairLin.map((x) => x * 0.8), share);
+      // (over a sideburn already painted, only what it left: the two meet as the larger, never darker for their overlap)
+      const more = sbApplied > 0 ? Math.max(0, (share - sbApplied) / Math.max(1e-6, 1 - sbApplied)) : share;
+      if (more > 0) col = mixc(col, clip?.beard && bl < CLIPPER.shell ? hairLin : hairLin.map((x) => x * 0.8), more);
     }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
