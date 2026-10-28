@@ -16,6 +16,9 @@
  *                     share of its strips hanging long), the back the chest's back half, `length` the long strips' ×
  *
  * Pure: the dice are the caller's (`rand`, its own seeded stream). Template metres at 2 m tall (× k).
+ *
+ *   trunkPoints(body), band(pts, lo, hi)   the points a body's trunk parts reach, and the band they make over a span
+ *                     of z ({ ax, front, back }): what the rags hang clear of, and what the decayed flesh shrinks inside
  */
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]);
@@ -28,10 +31,11 @@ const SLOTS = ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'];
 const TRUNK_GROUPS = new Set(['Torso', 'Pelvis', 'Flesh']);
 
 // the points a body's trunk parts reach, to fit a band to: a trunk's ellipses, a loft's stations, a segment's ends
-function trunkPoints(body) {
+export function trunkPoints(body) {
   const out = [], rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
   for (const s of body.segments) {
-    if (!TRUNK_GROUPS.has(s.group)) continue;
+    // (not the collarbones: the cloth hangs from them, but the band under them is the cage's, not the shoulders')
+    if (!TRUNK_GROUPS.has(s.group) || /^clav/.test(s.name)) continue;
     if (s.kind === 'trunk') for (const st of s.stations) { const [rx, ry] = Array.isArray(st.r) ? st.r : [st.r, st.r], yc = st.yc ?? 0; out.push([rx, yc, st.z], [-rx, yc, st.z], [0, yc + ry, st.z], [0, yc - ry, st.z], [rx * 0.7, yc + ry * 0.7, st.z], [rx * 0.7, yc - ry * 0.7, st.z]); }
     else if (s.kind === 'loft') for (const st of s.stations) { const r = rad(st.r); out.push(add(st.at, [r, 0, 0]), add(st.at, [-r, 0, 0]), add(st.at, [0, r, 0]), add(st.at, [0, -r, 0])); if (s.mirror === 'name') out.push([-st.at[0] - r, st.at[1], st.at[2]]); }
     else if (s.kind === 'segment') for (const [j, r] of [[s.from, s.rA], [s.to, s.rB]]) { const p = body.joints[j]; if (p) out.push(add(p, [rad(r), 0, 0]), add(p, [0, rad(r), 0]), add(p, [0, -rad(r), 0])); }
@@ -39,7 +43,7 @@ function trunkPoints(body) {
   return out;
 }
 // the band round the body over z in [lo, hi]: half width, the front and the back
-function band(pts, lo, hi) {
+export function band(pts, lo, hi) {
   const s = pts.filter((p) => p[2] >= lo && p[2] <= hi);
   if (!s.length) return null;
   return { ax: Math.max(...s.map((p) => Math.abs(p[0]))), front: Math.max(...s.map((p) => p[1])), back: Math.min(...s.map((p) => p[1])) };
@@ -58,12 +62,12 @@ function flatRing(c, d, n, w, t) {
   return Object.fromEntries(SLOTS.map((sl, k) => { const a = (2 * Math.PI * k) / 6; return [sl, add(c, add(mul(f, t * Math.cos(a)), mul(s, w * Math.sin(a)))).map(r3)]; }));
 }
 // one strip: its stations' centres, a normal, its half widths; a bind
-function strip(name, C, n, W, t, rand, bind) {
+function strip(name, C, n, W, t, rand, bind, reach = 1.2) {
   const m = C.length, dirAt = (i) => unit(sub(C[Math.min(i + 1, m - 1)], C[Math.max(i - 1, 0)]));
   const stations = C.map((c, i) => ({ id: `st${i}`, points: flatRing(c, dirAt(i), n, W[i], t) }));
   const dl = dirAt(m - 1), across = unit(cross(n, dl));
   // the torn end: past the last ring, off to one side
-  const tip = add(add(C[m - 1], mul(dl, W[m - 1] * 1.2)), mul(across, (rand() - 0.5) * W[m - 1] * 1.4)).map(r3);
+  const tip = add(add(C[m - 1], mul(dl, W[m - 1] * reach)), mul(across, (rand() - 0.5) * W[m - 1] * 1.4)).map(r3);
   return { name, kind: 'rings', slots: 'limb6', stations, caps: { back: add(C[0], mul(dirAt(0), -t * 2)).map(r3), tip }, group: 'Cloth', tint: '#cccccc', mirror: null, bind };
 }
 const U = [0, 0.3, 0.65, 1];
@@ -85,9 +89,10 @@ export function shreds(body, spec, { k, rand }) {
       const a = onBand(below, th, z0), ds = Math.hypot(...sub(onBand(below, th + gap / 2, z0).p, onBand(below, th - gap / 2, z0).p));
       const C = U.map((u) => { const b = onBand(below, th, z0 - Ls * u), tg = unit(cross([0, 0, 1], b.n)); return add(add(b.p, mul(b.n, 0.012 * k)), mul(tg, sway * u * u)); });
       // (the top a hem's share, the strip narrowing as it tears; a short one is the hem's piece, its end torn off)
-      const w0 = Math.max(ds * 0.58, w[0]), W = U.map((u) => r3(w0 * (1 - (long ? 0.55 : 0.25) * u) * (0.85 + 0.25 * rand())));
+      const w0 = Math.max(ds * 0.58, w[0]), W = U.map((u) => r3(w0 * (1 - (long ? 0.55 : 0.1) * u) * (0.85 + 0.25 * rand())));
       const name = `shred${id}${i++}`;
-      segments.push(strip(name, C, a.n, W, T, rand, bind(th)));
+      // (a hem's piece ends torn square, a long strip in a point)
+      segments.push(strip(name, C, a.n, W, T, rand, bind(th), long ? 1.2 : 0.35));
       if (id !== 'Hips') chest.push(name);
     }
   };

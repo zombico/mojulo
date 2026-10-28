@@ -532,7 +532,9 @@ function formCreature(sheet, title) {
     // (a bone skull's openings are dark, so they read as holes; its teeth a shade off the bone)
     ...(U.skull ? { Skull: tone, Jaw: tone, Socket: '#1a1816', Teeth: shade(tone, 0.06) } : {}),
     // (its rags a dull shade under the bone: form only, one tone)
-    ...(U.layers.includes('shreds') ? { Cloth: shade(tone, -0.3) } : {}) };
+    ...(U.layers.includes('shreds') ? { Cloth: shade(tone, -0.3) } : {}),
+    // (a decayed body's flesh a shade darker than its bone, dried)
+    ...(U.layers.includes('decayed') ? { Flesh: shade(tone, -0.38) } : {}) };
   const heads = U.head ? headsOf(U.head, tone, k, P) : [];
   const limbs = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL'].filter((n) => names.has(n));
   const plan = {

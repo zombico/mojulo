@@ -21,7 +21,11 @@
  *                                  how much of each is still there (0 … 1) and the strips' length ×
  *   reads   what it is, in a line
  *
- * The LAYERS a lineage lays over a form's card (UNDEAD_LAYERS): `shreds` its clothes in rags.
+ *   decay   { open, limbs, neck, scalp }    a skeleton's flesh under the `decayed` layer (./decay.js): how far its chest is
+ *                                  rotted open (0 … 1), the odds a limb, its throat and its scalp keep flesh
+ *
+ * The LAYERS a lineage lays over a form's card (UNDEAD_LAYERS): `decayed` gaunt flesh back on the bone, `shreds` its
+ * clothes in rags.
  */
 export const UNDEAD_CARDS = Object.freeze({
   // ── zombies: the body kept, and wrong ──
@@ -31,15 +35,16 @@ export const UNDEAD_CARDS = Object.freeze({
   hulk: { form: 'flesh', build: 'brute', reads: 'a giant\'s corpse: one arm swollen to a club, the other withered, bent double', waste: { limbs: 0.9, trunk: 0.95 }, heavy: { side: 'R', k: 1.55 }, arms: { length: 1.1, reach: 0.2 }, lean: 28, head: { drop: 0.45, tilt: 0.3 }, jaw: 16, crouch: 0.22, shreds: { chest: 0.3, back: 0.5, hips: 0.8, arms: 0.2, length: 0.9 } },
   fresh: { form: 'flesh', build: 'heroic', reads: 'newly risen: the body nearly whole, the head cocked and the arms beginning to rise', waste: { limbs: 0.94, trunk: 0.95 }, arms: { length: 1, reach: 0.5 }, lean: 7, head: { drop: 0.15, tilt: 0.55 }, jaw: 8, crouch: 0.06, shreds: { chest: 0.9, back: 0.9, hips: 0.8, arms: 0.8, length: 1 } },
   // ── skeletons: the body gone to its frame ──
-  soldier: { form: 'bone', build: 'canonical', reads: 'a skeleton standing as the soldier it was', bones: { shaft: 1, ends: 1, ribs: 1 }, arms: { length: 1, reach: 0.1 }, lean: 3, head: { drop: 0.05, tilt: 0 }, jaw: 10, crouch: 0.05, loss: { odds: 0.25, parts: ['foreArm', 'hand'] }, shreds: { chest: 0.55, back: 0.5, hips: 0.75, arms: 0.35, length: 1 } },
-  slender: { form: 'bone', build: 'lithe', reads: 'a long, thin skeleton, its bones like reeds', bones: { shaft: 0.78, ends: 0.85, ribs: 0.85 }, arms: { length: 1.08, reach: 0.05 }, lean: 6, head: { drop: 0.1, tilt: 0.15 }, jaw: 13, crouch: 0.04, shreds: { chest: 0.35, back: 0.7, hips: 0.45, arms: 0.6, length: 1.35 } },
-  squat: { form: 'bone', build: 'stout', reads: 'a short heavy skeleton, broad in the pelvis and the ribs', bones: { shaft: 1.25, ends: 1.3, ribs: 1.2 }, arms: { length: 0.95, reach: 0.05 }, lean: 4, head: { drop: 0.05, tilt: 0 }, jaw: 8, crouch: 0.1, shreds: { chest: 0, back: 0.25, hips: 0.95, arms: 0, length: 0.8 } },
-  giant: { form: 'bone', build: 'brute', reads: 'a giant\'s skeleton: thick bones, a great skull, hunched under its own weight', bones: { shaft: 1.5, ends: 1.6, ribs: 1.35 }, arms: { length: 1.08, reach: 0.15 }, lean: 18, head: { drop: 0.25, tilt: 0 }, jaw: 15, crouch: 0.15, shreds: { chest: 0.3, back: 0.3, hips: 0.9, arms: 0.5, length: 1.1 } },
-  knight: { form: 'bone', build: 'heroic', reads: 'a broad, upright skeleton, standing as a captain stood', bones: { shaft: 1.1, ends: 1.15, ribs: 1.1 }, arms: { length: 1, reach: 0.05 }, lean: -2, head: { drop: 0, tilt: 0 }, jaw: 6, crouch: 0.02, shreds: { chest: 0.75, back: 0.85, hips: 0.85, arms: 0.2, length: 1.3 } },
+  soldier: { form: 'bone', build: 'canonical', reads: 'a skeleton standing as the soldier it was', bones: { shaft: 1, ends: 1, ribs: 1 }, arms: { length: 1, reach: 0.1 }, lean: 3, head: { drop: 0.05, tilt: 0 }, jaw: 10, crouch: 0.05, loss: { odds: 0.25, parts: ['foreArm', 'hand'] }, shreds: { chest: 0.55, back: 0.5, hips: 0.75, arms: 0.35, length: 1 }, decay: { open: 0.5, limbs: 0.6, neck: 0.6, scalp: 0.5 } },
+  slender: { form: 'bone', build: 'lithe', reads: 'a long, thin skeleton, its bones like reeds', bones: { shaft: 0.78, ends: 0.85, ribs: 0.85 }, arms: { length: 1.08, reach: 0.05 }, lean: 6, head: { drop: 0.1, tilt: 0.15 }, jaw: 13, crouch: 0.04, shreds: { chest: 0.35, back: 0.7, hips: 0.45, arms: 0.6, length: 1.35 }, decay: { open: 0.7, limbs: 0.45, neck: 0.5, scalp: 0.4 } },
+  squat: { form: 'bone', build: 'stout', reads: 'a short heavy skeleton, broad in the pelvis and the ribs', bones: { shaft: 1.25, ends: 1.3, ribs: 1.2 }, arms: { length: 0.95, reach: 0.05 }, lean: 4, head: { drop: 0.05, tilt: 0 }, jaw: 8, crouch: 0.1, shreds: { chest: 0, back: 0.25, hips: 0.95, arms: 0, length: 0.8 }, decay: { open: 0.3, limbs: 0.75, neck: 0.7, scalp: 0.6 } },
+  giant: { form: 'bone', build: 'brute', reads: 'a giant\'s skeleton: thick bones, a great skull, hunched under its own weight', bones: { shaft: 1.5, ends: 1.6, ribs: 1.35 }, arms: { length: 1.08, reach: 0.15 }, lean: 18, head: { drop: 0.25, tilt: 0 }, jaw: 15, crouch: 0.15, shreds: { chest: 0.3, back: 0.3, hips: 0.9, arms: 0.5, length: 1.1 }, decay: { open: 0.35, limbs: 0.7, neck: 0.7, scalp: 0.5 } },
+  knight: { form: 'bone', build: 'heroic', reads: 'a broad, upright skeleton, standing as a captain stood', bones: { shaft: 1.1, ends: 1.15, ribs: 1.1 }, arms: { length: 1, reach: 0.05 }, lean: -2, head: { drop: 0, tilt: 0 }, jaw: 6, crouch: 0.02, shreds: { chest: 0.75, back: 0.85, hips: 0.85, arms: 0.2, length: 1.3 }, decay: { open: 0.45, limbs: 0.5, neck: 0.6, scalp: 0.7 } },
 });
 
 /** the layers a lineage can lay over a form's card, and what each does */
 export const UNDEAD_LAYERS = Object.freeze({
+  decayed: 'gaunt rotted flesh back on the bone: the ribs through a shrunken chest rotted open, sinew on the limbs, a throat, a scalp (./decay.js; over bone only)',
   shreds: 'its clothes in rags: torn strips from the shoulders, the hips and the arms (./shreds.js)',
 });
 

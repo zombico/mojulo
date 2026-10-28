@@ -210,6 +210,15 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
     ],
   },
+  // the dead between the zombie and the bone: gaunt flesh rotting back on the skeleton, in its rags
+  decayed: {
+    reads: 'a rotting corpse, half bone', humanity: [0, 0.08], form: 'skeleton', layers: ['decayed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton, gaunt rotted flesh back on it (undead/decay.js), its clothes in rags (undead/shreds.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'flesh rotted back to the bone: {pick}', pick: ['the ribs through a shrunken chest', 'sinew on bare bone', 'the chest rotted open'] },
+      { at: 1, ch: 'structure', line: 'a skull under dried skin, the sockets empty' },
+    ],
+  },
 });
 
 export function ancestryIds(custom = {}) { return [...HUMAN_IDS, ...Object.keys(LINEAGES), ...Object.keys(custom)]; }

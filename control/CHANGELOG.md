@@ -377,6 +377,26 @@ through the character designer, clips fitted to the class's timing, factions) is
   ribbon-flat, its binds and its place in the lean; the bare body unchanged under the layer; the lineage's sheet
   carrying form and layers and its plan building; the lineage validation. Eyes: the soldier, the knight and the
   squat ragged from three views. Eyes gate: the operator's to judge.
+- **Decayed: gaunt rotted flesh back on the bone** (`undead/decay.js`, the `decayed` layer; the operator: "add
+  'decayed' which puts gaunt rotted flesh on top of these variations"). The dead between the zombie and the bare
+  skeleton, laid over any skeleton card:
+  - a sheet of flesh shrunk inside the rib cage's girth, so the ribs and the spine's processes stand through it, its
+    front rotted open by the card's `decay.open` (the breastbone and the front ribs bare), the belly sunk under it;
+  - wasted sinew over part of each long bone, seeded per limb and per side, so some limbs are bone and the knobbed
+    ends always show;
+  - a withered throat in front of the neck's vertebrae;
+  - a cap of dried skin over the crown, pulled back off the brow.
+
+  Each card says how it rotted (`decay { open, limbs, neck, scalp }`). The flesh is its own group (`Flesh`), a dried
+  shade darker than the bone. The layer lies over bone only: on a zombie it is refused. The new `decayed` lineage is
+  the skeleton with `['decayed', 'shreds']`, the flesh first so its rags hang clear of it; a custom lineage may lay
+  `decayed` alone. The shreds' bands no longer count the collarbones, so a tabard hangs from the cage and not out at
+  the shoulders, and a hem's short pieces end torn square instead of in points.
+
+  Machine gate: the chest sheet narrower than the ribs reach and behind the breastbone's front; a limb's sinew
+  thicker than its shaft and thinner than its ends; rot uneven across seeds; the body under the layer the bare one;
+  refused over a zombie; the lineage's sheet carrying both layers and its plan building. Eyes: the soldier, the
+  knight and the giant decayed, and the soldier ragged, from three views. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 
