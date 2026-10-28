@@ -206,7 +206,8 @@ const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
-const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref'];
+// (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
+const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -546,7 +547,7 @@ export function readGameworld(W) {
       if (L.walk !== undefined) throw new Error(`gameworld: ${at}: a level is a walk or a building, not both`);
       if (L.places !== undefined) throw new Error(`gameworld: ${at}.places: a building level holds no town (a town stands on a walk)`);
       const B = L.building;
-      if (!isObj(B)) throw new Error(`gameworld: ${at}.building is { use, seed?, rooms?, add?, kit? | geocube?, goal?, civilization? } or { ref, goal? }`);
+      if (!isObj(B)) throw new Error(`gameworld: ${at}.building is { use, seed?, rooms?, add?, kit? | geocube?, goal?, civilization?, storeys?, wings?, loading?, bays? } or { ref, goal? }`);
       for (const k of Object.keys(B)) if (!BUILDING_KEYS.includes(k)) throw new Error(`gameworld: ${at}.building.${k} is not a building setting (${BUILDING_KEYS.join(', ')})`);
       if ((B.ref === undefined) === (B.use === undefined)) throw new Error(`gameworld: ${at}.building names a use (${PROGRAM_IDS.join(', ')}) or the ref of a building already made, one of them`);
       if (B.ref !== undefined && typeof B.ref !== 'string') throw new Error(`gameworld: ${at}.building.ref is a sketch ref`);

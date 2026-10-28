@@ -14,7 +14,8 @@
  *                                        seventh generation's own tools pulled a normal map from a photograph; its colour
  *                                        keeps the light it was painted with, so this is an approximation and says so
  *                         null: a key no generator paints, or a cutout (a card keeps its paint)
- *   formRoomMaps(keys, { detail }) → { textures: { key: base }, maps: { key: { normal, orm, read, depth, mean } } } (a key no
+ *   formRoomMaps(keys, { detail, budget }) → { textures: { key: base }, maps: { key: { normal, orm, read, depth, mean } },
+ *     reliefSize? } (past `budget`, ROOM_MAPS, the dressed tiles' normal and ORM at `ROOM_MAPS.small`, their colour whole; a key no
  *                         material is read from: { read: 'paint', mean }, its paint kept)   `detail`: a toned
  *                         room's (era/tone.js), how far a twin's own light and dark move its colour
  *   readFormLight(lights, keys) → the page's lamp list: each lamp at its flame, its solved key (form/room-light.js), its
@@ -43,9 +44,9 @@ export const LUMINANCE_RELIEF = 0.006;
 
 const cache = new Map();
 
-export function formMaterialOf(key, { detail = 1 } = {}) {
+export function formMaterialOf(key, { detail = 1, reliefSize = null } = {}) {
   if (typeof key !== 'string' || key.startsWith('card:') || key.includes(':card:')) return null;
-  const ck = detail === 1 ? key : `${key}|${detail}`;
+  const ck = (detail === 1 ? key : `${key}|${detail}`) + (reliefSize ? `@${reliefSize}` : '');
   if (cache.has(ck)) return cache.get(ck);
   // a toned room's twin (era/tone.js `value:` / `shade:`): the tile's own material, its colour taken to grey (the room's
   // ramp colours it in the corners: era/stage.js formLightFaces)
@@ -61,11 +62,16 @@ export function formMaterialOf(key, { detail = 1 } = {}) {
   if (spec && spec.gen === 'dressed') {
     const M = dressedMaterial(spec.cfg, { size: spec.size, seed: spec.seed, rough: FORM_ROUGH[spec.cfg.cut] ?? 0.85 });
     out = { ...relief(M, spec.cfg.metres ?? 2), read: 'relief' };
+    // (a page over its maps' budget: the relief drawn smaller, the colour kept whole)
+    if (reliefSize && reliefSize < spec.size) {
+      const small = relief(dressedMaterial(spec.cfg, { size: reliefSize, seed: spec.seed, rough: FORM_ROUGH[spec.cfg.cut] ?? 0.85 }), spec.cfg.metres ?? 2);
+      out = { ...out, normal: small.normal, orm: small.orm, reliefSize };
+    }
   } else {
     const d = decodePng(surfaceTexture(key));
     if (d && !d.alpha) out = luminanceMaterial(d, SURFACE_TILING[key] === 'repeat', key);
   }
-  cache.set(key, out);
+  cache.set(ck, out);
   return out;
 }
 
@@ -143,16 +149,27 @@ function blur(src, W, H, r, tile) {
   return out;
 }
 
-export function formRoomMaps(keys, { detail = 1 } = {}) {
-  const textures = {}, maps = {};
-  for (const key of [...new Set(keys)].sort()) {
-    const m = formMaterialOf(key, { detail: /^(value|shade):/.test(key) ? detail : 1 });
-    // (a tile no material is read from keeps its paint, its mean what the page divides it by: form/room-light.js)
-    if (!m) { maps[key] = { read: 'paint', mean: paintMean(key) }; continue; }
-    textures[key] = m.base; maps[key] = { normal: m.normal, orm: m.orm, read: m.read, depth: m.depth, mean: m.mean };
-  }
-  return { textures, maps };
+export function formRoomMaps(keys, { detail = 1, budget = ROOM_MAPS.budget } = {}) {
+  const read = (reliefSize) => {
+    const textures = {}, maps = {};
+    let bytes = 0;
+    for (const key of [...new Set(keys)].sort()) {
+      const m = formMaterialOf(key, { detail: /^(value|shade):/.test(key) ? detail : 1, reliefSize });
+      // (a tile no material is read from keeps its paint, its mean what the page divides it by: form/room-light.js)
+      if (!m) { maps[key] = { read: 'paint', mean: paintMean(key) }; continue; }
+      textures[key] = m.base; maps[key] = { normal: m.normal, orm: m.orm, read: m.read, depth: m.depth, mean: m.mean };
+      bytes += m.base.length + (m.normal?.length ?? 0) + (m.orm?.length ?? 0);
+    }
+    return { textures, maps, bytes };
+  };
+  // a page whose maps would pass the budget (a building of many materials) draws its relief at the smaller size
+  const whole = read(null);
+  if (whole.bytes <= budget) return { textures: whole.textures, maps: whole.maps };
+  const small = read(ROOM_MAPS.small);
+  return { textures: small.textures, maps: small.maps, reliefSize: ROOM_MAPS.small };
 }
+/** The maps' budget on a page (data-URI bytes: a building of many materials passes it) and the relief's size past it. */
+export const ROOM_MAPS = Object.freeze({ budget: 9e6, small: 256 });
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 /** The placed lights as the page lights them: `at` the flame, `key` its solved light (linear, form/room-light.js), its

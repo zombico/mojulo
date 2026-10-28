@@ -107,6 +107,10 @@ export const FIXTURE = [
   ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
   // a building as a game level: designed as a building, played as a level
   ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
+  // a GENRE level set in a building: the game's door, the building laid from its use (era/programs.js) on a bay kit
+  ['a stealth game where you sneak up four floors of an office block to the boardroom', 'create_game'],
+  ['a shooter level fighting room to room through a research lab building', 'create_game'],
+  ['a horror level creeping through a warehouse and its offices at night', 'create_game'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

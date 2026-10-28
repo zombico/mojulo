@@ -42,7 +42,7 @@ import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, 
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
-import { withProgram } from '../era/programs.js';
+import { withProgram, PROGRAMS } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
@@ -912,10 +912,12 @@ const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-st
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
 export function buildingStage(B) {
   const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
-    ...(geocube !== undefined ? { geocube } : { kit: kit ?? roomKitFor(anchor) }),
-    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}) },
+    ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
+    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
   };
 }

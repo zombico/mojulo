@@ -46,6 +46,7 @@ const AIR_TILES = {
   vent: { family: tileFamilyOf({ gen: 'dressed', cut: 'matte', stone: CATALOG['diffuser:square-600'].rgb, mortar: CATALOG['diffuser:square-600'].rgb, cols: 1, rows: 1, grit: 0.3, scale: 0.6 }, 'bay kit'), scale: 0.6, variants: 2 },
   louvre: { family: tileFamilyOf({ gen: 'dressed', cut: 'matte', stone: CATALOG['louvre:wall-1200x900'].rgb, mortar: CATALOG['louvre:wall-1200x900'].rgb, cols: 1, rows: 1, grit: 0.5, scale: 1.2 }, 'bay kit'), scale: 1.2, variants: 2 },
 };
+const FIELDS = /^(floor|wall|base|ceiling|soffit|crown|concrete)\d?$/;
 // a dressed tile laid in a catalog unit (construction/catalog.js; the block's masonry UNITS.cmu with its joint): `n` of
 // them across a repeat, the repeat's metres and its courses the unit's own, its colour the catalog's unless painted
 const unitOf = (name) => (name === 'block:cmu' ? [UNITS.cmu.l + UNITS.cmu.j, UNITS.cmu.h + UNITS.cmu.j] : CATALOG[name].sheet);
@@ -80,8 +81,10 @@ const SHELL = Object.freeze({
   // the services (era/bay.js): an electrical box every `every` bays on a long wall, its conduit up to the crown; a breaker
   // panel by each doorway; cables slung `sag` under hooks `hook.drop` below the crown; a low room's one panel out of the
   // soffit (`hole`: its size, the plenum's depth over it, the panel hung `hang` radians off its hinge, the wiring's droop)
+  // in a share (`open`) of the low rooms; the boxes and breaker panels and the ceiling's pipes only in a room `long`
+  // enough to run services along, a return in the ceiling of a room `ceilingReturn` wide, low on a narrower one's wall
   services: { every: 2, box: { w: 0.4, h: 0.5, d: 0.16, z: 1.5, inset: 0.35 }, conduit: { r: 0.025, off: 0.06 }, panel: { w: 0.7, h: 1.1, d: 0.22, z: 0.9, gap: 0.4 },
-    hook: { drop: 0.25 }, cables: [0.022, 0.018, 0.026], sag: 0.28, indicator: '#40ff80', plenum: [0.06, 0.06, 0.07],
+    open: 0.35, long: 10, ceilingReturn: 5, hook: { drop: 0.25 }, cables: [0.022, 0.018, 0.026], sag: 0.28, indicator: '#40ff80', plenum: [0.06, 0.06, 0.07],
     hole: { l: 1.2, w: 0.6, plenum: 0.5, hang: 1.1, droop: 0.6 } },
   // the glass (era/bay-glass.js): windows where a wall faces out (a tall room's ribbon under its crown, `over` clear of
   // the catwalk's rail; a low room's punched windows or a slot under its soffit, by register), framed at `line` behind
@@ -266,8 +269,11 @@ export function bayKit(register) {
     // (no torch is seated: every light is the shell's own; this is the default a recipe's own `lights` take)
     torch: { color: L.strip.color, intensity: L.strip.intensity, radius: L.strip.radius },
     rubble: null,
-    cells: Object.fromEntries(Object.keys({ ...R.tiles, ...AIR_TILES }).map((k) => [k, ['ceiling', 'ceiling2', 'concrete', 'floor', 'floor2', 'floor3', 'floor4', 'beam'].includes(k) ? 1.5 : 1])),
-    tiles: { ...R.tiles, ...AIR_TILES },
+    // (a bake's cells: a metre on a wall's field, a metre and a half on a floor and a ceiling, two along a thin band)
+    cells: Object.fromEntries(Object.keys({ ...R.tiles, ...AIR_TILES }).map((k) => [k, ['ceiling', 'ceiling2', 'concrete', 'floor', 'floor2', 'floor3', 'floor4', 'beam'].includes(k) ? 1.5 : /^(base|crown|column|paint|services|cabinet)\d?$/.test(k) ? 2 : 1])),
+    // (two variants only where a field's repeat would show, the floors, walls, bands and ceilings; a trim, a cabinet, a
+    // vent carries one: each variant is three maps on a gen-7 page)
+    tiles: Object.fromEntries(Object.entries({ ...R.tiles, ...AIR_TILES }).map(([k, t]) => [k, t.family && !FIELDS.test(k) ? { ...t, variants: 1 } : t])),
     // (the dressed cuts carry their own colour: a white band leaves it as painted)
     // (an untextured cable takes its colour here: rubber's near black)
     tint: Object.fromEntries(Object.keys({ ...R.tiles, ...AIR_TILES }).map((k) => [k, k === 'cable' ? CABLE : white])),

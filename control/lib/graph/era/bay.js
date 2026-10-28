@@ -233,7 +233,9 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     const Sv = B.services, cab = S('cabinet'), cable = surf('cable');
     const clear = (a, b) => lines.every((u) => b < u - Pl.w / 2 - 0.05 || a > u + Pl.w / 2 + 0.05) && framed.every(([fa, fb]) => b < fa - 0.2 || a > fb + 0.2) && (tall || wins.every(([wa, wb]) => b < wa - 0.2 || a > wb + 0.2)) && a > 0.3 && b < F.len - 0.3;
     const indicator = (u, z, off) => out.push(lit([onWall(F, u - 0.03, off + 0.002, z), onWall(F, u + 0.03, off + 0.002, z), onWall(F, u + 0.03, off + 0.002, z + 0.03), onWall(F, u - 0.03, off + 0.002, z + 0.03)], F.N, Sv.indicator, 'stage:lamp', null, 2));
-    if (isLong(s)) for (let k = 0; k < n; k += Sv.every) {
+    // (rationed in a building's small rooms: boxes on a wall two bays long, breaker panels in a room the services run
+    // along, a corridor's, a hall's, a bay's)
+    if (isLong(s) && n >= 2) for (let k = 0; k < n; k += Sv.every) {
       const X = Sv.box, u = lines[k] + Pl.w / 2 + X.inset;
       if (!clear(u, u + X.w) || X.z + X.h > zc0 - 0.3) continue;
       wallBox(out, F, u, u + X.w, X.z, X.z + X.h, X.d, cab, 1);
@@ -241,7 +243,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       tubeAB(out, onWall(F, u + X.w / 2, Sv.conduit.off, X.z + X.h), onWall(F, u + X.w / 2, Sv.conduit.off, zc0), Sv.conduit.r, 6, steel);
       structure.services = (structure.services || 0) + 1;
     }
-    for (const [c0, c1, top] of cuts) {
+    if (run >= Sv.long) for (const [c0, c1, top] of cuts) {
       const Q = Sv.panel, u = c1 + Dr.frame + Q.gap;
       if (!clear(u, u + Q.w) || Q.z + Q.h > zc0 - 0.3) continue;
       wallBox(out, F, u, u + Q.w, Q.z, Q.z + Q.h, Q.d, cab, 1);
@@ -262,7 +264,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       }
     }
     // a low room's return grille low on a long wall, in its last clear bay
-    if (!tall && isLong(s)) for (let k = n - 1; k >= 0; k--) {
+    if (!tall && isLong(s) && span < Sv.ceilingReturn) for (let k = n - 1; k >= 0; k--) {
       const G = B.air.grille, u = lines[k + 1] - Pl.w / 2 - 0.3 - G.w, z = 0.3, off = (z < Ba.h ? Ba.out : 0) + 0.002;
       if (!clear(u, u + G.w)) continue;
       louvred(out, onWall(F, u, off, z), F.U, Z, F.N, G.w, G.h, G, surf('vent'), { key: null, scale: 1, tint: Sv.plenum, group: 'stage:plenum' });
@@ -281,6 +283,9 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     const hl = mids[Math.floor(dice(21) * mids.length) % mids.length] + (run / nRun) * 0.25, hs = s0 + span * 0.72;
     const [hx0, hy0] = at(hs - Ho.w / 2, hl - Ho.l / 2, 0), [hx1, hy1] = at(hs + Ho.w / 2, hl + Ho.l / 2, 0), X0 = Math.min(hx0, hx1), X1 = Math.max(hx0, hx1), Y0 = Math.min(hy0, hy1), Y1 = Math.max(hy0, hy1);
     const sofRect = (x0, y0, x1, y1) => panel(out, [x0, y0, h], [1, 0, 0], x1 - x0, [0, 1, 0], y1 - y0, DOWN, sof, sof.cell);
+    // (a building's rooms are not all under repair: a panel is out in a share of them, by the room's dice)
+    if (dice(23) >= B.services.open) sofRect(r.x0, r.y0, r.x1, r.y1);
+    else {
     sofRect(r.x0, r.y0, r.x1, Y0); sofRect(r.x0, Y1, r.x1, r.y1); sofRect(r.x0, Y0, X0, Y1); sofRect(X1, Y0, r.x1, Y1);
     const dark = { key: null, scale: 1, tint: B.services.plenum, group: 'stage:plenum' }, zp = h + Ho.plenum, z0uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
     quad(out, [[X0, Y0, zp], [X1, Y0, zp], [X1, Y1, zp], [X0, Y1, zp]], DOWN, dark, null, null, z0uv);
@@ -292,6 +297,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     quad(out, [hinge(hl - Ho.l / 2), hinge(hl + Ho.l / 2), free(hl + Ho.l / 2), free(hl - Ho.l / 2)], alongY ? [Math.sin(tilt), 0, -Math.cos(tilt)] : [0, Math.sin(tilt), -Math.cos(tilt)], sof, null, null, [[0, 0], [Ho.l / sof.scale, 0], [Ho.l / sof.scale, Ho.w / sof.scale], [0, Ho.w / sof.scale]]);
     B.services.cables.forEach((cr, i) => sagCable(out, at(hs - Ho.w * 0.3 + i * 0.12, hl - Ho.l * 0.6, h + Ho.plenum * 0.6), at(hs - Ho.w * 0.1 + i * 0.1, hl + Ho.l * 0.6, h + Ho.plenum * 0.5), Ho.droop + 0.15 * i, cr, i % 2 ? surf('cable') : surf('services'), 8));
     structure.openPanel = P([(X0 + X1) / 2, (Y0 + Y1) / 2, h]);
+    }
     const St = B.ceilingStrip, Ls = L.ceilingStrip, half = (span * St.share) / 2, sc = (s0 + s1) / 2;
     for (const l of mids) {
       bbox(at(sc - half, l - St.w, h - St.h), at(sc + half, l + St.w, h), steel, ['+z']);
@@ -301,8 +307,8 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     }
     // services along a low room's ceiling at one wall: one in the secondary paint, one in the services' own colour
     const Pp = B.pipes, side = s1 - Pp.off, sfs = [paint, surf('services')];
-    Pp.r.forEach((pr, i) => tube(out, at(side - i * Pp.gap, l0, h - Pp.drop - i * 0.04), at(side - i * Pp.gap, l1, h - Pp.drop - i * 0.04), pr, 8, sfs[i % 2]));
-    structure.pipes = Pp.r.length;
+    if (run >= B.services.long) Pp.r.forEach((pr, i) => tube(out, at(side - i * Pp.gap, l0, h - Pp.drop - i * 0.04), at(side - i * Pp.gap, l1, h - Pp.drop - i * 0.04), pr, 8, sfs[i % 2]));
+    if (run >= B.services.long) structure.pipes = Pp.r.length;
   } else if (roof === 'beams' || roof === 'truss') {
     const deck = S('ceiling');
     panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, DOWN, deck, deck.cell);
@@ -435,9 +441,13 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     }
   } else if (roof === 'soffit') {
     // diffusers at the bay lines (between the strips), a return grille near a wall
-    for (const l of inner.length ? inner : [l0 + run / 2]) { squareDiffuser(out, at((s0 + s1) / 2, l, h), h, Air.diffuser, ventS, voidS); air.terminals++; }
-    const G = Air.grille, gs = s0 + 0.35, gl = mids[mids.length - 1] - G.w / 2, o = at(gs, gl, h - 0.001);
-    louvred(out, o, along, across, DOWN, G.w, G.h, G, ventS, voidS); air.returns++;
+    // (a one-bay room's diffuser off its strip, at a quarter of its run)
+    for (const l of inner.length ? inner : [l0 + run / 4]) { squareDiffuser(out, at((s0 + s1) / 2, l, h), h, Air.diffuser, ventS, voidS); air.terminals++; }
+    // (a narrow room's return is low on its wall instead: the walls' loop)
+    if (span >= B.services.ceilingReturn) {
+      const G = Air.grille, gs = s0 + 0.35, gl = mids[mids.length - 1] - G.w / 2, o = at(gs, gl, h - 0.001);
+      louvred(out, o, along, across, DOWN, G.w, G.h, G, ventS, voidS); air.returns++;
+    }
   }
 
   // ── a taller room's bridge crane ──
@@ -609,8 +619,8 @@ export function bayLaws(rooms, faces, kit) {
   const B = kit.B, Cw = B.catwalk;
   const layered = rooms.flatMap((R) => R.layers.filter((l) => l.bands < 3).map((l) => `${R.r.id}:${l.side}`));
   law('layers', layered.length === 0, layered.join(', ') || 'every solid wall', 'every solid wall a base, a field and a crown');
-  const bare = rooms.filter((R) => (R.tall ? !R.lamps.length : !R.pipes)).map((R) => R.r.id);
-  law('overhead', bare.length === 0, bare.join(', ') || 'every room', 'something hangs in every room: a tall one\'s roof and lamps, a low one\'s services');
+  const bare = rooms.filter((R) => (R.tall ? !R.lamps.length : !R.pipes && !(R.air && R.air.terminals))).map((R) => R.r.id);
+  law('overhead', bare.length === 0, bare.join(', ') || 'every room', 'something hangs in every room: a tall one\'s roof and lamps, a low one\'s services or its air');
   const lone = rooms.filter((R) => R.r.h >= B.crane.min && !R.walkways.length).map((R) => R.r.id);
   law('two-scales', lone.length === 0, lone.join(', ') || 'every tall room', `a room ${B.crane.min} m and taller holds a person's walkway beside its own height`);
   const ways = rooms.flatMap((R) => R.walkways.map((W) => ({ ...W, room: R.r.id })));

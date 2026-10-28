@@ -599,7 +599,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
       const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
       Object.assign(textures, F.textures);
-      payload.form = { ...payload.form, room: { ...R, maps: F.maps } };
+      payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one

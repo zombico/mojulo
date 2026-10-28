@@ -9,6 +9,13 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
 1. **What is it?** `program: { use }`.
    - The town's uses: `dwelling`, `shop`, `workshop`, `barn`, `hall`, `tower`.
    - The game's uses: `tavern`, `keep`, `temple`, `crypt`, `guardhouse`, `library`, `lab`.
+   - The buildings: `office`, `lab-building`, `warehouse`, `clinic`. A stair core and wings of corridors off it, rooms
+     a bay wide along them, the same floor up every storey, a lobby with the way in; each on its bay kit
+     (`bay-everyday`, `bay-science`, `bay-utility`), a warehouse's shed and a lab's instrument bay off a wing's end.
+     Their settings are the plan's: `storeys` (1 to 6), `wings` (`I`, `L`, `T`, `U`), `loading` (`single`: rooms on
+     one side of a corridor, windows on the other; `double`), `bays` (a wing's length, 1 to 6). For a genre level set
+     in a building (a stealth mission, a shooter's floor, a horror crawl); a building asked for as a building is
+     `mint_building`'s.
 
    Each has its rooms by role, which opens off which, and a goal room (the tavern's cellar, the keep's treasury, the
    crypt's tomb). The tower and the keep build upward: the tower three storeys to its lookout, the keep's solar and
@@ -27,6 +34,7 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
 
 ```json
 { "kind": "stage", "geocube": "gothic-night", "program": { "use": "tavern", "seed": 2 }, "level": {} }
+{ "kind": "stage", "program": { "use": "office", "storeys": 4, "wings": "L" }, "level": {} }
 { "kind": "stage", "kit": "research-lab", "program": { "use": "lab", "civilization": "shell", "rooms": { "store": { "drop": true } } } }
 ```
 

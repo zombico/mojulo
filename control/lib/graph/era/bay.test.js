@@ -78,9 +78,8 @@ describe('the bay shell', () => {
       expect(A.terminals, roof).toBeGreaterThanOrEqual(roof === 'sawtooth' ? (n - 1) * 2 : n - 1);
     }
     expect(bare('coffer').structure.air.terminals).toBeGreaterThan(0);
-    const lo = bare('beams', { h: 3.5 }).structure.air;
-    expect(lo.terminals).toBeGreaterThan(0);
-    expect(lo.returns).toBeGreaterThanOrEqual(2);
+    // (a wide low room's return in its ceiling, a narrow one's low on its wall)
+    for (const w of [18, 4]) { const lo = bare('beams', { w, d: 12, h: 3.5 }).structure.air; expect(lo.terminals, `${w}`).toBeGreaterThan(0); expect(lo.returns, `${w}`).toBeGreaterThanOrEqual(1); }
     // (a tall room's outside end wall breathes through a weather louvre)
     expect(tall.air.louvre).toBe(true);
     // (a round duct in one register, a rectangular one in another: the catalog's)
@@ -95,10 +94,14 @@ describe('the bay shell', () => {
     expect(tallest).toBeLessThan(0.2);
   });
 
-  it('services: boxes and panels on the walls, cables slung, and a low room\'s soffit one panel out over the plenum', () => {
+  it('services: boxes and panels on the walls, cables slung, and a share of low rooms\' soffits a panel out over the plenum', () => {
     expect(tall.services).toBeGreaterThan(0);
-    expect(low.openPanel).toBeDefined();
-    for (const g of ['stage:cabinet', 'stage:cable', 'stage:plenum']) expect(inGroup(g).length, g).toBeGreaterThan(0);
+    // (a panel out in a share of a building's low rooms, by each room's dice: some, not all)
+    const r = { id: 'r', x0: 0, y0: 0, x1: 6, y1: 6, h: 3.5, open: [], openings: { '-y': [], '+x': [], '+y': [], '-x': [] } }, surf = (part) => ({ key: part, scale: 1, tint: [1, 1, 1], group: `stage:${part}`, cell: 1 });
+    const open = [...Array(20)].filter((_, ri) => bayRoom([], r, ri, KIT, surf).structure.openPanel).length;
+    expect(open).toBeGreaterThan(0);
+    expect(open).toBeLessThan(20);
+    for (const g of ['stage:cabinet', 'stage:cable']) expect(inGroup(g).length, g).toBeGreaterThan(0);
   });
 
   it('read in the form render, its lamps go to the page; a lamp inset in the floor stays in the bake', () => {

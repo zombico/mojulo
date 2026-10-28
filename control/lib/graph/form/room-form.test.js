@@ -2,7 +2,7 @@
 // baked with its colour and its light apart (the light solved from its palette, each lamp's shadow tested), its lamps
 // sent to the page to light the relief, its tiles read as material; anything else is as it was.
 import { describe, expect, it } from 'vitest';
-import { formMaterialOf, formRoomMaps, readFormLight } from './room-form.js';
+import { formMaterialOf, formRoomMaps, readFormLight, ROOM_MAPS } from './room-form.js';
 import { tileFamilyOf } from '../era/tile-specs.js';
 import { assembleStageScene, formLightFaces } from '../era/stage.js';
 import { makePointShadow } from '../era/sun.js';
@@ -28,6 +28,17 @@ describe('a tile read as material', () => {
     // its relief's height packed for the parallax, its depth within the bounds, its mean the colour's
     expect(relief.depth).toBeGreaterThan(0);
     expect(maps.stucco.mean.every((v) => v > 0 && v < 1)).toBe(true);
+  });
+
+  it('past its maps\' budget a page draws its relief smaller and keeps its colour whole; under it, nothing changes', () => {
+    const fam = tileFamilyOf({ gen: 'dressed', cut: 'plate', stone: [90, 100, 110], mortar: [150, 152, 150], cols: 2, rows: 2, scale: 2 }, 'test'), key = `${fam}-a`;
+    const W = (uri) => Buffer.from(uri.slice(22), 'base64').readUInt32BE(16);
+    const whole = formRoomMaps([key]), tight = formRoomMaps([key], { budget: 1 });
+    expect(whole.reliefSize).toBeUndefined();
+    expect(tight.reliefSize).toBe(ROOM_MAPS.small);
+    expect(W(tight.maps[key].normal)).toBe(ROOM_MAPS.small);
+    expect(W(tight.textures[key])).toBe(W(whole.textures[key]));
+    expect(W(whole.maps[key].normal)).toBeGreaterThan(ROOM_MAPS.small);
   });
 
   it('the page\'s lamps: each its solved key and radius; a pool is baked only, never lit live', () => {
