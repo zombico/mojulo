@@ -25,7 +25,8 @@ describe('the FACS vocabulary', () => {
 
 describe('a FACS state on the realistic head', () => {
   const made = Object.entries(FACS_UNITS).find(([, u]) => u.action && u.sided && Object.hasOwn(ACTIONS, `${u.action}L`));
-  const wholeOnly = Object.entries(FACS_UNITS).find(([, u]) => u.action && u.sided && !Object.hasOwn(ACTIONS, `${u.action}L`));
+  // (a unit the head moves whole, one FACS does not split by side: a side alone of it is no action of the head's)
+  const wholeOnly = Object.entries(FACS_UNITS).find(([, u]) => u.action && !u.sided && !Object.hasOwn(ACTIONS, `${u.action}R`));
   const gap = Object.entries(FACS_UNITS).find(([, u]) => !u.action);
   it('makes a unit by its action and a side by the side\'s (the head sums them per side), clamped', () => {
     const [au, u] = made;

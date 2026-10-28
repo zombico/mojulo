@@ -131,3 +131,24 @@ describe('the lids\' seat', () => {
     expect(A.sides.R.tail.z - B.sides.R.tail.z).toBeCloseTo(SEAT.brow[1], 9);
   });
 });
+
+describe('the face\'s muscles (FACS action units: face-acting/facs.js)', () => {
+  const rest = relationalHead({ sex: 'male', ears: false, globes: false }).relational.rest;
+  const moved = (actions) => relationalHead({ sex: 'male', ears: false, globes: false, actions }).relational.moved;
+  const d = (A, name, k, ax) => (A[name][k][ax] - rest[name][k][ax]) * MM;
+  it('pull the mouth\'s corner by its muscle, one side alone by the side\'s own, and leave the brows', () => {
+    const f = moved({ frown: 1 }), fl = moved({ frownL: 1 }), s = moved({ stretch: 1 });
+    // (the corner is each lower lip's first bead: down for the depressor, out for the risorius)
+    expect(d(f, 'lowerLipL', 'a', 'z')).toBeLessThan(-3); expect(d(f, 'lowerLipR', 'a', 'z')).toBeLessThan(-3);
+    expect(d(fl, 'lowerLipL', 'a', 'z')).toBeLessThan(-3); expect(d(fl, 'lowerLipR', 'a', 'z')).toBeCloseTo(0, 9);
+    expect(Math.abs(s.lowerLipR.a.x) - Math.abs(rest.lowerLipR.a.x)).toBeGreaterThan(3 / MM);
+    expect(d(f, 'browPad', 'a', 'z')).toBe(0);
+  });
+  it('draw the nose\'s wings up for the sneer, and push the lower lip up from the chin for the mentalis', () => {
+    expect(d(moved({ sneer: 1 }), 'nostrilR', 'c', 'z')).toBeGreaterThan(3);
+    const c = moved({ chinRaise: 1 });
+    expect(d(c, 'lowerLipBodyR', 'c', 'z')).toBeGreaterThan(2);
+    // (the chin itself is bone: the mentalis moves the soft tissue over it)
+    expect(d(c, 'chin', 'c', 'z')).toBe(0);
+  });
+});
