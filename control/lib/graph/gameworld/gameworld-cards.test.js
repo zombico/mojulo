@@ -28,8 +28,9 @@ describe('the rail\'s cards', () => {
     expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
-    // kits beside the city's stalker words, 4157 bytes)
-    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4224 };
+    // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
+    // names the four building uses, office | lab-building | warehouse | clinic, 4265 bytes)
+    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4288 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
