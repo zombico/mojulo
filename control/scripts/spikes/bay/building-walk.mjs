@@ -55,14 +55,21 @@ for (const l of plan.links) {
   const a = X ? [l.at - s * 0.7, mid] : [mid, l.at - s * 0.7], b = X ? [l.at + s * 0.7, mid] : [mid, l.at + s * 0.7];
   edges.get(l.from).push({ to: l.to, via: [a, b] }); edges.get(l.to).push({ to: l.from, via: [b, a] });
 }
-// (up a stair, then off its head and round its railed hole on the side with room, as a walker does, to the hole's foot)
+// (up a stair, then off its head and round its railed hole on the side with room, as a walker does, to the hole's foot;
+// a switchback is climbed by its own route and stepped off by its exit)
 for (const st of plan.stairs || []) {
-  const U = room.get(st.upper), [x0, y0, x1, y1] = st.rect, Y = st.axis === 'y', d = st.dir, arr = [st.arrival[0], st.arrival[1]];
-  const beyond = Y ? [arr[0], arr[1] + d * 1.0] : [arr[0] + d * 1.0, arr[1]];
+  const U = room.get(st.upper), [x0, y0, x1, y1] = st.rect, Y = st.axis === 'y', arr = [st.arrival[0], st.arrival[1]];
+  const out = st.exit ?? (Y ? [0, st.dir] : [st.dir, 0]), beyond = [arr[0] + out[0] * 1.0, arr[1] + out[1] * 1.0];
   const lo = Y ? x0 - U.x0 : y0 - U.y0, hi = Y ? U.x1 - x1 : U.y1 - y1, side = hi > lo ? (Y ? x1 : y1) + 0.8 : (Y ? x0 : y0) - 0.8;
-  const foot = d > 0 ? (Y ? y0 : x0) - 0.8 : (Y ? y1 : x1) + 0.8;
-  const round = Y ? [[side, beyond[1]], [side, foot]] : [[beyond[0], side], [foot, side]];
-  edges.get(st.lower).push({ to: st.upper, via: [[st.approach[0], st.approach[1]], arr, beyond, ...round] });
+  // (round the hole to its far side from where it was left: a straight flight is left at its head, a switchback at its foot)
+  const back = (Y ? out[1] : out[0]) > 0 ? (Y ? y0 : x0) - 0.8 : (Y ? y1 : x1) + 0.8;
+  const round = Y ? [[side, beyond[1]], [side, back]] : [[beyond[0], side], [back, side]];
+  const climb = st.route ? st.route.map((q) => [q[0], q[1]]) : [[st.approach[0], st.approach[1]], arr];
+  // (a switchback is left at its foot end, clear of its hole; then round the hole by its roomier side to its far end, so
+  // a way on behind it is not walked back down the flight)
+  const near = st.dir > 0 ? (Y ? y0 : x0) - 0.8 : (Y ? y1 : x1) + 0.8, far = st.dir > 0 ? (Y ? y1 : x1) + 0.8 : (Y ? y0 : x0) - 0.8;
+  const roundS = Y ? [[side, near], [side, far]] : [[near, side], [far, side]];
+  edges.get(st.lower).push({ to: st.upper, via: st.route ? [...climb, ...roundS] : [...climb, beyond, ...round] });
 }
 const prev = new Map([[m._program.entry, null]]), q = [m._program.entry];
 while (q.length) { const id = q.shift(); for (const e of edges.get(id)) if (!prev.has(e.to)) { prev.set(e.to, { from: id, via: e.via }); q.push(e.to); } }
@@ -76,7 +83,7 @@ for (const s of storeys) {
   { const e = room.get(m._program.entry), [x, y] = [(e.x0 + e.x1) / 2, e.y0 + 1.2]; p.set(x, y, (ground(x, y, EYE + 0.5) ?? 0) + EYE); vz = 0; }
   let ok = true;
   for (const via of route) {
-    const r = via.every((w) => steer(w));
+    const r = via.every((w) => { const ok = steer(w); if (process.argv.includes('--trace')) console.log('      ->', JSON.stringify(w), ok, [p.x, p.y, p.z - EYE].map((v) => v.toFixed(2)).join(',')); return ok; });
     if (process.argv.includes('--trace')) console.log('   ', JSON.stringify(via), r, [p.x, p.y, p.z - EYE].map((v) => v.toFixed(2)).join(','));
     if (!r) { ok = false; break; }
   }

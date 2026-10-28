@@ -253,6 +253,8 @@ export function withProgram(m) {
     links: rest.links ?? P.links,
     ...(P.ways && rest.ways === undefined && rest.rooms === undefined ? { ways: P.ways } : {}),
     ...(PROGRAMS[program.use]?.kit && m.kit === undefined && !cube ? { kit: kitId } : {}),
+    // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
+    ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
     _program: { use: P.use, reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)

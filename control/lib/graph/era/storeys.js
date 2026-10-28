@@ -27,6 +27,7 @@
  * Pure: a function of the plan. Metres, z-up.
  */
 import { r5, P, panel, box } from './geom.js';
+import { stairProfile } from '../construction/circulation.js';
 
 export const SLAB = 0.5;                       // m: a floor's thickness between a ceiling and the floor over it
 export const RISE = 0.3, GOING = 0.3;          // a tread's rise (at most; a walker steps 0.35) and going
@@ -66,10 +67,10 @@ export function readStoreys(rooms) {
 }
 
 /** The doorways' and ways' landings in a room: a strip a metre deep inside each, where a walker comes through. */
-function landings(room, links, ways, t) {
+function landings(room, links, ways, t, depth = 1.2) {
   const out = [];
   const strip = (wall, at, lo, hi) => {
-    const into = wall === '-x' || wall === '-y' ? 1 : -1, alongX = wall.endsWith('y'), d0 = at, d1 = at + into * (t + 1.2);
+    const into = wall === '-x' || wall === '-y' ? 1 : -1, alongX = wall.endsWith('y'), d0 = at, d1 = at + into * (t + depth);
     out.push(alongX ? [lo, Math.min(d0, d1), hi, Math.max(d0, d1)] : [Math.min(d0, d1), lo, Math.max(d0, d1), hi]);
   };
   for (const l of links) {
@@ -87,9 +88,11 @@ const flip = (s) => (s.startsWith('+') ? `-${s[1]}` : `+${s[1]}`);
  * room; met at its `approach` (on the lower floor) and left at its `arrival` (on the upper). → [{ from, to, lower,
  * upper, axis, dir, lat, foot, head, n, rise, run, rect, approach, arrival, z0, z1 }]
  */
-export function placeStairs(rooms, stairLinks, links, ways, kit) {
+export function placeStairs(rooms, stairLinks, links, ways, kit, profile = 'keep') {
   const byId = new Map(rooms.map((r) => [r.id, r])), taken = new Map(rooms.map((r) => [r.id, []]));
-  const t = kit.wall / 2;
+  const t = kit.wall / 2, S = stairProfile(profile);
+  // a building's stair (construction/circulation.js `game`): a switchback with room at both ends
+  if (S.shape === 'switchback') { const shafts = new Map(); return stairLinks.map((l) => placeSwitchback(l, byId, taken, links, ways, t, S, profile, shafts)); }
   return stairLinks.map((l) => {
     const a = byId.get(l.from), b = byId.get(l.to);
     const [L, U] = a.storey < b.storey ? [a, b] : [b, a];
@@ -129,6 +132,69 @@ export function placeStairs(rooms, stairLinks, links, ways, kit) {
 }
 
 /**
+ * A switchback (STAIR_PROFILES `game`): two flights side by side, a well between, the first climbing to a half landing a
+ * flight's width deep, the second climbing back from it to the upper floor; the steps split evenly between them, so the
+ * second ends where the first began and the upper floor is met square. Laid as a straight flight is: in the lower room,
+ * under the upper one, set in from a wall of their overlap, its approach (at the first flight's foot) and its arrival (at
+ * the second's head) each a profile's clear floor long, all of it clear of every doorway's own floor (the profile's
+ * `door` deep) and of any stair already in either room. → the stair, with its `flights`, `landing`, `route` (the points a
+ * walker climbs by, in plan) and `exit` (the way it steps off).
+ */
+function placeSwitchback(l, byId, taken, links, ways, t, S, profile, shafts) {
+  const a = byId.get(l.from), b = byId.get(l.to);
+  const [L, U] = a.storey < b.storey ? [a, b] : [b, a];
+  // a stair climbing out of a room another climbed into stacks on it, in the one shaft (its flights slabs over the
+  // flights below, the room left to walk under them)
+  const below = shafts.get(L.id);
+  const rise = r5(U.z0 - L.z0), n = 2 * Math.ceil(rise / (2 * S.riser) - 1e-9), half = n / 2, rr = rise / n, run = r5(half * S.going), zl = r5(half * rr);
+  const W = S.width, LW = 2 * W + S.well, depth = run + S.landing;
+  const O = [Math.max(L.x0, U.x0), Math.max(L.y0, U.y0), Math.min(L.x1, U.x1), Math.min(L.y1, U.y1)];
+  const busyL = [...landings(L, links, ways, t, S.door), ...taken.get(L.id).filter((q) => !below || !below.zones.includes(q))], busyU = [...landings(U, links, ways, t, S.door), ...taken.get(U.id)];
+  const longY = O[3] - O[1] >= O[2] - O[0];
+  // (stacked: the one place the shaft below gives; else every wall, end and side)
+  const tries = below ? [[below.axis, below.dir, below.lat, below.swap, below.foot]] : (longY ? ['y', 'x'] : ['x', 'y']).flatMap((axis) => [1, -1].flatMap((dir) => [0, 1].flatMap((side) => [0, 1].map((swap) => [axis, dir, side, swap, null]))));
+  for (const [axis, dir, side, swap, foot0] of tries) {
+    const A = axis === 'y' ? 1 : 0, Lt = 1 - A;
+    {
+      const lat = Array.isArray(side) ? side : side === 0 ? [O[Lt] + S.in, O[Lt] + S.in + LW] : [O[Lt + 2] - S.in - LW, O[Lt + 2] - S.in];
+      if (lat[0] < O[Lt] + S.in - 1e-9 || lat[1] > O[Lt + 2] - S.in + 1e-9) continue;
+      // (the first flight on the wall's side or the room's)
+      const lanes = [[lat[0], lat[0] + W], [lat[1] - W, lat[1]]], [l1, l2] = swap ? [lanes[1], lanes[0]] : lanes;
+      const m1 = (l1[0] + l1[1]) / 2, m2 = (l2[0] + l2[1]) / 2;
+      for (let k = 0; ; k++) {
+        if (foot0 != null && k > 0) break;
+        const foot = foot0 ?? (dir > 0 ? O[A] + S.foot + S.body + k * 0.5 : O[A + 2] - S.foot - S.body - k * 0.5), end = foot + dir * depth;
+        if (dir > 0 ? end > O[A + 2] - S.body + 1e-9 : end < O[A] + S.body - 1e-9) break;
+        const pt = (u, v) => (axis === 'y' ? [v, u] : [u, v]);
+        const lo = Math.min(foot, end), hi = Math.max(foot, end), mark = foot + dir * run;
+        const rect = axis === 'y' ? [lat[0], lo, lat[1], hi] : [lo, lat[0], hi, lat[1]];
+        const approach = pt(foot - dir * S.foot, m1), arr = pt(foot - dir * S.head, m2);
+        if (!inside(approach, interior(L), S.body) || !inside(arr, interior(U), S.body)) continue;
+        // the flight and its approach clear of the lower room's doorways and stairs; the hole, its rails and the arrival
+        // clear of the upper room's
+        const span = (lane, u0, u1) => (axis === 'y' ? [lane[0], Math.min(u0, u1), lane[1], Math.max(u0, u1)] : [Math.min(u0, u1), lane[0], Math.max(u0, u1), lane[1]]);
+        const reachL = [rect, span(l1, foot - dir * S.foot, foot)], reachU = [rect, span(l2, foot - dir * S.head, foot)];
+        if (reachL.some((R) => busyL.some((q) => overlap(R, q, 0.2)))) continue;
+        if (reachU.some((R) => busyU.some((q) => overlap(R, q, S.guard.t + 0.3)))) continue;
+        taken.get(L.id).push(...reachL); taken.get(U.id).push(...reachU);
+        const shaft = { axis, dir, lat, swap, foot, zones: reachU };
+        shafts.set(U.id, shaft);
+        // (the stair under this one leaves its hole's foot open over its first flight: this one climbs on from there)
+        if (below) below.rec.through = true;
+        const landing = { rect: span([lat[0], lat[1]], mark, end).map(r5), z: zl };
+        const route = [approach, pt(foot + dir * 0.3, m1), pt(mark, m1), pt(mark + dir * S.landing / 2, m1), pt(mark + dir * S.landing / 2, m2), pt(mark, m2), pt(foot, m2), arr].map(P);
+        return shaft.rec = { from: l.from, to: l.to, lower: L.id, upper: U.id, axis, dir, lat: lat.map(r5), foot: r5(foot), head: r5(foot), n, rise, run: r5(depth),
+          rect: rect.map(r5), approach: P(approach), arrival: P(arr), z0: L.z0, z1: U.z0,
+          profile, going: S.going, guard: S.guard, open: l2.map(r5),
+          flights: [{ lat: l1.map(r5), foot: r5(foot), dir, n: half, base: 0, rr }, { lat: l2.map(r5), foot: r5(mark), dir: -dir, n: half, base: zl, rr }],
+          landing, route, exit: axis === 'y' ? [0, -dir] : [-dir, 0], ...(below ? { stacked: true } : {}) };
+      }
+    }
+  }
+  throw new Error(`stage: the stair from '${L.id}' up to '${U.id}' finds no wall to climb along: a ${rise} m switchback needs ${r5(S.foot + depth + 2 * S.body)} m of floor one way and ${r5(LW + S.in + S.body)} the other, under both rooms and ${S.door} m clear of their doorways`);
+}
+
+/**
  * Cut a storey's own faces (its kit's geometry, before the bake) round its stairs: over a flight (in its lower room)
  * every face above the floor goes (its ceiling exactly, its beams and ducts whole), and under a hole (in its upper
  * room) the floor goes exactly and anything standing on it whole. `cuts`: { flights, holes } (rects in plan).
@@ -157,14 +223,14 @@ export function storeyCut(faces, cuts) {
 /** Does a point stand in a storey's stairs: over a flight (above its floor) or in a hole's room under it (on its floor)? */
 export function inStairs(cuts, p) {
   if (!cuts) return false;
-  return cuts.flights.some((s) => p[2] > 0.05 && inside(p, s.rect)) || cuts.holes.some((s) => p[2] < 2.5 && inside(p, [s.rect[0] - RAIL.t, s.rect[1] - RAIL.t, s.rect[2] + RAIL.t, s.rect[3] + RAIL.t]));
+  return cuts.flights.some((s) => p[2] > 0.05 && inside(p, s.rect)) || cuts.holes.some((s) => { const t = guardOf(s).t; return p[2] < 2.5 && inside(p, [s.rect[0] - t, s.rect[1] - t, s.rect[2] + t, s.rect[3] + t]); });
 }
 
 /** Does a box ({ min, max }) stand in a storey's stairs: over a flight, or over a hole and its rails? */
 export function boxInStairs(cuts, b) {
   if (!cuts || !b) return false;
   const R = [b.min[0], b.min[1], b.max[0], b.max[1]];
-  return cuts.flights.some((s) => overlap(R, s.rect)) || cuts.holes.some((s) => overlap(R, s.rect, RAIL.t));
+  return cuts.flights.some((s) => overlap(R, s.rect)) || cuts.holes.some((s) => overlap(R, s.rect, guardOf(s).t));
 }
 
 /** Is a level quad an axis-aligned rectangle in plan? */
@@ -206,18 +272,23 @@ function rectMinus(f, R) {
 export function stairFaces(out, cuts, surf, ceilingOf) {
   const tread = surf('trim'), side = surf('wall'), cell = side.cell;
   for (const s of cuts.flights) {
-    const rr = s.rise / s.n, [l0, l1] = s.lat;
-    for (let k = 0; k < s.n; k++) {
-      const a = s.foot + s.dir * k * GOING, b = s.foot + s.dir * (k + 1) * GOING, z = r5((k + 1) * rr);
-      const u0 = Math.min(a, b), u1 = Math.max(a, b);
-      const mn = s.axis === 'y' ? [l0, u0, 0] : [u0, l0, 0], mx = s.axis === 'y' ? [l1, u1, z] : [u1, l1, z];
-      // the riser faces the foot; the step's back is hidden by the next step (the last's by the floor's edge)
-      const back = s.axis === 'y' ? (s.dir > 0 ? '+y' : '-y') : (s.dir > 0 ? '+x' : '-x');
-      box(out, mn, mx, { ...tread, group: 'stage:stair' }, tread.cell, ['-z', ...(k < s.n - 1 ? [back] : [])]);
+    // each flight (a switchback's two, from the floor or the landing: solid under) and a switchback's landing
+    const G = s.going ?? GOING;
+    for (const F of flightsOf(s)) {
+      const [l0, l1] = F.lat;
+      for (let k = 0; k < F.n; k++) {
+        const a = F.foot + F.dir * k * G, b = F.foot + F.dir * (k + 1) * G, z = r5(F.base + (k + 1) * F.rr);
+        const u0 = Math.min(a, b), u1 = Math.max(a, b), z0 = underOf(s, z, F.rr);
+        const mn = s.axis === 'y' ? [l0, u0, z0] : [u0, l0, z0], mx = s.axis === 'y' ? [l1, u1, z] : [u1, l1, z];
+        // the riser faces the foot; the step's back is hidden by the next step (the last's by the floor's edge)
+        const back = s.axis === 'y' ? (F.dir > 0 ? '+y' : '-y') : (F.dir > 0 ? '+x' : '-x');
+        box(out, mn, mx, { ...tread, group: 'stage:stair' }, tread.cell, ['-z', ...(k < F.n - 1 ? [back] : [])]);
+      }
     }
-    // its balustrades: a low wall on each side, stepping up with the treads
+    if (s.landing) { const [x0, y0, x1, y1] = s.landing.rect; box(out, [x0, y0, s.stacked ? r5(s.landing.z - STACKED) : 0], [x1, y1, s.landing.z], { ...tread, group: 'stage:stair' }, tread.cell, s.stacked ? [] : ['-z']); }
+    // its balustrades: a low wall on each side, stepping up with the treads (and round a landing's open edges)
     const bal = { ...tread, group: 'stage:stair' };
-    balustrades(s).forEach(([mn, mx], i) => { const k = Math.floor(i / 2), top = (k + 1) * rr; box(out, [mn[0], mn[1], top], mx, bal, bal.cell, ['-z']); });
+    balustrades(s).forEach(([mn, mx, top]) => box(out, [mn[0], mn[1], top], mx, bal, bal.cell, ['-z']));
     // the well: from the ceiling under it to the floor over it, round the hole, facing in
     const h = ceilingOf(s.lower), [x0, y0, x1, y1] = s.rect, lift = s.rise - h;
     if (lift > 1e-3) {
@@ -232,6 +303,7 @@ export function stairFaces(out, cuts, surf, ceilingOf) {
 
 /** A hole's rails: low walls along its two sides and its foot, just outside it, the head left open. At floor `z`. */
 function railBoxes(s, z) {
+  if (s.flights) return switchbackRails(s, z);
   const [x0, y0, x1, y1] = s.rect, t = RAIL.t, h = z + RAIL.h;
   const footAt = s.dir > 0 ? (s.axis === 'y' ? y0 : x0) : (s.axis === 'y' ? y1 : x1);
   if (s.axis === 'y') {
@@ -251,9 +323,16 @@ export function stairColliders(stairs) {
   const out = [];
   for (const s of stairs) {
     const of = `stair:${s.lower}:${s.upper}`;
-    for (const [mn, mx] of balustrades(s)) out.push({ min: P([mn[0], mn[1], s.z0]), max: P([mx[0], mx[1], s.z0 + mx[2]]), of });
-    const T = 0.1, [l0, l1] = s.lat, a0 = Math.min(s.head, s.head - s.dir * T), a1 = Math.max(s.head, s.head - s.dir * T);
-    out.push({ min: P(s.axis === 'y' ? [l0, a0, s.z0] : [a0, l0, s.z0]), max: P(s.axis === 'y' ? [l1, a1, s.z1] : [a1, l1, s.z1]), of });
+    for (const [mn, mx] of balustrades(s)) out.push({ min: P([mn[0], mn[1], s.z0 + mn[2]]), max: P([mx[0], mx[1], s.z0 + mx[2]]), of });
+    if (s.landing) {
+      // (a switchback is solid under: its far end a wall to the landing's guard, no walking into it)
+      const T = 0.1, e = s.foot + s.dir * s.run, a0 = Math.min(e, e - s.dir * T), a1 = Math.max(e, e - s.dir * T), [l0, l1] = s.lat;
+      const zb = s.z0 + (s.stacked ? s.landing.z - STACKED : 0);
+      out.push({ min: P(s.axis === 'y' ? [l0, a0, zb] : [a0, l0, zb]), max: P(s.axis === 'y' ? [l1, a1, s.z0 + s.landing.z + guardOf(s).h] : [a1, l1, s.z0 + s.landing.z + guardOf(s).h]), of });
+    } else {
+      const T = 0.1, [l0, l1] = s.lat, a0 = Math.min(s.head, s.head - s.dir * T), a1 = Math.max(s.head, s.head - s.dir * T);
+      out.push({ min: P(s.axis === 'y' ? [l0, a0, s.z0] : [a0, l0, s.z0]), max: P(s.axis === 'y' ? [l1, a1, s.z1] : [a1, l1, s.z1]), of });
+    }
     for (const [mn, mx] of railBoxes(s, s.z1)) out.push({ min: P(mn), max: P(mx), of: `rail:${s.upper}` });
   }
   return out;
@@ -262,11 +341,44 @@ export function stairColliders(stairs) {
 /** A flight's balustrades, in its floor's frame: on both its sides, tread by tread, from the floor to a rail's height
  *  over the tread. → [[min, max]] */
 function balustrades(s) {
-  const out = [], rr = s.rise / s.n, [l0, l1] = s.lat, t = RAIL.t;
-  for (let k = 0; k < s.n; k++) {
-    const a = s.foot + s.dir * k * GOING, b = s.foot + s.dir * (k + 1) * GOING, u0 = Math.min(a, b), u1 = Math.max(a, b), z = (k + 1) * rr + RAIL.h;
-    for (const [b0, b1] of [[l0 - t, l0], [l1, l1 + t]]) out.push(s.axis === 'y' ? [[b0, u0, 0], [b1, u1, z]] : [[u0, b0, 0], [u1, b1, z]]);
+  const out = [], { t, h } = guardOf(s), G = s.going ?? GOING;
+  for (const F of flightsOf(s)) {
+    const [l0, l1] = F.lat;
+    for (let k = 0; k < F.n; k++) {
+      const a = F.foot + F.dir * k * G, b = F.foot + F.dir * (k + 1) * G, u0 = Math.min(a, b), u1 = Math.max(a, b), top = F.base + (k + 1) * F.rr, z = top + h;
+      const zb = underOf(s, top, F.rr);
+      for (const [b0, b1] of [[l0 - t, l0], [l1, l1 + t]]) out.push(s.axis === 'y' ? [[b0, u0, zb], [b1, u1, z], top] : [[u0, b0, zb], [u1, b1, z], top]);
+    }
   }
+  // a switchback's landing: guarded along its far edge and its two sides
+  if (s.landing) {
+    const [x0, y0, x1, y1] = s.landing.rect, top = s.landing.z, z = top + h, far = s.dir > 0, b = s.stacked ? r5(top - STACKED) : 0;
+    if (s.axis === 'y') out.push([[x0 - t, y0, b], [x0, y1, z], top], [[x1, y0, b], [x1 + t, y1, z], top], far ? [[x0 - t, y1, b], [x1 + t, y1 + t, z], top] : [[x0 - t, y0 - t, b], [x1 + t, y0, z], top]);
+    else out.push([[x0, y0 - t, b], [x1, y0, z], top], [[x0, y1, b], [x1, y1 + t, z], top], far ? [[x1, y0 - t, b], [x1 + t, y1 + t, z], top] : [[x0 - t, y0 - t, b], [x0, y1 + t, z], top]);
+  }
+  return out;
+}
+// a stacked flight's slab: its underside this far under each tread (a stair from the floor is solid to it)
+const STACKED = 0.35;
+const underOf = (s, top, rr) => (s.stacked ? Math.max(0, r5(top - rr - STACKED)) : 0);
+// a stair's flights: a switchback's own, or a straight flight's one from the floor (its numbers as they always were)
+const flightsOf = (s) => s.flights ?? [{ lat: s.lat, foot: s.foot, dir: s.dir, n: s.n, base: 0, rr: s.rise / s.n }];
+const guardOf = (s) => s.guard ?? RAIL;
+/** A switchback's hole rails at floor `z`: along both sides, across its landing end, and across its foot end but over
+ *  the second flight, where it is climbed out of. */
+function switchbackRails(s, z) {
+  const [x0, y0, x1, y1] = s.rect, { t, h: gh } = guardOf(s), h = z + gh, [o0, o1] = s.open, lat = s.lat;
+  const footLo = s.dir > 0, Y = s.axis === 'y';
+  // (the foot end's rail over what is not the open flight)
+  const across = (u0, u1, side) => (Y ? (side ? [[u0, y1, z], [u1, y1 + t, h]] : [[u0, y0 - t, z], [u1, y0, h]]) : (side ? [[x1, u0, z], [x1 + t, u1, h]] : [[x0 - t, u0, z], [x0, u1, h]]));
+  const out = Y ? [[[x0 - t, y0 - t, z], [x0, y1 + t, h]], [[x1, y0 - t, z], [x1 + t, y1 + t, h]]] : [[[x0 - t, y0 - t, z], [x1 + t, y0, h]], [[x0 - t, y1, z], [x1 + t, y1 + t, h]]];
+  out.push(across(lat[0], lat[1], footLo));
+  // (open over the second flight, where it is climbed out of; and over the first, when a stair stacked on it climbs on)
+  const gaps = [[o0, o1], ...(s.through ? [s.flights[0].lat] : [])].sort((p, q) => p[0] - q[0]), rest = [];
+  let u = lat[0];
+  for (const [g0, g1] of gaps) { if (g0 > u) rest.push([u, g0]); u = Math.max(u, g1); }
+  if (u < lat[1]) rest.push([u, lat[1]]);
+  for (const [u0, u1] of rest) out.push(across(u0, u1, !footLo));
   return out;
 }
 

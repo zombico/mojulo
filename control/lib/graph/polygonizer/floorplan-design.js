@@ -19,19 +19,14 @@
 // feet, `false` (the default) for the flight's footprint only, as before; `waive` lists the checks the operator accepts
 // as built (a rule, or `rule:subject`), which a reader shows as waived rather than advising.
 import { ARCHETYPES } from './floorplan-glyphs.js';
+import { DESIGN_RULES } from '../construction/circulation.js';
 
 const IN = 1 / 12, MM = 1 / 304.8;
 const GRID = 0.25;
 const TOL = 1 / 24;                                                      // half an inch: what a finding can tell apart
 
-/** The numbers each tradition builds to (feet): the passage a walkway keeps, a door's clear width, a stair's width,
- * its highest riser and its shallowest going. */
-export const DESIGN_RULES = Object.freeze({
-  'north-american': { passage: 36 * IN, door: 30 * IN, stair: { width: 36 * IN, riser: 7.75 * IN, going: 10 * IN }, units: 'in' },
-  british: { passage: 900 * MM, door: 775 * MM, stair: { width: 800 * MM, riser: 220 * MM, going: 220 * MM }, units: 'mm' },
-  japanese: { passage: 780 * MM, door: 700 * MM, stair: { width: 750 * MM, riser: 230 * MM, going: 150 * MM }, units: 'mm' },
-  metric: { passage: 900 * MM, door: 800 * MM, stair: { width: 800 * MM, riser: 200 * MM, going: 230 * MM }, units: 'mm' },
-});
+// (the traditions' numbers are the circulation laws' livable profile: construction/circulation.js)
+export { DESIGN_RULES };
 export const DESIGN_TRADITIONS = Object.freeze(Object.keys(DESIGN_RULES));
 
 /** Validate a `design` value → string[]. */

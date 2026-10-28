@@ -50,6 +50,7 @@ import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun
 import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readFormLight, twinMeanValue } from '../form/room-form.js';
 import { GLASS_GROUPS } from './bay-glass.js';
+import { STAIR_PROFILE_IDS } from '../construction/circulation.js';
 import { solveRoomLight, referenceLamp, paintAtReference, paintMean, linHex, falloff, ROOM_LIGHT } from '../form/room-light.js';
 import { decodeSrgb, encodeSrgb } from '../color-theorist/light.js';
 import { assembleNatureScene } from './nature.js';
@@ -450,7 +451,9 @@ export function planStage(m = {}) {
     return { room: r.id, side: w.side, at, ...op };
   });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
-  const stairs = storeyed ? placeStairs(rooms, stairLinks, links, ways, kit) : null;
+  // (a stage's stairs: a keep's steep flight, or a building's switchback, construction/circulation.js STAIR_PROFILES)
+  if (m.stair !== undefined && !STAIR_PROFILE_IDS.includes(m.stair)) throw new Error(`stage: stair is ${STAIR_PROFILE_IDS.join(' or ')} (a keep's steep flight, or a building's switchback)`);
+  const stairs = storeyed ? placeStairs(rooms, stairLinks, links, ways, kit, m.stair ?? 'keep') : null;
   const first = rooms[0];
   // `time: 'night'`: the style card's night takes the reference's light and air; its moon is the key (the bake's sun)
   const time = m.time ?? 'day';
