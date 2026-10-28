@@ -14,243 +14,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### Circulation laws: one set of rules, a livable profile and a game profile
-
-The concerns a building's paths keep, named once, with two kinds of numbers: a house keeps a body's and its furniture's
-minima, as a tradition's codes do; a game keeps its walker's and its camera's. Games and houses stay two flows.
-
-- **The laws** (`construction/circulation.js`): `CIRCULATION` names them (passage, door, door approach, a stair's
-  width, riser, going, landing, the clear floor at its foot and head, how far a doorway keeps from either, headroom,
-  guard, well). `DESIGN_RULES`, the four traditions' livable numbers the house flow reads, moved here unchanged
-  (`floorplan-design.js` imports and re-exports it). `STAIR_PROFILES`: `keep` (a keep's or a tower's steep straight
-  flight, the stage's stair since its first storeys, its numbers and its output exactly as they were) and `game` (a
-  building's: a 0.2 m riser on a 0.3 m going, about 34°, a flight 2 m wide, a switchback with a half landing 2 m deep
-  and a 0.4 m well, 2 m of clear floor at its foot and its head, 2.7 m of every doorway's own floor kept clear of it,
-  1.1 m guards).
-- **The game stair** (`era/storeys.js`): a stage's `stair: 'game'` lays switchbacks. Two flights side by side split a
-  storey's steps evenly, so the second ends where the first began and the upper floor is met square; solid under from
-  the ground, balustraded both sides and round the landing; the hole in the upper floor its whole footprint, railed but
-  where it is climbed out of. A stair climbing out of a room another climbed into stacks on it in the one shaft (the same
-  footprint, its flights slabs over the flights below, the hole under it left open over its first flight). A stair
-  record carries its `flights`, `landing`, `route` and `exit`; a keep's carries none of them, and every face, collider
-  and rail reads a straight flight's numbers as before. A building's use (`program: { use: 'office' }` and the rest)
-  takes the game stair; the core packer's 10 × 12 m core holds it.
-- **Routes**: `structure/level.js` `stageLevel` climbs a switchback by its route; the walk spike
-  (`building-walk.mjs`) does too, then goes round the railed hole. Every building use walks to its top floor on it.
-
-### Buildings from a brief: corridor-and-core programs for genre levels
-
-A stage's `program: { use }` (`era/programs.js`) lays buildings as well as houses and keeps. Built so far:
-
-- **Corridor and core** (`era/program-core.js`, a use's `shape: 'core'`): a core holding the stair (10 × 12 m, its
-  wings meeting it along its front band and its back corner, so its flight finds a wall clear of the doorways), wings
-  off it as an I, an L, a T or a U, each a corridor wide enough for the kit's doorway at its end with rooms a bay wide
-  along one side (`single`: the corridor's other side the outside wall) or both (`double`), a lobby in front holding the
-  way in, and an annex (a warehouse's shed, a lab's instrument bay) off the first wing's end on the ground with nothing
-  over it and its own ways out. Every storey above the ground the same plate, so each room upstairs stands over its
-  twin. Rooms are numbered by storey (`office-203`), the goal is its role (`boardroom`: the top storey's farthest
-  room), and every size snaps to the kit's grid. Findings: `unreached`, `deep` (more than four doors from the stair),
-  `no-goal`.
-- **The uses**: `office` (an L of offices, kitchens and meeting rooms, four storeys, on `bay-everyday`),
-  `lab-building` (labs both sides of a clean corridor, an instrument bay, on `bay-science`), `warehouse` (an office
-  block over the lockers, the tall shed off its end with its dock doors, on `bay-utility`), `clinic` (a T of consult
-  rooms off a waiting room). Their settings are the plan's: `storeys` (1 to 6), `wings`, `loading`, `bays` (a wing's
-  length). A building's use names its bay kit (the recipe's own kit wins) and lowers with its `ways`.
-- **Only for genre levels**: a game's `building: { use: 'office', storeys, wings, … }` lays one on its own bay kit
-  whatever the world's language (`gameworld/levels.js` `buildingStage`, the game's building settings in `world.js`),
-  played to its goal up its storeys. The `game` routing card and the `game-building` card say the split: a genre level
-  set in a building (a stealth mission through an office) is the game's; a building asked for as a building, or a level
-  asked for with no genre (an office to climb), stays `mint_building`'s. Three routing rows hold it. (The `game` card's
-  line calling a game the fourth paradigm, sibling to bots, went: the chatbot factory left in 3.0.0.)
-- **Walked** (`scripts/spikes/bay/building-walk.mjs`): the page's own walk in node, steered through each doorway and up
-  each stair (then round its railed hole, as a walker goes) from the way in to every storey's farthest room; every use
-  and the U-shaped office walk to their top floors.
-- **The page budget**: a four-storey office's gen-7 page went from 28.6 MB to 13.1 MB. The bay shell rations its
-  services in a building's small rooms (a ceiling panel out in a share of the low rooms by their dice; boxes, breaker
-  panels and ceiling pipes only where a room is long enough to run services along; a return grille low on a narrow
-  room's wall, in a wide one's ceiling; the `overhead` law reads a low room's air as what hangs in it); a thin band's
-  bake cells are 2 m; only a field surface carries two variants. A page whose maps pass `ROOM_MAPS.budget`
-  (`form/room-form.js`) draws its dressed tiles' relief at 256², their colour kept whole (`form.room.reliefSize`).
-- **Buildings to walk** (`scripts/spikes/bay/buildings.mjs`): each use's plates, its gen-6 and gen-7 pages held to the
-  16 MB budget, captured from the lobby, a corridor, the stair and the top storey.
-
-### The bay kit: modern interiors from the hangar's principles
-
-A modern interior kit for the stage, read from the mobile-suit Depot's elements (a structural grid, a divide, a big
-door, pads, a runway of lights, a gantry, racks, a stair) and the principles that made the crypt and the temple
-striking: structure as the ornament, a wall's base, field and crown, the floor as the map, light as composition, two
-scales side by side, something hanging, depth through openings, wear that shows use, an accent rationed. Lit by the
-gen-7 room bake; the same recipe read in gen-6 is drawn as paint. Built so far:
-
-- **Modern materials** (`matte-paint/dressed.js`): new dressed cuts, each a relief, so the form render reads its
-  normal, occlusion and height (the parallax) from it: steel `plate` (seams, welds, rivet rows, paint wear), diamond
-  `tread`, concrete `block`, sheet `panel`, poured `epoxy`, bar `grating` and `corrugated` sheet. A recipe names them as
-  any dressed cut (`gen: 'dressed', cut`).
-- **The bay shell** (`era/bay.js`, `shell: 'bay'`): every part placed from the room's bays. Pilasters at the bay lines,
-  each with a light strip down its face; every solid wall a base (a kick band standing proud), a field and a crown,
-  broken round each doorway, which is framed with jambs and a head in hazard paint and a lamp over it. The floor is
-  zoned: an epoxy field, a band of grating at the walls' feet, a hazard line between them, lamps inset at the band's edge
-  on the bay lines, and a pad marked in a big room's middle. A tall room (6.5 m and over) has a corrugated deck, I-beams
-  across the short span on the bay lines, a duct, and lamps hung between the beams. A taller one (9 m) adds a bridge
-  crane: rails on corbels, a girder, a trolley, cables to a hook block. From 7.5 m there is a catwalk on the long wall
-  with the fewest doorways, with a grating deck, brackets, a railing, a toe board and a stair up to it. A low room has a
-  soffit with strips across it and two services along it. Each stage carries the shell's readout and laws
-  (`payload.bay`: each room's roof, surfaces and walkways; layers, overhead, two scales, walkway entries, banisters,
-  two ways in, the accent's share).
-- **Three registers** (`style/bay-kits.js`), each kit `bay-<register>` on the same shell: `bay-military` (steel plate on
-  a dark kick band, corrugated crowns, a dark epoxy floor, cool strips), `bay-utility` (concrete block over a painted
-  block base, yellow steel pilasters, a sealed concrete floor, warm lamps), `bay-science` (white panels over a teal base
-  band, a pale poured floor, cold strips). A kit may name the sixth-gen look it defaults to (`reference`); the bay kits
-  take the lab's (`lab-dark`). The fixtures are seats with a word (`strip`, `highbay`, `inset`, `lamp`), never a torch's
-  flame; a lamp inset in the floor is held by the bake alone (the page's near lamps are the strong ones).
-- **More materials, alternates per room**: punched `perforated` metal, `terrazzo`, `glazed` ceramic tile, `studded`
-  rubber, standing-`seam` cladding and fissured `acoustic` ceiling tile join the made class. A register offers alternates
-  for its surfaces and each room takes one by its dice: a building's rooms differ and still speak one language.
-- **Roof systems**: a tall room's roof is one of `beams`, `truss` (open-web, a Warren web), `vault` (arched ribs, a
-  corrugated barrel, tie rods), `sawtooth` (glazed north lights, daylight seats) or `coffer` (a concrete waffle, a lamp
-  in each coffer), from its register's list by the room's dice; a braced register crosses its end bays with X-bracing.
-- **Walkways are entered and their banisters block**: a catwalk is railed on every edge over a drop but its entries; it
-  always has a stair head to enter by, and a long one a stair at each end; an entry is at least a door wide; every
-  railing carries a perforated infill from the deck to its top rail, so it stops a walker at any height the walk's rays
-  cast (the page walks on the real geometry); a stair carries a banister up its open side along its pitch, the floor
-  under the flight left open (where a walker may go is a game's pathing, not the stair's), and its foot opens onto a
-  clear landing. Walked by the page's own walk (its eye and shin rays, its step and its body's radius on three's
-  raycaster over the stage's faces: `scripts/spikes/bay/walkways.mjs`): up the near stair onto the deck, along it,
-  stopped by the front and the far railings, held on the treads by the stair's banister, up the second stair through its
-  gap, in every register. The first walk found the near stair's foot 0.6 m off the end wall behind a pilaster, out of a
-  walker's reach: hence the landing.
-- **A secondary colour and secondary light**: each register paints a secondary colour on its door frames, railings, the
-  crane's girder, the pilasters' foot band and its colour-coded services, and lights in secondary colours (a cove washing
-  up the wall from the crown, the doorway's signal lamp, a downlight under a catwalk), whose hue the bake carries. The
-  hazard stripe is rationed to what lies flat: floor edges, step nosings, the pad, a girder's ends.
-- **Services**: an electrical box every few bays on a long wall with its conduit up to the crown, a breaker panel by each
-  doorway (its door, handle and breaker lamps, three conduits up), cables slung from hooks under a tall room's crown and
-  bundled under a catwalk's deck, and in a low room one soffit panel out, hanging from its hinge with the plenum's dark
-  over it and the wiring drooping through.
-- **Matte and carbon fibre**: `matte` (a powder-coated sheet: rolled folds, a fine orange peel, burnished where a hand
-  rubs) and `carbon` (a 2×2 twill of tows, warp and weft catching the light apart, under a clear coat) join the made
-  class. The military register takes a matte wall and matte cabinets, the utility matte cabinets, the science a carbon
-  kick band and carbon or matte white cabinets.
-- **Everyday materials and the `everyday` register**: `drywall` (taped joints feathered under the paint, filled screw
-  dimples, a patched ding), `carpet` (loop-pile tiles quarter-turned, a tweed fleck), `vinyl` (composition tile marbled
-  and quarter-turned, heel marks), `laminate` (printed planks whose print comes round every third, bevelled joints),
-  `porcelain` (large rectified tiles, each crowned or cupped a hair) and `veneer` (book-matched leaves of flat-cut
-  figure). `bay-everyday` lays them for an office, a school, a clinic or a big-box store on the shell turned down (a
-  register's `shell` overrides part of the shell's numbers): a rubber base, a slim pilaster, a bulkhead crown, a hollow
-  metal door frame 1.8 × 2.7 m, no grating band, no pad, no crane (`craned`), no bracing; neutral air over the lab look
-  (a kit's `ambient`, used when the recipe names no look), an exit sign's green over each door, aluminium nosings for a
-  hazard stripe.
-- **Ducts and vents** (`era/bay-air.js`): the duct in each tall roof's own zone, round spiral or rectangular by register
-  (through a truss's web, a sleeve where it passes a beam's, over a vault's ties, a header across each sawtooth), its
-  couplings or flanges, hanger rods up to the roof (a trapeze under a rectangular one), and a terminal each bay: a drum
-  louvre on a drop from a round duct, a grille in each side of a rectangular one, the bay under the crane's girder left
-  clear; a coffered roof's diffusers in its unlit coffers; in a low room square 4-way diffusers in the soffit, a return
-  grille in it and one low on a long wall. Built as relief (stepped cones, angled blades, the dark behind). A tall
-  room's first outside end wall breathes through a weather louvre in its middle bay, in place of that bay's window.
-- **Glass** (`era/bay-glass.js`): windows where a wall faces out (no room against it): a ribbon of clerestory a bay at a
-  time under a tall room's crown (kept clear of the catwalk's rail on its wall), punched windows or a high slot in a low
-  room by register, each in the wall's reveal with mullions, head and sill rails and a sill board, the daylight beyond
-  as a sky gradient at the wall's outer face, a daylight seat inside, and each pane's light laid on the floor as a sun
-  patch along the register's sun. A glazed booth in a tall room's corner off the catwalk's wall (a control room, a site
-  office, a meeting pod): storefront mullions over a solid dado, or full-height glass with a three-row frit band at
-  walking height, a glazed door standing open (it walks in; its glass stops a walker), a transom, a roof with a
-  downlight, a desk with its screens lit toward the glass. Clear, wired or frosted, frit, glint, sky and sun patch are
-  each their own group (a group's opacity is its own), all out of the shadow occluders (`stage.js`). In gen-7 a pane
-  reflects the room by Fresnel (`channels/form.js`: Schlick from F0 0.04, the floor's dark below its horizon, the lamps'
-  light above) and the glints are hidden; in gen-6 it is a flat alpha with two glints. A law, `glass-marked`: every pane
-  whose foot a walker reaches carries its band.
-- **The construction catalog grows, and the bay reads it**: HVAC (spiral and rectangular ducts, a square diffuser, a drum
-  louvre, a return grille, a weather louvre, a hanger rod), glass (float, low-iron, laminated, wired, acid-etched:
-  thickness, transmittance, reflectance, edge tint, haze; `construction/glazing.js` `glassLook` reads one as a pane) and
-  floor finishes (carpet tile, VCT, porcelain, laminate, oak veneer) join `construction/catalog.js`. The bay registers lay
-  their block from masonry's `UNITS.cmu`, their drywall from the gypsum sheet, their lay-in tile, floors and veneer from
-  their catalog units, their ducts and terminals from the HVAC entries, their panes from the glass, so a house and a bay
-  agree on what a block, a board or a pane is.
-- **Rooms to walk** (`scripts/spikes/bay/bays.mjs`): a corridor opening into a tall bay in each register, in gen-6 and
-  gen-7, captured from the corridor, inside the bay and up at its roof; no page errors. The materials' sheet is
-  `scripts/spikes/bay/cuts.mjs`.
-
-### In-hall: rooms strung on a walk, the interior trail
-
-The out-trail strings beats on a spine outdoors; a hall strings rooms on a walk indoors, the first rung of the rooms'
-ladder (hall → section → floor) that the out-trail's header reserved. A stage recipe's `hall` is read against a card the
-way a trail is, planned into rooms, links and two ports, built by the stage as any rooms are, and held by laws.
-
-- **The card** (`era/in-hall.js` `IN_HALL`): an explorer's walk indoors (4.5 m/s, a run of 8–20 s, 60–150 s to explore),
-  and the beats as rooms, each with its width, its depth along the walk, its share of the hall's height, its dwell and
-  its words: `squeeze` (a low narrow passage), `reveal` (a tall wide room through a narrow door), `landmark` (the set
-  piece's room, at the end of the sightline), `pocket` (a side room off the walk, a dead end), `rest` (an even room).
-  `crossing`, `pit`, `stair` and `gate` are named and refused until the stage lays their geometry.
-- **The grammar** (`hallOrderFaults`, `drawHallBeats`): never two alike together, a reveal always out of a squeeze
-  (compression, then release), the landmark neither first nor past the middle (the mouth sees it), a pocket off the
-  room before it; drawn by the seed when the recipe names none, a reveal, a landmark and a pocket always.
-- **The plan** (`planInHall`): a straight spine from the mouth, each room centred on one axis with an even width, so
-  every doorway stands on it; the heartbeat swings each beat's height and width, no ceiling under 3.5 m (`IN_HALL.floor`:
-  a squeeze's doorway stays a full metre over the walker's eye); the spine's depths drawn in their
-  ranges and scaled together to the run; a pocket off the side of the room before it, no deeper than its host; the
-  landmark's link last, so the kit's dressing seats its set piece there; a mouth through the first room's `-y` and an
-  exit through the last's `+y` (`exit: 'none'`, a dead end ending at its landmark). `mouth` and `exit` say how each is
-  entered (`arch`, `door`, `portal`, `cave`), for the threshold that will read them.
-- **The laws** (`inHallLaws`, on the stage's own plan): run, explore, order, release (every reveal half again as tall as
-  its squeeze), landmark (the mouth's eye to the landmark's room through every doorway, under its head), ports (each
-  through an outside wall), reach (every room from the mouth), fit (every beat laid).
-- **Built by the stage** (`stage: { hall }`, `withHall`): the hall writes the rooms, links and ways (a recipe with a hall
-  names none of them), in the recipe's kit or its cube's interior's bones (`geocubeBones`); the payload carries the
-  hall's anchors (`beat`, `port`, tagged `hall: 'in-hall:<id>'`) and `hall: { beats, ports, laws }`. A recipe with no
-  hall is as it was.
-- **The geocube kind's `show: 'hall'`**: the cube's interior (its room, or an inside domain) walked as a hall from the
-  seed, its kit dressed (the crypt's set piece in the landmark's room), the cube's accent on the landmark room's far wall
-  unless the kit's dressing made it its own. Gen-7 lights it as any room.
-- **Halls to walk** (`scripts/spikes/hall/halls.mjs`): limestone-crags' room and temple hall rolled as halls and one
-  written on the crypt kit, each a walkable page in both eras beside its plan plate (the rooms by beat, the doorways, the
-  ports, the sightline, each ceiling) and its laws, captured from the mouth and from the squeeze into the reveal. Every
-  law holds on all three.
-
-### Gen-7 rooms: a room's surfaces as material, its light solved from its palette
+### Gen-7 rooms: a room's surfaces as material, its lights live
 
 The form render's first place: a room under no sun, read in gen-7 (`?era=gen-7`, `export_game { era }`, a cube that names
-the seventh generation), has its tiles read as material and its light solved from its palette and baked apart from its
-colour, as a seventh-generation lightmap was; the page lights only the relief. Gen-6 paints the light into each tile
-and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
+the seventh generation), has its tiles read as material and its placed lights lit live, where gen-6 paints the light into
+each tile and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
 
 - **Every dressed cut reads as material** (`dressedMaterial`, matte-paint/dressed.js): the ashlar wall and floor, the
   fluted and plain shafts, lime render, roof tiles and slates, boards, and the natural cuts beside the modern ones. Each
   cut lights its relief through one helper, which, read as material, paints the colour under no light and keeps the
-  relief for its normal, occlusion, roughness and height. The paint is unchanged (its pins hold).
+  relief for its normal, occlusion and roughness. The paint is unchanged (its pins hold).
 - **A room's tiles as material** (`form/room-form.js`): a dressed family from its relief (each joint, flute and chip its
   own slope); any other tile from its painted light read back as height, as the seventh generation's own tools pulled a
-  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). Each
-  carries its height in the ORM's blue (the island's convention), its relief's `depth` and its `mean` colour; a card
-  keeps its paint and sends only its mean. A generated tile now records the spec it was painted from
-  (`generatedSpecOf`, landscape/surface-textures.js).
-- **The light a room's palette asks for** (`form/room-light.js`, over the colour theorist's `solveLight`): what each
-  surface's paint shows at arm's length from the room's median lamp is a target; the bases (each surface's colour under
-  no light) and the lamps' light are solved together, as the island solves its sun for its palette. The hues are the ones
-  the paint shows (it mixes its light in display units, so a torch shows far less orange than its colour decoded), and
-  the contrast is the paint's, held so the lamps always shape the room. The levels are solved under a light without hue,
-  so each base keeps its paint's hue, and the ambient and each lamp bring their own: a surface by a warm lamp warms and
-  one in the shade cools wherever it stands, as on the paint (solving every base against the median lamp's hue left
-  surfaces lit by a lamp of another colour off: a bay's ceiling under its white lamps read brown). A toned room's colour
-  is its ramps' (tone.js): its targets are its ramps' colours at its key, its light neutral, its contrast its ramp's own.
-- **Baked as a lightmap** (`formLightFaces`, era/stage.js): each corner carries its base under its dirt and, apart, its
-  light (`cornerLight`, linear): the ambient, every placed light, brazier and pool by its solved key, its falloff and its
-  cosine where its shadow test sees the corner (whatever the recipe's `shadows.torch`), and a bounce in its own room. The
-  packer carries the light per vertex (`aLit`, face-mesh.js and scene-three.js; a page without it carries none of it),
-  the corner's occlusion on the light, not the colour. A sunlit or night stage stays paint.
-- **The page lights only the relief** (`scene/channels/form.js`): each surface's material is the paint's (three's basic
-  material; no light of three's is evaluated) multiplied by its baked light, the tile divided by its mean so the base sets
-  the colour. Near the eye the four lamps nearest it light the relief (the normal map against the face's own) and add a
-  sheen, scaled by how lit the bake says that spot is, so nothing shines in a baked shadow; a lamp entering or leaving
-  the four fades. Nearer still each tile's height is marched along the view (parallax occlusion, as the island's scree),
-  so a joint sinks and a stone stands. No shadow maps: the live light keeps only what moves (the actors' contact
-  shadow), and its contact occlusion is the recipe's to ask for (the bake holds the room's). A toned room's void and haze
-  are its ramp's darkest colour. Tone-mapped (Neutral, exposure 1: what the solve solved for). `window.__mojForm` is the
-  probe. Measured in Chrome (SwiftShader) on the gritty cube's temple hall from its mouth: a frame 1225 ms against gen-6's
-  616 (the first cut, every lamp live and four casting, took 2263 against 432); without the live light's actors' map,
-  879, and without relief and parallax, 595. Five rooms from each room's spawn: the brick hall's mean luminance 26.9
-  against its gen-6 paint's 33.9, the rendered vault 31.8 against 38.5, the crypt 26.6 against 31.4, the nave 29.3
-  against 34.3 (the lamps fall off faster in linear light than the paint's square did); the gritty cube's toned room 118
-  against 184, its paint lit almost flat, and its marble's veins grey where the toned page carries them along the ramp.
+  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). A
+  generated tile now records the spec it was painted from (`generatedSpecOf`, landscape/surface-textures.js).
+- **No light in the corners** (era/stage.js): a room read in the form render bakes each corner its material's colour,
+  its tint under its dirt, and hands the page its placed lights, braziers and the nave's sun pools (`form.room: {
+  lights, ambient }`). A sunlit or night stage stays paint. A toned room (tone.js) has no material colour of its own (its
+  ramps colour its light), so each corner carries what the toned page paints it under its lamps, over the light the form
+  page will lay there: the room reads as its art direction, and the live light adds its relief and its shadows.
+- **The page lights it** (`scene/channels/form.js`): every surface of the room a lit material, flat-shaded with its
+  normal map's frame from the screen's derivatives, under the room's lights falling off by the bake's own law, an indirect
+  of the bake's ambient and a bounce off each light (what a lightmap holds), occluded by the material's hollows, and
+  tone-mapped. The four lights nearest the eye cast from cube maps, a fixed pool laid over the nearest as the eye walks,
+  each map drawn when its light changes and never per frame; the light tier halves them (two at 256) or drops them (off).
+  The live light's actors' map gives way in such a room, since its light would light the material: what moves (a hero,
+  walkers, cars, fauna) casts in the room's own lights instead, the nearest light's map drawn each frame, so a hero
+  throws its shadow from the torch beside it. `window.__mojForm` is the probe. Measured in Chrome on five rooms from each room's spawn: a lit room's mean luminance within 1 % of its
+  gen-6 paint (brick hall 34.3 against 33.9, crypt 31.4 against 31.4), the nave within 13 %; the gritty cube's toned
+  room 145 against 184 (its accent wall's colour is still short of its ramp's).
 - **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
   walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
   page draws the form render.
