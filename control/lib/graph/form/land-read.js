@@ -163,7 +163,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // the shadow's frame: what stands above the water, not the sea's floor or the sea to the horizon
   const land = P.faces.filter((f, i) => L.faces[i].cls && L.faces[i].cls !== 'water' && !L.faces[i].under).flatMap((f) => f.corners);
   const sea = P.faces.filter((f, i) => L.faces[i].cls === 'water').flatMap((f) => f.corners), seaX = sea.map((c) => c[0]), seaY = sea.map((c) => c[1]);
-  const box = [0, 1, 2].map((k) => [Math.min(...land.map((c) => c[k])), Math.max(...land.map((c) => c[k]))]);
+  // (by a loop: a land with its bushes' lobes is more corners than a spread's arguments may be)
+  const box = [0, 1, 2].map((k) => { let lo = Infinity, hi = -Infinity; for (const c of land) { if (c[k] < lo) lo = c[k]; if (c[k] > hi) hi = c[k]; } return [lo, hi]; });
   const isle = (P.cameras.find((c) => c.name === 'island') ?? P.cameras[0])?.worldFraming.lookAt || [0, 0, 0];
   const wetMids = P.faces.flatMap((f, i) => (L.faces[i].wet && !L.faces[i].under ? [[0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length)] : []));
   // (a land with no sea, the path's: no shore, its readings and its camera left out)
@@ -296,7 +297,7 @@ export function formPayload(R) {
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
     sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, box, waterZ: L.waterZ, deep: L.deep,
-    seabed: hasSea ? { x: [Math.min(...seaX), Math.max(...seaX)], y: [Math.min(...seaY), Math.max(...seaY)], z: L.waterZ - DEEP_FADE - 1 } : null,
+    seabed: hasSea ? { x: [seaX.reduce((a, v) => Math.min(a, v), Infinity), seaX.reduce((a, v) => Math.max(a, v), -Infinity)], y: [seaY.reduce((a, v) => Math.min(a, v), Infinity), seaY.reduce((a, v) => Math.max(a, v), -Infinity)], z: L.waterZ - DEEP_FADE - 1 } : null,
     classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),
     wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH },

@@ -194,6 +194,15 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(still.length).toBeLessThan(page(W).length);
   });
 
+  it('tells the form render where its plants stand, and nothing to any other read', () => {
+    const F = assembleStageScene(M, { form: true }), P = F.plants;
+    expect('plants' in p).toBe(false);
+    expect(P.trees.length).toBeGreaterThan(3);
+    expect(P.trees.filter((t) => t.hero)).toHaveLength(1);
+    for (const t of P.trees) { expect(t.h).toBeGreaterThan(0); expect(Math.abs(t.z - site.ground(t.x, t.y) + 0.15)).toBeLessThan(1e-3); }
+    expect(P.form).toBe(st.trees.form || 'blob');
+  });
+
   it('stands the trunks: each built tree\'s stems ship with the crowns, the wood weighed off them on the page', () => {
     const S = dec(LG.crowns.trunks), trees = W.faces.filter((f) => f.group === 'isekai:wood');
     expect(LG.crowns.rigid).toEqual(['isekai:wood']);

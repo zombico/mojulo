@@ -51,6 +51,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, 
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { floraRead, FLORA_HIDES } from '@/lib/graph/form/flora-read';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
@@ -727,6 +728,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const drifts = readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
+    // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
+    const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases }) : null;
+    if (flora) {
+      const stamped = (payload.repeats || []).map((r) => r.group).filter((g) => g && g.startsWith('isekai:trees:'));
+      payload.form = { ...payload.form, land: { ...payload.form.land, hides: [...new Set([...payload.form.land.hides, ...FLORA_HIDES, ...stamped])] }, flora };
+    }
     // (the gen-6 live grass's blades go with the painted land: the form render's grass is its own; its wind stays, and the
     // crowns' sway in it, so the form's grass bends in the same gusts as the trees; channels/form-grass.js)
     if (read && payload.liveGrass) {
@@ -737,6 +745,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (where the plants stand is the form render's read alone: never on a page)
+  if (payload && payload.plants) delete payload.plants;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word

@@ -24,6 +24,9 @@ export const SPECIES = Object.freeze({
   // its leaves are its blossom (`bloom`: the deep, the petal and the lit tone the leaf faces are recoloured between; `fill`
   // the blossom's area over the leaves', a spur carrying several flower clusters), kept two years along the spurs (`leafLife`)
   cherry: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { apical: [0.5, 0.44], matureAt: 8, setPoint: [0, 52, 64, 74], hand: { sense: 1, twist: 6, helix: 9, turn: 55, zig: 9 }, smooth: true }, years: 12, growth: [{ years: 8 }, { years: 11 }, { years: 14, stand: 0.35 }, { years: 17, stand: 0.35 }, { years: 21 }], leafScale: 1.8, leafLife: 2, heights: [5, 9], bloom: { fill: 3, deep: [222, 150, 178], petal: [246, 200, 214], lit: [255, 236, 242] } },
+  // the weeping willow (Salix babylonica): Troll's arching limbs, its leaves on long hanging shoots (`weep`: how far its
+  // curtains fall, × its height, form/tree-form.js), its leaf narrow
+  willow: { kind: 'tree', bark: 'oak', arch: 'troll', years: 18, leafScale: 1.1, heights: [10, 16], weep: 0.6, leaf: 'lance' },
   coconut: { kind: 'palm', palm: 'coconut', ages: [22, 32, 45], heights: [8, 26] },
   date: { kind: 'palm', palm: 'date', ages: [18, 30, 45], heights: [5, 16] },
   washingtonia: { kind: 'palm', palm: 'washingtonia', ages: [25, 40], heights: [11, 18] },

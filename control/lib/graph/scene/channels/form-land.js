@@ -6,7 +6,8 @@
  * powder and clay, its patches, its dust; the undergrowth on a green land; the wet line by height), the land shaded
  * smooth, the sea one surface faded over the depth under it, the scree's stones instanced, the cube's sun and sky light.
  *
- *   formLandScript(form) → the channel's page source (one block, after the page's own; absent `form`, the page has none)
+ *   formLandScript(form, flora?) → the channel's page source (one block, after the page's own; absent `form`, the page has
+ *     none); `flora`, a form read's plants (channels/form-flora.js), grown inside it under its light
  *
  * It hides the painted groups it draws in their place (`form.hides`) and the painted water sheet under its sea; every
  * other painted thing is left unlit as it was (the renderer's tone curve is set, those materials marked untouched by
@@ -15,8 +16,9 @@
  */
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
+import { formFloraScript } from './form-flora.js';
 
-export function formLandScript(form) {
+export function formLandScript(form, flora = null) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
 (async function () {
@@ -307,7 +309,9 @@ export function formLandScript(form) {
   for (const R of D.ranges) {
     const water = R.key === 'water';
     // (the sea one plane where there is a depth to fade it by; what the read could not class stays painted)
-    if ((water && D.depth) || R.key === 'unread') continue;
+    if ((water && D.depth) || R.key === 'unread') continue;${flora ? `
+    // (the trail's crowns and trunks are the plants' now: channels/form-flora.js)
+    if (R.key === 'crown' || R.key === 'wood') continue;` : ''}
     const m = water
       ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
       : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, side: THREE.DoubleSide });
@@ -367,7 +371,7 @@ export function formLandScript(form) {
       }
     }
   }
-${formGrassScript()}
+${formGrassScript()}${flora ? formFloraScript(flora) : ''}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }

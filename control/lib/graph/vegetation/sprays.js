@@ -141,6 +141,8 @@ export const SPRAY_LEAVES = Object.freeze({
   ovate: Object.freeze({ w: [0.3, 0.2], fold: 0.35, leaves: 8, clump: Object.freeze([0.32]) }),
   // an oak's: rounded lobes, deep sinuses between them
   lobed: Object.freeze({ w: [0.26, 0.12, 0.3, 0.13, 0.2], fold: 0.25, leaves: 5, clump: Object.freeze([0.28, 0.24]) }),
+  // a narrow blade, long and tapering (the willow's)
+  lance: Object.freeze({ w: [0.13, 0.1, 0.05], fold: 0.3, leaves: 7, clump: Object.freeze([0.16, 0.08]) }),
   // a broad blade for the big-leaved (the umbrella tree's leaflets, the figs')
   broad: Object.freeze({ w: [0.38, 0.26], fold: 0.3, leaves: 6, clump: Object.freeze([0.4]) }),
 });
@@ -154,7 +156,7 @@ export const SPRAY = Object.freeze({ twig: 2.4, angle: 52, droop: 0.25 });
 export function leafOutline(species) {
   if (species && typeof species === 'object') return species.outline;
   if (species === 'oak') return 'lobed';
-  const S = SPECIES[species]; const A = S && ARCHITECTURES[S.arch];
+  const S = SPECIES[species]; if (S && S.leaf) return S.leaf; const A = S && ARCHITECTURES[S.arch];
   return A && A.leafSize >= 0.14 ? 'broad' : 'ovate';
 }
 

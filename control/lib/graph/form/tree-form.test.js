@@ -75,4 +75,15 @@ describe('treeForm', () => {
     expect(C.wood.idx.length).toBeGreaterThan(0);
     expect(C.clumps.length).toBeGreaterThan(20);
   }, 60_000);
+
+  it('weeps where its species does: curtains hanging from the crown\'s rim, never to the ground; aimed at a level\'s height', () => {
+    const sp = Object.keys(SPECIES).find((k) => SPECIES[k].weep), W = treeForm(sp, { seed: 1, far: true });
+    const hanging = W.clumps.filter((c) => c.d[2] === -1);
+    expect(hanging.length).toBeGreaterThan(20);
+    for (const c of hanging) expect(c.p[2]).toBeGreaterThan(W.height * 0.1);
+    // (its far wood the thick axes, its trunk a line up it)
+    expect(W.woodFar.idx.length).toBeLessThanOrEqual(W.wood.idx.length);
+    expect(W.trunk.length % 4).toBe(0);
+    expect(W.trunk[W.trunk.length - 2]).toBeGreaterThan(W.trunk[2]);
+  }, 60_000);
 });

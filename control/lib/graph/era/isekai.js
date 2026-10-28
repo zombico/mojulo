@@ -838,6 +838,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       return { ...rockFabric({ ...base, skin: SH.skin, groups: FABRIC_GROUPS }), also: rockFabric({ ...base, skin: SH.rocks, seed: seed + 101, groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
     })() } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
+    // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
+    // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
+    ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr }) } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // (the SNOW's prints: a footprint bed round the walker on the snow, scene/channels/snow-prints.js)
@@ -1247,6 +1250,24 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
     ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns, ...trunkSway(trees) } : null, wind: W,
+  };
+}
+
+/**
+ * WHERE THE PLANTS STAND, as data (the form render's: it grows its own plants there, form/flora-read.js): the trees, each
+ * at its foot with its height, its kind (the index into the card's `trees.leafKinds`, picked as treeKind picks it but on
+ * any land; -1 none), the hero, its band by the trail and its cluster; the thicket bushes with their kind; the shrubs
+ * with their season. `form` the card's tree form (a blob's or a leaf form's crowns, bamboo, blossom); `kinds` and
+ * `bushKinds` the card's tree and bush kinds the indices name.
+ */
+export function plantItems(st, site, { trees, thickets, shrubs }) {
+  const T = st.trees, z = (x, y) => r5(site.ground(x, y) - 0.15);
+  const kindOf = (t) => (!T.leafKinds ? -1 : t.kindIx !== undefined ? t.kindIx : T.leafClump && t.role && T.leafClump[t.role] !== undefined ? T.leafClump[t.role] : pickByShare(T.leafKinds, hash3(t.cluster ?? 0, 13, 4127)));
+  return {
+    form: T.form || 'blob', kinds: T.leafKinds ?? null, bushKinds: st.thickets?.kinds ?? null,
+    trees: trees.map((t) => ({ x: r5(t.x), y: r5(t.y), z: z(t.x, t.y), h: r5(t.h), kind: kindOf(t), cluster: t.cluster ?? 0, ...(t.hero ? { hero: true } : {}), ...(t.band ? { band: t.band } : {}) })),
+    bushes: (thickets?.items ?? []).map((b) => ({ x: r5(b.x), y: r5(b.y), z: z(b.x, b.y), h: r5(b.h), kind: b.bushIx, ...(b.soft ? { soft: true } : {}) })),
+    shrubs: (shrubs?.elements ?? []).map((e, i) => ({ x: r5(e.x), y: r5(e.y), z: r5(e.z), h: r5(shrubs.anchors[i].height), state: e.state, ...(e.soft ? { soft: true } : {}) })),
   };
 }
 

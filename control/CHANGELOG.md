@@ -1371,6 +1371,28 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   berries, the forsythia gold, the broom yellow, the hosta lilac, the juniper's berries blue), at most 90 blossoms and 24
   clusters a bush (about 1.4k and 1k triangles), drawn 2.4 times their size so they read at a walker's distance, as the
   grass's flowers are. Green unless asked: the same bush, nothing added.
+- **Gen-7 trees and bushes on the trail** (a geocube's `show: 'path'` at `?era=gen-7`). The trail's placement says where
+  each plant stands as data on a form read (`era/isekai.js` plantItems, ctx.form: trees with their kind, height, band,
+  hero and cluster; thicket bushes with their kind and walk; shrubs with their season), taken off the payload once read:
+  every other page byte-identical. `form/flora-read.js` grows them: a tree kind's leaf form names its species
+  (FLORA_SPECIES: spray beech, plate cherry, weep willow, tuft oak, whorl pine, spire spruce; a level naming no kinds,
+  beech and oak by cluster), a bush kind its habit, a shrub the dome in its season; one template a species at the level's
+  own height for it (a broadleaf re-stood to it, `treeForm`'s `mature.aim`; a conifer grown to the age that stands that
+  tall), every plant a copy, turned and scaled. Colours the cube's: the foliage's and the floor's solved bases, a kind's
+  pick from the theorist's offer solved the same way, the bark tinted half-way toward the level's. On the page
+  (`scene/channels/form-flora.js`, inside the land's block, under its sun): each template's wood in its bark (parallax
+  near), its crown its clumps merged, a far crown and far wood (the thick axes, `treeForm`'s `far`), its sprays merged;
+  copies sorted by distance (whole to 25 m, sprays on the six nearest inside the detail range), the painted crowns,
+  trunks, shrubs, brush and stamped stock trees hidden, the land no longer reading its crowns as form. The wind: the
+  grass's gust field; a trunk stands (each vertex weighted by its distance off the trunk's skin over 1.2 m), the leaves
+  ride their limbs and flutter, a bush bends from its foot; a walked-through bush shakes as the walker brushes it,
+  settling over 1.2 s. The crowns and wood cast into the land's sun shadow. Measured on island-noon's forest trail (71
+  plants: beech, oak, 14 shrubs): 0.57M triangles at the trailhead, 0.41M from the cliff top; 20% of the view darker with
+  the trees' shadows; the wood held still 41% of a beech's, 14% of an oak's (its trunk's share), the leaves 85 to 93% at
+  full sway. The weeping willow a new species row (Troll's limbs, its narrow `lance` leaf, `weep`: curtains of clumps
+  hanging from the crown's rim). On the way: the re-standing's settling composed as one turn a node (the oak's tree
+  build 14 s to 7 s, its output unchanged), the young tree grown once a process; the land read's bounds by a loop (a
+  land with its bushes' lobes overflowed a spread's arguments).
 - **The switch keeps the silhouette.** Near the eye a crown's sprays came in as its clumps drew in to 0.4, so a bush kept
   half its outline at the switch (0.5 to 0.65, overlap over union) and a cherry 0.8. Now the clumps hold their size and
   the sprays come in over them as detail: a bush's sprays from each clump's heart, radiating in its plane to inside its
