@@ -512,6 +512,46 @@ a composition grows the masses at the upright power, its pending named; a recolo
 refusals; an oozed beast binds and rigs whole. The presets' pin is unchanged (`beast/composer.char.test.js`). Eyes: one
 wolf-kin through frost, fire, venom, dire with half venom, shadow, transmetal and zombie (the operator's to judge).
 
+### The relational creature head: a beast's head the seventh generation's way
+
+Every beast-kin wore a head from the creature library, built for the creature biped: a skull lofted from seven rows of
+seven slots, flat-shaded at its facets (it splits at the light's 35° crease), sized for the biped's neck. Measured
+against the tiered person's head, it had more triangles (2,464 on the wolf-kin, 1,176 on the person) and less shape: they
+went to its eyes, teeth and lids. This theme builds its successor on the realistic hero's head's construction
+(`head-relational.js`): points placed by relations, masses as vajras between them, one skin over them.
+
+- **The head** (`creature-heads/relational.js` `relationalCreatureHead`; `CREATURE_RELATIONS`, a preset per skull in
+  `CREATURE_HEADS`). In the relational head's frame and units (V, the head's height; the field in STAND units at a
+  1.8 m figure). Its relations name a skull's measures:
+  - the vault's length and breadth (`craniumLength`, `cephalic`), the crown, the brow;
+  - the stop; the muzzle's length, breadth, depth, taper and drop, the nose's pad and the whisker pads;
+  - the mouth's line, the gape, the jaw's depth, the chin; the cheek arch's breadth and mass;
+  - the eyes' size, set (to the side … ahead), height, pupil (round | slit) and iris; the ears' size, width, set, tilt
+    and point.
+
+  The muzzle is two masses meeting at the mouth, as a real one is: the upper (the maxilla and the upper lip, its
+  underside the mouth's line) and the lower jaw (narrower, its chin set back, its top on that line), so a mouth can read.
+  The ears are blades: a cone squashed through its own facing. The skin is the masses' soft union in two layers: the
+  body's masses melted three nearest at a time at a wide blend, then each small feature (the nose, the whisker pads, the
+  chin) joined at its own narrow one. A sum over every mass (`−k log Σ e^(−d/k)`, the human head's superposition, which it
+  answers by solving its beads deeper) swelled the cat's muzzle a seventh of the head forward where eight masses overlap
+  and drowned every feature; a blend picked per nearest pair cracked where the pair changed. The eyes, the nose's pad and
+  the mouth's line are SEATED on the skin: each marched out from inside to where the skin crosses, then set (a globe in a
+  socket that hugs it as lids do; the pad standing proud; the groove along the surface, never a chord under it).
+- **The first two skulls**: the wolf (a long, deep, tapering muzzle off a clear stop, oblique eyes, tall pointed ears
+  high on the vault) and the cat (a round vault, a short broad muzzle under a shallow stop, full whisker pads and a small
+  chin, wide cheeks, big forward eyes with slit pupils and the iris filling them, broad ears to the top's sides).
+
+  Not yet: the head is studied as a field, not worn. The tiered body still wears the library heads; the joint to its
+  neck, the jaw's bind and the ears as parts of their own are the next phase, then the other kin as presets, the sheet's
+  head and the lexicon on relations, and the expression actions. The cat's mouth is a straight line yet (its cleft under
+  the nose is a lip relation to come).
+
+Machine gate (`creature-heads/relational.test.js`): one closed skin; a relation moves what it names (the muzzle the
+nose's tip, the cephalic the vault's sides); no swelling past the beads; the eyes and the nose seated (a globe breaks the
+skin, the pad stands proud and paints); the skulls told apart by their relations; deterministic. Eyes: the wolf and the
+cat surface-netted in clay from six sides (the operator's to judge).
+
 ### The biped's coat: patterns solved in an upright body's anatomy, painted into an atlas
 
 The animal door's markings are windows in a quadruped's frame, and on the tiered body's rings they read inside out (the
