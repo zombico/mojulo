@@ -55,7 +55,8 @@ import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
-import { undeadWords, undeadFlesh } from '@/lib/graph/undead/tiered';
+import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
+import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
 import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
@@ -1256,6 +1257,9 @@ export function cowlPressesEars(hero) {
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
   const pole = tieredPole(hero);
+  // (a skeleton's bones on the hero's landmarks, undead/hero-bones.js: no bridges, no shoulder balls; a bone joint is
+  // its knob)
+  if (undeadCard(hero)?.form === 'bone') return heroSkeleton(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), undeadCard(hero));
   // (the undead's flesh passes on the body before its joints are bridged and its shoulders balled: undead/tiered.js)
   return tieredSockets(tieredJoints(tieredChest(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), tieredBust(hero)), undefined, { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 });
 }
@@ -1367,7 +1371,8 @@ export function faceMeasures(hero, plan) {
 /** What the tune did, in the operator's units: height off the compiled stats, the yoke and the pelvis off the plan's rings. */
 export function heroMeasures(plan, stats) {
   const r3 = (x) => Math.round(x * 1000) / 1000;
-  const torso = plan.segments.find((s) => s.name === 'torso'), thigh = plan.segments.find((s) => s.name === 'thighR');
+  // (the yoke off the torso's trunk and the hips off the thigh's loft; a body without them, a skeleton's, measures none)
+  const torso = plan.segments.find((s) => s.name === 'torso' && s.kind === 'trunk'), thigh = plan.segments.find((s) => s.name === 'thighR' && s.kind === 'loft');
   return {
     height_m: stats?.size?.h ?? null,
     shoulder_m: torso ? r3(2 * (torso.stations.find((st) => st.id === 'st3') ?? torso.stations[3]).r[0]) : null,   // across the yoke ring at the shoulders

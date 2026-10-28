@@ -455,6 +455,31 @@ through the character designer, clips fitted to the class's timing, factions) is
   their bridges and shoulder balls; the trunk-to-limb ratio within 1.15 on the swollen and the most wasted card, the
   size the card's; refusals; a hero without `undead` unchanged. Eyes: all five zombies from the front, three-quarter
   and side, and the bloated one before and after evening. Eyes gate: the operator's to judge.
+- **The skeleton stands on the tiered body** (`undead/hero-bones.js`). A skeleton's card replaces a tiered hero's flesh
+  with its bones, every one laid from the hero's own landmarks, so it stands in a person's proportions and rides the
+  hero's rig:
+  - the spine: a slim core up the hero's back line, from the hip by the navel to the neck's hub and the head's base,
+    with its vertebrae on it;
+  - the ribs: an egg, each rib a share of the chest's width, narrow at the top, widest at the lower chest, in again at
+    the floating ribs, falling well toward the front, rather than the torso's own width at its height, which is the
+    shoulders' at the top and had stacked them like slats;
+  - the breastbone down the chest's front; the collarbones from its top to each shoulder, on the hero's clavicle;
+  - the pelvis fit to the hip's section: the sacrum, each blade's rim over the crest, the arch and the seat;
+  - every limb its bone on the hero's joints (the bone pass's `boneLimb`), the foot's and the hand's, and each
+    finger's three phalanges on the rig's finger joints, each riding the hero's own bone;
+  - the skull on the head's base, its jaw on the hero's jaw bone, the rig's head and jaw joints the skull's.
+
+  No bridges and no shoulder balls, since a bone joint is its knob; the head card and its dial are gone. The card's
+  bone weights read on the hero (the giant's femur half again the slender's), and its jaw hangs in the idle (a clip
+  key's `jaw`). `heroMeasures` reads the yoke and the hips off a trunk and a loft only, so a skeleton's readout
+  measures none instead of failing. The skeleton lineage reaches the hero door; the layered variations (ragged,
+  decayed, rotting) stay on the creature door until theirs.
+
+  Machine gate: the lineage at the hero door; the rest and the jaw from the card; no flesh part and no head card; the
+  spine, the vertebrae, the egg of ribs falling forward, the pelvis, the limb and finger bones on the hero's bones, the
+  jaw hinged at the skull's condyles; the dials over the skeleton's own parts; the plan building; the bone weights.
+  Eyes: all five skeletons from the front, three-quarter and side, then the soldier and the giant after the hands and
+  the ribs. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

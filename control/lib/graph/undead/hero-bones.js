@@ -46,7 +46,9 @@ const DIGITS = { thumb: ['Cmc', 'Mcp', 'Ip', 'Tip'], index: ['Mcp', 'Pip', 'Dip'
 const GROUPS = { thigh: 'Legs', shank: 'Legs', foot: 'Feet', toes: 'Feet', upperArm: 'Arms', foreArm: 'Arms', hand: 'Hands' };
 
 export function heroSkeleton(plan, card) {
-  const J0 = plan.joints, RJ = plan.rig?.joints ?? {}, at = (n) => (Array.isArray(RJ[n]?.at) ? RJ[n].at : null);
+  const J0 = plan.joints, RJ = plan.rig?.joints ?? {};
+  // a rig joint's place (a per-side joint is named by its template, `indexMcp$S`: the right's)
+  const at = (n) => { const j = RJ[n] ?? RJ[n.replace(/R$/, '$S')]; return Array.isArray(j?.at) ? j.at : null; };
   const torso = plan.segments.find((s) => s.name === 'torso' && s.kind === 'trunk'), pelvis = plan.segments.find((s) => s.name === 'pelvis' && s.kind === 'trunk');
   const Bw = card.bones ?? { shaft: 1, ends: 1, ribs: 1 };
   // the hero's scale against the bone library's 2 m template, from its head's top
@@ -66,11 +68,15 @@ export function heroSkeleton(plan, card) {
   // the ribs round the torso's sections, from the shoulders' line down to above the navel
   const sh = J0.shoulder, zTop = r3(sh[2] - 0.035 * k), zBot = r3(navel[2] + 0.07 * k), n = 7, ribR = R(0.011 * Bw.ribs);
   const ribZ = Array.from({ length: n }, (_, i) => r3(zTop - ((zTop - zBot) * i) / (n - 1)));
+  // (the cage an egg: each rib's width a share of the chest's, narrow at the top, widest at the lower chest, in again at
+  // the floating ribs, not the torso's own width at its height, which is the shoulders' at the top; each rib falls well
+  // toward the front, the breastbone's end two ribs below the spine's)
+  const chest = sectionAt(torso, r3((zTop + zBot) / 2)), PROFILE = [0.62, 0.78, 0.88, 0.94, 0.96, 0.92, 0.84];
   ribZ.forEach((z, i) => {
     const float = i >= n - 2, ends = float ? 40 : 14;
     const stations = [172, 140, 105, 70, ends].map((th) => {
-      const zz = r3(z - (0.055 * k * (172 - th)) / 158), X = sectionAt(torso, zz), a = th * deg, w = 0.86 - (i === 0 ? 0.1 : 0);
-      return { at: [r3(X.rx * w * Math.sin(a) + (th > 160 ? 0.02 * k : 0)), r3(X.yc + X.ry * 0.9 * Math.cos(a)), zz], r: ribR };
+      const zz = r3(z - (0.09 * k * (172 - th)) / 158), X = sectionAt(torso, zz), a = th * deg, w = 0.9 * PROFILE[i];
+      return { at: [r3(chest.rx * w * Math.sin(a) + (th > 160 ? 0.02 * k : 0)), r3(X.yc + X.ry * (0.75 + 0.15 * PROFILE[i]) * Math.cos(a)), zz], r: ribR };
     });
     seg({ name: `rib${i}R`, kind: 'loft', stations, group: 'Torso', mirror: 'name', bind: { bone: 'torso' } });
   });
@@ -108,7 +114,7 @@ export function heroSkeleton(plan, card) {
   const rig = plan.rig ? { ...plan.rig, joints: { ...RJ, headTop: { at: skull.rig.headTop }, jawHinge: { at: skull.rig.jawHinge, rides: 'head' }, jawTip: { at: skull.rig.jawTip, rides: 'head' } } } : plan.rig;
   // the dials over the parts the skeleton has (the head's include dial gone with the head)
   const names = new Set(segments.flatMap((s) => (s.mirror === 'name' ? [s.name, s.name.replace(/R$/, 'L')] : [s.name])));
-  const dials = Object.fromEntries(Object.entries(plan.dials ?? {}).filter(([, d]) => !(d.op === 'include' && d.name === 'head')).map(([id, d]) => [id, Array.isArray(d.parts) ? { ...d, parts: d.parts.filter((p) => names.has(p) || p.includes('$S')) } : d]));
+  const dials = Object.fromEntries(Object.entries(plan.dials ?? {}).filter(([, d]) => !(d.op === 'include' && d.name === 'head')).map(([id, d]) => [id, Array.isArray(d.parts) ? { ...d, parts: d.parts.filter((p) => names.has(p.replace('$S', 'R'))) } : d]));
   const tone = plan.palette?.Skin ?? '#d6cfbd';
   const palette = { ...(plan.palette ?? {}), Torso: tone, Pelvis: tone, Neck: tone, Legs: tone, Feet: tone, Arms: tone, Hands: tone, Skull: tone, Jaw: tone, Socket: '#1a1816', Teeth: tone };
   const { include, ...rest } = plan, kept = (include ?? []).filter((x) => x.name !== 'head');

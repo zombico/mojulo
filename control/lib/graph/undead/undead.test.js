@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS, variantOf, undeadBody } from './index.js';
 import { readLineage } from '../egocube/ancestry.js';
 import { boneLimb } from './passes.js';
+import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
 import { biped, MASS } from '../egocube/plan.js';
 import { planFromSheet } from '../egocube/plan.js';
 import { rollEgocube } from '../egocube/egocube.js';
@@ -74,11 +75,12 @@ describe('a skeleton is its frame', () => {
     expect(B.head).toBeNull();
   });
   it('the rig hinges the jaw at the condyles and points the head at the face', () => {
+    // (the skeleton's lineage stands it on the tiered hero: its plan the hero's, its head the skull's)
     const sheet = rollEgocube({ facets: { ancestry: 'skeleton', build: 'canonical', role: 'frontline' }, seed: 2 });
-    const plan = planFromSheet(sheet).create.spec.plan, J = plan.rig.joints, cond = plan.segments.find((s) => s.name === 'mandibleR').stations[0].at;
+    const plan = heroPlanOf(heroRecord(planFromSheet(sheet).create.spec)), J = plan.rig.joints, cond = plan.segments.find((s) => s.name === 'mandibleR').stations[0].at;
     expect(J.jawHinge.at[2]).toBeCloseTo(cond[2], 3);
-    expect(J.headTop.at[1]).toBeGreaterThan(plan.joints.neckTop[1]);
-    expect(plan.heads).toEqual([]);
+    expect(J.headTop.at[1]).toBeGreaterThan(plan.joints.headBase[1]);
+    expect((plan.include ?? []).some((x) => x.name === 'head')).toBe(false);
   });
   it('every long bone is a shaft with knobbed ends', () => {
     const B = body(id), femur = seg(B, 'thighR');
@@ -250,11 +252,11 @@ describe('the layers', () => {
 });
 
 describe('the lineages and the bestiary', () => {
-  it('each form reaches the creature door with its form, its variation by the build, and its plan builds', () => {
-    // (the forms the tiered body does not carry yet: the zombie's is undead/tiered.test.js)
-    for (const ancestry of Object.keys(UNDEAD_FORMS).filter((f) => f !== 'zombie')) {
+  it('a layered lineage reaches the creature door with its form, its variation by the build, and its plan builds', () => {
+    // (the layered variations the tiered body does not carry yet; the bare forms stand on it: undead/tiered.test.js)
+    for (const ancestry of ['ragged', 'rotting']) {
       const sheet = rollEgocube({ facets: { ancestry, build: 'brute', role: 'frontline' }, seed: 3 });
-      expect(sheet.ancestry).toMatchObject({ door: 'creature', form: ancestry });
+      expect(sheet.ancestry).toMatchObject({ door: 'creature' });
       const P = planFromSheet(sheet), plan = P.create.spec.plan;
       expect(P.create.as).toBe('creature');
       expect(validatePlan(plan)).toBe(true);

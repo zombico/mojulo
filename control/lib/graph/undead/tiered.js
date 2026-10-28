@@ -56,14 +56,16 @@ export function undeadWords(hero) {
   const tone = hero.palette?.Skin ?? '#9a9a90', rest = undeadRest(hero), card = undeadCard(hero);
   const G = rest.gesture;
   // (its idle breathes in the rest; its walk keeps the hunch, as the walk's own tilt of the trunk)
-  const idle = [G, { ...G, crouch: r3(Math.min(1, G.crouch + 0.05)), head: { ...G.head, pitch: r3(G.head.pitch * 0.7) } }];
+  // (a skeleton's jaw is its own bone: its idle hangs it the card's degrees, the separation showing)
+  const jaw = card.form === 'bone' && rest.jaw ? { jaw: rest.jaw } : {};
+  const idle = [{ ...G, ...jaw }, { ...G, ...jaw, crouch: r3(Math.min(1, G.crouch + 0.05)), head: { ...G.head, pitch: r3(G.head.pitch * 0.7) } }];
   return {
     ...hero, hair: hero.hair ?? 'none', detail: hero.detail ?? 'none',
     // (one tone over every group the body is painted in: its skin, the top and bottom its own clothes would be, its
     // feet, the brows the landmark head always builds)
     palette: { Top: tone, Bottom: tone, Shoes: tone, Hair: tone, Brow: tone, ...(hero.palette ?? {}), Skin: tone },
     ...(card.form === 'flesh' ? { face: { ...GAUNT_FACE, ...(hero.face ?? {}) } } : {}),
-    expression: { jawOpen: rest.jaw, mouthCorner: -0.005, blink: 0.3, ...(hero.expression && typeof hero.expression === 'object' ? hero.expression : {}) },
+    ...(card.form === 'flesh' ? { expression: { jawOpen: rest.jaw, mouthCorner: -0.005, blink: 0.3, ...(hero.expression && typeof hero.expression === 'object' ? hero.expression : {}) } } : {}),
     gesture: hero.gesture ?? G,
     clips: { idle, ...(hero.clips ?? {}) },
     ...(rest.lean > 0 ? { motion: { ...(hero.motion ?? {}), walk: { tilt: Math.min(35, rest.lean), ...(hero.motion?.walk && typeof hero.motion.walk === 'object' ? hero.motion.walk : {}) } } } : {}),

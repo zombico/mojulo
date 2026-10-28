@@ -8,6 +8,7 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { planFromSheet } from '../egocube/plan.js';
 import { heroRecord, heroPlanOf, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
+import { heroSkeleton } from './hero-bones.js';
 
 const cardBy = (pred) => Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'flesh' && pred(c));
 const zombie = (build, seed = 3, extra = {}) => ({ form: 'tiered', cast: 'male', palette: { Skin: '#9a9a90' }, undead: { form: 'zombie', build, seed }, ...extra });
@@ -79,5 +80,43 @@ describe('an even body, whatever the silhouette', () => {
       const want = (c.waste.trunk * (c.bloat?.trunk ?? 1)) * (c.waste.limbs * (c.bloat?.limbs ?? 1));
       expect(kT * kL).toBeCloseTo(want, 2);
     }
+  });
+});
+
+describe('the skeleton on the tiered body', () => {
+  const bone = (pred) => Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && pred(c));
+  const skeleton = (build, seed = 3) => ({ form: 'tiered', cast: 'male', palette: { Skin: '#d6cfbd' }, undead: { form: 'skeleton', build, seed } });
+  it('a skeleton lineage reaches the hero door; its rest the card\'s, its jaw hung in its idle', () => {
+    const sheet = rollEgocube({ facets: { ancestry: 'skeleton', build: 'canonical', role: 'frontline' }, seed: 3 });
+    expect(sheet.ancestry.door).toBe('hero');
+    const [, card] = bone((c) => (c.jaw ?? 0) > 0);
+    const H = heroRecord(skeleton(card.build));
+    expect(H.gesture.hinge).toBe(card.lean);
+    expect(H.clips.idle[0].jaw).toBe(card.jaw);
+  });
+  it('its bones on the hero\'s landmarks: no flesh, no head card; a spine, an egg of ribs, a pelvis, every limb its bone', () => {
+    const [, card] = bone((c) => c.build === 'canonical');
+    const P = heroPlanOf(heroRecord(skeleton(card.build))), names = new Set(P.segments.map((s) => s.name));
+    for (const gone of ['shoulderBallR', 'elbowBridgeR', 'kneeBridgeR', 'pectoralR']) expect(names.has(gone)).toBe(false);
+    expect((P.include ?? []).some((x) => x.name === 'head')).toBe(false);
+    for (const n of ['spineLow', 'sternum', 'clavR', 'iliumR', 'pubisR', 'braincase', 'mandibleR', 'thighR', 'shankR', 'footR', 'handR', 'index1R', 'thumb3R']) expect(names.has(n)).toBe(true);
+    expect([...names].filter((n) => /^(lumbar|thoracic|cervical)\d+$/.test(n)).length).toBeGreaterThan(15);
+    // the ribs an egg: the top rib narrower than the cage's widest, each falling to the front
+    const ribs = P.segments.filter((s) => /^rib\dR$/.test(s.name)), wide = (s) => Math.max(...s.stations.map((st) => st.at[0]));
+    expect(wide(ribs[0])).toBeLessThan(Math.max(...ribs.map(wide)) * 0.8);
+    for (const rb of ribs) expect(rb.stations.at(-1).at[2]).toBeLessThan(rb.stations[0].at[2]);
+    // a limb's bone rides the hero's own bone; a finger's phalanx its phalanx's; the jaw the skull's hinge
+    expect(P.segments.find((s) => s.name === 'shankR').bind.bone).toBe('shankR');
+    expect(P.segments.find((s) => s.name === 'index2R').bind.bone).toBe('index2R');
+    expect(P.rig.joints.jawHinge.rides).toBe('head');
+    expect(P.segments.find((s) => s.name === 'mandibleR').bind.bone).toBe('jaw');
+    // the dials keep only parts the skeleton has, and the plan builds
+    for (const d of Object.values(P.dials)) for (const p of d.parts ?? []) expect(names.has(p.replace('$S', 'R')) || names.has(p.replace(/L$/, 'R'))).toBe(true);
+    expect(() => expandPlan(P)).not.toThrow();
+  });
+  it('the card\'s bone weights read: the heaviest skeleton\'s femur thicker than the lightest\'s', () => {
+    const cards = Object.values(UNDEAD_CARDS).filter((c) => c.form === 'bone'), heavy = cards.reduce((a, b) => (b.bones.shaft > a.bones.shaft ? b : a)), light = cards.reduce((a, b) => (b.bones.shaft < a.bones.shaft ? b : a));
+    const plan = heroPlanOf(heroRecord({ form: 'tiered', cast: 'male' })), mid = (c) => r(heroSkeleton(plan, c).segments.find((s) => s.name === 'thighR').rMid);
+    expect(mid(heavy)).toBeGreaterThan(mid(light) * 1.5);
   });
 });
