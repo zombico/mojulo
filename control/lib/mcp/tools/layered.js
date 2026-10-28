@@ -64,6 +64,7 @@ import { beastLegs, beastJoints } from '@/lib/graph/beast/legs';
 import { beastTopology, beastSockets } from '@/lib/graph/beast/topology';
 import { beastHead } from '@/lib/graph/beast/head';
 import { beastDetail } from '@/lib/graph/beast/detail';
+import { serpentCoil } from '@/lib/graph/beast/serpent';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
@@ -1283,7 +1284,7 @@ function tieredFormPlan(hero) {
   // shoulders balled: undead/tiered.js, beast/tiered.js, beast/legs.js, beast/topology.js: a digitigrade kin's hock and
   // its second arms' elbows bridged with the knee; its tail and its second arms welded to the trunk by the generic
   // socket, its hands and claws and its own head on the neck (beast/head.js), on the body as it ends)
-  return beastHead(beastHands(beastDetail(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero), hero), hero), hero);
+  return beastHead(serpentCoil(beastHands(beastDetail(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero), hero), hero), hero), hero);
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0

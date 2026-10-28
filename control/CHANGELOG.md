@@ -335,6 +335,52 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   Eyes: the dragon, the wolf, the bear, the insect and the bird, walking and sprinting. Eyes gate: the operator's to
   judge.
 
+- **The snake-kin: a lamia on a serpent's coil** (`beast/serpent.js`, `beast.legs: 'serpent'`, the `serpentine` kin
+  and lineage). A person's torso, arms and head on the tiered body, carried upright on a serpent's coil in place of the
+  legs.
+  - **One surface.** The legs' parts go (the thigh, the shank, the foot, the toes, the knee's bridge); their bones and
+    joints stay, so every clip still plays, moving nothing seen. The pelvis is cut at the hip ring, and the coil grows
+    out of that ring point for point, as the nape grows out of the neck: no crossing to crease. It runs down and a
+    little forward to the ground under the hips, then along the ground behind in an S, tapering to a point. Its rings
+    are the hip ring's slots carried down the path by a frame that never twists, rounded through every bend, each at
+    its half width and height, so on the ground its underside lies on the floor.
+  - **Planted.** Its first joint rides the pelvis; the rest are planted (`rig.planted`, new: joints that ride nothing
+    and stand where they rest in every pose). The length on the ground lies there whatever the hips do. A rig without
+    them is unchanged.
+  - **The slither.** Each link on the ground is a chain about the vertical, turning every joint after it. The rig
+    carries the wave they make (`rig.wave`, new: its chains, its amplitude, its wavelength in links). Every gait's clip
+    plays it at its phase, travelling toward the tail (`hero-motion.js` `locomotionClips`, `station-loft-rig.js`
+    `waveAt`). A rig without one plays its clips as before.
+  - **Its gaits** (`SERPENT_GAIT`). A person's run lowered and drove the hips (its knee's bend, its flight, its lean,
+    a long stride's vault), which squeezed the coil's upright length into a kink. A coil's gaits hold the hips at
+    their height, and its run's stride is half a sprinter's.
+  - **The kin** (`beast/cards.js` `serpentine`). Five fingers, no claws, a person's head with its hair kept (a card's
+    `hair`). Its coat colours its own groups only (a card's `coat`: the coil and the hips over it); the torso keeps a
+    person's skin, bare as every kin is. Its cover is scales on those groups alone (`cover.js` `beastCoatOf`, a
+    `coverMap` group list).
+  - **The door.** It refuses what is cut for legs: trousers, footwear, an armour build.
+  - **The lineage** (`egocube/ancestry.js` `serpentine`, its derive `legs = serpent`). A sheet of it routes to the
+    tiered body with the coil, five fingers and scales. A blind roll picks only a human ancestry, so no stored sheet
+    moves. The bestiary's people skins take it: a foe `{ people: 'serpentine' }`. The ledger is honest about the face:
+    the cheek and spine scales, the slit pupils and the stare are pending on a person's head. A person-headed kin's
+    sheet sets no expression it would not read.
+
+  Machine gate (`beast/serpent.test.js`, `route.test.js`):
+  - the coil's first ring the pelvis's hip ring, point for point; the legs' parts gone and their bones kept;
+  - its underside on the floor, and every planted joint at its height through the walk and the sprint;
+  - the wave's peak travelling one link a wavelength toward the tail;
+  - a hero without a coil carrying no wave and no planted joint, and the rig refusing an unknown chain or a planted
+    core joint;
+  - the bind and the rig audit clean;
+  - the stretch audit through its own walk and sprint (worst pinch 0.82–0.86, no more folds than a person's);
+  - the scales on the coil and the hips only, the top bare;
+  - the door's refusals;
+  - the route's coil from the derive.
+
+  Eyes: the lamia front, side and from above, at two phases of the walk and mid-sprint; the S on the ground swings
+  between them. Eyes gate: the operator's to judge. Not yet: a snake's head, slit pupils and scaled cheeks on a
+  person's head, a constrictor's grapple, swimming.
+
 ### Foe classes: the hostile encounter primitive
 
 A game fights things, and mojulo had seven separate notions of a foe: the quick goals' battle, shooter and defence

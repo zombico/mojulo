@@ -24,6 +24,10 @@
  *   ridge     'spines' when it carries a crest of spines down the back and the tail (./detail.js)
  *   ruff      'ruff' when heavy tufts hang round its neck's root (./detail.js)
  *   abdomen   'gaster' when an insect's abdomen rides where a tail would (./topology.js)
+ *   legs      the kin's own legs where they are not the hero's word: 'serpent', a coil in place of the legs (./serpent.js)
+ *   hair      true when its head keeps a person's hair (a lamia's; every other kin is bald under its coat)
+ *   coat      the groups its coat colours and its cover covers, where not the whole bare body (a lamia's: the coil and
+ *             the hips over it; its torso a person's skin)
  *
  * Each kin is a silhouette of its own, so a cast of them is not one lean figure in six coats: the bear the heavyweight
  * (a barrel and a hump, short legs), the dragon the hulking V (broad and deep, thick haunches), the wolf the brawler (an
@@ -35,7 +39,7 @@
  */
 import { LINEAGES } from '../egocube/ancestry.js';
 
-export const BEAST_LEGS = Object.freeze(['plantigrade', 'digitigrade']);
+export const BEAST_LEGS = Object.freeze(['plantigrade', 'digitigrade', 'serpent']);
 export const BEAST_CLAWS = Object.freeze(['none', 'blunt', 'long']);
 export const BEAST_FINGERS = Object.freeze([3, 4, 5]);
 export const BEAST_TOES = Object.freeze([3, 4, 5]);
@@ -77,6 +81,13 @@ export const BEAST_KINS = Object.freeze({
     frame: { depth: 1.2, shoulders: 1.04, waist: 0.9, hips: 0.9 },
     mass: { trunk: 1.05, waist: 0.82, neck: 0.9, upperArm: 0.95, foreArm: 0.88, hand: 0.9, thigh: 1.2, shank: 0.95, foot: 0.95 }, hump: 0, keel: 0.8,
     rest: { hunch: 7, crouch: 0.1, arm: { x: 0.14, y: 0.16, z: -0.97 } },
+  },
+  serpentine: {
+    reads: 'snake-kin (lamia): a person\'s torso, arms and head carried upright on a serpent\'s coil, the scales starting at the hips, slim through the waist',
+    fingers: 5, toes: 5, tail: 'none', claws: 'none', claw: HORN_CLAW, legs: 'serpent', hair: true, coat: Object.freeze(['Coil', 'Bottom']),
+    frame: { waist: 0.94 },
+    mass: { trunk: 1.0, waist: 0.9, neck: 1.0, upperArm: 1.0, foreArm: 1.0, hand: 1.0, thigh: 1, shank: 1, foot: 1 }, hump: 0, keel: 0,
+    rest: { hunch: 4, crouch: 0, arm: { x: 0.18, y: 0.18, z: -0.96 } },
   },
   insectoid: {
     reads: 'insect-kin: segmented, a broad plated thorax, a wasp\'s waist, full hips, thin hard limbs, three fingers',

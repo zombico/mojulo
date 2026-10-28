@@ -25,6 +25,7 @@
 import { BEAST_KINS, BEAST_KIN_IDS, BEAST_LEGS, BEAST_CLAWS, BEAST_FINGERS, BEAST_TOES, kinCoat } from './cards.js';
 import { scaleRing, trunkCentre } from '../undead/tiered.js';
 import { GAITS } from '../polygonizer/hero-gaits.js';
+import { PALETTE as HERO_PALETTE } from '../polygonizer/hero-form.js';
 import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS, BEAST_ABDOMENS } from './topology.js';
 import { BEAST_RIDGES, BEAST_RUFFS } from './detail.js';
 import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
@@ -64,13 +65,18 @@ const HIPS = Object.freeze({ over: 0.04, span: 0.12 });
  * (some 75°, the hock raised behind it), so a person's stance bend and swing fold, added to it, folded the knee's bridge
  * shut (a jog's 115° swing tuck: the bridge's ring at 0.12 of its rest); the walk's lift and the run's tuck drawn in */
 export const DIGITIGRADE_GAIT = Object.freeze({ walk: Object.freeze({ stanceKnee: 0, swingLift: 26 }), sprint: Object.freeze({ stanceKnee: 0, swingTuck: 50 }) });
+/** a coil's gaits (./serpent.js): the hips held at their height, a person's run lowering and driving them (its knee's
+ * bend, its flight, its lean, a long stride's vault) squeezed the coil's upright length into a kink; the walk's stride stands
+ * (the ground speed's), the run's is half a sprinter's */
+export const SERPENT_GAIT = Object.freeze({ walk: Object.freeze({ stanceKnee: 0, swingLift: 0 }),
+  sprint: Object.freeze({ strideLength: 0.32, stanceKnee: 0, swingTuck: 0, hipDrive: 0, flightLift: 0, lean: 0.12, spineGive: 0 }) });
 const CLAW = { blunt: { length: 2.2, root: 0.8, curl: 0.35 }, long: { length: 4, root: 0.85, curl: 0.55 } }, CLAW_POINT = 0.12;
 
 export function beastCard(hero) {
   const B = hero?.beast;
   if (!B || !BEAST_KINS[B.kin]) return null;
   const K = BEAST_KINS[B.kin];
-  return { ...K, kin: B.kin, legs: B.legs ?? 'plantigrade', fingers: B.fingers ?? K.fingers, toes: B.toes ?? K.toes, claws: B.claws ?? K.claws };
+  return { ...K, kin: B.kin, legs: B.legs ?? K.legs ?? 'plantigrade', fingers: B.fingers ?? K.fingers, toes: B.toes ?? K.toes, claws: B.claws ?? K.claws };
 }
 
 export function beastErrors(spec) {
@@ -97,11 +103,19 @@ export function beastErrors(spec) {
   else if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);
   // (a paw on a raised hock takes nothing cut for a person's foot: a shoe was drawn over the metatarsus, an armour
   // build's sabatons refused its missing toes by a part's name)
-  if (B.legs === 'digitigrade') {
+  const legs = B.legs ?? BEAST_KINS[B.kin]?.legs ?? 'plantigrade';
+  if (legs === 'digitigrade') {
     const words = (Array.isArray(spec.outfit) ? spec.outfit : [spec.outfit]).filter((w) => typeof w === 'string');
     const shod = words.filter((w) => libraryFeet([w]).length || (OUTFIT_WORDS[w]?.({ scale: 1, structured: true }) ?? []).some((piece) => piece.part === 'foot'));
     if (shod.length) errs.push(`outfit: ${shod.join(', ')} fits a person's foot; a digitigrade beast-kin stands on a paw on a raised hock, which wears no footwear yet`);
     if (isArmorBuild(spec.adorn)) errs.push("adorn: an armour build's greaves and sabatons are cut for a person's leg and foot; a digitigrade beast-kin wears no armour build yet");
+  }
+  // (a coil takes nothing cut for legs: no trousers, no footwear, no greaves)
+  if (legs === 'serpent') {
+    const words = (Array.isArray(spec.outfit) ? spec.outfit : [spec.outfit]).filter((w) => typeof w === 'string');
+    const legged = words.filter((w) => libraryFeet([w]).length || (OUTFIT_WORDS[w]?.({ scale: 1, structured: true }) ?? []).some((piece) => /^(thigh|shank|foot|knee|hip)/.test(piece.part ?? '')));
+    if (legged.length) errs.push(`outfit: ${legged.join(', ')} dresses a person's legs; a snake-kin stands on a coil, which wears none`);
+    if (isArmorBuild(spec.adorn)) errs.push("adorn: an armour build's greaves and sabatons are cut for a person's legs; a snake-kin wears no armour build yet");
   }
   if ((spec.form ?? 'tiered') !== 'tiered') errs.push("beast: the beast-kin stand on the tiered body (form: 'tiered')");
   if (spec.undead !== undefined && spec.undead !== null) errs.push('beast: a body is a beast-kin or undead, not both');
@@ -111,9 +125,9 @@ export function beastErrors(spec) {
 // the hero's gaits as the kin walks them: the walk always (tilted by the hunch), a digitigrade kin's every walk and run
 // with its knee dials; the operator's own dials over them
 function beastMotion(motion, card) {
-  const own = (g) => (g && typeof g === 'object' ? g : {}), digi = card.legs === 'digitigrade';
-  const out = { ...(motion ?? {}), walk: { ...(card.rest.hunch > 0 ? { tilt: Math.min(35, card.rest.hunch) } : {}), ...(digi ? DIGITIGRADE_GAIT.walk : {}), ...own(motion?.walk) } };
-  if (digi) for (const [name, g] of Object.entries(out)) { const M = GAITS[name]?.motion; if (name !== 'walk' && M && g) out[name] = { ...DIGITIGRADE_GAIT[M], ...own(g) }; }
+  const own = (g) => (g && typeof g === 'object' ? g : {}), D = card.legs === 'digitigrade' ? DIGITIGRADE_GAIT : card.legs === 'serpent' ? SERPENT_GAIT : null;
+  const out = { ...(motion ?? {}), walk: { ...(card.rest.hunch > 0 ? { tilt: Math.min(35, card.rest.hunch) } : {}), ...(D ? D.walk : {}), ...own(motion?.walk) } };
+  if (D) for (const [name, g] of Object.entries(out)) { const M = GAITS[name]?.motion; if (name !== 'walk' && M && g) out[name] = { ...D[M], ...own(g) }; }
   return out;
 }
 
@@ -128,14 +142,17 @@ const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function beastWords(hero) {
   const card = beastCard(hero);
   if (!card) return hero;
-  const coat = hero.palette?.Skin ?? kinCoat(card.kin), G = beastRest(card), worn = beastHeadOf(hero);
+  const coat = (card.coat ? hero.palette?.[card.coat[0]] : hero.palette?.Skin) ?? kinCoat(card.kin), G = beastRest(card), worn = beastHeadOf(hero);
   const idle = [{ ...G }, { ...G, crouch: r3(Math.min(1, G.crouch + 0.04)), head: { ...G.head, pitch: r3(G.head.pitch * 0.8) } }];
   return {
     // (a beast's own head in place of a person's: the hero's head none, so no hair or face words; a person's head bald)
-    ...hero, ...(worn ? (hero.head === undefined ? { head: 'none' } : {}) : { hair: hero.hair ?? 'none' }), detail: hero.detail ?? 'none',
+    ...hero, ...(worn ? (hero.head === undefined ? { head: 'none' } : {}) : card.hair ? {} : { hair: hero.hair ?? 'none' }), detail: hero.detail ?? 'none',
     // (one coat over every group the body is painted in: its skin, the top and bottom its clothes would be, its feet, the
     // brows the landmark head builds; the claws their own)
-    palette: { Top: coat, Bottom: coat, Shoes: coat, Hair: coat, Brow: coat, Claws: card.claw, ...(hero.palette ?? {}), Skin: coat },
+    // (a kin whose coat is its own groups' only, the lamia's, keeps a person's skin and hair over them)
+    // (bare above its coat: its top the skin it has, the cast's when it names none)
+    palette: card.coat ? { Top: hero.palette?.Skin ?? HERO_PALETTE.Skin, ...Object.fromEntries(card.coat.map((g) => [g, coat])), Claws: card.claw, ...(hero.palette ?? {}) }
+      : { Top: coat, Bottom: coat, Shoes: coat, Hair: coat, Brow: coat, Claws: card.claw, ...(hero.palette ?? {}), Skin: coat },
     // (the kin's frame as tune words under the operator's: a tune of its own words over them; a move or a list is the
     // operator's whole tune and stands as given)
     ...(hero.tune === undefined || isPlain(hero.tune) ? { tune: { ...(card.frame ?? {}), ...(hero.tune ?? {}) } } : {}),

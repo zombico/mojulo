@@ -146,7 +146,9 @@ export function holdGrip(rig, parts, grip) {
   return { rig: { ...rig, joints, ...(held.length ? { held } : {}) }, parts: turned };
 }
 
-/** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach }. */
+/** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach, wave? }. */
+/** a rig's wave at a clip's phase (0 … 1): each of its chains' angles, travelling toward the run's end; {} without one */
+export const waveAt = (R, phase) => (R.wave ? Object.fromEntries(R.wave.chains.map((ch, j) => [ch, Math.round(R.wave.amp * Math.sin(2 * Math.PI * (phase - j / R.wave.links)) * 1e6) / 1e6])) : {});
 export function validateRig(rig) {
   if (!rig || typeof rig !== 'object' || !rig.joints || !Array.isArray(rig.bones)) throw new Error('station-loft-rig: rig needs joints and a bones list');
   const joints = {}, rides = {};
@@ -227,7 +229,20 @@ export function validateRig(rig) {
   // `cervical`: a head or neck AIM posed as the cervical spine, within its range (figure-vajra.js CERVICAL_CAP); raw
   // angles stay each joint's own (a solver's that splits them itself: hero-aura.js's gaze)
   if (rig.cervical !== undefined && rig.cervical !== true) throw new Error('station-loft-rig: cervical is true or absent');
-  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}), ...(rig.cervical ? { cervical: true } : {}) };
+  // WAVE: a travelling bend over a run of chains (a serpent's coil: beast/serpent.js), each chain's angle the amplitude's
+  // sine at the clip's phase less its place along the run over the wavelength (hero-motion.js locomotionClips plays it).
+  // Absent ⇒ nothing
+  let wave = null;
+  if (rig.wave) {
+    const W = rig.wave;
+    if (!Array.isArray(W.chains) || !W.chains.length || W.chains.some((c) => !chains[c])) throw new Error('station-loft-rig: wave.chains names the chains it bends');
+    if (!(Number.isFinite(W.amp) && Number.isFinite(W.links) && W.links > 0)) throw new Error('station-loft-rig: wave needs an amp (degrees) and links (its wavelength, in chains)');
+    wave = { chains: [...W.chains], amp: W.amp, links: W.links };
+  }
+  // PLANTED: joints that ride nothing and stand where they rest in every pose (a coil on the ground). Absent ⇒ none
+  const planted = rig.planted ?? [];
+  if (!Array.isArray(planted) || planted.some((n) => !joints[n] || rides[n] || VAJRA_CORE.includes(n))) throw new Error('station-loft-rig: planted names joints that ride nothing and are not the core\'s');
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}), ...(rig.cervical ? { cervical: true } : {}), ...(wave ? { wave } : {}), ...(planted.length ? { planted: [...planted] } : {}) };
 }
 
 /**
@@ -430,6 +445,8 @@ export function rigNodesAt(R, pose = {}) {
   // turn. Absent ⇒ nothing moves.
   const H = pose.flow && typeof pose.flow === 'object' ? pose.flow : null;
   const restOf = (name) => { const p = local[name] ?? rest[name], d = H?.[name]; return Array.isArray(d) && d.length === 3 ? [p[0] + d[0], p[1] + d[1], p[2] + d[2]] : p; };
+  // (a PLANTED joint, a serpent's coil on the ground: where it rests, whatever the body does; the chains may turn it)
+  for (const n of R.planted ?? []) nodes[n] = [...restOf(n)];
   let pending = Object.keys(R.rides).filter((n) => !nodes[n]); let progress = true;
   while (pending.length && progress) {
     progress = false;

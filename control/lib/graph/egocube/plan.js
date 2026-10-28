@@ -733,14 +733,14 @@ const BEAST_AT = { frame: 'spec.beast (legs, tail, arms), spec.cast (its build),
  * build. → { spec, head, legs, topo, cover, outfit } */
 function beastOf(sheet, dress) {
   const f = sheet.facets, hints = sheet.ancestry.plan || {}, head = headOf(sheet), topo = topologyOf(sheet);
-  const feathered = f.ancestry === 'avian' || head.id === 'beaked', legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
+  const feathered = f.ancestry === 'avian' || head.id === 'beaked', legs = hasDerive(sheet, 'legs = serpent') ? 'serpent' : hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
   const cover = feathered ? 'feathers' : hints.cover?.kind ?? 'none', expression = expressionOf(sheet);
   // (its detail as form, beast/detail.js: a ruff where its fur cue names one; a crest of spikes where its silhouette's pick
   // is the crest, none where the pick is something else, the card's where the sheet picks nothing)
   const lines = Object.values(sheet.notes).flat().map((n) => n.line), ruff = hints.cover?.where?.includes('ruff') ? 'ruff' : 'none';
   const ridge = lines.some((l) => /crest of spikes/.test(l)) ? { ridge: 'spines' } : lines.some((l) => /^(a frill|folded membrane wings)/.test(l)) ? { ridge: 'none' } : {};
-  const beast = { kin: f.ancestry, legs, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws ?? 'none', tail: hints.tail && TAILS[hints.tail] ? hints.tail : 'none',
-    ...(topo.wings ? { wings: 'arms' } : {}), ...(topo.arms2 ? { arms: 4 } : {}), ...(head.standIn ? {} : { head: head.id }), cover, ruff, ...ridge, ...(Object.keys(expression).length ? { expression } : {}) };
+  const beast = { kin: f.ancestry, legs, fingers: FINGER_COUNT[f.ancestry] ?? BEAST_KINS[f.ancestry].fingers ?? 4, claws: hints.claws ?? 'none', tail: hints.tail && TAILS[hints.tail] ? hints.tail : 'none',
+    ...(topo.wings ? { wings: 'arms' } : {}), ...(topo.arms2 ? { arms: 4 } : {}), ...(head.standIn ? {} : { head: head.id }), cover, ruff, ...ridge, ...(!head.standIn && Object.keys(expression).length ? { expression } : {}) };
   // (its build is the tiered body's own, HERO_BUILDS through the cast's build form, where a person's is a light tune: a
   // brute bear-kin stands on the brute's chest and arms; a child keeps the pole's cast, its height the age's)
   const T = BUILD_TUNE[f.build] ?? {}, stature = r3(clamp((T.stature ?? 1) * (HEIGHT[f.build] * AGE_SCALE[f.age]) / BEAST_REF_H, 0.85, 1.15));
@@ -761,6 +761,10 @@ function beastLedger(sheet, built) {
     if (built.topo.wings && /wings on the arms/.test(n.line)) { at = 'spec.beast.wings (flight feathers on the hand and forearm)'; pending = null; }
     if (built.topo.arms2 && /second pair of arms/.test(n.line)) { at = 'spec.beast.arms (a second pair, welded by the generic socket)'; pending = null; }
     if (/crest of spikes/.test(n.line)) { at = 'spec.beast.ridge (a crest of spines down the back and the tail)'; pending = null; }
+    // (a coil, and a kin whose coat is its own groups' only: its scales on the coil, a person's head and face above it)
+    if (built.legs === 'serpent' && /coil in place of the legs/.test(n.line)) { at = 'spec.beast.legs (serpent: the coil, beast/serpent.js)'; pending = null; }
+    if (BEAST_KINS[sheet.facets.ancestry]?.coat && ch === 'cover' && /cheek|face|spine|brow/.test(n.line)) { at = null; pending = 'scales on a person\'s face and back are not drawn yet; the cover is the coil\'s'; }
+    if (built.head.standIn && (ch === 'rest' || ch === 'eyes')) { at = null; pending = /slit/.test(n.line) ? 'a person\'s head draws round pupils; slit pupils are not drawn yet' : 'a person\'s head under a beast-kin reads no expression from the sheet yet'; }
     if (ch === 'cover' && /\bruff\b/.test(n.line) && built.cover !== 'none') at = 'spec.beast.cover, spec.beast.ruff (tufts round the neck\'s root)';
     if (!at && !pending) pending = ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
     rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });

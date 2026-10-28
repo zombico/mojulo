@@ -139,6 +139,16 @@ export const LINEAGES = Object.freeze({
       { at: 0.45, ch: 'frame', line: 'digitigrade legs; padded hands', derives: ['legs = digitigrade'] },
     ],
   },
+  serpentine: {
+    reads: 'serpentine (snake-kin, a lamia)', humanity: [0.2, 0.6], cover: { green: '#4f6a3a', bronze: '#7a5a32', black: '#1f221d', ivory: '#d6cdb0', crimson: '#6e2a24' },
+    built: 'the coil (lib/graph/beast/serpent.js) under a person\'s torso, arms and head on the tiered body',
+    cues: [
+      { at: 1, ch: 'eyes', line: 'slit pupils in a pale gold iris', derives: ['sculpt.catchlight +'] },
+      { at: 1, ch: 'frame', line: 'a serpent\'s coil in place of the legs, the scales starting at the hips', derives: ['door = creature', 'legs = serpent'], plan: { cover: { kind: 'scales', where: ['coil'] } } },
+      { at: 0.6, ch: 'cover', line: 'scales across the cheekbones and down the spine', derives: ['pass = patches'] },
+      { at: 0.4, ch: 'rest', line: 'an unblinking stare, the head held level as it sways' },
+    ],
+  },
   lupine: {
     reads: 'lupine (wolf-kin)', humanity: [0.3, 0.7], cover: { grey: '#7a7670', black: '#24221f', brown: '#6a5038', white: '#dedad2' },
     built: 'the wolf head (creature-heads/wolf), first drawn for the Pale Warden',

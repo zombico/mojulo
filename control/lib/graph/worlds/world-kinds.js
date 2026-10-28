@@ -64,7 +64,7 @@ import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
-import { beastCoverOf, coverMap } from '@/lib/graph/beast/cover';
+import { beastCoverOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
 import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
@@ -925,7 +925,7 @@ export const WORLD_KINDS = {
         const relief = engineLit && ctx.face && heroSkin && paintPack === heroSkin && reliefOnRecord(m.hero) ? heroRelief(mesh, m.recipe, heroSkin, engineLit) : null;
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
-        const coverKind = engineLit && ctx.face && !paintPack ? beastCoverOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind) : null;
+        const coverKind = engineLit && ctx.face && !paintPack ? beastCoverOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
         const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: quantMorph(P.morph) } : P));

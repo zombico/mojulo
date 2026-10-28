@@ -20,7 +20,8 @@ describe('the egocube\'s route to the tiered body', () => {
       expect(P.door, kin).toBe('hero'); expect(P.beast).toBe(true); expect(P.create.as).toBe('hero');
       const { spec } = P.create, b = spec.beast, hints = sheet.ancestry.plan || {};
       expect(spec.form).toBe('tiered'); expect(b.kin).toBe(kin);
-      expect(b.legs, kin).toBe(Object.values(sheet.derives).some((l) => l.includes('legs = digitigrade')) ? 'digitigrade' : 'plantigrade');
+      const derived = (w) => Object.values(sheet.derives).some((l) => l.includes(`legs = ${w}`));
+      expect(b.legs, kin).toBe(derived('serpent') ? 'serpent' : derived('digitigrade') ? 'digitigrade' : 'plantigrade');
       expect(b.claws).toBe(hints.claws ?? 'none'); expect(b.tail).toBe(hints.tail ?? 'none');
       expect(b.cover).toBe(kin === 'avian' ? 'feathers' : hints.cover?.kind ?? 'none');
       expect(spec.tune.stature).toBeGreaterThanOrEqual(0.85); expect(spec.tune.stature).toBeLessThanOrEqual(1.15);
@@ -30,7 +31,7 @@ describe('the egocube\'s route to the tiered body', () => {
       for (const r of P.ledger) expect(Boolean(r.at) !== Boolean(r.pending), `${kin}: ${r.line}`).toBe(true);
     }
     const legs = (kin) => planFromSheet(roll({ ancestry: kin, humanity: 0.3 })).create.spec.beast.legs;
-    expect(new Set(KINS.map(legs))).toEqual(new Set(['digitigrade', 'plantigrade']));   // (both procedures reached)
+    expect(new Set(KINS.map(legs))).toEqual(new Set(['digitigrade', 'plantigrade', 'serpent']));   // (every procedure reached)
   });
 
   it('the frame\'s wings ride the arms and a second pair of arms is the beast\'s; the ledger says where each landed', () => {

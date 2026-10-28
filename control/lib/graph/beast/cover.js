@@ -39,8 +39,11 @@ export const COVERS = Object.freeze({
 export const COVER_KINDS = Object.freeze(['none', ...Object.keys(COVERS)]);
 /** a tile's texels across; the flat patch's, at its origin */
 export const TILE_PX = 128, FLAT_PATCH = 4;
-const KIN_COVER = Object.freeze({ ursine: 'fur', lupine: 'fur', feline: 'fur', draconic: 'scales', avian: 'feathers', insectoid: 'chitin' });
+const KIN_COVER = Object.freeze({ ursine: 'fur', lupine: 'fur', feline: 'fur', draconic: 'scales', avian: 'feathers', insectoid: 'chitin', serpentine: 'scales' });
 
+/** the groups a hero's cover covers: its kin's coat where the card names one (a lamia's coil and hips), else the whole
+ * bare body's */
+export const beastCoatOf = (hero) => { const K = BEAST_KINS[hero?.beast?.kin]; return K?.coat ? new Set(K.coat) : COAT; };
 export function beastCoverOf(hero) {
   const B = hero?.beast; if (!B || !BEAST_KINS[B.kin]) return null;
   const k = B.cover ?? KIN_COVER[B.kin] ?? 'none';
@@ -121,8 +124,8 @@ export function coverTile(kind) {
 const COAT = new Set(['Skin', 'Top', 'Bottom', 'Shoes']);
 const HEAD_PART = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nose|nostril|catch|orbit|tooth|teeth|tongue|whisker|horn|crest|frill|mandible|antenna|beak|lip|mouth|wing[RL]|upperLip|lowerLip)/;
 
-export function coverMap(mesh, recipe, normals, kind) {
-  const T = coverTile(kind), C = COVERS[kind];
+export function coverMap(mesh, recipe, normals, kind, groups = COAT) {
+  const T = coverTile(kind), C = COVERS[kind], coat = groups instanceof Set ? groups : new Set(groups);
   const partOf = (fi) => mesh.provenance[mesh.faces[fi][0]].part;
   // each covered part's own rings: a slot's place round them (a whole number of tiles round, so the wrap is seamless) and a
   // station's arc length along their centres (so a curved tail, a flaring socket and a funnel map as they run, where one
@@ -142,7 +145,7 @@ export function coverMap(mesh, recipe, normals, kind) {
     }
     frames.set(name, f); return f;
   };
-  const covered = (fi) => { const name = partOf(fi), P = recipe.parts[name]; return !!P && COAT.has(mesh.groups[fi]) && (P.layer ?? 1) === 1 && !HEAD_PART.test(name) && !!frameOf(name); };
+  const covered = (fi) => { const name = partOf(fi), P = recipe.parts[name]; return !!P && coat.has(mesh.groups[fi]) && (P.layer ?? 1) === 1 && !HEAD_PART.test(name) && !!frameOf(name); };
   // the light mesh the tangents are built on: each covered corner its own vertex (its uv, its normal)
   const V = [], F = [], UV = [], N = [], cornerV = new Map();
   const flat = [(FLAT_PATCH / 2) / TILE_PX, (FLAT_PATCH / 2) / TILE_PX];

@@ -64,7 +64,7 @@ const RING12 = SLOT_FAMILIES.ring12, LIMB6 = SLOT_FAMILIES.limb6;
 
 export function beastLegs(plan, hero) {
   const card = beastCard(hero);
-  if (!card) return plan;
+  if (!card || card.legs === 'serpent') return plan;   // (a coil's in place of the legs: ./serpent.js)
   const kept = new Set(KEPT_TOES[card.legs][card.toes] ?? TOE_NAMES), side = (n) => n.replace(/(\$S|[RL])$/, '');
   if (card.legs !== 'digitigrade') {
     // (a plantigrade kin: the person's foot, its outer toes gone from the skin and the dials)

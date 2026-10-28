@@ -18,7 +18,7 @@
  *
  * Pure and deterministic; absent from every hero until a caller asks (no door field yet).
  */
-import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
+import { rigNodesAt, VAJRA_CORE, waveAt } from './station-loft-rig.js';
 import { resolveMotion, WALK_MINT, SPRINT_MINT, UNDEAD_GAIT } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
@@ -616,7 +616,8 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
     let loco;
     try { loco = heroLocomotion(spec, R, { frames: keys, tilt, ...(girths ? { girths } : {}) }); for (let k = 0; k < keys; k++) rigNodesAt(R, loco.fn(k / keys)); }
     catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
-    const fn = (phase) => loco.fn(phase); fn.keys = keys;
+    // (a rig with a wave, a serpent's coil, plays it over the gait: one wave a cycle, travelling toward the tail)
+    const fn = R.wave ? (phase) => ({ ...loco.fn(phase), ...waveAt(R, phase) }) : (phase) => loco.fn(phase); fn.keys = keys;
     clips[name] = fn; seconds[name] = s; speeds[name] = Math.round(loco.v(s) * 1e4) / 1e4;
   }
   return { clips, seconds, speeds };
