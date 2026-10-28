@@ -726,7 +726,9 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: each convention's names, a turned file read as the same body, the height it is stood at, each triangle on
   its bone, the same bytes twice, a dismantle, a cleave and a shed on it; the bestiary's word made by no step, at its
   height, refused by name. Eyes: two Mixamo models from the three.js examples (a robot in its materials' colours, a
-  textured soldier, flaming) standing beside a zombie on the demo level, on the library's idle. Eyes gate: the operator's to judge.
+  textured soldier, flaming) standing beside a zombie on the demo level, on the library's idle; a burst tearing the
+  robot apart at every joint, a strike cleaving the other through, the soldier cleaved with its legs still burning. Eyes
+  gate: the operator's to judge.
   - A level its foes stand on is re-made when a bestiary entry changes: its print now carries the bestiary (the cast is
     a function its args' JSON left out, so a changed `vanish`, `states` or `skin` kept the level as first made). A
     level no foe stands on prints as before.
