@@ -625,8 +625,8 @@ through the character designer, clips fitted to the class's timing, factions) is
     split into two halves, every loop of the cut capped in the inside (`inside`, a corpse's meat). On the blow the
     halves swap in, a streak of light runs along the cut for a breath, the side above slips off down the cut and the
     side below gives way.
-  - `destroy` lets the killing blow choose, by the cut it deals (`cuts.js`, `BLOW_DESTRUCTION`): a strike's slice
-    cleaves, a round's chips knock two or three of the head and limbs off, a burst tears every joint and throws the
+  - `destroy` lets the killing blow choose, by a default table (`BLOW_DESTRUCTION`) a foe maps over with its own `by`:
+    a strike cleaves, a round knocks two or three of the head and limbs off, a burst tears every joint and throws the
     pieces hard (away from where it went off), a stomp or a tackle lets every joint go. The runtime reads the blow off
     what the hits already record (the striker's strike or shot at it, a burst over it, a stomp on it); with none
     known, the body's own way.

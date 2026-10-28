@@ -135,10 +135,11 @@ describe('the runtime and the words', () => {
       const V = vanishOf({}, { skin: { people: p } }), U = UNDEAD_DESTRUCTION[form];
       expect(V).toMatchObject({ die: 'destroy', inside: U.inside, by: { ...BLOW_DESTRUCTION, else: U.else } });
     }
-    // the blow's table, by the cut each deals: a strike's slice cleaves, a burst tears every joint and throws them hard
-    expect(BLOW_DESTRUCTION.swing.die).toBe('cleave');
-    expect(BLOW_DESTRUCTION.burst).toMatchObject({ die: 'dismantle', sever: 'all' });
-    expect(BLOW_DESTRUCTION.burst.kick).toBeGreaterThan(1);
+    // the default table, a foe's own `by` over it blow by blow
+    const own = vanishOf({}, { skin: { people: skel }, vanish: { die: 'destroy', by: { swing: { die: 'dismantle', sever: 'head' } } } });
+    expect(own.by).toMatchObject({ swing: { die: 'dismantle', sever: 'head' }, round: BLOW_DESTRUCTION.round });
+    expect(() => readVanish({ die: 'destroy', by: { kick: { die: 'cleave' } } }, 'v')).toThrow(/not a blow/);
+    expect(() => readVanish({ die: 'destroy', by: { swing: { die: 'fall' } } }, 'v')).toThrow(/dismantle \| cleave/);
     expect(vanishOf({}, { skin: { people: skel } }).linger).toBeGreaterThanOrEqual(WRECK_LINGER);
     expect(vanishOf({}, { skin: { people: 'human' } }).die).toBe('fall');
     // an entry's own word, and a squash (the death beat itself), stand over it

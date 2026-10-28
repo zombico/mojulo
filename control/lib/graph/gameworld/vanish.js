@@ -31,13 +31,13 @@
  * DESTRUCTION is a way to die too (`die`): `dismantle`, it comes apart at its joints (`sever`: SEVERS), and `cleave`, it is
  * cut through by the blow (a slash through its trunk, its cut showing `inside`); the page's wreck plays its pieces
  * falling and fades them as it goes, after at least
- * WRECK_LINGER s. `destroy` lets the killing blow choose (BLOW_DESTRUCTION, by the cut it deals: cuts.js): a strike's
- * slice cleaves it, a round knocks some of it off at its joints, a burst tears it apart at every joint. The UNDEAD are
+ * WRECK_LINGER s. `destroy` lets the killing blow choose, by a DEFAULT table (BLOW_DESTRUCTION: a strike cleaves it, a
+ * round knocks some of it off at its joints, a burst tears it apart at every joint) a foe maps over with its own `by`. The UNDEAD are
  * destroyed so by default (UNDEAD_DESTRUCTION, by their people's form, its own way when no blow says: a skeleton
  * apart at every joint, a corpse cut in two), wherever the world lets a foe fall or be thrown. Only layer 0, the
  * skeleton under every foe, is destroyed: a mode above it is defeated.
  *
- * A bestiary entry may name its own (`vanish: <kind>`, or `{ is?, linger?, die?, sever?, inside? }`).
+ * A bestiary entry may name its own (`vanish: <kind>`, or `{ is?, linger?, die?, sever?, inside?, by? }`).
  *
  *   readVanish(v, at)        → the entry's word read (throws teaching the kinds)
  *   vanishOfGame(G)          → { is, linger, die, rgb?, from, why }: the world's own death and disposal
@@ -49,7 +49,6 @@
 import { juiceOfGame, juiceSuggestion, trailContext } from './juice.js';
 import { resolveTrailColor } from '../scene/juice-style.js';
 import { LINEAGES } from '../egocube/ancestry.js';
-import { cutOf, readCut } from '../playscape/destruct/cuts.js';
 
 export const VANISHES = Object.freeze({
   fade: 'it fades where it lies',
@@ -81,17 +80,13 @@ export const WRECK_LINGER = 2.4;
 /** The blows the runtime tells a death by (worlds/controllable/vanish.js: whatever struck last): a melee strike, a round, a
  * burst, a crush (a stomp, a tackle) */
 export const BLOWS = Object.freeze(['swing', 'round', 'burst', 'crush']);
-const BLOW_SOURCE = Object.freeze({ swing: 'swing', round: 'round', burst: 'burst', crush: null });
-/** A cut (playscape/destruct/cuts.js) as a destruction: a slice cleaves, a few chips knock some of it off at its joints, a
- * shatter, a blast or a dice tears it apart at every joint (a blast thrown hard), a sever lets every joint go */
-export function destructionOfCut(cut) {
-  if (cut.pattern === 'slice') return { die: 'cleave' };
-  if (cut.pattern === 'dismantle') return { die: 'dismantle', sever: 'all' };
-  if (cut.pattern === 'voronoi' && (cut.count ?? 1) <= 4) return { die: 'dismantle', sever: 'some' };
-  return { die: 'dismantle', sever: 'all', ...(cut.style === 'impact' && (cut.count ?? 1) >= 8 ? { kick: 1.6 } : {}) };
-}
-/** `destroy`'s table: each blow's destruction, by the cut it deals (cuts.js SOURCE_CUTS; a crush, a sever) */
-export const BLOW_DESTRUCTION = Object.freeze(Object.fromEntries(BLOWS.map((b) => [b, Object.freeze(destructionOfCut(BLOW_SOURCE[b] ? cutOf({ source: BLOW_SOURCE[b] }) : readCut('sever')))])));
+/** `destroy`'s DEFAULT: how each blow destroys a body (a foe maps its own with `vanish.by`, blow by blow, over this) */
+export const BLOW_DESTRUCTION = Object.freeze({
+  swing: Object.freeze({ die: 'cleave' }),
+  round: Object.freeze({ die: 'dismantle', sever: 'some' }),
+  burst: Object.freeze({ die: 'dismantle', sever: 'all', kick: 1.6 }),
+  crush: Object.freeze({ die: 'dismantle', sever: 'all' }),
+});
 /** The undead's own destruction (a lineage's form: egocube/ancestry.js): `destroy`, the killing blow choosing how its bones,
  * layer 0 under every foe, are destroyed (BLOW_DESTRUCTION), and its form's way when no blow says (a death by a fall, a
  * timer): a skeleton, nothing holding its bones, comes apart at every joint (by relation); a corpse is cut through (by
@@ -109,7 +104,7 @@ export function readVanish(v, at) {
   const kinds = Object.keys(VANISHES).join(' | ');
   if (typeof v === 'string') { if (!VANISHES[v]) throw new Error(`${at}: no vanish '${v}' (${kinds})`); return v; }
   if (!isObj(v)) throw new Error(`${at} is how a downed foe dies and goes: ${kinds}, or { is?, linger?, die?, sever? }`);
-  for (const k of Object.keys(v)) if (!['is', 'linger', 'die', 'sever', 'inside'].includes(k)) throw new Error(`${at}.${k} is not a vanish setting (is, linger, die, sever, inside)`);
+  for (const k of Object.keys(v)) if (!['is', 'linger', 'die', 'sever', 'inside', 'by'].includes(k)) throw new Error(`${at}.${k} is not a vanish setting (is, linger, die, sever, inside, by)`);
   if (v.is !== undefined && !VANISHES[v.is]) throw new Error(`${at}.is: no vanish '${v.is}' (${kinds})`);
   if (v.linger !== undefined && !(Number.isFinite(v.linger) && v.linger >= 0 && v.linger <= MAX_LINGER)) throw new Error(`${at}.linger is the seconds it lies first, 0 to ${MAX_LINGER}`);
   if (v.die !== undefined && !DIES.includes(v.die)) throw new Error(`${at}.die is how it dies: ${DIES.join(' | ')}`);
@@ -117,7 +112,16 @@ export function readVanish(v, at) {
   if (v.sever !== undefined && v.die !== 'dismantle' && v.die !== 'destroy') throw new Error(`${at}.sever goes with die: 'dismantle' or 'destroy' (the joints it cuts)`);
   if (v.inside !== undefined && !(typeof v.inside === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.inside))) throw new Error(`${at}.inside is the colour a cleave's cut shows, a '#rrggbb'`);
   if (v.inside !== undefined && v.die !== 'cleave' && v.die !== 'destroy') throw new Error(`${at}.inside goes with die: 'cleave' or 'destroy' (the colour its cut shows)`);
-  return { ...(v.is !== undefined ? { is: v.is } : {}), ...(v.linger !== undefined ? { linger: v.linger } : {}), ...(v.die !== undefined ? { die: v.die } : {}), ...(v.sever !== undefined ? { sever: v.sever } : {}), ...(v.inside !== undefined ? { inside: v.inside } : {}) };
+  if (v.by !== undefined) {
+    if (v.die !== 'destroy') throw new Error(`${at}.by goes with die: 'destroy' (how each blow destroys it)`);
+    if (!isObj(v.by)) throw new Error(`${at}.by maps a blow (${BLOWS.join(', ')}, else) to { die: dismantle | cleave, sever? }`);
+    for (const [b, D] of Object.entries(v.by)) {
+      if (![...BLOWS, 'else'].includes(b)) throw new Error(`${at}.by.${b} is not a blow (${BLOWS.join(', ')}, else)`);
+      if (!isObj(D) || !['dismantle', 'cleave'].includes(D.die)) throw new Error(`${at}.by.${b} is { die: dismantle | cleave, sever? }`);
+      if (D.sever !== undefined && !SEVERS[D.sever]) throw new Error(`${at}.by.${b}.sever: ${Object.keys(SEVERS).join(' | ')}`);
+    }
+  }
+  return { ...(v.by !== undefined ? { by: v.by } : {}), ...(v.is !== undefined ? { is: v.is } : {}), ...(v.linger !== undefined ? { linger: v.linger } : {}), ...(v.die !== undefined ? { die: v.die } : {}), ...(v.sever !== undefined ? { sever: v.sever } : {}), ...(v.inside !== undefined ? { inside: v.inside } : {}) };
 }
 
 export function vanishOfGame(G) {
@@ -152,7 +156,7 @@ export function vanishOf(G, entry) {
   const inside = die === 'cleave' || die === 'destroy' ? own.inside ?? (U ? U.inside : null) : null;
   // (a destroy carries its table: each blow's destruction, an entry's sever over a dismantle's; and its way with no blow)
   const over = (D) => (sever && D.die === 'dismantle' ? { ...D, sever } : D);
-  const by = die === 'destroy' ? { ...Object.fromEntries(BLOWS.map((b) => [b, over(BLOW_DESTRUCTION[b])])), else: over(U && U.else ? U.else : { die: 'dismantle', sever: 'all' }) } : null;
+  const by = die === 'destroy' ? { ...Object.fromEntries(BLOWS.map((b) => [b, over(BLOW_DESTRUCTION[b])])), else: over(U && U.else ? U.else : { die: 'dismantle', sever: 'all' }), ...(own.by ?? {}) } : null;
   const linger = own.linger ?? (beat ? beat.linger : isWreck(die) ? Math.max(W.linger, WRECK_LINGER) : W.linger);
   return { is, linger, die, ...(sever && die === 'dismantle' ? { sever } : {}), ...(by ? { by } : {}), ...(inside ? { inside } : {}), ...(rgb ? { rgb } : {}) };
 }
