@@ -608,11 +608,13 @@ export const CLIPPER = Object.freeze({ shell: 4, cover: 1.4, max: 0.9, mottle: 0
  * THE SIDEBURN (realistic laws 10, a barber's connection): where the face grows a beard, a band in front of the ear from
  * the beard's top (`below` mm under the sideburn's foot) up into the scalp (full to `full` mm over the foot, let go by
  * `up`: on until the scalp's own length is the longer, so it meets the fade's shell with no bare skin between), `inner` mm in front of the hairline's sideburn line and `outer` mm behind it, wears the beard's cheek length, so
- * a fade runs down into the beard and never leaves bare skin between them (the dermis's own sideburn is a sliver, and
+ * a fade runs down into the beard and never leaves bare skin between them; over the ear, back to `back` mm behind its
+ * canal, the side holds the same length (a beard fade: the fade runs down to the beard's length, never to bare skin
+ * beside the sideburn) (the dermis's own sideburn is a sliver, and
  * the skin under it vellus); no beard, none: a skin fade takes the sideburn as it takes the rest.
  * → { w 0 … 1, mm } at an address of the relational head, or null.
  */
-export const SIDEBURN = Object.freeze({ below: 14, full: 60, up: 75, inner: 16, outer: 6 });
+export const SIDEBURN = Object.freeze({ below: 14, full: 60, up: 75, inner: 16, outer: 6, back: 60 });
 export function sideburnOf(A, D) {
   if (!A?.marks || A.feature || D.sex !== 'male') return null;
   const BS = D.beardStyle ? beardStyleOf(D.beardStyle) : null;
@@ -621,7 +623,15 @@ export function sideburnOf(A, D) {
   const M = A.marks.points, q = headXY(A), x = Math.abs(q.X), por = M[`porion${q.X >= 0 ? 'R' : 'L'}`] || M.porion, sideX = Math.abs(por.X) - 16;
   const footY = por.Y - 4 - (D.sideburn ?? 0);
   const across = smooth(sideX - 6 - SIDEBURN.inner, sideX - 6, x) * (1 - smooth(sideX + 2, sideX + 2 + SIDEBURN.outer, x));
-  const w = across * smooth(footY - SIDEBURN.below - 6, footY - SIDEBURN.below, q.Y) * (1 - smooth(footY + SIDEBURN.full, footY + SIDEBURN.up, q.Y));
+  const rise = 1 - smooth(footY + SIDEBURN.full, footY + SIDEBURN.up, q.Y);
+  const band = across * smooth(footY - SIDEBURN.below - 6, footY - SIDEBURN.below, q.Y) * rise;
+  // (THE BEARD FADE: the side over the ear, from the sideburn back past the ear and above its top, holds the same length,
+  // so the fade runs down to the beard's length there and never to bare skin beside the sideburn; behind it, past
+  // `back` mm beyond the ear canal, it lets go and the nape fades to the skin as the cut has it. Above the ear only:
+  // under its top the ear's own rim shares the skull's texels.)
+  const et = M[`earTop${q.X >= 0 ? 'R' : 'L'}`], earY = et ? et.Y : por.Y + 22;
+  const side = smooth(sideX - 8, sideX, x) * (1 - smooth(Math.abs(por.X) + SIDEBURN.back, Math.abs(por.X) + SIDEBURN.back + 30, x)) * smooth(earY - 1, earY + 3, q.Y) * rise;
+  const w = Math.max(band, side);
   return w > 0.001 ? { w, mm } : null;
 }
 /** the length (mm) the sideburn holds the scalp's hair to at an address (0 off it): its band's weight × the beard's length,

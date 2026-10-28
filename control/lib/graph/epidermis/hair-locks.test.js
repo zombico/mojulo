@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { relationalHeadChart } from './dermal-head.js';
-import { readDermis, CLIPPER, clipCover, sideburnOf } from './dermal-map.js';
+import { readDermis, CLIPPER, clipCover, sideburnOf, headXY } from './dermal-map.js';
 import { readScalp, growScalp, SCALP_STYLES } from './dermal-hair.js';
 import { hairClass } from './hair-depict.js';
 import { lockHair, lockStrands, beardShell, lockStyleAt, readStylize, surfaceClear, lockClass, HAIR_LOCKS, LOCK_GROUPS, LOCK_TIP, LOCK_FADE } from './hair-locks.js';
@@ -85,6 +85,10 @@ describe('the lock hair', () => {
     const band = chart.samples.map((a) => sideburnOf(a, beard)).filter(Boolean);
     expect(band.some((b) => b.w > 0.9)).toBe(true); expect(band[0].mm).toBeGreaterThan(CLIPPER.shell);
     expect(chart.samples.some((a) => sideburnOf(a, shaven))).toBe(false);
+    // (the BEARD FADE: the side behind the sideburn, over the ear, holds it too; the back of the head lets go)
+    const behind = (k) => chart.samples.filter((a) => a?.marks && !a.feature && Math.abs(headXY(a).X) > Math.abs(a.marks.points.porionR.X) + k && headXY(a).Y > a.marks.points.porionR.Y + 40 && headXY(a).Y < a.marks.points.porionR.Y + 55);
+    expect(behind(10).some((a) => sideburnOf(a, beard)?.w > 0.9)).toBe(true);
+    expect(behind(100).some((a) => sideburnOf(a, beard))).toBe(false);
     // (and the groom's clipped length there holds it: a skin fade's sideburn near the beard's cheek, never the fade's foot,
     // and under the shell's length: paint, never a strip of shell)
     const G = growScalp(chart, beard, readScalp({ style: 'fade', spacing: 0.02 }), { colliders: ['head'], strands: false });

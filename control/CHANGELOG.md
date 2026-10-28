@@ -86,6 +86,10 @@ The eyes gate is the operator's.
     shell's, so a longer beard's sideburn is paint at full, never a strip of shell fringed with cards. The beard's paint
     over it adds only what the band left, so their overlap is never darker. A shaven face's fade takes the sideburn as
     it takes the rest.
+  - THE BEARD FADE: with a beard, the side over the ear (from the sideburn back 60 mm behind the ear canal, above the
+    ear's top) holds the same length, so the fade runs down to the beard's length there, never to a bald patch beside
+    the sideburn; behind it the nape fades to the skin as the cut has it. Where the scalp's own paint is the fainter (the
+    hairline's soft edge, a cell the clip has no length for), the band's shade is the one painted.
 - **The ear raised** (realistic laws 10, `head-relational.js` `EAR_RAISE`): the ear sat low, its top 6 to 8 mm under the
   brow line and a man's lobule 4 mm under the nose's base. A laws 10 hero's ear is raised to the canon, its top at the
   brow line and its lobule at the nose's base (the face's own ear relations raised by the pole's amount). The ear's
