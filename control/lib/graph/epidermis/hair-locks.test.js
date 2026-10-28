@@ -9,7 +9,7 @@ import { relationalHeadChart } from './dermal-head.js';
 import { readDermis } from './dermal-map.js';
 import { readScalp, SCALP_STYLES } from './dermal-hair.js';
 import { hairClass } from './hair-depict.js';
-import { lockHair, lockBlades, lockStyleAt, readStylize, surfaceClear, HAIR_LOCKS, LOCK_GROUPS } from './hair-locks.js';
+import { lockHair, lockBlades, lockStyleAt, readStylize, surfaceClear, lockClass, HAIR_LOCKS, LOCK_GROUPS, LOCK_TIP, LOCK_FADE } from './hair-locks.js';
 import { overlapHair } from './hair-score.js';
 
 const chart = relationalHeadChart(relationalHead({ sex: 'male' }), { cells: 44 });
@@ -60,6 +60,20 @@ describe('the lock hair', () => {
     expect(Math.min(...long.mesh.vertices.map((p) => p[2]))).toBeLessThan(0);
     for (const H of [stand, long]) { expect(clearOf(H)).toBe(true); expect(H.counts.overlap.open).toBeLessThan(0.03); }
   }, 240_000);
+  it('the cards lie ON the hair: a broad flow\'s tip cards are narrow strips across its top, never a plank; the hairline is the fade\'s', () => {
+    const H = lockHair(chart, D, groom('long', { length: 0.3 }), { centre, stylize: 0 });
+    expect(H.counts.cards).toBeGreaterThan(H.counts.locks * HAIR_LOCKS.cards[0] * 0.5);
+    // (each card a strip of point pairs across it: none wider than a tip card's width and its neighbour's share, or the fade's)
+    const V = H.cards.vertices, widths = [];
+    for (let i = 0; i + 1 < V.length; i += 2) widths.push(Math.hypot(...V[i].map((v, k) => v - V[i + 1][k])));
+    expect(Math.max(...widths)).toBeLessThan(Math.max(2 * LOCK_TIP.width, 2 * LOCK_FADE.half) * 1.5);
+    expect(clearOf(H)).toBe(true);
+  }, 180_000);
+  it('a falling curly groom is drawn as flows; standing coils are the sculpted volume', () => {
+    const coils = Object.keys(SCALP_STYLES).map((k) => readScalp(k)).filter((S) => hairClass(S) === 'coil');
+    const falls = coils.find((S) => (S.stand ?? 0) < 0.3 && S.length >= 0.15), stands = coils.find((S) => (S.stand ?? 0) >= 0.5);
+    expect(lockClass(falls)).toBe('long'); expect(lockClass(stands)).toBe('coil');
+  });
   it('a tie\'s tail is a mass of its own; a rope a tube a tie', () => {
     const tied = lockHair(chart, D, groom('tied'), { centre, stylize: 1 }), S = readScalp({ style: styleOf('rope') }), rope = lockHair(chart, D, S, { centre, stylize: 1 });
     expect(tied.counts.tails).toBe(1); expect(tied.counts.overlap.open).toBeLessThan(0.03);

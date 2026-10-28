@@ -6,28 +6,30 @@
  *   MAJOR FLOWS   the guides gathered (by root, middle and end, never across the part) into the dial's few dozen flows;
  *                 each flow's section drawn THROUGH its own guides across it (a smooth arc fitted to them, `LOCK_RAIL`), so
  *                 a broad flow lies on the head as its guides do, domed and grooved on top, its root walked to the hairline
- *                 and its end to the cut's line (`LOCK_EDGE`)
- *   VOLUME        round by round the flows' margins and thickness grow (`LOCK_OVERLAP.wide`) until the OVERLAP PRINCIPLE
+ *                 and its end to the cut's line (`LOCK_EDGE`); over the scalp WRAPPED round the head at its own height,
+ *                 the higher-rooted flows the outer (`LOCK_CONFORM`): shingles, never chords standing off the head
+ *   VOLUME        round by round the flows nearest where the scalp shows grow (`LOCK_OVERLAP.wide`) until the OVERLAP PRINCIPLE
  *                 holds (hair-score.js overlapHair: from a turntable, the scalp and the shell under the flows show only in
  *                 a split between two flows or at the part); the gate advises, its last round is kept
- *   TRAILERS      a few strokes a flow off its edges toward its tip (`LOCK_TRAIL`), breaking its outline; standing hair's
- *                 are its spikes, anime sections laid down over a lying layer (`LOCK_SECTION`)
+ *   TRAILERS      a few strokes a flow riding its edges toward its tip and on past it (`LOCK_TRAIL`), breaking its
+ *                 outline; standing hair's are its spikes, anime sections laid down over a lying layer (`LOCK_SECTION`)
  *   THE FADE      the shell's edge smoothed and fringed with strand cards (laws 7's page, undyed) out over the skin
  *                 (`LOCK_FADE`): no hairline is a hard line
  *
  * Detail is shape, never paint. ONE DIAL, `stylize` 0 … 1, between two references: 0 a seventh-generation realistic
- * game's (more and thinner flows, finer grooves, tip cards), 1 a stylised one's (a dozen and a half chunky sculpted flows,
+ * game's (more and thinner flows, finer grooves, tip cards laid on them, `LOCK_TIP`), 1 a stylised one's (a dozen and a half chunky sculpted flows,
  * rounded tips, deep gaps between them, no tip cards). `HAIR_LOCKS` holds the two ends; a number between is lerped. One
- * procedure a hair CLASS (hair-depict.js hairClass):
+ * procedure a hair CLASS (`lockClass`: hair-depict.js hairClass, a falling curly groom long):
  *
  *   cropped   the shell alone, raised to the hair's length (a buzz's barely), faded at its edge
- *   coil      a SCULPTED VOLUME: the shell raised to where the coils stand (the guides' reach off the scalp), lumped by
+ *   coil      standing coils (an afro, a crop of curls) a SCULPTED VOLUME: the shell raised to where the coils stand (the guides' reach off the scalp), lumped by
  *             the dial's puffs (finer at 0, big at 1), never strokes
  *   short, long   flows and trailers (a long flow falls to its cut, outside the hero's neck and shoulders)
  *   standing  a lying layer of flows and the spikes over it
  *   tied      the walks to the tie as flat flows pulled taut, the tail (a ponytail, a braid, a bun) a SEPARATE MASS: a
  *             core tube along the tie's bundle, wrapped by the dial's few or many locks
- *   rope      each loc, row or braid a ROPE: a tube along its bundle, a twist groove round it, over the shell
+ *   rope      each loc, row or braid a ROPE: a round tube along its bundle, a twist groove round it (`LOCK_ROPE`), over
+ *             the shell
  *
  *   lockHair(chart, D, S, { level, centre, stylize, colliders, maps }) → { mesh, cards, cap, locks, streak?, overlap?, counts }
  *   lockBlades(blades, chart, { centre, stylize, level, group }) → mesh   a beard's blades as locks
@@ -68,8 +70,8 @@ export function readStylize(v) {
  * THE DIAL's two ends ([at 0, at 1], lerped): `locks` on a full scalp (~600 cm², the guides' ~240) at L1; `cover` a lock's
  * root width over its share of the scalp's (the overlap that leaves no gap at the root); `flat` its thickness over its
  * width; `grooves` along its top and their `depth` (the share of its thickness); `point` the taper's exponent (a point
- * near 1) against `round` (a sculpted rounded tip); `cards` the share of locks carrying a tip card and the hairline its
- * cards (none past `cardsTo` on the dial); `card` a tip card's reach (the share of its lock's length, m at most `cardMax`);
+ * near 1) against `round` (a sculpted rounded tip); `cards` the share of locks carrying tip cards (none past `cardsTo` on
+ * the dial: the hairline is the fade's); `card` a tip card's reach (the share of its lock's length, m at most `cardMax`);
  * `puff` a coil's lumps (m across) and `lump` their height (the share of the volume's).
  */
 export const HAIR_LOCKS = Object.freeze({
@@ -98,24 +100,38 @@ export const LOCK_MIN = 0.006;
 /** a lock's root walked toward the hairline: a `step` (m) at a time, as far as `reach` (m); a flow that reaches the cut's
  * line holds its width from `held` along it */
 /** a flow's section runs through its guides across it, on past its outermost by `margin` × the guides' spacing × the round's
- * volume (its neighbour's margin meets it: the flows tile the scalp); past its outermost guide its slope at most `slope`, its
+ * volume over the scalp (its neighbour's margin meets it: the flows tile the scalp); past its outermost guide its slope at most `slope`, its
  * rise off the row at most `rise` (m) */
 /** THE FADE round the shell's edge: its smoothing rounds, a card every `step` (m), `inside` and `outside` it (m), `half` wide (m),
  * every point at least `gap` (m) off the skin */
 export const LOCK_FADE = Object.freeze({ smooth: 4, step: 0.005, inside: 0.008, outside: 0.006, half: 0.004, gap: 0.0003 });
 export const LOCK_RAIL = Object.freeze({ margin: 0.8, slope: 0.6, rise: 0.015 });
+/** A FLOW LIES ON THE HEAD: over the scalp a section is laid at its spine's own height off the skin across its whole width
+ * (wrapped round the head as hair lies, never a chord standing off it), in full while the spine is within `near` (m) of
+ * the skin, letting go by `far`; each flow `layer` (m) at most further out the higher its root (the crown's hair lies over
+ * the nape's), its root on the shell and rising to its layer over `rise` of its length (a root comes out of the scalp) */
+export const LOCK_CONFORM = Object.freeze({ near: 0.02, far: 0.035, layer: 0.006, rise: 0.12 });
 export const LOCK_EDGE = Object.freeze({ step: 0.002, reach: 0.035, held: 0.4 });
-/** a TRAILER: from `from` along its guide to the tip, `width` of its flow's; standing hair's `spikes` × the dial's trailers */
-export const LOCK_TRAIL = Object.freeze({ from: 0.35, width: 0.35, spikes: 2 });
+/** a TRAILER: riding its flow's edge (`at` across it, −1 … 1) from `from` along it to its tip, on past a free tip by `beyond`
+ * of that run, `width` of its flow's; standing hair's `spikes` × the dial's trailers (each its own guide) */
+export const LOCK_TRAIL = Object.freeze({ from: 0.35, at: 0.7, beyond: 0.15, width: 0.35, spikes: 2 });
 /** hair shorter than this (m) is stubble: there the shell is the hair, and the overlap principle passes over it (a skin
  * fade's last few millimetres); every longer section, a taper's and a fade's included, is a lock the turntable sees */
 export const LOCK_SHOWS = 0.006;
-/** THE OVERLAP rounds: the flows' margins and thickness × each in turn (volume, never more strokes), until the scalp shows only
- * in splits (hair-score.js overlapHair),
+/** THE OVERLAP rounds: a flow's margin over the scalp × each step of `wide` in turn (volume, never more strokes), the `near`
+ * flows nearest each spot where the scalp shows taking the next, until it shows only in splits (hair-score.js overlapHair),
  * measured `px` across from `views` (a turntable: every 45° a little above, and the top); the groom's part a split `part` turns
  * round the head either side of its line (~1.5 cm) */
-export const LOCK_OVERLAP = Object.freeze({ part: 0.025, wide: Object.freeze([1, 1.15, 1.3, 1.5, 1.7, 1.9, 2.15, 2.4]), px: 192, views: Object.freeze([...[0, 45, 90, 135, 180, 225, 270, 315].map((az) => Object.freeze([az, 12])), 'top']) });
+export const LOCK_OVERLAP = Object.freeze({ part: 0.025, near: 2, wide: Object.freeze([1, 1.15, 1.3, 1.5, 1.7, 1.9, 2.15, 2.4]), px: 192, views: Object.freeze([...[0, 45, 90, 135, 180, 225, 270, 315].map((az) => Object.freeze([az, 12])), 'top']) });
 
+/** a curly groom that FALLS (standing less than `stand`, at least `length` m long: curls to the shoulder) is drawn as flows,
+ * as long hair is; one that stands (an afro, a crop of curls) is the coil's sculpted volume */
+export const LOCK_COIL = Object.freeze({ stand: 0.3, length: 0.15 });
+/** the lock hair's class: hair-depict.js hairClass's, a falling curly groom 'long' */
+export function lockClass(S) {
+  const cls = hairClass(S);
+  return cls === 'coil' && (S.stand ?? 0) < LOCK_COIL.stand && S.length >= LOCK_COIL.length ? 'long' : cls;
+}
 /** the dial's numbers at `s` */
 export function lockStyleAt(s) {
   const o = {};
@@ -201,7 +217,7 @@ function gather(feats, k) {
  * lies on what is under it), its top domed and grooved; `rail(station, across −1 … 1, across axis)` a section's underside
  * point where a flow's guides give it (null: the spine's straight section). Pushes into `M` ({ vertices, faces, groups }); `group(u)` a face's.
  */
-function loftLock(M, spine, { width, thick, grooves = 0, depth = 0, ring = 8, outAt, group, clear, twist = 0, rail = null }) {
+function loftLock(M, spine, { width, thick, grooves = 0, depth = 0, ring = 8, outAt, group, clear, twist = 0, rail = null, round = false }) {
   const N = spine.length - 1, base = M.vertices.length, rows = [];
   for (let i = 0; i <= N; i++) {
     const u = i / N, t = unit(sub(spine[Math.min(N, i + 1)], spine[Math.max(0, i - 1)])), o0 = outAt(i, t);
@@ -212,7 +228,7 @@ function loftLock(M, spine, { width, thick, grooves = 0, depth = 0, ring = 8, ou
       const ph = (2 * Math.PI * r) / ring, x = Math.cos(ph), y = Math.sin(ph);
       // (the top domed and grooved across, the underside flatter; the ring's middle a third of its thickness off the spine)
       const g = grooves > 0 && y > 0 ? 1 - depth * (0.5 - 0.5 * Math.cos(2 * Math.PI * grooves * (x + 1) / 2)) * smooth(0, 0.15, u) * (1 - smooth(0.8, 1, u)) : 1;
-      const up = y > 0 ? y * g : y * 0.45;
+      const up = y > 0 ? y * g : y * (round ? 1 : 0.45);
       // (`rail`: a flow's section drawn through its own guides across it, so a broad flow lies on the head as they do)
       const b = rail ? rail(i, x, A) : null;
       let p = b ? add(b, scl(o, (up * h) / 2 + h * 0.2)) : add(spine[i], add(scl(A, (x * w) / 2), scl(o, (up * h) / 2 + h * 0.2)));
@@ -247,6 +263,9 @@ function layDown(P, centre, lie) {
   const r0 = P[0], o = unit(sub(r0, centre));
   return P.map((p, i) => { if (!i) return p; const d = sub(p, r0), l = len(d), h = Math.max(0, dot(d, o)), q = sub(d, scl(o, lie * h)), lq = len(q); return lq > 1e-9 ? add(r0, scl(q, l / lq)) : p; });
 }
+/** a ROPE (a loc, a row, a braid): round, its twist groove a turn every `period` (m) of its kind, drawn in at least `perTurn`
+ * stations a turn (at most `stations` along it); a loc and a row thin, six points round */
+export const LOCK_ROPE = Object.freeze({ period: Object.freeze({ braid: 0.03, loc: 0.05, row: 0.03 }), perTurn: 6, stations: 72 });
 /** a tail's radius along it: full, drawn in over its last third to the dial's end (a point at 0, a round at 1) */
 const tailEnd = (u, St) => 1 - (0.75 - 0.35 * St.round) * smooth(0.55, 1, u) ** 1.5;
 /** a lock's width along it (`u` 0 the root … 1 the tip): full near the root, its end by the dial (a point or a round) */
@@ -256,7 +275,7 @@ function profile(u, St, { point = false, rope = false } = {}) {
   if (point) return Math.max(0.03, (1 - u ** LOCK_SECTION.wedge) * (1 - u) ** 0.45);
   const sharp = (1 - u) ** St.point, round = Math.sqrt(Math.max(0, 1 - u ** 3)) * (1 - 0.25 * u);
   const p = point ? (1 - u) ** 0.8 : lerp(sharp, round, St.round);
-  return Math.max(0.04, p) * (0.85 + 0.15 * smooth(0, 0.12, u));
+  return Math.max(0.04, p) * (0.6 + 0.4 * Math.sqrt(smooth(0, 0.15, u)));
 }
 
 /**
@@ -315,7 +334,7 @@ function noise3(p, s) {
  * dial, `centre` the head's middle (a lock's top faces away from it), `colliders` surfaces the hair falls outside.
  */
 export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false } = {}) {
-  const s = readStylize(stylize), St = lockStyleAt(s), R = LOCK_RUNG[level] ?? LOCK_RUNG.L1, cls = hairClass(S);
+  const s = readStylize(stylize), St = lockStyleAt(s), R = LOCK_RUNG[level] ?? LOCK_RUNG.L1, cls = lockClass(S);
   // (the head's skin, then what the hero gives the hair to fall over: its neck, its shoulders, its back)
   // (a lock lies over the shell, never under it: the shell would hide it)
   const lockGap = LOCK_SHELL.height + HAIR_CLEAR.gap;
@@ -369,29 +388,41 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
   // anime's spiky hair is built) and its trailers are its spikes.
   const stands = cls === 'standing';
   const groupsAll = gatherBy(want).map((g) => (stands ? Object.assign(g, { lie: true }) : g));
-  // the HAIRLINE: the guides rooted within a lock's width of where the scalp's hair stops (its front and sides)
-  const edgeRoot = hairlineOf(chart, D, S), grows = growsOf(chart, D, S);
+  const grows = growsOf(chart, D, S);
+  // (a point's height off the scalp and the way out there: null off the scalp or out of reach)
+  const scalpAt = chart.samples.map((sm) => !!sm && !sm.feature && dermisAt(sm, D, { detail: false }).hair.tract === 'scalp');
+  // (and the same out to a hand's reach, for a point well off the head)
+  const far = surfaceClear(chart, 2 * HAIR_CLEAR.reach), heightOn = (p) => { const i = far.nearest(p); if (i < 0 || !scalpAt[i]) return null; const n = unit(chart.normals[i]); return { h: dot(sub(p, chart.vertices[i]), n), n }; };
+  const offScalp = (p) => { const i = skin.nearest(p); if (i < 0 || !scalpAt[i]) return null; const n = unit(chart.normals[i]); return { h: dot(sub(p, chart.vertices[i]), n), n }; };
+  // (each flow's layer: its root's height among the flows', the highest outermost)
+  const rootZ = (flow) => flow.reduce((a, i) => a + paths[i][0][2], 0) / flow.length;
+  const zs = groupsAll.map(rootZ), z0 = Math.min(...zs), z1 = Math.max(...zs);
+  groupsAll.forEach((g, k) => { g.layer = z1 > z0 ? (zs[k] - z0) / (z1 - z0) : 0; });
   // (a lock's root walked upstream on the scalp toward where the hair stops: when it is reached within `LOCK_EDGE.reach`,
   // the root is laid just past it, so the hairline is the locks' and not the shell's edge)
   const toEdge = (p0, dir, stops = (q) => !grows[skin.nearest(q)]) => { for (let k = 1; k * LOCK_EDGE.step <= LOCK_EDGE.reach; k++) { const q = skin.out(sub(p0, scl(dir, k * LOCK_EDGE.step)), lockGap); if (stops(q)) return q; } return null; };
   const streakOf = (gi) => G.cards[gi]?.streak;
   // (a flow's TRAILERS: its guides farthest out to either side, alternately, the dial's few; each knows its flow's width)
-  const flowWidth = new Map(), nTrail = Math.round(St.trailers * (stands ? LOCK_TRAIL.spikes : 1));
+  const flowWidth = new Map(), flowGeom = new Map(), nTrail = Math.round(St.trailers * (stands ? LOCK_TRAIL.spikes : 1));
   const trailersOf = (flow) => {
     if (flow.trail || flow.length < 2 || !nTrail || guides[flow[0]].tie !== undefined) return [];
     const c = scl(flow.reduce((a, i) => add(a, paths[i][0]), [0, 0, 0]), 1 / flow.length), t = unit(sub(at(paths[flow[0]], arcOf(paths[flow[0]]), 0.3), paths[flow[0]][0])), A = unit(cross(t, unit(sub(c, centre))));
     const by = flow.map((i) => [i, dot(sub(paths[i][0], c), A)]).sort((x, y) => x[1] - y[1] || x[0] - y[0]);
-    const pick = []; for (let k = 0; pick.length < Math.min(nTrail, by.length); k++) pick.push((k % 2 ? by[by.length - 1 - (k >> 1)] : by[k >> 1])[0]);
-    return [...new Set(pick)].map((i) => Object.assign([i], { trail: true, flowWidth: flowWidth.get(flow) ?? spacing * 2 }));
+    const pick = []; for (let k = 0; pick.length < Math.min(nTrail, by.length); k++) pick.push((k % 2 ? by[by.length - 1 - (k >> 1)] : by[k >> 1]));
+    return [...new Map(pick.map(([i, x]) => [i, x]))].map(([i, x]) => Object.assign([i], { trail: true, flow, side: x < 0 ? -1 : 1, flowWidth: flowWidth.get(flow) ?? spacing * 2 }));
   };
-  // (each round the locks a little wider, until the OVERLAP PRINCIPLE holds: hair-score.js overlapHair, the scalp shown only
-  // in a split between locks or at the part; advisory, its last round kept)
+  // (round by round the flows by where the scalp shows a little wider, until the OVERLAP PRINCIPLE holds: hair-score.js
+  // overlapHair, the scalp shown only in a split between locks or at the part; advisory, its last round kept. Each open spot's
+  // `LOCK_OVERLAP.near` nearest flows take the next step of `LOCK_OVERLAP.wide`, the rest keep theirs: volume where the
+  // scalp shows, never every flow widened into panels)
   const exempt = shortAt(guides, guides.map((g, i) => !!paths[i] && (g.tie !== undefined || (g.L ?? 0) > LOCK_SHOWS))), partOf2 = (a) => partDistance(a, S) < LOCK_OVERLAP.part;
   let M, cards, locks, streak, overlap = null, round = 0, trailers = 0;
-  for (const wide of LOCK_OVERLAP.wide) {
+  const step = new Map(groupsAll.map((g) => [g, 0]));
+  for (let r = 0; r < LOCK_OVERLAP.wide.length; r++) {
     M = { vertices: [], faces: [], groups: [] }; cards = []; locks = []; streak = null; round++; counts.tails = 0; trailers = 0;
     for (const flow of groupsAll) for (const members of [flow, ...trailersOf(flow)]) {
       // (a trailer: one guide of its flow, from `LOCK_TRAIL.from` along it to its tip, thinner; standing hair's a spike)
+      const wide = LOCK_OVERLAP.wide[step.get(members.trail ? members.flow : members) ?? 0];
       const trail = !!members.trail, cutOf = (P) => (trail && !stands ? fromOn(P, LOCK_TRAIL.from) : members.lie ? cutTo(P, LOCK_SECTION.underLength) : P);
       if (trail) trailers++;
       const Ls = members.map((i) => arcOf(cutOf(paths[i])).at(-1)), Lm = Ls.reduce((a, b) => a + b, 0) / Ls.length;
@@ -402,6 +433,9 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       if (stands && members.lie) rs = rs.map((P) => layDown(P, centre, LOCK_SECTION.under));
       let spine = rs[0].map((_, j) => scl(rs.reduce((a, P) => add(a, P[j]), [0, 0, 0]), 1 / rs.length));
       const core = spine;
+      // (a lying flow's trailer rides its flow's edge, as its flow lies: never its own guide flaring off it)
+      const ride = trail && !stands ? flowGeom.get(members.flow) : null;
+      if (ride) spine = rideEdge(ride, members.side);
       // (standing hair as an anime SECTION, less spiky: laid down along the comb by `LOCK_SECTION.lie`, its length kept, so
       // it shingles over the next and lifts toward its tip)
       const stand = stands && trail;
@@ -420,18 +454,23 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       // (and its tip on downstream to where the hair stops or turns to stubble, when that is within reach: the cut's line,
       // a fade's, is the locks' and not the shell's edge)
       let cutEnd = false;
-      if (!tied && !stand) { const N0 = spine.length - 1, tEnd = unit(sub(spine[N0], spine[N0 - 1])), end = toEdge(spine[N0], scl(tEnd, -1), (q) => !grows[skin.nearest(q)] || exempt(q)); if (end) { spine = [...spine, end]; cutEnd = true; } }
+      if (!tied && !stand && !ride) { const N0 = spine.length - 1, tEnd = unit(sub(spine[N0], spine[N0 - 1])), end = toEdge(spine[N0], scl(tEnd, -1), (q) => !grows[skin.nearest(q)] || exempt(q)); if (end) { spine = [...spine, end]; cutEnd = true; } }
       // (a flow that reaches the cut's line keeps its width to it, cut there: only a free end draws to its tip)
       const along = (u) => (cutEnd ? Math.min(u, LOCK_EDGE.held) : u);
       spine = spine.map(clear);
+      // (a lying flow's root, walked or reached back along its first tangent, laid round the head at its first guide point's height: a
+      // straight reach off a curved crown stands up off it)
+      if (pre && !stands) { const h0 = heightOn(spine[pre]); if (h0) for (let k = 0; k < pre; k++) { const a = heightOn(spine[k]); if (a) spine[k] = add(spine[k], scl(a.n, Math.max(lockGap, h0.h) - a.h)); } }
       // (never wider than it is long and half again: a clipped nape's short guides make no wing; a section's root at least
       // `LOCK_SECTION.base` of its length: a broad wedge, never a thorn)
       const wFlow = Math.min(Math.max(1.6 * spacing, St.cover * wide * (Math.max(...across) - Math.min(...across) + spacing)) * (tied ? 0.9 : 1), Math.max(spacing, 1.5 * arcOf(spine).at(-1)));
       const w0 = trail ? Math.max(spacing, LOCK_TRAIL.width * members.flowWidth) : wFlow;
-      if (!trail) flowWidth.set(members, wFlow);
+      // (a lying flow's trailer as wide as its flow's own, never the round's volume: a widened flow's trailers would hang as
+      // panels; standing hair's spikes are its volume, and widen with it)
+      if (!trail) flowWidth.set(members, wFlow / (stands ? 1 : wide));
       const wBase = stand ? Math.max(w0, LOCK_SECTION.base * Lm * wide) : w0;
       // (a lock's width is its members' spread where they gather tighter than its root: a tie, a parting)
-      const spread = rs[0].map((_, j) => { let m = 0; for (const P of rs) m = Math.max(m, len(sub(P[j], spine[j]))); return 2 * m + spacing; });
+      const spread = !tied ? null : rs[0].map((_, j) => { let m = 0; for (const P of rs) m = Math.max(m, len(sub(P[j], spine[j]))); return 2 * m + spacing; });
       const widthAt = (u) => { const j = Math.min(n, Math.round(u * n)); return Math.min(wBase * profile(along(u), St, { point: stand }), tied ? Math.max(spacing, spread[j] * 1.1) : Infinity); };
       // (a flow volumized with the rounds: its thickness its width's share, the width grown; a trailer as the dial's)
       const flat = tied ? St.flat * 0.6 : stand ? LOCK_SECTION.flat : members.lie && stands ? LOCK_SECTION.underFlat * wide : St.flat;
@@ -444,39 +483,47 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       // (its thickness its width's share, at most the dial's `thick`: volume, never a slab)
       // (a flow of guides drawn through them across it: its station's row of guide points, sorted across, the section on
       // past the outermost by the margin, drawn in toward the tip by the dial's profile; a trailer or a lone guide a tube)
-      const N1 = spine.length - 1, margin = LOCK_RAIL.margin * spacing * wide;
+      // (the round's volume over the scalp only, where the principle looks: a flow hanging free keeps its own margin)
+      const N1 = spine.length - 1, margin = (i) => LOCK_RAIL.margin * spacing * (1 + (wide - 1) * (spineOff[i] ? 1 - smooth(LOCK_CONFORM.near, LOCK_CONFORM.far, spineOff[i].h) : 0));
       // (the section a smooth arc: the guides' rise off the straight section fitted as a parabola across, so it curves as the
       // head does under them and never crumples where two guides cross)
       const rail = rs.length < 2 || stand ? null : (i, x, A) => {
         const j = Math.max(0, Math.min(n, i - pre)), d = sub(spine[i], core[j]), t = unit(sub(spine[Math.min(N1, i + 1)], spine[Math.max(0, i - 1)])), o = unit(cross(A, t));
         const pts = rs.map((P) => sub(add(P[j], d), spine[i])).map((q) => [dot(q, A), dot(q, o)]);
-        const xs = pts.map((q) => q[0]), x0 = Math.min(...xs), x1 = Math.max(...xs), lo = x0 - margin, hi = x1 + margin, X = (lo + hi) / 2 + ((x * (hi - lo)) / 2) * profile(along(i / N1), St, {});
+        const xs = pts.map((q) => q[0]), x0 = Math.min(...xs), x1 = Math.max(...xs), lo = x0 - margin(i), hi = x1 + margin(i), X = (lo + hi) / 2 + ((x * (hi - lo)) / 2) * profile(along(i / N1), St, {});
         // (past its outermost guides straight on along the arc's slope there: an arc extrapolated curls off the head)
         // (its slope at most `LOCK_RAIL.slope`, its rise off the row's middle at most the arc's own bound: never a chopstick)
         const f = parabola(pts), e = 1e-4, Xc = Math.max(x0, Math.min(x1, X)), slope = Math.max(-LOCK_RAIL.slope, Math.min(LOCK_RAIL.slope, (f(Xc + e) - f(Xc - e)) / (2 * e)));
         const y = f(Xc) + slope * (X - Xc), my = pts.reduce((a, q) => a + q[1], 0) / pts.length;
-        return add(spine[i], add(scl(A, X), scl(o, Math.max(my - LOCK_RAIL.rise, Math.min(my + LOCK_RAIL.rise, y)))));
+        const p = add(spine[i], add(scl(A, X), scl(o, Math.max(my - LOCK_RAIL.rise, Math.min(my + LOCK_RAIL.rise, y)))));
+        // (over the scalp, laid at the spine's height off it, the flow's layer out: LOCK_CONFORM)
+        const hs = spineOff[i], at = hs && offScalp(p);
+        if (!at) return p;
+        const w = 1 - smooth(LOCK_CONFORM.near, LOCK_CONFORM.far, hs.h);
+        return add(p, scl(at.n, w * (Math.max(lockGap, hs.h) + LOCK_CONFORM.layer * (members.layer ?? 0) * smooth(0, LOCK_CONFORM.rise, i / N1) - at.h)));
       };
+      const spineOff = spine.map(offScalp);
       // (its thickness its width's share, at most the dial's `thick`: volume, never a slab)
-      loftLock(M, spine, { width: widthAt, thick: (u) => Math.min(St.thick, widthAt(u) * flat) * (0.25 + 0.75 * smooth(0, 0.3, u)), grooves: R.ring >= 8 ? St.grooves : 0, depth: St.depth, ring: R.ring, outAt, group, clear, rail });
-      if (!trail) locks.push({ guides: members.length, length: Lm, width: w0 });
-      // the CARDS (the dial's share): a tip card on from the lock's last third, and the hairline's laid forward off its root
+      const lockThick = (u) => Math.min(St.thick, widthAt(u) * flat) * (0.25 + 0.75 * smooth(0, 0.3, u));
+      loftLock(M, spine, { width: widthAt, thick: lockThick, grooves: R.ring >= 8 ? St.grooves : 0, depth: St.depth, ring: R.ring, outAt, group, clear, rail });
+      if (!trail) { locks.push({ guides: members.length, length: Lm, width: w0 }); flowGeom.set(members, { spine, rail, thick: lockThick, widthAt, outAt, cutEnd }); }
+      // the TIP CARDS (the dial's share), on from the lock's last third (the hairline is the fade's)
       if (St.cards > 0) {
         const die = hash(members[0], members.length, 11, S.seed ?? 1);
-        if (die < St.cards && !tied && !trail) cards.push(tipCard(spine, widthAt, Lm, St, outAt, clear, group(1)));
-        if (!trail && members.some((i) => edgeRoot(guides[i].root))) cards.push(edgeCard(spine, widthAt, St, outAt, skin, group(0)));
+        if (die < St.cards && !tied && !trail) cards.push(...tipCards(spine, { widthAt, thick: lockThick, rail, outAt, clear, L: Lm, St, group: group(1) }));
       }
     }
     counts.locks = locks.length;
     // ── the TAILS: a ponytail, a braid, a bun, a loc, a row, each a separate mass ──
     for (const T of G?.tails ?? []) {
-      const n = Math.max(4, Math.min(R.stations * (T.kind === 'bun' ? 3 : 2), Math.ceil(arcOf(T.pts).at(-1) / R.seg)));
+      const rope = T.kind === 'loc' || T.kind === 'row' || T.kind === 'braid', LT = arcOf(T.pts).at(-1), turns = rope ? LT / LOCK_ROPE.period[T.kind] : 0;
+      // (a rope's stations as its twist needs them: a turn drawn in fewer reads as a zigzag)
+      const n = Math.max(4, Math.min(R.stations * (T.kind === 'bun' ? 3 : 2), Math.ceil(LT / R.seg)), Math.min(LOCK_ROPE.stations, Math.ceil(turns * LOCK_ROPE.perTurn)));
       const idx = Array.from({ length: n + 1 }, (_, j) => Math.round((j * (T.pts.length - 1)) / n)), spine = idx.map((j) => T.pts[j]).map(clear), rr = idx.map((j) => T.r[j]);
-      const rope = T.kind === 'loc' || T.kind === 'row' || T.kind === 'braid';
       const rad = (u) => rr[Math.min(n, Math.round(u * n))] * (T.kind === 'tail' ? tailEnd(u, St) : 1);
       const outAt = (i, t) => unit(perp(sub(spine[i], centre), t), unit(perp([0, 0, 1], t), [0, 1, 0]));
       // (the core: round, the tail's own radius; a rope's twist a groove spiralling round it)
-      loftLock(M, spine, { width: (u) => 2 * rad(u), thick: (u) => 2 * rad(u) * (rope ? 0.85 : 0.8), grooves: rope ? 1 : 0, depth: rope ? St.depth * 0.8 : 0, ring: Math.max(6, R.ring), outAt, group: () => LOCK_GROUPS.mass, clear, twist: rope ? arcOf(spine).at(-1) / 0.03 : 0 });
+      loftLock(M, spine, { width: (u) => 2 * rad(u), thick: (u) => 2 * rad(u) * (rope ? 0.85 : 0.8), grooves: rope ? 1 : 0, depth: rope ? St.depth * 0.8 : 0, ring: T.kind === 'loc' || T.kind === 'row' ? 6 : Math.max(6, R.ring), outAt, group: () => LOCK_GROUPS.mass, clear, twist: turns, round: rope });
       // (a ponytail's and a bun's locks round the core: the dial's few chunky or many fine)
       if (!rope) {
         const k = Math.max(3, Math.round(lerp(9, 4, s) * (level === 'L0' ? 0.6 : 1)));
@@ -486,7 +533,7 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
           const lw = (u) => 2 * rad(u) * Math.sin(Math.PI / k) * 2;
           const louts = (i, t) => unit(perp(sub(lspine[i], spine[i]), t), outAt(i, t));
           loftLock(M, lspine, { width: lw, thick: (u) => lw(u) * St.flat * 1.2, grooves: R.ring >= 8 ? St.grooves : 0, depth: St.depth, ring: R.ring, outAt: louts, group: () => LOCK_GROUPS.mass, clear });
-          if (St.cards > 0 && T.kind === 'tail' && hash(q, k, 13, S.seed ?? 1) < St.cards) cards.push(tipCard(lspine, lw, arcOf(lspine).at(-1), St, louts, clear, LOCK_GROUPS.mass));
+          if (St.cards > 0 && T.kind === 'tail' && hash(q, k, 13, S.seed ?? 1) < St.cards) cards.push(...tipCards(lspine, { widthAt: lw, thick: (u) => lw(u) * St.flat * 1.2, outAt: louts, clear, L: arcOf(lspine).at(-1), St, group: LOCK_GROUPS.mass }));
         }
       }
       counts.tails++;
@@ -494,6 +541,13 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
     if (!M.faces.length || cls === 'rope') break;
     overlap = overlapHair(chart, D, { mass: M, under: [cap] }, { px: LOCK_OVERLAP.px, views: LOCK_OVERLAP.views, exempt, partOf: partOf2, maps });
     if (overlap.passes) break;
+    // (the flows nearest where the scalp shows a step wider; none left to widen, the round stands)
+    const toFlow = (p, g) => Math.min(Infinity, ...(flowGeom.get(g)?.spine ?? []).map((q) => len(sub(p, q))));
+    const grow = new Set();
+    for (const p of overlap.openAt) for (const [g] of groupsAll.map((g, k) => [g, toFlow(p, g), k]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).slice(0, LOCK_OVERLAP.near)) grow.add(g);
+    let grew = false;
+    for (const g of grow) if (step.get(g) < LOCK_OVERLAP.wide.length - 1) { step.set(g, step.get(g) + 1); grew = true; }
+    if (!grew) break;
   }
   counts.trailers = trailers;
   const overlapMaps = maps && overlap?.maps ? { maps: overlap.maps, px: overlap.px } : null;
@@ -506,36 +560,43 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
   return { mesh: M.faces.length ? { ...M, closure: 'closed' } : null, cards: C, cap, locks, ...(streak ? { streak } : {}), ...(overlapMaps ? { overlap: overlapMaps } : {}), counts: { ...counts, faces: M.faces.length, cardFaces: C?.faces.length ?? 0, shell: cap?.faces.length ?? 0 } };
 }
 
+/** a trailer's spine along its flow `F`'s edge on `side`: over its top there from LOCK_TRAIL.from on, past a free tip */
+function rideEdge(F, side) {
+  const { spine, rail, thick, widthAt, outAt, cutEnd } = F, N = spine.length - 1, i0 = Math.min(N - 1, Math.round(N * LOCK_TRAIL.from)), x = side * LOCK_TRAIL.at, pts = [];
+  for (let i = i0; i <= N; i++) {
+    const t = unit(sub(spine[Math.min(N, i + 1)], spine[Math.max(0, i - 1)])), o = outAt(i, t), A = unit(cross(t, o)), h = thick(i / N);
+    const b = rail ? rail(i, x, A) : add(spine[i], scl(A, (x * widthAt(i / N)) / 2));
+    pts.push(add(b, scl(o, (Math.sqrt(1 - x * x) * h) / 2 + h * 0.2)));
+  }
+  if (!cutEnd) pts.push(add(pts.at(-1), scl(unit(sub(spine[N], spine[N - 1])), LOCK_TRAIL.beyond * arcOf(pts).at(-1))));
+  return pts;
+}
 /** where a guide too short for a lock is the nearest: the shell is the hair there (the overlap principle passes over it) */
 function shortAt(guides, long) {
   const roots = guides.map((g) => g.root);
   return (p) => { let bi = -1, bd = Infinity; roots.forEach((r, i) => { const d = len(sub(p, r)); if (d < bd) { bd = d; bi = i; } }); return bi >= 0 && !long[bi]; };
 }
-/** a TIP CARD: from where the lock is three quarters along, on past its tip by the dial's reach, as wide as it is there */
-function tipCard(spine, widthAt, L, St, outAt, clear, group) {
-  const n = spine.length - 1, j0 = Math.max(1, Math.round(n * 0.7)), t = unit(sub(spine[n], spine[n - 1])), ext = Math.min(HAIR_LOCKS.cardMax, St.card * L);
-  if (ext < 0.006) return null;
-  const pts = [...spine.slice(j0), clear(add(spine[n], scl(t, ext * 0.5))), clear(add(spine[n], scl(t, ext)))];
-  const w0 = widthAt(j0 / n), across = pts.map((p, i) => { const k = Math.min(n, j0 + i), tt = unit(sub(pts[Math.min(pts.length - 1, i + 1)], pts[Math.max(0, i - 1)])); return unit(cross(tt, outAt(k, tt))); });
-  return { pts, across, half: pts.map((_, i) => (w0 / 2) * (1 - 0.2 * (i / (pts.length - 1)))), group };
-}
-/** a HAIRLINE CARD: from a little into the lock back over its root and on down onto the skin, its strands' ends there */
-function edgeCard(spine, widthAt, St, outAt, skin, group) {
-  const n = spine.length - 1, j = Math.min(n, 2), t = unit(sub(spine[1], spine[0])), reach = 0.006 + 0.006 * St.cards;
-  const back = [1, 2].map((k) => skin.out(sub(spine[0], scl(t, (reach * k) / 2)), HAIR_CLEAR.gap * 0.6));
-  const pts = [...spine.slice(0, j + 1).reverse(), ...back];
-  const across = pts.map((p, i) => { const tt = unit(sub(pts[Math.min(pts.length - 1, i + 1)], pts[Math.max(0, i - 1)])); return unit(cross(tt, outAt(0, tt))); });
-  return { pts, across, half: pts.map(() => widthAt(0) / 2), group };
+/** TIP CARDS: from `from` along a lock, on past its tip by the dial's reach, laid ON its top: as many narrow cards side by side
+ * as its width takes at `width` (m) each, each through the lock's own section (its rail, else its straight one), so a broad
+ * flow's cards curve with it and never stand off it as a plank; `lift` (m) over its top */
+export const LOCK_TIP = Object.freeze({ from: 0.7, width: 0.016, lift: 0.0004 });
+function tipCards(spine, { widthAt, thick, rail = null, outAt, clear, L, St, group }) {
+  const n = spine.length - 1, j0 = Math.max(1, Math.round(n * LOCK_TIP.from)), ext = Math.min(HAIR_LOCKS.cardMax, St.card * L);
+  if (ext < 0.006) return [];
+  const frame = (i) => { const t = unit(sub(spine[Math.min(n, i + 1)], spine[Math.max(0, i - 1)])), o = outAt(i, t); return { o, A: unit(cross(t, o)) }; };
+  // (a point of its top across it, `x` −1 … 1 as the loft's ring: the rail's underside raised by the dome there)
+  const top = (i, x) => { const { o, A } = frame(i), h = thick(i / n), b = rail ? rail(i, x, A) : add(spine[i], scl(A, (x * widthAt(i / n)) / 2)); return add(b, scl(o, (Math.sqrt(Math.max(0, 1 - x * x)) * h) / 2 + h * 0.2 + LOCK_TIP.lift)); };
+  const k = Math.max(1, Math.ceil(len(sub(top(j0, 1), top(j0, -1))) / LOCK_TIP.width)), out = [];
+  for (let q = 0; q < k; q++) {
+    const x = 0.9 * (-1 + (2 * q + 1) / k), hx = 0.9 / k, stations = Array.from({ length: n - j0 + 1 }, (_, m) => j0 + m);
+    const body = stations.map((i) => clear(top(i, x))), half = stations.map((i) => len(sub(top(i, x + hx), top(i, x - hx))) / 2), across = stations.map((i) => unit(sub(top(i, x + hx), top(i, x - hx))));
+    const d = unit(sub(spine[n], spine[n - 1])), pts = [...body, clear(add(body.at(-1), scl(d, ext * 0.5))), clear(add(body.at(-1), scl(d, ext)))];
+    out.push({ pts, across: [...across, across.at(-1), across.at(-1)], half: [...half, half.at(-1) * 0.9, half.at(-1) * 0.8], group });
+  }
+  return out;
 }
 /** each chart point: does it grow the scalp's hair (off the part) */
 const growsOf = (chart, D, S) => chart.samples.map((s) => { if (!s || s.feature) return false; const H = dermisAt(s, D, { detail: false }).hair; return H.tract === 'scalp' && H.kind === 'terminal' && !(S && partDistance(s, S) < HAT_CAP.part); });
-/** the hairline: a test for a root within ~1.5 cm of where the scalp's hair stops (its front and its temples) */
-function hairlineOf(chart, D, S) {
-  const edge = [], grows = growsOf(chart, D, S);
-  for (const t of chart.faces) { const g = t.map((v) => grows[v]); if (g.some(Boolean) && !g.every(Boolean)) for (const v of t) if (grows[v] && chart.vertices[v][1] > 0) edge.push(chart.vertices[v]); }
-  return (p) => edge.some((q) => len(sub(p, q)) < 0.015);
-}
-
 /**
  * BLADES AS LOCKS (the beard's, realistic laws 10: hero-head-layers.js heroFaceHair): each blade { pts, half } (dermal-hair.js
  * bladeOf's) lofted as a lock over its spine, as wide as the blade by the dial's cover, rounder and fewer-grooved toward 1,

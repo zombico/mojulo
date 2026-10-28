@@ -29,15 +29,28 @@ The eyes gate is the operator's.
     middles and ends, never across the part. Each flow's section is drawn through its own guides across it: a smooth
     arc fitted to them, so a broad flow lies on the head as its guides do. It is domed and grooved on top, flat beneath.
     Its root runs to the hairline and its end to the cut's line. Under it the cap is kept as a solid inner shell.
-  - VOLUME: round by round the flows' margins and thickness grow until the overlap principle holds (below).
-  - TRAILERS: a few strokes per flow off its edges toward its tip, breaking its outline.
+  - THE FLOWS LIE ON THE HEAD (`LOCK_CONFORM`). Over the scalp a flow's section wraps round the head at its spine's own
+    height, not as a chord across it, and the higher a flow is rooted the further out it lies (the crown's hair over the
+    nape's). Its root comes out of the scalp, and a root reached back off a curved crown is laid back on it. So the flows
+    shingle, never planks standing off the head at angles (long hair at `stylize` 0 read as crumpled paper).
+  - VOLUME: round by round, only the flows nearest where the scalp shows grow wider, and only over the scalp, until the
+    overlap principle holds (below): widening every flow hung panels below the head.
+  - TRAILERS: a few strokes per flow riding its edges toward its tip and on past a free tip, breaking its outline, never
+    flaring off the mass along a guide of their own.
   - THE FADE: the shell's edge is smoothed into a curve (`hair-depict.js` `capMesh` `smoothEdge`, laws 10 only) and
-    fringed with strand cards running out over the skin, so no hairline is a hard line.
-  - One procedure per hair class (`hairClass`). Cropped is the shell alone, raised to the hair's length. Coily is a
-    sculpted volume: the shell raised to where the coils stand, in puffs. Short and long hair are flows and trailers.
-    Standing hair is anime sections: a lying layer of flows with laid-down spikes over it, less spiky than anime. Tied
+    fringed with strand cards running out over the skin, so no hairline is a hard line. The fade is the hairline's only
+    cards (a card as wide as a flow stood off the temples as a barred plank in the skinned GLB).
+  - TIP CARDS (`LOCK_TIP`, toward `stylize` 0): laid on a lock's top as narrow cards side by side, each through the
+    lock's own section, so a broad flow's cards curve with it; one straight card across a broad flow (up to 18 cm) stood
+    off it.
+  - One procedure per hair class (`lockClass`). Cropped is the shell alone, raised to the hair's length. Standing coils
+    (an afro, a crop of curls) are a sculpted volume: the shell raised to where the coils stand, in puffs. Curly hair that
+    falls (`curls`) is flows, as long hair is: as a volume it flared off one side of the head as a brim. Short and long
+    hair are flows and trailers. Standing hair is anime sections: a lying layer of flows with laid-down spikes over it,
+    less spiky than anime. Tied
     hair is flat flows pulled to the tie, with the tail (a ponytail, a braid, a bun) a separate mass: a core wrapped by
-    locks. Locs and rows are ropes, each with a twist groove.
+    locks. Locs and rows are ropes, each round with a twist groove, drawn in enough stations for its twist (`LOCK_ROPE`;
+    fewer drew a braid as a flat zigzag).
   - Every stroke lies off the head's skin and ears and over the shell. A long flow also falls outside the hero's neck,
     shoulders and back (the compiled parts, `HAIR_HANG`). Its points below the head ride the neck and the torso
     (`boneWeights`), so the skinned GLB swings it with the body.

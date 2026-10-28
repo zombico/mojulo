@@ -114,8 +114,9 @@ them. Each globe is its own closed part (`globeR`, `globeL`: rings about its gaz
 rings of their own), and the ears are as below. The hair, the brows, the lashes, the beard and the piercings are pinned
 to the skin's faces. Under laws 10 the scalp's hair is LOCKS in one colour over a solid shell
 (`control/lib/graph/epidermis/hair-locks.js`): the groom's guides gathered and lofted as tapered, grooved tubes, the
-face's `stylize` their register. A long lock's points below the head ride the neck and the torso, and it falls outside
-the shoulders. The overlap principle (`hair-score.js` `overlapHair`) holds the scalp hidden except in the splits. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
+face's `stylize` their register. Over the scalp each flow wraps round the head at its own height, the higher-rooted
+flows the outer, so they shingle and never stand off as chords. A long lock's points below the head ride the neck and the
+torso, and it falls outside the shoulders. The overlap principle (`hair-score.js` `overlapHair`) holds the scalp hidden except in the splits. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
 carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
