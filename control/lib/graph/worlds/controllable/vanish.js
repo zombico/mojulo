@@ -18,8 +18,8 @@
  * A platformer's squash and a pinball's pop are kinds of going (`is`), played by the page at once.
  *
  * MODES (`body.modes: [{ figure, hp? }, …]`, optional, the first the mode it starts in): a foe in a mode with another
- * under it is DEFEATED by a killing blow, never destroyed: it is knocked down (combat-hit's `noDestroy`), resets into the
- * next mode (its figure, its health) and rises from the knockdown, `e.shed` telling the page what it was; only the last
+ * under it is DEFEATED by a killing blow, never destroyed (combat-hit's `noDestroy` refills it): it reels (a stagger, not
+ * the knockdown), resets into the next mode (its figure, its health) and fights on, `e.shed` telling the page what it was; only the last
  * mode, layer 0, dies (and is destroyed or goes as above). Field ownership: e.modeIdx, e.modeHp, e.shed.
  *
  * Wraps stepWorld, as hitstop.js does, so the pinned pipeline order is untouched. Import-free (the page runs this source
@@ -67,7 +67,7 @@ export function buildVanish(E) {
     // stagger are a mecha's; its latch is set before the pass can fire it)
     for (const e of state.entities) if (e.body && e.body.vanish && !e.deathBurstDone) e.deathBurstDone = true;
     // MODES (`body.modes`, optional): while a mode is left under this one, a killing blow DEFEATS it, never destroys it
-    // (combat-hit's `noDestroy`: it is knocked down, its bar refilled, and it rises)
+    // (combat-hit's `noDestroy`: its bar refilled, never downed)
     for (const e of state.entities) {
       const M = e.body && e.body.modes; if (!Array.isArray(M) || M.length < 2) continue;
       if (e.modeIdx == null) e.modeIdx = 0;
@@ -75,7 +75,7 @@ export function buildVanish(E) {
     }
     step(state, input, dt, hooks);
     dt = dt || 1 / 60;
-    // a mode defeated: it resets into the next (its figure, its health), rising from the knockdown, and the page sheds
+    // a mode defeated: it resets into the next (its figure, its health), reeling, and the page sheds
     // what the next lacks (`e.shed`: the figure it was, the way it was struck)
     for (const e of state.entities) {
       const M = e.body && e.body.modes; if (!Array.isArray(M) || M.length < 2 || e.modeIdx >= M.length - 1 || e.gone) continue;
@@ -87,8 +87,9 @@ export function buildVanish(E) {
       const N = M[e.modeIdx];
       if (N.figure) e.body.figure = N.figure;
       if (Number.isFinite(N.hp)) { e.body.hp = N.hp; e.hpMax = N.hp; }
-      // (a path that downed it outright: it is knocked down and rises all the same)
-      if (e.downed) { e.downed = false; e.deadAt = null; e.reactClip = 'topple'; e.staggerT = 0; e.downPauseT = null; e.reactDur = e.toppleDur || (e.staggerDur || 1.3) * 1.3; }
+      // (a defeat is a beat, not a knockdown: it reels, its armour torn off, and fights on; a path that downed it outright
+      // is undone the same way)
+      e.downed = false; e.deadAt = null; e.reactClip = 'stagger'; e.staggerT = 0; e.downPauseT = null; e.reactDur = e.staggerDur || 1.3;
       e.noDestroy = e.modeIdx < M.length - 1;
       e.shed = { seq: e.shed ? e.shed.seq + 1 : 0, t0: state.time || 0, figure: prev, into: e.body.figure, from: [Math.cos(a), Math.sin(a)] };
     }

@@ -652,7 +652,7 @@ through the character designer, clips fitted to the class's timing, factions) is
     runtime's own variant swap and the walk carries across.
   - What a defeated mode SHEDS is what its figure carries and the next lacks, bone by bone (`shedParts`, laid on the
     figure at mint): an armoured skeleton's helm, cuirass, pauldrons, bracers and greaves torn off where they were
-    worn and thrown off the blow while the bare skeleton gets up and fights on.
+    worn and thrown off the blow while the bare skeleton reels (a stagger, never the knockdown) and fights on.
   - The worked example: an armoured skeleton (the `adorned` layer) whose modes are itself and the bare skeleton of the
     same seed. The first killing blow tears its armour off; the second destroys it.
 
