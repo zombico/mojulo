@@ -619,7 +619,7 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
  * and the lid slides under it); a lid is its margin's by the skin's own way (`faces` given: the distance along the skin
  * from the margin, out to `geoUp` or `geoLow`), else by those bands. The beads carry what the lids leave (under the lower
  * lid `carryUnder` of it); in the eye's footprint the settle reaches `settleIn` of its own */
-export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoUp: [0.004, 0.01], geoLow: [0.002, 0.006] });
+export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoUp: [0.004, 0.01], geoLow: [0.002, 0.006], smooth: 12 });
 /**
  * Where the one skin's points go under `actions` (head-relational.js ACTIONS): `points` { id: [x, y, z] } and
  * `normals` { id: n } in the hero's frame (the rest skin's: hero-one-skin.js), the face's words and its `fit`. →
@@ -687,12 +687,11 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
       while (heap.length) { const [d, i] = pop(); if (d > D[i]) continue; const N = nb[i]; for (let j = 0; j < N.length; j += 2) { const e = d + N[j + 1]; if (e < D[N[j]]) { D[N[j]] = e; push(N[j], e); } } }
       return new Map(ids.map((id, i) => [id, D[i]]));
     };
-    geo = { up: walk(lash(M0.upper)), low: walk(lash(M0.lower)) };
+    geo = { up: walk(lash(M0.upper)), low: walk(lash(M0.lower)), ids, ix, nb };
   }
   const ramp2 = (x, [a, b]) => 1 - ramp((x - a) / (b - a));
-  const out = {}, globes = rest.globes.map((g) => g.field);
+  const out = {}, globes = rest.globes.map((g) => g.field), pre = new Map();
   for (const [id, p] of Object.entries(points)) {
-    const n = normals[id];
     const socket = globes.some((g) => g(S2(p)) < 0);
     let inside = 0, under = 0, lid = null;
     {
@@ -718,12 +717,37 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
         const w = (1 - ramp(Math.max(cols.u0 - u, u - cols.u1, 0) / F.canthus)) * ramp((F.lidReach - rg) / (0.25 * F.lidReach))
           // (the lower lid also only as far out as its margin: the cheek standing in front of it is the cheek's, and turned
           // with the lid it swung up across the eye)
-          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2(gU, F.geoUp) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
+          // (and the upper only as far out as its margin too: the fold's underside lies within the lid's reach along the
+          // skin, past the crease, but in front of the lid; turned about the globe on its longer radius it swept down
+          // through the lid, the shut lid a heap of shards)
+          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2(gU, F.geoUp) * ramp2(rg - rTop(uc), F.lidOut) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
             : a >= aT ? ramp2(a - aT, F.lidBand) * ramp2(rg - rTop(uc), F.lidOut) : a <= aB ? ramp2(aB - a, F.lowBand) * ramp2(rg - rBot(uc), F.lidOut) : 1);
         // (a lid's point is the lid's for every action, turned or not: a smile's beads would draw the upper lid down)
-        if (w > 1e-4) lid = { q: Math.abs(da) > 1e-7 ? back(turnLid(pp, da * w)) : p, w };
+        lid = { w, th: da * w, pp, back };
       }
     }
+    pre.set(id, { p, socket, inside, under, lid });
+  }
+  // THE LIDS SMOOTHED over the skin's own neighbours (`faces` given), their weight and their turn, `smooth` times: a
+  // lid's weight eases out with the distance along the skin, which is the net's edges' and jagged, and a turn of 40° or
+  // more makes a hundredth of difference between neighbours a sliver across the shut lid
+  if (geo && F.smooth) {
+    const { ids, nb } = geo, L = ids.map((id) => pre.get(id).lid), W = L.map((l) => l?.w ?? 0), T = L.map((l) => l?.th ?? 0);
+    for (let it = 0; it < F.smooth; it++) {
+      const W2 = W.slice(), T2 = T.slice();
+      for (let i = 0; i < ids.length; i++) {
+        if (!L[i] || !nb[i].length) continue;
+        let sw = 0, st = 0, c = 0;
+        for (let j = 0; j < nb[i].length; j += 2) { sw += W[nb[i][j]]; st += T[nb[i][j]]; c++; }
+        W2[i] = 0.5 * W[i] + (0.5 * sw) / c; T2[i] = 0.5 * T[i] + (0.5 * st) / c;
+      }
+      W.splice(0, W.length, ...W2); T.splice(0, T.length, ...T2);
+    }
+    ids.forEach((id, i) => { if (L[i]) { L[i].w = W[i]; L[i].th = T[i]; } });
+  }
+  for (const [id, { p, socket, inside, under, lid: L }] of pre) {
+    const n = normals[id];
+    const lid = L && L.w > 1e-4 ? { q: Math.abs(L.th) > 1e-7 ? L.back(turnLid(L.pp, L.th)) : p, w: L.w } : null;
     // (the socket behind a globe turns with the lids over it, else stays)
     if (socket) { out[id] = lid ? lid.q : p; continue; }
     // (the beads carry what the lids leave; the settle reaches less in the eye's footprint: the fold's layers lie closer

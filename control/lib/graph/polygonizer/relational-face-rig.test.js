@@ -18,10 +18,16 @@ describe('the realistic face\'s weights', () => {
     expect(at({ mouthCorner: CHANNEL_RANGES.mouthCorner[0] }).smile).toBe(0);
     expect(at({ browRaise: CHANNEL_RANGES.browRaise[1] }).browRaise).toBe(1);
     expect(at({ browRaise: CHANNEL_RANGES.browRaise[0] }).browLower).toBe(1);
-    // (an acted take's brow is the tilt: set, the corrugator's lower; worried, the raise)
+    // (an acted take's brow is the tilt: set, the corrugator's lower; worried, its own inner raise, not the brows' lift)
     expect(at({ browTilt: CHANNEL_RANGES.browTilt[1] }).browLower).toBe(1);
-    expect(at({ browTilt: CHANNEL_RANGES.browTilt[0] }).browRaise).toBe(1);
+    expect(at({ browTilt: CHANNEL_RANGES.browTilt[0] }).browWorried).toBe(1);
+    expect(at({ browTilt: CHANNEL_RANGES.browTilt[0] }).browRaise).toBe(0);
     expect(at({ browTilt: CHANNEL_RANGES.browTilt[1] / 2, browRaise: CHANNEL_RANGES.browRaise[0] }).browLower).toBe(1);
+    // (the aperture: wide over 1, squinted under it, as far as the lids are open; a surprised key widens the eyes)
+    expect(at({ aperture: CHANNEL_RANGES.aperture[1] }).eyeWide).toBe(1);
+    expect(at({ aperture: CHANNEL_RANGES.aperture[0] }).eyeSquint).toBe(1);
+    expect(at({ aperture: CHANNEL_RANGES.aperture[1], blink: 1 }).eyeWide).toBe(0);
+    expect(at(EXPRESSIONS.surprised).eyeWide).toBeGreaterThan(0.5);
   });
 });
 
@@ -59,6 +65,10 @@ describe('the realistic face rig', () => {
     mesh.vertices.forEach((_, i) => { if (mesh.provenance[i].part !== 'hair') return; hair++; const k = F.sub[i]; if (k < 0) return; const o = k * W + 3 + ti2 * 3; if (Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2]) > 5e-4) moved++; });
     expect(moved / hair).toBeLessThan(0.2);
     expect(move('smile', /^headSkin$/)).toBeGreaterThan(0.003);
+    // (the eyes' own: the lids, the lashes riding them; the worried brow its hairs)
+    for (const t of ['eyeWide', 'eyeSquint']) { expect(move(t, /^headSkin$/)).toBeGreaterThan(0.001); expect(move(t, /^(globe[RL]|mouth|ear[RL])$/)).toBe(0); }
+    // (its inner ends as far as the raise lifts them, the tail kept: most of the raise's reach at its most)
+    expect(move('browWorried', /^hairBrows$/)).toBeGreaterThan(0.7 * move('browRaise', /^hairBrows$/));
   });
   it('turns the lashes with their lids: an upper lash points up at rest and down when the lid is shut', () => {
     // (each lash a connected blade of the lashes' faces; its root the point nearest the skin, its tip the farthest from it)

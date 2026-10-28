@@ -128,6 +128,32 @@ the same man in a leather jacket. The eyes gate is the operator's.
   under the eye, a quarter shorter, nearer level and curled less. A head that is not seated grows them as before.
 - A hero minted before keeps what its laws made; a hero minted now is stamped laws 10 (`REALISTIC_LAWS_VERSION`).
 
+### The eyes' expressions
+
+The eyes, the brows and the lids as a library of their own, which a face word, a clip key or the door lays over any
+mouth; and the realistic hero's eyes animate as the landmark hero's do. The eyes gate is the operator's.
+
+- **Eye looks** (`humanoid-head.js` `EYE_LOOKS`): `rest`, `alert`, `wide`, `surprised`, `afraid`, `worried`, `sad`,
+  `tired`, `sleepy`, `warm`, `focused`, `stern`, `glare`, `squint`, `wince`, `shut`. A look sets the eye region's
+  channels (`browRaise`, `browTilt`, `aperture`, `blink`) and nothing else: `expression: { word: 'smile', eyes:
+  'worried' }`, a clip key's `face: { eyes: 'glare' }`. A channel given wins over the look; an unknown look is refused by
+  name.
+- **The realistic face's eyes** (`relational-face-rig.js`). Its rig had a blink, a smile and the brows raised or
+  lowered: a key's aperture played nothing (a surprised key left the eyes as they were) and a worried brow (inner ends
+  up) played as both brows lifted. The head takes three more actions (`head-relational.js` `ACTIONS`: `wide` the upper
+  lids off the iris, `squint` the lower lids raised and drawn flat, `browInner` the brows' inner ends lifted, the upper
+  lids' peak drawn in), and its rig three more targets from them, as the landmark head names them: `eyeWide`,
+  `eyeSquint`, `browWorried`. A hero minted before rebuilds its rig with them on export (the store is `v3`).
+- **The blink shuts as one lid** (`hero-relational-head.js` `oneSkinFollow`). On the one skin a blink tore the lid into
+  slivers: each point's share of the lid eased out with its distance along the skin, which runs on the net's edges and
+  is jagged, and a lid that turns 40° or more made a few hundredths of difference between neighbours a sliver across
+  the eye. The fold's underside was turned with the lid too, on its longer radius, through it. The lid's weight and turn
+  are now smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`), and the upper lid stops at its margin's
+  reach from the globe as the lower did. Every realistic hero's blink changes on its next export; the shut lid is still
+  lumpy and a speck of iris can show through it.
+- **The brows ride whole**: each card of the brows moves by its points' mean, so a surprise lifts the brow, not its
+  splinters.
+
 ### Named heroes and their marks
 
 A hero can carry marks of its own (a logo, an emblem, an insignia) pasted as an SVG path, and a game that adopts it

@@ -130,6 +130,9 @@ eyes over the nose over the visage over the cranium), and `earR/L` (a tube up ea
 rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion. Every head part's stations carry `normals` (each
 point's unit gradient of its field at rest), which the shading takes in place of the facets' (`authoredNormals`); the lower face (the jaw part, the visage under
 the lips' line) is bound to the jaw. Its face rides an export as morph targets (`relational-face-rig.js`: a blink, one eye's, a smile, a brow raised and
-lowered, each the head rebuilt at its fit with one of its own actions; what is pinned to the face carried by the skin
-under it), weighed by the western expression channels; the World page plays no face morphs yet. The lips stretch as the
+lowered, its inner ends lifted (worried), the eyes wide and squinted, each the head rebuilt at its fit with one of its
+own actions; what is pinned to the face carried by the skin under it, the brows' cards whole), weighed by the western
+expression channels and their eye looks (`humanoid-head.js` `EYE_LOOKS`); the World page plays no face morphs yet.
+In the one skin a lid's weight and turn are smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`), so a
+blink shuts the lid as one sheet. The lips stretch as the
 jaw opens.

@@ -7,15 +7,19 @@
  * the head. The western rig (western-face-rig.js) is the pattern; here:
  *   • THE FACE alone is rebuilt (the visage, the nose, the eyes; the cranium and the jaw under it kept as stored), and
  *     WHAT RIDES IT moves with it: the parts pinned to the face (the brows, the lashes, the beard, the hair,
- *     the piercings: hero-head-layers.js) are differenced too, so a blink carries its lashes and a raised brow its hairs.
+ *     the piercings: hero-head-layers.js) are differenced too, so a blink carries its lashes and a raised brow its hairs,
+     each of the brows' cards whole (`wholeCards`).
  *     A LASH turns with its lid: each blade swung about its eye's centre as its root on the margin is, so a shut lid's
  *     lashes point down and out as the lid does, never standing up through the fold (`lashBlades`, `turnLashes`).
  *   • THE TARGETS (RELATIONAL_FACE_TARGETS): blink, blinkLeft, blinkRight (one eye: the blink's difference weighed across
- *     the midline, Left the figure's left, mesh −x), smile, browRaise, browLower. The jaw opens by the jaw BONE.
- *   • ITS WEIGHTS come from the western expression channels (humanoid-head.js EXPRESSIONS, a key's words, the anime
- *     take's four), so the door's `expression`, the clips' keys and the tracks drive it as they drive the landmark head:
- *     the blink its own, the smile the mouth corners' lift over its range end, the brows their raise (a lower below 0)
- *     or their tilt (an acted take's brow: set, the lower; worried, the raise), whichever reads more.
+ *     the midline, Left the figure's left, mesh −x), smile, browRaise, browLower, and the eyes' own as the landmark head
+ *     has them: eyeWide (the upper lids lifted off the iris), eyeSquint (the lower lids raised), browWorried (the brows'
+ *     inner ends lifted). The jaw opens by the jaw BONE.
+ *   • ITS WEIGHTS come from the western expression channels (humanoid-head.js EXPRESSIONS, a key's words and eye looks,
+ *     the anime take's four), so the door's `expression`, the clips' keys and the tracks drive it as they drive the
+ *     landmark head: the blink its own, the smile the mouth corners' lift over its range end, the brows their raise (a
+ *     lower below 0) or the corrugator's set (a tilt inner end down), whichever reads more, a worried tilt (inner end up)
+ *     its own target, and the eye's aperture wide or squinted over its range ends, as far as the lids are open.
  *   • THE ROWS rebase the rest build onto the figure (the stored head and the rebuilt rest may differ by the cast's last
  *     bit), so a target is always added to the head the figure carries.
  * Null for a hero without the relational head; `{ skipped: reason }` when a build changes the head's layout. Pure and
@@ -29,9 +33,10 @@ import { westernKnots, westernState } from './western-face-rig.js';
 import { FACE_FPS, drawEye } from './anime-face-rig.js';
 import { faceStoreKey, readFaceStore, writeFaceStore } from './relational-face-store.js';
 
-export const RELATIONAL_FACE_TARGETS = Object.freeze(['blink', 'blinkLeft', 'blinkRight', 'smile', 'browRaise', 'browLower']);
+export const RELATIONAL_FACE_TARGETS = Object.freeze(['blink', 'blinkLeft', 'blinkRight', 'smile', 'browRaise', 'browLower', 'eyeWide', 'eyeSquint', 'browWorried']);
 /** the builds the targets are differenced from: each one action at full over the rest */
-const BUILDS = Object.freeze({ rest: null, blink: { blink: 1 }, smile: { smile: 1, smileEyes: 0.15 }, browRaise: { browRaise: 1 }, browLower: { browLower: 1 } });
+const BUILDS = Object.freeze({ rest: null, blink: { blink: 1 }, smile: { smile: 1, smileEyes: 0.15 }, browRaise: { browRaise: 1 }, browLower: { browLower: 1 },
+  eyeWide: { wide: 1 }, eyeSquint: { squint: 1 }, browWorried: { browInner: 1 } });
 /* (the smile's squint at a seventh: the head's at full all but shuts a deep-set eye; a squint is the aperture's, a key's
  * word); a blink also sinks the globe's faces `BLINK_SINK` behind the lid along the look (squeezed into the shut lid's
  * middle, they would show as a dot) */
@@ -39,7 +44,7 @@ const BLINK_SINK = 0.003;
 const GLOBE = /^(Sclera|Iris|Pupil)$/;
 /** the head's parts the actions move (hero-relational-head.js: the face over the cranium and the jaw, which lie under it
  * and are kept as stored; the ears are still) */
-const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/, LASHES = /^hairLashes$/;
+const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/, LASHES = /^hairLashes$/, BROWS = /^hairBrows$/;
 const R = CHANNEL_RANGES;
 
 const MIDLINE = 0.004;
@@ -55,12 +60,15 @@ const layoutOf = (p) => JSON.stringify(p.faces ? Object.keys(p.faces) : p.statio
 /** a face state (westernState's) → its weights in RELATIONAL_FACE_TARGETS' order (`knots`: each eye drawn at its nearest) */
 export function relationalWeights(F, knots) {
   const eL = drawEye(F.eyeL, knots), eR = drawEye(F.eyeR, knots), b = Math.min(eL, eR);
-  // (the brows: their raise, or the tilt an acted take or a set face draws, whichever reads more: tilted outer-up the
-  // corrugator's set brow, inner-up the worried lift)
-  const tilt = F.browTilt ?? 0;
+  // (the brows: their raise, or the tilt an acted take or a set face draws: tilted inner end down the corrugator's set
+  // brow, whichever of it and the lowering reads more; inner end up the worried brow, its own)
+  const tilt = F.browTilt ?? 0, a = F.aperture ?? 1, open = 1 - b;
   const w = { blink: b, blinkLeft: eL - b, blinkRight: eR - b, smile: Math.min(1, pos(F.mouthCorner, R.mouthCorner[1])),
-    browRaise: Math.min(1, Math.max(pos(F.browRaise, R.browRaise[1]), pos(-tilt, -R.browTilt[0]))),
-    browLower: Math.min(1, Math.max(pos(-F.browRaise, -R.browRaise[0]), pos(tilt, R.browTilt[1]))) };
+    browRaise: Math.min(1, pos(F.browRaise, R.browRaise[1])),
+    browLower: Math.min(1, Math.max(pos(-F.browRaise, -R.browRaise[0]), pos(tilt, R.browTilt[1]))),
+    // (the eye's aperture over its range ends, as far as the lids are open: a shut eye is the blink's)
+    eyeWide: Math.min(1, pos((a - 1) * open, R.aperture[1] - 1)), eyeSquint: Math.min(1, pos((1 - a) * open, 1 - R.aperture[0])),
+    browWorried: Math.min(1, pos(-tilt, -R.browTilt[0])) };
   return RELATIONAL_FACE_TARGETS.map((n) => +w[n].toFixed(6));
 }
 /** the tracks' knots and weighing for a realistic hero (the western's, its targets and weights its own) */
@@ -90,6 +98,19 @@ function carriedBy(V, face) {
     for (let j = 1; j < out.length; j += 2) out[j] *= k;
     return out;
   });
+}
+
+/** THE BROWS' CARDS WHOLE: each connected card of `brow` (the rest's vertex indices of the brows' faces) moved by its
+ * points' mean, so a card rides the brow as one piece; carried point by point, a raise that lifts the brow's head more
+ * than its tail sheared a card's points apart, the brow in splinters at a surprise */
+function browCards(faces, brow) {
+  const parent = new Map(brow.map((i) => [i, i])), find = (i) => { while (parent.get(i) !== i) { parent.set(i, parent.get(parent.get(i))); i = parent.get(i); } return i; };
+  for (const t of faces) if (parent.has(t[0]) && parent.has(t[1]) && parent.has(t[2])) { const a = find(t[0]); for (const v of t) parent.set(find(v), a); }
+  const cards = new Map(); for (const i of brow) { const r = find(i); (cards.get(r) || cards.set(r, []).get(r)).push(i); }
+  return [...cards.values()];
+}
+function wholeCards(cards, d) {
+  for (const c of cards) { const m = [0, 1, 2].map((a) => c.reduce((t, i) => t + d[i * 3 + a], 0) / c.length); for (const i of c) for (let a = 0; a < 3; a++) d[i * 3 + a] = m[a]; }
 }
 
 /** the carriers a lash's root rides: the nearest `ROOT_NEAR` of the face's points, by inverse distance */
@@ -175,7 +196,9 @@ export function relationalFaceRig(m, mesh) {
         // (the one skin's socket behind each globe carries nothing: it is still while the lids over it move)
         const balls = skin ? ['globeR', 'globeL'].filter((g) => P[g]?.mesh).map((g) => { const pts = Object.values(P[g].mesh.points), c = [0, 1, 2].map((a) => pts.reduce((t, q) => t + q[a], 0) / pts.length); return { c, r: Math.max(...pts.map((q) => Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]))) }; }) : [];
         const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), carrier = face.map((f, i) => f && !balls.some((b) => Math.hypot(V0[i][0] - b.c[0], V0[i][1] - b.c[1], V0[i][2] - b.c[2]) < b.r)), near = carriedBy(V0, carrier), lash = [];
-        V.part.forEach((p, i) => { if (LASHES.test(p)) lash.push(i); });
+        const brow = [];
+        V.part.forEach((p, i) => { if (LASHES.test(p)) lash.push(i); else if (BROWS.test(p)) brow.push(i); });
+        const cards = brow.length ? browCards(V.faces, brow) : [];
         // (a lash's root rides the face's own points, the lid's margin among them: the margin lies within the globe's
         // radius of its centre, where the socket's still points are no carriers)
         const lashes = lash.length && balls.length ? lashBlades(V0, V.faces, lash, face, balls) : [];
@@ -187,6 +210,8 @@ export function relationalFaceRig(m, mesh) {
           for (let i = 0; i < n; i++) if (!face[i]) { const N = near[i]; for (let c = 0; c < 3; c++) { let x = 0; for (let j = 0; j < N.length; j += 2) x += N[j + 1] * d[N[j] * 3 + c]; d[i * 3 + c] = x; } }
           // (the lashes turned with their lids, about the globes)
           if (lashes.length) turnLashes(lashes, V0, d);
+          // (the brows' cards whole)
+          if (cards.length) wholeCards(cards, d);
           D[name] = d;
         }
         // (one eye: the blink weighed across the midline)
@@ -211,6 +236,6 @@ export function relationalFaceRig(m, mesh) {
     if (any) sub[i] = k;
   }
   const meta = { targets: [...K.targets], weights: K.weigh(westernState(authored)), fps: FACE_FPS, eyeKnots: [...K.eyeKnots], fixKnots: [],
-    about: 'morph targets on the realistic head at rest, differences of the head rebuilt at its fit with one of its own actions at full (head-relational.js ACTIONS: the lids, the zygomaticus, the frontalis, the corrugator), what is pinned to the face riding it; the default weights are the authored expression; the jaw opens by the jaw bone, not a target' };
+    about: 'morph targets on the realistic head at rest, differences of the head rebuilt at its fit with one of its own actions at full (head-relational.js ACTIONS: the lids, the zygomaticus, the frontalis and its medial belly, the corrugator, the levator, the orbicularis), what is pinned to the face riding it; the default weights are the authored expression; the jaw opens by the jaw bone, not a target' };
   return { targets: [...K.targets], sub, rows, authored, K, meta };
 }

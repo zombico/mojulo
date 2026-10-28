@@ -1,7 +1,7 @@
 // the western face's channels: a word or { word?, …channels }, the blink closing the eye's stack; the words as before;
 // one topology at every value (the face in motion differences builds)
 import { describe, it, expect } from 'vitest';
-import { humanoidHead, EXPRESSIONS, WESTERN_CHANNELS, resolveWesternExpression, westernExpressionErrors } from './humanoid-head.js';
+import { humanoidHead, EXPRESSIONS, WESTERN_CHANNELS, CHANNEL_RANGES, EYE_LOOKS, EYE_REGION, resolveWesternExpression, westernExpressionErrors } from './humanoid-head.js';
 import { validateHeroSpec } from '../../mcp/tools/layered.js';
 
 const head = (expression, features = null) => humanoidHead({ preset: 'female', hair: 'none', expression, ...(features ? { features } : {}) });
@@ -14,6 +14,22 @@ describe('the western face\'s channels', () => {
     expect(resolveWesternExpression({ word: 'smile', mouthCorner: 0.002 })).toEqual({ ...EXPRESSIONS.smile, mouthCorner: 0.002 });
     expect(JSON.stringify(head({ word: 'smile' }).parts)).toBe(JSON.stringify(head('smile').parts));
     expect(JSON.stringify(head({ blink: 0 }).parts)).toBe(JSON.stringify(head('neutral').parts));
+  });
+
+  it('an eye look sets the eye region alone, from its rest, under any word\'s mouth and over the word\'s eyes', () => {
+    // (one look of each kind the region holds: a tilt and an aperture and a blink, chosen from the library)
+    const [name, look] = Object.entries(EYE_LOOKS).find(([, v]) => v.browTilt && v.aperture && v.blink);
+    const r = resolveWesternExpression({ word: 'surprised', eyes: name });
+    for (const k of ['mouthCorner', 'jawOpen']) expect(r[k]).toBe(EXPRESSIONS.surprised[k]);
+    for (const k of EYE_REGION) expect(r[k]).toBe(look[k] ?? { browRaise: 0, browTilt: 0, aperture: 1, blink: 0 }[k]);
+    for (const k of EYE_REGION) expect(r[k]).toBeGreaterThanOrEqual(CHANNEL_RANGES[k][0]), expect(r[k]).toBeLessThanOrEqual(CHANNEL_RANGES[k][1]);
+    expect(r).not.toHaveProperty('eyes');
+    // (a channel given wins over the look)
+    expect(resolveWesternExpression({ eyes: name, aperture: 1 }).aperture).toBe(1);
+    expect(westernExpressionErrors({ word: 'smile', eyes: name })).toEqual([]);
+    expect(westernExpressionErrors({ eyes: 'grin' })[0]).toMatch(/expression\.eyes: an eye look/);
+    expect(validateHeroSpec({ cast: 'female', expression: { eyes: name } })).toEqual([]);
+    expect(JSON.stringify(head({ eyes: name }).parts)).toBe(JSON.stringify(head({ ...look }).parts));
   });
 
   it('refuses what is not a channel or out of its range, at the head and at the hero door', () => {

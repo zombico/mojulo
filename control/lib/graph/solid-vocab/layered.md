@@ -231,7 +231,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `chinPoint`), `ears` (`earSize`). Moves `broad-jaw` (jawWidth 118 %, chinProjection 108 %) and `large-eyes` (eyeSize
   115 %, eyeSpacing 105 %); a word, an object or a list composed by product like the tune; comfortable ranges advise
   (faceLength's floor is 0.92: below it the fitted jaw folds). `expression` (`neutral`, `smile`, `determined`,
-  `surprised`; `jawOpen` stays a live dial) and `headPreset` (`male` / `female`, the head's pole and fit; a figure cast
+  `surprised`; `jawOpen` stays a live dial; `{ word?, eyes?, …channels }`, where `eyes` is an EYE LOOK that sets the eyes,
+  the brows and the lids alone over the word's mouth: `rest`, `alert`, `wide`, `surprised`, `afraid`, `worried`, `sad`,
+  `tired`, `sleepy`, `warm`, `focused`, `stern`, `glare`, `squint`, `wince`, `shut`; a clip key's `face` takes it too,
+  and the realistic head plays it) and `headPreset` (`male` / `female`, the head's pole and fit; a figure cast
   such as `chibi` wears the male by default) ride beside it. Patch `/hero/face/<control>`, `/hero/expression` and the
   head, the plan and the recipe regenerate; a face never moves a joint. The readout's `hero.face*` answers in metres off
   the head's landmarks (`head_m` crown to chin, `cheekbones_m`, `jaw_m`, `pupils_m`).

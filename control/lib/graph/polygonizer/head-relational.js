@@ -705,6 +705,9 @@ export const ACTIONS = Object.freeze({
   smile: 'zygomaticus major: the mouth corners drawn up and back toward the cheekbones; the cheek balloons, shortened, bulge (both sides)',
   smileL: 'the smile, the figure\'s left side only', smileR: 'the smile, the figure\'s right side only',
   browRaise: 'frontalis: the brows lifted', browLower: 'the corrugator: the brows drawn down and together',
+  browInner: 'the frontalis\'s medial belly: the brows\' inner ends lifted, the outer kept (the worried brow), the upper lids\' peak drawn in',
+  wide: 'the levator: the upper lids lifted off the iris, the white showing over it (both)',
+  squint: 'the orbicularis\'s lower fibres: the lower lids raised and drawn flat, the upper a touch down (both)',
   blink: 'the upper lids close over the globes (both)', blinkL: 'the left lid only', blinkR: 'the right lid only',
   smileEyes: 'the share of a smile\'s squint the eyes take (the lower lid raised and rounded), 0 … 1; absent, all of it',
 });
@@ -773,9 +776,10 @@ export function actionDrivers(P, acts = {}, rel = RELATIONS) {
     D[`bulge${s}`] = (p) => add(jawAt(0.25)(p), { x: 0, y: 0.6, z: 0.8 }, 0.022 * sm);
     // the brow: raised straight up; lowered down, forward a touch, and toward the midline
     const sg = Math.sign(P[`fz${s}`].x);
-    D[`brow${s}`] = (p) => add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower'));
+    // (the inner raise leaves the brow's tail, and sinks it a touch: the brow tilts, inner end up)
+    D[`brow${s}`] = (p) => add(add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower')), { x: 0, y: 0, z: -0.004 }, a('browInner'));
   }
-  D.browC = (p) => add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, a('browLower'));
+  D.browC = (p) => add(add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, a('browLower')), { x: 0, y: 0.002, z: 0.026 }, a('browInner'));
   return D;
 }
 
@@ -1153,7 +1157,11 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       const to = { x: mid.x + eyes.look.x * M, y: mid.y + eyes.look.y * M, z: mid.z + eyes.look.z * M };
       spec = { ...eyes, ...lookAngles({ ...Pe[`eye${s}`], y: Pe[`eye${s}`].y - GLOBE.back }, to) };
     }
-    const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
+    // (and the eyes' own: `wide` lifts the upper lid off the iris, `squint` raises the lower and draws it flat, the inner
+    // brow draws the upper lid's peak in, the worried lid)
+    const wd = act('wide'), sq = act('squint'), bi = act('browInner');
+    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq, lowerShape: 0.3 * sm - 0.4 * sq, open: 0.25 * act('browRaise') - 0.12 * act('browLower') + 0.5 * wd - 0.06 * sq + 0.08 * bi,
+      upperShape: -0.3 * act('browLower') - 0.2 * sq, upperPeak: -0.45 * bi, crease: 0.3 * wd });
     c.open *= 1 - bl;
     const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });

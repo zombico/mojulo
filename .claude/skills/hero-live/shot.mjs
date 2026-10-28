@@ -6,7 +6,7 @@
 //   node .claude/skills/hero-live/shot.mjs [--out dir] [--shots '<json>'] [--cols n]
 //
 //   --out    live.mjs's out dir (default <tmp>/hero-live); writes shots/sheet.png and one PNG per frame
-//   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
+//   --shots  a list of { variant?, label?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
 //            look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's head as posed, `off` metres
 //            from it in the world: foreArmR the elbow),
 //            wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
@@ -64,7 +64,7 @@ try {
       H.seek(S.phase ?? 0.5);
       if (S.hold) H.hold(S.hold);
       if (S.look) H.look(S.look);
-      const s = H.state(); return `${s.variant} · ${s.take} · ${s.view.slice(1)} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;
+      const s = H.state(); return `${S.label ? `${S.label} · ` : ''}${s.variant} · ${s.take} · ${s.view.slice(1)} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;
     }, S);
     await new Promise((r) => setTimeout(r, 400));
     const stage = await page.$('#stage'), png = await stage.screenshot({ type: 'png' });
