@@ -35,6 +35,7 @@ import { isArmorBuild } from '../armor/expand.js';
 import { beastHeadOf, BEAST_HEADS, isDesigned, designedHeadErrors } from './head.js';
 import { coverErrors, coverQualities } from './cover.js';
 import { beastOozeOf } from './ooze.js';
+import { patternErrors } from './pattern.js';
 import { colorWords, COLOR_WORDS } from '../mutagen/push.js';
 import { oozeErrors } from '../mutagen/compose.js';
 
@@ -105,7 +106,7 @@ export function beastCard(hero) {
 }
 
 /** the beast's words, each a part of its anatomy (cards.js names the principle behind each) */
-export const BEAST_WORDS = Object.freeze(['kin', 'legs', 'fingers', 'toes', 'claws', 'clawTone', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'hair', 'cover', 'coat', 'expression', 'mass', 'hump', 'keel', 'hunch', 'ooze', 'seed']);
+export const BEAST_WORDS = Object.freeze(['kin', 'legs', 'fingers', 'toes', 'claws', 'clawTone', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'hair', 'cover', 'coat', 'pattern', 'expression', 'mass', 'hump', 'keel', 'hunch', 'ooze', 'seed']);
 /** the hunch's range, degrees the trunk hinges forward over the hips (the walk's tilt is capped there too) */
 export const BEAST_HUNCH = 35;
 
@@ -137,7 +138,7 @@ export function beastErrors(spec) {
   if (B.hunch !== undefined && !(Number.isFinite(B.hunch) && B.hunch >= 0 && B.hunch <= BEAST_HUNCH)) errs.push(`beast.hunch: 0 … ${BEAST_HUNCH}, degrees the trunk hinges forward over the hips`);
   for (const k of ['hump', 'keel']) if (B[k] !== undefined && !(Number.isFinite(B[k]) && B[k] >= 0 && B[k] <= 1)) errs.push(`beast.${k}: 0 … 1 (the ${k === 'hump' ? 'upper back\'s mass under the neck' : 'chest\'s front swelling forward'})`);
   if (B.expression !== undefined && !(B.expression && typeof B.expression === 'object' && !Array.isArray(B.expression) && Object.values(B.expression).every((v) => Number.isFinite(v) && v >= -1 && v <= 1))) errs.push("beast.expression: the library head's expression controls, each −1 … 1 ({ browRaise, browFurrow, sneer, earAttitude, lidClose, cornerRetract … }: station-loft-head.js)");
-  errs.push(...coverErrors(B.cover), ...oozeErrors(B.ooze, 'beast.ooze'));
+  errs.push(...coverErrors(B.cover), ...patternErrors(B.pattern), ...oozeErrors(B.ooze, 'beast.ooze'));
   if (B.seed !== undefined && !(Number.isInteger(B.seed) && B.seed >= 0)) errs.push('beast.seed: a non-negative integer (it places its oozes\' dice)');
   if (isDesigned(B.head)) errs.push(...designedHeadErrors(B.head));
   else if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')}, or a head designed from one ({ from, moves?, eye?, regions?, ornaments?, palette? }: creature-heads/derive.js) (the kin's own by default; 'person' keeps a person's head)`);

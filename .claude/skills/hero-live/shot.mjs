@@ -6,7 +6,7 @@
 //   node .claude/skills/hero-live/shot.mjs [--out dir] [--shots '<json>'] [--cols n]
 //
 //   --out    live.mjs's out dir (default <tmp>/hero-live); writes shots/sheet.png and one PNG per frame
-//   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
+//   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide'|'vBodySide'|'vBack', phase?: 0 … 1, hold?: { morph: w },
 //            wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //

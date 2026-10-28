@@ -65,6 +65,7 @@ import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
 import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
+import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
 import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
@@ -795,7 +796,10 @@ export const WORLD_KINDS = {
       // detail is; the payload a PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
       // realistic hero with a head's fit, as before
       const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN) }) : null;
-      const facePaint = facePaint0 ?? skinPaint ?? heroSkin;
+      // THE COAT'S PATTERN (beast/coat-atlas.js): a beast-kin's markings solved in a biped's anatomy, painted in colour into
+      // an atlas over its coat at texel density; carried as the realistic skin is. A beast with no pattern: none, as before
+      const beastCoat = !facePaint0 && !skinPaint && !heroSkin && !character && m.hero?.beast?.pattern ? beastCoatPaint(mesh, m.recipe, m.hero) : null;
+      const facePaint = facePaint0 ?? skinPaint ?? heroSkin ?? beastCoat;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
@@ -903,7 +907,7 @@ export const WORLD_KINDS = {
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN above: the GLB's base colour, under the lit export's plain corners or the unlit's baked
         // light, and the page's clips' the same atlas)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? null);
+        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));
@@ -922,7 +926,9 @@ export const WORLD_KINDS = {
         // exported skinned (ctx.face: the export that asks for the figure's blend shapes): the one skin's relief baked from
         // its own field into a normal map on the skin's atlas, each corner's tangent beside it (the GLB's normalTexture and
         // TANGENT). A hero minted before, an unlit or a rigid export and the page: none, byte-identical
-        const relief = engineLit && ctx.face && heroSkin && paintPack === heroSkin && reliefOnRecord(m.hero) ? heroRelief(mesh, m.recipe, heroSkin, engineLit) : null;
+        const relief = engineLit && ctx.face && heroSkin && paintPack === heroSkin && reliefOnRecord(m.hero) ? heroRelief(mesh, m.recipe, heroSkin, engineLit)
+          // (a beast-kin's patterned coat: its cover's relief laid onto the same atlas, beast/coat-atlas.js coatRelief)
+          : engineLit && ctx.face && beastCoat && paintPack === beastCoat ? coatRelief(mesh, beastCoat, beastCoverStyleOf(m.hero), engineLit) : null;
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
