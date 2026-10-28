@@ -125,6 +125,10 @@ export const FLOORPLAN_DEFAULTS = {
   doorLeafTint: '#7d5a36', // stained-wood leaf
   entryDoorTint: '#355f74', // painted exterior front door
   facadeStyle: 'siding',    // 'siding' (clapboard, default) | 'brick' (running bond) | 'tofu' (modern block) | 'metal' (sheet cladding)
+                            // | 'stone' (ashlar: a brownstone's) | 'render' (smooth stucco, any storey) | 'boards' (vertical timber)
+  stoneBodyTint: '#7a5a46', stoneJointTint: '#5e4536', stoneUnit: [2.6, 1.15],   // a brownstone's coursed ashlar
+  renderBodyTint: '#ece8df', renderRevealTint: '#cfcac0',                         // a stucco's body and its reveals
+  boardTint: '#2b2826', boardJointTint: '#161412', boardWidth: 0.5,               // vertical boards (charred cedar by default)
   facadeMetal: null,        // metal cladding's surface (metal-surfaces S5): a { metal, finish?, … } spec; default by cladding
   cladding: 'standing-seam', // metal cladding: 'standing-seam' | 'corrugated' | 'panel'
   roofMetal: null,          // a metal-surface spec for the roof sheet (same as roof: { style, metal })
@@ -1610,6 +1614,10 @@ function facadeDecor(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   if (o.facadeStyle === 'brick') return brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   if (o.facadeStyle === 'tofu') return tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   if (o.facadeStyle === 'metal') return metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
+  // (stone is coursed ashlar on the brick's bond, its units large; render the tofu's planar body at any storey height)
+  if (o.facadeStyle === 'stone') return brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, { ...o, brickBodyTint: o.stoneBodyTint ?? FLOORPLAN_DEFAULTS.stoneBodyTint, brickMortarTint: o.stoneJointTint ?? FLOORPLAN_DEFAULTS.stoneJointTint, brickUnit: o.stoneUnit ?? FLOORPLAN_DEFAULTS.stoneUnit });
+  if (o.facadeStyle === 'render') return tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, { ...o, tofuBodyTint: o.renderBodyTint ?? FLOORPLAN_DEFAULTS.renderBodyTint, tofuRevealTint: o.renderRevealTint ?? FLOORPLAN_DEFAULTS.renderRevealTint });
+  if (o.facadeStyle === 'boards') return boardFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   const faces = [];
   const side = run.exteriorSide;
   if (!side) return faces;
@@ -1745,6 +1753,33 @@ function brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   const sz0 = Math.max(fz0, baseZ + H - ch * 1.4), sz1 = baseZ + H - jt;
   rect(s0, s1, sz0 - jt, sz0, mortar, 0.05);
   for (let x = Math.floor(s0 / (bw / 2)) * (bw / 2); x <= s1; x += bw / 2) rect(x, x + jt, sz0, sz1, mortar, 0.05);
+  return faces;
+}
+
+/** Board facade — vertical timber boards on a dark open joint, a plinth below and a slim head board: charred cedar
+ *  (yakisugi) on a Japanese house, larch or cedar on a Nordic or Dutch one. Mirrors the other skins' outward plane. */
+function boardFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
+  const faces = [];
+  const side = run.exteriorSide;
+  if (!side) return faces;
+  const tHalf = t / 2;
+  const N = run.orientation === 'h' ? [0, side, 0] : [side, 0, 0];
+  const board = o.boardTint || FLOORPLAN_DEFAULTS.boardTint, joint = o.boardJointTint || FLOORPLAN_DEFAULTS.boardJointTint;
+  const bw = o.boardWidth || FLOORPLAN_DEFAULTS.boardWidth, gap = 0.035;
+  const rect = (a0, a1, lo, hi, color, lift) => {
+    const A0 = Math.max(s0, a0), A1 = Math.min(s1, a1), L = Math.max(zb, lo), Hi = Math.min(zt, hi);
+    if (A1 - A0 < 0.02 || Hi - L < 0.02) return;
+    const off = side * (tHalf + lift);
+    const corners = run.orientation === 'h'
+      ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
+      : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, group: 'facade:skin' });
+  };
+  rect(s0, s1, baseZ, baseZ + 0.8, o.facadeWaterTableTint || FLOORPLAN_DEFAULTS.facadeWaterTableTint, 0.05);  // plinth
+  rect(s0, s1, baseZ + 0.8, baseZ + H, joint, 0.03);                                                           // the open joint
+  // the boards, each a hair apart, every other one a shade off (cut from different stock)
+  for (let a = Math.floor(s0 / bw) * bw, i = 0; a < s1; a += bw, i += 1) rect(a + gap / 2, a + bw - gap / 2, baseZ + 0.8, baseZ + H - 0.2, scaleHex(board, i % 2 ? 0.94 : 1), 0.045);
+  rect(s0, s1, baseZ + H - 0.2, baseZ + H, scaleHex(board, 0.85), 0.05);                                       // head board
   return faces;
 }
 
@@ -2245,7 +2280,7 @@ export function renderFloorplanToHtml(input = {}, opts = {}) {
  * rasterization).
  */
 // a house's look (`houseLook`) and tradition for its style roll (floorplan-styles.js HOME_WINDOWS): absent, look 1, as before
-const homeLook = (input, opts) => ({ look: opts.houseLook ?? input.houseLook ?? 1, tradition: (opts.design ?? input.design)?.tradition ?? null });
+const homeLook = (input, opts) => ({ look: opts.houseLook ?? input.houseLook ?? 1, tradition: (opts.design ?? input.design)?.tradition ?? null, form: opts.form ?? input.form ?? null });
 
 // a game's spend, room by room (era/compose-purpose.js): collected while the rooms are furnished, read out beside the
 // faces as `rails` (the page draws none of it); absent a purpose with an allowance, no collector and no key

@@ -9,9 +9,10 @@ Cover, Site, Massing, Walk.
 
 1. **How big, and how many floors?** A cottage, a house or a villa (`tier`), one or two storeys
    (`storeys`). Left out, the mint draws both from the seed.
-2. **What does it look like?** A style family (`style`: siding, brick, modern, tofu, mission …;
-   card `house-dwelling`) and a roof. A roof is a **style** (`bungalow`, `mission`, `pavilion`,
-   `farmhouse`, `manor`, `modern-shed`, `standing-seam` …) and may take a `form` (`gable`, `hip`,
+2. **What does it look like?** A style family (`style`: siding, brick, modern, tofu, mission, brownstone, terrace,
+   canal, kyosho …; card `house-dwelling`) and a roof. A roof is a **style** (`bungalow`, `mission`, `pavilion`,
+   `farmhouse`, `manor`, `modern-shed`, `standing-seam`, `cornice`, `terrace-slate`, `canal-gable`, `galvalume-shed` …;
+   `ridge: 'short'` turns a gable's ridge across the long way) and may take a `form` (`gable`, `hip`,
    `shed`); `roof: 'gable'` alone is a form, and the mint reads it as the bungalow style in that form.
    A steeper or flatter roof is `pitch`, rise over run (`roof: { style: 'bungalow', form: 'gable',
    pitch: 1 }` is 45°; the bungalow's own is 0.5).

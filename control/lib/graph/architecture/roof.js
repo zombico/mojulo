@@ -70,6 +70,19 @@ const STYLES = {
   // — metal (metal-surfaces S5): a low gable of standing-seam sheet; `metal` / `seams` override per recipe —
   'standing-seam': { form: 'gable', material: null, pitch: 0.36, eave: 1.0, rafters: false, metal: { metal: 'zinc', finish: 'blasted' },
                  palette: { roof: '#8e959b', soffit: '#cfc6bb', fascia: '#9aa1a7', gable: '#c3beb4', ridge: '#7d848a' } },
+  // — the townhouse traditions, contemporary (architect mode's house forms) —
+  // a brownstone's flat roof behind a projecting cornice: no railing or pergola, the street sees the cornice
+  cornice:     { form: 'flat-deck', material: null, pitch: 0, eave: 0, rafters: false, cornice: true, railing: false,
+                 palette: { deck: '#7d7a74', parapet: '#5c4a3e', cap: '#6b5646', cornice: '#e3dccd', rail: '#2b2b2b' } },
+  // a London terrace's slate roof, its ridge parallel to the street and its gables on the party walls
+  'terrace-slate': { form: 'gable', material: 'clay-slate', pitch: 0.75, eave: 0.6, rafters: false, ridge: 'short',
+                 palette: { roof: '#4a5058', soffit: '#d9d3c7', fascia: '#e8e3d8', gable: '#cdbb98', ridge: '#3c4148' } },
+  // a Dutch house's steep gable to the canal, flush at its eaves: the street front is the gable
+  'canal-gable': { form: 'gable', material: 'clay-slate', pitch: 1.5, eave: 0.2, rafters: false, ridge: 'long',
+                 palette: { roof: '#2f3236', soffit: '#3a3533', fascia: '#3a3533', gable: '#4a3c35', ridge: '#25282b' } },
+  // a Japanese house's mono-pitch of corrugated galvalume, low and thin-eaved
+  'galvalume-shed': { form: 'shed', material: null, pitch: 0.3, eave: 0.5, rafters: false, metal: { metal: 'zinc', finish: 'spangle' },
+                 palette: { roof: '#9aa0a5', soffit: '#d9d6cf', fascia: '#8a9095', gable: '#c9c5bc', ridge: '#7f868b' } },
   // — flat / occupiable —
   'tofu-deck': { form: 'flat-deck', material: null, pitch: 0, eave: 0.3, rafters: false,
                  palette: { deck: '#9a958c', parapet: '#8d887f', cap: '#b5b0a6', rail: '#55524c', pergola: '#7a5f43', planter: '#5a6b4a' } },
@@ -167,11 +180,13 @@ function pushBox(faces, x0, y0, z0, x1, y1, z1, tint, inner, L) {
 // ── canonical orientation: ridge along the LONGER axis. `P(along, across, z)` maps a point in
 // the canonical (long, short) frame to world coords. Ranges carry the eave overhang `oh`; `w*`
 // ranges are the WALL plane (no overhang). across-mid `acm` + `halfShort` size the rise. ──
-function orient(fp, oh) {
+// `ridge`: 'long' (the default: the ridge runs the footprint's long way, its gables at the short ends) or 'short' (the
+// ridge across the long way: a terrace's roof, its ridge parallel to the street and its gables on the party walls)
+function orient(fp, oh, ridge = 'long') {
   const { x, y, w, d } = fp, z = fp.z;
   const x0 = x, x1 = x + w, y0 = y, y1 = y + d;
   const ex0 = x0 - oh, ex1 = x1 + oh, ey0 = y0 - oh, ey1 = y1 + oh;
-  const longX = w >= d;
+  const longX = ridge === 'short' ? w < d : w >= d;
   const P = longX ? (a, c, zz) => [a, c, zz] : (a, c, zz) => [c, a, zz];
   return {
     P, ze: z, longX, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2,
@@ -221,7 +236,7 @@ function pushRidge(faces, P, a0, a1, across, zr, tint, inner, L) {
 
 // ── pitched forms (hip · gable · pyramid · gambrel · mansard · saltbox · shed · butterfly) ──
 function pitchedRoof(faces, fp, st, P0, L) {
-  const oh = st.eave, o = orient(fp, oh);
+  const oh = st.eave, o = orient(fp, oh, st.ridge);
   const { P, ze, cx, cy, A0, A1, C0, C1, wA0, wA1, wC0, wC1, acm, halfShort } = o;
   const rise = halfShort * st.pitch, zr = ze + rise;
   const inner = [cx, cy, ze + Math.max(rise, 1) * 0.5];
@@ -321,6 +336,15 @@ function flatDeck(faces, fp, st, P, L) {
   pushBox(faces, x0, y1 - pt, z, x1, y1, z + ph, P.parapet, inner, L);
   pushBox(faces, x0, y0, z, x0 + pt, y1, z + ph, P.parapet, inner, L);
   pushBox(faces, x1 - pt, y0, z, x1, y1, z + ph, P.parapet, inner, L);
+  // (a cornice: a deep band projecting from the parapet's head, a brownstone's crown to the street)
+  if (st.cornice) {
+    const co = 0.9, c0 = z + ph - 0.2, c1 = z + ph + 0.55;
+    pushBox(faces, x0 - co, y0 - co, c0, x1 + co, y0 + pt, c1, P.cornice, inner, L);
+    pushBox(faces, x0 - co, y1 - pt, c0, x1 + co, y1 + co, c1, P.cornice, inner, L);
+    pushBox(faces, x0 - co, y0 - co, c0, x0 + pt, y1 + co, c1, P.cornice, inner, L);
+    pushBox(faces, x1 - pt, y0 - co, c0, x1 + co, y1 + co, c1, P.cornice, inner, L);
+  }
+  if (st.railing === false) return;
   const rz0 = z + ph, rz1 = rz0 + 1.4, pr = 0.14;
   const posts = [[x0 + pt, y0 + pt], [x1 - pt, y0 + pt], [x0 + pt, y1 - pt], [x1 - pt, y1 - pt], [cx, y0 + pt], [cx, y1 - pt]];
   for (const [px, py] of posts) pushBox(faces, px - pr, py - pr, rz0, px + pr, py + pr, rz1, P.rail, inner, L);
