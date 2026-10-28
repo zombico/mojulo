@@ -44,7 +44,9 @@ jobs:
 
       - name: Install control
         working-directory: control
-        run: npm install
+        # (node-gyp builds better-sqlite3 against the runner's own Node headers, the ones setup-node installed: their
+        # download from nodejs.org drops often enough to fail an install before any test runs)
+        run: npm_config_nodedir="$(dirname "$(dirname "$(command -v node)")")" npm install
 
       - name: Test control (shard ${{ matrix.shard }} of 3)
         working-directory: control
@@ -81,7 +83,9 @@ jobs:
 
       - name: Install control
         working-directory: control
-        run: npm install
+        # (node-gyp builds better-sqlite3 against the runner's own Node headers, the ones setup-node installed: their
+        # download from nodejs.org drops often enough to fail an install before any test runs)
+        run: npm_config_nodedir="$(dirname "$(dirname "$(command -v node)")")" npm install
 
       - name: Test the e2e tier (shard ${{ matrix.shard }} of 2)
         working-directory: control
