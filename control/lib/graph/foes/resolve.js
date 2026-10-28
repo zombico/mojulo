@@ -15,7 +15,9 @@
  *     skill   mind/vocab.js SKILLS (regular default)
  *     skin    { species?, ooze?, stylism? }: the beast it plays on, grown by its oozes and checked against the class
  *             (./fit.js, on the grown body); absent, its `standIn`. Or { people, facets? }: a person or a non-human
- *             people (./people.js), made by the character loop, at its own height (`body` null; `skin` the people)
+ *             people (./people.js), made by the character loop, at its own height (`body` null; `skin` the people).
+ *             Or { meshRef, height? }: a model made elsewhere (./model.js), a rigged humanoid worn as a people is
+ *             (`body` null; `skin` the model)
  *     group   the id a swarm's members share (rule.mind.group); absent, the class's id
  *     hero    the frame (./vocab.js HERO): its run sets a pace's speed, its blow and its hit price the toll
  *
@@ -26,8 +28,9 @@
  */
 import { PACES, MOVES, ATTACKS, FOE_RANKS, HERO } from './vocab.js';
 import { foeClass, classStatus } from './index.js';
-import { checkFit, checkFitPeople } from './fit.js';
+import { checkFit, checkFitPeople, checkFitModel } from './fit.js';
 import { readPeopleSkin } from './people.js';
+import { readModelSkin, isModelSkin } from './model.js';
 import { RANKS, SKILLS } from '../mind/vocab.js';
 import { resolveMind } from '../mind/resolve.js';
 import { RANGED } from '../gameworld/feel/kernel.js';
@@ -72,15 +75,17 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) throw new Error(`foe: no key '${k}' (known: ${SPEC_KEYS.join(', ')})`);
   const c = foeClass(spec.class), rank = spec.rank ?? 'minion', skill = spec.skill ?? 'regular';
   check('rank', rank, RANKS); check('skill', skill, SKILLS);
-  if (spec.skin !== undefined && (!spec.skin || typeof spec.skin !== 'object')) throw new Error('foe: .skin is { species?, ooze?, stylism? } (a beast) or { people, facets? } (a person or a people)');
-  // a PEOPLE (./people.js): a person or a non-human people on two legs at its own stature, made by the character loop
-  const people = spec.skin?.people !== undefined ? readPeopleSkin(spec.skin) : null;
-  if (spec.skin !== undefined && !people) for (const k of Object.keys(spec.skin)) if (!SKIN_KEYS.includes(k)) throw new Error(`foe: .skin has no key '${k}' (a beast's: ${SKIN_KEYS.join(', ')}; a people's: people, facets)`);
+  if (spec.skin !== undefined && (!spec.skin || typeof spec.skin !== 'object')) throw new Error('foe: .skin is { species?, ooze?, stylism? } (a beast), { people, facets? } (a person or a people) or { meshRef, height? } (a model)');
+  // a PEOPLE (./people.js): a person or a non-human people on two legs at its own stature, made by the character loop;
+  // a MODEL (./model.js): a rigged humanoid made elsewhere, worn as a people is
+  const model = isModelSkin(spec.skin) ? readModelSkin(spec.skin) : null;
+  const people = model ?? (spec.skin?.people !== undefined ? readPeopleSkin(spec.skin) : null);
+  if (spec.skin !== undefined && !people) for (const k of Object.keys(spec.skin)) if (!SKIN_KEYS.includes(k)) throw new Error(`foe: .skin has no key '${k}' (a beast's: ${SKIN_KEYS.join(', ')}; a people's: people, facets; a model's: meshRef, height)`);
   const species = people ? null : spec.skin?.species ?? c.standIn;
   const grown = people ? {} : { ...(spec.skin?.ooze !== undefined ? { ooze: spec.skin.ooze } : {}), ...(spec.skin?.stylism !== undefined ? { stylism: spec.skin.stylism } : {}) };
   const errs = people ? [] : mutagenErrors(grown.ooze, undefined, grown.stylism);
   if (errs.length) throw new Error(`foe: .skin: ${errs.join('; ')}`);
-  const { body: measured } = people ? checkFitPeople(c.id, people) : checkFit(c.id, species, grown);
+  const { body: measured } = model ? checkFitModel(c.id, model) : people ? checkFitPeople(c.id, people) : checkFit(c.id, species, grown);
 
   const M = MOVES[c.move], W = ATTACKS[c.attack.kind];
   const A = { ...W, ...c.attack, timing: { ...(W.timing || {}), ...(c.attack.timing || {}) } };

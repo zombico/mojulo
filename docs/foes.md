@@ -34,7 +34,7 @@ on a shelf is a row, pointing at primitives that already exist.
 | Shelf | What it says | The word | A new one is |
 | --- | --- | --- | --- |
 | Behaviour | how it moves and attacks | `class` (`foes/classes/`) | a class card |
-| Skin | what it looks like | `skin` (a species, or a people: `egocube/ancestry.js` lineages) | a lineage or a card |
+| Skin | what it looks like | `skin` (a species, a people: `egocube/ancestry.js` lineages, or a model made elsewhere: `foes/model.js`) | a lineage, a card, or a bound model |
 | Modes | the forms it is defeated through | `body.modes` (`worlds/controllable/vanish.js`) | a mode |
 | States | what it is born under | `states` (`foes/states.js` FOE_STATES) | a row |
 | Death | how layer 0 is destroyed | `vanish` (`gameworld/vanish.js`: `die`, `sever`, `by`, `inside`) | a row, or a foe's own `by` |
@@ -58,6 +58,17 @@ A state is a status the body starts under (`body.born`, given at the first step)
 whatever body the foe wears. `flaming` is a column of fires up the body, each a share of the foe's own height, and a
 char on the body while it burns. `elemental: true` makes the state the foe's element (`e.element`); false is the look
 alone.
+
+### Skin: a model made elsewhere
+
+`skin: { meshRef, height? }` wears a rigged humanoid `.glb` (a Mixamo, VRM, Unreal or Rigify export) bound onto that
+sketch (`bind_mesh_render`), stood `height` metres (1.8 absent). `scene/rig-import.js` reads it into the same pack our
+own foes are: its joints by name to the hero's bone ids, its rest skinned once by its own weights, turned into the native
+frame by its own body (head up, right leg on +x, face to +y) whatever the file's, each triangle on the bone that moves it.
+It plays the clip library's states as any person on the field does, and every shelf above takes it unchanged. Not read:
+its own clips, its non-base-colour maps, a JPEG without the optional `sharp` worker (its material's colour then). A model
+with no skin, or missing a humanoid bone, is refused naming what is missing. Rigid per bone on the page, as every rig foe
+is; a heavy model is drawn at its own triangle count, so keep a crowd's under budget (principle 8).
 
 ### Death: only layer 0 is destroyed
 
@@ -128,3 +139,5 @@ name none. The discipline for adding one:
 - `scene/channels/status-channel.test.js`: a status look is rebuilt on the body a mode swap puts in, a rig body given
   the normals its coat needs; absent, the channel as it was.
 - `scene/channels/controllable/target-rim.test.js`: the target rim on the bar's pick, on whatever body it wears.
+- `scene/rig-import.test.js`: a model's bones by each convention's names, its frame its body's whatever the file's, each
+  triangle on its bone, and the cuts and the shed taking it as our own.

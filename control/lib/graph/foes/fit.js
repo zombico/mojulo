@@ -9,6 +9,8 @@
  *   checkFit(classId, species, grown?)  the same, throwing the misses when it does not fit
  *   fitOfPeople(classId, skin) · checkFitPeople(classId, skin)   the same for a people (./people.js: a person or a
  *                            non-human people, on two legs at its own stature)
+ *   fitOfModel(classId, skin) · checkFitModel(classId, skin)     the same for a model made elsewhere (./model.js: a rigged
+ *                            humanoid, on two legs at the height it is stood at)
  *   bodyOf(species, { ooze?, stylism? })  the body measured: an ooze GROWS it (mutagen/compose.js: a uniform `scale`,
  *                            never a joint), so its size class is the grown body's (a dire wolf is a wolf × 1.45)
  *
@@ -24,6 +26,7 @@ import { motionGaits } from '../fauna/rig.js';
 import { MOVES } from './vocab.js';
 import { foeClass } from './index.js';
 import { peopleBody } from './people.js';
+import { modelBody } from './model.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -58,6 +61,15 @@ export const fitOfPeople = (classId, skin) => fitWith(foeClass(classId), peopleB
 export function checkFitPeople(classId, skin) {
   const f = fitOfPeople(classId, skin);
   if (!f.ok) throw new Error(`foe: a ${classId} does not fit a ${skin.people} (${f.misses.join('; ')})`);
+  return f;
+}
+
+/** A model's fit (./model.js): a two-legged body at the height it is stood at, checked as a people's is. */
+export const fitOfModel = (classId, skin) => fitWith(foeClass(classId), modelBody(skin));
+
+export function checkFitModel(classId, skin) {
+  const f = fitOfModel(classId, skin);
+  if (!f.ok) throw new Error(`foe: a ${classId} does not fit a model on two legs (${f.misses.join('; ')})`);
   return f;
 }
 

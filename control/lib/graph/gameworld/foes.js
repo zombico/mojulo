@@ -2,9 +2,10 @@
  * A GAMEWORLD'S FOES: the foe classes (lib/graph/foes/) a world fields and where its levels stand them. The world keeps
  * a BESTIARY, each entry a class at a rank on a skin; a level names which of them stand on its trails.
  *
- *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? } | { people, facets? }, vanish? } }
+ *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? } | { people, facets? } | { meshRef, height? }, vanish? } }
  *                                                                                        // the world's bestiary: a skin is a
- *                                                                                        // beast, or a person or a people
+ *                                                                                        // beast, a person or a people, or a
+ *                                                                                        // model made elsewhere (foes/model.js)
  *
  * A downed foe goes as the game's style guide says (vanish.js: a fade, a sink, motes, a blink or a puff, after it lies
  * a moment); an entry's `vanish` names its own. No carcass is kept.
@@ -25,6 +26,8 @@
  *   peopleRollOf(G, id, entry)          → a people's egocube roll (foes/people.js): its sheet is made at foes-<id>-sheet
  *                                         and the character from it at foes-<id>, through its own door with its moves
  *   isPeople(entry)                     → the entry is skinned as a person or a people, not a beast
+ *   isModel(entry)                      → the entry is skinned as a model made elsewhere: it stands on its own ref (the
+ *                                         sketch its model is bound onto), made by no step, on the library as a person
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
  *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
  *                                         entities, and a hittable pilot; null when nothing stands
@@ -37,7 +40,8 @@
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
-import { foeFigure, fieldFigure, facing } from './stage-figures.js';
+import { foeFigure, fieldFigure, modelFigure, facing } from './stage-figures.js';
+import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
@@ -106,6 +110,7 @@ export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return 
  * seed. The run makes its sheet from it, and the field rolls the same sheet to draw it. */
 export const peopleRollOf = (G, id, entry) => peopleRoll(entry.skin, foeClass(entry.class), { seed: peopleSeed(G.seed, id), setting: settingOfGame(G) });
 export const isPeople = (entry) => entry?.skin?.people !== undefined;
+export const isModel = (entry) => isModelSkin(entry?.skin);
 
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
 // the k-th of n bodies round a point, `r` out, the first on it
@@ -155,7 +160,11 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   for (const p of P) {
     const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
     let b;
-    if (isPeople(p.entry)) {
+    if (isModel(p.entry)) {
+      // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
+      figures[p.id] = modelFigure(refs[p.eid], f.measured.height);
+      b = peopleBody(f.measured.height, f.scale);
+    } else if (isPeople(p.entry)) {
       // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
       // below the hero door on its creature clips), drawn from the sheet the run made it from
       const sheet = sheets[p.eid] ?? (sheets[p.eid] = rollEgocube(peopleRollOf(G, p.eid, p.entry)));

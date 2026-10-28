@@ -49,7 +49,7 @@ import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
-import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, peopleRollOf, isPeople } from './foes.js';
+import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, peopleRollOf, isPeople, isModel } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
@@ -287,7 +287,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
     // on an epoch's map, a level won goes back to the map
     if (onBoard) L.args = toMap(L.args);
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
     const links = onBoard ? [] : gameLinks(stages, levelRefs);
@@ -372,6 +372,8 @@ const foeSteps = (G, ref, ready) => {
   const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {};
   return fieldedIds(G).flatMap((id) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
+    // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
+    if (isModel(entry)) return [];
     if (!isPeople(entry)) return [{ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(entry), setting, ...coat }, title), ...ready }];
     // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
     // from it through its own door, its moves on it (a fighter's two steps: the sheet, then the character)
@@ -382,7 +384,10 @@ const foeSteps = (G, ref, ready) => {
     ];
   });
 };
-const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, childRef(ref, `foes-${id}`)]));
+// a level's print: its args', and where foes stand its bestiary's (the cast is a function the args' JSON leaves out, so an
+// entry's vanish, states or skin changed would leave the level as it was made); a level with none prints as before
+const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: bestiaryOf(G) }) : fingerprint(args));
+const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, isModel(bestiaryOf(G)[id]) ? bestiaryOf(G)[id].skin.meshRef : childRef(ref, `foes-${id}`)]));
 // a stage's foes as its extra (foes.js hostileCast), or null when its level stands none
 const hostileOf = (G, s, refs, hero) => (G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, ends, { refs, hero }) : null);
 /** The boss's figure: a foe rolled in the game's setting as a quick battle's are (cast-setting.js), made through the
@@ -423,7 +428,7 @@ function worldSteps(world, G, ref) {
     // (its foes stand beside its goal's cast; the walker is first person, so it is hit under its eye)
     const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, false);
     const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);

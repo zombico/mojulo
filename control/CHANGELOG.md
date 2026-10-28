@@ -712,6 +712,24 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **A model made elsewhere, worn as a foe** (`skin: { meshRef, height? }`; `scene/rig-import.js`, `foes/model.js`; the
+  operator: "an affordance to be able to 'import models' to use as enemies"). A rigged humanoid `.glb` bound onto a
+  sketch (`bind_mesh_render`) is read into layer 0's own pack: its joints to the hero's bone ids by name (Mixamo, VRM, the
+  Unreal mannequin, Rigify, a 3ds Max Biped; the file's own VRM map when it has one; the spine counted up from the hips),
+  its rest skinned once by its own weights (the armature's scale and turn in it), turned by its own body into the native
+  frame, scaled to `height`, each triangle on the bone that moves it, coloured by its material (factor, vertex colour, a
+  PNG here and a JPEG through the optional `sharp`) and shaded by the studio key. It stands on its own ref (no step makes
+  it), fits classes as a person on two legs, and plays the clip library's states; the cuts, the shed, the states and the
+  target rim take it unchanged. A model with no skin, or missing a humanoid bone, is refused naming what is missing.
+  Not read: its own clips, its other maps.
+
+  Machine gate: each convention's names, a turned file read as the same body, the height it is stood at, each triangle on
+  its bone, the same bytes twice, a dismantle, a cleave and a shed on it; the bestiary's word made by no step, at its
+  height, refused by name. Eyes: two Mixamo models from the three.js examples (a robot in its materials' colours, a
+  textured soldier, flaming) standing beside a zombie on the demo level, on the library's idle. Eyes gate: the operator's to judge.
+  - A level its foes stand on is re-made when a bestiary entry changes: its print now carries the bestiary (the cast is
+    a function its args' JSON left out, so a changed `vanish`, `states` or `skin` kept the level as first made). A
+    level no foe stands on prints as before.
 - **A foe type's defaults, disciplined** (`docs/foes.md`; the operator: "come up with principles so that we have good
   discipline when it comes to making new enemy type defaults"). Humanoid first; one default per shelf from the canon of
   its name, on the form and never on an entry; no form that combines shelves; rows over primitives layer 0 already has;

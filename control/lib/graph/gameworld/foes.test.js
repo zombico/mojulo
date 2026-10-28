@@ -156,6 +156,23 @@ describe('the run', () => {
       expect(e.body.vanish).toBeTruthy();
     }
   });
+  it('a model made elsewhere is made by no step: it stands on its own ref, a person on the library at its height', () => {
+    const skin = { meshRef: 'sk-model', height: 2.2 };
+    const steps = runSteps(heroWith({ a: { class: SOLO.id, skin } }, true), { ref: 'gw' });
+    expect(steps.some((s) => s.key.startsWith('foes-a'))).toBe(false);
+    const X = hostileCast(world({ a: { class: SOLO.id, skin } }, true), 'one', ENDS, { refs: { a: 'sk-model' } });
+    const fig = X.figures['foe-a-1'], e = X.entities[0];
+    expect(fig).toMatchObject({ modelRef: 'sk-model', height: resolveFoe({ class: SOLO.id, skin }).measured.height, library: expect.any(String) });
+    expect(e.body.egg.cz * 2).toBeCloseTo(2.2 * resolveFoe({ class: SOLO.id, skin }).scale, 3);
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { meshRef: 'sk-model', species: 'wolf' } } })).toThrow(/no key 'species' beside meshRef/);
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { meshRef: 'sk-model', height: 40 } } })).toThrow(/height is the metres it stands/);
+  });
+  it('a level its foes stand on is re-made when an entry changes (its cast is not in its args), one without as before', () => {
+    const print = (foes, levelFoes) => runSteps(heroWith(foes, levelFoes), { ref: 'gw' }).filter((s) => s.key.startsWith('level-')).map((s) => s.print);
+    const a = { class: SOLO.id }, b = { class: SOLO.id, vanish: { die: 'cleave' } };
+    expect(print({ a }, true)).not.toEqual(print({ a: b }, true));
+    expect(print({ a })).toEqual(print({ a: b }));
+  });
   it('a battle\'s beast foe may be grown, and its figure is minted with what grows it', () => {
     const W = { ...MEADOWMARK_HERO, battles: { foe: { species: 'wolf', ooze: 'dire' } } };
     const step = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'foe');

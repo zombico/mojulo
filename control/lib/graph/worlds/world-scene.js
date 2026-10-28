@@ -136,8 +136,11 @@ export function readSeats(seats, entities, pilot = null) {
 }
 
 export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
-  let manifest;
-  if (typeof spec.heroRef === 'string') {
+  let manifest, body;
+  // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
+  // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
+  if (typeof spec.modelRef === 'string') body = await (await import('@/lib/graph/worlds/controllable/model-figure.js')).modelPack(name, spec.modelRef, { height: spec.height ?? null });
+  else if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
     // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
@@ -151,9 +154,11 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
-  const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
-  const body = scene.figures && scene.figures.body;
-  if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  if (!body) {
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
+    body = scene.figures && scene.figures.body;
+    if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  }
   const { preview, embodies, held, ...pack } = body;
   const clips = { ...pack.clips };
   // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
@@ -813,7 +818,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // whose clips, retargeted onto its rig, play the states `clips` hands to them (playerStates, when the world was
         // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
         // no hero is resolved, byte-identical.
-        if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
+        // (and a MODEL made elsewhere, `modelRef`: a rigged humanoid .glb bound onto a sketch, worn as a hero's pack is)
+        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string') {
           // (a composed juice floor's game type times the hero's swing: hero-swing.js swingTiming; the floor or none ⇒ its own)
           const fxs = sketch.manifest.fxStyle, swing = fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs).flavor : null;
           // THE HELD STRIKE: a platform body playing this hero whose rule carries a feel's string (its contact window,
@@ -1087,7 +1093,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const figureSources = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
-        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef']
+        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef', 'modelRef']
           .find((k) => typeof rawSpec[k] === 'string');
         if (refKey) figureSources[name] = `${refKey}:${rawSpec[refKey]}`;
       }
