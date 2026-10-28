@@ -15,14 +15,16 @@
  *
  * Pure data: era/style/bay-kits.js composes a kit card from a choice on each axis.
  */
+import { CATALOG } from '../../construction/catalog.js';
 
 // a material: a dressed cut painted at `metres`, a catalog unit `laid` n to a repeat, or a library tile by its key
 const d = (cut, metres, o = {}) => ({ dressed: { cut, ...o }, metres });
 const l = (name, n, cut, o = {}) => ({ laid: name, n, spec: { cut, ...o } });
 const k = (key, scale) => ({ key, scale });
-// a swatch: the face and the joints; `m` the joints only (the material keeps its own face)
+// a swatch: the face and the joints; `m` the joints only, a catalog material keeping its own face, and `own` the face a
+// material with none of its own takes from it (a dressed cut laid where this palette's catalog material would be)
 const s = (stone, mortar) => (mortar ? { stone, mortar } : { stone });
-const m = (mortar) => ({ mortar });
+const m = (mortar, name) => ({ mortar, own: CATALOG[name].rgb });
 const F = { face: 'floor' };
 
 export const CONSTRUCTIONS = Object.freeze({
@@ -196,11 +198,11 @@ export const PALETTES = Object.freeze({
   // secondary paint; the air neutral (an everyday room is lit white, not blue)
   everyday: {
     ambient: '#45443f',
-    floor: [m([150, 140, 120]), m([150, 140, 124]), m([120, 118, 112]), m([110, 78, 50])],
+    floor: [m([150, 140, 120], 'floor:carpet-tile-500'), m([150, 140, 124], 'floor:vct-305'), m([120, 118, 112], 'floor:porcelain-600'), m([110, 78, 50], 'floor:laminate-193')],
     band: [s([120, 118, 112], [90, 88, 84])],
     hazard: [s([176, 178, 178], [80, 80, 82])],
     base: [s([52, 52, 54]), s([84, 72, 60])],
-    wall: [s([214, 208, 196], [200, 196, 186]), m([40, 30, 24]), s([204, 202, 194], [186, 184, 176])],
+    wall: [s([214, 208, 196], [200, 196, 186]), m([40, 30, 24], 'veneer:oak-crown'), s([204, 202, 194], [186, 184, 176])],
     crown: [s([226, 222, 212], [210, 206, 196])],
     column: [s([222, 218, 208], [206, 202, 192])],
     paint: [s([56, 92, 110])],

@@ -29,7 +29,11 @@ describe('the bay axes', () => {
 
   it('every palette colours every role a construction paints, so any palette goes on any construction', () => {
     const painted = new Set(Object.values(CONSTRUCTIONS).flatMap((C) => Object.entries(C.surfaces).filter(([, ms]) => ms.some((x) => x.dressed)).map(([role]) => role)));
-    for (const [id, P] of Object.entries(PALETTES)) for (const role of painted) expect(P[role]?.length, `${id}.${role}`).toBeGreaterThan(0);
+    for (const [id, P] of Object.entries(PALETTES)) for (const role of painted) {
+      expect(P[role]?.length, `${id}.${role}`).toBeGreaterThan(0);
+      // (and each swatch gives a dressed cut a face: its own, or the one its catalog material lends)
+      for (const sw of P[role]) expect(sw.stone ?? sw.own, `${id}.${role}`).toBeDefined();
+    }
   });
 
   it('an axis left out, or a value its table does not hold, is refused by name', () => {

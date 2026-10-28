@@ -12,6 +12,7 @@
  *   resolveCompose(manifest) → AUTHORING TIME (create_sketch / update_sketch): a stage's `compose` read and stored as
  *           { intent, resolved, said }; a stored one comes back as it was, so the build never re-decides
  *   composeForBuild(m)   → the resolved axes: the stored ones, else read now (a test, a direct assemble)
+ *   rolesPinned(m)       → the rooms' roles the intent pins ({ room: role }, compose-roles.js), or {}
  *
  * The words are data: a new register, or a new value on an axis, adds its words here and is read like the rest.
  */
@@ -70,13 +71,14 @@ function hear(text) {
   }
   return heard;
 }
-const KEYS = ['words', 'register', ...COMPOSE_AXES];
+const KEYS = ['words', 'register', 'roles', ...COMPOSE_AXES];
 
 function readIntent(c) {
   if (typeof c === 'string') return { words: c };
   if (!c || typeof c !== 'object' || Array.isArray(c)) throw new Error(`stage: compose is words ('a cold lab under sodium light') or { words?, register?, ${COMPOSE_AXES.join('?, ')}? }`);
   for (const k of Object.keys(c)) if (!KEYS.includes(k)) throw new Error(`stage: compose.${k} is not a setting (${KEYS.join(', ')})`);
   if (c.words !== undefined && typeof c.words !== 'string') throw new Error('stage: compose.words is words');
+  if (c.roles !== undefined && (!c.roles || typeof c.roles !== 'object' || Array.isArray(c.roles))) throw new Error('stage: compose.roles is { room: role } (compose-roles.js ROLES)');
   if (c.register !== undefined && !REGISTERS.includes(c.register)) throw new Error(`stage: compose.register is ${REGISTERS.join(', ')}`);
   for (const a of COMPOSE_AXES) if (c[a] !== undefined && !TABLES[a][c[a]]) throw new Error(`stage: compose.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
   return c;
@@ -121,3 +123,6 @@ export function composeForBuild(m) {
   for (const a of COMPOSE_AXES) if (!TABLES[a][c.resolved[a]]) throw new Error(`stage: compose.resolved.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
   return c.resolved;
 }
+
+/** The rooms' roles the intent pins (compose-roles.js reads the rest from the plan). */
+export const rolesPinned = (m) => (stored(m.compose) ? m.compose.intent : m.compose)?.roles ?? {};

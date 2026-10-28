@@ -100,7 +100,9 @@ const SHELL = Object.freeze({
 });
 
 // a material (bay-axes.js) painted by its swatch: a library tile as it is, a catalog unit laid, a dressed cut
-const tileOf = (mat, sw) => (mat.key !== undefined ? { key: mat.key, scale: mat.scale } : mat.laid ? laid(mat.laid, mat.n, { ...mat.spec, ...sw }) : dressed({ ...mat.dressed, ...sw }, mat.metres));
+// (a swatch's `own` is the face a dressed cut takes where the swatch leaves a catalog material its own)
+const faceOf = ({ own, ...sw }, cut) => (cut && sw.stone === undefined && own ? { ...sw, stone: own } : sw);
+const tileOf = (mat, sw) => (mat.key !== undefined ? { key: mat.key, scale: mat.scale } : mat.laid ? laid(mat.laid, mat.n, { ...mat.spec, ...faceOf(sw, false) }) : dressed({ ...mat.dressed, ...faceOf(sw, true) }, mat.metres));
 const AXES = { construction: CONSTRUCTIONS, palette: PALETTES, plot: PLOTS, dressing: DRESSINGS };
 
 /**
