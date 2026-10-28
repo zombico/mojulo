@@ -5,8 +5,8 @@
  * A bestiary entry names its states (`states: { flaming: true }`); no foe is listed anywhere for one.
  *
  *   FOE_STATES   the states, each the status it carries, its element, and how it marks the body
- *     flaming    flames rising from its chest (`at`: the share of its height the fire stands at) and engulfing its head (the
- *                `blaze` look as a body-wide campfire: the fire channel's flames on it, lighting the world), its
+ *     flaming    a column of fire up the body (the `blaze` look, as the fire channel's flames on it, lighting the world): a
+ *                lick at its legs, the widest at its chest, a narrower peak round its head that leaves the head seen; its
  *                body darkened as it burns (`char`, 0 … 1 of its own colour kept; 1 none)
  *
  *   readStates(v, at)   → the entry's states read: { <state>: true | { color?, elemental?, char? } } (throws teaching them)
@@ -17,14 +17,17 @@
  *                fire foe burns what it strikes, shrugs off fire); false (the default): only the look
  *   stateBirth(states, { height })  → { statuses, element? }: what the body is born carrying (its statuses on the world clock at 0), laid
  *                         on the entity's body as `body.born` (worlds/controllable/vanish.js gives it at the first step); a
- *                         body's `height` (m) stands its fire where the state says (`lift`, metres over its feet)
+ *                         body's `height` (m) stands each of its fires where the state says (`fires`: each its `lift`, metres
+ *                         over its feet, its kind and size)
  *
  * Pure.
  */
 import { FIRE_COLORANTS } from '../fire/fire.js';
 
 export const FOE_STATES = Object.freeze({
-  flaming: Object.freeze({ status: 'blaze', element: 'fire', char: 0.35, size: 1.4, kind: 'campfire', at: 0.66, reads: 'flames rising from its chest and engulfing its head, its body charred as it burns' }),
+  // (its fire a COLUMN up the body, each [at, kind, size]: `at` the share of its height a fire stands at; the legs lick, the
+  // chest burns widest, the flames peak at the head narrower, the head seen through them)
+  flaming: Object.freeze({ status: 'blaze', element: 'fire', char: 0.35, fires: Object.freeze([[0.06, 'brazier', 0.55], [0.4, 'campfire', 1.15], [0.72, 'brazier', 0.8]]), reads: 'licking at its legs, burning up its chest and peaking narrow round its head, its body charred as it burns' }),
 });
 /** plain words for a flame's colour, as the colorant that burns it */
 export const FLAME_COLORS = Object.freeze({ blue: 'copper', green: 'barium', red: 'strontium', crimson: 'lithium', purple: 'potassium', orange: 'calcium', yellow: 'sodium' });
@@ -56,7 +59,7 @@ export function stateBirth(states, { height = null } = {}) {
   let element = null;
   for (const [name, o] of Object.entries(states || {})) {
     const S = FOE_STATES[name];
-    statuses[S.status] = { t0: 0, until: null, ...(o.color !== undefined ? { color: o.color } : {}), char: o.char ?? S.char, ...(S.size ? { size: S.size } : {}), ...(S.kind ? { kind: S.kind } : {}), ...(S.at && Number.isFinite(height) && height > 0 ? { lift: Math.round(S.at * height * 1000) / 1000 } : {}) };
+    statuses[S.status] = { t0: 0, until: null, ...(o.color !== undefined ? { color: o.color } : {}), char: o.char ?? S.char, ...(S.fires && Number.isFinite(height) && height > 0 ? { fires: S.fires.map(([at, kind, size]) => ({ lift: Math.round(at * height * 1000) / 1000, kind, size })) } : {}) };
     if (o.elemental) element = S.element;
   }
   return { statuses, ...(element ? { element } : {}) };

@@ -45,8 +45,13 @@ describe('a foe born in a state', () => {
     // its fire stands where the state says up a body of a given height (flaming: at the chest), and only a page with such
     // a fire carries the reading of it
     const tall = stateBirth(readStates({ [name]: true }, 's'), { height: 2 }).statuses[S.status];
-    expect(tall.lift).toBeCloseTo(S.at * 2, 6);
-    expect(bodyFires(undefined, [{ id: 'f', body: { type: 'mesh', born: { statuses: { [S.status]: tall } } } }])[0].lift).toBe(tall.lift);
+    expect(tall.fires.map((f) => f.lift)).toEqual(S.fires.map(([at]) => Math.round(at * 2 * 1000) / 1000));
+    // a column: one fire each, up the body, the widest in the middle
+    const C = bodyFires(undefined, [{ id: 'f', body: { type: 'mesh', born: { statuses: { [S.status]: tall } } } }]);
+    expect(C.map((x) => x.lift)).toEqual(tall.fires.map((f) => f.lift));
+    expect(C.every((x) => x.follow === 'f' && x.el === S.status)).toBe(true);
+    const widest = C.reduce((b, x, i) => (x.size > C[b].size ? i : b), 0);
+    expect(widest).toBeGreaterThan(0); expect(widest).toBeLessThan(C.length - 1);
     expect(fireChannelScript({ sources: [src] })).not.toMatch(/s\.lift/);
     expect(fireChannelScript({ sources: [{ ...src, lift: 1.3 }] })).toMatch(/s\.lift != null \? s\.lift/);
   });
