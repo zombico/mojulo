@@ -5,7 +5,7 @@
  * A bestiary entry names its states (`states: { flaming: true }`); no foe is listed anywhere for one.
  *
  *   FOE_STATES   the states, each the status it carries, its element, and how it marks the body
- *     flaming    engulfed in flame (the `blaze` look: the fire channel's flames on the body, lighting the world), its
+ *     flaming    engulfed in flame (the `blaze` look at a body's own size: the fire channel's flames on it, lighting the world), its
  *                body darkened as it burns (`char`, 0 … 1 of its own colour kept; 1 none)
  *
  *   readStates(v, at)   → the entry's states read: { <state>: true | { color?, elemental?, char? } } (throws teaching them)
@@ -22,7 +22,7 @@
 import { FIRE_COLORANTS } from '../fire/fire.js';
 
 export const FOE_STATES = Object.freeze({
-  flaming: Object.freeze({ status: 'blaze', element: 'fire', char: 0.35, reads: 'engulfed in flame, its body charred as it burns' }),
+  flaming: Object.freeze({ status: 'blaze', element: 'fire', char: 0.35, size: 2.6, reads: 'engulfed in flame, its body charred as it burns' }),
 });
 /** plain words for a flame's colour, as the colorant that burns it */
 export const FLAME_COLORS = Object.freeze({ blue: 'copper', green: 'barium', red: 'strontium', crimson: 'lithium', purple: 'potassium', orange: 'calcium', yellow: 'sodium' });
@@ -54,7 +54,7 @@ export function stateBirth(states) {
   let element = null;
   for (const [name, o] of Object.entries(states || {})) {
     const S = FOE_STATES[name];
-    statuses[S.status] = { t0: 0, until: null, ...(o.color !== undefined ? { color: o.color } : {}), char: o.char ?? S.char };
+    statuses[S.status] = { t0: 0, until: null, ...(o.color !== undefined ? { color: o.color } : {}), char: o.char ?? S.char, ...(S.size ? { size: S.size } : {}) };
     if (o.elemental) element = S.element;
   }
   return { statuses, ...(element ? { element } : {}) };
