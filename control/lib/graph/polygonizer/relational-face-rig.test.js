@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
-import { relationalFaceRig, relationalWeights, RELATIONAL_FACE_TARGETS } from './relational-face-rig.js';
+import { relationalFaceRig, relationalWeights, facsWeights, RELATIONAL_FACE_TARGETS } from './relational-face-rig.js';
 import { westernState } from './western-face-rig.js';
 import { EXPRESSIONS, CHANNEL_RANGES } from './humanoid-head.js';
 
@@ -28,6 +28,15 @@ describe('the realistic face\'s weights', () => {
     expect(at({ aperture: CHANNEL_RANGES.aperture[0] }).eyeSquint).toBe(1);
     expect(at({ aperture: CHANNEL_RANGES.aperture[1], blink: 1 }).eyeWide).toBe(0);
     expect(at(EXPRESSIONS.surprised).eyeWide).toBeGreaterThan(0.5);
+  });
+});
+
+describe('a FACS state on the realistic face', () => {
+  it('weighs each unit on its action\'s target, a side on the side\'s, and says what is no target (the jaw is a bone)', () => {
+    const at = (st) => { const { weights, gaps } = facsWeights(st); return { w: Object.fromEntries(RELATIONAL_FACE_TARGETS.map((t, i) => [t, weights[i]]).filter(([, v]) => v)), gaps }; };
+    expect(at({ AU15: 0.6 })).toEqual({ w: { frown: 0.6 }, gaps: {} });
+    expect(at({ AU12R: 0.4, AU14R: 0.4 })).toEqual({ w: { smileRight: 0.4, dimpleRight: 0.4 }, gaps: {} });
+    expect(at({ AU1: 0.8, AU26: 0.5 })).toEqual({ w: { browWorried: 0.8 }, gaps: { jaw: 0.5 } });
   });
 });
 
@@ -73,6 +82,11 @@ describe('the realistic face rig', () => {
     expect(move('smile', /^headSkin$/)).toBeGreaterThan(0.003);
     // (the eyes' own: the lids, the lashes riding them; the worried brow its hairs)
     for (const t of ['eyeWide', 'eyeSquint']) { expect(move(t, /^headSkin$/)).toBeGreaterThan(0.001); expect(move(t, /^(globe[RL]|mouth|ear[RL])$/)).toBe(0); }
+    // (a FACS unit's target, and its side: the left alone leaves the right's side still)
+    expect(move('frown', /^headSkin$/)).toBeGreaterThan(0.002);
+    const tf = F.targets.indexOf('frownLeft'); let rightF = 0;
+    mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || v[0] < 0.01) return; const o = k * W + 3 + tf * 3; rightF = Math.max(rightF, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
+    expect(rightF).toBeLessThan(1e-4);
     // (its inner ends as far as the raise lifts them, the tail kept: most of the raise's reach at its most)
     expect(move('browWorried', /^hairBrows$/)).toBeGreaterThan(0.7 * move('browRaise', /^hairBrows$/));
   });

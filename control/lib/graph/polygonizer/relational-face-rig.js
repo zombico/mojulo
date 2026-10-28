@@ -32,11 +32,23 @@ import { resolveWesternExpression, CHANNEL_RANGES } from './humanoid-head.js';
 import { westernKnots, westernState } from './western-face-rig.js';
 import { FACE_FPS, drawEye } from './anime-face-rig.js';
 import { faceStoreKey, readFaceStore, writeFaceStore } from './relational-face-store.js';
+import { facsActions } from '../face-acting/facs.js';
 
-export const RELATIONAL_FACE_TARGETS = Object.freeze(['blink', 'blinkLeft', 'blinkRight', 'smile', 'browRaise', 'browLower', 'eyeWide', 'eyeSquint', 'browWorried']);
-/** the builds the targets are differenced from: each one action at full over the rest */
+/** the builds the targets are differenced from: each one action at full over the rest (the target's name: the action's,
+ * the eyes' and the inner brow's as the landmark head names them) */
 const BUILDS = Object.freeze({ rest: null, blink: { blink: 1 }, smile: { smile: 1, smileEyes: 0.15 }, browRaise: { browRaise: 1 }, browLower: { browLower: 1 },
-  eyeWide: { wide: 1 }, eyeSquint: { squint: 1 }, browWorried: { browInner: 1 } });
+  eyeWide: { wide: 1 }, eyeSquint: { squint: 1 }, browWorried: { browInner: 1 },
+  browOuter: { browOuter: 1 }, cheekRaise: { cheekRaise: 1 }, sneer: { sneer: 1 }, upperLipUp: { upperLipUp: 1 }, dimple: { dimple: 1 },
+  frown: { frown: 1 }, lowerLipDown: { lowerLipDown: 1 }, chinRaise: { chinRaise: 1 }, stretch: { stretch: 1 }, tighten: { tighten: 1 }, press: { press: 1 } });
+/** the targets split across the midline into a side alone (`blinkLeft`: the figure's left, mesh −x): the build's
+ * difference weighed by the side, as one side of a symmetric action is */
+const SIDED = Object.freeze(['blink', 'smile', 'browLower', 'eyeWide', 'eyeSquint', 'browOuter', 'cheekRaise', 'sneer', 'upperLipUp', 'dimple', 'frown', 'lowerLipDown', 'stretch', 'press']);
+export const RELATIONAL_FACE_TARGETS = Object.freeze(['blink', 'blinkLeft', 'blinkRight', 'smile', 'browRaise', 'browLower', 'eyeWide', 'eyeSquint', 'browWorried',
+  ...Object.keys(BUILDS).filter((k) => k !== 'rest' && !['blink', 'smile', 'browRaise', 'browLower', 'eyeWide', 'eyeSquint', 'browWorried'].includes(k)),
+  ...SIDED.filter((k) => k !== 'blink').flatMap((k) => [`${k}Left`, `${k}Right`])]);
+/** the head's action → its target (the FACS units' actions: face-acting/facs.js) */
+const TARGET_OF = Object.freeze({ blink: 'blink', smile: 'smile', browInner: 'browWorried', browOuter: 'browOuter', browLower: 'browLower', wide: 'eyeWide', squint: 'eyeSquint',
+  cheekRaise: 'cheekRaise', sneer: 'sneer', upperLipUp: 'upperLipUp', dimple: 'dimple', frown: 'frown', lowerLipDown: 'lowerLipDown', chinRaise: 'chinRaise', stretch: 'stretch', tighten: 'tighten', press: 'press' });
 /* (the smile's squint at a seventh: the head's at full all but shuts a deep-set eye; a squint is the aperture's, a key's
  * word); a blink also sinks the globe's faces `BLINK_SINK` behind the lid along the look (squeezed into the shut lid's
  * middle, they would show as a dot) */
@@ -69,7 +81,22 @@ export function relationalWeights(F, knots) {
     // (the eye's aperture over its range ends, as far as the lids are open: a shut eye is the blink's)
     eyeWide: Math.min(1, pos((a - 1) * open, R.aperture[1] - 1)), eyeSquint: Math.min(1, pos((1 - a) * open, 1 - R.aperture[0])),
     browWorried: Math.min(1, pos(-tilt, -R.browTilt[0])) };
-  return RELATIONAL_FACE_TARGETS.map((n) => +w[n].toFixed(6));
+  return RELATIONAL_FACE_TARGETS.map((n) => +(w[n] ?? 0).toFixed(6));
+}
+/**
+ * A FACS state (face-acting/facs.js: { AU12: 0.8, AU14R: 0.4, … }) → its weights in RELATIONAL_FACE_TARGETS' order, a
+ * side's on the side's target, and the AUs the rig has no target for (`gaps`). The jaw (AU26) is the jaw bone's, a gap
+ * here too: the clip's.
+ */
+export function facsWeights(state) {
+  const { actions, gaps } = facsActions(state), w = {};
+  for (const [act, v] of Object.entries(actions)) {
+    const m = /^(.*?)([LR])?$/.exec(act), base = TARGET_OF[m[1]];
+    if (!base) { gaps[act] = v; continue; }
+    const t = m[2] ? `${base}${m[2] === 'L' ? 'Left' : 'Right'}` : base;
+    w[t] = Math.min(1, (w[t] ?? 0) + v);
+  }
+  return { weights: RELATIONAL_FACE_TARGETS.map((n) => +(w[n] ?? 0).toFixed(6)), gaps };
 }
 /** the tracks' knots and weighing for a realistic hero (the western's, its targets and weights its own) */
 export function relationalKnots(authored) {
@@ -218,8 +245,8 @@ export function relationalFaceRig(m, mesh) {
           if (cards.length) wholeCards(cards, d);
           D[name] = d;
         }
-        // (one eye: the blink weighed across the midline)
-        for (const s of ['Left', 'Right']) { const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) { const w = s === 'Right' ? wRight(V0[i][0]) : 1 - wRight(V0[i][0]); for (let c = 0; c < 3; c++) d[i * 3 + c] = D.blink[i * 3 + c] * w; } D[`blink${s}`] = d; }
+        // (one side: a sided target weighed across the midline)
+        for (const k of SIDED) for (const s of ['Left', 'Right']) { const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) { const w = s === 'Right' ? wRight(V0[i][0]) : 1 - wRight(V0[i][0]); for (let c = 0; c < 3; c++) d[i * 3 + c] = D[k][i * 3 + c] * w; } D[`${k}${s}`] = d; }
         T = { V0, D };
         writeFaceStore(stored, T);
       }
