@@ -7,7 +7,7 @@
  * (the matte painter's natural cuts) in one atlas each for base, normal and orm (height in blue); the sea's depth over
  * the land; the dirt's tones (color-theorist/ground.js soilTones).
  *
- *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss?, sward?, drifts? }) → { P, L, light,
+ *   landRead(payload, cube, { hour?, dress?, grass?, relief?, reliefSeed?, moss?, sward?, drifts?, snow? }) → { P, L, light,
  *       sun, bases,
  *       ranges, pos, c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the
  *       grass' map and rows when asked }
@@ -81,7 +81,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -232,6 +232,15 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
       return (h(i, j) * (1 - a) + h(i + 1, j) * a) * (1 - b) + (h(i, j + 1) * (1 - a) + h(i + 1, j + 1) * a) * b; };
     const ease = (t) => t * t * (3 - 2 * t);
     for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - 0.27) / 0.2))); }
+    // (under snow, the share of the grass its depth leaves standing, cubed: the near blades stand their full height, so
+    // what a painted tuft shows through a cover, a blade shows only through a dusting; era/snow.js snowMap)
+    if (snow) {
+      const S = Buffer.from(snow.px, 'base64'), [sx, sy] = snow.size;
+      for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
+        const si = Math.round((x0 + ii * GCELL - snow.origin[0]) / snow.cell), sj = Math.round((y0 + j * GCELL - snow.origin[1]) / snow.cell);
+        if (si >= 0 && sj >= 0 && si < sx && sj < sy) cov[j * nx + ii] *= 1 - (S[(sj * sx + si) * 4] / 255) * (1 - snow.under ** 3);
+      }
+    }
     // (off the trail: the path's mask takes the grass, its weight past a half)
     if (PM) for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
       const x = x0 + ii * GCELL, y = y0 + j * GCELL, pi = Math.round((x - PM.origin[0]) / PM.cell), pj = Math.round((y - PM.origin[1]) / PM.cell);

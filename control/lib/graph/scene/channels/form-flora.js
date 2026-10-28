@@ -9,7 +9,8 @@
  * sprays coming in over the crown (the crown never draws in: the outline holds, form/bush-form.js BUSH_FORM.draw); far,
  * the thick axes and the far crown. The crowns and the wood cast into the land's shadow map; the sprays do not.
  *
- *   formFloraScript(flora) → the block's page source (absent `flora`, the land's block carries none)
+ *   formFloraScript(flora, { snow? }) → the block's page source (absent `flora`, the land's block carries none); `snow`, the
+ *     land's snow (channels/form-land.js, its map `SM`) caps the leaves that turn up where it lies
  *   `window.__formFlora()` → { templates, plants, near, far, sprays, triangles } what is drawn now
  */
 import { safeJson } from '../emit-util.js';
@@ -38,7 +39,7 @@ const STILL_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, flo
 `;
 const WIND_HEAD = 'uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform sampler2D uWindNoise;\n' + WIND_AT_GLSL + SWAY_GLSL;
 
-export function formFloraScript(flora) {
+export function formFloraScript(flora, { snow = false } = {}) {
   return `
   // the plants (gen-7: form/flora-read.js, channels/form-flora.js)
   {
@@ -88,24 +89,31 @@ export function formFloraScript(flora) {
     // toward the crown's outside (a crown takes the sun as one volume), the light through a thin leaf a fill in its
     // shade; near, a spray comes in at its own distance, growing from a third of its size about its site
     const eye = { value: new THREE.Vector3() };
-    function leafMat(spray, detail, phi) {
+${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap carries it, a share of them by the depth, where the map says
+    // the snow lies; its colour the snow's on the ground)
+    const LEAF_SNOW = { tSnowL: { value: SM }, uSnowLO: { value: new THREE.Vector2(...D.snow.origin.map((v) => v - D.snow.cell / 2)) }, uSnowLM: { value: new THREE.Vector2(D.snow.size[0] * D.snow.cell, D.snow.size[1] * D.snow.cell) }, uSnowCap: { value: new THREE.Vector2(D.snow.cap.up, D.snow.cap.share) }, uSnowLB: { value: new THREE.Vector3(...D.snow.base) } };
+    const LEAF_SNOW_HEAD = 'uniform sampler2D tSnowL;\\nuniform vec2 uSnowLO, uSnowLM, uSnowCap;\\nuniform vec3 uSnowLB;\\nvarying vec3 vSnowW;\\n';
+    const LEAF_SNOW_CAP = '\\n  { vec2 su = ( vSnowW.xy - uSnowLO ) / uSnowLM; float sc = ( su.x > 0.0 && su.y > 0.0 && su.x < 1.0 && su.y < 1.0 ) ? texture2D( tSnowL, su ).r : 0.0;' +
+      ' vec3 wn = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ); float hs = fract( sin( dot( floor( vSnowW * 3.0 ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
+      ' float sk = smoothstep( uSnowCap.x - 0.04, uSnowCap.x + 0.12, wn.z ) * step( hs, uSnowCap.y ) * smoothstep( 0.15, 0.45, sc ); diffuseColor.rgb = mix( diffuseColor.rgb, uSnowLB, sk ); }';
+` : ''}    function leafMat(spray, detail, phi) {
       const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
-      const U = { uEye: eye, uDetail: { value: new THREE.Vector2(detail[0], detail[1]) } };
+      const U = { uEye: eye, uDetail: { value: new THREE.Vector2(detail[0], detail[1]) }${snow ? ', ...LEAF_SNOW' : ''} };
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, U);
-        sh.vertexShader = swayHead(sh, phi, 1) + 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\n' + sh.vertexShader
+        sh.vertexShader = ${snow ? "'varying vec3 vSnowW;\\n' + " : ''}swayHead(sh, phi, 1) + 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\n' + sh.vertexShader
           .replace('#include <begin_vertex>', spray ? [
             'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( aSite, 1.0 ) ).xyz;',
             'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
             'float hI = fract( sin( dot( ipos.xy, vec2( 12.9898, 78.233 ) ) + ipos.z * 4.13 ) * 43758.5453 ) * 0.7, inF = smoothstep( hI, hI + 0.3, nearF );',
             'vec3 transformed = aSite + ( position - aSite ) * mix( 0.35, 1.0, inF ) * step( 0.001, inF );'].join('\\n') : '#include <begin_vertex>')
           .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\\n  transformedNormal = normalize( mix( transformedNormal, normalMatrix * mat3( instanceMatrix ) * aOut, 0.65 ) );')
-          .replace('#include <project_vertex>', SWAY_PROJECT);
-        sh.fragmentShader = sh.fragmentShader
-          .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;')
+          .replace('#include <project_vertex>', ${snow ? "SWAY_PROJECT + '\\n  vSnowW = ( modelMatrix * instanceMatrix * vec4( transformed, 1.0 ) ).xyz;'" : 'SWAY_PROJECT'});
+        sh.fragmentShader = ${snow ? 'LEAF_SNOW_HEAD + ' : ''}sh.fragmentShader
+          .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;'${snow ? ' + LEAF_SNOW_CAP' : ''})
           .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;');
       };
-      m.customProgramCacheKey = () => 'form-leaf' + (spray ? '-spray' : '') + phi;
+      m.customProgramCacheKey = () => 'form-leaf' + (spray ? '-spray' : '') + phi${snow ? -snow : ''};
       return m;
     }
     // a template's pieces merged in its own space: each clump or spray a variant's triangles turned to its facing (a pad

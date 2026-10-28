@@ -74,7 +74,7 @@ export function formLandScript(form, flora = null) {
   const LAYER_U = { tGrassL: { value: new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat) }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 }, tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
     tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
     uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uMoss: { value: D.layers.moss ?? 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
-${form.dunes ? duneScript() : ''}  function layeredGround(m, roughScale) {
+${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes || form.snow ? printScript(form) : ''}  function layeredGround(m, roughScale) {
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
@@ -228,8 +228,8 @@ ${form.dunes ? duneScript() : ''}  function layeredGround(m, roughScale) {
     diffuseColor.rgb *= mix( 1.0, uWet.z, wet );
     roughnessFactor = mix( roughnessFactor, uWet.w, wet );
     normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
-${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}    };
-    m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}';
+${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}${form.snow ? `      sh.fragmentShader = SNOW_HEAD + sh.fragmentShader.replace('    // (the sand WET', SNOW_COVER + '    // (the sand WET'); Object.assign(sh.uniforms, SNOW_U);\n` : ''}${form.dunes || form.snow ? `      sh.fragmentShader = PRINT_HEAD + sh.fragmentShader.replace('    // (the sand WET', PRINT_PRESS + '    // (the sand WET'); Object.assign(sh.uniforms, PRINT_U);\n` : ''}    };
+    m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}${form.snow ? '-snow' : ''}';
     return m;
   }
   // the ROCK'S RELIEF (form/rock-relief.js): the cliff's steep faces cut finer and pushed in and out along their normals by
@@ -369,7 +369,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
       }
     }
   }
-${formGrassScript()}${flora ? formFloraScript(flora) : ''}
+${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
@@ -440,5 +440,139 @@ const DUNE_SAND = `    float sandK = ws[ 3 ] / max( 1e-4, tw );
         nw = normalize( mix( nw, normalize( nw + gj ), ga ) ); roughnessFactor = mix( roughnessFactor, 0.06, ga ); metalnessFactor = mix( metalnessFactor, 0.5, ga );
       }
       mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+    }
+`;
+
+/** The snow over the ground (era/snow.js snowMap, `form.snow`): its uniforms and the shader's piece, spliced in before
+ *  the wet sand; a land with no snow has none of it. */
+function snowScript() {
+  return `  // the SNOW over the ground (era/snow.js): as it lies, level enough to hold it, its path trodden
+  const SM = new THREE.DataTexture(bytes(D.snow.px), D.snow.size[0], D.snow.size[1], THREE.RGBAFormat); SM.magFilter = SM.minFilter = THREE.LinearFilter; SM.needsUpdate = true;
+  const SNOW_U = { tSnow: { value: SM }, uSnowO: { value: new THREE.Vector2(...D.snow.origin.map((v) => v - D.snow.cell / 2)) }, uSnowM: { value: new THREE.Vector2(D.snow.size[0] * D.snow.cell, D.snow.size[1] * D.snow.cell) },
+    uSnowD: { value: new THREE.Vector4(D.snow.depth, D.snow.hold, D.snow.depth >= 0.1 ? 0.2 : 0.5, D.snow.drift) }, uSnowBase: { value: new THREE.Vector3(...D.snow.base) } };
+  const SNOW_HEAD = ${JSON.stringify(SNOW_HEAD)}, SNOW_COVER = ${JSON.stringify(SNOW_COVER)};
+`;
+}
+// (the map's red how much snow lies there; depth, hold, how worn the trodden path, drift)
+const SNOW_HEAD = 'uniform sampler2D tSnow;\nuniform vec2 uSnowO, uSnowM;\nuniform vec4 uSnowD;\nuniform vec3 uSnowBase;\n';
+// THE SNOW: laid over whatever ground is here as the map says it lies, held per pixel only where the ground is level
+// enough (its own normal: a rock's ledge white, its face bare), its edge wandering in and out over a metre and finer; it
+// buries the ground's own detail (deeper, more), swells in soft drifts, and glitters (a grain in fifty, turned its own way
+// and polished, lit through the light). On the trail it is trodden: packed, greyed, the soil showing through as far as it
+// is shallow.
+const SNOW_COVER = `    float snowKo = 0.0;
+    {
+      vec2 su = ( vWPos.xy - uSnowO ) / uSnowM;
+      float sc = ( su.x > 0.0 && su.y > 0.0 && su.x < 1.0 && su.y < 1.0 ) ? texture2D( tSnow, su ).r : 0.0;
+      float hold = smoothstep( uSnowD.y - 0.1, uSnowD.y + 0.03, nW.z );
+      float en = vn( vWPos.xy / 1.1 + 71.0 ) * 0.6 + vn( vWPos.xy / 0.28 + 3.0 ) * 0.4 - 0.5;
+      float snowK = smoothstep( 0.3, 0.5, sc * hold + en * 0.3 ); snowKo = snowK;
+      if ( snowK > 0.001 ) {
+        vec3 nw = normalize( tT * mn.x + tB * mn.y + nW * mn.z );
+        // (it buries the ground's detail, and swells in drifts a couple of metres across)
+        float bury = clamp( 0.55 + uSnowD.x * 2.5, 0.55, 0.95 );
+        vec2 e = vec2( 0.35, 0.0 ), q = vWPos.xy / 2.2;
+        vec2 dg = vec2( vn( q + e.xy ) - vn( q - e.xy ), vn( q + e.yx ) - vn( q - e.yx ) ) / ( 2.0 * 0.35 * 2.2 );
+        vec3 ns = normalize( mix( nw, nW, bury ) - vec3( dg * 0.35 * min( 1.0, uSnowD.x * 6.0 ), 0.0 ) );
+        vec3 sb = uSnowBase * ( 0.97 + 0.06 * vn( vWPos.xy / 3.0 + 13.0 ) );
+        // (trodden on the trail: packed and greyed, the soil through it as far as it is shallow)
+        float trod = pw * snowK;
+        sb = mix( sb, mix( sb * 0.86, uPathBase, uSnowD.z ), trod );
+        float rs = mix( 0.72, 0.55, trod );
+        vec2 gc = floor( vWPos.xy / 0.008 ); float gh = hn( gc + 0.5 ), ga = ( 1.0 - trod ) * ( 1.0 - smoothstep( 0.35, 0.9, fwidth( vWPos.x / 0.008 ) ) );
+        if ( gh > 0.98 && ga > 0.001 ) { vec3 gj = vec3( hn( gc + 7.3 ) - 0.5, hn( gc + 3.1 ) - 0.5, 0.0 ) * 1.6; ns = normalize( mix( ns, normalize( ns + gj ), ga ) ); rs = mix( rs, 0.05, ga ); metalnessFactor = mix( metalnessFactor, 0.6 * snowK, ga ); }
+        diffuseColor.rgb = mix( diffuseColor.rgb, sb, snowK );
+        roughnessFactor = mix( roughnessFactor, rs, snowK );
+        nw = normalize( mix( nw, ns, snowK ) );
+        mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+      }
+    }
+`;
+
+/** The PRINTS (sand: the dunes; snow: era/snow.js): the walker's feet pressed into what is soft under them, drawn by the
+ *  layered ground from a map that moves with the walker; the wind fills them back. Only on a land with dunes or snow. */
+export const PRINTS = Object.freeze({ texels: 512, metres: 12, step: 0.8, apart: 0.1, max: 320, sand: { depth: 0.035, fill: 60 }, snow: { most: 0.12, fill: 600 } });
+function printScript(form) {
+  return `  // the PRINTS: each step of the walker on sand or snow pressed into it (a sole, its rim pushed up), on a map that moves
+  // with the walker (PRINTS.metres across, PRINTS.texels a side), the wind filling each back over its own time (sand
+  // quickly, snow slowly); window.__formPrints: stamp, walk (a line of steps), stats
+  const PR = ${JSON.stringify(PRINTS)}, PRT = new THREE.DataTexture(new Uint8Array(PR.texels * PR.texels).fill(128), PR.texels, PR.texels, THREE.RedFormat);
+  PRT.magFilter = PRT.minFilter = THREE.LinearFilter; PRT.needsUpdate = true;
+  const PRINT_U = { tPrint: { value: PRT }, uPrintO: { value: new THREE.Vector2(-1e4, -1e4) }, uPrintM: { value: PR.metres }, uPrintD: { value: new THREE.Vector2(PR.sand.depth, ${form.snow ? 'Math.min(PR.snow.most, D.snow.depth * 0.6)' : '0'}) } };
+  const prints = [], prTx = PR.metres / PR.texels;
+  // what the foot lands in: snow where the map lays it, else sand
+  const onSnowAt = ${form.snow ? `(x, y) => { const i = Math.round((x - D.snow.origin[0]) / D.snow.cell), j = Math.round((y - D.snow.origin[1]) / D.snow.cell); return i >= 0 && j >= 0 && i < D.snow.size[0] && j < D.snow.size[1] && SM.image.data[(j * D.snow.size[0] + i) * 4] > 90; }` : '() => false'};
+  // a sole in its own frame (u along the step, v across, metres): heel and ball joined, its depth with a soft wall, its rim
+  const sole = (u, v) => {
+    const e = (cu, ru, rv) => Math.hypot((u - cu) / ru, v / rv) - 1, a = e(-0.075, 0.05, 0.042), b = e(0.05, 0.075, 0.05);
+    const k = 0.6, h = Math.max(0, Math.min(1, 0.5 + 0.5 * (b - a) / k)), d = (b * (1 - h) + a * h - k * h * (1 - h)) * 0.045;
+    return d < 0 ? -Math.min(1, -d / 0.012) * (0.85 + 0.15 * Math.sin(u * 160)) : 0.35 * Math.exp(-(((d - 0.01) / 0.01) ** 2));
+  };
+  function rasterPrints(now) {
+    const N = PR.texels, A = PRT.image.data, [ox, oy] = PRINT_U.uPrintO.value.toArray(), H = new Float32Array(N * N);
+    for (let k = prints.length - 1; k >= 0; k--) {
+      const p = prints[k], amp = Math.exp(-(now - p.t) / (p.snow ? PR.snow.fill : PR.sand.fill));
+      if (amp < 0.03) { prints.splice(k, 1); continue; }
+      const c = Math.cos(p.yaw), s = Math.sin(p.yaw), i0 = Math.floor((p.x - 0.2 - ox) / prTx), i1 = Math.ceil((p.x + 0.2 - ox) / prTx), j0 = Math.floor((p.y - 0.2 - oy) / prTx), j1 = Math.ceil((p.y + 0.2 - oy) / prTx);
+      for (let j = Math.max(0, j0); j <= Math.min(N - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(N - 1, i1); i++) {
+        const dx = ox + (i + 0.5) * prTx - p.x, dy = oy + (j + 0.5) * prTx - p.y, h = sole(dx * c + dy * s, -dx * s + dy * c) * amp, q = j * N + i;
+        H[q] = h < 0 ? Math.min(H[q], h) : H[q] < 0 ? H[q] : Math.max(H[q], h);
+      }
+    }
+    for (let q = 0; q < N * N; q++) A[q] = Math.max(0, Math.min(255, Math.round(128 + H[q] * 127)));
+    PRT.needsUpdate = true;
+  }
+  function recentre(x, y) { PRINT_U.uPrintO.value.set(Math.round((x - PR.metres / 2) / prTx) * prTx, Math.round((y - PR.metres / 2) / prTx) * prTx); }
+  function stamp(x, y, yaw, side, t = performance.now() / 1000) {
+    const o = PRINT_U.uPrintO.value; if (Math.abs(x - o.x - PR.metres / 2) > PR.metres / 4 || Math.abs(y - o.y - PR.metres / 2) > PR.metres / 4) recentre(x, y);
+    prints.push({ x: x - Math.sin(yaw) * side * PR.apart, y: y + Math.cos(yaw) * side * PR.apart, yaw, t, snow: onSnowAt(x, y) });
+    if (prints.length > PR.max) prints.shift();
+    rasterPrints(t);
+  }
+  let prSide = 1, prAcc = 0, prLast = null, prRaster = 0;
+  (function printTick() {
+    const now = performance.now() / 1000;
+    if (typeof walkOn !== 'undefined' && walkOn && walkMode === 'walk' && walkGround) {
+      const x = camera.position.x, y = camera.position.y;
+      if (prLast) { const dx = x - prLast[0], dy = y - prLast[1], d = Math.hypot(dx, dy); prAcc += d; if (prAcc >= PR.step && d > 1e-4) { prAcc = 0; prSide = -prSide; stamp(x, y, Math.atan2(dy, dx), prSide, now); } }
+      prLast = [x, y];
+    } else prLast = null;
+    if (prints.length && now - prRaster > 0.5) { prRaster = now; rasterPrints(now); }
+    requestAnimationFrame(printTick);
+  })();
+  const PRINT_HEAD = ${JSON.stringify(PRINT_HEAD)}, PRINT_PRESS = ${JSON.stringify(form.snow ? PRINT_PRESS : PRINT_PRESS.replace('onSn = snowKo', 'onSn = 0.0'))};
+  window.__formPrints = { stamp, walk: (pts) => { let side = 1, acc = 0; for (let k = 1; k < pts.length; k++) { const [ax, ay] = pts[k - 1], [bx, by] = pts[k], L = Math.hypot(bx - ax, by - ay), yaw = Math.atan2(by - ay, bx - ax); for (let s = acc; s < L; s += PR.step) { side = -side; stamp(ax + (bx - ax) * s / L, ay + (by - ay) * s / L, yaw, side); } acc = 0; } }, stats: () => ({ prints: prints.length, snow: prints.filter((p) => p.snow).length }), debug: () => { const o = PRINT_U.uPrintO.value, A = PRT.image.data, N = PR.texels; let n = 0, lo = [1e9, 1e9], hi = [-1e9, -1e9]; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (A[j * N + i] < 100) { n++; const x = o.x + (i + 0.5) * prTx, y = o.y + (j + 0.5) * prTx; lo = [Math.min(lo[0], x), Math.min(lo[1], y)]; hi = [Math.max(hi[0], x), Math.max(hi[1], y)]; } return { o: [o.x, o.y], n, lo, hi, first: prints[0], last: prints[prints.length - 1] }; } };
+`;
+}
+const PRINT_HEAD = 'uniform sampler2D tPrint;\nuniform vec2 uPrintO, uPrintD;\nuniform float uPrintM;\n';
+// THE PRINTS pressed into the sand and the snow: the map's height (its depth the surface's: a shallow sand print, a snow
+// print as deep as the snow lets it) read a step along the view into it (parallax), its walls lit from its slopes, the
+// ripples and the drifts' detail gone where the foot pressed, the inside shaded as deep as it goes
+const PRINT_PRESS = `    {
+      vec2 pu0 = ( vWPos.xy - uPrintO ) / uPrintM;
+      float onSa = ws[ 3 ] / max( 1e-4, tw ), onSn = snowKo, softK = max( onSa, onSn );
+      if ( softK > 0.01 && pu0.x > 0.0 && pu0.y > 0.0 && pu0.x < 1.0 && pu0.y < 1.0 && camD < 14.0 ) {
+        float dep = onSn > onSa ? uPrintD.y : uPrintD.x, tx = 1.0 / 512.0;
+        float h0 = texture2D( tPrint, pu0 ).r * 255.0 / 127.0 - 128.0 / 127.0;
+        if ( abs( h0 ) > 0.004 || texture2D( tPrint, pu0 + vec2( 6.0 * tx, 0.0 ) ).r != texture2D( tPrint, pu0 - vec2( 6.0 * tx, 0.0 ) ).r ) {
+          // (the view marched down into the print, eight layers, till it meets the pressed surface: its far wall seen, its
+          // near wall hidden, as deep as the surface's depth makes it)
+          vec3 V5 = normalize( cameraPosition - vWPos );
+          vec2 dU = -( V5.xy / max( V5.z, 0.35 ) ) * dep / uPrintM / 8.0, pu = pu0;
+          float lay = 0.0, dd = max( 0.0, -h0 );
+          for ( int k = 0; k < 8; k++ ) { if ( lay >= dd ) break; pu += dU; lay += 0.125; dd = max( 0.0, -( texture2D( tPrint, pu ).r * 255.0 / 127.0 - 128.0 / 127.0 ) ); }
+          float hc = texture2D( tPrint, pu ).r * 255.0 / 127.0 - 128.0 / 127.0;
+          float hx = ( texture2D( tPrint, pu + vec2( tx, 0.0 ) ).r - texture2D( tPrint, pu - vec2( tx, 0.0 ) ).r ) * 255.0 / 127.0;
+          float hy = ( texture2D( tPrint, pu + vec2( 0.0, tx ) ).r - texture2D( tPrint, pu - vec2( 0.0, tx ) ).r ) * 255.0 / 127.0;
+          vec2 grad = vec2( hx, hy ) * dep / ( 2.0 * uPrintM * tx );
+          float inK = softK * ( 1.0 - smoothstep( 9.0, 14.0, camD ) ), pressed = smoothstep( 0.02, 0.25, -hc );
+          vec3 nw = normalize( tT * mn.x + tB * mn.y + nW * mn.z );
+          nw = normalize( mix( nw, nW, pressed * 0.9 * inK ) - vec3( grad * inK, 0.0 ) );
+          // (sand disturbed a shade darker; snow pressed deep holds a blue shade the sky fills it with)
+          diffuseColor.rgb *= onSn > onSa ? mix( vec3( 1.0 ), vec3( 0.72, 0.8, 0.95 ), inK * max( 0.0, -hc ) ) : vec3( 1.0 - inK * ( 0.05 * pressed + 0.08 * max( 0.0, -hc ) ) );
+          roughnessFactor = mix( roughnessFactor, min( 1.0, roughnessFactor * 1.15 + 0.05 ), pressed * inK );
+          mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+        }
+      }
     }
 `;

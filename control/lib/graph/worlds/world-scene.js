@@ -52,6 +52,7 @@ import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
 import { floraRead, floraBox, FLORA_HIDES } from '@/lib/graph/form/flora-read';
+import { snowBase } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
@@ -728,10 +729,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const drifts = readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     // (where the form grows its own plants, floraBox: the painted trees and bushes there are not read as land)
     const grown = floraBox(payload.plants);
-    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}) });
+    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
+    // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
+    if (read && payload.snowMap) payload.form = { ...payload.form, land: { ...payload.form.land, snow: { ...payload.snowMap, base: snowBase(payload.snowMap.albedo, read.light) } } };
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases }) : null;
@@ -752,6 +755,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
   if (payload && payload.dunes) delete payload.dunes;
+  if (payload && payload.snowMap) delete payload.snowMap;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word

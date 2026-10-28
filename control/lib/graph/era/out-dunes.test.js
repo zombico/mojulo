@@ -85,6 +85,9 @@ describe('the form render\'s sand, drawn by the wind', () => {
     const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
     expect(formLandScript(land)).not.toMatch(/tDune|DUNE_/);
     expect(formLandScript({ ...land, dunes: M })).toContain('uniform sampler2D tDune');
+    // (and the walker's prints pressed into its sand, no snow's cover read)
+    expect(formLandScript({ ...land, dunes: M })).toContain('__formPrints');
+    expect(formLandScript({ ...land, dunes: M })).not.toContain('snowKo');
   });
 });
 

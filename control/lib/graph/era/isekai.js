@@ -73,7 +73,7 @@ import { floraRamps, harmonyRamps } from './flora-colours.js';
 import { placeThickets, clumpBushes, readBush, SOFT_BRUSH } from './thickets.js';
 import { growRockFlora, rockFloraFill } from './rock-flora.js';
 import { SOFT_GROUNDS } from '../materials/soft-ground.js';
-import { readSnow, snowRamp, snowFar, snowField, snowAlbedo, grassUnder, capOf } from './snow.js';
+import { readSnow, snowRamp, snowFar, snowField, snowAlbedo, grassUnder, capOf, snowMap } from './snow.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
@@ -447,7 +447,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // it whole; the trail's ribbon kept, walked bare)
   const zLow = SN ? site.grid.z.reduce((a, v) => Math.min(a, v), Infinity) : 0, SF = SN ? snowField(SN, { base: zLow, sun: dir, seed }) : null;
   const snowAt = SF ? (p) => SF(p[0], p[1], p[2] ?? site.ground(p[0], p[1]), [0, 0, 1]) > 0 : null;
-  if (SF) ground.faces = ground.faces.flatMap((f) => snowOn(f, SF));
+  // (the form render's read draws the snow itself over the ground as it lies, ctx.form: its map, below)
+  if (SF && !ctx.form) ground.faces = ground.faces.flatMap((f) => snowOn(f, SF));
   // (no grass on the sand, the bare rock or the talus; in the snow, the share its depth leaves standing, grassUnder)
   const under = SN ? grassUnder(SN) : 1, inSnow = SF && under < 1 ? (p) => snowAt(p) && hash3(Math.round(p[0] * 4), Math.round(p[1] * 4), seed + 1823) >= under : null;
   const onSand1 = inSnow ? (p) => !!onSand0?.(p) || inSnow(p) : onSand0;
@@ -459,7 +460,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // (the TRAIL under snow: its fringe the snow's, its path trodden snow, packed and greyed, the soil showing through
   // as far as the snow is shallow)
-  if (SF) {
+  if (SF && !ctx.form) {
     const A = snowAlbedo(st.palette.snow), soil = st.palette.soil[Math.floor(st.palette.soil.length / 2)].map((v) => v / 255), worn = SN.depth >= 0.1 ? 0.2 : 0.5;
     const trodden = A.map((v, k) => v * 0.86 * (1 - worn) + soil[k] * worn);
     for (const f of ribbon) if (SF(...mean(f.corners), [0, 0, 1]) > 0) { if (f.cls === 'trail') f._tint = trodden; else f.group = 'isekai:snow'; }
@@ -849,10 +850,13 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr }) } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
+    // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
+    ...(ctx.form && SF ? { snowMap: snowMap(site, SF, SN, snowR) } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // (the SNOW's prints: a footprint bed round the walker on the snow, scene/channels/snow-prints.js)
-  if (SF) payload.snowPrints = snowPrintsConfig(st, site, zG, SN, SF, shadow, dir, drawnFaces);
+  // (the form render's read presses its own prints into the snow it draws, channels/form-land.js: none of the bed's)
+  if (SF && !ctx.form) payload.snowPrints = snowPrintsConfig(st, site, zG, SN, SF, shadow, dir, drawnFaces);
   // the arrangements on the page: the soft group is walked through; what blocks is a collider and every arrangement an
   // anchor an engine can find
   if (shr.anchors.length) Object.assign(payload, { colliders: [...(payload.colliders ?? []), ...shr.colliders], anchors: [...(payload.anchors ?? []), ...shr.anchors] });
