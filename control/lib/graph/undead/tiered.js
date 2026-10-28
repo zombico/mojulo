@@ -63,9 +63,14 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
 /** the rest the card stands in, as the hero's pose words: the hunch a `hinge` over the hips, the knees a `crouch`, each
  * arm its own direction (a reaching corpse leads with one), the head hung (`pitch` down) and cocked (`yaw`, the side
  * tilt), the jaw slack (the head's `jawOpen`) */
+// the ATTACK skeleton's stand: crouched low under a hunch, both clawed hands up and forward to strike (the lead one
+// higher), the elbows bent, the head up and watching
+const STRIKE = { hinge: 22, crouch: 0.28, armR: { x: 0.45, y: 0.75, z: -0.15 }, armL: { x: -0.5, y: 0.6, z: 0.05 }, elbowR: 75, elbowL: 95, neck: { pitch: 6 }, head: { yaw: 0, pitch: 8 } };
+
 export function undeadRest(hero) {
   const card = undeadCard(hero);
   if (!card) return null;
+  if (card.form === 'bone' && hero.undead.layers?.includes('attack')) return { gesture: { ...STRIKE }, jaw: Math.min(25, (card.jaw ?? 0) + 8), lean: STRIKE.hinge };
   const P = posture(card, mulberry32(((hero.undead.seed ?? 1) >>> 0) ^ 0x9e3779b9)), h = card.head ?? { drop: 0, tilt: 0 };
   const tilt = r3(Math.sign(P.head.x) * h.tilt * 22);
   const gesture = { hinge: r3(card.lean ?? 0), crouch: r3(Math.min(1, (card.crouch ?? 0) * 0.4)), armR: P.arms.R, armL: P.arms.L, elbowL: 'slight', elbowR: 'slight',

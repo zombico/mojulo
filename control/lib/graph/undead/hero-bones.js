@@ -14,12 +14,14 @@
  *              finger's three phalanges on the rig's finger joints
  *   skull      on the head's base (./skull.js), the jaw its own bone: the rig's head and jaw joints are the skull's
  *
- *   heroSkeleton(plan, card)   → the plan with its flesh, its head include and the head's dial gone, its bones in their
- *                                place, their groups toned bone (the openings dark)
+ *   heroSkeleton(plan, card, { segmented })   → the plan with its flesh, its head include and the head's dial gone, its
+ *                                bones in their place, their groups toned bone (the openings dark); `segmented` the
+ *                                ATTACK skeleton's: every long bone a column of ridged segments as the spine is (the
+ *                                forearm's and the shin's two columns side by side), each finger ending in a claw
  *
  * Over the hero's plan before the tiered passes (a bone joint is its knob: no bridge, no shoulder ball). Pure. Metres.
  */
-import { boneLimb, vertebrae } from './passes.js';
+import { boneLimb, vertebrae, limbColumn } from './passes.js';
 import { skullFrame } from './skull.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -45,7 +47,17 @@ const LIMB_BONES = [
 const DIGITS = { thumb: ['Cmc', 'Mcp', 'Ip', 'Tip'], index: ['Mcp', 'Pip', 'Dip', 'Tip'], middle: ['Mcp', 'Pip', 'Dip', 'Tip'], ring: ['Mcp', 'Pip', 'Dip', 'Tip'], little: ['Mcp', 'Pip', 'Dip', 'Tip'] };
 const GROUPS = { thigh: 'Legs', shank: 'Legs', foot: 'Feet', toes: 'Feet', upperArm: 'Arms', foreArm: 'Arms', hand: 'Hands' };
 
-export function heroSkeleton(plan, card) {
+// the ATTACK skeleton's limbs (`segmented`): each long bone a column of ridged segments as the spine is, the forearm's
+// and the shin's two bones each their own column side by side; [hero part, from, to, segments, body, ridge, the ridge's
+// way (R side: +x out, +y front), the twin's offset across the limb (R side) or none]
+const COLUMNS = [
+  ['thigh', 'hip', 'knee', 9, [0.036, 0.6, 0.03], [0.012, 0.008, 0.012], [0.35, 1, 0], null],
+  ['shank', 'knee', 'ankle', 9, [0.032, 0.6, 0.027], [0.01, 0.006, 0.01], [0.2, 1, 0], [0.028, -0.012, 0]],
+  ['upperArm', 'shoulder', 'elbow', 8, [0.029, 0.6, 0.024], [0.01, 0.006, 0.009], [0.5, -1, 0], null],
+  ['foreArm', 'elbow', 'wrist', 8, [0.02, 0.6, 0.017], [0.008, 0.005, 0.007], [0.9, -0.4, 0], [0, 0.026, 0]],
+];
+
+export function heroSkeleton(plan, card, { segmented = false } = {}) {
   const J0 = plan.joints, RJ = plan.rig?.joints ?? {};
   // a rig joint's place (a per-side joint is named by its template, `indexMcp$S`: the right's)
   const at = (n) => { const j = RJ[n] ?? RJ[n.replace(/R$/, '$S')]; return Array.isArray(j?.at) ? j.at : null; };
@@ -107,6 +119,23 @@ export function heroSkeleton(plan, card) {
     const f = boneLimb({ name: 'finger', kind: 'segment', from: `${digit}${names[i]}`, to: `${digit}${names[i + 1]}` }, { k, g, Bw });
     delete f.rMid;
     seg({ ...f, name: `${digit}${i + 1}R`, over: [0.5, 0.5], group: 'Hands', mirror: 'name', bind: { bone: `${digit}${i + 1}R` } });
+  }
+  // (the ATTACK skeleton: the long bones' shafts thinned to a core under their columns, the knobs at their ends kept;
+  // each finger's last bone drawn out to a hooked claw)
+  if (segmented) {
+    for (const s of segments) if (COLUMNS.some(([n]) => s.name === `${n}R`) && s.rMid !== undefined) s.rMid = r3((Array.isArray(s.rMid) ? Math.max(...s.rMid) : s.rMid) * 0.4);
+    for (const [name, from, to, n, body, ridge, back, twin] of COLUMNS) {
+      const A = J0[from], B = J0[to], bone = `${name}R`;
+      segments.push(...limbColumn({ name: `${name}Col`, A, B, n, body, ridge, back, bone, group: GROUPS[name], k, s: Bw.shaft }));
+      if (twin) segments.push(...limbColumn({ name: `${name}Twin`, A: add(A, mul(twin, k)), B: add(B, mul(twin, k)), n: n + 1, body: body.map((v, i) => (i === 1 ? v : v * 0.62)), ridge: ridge.map((v) => v * 0.8), back: [back[0] + 0.6, back[1] - 0.4, 0], bone, group: GROUPS[name], k, s: Bw.shaft }));
+    }
+    for (const [digit, names] of Object.entries(DIGITS)) {
+      const dip = at(`${digit}${names[2]}R`), tip = at(`${digit}${names[3]}R`);
+      if (!dip || !tip) continue;
+      const d = sub(tip, dip), L = Math.hypot(...d), u = mul(d, 1 / (L || 1)), hook = add(add(tip, mul(u, 0.03 * k)), [0, 0.008 * k, -0.012 * k]);
+      joints[`${digit}Claw`] = hook.map(r3);
+      seg({ name: `${digit}ClawR`, kind: 'segment', from: `${digit}${names[3]}`, to: `${digit}Claw`, rA: R(0.007), rB: R(0.0015), over: [0.3, 0.6], group: 'Hands', mirror: 'name', bind: { bone: `${digit}3R` } });
+    }
   }
   // the skull on the head's base, its jaw on the rig's jaw bone
   const skull = skullFrame(Hb, { k, s: r3(1 + (Bw.ends - 1) * 0.35) });

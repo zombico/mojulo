@@ -160,6 +160,7 @@ export function undeadLayers(plan, hero, { living = plan } = {}) {
   const card = undeadCard(hero), layers = hero?.undead?.layers ?? [];
   if (!card || !layers.length) return plan;
   if (layers.includes('decayed') && card.form !== 'bone') throw new Error(`undead: the decayed layer lies over bone (the ${hero.undead.form} keeps its own flesh)`);
+  if (layers.includes('attack') && card.form !== 'bone') throw new Error(`undead: the attack layer lies over bone (the ${hero.undead.form} keeps its flesh)`);
   if (layers.includes('bared') && card.form !== 'flesh') throw new Error(`undead: the bared layer lies over flesh (the ${hero.undead.form} is already bone)`);
   const k = heroK(plan), seed = (hero.undead.seed ?? 1) >>> 0;
   let segments = [...plan.segments], joints = { ...plan.joints }, rig = plan.rig, include = plan.include, palette = { ...(plan.palette ?? {}) };

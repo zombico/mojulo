@@ -35,7 +35,7 @@
  *                                  under the `adorned` layer (./armour.js)
  *
  * The LAYERS a lineage lays over a form's card (UNDEAD_LAYERS): `bared` a corpse's parts back to bone, `decayed` gaunt
- * flesh back on the bone, `adorned` what is left of its armour, `armed` its weapons, `shreds` its clothes in rags.
+ * flesh back on the bone, `attack` the attack skeleton's segmented limbs, claws and strike, `adorned` what is left of its armour, `armed` its weapons, `shreds` its clothes in rags.
  */
 export const UNDEAD_CARDS = Object.freeze({
   // ── zombies: the body kept, and wrong ──
@@ -56,6 +56,7 @@ export const UNDEAD_CARDS = Object.freeze({
 export const UNDEAD_LAYERS = Object.freeze({
   bared: 'a gaunt corpse with parts gone back to bone: its skull, an arm or a forearm, a thigh or a shin, one side\'s ribs through the chest (./bared.js; over flesh only)',
   decayed: 'gaunt rotted flesh back on the bone: the ribs through a shrunken chest rotted open, sinew on the limbs, a throat, a scalp (./decay.js; over bone only)',
+  attack: 'the attack skeleton: every long bone a column of ridged segments as the spine is (the forearm\'s and the shin\'s two side by side), clawed fingers, standing to strike (./hero-bones.js; over bone only)',
   adorned: 'what is left of its armour, sized to the body it was made for: a helm, a cuirass, pauldrons, bracers, greaves (./armour.js)',
   armed: 'its weapons in its hands: the card\'s sword and shield, greatsword, club, bow or dagger, as the hero\'s gear',
   spots: 'its flesh gone in patches as a cow\'s spots are: meat where the skin went, bone in the deep ones, bone through the face or flesh left on the skull (./spots.js; over flesh only)',

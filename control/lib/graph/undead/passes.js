@@ -7,6 +7,7 @@
  *                       hand, finger)
  *   RIBS               the ribs' heights and widths on the 2 m template
  *   vertebrae(J, { k, g, s })   the vertebrae along a column's joints (spine0, spine1, spine2, neckBase, neckTop)
+ *   limbColumn({ name, A, B, n, body, ridge, back, bone, group, k, s })   the same segments laid along a limb
  *   posture(card, rand)  → { lean, crouch, jaw, arms: { R, L }, head }: the rest a card stands in
  *
  * Pure: the dice are the caller's (`rand`, a seeded stream).
@@ -66,6 +67,23 @@ export function vertebrae(J, { k, g, s = 1 }) {
         { at: P(add(c, mul(back, D * 1.3))), r: [r3(W * 0.55), r3(h * 0.8)] }, { at: P(tip), r: [r3(pr * k * s * 0.7), r3(pr * k * s)] },
       ], group, tint: '#cccccc', mirror: 'plane', bind: { bone: bone(i) } };
     });
+  });
+}
+
+/** A COLUMN of segments laid along a limb as the spine's vertebrae are along the back (the attack skeleton's limbs):
+ * `n` segments from A to B, each a short plate (thin along the limb, broad across) drawn out to a ridge in `back`'s
+ * direction (a unit vector across the limb), the segment's height a share `hs` of the step so the core shows between.
+ * body [half width, height share, half depth], ridge [length, drop along the limb, radius] in template metres × k × s;
+ * `name` the parts' stem (`${name}${i}R`, mirrored by name), `bone` the bone they ride. */
+export function limbColumn({ name, A, B, n, body: [w, hs, d], ridge: [pl, pd, pr], back, bone, group, k, s = 1 }) {
+  const L = Math.hypot(...sub(B, A)), up = mul(sub(B, A), 1 / (L || 1)), step = L / n, P = (v) => v.map(r3);
+  const bk = (() => { const v = sub(back, mul(up, back[0] * up[0] + back[1] * up[1] + back[2] * up[2])), m = Math.hypot(...v) || 1; return mul(v, 1 / m); })();
+  return Array.from({ length: n }, (_, i) => {
+    const c = add(A, mul(up, (i + 0.5) * step)), h = step * hs, W = w * k * s, D = d * k * s, tip = add(add(c, mul(bk, D + pl * k * s)), mul(up, pd * k));
+    return { name: `${name}${i}R`, kind: 'loft', frame: 'up', stations: [
+      { at: P(add(c, mul(bk, -D))), r: [r3(W * 0.9), r3(h)] }, { at: P(add(c, mul(bk, D * 0.4))), r: [r3(W), r3(h)] },
+      { at: P(add(c, mul(bk, D * 1.3))), r: [r3(W * 0.55), r3(h * 0.8)] }, { at: P(tip), r: [r3(pr * k * s * 0.7), r3(pr * k * s)] },
+    ], group, tint: '#cccccc', mirror: 'name', bind: { bone } };
   });
 }
 

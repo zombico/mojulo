@@ -565,6 +565,23 @@ through the character designer, clips fitted to the class's timing, factions) is
   lineage laying it. Eyes: the rotting shambler, bloated one and lithe one, front, three-quarter, side and back, the
   patches ragged after the first round (which had read as targets) and the face's bone on the real cranium after the
   second (which had sunk inside the head). Eyes gate: the operator's to judge.
+- **The attack skeleton** (`undead/hero-bones.js` `segmented`, `limbColumn` in `undead/passes.js`, the `attack`
+  layer and the `ravager` lineage; the operator, from a reference: "make some attack skeletons; notice how the segments
+  are in more than just the spine").
+  - Every long bone is a column of segments as the spine is: each segment a short drum, broad across and thin along
+    the limb, with a short ridge to one side, laid by the vertebrae's own rule along the limb's joints (`limbColumn`,
+    the spine's builder generalized). The forearm and the shin each carry a second, slimmer column beside the first,
+    as their two bones lie. The long bones' shafts thin to a core under their columns, the knobbed ends kept.
+  - Each finger's last bone is drawn out to a hooked claw.
+  - Its stand is a crouch to strike: a hunch over the hips, the knees given, both clawed hands up and forward with
+    the elbows well bent, the head up and watching, the jaw dropped.
+  - The layer lies over bone only.
+
+  Machine gate: each long bone's column climbing it in order and riding its bone, the twins on the forearm and the
+  shin alone, the shafts thinned; a claw on each finger's last bone; the stand's hinge and bent elbows and the dropped
+  jaw; refused over flesh; the lineage at the hero door; a skeleton without the layer unchanged. Eyes: the soldier, the
+  giant and the slender ravager, front, three-quarter and side, after the first round (long spiked ridges that read as
+  saw blades, the arms thrust straight out) was cut to drums and a guard. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

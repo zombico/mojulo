@@ -1268,7 +1268,7 @@ function tieredFormPlan(hero) {
   const pole = tieredPole(hero);
   // (a skeleton's bones on the hero's landmarks, undead/hero-bones.js: no bridges, no shoulder balls; a bone joint is
   // its knob)
-  if (undeadCard(hero)?.form === 'bone') return heroSkeleton(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), undeadCard(hero));
+  if (undeadCard(hero)?.form === 'bone') return heroSkeleton(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), undeadCard(hero), { segmented: !!hero.undead.layers?.includes('attack') });
   // (the undead's flesh passes on the body before its joints are bridged and its shoulders balled: undead/tiered.js)
   return tieredSockets(tieredJoints(tieredChest(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), tieredBust(hero)), undefined, { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 });
 }

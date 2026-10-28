@@ -304,3 +304,36 @@ describe('the spots: flesh gone in patches', () => {
     expect(sheet.ancestry.layers).toEqual(['bared', 'spots']);
   });
 });
+
+describe('the attack skeleton', () => {
+  const ravager = (build = 'canonical', seed = 3) => heroRecord({ form: 'tiered', cast: 'male', palette: { Skin: '#d6cfbd' }, undead: { form: 'skeleton', build, seed, layers: ['attack'] } });
+  it('every long bone a column of segments as the spine is, the forearm\'s and the shin\'s two side by side, the shafts a core', () => {
+    const P = heroPlanOf(ravager()), plain = heroPlanOf(heroRecord({ form: 'tiered', cast: 'male', undead: { form: 'skeleton', build: 'canonical', seed: 3 } }));
+    for (const limb of ['thigh', 'shank', 'upperArm', 'foreArm']) {
+      const col = P.segments.filter((s) => new RegExp(`^${limb}Col\\d+R$`).test(s.name));
+      expect(col.length).toBeGreaterThan(5);
+      for (const s of col) { expect(s.bind.bone).toBe(`${limb}R`); expect(s.mirror).toBe('name'); }
+      // the segments climb the limb in order, from its first joint to its last
+      const J = P.joints, [from, to] = { thigh: ['hip', 'knee'], shank: ['knee', 'ankle'], upperArm: ['shoulder', 'elbow'], foreArm: ['elbow', 'wrist'] }[limb];
+      const d = J[to].map((v, i) => v - J[from][i]), along = (s) => s.stations[0].at.reduce((t, v, i) => t + (v - J[from][i]) * d[i], 0);
+      expect(col.map(along)).toEqual([...col.map(along)].sort((a, b) => a - b));
+      expect(r(P.segments.find((s) => s.name === `${limb}R`).rMid)).toBeLessThan(r(plain.segments.find((s) => s.name === `${limb}R`).rMid));
+    }
+    for (const limb of ['shank', 'foreArm']) expect(P.segments.some((s) => new RegExp(`^${limb}Twin\\d+R$`).test(s.name))).toBe(true);
+    for (const limb of ['thigh', 'upperArm']) expect(P.segments.some((s) => new RegExp(`^${limb}Twin\\d+R$`).test(s.name))).toBe(false);
+    expect(() => expandPlan(P)).not.toThrow();
+  });
+  it('each finger ends in a claw on its last bone; the stand a crouch to strike, the elbows bent, the jaw dropped', () => {
+    const H = ravager(), P = heroPlanOf(H);
+    for (const d of ['thumb', 'index', 'middle', 'ring', 'little']) expect(P.segments.find((s) => s.name === `${d}ClawR`).bind.bone).toBe(`${d}3R`);
+    expect(H.gesture.hinge).toBeGreaterThan(15);
+    expect(H.gesture.elbowR).toBeGreaterThan(45);
+    expect(H.clips.idle[0].jaw).toBeGreaterThan(0);
+  });
+  it('over bone only; the ravager lineage lays it; a skeleton without it unchanged', () => {
+    expect(() => heroPlanOf(heroRecord({ form: 'tiered', cast: 'male', undead: { form: 'zombie', build: 'canonical', seed: 3, layers: ['attack'] } }))).toThrow(/attack layer lies over bone/);
+    const sheet = rollEgocube({ facets: { ancestry: 'ravager', build: 'canonical', role: 'frontline' }, seed: 3 });
+    expect(sheet.ancestry).toMatchObject({ door: 'hero', form: 'skeleton', layers: ['attack'] });
+    expect(heroPlanOf(heroRecord({ form: 'tiered', cast: 'male', undead: { form: 'skeleton', build: 'canonical', seed: 3 } })).segments.some((s) => /Col\d+R$/.test(s.name))).toBe(false);
+  });
+});

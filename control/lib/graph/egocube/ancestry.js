@@ -219,6 +219,15 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'structure', line: 'a dead face, or the skull under it' },
     ],
   },
+  // the ATTACK skeleton: every limb a column of segments as the spine is, clawed, standing to strike
+  ravager: {
+    reads: 'an attack skeleton', humanity: [0, 0.05], form: 'skeleton', layers: ['attack'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton with every long bone a column of ridged segments, the forearm\'s and the shin\'s two side by side, clawed fingers, crouched to strike (undead/hero-bones.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bone in columns, as the spine is, down every limb: {pick}', pick: ['crouched to spring', 'claws raised', 'the long arms reaching'] },
+      { at: 1, ch: 'structure', line: 'a skull, the jaw dropped, watching' },
+    ],
+  },
   // the dead under arms: what is left of their armour, their weapons in their hands
   revenant: {
     reads: 'a skeleton under arms', humanity: [0, 0.05], form: 'skeleton', layers: ['adorned', 'armed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
