@@ -617,11 +617,11 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
  * `lidBand[1]`, the lower up to it over `lowBand`, the margins' inner walls between drawn onto the line; a lid only as
  * far out from the globe's centre as its margin and `lidOut` past it (the fold over the upper lid stands further out,
  * and the lid slides under it); a lid is its margin's by the skin's own way (`faces` given: the nearer margin along the
- * skin; the upper lid by its height up to its crease, its `tarsus` share whole and none `creaseOut` radians past the
- * crease, out to `lidOutUp` past its margin; the lower out to `geoLow` along the skin), else by those bands, and its
+ * skin; the upper lid by its height from its margin up to its crease, whole to `tuck[0]` of it and none from `tuck[1]`,
+ * out to `lidOutUp` past its margin; the lower out to `geoLow` along the skin), else by those bands, and its
  * weight and turn smoothed `smooth` times over the skin's neighbours. The beads carry what the lids leave (under the
  * lower lid `carryUnder` of it), and what they carry settles (in the eye's footprint `settleIn` of the settle's reach) */
-export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], creaseOut: 0.08, tarsus: 0.4, lidOutUp: [0.0035, 0.005], smooth: 12 });
+export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], tuck: [0.2, 0.7], lidOutUp: [0.0035, 0.005], smooth: 12 });
 /**
  * Where the one skin's points go under `actions` (head-relational.js ACTIONS): `points` { id: [x, y, z] } and
  * `normals` { id: n } in the hero's frame (the rest skin's: hero-one-skin.js), the face's words and its `fit`. →
@@ -719,12 +719,13 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
         const w = (1 - ramp(Math.max(cols.u0 - u, u - cols.u1, 0) / F.canthus)) * ramp((F.lidReach - rg) / (0.25 * F.lidReach))
           // (the lower lid also only as far out as its margin: the cheek standing in front of it is the cheek's, and turned
           // with the lid it swung up across the eye)
-          // (and the upper by its height up the lid: the TARSUS, its lower `tarsus` share, turns whole, a stiff plate, and the
-          // skin above it less and less, to nothing `creaseOut` radians past the CREASE, so the lid stretches over its whole
-          // height as it shuts and the fold over it stays; only as far out as its margin, the fold's underside never. By the
-          // distance along the skin it reached past the crease into the fold, the fold's underside turned on its longer
-          // radius through the lid, and what was left stretched across the crease alone, a waterfall down the shut eye)
-          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2((a - aT) / Math.max(1e-3, elev.crease(uc) + F.creaseOut - aT), [F.tarsus, 1]) * ramp2(rg - rTop(uc), F.lidOutUp) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
+          // (and the upper by its height from its margin up to its CREASE: the tarsus, its lower `tuck[0]`, turns whole, a
+          // stiff plate, and the skin above it less and less, to nothing by `tuck[1]`, so the lid stretches over its height as
+          // it shuts, the stretch gathered at the top of its cavity, tucked under the fold, which stays; only as far out as
+          // its margin, the fold's underside never. By the distance along the skin it reached past the crease into the fold,
+          // the fold's underside turned on its longer radius through the lid, and what was left stretched across the open
+          // eye, a waterfall down the shut lid)
+          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2((a - aT) / Math.max(1e-3, elev.crease(uc) - aT), F.tuck) * ramp2(rg - rTop(uc), F.lidOutUp) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
             : a >= aT ? ramp2(a - aT, F.lidBand) * ramp2(rg - rTop(uc), F.lidOut) : a <= aB ? ramp2(aB - a, F.lowBand) * ramp2(rg - rBot(uc), F.lidOut) : 1);
         // (a lid's point is the lid's for every action, turned or not: a smile's beads would draw the upper lid down)
         lid = { w, th: da * w, pp, back };
