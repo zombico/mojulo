@@ -90,8 +90,14 @@ the bestiary, so a summons is a skeleton, a zombie, a model or a foe with modes,
 | is reeling | stand slack, if bound, until it recovers |
 | is down | if bound, are cut: destroyed where they stand, every joint letting go; those never called are dropped |
 
-`bound: false` summons fight on when it falls. An encounter has win conditions, not a bar: each foe keeps its own
-(a dropped summons is down, so a win that counts the fallen counts it). A summoner does not call a summoner.
+`bound: false` summons fight on when it falls. Awake, the summons hunt as one pack (`group.js`: their sight shared, as
+many pressing in at a time as may be up). A summoner does not call a summoner.
+
+### Win conditions: the encounter has no bar
+
+Each foe keeps its own bar; the encounter has a way to be won. `levels.<id>.foes.win`: `exit` (the default: reach the
+exit, the foes in the way) or `clear` (won when every foe stood on the stage is down, a summoner's summons counted, those
+it never called dropped as it falls: `game/mechanics.js` `defeat-all` over the cast's own falls).
 
 ### Death: only layer 0 is destroyed
 

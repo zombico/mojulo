@@ -539,8 +539,8 @@ function foesCard() {
     '        Or skin: { people, facets? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
     '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height.',
     '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
-    'levels.<id>.foes   true (the bestiary; every class on its stand-in when the world keeps none) or { from?: [<id>],',
-    '        count? }: one foe on each free beat of a trail stage, cycling through from;',
+    'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
+    '        count?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
     `        count stands that many (up to ${MAX_FOES}), the extra round the beats. A swarm stands a pack of ${SWARM}. A stage they`,
     '        stand on makes the hero hittable, its hp taking their hits.',
     `rank    ${Object.entries(FOE_RANKS).map(([k, R]) => `${k} ×${R.downs}`).join(', ')}: the blows it takes; a boss duels.`,
@@ -558,7 +558,7 @@ function foesCard() {
     `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
     '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
-    'A world without foes, or a level without them, is laid as it was.',
+    'A world or level without foes is laid as it was.',
   );
 }
 

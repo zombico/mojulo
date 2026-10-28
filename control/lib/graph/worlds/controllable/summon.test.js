@@ -36,6 +36,15 @@ describe('the call', () => {
     expect(awake(st)).toEqual(['m-s1', 'm-s2']);   // (its cap: two up at once)
   });
 
+  it('awake, its summons hunt as one pack: a group of their own, their sight shared', () => {
+    const st = run(world(), 3);
+    const up = awake(st).map((id) => st.byId[id]);
+    expect(up.length).toBe(2);
+    expect(up.map((e) => e.rule.mind.group.id)).toEqual(['m-summons', 'm-summons']);
+    expect(st.groups && st.groups['m-summons']).toBeTruthy();
+    expect(st.byId['m-s3'].rule.mind.group).toBeUndefined();   // (asleep, no member)
+  });
+
   it('a blow breaks the wind-up', () => {
     const st = world();
     run(st, 0.3);

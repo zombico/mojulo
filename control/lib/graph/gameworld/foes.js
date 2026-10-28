@@ -9,7 +9,8 @@
  *
  * A downed foe goes as the game's style guide says (vanish.js: a fade, a sink, motes, a blink or a puff, after it lies
  * a moment); an entry's `vanish` names its own. No carcass is kept.
- *   levels.<id>.foes?: true | { from?: ['<id>'], count? }                                // who stands on its trails
+ *   levels.<id>.foes?: true | { from?: ['<id>'], count?, win? }                          // who stands on its trails, and
+ *                                                                                        // how it is won (FOE_WINS: exit | clear)
  *
  * `true` stands the whole bestiary (every class on its stand-in, when the world keeps none), one foe on each of a trail
  * stage's free beats (the exit and the trailhead left clear), cycling through `from`; `count` stands that many instead,
@@ -32,6 +33,7 @@
  *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
  *                                         entities, and a hittable pilot; null when nothing stands
  *   stompOf(G)                          → the hero's stomp where foes stand: { low, high, blow, mercy }
+ *   withFoeWin(G, level, ends, mechanics)   → a stage won by clearing it: its exit's reach replaced by every foe on it down
  *   withFoeHits(mechanics)              → a level's mechanics with the hero's hp taking each hit (fail-on-death `hits`):
  *                                         the goal's own when it has one, else one laid before its terminal
  *
@@ -75,7 +77,10 @@ function readSummons(v, at, id, F) {
   if (v.bound !== undefined && typeof v.bound !== 'boolean') throw new Error(`${at}.bound is true (they fall with it) or false (they fight on)`);
   return { foe: v.foe, ...(v.count !== undefined ? { count: v.count } : {}), ...(v.bound !== undefined ? { bound: v.bound } : {}) };
 }
-const LEVEL_KEYS = ['from', 'count'];
+const LEVEL_KEYS = ['from', 'count', 'win'];
+/** How a stage its foes stand on is won: `exit` (the default: reach its exit, the foes in the way) or `clear` (every foe on it
+ * down, a summoner's summons with it). */
+export const FOE_WINS = Object.freeze(['exit', 'clear']);
 export const SWARM = 3;
 export const MAX_FOES = 32;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -118,7 +123,8 @@ export function readLevelFoes(LF, bestiary, at) {
   if (!Array.isArray(from) || !from.length) throw new Error(`gameworld: ${at}.foes.from is a list of the bestiary's ids, at least one (${ids.join(', ')})`);
   for (const id of from) if (!B[id]) throw new Error(`gameworld: ${at}.foes.from: '${id}' is not in the bestiary (${ids.join(', ')})`);
   if (LF.count !== undefined && !(Number.isInteger(LF.count) && LF.count >= 1 && LF.count <= MAX_FOES)) throw new Error(`gameworld: ${at}.foes.count is a whole number, 1 to ${MAX_FOES}`);
-  return { from: [...from], ...(LF.count !== undefined ? { count: LF.count } : {}) };
+  if (LF.win !== undefined && !FOE_WINS.includes(LF.win)) throw new Error(`gameworld: ${at}.foes.win is how the stage is won: exit (reach it) or clear (every foe down)`);
+  return { from: [...from], ...(LF.count !== undefined ? { count: LF.count } : {}), ...(LF.win !== undefined ? { win: LF.win } : {}) };
 }
 
 export function fieldedIds(G) {
@@ -260,6 +266,19 @@ export function stompOf(G) {
   const own = G.feel ? feelCard(G.feel) : null, C = own && own.land?.model === 'stomp' ? own : FEELS.platformer;
   const r3 = (v) => Math.round(v * 1000) / 1000, mercy = (own ?? C).hit?.mercy || C.hit.mercy;
   return { low: C.land.low, high: r3(C.land.high), blow: HERO.blow, mercy: r3(mercy / FPS) };
+}
+
+/** A stage won by clearing it (`levels.<id>.foes.win: 'clear'`): its mechanics with the exit's reach replaced by every
+ * foe stood on it down (game/mechanics.js defeat-all over the cast's own falls: a summoner's summons counted, those it
+ * never called dropped as it falls); a stage that names no clear, or stands none, as it was. */
+export function withFoeWin(G, level, ends, mechanics) {
+  const LF = G.levels[level]?.foes;
+  if (LF === undefined || readLevelFoes(LF, G.foes, `levels.${level}`).win !== 'clear') return mechanics;
+  const B = bestiaryOf(G), P = foePlacements(G, level, ends);
+  const count = P.reduce((n, p) => n + 1 + (B[p.eid]?.summons ? B[p.eid].summons.count ?? SUMMON.count : 0), 0);
+  if (!count) return mechanics;
+  const clear = { kind: 'defeat-all', who: 'foe-*', count, label: 'Down' };
+  return mechanics.some((m) => m.kind === 'reach-exit') ? mechanics.map((m) => (m.kind === 'reach-exit' ? clear : m)) : [...mechanics, clear];
 }
 
 export function withFoeHits(mechanics) {

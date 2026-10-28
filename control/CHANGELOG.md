@@ -712,6 +712,16 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **Encounters are won, not drained** (`levels.<id>.foes.win: exit | clear`; the operator: "the encounter doesnt have a bar,
+  it has win cons", "encoutner win con canbe kill all enemies"). A stage its foes stand on is won by its exit (as before)
+  or by clearing it: every foe stood on it down, a summoner's summons counted (those it never called are dropped as it
+  falls), lowered to the existing `defeat-all` over the cast's own falls in place of the exit's reach. Each foe keeps its
+  own bar.
+  - A summoner's summons hunt as one pack once awake (`group.js`: `<summoner>-summons`, their sight shared, as many
+    pressing in at a time as may be up, on their own move's plan when they have one); asleep they are no member.
+
+  Machine gate: the clear's count with a summoner's summons, the exit kept when it is not named, the word refused; the
+  woken summons in one group and the sleeping out of it.
 - **One stand step for every hostile** (`gameworld/foes.js` `standFoe`; the operator: "can we sequence our injection at
   that step so it happens at each game type", "lets make those sight changes then too"). The bestiary's foes, a
   shooter's foes and a sneak's guards are stood through the same step, so each gets layer 0's whole package (its death

@@ -2,7 +2,7 @@
 // they stand, and nothing laid where none is named. Placement is tested on a stage's own ends (its beats), the runner on
 // the hero sample: a bestiary alone mints nothing, a level that stands foes mints one beast per entry it fields.
 import { describe, it, expect } from 'vitest';
-import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, fieldedIds, stompOf, SWARM } from './foes.js';
+import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, withFoeWin, fieldedIds, stompOf, SWARM } from './foes.js';
 import { FEELS } from './feel/cards.js';
 import { MADE_KEY } from './made.js';
 import { settingOfGame } from './cast-setting.js';
@@ -180,6 +180,14 @@ describe('the run', () => {
     expect(() => readBestiary({ a: { class: SOLO.id, summons: { foe: 'a' } } })).toThrow(/only a summoner calls/);
     expect(() => readBestiary({ boss: { class: 'summoner', summons: { foe: 'boss' } } })).toThrow(/another foe of the bestiary/);
     expect(() => readBestiary({ b: { class: 'summoner', summons: { foe: 'c' } }, c: { class: 'summoner', summons: { foe: 'b' } } })).toThrow(/does not call a summoner/);
+  });
+  it('a stage won by clearing it ends when every foe on it falls, a summoner\'s summons counted; else by its exit', () => {
+    const W = { boss: { class: 'summoner', summons: { foe: 'bones', count: 2 } }, bones: { class: SOLO.id } };
+    const mech = [{ kind: 'fail-on-death', startHp: 20 }, { kind: 'reach-exit', at: ENDS.exit, radius: 2.5 }];
+    const G = world(W, { from: ['boss'], count: 1, win: 'clear' });
+    expect(withFoeWin(G, 'one', ENDS, mech)).toEqual([mech[0], { kind: 'defeat-all', who: 'foe-*', count: 3, label: 'Down' }]);
+    expect(withFoeWin(world(W, { from: ['boss'], count: 1 }), 'one', ENDS, mech)).toEqual(mech);
+    expect(() => world(W, { from: ['boss'], win: 'all' })).toThrow(/win is how the stage is won: exit .* or clear/);
   });
   it('a level its foes stand on is re-made when an entry changes (its cast is not in its args), one without as before', () => {
     const print = (foes, levelFoes) => runSteps(heroWith(foes, levelFoes), { ref: 'gw' }).filter((s) => s.key.startsWith('level-')).map((s) => s.print);

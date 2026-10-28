@@ -9,7 +9,8 @@
  *
  *   THE CALL     a summoner standing (not down, not reeling) with a hero inside `radius`, fewer than `at` of its summons
  *                up, one still asleep and its last call `every` s ago (none yet: at once) winds up for `wind` s (held, facing the hero), then
- *                wakes the next `ring` m round it toward the hero (the cast's spawn: it arrives by `with`)
+ *                wakes the next `ring` m round it toward the hero (the cast's spawn: it arrives by `with`); awake, a summons
+ *                joins its summoner's pack (group.js: `<summoner>-summons`, their sight shared, `at` pressing in at a time)
  *   THE STRINGS  the summoner down: its bound summons that are up are CUT (destroyed where they stand, every joint letting
  *                go: vanish.js's wreck, `e.wreck`), those never called are dropped (down and never seen); an unbound one
  *                fights on, and its uncalled kin are dropped all the same
@@ -67,6 +68,12 @@ export function buildSummon(E) {
         const k = kin.filter(up).length, side = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.9;
         at[0] += -Math.sin(a) * side; at[1] += Math.cos(a) * side;
         E.castOps(state, [{ op: 'spawn', who: s.id, at, face: (a * 180) / Math.PI, ...(S.with ? { with: S.with } : {}) }]);
+        // (awake, it joins its summoner's pack: group.js, their sight shared and a few pressing in at a time, on its own
+        // move's plan when it has one; asleep, it is no member)
+        if (s.rule && s.rule.mind) {
+          const own = s.rule.mind.group;
+          s.rule.mind = { ...s.rule.mind, group: { id: `${m.id}-summons`, plan: (own && typeof own === 'object' && own.plan) || 'pack-hunt', attackers: S.at } };
+        }
         continue;
       }
       if (reeling || (state.aiEnabled === false)) continue;
