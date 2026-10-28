@@ -13,11 +13,12 @@
  *           { intent, resolved, said }; a stored one comes back as it was, so the build never re-decides
  *   composeForBuild(m)   → the resolved axes: the stored ones, else read now (a test, a direct assemble)
  *   rolesPinned(m)       → the rooms' roles the intent pins ({ room: role }, compose-roles.js), or {}
+ *   beatsPinned(m)       → the rooms' beats the intent pins ({ room: beat | 'none' }, compose-plot.js), or {}
  *
  * The words are data: a new register, or a new value on an axis, adds its words here and is read like the rest.
  */
 import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS } from './style/bay-axes.js';
-import { MOODS, MOOD_IDS } from './compose-plot.js';
+import { MOODS, MOOD_IDS, BEAT_IDS } from './compose-plot.js';
 
 export const COMPOSE_AXES = Object.freeze(['construction', 'palette', 'plot', 'dressing']);
 const TABLES = { construction: CONSTRUCTIONS, palette: PALETTES, plot: PLOTS, dressing: DRESSINGS };
@@ -73,7 +74,7 @@ function hear(text) {
   }
   return heard;
 }
-const KEYS = ['words', 'register', 'roles', 'mood', ...COMPOSE_AXES];
+const KEYS = ['words', 'register', 'roles', 'mood', 'beats', ...COMPOSE_AXES];
 
 function readIntent(c) {
   if (typeof c === 'string') return { words: c };
@@ -81,6 +82,7 @@ function readIntent(c) {
   for (const k of Object.keys(c)) if (!KEYS.includes(k)) throw new Error(`stage: compose.${k} is not a setting (${KEYS.join(', ')})`);
   if (c.words !== undefined && typeof c.words !== 'string') throw new Error('stage: compose.words is words');
   if (c.roles !== undefined && (!c.roles || typeof c.roles !== 'object' || Array.isArray(c.roles))) throw new Error('stage: compose.roles is { room: role } (compose-roles.js ROLES)');
+  if (c.beats !== undefined && (!c.beats || typeof c.beats !== 'object' || Array.isArray(c.beats) || Object.values(c.beats).some((b) => b !== 'none' && !BEAT_IDS.includes(b)))) throw new Error(`stage: compose.beats is { room: ${BEAT_IDS.join(' | ')} | 'none' }`);
   if (c.mood !== undefined && !MOOD_IDS.includes(c.mood)) throw new Error(`stage: compose.mood is ${MOOD_IDS.join(', ')}`);
   if (c.register !== undefined && !REGISTERS.includes(c.register)) throw new Error(`stage: compose.register is ${REGISTERS.join(', ')}`);
   for (const a of COMPOSE_AXES) if (c[a] !== undefined && !TABLES[a][c[a]]) throw new Error(`stage: compose.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
@@ -135,3 +137,5 @@ export function composeForBuild(m) {
 
 /** The rooms' roles the intent pins (compose-roles.js reads the rest from the plan). */
 export const rolesPinned = (m) => (stored(m.compose) ? m.compose.intent : m.compose)?.roles ?? {};
+/** The rooms' beats the intent pins (compose-plot.js reads the rest from the role and the mood). */
+export const beatsPinned = (m) => (stored(m.compose) ? m.compose.intent : m.compose)?.beats ?? {};

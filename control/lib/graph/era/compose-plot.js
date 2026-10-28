@@ -8,7 +8,9 @@
  *
  *   MOODS        { mood: { ratio, fill, words } }: the focus's light over the room's mean, and the fill's share
  *   LIGHT_PLOT   the key's numbers: each role's weight on the ratio, where it hangs, its reach
- *   plotLights(plan, lights) → { lights, plot: [{ room, role, ratio, target, key?, short? }] }
+ *   BEATS        { beat: { rate, colour?, words } }: a light a beat changes (an alarm, a slow pulse, a failing practical),
+ *                lit live by the seventh generation's page and kept out of its bake; the sixth bakes it steady
+ *   plotLights(plan, lights) → { lights, plot: [{ room, role, ratio, target, key?, short?, beat? }] }
  *     lights   the stage's placed lights (stage.js resolveStageLights); the fill thinned, a key added a room with one
  *     plot     per room: the ratio the model measures at its focus, the ratio asked, the key's intensity, and `short`
  *              when the room cannot reach it (the key's light spreads over the room as much as onto its focus)
@@ -23,7 +25,17 @@ export const MOODS = Object.freeze({
 });
 export const MOOD_IDS = Object.freeze(Object.keys(MOODS));
 
+export const BEATS = Object.freeze({
+  alarm: Object.freeze({ rate: 1.1, colour: 'door', words: 'a beacon sweeping round, the register\'s signal colour' }),
+  pulse: Object.freeze({ rate: 0.2, words: 'a slow breath of light' }),
+  flicker: Object.freeze({ rate: 12, words: 'a failing lamp, mostly on' }),
+});
+export const BEAT_IDS = Object.freeze(Object.keys(BEATS));
+
 export const LIGHT_PLOT = Object.freeze({
+  // the keys a beat takes, by role and mood (none where the mood is even): the goal breathes in drama and sounds its alarm
+  // in the dark, a pocket's find flickers in the dark
+  beats: Object.freeze({ climax: Object.freeze({ drama: 'pulse', noir: 'alarm' }), pocket: Object.freeze({ noir: 'flicker' }) }),
   // each role's weight on the mood's ratio: the goal and the great room the brightest, the way on near them, a find a
   // glint, a still room even (no key)
   roles: Object.freeze({ climax: 1, landmark: 1, arrival: 0.8, passage: 0.8, pocket: 0.5, rest: 0 }),
@@ -73,10 +85,13 @@ export function plotLights(plan, lights) {
     const den = a - target * b, short = den <= 0;
     // (a room with no fill takes the key at the plot's strip; one that cannot reach its ratio, the most a key may give)
     const k = !own.length ? P.strip.intensity : short ? P.strip.intensity * mood.ratio : Math.max(0, (target * Fm - Ff) / den);
-    const key = { at: at.map(r4), n: [0, 0, -1], color: colour, intensity: r4(k), radius, fixture: 'key' };
+    // a beat (pinned per room, 'none' for none, else the role's in this mood): an alarm in the register's signal colour
+    const pin = C.beats?.[R.room], beat = pin === 'none' ? null : pin ?? LIGHT_PLOT.beats[R.role]?.[C.mood ?? 'even'] ?? null;
+    const hue = beat && BEATS[beat].colour ? P[BEATS[beat].colour].color : colour;
+    const key = { at: at.map(r4), n: [0, 0, -1], color: hue, intensity: r4(k), radius, fixture: 'key', ...(beat ? { beat, rate: BEATS[beat].rate } : {}) };
     if (key.intensity > 0) keys.push(key);
     const all = [...own, ...(key.intensity > 0 ? [key] : [])], mean = pts.reduce((s, p) => s + lightAt(all, p), 0) / pts.length;
-    plot.push({ room: R.room, role: R.role, ratio: mean > 0 ? r4(lightAt(all, R.focus) / mean) : null, target, key: key.intensity, ...(short ? { short: true } : {}) });
+    plot.push({ room: R.room, role: R.role, ratio: mean > 0 ? r4(lightAt(all, R.focus) / mean) : null, target, key: key.intensity, ...(short ? { short: true } : {}), ...(beat ? { beat } : {}) });
   }
   return { lights: [...fill, ...keys], plot };
 }

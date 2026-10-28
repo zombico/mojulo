@@ -42,7 +42,7 @@ import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
 import { bayRoom, bayLaws } from './bay.js';
 import { bayKit, bayKitOf, BAY_REGISTERS } from './style/bay-kits.js';
-import { composeForBuild, rolesPinned } from './compose.js';
+import { composeForBuild, rolesPinned, beatsPinned } from './compose.js';
 import { roomRoles } from './compose-roles.js';
 import { plotLights } from './compose-plot.js';
 import { labDress } from './lab-dress.js';
@@ -479,7 +479,7 @@ export function planStage(m = {}) {
   })() : nightRef;
   return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
-    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', roles: roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
+    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
@@ -914,10 +914,11 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   const ramp0 = tone ? ramps[tone.default] : null;
   const S = solveRoomLight({ targets, ambient: ambient6, lights, ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
-  // the light the room lays at a corner (linear, base-multiplier units)
+  // the light the room lays at a corner (linear, base-multiplier units); a lamp a beat changes (compose-plot.js BEATS) is
+  // solved with the rest but laid by the page, live, not here
   const light = (sh) => {
     const e = [...S.ambient];
-    for (let j = 0; j < sh.length; j += 2) { const K = S.keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
+    for (let j = 0; j < sh.length; j += 2) { if (lights[sh[j]].beat) continue; const K = S.keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
     return e.map(r4);
   };
   const colour = (base, f, c) => { const g = dirt(f, c); return base.map((v, k) => encodeSrgb(Math.min(1, v * g[k]))); };

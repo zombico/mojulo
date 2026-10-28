@@ -31,3 +31,11 @@ stored in the recipe as numbers. Built so far:
   suite in gen-7: the rooms darken by about a third from even to noir while the focus holds its light; on screen that is
   about 1.3 to 1, not the model's 8 (the key lands on the doorway's floor and jambs, no set piece standing there yet, and
   the page tone-maps); gen-6 dims the whole room, the key flattened by its bake's shoulder. `scripts/spikes/bay/moods.mjs`.
+- **Bake or live, per light** (`compose-plot.js` BEATS, `scene/channels/form.js`): a key a beat changes, an `alarm` (a
+  beacon's sweep in the register's signal colour), a `pulse` (a slow breath) or a `flicker` (a failing lamp, mostly on),
+  is solved with the room's lamps but laid by none of its corners in the seventh generation's bake: the page lights it
+  whole (its falloff and its cosine on the face, no shadow) and swings its key in time (`__mojForm.at` holds a moment for
+  a capture). By role and mood: the goal pulses in drama and sounds its alarm in noir, a pocket's find flickers in noir;
+  `compose.beats` pins one to a room, or `'none'`. The sixth generation bakes it steady. A room without a beat emits the
+  form channel byte for byte as before. Seen (`scripts/spikes/bay/beats.mjs`): a noir hall's alarm swings the wall round
+  its focus from 73 to 86 in mean luminance, peak to trough, with no page errors.

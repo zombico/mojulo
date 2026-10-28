@@ -55,3 +55,37 @@ describe('the mood read from the words', () => {
     expect(() => readCompose({ mood: 'grim' })).toThrow(/compose.mood is/);
   });
 });
+
+describe('bake or live: the lights a beat changes', () => {
+  it('a role takes its beat in its mood, none in an even one; an alarm in the register\'s signal colour; a pin adds or takes one', async () => {
+    const { BEATS } = await import('./compose-plot.js');
+    // (a role and a mood the rules give a beat, read off the table)
+    const [role, byMood] = Object.entries(LIGHT_PLOT.beats).find(([, b]) => Object.values(b).includes('alarm'));
+    const mood = Object.keys(byMood).find((m) => byMood[m] === 'alarm');
+    const S = scene({ mood, roles: { tall: role } }), key = keyed(S).find((l) => l.beat);
+    expect(key.beat).toBe('alarm');
+    expect(key.color).toBe(PLOTS[S.compose.axes.plot].light[BEATS.alarm.colour].color);
+    expect(keyed(scene({ mood: 'even', roles: { tall: role } })).some((l) => l.beat)).toBe(false);
+    expect(keyed(scene({ mood, roles: { tall: role }, beats: { tall: 'none' } })).some((l) => l.beat)).toBe(false);
+    expect(keyed(scene({ mood: 'even', beats: { low: 'flicker' } })).find((l) => l.beat).beat).toBe('flicker');
+    expect(() => scene({ beats: { low: 'strobe' } })).toThrow(/compose.beats is/);
+  });
+
+  it('the seventh generation\'s bake solves a beat\'s lamp with the rest and lays none of its light; the page lays it', async () => {
+    const { formLightFaces } = await import('./stage.js');
+    const { readFormLight } = await import('../form/room-form.js');
+    const { formScript, FORM_PAGE } = await import('../scene/channels/form.js');
+    const floor = [{ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], normal: [0, 0, 1], tint: [1, 1, 1], group: 'stage:floor' }];
+    const a = { at: [1, 1, 2], color: '#ffffff', intensity: 1, radius: 6 }, b = { at: [3, 3, 2], color: '#ff8000', intensity: 2, radius: 6 };
+    const steady = formLightFaces(floor, [a, b], [0.12, 0.12, 0.12]), beat = formLightFaces(floor, [a, { ...b, beat: 'alarm', rate: 1 }], [0.12, 0.12, 0.12]);
+    expect(beat.light.keys).toEqual(steady.light.keys);
+    const sum = (f) => f.cornerLight.flat().reduce((x, y) => x + y, 0);
+    expect(sum(beat.faces[0])).toBeLessThan(sum(steady.faces[0]));
+    const read = readFormLight([a, { ...b, beat: 'alarm', rate: 1 }], beat.light.keys);
+    expect([read[0].beat, read[1].beat, read[1].rate]).toEqual([undefined, 'alarm', 1]);
+    // (the page's code for it only where a room has one)
+    const cfg = { lights: read, ambient: [0.1, 0.1, 0.1], fall: 2, maps: {}, ...FORM_PAGE };
+    expect(formScript(cfg)).toContain('uFBp');
+    expect(formScript({ ...cfg, lights: [read[0]] })).not.toContain('uFBp');
+  });
+});
