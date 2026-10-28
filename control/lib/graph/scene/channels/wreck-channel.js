@@ -4,9 +4,11 @@
  * rig group: one mesh a bone); a dismantle cuts the RELATIONS between them, never a face: the joints are the rig's own
  * (each bone's parent, figures/rig-tpose.js humanoidParents, read off its rest geometry; a rig that is not a humanoid's
  * takes the bone nearest its head), the severed ones are the `sever` word's, and each group still joined falls as one
- * rigid piece where the body stood, tumbling off the blow, landing on its corners and coming to rest. A CLEAVE cuts by
+ * rigid piece where the body stood, tumbling off the blow, landing on its corners and coming to rest (when only some
+ * joints go, the trunk stays on the body and falls on its own fall clip). A CLEAVE cuts by
  * part instead: the figure carries its slash (scene/rig-cleave.js, laid at mint: each bone above or below the cut whole,
- * each it crossed as two capped halves), the side above slips off along the cut and the side below gives way, a streak
+ * each it crossed as two capped halves), the side above slips off along the cut as a piece and the side below stays on
+ * the body, falling on its own fall clip, a streak
  * of light along the cut for a breath. When the body goes its pieces fade (or sink, a `sink` going).
  *
  *   wreckGroups(bones, parent, { sever, seed, ride, limbs })   → { groups: [[bone index]], cut: [bone id] }
@@ -122,10 +124,15 @@ function __wkMake(e) {
     nW = new THREE.Vector3(n[0], n[1], n[2]).transformDirection(tm.matrixWorld);
     atW = new THREE.Vector3(n[0] * CL.plane.d, n[1] * CL.plane.d, n[2] * CL.plane.d).applyMatrix4(tm.matrixWorld);
   }
-  const pieces = [], hidden = [], big = Math.max(...sets.map((g) => g.length));
-  for (const m of rf.boneMeshes) if (m) { m.visible = false; hidden.push(m); }
+  const pieces = [], hidden = [], swapped = [], big = Math.max(...sets.map((g) => g.length));
+  // the LIVE side stays on the body and falls on its own fall clip, a body as it dies: a cleave's below the cut (its
+  // crossed bones wearing their lower halves), a dismantle's trunk when only some joints go; every other side a piece
+  const live = CL ? 1 : W.sever !== 'all' ? sets.findIndex((g) => g.length === big) : -1;
+  const keep = new Set(live >= 0 ? sets[live].map((x) => x.m) : []);
+  for (const m of rf.boneMeshes) if (m && !keep.has(m)) { m.visible = false; hidden.push(m); }
+  if (live >= 0) for (const { m, geo, own: mine } of sets[live]) if (mine) { swapped.push({ m, geo: m.geometry, half: geo }); m.geometry = geo; }
   sets.forEach((ms, gi) => {
-    if (!ms.length) return;
+    if (!ms.length || gi === live) return;
     const pts = [], c = [0, 0, 0];
     for (const { m, geo } of ms) {
       if (!geo.boundingBox) geo.computeBoundingBox(); const b = geo.boundingBox;
@@ -163,10 +170,16 @@ function __wkMake(e) {
     const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.05), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     sm.position.copy(atW); sm.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, nW.clone().cross(u), nW)); sm.raycast = function () {}; sm.renderOrder = 20; scene.add(sm); streak = sm;
   }
-  return { pieces, hidden, ground, streak, t: 0, t0: W.t0 };
+  return { pieces, hidden, swapped, live: live >= 0 ? sets[live].map((x) => x.m) : null, ground, streak, t: 0, t0: W.t0 };
 }
 function __wkGone(L) { for (const P of L.pieces || []) { scene.remove(P.g); for (const m of P.mats) m.dispose(); for (const g of P.own) g.dispose(); } L.pieces = []; if (L.streak) { scene.remove(L.streak); L.streak.geometry.dispose(); L.streak.material.dispose(); L.streak = null; } }
-function __wkDrop(L) { __wkGone(L); for (const m of L.hidden || []) m.visible = true; }
+function __wkDrop(L) { __wkGone(L); for (const m of L.hidden || []) m.visible = true; for (const S of L.swapped || []) { S.m.geometry = S.geo; S.half.dispose(); } }
+// the live side, as it lies when the body goes: a still piece of its own, to fade with the rest
+function __wkStill(L) {
+  const g = new THREE.Group(), mats = [];
+  for (const m of L.live) { m.updateMatrixWorld(true); const mat = m.material.clone(); mat.transparent = true; mats.push(mat); const cp = new THREE.Mesh(m.geometry, mat); cp.matrixAutoUpdate = false; cp.matrix.copy(m.matrixWorld); cp.raycast = function () {}; g.add(cp); }
+  scene.add(g); L.pieces.push({ B: { x: [0, 0, 0], q: [0, 0, 0, 1], rest: true }, g, mats, own: [] }); L.live = null;
+}
 function __stepWrecks() {
   const Wd = window.__mojCtrl && window.__mojCtrl.world; if (!Wd) return;
   const now = Wd.time || 0, seen = {};
@@ -177,6 +190,7 @@ function __stepWrecks() {
     if (L.none || L.done) continue;
     // stepped at a fixed rate against the world clock, so a replay falls the same
     while (L.t + __WK_DT <= now - L.t0) { for (const P of L.pieces) __wkStep(P.B, __WK_DT, L.ground); L.t += __WK_DT; }
+    if (X.gone != null && L.live) __wkStill(L);
     const u = X.gone != null ? Math.min(1, (now - X.gone) / 0.9) : 0;
     for (const P of L.pieces) {
       P.g.position.set(P.B.x[0], P.B.x[1], P.B.x[2] - (X.is === 'sink' ? 0.35 * u : 0)); P.g.quaternion.set(P.B.q[0], P.B.q[1], P.B.q[2], P.B.q[3]);

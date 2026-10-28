@@ -31,7 +31,7 @@ export function slashPlane(figH, { seed = 1 } = {}) {
   return { n: n.map((x) => Math.round(x * 1e5) / 1e5), d: Math.round((n[0] * at[0] + n[1] * at[1] + n[2] * at[2]) * 1e5) / 1e5 };
 }
 
-export function cleaveFigure(fig, { plane, inside = '#6a2a24' } = {}) {
+export function cleaveFigure(fig, { plane, inside = '#a8402f' } = {}) {
   const { n, d } = plane, IN = hex(inside), side = [], cut = {};
   const dist = (p) => n[0] * p[0] + n[1] * p[1] + n[2] * p[2] - d;
   fig.parts.forEach((part, bi) => {

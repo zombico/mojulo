@@ -76,7 +76,7 @@ export const SEVERS = Object.freeze({
 export const WRECK_LINGER = 2.4;
 /** The undead's own destruction, by its form (a lineage's: egocube/ancestry.js): a skeleton, nothing holding its bones,
  * comes apart at every joint (by relation); a corpse is cut through by the blow (by part), its inside its meat */
-export const UNDEAD_DESTRUCTION = Object.freeze({ skeleton: { die: 'dismantle', sever: 'all' }, zombie: { die: 'cleave', inside: '#6a2a24' } });
+export const UNDEAD_DESTRUCTION = Object.freeze({ skeleton: { die: 'dismantle', sever: 'all' }, zombie: { die: 'cleave', inside: '#a8402f' } });
 const isWreck = (die) => die === 'dismantle' || die === 'cleave';
 export const LINGER = Object.freeze(Object.fromEntries(Object.entries(DEATHS).map(([k, D]) => [k, D.linger])));
 const MAX_LINGER = 10;
