@@ -20,7 +20,7 @@
 //   - a changed data file (a card, a table, a kernel in another language) runs the tests in its folder;
 //   - a changed config (package.json, a vitest config, next.config) runs the critical tier instead: the graph cannot
 //     say what a config reaches.
-// Prose (the changelog, docs, a README) runs nothing. The whole suite, the deep tier and e2e run in CI.
+// Prose (the changelog and its theme files, docs, a README) runs nothing. The whole suite, the deep tier and e2e run in CI.
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -63,7 +63,7 @@ export const DATA_READERS = Object.freeze([
   'lib/mcp/routing-cards/loader.js', 'lib/mcp/seeds/mcp-capabilities-seed.js', 'lib/mcp/tools/mcp-orbit.js', 'lib/motion/glyph-carver.js',
   'lib/server-version.js', 'lib/version/local.js', 'lib/workers/find.js',
 ]);
-const PROSE = /(^|\/)(CHANGELOG[^/]*|README[^/]*|NOTICE|LICENSE[^/]*)$|^\.\.\/docs\/|^\.\.\/[^/]+\.md$/;
+const PROSE = /(^|\/)(CHANGELOG[^/]*|README[^/]*|NOTICE|LICENSE[^/]*)$|^changelog\/|^\.\.\/docs\/|^\.\.\/[^/]+\.md$/;
 const CONFIG = /^(package(-lock)?\.json|vitest[^/]*\.js|next\.config\.mjs|jsconfig\.json)$/;
 const PIN = /\.(char|trace)\.test\.js$/;
 const NEVER = /\.(gen|spike|godot)\.test\.js$|\.spike\.gen\.test\.js$/;

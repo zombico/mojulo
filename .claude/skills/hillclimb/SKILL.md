@@ -33,7 +33,8 @@ shows one. Confirm with the operator before building.
 
 ## 3. Build it the house way
 
-- The plan section and the Unreleased changelog entry before code (CLAUDE.md, Plans and changelog).
+- The plan section and the changelog theme file (`control/changelog/<MMYY>/<MMDD>/<theme>.md`) before code (CLAUDE.md,
+  Plans and changelog).
 - Opt-in: an absent key keeps every byte; char and trace pins re-pinned only with a stripped-source proof.
 - Mark the registry: the value's `status`, `lowers` (the module that makes it) and `godot`.
 - Tests next to the change; `test:critical` and `test:deep:changed` before the commit.
