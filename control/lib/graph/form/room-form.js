@@ -174,9 +174,10 @@ export const ROOM_MAPS = Object.freeze({ budget: 9e6, small: 256 });
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 /** The placed lights as the page lights them: `at` the flame, `key` its solved light (linear, form/room-light.js), its
  *  `radius`, and `live` (a lamp the page may light the relief by; a pool is light a bake lays where a window or an oculus
- *  would throw it: baked only). */
+ *  would throw it: baked only); a lamp a beat changes carries its `beat` and `rate` (compose-plot.js BEATS): the page lights
+ *  it whole, the bake holding none of it. */
 export function readFormLight(lights, keys) {
-  return lights.map((l, i) => ({ at: l.at.map(r4), key: keys[i].map(r4), radius: r4(l.radius), live: !QUIET.has(l.fixture) }));
+  return lights.map((l, i) => ({ at: l.at.map(r4), key: keys[i].map(r4), radius: r4(l.radius), live: !QUIET.has(l.fixture), ...(l.beat ? { beat: l.beat, rate: l.rate } : {}) }));
 }
 // (lamps the bake holds alone: a pool, and a lamp inset in the floor, too weak to find a relief from the eye)
 const QUIET = new Set(['pool', 'inset']);

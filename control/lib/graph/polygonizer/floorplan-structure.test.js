@@ -241,6 +241,13 @@ test('placeStairs returns a slot inside the footprint near the wall', () => {
   assert.ok(st.slot.y0 > fp.y0, 'tucked just inside the wall, not on it');
 });
 
+test('a house that names its width keeps a stair of the stair\'s width (the recipe rides as the options too, as the World passes it)', () => {
+  const m = { width: 44, height: 32, seed: 2, levels: [{ role: 'ground' }, { role: 'second' }], stairs: true };
+  const H = structurizeHouse(m, { ...m, view: 'cutaway' }), s = H.stairs[0].slot, fp = H.footprint;
+  assert.ok(s.x0 >= fp.x0 && s.x1 <= fp.x1 && s.y0 >= fp.y0 && s.y1 <= fp.y1, 'the flight stands inside the house');
+  assert.ok(Math.min(s.x1 - s.x0, s.y1 - s.y0) < 10, 'a flight, not a cut the width of the house');
+});
+
 test('a stair cuts an open slot through the destination floor slab', () => {
   const solid = structurizeHouse({ width: 110, height: 72, seed: 5, levels: [{ role: 'ground' }, { role: 'second' }] });
   const withStair = structurizeHouse({ width: 110, height: 72, seed: 5, stairs: { from: 0, to: 1 }, levels: [{ role: 'ground' }, { role: 'second' }] });

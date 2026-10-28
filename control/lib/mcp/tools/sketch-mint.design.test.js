@@ -73,3 +73,33 @@ describe('design considerations at mint and update', () => {
     expect(drawn.design).toBeTruthy();
   });
 });
+
+describe('what a house is for, stamped at mint', () => {
+  it('a house a show, a level a game, its own kept; a bad one or a show\'s allowance refused', async () => {
+    const mint = (extra) => createSketchHandler({ title: 'for', manifest: { kind: 'floorplan', title: 'for', seed: 3, ...extra } });
+    const stored = async (extra) => SketchRepository.getByRef((await mint(extra)).ref).manifest;
+    expect((await stored({})).purpose).toBe('show');
+    expect((await stored({ level: { goal: 'top' } })).purpose).toBe('game');
+    expect((await stored({ purpose: 'game', allowance: { room: 900 } })).purpose).toBe('game');
+    await expect(mint({ purpose: 'demo' })).rejects.toThrow(/purpose: one of game, show/);
+    await expect(mint({ allowance: { room: 900 } })).rejects.toThrow(/allowance: a game's/);
+  });
+
+  it('a new house wears a home\'s windows (houseLook 2); its own kept; a bad one refused', async () => {
+    const mint = (extra) => createSketchHandler({ title: 'home', manifest: { kind: 'floorplan', title: 'home', seed: 3, ...extra } });
+    const stored = async (extra) => SketchRepository.getByRef((await mint(extra)).ref).manifest;
+    expect((await stored({})).houseLook).toBe(2);
+    expect((await stored({ houseLook: 1 })).houseLook).toBe(1);
+    await expect(mint({ houseLook: 7 })).rejects.toThrow(/houseLook: one of 1, 2/);
+    expect((await stored({ compass: { north: 30 } })).compass).toEqual({ north: 30 });
+    await expect(mint({ compass: { north: 'up' } })).rejects.toThrow(/compass.north/);
+  });
+
+  it('a house form draws its own storeys and footprint; a footprint that cannot hold it refused, naming the size', async () => {
+    const mint = (extra) => createSketchHandler({ title: 'form', manifest: { kind: 'floorplan', title: 'form', seed: 21, ...extra } });
+    const t = SketchRepository.getByRef((await mint({ form: 'townhouse' })).ref).manifest;
+    expect([t.form, t.levels.length >= 3, t.width < 30, t.stairs]).toEqual(['townhouse', true, true, true]);
+    await expect(mint({ form: 'townhouse', width: 18 })).rejects.toThrow(/at least 21 ft wide/);
+    await expect(mint({ form: 'loft' })).rejects.toThrow(/form: one of detached, block, townhouse/);
+  });
+});
