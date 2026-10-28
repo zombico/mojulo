@@ -204,6 +204,8 @@ export const COLLISION_FIXTURE = [
   // a dungeon crawler is a world of levels from a sentence: design_game's compose, not create_game's hand assembly
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
+  // a town's people (characters.folk): NPCs to chat with, a shopkeeper's errands, the same nurse in every town
+  ['fill my village with people who chat and give me little errands to run', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
   ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],

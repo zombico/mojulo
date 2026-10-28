@@ -69,6 +69,14 @@ export const SOUL = Object.freeze({
         team: { status: 'built', lowers: 'lib/graph/contest/team-sim.js', godot: 'absent', note: 'a side of a team goal game (team-sim.js): its roles and their home regions the contest kernel\'s, the player nearest the ball at the pad, the rest played by the positional mind, the keeper on its line; two pads on one screen. On the contest page\'s own bodies: the controllable runtime still has one pilot, so the hero body is not on the pitch yet' },
       },
     },
+    // built 10-27 (the NPC generator): a town's people grown from its houses (folk/), stood by them in the gameworld
+    // level its street is laid on, each talked to; their houses, sidequests, the recurring and their day ride it. Web only
+    folk: {
+      values: {
+        none: { status: 'built', godot: 'built', roblox: 'built' },
+        town: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/gameworld/folk-cast.js', note: 'characters.folk: each town a level lays peopled from its houses (folk/folk.js: a lot\'s use roots its first person, who grows the rest; a house is a domicile), dressed by its culture and their role, each with a talk menu (chitchat and service talk from the line book, never the plot), sidequests a checklist they give, the recurring one face in every town, a day on the clock with folk.day; web only' },
+      },
+    },
     seats: {
       values: {
         one: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/worlds/controllable/core.js', note: 'one pilot (state.pilotId); every other pilotable body runs its AI rule' },

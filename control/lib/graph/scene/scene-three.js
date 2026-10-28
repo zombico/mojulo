@@ -78,7 +78,9 @@ import { faunaPetScript } from './channels/fauna-pet.js';
 import { wetRoadScript } from './channels/wet-road.js';
 import { weatherScript, weatherForces } from './channels/weather.js';
 import { toneScript } from './channels/tone.js';
+import { formLandScript } from './channels/form-land.js';
 import { fabricScript } from './channels/fabric.js';
+import { formScript, FORM_PAGE } from './channels/form.js';
 import { stageGrassScript } from './channels/stage-grass.js';
 import { fireChannelScript } from './channels/fire.js';
 import { crystalRigFor } from './crystal-rig.js';
@@ -244,7 +246,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -680,14 +682,22 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const flickerBlock = flicker && Array.isArray(flicker.lamps) && flicker.lamps.length ? stageFlickerScript(flicker) : '';
   // dust in a stage's air (channels/motes.js); absent ⇒ no bytes
   const motesBlock = motes && motes.count > 0 ? motesScript(motes) : '';
+  // the form render indoors (channels/form.js): a room's surfaces lit as material by its placed lights; none → not one byte
+  const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : null;
+  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, shadows: { ...FORM_PAGE.shadows, ...(formRoom.shadows || {}) }, maps: formRoom.maps || {} }) : '';
+  // (what moves casts in the room's lights, the nearest's map drawn each frame: the actors flag their meshes as under the
+  // live light's actors, which a room in the form render does not carry)
+  const formActors = !!(formRoom && formRoom.actors);
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
-  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, liveShadows && liveShadows.actors ? { cast: true } : {}) : '';
+  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) || formActors ? { cast: true } : {}) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted
   const wetRoadBlock = wetRoad && Array.isArray(wetRoad.quads) && wetRoad.quads.length ? wetRoadScript(wetRoad) : '';
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
   const weatherBlock = weather && weather.weather ? weatherScript({ radius: mesh.radius || 40, fog: haze && Number.isFinite(haze.density) && typeof haze.color === 'string' ? { color: haze.color, density: haze.density } : null, forces: weatherForces(events), ...weather }) : '';
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
+  // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
+  const formLandBlock = form && form.land ? formLandScript(form.land) : '';
   // a gritty style's rock fabric (channels/fabric.js): the near rock drawn from its own joints and beds; none → not one byte
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
@@ -879,7 +889,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(Number.isFinite(shadows.fitMin) && shadows.fitMin > 0 ? { fitMin: shadows.fitMin } : {}),
   }) : '';
   // (walkers, cars and the controllable bodies flag themselves as casters for `cast` and for `actors`)
-  const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors);
+  const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors) || formActors;
   const castShadowBlock = castShadows ? castShadowScript({
     toLight: Array.isArray(castShadows.toLight) && castShadows.toLight.length === 3 ? castShadows.toLight
       : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
@@ -980,7 +990,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // none ⇒ no bytes
   const faunaPets = Object.fromEntries(entityList.filter((e) => e.pet && typeof e.id === 'string').map((e) => [e.id, e.pet]));
   const faunaPetBlock = hasControllable && Object.keys(faunaPets).length ? faunaPetScript({ pets: faunaPets }) : '';
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear))  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows: formActors ? { actors: true } : shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear))  }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -1177,7 +1187,7 @@ for (const grp of GROUPS) {
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewPainted || formBlock ? 'tm.userData.g = grp.name; ' : ''}${formBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
@@ -1449,8 +1459,8 @@ window.addEventListener('message', (e) => {
   else if (d.moj === '${MSG_FOCUS}') applyFocus(d.group ?? null);
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
-${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${wetRoadBlock}${weatherBlock}${toneBlock}${fabricBlock}${grassBlock}${fireBlock}${shallowsBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${snowPrintsBlock}${scienceBlock}
+${formBlock}${channelSetupSection('pre-runtime', setupBlocks)}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${wetRoadBlock}${weatherBlock}${toneBlock}${fabricBlock}${grassBlock}${fireBlock}${shallowsBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${snowPrintsBlock}${scienceBlock}${formLandBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

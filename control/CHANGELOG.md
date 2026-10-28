@@ -14,239 +14,149 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### Table RPG: loot, arms of every kind, and the equipment kernel's hafts and blade heads
+### Gen-7 rooms: a room's surfaces as material, its lights live
 
-- **The equipment kernel** (`equipment/items.js`): the staff takes three blade heads, `spear` (a point, the sword's
-  own blade loft in the `blade` word's outline), `axe` (a bearded blade and a poll at the haft's top) and `halberd`
-  (the axe's blade low on the head, a point through it, a spike behind), none carrying a stone, and a `reach`: `long`
-  (the staff as it was, byte for byte), `arm` (a haft: an axe, a mace, a warhammer, a sceptre) and `wand`. The hero
-  holds a staff of the `arm` or `wand` reach as a blade (`polygonizer/hero-gear.js`); a long staff keeps its hold. The
-  equipment card names them.
-- **Loot** (`table-rpg-loot.js`): a table written as loot words (`n`, `rank`, `era`, `style`, `forms`) is rolled out
-  into its rows and its artifacts, arms of every kind the kernel makes (`LOOT_FORMS`), each in a style, its bonus by
-  the rank and its look rising with it (ornament, stylize, a glowing stone). A foe's `loot` table is rolled in the
-  kernel when it is beaten (once a kind of foe a fight). A starter's boss keeps a hoard and its bandits their spoils
-  (a lab's of the future). The mender's mace and the warrior's axe are hafts now (`WEAPON_GEAR`).
+The form render's first place: a room under no sun, read in gen-7 (`?era=gen-7`, `export_game { era }`, a cube that names
+the seventh generation), has its tiles read as material and its placed lights lit live, where gen-6 paints the light into
+each tile and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
 
-Machine gate: the equipment suite (each blade head closed, deterministic, stoneless and seated on its haft; a reach's
-length; every existing pin unchanged), the hero gear suite (a haft held as a blade), the arms suite (loot words refused
-by name; the rows and artifacts, the same every time, the rank's bonus and look, distinct forms; the era, the forms and
-the style; the module's own item winning; a beaten foe's drop, rolled once a kind; a loot table that calls up foes
-refused; the starter's hoard and spoils, a lab's of the future; the hoard in the Arms chapter), and the live suite (a
-crypt's hoard photographed, a mender holding its mace). Eyes gate not run: the author looked at the new heads, a hoard
-and the mender's hold; the operator has not.
+- **Every dressed cut reads as material** (`dressedMaterial`, matte-paint/dressed.js): the ashlar wall and floor, the
+  fluted and plain shafts, lime render, roof tiles and slates, boards, and the natural cuts beside the modern ones. Each
+  cut lights its relief through one helper, which, read as material, paints the colour under no light and keeps the
+  relief for its normal, occlusion and roughness. The paint is unchanged (its pins hold).
+- **A room's tiles as material** (`form/room-form.js`): a dressed family from its relief (each joint, flute and chip its
+  own slope); any other tile from its painted light read back as height, as the seventh generation's own tools pulled a
+  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). A
+  generated tile now records the spec it was painted from (`generatedSpecOf`, landscape/surface-textures.js).
+- **No light in the corners** (era/stage.js): a room read in the form render bakes each corner its material's colour,
+  its tint under its dirt, and hands the page its placed lights, braziers and the nave's sun pools (`form.room: {
+  lights, ambient }`). A sunlit or night stage stays paint. A toned room (tone.js) has no material colour of its own (its
+  ramps colour its light), so each corner carries what the toned page paints it under its lamps, over the light the form
+  page will lay there: the room reads as its art direction, and the live light adds its relief and its shadows.
+- **The page lights it** (`scene/channels/form.js`): every surface of the room a lit material, flat-shaded with its
+  normal map's frame from the screen's derivatives, under the room's lights falling off by the bake's own law, an indirect
+  of the bake's ambient and a bounce off each light (what a lightmap holds), occluded by the material's hollows, and
+  tone-mapped. The four lights nearest the eye cast from cube maps, a fixed pool laid over the nearest as the eye walks,
+  each map drawn when its light changes and never per frame; the light tier halves them (two at 256) or drops them (off).
+  The live light's actors' map gives way in such a room, since its light would light the material: what moves (a hero,
+  walkers, cars, fauna) casts in the room's own lights instead, the nearest light's map drawn each frame, so a hero
+  throws its shadow from the torch beside it. `window.__mojForm` is the probe. Measured in Chrome on five rooms from each room's spawn: a lit room's mean luminance within 1 % of its
+  gen-6 paint (brick hall 34.3 against 33.9, crypt 31.4 against 31.4), the nave within 13 %; the gritty cube's toned
+  room 145 against 184 (its accent wall's colour is still short of its ramp's).
+- **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
+  walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
+  page draws the form render.
+- **One input with the island's** (1026-gen7-island, merged): the page's `form` is `{ land, room }`, the island's land
+  (`form.land`, `channels/form-land.js`) and a room (`form.room`, `channels/form.js`), each drawn by its own channel. The
+  island's `ctx.form` (a builder makes more of the land for the form render: broken boulders, rims, strewn stones; every
+  read) stays its own; a room's unlit corners are `ctx.formLit` (a page's read only).
+- **The era marks**: `form` is the form render's own input, built in gen-7; a payload that carries it reads its faces and
+  tiles as material, no longer approximated. The engine packs refuse an era, so no Godot or Roblox leg carries it (both
+  mark it absent). The seventh generation's world note says what is built.
+- **Rooms to walk** (`scripts/spikes/form/rooms.mjs`): a brick hall (wire-cut brick, fluted pilasters, a plinth course,
+  worn floor slabs), a rendered vault, the crypt, the gritty cube's room and the nave, each written as a walkable World
+  page in both eras and captured side by side, wide and close by a torch.
 
-### Table RPG: arms and artifacts, made by the equipment kernel
+### NPC generator: a town's people grown from its lots
 
-- **In the rules**: items of kind `weapon` and `armour` are artifacts with a portable `bonus` (1 to 3; a weapon's
-  `faculty` the one it strikes with), taken up with `equip <item> [by <member>]` (the arm replaced goes back to the
-  bag), or held from the start (`arms` on a member). A weapon's bonus rides the attack and the harm under every
-  resolution procedure; an armour's the defence where the card counts one, else it turns that much of each blow.
-- **In the look** (`table-rpg-gear.js`): an item's `build` is the equipment kernel's words, checked by it; `gear: {
-  style, foes }` the game's arms language. At mint each item with a build is minted as an equipment item (`artifact:
-  <ref>`); a member made a character holds its class's weapon as the kernel makes it (`WEAPON_GEAR`) or the artifact it
-  starts with, in the game's style; a person of the cast its role's arms (`ROLE_ARMS`) in the foes' style.
-- **The starter** arms its people in its building's style and leaves an artifact with its key (a crypt's barrow blade,
-  a keep's warden's shield, a temple's rite staff …). Its foes and items now sit beside the module's, merged by id (a
-  character recorded on the starter's boss no longer drops the starter's other foes).
-- **The book's Arms and artifacts chapter**: each artifact photographed as an object, its rules, its look in words and
-  where it is found; the Sunken Chapel's ossuary hides the bone knife.
+A town already says who lives in it: each lot's use implies a person (a shop its keeper, a workshop its master, a tower
+its watch), and each person implies others (the apprentice, the household over the counter, the watch's captain). This
+theme grows a gameworld town's people that way, as the egocube cast grows from its anchor: path-keyed, so a town only
+grows and adding a lot never moves anyone already rolled. NPCs are not party members. Each is rolled from the town's
+culture and their role: the role and the culture give the uniform, the seed gives the face. A **townie** lives and
+talks; a **service** (a merchant is one) opens a menu the game already has; a **recurring** person (the same face at
+the same service in every town) is seeded from the game, not the town. Their minds keep to the town or the service.
+What they say past the plot is written for them: chitchat and a service's own talk, from a seeded line book. The plot
+is never written: a quest giver's lines and a scene's stay slots (`[Elder: the village]`) for the operator. The city
+plan and the historic city follow on the same rules.
 
-Machine gate: the arms suite (artifacts refused that cannot be read; equip, its swap and its words; the weapon's bonus
-in the roll under three procedures; the armour on the defence and turning a blow; the builds checked by the equipment
-kernel, the class weapon and the starting artifact held, the cast's role arms; the starter's relic with the key, its
-style and the merge by id; the chapter), the door's (a member holding a celestial sword, the relic minted as an
-equipment item), and the live suite (the armed member and the relic photographed). Eyes gate not run: the author
-looked at the armed member and the relic; the operator has not.
-
-### Table RPG: the cast's beasts made game creatures by the mutagen
-
-- **The egocube cast carries an ooze**: a beast member (`body: 'beast'`) takes `ooze`, the mutagen's words, carried to
-  the animal door when it is made (`egocube/cast.js`, `egocube/kind.js`): the species made a game creature, its limbs
-  and rig its own. Absent, the animal as it was.
-- **The table game uses it**: a beast among the cast's leaders is a creature unless it says otherwise: its own `ooze`,
-  else `LEADER_OOZE` (the mastermind mythical, the lieutenant and the rival dire) with the cast's `ooze` theme over all;
-  a starter lends its building's (a crypt skeletal, a tomb zombie, a lab techno); `ooze: null` keeps the animal. Any
-  foe may be `beast: { species, ooze? }`, made on the animal door at mint, photographed over its stat block and said in
-  it ('a zombie rat'); the Sunken Chapel's grave rat is one (`table-rpg-cast.js`, `table-rpg-portraits.js`).
-- **A beast's bust at its head**: framed where its plan seats the head (forward of `neckTop`), not at its highest
-  point, which a wing or a horn can be.
-
-Machine gate: the cast and kind suites (an ooze refused off a beast and unknown; carried to the animal door's spec, none
-without), the factions suite (the part's fantasy, the theme, null, the starter's; a beast foe's words and its refusals),
-the door's (a wolf lieutenant made dire, its row carrying the ooze), and the live suite (a crypt's wolf mastermind
-mythical and skeletal, a zombie rat, each photographed). Eyes gate not run: the author looked at the bone wolf and the
-zombie rat; the operator has not.
-
-### Table RPG: the cast's leaders made characters, human or not, photographed into the book
-
-- **Any body**: `cast.people: { <part>: { body?, species?, brief?, facets?, mascot? } }` says what a part of the cast
-  is, in the egocube cast's own member words: a person (the default), a beast-kin, a beast (a real species) or a
-  mascot. Each foe's persona is read from its body and its temperament (`persona.body`, `persona.species`).
-- **Made at mint**: the cast is stored as an egocube cast row (`castRequestOf`: the very request the game reads), and
-  the mastermind, the lieutenant and the rival are made characters by their member paths through `create_character`
-  (the hero, creature and animal doors, a mascot as a creature), as is a foe rolled alone on the egocube; each
-  recorded as its foe's `character: <ref>`, named in the answer's factions. A body the loop cannot make is advised and
-  the game goes on (`makeTableCharacters`, formerly `makePartyCharacters`).
-- **Photographed**: the foes that are characters are photographed as the party is, framed by the body's own extent (a
-  long body by its length between its 2nd and 98th percentiles, a mascot's bust its whole head); the Factions chapter
-  lines the leaders up and puts each bust in its entry, a foe of no faction gets its bust over its stat block. The
-  `/bible` route and `export_game` take them (`foePortraits`).
-
-Machine gate: the factions suite (each body's persona; an unknown body word refused; the chapter's line-up and busts
-placed, none without), the door's (a cast row, the three leaders made with a beast among them, recorded on their foes,
-the game reading the beast as its lieutenant), and the live suite photographing a beast-kin, a wolf and a mascot (a
-figure and a bust each). Eyes gate not run: the author looked at the six photographs and a beast-kin's; the operator
-has not.
-
-### Table RPG: factioned encounters from the egocube's cast
-
-- **Factions, standing and talk in the kernel**: a module's `factions` (standing −2 hostile … 2 allied, allies,
-  rivals) and a foe's `faction`, `heeds` and `scorns`. A fight is spoken to through its leader, the highest-ranked
-  foe standing: `parley` (presence), `threaten` (might) or `bribe <treasure>` (presence), once a fight, the standing
-  setting the difficulty and what the leader heeds or scorns a step. Talked aside, the foes stand aside and their
-  experience is earned; a parley or a bribe warms the faction, a threat cools it, a fumble cools it. Beaten, a
-  faction's foes cool it and its allies and warm its rivals. Allied foes stand aside unasked. The `factions` move says
-  where the party stands (`table-rpg-kernel.js`).
-- **The cast** (`table-rpg-cast.js`): `cast: true | { seed?, as? }` rolls the journey's antagonists on the egocube
-  (`rollCast`) and writes them as the mastermind's faction (leader, lieutenant, troops; wary) and the rival's (the
-  rival and its hands; neutral), rivals of each other, each foe a persona with what it listens to read from its
-  motivation and order. `as` lays the parts on the module's own foes, a starter's boss, minions and bandits unasked;
-  what the module writes wins. A foe's `egocube: true` rolls it a persona alone.
-- **In print and in the answer**: the book's Factions chapter (a diagram of the party and the factions, the talk and
-  the standing ladder in the card's numbers, each faction's people by rank), the referee packet's Factions section,
-  and `create_game`'s answer naming the factions and their people, advising on any placed in no room and on no table.
-
-Machine gate: the factions suite (a faction it cannot read refused; the difficulty by standing and by what the leader
-heeds or scorns, hostile unheard; a parley, a threat and a bribe that land, each on a seed found in code; standing after
-a fight won across allies and rivals; allied foes standing aside; no factions move without factions; the cast's parts,
-ranks, factions and determinism; `as` and the starter; the chapter, the diagram and the packet) and the door's (a cast
-on a starter: the factions named, the unplaced advised). Eyes gate not run: the author looked at the chapter's page;
-the operator has not.
-
-### Table RPG: the party made characters, photographed into the book
-
-- **The character loop at mint**: `create_game({ table_rpg })` makes each party member rolled on the egocube a real
-  character — an egocube row from the very roll its persona came from, then `create_character { egocube }`, children
-  of the game's ref, as the fight goal makes its fighters — and records it on the member (`character: <ref>`, the roll
-  kept as `egocube: { roll }` so the stored party reads back the same persona). `characters: false` skips it; a member
-  may name a character already made. The answer names each member's character
-  (`lib/mcp/tools/table-rpg-portraits.js`).
-- **Portraits**: the book photographs each character's World page in headless Chromium (the character bible's colour
-  turnaround: its palette, its light), a three-quarter figure framed by its height and a bust at the head and
-  shoulders, on the book's own paper, kept per character revision; the party lined up on the title page, each bust
-  heading its sheet (`tableRpgBook`'s `portraits`). The `/bible` route and `export_game` take them; without a browser
-  the sheets print without, and the export names who was not photographed.
-- A persona now rolls on the member's own seed (`memberSeed`) with the default path, the roll an egocube row stores.
-
-Machine gate: the door's suite (a member made a character: its sheet and body rows, the member recording it, the stored
-roll reading back the persona; the export with photographs injected), the book's (the line-up and the busts placed,
-none without), and a live suite in the e2e tier photographing a made character (a figure and a bust, read again from
-memory). Eyes gate not run: the author read a starter game's printed book with its three characters; the operator has
-not.
-
-### Table RPG: the game type, its page, its export and character creation
-
-The table game becomes a game type beside the board games: `create_game({ table_rpg })`, engine `table-rpg`, its own
-page and its own book, no store and no levels. One property on the door, no new tool; the flat tools/list payload's
-pin rises 212,300 → 212,500 for it (measured 212,353). The map: [docs/table-rpg.md](../docs/table-rpg.md).
-
-- **The row** (`lib/graph/table-rpg/table-rpg-manifest.js`): `{ kind: 'game', engine: 'table-rpg', title, tableRpg }`,
-  the module's keys and a `book` style; the page, the book and the sheets regenerate from it; `update_sketch` plays an
-  edit through the kernel first (refused, `Invalid table game`, when it cannot play).
-- **The starter** (`table-rpg-starter.js`): `starter: { use: 'crypt' }` makes a whole game from a building's program —
-  a town, the road and its table, the dungeon with its loop, lock and key, minions and the boss guarding the prize, a
-  wandering table, the goal; what the module writes itself wins.
-- **Character creation**: the party rolled by the card's method, each member on its own dice, `egocube` rolling who
-  they are (a persona, a name rolled from syllables when none, the role when none); three rolled when no party is
-  named. The mint's answer says every sheet as rolled and how it was made, and the checks' findings (advice).
-- **The page** (`table-rpg-page.js`): the kernel's own closure on one self-contained page in the book's look and
-  faces, the transcript, the moves offered as buttons and typed, every die in the open; the moves kept in the player's
-  browser are the save, replayed on load.
-- **Where it is**: `/api/sketches/<ref>/game` the page; `/bible` the game book (`?parts=party` the characters' sheets
-  alone, `?style=`); the game rail's exits play, book and characters; playtest refuses (no levels to open).
-- **Export**: `export_game` writes `game.html`, `book.html`, `characters.html`, and `book.pdf` and `characters.pdf`
-  through a browser already on the machine (an export never fetches one: without it the pages print from any browser,
-  and the answer says so), with the recipe and a README.
-- **Cards**: `get_game_vocab({ id: 'table-rpg' })` (the grammar, every starter, character creation and the book's
-  styles, read from their tables); the routing card `table-rpg` with pen-and-paper phrasings and collision rows
-  against the live RPG. `scripts/table-rpg.mjs --parts party` prints the characters alone.
-
-Machine gate: the door's suite (a starter's mint and its sheets, the page and the book from the row, a module written
-out, refusals, the checks advising, the update gate, the export with a printer injected and without one, the card),
-the starter and naming tests, the routing-card and tool-description suites, and two live suites in the e2e tier (the
-page in a browser playing Node's game line for line and replaying its kept moves on reload; the book printed). Eyes
-gate not run: the author looked at the page and a characters print; the operator has not.
-
-### Books: a press, a style library, and the game book printed to PDF
-
-A book mojulo makes is one self-contained page that reads on a screen and prints as a book, and headless Chromium
-prints it to PDF: the first PDF the export stack writes. The table RPG's game book is the first book on it. The map:
-[docs/books.md](../docs/books.md).
-
-- **The style library** (`lib/graph/book/book-style.js`): a style is a look (a presentation theme token, the words
-  decks and charts already use; recoloured by a `palette`), a format (one column held in the hand, two columns on a
-  full page, one landscape sheet in three panels, a form a page), a paper, and faces for text, titles and tables (font
-  shelf keys); presets compose them (`tome`, `zine`, `dossier`, `pamphlet`, `screen`). A dark look printed is advised
-  against, never refused.
-- **The press** (`book-press.js`): `@page` sets the paper, margins, running title and page numbers; text flows in the
-  format's columns; keyed entries, stat blocks, roll tables, boxed notes and figures stay whole across a break; the
-  faces the style uses are inlined as `@font-face`, only theirs (a style's page carries no other face's bytes). Pure.
-- **The printer** (`book-pdf.js`): `printPdf(html)` through `scene/chromium.js` (consent to fetch, never under the
-  plugin profile): the page's own paper, the colours printed, tagged, the headings as the outline.
-- **Faces on the shelf**: Crimson Text (a book's text), Courier Prime (its typewriter) and IM Fell English vendored
-  from google/fonts, unmodified, each beside its OFL text, in `fonts/LICENSES.md` and `NOTICE`; `fontFaceCss(key,
-  styles)` gives a book a vendored face. IM Fell English was already a shelf face falling back to the host's: a cover
-  naming `im-fell` (the novel cover's title) now carves in it everywhere, its letters changing once, to the face the
-  recipe always meant.
-- **The game book** (`lib/graph/table-rpg/table-rpg-book.js`, `table-rpg-maps.js`): a module as a book — the title
-  page, how the rules run in the card's numbers, the world and its point-crawl map, each dungeon's flowchart map and
-  its rooms keyed by the map's own numbers, the foes as stat blocks, the tables, the party's sheets a page each, the
-  dice tape, the colophon (a card's attribution when it carries one). A one-sheet format keeps what the table needs in
-  play: the one-page adventure. `scripts/table-rpg.mjs --book out.html --pdf out.pdf --style <preset>`.
-
-Machine gate: the press and style suites (presets, formats, refusals, the faces inlined per role and only the used
-ones, the blocks kept whole), the maps (every room once with its key's number, every link by its kind, every road with
-its days), the book (keys, sheets, the tape, a card's own words, the one-sheet cut), and the live suite in the e2e tier
-printing a book and a one-sheet pamphlet (the pages, the faces embedded). Eyes gate not run: the author printed every
-preset and read the pages (fixing four column and map faults on the way); the operator has not.
-
-### Table RPG: a pen-and-paper game played in text first
-
-A tabletop role-playing game as a recipe, the concept layer: a module (a rules card, a party rolled from it, a world, its
-dungeons, foes, items, tables, beats and a goal) played fully in text, every die rolled in the open, before any page
-or picture. The map, the research behind it and what each part is composed from: [docs/table-rpg.md](../docs/table-rpg.md).
-No MCP surface changes in this theme; the game type it becomes is the next theme.
-
-- **Rules as procedures** (`lib/graph/table-rpg/table-rpg-systems.js`): a rules card is a resolution procedure and its
-  numbers (a d20 against a target, a d20 rolled under, 2d6 in bands, fudge dice for shifts, d100 under a score, a d6
-  against two d10), with its abilities, generation methods (rolled in order, rolled and placed by the class, an array,
-  points bought), modifiers, hit points, foe ranks, progression and classes. Mojulo ships one generic starter per
-  procedure, in its own words and numbers, and no published game: one the person names is written out as a card by
-  their model from the rules they supply, checked by the kernel, its `attribution` (if it carries one) printed by the
-  referee packet.
-- **The kernel** (`table-rpg-kernel.js`): one closure a page can emit by `toString()` (held equal by a test), pure and
-  seeded. Dice notation (NdS, d%, dF, keep and drop, exploding), every procedure read as one band, character sheets
-  on their own stream per member, the point-crawl world and its days of road, dungeon rooms and links (locked, secret,
-  one way, forced), traps, searches, fights (the system's initiative; foes that roll, or players who roll every die and
-  take harm on the bands the system says cost), experience, marks on a miss or milestones, rests, tables, a yes/no
-  oracle and a dice tape. `legal` / `parse` / `apply` give a typed game its moves; the command list is the save.
-- **Portable words**: a module names a faculty, a difficulty word, a foe's rank and a member's role, and the card
-  says each in its own numbers, so one scenario plays under every card. The test module (`fixtures/sunken-chapel.js`:
-  a village, a road, a chapel with a loop, a lock and its key, a hidden way, a trap, a wandering table) is played to
-  its goal under each procedure.
-- **Composed with the rest of mojulo**: a member's persona from the egocube (the sheet `create_character { egocube }`
-  draws a body from), the party lowered to the live RPG's `play.rpg` and fought by its battle kernel
-  (`table-rpg-party.js`), a dungeon drawn from a building's program (`table-rpg-program.js`), the world lowered to the
-  epoch map (`table-rpg-world.js`), a dungeon read for whether it plays (`table-rpg-dungeon.js`: reach with keys, a
-  key behind its own lock, a lock with no key, the goal, the way back, loops and dead ends, advisory), and the referee
-  packet an agent runs a game from in prose (`table-rpg-module.js`).
-- **`scripts/table-rpg.mjs`**: the module at a terminal prompt, its referee packet, or a command list's transcript.
-
-Machine gate: the table RPG suites (the dice, each generation method, each procedure's bands, the whole module under
-each procedure, the closure against the live copy, the dungeon findings on sound and broken graphs, a program's
-dungeon per plan shape, the epoch map through `readMapSpec`, the live party through `readRpg` and a round of the
-battle kernel). Eyes gate not run: the author read the transcripts and the packet under every system.
+- **The folk sheet: a town's people from its lots** (`lib/graph/folk/`). `folkOfTown(town)` reads a designed town
+  (`era/out-town.js`): each lot's use roots its first person (`roles.js` `ROOTS`: a dwelling a townie, a shop its
+  keeper, a workshop its master, a barn a farmhand, the hall its elder, the tower its captain), who grows the rest
+  (an apprentice, the watch: their number from the lot's storeys). Each person is an Egocube rolled on
+  the folk seed and their path alone: the role's combat role asked, its age and archetype leaned, motivation pulled
+  toward the light, so a town only grows. Each role SEEKS others (a counter
+  a supplier, a watch a hall to answer to), and an unmet one is an open need on the sheet: what the town is missing,
+  said, never refused. The services (`services.js`: merchant, smith, counsel, watch) each lower onto a menu, an effect
+  or a mind the game already runs, or are a gap that says what is missing (the smith: no menu mends gear yet). Every
+  person carries their room in their lot's inside and their line slots (the plot's). A cap (`folk.cap`, 60 by default)
+  gives every lot its first person before anyone's household. Machine gate: `folk.test.js`; eyes gate not run.
+- **The domicile: a house round its dweller** (`folk/domicile.js`). A house's unit is the DWELLER, the lot's first
+  person, and the house is written as the egocube cast writes a request: `D + 0` (alone), `D + P` (with a partner),
+  `D of F (P + Cx)` (a family of x children), `D + Cx` (a single parent). The dweller's age says what the house can be (a youth lives alone or
+  with a partner, an elder's children have mostly grown), rolled on the house's own die; no house is headed by a
+  child; children are younger than the dweller and share their ancestry, a partner is near their age and their own
+  person, their pole rolled as anyone's. A townie's house and the household over a keeper's counter are domiciles;
+  the folk sheet lists each (`domiciles`: its notation, its partner and children). The operator asks a shape for every
+  house (`folk.domicile: 'D + 0'`) or for one (`folk.domiciles: { <lot key>: 'D of F (P + C2)' }`). Machine gate:
+  `domicile.test.js`, `folk.test.js`; eyes gate not run.
+- **Bodies by tier, dressed by role and culture** (`folk/bodies.js`). `folkBodies(folk, { kit, setting })` says
+  what to mint and who wears what, without minting: the people the player goes to (a service's first person: the
+  keeper, the master, the elder, the captain) each get a body of their own; everyone else is pooled as a quick game's
+  crowd is, the first few of each pool minted as themselves (`folk.pool`, 3 by default) and the rest wearing one of
+  theirs, of their own pole when the pool has one. A pool never lends across a uniform or from a grown body to a
+  child. The culture is the town's: its kit's underlayer and its setting's ramps dress everyone, so the same role in
+  two worlds dresses two ways. The role is the service's: a uniform service is worn by all its people as its first
+  person wears it, each on their own face, and the watch carries the guard's gear for the era. A market town of about
+  115 people is 25 bodies. `quickFigure`'s two dressings are now shared helpers (`gameworld/cast-setting.js`
+  `wearUnderlayer`, `wearUniform`); its figures are byte-identical. Machine gate: `bodies.test.js` and the 20 test
+  files the change reaches (14 byte pins); eyes gate not run.
+- **The folk in a gameworld town, and what they say** (`characters.folk`, `gameworld/folk-cast.js`, `folk/lines.js`).
+  A world with `characters.folk: true` (or the folk's words: `seed`, `cap`, `pool`, `domicile`, `domiciles`, `say`)
+  grows each town a level lays from the street's own lots (`era/stage-buildings.js` `streetLots`, the houses
+  `town-<use>-<n>`): each body is a run step minted as a hero is, once per town however many stages meet it, and each
+  person stands by their own house, beside its door and clear of the way in, or, a service's first person in a house
+  walked into, inside at their room (the elder on the dais). Each has a talk menu opened by the interact key. Their
+  lines come from a line book, picked on the person's own die: a greeting by their temper (an archetype's light or
+  shadow, a child's own), a word on their work, on their house or on their town, and a farewell; the town's open
+  needs are said aloud, first-hand by the one who has the need and second-hand by anyone else ("Nobody here sells
+  anything. Folk trade over the fence."). `folk.say` gives the operator's words by a person's path or a role. They
+  stand still for now, and the watch keeps no post yet (a guard mind would fight the hero). The book is English; a world
+  in another locale hears it until the book is in the catalogs. `stageEnds` carries the town's doors off its data
+  (`townDoors`), so every level order without folk reads as it did; a world that asks for no folk is untouched.
+  Machine gate: `folk-cast.test.js`, `lines.test.js` and the test files the change reaches; eyes gate not run.
+- **Sidequests: a checklist a town's person gives, and the chains they make** (`folk.sidequests`,
+  `folk/sidequests.js`). `{ id, giver, steps: [{ talk: who } | { reach: house }], name?, ask?, thanks?, after?, back? }`:
+  the giver (a role, a role and its count like `townie-3`, or a person's path) offers it; taken, its steps are a
+  checklist in the level's journal, walked in order (talk to another of the folk, who is then part of the chain, or go
+  to one of the town's houses), and done, the player goes back to the giver to finish it. A sidequest `after` another
+  is offered once that one is finished: a chain, giver to giver. Each lives in the first town that holds all its people.
+  The words are the operator's (`ask`, `thanks`, a step's `say`, `name`, `log`); left out, the ask is a slot
+  (`[Keeper: the errand]`) and the rest plain words that only move it on ("Talk to the Master", "Return to the
+  Keeper"). A person in a sidequest dispatches their talk: each of their entries (a hand-in, a step, an offer) keeps a
+  hold var read when the level starts and when a flag it reads is set, and the talk press opens the first whose hold is
+  on, else their chitchat, so one menu opens and no chain runs past the bus's depth (at most five entries a person;
+  past it, the lowest-ranked are left out). A stage's sidequests join the world's own `quests` in its journal, never
+  replace them. Machine gate: `sidequests.test.js`, and `folk-cast.test.js` walking a chain of two through the bus
+  (offer, take, the step, the thanks, the next offer); eyes gate not run.
+- **Recurring: the ones met in every town** (`folk.recurring`, the Officer Jenny of a game). `{ <id>: { role, name? } }`:
+  in each town that has the role, its first person of the role is them (a second of one role, its second), rolled on
+  the game's seed at their own id, never the town's: one face and one name everywhere. What they wear is each town's
+  (its cloth, its service's uniform) and so is their house, their children born of them: a cousin in every town, who
+  says so ("Family resemblance. We get that a lot."). Their body is their own and keyed by their look, so towns that
+  dress them alike mint them once. The talk box names them, and a sidequest names them by their id (`giver: 'joy'`).
+  Machine gate: `folk.test.js`, `lines.test.js`, `bodies.test.js`, and `folk-cast.test.js` standing one in both towns
+  of a two-town game; eyes gate not run.
+- **The folk's day** (`folk.day`, `folk/routines.js`). With `folk.day: true` (or `{ start, rate }`), the town keeps a day
+  on the level's clock: the level gains the clock mechanic (its hour on the HUD, its sky dark at night, so it is the
+  operator's to ask for), and the households, the children and the watch walk the existing routines
+  (`play.routines`): a grown person out mid-morning to a counter or a neighbour's door and home by evening, a child out
+  on the street before their house, the watch round three houses and back to the tower at night, every hour and choice
+  on the person's own die. The people the player comes looking for keep their place: a service's first person, one met
+  in every town, anyone in a sidequest. Places out are on the street before a house (a walk is a straight line), side
+  by side when several stop at one. A walker is talked to where they stand: each place's talk is on from their arrival
+  until the hour takes them on. Without `folk.day`, no clock and everyone stands, as before. Machine gate:
+  `routines.test.js`, and `folk-cast.test.js` driving a walker's arrival through the bus; eyes gate not run.
+- **The folk on the agent's surface.** No new tool: the folk are an argument on the gameworld door. A rail card,
+  `gameworld-folk` ("The town's people", `get_game_vocab({ id: 'gameworld-folk' })`), says the whole of
+  `characters.folk` (houses and their shapes, the line book and `say`, sidequests, the recurring, the day), held to its
+  words by the cards' test; the story card points to it. `design_game`'s routing card hears "a town full of
+  villagers I can talk to, with side quests", and the routing eval asks it in other words ("fill my village with
+  people who chat and give me little errands to run" → `design_game`). The cosmos has `soul.folk` (none | town, web
+  only; Godot and Roblox absent), so the sweep ranks it, and the hillclimb page is regenerated. The sweep's test now
+  states its law (every setting whose `given` holds is set at density 1) rather than one seed's roll of the seats die,
+  which a setting added before them moves. Machine gate: the cards', routing cards' and cosmos tests, the critical
+  tier; the routing gates 2a and 2b (retrieval, in context) run in CI, not here; eyes gate not run.
 
 ### Carved glyphs: the letter primitive grows up
 
@@ -1238,6 +1148,50 @@ its edge can be seen.
   keeps the skin. Not solid, every face as it was.
 - **A town law** (`solid`, read only on a solid town): every pitched roof a closed slab, no edge of it open.
 
+### The cube's light: one light from the palette and the hour
+
+A cube's light is recipe: its palette (the color theorist's solve, seeded by the game design loop) and its hour give one
+light, that gen-6 bakes into its fills and gen-7 hands to the renderer. Gen-6's colours are what is seen; gen-7's seen
+colour is base × light, so the palette's colours are targets and the base colours and the light are solved together.
+
+- **The light is the theorist's** (`color-theorist/light.js`, `solveLight({ targets, sky, sun, contrast })`, the tone
+  curve, `seen`): the color theorist owns mood → palette → light; the cube composes (`era/cube-light.js` hands it the
+  cube's colours, its sky and key at the hour and the reference's contrast). No orchestrator over the cube: it keeps
+  choosing the reference, the hour, the register, the contrast and the grit.
+- **The palette solves the light** (`era/cube-light.js`, `cubeLight(cube, { hour })`), built: a role's colour is its lit
+  target (a face square to the sun), its shade target the lit one times one shade tint common to every role (so one sun
+  meets them all); the sky's light takes the cube's sky at its hour (the palette's, when solved), the sun the hour's key;
+  their split is the reference's contrast; the light's level is as bright as the brightest base needs to stay a
+  believable material (luminance 0.85), so a dark palette gets a dim light. The targets are undone through sRGB and the
+  renderer's tone curve (Khronos neutral, `toneNeutral` and its inverse) first. At another hour the bases stay and the
+  light moves. A colour one sun cannot reach is held at the edge and named (`checks`), advice never a refusal.
+- **The gen-7 island reads it** (`scripts/spikes/form/island.mjs`, `--palette <seed>`): its land's bases and its sun and
+  sky light are the solve's, in three's units (π × the levels); `window.swatches()` draws a patch of each role square to
+  the sun and under the sky alone and reads it off the screen: on island-noon and under a seeded palette every shade
+  lands on its target to the byte and every lit patch within 5 of 255 (the materials' own sheen square to the sun).
+- **Seen laws: the theorist tests what is rendered** (`color-theorist/seen.js`, `seenLaws(seen, palette)`): each role's
+  colours as rendered, lit and turned away, against the palette that asked for them: `targets` (the swatches on their
+  targets), `value-order` (roles the palette parts clearly in lightness keep that order), `accent` (the most chromatic
+  seen), `shade-is-a-colour` (never black, and toward the sky's hue from its lit colour). Advice, never a refusal; a law
+  with nothing to read is left out. `scripts/spikes/form/island-gate.mjs` runs them on both halves of the island: on
+  island-noon gen-7 meets every law but one gen-6 shares (the sea reads lighter than the grass in both, where the
+  palette asks it darker: gen-6's alpha over pale sand, gen-7's sky in it). They caught the form read's own class tones
+  (cliff × 0.92, rock × 0.8) darkening the palette's stone: the classes now show the stone the palette names.
+- **The sun takes the palette's light** (`era/geocube.js` `light.sun: { color }`): a solved day palette writes its light as
+  its sun's colour, as a night's is its moon's (the reference keeps the sun's arc and strength); a cube may write it; the
+  cube's light reads it as the sun's hue. An unseeded cube has none and reads as before.
+- **The sea, a mirror over a body** (`color-theorist/light.js` `solveMirror`): what is seen is the sky it reflects
+  (Fresnel at the eye's angle down onto it, F0 0.04) and its body under the light, through its alpha; the body is solved
+  so the palette's sea is what is seen from a view, and where the sky reflected already outshines the target the solve
+  says so. The island's sea is one surface (its clearcoat, a second reflection, gone), solved from the island camera's
+  14°: gen-7's sea now reads as gen-6's (#74bee4 for #77b7d4), both lighter than the palette's #3a9cc6, which a calm sea
+  reflecting that sky cannot show from so low (the sky alone outshines it in red): the seen law says so in both eras.
+- **Seen, said:** the shallows' pale ring is gen-6's and not yet gen-7's (the sand under the shallows reads dark through
+  the sea), the stepped floor under them shows through as streaks near the shore, and the cliffs' shadows on the sea
+  fall a dark navy (no light scattered in the water). Still to come: gen-6 reading the same
+  light (its shading, contrast and sky). An unseeded cube's payload is byte for byte as it was (nothing reads the
+  light yet).
+
 ### Gen 7: form, not light
 
 The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,
@@ -1249,6 +1203,89 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
   recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
 - **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
+- **The meru island, every cube's outside, at a game's scale and geo only** (`era/geocube.js` MERU_BASES, MERU_ISLE):
+  the seed a path is grown on, shown bare, three times the island (mounds 18 m and 15 m, every slope's angle kept; beach
+  27 m, sea 9 m deep, a 13.5 m high side), in both eras; island-noon's first, then the standard: every preset's land and
+  a written cube's default (the upland's painted ground three times its span and height with it; limestone-crags' cove,
+  a domain terrain of its own, keeps its own island). Each cube's land show emits differently; none is more faces than
+  before (limestone-crags 57,882 → 40,373 with its strand and stones). Local meru's island gains `cell` (the
+  land's quads where no path joins: 1.5 m here), `scale` (the metres its shape held fixed scale with it), `cover: 'soil'`
+  (bare soil, `isekai:soil`, and scree where it slopes under raised land, `isekai:scree`; no grass) and `walk: 'none'`
+  (no walk: flown and zoomed, walking is the path's; the 24 stray trail faces at the seam were the old approach), each
+  as it always was when absent, byte for byte. 10,714 faces for five times the land (the old island 32,013); its sea's
+  quads scale with the cell and the merged seabed spans 16 m. The shore: the shallows' floor fades corner by corner
+  over its own depth into the sea's own body (never a darker one), lit as one surface, so in gen-7 the shallows read
+  lighter than the open sea and the floor falls away without steps (the gate's two shore readings, both eras).
+- **The layered ground** (`form/land-layers.js`, read by the island spike): rock, scree, soil and sand as layers worn
+  into one another over metres, never along the land's cells. Rock is where the geometry has it; scree fans from its
+  foot (up to 8 m, its reach wandering) over soil and beach, and lies in seeded patches; soil and sand are parted by a
+  signed distance across their border (sand up to 3.5 m into the soil in tongues, soil 2.5 m onto the beach); all but
+  the rock smoothed over 3 m, so no border steps with the 1.5 m cells. The trail's path is a mask at its own resolution
+  (0.25 m, a ragged worn edge) for the path to blend into. In the spike (6.5's beach and scree the bar): the layers in
+  texture arrays, blended by each one's height and a per-pixel noise; the scree thinning by its stones' own dice
+  (`screeDice`, whole stones kept, the ground between); the land shaded smooth (normals averaged within 55°, a cliff's
+  edge kept); the wet line by height per pixel; the sea one surface faded in over the depth under it, so the waterline
+  is the beach's own contour; `--hour` (moonlight after dark, the bases kept) and `--stone` (the rock's colour, a lock);
+  close views of the mound's foot and the beach at wide, eye, close and down. Two natural cuts join the matte painter (`matte-paint/dressed.js`): `crag` (a
+  weathered rock face: lumps, beds each its own tone with a ledge at its foot, joints cut up it) and `soil` (loose dirt:
+  clods, crumbs, small stones); `dressedMaterial` reads the natural cuts as material. The basis a path will blend into.
+- **The geocube's trail in gen-7, rendered the island's way** (the spike, `--show path --biocube <id> --dress {…}`): the
+  meru island stays geo only; what it proved renders the cube's own trail and its flora. The trail's crowns and trunks
+  read as form (`land-form.js` classes `crown` foliage, `wood` the floor darkened; a cliff's grass `lip` and a boulder's
+  mossy `hat` the grass), the cover's slot turf on a green land, foothill scree from cliffs only. The scree's larger
+  stones stood up as real ones (`form/land-stones.js`: by a level face's area × its scree share, most small, sunk, one of
+  four shapes; drawn instanced and smooth, the crag's skin, casting from 0.18 m), parallax on the scree near, the normal
+  map beyond. The trail's DRESS with degrees (6.5's words, era/trail-dress.js): `rubble` 0–1 (stones along its verge,
+  smaller than a talus's), `dust` 0–1 (a pale powder worn out onto the land), `clay` 0–1, patches (worn, damp, gravel) as
+  materials, a `sand` surface. Its dirt two new natural cuts, `powder` (dry dirt's dense fine grain, pits, scuffs,
+  crumbs) and `clay` (rounded clods cracked across where it dried), in the theorist's two tones of the floor
+  (`color-theorist/ground.js` `soilTones`: powder lighter and quieter toward the light's hue, clay darker and fuller
+  toward red, the floor their mean): the road's clay core and its powder edge overlapping in broken alpha. The path's
+  mask carries a signed distance (`dist`, `inside`), so its edge feathers into the ribbon as well as out of it and never
+  runs along the ribbon's line. Fixed on the way: a layer's height lift scaled by its presence (a trace never wins on its
+  relief); a kept scree stone takes its stone's colour; the sea's mirror solve clamped (its NaN had reached every base
+  through `land-form`'s deep term, now only where the floor is lost into it).
+- **The World page draws the island as form** (a geocube's land at `?era=gen-7`, every preset): the spike's read lifted
+  out as `form/land-read.js` (`landRead(payload, cube, { hour, dress })`, the spike its first caller; `formPayload` the
+  page's input), drawn by a new channel, `scene/channels/form-land.js` (the layered ground, the stones, the sea plane, a
+  sun and a sky light it adds; the painted land groups it replaces hidden, everything else painted kept untouched under
+  its tone curve). One new page input, `form` (its land `form.land`), present only on a gen-7 read of a geocube with land: every gen-6 page and
+  every other page byte-identical. The layers' textures are the cuts', no cube's: painted once per process (a page after
+  the first resolves in ~2.5 s, not ~18). Era marks: `form` a surface input, built in gen-7; Godot and Roblox do not carry
+  it yet.
+- **The gen-7 cliff, bedded rock instead of a jigsaw:** the crag cut's even grid (a bed every 0.35 m, a joint every
+  0.9 m, on a 4 m tile) read from the beach as puzzle pieces. A new natural cut, `strata` (`matte-paint/dressed.js`),
+  is the form render's rock: beds of their own thickness (most thin, a few thick), hard ones proud and soft ones
+  weathered back, their edges broken; joints spaced by their bed's thickness and stopping at its partings (staggered,
+  some running part way), a master joint now and then; stains streaking down from the ledges. In the channel the rock is
+  sampled along both side axes where a face turns between them (its beds never snap round a cone), with parallax near,
+  and dirt settles on its ledges (where its own relief faces up) in a tone toward the dry powder's. The crag cut and
+  every gen-6 page unchanged.
+- **The rock's relief, a heartbeat at a cliff's scale** (`form/rock-relief.js`): the heartbeat's words and fields
+  (`readEdits`, `editField`) over a tile of rock face, u along it and v up it: `pulse` (a swell and bumps), `marks`
+  (`cliff` a ledge, `gorge` a crack or chimney, `ridge` a rib, `raise` and `lower` a bulge or scoop; at most a metre),
+  `why`, presets `ledged`, `cracked` and `ribbed` copied with `from`. `reliefMap` makes the face's heights, wrapping,
+  its mean taken out; the seed nudges each mark, so one relief gives many faces of a kind. The land read carries it
+  (`relief`, `ledged` by default) and the page cuts the cliff's steep faces finer and pushes them in and out along
+  their normals by it: benches and tops stay as walked, no crack where the cliff meets another class, the ledges' own
+  shadows cast. Display only: walking keeps the land as built. Also in the channel: scree lies no steeper than its
+  angle of repose, and on a steep face the rock's relief decides where the soil shows.
+- **Gen-7 rocks, as the rock studies break them.** The scree's stones are no longer jittered icosahedra: `stoneForms`
+  (`form/land-stones.js`) breaks each of their shapes with the rock field (`polygonizer/rock-fracture.js`: the
+  minerals' cleavage, a block of planar fractures, chips at halving scales), chipped for the stones that cast, the
+  block's few dozen facets for the small, each laid on its flattest side, its normals creased so a fracture's edge stays
+  sharp; no light baked in, so every instance turns freely. And an island read in the form render breaks as a gritty
+  one does (`ctx.form`, set by the world's read for a 'form' era and passed by the stage and geocube kinds; the island at
+  `FORM_GRIT` unless its style is grittier): its boulders broken at their edges, its cliffs' rims broken, stones strewn
+  on the boulders' tops, along the paths and at the cliffs' feet, its beach's strand. Gen-6 is as it was.
+- **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
+  geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
+  colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
+  metres, never its fill; the sand at the water's line wet (darker, glossy), the shallows' floor lost by depth into deep
+  water's colour. One sun at the cube's hour, the sky's light, the shadow map drawn once per placing of the sun; the page
+  adds a shore camera on the wet line. `window.measure()` is the machine gate: cliff faces turned to the hour's sun read
+  brighter than those turned away and swap when the sun is turned, where gen-6 reads the same under every sun; wet sand
+  darker than dry, and what its gloss adds under a low sun. The eyes gate is the operator's.
 - **Gen-7 no longer means live light over paint.** The live light's gen-7 defaults (actor shadows, the hour's shadow map,
   occlusion) are now the light a form render's surfaces are drawn under while it draws them as paint; their reason in
   `liveLightDefaults`'s `from` reads `form`. A hero's level keeps its actor shadows, and any gen-6 recipe can still ask
