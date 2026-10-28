@@ -134,14 +134,21 @@ describe('the realistic hero at the door', () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', face: { seed: 1, ethnicity: 'western' } }) });
     const P = m.recipe.parts, A = auditLayered(compileLayered(m.recipe, m.dials));
     for (const k of ['hairBeard', 'hairBeardJaw', 'hairBrows', 'hairLashes', 'hairCap', 'hairBeardCoat', 'hairBeardCoatJaw']) { expect(P[k]?.pin.parent, k).toBe('headSkin'); expect(A[k].pass, k).toBe(true); }
-    // (the tuft's base: a coat of the hair's root colour under the scalp's blades and the beard's, no skin between them)
-    expect(P.hairCap.group).toBe('HairRoot'); expect(P.hairBeardCoat.group).toBe('BeardRoot');
+    // (realistic laws 10: the scalp's locks over a shell and the beard's over its coat, each ONE colour, no root band)
+    expect(P.hair.group).toBe('Hair'); expect(P.hairCap.group).toBe('Hair'); expect(P.hairBeardCoat.group).toBe('Beard');
+    expect(Object.keys(m.recipe.palette).filter((k) => /^(Hair|Beard)Root$/.test(k))).toEqual([]);
+    // (a hero minted under laws 9 keeps its blades and their coat in the root's colour)
+    const was = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', physique: { from: 'athletic', laws: 9 }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.parts;
+    expect(was.hairCap.group).toBe('HairRoot'); expect(was.hairBeardCoat.group).toBe('BeardRoot'); expect(was.hair.cardUV).toBeTruthy();
     // (the jaw's beard rides a face the jaw alone carries; the moustache's the head)
     expect(P.hairBeardJaw.pin.face).not.toBe(P.hairBeard.pin.face);
     // (one person's hair: the scalp's, the beard's and the brows' colours from the face's, over the plan's defaults)
     expect(m.recipe.palette.Beard).toBe(m.recipe.palette.Hair); expect(m.recipe.palette.Brow).toBe(m.recipe.palette.Hair);
     expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', palette: { Hair: '#ff0000' }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.palette.Hair).toBe('#ff0000');
-  }, 300_000);
+    // (the hair's register by word, 0 … 1; out of range refused by name)
+    expect(validateHeroSpec({ form: 'realistic', face: { stylize: 1 } })).toEqual([]);
+    expect(validateHeroSpec({ form: 'realistic', face: { stylize: 2 } })[0]).toMatch(/^face\.stylize: 0/);
+  }, 480_000);
   it('drawn for a target: its rings its own (no split), so it compiles whole; the target reads its hair\'s rung', () => {
     const at = (target) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', ...(target ? { target } : {}) }) });
     const m = at('1080p'), bare = at(null);

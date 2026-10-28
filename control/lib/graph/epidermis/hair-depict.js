@@ -60,11 +60,13 @@ export const HAIR_CARD = Object.freeze({ tip: 0.75, cells: 8 });
  * scalp's terminal tract, so the hairline, a peak and a loss are its edge and a bald crown is left bare; a beard's where
  * its locks are at least `min` mm; `where` a point's own test; off the groom `S`'s part), raised off the skin to
  * HAT_CAP.height (rising to it over HAT_CAP.edge from its edge, so the hairline is soft) above an underside sunk into the
- * head, walled round its edge, in `group`. A point its edge would pass twice (a pinch) lets go of the faces that make it.
+ * head, walled round its edge, in `group`; `height` a function of a point and `edge` a run of its own raise a SHELL (the
+ * lock hair's crop and coil volume, hair-locks.js); `smoothEdge` rounds of smoothing round its edge, its points then its `rim`. A point its edge would pass twice (a pinch) lets go of the faces that make it.
  * Null where none grows.
  */
-export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = null, min = 0, where = null, height = HAT_CAP.height } = {}) {
-  const V = chart.vertices, N = chart.normals;
+export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = null, min = 0, where = null, height = HAT_CAP.height, edge = HAT_CAP.edge, smoothEdge = 0 } = {}) {
+  const V0 = chart.vertices, N = chart.normals;
+  let V = V0;
   const inside = chart.samples.map((s, i) => { if (!s || s.feature || (where && !where(V[i]))) return false; const H = dermisAt(s, D, { detail: false }).hair; return H.tract === tract && H.kind === 'terminal' && H.length >= min && !(S && partDistance(s, S) < HAT_CAP.part); });
   let F = chart.faces.filter((t) => t.every((v) => inside[v]));
   const k = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
@@ -84,16 +86,34 @@ export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = nul
   const edges = [...count].filter(([, n]) => n === 1).map(([kk]) => kk.split('|').map(Number)), run = new Map();
   let front = [...new Set(edges.flat())]; front.forEach((v) => run.set(v, 0));
   while (front.length) { const next = []; for (const v of front) for (const q of adj.get(v) || []) { const d = run.get(v) + Math.hypot(...sub(V[q], V[v])); if (!(run.get(q) <= d)) { run.set(q, d); next.push(q); } } front = next; }
+  // (`smoothEdge` rounds: the edge's points drawn toward their neighbours along it, each kept on the skin's tangent plane, so
+  // the hairline is a curve and not the chart's staircase; `rim` its points and the way out of the hair at each)
+  let rim = null;
+  if (smoothEdge > 0) {
+    const along = new Map(); for (const [a, b] of edges) for (const [p, q] of [[a, b], [b, a]]) (along.get(p) || along.set(p, []).get(p)).push(q);
+    const P = new Map([...adj.keys()].map((v) => [v, V0[v]]));
+    for (let r = 0; r < smoothEdge; r++) {
+      const next = new Map();
+      for (const [v, ns] of along) { if (ns.length !== 2) continue; const m = ns.reduce((a, q) => a.map((x, i) => x + P.get(q)[i] / 2), [0, 0, 0]), n = unit(N[v]), q = P.get(v).map((x, i) => 0.5 * x + 0.5 * m[i]), d = sub(q, V0[v]), h = d[0] * n[0] + d[1] * n[1] + d[2] * n[2]; next.set(v, q.map((x, i) => x - n[i] * h)); }
+      for (const [v, q] of next) P.set(v, q);
+    }
+    V = V0.map((p, i) => P.get(i) ?? p);
+    rim = [...along.keys()].sort((a, b) => a - b).map((v) => {
+      const inner = [...adj.get(v)].filter((q) => !along.has(q)), c = inner.length ? inner.reduce((a, q) => a.map((x, i) => x + V[q][i] / inner.length), [0, 0, 0]) : V[v], n = unit(N[v]), d = sub(V[v], c), h = d[0] * n[0] + d[1] * n[1] + d[2] * n[2];
+      return { p: V[v], n, out: unit(d.map((x, i) => x - n[i] * h)) };
+    });
+  }
   const vertices = [], faces = [], top = new Map(), bot = new Map();
   for (const v of adj.keys()) {
-    const n = unit(N[v]), h = height * Math.min(1, (run.get(v) ?? 0) / HAT_CAP.edge);
+    // (`height` a point's own where it is a function of it: a shell raised to the hair's reach, hair-locks.js)
+    const n = unit(N[v]), h = (typeof height === 'function' ? height(V[v]) : height) * Math.min(1, (run.get(v) ?? 0) / edge);
     top.set(v, vertices.push(V[v].map((x, q) => x + n[q] * h)) - 1); bot.set(v, vertices.push(V[v].map((x, q) => x - n[q] * HAT_CAP.sink)) - 1);
   }
   for (const t of F) { faces.push(t.map((v) => top.get(v))); faces.push([...t].reverse().map((v) => bot.get(v))); }
   // the wall round its edge, each edge's way round as the face that uses it runs
   const way = new Set(); for (const t of F) for (let e = 0; e < 3; e++) way.add(`${t[e]}>${t[(e + 1) % 3]}`);
   for (const [a, b] of edges) { const [p, q] = way.has(`${a}>${b}`) ? [a, b] : [b, a]; faces.push([top.get(q), top.get(p), bot.get(p)]); faces.push([top.get(q), bot.get(p), bot.get(q)]); }
-  return { vertices, faces, groups: faces.map(() => group), closure: 'closed' };
+  return { vertices, faces, groups: faces.map(() => group), closure: 'closed', ...(rim ? { rim } : {}) };
 }
 
 /**

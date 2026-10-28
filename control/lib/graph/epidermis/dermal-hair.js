@@ -798,7 +798,7 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     };
     // (an elastic where a tail is tied, and a braid's end; a loc and a cornrow need none)
     const bands = kind === 'loc' || kind === 'row' ? [] : [{ c: pts[0], axis: frames[0].T, r: r0 * 1.15 }, ...(kind === 'braid' ? [{ c: at(0.88).p, axis: at(0.88).T, r: radius(0.88) * 0.9 }] : [])];
-    return { T, kind, Lt, r0, pts, point, bands };
+    return { T, kind, Lt, r0, pts, point, bands, r: pts.map((_, j) => radius(j / NT)) };
   });
   // a gathered root's slot in its tail: the side of the tie it came from (round the bundle) and how far (out in it)
   const slotOf = (ti, p) => { const T = TIES[ti], tl = tails[ti], F0 = { T: unit(sub(tl.pts[1], tl.pts[0])) }; const off = perp(sub(p, T.P), F0.T), S0 = unit(perp(cross(F0.T, T.n), F0.T), [1, 0, 0]), U0 = cross(F0.T, S0); return { th: Math.atan2(dot(off, U0), dot(off, S0)), rho: 0.3 + 0.7 * Math.min(1, len(off) / 0.09) }; };
@@ -953,7 +953,8 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   });
   // ── the cards: a ribbon per guide, for an engine ──
   const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return dyed({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }, roots[gi], `g${gi}`); });
-  return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, bands: tails.flatMap((t) => t.bands), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
+  // (`tails` each tie's bundle as a mass: its kind, its spine and its radius along it: the lock hair's, hair-locks.js)
+  return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, bands: tails.flatMap((t) => t.bands), tails: tails.map((t) => ({ kind: t.kind, tie: t.T.ti, pts: t.pts, r: t.r })), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }
 
 /**

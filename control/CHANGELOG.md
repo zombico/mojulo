@@ -14,6 +14,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic hair as its main shapes
+
+The realistic hero's hair, re-cut for the seventh-generation look: a designed mass that gives a hero its outline, in one
+colour, with nothing to fight the light. Its register is a dial between a realistic game's hair and a stylised one's.
+The eyes gate is the operator's.
+
+- **Hair as its main shapes** (realistic laws 10, `REALISTIC_LAWS_VERSION`; `epidermis/hair-locks.js` `lockHair`).
+  Laws 7 to 9 grew a lawn of thousands of blades, banded root to tip with grey flecks. Under real light the bands read as
+  noise, and a dark-brown groom greying a little came out silver. The alpha cards shimmered at their edges, the cap
+  showed through as dark squares, and the outline was fuzzy. Now a stroke budget (the operator's: a number of major
+  flows, volumized, and some trailers, that's it):
+  - MAJOR FLOWS: the groom's guides (`dermal-hair.js` `growScalp`) gathered into a few dozen flows, by their roots,
+    middles and ends, never across the part. Each flow's section is drawn through its own guides across it: a smooth
+    arc fitted to them, so a broad flow lies on the head as its guides do. It is domed and grooved on top, flat beneath.
+    Its root runs to the hairline and its end to the cut's line. Under it the cap is kept as a solid inner shell.
+  - VOLUME: round by round the flows' margins and thickness grow until the overlap principle holds (below).
+  - TRAILERS: a few strokes per flow off its edges toward its tip, breaking its outline.
+  - THE FADE: the shell's edge is smoothed into a curve (`hair-depict.js` `capMesh` `smoothEdge`, laws 10 only) and
+    fringed with strand cards running out over the skin, so no hairline is a hard line.
+  - One procedure per hair class (`hairClass`). Cropped is the shell alone, raised to the hair's length. Coily is a
+    sculpted volume: the shell raised to where the coils stand, in puffs. Short and long hair are flows and trailers.
+    Standing hair is anime sections: a lying layer of flows with laid-down spikes over it, less spiky than anime. Tied
+    hair is flat flows pulled to the tie, with the tail (a ponytail, a braid, a bun) a separate mass: a core wrapped by
+    locks. Locs and rows are ropes, each with a twist groove.
+  - Every stroke lies off the head's skin and ears and over the shell. A long flow also falls outside the hero's neck,
+    shoulders and back (the compiled parts, `HAIR_HANG`). Its points below the head ride the neck and the torso
+    (`boneWeights`), so the skinned GLB swings it with the body.
+  - ONE colour, `Hair`: the hair as the eye averages it, so grey is a lighter whole, never flecks. `HairStreak` appears
+    only where the groom asks for a streak. The cards draw the strand page undyed (`strands: 'plain'`), in the mass's
+    colour. The beard follows the same rules: its clumps lofted as small locks in `Beard` (`lockBlades`).
+- A hero minted before keeps its blades byte for byte: the locks are its laws'.
+
 ### The realistic wardrobe: the legendary merc
 
 The realistic register's character and clothing raised toward the seventh generation at its best: a middle-aged

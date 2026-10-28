@@ -22,6 +22,7 @@ import { relationalHeadChart, STAND_M } from '../epidermis/dermal-head.js';
 import { pierce, JEWEL_METALS, JEWEL_GEMS } from '../epidermis/dermal-jewel.js';
 import { readScalp, growBodyHair, bladeOf, HAIR_LADDER } from '../epidermis/dermal-hair.js';
 import { depictHair, stripMesh, capMesh, HAIR_RAMP } from '../epidermis/hair-depict.js';
+import { lockHair, lockBlades } from '../epidermis/hair-locks.js';
 import { readDermis, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY } from '../epidermis/dermal-map.js';
 import { growEpidermis, readEpidermis } from '../epidermis/epidermis.js';
 import { streamOf } from '../city/plan/dice.js';
@@ -85,7 +86,7 @@ const unit3 = (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / 
  * pin's frame, its faces' groups where they differ from the part's; an open mesh lists its boundary (every edge one face
  * uses), as the audit wants of an open part.
  */
-function pinMesh(frame, toHero, M, pin, group, { volume = null } = {}) {
+function pinMesh(frame, toHero, M, pin, group, { volume = null, boneWeights = null } = {}) {
   const offsets = {}, faces = {}, groups = {};
   M.vertices.forEach((p, i) => { offsets[`v${i}`] = surfaceLocalOffset(frame, toHero(p)).map(r6); });
   M.faces.forEach((f, i) => { faces[`f${i}`] = f.map((v) => `v${v}`); if (M.groups[i] !== group) groups[`f${i}`] = M.groups[i]; });
@@ -97,7 +98,8 @@ function pinMesh(frame, toHero, M, pin, group, { volume = null } = {}) {
   }
   // (an alpha card's points' places on it, hair-depict.js stripMesh `card`: carried to the compiled mesh's provenance)
   const cardUV = M.uv ? Object.fromEntries(M.uv.map((t, i) => [`v${i}`, t.map(r6)])) : null;
-  return { layer: 2, closure: M.closure, pin, group, offsets, faces, ...(boundary ? { boundary } : {}), ...(Object.keys(groups).length ? { groups } : {}), ...(volume ? { volume } : {}), ...(cardUV ? { cardUV } : {}) };
+  // (`boneWeights` a point's own bones where it hangs below the head: a long lock's, hair-locks.js)
+  return { layer: 2, closure: M.closure, pin, group, offsets, faces, ...(boundary ? { boundary } : {}), ...(Object.keys(groups).length ? { groups } : {}), ...(volume ? { volume } : {}), ...(cardUV ? { cardUV } : {}), ...(boneWeights && Object.keys(boneWeights).length ? { boneWeights } : {}) };
 }
 /** the beard's: one colour, its own */
 const BEARD_BANDS = Object.freeze([[0.4, 'BeardRoot'], [1.01, 'Beard']]);
@@ -165,6 +167,67 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1', budget = false, 
   return { parts: { ...(strips ? { hair: pinMesh(frame, toHero, strips, pin, 'HairRoot', { volume }) } : {}), ...(cap ? { hairCap: pinMesh(frame, toHero, cap, pin, 'HairRoot', { volume }) } : {}) }, palette, counts: { ...counts, level, blades: blades.length } };
 }
 
+/** the parts the hair falls over (the hero's neck, its trunk and its upper arms) and how far below the head's base a point
+ * of it rides the neck alone, then the torso alone (m) */
+export const HAIR_HANG = Object.freeze({ over: ['neck', 'torso', 'upperArmR', 'upperArmL'], neck: 0.06 });
+/** the hero's parts `over` as surfaces in the chart's frame (`toChart`), each { vertices, normals } */
+function bodyColliders(recipe, toChart) {
+  const parts = Object.fromEntries(HAIR_HANG.over.filter((n) => recipe.parts[n] && (recipe.parts[n].layer ?? 1) === 1).map((n) => [n, recipe.parts[n]]));
+  if (!Object.keys(parts).length) return [];
+  const C = compileLayered({ parts, dials: {}, creases: {} }).parts;
+  return Object.values(C).map((P) => {
+    const ids = Object.keys(P.points), at = new Map(ids.map((id, i) => [id, i])), vertices = ids.map((id) => toChart(P.points[id])), normals = vertices.map(() => [0, 0, 0]);
+    for (const f of Object.values(P.faces)) { const [a, b, c] = f.map((id) => at.get(id)), n = cross3(sub3(vertices[b], vertices[a]), sub3(vertices[c], vertices[a])); for (const v of [a, b, c]) normals[v] = normals[v].map((x, q) => x + n[q]); }
+    return { vertices, normals: normals.map(unit3) };
+  });
+}
+/** a hanging point's bones (hero frame z): the head's above its base, the neck's down to the neck's hub, the torso's under
+ * it; null where the pin's own (the head's) serves */
+function hangWeights(recipe, M, toHero) {
+  const J = recipe.rig?.joints, ids = new Set((recipe.rig?.bones || []).map((b) => b.id));
+  if (!J?.headBase || !J?.neckHub || !['head', 'neck', 'torso'].every((b) => ids.has(b))) return null;
+  const zb = J.headBase.at[2], zn = J.neckHub.at[2], out = {};
+  M.vertices.forEach((p, i) => {
+    const z = toHero(p)[2]; if (z >= zb) return;
+    const t = Math.min(1, (zb - z) / Math.max(1e-6, zb - zn)), u = Math.min(1, Math.max(0, (zn - z) / HAIR_HANG.neck));
+    const w = z >= zn ? [['head', 1 - t], ['neck', t]] : [['neck', 1 - u], ['torso', u]];
+    out[`v${i}`] = w.filter(([, x]) => x > 1e-4).map(([b, x]) => [b, r6(x)]);
+  });
+  return out;
+}
+/**
+ * The SCALP as LOCKS on the realistic hero (realistic laws 10, epidermis/hair-locks.js lockHair: the groom's guides gathered
+ * into tapered, flattened tubes over the cap kept as the solid inner shell, `stylize` the dial between a realistic game's
+ * and a stylised one's): the locks (`hair`, lit by their own normals: their grooves are the detail), the shell
+ * (`hairCap`) and the edge cards (`hairCards`, laws 7's strand page undyed: their colour the mass's), pinned to the head as
+ * heroHair's are, a long lock's points below the head riding the neck and the torso (`hangWeights`) and falling outside
+ * the hero's neck and shoulders. ONE colour, `Hair`: the hair's as the eye averages it (its grey a lighter whole, never
+ * flecks); `HairStreak` only where the groom asks for a streak. Deterministic.
+ */
+export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = false, stylize } = {}) {
+  const fit = recipe.headFit;
+  if (!fit || !scalp || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {}, counts: null };
+  const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) });
+  const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
+  const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], toChart = (p) => [p[0] / sc, (p[1] - ty) / sc, (p[2] - men) / sc];
+  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart) });
+  const cap = budget ? leanCoat(H.cap, HEAD_BUDGET[level]?.coat) : H.cap;
+  if (!H.mesh && !cap && !H.cards) return { parts: {}, palette: {}, counts: H.counts };
+  const [skinName, visage] = faceSkinOf(recipe), compiled = compileLayered({ parts: { [skinName]: visage }, dials: {}, creases: {} }).parts[skinName];
+  const pin = visagePin(visage, compiled, 'head', [head.landmarks.n.x * k, head.landmarks.n.y * k + ty, head.landmarks.n.z * k + men], skinName);
+  if (!pin) return { parts: {}, palette: {}, counts: H.counts };
+  const frame = pinFrame(compiled, pin), hang = (M) => ({ boneWeights: hangWeights(recipe, M, toHero) });
+  const parts = {
+    ...(H.mesh ? { hair: pinMesh(frame, toHero, H.mesh, pin, 'Hair', hang(H.mesh)) } : {}),
+    ...(cap ? { hairCap: pinMesh(frame, toHero, cap, pin, 'Hair') } : {}),
+    // (the cards' strands undyed, the mass's colour: dermal-hero.js heroSkinPaint reads `strands`)
+    ...(H.cards ? { hairCards: { ...pinMesh(frame, toHero, H.cards, pin, 'Hair', hang(H.cards)), strands: 'plain' } } : {}),
+  };
+  const palette = { Hair: linHex(hairMeanOf(D)), ...(H.streak ? { HairStreak: linHex(H.streak) } : {}) };
+  return { parts, palette, counts: H.counts };
+}
+
 /** the face's hair cards' clump (m, the beard's locks gathered to one card a cell) and the brows' and lashes' widths (m) */
 const FACE_CARD = Object.freeze({ cell: 0.004, beardWidth: 1.9, beardStations: 3, coatMin: 3, lash: 0.0003, lashStations: 2 });
 /**
@@ -195,9 +258,10 @@ function clumps(strands, cell) {
  * cheeks' above it the head (`hairBeard`); the BROWS and the LASHES (epidermis.js, `epidermis` its spec) a thin card a hair
  * (`hairBrows`, `hairLashes`). `Beard` the hair's colour, its grey a third again; `Brow` its colour with less grey;
  * `Lash` darker. `type` the scalp's hair type (the beard curls by it). `cards` (realistic laws 7) the beard's locks as alpha
- * cards on the strand texture, as the scalp's are. Deterministic.
+ * cards on the strand texture, as the scalp's are; `locks` ({ stylize }, realistic laws 10) its blades as locks in one colour
+ * (hair-locks.js lockBlades). Deterministic.
  */
-export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1', budget = false, cards: asCards = false } = {}) {
+export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1', budget = false, cards: asCards = false, locks = null } = {}) {
   const fit = recipe.headFit;
   if (!fit || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis);
@@ -218,17 +282,20 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     for (const [bone, name, near] of [['head', 'hairBeard', at(L.n)], ['jaw', 'hairBeardJaw', at(L.pg)]]) {
       if (!cards[bone].length) continue;
       const pin = visagePin(visage, compiled, bone, near, skinName); if (!pin) continue;
+      // (realistic laws 10, `locks` { stylize }: the beard's blades as LOCKS in one colour, lit by their own normals)
+      if (locks) { const L = lockBlades(cards[bone], bchart, { centre, stylize: locks.stylize, level: Bg ? level : BEARD_RUNG[level], group: 'Beard' }); if (L) parts[name] = pinMesh(pinFrame(compiled, pin), toHero, L, pin, 'Beard'); continue; }
       parts[name] = pinMesh(pinFrame(compiled, pin), toHero, stripMesh(cards[bone], BEARD_BANDS, { centre, card: asCards }), pin, 'BeardRoot', { volume });
     }
     // (the beard's coat under it, as the scalp's: where the style grows locks, the skin painted the beard's root; split
     // at the lip line as the beard is, the chin's riding the jaw)
     for (const [bone, name, near, where] of [['head', 'hairBeardCoat', at(L.n), (p) => p[2] >= lip], ['jaw', 'hairBeardCoatJaw', at(L.pg), (p) => p[2] < lip]]) {
       const cp = visagePin(visage, compiled, bone, near, skinName); if (!cp) continue;
-      const coat0 = capMesh(bchart, D, { tract: 'beard', group: 'BeardRoot', min: FACE_CARD.coatMin, where }), coat = Bg ? leanCoat(coat0, Bg.beardCoat) : coat0;
-      if (coat) parts[name] = pinMesh(pinFrame(compiled, cp), toHero, coat, cp, 'BeardRoot', { volume });
+      const coat0 = capMesh(bchart, D, { tract: 'beard', group: locks ? 'Beard' : 'BeardRoot', min: FACE_CARD.coatMin, where }), coat = Bg ? leanCoat(coat0, Bg.beardCoat) : coat0;
+      if (coat) parts[name] = pinMesh(pinFrame(compiled, cp), toHero, coat, cp, locks ? 'Beard' : 'BeardRoot', locks ? {} : { volume });
     }
     // (the root the tip's colour darkened, its grey and all: a greying beard greys at the root too, never grey flecks on black)
-    if (parts.hairBeard || parts.hairBeardJaw) { palette.Beard = mean(1.3); palette.BeardRoot = linHex(greyed(1.3).map((v) => v * BEARD_ROOT)); }
+    // (under `locks` one colour: the beard's mean, its grey a lighter whole)
+    if (parts.hairBeard || parts.hairBeardJaw) { palette.Beard = mean(1.3); if (!locks) palette.BeardRoot = linHex(greyed(1.3).map((v) => v * BEARD_ROOT)); }
   }
   // the BROWS and the LASHES, a card a hair (the epidermis's strands, in the head's own units)
   if (epidermis) {
