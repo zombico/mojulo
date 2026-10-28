@@ -73,3 +73,15 @@ describe('design considerations at mint and update', () => {
     expect(drawn.design).toBeTruthy();
   });
 });
+
+describe('what a house is for, stamped at mint', () => {
+  it('a house a show, a level a game, its own kept; a bad one or a show\'s allowance refused', async () => {
+    const mint = (extra) => createSketchHandler({ title: 'for', manifest: { kind: 'floorplan', title: 'for', seed: 3, ...extra } });
+    const stored = async (extra) => SketchRepository.getByRef((await mint(extra)).ref).manifest;
+    expect((await stored({})).purpose).toBe('show');
+    expect((await stored({ level: { goal: 'top' } })).purpose).toBe('game');
+    expect((await stored({ purpose: 'game', allowance: { room: 900 } })).purpose).toBe('game');
+    await expect(mint({ purpose: 'demo' })).rejects.toThrow(/purpose: one of game, show/);
+    await expect(mint({ allowance: { room: 900 } })).rejects.toThrow(/allowance: a game's/);
+  });
+});

@@ -41,6 +41,7 @@ import { LEVEL_ROLES, meruStack } from './meru.js';
 import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
+import { railOf, allowanceOf, rankOf, layWithin } from '../era/compose-purpose.js';
 import { FURNITURE_LANGUAGES, FURNITURE_LANGUAGE_NAMES, DEFAULT_LANGUAGE, COMPOSED_ROLES, composeForRole } from '../furnishings/languages.js';
 import { FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
@@ -796,6 +797,16 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // `furnishing: 'fitted'` composes the same pieces, and its fixtures are already built at true size
   else if (o.furnishing === 'composed' || fitted) elements = composedPieces(elements, rect, seed, o);
   if (!elements.length) return [];
+  // a game's rail (era/compose-purpose.js): the room's pieces laid in their rank within its allowance, each costed at
+  // the game's grain; what it left out is said in the spend. A show, or a recipe without a purpose, lays them all.
+  const allowance = allowanceOf(o);
+  if (allowance != null) {
+    const box = { x0, x1, y0, y1 }, roleOf = (e) => { const id = pieceOfType(e.type); return id ? FURNISHINGS[id].role : null; };
+    const laid = layWithin(elements, { allowance, costOf: (e) => roomElementFaces([e], box, baseZ, o).length, rankOf: (e) => rankOf(roleOf(e)) });
+    if (o._spend) o._spend.push({ glyph, at: [r2(x0), r2(y0), r2(baseZ)], spent: laid.spent, allowance, ...(laid.over ? { over: true } : {}), kept: laid.kept.length, dropped: laid.dropped.map((d) => ({ type: d.piece.type, cost: d.cost })) });
+    elements = laid.kept;
+    if (!elements.length) return [];
+  }
   // a reader's collector (structure/read.js): the pieces as data, beside the faces; absent, nothing reads it
   if (o._objects) o._objects.push({ source: o.furnishing === 'composed' || fitted ? (fitted ? 'fitted' : 'composed') : o.furnishing === 'constructed' ? 'constructed' : 'archetype', glyph, baseZ, interior: { x0, x1, y0, y1 }, elements });
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
@@ -888,6 +899,8 @@ function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
       : { light: o.light }),
     // share mode: the tabletop props (a place setting, a laptop) are their meshes, at feet
     ...(o.furnishScale === 'share' ? { tabletop: { assets: true, heightScale: 1 / FLOORPLAN_METERS_PER_UNIT } } : {}),
+    // a game's rail (era/compose-purpose.js): each piece at the coarser grain (in feet), nothing set on a table
+    ...(railOf(o.purpose)?.grain ? { readable: { cell: railOf(o.purpose).grain / FLOORPLAN_METERS_PER_UNIT }, tabletop: false } : {}),
     includeShell: false, deferDiffusion: false,
   });
   return out.faces || [];
@@ -2211,8 +2224,17 @@ export function renderFloorplanToHtml(input = {}, opts = {}) {
  * inline the three.js vendor bundle (required by renderWorldToPng for headless
  * rasterization).
  */
+// a game's spend, room by room (era/compose-purpose.js): collected while the rooms are furnished, read out beside the
+// faces as `rails` (the page draws none of it); absent a purpose with an allowance, no collector and no key
+const r2 = (v) => Math.round(v * 100) / 100;
+const spendOf = (opts) => (allowanceOf(opts) != null ? [] : null);
+function railsReport(opts, spend) {
+  return { purpose: opts.purpose, grain: railOf(opts.purpose).grain, allowance: { room: allowanceOf(opts) }, spent: spend.reduce((n, r) => n + r.spent, 0), rooms: spend };
+}
+
 export function assembleFloorWorldScene(input = {}, opts = {}) {
-  const s = structurizeFloorplan(input, { ...opts, _worldTier: true });   // the walk tier: a one-cell room gets its ceiling
+  const spend = spendOf(opts);
+  const s = structurizeFloorplan(input, { ...opts, _worldTier: true, ...(spend ? { _spend: spend } : {}) });   // the walk tier: a one-cell room gets its ceiling
   const exterior = opts.view === 'exterior';
   const viewBox = opts.viewBox || { width: 1120, height: 760 };
   const wallHeight = opts.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight;
@@ -2246,6 +2268,7 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     // and the engine score scale by this so every importer receives metres (the engine-leg
     // finding: the lounge landed in Unreal at 3.28× with a 10 m ceiling).
     metersPerUnit: s.metersPerUnit,
+    ...(spend ? { rails: railsReport(opts, spend) } : {}),
   });
 }
 
@@ -3013,7 +3036,8 @@ function camerasForBounds(fp, zMin, zMax, viewBox) {
  * explode:0 keeps the true flush stack; exterior is a solid massing and is never exploded.
  */
 export function assembleHouseWorldScene(input = {}, opts = {}) {
-  const house = structurizeHouse(input, opts);
+  const spend = spendOf(opts);
+  const house = structurizeHouse(input, spend ? { ...opts, _spend: spend } : opts);
   const exterior = opts.view === 'exterior';
   const viewBox = opts.viewBox || { width: 1120, height: 840 };
   const gap = exterior ? 0 : (opts.explode || 0);   // exterior is a solid massing — never exploded
@@ -3062,6 +3086,7 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
     ...(repeats.length ? { repeats } : {}),
     // authored in FEET like the single floor; the GLB root and engine score scale by this.
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
+    ...(spend ? { rails: railsReport(opts, spend) } : {}),
   });
 }
 

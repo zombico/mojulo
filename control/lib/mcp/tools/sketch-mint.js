@@ -10,6 +10,7 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
 import { stampSolid } from '@/lib/graph/era/solid';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
@@ -473,6 +474,10 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // and varied: each room arranged from the house seed (`layout: 'varied'`), its furniture composed in the style's
     // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
     if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
+    // and for something (era/compose-purpose.js): a level is a game's, built readable within its allowance; a house a
+    // show's, every piece at its best. Stamped, so a row minted before purposes is built as it was
+    finalized = { ...finalized, purpose: purposeAtMint(finalized) };
+    allowanceOf(finalized);   // a malformed allowance refuses here, naming what it is
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
     // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out

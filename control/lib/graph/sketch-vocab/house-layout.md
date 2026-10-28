@@ -36,6 +36,9 @@ is a `manifest`.
   bedrooms drawn are the bedrooms built), `windows`, `entryDoor` and a `porch` or `stoop` by style. Each is a plain
   knob in the stored recipe: "add a bedroom" is `tier.beds`, "make it one floor" is `levels: [{ role: 'ground' }]`.
   Anything given wins; `program: false` keeps the single-floor generator below.
+- `purpose` — what the house is for, stamped at mint: `'show'` (a house: every piece as drawn, every table set) or
+  `'game'` (a `level`: each piece at a coarser grain, nothing on a table, a room's pieces laid in rank within
+  `allowance: { room }` faces, what the room is for always standing). A game's World reads its spend as `rails`.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
 - Openings: a new house is minted with `windows: true` (every bedroom needs one for egress; `false` for none);
   `entryDoor` and `ceilings` are opt-in on a plan you give.
