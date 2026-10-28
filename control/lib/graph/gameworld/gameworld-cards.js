@@ -530,9 +530,8 @@ function foesCard() {
   const status = (c) => classStatus(c);
   const row = (c) => { const S = status(c); return `  ${c.id.padEnd(8)} ${c.reads}${S.status === 'built' ? '' : ` [${S.status}: ${S.short.join(', ')}]`}`; };
   return lines(
-    'THE FOES — hostile things in the hero\'s way, by CLASS: how it moves, how it hurts, how it decides and what body it',
-    '  needs, never a species or a skin. A goomba and a level-one foot soldier are one class dressed two ways. Rank is',
-    '  not a class: any class is a minion, an elite, a miniboss or a boss.',
+    'THE FOES — hostile things in the hero\'s way, by CLASS: how it moves, hurts, decides and what body it needs, never',
+    '  a species or a skin (a goomba and a foot soldier are one class dressed two ways). Any class is any rank.',
     '',
     'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }. skin: the',
     '        animal door\'s words (a species, the oozes that grow it: dire, mythical, frost …); absent, the class\'s stand-in.',
@@ -550,12 +549,12 @@ function foesCard() {
     'CLASSES (built unless marked: what does not run yet is said):',
     ...Object.values(FOE_CLASSES).map(row),
     '',
-    `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')} (each class above reads as its own).`,
+    `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')}.`,
+    'SUMMONS a summoner\'s: { foe, count?, bound? }: another entry, asleep till called; bound (true), they fall with it.',
     `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
     `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
-    '        A platformer squashes it, a pinball table pops it, an action game throws it back along the blow, a',
-    '        realistic one lets it fall and lie; then the look fades it (anime RPG motes in the palette, cel blink, western',
-    '        sink or fade). An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave | destroy,',
+    '        A platformer squashes it, an action game throws it back, a realistic one lets it fall; then the look fades it.',
+    '        An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave | destroy,',
     `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
     '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',

@@ -28,6 +28,7 @@ import { foe as swarm } from './classes/swarm.js';
 import { foe as lurker } from './classes/lurker.js';
 import { foe as brute } from './classes/brute.js';
 import { foe as stalker } from './classes/stalker.js';
+import { foe as summoner } from './classes/summoner.js';
 
 const ROW_KEYS = ['id', 'reads', 'move', 'pace', 'attack', 'mind', 'fits', 'presence', 'toll', 'stomp', 'threat', 'standIn'];
 const ATTACK_KEYS = ['kind', 'pattern', 'timing', 'reach', 'zone'];
@@ -84,7 +85,7 @@ export function validateClass(row) {
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 const row = (o) => deepFreeze(structuredClone(validateClass(o)));
 
-export const FOE_CLASSES = Object.freeze(Object.fromEntries([walker, hopper, charger, swooper, turret, lobber, swarm, lurker, brute, stalker].map((o) => [o.id, row(o)])));
+export const FOE_CLASSES = Object.freeze(Object.fromEntries([walker, hopper, charger, swooper, turret, lobber, swarm, lurker, brute, stalker, summoner].map((o) => [o.id, row(o)])));
 
 export function foeClass(id) {
   const c = FOE_CLASSES[id];

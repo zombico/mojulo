@@ -712,6 +712,18 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **The summoner, and its summons** (`class: 'summoner'`, `summons: { foe, count?, bound? }`; `worlds/controllable/summon.js`;
+  the operator: "a solo that controls/spawns N temp or persistent enemies. killing the puppetmaster wipes all temp
+  enemies"). The first RELATION between foes (docs/foes.md's sixth shelf). The class is behaviour alone: it keeps its
+  place and calls (a new attack word, `call`, its wind-up the telegraph). Its summons are any other entry of the
+  bestiary, minted with it asleep beside it (`dormant`) and fielded with it: a hero near, it wakes the next on its wind-up
+  (two up at once, every 4 s, arriving in smoke), a blow breaking the call. Reeling, its bound summons stand slack; down,
+  their strings are cut (destroyed where they stand, every joint letting go) and the uncalled are dropped, while an
+  unbound one fights on. Emitted only into a page whose world has a summoner. A summoner calls no summoner, and names what
+  it calls; the stand-in bestiary's summoner calls the walker. Web only: the engines' marks say absent.
+
+  Machine gate: the call held off with no hero near, capped, broken by a blow; the slack; the cut and the dropped; the
+  unbound fighting on; absent, no code; the bestiary's summons stood asleep by their summoner, fielded, refused by name.
 - **A model made elsewhere, worn as a foe** (`skin: { meshRef, height? }`; `scene/rig-import.js`, `foes/model.js`; the
   operator: "an affordance to be able to 'import models' to use as enemies"). A rigged humanoid `.glb` bound onto a
   sketch (`bind_mesh_render`) is read into layer 0's own pack: its joints to the hero's bone ids by name (Mixamo, VRM, the

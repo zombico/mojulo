@@ -167,6 +167,20 @@ describe('the run', () => {
     expect(() => readBestiary({ a: { class: SOLO.id, skin: { meshRef: 'sk-model', species: 'wolf' } } })).toThrow(/no key 'species' beside meshRef/);
     expect(() => readBestiary({ a: { class: SOLO.id, skin: { meshRef: 'sk-model', height: 40 } } })).toThrow(/height is the metres it stands/);
   });
+  it('a summoner stands its summons asleep beside it, made by their own entry, called by its rule; refused by name', () => {
+    const W = { boss: { class: 'summoner', summons: { foe: 'bones', count: 2, bound: false } }, bones: { class: SOLO.id } };
+    const G = world(W, { from: ['boss'] });
+    expect(fieldedIds(G)).toEqual(['boss', 'bones']);
+    const X = hostileCast(G, 'one', ENDS, { refs: { boss: 'w-foes-boss', bones: 'w-foes-bones' } });
+    const m = X.entities.find((e) => e.id === 'foe-boss-1'), s = X.entities.filter((e) => e.rule.summoned && e.rule.summoned.by === m.id);
+    expect(m.rule.summon).toMatchObject({ ids: ['foe-boss-1-s1', 'foe-boss-1-s2'], at: 2 });
+    expect(s.map((e) => [e.id, e.dormant, e.rule.summoned.bound])).toEqual([['foe-boss-1-s1', true, false], ['foe-boss-1-s2', true, false]]);
+    expect(X.figures['foe-boss-1-s1'].heroRef).toBe('w-foes-bones');
+    expect(() => readBestiary({ boss: { class: 'summoner' } })).toThrow(/a summoner names what it calls/);
+    expect(() => readBestiary({ a: { class: SOLO.id, summons: { foe: 'a' } } })).toThrow(/only a summoner calls/);
+    expect(() => readBestiary({ boss: { class: 'summoner', summons: { foe: 'boss' } } })).toThrow(/another foe of the bestiary/);
+    expect(() => readBestiary({ b: { class: 'summoner', summons: { foe: 'c' } }, c: { class: 'summoner', summons: { foe: 'b' } } })).toThrow(/does not call a summoner/);
+  });
   it('a level its foes stand on is re-made when an entry changes (its cast is not in its args), one without as before', () => {
     const print = (foes, levelFoes) => runSteps(heroWith(foes, levelFoes), { ref: 'gw' }).filter((s) => s.key.startsWith('level-')).map((s) => s.print);
     const a = { class: SOLO.id }, b = { class: SOLO.id, vanish: { die: 'cleave' } };

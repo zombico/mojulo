@@ -224,7 +224,9 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const els = [...(cast ? statusElements(events) : []), ...(Array.isArray(events.born) ? events.born : [])].filter((n, i, a) => a.indexOf(n) === i);
   const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
   // and how its downed bodies go (`vanish`, the fades the world-scene lays: gameworld/vanish.js), cast or not
-  const trs = Array.isArray(events.vanish) ? [...trs0, ...events.vanish.filter((k) => FADE_KINDS.includes(k) && !trs0.includes(k))] : trs0;
+  const trs1 = Array.isArray(events.vanish) ? [...trs0, ...events.vanish.filter((k) => FADE_KINDS.includes(k) && !trs0.includes(k))] : trs0;
+  // and how a summoner's summons arrive (`arrive`, the transits its call lays: worlds/controllable/summon.js)
+  const trs = Array.isArray(events.arrive) ? [...trs1, ...events.arrive.filter((k) => !trs1.includes(k))] : trs1;
   const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
   // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none

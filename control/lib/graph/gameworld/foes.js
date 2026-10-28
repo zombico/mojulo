@@ -57,9 +57,24 @@ import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states'];
-// the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js)
-const specOf = ({ vanish, states, ...spec }) => spec;
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons'];
+// the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's)
+const specOf = ({ vanish, states, summons, ...spec }) => spec;
+/** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
+ * calls, the hero's distance that starts them, how far round it they arrive (m) and the transit they arrive by. */
+export const SUMMON = Object.freeze({ count: 3, at: 2, every: 4, radius: 14, ring: 1.8, with: 'smoke' });
+const SUMMONS_KEYS = ['foe', 'count', 'bound'];
+// a summoner's `summons` (foes/classes/summoner.js): another entry of the bestiary, how many it is minted with, and whether
+// its fate is bound to the summoner's
+function readSummons(v, at, id, F) {
+  if (!isObj(v)) throw new Error(`${at} is { foe, count?, bound? }: the bestiary's foe it calls, how many (${SUMMON.count}), and whether they fall with it (true)`);
+  for (const k of Object.keys(v)) if (!SUMMONS_KEYS.includes(k)) throw new Error(`${at}.${k} is not a summons setting (${SUMMONS_KEYS.join(', ')})`);
+  if (!F[v.foe] || v.foe === id) throw new Error(`${at}.foe is another foe of the bestiary (${Object.keys(F).filter((k) => k !== id).join(', ') || 'none yet'})`);
+  if (F[v.foe].class === 'summoner') throw new Error(`${at}.foe: '${v.foe}' is a summoner, and a summoner does not call a summoner`);
+  if (v.count !== undefined && !(Number.isInteger(v.count) && v.count >= 1 && v.count <= 8)) throw new Error(`${at}.count is a whole number, 1 to 8`);
+  if (v.bound !== undefined && typeof v.bound !== 'boolean') throw new Error(`${at}.bound is true (they fall with it) or false (they fight on)`);
+  return { foe: v.foe, ...(v.count !== undefined ? { count: v.count } : {}), ...(v.bound !== undefined ? { bound: v.bound } : {}) };
+}
 const LEVEL_KEYS = ['from', 'count'];
 export const SWARM = 3;
 export const MAX_FOES = 32;
@@ -80,10 +95,18 @@ export function readBestiary(F) {
     const states = e.states !== undefined ? readStates(e.states, `${at}.states`) : undefined;
     out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
   }
+  // (what a summoner calls: read once every entry is known)
+  for (const [id, e] of Object.entries(F)) {
+    const at = `gameworld: foes.${id}`;
+    if (e.class === 'summoner' && e.summons === undefined) throw new Error(`${at}: a summoner names what it calls, summons: { foe, count?, bound? }`);
+    if (e.summons !== undefined && e.class !== 'summoner') throw new Error(`${at}.summons: only a summoner calls (its class is ${e.class})`);
+    if (e.summons !== undefined) out[id].summons = readSummons(e.summons, `${at}.summons`, id, F);
+  }
   return out;
 }
 
-const fallback = () => Object.fromEntries(Object.keys(FOE_CLASSES).map((c) => [c, { class: c }]));
+// (a summoner on its stand-in calls the walker's)
+const fallback = () => Object.fromEntries(Object.keys(FOE_CLASSES).map((c) => [c, { class: c, ...(c === 'summoner' ? { summons: { foe: 'walker' } } : {}) }]));
 export const bestiaryOf = (G) => G.foes ?? fallback();
 
 export function readLevelFoes(LF, bestiary, at) {
@@ -101,6 +124,8 @@ export function readLevelFoes(LF, bestiary, at) {
 export function fieldedIds(G) {
   const used = new Set();
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
+  // (and what a summoner it fields calls)
+  for (const id of [...used]) { const S = bestiaryOf(G)[id]?.summons; if (S) used.add(S.foe); }
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
@@ -157,7 +182,8 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   const figures = {}, entities = [], sheets = {};
   // the target rim's colour: the world's accent (its juice's trail palette), the same on every foe it lays
   const rim = targetRimOf(G);
-  for (const p of P) {
+  // one foe stood: its figure and its entity (`more`: what its entity carries beside, a summons' sleep and its summoner)
+  const standOne = (p, more = {}) => {
     const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
     let b;
     if (isModel(p.entry)) {
@@ -177,16 +203,29 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
     // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
     // per weapon, so a slot naming none would leave the body undrawn)
     const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: p.id })) } : {};
-    entities.push({
+    const e = {
       id: p.id, team: 'foes',
-      rule: { ...f.entity.rule, ...b.rule, ...loadout },
+      rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}) },
       ...(f.entity.weapon ? { weapon: f.entity.weapon } : {}),
       // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
       // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
       // (its base STATES, born in: foes/states.js, carried by layer 0 and so by every mode it wears)
       body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}) },
       transform: { pos: p.at, heading: p.heading },
-    });
+      ...(more.dormant ? { dormant: true } : {}),
+    };
+    entities.push(e);
+    return e;
+  };
+  const B = bestiaryOf(G);
+  for (const p of P) {
+    const S = p.entry.summons;
+    if (!S) { standOne(p); continue; }
+    // a SUMMONER (foes/classes/summoner.js): its summons minted with it, asleep where it stands, called a few at a time
+    // (worlds/controllable/summon.js); bound, they fall with it
+    const n = S.count ?? SUMMON.count, bound = S.bound ?? true, ids = Array.from({ length: n }, (_, k) => `${p.id}-s${k + 1}`);
+    standOne(p, { rule: { summon: { ids, at: Math.min(SUMMON.at, n), every: SUMMON.every, wind: r3(resolveFoe(specOf(p.entry)).attack.timing.startup / 60), radius: SUMMON.radius, ring: SUMMON.ring, with: SUMMON.with } } });
+    ids.forEach((id) => standOne({ id, eid: S.foe, entry: B[S.foe], at: p.at, heading: p.heading }, { dormant: true, rule: { summoned: { by: p.id, bound } } }));
   }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)

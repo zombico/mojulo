@@ -38,6 +38,7 @@ on a shelf is a row, pointing at primitives that already exist.
 | Modes | the forms it is defeated through | `body.modes` (`worlds/controllable/vanish.js`) | a mode |
 | States | what it is born under | `states` (`foes/states.js` FOE_STATES) | a row |
 | Death | how layer 0 is destroyed | `vanish` (`gameworld/vanish.js`: `die`, `sever`, `by`, `inside`) | a row, or a foe's own `by` |
+| Relations | the other foes whose fate it shares | `summons` (`gameworld/foes.js`, played by `worlds/controllable/summon.js`) | a row of what happens to them when it is reeling or down |
 
 An entry reads as a recipe:
 
@@ -69,6 +70,22 @@ It plays the clip library's states as any person on the field does, and every sh
 its own clips, its non-base-colour maps, a JPEG without the optional `sharp` worker (its material's colour then). A model
 with no skin, or missing a humanoid bone, is refused naming what is missing. Rigid per bone on the page, as every rig foe
 is; a heavy model is drawn at its own triangle count, so keep a crowd's under budget (principle 8).
+
+### Relations: a summoner and its summons
+
+A relation is between foes, not inside one: each body stays its own layer 0, and the relation reads only the contract
+(health, down, reeling, where it stands). The first is the summoner's. `class: 'summoner'` is behaviour only: it keeps
+its place and calls. What it calls is a word on its entry, `summons: { foe, count?, bound? }`, naming any other entry of
+the bestiary, so a summons is a skeleton, a zombie, a model or a foe with modes, and takes every shelf with it.
+
+| When the summoner… | its summons… |
+| --- | --- |
+| has a hero near | wake from sleep (minted with it, `dormant`), a few at a time on its wind-up, arriving in smoke |
+| is reeling | stand slack, if bound, until it recovers |
+| is down | if bound, are cut: destroyed where they stand, every joint letting go; those never called are dropped |
+
+`bound: false` summons fight on when it falls. An encounter has win conditions, not a bar: each foe keeps its own
+(a dropped summons is down, so a win that counts the fallen counts it). A summoner does not call a summoner.
 
 ### Death: only layer 0 is destroyed
 
@@ -139,5 +156,7 @@ name none. The discipline for adding one:
 - `scene/channels/status-channel.test.js`: a status look is rebuilt on the body a mode swap puts in, a rig body given
   the normals its coat needs; absent, the channel as it was.
 - `scene/channels/controllable/target-rim.test.js`: the target rim on the bar's pick, on whatever body it wears.
+- `worlds/controllable/summon.test.js`: the call (near, capped, its wind-up broken by a blow), the slack while it reels,
+  the strings cut on its fall and the uncalled dropped, an unbound summons fighting on; absent, no code.
 - `scene/rig-import.test.js`: a model's bones by each convention's names, its frame its body's whatever the file's, each
   triangle on its bone, and the cuts and the shed taking it as our own.

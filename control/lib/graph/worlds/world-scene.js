@@ -105,7 +105,8 @@ export function stateFace(face, own, clips) {
 }
 /** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
  * that sheds a mode (its `modes`): the page's wreck plays both */
-const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1)));
+// (a body destroyed in its going, a body with modes, or a summons whose strings may be cut: worlds/controllable/summon.js)
+const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1) || (e.rule && e.rule.summoned && e.rule.summoned.bound)));
 
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
@@ -1240,6 +1241,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // with no events has no page to play them on, and its downed bodies simply go
     const vanish = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.body && e.body.vanish && e.body.vanish.is).filter((k) => typeof k === 'string'))] : [];
     if (vanish.length) ev = { ...ev, vanish };
+    // and how a summoner's summons arrive (its call's transit, worlds/controllable/summon.js)
+    const arrive = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.rule && e.rule.summon && e.rule.summon.with).filter((k) => typeof k === 'string'))] : [];
+    if (arrive.length) ev = { ...ev, arrive };
     // and whether one of them is DESTROYED (its `vanish.die` a dismantle or a cleave): the page's wreck plays its pieces
     if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some(wrecks)) ev = { ...ev, wreck: true };
     // and whether it has LAYER-0 foes (a body with modes, or born under a state: docs/foes.md): a look laid on a foe is laid
