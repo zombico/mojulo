@@ -184,7 +184,7 @@ export function browBridge(P, pull = {}, { seat = false } = {}) {
  * { opening, lidSpace, lids, rims, crease, globe, paint, margins } — signed fields in V (negative inside): the lid space
  * to cut back out of the skin, the lids' mass to add to it, the opening to carve through it, the margins and folds to lay on, the crease to cut, the globe to set in; `paint(p)` names the globe's part
  * at a surface point ('pupil' | 'iris' | 'sclera') or null, and `irisTone(p)` the iris's pattern there (a tone about 1);
- * `margins` are the lash lines (upper, lower) as functions of t.
+ * `margins` are the lash lines (upper, lower) and the upper lid's crease as functions of t.
  */
 export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6, { seat = false } = {}) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
@@ -371,7 +371,9 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     if ((w.z > 0) !== upper) w = { x: -w.x, y: -w.y, z: -w.z };
     return { c: q, r, n, T, away: w };
   };
-  const margins = { upper: lashLine(true), lower: lashLine(false), shut };
+  // (and the upper lid's CREASE, where the lid ends and the fold over it begins: what follows the lid, a blink, turns
+  // the lid up to it and leaves the fold)
+  const margins = { upper: lashLine(true), lower: lashLine(false), shut, crease: (t) => ({ c: pt(t, kneeZ(clamp(t, 0, 1)), 0, 0) }) };
   // THE IRIS'S PATTERN: a tone (×, about 1) over the iris's colour, in polar terms about the gaze — u from the pupil's
   // edge (0) to the limbus (1), θ round it. Radial FIBRES (streaks: many round, few across), a wavy COLLARETTE ring
   // a third of the way out parting the lighter pupillary zone from the ciliary, darker CRYPTS among the fibres, the

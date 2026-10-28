@@ -148,9 +148,15 @@ mouth; and the realistic hero's eyes animate as the landmark hero's do. The eyes
   slivers: each point's share of the lid eased out with its distance along the skin, which runs on the net's edges and
   is jagged, and a lid that turns 40° or more made a few hundredths of difference between neighbours a sliver across
   the eye. The fold's underside was turned with the lid too, on its longer radius, through it. The lid's weight and turn
-  are now smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`), and the upper lid stops at its margin's
-  reach from the globe as the lower did. Every realistic hero's blink changes on its next export; the shut lid is still
-  lumpy and a speck of iris can show through it.
+  are now smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`, only what the lid holds), and the upper lid
+  stops at its margin's reach from the globe as the lower did.
+- **The fold stays as the lid shuts.** The skin over the lid was pulled down with it, a waterfall down the shut eye: the
+  upper lid reached past its crease along the skin, and every point settled onto the blinked head, whose seat had
+  followed the shutting margin down. The upper lid is now its height up to its crease (`tarsus` of it whole, easing to
+  none just past the crease, `margins.crease` from the eye rig), and only what the muscles' beads carried settles: a
+  blink moves no bead, so the brow and the fold stay still (3.4 mm before, under 0.3 now). Every realistic hero's blink
+  changes on its next export. The unfolding lid still shows some streaks where its triangles stretch out of the crease,
+  and a speck of iris can show through it.
 - **The brows ride whole**: each card of the brows moves by its points' mean, so a surprise lifts the brow, not its
   splinters.
 
