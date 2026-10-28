@@ -10,7 +10,9 @@
  *         dismantle  DESTROYED: it comes apart at its joints where it was struck (`sever`: which; the page's wreck,
  *                  scene/channels/wreck-channel.js, plays its pieces falling and fades them when it goes)
  *         cleave   DESTROYED: it is cut through by the blow (the page's wreck plays the cut and the pieces)
- *   A destroyed body is marked `e.wreck = { die, sever, is, t0, from, seed }` the frame it goes down (`from` the blow's way
+ *         destroy  DESTROYED as the killing blow says (`by`: a destruction per blow, swing | round | burst | crush, and
+ *                  `else` when none is known), the blow read off what the hits already record (blowOf)
+ *   A destroyed body is marked `e.wreck = { die, sever, is, t0, from, seed, kick?, how? }` the frame it goes down (`from` the blow's way
  *   along the ground, from whoever struck it), lies `linger` s as pieces, then goes with no transit: the wreck fades them.
  *
  * A platformer's squash and a pinball's pop are kinds of going (`is`), played by the page at once.
@@ -42,6 +44,19 @@ export function buildVanish(E) {
     else if (T.vz < 0 && g == null && T.vz < -LAUNCH.up * 2) T.landed = true;   // (nothing under it: it stops falling)
     return T.landed;
   }
+  // the blow that killed a body, by the latest of what each kind of hit records: its striker's strike or shot at it
+  // (`lastStrike`, `lastShot`), a burst that went off over it (`state.bursts`), a stomp on it (`foeStomped`) or a tackle
+  // (`tackleHits`); none known, null (its form's own way)
+  function blowOf(state, e, by) {
+    const c = [], p = e.transform.pos;
+    if (by && by.lastStrike && by.lastStrike.targetId === e.id) c.push({ is: 'swing', t: by.lastStrike.t });
+    if (by && by.lastShot && by.lastShot.targetId === e.id) c.push({ is: 'round', t: by.lastShot.t });
+    for (const b of state.bursts || []) if (Math.hypot(b.pos[0] - p[0], b.pos[1] - p[1]) <= (b.radius || 0) + 1) c.push({ is: 'burst', t: b.t, at: b.pos });
+    if (Number.isFinite(e.foeStomped)) c.push({ is: 'crush', t: e.foeStomped });
+    if (by && by.tackleHits && by.tackleHits[e.id]) c.push({ is: 'crush', t: e.hitFlash || 0 });
+    let best = null; for (const x of c) if (!best || x.t > best.t) best = x;
+    return best;
+  }
   E.stepWorld = function stepWithVanish(state, input, dt, hooks) {
     // (a body that vanishes dies its own way: never the suit's death burst, combat-match.js, whose fireball and splash
     // stagger are a mecha's; its latch is set before the pass can fire it)
@@ -52,12 +67,16 @@ export function buildVanish(E) {
       const V = e.body && e.body.vanish;
       if (!V || !e.downed || e.gone) continue;
       if (V.die === 'launch' && !fly(state, e, dt, hooks)) continue;
-      const wrecked = V.die === 'dismantle' || V.die === 'cleave';
+      const wrecked = V.die === 'dismantle' || V.die === 'cleave' || V.die === 'destroy';
       if (wrecked && !e.wreck) {
         const by = e.lastHitBy && state.byId[e.lastHitBy], t = e.transform;
-        const a = by ? Math.atan2(t.pos[1] - by.transform.pos[1], t.pos[0] - by.transform.pos[0]) : t.heading + Math.PI;
+        // `destroy`: the killing blow says how (its table, `V.by`, the bestiary's: gameworld/vanish.js BLOW_DESTRUCTION)
+        const how = V.die === 'destroy' ? blowOf(state, e, by) : null, D = V.die === 'destroy' ? (V.by && ((how && V.by[how.is]) || V.by.else)) || { die: 'dismantle' } : V;
+        // thrown away from what struck it (a burst: from where it went off)
+        const src = how && how.at ? how.at : by ? by.transform.pos : null;
+        const a = src ? Math.atan2(t.pos[1] - src[1], t.pos[0] - src[0]) : t.heading + Math.PI;
         let h = 7; for (let i = 0; i < e.id.length; i++) h = (h * 31 + e.id.charCodeAt(i)) % 999983;
-        e.wreck = { die: V.die, sever: V.sever || 'all', is: V.is, t0: state.time || 0, from: [Math.cos(a), Math.sin(a)], seed: h };
+        e.wreck = { die: D.die, sever: D.sever || V.sever || 'all', is: V.is, t0: state.time || 0, from: [Math.cos(a), Math.sin(a)], seed: h, ...(D.kick ? { kick: D.kick } : {}), ...(how ? { how: how.is } : {}) };
       }
       e.vanishT = (e.vanishT || 0) + dt;
       if (e.vanishT + 1e-9 < (V.linger || 0)) continue;

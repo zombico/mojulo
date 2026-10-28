@@ -103,8 +103,8 @@ export function stateFace(face, own, clips) {
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
-/** a body destroyed when it goes down (its `vanish.die` a dismantle or a cleave: gameworld/vanish.js) */
-const wrecks = (e) => !!(e && e.body && e.body.vanish && (e.body.vanish.die === 'dismantle' || e.body.vanish.die === 'cleave'));
+/** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js) */
+const wrecks = (e) => !!(e && e.body && e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die));
 
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
@@ -828,7 +828,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           if (wrecked.length) {
             const { humanoidParents } = await import('@/lib/graph/figures/rig-tpose.js');
             try { figure.wreck = { parent: humanoidParents(figure.bones) }; } catch { figure.wreck = {}; }
-            const cleaved = wrecked.find((e) => e.body.vanish.die === 'cleave');
+            const cleaved = wrecked.find((e) => e.body.vanish.die === 'cleave' || (e.body.vanish.die === 'destroy' && Object.values(e.body.vanish.by || {}).some((D) => D && D.die === 'cleave')));
             if (cleaved) {
               const { slashPlane, cleaveFigure } = await import('@/lib/graph/scene/rig-cleave.js');
               let h = 7; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 999983;

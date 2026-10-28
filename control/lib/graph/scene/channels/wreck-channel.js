@@ -149,7 +149,8 @@ function __wkMake(e) {
     } else {
       // thrown off the blow (the trunk, the biggest piece, only nudged), up, and spun; a body in many pieces mostly drops
       // where it stood, a heap, its pieces only kicked off the blow
-      const share = ms.length === big ? 0.3 : 1, heap = sets.length > 8 ? 0.45 : 1, s = (0.8 + 1.6 * rnd()) * share * heap;
+      // (a kick, a blast's: thrown hard, never a heap)
+      const kick = W.kick || 1, share = ms.length === big ? 0.3 : 1, heap = (sets.length > 8 && kick <= 1 ? 0.45 : 1) * kick, s = (0.8 + 1.6 * rnd()) * share * heap;
       v = [f[0] * s + (rnd() - 0.5) * 1.6 * share * heap, f[1] * s + (rnd() - 0.5) * 1.6 * share * heap, (0.6 + 2.2 * rnd()) * share * heap];
       w = [(rnd() - 0.5) * 12 * share, (rnd() - 0.5) * 12 * share, (rnd() - 0.5) * 8 * share];
     }

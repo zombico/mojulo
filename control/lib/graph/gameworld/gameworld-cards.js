@@ -554,10 +554,10 @@ function foesCard() {
     `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
     '        A platformer squashes it, a pinball table pops it, an action game throws it back along the blow, a',
     '        realistic one lets it fall and lie; then the look fades it (anime RPG motes in the palette, cel blink, western',
-    '        sink or fade). An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave, sever? }',
-    `        names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}), a`,
-    '        cleave is cut in two through its trunk (inside: the cut\'s colour), its pieces falling where it stood; the undead',
-    '        are destroyed by default: a skeleton at every joint, a corpse cut through.',
+    '        sink or fade). An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave | destroy,',
+    `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
+    '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
+    '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
     'A world without foes, or a level without them, is laid as it was.',
   );
 }

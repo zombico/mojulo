@@ -7,7 +7,7 @@ import { wreckGroups, wreckPiece, wreckStep, WRECK_LIMBS } from './wreck-channel
 import { statusScript } from './status-channel.js';
 import { humanoidParents } from '../../figures/rig-tpose.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
-import { vanishOf, readVanish, UNDEAD_DESTRUCTION, WRECK_LINGER } from '../../gameworld/vanish.js';
+import { vanishOf, readVanish, UNDEAD_DESTRUCTION, WRECK_LINGER, BLOW_DESTRUCTION } from '../../gameworld/vanish.js';
 import { LINEAGES } from '../../egocube/ancestry.js';
 import { heroRecord, expandLayeredManifest } from '../../../mcp/tools/layered.js';
 import { WORLD_KINDS } from '../../worlds/world-kinds.js';
@@ -108,10 +108,37 @@ describe('the runtime and the words', () => {
     expect(st.byId.a.transit).toBeUndefined();
     expect(W.gone).toBeGreaterThan(W.t0);
   });
+  it('a destroy dies as the killing blow says: a strike cleaves, a shot knocks some off, a burst tears it apart, none its own way', () => {
+    const by = { ...BLOW_DESTRUCTION, else: { die: 'cleave' } };
+    const kill = (how) => {
+      const st = E.createWorld({ entities: [body('a', [0, 0, 0], { is: 'fade', linger: 3, die: 'destroy', by }), { id: 'hero', team: 'heroes', rule: { type: 'static' }, body: { type: 'mesh' }, transform: { pos: [-2, 0, 0], heading: 0 } }] });
+      E.stepWorld(st, {}, 1 / 30, { ground: () => 0 });
+      const h = st.byId.hero, a = st.byId.a, t = st.time;
+      if (how === 'swing') h.lastStrike = { targetId: 'a', t };
+      if (how === 'round') h.lastShot = { targetId: 'a', t };
+      if (how === 'burst') st.bursts = [{ seq: 0, pos: [0.5, 0.5, 0], t, radius: 2 }];
+      Object.assign(a, { downed: true, lastHitBy: 'hero' });
+      E.stepWorld(st, {}, 1 / 30, { ground: () => 0 });
+      return a.wreck;
+    };
+    expect(kill('swing')).toMatchObject({ die: 'cleave', how: 'swing' });
+    expect(kill('round')).toMatchObject({ die: 'dismantle', sever: 'some', how: 'round' });
+    const B = kill('burst');
+    expect(B).toMatchObject({ die: 'dismantle', sever: 'all', how: 'burst', kick: BLOW_DESTRUCTION.burst.kick });
+    expect(B.from[0]).toBeLessThan(0);   // thrown away from where it went off
+    expect(kill(null)).toMatchObject({ die: 'cleave' });
+    expect(kill(null).how).toBeUndefined();
+  });
   it('the undead are destroyed by their form, at least long enough to settle; a living people falls as before', () => {
     const [skel] = Object.entries(LINEAGES).find(([, l]) => l.form === 'skeleton'), [corpse] = Object.entries(LINEAGES).find(([, l]) => l.form === 'zombie');
-    expect(vanishOf({}, { skin: { people: skel } })).toMatchObject({ ...UNDEAD_DESTRUCTION.skeleton });
-    expect(vanishOf({}, { skin: { people: corpse } })).toMatchObject({ ...UNDEAD_DESTRUCTION.zombie });
+    for (const [p, form] of [[skel, 'skeleton'], [corpse, 'zombie']]) {
+      const V = vanishOf({}, { skin: { people: p } }), U = UNDEAD_DESTRUCTION[form];
+      expect(V).toMatchObject({ die: 'destroy', inside: U.inside, by: { ...BLOW_DESTRUCTION, else: U.else } });
+    }
+    // the blow's table, by the cut each deals: a strike's slice cleaves, a burst tears every joint and throws them hard
+    expect(BLOW_DESTRUCTION.swing.die).toBe('cleave');
+    expect(BLOW_DESTRUCTION.burst).toMatchObject({ die: 'dismantle', sever: 'all' });
+    expect(BLOW_DESTRUCTION.burst.kick).toBeGreaterThan(1);
     expect(vanishOf({}, { skin: { people: skel } }).linger).toBeGreaterThanOrEqual(WRECK_LINGER);
     expect(vanishOf({}, { skin: { people: 'human' } }).die).toBe('fall');
     // an entry's own word, and a squash (the death beat itself), stand over it

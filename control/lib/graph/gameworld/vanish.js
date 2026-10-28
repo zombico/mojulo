@@ -31,8 +31,11 @@
  * DESTRUCTION is a way to die too (`die`): `dismantle`, it comes apart at its joints (`sever`: SEVERS), and `cleave`, it is
  * cut through by the blow (a slash through its trunk, its cut showing `inside`); the page's wreck plays its pieces
  * falling and fades them as it goes, after at least
- * WRECK_LINGER s. The UNDEAD are destroyed by default (UNDEAD_DESTRUCTION, by their people's form): a skeleton comes
- * apart at every joint, a corpse is cut in two, wherever the world lets a foe fall or be thrown.
+ * WRECK_LINGER s. `destroy` lets the killing blow choose (BLOW_DESTRUCTION, by the cut it deals: cuts.js): a strike's
+ * slice cleaves it, a round knocks some of it off at its joints, a burst tears it apart at every joint. The UNDEAD are
+ * destroyed so by default (UNDEAD_DESTRUCTION, by their people's form, its own way when no blow says: a skeleton
+ * apart at every joint, a corpse cut in two), wherever the world lets a foe fall or be thrown. Only layer 0, the
+ * skeleton under every foe, is destroyed: a mode above it is defeated.
  *
  * A bestiary entry may name its own (`vanish: <kind>`, or `{ is?, linger?, die?, sever?, inside? }`).
  *
@@ -46,6 +49,7 @@
 import { juiceOfGame, juiceSuggestion, trailContext } from './juice.js';
 import { resolveTrailColor } from '../scene/juice-style.js';
 import { LINEAGES } from '../egocube/ancestry.js';
+import { cutOf, readCut } from '../playscape/destruct/cuts.js';
 
 export const VANISHES = Object.freeze({
   fade: 'it fades where it lies',
@@ -63,7 +67,7 @@ export const DEATHS = Object.freeze({
   platformer: { die: 'fall', linger: 0, is: 'squash' },
   pinball: { die: 'fall', linger: 0, is: 'pop' },
 });
-export const DIES = Object.freeze(['fall', 'launch', 'dismantle', 'cleave']);
+export const DIES = Object.freeze(['fall', 'launch', 'dismantle', 'cleave', 'destroy']);
 /** A DESTRUCTION's joints cut (a `dismantle`'s `sever`, the page's wreck: scene/channels/wreck-channel.js): every one, the
  * head and the limbs, the head alone, or a few of the head and the limbs, on the body's dice */
 export const SEVERS = Object.freeze({
@@ -74,10 +78,29 @@ export const SEVERS = Object.freeze({
 });
 /** A destruction lies at least this long: its pieces fall and settle before they fade */
 export const WRECK_LINGER = 2.4;
-/** The undead's own destruction, by its form (a lineage's: egocube/ancestry.js): a skeleton, nothing holding its bones,
- * comes apart at every joint (by relation); a corpse is cut through by the blow (by part), its inside its meat */
-export const UNDEAD_DESTRUCTION = Object.freeze({ skeleton: { die: 'dismantle', sever: 'all' }, zombie: { die: 'cleave', inside: '#a8402f' } });
-const isWreck = (die) => die === 'dismantle' || die === 'cleave';
+/** The blows the runtime tells a death by (worlds/controllable/vanish.js: whatever struck last): a melee strike, a round, a
+ * burst, a crush (a stomp, a tackle) */
+export const BLOWS = Object.freeze(['swing', 'round', 'burst', 'crush']);
+const BLOW_SOURCE = Object.freeze({ swing: 'swing', round: 'round', burst: 'burst', crush: null });
+/** A cut (playscape/destruct/cuts.js) as a destruction: a slice cleaves, a few chips knock some of it off at its joints, a
+ * shatter, a blast or a dice tears it apart at every joint (a blast thrown hard), a sever lets every joint go */
+export function destructionOfCut(cut) {
+  if (cut.pattern === 'slice') return { die: 'cleave' };
+  if (cut.pattern === 'dismantle') return { die: 'dismantle', sever: 'all' };
+  if (cut.pattern === 'voronoi' && (cut.count ?? 1) <= 4) return { die: 'dismantle', sever: 'some' };
+  return { die: 'dismantle', sever: 'all', ...(cut.style === 'impact' && (cut.count ?? 1) >= 8 ? { kick: 1.6 } : {}) };
+}
+/** `destroy`'s table: each blow's destruction, by the cut it deals (cuts.js SOURCE_CUTS; a crush, a sever) */
+export const BLOW_DESTRUCTION = Object.freeze(Object.fromEntries(BLOWS.map((b) => [b, Object.freeze(destructionOfCut(BLOW_SOURCE[b] ? cutOf({ source: BLOW_SOURCE[b] }) : readCut('sever')))])));
+/** The undead's own destruction (a lineage's form: egocube/ancestry.js): `destroy`, the killing blow choosing how its bones,
+ * layer 0 under every foe, are destroyed (BLOW_DESTRUCTION), and its form's way when no blow says (a death by a fall, a
+ * timer): a skeleton, nothing holding its bones, comes apart at every joint (by relation); a corpse is cut through (by
+ * part). The inside a cut shows: a corpse's meat, a bone's marrow */
+export const UNDEAD_DESTRUCTION = Object.freeze({
+  skeleton: { die: 'destroy', else: { die: 'dismantle', sever: 'all' }, inside: '#8a5a40' },
+  zombie: { die: 'destroy', else: { die: 'cleave' }, inside: '#a8402f' },
+});
+const isWreck = (die) => die === 'dismantle' || die === 'cleave' || die === 'destroy';
 export const LINGER = Object.freeze(Object.fromEntries(Object.entries(DEATHS).map(([k, D]) => [k, D.linger])));
 const MAX_LINGER = 10;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -91,9 +114,9 @@ export function readVanish(v, at) {
   if (v.linger !== undefined && !(Number.isFinite(v.linger) && v.linger >= 0 && v.linger <= MAX_LINGER)) throw new Error(`${at}.linger is the seconds it lies first, 0 to ${MAX_LINGER}`);
   if (v.die !== undefined && !DIES.includes(v.die)) throw new Error(`${at}.die is how it dies: ${DIES.join(' | ')}`);
   if (v.sever !== undefined && !SEVERS[v.sever]) throw new Error(`${at}.sever is which joints a dismantle cuts: ${Object.keys(SEVERS).join(' | ')}`);
-  if (v.sever !== undefined && v.die !== 'dismantle') throw new Error(`${at}.sever goes with die: 'dismantle' (the joints it cuts)`);
+  if (v.sever !== undefined && v.die !== 'dismantle' && v.die !== 'destroy') throw new Error(`${at}.sever goes with die: 'dismantle' or 'destroy' (the joints it cuts)`);
   if (v.inside !== undefined && !(typeof v.inside === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.inside))) throw new Error(`${at}.inside is the colour a cleave's cut shows, a '#rrggbb'`);
-  if (v.inside !== undefined && v.die !== 'cleave') throw new Error(`${at}.inside goes with die: 'cleave' (the colour its cut shows)`);
+  if (v.inside !== undefined && v.die !== 'cleave' && v.die !== 'destroy') throw new Error(`${at}.inside goes with die: 'cleave' or 'destroy' (the colour its cut shows)`);
   return { ...(v.is !== undefined ? { is: v.is } : {}), ...(v.linger !== undefined ? { linger: v.linger } : {}), ...(v.die !== undefined ? { die: v.die } : {}), ...(v.sever !== undefined ? { sever: v.sever } : {}), ...(v.inside !== undefined ? { inside: v.inside } : {}) };
 }
 
@@ -124,9 +147,12 @@ export function vanishOf(G, entry) {
   // and a pinball's pop are the death beat itself, and an entry's own `die` wins
   const form = entry?.skin?.people ? LINEAGES[entry.skin.people]?.form : null, U = form && !beat ? UNDEAD_DESTRUCTION[form] : null;
   const die = own.die ?? (beat ? beat.die : U && ['fall', 'launch'].includes(W.die) && !['squash', 'pop'].includes(is) ? U.die : W.die);
-  const sever = die === 'dismantle' ? own.sever ?? (U && U.die === die ? U.sever : 'all') : null;
+  const sever = die === 'dismantle' ? own.sever ?? (U && U.die === die ? U.sever : 'all') : die === 'destroy' ? own.sever ?? null : null;
   // (a cleave's inside: the colour its cut shows, the entry's own, else its form's)
-  const inside = die === 'cleave' ? own.inside ?? (U && U.die === die ? U.inside : null) : null;
+  const inside = die === 'cleave' || die === 'destroy' ? own.inside ?? (U ? U.inside : null) : null;
+  // (a destroy carries its table: each blow's destruction, an entry's sever over a dismantle's; and its way with no blow)
+  const over = (D) => (sever && D.die === 'dismantle' ? { ...D, sever } : D);
+  const by = die === 'destroy' ? { ...Object.fromEntries(BLOWS.map((b) => [b, over(BLOW_DESTRUCTION[b])])), else: over(U && U.else ? U.else : { die: 'dismantle', sever: 'all' }) } : null;
   const linger = own.linger ?? (beat ? beat.linger : isWreck(die) ? Math.max(W.linger, WRECK_LINGER) : W.linger);
-  return { is, linger, die, ...(sever ? { sever } : {}), ...(inside ? { inside } : {}), ...(rgb ? { rgb } : {}) };
+  return { is, linger, die, ...(sever && die === 'dismantle' ? { sever } : {}), ...(by ? { by } : {}), ...(inside ? { inside } : {}), ...(rgb ? { rgb } : {}) };
 }

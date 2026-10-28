@@ -625,14 +625,21 @@ through the character designer, clips fitted to the class's timing, factions) is
     split into two halves, every loop of the cut capped in the inside (`inside`, a corpse's meat). On the blow the
     halves swap in, a streak of light runs along the cut for a breath, the side above slips off down the cut and the
     side below gives way.
-  - The undead are destroyed by default, by their people's form, wherever the world lets a foe fall or be thrown: a
-    skeleton comes apart at every joint (by relation), a corpse is cut through (by part). An entry's own `die`, and a
-    platformer's squash or a pinball's pop, stand over it.
+  - `destroy` lets the killing blow choose, by the cut it deals (`cuts.js`, `BLOW_DESTRUCTION`): a strike's slice
+    cleaves, a round's chips knock two or three of the head and limbs off, a burst tears every joint and throws the
+    pieces hard (away from where it went off), a stomp or a tackle lets every joint go. The runtime reads the blow off
+    what the hits already record (the striker's strike or shot at it, a burst over it, a stomp on it); with none
+    known, the body's own way.
+  - The skeleton is layer 0 under every foe, and only it is destroyed (a mode above it is defeated). The undead are
+    destroyed so by default, by their people's form, wherever the world lets a foe fall or be thrown: by the blow, a
+    skeleton cleaved through its ribs and spine to its marrow as readily as a corpse to its meat; with no blow, a
+    skeleton comes apart at every joint and a corpse is cut through. An entry's own `die`, and a platformer's squash or
+    a pinball's pop, stand over it.
   - A page with no destroyed body carries none of it.
 
   Machine gate: the words and the undead's defaults; the groups each `sever` makes on a hero's bones; a slash's sides
   (the head above, the feet below, the trunk cut), each half on its own side capped in the inside, the same cut for the
-  same seed; a dropped bone settling flat; the runtime marking the body the frame it goes down and handing it to no transit; each function the
+  same seed; a dropped bone settling flat; the runtime marking the body the frame it goes down and handing it to no transit; a destroy dying as each blow says (a strike, a shot, a burst away from it, none); each function the
   page runs evaluating from its own source alone; no wreck on a page without one. Eyes: pending.
 
 ### Carved glyphs: the letter primitive grows up
