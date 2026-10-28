@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { relationalHeadChart } from './dermal-head.js';
-import { readDermis } from './dermal-map.js';
+import { readDermis, CLIPPER, clipCover } from './dermal-map.js';
 import { readScalp, SCALP_STYLES } from './dermal-hair.js';
 import { hairClass } from './hair-depict.js';
 import { lockHair, lockStrands, beardShell, lockStyleAt, readStylize, surfaceClear, lockClass, HAIR_LOCKS, LOCK_GROUPS, LOCK_TIP, LOCK_FADE } from './hair-locks.js';
@@ -69,6 +69,16 @@ describe('the lock hair', () => {
     expect(Math.max(...widths)).toBeLessThan(Math.max(2 * LOCK_TIP.width, 2 * LOCK_FADE.half) * 1.5);
     expect(clearOf(H)).toBe(true);
   }, 180_000);
+  it('CLIPPED hair (a fade\'s foot) is no shell but the skin\'s shadow: the shell stops at the clipper\'s length, the guides\' places and lengths handed to the painter', () => {
+    // (a cropped style a clipper takes under the shell's length, from the catalog; the same cut held over it, none)
+    const name = Object.keys(SCALP_STYLES).find((k) => { const S = readScalp(k); return hairClass(S) === 'cropped' && S.cut?.taper && S.cut.taper.min * 1000 < CLIPPER.shell; });
+    const S = readScalp({ style: name, spacing: 0.02 }), held = readScalp({ style: name, spacing: 0.02, cut: { ...S.cut, taper: { ...S.cut.taper, min: (CLIPPER.shell + 1) / 1000 } } });
+    const F = lockHair(chart, D, S, { centre }), H = lockHair(chart, D, held, { centre });
+    expect(F.clip.mm.some((mm) => mm >= 0 && mm < CLIPPER.shell)).toBe(true); expect(H.clip).toBeUndefined();
+    expect(F.counts.shell).toBeLessThan(H.counts.shell);
+    // (the shadow's share by length: clipper 0 about a third, clipper 1 about four fifths, never the whole skin)
+    expect(clipCover(0.8)).toBeGreaterThan(0.3); expect(clipCover(0.8)).toBeLessThan(0.45); expect(clipCover(3)).toBeGreaterThan(0.7); expect(clipCover(30)).toBeLessThanOrEqual(CLIPPER.max);
+  }, 120_000);
   it('a falling curly groom is drawn as flows; standing coils are the sculpted volume', () => {
     const coils = Object.keys(SCALP_STYLES).map((k) => readScalp(k)).filter((S) => hairClass(S) === 'coil');
     const falls = coils.find((S) => (S.stand ?? 0) < 0.3 && S.length >= 0.15), stands = coils.find((S) => (S.stand ?? 0) >= 0.5);

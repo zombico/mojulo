@@ -118,7 +118,8 @@ face's `stylize` their register. Over the scalp each flow wraps round the head a
 flows the outer, so they shingle and never stand off as chords. A long lock's points below the head ride the neck and the
 torso, and it falls outside the shoulders. The face's hair takes the same register (`lockStrands`): a beard is its coat
 sculpted to where its hairs stand, a full beard's chin hangs as flows out of it, and each brow and each half of the
-moustache is a band, one mass along it with the dial's strokes on it. The overlap principle (`hair-score.js` `overlapHair`) holds the scalp hidden except in the splits. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
+moustache is a band, one mass along it with the dial's strokes on it. Hair clipped under 4 mm (a fade's foot, a stubble)
+is the skin's paint, the hair's colour by the share its length covers (`dermal-map.js` `CLIPPER`). The overlap principle (`hair-score.js` `overlapHair`) holds the scalp hidden except in the splits. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
 carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down

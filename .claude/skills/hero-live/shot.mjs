@@ -6,8 +6,8 @@
 //   node .claude/skills/hero-live/shot.mjs [--out dir] [--shots '<json>'] [--cols n]
 //
 //   --out    live.mjs's out dir (default <tmp>/hero-live); writes shots/sheet.png and one PNG per frame
-//   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
-//            wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
+//   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', look?: { az, el, dist, at, fov } (a free
+//            camera: az degrees round from the front, el up), phase?: 0 … 1, hold?: { morph: w }, wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //
 // Needs a Chromium (lib/graph/scene/chromium.js resolves and launches it; MOJULO_CHROMIUM names one it does not find); a
@@ -58,10 +58,10 @@ try {
       if (S.variant) await H.variant(S.variant);
       H.set({ wire: !!S.wire, bones: !!S.bones });
       if (S.take) H.take(S.take);
-      H.view(S.view ?? 'vFace');
+      if (S.look) H.look(S.look); else H.view(S.view ?? 'vFace');
       H.seek(S.phase ?? 0.5);
       if (S.hold) H.hold(S.hold);
-      const s = H.state(); return `${s.variant} · ${s.take} · ${s.view.slice(1)} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;
+      const s = H.state(); return `${s.variant} · ${s.take} · ${s.view.startsWith("v") ? s.view.slice(1) : s.view} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;
     }, S);
     await new Promise((r) => setTimeout(r, 400));
     const stage = await page.$('#stage'), png = await stage.screenshot({ type: 'png' });

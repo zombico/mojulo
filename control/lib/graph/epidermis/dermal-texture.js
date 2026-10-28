@@ -30,7 +30,7 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover } from './dermal-map.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
@@ -99,15 +99,18 @@ const byte = (x) => Math.round(clamp01(x) * 255);
 
 /**
  * Paint the channels. `opts.scalp` true when a groom covers the scalp (its paint), false for a bare scalp (a shaven
- * shadow); `opts.scalpPaint` the paint's share (default 0.8).
+ * shadow); `opts.scalpPaint` the paint's share (default 0.8); `opts.clip` (realistic laws 10, the recipe's `hairClip`:
+ * { scalp: { n, mm } | null, beard }) the hair a clipper took under its shell painted as its SHADOW, the
+ * hair's colour by the share its length covers (dermal-map.js CLIPPER), the scalp's where its guides say, a styled
+ * stubble's by its length; absent, the paint as it was.
  */
-export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 } = {}) {
-  const P = dermalPages(layout, D);
+export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null } = {}) {
+  const P = dermalPages(layout, D), clipAt = clip ? clipField(clip.scalp) : null;
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
       grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
       texel: (px, py) => addressAt(chart, r, (px + 0.5) / r.w * (1 + r.extra), (py + 0.5) / r.h),
-      scalp, scalpPaint,
+      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard } } : {}),
     });
   }
   return finishPages(P, chart, faceUVs(chart, layout), D, layout);
@@ -131,7 +134,7 @@ export function dermalPages(layout, D) {
  * masks being smooth, bilinear between; the fine detail per texel (`texel(px, py)` the texel's own address). `flowSign`
  * −1 where the rectangle's u runs against `around` (its hair's flow turned to match). `mpt` the texel's millimetres.
  */
-export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false }) {
+export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null }) {
   const { N, albedo, rough, trans, hair, fuzz, detail, classIndex, hairLin } = P;
   const gw = Math.ceil(r.w / STEP) + 1, gh = Math.ceil(r.h / STEP) + 1, grid = new Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) grid[j * gw + i] = dermisAt(gridAt(i, j), D, { detail: false });
@@ -149,7 +152,12 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     const fm = lerp((s) => s.freckleMask);
     if (fm > 0.002) { const f = freckle(A, seedOf(A, D)) * fm; col = col.map((x, k) => x * (1 + ([0.8, 0.68, 0.56][k] - 1) * f)); }
     const scalpW = lerp((s) => s.regions.scalp || 0), beardD = lerp((s) => (s.hair.tract === 'beard' ? s.hair.density : 0));
-    if (scalpW > 0.01) {
+    // (clipped hair, realistic laws 10: its shadow by its length, mottled as follicles are uneven; from the shell's
+    // length on, the paint under the shell as it was)
+    const mm = clip?.at && scalpW > 0.01 ? clip.at(A) : null, mottle = (k) => 1 - CLIPPER.mottle / 2 + CLIPPER.mottle * vnoise(A.around * A.girth * 1000 / 2, A.along * A.length * 1000 / 2, D.seed + k);
+    // (in the shell's own colour, its share reaching the whole by the shell's length: the fade meets the shell, no ledge)
+    if (mm !== null && mm < CLIPPER.shell) col = mixc(col, hairLin, Math.min(1, clipCover(mm) * mottle(31) + (1 - clipCover(mm)) * smooth(CLIPPER.shell - CLIPPER.meet, CLIPPER.shell, mm)) * scalpW);
+    else if (scalpW > 0.01) {
       if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
@@ -160,7 +168,8 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     // nothing where the hair stops and no line marks the style's edge)
     if (D.beardStyle && beardD > 0.5) {
       const bl = lerp((s) => (s.hair.tract === 'beard' ? s.hair.length : 0)), bw = lerp((s) => s.regions.beard || 0);
-      const share = 0.85 * smooth(0.5, 8, bl) * Math.min(1, 0.5 + 0.35 * beardD / 55) * smooth(0.3, 0.8, bw);
+      // (under `clip` a stubble, a clipper's beard under the shell's length, its shadow by its length as the scalp's is)
+      const share = (clip?.beard && bl < CLIPPER.shell ? clipCover(bl) * mottle(37) : 0.85 * smooth(0.5, 8, bl)) * Math.min(1, 0.5 + 0.35 * beardD / 55) * smooth(0.3, 0.8, bw);
       if (share > 0) col = mixc(col, hairLin.map((x) => x * 0.8), share);
     }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
@@ -252,6 +261,22 @@ function follicles(A, density, lengthMm, mpt, seed) {
     cov = Math.max(cov, share * clamp01((r + 0.5 * mpt - d) / (0.5 * mpt)));
   }
   return Math.min(0.9, cov);
+}
+
+/**
+ * The clipped scalp's length at an address (mm, or null off it): `grid` { n, mm } (hair-locks.js clipGrid: cells round
+ * the head by along, −1 where no scalp falls) read bilinearly between its cells' middles, round the head wrapping, a cell
+ * off the scalp taking no weight.
+ */
+function clipField(grid) {
+  if (!grid?.mm?.length) return null;
+  const n = grid.n, cell = (a, b) => grid.mm[Math.max(0, Math.min(n - 1, b)) * n + (((a % n) + n) % n)];
+  return (A) => {
+    const x = A.around * n - 0.5, y = A.along * n - 0.5, i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+    let v = 0, w = 0;
+    for (const [a, b, k] of [[i, j, (1 - fx) * (1 - fy)], [i + 1, j, fx * (1 - fy)], [i, j + 1, (1 - fx) * fy], [i + 1, j + 1, fx * fy]]) { const m = cell(a, b); if (m >= 0 && k > 0) { v += m * k; w += k; } }
+    return w > 0.05 ? v / w : null;
+  };
 }
 
 const srgbLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);

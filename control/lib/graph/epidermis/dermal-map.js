@@ -592,6 +592,16 @@ export const skinBase = (D) => linHex(mulc(toneAlbedo(D.tone), UNDERTONE_TINT[D.
 /** the hair's colour (linear RGB) from the dermis's word */
 export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairColour);
 /** a grey hair's colour (linear RGB): the pigment gone, a warm silver */
+/**
+ * CLIPPED HAIR as the eye averages it (realistic laws 10): hair under `shell` mm (a barber's clipper 0, ½ and 1, a
+ * skin fade's foot, a stubble) is no mass but a SHADOW on the skin, the hair's colour over it by the share it covers,
+ * `max` (1 − e^(−mm / `cover`)): clipper 0 (~0.8 mm) about a third, clipper 1 (3 mm) about four fifths; from `shell` mm the
+ * hair is its shell (hair-locks.js), the shadow reaching the whole over the last `meet` mm so the two meet. `mottle` the
+ * share the follicles' own unevenness moves it by.
+ */
+export const CLIPPER = Object.freeze({ shell: 4, cover: 1.4, max: 0.9, mottle: 0.3, meet: 1.5 });
+/** the share of the skin clipped hair `mm` long covers (0 … CLIPPER.max) */
+export const clipCover = (mm) => CLIPPER.max * (1 - Math.exp(-Math.max(0, mm) / CLIPPER.cover));
 export const GREY_HAIR = Object.freeze(hexLin('#cdc8bf'));
 /** the hair's colour as the eye averages it at a distance (linear): its own, toward silver by the share gone grey (the
  * texture's painted hair, an engine's cards); the colour itself without `grey` */

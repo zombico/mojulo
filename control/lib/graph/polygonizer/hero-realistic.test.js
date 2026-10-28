@@ -138,6 +138,8 @@ describe('the realistic hero at the door', () => {
     // and nothing hanging; the brows a band each; every one ONE colour, no root band)
     expect(P.hair.group).toBe('Hair'); expect(P.hairCap.group).toBe('Hair'); expect(P.hairBeardCoat.group).toBe('Beard'); expect(P.hairBeard.group).toBe('Beard'); expect(P.hairBrows.group).toBe('Brow');
     expect(Object.keys(m.recipe.palette).filter((k) => /Root$/.test(k))).toEqual([]);
+    // (clipped hair, a stubble's and a fade's foot, the skin's paint: the recipe says where, dermal-texture.js)
+    expect(m.recipe.hairClip.beard).toBe(true);
     // (a hero minted under laws 9 keeps its blades and their coat in the root's colour)
     const was = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', physique: { from: 'athletic', laws: 9 }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.parts;
     expect(was.hairCap.group).toBe('HairRoot'); expect(was.hairBeardCoat.group).toBe('BeardRoot'); expect(was.hair.cardUV).toBeTruthy();
@@ -193,7 +195,8 @@ describe('the realistic hero at the door', () => {
     // (the ancestry's deep tone, unless the hero's skin or palette names one)
     expect(a.dermis.tone).toBeGreaterThanOrEqual(6); expect(a.dermis.undertone).toBeTruthy();
     expect(at({ seed: 1, ethnicity: 'african' }, { skin: { tone: 2 } }).dermis.tone).toBe(2);
-  }, 300_000);
+    // (four heroes minted whole under laws 10, their hair and their face's hair grown: ~6 minutes on one core)
+  }, 480_000);
   it('wears its face\'s piercings and its scalp: pinned to the skin, closed, in their colours; no piercings where the face rolled none', () => {
     const at = (face) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'female', ...(face ? { face } : {}) }) });
     const m = at({ seed: 6, ethnicity: 'western' }), P = m.recipe.parts, C = realisticFaceOf(heroRecord({ form: 'realistic', cast: 'female', face: { seed: 6, ethnicity: 'western' } }));

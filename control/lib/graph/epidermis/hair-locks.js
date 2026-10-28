@@ -31,7 +31,9 @@
  *   rope      each loc, row or braid a ROPE: a round tube along its bundle, a twist groove round it (`LOCK_ROPE`), over
  *             the shell
  *
- *   lockHair(chart, D, S, { level, centre, stylize, colliders, maps }) → { mesh, cards, cap, locks, streak?, overlap?, counts }
+ *   lockHair(chart, D, S, { level, centre, stylize, colliders, maps }) → { mesh, cards, cap, locks, streak?, clip?, overlap?, counts }
+ *             (`clip` { n, mm } the cut's length over the head where a clipper took the hair under its shell: the skin's paint,
+ *             dermal-texture.js)
  *   lockStrands(guides, chart, { kind, centre, stylize, level, group, sides, under }) → { mesh, flows }   the face's hair
  *   beardShell(chart, guides, { stylize, seed }) → height(p)   a beard's sculpted coat
  *   readStylize(v)   the dial's value (default HAIR_STYLIZE), or throws
@@ -42,7 +44,7 @@
  * normals } in the chart's frame: the neck, the shoulders and the back a hero gives) by `HAIR_CLEAR.body`.
  * Deterministic: no dice beyond the groom's own; the same chart, dermis, groom and dial give the same mesh.
  */
-import { dermisAt } from './dermal-map.js';
+import { dermisAt, CLIPPER } from './dermal-map.js';
 import { growScalp, partDistance } from './dermal-hair.js';
 import { capMesh, hairClass, HAT_CAP } from './hair-depict.js';
 import { overlapHair } from './hair-score.js';
@@ -98,6 +100,17 @@ const FULL_GUIDES = 236;
 export const LOCK_SHELL = Object.freeze({ height: 0.002, edge: 0.006 });
 /** a guide shorter than this (m) makes no lock: the shell is its hair (stubble) */
 export const LOCK_MIN = 0.006;
+/** CLIPPED HAIR's grid for the painter (`grid` cells round the head and along it) and how far past a shell's edge (m) the
+ * scalp is looked at for clipped hair (a fade's line, not a hairline: no cards there); a clipped shell's edge smoothed
+ * `smooth` rounds (a fade's line runs across the chart's cells: fewer leave it wavy) */
+export const LOCK_CLIP = Object.freeze({ grid: 48, past: 0.004, smooth: 12 });
+/** the clipped lengths (mm, at the chart's points) as a grid over the head's addresses: { n, mm } (row by along, −1 where
+ * no scalp point falls, each cell its points' mean, under 99 mm) */
+function clipGrid(chart, cutMm) {
+  const n = LOCK_CLIP.grid, sum = new Float64Array(n * n), cnt = new Uint32Array(n * n);
+  chart.samples.forEach((a, i) => { if (!a || !Number.isFinite(cutMm[i])) return; const c = Math.min(n - 1, Math.floor(a.along * n)) * n + (Math.floor(a.around * n) % n); sum[c] += Math.min(99, cutMm[i]); cnt[c]++; });
+  return { n, mm: Array.from(sum, (v, c) => (cnt[c] ? Math.round((v / cnt[c]) * 10) / 10 : -1)) };
+}
 /** a lock's root walked toward the hairline: a `step` (m) at a time, as far as `reach` (m); a flow that reaches the cut's
  * line holds its width from `held` along it */
 /** a flow's section runs through its guides across it, on past its outermost by `margin` × the guides' spacing × the round's
@@ -300,8 +313,8 @@ function cardMesh(cards, clear = (p) => p) {
  * A SHELL raised off the scalp by `heightAt(vertex)` (m): the cap's construction (hair-depict.js capMesh: the faces that
  * grow the scalp's hair, the part left open, run in soft over `edge` from its edge). A crop's, a coil's volume.
  */
-function shellMesh(chart, D, S, heightAt, { edge }) {
-  return capMesh(chart, D, { S, group: LOCK_GROUPS.shell, height: heightAt, edge, smoothEdge: LOCK_FADE.smooth });
+function shellMesh(chart, D, S, heightAt, { edge, where = null }) {
+  return capMesh(chart, D, { S, group: LOCK_GROUPS.shell, height: heightAt, edge, smoothEdge: where ? LOCK_CLIP.smooth : LOCK_FADE.smooth, where });
 }
 /** two card meshes as one (their places on the strand page kept) */
 const joinCards = (A, B) => (!A ? B : !B ? A : { vertices: [...A.vertices, ...B.vertices], faces: [...A.faces, ...B.faces.map((f) => f.map((v) => v + A.vertices.length))], groups: [...A.groups, ...B.groups], closure: 'open', uv: [...A.uv, ...B.uv] });
@@ -312,10 +325,10 @@ const bare = (M) => { if (!M) return M; const { rim: _r, ...rest } = M; return r
  * shell's smoothed rim, rooted `inside` (m) in the hair over the shell, its strands' ends `outside` (m) out over the skin,
  * `half` (m) its half-width, laid on the head; in the mass's colour, so the hairline fades as hair does.
  */
-function fadeCards(cap, skin) {
+function fadeCards(cap, skin, skip = null) {
   if (!cap?.rim?.length) return [];
   const F = LOCK_FADE, out = [], kept = [];
-  for (const r of cap.rim) { if (kept.some((q) => len(sub(q, r.p)) < F.step)) continue; kept.push(r.p);
+  for (const r of cap.rim) { if (kept.some((q) => len(sub(q, r.p)) < F.step) || skip?.(r)) continue; kept.push(r.p);
     const lay = (q, h) => skin.out(add(q, scl(r.n, h)), h);
     const pts = [lay(sub(r.p, scl(r.out, F.inside)), LOCK_SHELL.height + 0.0004), lay(r.p, 0.0005), lay(add(r.p, scl(r.out, F.outside)), 0.0003)];
     const across = unit(cross(r.n, r.out));
@@ -348,6 +361,16 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
   const G = S.length < 0.02 && !S.ties.length ? null : growScalp(chart, D, S, { colliders: ['head'], strands: false });
   const guides = G?.guides ?? [];
   counts.guides = guides.length;
+  // ── CLIPPED HAIR (dermal-map.js CLIPPER): under the clipper's shell length no shell, the skin's paint its shadow; each
+  // point's length the CUT's own (growScalp's `clipOf`: smooth, as a barber's fade is, never a guide's patch); `clip` a
+  // grid of it over the head (LOCK_CLIP.grid cells round by along, mm, −1 off the scalp) for the painter, or null where
+  // nothing is clipped ──
+  const growing = growsOf(chart, D, null), cutMm = G?.clipOf ? chart.vertices.map((p, i) => (growing[i] ? G.clipOf(chart.samples[i], p) * 1000 : Infinity)) : null;
+  const clipped = !!cutMm && cutMm.some((mm) => mm < CLIPPER.shell), mmAt = (p) => { const i = skin.nearest(p); return i < 0 ? Infinity : cutMm[i]; };
+  const shelled = clipped ? (p) => mmAt(p) >= CLIPPER.shell : null;
+  // (the fade's cards fringe the hairline alone: where the scalp runs on clipped past the shell's edge, the paint is the fade)
+  const onClipped = clipped ? (r) => mmAt(add(r.p, scl(r.out, LOCK_CLIP.past))) < CLIPPER.shell : null;
+  const clip = clipped ? clipGrid(chart, cutMm) : null;
   // ── the SHELL: a cropped head's and a coil's the whole hair; under locks the cap, sunk to the skin ──
   let cap = null;
   if (cls === 'cropped' || cls === 'coil' || !guides.length) {
@@ -365,12 +388,12 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       const q = scl(p, 1 / St.puff), n = 0.65 * noise3(q, S.seed ?? 1) + 0.35 * noise3(scl(q, 2.1), (S.seed ?? 1) + 7);
       return Math.max(HAT_CAP.height, h * (1 + St.lump * (2 * n - 1)));
     };
-    cap = shellMesh(chart, D, S, heightAt, { edge: cls === 'coil' ? 0.02 : 0.006 });
-    const fade = cardMesh(fadeCards(cap, skin), (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap));
-    if (cls === 'cropped' || cls === 'coil' || !guides.length) return { mesh: null, cards: fade, cap: bare(cap), locks: [], counts: { ...counts, shell: cap?.faces.length ?? 0, fade: fade ? fade.faces.length / 4 : 0 } };
+    cap = shellMesh(chart, D, S, heightAt, { edge: cls === 'coil' ? 0.02 : 0.006, where: shelled });
+    const fc = fadeCards(cap, skin, onClipped), fade = cardMesh(fc, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap));
+    if (cls === 'cropped' || cls === 'coil' || !guides.length) return { mesh: null, cards: fade, cap: bare(cap), locks: [], ...(clip ? { clip } : {}), counts: { ...counts, shell: cap?.faces.length ?? 0, fade: fade ? fc.length : 0 } };
   }
   // (the shell under locks a little raised, so a gap between two locks shows hair, not a painted scalp)
-  cap = capMesh(chart, D, { S, group: LOCK_GROUPS.shell, height: LOCK_SHELL.height, edge: LOCK_SHELL.edge, smoothEdge: LOCK_FADE.smooth });
+  cap = capMesh(chart, D, { S, group: LOCK_GROUPS.shell, height: LOCK_SHELL.height, edge: LOCK_SHELL.edge, smoothEdge: shelled ? LOCK_CLIP.smooth : LOCK_FADE.smooth, where: shelled });
   // ── the LOCKS: the guides gathered (a tied guide's walk to its tie; a rope's guides lie under the shell) ──
   const tiedRope = cls === 'rope';
   const paths = guides.map((g) => (g.tie !== undefined ? g.walk : g.pts)).map((P) => (P.length > 1 ? P : null));
@@ -557,11 +580,11 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
   const overlapMaps = maps && overlap?.maps ? { maps: overlap.maps, px: overlap.px } : null;
   if (overlap) counts.overlap = { open: overlap.open, worst: overlap.worst, split: overlap.split, passes: overlap.passes, rounds: round };
   // (the locks' cards laid off the head as the locks are; the fade's on the skin, its ends over it)
-  const fade = fadeCards(cap, skin), C = joinCards(cardMesh(cards.filter(Boolean), (p) => clear(clear(p))), cardMesh(fade, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap)));
+  const fade = fadeCards(cap, skin, onClipped), C = joinCards(cardMesh(cards.filter(Boolean), (p) => clear(clear(p))), cardMesh(fade, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap)));
   counts.fade = fade.length;
   cap = bare(cap);
   counts.cards = cards.filter(Boolean).length;
-  return { mesh: M.faces.length ? { ...M, closure: 'closed' } : null, cards: C, cap, locks, ...(streak ? { streak } : {}), ...(overlapMaps ? { overlap: overlapMaps } : {}), counts: { ...counts, faces: M.faces.length, cardFaces: C?.faces.length ?? 0, shell: cap?.faces.length ?? 0 } };
+  return { mesh: M.faces.length ? { ...M, closure: 'closed' } : null, cards: C, cap, locks, ...(streak ? { streak } : {}), ...(clip ? { clip } : {}), ...(overlapMaps ? { overlap: overlapMaps } : {}), counts: { ...counts, faces: M.faces.length, cardFaces: C?.faces.length ?? 0, shell: cap?.faces.length ?? 0 } };
 }
 
 /** a trailer's spine along its flow `F`'s edge on `side`: over its top there from LOCK_TRAIL.from on, past a free tip */

@@ -68,6 +68,17 @@ The eyes gate is the operator's.
       beard of small locks reading as scales.
     - A card face pushed off the skin onto itself is dropped (a fade card at the forehead had no area), and a tip card
       is never narrower than `LOCK_TIP.half`.
+  - CLIPPED HAIR (`dermal-map.js` `CLIPPER`): hair a clipper takes under 4 mm (clipper 0, ½ and 1, a skin fade's
+    foot, a stubble beard) is no shell and no coat but a SHADOW on the skin. The hair's colour is painted over it by
+    the share its length covers (`clipCover`: about a third at clipper 0, about four fifths at clipper 1), mottled as
+    follicles are, reaching the shell's own colour over its last 1.5 mm so the two meet with no ledge. The scalp's
+    shell stops at the clipper's length, its edge smoothed, so a fade runs from the shell down through its shadow to
+    the skin; a stubble shades the face and the throat alike, the neck's page as the head's. The length is the cut's
+    own rule, smooth over the head (`dermal-hair.js` `growScalp` `clipOf`: the clipper's taper with no guide's own
+    variation, the hairline averaged round the head), never the nearest guides' (their patches scalloped the fade's line
+    and smeared its shadow); the recipe's `hairClip` carries it as a grid over the head for the skin's paint
+    (`dermal-texture.js` `paintDermis` `clip`). The fade's cards fringe the hairline alone, never the fade's line. Never
+    a solid helmet down to a fade's foot, never a stubble's blotchy coat.
 - A hero minted before keeps its blades byte for byte: the locks are its laws'.
 
 ### The realistic wardrobe: the legendary merc

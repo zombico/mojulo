@@ -605,6 +605,8 @@ const COMB_WAVE = { straight: { amp: 0.0018, period: 0.065 }, wavy: { amp: 0.006
  * under 2 cm lies on the scalp as body hair does. `opts.strands: false` grows the guides and their cards alone (an
  * engine's hair, without the strands a render draws).
  */
+/** the hairline's bins a clipped length's hairline is averaged over, either side (growScalp `clipOf`) */
+const CLIP_HAIRLINE = 2;
 export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk', 'upperArm'], strands: withStrands = true } = {}) {
   const S = scalp, colour = hairColourOf(D), shade = hairShade(colour, S.type);
   const empty = (extra = {}) => ({ guides: [], strands: [], cards: [], shade, counts: { guides: 0, strands: 0, ...extra } });
@@ -909,7 +911,9 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
       const N = g.pts.length - 1, fl = S.flipBack === undefined ? S.flip : S.flip * (1 - (1 - S.flipBack) * smooth(0.25, 0.42, ad(at.address.around, 0)));
       g = { ...g, pts: g.pts.map((q, i) => { const u = (i / N - 0.78) / 0.22; if (u <= 0) return q; const out = unit(perp(sub(q, c0), [0, 0, 1])); return add(q, add(scl(out, fl * 0.035 * u * u), [0, 0, fl * 0.03 * u * u])); }) };
     }
-    return g;
+    // (`clip` the cut's own length at the root, as it grows: a clipper's taper, a shelf's, a strip's, before a line
+    // regrows it; the lock hair's clipped shadow reads it, hair-locks.js)
+    return { ...g, clip: own * k };
   });
   // ── the strands: each from its nearest guides on its own side, parallel (`strands: false`, the cards alone: none) ──
   const sroots = withStrands ? darts(S.strandGap, 'strands') : [], strands = [];
@@ -954,7 +958,21 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   // ── the cards: a ribbon per guide, for an engine ──
   const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return dyed({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }, roots[gi], `g${gi}`); });
   // (`tails` each tie's bundle as a mass: its kind, its spine and its radius along it: the lock hair's, hair-locks.js)
-  return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, bands: tails.flatMap((t) => t.bands), tails: tails.map((t) => ({ kind: t.kind, tie: t.T.ti, pts: t.pts, r: t.r })), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
+  // (`clipOf(address, point)` the CUT's own length there, smooth: the clipper's rule with no guide's own variation and the
+  // hairline between its bins; m, as it shows: the lock hair's clipped shadow and where its shell stops, hair-locks.js)
+  // (the hairline's bins, each its lowest root's, are as jittered as the roots: averaged round the head over CLIP_HAIRLINE
+  // bins either side, so a fade's line runs level and never in scallops)
+  const hlSoft = hlAt.map((_, b) => { let v = 0; for (let d = -CLIP_HAIRLINE; d <= CLIP_HAIRLINE; d++) v += hlAt[(((b + d) % BINS) + BINS) % BINS]; return v / (2 * CLIP_HAIRLINE + 1); });
+  const hlSmooth = (a) => { const x = a.around * BINS - 0.5, i = Math.floor(x), f = x - i, h0 = hlSoft[((i % BINS) + BINS) % BINS], h1 = hlSoft[(((i + 1) % BINS) + BINS) % BINS]; return h0 + (h1 - h0) * f; };
+  const clipOf = (a, p = null) => {
+    let L = Math.min(lengthOf(a), lay / k);
+    const h = hlSmooth(a), r = Math.max(0, (a.along - h) / Math.max(1e-6, 1 - h));
+    if (C.taper) L = Math.min(L, C.taper.min + (L - C.taper.min) * smooth(C.taper.rise[0], C.taper.rise[1], r));
+    if (C.shelf && r < C.shelf.rise && ad(a.around, 0) > 0.12) L = Math.min(L, C.shelf.min);
+    if (C.strip && p && Math.abs(p[0] - hb.c[0]) > C.strip.width) L = Math.min(L, C.strip.min);
+    return L * k;
+  };
+  return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, clipOf, bands: tails.flatMap((t) => t.bands), tails: tails.map((t) => ({ kind: t.kind, tie: t.T.ti, pts: t.pts, r: t.r })), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }
 
 /**

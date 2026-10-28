@@ -299,7 +299,11 @@ function realisticRecipe(recipe, hero) {
   const level = heroHairLevel(hero);
   // (under laws 7 its blades as ALPHA CARDS on the strand texture, hair-depict.js stripMesh `card`: the grass hat before)
   // (under laws 10 the hair as LOCKS, one colour, its register the face's `stylize`: hair-locks.js; the blades before)
-  if (scalp) wear(laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize) : hairOf(H, dermis, scalp, level, one, laws >= 7));
+  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
+  if (scalpHair) wear(scalpHair);
+  // (realistic laws 10: hair a clipper took under its shell, the scalp's and a stubble's, is the skin's paint, its shadow
+  // by its length: dermal-texture.js `clip`; the recipe carries where, the hero's skin paint reads it)
+  if (laws >= 10) out = { ...out, hairClip: { scalp: scalpHair?.clip ?? null, beard: true } };
   // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });

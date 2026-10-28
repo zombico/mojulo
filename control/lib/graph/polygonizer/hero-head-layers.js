@@ -23,7 +23,7 @@ import { pierce, JEWEL_METALS, JEWEL_GEMS } from '../epidermis/dermal-jewel.js';
 import { readScalp, growBodyHair, bladeOf, HAIR_LADDER } from '../epidermis/dermal-hair.js';
 import { depictHair, stripMesh, capMesh, HAIR_RAMP } from '../epidermis/hair-depict.js';
 import { lockHair, lockStrands, beardShell, LOCK_FADE } from '../epidermis/hair-locks.js';
-import { readDermis, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY } from '../epidermis/dermal-map.js';
+import { readDermis, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY, CLIPPER } from '../epidermis/dermal-map.js';
 import { growEpidermis, readEpidermis } from '../epidermis/epidermis.js';
 import { streamOf } from '../city/plan/dice.js';
 import { simplifyMesh } from './skin-net.js';
@@ -225,7 +225,8 @@ export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = fal
     ...(H.cards ? { hairCards: { ...pinMesh(frame, toHero, H.cards, pin, 'Hair', hang(H.cards)), strands: 'plain' } } : {}),
   };
   const palette = { Hair: linHex(hairMeanOf(D)), ...(H.streak ? { HairStreak: linHex(H.streak) } : {}) };
-  return { parts, palette, counts: H.counts };
+  // (`clip` the clipped hair the skin's paint shades, dermal-texture.js)
+  return { parts, palette, counts: H.counts, ...(H.clip ? { clip: H.clip } : {}) };
 }
 
 /** the beard's sculpted coat (realistic laws 10) rising to its height over `edge` (m) from its edge */
@@ -327,7 +328,8 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     // (the beard's coat under it, as the scalp's: where the style grows locks, the skin painted the beard's root; split
     // at the lip line as the beard is, the chin's riding the jaw; under `locks` sculpted whole, its edge smoothed, then
     // split by its faces, so the two meet)
-    const whole = locks ? capMesh(bchart, D, { tract: 'beard', group: 'Beard', min: FACE_CARD.coatMin, height: under, edge: FACE_COAT.edge, smoothEdge: LOCK_FADE.smooth }) : null;
+    // (a clipper's beard, a stubble, under CLIPPER.shell mm: no coat, the skin's paint its shadow)
+    const whole = locks ? capMesh(bchart, D, { tract: 'beard', group: 'Beard', min: CLIPPER.shell, height: under, edge: FACE_COAT.edge, smoothEdge: LOCK_FADE.smooth }) : null;
     // (simplified whole, the two halves' budget, before it is split: its seam the same on both)
     const leanWhole = whole && Bg ? leanCoat({ vertices: whole.vertices, faces: whole.faces, groups: whole.groups, closure: whole.closure }, 2 * Bg.beardCoat) : whole;
     for (const [bone, name, near, where] of [['head', 'hairBeardCoat', at(L.n), (p) => p[2] >= lip], ['jaw', 'hairBeardCoatJaw', at(L.pg), (p) => p[2] < lip]]) {
