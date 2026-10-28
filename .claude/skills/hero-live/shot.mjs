@@ -7,7 +7,8 @@
 //
 //   --out    live.mjs's out dir (default <tmp>/hero-live); writes shots/sheet.png and one PNG per frame
 //   --shots  a list of { variant?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
-//            look?: { bone, from?: [x, y, z], dist?, fov? } (a closeup on a bone's head as posed: foreArmR the elbow),
+//            look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's head as posed, `off` metres
+//            from it in the world: foreArmR the elbow),
 //            wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //

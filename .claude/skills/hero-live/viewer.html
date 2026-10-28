@@ -343,11 +343,11 @@ window.heroLive = {
   variant: (id) => selectVariant(id), take: (name) => play(name, { fade: 0 }), view: (id) => frame(id), seek, pause: setPaused,
   // (a closeup on a BONE as posed at this moment: its head, from a direction in the page's space (y up, the figure facing
   // −z), `dist` away; a joint's fold is its child bone's head: the elbow is foreArmR's)
-  look: ({ bone, from = [0, 0.25, -1], dist = 0.45, fov = 30 }) => {
+  look: ({ bone, from = [0, 0.25, -1], dist = 0.45, fov = 30, off = [0, 0, 0] }) => {
     const L = cur(); if (!L?.body) return false;
     // (three.js strips the `:` of a node name on load: `body:foreArmR` is `bodyforeArmR`)
     const b = L.body.skeleton.bones.find((x) => x.name === bone || x.name.endsWith(bone)); if (!b) return false;
-    L.root.updateMatrixWorld(true); const at = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld), d = new THREE.Vector3(...from).normalize();
+    L.root.updateMatrixWorld(true); const at = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).add(new THREE.Vector3(...off)), d = new THREE.Vector3(...from).normalize();
     camera.fov = fov; camera.updateProjectionMatrix(); controls.target.copy(at); camera.position.copy(at.clone().addScaledVector(d, dist)); controls.update(); return true;
   },
   hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },

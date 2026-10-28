@@ -284,8 +284,9 @@ function realisticRecipe(recipe, hero) {
   // and the brows on the target's rung; a hero drawn for no target its skin whole: hero-one-skin.js ONE_SKIN_RUNGS,
   // hero-head-layers.js HEAD_BUDGET)
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
-  // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5 });
+  // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
+  // the lids rest on the globes: head-relational-eye.js SEAT)
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, seat: one && laws >= 10 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -355,14 +356,14 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false } = {}) {
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, seat = false } = {}) {
   const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
-  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : [])]);
+  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? ['seat'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
   else {
     const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
-    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(Object.keys(opts).length ? { opts } : {}) });
+    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
@@ -750,8 +751,10 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * alpha tested (epidermis/hair-strands.js, hair-depict.js stripMesh `card`), where laws 6 drew opaque blades; 8: the kit
  * as pieces fitted to what the body wears (body-relational-kit.js): a belt one mass round everything at its height, its
  * buckle a frame, where laws 7 copied the cloth's rings and so rippled with them; 9: the man's hips (body-relational-builds.js
- * MALE_HIPS), where laws 1 to 8 gave every male physique a pinched waist over a heart-shaped seat that read as a woman's */
-export const REALISTIC_LAWS_VERSION = 9;
+ * MALE_HIPS), where laws 1 to 8 gave every male physique a pinched waist over a heart-shaped seat that read as a woman's;
+ * 10: the lids seated on the globes (head-relational-eye.js SEAT), where laws 2 to 9 left the skin about each opening
+ * standing proud of the globe, a tunnel and a dark void between the lids and the eye */
+export const REALISTIC_LAWS_VERSION = 10;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are

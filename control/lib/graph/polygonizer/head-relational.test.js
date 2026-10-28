@@ -87,3 +87,23 @@ describe('the closed mouth\'s seam', () => {
     expect(Math.max(...depths) - Math.min(...depths)).toBeLessThan(0.7);
   });
 });
+
+describe('the lids\' seat', () => {
+  // how far the skin stands ahead of the globe just outside a margin (head heights): a lid's thickness when it rests on
+  // the globe, a tunnel's depth when the face stands proud of it
+  const proud = (h, which, t, dz) => {
+    const g = h.globes.find((q) => q.side === 'R'), c = h.relational.eyeRigs.find((e) => e.side === 'R').margins[which](t).c, x = c.x * sc, z = (c.z + dz) * sc;
+    const front = (f) => { let y = (c.y + 0.15) * sc; while (f({ x, y, z }) > 0 && y > (c.y - 0.2) * sc) y -= 0.0001; return y; };
+    return (front(h.field) - front(g.field)) / sc;
+  };
+  const loose = relationalHead({ sex: 'male', ears: false, globes: false }), seated = relationalHead({ sex: 'male', ears: false, globes: false, seat: true });
+  it('rests the lower lid on the globe, as the upper lies, where the cheek stood proud of it', () => {
+    for (const t of [0.2, 0.5, 0.8]) {
+      expect(proud(loose, 'lower', t, -0.005)).toBeGreaterThan(0.05);
+      expect(proud(seated, 'lower', t, -0.005)).toBeLessThan(0.03);
+    }
+    // (the upper lid lay on the globe already: the seat leaves its middle as it was, within its blend)
+    expect(proud(seated, 'upper', 0.5, 0.004)).toBeCloseTo(proud(loose, 'upper', 0.5, 0.004), 2);
+    expect(proud(seated, 'lower', 0.5, -0.005)).toBeLessThan(proud(seated, 'upper', 0.5, 0.004) + 0.01);
+  });
+});

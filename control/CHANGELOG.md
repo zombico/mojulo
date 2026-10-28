@@ -105,7 +105,18 @@ the same man in a leather jacket. The eyes gate is the operator's.
   - **A flight jacket**: the `flight` style card (the A-2), brown leather to the belt on rib bands.
 - The principles of the kit and the folds are written down: [garment-principles.md](../docs/garment-principles.md) has
   them as rules, the realistic body's contract points at them, and `/garment-design` reads a piece against them.
-- A hero minted before keeps what its laws made; a hero minted now is stamped laws 9 (`REALISTIC_LAWS_VERSION`).
+- **The lids rest on the eyes** (realistic laws 10, `head-relational-eye.js` `SEAT`). The one skin's opening was a
+  tunnel cut straight back to the globe through skin that stood proud of it: the lower lid was the cheek's shelf, 16 to
+  17 mm ahead of the globe just under the margin, and toward the corners the upper lid stood out as a thin plate where
+  its lid space is shallow. Every realistic face showed a dark void between the lids and the eye. Now the skin within a
+  reach of each margin is cut back to the lid shell and rises out of it with the distance from the margin, cut with a
+  wide blend so the lid rolls into the cheek rather than kinking. The lower lid stands as far off the globe as the
+  upper (about 6 mm with its thickness, where it stood 16), and its margin is rounded by its rim as the upper's is.
+  Above the crease the fold now leans back to the brow at a tilt, the brow's underside trimmed to it (`SEAT.fold`).
+  It used to stand at the lid's depth well up under the brow, a cove facing down that read near-black under any light
+  from above. The fit keeps `seat`, so the skin's bake, the hair, the jewellery and the face rig rebuild the same
+  seated head.
+- A hero minted before keeps what its laws made; a hero minted now is stamped laws 10 (`REALISTIC_LAWS_VERSION`).
 
 ### Named heroes and their marks
 

@@ -121,7 +121,7 @@ export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
  * `stand` a hero point in the head's frame, and `shown(v)`: a head point on its surface (an ear on the ear's), not let
  * down inside it under another part */
 function headFrame(mesh, recipe) {
-  const { sex, k, ty, men, relations, eyes } = recipe.headFit, own = { ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) };
+  const { sex, k, ty, men, relations, eyes } = recipe.headFit, own = { ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(recipe.headFit.seat ? { seat: true } : {}) };
   const tune = recipe.headFit.tune ?? HEAD_TUNES[sex];
   const H = relationalHead({ sex, tune, ...own });
   const plain = relationalHead({ sex, tune, ears: false, ...own });

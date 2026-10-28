@@ -324,14 +324,14 @@ function earPart(fE, tragion, C) {
  * stored cranium and jaw): the face's parts alone are built, exactly as a whole build makes them; the cranium and the
  * jaw are the recipe's as given.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, seat = false, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
   // (a face's own tune, solved for its relations, in place of the pole's: the head the study shows, exactly; it rides the fit)
   const tune = own_ ?? HEAD_TUNES[sex];
   if (!tune) throw new Error(`hero-relational-head: the head's pole is ${Object.keys(HEAD_TUNES).join(' or ')}`);
-  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) };
+  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}), ...(seat ? { seat: true } : {}) };
   // (`actions`, the face's: head-relational.js ACTIONS, a blink, a smile, a brow; `fit` the rest's, kept so an action moves
   // the face and never the head's place: relational-face-rig.js differences these builds)
   // (ONE SKIN, realistic laws 2: the head's field netted whole, its globes their own parts: hero-one-skin.js)
@@ -601,7 +601,7 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
   // (the neck's column as the net was joined to it: its two rings under the seam, then the rings the fit kept above)
   const at = (pts) => ({ points: Object.fromEntries(minted.slots.map((s, j) => [s, pts[j]])) });
   const neck = { slots: minted.slots, stations: [...minted.stations.slice(-2), ...fit.column.map(at)] };
-  const own = { ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}) };
+  const own = { ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.seat ? { seat: true } : {}) };
   const { k, ty, men } = fit, inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
   const head = relationalHead({ sex: fit.sex, tune: fit.tune ?? HEAD_TUNES[fit.sex], ears: false, globes: false, ...own });
   const fH = inHead(head.field), fN = neckField(neck), earR = head.earFields.find((e) => e.side === 'R'), fE = earR ? inHead(earR.field) : null;
@@ -626,9 +626,9 @@ export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEa
  * { id: [x, y, z] }. The skin is never re-netted per action (its faces would change): the rest's own points move, so the
  * face rig differences them (relational-face-rig.js). A point of the eye's socket behind its globe moves with the lids alone.
  */
-export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tune = null, fit, actions, points, normals, faces = null, opts = {} }) {
+export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, seat = false, tune = null, fit, actions, points, normals, faces = null, opts = {} }) {
   const C = { ...RELATIONAL_HEAD, ...opts }, F = { ...SKIN_FOLLOW, ...(opts.follow || {}) };
-  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) }, tn = tune ?? HEAD_TUNES[sex];
+  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}), ...(seat ? { seat: true } : {}) }, tn = tune ?? HEAD_TUNES[sex];
   const rest = relationalHead({ sex, tune: tn, ears: false, ...own }), acted = relationalHead({ sex, tune: tn, ears: false, ...own, actions });
   const { k, ty, men } = fit, toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men], S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
   const f0 = (q) => rest.field(S2(q)) * k, fA = (q) => acted.field(S2(q)) * k, e = 1e-5;

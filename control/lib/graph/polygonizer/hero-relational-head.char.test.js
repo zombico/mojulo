@@ -58,6 +58,7 @@ const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'ear
 const ONE_PINS = { male: 'd141a71485ddcf02', female: '54cd21f82280678f' };
 // the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
 const NECK_PINS = { male: '459d30a9fc5f3008', female: '23a186409b0578cd' };
+const SEATED_PINS = { male: '4cd2cfe1f2df0f6d', female: '2a9e77cbaf18646f' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
@@ -70,8 +71,15 @@ describe('the relational head, pinned', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 2 } }) }).recipe;
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
+  // (a hero stored under laws 9 keeps its head; a hero minted now, laws 10, has its lids seated on the globes:
+  // head-relational-eye.js SEAT)
   for (const [cast, pin] of Object.entries(NECK_PINS)) it(`${cast}, one skin on the cervical neck`, { timeout: 240000 }, () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 9 } }) }).recipe;
+    expect(pinOf(r, ONE_PARTS)).toBe(pin);
+  });
+  for (const [cast, pin] of Object.entries(SEATED_PINS)) it(`${cast}, one skin, the lids seated`, { timeout: 240000 }, () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational' }) }).recipe;
+    expect(r.headFit.seat).toBe(true);
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
 });

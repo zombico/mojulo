@@ -113,7 +113,11 @@ line, the upper lip the head's and the lower the jaw's, each turned in along the
 them. Each globe is its own closed part (`globeR`, `globeL`: rings about its gaze, the pupil's and the iris's edges
 rings of their own), and the ears are as below. The hair, the brows, the lashes, the beard and the piercings are pinned
 to the skin's faces. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
-carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 1 the head
+carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 10 the
+lids rest on the globes (`head-relational-eye.js` `SEAT`, the fit's `seat`): within a reach of the margins the skin is
+cut back to the lid shell over the globe and rolls out of it into the cheek and up to the crease, so no tunnel stands
+between a margin and the eye, and above the crease the fold leans back to the brow at a tilt a light from above reaches; everything that rebuilds the head from its fit (the bake, the hair, the face rig) reads
+the same seated head. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,

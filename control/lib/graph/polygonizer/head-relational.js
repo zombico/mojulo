@@ -32,7 +32,7 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { headMeasures, rayIn } from './head-field-view.js';
 import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
-import { GLOBE, eyeRig, resolveEye, lookAngles, browBridge } from './head-relational-eye.js';
+import { GLOBE, SEAT, eyeRig, resolveEye, lookAngles, browBridge } from './head-relational-eye.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -964,9 +964,11 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * hero-relational-head.js); the landmarks keep the ear canal where the ears would hang it. `globes: false` leaves the
  * eyes' globes out of the field (the lids, their opening and the socket behind it kept): a skin netted whole would
  * otherwise join each lid's margin to the globe it rests on in one surface, and pinch there; `globes` hands each
- * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin).
+ * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin). `seat: true` rests
+ * the lids on the globes (head-relational-eye.js `SEAT`): the skin about each opening cut back to the lid shell, so no
+ * tunnel stands between the lids' margins and the eye (realistic laws 10).
  */
-export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true } = {}) {
+export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true, seat = false } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
   const P = corePoints(rel);
   // `tune: true` solves (once per sex + relations, then cached); an object is a tune given; absent, none
@@ -1147,11 +1149,11 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     }
     const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
     c.open *= 1 - bl;
-    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit);
+    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
-      lidSpace: (p) => r.lidSpace(V(p)) * sc, opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
+      lidSpace: (p) => r.lidSpace(V(p)) * sc, seat: r.seat && ((p) => r.seat(V(p)) * sc), opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
   // THE FURROWS (`furrows`, an old forehead's deep folds as shape, so an engine's light casts them and the profile shows
@@ -1208,6 +1210,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       // the lid space cut back out of the skin, the lids' mass on it, the opening carved through it to the globe, the
       // margins and the roll laid on, the crease cut, the globe set in
       d = smax(d, -e.lidSpace(p), 0.005 * sc);
+      if (e.seat) d = smax(d, -e.seat(p), SEAT.blend * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
