@@ -428,6 +428,33 @@ through the character designer, clips fitted to the class's timing, factions) is
   lean); the ribs on one side, bound to the torso; refused over bone; the lineage's sheet building; the bodies
   without the layer unchanged (hashed). Eyes: all five rotting builds from the front, three-quarter, side and back.
   The hulk's skull still sits low under its hunched shoulders. Eyes gate: the operator's to judge.
+- **The zombie stands on the tiered body** (`undead/tiered.js`; the operator: "are you using the tiered body? I notice
+  there's no shoulders", then "move them onto the tiered body"). The undead were built on the creature biped, a box of
+  a torso with tubes for arms; the zombie is now a hero on the tiered game body, with its shoulders, hips, bridged
+  joints, hands and landmark face. The skeleton and the layered variations follow in their own steps; until then they
+  stay on the creature door.
+  - The door: a hero takes `undead: { form, build, seed, layers? }`, and an undead lineage's sheet writes it on a hero
+    spec (`create.as: 'hero'`). It is refused off the tiered body or for an unknown form or layer.
+  - Its words, recorded at mint under the spec's own, so an edit reaches them: bald, the body bare to its own skin
+    (the feet bare), one tone over every group it is painted in (the brows too), a gaunt face (the cheeks hollow under
+    standing cheekbones, the face and the jaw narrow, the brow heavy), the jaw slack and the lids heavy. Its rest is
+    the hero's gesture: the card's hunch as a hinge over the hips, the knees given, each arm held out its own way, the
+    head hung and cocked. The idle breathes in that rest, and the walk keeps the hunch as its tilt.
+  - Its flesh: the card's waste and bloat on the hero's parts before the tiered passes, so the joints are bridged and
+    the shoulders balled on the body as it now is. Each kind of part thins about its own axis: trunk sections, limb
+    radii, loft stations, rings point by point (the chest's about the torso it lies on).
+  - Even, whatever the silhouette (the operator: "these middle guys are proportioned weird; even it out regardless of
+    what silhouette it has"): the trunk's scale never stands from the limbs' past 1.15 either way. Past it both are
+    drawn to their geometric mean, so a swollen corpse's limbs swell with its trunk and its overall size holds. A
+    bloated belly is a smooth swell centred on the waist (each section deeper, wider and brought forward, falling off
+    above and below) on rounded sections, where the creature card's gut, pushed on one band of front slots of the
+    squared tiered torso, had read as a box.
+
+  Machine gate: the lineage reaching the hero door with its form; the words recorded, the operator's own over them;
+  the wasted card thinner than the living hero, the bloated one wider and its waist forward; the plans building with
+  their bridges and shoulder balls; the trunk-to-limb ratio within 1.15 on the swollen and the most wasted card, the
+  size the card's; refusals; a hero without `undead` unchanged. Eyes: all five zombies from the front, three-quarter
+  and side, and the bloated one before and after evening. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

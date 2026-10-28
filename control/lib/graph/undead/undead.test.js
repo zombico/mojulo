@@ -251,7 +251,8 @@ describe('the layers', () => {
 
 describe('the lineages and the bestiary', () => {
   it('each form reaches the creature door with its form, its variation by the build, and its plan builds', () => {
-    for (const ancestry of Object.keys(UNDEAD_FORMS)) {
+    // (the forms the tiered body does not carry yet: the zombie's is undead/tiered.test.js)
+    for (const ancestry of Object.keys(UNDEAD_FORMS).filter((f) => f !== 'zombie')) {
       const sheet = rollEgocube({ facets: { ancestry, build: 'brute', role: 'frontline' }, seed: 3 });
       expect(sheet.ancestry).toMatchObject({ door: 'creature', form: ancestry });
       const P = planFromSheet(sheet), plan = P.create.spec.plan;

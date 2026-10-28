@@ -28,7 +28,7 @@ import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
-import { undeadBody } from '../undead/index.js';
+import { undeadBody, variantOf, UNDEAD_CARDS } from '../undead/index.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -765,6 +765,14 @@ export function planFromSheet(sheet, { title, dress } = {}) {
     if (dress === 'designed' && !built.undead) { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+  }
+  // an UNDEAD form on the hero door (undead/tiered.js): a person's body, the form's card over it, bare and one tone
+  if (sheet.ancestry.form) {
+    const f = sheet.facets, tune = { ...BUILD_TUNE[f.build] };
+    const spec = { form: 'tiered', cast: f.pole, ...(Object.keys(tune).length ? { tune } : {}), palette: { Skin: legible(sheet.ancestry.colours.Skin) },
+      undead: { form: sheet.ancestry.form, build: f.build, seed: sheet.seed, ...(sheet.ancestry.layers?.length ? { layers: [...sheet.ancestry.layers] } : {}) } };
+    const built = { spec, undead: { form: sheet.ancestry.form, build: f.build } };
+    return { door, thesis: `${sheet.ancestry.reads} on the tiered body: ${UNDEAD_CARDS[variantOf(sheet.ancestry.form, f.build)].reads}`, create: { as: 'hero', title: name, spec }, after: [], ledger: ledgerOf(sheet, door, built) };
   }
   const built = hero(sheet);
   // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
