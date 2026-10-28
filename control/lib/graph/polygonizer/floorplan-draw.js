@@ -9,6 +9,7 @@
 import { HOUSE_TIERS } from './floorplan-glyphs.js';
 import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
 import { structurizeHouse } from './floorplan-structure.js';
+import { readForm, FORM_FOOTPRINT } from './house-forms.js';
 
 const fnv1a = (str) => {
   let h = 0x811c9dc5;
@@ -57,6 +58,22 @@ export function leavesHouseToDraw(m) {
 export function drawNewHouse(m) {
   if (!leavesHouseToDraw(m) || m.seed == null) return {};
   const seed = m.seed, out = {};
+  // a townhouse or a block (house-forms.js) draws its own storeys and footprint, and plans its own front door: a
+  // townhouse three or four storeys on a narrow deep lot, a block two or three on a compact square one
+  const form = readForm(m);
+  if (form !== 'detached') {
+    const f = FORM_FOOTPRINT[form], tall = roll(seed, 'form-storeys') < 0.5;
+    const n = form === 'townhouse' ? (tall ? 4 : 3) : (tall ? 3 : 2);
+    // (the stack names three storeys by role; a fourth by its index)
+    out.levels = Array.from({ length: n }, (_, i) => (i < 3 ? { role: ['ground', 'second', 'third'][i] } : { index: i }));
+    if (m.stairs === undefined) out.stairs = true;
+    if (m.width == null && m.height == null) {
+      out.width = Math.round(f.width * (0.92 + 0.16 * roll(seed, 'form-width')));
+      out.height = Math.round(f.height * (0.92 + 0.16 * roll(seed, 'form-depth')));
+    }
+    if (m.windows === undefined) out.windows = true;
+    return out;
+  }
   let tier = m.tier;
   if (tier === undefined) {
     const base = weighted(roll(seed, 'tier'), HOUSE_DRAW.tier), d = HOUSE_DRAW[base];

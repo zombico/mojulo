@@ -44,6 +44,7 @@ import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
 import { railOf, allowanceOf, rankOf, layWithin } from '../era/compose-purpose.js';
 import { placeHomeWindows } from './home-windows.js';
 import { windowLaws } from './window-laws.js';
+import { readForm, partyWallsOf, planForm, FORM_FOOTPRINT } from './house-forms.js';
 import { FURNITURE_LANGUAGES, FURNITURE_LANGUAGE_NAMES, DEFAULT_LANGUAGE, COMPOSED_ROLES, composeForRole } from '../furnishings/languages.js';
 import { FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
@@ -386,6 +387,10 @@ export function placeOpenings(graph, doors = [], opts = {}) {
       if (Math.abs(cy1 - fp.y1) < btol) edges.push(['h', cy1, cx0, cx1]);
       if (Math.abs(cx0 - fp.x0) < btol) edges.push(['v', cx0, cy0, cy1]);
       if (Math.abs(cx1 - fp.x1) < btol) edges.push(['v', cx1, cy0, cy1]);
+      // (a townhouse's party walls take no window: house-forms.js)
+      const party = partyWallsOf(o);
+      if (party.includes('W')) { const i = edges.findIndex((e) => e[0] === 'v' && e[1] === cx0 && Math.abs(cx0 - fp.x0) < btol); if (i >= 0) edges.splice(i, 1); }
+      if (party.includes('E')) { const i = edges.findIndex((e) => e[0] === 'v' && e[1] === cx1 && Math.abs(cx1 - fp.x1) < btol); if (i >= 0) edges.splice(i, 1); }
       for (const [orient, at, lo, hi] of edges) {
         const L = hi - lo;
         const ww = Math.max(2.2, Math.min(6, L * 0.38)) * styleW;       // unit size ∝ the room's wall, capped
@@ -2717,7 +2722,8 @@ export function placeStairs(footprint, meru, spec = {}, opts = {}) {
     width: spec.width ?? STAIR_DEFAULTS.width, going: spec.going ?? o.going, riser: spec.riser ?? o.riser,
     baseZ: lowerZ, totalRise: upperZ - lowerZ, treadTint: o.treadTint, riserTint: o.riserTint,
     railTint: o.railTint, postTint: o.postTint, railHeight: o.railHeight, wellGap: o.wellGap, light: opts.light,
-    maxRun: (along - 2 * (t + margin)) * 0.7,
+    // (a form's stair zone is laid for its whole flight: that is its run, never the detached house's share of the length)
+    maxRun: spec.maxRun ?? (along - 2 * (t + margin)) * 0.7,
   });
   return { fromIndex, toIndex, upperIndex, ...flight };
 }
@@ -2779,8 +2785,10 @@ export function structurizeHouse(input = {}, opts = {}) {
   // tier bounds the program AND supplies a sensible default footprint (house-scale, not
   // dorm) when the caller doesn't pass width/height. Explicit width/height always win.
   const tierCfg = resolveTier(input.tier);
-  const width = input.width ?? tierCfg.footprint.width;
-  const height = input.height ?? tierCfg.footprint.height;
+  // a house's form (house-forms.js): a townhouse or a block plans every storey as it is lived in, on its own footprint
+  const form = readForm(input);
+  const width = input.width ?? (FORM_FOOTPRINT[form] || tierCfg.footprint).width;
+  const height = input.height ?? (FORM_FOOTPRINT[form] || tierCfg.footprint).height;
 
   // footprint is deterministic from width/height (generatePlan tiles [2..W-2]×[2..H-2]),
   // so stairs can be placed + their slots cut before the levels are extruded.
@@ -2810,7 +2818,7 @@ export function structurizeHouse(input = {}, opts = {}) {
   // so the reserved stair span (and the upper landing that must cover it) grows to fit.
   // design.repair: the generator keeps a passage past the stair (floorplan-design.js names its width)
   const repairPassage = o.design && o.design.repair ? designRules(o.design, framing ? framing.tradition : null).passage : null;
-  let switchbackDefault = useProgram;
+  let switchbackDefault = useProgram && form === 'detached';   // (a form's stair is a straight flight in its hall)
   let stairRun = null;
   const spanFor = () => (stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4));
   let stairSpan = spanFor();
@@ -2818,9 +2826,18 @@ export function structurizeHouse(input = {}, opts = {}) {
   const order = [...resolved].sort((a, b) => (a.index === 0 ? -1 : b.index === 0 ? 1 : a.index - b.index));
   const planByIndex = new Map();
   let stairZone = null, stairDir = '+x';
+  let formPlan = null;
   const makePlans = () => { for (const r of order) {
     if (Array.isArray(r.rooms) && r.rooms.length) {
       planByIndex.set(r.index, { rooms: r.rooms, halls: r.halls || [], doors: r.doors || [] });
+      continue;
+    }
+    if (form !== 'detached') {
+      // (one stair zone for every storey: sized for the tallest floor-to-floor the stack has)
+      const rise = Math.max(o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight, o.upperHeight ?? FLOORPLAN_DEFAULTS.upperHeight) + (o.floorDrop ?? FLOORPLAN_DEFAULTS.floorDrop);
+      formPlan ||= planForm(form, { width, height, indices: resolved.map((x) => x.index), rise, seed: input.seed ?? 1 });
+      planByIndex.set(r.index, formPlan.plans.get(r.index));
+      stairZone = formPlan.stairZone; stairDir = formPlan.stairDir;
       continue;
     }
     if (useProgram) {
@@ -2838,7 +2855,7 @@ export function structurizeHouse(input = {}, opts = {}) {
   makePlans();
   // (repair) a U-return whose zone and a passage past it would cost the upper floor a row of rooms gives way to a
   // straight flight along the hall, its zone running on to the landing at its head
-  if (repairPassage != null && useProgram && hasUpper && stairZone && stairSpecs.some((s) => s.switchback === undefined)
+  if (form === 'detached' && repairPassage != null && useProgram && hasUpper && stairZone && stairSpecs.some((s) => s.switchback === undefined)
     && !upperHallFits({ width, height, inset: 2, reservedOpen: stairZone, passage: repairPassage })) {
     switchbackDefault = false;
     stairSpan = spanFor();
@@ -2873,7 +2890,8 @@ export function structurizeHouse(input = {}, opts = {}) {
       : null;
     const core = programCore || (s.anchor ? null
       : chooseStairCore(planByIndex.get(upperIdx), fpGuess, { width, runLength: estRun, margin: STAIR_DEFAULTS.margin, t: o.wallThickness }));
-    const placed = placeStairs(fpGuess, meru, { ...s, switchback: s.switchback ?? switchbackDefault, fromZ, toZ, ...(core ? { anchor: core.anchor, direction: core.direction } : {}) }, { ...o });
+    const formRun = formPlan && stairZone ? { maxRun: stairDir.includes('y') ? stairZone.y1 - stairZone.y0 : stairZone.x1 - stairZone.x0 } : {};
+    const placed = placeStairs(fpGuess, meru, { ...s, switchback: s.switchback ?? switchbackDefault, fromZ, toZ, ...(core ? { anchor: core.anchor, direction: core.direction } : {}), ...formRun }, { ...o });
     return { ...placed, core };
   });
   const slabHolesByIndex = {};

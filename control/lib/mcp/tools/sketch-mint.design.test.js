@@ -94,4 +94,12 @@ describe('what a house is for, stamped at mint', () => {
     expect((await stored({ compass: { north: 30 } })).compass).toEqual({ north: 30 });
     await expect(mint({ compass: { north: 'up' } })).rejects.toThrow(/compass.north/);
   });
+
+  it('a house form draws its own storeys and footprint; a footprint that cannot hold it refused, naming the size', async () => {
+    const mint = (extra) => createSketchHandler({ title: 'form', manifest: { kind: 'floorplan', title: 'form', seed: 21, ...extra } });
+    const t = SketchRepository.getByRef((await mint({ form: 'townhouse' })).ref).manifest;
+    expect([t.form, t.levels.length >= 3, t.width < 30, t.stairs]).toEqual(['townhouse', true, true, true]);
+    await expect(mint({ form: 'townhouse', width: 18 })).rejects.toThrow(/at least 21 ft wide/);
+    await expect(mint({ form: 'loft' })).rejects.toThrow(/form: one of detached, block, townhouse/);
+  });
 });

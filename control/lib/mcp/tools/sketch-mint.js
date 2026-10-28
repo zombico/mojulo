@@ -12,6 +12,7 @@
 
 import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
 import { compassOf } from '@/lib/graph/polygonizer/home-windows';
+import { readForm, formErrors, FORM_FOOTPRINT, FORM_MAX_RISE } from '@/lib/graph/polygonizer/house-forms';
 import { stampSolid } from '@/lib/graph/era/solid';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
@@ -485,6 +486,14 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     readLook(finalized.houseLook);
     // a house's own north (home-windows.js): a malformed compass refuses here, naming what it is
     if (finalized.compass !== undefined) compassOf({ compass: finalized.compass });
+    // and its form (house-forms.js): a townhouse or a block, its party walls, and a footprint that holds its stair and
+    // rooms (at the tallest storey a house style raises); a bad one refuses here, not first at /world
+    const form = readForm(finalized);
+    if (form !== 'detached') {
+      const fp = FORM_FOOTPRINT[form], rise = FORM_MAX_RISE;
+      const errs = formErrors(form, { width: finalized.width ?? fp.width, height: finalized.height ?? fp.height, rise });
+      if (errs.length) throw new Error(`Invalid manifest: form: ${errs.join('; ')}`);
+    }
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
     // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out

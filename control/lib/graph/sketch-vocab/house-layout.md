@@ -46,6 +46,11 @@ is a `manifest`.
   storey keeps (windows stack, 2 ft clear of the corners, the front door's facade laid round the door); each room
   takes the axes its use asks (daylight by room, a bedroom's egress unit, a bathroom's standard frosted unit over its
   fixtures, a hall on the facade lit, a store blind; a big room a mulled pair). The read says the window laws.
+- `form` — the house's shape, beside its size (`tier`) and finish (`style`): `'detached'` (absent: what the generator
+  always drew), `'townhouse'` (narrow and deep, three or four storeys, the stair hall along a party wall, kitchen and
+  dining to the garden, living to the street, bedrooms above; `attached: 'both'` by default, `'left'` / `'right'` an end
+  unit, `'none'`), `'block'` (the modern block: compact, two or three storeys, a hall down its middle, an open floor
+  below). The draw gives a form its storeys and footprint; party walls take no window.
 - `compass` — the house's own north, apart from the plan's N/S/E/W (directions on the drawing): `{ north, hemisphere }`,
   north the plan angle of true north in degrees clockwise from the plan's up. Absent, the house orients itself: its
   living room's longest outside wall to the sun. It turns the day rooms' windows to the sun, a bedroom's to the morning.

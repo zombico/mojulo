@@ -23,9 +23,12 @@
  *   placeHomeWindows(graph, o, { runAtPoint, tol, shared }) → graph.homeWindows (the rooms' need and take)
  */
 import { RELATIONSHIPS } from './floorplan-glyphs.js';
+import { partyWallsOf } from './house-forms.js';
 
 export const CORNER = 2;                 // ft of solid wall kept at a building's corner (the corner's bracing)
-const PIER = 1.25;                       // ft of wall kept between a window and a partition or a door
+const PIER = 1.25;                       // ft of wall kept between a window and a door or another window
+const JAMB = 0.75;                       // ft of wall kept between a window and a partition (its casing and the corner)
+const NARROW = 32;                       // ft: a facade this short is laid in equal bays (a townhouse's three)
 // the facade's module: the spacing its axes aim for (ft)
 const MODULE = { traditional: 10, modern: 12 };
 // glazing to floor area a room aims for, by what it is for (the code's floor is 8%: IRC R303.1)
@@ -72,24 +75,38 @@ export function compassOf(o, cells = [], fp = null) {
   const rooms = cells.filter((x) => x.kind !== 'hall');
   const living = rooms.filter((x) => x.glyph === 'L').sort((a, b) => b.w * b.h - a.w * a.h)[0] || rooms.slice().sort((a, b) => b.w * b.h - a.w * a.h)[0];
   let best = null;
-  if (living && fp) for (const [side, len] of outsideSides(living, fp)) if (!best || len > best[1] + 1e-6) best = [side, len];
+  if (living && fp) for (const [side, len] of outsideSides(living, fp, partyWallsOf(o))) if (!best || len > best[1] + 1e-6) best = [side, len];
   if (!best) return { north: 0, hemisphere, sun, inferred: true, reason: 'no room on an outside wall: the plan\'s up is north' };
   return { north: norm(SIDE_ANGLE[best[0]] - sun), hemisphere, sun, inferred: true, reason: `the ${living.glyph === 'L' ? 'living room' : 'largest room'}'s longest outside wall (the plan's ${best[0]} side) faces the sun` };
 }
 
-// a cell's outside walls: [side, length, along0, along1, at]
-function outsideSides(c, fp, tol = 0.06) {
+// a cell's outside walls: [side, length, along0, along1, at]; a party wall (a townhouse's, `party`) is no outside wall
+function outsideSides(c, fp, party = [], tol = 0.06) {
   const out = [];
   if (Math.abs(c.y - fp.y0) < tol) out.push(['N', c.w, c.x, c.x + c.w, fp.y0]);
   if (Math.abs(c.y + c.h - fp.y1) < tol) out.push(['S', c.w, c.x, c.x + c.w, fp.y1]);
   if (Math.abs(c.x - fp.x0) < tol) out.push(['W', c.h, c.y, c.y + c.h, fp.x0]);
   if (Math.abs(c.x + c.w - fp.x1) < tol) out.push(['E', c.h, c.y, c.y + c.h, fp.x1]);
-  return out;
+  return party.length ? out.filter(([side]) => !party.includes(side)) : out;
 }
 
 // a facade's axes: evenly spaced on the module within its corners (each `edge` clear of them: the corner and half
 // the widest unit a storey may set there); the entry facade's either side of the door
-function axesOf(lo, hi, module, door, edge) {
+function axesOf(lo, hi, module, door, edge, spans = []) {
+  // a narrow facade (a townhouse's) is laid from its plan: each room along it its own bays (the stair hall one, the
+  // door's bay and the window over it; a main room two), an axis in the middle of each, inside the corners' bracing
+  if (hi - lo < NARROW) {
+    const at = [];
+    for (const [a0, b0] of spans) {
+      const a = Math.max(a0, lo + CORNER), b = Math.min(b0, hi - CORNER);
+      if (b - a < 2.5) continue;
+      const k = Math.max(1, Math.round((b - a) / 6));
+      for (let i = 0; i < k; i += 1) at.push(a + ((b - a) * (i + 0.5)) / k);
+    }
+    if (at.length) return at;
+    const L = hi - lo - 2 * CORNER, bays = Math.max(1, Math.round(L / 5.5));
+    return Array.from({ length: bays }, (_, i) => lo + CORNER + (L / bays) * (i + 0.5));
+  }
   const spread = (a, b) => {
     const L = b - a;
     if (L < -1e-6) return [];
@@ -107,25 +124,31 @@ function axesOf(lo, hi, module, door, edge) {
  * grid and the glazed axes from the storey below to the one above (`structurizeHouse`); a single floor brings none.
  */
 export function placeHomeWindows(graph, o, { runAtPoint, tol, shared = null }) {
-  const fp = graph.footprint, cells = graph.cells || [];
+  const fp = graph.footprint, cells = graph.cells || [], party = partyWallsOf(o);
   const compass = shared?.compass || compassOf(o, cells, fp);
   if (shared && !shared.compass) shared.compass = compass;
   const style = o.windowStyle || 'double-hung';
   const unit = UNIT[style] || UNIT.plain;
   const module = MODERN.has(style) ? MODULE.modern : MODULE.traditional;
-  const top = o.windowTop;
+  // (a tall storey, a modern block's, raises the head with its ceiling: the glass stands in the wall, not low in it)
+  const top = (o.wallHeight ?? 0) > 10 ? +(o.wallHeight - 1.75).toFixed(2) : o.windowTop;
+  // (a modern block is glassier than a traditional house: its rooms aim for half as much light again)
+  const glassy = o.form === 'block' ? 1.5 : 1;
   // the grid: per facade (a footprint side), from the storey that has the front door, else this one
   const sideLine = { N: ['h', fp.y0, fp.x0, fp.x1], S: ['h', fp.y1, fp.x0, fp.x1], W: ['v', fp.x0, fp.y0, fp.y1], E: ['v', fp.x1, fp.y0, fp.y1] };
   const axes = {};
   for (const [side, [orient, at, lo, hi]] of Object.entries(sideLine)) {
     const key = `${side}:${Math.round(at * 100)}:${Math.round(lo * 100)}:${Math.round(hi * 100)}`;
     const runs = graph.runs.filter((r) => !r.interior && r.orientation === orient && Math.abs(r.at - at) < tol);
-    const entry = runs.flatMap((r) => (r.openings || []).filter((op) => op.entry || op.exterior)).map((op) => ({ at: (op.a + op.b) / 2, half: (op.b - op.a) / 2 }))[0];
+    // (the front door lays the facade round it; a garden or balcony door takes a bay as a window would)
+    const entry = runs.flatMap((r) => (r.openings || []).filter((op) => op.entry)).map((op) => ({ at: (op.a + op.b) / 2, half: (op.b - op.a) / 2 }))[0];
     // (a storey takes the grid laid below it, unless it holds the door the grid was not laid round: the ground's
     // front door sets the grid every storey above it keeps)
     const held = shared?.axes.get(key);
     if (held && (held.entry || !entry)) { axes[side] = held; continue; }
-    axes[side] = { key, at: axesOf(lo, hi, module, entry, CORNER + Math.max(unit.w, UNIT.casement.w) / 2), entry: !!entry };
+    // (the rooms along this side, for a narrow facade laid from its plan)
+    const spans = cells.map((c) => outsideSides(c, fp, party).find((w) => w[0] === side)).filter(Boolean).map((w) => [w[2], w[3]]).sort((p, q) => p[0] - q[0]);
+    axes[side] = { key, at: axesOf(lo, hi, module, entry, CORNER + Math.max(unit.w, UNIT.casement.w) / 2, spans), entry: !!entry };
     shared?.axes.set(key, axes[side]);
   }
   const rooms = [];
@@ -133,32 +156,42 @@ export function placeHomeWindows(graph, o, { runAtPoint, tol, shared = null }) {
     // (a hall on an outside wall earns its light: the end of a corridor, the landing, the facade kept whole; a hall
     // that touches no outside wall takes none)
     const hall = cell.kind === 'hall' || cell.glyph === 'H';
-    if (hall && !outsideSides(cell, fp).length) continue;
+    if (hall && !outsideSides(cell, fp, party).length) continue;
     const need = hall ? 'earned' : RELATIONSHIPS[cell.glyph]?.needsWindow ?? 'preferred';
     const bath = cell.glyph === 'W';
     if (need === 'no' && !bath) { rooms.push({ glyph: cell.glyph, at: [cell.x, cell.y], need, area: cell.w * cell.h, want: 0, glazing: 0, units: [] }); continue; }
     // (a bedroom's unit opens wide enough to leave by: a fixed pane, or one that opens too little, is a casement there)
     const own = need === 'egress' && !egressOf(style, unit.w, top - (unit.sill ?? o.windowSill), unit.sill ?? o.windowSill).ok ? 'casement' : style;
     const uw = own === style ? unit.w : UNIT.casement.w;
-    const u = bath ? BATH : { w: uw, sill: cell.glyph === 'K' ? KITCHEN_SILL : (own === style ? unit.sill ?? o.windowSill : o.windowSill), obscured: false };
+    // (a townhouse's windows are tall, on a low sill: its deep rooms take light from the front and back only)
+    const sill0 = own === style ? unit.sill ?? o.windowSill : o.windowSill;
+    const u = bath ? BATH : { w: uw, sill: cell.glyph === 'K' ? KITCHEN_SILL : o.form === 'townhouse' ? Math.min(sill0, 1.75) : sill0, obscured: false };
     const height = top - u.sill, area = cell.w * cell.h;
-    const want = bath ? 1 : Math.max(1, Math.ceil(((DAYLIGHT[hall ? 'H' : cell.glyph] ?? 0.1) * area) / (u.w * height)));
+    // (a glazed door on its outside walls, the kitchen's to the garden, lights it as a window does)
+    const doorGlass = outsideSides(cell, fp, party).reduce((n, [side, , lo, hi]) => {
+      const [orient, at] = sideLine[side];
+      return n + graph.runs.filter((r) => !r.interior && r.orientation === orient && Math.abs(r.at - at) < tol)
+        .flatMap((r) => r.openings || []).filter((op) => op.exterior && op.kind === 'sliding' && op.a >= lo - 0.1 && op.b <= hi + 0.1)
+        .reduce((m, op) => m + (op.b - op.a) * op.top, 0);
+    }, 0);
+    const need0 = glassy * (DAYLIGHT[hall ? 'H' : cell.glyph] ?? 0.1) * area - doorGlass;
+    const want = bath ? 1 : need0 <= 0 ? 0 : Math.max(1, Math.ceil(need0 / (u.w * height)));
     // the candidate axes on its outside walls, clear of its partitions by a pier
     const cand = [];
-    for (const [side, , lo, hi] of outsideSides(cell, fp)) {
+    for (const [side, , lo, hi] of outsideSides(cell, fp, party)) {
       const bearing = facingOf(side, compass);
       const [, , flo, fhi] = sideLine[side];
       for (const x of axes[side].at) {
-        if (x - u.w / 2 < lo + PIER - 1e-6 || x + u.w / 2 > hi - PIER + 1e-6) continue;
+        if (x - u.w / 2 < lo + JAMB - 1e-6 || x + u.w / 2 > hi - JAMB + 1e-6) continue;
         if (x - u.w / 2 < flo + CORNER - 1e-6 || x + u.w / 2 > fhi - CORNER + 1e-6) continue;
         cand.push({ side, x, bearing, below: !!shared?.glazed.has(`${axes[side].key}|${x.toFixed(2)}`), mid: Math.abs(x - (lo + hi) / 2) / (hi - lo) });
       }
     }
-    // (a small room no axis falls in, a bathroom between two bays, takes the middle of its wall: a secondary window
-    // may stand off the grid, on the storey's head line)
-    if (!cand.length) {
-      const wall = outsideSides(cell, fp).sort((p, q) => q[1] - p[1] || p[0].localeCompare(q[0]))[0];
-      if (wall && wall[1] >= u.w + 2 * PIER) cand.push({ side: wall[0], x: (wall[2] + wall[3]) / 2, bearing: facingOf(wall[0], compass), below: false, mid: 0, off: true });
+    // (a bathroom no axis falls in, between two bays, takes the middle of its wall: a secondary window may stand off
+    // the grid, on the storey's head line; a room or hall keeps to the grid)
+    if (!cand.length && bath) {
+      const wall = outsideSides(cell, fp, party).sort((p, q) => q[1] - p[1] || p[0].localeCompare(q[0]))[0];
+      if (wall && wall[1] >= u.w + 2 * JAMB) cand.push({ side: wall[0], x: (wall[2] + wall[3]) / 2, bearing: facingOf(wall[0], compass), below: false, mid: 0, off: true });
     }
     // in order: an axis glazed below (the stack), the side the room wants (the sun to the day rooms, the morning to a
     // bedroom), the middle of its wall; then round the room's sides, so a corner room takes light on two
@@ -186,13 +219,13 @@ export function placeHomeWindows(graph, o, { runAtPoint, tol, shared = null }) {
       if (bath || units.reduce((n, y) => n + (y.pair ? 2 : 1), 0) >= want) break;
       const a = x.op.a - u.w / 2, b = x.op.b + u.w / 2;
       if (a < x.run.along[0] + CORNER || b > x.run.along[1] - CORNER) continue;
-      const room = outsideSides(cell, fp).find((w) => w[0] === x.side);
-      if (!room || a < room[2] + PIER - 1e-6 || b > room[3] - PIER + 1e-6) continue;
+      const room = outsideSides(cell, fp, party).find((w) => w[0] === x.side);
+      if (!room || a < room[2] + JAMB - 1e-6 || b > room[3] - JAMB + 1e-6) continue;
       if (x.run.openings.some((op) => op !== x.op && Math.min(b, op.b) > Math.max(a, op.a) - PIER)) continue;
       x.op.a = a; x.op.b = b; x.op.pair = true; x.pair = true; x.w = 2 * u.w;
     }
     for (const x of units) { delete x.op; delete x.run; }
-    rooms.push({ glyph: cell.glyph, at: [cell.x, cell.y], need, area, want, glazing: +units.reduce((n, x) => n + x.w * (top - x.sill), 0).toFixed(2), units });
+    rooms.push({ glyph: cell.glyph, at: [cell.x, cell.y], need, area, want, glazing: +(doorGlass + units.reduce((n, x) => n + x.w * (top - x.sill), 0)).toFixed(2), units });
   }
   graph.homeWindows = { compass, style, module, axes: Object.fromEntries(Object.entries(axes).map(([s, v]) => [s, v.at.map((x) => +x.toFixed(2))])), rooms };
   return graph;
