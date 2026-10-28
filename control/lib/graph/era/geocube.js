@@ -1021,6 +1021,22 @@ export function geocubeEraOf(manifest) {
   return readGeocube(spec).era;
 }
 
+/** The shows a new geocube scene is minted in the form render for (gen-7: its land, its trail and its plants as form,
+ *  lit by the cube's light): the cube's own path (the scene door's) and the island's trail. */
+export const FORM_SCENE_SHOWS = Object.freeze(['path', 'trail']);
+/**
+ * A NEW geocube scene is drawn in the seventh generation: its cube's `era` written `gen-7` where it names none (a preset
+ * id read as `{ from: <id> }`). New is a scene with no seed yet: a path or a trail draws its seed at its first mint
+ * (sketch-mint.js newTrailSeed, after this), so a row already minted, or one restored from its export, carries its seed
+ * and keeps the era it renders in. A cube that names its era keeps it (`era: 'gen-6'` is the painted render).
+ */
+export function stampSceneEra(manifest) {
+  const m = manifest;
+  if (m?.kind !== 'geocube' || !FORM_SCENE_SHOWS.includes(m.show) || m.seed !== undefined || m.cube === undefined || m.cube === null) return m;
+  if (typeof m.cube === 'string') return { ...m, cube: { from: m.cube, era: 'gen-7' } };
+  return typeof m.cube === 'object' && m.cube.era === undefined ? { ...m, cube: { ...m.cube, era: 'gen-7' } } : m;
+}
+
 const readHourOf = (v) => { try { return readHour(v); } catch (err) { return no(err.message); } };
 const readCloudsOf = (v) => { try { return readClouds(v); } catch (err) { return no(err.message); } };
 // a recipe's clouds: a sky of its own, or 'weather', the sky its live weather state is painted under (opt-in: a level

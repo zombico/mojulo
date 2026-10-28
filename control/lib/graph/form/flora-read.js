@@ -50,7 +50,8 @@ export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
-const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+// (a cube's colour as written, #rrggbb, or as the theorist stamps it, rgb bytes)
+const hexRgb = (h) => (Array.isArray(h) ? h.slice(0, 3) : [1, 3, 5].map((i) => parseInt(String(h).slice(i, i + 2), 16)));
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 // a geometry's triangles packed: positions, and each vertex's colour as its factor over the plant's leaf (× 128, so the
@@ -112,7 +113,8 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   if (!plants || plants.form === 'bamboo' || plants.form === 'blossom') return null;
   if (!plants.trees.length && !plants.bushes.length && !plants.shrubs.length) return null;
   // the colours: the cube's foliage and bark (its floor darkened, as the land's wood class), a kind's pick its offer's
-  const C = Object.fromEntries(Object.entries(colours).map(([k, v]) => [k, hexRgb(v)]));
+  // (the colours it reads: a cube's colour carries more, a `shade` hue among them)
+  const C = Object.fromEntries(['foliage', 'grass', 'stone', 'floor', 'accent'].filter((k) => colours[k] !== undefined).map((k) => [k, hexRgb(colours[k])]));
   const offer = floraColours({ foliage: C.foliage, grass: C.grass, rock: C.stone, soil: C.floor, accent: C.accent ?? null });
   const solve = (rgb, ref, base) => [0, 1, 2].map((k) => r4((base[k] * lin(rgb[k])) / Math.max(1e-6, lin(ref[k]))));
   const leafBase = bases.foliage, barkBase = bases.floor.map((v) => v * 0.5);
