@@ -2712,7 +2712,9 @@ export function placeStairs(footprint, meru, spec = {}, opts = {}) {
   const build = spec.switchback ? buildSwitchbackFlight : buildStairFlight;
   const flight = build({
     anchor, direction,
-    width: spec.width ?? o.width, going: spec.going ?? o.going, riser: spec.riser ?? o.riser,
+    // (the stair's width is the stair's: a house's own `width`, its footprint, rides in `opts` and used to become
+    // the flight's, a stair as wide as the house cut through its every slab)
+    width: spec.width ?? STAIR_DEFAULTS.width, going: spec.going ?? o.going, riser: spec.riser ?? o.riser,
     baseZ: lowerZ, totalRise: upperZ - lowerZ, treadTint: o.treadTint, riserTint: o.riserTint,
     railTint: o.railTint, postTint: o.postTint, railHeight: o.railHeight, wellGap: o.wellGap, light: opts.light,
     maxRun: (along - 2 * (t + margin)) * 0.7,
