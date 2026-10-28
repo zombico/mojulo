@@ -2,7 +2,7 @@
 // stands for all (they differ in data, not in procedure); each roof system is built once on a bare room through the
 // shell itself; the walkway's rules on the one tall room a suite holds.
 import { describe, expect, it } from 'vitest';
-import { planStage, buildStageGeometry, STAGE_KITS, assembleStageScene } from './stage.js';
+import { planStage, buildStageGeometry, STAGE_KITS, assembleStageScene, resolveStageLights } from './stage.js';
 import { bayRoom } from './bay.js';
 import { BAY_REGISTERS } from './style/bay-kits.js';
 import { readFormLight } from '../form/room-form.js';
@@ -105,9 +105,11 @@ describe('the bay shell', () => {
   });
 
   it('read in the form render, its lamps go to the page; a lamp inset in the floor stays in the bake', () => {
-    const P = assembleStageScene(SUITE, { formLit: true }), kinds = new Set(P.form.room.lights.map((l) => l.live));
-    expect(kinds).toEqual(new Set([true, false]));
-    expect(readFormLight([{ at: [0, 0, 0], radius: 2, fixture: 'inset' }], [[1, 1, 1]])[0].live).toBe(false);
+    // (the stage's lights from the shell's seats, as the form render reads them; the solved keys are the bake's business,
+    // so no kit is painted for this: a form-lit assemble paints every tile of the kit to find its mean)
+    const lights = resolveStageLights(planStage(SUITE), geom.seats), read = readFormLight(lights, lights.map(() => [1, 1, 1]));
+    expect(new Set(read.map((l) => l.live))).toEqual(new Set([true, false]));
+    lights.forEach((l, i) => expect(read[i].live, l.fixture).toBe(l.fixture !== 'inset'));
   });
 });
 
