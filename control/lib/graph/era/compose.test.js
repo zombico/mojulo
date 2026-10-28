@@ -20,7 +20,8 @@ describe('the scene composer reads an intent', () => {
   });
 
   it('nothing said falls to the base; a pinned axis is kept over the words; a named register is the base', () => {
-    expect(Object.values(readCompose('somewhere', other).resolved)).toEqual(COMPOSE_AXES.map(() => other));
+    const R = readCompose('somewhere', other).resolved;
+    expect(COMPOSE_AXES.map((a) => R[a])).toEqual(COMPOSE_AXES.map(() => other));
     const pinned = readCompose({ words: `${paint}`, palette: other, register: other }, home);
     expect(pinned.resolved.palette).toBe(other);
     expect(pinned.said.palette).toBe('pinned');

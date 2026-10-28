@@ -7,8 +7,8 @@
  *   COMPOSE_WORDS        { axis: { value: [words] } }: what people say of each axis's values
  *   REGISTER_WORDS       { register: [words] }: what names a whole register (a hangar, a warehouse, a lab, an office)
  *   readCompose(c, base) → { resolved: { construction, palette, plot, dressing }, said: { axis: why } }   pure
- *     c     '<words>' | { words?, register?, construction?, palette?, plot?, dressing? }: a named axis is pinned, a
- *           named register is the base
+ *     c     '<words>' | { words?, register?, mood?, roles?, construction?, palette?, plot?, dressing? }: a named axis is
+ *           pinned, a named register is the base; the mood (compose-plot.js: even, drama, noir) read too, the darkest heard
  *   resolveCompose(manifest) → AUTHORING TIME (create_sketch / update_sketch): a stage's `compose` read and stored as
  *           { intent, resolved, said }; a stored one comes back as it was, so the build never re-decides
  *   composeForBuild(m)   → the resolved axes: the stored ones, else read now (a test, a direct assemble)
@@ -17,6 +17,7 @@
  * The words are data: a new register, or a new value on an axis, adds its words here and is read like the rest.
  */
 import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS } from './style/bay-axes.js';
+import { MOODS, MOOD_IDS } from './compose-plot.js';
 
 export const COMPOSE_AXES = Object.freeze(['construction', 'palette', 'plot', 'dressing']);
 const TABLES = { construction: CONSTRUCTIONS, palette: PALETTES, plot: PLOTS, dressing: DRESSINGS };
@@ -59,6 +60,7 @@ export const COMPOSE_WORDS = Object.freeze({
 // every phrase of the tables, longest first: a phrase heard is taken out of the text, so the words inside it are not heard
 // again ('military greys' is the palette's, not 'military grey' as well, nor the register's 'military')
 const PHRASES = [...Object.entries(REGISTER_WORDS).flatMap(([r, ws]) => ws.map((w) => ({ w, register: r }))),
+  ...Object.entries(MOODS).flatMap(([mood, M]) => M.words.map((w) => ({ w, mood }))),
   ...Object.entries(COMPOSE_WORDS).flatMap(([axis, vs]) => Object.entries(vs).flatMap(([v, ws]) => ws.map((w) => ({ w, axis, v }))))]
   .sort((a, b) => b.w.length - a.w.length || (a.w < b.w ? -1 : 1));
 // what the text says, phrase by phrase, each a whole word (a plural taken), the text lowered
@@ -71,7 +73,7 @@ function hear(text) {
   }
   return heard;
 }
-const KEYS = ['words', 'register', 'roles', ...COMPOSE_AXES];
+const KEYS = ['words', 'register', 'roles', 'mood', ...COMPOSE_AXES];
 
 function readIntent(c) {
   if (typeof c === 'string') return { words: c };
@@ -79,6 +81,7 @@ function readIntent(c) {
   for (const k of Object.keys(c)) if (!KEYS.includes(k)) throw new Error(`stage: compose.${k} is not a setting (${KEYS.join(', ')})`);
   if (c.words !== undefined && typeof c.words !== 'string') throw new Error('stage: compose.words is words');
   if (c.roles !== undefined && (!c.roles || typeof c.roles !== 'object' || Array.isArray(c.roles))) throw new Error('stage: compose.roles is { room: role } (compose-roles.js ROLES)');
+  if (c.mood !== undefined && !MOOD_IDS.includes(c.mood)) throw new Error(`stage: compose.mood is ${MOOD_IDS.join(', ')}`);
   if (c.register !== undefined && !REGISTERS.includes(c.register)) throw new Error(`stage: compose.register is ${REGISTERS.join(', ')}`);
   for (const a of COMPOSE_AXES) if (c[a] !== undefined && !TABLES[a][c[a]]) throw new Error(`stage: compose.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
   return c;
@@ -102,6 +105,11 @@ export function readCompose(c, base = 'everyday') {
     const score = Object.fromEntries(Object.entries(heard[a]).map(([v, ws]) => [v, ws.length])), v = best(score);
     if (score[v] > 0) { resolved[a] = v; said[a] = `said: ${heard[a][v].join(', ')}`; } else { resolved[a] = leaning ? leant : home; said[a] = leaning ? `leans ${leant}` : `base ${home}`; }
   }
+  // the mood (compose-plot.js MOODS): pinned, else the words' (the darkest heard wins), else even
+  const moods = said0.filter((P) => P.mood).map((P) => P.mood);
+  if (I.mood !== undefined) { resolved.mood = I.mood; said.mood = 'pinned'; }
+  else if (moods.length) { resolved.mood = MOOD_IDS.filter((m) => moods.includes(m)).pop(); said.mood = `said: ${said0.filter((P) => P.mood === resolved.mood).map((P) => P.w).join(', ')}`; }
+  else { resolved.mood = 'even'; said.mood = 'none said: even'; }
   return { resolved, said };
 }
 
@@ -121,6 +129,7 @@ export function composeForBuild(m) {
   const c = m.compose;
   if (!stored(c)) return readCompose(c, baseOf(m.kit)).resolved;
   for (const a of COMPOSE_AXES) if (!TABLES[a][c.resolved[a]]) throw new Error(`stage: compose.resolved.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
+  if (c.resolved.mood !== undefined && !MOODS[c.resolved.mood]) throw new Error(`stage: compose.resolved.mood is ${MOOD_IDS.join(', ')}`);
   return c.resolved;
 }
 

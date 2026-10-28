@@ -44,6 +44,7 @@ import { bayRoom, bayLaws } from './bay.js';
 import { bayKit, bayKitOf, BAY_REGISTERS } from './style/bay-kits.js';
 import { composeForBuild, rolesPinned } from './compose.js';
 import { roomRoles } from './compose-roles.js';
+import { plotLights } from './compose-plot.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -478,7 +479,7 @@ export function planStage(m = {}) {
   })() : nightRef;
   return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
-    ...(composed ? { compose: { axes: composed, roles: roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
+    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', roles: roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
@@ -1078,7 +1079,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
-  const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
+  // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
+  const placed = resolveStageLights(plan, seats), plotted = plan.compose && plan.lights === 'auto' ? plotLights(plan, placed) : null;
+  const lights = [...(plotted ? plotted.lights : placed), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
   // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
   const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
   const braziers = Fk && Fk.braziers && portalBay ? [-1, 1].map((sg) => {
@@ -1179,6 +1182,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // key, the ambient and the falloff, for the page to light the relief by; a toned room's void; only a room read in the
     // form render
     // the bay shell's readout (bay.js): what each room built (its roof, its walkways and their entries) and its laws
+    // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
+    ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
     ...(formLit ? { form: { room: { lights: readFormLight(formLamps, formLit.light.keys), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],

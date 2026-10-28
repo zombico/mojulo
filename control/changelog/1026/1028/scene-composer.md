@@ -22,3 +22,12 @@ stored in the recipe as numbers. Built so far:
 - **Any palette on any construction**: a swatch that leaves a catalog material its own face lends that face (`own`, the
   catalog's colour) to a dressed cut laid in its place; a program is laid for the kit it composes (a construction with
   wider doors widens the corridors). A deep sweep composes every pairing of the four axes.
+- **The light plot** (`era/compose-plot.js`): a composed room lit from its role. The mood (`even` 2:1, `drama` 4:1,
+  `noir` 8:1; read from the words, the darkest heard, or `compose.mood`) sets the ratio of the light at each room's focus
+  over the room's mean and thins the shell's lamps into fill; a KEY hangs over each focus, its colour the plot's own that
+  stands farthest in warmth from the fill, its intensity solved for the ratio by each role's weight (the goal and the
+  landmark the whole ratio, the way on 0.8, a pocket's find a glint, a still room none). Measured by the seventh
+  generation's falloff without walls (a model of the bake) and reported on the stage as `compose.plot`. Seen in a hangar
+  suite in gen-7: the rooms darken by about a third from even to noir while the focus holds its light; on screen that is
+  about 1.3 to 1, not the model's 8 (the key lands on the doorway's floor and jambs, no set piece standing there yet, and
+  the page tone-maps); gen-6 dims the whole room, the key flattened by its bake's shoulder. `scripts/spikes/bay/moods.mjs`.
