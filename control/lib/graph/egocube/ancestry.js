@@ -210,6 +210,15 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
     ],
   },
+  // the corpse with its bone showing: a gaunt zombie, parts of it gone back to the skeleton
+  rotting: {
+    reads: 'a gaunt corpse, bone bared where the flesh is gone', humanity: [0, 0.15], form: 'zombie', layers: ['bared'], cover: { grey: '#9a9a90', green: '#8a9a7a', blue: '#7a8a9a' },
+    built: 'the undead form library (lib/graph/undead): the zombie drawn in, and parts of it bone again: its skull, an arm, a leg, one side\'s ribs (undead/bared.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'flesh gone to the bone: {pick}', pick: ['a bare arm', 'the ribs through the chest', 'a leg of bone'] },
+      { at: 1, ch: 'structure', line: 'a dead face, or the skull under it' },
+    ],
+  },
   // the dead between the zombie and the bone: gaunt flesh rotting back on the skeleton, in its rags
   decayed: {
     reads: 'a rotting corpse, half bone', humanity: [0, 0.08], form: 'skeleton', layers: ['decayed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },

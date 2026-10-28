@@ -17,14 +17,15 @@
  *   undeadBody(form, { build, pole, k, g, chest, hips, seed, biped, layers })   → { id, card, body, lost, frameParts,
  *                                  posture, head, skull, layers }: the biped built and passed (`biped` handed in by the
  *                                  creature door: this module never imports it back), then the lineage's LAYERS laid
- *                                  over it (UNDEAD_LAYERS: `decayed` gaunt flesh back on the bone, then `shreds` the card's clothes in
- *                                  rags), each on its own dice
+ *                                  over it (UNDEAD_LAYERS: `bared` a corpse's parts gone back to bone, `decayed` gaunt flesh back on the
+ *                                  bone, then `shreds` the card's clothes in rags), each on its own dice
  *
  * Pure and deterministic: its dice are the sheet's seed.
  */
 import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS } from './cards.js';
 import { shreds } from './shreds.js';
 import { decay } from './decay.js';
+import { bared } from './bared.js';
 import { fleshPasses, bonePasses, posture, poseArms } from './passes.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
@@ -50,6 +51,17 @@ export function undeadBody(form, { build = 'canonical', pole = 'male', k, g, che
   // the layers, over the posed body (a sleeve's rags hang from the arm where it is held), each on its own stream so a
   // layer never moves the form's own rolls
   const frameParts = [...(out.frameParts ?? [])];
+  // (bone bared on a gaunt corpse: over flesh only; its skull, when it bares one, is the head)
+  let skull = out.skull ?? null;
+  if (layers.includes('bared')) {
+    if (card.form !== 'flesh') throw new Error(`undead: the bared layer lies over flesh (the ${form} is already bone)`);
+    const D = bared(out.body, card.bared ?? { count: [1, 2], parts: ['foreArm', 'ribs', 'shin', 'skull'] }, { k, g, rand: mulberry32((seed >>> 0) ^ 0x165667b1), lost: out.lost });
+    Object.assign(out.body.joints, D.joints); out.body.segments.push(...D.segments); frameParts.push(...D.lean);
+    // (a skull hangs from its base, not from a face built out from the nape: the card's drop would swing it into the
+    // chest, so a bared skull hangs a third as far, its tilt kept)
+    if (D.skull) { skull = D.skull; const h = P.head, n = Math.hypot(h.x, h.y, h.z * 0.3) || 1; P.head = { x: Math.round((h.x / n) * 1000) / 1000, y: Math.round((h.y / n) * 1000) / 1000, z: Math.round(((h.z * 0.3) / n) * 1000) / 1000 }; }
+    out.bared = D.replaced;
+  }
   // (the flesh first, so the rags hang clear of it)
   if (layers.includes('decayed')) {
     if (card.form !== 'bone') throw new Error(`undead: the decayed layer lies over bone (the ${form} keeps its own flesh)`);
@@ -61,5 +73,5 @@ export function undeadBody(form, { build = 'canonical', pole = 'male', k, g, che
     out.body.segments.push(...W.segments); frameParts.push(...W.chest, ...W.arms);
   }
   // (a skeleton's skull is its own bones, ./skull.js: it wears no head card)
-  return { id, card, body: out.body, lost: out.lost ?? null, frameParts, posture: P, head: out.skull ? null : UNDEAD_HEADS[form], skull: out.skull ?? null, layers: [...layers] };
+  return { id, card, body: out.body, lost: out.lost ?? null, frameParts, posture: P, head: skull ? null : UNDEAD_HEADS[form], skull, layers: [...layers], ...(out.bared ? { bared: out.bared } : {}) };
 }

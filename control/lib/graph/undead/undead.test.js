@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS, variantOf, undeadBody } from './index.js';
 import { readLineage } from '../egocube/ancestry.js';
+import { boneLimb } from './passes.js';
 import { biped, MASS } from '../egocube/plan.js';
 import { planFromSheet } from '../egocube/plan.js';
 import { rollEgocube } from '../egocube/egocube.js';
@@ -188,6 +189,40 @@ describe('the layers', () => {
     const [zid] = cardBy('flesh', () => true);
     expect(() => undeadBody('zombie', { ...base, build: UNDEAD_CARDS[zid].build, layers: ['decayed'] })).toThrow(/decayed layer lies over bone/);
   });
+  it('bared: a gaunt corpse with parts back to bone, one side at a time, its skull the head when it bares one', () => {
+    // (the zombie card whose list bares the most kinds of part)
+    const [zid, zc] = Object.entries(UNDEAD_CARDS).filter(([, c]) => c.form === 'flesh' && c.bared).sort((a, b) => b[1].bared.parts.length - a[1].bared.parts.length)[0];
+    const corpse = (layers, seed = 1) => undeadBody('zombie', { ...base, build: zc.build, seed, layers });
+    const runs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((sd) => ({ sd, B: corpse(['bared'], sd), F: corpse([], sd) }));
+    // every word on the card's list comes up on some seed, as many as its count says
+    const seen = new Set(runs.flatMap(({ B }) => B.bared.map((x) => x.part)));
+    for (const part of zc.bared.parts) expect(seen.has(part)).toBe(true);
+    for (const { B } of runs) { expect(B.bared.length).toBeGreaterThanOrEqual(zc.bared.count[0]); expect(B.bared.length).toBeLessThanOrEqual(zc.bared.count[1]); }
+    // a bared limb is the skeleton's bone, on its side only; the other side keeps its (gaunter) flesh
+    const limb = runs.find(({ B }) => B.bared.some((x) => x.part === 'thigh' || x.part === 'shin' || x.part === 'arm'));
+    const L = limb.B.bared.find((x) => ['thigh', 'shin', 'arm'].includes(x.part)), name = { thigh: 'thigh', shin: 'shin', arm: 'upperArm' }[L.part];
+    const other = L.side === 'R' ? 'L' : 'R', mine = seg(limb.B, `${name}${L.side}`), theirs = seg(limb.B, `${name}${other}`);
+    expect(mine.group).toBe('Bone');
+    expect(mine.rA).toEqual(boneLimb(mine, { k: base.k, g: base.g }).rA);
+    expect(r(theirs.rA)).toBeGreaterThan(2 * r(mine.rMid));
+    expect(theirs.group).not.toBe('Bone');
+    // the flesh left is drawn in: the torso narrower than the plain zombie's
+    expect(r(seg(limb.B, 'torso').stations[2].r)).toBeLessThan(r(seg(limb.F, 'torso').stations[2].r));
+    // the skull is the head: no head card, the skull's parts in the lean
+    const sk = runs.find(({ B }) => B.bared.some((x) => x.part === 'skull'));
+    expect(sk.B.head).toBeNull();
+    expect(sk.B.skull.rig.jawHinge).toBeDefined();
+    expect(sk.B.frameParts).toContain('braincase');
+    expect(runs.find(({ B }) => !B.bared.some((x) => x.part === 'skull')).B.head).toBe('gaunt');
+    // the ribs lie on the flesh of one side, bound to the torso, in the lean
+    const rb = runs.find(({ B }) => B.bared.some((x) => x.part === 'ribs'));
+    const ribs = rb.B.body.segments.filter((x) => /^ribBare\d[RL]$/.test(x.name)), sideOf = rb.B.bared.find((x) => x.part === 'ribs').side;
+    expect(ribs.length).toBeGreaterThanOrEqual(4);
+    for (const x of ribs) { expect(x.name.endsWith(sideOf)).toBe(true); expect(x.bind.bone).toBe('torso'); for (const st of x.stations) expect(Math.sign(st.at[0])).toBe(sideOf === 'R' ? 1 : -1); }
+    expect(rb.B.frameParts).toContain(ribs[0].name);
+    // it lies over flesh only
+    expect(() => dressed(['bared'])).toThrow(/bared layer lies over flesh/);
+  });
   it('a lineage lays its layers over its form; the ragged one dresses the skeleton', () => {
     const sheet = rollEgocube({ facets: { ancestry: 'ragged', build: 'canonical', role: 'frontline' }, seed: 3 });
     expect(sheet.ancestry).toMatchObject({ door: 'creature', form: 'skeleton', layers: ['shreds'] });
@@ -198,6 +233,10 @@ describe('the layers', () => {
     expect(P.undead?.layers ?? P.create.spec.undead?.layers ?? ['shreds']).toEqual(['shreds']);
     const lin = { reads: 'x', humanity: [0, 0.1], cover: { a: '#aaaaaa' }, cues: [{ at: 1, ch: 'frame', line: 'x' }] };
     expect(() => readLineage('x', { ...lin, form: 'skeleton', layers: Object.keys(UNDEAD_LAYERS) })).not.toThrow();
+    // the rotting lineage: the zombie, bared
+    const RT = rollEgocube({ facets: { ancestry: 'rotting', build: 'canonical', role: 'frontline' }, seed: 3 });
+    expect(RT.ancestry).toMatchObject({ form: 'zombie', layers: ['bared'] });
+    expect(() => expandPlan(planFromSheet(RT).create.spec.plan)).not.toThrow();
     // the decayed lineage: the flesh, then the rags over it
     const D = rollEgocube({ facets: { ancestry: 'decayed', build: 'canonical', role: 'frontline' }, seed: 3 });
     expect(D.ancestry).toMatchObject({ form: 'skeleton', layers: ['decayed', 'shreds'] });

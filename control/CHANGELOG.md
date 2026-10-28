@@ -405,6 +405,29 @@ through the character designer, clips fitted to the class's timing, factions) is
   neck). Machine gate: across seeds, the decayed skeleton's rags no wider than the bare one's; the check fails on the
   old fit (0.418 against 0.293). Eyes: the decayed soldier and giant before and after. Eyes gate: the operator's to
   judge.
+- **Bared: a gaunt corpse with parts gone back to bone** (`undead/bared.js`, the `bared` layer; the operator: "a
+  decayed flesh style where they are essentially gaunt humans with certain parts replaced with skeletons"). The
+  inverse of `decayed`: the zombie's body, its flesh drawn in further (the trunk × 0.9, the limbs × 0.86), and a
+  seeded few of its parts bone again, each on a side of its own. The card says how many and which
+  (`bared { count, parts }`):
+  - `skull`: the head as the skeleton's skull, its jaw its own bone, on the neck drawn in and lengthened a little;
+  - `arm`: a whole arm, or `foreArm`: the forearm and its hand from the elbow;
+  - `thigh`, or `shin`: the shin and its foot from the knee;
+  - `ribs`: four to six of one side's ribs broken through the chest, from the flank round to the front, lying on the
+    flesh's own boxy section.
+
+  A bared limb is authored on its own side, so the other keeps its flesh, and keeps its rig: its bones are the flesh
+  limb's. Its radii are the skeleton's own: the bone pass's per-limb radii now live in `boneLimb` (`undead/passes.js`),
+  shared by both, and every skeleton and zombie body is byte-identical through the move. A skull hangs from its base,
+  so its head drop is a third of the card's, which would otherwise swing it into the chest. The bared parts are their
+  own groups (`Bone`, and the skull's), toned as the skeleton lineage's bone. The layer lies over flesh only: on a
+  skeleton it is refused. The new `rotting` lineage is the zombie with `['bared']`.
+
+  Machine gate: every word on a card's list coming up across seeds, within its count; a bared limb the skeleton's
+  bone on its side only; the flesh left narrower; a bared skull as the head (no head card, the jaw hinged, in the
+  lean); the ribs on one side, bound to the torso; refused over bone; the lineage's sheet building; the bodies
+  without the layer unchanged (hashed). Eyes: all five rotting builds from the front, three-quarter, side and back.
+  The hulk's skull still sits low under its hunched shoulders. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

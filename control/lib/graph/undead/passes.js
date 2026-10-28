@@ -33,8 +33,10 @@ function lengthenArms(body, len) {
 }
 
 // the arm parts authored on both sides (each its own radii, one side's parts able to go): the left's joints mirrored
-function splitArms(body) {
-  const arms = body.segments.filter((s) => ARM.test(s.name) && s.mirror === 'name');
+function splitArms(body) { splitLimbs(body, ARM); }
+/** a limb's parts authored on both sides, each its own (the left's joints mirrored where they stand): `re` the parts */
+export function splitLimbs(body, re) {
+  const arms = body.segments.filter((s) => re.test(s.name) && s.mirror === 'name');
   const L = (n) => n.replace(/R$/, 'L'), jL = (j) => `${j}__L`;
   for (const s of arms) {
     for (const j of [s.from, s.to]) if (!body.joints[jL(j)]) body.joints[jL(j)] = mirrorX(body.joints[j] ?? body.J[j]);
@@ -81,7 +83,24 @@ export function fleshPasses(body, card, { rand }) {
 // (template metres at 2 m tall, × k for the body's height and × the card's bone weights; the frame's shapes are a
 // skeleton's read at play distance, not an anatomy plate)
 const BONE = { femur: [0.05, 0.026, 0.044], tibia: [0.044, 0.022, 0.034], meta: [0.03, 0.018], toes: [0.024, 0.012], humerus: [0.04, 0.02, 0.032], radius: [0.032, 0.016, 0.026], hand: [0.03, 0.016], finger: [0.011, 0.009] };
-const RIBS = [{ z: 1.47, w: 0.72 }, { z: 1.415, w: 0.86 }, { z: 1.36, w: 0.93 }, { z: 1.305, w: 0.95 }, { z: 1.25, w: 0.9 }, { z: 1.2, w: 0.78 }];
+export const RIBS = [{ z: 1.47, w: 0.72 }, { z: 1.415, w: 0.86 }, { z: 1.36, w: 0.93 }, { z: 1.305, w: 0.95 }, { z: 1.25, w: 0.9 }, { z: 1.2, w: 0.78 }];
+
+/** A limb part as its bone (a shaft with knobbed ends; the foot's, the hand's and the finger's their own), or null when
+ * `s` is no limb part: the skeleton's limbs, and a flesh body's part bared to the bone (./bared.js). `rMid` is
+ * undefined on the parts without one (the caller drops the key). */
+export function boneLimb(s, { k, g, Bw = { shaft: 1, ends: 1 } }) {
+  const R = (r) => r3(r * k * g), end = (x) => R(x * Bw.ends), shaft = (x) => R(x * Bw.shaft);
+  const knee = (s, [a, m, b]) => ({ ...s, rA: end(a), rB: end(b ?? a), rMid: shaft(m), mid: 0.5, over: [0.35, 0.35] });
+  if (/^thigh/.test(s.name)) return knee(s, BONE.femur);
+  if (/^shin/.test(s.name)) return knee(s, BONE.tibia);
+  if (/^upperArm/.test(s.name)) return knee(s, BONE.humerus);
+  if (/^foreArm/.test(s.name)) return knee(s, BONE.radius);
+  if (/^meta/.test(s.name)) return { ...s, rA: end(BONE.meta[0]), rB: [end(BONE.meta[0] * 1.3), end(BONE.meta[1])], rMid: undefined };
+  if (/^toes/.test(s.name)) return { ...s, rA: [end(BONE.toes[0] * 1.4), end(BONE.toes[1])], rB: [end(BONE.toes[0]), end(BONE.toes[1] * 0.8)], rMid: undefined };
+  if (/^hand/.test(s.name)) return { ...s, rA: [end(BONE.hand[0]), end(BONE.hand[1])], rB: [end(BONE.hand[0] * 1.3), end(BONE.hand[1] * 0.8)], rMid: undefined };
+  if (/^finger/.test(s.name)) return { ...s, rA: end(BONE.finger[0]), rB: end(BONE.finger[1]), rMid: undefined };
+  return null;
+}
 
 export function bonePasses(body, card, { k, g, chest, hips, rand }) {
   const Bw = card.bones ?? { shaft: 1, ends: 1, ribs: 1 };
@@ -97,7 +116,6 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
   for (let i = 0; i < 3; i++) J.neckTop[i] = nt[i];
   // the spine: three joints up the back from the pelvis to the neck
   Object.assign(body.joints, { spine0: P([0, -0.05, 0.98]), spine1: P([0, -0.085, 1.2]), spine2: P([0, -0.075, 1.42]), sternumTop: P([0, 0.125, 1.47]), sternumLow: P([0, 0.115, 1.27]) });
-  const knee = (s, [a, m, b]) => ({ ...s, rA: end(a), rB: end(b ?? a), rMid: shaft(m), mid: 0.5, over: [0.35, 0.35] });
   const keep = [];
   for (const s of body.segments) {
     if (s.kind === 'trunk' && s.name === 'torso') continue;
@@ -109,15 +127,7 @@ export function bonePasses(body, card, { k, g, chest, hips, rand }) {
     }
     // (the neck a slim core through its vertebrae: the frame's `cervical`)
     if (s.name === 'neck') { keep.push({ ...s, rA: R(0.009 * Bw.shaft), rB: R(0.008 * Bw.shaft) }); continue; }
-    if (/^thigh/.test(s.name)) { keep.push(knee(s, BONE.femur)); continue; }
-    if (/^shin/.test(s.name)) { keep.push(knee(s, BONE.tibia)); continue; }
-    if (/^upperArm/.test(s.name)) { keep.push(knee(s, BONE.humerus)); continue; }
-    if (/^foreArm/.test(s.name)) { keep.push(knee(s, BONE.radius)); continue; }
-    if (/^meta/.test(s.name)) { keep.push({ ...s, rA: end(BONE.meta[0]), rB: [end(BONE.meta[0] * 1.3), end(BONE.meta[1])], rMid: undefined }); continue; }
-    if (/^toes/.test(s.name)) { keep.push({ ...s, rA: [end(BONE.toes[0] * 1.4), end(BONE.toes[1])], rB: [end(BONE.toes[0]), end(BONE.toes[1] * 0.8)], rMid: undefined }); continue; }
-    if (/^hand/.test(s.name)) { keep.push({ ...s, rA: [end(BONE.hand[0]), end(BONE.hand[1])], rB: [end(BONE.hand[0] * 1.3), end(BONE.hand[1] * 0.8)], rMid: undefined }); continue; }
-    if (/^finger/.test(s.name)) { keep.push({ ...s, rA: end(BONE.finger[0]), rB: end(BONE.finger[1]), rMid: undefined }); continue; }
-    keep.push(s);
+    keep.push(boneLimb(s, { k, g, Bw }) ?? s);
   }
   for (const s of keep) if (s.rMid === undefined) delete s.rMid;
   const ribR = R(0.011 * Bw.ribs), cw = chest * g;

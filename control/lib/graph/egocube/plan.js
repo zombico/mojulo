@@ -527,10 +527,12 @@ function formCreature(sheet, title) {
   if (dials.lean) dials.lean = { ...dials.lean, max: Math.max(dials.lean.max, P.lean + 10) };
   const READY = { armL: P.arms.L, armR: P.arms.R, elbowL: 'slight', elbowR: 'slight', grip: 12, jaw: P.jaw, crouch: P.crouch, head: P.head };
   clips.idle = [READY, { ...READY, crouch: r3(P.crouch + 0.03), head: { ...P.head, x: r3(P.head.x * 0.6) } }];
-  const tone = legible(sheet.ancestry.colours.Skin);
+  const tone = legible(sheet.ancestry.colours.Skin), boneTone = U.card.form === 'bone' ? tone : legible('#d6cfbd');
   const palette = { Torso: tone, Pelvis: tone, Neck: tone, Legs: tone, Feet: tone, Arms: tone, Hands: tone, Claws: tone, Crease: shade(tone, -0.25), Pad: shade(tone, -0.1), PadInner: shade(tone, -0.15),
     // (a bone skull's openings are dark, so they read as holes; its teeth a shade off the bone)
-    ...(U.skull ? { Skull: tone, Jaw: tone, Socket: '#1a1816', Teeth: shade(tone, 0.06) } : {}),
+    // (a flesh body's bared parts are bone's own tone: the skeleton lineage's)
+    ...(U.skull ? { Skull: boneTone, Jaw: boneTone, Socket: '#1a1816', Teeth: shade(boneTone, 0.06) } : {}),
+    ...(U.layers.includes('bared') ? { Bone: boneTone } : {}),
     // (its rags a dull shade under the bone: form only, one tone)
     ...(U.layers.includes('shreds') ? { Cloth: shade(tone, -0.3) } : {}),
     // (a decayed body's flesh a shade darker than its bone, dried)
@@ -546,7 +548,7 @@ function formCreature(sheet, title) {
       ...(U.card.form === 'flesh' ? { volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)]] } : {}) },
     adorn: [], palette,
   };
-  return { plan, k, legs: 'plantigrade', head: { id: U.head ?? 'bones', provisional: false }, stance, cover: { tiles: [], locks: [] }, kit: null, topo: {}, shapes: [], undead: { form, variant: U.id, reads: U.card.reads, lost: U.lost, ...(U.layers.length ? { layers: U.layers } : {}) } };
+  return { plan, k, legs: 'plantigrade', head: { id: U.head ?? 'bones', provisional: false }, stance, cover: { tiles: [], locks: [] }, kit: null, topo: {}, shapes: [], undead: { form, variant: U.id, reads: U.card.reads, lost: U.lost, ...(U.layers.length ? { layers: U.layers } : {}), ...(U.bared ? { bared: U.bared } : {}) } };
 }
 
 // a form's head card (the zombie's gaunt face), scaled to its body
