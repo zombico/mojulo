@@ -22,7 +22,7 @@
  * then a gaze TARGET (`look`, aimed from each eye's own centre, so near targets converge), then a side's own; the head's ACTIONS (blink, a smile's squint, a brow's lift) add on top. All V units
  * (head heights), the relational head's frame (+x the figure's right, +y the face, +z up). Pure, deterministic.
  */
-import { smin, sdRoundCone } from './vajra.js';
+import { smin, smax, sdRoundCone } from './vajra.js';
 import { SM } from '../../util/math-scope.js';
 import { hash3 } from '../era/dirt.js';
 
@@ -32,10 +32,17 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
 /** the lids' SEAT on the globe (`eyeRig`'s `seat`, V): within `reach` of a margin the skin lies `lie` over the lid
  * shell and rises out of it by `rise` [slope, curl] with the distance from the margin, cut with its own `blend` (wide, so
  * the lid rolls into the cheek: the lid space's narrow blend left a kink there that a net drew ragged); the fold above the
- * crease leans back by `fold` [its lean forward per unit up, its curl past the arc, how far past the arc it reaches],
+ * crease rises by `fold` [how far forward it has come at its top over its height, its curl past the arc, how far past
+ * the arc it reaches, the blend it is capped there with: a hard cap stood a ridge along the fold's top] as a pad, out of
+ * the crease steeply and up to the brow near upright, so its face looks forward to the light (a straight lean faced it
+ * down its whole height, the cove's shadow again),
  * and its ends by `side` [the lean per unit out, its curl, the rise where it has left the skin, the share of the span
- * either side of the eye's centre it leans out from] */
-export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.7, 80, 0.03], side: [0.3, 20, 0.12, 0.05] });
+ * either side of the eye's centre it leans out from]; the brow's arc and its ties hang lower by `brow` [the arc's peak,
+ * the brow's head and tail] (the fold's arch was a tall cove over the lid); and the eye (its globe, lids and lashes) sits
+ * `forward` [a share of the way from the cornea toward the nose's tip, the least its cornea stays behind the glabella]
+ * out of a socket that set it deep behind the brow (a deep-set eye comes forward; one already near the brow's line stays,
+ * where the share alone stood it proud of the face) */
+export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026] });
 
 /** the channels, [rest, min, max]; the gaze in degrees (+yaw toward the figure's right, +pitch up) */
 export const EYE_CHANNELS = Object.freeze({
@@ -138,9 +145,10 @@ function bump(t, a, shape) {
  * is the brow pad's action ({ med, L, R }, each a { x, z } shift in V from rest to moved); the medial strings take the
  * medial pull, each lateral string its side's. Returns { bridge: [{x, z}…], strings: [[top, tie, foot]…], arcs,
  * sides }: each arc { Fm, Fl, K, z(x) } (z null past the feet), each side { arc, head, tail } (the brow's ties). V
- * units, the head's frame.
+ * units, the head's frame. `seat`: the arc and the ties hang lower by `SEAT.brow`.
  */
-export function browBridge(P, pull = {}) {
+export function browBridge(P, pull = {}, { seat = false } = {}) {
+  const [dropK, dropTie] = seat ? SEAT.brow : [0, 0];
   const zero = { x: 0, z: 0 }, med = pull.med || zero, sides = ['L', 'R'].filter((s) => P[`en${s}`]);
   const bz = sides.reduce((m, s) => m + P[`en${s}`].z, 0) / sides.length + 0.16;
   const arcs = {}, strings = [], tops = {}, out = {};
@@ -150,11 +158,11 @@ export function browBridge(P, pull = {}) {
     const Fl = { x: ex.x + sg * 0.022 + lat.x, z: ex.z + 0.004 + lat.z };
     // the brow's ties: its head a touch medial of the inner canthus, its tail on the wing-to-canthus line (straight up
     // past the canthus when there is no wing), both carried by their strings' pulls
-    const head = { x: en.x - sg * 0.008 + med.x, z: en.z + 0.075 + med.z }, tz = en.z + 0.079;
+    const head = { x: en.x - sg * 0.008 + med.x, z: en.z + 0.075 - dropTie + med.z }, tz = en.z + 0.079 - dropTie;
     const tail = al ? { x: ex.x + (ex.x - al.x) * ((tz - ex.z) / (ex.z - al.z)) + lat.x, z: tz + lat.z } : { x: ex.x + sg * 0.03 + lat.x, z: tz + lat.z };
     // each string a line from its foot through its tie, up to the bridge
     const along = (foot, tie, z) => ({ x: foot.x + ((tie.x - foot.x) * (z - foot.z)) / (tie.z - foot.z), z });
-    const K = { x: e.x + sg * GLOBE.iris + (med.x + lat.x) / 2, z: en.z + 0.08 + (med.z + lat.z) / 2 };
+    const K = { x: e.x + sg * GLOBE.iris + (med.x + lat.x) / 2, z: en.z + 0.08 - dropK + (med.z + lat.z) / 2 };
     const W = Fl.x - Fm.x, uK = (K.x - Fm.x) / W;
     const chord = (u) => Fm.z + (Fl.z - Fm.z) * u;
     const z = (x) => { const u = (x - Fm.x) / W; return u <= 0 || u >= 1 ? null : chord(u) + (K.z - chord(uK)) * bump(u, uK, -0.35); };
@@ -292,13 +300,15 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     const t = (p.x - en.x) / span, F = foldAt(p.x, t);
     if (!F) return Infinity;
     if (p.z <= F.zk) return Math.max(F.zm - p.z, shellY(p.x, p.z) + F.shallow - p.y);
-    // (seated, the fold leans back from the knee at a tilt, `SEAT.fold`, so its face looks up enough for a light from
-    // above to reach it and the brow's underside is trimmed back to it, then curls out of the skin past the arc: the
-    // square's ease below stood at the lid shell's depth well up under the brow, a cove facing down, dark under any key)
+    // (seated, the fold rises from the knee as a pad, `SEAT.fold`: forward out of the crease, which keeps its shadow,
+    // then up to the brow near upright, its face to the light, the brow's underside trimmed to it; then it curls out of
+    // the skin past the arc. The square's ease below stood at the lid shell's depth well up under the brow, a cove
+    // facing down, dark under any key)
     if (seat) {
       // (the sides' lean grows from nothing at the knee to its whole over the fold's height)
-      const dz = p.z - F.zk, over = Math.max(0, dz - F.h), [lean, curl, past] = SEAT.fold, sw = smooth01(dz / F.h);
-      return Math.max(p.z - F.za - past, (F.yk + lean * dz + curl * over * over + F.side * sw - p.y) / Math.hypot(1, lean + 2 * curl * over));
+      const dz = p.z - F.zk, u = Math.min(1, dz / F.h), over = Math.max(0, dz - F.h), [lean, curl, past, cap] = SEAT.fold, sw = smooth01(dz / F.h);
+      const slope = 2 * lean * (1 - u) + 2 * curl * over;
+      return smax(p.z - F.za - past, (F.yk + lean * F.h * (1 - (1 - u) * (1 - u)) + curl * over * over + F.side * sw - p.y) / Math.hypot(1, slope), cap);
     }
     // the fold rolls out of the knee and rises into the arc (a square's ease: gentle at the crease, steep at the brow)
     const u = Math.min(1, (p.z - F.zk) / F.h), rise = yArc - F.yk, slope = (2 * rise * u) / F.h;

@@ -116,8 +116,11 @@ to the skin's faces. Its face rig moves the rest skin's own points per action (`
 carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 10 the
 lids rest on the globes (`head-relational-eye.js` `SEAT`, the fit's `seat`): within a reach of the margins the skin is
 cut back to the lid shell over the globe and rolls out of it into the cheek and up to the crease, so no tunnel stands
-between a margin and the eye, and above the crease the fold leans back to the brow at a tilt a light from above reaches; everything that rebuilds the head from its fit (the bake, the hair, the face rig) reads
-the same seated head. Under laws 1 the head
+between a margin and the eye. Above the crease the fold rises to the brow as a pad, steep out of the crease and near
+upright under the brow, so a light from above reaches it; the brow's arc and its ties hang lower; a deep-set eye (its
+globe, lids and lashes) comes forward a share of the way toward the nose's tip, short of the glabella; the lower
+lashes root on the margin's front, shorter. Everything that rebuilds the head from its fit (the bake, the hair, the
+face rig) reads the same seated head. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,

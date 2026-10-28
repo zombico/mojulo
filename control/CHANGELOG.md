@@ -112,10 +112,20 @@ the same man in a leather jacket. The eyes gate is the operator's.
   reach of each margin is cut back to the lid shell and rises out of it with the distance from the margin, cut with a
   wide blend so the lid rolls into the cheek rather than kinking. The lower lid stands as far off the globe as the
   upper (about 6 mm with its thickness, where it stood 16), and its margin is rounded by its rim as the upper's is.
-  Above the crease the fold now leans back to the brow at a tilt, the brow's underside trimmed to it (`SEAT.fold`).
-  It used to stand at the lid's depth well up under the brow, a cove facing down that read near-black under any light
-  from above. The fit keeps `seat`, so the skin's bake, the hair, the jewellery and the face rig rebuild the same
-  seated head.
+  Above the crease the fold now rises to the brow as a pad (`SEAT.fold`): forward out of the crease, which keeps its
+  shadow, then near upright under the brow, the brow's underside trimmed to it and the cap at its top blended rather
+  than cut hard. It used to stand at the lid's depth well up under the brow, a cove facing down that read near-black
+  under any light from above; a straight lean faced it down its whole height. Its ends rise toward the nose and the
+  temple. The fit keeps `seat`, so the skin's bake, the hair, the jewellery and the face rig rebuild the same seated
+  head.
+- **The brow lower, the eye forward** (realistic laws 10, `SEAT.brow`, `SEAT.forward`). The brow's arc hangs 3.7 mm
+  lower and the brow's ties 2.8 mm lower, so the eyebrows come down with the fold's arch. A deep-set eye (its globe,
+  lids and lashes; the socket and the skin about it stay) comes forward a third of the way from the cornea toward the
+  nose's tip, its cornea kept at least 6 mm behind the glabella: about 7 mm on the male pole, none on the female,
+  whose eye already sits near the brow's line and would stand proud of her face at the full share.
+- **The lower lashes on a seated lid** (`epidermis.js` `SEATED_LOWER`). Out of the tunnel that cut most of their length
+  off, they hung from under the lid's band as a long fringe. On a seated lid they root up the margin's front, just
+  under the eye, a quarter shorter, nearer level and curled less. A head that is not seated grows them as before.
 - A hero minted before keeps what its laws made; a hero minted now is stamped laws 10 (`REALISTIC_LAWS_VERSION`).
 
 ### Named heroes and their marks

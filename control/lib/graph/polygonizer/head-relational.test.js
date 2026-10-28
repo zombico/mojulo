@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { relationalHead, RELATIONS } from './head-relational.js';
-import { GLOBE } from './head-relational-eye.js';
+import { GLOBE, SEAT } from './head-relational-eye.js';
 import { rayIn } from './head-field-view.js';
 
 const MM = 230;
@@ -105,5 +105,21 @@ describe('the lids\' seat', () => {
     // (the upper lid lay on the globe already: the seat leaves its middle as it was, within its blend)
     expect(proud(seated, 'upper', 0.5, 0.004)).toBeCloseTo(proud(loose, 'upper', 0.5, 0.004), 2);
     expect(proud(seated, 'lower', 0.5, -0.005)).toBeLessThan(proud(seated, 'upper', 0.5, 0.004) + 0.01);
+  });
+  it('brings the eye forward, short of the glabella, and hangs the brow\'s arc and ties lower', () => {
+    const P0 = seated.relational.points, cornea = (h) => h.globes.find((g) => g.side === 'R').centre.y / sc + GLOBE.back;
+    const [share, behind] = SEAT.forward, room = P0.g.y - behind - P0.eyeR.y;
+    // (a share of the way to the nose's tip, never nearer the glabella than `behind`)
+    const dy = cornea(seated) - cornea(loose);
+    expect(dy).toBeGreaterThan(0);
+    expect(dy).toBeCloseTo(Math.min(share * (P0.prn.y - P0.eyeR.y), room), 9);
+    expect(P0.g.y - cornea(seated)).toBeGreaterThan(behind - 1e-9);
+    // (the skin about it stays: the bare wave is the same)
+    const q = { x: P0.eyeR.x * sc, y: P0.eyeR.y * sc, z: (P0.eyeR.z + 0.1) * sc };
+    expect(seated.bare(q)).toBe(loose.bare(q));
+    const [A, B] = [loose, seated].map((h) => h.relational.bridge);
+    expect(A.arcs.R.K.z - B.arcs.R.K.z).toBeCloseTo(SEAT.brow[0], 9);
+    expect(A.sides.R.head.z - B.sides.R.head.z).toBeCloseTo(SEAT.brow[1], 9);
+    expect(A.sides.R.tail.z - B.sides.R.tail.z).toBeCloseTo(SEAT.brow[1], 9);
   });
 });

@@ -34,6 +34,8 @@
 //   --crop nose     frame the nose's base and wings (the lip's top to the mid-bridge, just past the alae)
 //   --crop chin     frame the lower face (the nose's base to under the menton, between the jaw's corners)
 //   --crop ear      frame the right ear (read it in the front ¾, the ¾, the lateral and the rear ¾)
+//   --seat          the relational head's lids seated on the globes (head-relational-eye.js SEAT, realistic laws 10);
+//                   a row of --acts may carry its own `seat`
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
@@ -56,7 +58,7 @@ const { skinZoomWeights } = await import(path.join(REPO, 'control/lib/graph/epid
 const { DIMORPH } = await import(P('figure-rig.js'));
 
 const args = process.argv.slice(2);
-let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null, cropArg = null, eyesSpec = null, epiSpec = null, rig = false, skinOn = false;
+let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null, cropArg = null, eyesSpec = null, epiSpec = null, rig = false, skinOn = false, seatArg = false;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -75,6 +77,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--eyes') { const v = args[++i]; eyesSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; source = 'relational'; continue; }
   if (a === '--act') { act = JSON.parse(args[++i]); source = 'relational'; continue; }
   if (a === '--acts') { acts = JSON.parse(args[++i]); source = 'relational'; continue; }
+  if (a === '--seat') { seatArg = true; source = 'relational'; continue; }
   if (a === '--rig') { rig = true; source = 'relational'; continue; }
   if (a === '--field') continue;
   if (a === 'male' || a === 'female') { sexes.push(a); continue; }
@@ -87,7 +90,7 @@ if (unknown.length) { console.error(`head-study --field: not a head knob: ${unkn
 const badRel = Object.keys(rel).filter((k) => !RELATION_NAMES.includes(k));
 if (badRel.length) { console.error(`head-study --field: not a relation: ${badRel.join(', ')} (have ${RELATION_NAMES.join(', ')})`); process.exit(1); }
 if (!['protoform', 'relational'].includes(source)) { console.error(`head-study --field: --source protoform | relational`); process.exit(1); }
-const badAct = [act, ...(acts || [])].filter(Boolean).flatMap((o) => Object.keys(o)).filter((k) => k !== 'eyes' && k !== 'epidermis' && k !== 'crop' && !ACTION_NAMES.includes(k));
+const badAct = [act, ...(acts || [])].filter(Boolean).flatMap((o) => Object.keys(o)).filter((k) => k !== 'eyes' && k !== 'epidermis' && k !== 'crop' && k !== 'seat' && !ACTION_NAMES.includes(k));
 const { eyeSpecErrors } = await import(P('head-relational-eye.js'));
 const badEyes = [eyesSpec, ...(acts || []).map((o) => o.eyes)].flatMap((e) => eyeSpecErrors(e ?? undefined));
 if (badEyes.length) { console.error(`head-study --field: ${badEyes.join('; ')}`); process.exit(1); }
@@ -214,10 +217,11 @@ let y0 = 0;
 const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
 const ROWS = acts ? sexes.flatMap((sex) => acts.map((a) => ({ sex, actions: a }))) : sexes.map((sex) => ({ sex, actions: act }));
 for (const { sex, actions: row } of ROWS) {
-  const { eyes: rowEyes, epidermis: rowEpi, crop: rowCrop, ...actions } = row || {};
+  const { eyes: rowEyes, epidermis: rowEpi, crop: rowCrop, seat: rowSeat, ...actions } = row || {};
+  const seat = rowSeat ?? seatArg;
   const crop = rowCrop ?? cropArg;
   const eyes = rowEyes ?? eyesSpec;
-  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned, actions, eyes }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
+  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned, actions, eyes, seat }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
   // the camera's frame: the head's bounds, or the face's (chin to above the brow, cheek to cheek, the face's depth)
   const L = head.landmarks;
   const ET = L.earTopR, TR = L.tragionR, eh = ET.z - TR.z;
@@ -299,7 +303,7 @@ for (const { sex, actions: row } of ROWS) {
     svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">${sex} · ${source}${source === 'relational' ? ` ${layer}` : ''}${actLabel} · ${v.name}</text>`);
     if (skin) {
       const z = skinZoomWeights(cam.mmPerPixel), on = Object.entries(z).filter(([k, w]) => w > 0.01 && (k !== 'creases' || skin.tethers.length)).map(([k, w]) => (w > 0.99 ? k : `${k} ${Math.round(w * 100)}%`));
-      svgParts.push(`<text x="${x + 10}" y="${y0 + 20}" font-family="monospace" font-size="14" fill="#333">${crop ?? 'head'} · ${cam.mmPerPixel.toFixed(3)} mm/px${skin ? ' · skin: ' + (on.join(', ') || 'none at this zoom') : ''}</text>`);
+      svgParts.push(`<text x="${x + 10}" y="${y0 + 20}" font-family="monospace" font-size="14" fill="#333">${crop ?? 'head'}${seat ? ' · seated' : ''} · ${cam.mmPerPixel.toFixed(3)} mm/px${skin ? ' · skin: ' + (on.join(', ') || 'none at this zoom') : ''}</text>`);
     }
   }
 

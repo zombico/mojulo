@@ -1135,21 +1135,27 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // the brow's fold hangs from the forehead's bridge by strings; the brow pad's action pulls them (its medial bead the
   // medial strings, each lateral bead its side's)
   const shift = (k) => ({ x: Vn.browPad[k].x - Rn.browPad[k].x, z: Vn.browPad[k].z - Rn.browPad[k].z });
-  const bridge = skin ? browBridge(Pt, { med: shift('c'), L: shift('a'), R: shift('b') }) : null;
+  // (seated, the eyes come `SEAT.forward` of the way from the cornea to the nose's tip, their corneas kept behind the
+  // glabella: their globes, lids and lashes, not the socket or the skin about it, which the seat cuts back to the lids)
+  const Pe = seat ? { ...Pt, ...Object.fromEntries(['L', 'R'].flatMap((s) => {
+    const [share, behind] = SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
+    return ['eye', 'en', 'ex'].map((k) => [`${k}${s}`, { ...Pt[`${k}${s}`], y: Pt[`${k}${s}`].y + dy }]);
+  })) } : Pt;
+  const bridge = skin ? browBridge(Pe, { med: shift('c'), L: shift('a'), R: shift('b') }, { seat }) : null;
   const eyeRigs = skin ? ['L', 'R'].map((s) => {
     const sm = Math.min(1, act('smile') + act(`smile${s}`)) * (actions && 'smileEyes' in actions ? act('smileEyes') : 1), bl = Math.min(1, act('blink') + act(`blink${s}`));
     // a gaze target (`look`, metres from between the eyes) becomes this eye's yaw and pitch, aimed from its own centre;
     // a side's own gaze still wins over it
     let spec = eyes;
     if (eyes && typeof eyes === 'object' && eyes.look) {
-      const mid = { x: (Pt.eyeL.x + Pt.eyeR.x) / 2, y: (Pt.eyeL.y + Pt.eyeR.y) / 2, z: (Pt.eyeL.z + Pt.eyeR.z) / 2 };
+      const mid = { x: (Pe.eyeL.x + Pe.eyeR.x) / 2, y: (Pe.eyeL.y + Pe.eyeR.y) / 2, z: (Pe.eyeL.z + Pe.eyeR.z) / 2 };
       const M = 1 / (HEAD_V * 1.8);   // metres → head heights
       const to = { x: mid.x + eyes.look.x * M, y: mid.y + eyes.look.y * M, z: mid.z + eyes.look.z * M };
-      spec = { ...eyes, ...lookAngles({ ...Pt[`eye${s}`], y: Pt[`eye${s}`].y - GLOBE.back }, to) };
+      spec = { ...eyes, ...lookAngles({ ...Pe[`eye${s}`], y: Pe[`eye${s}`].y - GLOBE.back }, to) };
     }
     const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
     c.open *= 1 - bl;
-    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
+    const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
@@ -1255,13 +1261,13 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels),
     // the brow's bridge, strings and arcs (V), and the eye rigs' lash lines and globes, for the lashes
     bridge,
-    eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV })),
+    eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV, ...(e.seat ? { seated: true } : {}) })),
   };
   // the skin wave alone (no nose, lips, lip line, eyes or ears: what a head sampled feature by feature lies over), and
   // each ear's own field, its bowl and canal cut (the ear alone, not joined to the head)
   const bare = skin ? (p) => skinField(p, true) : null;
   const earFields = hung.map((e) => ({ side: e.side, field: (p) => { const d = e.f(p); if (d === Infinity) return d; const c = e.carve(p); return c === Infinity ? d : smax(d, -c, 0.004 * sc); }, top: e.top, tragion: e.tragion }));
   // each eye's globe as its own field (STAND units), its paint and its tone, and its centre and look
-  const globes = eyeRigs.map((e) => ({ side: e.side, field: e.globe, paint: e.paint, tone: e.irisTone, near: e.near, gaze: e.gaze, centre: S({ ...Pt[`eye${e.side}`], y: Pt[`eye${e.side}`].y - GLOBE.back }) }));
+  const globes = eyeRigs.map((e) => ({ side: e.side, field: e.globe, paint: e.paint, tone: e.irisTone, near: e.near, gaze: e.gaze, centre: S({ ...Pe[`eye${e.side}`], y: Pe[`eye${e.side}`].y - GLOBE.back }) }));
   return { field, bare, earFields, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth, eyes: eyeRigs.map((e) => e.channels), vergence, relational, globes };
 }

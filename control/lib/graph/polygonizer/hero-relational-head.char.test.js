@@ -58,7 +58,9 @@ const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'ear
 const ONE_PINS = { male: 'd141a71485ddcf02', female: '54cd21f82280678f' };
 // the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
 const NECK_PINS = { male: '459d30a9fc5f3008', female: '23a186409b0578cd' };
-const SEATED_PINS = { male: '4cd2cfe1f2df0f6d', female: '2a9e77cbaf18646f' };
+// the lids SEATED (realistic laws 10, head-relational-eye.js SEAT); re-pinned within laws 10, unreleased, when the brow's arc
+// and ties came down, the fold rose as a pad and a deep-set eye came forward (SEAT.brow, fold, forward)
+const SEATED_PINS = { male: '1fe1b3159b296b27', female: '7761925bbc06cb8a' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
