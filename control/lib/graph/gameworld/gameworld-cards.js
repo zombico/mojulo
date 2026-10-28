@@ -550,6 +550,7 @@ function foesCard() {
     ...Object.values(FOE_CLASSES).map(row),
     '',
     `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')}.`,
+    'MODES   becomes: <id>: defeated, it is that entry (skin, class, bar) till the last: a knight\'s armour, a shell.',
     'SUMMONS a summoner\'s: { foe, count?, bound? }: another entry, asleep till called; bound (true), they fall with it.',
     `PAIR    an entry's pair: { foe, cover?, down?: ${PAIR_DOWNS.join(' | ')}, swap? }: its partner stands beside it, each its own bar;`,
     '        each covers the other reeling; one whose partner falls enrages, or (revive) both must fall together; swap: under',

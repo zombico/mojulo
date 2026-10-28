@@ -712,6 +712,15 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **Modes as a word** (`becomes: '<id>'`; the operator: "armored mode is one layer, unarmored mode is another … koopa with
+  shell, koopa no shell"). An entry names the entry it becomes when defeated, a chain of up to four with no loop: each
+  mode is that entry's own skin, class and bar, minted as its own figure, laid as the body's `modes` (each with its
+  class's rule, which the runtime's reset now takes on: a quicker shell-less koopa fights as one), its death the last's.
+  The page sheds what one mode wears that the next lacks, as the hand-laid modes did.
+
+  Machine gate: the chain stood as modes with their figures, health and rules, the last's death, a clear counting one;
+  loops and self refused; the runtime's reset taking the next mode's rule. Eyes: the hand-laid armoured skeleton earlier;
+  this word's own not yet looked at.
 - **A pair: two foes as one encounter** (`pair: { foe, cover?, down?: enrage | revive, swap? }`;
   `worlds/controllable/pair.js`; the operator's Scylla and Charybdis: "both on the field. one stunned. one switch out.
   one die first", "the orchestration of S&C means 'sometimes they are together, sometimes autonomous'"). The second

@@ -59,13 +59,21 @@ import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair', 'becomes'];
 // the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's)
-const specOf = ({ vanish, states, summons, pair, ...spec }) => spec;
+const specOf = ({ vanish, states, summons, pair, becomes, ...spec }) => spec;
 /** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
  * calls, the hero's distance that starts them, how far round it they arrive (m) and the transit they arrive by. */
 export const SUMMON = Object.freeze({ count: 3, at: 2, every: 4, radius: 14, ring: 1.8, with: 'smoke' });
 const SUMMONS_KEYS = ['foe', 'count', 'bound'];
+/** The most modes a foe is defeated through (its own and the entries it `becomes`, in turn). */
+export const MAX_MODES = 4;
+/** An entry's modes: itself, then each entry it `becomes`, in turn (worlds/controllable/vanish.js `body.modes`). */
+export function modeChain(F, id) {
+  const out = [id];
+  for (let at = F[id]?.becomes; at !== undefined; at = F[at]?.becomes) out.push(at);
+  return out;
+}
 /** A pair's rows (worlds/controllable/pair.js): what one does when its partner fell (`down`), and how far it stands off. */
 export const PAIR_DOWNS = Object.freeze(['enrage', 'revive']);
 const PAIR = Object.freeze({ apart: 2.5, back: 6 });
@@ -123,6 +131,18 @@ export function readBestiary(F) {
     if (e.summons !== undefined) out[id].summons = readSummons(e.summons, `${at}.summons`, id, F);
     if (e.pair !== undefined && e.summons !== undefined) throw new Error(`${at}: a summoner and a pair are two relations; name one`);
     if (e.pair !== undefined) out[id].pair = readPair(e.pair, `${at}.pair`, id, F);
+    // MODES (`becomes`: the entry it becomes when defeated, docs/foes.md): another entry, no loop, at most MAX_MODES in all
+    if (e.becomes !== undefined) {
+      if (typeof e.becomes !== 'string' || !F[e.becomes] || e.becomes === id) throw new Error(`${at}.becomes is the foe of the bestiary it becomes when defeated (${Object.keys(F).filter((k) => k !== id).join(', ') || 'none yet'})`);
+      const seen = new Set([id]);
+      for (let x = e.becomes; x !== undefined; x = F[x].becomes) {
+        if (seen.has(x)) throw new Error(`${at}.becomes: its modes loop back (${[...seen, x].join(' → ')})`);
+        seen.add(x);
+        if (F[x].summons !== undefined || F[x].pair !== undefined) throw new Error(`${at}.becomes: '${x}' has a relation of its own (a mode is a body, its relations its first's)`);
+      }
+      if (seen.size > MAX_MODES) throw new Error(`${at}.becomes: ${seen.size} modes, at most ${MAX_MODES}`);
+      out[id].becomes = e.becomes;
+    }
   }
   return out;
 }
@@ -149,6 +169,8 @@ export function fieldedIds(G) {
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
+  // (and the modes each of them becomes)
+  for (const id of [...used]) for (const m of modeChain(bestiaryOf(G), id)) used.add(m);
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
@@ -199,6 +221,29 @@ function peopleBody(height, scale) {
   };
 }
 
+// a foe's figure into the part, by its skin (a game's own, a model, a people, a beast), and the body it stands in
+function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } = {}) {
+  if (figure) {
+    // a game's own person, made by its own door: drawn as it is, at a person's height grown by its rank
+    part.figures[id] = figure;
+    return peopleBody(2 * PERSON.c, f.scale);
+  }
+  if (isModel(entry)) {
+    // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
+    part.figures[id] = modelFigure(ref, f.measured.height);
+    return peopleBody(f.measured.height, f.scale);
+  }
+  if (isPeople(entry)) {
+    // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
+    // below the hero door on its creature clips), drawn from the sheet the run made it from
+    const sheet = C.sheets[eid] ?? (C.sheets[eid] = rollEgocube(peopleRollOf(G, eid, entry)));
+    part.figures[id] = fieldFigure(ref, fieldOf({ body: 'person', sheet }));
+    return peopleBody(statureOf({ body: 'person', sheet }), f.scale);
+  }
+  part.figures[id] = foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
+  return beastBody(f.measured, f.scale);
+}
+
 /**
  * THE STAND STEP every hostile goes through (the bestiary's, a shooter's hunters, a sneak's guards): one foe stood into a
  * part's { figures, entities }, its figure and its entity, with everything layer 0 carries (its class's mind and attack,
@@ -206,7 +251,8 @@ function peopleBody(height, scale) {
  *   p      { id, eid?, entry, at, heading, group? }   the placement; `entry` a bestiary entry ({ class, skin?, … })
  *   ref    the figure's sketch (its people's, its model's, its beast's)
  *   figure a figure already made (a game's own person on the library): drawn as it is, on a person's body
- *   more   { rule?, dormant? }   what the bestiary lays beside (a summoner's call, a summons' sleep)
+ *   more   { rule?, dormant?, modeRefs? }   what the bestiary lays beside (a summoner's call, a summons' sleep, its modes'
+ *          figures' sketches)
  *   tune   { team?, rule?, body?, weapon? }   a game type's own numbers over the class's (a shooter's gun, a sneak's
  *          unhittable watchers), laid last and kept small: the class says what it is, the game what it plays at
  *   ctx    { rim, sheets }   the world's rim colour and the people's sheets rolled (hostileCast shares them)
@@ -215,25 +261,18 @@ function peopleBody(height, scale) {
 export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tune = null, ctx = null } = {}) {
   const C = ctx ?? { rim: targetRimOf(G), sheets: {} };
   const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
-  let b;
-  if (figure) {
-    // a game's own person, made by its own door: drawn as it is, at a person's height grown by its rank
-    part.figures[p.id] = figure;
-    b = peopleBody(2 * PERSON.c, f.scale);
-  } else if (isModel(p.entry)) {
-    // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
-    part.figures[p.id] = modelFigure(ref, f.measured.height);
-    b = peopleBody(f.measured.height, f.scale);
-  } else if (isPeople(p.entry)) {
-    // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
-    // below the hero door on its creature clips), drawn from the sheet the run made it from
-    const sheet = C.sheets[p.eid] ?? (C.sheets[p.eid] = rollEgocube(peopleRollOf(G, p.eid, p.entry)));
-    part.figures[p.id] = fieldFigure(ref, fieldOf({ body: 'person', sheet }));
-    b = peopleBody(statureOf({ body: 'person', sheet }), f.scale);
-  } else {
-    b = beastBody(f.measured, f.scale);
-    part.figures[p.id] = foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
-  }
+  const b = figureFor(G, C, part, p.id, p.eid, p.entry, f, { ref, figure });
+  // its MODES (`becomes`): each a figure of its own on the same stick figure, its health and its class's rule; only the
+  // last, layer 0, dies (worlds/controllable/vanish.js), so the death is the last's
+  const B = G ? bestiaryOf(G) : null, chain = B && p.eid && p.entry.becomes !== undefined ? modeChain(B, p.eid) : null;
+  const modes = chain ? chain.map((eid, k) => {
+    if (!k) return { figure: p.id, hp: f.toll.hp };
+    const fk = resolveFoe(specOf(B[eid])), id = `${p.id}-m${k + 1}`;
+    figureFor(G, C, part, id, eid, B[eid], fk, { ref: more.modeRefs?.[eid] ?? null });
+    const lo = fk.entity.rule.loadout ? { loadout: fk.entity.rule.loadout.map((slot) => ({ ...slot, figure: id })) } : {};
+    return { figure: id, hp: fk.toll.hp, rule: { ...fk.entity.rule, ...lo } };
+  }) : null;
+  const last = chain ? B[chain[chain.length - 1]] : p.entry;
   // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
   // per weapon, so a slot naming none would leave the body undrawn)
   const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: p.id })) } : {};
@@ -245,7 +284,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
     // (its base STATES, born in: foes/states.js, carried by layer 0 and so by every mode it wears)
-    body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
+    body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
   };
@@ -259,7 +298,7 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   const figures = {}, entities = [], part = { figures, entities };
   // the target rim's colour: the world's accent (its juice's trail palette), the same on every foe it lays
   const ctx = { rim: targetRimOf(G), sheets: {} };
-  const standOne = (p, more = {}) => standFoe(G, part, p, { ref: refs[p.eid], more, ctx });
+  const standOne = (p, more = {}) => standFoe(G, part, p, { ref: refs[p.eid], more: { ...more, modeRefs: refs }, ctx });
   const B = bestiaryOf(G);
   for (const p of P) {
     const S = p.entry.summons, Q = p.entry.pair;

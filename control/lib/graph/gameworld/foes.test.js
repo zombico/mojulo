@@ -181,6 +181,21 @@ describe('the run', () => {
     expect(() => readBestiary({ boss: { class: 'summoner', summons: { foe: 'boss' } } })).toThrow(/another foe of the bestiary/);
     expect(() => readBestiary({ b: { class: 'summoner', summons: { foe: 'c' } }, c: { class: 'summoner', summons: { foe: 'b' } } })).toThrow(/does not call a summoner/);
   });
+  it('a foe that becomes another is defeated through its modes: each a figure, its health and its class; the last dies', () => {
+    const BEAST = CLASSES.find((c) => resolveFoe({ class: c.id }).entity.rule.speed);
+    const W = { knight: { class: SOLO.id, becomes: 'bones' }, bones: { class: BEAST.id, vanish: { die: 'dismantle' } } };
+    const G = world(W, { from: ['knight'], count: 1, win: 'clear' });
+    expect(fieldedIds(G)).toEqual(['knight', 'bones']);
+    const X = hostileCast(G, 'one', ENDS, { refs: { knight: 'w-foes-knight', bones: 'w-foes-bones' } });
+    const e = X.entities.find((x) => x.id === 'foe-knight-1');
+    expect(e.body.modes.map((m) => m.figure)).toEqual(['foe-knight-1', 'foe-knight-1-m2']);
+    expect(e.body.modes[1]).toMatchObject({ hp: resolveFoe({ class: BEAST.id }).toll.hp, rule: { speed: resolveFoe({ class: BEAST.id }).entity.rule.speed } });
+    expect(X.figures['foe-knight-1-m2']).toBeTruthy();
+    expect(e.body.vanish.die).toBe('dismantle');   // (only the last dies: its death is the last's)
+    expect(withFoeWin(G, 'one', ENDS, [{ kind: 'reach-exit', at: ENDS.exit }])[0].count).toBe(1);
+    expect(() => readBestiary({ a: { class: SOLO.id, becomes: 'b' }, b: { class: SOLO.id, becomes: 'a' } })).toThrow(/modes loop back/);
+    expect(() => readBestiary({ a: { class: SOLO.id, becomes: 'a' } })).toThrow(/becomes is the foe of the bestiary it becomes/);
+  });
   it('a pair stands its partner beside it, each naming the other with the same rows; fielded, counted, refused by name', () => {
     const W = { scylla: { class: SOLO.id, pair: { foe: 'charybdis', down: 'revive', swap: 0.4 } }, charybdis: { class: SOLO.id } };
     const G = world(W, { from: ['scylla'], count: 1, win: 'clear' });

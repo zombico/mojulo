@@ -54,7 +54,9 @@ An entry reads as a recipe:
 
 ### Modes: defeated, never destroyed, until the last
 
-`body.modes: [{ figure, hp? }, …]`, the first the mode it starts in. A killing blow on a mode with another under it
+An entry names its next mode as another entry, `becomes: '<id>'` (a chain, no loop, at most four): each mode is that
+entry's own skin, class and bar (an armoured knight becomes its bare bones; a shelled koopa its shell-less, quicker
+self), laid as `body.modes: [{ figure, hp?, rule? }, …]`, the first the mode it starts in; its death is the last's. A killing blow on a mode with another under it
 DEFEATS it: it reels, sheds what its figure carries that the next lacks (`scene/rig-shed.js`, bone by bone) and resets
 into the next mode's figure and health. Every mode is its own figure on the same stick figure, so the swap is the
 runtime's variant swap and the walk carries across. Only the last mode, layer 0, dies.

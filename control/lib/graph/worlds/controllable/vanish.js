@@ -17,7 +17,7 @@
  *
  * A platformer's squash and a pinball's pop are kinds of going (`is`), played by the page at once.
  *
- * MODES (`body.modes: [{ figure, hp? }, …]`, optional, the first the mode it starts in): a foe in a mode with another
+ * MODES (`body.modes: [{ figure, hp?, rule? }, …]`, optional, the first the mode it starts in; `rule` a mode's own class): a foe in a mode with another
  * under it is DEFEATED by a killing blow, never destroyed (combat-hit's `noDestroy` refills it): it reels (a stagger, not
  * the knockdown), resets into the next mode (its figure, its health) and fights on, `e.shed` telling the page what it was; only the last
  * mode, layer 0, dies (and is destroyed or goes as above). Field ownership: e.modeIdx, e.modeHp, e.shed.
@@ -97,6 +97,8 @@ export function buildVanish(E) {
       const N = M[e.modeIdx];
       if (N.figure) e.body.figure = N.figure;
       if (Number.isFinite(N.hp)) { e.body.hp = N.hp; e.hpMax = N.hp; }
+      // (a mode with a class of its own, `rule`: the next entry's, gameworld/foes.js `becomes`: it fights as that one)
+      if (N.rule) e.rule = { ...e.rule, ...N.rule };
       // (a defeat is a beat, not a knockdown: it reels, its armour torn off, and fights on; a path that downed it outright
       // is undone the same way)
       e.downed = false; e.deadAt = null; e.reactClip = 'stagger'; e.staggerT = 0; e.downPauseT = null; e.reactDur = e.staggerDur || 1.3;
