@@ -219,6 +219,23 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'structure', line: 'a dead face, or the skull under it' },
     ],
   },
+  // the dead under arms: what is left of their armour, their weapons in their hands
+  revenant: {
+    reads: 'a skeleton under arms', humanity: [0, 0.05], form: 'skeleton', layers: ['adorned', 'armed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton in what is left of its armour (undead/armour.js) and its clothes, its weapons in its hands (the hero\'s gear)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bare bone in {pick}', pick: ['a dented helm and a cuirass', 'a single pauldron and bracers', 'the plate it was buried in'] },
+      { at: 1, ch: 'structure', line: 'a skull under a helm, the sockets empty' },
+    ],
+  },
+  risen: {
+    reads: 'a corpse risen under arms', humanity: [0, 0.2], form: 'zombie', layers: ['adorned', 'armed'], cover: { grey: '#9a9a90', green: '#8a9a7a', blue: '#7a8a9a' },
+    built: 'the undead form library (lib/graph/undead): the zombie in what is left of its armour (undead/armour.js), the weapon it died holding in its hand',
+    cues: [
+      { at: 1, ch: 'frame', line: 'a body kept and wrong, armoured: {pick}', pick: ['a helm askew', 'a breastplate over the wasted chest', 'a pauldron on one shoulder'] },
+      { at: 1, ch: 'structure', line: 'a dead face under a helm, the jaw slack' },
+    ],
+  },
   // the dead between the zombie and the bone: gaunt flesh rotting back on the skeleton, in its rags
   decayed: {
     reads: 'a rotting corpse, half bone', humanity: [0, 0.08], form: 'skeleton', layers: ['decayed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },

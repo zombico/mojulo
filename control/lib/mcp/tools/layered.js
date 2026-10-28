@@ -1259,7 +1259,10 @@ export function cowlPressesEars(hero) {
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
   // (the undead's layers over the body as it ends: undead/tiered-layers.js; absent, the plan as it was)
-  return hero.undead ? undeadLayers(tieredFormPlan(hero), hero) : tieredFormPlan(hero);
+  if (!hero.undead) return tieredFormPlan(hero);
+  // (a skeleton's armour is sized to the flesh it was built from: the living plan)
+  const living = undeadCard(hero)?.form === 'bone' ? heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, tieredPole(hero))) : null, plan = tieredFormPlan(hero);
+  return undeadLayers(plan, hero, { living: living ?? plan });
 }
 function tieredFormPlan(hero) {
   const pole = tieredPole(hero);

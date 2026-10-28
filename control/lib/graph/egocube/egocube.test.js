@@ -224,7 +224,9 @@ describe('ancestry: lineages, from the creature loop', () => {
       const s = rollEgocube({ seed, facets: { ancestry: id } });
       expect(s.facets.humanity, id).toBeGreaterThanOrEqual(lin.humanity[0]);
       expect(s.facets.humanity, id).toBeLessThanOrEqual(lin.humanity[1]);
-      if (s.facets.humanity < DOOR_H) expect(s.ancestry.door, `${id} at ${s.facets.humanity}`).toBe('creature');
+      // (a lineage carrying an undead form stands on the tiered hero body at any humanity: lib/graph/undead/tiered.js)
+      if (lin.form) expect(s.ancestry.door, `${id} carries form ${lin.form}`).toBe('hero');
+      else if (s.facets.humanity < DOOR_H) expect(s.ancestry.door, `${id} at ${s.facets.humanity}`).toBe('creature');
     }
   });
   it('shows the deepest cue of a slot only: the long snout replaces the short', () => {

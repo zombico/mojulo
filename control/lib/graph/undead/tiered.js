@@ -5,7 +5,8 @@
  *
  *   undeadWords(spec)         → the hero's words for its form, under the spec's own (the hero door records them at mint,
  *                               layered.js heroRecord, so an edit reaches them): bald, the body bare (no clothes but its
- *                               own skin; the feet bare), one tone, the face drawn gaunt, its rest
+ *                               own skin; the feet bare), one tone, the face drawn gaunt, its rest; under the `armed`
+ *                               layer the card's weapons as its gear (a lost hand's moved to the free one)
  *   undeadFlesh(plan, hero)   → the hero's plan, before the tiered passes (so the joints' bridges and the shoulders'
  *                               balls are built on the body as it is now), with its card's flesh passes: wasted, bloated
  *   undeadRest(hero)          → the rest the card stands in (./passes.js posture) as the hero's pose words: the hunch, the
@@ -47,6 +48,13 @@ export function undeadPicks(hero) {
   return { lost, bared };
 }
 
+// the card's weapons as the hero's gear: a hand the loss took drops what it held to the other hand, if that one is free
+function armedGear(armed, lost) {
+  const gear = { ...armed }, gone = lost && (lost.part === 'hand' || lost.part === 'foreArm') ? (lost.side === 'R' ? 'right' : 'left') : null;
+  if (gone && gear[gone]) { const other = gone === 'right' ? 'left' : 'right'; if (!gear[other]) gear[other] = gear[gone]; delete gear[gone]; }
+  return gear;
+}
+
 // a corpse's face on the landmark head (its `face` ratios, 1 the fitted head): the cheeks hollow under cheekbones that
 // stand out, the face and the jaw drawn narrow, the brow heavy over the eyes
 const GAUNT_FACE = { cheek: 0.82, cheekbone: 1.18, faceWidth: 0.9, jawWidth: 0.9, browRidge: 1.15 };
@@ -85,6 +93,7 @@ export function undeadWords(hero) {
     ...(card.form === 'flesh' ? { expression: { jawOpen: rest.jaw, mouthCorner: -0.005, blink: 0.3, ...(hero.expression && typeof hero.expression === 'object' ? hero.expression : {}) } } : {}),
     gesture: hero.gesture ?? G,
     clips: { idle, ...(hero.clips ?? {}) },
+    ...(hero.undead.layers?.includes('armed') && card.armed && hero.gear === undefined ? { gear: armedGear(card.armed, undeadPicks(hero).lost) } : {}),
     ...(rest.lean > 0 ? { motion: { ...(hero.motion ?? {}), walk: { tilt: Math.min(35, rest.lean), ...(hero.motion?.walk && typeof hero.motion.walk === 'object' ? hero.motion.walk : {}) } } } : {}),
   };
 }

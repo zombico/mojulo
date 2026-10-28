@@ -4,9 +4,10 @@
  *
  *   (what goes back to bone is ./tiered.js undeadPicks: one pick, read by the plan that lays the bones and by the
  *   recipe that cuts the flesh)
- *   undeadLayers(plan, hero)   → the plan with its layers, in order: `bared` (over flesh: a limb's bones on its side, one
- *                                side's ribs, the skull), `decayed` (over bone: ./decay.js), then `shreds` (./shreds.js),
- *                                the rags hanging clear of whatever the body now is
+ *   undeadLayers(plan, hero, { living })   → the plan with its layers, in order: `bared` (over flesh: a limb's bones on
+ *                                its side, one side's ribs, the skull), `decayed` (over bone: ./decay.js), `adorned`
+ *                                (./armour.js: the armour sized to `living`, the hero's plan before its flesh went),
+ *                                then `shreds` (./shreds.js), the rags hanging clear of whatever the body now is
  *   undeadRecipe(recipe, hero) → the expanded recipe with the card's heavy arm (one side swollen, the other withered), without the flesh each bared limb leaves on its side (its bridges
  *                                and its shoulder's ball with it) and without the card's seeded loss (a hand, or a
  *                                forearm and its hand, in whatever shape that side has them), the parts pinned to them
@@ -20,6 +21,7 @@ import { skullFrame } from './skull.js';
 import { shreds } from './shreds.js';
 import { decay, LIMBS } from './decay.js';
 import { sectionAt } from './hero-bones.js';
+import { adorned } from './armour.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -94,7 +96,7 @@ function bareRibs(plan, side, k, rand) {
   });
 }
 
-export function undeadLayers(plan, hero) {
+export function undeadLayers(plan, hero, { living = plan } = {}) {
   const card = undeadCard(hero), layers = hero?.undead?.layers ?? [];
   if (!card || !layers.length) return plan;
   if (layers.includes('decayed') && card.form !== 'bone') throw new Error(`undead: the decayed layer lies over bone (the ${hero.undead.form} keeps its own flesh)`);
@@ -126,6 +128,14 @@ export function undeadLayers(plan, hero) {
     const D = decay(body, card.decay ?? { open: 0.5, limbs: 0.6, neck: 0.6, scalp: 0.5 }, { k, g: 1, s: card.bones?.shaft ?? 1, skull: hasSkull, lost: undeadPicks(hero).lost, rand: mulberry32(seed ^ 0x27d4eb2f), limbs: HERO_LIMBS });
     Object.assign(joints, D.joints); segments.push(...D.segments);
     palette.Flesh = palette.Flesh ?? shade(tone, -0.38);
+  }
+  // ADORNED: what is left of its armour, sized to the living body, on the body as it now is (before the rags, which
+  // hang over it)
+  if (layers.includes('adorned')) {
+    const A = adorned({ ...plan, joints, segments }, living, card.adorned ?? { helm: 0.5, cuirass: 0.5, pauldron: 0.4, bracers: 0.3, greaves: 0.3 },
+      { k, rand: mulberry32(seed ^ 0x51ed270b), lost: undeadPicks(hero).lost, skull: segments.some((s) => s.name === 'braincase') });
+    Object.assign(joints, A.joints); segments.push(...A.segments);
+    palette.Metal = palette.Metal ?? '#6f7275';
   }
   // SHREDS: its clothes in rags, clear of the body as it now is
   if (layers.includes('shreds')) {

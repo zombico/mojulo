@@ -28,8 +28,8 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (v) => mul(v, 1 / (Math.hypot(...v) || 1));
 const SLOTS = ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'];
-// (the hero's trunk is painted Top and Bottom, its spine's low bone the lumbar)
-const TRUNK_GROUPS = new Set(['Torso', 'Pelvis', 'Flesh', 'Top', 'Bottom']), TRUNK_BONES = new Set(['pelvis', 'lumbar', 'torso', 'neck']);
+// (the hero's trunk is painted Top and Bottom, its spine's low bone the lumbar; a cuirass is trunk too: the rags hang over it)
+const TRUNK_GROUPS = new Set(['Torso', 'Pelvis', 'Flesh', 'Top', 'Bottom', 'Metal']), TRUNK_BONES = new Set(['pelvis', 'lumbar', 'torso', 'neck']);
 const boneOf = (s) => (typeof s.bind === 'string' ? s.bind : s.bind?.bone);
 
 // the points a body's trunk parts reach, to fit a band to: a trunk's ellipses, a loft's stations, a segment's ends.

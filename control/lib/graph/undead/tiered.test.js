@@ -198,3 +198,43 @@ describe('a loss and a heavy arm on the tiered body', () => {
     expect(span(R.parts[`upperArm${big}`]) / span(R.parts[`upperArm${small}`])).toBeCloseTo(card.heavy.k ** 2, 1);
   });
 });
+
+describe('the armed and the adorned', () => {
+  const dead = (form, build, layers, seed = 3) => heroRecord({ form: 'tiered', cast: 'male', palette: { Skin: '#d6cfbd' }, undead: { form, build, seed, layers } });
+  it('armed: the card\'s weapons are the hero\'s gear, the operator\'s own over them, a lost hand\'s moved to the free one', () => {
+    const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && c.armed?.right && c.armed?.left);
+    const H = dead('skeleton', card.build, ['armed']);
+    expect(H.gear.right.item).toBe(card.armed.right.item);
+    expect(H.gear.left.item).toBe(card.armed.left.item);
+    expect(dead('skeleton', card.build, []).gear).toBeUndefined();
+    const own = heroRecord({ form: 'tiered', cast: 'male', gear: { right: { type: 'equipment', item: 'dagger' } }, undead: { form: 'skeleton', build: card.build, seed: 3, layers: ['armed'] } });
+    expect(own.gear.right.item).toBe('dagger');
+    // (a one-handed card whose loss takes its weapon hand: the weapon moves over)
+    const [, one] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.loss && c.armed?.right && !c.armed.left);
+    const form = one.form === 'bone' ? 'skeleton' : 'zombie';
+    const lostR = Array.from({ length: 40 }, (_, i) => dead(form, one.build, ['armed'], i + 1)).find((h) => undeadPicks(h).lost?.side === 'R');
+    expect(lostR).toBeDefined();
+    expect(lostR.gear.right).toBeUndefined();
+    expect(lostR.gear.left.item).toBe(one.armed.right.item);
+  });
+  it('adorned: the armour sized to the living body, on a skeleton a shell clear of its ribs, each piece on its bone', () => {
+    const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && Object.values(c.adorned ?? {}).every((p) => p >= 0.8) && c.adorned.pauldrons);
+    const P = heroPlanOf(dead('skeleton', card.build, ['adorned'])), M = P.segments.filter((s) => s.group === 'Metal');
+    for (const n of ['helm', 'cuirass', 'pauldronR', 'pauldronL']) expect(M.some((s) => s.name === n)).toBe(true);
+    const ribX = Math.max(...P.segments.filter((s) => /^rib\dR$/.test(s.name)).flatMap((s) => s.stations.map((st) => st.at[0])));
+    for (const st of M.find((s) => s.name === 'cuirass').stations) expect(st.r[0]).toBeGreaterThan(ribX);
+    expect(M.find((s) => s.name === 'helm').bind.bone).toBe('head');
+    expect(M.find((s) => s.name === 'pauldronL').bind.bone).toBe('upperArmL');
+    expect(P.palette.Metal).toBeTruthy();
+    expect(() => expandPlan(P)).not.toThrow();
+  });
+  it('the revenant and the risen reach the hero door armed and adorned, their plans building', () => {
+    for (const ancestry of ['revenant', 'risen']) {
+      const sheet = rollEgocube({ facets: { ancestry, build: 'canonical', role: 'frontline' }, seed: 3 });
+      const H = heroRecord(planFromSheet(sheet).create.spec), P = heroPlanOf(H);
+      expect(H.undead.layers).toEqual(expect.arrayContaining(['adorned', 'armed']));
+      expect(Object.keys(H.gear ?? {}).length).toBeGreaterThan(0);
+      expect(() => expandLayeredManifest({ kind: 'layered', hero: H, plan: P })).not.toThrow();
+    }
+  });
+});

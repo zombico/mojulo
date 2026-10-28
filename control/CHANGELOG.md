@@ -506,6 +506,26 @@ through the character designer, clips fitted to the class's timing, factions) is
   a skeleton; the heavy arm's ratio the card's k²; every lineage at the hero door; a layer on its own dice (the body
   under it byte for byte). Eyes: the ragged, decayed and rotting from the front and three-quarter. Eyes gate: the
   operator's to judge.
+- **The armed and the adorned undead** (`undead/armour.js`, the `armed` and `adorned` layers; the operator: "create
+  variations where they are adorned and arm them"). Two layers, each card saying what it carries and what it wore, and
+  two lineages that ask for them: `revenant` (the skeleton with `['adorned', 'armed', 'shreds']`) and `risen` (the
+  zombie with `['adorned', 'armed']`).
+  - `armed`: the card's weapons are the hero's gear, recorded under the spec's own: the soldier a sword and shield,
+    the knight a greatsword, the giant a club (a staff with the brutal style's mace head), the slender a bow, the
+    squat a hammer and shield, the zombies a dagger, a club or a sword. Gear hangs on the rig, so a skeleton's bone
+    hand holds it as a hand does. A weapon in a hand the card's loss took moves to the free hand, or is dropped.
+  - `adorned`: what is left of the armour, sized to the living body and hanging on the body it is now. The hero's
+    armour builds address the flesh torso's stations and the head's cranium, which a skeleton has not, so these are the
+    undead's own pieces: a kettle helm over the crown, a cuirass round the chest (on a skeleton a hollow shell clear of
+    the ribs), one pauldron or both, bracers, greaves, each rigid on its bone, in its own group (`Metal`). Each piece
+    rolls the card's odds on its own dice, the knight wearing nearly all of it. A skeleton's armour is sized to the flesh
+    plan it was built from. A cuirass counts as trunk for the rags, which hang over it. A zombie can still wear the
+    hero's own armour builds through `adorn`.
+
+  Machine gate: the armed card's gear on the hero, the operator's own over it, a lost hand's weapon moved; the adorned
+  skeleton's pieces, its cuirass clear of the ribs, each piece on its bone; both lineages at the hero door with their
+  layers, their plans building. Eyes: the revenant soldier, knight, giant and slender and the risen shambler and
+  soldier, front and three-quarter, before and after rounding the armour's rings. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 
