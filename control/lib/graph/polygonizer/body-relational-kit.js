@@ -144,7 +144,7 @@ function roundRect(c, a, b, w, h, r, k = 4) {
 }
 /** a flat STRIP along `path` (each point's normal `ns`, its across `acs`), `w` wide and `t` thick, lying on the side the
  * normals point to: its inner face on the path, its outer `t` out */
-function stripAlong(path, ns, acs, w, t) {
+export function stripAlong(path, ns, acs, w, t) {
   const rings = path.map((p, i) => { const l = scl(acs[i], w / 2), o = scl(ns[i], t); return [sub(p, l), add(p, l), add(add(p, l), o), add(sub(p, l), o)]; });
   const d0 = unitv(sub(path[1], path[0])), d1 = unitv(sub(path[path.length - 1], path[path.length - 2]));
   return tube(rings, sub(add(path[0], scl(ns[0], t / 2)), scl(d0, 0.0008)), add(add(path[path.length - 1], scl(ns[ns.length - 1], t / 2)), scl(d1, 0.0008)));

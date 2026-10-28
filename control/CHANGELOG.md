@@ -88,6 +88,21 @@ the same man in a leather jacket. The eyes gate is the operator's.
   (feet about 9 cm apart, legs never crossing), the pelvis turning and swaying less, the shoulders more against it. The
   run as minted (feet nearly on one line, the pelvis turning 8°) read as a woman's on
   a man. The woman keeps it. Stamped where a hero is written, as the walk's pole is: a hero stored before keeps its run.
+- **The jacket as built** (`polygonizer/body-relational-jacket.js`), from an outfit's outer garment words, on the
+  realistic body. The tailor's jacket was a closed tube whose opening was painted on it (the cloth taken in and coloured
+  as what shows there), so an open jacket did not open and its collar stayed a closed ring round the neck.
+  - **A real opening** (`openFront`): each ring of the jacket's body a C in section, the inner face round to a front
+    edge, the edge turned, the outer face back a leather's thickness out, so the two fronts are edges with a real gap
+    between them; the ends turned in and drawn small inside the body, where the tube's caps close them. Its collar is
+    opened with it. Each new point carries the weights of the cloth point it was made from.
+  - **The construction words** on `language.outer`: `front: 'zip'` (closed on a zip in the gap: its tape behind the
+    edges, its teeth, its pull; no V, no lapels, no buttons), `collar: 'shirt'` (the collar's points snapped to the
+    chest), `rib: 'cuffs' | 'waist' | 'both'` (knit bands cinched round what is under them, the body and the sleeves
+    bloused over them, the card's `Rib` tone), `pockets: 'flap'` (a patch pocket low on each front under a flap with a
+    snap, each inside its own front), `epaulettes: true` (a strap over each shoulder, laid by the shoulder's own slope,
+    buttoned at the collar), `cloth: 'leather'` or a cloth word (how it folds). `open: true` hangs the fronts apart.
+  - Its pieces lie on its own outer face (`faceAt`, `patchOn`: a slab following the curve, not a flat box).
+  - **A flight jacket**: the `flight` style card (the A-2), brown leather to the belt on rib bands.
 - The principles of the kit and the folds are written down: [garment-principles.md](../docs/garment-principles.md) has
   them as rules, the realistic body's contract points at them, and `/garment-design` reads a piece against them.
 - A hero minted before keeps what its laws made; a hero minted now is stamped laws 9 (`REALISTIC_LAWS_VERSION`).

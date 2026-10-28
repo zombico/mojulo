@@ -200,6 +200,14 @@ and keeps reading as the body moves.
   none on a piece a garment is worn over (the outer one carries the fold), and only cloth that runs under a belt blouses
   over it.
 
+- **A jacket opens.** An opening is cut, never painted: the jacket's body is a C in section (its inner face round to a
+  front edge, the edge turned, its outer face back), so its two fronts are real edges with a real gap between them, and
+  what is under it shows through the gap itself. Its collar opens with it. Closed, it closes on a zip in the gap; open,
+  the fronts hang apart. Its pieces lie on its own face and stay inside their own front: the pockets clear of the edge
+  and short of the side, the collar's points from the edge out over the chest.
+- **A knit rib gathers.** A rib waistband or cuff is a band cinched round what is under it, tighter than the cloth it
+  finishes, and the body or the sleeve blouses over it.
+
 Not yet: the game body (the tiered form) and the authored kernel lay their kit as slabs on the body's envelope; the
 realistic kneepads are still those. The folds are geometry only (no fold normal map, no weave).
 

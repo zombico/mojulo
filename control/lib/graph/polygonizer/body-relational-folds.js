@@ -19,7 +19,7 @@
  *       there is left (the outer one carries the fold)
  *
  * Deterministic: the rolls' turns from the part's name, no dice. (`beltPts` the belts' points: a garment blouses over a
- * belt only when it runs under it.)
+ * belt only when it runs under it; `gathered` { part: [[zLo, zHi]] } a band a piece is gathered into, its own rib.)
  */
 import { mixW } from './body-relational-resample.js';
 
@@ -91,14 +91,14 @@ const turnFrom = (d, toward, ax) => { const t = unitv(sub(toward, ax.map((x) => 
  * (points), `belts`: [[zLo, zHi]] the belts' heights round the trunk, `boots`: { R, L } a boot's top height, `order`: the
  * garments in the order worn (a later one over an earlier).
  */
-export function foldCloth(parts, { joints = {}, belts = [], beltPts = [], boots = {}, order = [] } = {}) {
+export function foldCloth(parts, { joints = {}, belts = [], beltPts = [], boots = {}, order = [], gathered = {} } = {}) {
   const tubes = Object.entries(parts).filter(([k, P]) => P.garment && P.layer === 1 && Array.isArray(P.stations) && P.stations.length > 2 && /_(body|torso|pelvis|arm[RL]|leg[RL])$/.test(k));
   // (a garment worn over this one at the same segment carries the fold there)
   const rank = (k) => order.indexOf(k.split('_')[0]), seg = (k) => k.split('_').pop();
   const outer = (k) => tubes.some(([j]) => j !== k && seg(j) === seg(k) && rank(j) > rank(k));
   for (const [k, P] of tubes) {
     if (outer(k)) continue;
-    const F = FOLD_CLOTH[weightOf(P.group)], side = k.slice(-1), s = seg(k), motifs = [];
+    const F = FOLD_CLOTH[P.cloth === 'leather' ? 'leather' : P.cloth === 'wool' || P.cloth === 'canvas' || P.cloth === 'denim' ? 'canvas' : weightOf(P.group)], side = k.slice(-1), s = seg(k), motifs = [];
     const { C, L } = runOf(P), at = (q) => { let b = 0; C.forEach((c, i) => { if (len(sub(c, q)) < len(sub(C[b], q))) b = i; }); return L[b]; };
     // CRESCENTS on the bend's inner side: the elbow's front, the knee's back
     const bend = /^arm/.test(s) ? joints[`elbow${side}`] : /^leg/.test(s) ? joints[`knee${side}`] : null;
@@ -113,6 +113,8 @@ export function foldCloth(parts, { joints = {}, belts = [], beltPts = [], boots 
       const near = beltPts.filter((q) => q[2] >= zLo - 0.002 && q[2] <= zHi + 0.002); if (!near.length) return true;
       return rc < near.reduce((t, q) => t + Math.hypot(q[0] - c[0], q[1] - c[1]), 0) / near.length; };
     if (/^(body|torso)$/.test(s)) for (const [zLo, zHi] of belts) if (C.some((c) => c[2] > zHi + 0.01) && C.some((c) => c[2] < zHi) && under([zLo, zHi])) motifs.push({ kind: 'blouse', zLo, zHi });
+    // (a piece GATHERED into a band of its own, a jacket's body into its rib waistband: bloused over it whatever its girth)
+    for (const [zLo, zHi] of gathered[k] ?? []) motifs.push({ kind: 'blouse', zLo, zHi });
     if (!motifs.length) continue;
     // the extent each motif reaches along the tube (m)
     const reach = (M) => (M.kind === 'blouse' ? null : [M.at - (M.n + 1) * M.gap - M.curve * 1.5 - 0.01, M.at + (M.n + 1) * M.gap + 0.01]);

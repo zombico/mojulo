@@ -322,7 +322,11 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}), ...(outer ? { outer: { open: !!outer.open } } : {}),
     ...(drawn ? { drawn, fits: Object.fromEntries(['top', 'bottom', 'outer'].filter((s) => lang[s] && lang[s].kind !== 'skirt').map((s) => [s, lang[s].fit ?? 'eased'])) } : {}), pieces: garments.map((E) => E.id), ...(panels.length ? { panels: panels.map((Q) => Q.id) } : {}), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(detailed ? { roles: Object.keys(roles), detail: seatedDetail } : {}), ...(warnings.length ? { warnings } : {}) };
   // the jacket's FRONT words, for the tailor on the realistic body (body-relational-wear.js): absent, nothing
-  const tailored = outer && worn.has('outer') && (outer.front !== undefined || outer.lapel !== undefined || outer.buttons !== undefined);
+  // (a zip front is no tailored front: no V, no lapels, no buttons; it is the jacket's CONSTRUCTION, below)
+  const tailored = outer && worn.has('outer') && ((outer.front !== undefined && outer.front !== 'zip') || outer.lapel !== undefined || outer.buttons !== undefined);
+  // the jacket's CONSTRUCTION words, for the realistic body's tailor (body-relational-jacket.js): absent, nothing
+  const built = outer && worn.has('outer') ? { ...(outer.front === 'zip' ? { zip: true } : {}), ...(outer.collar === 'shirt' ? { collar: 'shirt' } : {}), ...(outer.rib ? { rib: outer.rib } : {}), ...(outer.pockets && outer.pockets !== 'none' ? { pockets: outer.pockets } : {}), ...(outer.epaulettes ? { epaulettes: true } : {}), ...(outer.cloth ? { cloth: outer.cloth } : {}) } : {};
+  const jacket = Object.keys(built).length ? { ...built, ...(outer.open ? { open: true } : {}) } : null;
   // (its lapels the jacket's facing: the card's `Lapel` tone, else a shade off the jacket's own)
   // (and a tie on the shirt, the card's `Tie` tone, else a deep red)
   const tie = lang.tie === true && worn.has('top');
@@ -330,8 +334,10 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   const shaped = outer && worn.has('outer') && (outer.shoulder !== undefined || outer.waist !== undefined), shape = shaped ? { ...(outer.shoulder ? { shoulder: outer.shoulder } : {}), ...(outer.waist ? { waist: outer.waist } : {}) } : {};
   // (and a waistcoat's front, its V and its buttons, made before the jacket's over it)
   const vestFront = worn.has('vest') ? { front: vest.front ?? 'single', buttons: vest.buttons ?? (vest.front === 'double' ? 3 : 5) } : null;
-  const tailoring = tailored || shaped || tie || vestFront ? { ...(vestFront ? { vest: vestFront } : {}), ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
+  const tailoring = tailored || shaped || tie || vestFront || jacket ? { ...(jacket ? { jacket } : {}), ...(vestFront ? { vest: vestFront } : {}), ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
   if (tailored) tones.Lapel = card.tones?.Lapel ?? shade(T.Outer ?? tones.Outer ?? '#444444', 1.12);
+  // (a jacket's knit rib, the card's `Rib` tone, else a deep shade off the jacket's own)
+  if (jacket?.rib) tones.Rib = card.tones?.Rib ?? shade(T.Outer ?? tones.Outer ?? '#444444', 0.55);
   if (tie) tones.Tie = card.tones?.Tie ?? '#5b1f2b';
   return { garments, paint, rows, kit, tones, trace, ...(tailoring ? { tailoring } : {}) };
 }

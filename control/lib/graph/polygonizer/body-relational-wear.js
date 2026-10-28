@@ -51,6 +51,7 @@ import { oneTube, drapeRun, flareRun, fairRun, bridgeRun, turnHemIn, collarOn, b
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 import { beltOn, frameBuckle } from './body-relational-kit.js';
 import { foldCloth } from './body-relational-folds.js';
+import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
 
 /** a piece's role after its garment's name */
 const ROLE = /(Tail|Sleeve|Cuff|Collar|Rib|Seat|Leg|Shin|Hem|Shaft|Skirt)$/;
@@ -451,6 +452,23 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     }
   }
 
+  // THE JACKET AS BUILT (its construction words: body-relational-jacket.js): its body opened at the centre front, a real
+  // gap between two edges (a zip's, or worn open), its cloth named for the folds; then its pieces
+  const J = tailoring?.jacket, gathered = {};
+  if (J) {
+    for (const [k, P] of Object.entries(parts)) if (/^outer_/.test(k) && J.cloth) P.cloth = J.cloth;
+    const bodyName = Object.keys(parts).find((k) => /^outer_(body|torso)$/.test(k));
+    if (bodyName && (J.zip || J.open)) {
+      const open = !!J.open, B = parts[bodyName], zs = B.stations.map((st) => mean(Object.values(st.points))[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      const gapAt = open ? (z) => 0.07 + 0.08 * Math.max(0, Math.min(1, (z - z0) / (z1 - z0))) : () => JACKET.zipGap;
+      parts[bodyName] = openFront(B, { gap: gapAt });
+      // (its COLLAR opened with it, by the opening at the collar's foot: a closed ring round the neck held an open jacket shut)
+      const collarName = Object.keys(parts).find((k) => /^outerCollar_neck$/.test(k));
+      if (collarName) parts[collarName] = openFront(parts[collarName], { gap: () => gapAt(z1) });
+      if (J.zip && !open) Object.assign(parts, zipDown(parts[bodyName], 'outerZip', { group: 'Buckle', tape: parts[bodyName].group ?? 'Outer' }));
+      Object.assign(parts, jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered }));
+    }
+  }
   // THE FOLDS (hugging, realistic laws 8: body-relational-folds.js): crescents inside the elbows and behind the knees,
   // stacks over the boots and at the cuffs, the shirt bloused over its belt, on the outermost cloth there
   if (hug) {
@@ -463,7 +481,7 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       const boot = Object.entries(parts).filter(([k, P]) => P.group === 'Shoes' && k.endsWith(`_shank${S}`)).flatMap(([, P]) => P.stations.flatMap((x) => Object.values(x.points)));
       if (boot.length) boots[S] = Math.max(...boot.map((q) => q[2]));
     }
-    foldCloth(parts, { joints, belts: beltZones, beltPts, boots, order });
+    foldCloth(parts, { joints, belts: beltZones, beltPts, boots, order, gathered });
   }
   return { parts, worn, belts, painted, alias, tones };
 }
