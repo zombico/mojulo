@@ -43,6 +43,7 @@ import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { readVanish, vanishOf } from './vanish.js';
+import { readStates, stateBirth } from '../foes/states.js';
 import { trailContext } from './juice.js';
 import { resolveTrailColor } from '../scene/juice-style.js';
 import { peopleRoll, peopleSeed } from '../foes/people.js';
@@ -52,9 +53,9 @@ import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states'];
 // the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js)
-const specOf = ({ vanish, ...spec }) => spec;
+const specOf = ({ vanish, states, ...spec }) => spec;
 const LEVEL_KEYS = ['from', 'count'];
 export const SWARM = 3;
 export const MAX_FOES = 32;
@@ -72,7 +73,8 @@ export function readBestiary(F) {
     for (const k of Object.keys(e)) if (!ENTRY_KEYS.includes(k)) throw new Error(`${at}.${k} is not a foe setting (${ENTRY_KEYS.join(', ')})`);
     try { resolveFoe(specOf(e)); } catch (err) { throw new Error(`${at}: ${err.message.replace(/^foe: /, '')}`); }
     const vanish = e.vanish !== undefined ? readVanish(e.vanish, `${at}.vanish`) : undefined;
-    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(vanish !== undefined ? { vanish } : {}) };
+    const states = e.states !== undefined ? readStates(e.states, `${at}.states`) : undefined;
+    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
   }
   return out;
 }
@@ -174,6 +176,8 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
       // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
       body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry) },
       transform: { pos: p.at, heading: p.heading },
+      // (its base STATES, born in: foes/states.js, carried by layer 0 and so by every mode it wears)
+      ...(p.entry && p.entry.states ? stateBirth(p.entry.states) : {}),
     });
   }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);

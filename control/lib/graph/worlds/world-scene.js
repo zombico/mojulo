@@ -715,7 +715,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // payload.fireSources (a dungeon's chambers and tunnels; a terrain's sources set on the ground); `fire.sources` with
   // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
   // A play block's burning statuses (playscape elements burning / blaze) add a fire per body they may set alight.
-  const bodyFire = payload && sketch.manifest.play ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
+  // (and a status a body is born under: a foe's base state)
+  const bornAlight = Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.statuses && Object.keys(e.statuses).length);
+  const bodyFire = payload && (sketch.manifest.play || bornAlight) ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
   if (payload && (sketch.manifest.fire || bodyFire.length)) {
     const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
     const errs = validateFire(sketch.manifest.fire);

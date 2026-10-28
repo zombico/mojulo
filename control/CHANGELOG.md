@@ -671,6 +671,25 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the rim emitted only where a body asks for it, on the bar's pick; the accent's colour. Eyes: a skeleton
   and a corpse side by side, the rim and the bar moving from one to the other as the hero turns (the first round too
   faint on pale bone: a stronger falloff and a slight tint). Eyes gate: the operator's to judge.
+- **Foe base states: flaming** (`foes/states.js`, a bestiary entry's `states`; the operator: "add some primitives to the
+  skeleton … base states that can be carried by all layers above it … in the future enemies can carry this regardless,
+  without having to list every enemy").
+  - A foe may be BORN in a state, `states: { flaming: true | { color?, elemental?, char? } }`. A state is a status the
+    body starts under, carried by layer 0 and so by every mode above it: whatever draws its look on a body draws it on
+    this one, whichever figure it wears now. A new state is a row (`FOE_STATES`), never a list of foes.
+  - `flaming` is the `blaze` look: the fire channel's flames on the body, lighting the world around it, carried as it
+    moves. `color` is a flame's colour, a plain word (blue, green, red, crimson, purple, orange, yellow), a colorant of
+    the fire kernel's, a mix or a hex; absent, the element's own. The body chars as it burns (`char`: the share of its
+    own colour it keeps, 0.35 by default), darkened on whatever body it is drawn as now and put back when the fire goes
+    out.
+  - `elemental: true` makes the state the foe's ELEMENT (`e.element`, the affordance a system reads: what its blows
+    carry); `false`, the default, is the look alone. No system reads the element yet.
+  - Any body born under a status burns in the fire channel if its look burns (`bodyFires` reads `e.statuses` as it
+    reads the cues), and a page with no charring source carries none of the char code.
+
+  Machine gate: a state's status from the clock's start, its element only when elemental; the words refused by name;
+  a body born alight is one fire it carries, charring only where asked; no char code without a charring source. Eyes:
+  pending.
 
 ### Carved glyphs: the letter primitive grows up
 

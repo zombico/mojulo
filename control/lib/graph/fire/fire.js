@@ -171,7 +171,7 @@ export function resolveFire(fire, placed = [], { explicit: withExplicit = true, 
         ...(s.flares ? { flares: { every: s.flares.every, strength: isNum(s.flares.strength) ? s.flares.strength : 1 } } : {}),
         ...(isNum(s.pace) ? { pace: s.pace } : {}),
         // a body's fire (playscape/elements/body-fire.js): carried by the body `follow` while it carries status `el` in `key`
-        ...(typeof s.follow === 'string' ? { follow: s.follow, el: s.el, key: s.key || '', rise: isNum(s.rise) ? s.rise : 0 } : {}),
+        ...(typeof s.follow === 'string' ? { follow: s.follow, el: s.el, key: s.key || '', rise: isNum(s.rise) ? s.rise : 0, ...(isNum(s.char) ? { char: s.char } : {}) } : {}),
         ...(s.path ? { path: flightOf(s.path) } : {}) };
     }),
   };
