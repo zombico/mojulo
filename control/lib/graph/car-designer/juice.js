@@ -17,7 +17,7 @@
  * Tiers are the genre's: a drift's charge (blue, then orange, then violet), a boost's flame white-hot at its root.
  *
  * A trigger is a small expression over FACTS (comparisons, &&, ||, !, abs(), *): compileWhen reads it once into a tree
- * the page interprets each frame (never evaluated as code). bakeJuice(rows, anchors, D) → the figure's `juice`: its
+ * the page interprets each frame (never evaluated as code). bakeJuice(rows, anchors, D, { fidelity? }) → the figure's `juice`: its
  * anchors (on a bone, or on the machine's frame), its rows with their triggers compiled, the module D sizes scale by.
  * Principles: an effect reads in a frame (big, bright, short); it never covers the driver's head; its colour says its
  * tier; the steady state is quiet (an idle puff), the event is loud (a boost). Pure data.
@@ -80,7 +80,9 @@ export const MOTION = Object.freeze({
  *  speed's change, m/s²; topShare: the speed over the machine's top; surge: 0–1, a boost or a hard pull; impact: an edge,
  *  a bump that took more speed in an instant than the brakes could; boostStart: a boost's first frame), what the ground says (offroad: its grip under the tarmac's), what a game sets
  *  (boosting, damage 0–1, hit: an edge, charge 0–1, shield, invulnerable, item). */
-export const FACTS = Object.freeze(['speed', 'throttle', 'braking', 'steer', 'skidding', 'skidTime', 'corner', 'cornerTime', 'landed', 'boosting', 'boostStart', 'accel', 'topShare', 'surge', 'impact', 'offroad', 'damage', 'hit', 'charge', 'shield', 'invulnerable', 'item']);
+export const FACTS = Object.freeze(['speed', 'throttle', 'braking', 'steer', 'skidding', 'skidTime', 'corner', 'cornerTime', 'landed', 'boosting', 'boostStart', 'accel', 'topShare', 'surge', 'impact', 'offroad', 'damage', 'hit', 'charge', 'shield', 'invulnerable', 'item',
+  // a hero's (gameworld/feel/hero-juice.js: the platform rule's, read by the page only for a hero's juice)
+  'takeoff', 'airJump', 'fall', 'grounded', 'brake', 'charging']);
 
 /** A trigger read into a tree: ['or'|'and', a, b] ['not', a] ['cmp', op, a, b] ['mul', a, b] ['abs', a] ['num', v]
  *  ['fact', name]. Throws on what it cannot read. */
@@ -110,10 +112,25 @@ export function compileWhen(src) {
 
 /** The figure's juice: anchors [{ kind, bone (null: the machine's frame), at, dir }] and rows with compiled triggers;
  *  its status rows (the slots a machine has: head, brake, accent, all, bubble) and its FX, triggers compiled too. */
-export function bakeJuice(rows, anchors, D, { slots = {}, status = STATUS, fx = FX } = {}) {
+/** The fidelities a machine's juice is drawn at on the page (scene/juice-style.js JUICE_FIDELITIES, and the banded look):
+ *  voxel, a voxel venue's tumbling blocks; banded, an anime venue's flat cel discs; paint, the sixth generation's soft
+ *  sprites (the page's own: written as none); form, the seventh's sparks as hot cores in a wide bloom. */
+export const RIG_FIDELITIES = Object.freeze(['voxel', 'banded', 'paint', 'form']);
+/** The fidelity a venue and a read give a machine's juice: a voxel pole or venue its blocks, a banded one (an anime
+ *  venue) its cel discs, else the era's (gen-7 form, else paint). A composed floor's fidelity, when the world has one,
+ *  over all of them. */
+export function rigFidelity({ floor, pole, venueLook, era } = {}) {
+  if (floor && RIG_FIDELITIES.includes(floor)) return floor;
+  if (pole === 'voxel' || venueLook === 'voxel') return 'voxel';
+  if (pole === 'banded' || venueLook === 'anime') return 'banded';
+  return era === 'gen-7' ? 'form' : 'paint';
+}
+
+export function bakeJuice(rows, anchors, D, { slots = {}, status = STATUS, fx = FX, fidelity } = {}) {
+  if (fidelity !== undefined && !RIG_FIDELITIES.includes(fidelity)) throw new Error(`car-designer: a juice's fidelity is ${RIG_FIDELITIES.join(' | ')}`);
   const has = (sl) => sl === 'all' || sl === 'bubble' || !!slots[sl];
   return {
-    D, slots,
+    D, slots, ...(fidelity && fidelity !== 'paint' ? { fidelity } : {}),
     status: Object.entries(status).filter(([, r]) => r.slots.some(has)).map(([id, r]) => ({ id, when: compileWhen(r.when), slots: r.slots.filter(has), look: r.look, colours: r.colours, ...(r.by ? { by: r.by } : {}), ...(r.tierAt ? { tierAt: r.tierAt } : {}), ...['amount', 'halo', 'duration', 'flicker', 'rate'].reduce((o, k) => (r[k] !== undefined ? { ...o, [k]: r[k] } : o), {}) })),
     fx: Object.entries(fx).filter(([, r]) => r.at === 'screen' || anchors.some((a) => a.kind === r.at || a.kind.split('.')[0] === r.at)).map(([id, r]) => ({ id, when: compileWhen(r.when), at: r.at, look: r.look, colours: r.colours, ...['count', 'life', 'size', 'rate', 'budget', 'by'].reduce((o, k) => (r[k] !== undefined ? { ...o, [k]: r[k] } : o), {}) })),
     anchors: anchors.map((a) => ({ kind: a.kind, bone: a.bone ?? null, at: a.at, dir: a.dir })),

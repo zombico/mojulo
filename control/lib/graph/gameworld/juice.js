@@ -8,6 +8,9 @@
  *              anime fighter or brawler is full anime, cel-shaded: CEL_GENRES), else the register's own (isekai, material)
  *   flavor     its game type's animation (feel/flavor.js): the template it plays (its feel's base), else its genre's
  *              (flavorFor, GENRE_FLAVOR), else realistic
+ *   fidelity   how finely its effects are drawn (juice-style.js JUICE_FIDELITIES), the venue's drawing: a voxel stadium
+ *              (its quick words' venue, stadium/stadium-words.js) or a voxel kit draws blocks; else the era's, read at
+ *              each read (`era`: the sixth generation's paint, the seventh's form)
  *
  *   juice?: 'auto' | false | { register?, look?, flavor?, …dials }   the world's word (world.js reads its shape); a word it
  *            leaves out is the game's own. Absent: the effects are as they always were (nothing laid)
@@ -18,7 +21,7 @@
  *              colour (the character palette's first), its palette (the world palette's accent); none resolves, the
  *              look's own
  *
- *   juiceOfGame(G, { trailColor? })   → { fxStyle, from: { register, look, flavor }, why } every level's `fxStyle`, or null
+ *   juiceOfGame(G, { trailColor? })   → { fxStyle, from: { register, look, flavor, fidelity }, why } every level's `fxStyle`, or null
  *                                       (no juice word, or false)
  *   juiceSuggestion(G)   → the same for a world that writes none: what `juice: 'auto'` would lay (design_game's readout)
  *   trailContext(G)      → { element?, power?, palette? } the colours a trail's source reads
@@ -33,6 +36,8 @@ import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, resolveTrailColor } from '
 import { ELEMENT_TINT } from './element-words.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { GENRE_FEEL } from './feel/suggest.js';
+import { quickVenueOf } from './quick.js';
+import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 
 /** The genres whose anime is full anime, cel-shaded (the anime fighter's, the brawler's): the rest draw the register's own look. */
 export const CEL_GENRES = Object.freeze(['versus-fighter', 'arena-brawler']);
@@ -73,12 +78,20 @@ function resolve(G, own, opts = {}) {
   const genre = G?.intent?.from ?? (G?.quick?.goal ? QUICK_GENRE[G.quick.goal] : null) ?? (G?.feel?.pole ? GENRE_OF_POLE[G.feel.pole] : null);
   let look = written.look, lFrom = 'operator';
   if (!look) { const cel = register === 'anime' && CEL_GENRES.includes(genre); look = cel ? 'cel' : JUICE_REGISTERS[register].look; lFrom = cel ? genre : 'register'; }
-  const { register: _r, look: _l, flavor: _f, trailColor: tc, ...dials } = written;
+  // the fidelity: the world's word, else the venue's drawing (a voxel stadium, a voxel kit), else the read's era
+  let fidelity = written.fidelity, dFrom = 'operator';
+  if (!fidelity) {
+    let v; try { v = G?.quick ? quickVenueOf(G.quick) : undefined; } catch { v = undefined; }
+    const look = typeof v === 'string' ? STADIUM_PRESETS[v]?.look : v && typeof v === 'object' ? v.look ?? STADIUM_PRESETS[v.preset]?.look : undefined;
+    const vox = look === 'voxel' || G?.style?.kit?.pole === 'voxel';
+    fidelity = vox ? 'voxel' : 'era'; dFrom = vox ? (look === 'voxel' ? 'venue' : 'kit') : 'era';
+  }
+  const { register: _r, look: _l, flavor: _f, fidelity: _d, trailColor: tc, ...dials } = written;
   // the trail's colour: the caller's source over the world's word, read against the game's context (none: the look's own)
   const source = opts.trailColor ?? tc, rgb = resolveTrailColor(source, trailContext(G));
   return {
-    fxStyle: { register, look, flavor, ...dials, ...(rgb ? { trailColor: rgb } : {}) },
-    from: { register: rFrom, look: lFrom, flavor: fFrom },
+    fxStyle: { register, look, flavor, fidelity, ...dials, ...(rgb ? { trailColor: rgb } : {}) },
+    from: { register: rFrom, look: lFrom, flavor: fFrom, fidelity: dFrom },
     why: `${register}, ${look}: ${JUICE_LOOKS[look].says.split(':')[0]}; ${flavor}: ${why} (${JUICE_FLAVORS[flavor].says.split(':')[0]})`,
   };
 }

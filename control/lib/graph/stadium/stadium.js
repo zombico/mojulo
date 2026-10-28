@@ -38,6 +38,7 @@
  *                              the words alone, light enough for an arena to import)
  *   stadiumParts(S) → { faces, lamps, … }   the venue's geometry, painted
  *   assembleStadiumScene(m, opts) → the World page's payload (faces, the sky, the haze, cameras)
+ *   trackVenue(v, { field, K }) → the bowl, masts and skyline round a track (its own ground under them)
  *
  * Pure and seeded: the same words are the same stadium to the byte.
  */
@@ -122,6 +123,31 @@ export function stadiumParts(S) {
     }
   }
   return { faces, lamps, reach, far, top, bowl: bowl ? { top: bowl.top, outer: bowl.outer, half: bowl.half, roofZ: bowl.roofZ, inner: bowl.inner } : null, K };
+}
+
+/**
+ * A TRACK'S VENUE: the stadium's bowl, masts and skyline round a field that is not a sport's but a track's (a Race of
+ * Champions' lanes, roads/trackscape-dress.js `scape.venue`), drawn on the track's own ground: no land, no field
+ * surface. `v` is a preset's name or a stadium's words (stadium/venue.js), `field` the track's footprint, `K` the
+ * track's kit (its pole draws the bowl: material and shaded lit smooth, banded in two bands, voxel coarser).
+ * → { faces, lamps, reach, top, half }
+ */
+export function trackVenue(v, { field, K }) {
+  const words = typeof v === 'string' ? { preset: v } : { ...v };
+  const S = readStadium({ ...words, field: { x: field.x, y: field.y, w: field.w, d: field.d } });
+  if (!S.bowl) throw new Error('trackscape: a venue round a track has a bowl (bowl: false leaves only the masts: name none)');
+  const look = K.pole === 'banded' ? 'anime' : K.pole === 'voxel' ? 'voxel' : 'shaded', F = S.field, cx = F.x + F.w / 2, cy = F.y + F.d / 2;
+  // (no infield, apron or plaza: the track's own ground is under it)
+  const bowl = bowlFaces(bowlOf(S), { centre: [cx, cy], half: [F.w / 2, F.d / 2], light: LIGHT, look, ground: false });
+  const faces = [...bowl.faces], lamps = [...bowl.lamps], reach = Math.max(bowl.half[0], bowl.half[1]) + bowl.reach;
+  for (let k = 0; k < S.masts; k++) {
+    const a = Math.PI / 4 + (2 * Math.PI * k) / S.masts, px = cx + Math.cos(a) * (reach + 4), py = cy + Math.sin(a) * (reach + 4), h = Math.min(40, Math.max(18, bowl.top + 14));
+    const built = buildBlock(TRACK_BLOCKS['light-tower'], { params: { h: r3(h) }, library: TRACK_BLOCKS, many: 0.5, seed: S.seed + 100 + k, at: [r3(px), r3(py), 0], yaw: ((Math.atan2(cy - py, cx - px) + Math.PI / 2) * 180) / Math.PI });
+    for (const f of paintPiece(built.faces, K)) faces.push(f);
+    lamps.push({ at: [r3(px), r3(py), r3(h * 1.06)], rgb: [255, 244, 220], intensity: 1.6, reach: r3(Math.max(F.w, F.d) * 0.7), hex: '#fff4dc' });
+  }
+  faces.push(...skylineFaces(S, { reach }, '#c6cfda'));
+  return { faces, lamps, reach: r3(reach), top: r3(bowl.top), half: bowl.half.map(r3), centre: [r3(cx), r3(cy)], preset: S.preset, livery: S.livery };
 }
 
 const SKYLINE_SET = 90;   // the skyline's nearest towers stand this far past the venue's reach

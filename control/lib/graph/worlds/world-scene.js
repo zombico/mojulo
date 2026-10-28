@@ -732,7 +732,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const fxs = sketch.manifest.fxStyle;
     if (typeof fxs !== 'boolean' && !(fxs && typeof fxs === 'object' && !Array.isArray(fxs))) throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule), false, or { register?, flavor?, …dials } (the floor composed for the game: scene/juice-style.js)');
     if (fxs === true && payload.events) payload.events = { ...payload.events, fxStyle: true };
-    else if (fxs && payload.events) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); payload.events = { ...payload.events, fxStyle: readJuiceStyle(fxs) }; }
+    // (a floor at the era's fidelity is drawn at the read's: the sixth generation's paint, the seventh's form)
+    else if (fxs && payload.events) { const { readJuiceStyle, fidelityOfRead } = await import('@/lib/graph/scene/juice-style.js'); const S = readJuiceStyle(fxs); payload.events = { ...payload.events, fxStyle: S.fidelity ? { ...S, fidelity: fidelityOfRead(S.fidelity, era) } : S }; }
     else if (fxs) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); readJuiceStyle(fxs); }
   }
   if (payload && sketch.manifest.crystalLight) {
@@ -824,6 +825,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (sketch.manifest.commander && typeof sketch.manifest.commander === 'object') payload.commander = sketch.manifest.commander;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
+    // A MACHINE'S JUICE AT ITS FIDELITY (car-designer/juice.js rigFidelity): the world's composed floor's (at the read's
+    // era), else the venue's drawing (a voxel kit or venue its blocks, an anime venue its cel discs), else the read's era
+    // (gen-7 its bloom). The sixth generation's paint is the page's own: the juice as it was
+    const atRigFidelity = async (fig) => {
+      if (!fig || !fig.juice) return fig;
+      const m = sketch.manifest, { rigFidelity } = await import('@/lib/graph/car-designer/juice.js');
+      const fxs = m.fxStyle && typeof m.fxStyle === 'object' ? m.fxStyle : null;
+      const floor = fxs && fxs.fidelity ? (await import('@/lib/graph/scene/juice-style.js')).fidelityOfRead(fxs.fidelity, era) : undefined;
+      const v = m.scape && m.scape.venue, { STADIUM_PRESETS } = await import('@/lib/graph/stadium/stadium-words.js');
+      const venueLook = typeof v === 'string' ? STADIUM_PRESETS[v]?.look : v && typeof v === 'object' ? v.look ?? STADIUM_PRESETS[v.preset]?.look : undefined;
+      const f = rigFidelity({ floor, pole: m.kit && m.kit.pole, venueLook, era });
+      return f === 'paint' ? fig : { ...fig, juice: { ...fig.juice, fidelity: f } };
+    };
     if (figs && typeof figs === 'object') {
       payload.figures = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
@@ -851,7 +865,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
-          payload.figures[name] = figure;
+          // (the same game type's movement juice, a platformer's or pinball's: gameworld/feel/hero-juice.js, at the
+          // fidelity a machine's takes; any other game type's hero as it was)
+          const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
+          payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } } : e));
           continue;
         }
@@ -861,7 +878,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no racer is resolved, byte-identical.
         if (rawSpec.racer && typeof rawSpec.racer === 'object') {
           const { racerOf } = await import('@/lib/graph/car-designer/roster.js');
-          payload.figures[name] = racerOf(rawSpec.racer).S.figure;
+          // (read in the form render, gen-7, a finished racer carries its materials for the page to light)
+          payload.figures[name] = await atRigFidelity(racerOf(rawSpec.racer, { form: ERAS[era]?.surface === 'form' }).S.figure);
           continue;
         }
         // SUPERCAR bodies (car-designer/supercar-figure.js): a figures-map entry may be a composed supercar's recipe
@@ -870,7 +888,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no supercar is resolved, byte-identical.
         if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
           const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
-          payload.figures[name] = supercarFigure(rawSpec.supercar);
+          // (read in the form render, gen-7, its body and wheels carry their materials for the page to light)
+          payload.figures[name] = await atRigFidelity(supercarFigure(rawSpec.supercar, { form: ERAS[era]?.surface === 'form' }));
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms

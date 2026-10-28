@@ -6,6 +6,7 @@
  *   fromPIs({ class, pis: [[x, y, R?], …], closed, z0?, pvis?, elevation?, ramps?, crestK? })   → a course
  *   designRoadway({ class, length, twist, elevation, ramps, crossing, seed })              → a lap, seeded
  *   designStage({ class, length, twist, elevation, ramps, seed })                          → a stage, seeded
+ *   designDuel({ class, length, twist, seed })                                             → two lanes and a crossover
  *   roadwayCourse(name | spec)                                                             → a preset or a spec's
  *
  * A course: { class, closed, pis, spec (buildAlignment's), alignment, ramps, crossings, clearance, advisories, width,
@@ -277,20 +278,76 @@ function withBridge(course, cls) {
   return { ...fromPIs({ class: course.class, pis, closed: true, pvis, ramps: [] }), crossingDeck: { s0: r3(s - deck / 2), s1: r3(s + deck / 2), z: H } };
 }
 
+/**
+ * A DUEL: a Race of Champions' track, two lanes side by side that swap once at a crossover bridge, so two cars race
+ * head to head over the same distance. It is one lap of the alignment round the stadium twice: lane one (left of the
+ * way on) from the start round to the crossover, over or under it onto lane two, lane two round to the start (the
+ * first car's lap: half the alignment), lane two on round to the crossover and back onto lane one (the second car's).
+ * The base loop's second half is its first turned half a turn about the middle, so each car drives one lane-half of
+ * each side and one diagonal: their laps come out equal (`duel.fair` says by how much they are not).
+ *
+ *   designDuel({ class, length, twist, seed }) → a course with `duel: { starts: [s1, s2], lap, gap, fair }`: each car's
+ *     start (the second car's beside the first's, a lane over), a car's lap in metres, the lanes' centres apart, the
+ *     two laps' difference. `length` is a car's lap; `twist` 0 a rounded box, more a chicane dented into each long side.
+ */
+export function designDuel({ class: className = 'stadium', length = 420, twist = 0.4, seed = 1 } = {}) {
+  const cls = designClass(className), tw = Math.max(0, Math.min(1, twist)), gap = r3(cls.footprint + 1.2), d = gap / 2;
+  const rnd = mulberry32((seed * 2654435761 + 41) >>> 0);
+  // the base loop's first half, from the start straight's end (bottom right) up the right side to the top right; a
+  // chicane dented into the side when twisted; the second half the first turned about the middle
+  const aspect = 1.9 + 0.5 * rnd(), dent = tw > 0.2 ? 0.25 + 0.35 * tw * (0.6 + 0.4 * rnd()) : 0;
+  const halfOf = (hy) => { const hx = hy * aspect; return dent ? [[hx, -hy], [hx, -hy * 0.35], [hx - hy * dent, 0], [hx, hy * 0.35], [hx, hy]] : [[hx, -hy], [hx, hy]]; };
+  const R = Math.max(cls.rmin + d + 2, Math.min(cls.rmax, cls.rmin + d + 4 + 10 * rnd()));
+  let hy = length / (4 * (aspect + 1)), course = null, best = null, last = null;
+  for (let k = 0; k < 8; k++) {
+    const H = halfOf(hy), Q = [H[H.length - 1].map((v) => -v), ...H, ...H.slice(0, -1).map((p) => p.map((v) => -v))], n = Q.length, m = H.length;
+    // each lane the base loop offset a half-gap to either side (a corner's mitre), its radius the base's less or more
+    const lane = (side) => Q.map((q, i) => {
+      const a = Q[(i - 1 + n) % n], b = Q[(i + 1) % n], e1 = unit2([q[0] - a[0], q[1] - a[1]]), e2 = unit2([b[0] - q[0], b[1] - q[1]]);
+      const n1 = [-e1[1], e1[0]], n2 = [-e2[1], e2[0]], k2 = 1 + n1[0] * n2[0] + n1[1] * n2[1], turn = Math.sign(e1[0] * e2[1] - e1[1] * e2[0]);
+      return [q[0] + (side * d * (n1[0] + n2[0])) / k2, q[1] + (side * d * (n1[1] + n2[1])) / k2, Math.max(cls.rmin, R - side * turn * d)];
+    });
+    const A = lane(1), B = lane(-1);
+    // the crossover: in the middle of the top straight each lane cuts across to the other over `cut` metres, steep
+    // enough that the two roads meet only where the bridge has lifted one clear of the other
+    const q0 = Q[m], q1 = Q[(m + 1) % n], e = unit2([q1[0] - q0[0], q1[1] - q0[1]]), nl = [-e[1], e[0]], mid = [(q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2];
+    const cut = CROSS_CUT, at = (u, side) => [r3(mid[0] + e[0] * u + nl[0] * side * d), r3(mid[1] + e[1] * u + nl[1] * side * d), CROSS_R];
+    // the path: lane one from the start to the top straight, across to lane two, round it, across back to lane one
+    const pis = [...A.slice(0, m + 1), at(-cut / 2, 1), at(cut / 2, -1), ...B.slice(m + 1), ...B.slice(0, m + 1), at(-cut / 2, -1), at(cut / 2, 1), ...A.slice(m + 1)];
+    try { course = fromPIs({ class: className, pis, closed: true, seed }); } catch (err) { last = err; hy *= 1.2; continue; }
+    course = withBridge(course, cls);
+    best = course;
+    hy *= length / (course.length / 2);
+    if (Math.abs(course.length / 2 - length) < 1) break;
+  }
+  if (!best) throw new Error(`roadway: no duel of ${length} m fits the ${className} class's corners (${last?.message ?? ''})`);
+  // the second car's start: the point of lane two beside the first's (half the alignment on, near enough)
+  const a = best.alignment, L = a.length, p0 = a.at(0), want = [p0.x + Math.sin(p0.heading) * gap, p0.y - Math.cos(p0.heading) * gap];
+  let s2 = L / 2, e = Infinity;
+  for (let s = L * 0.4; s <= L * 0.6; s += 0.05) { const q = a.at(s), f = Math.hypot(q.x - want[0], q.y - want[1]); if (f < e) { e = f; s2 = s; } }
+  const sc = selfClearance(a, { width: best.footprint, margin: 1 });
+  const advisories = [...best.advisories, ...(Math.abs(s2 - length) > 2 ? [`a car's lap is ${r3(s2)} m (asked ${length}): the shortest its corners fit at the ${className} class's radii`] : []), ...(sc.crossings.length !== 1 ? [`the lanes cross ${sc.crossings.length} times (one crossover is a duel)`] : []), ...(sc.conflicts.length ? [`the lanes come within ${sc.minGap} m of each other away from the crossover`] : [])];
+  return { ...best, advisories, design: { class: className, form: 'duel', length, twist: tw, seed }, selfClearance: sc, duel: { starts: [0, r3(s2)], lap: r3(s2), gap, fair: r3(Math.abs(L - 2 * s2)), off: r3(e) } };
+}
+const unit2 = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
+const CROSS_CUT = 40, CROSS_R = 30;   // m: the crossover's run across from lane to lane, and its kinks' radius
+
 /** The named courses callers and tests reach for. */
 export const COURSE_PRESETS = Object.freeze({
   // a stadium: two straights and two half circles (the old trail oval's shape, on its own ground)
   'kart-oval': () => fromPIs({ class: 'kart', pis: [[-70, -26, 20], [70, -26, 20], [70, 26, 20], [-70, 26, 20]], closed: true }),
   'kart-sprint': () => designRoadway({ class: 'kart', length: 650, twist: 0.6, seed: 7 }),
   'figure-eight': () => designRoadway({ class: 'kart', length: 760, twist: 0.3, crossing: true, seed: 3 }),
+  // a Race of Champions: two lanes in a stadium, a crossover bridge, a car's lap about 420 m
+  'race-of-champions': () => designDuel({ class: 'stadium', length: 420, twist: 0.4, seed: 2 }),
   hillside: () => designRoadway({ class: 'circuit', length: 1800, twist: 0.45, elevation: { amplitude: 14, hills: 3 }, seed: 11 }),
   'stunt-park': () => designRoadway({ class: 'rally', length: 1100, twist: 0.3, elevation: { amplitude: 5, hills: 2, crest: 'sharp' }, ramps: ['kicker', 'tabletop', 'gap', 'whoops'], seed: 5 }),
   // point to point: a gravel special stage over three crests cut to fly
   'rally-stage': () => designStage({ class: 'rally', length: 2000, twist: 0.6, elevation: { amplitude: 12, hills: 3, crest: 'sharp' }, seed: 9 }),
 });
 
-/** A course by preset name, or from a spec: `{ pis, … }` (fromPIs), `{ length, … }` (designRoadway), or with
- *  `closed: false` and no points a stage (designStage). */
+/** A course by preset name, or from a spec: `{ pis, … }` (fromPIs), `{ length, … }` (designRoadway), with
+ *  `closed: false` and no points a stage (designStage), or with `duel: true` two lanes and a crossover (designDuel). */
 export function roadwayCourse(what) {
   if (typeof what === 'string') {
     const make = COURSE_PRESETS[what];
@@ -298,6 +355,7 @@ export function roadwayCourse(what) {
     return { ...make(), preset: what };
   }
   if (what && Array.isArray(what.pis)) return fromPIs(what);
+  if (what?.duel) { const { duel: _d, closed: _c, ...rest } = what; return designDuel(rest); }
   if (what?.closed === false) { const { closed: _c, ...rest } = what; return designStage(rest); }
   return designRoadway(what ?? {});
 }

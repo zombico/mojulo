@@ -1,6 +1,6 @@
 /**
  * Visual review of the ODM at game, studio or hero detail. No database writes.
- * From control/: node scripts/render-supercars.mjs /workspace/vehicle-review game
+ * From control/: node scripts/render-supercars.mjs /workspace/vehicle-review game [pbr|baked] [views] [presets] [classic|streamline]
  * Produces full-vehicle and detail PNGs, orbitable HTML views and a review sheet.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -21,10 +21,11 @@ const quality = process.argv[3] || 'game';
 const rendering = process.argv[4] || 'pbr';
 const views = process.argv[5]?.split(',');
 const presets = process.argv[6]?.split(',') || Object.keys(SUPERCAR_LIBRARY);
+const line = process.argv[7] || 'classic';
 if(presets.some(p => !Object.hasOwn(SUPERCAR_LIBRARY,p))) throw new Error('Unknown composition preset');
 if (views?.some(v => !['front','side','rear','chase','lights','mirror','cabin','spoiler','vents'].includes(v))) throw new Error('Unknown review camera');
 if (!output || !['game', 'studio', 'hero'].includes(quality) || !['pbr','baked'].includes(rendering)) {
-  console.error('Usage: node scripts/render-supercars.mjs <output-directory> [game|studio|hero] [pbr|baked] [front,cabin,spoiler,...] [razor,strada,...]');
+  console.error('Usage: node scripts/render-supercars.mjs <output-directory> [game|studio|hero] [pbr|baked] [front,cabin,spoiler,...] [razor,strada,...] [classic|streamline]');
   process.exit(2);
 }
 const outDir = path.resolve(output);
@@ -40,7 +41,7 @@ const report = [];
 let gallery = '';
 for (const preset of presets) {
   const variant = SUPERCAR_LIBRARY[preset];
-  const compiled = composeSupercar({preset,seed,surface:{quality}});
+  const compiled = composeSupercar({preset,seed,surface:{quality,line}});
   const faces = Object.values(compiled.faces).flat();
   faces.push({ corners: [[-10,-10,-0.01],[10,-10,-0.01],[10,10,-0.01],[-10,10,-0.01]], fill: '#b8b9b8' });
   gallery += `<h2>${variant.title}</h2><p>${compiled.census.triangles.toLocaleString('en-US')} / ${compiled.census.triangleBudget.toLocaleString('en-US')} triangles · ${compiled.census.materialGroups} material groups · ${compiled.headlightStyle} headlights · ${compiled.cabinStyle} cabin · ${compiled.spoilerStyle} spoiler</p><section>`;
