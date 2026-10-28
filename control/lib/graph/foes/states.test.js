@@ -42,5 +42,12 @@ describe('a foe born in a state', () => {
     const src = { kind: 'campfire', at: [0, 0, 0], D: 1, L: 1, n: 1, lam: 1, light: 1, embers: 1, smoke: 1, soot: 1, phi: 1, baked: false, seed: 1, follow: 'f', el: S.status, key: '', rise: 0 };
     expect(fireChannelScript({ sources: [src] })).not.toMatch(/__fireChar/);
     expect(fireChannelScript({ sources: [{ ...src, char: S.char }] })).toMatch(/__fireChar\(s\.follow, s\.char\)/);
+    // its fire stands where the state says up a body of a given height (flaming: at the chest), and only a page with such
+    // a fire carries the reading of it
+    const tall = stateBirth(readStates({ [name]: true }, 's'), { height: 2 }).statuses[S.status];
+    expect(tall.lift).toBeCloseTo(S.at * 2, 6);
+    expect(bodyFires(undefined, [{ id: 'f', body: { type: 'mesh', born: { statuses: { [S.status]: tall } } } }])[0].lift).toBe(tall.lift);
+    expect(fireChannelScript({ sources: [src] })).not.toMatch(/s\.lift/);
+    expect(fireChannelScript({ sources: [{ ...src, lift: 1.3 }] })).toMatch(/s\.lift != null \? s\.lift/);
   });
 });

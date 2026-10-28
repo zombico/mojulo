@@ -175,7 +175,7 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
       // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
       // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
       // (its base STATES, born in: foes/states.js, carried by layer 0 and so by every mode it wears)
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states) } : {}) },
+      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}) },
       transform: { pos: p.at, heading: p.heading },
     });
   }

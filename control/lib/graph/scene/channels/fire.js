@@ -24,6 +24,8 @@ export function fireChannelScript(cfg) {
   const follow = cfg.sources.some((x) => x.follow);
   // (one that chars the body it burns on: its `char`, a foe's base state, foes/states.js. None ⇒ byte-identical)
   const charred = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.char));
+  // (one that stands at its own height over the body's feet, `lift` in metres: a foe's flaming at its chest. None ⇒ byte-identical)
+  const lifted = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.lift));
   const props = cfg.sources.map((x) => (x.follow ? [] : firePropParts(x))).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
   return `
 // --- fire (opt-in \`fire\`) ---
@@ -232,7 +234,7 @@ function __fireChar(id, k) {
       // its feet, and up the body by its share of the body's height (a box's, a ball's, else a figure's from its eye)
       const p = e.transform.pos, r = e.rule || {}, b = e.body || {}, h = Array.isArray(b.size) ? b.size[2] : Number.isFinite(b.radius) ? 2 * b.radius : Number.isFinite(r.eye) ? r.eye / 0.93 : 1.7;
       const foot = p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0);
-      __fireK.off[i] = [p[0], p[1], foot + s.rise * h];
+      __fireK.off[i] = [p[0], p[1], foot + ${lifted ? '(s.lift != null ? s.lift : s.rise * h)' : 's.rise * h'}];
     } }` : ''}
   if (!(ms - __firePatchT < 500 && __firePatchT >= 0)) { __firePatchT = ms; __firePatchAll(); }   // terrain chunks stream in
   camera.updateMatrixWorld();   // a capture frame steps before it renders: the eye may have just moved

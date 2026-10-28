@@ -680,8 +680,9 @@ through the character designer, clips fitted to the class's timing, factions) is
   - A foe may be BORN in a state, `states: { flaming: true | { color?, elemental?, char? } }`. A state is a status the
     body starts under, carried by layer 0 and so by every mode above it: whatever draws its look on a body draws it on
     this one, whichever figure it wears now. A new state is a row (`FOE_STATES`), never a list of foes.
-  - `flaming` is the `blaze` look at a body's own size (a campfire from its feet about as wide as the body): the fire
-    channel's flames on the body, lighting the world around it, carried as it moves. `color` is a flame's colour, a plain word (blue, green, red, crimson, purple, orange, yellow), a colorant of
+  - `flaming` is the `blaze` look as a body-wide campfire standing at the chest (two-thirds up the body, `lift`: the
+    foe's own height read off its hit egg) whose flames rise over the head and engulf it: the fire channel's flames on
+    the body, lighting the world around it, carried as it moves. `color` is a flame's colour, a plain word (blue, green, red, crimson, purple, orange, yellow), a colorant of
     the fire kernel's, a mix or a hex; absent, the element's own. The body chars as it burns (`char`: the share of its
     own colour it keeps, 0.35 by default), darkened on whatever body it is drawn as now and put back when the fire goes
     out.

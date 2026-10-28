@@ -4,7 +4,8 @@
  * (the fire channel's sources are fixed, so a replay is the same) and carried by that body on the page: it burns
  * only while the body carries that status in that colour, where its feet are, and stands on no prop.
  *
- *   bodyFires(play, entities) → [{ kind, at: [0, 0, 0], size, color?, follow, el, key, rise, char? }]   for resolveFire's sources
+ *   bodyFires(play, entities) → [{ kind, at: [0, 0, 0], size, color?, follow, el, key, rise, char?, lift? }]   for resolveFire's sources
+ *                             (`lift`: metres over the body's feet the fire stands at, over `rise`'s share of its height)
  *                             (a play block's cues and menus, and the statuses a body is born under: `body.born`)
  *   fireKey(color)            the colour a status burns in, as the page matches it ('' for the element's own)
  */
@@ -21,7 +22,7 @@ export function bodyFires(play, entities = []) {
   const cued = play && typeof play === 'object' && (play.cues || play.menus);
   // (and a status a body is BORN under, `body.born.statuses`: a foe's base state, foes/states.js)
   const bornOf = (e) => (e && e.body && e.body.born && e.body.born.statuses) || null;
-  const born = (entities || []).flatMap((e) => (bornOf(e) ? Object.entries(bornOf(e)).map(([is, st]) => ({ kind: 'cast', op: 'status', who: e.id, is, look: LOOKS[is], ...(st && st.color != null ? { color: st.color } : {}), ...(st && Number.isFinite(st.char) ? { char: st.char } : {}), ...(st && Number.isFinite(st.size) ? { size: st.size } : {}), ...(st && (st.kind === 'campfire' || st.kind === 'brazier') ? { fireKind: st.kind } : {}) })) : []));
+  const born = (entities || []).flatMap((e) => (bornOf(e) ? Object.entries(bornOf(e)).map(([is, st]) => ({ kind: 'cast', op: 'status', who: e.id, is, look: LOOKS[is], ...(st && st.color != null ? { color: st.color } : {}), ...(st && Number.isFinite(st.char) ? { char: st.char } : {}), ...(st && Number.isFinite(st.size) ? { size: st.size } : {}), ...(st && (st.kind === 'campfire' || st.kind === 'brazier') ? { fireKind: st.kind } : {}), ...(st && Number.isFinite(st.lift) ? { lift: st.lift } : {}) })) : []));
   if (!cued && !born.length) return [];
   const effects = [...(cued ? [...readCues(play).flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))] : []), ...born];
   for (const t of effects) {
@@ -35,7 +36,7 @@ export function bodyFires(play, entities = []) {
     // (a body that chars as it burns, `char`: the share of its own colour it keeps while lit)
     // (a born status may name its kind: a foe's flaming, a campfire from its feet at a body's own size)
     const kind = t.fireKind || (size >= 2.5 ? 'campfire' : 'brazier');
-    out.push({ kind, at: [0, 0, 0], size, ...(c != null ? { color: Array.isArray(c) ? hex(c) : c } : {}), follow: t.who, el: t.is, key, rise: kind === 'campfire' ? 0 : 0.85, ...(Number.isFinite(t.char) && t.char < 1 ? { char: t.char } : {}) });
+    out.push({ kind, at: [0, 0, 0], size, ...(c != null ? { color: Array.isArray(c) ? hex(c) : c } : {}), follow: t.who, el: t.is, key, rise: kind === 'campfire' ? 0 : 0.85, ...(Number.isFinite(t.char) && t.char < 1 ? { char: t.char } : {}), ...(Number.isFinite(t.lift) ? { lift: t.lift } : {}) });
   }
   return out;
 }
