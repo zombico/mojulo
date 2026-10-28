@@ -44,10 +44,11 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   `--body classic` audits the other. The form slice (`--form`) reads its build as before. On the tiered body the knee's
   and the elbow's regions now count every ring of their bridge (`hero-stretch.js` `STRETCH_REGIONS`), where the limbs'
   own end rings stay rigid and read 1. A classic body has no bridges and reads as it did.
-- **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, toes?, claws? }`.
+- **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, toes?, claws?,
+  tail?, wings?, arms? }`.
   The kin is a card (`beast/cards.js`) of words, never geometry:
   - `reads`: what the kin reads as;
-  - `fingers`: 3 or 4, the thumb among them; `toes`: 3, 4 or 5;
+  - `fingers`: 3 or 4, the thumb among them; `toes`: 3, 4 or 5; `tail`: the tail it carries;
   - `claws`: none, blunt or long, and their tone;
   - `mass`: each part family's girth against a person's, and the waist on top of the trunk (over 1 a barrel, under 1
     a wasp's waist);
@@ -110,13 +111,16 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   skin and the dials). A digitigrade kin's knee rests bent some 75°, so a person's stance bend and swing fold, added to
   it, folded the knee's bridge shut: a jog's 115° swing tuck left its ring at 0.12 of its rest. A digitigrade kin's
   gaits draw them in (`DIGITIGRADE_GAIT`: the walk's lift 26°, a run's tuck 50°, no stance bend), on every walk and run
-  it carries, with the operator's own dials over them.
+  it carries, with the operator's own dials over them. A paw on a raised hock takes nothing cut for a person's foot: a
+  footwear word (a shoe was drawn over the metatarsus) and an armour build (its sabatons refused the paw's missing toes
+  by a part's name) are refused on a digitigrade kin, saying so.
 
   Machine gate (`beast/legs.test.js`):
   - the joints, the turned thigh and its socket's line;
   - the hock's bridge on its fold to the heel's side, its bone in the rig;
   - the metatarsus, the pad and the kept toes with their claws, the dials naming them;
   - a plantigrade foot with the card's toes;
+  - footwear and an armour build refused on a paw, allowed on a plantigrade foot;
   - the gait dials, the operator's over them;
   - the rig audit, with the planted toes where they stand;
   - the stretch audit through the kin's own walk, jog and sprint: worst pinch above 0.7, no more folds than a person's,
@@ -126,6 +130,44 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   Measured: the wolf-kin walks, jogs and sprints at a worst pinch of 0.87 (its knee 0.97), where the plain hero's own
   sprint pinches its unbridged ankle to 0.45. The wolf-kin, the bird-kin and the dragon-kin mint through
   `create_character` with no core advisory. Eyes: front, side and the gaits. Eyes gate: the operator's to judge.
+- **The generic socket** (`beast/socket.js` `rootWeb`). Where a limb leaves a trunk that has no ring of its own to meet,
+  a fillet of skin runs from inside the trunk's section to the limb's own ring and ends on that ring point for point, so
+  the two weld into one surface. It is the shoulder web's principle with nothing of the human in it: the trunk, the
+  limb, the ring and the bones are named by the caller.
+  - The base ring is the limb's ring, spread wide and sunk back along the limb's axis, each point held inside the
+    trunk's section at its height (`tiered-form.js` `torsoSection`, which now takes the trunk's name).
+  - The rings between are eased in and swelled a little.
+  - Its skin hands the trunk's bone to the limb's over its length, never at once.
+
+  The hero's shoulder keeps its own web, ball and cone, byte for byte.
+- **What the frame adds** (`beast/topology.js`): the egocube's topology, carried from the creature biped onto the
+  hero's own body.
+  - **The tail** (`beast.tail`: thin, thick, brush or stub, the biped's `TAILS`; its default is the kin's card's: the
+    wolf-kin's brush, the cat-kin's thin, the dragon-kin's thick, the bear-kin's stub). It is a loft from the back of
+    the pelvis at the hip's height, its joints the carriage's scaled to the hero. Each station is half and half between
+    the tail's bones at its joint. The bones ride the pelvis: no clip poses a tail yet, so every clip plays.
+  - **The tail's socket** ends on the tail's first ring. The tail swells past that ring, so a socket ending further out
+    ran under the swell and showed it through as a slit.
+  - **The arm-wings** (`beast.wings: 'arms'`): the biped's five flight feathers, flat vanes trailing down and back from
+    the hand and the forearm, set on the hero's own elbow and knuckles and riding those bones, toned a shade either side
+    of the coat.
+  - **The second arms** (`beast.arms: 4`): a smaller pair under the first, folded forward. Each has an upper arm on the
+    torso's side, a forearm and a mitten hand. The elbow and the wrist are bridged as the hero's are, with no fold since
+    their bend is held, and the shoulder is welded to the torso by the generic socket. Their joints ride the torso.
+
+  Machine gate (`beast/topology.test.js`):
+  - the tail behind the hips at their height, its bones on the pelvis;
+  - its socket ending on its first ring point for point, its base held inside the pelvis, its skin handing over
+    monotonically;
+  - the tail word over the card's;
+  - five vanes a side on the forearm and the hand;
+  - the second arms below the first and folded forward, bridged and welded, their joints on the torso, in the dials;
+  - with all three, the bind and the rig audit clean, and the walk's worst pinch and folds those of the same body
+    without them;
+  - refusals.
+
+  Eyes: the wolf-kin's tail before and after the socket's fix, the bird-kin's wings and the insect-kin's four arms
+  through the gaits, cropped to each socket. Eyes gate: the operator's to judge.
 
 ### Foe classes: the hostile encounter primitive
 

@@ -128,7 +128,7 @@ const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const centre = (pts) => { const v = Object.values(pts); return [0, 1, 2].map((k) => v.reduce((t, p) => t + p[k], 0) / v.length); };
 
 /** A part's rings and caps as the plan expands them (station-loft-plan.js expandPlan), unrounded; a rings part's its own. */
-function partRings(plan, seg) {
+export function partRings(plan, seg) {
   if (seg.kind === 'rings') return { stations: seg.stations, caps: seg.caps };
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) }, style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
   const slots = seg.slots == null ? families[style.limbSlots] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots, e = seg.e ?? style.e;
@@ -316,9 +316,9 @@ export const SHOULDER_CONE = Object.freeze({ ball: 0.7, reach: 0.55, start: 0.9,
  * centre): `hold(p, hi)` moves a point toward that centre until it is at most `hi` of the way to the outline (a point
  * above the top ring first set on it); `clear(p, dir, gap, most)` moves it along `dir` until it stands `gap` outside the
  * outline, at most `most` (a point already outside, or one that cannot clear, as it was). A plan without a torso leaves
- * every point. */
-function torsoSection(plan, segments) {
-  const T = segments.find((g) => g.name === 'torso'); if (!T) return { hold: (p) => p, clear: (p) => p };
+ * every point. `name`: another trunk's section (the pelvis: a beast-kin's tail socket, beast/socket.js). */
+export function torsoSection(plan, segments, name = 'torso') {
+  const T = segments.find((g) => g.name === name); if (!T) return { hold: (p) => p, clear: (p) => p };
   const S = partRings({ ...plan, segments }, T).stations.map((st) => ({ z: centre(st.points)[2], pts: Object.values(st.points), c: centre(st.points) })).sort((a, b) => a.z - b.z);
   const at = (z0) => {
     const z = Math.min(Math.max(z0, S[0].z), S[S.length - 1].z - 1e-6), i = Math.max(0, S.findIndex((r) => r.z > z) - 1), A = S[i], B = S[Math.min(i + 1, S.length - 1)];

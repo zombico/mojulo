@@ -100,7 +100,7 @@ describe('the beast-kin on the tiered body', () => {
     expect(errs({ kin: BARREL, toes: 6 })).toMatch(/beast\.toes/);
     expect(errs({ kin: BARREL, fingers: 2 })).toMatch(/beast\.fingers/);
     expect(errs({ kin: BARREL, claws: 'sharp' })).toMatch(/beast\.claws/);
-    expect(errs({ kin: BARREL, tail: 'brush' })).toMatch(/beast\.tail: not a word/);
+    expect(errs({ kin: BARREL, horns: 'curled' })).toMatch(/beast\.horns: not a word/);
     expect(errs({ kin: BARREL }, { form: 'classic' })).toMatch(/stand on the tiered body/);
     expect(errs({ kin: BARREL }, { undead: { form: 'zombie' } })).toMatch(/beast-kin or undead, not both/);
     expect(errs({ kin: BARREL })).toBe('');

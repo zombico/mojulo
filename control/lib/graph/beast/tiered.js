@@ -2,7 +2,8 @@
  * THE BEAST-KIN ON THE TIERED BODY: a non-human people built on the hero's own game body (polygonizer/tiered-form.js), so
  * a bear-kin has a person's shoulders under its web and cone, bridged elbows and knees, hands and a rig every hero clip
  * plays on, where the sixth generation stood it on the creature biped (egocube/plan.js `biped`). A hero carries it as
- * `beast: { kin, legs?, fingers?, toes?, claws? }` (the hero door's field), its kin a card (./cards.js); its legs ./legs.js.
+ * `beast: { kin, legs?, fingers?, toes?, claws?, tail?, wings?, arms? }` (the hero door's field), its kin a card
+ * (./cards.js); its legs ./legs.js; what its frame adds (the tail, the arm-wings, the second arms) ./topology.js.
  *
  *   beastCard(hero)          → the card a hero's beast stands for, its own words over the kin's, or null
  *   beastWords(spec)         → the hero's words for its kin, under the spec's own (the hero door records them at mint,
@@ -23,6 +24,9 @@
 import { BEAST_KINS, BEAST_KIN_IDS, BEAST_LEGS, BEAST_CLAWS, BEAST_FINGERS, BEAST_TOES, kinCoat } from './cards.js';
 import { scaleRing, trunkCentre } from '../undead/tiered.js';
 import { GAITS } from '../polygonizer/hero-gaits.js';
+import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS } from './topology.js';
+import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
+import { isArmorBuild } from '../armor/expand.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -58,14 +62,25 @@ export function beastCard(hero) {
 export function beastErrors(spec) {
   const B = spec?.beast;
   if (B === undefined || B === null) return [];
-  if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, toes?, claws? }`];
-  const errs = [];
-  for (const k of Object.keys(B)) if (!['kin', 'legs', 'fingers', 'toes', 'claws'].includes(k)) errs.push(`beast.${k}: not a word of the beast (kin, legs, fingers, toes, claws)`);
+  if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, toes?, claws?, tail?, wings?, arms? }`];
+  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'wings', 'arms'];
+  for (const k of Object.keys(B)) if (!WORDS.includes(k)) errs.push(`beast.${k}: not a word of the beast (${WORDS.join(', ')})`);
   if (!BEAST_KINS[B.kin]) errs.push(`beast.kin: one of ${BEAST_KIN_IDS.join(', ')}`);
   if (B.legs !== undefined && !BEAST_LEGS.includes(B.legs)) errs.push(`beast.legs: ${BEAST_LEGS.join(' | ')}`);
   if (B.fingers !== undefined && !BEAST_FINGERS.includes(B.fingers)) errs.push(`beast.fingers: ${BEAST_FINGERS.join(' | ')} (the thumb among them)`);
   if (B.toes !== undefined && !BEAST_TOES.includes(B.toes)) errs.push(`beast.toes: ${BEAST_TOES.join(' | ')}`);
   if (B.claws !== undefined && !BEAST_CLAWS.includes(B.claws)) errs.push(`beast.claws: ${BEAST_CLAWS.join(' | ')}`);
+  if (B.tail !== undefined && !BEAST_TAILS.includes(B.tail)) errs.push(`beast.tail: ${BEAST_TAILS.join(' | ')}`);
+  if (B.wings !== undefined && !BEAST_WINGS.includes(B.wings)) errs.push(`beast.wings: ${BEAST_WINGS.join(' | ')} (the flight feathers trailing from the forearm and the hand)`);
+  if (B.arms !== undefined && !BEAST_ARMS.includes(B.arms)) errs.push(`beast.arms: ${BEAST_ARMS.join(' | ')} (a second pair under the first)`);
+  // (a paw on a raised hock takes nothing cut for a person's foot: a shoe was drawn over the metatarsus, an armour
+  // build's sabatons refused its missing toes by a part's name)
+  if (B.legs === 'digitigrade') {
+    const words = (Array.isArray(spec.outfit) ? spec.outfit : [spec.outfit]).filter((w) => typeof w === 'string');
+    const shod = words.filter((w) => libraryFeet([w]).length || (OUTFIT_WORDS[w]?.({ scale: 1, structured: true }) ?? []).some((piece) => piece.part === 'foot'));
+    if (shod.length) errs.push(`outfit: ${shod.join(', ')} fits a person's foot; a digitigrade beast-kin stands on a paw on a raised hock, which wears no footwear yet`);
+    if (isArmorBuild(spec.adorn)) errs.push("adorn: an armour build's greaves and sabatons are cut for a person's leg and foot; a digitigrade beast-kin wears no armour build yet");
+  }
   if ((spec.form ?? 'tiered') !== 'tiered') errs.push("beast: the beast-kin stand on the tiered body (form: 'tiered')");
   if (spec.undead !== undefined && spec.undead !== null) errs.push('beast: a body is a beast-kin or undead, not both');
   return errs;

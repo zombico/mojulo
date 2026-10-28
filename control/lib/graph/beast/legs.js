@@ -14,13 +14,15 @@
  *                      foot a metatarsus from the hock to the toes' base on the hock's fold, a pad under the ball and
  *                      the card's toes splayed ahead of it on the toes' bone; a plantigrade kin keeps the person's foot
  *                      with the card's toes (the outer ones go). Absent a beast, the plan as it was.
- *   beastJoints(hero, list)  → the joints the tiered pass bridges: the hero's, and the hock on a digitigrade kin
+ *   beastJoints(hero, list)  → the joints the tiered pass bridges: the hero's, the hock on a digitigrade kin, the second
+ *                      arms' elbow and wrist (./topology.js)
  *
  * Pure. The rig stays whole: no bone is added but the hock's fold, so every clip plays.
  */
 import { beastCard } from './tiered.js';
 import { TIERED_JOINTS, TIERED_HOCK } from '../polygonizer/tiered-form.js';
 import { SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
+import { topologyJoints } from './topology.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
 const add = (a, b) => a.map((x, i) => x + b[i]);
@@ -52,7 +54,7 @@ const TOE_NAMES = ['hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
 export const KEPT_TOES = Object.freeze({ plantigrade: { 3: ['hallux', 'toe2', 'toe3'], 4: ['hallux', 'toe2', 'toe3', 'toe4'], 5: TOE_NAMES },
   digitigrade: { 3: ['toe2', 'toe3', 'toe4'], 4: ['toe2', 'toe3', 'toe4', 'toe5'], 5: TOE_NAMES } });
 
-export const beastJoints = (hero, list = TIERED_JOINTS) => (beastCard(hero)?.legs === 'digitigrade' ? [...list, HOCK_JOINT] : list);
+export const beastJoints = (hero, list = TIERED_JOINTS) => { const card = beastCard(hero); return card ? [...list, ...(card.legs === 'digitigrade' ? [HOCK_JOINT] : []), ...topologyJoints(hero)] : list; };
 
 // a ring of `slots` round centre c, square to `axis`, half widths w (across, along `side`) and h (up, along `up`)
 const ring = (c, side, up, w, h, slots) => Object.fromEntries(slots.map((sl, k) => { const t = (2 * Math.PI * k) / slots.length; return [sl, add(c, add(mul(up, h * Math.cos(t)), mul(side, w * Math.sin(t)))).map(r6)]; }));

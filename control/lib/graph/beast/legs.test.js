@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { BEAST_KINS } from './cards.js';
 import { beastWords, DIGITIGRADE_GAIT } from './tiered.js';
 import { DIGITIGRADE, KEPT_TOES } from './legs.js';
-import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { withDefaultForm, withDefaultWalk } from '../polygonizer/motion-stamp.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { validateRig, bindLayered, auditRig } from '../polygonizer/station-loft-rig.js';
@@ -77,6 +77,15 @@ describe('the beast-kin\'s legs on the tiered body', () => {
     expect(W.folds.value).toBeLessThanOrEqual(2);   // (a person's own: the shoulder cone's in a jog)
     expect(Math.abs(W.twist.value)).toBeLessThan(30);
   }, 120_000);
+
+  it('the door refuses a digitigrade kin what is cut for a person\'s foot: footwear and an armour build', () => {
+    const errs = (extra) => validateHeroSpec(beastWords({ form: 'tiered', cast: 'male', beast: { kin: FOUR, legs: 'digitigrade' }, ...extra })).join('\n');
+    expect(errs({ outfit: 'boots' })).toMatch(/fits a person's foot/);
+    expect(errs({ outfit: ['trousers', 'workBoots'] })).toMatch(/workBoots fits a person's foot/);
+    expect(errs({ adorn: { type: 'armor', style: 'knight' } })).toMatch(/wears no armour build yet/);
+    expect(errs({ outfit: 'trousers' })).toBe('');
+    expect(validateHeroSpec(beastWords({ form: 'tiered', cast: 'male', beast: { kin: FOUR }, outfit: 'boots' })).join('\n')).toBe('');   // (a plantigrade foot is a person's)
+  });
 
   it('a person\'s jog on the digitigrade knee folds its bridge: the kin\'s own gait is what holds it', () => {
     const { recipe, R, mesh, skin } = built(digi(THREE, { motion: { jog: { stanceKnee: 12, swingTuck: 115 } } }));
