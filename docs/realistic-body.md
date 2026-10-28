@@ -112,8 +112,17 @@ part, `headSkin`, bound per point: the seam's blend easing up to the jaw's share
 line, the upper lip the head's and the lower the jaw's, each turned in along the cut, with a closed `mouth` bag behind
 them. Each globe is its own closed part (`globeR`, `globeL`: rings about its gaze, the pupil's and the iris's edges
 rings of their own), and the ears are as below. The hair, the brows, the lashes, the beard and the piercings are pinned
-to the skin's faces. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
-carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 10 the
+to the skin's faces. Under laws 10 the scalp's hair is LOCKS in one colour over a solid shell
+(`control/lib/graph/epidermis/hair-locks.js`): the groom's guides gathered and lofted as tapered, grooved tubes, the
+face's `stylize` their register. Over the scalp each flow wraps round the head at its own height, the higher-rooted
+flows the outer, so they shingle and never stand off as chords. A long lock's points below the head ride the neck and the
+torso, and it falls outside the shoulders. The face's hair takes the same register (`lockStrands`): a beard is its coat
+sculpted to where its hairs stand, a full beard's chin hangs as flows out of it, and each brow and each half of the
+moustache is a band, one mass along it with the dial's strokes on it. Hair clipped under 4 mm (a fade's foot, a stubble)
+is the skin's paint, the hair's colour by the share its length covers (`dermal-map.js` `CLIPPER`); where the face grows
+a beard, the sideburn holds the beard's length up into the scalp. Under laws 10 the ear sits at the canon, its top at
+the brow line and its lobule at the nose's base (`head-relational.js` `EAR_RAISE`). The overlap principle (`hair-score.js` `overlapHair`) holds the scalp hidden except in the splits. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
+carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 11 the
 lids rest on the globes (`head-relational-eye.js` `SEAT`, the fit's `seat`): within a reach of the margins the skin is
 cut back to the lid shell over the globe and rolls out of it into the cheek and up to the crease, so no tunnel stands
 between a margin and the eye. Above the crease the fold rises to the brow as a pad, steep out of the crease and near

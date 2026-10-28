@@ -94,13 +94,13 @@ import { kitPieces } from '@/lib/graph/polygonizer/body-relational-kit';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
-import { heroJewellery, heroHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
+import { heroJewellery, heroHair, heroLockHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
 import { readScalp, hairLevel } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
-import { solveTune } from '@/lib/graph/polygonizer/head-relational';
+import { solveTune, raisedEar } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -285,8 +285,8 @@ function realisticRecipe(recipe, hero) {
   // hero-head-layers.js HEAD_BUDGET)
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
-  // the lids rest on the globes: head-relational-eye.js SEAT)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, seat: one && laws >= 10 });
+  // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -299,12 +299,17 @@ function realisticRecipe(recipe, hero) {
   // (the hair's rung on the grass's ladder by the head's size on screen: the hero's target, else a third of the blades)
   const level = heroHairLevel(hero);
   // (under laws 7 its blades as ALPHA CARDS on the strand texture, hair-depict.js stripMesh `card`: the grass hat before)
-  if (scalp) wear(hairOf(H, dermis, scalp, level, one, laws >= 7));
+  // (under laws 10 the hair as LOCKS, one colour, its register the face's `stylize`: hair-locks.js; the blades before)
+  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
+  if (scalpHair) wear(scalpHair);
+  // (realistic laws 10: hair a clipper took under its shell, the scalp's and a stubble's, is the skin's paint, its shadow
+  // by its length: dermal-texture.js `clip`; the recipe carries where, the hero's skin paint reads it)
+  if (laws >= 10) out = { ...out, hairClip: { scalp: scalpHair?.clip ?? null, beard: true } };
   // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 7 ? { cards: true } : {}) }));
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}) }));
   return out;
 }
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
@@ -343,6 +348,13 @@ function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
   if (!H) { H = heroHair(S, dermis, scalp, { level, budget, cards }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
+/** a head's lock hair (realistic laws 10), kept as its blades are */
+function lockHairOf(S, dermis, scalp, level, stylize) {
+  const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null]);
+  let H = HAIRS.get(key);
+  if (!H) { H = heroLockHair(S, dermis, scalp, { level, budget: true, stylize }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  return H;
+}
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
  * target (era/target.js: its figure's pixels, a head about a seventh of them); a hero drawn for no target L1 */
 export function heroHairLevel(hero) {
@@ -356,8 +368,9 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, seat = false } = {}) {
-  const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false } = {}) {
+  // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
+  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0;
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? ['seat'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
@@ -751,10 +764,13 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * alpha tested (epidermis/hair-strands.js, hair-depict.js stripMesh `card`), where laws 6 drew opaque blades; 8: the kit
  * as pieces fitted to what the body wears (body-relational-kit.js): a belt one mass round everything at its height, its
  * buckle a frame, where laws 7 copied the cloth's rings and so rippled with them; 9: the man's hips (body-relational-builds.js
- * MALE_HIPS), where laws 1 to 8 gave every male physique a pinched waist over a heart-shaped seat that read as a woman's;
- * 10: the lids seated on the globes (head-relational-eye.js SEAT), where laws 2 to 9 left the skin about each opening
- * standing proud of the globe, a tunnel and a dark void between the lids and the eye */
-export const REALISTIC_LAWS_VERSION = 10;
+ * MALE_HIPS), where laws 1 to 8 gave every male physique a pinched waist over a heart-shaped seat that read as a woman's; 10:
+ * the hair as LOCKS (epidermis/hair-locks.js: the groom's guides gathered into tapered, flattened, grooved tubes over the
+ * cap kept as a solid shell, one colour, cards only at the hairline and the tips, its register the face's `stylize`), where
+ * laws 7 to 9 grew a lawn of banded blades whose bands and grey flecks fought the light; 11: the lids seated on the globes
+ * (head-relational-eye.js SEAT), where laws 2 to 10 left the skin about each opening standing proud of the globe, a tunnel
+ * and a dark void between the lids and the eye */
+export const REALISTIC_LAWS_VERSION = 11;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
@@ -967,7 +983,7 @@ export const FACE_ETHNICITIES = Object.freeze(Object.keys(FACE_BUCKETS));
 /** the ethnicities a roll draws from when none is named: every base population, and the mixed */
 const BASE_ETHNICITIES = Object.keys(FACE_BUCKETS).filter((k) => FACE_BUCKETS[k].ancestry);
 export const ROLLED_ETHNICITIES = Object.freeze([...BASE_ETHNICITIES, 'mixed']);
-const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit', 'scalp'];
+const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit', 'scalp', 'stylize'];
 /** THE FACE'S OWN FIT (head-relational.js solveTune: the skin's masses tuned so it lands on its composed relations, as the
  * studies show it; the pole's tune serves a face near its pole, close but not exact). Solved once at mint (~45 s) and
  * stamped, `fit: { tune, of }`, `of` the fingerprint of the relations it was solved for: a face whose words have changed
@@ -994,6 +1010,8 @@ function realisticFaceErrors(f) {
   if (f.age !== undefined && !(Number.isFinite(f.age) && f.age >= FACE_AGE.range[0] && f.age <= FACE_AGE.range[1])) errs.push(`face.age: years, ${FACE_AGE.range.join(' … ')} (the roll is the person at ${FACE_AGE.prime})`);
   // (the scalp's cut by word, in place of the one the face rolls: a style, or a groom on one)
   if (f.scalp !== undefined && f.scalp !== 'none') try { readScalp(f.scalp); } catch (e) { errs.push(`face.${String(e.message).split('\n')[0]} (face.scalp: a style, { style, …its groom }, or 'none')`); }
+  // (the hair's register, realistic laws 10: hair-locks.js HAIR_STYLIZE its default)
+  if (f.stylize !== undefined && !(Number.isFinite(f.stylize) && f.stylize >= 0 && f.stylize <= 1)) errs.push('face.stylize: 0 (a realistic game\'s hair: many fine locks, soft cards at the edge) … 1 (a stylised game\'s: a few dozen chunky sculpted locks); the default 0.5');
   if (f.fit !== undefined && !(f.fit && typeof f.fit === 'object' && typeof f.fit.of === 'string' && f.fit.tune && typeof f.fit.tune === 'object' && Object.entries(f.fit.tune).every(([k, v]) => FIT_KEYS.includes(k) && Number.isFinite(v) && Math.abs(v) < 0.5))) errs.push('face.fit: the face\'s own fit as the mint stamps it ({ tune, of }); leave it out and the next mint solves it');
   return errs;
 }

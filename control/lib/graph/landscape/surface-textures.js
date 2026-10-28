@@ -1333,10 +1333,15 @@ export function defineGeneratedFamily(name, gen, cfg) {
   if (!make) throw new Error(`defineGeneratedFamily: unknown generator '${gen}' (known: ${Object.keys(SPEC_GENERATORS).join(', ')})`);
   const base = cfg.seed ?? 1;
   const variants = SPEC_VARIANT_SEEDS.map(([suf, s]) => [`${name}-${suf}`, base * 1009 + s]);
-  for (const [k, seed] of variants) { if (!RUNTIME_GEN[k]) RUNTIME_GEN[k] = () => make({ ...cfg, seed }, { size: SPEC_SIZE[gen] ?? 256, seed }); SURFACE_TILING[k] = 'repeat'; }
+  for (const [k, seed] of variants) { if (!RUNTIME_GEN[k]) RUNTIME_GEN[k] = () => make({ ...cfg, seed }, { size: SPEC_SIZE[gen] ?? 256, seed }); SURFACE_TILING[k] = 'repeat'; SPEC_OF[k] = { gen, cfg: { ...cfg, seed }, size: SPEC_SIZE[gen] ?? 256, seed }; }
   TEXTURE_FAMILIES[name] = variants.map(([k]) => k);
   return TEXTURE_FAMILIES[name].slice();
 }
+// what each generated tile was painted from, so a reader can paint it again another way (the form render's material:
+// form/room-form.js)
+const SPEC_OF = {};
+/** The spec a generated tile key was painted from ({ gen, cfg, size, seed }), or null for a key no spec made. */
+export function generatedSpecOf(key) { return SPEC_OF[key] ? { ...SPEC_OF[key], cfg: { ...SPEC_OF[key].cfg } } : null; }
 
 /** The tile keys in a family (or [] for unknown). */
 export function familyKeys(family) { return TEXTURE_FAMILIES[family] ? TEXTURE_FAMILIES[family].slice() : []; }

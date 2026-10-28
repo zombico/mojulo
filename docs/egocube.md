@@ -302,6 +302,11 @@ faction's template.
 
 The rank words line up by name with the mind's `RANKS` (minion, elite, miniboss, boss); behaviour is untouched.
 
+A **beast** member (`body: 'beast'`, a real species) takes `ooze`, the mutagen's words (`mutagen/oozes/`: dire,
+mythical, skeletal, zombie, frost, fire, storm, venom, shadow, crystal, techno …, one or a list with strengths), carried
+to the animal door when the member is made: the species made a game creature, its limbs and rig its own. Absent, the
+animal as it is.
+
 ## Cast laws
 
 Pairwise relations are not enough. A cast is checked as a whole, as a town is by its laws:

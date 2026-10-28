@@ -360,6 +360,8 @@ const pwl = (pts, x) => { if (x <= pts[0][0]) return pts[0][1]; for (let i = 0; 
  * the chin on pogonion; the ear about the porion; the beard under the line from the sideburn's foot to the mouth's
  * corner, the moustache under the nose's base.
  */
+/** how far over the ear's top (mm) the hairline over the ear stays at least */
+const EAR_CLEAR = 12;
 function relationalHeadRegions(A, D, put, R) {
   const M = A.marks.points, q = headXY(A), x = Math.abs(q.X), male = D.sex === 'male';
   const side = q.X >= 0 ? 'R' : 'L', P = (k) => M[k + side] || M[k];
@@ -373,8 +375,10 @@ function relationalHeadRegions(A, D, put, R) {
   const bald = D.bald ?? 0, mBald = male ? bald : 0, front = mBald ? 50 * smooth(0.45, 1, mBald) : 0;
   const rnd = D.round ?? 0, tmp = (D.temples ?? 0) + (mBald ? 38 * smooth(0, 0.6, mBald) : 0), sb = D.sideburn ?? 0, nape = D.nape ?? 0;
   const Hf = Ht + front;
+  // (over the ear the line clears the ear's top by EAR_CLEAR mm: an ear set at the brow takes no hair's paint on its rim)
+  const earTop = P('earTop'), overEar = Math.max(por.Y + 34, earTop ? earTop.Y + EAR_CLEAR : -Infinity);
   const hl0 = pwl([[0, Hf], [Math.abs(fz.X) * 0.7, Hf - 3 - 6 * rnd + 0.3 * tmp], [Math.abs(fz.X) + 6, Ht - (male ? 18 : 10) + tmp], [sideX - 6, M.g.Y - 8], [sideX, por.Y + (male ? -4 : 14) - sb],
-    [sideX + 2, por.Y + 34], [Math.abs(por.X) + 30, por.Y + 34], [Math.abs(por.X) + 42, por.Y - 6 - nape], [back * 0.85, por.Y - 38 - nape], [back, por.Y - 42 - nape]], x);
+    [sideX + 2, overEar], [Math.abs(por.X) + 30, overEar], [Math.abs(por.X) + 42, por.Y - 6 - nape], [back * 0.85, por.Y - 38 - nape], [back, por.Y - 42 - nape]], x);
   // (a widow's peak: the line dips at the middle, over ~12 mm either side)
   // (a front receded by a man's loss takes its peak with it: no island of hair left on the crown)
   const pk = D.peak ? D.peak * (1 - smooth(0.25, 0.55, mBald)) : 0, hl = pk ? hl0 - pk * Math.max(0, 1 - x / 12) ** 2 : hl0;
@@ -592,6 +596,49 @@ export const skinBase = (D) => linHex(mulc(toneAlbedo(D.tone), UNDERTONE_TINT[D.
 /** the hair's colour (linear RGB) from the dermis's word */
 export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairColour);
 /** a grey hair's colour (linear RGB): the pigment gone, a warm silver */
+/**
+ * CLIPPED HAIR as the eye averages it (realistic laws 10): hair under `shell` mm (a barber's clipper 0, ½ and 1, a
+ * skin fade's foot, a stubble) is no mass but a SHADOW on the skin, the hair's colour over it by the share it covers,
+ * `max` (1 − e^(−mm / `cover`)): clipper 0 (~0.8 mm) about a third, clipper 1 (3 mm) about four fifths; from `shell` mm the
+ * hair is its shell (hair-locks.js), the shadow reaching the whole over the last `meet` mm so the two meet. `mottle` the
+ * share the follicles' own unevenness moves it by.
+ */
+export const CLIPPER = Object.freeze({ shell: 4, cover: 1.4, max: 0.9, mottle: 0.3, meet: 1.5 });
+/**
+ * THE SIDEBURN (realistic laws 10, a barber's connection): where the face grows a beard, a band in front of the ear from
+ * the beard's top (`below` mm under the sideburn's foot) up into the scalp (full to `full` mm over the foot, let go by
+ * `up`: on until the scalp's own length is the longer, so it meets the fade's shell with no bare skin between), `inner` mm in front of the hairline's sideburn line and `outer` mm behind it, wears the beard's cheek length, so
+ * a fade runs down into the beard and never leaves bare skin between them; over the ear, back to `back` mm behind its
+ * canal, the side holds the same length (a beard fade: the fade runs down to the beard's length, never to bare skin
+ * beside the sideburn) (the dermis's own sideburn is a sliver, and
+ * the skin under it vellus); no beard, none: a skin fade takes the sideburn as it takes the rest.
+ * → { w 0 … 1, mm } at an address of the relational head, or null.
+ */
+export const SIDEBURN = Object.freeze({ below: 14, full: 60, up: 75, inner: 16, outer: 6, back: 60 });
+export function sideburnOf(A, D) {
+  if (!A?.marks || A.feature || D.sex !== 'male') return null;
+  const BS = D.beardStyle ? beardStyleOf(D.beardStyle) : null;
+  const mm = BS ? (BS.zones.cheeks || BS.strap ? BS.lengths.cheek : 0) : D.beard > 0 ? D.stubble ?? 0 : 0;
+  if (!(mm > 0)) return null;
+  const M = A.marks.points, q = headXY(A), x = Math.abs(q.X), por = M[`porion${q.X >= 0 ? 'R' : 'L'}`] || M.porion, sideX = Math.abs(por.X) - 16;
+  const footY = por.Y - 4 - (D.sideburn ?? 0);
+  const across = smooth(sideX - 6 - SIDEBURN.inner, sideX - 6, x) * (1 - smooth(sideX + 2, sideX + 2 + SIDEBURN.outer, x));
+  const rise = 1 - smooth(footY + SIDEBURN.full, footY + SIDEBURN.up, q.Y);
+  const band = across * smooth(footY - SIDEBURN.below - 6, footY - SIDEBURN.below, q.Y) * rise;
+  // (THE BEARD FADE: the side over the ear, from the sideburn back past the ear and above its top, holds the same length,
+  // so the fade runs down to the beard's length there and never to bare skin beside the sideburn; behind it, past
+  // `back` mm beyond the ear canal, it lets go and the nape fades to the skin as the cut has it. Above the ear only:
+  // under its top the ear's own rim shares the skull's texels.)
+  const et = M[`earTop${q.X >= 0 ? 'R' : 'L'}`], earY = et ? et.Y : por.Y + 22;
+  const side = smooth(sideX - 8, sideX, x) * (1 - smooth(Math.abs(por.X) + SIDEBURN.back, Math.abs(por.X) + SIDEBURN.back + 30, x)) * smooth(earY - 1, earY + 3, q.Y) * rise;
+  const w = Math.max(band, side);
+  return w > 0.001 ? { w, mm } : null;
+}
+/** the length (mm) the sideburn holds the scalp's hair to at an address (0 off it): its band's weight × the beard's length,
+ * under the clipper's shell length (a longer beard's sideburn is its paint at full, never a strip of shell) */
+export const sideburnHold = (A, D) => { const s = sideburnOf(A, D); return s ? Math.min(s.w * s.mm, CLIPPER.shell - 0.5) : 0; };
+/** the share of the skin clipped hair `mm` long covers (0 … CLIPPER.max) */
+export const clipCover = (mm) => CLIPPER.max * (1 - Math.exp(-Math.max(0, mm) / CLIPPER.cover));
 export const GREY_HAIR = Object.freeze(hexLin('#cdc8bf'));
 /** the hair's colour as the eye averages it at a distance (linear): its own, toward silver by the share gone grey (the
  * texture's painted hair, an engine's cards); the colour itself without `grey` */

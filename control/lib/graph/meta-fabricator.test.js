@@ -19,13 +19,14 @@ const validFace = (f) =>
 
 describe('meta-fabricator family layer', () => {
   it('exposes the three vehicle families', () => {
-    expect(listFamilies().sort()).toEqual(['fixed-wing-aircraft', 'ground-box', 'ground-car', 'ground-cycle']);
+    expect(listFamilies().sort()).toEqual(['fixed-wing-aircraft', 'ground-box', 'ground-car', 'ground-cycle', 'racer', 'supercar']);
     expect(getFamily('fixed-wing-aircraft').backend).toBe('plane');
     expect(() => getFamily('spaceships')).toThrow(/unknown family/);
   });
 
   it('partitions every registered vehicle type into exactly one family', () => {
-    const byFamily = listFamilies().flatMap((id) => typesInFamily(id));
+    // (the nets' families: a grammar's types are its own, not registry rows)
+    const byFamily = listFamilies().filter((id) => VEHICLE_FAMILIES[id].backend).flatMap((id) => typesInFamily(id));
     // every type lands in a family...
     expect(byFamily.sort()).toEqual([...VEHICLE_TYPES].sort());
     // ...and no type lands in two
@@ -168,4 +169,44 @@ describe('meta-fabricator workbench preview', () => {
     expect(stats.decoration).toEqual({ scheme: 'teal' });
     expect(() => planInstance({ type: 'spaceship' })).toThrow(/unknown\/unmapped/);
   });
+});
+
+// THE RACE MACHINES' FAMILIES: a grammar each, a theme for decoration. The concepts: introspection an authoring surface
+// reads (the types, the starters, the finishes, the parts a theme prefers from), sampling on the given dice alone (the
+// same dice, the same instance; never a registry type), a recipe built and previewed (asynchronously), and a recipe that
+// is not one refused.
+describe('the race machines\' families', () => {
+  it('describes each grammar: its types, its theme vocabulary, the racer\'s parts', () => {
+    const r = describeFamily('racer'), c = describeFamily('supercar');
+    expect(r.grammar).toBe('parts');
+    expect(c.grammar).toBe('odm');
+    expect(r.types.map((t) => t.type)).toEqual(typesInFamily('racer'));
+    expect(r.decoration.kind).toBe('theme');
+    expect(r.decoration.finishes.trim).toEqual(expect.arrayContaining(['chrome', 'brass']));
+    expect(r.parts.wheel.length).toBeGreaterThan(1);
+    expect(r.parts.body.length).toBeGreaterThan(1);
+    expect(c.parts).toBeUndefined();
+    expect(familyOfType(typesInFamily('supercar')[0])).toBe(null);   // (no registry row is a grammar's type)
+  });
+  it('samples a recipe on the dice it is given: a theme and a seed, the same dice the same instance', () => {
+    const a = sampleInstance('racer', mulberry32(8)), b = sampleInstance('racer', mulberry32(8));
+    expect(a).toEqual(b);
+    expect(typesInFamily('racer')).toContain(a.racer.archetype);
+    expect(a.racer.theme).toBeDefined();
+    expect(Number.isInteger(a.racer.seed)).toBe(true);
+    expect(sampleInstance('supercar', mulberry32(8), { context: 'airfield' })).toBe(null);
+    expect(sampleInstance('supercar', mulberry32(8), { context: 'race' }).supercar.preset).toBeDefined();
+  });
+  it('builds and previews a recipe in the studio, and refuses one that is two things', async () => {
+    const inst = { racer: { archetype: typesInFamily('racer')[0], theme: listDecorations('racer').schemes[0], seed: 2 } };
+    const { stats } = await planInstance(inst);
+    expect(stats.family).toBe('racer');
+    expect(stats.theme).toBe(inst.racer.theme);
+    expect(stats.faces).toBeGreaterThan(200);
+    const scene = await assembleInstanceStudio(inst);
+    expect(scene.cameras.length).toBe(5);
+    expect(scene.faces.length).toBeGreaterThan(stats.faces);
+    await expect(planInstance({ type: 'sedan', racer: {} })).rejects.toThrow(/not both/);
+    await expect(planInstance({ supercar: { preset: 'nope' } })).rejects.toThrow(/preset is one of/);
+  }, 60000);
 });

@@ -34,7 +34,7 @@
 //   --crop nose     frame the nose's base and wings (the lip's top to the mid-bridge, just past the alae)
 //   --crop chin     frame the lower face (the nose's base to under the menton, between the jaw's corners)
 //   --crop ear      frame the right ear (read it in the front ¾, the ¾, the lateral and the rear ¾)
-//   --seat          the relational head's lids seated on the globes (head-relational-eye.js SEAT, realistic laws 10);
+//   --seat          the relational head's lids seated on the globes (head-relational-eye.js SEAT, realistic laws 11);
 //                   a row of --acts may carry its own `seat`
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)

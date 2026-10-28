@@ -67,7 +67,7 @@ node .claude/skills/head-study/study.mjs --field male --no-marks \
 `--crop face` frames the face (chin to above the brow, cheek to cheek); `--crop nose` frames the nose's base and wings
 (the lip's top to the mid-bridge, just past the alae), close enough to read the alar creases and the sills. `--crop chin`
 frames the lower face (the nose's base to under the menton, between the jaw's corners): the chin, its tubercles and
-the mentolabial fold. `--seat` rests the lids on the globes as a hero minted under realistic laws 10 has them
+the mentolabial fold. `--seat` rests the lids on the globes as a hero minted under realistic laws 11 has them
 (`head-relational-eye.js` `SEAT`); a row of `--acts` may carry its own `seat`, so the stored head and the seated one
 compare: `--epidermis default --acts '[{"crop":"eye"},{"crop":"eye","seat":true}]'`.
 

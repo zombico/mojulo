@@ -563,6 +563,22 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     if (f.sunShare !== undefined) sunSeen = true;
     for (let i = 0; i < n; i++) suns.push(sunOf(f, idxs ? idxs[i] : null));
   };
+  // Per-vertex BAKED LIGHT (the form render indoors, form/room-light.js): a face carrying `cornerLight` (linear rgb, one per
+  // corner or one for the face: the light baked onto its colour, the page lighting its colour by it) contributes it per
+  // vertex, and on such a face the corner's occlusion darkens that light, not the colour. Packed ONLY when some face
+  // carries one (lits stays null otherwise: byte-identical downstream); a face without one in a mesh that packs them takes 1.
+  const lits = faces.some((f) => f && f.cornerLight !== undefined) ? [] : null;
+  let litSeen = false;
+  const litOf = (f, idx) => {
+    const L = f.cornerLight;
+    if (!Array.isArray(L)) return [1, 1, 1];
+    if (!Array.isArray(L[0])) return L;
+    if (idx !== null && idx < L.length) return L[idx];
+    return [0, 1, 2].map((k) => L.reduce((a, v) => a + v[k], 0) / L.length);
+  };
+  // (the colour a corner carries and its light: the occlusion on the light where the face has one, else on the colour)
+  const aoSplit = (f, a) => (lits && f.cornerLight !== undefined ? [1, a] : [a, 1]);
+  const pushLit = (arr, f, idx, a) => { if (!arr) return; if (f.cornerLight !== undefined) litSeen = true; const l = litOf(f, idx); arr.push(l[0] * a, l[1] * a, l[2] * a); };
   // Faces carrying a `texture` key + per-corner `uv` are split into one mesh group per key (rendered
   // with a MeshBasicMaterial({ map }) by emitThreeWorld — the workbench's label-wrap path). Faces
   // WITHOUT a texture follow the exact path below, so a scene with no textured faces is unchanged.
@@ -612,8 +628,9 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= (isTri ? 3 : 4)) {
       // a textured n-gon fans over every corner when it carries a uv for each; else its first four, as before
       const tt = f.uv.length >= c.length ? faceTris(c) : TRIS;
-      const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false, ...(suns ? { suns: [], hasSun: false } : {}) });
+      const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false, ...(suns ? { suns: [], hasSun: false } : {}), ...(lits ? { lits: [], hasLit: false } : {}) });
       if (grp.suns && f.sunShare !== undefined) grp.hasSun = true;
+      if (grp.lits && f.cornerLight !== undefined) grp.hasLit = true;
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
       // colour rides into the group so emitThreeWorld can do texel × bakedLight (vertexColors).
       // Label wraps omit it → unlit sticker, exactly as before.
@@ -623,11 +640,12 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       if (fs) grp.hasSpec = true;
       for (const tri of tt) {
         for (const idx of tri) {
-          const p = c[idx], uv = f.uv[idx], a = vao ? aoOf(idx) : 1;
+          const p = c[idx], uv = f.uv[idx], [a, al] = aoSplit(f, vao ? aoOf(idx) : 1);
           const cc = (cornerCols && cornerCols[idx]) || [tr, tg, tb];
           grp.positions.push(p[0], p[1], p[2]);
           grp.uvs.push(uv[0], uv[1]);
           grp.colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
+          if (grp.lits) pushLit(grp.lits, f, idx, al);
           if (grp.specs) grp.specs.push(fs ? fs[0] : 0, fs ? fs[1] : 1);
           if (grp.suns) grp.suns.push(sunOf(f, idx));
         }
@@ -661,6 +679,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
         pushCry(f, 3);
         pushMet(f, 3);   // clip/radius vertices: the face normal
         pushSun(f, 3);   // (and the face's mean share)
+        for (let k = 0; k < 3; k++) pushLit(lits, f, null, 1);
         pushNormal(3);
       }
     } else {
@@ -674,10 +693,11 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       const tris = faceTris(c, !!rev);
       for (const tri of tris) {
         for (const idx of tri) {
-          const p = c[idx], a = vao ? aoOf(idx) : 1;
+          const p = c[idx], [a, al] = aoSplit(f, vao ? aoOf(idx) : 1);
           const cc = (cornerCols && cornerCols[idx]) || [lr, lg, lb];
           positions.push(p[0], p[1], p[2]);
           colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
+          pushLit(lits, f, idx, al);
         }
       }
       pushSpec(f, tris.length * 3);
@@ -712,6 +732,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       specs: grp.hasSpec && grp.specs ? Float32Array.from(grp.specs) : null,
       // per-vertex sun share — only when a face of THIS group carries one
       ...(grp.hasSun ? { suns: Float32Array.from(grp.suns) } : {}),
+      // per-vertex baked light (the form render indoors) — only when a face of THIS group carries one
+      ...(grp.hasLit ? { lits: Float32Array.from(grp.lits) } : {}),
     };
   }
   return {
@@ -731,6 +753,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     ...(metP && metP.length ? { metP: Float32Array.from(metP) } : {}),
     // per-vertex sun share (the live light) — only when some untextured face carries one
     ...(sunSeen && suns.length ? { suns: Float32Array.from(suns) } : {}),
+    // per-vertex baked light (the form render indoors) — only when some untextured face carries one
+    ...(litSeen && lits.length ? { lits: Float32Array.from(lits) } : {}),
     vertexCount: positions.length / 3,
     faceCount: faces.length,
     center,

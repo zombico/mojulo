@@ -250,7 +250,20 @@ export const CALL_CUES = Object.freeze({
   holed: Object.freeze({ tone: 'gold', hold: 1.3, cut: 'ball' }),
   penalty: Object.freeze({ tone: 'warn', hold: 1.3 }),
   roll: Object.freeze({ tone: 'side', hold: 1.1, strap: true }),
-  serve: null, live: null, shot: null, lie: null,
+  // a carry game's: the ball turned over, a first down, a dropped ball, the conversion (a tackle and its count are the
+  // tab's, no plate)
+  turnover: Object.freeze({ tone: 'side', hold: 1.1 }),
+  down: Object.freeze({ tone: 'side', hold: 0.9 }),
+  incomplete: Object.freeze({ tone: 'warn', hold: 0.9 }),
+  conversion: Object.freeze({ tone: 'gold', hold: 1.2 }),
+  // an innings game's: a strike, a hit and its bases, the runs and the boundary, the side retired, the over (a dot ball
+  // is the tab's); an out is the shared `out` above, read by its reason
+  strike: Object.freeze({ tone: 'neutral', hold: 0.8 }),
+  'base-hit': Object.freeze({ tone: 'side', hold: 1.2, cut: 'winner' }),
+  runs: Object.freeze({ tone: 'side', hold: 1.1 }),
+  side: Object.freeze({ tone: 'neutral', hold: 1.4 }),
+  'end-over': Object.freeze({ tone: 'neutral', hold: 0.9 }),
+  serve: null, live: null, shot: null, lie: null, tackle: null, tackled: null, dot: null,
 });
 /** The referee's reasons and the sports' own words, as the broadcast shows them. */
 export const WHY_WORDS = Object.freeze({
@@ -277,6 +290,7 @@ export const STAT_COVERAGE = Object.freeze({
   pitch: Object.freeze({ at: 'period', panel: ['possession', 'shots', 'onTarget', 'passes', 'corners', 'fouls', 'saves'], strap: ['shots', 'onTarget'], board: ['shots'] }),
   turns: Object.freeze({ at: 'round', panel: ['toPar', 'putts', 'fairways', 'greens', 'penalties', 'pinfall', 'strikes', 'spares', 'opens', 'speed'], strap: ['putts', 'greens', 'strikes', 'spares'], board: ['putts', 'strikes'] }),
   meet: Object.freeze({ at: 'over', panel: [], strap: ['runup'], board: ['clips', 'fouls', 'runup'] }),
+  innings: Object.freeze({ at: 'side', panel: ['runs', 'hits', 'homers', 'strikeouts', 'fours', 'sixes', 'outs'], strap: ['hits', 'fours', 'sixes'], board: ['hits', 'sixes'] }),
 });
 const STAT_WORDS = ['at', 'panel', 'strap', 'board'];
 /**

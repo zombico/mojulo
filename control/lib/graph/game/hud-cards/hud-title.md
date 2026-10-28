@@ -5,7 +5,7 @@
 ## The row
 
 ```json
-{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "slot"?: "center", "ttl"?, "color"? }
+{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "material"?, "block"?, "blockColor"?, "slot"?: "center", "ttl"?, "color"? }
 ```
 
 A title is set in a **theme**, a whole graphic-design style — the carve, the entrance, the case, the tracking,
@@ -50,6 +50,21 @@ camera for `ttl` seconds (the theme's), its entrance and exit inside that time.
   `glow` (the title's colour, added, larger), `none`.
 - `color` — hex or a semantic name (`harm`, `value`, `goal`, `accent`, `accent2`); default the theme's token.
   The letters are baked in it.
+- `material` — what the letters are made of, instead of the register's paint. A **metal** (`chrome`, `gold`,
+  `silver`, `copper`, `bronze`, `brass`, `steel`, `titanium`, `aluminium` …) is the chrome logo: each letter's face
+  reflects a studio sweep top to bottom of the line (a bright softbox, a dark horizon under the middle, the floor's
+  warm bounce, in the metal's measured colour), in three hard bands in the anime look; the metal is the colour, and
+  `color` tints only a `glow` edge. A **finish** (`stone`, `wood`, `plastic`, `satin`, `matte`, `glass`, `neon`, `cel`,
+  and words like `marble` or `ceramic`) shades the letters its way in `color`, or in its own colour when the row names
+  none. No theme names one: a title without it is painted as before. `{ "on": "ko", "text": "K.O.", "as": "title",
+  "material": "chrome" }`.
+- `block` — the letters' depth made to show, the 3D block letter beyond a raised face: `drop` (deep, down and to the
+  right: the comic and cartoon block, COURSE CLEAR), `perspective` (deep, the sides running back to a point under the
+  word: the action-movie logo), `stack` (the comic masthead's receding copies, a stepped stack in alternating shades:
+  POW!), `none` (default). The sides are `blockColor` (hex or a semantic name) or the face's own hue darkened (a metal's:
+  the sweep under its horizon); two flat tones in the anime look, shading toward the back in the western. A block is
+  the drop, so it takes the place of a `shadow` edge (`both` keeps the ink). Combines with `material` and any carve:
+  `{ "on": "win", "text": "VICTORY", "as": "title", "material": "gold", "block": "drop" }`.
 - `slot` — `center` (default); `top` / `bottom` raise or lower the word. Corners read as their edge.
 
 ## The cascade: a play direction dresses its titles

@@ -86,7 +86,7 @@ export function teamManifest(spec = {}) {
   const camera = { name: 'end', worldFraming: { cameraPosition: [0, r3(T.originY - T.halfL - 14), 12], lookAt: [0, T.originY, 0.5], horizontalFov: 58, pictureCenter: [640, 360] } };
   const channel = { pitch: { ...M, ...(M.title ? {} : { title }) } };
   // (in a stadium when the arena names one: its room the field, its camera its own)
-  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.sport === 'hockey' ? 'ice' : 'grass', camera, title, channel });
+  if (M.venue) return venueManifest(M.venue, { room: { x: r3(-T.room.w / 2), y: 0, w: T.room.w, d: T.room.d }, surface: M.sport === 'hockey' ? 'ice' : T.goal.hoop ? 'wood' : 'grass', camera, title, channel });
   return {
     kind: 'stage',
     kit: M.kit,

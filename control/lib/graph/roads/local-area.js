@@ -8,14 +8,16 @@
  *   massing    the volumes the zone will hold, plain: the pit building's block, a stand's wedge, hospitality's box
  *              (drawn only when the area stops here: the review of the volumes before their elements)
  *   elements   the structure from blocks (set-pieces.js), in modules where it runs long (the pit building a row of pit
- *              modules along the straight, a long stand in sections), facing the track
+ *              modules along the straight, a long stand in sections), facing the track; with `stands` (stadium/stand.js
+ *              readStands) a stand is the stadium's section swept along the zone's front instead, on every pole but
+ *              the voxel's
  *   dressing   what makes it used: the pit wall and its catch fence, a stand's fence, the team trucks in the paddock,
  *              cars parked, lamp posts
  *
  * The roads (the service ring, the spurs) are a local area of their own: asphalt laid on the land, lamps along the
  * spurs, a spur stopped short of the track where it goes under it (a tunnel's portals).
  *
- *   buildLocalAreas(plan, arena, { K, seed, local: { <zone>: { seed?, skip?, upTo? } }, upTo }) →
+ *   buildLocalAreas(plan, arena, { K, seed, local: { <zone>: { seed?, skip?, upTo? } }, upTo, stands? }) →
  *       { areas: [{ zone, use, seed, upTo, pad, passes: { ground, massing, elements, dressing } (face counts), laws }],
  *         faces, colliders, things, byZone: { <zone>: the faces it drew } }
  *   localCamera(plan, arena, zoneId) → a worldFraming that looks at one area (its review shot)
@@ -29,6 +31,7 @@ import { buildVehicle, PAINTS, FLEET } from './fleet.js';
 import { boxFaces } from './road-faces.js';
 import { ARENA } from './arena-plan.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { standFaces, paintStand } from '../stadium/stand.js';
 
 export const PASSES = Object.freeze(['ground', 'massing', 'elements', 'dressing']);
 const PAVING = Object.freeze({ 'pit lane': 'asphalt', paddock: 'asphalt', 'car park': 'asphalt', 'pit building': 'concrete', hospitality: 'concrete', grandstand: 'concrete', 'landmark ground': 'gravel' });
@@ -43,7 +46,7 @@ const edges = (poly) => { const m = poly.length / 2; return { near: poly.slice(0
 const centroid = (poly) => poly.reduce((s, p) => [s[0] + p[0] / poly.length, s[1] + p[1] / poly.length], [0, 0]);
 const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
-export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = 'dressing' } = {}) {
+export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = 'dressing', stands = null } = {}) {
   const cls = plan.course.class, A = ARENA[cls] ?? ARENA.circuit, Hh = HEIGHTS[cls] ?? HEIGHTS.circuit;
   const a = plan.alignment, X = plan.X, Lt = a.length, ground = plan.groundAt;
   const C = Array.from({ length: Math.max(32, Math.round(Lt / 2)) + 1 }, (_, i) => a.at(Math.min(Lt, (i * Lt) / Math.max(32, Math.round(Lt / 2)))));
@@ -125,7 +128,17 @@ export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = '
     };
     const elements = [];
     if (z.use === 'pit building') for (const r of runs(48)) elements.push(build('pit-module', { len: Math.max(10, Math.min(50, r.len)), depth: Math.max(6, Math.min(20, r.depth - 1)), h: Math.min(11, Hh.pit) }, r.at, r.yaw, s));
-    if (z.use === 'grandstand') for (const r of runs(54)) elements.push(build('grandstand', { w: Math.max(14, Math.min(56, r.len)), rows: Math.max(4, Math.min(14, Hh.rows)) }, [r.at[0], r.at[1], zPad], r.yaw, s));
+    // a stand in the stadium's section (stadium/stand.js) when the words ask, on every pole but the voxel's (its cubes
+    // keep the block): set back from the zone's front, where the catch fence stands, along the whole of it
+    const bowl = z.use === 'grandstand' && stands && K.pole !== 'voxel';
+    const front = bowl ? frontOf(z.poly, (p) => nearestC(p[0], p[1]).d) : null;
+    if (bowl) {
+      const { a: fa, b: fb, out } = front, tl = Math.hypot(fb[0] - fa[0], fb[1] - fa[1]), tu = [(fb[0] - fa[0]) / tl, (fb[1] - fa[1]) / tl], inset = 0.5;
+      const at = (p, d) => [p[0] + out[0] * stands.back + tu[0] * d, p[1] + out[1] * stands.back + tu[1] * d];
+      const st = standFaces(stands, { from: at(fa, inset), to: at(fb, -inset), out, z: zPad, seed: s });
+      elements.push({ b: { id: 'stand', box: st.box, faces: st.faces }, faces: paintStand(st.faces, K) });
+    }
+    if (z.use === 'grandstand' && !bowl) for (const r of runs(54)) elements.push(build('grandstand', { w: Math.max(14, Math.min(56, r.len)), rows: Math.max(4, Math.min(14, Hh.rows)) }, [r.at[0], r.at[1], zPad], r.yaw, s));
     if (z.use === 'hospitality') { const len = Math.hypot(near[m - 1][0] - near[0][0], near[m - 1][1] - near[0][1]), dep = Math.hypot(far[0][0] - near[0][0], far[0][1] - near[0][1]); elements.push(build('hospitality', { w: Math.max(10, Math.min(50, len - 2)), d: Math.max(8, Math.min(30, dep - 2)), h: Math.min(10, Hh.hosp) }, [cz[0], cz[1], zPad], facingTrack(cz), s)); }
     for (const e of elements) {
       passes.elements.push(...e.faces);
@@ -135,6 +148,8 @@ export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = '
       // its own corners (an axis box round a turned building reaches further than it does)
       const reach = Math.min(...e.b.faces.filter((_, i) => i % 3 === 0).flatMap((f) => f.corners).map(([x, y]) => nearestC(x, y).d));
       if (reach < X.outer) laws.push({ law: 'off-the-road', detail: `${z.id}'s ${e.b.id} reaches the road (${r3(reach)} m from its line)` });
+      // a stand stays on its zone's footprint (the plan's room for it), a hand's breadth spare
+      if (e.b.id === 'stand') { const out = e.b.faces.flatMap((f) => f.corners).filter(([x, y]) => !insidePoly(z.poly, [x, y], 0.3)); if (out.length) laws.push({ law: 'in-zone', detail: `${z.id}'s stand reaches past its zone (${out.length} corners): fewer rows, or a deeper zone` }); }
     }
     // ── dressing: what makes it used ──
     const dress = passes.dressing, place = (id, params, at, yaw) => { const e = build(id, params, at, yaw, s); dress.push(...e.faces); return e; };
@@ -151,7 +166,13 @@ export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = '
       }
       if (cls !== 'kart') along(near, 10, (p, h) => place('catch-fence', { len: 9.8, h: 3 }, [p[0], p[1], zAt(p) + 1.05], h));
     }
-    if (z.use === 'grandstand') along(near, 10, (p, h) => place('catch-fence', { len: 9.8, h: cls === 'kart' ? 2 : 4 }, [p[0], p[1], zAt(p)], h));
+    if (z.use === 'grandstand' && !bowl) along(near, 10, (p, h) => place('catch-fence', { len: 9.8, h: cls === 'kart' ? 2 : 4 }, [p[0], p[1], zAt(p)], h));
+    // (before a stand in the stadium's section, at its zone's front: the posts painted, the mesh seen through, as a
+    // debris fence is, so the lower rows read from the track)
+    if (bowl) along([front.a, front.b], 10, (p, h) => {
+      const B = TRACK_BLOCKS['catch-fence'], b = buildBlock(B, { params: { len: 9.8, h: cls === 'kart' ? 2 : 4 }, library: TRACK_BLOCKS, many: 0.5, seed: s, at: [p[0], p[1], zAt(p)], yaw: (h * 180) / Math.PI });
+      dress.push(...paintPiece(b.faces.filter((f) => f.group !== 'tech:cable'), K), ...b.faces.filter((f) => f.group === 'tech:cable').map((f) => ({ corners: f.corners, fill: K.flat('tyre', 3), alpha: 0.3, group: 'stand:mesh' })));
+    });
     if (z.use === 'paddock' && cls !== 'kart') {
       // the team trucks, nose to the pit building, a lamp along the row
       along(far, 14, (p) => {
@@ -203,6 +224,24 @@ export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = '
   }
   areas.push(roadArea);
   return { areas, faces, colliders, things, byZone };
+}
+
+// a zone's long edge nearest the track (its front: { a, b }) and the unit direction from it to the other (`out`)
+function frontOf(poly, dist) {
+  const { near, far } = edges(poly), mean = (e) => e.reduce((s, p) => s + dist(p) / e.length, 0);
+  const [f, k] = mean(near) <= mean(far) ? [near, far] : [far, near];
+  const fm = centroid(f), km = centroid(k), d = Math.hypot(km[0] - fm[0], km[1] - fm[1]) || 1;
+  return { a: f[0], b: f[f.length - 1], out: [(km[0] - fm[0]) / d, (km[1] - fm[1]) / d] };
+}
+// a point inside a convex footprint, `m` spare past its edges
+function insidePoly(poly, [x, y], m = 0) {
+  const c = centroid(poly);
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length], ex = q[0] - p[0], ey = q[1] - p[1], l = Math.hypot(ex, ey) || 1;
+    const side = (px, py) => (ex * (py - p[1]) - ey * (px - p[0])) / l;
+    if (side(x, y) * Math.sign(side(c[0], c[1])) < -m) return false;
+  }
+  return true;
 }
 
 // many-sided faces (a fleet wheel's disc, a cap) fanned to quads: the World draws a face's first four corners only

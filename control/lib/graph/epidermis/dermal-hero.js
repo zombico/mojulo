@@ -171,9 +171,12 @@ function headSkin(mesh, recipe, D, page) {
   // globe; its Mouth, the lips turned in, is no skin)
   const one = recipe.headFit.skin === 'one', skin = src.map((v) => one || !H.paint?.(stand(mesh.vertices[v])));
   const shown = src.map(shownAt);
-  const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi] });
+  // (realistic laws 10, the ear raised: the ear its own parts, never the box about it, whose top now reaches the skull's
+  // side above it and painted the skin there as ear; the recipe's `hairClip` is laws 10's)
+  const earPart = recipe.hairClip ? src.map((v) => /^ear[RL]$/.test(mesh.provenance[v].part)) : null;
+  const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi], ...(earPart ? { earAt: (vi) => earPart[vi] } : {}) });
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
-  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout);
+  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, recipe.hairClip ? { clip: recipe.hairClip } : {});
   return { chart, layout, maps, local, skinFace };
 }
 
@@ -199,7 +202,9 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   if (Hd) for (let y = 0; y < HH; y++) px.set(Hd.albedo.subarray(y * HW * 4, (y + 1) * HW * 4), ((BH + y) * W) * 4);
   // (the strands the hero's own: its pigment against the cards' colour, the hair's mean, and its share gone grey)
   const hairHex = typeof recipe.palette?.Hair === 'string' ? recipe.palette.Hair : null, pigment = hairColourOf(H.dermis);
-  const dye = hairHex && pigment.every(Number.isFinite) ? { tint: hex3(hairHex).map(lin).map((m, i) => pigment[i] / Math.max(1e-6, m)), grey: H.dermis.grey ?? 0 } : null;
+  // (realistic laws 10: the lock hair's cards, `strands: 'plain'`, undyed: white strands, their colour the mass's own)
+  const plain = Object.values(recipe.parts || {}).some((P) => P?.strands === 'plain');
+  const dye = !plain && hairHex && pigment.every(Number.isFinite) ? { tint: hex3(hairHex).map(lin).map((m, i) => pigment[i] / Math.max(1e-6, m)), grey: H.dermis.grey ?? 0 } : null;
   if (SH) { const S = strandPage({ w: SW, h: SH, dye }); for (let y = 0; y < SH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + y) * W) * 4); }
   // (a page's [s, t], t up, onto the atlas's)
   const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];

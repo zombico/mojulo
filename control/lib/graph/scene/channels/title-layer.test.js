@@ -4,7 +4,7 @@ import { EMIT_FIXTURES } from '../emit-fixtures.js';
 import { emitThreeWorld } from '../scene-three.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 import { titleFontsFound } from '../../game/title-carve.js';
-import { titleHex } from './title-channel.js';
+import { titleHex, titleBlock } from './title-channel.js';
 import { resolvePlayUi } from '../../playscape/ui/direction.js';
 
 // ── the title layer (title-channel.js): a HUD banner `as: 'title'` as carved 3D letters on the page ──
@@ -27,6 +27,18 @@ describe('title-channel — the colour the letters are baked in', () => {
     expect(titleHex('accent', { accent: '#5fe6d6' })).toBe('#5fe6d6');
     expect(titleHex(undefined, { accent: '#5fe6d6' })).toBe('#5fe6d6');
     expect(titleHex('accent2', {})).toBe('#e8b96a');
+  });
+});
+
+describe('title-channel — a block\'s colours', () => {
+  it('the sides are the face\'s own hue darkened, the far edge darker again; a named side colour is taken as it is', () => {
+    const lum = (h) => [1, 3, 5].reduce((s, i) => s + parseInt(h.slice(i, i + 2), 16), 0);
+    const red = titleBlock('drop', '#ff5a4d');
+    expect(red.kind).toBe('drop');
+    expect(lum(red.side)).toBeLessThan(lum('#ff5a4d')); expect(lum(red.edge)).toBeLessThan(lum(red.side));
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(red.side.slice(i, i + 2), 16));
+    expect(r).toBeGreaterThan(g); expect(r).toBeGreaterThan(b);   // still red
+    expect(titleBlock('stack', '#ff5a4d', '#ffd24d').side).toBe('#ffd24d');
   });
 });
 
@@ -57,6 +69,9 @@ describe('world-scene — the title gate', () => {
   it('a bad look or style on a title row fails the gate with the closed words', async () => {
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', look: 'explode' }] }))).rejects.toThrow(/look must be one of: slam, rise, stamp, fade, slide/);
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', style: 'comic' }] }))).rejects.toThrow(/style must be one of: heavy, blocky, slick, thin, italic/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', material: 'plasma' }] }))).rejects.toThrow(/material must name a metal \(chrome, gold/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', block: 'emboss' }] }))).rejects.toThrow(/block must be one of: none, drop, perspective, stack/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', block: 'drop', blockColor: 'teal' }] }))).rejects.toThrow(/blockColor is a hex colour/);
   });
 
   it('a world without a title row carries no title bytes (the events-hud fixture)', () => {
@@ -105,16 +120,21 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
   class V3 { constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; } set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; } copy(v) { this.x = v.x; this.y = v.y; this.z = v.z; return this; } setScalar(s) { return this.set(s, s, s); } multiplyScalar(k) { this.x *= k; this.y *= k; this.z *= k; return this; } }
   class Obj { constructor() { this.position = new V3(); this.scale = new V3(1, 1, 1); this.rotation = new V3(); this.quaternion = { copy() { return this; } }; this.children = []; this.visible = true; } add(o) { this.children.push(o); return this; } remove(o) { this.children = this.children.filter((c) => c !== o); return this; } }
   class Mat { constructor(o = {}) { Object.assign(this, { opacity: 1, rotation: 0 }, o); this.disposed = false; } dispose() { this.disposed = true; } }
-  class Geo { setAttribute(k, a) { this[k] = a; } dispose() {} }
+  class Geo { constructor() { this.attributes = {}; } setAttribute(k, a) { this[k] = a; this.attributes[k] = a; } dispose() {} }
   const THREE = {
     Group: Obj, Mesh: class extends Obj { constructor(g, m) { super(); this.geometry = g; this.material = m; } }, Sprite: class extends Obj { constructor(m) { super(); this.material = m; } },
     BufferGeometry: Geo, BufferAttribute: class { constructor(a, n) { this.array = a; this.itemSize = n; } }, RingGeometry: class extends Geo {},
-    MeshBasicMaterial: Mat, SpriteMaterial: Mat, Color: class { constructor(c) { this.c = c; } }, BackSide: 1, DoubleSide: 2, AdditiveBlending: 3,
+    MeshBasicMaterial: class extends Mat { constructor(o) { super(o); this.userData = {}; } }, SpriteMaterial: Mat, Color: class { constructor(c) { this.c = c; } }, BackSide: 1, DoubleSide: 2, AdditiveBlending: 3,
+    CanvasTexture: class { constructor(c) { this.image = c; } }, SRGBColorSpace: 'srgb', LinearFilter: 6, ClampToEdgeWrapping: 7,
   };
   const dom = () => {
     const mk = (tag) => {
       const el = { tag, children: [], style: {}, cls: new Set(), textContent: '', get className() { return [...this.cls].join(' '); }, set className(v) { this.cls = new Set(v.split(' ').filter(Boolean)); }, appendChild(c) { el.children.push(c); return c; }, remove() {} };
       el.classList = { add: (c) => el.cls.add(c), remove: (c) => el.cls.delete(c), contains: (c) => el.cls.has(c) };
+      if (tag === 'canvas') {   // a metal's sweep is drawn once into a two-column texture: record what was drawn
+        el.drawn = [];
+        el.getContext = () => ({ createLinearGradient: () => ({ stops: [], addColorStop(o, c) { this.stops.push([o, c]); } }), fillRect(...r) { el.drawn.push([this.fillStyle, r]); }, fillStyle: null });
+      }
       return el;
     };
     return { document: { head: mk('head'), createElement: mk }, wrap: mk('wrap') };
@@ -150,6 +170,98 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     expect(run(h, 'round-start')).toBeNull();   // ttl 1.8 s: gone, its materials disposed
     expect(r.letters[0].m.material.disposed).toBe(true);
     expect(h.rig().children).toEqual([]);
+  });
+
+  it('a material dresses the letters: a metal reflects its sweep from a map by height, a finish shades by its shelf row, glass stays glass through the fade', async () => {
+    const rows = [
+      { on: 'ko', text: 'KO', as: 'title', material: 'chrome', edge: 'glow' },
+      { on: 'win', text: 'WIN', as: 'title', material: 'marble' },
+      { on: 'ice', text: 'ICE', as: 'title', material: 'glass', look: 'fade', color: '#88ccff' },
+      { on: 'go', text: 'GO', as: 'title', look: 'fade' },
+    ];
+    const out = await titled({}, rows);
+    const html = emitThreeWorld(out);
+    const widgets = JSON.parse(html.match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]).filter((w) => w.kind === 'title');
+    expect(widgets.map((w) => [w.material, w.mat ? (w.mat.metal || 'shade') : null])).toEqual([['chrome', 'chrome'], ['stone', 'shade'], ['glass', 'shade'], [undefined, null]]);
+    expect(widgets[1].hex).toBe('#8d8f93');   // a finish without a colour of its own wears its shelf row's
+    expect(widgets[2].hex).toBe('#88ccff');   // the row's own colour wins
+    expect(new Set(widgets[0].mat.stops.map(([, h]) => h)).size).toBe(3);   // no floor ⇒ the anime register: cel metal, three bands
+    for (const src of pageScripts(html)) if (src.trim()) expect(() => new Function(src.replace(/^\s*import[^\n]*\n/gm, ''))).not.toThrow();
+    // a world whose titles name no material carries none of its code
+    expect(emitThreeWorld(await titled())).not.toContain('__ttMatGeometry');
+    expect(html).toContain('__ttMatGeometry');
+
+    const h = await mount({}, rows);
+    h.sync(0, []); h.bus.log.push({ type: 'ko' }, { type: 'win' }, { type: 'ice' }, { type: 'go' }); h.sync(0, []);
+    const ko = run(h, 'ko').letters[0].m, win = run(h, 'win').letters[0].m, ice = run(h, 'ice').letters[0].m, go = run(h, 'go').letters[0].m;
+    // the metal: a map whose first column is the sweep and second white; every vertex has a uv, v its height in the line
+    expect(ko.material.map.image.drawn.map(([, r]) => r)).toEqual([[0, 0, 1, 128], [1, 0, 1, 128]]);
+    expect(ko.material.map.colorSpace).toBe('srgb');
+    const uv = ko.geometry.uv.array, pos = ko.geometry.position.array;
+    expect(uv.length / 2).toBe(pos.length / 3);
+    const us = new Set(); for (let i = 0; i < uv.length; i += 2) { us.add(uv[i]); expect(uv[i + 1]).toBe(pos[(i / 2) * 3 + 1]); }
+    expect([...us].sort()).toEqual([0.25, 0.75]);   // the face and the bevel take the sweep; the walls take the white column
+    expect(run(h, 'ko').letters[0].glow).toBeTruthy();   // the edge still stands behind the metal
+    // the finish and the plain title: no map, colours per vertex
+    expect(win.material.map).toBeUndefined(); expect(win.geometry.uv).toBeUndefined();
+    expect(go.material.map).toBeUndefined(); expect(go.geometry.uv).toBeUndefined();
+    // the same letter in the same material twice is one geometry; a different material is another
+    expect(h.layout('heavy', 'KO').letters).toHaveLength(2);
+    // glass keeps its opacity through the entrance: half of what the same fade gives a plain letter, mid-fade and settled
+    h.sync(150, []);
+    expect(go.material.opacity).toBeGreaterThan(0.05); expect(go.material.opacity).toBeLessThan(0.95);
+    expect(ice.material.opacity).toBeCloseTo(0.5 * go.material.opacity, 5);
+    h.sync(1200, []);
+    expect(ice.material.opacity).toBeCloseTo(0.5 * go.material.opacity, 5);
+  });
+
+  it('a block makes the depth show: drop pulls the back down-right, perspective toward a point under the word, stack stands copies behind; the face keeps its look', async () => {
+    const rows = [
+      { on: 'drop', text: 'KO', as: 'title', block: 'drop', blockColor: '#ffd24d', edge: 'both' },
+      { on: 'persp', text: 'KO', as: 'title', block: 'perspective' },
+      { on: 'stack', text: 'KO', as: 'title', block: 'stack', edge: 'both' },
+      { on: 'flat', text: 'KO', as: 'title', edge: 'both' },
+    ];
+    const html = emitThreeWorld(await titled({}, rows));
+    const widgets = JSON.parse(html.match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]).filter((w) => w.kind === 'title');
+    expect(widgets.map((w) => w.blk && [w.blk.kind, w.blk.side])).toEqual([['drop', '#ffd24d'], ['perspective', widgets[1].blk.side], ['stack', widgets[2].blk.side], undefined]);
+    expect(html).toContain('__ttBlock');
+    expect(emitThreeWorld(await titled())).not.toContain('__ttBlock');   // no block named: none of its code
+
+    const h = await mount({}, rows);
+    h.sync(0, []); h.bus.log.push(...rows.map((r) => ({ type: r.on }))); h.sync(0, []);
+    const L = (on) => run(h, on).letters[0];
+    const flat = L('flat').m.geometry, drop = L('drop').m.geometry, persp = L('persp').m.geometry;
+    const zs = (g) => { const z = []; for (let i = 2; i < g.position.array.length; i += 3) z.push(g.position.array[i]); return z; };
+    // the flat letter is the atlas's sliver; the blocks go deep
+    expect(Math.min(...zs(flat))).toBeGreaterThan(-0.4);
+    expect(Math.min(...zs(drop))).toBeLessThan(-0.6); expect(Math.min(...zs(persp))).toBeLessThan(-0.6);
+    // the face is where it was, in its colour: every vertex at z = 0 sits and is coloured as the flat letter's
+    const P0 = flat.position.array, P1 = drop.position.array;
+    for (let i = 0; i < P0.length; i += 3) if (P0[i + 2] === 0) { expect(P1[i]).toBe(P0[i]); expect(P1[i + 1]).toBe(P0[i + 1]); }
+    // drop: the back ring moved down and to the right, by one offset
+    const back = []; for (let i = 0; i < P0.length; i += 3) if (P0[i + 2] < -0.2) back.push([P1[i] - P0[i], P1[i + 1] - P0[i + 1]]);
+    expect(back.length).toBeGreaterThan(0);
+    expect(new Set(back.map(([dx, dy]) => dx.toFixed(4) + ',' + dy.toFixed(4))).size).toBe(1);
+    expect(back[0][0]).toBeGreaterThan(0); expect(back[0][1]).toBeLessThan(0);
+    // perspective: the back ring pulled toward a point under the word, so it is narrower than the face
+    const span = (g, back) => { const xs = []; for (let i = 0; i < g.position.array.length; i += 3) if ((g.position.array[i + 2] < -0.2) === back) xs.push(g.position.array[i]); return Math.max(...xs) - Math.min(...xs); };
+    expect(span(persp, true)).toBeLessThan(span(persp, false));
+    // the sides are the block's colour (yellow: red above blue), the face is not
+    const C = drop.color.array; let sideYellow = 0;
+    for (let i = 0; i < C.length; i += 3) if (P0[i + 2] < -0.2 && C[i] > C[i + 2] * 2) sideYellow++;
+    expect(sideYellow).toBeGreaterThan(0);
+    // the block is the drop: no drop copy stands in front of it; the ink hull stays
+    expect(L('drop').shadow).toBeNull(); expect(L('drop').hull).toBeTruthy();
+    expect(L('flat').shadow).toBeTruthy();
+    // stack: six copies behind, stepping down-right and back, the last in the edge colour; they fade with the letter
+    const st = L('stack').stack;
+    expect(st).toHaveLength(6);
+    for (let i = 1; i < st.length; i++) { expect(st[i].position.x).toBeGreaterThan(st[i - 1].position.x); expect(st[i].position.y).toBeLessThan(st[i - 1].position.y); expect(st[i].position.z).toBeLessThan(st[i - 1].position.z); }
+    expect(st.at(-1).material.color.c).toBe(widgets[2].blk.edge);
+    expect(L('stack').shadow).toBeNull(); expect(L('stack').hull).toBeTruthy();   // the steps are the drop here too
+    h.sync(1000 * 1.8 - 1, []);
+    for (const s of st) expect(s.material.opacity).toBeCloseTo(L('stack').m.material.opacity, 6);
   });
 
   it('slam: oversized at first, then its size, a flash and sparks on landing, growing out at the end; the same frame twice', async () => {

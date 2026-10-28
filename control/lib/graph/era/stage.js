@@ -40,19 +40,27 @@ import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
+import { bayRoom, bayLaws } from './bay.js';
+import { bayKit, BAY_REGISTERS } from './style/bay-kits.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun.js';
 import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
+import { readFormLight, twinMeanValue } from '../form/room-form.js';
+import { GLASS_GROUPS } from './bay-glass.js';
+import { STAIR_PROFILE_IDS } from '../construction/circulation.js';
+import { solveRoomLight, referenceLamp, paintAtReference, paintMean, linHex, falloff, ROOM_LIGHT } from '../form/room-light.js';
+import { decodeSrgb, encodeSrgb } from '../color-theorist/light.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
 import { readBiocube } from './biocube.js';
 import { placeIndoorFauna } from './biocube-fauna.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
-import { withGeocube, geocubePaint } from './geocube.js';
+import { withGeocube, geocubePaint, geocubeBones } from './geocube.js';
+import { readInHall, planInHall, hallAnchors, inHallLaws } from './in-hall.js';
 import { withProgram } from './programs.js';
 import { withBuildings } from './stage-buildings.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
@@ -66,6 +74,9 @@ import { resolveTerrainWind } from '../vegetation/wind.js';
 import { standsRepeats } from './stands.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
+// (glass, every kind of it, lets the light through: out of the shadow occluders)
+const GLASS = new Set(GLASS_GROUPS);
+
 export const STAGE_KITS = ({
   'gothic-stone': Object.freeze({
     grid: 1, bay: 4, wall: 0.5,   // wall = thickness between neighbouring rooms (each room's interior sits wall/2 inside its box)
@@ -217,6 +228,10 @@ STAGE_KITS['research-lab'] = Object.freeze({
   },
   dress: RESEARCH_LAB,
 });
+// The BAY kits (era/bay.js, style/bay-kits.js): a modern room whose structure is its ornament, in three registers
+// (military, utility, science): the layered wall, the zoned floor, strips on the pilasters, lamps between the beams, a
+// crane and a catwalk in a tall room.
+for (const reg of BAY_REGISTERS) STAGE_KITS[`bay-${reg}`] = bayKit(reg);
 // The CATACOMB: burial galleries cut into soft rock (style/catacomb.js, dressed by era/crypt.js like the crypt): the
 // gothic-stone shell's proportions pared down to carved piers, a low plinth and cornice, walls and vault one warm tufa,
 // the vault sooted darker, the floor worn flags in earth; round-headed passages and barrel vaults throughout.
@@ -265,6 +280,7 @@ export const STAGE_KIT_PROPORTIONS = Object.freeze({
   'gothic-nave': ['bay', 'plinth', 'cornice', 'torch', 'column', 'arcade', 'vault'],
   'island-plaza': ['bay'],
   'research-lab': ['bay'],
+  ...Object.fromEntries(BAY_REGISTERS.map((r) => [`bay-${r}`, ['bay']])),
 });
 /** Kit ids a recipe may still carry from before a kit was renamed: read as the kit it became. */
 export const STAGE_KIT_ALIASES = Object.freeze({ 'delfino-plaza': 'island-plaza' });
@@ -308,7 +324,7 @@ function withRecipeTiles(kit, kitId, tiles) {
     const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
     // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at: a floor laid a tile a
     // bay, at the bay's)
-    const bayFloor = part === 'floor' && kit.bay && kit.shell !== 'lab';
+    const bayFloor = part === 'floor' && kit.bay && kit.shell !== 'lab' && kit.shell !== 'bay';
     const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: bayFloor ? kit.bay : was.scale ?? 2 } : spec;
     // (a dressed family's every block is its own stone already: two variants, half the bytes, read as varied as four)
     out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
@@ -359,9 +375,11 @@ export function planStage(m = {}) {
   // INTERCEPTORS (`growth`, `litter`, `cracks`: interceptors.js): detail grown on the built rooms, never colliding
   // the art direction's dials first, the recipe's own over them, kind by kind
   const icp0 = readInterceptors(m), icpAll = { ...(kit.intercept || {}), ...(icp0 || {}) }, icp = Object.values(icpAll).some((v) => v > 0) ? icpAll : null;
-  const refId = resolveLook(m.reference || 'gothic-night');
-  const ref = SIXTH_GEN_REFERENCES[refId];
-  if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
+  const refId = resolveLook(m.reference || kit0.reference || 'gothic-night');
+  const ref0 = SIXTH_GEN_REFERENCES[refId];
+  if (!ref0) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
+  // (a kit may carry its own air over its look's, a room the look's light without its hue: the recipe's own look keeps its own)
+  const ref = kit0.ambient && !m.reference ? { ...ref0, light: { ...ref0.light, ambient: kit0.ambient } } : ref0;
   // a sunlit kit (the plaza) is lit by its look's key: a look with no sun has nothing to light it with
   if (kit0.sun && !ref.light.key) throw new Error(`stage: kit '${kitId}' is lit by the sun; give it a look with one (${SIXTH_GEN_LOOK_IDS.filter((l) => SIXTH_GEN_REFERENCES[resolveLook(l)].light.key).join(', ')})`);
   if (!Array.isArray(m.rooms) || !m.rooms.length) throw new Error('stage: needs a non-empty `rooms` array ({ id, x, y, w, d, h })');
@@ -433,7 +451,9 @@ export function planStage(m = {}) {
     return { room: r.id, side: w.side, at, ...op };
   });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
-  const stairs = storeyed ? placeStairs(rooms, stairLinks, links, ways, kit) : null;
+  // (a stage's stairs: a keep's steep flight, or a building's switchback, construction/circulation.js STAIR_PROFILES)
+  if (m.stair !== undefined && !STAIR_PROFILE_IDS.includes(m.stair)) throw new Error(`stage: stair is ${STAIR_PROFILE_IDS.join(' or ')} (a keep's steep flight, or a building's switchback)`);
+  const stairs = storeyed ? placeStairs(rooms, stairLinks, links, ways, kit, m.stair ?? 'keep') : null;
   const first = rooms[0];
   // `time: 'night'`: the style card's night takes the reference's light and air; its moon is the key (the bake's sun)
   const time = m.time ?? 'day';
@@ -470,7 +490,7 @@ function readShadows(v0) {
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
-  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [];
+  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [], bayRooms = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % (t.variants ?? 4)]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part], ...(t.upright ? { upright: true } : {}) };
@@ -506,7 +526,7 @@ export function buildStageGeometry(plan) {
     }
   };
   const plaza = kit.shell === 'plaza';
-  const B = plaza ? kit.step.width : kit.shell === 'lab' ? 0 : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
+  const B = plaza ? kit.step.width : kit.shell === 'lab' || kit.shell === 'bay' ? 0 : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
   // A NAVE wall, bay by bay: an engaged column at each bay line; between them a blind pointed arcade arch, a string
   // course, and a lancet window whose glass glows cool and lights the bay; a bay holding a doorway stays flat.
   const naveWall = (F, cuts, flatWall, sf, h, side) => {
@@ -558,6 +578,12 @@ export function buildStageGeometry(plan) {
   };
   plan.rooms.forEach((r, ri) => {
     const w = r.x1 - r.x0, d = r.y1 - r.y0, h = r.h;
+    if (kit.shell === 'bay') {
+      // a bay is its own floor, walls and roof too (bay.js): its structure goes to the laws and the dressing
+      const L = bayRoom(out, r, ri, kit, surf, plan.rooms);
+      seats.push(...L.seats); dressBays.push(...L.bays); bayRooms.push({ r, ...L.structure });
+      return;
+    }
     if (kit.shell === 'lab') {
       // a lab is its own floor, walls and roof (lab.js); its bays and structure go to the dressing
       const L = labRoom(out, r, ri, kit, surf, plan.decay ? { k: plan.decay.k, seed: plan.decay.seed, pick: plan.decay.picks[ri] } : null);
@@ -706,7 +732,7 @@ export function buildStageGeometry(plan) {
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)
   const lit = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
-  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}) };
+  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -818,6 +844,84 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
+/** THE FORM RENDER'S BAKE (gen-7 under no sun: form/room-light.js). The room's look is its paint read at arm's length from
+ *  its median lamp: each surface's colour there (the sixth generation's bake of its tint over its tile; a toned room, its
+ *  ramp's colour at that light: tone.js) is a TARGET, and the bases and one lamp's light are solved for them
+ *  (solveRoomLight). Each corner then carries its base under its dirt (`cornerFills`: the page divides its tile by the
+ *  tile's mean, so the base sets the colour and the tile the detail) and the light the room lays there (`cornerLight`,
+ *  linear): the ambient, every lamp by the solved key, its falloff and its cosine where it can see the corner (its shadow
+ *  test), and its bounce in its own room. The page multiplies the two and adds only what the nearest lamps do to the
+ *  relief (scene/channels/form.js). `lights` carry their shadow tests (makePointShadow) or none (a pool casts nothing);
+ *  `tone` a toned room's (its light neutral, its contrast its ramp's); `roomOf(p)` names the room a point stands in. → { faces, light: the solve } */
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null } = {}) {
+  const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
+  // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
+  // worked first: the solve's level scales them, so they need it not
+  const rooms = lights.map((l) => roomOf(l.at)), anyRoom = rooms.some((r) => r !== null);
+  const sharesAt = (f, c) => {
+    const out = [], here = anyRoom ? roomOf(add(c, mul(f.normal, 0.15))) : null;
+    lights.forEach((l, i) => {
+      const to = sub(l.at, c), d = Math.hypot(to[0], to[1], to[2]);
+      if (d >= l.radius * ROOM_LIGHT.reach) return;
+      const ndl = d > 1e-6 ? dot(f.normal, mul(to, 1 / d)) : 1;
+      let w = ndl > 0 && d < l.radius ? falloff(d, l.radius) * ndl * (l.shadow ? l.shadow(c, f.normal) : 1) : 0;
+      // (its bounce: what its own room's lit surfaces throw back, wider and softer, in that room alone)
+      if (rooms[i] !== null && here === rooms[i]) w += ROOM_LIGHT.bounce * falloff(d, l.radius * ROOM_LIGHT.reach) * (0.6 + 0.4 * Math.max(0, ndl));
+      if (w > 0) out.push(i, w);
+    });
+    return out;
+  };
+  const centroid = (f) => [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length);
+  const shares = raw.map((f) => (!f.tint ? null : f.corners.length !== 4 ? [sharesAt(f, centroid(f))] : f.corners.map((c) => sharesAt(f, c))));
+  const median = (xs) => { const v = xs.sort((x, y) => x - y); return v.length ? v[Math.floor(v.length / 2)] : 0; };
+  const lit6 = paintAtReference(ambient6, referenceLamp(lights));
+  const L6 = 0.2126 * lit6[0] + 0.7152 * lit6[1] + 0.0722 * lit6[2];
+  // the target each surface's paint shows at the reference (a role: its tile, its tint, and a toned room's ramp: its grey
+  // over the room's middle grey lands on the key, as the toned page's gain brings it there). A toned room's colour is its
+  // own concern (tone.js): its light is neutral, so its ramps' colours hold in its shade as by its lamps, and its contrast
+  // is its ramp's own, the colour at half its key against the colour at its key
+  const ramps = tone ? Object.fromEntries(Object.entries(tone.ramps).map(([n, R]) => [n, R.map(hexRgb)])) : null;
+  const band = (x) => { x = Math.min(1, Math.max(0, x)); return tone.steps > 0.5 ? (Math.min(Math.floor(x * tone.steps), tone.steps - 1) + 0.5) / tone.steps : x; };
+  const onRamp = (R, t) => { const x = Math.min(1, Math.max(0, t)) * (R.length - 1), i = Math.min(R.length - 2, Math.floor(x)), u = x - i; return R[i].map((v, k) => v + (R[i + 1][k] - v) * u); };
+  const grey = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const midGrey = tone ? Math.max(0.02, median(raw.filter((f) => f.tint && !keep.has(f.group)).map((f) => grey(f.tint)))) : 1;
+  const roles = new Map(), targets = {};
+  const roleOf = (f) => {
+    const toned = tone && !keep.has(f.group), id = `${toned ? f.group : ''}|${f.texture ?? ''}|${f.tint.map((v) => v.toFixed(4)).join()}`;
+    if (roles.has(id)) return roles.get(id);
+    const r = `r${roles.size}`;
+    roles.set(id, r);
+    if (toned) {
+      const twin = typeof f.texture === 'string' && /^(value|shade):/.test(f.texture), mv = twin ? twinMeanValue(f.texture) : null;
+      const shift = mv !== null ? (mv - (tone.texture === 'shade' ? 0.9 : 0.5)) * tone.detail : 0;
+      targets[r] = rgbHex(onRamp(ramps[tone.groups[f.group] ?? tone.default], band((tone.key * grey(f.tint)) / midGrey) + shift));
+    } else {
+      const m = paintMean(f.texture);
+      // (the paint under a light of the reference's level and no hue: the lamps bring their hue to it, form/room-light.js)
+      targets[r] = linHex(m.map((mk, k) => mk * lin(Math.min(1, L6 * f.tint[k]))));
+    }
+    return r;
+  };
+  for (const f of raw) if (f.tint) roleOf(f);
+  const ramp0 = tone ? ramps[tone.default] : null;
+  const S = solveRoomLight({ targets, ambient: ambient6, lights, ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  const r4 = (v) => Math.round(v * 1e4) / 1e4;
+  // the light the room lays at a corner (linear, base-multiplier units)
+  const light = (sh) => {
+    const e = [...S.ambient];
+    for (let j = 0; j < sh.length; j += 2) { const K = S.keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
+    return e.map(r4);
+  };
+  const colour = (base, f, c) => { const g = dirt(f, c); return base.map((v, k) => encodeSrgb(Math.min(1, v * g[k]))); };
+  const faces = raw.map((f, i) => {
+    if (!f.tint) return f;
+    const { tint, top, ...rest } = f, base = S.bases[roleOf(f)];
+    if (f.corners.length !== 4) return { ...rest, fill: rgbHex(colour(base, f, centroid(f))), cornerLight: light(shares[i][0]) };
+    const cols = f.corners.map((c) => colour(base, f, c)), mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / 4);
+    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map(light) };
+  });
+  return { faces, light: S };
+}
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
@@ -875,8 +979,31 @@ function splitCard(f, nu, nv) {
   return out;
 }
 
+/**
+ * A HALL (in-hall.js): its beats laid as rooms on the kit's grid (the recipe's kit, else its cube's interior's bones),
+ * built as any rooms are, its anchors (beats and ports) and its readout (`payload.hall`: the beats, the ports and the
+ * laws, measured on the stage's own plan) added. The hall writes the rooms, their links and its ways.
+ */
+export function withHall(manifest) {
+  const { hall: h, ...m } = manifest;
+  for (const k of ['rooms', 'links', 'ways', 'program']) if (m[k] !== undefined) throw new Error(`stage: hall lays the rooms, their links and its ways: a recipe with a hall names no ${k}`);
+  const H = readInHall(h), kitId = resolveKitId(m.kit ?? (m.geocube !== undefined ? geocubeBones(m.geocube, m.domain) : 'gothic-stone')), kit = stageKit(kitId);
+  if (!kit || GROUND_SHELLS.includes(kit.shell) || kit.shell === 'plaza') throw new Error(`stage: hall: kit '${kitId}' is not a room kit with ceilings (a hall is walked under a roof)`);
+  const hall = planInHall(kit, H, Number.isFinite(m.seed) ? m.seed : 1);
+  return { manifest: { ...m, ...(m.kit === undefined && m.geocube === undefined ? { kit: kitId } : {}), rooms: hall.rooms, links: hall.links, ways: hall.ways }, hall, H };
+}
+function assembleHall(manifest, ctx) {
+  const { manifest: m, hall, H } = withHall(manifest), P = assembleStageScene(m, ctx);
+  const plan = planStage(m.geocube !== undefined ? withGeocube(m) : m), anchors = hallAnchors(hall, plan);
+  P.anchors = [...(P.anchors || []), ...anchors];
+  P.hall = { id: hall.id, beats: hall.beats, ports: anchors.filter((a) => a.kind === 'port').map(({ id, as, room, side, at, N }) => ({ id, as, room, side, at, N })), laws: inHallLaws(hall, H, plan) };
+  return P;
+}
+
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
+  // a recipe's `hall` (in-hall.js): rooms strung on a walk, laid from the hall's beats before its cube lowers
+  if (manifest.hall !== undefined) return assembleHall(manifest, ctx);
   // a recipe's `program` (programs.js): a building's rooms and doorways laid from its use, before its cube lowers
   if (manifest.program !== undefined) return assembleStageScene(withProgram(manifest), ctx);
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
@@ -957,7 +1084,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // a painted card stops the sun only where it is painted (an awning's stripes, washing, flowers)
     const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
     return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain, ...(ctx.liveSun ? { share: true } : {}),
-      shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
+      shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => !GLASS.has(f.group) && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them
   const raw0 = dress ? [...base, ...dress.blends(base)] : base;
@@ -967,12 +1094,26 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // torch shadows (`shadows.torch`): each placed light and brazier tests what stands between it and a corner; the
   // occluders are what the sun's are, and a painted card stops nothing (its alpha is not tested from a point)
   const shadowed = (ls) => (plan.shadows && plan.shadows.torch !== 'off' && !ctx.unshaded ? (() => {
-    const occ = base.filter((f) => f.group !== 'stage:glass' && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
+    const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => ({ ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   })() : ls);
+  const dirt = () => makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt);
+  // THE FORM RENDER INDOORS (a read in an era whose surface is form, gen-7: form/room-light.js): a room under no sun is
+  // baked as a lightmap is, its colour and its light apart: every placed light, brazier and pool at the level its palette
+  // asks for, each lamp's shadow tested whatever the recipe's `shadows.torch` (the page casts none: scene/channels/form.js),
+  // its bounce in its own room. A toned room's palette is its ramps' (tone.js). A sunlit or night stage is drawn as paint
+  const form = !!ctx.formLit && !ctx.unshaded && !daylight && !plan.night;
+  const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
+  const formTest = (ls) => {
+    const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
+    return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
+  };
+  const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
+    ...(plan.tone ? { tone: plan.tone } : {}) }) : null;
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt), sun);
+    : formLit ? formLit.faces
+      : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
@@ -1027,6 +1168,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(live ? { fireSources: [...torches.map((l) => ({ kind: 'torch', at: P([l.at[0], l.at[1], l.at[2] - 0.04]), ...(Fk && Fk.torch ? { size: Fk.torch } : {}), ...((plan.atmosphere && plan.atmosphere.flicker) || (plan.kit.dress && plan.kit.dress.flicker) ? { pace: (plan.atmosphere && plan.atmosphere.flicker) || plan.kit.dress.flicker } : {}), baked: true })),
       ...braziers.map((b) => ({ kind: 'brazier', at: b.at, size: b.size, baked: true }))] } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
+    // the form render's light (form/room-light.js): the lamps the bake laid (placed lights, braziers, pools), each its solved
+    // key, the ambient and the falloff, for the page to light the relief by; a toned room's void; only a room read in the
+    // form render
+    // the bay shell's readout (bay.js): what each room built (its roof, its walkways and their entries) and its laws
+    ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
+    ...(formLit ? { form: { room: { lights: readFormLight(formLamps, formLit.light.keys), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
@@ -1061,7 +1208,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     rooms: stageRooms(plan), anchors, colliders,
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
-    ...(plan.tone ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
+    ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },
   };

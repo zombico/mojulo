@@ -1,7 +1,8 @@
 // The arcade cards on the World page (an e2e suite: a real browser, skipped when none is installed): each distinct court
 // the arcade rules add plays an exhibition in the page to the state the same match reaches in Node, without a page
 // error: the table (a raised bed, the serve's own bounce), the kitchen (a no-volley region, the two-bounce rule), the
-// shuttle (its own air, no bounce). MOJULO_SHOTS=<dir> keeps a frame of each.
+// shuttle (its own air, no bounce), a side of two (the active player, the placed pass). MOJULO_SHOTS=<dir> keeps a frame
+// of each.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { join } from 'node:path';
 import { matchArenaData } from './match-arena.js';
@@ -20,7 +21,7 @@ beforeAll(async () => {
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
 describe('the arcade cards on the World page', () => {
-  for (const [sport, seconds] of [['pingpong', 12], ['pickleball', 12], ['badminton', 12]]) {
+  for (const [sport, seconds] of [['pingpong', 12], ['pickleball', 12], ['badminton', 12], ['volleyball', 12]]) {
     it(`${sport}: an exhibition in the page reaches the state the same match reaches in Node`, async () => {
       if (!browser) return;
       const data = matchArenaData({ sport, players: 0, register: 'action', seed: 2 });

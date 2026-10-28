@@ -20,6 +20,16 @@ export const SUPERCAR_LODS = Object.freeze({
   hero: Object.freeze({ longitudinal: 72, cross: 20, side: 10, arch: 40, wheel: 64, triangleBudget: 44000 }),
 });
 
+/** The streamlined line's sampling: a finer body (more stations along it and across it, rounder arches and wheels). */
+export const STREAMLINE_LODS = Object.freeze({
+  game: Object.freeze({ longitudinal: 34, cross: 8, side: 5, arch: 22, wheel: 30 }),
+  studio: Object.freeze({ longitudinal: 56, cross: 14, side: 7, arch: 30, wheel: 48 }),
+  hero: Object.freeze({ longitudinal: 96, cross: 22, side: 12, arch: 46, wheel: 72 }),
+});
+/** The streamlined line's ceilings: its aero kit, its wider tyres and its split spokes spend them. */
+export const STREAMLINE_BUDGETS = Object.freeze({ game: 15000, studio: 32000, hero: 64000 });
+export const SUPERCAR_LINES = Object.freeze(['classic','streamline']);
+
 /** A livery's share over a quality's triangle ceiling: its cut lines. */
 export const LIVERY_ALLOWANCE = 0.1;
 
@@ -47,9 +57,11 @@ function section(stations,t) {
   const u=q*q*(3-2*q);
   return { halfWidth:mix(a.halfWidth,b.halfWidth,u), top:mix(a.zTop,b.zTop,u), bottom:mix(a.zBottom,b.zBottom,u) };
 }
-function wheel(cx,cy,cz,r,side,quality) {
-  const out=[],n=SUPERCAR_LODS[quality].wheel;
-  const p=(axial,rad,theta)=>point(cx+side*axial*r,cy+rad*r*Math.cos(theta),cz+rad*r*Math.sin(theta));
+// `k` widens the tyre about its outer face (the streamlined line's staggered rubber, set inward under the arch);
+// `split` pairs each spoke
+function wheel(cx,cy,cz,r,side,quality,k=1,split=false,n=SUPERCAR_LODS[quality].wheel) {
+  const out=[];
+  const p=(axial,rad,theta)=>point(cx+side*(axial*k-(k-1)*0.32)*r,cy+rad*r*Math.cos(theta),cz+rad*r*Math.sin(theta));
   // Rounded tread shoulders and sidewalls, not a straight cylindrical tyre.
   const profile=[[-0.27,0.76],[-0.29,0.90],[-0.23,0.98],[-0.14,1],[0.14,1],[0.23,0.98],[0.29,0.90],[0.27,0.76]];
   const push=(f,axial=false)=>{
@@ -79,26 +91,31 @@ function wheel(cx,cy,cz,r,side,quality) {
   push(quad(hp(-0.065,-0.065),hp(0.065,-0.065),hp(0.065,0.065),hp(-0.065,0.065),HEX.carbon,'wheel.hub'),true);
   for(let j=0;j<5;j++) {
     const a=2*Math.PI*j/5;
-    push(quad(p(0.32,0.17,a-0.16),p(0.32,0.17,a+0.16),p(0.30,0.68,a+0.075),p(0.30,0.68,a-0.075),HEX.rim,'wheel.spoke'),true);
+    if(split) for(const d of [-0.115,0.115]) push(quad(p(0.32,0.17,a+d*0.55-0.075),p(0.32,0.17,a+d*0.55+0.075),p(0.30,0.68,a+d+0.04),p(0.30,0.68,a+d-0.04),HEX.rim,'wheel.spoke'),true);
+    else push(quad(p(0.32,0.17,a-0.16),p(0.32,0.17,a+0.16),p(0.30,0.68,a+0.075),p(0.30,0.68,a-0.075),HEX.rim,'wheel.spoke'),true);
   }
   return out;
 }
 
 /** Compile design or brief to viewable studio faces. */
-export function compileSupercarSurface(brief={}, {quality='studio', paint='scarlet', livery, headlightStyle='auto', cabinStyle='auto', ventStyle='auto', spoilerStyle='auto'}={}) {
+export function compileSupercarSurface(brief={}, {quality='studio', paint='scarlet', livery, headlightStyle='auto', cabinStyle='auto', ventStyle='auto', spoilerStyle='auto', line='classic'}={}) {
   if (!['game','studio','hero'].includes(quality)) throw new Error('vehicle-odm: unknown surface quality');
+  if (!SUPERCAR_LINES.includes(line)) throw new Error(`vehicle-odm: line is ${SUPERCAR_LINES.join(' or ')}`);
+  // the streamlined line: fenders that flow over the wheels, an undercut sill, tight arches round wider tyres, an aero
+  // kit, exhaust tips, calipers and a light bar (absent, the classic line, byte for byte)
+  const S2=line==='streamline';
   const paintBase=paintHex(paint),scheme=liveryOf(livery,paint);
   const design=brief?.frame && brief?.topology ? brief : solveSupercarDesign(brief);
   if (!design.valid) throw new Error('vehicle-odm: design fails physical constraints');
   headlightStyle=resolveHeadlightStyle(headlightStyle,design.language);
   const {L,W,H,wheelRadius:r,track,groundClearance:clearance}=design.frame;
-  const lod=SUPERCAR_LODS[quality];
+  const lod=S2?STREAMLINE_LODS[quality]:SUPERCAR_LODS[quality];
   const N=lod.longitudinal,bands=lod.cross,archSteps=lod.arch;
   const body=[],detail=[],wheels=[];
   const sts=design.topology.stations;
   const y=t=>L*(0.5-t);
   const wheelYs=[design.topology.anchors.wheelFL[1],design.topology.anchors.wheelRL[1]];
-  const archR=r+0.07;
+  const archLift=S2?0.045:0.07,archR=r+archLift;
   const front=frontEnvelope({frame:design.frame,language:design.language,frontWheelY:wheelYs[0],archRadius:archR});
   const cabinProfile=createCabinProfile(design,cabinStyle);
   cabinStyle=cabinProfile.style;
@@ -127,11 +144,16 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     .filter((t,i,a)=>!i||t-a[i-1]>0.0001);
   const archBottom=t=>Math.max(clearance,...wheelYs.map(wy=>{
     const d=Math.abs(y(t)-wy);
-    return d<=archR ? clearance+(2*r+0.07-clearance)*Math.sqrt(Math.max(0,1-d*d/(archR*archR))) : clearance;
+    return d<=archR ? clearance+(2*r+archLift-clearance)*Math.sqrt(Math.max(0,1-d*d/(archR*archR))) : clearance;
   }));
   const shoulder=t=>{
     const s=section(sts,t);
-    const wheelInfluence=Math.max(...wheelYs.map(wy=>Math.exp(-Math.pow((y(t)-wy)/(r*1.7),2))));
+    const wheelInfluence=Math.max(...wheelYs.map(wy=>Math.exp(-Math.pow((y(t)-wy)/(r*(S2?2.5:1.7)),2))));
+    // (streamlined: the shoulder a long line rising to the rear haunch, the fender a broad swell over its wheel)
+    if(S2) return {
+      width:mix(Math.max(s.halfWidth,W*0.34),W*0.49,wheelInfluence),
+      z:Math.max(H*(0.40+0.17*Math.sin(Math.PI*Math.pow(t,0.8))),mix(H*0.40,2*r+0.085,wheelInfluence),archBottom(t)+0.035),
+    };
     return {
       width:mix(Math.max(s.halfWidth,W*0.34),W*0.49,wheelInfluence),
       z:Math.max(H*(0.35+0.21*Math.sin(Math.PI*t)),mix(H*0.34,2*r+0.11,wheelInfluence),archBottom(t)+0.045),
@@ -139,7 +161,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
   };
   const deck=(t,x)=>{
     const s=shoulder(t);
-    const center=H*(0.38+0.23*Math.sin(Math.PI*t));
+    // (streamlined: the deck a wedge, low at the nose and rising through the cabin to the tail)
+    const center=S2?H*(mix(0.345,0.40,t)+0.24*Math.sin(Math.PI*t)):H*(0.38+0.23*Math.sin(Math.PI*t));
     const q=Math.max(0,Math.min(1,(t-hoodStart)/(hoodEnd-hoodStart)));
     const crown=0.025*Math.sin(Math.PI*q)*Math.pow(Math.max(0,1-Math.abs(x)/(s.width*0.66)),2);
     return point(x,y(t),mix(center,s.z,Math.pow(Math.abs(x/s.width),2))+crown);
@@ -161,6 +184,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     const s=shoulder(t);
     const inset=Math.max(0,Math.min(1,(t-doorStart)/seamT,(doorEnd-t)/seamT,
       (h-doorLow)/seamH,(doorHigh-h)/seamH))*0.003;
+    // (streamlined: the sill tucked under a character line a third of the way up, the side above it full)
+    if(S2) {const q=Math.min(1,h/0.32),u=q*q*(3-2*q);return point(side*(s.width*mix(0.945,1,u)+W*0.004*Math.sin(Math.PI*h)-inset+offset),y(t),mix(archBottom(t),s.z,h));}
     return point(side*(s.width*(h<0.55?mix(0.98,1,h/0.55):1)+W*0.006*Math.sin(Math.PI*h)-inset+offset),
       y(t),mix(archBottom(t),s.z,h));
   };
@@ -204,7 +229,7 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
       // covering the tyre. A radial clearance remains at every quality.
       if(wheelYs.some(wy=>Math.abs(y(middle)-wy)<archR*Math.sin(archAngle))) {
         const inner=(t)=>{
-          const x=side*(track/2-r*0.30);
+          const x=side*(track/2-r*(S2?0.62:0.30));
           return point(x,y(t),Math.min(archBottom(t),deck(t,x)[2]-0.12));
         };
         detail.push(quad(bottom(a),bottom(b),inner(b),inner(a),HEX.carbon,'wheel.well'));
@@ -232,10 +257,15 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     const vent=(x,z)=>point(x,panelY,z);
     if(t===0)detail.push(...frontIntake({width:s.width*0.43,y:y(t),z0:clearance+0.035,z1:s.z*0.49}));
     else detail.push(quad(vent(-s.width*0.43,clearance+0.035),vent(s.width*0.43,clearance+0.035),vent(s.width*0.34,s.z*0.49),vent(-s.width*0.34,s.z*0.49),HEX.carbon,'aero.diffuser'));
+    // (streamlined: a light bar across the tail between the lamps, on the fascia as they are)
+    if(S2&&t===1)detail.push({...quad(vent(-s.width*0.48,s.z*0.60),vent(s.width*0.48,s.z*0.60),vent(s.width*0.48,s.z*0.64),vent(-s.width*0.48,s.z*0.64),HEX.tail,'taillamp'),fasciaMount:true,mountOffset:0.004});
     for(const side of [-1,1]) {
       const x0=side*s.width*0.48,x1=side*s.width*0.89;
-      const heights=t===1?[0.61,0.82]:headlightStyle==='round'?[0.38,0.88]:headlightStyle==='slim'?[0.71,0.86]:[0.56,0.88];
-      detail.push(...lampAssembly({x0,x1,y:y(t),z0:s.z*heights[0],z1:s.z*heights[1],
+      // (the streamlined tail's corners stand higher than its middle: its lamps a little lower on it)
+      const heights=t===1?(S2?[0.55,0.74]:[0.61,0.82]):headlightStyle==='round'?[0.38,0.88]:headlightStyle==='slim'?[0.71,0.86]:[0.56,0.88];
+      // (a streamlined lamp's top kept under the deck at its own inner edge: its ends dip toward the middle)
+      const z1=S2?Math.min(s.z*heights[1],deck(t,x0)[2]-0.02):s.z*heights[1],z0=S2?Math.max(clearance+0.08,Math.min(s.z*heights[0],z1-(s.z*(heights[1]-heights[0])))):s.z*heights[0];
+      detail.push(...lampAssembly({x0,x1,y:y(t),z0,z1,
         rear:t===1,language:design.language,quality,style:headlightStyle}));
     }
   }
@@ -289,7 +319,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     detail.push(...mirrorAssembly({side,inner,outer,y:yy,z,mount,paint:paintColor}));
   }
   for(const side of [-1,1]) {
-    for(const wy of wheelYs) wheels.push(...wheel(side*track/2,wy,r,r,side,quality));
+    for(const wy of wheelYs) wheels.push(...wheel(side*track/2,wy,r,r,side,quality,S2?(wy===wheelYs[0]?1.22:1.45):1,S2,lod.wheel));
+    if(S2)for(const wy of wheelYs)detail.push(...caliper(side*track/2,wy,r,side,wy===wheelYs[0]?1.22:1.45,design.language));
     // The dark sill insert is fitted onto the body between the wheel wells.
     const a=(L/2-wheelYs[0]+archR*1.1)/L,b=(L/2-wheelYs[1]-archR*1.1)/L;
     if(a<b) {
@@ -309,7 +340,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     const q=Math.max(0,Math.min(1,d/0.18)),weight=Math.pow(1-q*q,2);
     const top=deck(1,x)[2];
     const h=Math.max(0,Math.min(1,(z-clearance)/(top-clearance)));
-    const inset=0.10*Math.pow(Math.abs(x)/(W/2),2)+0.035*Math.pow(2*h-1,2);
+    // (streamlined: a boat tail, its corners drawn in further and its edges rounder)
+    const inset=(S2?0.16:0.10)*Math.pow(Math.abs(x)/(W/2),2)+(S2?0.06:0.035)*Math.pow(2*h-1,2);
     return point(x,r4(yy-sign*weight*inset),z);
   };
   const fittedEndParts=new Set(['headlamp','taillamp','intake.front','aero.diffuser']);
@@ -337,7 +369,7 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
       const v=((c[2]-a[2])*(p[0]-c[0])+(a[0]-c[0])*(p[2]-c[2]))/den;
       if(u>=-0.0001&&v>=-0.0001&&u+v<=1.0001) return point(p[0],r4(u*a[1]+v*b[1]+(1-u-v)*c[1]+sign*offset),p[2]);
     }
-    throw new Error(`vehicle-odm: ${part} leaves the fascia envelope`);
+    throw new Error(`vehicle-odm: ${part} leaves the fascia envelope${process.env.ODM_DEBUG ? ` at ${p}` : ""}`);
   };
   const conform=(f,depth=0)=>{
     if(!fittedEndParts.has(f.part)&&!f.fasciaMount)return [f];
@@ -355,6 +387,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
   };
   const fittedDetail=shell.slice(body.length).flatMap(f=>conform(f));
   shell.splice(body.length,shell.length-body.length,...fittedDetail);
+  // the streamlined line's aero kit and pipes, laid on the shell as it stands (its true nose and tail)
+  if(S2)shell.push(...aeroKit({shell:shell.slice(0,body.length),W,clearance,quality,sidePoint,shoulder,L,wheelYs,archR}));
   // The livery cuts the shell at its pattern's planes and paints the pieces (absent, nothing is cut).
   const painted=f=>material(f)==='paint';
   const [bodyShell,detailShell]=[shell.slice(0,body.length),shell.slice(body.length)].map(fs=>applyLivery(fs,{paint:paintColor,livery:scheme,frame:design.frame,isPaint:painted}));
@@ -362,12 +396,69 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
   const faces={body:finished.slice(0,bodyShell.length),detail:finished.slice(bodyShell.length,bodyShell.length+detailShell.length),wheels:finished.slice(bodyShell.length+detailShell.length)};
   const triangles=finished.reduce((sum,f)=>sum+f.corners.length-2,0);
   // (a livery's lines are geometry: it has its own allowance over the quality's ceiling)
-  const budget=scheme.pattern==='mono'?lod.triangleBudget:Math.round(lod.triangleBudget*(1+LIVERY_ALLOWANCE));
+  const ceiling=S2?STREAMLINE_BUDGETS[quality]:lod.triangleBudget;
+  const budget=scheme.pattern==='mono'?ceiling:Math.round(ceiling*(1+LIVERY_ALLOWANCE));
   if(triangles>budget) throw new Error(`vehicle-odm: ${quality} mesh exceeds ${budget} triangle budget (${triangles})`);
   const census={bodyFaces:bodyShell.length,detailFaces:detailShell.length,wheelFaces:wheels.length,totalFaces:finished.length,
     triangles,triangleBudget:budget,remainingTriangles:budget-triangles,
     trianglesByPart:finished.reduce((counts,f)=>{counts[f.part]=(counts[f.part]||0)+f.corners.length-2;return counts;},{}),
     materialGroups:new Set(finished.map(f=>f.material)).size,
     uniquePositions:new Set(finished.flatMap(f=>f.corners.map(p=>p.join(',')))).size};
-  return {design,quality,headlightStyle,cabinStyle,ventStyle,spoilerStyle,...(scheme.pattern!=='mono'?{livery:scheme}:{}),faces,materials:VEHICLE_MATERIALS,census};
+  return {design,quality,headlightStyle,cabinStyle,ventStyle,spoilerStyle,...(S2?{line}:{}),...(scheme.pattern!=='mono'?{livery:scheme}:{}),faces,materials:VEHICLE_MATERIALS,census};
+}
+
+// a brake caliper on the trailing quarter of the rotor, between it and the spokes, in the language's colour
+const CALIPER=Object.freeze({aeroWedge:'#c8102e',trackSpecial:'#e8b31c',grandTourer:'#3a3f47'});
+function caliper(cx,cy,r,side,k,language) {
+  const out=[],col=CALIPER[language]??CALIPER.aeroWedge,ax=(a)=>cx+side*(a*k-(k-1)*0.32)*r;
+  const at=(a,rad,th)=>point(ax(a),cy+rad*r*Math.cos(th),r+rad*r*Math.sin(th));
+  const th0=Math.PI*0.62,th1=Math.PI*0.88,a0=0.12,a1=0.22,r0=0.44,r1=0.63,n=3;
+  for(let i=0;i<n;i++){
+    const u=mix(th0,th1,i/n),v=mix(th0,th1,(i+1)/n);
+    out.push(quad(at(a1,r0,u),at(a1,r0,v),at(a1,r1,v),at(a1,r1,u),col,'brake.caliper'));
+    out.push(quad(at(a0,r1,u),at(a0,r1,v),at(a1,r1,v),at(a1,r1,u),col,'brake.caliper'));
+    out.push(quad(at(a0,r0,u),at(a1,r0,u),at(a1,r0,v),at(a0,r0,v),col,'brake.caliper'));
+  }
+  for(const th of [th0,th1])out.push(quad(at(a0,r0,th),at(a1,r0,th),at(a1,r1,th),at(a0,r1,th),col,'brake.caliper'));
+  return out;
+}
+// the streamlined aero kit on the shell's true ends: a splitter under the nose, a skirt along each sill, strakes in the
+// diffuser, and the pipes where the figure's flames come out (supercar-figure.js: ±W·0.18, the clearance and 0.12)
+function aeroKit({shell,W,clearance,quality,sidePoint,shoulder,L,wheelYs,archR}) {
+  const out=[],ys=shell.flatMap(f=>f.corners.map(p=>p[1])),noseY=Math.max(...ys),tailY=Math.min(...ys);
+  const box=(x0,x1,y0,y1,z0,z1,part)=>{
+    const c=(x,y,z)=>point(x,y,z);
+    out.push(quad(c(x0,y0,z1),c(x1,y0,z1),c(x1,y1,z1),c(x0,y1,z1),HEX.carbon,part));
+    out.push(quad(c(x0,y1,z0),c(x1,y1,z0),c(x1,y0,z0),c(x0,y0,z0),HEX.carbon,part));
+    out.push(quad(c(x0,y1,z0),c(x0,y1,z1),c(x1,y1,z1),c(x1,y1,z0),HEX.carbon,part));
+    out.push(quad(c(x0,y0,z0),c(x1,y0,z0),c(x1,y0,z1),c(x0,y0,z1),HEX.carbon,part));
+    out.push(quad(c(x0,y0,z0),c(x0,y0,z1),c(x0,y1,z1),c(x0,y1,z0),HEX.carbon,part));
+    out.push(quad(c(x1,y0,z0),c(x1,y1,z0),c(x1,y1,z1),c(x1,y0,z1),HEX.carbon,part));
+  };
+  // the splitter: a blade standing proud of the nose's foot
+  const sw=shoulder(0.03).width*0.78;
+  box(-sw,sw,noseY-0.30,noseY+0.025,clearance-0.012,clearance+0.006,'aero.splitter');
+  // the skirts: a blade along each sill between the arches
+  const ta=(L/2-wheelYs[0]+archR*1.05)/L,tb=(L/2-wheelYs[1]-archR*1.05)/L,steps=quality==='game'?6:quality==='studio'?10:16;
+  for(const side of [-1,1])for(let i=0;i<steps;i++){
+    const a=mix(ta,tb,i/steps),b=mix(ta,tb,(i+1)/steps),lo=(t,o)=>sidePoint(t,0.02,side,o),hi=(t)=>sidePoint(t,0.10,side,0);
+    const dn=(p)=>[p[0],p[1],p[2]-0.028];
+    out.push(quad(hi(a),hi(b),lo(b,side*0.035),lo(a,side*0.035),HEX.carbon,'aero.skirt'));
+    out.push(quad(lo(a,side*0.035),lo(b,side*0.035),dn(lo(b,side*0.035)),dn(lo(a,side*0.035)),HEX.carbon,'aero.skirt'));
+  }
+  // the diffuser's strakes: fins rising toward the tail
+  for(const x of [-0.30,-0.14,0.14,0.30].map(u=>u*W))for(const [s0,s1] of [[x-0.007,x+0.007]]){
+    const yF=tailY+0.30,yT=tailY+0.02,zb=clearance+0.004,c=(xx,yy,zz)=>point(xx,yy,zz);
+    for(const xx of [s0,s1])out.push(quad(c(xx,yF,zb),c(xx,yT,zb),c(xx,yT,clearance+0.09),c(xx,yF,clearance+0.02),HEX.carbon,'aero.strake'));
+    out.push(quad(c(s0,yF,clearance+0.02),c(s0,yT,clearance+0.09),c(s1,yT,clearance+0.09),c(s1,yF,clearance+0.02),HEX.carbon,'aero.strake'));
+  }
+  // the pipes: a polished tip proud of the tail and its dark bore
+  const n={game:10,studio:16,hero:24}[quality],R=0.046,Ri=0.036,z=clearance+0.12;
+  for(const x of [-1,1].map(s=>s*W*0.18))for(let i=0;i<n;i++){
+    const a=2*Math.PI*i/n,b=2*Math.PI*(i+1)/n,ring=(rad,yy,t)=>point(x+rad*Math.cos(t),yy,z+rad*Math.sin(t));
+    out.push(quad(ring(R,tailY+0.05,a),ring(R,tailY+0.05,b),ring(R,tailY-0.03,b),ring(R,tailY-0.03,a),HEX.rim,'exhaust.tip'));
+    out.push(quad(ring(R,tailY-0.03,a),ring(R,tailY-0.03,b),ring(Ri,tailY-0.03,b),ring(Ri,tailY-0.03,a),HEX.rim,'exhaust.tip'));
+    out.push(quad(ring(Ri,tailY-0.03,a),ring(Ri,tailY-0.03,b),ring(Ri,tailY+0.03,b),ring(Ri,tailY+0.03,a),HEX.seal,'exhaust.bore'));
+  }
+  return out;
 }

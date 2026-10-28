@@ -37,6 +37,6 @@ describe('a mascot\'s kit', () => {
     expect(mascotKit(worn, 'tennis')).toEqual(mascotKit(body, 'tennis'));
     expect(mascotKit(mascotKit(body, 'hockey'), null)).toEqual(body);   // the gloves' colour back to the mascot's own
     expect(mascotKit(body, 'soccer')).toEqual(mascotKit(body, 'soccer'));
-    expect(() => mascotKit(body, 'cricket')).toThrow(/'cricket' is not a sport's kit/);
+    expect(() => mascotKit(body, 'quidditch')).toThrow(/'quidditch' is not a sport's kit/);
   });
 });

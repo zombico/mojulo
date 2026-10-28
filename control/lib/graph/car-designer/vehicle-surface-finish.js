@@ -38,6 +38,8 @@ export function material(f) {
   if(/^(tyre|sidewall)$/.test(f.part)) return 'rubber';
   if(/^(rim|wheel.spoke|wheel.hub)/.test(f.part)) return 'alloy';
   if(f.part==='wheel.brake') return 'brake';
+  if(f.part==='exhaust.tip') return 'alloy';
+  if(f.part==='exhaust.bore') return 'seal';
   if(/seam|seal|handle-pocket/.test(f.part)) return 'seal';
   if(/^(intake|vent|aero|wheel.well|mirror.stalk)/.test(f.part)) return 'carbon';
   return 'paint';

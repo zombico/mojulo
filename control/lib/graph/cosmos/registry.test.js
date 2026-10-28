@@ -1,11 +1,8 @@
-// The generated registry is the live read of the source tables, setting for setting, order included, and every
-// module a facet names exists. A failure means a source table moved or a facet named a new one: run
-// `node scripts/gen-cosmos-registry.mjs`.
+// Every module a facet names exists, and the registry reads each sourced setting's values from its table (live, no copy).
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { FACETS, STATUSES } from './facets/index.js';
-import { GENERATED } from './registry.generated.js';
 import { readSources } from './read-sources.js';
 import { capabilityRegistry } from './registry.js';
 import { PACKAGES, EFFORT_WEIGHT } from './packages.js';
@@ -14,10 +11,6 @@ const CONTROL = new URL('../../../', import.meta.url);
 const exists = (module) => existsSync(fileURLToPath(new URL(module.split('#')[0], CONTROL)));
 
 describe('cosmos registry', () => {
-  it('equals the live read of the source tables', async () => {
-    expect(JSON.stringify(GENERATED)).toBe(JSON.stringify(await readSources()));
-  }, 60_000);
-
   it('names only modules that exist', () => {
     for (const f of FACETS) {
       for (const [setting, spec] of Object.entries(f.settings)) {
@@ -32,7 +25,7 @@ describe('cosmos registry', () => {
     for (const f of FACETS) {
       for (const [setting, spec] of Object.entries(f.settings)) {
         for (const v of Object.keys(spec.planned || {})) {
-          expect(GENERATED[`${f.id}.${setting}`].values, `${f.id}.${setting}=${v}`).not.toContain(v);
+          expect(readSources()[`${f.id}.${setting}`].values, `${f.id}.${setting}=${v}`).not.toContain(v);
           const row = reg[f.id][setting].values[v];
           if (row.status === 'built') expect(row.lowers, `${f.id}.${setting}=${v}`).toBeTruthy();
           else expect(EFFORT_WEIGHT[row.effort], `${f.id}.${setting}=${v}`).toBeGreaterThan(0);

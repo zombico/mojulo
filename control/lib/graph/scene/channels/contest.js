@@ -14,6 +14,7 @@ import { contestSource } from '../../contest/meet-arena.js';
 import { graphSource, COURT_PAGE_MODULES } from '../../contest/match-arena.js';
 import { TURNS_PAGE_MODULES } from '../../contest/turn-arena.js';
 import { PITCH_PAGE_MODULES } from '../../contest/team-arena.js';
+import { INNINGS_PAGE_MODULES } from '../../contest/innings-arena.js';
 
 export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'contest-stats.js', '../broadcast/broadcast.client.js', 'meet-arena.client.js']);
 
@@ -78,5 +79,20 @@ export function pitchChannelScript(cfg) {
 const PITCH_ARENA = ${safeJson(cfg)};
 ${lib}
 stepPitch = stepPitchArena;
+}`;
+}
+
+// innings channel: a bat-and-ball game on the world (lib/graph/contest bat-sim.js: baseball, cricket). Opt-in on a
+// world's `innings` key (a field stage: contest/innings-arena.js); absent, it adds nothing. One block as the court's: the
+// physics, the ball card, the kernel, the bat sim, the stats and the broadcast inlined by source, then the browser
+// runtime; it hands the page `stepInnings` and publishes `window.__mojInnings`. It owns the camera.
+export function inningsChannelScript(cfg) {
+  const lib = withAthletes(INNINGS_PAGE_MODULES, graphSource, cfg);
+  return `
+// ── innings: the bat-and-ball game on this field ──
+{
+const INNINGS_ARENA = ${safeJson(cfg)};
+${lib}
+stepInnings = stepInningsArena;
 }`;
 }

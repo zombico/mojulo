@@ -10,6 +10,7 @@ import { graphSource, COURT_PAGE_MODULES, matchArenaData } from '../contest/matc
 import { TURNS_PAGE_MODULES, turnsArenaData } from '../contest/turn-arena.js';
 import { PITCH_PAGE_MODULES, teamArenaData } from '../contest/team-arena.js';
 import { meetArenaData } from '../contest/meet-arena.js';
+import { INNINGS_PAGE_MODULES, inningsArenaData } from '../contest/innings-arena.js';
 import { MEET_PAGE_MODULES } from '../scene/channels/contest.js';
 import { broadcastData } from './broadcast-package.js';
 
@@ -42,6 +43,28 @@ describe('the broadcast client', () => {
     expect(said({ kind: 'serve', who: 'a1' })).toBeNull();   // silent by name
     expect(said({ kind: 'finish', who: 'r1', t: 10.4 })).toMatchObject({ text: '10.40' });
     expect(said({ kind: 'finish', who: 'r2', t: 10.5 })).toBeNull();   // the winner's time only
+    // the arcade rules' calls: a basket by its points, a try or a touchdown by its name, the carry game's turns of play
+    expect(said({ kind: 'score', side: 'a', points: 3 })).toMatchObject({ text: 'THREE!' });
+    expect(said({ kind: 'score', side: 'b', points: 5, how: 'try' })).toMatchObject({ text: 'TRY!', sub: 'CPU' });
+    expect(said({ kind: 'conversion', side: 'b', good: true, points: 1 })).toMatchObject({ text: 'EXTRA POINT', tone: 'gold' });
+    expect(said({ kind: 'conversion', side: 'b', good: false, points: 0 })).toMatchObject({ text: 'NO GOOD', tone: 'warn' });
+    expect(said({ kind: 'turnover', side: 'a', why: 'downs' })).toMatchObject({ text: 'TURNOVER ON DOWNS', sub: 'P1 BALL' });
+    expect(said({ kind: 'turnover', side: 'a', why: 'incomplete' })).toBeNull();   // its cause's plate is up already
+    expect(said({ kind: 'down', side: 'a', down: 1, first: true })).toMatchObject({ text: 'FIRST DOWN' });
+    expect(said({ kind: 'down', side: 'a', down: 3, toGo: 4 })).toBeNull();
+    expect(said({ kind: 'tackle', side: 'a', count: 2 })).toBeNull();   // the tab's
+    expect(said({ kind: 'incomplete', side: 'b', cost: 'turnover' })).toMatchObject({ text: 'KNOCK-ON' });
+    expect(said({ kind: 'point', side: 'a', why: 'down' })).toMatchObject({ text: 'IN' });
+    // the innings game's: an out by how, a hit by its bases, runs by the boundary, the side and the over
+    expect(said({ kind: 'out', side: 'a', why: 'struck-out', outs: 2 })).toMatchObject({ text: 'STRUCK OUT', sub: 'P1 · 2 OUT' });
+    expect(said({ kind: 'out', side: 'b', why: 'bowled', outs: 1 })).toMatchObject({ text: 'BOWLED' });
+    expect(said({ kind: 'base-hit', side: 'a', bases: 4, runs: 2 })).toMatchObject({ text: 'HOME RUN!', sub: '2 RUNS IN', tone: 'gold' });
+    expect(said({ kind: 'base-hit', side: 'a', bases: 2, runs: 0 })).toMatchObject({ text: 'DOUBLE', sub: 'P1' });
+    expect(said({ kind: 'runs', side: 'b', runs: 6, boundary: true })).toMatchObject({ text: 'SIX!', tone: 'gold' });
+    expect(said({ kind: 'runs', side: 'b', runs: 1 })).toMatchObject({ text: '1 RUN' });
+    expect(said({ kind: 'side', batting: 'b', inning: 1, half: 1 })).toMatchObject({ text: 'SIDE RETIRED' });
+    expect(said({ kind: 'end-over', side: 'a', overs: 2 })).toMatchObject({ text: 'END OF THE OVER', sub: '2 OVERS' });
+    expect(said({ kind: 'dot', side: 'a' })).toBeNull();
   });
   it('holds the frame by weight: the decisive call takes it, a lighter word waits its turn', () => {
     const TV = lib.newBroadcast(broadcastData()), g = stubCanvas();
@@ -133,7 +156,7 @@ describe('the stats panel', () => {
 describe('every contest page is broadcast', () => {
   const CONTEST = join(moduleDir(import.meta.url, 'lib/graph/broadcast'), '..', 'contest');
   it('inlines the client before its arena and draws through it', () => {
-    const lists = { 'meet-arena.client.js': MEET_PAGE_MODULES, 'match-arena.client.js': COURT_PAGE_MODULES, 'turn-arena.client.js': TURNS_PAGE_MODULES, 'team-arena.client.js': PITCH_PAGE_MODULES };
+    const lists = { 'meet-arena.client.js': MEET_PAGE_MODULES, 'match-arena.client.js': COURT_PAGE_MODULES, 'turn-arena.client.js': TURNS_PAGE_MODULES, 'team-arena.client.js': PITCH_PAGE_MODULES, 'innings-arena.client.js': INNINGS_PAGE_MODULES };
     const clients = readdirSync(CONTEST).filter((f) => f.endsWith('-arena.client.js'));
     expect(clients.sort()).toEqual(Object.keys(lists).sort());   // a new arena's page joins this table
     for (const [client, mods] of Object.entries(lists)) {
@@ -149,6 +172,7 @@ describe('every contest page is broadcast', () => {
     expect(meetArenaData({ event: 'sprint', lanes: 6 }).broadcast.colors).toHaveLength(6);
     expect(turnsArenaData({ sport: 'golf', seats: 3, register: 'platformer' }).broadcast.package).toBe('arcade');
     expect(teamArenaData({ sport: 'soccer', broadcast: { names: ['Reds', 'Blues'] } }).broadcast.names).toEqual(['Reds', 'Blues']);
+    expect(inningsArenaData({ sport: 'cricket' }).broadcast.stats).toMatchObject({ panel: expect.arrayContaining(['runs']) });
   });
   it('carries each contest\'s stats coverage, the recipe\'s rows over it, or none; every page folds and shows them', () => {
     expect(matchArenaData({ sport: 'tennis' }).broadcast.stats).toMatchObject({ at: 'changeover', panel: expect.arrayContaining(['aces']) });
@@ -157,12 +181,12 @@ describe('every contest page is broadcast', () => {
     expect(() => matchArenaData({ sport: 'tennis', broadcast: { stats: { panel: 'aces' } } })).toThrow(/stats.panel is a list of up to 10 row ids/);
     expect(() => matchArenaData({ sport: 'tennis', broadcast: { stats: { when: 'now' } } })).toThrow(/stats has no 'when'/);
     expect(broadcastData(undefined, { where: 'tabletop' }).stats).toBeUndefined();   // a page without coverage carries none
-    const lists = { 'meet-arena.client.js': MEET_PAGE_MODULES, 'match-arena.client.js': COURT_PAGE_MODULES, 'turn-arena.client.js': TURNS_PAGE_MODULES, 'team-arena.client.js': PITCH_PAGE_MODULES };
+    const lists = { 'meet-arena.client.js': MEET_PAGE_MODULES, 'match-arena.client.js': COURT_PAGE_MODULES, 'turn-arena.client.js': TURNS_PAGE_MODULES, 'team-arena.client.js': PITCH_PAGE_MODULES, 'innings-arena.client.js': INNINGS_PAGE_MODULES };
     for (const [client, mods] of Object.entries(lists)) {
       const at = (end) => mods.findIndex((m) => m.endsWith(end));
       expect(at('contest-stats.js'), client).toBeGreaterThanOrEqual(0); expect(at('contest-stats.js')).toBeLessThan(at(client));
       const src = readFileSync(join(moduleDir(import.meta.url, 'lib/graph/broadcast'), '..', 'contest', client), 'utf8');
-      for (const use of ['contestStats(', 'statCompact(', 'BC.stats'].map((u) => (client === 'match-arena.client.js' || client === 'turn-arena.client.js' ? u : u.replace('BC.stats', '.broadcast.stats')))) expect(src, `${client} uses ${use}`).toContain(use);
+      for (const use of ['contestStats(', 'statCompact(', 'BC.stats'].map((u) => (client === 'match-arena.client.js' || client === 'turn-arena.client.js' || client === 'innings-arena.client.js' ? u : u.replace('BC.stats', '.broadcast.stats')))) expect(src, `${client} uses ${use}`).toContain(use);
     }
   });
 });

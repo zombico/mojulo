@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { gameworldCards, GAMEWORLD_CARD_IDS, QUICK_GOAL_CARD_IDS, quickGoalCardById, genreCardById } from './gameworld-cards.js';
+import { FOLK_KEYS } from '../folk/folk.js';
+import { SHAPES } from '../folk/domicile.js';
+import { SIDEQUEST_KEYS } from '../folk/sidequests.js';
 import { QUICK_GOALS } from './quick.js';
 import { GENRES } from './intent.js';
 import { gameworldSamples, SAMPLE_PAGES, DERIVE } from './samples.js';
@@ -22,11 +25,12 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-story', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
-    // kits beside the city's stalker words, 4157 bytes)
-    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4224 };
+    // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
+    // names the four building uses, office | lab-building | warehouse | clinic, 4265 bytes)
+    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4288 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
@@ -37,6 +41,7 @@ describe('the rail\'s cards', () => {
     on('gameworld-actions', [...Object.keys(IDIOMS), ...Object.keys(SYSTEM_KINDS), ...Object.keys(LOOKS), ...BEAM_NAMES]);
     on('gameworld-adornment', RAILS.flatMap((r) => r.stems));
     on('gameworld-equipment', Object.keys(CLASS_SLOTS));
+    on('gameworld-folk', [...FOLK_KEYS, ...Object.keys(SHAPES), ...['D + 0', 'D + P', 'D of F (P + C2)', 'D + C1'], ...SIDEQUEST_KEYS]);
   });
 
   it('a growing family is an index and a card per member: a quick goal, a genre', () => {

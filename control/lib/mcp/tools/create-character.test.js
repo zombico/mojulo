@@ -228,7 +228,7 @@ describe('create_character as a mascot (docs/mascot.md)', () => {
     const plan = SketchRepository.getByRef('cc_mascot_kit').manifest.plan;
     expect(plan.paint.some((e) => e.id === 'kit' && e.part === 'body' && e.group === 'Top')).toBe(true);
     expect(plan.palette.Top).toBe('#1f4fa8'); expect(plan.mascot.kit).toEqual({ sport: 'hockey', colours: ['#1f4fa8'] });
-    await expect(createCharacterHandler({ as: 'mascot', spec: { brief: 'a bear', kit: 'cricket' } })).rejects.toThrow(/a mascot's kit: 'cricket' is not a sport's kit/);
+    await expect(createCharacterHandler({ as: 'mascot', spec: { brief: 'a bear', kit: 'quidditch' } })).rejects.toThrow(/a mascot's kit: 'quidditch' is not a sport's kit/);
   });
   it('rolls a sheet from its words, mints its body through the creature door, and makes the same mascot from an egocube', async () => {
     const r = await createCharacterHandler({ as: 'mascot', spec: { brief: 'a sonic-like mascot, but cheeky', seed: 2 }, ref: 'cc_mascot' });

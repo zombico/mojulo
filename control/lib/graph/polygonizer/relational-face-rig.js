@@ -102,12 +102,16 @@ function carriedBy(V, face) {
 
 /** THE BROWS' CARDS WHOLE: each connected card of `brow` (the rest's vertex indices of the brows' faces) moved by its
  * points' mean, so a card rides the brow as one piece; carried point by point, a raise that lifts the brow's head more
- * than its tail sheared a card's points apart, the brow in splinters at a surprise */
-function browCards(faces, brow) {
+ * than its tail sheared a card's points apart, the brow in splinters at a surprise. Only a card, no longer than
+ * `CARD_MAX` m: a brow drawn as one mass (realistic laws 10, hair-locks.js) rides the skin under it point by point, bent
+ * as the brow bends */
+const CARD_MAX = 0.015;
+function browCards(faces, brow, V0) {
   const parent = new Map(brow.map((i) => [i, i])), find = (i) => { while (parent.get(i) !== i) { parent.set(i, parent.get(parent.get(i))); i = parent.get(i); } return i; };
   for (const t of faces) if (parent.has(t[0]) && parent.has(t[1]) && parent.has(t[2])) { const a = find(t[0]); for (const v of t) parent.set(find(v), a); }
   const cards = new Map(); for (const i of brow) { const r = find(i); (cards.get(r) || cards.set(r, []).get(r)).push(i); }
-  return [...cards.values()];
+  const span = (c) => Math.max(...[0, 1, 2].map((a) => { let lo = Infinity, hi = -Infinity; for (const i of c) { lo = Math.min(lo, V0[i][a]); hi = Math.max(hi, V0[i][a]); } return hi - lo; }));
+  return [...cards.values()].filter((c) => span(c) <= CARD_MAX);
 }
 function wholeCards(cards, d) {
   for (const c of cards) { const m = [0, 1, 2].map((a) => c.reduce((t, i) => t + d[i * 3 + a], 0) / c.length); for (const i of c) for (let a = 0; a < 3; a++) d[i * 3 + a] = m[a]; }
@@ -198,7 +202,7 @@ export function relationalFaceRig(m, mesh) {
         const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), carrier = face.map((f, i) => f && !balls.some((b) => Math.hypot(V0[i][0] - b.c[0], V0[i][1] - b.c[1], V0[i][2] - b.c[2]) < b.r)), near = carriedBy(V0, carrier), lash = [];
         const brow = [];
         V.part.forEach((p, i) => { if (LASHES.test(p)) lash.push(i); else if (BROWS.test(p)) brow.push(i); });
-        const cards = brow.length ? browCards(V.faces, brow) : [];
+        const cards = brow.length ? browCards(V.faces, brow, V.rest) : [];
         // (a lash's root rides the face's own points, the lid's margin among them: the margin lies within the globe's
         // radius of its centre, where the socket's still points are no carriers)
         const lashes = lash.length && balls.length ? lashBlades(V0, V.faces, lash, face, balls) : [];

@@ -46,7 +46,7 @@ for (const archetype of archetypes) {
       cameras: [{ name: 'chase', worldFraming: { cameraPosition, lookAt, horizontalFov: 34, pictureCenter: [width / 2, height / 2] } }],
       viewBox: { width, height },
     }), shade]];
-    if (shade === 'smooth') shots.push([`${archetype}-material`, emitVehicleReview(racerReviewInput(S), { title: `${archetype} material review`, cameraPosition, lookAt, horizontalFov: 34 }), 'material review']);
+    if (shade !== 'cel') shots.push([`${archetype}-${shade}-material`, emitVehicleReview(racerReviewInput(S), { title: `${archetype} material review`, cameraPosition, lookAt, horizontalFov: 34 }), 'material review']);
     for (const [stem, html, caption] of shots) {
       const png = await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 });
       writeFileSync(path.join(outDir, `${stem}.html`), html);

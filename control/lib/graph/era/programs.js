@@ -18,6 +18,7 @@
  *
  * Pure: seeded dice only. Metres, z-up; rooms are the stage's boxes ({ id, x, y, w, d, h }, x,y the min corner).
  */
+import { planCore } from './program-core.js';
 import { STAGE_KITS, resolveKitId } from './stage.js';
 import { STRUCTURE_USES } from './out-structures.js';
 import { ANCHOR_IDS, ANCHOR_STRUCTURES, decompileAnchor } from './out-anchor-structure.js';
@@ -67,6 +68,17 @@ export const PROGRAMS = Object.freeze({
     rooms: [R('reading', [7, 9], [6, 8], null, { h: 1.3 }), R('stacks', [4, 5], [8, 10], 'reading', { n: 2 }), R('archive', [6, 7], [6, 7], 'stacks')] },
   lab: { reads: 'a lobby, the lab floor, a store, and the sealed core', shape: 'chain', goal: 'core',
     rooms: [R('lobby', [5, 7], [4, 5]), R('lab', [8, 10], [7, 9], 'lobby', { h: 1.2 }), R('store', [4, 5], [4, 4], 'lab', { p: 0.6 }), R('core', [6, 7], [6, 7], 'lab')] },
+  // buildings (era/program-core.js): a core and its wings, the same plate up every storey, a lobby with the way in; each
+  // names its bay kit (the recipe's own kit wins), its typical floor's height, the roles along a wing (`near` the first
+  // bay's on the service side, `second` the other first bay, `far` a wing's last, `goal` the top storey's farthest)
+  office: { reads: 'a lobby and a stair core, wings of offices along corridors, a meeting room at each wing\'s end, the boardroom at the top', shape: 'core', goal: 'boardroom', kit: 'bay-everyday',
+    core: { storeys: 4, wings: 'L', loading: 'double', bays: 3, h: 3.5 }, lobby: { d: 8, h: 5 }, roles: { near: 'wc', second: 'kitchen', room: 'office', far: 'meeting', goal: 'boardroom' } },
+  'lab-building': { reads: 'a lobby and a stair core, labs both sides of a clean corridor, an instrument bay off the ground floor, the clean room at the top', shape: 'core', goal: 'cleanroom', kit: 'bay-science',
+    core: { storeys: 2, wings: 'I', loading: 'double', bays: 3, h: 3.5 }, lobby: { d: 8, h: 4.5 }, roles: { near: 'wc', second: 'store', room: 'lab', far: 'writeup', goal: 'cleanroom' }, annex: { role: 'instrument', w: 12, d: 18, h: 9 } },
+  warehouse: { reads: 'a goods-in lobby and a stair, an office block over the lockers, the tall shed off its end with its dock doors, the manager\'s office at the top', shape: 'core', goal: 'manager', kit: 'bay-utility',
+    core: { storeys: 2, wings: 'I', loading: 'single', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'locker', room: 'office', far: 'dispatch', goal: 'manager' }, annex: { role: 'shed', w: 18, d: 30, h: 12, ways: ['+x'] } },
+  clinic: { reads: 'a waiting room at the front, consult rooms both sides of the corridors, treatment rooms at their ends, the records room last', shape: 'core', goal: 'records', kit: 'bay-everyday',
+    core: { storeys: 1, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'waiting', room: 'consult', far: 'treatment', goal: 'records' } },
 });
 export const PROGRAM_IDS = Object.freeze(Object.keys(PROGRAMS));
 
@@ -107,11 +119,19 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   if (!program || typeof program !== 'object') throw new Error(`program: give { use } (${PROGRAM_IDS.join(', ')})`);
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
-  for (const k of Object.keys(program)) if (!['use', 'seed', 'rooms', 'add', 'civilization'].includes(k)) throw new Error(`program: '${k}' is not a setting (use, seed, rooms, add, civilization)`);
+  // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
+  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays'] : ['use', 'seed', 'rooms', 'add', 'civilization'];
+  for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
   const kit = STAGE_KITS[kitId];
   if (!kit || !kit.grid) throw new Error(`program: kit '${kitId}' is open ground; a program is laid in a room kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid).join(', ')})`);
   const lang = languageOf(program.civilization ?? civilization, kitId);
   const rnd = mulberry32((program.seed ?? 1) * 2654435761 + use.length * 97);
+  // a building: its core and wings (program-core.js), laid from the corner as the tree's plan is
+  if (P.shape === 'core') {
+    const C = planCore(P, program, kit, rnd), x0 = Math.min(...C.rooms.map((r) => r.x)), y0 = Math.min(...C.rooms.map((r) => r.y));
+    const rooms = C.rooms.map((r) => ({ ...r, x: r.x - x0, y: r.y - y0 }));
+    return { use, reads: P.reads, rooms, links: C.links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan };
+  }
   const g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;   // the wall a doorway needs (stage.js planStage)
   const pick = (r) => Math.round((r[0] + rnd() * (r[1] - r[0])) / g) * g;
   // the heights: the language's storey, lifted for a game, a tall use promoted as the town's uses are
@@ -220,7 +240,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
 export function withProgram(m) {
   const { program, ...rest } = m;
   const cube = m.geocube !== undefined ? readGeocube(m.geocube) : null, seeds = cube ? cubeBuildings(cube) : null;
-  const kitId = resolveKitId(m.kit ?? (cube ? cube.inside.bones : 'gothic-stone'));
+  const kitId = resolveKitId(m.kit ?? (cube ? cube.inside.bones : PROGRAMS[program?.use]?.kit ?? 'gothic-stone'));
   // on a cube, the cube's builders speak (its seeds' anchor, else their style's language) unless the program names a
   // civilization
   const S = seeds?.anchor === undefined && seeds?.style !== undefined ? readStyle(seeds.style) : null;
@@ -231,6 +251,10 @@ export function withProgram(m) {
     ...rest,
     rooms: rest.rooms ?? P.rooms,
     links: rest.links ?? P.links,
+    ...(P.ways && rest.ways === undefined && rest.rooms === undefined ? { ways: P.ways } : {}),
+    ...(PROGRAMS[program.use]?.kit && m.kit === undefined && !cube ? { kit: kitId } : {}),
+    // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
+    ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
     _program: { use: P.use, reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)

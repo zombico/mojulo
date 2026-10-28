@@ -53,6 +53,16 @@ export const BALLS = Object.freeze({
   // USA Pickleball: 22.1 to 26.5 g, 73.5 to 75.5 mm across; a rebound of 30 to 34 in from 78 in reads e ≈ 0.62 to 0.66;
   // its holes slow it, which the card leaves to the arcade's air (none) and to real air's soccer curves
   pickleball: { mass: 0.026, radius: 0.0372, restitution: rebound(32, 78), friction: 0.3, aero: null, cited: false, words: 'a pickleball' },
+  // World Rugby: 410 to 460 g, 280 to 300 mm long, 580 to 620 mm round its belly; an oval, not a sphere: it rides the
+  // card as a sphere of its belly's radius (its wobbling bounce and its spiral are not the card's, and the card says so)
+  rugby: { mass: 0.435, radius: 0.095, restitution: 0.6, friction: 0.5, aero: null, cited: false, words: 'a rugby ball (an oval on a sphere\'s card)' },
+  // NFL: 14 to 15 oz (397 to 425 g), 11 to 11.25 in long, 21 to 21.25 in round its belly; an oval, on a sphere's card
+  football: { mass: 0.41, radius: 0.085, restitution: 0.55, friction: 0.5, aero: null, cited: false, words: 'an American football (an oval on a sphere\'s card)' },
+  // MLB: 5 to 5.25 oz (142 to 149 g), 9 to 9.25 in round (radius 36.6 to 37.3 mm); its coefficient of restitution off
+  // a wall at 58 mph is 0.514 to 0.578 (mid 0.546)
+  baseball: { mass: 0.145, radius: 0.0369, restitution: 0.546, friction: 0.5, aero: null, cited: false, words: 'a baseball' },
+  // MCC Law 4: 155.9 to 163 g, 22.4 to 22.9 cm round (radius about 36 mm); a hard ball, its bounce off a pitch about 0.5
+  cricket: { mass: 0.16, radius: 0.036, restitution: 0.5, friction: 0.6, aero: null, cited: false, words: 'a cricket ball' },
   // BWF: 4.74 to 5.50 g, a skirt 58 to 68 mm across; a shuttle is no sphere and its air is its own in EVERY register
   // (`ownAir`: without its drag it is a ball): it rides the sphere's card at the skirt's radius with a flat drag
   // coefficient of about 0.6 and no lift, which gives a terminal speed near 6.3 m/s (the literature measures 6.5 to 7,

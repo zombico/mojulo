@@ -62,8 +62,10 @@ describe('the realistic face rig', () => {
     const ti = F.targets.indexOf('blinkLeft'); let right = 0;
     mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || v[0] < 0.01) return; const o = k * W + 3 + ti * 3; right = Math.max(right, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
     expect(right).toBeLessThan(1e-4);
-    // (about 2 mm: seated, realistic laws 10, the brows hang lower on the fold, where the raise reaches a little less)
-    expect(move('browRaise', /^hairBrows$/)).toBeGreaterThan(0.0018);
+    // (realistic laws 10: the brow a band lying on the skin, riding it as the skin under it moves, ~2 mm; the blades' tips
+    // stood off it and swung further; seated, laws 11, the brows hang lower on the fold, where the raise reaches a little
+    // less)
+    expect(move('browRaise', /^hairBrows$/)).toBeGreaterThan(0.0015);
     // (the scalp's hair stays, but for the fringe lying on the forehead's skin, which the frontalis lifts)
     const ti2 = F.targets.indexOf('browRaise'); let hair = 0, moved = 0;
     mesh.vertices.forEach((_, i) => { if (mesh.provenance[i].part !== 'hair') return; hair++; const k = F.sub[i]; if (k < 0) return; const o = k * W + 3 + ti2 * 3; if (Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2]) > 5e-4) moved++; });

@@ -5,7 +5,8 @@
 //           perpendicular (less when the tip would reach the floor), the edge in the plane the arm swings in. The hand
 //           bone has no roll, so the rest hold is chosen for where the arc carries it: tip-down at the side swings to
 //           upright when the forearm is raised (a guard), where a tip-up rest hold would swing over the shoulder
-//   haft    (staff) the same grip, the shaft leaning forward 15° off upright, its heel just above the floor
+//   haft    (staff) the same grip, the shaft leaning forward 15° off upright, its heel just above the floor; a staff of
+//           the `arm` or `wand` reach (an axe, a mace, a sceptre, a wand) is held as a blade
 //   bow     the riser in the fist, leaning forward off upright until its lower tip clears the floor, the string toward
 //           the body
 //   forearm (shield) its height along the forearm, its face outward, its back grip at the hand
@@ -35,6 +36,8 @@ const READY = 25;
 /** the firearms carried on the hip (a holster): the pistol alone */
 const HOLSTERED = new Set(['pistol']);
 const TILT = Object.freeze({ blade: 45, haft: 75, bow: 78 });
+/** the staff reaches held as a blade is (equipment/items.js REACH) */
+const SWUNG = new Set(['arm', 'wand']);
 const FLOOR = 0.03;   // m a lower end keeps above the rest floor
 const BLADES = new Set(['dagger', 'sword', 'greatsword']);
 /** the canonical cast's head top (m): gear scales with the figure's height over it */
@@ -108,7 +111,10 @@ export function gearMounts(hero, R) {
   const out = [];
   for (const slot of GEAR_SLOTS) {
     const spec = gear[slot]; if (!spec) continue;
-    const build = gearBuild(spec, hero); const e = expandEquipment(build); const item = build.item; const hold = HOLD_OF[item];
+    // (a staff short enough to swing, a haft or a wand (its `reach`), is held as a blade is: grip in the fist, the head
+    // forward and down; only the long staff walks with its heel by the floor)
+    const build = gearBuild(spec, hero); const e = expandEquipment(build); const item = build.item;
+    const hold = HOLD_OF[item] === 'haft' && SWUNG.has(e.trace.variants?.reach) ? 'blade' : HOLD_OF[item];
     const grip = e.sockets.grip; const len = e.trace.length;
     let M, o, t, b;
     if (slot === 'right' || slot === 'left') {

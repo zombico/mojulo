@@ -21,13 +21,16 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 
 ## Where truth lives
 
-- Current state of the branch: the Unreleased section of [control/CHANGELOG.md](control/CHANGELOG.md).
+- Current state of the branch: what is unreleased, `node scripts/changelog.mjs` (from `control/`): the Unreleased section
+  of [control/CHANGELOG.md](control/CHANGELOG.md), then the theme files under `control/changelog/`.
   Releases before 3.0.0, and the detailed log behind 3.0.0, are in
   [control/CHANGELOG-2.x.md](control/CHANGELOG-2.x.md); the detailed log behind 3.1.1 is
   [control/CHANGELOG-3.1.md](control/CHANGELOG-3.1.md) (archives; add nothing new to either).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
 - Version: `package.json` says 3.1.1, released 2026-10-16, the 3.1 line's first published release (`mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is deprecated, since npm will not unpublish a package others depend on; npm never reuses a version, so the release is 3.1.1, and code and docs that say 3.1.0 mean this release; 3.0.0 was released 2026-10-01; 3.0.1 was prepared and never released, and its work ships in 3.1.0; 2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see `CHANGELOG-2.x.md`; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
-  Unreleased is empty at the tag; new work goes under it as `###` themes.
+  New work never edits `CHANGELOG.md`: each theme is its own file, `control/changelog/<MMYY>/<MMDD>/<theme>.md` (the
+  month, then the branch's day: `1026/1027/racing-arenas.md`), its first line `### <title>`; edit only your own theme's
+  file. Two branches never touch the same lines. [control/changelog/README.md](control/changelog/README.md).
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (rings and packs, workflows, substrate, data),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
   [docs/install-capabilities.md](docs/install-capabilities.md) (kernel + packs + install groups),
@@ -134,13 +137,14 @@ hashes are structural on purpose. A pin change is legitimate only when the step 
 
 Design happens in `*.plan.md` under `lite-template/integration/<MMDD>/` (gitignored). Skeleton: status
 line, "what exists (reuse, don't design)", numbered phases, Gates split machine/eyes, out of scope, open
-questions, a Log appended as built. Write the plan and its Unreleased `###` section (one per theme, named
-for the plan) before the code. A leftover "remaining" section is a recorded stopping point, not a backlog.
+questions, a Log appended as built. Write the plan and its theme file (`control/changelog/<MMYY>/<MMDD>/<theme>.md`,
+one per theme, named for the plan, its first line `### <title>`) before the code. A leftover "remaining" section is a recorded stopping point, not a backlog.
 On merge the plan moves to `plan-archive/`. Nothing tracked may cite a plan path.
 
 ## Release
 
-Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, run `npm run smoke:tarball` (packs, installs
+Control plane: `node scripts/changelog.mjs --release X.Y.Z` (writes `## [X.Y.Z] - YYYY-MM-DD` with everything
+unreleased in it and deletes the theme files), run `npm run smoke:tarball` (packs, installs
 the tarball into an empty temp dir, boots the dashboard; the npx cache reuses old trees and hides
 fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section. The Claude plugin
 installs only what its lockfile names, and the lockfile needs the published tarball's hash: `npm publish` before the
@@ -197,6 +201,13 @@ Pointers only; each target carries its own design notes.
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+- Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
+  one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
+- Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
+  generic starter each and no published game, portable words, the kernel a page emits; composed with the egocube, the
+  live RPG, programs and the epoch map; its game book on the press; minted by `create_game({ table_rpg })`, engine
+  `table-rpg`): [docs/table-rpg.md](docs/table-rpg.md); play it with `node scripts/table-rpg.mjs`. "Tabletop" is the
+  board-game type.
 - Fractal structures: [fractal-structure/](control/lib/graph/fractal-structure/) (towers from a plan, a rise, a crown and
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);

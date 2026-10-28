@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
     const scaleRaw = Number.parseFloat(new URL(request.url).searchParams.get('scale'));
     const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? scaleRaw : 1;
 
-    const { payload } = await resolveWorldScene(sketch);
+    const { payload } = await resolveWorldScene(sketch, { paint: true });
     const exported = payload
       ? facesTo3mf(payload, { scale, generator: `mojulo ${ref}`, title: sketch.title || sketch.manifest?.title || ref })
       : null;
