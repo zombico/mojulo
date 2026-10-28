@@ -150,8 +150,9 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
     const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
     let b;
     if (isPeople(p.entry)) {
-      // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
-      // below the hero door on its creature clips), drawn from the sheet the run made it from
+      // a people plays its own moves as a cast member does (casting.js fieldOf: a person, and a beast-kin on the tiered
+      // body, over the library's; a people of the operator's own below the hero door on its creature clips), drawn from
+      // the sheet the run made it from
       const sheet = sheets[p.eid] ?? (sheets[p.eid] = rollEgocube(peopleRollOf(G, p.eid, p.entry)));
       figures[p.id] = fieldFigure(refs[p.eid], fieldOf({ body: 'person', sheet }));
       b = peopleBody(statureOf({ body: 'person', sheet }), f.scale);

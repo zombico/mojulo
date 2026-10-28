@@ -91,6 +91,6 @@ export function beastHead(plan, hero) {
     }
   }
   const lean = dials.lean?.parts; if (Array.isArray(lean) && segments.some((s) => s.name === 'nape') && lean.includes('neck')) dials.lean = { ...dials.lean, parts: [...lean, 'nape'] };
-  return { ...plan, segments, heads: [{ name: 'head', plan: hp, expression: {}, on: 'headBase', bind: { cranium: 'head', jaw: 'jaw' } }], dials,
+  return { ...plan, segments, heads: [{ name: 'head', plan: hp, expression: { ...(hero.beast.expression ?? {}) }, on: 'headBase', bind: { cranium: 'head', jaw: 'jaw' } }], dials,
     rig: { ...plan.rig, joints: rigJoints, bones, chains } };
 }

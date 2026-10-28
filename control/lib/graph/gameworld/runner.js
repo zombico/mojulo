@@ -57,6 +57,8 @@ import { mascotKit } from '../sportswear/mascot-kit.js';
 import { isMascotPlan, mascotPilot } from '../egocube/mascot-pilot.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { rollEgocube } from '../egocube/egocube.js';
+import { beastOnTiered } from '../egocube/plan.js';
+import { BEAST_KINS } from '../beast/cards.js';
 import { fighterName } from '../versus/versus-sheet.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
@@ -593,8 +595,9 @@ function quickSteps(world, G, ref, lookup) {
       if (hero) { roster.push({ ...own, hero, ...over }); continue; }
       const roll = { ...own0, setting };
       const sheet = rollEgocube(roll);
-      // a person takes the hero door; a people below it (a lineage) is the creature loop's, not a fighter yet
-      if (sheet.ancestry.door !== 'hero') throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door: a non-human fighter comes with the creature bodies (not yet)`);
+      // a person takes the hero door, and so does a beast-kin the beast cards know (the tiered body, egocube/plan.js
+      // beastOnTiered); a people below it with no card (a lineage of the operator's own) is the creature loop's, not a fighter
+      if (sheet.ancestry.door !== 'hero' && !beastOnTiered(sheet)) throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door with no beast card: a fighter takes a person or a beast-kin the cards know (${Object.keys(BEAST_KINS).join(', ')})`);
       const sheetKey = `fighter-${own.id}-sheet`, key = `fighter-${own.id}`, sheetRef = childRef(ref, sheetKey), charRef = childRef(ref, key);
       const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });

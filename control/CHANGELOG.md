@@ -45,7 +45,7 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   and the elbow's regions now count every ring of their bridge (`hero-stretch.js` `STRETCH_REGIONS`), where the limbs'
   own end rings stay rigid and read 1. A classic body has no bridges and reads as it did.
 - **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, toes?, claws?,
-  tail?, wings?, arms?, head?, cover? }`.
+  tail?, wings?, arms?, head?, cover?, expression? }`.
   The kin is a card (`beast/cards.js`) of words, never geometry:
   - `reads`: what the kin reads as;
   - `fingers`: 3 or 4, the thumb among them; `toes`: 3, 4 or 5; `tail`: the tail it carries;
@@ -69,7 +69,7 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
 
   The legs are the hero's word, not the kin's (a lineage stands digitigrade by how far from a person its sheet rolled).
   Refused: an unknown kin or word, a beast off the tiered body, and a beast that is undead too. A hero without `beast`
-  is unchanged. Not yet carried: the egocube's route from a sheet to the card.
+  is unchanged.
 
   Machine gate (`beast/tiered.test.js`):
   - the words recorded, the operator's own over them;
@@ -237,6 +237,37 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   Eyes: the four tiles' maps side by side, and the wolf-kin with its fur and without, lit by three.js in the hero-live
   viewer (`/hero-live`, the same GLB an engine gets). The fur's relief reads on the body, and the head drops its tuft
   cards (8,812 triangles to 7,096). Eyes gate: the operator's to judge.
+- **The route: new beast-kin mint on the seventh generation** (`egocube/plan.js` `beastOnTiered`, `planFromSheet`). A
+  sheet below the hero door of a kin the beast cards know is now the hero door's call, `create { as: 'hero' }`, with
+  the beast's words read from the sheet:
+  - the kin is its ancestry; the legs are digitigrade when the sheet derives them;
+  - the fingers, claws, tail and cover come from its lineage's cues as its humanity gates them, and feathers for the
+    bird-kin;
+  - the frame's wings ride the arms and its second pair of arms is the beast's;
+  - the library head is its people's, and the face's derives become its expression (`beast.expression`: each control
+    in −1 … 1, read by the library head);
+  - its build is the hero's tune and its height its stature, within the tune's range.
+
+  A designed sheet person enough to wear the cut (`CLOTHED_H`) wears it as the hero's outfit. One below it goes bare:
+  its adornment is not worn on the tiered body yet, and the ledger says so, as it says where every other note landed or
+  what is pending. A people of the operator's own with no card, a sheet with its own form, and any call that asks for
+  `gen: 6` stay on the creature biped. Rows already minted are stored as minted, so they keep their body.
+
+  The bestiary follows. A foe skinned `{ people: lupine }` and a cast's beast-kin play a person's moves from the
+  library on the field (`gameworld/casting.js` `fieldOf`), not the creature loop's walk and jog. The fight game's
+  roster fields a beast-kin, where it refused one below the hero door (`gameworld/runner.js`).
+
+  Machine gate (`beast/route.test.js`):
+  - each kin's sheet routed with its words, a valid hero spec, and a ledger row at or pending for every note;
+  - both leg procedures reached;
+  - the wings and the second arms carried, and the ledger saying where;
+  - `gen: 6` and a lineage with no card on the biped;
+  - clothed and bare by `CLOTHED_H`, the ledger naming the bare one's adornment;
+  - the call compiling, deterministic;
+  - the expression reaching the library head, and a control outside −1 … 1 refused.
+
+  The egocube's own tests read the sixth generation through `gen: 6`, and its pins hold byte for byte. The foes' and the
+  fight game's tests read the new field.
 
 ### Foe classes: the hostile encounter primitive
 

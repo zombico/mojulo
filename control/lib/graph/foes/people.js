@@ -4,7 +4,8 @@
  *
  *   PEOPLE              'human' (a blind roll: its ancestry the seed's) and the lineages (orcish, undead, infernal,
  *                       draconic, dwarven, sylvan, feline, lupine, ursine, avian, insectoid): each a band of humanity,
- *                       on the hero door above DOOR_H (kin with ears and a tail) and the creature loop below it
+ *                       on the hero door above DOOR_H (kin with ears and a tail) and below it the beast-kin's
+ *                       tiered body (lib/graph/beast; egocube/plan.js beastOnTiered)
  *   readPeopleSkin(skin, at)   → { people, facets? } checked (throws teaching the words)
  *   peopleBody(skin)    → the body ./fit.js measures: { support: 'two', wings: false, swimmer: false, size, extent,
  *                         height, scale: 1, gaits, people }; its height the build's and the age's (egocube/plan.js HEIGHT,

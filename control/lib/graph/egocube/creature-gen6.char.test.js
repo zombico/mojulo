@@ -4,7 +4,9 @@
 // so its plan, its recipe and its mesh are held here byte for byte. One sheet per procedure the biped runs (digitigrade
 // legs with a tail, plantigrade legs, wings on the arms, a second pair of arms), each found in code from the lineages'
 // rolls, dressed as the cube dresses it by default (designed: adorned and drawn for its target, creature-drawn.js), and
-// the digitigrade one also in its stock kit. A pin moves only when a step says the sixth-generation body changes.
+// the digitigrade one also in its stock kit. A sheet of a kin the beast cards know is lowered to the tiered body by
+// default (plan.js beastOf); `gen: 6` asks for this body. A pin moves only when a step says the sixth-generation body
+// changes.
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { rollEgocube } from './egocube.js';
@@ -20,7 +22,7 @@ function sheetFor(ancestry, humanity, shows) {
   for (let seed = 1; seed <= 40; seed++) {
     const sheet = rollEgocube({ seed, facets: { ancestry, humanity }, path: 'creature' });
     if (sheet.ancestry.door !== 'creature') continue;
-    const plan = planFromSheet(sheet).create.spec.plan;
+    const plan = planFromSheet(sheet, { gen: 6 }).create.spec.plan;
     if (shows(plan)) return sheet;
   }
   throw new Error(`no ${ancestry} sheet at humanity ${humanity} shows the procedure`);
@@ -47,7 +49,7 @@ describe('the sixth-generation beast body (the creature biped), byte for byte', 
     it(`${name}: its plan, its recipe and its mesh`, () => {
       const sheet = find();
       for (const dress of dresses) {
-        const plan = planFromSheet(sheet, dress === 'designed' ? { dress } : {}).create.spec.plan;
+        const plan = planFromSheet(sheet, { gen: 6, ...(dress === 'designed' ? { dress } : {}) }).create.spec.plan;
         const { recipe, dials } = expandLayeredManifest({ kind: 'layered', plan });
         const mesh = compileLayered(recipe, dials);
         const got = [h(plan), h(recipe), h({ v: mesh.vertices.map((p) => p.map(r6)), f: mesh.faces, g: mesh.groups })];

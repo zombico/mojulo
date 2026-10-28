@@ -20,8 +20,10 @@
  * rolled in any setting is clothed in its world's colours. Pure and deterministic: the same sheet, the same call.
  *
  * THE SIXTH GENERATION: the creature door's biped (`biped`, `dialsAndRig`) with a library head on its neck stub is the
- * beast-kin's sixth-generation body. Its seventh stands on the tiered body (lib/graph/beast); this one stays as it is for
- * every row minted on it, held byte for byte by creature-gen6.char.test.js.
+ * beast-kin's sixth-generation body. Its seventh stands on the tiered body (lib/graph/beast): a sheet of a kin the beast
+ * cards know is lowered there (`beastOf`: the hero door, `beast` on its spec), unless the call asks for `gen: 6`; a people
+ * with no card (a lineage of the operator's own) stays on the biped. The biped stays as it is for every row minted on
+ * it, held byte for byte by creature-gen6.char.test.js.
  */
 import { readDerive, dialKey } from './channels.js';
 import { ARCHETYPE_IDS, ROLES } from './facets.js';
@@ -33,6 +35,7 @@ import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR,
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { variantOf, UNDEAD_CARDS } from '../undead/index.js';
+import { BEAST_KINS } from '../beast/cards.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -697,9 +700,9 @@ function choicesOf(p) {
  * A CONTRAST PAIR: the same roll twice, the second with one facet changed, and the choices that moved. A pair teaches
  * the mapping from a note to a choice; one example would teach a destination. `roll` is rollEgocube's arguments.
  */
-export function contrastPair(roll, change, rollEgocube) {
+export function contrastPair(roll, change, rollEgocube, { gen } = {}) {
   const a = rollEgocube(roll), b = rollEgocube({ ...roll, facets: { ...(roll.facets || {}), ...change } });
-  const ca = choicesOf(planFromSheet(a)), cb = choicesOf(planFromSheet(b));
+  const ca = choicesOf(planFromSheet(a, { gen })), cb = choicesOf(planFromSheet(b, { gen }));
   const moved = [...new Set([...Object.keys(ca), ...Object.keys(cb)])].filter((k) => ca[k] !== cb[k]).map((k) => ({ choice: k, a: ca[k], b: cb[k] }));
   return { change, a: { facets: a.facets, reads: a.reads }, b: { facets: b.facets, reads: b.reads }, moved, note: 'A first reading of each sheet, side by side: how one facet moves the choices, not what to choose. Neither is a body to copy.' };
 }
@@ -708,13 +711,68 @@ export function contrastPair(roll, change, rollEgocube) {
  * cloth); below it, ADORNED */
 export const CLOTHED_H = 0.25;
 
+// ══════════ the seventh generation: the beast-kin on the tiered body ══════════
+
+/** a sheet the seventh generation stands on the tiered body: a beast-kin below the hero door of a kin the beast cards
+ * know, not one with a body of its own (an undead's form); planFromSheet lowers it there (unless `gen: 6`), and a
+ * field plays it as a person (gameworld/casting.js fieldOf) */
+export const beastOnTiered = (sheet) => sheet.ancestry?.door === 'creature' && !!BEAST_KINS[sheet.facets.ancestry] && !sheet.ancestry.form;
+
+/** the height the tiered body stands at its canonical build (metres): a beast-kin's sheet height (HEIGHT × AGE_SCALE)
+ * read against it as its stature, within the tune's range */
+const BEAST_REF_H = 1.8;
+/** where a beast-kin's sheet notes land on the tiered body's call */
+const BEAST_AT = { frame: 'spec.beast (legs, tail, arms), spec.tune', structure: 'spec.beast.head (a library head on the tiered neck)', colouring: 'spec.palette, the head palette',
+  cover: 'spec.beast.cover (its coat as a material)', ornament: 'spec.beast.claws, the head ornaments', rest: 'spec.beast.expression', eyes: 'spec.beast.expression', stance: 'the kin\'s rest (beast/cards.js)',
+  silhouette: 'spec.tune, spec.beast', dress: null, hair: null, palette: 'spec.palette', wear: null };
+
+/** A beast-kin's sheet as the tiered body's words (lib/graph/beast): its kin, its legs (digitigrade when the sheet says),
+ * its fingers, its claws, its tail and its cover as its lineage's cues give them (the sheet's, gated by its humanity), the
+ * frame's wings on the arms and second arms, its library head and expression; its build as the hero's tune, its height
+ * as its stature; clothed from the cut when it is designed and person enough (CLOTHED_H), the cut as the hero's outfit
+ * build. → { spec, head, legs, topo, cover, outfit } */
+function beastOf(sheet, dress) {
+  const f = sheet.facets, hints = sheet.ancestry.plan || {}, head = headOf(sheet), topo = topologyOf(sheet);
+  const feathered = f.ancestry === 'avian' || head.id === 'beaked', legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
+  const cover = feathered ? 'feathers' : hints.cover?.kind ?? 'none', expression = expressionOf(sheet);
+  const beast = { kin: f.ancestry, legs, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws ?? 'none', tail: hints.tail && TAILS[hints.tail] ? hints.tail : 'none',
+    ...(topo.wings ? { wings: 'arms' } : {}), ...(topo.arms2 ? { arms: 4 } : {}), ...(head.standIn ? {} : { head: head.id }), cover, ...(Object.keys(expression).length ? { expression } : {}) };
+  const T = BUILD_TUNE[f.build] ?? {}, stature = r3(clamp((T.stature ?? 1) * (HEIGHT[f.build] * AGE_SCALE[f.age]) / BEAST_REF_H, 0.85, 1.15));
+  const coat = legible(sheet.ancestry.colours.Skin);
+  const spec = { form: 'tiered', cast: f.pole, tune: { ...T, stature }, palette: { Skin: coat }, beast };
+  const clothed = dress === 'designed' && f.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : null;
+  if (clothed) spec.outfit = heroOutfitOf(clothed.outfit);
+  return { spec, head, legs, topo, cover, outfit: clothed, adorned: dress === 'designed' && !clothed };
+}
+function beastLedger(sheet, built) {
+  const rows = [];
+  for (const [ch, notes] of Object.entries(sheet.notes)) for (const n of notes) {
+    let at = BEAST_AT[ch], pending = null;
+    if (ch === 'dress') { if (built.outfit) at = 'spec.outfit (the cut and its pieces)'; else pending = built.adorned ? 'its adornment (pieces with no cut) is not worn on the tiered body yet' : 'bare: no dress asked'; }
+    if (ch === 'cover' && built.cover === 'none') { at = null; pending = 'no cover hint for this people'; }
+    if (ch === 'ornament' && /horns|antennae|tusks|crest|frill/.test(n.line) && !(built.head.id === 'dragon' && /horns|crest/.test(n.line)) && !(built.head.id === 'mandibled' && /antennae/.test(n.line))) { at = null; pending = 'an ornament the library head and the tiered body do not carry yet'; }
+    if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line)) { at = null; pending = 'not on the tiered body yet (folded wings, a crest, a familiar)'; }
+    if (built.topo.wings && /wings on the arms/.test(n.line)) { at = 'spec.beast.wings (flight feathers on the hand and forearm)'; pending = null; }
+    if (built.topo.arms2 && /second pair of arms/.test(n.line)) { at = 'spec.beast.arms (a second pair, welded by the generic socket)'; pending = null; }
+    if (!at && !pending) pending = ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
+    rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
+  }
+  return rows;
+}
+
 /** `dress: 'designed'`: the outfit DESIGNED from the sheet (outfit.js: its archetype, role, order, motivation, age and
  * lineage, the visual-interest laws run over it) in place of the stock kit by role. A creature is CLOTHED from the cut
  * at humanity CLOTHED_H and over, else ADORNED, on a body DRAWN for its target (adornFromSheet, creature-drawn.js): its frame shows; a person wears the cut as the hero's outfit
  * build. Absent, the kit as before. */
-export function planFromSheet(sheet, { title, dress } = {}) {
+export function planFromSheet(sheet, { title, dress, gen } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
+  // THE SEVENTH GENERATION (lib/graph/beast): a beast-kin of a kin the cards know, on the tiered body through the hero door
+  if (gen !== 6 && beastOnTiered(sheet)) {
+    const built = beastOf(sheet, dress);
+    const thesis = `${sheet.ancestry.reads} on the tiered body: ${built.legs}, the ${built.head.id} head${built.cover !== 'none' ? `, ${built.cover} as its material` : ''}`;
+    return { door: 'hero', beast: true, thesis, create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: beastLedger(sheet, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+  }
   if (door === 'creature') {
     const built = creature(sheet, name);
     // a people near the beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet); one with enough of a

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS, FUR_SPOTS } from './plan.js';
+import { planFromSheet as planFromSheetOf, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS, FUR_SPOTS } from './plan.js';
 import { validateBody } from '../polygonizer/station-loft-body.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { LINEAGES, HUMAN_IDS } from './ancestry.js';
@@ -8,6 +8,9 @@ import { HEAD_LIBRARY, HEAD_IDS, headPlan, headFor } from '../creature-heads/ind
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { validateHead, headFromPlan } from '../polygonizer/station-loft-head.js';
 import { validateHeroSpec } from '@/lib/mcp/tools/layered.js';
+// (these read the sixth generation's procedures: a beast-kin sheet asks for the creature biped, plan.js `gen: 6`; the
+// seventh, on the tiered body, is beast/route.test.js's)
+const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...opts });
 
 describe('the creature head library', () => {
   it('holds heads that read as plan data, each serving its people', () => {
