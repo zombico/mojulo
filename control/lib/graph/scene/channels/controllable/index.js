@@ -215,6 +215,9 @@ function __updateGearLines() {
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
   const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
+  // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
+  const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -716,7 +719,8 @@ function __makeBody(e) {
   // An UNPILOTED pilotable suit runs its ambient rule at build time, so its loadout lives on
   // pilotRule — check both, or its weapons could never swap after a T take-over.
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
-    || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null);
+    || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
+    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''};
   if (lo && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
     const variants = {};
     const buildVariant = (fname) => {

@@ -9,7 +9,9 @@
  * part instead: the figure carries its slash (scene/rig-cleave.js, laid at mint: each bone above or below the cut whole,
  * each it crossed as two capped halves), the side above slips off along the cut as a piece and the side below stays on
  * the body, falling on its own fall clip, a streak
- * of light along the cut for a breath. When the body goes its pieces fade (or sink, a `sink` going).
+ * of light along the cut for a breath. When the body goes its pieces fade (or sink, a `sink` going). A MODE DEFEATED
+ * (e.shed) tears off what the figure it was carries and the next lacks (its figure's `shed`, scene/rig-shed.js), each
+ * bone's piece thrown off the blow, while the body rises in its next mode.
  *
  *   wreckGroups(bones, parent, { sever, seed, ride, limbs })   → { groups: [[bone index]], cut: [bone id] }
  *     sever  all    every joint, but a bone shorter than `ride` rides its parent (a finger its hand, a toe its foot)
@@ -173,6 +175,28 @@ function __wkMake(e) {
   }
   return { pieces, hidden, swapped, live: live >= 0 ? sets[live].map((x) => x.m) : null, ground, streak, t: 0, t0: W.t0 };
 }
+function __wkShed(e, X) {
+  const body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id], lo = body && body.userData.loadout, was = lo && lo.variants && lo.variants[X.figure];
+  const rf = was && was.userData.rigFig, fig = rf && rf.fig, parts = fig && fig.shed && fig.shed[X.into];
+  if (!parts || !rf) return { none: true };
+  was.updateMatrixWorld(true);
+  let a = (e.id.length * 7919 + X.seq * 104729) >>> 0 || 1; const rnd = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const box = new THREE.Box3(), V = new THREE.Vector3(); let ground = Infinity;
+  for (const m of rf.boneMeshes) if (m) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); ground = Math.min(ground, box.min.z); }
+  const pieces = [], f = X.from || [0, 0];
+  for (const bi in parts) {
+    const m = rf.boneMeshes[bi]; if (!m) continue;
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(parts[bi].pos), 3)); geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(parts[bi].col), 3, true)); geo.computeBoundingBox();
+    const b = geo.boundingBox, pts = [], c = [0, 0, 0];
+    for (let j = 0; j < 8; j++) { V.set(j & 1 ? b.max.x : b.min.x, j & 2 ? b.max.y : b.min.y, j & 4 ? b.max.z : b.min.z).applyMatrix4(m.matrixWorld); pts.push([V.x, V.y, V.z]); c[0] += V.x / 8; c[1] += V.y / 8; c[2] += V.z / 8; }
+    const s = 1.2 + 1.8 * rnd(), v = [f[0] * s + (rnd() - 0.5) * 2, f[1] * s + (rnd() - 0.5) * 2, 1.5 + 2.5 * rnd()], w = [(rnd() - 0.5) * 14, (rnd() - 0.5) * 14, (rnd() - 0.5) * 10];
+    const B = __wkPiece(pts, c, v, w), g = new THREE.Group(), mat = m.material.clone(); mat.transparent = true;
+    g.position.set(c[0], c[1], c[2]);
+    const cp = new THREE.Mesh(geo, mat); cp.matrixAutoUpdate = false; cp.matrix.multiplyMatrices(new THREE.Matrix4().makeTranslation(-c[0], -c[1], -c[2]), m.matrixWorld); cp.raycast = function () {};
+    g.add(cp); scene.add(g); pieces.push({ B, g, mats: [mat], own: [geo] });
+  }
+  return { pieces, hidden: [], swapped: [], live: null, ground: isFinite(ground) ? ground : 0, streak: null, t: 0, t0: X.t0 };
+}
 function __wkGone(L) { for (const P of L.pieces || []) { scene.remove(P.g); for (const m of P.mats) m.dispose(); for (const g of P.own) g.dispose(); } L.pieces = []; if (L.streak) { scene.remove(L.streak); L.streak.geometry.dispose(); L.streak.material.dispose(); L.streak = null; } }
 function __wkDrop(L) { __wkGone(L); for (const m of L.hidden || []) m.visible = true; for (const S of L.swapped || []) { S.m.geometry = S.geo; S.half.dispose(); } }
 // the live side, as it lies when the body goes: a still piece of its own, to fade with the rest
@@ -198,6 +222,18 @@ function __stepWrecks() {
       if (u > 0) for (const m of P.mats) m.opacity = 1 - u;
     }
     if (L.streak) { const k = (now - L.t0) / 0.3; if (k >= 1) { scene.remove(L.streak); L.streak.geometry.dispose(); L.streak.material.dispose(); L.streak = null; } else { L.streak.material.opacity = 1 - k; L.streak.scale.set(0.4 + 0.8 * Math.min(1, k * 3), 1 - k, 1); } }
+    if (u >= 1) { __wkGone(L); L.done = true; }
+  }
+  // a mode DEFEATED (e.shed, a body's modes): what the figure it was carries and the next lacks (its figure's \`shed\`, laid
+  // at mint: scene/rig-shed.js) torn off where it was worn, each bone's piece thrown off the blow; the body fights on
+  for (const e of Wd.entities) {
+    const X = e.shed; if (!X) continue;
+    const key = e.id + '#' + X.seq; seen[key] = 1;
+    const L = __wkLive[key] || (__wkLive[key] = __wkShed(e, X));
+    if (L.none || L.done) continue;
+    while (L.t + __WK_DT <= now - L.t0) { for (const P of L.pieces) __wkStep(P.B, __WK_DT, L.ground); L.t += __WK_DT; }
+    const u = Math.max(0, Math.min(1, (now - L.t0 - 2.4) / 0.9));
+    for (const P of L.pieces) { P.g.position.set(P.B.x[0], P.B.x[1], P.B.x[2]); P.g.quaternion.set(P.B.q[0], P.B.q[1], P.B.q[2], P.B.q[3]); if (u > 0) for (const m of P.mats) m.opacity = 1 - u; }
     if (u >= 1) { __wkGone(L); L.done = true; }
   }
   // a body whose wreck was cleared (a respawn): its pieces taken up, its meshes shown again

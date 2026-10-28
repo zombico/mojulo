@@ -641,6 +641,24 @@ through the character designer, clips fitted to the class's timing, factions) is
   (the head above, the feet below, the trunk cut), each half on its own side capped in the inside, the same cut for the
   same seed; a dropped bone settling flat; the runtime marking the body the frame it goes down and handing it to no transit; a destroy dying as each blow says (a strike, a shot, a burst away from it, none); each function the
   page runs evaluating from its own source alone; no wreck on a page without one. Eyes: pending.
+- **Modes: a foe defeated, not destroyed, until its last** (optional; `body.modes` in `worlds/controllable/vanish.js`,
+  `scene/rig-shed.js`; the operator: "armored mode is one layer, unarmored mode is another … it can only be
+  cleaved/destroyed at the lowest level, it's just defeated and resets until that").
+  - A body may carry `modes: [{ figure, hp? }, …]`, the first the mode it starts in. While a mode is left under the one
+    it is in, a killing blow DEFEATS it: it is knocked down (combat-hit's `noDestroy`, the practice rule) and rises
+    reset into the next mode, its figure and its health; only the last mode, layer 0, dies, and is destroyed by the
+    blow as above. A body without modes is as it was.
+  - Every mode is its own figure on the same stick figure, built up front as a loadout's are, so the swap is the
+    runtime's own variant swap and the walk carries across.
+  - What a defeated mode SHEDS is what its figure carries and the next lacks, bone by bone (`shedParts`, laid on the
+    figure at mint): an armoured skeleton's helm, cuirass, pauldrons, bracers and greaves torn off where they were
+    worn and thrown off the blow while the bare skeleton gets up and fights on.
+  - The worked example: an armoured skeleton (the `adorned` layer) whose modes are itself and the bare skeleton of the
+    same seed. The first killing blow tears its armour off; the second destroys it.
+
+  Machine gate: a mode defeated resets into the next (figure, health, its shed marked) and is never destroyed, the
+  last destroyed; a mode's shed is exactly what the next lacks, the bone's own triangles left; a figure diffed with
+  itself sheds nothing. Eyes: pending.
 
 ### Carved glyphs: the letter primitive grows up
 

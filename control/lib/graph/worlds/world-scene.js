@@ -103,8 +103,9 @@ export function stateFace(face, own, clips) {
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
-/** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js) */
-const wrecks = (e) => !!(e && e.body && e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die));
+/** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
+ * that sheds a mode (its `modes`): the page's wreck plays both */
+const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1)));
 
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
@@ -824,11 +825,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
           // cut capped in the inside its body names)
-          const wrecked = (payload.entities || []).filter((e) => e && e.body && e.body.figure === name && wrecks(e));
+          const wrecked = (payload.entities || []).filter((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name))) && wrecks(e));
           if (wrecked.length) {
             const { humanoidParents } = await import('@/lib/graph/figures/rig-tpose.js');
             try { figure.wreck = { parent: humanoidParents(figure.bones) }; } catch { figure.wreck = {}; }
-            const cleaved = wrecked.find((e) => e.body.vanish.die === 'cleave' || (e.body.vanish.die === 'destroy' && Object.values(e.body.vanish.by || {}).some((D) => D && D.die === 'cleave')));
+            const cleaved = wrecked.find((e) => e.body.vanish && (e.body.vanish.die === 'cleave' || (e.body.vanish.die === 'destroy' && Object.values(e.body.vanish.by || {}).some((D) => D && D.die === 'cleave'))));
             if (cleaved) {
               const { slashPlane, cleaveFigure } = await import('@/lib/graph/scene/rig-cleave.js');
               let h = 7; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 999983;
@@ -1089,6 +1090,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (refKey) figureSources[name] = `${refKey}:${rawSpec[refKey]}`;
       }
       if (Object.keys(figureSources).length) payload.figureSources = figureSources;
+      // MODES (a body's `modes`, worlds/controllable/vanish.js): each mode's figure carries what it SHEDS when defeated into
+      // the next (scene/rig-shed.js: its triangles the next lacks, bone by bone). None ⇒ the figures as they were
+      const moded = (payload.entities || []).filter((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+      if (moded.length) {
+        const { shedParts } = await import('@/lib/graph/scene/rig-shed.js');
+        for (const e of moded) e.body.modes.slice(0, -1).forEach((m, i) => {
+          const A = payload.figures[m.figure], B = payload.figures[e.body.modes[i + 1].figure];
+          if (A && B && A.rig && B.rig && !(A.shed && A.shed[e.body.modes[i + 1].figure])) A.shed = { ...(A.shed || {}), [e.body.modes[i + 1].figure]: shedParts(A, B) };
+        });
+      }
     }
     // GLYPH bodies (game-ui-language.plan.md, U1): body:{type:'glyph', form, tint?, scale?}
     // lowers here to a single-frame figure-frames body + a generated `glyph:<form>` clip — the

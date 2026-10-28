@@ -12,6 +12,7 @@ import { LINEAGES } from '../../egocube/ancestry.js';
 import { heroRecord, expandLayeredManifest } from '../../../mcp/tools/layered.js';
 import { WORLD_KINDS } from '../../worlds/world-kinds.js';
 import { slashPlane, cleaveFigure } from '../rig-cleave.js';
+import { shedParts } from '../rig-shed.js';
 
 // a hero's packed bones (the page's), and their parents as the world-scene lays them
 const pack = (await WORLD_KINDS.layered.resolve(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'tiered', cast: 'male', undead: { form: 'skeleton', build: 'canonical', seed: 3 } }) }), { title: 't' })).figures.body;
@@ -147,6 +148,37 @@ describe('the runtime and the words', () => {
     expect(vanishOf({}, { skin: { people: skel }, vanish: 'squash' }).die).toBe('fall');
     expect(() => readVanish({ die: 'dismantle', sever: 'tail' }, 'v')).toThrow(/sever is which joints/);
     expect(() => readVanish({ die: 'fall', sever: 'all' }, 'v')).toThrow(/goes with die: 'dismantle'/);
+  });
+  it('a mode is defeated, never destroyed: it resets into the next, and only the last dies', () => {
+    const e = body('a', [0, 0, 0], { is: 'fade', linger: 0.5, die: 'destroy', by: { ...BLOW_DESTRUCTION, else: { die: 'dismantle', sever: 'all' } } });
+    e.body = { ...e.body, type: 'figure-rig', figure: 'armoured', modes: [{ figure: 'armoured', hp: 20 }, { figure: 'bare', hp: 12 }] };
+    const st = E.createWorld({ entities: [e, { id: 'hero', team: 'heroes', rule: { type: 'static' }, body: { type: 'mesh' }, transform: { pos: [-2, 0, 0], heading: 0 } }] });
+    E.stepWorld(st, {}, 1 / 30, { ground: () => 0 });
+    const a = st.byId.a;
+    expect(a.noDestroy).toBe(true);   // a mode is left under it: a killing blow floors it and refills it
+    Object.assign(a, { downed: true, lastHitBy: 'hero' }); a.body.hp = 0;
+    E.stepWorld(st, {}, 1 / 30, { ground: () => 0 });
+    expect(a.downed).toBe(false);
+    expect(a.body).toMatchObject({ figure: 'bare', hp: 12 });
+    expect(a.shed).toMatchObject({ seq: 0, figure: 'armoured', into: 'bare' });
+    expect(a.wreck).toBeUndefined();
+    expect(a.noDestroy).toBe(false);   // the last mode, layer 0: the next killing blow destroys it
+    Object.assign(a, { downed: true }); a.body.hp = 0;
+    for (let i = 0; i < 20; i++) E.stepWorld(st, {}, 1 / 30, { ground: () => 0 });
+    expect(a.wreck).toBeDefined();
+    expect(a.gone).toBe(true);
+  });
+  it('what a mode sheds is what its figure carries and the next lacks, bone by bone', async () => {
+    const fig = async (layers) => (await WORLD_KINDS.layered.resolve(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'tiered', cast: 'male', undead: { form: 'skeleton', build: 'heroic', seed: 3, ...(layers ? { layers } : {}) } }) }), { title: 't' })).figures.body;
+    const A = await fig(['adorned']), B = await fig();
+    expect(shedParts(B, B)).toEqual({});
+    const D = shedParts(A, B), tri = (p) => Buffer.from(p.pos, 'base64').length / 36;
+    expect(Object.keys(D).length).toBeGreaterThan(0);
+    // each bone sheds its armour alone: what is left is the bare bone's own, triangle for triangle
+    for (const [bi, part] of Object.entries(D)) {
+      const j = B.bones.findIndex((b) => b.id === A.bones[bi].id);
+      expect(tri(part) + (B.parts[j] ? tri(B.parts[j]) : 0)).toBe(tri(A.parts[bi]));
+    }
   });
   it('a page with no destroyed body carries no wreck', () => {
     expect(statusScript({}, ['fade'])).not.toMatch(/__stepWrecks/);
