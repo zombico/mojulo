@@ -23,3 +23,11 @@ say a line and play a scene, and play a real phone capture through the same cont
   `composeFace`: an intensity, a BLEND (the upper face from one emotion, the lower from another: bittersweet), a MASK (a
   shown emotion's mouth over a felt one that leaks through the brows and the eyes: the polite smile over worry), a lean
   to a side, and an eye look as the upper face.
+- **The performer** (`face-acting/perform.js`): a performance in beats (a face from the emotions, an onset spontaneous or
+  posed, a gaze, a state: listening, speaking, thinking, attentive; a brow flash; a micro-expression) becomes a take as
+  a capture records it: each unit's curve at 60 fps, the gaze, and the events. The changes ease in and out over FACS's
+  onsets and offsets, jittered per unit so none move in lockstep; the brows and the eyes lead the mouth by a little over
+  a tenth of a second; a held expression lives (the moving hold); a micro-expression leaks for a fifth of a second; the
+  blinks come at the state's rate (more speaking than attending), at a thought's close and with a large gaze shift,
+  never through a brow flash; the eyes fixate, drift and jump on the main sequence, look away while thinking and glance
+  off while speaking. Seeded: the same performance plays the same take; `captureFrame` reads a frame as a FACS state.
