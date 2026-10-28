@@ -86,6 +86,40 @@ own `by`. `dismantle` cuts the relations between its bones; `cleave` cuts it thr
 5. Each shelf carries a law test that crosses a mode swap: the proof that layer 0 carries it, in place of a list of
    foes.
 
+## Making a foe type's defaults
+
+A foe TYPE (a zombie, a skeleton, a knight, a slime) is a form: the defaults its entries get on each shelf when they
+name none. The discipline for adding one:
+
+1. **Humanoid first.** If the thing can stand on the humanoid stick figure, it does: every shelf has its full range
+   there (bones by name, the walks, the cuts, the shed). A beast rig or a one-bone blob is chosen only when the
+   silhouette cannot be a humanoid's, and the form says what each shelf does on it (a cut that needs a head falls back
+   to the bone nearest the head; a shelf that cannot apply leaves the foe as it was, never fails).
+2. **One default per shelf, from the canon of its name.** A default is the least surprising reading of the word: a
+   skeleton falls apart, a zombie is hacked, a slime pops. If you cannot point at where the genre already does it,
+   it is not a default; it is an entry's choice.
+3. **Defaults live on the form, never on an entry.** One table per form (the undead's destruction by form is the
+   pattern); an entry that wants otherwise says the same word over it. A default that only code can express is a
+   missing word.
+4. **A form never combines shelves.** "Flaming zombie" is not a form; it is a zombie with `states: { flaming }`. Two
+   shelves meeting (fire on an ice foe) is a row in the one table for that meeting, never a form.
+5. **Rows, not primitives.** A form's defaults point at primitives layer 0 already has. A default that needs a new
+   primitive is a layer-0 capability first, built for every foe and tested across a mode swap; only then does the form
+   point at it.
+6. **Measure in the foe's own body.** Positions, sizes and lifts are shares of its height or its hit egg, never metres,
+   so a default holds on a child, a giant and a body drawn by someone else.
+7. **Every default tells the player something.** A gait says what it is, a telegraph says what it will do, a death
+   says how it was hit, a mode says how far there is to go. A default that reads as nothing in play is cut.
+8. **Sized for a crowd.** A default is costed as one of many on a stage: its triangles per bone, its fires, its
+   pieces when it breaks. The page's budget is the stage's, not the foe's.
+9. **Seeded, and absent is free.** A form's variation is rolled from the world's seed and the entry's id, never from
+   the clock or `Math.random`; a world that does not field the form carries none of its bytes.
+10. **Anything drawn over layer 0 is a skin, whoever made it.** Our figure, a people's roll, or a model made elsewhere:
+    it is matched to layer 0's bones, measured by its height, and gets every shelf from that. It is never a foe of its
+    own with its own rules.
+11. **Proved once per procedure.** A new form adds a law-test case only where it runs a procedure no form ran before
+    (a new rig, a new cut); otherwise the shelf's existing tests already cover it. No test lists the forms.
+
 ## The law tests
 
 - `scene/channels/wreck-channel.test.js`: a dismantle's joints, a cleave's sides and caps, a destroy by each blow, a

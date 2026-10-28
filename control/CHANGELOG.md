@@ -712,6 +712,13 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **A foe type's defaults, disciplined** (`docs/foes.md`; the operator: "come up with principles so that we have good
+  discipline when it comes to making new enemy type defaults"). Humanoid first; one default per shelf from the canon of
+  its name, on the form and never on an entry; no form that combines shelves; rows over primitives layer 0 already has;
+  measured in the foe's own body; sized for a crowd; seeded, and free when absent; anything drawn over layer 0 is a
+  skin, whoever made it; proved once per procedure. A one-layer zombie checked against every layer-0 capability first:
+  its joints, each dismantle, the cleave, a mode over its own skeleton (shedding all its flesh into the same bones), a
+  flaming column by its own height and a skeleton's walk all hold.
 
 ### Carved glyphs: the letter primitive grows up
 
