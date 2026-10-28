@@ -66,6 +66,7 @@ import { detailKey, layDetail } from '../matte-paint/detail.js';
 import { screeKey } from './scree-tiles.js';
 import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
 import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
+import { duneMap } from './out-dunes.js';
 import { leafChips, CHIP_DEFAULTS } from './leaf-chips.js';
 import { LEAF_FORMS, readKind, pickByShare, leafForm, lobeTris, formChips, withinLobe } from './leaf-forms.js';
 import { floraRamps, harmonyRamps } from './flora-colours.js';
@@ -439,6 +440,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // nothing changes)
   const WS = site.water ?? null;
   if (WS) ground.faces = ground.faces.flatMap((f) => (f.cel ? [f] : cutFace(f, f.corners.map((c) => WS.sand(c[0], c[1], c[2])), 'isekai:sand').map((q) => (q.group === 'isekai:sand' ? { ...q, tint: st.tint.trail } : q))));
+  // (the DUNES, era/out-dunes.js: the sand cut where they stand, its line through the troughs; no dunes, nothing changes)
+  const DS = site.dunes ?? null;
+  if (DS) ground.faces = ground.faces.flatMap((f) => (f.cel ? [f] : cutFace(f, f.corners.map((c) => DS.sand(c[0], c[1])), 'isekai:sand').map((q) => (q.group === 'isekai:sand' && q !== f ? { ...q, tint: st.tint.trail } : q))));
   // (the SNOW over it, era/snow.js: the lying ground cut where its field crosses, a cliff's ledge level enough to hold
   // it whole; the trail's ribbon kept, walked bare)
   const zLow = SN ? site.grid.z.reduce((a, v) => Math.min(a, v), Infinity) : 0, SF = SN ? snowField(SN, { base: zLow, sun: dir, seed }) : null;
@@ -448,7 +452,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const under = SN ? grassUnder(SN) : 1, inSnow = SF && under < 1 ? (p) => snowAt(p) && hash3(Math.round(p[0] * 4), Math.round(p[1] * 4), seed + 1823) >= under : null;
   const onSand1 = inSnow ? (p) => !!onSand0?.(p) || inSnow(p) : onSand0;
   // (and none in the water or on its shores)
-  const onSand = WS ? (p) => WS.bare(p[0], p[1]) || !!onSand1?.(p) : onSand1;
+  const onSand2 = WS ? (p) => WS.bare(p[0], p[1]) || !!onSand1?.(p) : onSand1;
+  // (nor on the dunes)
+  const onSand = DS ? (p) => DS.sand(p[0], p[1]) > 0 || !!onSand2?.(p) : onSand2;
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // (the TRAIL under snow: its fringe the snow's, its path trodden snow, packed and greyed, the soil showing through
@@ -563,7 +569,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (the polygon land: the rock untiled, lit with the land below; its albedo the rock ramp's middle, as the island's; the
   // talus apron is ground, as the island's is)
   const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
-  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(WS ? { 'isekai:sand': mid(st.palette.sand ?? st.palette.soil) } : {}), ...(GF ? FORMATION_TINTS(st, mid) : {}), ...(SN ? { 'isekai:snow': snowAlbedo(st.palette.snow) } : {}) } : null;
+  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(WS || DS ? { 'isekai:sand': mid(st.palette.sand ?? st.palette.soil) } : {}), ...(GF ? FORMATION_TINTS(st, mid) : {}), ...(SN ? { 'isekai:snow': snowAlbedo(st.palette.snow) } : {}) } : null;
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
   // (on a polygon land the grass is a biocube's: the island grows none of its own; with it, a boulder big enough wears
   // its hat again, its top the ground's)
@@ -841,6 +847,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
     ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr }) } : {}),
+    // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
+    ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // (the SNOW's prints: a footprint bed round the walker on the snow, scene/channels/snow-prints.js)

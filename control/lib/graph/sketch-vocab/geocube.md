@@ -25,6 +25,12 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   cube with `cliff: false` has none to fall from). `side` 'open' or 'far'; the coast takes the open side. A trail's own
   form wins, its `water: false` refuses the cube's; each body is an anchor and a water hazard, and adds a still
   (`lake`, `shore`, `river`, `falls`).
+- **Dunes** (`outside.dunes: true | { height?, spacing?, wind?, repose?, supply?, sinuous? }`): the land of every
+  trail the cube paints laid in wind-blown sand dunes (a trail's `ground.dunes`): a crest's metres over its trough (2.8),
+  crest to crest (26), the wind's way in degrees (0 across the trail, 90 along it), the slip face's angle (32°, dry sand's
+  angle of repose: a taller dune's face is longer), how much sand (0.75; low, crescents in patches), how far a crest wanders
+  (0.35). The walk keeps a firm street through them; their sand is cut into the ground, no grass on it. A trail's own
+  wins, its `dunes: false` refuses the cube's.
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),
@@ -83,7 +89,7 @@ A cube that names no domains offers one per terrain and one per interior.
   the stand-in and seen from its overlook: a place to walk, not a game (`seed`, `biocube`, `path`, `hour`, `clouds`
   as the other shows; the cube's `snow`; its own `trail` recipe: dials, ground, rocks). A scene asked in words: `words`
   ('a colorful grassy field in the daytime') read at mint into `cube`, `show: 'path'`, `hour`, `clouds`, `trail` and
-  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; desert,
+  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; dunes, erg the dunes; desert,
   alpine, coast a biome, its flora, ground and palette's character; the painted landscape's glyph words, each card's
   numbers read onto the cube, a splatch as the palette's axes, never its colours), each key written beside them kept;
   `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word

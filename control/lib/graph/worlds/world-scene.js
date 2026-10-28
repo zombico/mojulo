@@ -730,6 +730,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const grown = floraBox(payload.plants);
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
+    if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases }) : null;
@@ -749,6 +751,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   }
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
+  if (payload && payload.dunes) delete payload.dunes;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word

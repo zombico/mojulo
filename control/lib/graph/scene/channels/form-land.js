@@ -74,7 +74,7 @@ export function formLandScript(form, flora = null) {
   const LAYER_U = { tGrassL: { value: new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat) }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 }, tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
     tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
     uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uMoss: { value: D.layers.moss ?? 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
-  function layeredGround(m, roughScale) {
+${form.dunes ? duneScript() : ''}  function layeredGround(m, roughScale) {
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
@@ -228,8 +228,8 @@ export function formLandScript(form, flora = null) {
     diffuseColor.rgb *= mix( 1.0, uWet.z, wet );
     roughnessFactor = mix( roughnessFactor, uWet.w, wet );
     normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
-    };
-    m.customProgramCacheKey = () => 'layered-ground';
+${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}    };
+    m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}';
     return m;
   }
   // the ROCK'S RELIEF (form/rock-relief.js): the cliff's steep faces cut finer and pushed in and out along their normals by
@@ -391,3 +391,54 @@ ${formGrassScript()}${flora ? formFloraScript(flora) : ''}
 })();
 `;
 }
+
+/** The dunes' sand (era/out-dunes.js duneMap, `form.dunes`): its uniforms and the shader's piece, spliced in before the wet
+ *  sand; a land with no dunes has none of it. */
+function duneScript() {
+  return `  // the DUNES' sand (era/out-dunes.js): ripples across the wind, streaks down a slip face, grains catching the sun
+  const DM = new THREE.DataTexture(bytes(D.dunes.px), D.dunes.size[0], D.dunes.size[1], THREE.RGBAFormat); DM.magFilter = DM.minFilter = THREE.LinearFilter; DM.needsUpdate = true;
+  const DUNE_U = { tDune: { value: DM }, uDuneW: { value: new THREE.Vector2(...D.dunes.wind) }, uDuneO: { value: new THREE.Vector2(...D.dunes.origin.map((v) => v - D.dunes.cell / 2)) }, uDuneM: { value: new THREE.Vector2(D.dunes.size[0] * D.dunes.cell, D.dunes.size[1] * D.dunes.cell) } };
+  const DUNE_HEAD = ${JSON.stringify(DUNE_HEAD)}, DUNE_SAND = ${JSON.stringify(DUNE_SAND)};
+`;
+}
+// (the wind the way the sand travels; the map's red how much dune stands there, its green near a crest)
+const DUNE_HEAD = 'uniform sampler2D tDune;\nuniform vec2 uDuneW, uDuneO, uDuneM;\n';
+// RIPPLES: crests across the wind ~11 cm apart, their stoss gentle and their lee steep, wandering and forking, on the
+// dunes' backs and the flats between, none on a slip face; they fade before they alias, and the sand's own tile is calmed
+// under them. A SLIP FACE (steep, falling downwind): the sand avalanched down it in streaks along the fall line. GLINT: a
+// grain in a hundred, a centimetre across, turned its own way and polished, so the sun's highlight catches it (lit and
+// shadowed by the light, never drawn over it).
+const DUNE_SAND = `    float sandK = ws[ 3 ] / max( 1e-4, tw );
+    if ( sandK > 0.01 ) {
+      vec4 dm = texture2D( tDune, ( vWPos.xy - uDuneO ) / uDuneM );
+      vec2 Wd = uDuneW, Pd = vec2( -Wd.y, Wd.x ), gd = nW.xy;
+      float slope = length( gd ) / max( 0.2, nW.z ); vec2 down = length( gd ) > 1e-4 ? normalize( gd ) : Wd;
+      float lee = smoothstep( 0.35, 0.55, slope ) * smoothstep( 0.1, 0.5, dot( down, Wd ) ), flt = 1.0 - smoothstep( 0.4, 0.65, slope );
+      vec3 nw = normalize( tT * mn.x + tB * mn.y + nW * mn.z );
+      float sd = dot( vWPos.xy, Wd ), qd = dot( vWPos.xy, Pd );
+      // (their spacing wanders over a couple of metres, so crests merge and fork where it tightens; each crest wavers)
+      float lam = 0.11 * ( 0.8 + 0.4 * vn( vWPos.xy / 2.2 + 41.0 ) );
+      float ph = ( sd + 0.09 * ( vn( vec2( qd / 0.6, sd / 1.8 ) + 9.0 ) - 0.5 ) + 0.04 * ( vn( vec2( qd / 0.22, sd / 0.5 ) + 2.0 ) - 0.5 ) ) / lam;
+      float aa = 1.0 - smoothstep( 0.12, 0.35, fwidth( ph ) );
+      float rk = sandK * aa * flt * ( 1.0 - lee ) * mix( 0.55, 1.0, dm.r ) * ( 0.75 + 0.5 * vn( vec2( qd / 3.0, sd / 6.0 ) + 31.0 ) );
+      if ( rk > 0.001 ) {
+        float t = fract( ph ), w = t < 0.7 ? t / 0.7 * 0.5 : 0.5 + ( t - 0.7 ) / 0.3 * 0.5, dw = t < 0.7 ? 0.5 / 0.7 : 0.5 / 0.3;
+        float dh = 0.0032 * 3.14159 * sin( 6.28318 * w ) * dw / lam;
+        nw = normalize( mix( nw, nW, 0.45 * rk ) - vec3( Wd * dh * rk, 0.0 ) );
+        // (the coarser grains gather on a crest: a shade paler there)
+        diffuseColor.rgb *= 1.0 + 0.05 * rk * ( 0.5 - 0.5 * cos( 6.28318 * w ) - 0.5 );
+      }
+      float sk = sandK * lee * ( 1.0 - smoothstep( 0.3, 0.8, fwidth( dot( vWPos.xy, vec2( -down.y, down.x ) ) / 0.12 ) ) * 0.5 );
+      if ( sk > 0.001 ) {
+        vec2 sp = vec2( -down.y, down.x ); float sa = dot( vWPos.xy, sp ), sb = dot( vWPos.xy, down );
+        float st = vn( vec2( sa / 0.35, sb / 4.0 ) + 5.0 ) * 0.7 + vn( vec2( sa / 0.12, sb / 1.4 ) + 13.0 ) * 0.3 - 0.5;
+        diffuseColor.rgb *= 1.0 + st * 0.22 * sk; roughnessFactor = mix( roughnessFactor, roughnessFactor * ( 1.0 - 0.25 * st ), sk );
+      }
+      vec2 gc = floor( vWPos.xy / 0.012 ); float gh = hn( gc + 0.5 ), ga = sandK * ( 1.0 - smoothstep( 0.35, 0.9, fwidth( vWPos.x / 0.012 ) ) );
+      if ( gh > 0.99 && ga > 0.001 ) {
+        vec3 gj = vec3( hn( gc + 7.3 ) - 0.5, hn( gc + 3.1 ) - 0.5, 0.0 ) * 1.4;
+        nw = normalize( mix( nw, normalize( nw + gj ), ga ) ); roughnessFactor = mix( roughnessFactor, 0.06, ga ); metalnessFactor = mix( metalnessFactor, 0.5, ga );
+      }
+      mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+    }
+`;

@@ -37,7 +37,9 @@
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
  *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
  *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
- *             { lake?, coast?, river?, falls? }; a trail's own form wins); and
+ *             { lake?, coast?, river?, falls? }; a trail's own form wins); `dunes` (optional): the land of every trail it
+ *             paints laid in sand dunes (a trail's `ground.dunes`, era/out-dunes.js: true | { height?, spacing?, wind?,
+ *             repose?, supply?, sinuous? }; a trail's own wins); and
  *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
  *             the others, each a few changes to it, up to a whole land of its own ({ reads?, base?, tiers?, island?, land?,
  *             relief?, ground?, crystals?, cliff?, water?, colour? }: a shore, a highland). A level asks for one, or its heartbeat names the
@@ -396,6 +398,9 @@ const waterOrNo = (v, cliff, at) => { try { readTrailGround({ water: v, ...(clif
 // the water a cube lays under a trail's own (out-water.js): each form the trail names its own, the trail's `false`
 // none; the trail's as written when the cube names none. A fall keeps the cliff it drops from (`keep`)
 const cubeWater = (O, g = {}) => { const w = O.water !== undefined && O.water !== false && g.water !== false ? { ...O.water, ...(g.water ?? {}) } : g.water; return { water: w, keep: !!(w && w.falls) }; };
+// the dunes its trails are laid in (out-dunes.js), and the trail's own over the cube's (its `false` none)
+const dunesOrNo = (v, at) => { try { readTrailGround({ dunes: v }, 'ground'); } catch (e) { no(`${at}${e.message.replace(/^stage: ground\.dunes/, '')}`); } };
+const cubeDunes = (O, g = {}) => (g.dunes !== undefined ? g.dunes : O.dunes);
 const SLUG = /^[a-z][a-z0-9-]{0,31}$/;
 const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'colour'];
 const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour', 'structures', 'settlement'];
@@ -509,7 +514,8 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
@@ -1090,6 +1096,9 @@ export function withGeocube(manifest) {
     const { water: Wt, keep } = cubeWater(O, tr.ground ?? {});
     if (C !== undefined && tr.ground?.cliff === undefined && !(C === false && keep)) m.trail = { ...tr, ground: { ...(tr.ground ?? {}), cliff: C } };
     if (Wt !== tr.ground?.water) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), water: Wt } };
+    // (and its dunes the cube's under the trail's own, out-dunes.js)
+    const Dn = cubeDunes(O, tr.ground ?? {});
+    if (Dn !== undefined && Dn !== tr.ground?.dunes) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), dunes: Dn } };
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       // (and its snow, era/snow.js: the cube's when the recipe names none)
       ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}) };
@@ -1279,11 +1288,13 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (the trail's far cliff the cube's, its terrain's, as on any stage it paints: `false` an open land, out-trail.js)
   // (and its water, out-water.js, the cube's under the trail's own: one rule for every trail the cube paints)
   const OT = onTerrain(cube, D?.terrain).outside, T0 = manifest.trail ?? {}, CW = cubeWater(OT, isObj(T0.ground) ? T0.ground : {});
-  const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}) } } : {}) };
+  // (and its dunes, out-dunes.js: the cube's under the trail's own)
+  const DN = cubeDunes(OT, isObj(T0.ground) ? T0.ground : {});
+  const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water || DN ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}), ...(DN ? { dunes: DN } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
-  const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}) };
+  const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}), ...(DN !== undefined ? { dunes: DN } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
   const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
   // the PATH: the way through the cube's land, no town and nobody on it (a place to walk, not a game), under its snow
