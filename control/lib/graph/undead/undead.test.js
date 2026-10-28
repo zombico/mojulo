@@ -1,56 +1,28 @@
-// The undead forms (lib/graph/undead): each pass does what its word says and nothing else, on the creature biped. A
-// skeleton is its frame (a spine, curved ribs, hip blades, knobbed bones); a zombie's flesh is drawn in or swollen, one
-// arm can be heavy, a seeded loss takes a part from the skin and leaves the rig whole; the arms are built where the
-// rest holds them. The lineages reach the creature door with their form, and a bestiary people stands on one. Cards are
-// chosen in code by the pass they exercise.
+// The undead library (lib/graph/undead), on the tiered hero: the skull as bones with a jaw of its own, the bone and
+// vertebra helpers, the bared pick, a layer on its own dice, and the lineages that reach the hero door with their form
+// and layers (the hero's plan, flesh, skeleton and layers in full: ./tiered.test.js). Cards are chosen in code by the
+// pass they exercise.
 import { describe, it, expect } from 'vitest';
-import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS, variantOf, undeadBody } from './index.js';
+import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS, variantOf } from './index.js';
+import { boneLimb, vertebrae, posture } from './passes.js';
+import { pickBared } from './bared.js';
 import { readLineage } from '../egocube/ancestry.js';
-import { boneLimb } from './passes.js';
 import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
-import { biped, MASS } from '../egocube/plan.js';
 import { planFromSheet } from '../egocube/plan.js';
 import { rollEgocube } from '../egocube/egocube.js';
-import { validatePlan, expandPlan, loftPart, SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
+import { expandPlan, loftPart, SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { FOE_CLASSES } from '../foes/index.js';
+import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
-const M = MASS.pole.male, base = { k: 0.95, g: 1, chest: M.chest, hips: M.hips, biped };
-const cardBy = (form, pred) => Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === form && pred(c));
-const formOf = (id) => Object.keys(UNDEAD_FORMS).find((f) => UNDEAD_FORMS[f].variants.includes(id));
-const body = (id, seed = 1) => undeadBody(formOf(id), { ...base, build: UNDEAD_CARDS[id].build, seed });
 const seg = (B, n) => B.body.segments.find((s) => s.name === n);
 const r = (v) => (Array.isArray(v) ? Math.max(...v) : v);
-const living = biped({ k: base.k, g: 1, legs: 'plantigrade', fingers: 4 });
+const skeletonHero = (layers, seed = 3) => heroRecord({ form: 'tiered', cast: 'male', palette: { Skin: '#d6cfbd' }, undead: { form: 'skeleton', build: 'canonical', seed, ...(layers ? { layers } : {}) } });
+const skeletonPlan = (layers, seed) => heroPlanOf(skeletonHero(layers, seed));
 
-describe('a skeleton is its frame', () => {
-  const [id] = cardBy('bone', () => true);
-  it('a spine, curved ribs, a breastbone, hip blades and an arch; no fleshed trunk', () => {
-    const B = body(id), names = B.body.segments.map((s) => s.name);
-    for (const n of ['spineLow', 'torso', 'spineHigh', 'sternum', 'iliumR', 'pubisR', 'clavR']) expect(names).toContain(n);
-    expect(names.filter((n) => /^rib\dR$/.test(n)).length).toBeGreaterThanOrEqual(5);
-    expect(seg(B, 'torso').kind).toBe('segment');
-    expect(seg(B, 'rib0R').kind).toBe('loft');
-    // the pelvis stays out of the lean; the ribs hinge with it
-    expect(B.frameParts).toContain('rib0L');
-    expect(B.frameParts).not.toContain('iliumR');
-    // the spine is segmented: vertebrae up the column from the sacrum to the skull, each broader than the core it rides
-    // and drawn back to its process; the lowest ride the pelvis, the neck's the neck, the rest the torso
-    const V = B.body.segments.filter((s) => /^(lumbar|thoracic|cervical)\d+$/.test(s.name));
-    for (const run of ['lumbar', 'thoracic', 'cervical']) expect(V.filter((s) => s.name.startsWith(run)).length).toBeGreaterThan(3);
-    const zs = V.map((s) => s.stations[0].at[2]);
-    expect(zs).toEqual([...zs].sort((a, b) => a - b));
-    expect(V[0].stations[1].r[0]).toBeGreaterThan(1.4 * seg(B, 'spineLow').rA);
-    for (const v of V) expect(v.stations.at(-1).at[1]).toBeLessThan(v.stations[0].at[1]);
-    expect(V[0].bind.bone).toBe('pelvis');
-    expect(V.at(-1).bind.bone).toBe('neck');
-    expect(B.frameParts).toContain('thoracic5');
-    // the neck a skeleton's: shorter than the living biped's, the skull low on it
-    const living = biped({ k: 1, g: 1, legs: 'plantigrade', fingers: 4 }).joints, len = (J) => Math.hypot(...J.neckTop.map((v, i) => v - J.neckBase[i]));
-    expect(len(B.body.joints) / B.body.joints.neckBase[2]).toBeLessThan(0.7 * len(living) / living.neckBase[2]);
-  });
+describe('the skull and the bones', () => {
   it('its skull is bones: a braincase and a face, the arches, the openings, both rows of teeth and a mandible of its own', () => {
-    const B = body(id), names = B.body.segments.map((s) => s.name);
+    const B = { body: skeletonPlan() }, names = B.body.segments.map((s) => s.name);
     for (const n of ['braincase', 'face', 'zygomaR', 'socketR', 'nasal', 'mandibleR']) expect(names).toContain(n);
     expect(names.filter((n) => /^toothU\dR$/.test(n)).length).toBeGreaterThan(2);
     expect(names.filter((n) => /^toothL\dR$/.test(n)).length).toBeGreaterThan(2);
@@ -72,7 +44,6 @@ describe('a skeleton is its frame', () => {
     // the teeth run back along the arch from the incisors to the molars
     const T = names.filter((n) => /^toothU\dR$/.test(n)).map((n) => B.body.joints[`${n}a`]);
     expect(T[0][1] - T.at(-1)[1]).toBeGreaterThan(0.04);
-    expect(B.head).toBeNull();
   });
   it('the rig hinges the jaw at the condyles and points the head at the face', () => {
     // (the skeleton's lineage stands it on the tiered hero: its plan the hero's, its head the skull's)
@@ -82,169 +53,56 @@ describe('a skeleton is its frame', () => {
     expect(J.headTop.at[1]).toBeGreaterThan(plan.joints.headBase[1]);
     expect((plan.include ?? []).some((x) => x.name === 'head')).toBe(false);
   });
-  it('every long bone is a shaft with knobbed ends', () => {
-    const B = body(id), femur = seg(B, 'thighR');
-    expect(r(femur.rA)).toBeGreaterThan(r(femur.rMid) * 1.4);
-    expect(r(femur.rMid)).toBeLessThan(r(living.segments.find((s) => s.name === 'thighR').rMid) * 0.5);
+  it('every long bone is a shaft with knobbed ends, its weights the card\'s', () => {
+    const [, light] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && c.bones.shaft < 1);
+    const femur = boneLimb({ name: 'thigh', kind: 'segment', from: 'hip', to: 'knee' }, { k: 1, g: 1 }), thin = boneLimb({ name: 'thigh', kind: 'segment', from: 'hip', to: 'knee' }, { k: 1, g: 1, Bw: light.bones });
+    expect(r(femur.rA)).toBeGreaterThan(1.5 * r(femur.rMid));
+    expect(r(thin.rMid)).toBeLessThan(r(femur.rMid));
+    expect(boneLimb({ name: 'torso' }, { k: 1, g: 1 })).toBeNull();
+  });
+  it('the vertebrae rise up the column, each its body and its process behind it, on the bone it rides', () => {
+    const J = { spine0: [0, -0.05, 0.98], spine1: [0, -0.085, 1.2], spine2: [0, -0.075, 1.42], neckBase: [0, 0.03, 1.63], neckTop: [0, 0.09, 1.77] };
+    const V = vertebrae(J, { k: 1, g: 1 }), zs = V.map((v) => v.stations[0].at[2]);
+    expect(zs).toEqual([...zs].sort((a, b) => a - b));
+    for (const v of V) expect(v.stations.at(-1).at[1]).toBeLessThan(v.stations[0].at[1]);
+    expect(V[0].bind.bone).toBe('pelvis');
+    expect(V.at(-1).bind.bone).toBe('neck');
   });
 });
 
-describe('a zombie\'s flesh', () => {
-  it('wasted: its limbs drawn in, its trunk too', () => {
-    const [id, c] = cardBy('flesh', (x) => x.waste.limbs < 0.7 && !x.heavy);
-    const B = body(id), shin = seg(B, 'shinR'), shin0 = living.segments.find((s) => s.name === 'shinR');
-    expect(r(shin.rMid)).toBeCloseTo(r(shin0.rMid) * c.waste.limbs, 2);
-    expect(r(seg(B, 'torso').stations[2].r)).toBeLessThan(r(living.segments.find((s) => s.name === 'torso').stations[2].r));
-  });
-  it('bloated: the trunk swells while the limbs do not', () => {
-    const [id] = cardBy('flesh', (x) => !!x.bloat);
-    const B = body(id);
-    expect(r(seg(B, 'torso').stations[2].r)).toBeGreaterThan(r(living.segments.find((s) => s.name === 'torso').stations[2].r));
-  });
-  it('heavy: one arm swollen, the other withered, each authored on its own side', () => {
-    const [id, c] = cardBy('flesh', (x) => !!x.heavy);
-    const B = body(id), S = c.heavy.side, O = S === 'R' ? 'L' : 'R';
-    expect(r(seg(B, `upperArm${S}`).rA)).toBeGreaterThan(r(seg(B, `upperArm${O}`).rA) * 2);
-    expect(seg(B, 'upperArmR').mirror).toBeUndefined();
-  });
-});
-
-describe('a loss and the rest', () => {
-  it('a seeded loss takes a part from one side\'s skin; the plan still builds with the rig whole', () => {
-    const [id, c] = cardBy('flesh', (x) => x.loss?.parts.includes('foreArm'));
-    let seed = 1, B; for (; seed < 200; seed++) { B = body(id, seed); if (B.lost) break; }
-    expect(B.lost).toBeTruthy();
-    const side = B.lost.side, names = B.body.segments.map((s) => s.name);
-    expect(names).not.toContain(`hand${side}`);
-    expect(names).toContain(`hand${side === 'R' ? 'L' : 'R'}`);
-    expect(c.loss.parts).toContain(B.lost.part);
-    // (and never without a draw: the same seed loses the same part)
-    expect(body(id, seed).lost).toEqual(B.lost);
-  });
-  it('the arms are built where the rest holds them: the arm\'s built direction is the rest\'s, turned by the lean', () => {
-    const [id] = cardBy('flesh', (x) => (x.arms?.reach ?? 0) > 0.5);
-    const B = body(id), J = B.body.joints, d = J.knuckles.map((x, i) => x - J.shoulder[i]), n = Math.hypot(...d);
-    // forward: the reaching arm is built out before the body (y), not hanging
-    expect(d[1] / n).toBeGreaterThan(0.5);
-    expect(B.posture.arms.R.y).toBeGreaterThan(0.3);
-  });
-});
-
-describe('the layers', () => {
-  // (the card that wears every band of rags: chest, back, hips and arms)
-  const [ragId] = cardBy('bone', (c) => c.shreds && c.shreds.chest && c.shreds.back && c.shreds.hips && c.shreds.arms);
-  const dressed = (layers, seed = 1) => undeadBody('skeleton', { ...base, build: UNDEAD_CARDS[ragId].build, seed, layers });
-  it('shreds: torn cloth hung from the shoulders, the hips and the arms, ribbons falling clear of the frame', () => {
-    // (the odds are seeded: a seed that leaves every band something)
-    const BANDS = ['Chest', 'Back', 'Hips', 'ArmR', 'ArmL'], wears = (B) => BANDS.every((band) => B.body.segments.some((s) => s.name.startsWith(`shred${band}`)));
-    const seed = [1, 2, 3, 4, 5, 6, 7, 8].find((sd) => wears(dressed(['shreds'], sd)));
-    expect(seed).toBeDefined();
-    const B = dressed(['shreds'], seed), C = B.body.segments.filter((s) => s.group === 'Cloth');
-    for (const s of C) {
-      expect(s.kind).toBe('rings');
-      const cs = s.stations.map((st) => Object.values(st.points)), mid = (P) => [0, 1, 2].map((i) => P.reduce((t, p) => t + p[i], 0) / P.length);
-      // it hangs: each ring below the last
-      for (let i = 1; i < cs.length; i++) expect(mid(cs[i])[2]).toBeLessThan(mid(cs[i - 1])[2]);
-      // a ribbon: broad across, thin off its face
-      const P0 = s.stations[0].points, d = (a, b) => Math.hypot(...a.map((v, j) => v - b[j]));
-      expect(d(P0.frontR, P0.backL)).toBeGreaterThan(3 * d(P0.front, P0.back));
+describe('the picks and the rest', () => {
+  it('a bared pick: within its count, each word once, an arm bared once, never a lost forearm', () => {
+    const spec = { count: [2, 3], parts: ['arm', 'foreArm', 'ribs', 'shin', 'skull'] };
+    for (const sd of [1, 2, 3, 4, 5, 6]) {
+      const P = pickBared(spec, mulberry32(sd), { part: 'foreArm', side: 'R' });
+      expect(P.length).toBeLessThanOrEqual(3);
+      expect(new Set(P.map((x) => x.part)).size).toBe(P.length);
+      expect(P.filter((x) => (x.part === 'arm' || x.part === 'foreArm') && x.side === 'R').length).toBeLessThanOrEqual(1);
+      expect(P.some((x) => x.part === 'foreArm' && x.side === 'R')).toBe(false);
     }
-    // the hips' strips over the front follow the thighs, the chest's ride the torso, a sleeve's its arm; the rags of the
-    // chest and the arms hinge with the lean, the hips' stay with the pelvis
-    expect(C.filter((s) => s.name.startsWith('shredHips')).some((s) => /^thigh[RL]$/.test(Object.keys(s.bind.blend?.tip ?? {})[0]))).toBe(true);
-    expect(C.find((s) => s.name.startsWith('shredChest')).bind.bone).toBe('torso');
-    expect(C.find((s) => s.name.startsWith('shredArmL')).bind.bone).toBe('upperArmL');
-    expect(B.frameParts).toContain(C.find((s) => s.name.startsWith('shredChest')).name);
-    expect(B.frameParts.some((n) => n.startsWith('shredHips'))).toBe(false);
   });
-  it('a layer lies on its own dice: the body under it is the bare form\'s, byte for byte, and absent it adds nothing', () => {
-    const bare = dressed([]), B = dressed(['shreds']);
-    expect(JSON.stringify(B.body.segments.filter((s) => s.group !== 'Cloth'))).toBe(JSON.stringify(bare.body.segments));
-    expect(JSON.stringify(dressed(['shreds']).body)).toBe(JSON.stringify(B.body));
-    expect(bare.body.segments.some((s) => s.group === 'Cloth')).toBe(false);
-    expect(() => dressed(['glitter'])).toThrow(/no layer 'glitter'/);
+  it('the rest a card stands in: its hunch, a reaching corpse leading with one arm', () => {
+    const [, c] = Object.entries(UNDEAD_CARDS).find(([, x]) => (x.arms?.reach ?? 0) > 0.5);
+    const P = posture(c, mulberry32(3));
+    expect(P.lean).toBe(c.lean);
+    expect(Math.abs(P.arms.R.y - P.arms.L.y)).toBeGreaterThan(0.05);
   });
-  it('decayed: gaunt flesh back on the bone, the ribs through a chest rotted open, sinew short of the joints', () => {
-    const bare = dressed([]), B = dressed(['decayed']), F = B.body.segments.filter((s) => s.group === 'Flesh');
-    expect(F.some((s) => s.name === 'fleshTorso')).toBe(true);
-    // the sheet sits inside the cage: narrower than the ribs reach and behind the breastbone's front
-    const T = seg(B, 'fleshTorso'), ribs = bare.body.segments.filter((s) => /^rib\dR$/.test(s.name)), St = seg(B, 'sternum');
-    const ribX = Math.max(...ribs.flatMap((x) => x.stations.map((st) => st.at[0])));
-    for (const st of T.stations) expect(st.r[0]).toBeLessThan(ribX);
-    const front = Math.max(...T.stations.map((st) => st.yc + st.r[1])), sternumFront = B.body.joints.sternumLow[1];
-    expect(front).toBeLessThan(sternumFront);
-    // a limb's sinew is thicker than its bone's shaft and thinner than its knobbed ends, and stops short of each joint
-    const limb = F.find((s) => s.kind === 'segment' && /^fleshThigh[RL]$/.test(s.name)) ?? F.find((s) => s.kind === 'segment' && /^flesh(Shin|UpperArm|ForeArm)[RL]$/.test(s.name));
-    expect(limb).toBeDefined();
-    const bone = seg(B, limb.bind.bone) ?? seg(B, limb.bind.bone.replace(/L$/, 'R'));
-    expect(Math.max(limb.rA, limb.rB)).toBeGreaterThan(r(bone.rMid));
-    expect(Math.max(limb.rA, limb.rB)).toBeLessThan(Math.max(r(bone.rA), r(bone.rB)));
-    // rot is never even: across seeds, some limb on one side keeps flesh the other side's has lost
-    const sides = [1, 2, 3, 4, 5, 6].map((sd) => dressed(['decayed'], sd).body.segments.filter((s) => /^flesh(Thigh|Shin|UpperArm|ForeArm)[RL]$/.test(s.name)).map((s) => s.name));
-    expect(sides.some((ns) => ns.some((n) => !ns.includes(n.replace(/R$/, '_').replace(/L$/, 'R').replace(/_$/, 'L'))))).toBe(true);
-    // the rags hang from the trunk, never the limbs: the flesh on a hand hanging at the hips widens no band
-    const wide = (B2) => Math.max(...B2.body.segments.filter((s) => s.group === 'Cloth' && !/Arm/.test(s.name)).flatMap((s) => Object.values(s.stations[0].points).map((p) => Math.abs(p[0]))));
-    for (const sd of [1, 5]) expect(wide(dressed(['decayed', 'shreds'], sd))).toBeLessThan(wide(dressed(['shreds'], sd)) * 1.05);
-    // the body under it is the bare one; over a zombie it is refused
-    expect(JSON.stringify(B.body.segments.filter((s) => s.group !== 'Flesh'))).toBe(JSON.stringify(bare.body.segments));
-    expect(B.frameParts).toContain('fleshTorso');
-    const [zid] = cardBy('flesh', () => true);
-    expect(() => undeadBody('zombie', { ...base, build: UNDEAD_CARDS[zid].build, layers: ['decayed'] })).toThrow(/decayed layer lies over bone/);
+  it('a layer lies on its own dice: the body under it is the bare form\'s, byte for byte', () => {
+    const bare = skeletonPlan(), ragged = skeletonPlan(['shreds']);
+    expect(JSON.stringify(ragged.segments.filter((s) => s.group !== 'Cloth'))).toBe(JSON.stringify(bare.segments));
+    expect(JSON.stringify(skeletonPlan(['shreds']))).toBe(JSON.stringify(ragged));
   });
-  it('bared: a gaunt corpse with parts back to bone, one side at a time, its skull the head when it bares one', () => {
-    // (the zombie card whose list bares the most kinds of part)
-    const [zid, zc] = Object.entries(UNDEAD_CARDS).filter(([, c]) => c.form === 'flesh' && c.bared).sort((a, b) => b[1].bared.parts.length - a[1].bared.parts.length)[0];
-    const corpse = (layers, seed = 1) => undeadBody('zombie', { ...base, build: zc.build, seed, layers });
-    const runs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((sd) => ({ sd, B: corpse(['bared'], sd), F: corpse([], sd) }));
-    // every word on the card's list comes up on some seed, as many as its count says
-    const seen = new Set(runs.flatMap(({ B }) => B.bared.map((x) => x.part)));
-    for (const part of zc.bared.parts) expect(seen.has(part)).toBe(true);
-    for (const { B } of runs) { expect(B.bared.length).toBeGreaterThanOrEqual(zc.bared.count[0]); expect(B.bared.length).toBeLessThanOrEqual(zc.bared.count[1]); }
-    // a bared limb is the skeleton's bone, on its side only; the other side keeps its (gaunter) flesh
-    const limb = runs.find(({ B }) => B.bared.some((x) => x.part === 'thigh' || x.part === 'shin' || x.part === 'arm'));
-    const L = limb.B.bared.find((x) => ['thigh', 'shin', 'arm'].includes(x.part)), name = { thigh: 'thigh', shin: 'shin', arm: 'upperArm' }[L.part];
-    const other = L.side === 'R' ? 'L' : 'R', mine = seg(limb.B, `${name}${L.side}`), theirs = seg(limb.B, `${name}${other}`);
-    expect(mine.group).toBe('Bone');
-    expect(mine.rA).toEqual(boneLimb(mine, { k: base.k, g: base.g }).rA);
-    expect(r(theirs.rA)).toBeGreaterThan(2 * r(mine.rMid));
-    expect(theirs.group).not.toBe('Bone');
-    // the flesh left is drawn in: the torso narrower than the plain zombie's
-    expect(r(seg(limb.B, 'torso').stations[2].r)).toBeLessThan(r(seg(limb.F, 'torso').stations[2].r));
-    // the skull is the head: no head card, the skull's parts in the lean
-    const sk = runs.find(({ B }) => B.bared.some((x) => x.part === 'skull'));
-    expect(sk.B.head).toBeNull();
-    expect(sk.B.skull.rig.jawHinge).toBeDefined();
-    expect(sk.B.frameParts).toContain('braincase');
-    expect(runs.find(({ B }) => !B.bared.some((x) => x.part === 'skull')).B.head).toBe('gaunt');
-    // the ribs lie on the flesh of one side, bound to the torso, in the lean
-    const rb = runs.find(({ B }) => B.bared.some((x) => x.part === 'ribs'));
-    const ribs = rb.B.body.segments.filter((x) => /^ribBare\d[RL]$/.test(x.name)), sideOf = rb.B.bared.find((x) => x.part === 'ribs').side;
-    expect(ribs.length).toBeGreaterThanOrEqual(4);
-    for (const x of ribs) { expect(x.name.endsWith(sideOf)).toBe(true); expect(x.bind.bone).toBe('torso'); for (const st of x.stations) expect(Math.sign(st.at[0])).toBe(sideOf === 'R' ? 1 : -1); }
-    expect(rb.B.frameParts).toContain(ribs[0].name);
-    // it lies over flesh only
-    expect(() => dressed(['bared'])).toThrow(/bared layer lies over flesh/);
-  });
-  it('a lineage lays its layers over its form; the ragged one dresses the skeleton', () => {
-    const sheet = rollEgocube({ facets: { ancestry: 'ragged', build: 'canonical', role: 'frontline' }, seed: 3 });
-    expect(sheet.ancestry).toMatchObject({ door: 'creature', form: 'skeleton', layers: ['shreds'] });
-    const P = planFromSheet(sheet), plan = P.create.spec.plan;
-    expect(validatePlan(plan)).toBe(true);
-    expect(() => expandPlan(plan)).not.toThrow();
-    expect(plan.palette.Cloth).toBeTruthy();
-    expect(P.undead?.layers ?? P.create.spec.undead?.layers ?? ['shreds']).toEqual(['shreds']);
+  it('a lineage lays its layers over its form, on the hero spec; the ragged, the decayed and the rotting build', () => {
+    // (each lineage's layers reach the hero spec in order; the hero plan they make is undead/tiered.test.js's)
+    for (const [ancestry, form, layers] of [['ragged', 'skeleton', ['shreds']], ['decayed', 'skeleton', ['decayed', 'shreds']], ['rotting', 'zombie', ['bared']]]) {
+      const sheet = rollEgocube({ facets: { ancestry, build: 'canonical', role: 'frontline' }, seed: 3 });
+      expect(sheet.ancestry).toMatchObject({ door: 'hero', form, layers });
+      const spec = planFromSheet(sheet).create.spec;
+      expect(spec.undead).toMatchObject({ form, layers });
+      expect(() => expandPlan(heroPlanOf(heroRecord(spec)))).not.toThrow();
+    }
     const lin = { reads: 'x', humanity: [0, 0.1], cover: { a: '#aaaaaa' }, cues: [{ at: 1, ch: 'frame', line: 'x' }] };
     expect(() => readLineage('x', { ...lin, form: 'skeleton', layers: Object.keys(UNDEAD_LAYERS) })).not.toThrow();
-    // the rotting lineage: the zombie, bared
-    const RT = rollEgocube({ facets: { ancestry: 'rotting', build: 'canonical', role: 'frontline' }, seed: 3 });
-    expect(RT.ancestry).toMatchObject({ form: 'zombie', layers: ['bared'] });
-    expect(() => expandPlan(planFromSheet(RT).create.spec.plan)).not.toThrow();
-    // the decayed lineage: the flesh, then the rags over it
-    const D = rollEgocube({ facets: { ancestry: 'decayed', build: 'canonical', role: 'frontline' }, seed: 3 });
-    expect(D.ancestry).toMatchObject({ form: 'skeleton', layers: ['decayed', 'shreds'] });
-    const DP = planFromSheet(D).create.spec.plan;
-    expect(() => expandPlan(DP)).not.toThrow();
-    expect(DP.palette.Flesh).toBeTruthy();
     expect(() => readLineage('x', { ...lin, form: 'skeleton', layers: ['glitter'] })).toThrow(/unknown layer/);
     expect(() => readLineage('x', { ...lin, layers: ['shreds'] })).toThrow(/give form too/);
     expect(() => readLineage('x', { ...lin, form: 'mummy' })).toThrow(/unknown form/);
@@ -252,15 +110,13 @@ describe('the layers', () => {
 });
 
 describe('the lineages and the bestiary', () => {
-  it('a layered lineage reaches the creature door with its form, its variation by the build, and its plan builds', () => {
-    // (the layered variations the tiered body does not carry yet; the bare forms stand on it: undead/tiered.test.js)
-    for (const ancestry of ['ragged', 'rotting']) {
+  it('every undead lineage reaches the hero door with its form, its variation by the build', () => {
+    // (the forms and their layers stand on the tiered body: undead/tiered.test.js)
+    for (const ancestry of [...Object.keys(UNDEAD_FORMS), 'ragged', 'rotting']) {
       const sheet = rollEgocube({ facets: { ancestry, build: 'brute', role: 'frontline' }, seed: 3 });
-      expect(sheet.ancestry).toMatchObject({ door: 'creature' });
-      const P = planFromSheet(sheet), plan = P.create.spec.plan;
-      expect(P.create.as).toBe('creature');
-      expect(validatePlan(plan)).toBe(true);
-      expect(() => expandPlan(plan)).not.toThrow();
+      expect(sheet.ancestry.door).toBe('hero');
+      const P = planFromSheet(sheet);
+      expect(P.create.as).toBe('hero');
       expect(JSON.stringify(planFromSheet(rollEgocube({ facets: { ancestry, build: 'brute', role: 'frontline' }, seed: 3 })).create)).toBe(JSON.stringify(P.create));
     }
     expect(variantOf('skeleton', 'brute')).toBe(Object.keys(UNDEAD_CARDS).find((id) => UNDEAD_CARDS[id].form === 'bone' && UNDEAD_CARDS[id].build === 'brute'));

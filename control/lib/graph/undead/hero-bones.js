@@ -31,7 +31,7 @@ const deg = Math.PI / 180;
 const BONE_TINT = '#cccccc';
 
 // the torso's (or the pelvis's) section at height z: its half width, half depth and centre forward
-function sectionAt(trunk, z) {
+export function sectionAt(trunk, z) {
   const S = trunk.stations, f = S.findIndex((st, j) => j < S.length - 1 && z <= S[j + 1].z), i = f < 0 ? S.length - 2 : f;
   const a = S[i], b = S[i + 1], t = Math.max(0, Math.min(1, (z - a.z) / (b.z - a.z || 1))), rr = (r) => (Array.isArray(r) ? r : [r, r]);
   const [ax, ay] = rr(a.r), [bx, by] = rr(b.r);

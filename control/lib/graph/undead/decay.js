@@ -9,7 +9,8 @@
  *   neck     a withered throat in front of the vertebrae, the column showing behind it
  *   scalp    a cap of dried skin over the crown, pulled back off the brow
  *
- *   decay(body, spec, { k, g, s, skull, lost, rand })   → { segments, joints, lean: [names] } (the parts the lean hinges)
+ *   decay(body, spec, { k, g, s, skull, lost, rand, limbs })   → { segments, joints, lean: [names] } (the parts the lean
+ *                       hinges); `limbs` the body's limbs by name (LIMBS, the creature biped's; the hero's its own)
  *   spec { open, limbs, neck, scalp }: how far the chest is rotted open (0 … 1), and the odds a limb, the throat and the
  *        scalp keep flesh
  *
@@ -25,12 +26,12 @@ const mul = (a, s) => a.map((x) => x * s);
 const lerp = (a, b, t) => add(a, mul(sub(b, a), t)).map(r3);
 const mir = (p) => [r3(-p[0]) + 0, p[1], p[2]];
 // each limb's flesh: its joints, its radii at its two ends [near, far] (template metres, × the bone weights)
-const LIMBS = [
+export const LIMBS = [
   { limb: 'thigh', from: 'hip', to: 'knee', r: [0.042, 0.032] }, { limb: 'shin', from: 'knee', to: 'hock', r: [0.034, 0.024] },
   { limb: 'upperArm', from: 'shoulder', to: 'elbow', r: [0.03, 0.025] }, { limb: 'foreArm', from: 'elbow', to: 'wrist', r: [0.024, 0.019] },
 ];
 
-export function decay(body, spec, { k, g, s = 1, skull, lost, rand }) {
+export function decay(body, spec, { k, g, s = 1, skull, lost, rand, limbs = LIMBS }) {
   const segments = [], joints = {}, lean = [], J = body.joints, kg = k * g;
   const pts = trunkPoints(body), ribs = body.segments.filter((x) => /^rib\dR$/.test(x.name));
   const ribZ = ribs.flatMap((x) => x.stations.map((st) => st.at[2])), zLo = Math.min(...ribZ), zHi = Math.max(...ribZ);
@@ -50,7 +51,7 @@ export function decay(body, spec, { k, g, s = 1, skull, lost, rand }) {
   // the limbs: each side its own roll (rot is never even), an end of bone bare at each joint
   const split = !!J['shoulder__L'];
   const at = (n, S) => (S === 'R' ? J[n] : split && J[`${n}__L`] ? J[`${n}__L`] : mir(J[n]));
-  for (const S of ['R', 'L']) for (const { limb, from, to, r } of LIMBS) {
+  for (const S of ['R', 'L']) for (const { limb, from, to, r } of limbs) {
     const keep = rand() < (spec.limbs ?? 0.6), t0 = 0.1 + 0.12 * rand(), t1 = 0.55 + 0.35 * rand();
     if (!keep || (lost && lost.side === S && (lost.part === limb || (lost.part === 'foreArm' && limb === 'foreArm')))) continue;
     const A = at(from, S), B = at(to, S), name = `flesh${limb[0].toUpperCase()}${limb.slice(1)}${S}`, ja = `${name}a`, jb = `${name}b`;

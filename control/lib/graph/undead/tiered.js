@@ -19,6 +19,7 @@ import { UNDEAD_CARDS } from './cards.js';
 import { variantOf } from './index.js';
 import { posture } from './passes.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
+import { pickBared } from './bared.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const scaleR = (r, s) => (Array.isArray(r) ? r.map((x) => r6(x * s)) : r6(r * s));
@@ -32,6 +33,19 @@ const BELLY_GUT = 0.55, BELLY_SPAN = 0.16;
 
 /** the card a hero's undead form stands for (its variation by the build) */
 export const undeadCard = (hero) => (hero?.undead ? UNDEAD_CARDS[variantOf(hero.undead.form, hero.undead.build ?? 'canonical')] : null);
+
+/** the hero's seeded choices, each on its own stream: { lost: { part, side } | null } the card's loss (a forearm or a
+ * hand gone from the skin, the rig whole), { bared: [{ part, side }] } what goes back to bone (the `bared` layer, over
+ * flesh; never a lost forearm) */
+export function undeadPicks(hero) {
+  const card = undeadCard(hero);
+  if (!card) return { lost: null, bared: [] };
+  const seed = (hero.undead.seed ?? 1) >>> 0;
+  let lost = null;
+  if (card.loss) { const rand = mulberry32(seed ^ 0x7f4a7c15), roll = rand(), part = card.loss.parts[Math.floor(rand() * card.loss.parts.length)], side = rand() < 0.5 ? 'R' : 'L'; if (roll < card.loss.odds) lost = { part, side }; }
+  const bared = hero.undead.layers?.includes('bared') && card.form === 'flesh' ? pickBared(card.bared ?? { count: [1, 2], parts: ['foreArm', 'ribs', 'shin', 'skull'] }, mulberry32(seed ^ 0x165667b1), lost) : [];
+  return { lost, bared };
+}
 
 // a corpse's face on the landmark head (its `face` ratios, 1 the fitted head): the cheeks hollow under cheekbones that
 // stand out, the face and the jaw drawn narrow, the brow heavy over the eyes
@@ -54,7 +68,10 @@ export function undeadRest(hero) {
 export function undeadWords(hero) {
   if (!hero?.undead) return hero;
   const tone = hero.palette?.Skin ?? '#9a9a90', rest = undeadRest(hero), card = undeadCard(hero);
-  const G = rest.gesture;
+  // (a bared skull hangs from its base, not from a face built out from the nape: a third of the card's drop, else the
+  // card's drop would swing it into the chest)
+  const skull = undeadPicks(hero).bared.some((x) => x.part === 'skull');
+  const G = skull ? { ...rest.gesture, neck: { pitch: r3(rest.gesture.neck.pitch * 0.3) }, head: { ...rest.gesture.head, pitch: r3(rest.gesture.head.pitch * 0.3) } } : rest.gesture;
   // (its idle breathes in the rest; its walk keeps the hunch, as the walk's own tilt of the trunk)
   // (a skeleton's jaw is its own bone: its idle hangs it the card's degrees, the separation showing)
   const jaw = card.form === 'bone' && rest.jaw ? { jaw: rest.jaw } : {};

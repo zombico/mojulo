@@ -20,8 +20,6 @@
 import { CHANNEL_IDS, readDerive } from './channels.js';
 import { BUILDS } from './facets.js';
 import { UNDEAD_FORMS, UNDEAD_LAYERS } from '../undead/cards.js';
-// the forms ported to the tiered body so far (the rest on the creature loop until theirs land)
-const TIERED_UNDEAD = (lin) => !lin.layers?.length;
 
 /** The Monk Skin Tone scale, lightest (1) to deepest (10). */
 export const MST = Object.freeze(['#f6ede4', '#f3e7db', '#f7ead0', '#eadaba', '#d7bd96', '#a07e56', '#825c43', '#604134', '#3a312a', '#292420']);
@@ -315,7 +313,7 @@ export function resolveAncestry(id, rand, h, custom = {}) {
   const gaps = door === 'hero' && lin.cues.some((c) => h <= c.at && /ornament|cover/.test(c.ch))
     ? [`${lin.reads} on the hero door: ${lin.built}`] : [];
   // (a form, the undead's: the body is its library's, so the creature door whatever the roll)
-  // (a form stands on the tiered hero body where it is ported there, lib/graph/undead/tiered.js; else the creature loop's)
-  if (lin.form) door = TIERED_UNDEAD(lin) ? 'hero' : 'creature';
+  // (a form stands on the tiered hero body, lib/graph/undead/tiered.js)
+  if (lin.form) door = 'hero';
   return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints, ...(lin.form ? { form: lin.form } : {}), ...(lin.layers?.length ? { layers: [...lin.layers] } : {}) };
 }

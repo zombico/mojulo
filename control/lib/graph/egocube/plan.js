@@ -28,7 +28,7 @@ import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
-import { undeadBody, variantOf, UNDEAD_CARDS } from '../undead/index.js';
+import { variantOf, UNDEAD_CARDS } from '../undead/index.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -506,60 +506,6 @@ function creature(sheet, title) {
   return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo, shapes };
 }
 
-/** A FORM (a lineage carrying `form`: the undead, lib/graph/undead): its body built and passed there from this biped, its
- * rig this door's, its head the form's, its rest the card's posture. Form only: the palette is the cover's one tone. */
-function formCreature(sheet, title) {
-  const f = sheet.facets, form = sheet.ancestry.form;
-  const k = r3((HEIGHT[f.build] * AGE_SCALE[f.age]) / 2.0), g = GIRTH[f.build], M = MASS.pole[f.pole] ?? MASS.pole.male;
-  const U = undeadBody(form, { build: f.build, pole: f.pole, k, g, chest: M.chest, hips: M.hips, seed: sheet.seed, biped, layers: sheet.ancestry.layers ?? [] });
-  const P = U.posture, stance = { lean: P.lean, crouch: P.crouch, guard: false };
-  const { dials, rig, clips } = dialsAndRig(U.body, stance);
-  const names = new Set(U.body.segments.flatMap((x) => (x.mirror === 'name' ? [x.name, x.name.replace(/R$/, 'L')] : [x.name])));
-  // the dials over the parts this body has (a skeleton has no belly, and its frame hinges with its torso)
-  // (a head card's parts, cranium and jaw, only where the form wears one: a skeleton's skull is its own bones)
-  for (const [id, d] of Object.entries(dials)) if (Array.isArray(d.parts)) d.parts = [...d.parts, ...(id === 'lean' ? U.frameParts : [])].filter((n) => names.has(n) || (U.head && ['cranium', 'jaw'].includes(n)));
-  // the skull's own points for the rig's head and jaw bones: its crown, and the jaw hinged at its condyles to its chin
-  if (U.skull) Object.assign(rig.joints, { headTop: { at: U.skull.rig.headTop }, jawHinge: { at: U.skull.rig.jawHinge, rides: 'head' }, jawTip: { at: U.skull.rig.jawTip, rides: 'head' } });
-  if (U.card.form === 'bone') delete dials.gut;
-  // (the head card's include dial, only where a head card is worn)
-  if (!U.head) delete dials.head;
-  // (a hunch past the living's: the dead fold further forward than a body standing would)
-  if (dials.lean) dials.lean = { ...dials.lean, max: Math.max(dials.lean.max, P.lean + 10) };
-  const READY = { armL: P.arms.L, armR: P.arms.R, elbowL: 'slight', elbowR: 'slight', grip: 12, jaw: P.jaw, crouch: P.crouch, head: P.head };
-  clips.idle = [READY, { ...READY, crouch: r3(P.crouch + 0.03), head: { ...P.head, x: r3(P.head.x * 0.6) } }];
-  const tone = legible(sheet.ancestry.colours.Skin), boneTone = U.card.form === 'bone' ? tone : legible('#d6cfbd');
-  const palette = { Torso: tone, Pelvis: tone, Neck: tone, Legs: tone, Feet: tone, Arms: tone, Hands: tone, Claws: tone, Crease: shade(tone, -0.25), Pad: shade(tone, -0.1), PadInner: shade(tone, -0.15),
-    // (a bone skull's openings are dark, so they read as holes; its teeth a shade off the bone)
-    // (a flesh body's bared parts are bone's own tone: the skeleton lineage's)
-    ...(U.skull ? { Skull: boneTone, Jaw: boneTone, Socket: '#1a1816', Teeth: shade(boneTone, 0.06) } : {}),
-    ...(U.layers.includes('bared') ? { Bone: boneTone } : {}),
-    // (its rags a dull shade under the bone: form only, one tone)
-    ...(U.layers.includes('shreds') ? { Cloth: shade(tone, -0.3) } : {}),
-    // (a decayed body's flesh a shade darker than its bone, dried)
-    ...(U.layers.includes('decayed') ? { Flesh: shade(tone, -0.38) } : {}) };
-  const heads = U.head ? headsOf(U.head, tone, k, P) : [];
-  const limbs = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL'].filter((n) => names.has(n));
-  const plan = {
-    schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
-    symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed (a lost or uneven arm authored on both sides)' },
-    style: { slots: 'ring12', e: 2.2 },
-    joints: U.body.joints, segments: U.body.segments, heads, details: [], dials, rig, clips,
-    body: { refine: [{ parts: limbs }, ...(U.card.form === 'flesh' ? [{ parts: ['torso'], slots: false }] : [])],
-      ...(U.card.form === 'flesh' ? { volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)]] } : {}) },
-    adorn: [], palette,
-  };
-  return { plan, k, legs: 'plantigrade', head: { id: U.head ?? 'bones', provisional: false }, stance, cover: { tiles: [], locks: [] }, kit: null, topo: {}, shapes: [], undead: { form, variant: U.id, reads: U.card.reads, lost: U.lost, ...(U.layers.length ? { layers: U.layers } : {}), ...(U.bared ? { bared: U.bared } : {}) } };
-}
-
-// a form's head card (the zombie's gaunt face), scaled to its body
-function headsOf(id, tone, k, P) {
-  const hp = headPlan(id, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(id).palette && !(HEAD_LIBRARY[id].keep || []).includes(grp)).map(([grp, t]) => [grp, shade(tone, t)])) });
-  if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
-  // (no smaller than half: the head's sockets and regions are projected onto it, and under that they miss; a short body
-  // with a big skull reads as the squat dead do)
-  hp.units = { scale: r3(Math.max(0.5, (hp.units?.scale ?? 1) * k)), offset: hp.units?.offset ?? [0, 0, 0] };
-  return [{ name: 'head', plan: hp, expression: { jawOpen: P.jaw }, on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
-}
 
 // ══════════ the hero door ══════════
 
@@ -758,11 +704,11 @@ export function planFromSheet(sheet, { title, dress } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
   if (door === 'creature') {
-    const built = sheet.ancestry.form ? formCreature(sheet, name) : creature(sheet, name);
+    const built = creature(sheet, name);
     // a people near the beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet); one with enough of a
     // person in it is clothed from the cut, which reads its anatomy (breeches over furred legs, a short coat over a tail,
     // no sleeves on wings, a kilt over plated legs)
-    if (dress === 'designed' && !built.undead) { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
+    if (dress === 'designed') { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }

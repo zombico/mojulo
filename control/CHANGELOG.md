@@ -480,6 +480,32 @@ through the character designer, clips fitted to the class's timing, factions) is
   jaw hinged at the skull's condyles; the dials over the skeleton's own parts; the plan building; the bone weights.
   Eyes: all five skeletons from the front, three-quarter and side, then the soldier and the giant after the hands and
   the ribs. Eyes gate: the operator's to judge.
+- **The layers, the loss and the heavy arm on the tiered body; the creature-door undead retired**
+  (`undead/tiered-layers.js`). Every undead lineage now reaches the hero door:
+  - `shreds` hangs from the hero's trunk, a skeleton's or a corpse's. The bands read the hero's trunk (its Top and
+    Bottom groups, its lumbar bone).
+  - `decayed` lays its gaunt flesh on the hero's skeleton, its sinew on the hero's own limb bones (the shin is the
+    hero's shank).
+  - `bared` lays a limb's bones on its side, each its own unmirrored part on that side's joints and riding that side's
+    bone, and cuts that side's flesh from the expanded recipe. The cut takes the limb's bridges and its shoulder's
+    ball, and the parts pinned to them, and prunes the dials, so the rig stays whole and every clip still plays. A
+    bared skull replaces the head include and its dial, and the rest hangs it a third as far.
+  - The card's seeded loss takes one side's hand, or forearm and hand, from the skin in whatever shape that side has
+    them (flesh, a skeleton's bones, a bared arm's bones), the rig whole.
+  - The hulk's heavy arm swells its side and withers the other, ring by ring on the expanded recipe, so a bridge and
+    the limb end it meets stay matched.
+
+  One seeded pick (`undeadPicks`: the loss, then what is bared) is read by the plan that lays the bones and by the
+  recipe that cuts the flesh. The creature-door undead went with the move: `formCreature`, `undeadBody`, the creature
+  passes, the creature `bared` and the zombie's gaunt head card on the creature biped. The library keeps what the
+  hero uses: the cards, the rest, `boneLimb`, the ribs and vertebrae, the skull, `shreds`, `decay` and `pickBared`.
+
+  Machine gate: shreds on a skeleton and a corpse, the hip rags from the hips; decayed flesh inside the hero
+  skeleton's cage, its sinew on the hero's bones; a bared limb's bones on its side alone, that side's flesh cut and
+  the other side whole, the dials over what remains; a bared skull as the head; the loss on one side for a corpse and
+  a skeleton; the heavy arm's ratio the card's k²; every lineage at the hero door; a layer on its own dice (the body
+  under it byte for byte). Eyes: the ragged, decayed and rotting from the front and three-quarter. Eyes gate: the
+  operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

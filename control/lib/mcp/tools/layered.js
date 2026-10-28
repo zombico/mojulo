@@ -57,6 +57,7 @@ import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage,
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
 import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
+import { undeadLayers, undeadRecipe } from '@/lib/graph/undead/tiered-layers';
 import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
@@ -239,7 +240,8 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return withLegGirths(withDressMaterials(expandAware(plan, hero), hero, plan, geocube));
+  // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
+  return withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube));
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
@@ -1256,6 +1258,10 @@ export function cowlPressesEars(hero) {
 
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
+  // (the undead's layers over the body as it ends: undead/tiered-layers.js; absent, the plan as it was)
+  return hero.undead ? undeadLayers(tieredFormPlan(hero), hero) : tieredFormPlan(hero);
+}
+function tieredFormPlan(hero) {
   const pole = tieredPole(hero);
   // (a skeleton's bones on the hero's landmarks, undead/hero-bones.js: no bridges, no shoulder balls; a bone joint is
   // its knob)
