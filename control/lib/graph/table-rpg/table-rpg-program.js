@@ -3,7 +3,8 @@
  * read as a table RPG dungeon (table-rpg-kernel.js): its rooms by role and the room each opens off, a loop added so it
  * is not a line, the goal's way locked and its key placed in the deepest room off the way to it and not behind it.
  * The program's use rides on the dungeon (`program`) and each room keeps its size word, so the later lowering to a
- * walkable level lays the same rooms (planProgram) and only the loop needs a layout of its own.
+ * walkable level lays the same rooms (planProgram) and only the loop needs a layout of its own. A building's program
+ * (a corridor and its core: an office, a lab building, a warehouse) is read off the plan it lays, walked from its way in.
  *
  *   dungeonFromProgram({ use, seed?, name?, foes?: { minion?, boss? } }) → { dungeon, items }
  *     foes: foe ids: the boss stands in the goal room, a minion in about half the others
@@ -11,7 +12,7 @@
  *
  * Pure: seeded dice only (city/plan/dice.js's stream convention).
  */
-import { PROGRAMS, PROGRAM_IDS } from '../era/programs.js';
+import { PROGRAMS, PROGRAM_IDS, planProgram } from '../era/programs.js';
 import { mulberry32, strHash } from '../city/plan/dice.js';
 
 const words = (s) => String(s).replace(/[-_]/g, ' ');
@@ -23,7 +24,29 @@ export function dungeonFromProgram({ use, seed = 1, name, foes = {} } = {}) {
   const rnd = mulberry32(strHash(`${seed}|dungeon-v1|${use}`));
   // the rooms: each of the program's, its count, its chance; a room opens off the first of its parent's role
   const rooms = [], links = [], firstOf = {}, depth = {};
-  for (const R of P.rooms) {
+  let laidGoal = null;
+  if (P.shape === 'core') {
+    // a building (era/program-core.js): the rooms its program lays, walked from its way in, the stair between storeys;
+    // its rooms are its plan's, so the lowering lays the same ones
+    const L = planProgram({ use, seed }, P.kit), byId = new Map(L.rooms.map((r) => [r.id, r])), next = new Map(L.rooms.map((r) => [r.id, []]));
+    for (const l of L.links) { next.get(l.from).push(l.to); next.get(l.to).push(l.from); }
+    const add = (id, parent) => {
+      const r = byId.get(id), role = id.replace(/-\d+[a-z]?$/, '');
+      rooms.push({ id, name: `the ${words(id)}`, size: sizeOf([r.w, r.w], [r.d, r.d]), role });
+      firstOf[role] ??= id;
+      depth[id] = parent ? depth[parent] + 1 : 0;
+    };
+    const seen = new Set([L.entry]), q = [L.entry];
+    add(L.entry, null);
+    while (q.length) {
+      const a = q.shift();
+      for (const b of next.get(a)) if (!seen.has(b)) {
+        seen.add(b); q.push(b); add(b, a);
+        links.push({ a, b, kind: a.startsWith('core-') && b.startsWith('core-') ? 'stair' : rnd() < 0.5 ? 'door' : 'open' });
+      }
+    }
+    laidGoal = L.goal;
+  } else for (const R of P.rooms) {
     if (R.p !== undefined && rnd() >= R.p) continue;
     const n = R.n ?? 1;
     for (let k = 1; k <= n; k++) {
@@ -37,7 +60,7 @@ export function dungeonFromProgram({ use, seed = 1, name, foes = {} } = {}) {
       if (parent) links.push({ a: parent, b: id, kind: R.over || /stair/.test(R.role) ? 'stair' : rnd() < 0.5 ? 'door' : 'open' });
     }
   }
-  const entry = rooms[0].id, goal = firstOf[P.goal] ?? rooms[rooms.length - 1].id;
+  const entry = rooms[0].id, goal = laidGoal ?? firstOf[P.goal] ?? rooms[rooms.length - 1].id;
   // the rooms behind the goal (opening off it, at any depth): behind its lock too
   const behind = new Set([goal]);
   for (let grew = true; grew;) { grew = false; for (const l of links) if (behind.has(l.a) && !behind.has(l.b)) { behind.add(l.b); grew = true; } }
