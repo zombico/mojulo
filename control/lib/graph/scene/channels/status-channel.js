@@ -1,3 +1,4 @@
+import { wreckScript } from './wreck-channel.js';
 import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { wavePoints, sprayPoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/elements.js';
@@ -431,7 +432,7 @@ export function transitKinds(events) {
   return out;
 }
 
-export function statusScript(looks, transits = []) {
+export function statusScript(looks, transits = [], { wreck = false } = {}) {
   const L = looks || {}, all = Object.values(L);
   const shield = all.some((x) => x.shield), aura = all.some((x) => x.aura), band = all.some((x) => x.coat && x.coat.band);
   const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
@@ -450,6 +451,7 @@ const __BOLT = ${safeJson(BOLT_SHAPE)};
 const kokusenBolts = (() => { const TAU = 6.283185307179586, frac = (x) => x - Math.floor(x), h3 = (a, b, c) => frac(Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453); return ${kokusenBolts.toString()}; })();` : ''}
 const __elTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.5)'); g.addColorStop(0.6, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
 ${transits.length ? `${transitSrc(transits)}
+` : ''}${wreck ? `${wreckScript()}
 ` : ''}const __elLive = {}, __elDying = {};   // '<who>|<is>' → what draws it; and what is fading out
 ${surf || encase ? `${SURF}` : ''}${encase ? `
 ${ENCASE}` : ''}
@@ -595,7 +597,7 @@ function __stepStatus() {
     if (u >= 1 || !e) { __elDrop(D); delete __elDying[key]; continue; }
     __elDraw(D, e, D.K, now - D.t0, 1 - u, !e.gone, u);${surf ? `
     if (D.K.water && D.meshes.length) { if (!D.boil) D.boil = __elSurfMake({ kind: 'vapor', count: 22 }, D.meshes, [1, 1, 1]); __elSurfStep(D.boil, now - X.t + 0.6, Math.sin(Math.PI * Math.min(1, u * 1.1)), !e.gone, __elFoot(e)[2]); }` : ''}
-  }${transits.length ? '\n  __stepTransits();' : ''}
+  }${transits.length ? '\n  __stepTransits();' : ''}${wreck ? '\n  __stepWrecks();' : ''}
 }
 function __elDraw(D, e, K, age, fade, show, melt) {${shield ? `
   if (D.shield) __elShieldStep(D.shield, e, age, fade, show);` : ''}

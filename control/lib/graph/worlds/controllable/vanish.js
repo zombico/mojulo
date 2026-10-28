@@ -7,12 +7,18 @@
  *   die   fall     (default) it falls where it was struck (its own fall clip) and lies
  *         launch   the blow is the verb (an action game's): thrown back along the blow, off the ground, and lies where it
  *                  lands; its linger counts from the landing
+ *         dismantle  DESTROYED: it comes apart at its joints where it was struck (`sever`: which; the page's wreck,
+ *                  scene/channels/wreck-channel.js, plays its pieces falling and fades them when it goes)
+ *         cleave   DESTROYED: it is cut through by the blow (the page's wreck plays the cut and the pieces)
+ *   A destroyed body is marked `e.wreck = { die, sever, is, t0, from, seed }` the frame it goes down (`from` the blow's way
+ *   along the ground, from whoever struck it), lies `linger` s as pieces, then goes with no transit: the wreck fades them.
  *
  * A platformer's squash and a pinball's pop are kinds of going (`is`), played by the page at once.
  *
  * Wraps stepWorld, as hitstop.js does, so the pinned pipeline order is untouched. Import-free (the page runs this source
  * via toString(), compose.js); emitted only into a page whose world has a body that vanishes, so every other page keeps
- * every byte. Field ownership: e.vanishT (how long it has lain), e.vanishThrow (a launch in flight); it sets
+ * every byte. Field ownership: e.vanishT (how long it has lain), e.vanishThrow (a launch in flight), e.wreck (a
+ * destruction); it sets
  * combat-match.js's e.deathBurstDone on its bodies so they never explode.
  */
 
@@ -46,10 +52,18 @@ export function buildVanish(E) {
       const V = e.body && e.body.vanish;
       if (!V || !e.downed || e.gone) continue;
       if (V.die === 'launch' && !fly(state, e, dt, hooks)) continue;
+      const wrecked = V.die === 'dismantle' || V.die === 'cleave';
+      if (wrecked && !e.wreck) {
+        const by = e.lastHitBy && state.byId[e.lastHitBy], t = e.transform;
+        const a = by ? Math.atan2(t.pos[1] - by.transform.pos[1], t.pos[0] - by.transform.pos[0]) : t.heading + Math.PI;
+        let h = 7; for (let i = 0; i < e.id.length; i++) h = (h * 31 + e.id.charCodeAt(i)) % 999983;
+        e.wreck = { die: V.die, sever: V.sever || 'all', is: V.is, t0: state.time || 0, from: [Math.cos(a), Math.sin(a)], seed: h };
+      }
       e.vanishT = (e.vanishT || 0) + dt;
       if (e.vanishT + 1e-9 < (V.linger || 0)) continue;
       e.gone = true; e.moving = false; e.route = null;
-      e.transit = { is: V.is, dir: 'out', t0: state.time || 0, ...(V.rgb ? { rgb: V.rgb } : {}) };
+      if (!wrecked) e.transit = { is: V.is, dir: 'out', t0: state.time || 0, ...(V.rgb ? { rgb: V.rgb } : {}) };
+      else e.wreck.gone = state.time || 0;
     }
     return state;
   };

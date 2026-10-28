@@ -103,6 +103,9 @@ export function stateFace(face, own, clips) {
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
+/** a body destroyed when it goes down (its `vanish.die` a dismantle or a cleave: gameworld/vanish.js) */
+const wrecks = (e) => !!(e && e.body && e.body.vanish && (e.body.vanish.die === 'dismantle' || e.body.vanish.die === 'cleave'));
+
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
  * how many may sit (2 to 4, at most one more than the bodies), how they join (drop-in or lobby), what an empty seat's body
@@ -817,6 +820,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+          // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
+          // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
+          // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
+          // cut capped in the inside its body names)
+          const wrecked = (payload.entities || []).filter((e) => e && e.body && e.body.figure === name && wrecks(e));
+          if (wrecked.length) {
+            const { humanoidParents } = await import('@/lib/graph/figures/rig-tpose.js');
+            try { figure.wreck = { parent: humanoidParents(figure.bones) }; } catch { figure.wreck = {}; }
+            const cleaved = wrecked.find((e) => e.body.vanish.die === 'cleave');
+            if (cleaved) {
+              const { slashPlane, cleaveFigure } = await import('@/lib/graph/scene/rig-cleave.js');
+              let h = 7; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 999983;
+              figure.wreck.cleave = cleaveFigure(figure, { plane: slashPlane(figure.figH, { seed: h }), ...(cleaved.body.vanish.inside ? { inside: cleaved.body.vanish.inside } : {}) });
+            }
+          }
           payload.figures[name] = figure;
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } } : e));
           continue;
@@ -1203,6 +1221,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // with no events has no page to play them on, and its downed bodies simply go
     const vanish = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.body && e.body.vanish && e.body.vanish.is).filter((k) => typeof k === 'string'))] : [];
     if (vanish.length) ev = { ...ev, vanish };
+    // and whether one of them is DESTROYED (its `vanish.die` a dismantle or a cleave): the page's wreck plays its pieces
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some(wrecks)) ev = { ...ev, wreck: true };
     payload.events = ev;
     payload.nonBakeable = true;
   }

@@ -609,6 +609,31 @@ through the character designer, clips fitted to the class's timing, factions) is
   card's walk stored at mint, the hobble's override and odds; every variation's walk baked on its rig. Eyes: stick
   figures of every walk, plain and hobbled, side and front, and the minted heroes walking, side and front (the hitch
   softened after the first strip). Eyes gate: the operator's to judge.
+- **Destruction: the undead come apart** (`die: 'dismantle' | 'cleave'` and `sever` on a foe's `vanish`,
+  `gameworld/vanish.js`; the page's wreck, `scene/channels/wreck-channel.js`; the operator: "for these elements can we
+  also add destruction … dismantle and cleave … might be interesting seeing that on these types of enemies").
+  - A downed foe may be DESTROYED rather than fall: `dismantle` cuts the relations between its bones, never a face.
+    Each bone's rigid mesh is a block, its parent the rig's own (`figures/rig-tpose.js` humanoidParents, read off the
+    rest bones), and `sever` says which joints go: `all`, `limbs` (the head and the limbs, the trunk one piece),
+    `head`, or `some` (two or three of those, on its dice). The small bones ride their hand or foot.
+  - Each group still joined falls as one rigid piece where the body stood: thrown off the blow, spun, landing on its
+    corners with restitution and friction, tipping onto a face and coming to rest. The pieces lie at least
+    `WRECK_LINGER` seconds, then fade (or sink, a `sink` going); no transit plays. Fixed-step and seeded, so a replay
+    falls the same.
+  - `cleave` cuts by part instead: at mint each wrecked figure is sliced through its trunk by a seeded slash (tilted
+    20 to 50 degrees off level, `scene/rig-cleave.js`), each bone above or below the cut kept whole and each it crossed
+    split into two halves, every loop of the cut capped in the inside (`inside`, a corpse's meat). On the blow the
+    halves swap in, a streak of light runs along the cut for a breath, the side above slips off down the cut and the
+    side below gives way.
+  - The undead are destroyed by default, by their people's form, wherever the world lets a foe fall or be thrown: a
+    skeleton comes apart at every joint (by relation), a corpse is cut through (by part). An entry's own `die`, and a
+    platformer's squash or a pinball's pop, stand over it.
+  - A page with no destroyed body carries none of it.
+
+  Machine gate: the words and the undead's defaults; the groups each `sever` makes on a hero's bones; a slash's sides
+  (the head above, the feet below, the trunk cut), each half on its own side capped in the inside, the same cut for the
+  same seed; a dropped bone settling flat; the runtime marking the body the frame it goes down and handing it to no transit; each function the
+  page runs evaluating from its own source alone; no wreck on a page without one. Eyes: pending.
 
 ### Carved glyphs: the letter primitive grows up
 

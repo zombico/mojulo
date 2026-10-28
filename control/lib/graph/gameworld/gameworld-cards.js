@@ -41,7 +41,7 @@ import { CAMERAS } from './cameras.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES } from './foes.js';
-import { VANISHES } from './vanish.js';
+import { VANISHES, SEVERS } from './vanish.js';
 import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
@@ -554,7 +554,10 @@ function foesCard() {
     `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
     '        A platformer squashes it, a pinball table pops it, an action game throws it back along the blow, a',
     '        realistic one lets it fall and lie; then the look fades it (anime RPG motes in the palette, cel blink, western',
-    '        sink or fade). An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch } names its own.',
+    '        sink or fade). An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave, sever? }',
+    `        names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}), a`,
+    '        cleave is cut in two through its trunk (inside: the cut\'s colour), its pieces falling where it stood; the undead',
+    '        are destroyed by default: a skeleton at every joint, a corpse cut through.',
     'A world without foes, or a level without them, is laid as it was.',
   );
 }

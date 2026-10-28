@@ -244,7 +244,9 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const maura = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? auraOf(r.spec) : r.op === 'beam' && r.spec ? auraOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => auraOf(B.impactSpec)));
   const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
-  const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
+  // and its destroyed bodies (`wreck`, a downed body's destruction the world-scene lays: wreck-channel.js), cast or not
+  const wreck = events.wreck === true;
+  const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, wreck ? { wreck } : {}) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu
