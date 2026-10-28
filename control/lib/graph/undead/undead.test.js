@@ -94,7 +94,7 @@ describe('the picks and the rest', () => {
   });
   it('a lineage lays its layers over its form, on the hero spec; the ragged, the decayed and the rotting build', () => {
     // (each lineage's layers reach the hero spec in order; the hero plan they make is undead/tiered.test.js's)
-    for (const [ancestry, form, layers] of [['ragged', 'skeleton', ['shreds']], ['decayed', 'skeleton', ['decayed', 'shreds']], ['rotting', 'zombie', ['bared']]]) {
+    for (const [ancestry, form, layers] of [['ragged', 'skeleton', ['shreds']], ['decayed', 'skeleton', ['decayed', 'shreds']], ['rotting', 'zombie', ['bared', 'spots']]]) {
       const sheet = rollEgocube({ facets: { ancestry, build: 'canonical', role: 'frontline' }, seed: 3 });
       expect(sheet.ancestry).toMatchObject({ door: 'hero', form, layers });
       const spec = planFromSheet(sheet).create.spec;

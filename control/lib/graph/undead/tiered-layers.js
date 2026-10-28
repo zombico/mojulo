@@ -22,6 +22,7 @@ import { shreds } from './shreds.js';
 import { decay, LIMBS } from './decay.js';
 import { sectionAt } from './hero-bones.js';
 import { adorned } from './armour.js';
+import { spots } from './spots.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -189,6 +190,13 @@ export function undeadLayers(plan, hero, { living = plan } = {}) {
     }
     // (the open flesh's layers: the skin the body's own tone, the meat under it dark red, the bone)
     palette.Bone = bone; palette.Meat = palette.Meat ?? '#7a3530';
+  }
+  // SPOTS (over flesh): the flesh gone in patches, on what is left of it (none on a limb gone to bone)
+  if (layers.includes('spots')) {
+    if (card.form !== 'flesh') throw new Error(`undead: the spots layer lies over flesh (the ${hero.undead.form} has none)`);
+    const P = spots({ ...plan, joints, segments, include }, card.spots ?? { count: [5, 8], deep: 0.3, face: [2, 3] }, { k, rand: mulberry32(seed ^ 0x3c6ef372), bared: undeadPicks(hero).bared });
+    segments.push(...P.segments);
+    palette.Meat = palette.Meat ?? '#7a3530'; palette.Bone = palette.Bone ?? '#d6cfbd';
   }
   // DECAYED (over bone): gaunt flesh back on the hero's skeleton
   if (layers.includes('decayed') && card.form === 'bone') {

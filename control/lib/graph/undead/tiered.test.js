@@ -270,3 +270,37 @@ describe('the open flesh: half-bone limbs and torn edges in layers', () => {
     for (const st of w.stations) expect(Math.sign(st.at[0])).toBe(side === 'R' ? 1 : -1);
   });
 });
+
+describe('the spots: flesh gone in patches', () => {
+  const spotted = (build, seed, layers = ['bared', 'spots']) => heroRecord({ form: 'tiered', cast: 'male', palette: { Skin: '#9a9a90' }, undead: { form: 'zombie', build, seed, layers } });
+  const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.spots && c.bared?.parts.includes('skull'));
+  const runs = Array.from({ length: 10 }, (_, i) => spotted(card.build, i + 1));
+  it('patches of meat on the flesh the corpse still has, some deep to the bone, none on a limb gone to bone', () => {
+    const H = runs[0], P = heroPlanOf(H), body = P.segments.filter((s) => /^spot\d+$/.test(s.name));
+    expect(body.length).toBeGreaterThanOrEqual(card.spots.count[0]);
+    for (const s of body) { expect(s.group).toBe('Meat'); expect(s.kind).toBe('rings'); }
+    expect(runs.some((h) => heroPlanOf(h).segments.some((s) => /^spot\d+Bone$/.test(s.name) && s.group === 'Bone'))).toBe(true);
+    const bared = new Set(undeadPicks(H).bared.flatMap(({ part, side }) => ({ arm: ['upperArm', 'foreArm'], foreArm: ['foreArm'], halfForeArm: ['foreArm'], halfUpperArm: ['upperArm'], thigh: ['thigh'], halfThigh: ['thigh'], shin: ['shank'], halfShin: ['shank'] }[part] ?? []).map((l) => `${l}${side}`)));
+    for (const s of body) expect(bared.has(s.bind.bone)).toBe(false);
+    // a patch on the torso hugs it: its rim's points within a few centimetres of the trunk's own section
+    const T = P.segments.find((s) => s.name === 'torso'), onT = body.filter((s) => s.bind.bone === 'torso');
+    for (const s of onT) for (const p of Object.values(s.stations[1].points)) {
+      const st = T.stations.reduce((a, b) => (Math.abs(b.z - p[2]) < Math.abs(a.z - p[2]) ? b : a)), [rx, ry] = st.r;
+      expect(Math.hypot(p[0] / rx, (p[1] - (st.yc ?? 0)) / ry)).toBeLessThan(1.35);
+    }
+    expect(() => expandPlan(P)).not.toThrow();
+  });
+  it('the face: bone through a corpse\'s own head, or flesh left on a bared skull, each on its own surface', () => {
+    const withSkull = runs.find((h) => undeadPicks(h).bared.some((x) => x.part === 'skull')), withHead = runs.find((h) => !undeadPicks(h).bared.some((x) => x.part === 'skull'));
+    const S = heroPlanOf(withSkull).segments, F = heroPlanOf(withHead).segments;
+    expect(S.some((s) => /^skullSkin\d+$/.test(s.name) && s.group === 'Skin')).toBe(true);
+    expect(S.some((s) => /^skullMeat\d+$/.test(s.name) && s.group === 'Meat')).toBe(true);
+    expect(F.some((s) => /^faceBone\d+$/.test(s.name) && s.group === 'Bone' && s.bind.bone === 'head')).toBe(true);
+  });
+  it('over flesh only; absent, no patch; the rotting lineage lays it', () => {
+    expect(heroPlanOf(spotted(card.build, 3, ['bared'])).segments.some((s) => /^spot/.test(s.name))).toBe(false);
+    expect(() => heroPlanOf(heroRecord({ form: 'tiered', cast: 'male', undead: { form: 'skeleton', build: 'canonical', seed: 3, layers: ['spots'] } }))).toThrow(/spots layer lies over flesh/);
+    const sheet = rollEgocube({ facets: { ancestry: 'rotting', build: 'canonical', role: 'frontline' }, seed: 3 });
+    expect(sheet.ancestry.layers).toEqual(['bared', 'spots']);
+  });
+});

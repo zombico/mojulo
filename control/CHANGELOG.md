@@ -545,6 +545,26 @@ through the character designer, clips fitted to the class's timing, factions) is
   thinner than the meat); a whole limb's torn edges as collars of meat tapering onto the bone; the wound on the ribs'
   side; the plans building. Eyes: the rotting shambler, bloated one and hulk from the front, three-quarter, side and
   back. Eyes gate: the operator's to judge.
+- **Spots: a corpse's flesh gone in patches** (`undead/spots.js`, the `spots` layer; the operator: "intensify by adding
+  more cow spot areas of flesh disappearance; consider partial in the face and skull"). The rotting lineage now lays
+  `['bared', 'spots']`. Each patch is a thin plate whose rim is projected onto the surface it lies on (the torso's
+  section, a limb's tube, the skull's own rows, the head's own cranium points), so it hugs the body. Its outline is
+  a ragged blob, two and three lobes at seeded phases.
+  - On the body: patches of meat where the skin went, on the torso and the limbs the corpse still has the flesh of
+    (none on a limb gone to bone); a seeded share are deep, the bone showing in the meat.
+  - On a corpse's own head: patches of bare bone in a rim of meat (a cheekbone, the brow, a temple, the jaw), lying
+    on the cranium itself.
+  - On a bared skull: what is left of the face, patches of skin on a rim of meat over the scalp, a temple, a cheek,
+    on the braincase's rows or the face's.
+
+  Each zombie card says how many and how deep (`spots { count, deep, face }`): the gaunt one most, the fresh one
+  fewest. The layer lies over flesh only.
+
+  Machine gate: the body's patches of meat on flesh alone, hugging the torso's section, some deep to the bone; the
+  face's bone on a flesh head and the skin left on a bared skull; refused over bone; absent, no patch; the rotting
+  lineage laying it. Eyes: the rotting shambler, bloated one and lithe one, front, three-quarter, side and back, the
+  patches ragged after the first round (which had read as targets) and the face's bone on the real cranium after the
+  second (which had sunk inside the head). Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 
