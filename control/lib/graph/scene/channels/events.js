@@ -220,7 +220,8 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
-  const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
+  // the statuses its cues put on the cast, drawn on their bodies in their looks; and those its bodies are born under
+  const els = [...(cast ? statusElements(events) : []), ...(Array.isArray(events.born) ? events.born : [])].filter((n, i, a) => a.indexOf(n) === i);
   const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
   // and how its downed bodies go (`vanish`, the fades the world-scene lays: gameworld/vanish.js), cast or not
   const trs = Array.isArray(events.vanish) ? [...trs0, ...events.vanish.filter((k) => FADE_KINDS.includes(k) && !trs0.includes(k))] : trs0;
@@ -245,8 +246,8 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   // and its destroyed bodies (`wreck`, a downed body's destruction the world-scene lays: wreck-channel.js), cast or not
-  const wreck = events.wreck === true;
-  const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, wreck ? { wreck } : {}) : '';
+  const wreck = events.wreck === true, layer0 = events.layer0 === true;   // (and its layer-0 foes: their looks on the body they wear now, docs/foes.md)
+  const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, { ...(wreck ? { wreck } : {}), ...(layer0 ? { layer0 } : {}) }) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu

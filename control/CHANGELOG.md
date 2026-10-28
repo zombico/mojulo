@@ -698,6 +698,20 @@ through the character designer, clips fitted to the class's timing, factions) is
   on the demo level (the first round burned nothing: the runtime builds an entity from its known fields, so the birth
   now rides the body, `body.born`; the next two whited the bodies out under a fire wider than them: a body-width
   campfire from the feet). Eyes gate: the operator's to judge.
+- **Layer 0, written down** (`docs/foes.md`; the operator: "from a class based programming perspective is this pattern
+  sustainable … let's proceed"). The contract every foe implements (the entity, its bones by name, its height and hit
+  shape, its health, what it carries) and the shelves over it (behaviour, skin, modes, states, death), each a row, with
+  the precedence between them and the rule that every shelf carries a law test crossing a mode swap. Composition over
+  a base interface, not a class tree.
+  - The one place the contract was broken: a status look (a coat, ice, water) was laid once on the body a foe wore
+    and stayed on it when a mode swapped in, and never reached a rig foe at all (its bone meshes carry no normals). On
+    a page with layer-0 foes (a body with modes, or born in a state) a look is rebuilt on the body the foe wears now,
+    and a rig body's bone meshes are given smooth normals once; a status a foe is born under is drawn in its look as a
+    cue's would be (`events.born`). A page with no layer-0 foe carries none of it.
+
+  Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
+  without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
+  bare one, still burning.
 
 ### Carved glyphs: the letter primitive grows up
 

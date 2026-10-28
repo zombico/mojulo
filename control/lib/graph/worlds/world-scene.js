@@ -1236,6 +1236,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (vanish.length) ev = { ...ev, vanish };
     // and whether one of them is DESTROYED (its `vanish.die` a dismantle or a cleave): the page's wreck plays its pieces
     if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some(wrecks)) ev = { ...ev, wreck: true };
+    // and whether it has LAYER-0 foes (a body with modes, or born under a state: docs/foes.md): a look laid on a foe is laid
+    // on the body it wears now, given the normals a rig body lacks
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.body && ((Array.isArray(e.body.modes) && e.body.modes.length > 1) || e.body.born))) {
+      // (and each status a body is born under, its look drawn as a cue's would be: foes/states.js)
+      const born = [...new Set(sketch.manifest.entities.flatMap((e) => (e && e.body && e.body.born && e.body.born.statuses ? Object.keys(e.body.born.statuses) : [])))];
+      const { LOOKS } = born.length ? await import('@/lib/graph/playscape/elements/elements.js') : { LOOKS: {} };
+      const bornLooks = Object.fromEntries(born.filter((n) => LOOKS[n] && !(ev.looks && ev.looks[n])).map((n) => [n, LOOKS[n]]));
+      ev = { ...ev, layer0: true, ...(born.length ? { born, looks: { ...(ev.looks || {}), ...bornLooks } } : {}) };
+    }
     payload.events = ev;
     payload.nonBakeable = true;
   }

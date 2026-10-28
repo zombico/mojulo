@@ -432,7 +432,7 @@ export function transitKinds(events) {
   return out;
 }
 
-export function statusScript(looks, transits = [], { wreck = false } = {}) {
+export function statusScript(looks, transits = [], { wreck = false, layer0 = false } = {}) {
   const L = looks || {}, all = Object.values(L);
   const shield = all.some((x) => x.shield), aura = all.some((x) => x.aura), band = all.some((x) => x.coat && x.coat.band);
   const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
@@ -508,10 +508,23 @@ function __elShieldStep(d, e, age, fade, show) {
   return m;
 }
 const __elSeed = (id) => { let h = 7; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973; return h / 97; };
-function __elMake(e, is, st) {
+${layer0 ? `// LAYER 0 (docs/foes.md): a look is laid on the body a foe is drawn as NOW. A rig body's bone meshes carry no normals:
+// each is given smooth ones once (its corners averaged where they meet), so a coat and a surface mark sit on it
+function __elNormals(geo) {
+  const P = geo.attributes.position.array, N = new Float32Array(P.length), acc = new Map(), key = (i) => Math.round(P[i] * 1e4) + ',' + Math.round(P[i + 1] * 1e4) + ',' + Math.round(P[i + 2] * 1e4);
+  for (let t = 0; t + 8 < P.length; t += 9) {
+    const ax = P[t + 3] - P[t], ay = P[t + 4] - P[t + 1], az = P[t + 5] - P[t + 2], bx = P[t + 6] - P[t], by = P[t + 7] - P[t + 1], bz = P[t + 8] - P[t + 2];
+    const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+    for (let k = 0; k < 9; k += 3) { const q = key(t + k), a = acc.get(q) || [0, 0, 0]; a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; acc.set(q, a); }
+  }
+  for (let i = 0; i < P.length; i += 3) { const a = acc.get(key(i)) || [0, 0, 1], l = Math.hypot(a[0], a[1], a[2]) || 1; N[i] = a[0] / l; N[i + 1] = a[1] / l; N[i + 2] = a[2] / l; }
+  geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+}
+` : ''}function __elMake(e, is, st) {
   const K = __LOOK[is], base = st.color != null ? __rgb(st.color) : __rgb(K.color), body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id];
-  const D = { coats: [], mat: null, waves: [], drifts: [], cloud: [], ribbon: null, glow: null, surf: [], encase: null, who: e.id, K, t0: st.t0, meshes: [] };
-  const meshes = [];
+  const D = { coats: [], mat: null, waves: [], drifts: [], cloud: [], ribbon: null, glow: null, surf: [], encase: null, who: e.id, K, t0: st.t0, meshes: []${layer0 ? ', body' : ''} };
+  const meshes = [];${layer0 ? `
+  if (body && body.userData && body.userData.rigFig) body.traverse((o) => { if (o.isMesh && o.geometry && !o.geometry.attributes.normal && !(o.userData && (o.userData.ink || o.userData.coat))) __elNormals(o.geometry); });` : ''}
   if (body) body.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.normal && !(o.userData && (o.userData.ink || o.userData.coat))) meshes.push(o); });
   D.meshes = meshes;
   if (K.coat) {
@@ -584,7 +597,9 @@ function __stepStatus() {
     for (const is in e.statuses) {
       const K = __LOOK[is]; if (!K) continue;
       const key = e.id + '|' + is, st = e.statuses[is]; seen[key] = 1;
-      const D = __elLive[key] || (__elLive[key] = __elMake(e, is, st));
+      ${layer0 ? 'let' : 'const'} D = __elLive[key] || (__elLive[key] = __elMake(e, is, st));${layer0 ? `
+      // (the body it is drawn as changed, a mode swapped in: the look moves onto it)
+      if (D.body !== (window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id])) { __elDrop(D); D = __elLive[key] = __elMake(e, is, st); }` : ''}
       const age = now - st.t0, show = !e.gone;
       const fade = Math.min(1, age / 0.15) * (st.until != null ? Math.min(1, Math.max(0, (st.until - now) / 0.25)) : 1);
       __elDraw(D, e, K, age, fade, show, 0);

@@ -220,6 +220,8 @@ export const EVENT_MARKS = Object.freeze({
 
   vanish: m(A, 'a downed foe\'s disposal (its fade: gameworld/vanish.js, the page\'s transits) is the page\'s: a downed body stays down'),
   wreck: m(A, 'a destroyed foe\'s pieces (its dismantle or cleave, a mode\'s shed: scene/channels/wreck-channel.js) are the page\'s: a downed body stays down whole'),
+  layer0: m(A, 'a layer-0 foe\'s looks laid on the body it wears now (docs/foes.md) are the page\'s: the kernel draws no status looks on a foe'),
+  born: m(A, 'the statuses a foe is born under (foes/states.js), drawn in their looks, are the page\'s: the kernel\'s foe is born bare'),
 });
 /** The events keys an export carries (bus.json or score.json), whatever their mark. */
 export const EVENT_CARRIED = Object.freeze(Object.keys(EVENT_MARKS));
