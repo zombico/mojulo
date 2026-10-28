@@ -21,7 +21,7 @@ export function bodyFires(play, entities = []) {
   const cued = play && typeof play === 'object' && (play.cues || play.menus);
   // (and a status a body is BORN under, `body.born.statuses`: a foe's base state, foes/states.js)
   const bornOf = (e) => (e && e.body && e.body.born && e.body.born.statuses) || null;
-  const born = (entities || []).flatMap((e) => (bornOf(e) ? Object.entries(bornOf(e)).map(([is, st]) => ({ kind: 'cast', op: 'status', who: e.id, is, look: LOOKS[is], ...(st && st.color != null ? { color: st.color } : {}), ...(st && Number.isFinite(st.char) ? { char: st.char } : {}), ...(st && Number.isFinite(st.size) ? { size: st.size } : {}) })) : []));
+  const born = (entities || []).flatMap((e) => (bornOf(e) ? Object.entries(bornOf(e)).map(([is, st]) => ({ kind: 'cast', op: 'status', who: e.id, is, look: LOOKS[is], ...(st && st.color != null ? { color: st.color } : {}), ...(st && Number.isFinite(st.char) ? { char: st.char } : {}), ...(st && Number.isFinite(st.size) ? { size: st.size } : {}), ...(st && (st.kind === 'campfire' || st.kind === 'brazier') ? { fireKind: st.kind } : {}) })) : []));
   if (!cued && !born.length) return [];
   const effects = [...(cued ? [...readCues(play).flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))] : []), ...born];
   for (const t of effects) {
@@ -33,7 +33,9 @@ export function bodyFires(play, entities = []) {
     // (a born status may name its own size: a foe's flaming, a body's own size rather than the look's)
     const F = t.look.fire, size = Number.isFinite(t.size) ? t.size : F.size, c = t.color ?? F.color ?? null;
     // (a body that chars as it burns, `char`: the share of its own colour it keeps while lit)
-    out.push({ kind: size >= 2.5 ? 'campfire' : 'brazier', at: [0, 0, 0], size, ...(c != null ? { color: Array.isArray(c) ? hex(c) : c } : {}), follow: t.who, el: t.is, key, rise: size >= 2.5 ? 0 : 0.85, ...(Number.isFinite(t.char) && t.char < 1 ? { char: t.char } : {}) });
+    // (a born status may name its kind: a foe's flaming, a campfire from its feet at a body's own size)
+    const kind = t.fireKind || (size >= 2.5 ? 'campfire' : 'brazier');
+    out.push({ kind, at: [0, 0, 0], size, ...(c != null ? { color: Array.isArray(c) ? hex(c) : c } : {}), follow: t.who, el: t.is, key, rise: kind === 'campfire' ? 0 : 0.85, ...(Number.isFinite(t.char) && t.char < 1 ? { char: t.char } : {}) });
   }
   return out;
 }
