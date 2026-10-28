@@ -26,8 +26,8 @@ describe('the call', () => {
     run(far, 3);
     expect(awake(far)).toEqual([]);
     const st = world();
-    run(st, 1.2);
-    expect(st.byId.m.summonWind).toBeGreaterThan(0);   // (winding up: held)
+    run(st, 0.3);
+    expect(st.byId.m.summonWind).toBeGreaterThan(0);   // (its first on sight, winding up: held)
     expect(awake(st)).toEqual([]);
     run(st, 0.4);
     expect(awake(st)).toEqual(['m-s1']);
@@ -38,10 +38,11 @@ describe('the call', () => {
 
   it('a blow breaks the wind-up', () => {
     const st = world();
-    run(st, 1.2);
+    run(st, 0.3);
     st.byId.m.staggerT = 0; st.byId.m.reactClip = 'stagger'; st.byId.m.reactDur = 1;
     run(st, 0.4);
     expect(awake(st)).toEqual([]);
+    expect(st.byId.m.summonWind).toBeNull();
   });
 });
 

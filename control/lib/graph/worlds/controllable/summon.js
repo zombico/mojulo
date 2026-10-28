@@ -8,7 +8,7 @@
  *   rule.summoned  { by, bound }   on each summons: its summoner, and whether its fate is bound to it
  *
  *   THE CALL     a summoner standing (not down, not reeling) with a hero inside `radius`, fewer than `at` of its summons
- *                up, one still asleep and its last call `every` s ago winds up for `wind` s (held, facing the hero), then
+ *                up, one still asleep and its last call `every` s ago (none yet: at once) winds up for `wind` s (held, facing the hero), then
  *                wakes the next `ring` m round it toward the hero (the cast's spawn: it arrives by `with`)
  *   THE STRINGS  the summoner down: its bound summons that are up are CUT (destroyed where they stand, every joint letting
  *                go: vanish.js's wreck, `e.wreck`), those never called are dropped (down and never seen); an unbound one
@@ -52,7 +52,7 @@ export function buildSummon(E) {
       const S = m.rule.summon, kin = S.ids.map((id) => state.byId[id]).filter(Boolean), reeling = !m.downed && m.staggerT != null;
       for (const s of kin) s.summonSlack = !!(s.rule.summoned && s.rule.summoned.bound && up(s) && reeling);
       if (m.downed || m.gone) continue;
-      m.summonT = (m.summonT || 0) + dt;
+      m.summonT = (m.summonT ?? S.every) + dt;   // (its first call on sight, then every `every` s)
       if (m.summonWind != null) {
         const near = nearestPilot(m, state);
         if (near) m.transform.heading = Math.atan2(near.p.transform.pos[1] - m.transform.pos[1], near.p.transform.pos[0] - m.transform.pos[0]);
