@@ -9,13 +9,13 @@
  *                     move's and its attack's lowerings, so a class is built only when everything it does runs
  *
  * A row: { id, reads, move, pace?, attack: { kind, pattern?, timing?, reach?, zone? }, mind: { aggressiveness,
- * motivation?, perception?, pathing? }, fits: { support?, size?, gaits?, wings? }, presence (its body's size, its
+ * motivation?, perception?, pathing?, sight?, gaze?, cover? } (mind/vocab.js SIGHTS, GAZES, COVER), fits: { support?, size?, gaits?, wings? }, presence (its body's size, its
  * longest extent, as a share of the hero's height), toll: { downs, harm }, stomp, threat, standIn }. `mind.motivation` defaults to the move's; rank and skill are the foe's, never the class's.
  *
  * Pure; reads the mind's vocabulary and the engines' marks only (no fauna), so the cosmos facets can import it.
  */
 import { PACES, MOVES, ATTACKS, STOMPS } from './vocab.js';
-import { MOTIVATIONS, AGGRESSIVENESS } from '../mind/vocab.js';
+import { MOTIVATIONS, AGGRESSIVENESS, SIGHTS, GAZES } from '../mind/vocab.js';
 import { marksAcross, MARKED_ENGINES } from '../scene/engines/registry.js';
 import { worstMark } from '../scene/engines/marks.js';
 import { foe as walker } from './classes/walker.js';
@@ -29,11 +29,13 @@ import { foe as lurker } from './classes/lurker.js';
 import { foe as brute } from './classes/brute.js';
 import { foe as stalker } from './classes/stalker.js';
 import { foe as summoner } from './classes/summoner.js';
+import { foe as guard } from './classes/guard.js';
+import { foe as hunter } from './classes/hunter.js';
 
 const ROW_KEYS = ['id', 'reads', 'move', 'pace', 'attack', 'mind', 'fits', 'presence', 'toll', 'stomp', 'threat', 'standIn'];
 const ATTACK_KEYS = ['kind', 'pattern', 'timing', 'reach', 'zone'];
 const TIMING_KEYS = ['startup', 'active', 'recovery'];
-const MIND_KEYS = ['motivation', 'aggressiveness', 'perception', 'pathing'];
+const MIND_KEYS = ['motivation', 'aggressiveness', 'perception', 'pathing', 'sight', 'gaze', 'cover'];
 const FIT_KEYS = ['support', 'size', 'gaits', 'wings'];
 const SUPPORTS = ['four', 'two', 'wingwalk', 'fins', 'none'];
 const ZONES = ['orange', 'red'];
@@ -68,6 +70,9 @@ export function validateClass(row) {
   if (row.mind.motivation !== undefined) known(at('mind.motivation'), row.mind.motivation, MOTIVATIONS);
   if (row.mind.perception !== undefined) known(at('mind.perception'), row.mind.perception, ['sight', 'memory']);
   if (row.mind.pathing !== undefined) known(at('mind.pathing'), row.mind.pathing, ['direct', 'navmesh']);
+  if (row.mind.sight !== undefined) known(at('mind.sight'), row.mind.sight, SIGHTS);
+  if (row.mind.gaze !== undefined) known(at('mind.gaze'), row.mind.gaze, GAZES);
+  if (row.mind.cover !== undefined && typeof row.mind.cover !== 'boolean') throw new Error(`foe class: ${at('mind.cover')} is true (it takes cover) or false`);
   closed(at('fits'), row.fits || {}, FIT_KEYS);
   for (const s of row.fits.support ?? []) known(at('fits.support'), s, SUPPORTS);
   for (const s of row.fits.size ?? []) known(at('fits.size'), s, SIZES);
@@ -85,7 +90,7 @@ export function validateClass(row) {
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 const row = (o) => deepFreeze(structuredClone(validateClass(o)));
 
-export const FOE_CLASSES = Object.freeze(Object.fromEntries([walker, hopper, charger, swooper, turret, lobber, swarm, lurker, brute, stalker, summoner].map((o) => [o.id, row(o)])));
+export const FOE_CLASSES = Object.freeze(Object.fromEntries([walker, hopper, charger, swooper, turret, lobber, swarm, lurker, brute, stalker, guard, hunter, summoner].map((o) => [o.id, row(o)])));
 
 export function foeClass(id) {
   const c = FOE_CLASSES[id];

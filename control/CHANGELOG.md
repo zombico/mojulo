@@ -712,6 +712,22 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **One stand step for every hostile** (`gameworld/foes.js` `standFoe`; the operator: "can we sequence our injection at
+  that step so it happens at each game type", "lets make those sight changes then too"). The bestiary's foes, a
+  shooter's foes and a sneak's guards are stood through the same step, so each gets layer 0's whole package (its death
+  in the game's register, its base states, the target rim and bar) and a game type passes only its own few numbers over
+  the class's (`tune`: the shooter's gun, health and spacing; the sneak's watchers on their own team, never fought).
+  - How a mind sees, in words (`mind/vocab.js`): `sight` narrow | wide | keen, `gaze` still | sweep (a lookout's), and
+    `cover`, each lowering to the knobs the runtime already read; a class names them on its mind, refused by name.
+  - Two class rows in those words: `guard` (holds its post, a narrow sweeping gaze, engages what it sees) and `hunter`
+    (hunts by sight and memory on the navmesh, fires a rifle's pattern from range, takes cover). A shooter's foes are
+    hunters and a sneak's guards are guards, each in a person's skin, on the figure the game made.
+  - Their pages now carry layer 0: a shooter's foes are lit by the target rim and go in the game's register when they
+    fall; a sneak's guards keep their beam, their sweep and their team. Web first, as every AI attack: the engines'
+    marks say approximated (the planning page's Godot count moves with them).
+
+  Machine gate: the words lowered and refused; the stand step's package and a game's numbers last; the shooter's foes
+  stood as hunters with its gun; the gameworld, foe, mind and runtime suites. Eyes: not yet looked at.
 - **The summoner, and its summons** (`class: 'summoner'`, `summons: { foe, count?, bound? }`; `worlds/controllable/summon.js`;
   the operator: "a solo that controls/spawns N temp or persistent enemies. killing the puppetmaster wipes all temp
   enemies"). The first RELATION between foes (docs/foes.md's sixth shelf). The class is behaviour alone: it keeps its

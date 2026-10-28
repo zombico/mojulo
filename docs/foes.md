@@ -40,6 +40,12 @@ on a shelf is a row, pointing at primitives that already exist.
 | Death | how layer 0 is destroyed | `vanish` (`gameworld/vanish.js`: `die`, `sever`, `by`, `inside`) | a row, or a foe's own `by` |
 | Relations | the other foes whose fate it shares | `summons` (`gameworld/foes.js`, played by `worlds/controllable/summon.js`) | a row of what happens to them when it is reeling or down |
 
+Every hostile is stood through ONE step, `standFoe` (`gameworld/foes.js`): the bestiary's foes, a shooter's hunters
+and a sneak's guards alike. It lays the class's mind and attack and layer 0's whole package (the hit egg and health,
+the death in the game's register, the base states, the target rim and bar); a game type passes only its own few numbers
+over the class's (a `tune`: a shooter's gun and health, a sneak's unhittable watchers), never a mind of its own. How a
+mind sees is said in words on the class (`mind/vocab.js`): `sight` narrow | wide | keen, `gaze` still | sweep, `cover`.
+
 An entry reads as a recipe:
 
 ```js
@@ -156,6 +162,8 @@ name none. The discipline for adding one:
 - `scene/channels/status-channel.test.js`: a status look is rebuilt on the body a mode swap puts in, a rig body given
   the normals its coat needs; absent, the channel as it was.
 - `scene/channels/controllable/target-rim.test.js`: the target rim on the bar's pick, on whatever body it wears.
+- `gameworld/stand-foe.test.js`: the sight words lowered, refused by name; layer 0 laid by the stand step with a game's
+  numbers last; a shooter's foes stood as hunters.
 - `worlds/controllable/summon.test.js`: the call (near, capped, its wind-up broken by a blow), the slack while it reels,
   the strings cut on its fall and the uncalled dropped, an unbound summons fighting on; absent, no code.
 - `scene/rig-import.test.js`: a model's bones by each convention's names, its frame its body's whatever the file's, each

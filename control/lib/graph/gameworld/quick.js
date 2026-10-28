@@ -129,6 +129,7 @@ import { readScreen } from '../game/screen.js';
 import { readRunner } from '../worlds/controllable/runner.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { libraryFigure, foeFigure, beastLook, readBeastFoe, standRule, stand, facing, PERSON_BODY } from './stage-figures.js';
+import { standFoe as standHostile } from './foes.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
 import { shooterPole, readPole } from './shooter-pole.js';
@@ -198,11 +199,14 @@ export const QUICK_GOALS = Object.freeze({
 // supplies (health given, rounds given)
 /** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
+/** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
+const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
   rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
   gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
 });
+const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
@@ -1181,20 +1185,13 @@ export function shootDrops(posts, ends) {
 /** A shooter's cast, on a stage: each foe at its post, armed, hunting by sight and taking cover (the walls are the
  * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
-export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
+export function shootCast(quick, ends, ref, { hero = false, camera, G = null } = {}) {
   // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
   if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
-  const posts = shootPosts(quick, ends), figures = {}, entities = [];
-  posts.forEach((p, k) => {
-    figures[p.id] = libraryFigure(refAt(ref, k));
-    entities.push({
-      id: p.id, team: 'foes',
-      rule: { type: 'ai', mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 30, sightCone: 1.1, memorySpan: 6, navCell: 0.5, cover: { radius: 7, hold: 2.5 }, standoff: 12, speed: 3, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
-      weapon: { ...SHOOT.gun },
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: SHOOT.foeHp, poise: 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
-      transform: { pos: p.at, heading: p.heading },
-    });
-  });
+  const posts = shootPosts(quick, ends), figures = {}, entities = [], part = { figures, entities };
+  // (each a HUNTER, stood as every hostile is: foes.js standFoe; the shooter's own numbers over the class's, its gun, its
+  // health and its spacing: the class says how it sees and hunts)
+  posts.forEach((p, k) => standHostile(G, part, { id: p.id, entry: SHOOT_FOE, at: p.at, heading: p.heading }, { figure: libraryFigure(refAt(ref, k)), tune: SHOOT_TUNE }));
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
   const over = shoulderOf(camera ?? quick.camera, hero);

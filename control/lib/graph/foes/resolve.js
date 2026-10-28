@@ -31,7 +31,7 @@ import { foeClass, classStatus } from './index.js';
 import { checkFit, checkFitPeople, checkFitModel } from './fit.js';
 import { readPeopleSkin } from './people.js';
 import { readModelSkin, isModelSkin } from './model.js';
-import { RANKS, SKILLS } from '../mind/vocab.js';
+import { RANKS, SKILLS, sightKnobs } from '../mind/vocab.js';
 import { resolveMind } from '../mind/resolve.js';
 import { RANGED } from '../gameworld/feel/kernel.js';
 import { mutagenErrors } from '../mutagen/index.js';
@@ -98,7 +98,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
     ...(c.mind.perception ? { perception: c.mind.perception } : {}), ...(c.mind.pathing ? { pathing: c.mind.pathing } : {}),
     ...(M.group ? { group: { id: spec.group ?? c.id, ...M.group } } : {}),
   };
-  const rule = { type: 'ai', dodge: false, mind, ...(c.pace ? { speed: r3(PACES[c.pace] * hero.run) } : {}), ...(M.rule || {}) };
+  const rule = { type: 'ai', dodge: false, mind, ...(c.pace ? { speed: r3(PACES[c.pace] * hero.run) } : {}), ...(M.rule || {}), ...sightKnobs(c.mind) };
   const entity = { rule, body: { hp: downs * hero.blow } };
   armed(rule, entity, A, damage);
   // what the mind does not play (worlds/controllable/foe.js): its own move's numbers, the touch it hurts by, the stomp
