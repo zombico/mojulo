@@ -2,7 +2,7 @@
  * THE BEAST-KIN ON THE TIERED BODY: a non-human people built on the hero's own game body (polygonizer/tiered-form.js), so
  * a bear-kin has a person's shoulders under its web and cone, bridged elbows and knees, hands and a rig every hero clip
  * plays on, where the sixth generation stood it on the creature biped (egocube/plan.js `biped`). A hero carries it as
- * `beast: { kin, legs?, fingers?, claws? }` (the hero door's field), its kin a card (./cards.js).
+ * `beast: { kin, legs?, fingers?, toes?, claws? }` (the hero door's field), its kin a card (./cards.js); its legs ./legs.js.
  *
  *   beastCard(hero)          → the card a hero's beast stands for, its own words over the kin's, or null
  *   beastWords(spec)         → the hero's words for its kin, under the spec's own (the hero door records them at mint,
@@ -20,8 +20,9 @@
  * Absent `beast`, every function returns what it was given. FORM ONLY: the head is the hero's (a beast's head on the
  * tiered neck is its own step), the coat one tone; cover (fur, scales, chitin) is the material's, not cards. Pure.
  */
-import { BEAST_KINS, BEAST_KIN_IDS, BEAST_LEGS, BEAST_CLAWS, BEAST_FINGERS, kinCoat } from './cards.js';
+import { BEAST_KINS, BEAST_KIN_IDS, BEAST_LEGS, BEAST_CLAWS, BEAST_FINGERS, BEAST_TOES, kinCoat } from './cards.js';
 import { scaleRing, trunkCentre } from '../undead/tiered.js';
+import { GAITS } from '../polygonizer/hero-gaits.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -41,29 +42,42 @@ const TOES = ['hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
 // the waist's swell: its half span up and down the trunk, metres at a 1.8 m hero
 const WAIST_SPAN = 0.17;
 // a claw's length and its root's radius, as shares of the digit's tip ring; its point's radius
+/** a DIGITIGRADE kin's gaits (the hero's dials over the mint table, hero-motion.js stampHeroMotion): its knee rests bent
+ * (some 75°, the hock raised behind it), so a person's stance bend and swing fold, added to it, folded the knee's bridge
+ * shut (a jog's 115° swing tuck: the bridge's ring at 0.12 of its rest); the walk's lift and the run's tuck drawn in */
+export const DIGITIGRADE_GAIT = Object.freeze({ walk: Object.freeze({ stanceKnee: 0, swingLift: 26 }), sprint: Object.freeze({ stanceKnee: 0, swingTuck: 50 }) });
 const CLAW = { blunt: { length: 2.2, root: 0.8, curl: 0.35 }, long: { length: 4, root: 0.85, curl: 0.55 } }, CLAW_POINT = 0.12;
 
 export function beastCard(hero) {
   const B = hero?.beast;
   if (!B || !BEAST_KINS[B.kin]) return null;
   const K = BEAST_KINS[B.kin];
-  return { ...K, kin: B.kin, legs: B.legs ?? 'plantigrade', fingers: B.fingers ?? K.fingers, claws: B.claws ?? K.claws };
+  return { ...K, kin: B.kin, legs: B.legs ?? 'plantigrade', fingers: B.fingers ?? K.fingers, toes: B.toes ?? K.toes, claws: B.claws ?? K.claws };
 }
 
 export function beastErrors(spec) {
   const B = spec?.beast;
   if (B === undefined || B === null) return [];
-  if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, claws? }`];
+  if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, toes?, claws? }`];
   const errs = [];
-  for (const k of Object.keys(B)) if (!['kin', 'legs', 'fingers', 'claws'].includes(k)) errs.push(`beast.${k}: not a word of the beast (kin, legs, fingers, claws)`);
+  for (const k of Object.keys(B)) if (!['kin', 'legs', 'fingers', 'toes', 'claws'].includes(k)) errs.push(`beast.${k}: not a word of the beast (kin, legs, fingers, toes, claws)`);
   if (!BEAST_KINS[B.kin]) errs.push(`beast.kin: one of ${BEAST_KIN_IDS.join(', ')}`);
   if (B.legs !== undefined && !BEAST_LEGS.includes(B.legs)) errs.push(`beast.legs: ${BEAST_LEGS.join(' | ')}`);
-  else if (B.legs === 'digitigrade') errs.push("beast.legs: the tiered body does not stand on digitigrade legs yet (its knee, hock and toes bridged); a beast-kin stands plantigrade on it for now");
   if (B.fingers !== undefined && !BEAST_FINGERS.includes(B.fingers)) errs.push(`beast.fingers: ${BEAST_FINGERS.join(' | ')} (the thumb among them)`);
+  if (B.toes !== undefined && !BEAST_TOES.includes(B.toes)) errs.push(`beast.toes: ${BEAST_TOES.join(' | ')}`);
   if (B.claws !== undefined && !BEAST_CLAWS.includes(B.claws)) errs.push(`beast.claws: ${BEAST_CLAWS.join(' | ')}`);
   if ((spec.form ?? 'tiered') !== 'tiered') errs.push("beast: the beast-kin stand on the tiered body (form: 'tiered')");
   if (spec.undead !== undefined && spec.undead !== null) errs.push('beast: a body is a beast-kin or undead, not both');
   return errs;
+}
+
+// the hero's gaits as the kin walks them: the walk always (tilted by the hunch), a digitigrade kin's every walk and run
+// with its knee dials; the operator's own dials over them
+function beastMotion(motion, card) {
+  const own = (g) => (g && typeof g === 'object' ? g : {}), digi = card.legs === 'digitigrade';
+  const out = { ...(motion ?? {}), walk: { ...(card.rest.hunch > 0 ? { tilt: Math.min(35, card.rest.hunch) } : {}), ...(digi ? DIGITIGRADE_GAIT.walk : {}), ...own(motion?.walk) } };
+  if (digi) for (const [name, g] of Object.entries(out)) { const M = GAITS[name]?.motion; if (name !== 'walk' && M && g) out[name] = { ...DIGITIGRADE_GAIT[M], ...own(g) }; }
+  return out;
 }
 
 /** the rest the card stands in, as the hero's pose words: the hunch a hinge over the hips, the knees given, the arms hung
@@ -85,7 +99,7 @@ export function beastWords(hero) {
     palette: { Top: coat, Bottom: coat, Shoes: coat, Hair: coat, Brow: coat, Claws: card.claw, ...(hero.palette ?? {}), Skin: coat },
     gesture: hero.gesture ?? G,
     clips: { idle, ...(hero.clips ?? {}) },
-    motion: { ...(hero.motion ?? {}), walk: { ...(card.rest.hunch > 0 ? { tilt: Math.min(35, card.rest.hunch) } : {}), ...(hero.motion?.walk && typeof hero.motion.walk === 'object' ? hero.motion.walk : {}) } },
+    motion: beastMotion(hero.motion, card),
   };
 }
 
@@ -162,7 +176,7 @@ export function beastHands(plan, hero) {
     // (the claws ride the dials their digits do: the bulk with the hands, the stance with the feet, the lean with the arms)
     for (const d of Object.values(dials)) if (Array.isArray(d.parts)) {
       if (d.parts.includes('index$S')) d.parts = [...d.parts, ...KEPT_FINGERS[card.fingers].map((f) => `${f}Claw$S`)];
-      if (d.parts.includes('toes$S') && claws.some((c) => TOES.some((t) => c.name === `${t}ClawR`))) d.parts = [...d.parts, ...TOES.filter((t) => by[`${t}R`]?.stations).map((t) => `${t}Claw$S`)];
+      if (d.parts.includes('foot$S')) d.parts = [...d.parts, ...TOES.filter((t) => by[`${t}R`]?.stations).map((t) => `${t}Claw$S`)];
     }
   }
   return { ...plan, segments, dials, palette: { ...(plan.palette ?? {}), Claws: plan.palette?.Claws ?? card.claw } };

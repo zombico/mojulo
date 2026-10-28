@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { BEAST_KINS, kinCoat } from './cards.js';
 import { beastCard, KEPT_FINGERS } from './tiered.js';
+import { KEPT_TOES } from './legs.js';
 import { heroRecord, heroPlanOf, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm, withDefaultWalk } from '../polygonizer/motion-stamp.js';
 import { beastWords } from './tiered.js';
@@ -80,7 +81,7 @@ describe('the beast-kin on the tiered body', () => {
     const R = validateRig(recipe.rig), mesh = compileLayered(recipe, dials), skin = bindLayered(mesh, recipe, R), A = auditRig(mesh, skin, R);
     expect(A.badWeights).toBe(0);
     expect(A.restIdentity).toBeLessThan(1e-9);
-    expect(Object.keys(mesh.parts).filter((n) => /Claw[RL]$/.test(n)).length).toBe(2 * (KEPT_FINGERS[3].length + 5));
+    expect(Object.keys(mesh.parts).filter((n) => /Claw[RL]$/.test(n)).length).toBe(2 * (KEPT_FINGERS[3].length + KEPT_TOES.plantigrade[BEAST_KINS[THREE].toes].length));
   }, 60_000);
 
   it('its joints are the tiered body\'s: through walk, jog and sprint it pinches and folds no worse than its build\'s hero', () => {
@@ -95,7 +96,8 @@ describe('the beast-kin on the tiered body', () => {
   it('the door refuses what the tiered body does not stand', () => {
     const errs = (beast, extra = {}) => validateHeroSpec(beastWords({ form: 'tiered', cast: 'male', beast, ...extra })).join('\n');
     expect(errs({ kin: 'goblin' })).toMatch(/beast\.kin: one of/);
-    expect(errs({ kin: BARREL, legs: 'digitigrade' })).toMatch(/does not stand on digitigrade legs yet/);
+    expect(errs({ kin: BARREL, legs: 'hooved' })).toMatch(/beast\.legs/);
+    expect(errs({ kin: BARREL, toes: 6 })).toMatch(/beast\.toes/);
     expect(errs({ kin: BARREL, fingers: 2 })).toMatch(/beast\.fingers/);
     expect(errs({ kin: BARREL, claws: 'sharp' })).toMatch(/beast\.claws/);
     expect(errs({ kin: BARREL, tail: 'brush' })).toMatch(/beast\.tail: not a word/);

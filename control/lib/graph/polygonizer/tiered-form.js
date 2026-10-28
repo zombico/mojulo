@@ -113,6 +113,9 @@ export const TIERED_JOINTS = Object.freeze([
   Object.freeze({ bridge: 'kneeBridgeR', upper: 'thighR', lower: 'shankR', fold: 'kneeFoldR', reach: 0.6 }),
   Object.freeze({ bridge: 'wristBridgeR', upper: 'foreArmR', lower: 'handR', fold: null, reach: 1.2 }),
 ]);
+/** a digitigrade leg's hock (a beast-kin's, beast/legs.js), bridged as the knee is with its fold to the heel's side; only
+ * a plan that names its bridge carries it (a person's ankle is not bridged) */
+export const TIERED_HOCK = Object.freeze({ bridge: 'hockBridgeR', upper: 'shankR', lower: 'footR', fold: 'hockFoldR', reach: 0.6 });
 /** the bridge's inner rings along the run (0 the upper end, 1 the lower) and each one's weights: upper, fold, lower */
 const BRIDGE_RUN = Object.freeze([[0.25, [0.5, 0.5, 0]], [0.5, [0, 1, 0]], [0.75, [0, 0.5, 0.5]]]);
 const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
@@ -180,7 +183,7 @@ function chainsOf(joints) {
 }
 /** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one.
  * `list`: the joints to look for (the hero's by default; a creature's from its own chains, creature-drawn.js). */
-export function bridgedChains(plan, list = TIERED_JOINTS) {
+export function bridgedChains(plan, list = [...TIERED_JOINTS, TIERED_HOCK]) {
   const names = new Set((plan.segments || []).map((s) => s.name)), of = chainsOf(list.filter((J) => names.has(J.bridge)));
   // (a shoulder web ends on its arm's ring: it splits with the arm's chain, or it would end on half the arm's points)
   // (the cone ends on its web's ring: it splits with them)

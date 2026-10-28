@@ -60,6 +60,7 @@ import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
 import { undeadLayers, undeadRecipe } from '@/lib/graph/undead/tiered-layers';
 import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
 import { beastWords, beastFlesh, beastHands, beastErrors } from '@/lib/graph/beast/tiered';
+import { beastLegs, beastJoints } from '@/lib/graph/beast/legs';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
@@ -1275,9 +1276,10 @@ function tieredFormPlan(hero) {
   // (a skeleton's bones on the hero's landmarks, undead/hero-bones.js: no bridges, no shoulder balls; a bone joint is
   // its knob)
   if (undeadCard(hero)?.form === 'bone') return heroSkeleton(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), undeadCard(hero), { segmented: !!hero.undead.layers?.includes('attack') });
-  // (the undead's flesh passes, and a beast-kin's girths, on the body before its joints are bridged and its shoulders
-  // balled: undead/tiered.js, beast/tiered.js; a beast's hands and claws on the body as it ends)
-  return beastHands(tieredSockets(tieredJoints(tieredChest(beastFlesh(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), tieredBust(hero)), undefined, { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero);
+  // (the undead's flesh passes, and a beast-kin's girths and legs, on the body before its joints are bridged and its
+  // shoulders balled: undead/tiered.js, beast/tiered.js, beast/legs.js, a digitigrade kin's hock bridged with the knee;
+  // a beast's hands and claws on the body as it ends)
+  return beastHands(tieredSockets(tieredJoints(tieredChest(beastLegs(beastFlesh(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero);
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0

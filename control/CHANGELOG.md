@@ -44,10 +44,10 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   `--body classic` audits the other. The form slice (`--form`) reads its build as before. On the tiered body the knee's
   and the elbow's regions now count every ring of their bridge (`hero-stretch.js` `STRETCH_REGIONS`), where the limbs'
   own end rings stay rigid and read 1. A classic body has no bridges and reads as it did.
-- **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, claws? }`.
+- **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, toes?, claws? }`.
   The kin is a card (`beast/cards.js`) of words, never geometry:
   - `reads`: what the kin reads as;
-  - `fingers`: 3 or 4, the thumb among them;
+  - `fingers`: 3 or 4, the thumb among them; `toes`: 3, 4 or 5;
   - `claws`: none, blunt or long, and their tone;
   - `mass`: each part family's girth against a person's, and the waist on top of the trunk (over 1 a barrel, under 1
     a wasp's waist);
@@ -66,12 +66,11 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   - a hooked claw comes out of each kept digit's tip and each toe's. It is a four-station loft that curls toward the
     palm or the floor, riding the digit's last bone.
 
-  The legs are the hero's word, not the kin's (a lineage stands digitigrade by how far from a person its sheet rolled):
-  `digitigrade` is refused until the tiered body stands on it. Also refused: an unknown kin or word, a beast off the
-  tiered body, and a beast that is undead too. A hero without `beast` is unchanged. Not yet carried, each its own step:
-  the beast head on the tiered neck (the hero's own head is worn meanwhile), digitigrade legs, the tail, arm-wings and
-  the second pair of arms on a generic socket, cover as material (relief to normal, occlusion and height) in place of
-  cards, and the egocube's route from a sheet to the card.
+  The legs are the hero's word, not the kin's (a lineage stands digitigrade by how far from a person its sheet rolled).
+  Refused: an unknown kin or word, a beast off the tiered body, and a beast that is undead too. A hero without `beast`
+  is unchanged. Not yet carried, each its own step: the beast head on the tiered neck (the hero's own head is worn
+  meanwhile), cover as material (relief to normal, occlusion and height) in place of cards, and the egocube's route
+  from a sheet to the card.
 
   Machine gate (`beast/tiered.test.js`):
   - the words recorded, the operator's own over them;
@@ -93,6 +92,40 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   Minted through `create_character`, the male kin draw no core advisory. A female barrel kin is told its waist is as
   wide as its hips, which is the barrel's read. Eyes: front, side and the gaits, cropped to the hand and the foot.
   Eyes gate: the operator's to judge.
+- **Digitigrade legs on the tiered body** (`beast/legs.js`, `beast.legs: 'digitigrade'`). The rig's leg is already a
+  digitigrade chain (hip, knee, hock, toes; a person's hock is the ankle on the floor), so a digitigrade kin is the same
+  chain with its joints moved and the parts below the knee made for them:
+  - the joints are shares of the hip's height, taken from the creature biped's digitigrade template: the knee forward,
+    the hock raised and back, the toes' base on the floor ahead of it;
+  - the thigh is turned and stretched about the hip onto its new line, each station's offset from the line kept, and
+    the hip's socket fold follows it;
+  - the foot is a metatarsus from the hock to the toes' base, with a pad under the ball and the card's toes splayed
+    ahead (the middle ones: no big toe), each with its claw on the toes' bone;
+  - the hock is bridged as the knee is (`tiered-form.js` `TIERED_HOCK`): the shank and the metatarsus stop short of
+    it, a bridge spans it, and its rings ride a fold pushed to the heel's side (the knee's goes to its front, since the
+    two bend opposite ways). A chain splits as one unit with its hock (`bridgedChains`); a person's ankle names no hock
+    bridge and is untouched.
+
+  A plantigrade kin keeps a person's foot, with the card's toes (the big toe among them, the outer ones gone from the
+  skin and the dials). A digitigrade kin's knee rests bent some 75°, so a person's stance bend and swing fold, added to
+  it, folded the knee's bridge shut: a jog's 115° swing tuck left its ring at 0.12 of its rest. A digitigrade kin's
+  gaits draw them in (`DIGITIGRADE_GAIT`: the walk's lift 26°, a run's tuck 50°, no stance bend), on every walk and run
+  it carries, with the operator's own dials over them.
+
+  Machine gate (`beast/legs.test.js`):
+  - the joints, the turned thigh and its socket's line;
+  - the hock's bridge on its fold to the heel's side, its bone in the rig;
+  - the metatarsus, the pad and the kept toes with their claws, the dials naming them;
+  - a plantigrade foot with the card's toes;
+  - the gait dials, the operator's over them;
+  - the rig audit, with the planted toes where they stand;
+  - the stretch audit through the kin's own walk, jog and sprint: worst pinch above 0.7, no more folds than a person's,
+    twist under 30°;
+  - a person's jog on the same knee pinching under 0.4, the case the gait dials are for.
+
+  Measured: the wolf-kin walks, jogs and sprints at a worst pinch of 0.87 (its knee 0.97), where the plain hero's own
+  sprint pinches its unbridged ankle to 0.45. The wolf-kin, the bird-kin and the dragon-kin mint through
+  `create_character` with no core advisory. Eyes: front, side and the gaits. Eyes gate: the operator's to judge.
 
 ### Foe classes: the hostile encounter primitive
 
