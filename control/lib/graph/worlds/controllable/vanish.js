@@ -22,6 +22,9 @@
  * the knockdown), resets into the next mode (its figure, its health) and fights on, `e.shed` telling the page what it was; only the last
  * mode, layer 0, dies (and is destroyed or goes as above). Field ownership: e.modeIdx, e.modeHp, e.shed.
  *
+ * BORN (`body.born: { statuses, element? }`, a foe's base states: foes/states.js): what it starts under, given at the
+ * first step (e.statuses, e.element). Field ownership: e.bornGiven.
+ *
  * Wraps stepWorld, as hitstop.js does, so the pinned pipeline order is untouched. Import-free (the page runs this source
  * via toString(), compose.js); emitted only into a page whose world has a body that vanishes, so every other page keeps
  * every byte. Field ownership: e.vanishT (how long it has lain), e.vanishThrow (a launch in flight), e.wreck (a
@@ -66,6 +69,13 @@ export function buildVanish(E) {
     // (a body that vanishes dies its own way: never the suit's death burst, combat-match.js, whose fireball and splash
     // stagger are a mecha's; its latch is set before the pass can fire it)
     for (const e of state.entities) if (e.body && e.body.vanish && !e.deathBurstDone) e.deathBurstDone = true;
+    // a body BORN under a state (`body.born`, foes/states.js): its statuses and element given at the first step
+    for (const e of state.entities) if (e.body && e.body.born && !e.bornGiven) {
+      e.bornGiven = true;
+      const B = e.body.born;
+      if (B.statuses) e.statuses = { ...(e.statuses || {}), ...Object.fromEntries(Object.entries(B.statuses).map(([k, v]) => [k, { ...v }])) };
+      if (B.element) e.element = B.element;
+    }
     // MODES (`body.modes`, optional): while a mode is left under this one, a killing blow DEFEATS it, never destroys it
     // (combat-hit's `noDestroy`: its bar refilled, never downed)
     for (const e of state.entities) {

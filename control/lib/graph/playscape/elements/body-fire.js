@@ -5,7 +5,7 @@
  * only while the body carries that status in that colour, where its feet are, and stands on no prop.
  *
  *   bodyFires(play, entities) → [{ kind, at: [0, 0, 0], size, color?, follow, el, key, rise, char? }]   for resolveFire's sources
- *                             (a play block's cues and menus, and the statuses an entity is born under: `e.statuses`)
+ *                             (a play block's cues and menus, and the statuses a body is born under: `body.born`)
  *   fireKey(color)            the colour a status burns in, as the page matches it ('' for the element's own)
  */
 import { readCues } from '../ui/cues.js';
@@ -19,8 +19,9 @@ const hex = (c) => '#' + c.map((v) => Math.round(v * 255).toString(16).padStart(
 export function bodyFires(play, entities = []) {
   const ids = new Set((entities || []).map((e) => e && e.id)), seen = new Set(), out = [];
   const cued = play && typeof play === 'object' && (play.cues || play.menus);
-  // (and a status a body is BORN under, `e.statuses` on the entity: a foe's base state, foes/states.js)
-  const born = (entities || []).flatMap((e) => (e && e.statuses ? Object.entries(e.statuses).map(([is, st]) => ({ kind: 'cast', op: 'status', who: e.id, is, look: LOOKS[is], ...(st && st.color != null ? { color: st.color } : {}), ...(st && Number.isFinite(st.char) ? { char: st.char } : {}) })) : []));
+  // (and a status a body is BORN under, `body.born.statuses`: a foe's base state, foes/states.js)
+  const bornOf = (e) => (e && e.body && e.body.born && e.body.born.statuses) || null;
+  const born = (entities || []).flatMap((e) => (bornOf(e) ? Object.entries(bornOf(e)).map(([is, st]) => ({ kind: 'cast', op: 'status', who: e.id, is, look: LOOKS[is], ...(st && st.color != null ? { color: st.color } : {}), ...(st && Number.isFinite(st.char) ? { char: st.char } : {}) })) : []));
   if (!cued && !born.length) return [];
   const effects = [...(cued ? [...readCues(play).flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))] : []), ...born];
   for (const t of effects) {

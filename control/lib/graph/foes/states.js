@@ -14,7 +14,8 @@
  *                element's own
  *     elemental  true: the state is the foe's ELEMENT (`e.element`: what its blows carry, what a system may read: a
  *                fire foe burns what it strikes, shrugs off fire); false (the default): only the look
- *   stateBirth(states)  → { statuses, element? }: what the entity is born carrying (its statuses on the world clock at 0)
+ *   stateBirth(states)  → { statuses, element? }: what the body is born carrying (its statuses on the world clock at 0), laid
+ *                         on the entity's body as `body.born` (worlds/controllable/vanish.js gives it at the first step)
  *
  * Pure.
  */

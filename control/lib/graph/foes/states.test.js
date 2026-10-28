@@ -20,6 +20,14 @@ describe('a foe born in a state', () => {
     expect(el.element).toBe(S.element);
     expect(el.statuses[S.status]).toMatchObject({ color: FLAME_COLORS.blue, char: 0.5 });
   });
+  it('the runtime gives a body what it is born with at its first step', async () => {
+    const { composeLive } = await import('../worlds/controllable/compose.js');
+    const E = composeLive(), born = stateBirth(readStates({ [name]: { elemental: true } }, 's'));
+    const st = E.createWorld({ entities: [{ id: 'f', team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 5, vanish: { is: 'fade', linger: 1 }, born }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    E.stepWorld(st, {}, 1 / 30, { ground: () => 0 });
+    expect(st.byId.f.statuses[S.status]).toMatchObject({ t0: 0 });
+    expect(st.byId.f.element).toBe(S.element);
+  });
   it('the words are refused by name, and a bestiary entry takes them', () => {
     expect(() => readStates({ glowing: true }, 's')).toThrow(/not a state/);
     expect(() => readStates({ [name]: { color: 'mauve' } }, 's')).toThrow(/a flame's colour/);
@@ -27,7 +35,7 @@ describe('a foe born in a state', () => {
     expect(readBestiary({ a: { class: 'walker', states: { [name]: true } } }).a.states).toEqual({ [name]: {} });
   });
   it('a body born under a burning look is one fire it carries, charring where it asks to; none, no char', () => {
-    const born = { id: 'f', statuses: stateBirth(readStates({ [name]: { color: 'green' } }, 's')).statuses };
+    const born = { id: 'f', body: { type: 'mesh', born: stateBirth(readStates({ [name]: { color: 'green' } }, 's')) } };
     const [F] = bodyFires(undefined, [born]);
     expect(F).toMatchObject({ follow: 'f', el: S.status, color: FLAME_COLORS.green, char: S.char });
     expect(bodyFires(undefined, [{ id: 'g' }])).toEqual([]);

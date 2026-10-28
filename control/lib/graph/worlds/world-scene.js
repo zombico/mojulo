@@ -716,7 +716,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
   // A play block's burning statuses (playscape elements burning / blaze) add a fire per body they may set alight.
   // (and a status a body is born under: a foe's base state)
-  const bornAlight = Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.statuses && Object.keys(e.statuses).length);
+  const bornAlight = Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.body && e.body.born && e.body.born.statuses && Object.keys(e.body.born.statuses).length);
   const bodyFire = payload && (sketch.manifest.play || bornAlight) ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
   if (payload && (sketch.manifest.fire || bodyFire.length)) {
     const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
