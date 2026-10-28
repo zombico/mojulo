@@ -153,7 +153,7 @@ export function hillclimbMd(opts) {
   L.push('## The loop', '');
   L.push('1. Pick from the three rankings below: a package that lifts many worlds per effort, a recipe many worlds wait on,');
   L.push('   or a pair with synergy (build the two as one concept).');
-  L.push('2. Write its plan section and its Unreleased changelog entry; build it opt-in (absent keys keep every byte).');
+  L.push('2. Write its plan section and its changelog theme file (control/changelog/<MMYY>/<MMDD>/<theme>.md); build it opt-in (absent keys keep every byte).');
   L.push('3. Mark the registry (status, lowers, each engine\'s mark) in lib/graph/cosmos/facets; a pair worth keeping becomes a package.');
   L.push('4. `npm run tool-surface`, read this page again, and note the move (verdict totals, the genre probes).', '');
   L.push('## Where it stands', '');
