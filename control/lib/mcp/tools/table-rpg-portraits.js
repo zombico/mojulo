@@ -33,13 +33,17 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { readTableRpg } from '@/lib/graph/table-rpg/table-rpg-manifest';
 import { childRef } from '@/lib/graph/gameworld/runner';
-import { createSketchHandler } from './sketch-mint.js';
 import { createCharacterHandler } from './create-character.js';
 import { castRequestOf, beastWords, CAST_LEADERS, CAST_PATH } from '@/lib/graph/table-rpg/table-rpg-cast';
 import { beastMovesOf } from '@/lib/graph/egocube/moves.js';
-import { egocubeCreate, rollStored } from '@/lib/graph/egocube/kind.js';
+import { egocubeCreate, rollStored, readEgocubeKind } from '@/lib/graph/egocube/kind.js';
 import { itemBuildOf, memberGear, foeGear } from '@/lib/graph/table-rpg/table-rpg-gear';
 import { mintSolidHandler } from './mint-solid.js';
+
+// an egocube row the game writes from a roll or a cast it has already rolled: checked by the kind and rolled where it is
+// written, as create_sketch does, but not resolved as a world first (a cast's line-up preview mints every member, the
+// troops among them, a minute's work no one asked for; it is drawn when the row is opened)
+const storeEgocube = ({ title, ref, manifest }) => SketchRepository.create({ title, ref, manifest: rollStored(readEgocubeKind(manifest)) });
 
 // arms in hand for a person on the hero door (the hero's `gear`: the equipment kernel's builds); a body below the hero
 // door, a beast or a mascot holds nothing
@@ -54,7 +58,7 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
     const own = (tableRpg.party ?? []).find((q) => q.id === p.id) ?? { id: p.id, ...(p.role ? { role: p.role } : {}) };
     if (p.character || !p.egocube?.roll) { party.push(own); continue; }
     const sheetRef = childRef(ref, `${p.id}-sheet`), charRef = childRef(ref, p.id);
-    await createSketchHandler({ title: `${title} · ${p.name} (sheet)`, ref: sheetRef, manifest: { kind: 'egocube', roll: p.egocube.roll } });
+    storeEgocube({ title: `${title} · ${p.name} (sheet)`, ref: sheetRef, manifest: { kind: 'egocube', roll: p.egocube.roll } });
     // the member holds its class's weapon as the equipment kernel makes it (or the artifact it starts with), in the
     // game's arms style
     const kp = K.party.find((q) => q.id === p.id);
@@ -68,7 +72,7 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
   const request = castRequestOf(module), leaders = request ? new Set(CAST_LEADERS.map((part) => module.cast.as[part])) : new Set();
   if (request) {
     const castRef = childRef(ref, 'cast');
-    await createSketchHandler({ title: `${title} · the cast`, ref: castRef, manifest: { kind: 'egocube', cast: request } });
+    storeEgocube({ title: `${title} · the cast`, ref: castRef, manifest: { kind: 'egocube', cast: request } });
     for (const part of CAST_LEADERS) {
       const id = module.cast.as[part], F = module.foes[id];
       if (F.character) continue;
@@ -94,7 +98,7 @@ export async function makeTableCharacters({ ref, tableRpg, title }) {
     if (leaders.has(id) || F.character || F.beast || !F.egocube?.roll) continue;
     const sheetRef = childRef(ref, `foe-${id}-sheet`), charRef = childRef(ref, `foe-${id}`);
     try {
-      await createSketchHandler({ title: `${title} · ${F.name ?? id} (sheet)`, ref: sheetRef, manifest: { kind: 'egocube', roll: F.egocube.roll } });
+      storeEgocube({ title: `${title} · ${F.name ?? id} (sheet)`, ref: sheetRef, manifest: { kind: 'egocube', roll: F.egocube.roll } });
       await createCharacterHandler({ egocube: sheetRef, title: `${title} · ${F.name ?? id}`, ref: charRef });
       foes[id] = { ...(foes[id] ?? {}), egocube: { roll: F.egocube.roll }, character: charRef };
       made.push({ foe: id, sheet: sheetRef, character: charRef });

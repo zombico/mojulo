@@ -152,7 +152,9 @@ the operator has not.
   the mastermind, the lieutenant and the rival are made characters by their member paths through `create_character`
   (the hero, creature and animal doors, a mascot as a creature), as is a foe rolled alone on the egocube; each
   recorded as its foe's `character: <ref>`, named in the answer's factions. A body the loop cannot make is advised and
-  the game goes on (`makeTableCharacters`, formerly `makePartyCharacters`).
+  the game goes on (`makeTableCharacters`, formerly `makePartyCharacters`). The game writes its egocube rows from the
+  roll or the cast it has already rolled (checked by the kind and rolled where they are written), not resolved as a world
+  at mint: a cast's line-up preview mints every member, a minute's work, and is drawn when the row is opened.
 - **Photographed**: the foes that are characters are photographed as the party is, framed by the body's own extent (a
   long body by its length between its 2nd and 98th percentiles, a mascot's bust its whole head); the Factions chapter
   lines the leaders up and puts each bust in its entry, a foe of no faction gets its bust over its stat block. The

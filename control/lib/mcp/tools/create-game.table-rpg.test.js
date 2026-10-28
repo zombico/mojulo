@@ -117,17 +117,23 @@ describe('create_game — a table game (table_rpg)', () => {
   });
 
   it('the cast\'s leaders made characters whatever their bodies: a cast row, a body each by its member path, recorded on its foe', async () => {
-    const out = await createGameHandler({ title: 'Wolf Hall', table_rpg: { starter: { use: 'keep' }, cast: { people: { lieutenant: { body: 'beast', species: 'wolf' } } }, party: [{ id: 'x', role: 'frontline' }] }, ref: 'tr_cast' });
-    // the beast that serves is a game creature: dire, the mutagen's ooze carried to the animal door
-    expect(SketchRepository.getByRef('tr_cast-cast').manifest).toMatchObject({ kind: 'egocube', cast: { cast: { 'mastermind/lieutenant': { body: 'beast', species: 'wolf', ooze: 'dire' } } } });
+    // the smallest game that has a cast: the chapel (no starter, so no hoard to mint), its own foes taking the parts, and
+    // leaders below the hero door (the hero door's people are the party's and the arms' tests), each a minute's mint
+    const people = { mastermind: { body: 'beast', species: 'wolf' }, lieutenant: { body: 'beast', species: 'brownBear' }, rival: { body: 'mascot' } };
+    const out = await createGameHandler({ title: 'Wolf Hall', table_rpg: { ...SUNKEN_CHAPEL, cast: { as: { mastermind: 'barrow-wight', troop: 'ghoul', hand: 'footpad' }, people } }, ref: 'tr_cast' });
+    // a beast of the cast is a game creature: the mastermind mythical, the lieutenant dire, the mutagen's oozes carried
+    // to the animal door
+    expect(SketchRepository.getByRef('tr_cast-cast').manifest).toMatchObject({ kind: 'egocube', cast: { cast: { mastermind: { body: 'beast', species: 'wolf', ooze: 'mythical' }, 'mastermind/lieutenant': { body: 'beast', species: 'brownBear', ooze: 'dire' } } } });
     expect(SketchRepository.getByRef('tr_cast-cast-lieutenant').manifest).toMatchObject({ ooze: { oozes: [{ id: 'dire' }] } });
     const stored = SketchRepository.getByRef('tr_cast').manifest.tableRpg.foes;
-    expect(stored).toMatchObject({ castellan: { character: 'tr_cast-cast-mastermind' }, lieutenant: { character: 'tr_cast-cast-lieutenant' }, rival: { character: 'tr_cast-cast-rival' } });
+    expect(stored).toMatchObject({ 'barrow-wight': { character: 'tr_cast-cast-mastermind' }, lieutenant: { character: 'tr_cast-cast-lieutenant' }, rival: { character: 'tr_cast-cast-rival' } });
     for (const r of ['mastermind', 'lieutenant', 'rival']) expect(SketchRepository.getByRef(`tr_cast-cast-${r}`)).toBeTruthy();
-    expect(out.factions[0].characters).toEqual({ castellan: 'tr_cast-cast-mastermind', lieutenant: 'tr_cast-cast-lieutenant' });
-    // the game reads the very cast the row stores: the beast is the game's lieutenant
+    expect(out.factions[0].characters).toEqual({ 'barrow-wight': 'tr_cast-cast-mastermind', lieutenant: 'tr_cast-cast-lieutenant' });
+    // the game reads the very cast the row stores: the bear is the game's lieutenant, the chapel's own foes keep theirs
     const { readTableRpg } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
-    expect(readTableRpg(SketchRepository.getByRef('tr_cast').manifest.tableRpg).K.foes.lieutenant.persona).toMatchObject({ body: 'beast', species: 'wolf' });
+    const { K } = readTableRpg(SketchRepository.getByRef('tr_cast').manifest.tableRpg);
+    expect(K.foes.lieutenant.persona).toMatchObject({ body: 'beast', species: 'brownBear' });
+    expect(K.foes['barrow-wight']).toMatchObject({ name: 'Barrow Wight', rank: 3, faction: 'mastermind' });
   }, 120000);
 
   it('arms and artifacts: the member holds its class\'s weapon in the game\'s style, the relic minted as an item of its own', async () => {
