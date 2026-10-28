@@ -93,6 +93,8 @@ describe('the cast roller', () => {
     expect(() => readCastRequest({ cast: { 'boss/hand': { relation: 'lieutenant' } } })).toThrow(/parent 'boss' is written before it/);
     expect(() => readCastRequest({ cast: { t: { relation: 'rank' } } })).toThrow(/rank is one of/);
     expect(() => readCastRequest({ cast: { f: { relation: 'familiar', body: 'person', species: 'wolf' } } })).toThrow(/species is a beast's/);
+    expect(() => readCastRequest({ cast: { f: { relation: 'familiar', body: 'person', ooze: 'dire' } } })).toThrow(/ooze makes a beast a game creature/);
+    expect(() => readCastRequest({ cast: { f: { relation: 'familiar', body: 'beast', ooze: 'slimy' } } })).toThrow(/unknown ooze "slimy"/);
     expect(Object.keys(RELATIONS)).toEqual(expect.arrayContaining(['shadow', 'rival', 'foil', 'mentor', 'party', 'familiar', 'lieutenant', 'mastermind', 'rank']));
   });
 });

@@ -417,7 +417,10 @@ const DESCRIPTION_ALLOWLIST = {
 // lines' additions together fit under the pin. No new tool.
 // Raised 2026-10-26 on 1026-gen7-form (212_000 -> 212_300; measured 212,161) for the era as a render: export_game's
 // `era` (the same game's pages drawn in another era than its cube's), one schema property. No new tool.
-const PAYLOAD_CEILING = 212_300;
+// Raised 2026-10-27 on 1027-tabletop-rpg-gen (212_300 -> 212_500; measured 212,353) for the table game: create_game's
+// `table_rpg` (a pen-and-paper RPG played in text, its characters rolled, its book printed), one schema property, its
+// grammar on the vocab card. No new tool.
+const PAYLOAD_CEILING = 212_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
