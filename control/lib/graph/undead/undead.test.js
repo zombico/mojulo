@@ -179,6 +179,9 @@ describe('the layers', () => {
     // rot is never even: across seeds, some limb on one side keeps flesh the other side's has lost
     const sides = [1, 2, 3, 4, 5, 6].map((sd) => dressed(['decayed'], sd).body.segments.filter((s) => /^flesh(Thigh|Shin|UpperArm|ForeArm)[RL]$/.test(s.name)).map((s) => s.name));
     expect(sides.some((ns) => ns.some((n) => !ns.includes(n.replace(/R$/, '_').replace(/L$/, 'R').replace(/_$/, 'L'))))).toBe(true);
+    // the rags hang from the trunk, never the limbs: the flesh on a hand hanging at the hips widens no band
+    const wide = (B2) => Math.max(...B2.body.segments.filter((s) => s.group === 'Cloth' && !/Arm/.test(s.name)).flatMap((s) => Object.values(s.stations[0].points).map((p) => Math.abs(p[0]))));
+    for (const sd of [1, 5]) expect(wide(dressed(['decayed', 'shreds'], sd))).toBeLessThan(wide(dressed(['shreds'], sd)) * 1.05);
     // the body under it is the bare one; over a zombie it is refused
     expect(JSON.stringify(B.body.segments.filter((s) => s.group !== 'Flesh'))).toBe(JSON.stringify(bare.body.segments));
     expect(B.frameParts).toContain('fleshTorso');

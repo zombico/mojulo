@@ -397,6 +397,14 @@ through the character designer, clips fitted to the class's timing, factions) is
   thicker than its shaft and thinner than its ends; rot uneven across seeds; the body under the layer the bare one;
   refused over a zombie; the lineage's sheet carrying both layers and its plan building. Eyes: the soldier, the
   knight and the giant decayed, and the soldier ragged, from three views. Eyes gate: the operator's to judge.
+- **A decayed body's rags hang from its trunk, not its arms** (`undead/shreds.js`; the operator: "identify the issue
+  that makes this so wide"). The bands the rags hang from were fit to every part in the trunk's groups. The decayed
+  layer's limb sinew shares the `Flesh` group with the chest's sheet, so the forearms' sinew, hanging at hip height,
+  widened the hip band to the arms' span: a half width of 0.5 m against the hip blades' 0.2 m. The upper arms did
+  the same to the chest. A part now counts toward a band only when it rides the trunk (the pelvis, the torso, the
+  neck). Machine gate: across seeds, the decayed skeleton's rags no wider than the bare one's; the check fails on the
+  old fit (0.418 against 0.293). Eyes: the decayed soldier and giant before and after. Eyes gate: the operator's to
+  judge.
 
 ### Carved glyphs: the letter primitive grows up
 

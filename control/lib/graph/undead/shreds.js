@@ -28,14 +28,17 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (v) => mul(v, 1 / (Math.hypot(...v) || 1));
 const SLOTS = ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'];
-const TRUNK_GROUPS = new Set(['Torso', 'Pelvis', 'Flesh']);
+const TRUNK_GROUPS = new Set(['Torso', 'Pelvis', 'Flesh']), TRUNK_BONES = new Set(['pelvis', 'torso', 'neck']);
+const boneOf = (s) => (typeof s.bind === 'string' ? s.bind : s.bind?.bone);
 
-// the points a body's trunk parts reach, to fit a band to: a trunk's ellipses, a loft's stations, a segment's ends
+// the points a body's trunk parts reach, to fit a band to: a trunk's ellipses, a loft's stations, a segment's ends.
+// A part counts only when it rides the trunk (the pelvis, the torso, the neck): a limb's flesh shares the trunk's group
+// but swings with its limb, and a hand hanging at the hips would widen the band to the arms' span
 export function trunkPoints(body) {
   const out = [], rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
   for (const s of body.segments) {
     // (not the collarbones: the cloth hangs from them, but the band under them is the cage's, not the shoulders')
-    if (!TRUNK_GROUPS.has(s.group) || /^clav/.test(s.name)) continue;
+    if (!TRUNK_GROUPS.has(s.group) || !TRUNK_BONES.has(boneOf(s)) || /^clav/.test(s.name)) continue;
     if (s.kind === 'trunk') for (const st of s.stations) { const [rx, ry] = Array.isArray(st.r) ? st.r : [st.r, st.r], yc = st.yc ?? 0; out.push([rx, yc, st.z], [-rx, yc, st.z], [0, yc + ry, st.z], [0, yc - ry, st.z], [rx * 0.7, yc + ry * 0.7, st.z], [rx * 0.7, yc - ry * 0.7, st.z]); }
     else if (s.kind === 'loft') for (const st of s.stations) { const r = rad(st.r); out.push(add(st.at, [r, 0, 0]), add(st.at, [-r, 0, 0]), add(st.at, [0, r, 0]), add(st.at, [0, -r, 0])); if (s.mirror === 'name') out.push([-st.at[0] - r, st.at[1], st.at[2]]); }
     else if (s.kind === 'segment') for (const [j, r] of [[s.from, s.rA], [s.to, s.rB]]) { const p = body.joints[j]; if (p) out.push(add(p, [rad(r), 0, 0]), add(p, [0, rad(r), 0]), add(p, [0, -rad(r), 0])); }
