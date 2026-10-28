@@ -53,6 +53,7 @@ import { doorApproaches } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { buildRoof } from '../architecture/roof.js';
+import { gableSkinFaces } from './gable-skin.js';
 import { surfaceTexture, collectFaceTextures } from '../landscape/surface-textures.js';
 import { tessellateForBake } from '../scene/bake-prep.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
@@ -140,6 +141,7 @@ export const FLOORPLAN_DEFAULTS = {
   brickUnit: [1.9, 0.5],      // [brick length, course height] in ft — stylized ~2× so the bond reads at house scale without a per-brick face explosion
   tofuBodyTint: '#e0dbcf',    // modern stucco/concrete block — clean pale body
   tofuRevealTint: '#8f8a7d',  // crisp shadow line at floor reveals / corners / under the parapet
+  copingTint: '#d6cfbf',      // a masonry gable's coping and a loft window's head (Portland stone)
   porch: false,               // opt-in: a covered front porch (deck + posts + roof) off the entry
   stoop: false,               // opt-in: a raised entry stoop (landing + steps), no roof
   deck: false,                // opt-in: a railed wood deck off the terrace slider (needs terrace:true)
@@ -182,9 +184,26 @@ function roofSpec(roof) {
 // Cap an envelope footprint {x0,x1,y0,y1} with a real roof at wall-top z. The eave
 // overhang covers the small footprint↔outer-wall gap, so the centerline footprint is
 // close enough. Returns buildRoof's { faces, textureKeys }.
-function envelopeRoof(footprint, topZ, o, eyes = null) {
+function envelopeRoof(footprint, topZ, o, eyes = null, gableSkin = null) {
   const fp = { x: footprint.x0, y: footprint.y0, w: footprint.x1 - footprint.x0, d: footprint.y1 - footprint.y0, z: topZ };
-  return buildRoof(fp, { ...roofSpec(o.roof), ...(o.roofMetal ? { metal: o.roofMetal } : {}), light: o.light, roomHeight: o.wallHeight, ...(eyes ? { eyes } : {}) });
+  return buildRoof(fp, { ...roofSpec(o.roof), ...(o.roofMetal ? { metal: o.roofMetal } : {}), light: o.light, roomHeight: o.wallHeight, ...(eyes ? { eyes } : {}), ...(gableSkin ? { gableSkin } : {}) });
+}
+
+// A home's gables (houseLook 2, gable-skin.js) wear the facade of the wall below them: its own tints, read as the facade
+// skins read them, its courses carried on from the top storey's (`courseZ`)
+function gableSkinSpec(o, courseZ) {
+  const D = FLOORPLAN_DEFAULTS, f = o.facadeStyle || 'siding', trim = o.facadeTrimTint || D.facadeTrimTint;
+  const t = o.exteriorThickness ?? o.wallThickness, coping = o.copingTint || D.copingTint;
+  if (f === 'brick') return { facade: f, body: o.brickBodyTint || D.brickBodyTint, joint: o.brickMortarTint || D.brickMortarTint, unit: o.brickUnit || D.brickUnit, trim, coping, t, courseZ };
+  if (f === 'stone') return { facade: f, body: o.stoneBodyTint ?? D.stoneBodyTint, joint: o.stoneJointTint ?? D.stoneJointTint, unit: o.stoneUnit ?? D.stoneUnit, trim, coping, t, courseZ };
+  if (f === 'boards') return { facade: f, body: o.boardTint || D.boardTint, joint: o.boardJointTint || D.boardJointTint, unit: [o.boardWidth || D.boardWidth, 1], trim, coping, t, courseZ };
+  if (f === 'metal') {
+    const mat = resolveMaterial(o.facadeMetal || METAL_CLADDING[Object.hasOwn(METAL_CLADDING, o.cladding ?? '') ? o.cladding : 'standing-seam']);
+    return { facade: f, body: mat.base, joint: scaleHex(mat.base, 0.7), unit: [1.33, 1], trim, coping, t, courseZ };
+  }
+  if (f === 'render') return { facade: f, body: o.renderBodyTint ?? D.renderBodyTint, trim, coping: scaleHex(o.renderBodyTint ?? D.renderBodyTint, 1.04), t, courseZ };
+  if (f === 'tofu') return { facade: f, body: o.tofuBodyTint || D.tofuBodyTint, trim, coping: scaleHex(o.tofuBodyTint || D.tofuBodyTint, 1.06), t, courseZ };
+  return { facade: 'siding', body: o.facadeSidingTint || D.facadeSidingTint, trim, coping: trim, t, courseZ };
 }
 
 // A solid GROUND plane at z, extended past the footprint — the exterior-view datum
@@ -3024,7 +3043,15 @@ export function structurizeHouse(input = {}, opts = {}) {
     // a covered roof picks its tiles' level from the house's cameras, as the frame does
     const covered = !!roofSpec(o.roof).covering;
     const eyes = covered ? houseEyes(footprint, levels[0].baseZ - o.floorDrop, top.baseZ + top.height + (footprint.y1 - footprint.y0) / 2, { cameras: o.cameras }) : null;
-    const r = envelopeRoof(footprint, top.baseZ + top.height, o, eyes);
+    // a home of look 2 carries its facade up its gables (gable-skin.js); its street gable is the one on the front door's wall
+    let gableSkin = null;
+    if (o.facadeDecor && (o.houseLook ?? 1) >= 2) {
+      const spec = gableSkinSpec(o, top.baseZ + 1.05);
+      const entry = levels.flatMap((L) => L.structure.wallGraph.runs).find((r) => !r.interior && (r.openings || []).some((op) => op.entry));
+      const onEntry = (c) => !!entry && c.every((p) => Math.abs(p[entry.orientation === 'h' ? 1 : 0] - entry.at) < 1);
+      gableSkin = (corners, info) => gableSkinFaces(corners, spec, { ...info, street: onEntry(corners) });
+    }
+    const r = envelopeRoof(footprint, top.baseZ + top.height, o, eyes, gableSkin);
     faces.push(...r.faces);
     roofTextureKeys = r.textureKeys;
     if (r.repeats) roofRepeats.push(...r.repeats.map((x) => ({ ...x, roof: true })));

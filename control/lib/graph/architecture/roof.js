@@ -75,10 +75,11 @@ const STYLES = {
   cornice:     { form: 'flat-deck', material: null, pitch: 0, eave: 0, rafters: false, cornice: true, railing: false,
                  palette: { deck: '#7d7a74', parapet: '#5c4a3e', cap: '#6b5646', cornice: '#e3dccd', rail: '#2b2b2b' } },
   // a London terrace's slate roof, its ridge parallel to the street and its gables on the party walls
-  'terrace-slate': { form: 'gable', material: 'clay-slate', pitch: 0.75, eave: 0.6, rafters: false, ridge: 'short',
+  // (`verge`, `stack`, `loft`, `hoist`: how a house that skins its gables in its facade (gableSkin) finishes them)
+  'terrace-slate': { form: 'gable', material: 'clay-slate', pitch: 0.75, eave: 0.6, rafters: false, ridge: 'short', verge: 'parapet', stack: true,
                  palette: { roof: '#4a5058', soffit: '#d9d3c7', fascia: '#e8e3d8', gable: '#cdbb98', ridge: '#3c4148' } },
   // a Dutch house's steep gable to the canal, flush at its eaves: the street front is the gable
-  'canal-gable': { form: 'gable', material: 'clay-slate', pitch: 1.5, eave: 0.2, rafters: false, ridge: 'long',
+  'canal-gable': { form: 'gable', material: 'clay-slate', pitch: 1.5, eave: 0.2, rafters: false, ridge: 'long', verge: 'coping', loft: true, hoist: true,
                  palette: { roof: '#2f3236', soffit: '#3a3533', fascia: '#3a3533', gable: '#4a3c35', ridge: '#25282b' } },
   // a Japanese house's mono-pitch of corrugated galvalume, low and thin-eaved
   'galvalume-shed': { form: 'shed', material: null, pitch: 0.3, eave: 0.5, rafters: false, metal: { metal: 'zinc', finish: 'spangle' },
@@ -106,6 +107,13 @@ function clipFor(c4) {
   const ideal = [[0, 0], [1, 0], [1, 1], [0, 1]];
   if (poly.every((p, i) => Math.abs(p[0] - ideal[i][0]) < 2e-3 && Math.abs(p[1] - ideal[i][1]) < 2e-3)) return null;
   return 'polygon(' + poly.map(([u, v]) => `${(u * 100).toFixed(2)}% ${(v * 100).toFixed(2)}%`).join(',') + ')';
+}
+
+/** A face's corners as the renderers take them: padded to four, with the clip a triangle or trapezoid needs. */
+export function faceCard(corners) {
+  const c4 = corners.length === 3 ? [corners[0], corners[1], corners[2], corners[2]] : corners;
+  const clip = clipFor(c4);
+  return clip ? { corners: c4, clip } : { corners: c4 };
 }
 
 // lit-face emit: geometric normal sign-flipped to point AWAY from the roof interior (slopes &
@@ -253,7 +261,12 @@ function pitchedRoof(faces, fp, st, P0, L) {
   const skin = st._planes ? (fs, corners) => st._planes.push({ corners, key: `p${st._planes.length}` }) : pushSkin;
   const ridge = st._planes ? () => {} : pushRidge;
   // the walls a roof closes (gable ends, a shed's clerestory, a butterfly's V ends): drawn, and handed on with the planes
-  const gable = (corners) => { if (st._gables) st._gables.push(corners); pushFace(faces, corners, gtint, inner, L); };
+  // (a house that skins them, `gableSkin`, draws its own: the wall below carried up, its verge finished)
+  const gable = (corners) => {
+    if (st._gables) st._gables.push(corners);
+    const own = st.gableSkin ? st.gableSkin(corners, { inner, light: L, roof: st }) : null;
+    if (own) faces.push(...own); else pushFace(faces, corners, gtint, inner, L);
+  };
 
   if (st.form === 'hip' || st.form === 'pyramid') {
     const pyr = st.form === 'pyramid';
@@ -369,6 +382,8 @@ function flatDeck(faces, fp, st, P, L) {
  *   seams    false → plain sheet, no standing seams (default: seams on a metal roof)
  *   light    a vexar light (required for the Lambert bake)
  *   roomHeight  set-back upper-room height for 'stacked-room' (default 9)
+ *   gableSkin   (corners, { inner, light, roof }) → faces | null: a gable wall drawn by the caller (a house carries its
+ *            facade up it); null keeps the style's flat gable tint
  *   covering the roof laid in a covering (construction/roofing.js): true (the style's material as a covering) | a
  *            covering name | { type, material?, color?, detail? }; `eyes`, `seed`, `instance` pass to the roofer
  * @returns {{ faces: object[], textureKeys: string[], repeats?, covering? }}

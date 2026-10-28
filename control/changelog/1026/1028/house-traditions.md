@@ -18,3 +18,9 @@ New facades: `facadeStyle: 'stone'` (coursed ashlar), `'render'` (smooth stucco 
 across the long way. A house of `houseLook: 2` rolls its family from its `form` and `design.tradition` (a townhouse
 its tradition's street house, a block a modern one, a Japanese house kyosho); a house of the first look rolls from
 the first five families, as always.
+
+A home's gables (`houseLook: 2`, `polygonizer/gable-skin.js`) are the wall below carried up, not a flat roof tint: brick
+and stone continue their bond from the top storey, render is one plane, boards and siding run to the rake, and each roof
+finishes the edge its own way: a terrace's party walls rise through the slates as coped parapets with a chimney stack and
+its pots at the ridge, a canal house's street gable is coped, with a loft window under a hoist beam, and every other
+gable takes a verge band (a masonry coping or the trim's barge board). The first look keeps the roof's flat gable.
