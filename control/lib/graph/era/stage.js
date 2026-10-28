@@ -41,7 +41,8 @@ import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
 import { bayRoom, bayLaws } from './bay.js';
-import { bayKit, BAY_REGISTERS } from './style/bay-kits.js';
+import { bayKit, bayKitOf, BAY_REGISTERS } from './style/bay-kits.js';
+import { composeForBuild } from './compose.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -339,8 +340,11 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 export function planStage(m = {}) {
-  const kitId = resolveKitId(m.kit || 'gothic-stone');
-  const kit0 = stageKit(kitId);
+  // a composed interior (era/compose.js): its kit composed from a value on each bay axis, its id the bay kit it names
+  const composed = m.compose !== undefined ? composeForBuild(m) : null;
+  const kitId = resolveKitId(m.kit || (composed ? `bay-${composed.construction}` : 'gothic-stone'));
+  if (composed && !kitId.startsWith('bay-')) throw new Error(`stage: compose composes a bay room (a hangar, a warehouse, a lab, an office); kit '${kitId}' is not one`);
+  const kit0 = composed ? bayKitOf(composed) : stageKit(kitId);
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface

@@ -15,6 +15,7 @@ import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
 import { resolveArt } from '../../graph/era/art-direction.js';
+import { resolveCompose } from '../../graph/era/compose.js';
 import { resolvePlayUi } from '../../graph/playscape/ui/direction.js';
 import path from 'node:path';
 import { randomInt } from 'node:crypto';
@@ -623,6 +624,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
   // (an art palette or a tone given a palette spec, `{ from }`, solved into their ramps first: color-theorist)
   manifest = resolveArt(resolveArtPalette(resolveTonePalette(resolveStagePalette(manifest))));
+  // a composed interior's intent (era/compose.js): read into its axes here and stored; the build reads the axes
+  manifest = resolveCompose(manifest);
   // an interior's palette (color-theorist/stamp.js): rolled for a new room that names no style, kept by an edit
   manifest = stampTerrainPalette(stampLookPalette(stampInteriorPalette(manifest, existingSketch?.manifest ?? null)));
   // a scene asked in words (gameworld/scene-words.js): its words read into the geocube kind's keys here, at authoring
