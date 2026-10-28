@@ -81,12 +81,15 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [] } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
   // yet, so left out of both halves)
-  const CARDS = new Set([GRASS_CARDS, 'isekai:cloud']), P = { ...P0, faces: P0.faces.filter((f) => !CARDS.has(f.group)) };
+  // (and `grown`, { box: [x0, y0, x1, y1], groups }: the trees and bushes the form's plants grow in their place, the faces
+  // of those groups standing in that box; the skirt's far clumps, out past it, still read)
+  const CARDS = new Set([GRASS_CARDS, 'isekai:cloud']), inGrown = grown ? (f) => { if (!grown.groups.includes(f.group)) return false; const c = f.corners[0]; return c[0] >= grown.box[0] && c[0] <= grown.box[2] && c[1] >= grown.box[1] && c[1] <= grown.box[3]; } : () => false;
+  const P = { ...P0, faces: P0.faces.filter((f) => !CARDS.has(f.group) && !inGrown(f)) };
   const own = cubeLight(C), light = hour === undefined ? own : cubeLight(C, { hour }), sun = light.sun.dir;
   // THE SEA, a mirror over a body: from the island camera's view down onto it, the palette's sea colour is what the sky it
   // reflects (the dome at that angle, as the page draws it) and its body under the light show together, the floor under

@@ -1265,7 +1265,7 @@ export function plantItems(st, site, { trees, thickets, shrubs }) {
   const kindOf = (t) => (!T.leafKinds ? -1 : t.kindIx !== undefined ? t.kindIx : T.leafClump && t.role && T.leafClump[t.role] !== undefined ? T.leafClump[t.role] : pickByShare(T.leafKinds, hash3(t.cluster ?? 0, 13, 4127)));
   return {
     form: T.form || 'blob', kinds: T.leafKinds ?? null, bushKinds: st.thickets?.kinds ?? null,
-    trees: trees.map((t) => ({ x: r5(t.x), y: r5(t.y), z: z(t.x, t.y), h: r5(t.h), kind: kindOf(t), cluster: t.cluster ?? 0, ...(t.hero ? { hero: true } : {}), ...(t.band ? { band: t.band } : {}) })),
+    trees: trees.map((t) => ({ x: r5(t.x), y: r5(t.y), z: z(t.x, t.y), h: r5(t.h), kind: kindOf(t), cluster: t.cluster ?? 0, ...(t.v !== undefined ? { v: t.v } : {}), ...(t.hero ? { hero: true } : {}), ...(t.band ? { band: t.band } : {}) })),
     bushes: (thickets?.items ?? []).map((b) => ({ x: r5(b.x), y: r5(b.y), z: z(b.x, b.y), h: r5(b.h), kind: b.bushIx, ...(b.soft ? { soft: true } : {}) })),
     shrubs: (shrubs?.elements ?? []).map((e, i) => ({ x: r5(e.x), y: r5(e.y), z: r5(e.z), h: r5(shrubs.anchors[i].height), state: e.state, ...(e.soft ? { soft: true } : {}) })),
   };

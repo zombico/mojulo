@@ -129,3 +129,6 @@
   it stands off its trunk: none on the trunk's skin, all of it a metre out, so the limbs bend from where they leave it
   and the leaves sway as they did. Both renders of a trail take it (the form render keeps the crowns' sway). A stamped
   stock tree never swayed and still does not; bamboo's culms, which flex, keep bending.
+- **Fixed: the far clumps came back.** With the form's plants on a trail the land read left out every crown and trunk,
+  the skirt's distant tree clumps among them (the same group). Now only the trees and bushes inside the plants' own box
+  (`form/flora-read.js` floraBox, landRead's `grown`) are left out; the skirt's clumps read and draw lit as before.

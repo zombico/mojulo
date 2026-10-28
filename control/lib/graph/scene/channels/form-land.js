@@ -309,9 +309,7 @@ export function formLandScript(form, flora = null) {
   for (const R of D.ranges) {
     const water = R.key === 'water';
     // (the sea one plane where there is a depth to fade it by; what the read could not class stays painted)
-    if ((water && D.depth) || R.key === 'unread') continue;${flora ? `
-    // (the trail's crowns and trunks are the plants' now: channels/form-flora.js)
-    if (R.key === 'crown' || R.key === 'wood') continue;` : ''}
+    if ((water && D.depth) || R.key === 'unread') continue;
     const m = water
       ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
       : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, side: THREE.DoubleSide });
@@ -378,7 +376,9 @@ ${formGrassScript()}${flora ? formFloraScript(flora) : ''}
   // the painted land it draws in its place, and the painted water sheet under its sea (a standalone sheet: per-vertex
   // alpha, not one of the named groups)
   const __formNamed = new Set(Object.values(meshes));
-  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;
+  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;${flora ? `
+  // (the plants' groups wholly: a group drawn in several meshes, its faces split by their tiles, is one name in \`meshes\`)
+  { const H = new Set(D.hides); scene.traverse((o) => { if (o.isMesh && H.has(o.userData.g)) o.visible = false; }); }` : ''}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;
   for (const o of __formBefore) for (const m of [].concat(o.material)) { m.toneMapped = false; m.needsUpdate = true; }
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;

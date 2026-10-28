@@ -88,7 +88,7 @@ A cube that names no domains offers one per terrain and one per interior.
   numbers read onto the cube, a splatch as the palette's axes, never its colours), each key written beside them kept;
   `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word
   decided; a new scene (`show: 'path'` or `'trail'`, no seed yet) is drawn in gen-7, its cube's `era` stamped `gen-7`
-  at mint (the land, its stones and grass, its trees and bushes as form, lit by the cube's light; a bamboo or blossom
+  at mint (the land, its stones and grass, its trees, bamboo and bushes as form, lit by the cube's light; a blossom
   card's trees keep their painted look), `cube.era: 'gen-6'` for the painted render, a minted row keeping its own; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`

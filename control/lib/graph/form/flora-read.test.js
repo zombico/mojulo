@@ -38,8 +38,7 @@ describe('the form render\'s plants', () => {
     expect(leaf(2)).not.toEqual(leaf(0));
   });
 
-  it('keeps a bamboo or blossom card\'s own look, and reads nothing where nothing grows', () => {
-    expect(floraRead(plants({ form: 'bamboo' }), { colours, bases })).toBeNull();
+  it('keeps a blossom card\'s own look, and reads nothing where nothing grows', () => {
     expect(floraRead(plants({ form: 'blossom' }), { colours, bases })).toBeNull();
     expect(floraRead(plants({ trees: [] }), { colours, bases })).toBeNull();
     expect(FLORA_HIDES).toContain('flora:bush');
@@ -50,7 +49,6 @@ describe('the form render\'s plants', () => {
     expect(formLandScript(land)).toBe(formLandScript(land, null));
     const F = floraRead(plants(), { kinds: plants().kinds, colours, bases }), page = formLandScript(land, F);
     expect(page).toContain('the plants (gen-7');
-    expect(page).toContain("if (R.key === 'crown' || R.key === 'wood') continue;");
     expect(formLandScript(land)).not.toContain('the plants (gen-7');
   });
 });

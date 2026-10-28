@@ -21,6 +21,7 @@
  * Deterministic; templates cached a process (the grower is the cost).
  */
 import { treeForm } from './tree-form.js';
+import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
 import { leafSpray, leafClump } from '../vegetation/sprays.js';
@@ -36,7 +37,25 @@ export const FLORA_SPECIES = Object.freeze({ spray: 'beech', plate: 'cherry', we
 export const FLORA_DEFAULT = Object.freeze(['beech', 'oak']);
 /** The painted groups the form's plants are drawn in place of (beside the land's own crowns and wood, and the stamped
  *  stock trees' copies): a gritty crown's core and chips, the shrubs, the walked-through bushes. */
-export const FLORA_HIDES = Object.freeze(['isekai:crown', 'isekai:wood', 'isekai:core', 'isekai:chips', 'flora:bush', 'flora:brush-wood', 'flora:brush', 'flora:brush-chips']);
+export const FLORA_HIDES = Object.freeze(['isekai:crown', 'isekai:wood', 'isekai:core', 'isekai:chips', 'flora:bush', 'flora:brush-wood', 'flora:brush', 'flora:brush-chips', 'isekai:culm', 'isekai:spray']);
+/** A bamboo card's culms (era/isekai.js bambooItems) grow as this species (vegetation/bamboo.js: the running grove's
+ *  straight culms), a few templates (`BAMBOO_VARIANTS`) each a culm of its own. */
+export const FLORA_BAMBOO = 'moso', BAMBOO_VARIANTS = 3;
+/** How far a culm's colour goes toward the level's foliage (its own species' green the rest). */
+export const CULM_TO_LEAF = 0.7;
+/**
+ * Where the form grows its plants: the box round every plant it will grow (a tree's crown reach beyond its foot), and the
+ * painted groups it grows in place of there (landRead's `grown`: those faces in the box are not read as land; a far
+ * clump on the skirt, out past it, still is). Null where it grows none (a bamboo or blossom card, nothing placed).
+ */
+export function floraBox(plants, reach = 8) {
+  if (!plants || plants.form === 'blossom') return null;
+  const all = [...plants.trees, ...plants.bushes, ...plants.shrubs];
+  if (!all.length) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of all) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  return { box: [x0 - reach, y0 - reach, x1 + reach, y1 + reach], groups: [...FLORA_HIDES] };
+}
 /** A shrub (era/shrubs.js) as a bush: the dome. */
 export const SHRUB_HABIT = 'spray';
 /** A plant's packed stride, the bark's texture size, the heights a template is grown at (m, to the nearest), the
@@ -59,12 +78,15 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const LEAF_REF = [0, 1, 2].map((k) => (lin(TONES.leaf[k]) + lin(TONES.leafLit[k])) / 2);
 function packGeo(tris) {
   const p = new Float32Array(tris.length * 9), c = new Uint8Array(tris.length * 9);
-  tris.forEach((t, i) => t.p.forEach((q, j) => { p.set(q.map(r4), i * 9 + j * 3); const col = t.c || [128, 128, 128]; for (let k = 0; k < 3; k++) c[i * 9 + j * 3 + k] = Math.min(255, Math.round((lin(col[k]) / LEAF_REF[k]) * 128)); }));
+  // (a twig's strip, `wood`, the plant's leaf a shade darker: its brown over the leaf's green would tint it the leaf's
+  // colour's opposite)
+  tris.forEach((t, i) => t.p.forEach((q, j) => { p.set(q.map(r4), i * 9 + j * 3); const col = t.c || [128, 128, 128]; for (let k = 0; k < 3; k++) c[i * 9 + j * 3 + k] = t.kind === 'wood' ? 70 : Math.min(255, Math.round((lin(col[k]) / LEAF_REF[k]) * 128)); }));
   return { p: b64(p), c: b64(c), n: tris.length };
 }
 const packWood = (W) => {
   const nv = W.pos.length / 3, I = nv > 65535 ? Uint32Array : Uint16Array;
-  return { pos: b64(Float32Array.from(W.pos)), nrm: b64(Int8Array.from(W.nrm, (v) => Math.round(v * 127))), uv: b64(Float32Array.from(W.uv)), idx: b64(I.from(W.idx)), big: nv > 65535 };
+  // (a culm's vertex colours, sRGB bytes: its own colour and its node bands; a tree's wood takes its bark instead)
+  return { pos: b64(Float32Array.from(W.pos)), nrm: b64(Int8Array.from(W.nrm, (v) => Math.round(v * 127))), uv: b64(Float32Array.from(W.uv)), idx: b64(I.from(W.idx)), big: nv > 65535, ...(W.col ? { col: b64(Uint8Array.from(W.col)) } : {}) };
 };
 // clumps and sites packed: p o d (9), scale, depth, rank
 const packSites = (L) => { const a = new Float32Array(L.length * 12); L.forEach((s, i) => a.set([...s.p, ...s.o, ...s.d, s.s, s.e, s.r], i * 12)); return b64(a); };
@@ -82,6 +104,14 @@ function template(kind, name, form, leaf, extra = {}) {
 function treeTemplate(species, height) {
   const key = `tree:${species}:${height}`;
   if (!CACHE.has(key)) CACHE.set(key, template('tree', species, treeForm(species, { seed: 1, far: true, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } }), species));
+  return CACHE.get(key);
+}
+function bambooTemplate(species, height, v) {
+  const key = `bamboo:${species}:${height}:${v}`;
+  if (!CACHE.has(key)) {
+    const B = bambooForm(species, { seed: 1 + v, height });
+    CACHE.set(key, { ...template('tree', `bamboo:${species}`, { ...B, bark: null }, B.leaf), wood: packWood(B.wood), woodFar: packWood(B.woodFar), culm: true, culmMean: B.culm.color.map((v) => r4(lin(v))) });
+  }
   return CACHE.get(key);
 }
 function bushTemplate(kind, height, adorn, name) {
@@ -110,7 +140,7 @@ function barkOf(key) {
 export const speciesFor = (t, K) => (K ? FLORA_SPECIES[K.form] : FLORA_DEFAULT[Math.floor(hashN((t.cluster + 7) * 7919) * FLORA_DEFAULT.length)]);
 
 export function floraRead(plants, { kinds = null, bushKinds = null, colours, bases }) {
-  if (!plants || plants.form === 'bamboo' || plants.form === 'blossom') return null;
+  if (!plants || plants.form === 'blossom') return null;
   if (!plants.trees.length && !plants.bushes.length && !plants.shrubs.length) return null;
   // the colours: the cube's foliage and bark (its floor darkened, as the land's wood class), a kind's pick its offer's
   // (the colours it reads: a cube's colour carries more, a `shade` hue among them)
@@ -121,17 +151,28 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   const leafOf = (K) => (K && K.leaf ? solve(offer.leaves[K.leaf - 1], C.foliage, leafBase) : leafBase);
   const barkTarget = (K) => (K && K.bark ? solve(offer.barks[K.bark - 1], C.floor, barkBase) : barkBase);
   const out = [], templates = [], index = new Map(), barks = {};
-  const use = (T) => { if (!index.has(T)) { index.set(T, templates.length); templates.push(T); barks[T.bark] = barkOf(T.bark); } return index.get(T); };
-  // (a bark's tint: half-way from its own colour to the target, so a species keeps its bark and the level its palette)
-  const tint = (T, target) => { const m = barks[T.bark].mean; return [0, 1, 2].map((k) => r4(0.5 + (0.5 * target[k]) / Math.max(1e-4, m[k]))); };
-  const push = (T, p, h, K, soft = false) => {
-    const ti = use(T), yaw = 2 * Math.PI * hashN(Math.round(p.x * 100) * 7 + Math.round(p.y * 100) * 13);
+  const use = (T) => { if (!index.has(T)) { index.set(T, templates.length); templates.push(T); if (T.bark) barks[T.bark] = barkOf(T.bark); } return index.get(T); };
+  // (a bark's tint: half-way from its own colour to the target, so a species keeps its bark and the level its palette; a
+  // culm, no bark, a green stem: its colour CULM_TO_LEAF of the way to the level's foliage, so it reads as this world's)
+  const tint = (T, target) => { if (T.culm) { const m = T.culmMean; return [0, 1, 2].map((k) => r4(1 - CULM_TO_LEAF + (CULM_TO_LEAF * leafBase[k]) / Math.max(1e-4, m[k]))); } if (!T.bark) return [1, 1, 1]; const m = barks[T.bark].mean; return [0, 1, 2].map((k) => r4(0.5 + (0.5 * target[k]) / Math.max(1e-4, m[k]))); };
+  const push = (T, p, h, K, soft = false, yaw0 = null) => {
+    const ti = use(T), yaw = yaw0 ?? 2 * Math.PI * hashN(Math.round(p.x * 100) * 7 + Math.round(p.y * 100) * 13);
     out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...leafOf(K), ...tint(T, barkTarget(K)), ti, soft ? 1 : 0);
   };
   // the trees: each kind's species at the kind's middle height (a level's heights to the nearest HEIGHT_STEP)
   const kindAt = (t) => (t.kind >= 0 && kinds ? readKind(kinds[t.kind]) : null);
+  // a bamboo card's culms: each one of the species' templates (its variant), at the clump's middle height, turned to lean
+  // out of its clump's middle as a clump's culms do
+  if (plants.form === 'bamboo') {
+    const hs = plants.trees.map((t) => t.h).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
+    const mid = new Map(); for (const t of plants.trees) { const m = mid.get(t.cluster) ?? [0, 0, 0]; m[0] += t.x; m[1] += t.y; m[2]++; mid.set(t.cluster, m); }
+    for (const t of plants.trees) {
+      const m = mid.get(t.cluster), dx = t.x - m[0] / m[2], dy = t.y - m[1] / m[2], v = (t.v ?? 0) % BAMBOO_VARIANTS;
+      push(bambooTemplate(FLORA_BAMBOO, aim, v), t, t.h, null, false, Math.hypot(dx, dy) > 0.05 ? r4(Math.atan2(dy, dx)) : null);
+    }
+  }
   const groups = new Map();
-  for (const t of plants.trees) { const K = kindAt(t), sp = speciesFor(t, K); if (!groups.has(sp)) groups.set(sp, []); groups.get(sp).push([t, K]); }
+  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K); if (!groups.has(sp)) groups.set(sp, []); groups.get(sp).push([t, K]); }
   for (const [sp, list] of groups) {
     const hs = list.map(([t, K]) => t.h * (K?.scale ?? 1)).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
     const T = treeTemplate(sp, aim);

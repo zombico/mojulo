@@ -18,11 +18,12 @@ import { WIND_AT_GLSL } from './terrain-wind.js';
 /**
  * The plants in the wind: a tree's trunk stands, its limbs bend from where they leave it (each vertex's weight its
  * distance off the trunk over `limb` m, 0 on the trunk's skin), its leaves with their limbs and a flutter of their own; a
- * bush's stems hold at its foot and bend more with height. The push is the page's gust field at the vertex
+ * bush's stems hold at its foot and bend more with height, and so does a bamboo's culm (it has no trunk: it flexes,
+ * `culmPhi`). The push is the page's gust field at the vertex
  * (terrain-wind.js, the grass's own: one wind), a pendulum's φ·u|u| (`phi`, `bushPhi`), the leaves' flutter `flutter` m
  * at a fresh wind; a walked-through bush SHAKES as the walker brushes it (`shake` m, settling over `settle` s).
  */
-export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
+export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, culmPhi: 0.012, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
 const SWAY_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, float shake, float ph ) {
   vec2 u = mojWindAt( wp.xy, max( 0.5, wp.z - base.z ), uWindT ); float m = length( u );
   vec2 push = u * m * uFloraPhi * w;
@@ -81,6 +82,8 @@ export function formFloraScript(flora) {
       return m;
     }
     const barkFor = (key, phi) => (barkMats[key + phi] ??= barkMat(FL.barks[key], phi));
+    // a culm: no bark, smooth and a little waxy, tinted toward the level's foliage (the vertex colours its node bands)
+    const culmMat = (phi) => (barkMats['culm' + phi] ??= (() => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }); m.onBeforeCompile = (sh) => { sh.vertexShader = swayHead(sh, phi, 0) + sh.vertexShader.replace('#include <project_vertex>', SWAY_PROJECT); }; m.customProgramCacheKey = () => 'form-culm' + phi; return m; })());
     // the leaves: each vertex its tone's factor over the plant's leaf, the plant's colour the instance's; the normal bent
     // toward the crown's outside (a crown takes the sun as one volume), the light through a thin leaf a fill in its
     // shade; near, a spray comes in at its own distance, growing from a third of its size about its site
@@ -137,6 +140,8 @@ export function formFloraScript(flora) {
       const g = new THREE.BufferGeometry(), I = W.big ? new Uint32Array(bytes(W.idx).buffer) : new Uint16Array(bytes(W.idx).buffer);
       g.setAttribute('position', new THREE.BufferAttribute(f32(W.pos), 3)); g.setAttribute('normal', new THREE.BufferAttribute(i8(W.nrm), 3, true));
       g.setAttribute('uv', new THREE.BufferAttribute(f32(W.uv), 2)); g.setIndex(new THREE.BufferAttribute(I, 1)); g.computeBoundingSphere();
+      // (a culm's own colours, its node bands darker: sRGB bytes to linear)
+      if (W.col) { const cb = bytes(W.col); g.setAttribute('color', new THREE.BufferAttribute(Float32Array.from(cb, (v) => LIN[v]), 3)); }
       return { g, tris: I.length / 3 };
     }
     // the sway's weight a vertex: a tree's its distance off the trunk's skin over the limb's reach (the leaves by their
@@ -169,7 +174,7 @@ export function formFloraScript(flora) {
         const im = new THREE.InstancedMesh(geo.g, mat, Math.max(1, n)); im.count = 0; im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; scene.add(im);
         return { im, tris: geo.tris, slot: new Int32Array(Math.max(1, n)).fill(-1) };
       };
-      const phi = t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi), wood = barkFor(t.bark, phi);
+      const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
       const parts = {
         wood: mk(woodGeo(t.wood), wood, true, false), woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false),
         crown: mk(merged(t.clumps, t.nClumps, cg, 'clump', t.pad, () => true), leaf, true, true),
