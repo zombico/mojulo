@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { relationalHead, RELATIONS } from './head-relational.js';
+import { relationalHead, RELATIONS, raisedEar } from './head-relational.js';
 import { GLOBE } from './head-relational-eye.js';
 import { rayIn } from './head-field-view.js';
 
@@ -85,5 +85,13 @@ describe('the closed mouth\'s seam', () => {
     });
     expect(Math.min(...depths)).toBeGreaterThan(0.6);
     expect(Math.max(...depths) - Math.min(...depths)).toBeLessThan(0.7);
+  });
+  it('the ear RAISED to the canon (realistic laws 10): its top at the brow line, never under it; the old ear lower', () => {
+    for (const sex of ['male', 'female']) {
+      const was = relationalHead({ sex }).landmarks, now = relationalHead({ sex, relations: raisedEar(null, sex) }).landmarks;
+      // (raised at least 3 mm, its top within ~4 mm of the glabella's level, the brows' own height; V × 1.8 m)
+      expect((now.earTopR.z - was.earTopR.z) * 1.8 * 1000).toBeGreaterThan(3);
+      expect(Math.abs(now.earTopR.z - now.g.z) * 1.8 * 1000).toBeLessThan(4.5);
+    }
   });
 });

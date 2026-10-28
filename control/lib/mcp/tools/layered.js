@@ -100,7 +100,7 @@ import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
-import { solveTune } from '@/lib/graph/polygonizer/head-relational';
+import { solveTune, raisedEar } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -285,7 +285,7 @@ function realisticRecipe(recipe, hero) {
   // hero-head-layers.js HEAD_BUDGET)
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5 });
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -367,8 +367,9 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false } = {}) {
-  const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false } = {}) {
+  // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
+  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0;
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }

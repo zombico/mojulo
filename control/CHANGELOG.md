@@ -80,10 +80,18 @@ The eyes gate is the operator's.
     (`dermal-texture.js` `paintDermis` `clip`). The fade's cards fringe the hairline alone, never the fade's line. Never
     a solid helmet down to a fade's foot, never a stubble's blotchy coat.
   - THE SIDEBURN connects a fade to a beard, as a barber leaves it (`dermal-map.js` `sideburnOf`): where the face grows
-    a beard, a band in front of the ear, from the beard's top up into the scalp, wears the beard's cheek length, both in
-    the scalp's clipped length and in the paint (the dermis's own sideburn is a sliver over vellus skin, so a skin fade
-    left bare skin between the hair and the beard). The beard's paint over it adds only what the band left, so their
-    overlap is never darker. A shaven face's fade takes the sideburn as it takes the rest.
+    a beard, a band in front of the ear, from the beard's top on up until the scalp's own length is the longer, wears
+    the beard's cheek length, both in the scalp's clipped length and in the paint (the dermis's own sideburn is a sliver
+    over vellus skin, so a skin fade left bare skin between the hair and the beard). Its clipped length stays under the
+    shell's, so a longer beard's sideburn is paint at full, never a strip of shell fringed with cards. The beard's paint
+    over it adds only what the band left, so their overlap is never darker. A shaven face's fade takes the sideburn as
+    it takes the rest.
+- **The ear raised** (realistic laws 10, `head-relational.js` `EAR_RAISE`): the ear sat low, its top 6 to 8 mm under the
+  brow line and a man's lobule 4 mm under the nose's base. A laws 10 hero's ear is raised to the canon, its top at the
+  brow line and its lobule at the nose's base (the face's own ear relations raised by the pole's amount). The ear's
+  rim takes none of the hair's paint: the hero's skin chart knows the ear by its own parts, not by the box about it
+  (`dermal-head.js` `headChartOf` `earAt`), and the hairline over the ear clears the ear's top by 12 mm
+  (`dermal-map.js`; the head's marks carry the ear's top). A hero minted under earlier laws keeps its ear.
 - A hero minted before keeps its blades byte for byte: the locks are its laws'.
 
 ### The realistic wardrobe: the legendary merc

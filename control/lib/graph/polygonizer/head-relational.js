@@ -134,6 +134,14 @@ export const RELATIONS = Object.freeze({
   featureWave: 0.45,    // the wavelength's share near the eyes and the mouth: features smaller than the skin's wave
                         // need a shorter one, or the sum blurs their edges (1 = the same everywhere)
 });
+/**
+ * THE EAR RAISED (realistic laws 10, the operator's: the ear sat low, its top 6–8 mm under the brow line, a man's
+ * lobule 4 mm under the nose's base, where the canon sets it between the two), by the head's pole: added to `earTop` (a
+ * share of the eye line to the glabella) and `earBottom` (V), over the head's own or a face's, so the top meets the brow
+ * line and the lobule the nose's base. Laws 1–9 keep the ear where it was.
+ */
+export const EAR_RAISE = Object.freeze({ male: Object.freeze({ earTop: 0.25, earBottom: 0.01 }), female: Object.freeze({ earTop: 0.5, earBottom: 0 }) });
+export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex] ?? EAR_RAISE.male; return { ...(rel || {}), earTop: (rel?.earTop ?? RELATIONS.earTop) + E.earTop, earBottom: (rel?.earBottom ?? RELATIONS.earBottom) + E.earBottom }; };
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios each pole moves over the canon (the rest are shared) */
 export const RELATION_POLES = Object.freeze({

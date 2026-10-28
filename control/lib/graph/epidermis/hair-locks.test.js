@@ -62,7 +62,8 @@ describe('the lock hair', () => {
   }, 240_000);
   it('the cards lie ON the hair: a broad flow\'s tip cards are narrow strips across its top, never a plank; the hairline is the fade\'s', () => {
     const H = lockHair(chart, D, groom('long', { length: 0.3 }), { centre, stylize: 0 });
-    expect(H.counts.cards).toBeGreaterThan(H.counts.locks * HAIR_LOCKS.cards[0] * 0.5);
+    // (a flow cut on the cut's line ends blunt: tip cards hang only off the free tips)
+    expect(H.counts.cards).toBeGreaterThan(0);
     // (each card a strip of point pairs across it: none wider than a tip card's width and its neighbour's share, or the fade's)
     const V = H.cards.vertices, widths = [];
     for (let i = 0; i + 1 < V.length; i += 2) widths.push(Math.hypot(...V[i].map((v, k) => v - V[i + 1][k])));
@@ -84,10 +85,11 @@ describe('the lock hair', () => {
     const band = chart.samples.map((a) => sideburnOf(a, beard)).filter(Boolean);
     expect(band.some((b) => b.w > 0.9)).toBe(true); expect(band[0].mm).toBeGreaterThan(CLIPPER.shell);
     expect(chart.samples.some((a) => sideburnOf(a, shaven))).toBe(false);
-    // (and the groom's clipped length there holds it: a skin fade's sideburn at the beard's cheek, never the fade's foot)
+    // (and the groom's clipped length there holds it: a skin fade's sideburn near the beard's cheek, never the fade's foot,
+    // and under the shell's length: paint, never a strip of shell)
     const G = growScalp(chart, beard, readScalp({ style: 'fade', spacing: 0.02 }), { colliders: ['head'], strands: false });
-    const i = chart.samples.findIndex((a) => sideburnOf(a, beard)?.w > 0.9);
-    expect(G.clipOf(chart.samples[i], chart.vertices[i]) * 1000).toBeGreaterThan(CLIPPER.shell);
+    const i = chart.samples.findIndex((a) => sideburnOf(a, beard)?.w > 0.9), mm = G.clipOf(chart.samples[i], chart.vertices[i]) * 1000;
+    expect(mm).toBeGreaterThan(CLIPPER.shell - 1); expect(mm).toBeLessThan(CLIPPER.shell);
   }, 60_000);
   it('a falling curly groom is drawn as flows; standing coils are the sculpted volume', () => {
     const coils = Object.keys(SCALP_STYLES).map((k) => readScalp(k)).filter((S) => hairClass(S) === 'coil');

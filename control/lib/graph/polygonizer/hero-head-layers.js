@@ -231,6 +231,13 @@ export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = fal
 
 /** the beard's sculpted coat (realistic laws 10) rising to its height over `edge` (m) from its edge */
 export const FACE_COAT = Object.freeze({ edge: 0.004 });
+/** a mesh without the faces that would run an edge the way another already runs it (a fold where the chart pinches): the
+ * first kept, the rest dropped, so what is split from it is consistently wound */
+function consistent(M) {
+  if (!M) return M;
+  const seen = new Set(), keep = M.faces.map((f) => { const e = [0, 1, 2].map((i) => `${f[i]}>${f[(i + 1) % 3]}`); if (e.some((k) => seen.has(k))) return false; e.forEach((k) => seen.add(k)); return true; });
+  return keep.every(Boolean) ? M : { ...M, faces: M.faces.filter((_, i) => keep[i]), groups: M.groups.filter((_, i) => keep[i]) };
+}
 /** closed meshes as one (null for none) */
 function joinMeshes(Ms) {
   const out = { vertices: [], faces: [], groups: [], closure: 'closed' };
@@ -331,7 +338,7 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     // (a clipper's beard, a stubble, under CLIPPER.shell mm: no coat, the skin's paint its shadow)
     const whole = locks ? capMesh(bchart, D, { tract: 'beard', group: 'Beard', min: CLIPPER.shell, height: under, edge: FACE_COAT.edge, smoothEdge: LOCK_FADE.smooth }) : null;
     // (simplified whole, the two halves' budget, before it is split: its seam the same on both)
-    const leanWhole = whole && Bg ? leanCoat({ vertices: whole.vertices, faces: whole.faces, groups: whole.groups, closure: whole.closure }, 2 * Bg.beardCoat) : whole;
+    const leanWhole = consistent(whole && Bg ? leanCoat({ vertices: whole.vertices, faces: whole.faces, groups: whole.groups, closure: whole.closure }, 2 * Bg.beardCoat) : whole);
     for (const [bone, name, near, where] of [['head', 'hairBeardCoat', at(L.n), (p) => p[2] >= lip], ['jaw', 'hairBeardCoatJaw', at(L.pg), (p) => p[2] < lip]]) {
       const cp = visagePin(visage, compiled, bone, near, skinName); if (!cp) continue;
       // (where a moustache's mass lies, no coat under it: the coat's few faces there are fragments)

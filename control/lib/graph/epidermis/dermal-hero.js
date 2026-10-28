@@ -171,7 +171,10 @@ function headSkin(mesh, recipe, D, page) {
   // globe; its Mouth, the lips turned in, is no skin)
   const one = recipe.headFit.skin === 'one', skin = src.map((v) => one || !H.paint?.(stand(mesh.vertices[v])));
   const shown = src.map(shownAt);
-  const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi] });
+  // (realistic laws 10, the ear raised: the ear its own parts, never the box about it, whose top now reaches the skull's
+  // side above it and painted the skin there as ear; the recipe's `hairClip` is laws 10's)
+  const earPart = recipe.hairClip ? src.map((v) => /^ear[RL]$/.test(mesh.provenance[v].part)) : null;
+  const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi], ...(earPart ? { earAt: (vi) => earPart[vi] } : {}) });
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, recipe.hairClip ? { clip: recipe.hairClip } : {});
   return { chart, layout, maps, local, skinFace };

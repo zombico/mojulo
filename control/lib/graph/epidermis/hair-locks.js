@@ -537,7 +537,8 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       // the TIP CARDS (the dial's share), on from the lock's last third (the hairline is the fade's)
       if (St.cards > 0) {
         const die = hash(members[0], members.length, 11, S.seed ?? 1);
-        if (die < St.cards && !tied && !trail) cards.push(...tipCards(spine, { widthAt, thick: lockThick, rail, outAt, clear, L: Lm, St, group: group(1) }));
+        // (a flow cut on the cut's line ends there, blunt: no card hangs past it)
+        if (die < St.cards && !tied && !trail && !cutEnd) cards.push(...tipCards(spine, { widthAt, thick: lockThick, rail, outAt, clear, L: Lm, St, group: group(1) }));
       }
     }
     counts.locks = locks.length;

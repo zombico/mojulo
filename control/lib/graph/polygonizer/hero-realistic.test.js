@@ -10,6 +10,7 @@ import { heroDermisSpec } from '../epidermis/dermal-hero.js';
 import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, withFaceFit, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
 import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
 import { readDermis, skinBase } from '../epidermis/dermal-map.js';
+import { raisedEar } from './head-relational.js';
 
 const refused = (spec) => { try { heroRecord(spec); return null; } catch (e) { return e.message; } };
 
@@ -191,7 +192,8 @@ describe('the realistic hero at the door', () => {
     const at = (face, extra = {}) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', ...(face ? { face } : {}), ...extra }) }).recipe;
     const plain = at(null), a = at({ seed: 1, ethnicity: 'african' }), b = at({ seed: 2, ethnicity: 'african' });
     expect(a.parts.headSkin).not.toEqual(plain.parts.headSkin); expect(a.parts.headSkin).not.toEqual(b.parts.headSkin);
-    expect(a.headFit.relations).toBeTruthy(); expect(plain.headFit.relations).toBeUndefined();
+    // (a hero with no face carries only its raised ear, realistic laws 10, so whatever rebuilds its head rebuilds that ear)
+    expect(a.headFit.relations).toBeTruthy(); expect(plain.headFit.relations).toEqual(raisedEar(null, 'male'));
     // (the ancestry's deep tone, unless the hero's skin or palette names one)
     expect(a.dermis.tone).toBeGreaterThanOrEqual(6); expect(a.dermis.undertone).toBeTruthy();
     expect(at({ seed: 1, ethnicity: 'african' }, { skin: { tone: 2 } }).dermis.tone).toBe(2);
