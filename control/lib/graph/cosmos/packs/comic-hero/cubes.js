@@ -14,7 +14,7 @@ export const PACK_CUBES = Object.freeze([
     name: 'Comic street brawler',
     why: 'a hero against waves of thugs on a city street; every landed blow a burst',
     words: ['brawler', 'thugs', 'street fight', 'punch', 'superhero', 'comic', 'vigilante'],
-    look: 'comic-night',
+    look: 'dcau-golden',
     cube: {
       reality: { era: 'gen-6', look: 'city-night', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'city', places: 'street' },
@@ -30,7 +30,7 @@ export const PACK_CUBES = Object.freeze([
     name: 'Rooftop courier',
     why: 'swing and glide across a city of rooftops against the clock; the city is open',
     words: ['rooftops', 'swing', 'web', 'glide', 'courier', 'parkour', 'skyline'],
-    look: 'comic-day',
+    look: 'dcau-golden',
     cube: {
       reality: { era: 'gen-6', look: 'city-night', medium: '3d', climate: 'storm-coast' },
       space: { camera: 'third-person', topology: 'open', levelForm: 'city', places: 'buildings', traversal: 'wall' },
@@ -46,7 +46,7 @@ export const PACK_CUBES = Object.freeze([
     name: 'Sky defender',
     why: 'a flying hero holds the sky against waves and a boss, beams against beams',
     words: ['flying hero', 'fly', 'beams', 'eye beams', 'sky', 'invasion', 'boss fight'],
-    look: 'painted-dusk',
+    look: 'anime-day',
     cube: {
       reality: { era: 'gen-6', look: 'desert-dusk', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
@@ -62,7 +62,7 @@ export const PACK_CUBES = Object.freeze([
     name: 'Versus heroes',
     why: 'two heroes, one arena, a transformation mid-fight; the camera from the side',
     words: ['versus', 'fighting game', 'one on one', 'transformation', 'power up', 'rounds'],
-    look: 'comic-day',
+    look: 'anime-day',
     cube: {
       reality: { era: 'gen-6', look: 'lab-dark', medium: '3d' },
       space: { camera: 'side', topology: 'linear', levelForm: 'arena' },
@@ -78,7 +78,7 @@ export const PACK_CUBES = Object.freeze([
     name: 'Origin story',
     why: 'a city hub opened district by district, powers found as the story advances, people talk',
     words: ['origin', 'origin story', 'powers awaken', 'secret identity', 'districts', 'story', 'city hub'],
-    look: 'realistic-city',
+    look: 'realistic-night',
     cube: {
       reality: { era: 'gen-6', look: 'city-night', medium: '3d' },
       space: { camera: 'third-person', topology: 'hub', levelForm: 'city', places: 'buildings' },
@@ -94,7 +94,7 @@ export const PACK_CUBES = Object.freeze([
     name: 'Team-up',
     why: 'two heroes side by side on one couch against waves; one camera, one shared pool',
     words: ['team up', 'team-up', 'co-op', 'two heroes', 'couch', 'duo', 'sidekick'],
-    look: 'comic-night',
+    look: 'dcau-golden',
     cube: {
       reality: { era: 'gen-6', look: 'city-night', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'arena' },

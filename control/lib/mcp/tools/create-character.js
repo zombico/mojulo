@@ -24,6 +24,7 @@ import { mintSolidHandler } from '@/lib/mcp/tools/mint-solid';
 import { updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { HERO_FIELDS, heroKeyHint, lowerVibe } from '@/lib/mcp/tools/layered';
+import { readHeroName } from '@/lib/graph/polygonizer/hero-emblem';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { egocubeCreate, egocubePrint } from '@/lib/graph/egocube/kind.js';
 import { rollMascot } from '@/lib/graph/egocube/mascot.js';
@@ -174,9 +175,11 @@ export async function updateCharacterHandler(input) {
   if (!row) throw new Error(`update_character: no sketch '${ref}'`);
   if (!CHARACTER_ROW_KINDS.includes(row.manifest?.kind)) throw new Error(`update_character: '${ref}' is not a character (kind '${row.manifest?.kind}'); revise it with update_sketch`);
   const ops = [...characterPatch(row, { spec, target, geocube }), ...(Array.isArray(patch) ? patch : [])];
+  // a named hero renamed is retitled with its name, when its title was its old name or the door's own
+  const renamed = typeof spec?.name === 'string' && title === undefined && (row.title === row.manifest.hero?.name || /^hero · /.test(row.title ?? '')) ? readHeroName(spec.name) : undefined;
   if (patch !== undefined && !Array.isArray(patch)) throw new Error('update_character: `patch` is an array of update_sketch ops');
   if (!ops.length && title === undefined && folderRef === undefined) throw new Error('update_character: give at least one of spec, target, geocube, patch, title, folder_ref');
-  const out = await updateSketchHandler({ ref, ...(ops.length ? { patch: ops } : {}), ...(title !== undefined ? { title } : {}), ...(note !== undefined ? { note } : {}), ...(readout !== undefined ? { readout } : {}), ...(folderRef !== undefined ? { folder_ref: folderRef } : {}) });
+  const out = await updateSketchHandler({ ref, ...(ops.length ? { patch: ops } : {}), ...(title !== undefined ? { title } : renamed ? { title: renamed } : {}), ...(note !== undefined ? { note } : {}), ...(readout !== undefined ? { readout } : {}), ...(folderRef !== undefined ? { folder_ref: folderRef } : {}) });
   // a character made from an egocube says when its sheet has moved since (the character keeps what it was made with)
   const from = row.manifest.egocube, cube = from?.ref ? SketchRepository.getByRef(from.ref) : null;
   const moved = from && (!cube ? `the egocube '${from.ref}' is gone` : cube.manifest?.kind === 'egocube' && egocubePrint(cube.manifest) !== from.print ? `the egocube '${from.ref}' has moved since this character was made from it: it keeps what it was made with; create_character { egocube: '${from.ref}' } makes it anew` : null);

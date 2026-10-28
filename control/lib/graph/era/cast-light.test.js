@@ -22,6 +22,16 @@ describe('a cube\'s light on a figure', () => {
     expect(L.cast.bounce.every((v) => v > 0)).toBe(true);
   });
 
+  it('a cube that names its rim wears it in its own sky at its strength; a cube that names none keeps the reference\'s', () => {
+    const sky = { zenith: '#5a8cc8', horizon: '#f4c27c' }, own = lit({ from: 'island-noon', light: { sky, rim: { strength: 0.9, power: 2.5 } } });
+    expect(own.rim).toEqual([0.9569, 0.7608, 0.4863, 0.9, 2.5]);
+    // absent: the reference's horizon at the cast light's own levels, the cube's written sky or not
+    expect(lit({ from: 'island-noon', light: { sky } }).rim).toEqual(lit('island-noon').rim);
+    expect(lit({ from: 'island-noon', light: { sky, rim: {} } }).rim.slice(3)).toEqual(lit('island-noon').rim.slice(3));
+    expect(() => readGeocube({ from: 'island-noon', light: { rim: { strength: 2 } } })).toThrow(/light.rim.strength is how bright the rim is, 0 to 1.5/);
+    expect(() => readGeocube({ from: 'island-noon', light: { rim: { glow: 1 } } })).toThrow(/light.rim.glow is not a setting/);
+  });
+
   it('gothic night: no sun in the reference, so the cube\'s moon is the key, dimmed by its gain, and no bounce', () => {
     const L = lit('gothic-night');
     expect(L.from.key).toBe('moon');

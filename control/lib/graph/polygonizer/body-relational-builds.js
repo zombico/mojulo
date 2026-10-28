@@ -415,6 +415,23 @@ function roundMass(m, e) {
   return { ...m, ...(e.s !== undefined ? { s: e.s } : {}), r: [m.r[0] * (e.along ?? 1), m.r[1] * (e.round ?? across), m.r[2] * (e.out ?? across)] };
 }
 /** a build under the ROUND-OUT (realistic laws 4) */
+/**
+ * THE MAN'S HIPS (realistic laws 9): the male build's hip sockets brought in with its narrowed frame. The build narrows
+ * the shoulders (its `tune`, 0.8) but the rig's hips are the heroic cast's, 22 cm apart; the pelvis's skin is carried
+ * out to them, so every male physique stood a pinched waist over wide hips (waist to hip 0.76 … 0.79, the female band:
+ * hero-core-measures.js CORE_BANDS) and a turntable read a woman from behind and in profile. `hipSpan` scales the hip
+ * joints' distance from the midline (the knees, already slanted in under them, stay), so the femur slants less and the
+ * sockets sit about 19 cm apart, a man's. The female build is left as it is.
+ */
+export const MALE_HIPS = Object.freeze({ hipSpan: 0.78 });
+export const maleHips = (build, name) => (name === 'norrin' ? { ...build, hipSpan: MALE_HIPS.hipSpan } : build);
+/** a rig with its hip joints `span` of their distance from the midline (a joint as a point or { at }) */
+export function withHipSpan(rig, span) {
+  const joints = { ...rig.joints };
+  for (const k of ['hipR', 'hipL']) { const v = joints[k]; if (!v) continue; const at = Array.isArray(v) ? v : v.at, moved = [r6(at[0] * span), at[1], at[2]]; joints[k] = Array.isArray(v) ? moved : { ...v, at: moved }; }
+  return { ...rig, joints };
+}
+
 export function roundOut(build) {
   const R = ROUND_OUT;
   const limbs = Object.fromEntries(Object.entries(build.limbs).map(([k, L]) => [k, R.limbs[k] ? { ...L, masses: L.masses.map((m) => (R.limbs[k][m.id] ? roundMass(m, R.limbs[k][m.id]) : m)) } : L]));

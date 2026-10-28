@@ -41,3 +41,12 @@ export const HERO_WALK_POLE = Object.freeze({ male: Object.freeze({ stepWidth: 0
  * knee folds the toes point forward. The figure's gait ignores it.
  */
 export const HERO_RUN = Object.freeze({ swingFoot: true });
+
+/**
+ * A run by the hero's SILHOUETTE, over HERO_RUN (stampHeroMotion `pole`, as the walk's HERO_WALK_POLE). The run as minted
+ * lands nearly on one line (`stepWidth` 0.03), its pelvis turning 8° and swaying: a woman's run, the thighs crossing in
+ * under hips that carry it, and a man jogging on it read as one. The MAN runs a wider base, his feet landing about 9 cm
+ * apart (his legs clear each other, no crossing), the pelvis turning and swaying less and the shoulders more against
+ * it (the arms are each gait's own base). The woman keeps the run as minted.
+ */
+export const HERO_RUN_POLE = Object.freeze({ male: Object.freeze({ stepWidth: 0.09, pelvisRot: 5, hipSway: 0.025, shoulderRot: 16 }) });

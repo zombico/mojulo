@@ -13,7 +13,12 @@
 //             row of buttons, or two with the fronts overlapped), lapel?: notch | peak | shawl | none (none: the stand
 //             collar), buttons?: 1 | 2 | 3 (in a row); any of them gives the jacket a V onto the shirt, its lapels and its
 //             buttons (single with a notch lapel, double with a peak, unless named); its SHAPE: shoulder?: natural |
-//             structured (squared on a pad), waist?: suppressed (taken in) | straight (a sack, chest to hip)
+//             structured (squared on a pad), waist?: suppressed (taken in) | straight (a sack, chest to hip); its
+//             CONSTRUCTION (a jacket's, on the realistic body: body-relational-jacket.js): front: 'zip' (closed on a zip
+//             down the centre, no V), collar: 'shirt' (a falling collar, its points snapped to the chest; true the stand
+//             collar), rib?: cuffs | waist | both (knit rib bands, the body and the sleeves bloused over them),
+//             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
+//             over each shoulder buttoned at the collar), cloth?: leather or a cloth word (how it folds and shines)
 //             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
 //             turn, default 0.33), split?: 1 | 2 (two tails side by side), cut?, family?, rigidity? (default 'soft') }]: DRAPE
 //             PANELS hung from the waist over everything else (coattails, a tabard's apron, tassets, a loincloth)
@@ -106,6 +111,15 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "knit", "sleeve": "short", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "skinny", "fit": "fitted" },
       "outer": { "family": "woven", "sleeve": "long", "hem": "waist", "open": true, "fit": "fitted", "collar": true }, "feet": "boots", "tuck": false, "focal": "collar" },
     "tones": { "Outer": "#1e1b19", "Top": "#d9d5cc", "Bottom": "#2f3d57", "Shoes": "#1a1612", "Leather": "#1e1b19", "Buckle": "#c9c9c9" }
+  },
+  // a FLIGHT JACKET (the A-2): brown leather to the belt on a knit rib waistband and rib cuffs, closed on a zip, a shirt
+  // collar with snapped points, a flapped patch pocket on each front, epaulettes; over a tee and work trousers
+  flight: {
+    "id": "flight",
+    "dials": { "stylize": 0.2, "fit": 0.45, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "short", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "fit": "eased" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "hip", "fit": "eased", "collar": "shirt", "front": "zip", "rib": "both", "pockets": "flap", "epaulettes": true, "cloth": "leather" }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#5a3a24", "Rib": "#2e2219", "Top": "#3f4436", "Bottom": "#75664c", "Shoes": "#2b241c", "Leather": "#3a2617", "Buckle": "#8f8676" }
   },
   tactical: {
     "id": "tactical",
@@ -208,9 +222,11 @@ export const SEEDED_OUTFITS = Object.freeze({
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];
 /** a jacket's FRONT words (the tailor's, on the realistic body): the fastening, the lapel, the buttons in a row */
-export const OUTER_FRONTS = Object.freeze(['single', 'double']), OUTER_LAPELS = Object.freeze(['notch', 'peak', 'shawl', 'none']);
+export const OUTER_FRONTS = Object.freeze(['single', 'double', 'zip']), OUTER_LAPELS = Object.freeze(['notch', 'peak', 'shawl', 'none']);
 /** a jacket's SHAPE words (the tailor's too): its shoulder and its waist */
 export const OUTER_SHOULDERS = Object.freeze(['natural', 'structured']), OUTER_WAISTS = Object.freeze(['suppressed', 'straight']);
+/** a jacket's CONSTRUCTION words (the realistic body's: body-relational-jacket.js): its rib bands, its pockets, the cloth */
+export const OUTER_RIBS = Object.freeze(['cuffs', 'waist', 'both']), OUTER_POCKETS = Object.freeze(['flap', 'none']), OUTER_CLOTHS = Object.freeze(['leather', 'canvas', 'wool', 'denim', 'nylon', 'cotton']);
 const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
@@ -230,6 +246,10 @@ export function validateOutfitCard(card, at = 'outfit.style') {
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
       if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`);
       errs.push(...one(L.outer.front, OUTER_FRONTS, `${at}.language.outer.front`), ...one(L.outer.lapel, OUTER_LAPELS, `${at}.language.outer.lapel`), ...one(L.outer.shoulder, OUTER_SHOULDERS, `${at}.language.outer.shoulder`), ...one(L.outer.waist, OUTER_WAISTS, `${at}.language.outer.waist`));
+      errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, OUTER_CLOTHS, `${at}.language.outer.cloth`));
+      if (L.outer.collar !== undefined && ![true, false, 'shirt'].includes(L.outer.collar)) errs.push(`${at}.language.outer.collar: true (a stand collar), 'shirt' (a falling collar, its points snapped) or false`);
+      if (L.outer.epaulettes !== undefined && typeof L.outer.epaulettes !== 'boolean') errs.push(`${at}.language.outer.epaulettes: true or false`);
+      if (L.outer.front === 'zip' && (L.outer.lapel !== undefined || L.outer.buttons !== undefined)) errs.push(`${at}.language.outer.front: 'zip' closes without lapels or buttons (leave lapel and buttons out)`);
       if (L.outer.buttons !== undefined && !(Number.isInteger(L.outer.buttons) && L.outer.buttons >= 1 && L.outer.buttons <= 3)) errs.push(`${at}.language.outer.buttons: 1, 2 or 3 (a row's, down the front)`); } }
   if (L.panels !== undefined) { if (!Array.isArray(L.panels)) errs.push(`${at}.language.panels: a list of { at, length, width?, split?, cut?, family?, rigidity? }`);
     else L.panels.forEach((Q, i) => { const w = `${at}.language.panels[${i}]`;

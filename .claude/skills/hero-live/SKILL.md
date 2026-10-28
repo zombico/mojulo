@@ -20,6 +20,8 @@ node .claude/skills/hero-live/live.mjs --out /tmp/hero-live --reuse --serve
 # frames for an agent to Read: shots/sheet.png
 node .claude/skills/hero-live/shot.mjs --out /tmp/hero-live \
      --shots '[{"variant":"knight","take":"greet","view":"vBody","phase":0.45},{"variant":"bare","view":"vFace","hold":{"smile":1}}]'
+# a free camera where no button frames it (the back of the head, round the ear): az degrees round from the front, el up
+node .claude/skills/hero-live/shot.mjs --out /tmp/hero-live --shots '[{"variant":"bare","look":{"az":150,"el":10,"dist":0.55}}]'
 ```
 
 - `--hero` the spec every variant starts from (default: realistic female, seed 11, framed close at 1080p).

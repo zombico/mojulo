@@ -246,10 +246,12 @@ export function compileLayered(recipe, dials = {}, { details = true, creases = t
   const vertices = [], pointIds = [], provenance = [], faces = [], faceIds = [], groups = [], index = {};
   for (const [name, part] of Object.entries(built)) {
     const gid = (id) => (part.layer === 1 ? id : `${name}/${id}`);
+    // (an alpha card's points' places on it, a pinned part's `cardUV`: hair-depict.js stripMesh `card`; absent, nothing)
+    const cardUV = part.layer > 1 ? recipe.parts[name]?.cardUV : null;
     for (const [id, v] of Object.entries(part.points).sort(byName)) {
       index[gid(id)] = vertices.length; pointIds.push(gid(id)); vertices.push(v);
       const st = part.layer === 1 ? stationOf(id) : null; const sl = part.layer === 1 ? slotOf(id) : null;
-      provenance.push({ id: gid(id), layer: part.layer, part: name, ...(st && sl ? { station: st, slot: sl } : {}), anchor: part.pin ? part.pin.face : gid(id) });
+      provenance.push({ id: gid(id), layer: part.layer, part: name, ...(st && sl ? { station: st, slot: sl } : {}), anchor: part.pin ? part.pin.face : gid(id), ...(cardUV?.[id] ? { card: cardUV[id] } : {}) });
     }
     for (const [id, f] of Object.entries(part.faces || {}).sort(byName)) { faceIds.push(gid(id)); faces.push(f.map((p) => { if (index[gid(p)] === undefined) throw new Error(`station-loft: missing point ${p} in ${gid(id)}`); return index[gid(p)]; })); groups.push(part.groups?.[id] ?? part.group ?? 'Detail'); }
   }

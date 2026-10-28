@@ -45,7 +45,7 @@ describe('comic hero pack: looks', () => {
     const stops = new Set(DIAL.map((d) => d.id));
     for (const [id, L] of Object.entries(LOOKS)) expect(stops.has(L.stop), id).toBe(true);
     for (const d of DIAL) expect(Object.values(LOOKS).some((L) => L.stop === d.id), d.id).toBe(true);
-    expect(() => lookOf('noir')).toThrow(/no look 'noir' \(known: comic-day/);
+    expect(() => lookOf('noir')).toThrow(/no look 'noir' \(known: anime-day/);
   });
   it('every look reads as a geocube, and its paint is the city\'s (an hour word, a cloud kind)', () => {
     for (const [id, L] of Object.entries(LOOKS)) {
@@ -53,29 +53,27 @@ describe('comic hero pack: looks', () => {
       expect(['dawn', 'morning', 'noon', 'afternoon', 'golden', 'dusk', 'night'], id).toContain(L.paint.hour);
       expect(['clear', 'fair', 'overcast', 'storm', 'haze', 'high'], id).toContain(L.paint.clouds);
     }
-    // the gritty look is the material pole with the air thick and the walls worn, not another stop
-    const g = readGeocube(LOOKS['gritty-night'].geocube);
-    expect([LOOKS['gritty-night'].stop, g.grit, g.contrast !== undefined, g.light.outsideFog > readGeocube(LOOKS['realistic-city'].geocube).light.outsideFog]).toEqual(['realistic', 0.8, true, true]);
   });
-  it('each stop reads as a geocube today with the register it says, and as a hero direction', () => {
-    const REGISTER = { comic: 'cel', painted: 'ink-wash', realistic: 'continuous' };
-    const one = Object.fromEntries(DIAL.map((d) => [d.id, Object.entries(LOOKS).find(([, L]) => L.stop === d.id)]));
-    for (const [stop, [id, L]] of Object.entries(one)) {
-      const c = readGeocube(L.geocube);
-      expect(c.register.name, id).toBe(REGISTER[stop]);
+  it('each register has its own light: the anime the isekai bake (no polygon land), the golden hour baked, the film gen-7', () => {
+    const one = Object.fromEntries(DIAL.map((d) => [d.id, readGeocube(Object.values(LOOKS).find((L) => L.stop === d.id).geocube)]));
+    // the anime: the outside drawn by the isekai shell's own light, never inked (no cel register)
+    expect([one.anime.outside.land, one.anime.register.outline, one.anime.era]).toEqual([false, undefined, 'gen-6']);
+    // the golden hour: baked (gen-6), solved by the theorist, gritty (its ground drawn from relief), the sky the brightest
+    // thing: the figure stands backlit against it
+    const lum = (h) => [1, 3, 5].reduce((s, i, k) => s + [0.2126, 0.7152, 0.0722][k] * parseInt(h.slice(i, i + 2), 16) / 255, 0);
+    expect([one.dcau.era, Number.isInteger(one.dcau.palette.seed), one.dcau.grit >= 0.35, lum(one.dcau.light.sky.horizon) > lum(one.dcau.colour.stone)]).toEqual(['gen-6', true, true, true]);
+    // the film: the seventh generation's form render
+    expect(one.realistic.era).toBe('gen-7');
+  });
+  it('each stop reads as a hero direction: the anime tradition and its light at the anime stop, the western elsewhere', () => {
+    const TRADITION = { anime: ['anime', true, 'anime'], dcau: ['western', false, 'hero'], realistic: ['western', false, 'hero'] };
+    for (const [id, L] of Object.entries(LOOKS)) {
       const { form, ...direction } = L.hero;
       const D = resolveDirection({ characters: { direction }, style: { kit: 'island-plaza', civilization: 'a' }, civilizations: {}, seed: 1 });
-      // never cel shaded: the western tradition at every stop (no character light), the realistic body at the realistic one
-      expect([D.tradition, D.hero.toon, D.hero.proportions], id).toEqual(['western', false, 'hero']);
-      expect(form, id).toBe(stop === 'realistic' ? 'realistic' : undefined);
+      expect([D.tradition, D.hero.toon, D.hero.proportions], id).toEqual(TRADITION[L.stop]);
+      expect(form, id).toBe(L.stop === 'realistic' ? 'realistic' : undefined);
     }
-    expect(TRADITIONS.western.toon).toBe(false);
-  });
-  it('the night look differs from the day look only in its base and its secondary element: one dial, not two packs', () => {
-    const day = LOOKS['comic-day'], night = LOOKS['comic-night'];
-    expect(night.geocube.register).toBe(day.geocube.register);
-    expect(night.hero.tradition).toBe(day.hero.tradition);
-    expect(night.geocube.from).not.toBe(day.geocube.from);
+    expect([TRADITIONS.western.toon, TRADITIONS.anime.toon]).toEqual([false, true]);
   });
 });
 
@@ -83,7 +81,7 @@ describe('comic hero pack: resonance', () => {
   it('advises and never refuses: words or nothing, the same for the same cube, on a core cube too', () => {
     const brawler = packCube('street-brawler').cube;
     const a = resonance(brawler);
-    expect(a.map((x) => x.law)).toEqual(['comic-hero.bursts-want-bands', 'comic-hero.night-wants-rim']);
+    expect(a.map((x) => x.law)).toEqual(['comic-hero.bursts-want-drawn', 'comic-hero.night-wants-backlight']);
     expect(resonance(brawler)).toEqual(a);
     for (const L of LAWS) expect([typeof L.advice({}), L.advice({})], L.id).toEqual(['object', null]);
     expect(resonance({ reality: { look: 'gothic-night' }, power: { combat: ['melee'] } })).toEqual([]);
@@ -96,7 +94,7 @@ describe('comic hero pack: resonance', () => {
 
 describe('comic hero pack: QA orders', () => {
   it('set the table for one stop: a gameworld the tree reads, its downtown painted by the look, the hero at that pole', () => {
-    const [world, hero] = qaOrders('realistic-city');
+    const [world, hero] = qaOrders('realistic-night');
     expect(world.tool).toBe('create_sketch');
     const M = world.args.manifest;
     expect(M.characters.direction).toMatchObject({ tradition: 'western' });
@@ -106,14 +104,19 @@ describe('comic hero pack: QA orders', () => {
     expect(kind).toBe('gameworld');
     const G = readGameworld(W);
     expect(G.intent.cube).toEqual(M.intent.cube);
-    expect(resolveLevel(G, 'downtown').city.plan.paint).toEqual({ geocube: LOOKS['realistic-city'].geocube, ...LOOKS['realistic-city'].paint });
+    expect(resolveLevel(G, 'downtown').city.plan.paint).toEqual({ geocube: LOOKS['realistic-night'].geocube, ...LOOKS['realistic-night'].paint });
     expect(resolveDirection(G).hero.toon).toBe(false);
     expect([hero.tool, hero.args.kind, hero.args.via, hero.args.spec.form, hero.args.toon]).toEqual(['mint_solid', 'layered', 'hero', 'realistic', undefined]);
-    // the comic stop's world reads too; its hero is never cel shaded: the tiered body, no toon
-    const { kind: _k, ...day } = qaOrders('comic-day')[0].args.manifest;
-    expect(resolveDirection(readGameworld(day)).hero).toEqual({ head: 'landmark', proportions: 'hero', toon: false });
-    const dayHero = qaOrders('comic-day')[1].args;
-    expect([dayHero.toon, dayHero.spec.form]).toEqual([undefined, undefined]);
+    // the golden hour's world reads too: the tiered body, no toon
+    const { kind: _k, ...golden } = qaOrders('dcau-golden')[0].args.manifest;
+    expect(resolveDirection(readGameworld(golden)).hero).toEqual({ head: 'landmark', proportions: 'hero', toon: false });
+    const goldenHero = qaOrders('dcau-golden')[1].args;
+    expect([goldenHero.toon, goldenHero.spec.form]).toEqual([undefined, undefined]);
+    // the anime stop is seen on open ground (the city kind lights itself, never by the isekai bake), its hero the anime head
+    const { kind: _a, ...anime } = qaOrders('anime-day')[0].args.manifest, A = readGameworld(anime);
+    expect([A.levels.field.style.geocube, A.levels.downtown]).toEqual([LOOKS['anime-day'].geocube, undefined]);
+    expect(resolveDirection(A).hero).toMatchObject({ head: 'anime', toon: true });
+    expect(qaOrders('anime-day')[1].args.spec.head).toBe('anime');
     expect(PACK.wants).toContain('reality.look=comic-day');
   });
 });

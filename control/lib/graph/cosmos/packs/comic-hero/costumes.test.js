@@ -31,6 +31,14 @@ describe('comic hero pack: costume eras', () => {
     expect(tiered.outfit.style).toBe('tactical');
     for (const role of ROLES) for (const era of ERA_IDS) expect(costumeOf(role, era, 'realistic').paint, `${role} ${era}`).toBeUndefined();
   });
+  it('the Silver Age cape hangs to the ankle, clear of the calf\'s widest; the Movie Hero\'s pouches ring the waist on the tiered body', () => {
+    expect(costumeOf('classic', 'silver', 'tiered').outfit.pieces.find((p) => p.kind === 'cloak').hem).toBe('ankle');
+    // (a pair at the hip sits inside the thighs on the tiered body and does not read)
+    for (const role of Object.keys(SUITS)) {
+      const o = costumeOf(role, 'movie', 'tiered').outfit;
+      for (const p of (o && !Array.isArray(o) ? o.pieces : []).filter((q) => q.kind === 'pouches')) expect(p.at, role).toBe('waist');
+    }
+  });
   it('a suited member and an armoured one validate in every era on both bodies; a look suggests its era and an era named wins', () => {
     const looks = Object.fromEntries(Object.keys(LOOKS).map((id) => [bodyOf(id), id]));
     for (const id of ['hero', 'mastermind']) for (const era of ERA_IDS) for (const look of Object.values(looks)) {
@@ -39,8 +47,8 @@ describe('comic hero pack: costume eras', () => {
       expect(validateHeroSpec(fields), `${id} ${era} ${look}`).toEqual([]);
       expect(got).toBe(era);
     }
-    expect(memberOrders('hero', 'comic-night').era).toBe('silver');
-    expect(memberOrders('hero', 'painted-dusk').era).toBe('modern');
-    expect(memberOrders('hero', 'realistic-city').era).toBe('movie');
+    expect(memberOrders('hero', 'dcau-golden').era).toBe('silver');
+    expect(memberOrders('hero', 'anime-day').era).toBe('silver');
+    expect(memberOrders('hero', 'realistic-night').era).toBe('movie');
   });
 });

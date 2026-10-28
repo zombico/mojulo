@@ -12,52 +12,53 @@ const F = (cube, f) => cube?.[f] || {};
 
 export const LAWS = Object.freeze([
   {
-    // a blow drawn as a burst wants the page's bands: a comic explosion under continuous light reads as a mistake
-    id: 'bursts-want-bands',
+    // a blow drawn as a burst wants a drawn register: a comic explosion under the film's live light reads as a mistake
+    id: 'bursts-want-drawn',
     advice: (cube) => {
       const P = F(cube, 'power');
       return has(P.explosions, 'comic') && has(P.combat, 'melee') && !String(F(cube, 'reality').look || '').startsWith('comic')
-        ? 'power.explosions comic over melee reads as a comic page: the comic stop (geocube register cel, an ink outline; reality.look comic-day or comic-night when built)'
+        ? 'power.explosions comic over melee reads as a drawn page: the dcau stop (the gritty look at golden hour, its light baked) or the anime stop, never the realistic one (reality.look comic-day or comic-night when built)'
         : null;
     },
   },
   {
-    // people who talk and a story that advances want a face the light can read: the material pole
+    // people who talk and a story that advances want a face the light can read: the film's live light
     id: 'talk-wants-material',
     advice: (cube) => {
       const M = F(cube, 'mind'), T = F(cube, 'time');
       return M.social === 'talk' && (T.advance === 'quests' || has(T.shots, 'banter'))
-        ? 'mind.social talk with time.advance quests or a banter shot reads faces: the realistic stop (the western tradition, form realistic, register continuous) or the painted stop at least'
+        ? 'mind.social talk with time.advance quests or a banter shot reads faces: the realistic stop (the western tradition, form realistic, the seventh generation\'s live light)'
         : null;
     },
   },
   {
-    // a flying hero is seen against the sky: the painted stop gives the sky its colour; the missing pieces are named
+    // a flying hero is seen against the sky: the anime stop paints it, heaped cumulus lit in crescents; the missing
+    // pieces are named
     id: 'flight-wants-sky',
     advice: (cube) => {
       const P = F(cube, 'power'), S = F(cube, 'space'), T = F(cube, 'time');
       if (!has(P.rules, 'fly')) return null;
       const missing = [S.levelForm !== 'airspace' && 'space.levelForm airspace', !has(T.shots, 'staged') && 'a staged shot at the top of the climb'].filter(Boolean);
-      return `power.rules fly is seen against the sky: the painted stop (a dusk look, register ink-wash)${missing.length ? `, with ${missing.join(' and ')}` : ''}`;
+      return `power.rules fly is seen against the sky: the anime stop (a painted sky, heaped cumulus, the anime-day look)${missing.length ? `, with ${missing.join(' and ')}` : ''}`;
     },
   },
   {
-    // two heroes seen from the side are a cover: the page's bands, and the blow held as a panel when it lands
+    // two heroes seen from the side with a transformation are the anime fight: its light, and the blow held as a panel
     id: 'versus-wants-panel',
     advice: (cube) => {
       const P = F(cube, 'power'), S = F(cube, 'space');
       return has(P.combat, 'versus') && S.camera === 'side'
-        ? 'power.combat versus from the side is a cover: the comic stop, and time.shots panel (when built) to hold the landing blow'
+        ? 'power.combat versus from the side is the anime fight: the anime stop, and time.shots panel (when built) to hold the landing blow'
         : null;
     },
   },
   {
-    // a night city on the banded pole loses the figure in the dark bands: the outline and a rim carry it
-    id: 'night-wants-rim',
+    // a night city loses the figure in the dark: the frontier film's low sun puts a lit sky behind it, the figure backlit
+    id: 'night-wants-backlight',
     advice: (cube) => {
       const R = F(cube, 'reality'), S = F(cube, 'space');
       return R.look === 'city-night' && S.levelForm === 'city' && has(F(cube, 'power').explosions, 'comic')
-        ? 'a comic city by night: the comic-night look (geocube from city-night, register cel) whose outline and rim light carry the figure where the bands go dark'
+        ? 'a comic city by night loses the figure in the dark: the dcau-golden look (a low warm sun behind lit cloud, the light baked) stands it backlit against a lit sky'
         : null;
     },
   },

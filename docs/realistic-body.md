@@ -28,7 +28,11 @@ with `--hero '{"form":"realistic", …}'`, coloured by body part with `--map`.
 `hero.form: 'realistic'`, `hero.physique: { from?: 'athletic'|'skinny'|'heavyset'|'jacked', bulk?, tone?, weight?,
 height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ from }`). Its head is the relational head unless `head` names another
 (`'landmark'`, `'none'`). The build is the cast's pole's
-(`cast: 'male'` → norrin, `'female'` → shalla). The plan is laid out with the hero's tune times the build's.
+(`cast: 'male'` → norrin, `'female'` → shalla). The plan is laid out with the hero's tune times the build's. Under
+realistic laws 9 the man's hip sockets come in with his narrowed frame (`MALE_HIPS`, `withHipSpan` on the rig before the
+slice reads it): the build narrows the shoulders, and on the heroic cast's hips every male physique had read a woman's
+waist to hip from behind and in profile. The tune's `hips` widens the pelvis's girth only, never the sockets. The
+kit and the cloth are made by the rules in [garment-principles.md](garment-principles.md#the-kit-as-pieces-the-cloth-as-it-folds-realistic-laws-8).
 
 ## The recipe
 
@@ -108,8 +112,24 @@ part, `headSkin`, bound per point: the seam's blend easing up to the jaw's share
 line, the upper lip the head's and the lower the jaw's, each turned in along the cut, with a closed `mouth` bag behind
 them. Each globe is its own closed part (`globeR`, `globeL`: rings about its gaze, the pupil's and the iris's edges
 rings of their own), and the ears are as below. The hair, the brows, the lashes, the beard and the piercings are pinned
-to the skin's faces. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
-carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 1 the head
+to the skin's faces. Under laws 10 the scalp's hair is LOCKS in one colour over a solid shell
+(`control/lib/graph/epidermis/hair-locks.js`): the groom's guides gathered and lofted as tapered, grooved tubes, the
+face's `stylize` their register. Over the scalp each flow wraps round the head at its own height, the higher-rooted
+flows the outer, so they shingle and never stand off as chords. A long lock's points below the head ride the neck and the
+torso, and it falls outside the shoulders. The face's hair takes the same register (`lockStrands`): a beard is its coat
+sculpted to where its hairs stand, a full beard's chin hangs as flows out of it, and each brow and each half of the
+moustache is a band, one mass along it with the dial's strokes on it. Hair clipped under 4 mm (a fade's foot, a stubble)
+is the skin's paint, the hair's colour by the share its length covers (`dermal-map.js` `CLIPPER`); where the face grows
+a beard, the sideburn holds the beard's length up into the scalp. Under laws 10 the ear sits at the canon, its top at
+the brow line and its lobule at the nose's base (`head-relational.js` `EAR_RAISE`). The overlap principle (`hair-score.js` `overlapHair`) holds the scalp hidden except in the splits. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
+carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 11 the
+lids rest on the globes (`head-relational-eye.js` `SEAT`, the fit's `seat`): within a reach of the margins the skin is
+cut back to the lid shell over the globe and rolls out of it into the cheek and up to the crease, so no tunnel stands
+between a margin and the eye. Above the crease the fold rises to the brow as a pad, steep out of the crease and near
+upright under the brow, so a light from above reaches it; the brow's arc and its ties hang lower; a deep-set eye (its
+globe, lids and lashes) comes forward a share of the way toward the nose's tip, short of the glabella; the lower
+lashes root on the margin's front, shorter. Everything that rebuilds the head from its fit (the bake, the hair, the
+face rig) reads the same seated head. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,
@@ -119,6 +139,9 @@ eyes over the nose over the visage over the cranium), and `earR/L` (a tube up ea
 rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion. Every head part's stations carry `normals` (each
 point's unit gradient of its field at rest), which the shading takes in place of the facets' (`authoredNormals`); the lower face (the jaw part, the visage under
 the lips' line) is bound to the jaw. Its face rides an export as morph targets (`relational-face-rig.js`: a blink, one eye's, a smile, a brow raised and
-lowered, each the head rebuilt at its fit with one of its own actions; what is pinned to the face carried by the skin
-under it), weighed by the western expression channels; the World page plays no face morphs yet. The lips stretch as the
+lowered, its inner ends lifted (worried), the eyes wide and squinted, each the head rebuilt at its fit with one of its
+own actions; what is pinned to the face carried by the skin under it, the brows' cards whole), weighed by the western
+expression channels and their eye looks (`humanoid-head.js` `EYE_LOOKS`); the World page plays no face morphs yet.
+In the one skin a lid's weight and turn are smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`), so a
+blink shuts the lid as one sheet. The lips stretch as the
 jaw opens.

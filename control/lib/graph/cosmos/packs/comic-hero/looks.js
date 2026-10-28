@@ -1,18 +1,32 @@
 /**
- * THE COMIC HERO PACK'S LOOKS: one dial from the comic page to the realistic hero, every stop a geocube the tree reads
- * TODAY (era/geocube.js readGeocube: a `from` preset with a named register over it) and the hero direction that goes
- * with it (gameworld/characters.js). The WORLD walks the registers (cel, ink-wash, continuous); the HERO is never cel
- * shaded: the western tradition at every stop (the landmark head, heroic proportions, no character light, no ink),
- * on the standard tiered body at the comic and painted stops and on the realistic body at the realistic stop. The
- * dial's two ends are the two bodies.
+ * THE COMIC HERO PACK'S LOOKS: one dial of three REGISTERS, every stop a geocube the tree reads TODAY (era/geocube.js
+ * readGeocube: a `from` preset with its changes) and the hero direction that goes with it (gameworld/characters.js).
+ * Each register has its own light, and the world and the hero take the same one:
  *
- *   DIAL            the stops in order, the comic page first: [{ id, body, reads }]
- *   LOOKS           { <look id>: { stop, reads, geocube, paint, hero, why } } a look is a stop by day or by night
+ *   anime      the isekai shell's own light (era/isekai.js): every colour on its ramp, rock and cliff drawn lit or in
+ *              shade by tile per facet (the sun's Lambert × its shadow), grass hats and the field, a painted sky. The
+ *              cube's outside has no polygon land (`outside.land: false`), which would draw over it. Not the `cel`
+ *              register: the anime look is not inked. The hero is the anime tradition on the tiered body: the anime
+ *              head under its character light
+ *   dcau       the gritty look at golden hour (the operator's reference: a seventh-generation western at sunset): a low
+ *              warm sun behind lit cloud, the figures backlit and darker than the sky, dusty ground drawn from relief, a
+ *              warm haze that sinks the distance, warm earth against a cool stone; the light baked into the vertex
+ *              (gen-6), the world's colours the colour theorist's. The hero is the western tradition on the tiered body,
+ *              baked by the cube's cast light
+ *   realistic  the seventh generation (era/eras.js gen-7): the form render under a live key, worked steel and leather,
+ *              no outline. The realistic body
+ *
+ *   DIAL            the stops in order: [{ id, body, reads }]
+ *   LOOKS           { <look id>: { stop, reads, geocube, paint, level?, hero, why } } a look is a stop at an hour
  *                     geocube  the spec a level's `geocube` takes, readable now; its `light` the air (outsideFog against
- *                              the reference's, the sky's fog colour), its `contrast` and `grit` how hard the light and
- *                              the wear are (the gritty look)
- *                     paint    the rest of a city level's `paint` beside the geocube (city/plan/look.js): the `hour` the
- *                              cube lights it at and the `clouds` over it, which set the dome, the air and the haze
+ *                              the reference's, the sky's colours), its `palette` the theorist's spec (a seed: solved)
+ *                     paint    the rest of a level's paint beside the geocube (city/plan/look.js): the `hour` the cube
+ *                              lights it at and the `clouds` over it
+ *                     level    the QA level it is seen on: 'city' (a downtown painted by the cube, the default) or
+ *                              'trail' (open ground: the city kind lights itself and never draws the isekai bake)
+ *                     bake     the hero wears the look's cube, baked in its light (era/cast-light.js: the key, the tinted
+ *                              ambient, the ground's bounce, the rim); absent, the hero's own light (the anime head's
+ *                              character light, which a cube on the hero would replace)
  *                     hero     the gameworld `characters.direction` for it, plus `form` where the body is the realistic one
  *   lookOf(id)      one, or throws naming the known ids
  *
@@ -20,52 +34,39 @@
  * the sixth-gen look row that would make them is the `comic-look` package. Until then a world takes the geocube directly.
  */
 export const DIAL = Object.freeze([
-  { id: 'comic', body: 'tiered', reads: 'the comic page: the world in three bands with an ink outline and bold flat colour; the hero the tiered body, shaded smooth' },
-  { id: 'painted', body: 'tiered', reads: 'the painted cover: the world in continuous light under an ink wash and a fine line; the hero the tiered body' },
-  { id: 'realistic', body: 'realistic', reads: 'the live-action film: light on material, the realistic hero, no outline; gritty when the air is thick and the walls are worn' },
+  { id: 'anime', body: 'tiered', reads: 'the anime open field: every colour on its ramp, rock lit or in shade by tile, grass hats, a painted sky; the hero the anime head under its character light' },
+  { id: 'dcau', body: 'tiered', reads: 'the frontier film at golden hour: a low warm sun behind lit cloud, the figures backlit, dusty ground and a warm haze, the light baked, the colours the theorist\'s; the hero the tiered body under the cube\'s cast light' },
+  { id: 'realistic', body: 'realistic', reads: 'the seventh generation: light on material under a live key, no outline; the realistic hero' },
 ]);
 
-// the comic palette: a bold two-ramp key, a primary against its complement, the shade leaning blue (geocube default)
-const COMIC_COLOUR = Object.freeze({ accent: '#e03a2f', trim: '#2a56c6' });
-
 export const LOOKS = Object.freeze({
-  'comic-day': {
-    stop: 'comic', reads: 'the comic page at noon: a hard sun, white light, primaries',
-    geocube: { from: 'island-noon', register: 'cel', colour: { ...COMIC_COLOUR, stone: '#d9d2c4', floor: '#b8aa96' }, light: { outsideFog: 0.7 } },
+  'anime-day': {
+    stop: 'anime', reads: 'the anime field at noon: a hard sun, the grass lit to its top stop, rock in two tiles, heaped cumulus',
+    geocube: { from: 'island-noon', colour: { stone: '#a9a4b8', floor: '#c9a27a' }, outside: { land: false }, light: { outsideFog: 0.7 } },
     paint: { hour: 'noon', clouds: 'fair' },
-    hero: { tradition: 'western', from: 'world', primary: 'the emblem', secondary: 'the belt' },
-    why: ['Three bands and an outline on the world: what a printed page can hold.', 'A red against a blue, nothing muddy.', 'The hero is the tiered body shaded smooth, the landmark head, heroic proportions: never cel shaded.', 'Clear air: a page has no haze; the far towers stay drawn.'],
+    level: 'trail',
+    hero: { tradition: 'anime', from: 'world', primary: 'the emblem', secondary: 'the hair' },
+    why: ['The light is the palette\'s: a colour moves along its ramp in the sun and the shade, never off it.', 'Rock and cliff are two tiles, lit and shade, chosen per facet by the sun and its shadow: the band follows the big shapes.', 'Shade is a cool colour, never black; the sky is the brightest thing.', 'A cool lilac stone and a warm sand ground, so the grass and the sky carry the hue.'],
   },
-  'comic-night': {
-    stop: 'comic', reads: 'the comic page by night: the same ink and bands, the city\'s sodium and neon, rim light on the cast',
-    geocube: { from: 'city-night', register: 'cel', colour: COMIC_COLOUR, light: { outsideFog: 0.5, sky: { zenith: '#120f1e', horizon: '#3a2c4a', fog: '#2a2440' } } },
-    paint: { hour: 'night', clouds: 'high' },
-    hero: { tradition: 'western', from: 'world', primary: 'the emblem', secondary: 'the cowl' },
-    why: ['Night is a colour, not black: the city\'s own light.', 'The outline carries the figure where the bands go dark.', 'A thin violet air under high cloud: the page\'s night, not a fog.'],
+  'dcau-golden': {
+    stop: 'dcau', reads: 'the frontier film at golden hour: a low sun behind lit cloud, the figures backlit, dusty ground, a warm haze',
+    // the gritty look as the baseline (the light shaped in the vertex, vertex-contrast.js wii; the walls and the rock dressed
+    // from relief at grit) under the desert-dusk reference's low warm key, the air thick enough to warm the distance; the
+    // colours the theorist's, full where they look good: rust and ochre lit warm, the stone and the shade a cool teal against them
+    // (the cast's rim in the cube's own sky, strong enough to hold a backlit figure's outline: a dark suit keeps its form)
+    geocube: { from: 'jungle-haze', light: { reference: 'desert-dusk', outsideFog: 1.4, rim: { strength: 0.9, power: 2.5 } }, contrast: 'wii', grit: 0.8, materials: { age: 'worn' },
+      palette: { intent: 'a dusty frontier at golden hour: rust and ochre ground under a warm low sun, the stone and the shade cool against it', key: 'mid', heat: 0.6, weight: 0.2, activity: 0.3, scheme: 'split-complementary', hue: '#b07a48', hues: { sky: 60 }, seed: 5 } },
+    paint: { hour: 'golden', clouds: 'fair', materials: 'modern' },
+    bake: true,
+    hero: { tradition: 'western', from: 'world', primary: 'the silhouette', secondary: 'the emblem' },
+    why: ['The sky is the brightest thing: a warm gold the figures stand against, backlit.', 'Warm against cool: rust and ochre in the low sun, the stone and the shade a cool teal; colour where it looks good.', 'The air is warm and thick: the distance sinks into the sky\'s colour.', 'The ground is worn and dusty, drawn from relief; the light is baked.'],
   },
-  'painted-dusk': {
-    stop: 'painted', reads: 'the painted cover at dusk: a warm sky, a wash in the corners, a fine line',
-    geocube: { from: 'valley-morning', register: 'ink-wash', colour: { accent: '#c8452c' }, light: { outsideFog: 1.4, sky: { zenith: '#5a6fa0', horizon: '#e0a070', fog: '#c9a58a' } } },
-    paint: { hour: 'dusk', clouds: 'overcast' },
-    hero: { tradition: 'western', from: 'world', primary: 'the cape\'s line', secondary: 'the gauntlets' },
-    why: ['Continuous light, inked: the cover, not the page.', 'The hero in material light on the tiered body; the world keeps its line.', 'Dusk under a lid of cloud, a warm haze pooling down the street: the wash is in the air too.'],
-  },
-  'realistic-city': {
-    stop: 'realistic', reads: 'the film: a night city, worked steel and leather, no outline',
-    geocube: { from: 'city-night', register: 'continuous', materials: { age: 'worn' }, light: { outsideFog: 0.9 } },
+  'realistic-night': {
+    stop: 'realistic', reads: 'the film by night: a city under overcast, worked steel and leather, the light live',
+    geocube: { from: 'city-night', era: 'gen-7', register: 'continuous', materials: { age: 'worn' }, light: { outsideFog: 0.9 } },
     paint: { hour: 'night', clouds: 'overcast' },
     hero: { tradition: 'western', from: 'world', form: 'realistic', primary: 'the silhouette', secondary: 'the emblem, small' },
-    why: ['Light on material, as a camera sees it.', 'The suit is worn: a film\'s costume, not a print.', 'Overcast night, the air a little thick: the city lights bloom, the far towers soften.'],
-  },
-  'gritty-night': {
-    stop: 'realistic', reads: 'the gritty film: a storm night, the air thick with the city\'s own light, worn walls shaped by a hard key',
-    // the light shaped in the vertex (vertex-contrast.js wii: the foot of a wall, crease and contact, warm against cool),
-    // the walls dressed from relief at grit (city/plan/dress.js: streaks, stains, a bloom), the air thick enough to swallow
-    // the far towers and carry the sodium up into the sky
-    geocube: { from: 'city-night', register: { name: 'continuous', key: 0.3 }, contrast: 'wii', grit: 0.8, materials: { age: 'old' }, light: { outsideFog: 2.2, moon: { color: '#b4bce0', elevation: 40, azimuth: 220, gain: 0.45 }, sky: { zenith: '#0c0a0c', horizon: '#3a2c26', fog: '#3a2c26' } } },
-    paint: { hour: 'night', clouds: 'storm', materials: 'modern' },
-    hero: { tradition: 'western', from: 'world', form: 'realistic', primary: 'the silhouette', secondary: 'the emblem, small' },
-    why: ['The atmosphere is the light: what is lit is what the air lets through.', 'A low key, the walls worn and streaked, the shade warm against a cold sky.', 'The far city is gone into the air; the near street is all there is.'],
+    why: ['Light on material, as a camera sees it: the renderer lights it, the surface holds no light.', 'The suit is worn: a film\'s costume, not a print.', 'Overcast night, the air a little thick: the city lights bloom, the far towers soften.'],
   },
 });
 

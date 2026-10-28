@@ -169,6 +169,48 @@ Measured as the dressed outline's standoff per side over the bare body (`dress-o
 within its ease and 1.5 cm, a waist within a few centimetres, a coat's knee well under 10 cm. The game body keeps its
 own eases; the compression is the realistic adapter's (`body-relational-wear.js`).
 
+## The kit as pieces, the cloth as it folds (realistic laws 8)
+
+On the realistic body the kit and the cloth are made by these rules, in core, for every hero whatever its outfit
+(`control/lib/graph/polygonizer/body-relational-kit.js`, `body-relational-folds.js`; their measures beside them as data:
+`KIT`, `POUCH`, `HOLSTER`, `FOLD_CLOTH`). Each holds at the eyes gate first: a thing reads as what it is at a glance,
+and keeps reading as the body moves.
+
+- **A piece is the thing it is.** A belt is one mass: one section top to bottom, its edges rounded, a buckle that is a
+  frame (bars, a tongue, the tail through it, a keeper). A pouch is a body with rounded corners, a lid flap folded over
+  its top, a closure (a tab and its snap) and seams. A strap is a flat strip of webbing. A holster carries its pistol,
+  the slide and the grip out of its mouth, a retention strap over the frame. Never a slab with a signature on it.
+- **It is fitted over what is under it, and only that.** A belt is cinched over the piece it is on, the trunk's cloth
+  inside that, the belts before it and the skin, spanning the hollows (the small of the back) as a belt under tension
+  does; a garment wider than it there is worn over it and clears it. Webbing lies on the outermost layer it crosses. A
+  pouch's back is pressed flat to whatever stands out most under it. A piece on the trunk lies on the trunk: an arm
+  hanging beside it is no surface.
+- **Everything is fastened to something.** A strap that runs to a belt ends on it: a ladder lock just over it and a tab
+  round it. Straps whose ends meet at the waist (a harness's X) end on a waist strap of the same webbing round the body.
+  A pouch hangs from its own belt; a thigh rig hangs from the belt by a strap down the hip; a holster from the harness.
+  Nothing hangs open at the sides.
+- **One of a thing.** Belts at nearly one height share it, the later cinched over the earlier (a duty belt over the
+  trousers' belt). A strap along a path one is already laid on is that strap.
+- **Sized as the real thing**, by what it carries: a magazine pouch, a utility pouch, a pistol's holster.
+- **Folds as a game draws them, not a simulation's.** A few broad ridges where cloth gathers (crescents inside the
+  elbows and behind the knees, stacked rolls over the boots and at the cuffs, a shirt bloused over its belt with
+  gathers under it), each standing out from the cloth, never into it; the crease side sharp, the other side soft; the
+  size the cloth's weight (a knit small, canvas sharper, a heavy layer broad, leather broadest). They ride the cloth's
+  own weights, so a bend closes the crescents it shows and they read in motion. None where a belt cinches the cloth flat,
+  none on a piece a garment is worn over (the outer one carries the fold), and only cloth that runs under a belt blouses
+  over it.
+
+- **A jacket opens.** An opening is cut, never painted: the jacket's body is a C in section (its inner face round to a
+  front edge, the edge turned, its outer face back), so its two fronts are real edges with a real gap between them, and
+  what is under it shows through the gap itself. Its collar opens with it. Closed, it closes on a zip in the gap; open,
+  the fronts hang apart. Its pieces lie on its own face and stay inside their own front: the pockets clear of the edge
+  and short of the side, the collar's points from the edge out over the chest.
+- **A knit rib gathers.** A rib waistband or cuff is a band cinched round what is under it, tighter than the cloth it
+  finishes, and the body or the sleeve blouses over it.
+
+Not yet: the game body (the tiered form) and the authored kernel lay their kit as slabs on the body's envelope; the
+realistic kneepads are still those. The folds are geometry only (no fold normal map, no weave).
+
 ## Against the outfit laws
 
 The ten laws in `control/lib/graph/outfit/principles.js` hold most of these as words; this note gives them measures.

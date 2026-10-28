@@ -4,7 +4,7 @@
  * language. An era never invents a garment: every costume is the hero door's own words (a `paint`, an outfit build and
  * its designed pieces, a chest motif worked in thread, the armored-hero hardsuit, the footwear, handwear and plating
  * libraries by word on the realistic body). The eras tie together through the look dial: each stop suggests an era
- * (ERA_OF_STOP: the comic page the Silver Age, the painted cover the Modern, the film the Movie Hero), and the operator
+ * (ERA_OF_STOP: the anime field and the golden-hour film the Silver Age, its primaries; the film the Movie Hero), and the operator
  * may name another.
  *
  *   ERAS                         { silver, modern, movie }: { name, reads, principles: [words], palette: { <group>: hex } }
@@ -21,7 +21,7 @@ export const ERAS = Object.freeze({
       'Primaries: a red against a blue (or a green against a yellow), the emblem gold; nothing muddy, nothing metallic.',
       'The silhouette is the body: a skin-fit suit, the trunks and boots a second colour, the cape the first.',
       'One emblem, large, worked on the chest; the belt at the natural waist under it.',
-      'The cape hangs to the calf and frames the figure; a sidekick wears a half-cape.',
+      'The cape hangs to the ankle and frames the figure (a hem at the calf ends on its widest); a sidekick wears a half-cape.',
       'Flat colour, no seams, no plates: a printed page.',
     ],
     palette: SUITS.classic.palette,
@@ -52,7 +52,7 @@ export const ERAS = Object.freeze({
   },
 });
 export const ERA_IDS = Object.freeze(Object.keys(ERAS));
-export const ERA_OF_STOP = Object.freeze({ comic: 'silver', painted: 'modern', realistic: 'movie' });
+export const ERA_OF_STOP = Object.freeze({ anime: 'silver', dcau: 'silver', realistic: 'movie' });
 
 const SKIN = { fit: 'skin', feet: 'boots', top: { family: 'knit', sleeve: 'long', hem: 'hip' }, bottom: { family: 'knit', leg: 'long', cut: 'skinny' } };
 const TACTICAL = { fit: 'fitted', feet: 'boots', top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long', cut: 'tapered' } };
@@ -67,14 +67,16 @@ const MODERN = {
   armored: () => ({ adorn: HARDSUIT({ mass: 0.5, ornament: 0 }) }),
   thug: () => ({ outfit: build('biker', { feet: 'boots' }, [], null, { fit: 0.6, coverage: 0.9 }) }),
 };
+// (the tiered body's pouches ring the waist: a pair at the hip sits inside the thighs and does not read)
+const UTILITY = { kind: 'pouches', at: 'waist', count: 4 };
 // MOVIE HERO: armour over an undersuit. The tiered body wears the hardsuit at low mass over a tactical outfit; the
 // realistic body wears the plating library by word (a suit word, combat boots, tactical gloves), which is that body's own
 const MOVIE = {
   classic: (body) => (body === 'realistic' ? { outfit: ['sleekSuit', 'combatBoots', 'tacticalGloves'] } : { outfit: build('tactical', TACTICAL, [{ kind: 'harness' }, { kind: 'kneepads' }, { kind: 'bracers' }], null, { stylize: 0.4 }), adorn: HARDSUIT({ mass: 0.5, coverage: 0.5, ornament: 0 }, { helm: 'none', chest: 'plain', pack: 'none' }) }),
-  street: (body) => (body === 'realistic' ? { outfit: ['tee', 'trousers', 'combatBoots', 'tacticalGloves'] } : { outfit: build('tactical', TACTICAL, [{ kind: 'cloak', hood: true, wrap: 0.5, hem: 'hip' }, { kind: 'pouches' }, { kind: 'kneepads' }], null, { stylize: 0.4 }) }),
+  street: (body) => (body === 'realistic' ? { outfit: ['tee', 'trousers', 'combatBoots', 'tacticalGloves'] } : { outfit: build('tactical', TACTICAL, [{ kind: 'cloak', hood: true, wrap: 0.5, hem: 'hip' }, UTILITY, { kind: 'kneepads' }], null, { stylize: 0.4 }) }),
   sleek: (body) => (body === 'realistic' ? { outfit: ['stealthSuit', 'combatBoots', 'tacticalGloves'] } : { outfit: build('operative', SKIN, [{ kind: 'bracers' }, { kind: 'kneepads' }], null, { stylize: 0.4 }), adorn: HARDSUIT({ mass: 0.5, coverage: 0.4, ornament: 0 }, { helm: 'none', chest: 'plain', pack: 'none' }) }),
   armored: (body) => (body === 'realistic' ? { outfit: ['powerSuit', 'markBoots', 'heavyGauntlets'] } : { adorn: HARDSUIT({ mass: 0.7, coverage: 0.95, ornament: 1 }, { helm: 'faceplate', chest: 'reactor', pack: 'power' }) }),
-  thug: (body) => (body === 'realistic' ? { outfit: ['tee', 'trousers', 'combatBoots', 'fightGloves'] } : { outfit: build('fatigues', TACTICAL, [{ kind: 'pouches' }], null, { fit: 0.6, stylize: 0.4 }) }),
+  thug: (body) => (body === 'realistic' ? { outfit: ['tee', 'trousers', 'combatBoots', 'fightGloves'] } : { outfit: build('fatigues', TACTICAL, [UTILITY], null, { fit: 0.6, stylize: 0.4 }) }),
 };
 
 export function costumeOf(role, era, body) {

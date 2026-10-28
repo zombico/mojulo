@@ -862,7 +862,9 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
       return;
     }
     P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
-    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
+    // (a hair card's corners on the paint's strand strip, dermal-hero.js heroSkinPaint `cardUV`; its colour the band's)
+    const card = !painted && pp?.cardUV ? pp.cardUV(fi) : null;
+    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : card ? card[k] : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
@@ -898,7 +900,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
     parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
     clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
-    ...(paint ? { paintTex: { ...paint.atlas, white: paint.white } } : {}),
+    ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}) } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
     ...(carryT && relief.atlas ? { normalTex: relief.atlas } : {}),
   };
