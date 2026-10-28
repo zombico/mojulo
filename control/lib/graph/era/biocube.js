@@ -20,9 +20,10 @@
  *                  grass by place, { fringe, meadow, cliff, scatter } of vegetation/grass.js GRASSES; `field` the sea
  *                  of blades along the trail, { reach m, every m, height } or null; `live` the carpet of grown blades
  *                  round the walker, { kind, density /m², height }, the card's `live`, laid wherever the grass grows,
- *                  or null for none); `sward` how long the grass is, a mood's choice: 'tall' (a meadow, the default),
- *                  'short' (a lawn, a pasture) or { short: 0–1 } (that share of it laid as short areas, each wholly one
- *                  or the other; read by the form render, gen-7); `drifts` other grasses standing in areas of their own,
+ *                  or null for none); `sward` how long the grass is, a mood's choice: 'tall' (a meadow, the default:
+ *                  long, with stretches of it medium), 'short' (a lawn, a pasture) or { short?, medium? } each 0–1
+ *                  (those shares of it laid as short and as medium areas, the rest tall, each area wholly one; read by
+ *                  the form render, gen-7); `drifts` other grasses standing in areas of their own,
  *                  { <grass kind>: share 0–1 } (wheat, chaff, any of GRASSES; at most three; the form render's, gen-7).
  *                  null: no grass
  *   flora.shrubs   { count, bloom, fruit } | null: bushes by the trail (era/shrubs.js, a recipe's own `shrubs`)
@@ -196,7 +197,9 @@ function checkGrass(g) {
   if (!isObj(g)) no('flora.grass is null (none) or { clusters, perCluster, spacing, scatter, fringeEvery, height, kinds?, field? }');
   keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field', 'live', 'sward', 'drifts'], 'flora.grass');
   if (g.drifts !== undefined && !(isObj(g.drifts) && Object.keys(g.drifts).length <= 3 && Object.entries(g.drifts).every(([k, v]) => GRASS_IDS.includes(k) && Number.isFinite(v) && v >= 0 && v <= 1))) no(`flora.grass.drifts is { <grass kind>: share 0–1 }, at most three, the kinds of ${GRASS_IDS.join(', ')} (that share of the land's grass in drifts of the kind)`);
-  if (g.sward !== undefined && !SWARDS.includes(g.sward) && !(isObj(g.sward) && Object.keys(g.sward).length === 1 && Number.isFinite(g.sward.short) && g.sward.short >= 0 && g.sward.short <= 1)) no(`flora.grass.sward is ${SWARDS.map((w) => `'${w}'`).join(' or ')}, or { short: 0–1 } (that share of the land's grass laid as short areas)`);
+  // (a share by name: { short, medium }, each 0–1, the land's grass laid as short and as medium areas, the rest tall)
+  const shares = (o) => isObj(o) && Object.keys(o).length >= 1 && Object.entries(o).every(([k, v]) => (k === 'short' || k === 'medium') && Number.isFinite(v) && v >= 0 && v <= 1);
+  if (g.sward !== undefined && !SWARDS.includes(g.sward) && !shares(g.sward)) no(`flora.grass.sward is ${SWARDS.map((w) => `'${w}'`).join(' or ')}, or { short?, medium? } each 0–1 (those shares of the land's grass laid as short and as medium areas, the rest tall)`);
   int(g.clusters, 0, 200, 'flora.grass.clusters'); range(g.perCluster, 1, 40, 'flora.grass.perCluster', true); num(g.spacing, 0.1, 2, 'flora.grass.spacing');
   num(g.scatter, 0, 1, 'flora.grass.scatter'); num(g.fringeEvery, 0.2, 5, 'flora.grass.fringeEvery'); range(g.height, 0.1, 3, 'flora.grass.height');
   if (g.kinds !== undefined) {

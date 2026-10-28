@@ -480,6 +480,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     trees.push(...Hs);
   } else if (Hr) { const x = site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off); trees.push({ x: r5(x), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true }); }
   if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
+  // (the form render's trail ALLOTTED, ALLOT: no tree standing in a stone's ground, its foot clear of it)
+  if (ctx.form) { const stones = allotClaims(st, { rocks }); for (let i = trees.length - 1; i >= 0; i--) if (stones.some(([x, y, r]) => Math.hypot(trees[i].x - x, trees[i].y - y) < r + ALLOT.trunk)) trees.splice(i, 1); }
   // (a clump's roles its cast names a bush, thickets.js clumpBushes: those trees taken out, bushes stood where they stood)
   const CB = st.thickets && !bamboo && !sakura ? clumpBushes(trees, st.trees, st.thickets, site, { far: TREE_BANDS.far }) : null;
   if (CB && CB.items.length) trees.splice(0, trees.length, ...CB.trees);
@@ -847,7 +849,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
-    ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr }) } : {}),
+    ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)) }) } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
@@ -1272,7 +1274,17 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
  * with their season. `form` the card's tree form (a blob's or a leaf form's crowns, bamboo, blossom); `kinds` and
  * `bushKinds` the card's tree and bush kinds the indices name.
  */
-export function plantItems(st, site, { trees, thickets, shrubs }) {
+/** The ground each thing on a trail claims in the form render (gen-7), where no grass grows, no ground stone lies and no
+ *  other thing stands: a stone its footprint (× its size), a trunk its foot and flare, a bush or an arrangement without a
+ *  reach of its own its stems' (m). */
+export const ALLOT = Object.freeze({ rock: 0.6, trunk: 0.7, stem: 0.6 });
+/** The claims as [x, y, r] (ALLOT): the stones but the trail's pebbles, the trunks, the bushes and arrangements. */
+export function allotClaims(st, { rocks = [], trees = [], avoid = [] }) {
+  const unit = st.rubble.unit;
+  return [...rocks.filter((r) => r.role !== 'pebble').map((r) => [r.x, r.y, r.size * unit * ALLOT.rock]), ...trees.map((t) => [t.x, t.y, ALLOT.trunk]),
+    ...avoid.map((a) => [a.x, a.y, a.clearR ?? ALLOT.stem])].map((c) => c.map(r5));
+}
+export function plantItems(st, site, { trees, thickets, shrubs, rocks = [], avoid = [] }) {
   const T = st.trees, z = (x, y) => r5(site.ground(x, y) - 0.15);
   const kindOf = (t) => (!T.leafKinds ? -1 : t.kindIx !== undefined ? t.kindIx : T.leafClump && t.role && T.leafClump[t.role] !== undefined ? T.leafClump[t.role] : pickByShare(T.leafKinds, hash3(t.cluster ?? 0, 13, 4127)));
   return {
@@ -1280,6 +1292,8 @@ export function plantItems(st, site, { trees, thickets, shrubs }) {
     trees: trees.map((t) => ({ x: r5(t.x), y: r5(t.y), z: z(t.x, t.y), h: r5(t.h), kind: kindOf(t), cluster: t.cluster ?? 0, ...(t.v !== undefined ? { v: t.v } : {}), ...(t.hero ? { hero: true } : {}), ...(t.band ? { band: t.band } : {}) })),
     bushes: (thickets?.items ?? []).map((b) => ({ x: r5(b.x), y: r5(b.y), z: z(b.x, b.y), h: r5(b.h), kind: b.bushIx, ...(b.soft ? { soft: true } : {}) })),
     shrubs: (shrubs?.elements ?? []).map((e, i) => ({ x: r5(e.x), y: r5(e.y), z: r5(e.z), h: r5(shrubs.anchors[i].height), state: e.state, ...(e.soft ? { soft: true } : {}) })),
+    // (the ground they claim, ALLOT: the land read keeps its grass and its stones off it)
+    clear: allotClaims(st, { rocks, trees, avoid }),
   };
 }
 

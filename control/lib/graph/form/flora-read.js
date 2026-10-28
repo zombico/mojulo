@@ -20,12 +20,14 @@
  *       bark's own), template, soft (a bush walked through)
  * Deterministic; templates cached a process (the grower is the cost).
  */
-import { treeForm } from './tree-form.js';
+import { treeForm, crossClumps } from './tree-form.js';
 import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
-import { leafSpray, leafClump } from '../vegetation/sprays.js';
+import { leafSpray, leafClump, needleHabit } from '../vegetation/sprays.js';
+import { leafCross, leafShape as leafOutlineOf, CROSS } from '../vegetation/twigs.js';
 import { TONES } from '../vegetation/tree-mesh.js';
+import { SPECIES } from '../vegetation/species.js';
 import { readKind } from '../era/leaf-forms.js';
 import { readBush } from '../era/thickets.js';
 import { floraColours } from '../era/flora-colours.js';
@@ -34,7 +36,7 @@ import { hashN } from './tree-form.js';
 
 /** The species each leaf form grows as (a tree kind's `form`); a level naming no kinds, its clusters among these. */
 export const FLORA_SPECIES = Object.freeze({ spray: 'beech', plate: 'cherry', weep: 'willow', tuft: 'oak', whorl: 'pine', spire: 'spruce' });
-export const FLORA_DEFAULT = Object.freeze(['beech', 'oak']);
+export const FLORA_DEFAULT = Object.freeze(['beech', 'oak', 'maple']);
 /** The painted groups the form's plants are drawn in place of (beside the land's own crowns and wood, and the stamped
  *  stock trees' copies): a gritty crown's core and chips, the shrubs, the walked-through bushes. */
 export const FLORA_HIDES = Object.freeze(['isekai:crown', 'isekai:wood', 'isekai:core', 'isekai:chips', 'flora:bush', 'flora:brush-wood', 'flora:brush', 'flora:brush-chips', 'isekai:culm', 'isekai:spray']);
@@ -63,8 +65,12 @@ export const SHRUB_HABIT = 'spray';
 export const FLORA_STRIDE = 13, BARK_SIZE = 128, HEIGHT_STEP = 3, VARIANTS = 2;
 /** Where a crown is drawn as what (m from the eye): its sprays in over [detail]; to `mid` whole; past it the clumps a
  *  share kept (`keep`, grown by `grow` to hold the cover) and the wood its thick axes; past `far` nothing but its copy's
- *  clumps (the page's fog takes it). */
-export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, keep: 0.4, grow: 1.5, sprayed: 6 });
+ *  clumps (the page's fog takes it). A crossed crown (vegetation/twigs.js) keeps every clump far off, each with `half` its
+ *  leaves, larger. */
+/** A crossed broadleaf on a trail stands `FLORA_TALL` × its species' heights (vegetation/species.js), a grown tree over
+ *  the walker: its first limbs past two people's heights at the level's middle tree. */
+export const FLORA_TALL = 1.25;
+export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, keep: 0.4, grow: 1.5, sprayed: 6, half: 0.5 });
 
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
@@ -103,7 +109,22 @@ function template(kind, name, form, leaf, extra = {}) {
 }
 function treeTemplate(species, height) {
   const key = `tree:${species}:${height}`;
-  if (!CACHE.has(key)) CACHE.set(key, template('tree', species, treeForm(species, { seed: 1, far: true, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } }), species));
+  if (!CACHE.has(key)) {
+    // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
+    // of its own outline along each drawn shoot, no sprays; far off, every bundle where it stands and half its leaves,
+    // each larger, so the outline a switch shows is the same masses'. A needled crown keeps its clumps and sprays)
+    const crossed = !needleHabit(species);
+    const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } });
+    if (!crossed) CACHE.set(key, template('tree', species, F, species));
+    else {
+      const B = { ...CROSS.bundle, ...(CROSS.byShape[leafOutlineOf(species)] || {}) }, far = { count: Math.max(3, Math.round(B.count * FLORA_LOD.half)), scale: r4(B.scale / Math.sqrt(FLORA_LOD.half)) };
+      const T = template('tree', species, { ...F, clumps: crossClumps(F), sites: [] }, species);
+      // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
+      CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
+        clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k }).tris)),
+        farGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, bundle: far }).tris)) });
+    }
+  }
   return CACHE.get(key);
 }
 function bambooTemplate(species, height, v) {
@@ -139,6 +160,47 @@ function barkOf(key) {
 /** The species a tree grows as: its kind's leaf form's, or (no kind) its cluster's among FLORA_DEFAULT. */
 export const speciesFor = (t, K) => (K ? FLORA_SPECIES[K.form] : FLORA_DEFAULT[Math.floor(hashN((t.cluster + 7) * 7919) * FLORA_DEFAULT.length)]);
 
+// the trees' plan: each its species' template at the kind's middle height and its own height, in the order they are
+// drawn (by species, each species' trees as placed)
+function treePlan(plants, kindAt) {
+  const groups = new Map(), plan = [];
+  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K); if (!groups.has(sp)) groups.set(sp, []); groups.get(sp).push([t, K]); }
+  // (a crossed broadleaf TO SCALE: grown at its species' own heights, each tree where it ranks among the level's, so its
+  // crown stands over a walker's head as a grown tree's does; any other at the level's own)
+  const lv = plants.trees.map((t) => t.h), lo = Math.min(...lv), hi = Math.max(...lv);
+  const scaled = (sp, h) => { const S = SPECIES[sp]; if (!S || S.kind !== 'tree' || needleHabit(sp) || !S.heights) return h; const k = hi > lo ? (h - lo) / (hi - lo) : 0.5; return r4((S.heights[0] + (S.heights[1] - S.heights[0]) * k) * FLORA_TALL); };
+  for (const [sp, list] of groups) {
+    const hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
+    const hs = list.map(hOf).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
+    const T = treeTemplate(sp, aim);
+    for (const e of list) plan.push({ t: e[0], K: e[1], T, h: hOf(e) });
+  }
+  return plan;
+}
+
+/** A RAISED VIEW (a camera whose eye stands `raised` m over what it looks at: an overlook) claims what it looks over: no
+ *  crown rising over its eye within `reach` m ahead, in its cone (`spread` m across a metre ahead, past the crown's own
+ *  reach). */
+export const VIEW_CLEAR = Object.freeze({ raised: 5, reach: 25, spread: 0.6 });
+/** The plants with the trees a raised view claims HELD (`held`: planned with the rest, so no other tree's height moves,
+ *  and not drawn) and their trunks' ground given back to the grass (`clear`). The cameras: a payload's. */
+export function viewHeld(plants, cameras = [], { kinds = null } = {}) {
+  if (!plants || plants.form === 'blossom' || plants.form === 'bamboo' || !plants.trees.length) return plants;
+  const views = cameras.map((c) => c.worldFraming).filter((w) => w && w.cameraPosition && w.lookAt && w.cameraPosition[2] - w.lookAt[2] >= VIEW_CLEAR.raised);
+  if (!views.length) return plants;
+  const kindAt = (t) => (t.kind >= 0 && kinds ? readKind(kinds[t.kind]) : null), held = new Set();
+  for (const { t, T, h } of treePlan(plants, kindAt)) {
+    const r = T.radius * (h / T.height), top = t.z + h;
+    for (const { cameraPosition: e, lookAt: l } of views) {
+      const d = [l[0] - e[0], l[1] - e[1]], dl = Math.hypot(d[0], d[1]) || 1, along = ((t.x - e[0]) * d[0] + (t.y - e[1]) * d[1]) / dl, across = Math.abs((t.x - e[0]) * d[1] - (t.y - e[1]) * d[0]) / dl;
+      if (top > e[2] && along > -r && along < VIEW_CLEAR.reach && across < r + along * VIEW_CLEAR.spread) { held.add(t); break; }
+    }
+  }
+  if (!held.size) return plants;
+  const at = new Set([...held].map((t) => `${t.x},${t.y}`));
+  return { ...plants, trees: plants.trees.map((t) => (held.has(t) ? { ...t, held: true } : t)), ...(plants.clear ? { clear: plants.clear.filter(([x, y]) => !at.has(`${x},${y}`)) } : {}) };
+}
+
 export function floraRead(plants, { kinds = null, bushKinds = null, colours, bases }) {
   if (!plants || plants.form === 'blossom') return null;
   if (!plants.trees.length && !plants.bushes.length && !plants.shrubs.length) return null;
@@ -171,13 +233,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
       push(bambooTemplate(FLORA_BAMBOO, aim, v), t, t.h, null, false, Math.hypot(dx, dy) > 0.05 ? r4(Math.atan2(dy, dx)) : null);
     }
   }
-  const groups = new Map();
-  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K); if (!groups.has(sp)) groups.set(sp, []); groups.get(sp).push([t, K]); }
-  for (const [sp, list] of groups) {
-    const hs = list.map(([t, K]) => t.h * (K?.scale ?? 1)).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
-    const T = treeTemplate(sp, aim);
-    for (const [t, K] of list) push(T, t, t.h * (K?.scale ?? 1), K);
-  }
+  for (const { t, K, T, h } of treePlan(plants, kindAt)) if (!t.held) push(T, t, h, K);
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {
     const K = readBush(bushKinds[b.kind]), aim = Math.round(((K.height[0] + K.height[1]) / 2) * 10) / 10;

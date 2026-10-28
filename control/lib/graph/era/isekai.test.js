@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene, STAGE_PAGE_BUDGET } from './stage.js';
-import { isekaiGround, boulderFaces, layerFaces, cumulusFaces } from './isekai.js';
+import { isekaiGround, boulderFaces, layerFaces, cumulusFaces, ALLOT } from './isekai.js';
 import { isekaiTexels, isekaiKey, ISEKAI_STYLES } from './isekai-tiles.js';
 import { rampDistance } from './palette.js';
 import { natureSite, rockItems, trailRims } from './nature.js';
@@ -201,6 +201,11 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(P.trees.filter((t) => t.hero)).toHaveLength(1);
     for (const t of P.trees) { expect(t.h).toBeGreaterThan(0); expect(Math.abs(t.z - site.ground(t.x, t.y) + 0.15)).toBeLessThan(1e-3); }
     expect(P.form).toBe(st.trees.form || 'blob');
+    // (and the ground each thing claims, ALLOT: the stones but the pebbles, every trunk; no tree standing in a stone's)
+    const stones = P.clear.filter((c) => !P.trees.some((t) => t.x === c[0] && t.y === c[1]));
+    for (const t of P.trees) expect(P.clear.some((c) => c[0] === t.x && c[1] === t.y && c[2] === ALLOT.trunk)).toBe(true);
+    expect(stones.length).toBeGreaterThan(0);
+    for (const t of P.trees) for (const [x, y, r] of stones) expect(Math.hypot(t.x - x, t.y - y)).toBeGreaterThanOrEqual(r + ALLOT.trunk - 1e-6);
   });
 
   it('stands the trunks: each built tree\'s stems ship with the crowns, the wood weighed off them on the page', () => {

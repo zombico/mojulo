@@ -143,6 +143,9 @@ export const SPRAY_LEAVES = Object.freeze({
   lobed: Object.freeze({ w: [0.26, 0.12, 0.3, 0.13, 0.2], fold: 0.25, leaves: 5, clump: Object.freeze([0.28, 0.24]) }),
   // a narrow blade, long and tapering (the willow's)
   lance: Object.freeze({ w: [0.13, 0.1, 0.05], fold: 0.3, leaves: 7, clump: Object.freeze([0.16, 0.08]) }),
+  // a maple's palmate leaf, as a spray's fan can draw it: wide near its stalk, its lobes' points (vegetation/twigs.js draws
+  // its true radial outline)
+  palmate: Object.freeze({ w: [0.36, 0.42, 0.22, 0.34, 0.12], fold: 0.2, leaves: 5, clump: Object.freeze([0.4, 0.3]) }),
   // a broad blade for the big-leaved (the umbrella tree's leaflets, the figs')
   broad: Object.freeze({ w: [0.38, 0.26], fold: 0.3, leaves: 6, clump: Object.freeze([0.4]) }),
 });

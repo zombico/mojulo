@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, speciesFor, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES } from './flora-read.js';
+import { floraRead, speciesFor, viewHeld, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -30,6 +30,23 @@ describe('the form render\'s plants', () => {
     }
     expect(Object.keys(F.barks)).toEqual([F.templates[0].bark]);
     expect(JSON.stringify(floraRead(plants(), { kinds: plants().kinds, colours, bases }))).toBe(JSON.stringify(F));
+  });
+
+  it('a raised view claims what it looks over: a crown over its eye ahead held, the rest as they were; a walker\'s eye holds none', () => {
+    const P = plants({ trees: [tree(0, 0, 9, 0), tree(10, 2, 11, 0), tree(4, 40, 10, 1)], clear: [[0, 0, 0.7], [10, 2, 0.7], [4, 40, 0.7], [20, 20, 1]] });
+    const cam = (eye, look) => ({ name: 'v', worldFraming: { cameraPosition: eye, lookAt: look } });
+    // (an overlook 6 m up at (0, -3), looking along +y down to the land: the tree at (0, 0) rises over its eye ahead; one
+    // off to its side and one past its reach stand)
+    const H = viewHeld(P, [cam([0, -3, 6], [0, 30, 0])], { kinds: P.kinds });
+    expect(H.trees.map((t) => !!t.held)).toEqual([true, false, false]);
+    expect(H.clear).toEqual([[10, 2, 0.7], [4, 40, 0.7], [20, 20, 1]]);
+    // (held, planned with the rest: the others' heights as they were, the held one not drawn)
+    const F0 = floraRead(P, { kinds: P.kinds, colours, bases }), F1 = floraRead(H, { kinds: H.kinds, colours, bases });
+    expect(F1.n).toBe(F0.n - 1);
+    expect(Array.from(unpack(F1.trees))).toEqual(Array.from(unpack(F0.trees)).slice(FLORA_STRIDE));
+    // (a walker's eye, under VIEW_CLEAR.raised over what it looks at, claims nothing: the same plants)
+    expect(viewHeld(P, [cam([0, -3, 1.7], [0, 30, 0])], { kinds: P.kinds })).toBe(P);
+    expect(VIEW_CLEAR.raised).toBeGreaterThan(1.7);
   });
 
   it('colours a kind\'s crown by its pick from the theorist\'s offer, the rest the cube\'s foliage', () => {

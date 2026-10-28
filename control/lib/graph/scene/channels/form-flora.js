@@ -55,6 +55,12 @@ export function formFloraScript(flora, { snow = false } = {}) {
       Object.assign(sh.uniforms, { uWindT: W.uWindT, uWindA: W.uWindA, uWindB: W.uWindB, uWindNoise: W.uWindNoise });
       return decl + FLORA_WIND_HEAD;
     }
+    // the occlusion's prepass (channels/creases.js) draws a material by its own vertex shader: this one's wind (and a
+    // spray's growth) over it, so the plant's occlusion falls where the frame draws it, not where it would stand still
+    function moves(m, phi, leaf, head = '', edit = (vs) => vs) {
+      m.userData.prepass = (vs) => { const sh = { uniforms: {} }, sway = swayHead(sh, phi, leaf); return { uniforms: sh.uniforms, vertexShader: sway + head + edit(vs).replace('#include <project_vertex>', SWAY_PROJECT) }; };
+      return m;
+    }
     const f32 = (s) => new Float32Array(bytes(s).buffer), i8 = (s) => new Int8Array(bytes(s).buffer);
     const tl = new THREE.TextureLoader(), barkMats = {};
     // the bark: its own colour, its relief's normal, the fissures' occlusion and its roughness, marched by parallax near
@@ -80,11 +86,12 @@ export function formFloraScript(flora, { snow = false } = {}) {
           .replace('#include <aomap_fragment>', via('aomap_fragment', 'vAoMapUv'));
       };
       m.customProgramCacheKey = () => 'form-bark-' + phi;
+      moves(m, phi, 0);
       return m;
     }
     const barkFor = (key, phi) => (barkMats[key + phi] ??= barkMat(FL.barks[key], phi));
     // a culm: no bark, smooth and a little waxy, tinted toward the level's foliage (the vertex colours its node bands)
-    const culmMat = (phi) => (barkMats['culm' + phi] ??= (() => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }); m.onBeforeCompile = (sh) => { sh.vertexShader = swayHead(sh, phi, 0) + sh.vertexShader.replace('#include <project_vertex>', SWAY_PROJECT); }; m.customProgramCacheKey = () => 'form-culm' + phi; return m; })());
+    const culmMat = (phi) => (barkMats['culm' + phi] ??= (() => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }); m.onBeforeCompile = (sh) => { sh.vertexShader = swayHead(sh, phi, 0) + sh.vertexShader.replace('#include <project_vertex>', SWAY_PROJECT); }; m.customProgramCacheKey = () => 'form-culm' + phi; return moves(m, phi, 0); })());
     // the leaves: each vertex its tone's factor over the plant's leaf, the plant's colour the instance's; the normal bent
     // toward the crown's outside (a crown takes the sun as one volume), the light through a thin leaf a fill in its
     // shade; near, a spray comes in at its own distance, growing from a third of its size about its site
@@ -99,14 +106,17 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
 ` : ''}    function leafMat(spray, detail, phi) {
       const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
       const U = { uEye: eye, uDetail: { value: new THREE.Vector2(detail[0], detail[1]) }${snow ? ', ...LEAF_SNOW' : ''} };
+      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\n';
+      const grows = (vs) => vs.replace('#include <begin_vertex>', spray ? [
+        'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( aSite, 1.0 ) ).xyz;',
+        'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
+        'float hI = fract( sin( dot( ipos.xy, vec2( 12.9898, 78.233 ) ) + ipos.z * 4.13 ) * 43758.5453 ) * 0.7, inF = smoothstep( hI, hI + 0.3, nearF );',
+        'vec3 transformed = aSite + ( position - aSite ) * mix( 0.35, 1.0, inF ) * step( 0.001, inF );'].join('\\n') : '#include <begin_vertex>');
+      moves(m, phi, 1, HEAD, grows);
+      const pre = m.userData.prepass; m.userData.prepass = (vs) => { const P = pre(vs); Object.assign(P.uniforms, U); return P; };
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, U);
-        sh.vertexShader = ${snow ? "'varying vec3 vSnowW;\\n' + " : ''}swayHead(sh, phi, 1) + 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\n' + sh.vertexShader
-          .replace('#include <begin_vertex>', spray ? [
-            'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( aSite, 1.0 ) ).xyz;',
-            'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
-            'float hI = fract( sin( dot( ipos.xy, vec2( 12.9898, 78.233 ) ) + ipos.z * 4.13 ) * 43758.5453 ) * 0.7, inF = smoothstep( hI, hI + 0.3, nearF );',
-            'vec3 transformed = aSite + ( position - aSite ) * mix( 0.35, 1.0, inF ) * step( 0.001, inF );'].join('\\n') : '#include <begin_vertex>')
+        sh.vertexShader = ${snow ? "'varying vec3 vSnowW;\\n' + " : ''}swayHead(sh, phi, 1) + HEAD + grows(sh.vertexShader)
           .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\\n  transformedNormal = normalize( mix( transformedNormal, normalMatrix * mat3( instanceMatrix ) * aOut, 0.65 ) );')
           .replace('#include <project_vertex>', ${snow ? "SWAY_PROJECT + '\\n  vSnowW = ( modelMatrix * instanceMatrix * vec4( transformed, 1.0 ) ).xyz;'" : 'SWAY_PROJECT'});
         sh.fragmentShader = ${snow ? 'LEAF_SNOW_HEAD + ' : ''}sh.fragmentShader
@@ -129,7 +139,10 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       for (const i of use) {
         const b = i * 12, G = geos[i % geos.length], p = new THREE.Vector3(S[b], S[b + 1], S[b + 2]), fo = new THREE.Vector3(S[b + 3], S[b + 4], S[b + 5]), d = new THREE.Vector3(S[b + 6], S[b + 7], S[b + 8]);
         const s = S[b + 9] * grow, tone = 0.62 + 0.38 * S[b + 10], r = S[b + 11];
-        if (kind === 'clump' && pad) {
+        if (kind === 'clump' && pad === 'cross') {
+          // (a cross, vegetation/twigs.js: its slot along d, its lying card's face o)
+          const x = d.clone().normalize(), z = fo.clone().normalize(); q.setFromRotationMatrix(basis.makeBasis(x, z.clone().cross(x), z));
+        } else if (kind === 'clump' && pad) {
           const x = new THREE.Vector3(d.x, d.y, 0); if (x.lengthSq() < 1e-6) x.set(fo.x, fo.y, 0); if (x.lengthSq() < 1e-6) x.set(1, 0, 0); x.normalize();
           q.setFromRotationMatrix(basis.makeBasis(x, AXZ.clone().cross(x), AXZ));
         } else { const f = kind === 'clump' ? fo : d; q.setFromUnitVectors(kind === 'clump' ? AXZ : AXX, f.clone().normalize()); roll.setFromAxisAngle(f.clone().normalize(), r * 40); q.premultiply(roll); }
@@ -185,8 +198,9 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
       const parts = {
         wood: mk(woodGeo(t.wood), wood, true, false), woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false),
-        crown: mk(merged(t.clumps, t.nClumps, cg, 'clump', t.pad, () => true), leaf, true, true),
-        crownFar: mk(merged(t.clumps, t.nClumps, cg, 'clump', t.pad, (S, i) => S[i * 12 + 11] < LOD.keep, LOD.grow), leaf, true, true),
+        crown: mk(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
+        // (far off: a crossed crown every clump where it stands, half its leaves; any other the share kept, grown)
+        crownFar: mk(t.cross ? merged(t.clumps, t.nClumps, variants(t.farGeo), 'clump', 'cross', () => true) : merged(t.clumps, t.nClumps, cg, 'clump', t.pad, (S, i) => S[i * 12 + 11] < LOD.keep, LOD.grow), leaf, true, true),
         sprays: mk(merged(t.sites, t.nSites, sg, 'spray', false, () => true), leafMat(true, detail, phi), false, true),
       };
       // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)
@@ -203,7 +217,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         // (its colours its own, not the leaf's: the instance colour left white)
         const am = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: A.kind === 'fruit' ? 0.3 : 0.7, metalness: 0, side: THREE.DoubleSide });
         am.onBeforeCompile = (sh) => { sh.vertexShader = swayHead(sh, phi, 1) + sh.vertexShader.replace('#include <project_vertex>', SWAY_PROJECT); };
-        am.customProgramCacheKey = () => 'form-adorn' + phi;
+        am.customProgramCacheKey = () => 'form-adorn' + phi; moves(am, phi, 1);
         parts.adorn = mk({ g, tris: tri.length / 9 }, am, false, false);
         parts.adorn.white = true;
       }

@@ -11,11 +11,12 @@
  *       sun, bases,
  *       ranges, pos, c7, spl, nrm, faceOf, cornerOf, …the layers, the mask, the depth, the stones, the relief, the
  *       grass' map and rows when asked }
- *     payload: a resolved geocube payload (its faces, cameras, sky); cube: the resolved cube (era/geocube.js readGeocube);
+ *     payload: a resolved geocube payload (its faces, cameras, sky, and its plants' claimed ground, `plants.clear`, where
+ *     no grass grows and no stone lies); cube: the resolved cube (era/geocube.js readGeocube);
  *     hour: an hour (a number) the light is read at, the bases kept at the cube's own; dress: a trail's dress
  *     ({ surface, rubble, dust, clay, patches }, its degrees); grass: lay the grass' ground map and brush rows ('map':
  *     the map alone, the page grows its brush); sward: how long it is (the biocube's `flora.grass.sward`: 'tall',
- *     'short' or { short: 0–1 }), in the map's fourth channel; drifts: wheat, chaff, any grass kind and the flowers in
+ *     'short' or { short?, medium? }), in the map's fourth channel (0 tall, a half medium, 1 short); drifts: wheat, chaff, any grass kind and the flowers in
  *     areas of their own (form/grass-drifts.js readDrifts: [{ id, share, mix? }]), a channel each of a second map; relief:
  *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`; moss:
  *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
@@ -44,6 +45,12 @@ const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 /** The sward's short areas: the field's cell (metres) and the seam a short area eases into a tall one over (a share of
  *  the grass). */
 export const SWARD_CELL = 22, SWARD_SEAM = 0.12;
+/** The sward's medium areas: a long sward's share of its grass laid medium where it names none ('tall', or a share of
+ *  short alone), and their field's cell (metres): stretches of their own along a trail, between its tall ones. */
+export const SWARD_MEDIUM = Object.freeze({ share: 0.45, cell: 11 });
+/** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short
+ *  and thin at its edge, so no blade leans into it. */
+export const GRASS_OFF = 0.6;
 /** The gen-6 grass's blade cards (era/isekai.js): left out of the read, and out of the form render's page. */
 export const GRASS_CARDS = 'isekai:grass';
 /** The rock's relief when none is asked for: the ledged face (form/rock-relief.js). */
@@ -204,7 +211,9 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // solved base moved by each target's share of the floor's (so the light that shows the floor shows them)
   const tones = soilTones(C.colour.floor, light.sun.color), floorLin = lin(hexRgb(C.colour.floor));
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
-  const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble }), stoneBase = light.linearBases.stone;
+  // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
+  const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;
+  const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble, ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
   const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
   // THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
   // off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways
@@ -246,18 +255,31 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
       const x = x0 + ii * GCELL, y = y0 + j * GCELL, pi = Math.round((x - PM.origin[0]) / PM.cell), pj = Math.round((y - PM.origin[1]) / PM.cell);
       if (pi >= 0 && pj >= 0 && pi < PM.size[0] && pj < PM.size[1]) { const d = PM.dist[pj * PM.size[0] + pi] - PM.inside[pj * PM.size[0] + pi]; cov[j * nx + ii] *= Math.min(1, Math.max(0, (d - 0.1) / 0.6)); }
     }
+    // (nor in the ground a thing has claimed, CLAIMS: none up through a stone, a trunk or a bush, thinning and shortening
+    // toward it over GRASS_OFF, so no blade leans into it and no bare ring is cut)
+    if (CLAIMS) for (const [cx, cy, r] of CLAIMS) {
+      const R = r + GRASS_OFF, i0 = Math.max(0, Math.floor((cx - R - x0) / GCELL)), i1 = Math.min(nx - 1, Math.ceil((cx + R - x0) / GCELL));
+      const j0 = Math.max(0, Math.floor((cy - R - y0) / GCELL)), j1 = Math.min(ny - 1, Math.ceil((cy + R - y0) / GCELL));
+      for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (Math.hypot(x0 + ii * GCELL - cx, y0 + j * GCELL - cy) - r) / GRASS_OFF)));
+    }
     let zlo = Infinity, zhi = -Infinity; for (const z of top) if (z > -Infinity) { zlo = Math.min(zlo, z); zhi = Math.max(zhi, z); }
     const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(nx * ny * 4);
     // (the sward: how long the grass is, a mood's choice: tall everywhere, short everywhere, or a share of the grass laid as
     // short areas a couple of dozen metres across, each wholly one or the other, eased over a seam: the field's rank over
     // the grass's own cells, so the share is the land's whatever its size)
     // (a cell of grass: one the map shows as any cover at all)
-    const shortShare = sward === 'short' ? 1 : sward === 'tall' || !sward ? 0 : sward.short, cellXY = (q) => [x0 + (q % nx) * GCELL, y0 + Math.floor(q / nx) * GCELL], isGrass = (q) => Math.round(cov[q] * 255) > 0;
+    // (and its MEDIUM areas, SWARD_MEDIUM: a field of their own, finer, ranked over the grass to their share; where a short
+    // area and a medium one meet the short holds, and a tall area eases into a short one through a medium seam)
+    const shortShare = sward === 'short' ? 1 : sward === 'tall' || !sward ? 0 : sward.short ?? 0, cellXY = (q) => [x0 + (q % nx) * GCELL, y0 + Math.floor(q / nx) * GCELL], isGrass = (q) => Math.round(cov[q] * 255) > 0;
+    const mediumShare = sward === 'short' ? 0 : sward && typeof sward === 'object' && sward.medium !== undefined ? sward.medium : SWARD_MEDIUM.share;
     const swardF = (x, y) => 0.7 * lat(x, y, SWARD_CELL, 'sward') + 0.3 * lat(x, y, SWARD_CELL / 3, 'sward2');
-    const ranks = shortShare > 0 && shortShare < 1 ? Float64Array.from(cov.reduce((a, c, q) => (isGrass(q) ? (a.push(swardF(...cellXY(q))), a) : a), [])).sort() : null;
-    const rankOf = (f) => { let lo = 0, hi = ranks.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ranks[m] < f) lo = m + 1; else hi = m; } return lo / Math.max(1, ranks.length); };
-    const shortAt = (x, y) => (shortShare >= 1 ? 1 : shortShare <= 0 || !ranks.length ? 0 : ease(Math.min(1, Math.max(0, (shortShare - rankOf(swardF(x, y))) / SWARD_SEAM + 0.5))));
-    for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(shortAt(...cellXY(q)) * 255); }
+    const mediumF = (x, y) => 0.7 * lat(x, y, SWARD_MEDIUM.cell, 'sward-medium') + 0.3 * lat(x, y, SWARD_MEDIUM.cell / 3, 'sward-medium2');
+    const ranked = (share, f) => (share > 0 && share < 1 ? Float64Array.from(cov.reduce((a, c, q) => (isGrass(q) ? (a.push(f(...cellXY(q))), a) : a), [])).sort() : null);
+    const rankIn = (R, f) => { let lo = 0, hi = R.length; while (lo < hi) { const m = (lo + hi) >> 1; if (R[m] < f) lo = m + 1; else hi = m; } return lo / Math.max(1, R.length); };
+    const areaAt = (share, R, f) => (x, y) => (share >= 1 ? 1 : share <= 0 || !R?.length ? 0 : ease(Math.min(1, Math.max(0, (share - rankIn(R, f(x, y))) / SWARD_SEAM + 0.5))));
+    const shortAt = areaAt(shortShare, ranked(shortShare, swardF), swardF), mediumAt = areaAt(mediumShare, ranked(mediumShare, mediumF), mediumF);
+    const lengthAt = (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
+    for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(lengthAt(...cellXY(q)) * 255); }
     // (the drifts: each its own field at a finer cell, ranked to its share over the grass's cells no drift named before it
     // has taken, a channel each; so each holds its share of the land's grass, and no two share a cell)
     const dpx = drifts.length ? new Uint8Array(nx * ny * 4) : null, nGrass = cov.reduce((a, c, q) => a + (isGrass(q) ? 1 : 0), 0);

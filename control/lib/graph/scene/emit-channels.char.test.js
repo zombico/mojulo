@@ -342,6 +342,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // says the sun does not move. The occlusion rows are unchanged (the half tier's strings are written only with a tier),
 // and so is every other hash: the defaults resolve in world-scene, never in the emitter.
 
+// Re-pinned 2026-10-28 (the prepass sees the wind): `creases`, `creases-outline`, `occlusion` and `occlusion-creases`
+// only. The prepass draws a material that moves its vertices (a plant's wind, a spray's growth) by the vertex shader it
+// names (`userData.prepass`), so its occlusion and ink fall where the frame draws it, not beside it where it would
+// stand still. A page without such a material draws every mesh as before.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
