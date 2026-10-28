@@ -223,6 +223,7 @@ function peopleBody(height, scale) {
 
 // a foe's figure into the part, by its skin (a game's own, a model, a people, a beast), and the body it stands in
 function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } = {}) {
+  const had = part.figures[id];
   if (figure) {
     // a game's own person, made by its own door: drawn as it is, at a person's height grown by its rank
     part.figures[id] = figure;
@@ -230,17 +231,17 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
   }
   if (isModel(entry)) {
     // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
-    part.figures[id] = modelFigure(ref, f.measured.height);
+    part.figures[id] = had ?? modelFigure(ref, f.measured.height);
     return peopleBody(f.measured.height, f.scale);
   }
   if (isPeople(entry)) {
     // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
     // below the hero door on its creature clips), drawn from the sheet the run made it from
     const sheet = C.sheets[eid] ?? (C.sheets[eid] = rollEgocube(peopleRollOf(G, eid, entry)));
-    part.figures[id] = fieldFigure(ref, fieldOf({ body: 'person', sheet }));
+    part.figures[id] = had ?? fieldFigure(ref, fieldOf({ body: 'person', sheet }));
     return peopleBody(statureOf({ body: 'person', sheet }), f.scale);
   }
-  part.figures[id] = foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
+  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
   return beastBody(f.measured, f.scale);
 }
 
@@ -261,13 +262,16 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
 export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tune = null, ctx = null } = {}) {
   const C = ctx ?? { rim: targetRimOf(G), sheets: {} };
   const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
-  const b = figureFor(G, C, part, p.id, p.eid, p.entry, f, { ref, figure });
+  // (its figure is its ENTRY's, `foe-<entry>`, shared by every body that entry stands, a summons or a mode included: the
+  // page builds each body its own rig from one pack; a game's own figure, made per body, keeps the body's name)
+  const fig = !figure && p.eid ? `foe-${p.eid}` : p.id;
+  const b = figureFor(G, C, part, fig, p.eid, p.entry, f, { ref, figure });
   // its MODES (`becomes`): each a figure of its own on the same stick figure, its health and its class's rule; only the
   // last, layer 0, dies (worlds/controllable/vanish.js), so the death is the last's
   const B = G ? bestiaryOf(G) : null, chain = B && p.eid && p.entry.becomes !== undefined ? modeChain(B, p.eid) : null;
   const modes = chain ? chain.map((eid, k) => {
-    if (!k) return { figure: p.id, hp: f.toll.hp };
-    const fk = resolveFoe(specOf(B[eid])), id = `${p.id}-m${k + 1}`;
+    if (!k) return { figure: fig, hp: f.toll.hp };
+    const fk = resolveFoe(specOf(B[eid])), id = `foe-${eid}`;
     figureFor(G, C, part, id, eid, B[eid], fk, { ref: more.modeRefs?.[eid] ?? null });
     const lo = fk.entity.rule.loadout ? { loadout: fk.entity.rule.loadout.map((slot) => ({ ...slot, figure: id })) } : {};
     return { figure: id, hp: fk.toll.hp, rule: { ...fk.entity.rule, ...lo } };
@@ -275,7 +279,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   const last = chain ? B[chain[chain.length - 1]] : p.entry;
   // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
   // per weapon, so a slot naming none would leave the body undrawn)
-  const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: p.id })) } : {};
+  const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: fig })) } : {};
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
     id: p.id, team: T.team ?? 'foes',
@@ -284,7 +288,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
     // (its base STATES, born in: foes/states.js, carried by layer 0 and so by every mode it wears)
-    body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
+    body: { type: 'figure-rig', figure: fig, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
   };

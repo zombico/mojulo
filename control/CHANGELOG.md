@@ -712,6 +712,14 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the channel rebuilding a look on the body a swap puts in and giving a rig body its normals, as it was
   without a layer-0 foe; the engines' marks for the new events keys. Eyes: a flaming armoured skeleton defeated into the
   bare one, still burning.
+- **One figure per entry** (page weight): every body a bestiary entry stands wears the entry's figure, `foe-<entry>`, a
+  summons and a mode included, so the page carries one pack per entry and builds each body its own rig from it (a
+  game's own figure, made per body, keeps the body's name). The summoner's demo page, a necromancer and three skeletons,
+  went from 36.9 MB to 29.7 MB; every body still built, no page error. A cleave's slash, seeded by the figure's name, is
+  now the entry's.
+
+  Machine gate: three placements of one entry on one figure; the bestiary's cases on the entry's names. Eyes: the page
+  loaded and every body built (no film).
 - **Modes as a word** (`becomes: '<id>'`; the operator: "armored mode is one layer, unarmored mode is another … koopa with
   shell, koopa no shell"). An entry names the entry it becomes when defeated, a chain of up to four with no loop: each
   mode is that entry's own skin, class and bar, minted as its own figure, laid as the body's `modes` (each with its
