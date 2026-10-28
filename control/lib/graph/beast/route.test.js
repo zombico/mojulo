@@ -24,6 +24,8 @@ describe('the egocube\'s route to the tiered body', () => {
       expect(b.claws).toBe(hints.claws ?? 'none'); expect(b.tail).toBe(hints.tail ?? 'none');
       expect(b.cover).toBe(kin === 'avian' ? 'feathers' : hints.cover?.kind ?? 'none');
       expect(spec.tune.stature).toBeGreaterThanOrEqual(0.85); expect(spec.tune.stature).toBeLessThanOrEqual(1.15);
+      // (its build the tiered body's own, the cast's build form; a child's the pole's cast)
+      expect(spec.cast).toEqual(sheet.facets.age === 'child' ? sheet.facets.pole : { pole: sheet.facets.pole, build: sheet.facets.build });
       expect(validateHeroSpec(spec), kin).toEqual([]);
       for (const r of P.ledger) expect(Boolean(r.at) !== Boolean(r.pending), `${kin}: ${r.line}`).toBe(true);
     }

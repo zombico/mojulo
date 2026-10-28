@@ -30,7 +30,7 @@ describe('what the frame adds to a beast-kin', () => {
     expect(p.rig.bones.filter((b) => /^tail\d$/.test(b.id)).length).toBe(tail.stations.length - 1);
     // the socket: its last ring the tail's first, point for point (one surface), its first held inside the pelvis
     const sock = seg(p, 'tailSocket'), first = partRings(p, tail).stations[0].points, last = sock.stations.at(-1).points;
-    for (const sl of Object.keys(first)) expect(last[sl].map((x) => Math.round(x * 1e5))).toEqual(first[sl].map((x) => Math.round(x * 1e5)));
+    for (const sl of Object.keys(first)) expect(Math.hypot(...last[sl].map((x, i) => x - first[sl][i]))).toBeLessThan(2e-5);
     const hold = torsoSection(p, p.segments, 'pelvis').hold;
     for (const q of Object.values(sock.stations[0].points)) { const h = hold(q, SOCKET.inside + 1e-6); expect(Math.hypot(...q.map((x, i) => x - h[i]))).toBeLessThan(1e-4); }
     // its skin hands the pelvis to the tail over its length, never at once

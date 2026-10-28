@@ -33,7 +33,8 @@ describe('the beast head on the tiered neck', () => {
   });
 
   it('the neck leans forward into the back of the skull, its length kept', () => {
-    const person = heroPlanOf(mint({ cast: 'male', detail: 'none', head: 'none' })), p = heroPlanOf(kin());
+    // (against a person of the kin's frame: its neck's length is the frame's tune, cards.js)
+    const person = heroPlanOf(mint({ cast: 'male', detail: 'none', head: 'none', tune: BEAST_KINS[KIN].frame ?? {} })), p = heroPlanOf(kin());
     const lean = (J) => Math.atan2(J.headBase[1] - J.neckHub[1], J.headBase[2] - J.neckHub[2]) * 180 / Math.PI;
     expect(lean(p.joints)).toBeCloseTo(NECK_LEAN, 3);
     const len = (J) => Math.hypot(...J.headBase.map((x, i) => x - J.neckHub[i]));

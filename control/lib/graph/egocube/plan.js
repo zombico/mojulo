@@ -722,13 +722,13 @@ export const beastOnTiered = (sheet) => sheet.ancestry?.door === 'creature' && !
  * read against it as its stature, within the tune's range */
 const BEAST_REF_H = 1.8;
 /** where a beast-kin's sheet notes land on the tiered body's call */
-const BEAST_AT = { frame: 'spec.beast (legs, tail, arms), spec.tune', structure: 'spec.beast.head (a library head on the tiered neck)', colouring: 'spec.palette, the head palette',
+const BEAST_AT = { frame: 'spec.beast (legs, tail, arms), spec.cast (its build), spec.tune', structure: 'spec.beast.head (a library head on the tiered neck)', colouring: 'spec.palette, the head palette',
   cover: 'spec.beast.cover (its coat as a material)', ornament: 'spec.beast.claws, the head ornaments', rest: 'spec.beast.expression', eyes: 'spec.beast.expression', stance: 'the kin\'s rest (beast/cards.js)',
-  silhouette: 'spec.tune, spec.beast', dress: null, hair: null, palette: 'spec.palette', wear: null };
+  silhouette: 'spec.cast (its build), spec.tune, spec.beast', dress: null, hair: null, palette: 'spec.palette', wear: null };
 
 /** A beast-kin's sheet as the tiered body's words (lib/graph/beast): its kin, its legs (digitigrade when the sheet says),
  * its fingers, its claws, its tail and its cover as its lineage's cues give them (the sheet's, gated by its humanity), the
- * frame's wings on the arms and second arms, its library head and expression; its build as the hero's tune, its height
+ * frame's wings on the arms and second arms, its library head and expression; its build as the tiered body's own (the cast's build form), its height
  * as its stature; clothed from the cut when it is designed and person enough (CLOTHED_H), the cut as the hero's outfit
  * build. → { spec, head, legs, topo, cover, outfit } */
 function beastOf(sheet, dress) {
@@ -737,9 +737,11 @@ function beastOf(sheet, dress) {
   const cover = feathered ? 'feathers' : hints.cover?.kind ?? 'none', expression = expressionOf(sheet);
   const beast = { kin: f.ancestry, legs, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws ?? 'none', tail: hints.tail && TAILS[hints.tail] ? hints.tail : 'none',
     ...(topo.wings ? { wings: 'arms' } : {}), ...(topo.arms2 ? { arms: 4 } : {}), ...(head.standIn ? {} : { head: head.id }), cover, ...(Object.keys(expression).length ? { expression } : {}) };
+  // (its build is the tiered body's own, HERO_BUILDS through the cast's build form, where a person's is a light tune: a
+  // brute bear-kin stands on the brute's chest and arms; a child keeps the pole's cast, its height the age's)
   const T = BUILD_TUNE[f.build] ?? {}, stature = r3(clamp((T.stature ?? 1) * (HEIGHT[f.build] * AGE_SCALE[f.age]) / BEAST_REF_H, 0.85, 1.15));
   const coat = legible(sheet.ancestry.colours.Skin);
-  const spec = { form: 'tiered', cast: f.pole, tune: { ...T, stature }, palette: { Skin: coat }, beast };
+  const spec = { form: 'tiered', cast: f.age === 'child' ? f.pole : { pole: f.pole, build: f.build }, tune: { stature }, palette: { Skin: coat }, beast };
   const clothed = dress === 'designed' && f.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : null;
   if (clothed) spec.outfit = heroOutfitOf(clothed.outfit);
   return { spec, head, legs, topo, cover, outfit: clothed, adorned: dress === 'designed' && !clothed };

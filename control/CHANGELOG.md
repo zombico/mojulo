@@ -269,6 +269,42 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   The egocube's own tests read the sixth generation through `gen: 6`, and its pins hold byte for byte. The foes' and the
   fight game's tests read the new field.
 
+- **A silhouette per kin, not six slim swimmers** (`beast/cards.js`, `beast/tiered.js`). On the tiered body every kin
+  read as one lean figure in six coats, where the creature biped's had read hulking. Three things kept it lean:
+  - the route stood a kin on the canonical frame under a person's light build tune;
+  - the cards' mass was girth alone, and timid;
+  - nothing gave the upper back or the chest's front a mass of its own.
+
+  Now:
+  - **The build is the tiered body's own.** The route passes the sheet's build as the cast's build form
+    (`cast: { pole, build }`, HERO_BUILDS), so a brute bear-kin stands on the brute's chest and arms; a child keeps the
+    pole's cast. The rolled build varies a kin within its type.
+  - **A frame per kin.** Each card names its proportions as tune words (`frame`: shoulders, depth, legs, neck, waist,
+    hips), recorded under the operator's own tune (`beastWords`). A tune given as a move or a list stands as given.
+  - **Three masses of the trunk's own.** `hump` (the back under the neck swelling out behind, its front held), `keel`
+    (the chest's front swelling forward, from the throat to the belly, its back held) and `mass.hips` (the pelvis and
+    the belly over it). The hump sits at the neck's root: one at the shoulder blades folded the back in a sprint, the
+    swinging arm's cone driven into it.
+  - **Bolder girths.** The digitigrade metatarsus is heavier (`legs.js` `META`), so a raised foot no longer reads as
+    a stilt.
+
+  Each kin is now its own silhouette: the bear the heavyweight (a barrel, a hump, short legs), the dragon the hulking
+  V (broad and deep, thick haunches), the wolf the brawler (an inverted triangle), the cat the athlete (the one lean
+  kin, strong haunches), the bird top-heavy on its keel, the insect segmented (a broad thorax, a wasp's waist, full
+  hips).
+
+  The nape fillet's crown is now sized to the skull whatever the neck's girth (`beast/head.js`). A neck thicker than
+  1.5 of a person's stood its crown out through the back of the skull.
+
+  Machine gate (`beast/tiered.test.js`, `route.test.js`):
+  - the frame recorded under the operator's tune;
+  - the hump, the keel and the hips each moving its own side and holding the other;
+  - the route's build in the cast;
+  - the stretch audit as before: worst pinch 0.86–0.88 on the digitigrade kin's own gaits. The plantigrade kin read
+    0.52–0.55 at the unbridged ankle, as they did before this.
+
+  Eyes: the six kin on two builds each, front and side mid-stride. Eyes gate: the operator's to judge.
+
 ### Foe classes: the hostile encounter primitive
 
 A game fights things, and mojulo had seven separate notions of a foe: the quick goals' battle, shooter and defence

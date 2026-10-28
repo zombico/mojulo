@@ -5,7 +5,7 @@
 // Cards are chosen in code by the procedure they run.
 import { describe, it, expect } from 'vitest';
 import { BEAST_KINS, kinCoat } from './cards.js';
-import { beastCard, KEPT_FINGERS } from './tiered.js';
+import { beastCard, beastFlesh, KEPT_FINGERS } from './tiered.js';
 import { KEPT_TOES } from './legs.js';
 import { heroRecord, heroPlanOf, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm, withDefaultWalk } from '../polygonizer/motion-stamp.js';
@@ -16,6 +16,7 @@ import { stretchAudit, gaitFrames } from '../polygonizer/hero-stretch.js';
 
 const kinBy = (pred) => Object.entries(BEAST_KINS).find(([, c]) => pred(c))[0];
 const BARREL = kinBy((c) => c.mass.waist > 1), WASP = kinBy((c) => c.mass.waist < 0.8);
+const HUMPED = kinBy((c) => c.hump > 0), FRAMED = kinBy((c) => Object.keys(c.frame ?? {}).length > 1);
 const THREE = kinBy((c) => c.fingers === 3 && c.claws !== 'none'), CLAWLESS = kinBy((c) => c.claws === 'none');
 const mint = (spec) => heroRecord(withDefaultWalk(beastWords(withDefaultForm(spec))));
 const kin = (id, extra = {}, cast = 'male') => mint({ cast, beast: { kin: id, ...extra } });
@@ -45,8 +46,10 @@ describe('the beast-kin on the tiered body', () => {
   it('its girths: the trunk a barrel or a wasp\'s waist by its card, the limbs and the neck the card\'s', () => {
     const waist = (p) => rOf(seg(p, 'torso').stations[0].r), chest = (p) => rOf(seg(p, 'torso').stations.at(-2).r);
     const barrel = heroPlanOf(kin(BARREL)), wasp = heroPlanOf(kin(WASP));
+    // (each against a person of its kin's frame, its proportions as tune words: the girths are the card's mass over them)
+    const like = (id) => heroPlanOf(mint({ cast: 'male', tune: BEAST_KINS[id].frame ?? {} })), person = like(BARREL), slim = like(WASP);
     expect(waist(barrel) / waist(person)).toBeGreaterThan(chest(barrel) / chest(person));   // the waist swells past the chest
-    expect(waist(wasp) / waist(person)).toBeLessThan(chest(wasp) / chest(person));         // the waist pinches inside it
+    expect(waist(wasp) / waist(slim)).toBeLessThan(chest(wasp) / chest(slim));             // the waist pinches inside it
     // (a barrel swells forward: at its waist the back stands no further behind than the trunk's scale puts it)
     const B = seg(barrel, 'torso').stations, P = seg(person, 'torso').stations;
     const i = B.reduce((b, st, j) => (rOf(st.r) / rOf(P[j].r) > rOf(B[b].r) / rOf(P[b].r) ? j : b), 0), at = (p) => seg(p, 'torso').stations[i];
@@ -55,10 +58,31 @@ describe('the beast-kin on the tiered body', () => {
     expect(at(barrel).yc ?? 0).toBeGreaterThan(at(person).yc ?? 0);
     const fore = (p) => rOf(seg(p, 'foreArmR').rA);
     expect(fore(barrel) / fore(person)).toBeCloseTo(BEAST_KINS[BARREL].mass.foreArm, 3);
-    expect(fore(wasp) / fore(person)).toBeCloseTo(BEAST_KINS[WASP].mass.foreArm, 3);
+    expect(fore(wasp) / fore(slim)).toBeCloseTo(BEAST_KINS[WASP].mass.foreArm, 3);
     // (the tiered passes run on the body as it now is: the shoulder's ball sits on the thicker arm)
     const ball = (p) => Math.max(...Object.values(seg(p, 'shoulderBallR').stations[2].points).map((q) => q[0]));
     expect(ball(barrel)).toBeGreaterThan(ball(person));
+  });
+
+  it('its frame: its proportions recorded as tune words under the operator\'s own; a move or a list stands as given', () => {
+    const F = BEAST_KINS[FRAMED].frame, [k0, k1] = Object.keys(F);
+    expect(kin(FRAMED).tune[k0]).toBeCloseTo(F[k0], 6);
+    const mine = mint({ cast: 'male', tune: { [k0]: 1 }, beast: { kin: FRAMED } }).tune;
+    expect(mine[k0]).toBe(1); expect(mine[k1]).toBeCloseTo(F[k1], 6);
+    expect(beastWords({ cast: 'male', tune: 'heroic', beast: { kin: FRAMED } }).tune).toBe('heroic');
+  });
+
+  it('its silhouette\'s own masses: a hump behind under the neck, a keel in front under the shoulders, full hips, each holding the other side', () => {
+    const base = person, H = { beast: { kin: HUMPED } }, card = beastCard(H), plain = { ...card, hump: 0, keel: 0, mass: { ...card.mass, hips: 1 } };
+    const torso = (c) => seg(beastFlesh(base, H, c), 'torso').stations, back = (st) => (st.yc ?? 0) - st.r[1], front = (st) => (st.yc ?? 0) + st.r[1];
+    const P = torso(plain), sh = base.joints.shoulder[2], near = (z) => P.reduce((b, st, i) => (Math.abs(st.z - z) < Math.abs(P[b].z - z) ? i : b), 0);
+    const top = near(sh + 0.09), chest = near(sh - 0.17), low = 0;
+    const hump = torso({ ...plain, hump: 1 }), keel = torso({ ...plain, keel: 1 }), hips = torso({ ...plain, mass: { ...plain.mass, hips: 1.3 } });
+    expect(back(hump[top])).toBeLessThan(back(P[top]) - 0.01); expect(front(hump[top])).toBeCloseTo(front(P[top]), 6);
+    expect(front(keel[chest])).toBeGreaterThan(front(P[chest]) + 0.01); expect(back(keel[chest])).toBeCloseTo(back(P[chest]), 6);
+    expect(rOf(hips[low].r)).toBeGreaterThan(rOf(P[low].r) * 1.05); expect(rOf(hips[top].r)).toBeCloseTo(rOf(P[top].r), 3);
+    // (absent, the trunk is the card's girths alone)
+    expect(torso(plain)).toEqual(P);
   });
 
   it('its hands keep the card\'s fingers, the thumb among them, the rig whole; a hooked claw out of every digit', () => {

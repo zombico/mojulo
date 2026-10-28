@@ -48,6 +48,16 @@ const FINGERS = KEPT_FINGERS[5];
 const TOES = ['hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
 // the waist's swell: its half span up and down the trunk, metres at a 1.8 m hero
 const WAIST_SPAN = 0.17;
+/** the hump (a card's `hump`, 0 … 1, at its full): its centre over the shoulder joint and its half height (metres at a
+ * 1.6 m trunk top), the depth it adds behind and the width it adds across, of the station's own; at the neck's root, the
+ * trapezius' place (one at the shoulder blades folded the back in a sprint, the arm's cone swung into it) */
+const HUMP = Object.freeze({ over: 0.09, span: 0.05, depth: 0.7, width: 0.06 });
+/** the keel (a card's `keel`, 0 … 1): its centre under the shoulder joint and its half height (metres at a 1.6 m trunk
+ * top), the depth it adds in front, of the station's own; long, a prow from the throat to the belly (a short one read
+ * as a bust in profile) */
+const KEEL = Object.freeze({ under: 0.17, span: 0.17, depth: 0.32 });
+/** the hips' own mass (`mass.hips`): its centre over the hip joint and its half height (metres at a 1.6 m trunk top) */
+const HIPS = Object.freeze({ over: 0.04, span: 0.12 });
 // a claw's length and its root's radius, as shares of the digit's tip ring; its point's radius
 /** a DIGITIGRADE kin's gaits (the hero's dials over the mint table, hero-motion.js stampHeroMotion): its knee rests bent
  * (some 75°, the hock raised behind it), so a person's stance bend and swing fold, added to it, folded the knee's bridge
@@ -109,6 +119,7 @@ export function beastRest(card) {
   return { hinge: hunch, crouch, armR: { ...arm }, armL: { ...arm, x: -arm.x }, elbowR: 'slight', elbowL: 'slight', neck: { pitch: r3(hunch * 0.3) }, head: { yaw: 0, pitch: r3(hunch * 0.35) } };
 }
 
+const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function beastWords(hero) {
   const card = beastCard(hero);
   if (!card) return hero;
@@ -120,6 +131,9 @@ export function beastWords(hero) {
     // (one coat over every group the body is painted in: its skin, the top and bottom its clothes would be, its feet, the
     // brows the landmark head builds; the claws their own)
     palette: { Top: coat, Bottom: coat, Shoes: coat, Hair: coat, Brow: coat, Claws: card.claw, ...(hero.palette ?? {}), Skin: coat },
+    // (the kin's frame as tune words under the operator's: a tune of its own words over them; a move or a list is the
+    // operator's whole tune and stands as given)
+    ...(hero.tune === undefined || isPlain(hero.tune) ? { tune: { ...(card.frame ?? {}), ...(hero.tune ?? {}) } } : {}),
     gesture: hero.gesture ?? G,
     clips: { idle, ...(hero.clips ?? {}) },
     motion: beastMotion(hero.motion, card),
@@ -135,8 +149,7 @@ const familyOf = (name) => {
 };
 const LIMBS = new Set(['upperArm', 'foreArm', 'hand', 'thigh', 'shank', 'foot']);
 
-export function beastFlesh(plan, hero) {
-  const card = beastCard(hero);
+export function beastFlesh(plan, hero, card = beastCard(hero)) {
   if (!card) return plan;
   const M = card.mass, torso = plan.segments.find((s) => s.name === 'torso' && s.kind === 'trunk');
   // the trunk's scale at height z: the card's trunk, the waist's swell on it centred on the waist (the torso's narrowest
@@ -144,7 +157,25 @@ export function beastFlesh(plan, hero) {
   // wasp's waist pinches without a shelf, and the seat stands behind the lower back as the person's does
   const top = plan.joints?.headBase?.[2] ?? 1.6, hip = plan.joints?.hip?.[2] ?? 0.9, span = WAIST_SPAN * (top / 1.6);
   const zw = torso ? torso.stations.reduce((b, st) => (rOf(st.r) < rOf(b.r) && st.z < (top + hip) / 2 ? st : b), torso.stations[0]).z : 1;
-  const kAt = (z) => M.trunk * (1 + (M.waist - 1) * Math.exp(-(((z - zw) / (z >= zw ? span : Math.max(1e-3, (zw - hip) / 2))) ** 2)));
+  // (and the hips' own on it, `mass.hips`: the pelvis and the belly over it full, fading out up to the waist)
+  const kAt = (z) => M.trunk * (1 + (M.waist - 1) * Math.exp(-(((z - zw) / (z >= zw ? span : Math.max(1e-3, (zw - hip) / 2))) ** 2))
+    + ((M.hips ?? 1) - 1) * Math.exp(-(((z - hip - HIPS.over * (top / 1.6)) / (HIPS.span * (top / 1.6))) ** 2)));
+  // THE HUMP: the back of the trunk under the neck swelling out behind, its front held (the centre taken back by what the
+  // depth gains), and the slope to the neck filling across, about a height just over the shoulder joint
+  const hump = card.hump ?? 0, sh = plan.joints?.shoulder?.[2] ?? (hip + 0.75 * (top - hip)), sc = top / 1.6;
+  const zh = sh + HUMP.over * sc, hg = (z) => Math.exp(-(((z - zh) / (HUMP.span * sc)) ** 2));
+  const humped = (st) => {
+    const g = hump * hg(st.z); if (g < 1e-4 || !Array.isArray(st.r)) return st;
+    const gain = st.r[1] * HUMP.depth * g;
+    return { ...st, r: [r6(st.r[0] * (1 + HUMP.width * g)), r6(st.r[1] + gain)], yc: r6((st.yc ?? 0) - gain) };
+  };
+  // THE KEEL: the chest's front swelling forward about the breastbone's height under the shoulder, its back held
+  const keel = card.keel ?? 0, zk = sh - KEEL.under * sc, kg = (z) => Math.exp(-(((z - zk) / (KEEL.span * sc)) ** 2));
+  const keeled = (st) => {
+    const g = keel * kg(st.z); if (g < 1e-4 || !Array.isArray(st.r)) return st;
+    const gain = st.r[1] * KEEL.depth * g;
+    return { ...st, r: [st.r[0], r6(st.r[1] + gain)], yc: r6((st.yc ?? 0) + gain) };
+  };
   const segments = plan.segments.map((s) => {
     // (a barrel's depth swells forward: its back held where the trunk's scale puts it, the centre brought forward, so the
     // lower back never stands out past the seat; a pinch draws in all round)
@@ -152,7 +183,7 @@ export function beastFlesh(plan, hero) {
       const k = kAt(st.z); if (k <= M.trunk || !Array.isArray(st.r)) return { ...st, r: scaleR(st.r, k) };
       const back = st.r[1] * M.trunk, deep = st.r[1] * k;
       return { ...st, r: [r6(st.r[0] * k), r6(deep)], yc: r6((st.yc ?? 0) + deep - back) };
-    }) };
+    }).map((st) => (s.name === 'torso' ? keeled(humped(st)) : st)) };
     if (s.name === 'neck') return s.kind === 'loft' ? { ...s, stations: s.stations.map((st) => ({ ...st, r: scaleR(st.r, M.neck) })) } : { ...s, rA: scaleR(s.rA, M.neck), rB: scaleR(s.rB, M.neck) };
     const fam = familyOf(s.name);
     // (the chest's rings thin or swell about the trunk they lie on, so they stay on it)

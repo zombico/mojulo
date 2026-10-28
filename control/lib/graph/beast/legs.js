@@ -45,9 +45,10 @@ const turner = (from, to) => {
 export const DIGITIGRADE = Object.freeze({ knee: [0.185, 0.609], hock: [-0.163, 0.326], toeBase: [0.109, 0.065], toeTip: [0.337, 0.033] });
 /** the hock: bridged as the knee is, its fold to the heel's side */
 export const HOCK_JOINT = TIERED_HOCK;
-/** the metatarsus' radii at the hock and the toes' base, as shares of the shank's end; the pad and each toe's, of the
+/** the metatarsus' radii at the hock and the toes' base, as shares of the shank's end (a person's ankle: a paw's
+ * metatarsus is the heavier, or the raised foot reads as a stilt); the pad and each toe's, of the
  * metatarsus' end; how far the toes reach past the toes' base, of the toes' run; their spread, of the pad's half width */
-const META = { hock: 1.05, ball: 0.82 }, PAD = { width: 1.5, height: 0.75, back: 0.35, front: 0.3 }, TOE = { r: 0.36, reach: 0.62, root: 0.1, spread: 0.72 };
+const META = { hock: 1.3, ball: 1.0 }, PAD = { width: 1.5, height: 0.75, back: 0.35, front: 0.3 }, TOE = { r: 0.36, reach: 0.62, root: 0.1, spread: 0.72 };
 const TOE_NAMES = ['hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
 /** the toes a foot keeps by the card's count: a plantigrade foot keeps the big toe, the outer ones go first; a digitigrade
  * paw's toes are the middle ones (no big toe: a dog's dewclaw, a bird's hind toe are not drawn) */

@@ -80,7 +80,9 @@ export function beastHead(plan, hero) {
       const cm = centre(mid.points), ct = centre(top.points), axis = unit(sub(ct, cm)), rt = Math.max(...Object.values(top.points).map((p) => Math.hypot(...sub(p, ct))));
       const ring = (c, f) => Object.fromEntries(Object.entries(top.points).map(([sl, p]) => [sl, p.map((x, k) => r6(c[k] + (x - ct[k]) * f))]));
       const between = NAPE.rings.map(({ t, flare }) => ring(cm.map((x, k) => x + (ct[k] - x) * t), flare));
-      const crown = ring(ct.map((x, k) => x + axis[k] * NAPE.into * half), Math.max(NAPE.rings.at(-1).flare, (NAPE.top * half) / rt));
+      // (the crown `top` of the skull's half width across whatever the neck's girth: a heavy neck's flare would stand out
+      // through the back of the skull, the ring narrowing inside it instead)
+      const crown = ring(ct.map((x, k) => x + axis[k] * NAPE.into * half), (NAPE.top * half) / rt);
       const stations = [mid.points, ...between, crown].map((P, i) => ({ id: `st${i}`, points: Object.fromEntries(Object.entries(P).map(([sl, p]) => [sl, p.map(r6)])) }));
       const w = (neckShare) => (neckShare >= 1 ? { neck: 1 } : neckShare <= 0 ? { head: 1 } : { neck: neckShare, head: r6(1 - neckShare) });
       const shares = [1, ...NAPE.rings.map((x) => x.w), 0], cc = centre(crown);
