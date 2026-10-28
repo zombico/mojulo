@@ -1,7 +1,7 @@
 // The era marks (era-marks.js): every World page input marked in every era, closed over the page's own inputs as the
 // engine marks are; gen-6 draws them all as built (paint is its own), gen-7 names each surface it draws as paint.
 import { describe, expect, it } from 'vitest';
-import { SURFACE_INPUTS, NEUTRAL_INPUTS, ERA_PAGE_MARKS, eraReading } from './era-marks.js';
+import { SURFACE_INPUTS, NEUTRAL_INPUTS, FORM_INPUTS, ERA_PAGE_MARKS, eraReading } from './era-marks.js';
 import { ERA_IDS, ERAS } from './eras.js';
 import { pageInputs } from '../scene/engines/mark-sources.js';
 import { MARKS } from '../scene/engines/marks.js';
@@ -9,9 +9,10 @@ import { MARKS } from '../scene/engines/marks.js';
 const sorted = (a) => [...a].sort();
 
 describe('the era marks: every page input, every era', () => {
-  it('the surface and neutral inputs are the page\'s inputs, each once (a new input is classified here first)', () => {
-    expect(sorted([...SURFACE_INPUTS, ...NEUTRAL_INPUTS])).toEqual(sorted(pageInputs()));
-    expect(SURFACE_INPUTS.filter((k) => NEUTRAL_INPUTS.includes(k))).toEqual([]);
+  it('the surface, neutral and form inputs are the page\'s inputs, each once (a new input is classified here first)', () => {
+    expect(sorted([...SURFACE_INPUTS, ...NEUTRAL_INPUTS, ...FORM_INPUTS])).toEqual(sorted(pageInputs()));
+    expect(SURFACE_INPUTS.filter((k) => NEUTRAL_INPUTS.includes(k) || FORM_INPUTS.includes(k))).toEqual([]);
+    expect(NEUTRAL_INPUTS.filter((k) => FORM_INPUTS.includes(k))).toEqual([]);
   });
 
   it('every era has a table over them, each row keyed by its own era alone', () => {
@@ -30,6 +31,8 @@ describe('the era marks: every page input, every era', () => {
     const g7 = ERA_PAGE_MARKS['gen-7'];
     for (const k of SURFACE_INPUTS) expect(g7[k], k).toMatchObject({ 'gen-7': 'approximated', how: expect.stringMatching(/paint/) });
     for (const k of NEUTRAL_INPUTS) expect(g7[k], k).toEqual({ 'gen-7': 'built', neutral: true });
+    // (and what it draws as material, built)
+    for (const k of FORM_INPUTS) expect(g7[k], k).toMatchObject({ 'gen-7': 'built' });
     expect(ERAS['gen-6'].surface).toBe('paint');
     expect(ERAS['gen-7'].surface).toBe('form');
   });

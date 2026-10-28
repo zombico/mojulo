@@ -153,6 +153,11 @@ export function growBrow(P, s, brow, skinY, side) {
 const add = (a, b, k = 1) => ({ x: a.x + b.x * k, y: a.y + b.y * k, z: a.z + b.z * k });
 const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 
+/** the lower lashes on a SEATED lid (`growLashes`'s `seated`), out of the tunnel that hid most of their length: rooted
+ * `root` of the rim's radius up the margin's front from where the unseated root lay (the rim's front face, under the
+ * lid's band, so they hung off it), a share of their `length`, their `curl` down, and `lift` degrees nearer level */
+export const SEATED_LOWER = Object.freeze({ root: 0.7, length: 0.75, curl: 0.6, lift: 10 });
+
 /**
  * THE LASHES for one eye: roots along each lid margin's front edge (the eye rig's lash lines, `margins.upper/lower`
  * at t medial → lateral), none at the inner canthus's punctum, thicker toward the lateral. Each lash leaves the margin
@@ -162,25 +167,27 @@ const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x 
  * the medial a touch inward. The upper's longest sit centre-lateral, the lower's are shorter and sparser. Seeded per
  * side; `open` the lid's openness (the rig's channel). `skin` lays a root on the skin (`place(p)`, null where it cannot) and takes each step
  * (`step(prev, dir, len)`, which may deflect a lash off the skin it would sink into, or end it: null); both default to
- * free space.
+ * free space. `seated`: the lids rest on the globe (head-relational-eye.js SEAT), so the lower lashes are no longer cut
+ * short in a tunnel; they root on the margin's front edge under the eye and grow by `SEATED_LOWER`.
  * Returns strands in V, their first point the root.
  */
-export function growLashes(margins, s, lash, open = 1, skin = {}) {
+export function growLashes(margins, s, lash, open = 1, skin = {}, { seated = false } = {}) {
   const place = skin.place || ((p) => p), step = skin.step || ((p, d, l) => add(p, d, l));
   const deg = Math.PI / 180, strands = [], K = 6;
   for (const upper of [true, false]) {
     const line = upper ? margins.upper : margins.lower;
     const dice = streamOf(lash.seed ?? 1, upper ? 'lash' : 'lashLow', s);
     const n = Math.round((upper ? 110 : 55) * lash.density);
-    const L = lash.length * (upper ? 1 : lash.lower);
-    const roll = (upper ? 16 + 34 * (1 - Math.min(1, open)) : -4) * deg, curl = (upper ? 25 + 45 * lash.curl : 15 + 30 * lash.curl) * deg;
+    const low = !upper && seated ? SEATED_LOWER : null;
+    const L = lash.length * (upper ? 1 : lash.lower) * (low ? low.length : 1);
+    const roll = (upper ? 16 + 34 * (1 - Math.min(1, open)) : low ? -low.lift : -4) * deg, curl = (upper ? 25 + 45 * lash.curl : (15 + 30 * lash.curl) * (low ? low.curl : 1)) * deg;
     for (let i = 0; i < n; i++) {
       // a root along the margin: from past the punctum to the lateral canthus, denser laterally
       const t = upper ? 0.08 + 0.9 * Math.pow(dice(), 0.85) : 0.15 + 0.82 * Math.pow(dice(), 0.75);
       const m = line(t);
       const row = dice() - 0.5;   // the lashes stand in rows across the margin's front
       const len = L * (upper ? 0.5 + 0.5 * Math.pow(Math.sin(Math.PI * Math.min(1, t / 1.25 + 0.1)), 1.5) : 0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, t * 0.85 + 0.12))) * (0.8 + 0.35 * dice()) * MM;
-      const root = place(add(add(m.c, m.n, m.r * 0.85), m.away, -m.r * (upper ? 0.25 : 0.15) + row * 0.5 * MM));
+      const root = place(add(add(m.c, m.n, m.r * 0.85), m.away, -m.r * (upper ? 0.25 : low ? low.root : 0.15) + row * 0.5 * MM));
       if (!root) continue;
       // the frame: forward (the globe's normal, flattened), the margin's tangent for the flare, up
       const fwd = unit({ x: m.n.x * 0.6, y: m.n.y, z: 0 }), fl = lash.flare * (t - 0.4) * 0.9 + (dice() - 0.5) * 0.12;
@@ -307,7 +314,7 @@ export function growEpidermis(head, cube) {
       },
     };
     for (const rig of R.eyeRigs) {
-      for (const g of growLashes(rig.margins, rig.side, cube.hair.lashes, rig.channels.open, skin)) {
+      for (const g of growLashes(rig.margins, rig.side, cube.hair.lashes, rig.channels.open, skin, { seated: !!rig.seated })) {
         strands.push({ ...g, pts: g.pts.map((p) => ({ x: p.x * sc, y: p.y * sc, z: p.z * sc })), r: g.r * sc });
         counts.lashes++;
       }

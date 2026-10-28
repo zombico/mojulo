@@ -394,9 +394,9 @@ const QUICK_LEVERS = {
     `  ride: ${Object.keys(RIDES).join(' | ')}   you drive it (W / S / A / D), followed from behind; no hero, climb or building`,
     `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   a place to finish in, on the podium',
-    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }):',
-    '    the whole field, yours first (no ride, hero or rivals beside it); shade: smooth bevels and smooth-lights a racer (cel by default)',
-    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): a field of supercars, yours first, liveries solved to stand out`,
+    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
+    '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default: bevelled, round tyres) | smooth | cel (flat); light: form (default: lit by the page) | paint',
+    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): a field of streamlined supercars lit by the page, yours first, liveries solved to stand out`,
     `  mood: ${RACE_MOOD_IDS.join(' | ')} (with a roadway)   the light it is raced in: lamps after dark, rain and a wet road`,
     `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no track, climb, building or run beside it)`,
   ],
@@ -646,6 +646,35 @@ function storyCard() {
     'A casting page\'s first party and familiars walk beside the hero from the start (a joins flag on one makes it a',
     '  companion as above), and every rolled member plays its own moves on the field (its hit, its fall and rise, its',
     '  swing) over the library\'s walk; a beast, a mascot or a beast-kin below the hero door walks on its own gaits.',
+    'A TOWN\'S PEOPLE (NPCs grown from its houses, their talk, sidequests, a day): get_game_vocab({ id: \'gameworld-folk\' }).',
+  );
+}
+
+function folkCard() {
+  return lines(
+    'THE TOWN\'S PEOPLE — characters.folk: each town a level lays (places: { town, street }) peopled from its own houses.',
+    'characters.folk: true | { seed?, cap?, pool?, domicile?, domiciles?, say?, sidequests?, recurring?, day? }',
+    '  A house\'s use roots its first person: a dwelling a townie, a shop its keeper, a workshop its master, a barn a',
+    '  farmhand, the hall its elder, the tower its captain; each grows the rest (an apprentice, the watch). Each is rolled',
+    '  from the town\'s culture and their role: the role\'s uniform, the seed\'s face. NPCs, not party members.',
+    '  cap      people at most (60): every house its first person before anyone\'s household.',
+    '  pool     bodies a pool makes as themselves (3): the people the player goes to get their own, the rest share.',
+    '  domicile one house shape for every house; domiciles: { <lot key>: shape } one house\'s. A house is its DWELLER',
+    '           and who lives with them: \'D + 0\' alone, \'D + P\' a couple, \'D of F (P + C2)\' a family of two',
+    '           children, \'D + C1\' single, one parent (or { shape, children? }). Unasked, the dweller\'s age rolls it.',
+    'WHAT THEY SAY: chitchat and a service\'s talk are written for them from a seeded line book, by their role, age,',
+    '  temper, house and town, the town\'s open needs said aloud (no counter: "Folk trade over the fence."). The plot is',
+    '  never written. say: { <role | person path>: text | [text] } gives your words in place of the book\'s.',
+    'SIDEQUESTS: sidequests: [{ id, giver, steps: [{ talk: who, say? } | { reach: \'town-<use>-<n>\' }], name?, ask?,',
+    '  thanks?, after?, back? }]. who: a role (\'keeper\', the first), a role and its count (\'townie-3\'), a recurring id.',
+    '  The giver offers it; taken, the steps are a checklist in the journal (J), in order; done, back to the giver.',
+    '  after: \'<id>\' offers it once that one is finished: a chain, giver to giver. Left out, the ask is a slot',
+    '  ([Keeper: the errand]) and the rest plain words. It lives in the first town holding all its people.',
+    'RECURRING: recurring: { <id>: { role, name? } } the Officer Jenny of a game: in each town with that role, its first',
+    '  is them, one face and one name everywhere (the game\'s seed), the town\'s clothes and house. Talk names them.',
+    'THE DAY: day: true | { start?, rate? } gives the level a clock (its hour on the HUD, its sky dark at night) and the',
+    '  households, children and watch walk a day on it; the keeper, the elder, the recurring and anyone in a sidequest',
+    '  keep their place. Without it they stand. Walk up and press interact (E) to talk to anyone.',
   );
 }
 
@@ -751,6 +780,7 @@ const CARDS = [
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
+  ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));

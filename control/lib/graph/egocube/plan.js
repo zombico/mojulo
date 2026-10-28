@@ -29,6 +29,7 @@ import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR,
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { variantOf, UNDEAD_CARDS } from '../undead/index.js';
+import { HAIR_LIBRARY } from '../polygonizer/humanoid-hair.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -512,6 +513,12 @@ function creature(sheet, title) {
 export const BUILD_TUNE = Object.freeze({ lithe: { shoulders: 0.92, waist: 0.92, hips: 0.95 }, canonical: {}, heroic: { shoulders: 1.12, legs: 1.05, depth: 1.05 }, stout: { stature: 0.92, waist: 1.12, depth: 1.1 }, brute: { shoulders: 1.2, waist: 1.1, depth: 1.15, upperArm: 1.2, forearm: 1.2, thigh: 1.15 } });
 const HAIR_STYLE = Object.freeze({ male: { bound: 'taper', mid: 'crop', free: 'swept' }, female: { bound: 'bun', mid: 'bob', free: 'long' } });
 const WAVE = Object.freeze({ straight: 0.6, wavy: 1.2, curly: 1.5, coily: 1.6 });
+/** the landmark hair as the sheet reads it: a free fall with a wave in it is the WAVY fall (the long fall takes no wave),
+ * and the wave is written only on a style that takes it (on a crop or a bun it did nothing and the door warned so) */
+function landmarkHair(style, texture) {
+  const s = style === 'long' && texture !== 'straight' ? 'wavy' : style;
+  return { style: s, ...(HAIR_LIBRARY[s]?.controls.includes('wave') ? { wave: WAVE[texture] } : {}) };
+}
 /** the anime head's own vocabulary for the same readings: its hair families, and its curl as crown volume (it draws
  * clumps, not a wave) */
 const ANIME_HAIR_STYLE = Object.freeze({ male: { bound: 'short', mid: 'short', free: 'long' }, female: { bound: 'hime', mid: 'bob', free: 'long' } });
@@ -606,7 +613,7 @@ function hero(sheet) {
   const kept = f.order < 1 / 3 ? 'bound' : f.order > 2 / 3 ? 'free' : 'mid';
   const style = (anime ? ANIME_HAIR_STYLE : HAIR_STYLE)[f.pole][kept];
   const hair = anime ? { style, ...(ANIME_VOLUME[texture] ? { volume: ANIME_VOLUME[texture] } : {}), ...(f.age === 'elder' ? { length: 0.85 } : {}) }
-    : { style, wave: WAVE[texture], ...(f.age === 'elder' ? { length: 0.8 } : {}) };
+    : { ...landmarkHair(style, texture), ...(f.age === 'elder' ? { length: 0.8 } : {}) };
   const tones = settingTones(sheet, f, d), eraKit = KIT_ERAS.includes(era), look = eraKit ? eraLookOf(sheet) : null;
   // an armour look wears its hardsuit (bareheaded on the anime head) in place of clothes and kit
   const armor = look?.armor ? lookArmor(look, { anime }) : null;

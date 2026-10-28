@@ -35,6 +35,7 @@ import { gearOrders } from './world-gear.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
+import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
@@ -121,6 +122,11 @@ const MASCOT_REACT_STATES = Object.freeze({ stagger: 'flinch', topple: 'fall', g
 
 // the door gaits a pilot carries (player.js plays its own jog and walk over the library's)
 const gaitsOf = (spec) => (spec && isObj(spec.motion) ? Object.keys(spec.motion) : null);
+// the row's own surface work beside its hero (layered.js HERO_DOOR_KEYS): its field paint (an emblem on its chest), its
+// strokes, its bake, its rim and its hull's shade. An adopted or a hand-edited hero is built over its row, so the
+// equipped hero wears them too; a hero the run makes has none of its own
+const ROW_SURFACES = Object.freeze(['fieldPaint', 'strokes', 'bake', 'rim', 'hullShade']);
+const rowSurfaces = (head) => (isObj(head) ? Object.fromEntries(ROW_SURFACES.filter((k) => head[k] !== undefined).map((k) => [k, head[k]])) : {});
 
 /** The hero's ref: the one the world adopts (`characters.hero.ref`, or a quick game's `quick.hero.ref`, made with
  * create_character), else the one a run makes at `<ref>-hero`. */
@@ -152,7 +158,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   const Q = equippedHero(G, { composed: { spec: edited ? lookup.heroSpec : hero.spec } });
   if (Q) {
     // the motion's gaits and clips ride; the stand that shows the gear (HOLD_STAND) wins over the motion's own
-    const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}) };
+    const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}), ...(edited ? rowSurfaces(lookup.head) : {}) };
     // an adopted hero's light is its own row's (create_character's `toon`), not the tradition's
     const toon = adopted ? lookup?.head?.toon : hero.mint.toon;
     const { toon: _t, ...mint } = hero.mint;
@@ -216,6 +222,19 @@ export function runSteps(world, { ref, lookup } = {}) {
   const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
+  // the towns' folk (characters.folk, folk-cast.js): each body a step, minted as a hero is, once per town however many
+  // stages meet it; none when the world asks for none
+  const folks = stages.map((s) => (s.building?.ref ? null : stageFolk(G, s))), folkRef = {};
+  // each sidequest in the first town that holds its people (folk-cast.js)
+  placeSidequests(folks);
+  for (const F of folks) for (const m of F?.bodies.mints ?? []) {
+    const key = folkMintKey(F, m);
+    if (folkRef[key]) continue;
+    folkRef[key] = childRef(ref, key);
+    const spec = withReact(react, m.spec), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${m.of}`, spec, ...(m.toon ? { toon: m.toon } : {}) };
+    steps.push({ key, ref: folkRef[key], ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
+    if (ownMoves) ownMoves[folkRef[key]] = REACT_STATES;
+  }
   // a book fighting on boards is travelled from its epochs' maps (board-levels.js): each epoch's stages its map's dots, in
   // place of an interconnected world's ways
   const epochs = G.battles?.on === 'board' ? bookEpochs(G, stages) : [];
@@ -277,10 +296,13 @@ export function runSteps(world, { ref, lookup } = {}) {
     const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
-    // its foes (foes.js) beside them; a stage whose only extra is its foes keeps its goal's own cast with them (an extra
+    // its foes (foes.js) and its town's folk beside them; either alone keeps its goal's own cast beside it (an extra
     // stands in place of the goal's cast: levels.js)
     const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, true);
-    const extra = hostile ? composeExtras(fight, stall, fight || stall ? null : GA.goalCast, hostile) : composeExtras(fight, stall);
+    const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
+    const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))]) : null;
+    const goalCast = (hostile || folk) && !fight && !stall ? GA.goalCast : null;
+    const extra = composeExtras(fight, stall, goalCast, folk, hostile);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);

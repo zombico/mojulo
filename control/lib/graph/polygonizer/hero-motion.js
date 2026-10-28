@@ -26,7 +26,7 @@ import { AURAS, heroAura } from './hero-aura.js';
 import { STANCES, STANCE_NAMES, heroStance } from './hero-stance.js';
 import { STRIKES, heroStrike } from './hero-strike.js';
 import { RESTS } from './hero-rest.js';
-import { GAITS, HERO_WALK, HERO_WALK_POLE, HERO_RUN } from './hero-gaits.js';
+import { GAITS, HERO_WALK, HERO_WALK_POLE, HERO_RUN, HERO_RUN_POLE } from './hero-gaits.js';
 import { VAULTS } from './hero-vault-moves.js';
 import { heroVault } from './hero-vault.js';
 import { HOLD_WORDS, GUARD_WORDS } from './hero-held-words.js';
@@ -491,8 +491,8 @@ function easeInto(pose, R) {
 /**
  * A door `motion` as it is STORED when authored: each walk, jog or sprint gait gets every dial of its mint table
  * (figure-posing.js WALK_MINT / SPRINT_MINT), the gait's own base, its seconds and its tilt written in, under what the
- * creator set (`true` ⇒ the gait as studied, by value), the walk its silhouette's over them (`pole`: 'male' | 'female', the
- * adult cast's; hero-gaits.js HERO_WALK_POLE). Jumps and stops, and anything not an object, pass as given.
+ * creator set (`true` ⇒ the gait as studied, by value), the walk and the run their silhouette's over them (`pole`: 'male' | 'female', the
+ * adult cast's; hero-gaits.js HERO_WALK_POLE, HERO_RUN_POLE). Jumps and stops, and anything not an object, pass as given.
  * Called where a hero is written (the hero door, an edit under /hero, a world's inline hero), never at render: a hero
  * stored before the mint tables keeps resolving its left-out dials against the frozen defaults.
  */
@@ -502,8 +502,8 @@ export function stampHeroMotion(motion, { pole = null } = {}) {
     const G = MOTION_GAITS[name];
     if (!G || (G.motion !== 'walk' && G.motion !== 'sprint') || !(g === true || isObj(g))) return [name, g];
     // a hero's gait is the figure's mint table with the hero's own dials over it (hero-gaits.js HERO_WALK, HERO_RUN), and
-    // the walk its silhouette's (`pole`, HERO_WALK_POLE: the man's wider base)
-    const mint = G.motion === 'walk' ? { ...WALK_MINT, ...HERO_WALK, ...(HERO_WALK_POLE[pole] ?? {}) } : { ...SPRINT_MINT, ...HERO_RUN };
+    // the walk and the run its silhouette's (`pole`, HERO_WALK_POLE and HERO_RUN_POLE: the man's wider base)
+    const mint = G.motion === 'walk' ? { ...WALK_MINT, ...HERO_WALK, ...(HERO_WALK_POLE[pole] ?? {}) } : { ...SPRINT_MINT, ...HERO_RUN, ...(HERO_RUN_POLE[pole] ?? {}) };
     return [name, { ...mint, ...G.base, seconds: G.seconds, tilt: G.tilt, ...(g === true ? {} : g) }];
   }));
 }

@@ -19,6 +19,8 @@ low): the result shows it beside the best; with rivals the place is kept too.
 - `rivals`: entity ids racing the same checkpoints (cars on the `racer` rule). Their zones watch what the ids share
   (`rival-1`, `rival-2` → `rival-*`). The HUD shows `Place n / N`; a tie goes to whoever passed first.
 - `win`: the place that wins (default 1): finishing there or better is `race:won`, else `race:lost`.
+- `rivalCheckpoints`: `{ <rival id>: [{ at, radius? }, …] }`, a rival's own checkpoints in its own order, as many as the
+  player's (a duel's other lane, started half the alignment on). Absent, a rival runs the player's.
 
 ## Lowers to
 

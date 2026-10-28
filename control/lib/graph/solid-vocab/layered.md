@@ -46,11 +46,14 @@ creature's markings. Under the CHARACTER LIGHT (the anime look's step) the bake 
 is; `characterLight: true` lays the bake over its tones per corner. Patch `/bake`. Absent, every byte is identical.
 `fieldPaint: [{ part, chart?, shape | pattern, at?, size?, rotate?, group, color?, only? }]` (any layered row) is FIELD
 PAINT: shapes cut into the faces, so a line crosses a face at any angle and finer than a ring (band paint is the ring's
-height). `part` a name, a list or a prefix `'adorn.torso-tabard*'`; `chart` `front` (default) | `back` | `left` |
+height). `part` a name, a list, a prefix `'adorn.torso-tabard*'` or a suffix `'*_torso'` (every layer worn over the
+torso: `['torso', '*_torso']` is the chest whatever is worn on it); `chart` `front` (default) | `back` | `left` |
 `right` | `top` | `bottom` (a projection over the parts' box, x to the viewer's right, y up: any part, a worn shell too)
 or `ring` (a body part's rings: x round it, 0.5 the front, y along it, 0 → 1); `at` / `size` shares of the chart;
 `shape` rect | circle | diamond | shield | cross | star | `{ motif, w? }` (a motif filled) | `{ poly }` | `{ polys }`
-(convex, in −1…1); or `pattern` `{ cells: hex | scale | square | brick, grid: [nx, ny], gap? }` | `{ bands, gap?,
+(convex, in −1…1) | `{ path: '<an SVG path d>' }` (a MARK: a logo, an emblem or an insignia pasted as drawn, its holes,
+curves and arcs kept, fitted into `size` by its larger side; one colour a path, so a two-colour emblem is two entries,
+the charge after the field; refused by name when it does not read or is too detailed to cut); or `pattern` `{ cells: hex | scale | square | brick, grid: [nx, ny], gap? }` | `{ bands, gap?,
 axis? }`. Painted in order; `only` repaints only those groups; `color` names the group's colour. The studio's faces and
 the rig pack carry the cells (the character light does not yet). The mint reads out what each entry touched.
 `rim: [r, g, b, strength, power]` (rigged recipes) adds a cool/warm fresnel edge light to the figure's
@@ -228,7 +231,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `chinPoint`), `ears` (`earSize`). Moves `broad-jaw` (jawWidth 118 %, chinProjection 108 %) and `large-eyes` (eyeSize
   115 %, eyeSpacing 105 %); a word, an object or a list composed by product like the tune; comfortable ranges advise
   (faceLength's floor is 0.92: below it the fitted jaw folds). `expression` (`neutral`, `smile`, `determined`,
-  `surprised`; `jawOpen` stays a live dial) and `headPreset` (`male` / `female`, the head's pole and fit; a figure cast
+  `surprised`; `jawOpen` stays a live dial; `{ word?, eyes?, …channels }`, where `eyes` is an EYE LOOK that sets the eyes,
+  the brows and the lids alone over the word's mouth: `rest`, `alert`, `wide`, `surprised`, `afraid`, `worried`, `sad`,
+  `tired`, `sleepy`, `warm`, `focused`, `stern`, `glare`, `squint`, `wince`, `shut`; a clip key's `face` takes it too,
+  and the realistic head plays it) and `headPreset` (`male` / `female`, the head's pole and fit; a figure cast
   such as `chibi` wears the male by default) ride beside it. Patch `/hero/face/<control>`, `/hero/expression` and the
   head, the plan and the recipe regenerate; a face never moves a joint. The readout's `hero.face*` answers in metres off
   the head's landmarks (`head_m` crown to chin, `cheekbones_m`, `jaw_m`, `pupils_m`).
@@ -653,6 +659,22 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   not that it is wanted. Tones the detail needs (`TopFold`, `Quilt`, `Cuff`, `Patch`, …) derive from `Top` / `Bottom` /
   `Shoes`; any tone the operator names wins.
 <!-- /section -->
+<!-- section: hero-identity | A named hero | name and emblem: the hero's own name on this machine, its mark pasted as SVG paths, adopted by name -->
+  A NAMED HERO is the hero with an identity that travels with it into any game on this machine (`hero-emblem.js`).
+  `name: 'Nightjar'` is its own here: a second hero is refused the same name (case and spacing aside), naming the hero
+  that holds it; the row is titled by it, and a rename retitles a row titled by its old name. A game adopts it by name:
+  `design_game` with `characters.hero: { name: 'Nightjar', … }` (or a quick game's `hero: { name }`) writes the hero's ref
+  beside the name and plays it as an adopted hero; a name no hero holds is refused.
+  `emblem: { layers: [{ path, role?, color? }], at?, size?, offset? }` is its MARK (a logo, an insignia), each layer one
+  SVG path's `d` pasted as drawn (holes, curves and arcs kept), painted in order, the field first and a charge over it.
+  A layer's colour is its ROLE's: `field` (the palette's `EmblemField`, else `OutfitAccent`, else `Trim`), `charge`
+  (`EmblemCharge`, else `OutfitBase`, else `Top`), `outline` (`EmblemOutline`, else `Shoes`); a first layer with no role
+  is the field, the rest charges; `color: '#rrggbb'` fixes a layer's own. `at` `chest` (the default) | `back`; `size` its
+  larger side, a share of the place (0.3 on the chest); `offset` [dx, dy] from the place's centre. It is kept as given
+  and drawn at every read as field paint (`fieldPaint`, under the row's own) on the torso and every layer worn over it,
+  so it lands on the suit, the top or a catsuit's painted skin whatever the body; patch `/hero/emblem`. The mint's
+  readout counts each layer's faces under `fieldPaint`. The anime head's character light does not draw it yet.
+<!-- /section -->
 <!-- section: hero-stand | The stand | gesture: the pose the figure holds -->
   THE STAND. `gesture` is the pose the figure holds, in the rig's own pose words: `relaxed` (weight on the left leg,
   hips and chest counter-turned, the shoulder line dropping to the support side, the head tilted toward the high
@@ -837,8 +859,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   same words: re-roll with `set /hero/face/seed <n>`, keep what you like and aim the rest. The readout's
   `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
   (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
-  its HAIR is the composed cut (or its ancestry's) grown as an engine's hair cards, its PIERCINGS the face's, each piece
-  in its metal; the brows, the lashes and a styled beard are read but not yet grown (the beard is painted). The mint
+  its HAIR is the composed cut (or its ancestry's; `scalp` names one instead: a style such as `long`, `ponytail`, `crop`,
+  `{ style, …its groom }`, or `'none'`) grown as LOCKS in one colour over a solid shell (realistic laws 10; `stylize`
+  0 … 1 its register: 0 a realistic game's many fine locks with soft cards at the hairline and the tips, 1 a stylised
+  game's few dozen chunky sculpted locks, 0.5 the default; a crop a shell, an afro a sculpted volume, a ponytail's tail a
+  mass of its own, locs ropes; the scalp shows only in the splits between locks), its PIERCINGS the face's, each piece
+  in its metal; its face's hair in the same register (a beard its coat sculpted, a full beard's chin hanging as flows,
+  each brow and the moustache's halves a band with strokes on it). The mint
   solves the face's own FIT (`fit`, stamped beside its words, ~45 s once) so the head is the one the face studies show;
   a face whose words change wears its pole's fit until it is minted again. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;

@@ -10,7 +10,9 @@ import { withBuildingLevel } from '../structure/level.js';
 // one room kit per shell, and one flat use per shape (a tall main room its own): each a distinct way to build and lay
 const firstOf = (ids, key) => ids.filter((id, i) => ids.findIndex((x) => key(x) === key(id)) === i);
 const ROOM_KITS = firstOf(Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid && STAGE_KITS[k].shell !== 'plaza'), (k) => STAGE_KITS[k].shell ?? 'crypt');
-const USES = firstOf(PROGRAM_IDS.filter((u) => !PROGRAMS[u].rooms.some((r) => r.s)), (u) => `${PROGRAMS[u].shape}/${!!PROGRAMS[u].tall}`);
+// (a building is flat on one storey: the clinic stands for the corridor-and-core shape)
+const flat = (u) => (PROGRAMS[u].rooms ? !PROGRAMS[u].rooms.some((r) => r.s) : PROGRAMS[u].core.storeys === 1);
+const USES = firstOf(PROGRAM_IDS.filter(flat), (u) => `${PROGRAMS[u].shape}/${!!PROGRAMS[u].tall}`);
 const BODY = 0.3;   // the level walker's collideRadius
 
 describe('every program shape, on every room shell, leaves its walker a way', () => {

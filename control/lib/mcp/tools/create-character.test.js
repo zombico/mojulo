@@ -268,3 +268,34 @@ describe('create_character as a mascot (docs/mascot.md)', () => {
     expect(SketchRepository.getByRef('cc_ego_person_mascot').manifest.plan.adorn.map((a) => a.id)).toEqual(['belt']);
   }, 300_000);
 });
+
+describe('a named hero: its name its own on this machine, its emblem worn, adopted by name', () => {
+  const RING = 'M 50 0 A 50 50 0 1 1 50 100 A 50 50 0 1 1 50 0 Z M 50 25 A 25 25 0 1 0 50 75 A 25 25 0 1 0 50 25 Z';
+  it('is titled by its name, wears its emblem from the mint on, and no other hero takes its name', async () => {
+    const a = await createCharacterHandler({ as: 'hero', spec: { cast: 'male', name: ' Night  Jar ', emblem: { layers: [{ path: RING, role: 'field', color: '#ffd400' }] } }, ref: 'named-a' });
+    const row = SketchRepository.getByRef('named-a');
+    expect([row.title, row.manifest.hero.name, row.manifest.hero.emblem.layers.length]).toEqual(['Night Jar', 'Night Jar', 1]);
+    expect(a.fieldPaint[0]).toMatchObject({ group: 'EmblemLayer1' });
+    expect(a.fieldPaint[0].faces).toBeGreaterThan(0);
+    expect(SketchRepository.heroByName('night jar').ref).toBe('named-a');
+    // the same name, cased and spaced otherwise, on another hero: refused naming the hero that holds it
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', name: 'NIGHT JAR' }, ref: 'named-b' })).rejects.toThrow(/the name 'Night Jar' is the hero 'named-a''s on this machine/);
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'female' }, ref: 'named-b' });
+    await expect(updateCharacterHandler({ ref: 'named-b', spec: { name: 'Night Jar' } })).rejects.toThrow(/is the hero 'named-a''s/);
+    await expect(updateSketchHandler({ ref: 'named-b', patch: [{ op: 'set', path: '/hero/name', value: 'night jar' }] })).rejects.toThrow(/is the hero 'named-a''s/);
+    // a hero keeps its own name on an edit, and may take a new one
+    await updateCharacterHandler({ ref: 'named-a', spec: { palette: { Top: '#203040' } } });
+    await updateCharacterHandler({ ref: 'named-a', spec: { name: 'Nightjar' } });
+    expect(SketchRepository.heroByName('Night Jar')).toBeNull();
+    expect([SketchRepository.getByRef('named-a').manifest.hero.name, SketchRepository.getByRef('named-a').title]).toEqual(['Nightjar', 'Nightjar']);
+  }, 120_000);
+  it('a game adopts a named hero by its name: its ref written beside it; a name no hero holds is refused', async () => {
+    const { designGameHandler } = await import('./design-game.js');
+    const { MEADOWMARK_HERO, gameworldOf } = await import('@/lib/graph/gameworld/index');
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'female', name: 'Vale' }, ref: 'named-vale' });
+    const hero = { ...MEADOWMARK_HERO.characters.hero, name: 'vale' };
+    await designGameHandler({ world: { ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, hero } }, ref: 'gw-named' });
+    expect(gameworldOf(SketchRepository.getByRef('gw-named').manifest).characters.hero).toMatchObject({ name: 'vale', ref: 'named-vale' });
+    await expect(designGameHandler({ world: { ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, hero: { ...hero, name: 'Nobody' } } }, ref: 'gw-nobody' })).rejects.toThrow(/no hero named 'Nobody' on this machine/);
+  }, 120_000);
+});

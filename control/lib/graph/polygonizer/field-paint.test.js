@@ -1,6 +1,7 @@
 // field-paint: the cut's laws on a quad whose answers are known, then the ring chart, the World and the rig pack on a hero.
 import { describe, it, expect } from 'vitest';
-import { FIELD_SHAPES, FIELD_SHAPE_NAMES, validateFieldPaint, fieldPaintOf, fieldColours, fieldPaintReadout, cellTriangles } from './field-paint.js';
+import { FIELD_SHAPES, FIELD_SHAPE_NAMES, validateFieldPaint, fieldPaintOf, fieldColours, fieldPaintReadout, cellTriangles, markPolys, MARK } from './field-paint.js';
+import { parseSvgPath } from './carve-solid.js';
 import { heroRecord, expandLayeredManifest, planLayered, createLayeredHandler } from '../../mcp/tools/layered.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 
@@ -74,6 +75,36 @@ describe('the cut', () => {
   });
 });
 
+// a MARK as pasted: a ring of two arcs with a ring of two arcs inside it (its hole), and a curved wing 4 by 3
+const RING = 'M 50 0 A 50 50 0 1 1 50 100 A 50 50 0 1 1 50 0 Z M 50 25 A 25 25 0 1 0 50 75 A 25 25 0 1 0 50 25 Z';
+const WING = 'M 0 40 C 20 30 30 10 40 20 C 45 10 48 8 50 0 C 52 8 55 10 60 20 C 70 10 80 30 100 40 C 85 45 80 60 70 55 C 62 70 55 60 50 75 C 45 60 38 70 30 55 C 20 60 15 45 0 40 Z';
+describe('a mark: an SVG path pasted as drawn', () => {
+  it('is cut with its holes, its arcs drawn as arcs, fitted into the shape\'s box by its larger side', () => {
+    const A = areas(quad(), [{ part: 'board', shape: { path: RING }, size: [0.8, 0.8], group: 'Mark' }]);
+    // the outer ring's radius 0.4 m, its hole's 0.2 m: the painted area is the band, within the curves' chords
+    expect(A.Mark).toBeCloseTo(Math.PI * (0.4 ** 2 - 0.2 ** 2), 2);
+    expect(A.Mark + A.Cloth).toBeCloseTo(1, 9);
+    const W = markPolys(WING).flat(), xs = W.map((p) => p[0]), ys = W.map((p) => p[1]);
+    expect([Math.min(...xs), Math.max(...xs), Math.max(...ys)].map((v) => +v.toFixed(3))).toEqual([-1, 1, 0.75]);
+    // y turned up: the wing's peak (x 50, y 0 in the drawing, SVG's y down) is the box's top, at its middle
+    expect(+W[ys.indexOf(Math.max(...ys))][0].toFixed(3)).toBe(0);
+    expect(markPolys(WING)).toEqual(markPolys(WING));
+  });
+  it('names what it refuses: not a path, a key beside it, more pieces than a cut takes', () => {
+    expect(validateFieldPaint([{ part: 'torso', shape: { path: RING }, group: 'E' }])).toEqual([]);
+    expect(validateFieldPaint([{ part: 'torso', shape: { path: 'a star' }, group: 'E' }])[0]).toMatch(/shape\.path: a mark's path is an SVG path's d/);
+    expect(validateFieldPaint([{ part: 'torso', shape: { path: RING, w: 1 }, group: 'E' }])[0]).toMatch(/a mark is \{ path \} alone/);
+    expect(validateFieldPaint([{ part: 'torso', shape: { path: 'M 0 0 L 1 1' }, group: 'E' }])[0]).toMatch(/drew no closed outline|no outline with an area/);
+    const fine = `M 0 0 ${Array.from({ length: 900 }, (_, i) => `L ${i + 1} ${(i % 2) * 40 + i * 0.01}`).join(' ')} L 900 -10 Z`;
+    expect(validateFieldPaint([{ part: 'torso', shape: { path: fine }, group: 'E' }])[0]).toMatch(/too detailed to cut \(\d+ pieces, at most 600\)/);
+  });
+  it('an arc is a line to its end unless the reader asks for arcs (the carved solids\' reading kept)', () => {
+    const d = 'M 0 0 A 10 10 0 0 1 20 0 Z';
+    expect(parseSvgPath(d)).toEqual([[[0, 0], [20, 0]]].filter((r) => r.length > 2));
+    expect(parseSvgPath(d, { arcs: true, curveSteps: MARK.curveSteps })[0].length).toBeGreaterThan(8);
+  });
+});
+
 describe('on a hero', () => {
   const { m, mesh } = (() => { const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', detail: 'clothed', adorn: 'ranger' }) }); return { m, mesh: planLayered(m).mesh }; })();
   it('the ring chart paints the front of the torso, not its back, and the readout counts it', () => {
@@ -106,6 +137,18 @@ describe('on a hero', () => {
     expect(metal.figures.body.parts.map((P) => P?.col)).not.toEqual(cloth.figures.body.parts.map((P) => P?.col));
     expect(metal.faces.length).toBe(cloth.faces.length);
   }, 120000);
+  it('a mark paints the chest whatever is worn on it: the torso and every layer over it (a suffix)', () => {
+    // (a hero in an outfit build: its top a layer worn over the torso, `top_torso`)
+    const dressed = planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', outfit: { type: 'outfit', style: 'casual' } }) })).mesh;
+    const worn = Object.keys(dressed.parts).filter((n) => n.endsWith('_torso'));
+    expect(worn.length).toBeGreaterThan(0);
+    const R = fieldPaintReadout(dressed, [{ part: ['torso', '*_torso'], chart: 'front', shape: { path: RING }, at: [0.5, 0.62], size: 0.34, group: 'Emblem' }]);
+    expect([R[0].parts, R[0].faces > 0]).toEqual([1 + worn.length, true]);
+    // the worn layer is painted, not only the skin under it
+    const fp = fieldPaintOf(dressed, [{ part: '*_torso', chart: 'front', shape: { path: RING }, at: [0.5, 0.62], size: 0.34, group: 'Emblem' }]);
+    expect(dressed.faces.some((t, fi) => worn.includes(dressed.provenance[t[0]].part) && fp.cut(fi)?.some((c) => c.group === 'Emblem'))).toBe(true);
+    expect(validateFieldPaint([{ part: '*', shape: 'star', group: 'E' }])[0]).toMatch(/a suffix starting '\*'/);
+  });
   it('the mint refuses bad field paint by name', async () => {
     await expect(createLayeredHandler({ recipe: { parts: {} }, fieldPaint: [{ part: 'x', group: 'Y', shape: 'blob' }] })).rejects.toThrow(/fieldPaint refused:\n - fieldPaint\[0\]\.shape/);
   });

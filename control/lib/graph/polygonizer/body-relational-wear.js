@@ -49,6 +49,9 @@
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
 import { oneTube, drapeRun, flareRun, fairRun, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, bindRibbon, carrySkirt, clearanceOver, cutV, cutOpening, armholes, clearOver, lapelBand, buttonOn, bladeOn, squareShoulders, takeIn, fallStraight, clothWalker } from './body-relational-tailor.js';
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
+import { beltOn, frameBuckle } from './body-relational-kit.js';
+import { foldCloth } from './body-relational-folds.js';
+import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
 
 /** a piece's role after its garment's name */
 const ROLE = /(Tail|Sleeve|Cuff|Collar|Rib|Seat|Leg|Shin|Hem|Shaft|Skirt)$/;
@@ -87,7 +90,7 @@ const LAPELS = Object.freeze({
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
 
 /** The pieces worn (see the head of this file). */
-export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint = [], tailoring = null) {
+export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint = [], tailoring = null, { hug = false } = {}) {
   const parts = {}, worn = new Set(), belts = new Set(), painted = new Set(), turned = new Set(), alias = new Map(), tones = {};
   const seg = (P) => (Array.isArray(P.part) && P.part.length === 1 ? P.part[0] : null);
   const segPart = (s) => recipe.parts[s] ?? recipe.parts[`${s}R`];
@@ -258,18 +261,35 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     // (a belt on a skirt worn here: at its waist, on the tube it was carried down from)
     const top = named && s === 'skirt' ? skirtTop.get(pid) : null;
     if (!top && (!skin || !/^(torso|pelvis)$/.test(s) || (named && !worn.has(pid)))) continue;
-    const u = (A.s[0] + A.s[1]) / 2, st = top ? null : skin.stations.reduce((b, x) => (Math.abs((x.u ?? 0) - u) < Math.abs((b.u ?? 0) - u) ? x : b)), z = top ? top.z - 0.015 : mean(Object.values(st.points))[2];
+    const u = (A.s[0] + A.s[1]) / 2, st = top ? null : skin.stations.reduce((b, x) => (Math.abs((x.u ?? 0) - u) < Math.abs((b.u ?? 0) - u) ? x : b));
+    let z = top ? top.z - 0.015 : mean(Object.values(st.points))[2];
+    // (hugging: a belt within a hand's width of one already made shares its height, cinched over it; a duty belt rides
+    // over the trousers' belt, never a band of its own above it)
+    if (hug) { const by = beltZones.map(([lo, hi]) => (lo + hi) / 2).find((m) => Math.abs(m - z) < 0.1); if (by !== undefined) z = by; }
     const G = top ? null : named ? garmentOf(pid) : null, own = top ? parts[top.name] : G ? parts[`${G}_${s}`] ?? parts[`${G}_body`] : null;
     const outer = trunkParts().map(([k, P]) => [k, P, radiusAt(P, z)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2])[0];
     const [onName, on] = A.onTop || !own ? (outer ? [outer[0], outer[1]] : [null, null]) : [top ? top.name : `${G}_${s}`, own];
     if (!on) continue;
     const at = on.stations.reduce((b, x, k) => (Math.abs(mean(Object.values(x.points))[2] - z) < Math.abs(mean(Object.values(on.stations[b].points))[2] - z) ? k : b), 0);
-    const band = bandAt(on, at, { width: A.mode === 'shell' ? 0.05 : 0.035, lift: Math.min(0.008, (A.thick ?? 0.008) * 0.6) }); if (!band) continue;
+    // (HUGGING, realistic laws 8: one mass fitted to everything worn at its height, its buckle a frame: body-relational-kit.js;
+    // before, the cloth's two rings there copied and lifted, so the belt rippled as they do)
+    // (what it is cinched over: the piece it is on and the trunk's cloth inside it, the belts made before it, the skin; a
+    // garment wider than it there is worn OVER it and clears it below, never a girth the belt is fitted to; a sleeve
+    // hanging beside the waist is no girth at all)
+    const rOn0 = hug ? radiusAt(on, z) : 0;
+    const under = (k, P) => k === onName || (P.garment ? /_(body|torso|pelvis)$/.test(k) && !(radiusAt(P, z) > rOn0) : belts.has(k.split('_')[0]) || /^\w*[Bb]elt\w*_/.test(k));
+    const cinched = hug ? [...Object.entries(parts).filter(([k, P]) => under(k, P)).map(([, P]) => P), ...['torso', 'pelvis'].map((k) => recipe.parts[k]).filter(Boolean)].flatMap((P) => P.stations.flatMap((x) => Object.values(x.points))) : null;
+    const band = hug ? beltOn(on, cinched, z, { width: A.mode === 'shell' ? 0.045 : 0.038, thick: Math.max(0.003, Math.min(0.005, A.thick ?? 0.004)) })
+      : bandAt(on, at, { width: A.mode === 'shell' ? 0.05 : 0.035, lift: Math.min(0.008, (A.thick ?? 0.008) * 0.6) }); if (!band) continue;
     const tag = onName.split('_')[0];
     parts[`${A.id}_${tag}`] = { ...band, group: A.group ?? 'Leather' };
     const sig = A.signature;
     let buckle = null;
-    if ((sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) { buckle = buckleOn(band, 'front', { w: sig.w ?? (sig.r ?? 0.015) * 2, h: sig.h ?? (sig.r ?? 0.012) * 2 }); parts[`${A.id}Buckle_${tag}`] = { ...buckle, group: sig.group ?? 'Buckle', bind: bindNearest(buckle, on) }; }
+    if (hug && (sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) {
+      const F = frameBuckle({ ...band, group: A.group ?? 'Leather' }, `${A.id}Buckle`, { w: Math.max(0.04, sig.w ?? 0.05), group: sig.group ?? 'Buckle', tailGroup: A.group ?? 'Leather' });
+      for (const [k, P] of Object.entries(F)) parts[`${k}_${tag}`] = P;
+      buckle = { stations: Object.values(F).flatMap((P) => P.stations) };
+    } else if ((sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) { buckle = buckleOn(band, 'front', { w: sig.w ?? (sig.r ?? 0.015) * 2, h: sig.h ?? (sig.r ?? 0.012) * 2 }); parts[`${A.id}Buckle_${tag}`] = { ...buckle, group: sig.group ?? 'Buckle', bind: bindNearest(buckle, on) }; }
     // A GARMENT WORN OVER THE BELT clears it (a jacket over the trousers' belt): out over the band and its buckle at its
     // height, eased back to its own line within 2 cm above and below
     // (the band's points all taken at its height, so its lower edge, wider over the hips, is cleared with the rest)
@@ -432,5 +452,36 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     }
   }
 
+  // THE JACKET AS BUILT (its construction words: body-relational-jacket.js): its body opened at the centre front, a real
+  // gap between two edges (a zip's, or worn open), its cloth named for the folds; then its pieces
+  const J = tailoring?.jacket, gathered = {};
+  if (J) {
+    for (const [k, P] of Object.entries(parts)) if (/^outer_/.test(k) && J.cloth) P.cloth = J.cloth;
+    const bodyName = Object.keys(parts).find((k) => /^outer_(body|torso)$/.test(k));
+    if (bodyName && (J.zip || J.open)) {
+      const open = !!J.open, B = parts[bodyName], zs = B.stations.map((st) => mean(Object.values(st.points))[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      const gapAt = open ? (z) => 0.07 + 0.08 * Math.max(0, Math.min(1, (z - z0) / (z1 - z0))) : () => JACKET.zipGap;
+      parts[bodyName] = openFront(B, { gap: gapAt });
+      // (its COLLAR opened with it, by the opening at the collar's foot: a closed ring round the neck held an open jacket shut)
+      const collarName = Object.keys(parts).find((k) => /^outerCollar_neck$/.test(k));
+      if (collarName) parts[collarName] = openFront(parts[collarName], { gap: () => gapAt(z1) });
+      if (J.zip && !open) Object.assign(parts, zipDown(parts[bodyName], 'outerZip', { group: 'Buckle', tape: parts[bodyName].group ?? 'Outer' }));
+      Object.assign(parts, jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered }));
+    }
+  }
+  // THE FOLDS (hugging, realistic laws 8: body-relational-folds.js): crescents inside the elbows and behind the knees,
+  // stacks over the boots and at the cuffs, the shirt bloused over its belt, on the outermost cloth there
+  if (hug) {
+    const ends = (k) => { const P = recipe.parts[k]; if (!P) return null; const c = (st) => mean(Object.values(st.points)); return [c(P.stations[0]), c(P.stations[P.stations.length - 1])]; };
+    const joints = {}, boots = {};
+    for (const S of ['R', 'L']) {
+      const fa = ends(`foreArm${S}`), sh = ends(`shank${S}`);
+      if (fa) { joints[`elbow${S}`] = fa[0]; joints[`wrist${S}`] = fa[1]; }
+      if (sh) joints[`knee${S}`] = sh[0];
+      const boot = Object.entries(parts).filter(([k, P]) => P.group === 'Shoes' && k.endsWith(`_shank${S}`)).flatMap(([, P]) => P.stations.flatMap((x) => Object.values(x.points)));
+      if (boot.length) boots[S] = Math.max(...boot.map((q) => q[2]));
+    }
+    foldCloth(parts, { joints, belts: beltZones, beltPts, boots, order, gathered });
+  }
   return { parts, worn, belts, painted, alias, tones };
 }

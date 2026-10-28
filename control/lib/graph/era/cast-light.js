@@ -7,7 +7,9 @@
  *   ambient  the reference's ambient colour (under a sun, the sky's fill of it, as the stage bakes daylight), its hue
  *            kept and its value lifted to a floor, so the shade side of a figure is a colour (the level's), never black
  *   bounce   the cube's floor colour, warm light off the ground onto faces that look down (daylight only)
- *   rim      the reference's sky at the horizon, a fresnel edge that parts the figure from the level behind it
+ *   rim      the reference's sky at the horizon, a fresnel edge that parts the figure from the level behind it; a cube
+ *            that names its `light.rim` wears it in its OWN sky (its written or solved horizon, the sky the page draws
+ *            behind the figure) at its strength and power
  *   bands    the cube's register: a banded cube steps the figure's key too
  *
  * The light is plain data (vexar.js shadeHex and castLightFactor read it; the rig pack bakes with it). Deterministic:
@@ -34,14 +36,15 @@ export function geocubeCastLight(cube) {
   const ambient = amb0.map((v) => r4(Math.min(1, v * lift)));
   const key = rgb(k.color).map((v) => r4(v * gain * CAST_LIGHT.key));
   const bounce = sun ? rgb(cube.colour.floor).map((v) => r4(v * CAST_LIGHT.bounce)) : [0, 0, 0];
-  const horizon = ref.air.dome.horizon.map((v) => r4(v / 255));
+  // (a cube that names its rim: its own sky's horizon, the one the page draws behind the figure)
+  const R = cube.light.rim, horizon = R && cube.light.sky ? rgb(cube.light.sky.horizon).map(r4) : ref.air.dome.horizon.map((v) => r4(v / 255));
   const steps = cube.register?.steps ?? 0;
   return {
     dir: toLight.map((v) => -v), toLight,
     ambient: r4(lum(ambient)), diffuse: r4(lum(key)),
     cast: { key, ambient, bounce },
     ...(steps >= 2 ? { bands: steps } : {}),
-    rim: [...horizon, CAST_LIGHT.rim.strength, CAST_LIGHT.rim.power],
+    rim: [...horizon, R?.strength ?? CAST_LIGHT.rim.strength, R?.power ?? CAST_LIGHT.rim.power],
     from: { geocube: cube.id, reference: cube.light.reference, key: sun ? 'sun' : 'moon' },
   };
 }

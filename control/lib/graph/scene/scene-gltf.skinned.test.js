@@ -166,3 +166,17 @@ describe('facesToGlb skinned — toon.bake ink rides the skin (shader-look phase
     expect(facesToGlb({ ...payload, toon: { ink: true, bake: true } }, { clips: '_all', skinned: true }).bytes.equals(baked.bytes)).toBe(true);
   });
 });
+
+describe('facesToGlb skinned — a painted figure whose atlas has edges (the hero\'s hair cards)', () => {
+  it('alpha tests the figure\'s material, lit or not; a paint without edges stays opaque', async () => {
+    const { encodePngRgba } = await import('../landscape/surface-textures.js');
+    const url = `data:image/png;base64,${encodePngRgba(Buffer.from([255, 255, 255, 255]), 1, 1).toString('base64')}`;
+    const fig0 = (alphaMask) => ({ ...fig, paintTex: { url, w: 1, h: 1, white: [0.5, 0.5], ...(alphaMask ? { alphaMask: true } : {}) } });
+    const figMat = (f, lit) => parseGlb(facesToGlb({ faces: [], figures: { hero: f } }, { clips: '_all', skinned: true, lit }).bytes).materials.find((m) => m.name === 'fig:hero');
+    for (const lit of [false, true]) {
+      const m = figMat(fig0(true), lit);
+      expect([m.alphaMode, m.alphaCutoff, m.doubleSided]).toEqual(['MASK', 0.4, true]);
+      expect(figMat(fig0(false), lit).alphaMode).toBeUndefined();
+    }
+  });
+});

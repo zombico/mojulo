@@ -22,6 +22,7 @@
  *       crowd    0..1 the share of seats taken (the mosaic's)
  *       colours  { seat, crowd: [..], concrete, wall, boards, glass, roof, rib, accent, apron, glow?, screen }
  *     look: 'shaded' (Lambert under the roadway's noon) | 'anime' (two bands) | 'voxel' (two bands, fewer segments)
+ *     ground: false draws no infield, apron or plaza (a track's venue stands on the track's own ground)
  *
  * Every face is wound to the side it is seen from (the field's side inside, the street's outside, the roof from
  * below), so the hour's relight (roads/race-mood.js) reads it as it is lit here.
@@ -52,7 +53,7 @@ export function ringPoint(centre, half, shape, o, t, z = 0) {
 /** The side of the ring an angle looks out of. */
 const sideOf = (t) => { const c = Math.cos(t), s = Math.sin(t); return Math.abs(c) >= Math.abs(s) ? (c > 0 ? 'e' : 'w') : (s > 0 ? 'n' : 's'); };
 
-export function bowlFaces(B, { centre, half: field, light, look = 'shaded', infield = (corners) => ({ corners, fill: '#5d8f45' }) }) {
+export function bowlFaces(B, { centre, half: field, light, look = 'shaded', infield = (corners) => ({ corners, fill: '#5d8f45' }), ground = true }) {
   const C = B.colours, roll = dice((B.seed ?? 1) * 7919 + 29), faces = [], lamps = [];
   // (the ring through the field's corners: a superellipse of exponent p holds the rectangle at 2^(1/p) its half)
   const grow = 2 ** (1 / B.shape), half = [field[0] * grow, field[1] * grow];
@@ -87,11 +88,11 @@ export function bowlFaces(B, { centre, half: field, light, look = 'shaded', infi
   const G = -0.2, mid0 = [centre[0], centre[1], G];   // (under the floor a game's page paints its own on: clear of it at any depth precision)
   // (each segment's wedge cut across in rings: no triangle tens of metres long under a game's floor)
   const L = (p, f) => [r3(mid0[0] + (p[0] - mid0[0]) * f), r3(mid0[1] + (p[1] - mid0[1]) * f), G], cuts = [0, 0.3, 0.55, 0.75, 0.9, 1];
-  for (let k = 0; k < segs; k++) {
+  for (let k = 0; k < segs && ground; k++) {
     const a = P(0, k, G), b = P(0, k + 1, G);
     for (let i = 0; i + 1 < cuts.length; i++) faces.push(infield(i === 0 ? [mid0, L(a, cuts[1]), L(b, cuts[1]), mid0] : [L(a, cuts[i]), L(a, cuts[i + 1]), L(b, cuts[i + 1]), L(b, cuts[i])]));
   }
-  for (let k = 0; k < segs; k++) {
+  for (let k = 0; k < segs && ground; k++) {
     if (B.apron !== 'track') { band(k, 0, G, gap, G, C.apron); continue; }
     const lanes = 8, w = (gap - 1.6) / lanes;
     band(k, 0, G, 0.6, G, C.apron); band(k, gap - 0.4, G, gap, G, C.apron);
@@ -161,7 +162,7 @@ export function bowlFaces(B, { centre, half: field, light, look = 'shaded', infi
   });
 
   // the plaza: paving round the outside, out past the pilasters and the masts
-  for (let k = 0; k < segs; k++) band(k, outer, G, outer + 14, G, scaleHex(C.concrete, 0.92), 1, 'out');
+  if (ground) for (let k = 0; k < segs; k++) band(k, outer, G, outer + 14, G, scaleHex(C.concrete, 0.92), 1, 'out');
   // an amphitheatre's wall: storeys of arches between piers, a cornice over each, an attic of square windows on top
   function arcade(k, a, b, d) {
     const H = d[2], storeys = Math.max(2, Math.min(4, Math.round(H / 7))), sH = H / storeys;

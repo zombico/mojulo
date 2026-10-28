@@ -1,6 +1,7 @@
-# Cover font shelf
+# Cover and book font shelf
 
-Curated open-license (SIL OFL) faces that covers carve text from. A cover names a
+Curated open-license (SIL OFL) faces that covers carve text from and books set text in (as inlined `@font-face`,
+`fontFaceCss`). A cover names a
 face by KEY (see `FONT_SHELF` in [font-shelf.js](font-shelf.js)), never a path, so
 a cover recipe carves identically on any host.
 
@@ -17,7 +18,9 @@ weights, these are small and license-clean):
 | key            | face             | file                    | source (fetch the OFL `.ttf`) |
 | -------------- | ---------------- | ----------------------- | ------------------------------ |
 | `archivo-black`| Archivo Black    | `archivo-black.ttf`     | **vendored** (google/fonts `ofl/archivoblack`) |
-| `im-fell`      | IM Fell English  | `im-fell-english.ttf`   | Google Fonts / igino-marini.com |
+| `im-fell`      | IM Fell English  | `im-fell-english.ttf` (+ italic) | **vendored** (google/fonts `ofl/imfellenglish`) |
+| `crimson-text` | Crimson Text     | `crimson-text.ttf` (+ italic, bold) | **vendored** (google/fonts `ofl/crimsontext`): a book's text |
+| `courier-prime`| Courier Prime    | `courier-prime.ttf` (+ bold, italic) | **vendored** (google/fonts `ofl/courierprime`): a book's typewriter |
 | `great-vibes`  | Great Vibes      | `great-vibes.ttf`       | Google Fonts / fonts.google.com/specimen/Great+Vibes |
 | `inter`        | Inter            | `inter.ttf`             | Google Fonts / rsms.me/inter |
 

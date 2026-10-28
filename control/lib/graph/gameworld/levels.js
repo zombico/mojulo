@@ -42,7 +42,7 @@ import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, 
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
-import { withProgram } from '../era/programs.js';
+import { withProgram, PROGRAMS } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
@@ -233,7 +233,8 @@ export function roadwayEnds(manifest) {
   if (ROAD_ENDS.size > 16) ROAD_ENDS.clear();
   let plan;
   try { plan = manifest.scape ? planScapedTrack(manifest) : planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
-  const T = trackContract(plan), surface = trackSurface(plan), pole = T.grid[0];
+  // (a duel's player starts in lane one: its grid's second slot, lane two's the rival's)
+  const T = trackContract(plan), surface = trackSurface(plan), pole = T.duel ? T.duel.grid[1] : T.grid[0];
   const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
   const at = (x, y) => surface([x, y, 1e4]);
   for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: trackLaws(trackCensus(plan)) })) Object.defineProperty(out, k, { value: v, enumerable: false });
@@ -325,6 +326,12 @@ function readEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: groundSampler(P.faces ?? [], /:rock$/), enumerable: false });
   // what stands solid on it (boxes), for a law to keep a track clear; not data either
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
+  // the town's houses as they stand (stage-buildings.js `town-<use>-<n>`): each door, the way it faces out and, walked
+  // into, its rooms; where the folk stand (folk-cast.js). Not data either: a house the street had no frontage for is
+  // not here
+  const townDoors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && /^(house|building)-town-/.test(a.id) && Array.isArray(a.at) && Array.isArray(a.N))
+    .map((a) => ({ id: a.id.replace(/^(house|building)-/, ''), use: a.use, at: a.at, N: a.N, enter: a.enter ?? null, ...(Array.isArray(a.rooms) ? { rooms: a.rooms } : {}) }));
+  Object.defineProperty(out, 'townDoors', { value: townDoors, enumerable: false });
   return out;
 }
 
@@ -631,7 +638,7 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests'];
 function mergePlay(base, extra) {
   if (!base) return extra;
   const out = { ...base, ...extra };
@@ -693,7 +700,8 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   // (a party all with the pilot from the start carries no flag between levels)
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
-  if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
+  // (beside a stage's own: a town's sidequests, folk-cast.js)
+  if (G.quests?.length) play = { ...(play ?? {}), quests: [...(play?.quests ?? []), ...levelQuests(G.quests)], carry: STORY_SLICE };
   if (scenes.length) {
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
@@ -920,10 +928,12 @@ const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-st
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
 export function buildingStage(B) {
   const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
-    ...(geocube !== undefined ? { geocube } : { kit: kit ?? roomKitFor(anchor) }),
-    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}) },
+    ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
+    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
   };
 }

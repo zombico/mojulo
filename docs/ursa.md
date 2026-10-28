@@ -23,8 +23,8 @@ A point may be partial; an unset setting takes its default and is not checked. `
 ([cosmos.js](../control/lib/graph/cosmos/cosmos.js)) rejects an unknown facet, setting or value by name.
 
 Values are not invented in the cube. A sourced setting reads its values from the table that builds them
-(`read-sources.js` → `registry.generated.js`, held equal to the live read by `registry.test.js`), so the space is the
-tree's own vocabulary, regenerated when the tree changes.
+(`read-sources.js`, read live by the registry), so the space is the tree's own vocabulary, with no copy to fall
+behind it.
 
 **Conjecture.** The other outcome families (Print, Read, Hear, Observe) have kind registries
 ([world-kinds.js](../control/lib/graph/worlds/world-kinds.js), [sketch-manifest.js](../control/lib/graph/sketch/sketch-manifest.js))

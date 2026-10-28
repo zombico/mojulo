@@ -11,7 +11,7 @@ import { questScript } from './quest-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
 import { statusElements, statusScript, transitKinds, FADE_KINDS } from './status-channel.js';
-import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
+import { momentKinds, momentScript, CEL_GLYPHS, VOXEL_GLYPHS } from './moment-channel.js';
 import { titleScript, titleHex, titleBlock } from './title-channel.js';
 import { titleMaterial } from '../../game/title-material.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
@@ -245,7 +245,11 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   // and its auras (a cel look's blast drawn as spirit onions)
   const auraOf = (X) => !!(X && X.aura);
   const maura = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? auraOf(r.spec) : r.op === 'beam' && r.spec ? auraOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => auraOf(B.impactSpec)));
-  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}) }) : '';
+  // and a fidelity's: its voxel glyph, its light's pool, its bloom (scene/juice-style.js JUICE_FIDELITIES)
+  const usesX = (test) => mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? test(r.spec) : r.op === 'beam' && r.spec ? test(r.spec.impactSpec) || test(r.spec) : false)) || rpgBeams.some((B) => test(B.impactSpec)));
+  const mvox = usesX((X) => !!(X && ((Array.isArray(X.parts) && X.parts.some((p) => VOXEL_GLYPHS.includes(p.glyph))) || (X.sparks && VOXEL_GLYPHS.includes(X.sparks.glyph)))));
+  const mpool = usesX((X) => !!(X && X.pool)), mbloom = usesX((X) => !!(X && X.bloom));
+  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}), ...(mvox ? { voxel: true } : {}), ...(mpool ? { pool: true } : {}), ...(mbloom ? { bloom: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   // and its destroyed bodies (`wreck`, a downed body's destruction the world-scene lays: wreck-channel.js), cast or not
   const wreck = events.wreck === true, layer0 = events.layer0 === true;   // (and its layer-0 foes: their looks on the body they wear now, docs/foes.md)

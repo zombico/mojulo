@@ -85,7 +85,10 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (re-pinned 2026-10-26: a climb after a trail under a level's clouds names the look its own stage draws, the cube's
     // look under those clouds; the two climbs' meru.after.kit moved, geocube-gothic-night-variant-f88cc1 -> -011c7d, and
     // nothing else, 2471fa9c -> b771729c)
-    expect(fingerprint(unaudited(orders))).toBe('b771729c');
+    // (re-pinned 2026-10-27, 1026-gen7-island: the meru island is every cube's outside at a game's scale and geo only
+    // (era/geocube.js MERU_ISLE: its tiers ×3, `walk: 'none'`, a sea and a high side), so the cube's outside each level's
+    // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
+    expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
     expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
   }, 300000);

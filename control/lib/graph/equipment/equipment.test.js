@@ -90,6 +90,35 @@ describe('law 3: the setting touches its stone', () => {
   });
 });
 
+describe('a staff\'s blade heads and its reach', () => {
+  it('a spear, an axe and a halberd each build closed and deterministic, carry no stone, and seat on the haft', () => {
+    for (const [head, style] of [['spear', 'historical'], ['axe', 'brutal'], ['halberd', 'dwarven']]) {
+      const b = build('staff', style, { parts: { head, focus: 'head' }, gem: 'ruby' });
+      expect(JSON.stringify(expandEquipment(b))).toBe(JSON.stringify(expandEquipment(b)));
+      const { stats } = planWorkbench({ kind: 'workbench', units: 'cm', build: b });
+      expect(stats.ledger.closed).toBe(true);
+      const { monomers, trace } = expandEquipment(b);
+      expect(trace.focal).toBeUndefined();   // gemless: the stone asked for is not set
+      expect((monomers.fields ?? []).length).toBe(0);
+      // the head overlaps the shaft's top: the socket starts where the shaft ends, and an axe's eye sits within it
+      const shaft = monomers.lathes.find((l) => l.group === 'shaft'), sock = monomers.lathes.find((l) => l.group === 'head');
+      expect(sock.axisFrom.z).toBeLessThanOrEqual(shaft.axisTo.z);
+      if (head !== 'spear') {
+        const eye = monomers.extrudes.find((e) => e.profile.rect && e.group === 'head');
+        expect(eye.axisFrom.z).toBeLessThan(sock.axisTo.z);
+      }
+    }
+  });
+
+  it('a reach shortens the staff to a haft or a wand, the grip coming down it; long is the staff as it was', () => {
+    const len = (reach) => expandEquipment(build('staff', 'historical', { parts: { head: 'mace', ...(reach ? { reach } : {}) } })).trace.length;
+    expect(len('long')).toBe(len());
+    expect(len('arm') / len()).toBeCloseTo(0.46, 2);
+    expect(len('wand') / len()).toBeCloseTo(0.2, 2);
+    expect(validateBuild(build('staff', 'historical', { parts: { reach: 'pike' } }))[0]).toMatch(/reach: 'pike' is not one of long, arm, wand/);
+  });
+});
+
 describe('law 4 / 7: grown branches', () => {
   it('no branch section is thinner than the readability floor, and the druid staff wears oak bark', () => {
     const e = at('staff', 'druid', 0.8);

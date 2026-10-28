@@ -32,32 +32,41 @@ export const HAT_CAP = Object.freeze({ height: 0.0005, edge: 0.004, sink: 0.001,
  * `across` (absent, square to the blade and to its way out from `centre`: the blade lies along the head, combed), its tip
  * one point; banded root to tip by `bands` ([share, group] pairs, the first whose share the segment's middle is under), a
  * streak's blade `streakGroup` whole. Open and double-sided, as grass is.
+ *
+ * `card` (realistic laws 7): each blade an ALPHA CARD, no point at its tip, its points' places on it in `uv` ([across
+ * 0 … 1, along 0 root … 1 tip, the strand cell it draws]), so a strand texture's alpha is the hair's edge.
  */
-export function stripMesh(blades, bands = HAIR_BANDS, { streakGroup = null, centre = [0, 0, 0] } = {}) {
-  const vertices = [], faces = [], groups = [];
-  const put = (p) => vertices.push(p) - 1, face = (a, b, c, g) => { faces.push([a, b, c]); groups.push(g); };
-  for (const B of blades) {
-    const M = B.pts.length - 1, L = [], R = [];
+export function stripMesh(blades, bands = HAIR_BANDS, { streakGroup = null, centre = [0, 0, 0], card = false } = {}) {
+  const vertices = [], faces = [], groups = [], uv = card ? [] : null;
+  const put = (p, t) => { if (uv) uv.push(t); return vertices.push(p) - 1; }, face = (a, b, c, g) => { faces.push([a, b, c]); groups.push(g); };
+  blades.forEach((B, bi) => {
+    const M = B.pts.length - 1, L = [], R = [], cell = (bi * 7 + 3) % HAIR_CARD.cells;
     const across = (i) => B.across?.[i] ?? unit(cross(unit(sub(B.pts[Math.min(M, i + 1)], B.pts[Math.max(0, i - 1)])), sub(B.pts[i], centre)));
-    for (let i = 0; i < M; i++) { const p = B.pts[i], a = across(i), h = B.half[i]; L.push(put(p.map((v, q) => v + a[q] * h))); R.push(put(p.map((v, q) => v - a[q] * h))); }
-    const tip = put(B.pts[M]);
+    // (a card's end as wide as HAIR_CARD.tip of its root: the strand texture's strands taper inside it)
+    const half = (i) => (card ? Math.max(B.half[i] ?? 0, (B.half[0] ?? 0) * HAIR_CARD.tip) : B.half[i]);
+    for (let i = 0; i < (card ? M + 1 : M); i++) { const p = B.pts[i], a = across(Math.min(i, M)), h = half(i); L.push(put(p.map((v, q) => v + a[q] * h), [0, i / M, cell])); R.push(put(p.map((v, q) => v - a[q] * h), [1, i / M, cell])); }
     const g = (i) => (B.streak && streakGroup ? streakGroup : bands.find(([u]) => (i + 0.5) / M < u)?.[1] ?? bands.at(-1)[1]);
-    for (let i = 0; i + 1 < M; i++) { face(L[i], R[i], R[i + 1], g(i)); face(L[i], R[i + 1], L[i + 1], g(i)); }
-    face(L[M - 1], R[M - 1], tip, g(M - 1));
-  }
-  return { vertices, faces, groups, closure: 'open' };
+    for (let i = 0; i + 1 < (card ? M + 1 : M); i++) { face(L[i], R[i], R[i + 1], g(i)); face(L[i], R[i + 1], L[i + 1], g(i)); }
+    if (!card) { const tip = put(B.pts[M]); face(L[M - 1], R[M - 1], tip, g(M - 1)); }
+  });
+  return { vertices, faces, groups, closure: 'open', ...(uv ? { uv } : {}) };
 }
+/** THE ALPHA CARD (realistic laws 7, a game's hair): a card's end as wide as `tip` of its root, and the strand texture's
+ * `cells` across (epidermis/hair-strands.js), each a different lay of strands, a card drawing one by its index */
+export const HAIR_CARD = Object.freeze({ tip: 0.75, cells: 8 });
 
 /**
  * THE TUFT'S BASE as one closed mesh: the chart's faces where the dermis grows `tract`'s hair (dermal-map.js dermisAt: the
  * scalp's terminal tract, so the hairline, a peak and a loss are its edge and a bald crown is left bare; a beard's where
  * its locks are at least `min` mm; `where` a point's own test; off the groom `S`'s part), raised off the skin to
  * HAT_CAP.height (rising to it over HAT_CAP.edge from its edge, so the hairline is soft) above an underside sunk into the
- * head, walled round its edge, in `group`. A point its edge would pass twice (a pinch) lets go of the faces that make it.
+ * head, walled round its edge, in `group`; `height` a function of a point and `edge` a run of its own raise a SHELL (the
+ * lock hair's crop and coil volume, hair-locks.js); `smoothEdge` rounds of smoothing round its edge, its points then its `rim`. A point its edge would pass twice (a pinch) lets go of the faces that make it.
  * Null where none grows.
  */
-export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = null, min = 0, where = null, height = HAT_CAP.height } = {}) {
-  const V = chart.vertices, N = chart.normals;
+export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = null, min = 0, where = null, height = HAT_CAP.height, edge = HAT_CAP.edge, smoothEdge = 0 } = {}) {
+  const V0 = chart.vertices, N = chart.normals;
+  let V = V0;
   const inside = chart.samples.map((s, i) => { if (!s || s.feature || (where && !where(V[i]))) return false; const H = dermisAt(s, D, { detail: false }).hair; return H.tract === tract && H.kind === 'terminal' && H.length >= min && !(S && partDistance(s, S) < HAT_CAP.part); });
   let F = chart.faces.filter((t) => t.every((v) => inside[v]));
   const k = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
@@ -77,16 +86,34 @@ export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = nul
   const edges = [...count].filter(([, n]) => n === 1).map(([kk]) => kk.split('|').map(Number)), run = new Map();
   let front = [...new Set(edges.flat())]; front.forEach((v) => run.set(v, 0));
   while (front.length) { const next = []; for (const v of front) for (const q of adj.get(v) || []) { const d = run.get(v) + Math.hypot(...sub(V[q], V[v])); if (!(run.get(q) <= d)) { run.set(q, d); next.push(q); } } front = next; }
+  // (`smoothEdge` rounds: the edge's points drawn toward their neighbours along it, each kept on the skin's tangent plane, so
+  // the hairline is a curve and not the chart's staircase; `rim` its points and the way out of the hair at each)
+  let rim = null;
+  if (smoothEdge > 0) {
+    const along = new Map(); for (const [a, b] of edges) for (const [p, q] of [[a, b], [b, a]]) (along.get(p) || along.set(p, []).get(p)).push(q);
+    const P = new Map([...adj.keys()].map((v) => [v, V0[v]]));
+    for (let r = 0; r < smoothEdge; r++) {
+      const next = new Map();
+      for (const [v, ns] of along) { if (ns.length !== 2) continue; const m = ns.reduce((a, q) => a.map((x, i) => x + P.get(q)[i] / 2), [0, 0, 0]), n = unit(N[v]), q = P.get(v).map((x, i) => 0.5 * x + 0.5 * m[i]), d = sub(q, V0[v]), h = d[0] * n[0] + d[1] * n[1] + d[2] * n[2]; next.set(v, q.map((x, i) => x - n[i] * h)); }
+      for (const [v, q] of next) P.set(v, q);
+    }
+    V = V0.map((p, i) => P.get(i) ?? p);
+    rim = [...along.keys()].sort((a, b) => a - b).map((v) => {
+      const inner = [...adj.get(v)].filter((q) => !along.has(q)), c = inner.length ? inner.reduce((a, q) => a.map((x, i) => x + V[q][i] / inner.length), [0, 0, 0]) : V[v], n = unit(N[v]), d = sub(V[v], c), h = d[0] * n[0] + d[1] * n[1] + d[2] * n[2];
+      return { p: V[v], n, out: unit(d.map((x, i) => x - n[i] * h)) };
+    });
+  }
   const vertices = [], faces = [], top = new Map(), bot = new Map();
   for (const v of adj.keys()) {
-    const n = unit(N[v]), h = height * Math.min(1, (run.get(v) ?? 0) / HAT_CAP.edge);
+    // (`height` a point's own where it is a function of it: a shell raised to the hair's reach, hair-locks.js)
+    const n = unit(N[v]), h = (typeof height === 'function' ? height(V[v]) : height) * Math.min(1, (run.get(v) ?? 0) / edge);
     top.set(v, vertices.push(V[v].map((x, q) => x + n[q] * h)) - 1); bot.set(v, vertices.push(V[v].map((x, q) => x - n[q] * HAT_CAP.sink)) - 1);
   }
   for (const t of F) { faces.push(t.map((v) => top.get(v))); faces.push([...t].reverse().map((v) => bot.get(v))); }
   // the wall round its edge, each edge's way round as the face that uses it runs
   const way = new Set(); for (const t of F) for (let e = 0; e < 3; e++) way.add(`${t[e]}>${t[(e + 1) % 3]}`);
   for (const [a, b] of edges) { const [p, q] = way.has(`${a}>${b}`) ? [a, b] : [b, a]; faces.push([top.get(q), top.get(p), bot.get(p)]); faces.push([top.get(q), bot.get(p), bot.get(q)]); }
-  return { vertices, faces, groups: faces.map(() => group), closure: 'closed' };
+  return { vertices, faces, groups: faces.map(() => group), closure: 'closed', ...(rim ? { rim } : {}) };
 }
 
 /**
@@ -120,13 +147,13 @@ export const HAIR_DEPICTION = Object.freeze({
 });
 export const depictionOf = (S, level = 'L1') => HAIR_DEPICTION[hairClass(S)]?.[level] ?? {};
 /** the hat's blades as its strips (a grey streak's blade in the hair's own bands) */
-export const stripsOf = (blades, centre) => (blades.length ? stripMesh(blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), HAIR_BANDS, { streakGroup: 'HairStreak', centre }) : null);
+export const stripsOf = (blades, centre, card = false) => (blades.length ? stripMesh(blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), HAIR_BANDS, { streakGroup: 'HairStreak', centre, card }) : null);
 
 /** THE HAT on a head: the groom's blades at `level` on the ladder (dermal-hair.js HAIR_LADDER), by its class's solved
  * numbers (`rules` over them), as strips, and the coat under them (a buzz, lying on the scalp, is the coat alone).
  * `centre` the head's middle the blades lie round. */
-export function depictHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], rules = null } = {}) {
+export function depictHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], rules = null, cards = false } = {}) {
   const G = hatStrands(chart, D, S, { level });
   const blades = G.counts.lying ? [] : hatBlades(G, { level, centre, rules: rules ?? depictionOf(S, level) });
-  return { blades, strips: stripsOf(blades, centre), cap: capMesh(chart, D, { S }), counts: G.counts };
+  return { blades, strips: stripsOf(blades, centre, cards), cap: capMesh(chart, D, { S }), counts: G.counts };
 }

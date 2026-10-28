@@ -10,6 +10,8 @@
  *   HEADGEAR                     { <id>: { reads, family: 'mask' | 'visor' | 'helmet' | 'cowl' | 'respirator', at: { tiered?: (spec) => spec, realistic?: (spec) => spec } } }
  *   HEADGEAR_IDS, fitted(id, body)
  *   withHeadgear(spec, body, id) → the spec wearing it, or throws naming the bodies it fits
+ *   withKit(spec, kit)           → the spec with a cranium kit added (over an armour build, its `with`), its kit colours
+ *                                filled (the accessory cards' goggles pushed up ride it: accessories.js)
  */
 import { isArmorBuild } from '../../../armor/expand.js';
 const MASK_GROUP = 'Mask';
@@ -24,7 +26,7 @@ const STUD = { kind: 'studs', r: 0.004, h: 0.002, count: 1, m: 6, group: 'Trim' 
 const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c333d', Suit: P.Suit ?? P.OutfitSecond ?? '#1c2024', Visor: P.Visor ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Lens: P.Lens ?? P.OutfitAccent ?? P.Trim ?? '#c62828', Face: P.Face ?? '#15181d', Trim: P.Trim ?? '#8a9099', Mask: P.Mask ?? '#15171c', MaskLens: P.MaskLens ?? '#e8edf1', MaskTrim: P.MaskTrim ?? P.OutfitAccent ?? P.Trim ?? '#8a9099', MaskSeam: P.MaskSeam ?? '#06070a', MaskPlate: P.MaskPlate ?? '#2a2f38', MaskDomino: P.MaskDomino ?? '#2b303a', MaskStitch: P.MaskStitch ?? P.OutfitAccent ?? P.Trim ?? '#c9b27c', MaskTeeth: P.MaskTeeth ?? '#efe9d8', MaskFitting: P.MaskFitting ?? '#7d848e', MaskFilter: P.MaskFilter ?? '#2b2f36', MaskStrap: P.MaskStrap ?? '#1d1f24', MaskMaw: P.MaskMaw ?? '#140808', MaskMouth: P.MaskMouth ?? P.Mask ?? '#15171c', EyeFrame: P.EyeFrame ?? '#1b1d22', EyeLens: P.EyeLens ?? '#9fc6c9', EyeStrap: P.EyeStrap ?? '#1b1d22', EyeTrim: P.EyeTrim ?? '#8a9099', EyeGlow: P.EyeGlow ?? '#5dff7a', Helmet: P.Helmet ?? '#d0d3d8', HelmetVisor: P.HelmetVisor ?? '#20252c', HelmetTrim: P.HelmetTrim ?? '#1b1d22', GoldVisor: P.GoldVisor ?? '#d4a73a', HelmetSeam: P.HelmetSeam ?? '#2a2e35', Faceplate: P.Faceplate ?? '#2a2f39', MaskBone: P.MaskBone ?? '#ece6d6', Plume: P.Plume ?? '#b3261e', HelmetCut: P.HelmetCut ?? '#0b0c0f', MaskBlush: P.MaskBlush ?? '#e58f9e', MaskGold: P.MaskGold ?? '#d4a73a' });
 // (a helm drops the hair; a visor keeps it)
 // (over an ARMOUR BUILD the kit rides its `with`, so the suit stays and the head piece takes the helm's place)
-const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: isArmorBuild(spec.adorn) ? { ...spec.adorn, with: [...(spec.adorn.with || []), ...kit] } : [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
+export const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: isArmorBuild(spec.adorn) ? { ...spec.adorn, with: [...(spec.adorn.with || []), ...kit] } : [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
 const withPiece = (spec, piece) => { const O = spec.outfit; if (!O || O.type !== 'outfit') throw new Error('comic-hero: a cowl rides an outfit build\'s cloak'); return { ...spec, outfit: { ...O, pieces: [...(O.pieces || []).filter((p) => p.kind !== 'cloak'), piece] } }; };
 const COWL_HOOD = { kind: 'cloak', hood: { open: 28 }, wrap: 0.5, hem: 'hip' };

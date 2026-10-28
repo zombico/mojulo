@@ -2,9 +2,9 @@
 //
 // A name is `<kind>:<which>`: `timber:hinoki`, `finish:urushi`, `brick:red`, `stone:marble-carrara`, `steel:HEA200`,
 // `concrete:grey`, `board:gypsum-12.7`, `insulation:glass-wool`, `plaster:jura`, `clay:arakabe`, `paper:washi`,
-// `cable:nm-b-14-2`, `box:nm-single`. The tables the construction modules already hold (timbers, finishes, brick bodies,
+// `cable:nm-b-14-2`, `box:nm-single`, `duct:spiral-450`, `glass:float-6`, `floor:vct-305`. The tables the construction modules already hold (timbers, finishes, brick bodies,
 // stones, steel sections and finishes) are named here as they are; the rest (boards, insulation, plasters, clays,
-// papers, cables, boxes, panels, roof coverings) are added. Each entry carries its kind, a colour, and what a takeoff or
+// papers, cables, boxes, panels, roof coverings, ducts and their terminals, glass, floor finishes) are added. Each entry carries its kind, a colour, and what a takeoff or
 // a check reads (thickness, density, conductor size, ampacity, R-value). An entry may carry its MAP, the surface it
 // draws with: `{ texture, tileM }` (a surface-texture key and the metres one tile spans) or, for a roof covering laid as
 // tiles, `{ covering }` (the covering whose map roofing.js bakes in the entry's colour).
@@ -105,6 +105,30 @@ const ADDED = {
   'chamber:inspection': E('chamber', [96, 98, 100], { label: 'inspection chamber' }),
   'stone:amaochi': E('stone', [112, 110, 104], { density: 2600, label: 'amaochi-ishi (drip stone)' }),
   'board:nojiita': E('board', [196, 160, 112], { mm: 12, sheet: [180, 3640], density: 380, label: 'nojiita (sugi roof boards)' }),
+  // air: ducts (a round spiral duct's `dia` and the length it comes in, a rectangular one's `size` and its section's
+  // length between flanges, the flange's depth), terminals (a face's `size`, a neck's, a blade's pitch and angle) and
+  // the rod they hang from, in galvanized steel or a white powder coat
+  'duct:spiral-450': E('duct', [176, 180, 182], { dia: 450, length: 3000, joint: 40, label: '450 mm spiral-seam round duct' }),
+  'duct:rect-600x400': E('duct', [176, 180, 182], { size: [600, 400], length: 1500, flange: 35, label: '600 × 400 mm rectangular duct, flanged' }),
+  'diffuser:square-600': E('diffuser', [238, 238, 234], { size: [595, 595], neck: 250, rings: 4, label: '600 mm square 4-way ceiling diffuser' }),
+  'diffuser:drum-300': E('diffuser', [176, 180, 182], { dia: 300, length: 400, pitch: 40, label: '300 mm drum louvre' }),
+  'grille:return-600x300': E('grille', [238, 238, 234], { size: [600, 300], pitch: 25, angle: 45, label: '600 × 300 mm return grille' }),
+  'louvre:wall-1200x900': E('louvre', [150, 154, 156], { size: [1200, 900], pitch: 100, angle: 45, depth: 100, label: '1200 × 900 mm weather louvre' }),
+  'hanger:rod-10': E('hanger', [150, 152, 150], { dia: 10, every: 2400, label: 'M10 threaded hanger rod' }),
+  // glass: thickness, visible transmittance and reflectance (both faces), the colour it lends what is seen through it,
+  // `haze` (a frosted glass's scatter, 0 clear … 1 milk), `wire` a wired glass's mesh pitch (construction/glazing.js
+  // reads these as a pane's look)
+  'glass:float-6': E('glass', [214, 232, 224], { mm: 6, tv: 0.88, rv: 0.08, haze: 0, density: 2500, label: '6 mm clear float glass' }),
+  'glass:low-iron-10': E('glass', [230, 238, 238], { mm: 10, tv: 0.91, rv: 0.08, haze: 0, density: 2500, label: '10 mm low-iron glass' }),
+  'glass:laminated-6.4': E('glass', [212, 230, 222], { mm: 6.4, tv: 0.87, rv: 0.08, haze: 0, density: 2500, label: '6.4 mm laminated safety glass' }),
+  'glass:wired-6': E('glass', [204, 222, 214], { mm: 6, tv: 0.8, rv: 0.08, haze: 0, wire: 13, density: 2500, label: '6 mm polished wired glass' }),
+  'glass:acid-etched-6': E('glass', [236, 240, 238], { mm: 6, tv: 0.84, rv: 0.07, haze: 0.9, density: 2500, label: '6 mm acid-etched (frosted) glass' }),
+  // floor and wall finishes laid as units (a tile's or a plank's `sheet` in mm)
+  'floor:carpet-tile-500': E('floor', [86, 92, 104], { mm: 7, sheet: [500, 500], label: '500 mm loop-pile carpet tile' }),
+  'floor:vct-305': E('floor', [200, 194, 180], { mm: 3.2, sheet: [305, 305], label: '12 in vinyl composition tile' }),
+  'floor:porcelain-600': E('floor', [168, 166, 160], { mm: 10, sheet: [600, 600], density: 2300, label: '600 mm rectified porcelain tile' }),
+  'floor:laminate-193': E('floor', [176, 140, 100], { mm: 8, sheet: [193, 1380], density: 850, label: '193 × 1380 mm laminate plank' }),
+  'veneer:oak-crown': E('veneer', [168, 120, 80], { mm: 0.6, sheet: [600, 2440], label: 'crown-cut oak veneer panel, book-matched leaves' }),
 };
 
 /** Every material, by name. */

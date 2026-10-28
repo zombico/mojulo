@@ -140,7 +140,7 @@ export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) 
 }
 
 // The prose a release publishes as written: the READMEs npmjs.com, GitHub and the plugin directory
-// render, and docs/. control/CHANGELOG.md is not scanned; its Unreleased section is curated at the tag.
+// render, and docs/. control/CHANGELOG.md is not scanned (nor its theme files, control/changelog/: folded in at the tag).
 export const PUBLISHED_PROSE = ['README.md', 'control/README.md', PLUGIN_DIR, 'docs'];
 const UNPUBLISHED = new Set(['docs/STATUS.md']); // the maintainer's gitignored ledger
 

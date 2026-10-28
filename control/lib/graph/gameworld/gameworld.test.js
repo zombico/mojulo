@@ -18,7 +18,7 @@ describe('gameworld', () => {
   it('says what is wrong', () => {
     const bad = (w, re) => expect(() => resolveWorld(w)).toThrow(re);
     bad(W({ colour: 1 }), /'colour' is not a world setting/);
-    bad(W({ characters: [{ name: 'hero' }] }), /characters is \{ direction, hero, cast, casting \}/);
+    bad(W({ characters: [{ name: 'hero' }] }), /characters is \{ direction, hero, cast, casting, folk \}/);
     bad(W({ mechanics: { jump: 1 } }), /mechanics: jump is not part of the mechanics/);
     bad(W({ style: { kit: 'gothic-stone' } }), /room kit, not open ground.*building: \{ use: 'crypt', kit: 'gothic-stone' \}/);
     // a room kit with a shell of its own (the nave) is refused the same way: it passed the old check and crashed the readout

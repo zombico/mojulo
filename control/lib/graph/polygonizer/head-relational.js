@@ -32,7 +32,7 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { headMeasures, rayIn } from './head-field-view.js';
 import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
-import { GLOBE, eyeRig, resolveEye, lookAngles, browBridge } from './head-relational-eye.js';
+import { GLOBE, SEAT, eyeRig, resolveEye, lookAngles, browBridge } from './head-relational-eye.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -134,6 +134,14 @@ export const RELATIONS = Object.freeze({
   featureWave: 0.45,    // the wavelength's share near the eyes and the mouth: features smaller than the skin's wave
                         // need a shorter one, or the sum blurs their edges (1 = the same everywhere)
 });
+/**
+ * THE EAR RAISED (realistic laws 10, the operator's: the ear sat low, its top 6–8 mm under the brow line, a man's
+ * lobule 4 mm under the nose's base, where the canon sets it between the two), by the head's pole: added to `earTop` (a
+ * share of the eye line to the glabella) and `earBottom` (V), over the head's own or a face's, so the top meets the brow
+ * line and the lobule the nose's base. Laws 1–9 keep the ear where it was.
+ */
+export const EAR_RAISE = Object.freeze({ male: Object.freeze({ earTop: 0.25, earBottom: 0.01 }), female: Object.freeze({ earTop: 0.5, earBottom: 0 }) });
+export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex] ?? EAR_RAISE.male; return { ...(rel || {}), earTop: (rel?.earTop ?? RELATIONS.earTop) + E.earTop, earBottom: (rel?.earBottom ?? RELATIONS.earBottom) + E.earBottom }; };
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios each pole moves over the canon (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
@@ -705,6 +713,9 @@ export const ACTIONS = Object.freeze({
   smile: 'zygomaticus major: the mouth corners drawn up and back toward the cheekbones; the cheek balloons, shortened, bulge (both sides)',
   smileL: 'the smile, the figure\'s left side only', smileR: 'the smile, the figure\'s right side only',
   browRaise: 'frontalis: the brows lifted', browLower: 'the corrugator: the brows drawn down and together',
+  browInner: 'the frontalis\'s medial belly: the brows\' inner ends lifted, the outer kept (the worried brow), the upper lids\' peak drawn in',
+  wide: 'the levator: the upper lids lifted off the iris, the white showing over it (both)',
+  squint: 'the orbicularis\'s lower fibres: the lower lids raised and drawn flat, the upper a touch down (both)',
   blink: 'the upper lids close over the globes (both)', blinkL: 'the left lid only', blinkR: 'the right lid only',
   smileEyes: 'the share of a smile\'s squint the eyes take (the lower lid raised and rounded), 0 … 1; absent, all of it',
 });
@@ -773,9 +784,10 @@ export function actionDrivers(P, acts = {}, rel = RELATIONS) {
     D[`bulge${s}`] = (p) => add(jawAt(0.25)(p), { x: 0, y: 0.6, z: 0.8 }, 0.022 * sm);
     // the brow: raised straight up; lowered down, forward a touch, and toward the midline
     const sg = Math.sign(P[`fz${s}`].x);
-    D[`brow${s}`] = (p) => add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower'));
+    // (the inner raise leaves the brow's tail, and sinks it a touch: the brow tilts, inner end up)
+    D[`brow${s}`] = (p) => add(add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower')), { x: 0, y: 0, z: -0.004 }, a('browInner'));
   }
-  D.browC = (p) => add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, a('browLower'));
+  D.browC = (p) => add(add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, a('browLower')), { x: 0, y: 0.002, z: 0.026 }, a('browInner'));
   return D;
 }
 
@@ -964,9 +976,11 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * hero-relational-head.js); the landmarks keep the ear canal where the ears would hang it. `globes: false` leaves the
  * eyes' globes out of the field (the lids, their opening and the socket behind it kept): a skin netted whole would
  * otherwise join each lid's margin to the globe it rests on in one surface, and pinch there; `globes` hands each
- * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin).
+ * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin). `seat: true` rests
+ * the lids on the globes (head-relational-eye.js `SEAT`): the skin about each opening cut back to the lid shell, so no
+ * tunnel stands between the lids' margins and the eye (realistic laws 11).
  */
-export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true } = {}) {
+export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true, seat = false } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
   const P = corePoints(rel);
   // `tune: true` solves (once per sex + relations, then cached); an object is a tune given; absent, none
@@ -1133,25 +1147,35 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // the brow's fold hangs from the forehead's bridge by strings; the brow pad's action pulls them (its medial bead the
   // medial strings, each lateral bead its side's)
   const shift = (k) => ({ x: Vn.browPad[k].x - Rn.browPad[k].x, z: Vn.browPad[k].z - Rn.browPad[k].z });
-  const bridge = skin ? browBridge(Pt, { med: shift('c'), L: shift('a'), R: shift('b') }) : null;
+  // (seated, the eyes come `SEAT.forward` of the way from the cornea to the nose's tip, their corneas kept behind the
+  // glabella: their globes, lids and lashes, not the socket or the skin about it, which the seat cuts back to the lids)
+  const Pe = seat ? { ...Pt, ...Object.fromEntries(['L', 'R'].flatMap((s) => {
+    const [share, behind] = SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
+    return ['eye', 'en', 'ex'].map((k) => [`${k}${s}`, { ...Pt[`${k}${s}`], y: Pt[`${k}${s}`].y + dy }]);
+  })) } : Pt;
+  const bridge = skin ? browBridge(Pe, { med: shift('c'), L: shift('a'), R: shift('b') }, { seat }) : null;
   const eyeRigs = skin ? ['L', 'R'].map((s) => {
     const sm = Math.min(1, act('smile') + act(`smile${s}`)) * (actions && 'smileEyes' in actions ? act('smileEyes') : 1), bl = Math.min(1, act('blink') + act(`blink${s}`));
     // a gaze target (`look`, metres from between the eyes) becomes this eye's yaw and pitch, aimed from its own centre;
     // a side's own gaze still wins over it
     let spec = eyes;
     if (eyes && typeof eyes === 'object' && eyes.look) {
-      const mid = { x: (Pt.eyeL.x + Pt.eyeR.x) / 2, y: (Pt.eyeL.y + Pt.eyeR.y) / 2, z: (Pt.eyeL.z + Pt.eyeR.z) / 2 };
+      const mid = { x: (Pe.eyeL.x + Pe.eyeR.x) / 2, y: (Pe.eyeL.y + Pe.eyeR.y) / 2, z: (Pe.eyeL.z + Pe.eyeR.z) / 2 };
       const M = 1 / (HEAD_V * 1.8);   // metres → head heights
       const to = { x: mid.x + eyes.look.x * M, y: mid.y + eyes.look.y * M, z: mid.z + eyes.look.z * M };
-      spec = { ...eyes, ...lookAngles({ ...Pt[`eye${s}`], y: Pt[`eye${s}`].y - GLOBE.back }, to) };
+      spec = { ...eyes, ...lookAngles({ ...Pe[`eye${s}`], y: Pe[`eye${s}`].y - GLOBE.back }, to) };
     }
-    const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
+    // (and the eyes' own: `wide` lifts the upper lid off the iris, `squint` raises the lower and draws it flat, the inner
+    // brow draws the upper lid's peak in, the worried lid)
+    const wd = act('wide'), sq = act('squint'), bi = act('browInner');
+    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq, lowerShape: 0.3 * sm - 0.4 * sq, open: 0.25 * act('browRaise') - 0.12 * act('browLower') + 0.5 * wd - 0.06 * sq + 0.08 * bi,
+      upperShape: -0.3 * act('browLower') - 0.2 * sq, upperPeak: -0.45 * bi, crease: 0.3 * wd });
     c.open *= 1 - bl;
-    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit);
+    const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
-      lidSpace: (p) => r.lidSpace(V(p)) * sc, opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
+      lidSpace: (p) => r.lidSpace(V(p)) * sc, seat: r.seat && ((p) => r.seat(V(p)) * sc), opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
   // THE FURROWS (`furrows`, an old forehead's deep folds as shape, so an engine's light casts them and the profile shows
@@ -1208,6 +1232,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       // the lid space cut back out of the skin, the lids' mass on it, the opening carved through it to the globe, the
       // margins and the roll laid on, the crease cut, the globe set in
       d = smax(d, -e.lidSpace(p), 0.005 * sc);
+      if (e.seat) d = smax(d, -e.seat(p), SEAT.blend * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
@@ -1252,13 +1277,13 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels),
     // the brow's bridge, strings and arcs (V), and the eye rigs' lash lines and globes, for the lashes
     bridge,
-    eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV })),
+    eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV, ...(e.seat ? { seated: true } : {}) })),
   };
   // the skin wave alone (no nose, lips, lip line, eyes or ears: what a head sampled feature by feature lies over), and
   // each ear's own field, its bowl and canal cut (the ear alone, not joined to the head)
   const bare = skin ? (p) => skinField(p, true) : null;
   const earFields = hung.map((e) => ({ side: e.side, field: (p) => { const d = e.f(p); if (d === Infinity) return d; const c = e.carve(p); return c === Infinity ? d : smax(d, -c, 0.004 * sc); }, top: e.top, tragion: e.tragion }));
   // each eye's globe as its own field (STAND units), its paint and its tone, and its centre and look
-  const globes = eyeRigs.map((e) => ({ side: e.side, field: e.globe, paint: e.paint, tone: e.irisTone, near: e.near, gaze: e.gaze, centre: S({ ...Pt[`eye${e.side}`], y: Pt[`eye${e.side}`].y - GLOBE.back }) }));
+  const globes = eyeRigs.map((e) => ({ side: e.side, field: e.globe, paint: e.paint, tone: e.irisTone, near: e.near, gaze: e.gaze, centre: S({ ...Pe[`eye${e.side}`], y: Pe[`eye${e.side}`].y - GLOBE.back }) }));
   return { field, bare, earFields, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth, eyes: eyeRigs.map((e) => e.channels), vergence, relational, globes };
 }

@@ -80,9 +80,16 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *           (degrees of shore it holds) }
  *   geology true: the raised land (the mountain, the high shore) goes through the card's landform (joints, talus:
  *           polygonizer/landform.js), and every face of it that is not a flat bench or top is rock
- *   walk    'all' (every way up drawn) or 'base' (only the approach to the foot: the mountain as land, not a climb)
- *   seabed  'grid' (the land's half-metre quads all the way out, as it always was) or 'merged' (the flat seabed past the
- *           beach drawn as a few large quads: under the deep water it reads the same, and it was most of the faces)
+ *   walk    'all' (every way up drawn), 'base' (only the approach to the foot: the mountain as land, not a climb) or
+ *           'none' (no walk at all: the island as a seed, flown and zoomed; walking is the path's)
+ *   seabed  'grid' (the land's quads all the way out, as it always was) or 'merged' (the flat seabed past the beach
+ *           drawn as a few large quads: under the deep water it reads the same, and it was most of the faces)
+ *   cell    metres, the land's quads where the island stands alone (a climb keeps its trail's lattice for the seam): 0.5
+ *           as it always was; coarser for a big island, its detail left to the material
+ *   scale   the metres the island's shape holds fixed (the high side's rise, the cliff's run, the apron, the beach's sand
+ *           height) scaled with an island drawn larger: 1 as it always was
+ *   cover   'grass' (the ground as it always was) or 'soil' (geo only: the ground bare soil, `isekai:soil`, and where it
+ *           slopes near the angle of repose under raised land, scree, `isekai:scree`)
  */
 /**
  * RELIEF (`relief: '<card>' | { from?, … }`, opt-in): the plain's own ground (noise/relief.js): rolling, craggy,
@@ -143,7 +150,7 @@ export function readShading(v) {
   if (!(typeof S.valley === 'number' && S.valley >= 0 && S.valley <= 1)) throw new Error('local-meru: shading.valley is 0..1');
   return S;
 }
-export const ISLAND = Object.freeze({ shore: null, beach: 9, sea: 0.7, depth: 3, high: Object.freeze({ azimuth: null, height: 4.5, span: 110 }), geology: false, walk: 'all', seabed: 'grid' });
+export const ISLAND = Object.freeze({ shore: null, beach: 9, sea: 0.7, depth: 3, high: Object.freeze({ azimuth: null, height: 4.5, span: 110 }), geology: false, walk: 'all', seabed: 'grid', cell: 0.5, scale: 1, cover: 'grass' });
 function readIsland(v) {
   if (v === undefined || v === false || v === null) return null;
   if (v !== true && (typeof v !== 'object' || Array.isArray(v))) throw new Error('local-meru: island is true or { shore, beach, sea, depth, high }');
@@ -158,7 +165,10 @@ function readIsland(v) {
   if (!(typeof I.high.span === 'number' && I.high.span > 0 && I.high.span <= 360)) throw new Error('local-meru: island.high.span is degrees of shore, above 0 and at most 360');
   if (I.high.azimuth !== null && !Number.isFinite(I.high.azimuth)) throw new Error('local-meru: island.high.azimuth is degrees, or null');
   if (typeof I.geology !== 'boolean') throw new Error('local-meru: island.geology is true (the card\'s landform on the raised land) or false');
-  if (!['all', 'base'].includes(I.walk)) throw new Error("local-meru: island.walk is 'all' (every way up) or 'base' (only the approach to the foot)");
+  if (!['all', 'base', 'none'].includes(I.walk)) throw new Error("local-meru: island.walk is 'all' (every way up), 'base' (only the approach to the foot) or 'none' (no walk: the island flown, the path's to walk)");
+  if (!(typeof I.cell === 'number' && I.cell >= 0.25 && I.cell <= 4)) throw new Error('local-meru: island.cell is the land\'s quad in metres, 0.25 to 4 (0.5 as it always was)');
+  if (!(typeof I.scale === 'number' && I.scale >= 0.5 && I.scale <= 6)) throw new Error('local-meru: island.scale is how much larger the island is drawn, 0.5 to 6 (its fixed metres scale with it)');
+  if (!['grass', 'soil'].includes(I.cover)) throw new Error("local-meru: island.cover is 'grass' (as it always was) or 'soil' (geo only: bare soil, scree on the slopes under raised land)");
   if (!['grid', 'merged'].includes(I.seabed)) throw new Error("local-meru: island.seabed is 'grid' (half-metre quads to the edge) or 'merged' (the flat seabed in large quads)");
   return I;
 }

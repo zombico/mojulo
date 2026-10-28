@@ -167,7 +167,8 @@ async function load(v) {
   const root = gltf.scene; let body = null;
   root.traverse((o) => {
     if (o.isMesh && /static/.test(o.name)) o.visible = false;   // (the export's ground slab)
-    if (o.isSkinnedMesh) { body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+    // (the body the largest skinned mesh: a held prop, a pose's pistol, is skinned to the hand too, and framed alone)
+    if (o.isSkinnedMesh) { if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
   });
   for (const m of [body?.material].flat().filter(Boolean)) { m.roughness = 0.62; m.metalness = 0; m.needsUpdate = true; }
   root.updateMatrixWorld(true);
@@ -343,5 +344,23 @@ window.heroLive = {
   hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
   state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
+  // (a camera for a script. With `bone`, a closeup on that bone as posed at this moment: its head, plus `off` m, from
+  // `from`, a direction in the page's space (y up, the figure facing −z), `dist` away; a joint's fold is its child bone's
+  // head: the elbow is foreArmR's. Without, a free camera: `az` degrees round the figure from its front, `el` degrees up,
+  // `dist` m, `at` the share of its height looked at, `fov` degrees; the head's back and sides, which no button frames)
+  look: ({ bone, from = [0, 0.25, -1], off = [0, 0, 0], az = 0, el = 0, dist, at = 0.92, fov } = {}) => {
+    const L = cur(); if (!L) return false;
+    if (bone) {
+      if (!L.body) return false;
+      // (three.js strips the `:` of a node name on load: `body:foreArmR` is `bodyforeArmR`)
+      const b = L.body.skeleton.bones.find((x) => x.name === bone || x.name.endsWith(bone)); if (!b) return false;
+      L.root.updateMatrixWorld(true); const p = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).add(new THREE.Vector3(...off)), d = new THREE.Vector3(...from).normalize();
+      camera.fov = fov ?? 30; camera.updateProjectionMatrix(); controls.target.copy(p); camera.position.copy(p.clone().addScaledVector(d, dist ?? 0.45)); controls.update(); S.view = `look ${bone}`; return true;
+    }
+    const F = L.figure, target = new THREE.Vector3(F.x, F.y0 + F.h * at, F.z), a = (az * Math.PI) / 180, e = (el * Math.PI) / 180, r = dist ?? 0.6;
+    camera.fov = fov ?? 22; camera.updateProjectionMatrix(); controls.target.copy(target);
+    camera.position.set(target.x - r * Math.cos(e) * Math.sin(a), target.y + r * Math.sin(e), target.z - r * Math.cos(e) * Math.cos(a));
+    controls.update(); S.view = `look ${az}/${el}`; return true;
+  },
 };
 </script>
