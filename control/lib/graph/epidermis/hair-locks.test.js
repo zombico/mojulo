@@ -9,7 +9,7 @@ import { relationalHeadChart } from './dermal-head.js';
 import { readDermis } from './dermal-map.js';
 import { readScalp, SCALP_STYLES } from './dermal-hair.js';
 import { hairClass } from './hair-depict.js';
-import { lockHair, lockBlades, lockStyleAt, readStylize, surfaceClear, lockClass, HAIR_LOCKS, LOCK_GROUPS, LOCK_TIP, LOCK_FADE } from './hair-locks.js';
+import { lockHair, lockStrands, beardShell, lockStyleAt, readStylize, surfaceClear, lockClass, HAIR_LOCKS, LOCK_GROUPS, LOCK_TIP, LOCK_FADE } from './hair-locks.js';
 import { overlapHair } from './hair-score.js';
 
 const chart = relationalHeadChart(relationalHead({ sex: 'male' }), { cells: 44 });
@@ -84,11 +84,29 @@ describe('the lock hair', () => {
     const H = lockHair(chart, D, groom('short', { streaks: [{ kind: 'tips', colour: 'blue', from: 0.5 }] }), { centre, stylize: 1 });
     expect(groupsOf(H)).toEqual(new Set([LOCK_GROUPS.mass, LOCK_GROUPS.streak])); expect(H.streak).toHaveLength(3);
   }, 120_000);
-  it('the overlap principle sees the scalp where nothing covers it, and a beard\'s blades loft as locks', () => {
+  it('the overlap principle sees the scalp where nothing covers it', () => {
     const S = groom('short'), H = lockHair(chart, D, S, { centre, stylize: 1 });
     expect(overlapHair(chart, D, { mass: null, under: [] }, { px: 48 }).passes).toBe(false);
     expect(overlapHair(chart, D, { mass: H.mesh, under: [H.cap] }, { px: 48 }).mass).toBeGreaterThan(0.5);
-    const B = lockBlades([{ pts: [[0, 0.09, 0.02], [0, 0.1, 0.01], [0, 0.105, 0]], half: [0.003, 0.002, 0] }], chart, { centre });
-    expect(B.closure).toBe('closed'); expect(new Set(B.groups)).toEqual(new Set(['Beard']));
   }, 120_000);
+  // (the face's hair from guides drawn on the chart: a band of short hairs along a ridge, a tuft of long ones off the chin)
+  const onSkin = (p) => skin.out(p, 0.0005);
+  const band = (x0, dir) => Array.from({ length: 24 }, (_, i) => { const x = x0 + dir * i * 0.002, r = onSkin([x, 0.1, 0.07 + 0.003 * (i % 3)]); return { pts: [r, onSkin([x + dir * 0.006, 0.1, r[2] + 0.002])] }; });
+  it('a BAND (a brow): its mass along it and the dial\'s strokes on it, one colour, fewer up the dial; each side its own', () => {
+    const guides = [...band(0.012, 1), ...band(-0.012, -1)], lo = lockStrands(guides, chart, { kind: 'brow', centre, stylize: 0, group: 'Brow', sides: true }), hi = lockStrands(guides, chart, { kind: 'brow', centre, stylize: 1, group: 'Brow', sides: true });
+    expect(lo.flows).toBeGreaterThan(hi.flows); expect(lo.mesh.closure).toBe('closed'); expect(new Set(lo.mesh.groups)).toEqual(new Set(['Brow']));
+    // (its mass runs along the brow: as long as the band's roots, never a tuft at its middle)
+    const xs = lo.mesh.vertices.map((p) => p[0]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(2 * 23 * 0.002 * 0.8);
+    expect(lockStrands(guides, chart, { kind: 'brow', centre, stylize: 0, group: 'Brow', sides: true })).toEqual(lo);
+  });
+  it('a BEARD: a short one is its sculpted coat alone; only hair whose tip leaves the skin hangs as flows', () => {
+    const short = band(0.012, 1), hang = Array.from({ length: 12 }, (_, i) => { const r = onSkin([-0.01 + i * 0.002, 0.08, -0.03]); return { pts: [r, [r[0], r[1] + 0.004, r[2] - 0.015], [r[0], r[1] + 0.006, r[2] - 0.035]] }; });
+    expect(lockStrands(short, chart, { kind: 'beard', centre })).toBeNull();
+    const H = lockStrands([...short, ...hang], chart, { kind: 'beard', centre });
+    expect(H.flows).toBeGreaterThan(0); expect(Math.min(...H.mesh.vertices.map((p) => p[2]))).toBeLessThan(-0.04);
+    // (the coat stands where the hairs stand, never past the shell's most)
+    const h = beardShell(chart, short), at = short[5].pts[0];
+    expect(h(at)).toBeGreaterThan(0.0005); expect(h(at)).toBeLessThan(0.012);
+  });
 });

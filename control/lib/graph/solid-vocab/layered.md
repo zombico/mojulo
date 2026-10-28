@@ -861,7 +861,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   0 … 1 its register: 0 a realistic game's many fine locks with soft cards at the hairline and the tips, 1 a stylised
   game's few dozen chunky sculpted locks, 0.5 the default; a crop a shell, an afro a sculpted volume, a ponytail's tail a
   mass of its own, locs ropes; the scalp shows only in the splits between locks), its PIERCINGS the face's, each piece
-  in its metal; the brows, the lashes and a styled beard are read but not yet grown (the beard is painted). The mint
+  in its metal; its face's hair in the same register (a beard its coat sculpted, a full beard's chin hanging as flows,
+  each brow and the moustache's halves a band with strokes on it). The mint
   solves the face's own FIT (`fit`, stamped beside its words, ~45 s once) so the head is the one the face studies show;
   a face whose words change wears its pole's fit until it is minted again. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;

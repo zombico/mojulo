@@ -133,15 +133,16 @@ describe('the realistic hero at the door', () => {
   it('wears its face\'s hair: the beard (its locks under the lip on the jaw), the brows and the lashes, in the hair\'s own colour over the plan\'s', () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', face: { seed: 1, ethnicity: 'western' } }) });
     const P = m.recipe.parts, A = auditLayered(compileLayered(m.recipe, m.dials));
-    for (const k of ['hairBeard', 'hairBeardJaw', 'hairBrows', 'hairLashes', 'hairCap', 'hairBeardCoat', 'hairBeardCoatJaw']) { expect(P[k]?.pin.parent, k).toBe('headSkin'); expect(A[k].pass, k).toBe(true); }
-    // (realistic laws 10: the scalp's locks over a shell and the beard's over its coat, each ONE colour, no root band)
-    expect(P.hair.group).toBe('Hair'); expect(P.hairCap.group).toBe('Hair'); expect(P.hairBeardCoat.group).toBe('Beard');
-    expect(Object.keys(m.recipe.palette).filter((k) => /^(Hair|Beard)Root$/.test(k))).toEqual([]);
+    for (const k of ['hairBeard', 'hairBrows', 'hairLashes', 'hairCap', 'hairBeardCoat', 'hairBeardCoatJaw']) { expect(P[k]?.pin.parent, k).toBe('headSkin'); expect(A[k].pass, k).toBe(true); }
+    // (realistic laws 10: the scalp's locks over a shell; the short beard its sculpted coat with the moustache's band on it
+    // and nothing hanging; the brows a band each; every one ONE colour, no root band)
+    expect(P.hair.group).toBe('Hair'); expect(P.hairCap.group).toBe('Hair'); expect(P.hairBeardCoat.group).toBe('Beard'); expect(P.hairBeard.group).toBe('Beard'); expect(P.hairBrows.group).toBe('Brow');
+    expect(Object.keys(m.recipe.palette).filter((k) => /Root$/.test(k))).toEqual([]);
     // (a hero minted under laws 9 keeps its blades and their coat in the root's colour)
     const was = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', physique: { from: 'athletic', laws: 9 }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.parts;
     expect(was.hairCap.group).toBe('HairRoot'); expect(was.hairBeardCoat.group).toBe('BeardRoot'); expect(was.hair.cardUV).toBeTruthy();
     // (the jaw's beard rides a face the jaw alone carries; the moustache's the head)
-    expect(P.hairBeardJaw.pin.face).not.toBe(P.hairBeard.pin.face);
+    expect(P.hairBeardCoatJaw.pin.face).not.toBe(P.hairBeardCoat.pin.face);
     // (one person's hair: the scalp's, the beard's and the brows' colours from the face's, over the plan's defaults)
     expect(m.recipe.palette.Beard).toBe(m.recipe.palette.Hair); expect(m.recipe.palette.Brow).toBe(m.recipe.palette.Hair);
     expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', palette: { Hair: '#ff0000' }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.palette.Hair).toBe('#ff0000');

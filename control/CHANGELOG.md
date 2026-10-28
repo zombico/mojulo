@@ -56,7 +56,18 @@ The eyes gate is the operator's.
     (`boneWeights`), so the skinned GLB swings it with the body.
   - ONE colour, `Hair`: the hair as the eye averages it, so grey is a lighter whole, never flecks. `HairStreak` appears
     only where the groom asks for a streak. The cards draw the strand page undyed (`strands: 'plain'`), in the mass's
-    colour. The beard follows the same rules: its clumps lofted as small locks in `Beard` (`lockBlades`).
+    colour.
+  - THE FACE'S HAIR in the same register (`lockStrands`; `stylize` the face's, as the scalp's), each in one colour,
+    with no root band:
+    - A BEARD is its coat sculpted to where its hairs stand (`beardShell`, the coil's procedure), lumped finer at 0 and
+      chunkier at 1. A short beard is that coat alone. Only hair whose tip leaves the skin, a full beard's chin, hangs
+      as flows, rooted inside the coat so they come out at its edge. The coat is smoothed whole and then split at the
+      lip line, so the jaw's half and the head's meet (smoothing each half pulled the seam open).
+    - A MOUSTACHE's halves and each BROW are a band (`browMass`): one flat mass along it, its head rounded and its tail
+      drawn in, with the dial's few strokes laid on it and held inside it: never a brow of two-tone blades, never a
+      beard of small locks reading as scales.
+    - A card face pushed off the skin onto itself is dropped (a fade card at the forehead had no area), and a tip card
+      is never narrower than `LOCK_TIP.half`.
 - A hero minted before keeps its blades byte for byte: the locks are its laws'.
 
 ### The realistic wardrobe: the legendary merc
