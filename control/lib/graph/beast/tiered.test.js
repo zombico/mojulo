@@ -28,7 +28,8 @@ describe('the beast-kin on the tiered body', () => {
     const H = kin(BARREL), card = BEAST_KINS[BARREL];
     expect(H.form).toBe('tiered');
     expect(H.beast).toEqual({ kin: BARREL });
-    expect(H.hair === 'none' || H.hair?.style === 'none').toBe(true);
+    expect(H.head).toBe('none');   // (bald: it wears its kin's head, beast/head.js; a person's head is bald, below)
+    expect(kin(BARREL, { head: 'person' }).hair?.style ?? kin(BARREL, { head: 'person' }).hair).toBe('none');
     expect(H.detail).toBe('none');
     expect(H.palette.Skin).toBe(kinCoat(BARREL));
     for (const g of ['Top', 'Bottom', 'Shoes', 'Brow']) expect(H.palette[g]).toBe(H.palette.Skin);

@@ -45,7 +45,7 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   and the elbow's regions now count every ring of their bridge (`hero-stretch.js` `STRETCH_REGIONS`), where the limbs'
   own end rings stay rigid and read 1. A classic body has no bridges and reads as it did.
 - **The beast card on the tiered body** (`lib/graph/beast/`). A hero takes `beast: { kin, legs?, fingers?, toes?, claws?,
-  tail?, wings?, arms? }`.
+  tail?, wings?, arms?, head? }`.
   The kin is a card (`beast/cards.js`) of words, never geometry:
   - `reads`: what the kin reads as;
   - `fingers`: 3 or 4, the thumb among them; `toes`: 3, 4 or 5; `tail`: the tail it carries;
@@ -69,9 +69,8 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
 
   The legs are the hero's word, not the kin's (a lineage stands digitigrade by how far from a person its sheet rolled).
   Refused: an unknown kin or word, a beast off the tiered body, and a beast that is undead too. A hero without `beast`
-  is unchanged. Not yet carried, each its own step: the beast head on the tiered neck (the hero's own head is worn
-  meanwhile), cover as material (relief to normal, occlusion and height) in place of cards, and the egocube's route
-  from a sheet to the card.
+  is unchanged. Not yet carried, each its own step: cover as material (relief to normal, occlusion and height) in place
+  of cards, and the egocube's route from a sheet to the card.
 
   Machine gate (`beast/tiered.test.js`):
   - the words recorded, the operator's own over them;
@@ -168,6 +167,32 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
 
   Eyes: the wolf-kin's tail before and after the socket's fix, the bird-kin's wings and the insect-kin's four arms
   through the gaits, cropped to each socket. Eyes gate: the operator's to judge.
+- **The beast head on the tiered neck** (`beast/head.js`, `beast.head`). A beast-kin wears its kin's library head by
+  default (`creature-heads`: the bear's, the wolf's, the felid, the dragon's, the beaked, the mandibled). The head is
+  dressed for its coat by the creature door's own steps, now one shared helper (`egocube/plan.js` `libraryHead`: the
+  skin's tones, the people's eye accent, scaled to the body); the sixth-generation pins hold through the move.
+  - It is seated by its nape on the hero's head base. Its skull rides the head bone; its jaw is a bone of its own,
+    hinged at the head's pivot and opened by the rig's jaw chain (a clip key's `jaw`). The rig's head top sits on the
+    skull's crown, and the blank trunk's head is taken off.
+  - The record's head is `none` (no hair or face words). `beast.head` names another library head, or `person` to keep
+    a person's (bald) head. A beast's head under a person's head word is refused.
+  - **The neck leans forward under it** (`NECK_LEAN`, 26°, its length kept). The library heads are drawn for the
+    creature biped's neck, which runs 27° forward into the back of the skull. On a person's upright neck the skull sat
+    forward of it, and its back rim crossed the neck's back as a saw-toothed edge.
+  - **The nape** is a fillet from the neck's middle ring, point for point, flaring past the head's base into the skull,
+    its top ring buried there. Each ring is the neck's own top ring scaled, so its slots never twist, and its skin hands
+    the neck to the head over its length. The plan's own seam still seals the neck's end inside the head.
+
+  Machine gate (`beast/head.test.js`):
+  - the library head on the head base, its bones and the jaw chain, the blank head off;
+  - the neck's lean and length;
+  - the nape welded to the neck's ring, its top ring inside the compiled skull, its skin handing over;
+  - the bind and the rig audit clean, and the jaw opened by the chain;
+  - another library head, a person's head, and the refusals.
+
+  All six kin mint through `create_character` with no core advisory. Eyes: the six heads through the gaits, the nape
+  from the side and behind before and after the lean. The library head's own back rows still show a little of their
+  low-poly rim from behind. Eyes gate: the operator's to judge.
 
 ### Foe classes: the hostile encounter primitive
 

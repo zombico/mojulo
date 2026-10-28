@@ -52,7 +52,7 @@ export function topologyOf(hero) {
 export const topologyJoints = (hero) => (topologyOf(hero)?.arms === 4 ? TOPOLOGY_JOINTS : []);
 
 // the hero's scale against the biped's 2 m template, from its head's top
-const scaleOf = (plan) => { const J = plan.joints, top = plan.rig?.joints?.headTop?.at ?? add(J.headBase, [0, 0, 0.135]); return (top[2] + 0.06) / 2; };
+export const scaleOf = (plan) => { const J = plan.joints, top = plan.rig?.joints?.headTop?.at ?? add(J.headBase, [0, 0, 0.135]); return (top[2] + 0.06) / 2; };
 // a trunk's section at height z: its centre's y and its half width and depth (the stations blended)
 function sectionAt(seg, z) {
   const S = seg.stations, i = Math.max(0, S.findIndex((st, j) => j < S.length - 1 && z <= S[j + 1].z)), a = S[Math.min(i, S.length - 2)], b = S[Math.min(i + 1, S.length - 1)];

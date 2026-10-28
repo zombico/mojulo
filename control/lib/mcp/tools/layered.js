@@ -62,6 +62,7 @@ import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
 import { beastWords, beastFlesh, beastHands, beastErrors } from '@/lib/graph/beast/tiered';
 import { beastLegs, beastJoints } from '@/lib/graph/beast/legs';
 import { beastTopology, beastSockets } from '@/lib/graph/beast/topology';
+import { beastHead } from '@/lib/graph/beast/head';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
@@ -1280,8 +1281,8 @@ function tieredFormPlan(hero) {
   // (the undead's flesh passes, and a beast-kin's girths and legs, on the body before its joints are bridged and its
   // shoulders balled: undead/tiered.js, beast/tiered.js, beast/legs.js, beast/topology.js: a digitigrade kin's hock and
   // its second arms' elbows bridged with the knee; its tail and its second arms welded to the trunk by the generic
-  // socket, its hands and claws, on the body as it ends)
-  return beastHands(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero), hero);
+  // socket, its hands and claws and its own head on the neck (beast/head.js), on the body as it ends)
+  return beastHead(beastHands(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero), hero), hero);
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
@@ -1307,7 +1308,7 @@ function heroFormPlanOf(hero) {
     return humanoidPlan({ preset: cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
-  const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });
+  const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...((hero.detail === 'swimsuit' && !childCoding(hero)) || hero.beast ? { bare: true } : {}) });
   const { childCoded, ...worn } = dress;
   return dressPlan(plan, { ...worn, laws: hero.laws ?? 1, figure: { female: castOf(hero.cast, hero.proportions ?? 'hero')?.silhouette === 'female', child: !!childCoded }, operatorPalette: hero.palette ?? {}, scale: planScale({ cast: hero.cast, scale: hero.scale, tune: hero.tune, proportions: hero.proportions ?? 'hero' }) });
 }

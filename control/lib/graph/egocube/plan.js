@@ -453,6 +453,28 @@ function eyeAccent(lineage, coat) {
 }
 const HEAD_TONES = Object.freeze({ Skull: 0, Body: 0, Jowl: 0.04, Jaw: 0.1, Snout: 0.12, Lip: 0.08, Brow: -0.12, Pad: -0.05, Lids: -0.08, Ears: -0.06, Fur: 0.03, FurAlt: -0.05, Folds: 0.04, Web: 0.04, Wrinkles: -0.18, Scales: -0.04, ScalesAlt: 0.04 });
 
+/**
+ * A LIBRARY HEAD dressed for a body (the creature door's, and the beast-kin's on the tiered neck, beast/head.js): the
+ * skin's tones over the head's own neutral reading, but for the groups that are not skin (a beak's horn); the people's
+ * eye accent; scaled by `k` (the body against the 2 m template); a stand-in's species ornaments off; a fur coat's
+ * cheeks left to the body's clumps (`furCheeks`); an older face's wrinkles at rest (`age`).
+ */
+export function libraryHead(id, { skin, lineage, k, standIn = false, furCheeks = false, age = 'adult' }) {
+  const own = HEAD_LIBRARY[id].keep || [];
+  const iris = eyeAccent(lineage, skin);
+  const hp = headPlan(id, { palette: { ...Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(id).palette && !own.includes(grp)).map(([grp, t]) => [grp, shade(skin, t)])), ...(iris ? { Iris: iris } : {}) } });
+  // scale the head to the body: a head authored in metres (no units) has its 'world' sweeps in those same metres,
+  // so they become head-space and scale with it (else the dragon's horns float off a scaled skull)
+  if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
+  hp.units = { scale: r3((hp.units?.scale ?? 1) * k), offset: hp.units?.offset ?? [0, 0, 0] };
+  // a stand-in is a neutral skull: the species' own ornaments (horns, a crest) are not the people's
+  if (standIn) { hp.ornaments = hp.ornaments.filter((o) => o.kind !== 'sweep' || o.name === 'nose'); delete hp.midline; }
+  // a coat's CHEEKS are its clumps (cheekLocks, on the body's cranium), not the head's field of tiles below the cheek row
+  if (furCheeks && hp.regions?.tiles) { const tiles = hp.regions.tiles.filter((T) => !(T.part === 'cranium' && T.t[0] >= CHEEK_ROW)); if (tiles.length) hp.regions.tiles = tiles; else delete hp.regions.tiles; }
+  if (['seasoned', 'elder'].includes(age)) hp.regions.wrinkles = hp.regions.wrinkles.map((w) => (w.drive.cheekBunch || w.drive.browFurrow ? { ...w, rest: age === 'elder' ? 0.8 : 0.55 } : w));
+  return hp;
+}
+
 function creature(sheet, title) {
   const f = sheet.facets, hints = sheet.ancestry.plan || {};
   const k = r3((HEIGHT[f.build] * AGE_SCALE[f.age]) / 2.0), g = GIRTH[f.build];
@@ -477,21 +499,7 @@ function creature(sheet, title) {
     Leather: shadowSide ? '#6b5a4a' : '#6e4a2e', Satchel: shadowSide ? '#7a6a58' : '#7d5634', Stitch: '#d8d0bc', Wrap: '#d8d0bc', Metal: '#8e9196',
     Emblem: f.archetype === 'ruler' ? '#d5aa3a' : '#b9a46a',
   };
-  const heads = [{ name: 'head', plan: (() => {
-    // the skin's tones over the head's own neutral reading, but for the groups that are not skin (a beak's horn)
-    const own = HEAD_LIBRARY[head.id].keep || [];
-    const iris = eyeAccent(f.ancestry, skin);
-    const hp = headPlan(head.id, { palette: { ...Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(head.id).palette && !own.includes(grp)).map(([grp, t]) => [grp, shade(skin, t)])), ...(iris ? { Iris: iris } : {}) } });
-    // scale the head to the body: a head authored in metres (no units) has its 'world' sweeps in those same metres,
-    // so they become head-space and scale with it (else the dragon's horns float off a scaled skull)
-    if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
-    hp.units = { scale: r3((hp.units?.scale ?? 1) * k), offset: hp.units?.offset ?? [0, 0, 0] };
-    // a stand-in is a neutral skull: the species' own ornaments (horns, a crest) are not the people's
-    if (head.standIn) { hp.ornaments = hp.ornaments.filter((o) => o.kind !== 'sweep' || o.name === 'nose'); delete hp.midline; }
-    // a coat's CHEEKS are its clumps (cheekLocks, on the body's cranium), not the head's field of tiles below the cheek row
-    if (hints.cover?.kind === 'fur' && hp.regions?.tiles) { const tiles = hp.regions.tiles.filter((T) => !(T.part === 'cranium' && T.t[0] >= CHEEK_ROW)); if (tiles.length) hp.regions.tiles = tiles; else delete hp.regions.tiles; }
-    if (['seasoned', 'elder'].includes(f.age)) hp.regions.wrinkles = hp.regions.wrinkles.map((w) => (w.drive.cheekBunch || w.drive.browFurrow ? { ...w, rest: f.age === 'elder' ? 0.8 : 0.55 } : w));
-    return hp; })(), expression: expressionOf(sheet), on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
+  const heads = [{ name: 'head', plan: libraryHead(head.id, { skin, lineage: f.ancestry, k, standIn: head.standIn, furCheeks: hints.cover?.kind === 'fur', age: f.age }), expression: expressionOf(sheet), on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
   const plan = {
     schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed' },
