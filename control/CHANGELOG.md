@@ -640,7 +640,9 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: the words and the undead's defaults; the groups each `sever` makes on a hero's bones; a slash's sides
   (the head above, the feet below, the trunk cut), each half on its own side capped in the inside, the same cut for the
   same seed; a dropped bone settling flat; the runtime marking the body the frame it goes down and handing it to no transit; a destroy dying as each blow says (a strike, a shot, a burst away from it, none); each function the
-  page runs evaluating from its own source alone; no wreck on a page without one. Eyes: pending.
+  page runs evaluating from its own source alone; no wreck on a page without one. Eyes: each undead struck by a strike,
+  a round and a burst on the demo level, filmed close (the rounds recorded in the plan). Eyes gate: the operator's to
+  judge.
 - **Modes: a foe defeated, not destroyed, until its last** (optional; `body.modes` in `worlds/controllable/vanish.js`,
   `scene/rig-shed.js`; the operator: "armored mode is one layer, unarmored mode is another … it can only be
   cleaved/destroyed at the lowest level, it's just defeated and resets until that").
@@ -658,7 +660,8 @@ through the character designer, clips fitted to the class's timing, factions) is
 
   Machine gate: a mode defeated resets into the next (figure, health, its shed marked) and is never destroyed, the
   last destroyed; a mode's shed is exactly what the next lacks, the bone's own triangles left; a figure diffed with
-  itself sheds nothing. Eyes: pending.
+  itself sheds nothing. Eyes: the armoured skeleton struck twice on the demo level (the first round's defeat floored it
+  and it was still down at the second blow: a defeat now reels). Eyes gate: the operator's to judge.
 - **The active target's rim** (`body.targetRim`, `gameworld/foes.js` `targetRimOf`; the page's `foeRim` in
   `scene/channels/controllable/index.js`; the operator: "next do active target fresnel/rim light").
   - The foe the hero targets (the foe bar's own pick: the lock's target, else the foe it faces) is lit at its edges: a
@@ -677,8 +680,8 @@ through the character designer, clips fitted to the class's timing, factions) is
   - A foe may be BORN in a state, `states: { flaming: true | { color?, elemental?, char? } }`. A state is a status the
     body starts under, carried by layer 0 and so by every mode above it: whatever draws its look on a body draws it on
     this one, whichever figure it wears now. A new state is a row (`FOE_STATES`), never a list of foes.
-  - `flaming` is the `blaze` look: the fire channel's flames on the body, lighting the world around it, carried as it
-    moves. `color` is a flame's colour, a plain word (blue, green, red, crimson, purple, orange, yellow), a colorant of
+  - `flaming` is the `blaze` look at a body's own size (a campfire from its feet about as wide as the body): the fire
+    channel's flames on the body, lighting the world around it, carried as it moves. `color` is a flame's colour, a plain word (blue, green, red, crimson, purple, orange, yellow), a colorant of
     the fire kernel's, a mix or a hex; absent, the element's own. The body chars as it burns (`char`: the share of its
     own colour it keeps, 0.35 by default), darkened on whatever body it is drawn as now and put back when the fire goes
     out.
@@ -688,8 +691,11 @@ through the character designer, clips fitted to the class's timing, factions) is
     reads the cues), and a page with no charring source carries none of the char code.
 
   Machine gate: a state's status from the clock's start, its element only when elemental; the words refused by name;
-  a body born alight is one fire it carries, charring only where asked; no char code without a charring source. Eyes:
-  pending.
+  a body born alight is one fire it carries, charring only where asked; no char code without a charring source; the
+  runtime giving the birth at the first step. Eyes: a skeleton in its element's flame and a corpse in blue, side by side
+  on the demo level (the first round burned nothing: the runtime builds an entity from its known fields, so the birth
+  now rides the body, `body.born`; the next two whited the bodies out under a fire wider than them: a body-width
+  campfire from the feet). Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 
