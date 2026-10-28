@@ -582,6 +582,33 @@ through the character designer, clips fitted to the class's timing, factions) is
   jaw; refused over flesh; the lineage at the hero door; a skeleton without the layer unchanged. Eyes: the soldier, the
   giant and the slender ravager, front, three-quarter and side, after the first round (long spiked ridges that read as
   saw blades, the arms thrust straight out) was cut to drums and a guard. Eyes gate: the operator's to judge.
+- **The undead's walks** (`undead/gaits.js`, `UNDEAD_GAIT` and `undeadGait` in `polygonizer/figure-posing.js`, the
+  `unbound` factor in `polygonizer/figure-vajra.js`; the operator: "come up with unique stick figure animation walk
+  patterns for undead. being 'hobbled' is optional", then "give skeletons exaggerated movements that are
+  unconstrained by joints").
+  - Each undead card walks a walk of its own, a word over the walk's dials: the shambler shambles (arms reaching, the
+    trunk swaying, the steps stumbling), the gaunt creeps (deep-kneed, the head thrust out), the bloated waddles on
+    a wide base, the hulk drags a dead leg, the fresh stumbles, the soldier and the knight march, the slender
+    clatters, the squat trundles, the giant lumbers and the attack skeleton scuttles. The hero carries it as its
+    `motion.walk`, under the operator's own dials.
+  - A walk may be HOBBLED: one leg stiff and swung round, its foot dragged, the trunk listing over it, its step short.
+    The walk's own odds decide on the hero's dice (the hulk always, on its club's side), or `undead.hobble: true |
+    false` says.
+  - The new dials (hobble, stiff, drag, hitch, shortStep, lurch, stagger, jerk, armReach) are walk dials the door
+    takes; absent, a walk is byte for byte the walk it was.
+  - A skeleton's walk is UNBOUND: no flesh holds its bones to a person's ranges. `unbound` lifts every joint's range
+    by a factor and lets the elbows and knees bend the wrong way; over it the arms are flung past the swing and out
+    on the back swing (`flail`), the skull lolls and turns half round (`loll`), the hips and shoulders wrench round
+    (`swivel`), the bearing knee snaps back (`snap`) and the jaw clatters (`chatter`). Without `unbound` a pose is
+    the bounded one, byte for byte.
+  - Fixed on the way: the hero door gave a new hero the calibrated walk before the undead's words were laid, so an
+    undead walked the stock walk; its words now come first.
+
+  Machine gate: the walk unchanged without the dials and the articulation without `unbound`; a hobble's knee barely
+  bending on its side alone; a skeleton's shin folding forward and its hip past the 62° cone; the door's dials; the
+  card's walk stored at mint, the hobble's override and odds; every variation's walk baked on its rig. Eyes: stick
+  figures of every walk, plain and hobbled, side and front, and the minted heroes walking, side and front (the hitch
+  softened after the first strip). Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

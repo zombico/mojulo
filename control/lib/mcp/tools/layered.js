@@ -913,10 +913,11 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   // the UNDEAD (lib/graph/undead/tiered.js): a form on the tiered body, its variation by the build, its layers
   if (spec.undead !== undefined && spec.undead !== null) {
     const U = spec.undead;
-    if (!U || typeof U !== 'object' || Array.isArray(U)) errs.push(`undead: { form: ${Object.keys(UNDEAD_FORMS).join(' | ')}, build?, seed?, layers? }`);
+    if (!U || typeof U !== 'object' || Array.isArray(U)) errs.push(`undead: { form: ${Object.keys(UNDEAD_FORMS).join(' | ')}, build?, seed?, layers?, hobble? }`);
     else {
       if (!UNDEAD_FORMS[U.form]) errs.push(`undead.form: one of ${Object.keys(UNDEAD_FORMS).join(', ')}`);
       if (U.seed !== undefined && !Number.isInteger(U.seed)) errs.push('undead.seed: an integer (the form\'s own dice)');
+      if (U.hobble !== undefined && typeof U.hobble !== 'boolean') errs.push('undead.hobble: true or false (one leg lame in its walk; absent, its walk\'s own odds on its dice)');
       for (const l of U.layers ?? []) if (!UNDEAD_LAYERS[l]) errs.push(`undead.layers: '${l}' is not a layer (${Object.keys(UNDEAD_LAYERS).join(', ')})`);
       if ((spec.form ?? 'tiered') !== 'tiered') errs.push("undead: the undead stand on the tiered body (form: 'tiered')");
     }
@@ -1569,7 +1570,9 @@ export async function createLayeredHeroHandler(input) {
   const { spec: heroSpec, vibe } = lowerVibe(Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]])), input.vibe);
   // a new hero walks with the calibrated gait unless it brings its own walk (withDefaultWalk), and the door's gaits are
   // stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
-  const hero = heroRecord(stampHero(withDefaultWalk(withRolledFace(withGrownHair(withDefaultForm(heroSpec))))));
+  // (an undead's words come before the default walk, so its own walk is the one stamped: undead/tiered.js; heroRecord lays
+  // them again, a no-op over what it laid)
+  const hero = heroRecord(stampHero(withDefaultWalk(undeadWords(withRolledFace(withGrownHair(withDefaultForm(heroSpec)))))));
   let plan;
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }

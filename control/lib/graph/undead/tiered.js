@@ -1,7 +1,7 @@
 /**
  * THE UNDEAD ON THE TIERED BODY: the dead built on the hero's own game body (polygonizer/tiered-form.js), so a corpse has
  * a person's shoulders, hips, hands and face, and is rigged, animated and dressed as any hero is. A hero carries the form
- * as `undead: { form, build, seed, layers? }` (the hero door's field; an undead lineage's sheet writes it).
+ * as `undead: { form, build, seed, layers?, hobble? }` (the hero door's field; an undead lineage's sheet writes it).
  *
  *   undeadWords(spec)         → the hero's words for its form, under the spec's own (the hero door records them at mint,
  *                               layered.js heroRecord, so an edit reaches them): bald, the body bare (no clothes but its
@@ -12,6 +12,9 @@
  *   undeadRest(hero)          → the rest the card stands in (./passes.js posture) as the hero's pose words: the hunch, the
  *                               knees, the arms held out, the head hung and cocked, the jaw slack; undeadWords lays it
  *                               on as the hero's gesture, its idle and its walk's tilt
+ *   undeadWalk(hero)          → the walk its card walks (./gaits.js) as the hero's walk dials, hobbled or not (the
+ *                               hero's `undead.hobble`, else the walk's odds on its dice); undeadWords lays it on as the
+ *                               hero's `motion.walk`, under the operator's own dials
  *
  * Absent `undead`, every function returns what it was given. FORM ONLY: the palette is one tone, decay is the dressing
  * layer's. Pure: the dice are the hero's `undead.seed`.
@@ -21,6 +24,8 @@ import { variantOf } from './index.js';
 import { posture } from './passes.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { pickBared } from './bared.js';
+import { gaitOf, walkDials, UNDEAD_GAITS } from './gaits.js';
+import { HERO_WALK } from '../polygonizer/hero-gaits.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const scaleR = (r, s) => (Array.isArray(r) ? r.map((x) => r6(x * s)) : r6(r * s));
@@ -99,8 +104,19 @@ export function undeadWords(hero) {
     gesture: hero.gesture ?? G,
     clips: { idle, ...(hero.clips ?? {}) },
     ...(hero.undead.layers?.includes('armed') && card.armed && hero.gear === undefined ? { gear: armedGear(card.armed, undeadPicks(hero).lost) } : {}),
-    ...(rest.lean > 0 ? { motion: { ...(hero.motion ?? {}), walk: { tilt: Math.min(35, rest.lean), ...(hero.motion?.walk && typeof hero.motion.walk === 'object' ? hero.motion.walk : {}) } } } : {}),
+    motion: { ...(hero.motion ?? {}), walk: { ...undeadWalk(hero, card), ...(rest.lean > 0 ? { tilt: Math.min(35, rest.lean) } : {}), ...(hero.motion?.walk && typeof hero.motion.walk === 'object' ? hero.motion.walk : {}) } },
   };
+}
+
+/** the walk the card walks (./gaits.js), as the hero's walk dials: its stride the hero's own × the walk's share; HOBBLED
+ * when the hero's `undead.hobble` says so, else by the walk's own odds on the hero's dice, on the side its heavy arm
+ * hangs (a giant's corpse drags the leg under its club), else a seeded side */
+export function undeadWalk(hero, card = undeadCard(hero)) {
+  if (!card) return {};
+  const word = gaitOf(card, hero.undead.layers ?? []), rand = mulberry32(((hero.undead.seed ?? 1) >>> 0) ^ 0x2545f491);
+  const roll = rand(), side = card.heavy ? (card.heavy.side === 'L' ? -1 : 1) : rand() < 0.5 ? -1 : 1;
+  const hobbled = typeof hero.undead.hobble === 'boolean' ? hero.undead.hobble : roll < (UNDEAD_GAITS[word].hobble?.odds ?? 0);
+  return walkDials(word, { hobbled, side, stride: HERO_WALK.strideLength });
 }
 
 // a rings station's points scaled toward a centre (its own, or the trunk's axis at its height)
