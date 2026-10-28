@@ -42,6 +42,8 @@ import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishE
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
 import { railOf, allowanceOf, rankOf, layWithin } from '../era/compose-purpose.js';
+import { placeHomeWindows } from './home-windows.js';
+import { windowLaws } from './window-laws.js';
 import { FURNITURE_LANGUAGES, FURNITURE_LANGUAGE_NAMES, DEFAULT_LANGUAGE, COMPOSED_ROLES, composeForRole } from '../furnishings/languages.js';
 import { FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
@@ -201,6 +203,7 @@ export function floorplanExteriorCameras(fp, zTop, _opts = {}) {
 }
 
 const Q = 1e-3;
+const OBSCURED_GLASS = '#d9dfe0';   // frosted: a bathroom's pane
 const ql = (v) => Math.round(v / Q);            // line/coord bucket key
 const eps = 1e-6;
 
@@ -357,7 +360,9 @@ export function placeOpenings(graph, doors = [], opts = {}) {
     }
   }
   if (o.entryDoor) placeEntryDoor(graph, o);
-  if (o.windows) {
+  // a home's windows (houseLook 2, home-windows.js): placed by the facade's grid and what each room is for
+  if (o.windows && (o.houseLook ?? 1) >= 2) placeHomeWindows(graph, o, { runAtPoint, tol: matchTol, shared: o._homeWindows ?? null });
+  else if (o.windows) {
     // WINDOWS scale with the ROOM (small rooms → small windows, big rooms → bigger windows):
     // iterate cells, and on each EXTERIOR wall place a window sized to that wall's length,
     // with a long wall getting a ROW of them. So a bathroom gets one small window and a great
@@ -1288,54 +1293,60 @@ function openingAssemblyFaces(run, op, baseZ, o) {
   if (isWindow) {
     bar(a, b, z0, z0 + fw);               // sill board
     const ga = a + fw, gb = b - fw, gz0 = z0 + fw, gz1 = z1 - fw;
-    faces.push(planeQuad(run, ga, gb, gz0, gz1,
-      o.glassTint || FLOORPLAN_DEFAULTS.glassTint, { water: true, doubleSided: true }));   // glass behind
+    // (a bathroom's glass is obscured, home-windows.js: a pale frosted pane, no reflection to see through)
+    faces.push(op.obscured ? planeQuad(run, ga, gb, gz0, gz1, OBSCURED_GLASS, { doubleSided: true })
+      : planeQuad(run, ga, gb, gz0, gz1, o.glassTint || FLOORPLAN_DEFAULTS.glassTint, { water: true, doubleSided: true }));   // glass behind
     // MUNTINS — the divided-light pattern (a window 'concept'), proud of the glass. Style is
     // explicit (op.style / o.windowStyle) or defaulted from the facade: siding→colonial grid,
     // brick→2-over-2 double-hung, tofu→clean picture pane.
     const style = winStyle;
-    // (a home's muntins, houseLook 2, are a home's: slim bars, not the frame's own width)
-    const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : (o.houseLook ?? 1) >= 2 ? 0.5 : 0.8);
-    const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
-    const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
-    if (style === 'casement' || (style === 'plain' && W > (o.windowMullionAt ?? FLOORPLAN_DEFAULTS.windowMullionAt))) {
-      vbar((ga + gb) / 2);                                              // paired casement / 2-sash
-    } else if (style === 'double-hung') {
-      hbar((gz0 + gz1) / 2); vbar((ga + gb) / 2);                       // 2-over-2: meeting rail + centre muntin
-    } else if (style === 'colonial') {
-      const cols = Math.max(2, Math.round(W / 1.3)), rows = Math.max(2, Math.round(Hh / 1.7));
-      for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // divided-light grid (lite count scales with size)
-      for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
-    } else if (style === 'transom') {
-      hbar(gz1 - Math.min(0.8, Hh * 0.3));                              // a transom lite over the main sash
-    } else if (style === 'french') {
-      vbar((ga + gb) / 2);                                             // paired french doors: centre mullion...
-      const lites = Math.max(3, Math.round(Hh / 1.5));                 // ...with a tall stack of divided lights
-      for (let j = 1; j < lites; j += 1) hbar(gz0 + (j * Hh) / lites);
-    } else if (style === 'german') {
-      hbar(gz1 - Math.min(1.3, Hh * 0.26));                            // european tilt-turn: a top transom (Oberlicht)...
-      vbar((ga + gb) / 2);                                            // ...over two large clean sashes
-    } else if (style === 'crittall') {
-      const cols = Math.max(2, Math.round(W / 0.9)), rows = Math.max(3, Math.round(Hh / 0.75));
-      for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // a fine steel grid of small lights
-      for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
-    } else if (style === 'prairie') {
-      const m = Math.min(0.45, W * 0.15, Hh * 0.15);                    // narrow border lights round a clear centre
-      vbar(ga + m); vbar(gb - m); hbar(gz0 + m); hbar(gz1 - m);
-    } else if (style === 'cottage') {
-      const split = gz0 + Hh * 0.66;                                    // the top third divided, the lower sash clear
-      hbar(split);
-      const cols = Math.max(2, Math.round(W / 1.1));
-      for (let i = 1; i < cols; i += 1) bar(ga + (i * W) / cols - mt / 2, ga + (i * W) / cols + mt / 2, split, gz1);
-    } else if (style === 'slider') {
-      const mid = (ga + gb) / 2;                                        // two sashes sliding past: the meeting stiles side by side
-      vbar(mid - mt * 0.7); vbar(mid + mt * 0.7);
-    } else if (style === 'six-over-six') {
-      hbar((gz0 + gz1) / 2);                                            // two sashes, each three across and two up
-      for (let i = 1; i < 3; i += 1) vbar(ga + (i * W) / 3);
-      hbar(gz0 + Hh / 4); hbar(gz0 + (3 * Hh) / 4);
-    }
-    // 'picture' → no muntins (a single clean pane)
+    // the divided lights of one unit across [ga, gb]; a mulled pair (home-windows.js) is two units either side of a
+    // mullion the frame's width
+    const lites = (ga, gb) => {
+      // (a home's muntins, houseLook 2, are a home's: slim bars, not the frame's own width)
+      const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : (o.houseLook ?? 1) >= 2 ? 0.5 : 0.8);
+      const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
+      const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
+      if (style === 'casement' || (style === 'plain' && W > (o.windowMullionAt ?? FLOORPLAN_DEFAULTS.windowMullionAt))) {
+        vbar((ga + gb) / 2);                                              // paired casement / 2-sash
+      } else if (style === 'double-hung') {
+        hbar((gz0 + gz1) / 2); vbar((ga + gb) / 2);                       // 2-over-2: meeting rail + centre muntin
+      } else if (style === 'colonial') {
+        const cols = Math.max(2, Math.round(W / 1.3)), rows = Math.max(2, Math.round(Hh / 1.7));
+        for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // divided-light grid (lite count scales with size)
+        for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
+      } else if (style === 'transom') {
+        hbar(gz1 - Math.min(0.8, Hh * 0.3));                              // a transom lite over the main sash
+      } else if (style === 'french') {
+        vbar((ga + gb) / 2);                                             // paired french doors: centre mullion...
+        const lites = Math.max(3, Math.round(Hh / 1.5));                 // ...with a tall stack of divided lights
+        for (let j = 1; j < lites; j += 1) hbar(gz0 + (j * Hh) / lites);
+      } else if (style === 'german') {
+        hbar(gz1 - Math.min(1.3, Hh * 0.26));                            // european tilt-turn: a top transom (Oberlicht)...
+        vbar((ga + gb) / 2);                                            // ...over two large clean sashes
+      } else if (style === 'crittall') {
+        const cols = Math.max(2, Math.round(W / 0.9)), rows = Math.max(3, Math.round(Hh / 0.75));
+        for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // a fine steel grid of small lights
+        for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
+      } else if (style === 'prairie') {
+        const m = Math.min(0.45, W * 0.15, Hh * 0.15);                    // narrow border lights round a clear centre
+        vbar(ga + m); vbar(gb - m); hbar(gz0 + m); hbar(gz1 - m);
+      } else if (style === 'cottage') {
+        const split = gz0 + Hh * 0.66;                                    // the top third divided, the lower sash clear
+        hbar(split);
+        const cols = Math.max(2, Math.round(W / 1.1));
+        for (let i = 1; i < cols; i += 1) bar(ga + (i * W) / cols - mt / 2, ga + (i * W) / cols + mt / 2, split, gz1);
+      } else if (style === 'slider') {
+        const mid = (ga + gb) / 2;                                        // two sashes sliding past: the meeting stiles side by side
+        vbar(mid - mt * 0.7); vbar(mid + mt * 0.7);
+      } else if (style === 'six-over-six') {
+        hbar((gz0 + gz1) / 2);                                            // two sashes, each three across and two up
+        for (let i = 1; i < 3; i += 1) vbar(ga + (i * W) / 3);
+        hbar(gz0 + Hh / 4); hbar(gz0 + (3 * Hh) / 4);
+      }
+      // 'picture' → no muntins (a single clean pane)
+    };
+    if (op.pair) { const mid = (ga + gb) / 2; bar(mid - fw / 2, mid + fw / 2, gz0, gz1); lites(ga, mid - fw / 2); lites(mid + fw / 2, gb); } else lites(ga, gb);
   } else {
     if (op.double) { const mid = (a + b) / 2; bar(mid - fw / 2, mid + fw / 2, z0, z1); }   // paired door: meeting mullion
     // leaf per opening KIND: cased = open archway (no leaf); sliding = panel slid along the
@@ -2883,6 +2894,8 @@ export function structurizeHouse(input = {}, opts = {}) {
   const faces = [];
   const levels = [];
   let footprint = null;
+  // a home's windows (houseLook 2): one grid per facade and the axes glazed below, shared up the stack
+  const homeShared = o.windows && (o.houseLook ?? 1) >= 2 ? { axes: new Map(), glazed: new Set(), compass: null } : null;
   for (const r of resolved) {
     const index = r.index;
     if (exterior && index < 0) continue;   // hide the basement in the exterior read
@@ -2902,6 +2915,7 @@ export function structurizeHouse(input = {}, opts = {}) {
         ceilings: (exterior && index === maxIndex) ? true : (r.ceilings ?? o.ceilings),
         ...(framedView ? { _framed: true } : {}),
         ...(o.fitOut ? { _levelIndex: index } : {}),   // the storey a fit-out names (fitOutOf)
+        ...(homeShared ? { _homeWindows: homeShared } : {}),
       },
     );
     faces.push(...s.faces);
@@ -3005,7 +3019,9 @@ export function structurizeHouse(input = {}, opts = {}) {
     const repeats = [...roofRepeats, ...fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }))];
     return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
   }
-  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
+  // a home's windows read as an architect reads the drawings (window-laws.js): absent houseLook 2, no key
+  const windowsRead = homeShared ? { compass: homeShared.compass, ...windowLaws(levels) } : null;
+  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}), ...(windowsRead ? { windows: windowsRead } : {}) };
 }
 
 /** Cameras for a multi-level house (pulls back to take in the whole stack — and lot). */

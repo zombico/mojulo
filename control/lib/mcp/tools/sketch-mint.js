@@ -11,6 +11,7 @@
 
 
 import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
+import { compassOf } from '@/lib/graph/polygonizer/home-windows';
 import { stampSolid } from '@/lib/graph/era/solid';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
@@ -482,6 +483,8 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // grid; stamped, so every house minted before keeps its windows
     if (finalized.houseLook === undefined) finalized = { ...finalized, houseLook: 2 };
     readLook(finalized.houseLook);
+    // a house's own north (home-windows.js): a malformed compass refuses here, naming what it is
+    if (finalized.compass !== undefined) compassOf({ compass: finalized.compass });
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
     // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out

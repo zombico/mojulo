@@ -136,7 +136,7 @@ function objectsOf(collected) {
  * readStructure(manifest) → the building as tagged data:
  * { units, title, footprint, storeys, rooms, elements: { walls, wallTypes, doors, windows, windowTypes, slabs, stairs,
  *   roof }, objects: { pieces, types }, schedules, grade, design?, construction? (with frames and memberTypes),
- *   wiring?, drainage?, lot? }
+ *   wiring?, drainage?, lot?, windows? (a home's: its compass and the window laws) }
  * A commercial program (store, restaurant, mall) adds `occupancy` and `elements.verticals`, and has no `program`,
  * `dwelling`, roof, site or construction. Null for a manifest the book does not read.
  */
@@ -367,6 +367,8 @@ export function readStructure(m = {}) {
     },
     grade,
     ...(house.design ? { design: house.design } : {}),
+    // a home's windows (houseLook 2): its north and the window laws (polygonizer/window-laws.js)
+    ...(house.windows ? { windows: house.windows } : {}),
     // the house's design rules as the recipe sets them (floorplan-design.js): the passage, the stair clearance, the waivers
     rules: designRules(m.design, m.framing ? framingOf(m.framing).tradition : null),
     ...(house.lot ? { lot: house.lot } : {}),

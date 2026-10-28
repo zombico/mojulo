@@ -91,5 +91,7 @@ describe('what a house is for, stamped at mint', () => {
     expect((await stored({})).houseLook).toBe(2);
     expect((await stored({ houseLook: 1 })).houseLook).toBe(1);
     await expect(mint({ houseLook: 7 })).rejects.toThrow(/houseLook: one of 1, 2/);
+    expect((await stored({ compass: { north: 30 } })).compass).toEqual({ north: 30 });
+    await expect(mint({ compass: { north: 'up' } })).rejects.toThrow(/compass.north/);
   });
 });
