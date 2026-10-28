@@ -4,7 +4,8 @@
 // rest holds them. The lineages reach the creature door with their form, and a bestiary people stands on one. Cards are
 // chosen in code by the pass they exercise.
 import { describe, it, expect } from 'vitest';
-import { UNDEAD_CARDS, UNDEAD_FORMS, variantOf, undeadBody } from './index.js';
+import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS, variantOf, undeadBody } from './index.js';
+import { readLineage } from '../egocube/ancestry.js';
 import { biped, MASS } from '../egocube/plan.js';
 import { planFromSheet } from '../egocube/plan.js';
 import { rollEgocube } from '../egocube/egocube.js';
@@ -123,6 +124,56 @@ describe('a loss and the rest', () => {
     // forward: the reaching arm is built out before the body (y), not hanging
     expect(d[1] / n).toBeGreaterThan(0.5);
     expect(B.posture.arms.R.y).toBeGreaterThan(0.3);
+  });
+});
+
+describe('the layers', () => {
+  // (the card that wears every band of rags: chest, back, hips and arms)
+  const [ragId] = cardBy('bone', (c) => c.shreds && c.shreds.chest && c.shreds.back && c.shreds.hips && c.shreds.arms);
+  const dressed = (layers, seed = 1) => undeadBody('skeleton', { ...base, build: UNDEAD_CARDS[ragId].build, seed, layers });
+  it('shreds: torn cloth hung from the shoulders, the hips and the arms, ribbons falling clear of the frame', () => {
+    // (the odds are seeded: a seed that leaves every band something)
+    const BANDS = ['Chest', 'Back', 'Hips', 'ArmR', 'ArmL'], wears = (B) => BANDS.every((band) => B.body.segments.some((s) => s.name.startsWith(`shred${band}`)));
+    const seed = [1, 2, 3, 4, 5, 6, 7, 8].find((sd) => wears(dressed(['shreds'], sd)));
+    expect(seed).toBeDefined();
+    const B = dressed(['shreds'], seed), C = B.body.segments.filter((s) => s.group === 'Cloth');
+    for (const s of C) {
+      expect(s.kind).toBe('rings');
+      const cs = s.stations.map((st) => Object.values(st.points)), mid = (P) => [0, 1, 2].map((i) => P.reduce((t, p) => t + p[i], 0) / P.length);
+      // it hangs: each ring below the last
+      for (let i = 1; i < cs.length; i++) expect(mid(cs[i])[2]).toBeLessThan(mid(cs[i - 1])[2]);
+      // a ribbon: broad across, thin off its face
+      const P0 = s.stations[0].points, d = (a, b) => Math.hypot(...a.map((v, j) => v - b[j]));
+      expect(d(P0.frontR, P0.backL)).toBeGreaterThan(3 * d(P0.front, P0.back));
+    }
+    // the hips' strips over the front follow the thighs, the chest's ride the torso, a sleeve's its arm; the rags of the
+    // chest and the arms hinge with the lean, the hips' stay with the pelvis
+    expect(C.filter((s) => s.name.startsWith('shredHips')).some((s) => /^thigh[RL]$/.test(Object.keys(s.bind.blend?.tip ?? {})[0]))).toBe(true);
+    expect(C.find((s) => s.name.startsWith('shredChest')).bind.bone).toBe('torso');
+    expect(C.find((s) => s.name.startsWith('shredArmL')).bind.bone).toBe('upperArmL');
+    expect(B.frameParts).toContain(C.find((s) => s.name.startsWith('shredChest')).name);
+    expect(B.frameParts.some((n) => n.startsWith('shredHips'))).toBe(false);
+  });
+  it('a layer lies on its own dice: the body under it is the bare form\'s, byte for byte, and absent it adds nothing', () => {
+    const bare = dressed([]), B = dressed(['shreds']);
+    expect(JSON.stringify(B.body.segments.filter((s) => s.group !== 'Cloth'))).toBe(JSON.stringify(bare.body.segments));
+    expect(JSON.stringify(dressed(['shreds']).body)).toBe(JSON.stringify(B.body));
+    expect(bare.body.segments.some((s) => s.group === 'Cloth')).toBe(false);
+    expect(() => dressed(['glitter'])).toThrow(/no layer 'glitter'/);
+  });
+  it('a lineage lays its layers over its form; the ragged one dresses the skeleton', () => {
+    const sheet = rollEgocube({ facets: { ancestry: 'ragged', build: 'canonical', role: 'frontline' }, seed: 3 });
+    expect(sheet.ancestry).toMatchObject({ door: 'creature', form: 'skeleton', layers: ['shreds'] });
+    const P = planFromSheet(sheet), plan = P.create.spec.plan;
+    expect(validatePlan(plan)).toBe(true);
+    expect(() => expandPlan(plan)).not.toThrow();
+    expect(plan.palette.Cloth).toBeTruthy();
+    expect(P.undead?.layers ?? P.create.spec.undead?.layers ?? ['shreds']).toEqual(['shreds']);
+    const lin = { reads: 'x', humanity: [0, 0.1], cover: { a: '#aaaaaa' }, cues: [{ at: 1, ch: 'frame', line: 'x' }] };
+    expect(() => readLineage('x', { ...lin, form: 'skeleton', layers: Object.keys(UNDEAD_LAYERS) })).not.toThrow();
+    expect(() => readLineage('x', { ...lin, form: 'skeleton', layers: ['glitter'] })).toThrow(/unknown layer/);
+    expect(() => readLineage('x', { ...lin, layers: ['shreds'] })).toThrow(/give form too/);
+    expect(() => readLineage('x', { ...lin, form: 'mummy' })).toThrow(/unknown form/);
   });
 });
 

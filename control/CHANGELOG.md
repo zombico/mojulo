@@ -352,6 +352,31 @@ through the character designer, clips fitted to the class's timing, factions) is
   rig's head bone and the skull read the same point. Machine gate: the neck's length against the body's height,
   under 0.7 of the living biped's. Eyes: the soldier and the giant from three views. Eyes gate: the operator's to
   judge.
+- **Undead layers, and the first: shreds of cloth** (`undead/shreds.js`, `UNDEAD_LAYERS` in `undead/cards.js`; the
+  operator: "add variations where there's shreds of cloth hanging from it"). A lineage can now lay layers over its
+  form's card (`layers`). The new `ragged` lineage is the skeleton with `['shreds']`, so a bestiary asks for
+  `{ people: 'ragged' }`. A custom lineage may combine any layers over any form; an unknown form or layer, or
+  layers without a form, is refused.
+  - Shreds are what the card's clothes left, as torn cloth ribbons (`rings` parts, broad across the body and thin
+    off it, facing outward at any angle). They hang from bands round the shoulders front and back, the hip crest
+    and the upper arms. Every strip of a band is a piece of its hem, wide enough at the top to overlap its
+    neighbours, so the band reads as one torn cloth. With the card's odds a strip runs long below it, falling
+    straight clear of the widest girth under the band and tapering to a torn end. A sleeve's rags hang from the arm
+    where the rest holds it.
+  - Each card says what it wore (`shreds { chest, back, hips, arms, length }`): the soldier a tabard and belt, the
+    slender skeleton a shroud, the squat one a loincloth, the giant a loincloth and a few rags, the knight a long
+    surcoat. The zombies' cards carry specs too, for a lineage that dresses them.
+  - Binding: the hip strips over the front and sides follow their thigh down their length; the chest's ride the
+    torso and the sleeves their upper arm. The chest's and the arms' hinge with the lean; the hips' stay with the
+    pelvis.
+  - The rags are their own group (`Cloth`), a dull shade under the bone: form only, one tone.
+  - A layer rolls on its own seeded stream: the body under it is the bare form's, byte for byte, and with no layer
+    nothing is added.
+
+  Machine gate: every band hung (on a seed whose odds leave each something), each strip falling ring below ring,
+  ribbon-flat, its binds and its place in the lean; the bare body unchanged under the layer; the lineage's sheet
+  carrying form and layers and its plan building; the lineage validation. Eyes: the soldier, the knight and the
+  squat ragged from three views. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

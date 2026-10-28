@@ -14,17 +14,19 @@
  *
  *   UNDEAD_FORMS, UNDEAD_CARDS     the forms and their cards
  *   variantOf(form, build)         → the card id a build rolls (canonical's when the form has none for it)
- *   undeadBody(form, { build, pole, k, g, chest, hips, seed, biped })   → { id, card, body, lost, frameParts, posture,
- *                                  head }: the biped built and passed (`biped` handed in by the creature door: this
- *                                  module never imports it back)
+ *   undeadBody(form, { build, pole, k, g, chest, hips, seed, biped, layers })   → { id, card, body, lost, frameParts,
+ *                                  posture, head, skull, layers }: the biped built and passed (`biped` handed in by the
+ *                                  creature door: this module never imports it back), then the lineage's LAYERS laid
+ *                                  over it (UNDEAD_LAYERS: `shreds` the card's clothes in rags), each on its own dice
  *
  * Pure and deterministic: its dice are the sheet's seed.
  */
-import { UNDEAD_CARDS, UNDEAD_FORMS } from './cards.js';
+import { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS } from './cards.js';
+import { shreds } from './shreds.js';
 import { fleshPasses, bonePasses, posture, poseArms } from './passes.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
-export { UNDEAD_CARDS, UNDEAD_FORMS };
+export { UNDEAD_CARDS, UNDEAD_FORMS, UNDEAD_LAYERS };
 
 /** the head each form wears (creature-heads/derive.js) */
 export const UNDEAD_HEADS = Object.freeze({ zombie: 'gaunt', skeleton: 'skull' });
@@ -35,13 +37,21 @@ export function variantOf(form, build) {
   return F.variants.find((id) => UNDEAD_CARDS[id].build === build) ?? F.variants.find((id) => UNDEAD_CARDS[id].build === 'canonical');
 }
 
-export function undeadBody(form, { build = 'canonical', pole = 'male', k, g, chest, hips, seed = 1, biped }) {
+export function undeadBody(form, { build = 'canonical', pole = 'male', k, g, chest, hips, seed = 1, biped, layers = [] }) {
+  for (const l of layers) if (!UNDEAD_LAYERS[l]) throw new Error(`undead: no layer '${l}' (layers: ${Object.keys(UNDEAD_LAYERS).join(', ')})`);
   const id = variantOf(form, build), card = UNDEAD_CARDS[id], rand = mulberry32((seed >>> 0) ^ 0x9e3779b9);
   // (a skeleton's hands: four fingers, no claws; a zombie's the same)
   const base = biped({ k, g, legs: 'plantigrade', fingers: 4, pole, build });
   const out = card.form === 'bone' ? bonePasses(base, card, { k, g, chest, hips, rand }) : fleshPasses(base, card, { k, g, rand });
   // (the arms built where the rest holds them: ./passes.js poseArms)
   const P = poseArms(out.body, posture(card, rand));
+  // the layers, over the posed body (a sleeve's rags hang from the arm where it is held), each on its own stream so a
+  // layer never moves the form's own rolls
+  const frameParts = [...(out.frameParts ?? [])];
+  if (layers.includes('shreds')) {
+    const W = shreds(out.body, card.shreds ?? { chest: 0.5, back: 0.5, hips: 0.6, arms: 0.4, length: 1 }, { k, rand: mulberry32((seed >>> 0) ^ 0x5bd1e995) });
+    out.body.segments.push(...W.segments); frameParts.push(...W.chest, ...W.arms);
+  }
   // (a skeleton's skull is its own bones, ./skull.js: it wears no head card)
-  return { id, card, body: out.body, lost: out.lost ?? null, frameParts: out.frameParts ?? [], posture: P, head: out.skull ? null : UNDEAD_HEADS[form], skull: out.skull ?? null };
+  return { id, card, body: out.body, lost: out.lost ?? null, frameParts, posture: P, head: out.skull ? null : UNDEAD_HEADS[form], skull: out.skull ?? null, layers: [...layers] };
 }

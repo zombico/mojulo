@@ -19,6 +19,7 @@
  */
 import { CHANNEL_IDS, readDerive } from './channels.js';
 import { BUILDS } from './facets.js';
+import { UNDEAD_FORMS, UNDEAD_LAYERS } from '../undead/cards.js';
 
 /** The Monk Skin Tone scale, lightest (1) to deepest (10). */
 export const MST = Object.freeze(['#f6ede4', '#f3e7db', '#f7ead0', '#eadaba', '#d7bd96', '#a07e56', '#825c43', '#604134', '#3a312a', '#292420']);
@@ -200,6 +201,15 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
     ],
   },
+  // a form with LAYERS (lib/graph/undead UNDEAD_LAYERS) laid over its card: the skeleton in what is left of its clothes
+  ragged: {
+    reads: 'a skeleton in rags', humanity: [0, 0.05], form: 'skeleton', layers: ['shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton, and its clothes in torn strips from the shoulders, the hips and the arms (undead/shreds.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bare bone hung with the rags of its clothes' },
+      { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
+    ],
+  },
 });
 
 export function ancestryIds(custom = {}) { return [...HUMAN_IDS, ...Object.keys(LINEAGES), ...Object.keys(custom)]; }
@@ -218,6 +228,8 @@ export function readLineage(id, lin) {
   if (lin.skin && !(lin.skin[0] >= 1 && lin.skin[1] <= 10 && lin.skin[0] <= lin.skin[1])) throw new Error(`${at}: skin is an MST span within 1 … 10`);
   if (lin.cover) for (const [w, hex] of Object.entries(lin.cover)) if (!HEX.test(hex)) throw new Error(`${at}: cover '${w}' is a #rrggbb colour`);
   for (const b of lin.builds || []) if (!BUILDS[b]) throw new Error(`${at}: unknown build '${b}' (known: ${Object.keys(BUILDS).join(', ')})`);
+  if (lin.form !== undefined && !UNDEAD_FORMS[lin.form]) throw new Error(`${at}: unknown form '${lin.form}' (known: ${Object.keys(UNDEAD_FORMS).join(', ')})`);
+  if (lin.layers !== undefined) { if (!lin.form) throw new Error(`${at}: layers lie over a form; give form too`); for (const l of lin.layers) if (!UNDEAD_LAYERS[l]) throw new Error(`${at}: unknown layer '${l}' (known: ${Object.keys(UNDEAD_LAYERS).join(', ')})`); }
   if (!Array.isArray(lin.cues) || !lin.cues.length) throw new Error(`${at}: cues is a list`);
   for (const c of lin.cues) {
     if (!CHANNEL_IDS.includes(c.ch)) throw new Error(`${at}: unknown channel '${c.ch}' (known: ${CHANNEL_IDS.join(', ')})`);
@@ -284,5 +296,5 @@ export function resolveAncestry(id, rand, h, custom = {}) {
     ? [`${lin.reads} on the hero door: ${lin.built}`] : [];
   // (a form, the undead's: the body is its library's, so the creature door whatever the roll)
   if (lin.form) door = 'creature';
-  return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints, ...(lin.form ? { form: lin.form } : {}) };
+  return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints, ...(lin.form ? { form: lin.form } : {}), ...(lin.layers?.length ? { layers: [...lin.layers] } : {}) };
 }
