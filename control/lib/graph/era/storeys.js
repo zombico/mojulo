@@ -428,6 +428,8 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
       ...(s > 0 ? { camera: undefined } : {}),
       // (a composed building's rooms keep the roles the whole building gave them, each focus in its storey's own frame)
       ...(plan.compose ? { _composeRoles: plan.compose.roles.filter((r) => mine.has(r.room)).map((r) => ({ ...r, focus: [r.focus[0], r.focus[1], r5(r.focus[2] - st.z0)] })) } : {}),
+      // (and the things the whole building laid, a storey taking its own rooms')
+      ...(plan.props ? { props: plan.props } : {}),
     };
     if (sub.doors && !sub.doors.length) delete sub.doors;
     if (sub.items && !sub.items.length) delete sub.items;
@@ -437,7 +439,7 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
   const tag = (s) => (id) => (s === 0 || id == null ? id : `${id}@${s}`);
   const g = parts[0].P;
   // (a composed building's plot and report, every storey's, the laws read across them all: compose-report.js)
-  const composed = g.compose ? { ...g.compose, roles: plan.compose.roles, plot: parts.flatMap(({ P: Q }) => Q.compose?.plot ?? []),
+  const composed = g.compose ? { ...g.compose, roles: plan.compose.roles, ...(plan.compose.dress ? { dress: plan.compose.dress } : {}), plot: parts.flatMap(({ P: Q }) => Q.compose?.plot ?? []),
     ...(parts.some(({ P: Q }) => Q.compose?.report) ? { report: mergeReports(parts.map(({ P: Q }) => Q.compose?.report).filter(Boolean)) } : {}) } : null;
   const faces = parts.flatMap(({ s, z, P: Q }) => Q.faces.map((f) => {
     const q = { ...f, corners: f.corners.map((c) => P([c[0], c[1], c[2] + z])) };

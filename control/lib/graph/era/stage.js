@@ -46,6 +46,7 @@ import { composeForBuild, rolesPinned, beatsPinned } from './compose.js';
 import { roomRoles } from './compose-roles.js';
 import { plotLights, keyTuner } from './compose-plot.js';
 import { composeReport } from './compose-report.js';
+import { PIECES, layProps, propFaces, dressLaws } from './compose-dress.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -478,10 +479,25 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
+  // a composed interior's things (compose-dress.js): the recipe's own (`props`, laid at authoring time and edited since),
+  // else laid now; `props: false` none. A storey takes the ones in its rooms
+  if (composed || m.props !== undefined) {
+    if (m.props !== undefined && m.props !== false && !Array.isArray(m.props)) throw new Error('stage: props is a list of items ([{ id, kind, room, at, facing }]), or false for none');
+    const mine = new Set(rooms.map((r) => r.id)), list = Array.isArray(m.props) ? m.props : m.props === false || !composed ? [] : layProps(planned);
+    for (const [i, it] of list.entries()) {
+      if (!it || typeof it.id !== 'string' || !PIECES[it.kind]) throw new Error(`stage: props[${i}] is { id, kind: ${Object.keys(PIECES).join(' | ')}, room, at: [x, y], facing }`);
+      if (!m._storey && !mine.has(it.room)) throw new Error(`stage: props[${i}] (${it.id}) stands in '${it.room}', no room of this stage`);
+      if (!Array.isArray(it.at) || it.at.length !== 2 || !['+x', '-x', '+y', '-y'].includes(it.facing)) throw new Error(`stage: props[${i}] (${it.id}) needs at: [x, y] and facing: +x | -x | +y | -y`);
+      if (it.scale !== undefined && !(typeof it.scale === 'number' && it.scale >= 0.25 && it.scale <= 4)) throw new Error(`stage: props[${i}] (${it.id}).scale is 0.25 to 4`);
+    }
+    planned.props = list.filter((it) => mine.has(it.room));
+    if (planned.compose) planned.compose.dress = dressLaws(planned, planned.props);
+  }
+  return planned;
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
 function readShadows(v0) {
@@ -737,11 +753,14 @@ export function buildStageGeometry(plan) {
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
   // a storey's stairs (storeys.js): its ground cut round its flights and holes, the flights, wells and rails laid in
+  // a composed room's things (compose-dress.js): each named by its id on its faces, an anchor each
+  const props = plan.props && plan.props.length ? propFaces(plan, plan.props, surf) : null;
+  if (props) out.push(...props.faces);
   const faces = plan.cuts ? storeyCut(out, plan.cuts) : out;
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)
   const lit = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
-  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}) };
+  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}), ...(props ? { propAnchors: props.anchors } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -1165,6 +1184,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(taken ? taken.items.map((it) => ({ id: it.id, kind: 'item', at: it.at, r: it.r, node: `item:${it.id}`, box: { min: P([it.at[0] - 0.31, it.at[1] - 0.31, 0]), max: P([it.at[0] + 0.31, it.at[1] + 0.31, it.at[2] + 0.4]) }, solid: true })) : []),
     ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
     ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
+    ...(geom.propAnchors || []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky

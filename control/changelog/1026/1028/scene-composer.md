@@ -55,3 +55,20 @@ stored in the recipe as numbers. Built so far:
   suite in gen-7: even reaches its ratios, drama within a tenth, noir about half (3.4 and 4.8 of 6.4 and 8): one key does
   not make a spot eight times its room without burning it out. On screen the doorway over the walls reads 1.03, 1.33 and
   1.52 from even to noir (0.93, 1.08 and 1.31 before the keys were tuned).
+- **The dressing** (`era/compose-dress.js`, `era/compose-lay.js`): a composed room's things, laid as a sane default the
+  operator then changes. Each is an item in the recipe (`props: [{ id, kind, room, at, facing, level?, scale? }]`), laid
+  once at authoring time (`create_sketch` / `update_sketch`) and read by the build; its id is its place
+  (`hall/+y/crate-2`, `hall/focus/generator`), and update_sketch's own patch edits it by id (`remove`, `set`, `add` into
+  `props`: manifest-patch.js learned the list), the room keeping the rest where they stood. `props: 'reroll'` lays them
+  again, `props: false` lays none. A set piece where a role names one (a register's great object at a landmark's focus,
+  scaled with its room; a find in a pocket, a prize at the goal, a sign over the way in), clusters of the dressing's
+  pieces along the walls by role and mood (a passage left clear, a noir pocket cluttered), stacked where a piece stacks,
+  and never in a keep-out: a doorway's approach, a stair with its foot and head, a doorway's sightline to its room's
+  focus (a set piece the approach takes moves to the nearest clear place). Pieces are rows (`PIECES`, a set per
+  dressing: crates, ammo cans, drums and tool chests; racking and carts; benches, a fume hood and instrument racks;
+  desks, filing and lockers), built of boxes and prisms painted with the kit's own surfaces, so they take the composed
+  palette. Each thing is named on its faces, has a collider and an anchor (a `prop` of its piece's class), so
+  breakability takes it by the game's degree: the words name it (`firefight` cover, `demolition` world; the recipe's
+  `destruction` where it sets none, `compose.destruction` pinned) and an item's own `breakable` wins. The dressing's laws
+  (keep-outs, sightlines, the count per room) on the stage's `compose.dress`. Seen (`scripts/spikes/bay/dress.mjs`): a
+  hangar, a warehouse, a lab and an office, every law holding, no page errors.

@@ -8,7 +8,8 @@
  *   REGISTER_WORDS       { register: [words] }: what names a whole register (a hangar, a warehouse, a lab, an office)
  *   readCompose(c, base) → { resolved: { construction, palette, plot, dressing }, said: { axis: why } }   pure
  *     c     '<words>' | { words?, register?, mood?, roles?, construction?, palette?, plot?, dressing? }: a named axis is
- *           pinned, a named register is the base; the mood (compose-plot.js: even, drama, noir) read too, the darkest heard
+ *           pinned, a named register is the base; the mood (compose-plot.js: even, drama, noir) read too, the darkest heard;
+ *           how much breaks (`destruction`, breakability.js's degrees) the most the words let, the recipe's where it sets none
  *   resolveCompose(manifest) → AUTHORING TIME (create_sketch / update_sketch): a stage's `compose` read and stored as
  *           { intent, resolved, said }; a stored one comes back as it was, so the build never re-decides
  *   composeForBuild(m)   → the resolved axes: the stored ones, else read now (a test, a direct assemble)
@@ -19,6 +20,7 @@
  */
 import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS } from './style/bay-axes.js';
 import { MOODS, MOOD_IDS, BEAT_IDS } from './compose-plot.js';
+import { DEGREE_IDS } from '../playscape/destruct/breakability.js';
 
 export const COMPOSE_AXES = Object.freeze(['construction', 'palette', 'plot', 'dressing']);
 const TABLES = { construction: CONSTRUCTIONS, palette: PALETTES, plot: PLOTS, dressing: DRESSINGS };
@@ -29,6 +31,14 @@ export const REGISTER_WORDS = Object.freeze({
   utility: ['utility', 'warehouse', 'depot', 'plant room', 'factory', 'workshop', 'loading dock', 'garage', 'boiler room'],
   science: ['science', 'lab', 'laboratory', 'research', 'clean room', 'control room', 'facility', 'observatory'],
   everyday: ['everyday', 'office', 'school', 'clinic', 'hospital', 'shop', 'store', 'mall', 'hotel', 'library', 'apartment'],
+});
+
+// how much the words let break (playscape/destruct/breakability.js DEGREES): a crate's smashing, a firefight's cover, a
+// demolition's walls
+export const DESTRUCTION_WORDS = Object.freeze({
+  objects: Object.freeze(['smash the crates', 'breakable crates', 'crates break', 'smashable']),
+  cover: Object.freeze(['firefight', 'shootout', 'gunfight', 'wreck', 'wrecks', 'wrecked', 'destructible', 'smash']),
+  world: Object.freeze(['demolition', 'demolish', 'tear down', 'everything breaks', 'collapse', 'collapses']),
 });
 
 export const COMPOSE_WORDS = Object.freeze({
@@ -62,6 +72,7 @@ export const COMPOSE_WORDS = Object.freeze({
 // again ('military greys' is the palette's, not 'military grey' as well, nor the register's 'military')
 const PHRASES = [...Object.entries(REGISTER_WORDS).flatMap(([r, ws]) => ws.map((w) => ({ w, register: r }))),
   ...Object.entries(MOODS).flatMap(([mood, M]) => M.words.map((w) => ({ w, mood }))),
+  ...Object.entries(DESTRUCTION_WORDS).flatMap(([degree, ws]) => ws.map((w) => ({ w, degree }))),
   ...Object.entries(COMPOSE_WORDS).flatMap(([axis, vs]) => Object.entries(vs).flatMap(([v, ws]) => ws.map((w) => ({ w, axis, v }))))]
   .sort((a, b) => b.w.length - a.w.length || (a.w < b.w ? -1 : 1));
 // what the text says, phrase by phrase, each a whole word (a plural taken), the text lowered
@@ -74,7 +85,7 @@ function hear(text) {
   }
   return heard;
 }
-const KEYS = ['words', 'register', 'roles', 'mood', 'beats', ...COMPOSE_AXES];
+const KEYS = ['words', 'register', 'roles', 'mood', 'beats', 'destruction', ...COMPOSE_AXES];
 
 function readIntent(c) {
   if (typeof c === 'string') return { words: c };
@@ -83,6 +94,7 @@ function readIntent(c) {
   if (c.words !== undefined && typeof c.words !== 'string') throw new Error('stage: compose.words is words');
   if (c.roles !== undefined && (!c.roles || typeof c.roles !== 'object' || Array.isArray(c.roles))) throw new Error('stage: compose.roles is { room: role } (compose-roles.js ROLES)');
   if (c.beats !== undefined && (!c.beats || typeof c.beats !== 'object' || Array.isArray(c.beats) || Object.values(c.beats).some((b) => b !== 'none' && !BEAT_IDS.includes(b)))) throw new Error(`stage: compose.beats is { room: ${BEAT_IDS.join(' | ')} | 'none' }`);
+  if (c.destruction !== undefined && !DEGREE_IDS.includes(c.destruction)) throw new Error(`stage: compose.destruction is ${DEGREE_IDS.join(', ')}`);
   if (c.mood !== undefined && !MOOD_IDS.includes(c.mood)) throw new Error(`stage: compose.mood is ${MOOD_IDS.join(', ')}`);
   if (c.register !== undefined && !REGISTERS.includes(c.register)) throw new Error(`stage: compose.register is ${REGISTERS.join(', ')}`);
   for (const a of COMPOSE_AXES) if (c[a] !== undefined && !TABLES[a][c[a]]) throw new Error(`stage: compose.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
@@ -112,6 +124,10 @@ export function readCompose(c, base = 'everyday') {
   if (I.mood !== undefined) { resolved.mood = I.mood; said.mood = 'pinned'; }
   else if (moods.length) { resolved.mood = MOOD_IDS.filter((m) => moods.includes(m)).pop(); said.mood = `said: ${said0.filter((P) => P.mood === resolved.mood).map((P) => P.w).join(', ')}`; }
   else { resolved.mood = 'even'; said.mood = 'none said: even'; }
+  // how much breaks (breakability.js): pinned, else the most the words let break, else nothing said (the game's own)
+  const degrees = said0.filter((P) => P.degree).map((P) => P.degree);
+  if (I.destruction !== undefined) { resolved.destruction = I.destruction; said.destruction = 'pinned'; }
+  else if (degrees.length) { resolved.destruction = DEGREE_IDS.filter((d) => degrees.includes(d)).pop(); said.destruction = `said: ${said0.filter((P) => P.degree === resolved.destruction).map((P) => P.w).join(', ')}`; }
   return { resolved, said };
 }
 
@@ -123,7 +139,8 @@ const stored = (c) => !!(c && typeof c === 'object' && c.resolved && typeof c.re
 export function resolveCompose(manifest) {
   if (!manifest || manifest.kind !== 'stage' || manifest.compose === undefined || stored(manifest.compose)) return manifest;
   const { resolved, said } = readCompose(manifest.compose, baseOf(manifest.kit));
-  return { ...manifest, compose: { intent: manifest.compose, resolved, said } };
+  // (the degree the words name is the recipe's `destruction` where it sets none: a default the operator changes)
+  return { ...manifest, compose: { intent: manifest.compose, resolved, said }, ...(resolved.destruction && manifest.destruction === undefined ? { destruction: resolved.destruction } : {}) };
 }
 
 /** The axes a build composes: the stored ones (each checked against its table), else the intent read now. */
