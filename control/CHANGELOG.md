@@ -428,6 +428,42 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
   Eyes: the four trial peoples remade from new sheets, two seeds each: the cat-kin, the corvid, the bug scavenger (a
   flanking insectoid explorer) and the snake-headed lady, each dressed by its sheet. Eyes gate: the operator's to
   judge.
+- **The people composer: principles of creation, not races** (`beast/cards.js`, `beast/tiered.js`, `beast/lexicon.js`,
+  `egocube/plan.js`). Seven hand-set kin cards made seven peoples, and a lineage of the operator's own fell back to the
+  sixth generation. A beast is now COMPOSED: every part of its body is a word with a principle behind it, over a neutral
+  base that is a person's body (`BEAST_BASE`):
+  - the lower body (`legs`), the feet (`toes`), the hands (`fingers`, `claws`, and the new `clawTone`);
+  - the limbs (`arms`, `wings`) and the appendages (`tail`, `abdomen`);
+  - the masses (`mass`, `hump`, `keel`) and the stance (the new `hunch`, degrees, 0 … 35);
+  - the head (a library skull, a designed one, or `person`);
+  - the integument (`cover`; the new `coat`: whole, or lower, below the waist only; the new `hair`: a person's kept);
+  - the ornaments (`ridge`, `ruff`).
+
+  `kin` is optional: a preset whose words sit under the hero's (the seven cards, each now naming its cover and where
+  its coat lies). A beast with no kin is built from its words alone, and wears a person's head until it names one. The
+  door refuses each new word by name. The presets' records and plans are held byte for byte
+  (`beast/composer.char.test.js`, pinned before the change: one kin per procedure the cards run, chosen in code).
+- **The cue lexicon** (`beast/lexicon.js` `readAnatomy`). A table from a sheet's notes to anatomy words: plain-word rows
+  (a coil, digitigrade legs, a thick or bushy tail, an abdomen, a second pair of arms, wings on the arms, three
+  fingers, talons, fur, scales, chitin, feathers, a crest of spikes, a ruff or a mane, hunched, and the masses: hulking,
+  barrel, slender, thin limbs, broad shoulders, a wasp's waist, a thick neck, strong haunches, a keel), the nearest
+  library skull by a people's family words (its own reads first: a lizard's to the dragon's, an owl's to the beak, a
+  muzzle the library has no skull for to the wolf's, provisionally), and the parts the composer lacks (hooves, a taur's
+  body, wings at the back, horns, antennae, tusks, a frill, fins, a shell, quills). The route now lowers ANY people
+  below the hero door with no form of its own onto the tiered body (`beastOnTiered`): a kin the presets know from its
+  preset, exactly as before; a lineage of the operator's own composed from its notes, the structured derives and plan
+  hints over the lexicon's words, its head and masses drawn per sheet as a preset's are. The lexicon reads only the
+  people's own lines (a note from its ancestry); the build's, the age's and the archetype's are carried by the cast, as
+  for a preset. A nearest skull keeps its species' own ornaments (the dragon's horns, the insect's antennae) only where
+  the people's lines ask for them. Its ledger says where each line landed, and names what the lexicon could not place
+  or the composer lacks as pending. `gen: 6` keeps the creature
+  biped; a fighter roster takes such a people too.
+
+  Machine gate: the presets' pin; a kin-less beast validates, mints, binds and rigs whole; a kin's words spelled out
+  without the kin build its parts; a word over its preset's; each new word refused (`beast/composer.char.test.js`); the
+  lexicon's laws (`beast/lexicon.test.js`); an operator's lineage (a gecko-kin) composed and minted with its ledger, a
+  people with no known family word on a person's head, its structure pending (`beast/route.test.js`). Eyes gate: an
+  operator's lineage beside a preset kin, the operator's to judge.
 
 ### Foe classes: the hostile encounter primitive
 

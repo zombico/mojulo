@@ -595,9 +595,9 @@ function quickSteps(world, G, ref, lookup) {
       if (hero) { roster.push({ ...own, hero, ...over }); continue; }
       const roll = { ...own0, setting };
       const sheet = rollEgocube(roll);
-      // a person takes the hero door, and so does a beast-kin the beast cards know (the tiered body, egocube/plan.js
-      // beastOnTiered); a people below it with no card (a lineage of the operator's own) is the creature loop's, not a fighter
-      if (sheet.ancestry.door !== 'hero' && !beastOnTiered(sheet)) throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door with no beast card: a fighter takes a person or a beast-kin the cards know (${Object.keys(BEAST_KINS).join(', ')})`);
+      // a person takes the hero door, and so does any people below it (the tiered body, egocube/plan.js beastOnTiered:
+      // a kin's preset, or one of the operator's own composed from its notes); an undead's form has its own
+      if (sheet.ancestry.door !== 'hero' && !beastOnTiered(sheet)) throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door with no tiered body: a fighter takes a person or a beast-kin (a preset, ${Object.keys(BEAST_KINS).join(', ')}, or a lineage of its own)`);
       const sheetKey = `fighter-${own.id}-sheet`, key = `fighter-${own.id}`, sheetRef = childRef(ref, sheetKey), charRef = childRef(ref, key);
       const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });

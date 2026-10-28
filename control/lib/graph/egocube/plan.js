@@ -20,9 +20,9 @@
  * rolled in any setting is clothed in its world's colours. Pure and deterministic: the same sheet, the same call.
  *
  * THE SIXTH GENERATION: the creature door's biped (`biped`, `dialsAndRig`) with a library head on its neck stub is the
- * beast-kin's sixth-generation body. Its seventh stands on the tiered body (lib/graph/beast): a sheet of a kin the beast
- * cards know is lowered there (`beastOf`: the hero door, `beast` on its spec), unless the call asks for `gen: 6`; a people
- * with no card (a lineage of the operator's own) stays on the biped. The biped stays as it is for every row minted on
+ * beast-kin's sixth-generation body. Its seventh stands on the tiered body (lib/graph/beast): a sheet below the hero door
+ * is lowered there (`beastOf`: the hero door, `beast` on its spec), a kin the presets know from its preset and a lineage
+ * of the operator's own composed by the cue lexicon, unless the call asks for `gen: 6`. The biped stays as it is for every row minted on
  * it, held byte for byte by creature-gen6.char.test.js.
  */
 import { readDerive, dialKey } from './channels.js';
@@ -35,7 +35,8 @@ import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR,
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { variantOf, UNDEAD_CARDS } from '../undead/index.js';
-import { BEAST_KINS } from '../beast/cards.js';
+import { BEAST_KINS, BEAST_BASE, BEAST_COATS } from '../beast/cards.js';
+import { readAnatomy, SKULL_SPECIES } from '../beast/lexicon.js';
 import { deriveHead } from '../creature-heads/derive.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -716,10 +717,11 @@ export const CLOTHED_H = 0.25;
 
 // ══════════ the seventh generation: the beast-kin on the tiered body ══════════
 
-/** a sheet the seventh generation stands on the tiered body: a beast-kin below the hero door of a kin the beast cards
- * know, not one with a body of its own (an undead's form); planFromSheet lowers it there (unless `gen: 6`), and a
- * field plays it as a person (gameworld/casting.js fieldOf) */
-export const beastOnTiered = (sheet) => sheet.ancestry?.door === 'creature' && !!BEAST_KINS[sheet.facets.ancestry] && !sheet.ancestry.form;
+/** a sheet the seventh generation stands on the tiered body: any people below the hero door, not one with a body of its
+ * own (an undead's form): a kin the presets know (beast/cards.js) from its preset, any other (a lineage of the operator's
+ * own) composed from its notes by the cue lexicon (beast/lexicon.js); planFromSheet lowers it there (unless `gen: 6`),
+ * and a field plays it as a person (gameworld/casting.js fieldOf) */
+export const beastOnTiered = (sheet) => sheet.ancestry?.door === 'creature' && !sheet.ancestry.form;
 
 /** the height the tiered body stands at its canonical build (metres): a beast-kin's sheet height (HEIGHT × AGE_SCALE)
  * read against it as its stature, within the tune's range */
@@ -757,13 +759,19 @@ function sheetHead(sheet, id) {
 export const SHEET_MASS = Object.freeze({ band: 0.07, silhouettes: Object.freeze({
   needle: Object.freeze({ trunk: 0.94, waist: 0.92, upperArm: 0.94, thigh: 0.94 }), bell: Object.freeze({ hips: 1.12, thigh: 1.06, waist: 0.96 }),
   barrel: Object.freeze({ trunk: 1.06, waist: 1.12, hump: 0.12 }), column: Object.freeze({ waist: 1.05, hips: 0.98 }) }) });
-function sheetMass(sheet, kin) {
-  const K = BEAST_KINS[kin], seedOf = (str) => { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+function sheetMass(sheet, K) {
+  const seedOf = (str) => { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
   const rand = mulberry32(seedOf(`${sheet.seed}::${JSON.stringify(sheet.facets)}::beast-mass`)), v = () => SHEET_MASS.band * (2 * rand() - 1);
   const word = Object.values(sheet.derives).flat().map((d) => /^silhouette = (\S+)/.exec(d)?.[1]).find(Boolean), S = SHEET_MASS.silhouettes[word] ?? {};
   const mass = Object.fromEntries(['trunk', 'waist', 'hips', 'upperArm', 'foreArm', 'thigh', 'shank'].map((k) => [k, r3(Math.min(2, Math.max(0.5, (K.mass[k] ?? 1) * (S[k] ?? 1) * (1 + v()))))]));
   const hump = r3(Math.min(1, Math.max(0, (K.hump ?? 0) + (S.hump ?? 0) + (K.hump ? v() : 0))));
   return { mass, ...(hump ? { hump } : {}), ...(word ? { silhouette: word } : {}) };
+}
+/** a people of its own on its nearest skull: the skull's species ornaments (the dragon's horns, the insect's antennae)
+ * only where its lines ask for them */
+function familyHead(H, read) {
+  const drop = SKULL_SPECIES.filter((o) => !read.asks.has(o) && (headPlan(H.from).ornaments ?? []).some((x) => x.name === o));
+  return drop.length ? { ...H, ornaments: { drop } } : H;
 }
 /** a coil wears the cut above its hips only: the top hemmed at the hip; no bottom, no coat (its tail hangs from the
  * pelvis below the hip ring, which the coil replaces), no feet, no piece seated on a leg. The lower dress is pending */
@@ -774,24 +782,52 @@ function aboveTheCoil(outfit) {
     pieces: (outfit.pieces ?? []).filter((p) => !LEG_PIECES.has(p.kind)) };
 }
 function beastOf(sheet, dress) {
-  const f = sheet.facets, hints = sheet.ancestry.plan || {}, head = headOf(sheet), topo = topologyOf(sheet);
-  const feathered = f.ancestry === 'avian' || head.id === 'beaked', legs = hasDerive(sheet, 'legs = serpent') ? 'serpent' : hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
-  const cover = feathered ? 'feathers' : hints.cover?.kind ?? 'none', expression = expressionOf(sheet);
+  const f = sheet.facets, hints = sheet.ancestry.plan || {}, topo = topologyOf(sheet), preset = BEAST_KINS[f.ancestry];
+  // (a people the presets do not know is composed from its notes, the cue lexicon's words under its structured hints; its
+  // head the skull its own `head =` names, else the nearest its family words name, else a person's)
+  const read = preset ? null : readAnatomy(sheet), A = read?.words ?? {};
+  const head = preset || derivesOf(sheet, ['structure']).map(readDerive).some((r) => r.family === 'head') || !read.head ? headOf(sheet) : { id: read.head.id, provisional: read.head.provisional, by: read.head.by };
+  const feathered = f.ancestry === 'avian' || head.id === 'beaked', legs = hasDerive(sheet, 'legs = serpent') ? 'serpent' : hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : A.legs ?? 'plantigrade';
+  const cover = feathered ? 'feathers' : hints.cover?.kind ?? A.cover ?? 'none', expression = expressionOf(sheet);
   // (its detail as form, beast/detail.js: a ruff where its fur cue names one; a crest of spikes where its silhouette's pick
   // is the crest, none where the pick is something else, the card's where the sheet picks nothing)
-  const drawn = sheetMass(sheet, f.ancestry);
-  const lines = Object.values(sheet.notes).flat().map((n) => n.line), ruff = hints.cover?.where?.includes('ruff') ? 'ruff' : 'none';
-  const ridge = lines.some((l) => /crest of spikes/.test(l)) ? { ridge: 'spines' } : lines.some((l) => /^(a frill|folded membrane wings)/.test(l)) ? { ridge: 'none' } : {};
-  const beast = { kin: f.ancestry, legs, fingers: FINGER_COUNT[f.ancestry] ?? BEAST_KINS[f.ancestry].fingers ?? 4, claws: hints.claws ?? 'none', tail: hints.tail && TAILS[hints.tail] ? hints.tail : 'none',
-    ...(topo.wings ? { wings: 'arms' } : {}), ...(topo.arms2 ? { arms: 4 } : {}), ...(head.standIn ? {} : { head: sheetHead(sheet, head.id) }), mass: drawn.mass, ...(drawn.hump !== undefined ? { hump: drawn.hump } : {}), cover, ruff, ...ridge, ...(!head.standIn && Object.keys(expression).length ? { expression } : {}) };
+  const drawn = sheetMass(sheet, preset ?? { mass: { ...BEAST_BASE.mass, ...(A.mass ?? {}) }, hump: A.hump ?? 0 });
+  const lines = Object.values(sheet.notes).flat().map((n) => n.line), ruff = hints.cover?.where?.includes('ruff') ? 'ruff' : A.ruff ?? 'none';
+  const ridge = lines.some((l) => /crest of spikes/.test(l)) ? { ridge: 'spines' } : lines.some((l) => /^(a frill|folded membrane wings)/.test(l)) ? { ridge: 'none' } : A.ridge ? { ridge: A.ridge } : {};
+  const abdomen = !preset && A.abdomen ? A.abdomen : null, tail = abdomen || legs === 'serpent' ? 'none' : hints.tail && TAILS[hints.tail] ? hints.tail : A.tail ?? 'none';
+  const beast = { ...(preset ? { kin: f.ancestry } : {}), legs, fingers: FINGER_COUNT[f.ancestry] ?? preset?.fingers ?? A.fingers ?? BEAST_BASE.fingers, claws: hints.claws ?? A.claws ?? 'none', tail,
+    ...(topo.wings || A.wings ? { wings: 'arms' } : {}), ...(topo.arms2 || A.arms ? { arms: 4 } : {}), ...(head.standIn ? {} : { head: read ? familyHead(sheetHead(sheet, head.id), read) : sheetHead(sheet, head.id) }), mass: drawn.mass, ...(drawn.hump !== undefined ? { hump: drawn.hump } : {}), cover, ruff, ...ridge, ...(!head.standIn && Object.keys(expression).length ? { expression } : {}),
+    // (the words only the lexicon reads, for a people of its own: its toes, its abdomen, its keel, its hunch, where its coat lies, its hair)
+    ...(preset ? {} : { ...(A.toes ? { toes: A.toes } : {}), ...(abdomen ? { abdomen } : {}), ...(A.keel ? { keel: A.keel } : {}), ...(A.hunch ? { hunch: A.hunch } : {}),
+      ...(A.coat ?? (legs === 'serpent' && cover !== 'none' ? 'lower' : null) ? { coat: A.coat ?? 'lower' } : {}), ...(A.hair ? { hair: true } : {}) }) };
   // (its build is the tiered body's own, HERO_BUILDS through the cast's build form, where a person's is a light tune: a
   // brute bear-kin stands on the brute's chest and arms; a child keeps the pole's cast, its height the age's)
   const T = BUILD_TUNE[f.build] ?? {}, stature = r3(clamp((T.stature ?? 1) * (HEIGHT[f.build] * AGE_SCALE[f.age]) / BEAST_REF_H, 0.85, 1.15));
   const coat = legible(sheet.ancestry.colours.Skin);
-  const spec = { form: 'tiered', cast: f.age === 'child' ? f.pole : { pole: f.pole, build: f.build }, tune: { stature }, palette: { Skin: coat }, beast };
+  // (a people of its own whose coat lies below the waist: its coat there, a person's skin above)
+  const palette = !preset && beast.coat === 'lower' ? Object.fromEntries(BEAST_COATS.lower.map((g) => [g, coat])) : { Skin: coat };
+  const spec = { form: 'tiered', cast: f.age === 'child' ? f.pole : { pole: f.pole, build: f.build }, tune: { stature }, palette, beast };
   const clothed = dress === 'designed' && f.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : null;
   if (clothed) spec.outfit = legs === 'serpent' ? aboveTheCoil(heroOutfitOf(clothed.outfit)) : heroOutfitOf(clothed.outfit);
-  return { spec, head, legs, topo, cover, outfit: clothed, adorned: dress === 'designed' && !clothed };
+  return { spec, head, legs, topo, cover, outfit: clothed, adorned: dress === 'designed' && !clothed, read };
+}
+/** the channels whose lines the cue lexicon reads for the body (a people of its own: beast/lexicon.js) */
+const LEXICON_CHANNELS = new Set(['frame', 'silhouette', 'structure', 'cover', 'ornament', 'stance', 'hair']);
+function lexiconLanding(built, ch, line, at) {
+  const { placed, gaps, head } = built.read, via = (x) => `${x} (the cue lexicon, beast/lexicon.js)`;
+  // (a part the composer lacks that the people's skull carries, its horns, lands on the head)
+  const H = built.spec.beast.head, dropped = H?.ornaments?.drop ?? [], own = new Set(H ? (headPlan(built.head.id).ornaments ?? []).map((o) => o.name).filter((o) => !dropped.includes(o)) : []);
+  const rows = gaps.get(line) ?? [], carried = rows.filter((g) => g.carried && own.has(g.carried)), lacked = rows.filter((g) => !carried.includes(g));
+  const P = [placed.get(line), ...carried.map((g) => `spec.beast.head (the ${built.head.id} skull's own ${g.carried}s)`)].filter(Boolean).join(', ') || null, G = lacked.map((g) => g.part).join('; ') || null;
+  if (!LEXICON_CHANNELS.has(ch)) return { at, pending: null };
+  if (ch === 'structure') {
+    const skull = built.head.standIn ? null : `spec.beast.head (${built.head.by ? `the nearest library skull, the ${built.head.id}'s, by '${head.by.slice(0, 40)}'` : `the ${built.head.id}'s skull`}, drawn for this sheet)`;
+    if (skull || P) return { at: [skull, P && via(P)].filter(Boolean).join('; ') + (G ? `; not yet: ${G}` : ''), pending: null };
+    return { at: null, pending: G ? `the composer lacks ${G}` : 'a person\'s head: no library skull near this people\'s family words yet' };
+  }
+  if (P) return { at: via(P) + (G ? `; not yet: ${G}` : ''), pending: null };
+  if (ch === 'cover' && built.cover !== 'none') return { at, pending: null };
+  return { at: null, pending: G ? `the composer lacks ${G}` : 'the cue lexicon places no anatomy word for this line yet (beast/lexicon.js)' };
 }
 function beastLedger(sheet, built) {
   const rows = [];
@@ -806,9 +842,13 @@ function beastLedger(sheet, built) {
     if (/crest of spikes/.test(n.line)) { at = 'spec.beast.ridge (a crest of spines down the back and the tail)'; pending = null; }
     // (a coil, and a kin whose coat is its own groups' only: its scales on the coil, a person's head and face above it)
     if (built.legs === 'serpent' && /coil in place of the legs/.test(n.line)) { at = 'spec.beast.legs (serpent: the coil, beast/serpent.js)'; pending = null; }
-    if (BEAST_KINS[sheet.facets.ancestry]?.coat && ch === 'cover' && /cheek|face|spine|brow/.test(n.line)) { at = null; pending = 'scales on a person\'s face and back are not drawn yet; the cover is the coil\'s'; }
+    if ((BEAST_KINS[sheet.facets.ancestry]?.coat ?? built.spec.beast.coat) === 'lower' && ch === 'cover' && /cheek|face|spine|brow/.test(n.line)) { at = null; pending = 'scales on a person\'s face and back are not drawn yet; the cover is the coil\'s'; }
     if (built.head.standIn && (ch === 'rest' || ch === 'eyes')) { at = null; pending = /slit/.test(n.line) ? 'a person\'s head draws round pupils; slit pupils are not drawn yet' : 'a person\'s head under a beast-kin reads no expression from the sheet yet'; }
     if (ch === 'cover' && /\bruff\b/.test(n.line) && built.cover !== 'none') at = 'spec.beast.cover, spec.beast.ruff (tufts round the neck\'s root)';
+    // (a people of its own, composed by the cue lexicon: a body line lands where the lexicon placed a word, else it is
+    // pending, named; a part the composer lacks is pending by name)
+    // (its people's own lines; every structure line, which the sheet's head is drawn by)
+    if (built.read && at === BEAST_AT[ch] && (ch === 'structure' || !n.from || n.from.startsWith('ancestry.'))) ({ at, pending } = lexiconLanding(built, ch, n.line, at));
     if (!at && !pending) pending = ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
     rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
   }
@@ -822,10 +862,11 @@ function beastLedger(sheet, built) {
 export function planFromSheet(sheet, { title, dress, gen } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
-  // THE SEVENTH GENERATION (lib/graph/beast): a beast-kin of a kin the cards know, on the tiered body through the hero door
+  // THE SEVENTH GENERATION (lib/graph/beast): a people below the hero door, from its kin's preset or composed from its
+  // notes, on the tiered body through the hero door
   if (gen !== 6 && beastOnTiered(sheet)) {
     const built = beastOf(sheet, dress);
-    const thesis = `${sheet.ancestry.reads} on the tiered body: ${built.legs}, the ${built.head.id} head${built.cover !== 'none' ? `, ${built.cover} as its material` : ''}`;
+    const thesis = `${sheet.ancestry.reads} on the tiered body${built.read ? ', composed from its notes' : ''}: ${built.legs}, ${built.head.standIn ? 'a person\'s head' : `the ${built.head.id} head`}${built.cover !== 'none' ? `, ${built.cover} as its material` : ''}`;
     return { door: 'hero', beast: true, thesis, create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: beastLedger(sheet, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }
   if (door === 'creature') {

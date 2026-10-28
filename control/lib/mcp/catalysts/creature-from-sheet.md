@@ -81,8 +81,8 @@ loop's own card (`creature-from-plan`) holds the ring-plan forms and the art dir
 
 ## On the seventh generation (the tiered body)
 
-A people the beast cards know (lib/graph/beast/cards.js: the bear-, wolf-, cat-, dragon-, bird-, insect- and snake-kin)
-no longer takes the ring plan by hand: its sheet routes to the HERO door on the tiered body, its notes as `beast` words
+A people below the hero door (a kin preset, lib/graph/beast/cards.js: the bear-, wolf-, cat-, dragon-, bird-, insect- and
+snake-kin, or one of your own) no longer takes the ring plan by hand: its sheet routes to the HERO door on the tiered body, its notes as `beast` words
 (`egocube/plan.js` `beastOf`; the ledger says where each landed). The loop's steps land there:
 - READ, DOOR, TOPOLOGY: the route (legs, a tail or an abdomen, arm-wings, a second pair of arms, a coil: words, not
   joint tables).
@@ -94,8 +94,14 @@ no longer takes the ring plan by hand: its sheet routes to the HERO door on the 
   `beast.mass` (trunk, waist, hips, neck, upperArm, foreArm, hand, thigh, shank, foot), `beast.hump`, `beast.keel`.
 - COVER and ORNAMENTS: the coat as a material (`beast.cover`), the outline breakers as parts (`ridge`, `ruff`, claws).
 - DRESS: a sheet person enough wears its cut (a coil above its hips); adornment below the clothed line is pending.
-Fix by `update_character` on `/hero/beast/...`. A people with no card (one of the operator's own), or any sheet asked
-with `gen: 6`, stays on the ring plan this card teaches below.
+- A PEOPLE OF YOUR OWN (a lineage the presets do not know) is composed the same way: its notes read by the cue
+  lexicon (lib/graph/beast/lexicon.js) as anatomy words, its skull the library's nearest by its family words, what the
+  composer lacks (hooves, horns, wings at the back …) pending in the ledger by name. Write its cues in plain words the
+  lexicon reads, or give the words yourself: `beast` takes every part with no `kin` at all (`legs`, `toes`, `fingers`,
+  `claws`, `clawTone`, `arms`, `wings`, `tail`, `abdomen`, `mass`, `hump`, `keel`, `hunch`, `head`, `cover`, `coat`,
+  `hair`, `ridge`, `ruff`); a kin is only a preset under them.
+Fix by `update_character` on `/hero/beast/...`. A sheet asked with `gen: 6` stays on the ring plan this card teaches
+below.
 
 ## Topology: what the frame notes ask for
 

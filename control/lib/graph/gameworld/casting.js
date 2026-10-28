@@ -151,8 +151,8 @@ export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stan
  * A member's figure on the level map: `moves` the runtime states its own moves play (a person over the library's walk
  * and idle), or `own` its own clips by state for a body the library does not fit (a beast its two gaits, a mascot its
  * run, walk and idle, a beast-kin below the hero door on the creature loop its walk and jog), with `moves` beside them
- * where it has some (a beast's and a mascot's flinch, fall and rise). A beast-kin of a kin the beast cards know stands on
- * the tiered body (egocube/plan.js beastOnTiered) and plays a person's.
+ * where it has some (a beast's and a mascot's flinch, fall and rise). A beast-kin (a kin's preset, or a people of the
+ * operator's own composed from its notes) stands on the tiered body (egocube/plan.js beastOnTiered) and plays a person's.
  * Null for a beast whose species the fauna does not know (no gait to rig).
  */
 export function fieldOf(m) {

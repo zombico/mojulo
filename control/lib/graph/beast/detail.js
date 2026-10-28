@@ -38,7 +38,7 @@ const RUFF = Object.freeze({ rows: Object.freeze([{ dz: 0.01, from: 80, to: 180,
 
 export function detailOf(hero) {
   const card = beastCard(hero); if (!card) return null;
-  return { ridge: hero.beast.ridge ?? card.ridge ?? 'none', ruff: hero.beast.ruff ?? card.ruff ?? 'none' };
+  return { ridge: card.ridge, ruff: card.ruff };
 }
 
 // a trunk's back-centre and its section at height z (the stations blended), among the trunk's segments

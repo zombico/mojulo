@@ -12,7 +12,7 @@
  *                              glTF reads them, and the height (for parallax and displacement, where an engine reads it).
  *                              A FLAT PATCH at the tile's origin (`FLAT_PATCH` texels) is level, white and unoccluded:
  *                              a face the cover does not reach samples it, so one material serves the whole figure.
- *   beastCoverOf(hero)       → the cover a beast wears: `beast.cover` ('none' | a kind), else its kin's card's
+ *   beastCoverOf(hero)       → the cover a beast wears: `beast.cover` ('none' | a kind), else its kin preset's
  *   coverMap(mesh, recipe, normals, kind)  → { uvAt(fi, k), tangentAt(fi, k), maps, stats }: every coat face (the body's
  *                              skin and the groups its clothes would be, its head's excepted) mapped by its part's own
  *                              rings (the tile's u a slot's place round them, a whole number of tiles so the wrap is
@@ -23,7 +23,7 @@
  * The World page draws the cover as paint (its fills are unlit: the coat's colour) until it lights a figure live; the
  * lit skinned GLB carries the maps (station-loft-rig.js packLayeredRig `cover`, scene-gltf.js). Pure.
  */
-import { BEAST_KINS } from './cards.js';
+import { beastCard } from './tiered.js';
 import { reliefMaterial } from '../form/relief-material.js';
 import { meshTangents, axisTangent } from '../polygonizer/normal-bake.js';
 import { encodePng } from '../landscape/surface-textures.js';
@@ -39,14 +39,12 @@ export const COVERS = Object.freeze({
 export const COVER_KINDS = Object.freeze(['none', ...Object.keys(COVERS)]);
 /** a tile's texels across; the flat patch's, at its origin */
 export const TILE_PX = 128, FLAT_PATCH = 4;
-const KIN_COVER = Object.freeze({ ursine: 'fur', lupine: 'fur', feline: 'fur', draconic: 'scales', avian: 'feathers', insectoid: 'chitin', serpentine: 'scales' });
 
-/** the groups a hero's cover covers: its kin's coat where the card names one (a lamia's coil and hips), else the whole
+/** the groups a hero's cover covers: its coat's where it lies below the waist (a lamia's coil and hips), else the whole
  * bare body's */
-export const beastCoatOf = (hero) => { const K = BEAST_KINS[hero?.beast?.kin]; return K?.coat ? new Set(K.coat) : COAT; };
+export const beastCoatOf = (hero) => { const C = beastCard(hero)?.coat; return C ? new Set(C) : COAT; };
 export function beastCoverOf(hero) {
-  const B = hero?.beast; if (!B || !BEAST_KINS[B.kin]) return null;
-  const k = B.cover ?? KIN_COVER[B.kin] ?? 'none';
+  const k = beastCard(hero)?.cover ?? 'none';
   return k === 'none' ? null : k;
 }
 

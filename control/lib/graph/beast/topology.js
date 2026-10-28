@@ -56,7 +56,7 @@ const TOPOLOGY_JOINTS = Object.freeze([
 /** the hero's own words for what its frame adds, the card's defaults under them */
 export function topologyOf(hero) {
   const card = beastCard(hero); if (!card) return null;
-  return { tail: hero.beast.tail ?? card.tail ?? 'none', wings: hero.beast.wings ?? 'none', arms: hero.beast.arms ?? 2, abdomen: hero.beast.abdomen ?? card.abdomen ?? 'none' };
+  return { tail: card.tail, wings: hero.beast.wings ?? 'none', arms: hero.beast.arms ?? 2, abdomen: card.abdomen };
 }
 export const topologyJoints = (hero) => (topologyOf(hero)?.arms === 4 ? TOPOLOGY_JOINTS : []);
 

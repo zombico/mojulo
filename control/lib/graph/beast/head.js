@@ -67,7 +67,8 @@ export function beastHeadOf(hero) {
   if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
   // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)
   if (hero.head !== undefined && hero.head !== 'none') return null;
-  const lib = headFor(card.kin);
+  // (a kin's own skull by default; a beast of its words alone keeps a person's head until it names one)
+  const lib = card.kin !== undefined ? headFor(card.kin) : null;
   return lib ? { id: lib.id } : null;
 }
 
