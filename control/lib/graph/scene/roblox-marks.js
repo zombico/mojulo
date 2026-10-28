@@ -98,6 +98,7 @@ export const PAGE_MARKS = Object.freeze({
   ...Object.fromEntries(PAGE_OPTIONS.map((k) => [k, OPTION])),
   faces: m(P, 'the greybox and its look (roblox-project.js, roblox-look.js): every upward face as floor slabs on a grid, each in its faces\' colour and a Roblox material named by its texture, else by what the material shelf stamped (a metal Metal, glass Glass); the rest of the level voxelized into decoration boxes of their faces\' colours (no body or ray meets them); smooth shapes come out in voxels, a backdrop and ground cover drawn as cards are left to the sky and the slabs; the mesh rides beside the project as model.glb for Studio\'s 3D Importer'),
   colliders: m(B, 'each box collider an anchored Part, unseen as on the page (roblox-project.js greyboxModel)'),
+  form: m(A, 'the form render\'s land and rooms (gen-7) are not carried yet: the greybox reads the painted faces'),
   repeats: m(P, 'each instance placed as the page places it and voxelized into the look\'s decoration boxes (roblox-look.js), not instanced'),
   textures: m(P, 'a texture travels as its mean colour (alpha-weighted, times the face\'s tint) and a material its name picks (roblox-look.js); the image itself does not'),
   figures: m(P, 'a rigged figure stands as a block figure of its body\'s size (MojuloServer): its mesh, clips, face and ink are not carried'),
@@ -118,7 +119,7 @@ export const PAGE_MARKS = Object.freeze({
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
     'doors', 'items', 'shallows', 'wetSand', 'softGround', 'snowPrints', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'fauna', 'wetRoad',
-    'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast', 'screen', 'runner', 'board', 'science', 'seats', 'creases', 'occlusion', 'lightTier', 'fabric', 'resample', 'meet', 'court', 'turns', 'pitch', 'holo',
+    'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast', 'screen', 'runner', 'board', 'science', 'seats', 'creases', 'occlusion', 'lightTier', 'fabric', 'resample', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings',
   ]),
 });
 

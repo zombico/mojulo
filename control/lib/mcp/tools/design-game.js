@@ -37,7 +37,7 @@ import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
-import { quickWorld } from '@/lib/graph/gameworld/quick.js';
+import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
@@ -221,7 +221,9 @@ async function runWorld(ref, world, { force = false } = {}) {
     const action = decide(step, made[step.key], storedPrint(step.ref), { force });
     // a level's intent laws that do not hold (lay-concerns.js): advice, never a refusal
     const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
-    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(advises.length ? { advises } : {}) });
+    // a sport's machine gate when it holds (who plays, the arena, the one style): the agent's to tell the player
+    const checked = (step.laws ?? []).filter((l) => l.holds && SPORT_CHECKS.includes(l.law)).map((l) => `${l.concern}: ${l.says}`);
+    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(advises.length ? { advises } : {}), ...(checked.length ? { checked } : {}) });
     if (action !== 'make' && action !== 'remake') return;
     const { pin, audits } = await realize(step, action);
     if (audits) ran[ran.length - 1].audits = audits;   // the game's level audits, as create_game recorded them
@@ -252,6 +254,9 @@ async function runWorld(ref, world, { force = false } = {}) {
   const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order), W);
   return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(gaps.length ? { resonance: gaps } : {}) };
 }
+
+// the sport game's laws said when they hold too (gameworld/runner.js sportLaws, sportStyle)
+const SPORT_CHECKS = ['characters', 'venue', 'one-look'];
 
 /** Each part's stamp, the steps, what was made, and what to do next. */
 // a world that names land (its style's or a level's): what of it no stage draws, as advice; a world the reader refuses
@@ -338,7 +343,7 @@ function readout(ref, world, context = {}) {
   const landGaps = landGapsOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */

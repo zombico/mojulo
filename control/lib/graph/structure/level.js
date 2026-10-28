@@ -251,7 +251,8 @@ export function stageLevel(m, { goal = 'deepest', from = null } = {}) {
   // a stair is met at its approach and climbed foot to head, left at its arrival (going down, the other way)
   const stairWay = ({ link: x, into }) => {
     const up = into === x.upper, pt = (u) => (x.axis === 'y' ? [x.approach[0], u] : [u, x.approach[1]]);
-    const seq = [x.approach, pt(x.foot + x.dir * 0.3), pt(x.head), x.arrival];
+    // (a switchback carries its own route: up the first flight, across its landing, up the second)
+    const seq = x.route ? x.route.map((p) => [p[0], p[1]]) : [x.approach, pt(x.foot + x.dir * 0.3), pt(x.head), x.arrival];
     return up ? seq : [...seq].reverse();
   };
   // a step short of each doorway and a step past it; past the last, the goal itself

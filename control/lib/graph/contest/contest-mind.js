@@ -179,6 +179,7 @@ const mr4 = (v) => Math.round(v * 10000) / 10000;
  * `sim` the physics instance. The stick is in the player's own frame (x its right, y toward the net).
  */
 export function courtMind(M, S, who, ctx, sim) {
+  if (ctx.C.players > 1) return sideMind(M, S, who, ctx, sim);
   const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), side = P.side, sign = side === 'a' ? 1 : -1;
   const court = ctx.court, body = ctx.body;
   const ball = S.sim.bodies.find((b) => b.id === 'ball');
@@ -239,6 +240,176 @@ export function courtMind(M, S, who, ctx, sim) {
     return { x: aimX, y: aimY, b: 1 };
   }
   return { x: stick[0], y: stick[1], b: 0 };
+}
+
+/**
+ * THE SIDE MIND — a player on a side of more than one (volleyball's pair). The sim names the side's active player (the
+ * one to play the ball, match-sim.js); the active player runs to where the ball comes down (its own physics, flown on a
+ * copy) and plays it when it is in reach and low enough, the others go where the side's play wants them: by the net for
+ * the set, to the attack spot for the hit, home while the other side has it. The serve as the court mind's.
+ */
+function sideMind(M, S, who, ctx, sim) {
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), side = P.side, sign = side === 'a' ? 1 : -1;
+  const court = ctx.court, body = ctx.body, dt = 1 / 60, B = S.K.ball;
+  const ball = S.sim.bodies.find((b) => b.id === 'ball');
+  const own = (p) => [p[0] * sign, p[1] * sign];
+  const toward = (tx, ty, pace = L.pace) => { const d = own([tx - P.x, ty - P.y]); const n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * pace) / n; return [d[0] * k, d[1] * k]; };
+  if (M.rallyOf !== S.rallies) { M.rallyOf = S.rallies; M.aim = mindDice(M) < 0.5 ? -1 : 1; M.react = L.react; M.wait = L.serveWait; M.landing = null; M.read = -1; }
+  if (S.K.phase === 'serve' && S.ball.held === who && S.dead === 0) {
+    M.wait = Math.max(0, M.wait - dt);
+    if (M.wait > 0) return { x: 0, y: 0, b: 0 };
+    const aim = serveStick(ctx, S, P, sim);
+    return { x: mclamp(aim.x + (mindDice(M) - 0.5) * L.wobble, -1, 1), y: mclamp(aim.y + (mindDice(M) - 0.5) * L.wobble * 0.5, -1, 1), b: 1 };
+  }
+  const home = (() => { const n = ctx.C.players, i = Number(who.slice(1)) - 1, aside = ctx.sport.home.aside ?? 0; return [sign * (n > 1 ? (i - (n - 1) / 2) * ((2 * aside) / (n - 1)) : 0), -sign * (court.halfL + ctx.sport.home.behind)]; })();
+  if (S.K.phase !== 'live' || S.dead > 0) { const st = toward(home[0], home[1]); return { x: st[0], y: st[1], b: 0 }; }
+  // the ball is ours to play: on its way to our side, or on our side with touches left
+  const ours = B.lastSide === side ? B.touches < ctx.C.rally.touches : ball.velocity[1] * sign < 0 || ball.position[1] * sign < 0;
+  if (!ours) { M.react = L.react; M.landing = null; const st = toward(home[0], home[1]); return { x: st[0], y: st[1], b: 0 }; }
+  if (S.f - M.read >= PREDICT_EVERY) { M.read = S.f; M.landing = predictLanding(sim, S.sim); }
+  M.react = Math.max(0, M.react - dt);
+  const up = ctx.sport.reachUp ?? 2.6;
+  if (S.active[side] === who) {
+    let stick = [0, 0];
+    if (M.react === 0 && M.landing && M.landing.at[1] * sign < 0) stick = toward(M.landing.at[0], M.landing.at[1]);
+    // the swing, begun so its strike meets the ball: in reach, under the reach up, coming down or low
+    const lead = body.swing * 0.5, g = -S.sim.gravity[2];
+    const bx = ball.position[0] + ball.velocity[0] * lead, by = ball.position[1] + ball.velocity[1] * lead, bz = ball.position[2] + ball.velocity[2] * lead - 0.5 * g * lead * lead;
+    const swing = by * sign < 0 && Math.hypot(bx - P.x, by - P.y) <= body.reach * 0.9 && bz < up - 0.2 && bz > 0.3 && !P.swing && S.ball.held === null;
+    if (swing && ctx.sport.slip) {
+      const key = `${S.rallies}:${S.ball.hits}`;
+      if (M.slipOf !== key) { M.slipOf = key; M.slipped = mindDice(M) < ctx.sport.slip * SLIP_SCALE[M.level]; }
+      if (M.slipped) return { x: stick[0], y: stick[1], b: 0 };
+    }
+    if (swing) {
+      const aimX = mclamp(M.aim * 0.3 + (mindDice(M) - 0.5) * L.wobble, -1, 1);
+      const verb = ctx.sport.strokes.fore;
+      const aimY = mclamp(aimStick(ctx, S, verb, [bx, by, Math.max(0.3, bz)], [bx + aimX * 2, sign * court.halfL * 0.6]) + (mindDice(M) - 0.5) * L.wobble, -1, 1);
+      return { x: aimX, y: aimY, b: 1 };
+    }
+    return { x: stick[0], y: stick[1], b: 0 };
+  }
+  // a teammate plays it: the setter's spot by the net before the side's first touch, the attack spot after it
+  const spot = B.lastSide === side && B.touches >= 1 ? [mclamp(P.x, -court.halfW * 0.7, court.halfW * 0.7), -sign * 1.2] : [0, -sign * 1.6];
+  const st = toward(spot[0], spot[1], 1);
+  return { x: st[0], y: st[1], b: 0 };
+}
+
+/**
+ * THE HANDS MIND (team-sim.js's hands: basketball): the computer side's active player. Without the ball it goes to it
+ * (a free ball, or the holder's, to steal it); holding it, it drives to a step short of the ring, shoots in range (more
+ * often the nearer, a three now and then from beyond the arc), passes ahead now and then; its charge the sweet spot
+ * with the level's wobble.
+ */
+function handsMind(M, S, who, ctx) {
+  if (ctx.sport.carry) return carryMind(M, S, who, ctx);
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1, hoop = ctx.sport.goal.hoop;
+  const b = S.sim.bodies[0], ball = [b.position[0], b.position[1]], ring = [0, dir * (ctx.court.halfL - hoop.out)];
+  const toward = (t) => { const d = [t[0] - P.x, t[1] - P.y], n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * L.pace) / n; return [mr4(d[0] * k), mr4(d[1] * k)]; };
+  if (S.hold !== who) { const st = toward(ball); return { x: st[0], y: st[1], kick: null }; }
+  const toRing = Math.hypot(ring[0] - P.x, ring[1] - P.y), sweet = 0.85 + (mindDice(M) - 0.5) * L.wobble * 0.6;
+  // a shot from in front of the ring: the nearer, the likelier each frame; close in always (under it or behind it, out first)
+  const front = (ring[1] - P.y) * dir;
+  const want = front < 1.2 ? 0 : toRing < 2 ? 1 : toRing < hoop.range ? 0.006 + 0.02 * (1 - toRing / hoop.range) : 0;
+  if (mindDice(M) < want) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(ring[1] - P.y, ring[0] - P.x)), power: mr4(sweet) } };
+  // a pass to a teammate, now and then: one ahead, else the one most open (the furthest from its marker)
+  let mate = null, best = -Infinity;
+  for (const Q of S.p) { if (Q.side !== P.side || Q === P) continue; const open = S.p.filter((O) => O.side !== P.side).reduce((m, O) => Math.min(m, Math.hypot(O.x - Q.x, O.y - Q.y)), Infinity) + Math.max(0, (Q.y - P.y) * dir); if (open > best) { best = open; mate = Q; } }
+  if (mate && mindDice(M) < 0.02) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(mate.y - P.y, mate.x - P.x)), power: 0.4 } };
+  const st = toward([ring[0] + (P.x > 0 ? 2 : -2), ring[1] - dir * 3.2]);
+  return { x: st[0], y: st[1], kick: null };
+}
+
+/**
+ * THE CARRY MIND (team-sim.js's carry: rugby, American football): the computer side's active player. The kicker waits
+ * and kicks the conversion at the posts; without the ball it runs at the carrier (where it is going); with it, it runs
+ * for the line away from the nearest defender, passes back or flat when a defender closes in (rugby's), or, behind the
+ * line with a forward pass to give, throws it to the most open receiver downfield once its routes have run
+ * (football's); the level's wobble on each.
+ */
+function carryMind(M, S, who, ctx) {
+  const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1, K = S.K.carry, line = ctx.sport.carry.line;
+  const toward = (t, pace = L.pace) => { const d = [t[0] - P.x, t[1] - P.y], n = Math.hypot(d[0], d[1]); if (n < 0.15) return [0, 0]; const k = (Math.min(1, n) * pace) / n; return [mr4(d[0] * k), mr4(d[1] * k)]; };
+  const wob = () => (mindDice(M) - 0.5) * L.wobble;
+  if (S.convert && S.convert.side === P.side) {
+    if (S.convert.kicked || S.f - S.convert.at < 60) return { x: 0, y: 0, kick: null };
+    const py = dir * ctx.sport.goal.posts.y;
+    return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(py - P.y, -P.x)), power: mr4(0.85 + wob() * 0.6) } };
+  }
+  const b = S.sim.bodies[0];
+  if (S.hold !== who) {
+    const holder = S.p.find((Q) => Q.id === S.hold), t = holder ? [holder.x + holder.vx * 0.5, holder.y + holder.vy * 0.5] : [b.position[0], b.position[1]];
+    const st = toward(t, 1);
+    return { x: st[0], y: st[1], kick: null };
+  }
+  const them = S.p.filter((Q) => Q.side !== P.side), mates = S.p.filter((Q) => Q.side === P.side && Q !== P);
+  const near = them.reduce((m, Q) => (m === null || Math.hypot(Q.x - P.x, Q.y - P.y) < Math.hypot(m.x - P.x, m.y - P.y) ? Q : m), null);
+  const nearD = near ? Math.hypot(near.x - P.x, near.y - P.y) : Infinity;
+  const openOf = (Q) => them.reduce((m, O) => Math.min(m, Math.hypot(O.x - Q.x, O.y - Q.y)), Infinity);
+  if (ctx.sport.carry.style === 'downs') {
+    // football: behind the line with the pass to give, the quarterback lets the routes run, then throws downfield
+    const behind = (P.y - K.los) * dir <= 0.5, since = S.f - (S.playAt ?? 0);
+    if (behind && !K.forward) {
+      if (since > 30) {
+        const downfield = mates.filter((Q) => (Q.y - P.y) * dir > 4).sort((q, r) => openOf(r) - openOf(q))[0];
+        if (downfield && (openOf(downfield) > 2 || nearD < 2.5) && mindDice(M) < 0.1) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(downfield.y - P.y, downfield.x - P.x) + wob() * 0.1), power: 0.7 } };
+      }
+      // the drop back: a few steps behind the line while the routes run, then it runs if nobody came open
+      if (since < 90 && nearD > 2) { const st = toward([P.x, K.los - dir * 3], 1); return { x: st[0], y: st[1], kick: null }; }
+    }
+  } else if (nearD < 1.8 && (near.y - P.y) * dir > -0.5) {
+    // rugby: a defender about to tackle: a pass back or flat to a teammate in space
+    const back = mates.filter((Q) => (Q.y - P.y) * dir < -0.3 && Math.hypot(Q.x - P.x, Q.y - P.y) < 10 && openOf(Q) > 3).sort((q, r) => openOf(r) - openOf(q))[0];
+    if (back && mindDice(M) < 0.15) return { x: 0, y: 0, kick: { facing: mr4(Math.atan2(back.y - P.y, back.x - P.x)), power: 0.5 } };
+  }
+  // run for the line, away from the nearest defender ahead
+  const away = near && (near.y - P.y) * dir > 0 && nearD < 8 ? (P.x >= near.x ? 1 : -1) * (8 - nearD) * 0.8 : 0;
+  const st = toward([P.x + away + wob() * 2, dir * (line + 2)], 1);
+  return { x: st[0], y: st[1], kick: null };
+}
+
+/**
+ * Where a carry game's role player runs (team-sim.js, every player not at a pad or the active one): the side with the
+ * ball supports its carrier (rugby's staggered line behind it, beside it) or runs its routes downfield from the line
+ * (football's, until the pass is thrown, then alongside); the other side holds its line a gap off the ball and closes on
+ * the carrier, a man on each receiver while the ball is behind the line (football's), and pursues where the carrier is
+ * going. → [x, y]
+ */
+export function carryTarget(S, ctx, P) {
+  const c = ctx.court, K = S.K.carry, sideDir = (side) => (side === 'a' ? 1 : -1), holder = S.p.find((Q) => Q.id === S.hold), b = S.sim.bodies[0];
+  const mates = S.p.filter((Q) => Q.side === P.side), i = mates.indexOf(P), n = mates.length, spread = (i - (n - 1) / 2);
+  const clampIn = (t) => [mclamp(t[0], -c.halfW + 0.5, c.halfW - 0.5), mclamp(t[1], -c.halfL, c.halfL)];
+  // a ball in the air: its receiver runs to where it comes down, the other side converges on the receiver, the rest of
+  // the receiver's side hold their ground
+  if (!holder) {
+    if (P.id === S.passTo) return clampIn([b.position[0] + b.velocity[0] * 0.3, b.position[1] + b.velocity[1] * 0.3]);
+    const to = S.p.find((Q) => Q.id === S.passTo);
+    return to && to.side !== P.side ? clampIn([to.x + to.vx * 0.5, to.y + to.vy * 0.5]) : [P.x, P.y];
+  }
+  const dir = sideDir(holder.side), downs = ctx.sport.carry.style === 'downs';
+  if (holder.side === P.side) {
+    if (downs && !K.forward && (holder.y - K.los) * dir <= 0.5) {
+      const h = ctx.sport.homes[P.role];
+      return clampIn([holder.x + h[0] * 1.2, K.los + dir * (5 + 4 * Math.abs(spread) + Math.abs(h[0]) * 0.3)]);
+    }
+    const k = mates.filter((Q) => Q !== holder).indexOf(P);
+    return clampIn(downs ? [holder.x + (k % 2 ? 1 : -1) * (2 + k), holder.y + dir * 1.5] : [holder.x + (k % 2 ? 1 : -1) * (3 + 2.5 * Math.floor(k / 2)), holder.y - dir * (1.2 + k * 0.4)]);
+  }
+  // defence: a man on each receiver while the ball is behind the line (football's), else the line closing on the carrier
+  if (downs && !K.forward && (holder.y - K.los) * dir <= 0.5 && i > 0) {
+    // the last of the side plays a deep zone; the rest a man each, a step downfield of it and inside
+    if (i === n - 1) return clampIn([holder.x * 0.4, K.los + dir * 12]);
+    const man = S.p.find((Q) => Q.side === holder.side && Q.id.slice(1) === P.id.slice(1));
+    if (man && man !== holder) return clampIn([man.x + (man.x >= 0 ? -0.8 : 0.8), man.y + dir * 0.8]);
+  }
+  const far = Math.hypot(holder.x - P.x, holder.y - P.y);
+  // the last of the side (the safety, the fullback) holds its depth in front of the carrier, squared up to it, and
+  // meets it when it comes near (it never backs away)
+  if (i === n - 1 && (P.y - holder.y) * dir > 2 && far > 6) return clampIn([holder.x + holder.vx * 0.5, P.y]);
+  // the rest pursue, leading the carrier by the time to reach it (a cut-off angle, not a chase from behind), spread
+  // across the field while far, straight in when near
+  const lead = Math.min(1.2, far / 6), wide = far > 8 ? spread * 3 : 0;
+  return clampIn([holder.x + holder.vx * lead + wide, holder.y + holder.vy * lead + dir * (far > 8 ? ctx.sport.carry.gap : 0)]);
 }
 
 // ── the turn mind ────────────────────────────────────────────────────────────────────────────────────────────
@@ -335,6 +506,7 @@ export function newTeamMind(level = 'regular', seed = 1) {
 
 /** The pad the computer side's active player holds this frame, in the court frame, and the kick it wants if any. */
 export function teamMind(M, S, who, ctx) {
+  if (ctx.sport.hands) return handsMind(M, S, who, ctx);
   const L = MIND_LEVELS[M.level], P = S.p.find((p) => p.id === who), dir = P.side === 'a' ? 1 : -1;
   const b = S.sim.bodies[0], ball = [b.position[0], b.position[1]], goal = [0, dir * ctx.court.halfL];
   const wob = () => (mindDice(M) - 0.5) * L.wobble;

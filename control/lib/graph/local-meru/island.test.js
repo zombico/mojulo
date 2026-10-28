@@ -51,7 +51,7 @@ describe('local meru: island geology and a walk at the base', () => {
   it('reads geology and walk, and refuses other words', () => {
     expect(readLocalMeru({ island: { geology: true, walk: 'base' } }).island).toMatchObject({ geology: true, walk: 'base' });
     expect(() => readLocalMeru({ island: { geology: 'yes' } })).toThrow(/island.geology is true/);
-    expect(() => readLocalMeru({ island: { walk: 'none' } })).toThrow(/island.walk is 'all'/);
+    expect(() => readLocalMeru({ island: { walk: 'fly' } })).toThrow(/island.walk is 'all'/);   // ('none' is a walk now: the island flown)
   });
   it('makes the raised land rock, so the mountain is not a turned mound', () => {
     expect(of(rock, 'isekai:cliff').length).toBeGreaterThan(of(bare, 'isekai:cliff').length * 1.3);

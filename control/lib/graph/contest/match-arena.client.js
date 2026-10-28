@@ -134,7 +134,8 @@ dressCourt();
 
 const LIMB_R = 0.055;
 // the racquet's length: a paddle or a bat as short as the sport's reach is (its `pace`), the racquet's otherwise
-const RQ = 0.55 * (CA.sport.pace && CA.sport.pace.reach ? CA.sport.pace.reach : 1);
+// (bare hands, volleyball's: none drawn)
+const RQ = CA.sport.bare ? 0 : 0.55 * (CA.sport.pace && CA.sport.pace.reach ? CA.sport.pace.reach : 1);
 function makePlayer(color) {
   const near = new THREE.MeshBasicMaterial({ color, vertexColors: true });
   const group = new THREE.Group();
@@ -202,8 +203,8 @@ function posePlayer(B, P) {
   B.head.ink.position.copy(B.head.fill.position); B.head.ink.scale.setScalar(0.11 * 1.12);
   B.shadow.position.set(x, y, 0.01);
 }
-// the ball in its colour: a table-tennis ball's white, a shuttle's, the felt yellow of a tennis ball otherwise
-const ballMesh = new THREE.Mesh(GEO_BALL, new THREE.MeshBasicMaterial({ color: { pingpong: 0xf6f1e4, shuttle: 0xfbfbf8 }[CA.sport.ball] ?? 0xd9e84a, vertexColors: true }));
+// the ball in its colour: a table-tennis ball's white, a shuttle's, a volleyball's, the felt yellow of a tennis ball otherwise
+const ballMesh = new THREE.Mesh(GEO_BALL, new THREE.MeshBasicMaterial({ color: { pingpong: 0xf6f1e4, shuttle: 0xfbfbf8, volleyball: 0xf1e6c4 }[CA.sport.ball] ?? 0xd9e84a, vertexColors: true }));
 const ballInk = new THREE.Mesh(GEO_BALL, INK);
 const ballShadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
 scene.add(ballMesh, ballInk, ballShadow);
@@ -223,7 +224,7 @@ function begin(params = {}) {
   for (const B of bodies) scene.remove(B.group, B.shadow);
   ctx = matchContext({ ...CA, players: params.players ?? CA.players, register: params.register ?? CA.register, level: params.level ?? CA.level, seed: params.seed ?? CA.seed });
   S = newMatch(ctx);
-  bodies = S.p.map((_, i) => (ATH && ATH.has(i) ? makeAthlete(i) : makePlayer(COLORS[i])));
+  bodies = S.p.map((P, i) => (ATH && ATH.has(i) ? makeAthlete(i) : makePlayer(COLORS[sideIx(P.side)])));
   calls = 0; games = 0;
   tvOpen(TV, { title: CA.title || SPORT, rows: [0, 1].map((i) => ({ name: sideName(i), color: i })) });
   phase = 'match';
@@ -255,7 +256,7 @@ function readCalls() {
     if (!q) continue;
     const side = c.kind === 'over' ? c.winner : c.side;
     if (q.cut === 'winner' && (side === 'a' || side === 'b')) {
-      const P = S.p[sideIx(side)], [x, y] = toStage(P.x, P.y), sc = S.K.score[side], op = S.K.score[side === 'a' ? 'b' : 'a'];
+      const P = S.p.find((p) => p.side === side), [x, y] = toStage(P.x, P.y), sc = S.K.score[side], op = S.K.score[side === 'a' ? 'b' : 'a'];
       const line = [c.kind === 'over' ? 'THE MATCH' : q.text, ...UNITS.slice(0, -1).map((u) => `${u} ${sc[u.ix] ?? 0}–${op[u.ix] ?? 0}`)].join(' · ');
       const strap = q.unit || c.kind === 'over' ? { name: sideName(sideIx(side)), line: c.kind === 'over' && STATS ? withStats(line, side, STATS.strap) : line, tag: side === 'a' ? '1' : '2', color: sideIx(side) } : null;
       tvCut(TV, { on: [x, y, 0], hold: c.kind === 'over' ? 110 : 54, ...(strap ? { strap } : {}) });

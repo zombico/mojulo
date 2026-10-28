@@ -20,7 +20,7 @@
 //   - a changed data file (a card, a table, a kernel in another language) runs the tests in its folder;
 //   - a changed config (package.json, a vitest config, next.config) runs the critical tier instead: the graph cannot
 //     say what a config reaches.
-// Prose (the changelog, docs, a README) runs nothing. The whole suite, the deep tier and e2e run in CI.
+// Prose (the changelog and its theme files, docs, a README) runs nothing. The whole suite, the deep tier and e2e run in CI.
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -30,12 +30,13 @@ import { CONTROL, importGraph, testsReaching, isTest } from './test-graph.mjs';
 /** Sources read as text, and the modules (or tests) that read them: a change to one is a change to its readers. */
 export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/versus\/[^/]+\.js$/, by: ['lib/graph/versus/versus-page.js'], why: 'the versus page inlines its modules and clients' },
-  { reads: /^lib\/graph\/broadcast\/broadcast\.client\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js'], why: 'every contest channel inlines the broadcast graphics before its arena client' },
-  { reads: /^lib\/graph\/contest\/contest-stats\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js'], why: 'every contest channel inlines the stats fold its broadcast shows' },
+  { reads: /^lib\/graph\/broadcast\/broadcast\.client\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the broadcast graphics before its arena client' },
+  { reads: /^lib\/graph\/contest\/contest-stats\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the stats fold its broadcast shows' },
   { reads: /^lib\/graph\/contest\/(contest-kernel|meet-sim|meet-arena\.client)\.js$/, by: ['lib/graph/contest/meet-arena.js'], why: 'the meet channel inlines the contest kernel, the meet sim and the arena client' },
   { reads: /^lib\/graph\/(physics\/flight|contest\/ball-card|polygonizer\/hero-swing|contest\/hit|worlds\/physics-sim|contest\/contest-kernel|contest\/contest-mind|contest\/match-sim|contest\/match-arena\.client)\.js$/, by: ['lib/graph/contest/match-arena.js'], why: 'the court channel inlines the ball\'s flight, the ball card, the swing system, the hit, the physics integrator, the kernel, the mind and the match sim' },
   { reads: /^lib\/graph\/(physics\/flight|contest\/ball-card|polygonizer\/hero-swing|contest\/hit|worlds\/physics-sim|contest\/contest-kernel|contest\/contest-mind|contest\/turn-sim|contest\/turn-arena\.client)\.js$/, by: ['lib/graph/contest/turn-arena.js'], why: 'the turns channel inlines the same physics and hit modules, the kernel, the minds, the turn sim and its arena client' },
   { reads: /^lib\/graph\/(physics\/flight|contest\/ball-card|polygonizer\/hero-swing|contest\/hit|worlds\/physics-sim|contest\/contest-kernel|contest\/contest-mind|contest\/team-sim|contest\/team-arena\.client)\.js$/, by: ['lib/graph/contest/team-arena.js'], why: 'the pitch channel inlines the same physics and hit modules, the kernel, the minds, the team sim and its arena client' },
+  { reads: /^lib\/graph\/(physics\/flight|contest\/ball-card|worlds\/physics-sim|contest\/contest-kernel|contest\/bat-sim|contest\/innings-arena\.client)\.js$/, by: ['lib/graph/contest/innings-arena.js'], why: 'the field channel inlines the ball\'s flight, the ball card, the physics integrator, the kernel, the bat sim and its arena client' },
   { reads: /^lib\/graph\/tabletop\/holo-arena\.client\.js$/, by: ['lib/graph/tabletop/holo-arena.js'], why: 'the holo channel inlines the arena\'s client' },
   { reads: /^lib\/graph\/(versus\/versus-rig|versus\/versus-figure|contest\/athlete-pose|contest\/athlete\.client)\.js$/, by: ['lib/graph/scene/channels/contest.js'], why: 'a sport\'s channel inlines the figure that poses its athletes when its arena carries their bodies' },
   { reads: /^lib\/graph\/gameworld\/feel\/(cards|kernel|page\.client)\.js$/, by: ['lib/graph/gameworld/feel/page.js'], why: 'the action lab page inlines its kernel' },
@@ -62,7 +63,7 @@ export const DATA_READERS = Object.freeze([
   'lib/mcp/routing-cards/loader.js', 'lib/mcp/seeds/mcp-capabilities-seed.js', 'lib/mcp/tools/mcp-orbit.js', 'lib/motion/glyph-carver.js',
   'lib/server-version.js', 'lib/version/local.js', 'lib/workers/find.js',
 ]);
-const PROSE = /(^|\/)(CHANGELOG[^/]*|README[^/]*|NOTICE|LICENSE[^/]*)$|^\.\.\/docs\/|^\.\.\/[^/]+\.md$/;
+const PROSE = /(^|\/)(CHANGELOG[^/]*|README[^/]*|NOTICE|LICENSE[^/]*)$|^changelog\/|^\.\.\/docs\/|^\.\.\/[^/]+\.md$/;
 const CONFIG = /^(package(-lock)?\.json|vitest[^/]*\.js|next\.config\.mjs|jsconfig\.json)$/;
 const PIN = /\.(char|trace)\.test\.js$/;
 const NEVER = /\.(gen|spike|godot)\.test\.js$|\.spike\.gen\.test\.js$/;

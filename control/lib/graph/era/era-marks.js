@@ -11,7 +11,7 @@
  * each; until it draws one, a gen-7 read draws it as paint under the live light and reads `approximated`, never built.
  * A gap is named, never approximated silently: eraReading lists every surface a payload carries that its era draws so.
  *
- * The two lists below are closed over emitThreeWorld's parameters (engines/mark-sources.js pageInputs): a new page input
+ * The lists below are closed over emitThreeWorld's parameters (engines/mark-sources.js pageInputs): a new page input
  * is classified here before the ratchet (era-marks.test.js) passes.
  *
  * Pure data and one read. No builder is imported.
@@ -37,19 +37,27 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner',
-  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo',
+  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings',
 ]);
 
+/** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):
+ *  `form.land` a geocube's island or trail (form/land-read.js), `form.room` a room under no sun (form/room-form.js). */
+export const FORM_INPUTS = Object.freeze(['form']);
+// a payload that carries the form render: its faces and their tiles are drawn as material
+const FORMED = new Set(['faces', 'textures']);
+
 const PAINT_HOW = 'drawn as paint, its light in its colour, under the live light: the form render does not draw it yet';
+const FORM_HOW = { form: 'the land as material under the cube\'s light (form/land-read.js, channels/form-land.js): a geocube\'s island or trail; a room\'s tiles as material over its light solved from its palette and baked with its shadows, the nearest lamps lighting its relief (form/room-form.js, form/room-light.js, channels/form.js)' };
 const LIVE_HOW = 'the live light darkening paint: the form render will light material with it';
 const g6 = markRow('gen-6'), g7 = markRow('gen-7');
 
 /** Each era's marks over every World page input: { [era]: { [input]: row } }. */
 export const ERA_PAGE_MARKS = Object.freeze({
-  'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS].map((k) => [k, g6('built')]))),
+  'gen-6': Object.freeze(Object.fromEntries([...SURFACE_INPUTS, ...NEUTRAL_INPUTS, ...FORM_INPUTS].map((k) => [k, g6('built')]))),
   'gen-7': Object.freeze(Object.fromEntries([
     ...SURFACE_INPUTS.map((k) => [k, g7('approximated', LIVE.has(k) ? LIVE_HOW : PAINT_HOW)]),
     ...NEUTRAL_INPUTS.map((k) => [k, Object.freeze({ 'gen-7': 'built', neutral: true })]),
+    ...FORM_INPUTS.map((k) => [k, g7('built', FORM_HOW[k])]),
   ])),
 });
 
@@ -61,9 +69,9 @@ const carried = (v) => v !== undefined && v !== null && v !== false && !(Array.i
  */
 export function eraReading(payload, era) {
   readEra(era);
-  const marks = ERA_PAGE_MARKS[era], out = { era, surface: ERAS[era].surface, approximated: [], absent: [] };
+  const marks = ERA_PAGE_MARKS[era], out = { era, surface: ERAS[era].surface, approximated: [], absent: [] }, formed = carried(payload?.form);
   for (const [input, row] of Object.entries(marks)) {
-    if (row[era] === 'built' || !carried(payload?.[input])) continue;
+    if (row[era] === 'built' || !carried(payload?.[input]) || (formed && FORMED.has(input))) continue;
     out[row[era]].push({ input, how: row.how });
   }
   return out;

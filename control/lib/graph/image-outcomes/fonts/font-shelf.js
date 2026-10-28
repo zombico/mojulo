@@ -1,5 +1,5 @@
 /**
- * font-shelf — the curated titling/text font vocabulary for covers.
+ * font-shelf — the curated titling/text font vocabulary for covers and books.
  *
  * mojulo owns cover TEXT as geometry (the carve kernel turns a face + a string
  * into vector outlines, title-geometry.js fills/extrudes them). That geometry is
@@ -13,6 +13,10 @@
  * face so the pipeline runs during bring-up — the KEY/role stays stable, only the
  * bytes change once the real face lands. `license` is carried per entry for
  * attribution (fonts/LICENSES.md).
+ *
+ * A book (lib/graph/book/) sets type in the same faces, by the same keys, as CSS: `styles` names the files of a face's
+ * italic and bold where it has them, and `fontFaceCss(key)` inlines the vendored files as @font-face rules (a face
+ * not vendored inlines nothing, and the page's stack falls back to the host's).
  */
 import { readFileSync } from 'node:fs';
 import { moduleDir } from '../../../module-dir.js';
@@ -35,6 +39,7 @@ export const FONT_SHELF = {
   },
   'im-fell': {
     family: 'IM Fell English', role: 'display-serif', file: 'im-fell-english.ttf', license: 'OFL-1.1',
+    styles: { italic: 'im-fell-english-italic.ttf' },
     fallbacks: [
       '/System/Library/Fonts/Supplemental/Academy Engraved LET Fonts.ttf',
       '/System/Library/Fonts/Supplemental/Georgia.ttf',
@@ -43,6 +48,18 @@ export const FONT_SHELF = {
   'great-vibes': {
     family: 'Great Vibes', role: 'display-script', file: 'great-vibes.ttf', license: 'OFL-1.1',
     fallbacks: ['/System/Library/Fonts/Supplemental/Apple Chancery.ttf'],
+  },
+  // a book's text face: an old-style serif for long reading
+  'crimson-text': {
+    family: 'Crimson Text', role: 'text-serif', file: 'crimson-text.ttf', license: 'OFL-1.1',
+    styles: { italic: 'crimson-text-italic.ttf', bold: 'crimson-text-bold.ttf' },
+    fallbacks: ['/System/Library/Fonts/Supplemental/Georgia.ttf'],
+  },
+  // a book's typewriter: tables, the dice, a dossier
+  'courier-prime': {
+    family: 'Courier Prime', role: 'text-mono', file: 'courier-prime.ttf', license: 'OFL-1.1',
+    styles: { bold: 'courier-prime-bold.ttf', italic: 'courier-prime-italic.ttf' },
+    fallbacks: ['/System/Library/Fonts/Supplemental/Courier New.ttf'],
   },
   'inter': {
     family: 'Inter', role: 'text-sans', file: 'inter.ttf', license: 'OFL-1.1',
@@ -92,3 +109,24 @@ export function faceMeta(key) {
 /** Default titling face key. */
 export const DEFAULT_TITLE_FACE = DEFAULT_KEY;
 export const DEFAULT_TEXT_FACE = 'inter';
+
+const FACE_CSS = new Map();
+/** The vendored files of a shelf face as @font-face rules, for the styles asked ('regular', 'italic', 'bold'; each the
+ *  face has); '' when the face is not vendored, so a page names it in its stack and the host's face stands in. */
+export function fontFaceCss(key, styles = ['regular', 'italic', 'bold']) {
+  const memo = `${key}|${styles.join(',')}`;
+  if (FACE_CSS.has(memo)) return FACE_CSS.get(memo);
+  const entry = FONT_SHELF[key];
+  if (!entry) throw new Error(`font-shelf: no face '${key}' (${Object.keys(FONT_SHELF).join(', ')})`);
+  const files = { regular: [entry.file, 'normal', '400'], italic: [entry.styles?.italic, 'italic', '400'], bold: [entry.styles?.bold, 'normal', '700'] };
+  const rules = [];
+  for (const [file, style, w] of styles.map((s) => files[s]).filter(Boolean)) {
+    if (!file) continue;
+    let bytes;
+    try { bytes = readFileSync(path.join(HERE, file)); } catch { continue; }
+    rules.push(`@font-face{font-family:'${entry.family}';font-style:${style};font-weight:${w};font-display:block;src:url(data:font/ttf;base64,${bytes.toString('base64')}) format('truetype')}`);
+  }
+  const css = rules.join('');
+  FACE_CSS.set(memo, css);
+  return css;
+}

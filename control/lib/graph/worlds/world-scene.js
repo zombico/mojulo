@@ -35,6 +35,7 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
+import { formRoomMaps } from '@/lib/graph/form/room-form';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
@@ -46,7 +47,9 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { readHour } from '@/lib/graph/era/geocube-hours';
+import { landRead, formPayload, DRESS_DEFAULT } from '@/lib/graph/form/land-read';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
@@ -93,6 +96,8 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * assembler. `payload` is null when the kind has no World form (the assembleRoomScene
  * fallback returns null for any non-room manifest). Async because the workbench path
  * resolves label-wrap textures (which may render referenced sketches to SVG).
+ * `paint: true` (an engine or file export): a read in the form render keeps its surfaces as paint, since the export
+ * carries no live light to draw the form render's material by (form/room-form.js).
  */
 /** A hero's FACE under the runtime's state names (`clips` each state's clip, `own` the hero's clips by their names): a
  * state's facial track its clip's, the ambient blink over a state whose clip it played over or that has no track of
@@ -292,6 +297,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     ref: sketch.ref,
     // (solid: the builders' thickness, above; only when on, so a ctx without it is as it was)
     ...(solid ? { solid: true } : {}),
+    // (form: a read in the form render (gen-7), for the builders that make more of the land for it: the meru island's
+    // broken boulders, rims and strewn stones; only when on, so a gen-6 ctx is as it was)
+    ...(ERAS[era]?.surface === 'form' ? { form: true } : {}),
+    // (formLit: a room under no sun drawn by the form render, its colour and its light baked apart by its palette's solve
+    // and its relief lit on the page: era/stage.js, form/room-light.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
+    // engine or file export, which carries its surfaces as paint until it carries materials) keeps the paint)
+    ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { formLit: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
@@ -360,7 +372,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
         ({ faces, textures } = readBoundMeshScene(bound.path, {}));
       } else {
-        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}) });
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(viewOpts.era !== undefined ? { era: viewOpts.era } : {}), ...(viewOpts.paint ? { paint: true } : {}) });
         faces = inner.payload?.faces || [];
         textures = inner.payload?.textures || {};
       }
@@ -553,7 +565,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
   if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
   // the live occlusion pass (ctx.occlusion above): the World page reads the resolved terms; stills and exports ignore them
-  if (payload && ctx.occlusion && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
+  // (a room in the form render bakes its occlusion with its light, form/room-light.js: it takes the live pass only when its
+  // recipe asks for it, not by its era's default)
+  const formRoomOcc = payload && payload.form && payload.form.room && liveL && liveL.from && liveL.from.occlusion === 'form';
+  if (payload && ctx.occlusion && !formRoomOcc && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the
@@ -577,6 +592,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const manifestTex = sketch.manifest.textures;
     if (manifestTex && typeof manifestTex === 'object') {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
+    }
+    // THE FORM RENDER INDOORS (form/room-form.js): a room baked for the form render has its tiles read as material, each
+    // key's colour under no light in place of its paint, its normal, occlusion, height and mean beside it
+    if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
+      const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
+      Object.assign(textures, F.textures);
+      payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
@@ -678,13 +701,24 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
-  const shadowsOut = liveL ? liveL.shadows : sketch.manifest.shadows;
+  // (a room in the form render, under no sun, bakes its lamps' shadows: of the live light it keeps what moves, the actors)
+  const shadowsOut = payload && payload.form && payload.form.room ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
+  // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
+  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones), drawn
+  // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
+  // its patches. Any other read, and the unshaded export: none, every byte as it was
+  if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
+    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
+    const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
+    const read = landRead(payload, readGeocube(M.cube), { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress });
+    if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+  }
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word
@@ -698,7 +732,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const fxs = sketch.manifest.fxStyle;
     if (typeof fxs !== 'boolean' && !(fxs && typeof fxs === 'object' && !Array.isArray(fxs))) throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule), false, or { register?, flavor?, …dials } (the floor composed for the game: scene/juice-style.js)');
     if (fxs === true && payload.events) payload.events = { ...payload.events, fxStyle: true };
-    else if (fxs && payload.events) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); payload.events = { ...payload.events, fxStyle: readJuiceStyle(fxs) }; }
+    // (a floor at the era's fidelity is drawn at the read's: the sixth generation's paint, the seventh's form)
+    else if (fxs && payload.events) { const { readJuiceStyle, fidelityOfRead } = await import('@/lib/graph/scene/juice-style.js'); const S = readJuiceStyle(fxs); payload.events = { ...payload.events, fxStyle: S.fidelity ? { ...S, fidelity: fidelityOfRead(S.fidelity, era) } : S }; }
     else if (fxs) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); readJuiceStyle(fxs); }
   }
   if (payload && sketch.manifest.crystalLight) {
@@ -790,6 +825,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (sketch.manifest.commander && typeof sketch.manifest.commander === 'object') payload.commander = sketch.manifest.commander;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
+    // A MACHINE'S JUICE AT ITS FIDELITY (car-designer/juice.js rigFidelity): the world's composed floor's (at the read's
+    // era), else the venue's drawing (a voxel kit or venue its blocks, an anime venue its cel discs), else the read's era
+    // (gen-7 its bloom). The sixth generation's paint is the page's own: the juice as it was
+    const atRigFidelity = async (fig) => {
+      if (!fig || !fig.juice) return fig;
+      const m = sketch.manifest, { rigFidelity } = await import('@/lib/graph/car-designer/juice.js');
+      const fxs = m.fxStyle && typeof m.fxStyle === 'object' ? m.fxStyle : null;
+      const floor = fxs && fxs.fidelity ? (await import('@/lib/graph/scene/juice-style.js')).fidelityOfRead(fxs.fidelity, era) : undefined;
+      const v = m.scape && m.scape.venue, { STADIUM_PRESETS } = await import('@/lib/graph/stadium/stadium-words.js');
+      const venueLook = typeof v === 'string' ? STADIUM_PRESETS[v]?.look : v && typeof v === 'object' ? v.look ?? STADIUM_PRESETS[v.preset]?.look : undefined;
+      const f = rigFidelity({ floor, pole: m.kit && m.kit.pole, venueLook, era });
+      return f === 'paint' ? fig : { ...fig, juice: { ...fig.juice, fidelity: f } };
+    };
     if (figs && typeof figs === 'object') {
       payload.figures = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
@@ -817,7 +865,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
-          payload.figures[name] = figure;
+          // (the same game type's movement juice, a platformer's or pinball's: gameworld/feel/hero-juice.js, at the
+          // fidelity a machine's takes; any other game type's hero as it was)
+          const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
+          payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } } : e));
           continue;
         }
@@ -827,7 +878,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no racer is resolved, byte-identical.
         if (rawSpec.racer && typeof rawSpec.racer === 'object') {
           const { racerOf } = await import('@/lib/graph/car-designer/roster.js');
-          payload.figures[name] = racerOf(rawSpec.racer).S.figure;
+          // (read in the form render, gen-7, a finished racer carries its materials for the page to light)
+          payload.figures[name] = await atRigFidelity(racerOf(rawSpec.racer, { form: ERAS[era]?.surface === 'form' }).S.figure);
           continue;
         }
         // SUPERCAR bodies (car-designer/supercar-figure.js): a figures-map entry may be a composed supercar's recipe
@@ -836,7 +888,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no supercar is resolved, byte-identical.
         if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
           const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
-          payload.figures[name] = supercarFigure(rawSpec.supercar);
+          // (read in the form render, gen-7, its body and wheels carry their materials for the page to light)
+          payload.figures[name] = await atRigFidelity(supercarFigure(rawSpec.supercar, { form: ERAS[era]?.surface === 'form' }));
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
@@ -1392,6 +1445,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { teamArenaData } = await import('@/lib/graph/contest/team-arena.js');
     const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
     payload.pitch = teamArenaData(sketch.manifest.pitch, { bodies: await athleteBodies(sketch.manifest.pitch.athletes) });
+  }
+  // a bat-and-ball game on a field (contest/innings-arena.js): the sport, the players, the register, the contest
+  // compiled, the level wire's names; the page's innings channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.innings && typeof sketch.manifest.innings === 'object') {
+    const { inningsArenaData } = await import('@/lib/graph/contest/innings-arena.js');
+    const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
+    payload.innings = inningsArenaData(sketch.manifest.innings, { bodies: await athleteBodies(sketch.manifest.innings.athletes) });
   }
   // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
   // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).

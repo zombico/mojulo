@@ -11,8 +11,9 @@ import { questScript } from './quest-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
-import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
-import { titleScript, titleHex } from './title-channel.js';
+import { momentKinds, momentScript, CEL_GLYPHS, VOXEL_GLYPHS } from './moment-channel.js';
+import { titleScript, titleHex, titleBlock } from './title-channel.js';
+import { titleMaterial } from '../../game/title-material.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
 import { rimScript } from '../effect-rim.js';
@@ -78,7 +79,13 @@ function hudScript(widgets, style, register, menus = null, titles = null, juice 
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || w.kind === 'title' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
-  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? { hex: titleHex(w.color, style) } : {}) }));
+  const titleRow = (w) => {
+    const hex = titleHex(w.color, style), mat = w.material ? titleMaterial(w.material, { cel: juice !== 'western' }) : null;
+    // a block's sides: the row's colour, or the face's own darkened (a metal's: the sweep under its horizon)
+    const blk = w.block ? titleBlock(w.block, mat && mat.metal ? mat.stops[5][1] : hex, w.blockColor ? titleHex(w.blockColor, style) : null) : null;
+    return { hex, ...(mat ? { mat } : {}), ...(blk ? { blk } : {}) };
+  };
+  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? titleRow(w) : {}) }));
   const gated = widgets.some((w) => w.id || w.when);
   const on = (x) => (gated ? ` && __hudOn(${x})` : '');
   const titled = !!titles && widgets.some((w) => w.kind === 'title');
@@ -186,7 +193,7 @@ function __syncHud(t, incoming) {
   for (const b of __hudBanners) if (b.until && (t || 0) >= b.until) { b.el.classList.add('moj-hidden'); b.until = 0; }
   for (const l of __hudTimed) if (l.until >= 0 && (t || 0) - __hudT0 >= l.until) { l.el.classList.add('moj-hidden'); l.until = -1; }${titled ? `
   __ttStep(t || 0);` : ''}
-}${titled ? titleScript(titles, { register: juice }) : ''}`;
+}${titled ? titleScript(titles, { register: juice, material: widgets.some((w) => w.kind === 'title' && w.material), block: widgets.some((w) => w.kind === 'title' && w.block) }) : ''}`;
 }
 
 // In-page script: the EVENTS channel — the in-world bus (event-bus.plan.md). This is the MEMBRANE
@@ -233,7 +240,11 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   // and its auras (a cel look's blast drawn as spirit onions)
   const auraOf = (X) => !!(X && X.aura);
   const maura = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? auraOf(r.spec) : r.op === 'beam' && r.spec ? auraOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => auraOf(B.impactSpec)));
-  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}) }) : '';
+  // and a fidelity's: its voxel glyph, its light's pool, its bloom (scene/juice-style.js JUICE_FIDELITIES)
+  const usesX = (test) => mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? test(r.spec) : r.op === 'beam' && r.spec ? test(r.spec.impactSpec) || test(r.spec) : false)) || rpgBeams.some((B) => test(B.impactSpec)));
+  const mvox = usesX((X) => !!(X && ((Array.isArray(X.parts) && X.parts.some((p) => VOXEL_GLYPHS.includes(p.glyph))) || (X.sparks && VOXEL_GLYPHS.includes(X.sparks.glyph)))));
+  const mpool = usesX((X) => !!(X && X.pool)), mbloom = usesX((X) => !!(X && X.bloom));
+  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}), ...(mvox ? { voxel: true } : {}), ...(mpool ? { pool: true } : {}), ...(mbloom ? { bloom: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box

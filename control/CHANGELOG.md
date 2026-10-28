@@ -345,6 +345,196 @@ these fixes. The eyes gate is the operator's.
   flat at gen-7, and the realistic body's plating groups have no material row. It also lists what is missing before a
   mint can draw a hero in the form render.
 
+### Gen-7 rooms: a room's surfaces as material, its lights live
+
+The form render's first place: a room under no sun, read in gen-7 (`?era=gen-7`, `export_game { era }`, a cube that names
+the seventh generation), has its tiles read as material and its placed lights lit live, where gen-6 paints the light into
+each tile and bakes every lamp into the corners. The same recipe read in gen-6 is byte for byte as it was.
+
+- **Every dressed cut reads as material** (`dressedMaterial`, matte-paint/dressed.js): the ashlar wall and floor, the
+  fluted and plain shafts, lime render, roof tiles and slates, boards, and the natural cuts beside the modern ones. Each
+  cut lights its relief through one helper, which, read as material, paints the colour under no light and keeps the
+  relief for its normal, occlusion and roughness. The paint is unchanged (its pins hold).
+- **A room's tiles as material** (`form/room-form.js`): a dressed family from its relief (each joint, flute and chip its
+  own slope); any other tile from its painted light read back as height, as the seventh generation's own tools pulled a
+  normal map from a photograph (its colour keeps the light it was painted with: `read: 'luminance'` says so). A
+  generated tile now records the spec it was painted from (`generatedSpecOf`, landscape/surface-textures.js).
+- **No light in the corners** (era/stage.js): a room read in the form render bakes each corner its material's colour,
+  its tint under its dirt, and hands the page its placed lights, braziers and the nave's sun pools (`form.room: {
+  lights, ambient }`). A sunlit or night stage stays paint. A toned room (tone.js) has no material colour of its own (its
+  ramps colour its light), so each corner carries what the toned page paints it under its lamps, over the light the form
+  page will lay there: the room reads as its art direction, and the live light adds its relief and its shadows.
+- **The page lights it** (`scene/channels/form.js`): every surface of the room a lit material, flat-shaded with its
+  normal map's frame from the screen's derivatives, under the room's lights falling off by the bake's own law, an indirect
+  of the bake's ambient and a bounce off each light (what a lightmap holds), occluded by the material's hollows, and
+  tone-mapped. The four lights nearest the eye cast from cube maps, a fixed pool laid over the nearest as the eye walks,
+  each map drawn when its light changes and never per frame; the light tier halves them (two at 256) or drops them (off).
+  The live light's actors' map gives way in such a room, since its light would light the material: what moves (a hero,
+  walkers, cars, fauna) casts in the room's own lights instead, the nearest light's map drawn each frame, so a hero
+  throws its shadow from the torch beside it. `window.__mojForm` is the probe. Measured in Chrome on five rooms from each room's spawn: a lit room's mean luminance within 1 % of its
+  gen-6 paint (brick hall 34.3 against 33.9, crypt 31.4 against 31.4), the nave within 13 %; the gritty cube's toned
+  room 145 against 184 (its accent wall's colour is still short of its ramp's).
+- **Exports stay paint**: the engine and file exports (GLB, USDZ, 3MF, STL, OpenSCAD, the engine and Blender packs, the
+  walk mesh) read with `paint: true` (`resolveWorldScene`), so a cube that names gen-7 exports its rooms as before; only a
+  page draws the form render.
+- **One input with the island's** (1026-gen7-island, merged): the page's `form` is `{ land, room }`, the island's land
+  (`form.land`, `channels/form-land.js`) and a room (`form.room`, `channels/form.js`), each drawn by its own channel. The
+  island's `ctx.form` (a builder makes more of the land for the form render: broken boulders, rims, strewn stones; every
+  read) stays its own; a room's unlit corners are `ctx.formLit` (a page's read only).
+- **The era marks**: `form` is the form render's own input, built in gen-7; a payload that carries it reads its faces and
+  tiles as material, no longer approximated. The engine packs refuse an era, so no Godot or Roblox leg carries it (both
+  mark it absent). The seventh generation's world note says what is built.
+- **Rooms to walk** (`scripts/spikes/form/rooms.mjs`): a brick hall (wire-cut brick, fluted pilasters, a plinth course,
+  worn floor slabs), a rendered vault, the crypt, the gritty cube's room and the nave, each written as a walkable World
+  page in both eras and captured side by side, wide and close by a torch.
+
+### NPC generator: a town's people grown from its lots
+
+A town already says who lives in it: each lot's use implies a person (a shop its keeper, a workshop its master, a tower
+its watch), and each person implies others (the apprentice, the household over the counter, the watch's captain). This
+theme grows a gameworld town's people that way, as the egocube cast grows from its anchor: path-keyed, so a town only
+grows and adding a lot never moves anyone already rolled. NPCs are not party members. Each is rolled from the town's
+culture and their role: the role and the culture give the uniform, the seed gives the face. A **townie** lives and
+talks; a **service** (a merchant is one) opens a menu the game already has; a **recurring** person (the same face at
+the same service in every town) is seeded from the game, not the town. Their minds keep to the town or the service.
+What they say past the plot is written for them: chitchat and a service's own talk, from a seeded line book. The plot
+is never written: a quest giver's lines and a scene's stay slots (`[Elder: the village]`) for the operator. The city
+plan and the historic city follow on the same rules.
+
+- **The folk sheet: a town's people from its lots** (`lib/graph/folk/`). `folkOfTown(town)` reads a designed town
+  (`era/out-town.js`): each lot's use roots its first person (`roles.js` `ROOTS`: a dwelling a townie, a shop its
+  keeper, a workshop its master, a barn a farmhand, the hall its elder, the tower its captain), who grows the rest
+  (an apprentice, the watch: their number from the lot's storeys). Each person is an Egocube rolled on
+  the folk seed and their path alone: the role's combat role asked, its age and archetype leaned, motivation pulled
+  toward the light, so a town only grows. Each role SEEKS others (a counter
+  a supplier, a watch a hall to answer to), and an unmet one is an open need on the sheet: what the town is missing,
+  said, never refused. The services (`services.js`: merchant, smith, counsel, watch) each lower onto a menu, an effect
+  or a mind the game already runs, or are a gap that says what is missing (the smith: no menu mends gear yet). Every
+  person carries their room in their lot's inside and their line slots (the plot's). A cap (`folk.cap`, 60 by default)
+  gives every lot its first person before anyone's household. Machine gate: `folk.test.js`; eyes gate not run.
+- **The domicile: a house round its dweller** (`folk/domicile.js`). A house's unit is the DWELLER, the lot's first
+  person, and the house is written as the egocube cast writes a request: `D + 0` (alone), `D + P` (with a partner),
+  `D of F (P + Cx)` (a family of x children), `D + Cx` (a single parent). The dweller's age says what the house can be (a youth lives alone or
+  with a partner, an elder's children have mostly grown), rolled on the house's own die; no house is headed by a
+  child; children are younger than the dweller and share their ancestry, a partner is near their age and their own
+  person, their pole rolled as anyone's. A townie's house and the household over a keeper's counter are domiciles;
+  the folk sheet lists each (`domiciles`: its notation, its partner and children). The operator asks a shape for every
+  house (`folk.domicile: 'D + 0'`) or for one (`folk.domiciles: { <lot key>: 'D of F (P + C2)' }`). Machine gate:
+  `domicile.test.js`, `folk.test.js`; eyes gate not run.
+- **Bodies by tier, dressed by role and culture** (`folk/bodies.js`). `folkBodies(folk, { kit, setting })` says
+  what to mint and who wears what, without minting: the people the player goes to (a service's first person: the
+  keeper, the master, the elder, the captain) each get a body of their own; everyone else is pooled as a quick game's
+  crowd is, the first few of each pool minted as themselves (`folk.pool`, 3 by default) and the rest wearing one of
+  theirs, of their own pole when the pool has one. A pool never lends across a uniform or from a grown body to a
+  child. The culture is the town's: its kit's underlayer and its setting's ramps dress everyone, so the same role in
+  two worlds dresses two ways. The role is the service's: a uniform service is worn by all its people as its first
+  person wears it, each on their own face, and the watch carries the guard's gear for the era. A market town of about
+  115 people is 25 bodies. `quickFigure`'s two dressings are now shared helpers (`gameworld/cast-setting.js`
+  `wearUnderlayer`, `wearUniform`); its figures are byte-identical. Machine gate: `bodies.test.js` and the 20 test
+  files the change reaches (14 byte pins); eyes gate not run.
+- **The folk in a gameworld town, and what they say** (`characters.folk`, `gameworld/folk-cast.js`, `folk/lines.js`).
+  A world with `characters.folk: true` (or the folk's words: `seed`, `cap`, `pool`, `domicile`, `domiciles`, `say`)
+  grows each town a level lays from the street's own lots (`era/stage-buildings.js` `streetLots`, the houses
+  `town-<use>-<n>`): each body is a run step minted as a hero is, once per town however many stages meet it, and each
+  person stands by their own house, beside its door and clear of the way in, or, a service's first person in a house
+  walked into, inside at their room (the elder on the dais). Each has a talk menu opened by the interact key. Their
+  lines come from a line book, picked on the person's own die: a greeting by their temper (an archetype's light or
+  shadow, a child's own), a word on their work, on their house or on their town, and a farewell; the town's open
+  needs are said aloud, first-hand by the one who has the need and second-hand by anyone else ("Nobody here sells
+  anything. Folk trade over the fence."). `folk.say` gives the operator's words by a person's path or a role. They
+  stand still for now, and the watch keeps no post yet (a guard mind would fight the hero). The book is English; a world
+  in another locale hears it until the book is in the catalogs. `stageEnds` carries the town's doors off its data
+  (`townDoors`), so every level order without folk reads as it did; a world that asks for no folk is untouched.
+  Machine gate: `folk-cast.test.js`, `lines.test.js` and the test files the change reaches; eyes gate not run.
+- **Sidequests: a checklist a town's person gives, and the chains they make** (`folk.sidequests`,
+  `folk/sidequests.js`). `{ id, giver, steps: [{ talk: who } | { reach: house }], name?, ask?, thanks?, after?, back? }`:
+  the giver (a role, a role and its count like `townie-3`, or a person's path) offers it; taken, its steps are a
+  checklist in the level's journal, walked in order (talk to another of the folk, who is then part of the chain, or go
+  to one of the town's houses), and done, the player goes back to the giver to finish it. A sidequest `after` another
+  is offered once that one is finished: a chain, giver to giver. Each lives in the first town that holds all its people.
+  The words are the operator's (`ask`, `thanks`, a step's `say`, `name`, `log`); left out, the ask is a slot
+  (`[Keeper: the errand]`) and the rest plain words that only move it on ("Talk to the Master", "Return to the
+  Keeper"). A person in a sidequest dispatches their talk: each of their entries (a hand-in, a step, an offer) keeps a
+  hold var read when the level starts and when a flag it reads is set, and the talk press opens the first whose hold is
+  on, else their chitchat, so one menu opens and no chain runs past the bus's depth (at most five entries a person;
+  past it, the lowest-ranked are left out). A stage's sidequests join the world's own `quests` in its journal, never
+  replace them. Machine gate: `sidequests.test.js`, and `folk-cast.test.js` walking a chain of two through the bus
+  (offer, take, the step, the thanks, the next offer); eyes gate not run.
+- **Recurring: the ones met in every town** (`folk.recurring`, the Officer Jenny of a game). `{ <id>: { role, name? } }`:
+  in each town that has the role, its first person of the role is them (a second of one role, its second), rolled on
+  the game's seed at their own id, never the town's: one face and one name everywhere. What they wear is each town's
+  (its cloth, its service's uniform) and so is their house, their children born of them: a cousin in every town, who
+  says so ("Family resemblance. We get that a lot."). Their body is their own and keyed by their look, so towns that
+  dress them alike mint them once. The talk box names them, and a sidequest names them by their id (`giver: 'joy'`).
+  Machine gate: `folk.test.js`, `lines.test.js`, `bodies.test.js`, and `folk-cast.test.js` standing one in both towns
+  of a two-town game; eyes gate not run.
+- **The folk's day** (`folk.day`, `folk/routines.js`). With `folk.day: true` (or `{ start, rate }`), the town keeps a day
+  on the level's clock: the level gains the clock mechanic (its hour on the HUD, its sky dark at night, so it is the
+  operator's to ask for), and the households, the children and the watch walk the existing routines
+  (`play.routines`): a grown person out mid-morning to a counter or a neighbour's door and home by evening, a child out
+  on the street before their house, the watch round three houses and back to the tower at night, every hour and choice
+  on the person's own die. The people the player comes looking for keep their place: a service's first person, one met
+  in every town, anyone in a sidequest. Places out are on the street before a house (a walk is a straight line), side
+  by side when several stop at one. A walker is talked to where they stand: each place's talk is on from their arrival
+  until the hour takes them on. Without `folk.day`, no clock and everyone stands, as before. Machine gate:
+  `routines.test.js`, and `folk-cast.test.js` driving a walker's arrival through the bus; eyes gate not run.
+- **The folk on the agent's surface.** No new tool: the folk are an argument on the gameworld door. A rail card,
+  `gameworld-folk` ("The town's people", `get_game_vocab({ id: 'gameworld-folk' })`), says the whole of
+  `characters.folk` (houses and their shapes, the line book and `say`, sidequests, the recurring, the day), held to its
+  words by the cards' test; the story card points to it. `design_game`'s routing card hears "a town full of
+  villagers I can talk to, with side quests", and the routing eval asks it in other words ("fill my village with
+  people who chat and give me little errands to run" → `design_game`). The cosmos has `soul.folk` (none | town, web
+  only; Godot and Roblox absent), so the sweep ranks it, and the hillclimb page is regenerated. The sweep's test now
+  states its law (every setting whose `given` holds is set at density 1) rather than one seed's roll of the seats die,
+  which a setting added before them moves. Machine gate: the cards', routing cards' and cosmos tests, the critical
+  tier; the routing gates 2a and 2b (retrieval, in context) run in CI, not here; eyes gate not run.
+
+### Carved glyphs: the letter primitive grows up
+
+The glyph carver (`lib/motion/glyph-carver.js`) is the letter primitive of the pre-three renderer: any character a
+font covers, styled and extruded. Its legacy stack (materials, a bevelled carve, inner glow, the outer form-effects,
+the materialize reveals) reached the page only in part. This theme brings the primitive's pieces up first, then
+spreads carved letters to where the page draws words.
+
+- **The shelf's display face ships with the repo.** Archivo Black (SIL OFL 1.1) is vendored at
+  `lib/graph/image-outcomes/fonts/archivo-black.ttf`, its license text beside it and its notice in `NOTICE`. The shelf
+  says a recipe names a face by key "so a cover carves identically on any host", but no face was ever vendored: the
+  key fell back to whatever the host had (Arial Black on a Mac, DejaVu Sans Bold on Linux), so the same cover carved
+  in a different face per machine. A cover or title naming the default face now carves in Archivo Black everywhere:
+  on a host that fell back, its letters change once, to the face the recipe always meant. The other shelf faces (IM
+  Fell English, Great Vibes, Inter) stay unvendored until something carves in them. Machine gate: the cover suites
+  pass on the vendored face; eyes gate not run.
+- **`material` on a title row: what the carved letters are made of** (`game/title-material.js`). A title's letters
+  took the register's paint (anime cel bands, western lambert and a glint) in the title's colour; the carver's legacy
+  material shelf (the `carved-solid` wordmark's `material`) never reached them. A row may now name one. A **metal**
+  (`chrome`, `gold`, `silver`, `copper`, `bronze`, `brass`, `steel`, `titanium`, `aluminium` … and the shelf's
+  `gunmetal`, which reads as steel) is the chrome logo: each letter's face and bevel reflect the studio sweep the
+  broadcast's metal reflects (`metalStops`: the softbox, the dark horizon under the middle, the floor's bounce, in the
+  metal's measured reflectance), drawn from a two-column texture by the vertex's height in the line, so every letter
+  shares one horizon; three hard bands in the anime register; the walls the metal's middle, lit. A **finish** (any other
+  shelf row or its alias: `stone`, `wood`, `plastic`, `glass`, `neon`, `marble` …) shades by its row (cel bands, a glint,
+  emission, glass's opacity, held through the entrance's fade) in the row's colour, or the row's own when it names none.
+  The material's colours are decoded from sRGB as the world's baked colours are. The idiom `title(…)` and a `play.parts`
+  banner pass it; card `hud-title`. No theme names a material, and a world whose titles name none emits the title block
+  byte for byte as before (the material code is spliced only when a title names one). Machine gate: the title layer's
+  suite drives a metal, a finish and glass through the emitted page against stubs; a bad word fails the gate with the
+  shelf's words. Eyes gate not run: the author's own renders (chrome, gold, copper, marble, glass, neon titles in
+  headless Chromium) showed the sweep reading as chrome and gold; glass reads murky, its walls and a glow edge showing
+  through.
+- **`block` on a title row: the depth made to show.** A title's letters face the screen, so the carve's depth was a sliver
+  and they read as a raised face. A row may name a block (`title-channel.js`, only spliced when a title names one):
+  `drop` pulls each letter's back ring deep, down and to the right (the comic and cartoon block letter), `perspective`
+  pulls it toward a vanishing point under the word (the action-movie logo), `stack` stands six receding copies behind
+  it in alternating shades (the comic masthead's construction, `comicWordmark`'s block copies, now in 3D). The face and
+  its bevel keep their look (paint or material); the sides take `blockColor` or the face's hue darkened, lit by the way
+  each wall faces (the right side bright, the underside dark), two flat tones in the anime register, shading toward the
+  back in the western. A block is the drop, so it replaces a `shadow` edge; the ink hull outlines the whole block. The
+  idiom, `play.parts` banners and card `hud-title` take it. A world whose titles name no block emits the title block
+  byte for byte as before. Machine gate: the title layer's suite checks the face unmoved and uncoloured, the drop's back
+  ring moved by one offset, the perspective's back narrower than its face, the stack's steps and their fade, and the
+  closed words. Eyes gate not run: the author's renders of each block over a walk stage read as block letters once the
+  drop copy was taken off a blocked title (it stood in front of the sides).
+
 ### Superheroic pieces: belts, pouches and jackets as cards
 
 - The outfit catalogue's belt takes three dials (`outfit-plan.js` OUTFIT_KINDS `belt`): `buckleColour` (a colour role or
@@ -1133,7 +1323,7 @@ The ball games at the level an arcade plays them, each a CARD of modules (its co
 its ball, its body) that its family composes into a sport the book resolves by name and the shape's sim plays. A
 variant is a word over a card (`{ id, from: <card>, …a module's words }`), so "ping pong to twenty-one" is not a
 rulebook; a rulebook the modules cannot say stays the distilled-rulebook catalyst's, written out whole. Every card
-names what the full rules say that the arcade leaves out (`omits`). Planned, by family: the net games, then
+names what the full rules say that the arcade leaves out (`omits`). Built, by family: the net games, then
 volleyball's sides of more than one, basketball's hoop, the carry games (rugby, American football), the innings
 games (baseball, cricket).
 
@@ -1169,6 +1359,133 @@ games (baseball, cricket).
     the receiver's returns on the court sim remain the weak point the tennis stats showed.
   - **Refused:** a card's `noVolley` names a region its court lays, and its foul there is `'point'` (a free ball or a
     warning would leave the rally dead and the match frozen).
+- **Volleyball on the court** (`arcade-rules.js` `volleyball`, `match-sim.js`), built: beach volleyball, two a side,
+  three touches a side and never twice in a row, the ball never down, rally points to twenty-one, the rally's winner
+  serving (a float serve). The court sim takes a side of more than one (the kernel's `players`): each player at its home
+  across the side, the pad on the side's ACTIVE player (the one to play the ball: never the last to touch it, else the
+  nearest), its teammates the minds'. The card's `assist: 'pass'` places the side's touches before its last for a
+  teammate in every register (the bump to the setter's spot by the net, the set to the attacker's), and its last goes
+  over as the register strikes it; a body reaches as high as its `up` (a jump's); bare hands draw no racquet. The side
+  mind runs the active player to where the ball comes down (its own physics on a copy) and the others to the set and
+  the attack. A tennis court replays as before (one a side, the same minds and seeds).
+  - **Held:** the players and minds from the kernel's, across the side; every touch inside the rally's rule; each
+    placed pass played next by the teammate it was placed for; a bump, a set and an attack in one rally; the pad on
+    side a's active player; the page plays it to the Node state.
+  - **Seen, said:** in the realistic register the minds rarely return a float serve (the body's realistic build-up is
+    slow for a court of eight metres): an ace is most points there; the arcade registers rally.
+- **Basketball on the pitch** (`arcade-rules.js` the goal family and its `basketball` card, `team-sim.js`), built:
+  full-court basketball three a side, four quarters, two points inside the arc and three beyond it. The goal family
+  composes a team game from its modules (the court and its key, the goal a mouth or a HOOP, the score's unit and clock,
+  the roles' homes, the play by foot or by HANDS, the ground, the outs). The pitch sim's hoop is a ring of the physics'
+  spheres and a backboard over each end, so a shot rattles in or out by the physics; a basket is the ball dropping
+  through the ring, its points the shot's (the kernel's score fact now carries `points`, a goal as ever without them).
+  The hands: the ball caught (never as it leaves the hand, a shot only on its way down), held and dribbled at the
+  holder's side inside the lines, a tap passes to the teammate along the stick (led by the pass's flight), a hold
+  shoots on a steep arc at a speed found by flying the ball alone in the sim's own physics, the charge off its sweet
+  spot, the range and a defender's hand its miss; an opponent at the ball long enough steals it. The side with the ball
+  takes its roles' spots in the attacking half and the other marks its man; the hands mind drives, works the ball and
+  shoots in range from in front of the ring. The page lays the hardwood, the key, the arcs, the rings, their nets and
+  boards; the broadcast calls a basket by its points (THREE!), and the stats count them. Soccer and hockey replay as
+  before; the arcade rules' card is now an index (`contest-arcade`) and a card per family (`contest-arcade-<family>`).
+  - **Held:** a score's points in the kernel; a shot at the sweet spot drops through for two inside and three beyond,
+    off it no basket; the catch, the dribble at the side, the pass caught by its teammate, the steal; the stats' points;
+    every card's short variant to its end (the deep sweep, now on both shapes); the page plays it to the Node state.
+  - **Seen, said:** an exhibition scores about seven points in two minutes with about half the shots made; the
+    blocks, the shot clock, travelling and free throws are the card's omissions.
+- **The carry games: rugby and American football** (`arcade-rules.js` the carry family, `contest-kernel.js` `carry`,
+  `team-sim.js`), built: five a side on a short field. The kernel's carry module: possession and plays (the line of
+  scrimmage where each starts), a tackle ending one, the ball kept for so many tackles (rugby league's six, then the
+  handover) or downs to gain the next first down (four to gain ten yards), a pass forward never fair or fair once a
+  play from behind the line, a dropped ball and a ball out each a down or a turnover, a try (or touchdown) its points
+  and then the conversion kicked from in front for its own, no play restarted on a try line. The pitch sim's carry
+  mode: each play the side with the ball in its formation round it and its first role holding it, live at once; an
+  opponent kept at the carrier a moment tackles it; over the line a try; the conversion kicked at the posts, through
+  between the uprights over the bar or not; a pass tells the kernel where from and to; a carrier a step slower than its
+  chasers. The carry mind: the quarterback drops back and throws to the most open receiver once the routes have run,
+  the rugby carrier passes back to a teammate in space when a tackle comes, the carrier runs for the line away from the
+  nearest defender; the role players run support lines and routes, a man each and a deep zone, and pursue on a
+  cut-off angle, converging on a pass's receiver while the ball flies. The page lays the field's lines, the in-goals
+  in the sides' colours, the H posts, the line of scrimmage and the line to gain, an oval ball; the tab reads
+  "2nd & 6" in yards or "tackle 3 of 6"; the broadcast calls TRY!, TOUCHDOWN!, the conversion, FIRST DOWN, HANDOVER,
+  TURNOVER ON DOWNS, INTERCEPTED, KNOCK-ON and FORWARD PASS, and the stats count the conversion's points.
+  - **Held:** the kernel's six tackles to the handover, a first down for the gain and the turnover on downs, the
+    forward pass once and its second the down lost, never in rugby, the knock-on, the try and its conversion; the
+    play's formation and the snap, the tackle where it was made, the try over the line and the conversion good at the
+    sweet spot and no good off it; the plates; every card's short variant to its end; the page at the Node state for a
+    game of tackles and one of downs.
+  - **Seen, said:** the arcade football scores high (about a touchdown a minute between two computer sides, as an
+    arcade football game does); the rugby is tight. The ruck, the scrum and the lineout, kicking in open play, eleven a
+    side, punts and penalties are the cards' omissions.
+- **The innings games: baseball and cricket** (`arcade-rules.js` the innings family, `contest-kernel.js` the `innings`
+  shape, `bat-sim.js`, `innings-arena.js`), built: one side bats, the other fields, a ball at a time. The kernel's new
+  shape: strikes and outs (a foul never the third strike), three outs the side retired, a hit moving every runner so
+  many bases and the ones home scoring; or a game of runs: a ball missed a dot, six balls an over, the overs a side's
+  innings, a boundary four or six; the second side ahead after the first's last innings does not bat, and the chase or
+  the walk-off ends the game the ball it leads. The bat sim: the pitch through the zone or the ball bowled at a length,
+  the swing timed against the ball's arrival (early or late a strike, inside the window the contact's quality and its
+  spray off the stick), the struck ball flown on the physics and its end read ahead on a copy of it the moment it is
+  struck (over the fence or the rope on the full, a foul outside the lines, caught where a fielder reaches the landing
+  in the ball's hang time, else fielded and thrown out at first or the bases the runner makes before the throw, the
+  runs the batters cross); a ball let go is a strike in the zone and pitched again out of it, a dot or bowled into the
+  stumps. The page lays a diamond (the infield, the bases, the mound, the foul lines, the fence) or an oval (the square,
+  the pitch, the stumps, the rope), the fielders at their spots and the camera behind the batter; the broadcast calls
+  STRIKE, FOUL BALL, STRUCK OUT, CAUGHT, OUT AT FIRST, BOWLED, SINGLE to HOME RUN!, FOUR!, SIX!, SIDE RETIRED and the end
+  of the over, and the stats count runs, hits, home runs and strikeouts or runs, fours, sixes and wickets. The quick
+  goal takes `sport: 'baseball' | 'cricket'` with `innings` and `overs`, in the football stadium; the kits gain a
+  baseball uniform and cricket whites. The distilled-rulebook catalyst names the shape.
+  - **Held:** the kernel's strikes, outs, bases, runs, overs, the side, the second side not batting and the chase's
+    end; the swing's window one unbroken run of frames, a press early a strike; a ball let go in a game of runs never a
+    strike; every struck ball ruled once; an exhibition of each to its end, the same pads the same game to the byte;
+    the plates and the stats; every card's short variant to its end (the deep sweep, now on three shapes); the page of
+    each at the Node state.
+  - **Seen, said:** between computer sides the baseball is home runs, singles and outs (the fielders reach the gaps,
+    so a double or a triple is rare), about four runs in three innings; the cricket's boundaries are mostly sixes. The
+    walk, the catcher, stolen bases and force plays, leg before wicket, the wide and the no ball, run outs and nine or
+    eleven a side are the cards' omissions.
+
+### Sport concept: the player's idea on top of the rules
+
+When a player makes a sport game, the players are characters, the arena is a venue round the play, the player's own
+idea is laid over the sport's rules, and one style holds across the kits, the graphics and the shell; each is said back
+in `design_game`'s readout. An audit through the real path first (each arcade card minted by `design_game`, opened in
+the game shell through the dashboard's server): every card already minted characters (six faces cycled over a large
+side) and stood in a lit stadium, with no page error and no black frame; the shell was the stock beige; a level's first
+open resolves its arena and bodies for about twenty seconds on a blank loader, cached after; basketball's tab said
+KICK-OFF.
+
+- **The concept** (`gameworld/sport-concept.js`, `quick.concept` on the contest and meet goals), built: a few words
+  ("cats vs dogs at night", "red robots vs blue knights, retro arcade") read against a lexicon into the quick words
+  around the rules, laid under the creator's own as a sport preset's are (their word always wins; a venue's and a
+  broadcast's word by word, the teams side by side): the sides about a "vs" (a name each, a colour word its shirt, an
+  animal its players that animal's mascots), colour words for the sides' shirts, an animal for every side, the venue's
+  light (night, dusk, golden, day), its house (colosseum, arcade, municipal, olympic, the patron's dome), its livery,
+  its land and a roof, the drawing tradition (anime, western), chibi or mascot bodies, the register and the broadcast
+  package. The rules are the card's: a number or a rule word is never read and is said back, and so is a word nothing
+  reads. A course keeps its stage and its seats (said back as `left`). The readout's `concept` gives each word read
+  and what it decided.
+  - **`teams`** on a two-sided contest: `[{ name?, colour?, mascot? }]` × 2, a side's broadcast name, its shirt (the
+    kits', the graphics' and the shell's) and the brief its players are rolled from as mascots.
+- **One style** (`gameworld/runner.js`): a sport game's shell is themed by the color theorist round its sides'
+  colours in its venue's light (night and dusk a low key, noon a high one) where it was the stock skin; a one-a-side
+  court's players wear their side's colour (a game played in whites, its trim), as a team's always did, so the kits
+  and the graphics agree; the athletes take the concept's drawing tradition.
+- **The machine gate, said** (`design_game`): the sport game's step carries three laws, `cast` (a character in every
+  slot, the faces counted; `athletes: false` the stick figures, advised), `arena` (the stadium round the play, at its
+  time; a bare stage said) and `style` (one palette over kits, graphics and shell, one drawing; a western cast in an
+  anime stadium advised); when they hold the readout says them as the game's `checked`.
+- **Exposed**: the contest card names the bat-and-ball sports, `concept` and `teams`, and a sport's answer (the
+  characters, the venue, the laws) in place of the levers a sport refuses; the meet card takes `concept`; the
+  game-design routing card names the concept, with two routing rows for concept-shaped asks. Basketball's tab calls
+  its restart a tip-off, then an inbound.
+  - **Held:** the reader's laws (the sides, colours, an animal, the venue's nesting, a later word winning, the rule
+    words, the refusals), the concept under the creator's words, a course keeping its stage, the arena carrying the
+    teams; the run's mascots per side and the side colour on the kits; the three laws and the shell's theme; the same
+    concept running the same steps; a concept game through `design_game` (its readout, its stadium at night, six
+    bodies on the page, the checked laws).
+  - **Seen, said:** two concept games opened in the shell through the dashboard's server: cats and dogs as mascots
+    under a night stadium, the CATS and DOGS names on the board, the front screen dark in the game's palette; robots
+    and knights in the candy arcade stadium on a light front. "Robots" is not a mascot word, so that side is people
+    (said back). A level's first open still takes about twenty seconds on the shell's loader; not addressed here.
 
 ### No flat building polygons: a building's seen edges have thickness
 
@@ -1187,6 +1504,50 @@ its edge can be seen.
   keeps the skin. Not solid, every face as it was.
 - **A town law** (`solid`, read only on a solid town): every pitched roof a closed slab, no edge of it open.
 
+### The cube's light: one light from the palette and the hour
+
+A cube's light is recipe: its palette (the color theorist's solve, seeded by the game design loop) and its hour give one
+light, that gen-6 bakes into its fills and gen-7 hands to the renderer. Gen-6's colours are what is seen; gen-7's seen
+colour is base × light, so the palette's colours are targets and the base colours and the light are solved together.
+
+- **The light is the theorist's** (`color-theorist/light.js`, `solveLight({ targets, sky, sun, contrast })`, the tone
+  curve, `seen`): the color theorist owns mood → palette → light; the cube composes (`era/cube-light.js` hands it the
+  cube's colours, its sky and key at the hour and the reference's contrast). No orchestrator over the cube: it keeps
+  choosing the reference, the hour, the register, the contrast and the grit.
+- **The palette solves the light** (`era/cube-light.js`, `cubeLight(cube, { hour })`), built: a role's colour is its lit
+  target (a face square to the sun), its shade target the lit one times one shade tint common to every role (so one sun
+  meets them all); the sky's light takes the cube's sky at its hour (the palette's, when solved), the sun the hour's key;
+  their split is the reference's contrast; the light's level is as bright as the brightest base needs to stay a
+  believable material (luminance 0.85), so a dark palette gets a dim light. The targets are undone through sRGB and the
+  renderer's tone curve (Khronos neutral, `toneNeutral` and its inverse) first. At another hour the bases stay and the
+  light moves. A colour one sun cannot reach is held at the edge and named (`checks`), advice never a refusal.
+- **The gen-7 island reads it** (`scripts/spikes/form/island.mjs`, `--palette <seed>`): its land's bases and its sun and
+  sky light are the solve's, in three's units (π × the levels); `window.swatches()` draws a patch of each role square to
+  the sun and under the sky alone and reads it off the screen: on island-noon and under a seeded palette every shade
+  lands on its target to the byte and every lit patch within 5 of 255 (the materials' own sheen square to the sun).
+- **Seen laws: the theorist tests what is rendered** (`color-theorist/seen.js`, `seenLaws(seen, palette)`): each role's
+  colours as rendered, lit and turned away, against the palette that asked for them: `targets` (the swatches on their
+  targets), `value-order` (roles the palette parts clearly in lightness keep that order), `accent` (the most chromatic
+  seen), `shade-is-a-colour` (never black, and toward the sky's hue from its lit colour). Advice, never a refusal; a law
+  with nothing to read is left out. `scripts/spikes/form/island-gate.mjs` runs them on both halves of the island: on
+  island-noon gen-7 meets every law but one gen-6 shares (the sea reads lighter than the grass in both, where the
+  palette asks it darker: gen-6's alpha over pale sand, gen-7's sky in it). They caught the form read's own class tones
+  (cliff × 0.92, rock × 0.8) darkening the palette's stone: the classes now show the stone the palette names.
+- **The sun takes the palette's light** (`era/geocube.js` `light.sun: { color }`): a solved day palette writes its light as
+  its sun's colour, as a night's is its moon's (the reference keeps the sun's arc and strength); a cube may write it; the
+  cube's light reads it as the sun's hue. An unseeded cube has none and reads as before.
+- **The sea, a mirror over a body** (`color-theorist/light.js` `solveMirror`): what is seen is the sky it reflects
+  (Fresnel at the eye's angle down onto it, F0 0.04) and its body under the light, through its alpha; the body is solved
+  so the palette's sea is what is seen from a view, and where the sky reflected already outshines the target the solve
+  says so. The island's sea is one surface (its clearcoat, a second reflection, gone), solved from the island camera's
+  14°: gen-7's sea now reads as gen-6's (#74bee4 for #77b7d4), both lighter than the palette's #3a9cc6, which a calm sea
+  reflecting that sky cannot show from so low (the sky alone outshines it in red): the seen law says so in both eras.
+- **Seen, said:** the shallows' pale ring is gen-6's and not yet gen-7's (the sand under the shallows reads dark through
+  the sea), the stepped floor under them shows through as streaks near the shore, and the cliffs' shadows on the sea
+  fall a dark navy (no light scattered in the water). Still to come: gen-6 reading the same
+  light (its shading, contrast and sky). An unseeded cube's payload is byte for byte as it was (nothing reads the
+  light yet).
+
 ### Gen 7: form, not light
 
 The seventh generation is a render, not an edit: the same recipe read in `gen-6` or `gen-7` is two renders of one world,
@@ -1198,6 +1559,89 @@ and its form, never light, and the renderer lights it); gen-6 is paint (the ligh
   era it is drawn in). Absent, the cube's own era, every byte as it was. The engine packs refuse an era (they carry the
   recipe's surfaces as they are until the form render gives them materials), as does a 2D game's single page.
 - **Each era names its surface model** (`era/eras.js`: `paint` for gen-6, `form` for gen-7).
+- **The meru island, every cube's outside, at a game's scale and geo only** (`era/geocube.js` MERU_BASES, MERU_ISLE):
+  the seed a path is grown on, shown bare, three times the island (mounds 18 m and 15 m, every slope's angle kept; beach
+  27 m, sea 9 m deep, a 13.5 m high side), in both eras; island-noon's first, then the standard: every preset's land and
+  a written cube's default (the upland's painted ground three times its span and height with it; limestone-crags' cove,
+  a domain terrain of its own, keeps its own island). Each cube's land show emits differently; none is more faces than
+  before (limestone-crags 57,882 → 40,373 with its strand and stones). Local meru's island gains `cell` (the
+  land's quads where no path joins: 1.5 m here), `scale` (the metres its shape held fixed scale with it), `cover: 'soil'`
+  (bare soil, `isekai:soil`, and scree where it slopes under raised land, `isekai:scree`; no grass) and `walk: 'none'`
+  (no walk: flown and zoomed, walking is the path's; the 24 stray trail faces at the seam were the old approach), each
+  as it always was when absent, byte for byte. 10,714 faces for five times the land (the old island 32,013); its sea's
+  quads scale with the cell and the merged seabed spans 16 m. The shore: the shallows' floor fades corner by corner
+  over its own depth into the sea's own body (never a darker one), lit as one surface, so in gen-7 the shallows read
+  lighter than the open sea and the floor falls away without steps (the gate's two shore readings, both eras).
+- **The layered ground** (`form/land-layers.js`, read by the island spike): rock, scree, soil and sand as layers worn
+  into one another over metres, never along the land's cells. Rock is where the geometry has it; scree fans from its
+  foot (up to 8 m, its reach wandering) over soil and beach, and lies in seeded patches; soil and sand are parted by a
+  signed distance across their border (sand up to 3.5 m into the soil in tongues, soil 2.5 m onto the beach); all but
+  the rock smoothed over 3 m, so no border steps with the 1.5 m cells. The trail's path is a mask at its own resolution
+  (0.25 m, a ragged worn edge) for the path to blend into. In the spike (6.5's beach and scree the bar): the layers in
+  texture arrays, blended by each one's height and a per-pixel noise; the scree thinning by its stones' own dice
+  (`screeDice`, whole stones kept, the ground between); the land shaded smooth (normals averaged within 55°, a cliff's
+  edge kept); the wet line by height per pixel; the sea one surface faded in over the depth under it, so the waterline
+  is the beach's own contour; `--hour` (moonlight after dark, the bases kept) and `--stone` (the rock's colour, a lock);
+  close views of the mound's foot and the beach at wide, eye, close and down. Two natural cuts join the matte painter (`matte-paint/dressed.js`): `crag` (a
+  weathered rock face: lumps, beds each its own tone with a ledge at its foot, joints cut up it) and `soil` (loose dirt:
+  clods, crumbs, small stones); `dressedMaterial` reads the natural cuts as material. The basis a path will blend into.
+- **The geocube's trail in gen-7, rendered the island's way** (the spike, `--show path --biocube <id> --dress {…}`): the
+  meru island stays geo only; what it proved renders the cube's own trail and its flora. The trail's crowns and trunks
+  read as form (`land-form.js` classes `crown` foliage, `wood` the floor darkened; a cliff's grass `lip` and a boulder's
+  mossy `hat` the grass), the cover's slot turf on a green land, foothill scree from cliffs only. The scree's larger
+  stones stood up as real ones (`form/land-stones.js`: by a level face's area × its scree share, most small, sunk, one of
+  four shapes; drawn instanced and smooth, the crag's skin, casting from 0.18 m), parallax on the scree near, the normal
+  map beyond. The trail's DRESS with degrees (6.5's words, era/trail-dress.js): `rubble` 0–1 (stones along its verge,
+  smaller than a talus's), `dust` 0–1 (a pale powder worn out onto the land), `clay` 0–1, patches (worn, damp, gravel) as
+  materials, a `sand` surface. Its dirt two new natural cuts, `powder` (dry dirt's dense fine grain, pits, scuffs,
+  crumbs) and `clay` (rounded clods cracked across where it dried), in the theorist's two tones of the floor
+  (`color-theorist/ground.js` `soilTones`: powder lighter and quieter toward the light's hue, clay darker and fuller
+  toward red, the floor their mean): the road's clay core and its powder edge overlapping in broken alpha. The path's
+  mask carries a signed distance (`dist`, `inside`), so its edge feathers into the ribbon as well as out of it and never
+  runs along the ribbon's line. Fixed on the way: a layer's height lift scaled by its presence (a trace never wins on its
+  relief); a kept scree stone takes its stone's colour; the sea's mirror solve clamped (its NaN had reached every base
+  through `land-form`'s deep term, now only where the floor is lost into it).
+- **The World page draws the island as form** (a geocube's land at `?era=gen-7`, every preset): the spike's read lifted
+  out as `form/land-read.js` (`landRead(payload, cube, { hour, dress })`, the spike its first caller; `formPayload` the
+  page's input), drawn by a new channel, `scene/channels/form-land.js` (the layered ground, the stones, the sea plane, a
+  sun and a sky light it adds; the painted land groups it replaces hidden, everything else painted kept untouched under
+  its tone curve). One new page input, `form` (its land `form.land`), present only on a gen-7 read of a geocube with land: every gen-6 page and
+  every other page byte-identical. The layers' textures are the cuts', no cube's: painted once per process (a page after
+  the first resolves in ~2.5 s, not ~18). Era marks: `form` a surface input, built in gen-7; Godot and Roblox do not carry
+  it yet.
+- **The gen-7 cliff, bedded rock instead of a jigsaw:** the crag cut's even grid (a bed every 0.35 m, a joint every
+  0.9 m, on a 4 m tile) read from the beach as puzzle pieces. A new natural cut, `strata` (`matte-paint/dressed.js`),
+  is the form render's rock: beds of their own thickness (most thin, a few thick), hard ones proud and soft ones
+  weathered back, their edges broken; joints spaced by their bed's thickness and stopping at its partings (staggered,
+  some running part way), a master joint now and then; stains streaking down from the ledges. In the channel the rock is
+  sampled along both side axes where a face turns between them (its beds never snap round a cone), with parallax near,
+  and dirt settles on its ledges (where its own relief faces up) in a tone toward the dry powder's. The crag cut and
+  every gen-6 page unchanged.
+- **The rock's relief, a heartbeat at a cliff's scale** (`form/rock-relief.js`): the heartbeat's words and fields
+  (`readEdits`, `editField`) over a tile of rock face, u along it and v up it: `pulse` (a swell and bumps), `marks`
+  (`cliff` a ledge, `gorge` a crack or chimney, `ridge` a rib, `raise` and `lower` a bulge or scoop; at most a metre),
+  `why`, presets `ledged`, `cracked` and `ribbed` copied with `from`. `reliefMap` makes the face's heights, wrapping,
+  its mean taken out; the seed nudges each mark, so one relief gives many faces of a kind. The land read carries it
+  (`relief`, `ledged` by default) and the page cuts the cliff's steep faces finer and pushes them in and out along
+  their normals by it: benches and tops stay as walked, no crack where the cliff meets another class, the ledges' own
+  shadows cast. Display only: walking keeps the land as built. Also in the channel: scree lies no steeper than its
+  angle of repose, and on a steep face the rock's relief decides where the soil shows.
+- **Gen-7 rocks, as the rock studies break them.** The scree's stones are no longer jittered icosahedra: `stoneForms`
+  (`form/land-stones.js`) breaks each of their shapes with the rock field (`polygonizer/rock-fracture.js`: the
+  minerals' cleavage, a block of planar fractures, chips at halving scales), chipped for the stones that cast, the
+  block's few dozen facets for the small, each laid on its flattest side, its normals creased so a fracture's edge stays
+  sharp; no light baked in, so every instance turns freely. And an island read in the form render breaks as a gritty
+  one does (`ctx.form`, set by the world's read for a 'form' era and passed by the stage and geocube kinds; the island at
+  `FORM_GRIT` unless its style is grittier): its boulders broken at their edges, its cliffs' rims broken, stones strewn
+  on the boulders' tops, along the paths and at the cliffs' feet, its beach's strand. Gen-6 is as it was.
+- **The pathless island, read as form** (a spike: `scripts/spikes/form/island.mjs`, over `form/land-form.js`): the
+  geocube island's land drawn twice from one camera, gen-6's fills unlit beside gen-7's materials lit. A face's base
+  colour is the cube's colour for its class (sand, ground, cliff, rock, trail, water) with a tone wandering over a few
+  metres, never its fill; the sand at the water's line wet (darker, glossy), the shallows' floor lost by depth into deep
+  water's colour. One sun at the cube's hour, the sky's light, the shadow map drawn once per placing of the sun; the page
+  adds a shore camera on the wet line. `window.measure()` is the machine gate: cliff faces turned to the hour's sun read
+  brighter than those turned away and swap when the sun is turned, where gen-6 reads the same under every sun; wet sand
+  darker than dry, and what its gloss adds under a low sun. The eyes gate is the operator's.
 - **Gen-7 no longer means live light over paint.** The live light's gen-7 defaults (actor shadows, the hour's shadow map,
   occlusion) are now the light a form render's surfaces are drawn under while it draws them as paint; their reason in
   `liveLightDefaults`'s `from` reads `form`. A hero's level keeps its actor shadows, and any gen-6 recipe can still ask

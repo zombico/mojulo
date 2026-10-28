@@ -76,6 +76,12 @@ describe('a cast as a cube (cast.js)', () => {
     expect(egocubePrint(S)).not.toBe(egocubePrint(rollStored({ ...CAST, cast: { ...CAST.cast, seed: 5 } })));
   });
 
+  it('a beast\'s ooze rides to the animal door: the species made a game creature; none, the spec as it was', () => {
+    const S = rollStored({ ...CAST, cast: { ...CAST.cast, cast: { ...CAST.cast.cast, red: { ...CAST.cast.cast.red, ooze: ['dire', { id: 'frost', strength: 0.5 }] } } } });
+    expect(egocubeCreate(S, { member: 'hero/red' }).create.spec).toMatchObject({ species: 'wolf', ooze: ['dire', { id: 'frost', strength: 0.5 }] });
+    expect(egocubeCreate(rollStored(CAST), { member: 'hero/red' }).create.spec).not.toHaveProperty('ooze');
+  });
+
   it('lowers each member to its door, and refuses years on a cast and a member on one character', () => {
     const S = rollStored(CAST);
     expect(egocubeCreate(S).node.path).toBe('hero');

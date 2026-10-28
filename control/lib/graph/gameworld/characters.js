@@ -37,6 +37,8 @@
  *                                              // are the player's); placed in levels by the story (story.js)
  *     casting?: { scale?, n?, anchor?, cast?, factions?, bodies?, seed? },   // the people ROLLED as one cast for the
  *                                              // game, as many as it asks for (casting.js); reviewed as characters:cast
+ *     folk?: true | { seed?, cap?, pool?, domicile?, domiciles?, say? },   // the TOWNS' people, grown from each town
+ *                                              // a level lays (folk/folk.js), stood by their houses (folk-cast.js)
  *   }
  *
  * Pure. `readCharacters` reads the shape alone (the world reader calls it, so it never reads the world back);
@@ -48,6 +50,7 @@ import { readActions } from './actions.js';
 import { readMotion } from './hero-vibe.js';
 import { readAdornment } from './adornment.js';
 import { readCastRequest, castOfScale, SCALES } from '../egocube/cast.js';
+import { readFolk } from '../folk/folk.js';
 import { SKIN_SHADINGS } from '../color-theorist/adapters.js';
 
 /** Western and anime: the two traditions every character and world is tuned to; a hero is drawn in one of them. */
@@ -96,7 +99,7 @@ const NOT_LOOKS = Object.freeze({
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
 const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment'];
-const KEYS = ['direction', 'hero', 'cast', 'casting'];
+const KEYS = ['direction', 'hero', 'cast', 'casting', 'folk'];
 /** The casting page's part: present only in a book that has one (casting.js). */
 export const CAST_PART = 'characters:cast';
 
@@ -237,6 +240,8 @@ export function readCharacters(C) {
   const out = { direction: readDirection(C.direction) };
   if (C.cast !== undefined && C.cast !== null) out.cast = readCast(C.cast);
   if (C.casting !== undefined) out.casting = readCasting(C.casting, out.cast);
+  // the towns' people (folk/folk.js): true, or their words; each town a level lays grows its own (folk-cast.js)
+  if (C.folk !== undefined && C.folk !== false) out.folk = readFolk(C.folk);
   if (C.hero !== undefined) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {

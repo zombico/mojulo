@@ -10,6 +10,7 @@ import { assembleStageScene } from '../era/stage.js';
 import { readGeocube, lowerGeocube } from '../era/geocube.js';
 import { ISEKAI_STYLES } from '../era/isekai-tiles.js';
 import { boulderFaces } from '../era/isekai.js';
+import { FORM_GRIT } from './scene.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const build = (shading) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: TWO_BASES, island: { geology: true, walk: 'base' }, shading } }, {});
@@ -92,5 +93,17 @@ describe('rock takes pixels in a gritty style', () => {
     expect(two.also.key).not.toBe(two.key);
     expect(() => readLocalMeru({ shading: { grit: 0.7, skin: 'limestone', rocks: 'moss' } })).toThrow(/shading\.rocks is one of/);
     expect(() => readLocalMeru({ shading: { grit: 0.7, rocks: 'sandstone' } })).toThrow(/it wants a skin/);
+  });
+
+  it('an island read in the form render breaks as a gritty one does, without the style\'s pixels; a gen-6 read is as it was', () => {
+    const M = { kind: 'stage', kit: 'isekai-meadow', meru: { tiers: TWO_BASES, island: { geology: true, walk: 'base' }, shading: true } };
+    const form = assembleStageScene(M, { form: true }), n = (P, g) => P.faces.filter((f) => f.group === g).length;
+    expect(JSON.stringify(assembleStageScene(M, { form: false }))).toBe(JSON.stringify(base));
+    expect(n(form, 'isekai:rock')).toBeGreaterThan(n(base, 'isekai:rock'));
+    expect(n(form, 'isekai:strand')).toBeGreaterThan(0);
+    // (its rock breaks at FORM_GRIT, as a gritty style's at that grit does, within the few stones a gritty style's own
+    // faceted land moves; the page is handed no fabric)
+    expect(Math.abs(n(form, 'isekai:rock') / n(build({ grit: FORM_GRIT }), 'isekai:rock') - 1)).toBeLessThan(0.02);
+    expect(form.fabric).toBeUndefined();
   });
 });

@@ -26,11 +26,17 @@
  * court its top, the floor below it, the players kept off it), `pace` (the body scaled for the game's size), `noVolley`
  * (a region a volley may not be struck from: the foul of its name), a ball whose air is its own (the shuttle: the aim
  * flown through it), and a serve that bounces on its own half first (aimed through the sim's own physics on a copy).
+ *
+ * A side of more than one (the kernel's `players`: volleyball's pair): the players stand at their homes across the
+ * side (`home.aside`), the pad drives the side's ACTIVE player (the one to play the ball: never the last to touch it, else
+ * the nearest), its teammates are the minds'. A sport that `assist`s the pass (volleyball's) places the side's touches
+ * before the last for a teammate in every register (the bump to the setter's spot by the net, the set to the
+ * attacker's), the last over the net as the register strikes it; a ball reached as high as the body's `up`.
  */
-import { contestStart, contestApply, contestDisplay, contestRegion, contestServeRegion, contestInside } from './contest-kernel.js';
+import { contestStart, contestApply, contestDisplay, contestRegion, contestServeRegion, contestInside, contestPlayers } from './contest-kernel.js';
 import { buildSim } from '../worlds/physics-sim.js';
 import { ballBody, ballForces, ballGravity, airDrag } from './ball-card.js';
-import { hitBall, hitWindow, hitVelocity, aimedShot, HIT_REGISTERS } from './hit.js';
+import { hitBall, hitWindow, hitVelocity, aimedShot, HIT_REGISTERS, HIT_VERBS } from './hit.js';
 import { newCourtMind, courtMind, probeFlight } from './contest-mind.js';
 
 export const MATCH_BODY = Object.freeze({
@@ -88,10 +94,11 @@ export function newMatch(ctx) {
   });
   const S = {
     f: 0, K, phase: K.phase, calls: [], over: false, winner: null, rallies: 0, dead: 0, serveTarget: null, last: null,
-    p: [newPlayer('a1', 'a'), newPlayer('b1', 'b')],
+    p: contestPlayers(ctx.C).map((id) => newPlayer(id, id[0])),
     ball: { held: null, hits: 0, onFloor: false, onNet: false },
     sim,
-    minds: [newCourtMind(ctx.level, ctx.seed * 3 + 1), newCourtMind(ctx.level, ctx.seed * 3 + 2)],
+    minds: contestPlayers(ctx.C).map((_, i) => newCourtMind(ctx.level, ctx.seed * 3 + 1 + i)),
+    ...(ctx.C.players > 1 ? { active: { a: null, b: null } } : {}),
   };
   setupServe(S, ctx);
   return S;
@@ -106,10 +113,14 @@ function setupServe(S, ctx) {
   // the box the kernel names (by the points played, or the server's own score): the first the deuce court, on the right
   const name = contestServeRegion(ctx.C, K), deuce = ctx.C.serve.into.indexOf(name) === 0;
   const sv = K.restart.side, rc = sv === 'a' ? 'b' : 'a', s = signOf(sv);
-  const server = S.p.find((p) => p.side === sv), receiver = S.p.find((p) => p.side === rc);
+  const server = S.p.find((p) => p.id === K.restart.who) ?? S.p.find((p) => p.side === sv);
   // the server behind its baseline, aside the centre mark toward the court the point names (its right for the deuce court)
   Object.assign(server, { x: mr3(s * sp.serve.aside * (deuce ? 1 : -1)), y: mr3(-s * (c.halfL + sp.serve.behind)), vx: 0, vy: 0, swing: null });
-  Object.assign(receiver, { x: mr3(-s * sp.receive.aside * (deuce ? 1 : -1)), y: mr3(s * (c.halfL + sp.receive.behind)), vx: 0, vy: 0, swing: null });
+  if (ctx.C.players === 1) {
+    const receiver = S.p.find((p) => p.side === rc);
+    Object.assign(receiver, { x: mr3(-s * sp.receive.aside * (deuce ? 1 : -1)), y: mr3(s * (c.halfL + sp.receive.behind)), vx: 0, vy: 0, swing: null });
+  } else for (const P of S.p) if (P !== server) Object.assign(P, { ...homeOf(ctx, P), vx: 0, vy: 0, swing: null });
+  if (S.active) { S.active[sv] = server.id; S.active[rc] = null; }
   // the box the point names, on the receiver's side: where the serve is aimed
   // the box the point names, on the receiver's side; the serve is aimed at its deep part, as a serve has to be
   const r = contestRegion(ctx.C, name, rc).rect;
@@ -120,6 +131,28 @@ function setupServe(S, ctx) {
   S.ball = { held: server.id, hits: 0, onFloor: false, onNet: false };
   holdBall(S, ctx, server);
   S.rallies += 1;
+}
+
+/** A player's home on a side of more than one: across the side by its place (`home.aside` each way), `home.behind`. */
+export function homeOf(ctx, P) {
+  const n = ctx.C.players, i = Number(P.id.slice(1)) - 1, s = signOf(P.side), aside = ctx.sport.home.aside ?? 0;
+  const across = n > 1 ? (i - (n - 1) / 2) * ((2 * aside) / (n - 1)) : 0;
+  return { x: mr3(s * across), y: mr3(-s * (ctx.court.halfL + ctx.sport.home.behind)) };
+}
+
+/**
+ * The side's active player (a side of more than one): the one to play the ball. Never the last to touch it while its
+ * side plays it on; else the nearest to where the ball is going (half a second on), kept until another is a step nearer.
+ */
+function pickActive(S, ctx) {
+  const b = ballBodyOf(S), B = S.K.ball, at = [b.position[0] + b.velocity[0] * 0.5, b.position[1] + b.velocity[1] * 0.5];
+  for (const side of ['a', 'b']) {
+    if (S.ball.held) { const holder = S.p.find((P) => P.id === S.ball.held); S.active[side] = holder.side === side ? holder.id : S.active[side] ?? S.p.find((P) => P.side === side).id; continue; }
+    const mates = S.p.filter((P) => P.side === side && !(B.lastSide === side && P.id === B.lastWho));
+    const d = (P) => Math.hypot(P.x - at[0], P.y - at[1]);
+    const best = mates.reduce((m, P) => (m === null || d(P) < d(m) ? P : m), null), cur = mates.find((P) => P.id === S.active[side]);
+    S.active[side] = (cur && d(cur) <= d(best) + 1 ? cur : best).id;
+  }
 }
 
 function holdBall(S, ctx, P) {
@@ -163,9 +196,9 @@ function tryHit(S, ctx, P) {
   const serve = sw.serve && S.ball.held === P.id;
   if (!serve) {
     if (S.K.phase !== 'live' || S.ball.held) return;
-    if (b.position[1] * -s < -0.3) return;   // the ball is across the net: no reaching over here (the kernel would call it)
+    if (b.position[1] * -s < 0) return;   // the ball is across the net: no reaching over here (the kernel would call it)
     if (bed && b.position[2] < bed + b.radius) return;   // under a raised bed's top: no stroke from below the table
-    if (Math.hypot(b.position[0] - P.x, b.position[1] - P.y) > ctx.body.reach || b.position[2] > 2.6) return;
+    if (Math.hypot(b.position[0] - P.x, b.position[1] - P.y) > ctx.body.reach || b.position[2] > (ctx.sport.reachUp ?? 2.6)) return;
   }
   const facing = facingOf(P.side), stick = sw.stick.slice();
   // a volley struck from a no-volley region (the kitchen): the foul of its name, before the ball is touched
@@ -174,6 +207,8 @@ function tryHit(S, ctx, P) {
     fact(S, ctx, { kind: 'foul', foul: ctx.sport.noVolley, who: P.id, at: [mr3(P.x), mr3(P.y)] });
     return;
   }
+  // the assisted pass (volleyball's): a touch before the side's last, placed for a teammate, in every register
+  if (!serve && ctx.sport.assist === 'pass' && passOf(S, ctx, P, sw, b, s)) return;
   let aimed = {};
   if (ctx.register !== 'realistic' && serve && ctx.C.serve.bounce === 'own') {
     // the arcade's serve that bounces on its own half first: the launch found by flying it on a copy of the physics
@@ -207,6 +242,33 @@ function tryHit(S, ctx, P) {
   S.calls.push({ kind: 'hit', who: P.id, verb: sw.verb, speed: H.speed, spin: H.spin, at: [mr3(b.position[0]), mr3(b.position[1]), mr3(b.position[2])], elevation: H.elevation, ...(sw.aim ? { aim: sw.aim } : {}), f: S.f });
   fact(S, ctx, H.fact);
 }
+
+/**
+ * The assisted pass: the side's touch before its last, lofted on the verb's arc (the bump's on the first touch, the set's
+ * on the second) to come down at a teammate's hitting height on the spot it plays from: the setter's by the net, then
+ * the attacker's. The last touch, or a stick held toward the net on the second, goes over as the register strikes it.
+ * → true when it passed (the ball struck, the kernel told)
+ */
+function passOf(S, ctx, P, sw, b, s) {
+  const B = S.K.ball, n = B.lastSide === P.side ? B.touches + 1 : 1, c = ctx.court;
+  const mates = S.p.filter((Q) => Q.side === P.side && Q !== P);
+  if (!mates.length || n >= ctx.C.rally.touches || (n > 1 && sw.stick[1] > 0.6)) return false;
+  const mate = mates.reduce((m, Q) => (m === null || Math.hypot(Q.x - P.x, Q.y - P.y) < Math.hypot(m.x - P.x, m.y - P.y) ? Q : m), null);
+  const verb = n === 1 ? 'bump' : 'set', el = (HIT_VERBS[verb].arc * Math.PI) / 180, g = -S.sim.gravity[2];
+  // the spot: the setter's in the middle by the net, then the attacker's on the teammate's side of it
+  const to = n === 1 ? [mr3(Math.max(-c.halfW * 0.4, Math.min(c.halfW * 0.4, mate.x * 0.5))), mr3(-s * 1.6)] : [mr3(Math.max(-c.halfW * 0.7, Math.min(c.halfW * 0.7, mate.x))), mr3(-s * 1.2)];
+  const D = Math.max(0.5, Math.hypot(to[0] - b.position[0], to[1] - b.position[1])), drop = b.position[2] - PASS_HEIGHT;
+  const den = 2 * Math.cos(el) ** 2 * (drop + D * Math.tan(el));
+  const speed = mr3(den > 0 ? Math.sqrt((g * D * D) / den) : 6), az = Math.atan2(to[1] - b.position[1], to[0] - b.position[0]);
+  b.velocity = [mr3(speed * Math.cos(el) * Math.cos(az)), mr3(speed * Math.cos(el) * Math.sin(az)), mr3(speed * Math.sin(el))];
+  b.angularVelocity = [0, 0, 0]; b.resting = false;
+  S.ball.hits += 1; S.ball.onFloor = false; S.ball.onNet = false;
+  P.hits += 1; sw.hit = true; sw.verb = verb;
+  S.calls.push({ kind: 'hit', who: P.id, verb, speed, spin: { kind: 'none', rate: 0 }, at: [mr3(b.position[0]), mr3(b.position[1]), mr3(b.position[2])], elevation: HIT_VERBS[verb].arc, pass: { to, for: mate.id }, f: S.f });
+  fact(S, ctx, { kind: 'touch', who: P.id, at: [mr3(b.position[0]), mr3(b.position[1])] });
+  return true;
+}
+const PASS_HEIGHT = 2.2;   // the height a pass comes down to: a teammate's hands reaching up
 
 /**
  * The arcade's serve that must bounce on the server's own half and then land deep on the receiver's (table tennis's):
@@ -252,9 +314,12 @@ export function stepMatch(S, pads, ctx) {
   if (S.over) { if (S.dead > 0) S.dead -= 1; return S; }
   if (S.dead > 0) { S.dead -= 1; if (S.dead === 0) setupServe(S, ctx); return S; }
   const b = ballBodyOf(S);
+  if (S.active) pickActive(S, ctx);
   for (let i = 0; i < S.p.length; i++) {
-    const P = S.p[i];
-    const pad = i < ctx.players ? (pads && pads[i]) || { x: 0, y: 0, b: 0 } : courtMind(S.minds[i], S, P.id, ctx, _msim);
+    const P = S.p[i], sideIx = P.side === 'a' ? 0 : 1;
+    // a side's pad drives its player (its active one, on a side of more than one); the rest are the minds'
+    const human = sideIx < ctx.players && (!S.active || S.active[P.side] === P.id);
+    const pad = human ? (pads && pads[sideIx]) || { x: 0, y: 0, b: 0 } : courtMind(S.minds[i], S, P.id, ctx, _msim);
     const px = Math.max(-1, Math.min(1, pad.x || 0)), py = Math.max(-1, Math.min(1, pad.y || 0));
     move(S, ctx, P, { x: px, y: py });
     const pressed = !!(pad.b & MPAD.SWING), edge = pressed && !P.held;

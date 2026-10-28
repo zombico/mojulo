@@ -11,12 +11,14 @@
  * are mulberry32 on the state (S.r) from the contest's seed (the toss, the gun's delay), and `apply` returns a new
  * state, so the same start and the same facts are the same contest to the byte.
  *
- * Three shapes of contest, one kernel:
+ * Four shapes of contest, one kernel:
  *   match   sides, a ball, possession, a court of named regions mirrored for the other side, a ladder of scoring
  *           units (points into games into sets), a serve or a kickoff as the restart, a clock with periods
  *   meet    an athletic event: lanes, a set and a gun, a false start, a measure (time, distance, height), attempts
  *   turns   a turn sport: seats played hot-seat, one shot at a time, the ball's rest the shot's end; rounds (holes,
  *           frames) each seat plays in turn; the score the strokes (the fewest win) or the pins (tenpin's marks)
+ *   innings a bat-and-ball game: one side bats while the other fields, a ball at a time; outs end a side's innings
+ *           (strikes make one, baseball's), overs may too (cricket's); runs round the bases or between the wickets
  *
  *   read(spec) → C   the contest compiled; throws on what it cannot read, teaching the shape
  *     spec: {
@@ -44,12 +46,26 @@
  *       outs?: { side?: 'throw-in', end?: 'corner' }   a goal game's ball over a line: a throw-in for the other side where
  *                 it went out; over an end line, a corner for the attackers when the defenders touched it last, else a
  *                 goal kick (without `outs`, a free for the other side where it went out)
+ *       carry?: { try, called?, conversion?, convertFrom?, line, start, tackles? | downs? + gain?, forward?, drop?, out? }
+ *                 a carry game (rugby's, American football's): the ball carried over the other side's line (`line`, metres
+ *                 from the centre) scores `try` points (called a try, a touchdown), then a conversion kicked from
+ *                 `convertFrom` metres out for `conversion` more; each possession starts `start` metres from its own line
+ *                 and is played in plays: a tackle ends one, the side keeps the ball for so many `tackles` (rugby league's
+ *                 six) or `downs` to gain `gain` metres (football's four and ten yards), else it turns over; a pass
+ *                 forward is `never` legal or legal `once` a play from behind the line; a ball dropped (`drop`) or out
+ *                 (`out`) costs a `down` or a `turnover`
  *       offside?: 'ball'   a goal game's offside, read against the ball: a pass received by a teammate who stood past the
  *                 ball's line, in the other half, when it was played (a `touch` fact carries `atPass`: where the toucher
  *                 stood at its side's last touch) is a free for the other side where it was received
  *       — a meet —
  *       event: { kind, lanes: n, measure: 'time' | 'distance' | 'height', best?: 'low' | 'high' (time: low), attempts?: n
  *                (a measured event; 1), falseStart?: 'disqualify' | 'warn' (a warning, then disqualified) }
+ *       — innings —
+ *       innings: { innings?: n (each side bats so many times; 1), outs: n (end a side's innings), strikes?: n (bases:
+ *                  so many strikes are an out, a foul never the last), overs?: n and balls: n (an innings ends after so
+ *                  many overs of so many balls), runs: 'bases' (runners round the bases, home a run: baseball's) |
+ *                  'runs' (runs between the wickets, a boundary's: cricket's) }   the side batting second wins the
+ *                  moment it passes the first (the chase, the walk-off); a tie stands
  *       — turns —
  *       players: n (the seats, 1 to 8, played hot-seat in order: p1, p2 …)
  *       course?: { frame, regions } (no sides: every region as authored, the first that holds a point the ball's lie)
@@ -72,12 +88,19 @@
  *     facts (match): { kind: 'touch', who, at, atPass? } | { kind: 'bounce', at } | { kind: 'net' } (the ball on the cord) |
  *                    { kind: 'out', at? } (the ball gone past any line, where the sim knows before a bounce; a goal game's
  *                    carries where) |
- *                    { kind: 'foul', foul: <fouls key>, who, at? } | { kind: 'score', side } (a goal) |
- *                    { kind: 'tick', dt } | { kind: 'resume' } (the restart taken: play is live)
+ *                    { kind: 'foul', foul: <fouls key>, who, at? } | { kind: 'score', side, points? } (a goal; a basket
+ *                    worth more than one, `points` of the lowest unit at once) |
+ *                    { kind: 'tick', dt } | { kind: 'resume' } (the restart taken: play is live) |
+ *                    a carry game's: { kind: 'tackle', who, at } (the carrier brought down) | { kind: 'pass', who, from, to }
+ *                    | { kind: 'incomplete', at } (the ball down, nobody holding it) | { kind: 'try', who, at } |
+ *                    { kind: 'convert', side, good }
  *     facts (meet):  { kind: 'set' } | { kind: 'tick', dt } | { kind: 'press', who } | { kind: 'finish', who } |
  *                    { kind: 'mark', who, value, foul? }
  *     facts (turns): { kind: 'shot', who } (the ball struck: a stroke, a roll) | { kind: 'rest', at } (strokes: where it
  *                    came to rest) | { kind: 'rest', standing } (pins: how many still stand)
+ *     facts (innings): a ball's end: { kind: 'strike', why: missed | looking | foul } | { kind: 'dot' } | { kind: 'out',
+ *                    why: caught | bowled | thrown-out | … } | { kind: 'hit', bases: 1 … 4 } (bases) | { kind: 'runs',
+ *                    runs, boundary? } (runs)
  *   display(C, S) → { score: { a: [words], b: [words] }, phase, clock }   the scoreboard's words (deuce, advantage);
  *                                turns: the card, each seat's rounds and total (tenpin's marks and running totals)
  *   region(C, name, side, round?) → the shape on that side (turns: the round's course); inside(C, name, side, p);
@@ -87,7 +110,7 @@
 
 export function buildContest() {
   const SIDES = ['a', 'b'];
-  const SHAPES = ['match', 'meet', 'turns'];
+  const SHAPES = ['match', 'meet', 'turns', 'innings'];
   const TURN_KINDS = ['strokes', 'pins'];
   const MIRRORS = ['half-turn', 'reflect'];
   const MEASURES = ['time', 'distance', 'height'];
@@ -151,7 +174,7 @@ export function buildContest() {
   }
 
   function readMatch(spec, C) {
-    only(spec, ['shape', 'title', 'players', 'roles', 'court', 'scoring', 'serve', 'rally', 'clock', 'fouls', 'outs', 'offside'], 'a match');
+    only(spec, ['shape', 'title', 'players', 'roles', 'court', 'scoring', 'serve', 'rally', 'clock', 'fouls', 'outs', 'offside', 'carry'], 'a match');
     if (!spec.court) fail('a match has a court');
     C.court = readCourt(spec.court);
     if (!isObj(spec.scoring)) fail('scoring is { points?: rally | serve, ladder: [...] }');
@@ -225,6 +248,25 @@ export function buildContest() {
       if (C.rally) fail('offside belongs to a goal game');
       C.offside = 'ball';
     }
+    if (spec.carry !== undefined) readCarry(spec.carry, C);
+  }
+
+  function readCarry(k, C) {
+    if (!isObj(k)) fail('carry is { try, called?, conversion?, convertFrom?, line, start, tackles? | downs? + gain?, forward?, drop?, out? }');
+    only(k, ['try', 'called', 'conversion', 'convertFrom', 'line', 'start', 'tackles', 'downs', 'gain', 'forward', 'drop', 'out'], 'carry');
+    if (C.rally || C.serve) fail('carry belongs to a goal game on the clock, not a net game');
+    if (!C.clock) fail('a carry game runs on a clock');
+    if (!isCount(k.try)) fail('carry.try is the points a ball carried over the line scores');
+    if (k.conversion !== undefined && !(Number.isInteger(k.conversion) && k.conversion >= 0)) fail('carry.conversion is the points a conversion kick adds (0: none)');
+    if (!isPos(k.line) || k.line > C.court.frame[1] / 2) fail('carry.line is the try line, metres from the centre, inside the court\'s frame');
+    if (!isPos(k.start) || k.start >= k.line) fail('carry.start is where a possession begins, metres out from the side\'s own line, short of the centre');
+    if (k.convertFrom !== undefined && !isPos(k.convertFrom)) fail('carry.convertFrom is metres out from the line');
+    if ((k.tackles === undefined) === (k.downs === undefined)) fail('carry names tackles (the tackles a side keeps the ball for) or downs and gain (the plays to gain so far)');
+    if (k.tackles !== undefined && !isCount(k.tackles)) fail('carry.tackles is a count');
+    if (k.downs !== undefined && (!isCount(k.downs) || !isPos(k.gain))) fail('carry.downs is a count and carry.gain the metres to gain for the next first down');
+    if (k.forward !== undefined && !['never', 'once'].includes(k.forward)) fail('carry.forward is never or once (a play, from behind the line)');
+    for (const w of ['drop', 'out']) if (k[w] !== undefined && !['down', 'turnover'].includes(k[w])) fail(`carry.${w} is down (a down lost at the line) or turnover`);
+    C.carry = { try: k.try, called: k.called ?? 'try', conversion: k.conversion ?? 0, convertFrom: k.convertFrom ?? 10, line: k.line, start: k.start, tackles: k.tackles ?? null, downs: k.downs ?? null, gain: k.gain ?? null, forward: k.forward ?? 'never', drop: k.drop ?? 'turnover', out: k.out ?? 'turnover' };
   }
 
   function readMeet(spec, C) {
@@ -291,6 +333,20 @@ export function buildContest() {
     }
   }
 
+  function readInnings(spec, C) {
+    only(spec, ['shape', 'title', 'players', 'court', 'innings'], 'an innings game');
+    C.court = spec.court !== undefined ? readCourt(spec.court) : null;
+    const k = spec.innings;
+    if (!isObj(k)) fail('innings is { innings?, outs, strikes?, overs?, balls?, runs: bases | runs }');
+    only(k, ['innings', 'outs', 'strikes', 'overs', 'balls', 'runs'], 'innings');
+    if (!isCount(k.outs)) fail('innings.outs is how many outs end a side\'s innings');
+    if (!['bases', 'runs'].includes(k.runs)) fail('innings.runs is bases (runners round the bases, baseball\'s) or runs (run between the wickets, cricket\'s)');
+    for (const w of ['innings', 'strikes', 'overs', 'balls']) if (k[w] !== undefined && !isCount(k[w])) fail(`innings.${w} is a count`);
+    if (k.overs !== undefined && k.balls === undefined) fail('innings.overs needs balls: the deliveries an over is');
+    if (k.runs === 'runs' && k.strikes !== undefined) fail('innings.strikes belong to a game of bases');
+    C.innings = { innings: k.innings ?? 1, outs: k.outs, strikes: k.strikes ?? null, overs: k.overs ?? null, balls: k.balls ?? null, runs: k.runs };
+  }
+
   function read(spec) {
     if (!isObj(spec)) fail('a contest is an object: { shape: match | meet | turns, … }');
     if (!SHAPES.includes(spec.shape)) fail(`shape is ${SHAPES.join(' | ')}`);
@@ -301,7 +357,7 @@ export function buildContest() {
       if (!isObj(spec.roles) || !Object.keys(spec.roles).length) fail('roles is { <role>: { home: <region> } }, a side\'s players in order');
       C.roles = spec.roles;   // checked against the court below
     }
-    if (C.shape === 'match') readMatch(spec, C); else if (C.shape === 'meet') readMeet(spec, C); else readTurns(spec, C);
+    if (C.shape === 'match') readMatch(spec, C); else if (C.shape === 'meet') readMeet(spec, C); else if (C.shape === 'innings') readInnings(spec, C); else readTurns(spec, C);
     if (C.roles) {
       if (C.shape !== 'match') fail('roles belong to a match');
       for (const [role, r] of Object.entries(C.roles)) {
@@ -361,8 +417,109 @@ export function buildContest() {
     const S = { r: seed >>> 0, n: 0, phase: 'ready', score: { a: C.scoring.ladder.map(() => 0), b: C.scoring.ladder.map(() => 0) }, played: 0, server: null, serverIndex: { a: 0, b: 0 }, served: 0, faults: 0, ball: newBall(), clock: C.clock ? { period: 1, t: 0, overtime: false } : null, restart: null, winner: null, last: null, warned: {} };
     const toss = rnd(S) < 0.5 ? 'a' : 'b';
     if (C.serve) { S.server = toss; S.phase = 'serve'; S.restart = { kind: 'serve', side: toss, who: playerOf(C, toss, 0) }; }
+    else if (C.carry) { S.carry = { side: toss, los: 0, toGain: null, down: 1, tackles: 0, forward: false }; possession(C, S, toss, startOf(C, toss)); }
     else { S.phase = 'dead'; S.restart = { kind: 'kickoff', side: toss }; }
     return S;
+  }
+
+  // ── a carry game ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  const dirOf = (side) => (side === 'a' ? 1 : -1);   // a plays toward +y
+  /** Where a side's possession begins: `start` metres out from its own line. */
+  const startOf = (C, side) => [0, -dirOf(side) * (C.carry.line - C.carry.start)];
+  const clampLine = (C, y) => Math.max(-C.carry.line, Math.min(C.carry.line, y));
+  // a play is never restarted on a try line: five metres out at the nearest (rugby's five-metre line)
+  const clampPlay = (C, y) => Math.max(-C.carry.line + 5, Math.min(C.carry.line - 5, y));
+  /** A new possession for `side` at `at`: its first play, the line of scrimmage there, its first down's line. */
+  function possession(C, S, side, at) {
+    const K = S.carry, y = clampLine(C, at[1]);
+    K.side = side; K.down = 1; K.tackles = 0;
+    K.toGain = C.carry.downs ? clampLine(C, y + dirOf(side) * C.carry.gain) : null;
+    play(C, S, side, [at[0], y]);
+  }
+  /** The next play: the ball dead at `at`, the side in possession restarting it there. */
+  function play(C, S, side, at) {
+    const y = clampPlay(C, at[1]);
+    S.phase = 'dead'; S.ball = newBall(); S.carry.los = y; S.carry.forward = false;
+    S.restart = { kind: 'play', side, at: [at[0], y] };
+  }
+  function turnover(C, S, side, at, why, calls) {
+    calls.push({ kind: 'turnover', side, why });
+    S.last = { kind: 'turnover', side, why };
+    possession(C, S, side, at);
+  }
+  /** A play over with the side still holding the ball (a tackle; a down lost): its count, or the ball over. */
+  function playOver(C, S, at, gained, calls) {
+    const K = S.carry, side = K.side;
+    if (C.carry.downs) {
+      if (gained && (at[1] - K.toGain) * dirOf(side) >= 0) { K.down = 1; K.toGain = clampLine(C, at[1] + dirOf(side) * C.carry.gain); calls.push({ kind: 'down', side, down: 1, first: true }); return play(C, S, side, at); }
+      K.down += 1;
+      if (K.down > C.carry.downs) return turnover(C, S, opp(side), at, 'downs', calls);
+      calls.push({ kind: 'down', side, down: K.down, toGo: Math.round(Math.abs(K.toGain - at[1]) * 10) / 10 });
+      return play(C, S, side, at);
+    }
+    K.tackles += 1;
+    if (K.tackles >= C.carry.tackles) return turnover(C, S, opp(side), at, 'tackles', calls);
+    calls.push({ kind: 'tackle', side, count: K.tackles });
+    play(C, S, side, at);
+  }
+
+  /** A carry game's facts; true when the fact was the carry's (handled). */
+  function applyCarry(C, S, f, calls) {
+    const K = S.carry, k = f.kind;
+    if (k === 'touch' && S.phase === 'live') {
+      // possession is the touch: a ball the other side takes in play (an interception, a loose ball) is theirs, live
+      const side = sideOfId(f.who) || fail('a touch fact names who (a1, b2 …)');
+      if (side !== K.side) { const y = clampLine(C, at(f)[1]); K.side = side; K.down = 1; K.tackles = 0; K.los = y; K.toGain = C.carry.downs ? clampLine(C, y + dirOf(side) * C.carry.gain) : null; K.forward = false; calls.push({ kind: 'turnover', side, why: 'taken', live: true }); }
+      S.ball.lastSide = side; S.ball.lastWho = f.who; S.ball.side = side;
+      return true;
+    }
+    if (k === 'tackle') {
+      if (S.phase !== 'live') return true;
+      const p = at(f);
+      calls.push({ kind: 'tackled', who: f.who, at: p });
+      playOver(C, S, p, true, calls);
+      return true;
+    }
+    if (k === 'pass') {
+      if (S.phase !== 'live') return true;
+      const side = sideOfId(f.who), from = Array.isArray(f.from) ? f.from : fail('a pass fact carries from: [x, y]'), to = Array.isArray(f.to) ? f.to : fail('a pass fact carries to: [x, y]');
+      if ((to[1] - from[1]) * dirOf(side) <= 0.3) return true;   // flat or back: always fair
+      const legal = C.carry.forward === 'once' && !K.forward && (from[1] - K.los) * dirOf(side) <= 0.5;
+      if (legal) { K.forward = true; return true; }
+      calls.push({ kind: 'foul', foul: 'forward-pass', who: f.who, side, cost: C.carry.downs ? 'down' : 'turnover' });
+      if (C.carry.downs) playOver(C, S, [from[0], K.los], false, calls); else turnover(C, S, opp(side), from, 'forward-pass', calls);
+      return true;
+    }
+    if (k === 'incomplete' || (k === 'out' && C.carry)) {
+      if (S.phase !== 'live') return true;
+      const p = Array.isArray(f.at) ? [Math.max(-C.court.frame[0] / 2, Math.min(C.court.frame[0] / 2, f.at[0])), clampLine(C, f.at[1])] : [0, K.los];
+      const cost = k === 'out' ? C.carry.out : C.carry.drop;
+      calls.push({ kind: k === 'out' ? 'out' : 'incomplete', side: K.side, cost, ...(k === 'out' ? { restart: { kind: 'play', side: cost === 'down' ? K.side : opp(K.side), at: p } } : {}) });
+      if (cost === 'down') playOver(C, S, k === 'out' ? p : [p[0], K.los], k === 'out', calls); else turnover(C, S, opp(K.side), p, k, calls);
+      return true;
+    }
+    if (k === 'try') {
+      if (S.phase !== 'live') return true;
+      const side = sideOfId(f.who) || fail('a try fact names who carried it');
+      const p = at(f);
+      S.last = { kind: 'score', side, points: C.carry.try, how: C.carry.called };
+      calls.push({ kind: 'score', side, points: C.carry.try, how: C.carry.called });
+      for (let i = 0; i < C.carry.try; i++) if (climb(C, S, side, calls)) return true;
+      S.phase = 'dead'; S.ball = newBall();
+      if (C.carry.conversion) S.restart = { kind: 'conversion', side, at: [0, dirOf(side) * (C.carry.line - C.carry.convertFrom)], from: [p[0], p[1]] };
+      else possession(C, S, opp(side), startOf(C, opp(side)));
+      return true;
+    }
+    if (k === 'convert') {
+      if (!S.restart || S.restart.kind !== 'conversion') return true;
+      const side = S.restart.side, good = f.good === true;
+      calls.push({ kind: 'conversion', side, good, points: good ? C.carry.conversion : 0 });
+      if (good) for (let i = 0; i < C.carry.conversion; i++) if (climb(C, S, side, calls)) return true;
+      possession(C, S, opp(side), startOf(C, opp(side)));
+      return true;
+    }
+    return false;
   }
 
   const serverId = (C, S) => playerOf(C, S.server, S.serverIndex[S.server] % C.players);
@@ -426,12 +583,13 @@ export function buildContest() {
       if (K.t < span) return;
       calls.push({ kind: 'period', period: K.period, overtime: K.overtime });
       const top = C.scoring.ladder.length - 1, a = S.score.a[top], b = S.score.b[top];
-      if (K.period < C.clock.periods && !K.overtime) { K.period += 1; K.t = 0; S.phase = 'between'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: K.period % 2 === 0 ? 'b' : 'a' }; return; }
+      if (K.period < C.clock.periods && !K.overtime) { K.period += 1; K.t = 0; S.phase = 'between'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: K.period % 2 === 0 ? 'b' : 'a' }; if (C.carry) { const side = S.restart.side; possession(C, S, side, startOf(C, side)); S.phase = 'between'; } return; }
       if (a !== b) { S.winner = a > b ? 'a' : 'b'; S.phase = 'over'; S.restart = null; calls.push({ kind: 'over', winner: S.winner, score: clone(S.score) }); return; }
-      if (C.clock.overtime && !K.overtime) { K.overtime = true; K.t = 0; S.phase = 'between'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: 'a' }; calls.push({ kind: 'overtime' }); return; }
+      if (C.clock.overtime && !K.overtime) { K.overtime = true; K.t = 0; S.phase = 'between'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: 'a' }; if (C.carry) { possession(C, S, 'a', startOf(C, 'a')); S.phase = 'between'; } calls.push({ kind: 'overtime' }); return; }
       S.winner = null; S.phase = 'over'; S.restart = null; calls.push({ kind: 'over', winner: null, score: clone(S.score) });
       return;
     }
+    if (C.carry && applyCarry(C, S, f, calls)) return;
     if (k === 'resume') {
       if (S.phase !== 'dead' && S.phase !== 'between') return;
       S.phase = 'live'; S.last = { kind: 'resume', restart: S.restart }; calls.push({ kind: 'live', restart: S.restart }); S.restart = null;
@@ -451,9 +609,11 @@ export function buildContest() {
     }
     if (k === 'score') {
       if (S.phase !== 'live' || !SIDES.includes(f.side)) return;
-      S.last = { kind: 'score', side: f.side };
-      calls.push({ kind: 'score', side: f.side });
-      if (climb(C, S, f.side, calls)) return;
+      if (f.points !== undefined && !(Number.isInteger(f.points) && f.points >= 1 && f.points <= 9)) fail('a score fact\'s points is 1 to 9');
+      const n = f.points ?? 1;
+      S.last = { kind: 'score', side: f.side, ...(f.points !== undefined ? { points: n } : {}) };
+      calls.push({ kind: 'score', side: f.side, ...(f.points !== undefined ? { points: n } : {}) });
+      for (let i = 0; i < n; i++) if (climb(C, S, f.side, calls)) return;
       S.phase = 'dead'; S.ball = newBall(); S.restart = { kind: 'kickoff', side: opp(f.side) };
       return;
     }
@@ -795,23 +955,110 @@ export function buildContest() {
 
   function start(C, seed = 1) {
     if (!Number.isInteger(seed)) fail('seed is a whole number');
-    return C.shape === 'meet' ? startMeet(C, seed) : C.shape === 'turns' ? startTurns(C, seed) : startMatch(C, seed);
+    return C.shape === 'meet' ? startMeet(C, seed) : C.shape === 'turns' ? startTurns(C, seed) : C.shape === 'innings' ? startInnings(C, seed) : startMatch(C, seed);
+  }
+
+  // ── an innings game ──────────────────────────────────────────────────────────────────────────────────────────
+
+  function startInnings(C, seed) {
+    const S = { r: seed >>> 0, n: 0, phase: 'live', first: null, batting: null, inning: 1, half: 0, outs: 0, strikes: 0, balls: 0, overs: 0, bases: [false, false, false], runs: { a: [], b: [] }, total: { a: 0, b: 0 }, winner: null, last: null };
+    S.first = rnd(S) < 0.5 ? 'a' : 'b'; S.batting = S.first; S.runs[S.batting].push(0);
+    return S;
+  }
+  const lastInning = (C, S) => S.inning === C.innings.innings;
+  function inningsOver(C, S, calls) {
+    S.phase = 'over'; S.winner = S.total.a === S.total.b ? null : S.total.a > S.total.b ? 'a' : 'b';
+    calls.push({ kind: 'over', winner: S.winner, score: { a: [S.total.a], b: [S.total.b] } });
+  }
+  /** A side's innings done: the other side in, or the next inning, or the end (the second side ahead after the
+   * first's last innings need not bat). */
+  function sideOver(C, S, calls) {
+    const second = opp(S.first);
+    if (S.half === 1 && lastInning(C, S)) return inningsOver(C, S, calls);
+    if (S.half === 0 && lastInning(C, S) && S.total[second] > S.total[S.first]) return inningsOver(C, S, calls);
+    if (S.half === 0) { S.half = 1; S.batting = second; } else { S.half = 0; S.inning += 1; S.batting = S.first; }
+    S.outs = 0; S.strikes = 0; S.balls = 0; S.overs = 0; S.bases = [false, false, false]; S.runs[S.batting].push(0);
+    calls.push({ kind: 'side', batting: S.batting, inning: S.inning, half: S.half });
+  }
+  function scoreRuns(C, S, n) {
+    S.total[S.batting] += n; S.runs[S.batting][S.runs[S.batting].length - 1] += n;
+  }
+  /** The ball done: an over counted (cricket's), the innings over at its overs; the chase or the walk-off ends it. */
+  function ballDone(C, S, calls) {
+    if (S.phase === 'over') return;
+    let ended = false;
+    if (C.innings.balls && ++S.balls >= C.innings.balls) {
+      S.balls = 0; S.overs += 1; ended = true;
+      calls.push({ kind: 'end-over', side: S.batting, overs: S.overs });
+    }
+    if (S.half === 1 && lastInning(C, S) && S.total[S.batting] > S.total[S.first]) return inningsOver(C, S, calls);
+    if (ended && C.innings.overs && S.overs >= C.innings.overs) sideOver(C, S, calls);
+  }
+  function outOf(C, S, why, calls) {
+    S.outs += 1; S.strikes = 0;
+    calls.push({ kind: 'out', side: S.batting, why, outs: S.outs });
+    S.last = { kind: 'out', why };
+    if (S.outs >= C.innings.outs) { sideOver(C, S, calls); return true; }
+    return false;
+  }
+
+  function applyInnings(C, S, f, calls) {
+    if (S.phase === 'over') return;
+    const k = f.kind, side = S.batting;
+    if (k === 'strike') {
+      if (!C.innings.strikes) { calls.push({ kind: 'dot', side }); return ballDone(C, S, calls); }   // a game of runs: a ball missed is a dot
+      if (f.why === 'foul' && S.strikes === C.innings.strikes - 1) { calls.push({ kind: 'strike', side, why: 'foul', count: S.strikes }); return; }
+      S.strikes += 1;
+      calls.push({ kind: 'strike', side, why: f.why ?? 'missed', count: S.strikes });
+      if (S.strikes >= C.innings.strikes) { if (!outOf(C, S, 'struck-out', calls)) ballDone(C, S, calls); return; }
+      return;
+    }
+    if (k === 'dot') { calls.push({ kind: 'dot', side }); return ballDone(C, S, calls); }
+    if (k === 'out') { if (!outOf(C, S, typeof f.why === 'string' ? f.why : 'out', calls)) ballDone(C, S, calls); return; }
+    if (k === 'hit') {
+      if (C.innings.runs !== 'bases') fail('a hit fact belongs to a game of bases; a game of runs takes { kind: runs, runs }');
+      const b = f.bases;
+      if (!(Number.isInteger(b) && b >= 1 && b <= 4)) fail('a hit fact\'s bases is 1 to 4 (4: a home run)');
+      // every runner on so many bases, the batter to the base it reached; the ones home score
+      let runs = 0; const next = [false, false, false];
+      for (let i = 2; i >= 0; i--) if (S.bases[i]) { if (i + b >= 3) runs += 1; else next[i + b] = true; }
+      if (b >= 4) runs += 1; else next[b - 1] = true;
+      S.bases = next; S.strikes = 0;
+      scoreRuns(C, S, runs);
+      calls.push({ kind: 'base-hit', side, bases: b, runs });
+      S.last = { kind: 'hit', bases: b, runs };
+      return ballDone(C, S, calls);
+    }
+    if (k === 'runs') {
+      if (C.innings.runs !== 'runs') fail('a runs fact belongs to a game of runs; a game of bases takes { kind: hit, bases }');
+      if (!(Number.isInteger(f.runs) && f.runs >= 0 && f.runs <= 6)) fail('a runs fact\'s runs is 0 to 6');
+      scoreRuns(C, S, f.runs);
+      calls.push({ kind: 'runs', side, runs: f.runs, ...(f.boundary ? { boundary: true } : {}) });
+      S.last = { kind: 'runs', runs: f.runs };
+      return ballDone(C, S, calls);
+    }
+    fail(`no fact '${k}' in an innings game (strike, dot, out, hit, runs)`);
+  }
+
+  function displayInnings(C, S) {
+    return { phase: S.phase, score: { a: [String(S.total.a)], b: [String(S.total.b)] }, innings: { inning: S.inning, of: C.innings.innings, half: S.half, batting: S.batting, first: S.first, outs: S.outs, strikes: S.strikes, balls: S.balls, overs: S.overs, bases: S.bases.slice(), runs: clone(S.runs) }, winner: S.winner };
   }
 
   function apply(C, S, fact) {
     if (!isObj(fact) || typeof fact.kind !== 'string') fail('a fact is { kind, … }');
     const next = clone(S), calls = [];
     next.n += 1;
-    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else if (C.shape === 'turns') applyTurns(C, next, fact, calls); else applyMatch(C, next, fact, calls);
+    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else if (C.shape === 'turns') applyTurns(C, next, fact, calls); else if (C.shape === 'innings') applyInnings(C, next, fact, calls); else applyMatch(C, next, fact, calls);
     return { S: next, calls };
   }
 
-  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : C.shape === 'turns' ? legalTurns(C, S, who) : legalMatch(C, S, who));
+  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : C.shape === 'turns' ? legalTurns(C, S, who) : C.shape === 'innings' ? { side: sideOfId(who), may: S.phase === 'over' ? [] : sideOfId(who) === S.batting ? ['bat'] : ['field'] } : legalMatch(C, S, who));
 
   /** The scoreboard's words: the tennis game's 0 15 30 40, deuce and advantage, else the counts. */
   function display(C, S) {
     if (C.shape === 'meet') return { phase: S.phase, t: S.t, lanes: clone(S.lanes), placings: S.placings ? clone(S.placings) : null };
     if (C.shape === 'turns') return displayTurns(C, S);
+    if (C.shape === 'innings') return displayInnings(C, S);
     const L = C.scoring.ladder, out = { a: [], b: [] };
     for (let i = 0; i < L.length; i++) {
       const a = S.score.a[i], b = S.score.b[i], u = L[i];
@@ -820,7 +1067,7 @@ export function buildContest() {
         out.a.push(w[0]); out.b.push(w[1]);
       } else { out.a.push(u.names && a < u.names.length ? u.names[a] : String(a)); out.b.push(u.names && b < u.names.length ? u.names[b] : String(b)); }
     }
-    return { phase: S.phase, score: out, server: S.server, clock: S.clock ? clone(S.clock) : null, restart: S.restart ? clone(S.restart) : null, winner: S.winner };
+    return { phase: S.phase, score: out, server: S.server, clock: S.clock ? clone(S.clock) : null, restart: S.restart ? clone(S.restart) : null, winner: S.winner, ...(S.carry ? { carry: { side: S.carry.side, ...(C.carry.downs ? { down: S.carry.down, toGo: Math.round(Math.abs(S.carry.toGain - S.carry.los) * 10) / 10 } : { tackles: S.carry.tackles, of: C.carry.tackles }) } } : {}) };
   }
 
   /** The region the serve the state names is aimed into (the receiver's side), or null when no serve is due. */
