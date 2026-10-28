@@ -8,6 +8,7 @@
  *       loft from the back of the pelvis at the hip's height, its joints the carriage's scaled to the hero, its stations
  *       each half and half between the tail's bones at its joints; the bones ride the pelvis (no clip poses a tail yet,
  *       so it is carried as the pelvis goes, and every clip plays)
+ *     - the ABDOMEN (`abdomen: 'gaster'`): an insect's, a short full ovoid on the tail's bones and socket in its place
  *     - the ARM-WINGS (`wings: 'arms'`): the biped's five flight feathers, flat vanes trailing down and back from the
  *       hand (the primaries) and the forearm (the secondaries), on the hero's own elbow and knuckles, riding those bones
  *     - the SECOND ARMS (`arms: 4`): a smaller pair under the first, folded forward at rest (an insect's working hands):
@@ -33,10 +34,18 @@ const HANG = [[0, -0.17, 0.95], [0, -0.36, 0.83], [0, -0.52, 0.67], [0, -0.64, 0
 export const BEAST_TAILS = Object.freeze(['none', 'thin', 'thick', 'brush', 'stub']);   // (TAILS' words, egocube/plan.js)
 export const BEAST_WINGS = Object.freeze(['none', 'arms']);
 export const BEAST_ARMS = Object.freeze([2, 4]);
-/** the creature biped's flight feathers: name, the bone it rides, its share of the way from the elbow to the knuckles, its
+export const BEAST_ABDOMENS = Object.freeze(['none', 'gaster']);
+/** THE GASTER: an insect's abdomen, a tail's shape (TAILS' radii, length and carriage): a short full ovoid out of the
+ * back of the pelvis, carried back and down, on the tail's bones and socket (so a kin carries a tail or an abdomen) */
+const GASTER = Object.freeze({ r: [0.075, 0.13, 0.155, 0.15, 0.115, 0.05], len: 0.62,
+  carry: [[0, -0.17, 0.95], [0, -0.29, 0.89], [0, -0.41, 0.8], [0, -0.5, 0.7], [0, -0.56, 0.6], [0, -0.59, 0.51]] });
+/** the creature biped's flight feathers and a row of coverts over them: name, the bone it rides, its share of the way from the elbow to the knuckles, its
  * way out (metres at 2 m tall), its width at the root and the tip (the vane's flat side front to back) */
 const VANES = Object.freeze([['wingPrim1', 'hand', 0.92, [0.1, -0.08, -0.4], [0.042, 0.02]], ['wingPrim2', 'hand', 0.8, [0.13, -0.14, -0.4], [0.044, 0.02]], ['wingPrim3', 'foreArm', 0.66, [0.14, -0.19, -0.38], [0.075, 0.045]],
-  ['wingSec1', 'foreArm', 0.45, [0.125, -0.22, -0.35], [0.075, 0.045]], ['wingSec2', 'foreArm', 0.22, [0.105, -0.23, -0.31], [0.075, 0.045]]]);
+  ['wingSec1', 'foreArm', 0.45, [0.125, -0.22, -0.35], [0.075, 0.045]], ['wingSec2', 'foreArm', 0.22, [0.105, -0.23, -0.31], [0.075, 0.045]],
+  // (the coverts: a shorter row laid over the flights' roots, so the wing reads layered, not a fan of planks)
+  ['wingCov1', 'hand', 0.86, [0.075, -0.05, -0.22], [0.05, 0.012]], ['wingCov2', 'foreArm', 0.62, [0.085, -0.1, -0.21], [0.062, 0.014]],
+  ['wingCov3', 'foreArm', 0.4, [0.08, -0.13, -0.2], [0.062, 0.014]], ['wingCov4', 'foreArm', 0.18, [0.07, -0.14, -0.18], [0.056, 0.012]]]);
 /** the second arms' joints at 2 m tall (the biped's), the shoulder's x held to the torso's side at its height */
 const ARMS2 = Object.freeze({ shoulder2: [0.17, 0.03, 1.27], elbow2: [0.29, 0.09, 1.1], wrist2: [0.23, 0.27, 1.07], knuckles2: [0.19, 0.34, 1.03] });
 const TOPOLOGY_JOINTS = Object.freeze([
@@ -47,7 +56,7 @@ const TOPOLOGY_JOINTS = Object.freeze([
 /** the hero's own words for what its frame adds, the card's defaults under them */
 export function topologyOf(hero) {
   const card = beastCard(hero); if (!card) return null;
-  return { tail: hero.beast.tail ?? card.tail ?? 'none', wings: hero.beast.wings ?? 'none', arms: hero.beast.arms ?? 2 };
+  return { tail: hero.beast.tail ?? card.tail ?? 'none', wings: hero.beast.wings ?? 'none', arms: hero.beast.arms ?? 2, abdomen: hero.beast.abdomen ?? card.abdomen ?? 'none' };
 }
 export const topologyJoints = (hero) => (topologyOf(hero)?.arms === 4 ? TOPOLOGY_JOINTS : []);
 
@@ -62,13 +71,14 @@ function sectionAt(seg, z) {
 
 export function beastTopology(plan, hero) {
   const T = topologyOf(hero);
-  if (!T || (T.tail === 'none' && T.wings === 'none' && T.arms === 2)) return plan;
+  if (!T || (T.tail === 'none' && T.abdomen === 'none' && T.wings === 'none' && T.arms === 2)) return plan;
   const k = scaleOf(plan), J = { ...plan.joints }, RJ = { ...plan.rig.joints }, segments = [...plan.segments], skin = plan.palette?.Skin ?? '#8a7a6a';
   let bones = [...plan.rig.bones], dials = Object.fromEntries(Object.entries(plan.dials ?? {}).map(([id, d]) => [id, Array.isArray(d.parts) ? { ...d, parts: [...d.parts] } : d]));
   const palette = { ...(plan.palette ?? {}) };
   // THE TAIL: from the back of the pelvis at the hip's height, the carriage's joints scaled to the hero
-  if (T.tail !== 'none') {
-    const D = TAILS[T.tail], carry = D.carry ?? HANG, pelvis = segments.find((s) => s.name === 'pelvis'), hz = J.hip[2], X = sectionAt(pelvis, hz);
+  // (or the abdomen: the gaster on the tail's bones, a shape of the tail's)
+  if (T.tail !== 'none' || T.abdomen === 'gaster') {
+    const D = T.tail !== 'none' ? TAILS[T.tail] : GASTER, carry = D.carry ?? HANG, pelvis = segments.find((s) => s.name === 'pelvis'), hz = J.hip[2], X = sectionAt(pelvis, hz);
     const root = [0, r6(X.yc - X.ry + 0.5 * D.r[0] * k), r6(hz + 0.03 * k)];
     const pts = carry.map((p, i) => (i === 0 ? root : add(root, mul(sub(p, carry[0]), D.len * k)).map(r6)));
     pts.forEach((p, i) => { RJ[`tail${i}`] = { at: p, rides: 'pelvis' }; });
@@ -108,11 +118,12 @@ export function beastTopology(plan, hero) {
 
 export function beastSockets(plan, hero) {
   const T = topologyOf(hero);
-  if (!T || (T.tail === 'none' && T.arms === 2)) return plan;
+  const tailed = T && (T.tail !== 'none' || T.abdomen === 'gaster');
+  if (!T || (!tailed && T.arms === 2)) return plan;
   const webs = [];
   // (the tail's root ring sits on the pelvis's skin and the tail swells past it: its socket ends on that first ring, where
   // one ending further out ran under the tail's own swell and showed it through as a slit)
-  if (T.tail !== 'none') webs.push(rootWeb(plan, { trunk: 'pelvis', limb: 'tail', ring: 'st0', trunkBone: 'pelvis', limbBone: 'tail0', name: 'tailSocket' }));
+  if (tailed) webs.push(rootWeb(plan, { trunk: 'pelvis', limb: 'tail', ring: 'st0', trunkBone: 'pelvis', limbBone: 'tail0', name: 'tailSocket' }));
   if (T.arms === 4) webs.push(rootWeb(plan, { trunk: 'torso', limb: 'upperArm2R', trunkBone: 'torso', limbBone: 'upperArm2R', name: 'arm2SocketR' }));
   const made = webs.filter(Boolean);
   if (!made.length) return plan;

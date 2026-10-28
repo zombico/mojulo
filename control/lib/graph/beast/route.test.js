@@ -41,6 +41,18 @@ describe('the egocube\'s route to the tiered body', () => {
     expect(bug.ledger.find((r) => /second pair of arms/.test(r.line)).at).toMatch(/spec\.beast\.arms/);
   });
 
+  it('its detail from the sheet: a ruff where its fur cue names one, a crest of spikes where its silhouette picks it; the ledger says where', () => {
+    for (const kin of KINS) {
+      const sheet = roll({ ancestry: kin, humanity: 0.3 }), P = planFromSheet(sheet), b = P.create.spec.beast;
+      expect(b.ruff, kin).toBe(sheet.ancestry.plan?.cover?.where?.includes('ruff') ? 'ruff' : 'none');
+      const crest = P.ledger.find((r) => /crest of spikes/.test(r.line));
+      if (crest) { expect(b.ridge).toBe('spines'); expect(crest.at).toMatch(/spec\.beast\.ridge/); }
+      const ruff = P.ledger.find((r) => r.channel === 'cover' && /\bruff\b/.test(r.line));
+      if (ruff) expect(ruff.at).toMatch(/spec\.beast\.ruff/);
+    }
+    expect(KINS.some((k) => planFromSheet(roll({ ancestry: k, humanity: 0.3 })).create.spec.beast.ruff === 'ruff')).toBe(true);   // (reached)
+  });
+
   it('`gen: 6` keeps the creature biped; a people with no card stays on it', () => {
     const sheet = roll({ ancestry: 'lupine', humanity: 0.3 });
     const six = planFromSheet(sheet, { gen: 6 });

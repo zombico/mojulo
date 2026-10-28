@@ -2,9 +2,9 @@
  * THE BEAST-KIN ON THE TIERED BODY: a non-human people built on the hero's own game body (polygonizer/tiered-form.js), so
  * a bear-kin has a person's shoulders under its web and cone, bridged elbows and knees, hands and a rig every hero clip
  * plays on, where the sixth generation stood it on the creature biped (egocube/plan.js `biped`). A hero carries it as
- * `beast: { kin, legs?, fingers?, toes?, claws?, tail?, wings?, arms?, head?, cover?, expression? }` (the hero door's field), its kin
+ * `beast: { kin, legs?, fingers?, toes?, claws?, tail?, abdomen?, wings?, arms?, ridge?, ruff?, head?, cover?, expression? }` (the hero door's field), its kin
  * a card (./cards.js); its legs ./legs.js; what its frame adds (the tail, the arm-wings, the second arms) ./topology.js;
- * its head ./head.js; its coat as a material ./cover.js.
+ * its head ./head.js; its coat as a material ./cover.js; its detail as form (spines, a ruff) ./detail.js.
  *
  *   beastCard(hero)          → the card a hero's beast stands for, its own words over the kin's, or null
  *   beastWords(spec)         → the hero's words for its kin, under the spec's own (the hero door records them at mint,
@@ -25,7 +25,8 @@
 import { BEAST_KINS, BEAST_KIN_IDS, BEAST_LEGS, BEAST_CLAWS, BEAST_FINGERS, BEAST_TOES, kinCoat } from './cards.js';
 import { scaleRing, trunkCentre } from '../undead/tiered.js';
 import { GAITS } from '../polygonizer/hero-gaits.js';
-import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS } from './topology.js';
+import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS, BEAST_ABDOMENS } from './topology.js';
+import { BEAST_RIDGES, BEAST_RUFFS } from './detail.js';
 import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
 import { isArmorBuild } from '../armor/expand.js';
 import { beastHeadOf, BEAST_HEADS } from './head.js';
@@ -76,7 +77,7 @@ export function beastErrors(spec) {
   const B = spec?.beast;
   if (B === undefined || B === null) return [];
   if (typeof B !== 'object' || Array.isArray(B)) return [`beast: { kin: ${BEAST_KIN_IDS.join(' | ')}, legs?, fingers?, toes?, claws?, tail?, wings?, arms? }`];
-  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'wings', 'arms', 'head', 'cover', 'expression'];
+  const errs = [], WORDS = ['kin', 'legs', 'fingers', 'toes', 'claws', 'tail', 'abdomen', 'wings', 'arms', 'ridge', 'ruff', 'head', 'cover', 'expression'];
   for (const k of Object.keys(B)) if (!WORDS.includes(k)) errs.push(`beast.${k}: not a word of the beast (${WORDS.join(', ')})`);
   if (!BEAST_KINS[B.kin]) errs.push(`beast.kin: one of ${BEAST_KIN_IDS.join(', ')}`);
   if (B.legs !== undefined && !BEAST_LEGS.includes(B.legs)) errs.push(`beast.legs: ${BEAST_LEGS.join(' | ')}`);
@@ -86,6 +87,10 @@ export function beastErrors(spec) {
   if (B.tail !== undefined && !BEAST_TAILS.includes(B.tail)) errs.push(`beast.tail: ${BEAST_TAILS.join(' | ')}`);
   if (B.wings !== undefined && !BEAST_WINGS.includes(B.wings)) errs.push(`beast.wings: ${BEAST_WINGS.join(' | ')} (the flight feathers trailing from the forearm and the hand)`);
   if (B.arms !== undefined && !BEAST_ARMS.includes(B.arms)) errs.push(`beast.arms: ${BEAST_ARMS.join(' | ')} (a second pair under the first)`);
+  if (B.abdomen !== undefined && !BEAST_ABDOMENS.includes(B.abdomen)) errs.push(`beast.abdomen: ${BEAST_ABDOMENS.join(' | ')} (an insect's, on the tail's bones)`);
+  else if ((B.abdomen ?? BEAST_KINS[B.kin]?.abdomen ?? 'none') !== 'none' && (B.tail ?? BEAST_KINS[B.kin]?.tail ?? 'none') !== 'none') errs.push("beast.abdomen: an abdomen rides the tail's bones; a kin carries a tail or an abdomen (tail: 'none', or abdomen: 'none')");
+  if (B.ridge !== undefined && !BEAST_RIDGES.includes(B.ridge)) errs.push(`beast.ridge: ${BEAST_RIDGES.join(' | ')} (a crest of spines down the back and the tail)`);
+  if (B.ruff !== undefined && !BEAST_RUFFS.includes(B.ruff)) errs.push(`beast.ruff: ${BEAST_RUFFS.join(' | ')} (heavy tufts round the neck's root)`);
   if (B.expression !== undefined && !(B.expression && typeof B.expression === 'object' && !Array.isArray(B.expression) && Object.values(B.expression).every((v) => Number.isFinite(v) && v >= -1 && v <= 1))) errs.push("beast.expression: the library head's expression controls, each −1 … 1 ({ browRaise, browFurrow, sneer, earAttitude, lidClose, cornerRetract … }: station-loft-head.js)");
   if (B.cover !== undefined && !COVER_KINDS.includes(B.cover)) errs.push(`beast.cover: ${COVER_KINDS.join(' | ')} (its coat carried as a material: relief, normal, occlusion and height)`);
   if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')} (the kin's own by default; 'person' keeps a person's head)`);

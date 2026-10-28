@@ -21,6 +21,9 @@
  *   rest      how it stands, in the hero's pose words: `hunch` (degrees the trunk hinges forward over the hips), `crouch`
  *             (the knees given, 0 … 1), `arm` (the right arm's way down from the shoulder, the left mirrored)
  *   claw      the claws' tone
+ *   ridge     'spines' when it carries a crest of spines down the back and the tail (./detail.js)
+ *   ruff      'ruff' when heavy tufts hang round its neck's root (./detail.js)
+ *   abdomen   'gaster' when an insect's abdomen rides where a tail would (./topology.js)
  *
  * Each kin is a silhouette of its own, so a cast of them is not one lean figure in six coats: the bear the heavyweight
  * (a barrel and a hump, short legs), the dragon the hulking V (broad and deep, thick haunches), the wolf the brawler (an
@@ -49,9 +52,9 @@ export const BEAST_KINS = Object.freeze({
   },
   lupine: {
     reads: 'wolf-kin: the brawler, broad shoulders and a deep chest over a narrow waist, a thick neck under its ruff, heavy haunches, the trunk leaning forward',
-    fingers: 4, toes: 4, tail: 'brush', claws: 'blunt', claw: MAMMAL_CLAW,
+    fingers: 4, toes: 4, tail: 'brush', claws: 'blunt', claw: MAMMAL_CLAW, ruff: 'ruff',
     frame: { shoulders: 1.1, depth: 1.1, waist: 0.92, hips: 0.94 },
-    mass: { trunk: 1.1, waist: 0.86, neck: 1.4, upperArm: 1.15, foreArm: 1.12, hand: 1.12, thigh: 1.3, shank: 1.35, foot: 1.15 }, hump: 0.3, keel: 0.25,
+    mass: { trunk: 1.1, waist: 0.86, neck: 1.4, upperArm: 1.15, foreArm: 1.12, hand: 1.12, thigh: 1.2, shank: 1.35, foot: 1.15 }, hump: 0.3, keel: 0.25,
     rest: { hunch: 16, crouch: 0.12, arm: { x: 0.18, y: 0.28, z: -0.94 } },
   },
   feline: {
@@ -63,9 +66,9 @@ export const BEAST_KINS = Object.freeze({
   },
   draconic: {
     reads: 'dragon-kin: the hulking V, a broad deep trunk, a long thick neck, heavy limbs and thick haunches, three clawed fingers',
-    fingers: 3, toes: 3, tail: 'thick', claws: 'long', claw: HORN_CLAW,
+    fingers: 3, toes: 3, tail: 'thick', claws: 'long', claw: HORN_CLAW, ridge: 'spines',
     frame: { shoulders: 1.12, depth: 1.12, neck: 1.15, legs: 0.96 },
-    mass: { trunk: 1.14, waist: 1.0, neck: 1.4, upperArm: 1.2, foreArm: 1.18, hand: 1.15, thigh: 1.4, shank: 1.4, foot: 1.25 }, hump: 0.2, keel: 0.2,
+    mass: { trunk: 1.14, waist: 1.0, neck: 1.4, upperArm: 1.2, foreArm: 1.18, hand: 1.15, thigh: 1.24, shank: 1.4, foot: 1.25 }, hump: 0.2, keel: 0.2,
     rest: { hunch: 11, crouch: 0.08, arm: { x: 0.24, y: 0.2, z: -0.95 } },
   },
   avian: {
@@ -77,7 +80,7 @@ export const BEAST_KINS = Object.freeze({
   },
   insectoid: {
     reads: 'insect-kin: segmented, a broad plated thorax, a wasp\'s waist, full hips, thin hard limbs, three fingers',
-    fingers: 3, toes: 3, tail: 'none', claws: 'none', claw: MAMMAL_CLAW,
+    fingers: 3, toes: 3, tail: 'none', abdomen: 'gaster', claws: 'none', claw: MAMMAL_CLAW,
     frame: { shoulders: 1.14, depth: 1.12, hips: 1.1 },
     mass: { trunk: 1.08, waist: 0.6, hips: 1.14, neck: 0.8, upperArm: 0.85, foreArm: 0.82, hand: 0.88, thigh: 0.95, shank: 0.85, foot: 0.9 }, hump: 0, keel: 0.35,
     rest: { hunch: 6, crouch: 0.1, arm: { x: 0.2, y: 0.24, z: -0.95 } },

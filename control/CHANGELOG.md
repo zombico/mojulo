@@ -305,6 +305,36 @@ This theme freezes the biped as the sixth generation, and stands the beast-kin o
 
   Eyes: the six kin on two builds each, front and side mid-stride. Eyes gate: the operator's to judge.
 
+- **Detail as form** (`beast/detail.js`; `beast.ridge`, `beast.ruff`, `beast.abdomen`). The silhouette's breakers are
+  real parts again. The creature biped drew them as cards, and the cover material cannot break an outline.
+  - **The ridge** (`ridge: 'spines'`, the dragon-kin's by default). A crest of flat spines, thin across and wide
+    along. It runs up the neck's back, down the back's centre from the neck's root to the hips, and down the tail's
+    top. The spines are tallest over the shoulders, each raked toward the tail and riding the bone it stands on (the
+    neck, the torso, the lumbar, the pelvis, the tail's own). A small spine stays a blade: its thickness is at most a
+    third of its width.
+  - **The ruff** (`ruff: 'ruff'`). Two staggered rows of heavy tufts round the back and the sides of the neck's root,
+    hanging out and down, mirrored, riding the torso. The route sets it where the sheet's fur cue names a ruff: the
+    wolf-kin's, and the bear-kin's long shoulder fur.
+  - **The abdomen** (`abdomen: 'gaster'`, the insect-kin's by default). A full ovoid out of the back of the pelvis,
+    carried back and down, a shape of the tail's on its bones and socket. A kin carries a tail or an abdomen, never
+    both: the door refuses the two together.
+  - **The coverts.** A shorter row of feathers laid over the arm-wings' flights. The wing still reads as a comb of
+    flights rather than one feathered surface; a broad vane is not built yet.
+
+  The route reads the dragon's silhouette pick: the crest gives spines; a frill or folded wings gives none, and
+  those stay pending in the ledger. The ledger names `spec.beast.ridge` and `spec.beast.ruff` where they land.
+
+  Machine gate (`beast/detail.test.js`, `route.test.js`):
+  - the spines on the midline, flat, raked, in order down the back, each on the bone at its height;
+  - the tufts at the neck's root, round the back and the sides, hanging, mirrored;
+  - the abdomen full in its middle and behind, and the tail-and-abdomen refusal;
+  - `none` taking each away, an unknown word refused;
+  - the rig whole with every detail on;
+  - the route's ruff and crest from the sheet.
+
+  Eyes: the dragon, the wolf, the bear, the insect and the bird, walking and sprinting. Eyes gate: the operator's to
+  judge.
+
 ### Foe classes: the hostile encounter primitive
 
 A game fights things, and mojulo had seven separate notions of a foe: the quick goals' battle, shooter and defence
