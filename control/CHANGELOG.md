@@ -526,6 +526,25 @@ through the character designer, clips fitted to the class's timing, factions) is
   skeleton's pieces, its cuirass clear of the ribs, each piece on its bone; both lineages at the hero door with their
   layers, their plans building. Eyes: the revenant soldier, knight, giant and slender and the risen shambler and
   soldier, front and three-quarter, before and after rounding the armour's rings. Eyes gate: the operator's to judge.
+- **The rotting corpse's open flesh, in layers** (`undead/tiered-layers.js`; the operator: "replace more segments with
+  pieces that are part bone showing; open flesh should be layered with at least meat and skin differentiation").
+  - Half-bone limbs: four new bared words, `halfForeArm`, `halfUpperArm`, `halfThigh`, `halfShin`. Each lays the
+    limb's bone its whole length and a sleeve of its flesh over one end (seeded: the joint's end or the far one,
+    for a seeded share of the limb). The sleeve's torn edge is layered: the skin ends, the meat under it, narrower,
+    runs on past it onto the bone, the bone thinner still. Its own flesh and the bridges at its ends are cut from
+    the recipe; the hand or the foot beyond it stays flesh.
+  - Torn edges: wherever a whole bared limb leaves the flesh (the shoulder, the elbow, the hip, the knee), a collar
+    of meat sits on the bone past the skin's end. Under a bared skull, the neck's top is torn the same way.
+  - Bared ribs show through an open wound: a patch of meat down that flank under them, flush with the skin.
+  - More of each corpse is bone: the zombie cards bare two to five pieces (the fresh one one or two), drawing on the
+    half words. The bared pick claims each stretch of a limb (the upper arm, the forearm, the thigh, the shin), so a
+    whole and a half word never bare the same one.
+  - The open flesh's layers are their own groups and tones: `Skin` the body's own, `Meat` a dark red, `Bone`.
+
+  Machine gate: a half word's bone, skin sleeve and meat, nested (the meat narrower than the skin and longer, the bone
+  thinner than the meat); a whole limb's torn edges as collars of meat tapering onto the bone; the wound on the ribs'
+  side; the plans building. Eyes: the rotting shambler, bloated one and hulk from the front, three-quarter, side and
+  back. Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 

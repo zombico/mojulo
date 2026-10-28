@@ -36,6 +36,11 @@ export const BARE_CUTS = Object.freeze({
   foreArm: ['elbowBridge', 'foreArm', 'wristBridge', 'hand', ...FINGERS],
   thigh: ['thigh', 'kneeBridge'],
   shin: ['kneeBridge', 'shank', 'foot', 'toes', ...TOES],
+  // (a half word cuts the limb's own flesh and the bridges at its ends; its sleeve is laid as new parts)
+  halfForeArm: ['elbowBridge', 'foreArm', 'wristBridge'],
+  halfUpperArm: ['upperArm', 'shoulderBall', 'shoulderCone', 'shoulderWeb', 'elbowBridge'],
+  halfThigh: ['thigh', 'kneeBridge'],
+  halfShin: ['kneeBridge', 'shank'],
 });
 const PHALANGES = FINGERS.flatMap((d) => [1, 2, 3].map((i) => `${d}${i}`));
 /** what a loss takes from its side: the hand and its fingers, from the wrist or from the elbow; in every shape the side
@@ -45,6 +50,17 @@ export const LOSS_CUTS = Object.freeze({
   foreArm: ['elbowBridge', 'foreArm', 'wristBridge', 'hand', ...FINGERS, ...PHALANGES, 'boneForeArm', 'boneHand', ...PHALANGES.map((n) => `bone${n}`)],
 });
 // the bones each bared word lays: [hero part, from, to, the bone library's name]; `fingers` the hand's phalanges
+// a half word's limb: [the hero's flesh part, from, to, the bone library's name]
+const HALF = { halfForeArm: ['foreArm', 'elbow', 'wrist', 'foreArm'], halfUpperArm: ['upperArm', 'shoulder', 'elbow', 'upperArm'], halfThigh: ['thigh', 'hip', 'knee', 'thigh'], halfShin: ['shank', 'knee', 'ankle', 'shin'] };
+// where a whole bared limb leaves the flesh: [the joint, the flesh part it leaves from (whose radius there), which end
+// of that part (a: its first ring, b: its last), the bone the collar rides, the side the bone runs to]
+const EDGES = {
+  arm: [['shoulder', 'upperArm', 'a', 'upperArm', 'elbow']],
+  foreArm: [['elbow', 'upperArm', 'b', 'foreArm', 'wrist']],
+  thigh: [['hip', 'thigh', 'a', 'thigh', 'knee'], ['knee', 'shank', 'a', 'thigh', 'hip']],
+  shin: [['knee', 'thigh', 'b', 'shank', 'ankle']],
+};
+const BONE_TINT = '#cccccc';
 const BARE_BONES = {
   arm: [['upperArm', 'shoulder', 'elbow', 'upperArm'], ['foreArm', 'elbow', 'wrist', 'foreArm'], ['hand', 'wrist', 'knuckles', 'hand'], 'fingers'],
   foreArm: [['foreArm', 'elbow', 'wrist', 'foreArm'], ['hand', 'wrist', 'knuckles', 'hand'], 'fingers'],
@@ -81,6 +97,45 @@ function bareLimb(plan, part, side, k, joints) {
   }
   return out;
 }
+// a flesh part's radius at an end (a: its first ring, b: its last), or along it at t
+function fleshR(plan, name, end) {
+  const p = plan.segments.find((x) => x.name === `${name}R`);
+  if (!p) return 0.04;
+  if (p.kind === 'segment') return Math.max(...[].concat(end === 'a' ? p.rA : p.rB));
+  if (p.kind === 'loft') { const st = end === 'a' ? p.stations[0] : p.stations.at(-1); return Math.max(...[].concat(st.r)); }
+  return 0.04;
+}
+const sideJoint = (plan, joints, n, S) => { const nm = S === 'R' ? n : `${n}__L`; if (!joints[nm]) joints[nm] = S === 'R' ? plan.joints[n].map(r3) : mir(plan.joints[n]); return nm; };
+const lerp = (a, b, t) => a.map((v, i) => r3(v + (b[i] - v) * t));
+// a torn edge: a collar of MEAT on the bone where the skin ends, from just inside the flesh's end out onto the bone, the
+// meat narrower than the skin and running past it (skin → meat → bone, each its own layer)
+function collar(plan, joints, name, S, at, toward, rSkin, bone, k) {
+  const A = plan.joints[at], B = plan.joints[toward], d = Math.hypot(...B.map((v, i) => v - A[i]));
+  const p0 = lerp(A, B, -0.012 * k / d), p1 = lerp(A, B, 0.045 * k / d);
+  const j0 = `${name}${S}a`, j1 = `${name}${S}b`;
+  joints[j0] = S === 'R' ? p0 : mir(p0); joints[j1] = S === 'R' ? p1 : mir(p1);
+  return { name: `${name}${S}`, kind: 'segment', from: j0, to: j1, rA: r3(rSkin * 0.8), rB: r3(rSkin * 0.5), over: [0.05, 0.05], cap: [0.3, 0.25], slots: 'ring12', group: 'Meat', tint: BONE_TINT, mirror: null, bind: { bone: `${bone}${S}` } };
+}
+// a half-bone limb: its bone the whole length, a sleeve of its flesh left at one end, the torn edge layered (the skin
+// ends, the meat under it runs on onto the bone)
+function halfLimb(plan, part, side, k, joints, rand) {
+  const [flesh, from, to, lib] = HALF[part], S = side, near = rand() < 0.5, reach = 0.42 + 0.16 * rand(), meatOn = 0.07 + 0.04 * rand();
+  const A = sideJoint(plan, joints, from, S), B = sideJoint(plan, joints, to, S), out = [];
+  const b = boneLimb({ name: lib, kind: 'segment', from: A, to: B }, { k, g: 1 });
+  if (b.rMid === undefined) delete b.rMid;
+  out.push({ ...b, name: `bone${flesh[0].toUpperCase()}${flesh.slice(1)}${S}`, group: 'Bone', tint: BONE_TINT, mirror: null, bind: { bone: `${flesh}${S}` } });
+  const rA = fleshR(plan, flesh, 'a'), rB = fleshR(plan, flesh, 'b'), rAt = (t) => r3(rA + (rB - rA) * t);
+  const pa = plan.joints[from], pb = plan.joints[to], P = (t) => (S === 'R' ? lerp(pa, pb, t) : mir(lerp(pa, pb, t)));
+  // (the sleeve's span: from its whole end to the torn one; the meat a share further on)
+  const [s0, s1] = near ? [-0.04, reach] : [1 - reach, 1.04], [m0, m1] = near ? [-0.02, reach + meatOn] : [1 - reach - meatOn, 1.02];
+  const name = `sleeve${flesh[0].toUpperCase()}${flesh.slice(1)}`;
+  for (const [layer, t0, t1, f, group, caps] of [['Skin', s0, s1, 1, 'Skin', near ? [0.4, 0.05] : [0.05, 0.4]], ['Meat', m0, m1, 0.84, 'Meat', near ? [0.3, 0.1] : [0.1, 0.3]]]) {
+    const ja = `${name}${layer}${S}a`, jb = `${name}${layer}${S}b`;
+    joints[ja] = P(t0); joints[jb] = P(t1);
+    out.push({ name: `${name}${layer}${S}`, kind: 'segment', from: ja, to: jb, rA: r3(rAt(Math.max(0, t0)) * f), rB: r3(rAt(Math.min(1, t1)) * f), over: [0.05, 0.05], cap: caps, slots: 'ring12', group, tint: BONE_TINT, mirror: null, bind: { bone: `${flesh}${S}` } });
+  }
+  return out;
+}
 // one side's ribs broken through the chest, from the flank round to the front, on the torso's own section
 function bareRibs(plan, side, k, rand) {
   const torso = plan.segments.find((s) => s.name === 'torso' && s.kind === 'trunk'), sx = side === 'R' ? 1 : -1, deg = Math.PI / 180;
@@ -89,11 +144,15 @@ function bareRibs(plan, side, k, rand) {
   // (RIBS' heights, the creature template's, laid on the hero's span from the hips to the shoulders)
   const zOf = (z) => r3(hip + ((z - 0.92) / (1.56 - 0.92)) * (sh - hip));
   const pw = (v) => Math.sign(v) * Math.abs(v) ** (2 / 2.3);
-  return RIBS.slice(first, first + count).map(({ z }, i) => {
+  // (the wound they show through: a patch of MEAT down the flank under them, flush with the skin, wide front to back)
+  const zs = RIBS.slice(first, first + count).map(({ z }) => zOf(z)), zTop = Math.max(...zs) + 0.03 * k, zBot = Math.min(...zs) - 0.06 * k;
+  const wound = { name: `wound${side}`, kind: 'loft', slots: 'ring12', stations: [zTop, (zTop + zBot) / 2, zBot].map((z, i) => { const X = sectionAt(torso, z), w = [0.6, 1, 0.55][i];
+    return { at: [r3(sx * X.rx * 0.97), r3(X.yc + X.ry * 0.15), r3(z)], r: [r3(0.018 * k), r3(X.ry * 0.62 * w)] }; }), group: 'Meat', tint: '#cccccc', mirror: null, bind: { bone: 'torso' } };
+  return [wound, ...RIBS.slice(first, first + count).map(({ z }, i) => {
     const stations = [135, 108, 80, 52, 22].map((th) => { const zz = r3(zOf(z) - (0.05 * k * (135 - th)) / 113), X = sectionAt(torso, zz), a = th * deg;
       return { at: [r3(sx * X.rx * 1.03 * pw(Math.sin(a))), r3(X.yc + X.ry * 1.03 * pw(Math.cos(a))), zz], r: r3(0.014 * k) }; });
     return { name: `ribBare${i}${side}`, kind: 'loft', stations, group: 'Bone', tint: '#cccccc', mirror: null, bind: { bone: 'torso' } };
-  });
+  })];
 }
 
 export function undeadLayers(plan, hero, { living = plan } = {}) {
@@ -108,7 +167,11 @@ export function undeadLayers(plan, hero, { living = plan } = {}) {
   if (layers.includes('bared') && card.form === 'flesh') {
     const rand = mulberry32(seed ^ 0x9f3b5c11);
     for (const { part, side } of undeadPicks(hero).bared) {
-      if (BARE_BONES[part]) segments.push(...bareLimb(plan, part, side, k, joints));
+      if (BARE_BONES[part]) {
+        segments.push(...bareLimb(plan, part, side, k, joints));
+        // (each edge where the bone leaves the flesh torn and layered: the skin, the meat on the bone past it)
+        EDGES[part].forEach(([at, flesh, end, bone, toward], i) => segments.push(collar(plan, joints, `edge${part[0].toUpperCase()}${part.slice(1)}${i}`, side, at, toward, fleshR(plan, flesh, end), bone, k)));
+      } else if (HALF[part]) segments.push(...halfLimb(plan, part, side, k, joints, rand));
       else if (part === 'ribs') segments.push(...bareRibs(plan, side, k, rand));
       else if (part === 'skull') {
         // the head gone to its skull, on a neck drawn in under it; the rig's head and jaw joints the skull's
@@ -118,9 +181,14 @@ export function undeadLayers(plan, hero, { living = plan } = {}) {
         segments = segments.map((s) => (s.name === 'neck' && s.kind === 'loft' ? { ...s, stations: s.stations.map((st, i, a) => ({ ...st, r: scaleR(st.r, 0.85 - (0.3 * i) / (a.length - 1)) })) } : s));
         rig = { ...rig, joints: { ...rig.joints, headTop: { at: skull.rig.headTop }, jawHinge: { at: skull.rig.jawHinge, rides: 'head' }, jawTip: { at: skull.rig.jawTip, rides: 'head' } } };
         Object.assign(palette, { Skull: bone, Jaw: bone, Socket: '#1a1816', Teeth: bone });
+        // (the neck torn under the skull: a collar of meat round the column at its top)
+        const nk = plan.segments.find((x) => x.name === 'neck'), rN = nk?.kind === 'loft' ? Math.max(...[].concat(nk.stations.at(-1).r)) * 0.55 : 0.03;
+        joints.neckMeata = lerp(plan.joints.neckHub, plan.joints.headBase, 0.78); joints.neckMeatb = lerp(plan.joints.neckHub, plan.joints.headBase, 1.06);
+        segments.push({ name: 'neckMeat', kind: 'segment', from: 'neckMeata', to: 'neckMeatb', rA: r3(rN * 0.95), rB: r3(rN * 0.6), over: [0.05, 0.05], slots: 'ring12', group: 'Meat', tint: '#cccccc', mirror: 'plane', bind: { bone: 'neck' } });
       }
     }
-    palette.Bone = bone;
+    // (the open flesh's layers: the skin the body's own tone, the meat under it dark red, the bone)
+    palette.Bone = bone; palette.Meat = palette.Meat ?? '#7a3530';
   }
   // DECAYED (over bone): gaunt flesh back on the hero's skeleton
   if (layers.includes('decayed') && card.form === 'bone') {

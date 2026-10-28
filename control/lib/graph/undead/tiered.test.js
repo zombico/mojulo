@@ -238,3 +238,35 @@ describe('the armed and the adorned', () => {
     }
   });
 });
+
+describe('the open flesh: half-bone limbs and torn edges in layers', () => {
+  const corpse = (build, seed) => heroRecord({ form: 'tiered', cast: 'male', palette: { Skin: '#9a9a90' }, undead: { form: 'zombie', build, seed, layers: ['bared'] } });
+  const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.bared?.parts.some((p) => p.startsWith('half')) && c.bared.parts.includes('ribs') && c.bared.parts.some((p) => ['foreArm', 'shin', 'thigh', 'arm'].includes(p)));
+  const runs = Array.from({ length: 12 }, (_, i) => corpse(card.build, i + 1));
+  it('a half word lays the bone its whole length and a sleeve of skin over one end, its meat running on past the skin', () => {
+    const H = runs.find((h) => undeadPicks(h).bared.some((x) => x.part.startsWith('half')));
+    const { part, side } = undeadPicks(H).bared.find((x) => x.part.startsWith('half'));
+    const P = heroPlanOf(H), limb = { halfForeArm: 'ForeArm', halfUpperArm: 'UpperArm', halfThigh: 'Thigh', halfShin: 'Shank' }[part];
+    const skin = P.segments.find((s) => s.name === `sleeve${limb}Skin${side}`), meat = P.segments.find((s) => s.name === `sleeve${limb}Meat${side}`), bone = P.segments.find((s) => s.name === `bone${limb}${side}`);
+    expect(skin.group).toBe('Skin'); expect(meat.group).toBe('Meat'); expect(bone.group).toBe('Bone');
+    // the layers nest: the meat narrower than the skin, the bone thinner than the meat; the meat longer than the skin
+    expect(r(meat.rA)).toBeLessThan(r(skin.rA));
+    expect(r(bone.rMid)).toBeLessThan(r(meat.rB));
+    const len = (s) => Math.hypot(...P.joints[s.to].map((v, i) => v - P.joints[s.from][i]));
+    expect(len(meat)).toBeGreaterThan(len(skin));
+    expect(P.palette.Meat).toBeTruthy();
+    expect(() => expandPlan(P)).not.toThrow();
+  });
+  it('a whole bared limb leaves the flesh at a torn edge: a collar of meat on the bone past the skin', () => {
+    const H = runs.find((h) => undeadPicks(h).bared.some((x) => ['foreArm', 'shin', 'thigh', 'arm'].includes(x.part)));
+    const P = heroPlanOf(H), edges = P.segments.filter((s) => s.name.startsWith('edge'));
+    expect(edges.length).toBeGreaterThan(0);
+    for (const e of edges) { expect(e.group).toBe('Meat'); expect(r(e.rB)).toBeLessThan(r(e.rA)); }
+  });
+  it('bared ribs show through an open wound of meat on their side', () => {
+    const H = runs.find((h) => undeadPicks(h).bared.some((x) => x.part === 'ribs')), side = undeadPicks(H).bared.find((x) => x.part === 'ribs').side;
+    const w = heroPlanOf(H).segments.find((s) => s.name === `wound${side}`);
+    expect(w.group).toBe('Meat');
+    for (const st of w.stations) expect(Math.sign(st.at[0])).toBe(side === 'R' ? 1 : -1);
+  });
+});
