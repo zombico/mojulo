@@ -41,8 +41,11 @@ import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 
 /** The genres whose anime is full anime, cel-shaded (the anime fighter's, the brawler's): the rest draw the register's own look. */
 export const CEL_GENRES = Object.freeze(['versus-fighter', 'arena-brawler']);
-// the genre a feel's template is the template of (feel/suggest.js GENRE_FEEL, read backward)
-const GENRE_OF_POLE = Object.fromEntries(Object.entries(GENRE_FEEL).map(([g, f]) => [f.pole, g]));
+// the genre a feel's template is the template of (feel/suggest.js GENRE_FEEL, read backward); read on first use, since
+// suggest.js and this module meet on an import cycle (feel/suggest.js → intent.js → cosmos → … → gameworld/foes.js →
+// vanish.js → here) and its table is not yet there while the modules load
+let genreOfPole = null;
+const GENRE_OF_POLE_AT = (pole) => (genreOfPole ??= Object.fromEntries(Object.entries(GENRE_FEEL).map(([g, f]) => [f.pole, g])))[pole];
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -75,7 +78,7 @@ function resolve(G, own, opts = {}) {
     flavor = F.flavor; fFrom = F.from ?? 'default'; why = F.why;
   }
   // the look: the world's word, else its genre's (an anime fighter is cel-shaded), else the register's own
-  const genre = G?.intent?.from ?? (G?.quick?.goal ? QUICK_GENRE[G.quick.goal] : null) ?? (G?.feel?.pole ? GENRE_OF_POLE[G.feel.pole] : null);
+  const genre = G?.intent?.from ?? (G?.quick?.goal ? QUICK_GENRE[G.quick.goal] : null) ?? (G?.feel?.pole ? GENRE_OF_POLE_AT(G.feel.pole) : null);
   let look = written.look, lFrom = 'operator';
   if (!look) { const cel = register === 'anime' && CEL_GENRES.includes(genre); look = cel ? 'cel' : JUICE_REGISTERS[register].look; lFrom = cel ? genre : 'register'; }
   // the fidelity: the world's word, else the venue's drawing (a voxel stadium, a voxel kit), else the read's era
