@@ -44,7 +44,8 @@ import { bayRoom, bayLaws } from './bay.js';
 import { bayKit, bayKitOf, BAY_REGISTERS } from './style/bay-kits.js';
 import { composeForBuild, rolesPinned, beatsPinned } from './compose.js';
 import { roomRoles } from './compose-roles.js';
-import { plotLights } from './compose-plot.js';
+import { plotLights, keyTuner } from './compose-plot.js';
+import { composeReport } from './compose-report.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -479,7 +480,7 @@ export function planStage(m = {}) {
   })() : nightRef;
   return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
-    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
+    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
@@ -861,7 +862,7 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
  *  test), and its bounce in its own room. The page multiplies the two and adds only what the nearest lamps do to the
  *  relief (scene/channels/form.js). `lights` carry their shadow tests (makePointShadow) or none (a pool casts nothing);
  *  `tone` a toned room's (its light neutral, its contrast its ramp's); `roomOf(p)` names the room a point stands in. → { faces, light: the solve } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -914,11 +915,14 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   const ramp0 = tone ? ramps[tone.default] : null;
   const S = solveRoomLight({ targets, ambient: ambient6, lights, ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
+  // (a tuner's scale on each lamp's key, solved on these very shares: the scene composer's plot, compose-plot.js keyTuner)
+  const scale = tune ? tune({ raw, shares, keys: S.keys, ambient: S.ambient, lights }) : null;
+  const keys = scale ? S.keys.map((K, i) => K.map((v) => r4(v * scale[i]))) : S.keys;
   // the light the room lays at a corner (linear, base-multiplier units); a lamp a beat changes (compose-plot.js BEATS) is
   // solved with the rest but laid by the page, live, not here
   const light = (sh) => {
     const e = [...S.ambient];
-    for (let j = 0; j < sh.length; j += 2) { if (lights[sh[j]].beat) continue; const K = S.keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
+    for (let j = 0; j < sh.length; j += 2) { if (lights[sh[j]].beat) continue; const K = keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
     return e.map(r4);
   };
   const colour = (base, f, c) => { const g = dirt(f, c); return base.map((v, k) => encodeSrgb(Math.min(1, v * g[k]))); };
@@ -929,7 +933,7 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
     const cols = f.corners.map((c) => colour(base, f, c)), mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / 4);
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map(light) };
   });
-  return { faces, light: S };
+  return { faces, light: scale ? { ...S, keys } : S };
 }
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
@@ -1119,8 +1123,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   };
+  const tuner = form && plan.compose ? keyTuner(plan) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}) }) : null;
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
@@ -1184,7 +1189,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // form render
     // the bay shell's readout (bay.js): what each room built (its roof, its walkways and their entries) and its laws
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
-    ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot } : {}) } } : {}),
+    ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
     ...(formLit ? { form: { room: { lights: readFormLight(formLamps, formLit.light.keys), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],

@@ -39,3 +39,19 @@ stored in the recipe as numbers. Built so far:
   `compose.beats` pins one to a room, or `'none'`. The sixth generation bakes it steady. A room without a beat emits the
   form channel byte for byte as before. Seen (`scripts/spikes/bay/beats.mjs`): a noir hall's alarm swings the wall round
   its focus from 73 to 86 in mean luminance, peak to trough, with no page errors.
+- **The report, measured on the bake** (`era/compose-report.js`): a composed stage reports `compose.report`, each room's
+  focus over its room's mean read from the seventh generation's baked corners (`cornerLight`: the ambient, every steady
+  lamp where it sees the corner, its bounce), a beat's room at its peak, and laws that advise: `focus` (every keyed room's
+  focus reads brighter than its room), `way-on` (the way on lit over the dead ends), `lit` (no room dark against the
+  rooms' mean), `palette` (the colour theorist's targets reached). Without that bake (the sixth generation) it reads the
+  plot's model and says `measured: 'model'`. A storeyed building's storeys keep the roles the whole building gave them,
+  and their reports merge, the laws read across every storey.
+- **Keys tuned on the bake** (`compose-plot.js` keyTuner, `formLightFaces`'s `tune`): measured on the bake, the plot's
+  model fell well short (a hangar hall's landmark 0.86 of its room in even, asked 2; 2.1 in noir, asked 8: the model lit
+  points in the air, the bake lights surfaces, with shadows, bounce and the ambient). Each key is now scaled on the bake's
+  own shares so its focus holds the ratio, at most ten times the middle fill lamp's light before the mood thinned it
+  (past that a key burns its focus out); a room it cannot bring there is reported `short`. The reach a focus is read by
+  scales with its room (a fixed one covered half a small room's floor, and no key lifts that much). Seen in the hangar
+  suite in gen-7: even reaches its ratios, drama within a tenth, noir about half (3.4 and 4.8 of 6.4 and 8): one key does
+  not make a spot eight times its room without burning it out. On screen the doorway over the walls reads 1.03, 1.33 and
+  1.52 from even to noir (0.93, 1.08 and 1.31 before the keys were tuned).

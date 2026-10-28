@@ -1,6 +1,7 @@
 // THE LIGHT PLOT BY MOOD (era/compose-plot.js): one composed suite (a low room into a great hall) in each mood, read in
 // gen-6 and gen-7 and captured from the low room's door looking into the hall, with what the plot measured (the ratio at
-// each room's focus over its mean, asked and reached). The machine gate is the plot's numbers; the look is the operator's.
+// each room's focus over its mean, asked and reached, on the bake: compose-report.js). The machine gate is the report's;
+// the look is the operator's.
 //
 //   node scripts/spikes/bay/moods.mjs [--out <dir>] [--words 'a hangar'] [--kit bay-military]
 import fs from 'node:fs';
@@ -25,9 +26,10 @@ const cam = { pos: [3, 1.2, 1.6], target: [3, 40, 3.5], vfov: 68 };
 const pages = [], report = [];
 for (const mood of MOOD_IDS) {
   const manifest = resolveCompose({ kind: 'stage', kit, ...ROOMS, compose: { words, mood } });
-  const S = assembleStageScene(manifest, {});
-  report.push({ mood, plot: S.compose.plot });
-  console.log(mood.padEnd(6), S.compose.plot.map((p) => `${p.room} ${p.role} ${p.ratio ?? '-'} of ${p.target ?? '-'}${p.short ? ' (short)' : ''}`).join('  |  '));
+  // (the seventh generation's bake, and the report on it: compose-report.js)
+  const S = assembleStageScene(manifest, { formLit: true }), R = S.compose.report;
+  report.push({ mood, plot: S.compose.plot, report: R });
+  console.log(mood.padEnd(6), `${R.measured}:`, R.rooms.map((r) => `${r.room} ${r.role} ${r.ratio ?? '-'} of ${r.target ?? '-'}${r.short ? ' (short)' : ''}`).join('  |  '), '|', R.laws.map((l) => `${l.ok ? '' : 'NOT '}${l.id}`).join(' '));
   for (const era of ['gen-6', 'gen-7']) {
     const { payload } = await resolveWorldScene({ ref: `mood-${mood}`, title: `${words} · ${mood} · ${era}`, manifest }, { era, live: true });
     pages.push({ mood, era, payload });
