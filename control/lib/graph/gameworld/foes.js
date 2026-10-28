@@ -43,6 +43,8 @@ import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { readVanish, vanishOf } from './vanish.js';
+import { trailContext } from './juice.js';
+import { resolveTrailColor } from '../scene/juice-style.js';
 import { peopleRoll, peopleSeed } from '../foes/people.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
@@ -146,6 +148,8 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   const P = foePlacements(G, level, ends);
   if (!P.length) return null;
   const figures = {}, entities = [], sheets = {};
+  // the target rim's colour: the world's accent (its juice's trail palette), the same on every foe it lays
+  const rim = targetRimOf(G);
   for (const p of P) {
     const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
     let b;
@@ -167,7 +171,8 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
       rule: { ...f.entity.rule, ...b.rule, ...loadout },
       ...(f.entity.weapon ? { weapon: f.entity.weapon } : {}),
       // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry) },
+      // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
+      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, p.entry) },
       transform: { pos: p.at, heading: p.heading },
     });
   }
@@ -191,4 +196,11 @@ export function withFoeHits(mechanics) {
   if (i >= 0) return mechanics.map((m, j) => (j === i && m.hits === undefined ? { ...m, hits: LEVEL_GOAL.hit } : m));
   const death = { kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit };
   return [...mechanics.slice(0, -1), death, ...mechanics.slice(-1)];
+}
+
+/** The TARGET RIM's colour (the World page's rim of light round the foe the hero targets): the world's accent, its
+ * juice's trail palette, rounded; a world with none, a warm white. */
+export function targetRimOf(G) {
+  let c = null; try { c = resolveTrailColor('palette', trailContext(G)); } catch { c = null; }
+  return Array.isArray(c) && c.length === 3 ? c.map((x) => Math.round(x * 1000) / 1000) : [1, 0.86, 0.6];
 }

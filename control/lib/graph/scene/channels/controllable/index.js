@@ -175,6 +175,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // else the nearest its aim crosses), never over the body: above the drawn model's top, or under its feet when the top
   // leaves the screen. No body asks for one → the emitted channel is byte-identical
   const foeBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'target');
+  // a TARGET RIM (`body.targetRim`: an rgb, gameworld/foes.js): the foe the pilot targets (the bar's own pick) lit at its
+  // edges, a fresnel shell on the bone meshes of whatever body it now wears (a mode swapped in is lit as it comes). No body
+  // asks for one → the emitted channel is byte-identical
+  const foeRim = foeBars && (entities || []).some((e) => e && e.body && Array.isArray(e.body.targetRim));
   // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
   // entity carries a gear → the emitted channel is byte-identical
   // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
@@ -2529,7 +2533,36 @@ function __foeTopOf(e) {
   __foeBox.setFromObject(g);
   const top = __foeBox.max.z - g.position.z;
   return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
-}` : ''}
+}${foeRim ? `
+// the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
+// pulsing, on each bone mesh of the body it is drawn as now; moved off when the target changes or its body does
+const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position + normal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+  fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
+const __rim = { id: null, g: null, kids: [] };
+// smooth normals for a bone mesh's triangle list, once (its corners averaged where they meet), for the rim's fresnel
+function __rimNormals(geo) {
+  if (geo.attributes.normal) return;
+  const P = geo.attributes.position.array, N = new Float32Array(P.length), acc = new Map(), key = (i) => Math.round(P[i] * 1e4) + ',' + Math.round(P[i + 1] * 1e4) + ',' + Math.round(P[i + 2] * 1e4);
+  for (let t = 0; t < P.length; t += 9) {
+    const ax = P[t + 3] - P[t], ay = P[t + 4] - P[t + 1], az = P[t + 5] - P[t + 2], bx = P[t + 6] - P[t], by = P[t + 7] - P[t + 1], bz = P[t + 8] - P[t + 2];
+    const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+    for (let k = 0; k < 9; k += 3) { const q = key(t + k), a = acc.get(q) || [0, 0, 0]; a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; acc.set(q, a); }
+  }
+  for (let i = 0; i < P.length; i += 3) { const a = acc.get(key(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; N[i] = a[0] / l; N[i + 1] = a[1] / l; N[i + 2] = a[2] / l; }
+  geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+}
+function __foeRim(id) {
+  const e = id && __world.byId[id], g = e && __bodies[id];
+  if (__rim.id !== id || __rim.g !== g) {
+    for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
+    __rim.kids = []; __rim.id = id; __rim.g = g;
+    const rf = g && g.userData.rigFig;
+    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
+  }
+  __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
+}` : ''}` : ''}
 function __updateEnemyHp() {
   if (!__ehp.length) return;
   const pilot = (__world.pilotId && __world.byId[__world.pilotId]) || null;
@@ -2544,7 +2577,8 @@ function __updateEnemyHp() {
     eye = [pilot.transform.pos[0], pilot.transform.pos[1], pilot.transform.pos[2] + ez];
   }
   camera.updateMatrixWorld();${foeBars ? `
-  const __foeT = __foeTarget(pilot);` : ''}
+  const __foeT = __foeTarget(pilot);${foeRim ? `
+  __foeRim(__foeT);` : ''}` : ''}
   for (const r of __ehp) {
     const e = __world.byId[r.id];${foeBars ? `
     if (e && e.body && e.body.hpBar === 'target') {

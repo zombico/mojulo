@@ -659,6 +659,18 @@ through the character designer, clips fitted to the class's timing, factions) is
   Machine gate: a mode defeated resets into the next (figure, health, its shed marked) and is never destroyed, the
   last destroyed; a mode's shed is exactly what the next lacks, the bone's own triangles left; a figure diffed with
   itself sheds nothing. Eyes: pending.
+- **The active target's rim** (`body.targetRim`, `gameworld/foes.js` `targetRimOf`; the page's `foeRim` in
+  `scene/channels/controllable/index.js`; the operator: "next do active target fresnel/rim light").
+  - The foe the hero targets (the foe bar's own pick: the lock's target, else the foe it faces) is lit at its edges: a
+    fresnel shell, brightest where its surface turns from the eye, pulsing, in the world's accent (its juice's trail
+    palette; a warm white without one). Every gameworld foe carries it.
+  - The rim is laid on the bone meshes of whatever body the foe is drawn as now, so it lights the outermost mode a
+    foe wears and follows a mode swapped in; smooth normals are worked out once per bone mesh for it.
+  - A page whose bodies ask for no rim carries none of it.
+
+  Machine gate: the rim emitted only where a body asks for it, on the bar's pick; the accent's colour. Eyes: a skeleton
+  and a corpse side by side, the rim and the bar moving from one to the other as the hero turns (the first round too
+  faint on pale bone: a stronger falloff and a slight tint). Eyes gate: the operator's to judge.
 
 ### Carved glyphs: the letter primitive grows up
 
