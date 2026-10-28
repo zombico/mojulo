@@ -17,7 +17,8 @@
  *              warm downlights and coves, a green exit sign over each door. The shell turned down (its `shell`): a slim
  *              base and pilaster, no grating band, no pad, no crane, no bracing
  *
- * Each card is the stage's kit card (era/stage.js STAGE_KITS) with `shell: 'bay'`: the tiles (the made class's dressed
+ * A register is a preset on four axes (bay-axes.js: construction, palette, plot, dressing), composed here
+ * (`composeRegister`, `bayKitOf`); a recipe's composer may choose each apart. Each card is the stage's kit card (era/stage.js STAGE_KITS) with `shell: 'bay'`: the tiles (the made class's dressed
  * cuts, matte-paint/dressed.js, at the metres they are laid at), the tints (each surface's value band), the cells, and
  * `B`, the shell's numbers (era/bay.js; a register's `shell` overrides a part of them), its lights (the key and the SECONDARY: a register's signal colour), the
  * alternates a room may take for a surface (`options`, by its dice), the roof systems it builds (`roofs`), whether it
@@ -29,6 +30,7 @@ import { tileFamilyOf } from '../tile-specs.js';
 import { CATALOG } from '../../construction/catalog.js';
 import { UNITS } from '../../construction/masonry.js';
 import { glassLook } from '../../construction/glazing.js';
+import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS } from './bay-axes.js';
 
 const CABLE = [0.07, 0.07, 0.08];
 // the air, from the catalog (mm → m): a register's duct round or rectangular, the terminals and the hanger rod, the
@@ -97,169 +99,41 @@ const SHELL = Object.freeze({
   accent: 0.12,
 });
 
-const REGISTERS = {
-  military: {
-    tiles: {
-      floor: dressed({ cut: 'epoxy', face: 'floor', stone: [70, 78, 86], mortar: [28, 30, 33], cols: 1, grit: 0.55 }, 6),
-      floor2: dressed({ cut: 'epoxy', face: 'floor', stone: [64, 72, 64], mortar: [28, 30, 28], cols: 1, grit: 0.7 }, 6),
-      band: dressed({ cut: 'grating', face: 'floor', stone: [122, 126, 128], mortar: [20, 21, 23], grit: 0.5 }, 1),
-      hazard: { key: 'lab:hazard', scale: 0.6 },
-      base: dressed({ cut: 'plate', stone: [46, 52, 58], mortar: [150, 152, 150], cols: 2, rows: 1, grit: 0.7 }, 3),
-      base2: laid('block:cmu', 5, { cut: 'block', stone: [62, 66, 70], mortar: [44, 46, 48], grit: 0.6 }),
-      wall: dressed({ cut: 'plate', stone: [72, 82, 92], mortar: [150, 152, 150], cols: 2, rows: 2, grit: 0.5 }, 4),
-      wall2: dressed({ cut: 'concrete', stone: [104, 108, 112], mortar: [80, 82, 84], cols: 2, rows: 2, grit: 0.6 }, 4),
-      wall3: dressed({ cut: 'matte', stone: [62, 70, 76], cols: 2, rows: 2, grit: 0.5 }, 3),
-      crown: dressed({ cut: 'corrugated', stone: [58, 64, 70], mortar: [80, 80, 80], cols: 12, grit: 0.5 }, 2.4),
-      column: dressed({ cut: 'plate', stone: [60, 68, 76], mortar: [150, 152, 150], cols: 1, rows: 3, grit: 0.6 }, 3),
-      paint: dressed({ cut: 'plate', stone: [182, 88, 40], mortar: [150, 152, 150], cols: 1, rows: 2, grit: 0.6 }, 2),
-      services: dressed({ cut: 'plate', stone: [86, 98, 64], mortar: [150, 152, 150], cols: 1, rows: 1, grit: 0.5 }, 2),
-      trim: { key: 'steel-strut', scale: 1.2 },
-      ceiling: dressed({ cut: 'corrugated', stone: [40, 44, 50], mortar: [60, 60, 60], cols: 12, grit: 0.4 }, 3),
-      ceiling2: dressed({ cut: 'seam', stone: [48, 52, 58], mortar: [60, 60, 60], cols: 4, grit: 0.4 }, 3),
-      soffit: dressed({ cut: 'panel', stone: [58, 64, 70], mortar: [22, 24, 26], cols: 2, rows: 2, grit: 0.4 }, 2.4),
-      soffit2: dressed({ cut: 'perforated', stone: [70, 76, 82], mortar: [16, 17, 19], cols: 2, rows: 1, grit: 0.4 }, 1),
-      concrete: dressed({ cut: 'concrete', stone: [110, 114, 118], mortar: [80, 82, 84], cols: 2, rows: 2, grit: 0.5 }, 3),
-      beam: dressed({ cut: 'plate', stone: [66, 72, 78], mortar: [150, 152, 150], cols: 4, rows: 1, grit: 0.6 }, 4),
-      duct: { key: 'hull-plate', scale: 1.5 },
-      grate: dressed({ cut: 'grating', face: 'floor', stone: [128, 132, 134], mortar: [20, 21, 23], grit: 0.4 }, 1),
-      infill: dressed({ cut: 'perforated', stone: [112, 118, 124], mortar: [18, 19, 21], cols: 2, rows: 1, grit: 0.5 }, 1),
-      cabinet: dressed({ cut: 'matte', stone: [72, 80, 62], cols: 1, rows: 2, grit: 0.5 }, 1),
-      cable: { key: null, scale: 1 },
-    },
-    options: { floor: ['floor', 'floor2'], base: ['base', 'base2'], wall: ['wall', 'wall2', 'wall3'], ceiling: ['ceiling', 'ceiling2'], soffit: ['soffit', 'soffit2'] },
-    roofs: ['beams', 'truss', 'vault'], braced: true, duct: 'duct:spiral-450', glass: { clear: 'glass:float-6', other: 'glass:wired-6', low: 'slot' }, booth: { dado: 0.9, screen: '#ffb060' },
-    light: { strip: { color: '#cfe4ff', fill: '#eef6ff', intensity: 0.9, radius: 6.5 }, highbay: { color: '#e4ecff', fill: '#f4f8ff', intensity: 1.5, radius: 15, twoRows: 9, drop: 1.4, r: 0.36, h: 0.45 },
-      ceilingStrip: { color: '#d8e8ff', fill: '#f2f8ff', intensity: 1.0, radius: 6 }, inset: { color: '#8fc8ff', fill: '#cfe8ff', intensity: 0.35, radius: 2.6 },
-      // the secondary light: a warm signal against the cool key
-      door: { color: '#ffa030', fill: '#ffc070', intensity: 0.5, radius: 3.8 }, cove: { color: '#ff5a28', fill: '#ff9a70', intensity: 0.6, radius: 7 },
-      down: { color: '#ffb060', fill: '#ffd8a0', intensity: 0.45, radius: 4.2 }, daylight: { color: '#cfe0ff', fill: '#e8f0ff', intensity: 0.9, radius: 12 }, coffer: { color: '#e8f0ff', fill: '#f8fbff', intensity: 1.0, radius: 8 } },
-  },
-  utility: {
-    tiles: {
-      floor: dressed({ cut: 'epoxy', face: 'floor', stone: [128, 126, 120], mortar: [60, 58, 54], cols: 1, grit: 0.6 }, 6),
-      floor2: dressed({ cut: 'pavement', face: 'floor', stone: [132, 128, 120], mortar: [80, 78, 72], cols: 3, grit: 0.6 }, 6),
-      band: dressed({ cut: 'tread', face: 'floor', stone: [122, 124, 124], mortar: [60, 60, 62], cols: 1, grit: 0.6 }, 1),
-      hazard: { key: 'lab:hazard', scale: 0.6 },
-      base: laid('block:cmu', 5, { cut: 'block', stone: [96, 104, 98], mortar: [84, 90, 86], grit: 0.5 }),
-      base2: dressed({ cut: 'plate', stone: [58, 82, 70], mortar: [150, 152, 150], cols: 2, rows: 1, grit: 0.6 }, 3),
-      wall: laid('block:cmu', 5, { cut: 'block', stone: [168, 164, 154], mortar: [140, 136, 128], grit: 0.5 }),
-      wall2: dressed({ cut: 'seam', stone: [104, 118, 128], mortar: [80, 80, 80], cols: 4, grit: 0.5 }, 3),
-      crown: dressed({ cut: 'corrugated', stone: [150, 152, 148], mortar: [100, 100, 100], cols: 12, grit: 0.5 }, 2.4),
-      column: dressed({ cut: 'plate', stone: [186, 150, 52], mortar: [150, 152, 150], cols: 1, rows: 3, grit: 0.6 }, 3),
-      paint: dressed({ cut: 'plate', stone: [46, 122, 84], mortar: [150, 152, 150], cols: 1, rows: 2, grit: 0.6 }, 2),
-      services: dressed({ cut: 'plate', stone: [52, 92, 150], mortar: [150, 152, 150], cols: 1, rows: 1, grit: 0.5 }, 2),
-      trim: { key: 'steel-strut', scale: 1.2 },
-      ceiling: dressed({ cut: 'corrugated', stone: [120, 122, 120], mortar: [80, 80, 80], cols: 12, grit: 0.4 }, 3),
-      ceiling2: dressed({ cut: 'seam', stone: [130, 132, 128], mortar: [80, 80, 80], cols: 4, grit: 0.4 }, 3),
-      soffit: dressed({ cut: 'panel', stone: [176, 176, 170], mortar: [60, 60, 60], cols: 2, rows: 2, grit: 0.4 }, 2.4),
-      soffit2: laid('board:acoustic-tile-600', 4, { cut: 'acoustic', stone: [212, 210, 202], mortar: [190, 190, 186], grit: 0.5 }),
-      concrete: dressed({ cut: 'concrete', stone: [150, 148, 142], mortar: [110, 108, 104], cols: 2, rows: 2, grit: 0.5 }, 3),
-      beam: dressed({ cut: 'plate', stone: [110, 114, 116], mortar: [150, 152, 150], cols: 4, rows: 1, grit: 0.5 }, 4),
-      duct: { key: 'hull-plate', scale: 1.5 },
-      grate: dressed({ cut: 'grating', face: 'floor', stone: [150, 152, 150], mortar: [24, 24, 26], grit: 0.4 }, 1),
-      infill: dressed({ cut: 'perforated', stone: [150, 154, 150], mortar: [24, 24, 26], cols: 2, rows: 1, grit: 0.5 }, 1),
-      cabinet: dressed({ cut: 'matte', stone: [150, 152, 146], cols: 1, rows: 2, grit: 0.6 }, 1),
-      cable: { key: null, scale: 1 },
-    },
-    options: { floor: ['floor', 'floor2'], base: ['base', 'base2'], wall: ['wall', 'wall2'], ceiling: ['ceiling', 'ceiling2'], soffit: ['soffit', 'soffit2'] },
-    roofs: ['truss', 'sawtooth', 'beams'], braced: true, duct: 'duct:rect-600x400', glass: { clear: 'glass:float-6', other: 'glass:wired-6', low: 'slot' }, booth: { dado: 1.0, screen: '#a0f0b0' },
-    light: { strip: { color: '#fff0d8', fill: '#fff8ec', intensity: 0.8, radius: 6 }, highbay: { color: '#f4f6ff', fill: '#fbfcff', intensity: 1.6, radius: 16, twoRows: 9, drop: 1.4, r: 0.36, h: 0.45 },
-      ceilingStrip: { color: '#fff0dc', fill: '#fff8f0', intensity: 1.0, radius: 6 }, inset: { color: '#ffd890', fill: '#fff0c8', intensity: 0.3, radius: 2.4 },
-      // the secondary light: sodium amber among the white
-      door: { color: '#ff9a30', fill: '#ffc070', intensity: 0.5, radius: 3.8 }, cove: { color: '#ffa848', fill: '#ffd090', intensity: 0.6, radius: 7 },
-      down: { color: '#ffc070', fill: '#ffe0b0', intensity: 0.45, radius: 4.2 }, daylight: { color: '#e8f0ff', fill: '#f4f8ff', intensity: 1.0, radius: 14 }, coffer: { color: '#fff4e0', fill: '#fffaf0', intensity: 1.0, radius: 8 } },
-  },
-  science: {
-    tiles: {
-      floor: dressed({ cut: 'epoxy', face: 'floor', stone: [196, 202, 204], mortar: [120, 126, 130], cols: 1, grit: 0.3 }, 6),
-      floor2: dressed({ cut: 'terrazzo', face: 'floor', stone: [206, 204, 198], mortar: [80, 110, 130], cols: 2, rows: 2, grit: 0.3 }, 3),
-      floor3: dressed({ cut: 'studded', face: 'floor', stone: [56, 92, 96], mortar: [40, 40, 40], cols: 1, grit: 0.4 }, 1),
-      band: dressed({ cut: 'grating', face: 'floor', stone: [170, 176, 180], mortar: [36, 40, 44], grit: 0.3 }, 1),
-      hazard: { key: 'lab:hazard', scale: 0.6 },
-      base: dressed({ cut: 'panel', stone: [52, 120, 128], mortar: [24, 30, 32], cols: 2, rows: 1, grit: 0.3 }, 2.4),
-      base2: dressed({ cut: 'glazed', stone: [60, 132, 138], mortar: [150, 170, 170], cols: 8, rows: 8, grit: 0.3 }, 1.2),
-      base3: dressed({ cut: 'carbon', stone: [44, 46, 50], mortar: [40, 42, 46], cols: 1, rows: 1, grit: 0.2 }, 0.5),
-      wall: dressed({ cut: 'panel', stone: [216, 222, 224], mortar: [40, 44, 48], cols: 2, rows: 1, grit: 0.25 }, 2.4),
-      wall2: dressed({ cut: 'glazed', stone: [222, 232, 230], mortar: [176, 186, 186], cols: 8, rows: 16, grit: 0.25 }, 1.2),
-      crown: dressed({ cut: 'panel', stone: [176, 184, 188], mortar: [40, 44, 48], cols: 3, rows: 1, grit: 0.25 }, 2.4),
-      column: dressed({ cut: 'panel', stone: [190, 196, 200], mortar: [40, 44, 48], cols: 1, rows: 2, grit: 0.25 }, 2.4),
-      paint: dressed({ cut: 'panel', stone: [44, 74, 150], mortar: [24, 28, 40], cols: 1, rows: 2, grit: 0.3 }, 2),
-      services: dressed({ cut: 'panel', stone: [118, 72, 150], mortar: [40, 30, 50], cols: 1, rows: 1, grit: 0.3 }, 2),
-      trim: { key: 'steel-strut', scale: 1.2 },
-      ceiling: dressed({ cut: 'panel', stone: [180, 186, 190], mortar: [70, 74, 78], cols: 4, rows: 4, grit: 0.2 }, 2.4),
-      ceiling2: laid('board:acoustic-tile-600', 4, { cut: 'acoustic', stone: [222, 224, 222], mortar: [200, 204, 206], grit: 0.2 }),
-      soffit: dressed({ cut: 'panel', stone: [210, 214, 216], mortar: [80, 84, 88], cols: 4, rows: 4, grit: 0.2 }, 2.4),
-      soffit2: laid('board:acoustic-tile-600', 4, { cut: 'acoustic', stone: [224, 226, 224], mortar: [204, 208, 210], grit: 0.2 }),
-      concrete: dressed({ cut: 'concrete', stone: [196, 198, 196], mortar: [150, 152, 150], cols: 2, rows: 2, grit: 0.3 }, 3),
-      beam: dressed({ cut: 'panel', stone: [196, 202, 206], mortar: [40, 44, 48], cols: 3, rows: 1, grit: 0.2 }, 2.4),
-      duct: { key: 'hull-plate', scale: 1.5 },
-      grate: dressed({ cut: 'grating', face: 'floor', stone: [176, 180, 184], mortar: [36, 40, 44], grit: 0.3 }, 1),
-      infill: dressed({ cut: 'perforated', stone: [206, 210, 212], mortar: [40, 44, 48], cols: 2, rows: 1, grit: 0.3 }, 1),
-      cabinet: dressed({ cut: 'carbon', stone: [44, 46, 50], mortar: [40, 42, 46], cols: 1, rows: 1, grit: 0.2 }, 0.5),
-      cabinet2: dressed({ cut: 'matte', stone: [214, 218, 220], cols: 1, rows: 2, grit: 0.3 }, 1),
-      cable: { key: null, scale: 1 },
-    },
-    options: { floor: ['floor', 'floor2', 'floor3'], base: ['base', 'base2', 'base3'], wall: ['wall', 'wall2'], ceiling: ['ceiling', 'ceiling2'], soffit: ['soffit', 'soffit2'], cabinet: ['cabinet', 'cabinet2'] },
-    roofs: ['coffer', 'beams', 'sawtooth'], braced: false, duct: 'duct:rect-600x400', glass: { clear: 'glass:low-iron-10', other: 'glass:acid-etched-6', low: 'punched' }, booth: { dado: 0 },
-    light: { strip: { color: '#e8f8ff', fill: '#f6fcff', intensity: 0.9, radius: 6.5 }, highbay: { color: '#eef8ff', fill: '#fafdff', intensity: 1.5, radius: 15, twoRows: 9, drop: 1.4, r: 0.36, h: 0.45 },
-      ceilingStrip: { color: '#eef8ff', fill: '#fafdff', intensity: 1.1, radius: 6.5 }, inset: { color: '#7fe8e0', fill: '#c8fff8', intensity: 0.3, radius: 2.4 },
-      // the secondary light: teal and blue in the white
-      door: { color: '#40d0c0', fill: '#a0fff0', intensity: 0.45, radius: 3.6 }, cove: { color: '#30d8e0', fill: '#a8f8ff', intensity: 0.55, radius: 7 },
-      down: { color: '#80b8ff', fill: '#d0e4ff', intensity: 0.4, radius: 4 }, daylight: { color: '#f0f8ff', fill: '#fafdff', intensity: 1.0, radius: 13 }, coffer: { color: '#f4fbff', fill: '#ffffff', intensity: 1.0, radius: 8 } },
-  },
-  everyday: {
-    // (the shell turned down: a rubber base and a slim drywall pilaster, a bulkhead for a crown, a hollow metal door frame,
-    // no grating band, no pad, no inset lamps, no strip on the pilasters)
-    shell: { base: { h: 0.12, out: 0.015 }, crown: { h: 0.5, out: 0.06 }, pilaster: { w: 0.4, out: 0.1, foot: 0.12, strip: { w: 0.09, z0: 0.9, len: 0, every: 1 } },
-      door: { frame: 0.1, out: 0.03, sill: 0.12 }, floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3 } },
-    door: { width: 1.8, height: 2.7, frame: 0.1, out: 0.03 },
-    // (the lab look's light, its air neutral: an everyday room is lit white, not blue)
-    ambient: '#45443f',
-    tiles: {
-      floor: laid('floor:carpet-tile-500', 2, { cut: 'carpet', face: 'floor', mortar: [150, 140, 120], grit: 0.4 }),
-      floor2: laid('floor:vct-305', 4, { cut: 'vinyl', face: 'floor', mortar: [150, 140, 124], grit: 0.4 }),
-      floor3: laid('floor:porcelain-600', 2, { cut: 'porcelain', face: 'floor', mortar: [120, 118, 112], grit: 0.3 }),
-      floor4: laid('floor:laminate-193', 6, { cut: 'laminate', face: 'floor', mortar: [110, 78, 50], grit: 0.4 }),
-      band: laid('floor:vct-305', 4, { cut: 'vinyl', face: 'floor', stone: [120, 118, 112], mortar: [90, 88, 84], grit: 0.4 }),
-      // (no hazard: a threshold strip and the stair's nosings in brushed aluminium, a contrast to find a step by)
-      hazard: dressed({ cut: 'tread', face: 'floor', stone: [176, 178, 178], mortar: [80, 80, 82], cols: 1, grit: 0.3 }, 0.6),
-      base: dressed({ cut: 'matte', stone: [52, 52, 54], cols: 1, rows: 1, grit: 0.4 }, 1),
-      base2: dressed({ cut: 'matte', stone: [84, 72, 60], cols: 1, rows: 1, grit: 0.4 }, 1),
-      wall: laid('board:gypsum-12.7', 2, { cut: 'drywall', stone: [214, 208, 196], mortar: [200, 196, 186], grit: 0.4 }),
-      wall2: laid('veneer:oak-crown', 2, { cut: 'veneer', mortar: [40, 30, 24], grit: 0.2 }),
-      wall3: laid('block:cmu', 5, { cut: 'block', stone: [204, 202, 194], mortar: [186, 184, 176], grit: 0.3 }),
-      crown: laid('board:gypsum-12.7', 2, { cut: 'drywall', stone: [226, 222, 212], mortar: [210, 206, 196], grit: 0.3 }),
-      column: laid('board:gypsum-12.7', 1, { cut: 'drywall', stone: [222, 218, 208], mortar: [206, 202, 192], grit: 0.4 }),
-      paint: dressed({ cut: 'matte', stone: [56, 92, 110], cols: 1, rows: 2, grit: 0.4 }, 2),
-      services: dressed({ cut: 'matte', stone: [150, 154, 156], cols: 1, rows: 1, grit: 0.4 }, 2),
-      cabinet: dressed({ cut: 'matte', stone: [206, 202, 192], cols: 1, rows: 2, grit: 0.3 }, 1),
-      cable: { key: null, scale: 1 },
-      trim: { key: 'steel-strut', scale: 1.2 },
-      ceiling: dressed({ cut: 'corrugated', stone: [210, 212, 210], mortar: [160, 160, 160], cols: 12, grit: 0.3 }, 3),
-      ceiling2: laid('board:acoustic-tile-600', 4, { cut: 'acoustic', stone: [226, 226, 220], mortar: [210, 210, 206], grit: 0.3 }),
-      soffit: laid('board:acoustic-tile-600', 4, { cut: 'acoustic', stone: [228, 226, 220], mortar: [212, 212, 208], grit: 0.3 }),
-      soffit2: laid('board:gypsum-12.7', 2, { cut: 'drywall', stone: [232, 230, 224], mortar: [220, 218, 212], grit: 0.3 }),
-      concrete: dressed({ cut: 'concrete', stone: [180, 178, 172], mortar: [140, 138, 134], cols: 2, rows: 2, grit: 0.4 }, 3),
-      beam: dressed({ cut: 'matte', stone: [200, 202, 204], cols: 4, rows: 1, grit: 0.3 }, 4),
-      duct: { key: 'hull-plate', scale: 1.5 },
-      grate: dressed({ cut: 'grating', face: 'floor', stone: [170, 172, 172], mortar: [30, 30, 32], grit: 0.3 }, 1),
-      infill: dressed({ cut: 'perforated', stone: [210, 212, 212], mortar: [40, 42, 44], cols: 2, rows: 1, grit: 0.3 }, 1),
-    },
-    options: { floor: ['floor', 'floor2', 'floor3', 'floor4'], base: ['base', 'base2'], wall: ['wall', 'wall2', 'wall3'], ceiling: ['ceiling', 'ceiling2'], soffit: ['soffit', 'soffit2'] },
-    roofs: ['beams', 'truss', 'coffer'], braced: false, craned: false, duct: 'duct:spiral-450', glass: { clear: 'glass:float-6', other: 'glass:acid-etched-6', low: 'punched' }, booth: { dado: 0, screen: '#d0e8ff' },
-    light: { strip: { color: '#fff4e8', fill: '#fffaf4', intensity: 0.8, radius: 6 }, highbay: { color: '#fff8f0', fill: '#fffcf8', intensity: 1.4, radius: 15, twoRows: 9, drop: 1.4, r: 0.36, h: 0.45 },
-      ceilingStrip: { color: '#fff6ec', fill: '#fffbf6', intensity: 1.0, radius: 6 }, inset: { color: '#ffe8c8', fill: '#fff4e4', intensity: 0.3, radius: 2.4 },
-      // the secondary light: the exit sign's green over each door, warm downlights and coves in the neutral
-      door: { color: '#30e070', fill: '#a0ffc0', intensity: 0.35, radius: 3 }, cove: { color: '#ffc890', fill: '#ffe4c4', intensity: 0.55, radius: 7 },
-      down: { color: '#ffd0a0', fill: '#ffe8cc', intensity: 0.45, radius: 4.2 }, daylight: { color: '#eef4ff', fill: '#f8faff', intensity: 1.0, radius: 13 }, coffer: { color: '#fff4e4', fill: '#fffaf2', intensity: 1.0, radius: 8 } },
-  },
-};
-export const BAY_REGISTERS = Object.freeze(Object.keys(REGISTERS));
+// a material (bay-axes.js) painted by its swatch: a library tile as it is, a catalog unit laid, a dressed cut
+const tileOf = (mat, sw) => (mat.key !== undefined ? { key: mat.key, scale: mat.scale } : mat.laid ? laid(mat.laid, mat.n, { ...mat.spec, ...sw }) : dressed({ ...mat.dressed, ...sw }, mat.metres));
+const AXES = { construction: CONSTRUCTIONS, palette: PALETTES, plot: PLOTS, dressing: DRESSINGS };
 
-/** The stage kit card for a register. */
+/**
+ * A register's card from a choice on each axis (bay-axes.js): each surface role's materials painted by the palette's
+ * swatches (the i-th variant the i-th, round again), the variants a room may take, the plot's light, the dressing over
+ * the shell. Every axis named, each a value its table holds.
+ */
+export function composeRegister(axes) {
+  for (const [axis, table] of Object.entries(AXES)) if (!table[axes?.[axis]]) throw new Error(`bay: ${axis} '${axes?.[axis]}' is not one (${Object.keys(table).join(', ')})`);
+  const C = CONSTRUCTIONS[axes.construction], P = PALETTES[axes.palette], L = PLOTS[axes.plot], D = DRESSINGS[axes.dressing];
+  const tiles = {}, options = {}, keyOf = (role, i) => (i ? `${role}${i + 1}` : role);
+  for (const [role, mats] of Object.entries(C.surfaces)) {
+    const sw = P[role] || [];
+    mats.forEach((mat, i) => { tiles[keyOf(role, i)] = tileOf(mat, sw.length ? sw[i % sw.length] : {}); });
+    if (mats.length > 1) options[role] = mats.map((_, i) => keyOf(role, i));
+  }
+  // (the shell's parts, each laid from what the construction, the dressing and the plot say of it)
+  const parts = [...new Set([C.shell, D.shell, L.shell].flatMap((x) => Object.keys(x || {})))];
+  const shell = Object.fromEntries(parts.map((part) => [part, { ...C.shell?.[part], ...D.shell?.[part], ...L.shell?.[part] }]));
+  return { tiles, options, roofs: C.roofs, braced: C.braced, ...(D.craned === false ? { craned: false } : {}), duct: C.duct, glass: C.glass,
+    booth: { ...C.booth, ...L.booth }, light: L.light, ...(parts.length ? { shell } : {}), ...(C.door ? { door: C.door } : {}), ...(P.ambient ? { ambient: P.ambient } : {}) };
+}
+export const BAY_REGISTERS = Object.freeze(Object.keys(REGISTER_PRESETS));
+
+/** The stage kit card for a register (its preset on every axis). */
 export function bayKit(register) {
-  const R = REGISTERS[register];
-  if (!R) throw new Error(`bay: '${register}' is not a register (${BAY_REGISTERS.join(', ')})`);
+  if (!REGISTER_PRESETS[register]) throw new Error(`bay: '${register}' is not a register (${BAY_REGISTERS.join(', ')})`);
+  return bayKitOf(REGISTER_PRESETS[register]);
+}
+
+/** The stage kit card for a choice on each axis: { construction, palette, plot, dressing }. */
+export function bayKitOf(axes) {
+  const R = composeRegister(axes);
   const L = R.light, white = [1, 1, 1];
   // (a register's shell parts each laid over the shell's own)
   const shell = Object.fromEntries(Object.entries(R.shell || {}).map(([k, v]) => [k, { ...SHELL[k], ...v }]));
