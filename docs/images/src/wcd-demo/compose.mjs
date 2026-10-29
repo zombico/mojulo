@@ -11,7 +11,7 @@ import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { launch } from '../lib/browser.mjs';
+import { launch, runJson } from '../lib/browser.mjs';
 import { totals } from '../decor-demo/compose.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,7 @@ function chip(t) {
   const i = t.input ?? {};
   const by = {
     design_game: () => (i.run ? 'Built the levels' : i.approve ? 'Approved the parts' : i.patch ? 'Revised the plan' : i.world || i.compose ? 'Drew up the base' : 'Read the plan back'),
-    get_game_vocab: () => 'Read up on level design', forward_context: () => 'Got its bearings', get_substrate: () => 'Got its bearings',
+    pick_palette: () => 'Picked colours', get_game_vocab: () => 'Read up on level design', forward_context: () => 'Got its bearings', get_substrate: () => 'Got its bearings',
     get_tool_index: () => 'Got its bearings', semantic_search: () => 'Looked something up', update_sketch: () => 'Changed a level',
     create_game: () => 'Put the game together', export_game: () => 'Made it playable', get_worked_example: () => 'Read an example',
     recommend_kind: () => 'Got its bearings', get_sketch_vocab: () => 'Read up on level design', get_view_vocab: () => 'Read up on level design',
@@ -41,25 +41,46 @@ function chips(tools) {
   for (const t of tools) { const label = chip(t); out.set(label, (out.get(label) || 0) + 1); }
   return [...out].map(([label, n]) => `${label}${n > 1 ? ` ×${n}` : ''}`);
 }
-/** The reply cut to fit the bubble: its opening, then the first words of each bullet while they fit, and its last
- * line when that is the question it ends on. Markdown and refs go. */
-function reply(text, max = 360) {
-  const plain = (s) => s.replace(/`?\/(?:sketches|api\/sketches)\/[\w/-]+`?/g, 'the book').replace(/`?sk_[\w-]+`?/g, '').replace(/\*\*|__|`|^#+\s*/gm, '').replace(/\s+/g, ' ').trim();
-  const lines = text.replace(/```[\s\S]*?```/g, '').split('\n').map((l) => l.trim()).filter(Boolean);
-  const lead = plain(lines.find((l) => !/^[-*|#\d]/.test(l)) ?? '');
-  const ask = lines.at(-1) && /\?\s*$/.test(lines.at(-1)) && lines.at(-1) !== lines.find((l) => !/^[-*|#\d]/.test(l)) ? plain(lines.at(-1)) : '';
-  const bullets = lines.filter((l) => /^([-*]|\d+\.)\s+/.test(l)).map((l) => plain(l.replace(/^([-*]|\d+\.)\s+/, '')).split(/(?<=[.:;—])\s/)[0]);
-  let out = lead.split(/(?<=[.!?])\s+(?=[A-Z])/)[0], n = out.length + ask.length, shown = 0;
+/** The reply cut to fit the bubble: its opening sentence, each bullet's label and the start of what it says while they
+ * fit, and the sentence it ends on (the question it puts back). Markdown and refs go. */
+function reply(text, max = 380) {
+  const plain = (s) => s.replace(/`?\/(?:sketches|api\/sketches)\/[\w/-]+`?/g, 'the book').replace(/\s*\(?`?sk_[\w-]+`?\)?/g, '').replace(/\*\*|__|`|^#+\s*/gm, '').replace(/\s+/g, ' ').trim();
+  const sentences = (s) => s.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  const paras = text.replace(/```[\s\S]*?```/g, '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const prose = paras.filter((p) => !/^([-*]|\d+\.)\s+/.test(p));
+  const lead = sentences(plain(prose[0] ?? ''))[0], end = prose.length > 1 ? sentences(plain(prose.at(-1))).at(-1) : '';
+  const bullets = text.split('\n').filter((l) => /^\s*([-*]|\d+\.)\s+/.test(l)).map((l) => {
+    const b = plain(l.replace(/^\s*([-*]|\d+\.)\s+/, '')), m = b.match(/^(.{1,24}?):\s+(.*)$/), body = sentences(m ? m[2] : b)[0];
+    const cut = body.length > 70 ? `${body.slice(0, 68).replace(/\s+\S*$/, '')}…` : body;
+    return m ? `${m[1]}: ${cut}` : cut;
+  });
+  let out = lead, n = lead.length + end.length, shown = 0;
   for (const b of bullets) { if (n + b.length > max) break; out += `\n· ${b}`; n += b.length; shown++; }
   if (shown < bullets.length) out += '\n…';
-  return ask ? `${out}\n${ask}` : out;
+  return end ? `${out}\n${end}` : out;
+}
+
+/** The looks the agent showed with pick_palette, as it saw them: its own calls, seeded, replayed into its data dir. */
+function looksCard(work, turn) {
+  const env = { ...process.env, MOJULO_DATA_DIR: path.join(work, 'data'), MOJULO_OUTCOMES_DIR: path.join(work, 'data', 'outcomes') };
+  const picks = turn.tools.filter((t) => t.name === 'pick_palette' && !t.error);
+  if (!picks.length) return null;
+  const ramp = (stops) => `<div class="ramp">${stops.map((h) => `<i style="background:${h}"></i>`).join('')}</div>`;
+  return `<div class="looks">${picks.map((t) => {
+    const P = runJson(env, ['scripts/mcp-stdio.mjs', 'call', 'pick_palette', '--json', JSON.stringify(t.input)]).palettes[0].roles;
+    const [name, said = ''] = String(t.input.intent).split(/:\s*/);
+    return `<div class="look"><b>${esc(name[0].toUpperCase() + name.slice(1))}</b><p>${esc(said)}</p>${['made', 'rock', 'ground', 'accent'].map((r) => `<div class="r"><span>${r === 'made' ? 'walls' : r}</span>${ramp(P[r])}</div>`).join('')}</div>`;
+  }).join('')}</div>`;
 }
 
 export async function compose(work) {
   const S = JSON.parse(readFileSync(path.join(work, 'session.json'), 'utf8'));
   const img = (n) => (existsSync(path.join(work, `${n}.png`)) ? pathToFileURL(path.join(work, `${n}.png`)).href : null);
-  const plan = img('turn-1-dungeon');
-  if (!plan) throw new Error('compose: no turn-1-dungeon.png (the plan the agent showed)');
+  // what the agent showed for approval: its book's plan when it drafted one, else the looks it picked
+  const plan = img('turn-1-dungeon'), looks = plan ? null : looksCard(work, S.turns[0]);
+  if (!plan && !looks) throw new Error('compose: the first ask showed neither a plan nor looks');
+  // the book once built: in a skin set after the session (skinned-dungeon.png, from book.mjs), else as it was
+  const book = img('skinned-dungeon') ? [img('skinned-dungeon'), 'The book <span>· its skin set after the session</span>'] : img('turn-2-dungeon') ? [img('turn-2-dungeon'), 'The book <span>· to the core</span>'] : null;
   const made = JSON.parse(readFileSync(path.join(work, 'made.json'), 'utf8')), built = Object.keys(made.levels ?? {}), names = made.names ?? {};
   const shots = built.flatMap((l) => ['room', 'corridor'].map((s) => [img(`${l}-${s}`), `${names[l] ?? l} <span>· ${s === 'room' ? 'built' : 'its corridor'}</span>`])).filter(([u]) => u);
 
@@ -80,22 +101,29 @@ export async function compose(work) {
       F.push({ log: logHtml(`<div class="a"><div class="who">Agent</div><div class="chips">${cs.slice(0, n).map((c, j) => `<span class="chip${j < n - 1 || i === WORK ? ' ok' : ''}">${esc(c)}</span>`).join('')}</div><div class="work">working · ${clock(turn.durationMs * i / WORK)}</div></div>`), ...view });
     }
     log.push(`<div class="a"><div class="who">Agent · ${clock(turn.durationMs)}</div><div class="chips">${cs.map((c) => `<span class="chip ok">${esc(c)}</span>`).join('')}</div><div class="said">${esc(reply(turn.reply))}</div></div>`);
-    if (ti === 0) {
-      // the plan it shows: the book's dungeon page, the rings first, then across to the layers and their looks
-      fadeTo({ a: plan, posA: '0% 50%', tag: 'The plan <span>· its book, for your approval</span>' }, 8);
-      hold(24);
-      for (let i = 1; i <= 30; i++) F.push({ log: logHtml(), a: plan, posA: `${(100 * ease(i / 30)).toFixed(1)}% 50%`, tag: view.tag });
-      view = { ...view, posA: '100% 50%' };
-      hold(30);
+    // the book's dungeon page, the rings first, then across to the layers, their looks and the laws
+    const pan = (u, tag) => {
+      fadeTo({ a: u, posA: '0% 50%', tag }, 8); hold(24);
+      for (let i = 1; i <= 30; i++) F.push({ log: logHtml(), a: u, posA: `${(100 * ease(i / 30)).toFixed(1)}% 50%`, tag });
+      view = { ...view, posA: '100% 50%' }; hold(30);
+    };
+    if (ti === 0 && plan) pan(plan, 'The plan <span>· its book, for your approval</span>');
+    else if (ti === 0) {
+      // the looks it picked, for approval
+      const tag = 'The looks <span>· for your approval</span>';
+      for (let i = 1; i <= 8; i++) F.push({ log: logHtml(), panel: looks, panelOp: ease(i / 8), tag });
+      for (let i = 0; i < 60; i++) F.push({ log: logHtml(), panel: looks, tag });
+      view = null;
     } else {
+      if (book) pan(...book);
       // what it built, each level as it stands, one after another
-      for (const [u, tag] of shots.slice(0, 6)) { fadeTo({ a: u, tag }); hold(14); }
+      for (const [u, tag] of shots) { fadeTo({ a: u, tag }); hold(10); }
     }
   });
 
   const t = totals(S.turns);
   const end = `<h1>A ${built.length}-level base, planned, approved, built</h1>
-<div class="sub">One ask in a game maker's words, one look at the plan, one yes.</div>
+<div class="sub">One ask in a game maker's words, one look at the ${plan ? 'plan' : 'colours'}, one yes.</div>
 <div id="stats">
 <div class="st"><div class="k">Time</div><div class="v">${clock(t.ms)}</div><div class="n">the agent working, both asks</div></div>
 <div class="st"><div class="k">Tokens</div><div class="v">≈ ${k(t.tokens)}</div><div class="n">${k(t.output)} written · ${Math.round(100 * t.cacheRead / t.tokens)}% re-read from cache</div></div>

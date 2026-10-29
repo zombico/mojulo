@@ -1,0 +1,727 @@
+{
+ "note": "The live session behind the walled-core-dungeon demo GIF, as session.mjs recorded it: each ask, the calls the agent made, its replies, and what print mode reported for each turn.",
+ "when": "2026-10-29",
+ "model": "claude-sonnet-5-5",
+ "turns": [
+  {
+   "prompt": "I'm making a stealth game. Build me a multi-level military base to infiltrate: you come in through the hangar, work through the barracks and a fortified armoury, and the reactor plant is the core at the very bottom. Each section should look different from the last. Show me the plan and the looks before you build anything.",
+   "durationMs": 19294,
+   "apiMs": 15451,
+   "numTurns": 6,
+   "usage": {
+    "input": 4,
+    "output": 1563,
+    "cacheRead": 81583,
+    "cacheWrite": 92005
+   },
+   "costUsdSoFar": 0.3918163,
+   "texts": [
+    "I haven't built anything yet. Here is the plan and the looks for you to approve.\n\nThe base is four levels stacked top to bottom, each a stealth route with patrol loops, sightlines and cover, and you can only go down:\n1. **Hangar** is wide, open and exposed, with vehicles and crates as cover. Its palette is cold concrete and steel in teal-greys, with a yellow sodium-light accent.\n2. **Barracks** is a lived-in warren of bunk rooms and corridors with sleeping and waking guards. It's warm rose-brown and olive in dim lamplight.\n3. **Armoury** is a tight, fortified vault of locked cages and chokepoints. It's near-black green-grey steel with a hot magenta alarm accent, so the alarms are the only bright thing in the level.\n4. **Reactor plant** is the core, a big vertical chamber with catwalks around a glowing core. It's deep indigo-blue with a violet and acid-lime glow.\n\nColours come from `pick_palette`. I read the reactor and armoury results as off-brief: the reactor came out violet and lime rather than teal-cyan, and the armoury's accent is pink rather than red. I'd re-roll both before building, unless you like them. Tell me if you want any levels' feel changed, or if I should go ahead and make the game with these looks."
+   ],
+   "reply": "I haven't built anything yet. Here is the plan and the looks for you to approve.\n\nThe base is four levels stacked top to bottom, each a stealth route with patrol loops, sightlines and cover, and you can only go down:\n1. **Hangar** is wide, open and exposed, with vehicles and crates as cover. Its palette is cold concrete and steel in teal-greys, with a yellow sodium-light accent.\n2. **Barracks** is a lived-in warren of bunk rooms and corridors with sleeping and waking guards. It's warm rose-brown and olive in dim lamplight.\n3. **Armoury** is a tight, fortified vault of locked cages and chokepoints. It's near-black green-grey steel with a hot magenta alarm accent, so the alarms are the only bright thing in the level.\n4. **Reactor plant** is the core, a big vertical chamber with catwalks around a glowing core. It's deep indigo-blue with a violet and acid-lime glow.\n\nColours come from `pick_palette`. I read the reactor and armoury results as off-brief: the reactor came out violet and lime rather than teal-cyan, and the armoury's accent is pink rather than red. I'd re-roll both before building, unless you like them. Tell me if you want any levels' feel changed, or if I should go ahead and make the game with these looks.",
+   "tools": [
+    {
+     "name": "get_game_vocab",
+     "error": false,
+     "input": {
+      "id": "gameworld-guide"
+     }
+    },
+    {
+     "name": "pick_palette",
+     "error": false,
+     "input": {
+      "intent": "hangar: cold industrial concrete and steel, sodium floodlights, open and exposed",
+      "heat": -0.3,
+      "weight": 0.1,
+      "activity": -0.2,
+      "scheme": "analogous",
+      "seed": 11
+     }
+    },
+    {
+     "name": "pick_palette",
+     "error": false,
+     "input": {
+      "intent": "barracks: warm lived-in dormitory, wood and olive drab, dim lamplight, sleeping guards",
+      "heat": 0.5,
+      "weight": 0.3,
+      "activity": -0.5,
+      "scheme": "analogous",
+      "seed": 22
+     }
+    },
+    {
+     "name": "pick_palette",
+     "error": false,
+     "input": {
+      "intent": "fortified armoury: dark vault, riveted steel, red alarm accents, claustrophobic and tense",
+      "heat": 0.2,
+      "weight": 0.8,
+      "activity": 0.3,
+      "scheme": "mono-accent",
+      "seed": 33
+     }
+    },
+    {
+     "name": "pick_palette",
+     "error": false,
+     "input": {
+      "intent": "reactor plant: glowing core, toxic teal and cyan radiance, deep underground, otherworldly",
+      "heat": -0.7,
+      "weight": 0.7,
+      "activity": 0.6,
+      "scheme": "complementary",
+      "seed": 44
+     }
+    }
+   ]
+  },
+  {
+   "prompt": "Looks good, approved. Build it.",
+   "world": "sk_a6uwx4j16z",
+   "durationMs": 216564,
+   "apiMs": 59938,
+   "numTurns": 12,
+   "usage": {
+    "input": 20,
+    "output": 5517,
+    "cacheRead": 998636,
+    "cacheWrite": 13507
+   },
+   "costUsdSoFar": 0.6009179,
+   "texts": [
+    "Fixing the link field (`kind` instead of `type`).",
+    "The base is built as a stealth game called Black Site (`sk_a6uwx4j16z`), but I haven't played it or looked at it yet. The build call timed out twice at 60 seconds. When I checked afterwards, the game showed as made and ready to play, with nothing left to build.\n\n- **Levels:** Hangar, then Barracks, then Armoury, then Reactor Plant at the core.\n- **Doors:** Stairs connect them, locked behind keycard clearance 1, 2 and 3. I made the last link a stair instead of a lift, because a lift only works within one level.\n- **Looks:** The game's colour-picker palettes are applied per level. The base kit's own colour sets are also assigned: military for the hangar, everyday for the barracks, science for the armoury and utility for the reactor. I haven't checked how these combine on screen, so the final colours may not match what I showed you.\n- **Hero:** I didn't set up a hero. The game's own feel suggestion is a slow walk and a low jump, but I didn't apply it.\n\nYou can play it at `/api/sketches/sk_a6uwx4j16z-game/game`, and there's a playtest at `/api/sketches/sk_a6uwx4j16z-game/playtest`. Look at each level's colours first. If you want the red-alarm armoury or teal reactor I mentioned earlier, that's a quick change to those two levels."
+   ],
+   "reply": "The base is built as a stealth game called Black Site (`sk_a6uwx4j16z`), but I haven't played it or looked at it yet. The build call timed out twice at 60 seconds. When I checked afterwards, the game showed as made and ready to play, with nothing left to build.\n\n- **Levels:** Hangar, then Barracks, then Armoury, then Reactor Plant at the core.\n- **Doors:** Stairs connect them, locked behind keycard clearance 1, 2 and 3. I made the last link a stair instead of a lift, because a lift only works within one level.\n- **Looks:** The game's colour-picker palettes are applied per level. The base kit's own colour sets are also assigned: military for the hangar, everyday for the barracks, science for the armoury and utility for the reactor. I haven't checked how these combine on screen, so the final colours may not match what I showed you.\n- **Hero:** I didn't set up a hero. The game's own feel suggestion is a slow walk and a low jump, but I didn't apply it.\n\nYou can play it at `/api/sketches/sk_a6uwx4j16z-game/game`, and there's a playtest at `/api/sketches/sk_a6uwx4j16z-game/playtest`. Look at each level's colours first. If you want the red-alarm armoury or teal reactor I mentioned earlier, that's a quick change to those two levels.",
+   "tools": [
+    {
+     "name": "get_game_vocab",
+     "error": false,
+     "input": {
+      "id": "gameworld-world"
+     }
+    },
+    {
+     "name": "get_game_vocab",
+     "error": false,
+     "input": {
+      "id": "gameworld-intent"
+     }
+    },
+    {
+     "name": "get_game_vocab",
+     "error": false,
+     "input": {
+      "id": "gameworld-wcd"
+     }
+    },
+    {
+     "name": "get_game_vocab",
+     "error": false,
+     "input": {
+      "id": "gameworld-intent-stealth"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": true,
+     "input": {
+      "world": {
+       "id": "black-site",
+       "name": "Black Site",
+       "seed": 7,
+       "brief": "A stealth game: infiltrate a multi-level military base from the hangar, through the barracks and a fortified armoury, down to the reactor plant at the core. Each section looks different.",
+       "intent": {
+        "from": "stealth"
+       },
+       "topology": "linear",
+       "levels": {
+        "hangar": {
+         "name": "Hangar",
+         "building": {
+          "use": "hangar-bay",
+          "seed": 1
+         }
+        },
+        "barracks": {
+         "name": "Barracks",
+         "building": {
+          "use": "barracks",
+          "seed": 2
+         }
+        },
+        "armoury": {
+         "name": "Armoury",
+         "building": {
+          "use": "armoury",
+          "seed": 3
+         }
+        },
+        "reactor": {
+         "name": "Reactor Plant",
+         "building": {
+          "use": "plant",
+          "seed": 4
+         }
+        }
+       },
+       "links": [
+        {
+         "from": "hangar",
+         "to": "barracks",
+         "type": "gate"
+        },
+        {
+         "from": "barracks",
+         "to": "armoury",
+         "type": "gate"
+        },
+        {
+         "from": "armoury",
+         "to": "reactor",
+         "type": "gate"
+        }
+       ],
+       "wcd": {
+        "core": "reactor",
+        "spaces": {
+         "hangar": {
+          "kind": "inner",
+          "depth": 0,
+          "level": "hangar",
+          "use": "hangar-bay",
+          "look": {
+           "words": "cold concrete and steel hangar under sodium floodlights, open and exposed",
+           "palette": {
+            "intent": "hangar",
+            "heat": -0.3,
+            "weight": 0.1,
+            "activity": -0.2,
+            "scheme": "analogous",
+            "seed": 11
+           }
+          }
+         },
+         "barracks": {
+          "kind": "inner",
+          "depth": 1,
+          "level": "barracks",
+          "use": "barracks",
+          "look": {
+           "words": "warm lived-in dormitory, wood and olive drab, dim lamplight",
+           "palette": {
+            "intent": "barracks",
+            "heat": 0.5,
+            "weight": 0.3,
+            "activity": -0.5,
+            "scheme": "analogous",
+            "seed": 22
+           }
+          }
+         },
+         "armoury": {
+          "kind": "inner",
+          "depth": 2,
+          "level": "armoury",
+          "use": "armoury",
+          "look": {
+           "words": "dark fortified vault, riveted steel, alarm accents, claustrophobic",
+           "palette": {
+            "intent": "armoury",
+            "heat": 0.2,
+            "weight": 0.8,
+            "activity": 0.3,
+            "scheme": "mono-accent",
+            "seed": 33
+           }
+          }
+         },
+         "reactor": {
+          "kind": "inner",
+          "depth": 3,
+          "level": "reactor",
+          "use": "plant",
+          "look": {
+           "words": "glowing reactor core, catwalks, deep underground, otherworldly radiance",
+           "palette": {
+            "intent": "reactor",
+            "heat": -0.7,
+            "weight": 0.7,
+            "activity": 0.6,
+            "scheme": "complementary",
+            "seed": 44
+           }
+          }
+         }
+        },
+        "doors": [
+         {
+          "from": "hangar",
+          "to": "barracks",
+          "via": "stair",
+          "gate": {
+           "clearance": 1
+          }
+         },
+         {
+          "from": "barracks",
+          "to": "armoury",
+          "via": "stair",
+          "gate": {
+           "clearance": 2
+          }
+         },
+         {
+          "from": "armoury",
+          "to": "reactor",
+          "via": "lift",
+          "gate": {
+           "clearance": 3
+          }
+         }
+        ]
+       }
+      },
+      "run": true,
+      "readout": "changed"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": true,
+     "input": {
+      "world": {
+       "id": "black-site",
+       "name": "Black Site",
+       "seed": 7,
+       "brief": "A stealth game: infiltrate a multi-level military base from the hangar, through the barracks and a fortified armoury, down to the reactor plant at the core. Each section looks different.",
+       "intent": {
+        "from": "stealth"
+       },
+       "topology": "linear",
+       "levels": {
+        "hangar": {
+         "name": "Hangar",
+         "building": {
+          "use": "hangar-bay",
+          "seed": 1
+         }
+        },
+        "barracks": {
+         "name": "Barracks",
+         "building": {
+          "use": "barracks",
+          "seed": 2
+         }
+        },
+        "armoury": {
+         "name": "Armoury",
+         "building": {
+          "use": "armoury",
+          "seed": 3
+         }
+        },
+        "reactor": {
+         "name": "Reactor Plant",
+         "building": {
+          "use": "plant",
+          "seed": 4
+         }
+        }
+       },
+       "links": [
+        {
+         "from": "hangar",
+         "to": "barracks",
+         "kind": "gate"
+        },
+        {
+         "from": "barracks",
+         "to": "armoury",
+         "kind": "gate"
+        },
+        {
+         "from": "armoury",
+         "to": "reactor",
+         "kind": "gate"
+        }
+       ],
+       "wcd": {
+        "core": "reactor",
+        "spaces": {
+         "hangar": {
+          "kind": "inner",
+          "depth": 0,
+          "level": "hangar",
+          "use": "hangar-bay",
+          "look": {
+           "words": "cold concrete and steel hangar under sodium floodlights, open and exposed",
+           "palette": {
+            "intent": "hangar",
+            "heat": -0.3,
+            "weight": 0.1,
+            "activity": -0.2,
+            "scheme": "analogous",
+            "seed": 11
+           }
+          }
+         },
+         "barracks": {
+          "kind": "inner",
+          "depth": 1,
+          "level": "barracks",
+          "use": "barracks",
+          "look": {
+           "words": "warm lived-in dormitory, wood and olive drab, dim lamplight",
+           "palette": {
+            "intent": "barracks",
+            "heat": 0.5,
+            "weight": 0.3,
+            "activity": -0.5,
+            "scheme": "analogous",
+            "seed": 22
+           }
+          }
+         },
+         "armoury": {
+          "kind": "inner",
+          "depth": 2,
+          "level": "armoury",
+          "use": "armoury",
+          "look": {
+           "words": "dark fortified vault, riveted steel, alarm accents, claustrophobic",
+           "palette": {
+            "intent": "armoury",
+            "heat": 0.2,
+            "weight": 0.8,
+            "activity": 0.3,
+            "scheme": "mono-accent",
+            "seed": 33
+           }
+          }
+         },
+         "reactor": {
+          "kind": "inner",
+          "depth": 3,
+          "level": "reactor",
+          "use": "plant",
+          "look": {
+           "words": "glowing reactor core, catwalks, deep underground, otherworldly radiance",
+           "palette": {
+            "intent": "reactor",
+            "heat": -0.7,
+            "weight": 0.7,
+            "activity": 0.6,
+            "scheme": "complementary",
+            "seed": 44
+           }
+          }
+         }
+        },
+        "doors": [
+         {
+          "from": "hangar",
+          "to": "barracks",
+          "via": "stair",
+          "gate": {
+           "clearance": 1
+          }
+         },
+         {
+          "from": "barracks",
+          "to": "armoury",
+          "via": "stair",
+          "gate": {
+           "clearance": 2
+          }
+         },
+         {
+          "from": "armoury",
+          "to": "reactor",
+          "via": "lift",
+          "gate": {
+           "clearance": 3
+          }
+         }
+        ]
+       }
+      },
+      "run": true,
+      "readout": "changed"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": false,
+     "ref": "sk_a6uwx4j16z",
+     "input": {
+      "world": {
+       "id": "black-site",
+       "name": "Black Site",
+       "seed": 7,
+       "brief": "A stealth game: infiltrate a multi-level military base from the hangar, through the barracks and a fortified armoury, down to the reactor plant at the core. Each section looks different.",
+       "intent": {
+        "from": "stealth"
+       },
+       "topology": "linear",
+       "levels": {
+        "hangar": {
+         "name": "Hangar",
+         "style": {
+          "palette": {
+           "intent": "hangar",
+           "heat": -0.3,
+           "weight": 0.1,
+           "activity": -0.2,
+           "scheme": "analogous",
+           "seed": 11
+          }
+         },
+         "building": {
+          "use": "hangar-bay",
+          "seed": 1
+         }
+        },
+        "barracks": {
+         "name": "Barracks",
+         "style": {
+          "palette": {
+           "intent": "barracks",
+           "heat": 0.5,
+           "weight": 0.3,
+           "activity": -0.5,
+           "scheme": "analogous",
+           "seed": 22
+          }
+         },
+         "building": {
+          "use": "barracks",
+          "seed": 2
+         }
+        },
+        "armoury": {
+         "name": "Armoury",
+         "style": {
+          "palette": {
+           "intent": "armoury",
+           "heat": 0.2,
+           "weight": 0.8,
+           "activity": 0.3,
+           "scheme": "mono-accent",
+           "seed": 33
+          }
+         },
+         "building": {
+          "use": "armoury",
+          "seed": 3
+         }
+        },
+        "reactor": {
+         "name": "Reactor Plant",
+         "style": {
+          "palette": {
+           "intent": "reactor",
+           "heat": -0.7,
+           "weight": 0.7,
+           "activity": 0.6,
+           "scheme": "complementary",
+           "seed": 44
+          }
+         },
+         "building": {
+          "use": "plant",
+          "seed": 4
+         }
+        }
+       },
+       "links": [
+        {
+         "from": "hangar",
+         "to": "barracks",
+         "kind": "gate"
+        },
+        {
+         "from": "barracks",
+         "to": "armoury",
+         "kind": "gate"
+        },
+        {
+         "from": "armoury",
+         "to": "reactor",
+         "kind": "gate"
+        }
+       ],
+       "wcd": {
+        "core": "reactor",
+        "spaces": {
+         "hangar": {
+          "kind": "inner",
+          "depth": 0,
+          "level": "hangar",
+          "use": "hangar-bay",
+          "look": {
+           "words": "cold concrete and steel hangar under sodium floodlights, open and exposed",
+           "palette": "military"
+          }
+         },
+         "barracks": {
+          "kind": "inner",
+          "depth": 1,
+          "level": "barracks",
+          "use": "barracks",
+          "look": {
+           "words": "warm lived-in dormitory, wood and olive drab, dim lamplight",
+           "palette": "everyday"
+          }
+         },
+         "armoury": {
+          "kind": "inner",
+          "depth": 2,
+          "level": "armoury",
+          "use": "armoury",
+          "look": {
+           "words": "dark fortified vault, riveted steel, alarm accents, claustrophobic",
+           "palette": "science"
+          }
+         },
+         "reactor": {
+          "kind": "inner",
+          "depth": 3,
+          "level": "reactor",
+          "use": "plant",
+          "look": {
+           "words": "glowing reactor core, catwalks, deep underground, otherworldly radiance",
+           "palette": "utility"
+          }
+         }
+        },
+        "doors": [
+         {
+          "from": "hangar",
+          "to": "barracks",
+          "via": "stair",
+          "gate": {
+           "clearance": 1
+          }
+         },
+         {
+          "from": "barracks",
+          "to": "armoury",
+          "via": "stair",
+          "gate": {
+           "clearance": 2
+          }
+         },
+         {
+          "from": "armoury",
+          "to": "reactor",
+          "via": "lift",
+          "gate": {
+           "clearance": 3
+          }
+         }
+        ]
+       }
+      },
+      "run": true,
+      "readout": "changed"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": true,
+     "input": {
+      "ref": "sk_a6uwx4j16z",
+      "patch": [
+       {
+        "op": "set",
+        "path": "/wcd/doors/2/via",
+        "value": "stair"
+       },
+       {
+        "op": "set",
+        "path": "/characters",
+        "value": {
+         "direction": {
+          "tradition": "realistic military stealth thriller"
+         },
+         "hero": {
+          "motion": "steel-serpents"
+         }
+        }
+       }
+      ],
+      "approve": [
+       "intent",
+       "world",
+       "nature",
+       "civilizations",
+       "key",
+       "level:hangar",
+       "level:barracks",
+       "level:armoury",
+       "level:reactor"
+      ],
+      "run": true,
+      "readout": "changed"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": true,
+     "input": {
+      "ref": "sk_a6uwx4j16z",
+      "patch": [
+       {
+        "op": "set",
+        "path": "/wcd/doors/2/via",
+        "value": "stair"
+       }
+      ],
+      "approve": [
+       "intent",
+       "world",
+       "nature",
+       "civilizations",
+       "key",
+       "level:hangar",
+       "level:barracks",
+       "level:armoury",
+       "level:reactor"
+      ],
+      "run": true,
+      "readout": "changed"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": true,
+     "input": {
+      "ref": "sk_a6uwx4j16z",
+      "run": true,
+      "readout": "changed"
+     }
+    },
+    {
+     "name": "design_game",
+     "error": false,
+     "ref": "sk_a6uwx4j16z",
+     "input": {
+      "ref": "sk_a6uwx4j16z",
+      "readout": "changed"
+     }
+    }
+   ]
+  }
+ ],
+ "total": {
+  "input": 24,
+  "output": 7080,
+  "cacheRead": 1080219,
+  "cacheWrite": 105512,
+  "costUsd": 0.6009179,
+  "minutes": 3.9
+ }
+}

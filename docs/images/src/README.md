@@ -7,6 +7,7 @@ kernel change instead of patched by hand.
 | Image | Runner | Takes |
 |---|---|---|
 | `../decor-demo.gif` | `decor-demo/run.mjs` | about 10 min (a real agent session, then the filming); `capture.mjs` alone about 5 min |
+| `../wcd-demo.gif`, `../wcd-demo-*.jpg`, `../wcd-demo-book.png` | `wcd-demo/session.mjs`, `wcd-demo/run.mjs` | about 10 min (a real agent session, then the stills); the cooked base about 15 min |
 | `../interior-demo.gif` | `interior-demo/run.mjs` | about 3 min (three Cycles stills) |
 | `../level-demo.gif` | `level-demo/run.mjs` | about 5 min (two levels made, eight stills) |
 | `../dresser-shop-sheet.png` | `dresser-sheet/run.mjs` | about 30 s |
@@ -17,6 +18,9 @@ kernel change instead of patched by hand.
 node docs/images/src/decor-demo/run.mjs /tmp/mj-decor
 node docs/images/src/decor-demo/capture.mjs /tmp/mj-decor docs/images/src/decor-demo/session.json   # re-film the committed session
 node docs/images/src/decor-demo/plan.mjs /tmp/mj-decor                                              # the plan alone
+node docs/images/src/wcd-demo/session.mjs /tmp/mj-wcd                                               # a new live session, its book and stills
+node docs/images/src/wcd-demo/compose.mjs /tmp/mj-wcd                                               # the GIF from it
+node docs/images/src/wcd-demo/run.mjs /tmp/mj-wcd-cooked                                            # the cooked base, no agent
 node docs/images/src/interior-demo/run.mjs /tmp/mj-interior
 node docs/images/src/level-demo/run.mjs /tmp/mj-level
 node docs/images/src/dresser-sheet/run.mjs /tmp/mj-dresser
@@ -63,6 +67,17 @@ at list price. The cost is the last ask's `total_cost_usd`, since print mode car
 on how warm the prompt cache is, so a first run of the day costs more. `MODEL` picks the model (default Sonnet 5.5).
 Every run is a new conversation, so the replies, the choices and the numbers change from run to run. `session.json`
 here is the session the committed GIF shows; `node decor-demo/compose.mjs <workDir>` re-composes a filmed work dir.
+
+**wcd-demo.** A game maker's stealth base. `session.mjs` drives one real Claude Code session in print mode (one
+process, each ask written to it as stream-json once the last one's result is in), mojulo its only tool server, two asks
+in a game maker's words: the base and its looks shown before anything is built, then "approved, build it". It writes
+`session.json` (each ask's calls, reply, time, tokens and cost), draws the world's book between the asks (`book.mjs`)
+and stills of every level once it is built (`stills.mjs`: a corridor looked down and the room the level's use is about,
+read off the world's own record, framed landscape). `compose.mjs` sets it in the decor demo's chat: what the agent showed
+for approval (its book's plan when it drafted one, else its `pick_palette` picks, replayed from its own seeded calls),
+the book once built, each level, and the session's numbers. The committed session's book wears the `briefing` skin,
+set after the session with one `design_game` patch; `compose.mjs` tags it so. `run.mjs` is the cooked base:
+`world.json`, a four-level base on the dungeon's rails, minted, approved and run with no agent, then the same stills.
 
 **interior-demo.** `design_interior` three times on one ref (the Japandi room from a section, then mid-century
 with a velvet sofa, then `brief: { tags: ['no-tv'] }`), exporting `world.html` after each and capturing it through

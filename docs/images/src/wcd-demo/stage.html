@@ -33,6 +33,16 @@ html,body{width:960px;height:540px;background:#0f1117;overflow:hidden;font-famil
 #tag span{color:#9fb0cc;font-weight:500}
 
 
+#panel{position:absolute;inset:0;background:#0f1117;padding:46px 16px 16px;display:none}
+.looks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.look{background:#161a23;border:1px solid #2a3040;border-radius:10px;padding:10px 12px}
+.look b{display:block;font-size:12.5px;color:#f2f4f8;margin-bottom:2px}
+.look p{font-size:10.5px;color:#8b93a6;margin-bottom:8px;line-height:1.35;height:28px;overflow:hidden}
+.ramp{display:flex;height:17px;margin-bottom:4px;border-radius:3px;overflow:hidden}
+.ramp i{flex:1}
+.look .r{display:flex;gap:6px;align-items:center;font-size:9.5px;color:#7d8597}
+.look .r .ramp{flex:1;margin:0 0 4px}
+.look .r span{width:40px}
 #end{position:absolute;inset:0;background:#0f1117;display:flex;flex-direction:column;align-items:center;padding-top:34px}
 #end h1{font-size:25px;font-weight:700;letter-spacing:-.01em;color:#f2f4f8}
 #end .sub{margin-top:6px;font-size:13.5px;color:#9aa3b5}
@@ -51,7 +61,7 @@ html,body{width:960px;height:540px;background:#0f1117;overflow:hidden;font-famil
 </style></head><body>
 <div id="top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="ttl"><b>Your agent</b> · a chat with mojulo connected</span><span id="conn"><i></i>mojulo</span></div>
 <div id="chat"><div id="log"></div><div id="input"></div></div>
-<div id="view"><img id="ia"><img id="ib"><div id="bar"></div><div id="spark"></div><div id="tag"></div></div>
+<div id="view"><img id="ia"><img id="ib"><div id="bar"></div><div id="spark"></div><div id="panel"></div><div id="tag"></div></div>
 <div id="end"></div>
 <script>
 window.setFrame = (f) => {
@@ -66,6 +76,7 @@ window.setFrame = (f) => {
   document.getElementById('spark').innerHTML = (f.sparks || []).map(([x, y, r, o]) => `<i style="left:${x - r}px;top:${y - r}px;width:${2 * r}px;height:${2 * r}px;opacity:${o}"></i>`).join('');
   document.getElementById('log').innerHTML = f.log || '';
   document.getElementById('input').innerHTML = f.input ? `${f.input}${f.cursor ? '<span id="cur"></span>' : ''}` : `<span class="ph">Message your agent…</span>`;
+  const panel = document.getElementById('panel'); panel.style.display = f.panel ? 'block' : 'none'; panel.style.opacity = f.panelOp ?? 1; if (f.panel && panel.dataset.k !== f.panel) { panel.innerHTML = f.panel; panel.dataset.k = f.panel; }
   const tag = document.getElementById('tag'); tag.style.display = f.tag ? '' : 'none'; tag.innerHTML = f.tag || '';
   const end = document.getElementById('end'); end.style.display = f.end ? '' : 'none'; end.style.opacity = f.endOp ?? 1; if (f.end && end.dataset.k !== f.endKey) { end.innerHTML = f.end; end.dataset.k = f.endKey; }
   return Promise.all([...document.images].filter((i) => i.offsetParent && i.getAttribute('src')).map((i) => i.decode().catch(() => {})));
