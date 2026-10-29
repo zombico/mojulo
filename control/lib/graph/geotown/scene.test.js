@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleGeotownScene, GEOTOWN_FACES } from './scene.js';
+import { assembleGeotownScene, GEOTOWN_FACES, fitFront } from './scene.js';
 import { designGeotown } from './design.js';
 import { SURFACES, PATTERNS, DEFAULT_PATTERN } from './pattern.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
@@ -123,5 +123,35 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     // a balcony's reach is its house's: no tree's crown takes it
     expect(p.geotown.laws.find((l) => l.law === 'room').ok).toBe(true);
     expect(p.cameras.some((c) => c.name === 'yard')).toBe(true);
+  });
+
+  it('reads its streetscape on the street: a tree here and there or none, each twice a person\'s height; gates; parked cars', () => {
+    const at = (sc, extra = {}) => { const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, streetscape: sc, ...extra } }; return { p: assembleGeotownScene(E), d: designGeotown(E.geotown, { seed: 3 }) }; };
+    const [L, S, U] = ['leafy', 'snug', 'urban'].map((sc) => at(sc));
+    // the street's trees: those standing off the blocks, a metre of the streets' frontage
+    const street = ({ p, d }) => p.repeats.flatMap((r) => r.transforms).filter((t) => !d.blocks.some((b) => t.pos[0] > b.rect[0] && t.pos[0] < b.rect[2] && t.pos[1] > b.rect[1] && t.pos[1] < b.rect[3]));
+    const perM = (x) => street(x).length / x.d.blocks.reduce((a, b) => a + 2 * (b.rect[2] - b.rect[0] + b.rect[3] - b.rect[1]), 0);
+    expect(perM(S)).toBeLessThan(perM(L) * 0.6);
+    expect(street(U).length).toBe(0);
+    for (const x of [L, S, U]) {
+      expect(x.p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+      for (const t of x.p.repeats.flatMap((r) => r.transforms)) expect(t.scale).toBeGreaterThanOrEqual(3.6 - 1e-6);
+      expect(x.p.geotown.counts.parked).toBeGreaterThan(0);
+    }
+    // every urban front behind its railing; none where the streetscape asks none
+    const groups = (p) => new Set(p.faces.map((f) => f.group));
+    expect(U.p.geotown.counts.gated).toBe(U.d.plots.filter((pl) => pl.kind === 'houses').length);
+    expect(groups(U.p).has('geotown:iron')).toBe(true);
+    const none = assembleGeotownScene({ kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, streetscape: { from: 'urban', gates: 'none' } } });
+    expect(none.geotown.counts.gated).toBe(0);
+    expect([...groups(none)].some((g) => ['geotown:iron', 'geotown:pier', 'geotown:brick'].includes(g))).toBe(false);
+    expect(U.p.geotown.streetscape).toBe('urban');
+  });
+
+  it('fits a front to its setback: a porch where the yard holds it, else a stoop; a bay raised over the door', () => {
+    const f = { bay: 'square', bayStoreys: 1, porch: 'full' };
+    expect(fitFront(f, 6)).toEqual(f);
+    expect(fitFront(f, 2.5).porch).toBe('door');
+    expect(fitFront(f, 1.2)).toEqual({ bay: 'square', bayStoreys: 'upper' });
   });
 });

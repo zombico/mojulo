@@ -107,7 +107,7 @@ A cube that names no domains offers one per terrain and one per interior.
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
   `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
   each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
-  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, grid?, hills?, blocks?, margin? }`: `evoke` how
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, blocks?, margin? }`: `evoke` how
   it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
   six or eight, each a type of its pattern with a bay, a porch, its own roof, walls and material tiles, each back yard
   its own plan behind its own fence, a feature by its back door, in its middle and by its back fence (patio, deck;
@@ -121,7 +121,12 @@ A cube that names no domains offers one per terrain and one per interior.
   park; `main` the streets that are main, wider, their walks paved to the kerb), each segment tuned to its cell (its
   rows recut and spread, its `fits` law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
   them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
-  (`evokes`) on a window of its land. Its ground wears its pattern's `finishes` (the walk's scored concrete, the road's
+  (`evokes`) on a window of its land. `streetscape` how close to the city, read from its sidewalk: `leafy` (the
+  default; a wide boulevard of maples, deep lawns, one side parked), `snug` (a grass strip and a tree here and there,
+  narrow lots a few steps from the walk, both sides parked, most fronts gated), `urban` (the walk paved to the kerb, no
+  street trees, row-tight lots of three storeys behind railings), or `{ from, setback: [least, most] m, gates: none |
+  some | most | all, parking: none | one | both, trees: share }`; its parking lanes are surface (the ledger's
+  `parking`, the `parking` law), its fronts fitted to their setback. Its ground wears its pattern's `finishes` (the walk's scored concrete, the road's
   asphalt, brick paths, a stone kerb); trees stand only in the town, at least twice a person's height and each held to
   its room so no crown reaches a building (`room`); its border is bare. `pattern` a block pattern (`bay-and-gable`, a
   Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's

@@ -21,9 +21,11 @@
  *               lot); every square metre of the frame is one surface, and the LEDGER sums them per block and for the town
  *   7 levels    the land (the cube's hills, its natural ground N) smoothed into the streets' ground S (the streets keep
  *               the land's grade); each building a level PAD over the walk at its front, in risers, a semi pair one pad
+ *   8 parking   a front pad where a front yard is deep and near level, a lane along the kerb on the sides its
+ *               streetscape parks, its stalls clear of the crossings and of every drive across it
  *
  *   designGeotown(spec, { seed, field? }) → { spec, seed, pattern, row, sections, frame, depth, X, Y, streets, pieces,
- *     blocks, plots, surfaces, ledger, ports, land, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills)
+ *     blocks, plots, surfaces, ledger, ports, land, parking, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills)
  *   geotownLand(hills, frame, seed, field?) → { N, S, range }: the natural ground and the streets' ground, (x, y) → m
  *
  * Every surface is an axis-aligned rect [x0, y0, x1, y1]; a plot's own frame is its front corner `A`, `ex` along its
@@ -270,7 +272,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   const pieces = streetPieces(X, Y, SX, SY);
   // ── 7 the land (read before the plots: a pad is levelled over its walk); an evocation's is a window of the town to
   // scale's, its middle over that town's middle, so its slopes are the town's and not its hills squeezed into a block ──
-  const ref = evoked ? designGeotown({ evoke: 'metro', ...(spec.pattern !== undefined ? { pattern: spec.pattern } : {}), ...(spec.hills !== undefined ? { hills: spec.hills } : {}) }, { seed, field }) : null;
+  const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
   const win = ref && !field ? ((ox, oy) => (x, y) => ref.land.N(x + ox, y + oy))((ref.frame.W - frame.W) / 2, (ref.frame.D - frame.D) / 2) : field;
   const land = geotownLand(T.hills, frame, seed, win), walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
   // ── 5, 6 the plots, each segment tuned to its cell, and their budget ──
@@ -374,6 +376,48 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
     const wf = fronts.reduce((a, p) => a + walkZ(...p), 0) / g.length, n = mids.reduce((a, p) => a + land.N(...p), 0) / g.length, z = padOf(rail, wf, n);
     for (const pl of g) pl.pad = z;
   }
+  // ── 8 parking: a front PAD where a house's front yard is deep and near level (its streetscape's share), off its path;
+  // a LANE along the kerb on the sides of each street its streetscape parks (those that face a block), its stalls clear
+  // of the crossings and of every drive across it ──
+  const PK = P.parking ?? { sides: 'none', pads: 0 }, PAD = { w: 2.7, deep: 5.2, rise: 0.6 };
+  for (const pl of plots) {
+    if (pl.kind !== 'houses' || pl.form === 'mansion' || pl.setback < PAD.deep || !(PK.pads > 0)) continue;
+    const Rp = streamOf(seed, 'parking', pl.id), rise = pl.pad - walkZ(...at(pl, pl.w / 2, 0)), pw = pl.path.w;
+    if (Rp() >= PK.pads || Math.abs(rise) > PAD.rise || pl.w < PAD.w + pw + 0.8) continue;
+    const left = pl.form === 'semi' ? pl.half === 'L' : Rp() < 0.5;
+    pl.park = left ? [0, PAD.w] : [r3(pl.w - PAD.w), r3(pl.w)];
+    pl.path.u = r3(left ? Math.max(pl.path.u, PAD.w + pw / 2 + 0.1) : Math.min(pl.path.u, pl.w - PAD.w - pw / 2 - 0.1));
+    const a = r3(PAD.w * pl.house.env[1]);
+    pl.alloc = { ...pl.alloc, front: r3(pl.alloc.front - a), drive: r3(pl.alloc.drive + a) };
+  }
+  // (a plot's front fronts a street's side: its row's side → that street and the side of it the plot stands on)
+  const frontOn = (pl) => { const B = blocks.find((b) => b.id === pl.block); return { w: [`ns-${B.i}`, 'e'], e: [`ns-${B.i + 1}`, 'w'], s: [`ew-${B.j}`, 'n'], n: [`ew-${B.j + 1}`, 's'] }[pl.side]; };
+  const cuts = new Map();
+  for (const pl of plots) {
+    const open = [pl.park, pl.mansion?.drive].filter(Boolean);
+    if (!open.length) continue;
+    const [id, side] = frontOn(pl), key = `${id}:${side}`, ax = id.startsWith('ns') ? 1 : 0;
+    for (const [u0, u1] of open) { const p = at(pl, u0, 0)[ax], q = at(pl, u1, 0)[ax]; (cuts.get(key) ?? cuts.set(key, []).get(key)).push([r3(Math.min(p, q) - 0.75), r3(Math.max(p, q) + 0.75)]); }
+  }
+  const STALL = 6.2, CLEAR = 6, lanes = [];
+  const faces = (id, side) => { const k = Number(id.slice(3)); return id.startsWith('ns') ? (side === 'w' ? k > 0 : k < C) : (side === 's' ? k > 0 : k < Rn); };
+  for (const p of pieces) {
+    if (p.cls !== 'road' || !p.street || PK.sides === 'none') continue;
+    const ns = p.street.startsWith('ns'), [lo, hi] = ns ? ['w', 'e'] : ['s', 'n'], open = [lo, hi].filter((s) => faces(p.street, s));
+    const sides = PK.sides === 'both' ? open : open.includes(hi) ? [hi] : open.slice(0, 1), [x0, y0, x1, y1] = p.rect, L = PK.lane;
+    for (const side of sides) {
+      const rect = ns ? (side === 'w' ? [x0, y0, r3(x0 + L), y1] : [r3(x1 - L), y0, x1, y1]) : (side === 's' ? [x0, y0, x1, r3(y0 + L)] : [x0, r3(y1 - L), x1, y1]);
+      const [a0, a1] = ns ? [y0, y1] : [x0, x1], cut = (cuts.get(`${p.street}:${side}`) ?? []).sort((a, b) => a[0] - b[0]), stalls = [];
+      for (let s = a0 + CLEAR; s + STALL <= a1 - CLEAR + 1e-9;) {
+        const hit = cut.find(([c0, c1]) => c0 < s + STALL && c1 > s);
+        if (hit) { s = hit[1]; continue; }
+        stalls.push([r3(s), r3(s + STALL)]); s += STALL;
+      }
+      lanes.push({ street: p.street, seg: p.seg, side, axis: ns ? 'y' : 'x', rect, cuts: cut, stalls });
+      surfaces.push({ cls: 'parking', rect, street: p.street, inside: 'road' });
+    }
+  }
+  const parking = { sides: PK.sides, lanes, cuts: Object.fromEntries(cuts), stalls: lanes.reduce((a, l) => a + l.stalls.length, 0), pads: plots.filter((pl) => pl.park).length, garages: plots.filter((pl) => pl.mansion?.garage).length };
   // the surfaces each plot allocates (its path inside its front yard: the front's own area is the yard less the path)
   for (const pl of plots) {
     const { env } = pl.house, F = pl.setback, d = pl.d, w = pl.w, pu = pl.path.u, pw = pl.path.w;
@@ -382,6 +426,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
       surfaces.push({ cls: 'front', rect: toWorld(pl, [0, 0, w, F1]), ...at0, less: 'path' });
       if (pw > 0) surfaces.push({ cls: 'path', rect: toWorld(pl, [r3(pu - pw / 2), 0, r3(pu + pw / 2), F1]), ...at0, inside: 'front' });
       if (Mn) surfaces.push({ cls: 'drive', rect: toWorld(pl, [Mn.drive[0], 0, Mn.drive[1], F1]), ...at0, inside: 'front' });
+      if (pl.park) surfaces.push({ cls: 'drive', rect: toWorld(pl, [pl.park[0], 0, pl.park[1], F1]), ...at0, inside: 'front' });
     }
     surfaces.push({ cls: 'house', rect: toWorld(pl, env), ...at0, use: pl.use, kind: pl.kind, ...(Mn ? { mansion: true } : {}) });
     // (a mansion's drive-side yard is its drive)
@@ -398,7 +443,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // neighbourhoods at them)
   const ports = [['ns-0', 'w', SX[0], [X[0], 0], [X[0], frame.D]], [`ns-${C}`, 'e', SX[C], [X[C], 0], [X[C], frame.D]], ['ew-0', 's', SY[0], [0, Y[0]], [frame.W, Y[0]]], [`ew-${Rn}`, 'n', SY[Rn], [0, Y[Rn]], [frame.W, Y[Rn]]]]
     .map(([id, side, S, a, b]) => ({ id, side, rank: S.rank, row: r3(S.row), from: a.map(r3), to: b.map(r3), z: [r3(land.S(...a)), r3(land.S(...b))] }));
-  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land };
+  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking };
   // an evocation stands for the town laid to scale: its houses' measures are read against that town's (laws.js `evokes`)
   if (evoked) D.evoked = { level: T.evoke, stands: { plots: ref.plots.length, blocks: ref.blocks.length }, shows: plots.length, ref: plotShares(ref), fits };
   D.laws = geotownLaws(D);

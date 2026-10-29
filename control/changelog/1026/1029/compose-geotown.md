@@ -49,6 +49,22 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   its cell stretches past the pattern's `evoke.stretch` recut by count, then spread to fill it, its rows' depths shared
   out (its `fits` law). The ledger counts the buildings' footprints by use; `ports` are its perimeter streets, their
   ranks and their ends' heights, where a geocity graph joins neighbourhoods.
+- **Streetscapes** (`streetscape`, the pattern's `streetscapes`): how close a neighbourhood is to the city, read from
+  its sidewalk. `leafy` (the default) the Annex: a wide boulevard of maples, deep front lawns, a parked side, a gate
+  here and there; `snug` closer to the city: a narrow strip of grass by the kerb and a tree here and there, narrow
+  lots of semis near their walks, more of them to a segment, cars both sides, most fronts gated; `urban` the walk
+  paved to the kerb, no street trees, row-tight lots with stoops a metre or two from the walk, every front behind its
+  railing. Each changes the street's section, the street trees' stride and share, the plots' and houses' sizes, the
+  SETBACK (how far a house stands from its walk; a deeper one asked deepens the block), PARKING and GATES; a recipe
+  changes those four over its streetscape (`{ from, setback, gates, parking, trees }`). Parking is surface: a lane
+  along the kerb on one side or both (the ledger's `parking`, out of the road), its stalls clear of every drive and
+  cars parked in most, a front pad (the `drive` surface) where a front yard is deep and near level, a car on it now
+  and then; the `parking` law counts stalls a household. A gated front: an iron railing, a low brick wall with its
+  piers, or a picket, along the front line, a gate at the path; a mansion's stone piers and iron gates at its drive.
+  A house's front is fitted to its setback (a porch across it where the yard holds one, else at the door, else a
+  stoop; a bay raised over the door where it would stand on the walk); every street tree still stands twice a
+  person's height or is not planted, so a tight street loses trees rather than growing short ones. A dense
+  evocation's face budget is at least a building's share a building.
 - **Finishes** (`pattern.finishes`): the ground laid in material words as tiles: the road's asphalt, the walk's scored
   concrete, a main street's brick furnishing strip and its trees' grates, brick paths, gravel side yards, a stone kerb.
 - **Trees only in the town, held to their room**: no belt round the town and none on a perimeter street's outer side

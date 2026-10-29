@@ -17,19 +17,28 @@
  *     hills?:   false | { height?, span?, from? },                  // the land: metres from its lowest to its highest
  *                                                                   // (0–40, 10), metres its painting spans (100–2000,
  *                                                                   // 600), the painted landscape it is read from
+ *     streetscape?: <id> | { from?: <id>, setback?, gates?, parking?, trees? },   // how close to the city, read from
+ *                                                                   // its sidewalk (the pattern's `streetscapes`: leafy,
+ *                                                                   // snug, urban): `setback` [least, most] metres from
+ *                                                                   // the walk to a house (0–12), `gates` none | some |
+ *                                                                   // most | all or a share, `parking` none | one | both
+ *                                                                   // sides of a street, `trees` the share of street
+ *                                                                   // trees planted (0–1)
  *     blocks?:  { '<A1>': { use?: <segment type>, built?: false } },   // a block by hand, on the grid's board
  *     margin?:  metres of the land drawn round the town, its border (0–120, 12)
  *   }
  *
  *   EVOKES            { <level>: { read } | null (metro: to scale) }
- *   readGeotown(spec) → { evoke, pattern: { id, …P }, grid, cells: [[type…] south to north], mains: [line id…], hills:
+ *   readStreetscape(P, v) → the pattern with its streetscape laid over it (`streetscape` its id; `trees`, `parking`,
+ *                         `gates` its own)
+ *   readGeotown(spec) → { evoke, pattern: { id, streetscape, …P }, grid, cells: [[type…] south to north], mains: [line id…], hills:
  *                         { height, span, from } | null, blocks, margin }
  */
-import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_LETTERS } from './pattern.js';
+import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_LETTERS, STREETSCAPE_SETTINGS, GATE_SHARES, PARKING_SIDES, GATE_KINDS } from './pattern.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geotown: ${msg}`); };
-const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'grid', 'hills', 'blocks', 'margin'];
+const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin'];
 /**
  * THE EVOCATIONS: a game does not lay a neighbourhood out, it EVOKES one. A BLOCK SEGMENT (a block: houses back to back,
  * or shops on a main street, or a walk-up among houses, or a park) is the unit, a few buildings each designed on its
@@ -80,6 +89,48 @@ function readPattern(v) {
   return out;
 }
 
+// a streetscape's changes over the pattern, a level deep, and the settings it replaces whole
+const SCAPE_MERGE = ['street', 'plot', 'mix', 'block', 'house', 'evoke'], SCAPE_WHOLE = ['setback', 'back'];
+
+/** The pattern with its streetscape laid over it: the pattern's (the first of its `streetscapes` by default), and a
+ *  recipe's changes over that (STREETSCAPE_SETTINGS). A setback deeper than the block holds deepens the block. */
+export function readStreetscape(P, v) {
+  const ids = Object.keys(P.streetscapes ?? {});
+  if (!ids.length) { if (v !== undefined) no(`streetscape: pattern '${P.id}' has none`); return P; }
+  const [id, ch] = v === undefined ? [ids[0], {}] : typeof v === 'string' ? [v, {}] : isObj(v) ? [v.from ?? ids[0], v] : no(`streetscape is one of the pattern's (${ids.join(', ')}) or { from?, ${STREETSCAPE_SETTINGS.join('?, ')}? }`);
+  if (!P.streetscapes[id]) no(`streetscape '${id}' is not one of the pattern's (${ids.join(', ')})`);
+  for (const k of Object.keys(ch)) if (k !== 'from' && !STREETSCAPE_SETTINGS.includes(k)) no(`streetscape.${k} is not a setting (from, ${STREETSCAPE_SETTINGS.join(', ')})`);
+  const S = P.streetscapes[id], out = { ...P, streetscape: id };
+  for (const k of SCAPE_MERGE) if (S[k]) out[k] = { ...P[k], ...S[k] };
+  for (const k of SCAPE_WHOLE) if (S[k] !== undefined) out[k] = S[k];
+  out.trees = { stride: P.grow.stride, share: 1, ...S.trees };
+  out.parking = { sides: 'none', lane: 2.2, share: 0, pads: 0, least: 0, ...S.parking };
+  out.gates = { share: 0, kinds: { iron: 1 }, ...S.gates };
+  if (ch.setback !== undefined) {
+    const r = ch.setback;
+    if (!(Array.isArray(r) && r.length === 2 && r.every(Number.isFinite) && r[0] >= 0 && r[0] <= r[1] && r[1] <= 12)) no('streetscape.setback is [least, most] metres from the walk to a house, 0 to 12');
+    out.setback = [...r];
+  }
+  if (ch.gates !== undefined) {
+    const g = typeof ch.gates === 'string' ? GATE_SHARES[ch.gates] : ch.gates;
+    if (!(typeof g === 'number' && g >= 0 && g <= 1)) no(`streetscape.gates is ${Object.keys(GATE_SHARES).join(', ')} or a share of fronts, 0 to 1`);
+    out.gates = { ...out.gates, share: g };
+  }
+  if (ch.parking !== undefined) {
+    if (!PARKING_SIDES.includes(ch.parking)) no(`streetscape.parking is the sides of a street parked: ${PARKING_SIDES.join(', ')}`);
+    out.parking = { ...out.parking, sides: ch.parking };
+  }
+  if (ch.trees !== undefined) {
+    if (!(typeof ch.trees === 'number' && ch.trees >= 0 && ch.trees <= 1)) no('streetscape.trees is the share of the street\'s trees planted, 0 to 1');
+    out.trees = { ...out.trees, share: ch.trees };
+  }
+  for (const k of Object.keys(out.gates.kinds)) if (!GATE_KINDS.includes(k)) no(`streetscape '${id}': a gate is ${GATE_KINDS.join(', ')} (got '${k}')`);
+  // (the block as deep as its setback, its house and its back yard need)
+  const least = out.setback[1] + out.house.depth[0] + out.back;
+  if (out.block.depth[0] < least) out.block = { ...out.block, depth: [least, Math.max(least, out.block.depth[1])] };
+  return out;
+}
+
 /** A street line's name: `ns-<k>` the k-th north-south from the west, `ew-<j>` the j-th east-west from the south. */
 const LINE = /^(ns|ew)-(\d)$/;
 
@@ -121,7 +172,7 @@ export function readGeotown(spec = {}) {
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of a geotown (${KEYS.join(', ')})`);
   const evoke = spec.evoke ?? DEFAULT_EVOKE;
   if (!EVOKE_IDS.includes(evoke)) no(`evoke is ${EVOKE_IDS.map((e) => `'${e}'`).join(', ')} (got ${JSON.stringify(spec.evoke)})`);
-  const pattern = readPattern(spec.pattern), { grid, cells, mains } = readLayout(spec, evoke, pattern);
+  const pattern = readStreetscape(readPattern(spec.pattern), spec.streetscape), { grid, cells, mains } = readLayout(spec, evoke, pattern);
   let hills = null;
   if (spec.hills !== false) {
     const h = spec.hills ?? {};

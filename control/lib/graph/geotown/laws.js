@@ -21,6 +21,7 @@ export const GEOTOWN_LAWS = Object.freeze({
   green: 'the soft ground (verges, yards, parks) at least the pattern\'s share of the map',
   mansions: 'a midtown mansion\'s property much larger than its street\'s houses\', two at most in a block segment',
   fits: 'each segment tuned to its cell: its rows\' frontages spread inside the pattern\'s stretch, its plots no more than half again as deep as they need',
+  parking: 'room for parking: the stalls of its parking lanes, its front pads and its garages, at least its streetscape\'s least a household',
   evokes: 'an evocation keeps the town to scale\'s measures: how its plots share their ground, and its mix of semis and detached houses',
 });
 // how far an evocation's shares may stand from the town to scale's before the law advises
@@ -96,8 +97,15 @@ export function geotownLaws(d) {
     const least = Math.min(...big.map((pl) => (pl.w * pl.d) / (mean || 1))), most = Math.max(...Object.values(per));
     law('mansions', least >= MANSION.larger - 1e-9 && most <= MANSION.most, `${big.length} mansions, the least ${r2(least)} times its street's mean house plot; at most ${most} in a segment`);
   }
+  // (a household a house's plot, a mansion's among them; a walk-up's and a shop's lots are their own)
+  const PK = P.parking, homes = d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length;
+  if (d.parking && PK?.least > 0 && homes) {
+    const room = d.parking.stalls + d.parking.pads + 2 * d.parking.garages;
+    law('parking', room / homes >= PK.least - 1e-9, `${r2(room / homes)} stalls a household (least ${PK.least}): ${d.parking.stalls} on the street (${d.parking.sides}), ${d.parking.pads} front pads, ${d.parking.garages} garages, for ${homes} households`);
+  }
   if (d.evoked) {
-    const F = d.evoked.fits, ST = P.evoke.stretch, bad = F.filter((f) => f.stretch < ST[0] - 0.1 || f.stretch > ST[1] + 0.1 || f.deep > EVOKE_TOLERANCE.deep);
+    // (a row of one building other than a house, a walk-up, cannot be recut: its lot takes its cell's slack as grounds)
+    const F = d.evoked.fits, ST = P.evoke.stretch, bad = F.filter((f) => (!(f.n === 1 && f.kind !== 'houses') && (f.stretch < ST[0] - 0.1 || f.stretch > ST[1] + 0.1)) || f.deep > EVOKE_TOLERANCE.deep);
     law('fits', bad.length === 0, F.length ? `${F.length} rows: spread ${r2(Math.min(...F.map((f) => f.stretch)))}–${r2(Math.max(...F.map((f) => f.stretch)))}, as deep as ${r2(Math.max(...F.map((f) => f.deep)))} of their need${bad.length ? `; ${bad.map((f) => `${f.block}${f.side}`).join(', ')} past it` : ''}` : 'no rows');
     const own = plotShares(d), ref = d.evoked.ref, keys = ['house', 'front', 'side', 'back'];
     const off = Math.max(...keys.map((k) => Math.abs(own[k] - ref[k]))), semis = Math.abs(own.semis - ref.semis);

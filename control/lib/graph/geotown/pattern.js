@@ -11,7 +11,11 @@
  *   SEGMENTS        { <type>: { read, axis, rows } }: a block segment's kind: `houses` two rows of houses, `main-street`
  *                   a row of shops on the main street and houses behind, `apartments` a walk-up and houses, `park`.
  *                   `axis` the way its rows run when no main street turns it ('y': they face the streets east and west)
- *   PATTERNS        { <id>: the pattern }; PATTERN_IDS; DEFAULT_PATTERN
+ *   PATTERNS        { <id>: the pattern }; PATTERN_IDS; DEFAULT_PATTERN. A pattern's STREETSCAPES (its `streetscapes`, the
+ *                   first the default) are how close its neighbourhood is to the city, read from the sidewalk: each a
+ *                   change to its street section, plots, houses and setback, and its street trees, parking and gates
+ *   STREETSCAPE_SETTINGS   what a recipe may change over a streetscape: setback, gates, parking, trees
+ *   GATE_SHARES, PARKING_SIDES   the words for gates (none, some, most, all) and the sides a street parks
  *   sectionOf(P, rank)   a street's right-of-way by its rank ('street' or 'main'): { R, kerb, edge, verge, walk, half, row }
  *   rowOf(P)        the residential street's
  *
@@ -31,7 +35,8 @@ export const SURFACES = Object.freeze({
   'park-path': { read: 'a path across a park', grows: [], soft: false },
   furnish: { read: 'the furnishing strip of a main street\'s walk, by its kerb: paving, its trees in pits under grates', grows: ['street-tree'], soft: false },
   service: { read: 'a service yard or a lot behind a shop or a walk-up: paving, bins, parking', grows: [], soft: false },
-  drive: { read: 'a driveway: from the street down a mansion\'s side to its garage', grows: [], soft: false },
+  drive: { read: 'a driveway: from the street down a mansion\'s side to its garage, or a parking pad in a front yard', grows: [], soft: false },
+  parking: { read: 'a parking lane along the kerb, out of the carriageway: its stalls clear of every drive, cars in most', grows: [], soft: false },
 });
 export const SURFACE_IDS = Object.freeze(Object.keys(SURFACES));
 
@@ -136,6 +141,25 @@ export const PATTERNS = Object.freeze({
       },
       yards: { near: { patio: 2, deck: 1 }, mid: { pool: 3, lawn: 1 }, back: { tree: 2, beds: 1, shed: 1 }, balcony: 0.6 },
     },
+    // THE STREETSCAPES: how close the neighbourhood is to the city, read from its sidewalk (the first the default). Each
+    // changes the pattern a level deep: its street section, its plots, mix, block, house and setback (how far a house
+    // stands from its walk), its back yard's least, its evocation's counts; and says its street TREES (`stride` m between
+    // them, `share` of those planted: each still needs room to stand twice a person's height), its PARKING (`sides` of a
+    // street parked, a lane `lane` m wide; the `share` of stalls with a car; `pads` the share of deep, near-level front
+    // yards with a parking pad; `least` stalls a household, the law's), and its GATES (`share` of fronts behind one, its
+    // `kinds` by weight: iron, wall, picket)
+    streetscapes: {
+      leafy: { read: 'a streetcar suburb: a wide boulevard of maples between the kerb and the walk, deep front lawns, cars parked on one side, a gate here and there',
+        trees: { stride: 9, share: 1 }, parking: { sides: 'one', lane: 2.2, share: 0.55, pads: 0.25, least: 0.5 }, gates: { share: 0.2, kinds: { picket: 2, wall: 1, iron: 1 } } },
+      snug: { read: 'closer to the city: a narrow strip of grass by the kerb and a tree here and there, narrow lots of semis a few steps from the walk, cars parked both sides, most fronts behind a low railing and its gate',
+        street: { verge: 1.2, walk: 1.6 }, plot: { semi: [5.6, 6.4], detached: [6.6, 8.2], corner: 1 }, mix: { semi: 0.7, detached: 0.3 }, block: { depth: [27, 32] }, setback: [2, 3.2], house: { depth: [10, 12.5], side: [0.45, 0.9] }, back: 6,
+        evoke: { houses: [4, 5], mansions: [0, 0] },
+        trees: { stride: 13, share: 0.45 }, parking: { sides: 'both', lane: 2.1, share: 0.75, pads: 0, least: 0.6 }, gates: { share: 0.65, kinds: { iron: 3, wall: 2, picket: 1 } } },
+      urban: { read: 'the city: the walk paved from the kerb to the houses\' steps and no trees on it, row-tight lots of three storeys with stoops a metre or two from the walk, cars parked both sides, every front behind its railing',
+        street: { verge: 0, walk: 2.6 }, plot: { semi: [5.6, 6], detached: [6, 7], corner: 0.8 }, mix: { semi: 0.85, detached: 0.15 }, block: { depth: [24, 28] }, setback: [0.8, 1.8], house: { depth: [10, 12], storeys: [3, 3], side: [0.3, 0.6] }, back: 5,
+        evoke: { houses: [5, 6], mansions: [0, 0] },
+        trees: { stride: 9, share: 0 }, parking: { sides: 'both', lane: 2.1, share: 0.85, pads: 0, least: 0.5 }, gates: { share: 1, kinds: { iron: 3, wall: 1 } } },
+    },
     // THE NEIGHBOURHOODS its segments compose: `layout` rows of letters north to south (H houses, M main-street, A
     // apartments, P park: SEGMENT_LETTERS), `main` the streets that are main (ew-0 the southmost east-west, ns-0 the
     // westmost north-south)
@@ -147,6 +171,11 @@ export const PATTERNS = Object.freeze({
   },
 });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
+export const STREETSCAPE_SETTINGS = Object.freeze(['setback', 'gates', 'parking', 'trees']);
+export const GATE_SHARES = Object.freeze({ none: 0, some: 0.35, most: 0.7, all: 1 });
+export const PARKING_SIDES = Object.freeze(['none', 'one', 'both']);
+// a gate's kinds (scene.js draws them): an iron railing, a low brick wall and its piers, a picket
+export const GATE_KINDS = Object.freeze(['iron', 'wall', 'picket']);
 export const DEFAULT_PATTERN = 'bay-and-gable';
 
 /** A street's right-of-way by its rank: its carriageway's half (`R`), the kerb, what stands by the kerb (`edge`: a

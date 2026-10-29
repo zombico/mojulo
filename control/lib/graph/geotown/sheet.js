@@ -11,7 +11,7 @@ import { SURFACE_IDS, SURFACES } from './pattern.js';
 
 export const SURFACE_COLOURS = Object.freeze({
   road: '#5d6066', verge: '#8fbf6a', walk: '#d9d4c8', front: '#a9d48a', path: '#c8b9a0', house: '#b5543c',
-  side: '#cfc6b4', back: '#7fb35e', park: '#5e9e4a', 'park-path': '#d8caa8', furnish: '#bfae94', service: '#8e8a84', drive: '#a89a86',
+  side: '#cfc6b4', back: '#7fb35e', park: '#5e9e4a', 'park-path': '#d8caa8', furnish: '#bfae94', service: '#8e8a84', drive: '#a89a86', parking: '#77797e',
 });
 // a building's footprint by its row's kind
 const KIND_COLOURS = Object.freeze({ houses: '#b5543c', shops: '#6a4a8c', apartments: '#3c6a8c', garage: '#7a6a58', mansion: '#c08a1e' });

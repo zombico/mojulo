@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { designGeotown, geotownLand } from './design.js';
-import { readGeotown } from './read.js';
+import { readGeotown, readStreetscape } from './read.js';
 import { SURFACES, SURFACE_IDS, PATTERNS, DEFAULT_PATTERN } from './pattern.js';
 import { geotownSheet } from './sheet.js';
 import { yardOf, balconyOf, YARDS, ZONES } from './yards.js';
@@ -203,5 +203,48 @@ describe('a back yard\'s plan: a feature a zone, each given its depth from the h
     // a balcony stands off its wall over its own width
     const B = balconyOf({ u0: 1, u1: 4, v: 12, z: 3, R: mulberry32(4) });
     expect(B.every((f) => f.corners.every(([u, v]) => u >= 1 - 1e-6 && u <= 4 + 1e-6 && v >= 12 - 1e-6 && v <= 13.6))).toBe(true);
+  });
+});
+
+describe('a streetscape: how close to the city, read from the sidewalk', () => {
+  const H = (d) => d.plots.filter((pl) => pl.kind === 'houses' && pl.form !== 'mansion');
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  it('reads its streetscape over the pattern, and refuses what is off it by name', () => {
+    expect(readGeotown({}).pattern.streetscape).toBe('leafy');
+    const U = readGeotown({ streetscape: { from: 'urban', setback: [6, 8], gates: 'none', parking: 'one', trees: 0.5 } }).pattern;
+    expect([U.setback, U.gates.share, U.parking.sides, U.trees.share]).toEqual([[6, 8], 0, 'one', 0.5]);
+    // a deeper setback asked deepens the block: its front yard, its house and its back yard
+    expect(U.block.depth[0]).toBeGreaterThanOrEqual(8 + U.house.depth[0] + U.back);
+    expect(() => readGeotown({ streetscape: 'suburb' })).toThrow(/streetscape 'suburb' is not one of the pattern's/);
+    expect(() => readGeotown({ streetscape: { from: 'snug', lanes: 2 } })).toThrow(/streetscape.lanes is not a setting/);
+    expect(() => readGeotown({ streetscape: { gates: 'half' } })).toThrow(/streetscape.gates is none, some, most, all/);
+    expect(readStreetscape(readGeotown({}).pattern, undefined).streetscape).toBe('leafy');
+  });
+
+  it('tightens toward the city: narrower lots nearer their walks, a narrower boulevard or none, more houses to a segment', () => {
+    const [L, S, U] = ['leafy', 'snug', 'urban'].map((sc) => designGeotown({ streetscape: sc }, { seed: 2, field: plane }));
+    expect(mean(H(S).map((pl) => pl.w))).toBeLessThan(mean(H(L).map((pl) => pl.w)));
+    expect(mean(H(U).map((pl) => pl.w))).toBeLessThan(mean(H(S).map((pl) => pl.w)) + 0.3);
+    for (const d of [L, S, U]) for (const pl of H(d)) expect(pl.setback).toBeGreaterThanOrEqual(d.pattern.setback[0] - 1e-9);
+    expect(Math.max(...H(U).map((pl) => pl.setback))).toBeLessThan(Math.min(...H(L).map((pl) => pl.setback)));
+    expect(S.row.verge).toBeLessThan(L.row.verge);
+    expect(U.pieces.some((p) => p.cls === 'verge')).toBe(false);
+    expect(H(U).length).toBeGreaterThan(H(L).length);
+    for (const d of [L, S, U]) for (const id of ['closes', 'back-yard', 'parking', 'fits', 'evokes']) expect(law(d, id).ok).toBe(true);
+  });
+
+  it('makes room for parking: a lane on each block-facing kerb it parks, its stalls clear of every drive, a front pad off its path', () => {
+    const one = designGeotown({ streetscape: 'leafy' }, { seed: 3, field: plane }), both = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'quiet-streets', streetscape: 'snug' }, { seed: 3, field: plane });
+    // snug parks both sides of a street between two blocks, leafy one
+    const sides = (d, id) => d.parking.lanes.filter((l) => l.street === id).map((l) => l.side);
+    expect(new Set(sides(both, 'ns-1'))).toEqual(new Set(['w', 'e']));
+    expect(one.ledger.town.parking).toBeGreaterThan(0);
+    for (const d of [one, both]) for (const l of d.parking.lanes) for (const [s0, s1] of l.stalls) expect(l.cuts.some(([c0, c1]) => c0 < s1 && c1 > s0)).toBe(false);
+    // a pad in a deep, near-level front yard, its path beside it
+    const pads = designGeotown({ streetscape: { from: 'leafy', setback: [5.5, 6.5] }, pattern: { from: 'bay-and-gable', streetscapes: { leafy: { ...PATTERNS[DEFAULT_PATTERN].streetscapes.leafy, parking: { ...PATTERNS[DEFAULT_PATTERN].streetscapes.leafy.parking, pads: 1 } } } } }, { seed: 1, field: plane });
+    const withPad = pads.plots.filter((pl) => pl.park);
+    expect(withPad.length).toBeGreaterThan(0);
+    for (const pl of withPad) { const [a, b] = [pl.path.u - pl.path.w / 2, pl.path.u + pl.path.w / 2]; expect(a >= pl.park[1] - 1e-9 || b <= pl.park[0] + 1e-9).toBe(true); }
+    expect(law(pads, 'closes').ok).toBe(true);
   });
 });
