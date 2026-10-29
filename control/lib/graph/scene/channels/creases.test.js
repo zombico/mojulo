@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { readCreases, CREASE_DEFAULTS } from './creases.js';
 import { emitThreeWorld } from '../scene-three.js';
+import { EMIT_FIXTURES } from '../emit-fixtures.js';
+import { formFloraScript } from './form-flora.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 
 const quad = (fill, extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
@@ -46,6 +48,18 @@ describe('creases: the World page', () => {
     const renders = page.split('renderer.render(scene, camera)').length - 1;
     expect(page.split('__creasePrepass(); renderer.render(scene, camera)').length - 1).toBe(renders - 1);   // all but the prepass's own
     expect(page).toContain('uWashR: { value: 1 }');
+  });
+
+  it('a material that moves its vertices (a plant in the wind) is drawn in the prepass by its own vertex shader', () => {
+    // (the prepass, with the occlusion or without, asks the material; the plants name theirs, sway and growth)
+    for (const name of ['creases', 'occlusion']) {
+      const page = emitThreeWorld(EMIT_FIXTURES.find(([n]) => n === name)[1]);
+      expect(page).toContain('m.userData && m.userData.prepass ? __crMoved(__cls, m)');
+      expect(page).toContain('m.userData.prepass(cls.vertexShader)');
+    }
+    const flora = formFloraScript({ templates: [], n: 0, trees: '', lod: {} });
+    expect(flora).toContain("m.userData.prepass = (vs) =>");
+    expect(flora).toContain("replace('#include <project_vertex>', SWAY_PROJECT)");
   });
 });
 

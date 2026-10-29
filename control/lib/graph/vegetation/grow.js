@@ -456,6 +456,19 @@ function groundPass(nodes, children, rotateSubtree) {
   }
 }
 
+// a turn about a point as a matrix and an offset ({ M: row-major 3×3, t }): `about` the turn by angle a round unit axis k
+// through p, after `T` (or alone); `turn` a point through it, `spin` a direction
+function about(k, a, p, T) {
+  const c = dmath.cos(a), s = dmath.sin(a), u = 1 - c;
+  const R = [c + k[0] * k[0] * u, k[0] * k[1] * u - k[2] * s, k[0] * k[2] * u + k[1] * s, k[1] * k[0] * u + k[2] * s, c + k[1] * k[1] * u, k[1] * k[2] * u - k[0] * s, k[2] * k[0] * u - k[1] * s, k[2] * k[1] * u + k[0] * s, c + k[2] * k[2] * u];
+  const Rv = (v) => [R[0] * v[0] + R[1] * v[1] + R[2] * v[2], R[3] * v[0] + R[4] * v[1] + R[5] * v[2], R[6] * v[0] + R[7] * v[1] + R[8] * v[2]];
+  if (!T) return { M: R, t: sub(p, Rv(p)) };
+  const M = T.M, RM = [0, 1, 2].flatMap((i) => [0, 1, 2].map((j) => R[i * 3] * M[j] + R[i * 3 + 1] * M[3 + j] + R[i * 3 + 2] * M[6 + j]));
+  return { M: RM, t: add(Rv(sub(T.t, p)), p) };
+}
+const spin = (T, v) => { const M = T.M; return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]]; };
+const turn = (T, v) => add(spin(T, v), T.t);
+
 /**
  * Re-stand a grown plant in another material: the same architecture and topology, with the secondary thickening
  * scaled by `cambium`, the wall locked to `lignin`, and the whole plant scaled by `scale` (geometric: lengths and radii
@@ -482,14 +495,18 @@ export function restand(plant, { lignin = 1, cambium = 1, scale = 1, steps = 12 
       for (const c of children.get(id) || []) if (!nodes[c].died) { M += m[c]; X += mx[c]; Y += my[c]; }
       m[id] = M; mx[id] = X; my[id] = Y;
     }
+    // (each internode bent about its base, root first, carrying its subtree: kept as one turn a node, its own after its
+    // parent's, so the step costs a pass over the nodes and not one over every subtree; laid on the nodes at the end)
+    const A = new Array(nodes.length).fill(null), at = (k, p) => (A[k] ? turn(A[k], p) : p);
     for (let id = 1; id < nodes.length; id++) {
-      const n = nodes[id]; if (n.died || m[id] <= 0) continue; const base = nodes[n.parent].pos;
+      const n = nodes[id]; A[id] = A[n.parent]; if (n.died || m[id] <= 0) continue; const base = at(n.parent, nodes[n.parent].pos), pos = at(n.parent, n.pos);
       const Mv = [-(my[id] - m[id] * base[1]) * G, (mx[id] - m[id] * base[0]) * G, 0]; const Mm = len(Mv);
       const dM = Math.max(0, Mm - Mprev[id]); Mprev[id] = Mm;
-      const c = [mx[id] / m[id] - base[0], my[id] / m[id] - base[1], 0]; const toDown = dmath.atan2(len(c), -(n.pos[2] - base[2]) - 1e-9);
+      const c = [mx[id] / m[id] - base[0], my[id] / m[id] - base[1], 0]; const toDown = dmath.atan2(len(c), -(pos[2] - base[2]) - 1e-9);
       const I = Math.PI * dmath.pow(n.r, 4) / 4; const th = Math.min(0.5 * Math.max(0, toDown), 0.6, (dM * n.len) / (E * I));
-      if (th > 1e-7) rotateSubtree(id, base, unit(Mv), th);
+      if (th > 1e-7) A[id] = about(unit(Mv), th, base, A[n.parent]);
     }
+    for (let id = 1; id < nodes.length; id++) if (A[id]) { const n = nodes[id], T = A[id]; n.pos = turn(T, n.pos); n.dir = unit(spin(T, n.dir)); }
     groundPass(nodes, children, rotateSubtree);
   }
   let h = 0; for (const n of nodes) if (!n.died) h = Math.max(h, n.pos[2]);

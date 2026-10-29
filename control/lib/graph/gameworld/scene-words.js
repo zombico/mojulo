@@ -10,7 +10,7 @@
  *     cube    the cube a word names (CUBE_WORDS), else the kit's nearest (KIT_CUBE), drawn on the kit a word names (the
  *             meadow by default); the land laid on it (compose.js cubeWithLand): open (`outside.cliff: false`) unless a
  *             word names a cliff, a face or beds or a fall; wildflowers in its grass; its snow; its water (a lake, a
- *             coast, a river: `outside.water`); a biome (coast, alpine, desert: its flora, palette and ground); the flora
+ *             coast, a river: `outside.water`); its dunes (`outside.dunes`); a biome (coast, alpine, desert: its flora, palette and ground); the flora
  *             and the palette's character a glyph names
  *     hour    the first hour word (HOUR_OF_WORDS), else a sky glyph's (a moon: night; a sun's disc: golden)
  *     clouds, trail   the land forms the words name, lowered as a level's are (nature.js landToLevel): the sky's cover,
@@ -34,13 +34,14 @@ const lookup = (T, w) => T[w] ?? T[w.replace(/s$/, '')];
 export function sceneOfWords(words, { seed = 1 } = {}) {
   if (typeof words !== 'string' || !words.trim()) throw new Error('scene: words are a few words about the place');
   const P = readPrompt(words, { scene: true }), land = {}, trail = {}, water = {};
-  let kit = null, openWord = null, flowers = null, snow = false, biome = null, biocube = null, palette = null, camera = null, glyphHour = null;
+  let kit = null, openWord = null, flowers = null, snow = false, dunes = null, biome = null, biocube = null, palette = null, camera = null, glyphHour = null;
   for (const { word } of P.read) for (const [k, v] of Object.entries(readingOf(word, { scene: true }))) {
     if (k === 'kit') kit ??= v;
     else if (k === 'outside.cliff') openWord ??= word;
     else if (k === 'flora.flowers') flowers ??= v;
     else if (k === 'snow') snow = true;
     else if (k.startsWith('water.')) water[k.slice(6)] ??= v;
+    else if (k === 'outside.dunes') dunes ??= v;
     else if (k === 'biome') biome ??= v;
     else if (k === 'flora.biocube') biocube ??= v;
     else if (k === 'palette') palette ??= v;
@@ -55,7 +56,7 @@ export function sceneOfWords(words, { seed = 1 } = {}) {
   // (a cliff word, or a fall, which keeps the cliff it falls from, wins over an open word)
   const cliffWord = P.read.find((r) => r.decides.some((d) => d === 'land.face' || d === 'land.strata'))?.word ?? fallsWords(P)[0], open = openWord !== null && !cliffWord;
   const wet = Object.keys(water).length ? water : null;
-  const cube = open || flowers !== null || snow || wet || biome || biocube || palette ? cubeWithLand(base, { open, flowers, snow, water: wet, biome, biocube, palette }) : base;
+  const cube = open || flowers !== null || snow || wet || dunes !== null || biome || biocube || palette ? cubeWithLand(base, { open, flowers, snow, water: wet, dunes, biome, biocube, palette }) : base;
   const hourWord = P.words.find((w) => lookup(HOUR_OF_WORDS, w)), hour = hourWord ? lookup(HOUR_OF_WORDS, hourWord) : glyphHour ?? undefined;
   const lowered = landToLevel(kit, land, { seed, painted: true, sections: ['trail'], trail });
   const path = { ...trail, ...(lowered?.trail ?? {}) };
