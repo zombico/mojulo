@@ -335,8 +335,13 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * inside the ball (a front or back plate cut in under the arm, a wrap ending under it) and lies under the arm instead of
  * standing off the balls; laws 1 to 17 stood every torso plate off them, so a breastplate reaching the shoulder line
  * wrapped the shoulder in a yoke.
+ * Laws 19 GIVES THE ANIME HEAD ITS FORM (anime-looks.js ANIME_FORM, under every other sculpt layer): the eye's socket
+ * cut as planes (sculpt `orbit`), the pyramid nose rooted at the eye's line (`noseShape: 'pyramid'`) and the jaw curved
+ * in toward its edge (`jawHollow`), so the face breaks into the brow's, the nose's and the cheekbones' blocks in profile
+ * and turns its jaw from a side light; laws 1 to 18 drew the studio's front, one surface from the brow to the jaw. Not
+ * on the child's face (laws 13 and 14: its round face is its own), nor on the studio's own face (`sculpt: false`).
  */
-export const HERO_LAWS_VERSION = 18;
+export const HERO_LAWS_VERSION = 19;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -568,7 +573,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE), 15 the cervical chain (the rig's `cervical`, the wave's look), 16 the head seated on its neck (CERVICAL_LEAN)
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE), 15 the cervical chain (the rig's `cervical`, the wave's look), 16 the head seated on its neck (CERVICAL_LEAN), 19 the anime head's form (anime-looks ANIME_FORM)
  *   seat       false keeps laws 16's CERVICAL_LEAN off (the realistic body, which leans its own neck: body-relational-builds.js
  *              CERVICAL_NECK)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the

@@ -605,10 +605,12 @@ describe('the World payload: absent ⇒ byte-identical', () => {
       }
     }
     // the anime heroes re-pinned for the sideburn patches before the ears (every anime head wears them), and for the
-    // shoulder line (hero laws 2; under laws 1 each is its pin before, still) and the leg set (laws 3; under laws 2 the same)
-    for (const [cast, pin, pin1, pin2] of [['female', '4001e04845159be7', '81ba463d89053ba0', '9d865a5a27c0918e'], ['male', '79e2dd997d6067ad', 'c75efdee8cc90098', '06f4b07f30fe2390']]) {
+    // shoulder line (hero laws 2; under laws 1 each is its pin before, still) and the leg set (laws 3; under laws 2 the same),
+    // and for the anime head's form (hero laws 19, anime-looks.js ANIME_FORM: the socket, the pyramid nose, the jaw curved
+    // in; a row stamped laws 18 builds its pin before, still)
+    for (const [cast, pin, pin1, pin2, pin18] of [['female', '1d8aad9cfe15e0e6', '81ba463d89053ba0', '9d865a5a27c0918e', '4001e04845159be7'], ['male', '1715e5ba97719071', 'c75efdee8cc90098', '06f4b07f30fe2390', '79e2dd997d6067ad']]) {
       expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
-      for (const [L, p] of [[1, pin1], [2, pin2]]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', laws: L }) }))), `anime ${cast} laws ${L}`).toBe(p);
+      for (const [L, p] of [[1, pin1], [2, pin2], [18, pin18]]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', laws: L }) }))), `anime ${cast} laws ${L}`).toBe(p);
     }
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {

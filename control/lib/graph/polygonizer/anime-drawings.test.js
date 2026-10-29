@@ -8,7 +8,9 @@
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
-import { X, build, pts, checkDrawing, socketed } from './anime-drawings.fixture.js';
+import { X, build, pts, checkDrawing, studio } from './anime-drawings.fixture.js';
+import { heroRecord } from '../../mcp/tools/layered.js';
+import { animeHeroEffective, ANIME_FORM } from './anime-looks.js';
 import { sculptBuild, resolveAnimeSculpt, validateAnimeSculpt } from './anime-sculpt.js';
 import { compileLayered } from './station-loft.js';
 
@@ -48,13 +50,19 @@ describe('the drawings, built', () => {
     expect(seen.size).toBeGreaterThan(12);
   });
   it('adds exactly across the layers that share no vertex, and nearly where the blink and the smile reach in', () => {
-    const sum = (...B) => { const out = {}; for (const n of X) { const P = B.map((b) => pts(b[n])); out[n] = pts(N[n]).map((p, i) => p.map((x, c) => P.reduce((s, q) => s + q[i][c] - x, x))); } return out; };
+    // (the builds' moves summed over a neutral head, N0)
+    const sumOver = (N0, ...B) => { const out = {}; for (const n of X) { const P = B.map((b) => pts(b[n])); out[n] = pts(N0[n]).map((p, i) => p.map((x, c) => P.reduce((t, q) => t + q[i][c] - x, x))); } return out; };
+    const sum = (...B) => sumOver(N, ...B);
     const err = (A, S) => Math.max(...X.flatMap((n) => pts(A[n]).map((p, i) => Math.hypot(...p.map((x, c) => x - S[n][i][c])))));
     const W = (n) => DRAWINGS[n].words, pair = (a, b, E = {}) => err(build({ ...a, ...b }, E), sum(build(a), build(b), ...(Object.keys(E).length ? [build(null, E)] : [])));
     for (const [a, b] of [['brows.angry', 'lids.angry'], ['brows.worried', 'mouth.a'], ['lids.sad', 'mouth.shout'], ['gaze.left', 'mouth.o'], ['gaze.up', 'brows.raised']]) expect(pair(W(a), W(b)), `${a} × ${b}`).toBeLessThan(1e-6);
-    // (the brow block rides up as the lids shut; the smile widens the vowel's outline: within a tenth and half a millimetre)
-    expect(err(build(W('brows.angry'), { blink: 1 }), sum(build(W('brows.angry')), build(null, { blink: 1 })))).toBeLessThan(1e-4);
+    // (the smile widens the vowel's outline: within half a millimetre)
     expect(err(build(W('mouth.a'), { smile: 1 }), sum(build(W('mouth.a')), build(null, { smile: 1 })))).toBeLessThan(1e-3);
+    // (the brow block rides up as the lids shut: on the studio's front (laws 18) within a tenth of a millimetre; in the
+    // socket it rides the brow's plane, measured near 3 mm, so a brow's drawing over a shut eye takes a corrective too)
+    const S = studio.build;
+    expect(err(S(W('brows.angry'), { blink: 1 }), sumOver(S(), S(W('brows.angry')), S(null, { blink: 1 })))).toBeLessThan(1e-4);
+    expect(err(build(W('brows.angry'), { blink: 1 }), sum(build(W('brows.angry')), build(null, { blink: 1 })))).toBeGreaterThan(1e-3);
     // (the lenses do not add: the lids clip them; measured 6 mm, so the gaze is drawn at positions and a lid's shape over a
     // turned gaze takes a corrective)
     expect(pair(W('lids.angry'), W('gaze.right'))).toBeGreaterThan(1e-3);
@@ -101,7 +109,15 @@ describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShap
     const tilt = (m) => { const P = m.vertices; let t = 0, n = 0; m.faces.forEach((f, i) => { if (m.provenance[f[0]].part !== 'face' || m.groups[i] !== 'Skin') return; const [a, b, c] = f.map((v) => P[v]), cz = (a[2] + b[2] + c[2]) / 3, cx = (a[0] + b[0] + c[0]) / 3; if (cz > zLo + 0.25 * (zHi - zLo) || Math.abs(cx) < 0.5 * at(FA, zLo, zHi)) return; const u = b.map((x, k) => x - a[k]), w = c.map((x, k) => x - a[k]), N = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]; t += N[2] / (Math.hypot(...N) || 1); n++; }); return t / n; };
     expect(tilt(B)).toBeLessThan(tilt(A));
   });
-  it('keeps every layer\'s drawing whole on it (under the pyramid nose too)', () => {
-    for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) socketed.checkDrawing(`socketed ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);
+  it('a new anime hero wears them (hero laws 19); a row before, the child and the studio\'s own face do not', () => {
+    const sc = (spec) => animeHeroEffective(heroRecord({ head: 'anime', ...spec })).sculpt;
+    for (const [k, v] of Object.entries(ANIME_FORM)) { expect(sc({ cast: 'male' })[k], k).toBe(v); expect(sc({ cast: 'female' })[k], k).toBe(v); }
+    expect(sc({ cast: 'male', laws: 18 }).orbit).toBe(0); expect(sc({ cast: 'male', laws: 18 }).noseShape).toBeUndefined();
+    expect(sc({ cast: 'child' }).orbit).toBe(0); expect(sc({ cast: 'male', sculpt: false })).toBe(false);
+    // (a hero's own words move each: the socket deeper, the nose round)
+    expect(sc({ cast: 'male', sculpt: { orbit: 0.005, noseShape: 'round' } })).toMatchObject({ orbit: 0.03, noseShape: 'round' });
+  });
+  it('keeps every layer\'s drawing whole on the head before its form (laws 18)', () => {
+    for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) studio.checkDrawing(`laws 18 ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);
   });
 }, 120000);

@@ -1,10 +1,10 @@
-// The 7G drawings' deep sweep (anime-drawings.js on anime-form.js `drawing`): every drawing of the catalog (on the head and
-// on it in a socket), and every
+// The 7G drawings' deep sweep (anime-drawings.js on anime-form.js `drawing`): every drawing of the catalog (on the default
+// head, in its form, and on the head before it), and every
 // word at both ends of its range, built on the default anime hero's head: the topology kept, only its layer moved, no
 // face turned over.
 import { describe, it } from 'vitest';
 import { DRAWINGS, DRAWING_RANGES } from './anime-drawings.js';
-import { checkDrawing, socketed } from './anime-drawings.fixture.js';
+import { checkDrawing, studio } from './anime-drawings.fixture.js';
 
 const LAYER_OF = { brow: 'brows', lid: 'lids', gaze: 'gaze', pupil: 'gaze', mouth: 'mouth' };
 
@@ -12,8 +12,8 @@ describe('the 7G drawings, swept', () => {
   it('every drawing of the catalog', () => {
     for (const [name, D] of Object.entries(DRAWINGS)) if (D.words) checkDrawing(name, D.layer, D.words);
   });
-  it('every drawing of the catalog on the head in a socket (sculpt orbit)', () => {
-    for (const [name, D] of Object.entries(DRAWINGS)) if (D.words) socketed.checkDrawing(`socketed ${name}`, D.layer, D.words);
+  it('every drawing of the catalog on the head before its form (a row stamped hero laws 18)', () => {
+    for (const [name, D] of Object.entries(DRAWINGS)) if (D.words) studio.checkDrawing(`laws 18 ${name}`, D.layer, D.words);
   });
   it('every word at both ends of its range', () => {
     for (const [k, R] of Object.entries(DRAWING_RANGES)) {
