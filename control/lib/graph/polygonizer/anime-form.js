@@ -148,7 +148,10 @@ export function buildAnime(r, options = {}) {
   if (S?.brow) parts.brow = [];
   if (S?.catchlight) parts.catch = [];
   if (S?.noseLine) parts.nose = [];
-  const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f) : null;
+  // the 7G DRAWING (`drawing`, anime-drawings.js): each word gates its own term, a word at its neutral dropped first, so
+  // an absent, empty or all-neutral drawing runs the statements below unchanged
+  const D = drawingOf(options.drawing);
+  const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f, D?.lid) : null;
   const EYE_Y = S?.eyeLevel !== undefined ? S.eyeLevel : 0.055;
   // the lens resolution (a budget, never `coarse`); `paint`: the lenses are painted flat, so one ring holds their outline
   const LENS = options.paint ? { seg: 40, rings: 1 } : options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };
@@ -239,6 +242,16 @@ export function buildAnime(r, options = {}) {
     const center = side * 0.455 * f.spacing, co = dmath.cos(t), si = dmath.sin(t), u = center + 0.285 * f.eyeWidth * co * scale, blink = Math.max(0.015, 1 - e.blink), yy = EYE_Y + (si >= 0 ? 0.155 : 0.108) * f.eyeHeight * si * scale * blink + f.tilt * (Math.abs(u) - Math.abs(center)); return [u, yy];
   }
   function mouthUV(t, scale = 1) {
+    // the drawing's mouth (anime-drawings.js): the lips opened apart (`up`, `down`, the studio's `open` per lip), the
+    // width (`wide`), the corners lifted or dropped (`corner`, the smile's own term), the opening squared (`box`), the
+    // cat's ω (`omega`) and the flustered wave (`wave`); every term scales with `scale`, so the fan's centre stays put
+    if (D?.mouth) {
+      const M = D.mouth, co = dmath.cos(t), si = dmath.sin(t), b = M.box ?? 0, up = M.up ?? e.open, dn = M.down ?? e.open;
+      const sx = b ? Math.sign(co) * dmath.pow(Math.abs(co), 1 - 0.5 * b) : co, sy = b ? Math.sign(si) * dmath.pow(Math.abs(si), 1 - 0.7 * b) : si;
+      const u = 0.175 * (S?.mouthWidth ?? 1) * (1 + 0.12 * e.smile) * (M.wide ?? 1) * sx * scale;
+      const y = (S?.stomion ?? -0.535) + 0.035 * (e.smile + (M.corner ?? 0)) * co * co * scale + 0.012 * (M.omega ?? 0) * dmath.cos(2 * Math.PI * co) * scale + 0.01 * (M.wave ?? 0) * dmath.sin(3 * Math.PI * co) * scale + (sy > 0 ? 0.055 * up : 0.11 * dn) * sy * scale + 0.007 * si * scale;
+      return [u, y];
+    }
     // stomion (the lip line) and mouthWidth (a ratio of the studio's)
     if (S?.stomion !== undefined || S?.mouthWidth !== undefined) { const co = dmath.cos(t), si = dmath.sin(t), u = 0.175 * (S.mouthWidth ?? 1) * (1 + 0.12 * e.smile) * co * scale, y = (S.stomion ?? -0.535) + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y]; }
     const co = dmath.cos(t), si = dmath.sin(t), u = 0.175 * (1 + 0.12 * e.smile) * co * scale, y = -0.535 + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y];
@@ -299,7 +312,8 @@ export function buildAnime(r, options = {}) {
   // that boundary, so the lid cut is exact at any ring count and the grid is the same at every expression (a point
   // outside the opening, and every point once the lids shut, is set back behind the lid: constant topology)
   function graphicLenses(side, centerU, cy, blink, eyePoint) {
-    const up = EYE.bUp * EYE.Yup(0), dn = EYE.bDn * EYE.Ydn(0), shut = e.blink >= 0.985;
+    // (sized by the studio's lid, `Yup0`: a drawing's lid shape covers more or less of the same lens, never resizes it)
+    const up = EYE.bUp * EYE.Yup0(0), dn = EYE.bDn * EYE.Ydn(0), shut = e.blink >= 0.985;
     const Ry = (S.irisSpan ?? 1) * (up + dn) / (2 * (1 - S.lidCover)), Rx = Ry * (0.13 / 0.138) * (S.irisOval ?? 1), cI = up - Ry * (1 - 2 * S.lidCover);
     const at = (dx, dy) => eyePoint(centerU + dx, cy + dy + f.tilt * (Math.abs(centerU + dx) - Math.abs(centerU)));
     function disc(part, rx, ry, ox, oy, fwd, seg, rings) {
@@ -312,6 +326,15 @@ export function buildAnime(r, options = {}) {
         return p;
       }));
       for (let j = 0; j < rings; j++) for (let i = 0; i < seg; i++) quad(part, G[j][i], G[j + 1][i], G[j + 1][(i + 1) % seg], G[j][(i + 1) % seg]);
+    }
+    // the drawing's gaze: the lenses slid together (both eyes the same way, not mirrored), `x` of GAZE.x of the eye's
+    // half-width and `y` of GAZE.y of its half-height, clipped by the lids as any lens; `pupil` scales the pupil
+    if (D?.gaze || D?.pupil !== undefined) {
+      const gx = (D.gaze?.x ?? 0) * GAZE.x * EYE.a, gy = (D.gaze?.y ?? 0) * GAZE.y * (up + dn) / 2, P = (S.pupil ?? 0.31) * (D.pupil ?? 1);
+      disc('iris', Rx, Ry, gx, cI + gy, 0, LENS.seg, LENS.rings);
+      disc('pupil', Rx * P, Ry * P, gx, cI + gy, 0.002, LENS.seg, LENS.rings);
+      if (S.catchlight) { const C = S.catchlight; disc('catch', C.r * Rx, C.r * Rx * 1.1, C.at[0] * Rx + gx, cI + gy + C.at[1] * Ry, 0.0035, 16, 1); }
+      return;
     }
     disc('iris', Rx, Ry, 0, cI, 0, LENS.seg, LENS.rings);
     disc('pupil', Rx * (S.pupil ?? 0.31), Ry * (S.pupil ?? 0.31), 0, cI, 0.002, LENS.seg, LENS.rings);
@@ -348,6 +371,12 @@ export function buildAnime(r, options = {}) {
     const B = S.brow, shutQ = B.shutLift ? clamp((e.blink - 0.7) / 0.3) : 0, shutK = shutQ * shutQ * (3 - 2 * shutQ), a = EYE.a, WK = 0.76, openP = EYE.bUp + EYE.bDn, NW = 24, bot = [], bt = [], yb = B.shutLift ? cy + EYE.bUp + (B.gap + B.shutLift * shutK) * openP : cy + EYE.bUp + B.gap * openP, tan = dmath.tan(B.angle * Math.PI / 180);
     const prof = (s) => (B.shape === 'block' ? (s < 0.2 ? 0.75 + 1.25 * s : 1 - (1 - (B.tip ?? 0.35)) * dmath.pow((s - 0.2) / 0.8, 1.4)) : dmath.pow(dmath.sin(Math.PI * (0.06 + 0.88 * s)), 0.7) * (1 - 0.35 * s));
     for (let i = 0; i <= NW; i++) { const s = i / NW, lu = -B.inner + s * (B.inner + B.outer), u = centerU + side * lu * a; bot.push([u, yb + lu * a * WK * tan + (B.arch ?? 0) * dmath.sin(Math.PI * s) + e.brow * (s - 0.5) * 0.12]); bt.push(B.thick * openP * prof(s)); }
+    // the drawing's brow: the whole brow raised (`lift`, of the opening), its inner end raised (`inner`: worried) or drawn
+    // down and in toward the nose (`knit`: angry), easing to nothing at the outer end
+    if (D?.brow) {
+      const W = D.brow;
+      bot.forEach((p, i) => { const s = i / NW, k = dmath.pow(1 - s, 1.5); p[0] -= side * BROW.knitIn * (W.knit ?? 0) * a * k; p[1] += (BROW.lift * (W.lift ?? 0) + (BROW.inner * (W.inner ?? 0) - BROW.knit * (W.knit ?? 0)) * k) * openP; });
+    }
     const G = bot.map(([u, y], i) => [0, 1].map((r) => { const p = surface(u, y + r * bt[i]); p[2] -= B.push ?? 0.016; return p; }));
     for (let i = 0; i < NW; i++) quad('brow', G[i][0], G[i + 1][0], G[i + 1][1], G[i][1]);
   }
@@ -769,10 +798,13 @@ export function sculptOf(sculpt) {
  * +1 lateral canthus), Y = (1 − |x'|^m)^p with the peak moved to lat k (m 2, p 0.5, k 0 is the studio's ellipse), and the
  * normalised radius of any eye-local point (1 on the outline) from a polar table — ONE outline shared by the aperture,
  * the sclera dish, the iris clip and the lid band. `h` scales the opening's height, `hDn` the lower lid's share. */
-function eyeShapeOf(S, f) {
+function eyeShapeOf(S, f, L = null) {
   const F = S.fissure || {}, a = 0.285 * f.eyeWidth, bUp = 0.155 * f.eyeHeight * (F.h ?? 1), bDn = 0.108 * f.eyeHeight * (F.h ?? 1) * (F.hDn ?? 1);
   const shape = ({ m = 2, p = 0.5, k = 0 } = {}) => (lat) => { const x = lat >= k ? (lat - k) / (1 - k) : (lat - k) / (1 + k); return dmath.pow(Math.max(0, 1 - dmath.pow(Math.min(1, Math.abs(x)), m)), p); };
-  const Yup = shape(F.upper), Ydn = shape(F.lower);
+  // `L` the drawing's lid (anime-drawings.js): the upper lid lowered at its medial end (`inner`: angry) or its lateral
+  // end (`outer`: sad), or raised whole (`wide`: surprise), never below LID.floor of the studio's
+  const Yup0 = shape(F.upper), Ydn = shape(F.lower);
+  const Yup = L ? (lat) => Yup0(lat) * Math.max(LID.floor, 1 + (L.wide ?? 0) - (L.inner ?? 0) * dmath.pow((1 - lat) / 2, LID.ease) - (L.outer ?? 0) * dmath.pow((1 + lat) / 2, LID.ease)) : Yup0;
   const N = 720, tab = [];
   for (let i = 0; i <= N; i++) { const lat = 1 - 2 * i / N, Y = Yup(lat); tab.push([dmath.atan2(Y, lat), dmath.hypot(lat, Y)]); }
   for (let i = 1; i < N; i++) { const lat = -1 + 2 * i / N, Y = Ydn(lat); tab.push([dmath.atan2(-Y, lat), dmath.hypot(lat, Y)]); }
@@ -784,7 +816,27 @@ function eyeShapeOf(S, f) {
     const A = tab[lo], B = tab[hi]; return A[1] + (B[1] - A[1]) * (th - A[0]) / ((B[0] - A[0]) || 1);
   };
   const norm = (side, du, dy, blink = 1) => { const xn = du / a, yn = dy / ((dy >= 0 ? bUp : bDn) * blink); if (xn === 0 && yn === 0) return 0; return dmath.hypot(xn, yn) / rho(dmath.atan2(yn, xn * side)); };
-  return { a, bUp, bDn, Yup, Ydn, norm };
+  return { a, bUp, bDn, Yup, Yup0, Ydn, norm };
+}
+
+/** the 7G drawing's terms (anime-drawings.js names them): the gaze's reach (of the eye's half-width and half-height), the
+ * brow's moves (of the opening; `knitIn` of the eye's half-width) and the lid's (its floor, its ease along the lid) */
+export const GAZE = Object.freeze({ x: 0.3, y: 0.25 });
+export const BROW = Object.freeze({ lift: 0.6, inner: 0.9, knit: 0.9, knitIn: 0.12 });
+export const LID = Object.freeze({ floor: 0.15, ease: 1.5 });
+/** the drawing's neutral words: a word at its neutral is dropped, so a neutral drawing is no drawing */
+const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, lid: { inner: 0, outer: 0, wide: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
+/** a drawing with its neutral words dropped (`pupil` 1 dropped), or null when nothing is left */
+export function drawingOf(d) {
+  if (!d || typeof d !== 'object') return null;
+  const out = {};
+  for (const [k, N] of Object.entries(DRAWING_NEUTRAL)) {
+    const w = d[k]; if (!w || typeof w !== 'object') continue;
+    const kept = Object.fromEntries(Object.entries(w).filter(([q, v]) => v !== undefined && v !== null && !(q in N && v === N[q])));
+    if (Object.keys(kept).length) out[k] = kept;
+  }
+  if (d.pupil !== undefined && d.pupil !== null && d.pupil !== 1) out.pupil = d.pupil;
+  return Object.keys(out).length ? out : null;
 }
 
 /** mojulo's hair fit (see the header): the cap as the head's surface lifted off it, and a drape that keeps a clump's

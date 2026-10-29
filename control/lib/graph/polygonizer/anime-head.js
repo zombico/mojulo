@@ -53,11 +53,12 @@ import { surfaceLocalOffset } from './surface-pin.js';
 import { r6 } from './station-loft-plan.js';
 import { ratioControls } from './ratio-controls.js';
 import { REGISTRATION } from './humanoid-head-fit.js';
-import { buildAnime, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS, ANIME_EXPRESSION_DEFS, ANIME_HAIR_STYLES as STUDIO_FAMILIES, ANIME_LOCK_RE as STUDIO_LOCK_RE, ANIME_LOCK_KEYS } from './anime-form.js';
+import { buildAnime, drawingOf, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS, ANIME_EXPRESSION_DEFS, ANIME_HAIR_STYLES as STUDIO_FAMILIES, ANIME_LOCK_RE as STUDIO_LOCK_RE, ANIME_LOCK_KEYS } from './anime-form.js';
 import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
 import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
 import * as dmath from '../../util/dmath.js';
 import { paintLayers, texOf, FACE_PAINT_SIZE, paintedBrow } from './face-paint.js';
+import { drawingWordErrors } from './anime-drawings.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
 export const ANIME_HAIR_STYLES = Object.freeze([...STUDIO_FAMILIES, 'hime']);
@@ -913,21 +914,23 @@ function animeEar(studio, register, pivot, pitch) {
   const ids = Object.keys(e.points), at = Object.fromEntries(ids.map((id, i) => [id, i]));
   return { points: ids.map((id) => back(e.points[id])), faces: e.faces.map((f) => f.map((id) => at[id])), groups: e.groups };
 }
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false, nose = null } = {}) {
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false, nose = null, drawing = null } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
-  for (const [spec, errs] of [[face, validateAnimeFace(face)], [bald ? null : hair, validateAnimeHair(bald ? null : hair)], [expression, validateAnimeExpression(expression)], [sculpt, validateAnimeSculpt(sculpt)]]) if (errs.length) throw new Error(`anime head: ${errs.join('; ')}`);
+  for (const [spec, errs] of [[face, validateAnimeFace(face)], [bald ? null : hair, validateAnimeHair(bald ? null : hair)], [expression, validateAnimeExpression(expression)], [sculpt, validateAnimeSculpt(sculpt)], [drawing, drawingWordErrors(drawing)]]) if (errs.length) throw new Error(`anime head: ${errs.join('; ')}`);
   const F = resolveAnimeFace(face), H = resolveAnimeHair(bald ? null : hair ?? null), E = resolveAnimeExpression(expression);
   if (H.style === null) H.style = animeDefaultStyle(preset);
   const recipe = animeRecipe({ preset, face: F, hair: H, expression: E, sculpt });
   const SCULPT = !!recipe.sculpt;
+  // (a 7G drawing is drawn on the graphic face: its lids, lenses and brow block)
+  if (drawingOf(drawing) && !SCULPT) throw new Error('anime head: a drawing is drawn on the graphic face (sculpt), not the studio\'s own');
   // the hair seats on the head it grows on (anime-form `fitHair`); `hairFit: false` is the studio's own cap and clumps
   // the bob, long and hime families consolidate their clumps into sections (anime-form `forms`); `strands: 1` keeps the
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}) });
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}), ...(drawing ? { drawing } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;

@@ -85,13 +85,13 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
  * own: preset, face, register, sculpt, tune, headScale, headPreset, proportions) would wear them — bald and unfitted (the
  * expression parts are the same with the hair on), at the worn head's scale and then under the plan's own scale
  * (hero-form scalePlan) — so a part equals the recipe's part of that name. The face rig's head builds
- * (anime-face-rig.js). */
-export function animeHeadAt(opts, expression, only) {
+ * (anime-face-rig.js); `drawing` a 7G drawing's words (anime-drawings.js), none by default. */
+export function animeHeadAt(opts, expression, only, drawing = null) {
   const props = opts.proportions ?? 'anime';
   const { pole, scale } = wornHead({ preset: opts.preset, headPreset: opts.headPreset, headScale: opts.headScale, tune: opts.tune, props });
   // (`facePaint`: the painted face's, as the plan wears it — face-paint-rig.js paints its states)
   const fp = opts.facePaint ? { paint: { dense: !!opts.facePaint.dense }, ...(opts.facePaint.nose ? { nose: opts.facePaint.nose } : {}) } : {};
-  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only, ...fp });
+  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only, ...fp, ...(drawing ? { drawing } : {}) });
   const S = planScale({ cast: opts.preset, tune: opts.tune, proportions: props });
   return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
 }
