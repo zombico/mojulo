@@ -76,7 +76,9 @@ so the take is whole without the worker that made it, and times it: by the engin
 `line.timings.json` lies beside it, else by the text aligned to the recording (its silences the text's pauses), else, no
 text, by its loudness. Any WAV works the same way, a person's narration as well as a voice worker's. The skinned GLB
 embeds each recording in its own buffer (`face.performances[].audio`: `{ at, recording, mimeType, bufferView }`), and
-`/hero-live` plays it with the take.
+`/hero-live` plays it with the take. The engine packs carry it too: the Godot world pack keys each line on its take's
+animation as an audio track (`voice/<recording>.wav`, `figure_face.gd`), and the Unreal asset pack's importer brings each
+in as a SoundWave cued on its take's AnimSequence (`Voice/<recording>.wav`, a PlaySound notify at the line's start).
 
 ## What rides on this
 

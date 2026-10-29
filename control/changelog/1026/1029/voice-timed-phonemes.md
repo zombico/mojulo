@@ -16,6 +16,14 @@ carried by the export, whether the voice came from the local voice worker, anoth
 - **The take with its sound in the file**: the skinned GLB embeds each line's recording in its own buffer
   (`face.performances[].audio`: `{ at, recording, mimeType, bufferView }`; `missing` where the exporting machine holds no
   such recording), and `/hero-live` plays it from the file with the take (a Sound toggle), published pages too.
+- **The engines play it** (`engines/pack.js` `resolveLevel` attaches each recording; `voiceFiles`): the Godot world pack
+  of a hero ships each recording once at `voice/<recording>.wav`, and `figure_face.gd` keys each line on its take's own
+  animation on ready, an audio track on a `Voice` player at the head bone, so the line plays wherever the take does (the
+  ledger's `figure_voice`, the README). The Unreal asset pack ships it at `Voice/<recording>.wav`, and `import_mojulo.py`
+  imports each as a SoundWave under the asset's `Voice` folder and cues it on its take's AnimSequence: a PlaySound
+  notify on a `Voice` notify track at the line's start, cleared first so a re-run lays it once; a notify the editor will
+  not take leaves the sound imported and says so. Unity's pack ships figures as rigid parts and the Blender pack an
+  art pass at rest, neither with a take, so neither carries a line; the skinned GLB carries it for any importer.
 - **The timed worker** (`scripts/voicegen-speak.py --timings`, `install-local-voicegen.sh --timed`): Kokoro predicts every
   phoneme's length before it renders, but the release's model keeps that inside. The first timed run derives a copy that
   exposes it as a `duration` output (`models/kokoro-v1.0.timed.onnx`), and `kokoro-onnx` 0.6.1 turns it into each

@@ -56,7 +56,7 @@ import { lazyDependency } from '@/lib/lazy-deps';
 import { handoffForContext, fitsForContext, resolveHandoffHost } from '@/lib/mcp/hosts/handoff';
 import { getHostProfile, hostHandoff } from '@/lib/mcp/hosts/registry';
 import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
-import { readRecording } from '@/lib/graph/face-acting/recordings';
+import { attachRecordings } from '@/lib/graph/face-acting/recordings';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -963,7 +963,7 @@ async function exportModel(input, context = {}) {
   let payload = resolvedPayload;
   // a realistic hero's PERFORMANCES carry their lines' recordings (face-acting/recordings.js): each one this machine holds
   // rides the GLB embedded (scene-gltf.js), the take whole with its sound; one it does not hold is named as missing
-  for (const fig of Object.values(payload?.figures ?? {})) for (const P of Object.values(fig?.face?.performances ?? {})) for (const A of P.audio ?? []) { const bytes = readRecording(A.recording); if (bytes) A.bytes = bytes; }
+  attachRecordings(payload);
   let tposed = null;
   if (rest === 'tpose' && payload?.figures) {
     tposed = { figures: [], skipped: [] };
