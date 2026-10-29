@@ -3,13 +3,18 @@
  * pretend ceiling of the same rock, its floor soil and scree, its water a trail's, its formations its own, lit only by
  * what it lets in and what it lights. A level could be set in one whole (a platformer in a cave).
  *
- *   trail.ground.cavern: true | { height?, skylight?, formations?, light? }
+ *   trail.ground.cavern: true | { height?, skylight?, formations?, light?, ends?, cracks? }
  *     height      metres the ceiling's crown stands over its rim (CAVERN.height)
  *     skylight    { y, r? }: a hole in the ceiling over the walk at station y, `r` metres across (CAVERN.skylight): a
  *                 shaft of day, the only daylight it has
  *     formations  0…1, how thick its stalagmites and stalactites stand (CAVERN.formations)
  *     light       its register past the day (era/cave.js CAVE_LIGHTS): 'torch' (the default), 'fluorescent', 'bio', or
  *                 'daylight' (none: its dark and its skylight alone)
+ *     cracks      0…1, how many CRACKS in its ceiling let a thread of day in (CAVERN.cracks): each a jagged slit over the
+ *                 walk drawn bright on the rock, laying a cool daylight on what it can see; a cavern lit by its cracks
+ *                 needs no torch (its register 'daylight')
+ *     ends        'closed' (the default: the walk ends at the rock both ways) or 'open' (a passage out under a lintel where
+ *                 the walk runs out of each end, the day beyond it)
  *
  *   readCavern(v, at)                       the recipe checked → { height, skylight, formations, light }
  *   encloseCavern(g, C, ctx) → { top }      the grid's open side and ends raised to the far cliff's top, the walk's
@@ -27,7 +32,7 @@
  */
 import { formFactor, lampLight, CAVE_LIGHT_IDS } from './cave.js';
 
-export const CAVERN = Object.freeze({ height: 18, skylight: 6, formations: 0.5, light: 'torch', gap: 6, face: 3, endRun: 6, cell: 2, lump: 1.4, dark: 0.04 });
+export const CAVERN = Object.freeze({ cracks: 0.5, height: 18, skylight: 10, formations: 0.5, light: 'torch', gap: 6, face: 3, endRun: 6, cell: 2, lump: 1.4, dark: 0.04 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
@@ -40,7 +45,8 @@ export function readCavern(v, at = 'trail.ground.cavern') {
   if (v === undefined || v === false) return null;
   if (v === true) v = {};
   if (!isObj(v)) throw new Error(`stage: ${at} is true or { height?, skylight?, formations?, light? }`);
-  for (const k of Object.keys(v)) if (!['height', 'skylight', 'formations', 'light'].includes(k)) throw new Error(`stage: ${at}.${k} is not a cavern setting (height, skylight, formations, light)`);
+  for (const k of Object.keys(v)) if (!['height', 'skylight', 'formations', 'light', 'ends', 'cracks'].includes(k)) throw new Error(`stage: ${at}.${k} is not a cavern setting (height, skylight, formations, light, ends, cracks)`);
+  if (v.ends !== undefined && !['closed', 'open'].includes(v.ends)) throw new Error(`stage: ${at}.ends is 'closed' (the walk ends at the rock) or 'open' (a passage out at each end)`);
   const num = (o, k, lo, hi, d, w, words) => { if (o[k] === undefined) return d; if (typeof o[k] !== 'number' || !(o[k] >= lo && o[k] <= hi)) throw new Error(`stage: ${w}.${k} is ${words}`); return o[k]; };
   let skylight = null;
   if (v.skylight !== undefined && v.skylight !== false) {
@@ -51,7 +57,7 @@ export function readCavern(v, at = 'trail.ground.cavern') {
   }
   const light = v.light ?? CAVERN.light;
   if (!CAVE_LIGHT_IDS.includes(light)) throw new Error(`stage: ${at}.light is one of ${CAVE_LIGHT_IDS.join(', ')}`);
-  return { height: num(v, 'height', 4, 60, CAVERN.height, at, 'metres the crown stands over its rim, 4 to 60'), skylight, formations: num(v, 'formations', 0, 1, CAVERN.formations, at, 'how thick its formations stand, 0 to 1'), light };
+  return { height: num(v, 'height', 4, 60, CAVERN.height, at, 'metres the crown stands over its rim, 4 to 60'), skylight, formations: num(v, 'formations', 0, 1, CAVERN.formations, at, 'how thick its formations stand, 0 to 1'), light, ends: v.ends ?? 'closed', cracks: num(v, 'cracks', 0, 1, CAVERN.cracks, at, 'how many cracks let the day in, 0 to 1') };
 }
 
 export function encloseCavern(g, C, { gridX, gridY, walkLevel, trailX, edge, D, cliffX }) {
@@ -74,7 +80,8 @@ export function cavernDome(site, C) {
   const g = site.grid, x0 = g.x0, x1 = site.W, y0 = 0, y1 = site.D, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = (x1 - x0) / 2, ry = (y1 - y0) / 2, top = site.cavern.top;
   return (x, y) => {
     const u = (x - cx) / rx, v = (y - cy) / ry, e = Math.sqrt(Math.max(0, 1 - u * u - v * v));
-    return top + 1 + C.height * Math.pow(e, 0.7) + CAVERN.lump * (vnoise(x * 0.12, y * 0.12, 131) - 0.5) * 2;
+    // (its rim over the walls' tops, lumps and all: the walls stand at their top ± 1.2)
+    return top + 3 + C.height * Math.pow(e, 0.7) + CAVERN.lump * (vnoise(x * 0.12, y * 0.12, 131) - 0.5) * 2;
   };
 }
 
@@ -87,6 +94,12 @@ export function domeFaces(site, C) {
     // (a cell the skylight's edge crosses: its corners in the hole drawn up to its rim, so the hole reads round enough)
     out.push({ corners: cs.map(([a, b]) => [r5(a), r5(b), r5(z(a, b) + (inHole(a, b) ? 2.5 : 0))]), under: true });
   }
+  // its SKIRT: round its edge a curtain of the rock from the ceiling down into the land, so no sky shows past its rim; with
+  // its ends open, where the walk runs out of an end down only to a lintel over it, the way on a passage
+  const lintel = (x, y) => (C.ends === 'open' && site.trailDist(x, y) < site.halfWAt(y) + 2 ? site.ground(x, y) + 3.5 : site.ground(x, y) - 1);
+  const edge = (a, b) => { const z0a = lintel(...a), z0b = lintel(...b); out.push({ corners: [[a[0], a[1], z0a], [b[0], b[1], z0b], [b[0], b[1], z(...b)], [a[0], a[1], z(...a)]].map((p) => p.map(r5)), under: false, skirt: true }); };
+  for (let x = g.x0; x < site.W - 1e-6; x += s) { edge([x, 0], [x + s, 0]); edge([x + s, site.D], [x, site.D]); }
+  for (let y = 0; y < site.D - 1e-6; y += s) { edge([g.x0, y + s], [g.x0, y]); edge([site.W, y], [site.W, y + s]); }
   return out;
 }
 
@@ -135,7 +148,7 @@ export function formationFaces(it, seed = 1, scale = 1.5) {
 export function cavernAsCave(site, C) {
   if (site.cavern._asCave) return site.cavern._asCave;
   const z = cavernDome(site, C), cave = { light: C.light, width: 12, inside: () => ({ d: 0, s: 0 }), ceil: z, floor: () => -1e9, covered: () => true, heightAt: () => C.height };
-  cave._lamps = cavernLamps(site, C);
+  cave._lamps = [...cavernLamps(site, C), ...cavernCracks(site, C).flatMap((c) => c.lamps)];
   site.cavern._asCave = cave;
   return cave;
 }
@@ -163,21 +176,74 @@ function cavernSky(site, C, p, n) {
   return Math.min(1, CAVERN.dark + formFactor(p, n, poly) / open);
 }
 
-/** Every face of the cavern lit by its dark, the skylight it sees and its lamps (their own faces as they are); a sunlit
- *  corner keeps its sun (the shaft through the skylight). As caveLight, against the hour's bake (`open`). */
+// the share of what reaches its floor the cavern's rock gives back to it all (one closed room: its bounce)
+const RHO = 0.5;
+/**
+ * The cavern's own BOUNCE: in one closed hall what its lamps and its skylight lay on its floor is given back by every
+ * wall, so the whole room stands at the rock's share of the mean of it: read at points along its walk and to either side
+ * of it, per channel, in the day's units (the skylight's) and the lamps' (to be raised against the hour). Memoised.
+ */
+function bounceOf(site, C, cave) {
+  if (site.cavern._bounce) return site.cavern._bounce;
+  const sky = [0, 0, 0], lamp = [0, 0, 0];
+  let n = 0;
+  for (let y = 2; y < site.D - 2; y += 3) for (const off of [-8, -3, 0, 3, 8]) {
+    const x = site.trailX(y) + off, p = [x, y, site.ground(x, y) + 0.2], k = cavernSky(site, C, p, [0, 0, 1]) - CAVERN.dark, lm = lampLight(cave, p, [0, 0, 1]);
+    for (let c = 0; c < 3; c++) { sky[c] += k; lamp[c] += lm[c]; }
+    n++;
+  }
+  site.cavern._bounce = { sky: sky.map((v) => (RHO * v) / n), lamp: lamp.map((v) => (RHO * v) / n) };
+  return site.cavern._bounce;
+}
+
+/** Every face of the cavern lit by its dark, the skylight it sees, its lamps (their own faces as they are) and the bounce
+ *  of all of it round the hall; a sunlit corner keeps its sun (the shaft through the skylight). As caveLight, against the
+ *  hour's bake (`open`). */
 export function cavernLight(faces, site, C, { open = 1 } = {}) {
-  const cave = cavernAsCave(site, C), gain = 1 / Math.max(0.12, open);
+  const cave = cavernAsCave(site, C), gain = 1 / Math.max(0.12, open), Bn = bounceOf(site, C, cave);
   const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`, rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   return faces.map((f) => {
     if (!f.fill || !f.corners || f.lamp || f.self) return f;
     const n = f.normal ?? [0, 0, 1], shares = Array.isArray(f.sunShare) ? f.sunShare : f.corners.map(() => f.sunShare ?? 0);
     const ks = f.corners.map((c, i) => {
       const sh = shares[i] ?? 0, q = [c[0] + n[0] * 0.1, c[1] + n[1] * 0.1, c[2] + n[2] * 0.1], k = cavernSky(site, C, q, n), lm = lampLight(cave, q, n);
-      const all = sh + (1 - sh) * k, rgbK = lm.map((v) => all + v * gain), lum = 0.3 * rgbK[0] + 0.59 * rgbK[1] + 0.11 * rgbK[2];
+      const all = sh + (1 - sh) * k, rgbK = lm.map((v, ch) => all + Bn.sky[ch] + (v + Bn.lamp[ch]) * gain), lum = 0.3 * rgbK[0] + 0.59 * rgbK[1] + 0.11 * rgbK[2];
       return { rgbK, share: sh > 0 ? sh / Math.max(1e-6, lum) : 0 };
     });
     const fills = (f.cornerFills ?? f.corners.map(() => f.fill)).map((c, i) => hex(rgb(c).map((v, ch) => v * ks[i].rgbK[ch])));
     const mean = [0, 1, 2].map((ch) => ks.reduce((a, q) => a + q.rgbK[ch], 0) / ks.length);
     return { ...f, fill: hex(rgb(f.fill).map((v, ch) => v * mean[ch])), cornerFills: fills, ...(f.sunShare !== undefined ? { sunShare: Array.isArray(f.sunShare) ? ks.map((q) => Math.round(q.share * 1e3) / 1e3) : Math.round((ks.reduce((a, q) => a + q.share, 0) / ks.length) * 1e3) / 1e3 } : {}) };
   });
+}
+
+/**
+ * The CRACKS in its ceiling: jagged slits over the walk where a thread of day comes in, more as `cracks` is more. Each a
+ * run of short legs across the ceiling (`pts`), its light a lamp of its own every leg (`kind: 'crack'`, era/cave.js
+ * CRACK: daylight's colour, laid on what can see it) just under the rock. Memoised. → [{ pts, lamps }]
+ */
+export function cavernCracks(site, C, seed = 1) {
+  if (site.cavern._cracks) return site.cavern._cracks;
+  const z = cavernDome(site, C), n = Math.round(C.cracks * site.D / 9), out = [];
+  for (let k = 0; k < n; k++) {
+    const y0 = 4 + hash(k, 1, seed + 601) * (site.D - 8), x0 = site.trailX(y0) + (hash(k, 2, seed + 603) - 0.5) * 18;
+    let a = hash(k, 3, seed + 607) * Math.PI, p = [x0, y0];
+    const pts = [p.map(r5)], legs = 4 + Math.floor(hash(k, 4, seed + 609) * 4);
+    for (let i = 0; i < legs; i++) { a += (hash(k, 10 + i, seed + 611) - 0.5) * 1.1; const l = 1 + 0.8 * hash(k, 30 + i, seed + 613); p = [p[0] + Math.cos(a) * l, p[1] + Math.sin(a) * l]; pts.push(p.map(r5)); }
+    if (pts.some(([x, y]) => x < site.grid.x0 + 1 || x > site.W - 1 || y < 1 || y > site.D - 1)) continue;
+    const lamps = pts.slice(1).map((q, i) => { const m = [(q[0] + pts[i][0]) / 2, (q[1] + pts[i][1]) / 2]; return { at: [r5(m[0]), r5(m[1]), r5(z(...m) - 0.4)], kind: 'crack' }; });
+    out.push({ pts, lamps });
+  }
+  site.cavern._cracks = out;
+  return out;
+}
+
+/** The cracks drawn: each leg a thin slit on the ceiling's underside, bright, its own light. */
+export function crackFaces(site, C) {
+  const z = cavernDome(site, C), out = [];
+  for (const c of cavernCracks(site, C)) for (let i = 0; i + 1 < c.pts.length; i++) {
+    const [a, b] = [c.pts[i], c.pts[i + 1]], d = [b[0] - a[0], b[1] - a[1]], l = Math.hypot(...d) || 1, w = [(-d[1] / l) * 0.18, (d[0] / l) * 0.18];
+    const cs = [[a[0] - w[0], a[1] - w[1]], [b[0] - w[0], b[1] - w[1]], [b[0] + w[0], b[1] + w[1]], [a[0] + w[0], a[1] + w[1]]].map(([x, y]) => [r5(x), r5(y), r5(z(x, y) - 0.08)]);
+    out.push({ corners: cs, normal: [0, 0, -1], group: 'cave:lamp', fill: '#e6f1ff', lamp: true });
+  }
+  return out;
 }

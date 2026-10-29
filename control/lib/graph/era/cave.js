@@ -379,17 +379,25 @@ export function caveLamps(cave) {
 /** How a cave's register is scaled from the 8 m cave it is laid for. */
 export const lampScale = (cave) => Math.max(1, cave.width / 8);
 
-/** The lamps' light on a point (normal `n`) in a cave, per channel, in the daylight's units. */
+/** A CRACK in a ceiling (era/cavern.js): a thread of day where the rock is split, its light daylight's, falling mostly
+ *  straight down (`down` its share that does: a shaft, the floor under it lit), carried the height of a hall. A lamp of
+ *  its own kind, beside any register. */
+export const CRACK = Object.freeze({ colour: [0.86, 0.93, 1.0], strength: 0.9, near: 6, reach: 32, down: 0.7 });
+
+/** The lamps' light on a point (normal `n`) in a cave, per channel, in the daylight's units: the register's lamps and
+ *  any of their own kind (a crack's). */
 export function lampLight(cave, p, n) {
-  const L = CAVE_LIGHTS[cave.light], out = [0, 0, 0];
-  if (!L) return out;
-  const k = lampScale(cave), near = L.near * k, reach = L.reach * k;
+  const out = [0, 0, 0], k = lampScale(cave);
   for (const l of caveLamps(cave)) {
-    const d = sub3(l.at, p), r = Math.hypot(...d);
+    const L = l.kind === 'crack' ? CRACK : CAVE_LIGHTS[cave.light];
+    if (!L) continue;
+    const near = L.near * k, reach = L.reach * k, d = sub3(l.at, p), r = Math.hypot(...d);
     if (r > reach || r < 1e-6) continue;
     const cos = dot3(n, d) / r;
     if (cos <= 0 || !sees(cave, p, l.at)) continue;
-    const e = L.strength * cos / (1 + (r / near) ** 2) * (1 - smooth(reach * 0.7, reach, r));
+    // (a crack's light falls: the more as the point stands straight under it)
+    const aim = L.down ? 1 - L.down + L.down * Math.max(0, (l.at[2] - p[2]) / r) : 1;
+    const e = L.strength * cos * aim / (1 + (r / near) ** 2) * (1 - smooth(reach * 0.7, reach, r));
     for (let c = 0; c < 3; c++) out[c] += e * L.colour[c];
   }
   return out;
@@ -411,6 +419,8 @@ export function lampFaces(cave) {
   };
   const m = lampScale(cave), sz = (v) => v.map((x) => x * m);
   for (const l of caveLamps(cave)) {
+    // (a crack's light is drawn as its slit, era/cavern.js crackFaces)
+    if (l.kind === 'crack') continue;
     const ex = l.dir, ey = [-l.dir[1], l.dir[0]];
     if (l.kind === 'fluorescent') { box(l.at, ex, ey, sz([0.8, 0.07, 0.07]), L.fixture, 'cave:lamp', true); box([l.at[0], l.at[1], l.at[2] + 0.1 * m], ex, ey, sz([0.85, 0.12, 0.05]), '#2e3338', 'cave:fixture'); }
     if (l.kind === 'torch') { const w = [-ey[0] * l.side, -ey[1] * l.side]; box([l.at[0] - w[0] * 0.15 * m, l.at[1] - w[1] * 0.15 * m, l.at[2] - 0.3 * m], ex, ey, sz([0.05, 0.18, 0.3]), '#2a2420', 'cave:fixture'); box([l.at[0], l.at[1], l.at[2] + 0.12 * m], ex, ey, sz([0.09, 0.09, 0.32]), L.fixture, 'cave:lamp', true); }

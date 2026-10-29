@@ -34,6 +34,7 @@ import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } fro
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
 import { applyGrade } from './grade.js';
 import { cutCaves, caveClear, caveLamps } from './cave.js';
+import { encloseCavern } from './cavern.js';
 import { readTrailDress } from './trail-dress.js';
 import { layWater, WATER } from './out-water.js';
 import { duneField, DUNE_WALK } from './out-dunes.js';
@@ -431,6 +432,9 @@ function siteOf(st, plan, grade = null) {
   // the CAVES (era/cave.js, `ground.caves`): cut into the far cliff to their floors, the land over each kept for its lid
   const CV = G.caves && !open ? cutCaves(g, G.caves, { gridX, gridY, cliffX, floorAt: (x, y) => gridSample(g, x, y), back: -back }) : null;
   const inCave = CV ? caveClear(CV) : null;
+  // the CAVERN (era/cavern.js, `ground.cavern`): the open side and the ends raised to the far cliff's top, the walk's
+  // notch kept; nothing grows anywhere in it
+  const CVN = G.cavern && !open ? { ...G.cavern, ...encloseCavern(g, G.cavern, { gridX, gridY, walkLevel, trailX, edge, D, cliffX }) } : null;
   // the DUNES laid over it, the walk kept: their share where they stand (the sand), 0 on the street
   const duneAt = DN ? (x, y) => {
     if (open ? false : x - cliffX(y) < Lf.keep[1]) return 0;
@@ -469,7 +473,8 @@ function siteOf(st, plan, grade = null) {
     || streams.some((s) => Math.abs(y - s.y) < 3)
     || (WB !== null && WB.clear(x, y))
     || (DN !== null && duneAt(x, y) * DN.share(x, y) > 0.3)
-    || (inCave !== null && inCave(x, y));
+    || (inCave !== null && inCave(x, y))
+    || CVN !== null;
   // the foci (where the eye lands, nature.js inRadius): the trailhead, and every beat; a pinch is framed as a gate
   const foci = beats.filter((b) => b.kind !== 'exit').map((b) => ({ name: b.id, y: b.y, r: b.kind === 'trailhead' ? 11 : 9, x: trailX(b.y), ...(b.kind === 'pinch' ? { gate: true } : {}) }));
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
@@ -490,12 +495,15 @@ function siteOf(st, plan, grade = null) {
   // (the water's anchors and hazards on the trail, as a ford's are)
   if (WB) { const tid = `out-trail:${plan.id}`; out.anchors.push(...[...WB.anchors, ...WB.hazards].map((a) => ({ ...a, trail: tid }))); out.hazards.push(...WB.hazards.map((a) => ({ ...a, trail: tid }))); }
   // (each cave an anchor: its centreline from the land before its mouth to its end, its width and height, its mouth's floor)
+  // (a cavern an anchor: its ceiling's rim and crown, its skylight, its register)
+  if (CVN) out.anchors.push({ id: 'cavern', kind: 'cavern', top: Math.round(CVN.top * 1e5) / 1e5, height: CVN.height, light: CVN.light, ...(CVN.skylight ? { skylight: { ...CVN.skylight, x: Math.round(trailX(CVN.skylight.y) * 1e5) / 1e5 } } : {}), trail: `out-trail:${plan.id}` });
   if (CV) out.anchors.push(...CV.map((c) => ({ id: c.id, kind: 'cave', path: c.path, width: c.width, height: c.height, ...(c.mouth !== null ? { mouth: c.mouth } : {}), light: c.light, ...(c.light !== 'daylight' ? { lamps: caveLamps(c).length } : {}), floor: c.floorZ, trail: `out-trail:${plan.id}` })));
   const origin = J ? J.origin : 0;
   const site = { W: Wg, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius, ...(open ? { open: true } : {}),
     clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin, ...(T.rocks?.boulders !== undefined ? { boulders: T.rocks.boulders } : {}),
     ...(WB ? { water: WB, wet: WB.bare } : {}),
     ...(CV ? { caves: CV } : {}),
+    ...(CVN ? { cavern: CVN } : {}),
     // (the dunes: `sand` > 0 where the sand lies, its line through the troughs; `crest` toward a brink; the wind)
     ...(DN ? { dunes: { sand: (x, y) => duneAt(x, y) * DN.share(x, y) - 0.3, crest: (x, y) => duneAt(x, y) * DN.crest(x, y), height: (x, y) => duneAt(x, y) * DN.h(x, y), wind: DN.wind, dials: G.dunes } } : {}) };
   // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail

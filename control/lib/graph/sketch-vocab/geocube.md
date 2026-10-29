@@ -46,6 +46,15 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   ceiling), its mouth the cliff's own rock. A gargantuan cave wants a taller cliff and more rock behind it:
   `ground.cliff.height` (to 40 m) and `ground.behind` (0 to 80 m of rock behind the cliff); `ground.room` (0 to 80 m)
   widens a trail's site past its far side.
+- **A cavern** (a trail's `ground.cavern: true | { height?, skylight?, formations?, light?, cracks?, ends? }`): the
+  whole trail underground, the same geocube land closed in by its cliffs (a wall raised along the open side and across
+  the ends) under a pretend ceiling of their rock, a dome its `height` (18 m) over the cliff tops. No grass, no trees;
+  the floor soil and scree; water as a trail's (`ground.water`); stalagmites, stalactites and columns off the walk
+  (`formations` 0 to 1). It is lit by what it lets in and what it lights: `cracks` (0 to 1) jagged slits of day in the
+  ceiling, their light falling to the floor; a `skylight: { y, r? }`, a hole over the walk, a shaft of day; and its
+  register (`light`: torch, the default, fluorescent, bio, or daylight for none), its lamps along the walk; all of it
+  bouncing round the hall. `ends: 'open'` leaves a passage out under a lintel where the walk runs out of each end, the day
+  beyond it; closed by default. An anchor (`kind: 'cavern'`).
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),

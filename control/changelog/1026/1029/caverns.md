@@ -31,6 +31,17 @@ rock (its walls the cliff's rock, its floor scree, a ceiling under the land), li
   can see it (in the cave, under its ceiling), falling with the square past its near distance, added to what the day
   lays, the same at any hour (against a darker hour's bake, the more). A register is laid for a cave 8 m across and
   scaled with the cave (`lampScale`): in a hall its tubes are high-bay floods and its sconces braziers.
+- **The cavern** (`era/cavern.js`, a trail's `ground.cavern: true | { height?, skylight?, formations?, light?, cracks?,
+  ends? }`): a whole trail underground, a level could be set in one. The land is the geocube's, closed in: the open side
+  and the ends raised to the far cliff's top, the walk's notch through each end kept, under a pretend ceiling of the
+  cliff's rock (a lumped dome over the site, its rim over the walls' tops, a skirt round its edge down into the land, or
+  to a lintel over the walk with `ends: 'open'`, a passage out). Nothing grows in it: no grass, no tree, no far layers,
+  no biocube flora; its floor soil and scree, its water a trail's. Its formations stand off the walk and out of the
+  water: stalagmites, stalactites hung over them and on their own, columns where a pair nearly meets, the land's rock.
+  It is lit by its dark (the page's sky a room's), the CRACKS in its ceiling (`cracks`: jagged slits of day drawn bright,
+  their light falling to the floor), a `skylight` (a hole over the walk: the day's sky through it, the sun's shaft), its
+  register's lamps along the walk (`light`: torch by default) and the bounce of all of it round the hall (the rock's share
+  of the mean light on its floor). An anchor (`kind: 'cavern'`); `scripts/spikes/caves/cavern.mjs` captures it.
 - **The meru's rock**: a trail with caves wears the meru's gen-7 rock fabric, strata and joints near the eye, inside and
   out.
 - **The geocube card** says it; `scripts/spikes/caves/cave.mjs` captures a cave from the approach, wide, at the mouth,

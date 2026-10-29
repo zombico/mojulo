@@ -79,6 +79,7 @@ import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
 import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './cave.js';
+import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, crackFaces } from './cavern.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
 const CAVE_GRIT = 0.6;
 
@@ -409,7 +410,8 @@ function drape(out, a, b, a2, b2, len, off, n, key, scale, group) {
 export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   // a `biocube` (era/biocube.js): the level's flora laid over the card's own trees and grass
-  const B = st0 && manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null, st1 = B ? withFlora(st0, B) : st0;
+  // (a cavern grows nothing of a biocube's: underground, its flora is its formations; era/cavern.js)
+  const underground = !!(manifest.trail?.ground?.cavern), B = st0 && manifest.biocube !== undefined && !underground ? readBiocube(manifest.biocube) : null, st1 = B ? withFlora(st0, B) : st0;
   if (!st1) throw new Error(`stage: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, S = seed | 0;
   // the polygon land (`shading`, see the header): the island's drawing, and a gritty one's broken rock
@@ -443,6 +445,12 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     if (!cv) return f;
     return cv.inside(m[0], m[1]).d > cv.width / 2 - CAVE.apron ? { ...f, group: 'isekai:rock', tint: st.tint.scree } : { ...f, group: 'isekai:trail', tint: st.tint.trail };
   });
+  // (the CAVERN, era/cavern.js: its floor soil, no meadow; its pretend ceiling, a dome of the cliff's rock, down-facing)
+  if (site.cavern) {
+    ground.faces = ground.faces.map((f) => (f.cel || f.group !== 'isekai:ground' ? f : { ...f, group: 'isekai:trail', tint: st.tint.trail }));
+    const sc = st.tiles.cliff.scale;
+    ground.faces.push(...domeFaces(site, site.cavern).map((f) => { const cs = f.corners.map(P), m = mean(cs), n = facet(cs, f.skirt ? [site.trailX(m[1]) - m[0], site.D / 2 - m[1], 0] : [0, 0, -1]); return { corners: cs, normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', uv: cs.map((p) => [r5(p[0] / sc), r5(p[1] / sc)]), group: 'isekai:cliff', celN: n }; }));
+  }
   if (site.caves) ground.faces.push(...site.caves.flatMap((c) => lidFaces(c, site.grid, { gridX, gridY })).map((f) => {
     const cs = f.corners.map(P), n = facet(cs, f.under ? [0, 0, -1] : f.skirt ? [f.skirt[0], f.skirt[1], 0] : [0, 0, 1]), sc = st.tiles.cliff.scale, rock = f.under || !!f.skirt || n[2] < st.slope.rock;
     if (!rock) return { corners: cs, normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground' };
@@ -476,7 +484,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (nor on the dunes)
   const onSand = DS ? (p) => DS.sand(p[0], p[1]) > 0 || !!onSand2?.(p) : onSand2;
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
-  const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
+  // (underground the walk's fringe is scree, not the meadow's edge)
+  const fringeOf = site.cavern ? { tint: st.tint.scree, group: 'isekai:scree' } : { tint: st.tint.ground, group: 'isekai:ground' };
+  const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : fringeOf.tint, group: cls === 'trail' ? 'isekai:trail' : fringeOf.group, cls }));
   // (the TRAIL under snow: its fringe the snow's, its path trodden snow, packed and greyed, the soil showing through
   // as far as the snow is shallow)
   if (SF && !ctx.form) {
@@ -489,13 +499,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed, broken); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
   // (the CAVES' rocks, era/cave.js caveRocks: the land's own boulders lining their walls and hung from their ceilings, no
   // hat on any; not among the land's rocks, so nothing else stands by them)
+  // (and the CAVERN's formations: stalagmites, stalactites and columns, the land's rock, no hat)
+  if (site.cavern) for (const it of formations(site, site.cavern, seed)) boulders.push({ it, sides: formationFaces(it, seed, st.tiles.rock.scale), cap: [], rim: [], s: it.r, cave: true });
   if (site.caves) for (const it of site.caves.flatMap((c) => caveRocks(c, st.rubble.unit))) { const b0 = boulderFaces(st, it, seed, broken), b = it.flip ? flipBoulder(b0, it.z0) : b0; boulders.push({ it, ...b, cave: true }); }
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
   const trees = bamboo ? bambooItems(st, site, seed) : treeItems(st, site, seed);
   // the HERO: one big tree where the eye lands, its crown fuller than the rest
   // a sakura grove has HEROES (several, framed, the grove's trees kept clear of them); the meadow one
-  const Hr = st.trees.hero, sakura = form === 'blossom' && st.trees.sakura;
+  // (and none in a cavern: underground no tree stands, the hero's neither)
+  const Hr = site.cavern ? null : st.trees.hero, sakura = !site.cavern && form === 'blossom' && st.trees.sakura;
   if (sakura) {
     const Hs = st.trees.heroes.map((H) => ({ x: r5(site.trailX(H.y) + H.side * (site.halfWAt(H.y) + H.off)), y: H.y, h: H.h, v: 0, cluster: -1, hero: true }));
     for (let i = trees.length - 1; i >= 0; i--) if (Hs.some((H) => Math.hypot(H.x - trees[i].x, H.y - trees[i].y) < st.trees.heroClear)) trees.splice(i, 1);
@@ -511,7 +524,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
   // the trees BANDED by the trail (a card's `trees.bands`, treeBands): the hero near built whole, the stock past it
   // stamped from templates (built off the map, through everything below, then lifted out), the far a shell
-  const TB = !bamboo && !sak && !st.glow ? treeBands(st, site, trees, broken) : null;
+  // (a cavern stands no band of trees round it: underground)
+  const TB = !bamboo && !sak && !st.glow && !site.cavern ? treeBands(st, site, trees, broken) : null;
   // BUSHES in sections (a biocube's `bushes`, thickets.js): tree kinds with the trunk taken away, drawn through the
   // trees' own path; a blocking bush a collider, a walked-through one drawn in the page's soft groups
   const TS = st.thickets && !bamboo && !sak ? placeThickets(st.thickets, site, { rocks, trees, reserved: site.reserved, far: TREE_BANDS.far }, seed) : null;
@@ -602,7 +616,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // they are painted cards and painted tops, tricks the material render does not keep; the rock stays rock, its moss the
   // form's own, optional; ctx.form, worlds/world-scene.js)
   const drapes = !ctx.form;
-  const grows = !!st.grass && (!SH || !!B), hatOf = (b) => !b.cave && drapes && grows && b.s >= st.boulder.minHat;
+  const grows = !!st.grass && (!SH || !!B) && !site.cavern, hatOf = (b) => !b.cave && drapes && grows && b.s >= st.boulder.minHat;
   const capSnow = (f) => SF && f.normal[2] > SN.hold && SF(...mean(f.corners), f.normal) > 0;
   const asCap = (b) => (f) => (capSnow(f) ? { ...asRock(f), group: 'isekai:snow', tint: landTint['isekai:snow'] } : SH && hatOf(b) ? { ...asRock(f), group: 'isekai:ground', tint: landTint['isekai:ground'] } : asRock(f));
   const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff').map(asRock), ...boulders.flatMap((b) => [...b.sides.map(asRock), ...b.cap.map(asCap(b))])] : [];
@@ -773,8 +787,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       cel.push({ ...f, texture: `isekai:${st.id}:${tile}-s${k}`, fill: rgbHex(ramp[k].map((v) => v / 255)), group: band === 'bleed' ? 'isekai:trail' : 'isekai:ground', doubleSided: true });
     });
   }
-  const ridges = layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null);
-  if (st.cumulus) for (const f of cumulusFaces(st, site, dir, !!broken)) cel.push(f);
+  // (a cavern lays no far layers round it: its rock is all it sees)
+  const ridges = site.cavern ? [] : layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null);
+  if (st.cumulus && !site.cavern) for (const f of cumulusFaces(st, site, dir, !!broken)) cel.push(f);
   // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
   // the bare ground, then the ribbon's lanes in order, then the rock. A paved trail, era/trail-dress.js `surface`, leans
   // its lanes to its word's colour and, gritty, lays its word's tile for the path's; its fringe is turf to its edge)
@@ -883,6 +898,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(ctx.form && SF ? { snowMap: snowMap(site, SF, SN, snowR) } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
   };
+  // (a CAVERN: underground, so the page's sky is a room's, no clouds, no live grass; every face lit by what it sees)
+  if (site.cavern) {
+    const asCave = cavernAsCave(site, site.cavern), lampFs = [...lampFaces(asCave), ...crackFaces(site, site.cavern)].map((f) => ({ ...f, outNormal: f.normal, cornerFills: f.corners.map(() => f.fill) }));
+    payload.faces = cavernLight([...payload.faces, ...lampFs], site, site.cavern, { open: hourDim(st) });
+    // (with a skylight the day's own sky shows through it, the ceiling hiding the rest; without, a room's)
+    if (!site.cavern.skylight) payload.sky = { preset: 'interior' };
+    payload.bg = site.cavern.skylight ? payload.bg : '#08090b';
+    payload.haze = { color: '#0a0b0d', density: st.air.fog.density };
+    delete payload.effects; delete payload.liveGrass;
+  }
   // (the SNOW's prints: a footprint bed round the walker on the snow, scene/channels/snow-prints.js)
   // (the form render's read presses its own prints into the snow it draws, channels/form-land.js: none of the bed's)
   if (SF && !ctx.form) payload.snowPrints = snowPrintsConfig(st, site, zG, SN, SF, shadow, dir, drawnFaces);
