@@ -12,7 +12,9 @@ describe('the bay axes', () => {
   it('a register is its preset on every axis', () => {
     const r = ids[0];
     expect(JSON.stringify(bayKitOf(REGISTER_PRESETS[r]))).toBe(JSON.stringify(bayKit(r)));
-    for (const T of [CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS]) expect(Object.keys(T)).toEqual(ids);
+    for (const T of [PALETTES, PLOTS, DRESSINGS]) expect(Object.keys(T)).toEqual(ids);
+    // (a construction may be no register's, the bunker's: chosen on its axis alone; every register's is there)
+    expect(Object.keys(CONSTRUCTIONS).filter((k) => ids.includes(k))).toEqual(ids);
   });
 
   it('one register\'s construction in another\'s palette: the materials the first\'s, the colours the second\'s, round again', () => {

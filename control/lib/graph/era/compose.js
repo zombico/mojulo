@@ -43,7 +43,8 @@ export const DESTRUCTION_WORDS = Object.freeze({
 
 export const COMPOSE_WORDS = Object.freeze({
   construction: {
-    military: ['steel plate', 'armour plate', 'armor plate', 'board-formed concrete', 'blast door', 'bulkhead', 'vault roof'],
+    military: ['steel plate', 'armour plate', 'armor plate', 'board-formed concrete', 'bulkhead', 'vault roof'],
+    bunker: ['bunker', 'blast door', 'blast doors', 'cable trays', 'hardened', 'fortified', 'underground base'],
     utility: ['concrete block', 'cinder block', 'cladding', 'standing seam', 'sawtooth roof', 'trusses', 'industrial'],
     science: ['white panels', 'panelled', 'paneled', 'glazed tile', 'terrazzo', 'carbon fibre', 'carbon fiber', 'coffered', 'sterile'],
     everyday: ['drywall', 'plasterboard', 'carpet', 'veneer', 'laminate', 'vinyl floor', 'ceiling tiles', 'suspended ceiling'],
@@ -116,7 +117,9 @@ export function readCompose(c, base = 'everyday') {
   const resolved = {}, said = {};
   for (const a of COMPOSE_AXES) {
     if (I[a] !== undefined) { resolved[a] = I[a]; said[a] = 'pinned'; continue; }
-    const score = Object.fromEntries(Object.entries(heard[a]).map(([v, ws]) => [v, ws.length])), v = best(score);
+    // (an axis may hold a value that is no register, a bunker's construction: it is heard after the registers on a tie)
+    const score = Object.fromEntries(Object.entries(heard[a]).map(([v, ws]) => [v, ws.length]));
+    const v = [...order, ...Object.keys(score).filter((x) => !order.includes(x))].reduce((b, x) => ((score[x] ?? 0) > (score[b] ?? 0) ? x : b), order[0]);
     if (score[v] > 0) { resolved[a] = v; said[a] = `said: ${heard[a][v].join(', ')}`; } else { resolved[a] = leaning ? leant : home; said[a] = leaning ? `leans ${leant}` : `base ${home}`; }
   }
   // the mood (compose-plot.js MOODS): pinned, else the words' (the darkest heard wins), else even
