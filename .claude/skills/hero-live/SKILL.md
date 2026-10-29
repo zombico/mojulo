@@ -61,11 +61,17 @@ node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote all --sheet 
 # one emote under an emotion, mirrored; a performance's take beside it
 node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote '{"worried":{"emote":"rest","face":"worried"},"restM":{"emote":"rest","mirror":true}}' \
      --perform '{"drift":{"beats":[{"at":0,"emote":"rest"},{"at":3,"emote":"daydream"},{"at":7,"emote":"rest","face":"worried","say":"I keep thinking about it."}]}}'
+# each emote whole and part by part (brows, lids, cheeks: `<clip>·<part>`, every other part at rest), read and shot
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote '["daydream","absorbed"]' --parts brows,lids,cheeks --sheet
+# the upper face's gestures over the resting face, shot mid-hold (--blinks keeps the moments as asked)
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --sheet --blinks --phases 0.21,0.51 \
+     --perform '{"tells":{"seconds":7,"beats":[{"at":0,"emote":"rest"},{"at":1,"emote":"rest","tell":"oneBrow"},{"at":3,"emote":"rest","tell":"eyeSmile"}]}}'
 ```
 
 The read (`face-acting/emote-read.js`): per clip, held at its median key, each side's largest and 95th-percentile move
 in mm and the asymmetry's (the face against its own mirror, its sides' weights swapped: a symmetric face reads nought),
-`shows` or `too faint` (under 0.5 mm), and the asymmetry by region (the brows, the lids, the mouth). A card is tuned in
+`shows` or `too faint` (under 0.5 mm), and the asymmetry by region (the brows, the lids, the cheeks, the mouth: the parts
+of `face-acting/parts.js`, whose timing, couplings and upper-face gestures a beat's `tell` plays). A card is tuned in
 `face-acting/emotes.js` `FACE_EMOTES` and re-read; the eyes gate stays the operator's.
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,

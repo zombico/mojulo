@@ -8,7 +8,8 @@
  * asymmetric by construction, as a face at rest is), eyes: { yaw, pitch (degrees, the regard's home), drift (degrees,
  * the eyes' slow wander), refix: { every: [s, s], reach: [deg, deg] } | null (the small re-fixations of eyes on
  * nothing) }, blink: { rate (a minute), slow? (× the blink's length) }, stirs?: [{ face, every: [s, s], up, hold, down
- * (s) }], seconds (the loop) }.
+ * (s) } | { tell (an upper-face gesture, parts.js UPPER_GESTURES), every }], seconds (the loop) }. Each part of the face
+ * lives in the hold its own way and pulls on the others as parts.js says.
  *
  *   • THE REGARD is the far point: no distance, the eyes parallel (gaze.js), looking at nothing and never cross-eyed.
  *   • THE LOOP is seamless: every wave of the moving hold and of the drift turns a whole number of times in it, and the
@@ -21,14 +22,15 @@
  */
 import { auOf } from './facs.js';
 import { composeFace } from './emotions.js';
-import { BLINK, MOVING_HOLD, GAZE, CAPTURE_FPS } from './perform.js';
+import { BLINK, GAZE, CAPTURE_FPS } from './perform.js';
+import { PARTS, partOf, couple, tellOf } from './parts.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
 export const FACE_EMOTES = Object.freeze({
   rest: {
     words: ['resting face', 'at rest', 'neutral', 'blank', 'idle'],
     reads: 'nothing on it but the face\'s own unevenness: one brow a touch higher, a corner a touch lower, a lid a touch heavier; looking at nothing',
-    face: { AU2L: 0.12, AU4R: 0.08, AU45R: 0.08, AU15R: 0.1, AU12L: 0.06, AU24: 0.06 },
+    face: { AU2L: 0.12, AU4R: 0.08, AU45R: 0.08, AU15R: 0.1, AU12L: 0.06, AU6L: 0.08, AU24: 0.06 },
     eyes: { yaw: 0, pitch: -4, drift: 0.5, refix: { every: [2.5, 5], reach: [1, 3] } },
     blink: { rate: 14 }, seconds: 8,
   },
@@ -42,16 +44,16 @@ export const FACE_EMOTES = Object.freeze({
   daydream: {
     words: ['daydreaming', 'lost in thought', 'far away', 'wistful', 'dreamy'],
     reads: 'far away and pleasantly so: the eyes up and off, a half smile on one side, the brows a little lifted',
-    face: { AU12L: 0.22, AU6L: 0.08, AU1: 0.12, AU2L: 0.22, AU45: 0.08 },
+    face: { AU12L: 0.22, AU6L: 0.2, AU1: 0.12, AU2L: 0.22, AU45: 0.08 },
     eyes: { yaw: 14, pitch: 9, drift: 0.6, refix: { every: [3, 6], reach: [1, 3] } },
-    blink: { rate: 10 }, seconds: 8,
+    blink: { rate: 10 }, stirs: [{ tell: 'eyeSmile', every: [4, 8] }], seconds: 8,
   },
   absorbed: {
     words: ['absorbed', 'turning it over', 'concentrating', 'inward', 'brooding'],
     reads: 'turned inward, working something over: the eyes down and off, one brow drawn, the lips pressed and working',
-    face: { AU4R: 0.3, AU4L: 0.08, AU7R: 0.2, AU24: 0.18, AU17: 0.12, AU14R: 0.15 },
+    face: { AU4R: 0.3, AU4L: 0.08, AU7R: 0.32, AU24: 0.18, AU17: 0.12, AU14R: 0.15 },
     eyes: { yaw: -9, pitch: -11, drift: 0.4, refix: { every: [1.5, 3.5], reach: [1.5, 4] } },
-    blink: { rate: 9 }, stirs: [{ face: { AU24: 0.2, AU17: 0.15 }, every: [3, 6], up: 0.3, hold: 0.6, down: 0.6 }], seconds: 8,
+    blink: { rate: 9 }, stirs: [{ face: { AU24: 0.2, AU17: 0.15 }, every: [3, 6], up: 0.3, hold: 0.6, down: 0.6 }, { tell: 'knit', every: [4, 7] }], seconds: 8,
   },
   waiting: {
     words: ['waiting', 'bored', 'patient', 'killing time', 'restless'],
@@ -63,7 +65,7 @@ export const FACE_EMOTES = Object.freeze({
   drowsy: {
     words: ['drowsy', 'sleepy', 'nodding off', 'heavy-lidded', 'tired'],
     reads: 'fighting sleep: the lids heavy, one heavier, the brows lifting to hold them, the lids sinking and caught, the blinks slow',
-    face: { AU45L: 0.42, AU45R: 0.34, AU1: 0.14, AU2L: 0.16, AU2R: 0.08, AU25: 0.12 },
+    face: { AU45L: 0.42, AU45R: 0.34, AU1: 0.14, AU2L: 0.26, AU2R: 0.06, AU25: 0.12 },
     eyes: { yaw: 0, pitch: -7, drift: 0.4, refix: null },
     blink: { rate: 9, slow: 2.2 }, stirs: [{ face: { AU45: 0.65 }, every: [3, 6], up: 0.9, hold: 0.5, down: 0.6 }], seconds: 10,
   },
@@ -111,7 +113,9 @@ export function emoteState(spec) {
   const side = (st) => (S.mirror ? mirrored(st) : st), scale = (st) => Object.fromEntries(Object.entries(side(st)).map(([k, v]) => [k, clamp01(v * K)]));
   const face = scale(C.face);
   if (S.face !== undefined) for (const [k, v] of Object.entries(composeFace(S.face))) face[k] = clamp01((face[k] ?? 0) + v);
-  return { emote: S.emote, card: C, face, stirs: (C.stirs ?? []).map((st) => ({ ...st, face: scale(st.face) })),
+  // (a stir is the card's own units, or an upper-face gesture's, parts.js: `tell`, mirrored with the emote)
+  const stir = (st) => { if (!st.tell) return { ...st, face: scale(st.face) }; const G = tellOf({ gesture: st.tell, mirror: !!S.mirror, intensity: K }); return { every: st.every, up: G.up, hold: G.hold, down: G.down, face: G.units, tell: st.tell }; };
+  return { emote: S.emote, card: C, face, stirs: (C.stirs ?? []).map(stir),
     home: { yaw: (S.mirror ? -1 : 1) * C.eyes.yaw, pitch: C.eyes.pitch }, eyes: C.eyes, blink: C.blink };
 }
 
@@ -131,8 +135,8 @@ export function emoteTake(spec) {
   // THE HELD FACE, living: each unit its two slow waves (the moving hold, perform.js's), whole cycles in the loop
   const curves = {};
   for (const [k, v] of Object.entries(E.face).sort(([a], [b]) => (a < b ? -1 : 1))) {
-    const W = MOVING_HOLD.hz.map((r) => wave(span(r)));
-    curves[k] = Array.from({ length: n }, (_, i) => clamp01(v * (1 + MOVING_HOLD.share * W.reduce((m, [w, ph]) => m + Math.sin(w * tOf(i) + ph), 0) / W.length)));
+    const H = PARTS[partOf(k)].hold, W = H.hz.map((r) => wave(span(r)));
+    curves[k] = Array.from({ length: n }, (_, i) => clamp01(v * (1 + H.share * W.reduce((m, [w, ph]) => m + Math.sin(w * tOf(i) + ph), 0) / W.length)));
   }
   // (a pulse laid round the loop over a unit's curve: the greater of the two)
   const layer = (k0, t0, up, hold, down, peak) => {
@@ -161,9 +165,11 @@ export function emoteTake(spec) {
     const len = st.up + st.hold + st.down;
     for (const t of round(span([0.5, 2]), len, () => span(st.every))) {
       for (const [k, v] of Object.entries(st.face)) layer(k, t, st.up, st.hold, st.down, v);
-      events.stirs.push({ t: r4(t), dur: r4(len) });
+      events.stirs.push({ t: r4(t), dur: r4(len), ...(st.tell ? { tell: st.tell } : {}) });
     }
   }
+  // THE COUPLINGS: the cheek's raise under the lower lid, the brow's weight on the lid (parts.js)
+  couple(curves, n);
   // THE BLINKS at the card's rate, closing fast and opening slower (perform.js's), `slow` times as long
   const slow = C.blink.slow ?? 1, mean = 60 / C.blink.rate;
   const blink = () => [span(BLINK.close) * slow, span(BLINK.shut) * slow, span(BLINK.open) * slow];

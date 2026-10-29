@@ -47,3 +47,20 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
 - **Tuning the face without a mint** (`/hero-live` `face.mjs`): emotes and performances recomputed over a hero already
   minted, in seconds, beside its GLB (`<id>.face.json`, the viewer playing each over the GLB's own clip of its name),
   read, and shot as a contact sheet (the face close, each moment moved to the nearest frame off a blink).
+- **The face as parts** (`face-acting/parts.js` `PARTS`): the brows, the lids, the cheeks and the mouth each move on
+  their own timing (the brows lead a thought, the lids go quickest, the cheeks lag the smile by a tenth of a second and
+  settle slowest) and live in a hold their own way (the brows' slow drift, the lids' faint flutter, the cheeks' slow
+  settle). The performer and the emotes time each unit by its part; every take's curves change (face acting is
+  unreleased).
+- **The parts pull on each other** (`COUPLINGS`, `couple`): the cheek raised bunches its own lower lid up, the brow
+  lowered bears on the lid, the outer brow raised lifts the lid's skin; side by side, frame by frame, so a coupled move
+  rides its cause's timing; a floor under the lid, never a sum.
+- **The upper face's gestures** (`UPPER_GESTURES`): `oneBrow`, `eyeSmile`, `appraise`, `knit`, `wince`, `widen`,
+  `attend`, each a card of a few units (a side its own), a rise, a hold and a fall: a beat's `tell` (a name, `{ gesture,
+  at?, mirror?, intensity? }` or a list) lays one over the face, and an emote's stir may be one (`{ tell, every }`:
+  `daydream` smiles in its eyes now and then, `absorbed` knits its brow). The expression the face keeps while a line
+  owns the mouth.
+- **Each part alone** (`face.mjs --parts brows,lids,cheeks`): every clip again with one part moving and the rest at rest
+  (`<clip>·<part>`), read, played and shot beside the whole; the read's regions are the parts (the cheeks their own).
+  Part by part it found the cheeks idle in most emotes and `daydream`'s cheek, `absorbed`'s narrowed lid and `drowsy`'s
+  propping brow under the line: the cards are retuned.

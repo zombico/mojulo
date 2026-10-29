@@ -1,7 +1,7 @@
 // emote-read: the machine read of a held face on a mesh, on a small synthetic face (a mirrored grid of vertices, a
 // symmetric target and a sided pair): the move per side, the asymmetry against the face's own mirror, whether it shows.
 import { describe, it, expect } from 'vitest';
-import { faceRead, heldWeights, regionReads, SHOWS } from './emote-read.js';
+import { faceRead, heldWeights, regionReads, targetPart, SHOWS } from './emote-read.js';
 
 // (a 9 × 9 patch either side of x = 0, a metre's millimetres apart; `lift` raises both sides, `sneer` the figure's left)
 const P = [], N = 9;
@@ -37,6 +37,8 @@ describe('emote-read: does the face\'s unevenness show', () => {
     expect(R.brows.asymmetry.max).toBeCloseTo(3, 1);
     expect(R.mouth.asymmetry.max).toBeLessThan(0.01);
     expect(R.lids.moved).toBe(0);
+    expect(R.cheeks.moved).toBe(0);
+    expect(['browOuterLeft', 'blinkRight', 'cheekRaiseLeft', 'eyeLookUpLeft', 'jawOpen'].map(targetPart)).toEqual(['brows', 'lids', 'cheeks', 'gaze', 'mouth']);
   });
 
   it('holds a clip by its median key, so a blink through it is not the face', () => {

@@ -6,7 +6,8 @@
 // asymmetry shows), and shot as a contact sheet (shot.mjs): each clip at a few moments of its loop, the face framed.
 //
 //   node .claude/skills/hero-live/face.mjs [--out dir] [--variants bare,knight] [--emote '<json>'] [--perform '<json>']
-//                                          [--sheet] [--phases 0.02,0.35,0.68,0.98] [--view vFace] [--blinks] [--cols n]
+//                                          [--parts brows,lids,cheeks] [--sheet] [--phases 0.02,0.35,0.68,0.98]
+//                                          [--view vFace] [--blinks] [--cols n]
 //
 //   --out       live.mjs's out dir (default <tmp>/hero-live)
 //   --variants  the variants to tune (default every <id>.glb in --out)
@@ -14,6 +15,8 @@
 //               intensity?, seconds?, seed? } }; `all` every emote by name): written as `emote:<clip>` clips
 //   --perform   the door's `perform` ({ <take>: a performance }): written as `face:<take>` clips
 //               (neither: the clips already written, else the GLB's own emote and face clips, are read and shot)
+//   --parts     each clip's parts alone too (face-acting/parts.js: brows, lids, cheeks, mouth, or all): a clip
+//               `<clip>·<part>` with every other part at rest (the gaze kept), read, played and shot beside the whole
 //   --sheet     shoot each clip at --phases (shots/sheet.png, one row a clip; the first variant unless --variants names
 //               more), the face close (brows to chin) unless --view names a preset (vFace, vBust …), each moment moved to
 //               the nearest frame off a blink (--blinks keeps them as asked)
@@ -37,14 +40,15 @@ const { NodeIO } = req('@gltf-transform/core');
 const lib = (p) => import(pathToFileURL(path.join(CONTROL, 'lib/graph', p)).href);
 const { emoteTake, emoteClips, FACE_EMOTE_NAMES } = await lib('face-acting/emotes.js');
 const { perform } = await lib('face-acting/perform.js');
-const { faceRead, heldWeights, regionReads } = await lib('face-acting/emote-read.js');
+const { faceRead, heldWeights, regionReads, targetPart } = await lib('face-acting/emote-read.js');
+const { PART_NAMES } = await lib('face-acting/parts.js');
 const { performanceTrack, RELATIONAL_FACE_TARGETS } = await lib('polygonizer/relational-face-rig.js');
 
 const argv = process.argv.slice(2), opt = {};
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i].replace(/^--/, '');
   if (k === 'sheet' || k === 'blinks') opt[k] = true;
-  else if (['out', 'variants', 'emote', 'perform', 'phases', 'view', 'cols'].includes(k)) { if (argv[i + 1] === undefined) throw new Error(`hero-live face: --${k} takes a value`); opt[k] = argv[++i]; }
+  else if (['out', 'variants', 'emote', 'perform', 'parts', 'phases', 'view', 'cols'].includes(k)) { if (argv[i + 1] === undefined) throw new Error(`hero-live face: --${k} takes a value`); opt[k] = argv[++i]; }
   else throw new Error(`hero-live face: unknown option ${argv[i]}`);
 }
 const out = path.resolve(opt.out ?? path.join(os.tmpdir(), 'hero-live'));
@@ -53,6 +57,10 @@ if (!ids.length) throw new Error(`hero-live face: no <id>.glb in ${out} (run liv
 const parseJson = (s) => { try { return JSON.parse(s); } catch { return s; } };   // (a bare name is a name)
 const emote = opt.emote === 'all' ? [...FACE_EMOTE_NAMES] : opt.emote !== undefined ? parseJson(opt.emote) : undefined;
 const performs = opt.perform !== undefined ? JSON.parse(opt.perform) : undefined;
+const parts = opt.parts === undefined ? [] : opt.parts === 'all' ? PART_NAMES : opt.parts.split(',').map((s) => s.trim()).filter(Boolean);
+for (const p of parts) if (!PART_NAMES.includes(p)) throw new Error(`hero-live face: --parts takes ${PART_NAMES.join(', ')} or all, not '${p}'`);
+// (a clip with one part alone moving: every other part's targets at rest, the gaze kept; named `<clip>·<part>`)
+const isolate = (C, part) => ({ ...C, name: `${C.name}·${part}`, part, w: C.w.map((row) => row.map((v, j) => ([part, 'gaze'].includes(targetPart(C.names[j])) ? v : 0))) });
 
 // ─── the clips: an emote's loop or a take, as the rig's weights track (the export's own derivation) ─────────────
 const clipOf = (name, take) => { const K = performanceTrack(take); return { name, seconds: K.seconds, ...(take.loop ? { loop: true } : {}), t: K.t, names: [...RELATIONAL_FACE_TARGETS], w: K.w }; };
@@ -80,15 +88,17 @@ for (const id of ids) {
     const s = a.listChannels().find((c) => c.getTargetPath() === 'weights').getSampler(), T = [...s.getInput().getArray()], O = s.getOutput().getArray(), m = O.length / T.length;
     return { name: a.getName(), seconds: T.at(-1), t: T, names: names.slice(0, m), w: T.map((_, k) => [...O.slice(k * m, k * m + m)]) };
   });
-  const read = {};
-  console.log(`\n${id}: ${clips.length} face clip${clips.length === 1 ? '' : 's'}${written.length ? ` written to ${sideFile}` : ''}`);
+  // (and each clip's parts alone, where --parts asks: the clip, then one row a part)
+  if (parts.length) clips = clips.filter((C) => !C.part).flatMap((C) => [C, ...parts.map((p) => isolate(C, p))]);
+  const writes = written.length > 0 || parts.length > 0, read = {};
+  console.log(`\n${id}: ${clips.length} face clip${clips.length === 1 ? '' : 's'}${writes ? ` written to ${sideFile}` : ''}`);
   for (const C of clips) {
     const W = heldWeights(C.names, C.w), R = faceRead({ positions, deltas, left }, W), G = regionReads({ positions, deltas, left }, W);
     read[C.name] = { ...R, regions: Object.fromEntries(Object.entries(G).map(([r, g]) => [r, g.asymmetry])) };
     console.log(`  ${C.name.padEnd(22)} L ${R.L.max.toFixed(2)} / ${R.L.p95.toFixed(2)}   R ${R.R.max.toFixed(2)} / ${R.R.p95.toFixed(2)}   asymmetry ${R.asymmetry.max.toFixed(2)} / ${R.asymmetry.p95.toFixed(2)} mm   ${R.shows ? 'shows' : 'too faint'}`);
     console.log(`  ${''.padEnd(22)} asymmetry by region: ${Object.entries(G).map(([r, g]) => `${r} ${g.asymmetry.max.toFixed(2)}${g.shows ? '' : ' (faint)'}`).join(' · ')}`);
   }
-  if (written.length) writeFileSync(sideFile, JSON.stringify({ clips: written, read, spec: { ...(emote !== undefined ? { emote } : {}), ...(performs ? { perform: performs } : {}) } }));
+  if (writes) writeFileSync(sideFile, JSON.stringify({ clips, read, spec: { ...(emote !== undefined ? { emote } : {}), ...(performs ? { perform: performs } : {}) } }));
   if (opt.sheet && (opt.variants || !shots.length)) {
     const phases = (opt.phases ?? '0.02,0.35,0.68,0.98').split(',').map(Number);
     // (the face close by default, brows to chin, where a millimetre's unevenness can be seen; --view a preset instead)

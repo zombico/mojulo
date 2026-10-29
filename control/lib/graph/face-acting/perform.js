@@ -11,10 +11,15 @@
  * timing, phonemes | envelope, words? } (recordings.js bindLine): its phonemes on the recording's own timeline, the
  * recording starting with the beat; the beat's state speaking unless it says another), emote? (a held state, emotes.js: a
  * name or { emote, mirror?, intensity? }; the base the beat's `face` adds to, its regard where the beat names no gaze, its
- * blinks' rate and pace but while speaking, its stirs, until the next beat) }], seconds?,
+ * blinks' rate and pace but while speaking, its stirs, until the next beat), tell? (an upper-face gesture, parts.js
+ * UPPER_GESTURES: a name, { gesture, at?, mirror?, intensity? } or a list: a one-sided brow, the smile in the eyes, an
+ * appraising squint …, laid over the face from the beat or its own `at`) }], seconds?,
  * intensity? (1), seed? (1), fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds
  * past the last beat or the last line's end, whichever is later).
  *
+ *   • THE PARTS (parts.js): the brows, the lids, the cheeks and the mouth each move on their own timing (the brows lead,
+ *     the lids go quickest, the cheeks lag the smile and settle slowest) and live in a hold their own way; the cheek
+ *     raised pushes the lower lid up, a lowered brow bears on the lid, the outer brow lifts it, frame by frame.
  *   • THE DYNAMICS (FACS's: an expression has an onset, an apex and an offset): a SPONTANEOUS change eases in over a
  *     third to three fifths of a second and out more slowly; a POSED one snaps in within a fifth. Each unit's timing and
  *     its apex are jittered a little (seeded), so the units never move in lockstep, as no face's do.
@@ -42,11 +47,12 @@
  * facsWeights).
  */
 import { composeFace } from './emotions.js';
-import { FACS_UNITS, auOf } from './facs.js';
+import { auOf } from './facs.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { speak, speechErrors } from './speech.js';
 import { MOUTH, overMouth } from './mouth.js';
 import { emoteErrors, emoteState, sidesOf } from './emotes.js';
+import { PARTS, partOf, couple, tellErrors, tellOf } from './parts.js';
 
 export const CAPTURE_FPS = 60;
 /** a change's timing, seconds: [shortest, longest], the onset rising, the offset falling; the upper face's lead */
@@ -56,8 +62,9 @@ export const DYNAMICS = Object.freeze({
   lead: 0.12, jitter: Object.freeze({ time: 0.06, gain: 0.08 }),
 });
 /** the MOVING HOLD: a held unit lives, a share of its own height (`share`) in two slow waves (their frequencies, Hz),
- * seeded per unit, so no expression is held dead still and a unit at rest stays at rest */
-export const MOVING_HOLD = Object.freeze({ share: 0.05, hz: Object.freeze([[0.15, 0.35], [0.4, 0.9]]) });
+ * seeded per unit, so no expression is held dead still and a unit at rest stays at rest; the mouth's, each other part
+ * its own (parts.js PARTS) */
+export const MOVING_HOLD = PARTS.mouth.hold;
 /** a micro-expression's onset, hold and offset (s): a fifth of a second whole */
 export const MICRO = Object.freeze({ onset: 0.05, hold: 0.1, offset: 0.05 });
 /** speech over the face: how far a rounded lip (the pucker's, the funnel's) draws in the face's corners (the smile, the
@@ -101,6 +108,7 @@ export function performanceErrors(P) {
     if (b.onset !== undefined && !(b.onset === 'spontaneous' || b.onset === 'posed' || (Number.isFinite(b.onset) && b.onset > 0))) errs.push(`${at}.onset: 'spontaneous' | 'posed' | seconds`);
     if (b.say !== undefined) errs.push(...speechErrors(b.say).map((e) => `${at}.${e}`));
     if (b.emote !== undefined) errs.push(...emoteErrors(b.emote).map((e) => `${at}.${e}`));
+    if (b.tell !== undefined) for (const T of [b.tell].flat()) errs.push(...tellErrors(T).map((e) => `${at}.${e}`));
     // (a recording is saved by the character door, which keeps its id: a path here would play nothing)
     if (b.say && typeof b.say === 'object' && b.say.audio !== undefined) errs.push(`${at}.say.audio: a recording is saved by the door (create_character or update_character, recordings.js), which keeps its id; a performance holds no path`);
     const g = b.gaze;
@@ -129,20 +137,21 @@ export function perform(P) {
   const curves = {};
   // THE UNITS: each a chain of transitions, one a beat, from where the unit is when it starts to the beat's apex
   for (const k of keys) {
-    const upper = ['upper', 'eyes'].includes(FACS_UNITS[auOf(k)[0]].region), tr = [];
+    // (the unit's part: its lead before the beat, its pace, its hold)
+    const part = PARTS[partOf(k)], tr = [];
     let prevTarget = 0;
     for (const b of beats) {
       const to = clamp01((b.S[k] ?? 0) * (1 + DYNAMICS.jitter.gain * (2 * rnd() - 1)));
       if (Math.abs(to - prevTarget) < 1e-6) { prevTarget = to; rnd(); continue; }
       const mode = typeof b.onset === 'number' ? null : DYNAMICS[b.onset ?? 'spontaneous'];
-      const dur = typeof b.onset === 'number' ? b.onset : span(to > prevTarget ? mode.onset : mode.offset);
-      const t0 = Math.max(0, b.at - (upper ? DYNAMICS.lead : 0) + DYNAMICS.jitter.time * (2 * rnd() - 1));
+      const dur = typeof b.onset === 'number' ? b.onset : span(to > prevTarget ? mode.onset : mode.offset) * part.pace;
+      const t0 = Math.max(0, b.at - part.lead + DYNAMICS.jitter.time * (2 * rnd() - 1));
       tr.push({ t0, t1: t0 + dur, to, shape: b.onset === 'posed' && to > prevTarget ? snap : ease });
       prevTarget = to;
     }
     // (evaluated in order: a transition starts from the value the one before left at its start; then the moving hold)
-    const waves = MOVING_HOLD.hz.map((r) => [2 * Math.PI * span(r), 2 * Math.PI * rnd()]);
-    const live = (t) => 1 + MOVING_HOLD.share * waves.reduce((m, [w, ph]) => m + Math.sin(w * t + ph), 0) / waves.length;
+    const waves = part.hold.hz.map((r) => [2 * Math.PI * span(r), 2 * Math.PI * rnd()]);
+    const live = (t) => 1 + part.hold.share * waves.reduce((m, [w, ph]) => m + Math.sin(w * t + ph), 0) / waves.length;
     const vals = new Array(n);
     let j = -1, from = 0, cur = 0;
     for (let i = 0; i < n; i++) {
@@ -188,6 +197,14 @@ export function perform(P) {
       }
     }
   });
+  // THE TELLS: the upper face's gestures, each laid over the face from its beat (or its own time)
+  for (const b of beats) for (const T of b.tell === undefined ? [] : [b.tell].flat()) {
+    const G = tellOf(T), t0 = G.at ?? b.at;
+    for (const [k, v] of Object.entries(G.units)) layer(k, t0, G.up, G.hold, G.down, clamp01(v * K));
+    (events.tells ??= []).push({ t: r4(t0), gesture: G.gesture, dur: r4(G.up + G.hold + G.down) });
+  }
+  // THE COUPLINGS: the cheek's raise under the lower lid, the brow's weight on the lid, frame by frame (parts.js)
+  couple(curves, n);
   // THE LINES: the speech's units over the face's, the face's mouth giving way where the lips cannot do both (mouth.js)
   for (const L of lines) {
     const T = L.take;

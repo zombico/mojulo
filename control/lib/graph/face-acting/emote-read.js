@@ -15,7 +15,7 @@
  *     so a symmetric face reads nought exactly, and what reads is the expression's own unevenness, not the head's. Its
  *     largest and 95th percentile, and whether it `shows` (`SHOWS`).
  *   • BY REGION (`regionReads`): the same read with the held weights of one region's targets alone (the brows, the lids,
- *     the mouth: `REGIONS`), so a read says where the unevenness is, not only how much.
+ *     the cheeks, the mouth: `REGIONS`, parts.js's parts), so a read says where the unevenness is, not only how much.
  * Pure arithmetic over typed arrays.
  */
 
@@ -60,8 +60,11 @@ export function faceRead({ positions, deltas, left = -1 }, weights) {
   return { L: side(sides.L), R: side(sides.R), asymmetry: A, shows: A.max >= SHOWS, moved };
 }
 
-/** the face's regions by their targets' names (relational-face-rig.js RELATIONAL_FACE_TARGETS): the mouth all the rest */
-export const REGIONS = Object.freeze({ brows: /^brow/, lids: /^(blink|eyeWide|eyeSquint|cheekRaise)/ });
+/** the face's regions by their targets' names (relational-face-rig.js RELATIONAL_FACE_TARGETS), the parts of parts.js:
+ * the mouth all the rest but the gaze */
+export const REGIONS = Object.freeze({ brows: /^brow/, lids: /^(blink|eyeWide|eyeSquint)/, cheeks: /^cheekRaise/ });
+/** a target's part: a region's, the gaze's (`eyeLook*`, no part), else the mouth */
+export const targetPart = (name) => (name.startsWith('eyeLook') ? 'gaze' : Object.keys(REGIONS).find((r) => REGIONS[r].test(name)) ?? 'mouth');
 
 /** `faceRead` per region: { brows, lids, mouth }, each the read with that region's held weights alone */
 export function regionReads(mesh, weights) {
