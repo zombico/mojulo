@@ -23,6 +23,7 @@
  */
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
+import { STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws } from './stocking.js';
 
 const B = (u0, u1, v0, v1, z0, z1, s) => [u0, u1, v0, v1, z0, z1, s];
 export const PIECES = Object.freeze({
@@ -41,6 +42,30 @@ export const PIECES = Object.freeze({
   desk: { class: 'bench', w: 1.6, d: 0.8, h: 0.75, parts: [B(0, 1.6, 0, 0.8, 0.71, 0.75, 'cabinet'), B(0.02, 0.08, 0.05, 0.75, 0, 0.71, 'trim'), B(1.52, 1.58, 0.05, 0.75, 0, 0.71, 'trim'), B(1.1, 1.5, 0.05, 0.75, 0.1, 0.71, 'cabinet')] },
   filing: { class: 'lockers', w: 0.5, d: 0.62, h: 1.32, parts: [B(0, 0.5, 0, 0.62, 0, 1.32, 'cabinet'), B(0.03, 0.47, 0.62, 0.64, 0.05, 1.27, 'trim')] },
   locker: { class: 'lockers', w: 0.4, d: 0.5, h: 1.9, parts: [B(0, 0.4, 0, 0.5, 0, 1.9, 'paint'), B(0.03, 0.37, 0.5, 0.52, 1.5, 1.6, 'trim')] },
+  // a military base's stock (stocking.js): what its rooms hold, as a supply chain stocks them. The load-bearing ones are
+  // read by play: sandbags and barriers are cover (a boulder's class: they take a beating), a container is climbed
+  bunk: { class: 'bench', w: 2.0, d: 0.9, h: 1.75, parts: [B(0, 0.05, 0, 0.05, 0, 1.75, 'trim'), B(1.95, 2, 0, 0.05, 0, 1.75, 'trim'), B(0, 0.05, 0.85, 0.9, 0, 1.75, 'trim'), B(1.95, 2, 0.85, 0.9, 0, 1.75, 'trim'),
+    B(0.05, 1.95, 0.05, 0.85, 0.35, 0.43, 'beam'), B(0.08, 1.92, 0.08, 0.82, 0.43, 0.56, 'cabinet'), B(0.05, 1.95, 0.05, 0.85, 1.12, 1.2, 'beam'), B(0.08, 1.92, 0.08, 0.82, 1.2, 1.33, 'cabinet'), B(0.05, 1.95, 0.85, 0.9, 1.42, 1.47, 'trim')] },
+  footlocker: { class: 'crate', w: 0.8, d: 0.45, h: 0.45, parts: [B(0, 0.8, 0, 0.45, 0, 0.42, 'paint'), B(0.01, 0.79, 0.01, 0.44, 0.42, 0.45, 'trim')] },
+  'weapon-rack': { class: 'rack', w: 1.6, d: 0.45, h: 1.8, parts: [B(0, 1.6, 0, 0.45, 0, 0.12, 'beam'), B(0, 1.6, 0, 0.05, 0.12, 1.8, 'trim'), B(0, 1.6, 0, 0.22, 1.55, 1.6, 'trim'), B(0, 1.6, 0.26, 0.3, 0.88, 0.94, 'paint'),
+    ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => B(0.1 + i * 0.185, 0.15 + i * 0.185, 0.1, 0.2, 0.12, 1.22, 'cabinet'))] },
+  'ammo-crate': { class: 'crate', w: 1.0, d: 0.55, h: 0.45, stack: 3, parts: [B(0, 1, 0, 0.55, 0, 0.4, 'paint'), B(0.02, 0.98, 0.02, 0.53, 0.4, 0.45, 'trim'), B(0, 0.04, 0.2, 0.35, 0.18, 0.27, 'trim'), B(0.96, 1, 0.2, 0.35, 0.18, 0.27, 'trim')] },
+  sandbags: { class: 'boulder', w: 1.8, d: 0.7, h: 0.96, parts: [B(0, 0.58, 0, 0.7, 0, 0.32, 'concrete'), B(0.61, 1.19, 0, 0.7, 0, 0.32, 'concrete'), B(1.22, 1.8, 0, 0.7, 0, 0.32, 'concrete'),
+    B(0.3, 0.88, 0.05, 0.65, 0.32, 0.64, 'concrete'), B(0.91, 1.49, 0.05, 0.65, 0.32, 0.64, 'concrete'), B(0.1, 0.68, 0.1, 0.6, 0.64, 0.96, 'concrete'), B(0.71, 1.29, 0.1, 0.6, 0.64, 0.96, 'concrete'), B(1.32, 1.75, 0.1, 0.6, 0.64, 0.96, 'concrete')] },
+  barrier: { class: 'boulder', w: 2.0, d: 0.6, h: 0.85, parts: [B(0, 2, 0, 0.6, 0, 0.25, 'concrete'), B(0, 2, 0.12, 0.48, 0.25, 0.55, 'concrete'), B(0, 2, 0.18, 0.42, 0.55, 0.85, 'concrete'), B(0, 2, 0.17, 0.43, 0.68, 0.76, 'paint')] },
+  container: { class: 'lockers', w: 6.0, d: 2.4, h: 2.6, parts: [B(0, 6, 0, 2.4, 0.15, 2.45, 'services'), B(0, 6, 0, 2.4, 0, 0.15, 'beam'), B(0, 6, 0, 2.4, 2.45, 2.6, 'beam'), B(0, 0.12, 0, 2.4, 0.15, 2.45, 'beam'), B(5.88, 6, 0, 2.4, 0.15, 2.45, 'trim'),
+    ...[1, 2, 3, 4, 5].map((i) => B(i - 0.04, i + 0.04, 2.4, 2.43, 0.2, 2.4, 'beam'))] },
+  'radio-console': { class: 'bench', w: 1.8, d: 0.8, h: 1.6, parts: [B(0, 1.8, 0, 0.8, 0.7, 0.75, 'cabinet'), B(0, 0.5, 0, 0.75, 0, 0.7, 'cabinet'), B(1.3, 1.8, 0, 0.75, 0, 0.7, 'cabinet'), B(0.1, 1.7, 0, 0.45, 0.75, 1.55, 'services'), B(0.15, 1.65, 0.45, 0.47, 0.85, 1.45, 'trim')] },
+  'ops-table': { class: 'set-piece', w: 3.2, d: 1.8, h: 0.95, parts: [B(0.3, 2.9, 0.3, 1.5, 0, 0.85, 'cabinet'), B(0, 3.2, 0, 1.8, 0.85, 0.95, 'paint'), B(0.1, 3.1, 0.1, 1.7, 0.95, 0.97, 'trim')] },
+  'mess-table': { class: 'bench', w: 2.4, d: 1.8, h: 0.76, parts: [B(0, 2.4, 0.5, 1.3, 0.72, 0.76, 'cabinet'), B(0.1, 0.18, 0.55, 1.25, 0, 0.72, 'trim'), B(2.22, 2.3, 0.55, 1.25, 0, 0.72, 'trim'),
+    B(0, 2.4, 0.05, 0.4, 0.42, 0.46, 'cabinet'), B(0, 2.4, 1.4, 1.75, 0.42, 0.46, 'cabinet'), B(0.1, 0.15, 0.1, 0.35, 0, 0.42, 'trim'), B(2.25, 2.3, 0.1, 0.35, 0, 0.42, 'trim'), B(0.1, 0.15, 1.45, 1.7, 0, 0.42, 'trim'), B(2.25, 2.3, 1.45, 1.7, 0, 0.42, 'trim')] },
+  cot: { class: 'bench', w: 2.0, d: 0.85, h: 0.65, parts: [B(0, 2, 0, 0.85, 0.5, 0.55, 'trim'), B(0.05, 1.95, 0.05, 0.8, 0.55, 0.65, 'cabinet'), B(0, 0.05, 0, 0.05, 0, 0.5, 'trim'), B(1.95, 2, 0, 0.05, 0, 0.5, 'trim'), B(0, 0.05, 0.8, 0.85, 0, 0.5, 'trim'), B(1.95, 2, 0.8, 0.85, 0, 0.5, 'trim')] },
+  switchgear: { class: 'lockers', w: 2.4, d: 0.6, h: 2.2, parts: [B(0, 2.4, 0, 0.6, 0, 0.1, 'beam'), B(0, 2.4, 0, 0.6, 0.1, 2.2, 'cabinet'), B(0.79, 0.81, 0.6, 0.62, 0.2, 2.1, 'trim'), B(1.59, 1.61, 0.6, 0.62, 0.2, 2.1, 'trim')] },
+  pump: { class: 'barrel', w: 1.6, d: 0.9, h: 1.1, parts: [B(0, 1.6, 0, 0.9, 0, 0.15, 'beam'), ['prism', 0.45, 0.45, 0.35, 0.15, 0.95, 10, 'paint'], ['prism', 1.15, 0.45, 0.32, 0.15, 0.75, 10, 'services'], B(1.1, 1.2, 0.4, 0.5, 0.75, 1.1, 'trim')] },
+  'sink-row': { class: 'bench', w: 2.4, d: 0.55, h: 1.8, parts: [B(0, 2.4, 0, 0.55, 0.8, 0.9, 'cabinet'), B(0, 2.4, 0, 0.5, 0, 0.8, 'trim'), B(0, 2.4, 0, 0.02, 1.2, 1.8, 'services')] },
+  washer: { class: 'lockers', w: 0.7, d: 0.7, h: 0.9, parts: [B(0, 0.7, 0, 0.7, 0, 0.9, 'services'), ['prism', 0.35, 0.7, 0.2, 0.3, 0.32, 12, 'trim']] },
+  // (it blocks nothing: a can on a bracket by a door, at hand height)
+  extinguisher: { class: 'sign', w: 0.25, d: 0.2, h: 1.45, solid: false, parts: [B(0.05, 0.2, 0, 0.02, 0.9, 1.4, 'trim'), ['prism', 0.125, 0.1, 0.08, 0.95, 1.45, 8, 'paint']] },
   // the set pieces: a register's great object, a find, a prize on its pedestal, a sign over the way on
   generator: { class: 'set-piece', w: 3.2, d: 2.0, h: 2.4, parts: [B(0, 3.2, 0, 2.0, 0, 0.25, 'beam'), B(0.2, 2.2, 0.2, 1.8, 0.25, 2.0, 'services'), B(2.3, 3.0, 0.4, 1.6, 0.25, 1.4, 'paint'), ['prism', 1.2, 1.0, 0.45, 2.0, 2.4, 8, 'trim']] },
   press: { class: 'set-piece', w: 3.0, d: 2.2, h: 3.6, parts: [B(0, 0.4, 0, 2.2, 0, 3.6, 'column'), B(2.6, 3.0, 0, 2.2, 0, 3.6, 'column'), B(0, 3.0, 0, 2.2, 3.0, 3.6, 'paint'), B(0.5, 2.5, 0.3, 1.9, 0, 0.9, 'paint'), B(0.7, 2.3, 0.5, 1.7, 1.6, 2.6, 'services')] },
@@ -126,10 +151,70 @@ export function layProps(plan) {
   const free = (r, mn, mx) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
     && !keep.some((k) => k.room === r.id && hits(k, mn, mx))
     && !items.some((o) => { if (o.room !== r.id || o.wall) return false; const f = footprintOf(o); return mn[0] < f.max[0] + GAP && mx[0] > f.min[0] - GAP && mn[1] < f.max[1] + GAP && mx[1] > f.min[1] - GAP; });
+  const add = (it, P, dice) => {
+    const base = it.id, idx = items.filter((o) => o.id.startsWith(`${base}-`) && !o.id.includes('@')).length + 1;
+    it.id = `${base}-${idx}`;
+    items.push(it);
+    // (a piece that stacks, stacked: up to its own height, by the dice)
+    const high = P.stack ? 1 + Math.floor(dice() * P.stack) : 1;
+    for (let lv = 1; lv < high && (lv + 1) * P.h <= plan.rooms.find((x) => x.id === it.room).h - 0.6; lv++) items.push({ ...it, id: `${it.id}@${lv}`, level: lv });
+  };
+  // a room's stock line: `n` of a piece along its walls (backs to them, the walls in the dice's order, each filled
+  // from its start), or in rows about its middle (aisles between them), as many as stand clear
+  const layStock = (r, kind, n, where, dice) => {
+    const P = PIECES[kind];
+    let placed = 0;
+    // (a centre line its middle cannot hold, a doorway's sightline across it, lays the rest along the walls)
+    if (where === 'centre') { placed = layCentre(r, kind, n, dice); if (placed >= n) return; n -= placed; placed = 0; }
+    {
+      // (the walls in the dice's order: a seeded shuffle, never a sort by a random comparator)
+      const sides = [...SIDES];
+      for (let i = sides.length - 1; i > 0; i--) { const j = Math.floor(dice() * (i + 1)); [sides[i], sides[j]] = [sides[j], sides[i]]; }
+      for (const side of sides) {
+        const X = side.endsWith('x'), facing = side.startsWith('-') ? `+${side[1]}` : `-${side[1]}`;
+        const v = side.startsWith('-') ? (X ? r.x0 : r.y0) + off + P.d / 2 : (X ? r.x1 : r.y1) - off - P.d / 2;
+        for (let u = (X ? r.y0 : r.x0) + EDGE + P.w / 2; placed < n && u <= (X ? r.y1 : r.x1) - EDGE - P.w / 2; u += 0.25) {
+          const it = { id: `${r.id}/${side}/${kind}`, kind, room: r.id, at: X ? [r5(v), r5(u)] : [r5(u), r5(v)], facing }, f = footprintOf(it);
+          if (!free(r, f.min, f.max)) continue;
+          add(it, P, dice); placed++; u += P.w + GAP - 0.25;
+        }
+        if (placed >= n) break;
+      }
+    }
+  };
+  const layCentre = (r, kind, n, dice) => {
+    const P = PIECES[kind];
+    let placed = 0;
+    const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, alongX = r.x1 - r.x0 >= r.y1 - r.y0, facing = alongX ? '+y' : '+x';
+    const sw = P.w + 1.0, sd = P.d + 1.2, spots = [];
+    for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) spots.push(alongX ? [cx + i * sw, cy + j * sd] : [cx + j * sd, cy + i * sw]);
+    spots.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
+    for (const q of spots) {
+      if (placed >= n) break;
+      const it = { id: `${r.id}/centre/${kind}`, kind, room: r.id, at: [r5(q[0]), r5(q[1])], facing }, f = footprintOf(it);
+      if (f.min[0] < r.x0 + EDGE || f.max[0] > r.x1 - EDGE || f.min[1] < r.y0 + EDGE || f.max[1] > r.y1 - EDGE || !free(r, f.min, f.max)) continue;
+      add(it, P, dice); placed++;
+    }
+    return placed;
+  };
+  // an extinguisher beside each doorway of a stocked room, on its wall, past the doorway's approach
+  const layExtinguishers = (r) => {
+    const P = PIECES[EXTINGUISHER];
+    for (const o of openingsOf(plan, r)) {
+      const facing = o.X ? (o.into > 0 ? '+x' : '-x') : o.into > 0 ? '+y' : '-y', v = o.at + o.into * (off + P.d / 2);
+      for (const u of [o.hi + 0.75, o.lo - 0.75]) {
+        const it = { id: `${r.id}/door/${EXTINGUISHER}`, kind: EXTINGUISHER, room: r.id, at: o.X ? [r5(v), r5(u)] : [r5(u), r5(v)], facing }, f = footprintOf(it);
+        if (f.min[0] < r.x0 || f.max[0] > r.x1 || f.min[1] < r.y0 || f.max[1] > r.y1 || !free(r, f.min, f.max)) continue;
+        add(it, P, () => 0);
+        break;
+      }
+    }
+  };
   for (const R of C.roles) {
     const r = plan.rooms.find((x) => x.id === R.room), dice = mulberry32(hashOf(`props|${r.id}`));
     // the set piece its role names: at the focus a great object, a find, a prize; over the way on, a sign
-    const sp = R.setPiece && (R.setPiece === 'great-object' ? SET_PIECES['great-object'][reg] : SET_PIECES[R.setPiece]);
+    // (a base building's great object is its use's own, stocking.js GREAT, or none: an armoury's core is no generator hall)
+    const sp = R.setPiece && (R.setPiece === 'great-object' ? (plan.use ? GREAT[plan.use] : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
     if (sp && sp !== 'sign') {
       // (a great object as great as its room: scaled from the room's short side, a quarter at a time, but never past half
       // its height nor a third of its short side, so it stands in the room and does not fill it)
@@ -153,6 +238,17 @@ export function layProps(plan) {
       const f = R.focus, ds = { '-x': f[0] - r.x0, '+x': r.x1 - f[0], '-y': f[1] - r.y0, '+y': r.y1 - f[1] }, side = Object.keys(ds).reduce((a, b) => (ds[b] < ds[a] ? b : a));
       const X = side.endsWith('x'), facing = side.startsWith('-') ? `+${side[1]}` : `-${side[1]}`, v = side.startsWith('-') ? (X ? r.x0 : r.y0) + 0.05 : (X ? r.x1 : r.y1) - 0.05;
       items.push({ id: `${r.id}/focus/sign`, kind: 'sign', room: r.id, at: X ? [r5(v), r5(f[1])] : [r5(f[0]), r5(v)], facing, set: true, wall: true });
+    }
+    // a military base's building (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
+    // an extinguisher by each of its doorways; a room the tables do not stock (a corridor, a core) holds none of it
+    if (plan.use) {
+      const lines = STOCK[roleOf(r.id)];
+      if (lines) {
+        const sd = mulberry32(hashOf(`stock|${r.id}`));
+        for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
+        layExtinguishers(r);
+      }
+      continue;
     }
     // the clusters along the walls: a wall by the dice, a place along it, one to three of the dressing's pieces abreast
     const n = (CLUSTERS[R.role] ?? 1) + (['pocket', 'rest'].includes(R.role) ? CLUTTER[C.mood ?? 'even'] : 0) + ((r.x1 - r.x0) * (r.y1 - r.y0) > 120 && R.role !== 'passage' ? 1 : 0);
@@ -242,7 +338,10 @@ export function dressLaws(plan, items) {
   }
   const count = {};
   for (const it of items) count[it.room] = (count[it.room] ?? 0) + 1;
+  // (a military base's building: its supply chain's laws beside the dressing's, stocking.js)
+  const stock = plan.use ? stockLaws(plan, items, (room) => { const r = plan.rooms.find((x) => x.id === room); return r ? openingsOf(plan, r).map((o) => (o.X ? [o.at, (o.lo + o.hi) / 2] : [(o.lo + o.hi) / 2, o.at])) : []; }) : [];
   return [
+    ...stock,
     { id: 'keep-outs', ok: !inKeep.length, says: inKeep.length ? `${inKeep.slice(0, 6).join(', ')}${inKeep.length > 6 ? ` and ${inKeep.length - 6} more` : ''}: in a doorway's approach or by a stair` : 'every doorway\'s approach and every stair clear' },
     { id: 'sightlines', ok: !inSight.length, says: inSight.length ? `${inSight.slice(0, 6).join(', ')}: between a doorway and its room's focus` : 'every focus seen from its doorways' },
     { id: 'count', ok: true, says: Object.entries(count).map(([r, n]) => `${r} ${n}`).join(', ') || 'nothing laid' },

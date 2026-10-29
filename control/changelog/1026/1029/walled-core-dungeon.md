@@ -36,3 +36,14 @@ panels and load-bearing doodads, stocked by use. Built so far:
   stored reading keeps its own) or pinned (`compose: { construction: 'bunker' }`). The composer's word pick now takes a
   value that is no register; the registers are the palettes' (they were the constructions'). Every other construction
   lays none of it. `scripts/spikes/bay/bunker.mjs` captures it beside the military register.
+- **Stocked by a supply chain** (`era/stocking.js`, laid by `compose-dress.js` `layProps`): a composed base building's
+  rooms hold what their use is stocked with, in place of the register's generic clusters: bunk rooms their bunks,
+  footlockers and lockers; an armoury's cages their weapon racks and its magazine its rounds; a comms building's
+  server racks and radio consoles; a mess's dining hall its tables; a ward its cots; a plant's pump room its pumps and
+  fuel; every lobby a sandbag guard post; an extinguisher by each doorway of a stocked room. A command's landmark holds
+  the ops table and a plant's the generator; any other base use stands no great object at its landmark. The new pieces
+  carry play: sandbags and jersey barriers are cover (a boulder's class: they take a beating), a shipping container is
+  climbed. A centre line its room cannot hold (a doorway's sightline across it) lays the rest along the walls. The
+  supply chain's laws sit beside the dressing's (`compose.dress`): `weapons-in-armoury`, `fuel-apart` (no drum within
+  3 m of ammunition), `extinguisher-by-exit` and `stocked` (every room the tables stock holds some of its stock). Every
+  other stage lays what it did.

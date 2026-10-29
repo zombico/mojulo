@@ -284,7 +284,7 @@ export function withProgram(m) {
     // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
     ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
-    _program: { use: P.use, reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
+    _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)
       ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings },
   };

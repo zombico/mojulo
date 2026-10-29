@@ -480,6 +480,8 @@ export function planStage(m = {}) {
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
   const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
+    // (a military base's building is stocked by its rooms' uses: stocking.js, compose-dress.js layProps)
+    ...(m._program?.base ? { use: m._program.use } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
