@@ -4,7 +4,9 @@
 //
 // A card:
 //   dials     { stylize, fit, coverage, ornament } — the defaults a build's own `dials` override
-//   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar: true|false, cloth? } | false (no top); `cloth` on the
+//   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar?, cloth? } | false (no top); `collar` false, true (a
+//             collared shirt, closed), 'band' (the stand and its V, open), 'turtle' (the stand round and tall, rolled),
+//             'shirt' (the stand and its fall, the points an M, closed) or { kind, open? } (polygonizer/shirt-collar.js); `cloth` on the
 //             top, the bottom and the outer one of CLOTH_WORDS (how it folds and shines; on the realistic body's lit export
 //             its surface: `knit` a sweater, `cable` a cable knit); `pattern` on the top, the bottom, the outer and the
 //             waistcoat one of PATTERN_WORDS or { kind, scale?, contrast? } (herringbone, houndstooth, plaid, pinstripe …:
@@ -239,6 +241,16 @@ export const CLOTH_WORDS = Object.freeze([...OUTER_CLOTHS, 'twill', 'jersey', 'k
  * { kind, scale?, contrast? }): on the realistic body's lit export, its relief and its colour (epidermis/cloth-relief.js
  * PATTERNS, its names these) */
 export const PATTERN_WORDS = Object.freeze(['herringbone', 'houndstooth', 'plaid', 'gingham', 'pinstripe', 'chalkstripe', 'corduroy', 'quilted', 'waffle', 'tweed']);
+/** a top's collar: false none, true a collared shirt (closed), a kind (COLLAR_WORDS: band, the stand and its V, open;
+ * turtle, the stand round and tall, its top rolled; shirt, the stand and its fall, the points an M, closed), or
+ * { kind, open? } (polygonizer/shirt-collar.js) */
+export const COLLAR_WORDS = Object.freeze(['band', 'turtle', 'shirt']);   // (outfit/collar.js COLLAR_KINDS' names)
+const collarErrors = (w, at) => {
+  if (w === undefined || w === true || w === false) return [];
+  const o = typeof w === 'string' ? { kind: w } : w;
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return [`${at}: true, false, a kind (${COLLAR_WORDS.join(', ')}) or { kind, open? }`];
+  return [...one(o.kind, COLLAR_WORDS, `${at}.kind`), ...(o.kind === undefined ? [`${at}.kind: one of ${COLLAR_WORDS.join(', ')}`] : []), ...(o.open !== undefined && typeof o.open !== 'boolean' ? [`${at}.open: true (its front parted) or false (closed, buttoned up)`] : [])];
+};
 const patternErrors = (w, at) => {
   if (w === undefined) return [];
   const o = typeof w === 'string' ? { kind: w } : w;
@@ -257,7 +269,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   const errs = [], L = card.language ?? {};
   if (typeof L !== 'object' || Array.isArray(L)) return [`${at}.language: { top, bottom, feet, tuck, focal }`];
   if (L.top !== undefined && L.top !== false) { if (typeof L.top !== 'object') errs.push(`${at}.language.top: { family, sleeve, hem, collar? } or false`);
-    else errs.push(...one(L.top.family, FAMILY, `${at}.language.top.family`), ...one(L.top.sleeve, SLEEVE, `${at}.language.top.sleeve`), ...one(L.top.hem, HEM, `${at}.language.top.hem`), ...one(L.top.cloth, CLOTH_WORDS, `${at}.language.top.cloth`)); }
+    else errs.push(...one(L.top.family, FAMILY, `${at}.language.top.family`), ...one(L.top.sleeve, SLEEVE, `${at}.language.top.sleeve`), ...one(L.top.hem, HEM, `${at}.language.top.hem`), ...one(L.top.cloth, CLOTH_WORDS, `${at}.language.top.cloth`), ...collarErrors(L.top.collar, `${at}.language.top.collar`)); }
   if (L.bottom !== undefined && L.bottom !== false) { if (typeof L.bottom !== 'object') errs.push(`${at}.language.bottom: { family, leg } or false`);
     else if (L.bottom.kind === 'skirt') errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, SKIRT, `${at}.language.bottom.leg`), ...one(L.bottom.cut, CUT, `${at}.language.bottom.cut`), ...rigidityErrors(L.bottom.rigidity, `${at}.language.bottom.rigidity`));
     else if (L.bottom.kind !== undefined && L.bottom.kind !== 'trousers') errs.push(`${at}.language.bottom.kind: 'trousers' (the default) or 'skirt'`);

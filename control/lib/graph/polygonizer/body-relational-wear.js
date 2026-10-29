@@ -46,6 +46,7 @@
  *                a merged tube); `tones` the footwear's for a palette that names none
  * Pure and deterministic.
  */
+import { shapeCollar } from './shirt-collar.js';
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
 import { oneTube, drapeRun, flareRun, fairRun, waistbandOf, cinchWaist, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, carrySkirt, clearanceOver, clearOver } from './body-relational-tailor.js';
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
@@ -192,7 +193,10 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     if (topOf && neckSkin && !lapelled) for (const g of neck) {
       const zs = neckSkin.stations.map((st) => mean(Object.values(st.points))[2]), [r0, r1] = g.run ?? [0, 0.3];
       const C = collarOn(topOf, neckSkin, { height: Math.max(0.015, (r1 - r0) * (Math.max(...zs) - Math.min(...zs))), ease: (g.ease ?? 0.008) + lift });
-      if (C) parts[`${g.id}_neck`] = { ...C, garment: true, group: g.group };
+      // (its KIND, shirt-collar.js: a band's V, a shirt's fall and its points, a turtleneck's roll; the fall a piece of its own)
+      const K = C && g.collar ? shapeCollar(C, g.collar) : null;
+      if (C) parts[`${g.id}_neck`] = { ...(K ? K.stand : C), garment: true, group: g.group };
+      if (K?.fall) parts[`${g.id}Fall_neck`] = { ...K.fall, garment: true, group: g.group };
     }
     for (const g of pieces) if (!g.skin) worn.add(g.id);
     // THE ALIASES: each piece's authored part name, the part it is now and its `u`'s shift there

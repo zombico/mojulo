@@ -49,7 +49,7 @@
  * `proportional` (a copy piece's: the radius at which its ease is as given): each ring's ease scales with its own radius,
  * so the cloth keeps the body's ratios and a limb's taper survives. `dense`: the cloth's rings resampled to at least
  * twelve points (densePart), so a six-sided limb is not a six-sided sleeve. Both are absent → as before (the kernel only
- * grows: outfit/principles.js, the update law). `waistband` (a copy piece's: the station parameter its band starts at):
+ * grows: outfit/principles.js, the update law). `collar` (a neck piece's: its kind and its front, polygonizer/shirt-collar.js, the kit hook shapes it), `waistband` (a copy piece's: the station parameter its band starts at):
  * the band on what it is worn over with no ease, the cloth's own ease back by the hips' widest ring. Pure, deterministic.
  */
 import { SLOT_FAMILIES } from './station-loft-plan.js';
@@ -58,7 +58,7 @@ import { rigidityErrors } from './rigidity.js';
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -280,7 +280,7 @@ export function garmentParts(parts, garments, dials = {}) {
       const name = `${P.id}_${src}`;
       // the caps pinched on the axis a little beyond the end rings (a cap in its ring's plane has no outward side)
       const axis = unit(sub(C[n - 1], C[0])), rad = (j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(stations[j].points[sl], C[j])), 0, 0]))[0];
-      const piece = { layer: 1, closure: 'closed', garment: true, slots: part.slots, stations, caps: { back: sub(C[0], mul(axis, 0.3 * rad(0))).map(r6), tip: add(C[n - 1], mul(axis, 0.3 * rad(n - 1))).map(r6) }, group: P.group, ...(part.slotT ? { slotT: { ...part.slotT } } : {}) };
+      const piece = { layer: 1, closure: 'closed', garment: true, slots: part.slots, stations, caps: { back: sub(C[0], mul(axis, 0.3 * rad(0))).map(r6), tip: add(C[n - 1], mul(axis, 0.3 * rad(n - 1))).map(r6) }, group: P.group, ...(part.slotT ? { slotT: { ...part.slotT } } : {}), ...(P.collar ? { collar: P.collar } : {}) };
       if (part.bind !== undefined) {
         const own = (r) => (r.mix ? mixBlend(blendOf(part.bind, r.mix[0]), blendOf(part.bind, r.mix[1]), r.mix[2]) : blendOf(part.bind, r.id));
         const blend = Object.fromEntries(rings.map((r) => [r.id, own(r)]));

@@ -99,7 +99,8 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
   // THE JACKET FITTED onto what it is worn over, and the sleeves' seam at the shoulder in the outer's colour
   // (authored-jacket.js), before the belts clear it over them
   // (the shirt's collar stood on its neckline first, above the shirt and the jacket at the back)
-  for (const [k, P] of Object.entries(standCollar(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
+  // (a new piece, its fall, joins the dials as the kit's pieces do: only the stand, the shirt's own, is cloth)
+  for (const [k, P] of Object.entries(standCollar(recipe, cloth))) { parts[k] = P; if (cloth[k]) cloth[k] = P; }
   for (const [k, P] of Object.entries(fitJacket(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
   for (const [k, P] of Object.entries(sleeveSeams(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
   for (const [k, P] of Object.entries(shoulderUnderJacket(recipe, cloth))) { parts[k] = P; if (cloth[k]) cloth[k] = P; }

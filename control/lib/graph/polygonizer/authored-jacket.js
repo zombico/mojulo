@@ -21,7 +21,8 @@
  */
 import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
 import { oneTube, cinchWaist, clearanceOver } from './body-relational-tailor.js';
-import { denseRead } from './authored-tailoring.js';
+import { denseRead, densePiece } from './authored-tailoring.js';
+import { shapeCollar, collarRun } from './shirt-collar.js';
 
 /** the opened ring's points a side (its slots 4·ARC − 2) */
 export const ARC = 10;
@@ -174,7 +175,8 @@ export const STAND = Object.freeze({ front: 0.026, back: 0.03, tuck: 0.012, ease
  * stood no higher than the shirt's own top, and the jacket over the shirt hid it all round the neck. Its rings now
  * follow the neckline round: from `STAND.tuck` under it to its stand over it (lower in front, higher behind), each point
  * `STAND.ease` off the neck at its own height. Its stations, its slots, its weights and its trims are kept; its caps in
- * the neck.
+ * the neck. A collar that names its kind (`collar`, outfit/collar.js) is then shaped by it (shirt-collar.js): a band's V,
+ * a shirt's fall (`topCollarFall_neck`) and its points, a turtleneck's taller stand and its roll.
  */
 export function standCollar(recipe, cloth) {
   const C = cloth.topCollar_neck, shirt = cloth.top_torso, neck = recipe.parts.neck;
@@ -188,13 +190,23 @@ export function standCollar(recipe, cloth) {
     const i = line.findIndex(([a]) => a >= t), [a0, z0] = i <= 0 ? [line[line.length - 1][0] - 2 * Math.PI, line[line.length - 1][1]] : line[i - 1], [a1, z1] = i < 0 ? [line[0][0] + 2 * Math.PI, line[0][1]] : line[i];
     return z0 + (z1 - z0) * ((t - a0) / (a1 - a0 || 1));
   };
-  const n = C.stations.length, cb = middle(C.stations[0]);
+  // (its kind, shirt-collar.js: a turtleneck's stand climbs the neck as its run does, the others a collar's)
+  const rise = C.collar ? collarRun(C.collar) / collarRun({ kind: 'shirt' }) : 1;
+  const n = C.stations.length, cb = middle(C.stations[0]), levelTop = zAt(-Math.PI / 2) + rise * STAND.back;
   const stations = C.stations.map((st, i) => ({ ...st, points: Object.fromEntries(C.slots.map((sl) => {
     const p = st.points[sl], h = [p[0] - cb[0], p[1] - cb[1]], l = Math.hypot(...h) || 1, d = [h[0] / l, h[1] / l], t = Math.atan2(d[1], d[0]);
-    const z = zAt(t) - STAND.tuck + (STAND.tuck + STAND.front + (STAND.back - STAND.front) * (1 - d[1]) / 2) * (i / (n - 1)), c = cAt(z);
+    // (a turtleneck's top runs near level round the neck, a little lower in front, where a collar's follows the neckline)
+    const zt = zAt(t) + rise * (STAND.front + (STAND.back - STAND.front) * (1 - d[1]) / 2), z0 = zAt(t) - STAND.tuck;
+    const z = z0 + ((C.collar?.kind === 'turtle' ? Math.max(zt, levelTop - 0.012 * Math.max(0, d[1])) : zt) - z0) * (i / (n - 1)), c = cAt(z);
     const r = (reach([c[0], c[1], z])(d) || Math.hypot(p[0] - c[0], p[1] - c[1])) + STAND.ease;
     return [sl, [c[0] + d[0] * r, c[1] + d[1] * r, z].map((v) => Math.round(v * 1e6) / 1e6)];
   })) }));
   const ends = [stations[0], stations[n - 1]].map(middle);
-  return { topCollar_neck: { ...C, stations, caps: { back: cAt(ends[0][2] - 0.004).map((v) => Math.round(v * 1e6) / 1e6), tip: cAt(ends[1][2]).map((v) => Math.round(v * 1e6) / 1e6) } } };
+  const stood = { ...C, stations, caps: { back: cAt(ends[0][2] - 0.004).map((v) => Math.round(v * 1e6) / 1e6), tip: cAt(ends[1][2]).map((v) => Math.round(v * 1e6) / 1e6) } };
+  if (!C.collar) return { topCollar_neck: stood };
+  // ITS KIND (shirt-collar.js), on the stand densified (24 round: a point needs more than the ring12's slots): a band's V,
+  // a shirt's fall and its points, a turtleneck's roll; the fall a piece of its own, the collar's colour
+  const { collar: _c, ...plain } = densePiece(stood, 'topCollar_neck', { around: 24, dials: recipe.dials });
+  const { stand, fall } = shapeCollar(plain, C.collar);
+  return { topCollar_neck: stand, ...(fall ? { topCollarFall_neck: { ...fall, garment: true, group: C.group ?? 'Collar' } } : {}) };
 }

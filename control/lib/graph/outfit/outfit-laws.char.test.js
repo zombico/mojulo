@@ -25,11 +25,14 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // has no seat and keeps its bytes); and the rings again for the game body's construction (1029, unreleased): a sleeve
 // that starts on the arm's first ring takes its cap out past the skin's at the shoulder (authored-jacket.js sleeveSeams:
 // every case with a sleeve but the trousers worn out), the outer layer fitted onto what it is worn over (fitJacket), and
-// the shirt's collar stood on its neckline (standCollar: the tucked shirt's); the laws unchanged
+// the shirt's collar stood on its neckline (standCollar: the tucked shirt's); the laws unchanged; and the tucked shirt's
+// laws and rings rewritten in place (1029, unreleased, at the operator's word: "restructure shirt collars") for the
+// collar as one construction, its kind and its front carried on its stand and its fall made over it (outfit/collar.js,
+// polygonizer/shirt-collar.js: `collar: true` a shirt collar, closed)
 const PINS = {
   1: {
     'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
-    'tucked': { laws: 'a293c920ca0f83b2', rings: '5113129ac6be4764' },
+    'tucked': { laws: '17d9449352502ef6', rings: '2d8387b9cb8bf744' },
     'dress': { laws: 'bb1fe989040c0422', rings: '3788f9213ce322f3' },
     'outer': { laws: '127769bbfdd8e767', rings: '2404c186875fb4d7' },
     'panels': { laws: 'd114d51d72f13d3b', rings: '8d4abf177cd7aa55' },

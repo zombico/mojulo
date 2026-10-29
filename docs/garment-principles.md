@@ -235,6 +235,24 @@ roughness and metalness in an ORM map, a depth map an engine marches (its parall
 of and worked in: a knit's stitches, a cable knit's ropes, a weave's pattern (herringbone, houndstooth, plaid, stripes,
 corduroy, quilting; docs/realistic-body.md, the clothes' relief). The finest weave, under a stitch's size, is not yet.
 
+## The collar, one construction
+
+A top's collar is built in stages from one piece, on either body (`polygonizer/shirt-collar.js`; its words
+`outfit/collar.js`, the language's `top.collar`):
+
+- **The stand**, the band rising from the neckline: the base of every collar. Its rings follow the shirt's neckline round
+  (lower in front), on the neck a hair off the skin.
+- **A band** (`collar: 'band'`) is the stand alone: the V that goes up, its front parted and the V widening up it (open,
+  its default), or a ring buttoned up (closed).
+- **A turtleneck** (`'turtle'`) is the stand looped all the way round and tall, near level round the neck, its top folded
+  down over it all round: no opening.
+- **A collared shirt** (`'shirt'`, or `true`) is the stand and its FALL: a leaf folded down over the stand from its top,
+  deepest at the front where its two points hang, its front edges parting down and out from the middle, so the front
+  reads as an M. Closed (its default) the stand is a ring and the points nearly meet under it; open, the stand parts in
+  its V and the points spread.
+- `{ kind, open }` sets the front either way. The fall is a piece of its own (`topCollarFall_neck`), the collar's colour,
+  carried by the stand's top ring's weights.
+
 ## Against the outfit laws
 
 The ten laws in `control/lib/graph/outfit/principles.js` hold most of these as words; this note gives them measures.

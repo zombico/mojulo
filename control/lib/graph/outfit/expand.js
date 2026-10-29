@@ -24,6 +24,7 @@
 // The hero record stores the words; hero-dress.dressPlan calls `expandOutfit` with the body's parts and scale, and the
 // garments (body-garment.js), the trims (body-paint.js, on the garment parts), the buttons (body detail rows) and the
 // belt (an adornment) are built like any other. Pure and deterministic: no dice, fixed order.
+import { collarSpec, collarRun } from './collar.js';
 import { OUTFIT_LAWS_VERSION, FAMILIES, SKIRT_CUTS, TROUSER_CUTS, outfitProportion, stepLength } from './principles.js';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
 import { MOTIFS } from '../polygonizer/station-loft-adorn.js';
@@ -120,7 +121,10 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     const fore = sleeve === 'threeQuarter' || sleeve === 'long' ? [0, sleeve === 'long' ? 0.92 : 0.5] : null;
     if (arm) tops.push({ id: 'topSleeve', part: 'upperArm', run: arm, ease: e, ...(arm[1] < 1 ? { flare: [0, h] } : {}), ...(fore ? {} : { rings: { run: [arm[1] - EDGE.cuff] } }), group: 'Top' });
     if (fore) tops.push({ id: 'topCuff', part: 'foreArm', run: fore, ease: e, ...(sleeve === 'long' ? {} : { flare: [0, h] }), rings: { run: [fore[1] - EDGE.cuff] }, group: 'Top' });
-    if (top.collar) tops.push({ id: 'topCollar', part: 'neck', run: [0, 0.35], ease: e * 1.6, flare: [0, e * 0.8], rings: { run: [0.25] }, group: 'Collar' });
+    // the COLLAR (polygonizer/shirt-collar.js): its stand up the neck by its kind (a turtleneck's to under the jaw), its kind and
+    // its front carried for the body to shape (a band's V, a shirt's fall and points, a turtleneck's roll)
+    const collar = collarSpec(top.collar);
+    if (collar) { const run = collarRun(collar); tops.push({ id: 'topCollar', part: 'neck', run: [0, run], ease: e * 1.6, flare: [0, e * 0.8], rings: { run: [r6(run * 0.72)] }, group: 'Collar', collar }); }
   }
   const skirt = bottom?.kind === 'skirt', dress = !!lang.dress && skirt;
   if (skirt) {

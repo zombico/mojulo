@@ -290,11 +290,22 @@ export function turnHemIn(sv, rest, restSlots, { back = 0.03, inset = 0.004 } = 
 export function collarOn(body, neck, { height = 0.035, ease = 0.006, lift = 0.002 } = {}) {
   const S = body.stations, top = S[S.length - 1], c0 = mean(body.slots.map((sl) => top.points[sl])), z1 = c0[2] + height;
   const nk = neck.stations.reduce((b, st) => (Math.abs(mean(Object.values(st.points))[2] - z1) < Math.abs(mean(Object.values(b.points))[2] - z1) ? st : b));
-  const nc = mean(neck.slots.map((sl) => nk.points[sl])), N = body.slots.length, M = neck.slots.length;
+  let nc = mean(neck.slots.map((sl) => nk.points[sl]));
+  const N = body.slots.length, M = neck.slots.length;
   // (no neck above the garment's top to stand on, as on a heavy figure whose shirt rises to the jaw: no collar)
   if (nc[2] < c0[2] + 0.005) return null;
+  // (a collar climbing past the neck's last ring, where the head's skin takes it over, a turtleneck's: that ring carried
+  // on up the neck's axis to its height, drawn in a little as the neck narrows)
+  const byZ = neck.stations.map((st) => [mean(Object.values(st.points))[2], st]).sort((a, b) => a[0] - b[0]), last = byZ[byZ.length - 1][1];
+  let ring = (q) => q;
+  if (nk === last && byZ.length > 1 && z1 > nc[2] + 0.002) {
+    const pc = mean(Object.values(byZ[byZ.length - 2][1].points)), ax = unitv(sub(nc, pc)), k = (z1 - nc[2]) / Math.max(0.3, ax[2]), lc = add(nc, scl(ax, k));
+    const n0 = nc;
+    ring = (q) => add(lc, scl(sub(q, n0), 0.96));
+    nc = lc;
+  }
   const lower = Object.fromEntries(body.slots.map((sl) => { const p = top.points[sl], d = unitv(sub(p, c0)); return [sl, add(p, scl(d, lift)).map(r6)]; }));
-  const upper = Object.fromEntries(body.slots.map((sl, j) => { const q = nk.points[neck.slots[Math.round((j * M) / N) % M]], d = unitv(sub(q, nc)); return [sl, add(q, scl(d, ease)).map(r6)]; }));
+  const upper = Object.fromEntries(body.slots.map((sl, j) => { const q = ring(nk.points[neck.slots[Math.round((j * M) / N) % M]]), d = unitv(sub(q, nc)); return [sl, add(q, scl(d, ease)).map(r6)]; }));
   const own = { [body.bind.bone]: 1 }, nOwn = { [neck.bind?.bone ?? 'neck']: 1 }, blend = {};
   for (const [j, sl] of body.slots.entries()) { blend[`st0.${sl}`] = body.bind.blend?.[`${top.id}.${sl}`] ?? own; blend[`st1.${sl}`] = neck.bind?.blend?.[`${nk.id}.${neck.slots[Math.round((j * M) / N) % M]}`] ?? nOwn; }
   const C1 = mean(Object.values(upper)), up = unitv(sub(C1, c0));
