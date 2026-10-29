@@ -609,7 +609,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 
-/** SEATS (pilots.plan.md; docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,
+/** SEATS (docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,
  * beside the hero's spawn, a body per extra seat (`hero-2`…): the hero itself, dressed as the goal dressed it, on the
  * hero's rule, its seat's ring its colour. While its seat is empty it follows the hero on the party's escort motive (the
  * seat's `drop: 'ai'`); all of them on the hero's side. The manifest's `seats` names them for the page (soul.join: drop-in

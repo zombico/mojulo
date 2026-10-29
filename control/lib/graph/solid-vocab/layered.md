@@ -860,7 +860,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
   (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
   its HAIR is the composed cut (or its ancestry's; `scalp` names one instead: a style such as `long`, `ponytail`, `crop`,
-  `{ style, …its groom }`, or `'none'`) grown as LOCKS in one colour over a solid shell (realistic laws 10; `stylize`
+  `{ style, …its groom }`, or `'none'`; the door's landmark `hair`, absent a `scalp`, is read as the nearest cut, its
+  `wave` the curl; the door's `expression` is the face rig's rest) grown as LOCKS in one colour over a solid shell (realistic laws 10; `stylize`
   0 … 1 its register: 0 a realistic game's many fine locks with soft cards at the hairline and the tips, 1 a stylised
   game's few dozen chunky sculpted locks, 0.5 the default; a crop a shell, an afro a sculpted volume, a ponytail's tail a
   mass of its own, locs ropes; the scalp shows only in the splits between locks), its PIERCINGS the face's, each piece

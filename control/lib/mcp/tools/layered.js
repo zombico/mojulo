@@ -317,6 +317,17 @@ function realisticRecipe(recipe, hero) {
   wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}) }));
   return out;
 }
+/** THE DOOR'S HAIR ON THE REALISTIC FACE: a landmark style (the word a cast or a crew writes, egocube/plan.js) read as the
+ * scalp's cut (dermal-hair.js SCALP_STYLES), the name where both libraries have it, the nearest cut where not; its
+ * `wave` as the scalp's curl (the inverse of the sheet's WAVE). A face that names its own `scalp` keeps it. */
+const SCALP_OF_HAIR = Object.freeze({ none: 'none', animeShort: 'short', crew: 'fade', taper: 'short', quiff: 'pompadour', swept: 'slick-back', pixie: 'french-crop', animeBob: 'bob', wavy: 'long' });
+export function scalpOfHair(hair) {
+  const { style, wave } = resolveHair(hair), cut = SCALP_OF_HAIR[style] ?? style;
+  if (cut === 'none') return 'none';
+  // (every style resolves a wave, 1 when none was said: a straight fall, but the wavy fall's own swing)
+  const type = wave >= 1.55 ? 'coily' : wave >= 1.35 ? 'curly' : wave > 1.05 || style === 'wavy' ? 'wavy' : null;
+  return type ? { style: cut, type } : cut;
+}
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
  * face rolled one (a style), else the face's hint over the ancestry's (a peak's part, the streaks); null for none */
 function faceScalp(hero, C) {
@@ -977,7 +988,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
   if (wearsHead && spec.scale !== undefined && !staleScale) errs.push(`scale: the ${headOf(spec)} head's figure takes its height from tune.stature (a ratio to the cast's own height: tune: { stature: 0.85 }); scale sizes only the blank trunk (head: 'none') or a baked head include`);
-  if (!wearsHead) for (const k of [...(realisticFaced(spec) ? [] : ['face']), 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
+  if (!wearsHead) for (const k of [...(realisticFaced(spec) ? [] : ['face', 'hair', 'expression']), 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
   // a worn head sizes its figure from one named cast (humanoid-plan.js wornHead): a list or a dial map is the blank trunk's
   if (wearsHead && spec.cast !== undefined && typeof spec.cast !== 'string' && !isBuiltCast(spec.cast)) errs.push(`cast: a list or a dial map builds only the blank trunk (head: 'none'); the ${headOf(spec)} head takes a cast word or a pole with a build ({ pole: 'female', build: 'brute' })`);
   // the tiered form's joints and sockets are cut on the structured core's pelvis and lumbar bones
@@ -1162,6 +1173,10 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.name !== undefined && spec.name !== null) hero.name = readHeroName(spec.name);
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
   if (hero.head === 'relational' && spec.face !== undefined && spec.face !== null) hero.face = structuredClone(spec.face);
+  // the door's landmark words on the realistic face: its hair as the face's cut (scalpOfHair) unless the face names one,
+  // its expression as the face rig's rest (relational-face-rig.js); both were dropped here before
+  if (hero.head === 'relational' && hero.face && typeof hero.face === 'object' && hero.face.scalp === undefined && spec.hair !== undefined && spec.hair !== null) hero.face = { ...hero.face, scalp: scalpOfHair(spec.hair) };
+  if (hero.head === 'relational' && spec.expression !== undefined && spec.expression !== null) hero.expression = spec.expression;
   // the realistic body's physique, always stored on a realistic hero (athletic when none is given), with the laws
   if (spec.form === 'realistic') { const p = spec.physique ?? 'athletic', o = typeof p === 'string' ? { from: p } : { ...p }; hero.physique = o.laws === undefined ? { ...o, laws: REALISTIC_LAWS_VERSION } : o; }
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)

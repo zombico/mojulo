@@ -777,7 +777,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // operator watches from a glide/follow spectator camera (WASD free-fly, Tab cycles the watched
     // fighter). Opt-in; absent ⇒ the world seats a pilot as before (byte-identical).
     if (sketch.manifest.spectate === true) payload.spectate = true;
-    // SEATS (pilots.plan.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
+    // SEATS (docs/local-multiplayer-principles.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
     // a player's own controller on the page (scene/channels/controllable seatsScript). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.seats !== undefined) payload.seats = readSeats(sketch.manifest.seats, sketch.manifest.entities, payload.pilot);
     // AI-attack switch: `ai:'off'` loads the world passive (ai-ambient suits stand down until the

@@ -1,5 +1,5 @@
 /**
- * The live light (live-light.plan.md): its settings, its math on stubs, and what it adds to the page. Claims under test:
+ * The live light: its settings, its math on stubs, and what it adds to the page. Claims under test:
  *   · absent, every page is as it was: faces carrying a sun share emit the same bytes as faces without one, and no
  *     live-light code is written;
  *   · the receive patch darkens a fragment by its sun share: a lit vertex darkens, a baked-shadowed one does not;
