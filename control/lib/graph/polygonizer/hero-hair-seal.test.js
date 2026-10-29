@@ -2,7 +2,8 @@
 // realistic hero with hair that falls past the jaw, no hair point lies inside the neck, the trunk, the upper arms or the
 // head's skin below its base, at rest and with the head turned and tilted as the face's head layer turns it
 // (face-acting/head.js headBones, an engine's additive layer from the rest pose); the hair near the skin rides the skin's
-// own bones. A hero stamped with laws 12 keeps the hair it had.
+// own bones (never the jaw's), and a stroke that runs into the body stops there, never wrapped round the throat. A hero
+// stamped with laws 12 keeps the hair it had.
 import { describe, it, expect } from 'vitest';
 import { expandLayeredManifest, heroRecord } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
@@ -42,9 +43,15 @@ describe('the realistic hair sealed against the neck and the body (laws 13)', ()
     // (a single point at the neck's buried foot reads as inside it: a few, never a sheet)
     for (const turn of [null, { yaw: -25 }, { yaw: 25 }, { roll: 12 }, { pitch: -15 }]) expect(inside(sealed, turn)).toBeLessThan(4);
   });
-  it('rides the skin it lies on: a long lock\'s foot by the trunk takes the trunk\'s bones', () => {
+  it('rides the skin it lies on: a long lock\'s foot by the trunk takes the trunk\'s bones, never the jaw\'s', () => {
     const W = Object.values(sealed.parts.hair.boneWeights ?? {});
     expect(W.some((w) => w.some(([b]) => b === 'torso') && w.some(([b]) => !['head', 'neck', 'torso'].includes(b)))).toBe(true);
+    expect(W.some((w) => w.some(([b]) => b === 'jaw'))).toBe(false);
+  });
+  it('stops a stroke where it meets the body: none wraps round the throat and down the chest', () => {
+    const mesh = compileLayered(sealed);
+    const ahead = mesh.vertices.filter((v, i) => HAIR.has(mesh.provenance[i].part) && v[1] > 0.045 && v[2] < 1.37 && Math.abs(v[0]) < 0.09);
+    expect(ahead).toEqual([]);
   });
   it('keeps a hero stamped with laws 12 as it was: its hair falls by the height\'s rule alone', () => {
     const W = Object.values(recipeAt(12).parts.hair.boneWeights ?? {});

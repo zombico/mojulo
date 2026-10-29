@@ -120,8 +120,13 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
 - **The hair sealed against the neck and the body** (realistic laws 13, `hero-head-layers.js` `HAIR_SEAL`): the head's
   skin below its base (the upper neck under the jaw, which the head's one skin covers) is now a collider the hair falls
   outside, as the neck part is; and a hanging point within a few centimetres of the skin takes that skin's own bones (the
-  neck's, the trunk's, the clavicles', the shoulder blades'), eased to the height's rule away from it, so the hair moves
-  as what it lies on moves: it rests on the neck and the shoulders as it rests on the head, never sweeping through them
-  as the head turns or the shoulders rise with a breath. On one long-haired hero: 236 hair points inside the upper neck
-  at rest (to 26 mm) and up to 360 inside the back with the head turned (to 30 mm) under laws 12; none under 13 at rest,
-  turned, tilted or nodding. A hero stamped with laws 12 or before keeps its hair.
+  neck's, the trunk's, the clavicles', the shoulder blades'; the jaw's share the head's, so hair by the jaw never opens
+  with the mouth), eased to the height's rule away from it, so the hair moves as what it lies on moves: it rests on the
+  neck and the shoulders as it rests on the head, never sweeping through them as the head turns or the shoulders rise
+  with a breath. And a stroke STOPS where it meets the body (`hair-locks.js` `seal`): a groom's guide falls past the body,
+  which it never meets, and a spine through the neck pushed out point by point came out the far side, wrapped round the
+  throat and down the chest (two strokes from the temples crossing under the jaw, four from the nape); now it is cut
+  where it runs in and tapers there, and one cut back to its root is dropped. On one long-haired hero: 236 hair points
+  inside the upper neck at rest (to 26 mm), up to 360 inside the back with the head turned (to 30 mm) and six strokes
+  across the throat under laws 12; none of any under 13, at rest, turned, tilted or nodding. A hero stamped with laws 12
+  or before keeps its hair.

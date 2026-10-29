@@ -186,9 +186,10 @@ function bodyColliders(recipe, toChart, seal = null) {
   return out;
 }
 /** THE SEAL (realistic laws 13): hair lying on the body moves as the skin under it moves. A hanging point within `near`
- * (m) of the neck, the trunk, the upper arms or the head's skin below its base takes that skin's own bones, eased out to
- * the height's rule by `far`; and the head's skin below its base (the upper neck under the jaw, the head's one skin's) is a
- * collider the hair falls outside, as the neck is */
+ * (m) of the neck, the trunk, the upper arms or the head's skin below its base takes that skin's own bones (the jaw's share
+ * the head's: hair by the jaw never opens with the mouth), eased out to the height's rule by `far`; the head's skin below
+ * its base (the upper neck under the jaw, the head's one skin's) is a collider the hair falls outside, as the neck is; and
+ * a stroke that runs into the body stops there (hair-locks.js `seal`), never wrapped round it */
 export const HAIR_SEAL = Object.freeze({ near: 0.012, far: 0.04, under: 'headSkin' });
 /** the skin the hair seals against (hero frame): the hang's parts and the head's skin below its base, each vertex with its
  * normal and its own bones (station-loft-rig.js bindLayered, as the body binds it); null where the rig cannot bind it */
@@ -202,7 +203,9 @@ function sealSkin(recipe) {
   // (the head's skin only below the head's base: above it the scalp, which the hair already lies on)
   const zb = J.headBase.at[2], keep = M.vertices.map((p, i) => M.provenance[i].part !== HAIR_SEAL.under || p[2] < zb);
   const under = M.vertices.map((_, i) => M.provenance[i].part === HAIR_SEAL.under);
-  return { vertices: M.vertices, normals: normals.map(unit3), keep, under, weights: M.vertices.map((_, i) => skin.joints[i].map((j, k) => [skin.bones[j], skin.weights[i][k]]).filter(([, w]) => w > 0)) };
+  // (the jaw's share the head's: hair lying by the jaw stays with the head, never opening with the mouth)
+  const own = (i) => { const acc = {}; skin.joints[i].forEach((j, k) => { const w = skin.weights[i][k]; if (w > 0) { const b = skin.bones[j] === 'jaw' ? 'head' : skin.bones[j]; acc[b] = (acc[b] ?? 0) + w; } }); return Object.entries(acc); };
+  return { vertices: M.vertices, normals: normals.map(unit3), keep, under, weights: M.vertices.map((_, i) => own(i)) };
 }
 /** a hanging point's bones (hero frame z): the head's above its base, the neck's down to the neck's hub, the torso's under
  * it; null where the pin's own (the head's) serves. With `seal` (sealSkin's), a point near the skin takes the skin's own
@@ -255,7 +258,7 @@ export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = fal
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], toChart = (p) => [p[0] / sc, (p[1] - ty) / sc, (p[2] - men) / sc];
   // (realistic laws 13: the hair SEALED against the neck and the body, HAIR_SEAL)
   const sealed = seal ? sealSkin(recipe) : null;
-  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart, sealed) });
+  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart, sealed), seal: !!sealed });
   const cap = budget ? leanCoat(H.cap, HEAD_BUDGET[level]?.coat) : H.cap;
   if (!H.mesh && !cap && !H.cards) return { parts: {}, palette: {}, counts: H.counts };
   const [skinName, visage] = faceSkinOf(recipe), compiled = compileLayered({ parts: { [skinName]: visage }, dials: {}, creases: {} }).parts[skinName];

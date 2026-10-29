@@ -795,9 +795,10 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
  * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front;
  * 13: the hair SEALED against the neck and the body (hero-head-layers.js HAIR_SEAL: the head's skin below its base a
- * collider the hair falls outside, and a hanging point near the skin taking the skin's own bones, so it moves as what it
- * lies on moves), where laws 10 to 12 let hair beside the jaw sit inside the upper neck and swept a long lock's foot
- * through the back as the head turned */
+ * collider the hair falls outside, a hanging point near the skin taking the skin's own bones (the jaw's the head's), so it
+ * moves as what it lies on moves, and a stroke that runs into the body stopping there, hair-locks.js `seal`), where laws
+ * 10 to 12 let hair beside the jaw sit inside the upper neck, swept a long lock's foot through the back as the head
+ * turned, and wrapped strokes that fell through the neck round the throat and down the chest */
 export const REALISTIC_LAWS_VERSION = 13;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
