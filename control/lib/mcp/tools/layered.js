@@ -62,7 +62,8 @@ import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
 import { beastWords, beastFlesh, beastHands, beastErrors } from '@/lib/graph/beast/tiered';
 import { beastLegs, beastJoints } from '@/lib/graph/beast/legs';
 import { beastTopology, beastSockets } from '@/lib/graph/beast/topology';
-import { beastHead } from '@/lib/graph/beast/head';
+import { beastHead, beastHeadOf } from '@/lib/graph/beast/head';
+import { creatureHeadOn } from '@/lib/graph/creature-heads/worn';
 import { beastDetail } from '@/lib/graph/beast/detail';
 import { beastTone, beastStyle } from '@/lib/graph/beast/style';
 import { serpentCoil } from '@/lib/graph/beast/serpent';
@@ -674,7 +675,7 @@ function wearFeet(R, hero, W, id) {
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(expandPlan(full), hero); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full), plan?.creatureHead), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -790,7 +791,8 @@ const WORN = new Set(['landmark', 'anime']);
 const headOf = (hero) => hero.head ?? 'landmark';
 /** a head whose rig carries a jaw chain (a door clip's `jaw`): the landmark head, or an include with a `jawHinge` joint
  * (hero-form.js decides the chain the same way) */
-const jawedHead = (hero) => headOf(hero) === 'landmark' || headOf(hero) === 'relational' || !!hero.head?.joints?.jawHinge;
+// (a beast's head, its kin's library skull or the relational one, carries a jaw bone the rig's jaw chain opens: beast/head.js)
+const jawedHead = (hero) => headOf(hero) === 'landmark' || headOf(hero) === 'relational' || !!hero.head?.joints?.jawHinge || (!!hero.beast && !!beastHeadOf(hero));
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 /** a hero whose cast reads female (a statue card drapes and paints by silhouette) */
 const femaleOf = (hero) => castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female';

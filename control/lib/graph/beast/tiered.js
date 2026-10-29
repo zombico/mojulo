@@ -32,7 +32,7 @@ import { BEAST_TAILS, BEAST_WINGS, BEAST_ARMS, BEAST_ABDOMENS } from './topology
 import { BEAST_RIDGES, BEAST_RUFFS } from './detail.js';
 import { OUTFIT_WORDS, libraryFeet } from '../polygonizer/hero-dress.js';
 import { isArmorBuild } from '../armor/expand.js';
-import { beastHeadOf, BEAST_HEADS, isDesigned, designedHeadErrors } from './head.js';
+import { beastHeadOf, BEAST_HEADS, isDesigned, designedHeadErrors, isRelationalHead, relationalHeadErrors } from './head.js';
 import { coverErrors, coverQualities } from './cover.js';
 import { beastOozeOf } from './ooze.js';
 import { patternErrors } from './pattern.js';
@@ -141,8 +141,9 @@ export function beastErrors(spec) {
   errs.push(...coverErrors(B.cover), ...patternErrors(B.pattern), ...oozeErrors(B.ooze, 'beast.ooze'));
   if (B.seed !== undefined && !(Number.isInteger(B.seed) && B.seed >= 0)) errs.push('beast.seed: a non-negative integer (it places its oozes\' dice)');
   if (isDesigned(B.head)) errs.push(...designedHeadErrors(B.head));
-  else if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')}, or a head designed from one ({ from, moves?, eye?, regions?, ornaments?, palette? }: creature-heads/derive.js) (the kin's own by default; 'person' keeps a person's head)`);
-  if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${isDesigned(B.head) ? `designed from ${B.head.from}` : B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);
+  else if (isRelationalHead(B.head)) errs.push(...relationalHeadErrors(B.head));
+  else if (B.head !== undefined && !BEAST_HEADS.includes(B.head)) errs.push(`beast.head: ${BEAST_HEADS.join(' | ')}, a head designed from one ({ from, moves?, eye?, regions?, ornaments?, palette? }: creature-heads/derive.js), or a relational head ({ relational: wolf | felid, relations? }: creature-heads/relational.js) (the kin's own by default; 'person' keeps a person's head)`);
+  if (B.head !== undefined && B.head !== 'person' && spec.head !== undefined && spec.head !== 'none') errs.push(`beast.head: '${isDesigned(B.head) ? `designed from ${B.head.from}` : isRelationalHead(B.head) ? `relational ${B.head.relational}` : B.head}' is a beast's head; the hero's head: '${spec.head}' is a person's — name one (head: 'none' under a beast's, or beast.head: 'person')`);
   // (a paw on a raised hock takes nothing cut for a person's foot: a shoe was drawn over the metatarsus, an armour
   // build's sabatons refused its missing toes by a part's name)
   const legs = word('legs');

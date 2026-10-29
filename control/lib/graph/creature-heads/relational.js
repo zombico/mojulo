@@ -26,7 +26,11 @@
  *   the ears      earSize (the ear's height), earWidth (its base, a share of its height), earSet (0 on the side … 1 on
  *                 the top), earTilt (degrees out from the vertical), earPoint (0 round … 1 pointed)
  *
- *   relationalCreatureHead({ preset, relations }) → { field, bounds, points, paint(p), relations, vajras }
+ *   relationalCreatureHead({ preset, relations, globes, ears }) → { field, bounds, points, paint(p), relations, vajras,
+ *     globes, earFields }: `globes: false` leaves the eyes' globes out of the field (their sockets kept) and `ears: false`
+ *     the ears, each then a part of its own (./worn.js); `globes` [{ side, centre, gaze, field, paint }] and `earFields`
+ *     [{ side, field }] either way; `points` names what the one skin and the bind read (eyeR, eyeL, prn, alR, alL, sto,
+ *     chR, gn, goR, condyleR, porionR, crown: the mouth's front and corner as seated on the skin)
  *   CREATURE_HEADS, CREATURE_RELATIONS, CREATURE_RELATION_NAMES
  * Pure, deterministic.
  */
@@ -126,10 +130,12 @@ function creatureVajras(R, P) {
 
 /** the skin's blend (V): how broadly the masses melt into one another where they meet */
 const SKIN_BLEND = 0.16;
+/** the lids' rim: the socket's edge rounded over this share of the globe's radius */
+const LID_ROUND = 0.45;
 /** an ear's thinness: its cone squashed this many times through its facing */
 const EAR_FLAT = 3;
 
-export function relationalCreatureHead({ preset = 'wolf', relations = {} } = {}) {
+export function relationalCreatureHead({ preset = 'wolf', relations = {}, globes: withGlobes = true, ears: withEars = true } = {}) {
   const R = { ...CREATURE_RELATIONS, ...(CREATURE_HEADS[preset] ?? {}), ...relations };
   const P = creaturePoints(R), W = creatureVajras(R, P), sc = HEAD_V;
   const S = (p) => v3(p.x * sc, p.y * sc, p.z * sc);
@@ -157,7 +163,7 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {} } = {})
       let d = sminK(sminK(m1, m2, kb), m3, kb);
       for (const i of feats) d = sminK(d, bonds[i](p), W[i].blend * sc);
       return d; }; };
-  const all = W.map((_, i) => i);
+  const all = W.map((_, i) => i).filter((i) => withEars || !W[i].ear);
   // THE NOSE'S PAD SEATED: marched forward from inside the muzzle (without it) to the muzzle's face, its centre set back
   // half its radius, so it stands proud as a rhinarium does instead of lying buried in the muzzle's front
   const ni = W.findIndex((w) => w.name === 'nose');
@@ -185,10 +191,12 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {} } = {})
   const mouth = [...half, ...half.slice(0, -1).reverse().map((m) => ({ ...m, c: { ...m.c, x: -m.c.x } }))];
   const field = (p) => {
     let d = skin(p);
-    for (const E of eyes) d = Math.max(d, -(Math.hypot(p.x - E.c.x, p.y - E.c.y, p.z - E.c.z) - E.r * 1.08));   // the socket, hugging its globe as lids do
+    // the socket, hugging its globe as lids do; its rim rounded over LID_ROUND of the globe's radius, so the lid's edge is a
+    // fold a net resolves, not a crease it saws
+    for (const E of eyes) { const s = -(Math.hypot(p.x - E.c.x, p.y - E.c.y, p.z - E.c.z) - E.r * 1.06), kk = LID_ROUND * E.r, h = Math.max(kk - Math.abs(d - s), 0) / kk; d = Math.max(d, s) + h * h * kk * 0.25; }
     let groove = Infinity; for (let i = 0; i + 1 < mouth.length; i++) groove = Math.min(groove, sdRoundCone(p, mouth[i].c, mouth[i + 1].c, mouth[i].r, mouth[i + 1].r));
     d = Math.max(d, -groove);
-    for (const E of eyes) d = Math.min(d, Math.hypot(p.x - E.c.x, p.y - E.c.y, p.z - E.c.z) - E.r);   // the globe
+    if (withGlobes) for (const E of eyes) d = Math.min(d, Math.hypot(p.x - E.c.x, p.y - E.c.y, p.z - E.c.z) - E.r);   // the globe
     return d;
   };
   // the globe's paint: its iris and pupil about its gaze; a slit pupil narrow across, tall up and down
@@ -198,7 +206,8 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {} } = {})
       const g = E.gaze, gl = Math.hypot(...g), cos = (v[0] * g[0] + v[1] * g[1] + v[2] * g[2]) / (l * gl);
       if (cos < R.iris) return 'sclera';
       const side = [g[1], -g[0], 0], across = Math.abs((v[0] * side[0] + v[1] * side[1]) / (l * Math.hypot(...side))), up = Math.abs(v[2] / l);
-      if (R.pupil === 'slit' ? across < 0.09 && up < 0.62 : cos > 0.9) return 'pupil';
+      // (a slit a lens: widest across its middle, closing to a point up and down)
+      if (R.pupil === 'slit' ? up < 0.62 && across < 0.1 * (1 - (up / 0.62) ** 2) : cos > 0.9) return 'pupil';
       return 'iris';
     }
     // (the nose's pad: where its own bead is the skin, its front half)
@@ -206,8 +215,17 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {} } = {})
     if (p.y > nc.y - nb.r[1] * 0.1 * sc && Math.hypot(p.x - nc.x, p.y - nc.y, p.z - nc.z) < nb.r[1] * 1.1 * sc) return 'nose';
     return null;
   };
+  // each globe its own field and paint (the one skin nets it as a part: polygonizer/hero-one-skin.js globePart)
+  const globeList = eyes.map((E, i) => ({ side: i ? 'L' : 'R', centre: E.c, gaze: v3(...E.gaze), field: (p) => Math.hypot(p.x - E.c.x, p.y - E.c.y, p.z - E.c.z) - E.r, paint }));
+  const earFields = W.map((w, i) => (w.ear ? { side: w.name.at(-1), field: bonds[i] } : null)).filter(Boolean);
+  // the points the one skin and the bind read: the eyes, the nose's tip and its pad's sides, the mouth's front and corner
+  // as seated, the chin, the jaw's angle and its hinge (the condyle, over the angle at the mouth's height, under the arch),
+  // the ear canal and the crown (STAND units, as the rest)
+  const nb = W.find((w) => w.name === 'nose'), nc = S(nb.c), padX = nb.r[1] * 0.8 * sc;
+  const named = { eyeR: eyes[0].c, eyeL: eyes[1].c, alR: v3(nc.x + padX, nc.y, nc.z), alL: v3(nc.x - padX, nc.y, nc.z), sto: half[NM].c, chR: half[0].c,
+    goR: S(P.go), condyleR: S(v3(P.go.x * 0.92, P.go.y - 0.08, P.zM + 0.06)), porionR: S(v3(P.halfW * 0.9, -0.12 * R.craniumLength, 0.46)), crown: S(v3(0, -0.12 * R.craniumLength, 0.72 + R.crown * 0.5 + 0.3)) };
   const xs = W.flatMap((w) => [w.a.x, w.b.x, w.c.x].map((x) => Math.abs(x) + Math.max(...w.r))), ys = W.flatMap((w) => [w.a.y, w.b.y, w.c.y]), zs = W.flatMap((w) => [w.a.z, w.b.z, w.c.z]);
   const pad = 0.12, X = Math.max(...xs) + pad;
   const bounds = { min: v3(-X * sc, (Math.min(...ys) - 0.35) * sc, (Math.min(...zs) - 0.3) * sc), max: v3(X * sc, (Math.max(...ys) + pad) * sc, (Math.max(...zs) + pad) * sc) };
-  return { field, bounds, points: Object.fromEntries(Object.entries(P).filter(([, v]) => v && typeof v === 'object').map(([kk, v]) => [kk, S(v)])), paint, relations: R, vajras: W };
+  return { field, bounds, points: { ...Object.fromEntries(Object.entries(P).filter(([, v]) => v && typeof v === 'object' && 'x' in v).map(([kk, v]) => [kk, S(v)])), ...named }, paint, relations: R, vajras: W, globes: globeList, earFields };
 }

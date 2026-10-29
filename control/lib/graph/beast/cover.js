@@ -200,12 +200,23 @@ export function coverMap(mesh, recipe, normals, cover, groups = COAT) {
     }
     frames.set(name, f); return f;
   };
-  const covered = (fi) => { const name = partOf(fi), P = recipe.parts[name]; return !!P && coat.has(mesh.groups[fi]) && (P.layer ?? 1) === 1 && !HEAD_PART.test(name) && !!frameOf(name); };
+  // (a mesh part that asks for it, `coverChart`, the relational creature head's skin and ears: creature-heads/worn.js, has no
+  // rings to run the tile round; each face takes the box chart across its own facing, the tile laid flat on the plane the
+  // face looks along most)
+  const charted = (P) => !!P?.coverChart && !!P.mesh;
+  const covered = (fi) => { const name = partOf(fi), P = recipe.parts[name]; return !!P && coat.has(mesh.groups[fi]) && (P.layer ?? 1) === 1 && (charted(P) ? true : !HEAD_PART.test(name) && !!frameOf(name)); };
   // the light mesh the tangents are built on: each covered corner its own vertex (its uv, its normal)
   const V = [], F = [], UV = [], N = [], cornerV = new Map();
   const flat = [(FLAT_PATCH / 2) / TILE_PX, (FLAT_PATCH / 2) / TILE_PX];
   mesh.faces.forEach((tri, fi) => {
     if (!covered(fi)) return;
+    if (charted(recipe.parts[partOf(fi)])) {
+      const [a, b, c] = tri.map((vi) => mesh.vertices[vi]), u0 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v0 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const n = [Math.abs(u0[1] * v0[2] - u0[2] * v0[1]), Math.abs(u0[2] * v0[0] - u0[0] * v0[2]), Math.abs(u0[0] * v0[1] - u0[1] * v0[0])];
+      const ax = n[0] >= n[1] && n[0] >= n[2] ? 0 : n[1] >= n[2] ? 1 : 2, [i, j] = ax === 0 ? [1, 2] : ax === 1 ? [0, 2] : [0, 1];
+      const t = tri.map((vi, k) => { const q = V.length, p = mesh.vertices[vi]; V.push(p); UV.push([p[i] / C.tile, p[j] / C.tile]); const nn = normals?.[fi]?.[k] ?? [0, 0, 1], l = Math.hypot(...nn) || 1; N.push(nn.map((x) => x / l)); return q; });
+      F.push(t); cornerV.set(fi, t); return;
+    }
     const f = frameOf(partOf(fi)), pole = [];
     const uv = tri.map((vi) => { const pv = mesh.provenance[vi], A = pv.station && f.at[pv.station];
       if (A && f.slot[pv.slot] !== undefined) { pole.push(false); return [f.slot[pv.slot] * f.around, A.s / C.tile]; }

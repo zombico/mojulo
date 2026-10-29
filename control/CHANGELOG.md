@@ -542,15 +542,44 @@ went to its eyes, teeth and lids. This theme builds its successor on the realist
   high on the vault) and the cat (a round vault, a short broad muzzle under a shallow stop, full whisker pads and a small
   chin, wide cheeks, big forward eyes with slit pupils and the iris filling them, broad ears to the top's sides).
 
-  Not yet: the head is studied as a field, not worn. The tiered body still wears the library heads; the joint to its
-  neck, the jaw's bind and the ears as parts of their own are the next phase, then the other kin as presets, the sheet's
-  head and the lexicon on relations, and the expression actions. The cat's mouth is a straight line yet (its cleft under
-  the nose is a lip relation to come).
+- **Worn on the tiered neck** (`beast.head: { relational: 'wolf' | 'felid', relations? }`; `creature-heads/worn.js`
+  `creatureHeadOn`, the plan's half in `beast/head.js` `creatureHeadPlan`). Opt-in: a kin still wears its library head by
+  default, so no pin moves.
+  - **The fit**: the head's STAND units times the figure's height (an ooze's head growth on it). The nape's foot sits
+    down the neck's top ring, so the neck runs into the back of the skull. The neck leans 24° under it, and the head is
+    raised until the ring below the top stands clear, so the neck keeps two rings.
+  - **The skin**: netted as ONE SKIN on the realistic hero's route (`hero-one-skin.js` `oneSkinHead`), joined smoothly
+    to the neck's column and sealed point for point to the neck's highest ring that stands clear of it. Its lips are cut
+    along the mouth's line, from the front back along the muzzle's sides to the corners, and turned in along the skin's
+    own facing. A mouth bag the muzzle's length lies behind them; the nose's pad is painted.
+  - **The new options** (each default the human head's, which stays byte for byte): how far back the cut reaches, which
+    way the lips turn in, the bag's own place, which rim is the seam's (the one nearest the ring: a slanted ring's low side
+    held a pinch's hole lower than its middle) and where a globe's edges are found (along each slot, so a slit pupil is
+    ringed as the lens it now is).
+  - **The bind**: the jaw bone carries the lower lip, the chin and the throat ahead of the ramus; the crown stays the
+    head's. The rig's jaw is hinged at the condyle with its tip at the chin; its head top is on the crown.
+  - **The eyes and the ears**: the globes are their own parts in rounded sockets (the lid's rim a fold the net resolves).
+    The ears are their own closed parts netted from their blades, their inner faces painted. The face's colours come from
+    the kin's library head, toned to its coat.
+  - **The coat's cover on the head**: the skin and the ears take the cover's tile by a box chart (`coverChart`, a mesh
+    part's way: `beast/cover.js`), so the fur runs onto the head with no seam at the neck.
+  - **A beast's head opens its jaw in a clip** (the door's `jaw` key), the library head's too: both carried the jaw bone,
+    and the door refused the key on them.
+
+  Not yet: the other kin as presets, the sheet's head and the lexicon on relations, and the expression actions. The
+  coat's pattern atlas does not reach the head yet (it charts ringed parts; the head is a mesh). The head has no teeth or
+  tongue. The cat's mouth is a straight line (its cleft under the nose is a lip relation to come). A head costs some
+  seconds to net, so worn heads are kept by what a build reads.
 
 Machine gate (`creature-heads/relational.test.js`): one closed skin; a relation moves what it names (the muzzle the
 nose's tip, the cephalic the vault's sides); no swelling past the beads; the eyes and the nose seated (a globe breaks the
 skin, the pad stands proud and paints); the skulls told apart by their relations; deterministic. Eyes: the wolf and the
-cat surface-netted in clay from six sides (the operator's to judge).
+cat surface-netted in clay from six sides (the operator's to judge). Worn (`creature-heads/worn.test.js`): the word swaps
+the library head for the skin, its globes, a mouth and its ears, and without it the kin keeps its skull; the skin is
+sealed to each point of the neck's last ring; the jaw bone carries the chin and the lower lip, never the crown or the
+upper lip, and the rig's jaw tip is the chin; the cover runs onto the skin and the ears, not the eyes or the nose's pad;
+the word is refused by name. Eyes: the wolf-kin and the cat-kin through hero-live, the library heads beside them, at
+rest and with the jaw open (the operator's to judge).
 
 ### The biped's coat: patterns solved in an upright body's anatomy, painted into an atlas
 

@@ -12,6 +12,10 @@
  *                             head top on the skull's crown, its jaw hinged at the head's own pivot and opened by the
  *                             rig's jaw chain (a clip key's `jaw`), the head's dials worn. Absent, the plan as it was.
  *
+ *   creatureHeadPlan        the RELATIONAL head instead (`beast.head: { relational: 'wolf' | 'felid', relations? }`:
+ *                           creature-heads/relational.js): the library head off, the neck leaned less, the fit and the
+ *                           rig's head top and jaw on the head's own points; the recipe wears it (creature-heads/worn.js)
+ *
  * Pure.
  */
 import { beastCard } from './tiered.js';
@@ -26,6 +30,8 @@ import { headAtTier } from '../polygonizer/creature-drawn.js';
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '../era/target.js';
 import { planHeight } from '../era/cast-density.js';
 import { beastCoverOf } from './cover.js';
+import { CREATURE_HEADS, CREATURE_RELATIONS } from '../creature-heads/relational.js';
+import { wornHead, CREATURE_WEAR } from '../creature-heads/worn.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
 const sub = (a, b) => a.map((x, i) => x - b[i]);
@@ -47,6 +53,23 @@ export const BEAST_HEADS = Object.freeze(['person', ...Object.keys(HEAD_LIBRARY)
 /** a designed head's words (a derivation of a library skull: creature-heads/derive.js) */
 export const DESIGNED_HEAD_KEYS = Object.freeze(['from', 'name', 'moves', 'eye', 'regions', 'ornaments', 'palette']);
 export const isDesigned = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.from === 'string';
+/** a RELATIONAL head's words (creature-heads/relational.js): its skull, and its relations over the skull's */
+export const RELATIONAL_HEAD_KEYS = Object.freeze(['relational', 'relations']);
+export const isRelationalHead = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.relational === 'string';
+/** Error strings for a relational head (empty = valid) */
+export function relationalHeadErrors(w) {
+  const errs = [];
+  for (const k of Object.keys(w)) if (!RELATIONAL_HEAD_KEYS.includes(k)) errs.push(`beast.head.${k}: not a word of a relational head (${RELATIONAL_HEAD_KEYS.join(', ')})`);
+  if (!CREATURE_HEADS[w.relational]) errs.push(`beast.head.relational: the skull (${Object.keys(CREATURE_HEADS).join(' | ')})`);
+  if (w.relations !== undefined) {
+    if (!w.relations || typeof w.relations !== 'object' || Array.isArray(w.relations)) errs.push('beast.head.relations: an object of relations');
+    else for (const [k, v] of Object.entries(w.relations)) {
+      if (!(k in CREATURE_RELATIONS)) errs.push(`beast.head.relations.${k}: not a relation (${Object.keys(CREATURE_RELATIONS).join(', ')})`);
+      else if (k === 'pupil' ? !['round', 'slit'].includes(v) : !(Number.isFinite(v) && Math.abs(v) <= 100)) errs.push(`beast.head.relations.${k}: ${k === 'pupil' ? "'round' | 'slit'" : 'a number'}`);
+    }
+  }
+  return errs;
+}
 /** Error strings for a designed head (empty = valid): its words, its skull, and the head it derives standing whole */
 export function designedHeadErrors(w) {
   const errs = [];
@@ -64,6 +87,8 @@ export function beastHeadOf(hero) {
   if (word === 'person') return null;
   const H = (() => {
     if (word && HEAD_LIBRARY[word]) return { id: word };
+    // (the relational head: its skull and relations, an ooze's growth on it)
+    if (isRelationalHead(word)) return { relational: word.relational, ...(word.relations ? { relations: word.relations } : {}), ...(card.ooze?.headScale ? { scale: card.ooze.headScale } : {}) };
     // (a head DESIGNED from a library skull, the creature-from-sheet catalyst's way: its derivation, creature-heads/derive.js)
     if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
     // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)
@@ -72,7 +97,7 @@ export function beastHeadOf(hero) {
     const lib = card.kin !== undefined ? headFor(card.kin) : null;
     return lib ? { id: lib.id } : null;
   })();
-  return H && card.ooze ? oozedHead(H, card.ooze) : H;
+  return H && card.ooze && !H.relational ? oozedHead(H, card.ooze) : H;
 }
 
 /** an ooze's head over the beast's (./ooze.js): its row moves after the head's own (a skull drawn in metres where it sits,
@@ -92,6 +117,7 @@ const oozedFace = (L, own = {}) => ({ ...(L?.expression ?? {}), ...own });
 
 export function beastHead(plan, hero) {
   const H = beastHeadOf(hero); if (!H || !plan.rig) return plan;
+  if (H.relational) return creatureHeadPlan(plan, hero, H);
   // (its colour the coat's: a kin whose coat is its own groups', the lamia's, its coat's first, not the skin of its torso)
   const card = beastCard(hero), skin = (card.coat ? plan.palette?.[card.coat[0]] : null) ?? plan.palette?.Skin ?? '#8a7a6a';
   // the neck leaned forward about its root, its length kept: the head base (a core joint, so the rig's rest) moves
@@ -132,4 +158,48 @@ export function beastHead(plan, hero) {
   const lean = dials.lean?.parts; if (Array.isArray(lean) && segments.some((s) => s.name === 'nape') && lean.includes('neck')) dials.lean = { ...dials.lean, parts: [...lean, 'nape'] };
   return { ...plan, segments, heads: [{ name: 'head', plan: hp, expression: oozedFace(card.ooze, hero.beast.expression), on: 'headBase', bind: { cranium: 'head', jaw: 'jaw' } }], dials,
     rig: { ...plan.rig, joints: rigJoints, bones, chains } };
+}
+
+/** the relational head on the neck: the neck's lean under it (degrees: its muzzle carries it forward, so the neck runs up
+ * into the back of the skull with less lean than the library heads wanted), its scale (× the figure's height, the head's
+ * STAND units), how far into the skull the neck's top ring runs (a share of the head's height, from the nape's foot) */
+/** the face's groups the relational head paints (its colours the kin's library head's) */
+const FACE_GROUPS = Object.freeze(['Sclera', 'Iris', 'Limbus', 'Pupil', 'Catchlight', 'Mouth', 'Tongue', 'Teeth', 'NosePad', 'Nostrils', 'EarInner']);
+export const CREATURE_FIT = Object.freeze({ lean: 24, scale: 1, into: -0.3 });
+
+/** The plan wearing the RELATIONAL head (see the head of the file): the head segment off, the neck leaned, the fit read off
+ * the neck's top ring, the rig's head top on the crown and its jaw hinged at the condyle with its tip at the chin, the jaw
+ * a bone opened by the rig's jaw chain; `creatureHead` carries the word, the fit and the coat's group to the recipe. */
+export function creatureHeadPlan(plan, hero, H) {
+  const card = beastCard(hero), J0 = plan.joints, nh = J0.neckHub, hb = J0.headBase, L = Math.hypot(...sub(hb, nh)), a = (CREATURE_FIT.lean * Math.PI) / 180;
+  const height = planHeight(plan), headBase = [hb[0], r6(nh[1] + L * Math.sin(a)), r6(nh[2] + L * Math.cos(a))];
+  plan = { ...plan, joints: { ...J0, headBase }, rig: { ...plan.rig, joints: { ...plan.rig.joints, headBase: { ...plan.rig.joints.headBase, at: headBase } } } };
+  const segments = plan.segments.filter((s) => s.name !== 'head'), neck = segments.find((s) => s.name === 'neck' && s.kind === 'segment');
+  // THE FIT: the head's STAND units times the figure's height and its scale; the nape's foot on the neck's top ring's middle,
+  // run into the skull along the neck's axis
+  const worn = { preset: H.relational, ...(H.relations ? { relations: H.relations } : {}) }, head = wornHead(worn), k = r6(height * CREATURE_FIT.scale * (H.scale ?? 1));
+  const R = neck ? partRings(plan, neck).stations : null, top = R?.at(-1), low = R?.at(-2);
+  const ct = top ? centre(top.points) : headBase, axis = low ? unit(sub(ct, centre(low.points))) : [0, 0, 1];
+  const V = (0.23 / 1.8) * k, foot = head.vajras.find((w) => w.name === 'nape').b, sc = 0.23 / 1.8;
+  const into = ct.map((x, i) => x + axis[i] * CREATURE_FIT.into * V);
+  const fit = { k, ty: r6(into[1] - foot.y * sc * k), men: r6(into[2] - foot.z * sc * k) };
+  // (raised, if it must be, until the ring under the neck's top stands clear of the head by the join's width and a half:
+  // the neck keeps two rings, and the skin is sealed to one the head does not swallow; a broad skull set low reached it)
+  if (low) { const fH = (q) => head.field({ x: q[0] / k, y: (q[1] - fit.ty) / k, z: (q[2] - fit.men) / k }) * k;
+    for (let i = 0; i < 200 && !Object.values(low.points).every((q) => fH(q) > 1.5 * CREATURE_WEAR.join); i++) fit.men = r6(fit.men + 0.002); }
+  const hero3 = (p) => [r6(p.x * k), r6(p.y * k + fit.ty), r6(p.z * k + fit.men)], P = head.points;
+  const cd = hero3(P.condyleR);
+  const rigJoints = { ...plan.rig.joints, headTop: { at: hero3(P.crown) }, jawHinge: { at: [0, cd[1], cd[2]], rides: 'head' }, jawTip: { at: hero3(P.gn), rides: 'head' } };
+  const bones = plan.rig.bones.some((b) => b.id === 'jaw') ? plan.rig.bones : [...plan.rig.bones, { id: 'jaw', head: 'jawHinge', tail: 'jawTip' }];
+  const chains = { ...(plan.rig.chains ?? {}), jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] } };
+  const dials = Object.fromEntries(Object.entries(plan.dials ?? {}).map(([id, d]) => [id, Array.isArray(d.parts) ? { ...d, parts: d.parts.filter((p) => p !== 'head') } : d]));
+  const group = card.coat ? card.coat[0] : 'Skin';
+  // THE FACE'S COLOURS: the eyes', the mouth's, the nose's and the inner ear's, the kin's library head's (toned to its coat),
+  // under the plan's own; an ooze's eye colour over them
+  const skin = (card.coat ? plan.palette?.[card.coat[0]] : null) ?? plan.palette?.Skin ?? '#8a7a6a';
+  const lib = (card.kin !== undefined ? headFor(card.kin) : null)?.id ?? (HEAD_LIBRARY[H.relational] ? H.relational : 'wolf');
+  const tones = libraryHead(lib, { skin, lineage: card.kin, k: 1 }).palette ?? {};
+  const face = Object.fromEntries(FACE_GROUPS.filter((g) => tones[g]).map((g) => [g, tones[g]]));
+  const palette = { ...face, ...(plan.palette ?? {}), ...(card.ooze?.eyes?.color ? { Iris: card.ooze.eyes.color } : {}) };
+  return { ...plan, palette, segments, dials, rig: { ...plan.rig, joints: rigJoints, bones, chains }, creatureHead: { ...worn, fit, group } };
 }
