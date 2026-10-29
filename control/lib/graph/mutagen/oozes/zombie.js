@@ -16,6 +16,7 @@ export const ooze = {
       { on: 'torso', kind: 'stripes', run: [0.6, 0.86], t: [0.4, 0.66], count: 3, width: 0.5, group: 'Bone', color: '#d7cdb1' },
       { on: 'legs', kind: 'spots', count: 3, size: [0.2, 0.35], group: 'Wound', color: '#3d2424' },
     ],
+    cover: { sheen: 'matte' },
     eyes: { color: '#cfff7a', glow: true },
     expression: { jawOpen: 20, cornerRetract: 0.3 },
   },

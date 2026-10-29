@@ -45,8 +45,10 @@ describe('quick: the fight goal', () => {
     expect(() => readQuick({ goal: 'fight', stages: [] })).toThrow(/fought on its arenas/);
   });
 
-  it('refuses a sheet whose people is below the hero door, until the creature bodies come', () => {
+  it('fields a beast-kin below the hero door: its sheet made into a character as a person\'s is (the tiered body, beast/)', () => {
     const world = quickWorld({ id: 'cats', quick: { goal: 'fight', roster: [{ facets: { ancestry: 'feline', humanity: 0.2 } }] } });
-    expect(() => runSteps(world, { ref: 'gw_cats' })).toThrow(/rolls a feline body below the hero door/);
+    const steps = runSteps(world, { ref: 'gw_cats' }), sheet = steps.find((s) => /-sheet$/.test(s.key)), made = steps[steps.indexOf(sheet) + 1];
+    expect(sheet.order.manifest.roll.facets).toMatchObject({ ancestry: 'feline' });
+    expect(made.order).toEqual({ egocube: sheet.ref, title: made.order.title });
   });
 });

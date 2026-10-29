@@ -93,7 +93,9 @@ function extendBinds(r, refined) { for (const pn of refined) { const P = r.parts
   };
   for (const st of P.stations) { if (b.blend[st.id] !== undefined || st.u === undefined || Number.isInteger(st.u)) continue; const lo = at(Math.floor(st.u)), hi = at(Math.ceil(st.u)), t = zoneT(st, Math.floor(st.u), Math.ceil(st.u), st.u - Math.floor(st.u));
     const w = {}; for (const k of [...new Set([...Object.keys(lo), ...Object.keys(hi)])].sort()) { const v = r6((lo[k] ?? 0) * (1 - t) + (hi[k] ?? 0) * t); if (v > 0) w[k] = v; }
-    if (b.zone > 0) settle(w);   // (eased shares rounded: the largest takes the remainder, so they sum to 1)
+    // (eased shares rounded: the largest takes the remainder, so they sum to 1; a blend by u settles only when its
+    // rounding missed 1, as two uneven neighbours' can, which the skin's bind refuses)
+    if (b.zone > 0 || Math.abs(Object.values(w).reduce((t, x) => t + x, 0) - 1) > 1e-9) settle(w);
     if (!(Object.keys(w).length === 1 && w[b.bone] === 1)) b.blend[st.id] = w; } } }
 /** re-pin L2 parts whose parent was refined: face pin → (s,t) on the unrefined carrier → face pin on the refined one */
 function migratePins(before, r, refined) { const L1u = compileLayered(before, {}, { details: false, creases: false }).parts, L1r = compileLayered(r, {}, { details: false, creases: false }).parts;

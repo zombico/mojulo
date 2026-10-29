@@ -120,12 +120,12 @@ export function undeadWalk(hero, card = undeadCard(hero)) {
 }
 
 // a rings station's points scaled toward a centre (its own, or the trunk's axis at its height)
-function scaleRing(points, s, about) {
+export function scaleRing(points, s, about) {
   const P = Object.values(points), c = about ?? [0, 1, 2].map((k) => P.reduce((t, p) => t + p[k], 0) / P.length);
   return Object.fromEntries(Object.entries(points).map(([sl, p]) => [sl, [r6(c[0] + (p[0] - c[0]) * s), r6(c[1] + (p[1] - c[1]) * s), about ? p[2] : r6(c[2] + (p[2] - c[2]) * s)]]));
 }
 // the torso's centre forward at height z (the chest's rings thin about the trunk they lie on, so they stay on it)
-function trunkCentre(torso, z) {
+export function trunkCentre(torso, z) {
   const S = torso.stations, i = Math.max(0, S.findIndex((st, j) => j < S.length - 1 && z <= S[j + 1].z)), a = S[Math.min(i, S.length - 2)], b = S[Math.min(i + 1, S.length - 1)];
   const t = b.z === a.z ? 0 : Math.max(0, Math.min(1, (z - a.z) / (b.z - a.z)));
   return [0, (a.yc ?? 0) + ((b.yc ?? 0) - (a.yc ?? 0)) * t, z];

@@ -38,7 +38,7 @@ node .claude/skills/hero-live/shot.mjs --out /tmp/hero-live --shots '[{"variant"
 it does not find (a Playwright build: `/opt/pw-browsers/chromium-*/chrome-linux/chrome`).
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
-Bust, Full body and Side views, the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
+Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
 (or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.
 
 ## The adornment loop on it

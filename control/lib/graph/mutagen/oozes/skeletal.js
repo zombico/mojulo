@@ -11,6 +11,7 @@ export const ooze = {
     limbs: { paws: 0.8 },
     head: { skull: { height: 0.92 }, muzzle: { width: 0.85, height: 0.85 } },
     ears: { none: true },
+    cover: { length: 'short', sheen: 'matte' },
     fangs: 1.6,
     hackles: { count: 12, height: 0.3, lean: 0.25, color: '#d9cfb6' },
     tint: { color: '#e4dac2', amount: 1, light: 1 },

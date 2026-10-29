@@ -55,6 +55,17 @@ import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
 import { rigidityErrors } from './rigidity.js';
 
+/** THE YOKE's share of a layer's ease it may stand out sideways over the shoulder (body-garment's yokeOf) */
+export const YOKE_SIDE = 0.25;
+/** per ring of a piece on the trunk: true where it lies above the armpit (the lowest point of the shoulder balls) on a
+ * body that has them; every ring false elsewhere (a classic body, a limb), so those pieces are cut as before */
+function yokeOf(parts, src, C) {
+  const balls = src === 'torso' ? Object.keys(parts).filter((nm) => /^shoulderBall[RL]$/.test(nm)) : [];
+  if (!balls.length) return C.map(() => false);
+  const armpit = Math.min(...balls.flatMap((nm) => parts[nm].stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))));
+  return C.map((c) => c[2] > armpit);
+}
+
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
 const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open'];
@@ -196,6 +207,9 @@ export function garmentParts(parts, garments, dials = {}) {
       const beneath = [...overs, ...(worn[src] || []).filter((n) => !(underHulls && HULL_FIT.test(n)))].flatMap((n) => parts[n].stations.flatMap((s) => Object.values(s.points)));
       const n = rings.length, ua = rings[0].u, span = rings[n - 1].u - ua || 1;
       const C = rings.map((r) => mean(part.slots.map((sl) => r.points[sl])));
+      // THE YOKE: on a trunk with shoulder balls (the tiered body), its rings above the armpit run out into the shoulder;
+      // cloth lies close over it (its armhole at the arm's root) and hangs from the chest, never from the shoulder point
+      const yoke = yokeOf(parts, src, C);
       const N = rings.map((r, j) => part.slots.map((sl) => unit(sub(r.points[sl], C[j]))));
       // the lift over what lies beneath: per point along its outward normal, over what lies within a hand's breadth round
       // the ring and within the ring's own SLAB along the part (halfway to the rings either side), so a ring is never
@@ -250,7 +264,8 @@ export function garmentParts(parts, garments, dials = {}) {
       // DRAPE: cloth held out above (by the bust, the shoulder blades) falls from there instead of hugging back in under
       // it: from the top ring down, each point stands at least as far out as the one above it, less `drape` per metre
       // it falls
-      if (P.drape !== undefined) for (let j = n - 2; j >= 0; j--) { const dz = Math.abs(C[j + 1][2] - C[j][2]);
+      // (a yoke ring holds nothing out below it: the cloth falls from the chest under the arm, not from the shoulder's width)
+      if (P.drape !== undefined) for (let j = n - 2; j >= 0; j--) { if (yoke[j + 1]) continue; const dz = Math.abs(C[j + 1][2] - C[j][2]);
         for (let k = 0; k < part.slots.length; k++) { const sl = part.slots[k], f = (rings[j].u - ua) / span, e = easeAt(j) + fl[0] * (1 - f) + fl[1] * f, fa = (rings[j + 1].u - ua) / span, ea = easeAt(j + 1) + fl[0] * (1 - fa) + fl[1] * fa;
           const above = dmath.hypot(...sub(add(rings[j + 1].points[sl], mul(N[j + 1][k], ea + H[j + 1][k])), C[j + 1]).slice(0, 2)), here = dmath.hypot(...sub(rings[j].points[sl], C[j]).slice(0, 2));
           H[j][k] = Math.max(H[j][k], above - P.drape * dz - here - e); }
@@ -265,7 +280,11 @@ export function garmentParts(parts, garments, dials = {}) {
           easeAt = (j) => easeOf(j) * shareAt(j); }
       }
       const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e = easeAt(j) + fl[0] * (1 - f) + fl[1] * f;
-        return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], mul(N[j][k], e + H[j][k])).map(r6)])) }; });
+        // (over the yoke the cloth stands out sideways by YOKE_SIDE of its ease at most: it lies on the shoulder, the shoulder
+        // point its edge, where a copy of the yoke's ring carried out along its normal stood off past the arm's root, a box)
+        const off = (k) => { const o = mul(N[j][k], e + H[j][k]); if (!yoke[j]) return o; const x = r.points[part.slots[k]][0], sx = Math.sign(x) || 1, cap = YOKE_SIDE * e;
+          return sx * o[0] > cap ? [sx * cap, o[1], o[2]] : o; };
+        return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], off(k)).map(r6)])) }; });
       const name = `${P.id}_${src}`;
       // the caps pinched on the axis a little beyond the end rings (a cap in its ring's plane has no outward side)
       const axis = unit(sub(C[n - 1], C[0])), rad = (j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(stations[j].points[sl], C[j])), 0, 0]))[0];
