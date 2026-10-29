@@ -9,6 +9,8 @@
  *       the yard from the house's back wall (v0) to the plot's back line (v1); R its dice; each tree where the program
  *       leaves open ground
  *   fenceOf(fence, [u0, v0], [u1, v1], z0) → the fence's faces along a line (a thin box, or a hedge's thick one)
+ *   serviceOf(kind, { w, v0, v1, R }) → { faces }: a shop's service yard (its bins, now and then a car) or a walk-up's lot
+ *                (its stalls painted, cars in some), from the building's back wall (v0) to the plot's back line (v1)
  *
  * `role` says how the scene paints a face: timber, deck, paving, soil, leaf, sand, shed, roof, door, canvas, metal, gravel.
  * Pure: the dice are the caller's.
@@ -118,4 +120,30 @@ export function yardOf(program, { w, v0, v1, R }) {
 export function fenceOf(fence, [u0, v0], [u1, v1], z0 = 0) {
   const F = FENCES[fence], t = F.t / 2;
   return box(Math.min(u0, u1) - (u0 === u1 ? t : 0), Math.min(v0, v1) - (v0 === v1 ? t : 0), Math.max(u0, u1) + (u0 === u1 ? t : 0), Math.max(v0, v1) + (v0 === v1 ? t : 0), z0, z0 + F.h, F.role);
+}
+
+// a car's paint, one a car
+const CARS = ['#8a2a2a', '#2a3f6a', '#d8d6d0', '#3a3d42', '#6a6f75', '#2f5a3a', '#c9b48a'];
+/** A car standing at (u, v), its length along `along` ('u' or 'v'): its body and its cabin, as boxes. */
+function car(u, v, along, hex) {
+  const [L, Wd] = along === 'u' ? [4.3, 1.8] : [1.8, 4.3], [l, wd] = along === 'u' ? [2.3, 1.6] : [1.6, 2.3];
+  return [...box(u - L / 2, v - Wd / 2, u + L / 2, v + Wd / 2, 0.25, 0.95, 'car'), ...box(u - l / 2, v - wd / 2, u + l / 2, v + wd / 2, 0.95, 1.45, 'cabin')].map((f) => ({ ...f, ...(f.role === 'car' ? { hex } : {}) }));
+}
+
+/** A shop's service yard or a walk-up's lot, built. */
+export function serviceOf(kind, { w, v0, v1, R }) {
+  const out = [], depth = v1 - v0;
+  if (kind === 'apartments') {
+    // stalls across the lot, their lines painted, a car in some
+    const vA = v0 + 2.5, vB = Math.min(v1 - 1, vA + 5.2);
+    for (let u = 1; u + 2.6 <= w - 1; u += 2.6) {
+      out.push({ corners: [P(u - 0.05, vA, 0.02), P(u + 0.05, vA, 0.02), P(u + 0.05, vB, 0.02), P(u - 0.05, vB, 0.02)], out: [0, 0, 1], role: 'line' });
+      if (R() < 0.55 && vB - vA > 4.6) out.push(...car(u + 1.3, (vA + vB) / 2, 'v', CARS[Math.floor(R() * CARS.length)]));
+    }
+    return { faces: out };
+  }
+  // a shop: two bins by its back wall, and a car in its yard now and then
+  for (const k of [0, 1]) { const u = 0.8 + k * 1.1; if (u + 0.9 < w) out.push(...box(u, v0 + 0.4, u + 0.9, v0 + 1.4, 0, 1.2, 'bin')); }
+  if (depth > 6.5 && w > 2.6 && R() < 0.5) out.push(...car(w / 2, v0 + Math.min(depth - 2.5, 4.5), 'v', CARS[Math.floor(R() * CARS.length)]));
+  return { faces: out };
 }

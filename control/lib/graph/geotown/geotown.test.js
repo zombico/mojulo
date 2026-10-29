@@ -14,9 +14,13 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
     expect(() => readGeotown({ town: 1 })).toThrow(/'town' is not a setting/);
     expect(() => readGeotown({ evoke: 'metro', grid: [5, 1] })).toThrow(/grid is \[cols, rows\]/);
     expect(() => readGeotown({ grid: [2, 2] })).toThrow(/grid is the town laid to scale's/);
-    expect(() => readGeotown({ evoke: 'vast' })).toThrow(/evoke is 'low', 'mid', 'high', 'metro'/);
+    expect(() => readGeotown({ evoke: 'vast' })).toThrow(/evoke is 'segment', 'neighbourhood', 'metro'/);
+    expect(() => readGeotown({ segment: 'mall' })).toThrow(/segment is houses, main-street, apartments, park/);
+    expect(() => readGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HH'] } })).toThrow(/a neighbourhood is at least 4 segments/);
+    expect(() => readGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HX', 'HH'] } })).toThrow(/'X' is not a segment's letter/);
+    expect(() => readGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HH', 'HH'], main: ['ew-7'] } })).toThrow(/'ew-7' is not a street/);
     expect(() => readGeotown({ evoke: 'metro', grid: [1, 1], blocks: { B1: {} } })).toThrow(/blocks.B1 is not a block of a 1 × 1 grid/);
-    expect(() => readGeotown({ blocks: { A1: { use: 'mall' } } })).toThrow(/use is houses or park/);
+    expect(() => readGeotown({ blocks: { A1: { use: 'mall' } } })).toThrow(/use is houses, main-street, apartments, park/);
     expect(() => readGeotown({ pattern: { from: DEFAULT_PATTERN, plot: { triplex: [5, 6] } } })).toThrow(/pattern.plot.triplex is not a setting/);
     // a pattern's changes are merged a level deep over its own
     const T = readGeotown({ pattern: { from: DEFAULT_PATTERN, mix: { detached: 0 } } });
@@ -31,7 +35,8 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
     const B = d.blocks[0], L = B.rect[3] - B.rect[1];
     for (const side of ['w', 'e']) expect(d.plots.filter((pl) => pl.side === side).reduce((a, pl) => a + pl.w, 0)).toBeCloseTo(L, 2);
     // the hard surfaces grow nothing, the soft ones grass at least
-    for (const k of SURFACE_IDS) expect(SURFACES[k].soft ? SURFACES[k].grows.includes('grass') : SURFACES[k].grows.length === 0).toBe(true);
+    // (a hard surface grows no grass and no garden: a main street's furnishing strip only its trees, in their pits)
+    for (const k of SURFACE_IDS) expect(SURFACES[k].soft ? SURFACES[k].grows.includes('grass') : SURFACES[k].grows.every((g) => g === 'street-tree')).toBe(true);
   });
 
   it('keeps a back yard every plot and a block face\'s setback held', () => {
@@ -103,7 +108,7 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
   it('evokes the town rather than laying it out: a block of six or eight, back to back, standing for the town to scale', () => {
     for (const seed of [1, 2, 3]) {
       const d = designGeotown({}, { seed, field: plane }), B = d.blocks[0];
-      expect(d.spec.evoke).toBe('low');
+      expect(d.spec.evoke).toBe('segment');
       expect(d.blocks.length).toBe(1);
       expect([6, 8]).toContain(d.plots.length);
       // its two rows hold one count, back to back, and close on the block's length
@@ -116,10 +121,35 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
       expect(law(d, 'closes').ok).toBe(true);
       expect(new Set(d.plots.map((pl) => pl.form))).toEqual(new Set(['semi', 'detached']));
     }
-    // a street of houses facing each other (mid): two blocks across it
-    const mid = designGeotown({ evoke: 'mid' }, { seed: 1, field: plane });
-    expect(mid.blocks.map((b) => b.id)).toEqual(['A1', 'B1']);
-    expect(law(mid, 'evokes').ok).toBe(true);
+  });
+
+  it('turns a main-street segment\'s shops to its main street: built to the walk, a service yard behind, houses backing onto it', () => {
+    const d = designGeotown({ segment: 'main-street' }, { seed: 2, field: plane }), B = d.blocks[0];
+    expect(d.streets.find((s) => s.id === 'ew-0').rank).toBe('main');
+    expect(B.rows.map((r) => `${r.side}:${r.kind}`)).toEqual(['s:shops', 'n:houses']);
+    const shops = d.plots.filter((pl) => pl.kind === 'shops'), houses = d.plots.filter((pl) => pl.kind === 'houses');
+    expect(shops.every((pl) => pl.setback === 0 && pl.rear === 'service' && pl.alloc.front === 0 && pl.alloc.service > 0)).toBe(true);
+    expect(houses.every((pl) => pl.setback > 0 && pl.rear === 'back')).toBe(true);
+    // the main street's section: wider, its walk paved to its kerb (a furnishing strip, no verge)
+    expect(d.pieces.some((p) => p.street === 'ew-0' && p.cls === 'furnish')).toBe(true);
+    expect(d.pieces.some((p) => p.street === 'ew-0' && p.cls === 'verge')).toBe(false);
+    expect(d.sections.y[0].row).toBeGreaterThan(d.sections.y[1].row);
+    for (const id of ['closes', 'fits', 'frontage', 'setback']) expect(law(d, id).ok).toBe(true);
+  });
+
+  it('composes a neighbourhood: its segments tuned to their cells, its uses mixed, its perimeter its ports', () => {
+    const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HP', 'MA'], main: ['ew-0'] } }, { seed: 3, field: plane });
+    expect(d.blocks.map((b) => `${b.id}:${b.use}`)).toEqual(['A1:main-street', 'B1:apartments', 'A2:houses', 'B2:park']);
+    for (const id of ['closes', 'fits', 'frontage', 'evokes']) expect(law(d, id).ok).toBe(true);
+    expect(Object.keys(d.ledger.uses).sort()).toEqual(['apartments', 'houses', 'shops']);
+    // a row its cell stretched past the rail is recut: every row's spread inside the pattern's stretch, give or take
+    for (const f of d.evoked.fits) expect(f.stretch).toBeGreaterThan(d.pattern.evoke.stretch[0] - 0.1);
+    // a column as wide as its widest need: the blocks of a column share their width, the rows of cells their length
+    const w = (b) => b.rect[2] - b.rect[0];
+    expect(w(d.blocks[0])).toBeCloseTo(w(d.blocks[2]), 6);
+    // its four perimeter streets are its ports, their ranks and their ends' heights
+    expect(d.ports.map((p) => `${p.side}:${p.rank}`)).toEqual(['w:street', 'e:street', 's:main', 'n:street']);
+    for (const p of d.ports) expect(p.z.every(Number.isFinite)).toBe(true);
   });
 
   it('reads an evocation\'s land as a window of the town to scale\'s, so its slopes are the town\'s', () => {

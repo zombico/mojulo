@@ -1,14 +1,19 @@
 /**
  * THE GEOTOWN'S CARDS — what a neighbourhood is made of before anything is drawn: its SURFACES (every square metre of
- * the map is one of them, and each says what may grow on it) and its PATTERNS (a block pattern: the street's section, the
- * block's length and depth, the plots it is cut into and the houses' share of each, the laws' numbers). A pattern is
- * data: a new neighbourhood is a card, not code. Its houses speak its `style` (era/arch-style.js): how they look in
- * general (their language: mass, cap, lights, door, socle), the finishes their material words.
+ * the map is one of them, and each says what may grow on it), its SEGMENTS (a block segment: one block, its rows back to
+ * back, each row a kind of frontage) and its PATTERNS (a block pattern: the streets' sections by rank, the rows' plots and
+ * buildings, the laws' numbers, the finishes of its ground, the neighbourhoods its segments compose). A pattern is data:
+ * a new neighbourhood is a card, not code. Its buildings speak its styles (era/arch-style.js): how they look in general
+ * (their language: mass, cap, lights, door, socle), the finishes their material words.
  *
  *   SURFACES        { <surface>: { read, grows: [growth…], soft } }: `grows` what the scene may put on it (grass, a
  *                   street tree, a tree, a shrub), none on a hard surface; `soft` whether it counts as green ground
+ *   SEGMENTS        { <type>: { read, axis, rows } }: a block segment's kind: `houses` two rows of houses, `main-street`
+ *                   a row of shops on the main street and houses behind, `apartments` a walk-up and houses, `park`.
+ *                   `axis` the way its rows run when no main street turns it ('y': they face the streets east and west)
  *   PATTERNS        { <id>: the pattern }; PATTERN_IDS; DEFAULT_PATTERN
- *   rowOf(P)        the pattern's right-of-way: { road, kerb, verge, walk, half, row }
+ *   sectionOf(P, rank)   a street's right-of-way by its rank ('street' or 'main'): { R, kerb, edge, verge, walk, half, row }
+ *   rowOf(P)        the residential street's
  *
  * Metres throughout; a street's `road` is its whole carriageway, `verge` and `walk` are each side's.
  */
@@ -24,16 +29,32 @@ export const SURFACES = Object.freeze({
   back: { read: 'a back yard: lawn, and a tree or two', grows: ['grass', 'tree', 'shrub'], soft: true },
   park: { read: 'a park: lawn and trees on the land as it lies, eased to the walks round it', grows: ['grass', 'tree'], soft: true },
   'park-path': { read: 'a path across a park', grows: [], soft: false },
+  furnish: { read: 'the furnishing strip of a main street\'s walk, by its kerb: paving, its trees in pits under grates', grows: ['street-tree'], soft: false },
+  service: { read: 'a service yard or a lot behind a shop or a walk-up: paving, bins, parking', grows: [], soft: false },
 });
 export const SURFACE_IDS = Object.freeze(Object.keys(SURFACES));
+
+export const SEGMENTS = Object.freeze({
+  houses: Object.freeze({ read: 'one block of houses, two rows back to back, their back yards meeting', axis: 'y', rows: Object.freeze(['houses', 'houses']) }),
+  'main-street': Object.freeze({ read: 'shops built to the main street\'s walk, their service yards behind, houses backing onto them from the street behind', axis: 'x', rows: Object.freeze(['shops', 'houses']), main: true }),
+  apartments: Object.freeze({ read: 'a walk-up on its lawn, its lot behind, and a row of houses back to back with it', axis: 'y', rows: Object.freeze(['apartments', 'houses']) }),
+  park: Object.freeze({ read: 'a park: the land as it lies, paths across it', axis: 'y', rows: Object.freeze([]) }),
+});
+export const SEGMENT_IDS = Object.freeze(Object.keys(SEGMENTS));
+// a neighbourhood's layout words: a letter a segment
+export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park' });
 
 export const PATTERNS = Object.freeze({
   'bay-and-gable': {
     read: 'a Victorian and Edwardian streetcar suburb (a Toronto Annex): long blocks of brick semis and detached houses, two and a half storeys with their gables to the street, each behind a front yard and a boulevard of maples, a deep back yard behind',
     // the houses' architectural style (era/arch-style.js): their language and material words, unless the recipe names one
     style: 'bay-and-gable',
-    // the right-of-way: the carriageway (two lanes and a parked side), and each side's kerb, boulevard and walk
-    street: { road: 8.5, kerb: 0.15, verge: 3, walk: 1.8 },
+    // the right-of-way: the carriageway (two lanes and a parked side), and each side's kerb, boulevard and walk; a MAIN
+    // street's wider (four lanes and a parked side each way), its walk paved to the kerb, its trees in pits by it
+    street: { road: 8.5, kerb: 0.15, edge: 'verge', verge: 3, walk: 1.8 },
+    main: { road: 13, kerb: 0.15, edge: 'furnish', verge: 1.6, walk: 3.4 },
+    // what its ground is finished in (era/arch-style.js MATERIAL_WORDS), laid as each word's tiles
+    finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone' },
     // a block's length along its houses' street (one per row of blocks), and each row of plots' depth (one per town: the
     // streets run straight); a block is two rows deep, back to back
     block: { long: [150, 210], depth: [34, 40] },
@@ -83,13 +104,34 @@ export const PATTERNS = Object.freeze({
     // between them (yards.js FENCES: board, picket, hedge); `weight` each one's share
     yards: { lawn: 2, garden: 2, patio: 2, deck: 2, shed: 2, play: 1 },
     fences: { board: 3, picket: 1, hedge: 1 },
+    // THE ROWS a segment is made of, besides its houses (whose numbers are the pattern's own, above): each its frontage,
+    // its plots' depth, its building's depth, its setback, side yards, storeys, its style and its front (fronts.js), what
+    // its rear is (`service`: hard), its pad over its walk
+    rows: {
+      shops: { read: 'shops in a row, party wall to party wall, built to the walk, a flat or two over each', use: 'shop', frontage: [6, 8.5], corner: 1.2, depth: [24, 30], building: [14, 18], setback: [0, 0], side: [0, 0], storeys: [2, 3], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 }, palettes: ['#a55a42', '#8c4a3a', '#c9a57a', '#d8cbb3', '#6f4a3c'] },
+      apartments: { read: 'a brick walk-up, four storeys, its entrance under a canopy, a lawn before it and a lot behind', use: 'dwelling', frontage: [24, 34], corner: 2, depth: [36, 42], building: [12, 15], setback: [5, 7], side: [3, 5], storeys: [4, 4], style: 'walk-up', rear: 'service', front: { canopy: true }, pad: { least: 0.45, most: 1.8 } },
+    },
+    // AN EVOCATION's counts: houses a row, shops a row, walk-ups a row; a segment's rows recut when what it is composed
+    // with stretches them past `stretch`
+    evoke: { houses: [3, 4], shops: [8, 11], apartments: [1, 1], stretch: [0.85, 1.2] },
+    // THE NEIGHBOURHOODS its segments compose: `layout` rows of letters north to south (H houses, M main-street, A
+    // apartments, P park: SEGMENT_LETTERS), `main` the streets that are main (ew-0 the southmost east-west, ns-0 the
+    // westmost north-south)
+    neighbourhoods: {
+      annex: { read: 'an Annex: houses on their long streets, a parkette, a walk-up among the houses, the main street\'s shops along the south', layout: ['HHP', 'HAH', 'MMM'], main: ['ew-0'] },
+      'main-street': { read: 'a main street of shops both sides, houses behind them', layout: ['MM', 'MM'], main: ['ew-1'] },
+      'quiet-streets': { read: 'houses only, a park among them', layout: ['HH', 'HP'], main: [] },
+    },
   },
 });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
 export const DEFAULT_PATTERN = 'bay-and-gable';
 
-/** The pattern's right-of-way: its carriageway's half (`R`), the kerb, each side's verge and walk, the half and the whole. */
-export function rowOf(P) {
-  const S = P.street, R = S.road / 2, half = R + S.verge + S.walk;
-  return { R, kerb: S.kerb, verge: S.verge, walk: S.walk, half, row: 2 * half };
+/** A street's right-of-way by its rank: its carriageway's half (`R`), the kerb, what stands by the kerb (`edge`: a
+ *  verge, or a main street's furnishing strip) and how wide, each side's walk, the half and the whole. */
+export function sectionOf(P, rank = 'street') {
+  const S = rank === 'main' ? P.main : P.street, R = S.road / 2, half = R + S.verge + S.walk;
+  return { rank, R, kerb: S.kerb, edge: S.edge ?? 'verge', verge: S.verge, walk: S.walk, half, row: 2 * half };
 }
+/** The residential street's right-of-way. */
+export const rowOf = (P) => sectionOf(P, 'street');

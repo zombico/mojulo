@@ -48,7 +48,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
   it('is the geocube kind\'s show, walked by its dummy round its first block', async () => {
     const p = await WORLD_KINDS.geocube.resolve(M, { title: 'a town' });
     expect(p.walkers?.length).toBe(1);
-    expect(p.geotown.counts.houses).toBe(D.plots.length);
+    expect(p.geotown.counts.buildings).toBe(D.plots.length);
     expect(() => assembleGeotownScene({ ...M, domain: 'x' })).toThrow(/'domain' is not a setting of the geocube kind's geotown/);
   });
 
@@ -58,6 +58,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
     const houses = new Map(p.anchors.filter((a) => a.kind === 'house').map((a) => [a.id.replace(/^house-/, ''), a.type]));
     expect(houses.size).toBe(d.plots.length);
+    expect(p.geotown.counts.houses).toBe(d.plots.length);
     for (const s of ['w', 'e']) {
       const row = d.plots.filter((pl) => pl.side === s).sort((a, b) => a.k - b.k);
       for (let k = 1; k < row.length; k++) {
@@ -76,6 +77,27 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
       const row = d.plots.filter((pl) => pl.side === s).sort((a, b) => a.k - b.k).map((pl) => p.geotown.yards[pl.id]);
       expect(row.every(Boolean)).toBe(true);
       for (let k = 1; k < row.length; k++) expect(row[k]).not.toBe(row[k - 1]);
+    }
+  });
+
+  it('builds a main street: shopfronts under their signs and awnings, its walk and paving finished, trees only in the town', () => {
+    const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { segment: 'main-street', hills: { height: 6 } } };
+    const p = assembleGeotownScene(E), d = designGeotown(E.geotown, { seed: 3 });
+    expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(p.geotown.counts.shops).toBe(d.plots.filter((pl) => pl.kind === 'shops').length);
+    const groups = new Set(p.faces.map((f) => f.group));
+    for (const g of ['geotown:sign', 'geotown:canvas', 'geotown:furnish', 'geotown:pit', 'geotown:service']) expect(groups.has(g)).toBe(true);
+    // the ground wears its finishes' tiles: the walk, the road, the main street's paving
+    for (const g of ['geotown:walk', 'geotown:road', 'geotown:furnish']) expect(p.faces.some((f) => f.group === g && f.texture)).toBe(true);
+    // no tree stands outside the town's frame: its border is bare
+    for (const r of p.repeats) for (const t of r.transforms) expect(t.pos[0] >= 0 && t.pos[1] >= 0 && t.pos[0] <= d.frame.W && t.pos[1] <= d.frame.D).toBe(true);
+    expect(p.geotown.ports.length).toBe(4);
+    // each tree held to its room: twice a person's height at the least, its crown short of every building
+    expect(p.geotown.laws.find((l) => l.law === 'room').ok).toBe(true);
+    const boxes = p.colliders.filter((c) => c.of.endsWith(':house'));
+    for (const r of p.repeats) for (const t of r.transforms) {
+      expect(t.scale).toBeGreaterThanOrEqual(3.6 - 1e-6);
+      for (const b of boxes) expect(t.pos[0] > b.min[0] && t.pos[0] < b.max[0] && t.pos[1] > b.min[1] && t.pos[1] < b.max[1]).toBe(false);
     }
   });
 });

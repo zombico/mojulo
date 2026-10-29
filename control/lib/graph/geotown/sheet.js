@@ -11,8 +11,10 @@ import { SURFACE_IDS, SURFACES } from './pattern.js';
 
 export const SURFACE_COLOURS = Object.freeze({
   road: '#5d6066', verge: '#8fbf6a', walk: '#d9d4c8', front: '#a9d48a', path: '#c8b9a0', house: '#b5543c',
-  side: '#cfc6b4', back: '#7fb35e', park: '#5e9e4a', 'park-path': '#d8caa8',
+  side: '#cfc6b4', back: '#7fb35e', park: '#5e9e4a', 'park-path': '#d8caa8', furnish: '#bfae94', service: '#8e8a84',
 });
+// a building's footprint by its row's kind
+const KIND_COLOURS = Object.freeze({ houses: '#b5543c', shops: '#6a4a8c', apartments: '#3c6a8c' });
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const r1 = (v) => Math.round(v * 10) / 10;
 const hex = (c) => c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
@@ -31,7 +33,7 @@ export function geotownSheet(d, { px = 2 } = {}) {
   for (const s of d.surfaces) {
     if (s.cls === 'path') continue;
     const z = s.plot ? padOf.get(s.plot) : null;
-    body.push(rect(s.rect, z !== null && z !== undefined && s.cls !== 'house' ? shade(SURFACE_COLOURS[s.cls], z) : SURFACE_COLOURS[s.cls]));
+    body.push(rect(s.rect, s.cls === 'house' ? KIND_COLOURS[s.kind] ?? SURFACE_COLOURS.house : z !== null && z !== undefined ? shade(SURFACE_COLOURS[s.cls], z) : SURFACE_COLOURS[s.cls]));
   }
   // the paths over the front yards they cross, and each plot's lines
   for (const s of d.surfaces) if (s.cls === 'path') body.push(rect(s.rect, SURFACE_COLOURS.path));
@@ -40,14 +42,16 @@ export function geotownSheet(d, { px = 2 } = {}) {
   for (const b of d.blocks) {
     const cx = (b.rect[0] + b.rect[2]) / 2, cy = (b.rect[1] + b.rect[3]) / 2;
     if (!b.built) body.push(rect(b.rect, '#ffffff', ' fill-opacity="0.35"'));
-    body.push(`<text x="${X(cx)}" y="${Y(cy)}" font-size="${Math.max(12, 9 * px)}" font-family="sans-serif" font-weight="700" fill="#ffffff" fill-opacity="0.9" stroke="#24301c" stroke-width="0.6" text-anchor="middle" dominant-baseline="middle">${esc(b.id)}${b.use === 'park' ? ' · park' : b.built ? '' : ' · unbuilt'}</text>`);
+    body.push(`<text x="${X(cx)}" y="${Y(cy)}" font-size="${Math.max(12, 9 * px)}" font-family="sans-serif" font-weight="700" fill="#ffffff" fill-opacity="0.9" stroke="#24301c" stroke-width="0.6" text-anchor="middle" dominant-baseline="middle">${esc(b.id)}${b.use && b.use !== 'houses' ? ` · ${esc(b.use)}` : ''}${b.built ? '' : ' · unbuilt'}</text>`);
   }
+  // the main streets, named along their line
+  for (const s of d.streets.filter((x) => x.rank === 'main')) body.push(`<text x="${X(s.axis === 'x' ? 8 : s.at)}" y="${Y(s.axis === 'x' ? s.at : 8)}" font-size="${Math.max(10, 4.5 * px)}" font-family="sans-serif" font-weight="700" fill="#ffe9a8" dominant-baseline="middle"${s.axis === 'y' ? ` transform="rotate(-90 ${X(s.at)} ${Y(8)})"` : ''}>main street</text>`);
   // each crossing's height, the streets' ground there
   for (const x of d.X) for (const y of d.Y) body.push(`<text x="${X(x)}" y="${Y(y)}" font-size="${Math.max(9, 4 * px)}" font-family="sans-serif" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${r1(d.land.S(x, y))}</text>`);
   // the ledger
   const L = d.ledger, rows = SURFACE_IDS.map((k) => [k, L.town[k], L.town[k] / (L.total || 1)]);
   const lx = w + 12, line = (i) => pad + 18 * i;
-  const led = [`<text x="${lx}" y="${line(0)}" font-size="14" font-weight="700" font-family="sans-serif">${esc(d.pattern.id)} · ${d.spec.grid.join(' × ')} blocks · ${d.plots.length} plots</text>`,
+  const led = [`<text x="${lx}" y="${line(0)}" font-size="14" font-weight="700" font-family="sans-serif">${esc(d.pattern.id)} · ${esc(d.spec.evoke)} · ${d.spec.grid.join(' × ')} blocks · ${d.plots.length} plots</text>`,
     `<text x="${lx}" y="${line(1)}" font-size="11" font-family="sans-serif" fill="#555">${r1(W)} × ${r1(D)} m · ${Math.round(L.total)} m² · the land ${d.land.range.join('–')} m</text>`];
   rows.forEach(([k, a, s], i) => {
     led.push(`<rect x="${lx}" y="${line(i + 2) - 10}" width="12" height="12" fill="${SURFACE_COLOURS[k]}"/>`);

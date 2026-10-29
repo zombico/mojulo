@@ -50,7 +50,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   trail goes trodden snow, the grass thins under a cover and is gone under deep snow, leaves turned up carry it, and
   the walker leaves footprints. A bare season is the biocube's (`trees.season`).
 - **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
-  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`, `bay-and-gable`), `{ from:
+  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`, `bay-and-gable`, `main-street`, `walk-up`), `{ from:
   <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.
   `language` is an anchor or its elements on their rails (`{ from: 'timber-hall', elements: { roof: { pitch: 50 },
   quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
@@ -105,17 +105,24 @@ A cube that names no domains offers one per terrain and one per interior.
   `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
   (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
-  `show: 'geotown'` a neighbourhood on the cube's own land, its map first and LEVELLED: its streets keep the land's
-  grade, each house a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
-  (geotown/). `geotown: { evoke?, pattern?, grid?, hills?, blocks?, margin? }`: `evoke` how it is told: `low` (the
-  default) one block of six or eight houses back to back, each house a type of its pattern (a bay, a porch, its own
-  roof, walls and material tiles) and each back yard its own (lawn, garden, patio, deck, shed, play, behind its own
-  fence); `mid` two blocks across a street; `high` four round a crossing; `metro` every plot to scale (`grid` its
-  blocks, up to 4 × 4, `blocks: { B2: { use: 'park' }, A2: { built: false } }`). An evocation keeps the town to scale's
-  measures (its `evokes` law) on a window of its land. `pattern` a block pattern (`bay-and-gable`, a Toronto Annex; `{
-  from, …changes }`: its street, plots, mix, setback, house types, yards), `hills` the land (`{ height, span }` or
-  false), `style` over the pattern's. The answer's `geotown` carries the ledger (every surface's square metres) and
-  the laws (the budget closes, a back yard every plot, the grade, the pad step, nothing growing on a hard surface);
+  `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
+  each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, grid?, hills?, blocks?, margin? }`: `evoke` how
+  it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
+  six or eight, each a type of its pattern with a bay, a porch, its own roof, walls and material tiles, each back yard
+  its own program behind its own fence; `main-street` shops built to a main street's walk under their signs and
+  awnings, service yards behind, houses backing onto them; `apartments` a walk-up and its lot among houses; `park`);
+  `neighbourhood` four or more segments composed (the pattern's `annex`, `main-street`, `quiet-streets`, or `{ layout:
+  ['HHP', 'HAH', 'MMM'], main: ['ew-0'] }`: rows of letters north to south, H houses, M main-street, A apartments, P
+  park; `main` the streets that are main, wider, their walks paved to the kerb), each segment tuned to its cell (its
+  rows recut and spread, its `fits` law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
+  them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
+  (`evokes`) on a window of its land. Its ground wears its pattern's `finishes` (the walk's scored concrete, the road's
+  asphalt, brick paths, a stone kerb); trees stand only in the town, at least twice a person's height and each held to
+  its room so no crown reaches a building (`room`); its border is bare. `pattern` a block pattern (`bay-and-gable`, a
+  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
+  houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
+  segments, the ports and the laws;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

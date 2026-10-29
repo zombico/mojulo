@@ -299,6 +299,40 @@ export const STYLE_STARTERS = Object.freeze({
     palette: { paint: '#efe8da' },
     city: { grain: 'north-american' },
   },
+  // (a geotown's main street and its walk-ups: geotown/pattern.js rows)
+  'main-street': {
+    read: 'a Victorian main street: brick shops in a row, two and three storeys, tall sash lights over the shopfronts, a bracketed cornice before a flat roof',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a brick shop built to its walk, a cornice over a flat roof', elements: {
+      wall: { storeys: [st('str:stone', 0.5, 'brick'), st('str:stone', 0.52, 'brick')] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.36 },
+      lights: { w: 0.95, h: 1.9, bay: 2.4, sill: 0.8, frame: 0.07, glazing: 'sash', trim: 'str:paint', trimValue: 0.9 },
+      door: { w: 1.1, h: 2.4, leaf: 'glazed', surround: 'frame', fanlight: 'rect', steps: 0 },
+      cornice: { kind: 'cornice', h: 0.45, proud: 0.3, group: 'str:paint', value: 0.86 },
+      socle: { h: 0.35, value: 0.45 }, sills: { group: 'str:plaster', value: 0.86 }, lintels: { group: 'str:plaster', value: 0.86 },
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 8, d: 16 }, annex: null } },
+    materials: { stone: 'wire-brick', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { paint: '#e9e1cf' },
+    city: { grain: 'north-american' },
+  },
+  'walk-up': {
+    read: 'a brick walk-up of the twenties: four storeys of paired lights between stone bands, a flat roof behind a deep cornice, a glazed door under a hood',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a long brick block, banded at each storey, a cornice over a flat roof', elements: {
+      wall: { storeys: [st('str:stone', 0.55, 'brick'), st('str:stone', 0.57, 'brick')] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.36 },
+      lights: { w: 1.1, h: 1.6, bay: 2.8, sill: 0.85, frame: 0.06, glazing: 'casement', trim: 'str:paint', trimValue: 0.88 },
+      door: { w: 1.4, h: 2.4, leaf: 'glazed', surround: 'hood', fanlight: 'rect', steps: 1 },
+      bands: { kind: 'band', w: 0.18, group: 'str:plaster', value: 0.85 },
+      cornice: { kind: 'cornice', h: 0.45, proud: 0.3, group: 'str:plaster', value: 0.85 },
+      socle: { h: 0.6, value: 0.45 }, sills: { group: 'str:plaster', value: 0.86 }, lintels: { group: 'str:plaster', value: 0.86 },
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 26, d: 14 }, annex: null } },
+    materials: { stone: 'wire-brick', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { stone: '#b9875e', paint: '#e6decb' },
+    city: { grain: 'north-american' },
+  },
 });
 export const STYLE_IDS = Object.freeze(Object.keys(STYLE_STARTERS));
 

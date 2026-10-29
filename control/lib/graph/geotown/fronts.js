@@ -7,10 +7,12 @@
  *   FRONT                     the numbers: a porch's depth (at the door, across the full front), its posts, its roof;
  *                             a bay's projection, its width, its lights
  *   frontOf(front, house)     → { faces: [{ corners, out, role, storey? }], porch: depth (0 with none) }
- *       front   { bay?: 'canted' | 'square', bayStoreys?: 1 | 2 | 'upper', porch?: 'door' | 'full' } (pattern.js types)
+ *       front   { bay?: 'canted' | 'square', bayStoreys?: 1 | 2 | 'upper', porch?: 'door' | 'full', shop?: true, canopy?: true }
+ *               (pattern.js types, rows): a SHOPFRONT the ground storey glazed, its door in it, a sign band and an awning;
+ *               a CANOPY a slab over a walk-up's door
  *       house   { W, n, storeyH, doorX, doorW }: its width, storeys and storey's height, its door's middle and width
  *     `role` says how the scene paints a face: `wall` (the storey's own wall, `storey` 0 the ground), `glass`, `trim`,
- *     `roof`, `deck`; `out` the way it faces
+ *     `roof`, `deck`, `sign`, `canvas` (an awning); `out` the way it faces
  *   box(x0, y0, x1, y1, z0, z1, role) → the five faces of a box (no floor), each facing out
  *
  * The bay stands on the side of the front away from the door; under a porch across the front it is the porch's
@@ -18,6 +20,9 @@
  */
 export const FRONT = Object.freeze({
   porch: Object.freeze({ door: 1.8, full: 2.2, beside: 0.8, post: 0.18, stride: 2.6, skirt: 0.7, slab: 0.12, over: 0.3, rail: 0.9 }),
+  // a shopfront: its glazing's head under the storey's top, its kick plate, its mullions' stride, the sign band, the awning
+  shop: Object.freeze({ head: 0.75, kick: 0.45, mullion: 1.5, edge: 0.35, sign: 0.6, awning: 1.4 }),
+  canopy: Object.freeze({ w: 2.4, d: 1.4, z: 2.7 }),
   bay: Object.freeze({ proj: 0.85, most: 3, least: 1.8, clear: 1.2, edge: 0.35, fascia: 0.25, glass: Object.freeze({ w: 0.62, h: 0.56, sill: 0.8, frame: 0.07, bar: 0.05 }) }),
 });
 
@@ -107,6 +112,30 @@ export function frontOf(front = {}, house) {
     // its top: flat, over its plan; and under it where it stands out over a porch's roof or the bank, its soffit
     out.push({ corners: [P(L[0], L[1], z1), P(R[0], R[1], z1), P(FR[0], FR[1], z1), P(FL[0], FL[1], z1)], out: [0, 0, 1], role: 'roof' });
     if (upper) out.push({ corners: [P(L[0], L[1], z0), P(FL[0], FL[1], z0), P(FR[0], FR[1], z0), P(R[0], R[1], z0)], out: [0, 0, -1], role: 'trim' });
+  }
+  // ── a shopfront: the ground storey glazed between its frame and mullions, the door in it, a sign band over it and an
+  // awning off the wall over the walk ──
+  if (front.shop) {
+    const Sf = FRONT.shop, zt = sh - Sf.head, gaps = [[Sf.edge, doorX - doorW / 2 - 0.12], [doorX + doorW / 2 + 0.12, W - Sf.edge]];
+    for (const [a, b] of gaps) {
+      if (b - a < 0.6) continue;
+      out.push({ corners: [P(a, -0.04, 0), P(b, -0.04, 0), P(b, -0.04, zt), P(a, -0.04, zt)], out: [0, -1, 0], role: 'trim' });
+      out.push({ corners: [P(a + 0.08, -0.06, Sf.kick), P(b - 0.08, -0.06, Sf.kick), P(b - 0.08, -0.06, zt - 0.1), P(a + 0.08, -0.06, zt - 0.1)], out: [0, -1, 0], role: 'glass' });
+      const k = Math.max(1, Math.round((b - a) / Sf.mullion));
+      for (let i = 1; i < k; i++) { const x = a + ((b - a) * i) / k; out.push({ corners: [P(x - 0.04, -0.08, Sf.kick), P(x + 0.04, -0.08, Sf.kick), P(x + 0.04, -0.08, zt - 0.1), P(x - 0.04, -0.08, zt - 0.1)], out: [0, -1, 0], role: 'trim' }); }
+      out.push({ corners: [P(a + 0.08, -0.08, zt - 0.62), P(b - 0.08, -0.08, zt - 0.62), P(b - 0.08, -0.08, zt - 0.56), P(a + 0.08, -0.08, zt - 0.56)], out: [0, -1, 0], role: 'trim' });
+    }
+    out.push(...box(0.15, -0.14, W - 0.15, -0.02, sh - Sf.sign - 0.08, sh - 0.08, 'sign'));
+    const ao = Sf.awning, a0 = Sf.edge * 0.6, a1 = W - Sf.edge * 0.6, zh = zt + 0.05, zl = zh - ao * 0.45;
+    out.push({ corners: [P(a0, -ao, zl), P(a1, -ao, zl), P(a1, 0, zh), P(a0, 0, zh)], out: [0, -0.4, 0.9], role: 'canvas' });
+    out.push({ corners: [P(a0, -ao, zl - 0.25), P(a1, -ao, zl - 0.25), P(a1, -ao, zl), P(a0, -ao, zl)], out: [0, -1, 0], role: 'canvas' });
+    for (const [x, sx] of [[a0, -1], [a1, 1]]) out.push({ corners: [P(x, 0, zh), P(x, -ao, zl), P(x, -ao, zl - 0.25)], out: [sx, 0, 0], role: 'canvas' });
+  }
+  // ── a walk-up's canopy over its door, on two brackets ──
+  if (front.canopy) {
+    const c = FRONT.canopy, a = Math.max(0, doorX - c.w / 2), b = Math.min(W, doorX + c.w / 2);
+    out.push(...box(a, -c.d, b, 0, c.z, c.z + 0.16, 'trim'));
+    for (const x of [a + 0.15, b - 0.15]) out.push({ corners: [P(x, 0, c.z - 0.6), P(x, 0, c.z), P(x, -c.d * 0.8, c.z)], out: [1, 0, 0], role: 'trim' });
   }
   return { faces: out, porch: pd };
 }

@@ -5,7 +5,7 @@
 // budget) and no page errors; the look is the operator's.
 //
 //   node scripts/spikes/geotown/geotown.mjs [--out <dir>] [--cube valley-morning] [--hours noon,dusk] [--seed 1]
-//     [--geotown '{"evoke":"low"}' | '{"evoke":"metro","grid":[2,2],"blocks":{"B2":{"use":"park"}}}'] [--era gen-7]
+//     [--geotown '{"segment":"main-street"}' | '{"evoke":"neighbourhood"}' | '{"evoke":"metro","grid":[2,2]}'] [--era gen-7]
 import fs from 'node:fs';
 import path from 'node:path';
 import { register } from 'node:module';
@@ -20,7 +20,7 @@ const { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } = await import('@
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = path.resolve(arg('--out', 'geotown')), W = 1280, H = 720;
 const cube = arg('--cube', 'valley-morning'), hours = arg('--hours', 'noon,dusk').split(','), era = arg('--era', 'gen-7'), seed = Number(arg('--seed', '1'));
-const geotown = JSON.parse(arg('--geotown', '{"evoke":"low"}'));
+const geotown = JSON.parse(arg('--geotown', '{}'));
 fs.mkdirSync(out, { recursive: true });
 
 // the map first: the sheet, and its laws
