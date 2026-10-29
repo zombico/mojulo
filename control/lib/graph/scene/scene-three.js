@@ -696,7 +696,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
-  const formLandBlock = form && form.land ? formLandScript(form.land) : '';
+  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null) : '';
   // a gritty style's rock fabric (channels/fabric.js): the near rock drawn from its own joints and beds; none → not one byte
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
