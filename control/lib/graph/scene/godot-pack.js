@@ -17,7 +17,7 @@ import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
 import { bakeFps, bakeImport } from './godot-bake.js';
 import { isHumanoidRig } from '../polygonizer/figure-humanoid-map.js';
-import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, figureClip, figureSkeleton, layeredFigure, levelContract } from './engines/pack.js';
+import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, figureClip, figureSkeleton, layeredFigure, levelContract, voiceFiles } from './engines/pack.js';
 
 export { figureClip, layeredFigure, levelContract };
 
@@ -150,7 +150,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score, fig, engine, bus, soundtrack, sound } = await resolveLevel(sketch, { engine: 'godot', clips, posture, lit, figure: true, humanoid });
+  const { kind, exported, score, fig, engine, voice, bus, soundtrack, sound } = await resolveLevel(sketch, { engine: 'godot', clips, posture, lit, figure: true, humanoid });
   // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
   // score's 'three-quarter' camera, else its first). The ANIME hero's figure adds its clips' designed durations (`s` on
   // the packed clip; hero-gesture heroClipSeconds) and whether its mesh carries the face (anime-face-rig.js; its scene is
@@ -175,6 +175,8 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       ...(!anime && f.face ? { face: true, ambientOver: f.face.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
       // THE RELIEF (epidermis/dermal-relief.js): a lit figure carrying its normal map and tangents, said by its ledger
       ...(lit && f.normalTex ? { relief: true } : {}),
+      // a realistic hero's RECORDED LINES (face-acting/recordings.js): each held one shipped at voice/<recording>.wav
+      ...(voice?.length ? { voice: voice.filter((v) => v.bytes).length, voiceMissing: voice.filter((v) => !v.bytes).length } : {}),
     };
   })() : null;
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);
@@ -184,6 +186,8 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
     // the world's behaviour, beside its score (engine-score.js extractBus): absent behaviour ⇒ no file
     ...(bus ? [{ rel: 'bus.json', bytes: JSON.stringify(bus) }] : []),
     { rel: `recipe/${ref}.json`, bytes: JSON.stringify(manifest, null, 2) },
+    // (the recorded lines, once each: figure_face.gd keys them on their takes)
+    ...voiceFiles(voice, 'voice'),
   ];
   const audioFile = await bedWriter({ binaries, log }).put(score.soundtrack, null, { recipe: soundtrack?.recipe });
   await packSound(sound, { binaries, seen: new Set(), log });

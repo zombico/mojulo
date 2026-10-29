@@ -45,6 +45,10 @@
  * - 2026-10-24, the cervical neck (realistic laws 3, the operator: the head read too far forward on its neck): the neck's
  *   column leaning up into the skull moves the seam ring the skin is cut on. The one skin is pinned under laws 2 as it
  *   was, byte for byte, and under laws 3 beside it.
+ * - 2026-10-29, the mouth with teeth (realistic laws 12, the operator: speech's open mouth was a dark slab): the bag
+ *   behind the lips an open cup and in it the teeth and the tongue (hero-one-skin.js `teeth`), and the lips' corners
+ *   bound half to the jaw, so the mouth opens as an almond, not a box (`lens`). The seated head is pinned
+ *   under laws 11 as it was, byte for byte, and under laws 12 beside it, its mouth's parts with it.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -64,6 +68,10 @@ const EAR_PINS = { male: '0f388164cbe3cf89', female: '4f512d419c09c8d3' };
 // the lids SEATED (realistic laws 11, head-relational-eye.js SEAT: the brow's arc and ties lower, the fold a pad, a deep-set
 // eye forward), over the ear raised; re-pinned when the seat (laws 10 on 1027-hero-pack-v2) came after the raised ear
 const SEATED_PINS = { male: '8433041062f5791b', female: '62a42715c85075d3' };
+// the MOUTH WITH TEETH (realistic laws 12, hero-one-skin.js `teeth`): the cup, the teeth and the tongue, the corners'
+// lens, over the seat
+const TEETH_PARTS = [...ONE_PARTS, 'teethUpper', 'teethLower', 'tongue'];
+const TEETH_PINS = { male: '9c503eb36cfbad15', female: 'db664f3b88638229' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
@@ -86,10 +94,16 @@ describe('the relational head, pinned', () => {
     expect(r.headFit.seat).toBeUndefined();
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
-  // (a hero minted now, laws 11, has its lids seated on the globes: head-relational-eye.js SEAT)
+  // (laws 11: the lids seated on the globes, head-relational-eye.js SEAT, the mouth a closed bag)
   for (const [cast, pin] of Object.entries(SEATED_PINS)) it(`${cast}, one skin, the ear raised, the lids seated`, { timeout: 240000 }, () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { laws: 11 } }) }).recipe;
+    expect(r.headFit.seat).toBe(true); expect(r.parts.teethUpper).toBeUndefined();
+    expect(pinOf(r, ONE_PARTS)).toBe(pin);
+  });
+  // (a hero minted now, laws 12, has teeth)
+  for (const [cast, pin] of Object.entries(TEETH_PINS)) it(`${cast}, one skin, the lids seated, the mouth with teeth`, { timeout: 240000 }, () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational' }) }).recipe;
     expect(r.headFit.seat).toBe(true);
-    expect(pinOf(r, ONE_PARTS)).toBe(pin);
+    expect(pinOf(r, TEETH_PARTS)).toBe(pin);
   });
 });

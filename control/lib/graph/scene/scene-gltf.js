@@ -1004,6 +1004,8 @@ class GlbBuilder {
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
+        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio.map((A) => (A.bytes ? { at: A.at, recording: A.recording, mimeType: 'audio/wav', bufferView: this.addView(A.bytes, 0) } : { at: A.at, recording: A.recording, missing: true })) } : {}) })),
+          performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, recording, mimeType, bufferView }: the WAV embedded in the file\'s own buffer, `missing` where the machine that exported it held no such recording) starts `at` seconds into the clip' } : {}),
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
           ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],
@@ -1082,6 +1084,15 @@ class GlbBuilder {
       this.addWeightsChannel(samplers, channels, { node: meshNode, t: amb.t, w: corr ? amb.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : amb.w });
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: fig.face.ambient.name, samplers, channels });
+      animations++;
+    }
+    // the face's PERFORMANCES (the door's `perform`: face-acting/perform.js): each take a face-only animation `face:<take>`,
+    // a LINEAR weights channel (a capture's curves, tweened between its keys), the correctives held at their rest weights
+    if (hasFace && fig.face.performances) for (const [take, P] of Object.entries(fig.face.performances)) {
+      const samplers = [], channels = [];
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: P.t, w: corr ? P.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : P.w }, null, 'LINEAR');
+      if (!this.json.animations) this.json.animations = [];
+      this.json.animations.push({ name: `face:${take}`, samplers, channels });
       animations++;
     }
     return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };
@@ -1196,13 +1207,13 @@ class GlbBuilder {
 
   // A facial track ({ node, t, w: [weights per key] }) → a STEP sampler (its own float32 input; the last time `end` when
   // given) and a `weights` channel on the node, pushed onto an animation's lists.
-  addWeightsChannel(samplers, channels, { node, t, w }, end = null) {
+  addWeightsChannel(samplers, channels, { node, t, w }, end = null, interpolation = 'STEP') {
     const times = Float32Array.from(t);
     if (end !== null) times[times.length - 1] = end;
     const out = new Float32Array(w.length * w[0].length);
     w.forEach((x, k) => out.set(x, k * x.length));
     const input = this.floatAccessor(times, 1, { min: [times[0]], max: [times[times.length - 1]] }, null);
-    const sampler = samplers.push({ input, output: this.floatAccessor(out, 1, null, null), interpolation: 'STEP' }) - 1;
+    const sampler = samplers.push({ input, output: this.floatAccessor(out, 1, null, null), interpolation }) - 1;
     channels.push({ sampler, target: { node, path: 'weights' } });
   }
 

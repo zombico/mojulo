@@ -51,7 +51,8 @@ function requireVoiceSketch(ref) {
 function workerHint(resolved) {
   return `Render locally (optional backend, docs/local-voice-worker.md): `
     + `cd ~/mojulo-voicegen && venv/bin/python speak.py --text "<line>" `
-    + `--voice "${resolved.voiceArg}" --speed ${resolved.speed} --out <path>.wav`;
+    + `--voice "${resolved.voiceArg}" --speed ${resolved.speed} --out <path>.wav`
+    + ` (add --timings; a realistic hero's beat \`say: { text, audio: <the WAV> }\` saves the recording and its timing)`;
 }
 
 export function mintVoice({ title, params, ref, folderRef } = {}) {
@@ -213,7 +214,11 @@ Worker shapes, resolved by the agent in the seat (capability ladder):
    --speed <speed> --out <path>.wav\` — Kokoro-82M on ONNX; \`speak.py\`
    handles Japanese G2P (misaki) and blend math; \`speak.mjs\` is the
    English-only fast path. Success prints a JSON handback
-   \`{ ok, path, seconds, rms, ... }\`.
+   \`{ ok, path, seconds, rms, ... }\`. \`--timings\` (\`install-local-voicegen.sh
+   --timed\`) also writes when each phoneme is spoken, \`<out>.timings.json\`:
+   a realistic hero's beat \`say: { text, audio: <the WAV> }\` saves the
+   recording as the hero's own (any WAV: a person's narration too) and reads
+   those timings beside it, else aligns the text to it.
 3. Neither → point the operator at the install doc; the register is still a
    complete artifact without a render.
 

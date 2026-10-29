@@ -67,7 +67,8 @@ import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
 import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
-import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
+import { relationalFaceRig, performanceTrack } from '@/lib/graph/polygonizer/relational-face-rig';
+import { perform } from '@/lib/graph/face-acting/perform';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -916,6 +917,10 @@ export const WORLD_KINDS = {
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));
+        // THE FACE'S PERFORMANCES (the door's `perform`, face-acting/perform.js): each take played by the realistic face's
+        // targets as a LINEAR weights track, a face-only clip an engine layers over a body's (`face:<take>`), derived here
+        // and never stored. Absent ⇒ as before.
+        if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;

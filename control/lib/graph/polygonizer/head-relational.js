@@ -543,7 +543,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // no waist and no hump, so the lip falls off evenly from the philtrum to the corner (a centre bead off the line, or
   // fuller than the line, stood a terrace on the lip that the light read as a lump)
   const taper = (name, a, b, ra, rb, drive) => v(name, a, mid(a, b), b, [ra, (ra + rb) / 2, rb], 'lipBody', drive);
-  v('philtrumBody', { x: 0, y: P.sn.y - 0.024, z: P.sn.z - 0.016 }, philMid, { x: 0, y: P.ls.y - 0.024, z: P.ls.z + 0.012 }, [0.016, pv, 0.02 * pk], 'lipBody');
+  v('philtrumBody', { x: 0, y: P.sn.y - 0.024, z: P.sn.z - 0.016 }, philMid, { x: 0, y: P.ls.y - 0.024, z: P.ls.z + 0.012 }, [0.016, pv, 0.02 * pk], 'lipBody', [null, null, ['lipUpHalf']]);
   // THE SILLS — under each wing the lip's top edge: from the philtrum's top, under the lobule, out to the wing's base
   // where the fold begins. Its top tucks under the nostril, so the wing sits ON the lip in a crease (without it the
   // lip's top fell 8 mm back under each wing, a slot you could see into from the side). Its outer end sinks into the
@@ -581,12 +581,12 @@ export function coreVajras(P, rel = RELATIONS) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
     lobule[s] = at(al, { x: -sg * 0.018 * k, y: -0.006 * k });
     soft3[s] = { x: sg * 0.024 * k, y: P.prn.y - 0.036 * k, z: P.prn.z - 0.008 * k };
-    v(`nostril${s}`, at(al, { x: -sg * 0.014 * k, y: -0.03 * k, z: -0.006 * k }), lobule[s], soft3[s], [0.012 * k, 0.018 * k, 0.012 * k], 'nose');
+    v(`nostril${s}`, at(al, { x: -sg * 0.014 * k, y: -0.03 * k, z: -0.006 * k }), lobule[s], soft3[s], [0.012 * k, 0.018 * k, 0.012 * k], 'nose', [[`nose${s}`], [`nose${s}`], null]);
   }
   // THE ALAR BAR — lobule → under the subnasale → lobule: the nose's base, joining the nostrils. Its ends are the
   // lobules (the same bead and radius), so the wing's outer side stays the alare (ended at the alare itself, the bar
   // stood 5 mm outside each wing)
-  v('alae', lobule.L, at(P.sn, { y: -0.02 * k, z: 0.005 * k }), lobule.R, [0.018 * k, 0.018 * k, 0.018 * k], 'nose');
+  v('alae', lobule.L, at(P.sn, { y: -0.02 * k, z: 0.005 * k }), lobule.R, [0.018 * k, 0.018 * k, 0.018 * k], 'nose', [['noseL'], ['noseC'], ['noseR']]);
   // THE SEPTUM — the nose's midline wall, from the columella's base up behind the bridge, inside the nose: it fills the
   // air the walls and the ridge close round (a pocket there showed in the profile, and opened to a line seen through
   // from the side as the cheek moved)
@@ -626,7 +626,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // tubercle, the lower through its fullest to its centre; the centre beads are shared, so the halves meet there)
   const upC = at(P.ls, { y: -0.024, z: -0.002 }), loC = at(P.li, { y: -0.028 }), F = R.lipFullness;
   for (const s of ['L', 'R']) {
-    v(`upperLip${s}`, at(P[`ch${s}`], { y: -0.014 }), at(P[`bow${s}`], { y: -0.016, z: -0.008 }), upC, [0.006, 0.016 * F, 0.022 * F], 'lips', [[`corner${s}`], [`bow${s}`], null]);
+    v(`upperLip${s}`, at(P[`ch${s}`], { y: -0.014 }), at(P[`bow${s}`], { y: -0.016, z: -0.008 }), upC, [0.006, 0.016 * F, 0.022 * F], 'lips', [[`corner${s}`], [`bow${s}`], ['lipUpC']]);
     v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.014, z: -0.002 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02 * F, 0.026 * F], 'lips', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
     // the philtral columns: two ridges from the nose's base down to the bow's peaks
     v(`philtrum${s}`, at(P.sn, { x: (s === 'L' ? -1 : 1) * 0.012, y: -0.006, z: -0.012 }), at(mid(P.sn, P[`bow${s}`]), { x: (s === 'L' ? -1 : 1) * 0.004, y: -0.006 }), at(P[`bow${s}`], { y: -0.008 }), [0.005, 0.005 * pk, 0.006 * pk], 'lips', [null, null, [`bow${s}`]]);
@@ -645,7 +645,7 @@ export function coreVajras(P, rel = RELATIONS) {
     cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.026, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.036, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.042, z: -0.018 }), [0.003, 0.004, 0.003], null, 0.012);
   }
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
-  cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);
+  cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['lipLineC'], ['cornerR']]);
   // the mentolabial fold: a soft hollow curving with the lower lip (each side its end under the lip's fullest, a bead
   // out from the centre, the centre lowest: a shallow U). A broad tube set forward, so only a shallow sliver of it cuts,
   // its edge blended over ~3 mm, its ends thinning away into the face (a thin tube cut as sharp as the lip line read as
@@ -714,9 +714,27 @@ export const ACTIONS = Object.freeze({
   smileL: 'the smile, the figure\'s left side only', smileR: 'the smile, the figure\'s right side only',
   browRaise: 'frontalis: the brows lifted', browLower: 'the corrugator: the brows drawn down and together',
   browInner: 'the frontalis\'s medial belly: the brows\' inner ends lifted, the outer kept (the worried brow), the upper lids\' peak drawn in',
-  wide: 'the levator: the upper lids lifted off the iris, the white showing over it (both)',
-  squint: 'the orbicularis\'s lower fibres: the lower lids raised and drawn flat, the upper a touch down (both)',
+  browOuter: 'the frontalis\'s lateral belly: the brow\'s outer end lifted, the inner kept (FACS AU2; a side by L / R)',
+  wide: 'the levator: the upper lids lifted off the iris, the white showing over it (a side by L / R)',
+  squint: 'the orbicularis\'s lower fibres: the lower lids raised and drawn flat, the upper a touch down (a side by L / R)',
+  cheekRaise: 'the orbicularis oculi\'s outer ring: the cheek lifted and bunched under the eye, the lower lid pushed up (FACS AU6; a side by L / R)',
+  sneer: 'the levator labii superioris alaeque nasi: the nostrils and the wings drawn up, the upper lip with them, the brows\' inner ends down (FACS AU9; a side by L / R)',
+  upperLipUp: 'the levator labii superioris: the upper lip raised at its sides, over the canines (FACS AU10; a side by L / R)',
+  dimple: 'the buccinator: the mouth\'s corner drawn back into the cheek, the dimple (FACS AU14; a side by L / R)',
+  frown: 'the depressor anguli oris: the mouth\'s corner pulled down (FACS AU15; a side by L / R)',
+  lowerLipDown: 'the depressor labii inferioris: the lower lip drawn down and out (FACS AU16; a side by L / R)',
+  chinRaise: 'the mentalis: the lower lip pushed up and out from under, the chin\'s skin bunched (FACS AU17)',
+  stretch: 'the risorius and the platysma: the mouth\'s corners pulled out to the sides, the lips flattened (FACS AU20; a side by L / R)',
+  tighten: 'the orbicularis oris: the lips narrowed and drawn in, their red thinned (FACS AU23)',
+  press: 'the orbicularis oris: the lips pressed together, rolled in on each other (FACS AU24; a side by L / R)',
+  pucker: 'the incisivii: the lips pushed forward and drawn in to a small round, the corners toward the midline (FACS AU18: the oo, the w)',
+  funnel: 'the orbicularis oris: the lips pushed forward and turned out, the upper up and the lower down, a round opening between them (FACS AU22: the sh, the ch, the o)',
+  rollUpper: 'the orbicularis oris: the upper lip rolled in and back over the upper teeth (FACS AU28, the upper lip)',
+  rollLower: 'the orbicularis oris: the lower lip drawn up and back under the upper incisors\' edge (FACS AU28, the lower lip: the f, the v)',
+  lipsPart: 'the lips parted at their middle, the teeth still together: the upper lip lifted a little and the lower let down (FACS AU25: the s, the t, the e)',
   blink: 'the upper lids close over the globes (both)', blinkL: 'the left lid only', blinkR: 'the right lid only',
+  ...Object.fromEntries(['browLower', 'browOuter', 'wide', 'squint', 'cheekRaise', 'sneer', 'upperLipUp', 'dimple', 'frown', 'lowerLipDown', 'stretch', 'press']
+    .flatMap((k) => ['L', 'R'].map((s) => [`${k}${s}`, `the ${k}, the figure's ${s === 'L' ? 'left' : 'right'} side only`]))),
   smileEyes: 'the share of a smile\'s squint the eyes take (the lower lid raised and rounded), 0 … 1; absent, all of it',
 });
 export const ACTION_NAMES = Object.freeze(Object.keys(ACTIONS));
@@ -770,24 +788,61 @@ export function actionDrivers(P, acts = {}, rel = RELATIONS) {
   D.foldOpen = (p) => add(jawAt(1)(p), { x: 0, y: 0.92, z: -0.39 }, 0.05 * a('jaw'));
   // and the lower lip stretches down over the lower incisors and flattens against them: its centre rides the jaw and
   // settles back (its fullest beads, `loMid`, by less), so it does not roll out over the chin as the mouth opens
-  D.lipStretch = (p) => add(jawAt(1)(p), { x: 0, y: -1, z: 0 }, 0.025 * a('jaw'));
+  // (the lower lip's centre: drawn down by the depressors, pushed up and out by the mentalis)
+  const lowerDownC = (side('lowerLipDown', 'L') + side('lowerLipDown', 'R')) / 2, chinUp = a('chinRaise');
+  // THE LIPS' MIDDLES IN SPEECH (the upper's centre, `lipUpC`; the lower's, `lipStretch`): pushed forward by the pucker and
+  // the funnel (the funnel turning them out, the upper up and the lower down), rolled in by the rolls (the lower up and back
+  // under the upper incisors), parted by `lipsPart`; the lip line's middle (`lipLineC`) rides between them
+  const pk = a('pucker'), fn = a('funnel'), ru = a('rollUpper'), rl = a('rollLower'), lp = a('lipsPart');
+  const upC = [[{ x: 0, y: 0.035, z: -0.004 }, pk], [{ x: 0, y: 0.03, z: 0.016 }, fn], [{ x: 0, y: -0.02, z: -0.012 }, ru], [{ x: 0, y: 0.002, z: 0.016 }, lp]];
+  const loC = [[{ x: 0, y: 0.035, z: 0.006 }, pk], [{ x: 0, y: 0.03, z: -0.018 }, fn], [{ x: 0, y: -0.022, z: 0.016 }, rl], [{ x: 0, y: 0.002, z: -0.02 }, lp]];
+  const terms = (p, T) => T.reduce((q, [d, t]) => (t ? add(q, d, t) : q), p);
+  D.lipStretch = (p) => terms(add(add(add(jawAt(1)(p), { x: 0, y: -1, z: 0 }, 0.025 * a('jaw')), { x: 0, y: 0.004, z: -0.022 }, lowerDownC), { x: 0, y: 0.01, z: 0.014 }, chinUp), loC);
+  D.lipUpC = (p) => terms(p, upC);
+  D.lipUpHalf = (p) => terms(p, upC.map(([d, t]) => [d, t / 2]));
+  D.lipLineC = (p) => terms(jawAt(0.5)(p), [...upC, ...loC].map(([d, t]) => [d, t / 2]));
+  // (the nose's base, between its wings, drawn up by both sneers)
+  const sneerC = (side('sneer', 'L') + side('sneer', 'R')) / 2;
+  D.noseC = (p) => add(p, { x: 0, y: -0.003, z: 0.01 }, sneerC);
+  const sum = (p, terms) => terms.reduce((q, [d, t]) => (t ? add(q, d, t) : q), p);
   for (const s of ['L', 'R']) {
     const sm = side('smile', s), ch = P[`ch${s}`], o = P[`zy${s}`];
     // the smile's pull: from the corner toward the muscle's origin, 10 mm at full
     const pull = (() => { const d = { x: o.x - ch.x, y: o.y - ch.y, z: o.z - ch.z }, l = Math.hypot(d.x, d.y, d.z) || 1; return { x: d.x / l, y: d.y / l, z: d.z / l }; })();
-    D[`corner${s}`] = (p) => add(jawAt(0.45)(p), pull, 0.045 * sm);
-    D[`bow${s}`] = (p) => add(jawAt(0.1)(p), pull, 0.02 * sm);
-    D[`loMid${s}`] = (p) => add(add(jawAt(0.75)(p), pull, 0.02 * sm), { x: 0, y: -1, z: 0 }, 0.02 * a('jaw'));
+    // THE MOUTH'S OTHER MUSCLES, each a displacement of the corner, the upper lip's bow and the lower lip's middle,
+    // V units (+x the figure's right, +y forward, +z up); the side's own sign `cx` turns "out" outward
+    const cx = Math.sign(ch.x), f15 = side('frown', s), f20 = side('stretch', s), f14 = side('dimple', s), f24 = side('press', s);
+    const f10 = side('upperLipUp', s), f9 = side('sneer', s), f16 = side('lowerLipDown', s), f23 = a('tighten');
+    D[`corner${s}`] = (p) => sum(add(jawAt(0.45)(p), pull, 0.045 * sm), [
+      [{ x: cx * 0.004, y: -0.006, z: -0.026 }, f15], [{ x: cx * 0.03, y: -0.008, z: -0.006 }, f20], [{ x: cx * 0.006, y: -0.016, z: 0.002 }, f14],
+      [{ x: 0, y: -0.004, z: 0 }, f24], [{ x: -cx * 0.006, y: -0.002, z: 0 }, f23], [{ x: 0, y: 0, z: 0.006 }, f10], [{ x: 0, y: 0, z: -0.004 }, chinUp],
+      [{ x: -cx * 0.045, y: 0.03, z: 0 }, pk], [{ x: -cx * 0.022, y: 0.012, z: 0 }, fn], [{ x: 0, y: -0.003, z: 0 }, ru], [{ x: 0, y: -0.003, z: 0.002 }, rl]]);
+    D[`bow${s}`] = (p) => sum(add(jawAt(0.1)(p), pull, 0.02 * sm), [
+      [{ x: 0, y: 0, z: -0.006 }, f15], [{ x: cx * 0.008, y: -0.002, z: -0.003 }, f20], [{ x: 0, y: -0.006, z: -0.008 }, f24],
+      [{ x: 0, y: -0.003, z: -0.004 }, f23], [{ x: 0, y: 0.002, z: 0.02 }, f10], [{ x: 0, y: 0, z: 0.01 }, f9],
+      [{ x: -cx * 0.022, y: 0.032, z: -0.004 }, pk], [{ x: -cx * 0.004, y: 0.026, z: 0.014 }, fn], [{ x: 0, y: -0.014, z: -0.008 }, ru], [{ x: 0, y: 0, z: 0.012 }, lp]]);
+    D[`loMid${s}`] = (p) => sum(add(add(jawAt(0.75)(p), pull, 0.02 * sm), { x: 0, y: -1, z: 0 }, 0.02 * a('jaw')), [
+      [{ x: 0, y: 0.002, z: -0.006 }, f15], [{ x: cx * 0.008, y: -0.002, z: 0.003 }, f20], [{ x: 0, y: -0.006, z: 0.01 }, f24],
+      [{ x: 0, y: -0.002, z: 0.004 }, f23], [{ x: cx * 0.004, y: 0.004, z: -0.024 }, f16], [{ x: 0, y: 0.008, z: 0.012 }, chinUp],
+      [{ x: -cx * 0.022, y: 0.032, z: 0.006 }, pk], [{ x: -cx * 0.004, y: 0.026, z: -0.016 }, fn], [{ x: 0, y: -0.016, z: 0.012 }, rl], [{ x: 0, y: 0, z: -0.016 }, lp]]);
     D[`zyg${s}`] = (p) => add(p, pull, 0.02 * sm);
+    // the nostril and its wing drawn up and back by the sneer
+    D[`nose${s}`] = (p) => add(p, { x: 0, y: -0.005, z: 0.018 }, f9);
     // the balloon's bulge: pushed by the corner into the cheekbone, it bunches UP and FORWARD (not along the pull,
     // which runs back toward the bone); a little of the jaw; its swell is its own volume
-    D[`bulge${s}`] = (p) => add(jawAt(0.25)(p), { x: 0, y: 0.6, z: 0.8 }, 0.022 * sm);
+    // (and the cheek raiser bunches it up under the eye, as a smile's does)
+    D[`bulge${s}`] = (p) => add(add(jawAt(0.25)(p), { x: 0, y: 0.6, z: 0.8 }, 0.022 * sm), { x: 0, y: 0.004, z: 0.014 }, side('cheekRaise', s));
     // the brow: raised straight up; lowered down, forward a touch, and toward the midline
     const sg = Math.sign(P[`fz${s}`].x);
-    // (the inner raise leaves the brow's tail, and sinks it a touch: the brow tilts, inner end up)
-    D[`brow${s}`] = (p) => add(add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower')), { x: 0, y: 0, z: -0.004 }, a('browInner'));
+    // (the inner raise leaves the brow's tail, and sinks it a touch: the brow tilts, inner end up; the outer raise lifts
+    // the tail alone)
+    D[`brow${s}`] = (p) => sum(add(add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, side('browLower', s)), { x: 0, y: 0, z: -0.004 }, a('browInner')),
+      [[{ x: 0, y: 0, z: 0.03 }, side('browOuter', s)]]);
   }
-  D.browC = (p) => add(add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, a('browLower')), { x: 0, y: 0.002, z: 0.026 }, a('browInner'));
+  // (the brows' middle: each side's lowering, and the sneer's procerus, pull half of it)
+  const half = (k) => (side(k, 'L') + side(k, 'R')) / 2;
+  D.browC = (p) => sum(add(add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, half('browLower')), { x: 0, y: 0.002, z: 0.026 }, a('browInner')),
+    [[{ x: 0, y: 0.002, z: -0.008 }, half('sneer')]]);
   return D;
 }
 
@@ -1167,9 +1222,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     }
     // (and the eyes' own: `wide` lifts the upper lid off the iris, `squint` raises the lower and draws it flat, the inner
     // brow draws the upper lid's peak in, the worried lid)
-    const wd = act('wide'), sq = act('squint'), bi = act('browInner');
-    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq, lowerShape: 0.3 * sm - 0.4 * sq, open: 0.25 * act('browRaise') - 0.12 * act('browLower') + 0.5 * wd - 0.06 * sq + 0.08 * bi,
-      upperShape: -0.3 * act('browLower') - 0.2 * sq, upperPeak: -0.45 * bi, crease: 0.3 * wd });
+    // (a side's own: `wideL` the left alone; the cheek raiser pushes the lower lid up from below, rounded)
+    const per = (k) => Math.min(1, act(k) + act(`${k}${s}`)), wd = per('wide'), sq = per('squint'), bi = act('browInner'), bl0 = per('browLower'), cr = per('cheekRaise'), bo = per('browOuter');
+    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq + 0.3 * cr, lowerShape: 0.3 * sm - 0.4 * sq + 0.2 * cr, open: 0.25 * act('browRaise') - 0.12 * bl0 + 0.5 * wd - 0.06 * sq + 0.08 * bi + 0.1 * bo - 0.05 * cr,
+      upperShape: -0.3 * bl0 - 0.2 * sq, upperPeak: -0.45 * bi + 0.25 * bo, crease: 0.3 * wd });
     c.open *= 1 - bl;
     const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });

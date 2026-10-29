@@ -37,6 +37,7 @@
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
+import { performanceErrors } from '@/lib/graph/face-acting/perform';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials, pinFrame } from '@/lib/graph/polygonizer/station-loft';
@@ -299,7 +300,7 @@ function realisticRecipe(recipe, hero) {
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
   // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 });
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11, teeth: one && laws >= 12 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -392,15 +393,15 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false } = {}) {
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false } = {}) {
   // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
   const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0;
-  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? ['seat'] : [])]);
+  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? ['seat'] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
   else {
     const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
-    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
+    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat: true } : {}), ...(teeth ? { teeth: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
@@ -411,10 +412,14 @@ function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, c
   }
   const D = structuredClone(d), parts = Object.fromEntries(Object.entries(S.parts).filter(([k]) => !D.removed.includes(k)));
   const dials = S.dials ? Object.fromEntries(Object.entries(S.dials).filter(([k]) => !D.dropped.includes(k)).map(([k, v]) => [k, D.redialled?.[k] ?? v])) : S.dials;
-  const out = { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}) };
+  // (the teeth's and the tongue's colours, laws 12: MOUTH_PALETTE)
+  const out = { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}), ...(teeth ? { palette: { ...S.palette, ...MOUTH_PALETTE } } : {}) };
   HEAD_OF.set(out, key);
   return out;
 }
+/** the mouth's colours (realistic laws 12): the front teeth's enamel, the cheek teeth's (further in, the light reaches
+ * them less), the tongue */
+export const MOUTH_PALETTE = Object.freeze({ Teeth: '#eee8da', TeethShade: '#a39b8b', Tongue: '#8f444c' });
 /** the realistic form's tune: the hero's own times the build's (its shoulders; the physique's stature and shoulders), so
  * the slice's frame finds the build's tune where it laid its masses out */
 function realisticTune(hero) {
@@ -793,9 +798,11 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * cap kept as a solid shell, one colour, cards only at the hairline and the tips, its register the face's `stylize`), where
  * laws 7 to 9 grew a lawn of banded blades whose bands and grey flecks fought the light; 11: the lids seated on the globes
  * (head-relational-eye.js SEAT), where laws 2 to 10 left the skin about each opening standing proud of the globe, a tunnel
- * and a dark void between the lids and the eye */
-export const REALISTIC_LAWS_VERSION = 11;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast'];
+ * and a dark void between the lids and the eye; 12: the mouth with TEETH (hero-one-skin.js `teeth`: the head's dentition and
+ * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
+ * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
+export const REALISTIC_LAWS_VERSION = 12;
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -971,6 +978,16 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.blink !== undefined && spec.blink !== null) {
     if (spec.head !== 'anime' && !landmark) errs.push(`blink: the ambient blink is the anime or the landmark head's (head: 'anime' | 'landmark')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');
+  }
+  // THE FACE'S PERFORMANCES (face-acting/perform.js): { <take>: a performance in beats, a beat's `say` a line it speaks
+  // (face-acting/speech.js) }, each a face-only clip in an export (`face:<take>`), the realistic face's
+  if (spec.perform !== undefined && spec.perform !== null) {
+    if (!relational) errs.push(`perform: a face's performance is the realistic hero's (form: 'realistic', its relational head)`);
+    else if (typeof spec.perform !== 'object' || Array.isArray(spec.perform) || !Object.keys(spec.perform).length) errs.push('perform: { <take>: { beats: [{ at, face, say?, … }], seconds?, intensity?, seed? } }');
+    else for (const [take, P] of Object.entries(spec.perform)) {
+      if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(take)) { errs.push(`perform.${take}: a take's name is a word (letters, digits, - and _)`); continue; }
+      errs.push(...performanceErrors(P).map((e) => `perform.${take}.${e}`));
+    }
   }
   errs.push(...validateGear(spec.gear));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
@@ -1201,6 +1218,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.clips && typeof spec.clips === 'object' && Object.keys(spec.clips).length) hero.clips = spec.clips;
   // the door's motion (hero-motion.js), stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
   if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
+  if (spec.perform && typeof spec.perform === 'object' && Object.keys(spec.perform).length) hero.perform = spec.perform;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key

@@ -16,6 +16,11 @@
  *              opening the skin's lids leave
  *   the bind   the seam's points carry the neck's blend there; up the head they ease to { jaw, head } by the jaw's share
  *              (`jawW`: ahead of the ramus and under the lips' line), as the jaw's rings did
+ *   the mouth  (realistic laws 12, `teeth`) behind the lips an open CUP in place of the bag (the bag, its front cut
+ *              away), its inside facing in; in it the TEETH, the head's own dentition
+ *              (head-relational.js DENTITION: each crown a tube along its vajra), the upper on the head bone and the
+ *              lower on the jaw's, and the TONGUE on the jaw's: an open mouth shows teeth, not the bag's front; and
+ *              the lips' corners bound half to the jaw (`lens`), so the mouth opens as an almond, not a box
  *
  * Every part is a layer-1 MESH part (station-loft.js meshPart): its points named, bound per point, shaded by the field's
  * own normals. Pure and deterministic: fixed loops, ties by index; no dice, no clock. */
@@ -23,6 +28,7 @@ import { netSkin, soundMesh, closeHoles, boundaryLoops, simplifyMesh, fieldNorma
 import { mixW, four } from './body-relational-resample.js';
 import { r6 } from './body-relational-vec.js';
 import { smin } from './vajra.js';
+import { HEAD_V } from './head-relational.js';
 
 /** the one skin's density: the net's `cell` (m), how near two rim points on the seam ring are welded (`weld` m), the
  * faces it is simplified to, how much more the features keep (`feature` × the planes' weight within `reach` m of an eye,
@@ -38,6 +44,15 @@ export const ONE_SKIN = Object.freeze({
   cell: 0.001, weld: 0.0002, faces: 30000, feature: 12, reach: { eye: 0.02, nose: 0.016, mouth: 0.02 }, lipDepth: 0.005, lipEase: 0.003, lipWindow: 0.006, mouthBack: 0.012, lipInward: false, seamNearest: false, globeEdges: 'meridian', turn: 0.5,
   globeSlots: 48, globeRings: { pupil: 2, iris: 5, sclera: 14 },
   bag: { gap: 0.001, depth: 0.026, height: 0.024, wide: 0.004, rings: 10, slots: 24 },
+  // (realistic laws 12: the corners' lens, from `from` of the corner's reach, within `band` m of the lips' line and `past`
+  // m beyond the corner (THE BIND); the cup is the bag with its front cut away ahead of `window` of its half depth; a crown's and the
+  // tongue's slots about their axes, how far each end's round cap stands past its bead (× its radius); a front crown's
+  // `blade`, ring by ring: widened along the arch (`wide`, so the crowns meet) and flattened lip to tongue (`flat`))
+  cup: { window: 0.3 }, tongue: { slots: 14 }, lens: { from: 0.35, band: 0.006, past: 0.004 },
+  tooth: { slots: 10, cap: 0.6,
+    // (per ring, the gum to the edge: an incisor a blade, widening and thinning to a flat edge; a canine less so)
+    blade: { Central: { wide: [1, 1.15, 1.3, 1.45, 1.5], flat: [0.8, 0.7, 0.58, 0.48, 0.42], cap: 0.25 }, Lateral: { wide: [1, 1.12, 1.25, 1.35, 1.4], flat: [0.8, 0.7, 0.6, 0.5, 0.45], cap: 0.25 },
+      Canine: { wide: [1, 1.05, 1.1, 1.05, 0.95], flat: [0.9, 0.85, 0.8, 0.75, 0.7], cap: 0.45 } } },
 });
 
 /** the one skin by the head's rung on screen (dermal-hair.js `hairLevel`, from the hero's target: L2 a head 200 px tall
@@ -127,7 +142,7 @@ function globePart(g, { toHero, inHead, S2, k }, C) {
  * `lipZ(x)` the lips' line's height across the mouth, `ch` the right mouth corner and `sto` the stomion (hero frame),
  * `jawW(p)` the jaw's share as the visage's bind reads it. → { parts: { headSkin, mouth, globeR, globeL }, stats }.
  */
-export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, seamW, O, lipZ, ch, sto, jawW, opts = {} }) {
+export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, seamW, O, lipZ, ch, sto, jawW, teeth = false, opts = {} }) {
   const C = { ...ONE_SKIN, ...opts }, cell = C.cell;
   const fH = inHead(head.field), fU = (q) => smin(fH(q), fN(q), join), ring = seamRing(seamPts, seamW);
   const fClip = (q) => Math.max(fU(q), ring.z(ring.az(q)) - q[2]);
@@ -266,9 +281,19 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
     }
   }
   // THE BIND: the seam's blend up the head easing to the jaw's share, the cut's sides each whole
+  // (realistic laws 12: THE CORNERS' LENS. Shut, the cut's two sides are one point, either lip's; bound each wholly to its
+  // bone right out to the corner, the jaw tore them apart along the whole cut and the mouth opened as a box. Toward each
+  // corner (from `lens.from` of the corner's reach) both sides' share of the jaw eases to a half, as do the points about
+  // the corner within `lens.band` of the lips' line and `lens.past` beyond it: the corner moves half the jaw's way (down
+  // and back along its arc), the lips stay met there, and the mouth opens as an almond)
+  const L2 = C.lens, lensOf = (p) => {
+    const u = Math.abs(p[0]) / chx, c = u <= 1 ? ramp((u - L2.from) / (1 - L2.from)) : 1 - ramp((Math.abs(p[0]) - chx) / L2.past);
+    return c * (1 - ramp(Math.abs(p[2] - lipZ(p[0])) / L2.band));
+  };
+  const lensed = (w, p) => { const c = lensOf(p); if (c <= 0) return w; const j = (w.jaw ?? 0) + (0.5 - (w.jaw ?? 0)) * c, jr = r6(j); return jr <= 0 ? { head: 1 } : jr >= 1 ? { jaw: 1 } : { head: r6(1 - jr), jaw: jr }; };
   const zM = sto[2], wOf = (p, v) => {
     if (rimOf.has(v)) return four(rimOf.get(v));
-    const target = isUp.has(v) ? { head: 1 } : isDn.has(v) ? { jaw: 1 } : jawW(p, sideAfter.get(v) ?? 0), a = ring.az(p), zs = ring.z(a);
+    const t0 = isUp.has(v) ? { head: 1 } : isDn.has(v) ? { jaw: 1 } : jawW(p, sideAfter.get(v) ?? 0), target = teeth ? lensed(t0, p) : t0, a = ring.az(p), zs = ring.z(a);
     const t = ramp((p[2] - zs) / (0.45 * Math.max(0.01, zM - zs)));
     return four(t >= 1 ? target : mixW(ring.wAt(a), target, t));
   };
@@ -285,6 +310,11 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
   const count = new Map(); for (const t of Object.values(faces)) for (let a = 0; a < 3; a++) { const u = t[a], w = t[(a + 1) % 3], kk = u < w ? `${u}|${w}` : `${w}|${u}`; count.set(kk, (count.get(kk) || 0) + 1); }
   const boundary = [...count].filter(([, c]) => c === 1).map(([kk]) => kk.split('|'));
   const headSkin = { layer: 1, closure: 'open', group: 'Skin', mesh: { points, faces, groups, normals, boundary }, bind: { bone: 'head', blend } };
+  // THE MOUTH WITH TEETH (realistic laws 12): the cup, the teeth and the tongue
+  if (teeth) {
+    const frame = { toHero, inHead, S2, k }, globes = Object.fromEntries(head.globes.map((g) => [`globe${g.side}`, globePart(g, frame, C)]));
+    return { parts: { headSkin, ...mouthParts(head, { toHero, k, sto, chx, C }), ...globes }, stats: { net: net.F.length, faces: Object.keys(faces).length, cut: cut.length, rim: rim.length } };
+  }
   // THE MOUTH: a closed bag behind the lips, its upper half the head's and its lower the jaw's
   const B = C.bag, cx = chx + B.wide, cy = sto[1] - C.lipDepth - B.gap - B.depth / 2, mp = {}, mf = {}, mb = {}, mn = {};
   const bagAt = (u, th) => { const s = Math.sin(u), c2 = Math.cos(u); return [cx * s * Math.sin(th), cy + (B.depth / 2) * s * Math.cos(th), sto[2] + (B.height / 2) * c2]; };
@@ -307,4 +337,93 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
   // THE GLOBES
   const frame = { toHero, inHead, S2, k }, globes = Object.fromEntries(head.globes.map((g) => [`globe${g.side}`, globePart(g, frame, C)]));
   return { parts: { headSkin, mouth, ...globes }, stats: { net: net.F.length, faces: Object.keys(faces).length, cut: cut.length, rim: rim.length } };
+}
+
+/** a tube along three beads (a → c → b, hero metres) with their radii, each end closed by a round cap: rings across the
+ * axis (`slots` about it), flattened to `flat` along `n` (a crown's lip-to-tongue depth). → { pts: [[x, y, z]], nrm,
+ * faces: [[i, j, k]] } (outward) */
+function tubeAlong([a, c, b], [ra, rc, rb], { slots, cap, flat = 1, wide = 1, n = null }) {
+  const W = Array.isArray(wide) ? wide : Array(5).fill(wide), Fl = Array.isArray(flat) ? flat : Array(5).fill(flat);
+  const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]], len = (v) => Math.hypot(...v), unit = (v) => { const l = len(v) || 1; return v.map((x) => x / l); };
+  const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], lerp = (p, q, t) => p.map((x, i) => x + (q[i] - x) * t);
+  const along = [[a, ra, sub(c, a)], [lerp(a, c, 0.5), (ra + rc) / 2, sub(c, a)], [c, rc, sub(b, a)], [lerp(c, b, 0.5), (rc + rb) / 2, sub(b, c)], [b, rb, sub(b, c)]];
+  const pts = [], nrm = [], faces = [];
+  const d0 = unit(sub(b, a)), side = unit(n ? cross(d0, n) : Math.abs(d0[0]) < 0.9 ? cross(d0, [1, 0, 0]) : cross(d0, [0, 1, 0])), deep = unit(cross(side, d0));
+  // (the tips: the caps' poles)
+  pts.push(a.map((x, i) => x - d0[i] * ra * cap)); nrm.push(d0.map((x) => -x));
+  along.forEach(([p, r], k) => { for (let j = 0; j < slots; j++) {
+    const th = (2 * Math.PI * j) / slots, cs = Math.cos(th), sn = Math.sin(th), wd = W[k], fl = Fl[k];
+    pts.push([0, 1, 2].map((i) => p[i] + r * (wd * cs * side[i] + fl * sn * deep[i]))); nrm.push(unit([0, 1, 2].map((i) => (cs / wd) * side[i] + (sn / fl) * deep[i])));
+  } });
+  pts.push(b.map((x, i) => x + d0[i] * rb * cap)); nrm.push(d0);
+  const R = (i, j) => 1 + i * slots + (((j % slots) + slots) % slots), last = pts.length - 1;
+  for (let j = 0; j < slots; j++) faces.push([0, R(0, j + 1), R(0, j)]);
+  for (let i = 0; i + 1 < along.length; i++) for (let j = 0; j < slots; j++) { faces.push([R(i, j), R(i, j + 1), R(i + 1, j + 1)]); faces.push([R(i, j), R(i + 1, j + 1), R(i + 1, j)]); }
+  for (let j = 0; j < slots; j++) faces.push([R(along.length - 1, j), R(along.length - 1, j + 1), last]);
+  // (wound as built, one way round; turned whole outward when its volume reads negative)
+  let vol = 0; for (const f of faces) { const [p, q, r] = f.map((i) => pts[i]); vol += p[0] * (q[1] * r[2] - q[2] * r[1]) - p[1] * (q[0] * r[2] - q[2] * r[0]) + p[2] * (q[0] * r[1] - q[1] * r[0]); }
+  if (vol < 0) for (const f of faces) [f[1], f[2]] = [f[2], f[1]];
+  return { pts, nrm, faces };
+}
+
+/**
+ * THE MOUTH WITH TEETH (realistic laws 12): `head` the relational head (its teeth's and tongue's vajras), `toHero` its
+ * frame, `sto` the stomion and `chx` the corner's reach (hero metres), `C` ONE_SKIN. → { mouth (the cup), teethUpper
+ * (the head bone's), teethLower and tongue (the jaw's) }: the cup the bag with its front cut away, its inside facing in
+ * (it is seen from inside), its upper half the head's and its lower the jaw's; each crown a tube along its vajra (the front ones flattened lip to tongue), the incisors and the
+ * canines `Teeth`, the cheek teeth behind them `TeethShade` (the light reaches them less); the tongue two tubes, `Tongue`.
+ */
+function mouthParts(head, { toHero, k, sto, chx, C }) {
+  const inH = (q) => toHero({ x: q.x * HEAD_V, y: q.y * HEAD_V, z: q.z * HEAD_V }), rOf = (w) => w.r.map((r) => r * HEAD_V * k), B = C.bag, U = C.cup;
+  const cx = chx + B.wide, hz = B.height / 2, yF = sto[1] - C.lipDepth - B.gap, zc = sto[2];
+  // THE CUP: the bag (its rings from the top to the bottom, about its axis) with the faces ahead of its window let go, so
+  // the teeth behind the lips are seen through it; the rest lies inside the face, as the bag did (a cup rimmed at the
+  // bag's front, as wide as it, stood out through the cheeks beside the corners)
+  const mp = {}, mf = {}, mb = {}, mn = {}, hd = B.depth / 2, cy = yF - hd;
+  const bagAt = (u, th) => { const s2 = Math.sin(u), c2 = Math.cos(u); return [cx * s2 * Math.sin(th), cy + hd * s2 * Math.cos(th), zc + hz * c2]; };
+  const all = { top: bagAt(0, 0), bot: bagAt(Math.PI, 0) };
+  for (let i = 1; i < B.rings; i++) for (let j = 0; j < B.slots; j++) all[`r${i}s${j}`] = bagAt((Math.PI * i) / B.rings, (2 * Math.PI * j) / B.slots);
+  const id = (i, j) => `r${i}s${((j % B.slots) + B.slots) % B.slots}`, faces0 = [];
+  for (let j = 0; j < B.slots; j++) faces0.push(['top', id(1, j + 1), id(1, j)]);
+  for (let i = 1; i + 1 < B.rings; i++) for (let j = 0; j < B.slots; j++) { faces0.push([id(i, j), id(i, j + 1), id(i + 1, j + 1)]); faces0.push([id(i, j), id(i + 1, j + 1), id(i + 1, j)]); }
+  for (let j = 0; j < B.slots; j++) faces0.push([id(B.rings - 1, j), id(B.rings - 1, j + 1), 'bot']);
+  let mi = 0;
+  for (const t of faces0) { if (t.reduce((acc, q) => acc + (all[q][1] - cy) / hd, 0) / 3 > U.window) continue; mf[`f${mi++}`] = t; for (const q of t) mp[q] = rp(all[q]); }
+  const inward = (p) => n4([-p[0] / cx ** 2, -(p[1] - cy) / hd ** 2, -(p[2] - zc) / hz ** 2].map((x, a, v) => x / (Math.hypot(...v) || 1)));
+  for (const [k2, p] of Object.entries(mp)) {
+    mn[k2] = inward(p);
+    const t = ramp((p[2] - sto[2] + 0.003) / 0.006); mb[`st0.${k2}`] = t >= 1 ? { head: 1 } : t <= 0 ? { jaw: 1 } : { head: r6(t), jaw: r6(1 - t) };
+  }
+  // (wound to face in: each face's normal toward its corners' own)
+  for (const key of Object.keys(mf)) {
+    const t = mf[key], [a, b2, c2] = t.map((q) => mp[q]), e1 = [b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]], e2 = [c2[0] - a[0], c2[1] - a[1], c2[2] - a[2]];
+    const fn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], m = t.reduce((acc, q) => acc.map((x, k2) => x + mn[q][k2]), [0, 0, 0]);
+    if (fn[0] * m[0] + fn[1] * m[1] + fn[2] * m[2] < 0) mf[key] = [t[0], t[2], t[1]];
+  }
+  // (its rim, the window's edge, the open part's boundary)
+  const ec = new Map(); for (const t of Object.values(mf)) for (let e = 0; e < 3; e++) { const u = t[e], w = t[(e + 1) % 3], kk = u < w ? `${u}|${w}` : `${w}|${u}`; ec.set(kk, (ec.get(kk) || 0) + 1); }
+  const boundary = [...ec].filter(([, c]) => c === 1).map(([kk]) => kk.split('|'));
+  const mouth = { layer: 1, closure: 'open', group: 'Mouth', mesh: { points: mp, faces: mf, normals: mn, boundary }, bind: { bone: 'head', blend: mb } };
+  // THE TEETH AND THE TONGUE, each a mesh of tubes
+  const meshOf = (tubes) => {
+    const points = {}, normals = {}, faces = {}, groups = {};
+    tubes.forEach(({ name, group, tube }) => {
+      tube.pts.forEach((p, i) => { points[`${name}.${i}`] = rp(p); normals[`${name}.${i}`] = n4(tube.nrm[i]); });
+      tube.faces.forEach((f, i) => { const fid = `${name}.f${i}`; faces[fid] = f.map((v) => `${name}.${v}`); groups[fid] = group; });
+    });
+    return { points, normals, faces, groups };
+  };
+  // (a crown's lip-to-tongue axis: out from the arch's centre, 3 cm behind the incisors)
+  const archY = toHero(head.points.inc)[1] - 0.03;
+  const crowns = (upper) => head.vajras.filter((w) => w.group === 'teeth' && w.name.startsWith(upper ? 'upper' : 'lower')).map((w) => {
+    const kind = w.name.replace(/^(upper|lower)|[LR]$/g, ''), c = inH(w.c), l = Math.hypot(c[0], c[1] - archY) || 1;
+    return { name: w.name, group: /Molar|Premolar/.test(kind) ? 'TeethShade' : 'Teeth', tube: tubeAlong([inH(w.a), c, inH(w.b)], rOf(w), { slots: C.tooth.slots, cap: C.tooth.blade[kind]?.cap ?? C.tooth.cap, flat: C.tooth.blade[kind]?.flat ?? 1, wide: C.tooth.blade[kind]?.wide ?? 1, n: [c[0] / l, (c[1] - archY) / l, 0] }) };
+  });
+  const tongue = head.vajras.filter((w) => w.group === 'tongue').map((w) => ({ name: w.name, group: 'Tongue', tube: tubeAlong([inH(w.a), inH(w.c), inH(w.b)], rOf(w), { slots: C.tongue.slots, cap: 0.8 }) }));
+  return {
+    mouth,
+    teethUpper: { layer: 1, closure: 'closed', group: 'Teeth', mesh: meshOf(crowns(true)), bind: 'head' },
+    teethLower: { layer: 1, closure: 'closed', group: 'Teeth', mesh: meshOf(crowns(false)), bind: 'jaw' },
+    tongue: { layer: 1, closure: 'closed', group: 'Tongue', mesh: meshOf(tongue), bind: 'jaw' },
+  };
 }
