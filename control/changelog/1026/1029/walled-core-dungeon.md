@@ -57,3 +57,11 @@ panels and load-bearing doodads, stocked by use. Built so far:
   in the wall on every kit whose rooms sit a half-wall in from it, and were dropped; and they are laid before the stock,
   so the stock does not take the wall beside a door first. The deep sweep stocks each base use as a world builds it, on
   its own kit.
+- **The dungeon in the world's book** (`gameworld/wcd-page.js`): a "To the core" page drawn from the recipe, the layers
+  as rings with the core in the middle, each door on its join with what opens it (a clearance or a power), the critical
+  path in the accent and an unbuilt space dashed; beside it each layer's level and look, and the laws' verdicts.
+- **The book in a skin** (`gameworld/book-skin.js`): a world's `book: { skin }` re-dresses its book, as a preset
+  (`briefing`: a dark field briefing, its type condensed, its panels bracketed, a faint scan) or as the model's own
+  colours (`#rrggbb`), faces (from the font shelf), frame (`rule | bracket`), texture (`none | grid | scanlines`) and
+  plates (`paper | night`, the drawings kept legible on a dark page). Refused by name when malformed; a book with no
+  skin prints as it did. The world card names it.
