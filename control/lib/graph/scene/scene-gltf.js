@@ -443,7 +443,7 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, ormTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, ormTexture = null, extras = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
       // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
       baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
@@ -459,6 +459,8 @@ class GlbBuilder {
     // a tangent-space normal map on TEXCOORD_0 (a figure's relief: the primitive carries TANGENT beside it)
     if (normalTexture != null) mat.normalTexture = { index: normalTexture };
     if (ormTexture != null) mat.occlusionTexture = { index: ormTexture };
+    // (what glTF has no slot for, an engine's importer to bind: a figure's parallax depth map, `mojulo.relief`)
+    if (extras) mat.extras = extras;
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
     // (a texture whose alpha cuts its edges, a hair card's strands: tested, not blended, so it sorts as the opaque do)
@@ -766,8 +768,12 @@ class GlbBuilder {
     // THE CLOTH (epidermis/cloth-relief.js, the pack's `ormTex`, realistic laws 12): the relief's ORM on the same UVs, its
     // skin texels SKIN_ROUGH, the material's roughness the export's over it. Absent ⇒ byte-identical.
     const otex = relief && fig.ormTex ? this.imageFromDataUrl(fig.ormTex.url) : null;
+    // THE PARALLAX (the pack's `depthTex`): glTF has no height channel, so the depth map rides as a texture the material's
+    // extras name (`mojulo.relief`: its index, its depth in m, the UVs a metre spans), for Godot's kernel, Unreal's master
+    // and the hero-live viewer to march. Absent ⇒ byte-identical.
+    const dtex = otex !== null && fig.depthTex ? this.imageFromDataUrl(fig.depthTex.url) : null;
     // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested)
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : this.surfaceMaterial({ name: `fig:${name}` });
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(dtex !== null ? { extras: { mojulo: { relief: { height: dtex, depth: fig.depthTex.depth, perM: fig.depthTex.perM } } } } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);

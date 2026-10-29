@@ -231,7 +231,9 @@ row of teeth where each ring's cut stepped a slot on from the next. Its jacket l
 tiered body's shoulder sockets, which no garment covers, take the outermost sleeve's colour. The folds are the realistic
 body's alone so far. On its lit engine export (realistic laws 12) the clothes carry their surface as material besides:
 creases where the body bends, seams, hems, leather's wear and the cloth's grain baked into a normal map, and each cloth's
-roughness and metalness in an ORM map (docs/realistic-body.md, the clothes' relief); the fine weave is not yet.
+roughness and metalness in an ORM map, a depth map an engine marches (its parallax), and what a layer names it is made
+of and worked in: a knit's stitches, a cable knit's ropes, a weave's pattern (herringbone, houndstooth, plaid, stripes,
+corduroy, quilting; docs/realistic-body.md, the clothes' relief). The finest weave, under a stitch's size, is not yet.
 
 ## Against the outfit laws
 

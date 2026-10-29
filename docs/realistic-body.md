@@ -107,6 +107,27 @@ feature is at least a texel and a half wide at the skin's rung (a texel 2 mm at 
 laws 11's: a hero minted before, an unlit export and the page carry none, byte-identical. Godot binds the ORM as it
 imports the GLB; the Unreal master takes it as its `OrmTex`.
 
+The clothes have depth too: a PARALLAX depth map (white the surface, black `CLOTH_DEPTH` under it, every texel no
+cloth's white, so the skin never shifts) rides the GLB as a texture its figure material's extras name (`mojulo.relief`:
+its index, its depth, the UVs a metre spans across and along the atlas, which is not square), and each engine marches
+the figure's map UVs into it along the view: Godot's kernel (`level.gd` `_fix_parallax`, `figure_parallax.gdshader` in
+place of the imported material; the map written beside the GLB as `figure_depth.png`, named in `score.figure_parallax`),
+Unreal's master (`HeightTex`, `ParallaxDepth`, `ParallaxPerM`, a custom `ParallaxUV` node), and `/hero-live`'s viewer. A
+reader that knows none of it draws the normal map alone.
+
+A layer names what it is made of and worked in (the outfit language's `cloth` and `pattern`, on the top, the bottom, the
+outer and the waistcoat). A knit (`cloth: 'knit'`) is stockinette: its stitches in columns down the garment (a sweater's
+lines), each a V of two legs of round yarn with a ply's twist; a cable knit (`cable`) ropes crossing down it between purl
+channels; a knit's island is baked at half the page's texel so a stitch reads. A pattern (`herringbone`, `houndstooth`,
+`plaid`, `gingham`, `pinstripe`, `chalkstripe`, `corduroy`, `quilted`, `waffle`, `tweed`, each `{ kind, scale, contrast }`
+too) is laid round and along the tube: its relief into the normal map and the depth, its colour into the base colour's
+cloth page as a grey the cloth's own colour is multiplied by (a motif can only darken its ground: the ground is the
+palette's), a colour weave made as it is woven (warp and weft coloured by their order, the 2/2 twill showing one or the
+other). The tube is unrolled from the point of each ring that faces straight back, found between its slots, and each
+slot's share of the turn eased along the tube, so a stripe runs straight down past the folds the tailor laid in the
+rings. Lapels, ties and belts are charted as ribbons (their cloth and their pattern, no seams). A garment painted on the
+skin (`fit: 'skin'`) is the skin's page's, and carries none of it yet; nor does a hat, which the outfit has no word for.
+
 ## Not yet
 
 The correctives ride the skinned GLB (`scene-gltf.js` `addSkinnedRigFigure`, when the export asks for blend shapes as

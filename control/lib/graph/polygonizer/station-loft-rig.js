@@ -774,7 +774,7 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * (epidermis/dermal-relief.js heroRelief): each corner carries its TANGENT (`tan` on a part, float32 [x, y, z, w] per
  * vertex: `relief.tangentAt(fi, k)`, a cell's blended from its face's corners, a held thing's laid on its triangle), the
  * pack the map (`normalTex`: { url, w, h }) on the paint's atlas UVs, and its ORM (`ormTex`: the cloth relief's occlusion,
- * roughness and metalness, epidermis/cloth-relief.js) when it carries one.
+ * roughness and metalness, epidermis/cloth-relief.js) and its depth map (`depthTex`: the parallax's) when it carries them.
  */
 export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null } = {}) {
   // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
@@ -908,6 +908,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     ...(corr ? { correctives: corr.meta } : {}),
     ...(carryT && relief.atlas ? { normalTex: relief.atlas } : {}),
     ...(carryT && relief.orm ? { ormTex: relief.orm } : {}),
+    ...(carryT && relief.depth ? { depthTex: relief.depth } : {}),
   };
 }
 

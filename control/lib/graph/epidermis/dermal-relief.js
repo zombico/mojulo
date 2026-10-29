@@ -7,8 +7,9 @@
  *
  * A paint carrying a CLOTH PAGE (realistic laws 12: heroSkinPaint's `cloth`, epidermis/cloth-relief.js) has its clothes'
  * relief baked into the same map's rows (each garment's tube unrolled there), its cloth faces' tangents built on their
- * own UVs as the head's are, and an `orm` map ({ url, w, h }: occlusion, roughness, metalness; the skin's texels
- * SKIN_ROUGH) beside it.
+ * own UVs as the head's are, an `orm` map ({ url, w, h }: occlusion, roughness, metalness; the skin's texels
+ * SKIN_ROUGH) and a `depth` map ({ url, w, h, depth, perM }: the parallax's, white the surface, black `depth` m under it,
+ * `perM` the UVs a metre spans across and along the cloth page) beside it.
  *
  * The one-skin head (hero-one-skin.js) is its field netted and quadric-simplified: the map puts back what the
  * simplification spent (the lids' crease, the lips' line, the nostrils' wings), each texel the field's own normal at its
@@ -30,7 +31,7 @@ import { bakeFieldNormals, meshTangents, axisTangent, FLAT } from '../polygonize
 import { encodePng } from '../landscape/surface-textures.js';
 import { oneSkinFields } from '../polygonizer/hero-relational-head.js';
 import { ONE_SKIN, ONE_SKIN_RUNGS } from '../polygonizer/hero-one-skin.js';
-import { clothBake, clothMaps, SKIN_ROUGH } from './cloth-relief.js';
+import { clothBake, clothMaps, SKIN_ROUGH, CLOTH_DEPTH } from './cloth-relief.js';
 
 /** the head's page in texels across the map by the skin's rung (no target: the skin whole, as L2) */
 export const RELIEF_SIZE = Object.freeze({ L2: 512, L1: 256, L0: 128 });
@@ -91,7 +92,7 @@ export function heroRelief(mesh, recipe, paint, normals, { size = null, dilate =
   // relief into the map's rows under the strands, its faces' tangents from their own UVs (the tube unrolled), and the
   // whole map's ORM beside it (the skin's texels the export's roughness, SKIN_ROUGH; a cloth's its own)
   const C = paint.cloth && Math.abs(paint.cloth.scale - scale) < 1e-9 ? paint.cloth : null;
-  let orm = null, clothStats = null;
+  let orm = null, depthMap = null, clothStats = null;
   const clothV = new Map();
   let CT = null;
   if (C) {
@@ -103,6 +104,12 @@ export function heroRelief(mesh, recipe, paint, normals, { size = null, dilate =
     for (let y = 0; y < page.H && row + y < height; y++) o.set(maps.orm.subarray(y * page.W * 3, (y * page.W + cw) * 3), ((row + y) * width) * 3);
     const op = encodePng(Buffer.from(o.buffer, o.byteOffset, o.byteLength), width, height);
     orm = { url: `data:image/png;base64,${op.toString('base64')}`, w: width, h: height };
+    // (the PARALLAX's depth map over the whole atlas, white but where a cloth sinks; the UVs a metre spans across and
+    // along the cloth page, for an engine to march it in metres)
+    const dm = new Uint8Array(width * height * 3).fill(255);
+    for (let y = 0; y < page.H && row + y < height; y++) dm.set(maps.depth.subarray(y * page.W * 3, (y * page.W + cw) * 3), ((row + y) * width) * 3);
+    const dp = encodePng(Buffer.from(dm.buffer, dm.byteOffset, dm.byteLength), width, height);
+    depthMap = { url: `data:image/png;base64,${dp.toString('base64')}`, w: width, h: height, depth: CLOTH_DEPTH, perM: [1 / (page.least * width), 1 / (page.least * height)].map((v) => Math.round(v * 1e6) / 1e6) };
     // (the cloth's light mesh, as the head's: each corner one vertex by its point, its place and its normal)
     const ck = new Map(), CV = [], CN = [], cuv = [], CF = [];
     mesh.faces.forEach((tri, fi) => {
@@ -122,6 +129,7 @@ export function heroRelief(mesh, recipe, paint, normals, { size = null, dilate =
     tangentAt: (fi, k) => { const t = cornerV.get(fi); if (t) return T[t[k]]; const c = clothV.get(fi); return c ? CT[c[k]] : axisTangent(unit(normals[fi][k])); },
     atlas: { url: `data:image/png;base64,${png.toString('base64')}`, w: width, h: height },
     ...(orm ? { orm } : {}),
+    ...(depthMap ? { depth: depthMap } : {}),
     stats: { ...bake.stats, width, height, size: S, faces: F.length, vertices: V.length, bytes: png.length, ...(clothStats ? { cloth: clothStats } : {}) },
     // (the bake and its light mesh, for a gate to read the map against the mesh: never packed)
     map: bake, light: { V, F, N, uv }, fields,

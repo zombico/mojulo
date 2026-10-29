@@ -181,6 +181,7 @@ func _ready() -> void:
 	eye = float(score.get("eye", 1.7))
 	eye_scale = maxf(0.5, eye / 1.7)
 	_fix_materials()
+	_fix_parallax()
 	_fix_crystals()
 	_fix_water()
 	_apply_rim()
@@ -232,6 +233,43 @@ func _fix_materials() -> void:
 			if mat is StandardMaterial3D:
 				mat.vertex_color_use_as_albedo = true
 				mat.vertex_color_is_srgb = false
+
+
+# The clothes in depth (cloth-relief, realistic laws 12): score.figure_parallax names the figure's material, the depth
+# map written beside the GLB, its depth (m at black) and the UVs a metre spans across and along the atlas. Each of the
+# figure's surfaces in that material takes figure_parallax.gdshader in place of the one glTF import made, its textures
+# carried across (the base colour, the normal map, the ORM glTF import put on roughness and metallic), so its map UVs are
+# marched into the depth along the view. Godot's own heightmap takes one scale for both axes, and the atlas is not square.
+# Absent score.figure_parallax, nothing changes.
+func _fix_parallax() -> void:
+	var fp: Dictionary = score.get("figure_parallax", {})
+	if fp.is_empty():
+		return
+	var shader: Shader = load("res://kernel/figure_parallax.gdshader")
+	var height: Texture2D = load(String(fp.get("height", "")))
+	if shader == null or height == null:
+		return
+	var pm: Array = fp.get("per_m", [1.0, 1.0])
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for s in range(mesh.get_surface_count()):
+			var mat: Material = mi.get_active_material(s)
+			if not (mat is StandardMaterial3D) or mat.resource_name != String(fp.get("material", "")):
+				continue
+			var sm := ShaderMaterial.new()
+			sm.shader = shader
+			sm.set_shader_parameter("albedo_tex", mat.albedo_texture)
+			sm.set_shader_parameter("normal_tex", mat.normal_texture)
+			sm.set_shader_parameter("orm_tex", mat.roughness_texture)
+			sm.set_shader_parameter("height_tex", height)
+			sm.set_shader_parameter("roughness_k", mat.roughness)
+			sm.set_shader_parameter("metallic_k", mat.metallic)
+			sm.set_shader_parameter("alpha_cut", mat.alpha_scissor_threshold if mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR else 0.0)
+			sm.set_shader_parameter("depth", float(fp.get("depth", 0.0)))
+			sm.set_shader_parameter("per_m", Vector2(float(pm[0]), float(pm[1])))
+			mi.set_surface_override_material(s, sm)
 
 
 # Crystals (crystal-rig R5): Godot's glTF import drops KHR_materials_transmission / ior / volume, so a clear stone

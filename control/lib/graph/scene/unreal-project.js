@@ -31,8 +31,43 @@ export const unrealAssetName = (ref) => String(ref).replace(/[^A-Za-z0-9]/g, '_'
  * and an OrmTex input (the clothes' occlusion, roughness and metalness, epidermis/cloth-relief.js, realistic laws 12:
  * linear, its red the ambient occlusion, its green times Roughness, its blue times Metal; Metal 0 and the texture white
  * where a figure carries none, so a relief without it is lit as before). A master of its own name: a project's
- * M_MojuloLitRelief from an import before it is left as it was. Rebinds the swap's ensure_master, first_texture and unlit_instance; absent, the importer is the one before it. */
-const RELIEF_PY = `
+ * M_MojuloLitRelief from an import before it is left as it was. And the PARALLAX (cloth-relief, realistic laws 12): the
+ * clothes' depth map written beside the GLB, imported linear and set as the instance's HeightTex, its ParallaxDepth and
+ * ParallaxPerM; the master's ParallaxUV node (a custom HLSL node) marches the samplers' UVs into it along the camera's
+ * vector in tangent space, the same march Godot's kernel and the hero-live viewer make. Rebinds the swap's ensure_master,
+ * first_texture and unlit_instance; absent, the importer is the one before it. */
+const POM_HLSL = 'float2 uv = UV; float3 v = normalize(V); if (v.z > 0.08 && Depth > 0) { float2 dir = -v.xy / v.z * Depth; float2 duv = float2(dir.x * PerM.x, dir.y * PerM.y); float d = 0; float h = 1 - Texture2DSampleLevel(Tex, TexSampler, uv, 0).r; [loop] for (int i = 0; i < 24; i++) { if (d >= h) break; d += 1.0 / 24.0; uv += duv / 24.0; h = 1 - Texture2DSampleLevel(Tex, TexSampler, uv, 0).r; } } return uv;';
+const reliefPy = (parallax = null) => `
+# PARALLAX: the clothes' depth map beside the GLB (white the surface, black 'depth' m in; 'perM' the UVs a metre spans
+# across and along the atlas), marched by the master's ParallaxUV node; None without one.
+PARALLAX = ${parallax ? JSON.stringify({ file: parallax.file, depth: parallax.depth, perM: parallax.perM }) : 'None'}
+_DEPTH = []
+POM_HLSL = ${JSON.stringify(POM_HLSL)}
+
+
+def depth_texture():
+    # the depth map imported once into the asset's materials folder, linear
+    if _DEPTH:
+        return _DEPTH[0]
+    t = None
+    try:
+        task = unreal.AssetImportTask()
+        task.set_editor_property('filename', os.path.join(PACK, PARALLAX['file']))
+        task.set_editor_property('destination_path', MAT_ROOT)
+        task.set_editor_property('destination_name', 'T_MojuloFigureDepth')
+        task.set_editor_property('automated', True)
+        task.set_editor_property('replace_existing', True)
+        task.set_editor_property('save', True)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+        t = unreal.EditorAssetLibrary.load_asset(MAT_ROOT + '/T_MojuloFigureDepth')
+        if t is not None:
+            t.set_editor_property('srgb', False)
+            unreal.EditorAssetLibrary.save_loaded_asset(t)
+    except Exception as e:  # noqa: BLE001 — UNPINNED property names
+        unreal.log_warning('[mojulo] depth map import: ' + str(e))
+    _DEPTH.append(t)
+    return t
+
 # RELIEF: the figure carries its relief as a glTF normal map on its base colour's UVs, its TANGENT beside its NORMAL (a
 # realistic hero, lit), and its clothes' ORM on the same UVs when it has one. Its slots go onto M_MojuloLitCloth (the lit
 # twin, a NormalTex and an OrmTex input) with the maps Interchange imported bound to it; the swap finds the textures by
@@ -88,6 +123,41 @@ def ensure_master():
     if flat is not None:
         ntex.set_editor_property('texture', flat)
     ml.connect_material_property(ntex, 'RGB', unreal.MaterialProperty.MP_NORMAL)
+    # PARALLAX: the samplers' UVs marched into HeightTex along the camera's vector in tangent space (ParallaxUV, a custom
+    # node); ParallaxDepth 0 (the default) leaves them as they are
+    try:
+        uv = ml.create_material_expression(mat, unreal.MaterialExpressionTextureCoordinate, -1500, 0)
+        cam = ml.create_material_expression(mat, unreal.MaterialExpressionCameraVectorWS, -1500, 150)
+        xf = ml.create_material_expression(mat, unreal.MaterialExpressionTransform, -1300, 150)
+        xf.set_editor_property('transform_source_type', unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_WORLD)
+        xf.set_editor_property('transform_type', unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
+        ml.connect_material_expressions(cam, '', xf, '')
+        htex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureObjectParameter, -1500, 300)
+        htex.set_editor_property('parameter_name', 'HeightTex')
+        if white is not None:
+            htex.set_editor_property('texture', white)
+        pdep = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -1500, 450)
+        pdep.set_editor_property('parameter_name', 'ParallaxDepth')
+        pdep.set_editor_property('default_value', 0.0)
+        pper = ml.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -1500, 550)
+        pper.set_editor_property('parameter_name', 'ParallaxPerM')
+        pper.set_editor_property('default_value', unreal.LinearColor(1.0, 1.0, 0.0, 0.0))
+        cust = ml.create_material_expression(mat, unreal.MaterialExpressionCustom, -1100, 200)
+        cust.set_editor_property('description', 'ParallaxUV')
+        cust.set_editor_property('output_type', unreal.CustomMaterialOutputType.CMOT_FLOAT2)
+        cust.set_editor_property('code', POM_HLSL)
+        ins = []
+        for nm in ('UV', 'V', 'Tex', 'Depth', 'PerM'):
+            ci = unreal.CustomInput()
+            ci.set_editor_property('input_name', nm)
+            ins.append(ci)
+        cust.set_editor_property('inputs', ins)
+        for src, nm in ((uv, 'UV'), (xf, 'V'), (htex, 'Tex'), (pdep, 'Depth'), (pper, 'PerM')):
+            ml.connect_material_expressions(src, '', cust, nm)
+        for smp in (tex, ntex, orm):
+            ml.connect_material_expressions(cust, '', smp, 'UVs')
+    except Exception as e:  # noqa: BLE001 — UNPINNED property names
+        unreal.log_warning('[mojulo] parallax nodes: ' + str(e))
     ml.recompile_material(mat)
     unreal.EditorAssetLibrary.save_asset(path)
     return mat
@@ -170,13 +240,19 @@ def unlit_instance(master, tex, cache, prefix=None):
             unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'Metal', 1.0)
             unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'Roughness', 1.0)
             note('cloth', instance=name, orm=orm.get_path_name())
+            dt = depth_texture() if PARALLAX else None
+            if dt is not None:
+                unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mic, 'HeightTex', dt)
+                unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'ParallaxDepth', float(PARALLAX['depth']))
+                unreal.MaterialEditingLibrary.set_material_instance_vector_parameter_value(mic, 'ParallaxPerM', unreal.LinearColor(float(PARALLAX['perM'][0]), float(PARALLAX['perM'][1]), 0.0, 0.0))
+                note('parallax', instance=name, depth=PARALLAX['depth'])
         unreal.EditorAssetLibrary.save_asset(path)
     cache[key] = mic
     return mic
 
 `;
 
-function importerPy({ ref, lit = false, figureClips = {}, relief = false } = {}) {
+function importerPy({ ref, lit = false, figureClips = {}, relief = false, parallax = null } = {}) {
   return `# generated by mojulo export-unreal — do not hand-edit; re-mint from recipe/
 """Mojulo asset importer (Unreal editor Python).
 
@@ -866,7 +942,7 @@ def preview_rig():
         unreal.log_warning('[mojulo] sky light setup: ' + str(e))
 
 
-${lit && relief ? RELIEF_PY : ''}def glb_light_count(glb_path):
+${lit && relief ? reliefPy(parallax) : ''}def glb_light_count(glb_path):
     """The lights the GLB carries (KHR_lights_punctual on its nodes): what Interchange should bring into the map."""
     doc = glb_doc(glb_path, 'light scan') or {}
     return sum(1 for n in doc.get('nodes') or [] if 'KHR_lights_punctual' in (n.get('extensions') or {}))
@@ -1135,10 +1211,10 @@ ${RETARGET_NOTE(`Content/Mojulo/${name}`)}` : ''}
  * emitUnrealAsset — one asset's pack text: the importer, the guide, the README. The assembler (unreal-pack.js) ships
  * model.glb and recipe/ beside them.
  */
-export function emitUnrealAsset({ ref, kind = null, title = null, manifestHash, lit = false, figure = null, remint = null, relief = false }) {
+export function emitUnrealAsset({ ref, kind = null, title = null, manifestHash, lit = false, figure = null, remint = null, relief = false, parallax = null }) {
   const name = unrealAssetName(ref), heading = title ?? ref, bound = !!(lit && relief);
   const files = [
-    { file: 'import_mojulo.py', text: importerPy({ ref, lit, figureClips: figure ? { [figure.name]: `${figure.name}:${figure.clip}` } : {}, relief: bound }) },
+    { file: 'import_mojulo.py', text: importerPy({ ref, lit, figureClips: figure ? { [figure.name]: `${figure.name}:${figure.clip}` } : {}, relief: bound, parallax: bound ? parallax : null }) },
     { file: 'IMPORT-GUIDE.md', text: importGuide({ ref, title: heading, figure, lit }) },
     {
       file: 'README.md',

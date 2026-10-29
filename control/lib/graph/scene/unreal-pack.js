@@ -44,10 +44,13 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
   const manifestHash = packHash(manifest);
   const emitted = emitUnrealAsset({
     ref, kind: manifest.kind ?? kind, title: sketch.title ?? manifest.title ?? ref, manifestHash, lit, figure, ...(lit && fig?.[1]?.normalTex ? { relief: true } : {}),
+    // (the clothes' depth map, cloth-relief.js: written beside the GLB for the importer to march the parallax with)
+    ...(lit && fig?.[1]?.normalTex && fig[1].depthTex ? { parallax: { file: 'figure_depth.png', depth: fig[1].depthTex.depth, perM: fig[1].depthTex.perM } } : {}),
     remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}${humanoid ? '' : ' --no-humanoid'}`,
   });
   const { written } = await emitFolder({ outDir, files: [
     { rel: 'model.glb', data: exported.bytes },
+    ...(lit && fig?.[1]?.normalTex && fig[1].depthTex ? [{ rel: 'figure_depth.png', data: Buffer.from(fig[1].depthTex.url.replace(/^data:image\/png;base64,/, ''), 'base64') }] : []),
     { rel: `recipe/${ref}.json`, data: JSON.stringify(manifest, null, 2) },
     ...emitted.files.map((f) => ({ rel: f.file, data: f.text })),
   ] });

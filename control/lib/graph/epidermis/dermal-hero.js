@@ -25,7 +25,7 @@ import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
 import { layoutDermis, paintDermis } from './dermal-texture.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
 import { strandPage, strandCellUV } from './hair-strands.js';
-import { clothPage, CLOTH_PAGE } from './cloth-relief.js';
+import { clothPage, clothAlbedo, CLOTH_PAGE } from './cloth-relief.js';
 import { RELIEF_SIZE, reliefRung } from './dermal-relief.js';
 
 // the strand strip's size on the atlas (no wider than the atlas)
@@ -215,6 +215,8 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const plain = Object.values(recipe.parts || {}).some((P) => P?.strands === 'plain');
   const dye = !plain && hairHex && pigment.every(Number.isFinite) ? { tint: hex3(hairHex).map(lin).map((m, i) => pigment[i] / Math.max(1e-6, m)), grey: H.dermis.grey ?? 0 } : null;
   if (SH) { const S = strandPage({ w: SW, h: SH, dye }); for (let y = 0; y < SH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + y) * W) * 4); }
+  // (the clothes' PATTERNS on their page: each a grey its cloth's colour is multiplied by, white where none is)
+  if (cloth) clothAlbedo(opts.cloth, cloth, px, { W, row: BH + HH + SH, scale });
   // (a page's [s, t], t up, onto the atlas's)
   const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();

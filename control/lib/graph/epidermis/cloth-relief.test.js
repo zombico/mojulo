@@ -4,7 +4,10 @@
 // lies on its island and the hard goods on their cloth's swatch, never a skin face; the atlas without a chart is the one
 // before; the creases bend the map at the elbow's crook and nowhere far from a bend; the ORM is each cloth's (the
 // leather satin, the buckle metal, the skin the export's own); the same bytes on a rebuild; the lit skinned GLB writes the
-// ORM as metallicRoughness and occlusion beside the normal map, and the unlit export neither.
+// ORM as metallicRoughness and occlusion beside the normal map and the parallax's depth map in its extras, and the unlit
+// export neither; a knit lies under its surface, column by column; a pattern is woven as it is made (a houndstooth's
+// repeat, a stripe's share of its period), its words the module's and refused when unknown; a stripe runs straight down
+// a tube (each slot's share of the turn eased ring to ring).
 // (Beside the module, not in the critical tier: a realistic mint takes seconds.)
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -15,7 +18,9 @@ import { facesToGlb } from '../scene/scene-gltf.js';
 import { outfitLanguage } from '../outfit/expand.js';
 import { heroSkinPaint } from './dermal-hero.js';
 import { heroRelief } from './dermal-relief.js';
-import { clothOnRecord, clothOf, clothChart, clothBake, CLOTHS, SKIN_ROUGH, CLOTH_LAWS } from './cloth-relief.js';
+import { clothOnRecord, clothOf, clothChart, clothBake, CLOTHS, SKIN_ROUGH, CLOTH_LAWS, PATTERNS, patternOf, patternAt, knitAt } from './cloth-relief.js';
+import { PATTERN_WORDS, CLOTH_WORDS, validateOutfitCard, SEEDED_OUTFITS } from '../outfit/styles.js';
+import { emitUnrealAsset } from '../scene/unreal-project.js';
 
 const PAGES = { page: 256, headPage: 256 };
 const FLIGHT = { type: 'outfit', style: 'flight' };
@@ -105,6 +110,51 @@ describe('the realistic hero\'s cloth relief', () => {
     expect(SKIN_ROUGH).toBe(0.85);
   });
 
+  it('unrolls each tube from its back, each slot\'s share of the turn easing ring to ring (a stripe runs straight down it)', () => {
+    // (the trunk's and the limbs' clothes: a shoe's toe closes to its tip, where a slot's share swings as it should)
+    for (const I of chart.islands.filter((x) => !x.ribbon && /_(body|torso|pelvis|arm[RL]|upperArm[RL]|foreArm[RL]|leg[RL]|thigh[RL]|shank[RL])$/.test(x.part))) for (let i = 1; i < I.around.length; i++) for (let k = 0; k < I.around[i].length; k += 3) {
+      const d = I.around[i][k] / I.turn[i] - I.around[i - 1][k] / I.turn[i - 1];
+      expect(Math.abs(d - Math.round(d)), `${I.part} ring ${i} slot ${k}`).toBeLessThan(0.05);
+    }
+  });
+
+  it('a knit lies under its surface, its stitches in columns a wale apart', () => {
+    const K = CLOTHS.knit.knit;
+    let min = 0;
+    for (let u = 0; u < 0.03; u += 0.0005) for (let s = 0; s < 0.03; s += 0.0005) {
+      const h = knitAt(K, u, s); expect(h).toBeLessThanOrEqual(1e-12); min = Math.min(min, h);
+      expect(knitAt(K, u + K.wale, s)).toBeCloseTo(h, 9); expect(knitAt(K, u, s + K.course)).toBeCloseTo(h, 9);
+    }
+    expect(min).toBeLessThan(-0.8 * K.yarn);
+  });
+
+  it('a pattern is woven as it is made; its words are the module\'s, a layer\'s reaching its groups, an unknown refused', () => {
+    expect([...PATTERN_WORDS].sort()).toEqual(Object.keys(PATTERNS).sort());
+    for (const w of ['knit', 'cable', 'jersey']) expect(CLOTH_WORDS).toContain(w);
+    const L = { outer: { pattern: 'herringbone' }, bottom: { pattern: { kind: 'houndstooth', scale: 2 } }, top: { pattern: 'gingham' } };
+    expect(patternOf('Outer', L).kind).toBe('herringbone'); expect(patternOf('Lapel', L).kind).toBe('herringbone'); expect(patternOf('Waistcoat', L).kind).toBe('herringbone');
+    expect(patternOf('Bottom', L)).toEqual({ kind: 'houndstooth', scale: 2, contrast: 1 }); expect(patternOf('Collar', L).kind).toBe('gingham'); expect(patternOf('Shoes', L)).toBeNull();
+    const card = (language) => validateOutfitCard({ ...SEEDED_OUTFITS.business, language: { ...SEEDED_OUTFITS.business.language, ...language } });
+    expect(card({ outer: { ...SEEDED_OUTFITS.business.language.outer, pattern: 'pinstripe' }, bottom: { ...SEEDED_OUTFITS.business.language.bottom, pattern: { kind: 'houndstooth', scale: 1.5 } } })).toEqual([]);
+    expect(card({ top: { ...SEEDED_OUTFITS.business.language.top, pattern: 'paisley' } }).join()).toMatch(/top\.pattern\.kind/);
+    expect(card({ top: { ...SEEDED_OUTFITS.business.language.top, cloth: 'chainmail' } }).join()).toMatch(/top\.cloth/);
+    // (a houndstooth's repeat: eight threads both ways, half of it dark)
+    const H = { kind: 'houndstooth', scale: 1, contrast: 1 }, rep = PATTERNS.houndstooth.check * 2, n = 64;
+    let dark = 0;
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+      const u = ((a + 0.5) / n) * rep, s = ((b + 0.5) / n) * rep, c = patternAt(H, u, s).a;
+      expect(patternAt(H, u + rep, s).a).toBe(c); expect(patternAt(H, u, s + rep).a).toBe(c);
+      if (c < 1) dark++;
+    }
+    expect(dark / (n * n)).toBeCloseTo(0.5, 2);
+    // (a pinstripe: its ground darker by its share, the stripe drawn by what it covers of a pixel)
+    const P = PATTERNS.pinstripe, pin = { kind: 'pinstripe', scale: 1, contrast: 1 }, pw = 0.0005;
+    let sum = 0; const m = 2000;
+    for (let i = 0; i < m; i++) sum += patternAt(pin, ((i + 0.5) / m) * P.every, 0, 0, pw).a;
+    const line = Math.max(P.line, 1.2 * pw);
+    expect(sum / m).toBeCloseTo(1 - P.ground * (1 - line / P.every), 2);
+  });
+
   it('rides the lit skinned GLB as metallicRoughness and occlusion beside the normal map; the unlit export neither', () => {
     const Rg = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, Rg), clips = { stand: [{}] };
     const pack = packLayeredRig(mesh, skin, Rg, { clips, engineLit: true, normals, paint, relief: R });
@@ -115,6 +165,13 @@ describe('the realistic hero\'s cloth relief', () => {
     expect(mat.pbrMetallicRoughness.metallicRoughnessTexture).toBeTruthy();
     expect(mat.occlusionTexture.index).toBe(mat.pbrMetallicRoughness.metallicRoughnessTexture.index);
     expect(mat.pbrMetallicRoughness.metallicFactor).toBe(1); expect(mat.pbrMetallicRoughness.roughnessFactor).toBe(1);
+    // (the parallax's depth map: a texture the material's extras name, its depth and its metre's UVs)
+    const rel = mat.extras?.mojulo?.relief;
+    expect(rel).toBeTruthy(); expect(J.textures[rel.height]).toBeTruthy(); expect(rel.depth).toBeGreaterThan(0); expect(rel.perM.every((v) => v > 0)).toBe(true);
+    // (the Unreal importer marches it when the pack writes it, and names none when it does not)
+    const imp = (parallax) => emitUnrealAsset({ ref: 'sk_cloth', lit: true, relief: true, manifestHash: 'x', figure: { name: 'body', clip: 'stand', clips: ['stand'] }, ...(parallax ? { parallax } : {}) }).files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(imp({ file: 'figure_depth.png', depth: rel.depth, perM: rel.perM })).toMatch(/PARALLAX = \{"file":"figure_depth\.png"/);
+    expect(imp(null)).toMatch(/PARALLAX = None/);
     const U = glbJson(facesToGlb({ faces: [], figures: { body: fig } }, { clips: '_all', skinned: true }).bytes);
     expect(JSON.stringify(U)).not.toMatch(/metallicRoughnessTexture|occlusionTexture/);
   }, 240_000);

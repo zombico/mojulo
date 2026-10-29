@@ -30,3 +30,31 @@ geometry only.
   `M_MojuloLitRelief` from an import before is left as it was. Godot binds the ORM as its glTF import does, said in its
   ledger.
 - `/hero-live`: a shot's `relief` sets the normal map's strength on the figure (0 off, more to read it).
+- **The clothes in depth: parallax** (operator: "go ahead with the parallax"). The cloth relief's depth map (white the
+  surface, black 1 cm under it, every texel no cloth's white so the skin never shifts; in the finest island's texels so
+  one metre's UVs march every island) rides the GLB as a texture the figure material's extras name (`mojulo.relief`: its
+  index, its depth, the UVs a metre spans across and along the atlas). Godot's kernel (0.31.0) marches it:
+  `level.gd` `_fix_parallax` puts `figure_parallax.gdshader` on the figure's material, its textures carried across, the
+  map written beside the GLB as `figure_depth.png` and named in `score.figure_parallax` (Godot's own heightmap takes one
+  scale for both axes, and the atlas is not square). Unreal's master `M_MojuloLitCloth` marches it in a custom
+  `ParallaxUV` node (`HeightTex`, `ParallaxDepth` 0 by default, `ParallaxPerM`), the importer importing the map beside the
+  GLB. `/hero-live`'s viewer marches it too (a shot's `parallax` its strength). Advisory where the engines are absent.
+- **Knits: a sweater's lines and its yarn** (operator: "sweater lines and yarn"). `cloth: 'knit'`, stockinette: its
+  stitches in columns down the garment, each a V of two legs of round yarn with a ply's twist, under the surface so the
+  parallax marches into the gaps; `cloth: 'cable'`, ropes of two strands crossing down it between purl channels; a rib's
+  purl sunk between its columns. A knit's island is baked at half the page's texel, so a stitch reads at every rung.
+- **Patterns** (operator: "use this principle to create wool patterns, herringbone, into coats hats pants, and other
+  related things that can be applied patterns to"). `pattern` on the top, the bottom, the outer and the waistcoat (a name,
+  or `{ kind, scale, contrast }`): herringbone, houndstooth, plaid, gingham, pinstripe, chalkstripe, corduroy, quilted,
+  waffle, tweed. Each its relief (into the normal map and the depth) and its colour, a grey the base colour's cloth page
+  multiplies the cloth's own by (a motif darkens its ground; the ground is the palette's); a colour weave made as it is
+  woven, warp and weft coloured by their order and the 2/2 twill showing one or the other; a stripe drawn by its share
+  of a pixel. The language takes `cloth` on every layer (`CLOTH_WORDS`: the outer's words and twill, jersey, knit,
+  cable, silk) and `pattern` (`PATTERN_WORDS`), and refuses an unknown one. Lapels, ties and belts are charted as
+  ribbons (their cloth and their pattern, no seams); a waistcoat takes its own words, else the outer's.
+- The tube is unrolled from each ring's point facing straight back, in the ring's own plane (a foot's, straight down),
+  found between slots, kept continuous down the tube (an opened front passes the back twice), and each slot's share of
+  the turn eased along it: the tailor's folds, written into the rings, had slid every slot past them and kinked a stripe
+  at each.
+- Not yet: a hat (the outfit has no word for one), a garment painted on the skin (`fit: 'skin'`), a second colour in a
+  motif (a pattern darkens its ground), the weave finer than a stitch.
