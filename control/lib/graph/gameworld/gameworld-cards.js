@@ -64,6 +64,7 @@ import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
 import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
+import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -526,6 +527,31 @@ function battlesCard() {
   );
 }
 
+function wcdCard() {
+  return lines(
+    'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
+    '  gates the next and takes the player deeper: across, down or up. A concept followed, not a map shape: Shadow Moses (a',
+    '  dock, a forward base, the interior base, the fortifications, the core) and the three walls (Maria, Rose, Sina) are WCDs.',
+    '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
+    '',
+    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
+    '        gate?, oneWay? }] }',
+    'SPACES',
+    ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    '  depth         0 the outermost; the core the deepest',
+    "  level         the world level it is in; use: a building use (the program's rooms); look: the composer's words or",
+    '                { words?, construction?, palette? }; built: false, on the path and not made yet (a vertical slice)',
+    'DOORS (the intermediaries)',
+    ...Object.entries(WCD_VIAS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    "  gate          what opens it: { clearance: 1…9 } (a keycard's level) or { power: '<id>' } (a power found in the world)",
+    '  oneWay        it opens only from `from`: a shortcut back out, or a drop',
+    '',
+    'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
+    ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    '',
+    'A layer\'s light is the theme\'s, set once; its construction and palette carry the change from the last.',
+  );
+}
 function foesCard() {
   const status = (c) => classStatus(c);
   const row = (c) => { const S = status(c); return `  ${c.id.padEnd(8)} ${c.reads}${S.status === 'built' ? '' : ` [${S.status}: ${S.short.join(', ')}]`}`; };
@@ -768,6 +794,7 @@ const CARDS = [
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
+  ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],

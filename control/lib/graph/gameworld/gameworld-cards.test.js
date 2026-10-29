@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gameworldCards, GAMEWORLD_CARD_IDS, QUICK_GOAL_CARD_IDS, quickGoalCardById, genreCardById } from './gameworld-cards.js';
+import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
 import { FOLK_KEYS } from '../folk/folk.js';
 import { SHAPES } from '../folk/domicile.js';
 import { SIDEQUEST_KEYS } from '../folk/sidequests.js';
@@ -27,7 +28,7 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
     // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
@@ -46,6 +47,7 @@ describe('the rail\'s cards', () => {
     on('gameworld-adornment', RAILS.flatMap((r) => r.stems));
     on('gameworld-equipment', Object.keys(CLASS_SLOTS));
     on('gameworld-foes', [...Object.keys(FOE_CLASSES), ...Object.keys(MOVES), ...Object.keys(ATTACKS), ...Object.keys(STOMPS), ...Object.keys(FOE_RANKS)]);
+    on('gameworld-wcd', [...Object.keys(WCD_KINDS), ...Object.keys(WCD_VIAS), ...Object.keys(WCD_PRINCIPLES)]);
     on('gameworld-folk', [...FOLK_KEYS, ...Object.keys(SHAPES), ...['D + 0', 'D + P', 'D of F (P + C2)', 'D + C1'], ...SIDEQUEST_KEYS]);
   });
 
