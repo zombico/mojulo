@@ -49,7 +49,9 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 - **A cavern** (a trail's `ground.cavern: true | { height?, skylight?, formations?, light?, cracks?, ends? }`): the
   whole trail underground, the same geocube land closed in by its cliffs (a wall raised along the open side and across
   the ends) under a pretend ceiling of their rock, a dome its `height` (18 m) over the cliff tops. No grass, no trees;
-  the floor soil and scree; water as a trail's (`ground.water`); stalagmites, stalactites and columns off the walk
+  its walk laid in the rock it runs through, in stretches (worn bedrock, flagstones, plates, gravel, cobbles), frayed
+  at its edges into the scree of the floor off it, stones strewn on it, each in the cube's rock; water as a trail's
+  (`ground.water`); stalagmites, stalactites and columns off the walk
   (`formations` 0 to 1). It is lit by what it lets in and what it lights: `cracks` (0 to 1) jagged slits of day in the
   ceiling, their light falling to the floor; a `skylight: { y, r? }`, a hole over the walk, a shaft of day; and its
   register (`light`: torch, the default, fluorescent, bio, or daylight for none), its lamps along the walk; all of it

@@ -79,7 +79,7 @@ import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
 import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './cave.js';
-import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, crackFaces } from './cavern.js';
+import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, crackFaces, floorDress, CAVERN_EDGE } from './cavern.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
 const CAVE_GRIT = 0.6;
 
@@ -447,7 +447,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // (the CAVERN, era/cavern.js: its floor soil, no meadow; its pretend ceiling, a dome of the cliff's rock, down-facing)
   if (site.cavern) {
-    ground.faces = ground.faces.map((f) => (f.cel || f.group !== 'isekai:ground' ? f : { ...f, group: 'isekai:trail', tint: st.tint.trail }));
+    ground.faces = ground.faces.map((f) => (f.cel || f.group !== 'isekai:ground' ? f : { ...f, group: 'isekai:scree', tint: st.tint.scree }));
     const sc = st.tiles.cliff.scale;
     ground.faces.push(...domeFaces(site, site.cavern).map((f) => { const cs = f.corners.map(P), m = mean(cs), n = facet(cs, f.skirt ? [site.trailX(m[1]) - m[0], site.D / 2 - m[1], 0] : [0, 0, -1]); return { corners: cs, normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', uv: cs.map((p) => [r5(p[0] / sc), r5(p[1] / sc)]), group: 'isekai:cliff', celN: n }; }));
   }
@@ -551,6 +551,11 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
   // (a gritty polygon land: its cliffs' rims broken and stones strewn, as the island's; broken-land.js)
   const strewn = [];
+  // (a cavern's walk strewn with stones, its edges most: era/cavern.js; a gritty land's are strewn below)
+  // (the cave's, every one: no grass hat on a stone underground)
+  if (site.cavern && !broken) strewn.push(...[...strewStones(st, { faces: ribbon, rocks: [], heightAt: site.ground, seed, grit: CAVE_GRIT }),
+    // (and its edge heaped as a dirt trail's is, more and bigger, the walk run into the floor under them: CAVERN_EDGE)
+    ...strewEdge(st, { site, heightAt: site.ground, seed, grit: 1, keep, inShare: 0.3, edge: CAVERN_EDGE })].map((b) => ({ ...b, cave: true })));
   if (broken) {
     breakRims([...ground.faces, ...ribbon], { grit: broken, seed, dx: site.grid.dx });
     // (a made trail takes no pebbles off its corners: it is kept)
@@ -902,6 +907,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (site.cavern) {
     const asCave = cavernAsCave(site, site.cavern), lampFs = [...lampFaces(asCave), ...crackFaces(site, site.cavern)].map((f) => ({ ...f, outNormal: f.normal, cornerFills: f.corners.map(() => f.fill) }));
     payload.faces = cavernLight([...payload.faces, ...lampFs], site, site.cavern, { open: hourDim(st) });
+    // (its floor: its walk of the rock it runs through, frayed into its scree, lit by the cavern's own light: era/cavern.js
+    // floorDress)
+    payload.faces = floorDress(payload.faces, site, st, site.cavern, { open: hourDim(st), seed });
     // (with a skylight the day's own sky shows through it, the ceiling hiding the rest; without, a room's)
     if (!site.cavern.skylight) payload.sky = { preset: 'interior' };
     payload.bg = site.cavern.skylight ? payload.bg : '#08090b';

@@ -31,6 +31,7 @@
  * Pure: the same recipe makes the same cavern.
  */
 import { formFactor, lampLight, CAVE_LIGHT_IDS } from './cave.js';
+import { tileFamilyOf } from './tile-specs.js';
 
 export const CAVERN = Object.freeze({ cracks: 0.5, height: 18, skylight: 10, formations: 0.5, light: 'torch', gap: 6, face: 3, endRun: 6, cell: 2, lump: 1.4, dark: 0.04 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -199,6 +200,13 @@ function bounceOf(site, C, cave) {
 /** Every face of the cavern lit by its dark, the skylight it sees, its lamps (their own faces as they are) and the bounce
  *  of all of it round the hall; a sunlit corner keeps its sun (the shaft through the skylight). As caveLight, against the
  *  hour's bake (`open`). */
+/** The light at a point (normal `n`) in the cavern, per channel, in the day's units: its dark and skylight, its lamps and
+ *  the bounce of both, the lamps' raised against the hour's bake (`gain`). */
+export function cavernLightAt(site, C, p, n, gain = 1) {
+  const cave = cavernAsCave(site, C), Bn = bounceOf(site, C, cave), k = cavernSky(site, C, p, n), lm = lampLight(cave, p, n);
+  return lm.map((v, ch) => k + Bn.sky[ch] + (v + Bn.lamp[ch]) * gain);
+}
+
 export function cavernLight(faces, site, C, { open = 1 } = {}) {
   const cave = cavernAsCave(site, C), gain = 1 / Math.max(0.12, open), Bn = bounceOf(site, C, cave);
   const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`, rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -247,3 +255,82 @@ export function crackFaces(site, C) {
   }
   return out;
 }
+
+// ── its floor: the walk of rock ───────────────────────────────────────────────────────────────────────────────────────
+/**
+ * The cavern's FLOOR, its walk made of the rock it runs through: in stretches along it worn bedrock (a limestone
+ * pavement, karst), natural flagstones, plates and gravel, patched with gravel; at its edges frayed to cobbles and rubble,
+ * face by face, into the scree the floor off it lies in, so the walk blends into it rather than stopping at a line. Each
+ * surface a tile painted in the cube's own rock (`palette.rock`), its faces' light kept and their colour the tile's.
+ *   FLOOR                          the surfaces: their cut and the metres each is laid at
+ *   floorKind(site, x, y, seed)    which surface a point of the floor is
+ *   floorDress(faces, site, st, C, { open, seed })  the floor's faces (its walk, `isekai:trail`, and its scree) dressed:
+ *                                  each its surface's tile, its fill the cavern's own light at its corners (cavernLightAt)
+ */
+export const FLOOR = Object.freeze({
+  bedrock: Object.freeze({ gen: 'dressed', cut: 'karst', metres: 3.6, rows: 3, cols: 2, grit: 0.5, tone: 1.1 }),
+  flags: Object.freeze({ gen: 'flagstone', metres: 2.4, cells: 5, wobble: 2.5, lost: 0.08, cracked: 0.25, tone: 1.05 }),
+  plates: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'plates', metres: 1.8, grit: 0.5, tone: 0.95 }),
+  gravel: Object.freeze({ gen: 'dressed', cut: 'gravel', metres: 1.2, grit: 0.6, tone: 1 }),
+  cobbles: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'cobbles', metres: 1.5, grit: 0.6, tone: 0.95 }),
+  rubble: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'rubble', metres: 1.5, grit: 0.7, tone: 0.85 }),
+  scree: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'blocks', metres: 1.5, grit: 0.7, tone: 0.8 }),
+});
+// the walk's stretches, in the order its along-noise runs through them
+const WALK = ['bedrock', 'flags', 'plates', 'gravel', 'cobbles'];
+
+/** Each surface's tile, in the cube's rock: its family and the metres it is laid at. Memoised by the rock's colour. */
+const tiles = new Map();
+function floorTiles(st) {
+  const R = st.palette?.rock ?? [[96, 92, 88], [128, 124, 118], [160, 156, 150]], mid = R[Math.floor(R.length / 2)], dark = R[Math.max(0, Math.floor(R.length / 2) - 1)];
+  const k = JSON.stringify([mid, dark]);
+  if (tiles.has(k)) return tiles.get(k);
+  const c = (rgb, t) => rgb.map((v) => Math.max(0, Math.min(255, Math.round(v * t))));
+  const out = Object.fromEntries(Object.entries(FLOOR).map(([id, F]) => {
+    const { gen, metres, tone, ...o } = F, stone = c(mid, tone), mortar = c(dark, tone * 0.8);
+    const spec = gen === 'flagstone' ? { gen, stone, mortar, gravel: c(dark, 0.9), cells: o.cells, wobble: o.wobble, lost: o.lost, cracked: o.cracked, seed: 7 } : { gen, stone, mortar, ...o, seed: 7, scale: metres };
+    return [id, { family: tileFamilyOf(spec, `cavern floor ${id}`), metres }];
+  }));
+  tiles.set(k, out);
+  return out;
+}
+
+export function floorKind(site, x, y, seed = 1) {
+  const d = site.trailDist(x, y) / Math.max(0.5, site.halfWAt(y)), cell = hash(Math.floor(x * 2), Math.floor(y * 2), seed + 701);
+  // off the walk: its scree, rubble in patches
+  if (d > 1.15) return vnoise(x * 0.25, y * 0.25, seed + 703) > 0.72 ? 'rubble' : 'scree';
+  // its edge, frayed: the nearer the edge the likelier a face is the edge's stone
+  const edge = 0.7 + 0.25 * (vnoise(x * 0.5, y * 0.5, seed + 707) - 0.5);
+  if (d > edge && cell < (d - edge) / (1.15 - edge)) return cell < 0.5 * (d - edge) / (1.15 - edge) ? 'rubble' : 'cobbles';
+  // the walk: its stretch along it, a patch of gravel here and there
+  if (vnoise(x * 0.35, y * 0.35, seed + 709) > 0.86) return 'gravel';
+  // (a value noise keeps to its middle: stretched, so every stretch comes round along a trail)
+  const n = Math.max(0, Math.min(0.999, (vnoise(0.5, y * 0.045, seed + 711) - 0.22) / 0.56));
+  return WALK[Math.floor(n * WALK.length)];
+}
+
+// what a floor face lit by the whole day would carry: its tile at its own colour (the page draws tile × fill)
+const FLOOR_WHITE = 0.85;
+export function floorDress(faces, site, st, C, { open = 1, seed = 1 } = {}) {
+  const T = floorTiles(st), gain = 1 / Math.max(0.12, open), hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+  return faces.map((f) => {
+    // (the hall's floor only, between the far cliff and the wall raised on its open side, inside its ends: up on the walls'
+    // tops and the plateau, under the ceiling, the land is the rock's)
+    if (!f.fill || !f.corners || f.lamp || f.texture || !/^isekai:(trail|scree)$/.test(f.group) || !f.normal || f.normal[2] < 0.5) return f;
+    const m = [0, 1].map((k) => f.corners.reduce((s, c) => s + c[k], 0) / f.corners.length);
+    if (m[0] < site.cliffX(m[1]) + 0.5 || m[0] > site.trailX(m[1]) + site.halfWAt(m[1]) + site.fringeAt(m[1]) + CAVERN.gap + 1 || m[1] < CAVERN.endRun * 0.5 || m[1] > site.D - CAVERN.endRun * 0.5) return f;
+    const kind = floorKind(site, m[0], m[1], seed), t = T[kind];
+    // (its light the cavern's own at each corner, the tile its colour: what the bake laid under the ceiling is the
+    // cavern's light, nothing of the day's but its cracks and skylight; one of the tile's four variants a cell)
+    const lit = f.corners.map((c) => hex(cavernLightAt(site, C, [c[0], c[1], c[2] + 0.1], f.normal, gain).map((v) => 255 * FLOOR_WHITE * Math.min(1.4, v))));
+    const mean = hex([1, 3, 5].map((i) => lit.reduce((a, h) => a + parseInt(h.slice(i, i + 2), 16), 0) / lit.length));
+    const v = 'abcd'[Math.floor(hash(Math.floor(m[0] / t.metres), Math.floor(m[1] / t.metres), seed + 713) * 4)];
+    const { sunShare: _s, ...rest } = f;
+    return { ...rest, texture: `${t.family}-${v}`, textureLit: true, uv: f.corners.map((c) => [r5(c[0] / t.metres), r5(c[1] / t.metres)]), fill: mean, cornerFills: lit, floor: kind };
+  });
+}
+
+/** A cavern's walk's edge strewn (local-meru/broken-land.js strewEdge's numbers): stones every step heaped evenly both
+ *  sides, bigger, reaching twice a dirt trail's way out over the floor and further in on the walk, so the walk and the
+ *  scree off it run into one another under them and no line shows between. */
+export const CAVERN_EDGE = Object.freeze({ step: 0.45, heap: 5, out: 2.4, in: 0.7, size: [0.12, 0.75], most: 2000, even: 0.6 });

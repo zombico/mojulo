@@ -4,7 +4,7 @@
 // than the open, lit by its register's lamps, and a skylight lets the day in.
 
 import { describe, it, expect } from 'vitest';
-import { readCavern, formationFaces, CAVERN } from './cavern.js';
+import { readCavern, formationFaces, floorKind, CAVERN, FLOOR } from './cavern.js';
 import { assembleStageScene } from './stage.js';
 
 const GROWS = /:(grass|crown|wood|blossom|bush|flower|ikebana|ridge)$/;
@@ -33,6 +33,19 @@ describe('the cavern', () => {
   });
 });
 
+describe('its floor', () => {
+  // a straight walk 3 m wide down a site 60 m long
+  const site = { trailX: () => 10, trailDist: (x) => Math.abs(x - 10), halfWAt: () => 1.5, D: 60 };
+  it('is its walk of rock, its stretches varied along it, frayed at its edges into the scree off it', () => {
+    const walk = new Set(), edge = new Set();
+    for (let y = 1; y < 60; y += 0.5) { walk.add(floorKind(site, 10, y)); edge.add(floorKind(site, 11.6, y)); }
+    expect([...walk].filter((k) => ['bedrock', 'flags', 'plates', 'cobbles'].includes(k)).length).toBeGreaterThanOrEqual(3);
+    expect([...edge].some((k) => ['rubble', 'cobbles'].includes(k))).toBe(true);
+    for (let y = 1; y < 60; y += 3) expect(['scree', 'rubble']).toContain(floorKind(site, 20, y));
+    expect(Object.keys(FLOOR)).toEqual(expect.arrayContaining(['bedrock', 'flags', 'gravel', 'scree']));
+  });
+});
+
 describe('a cavern in a trail', () => {
   const open = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true });
   const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: { ground: { cavern: { skylight: { y: 40 } } } } });
@@ -40,6 +53,14 @@ describe('a cavern in a trail', () => {
 
   it('is an anchor: its rim, its crown, its skylight, its register', () => {
     expect(C).toMatchObject({ kind: 'cavern', height: CAVERN.height, light: CAVERN.light, skylight: { y: 40, r: CAVERN.skylight } });
+  });
+
+  it('lays its floor in the rock: its walk and its scree each a rock tile, lit by the cavern', () => {
+    const floor = P.faces.filter((f) => f.floor);
+    expect(floor.length).toBeGreaterThan(100);
+    expect(new Set(floor.map((f) => f.floor)).size).toBeGreaterThanOrEqual(4);
+    expect(floor.every((f) => f.textureLit && /^gen:/.test(f.texture) && f.uv.length === f.corners.length)).toBe(true);
+    expect(floor.every((f) => Math.max(...f.corners.map((c) => c[2])) < C.top)).toBe(true);
   });
 
   it('grows nothing: no grass, no tree, no far layers', () => {
@@ -52,7 +73,7 @@ describe('a cavern in a trail', () => {
     const roof = P.faces.filter((f) => f.group === 'isekai:cliff' && f.normal[2] < -0.05);
     expect(roof.length).toBeGreaterThan(100);
     // (the floor along its length, under the cliffs' tops: the walls' tops at the site's edge are the rock's, not floor)
-    const walk = P.faces.filter((f) => f.group === 'isekai:trail' && mid(f)[1] > 4 && mid(f)[1] < 68 && mid(f)[2] < C.top - 2).filter((_, i) => i % 7 === 0);
+    const walk = P.faces.filter((f) => /^isekai:(trail|scree)$/.test(f.group) && f.normal[2] > 0.5 && mid(f)[1] > 4 && mid(f)[1] < 68 && mid(f)[2] < C.top - 2).filter((_, i) => i % 7 === 0);
     const over = (p) => roof.some((f) => { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); return p[0] >= Math.min(...xs) && p[0] <= Math.max(...xs) && p[1] >= Math.min(...ys) && p[1] <= Math.max(...ys) && Math.min(...f.corners.map((c) => c[2])) > p[2]; });
     // (every face of the floor under the ceiling but the skylight's)
     expect(walk.length).toBeGreaterThan(50);
@@ -64,7 +85,8 @@ describe('a cavern in a trail', () => {
     const rock = P.faces.filter((f) => f.group === 'isekai:rock'), lamps = P.faces.filter((f) => f.group === 'cave:lamp');
     expect(rock.length).toBeGreaterThan(50);
     expect(lamps.length).toBeGreaterThan(0);
-    const ground = (p) => p.faces.filter((f) => /:(trail|scree)$/.test(f.group) && f.fill).map((f) => luma(f.fill));
+    // (its rock against the open's: the land's boulders and formations, each a fill of colour and light alike)
+    const ground = (p) => p.faces.filter((f) => f.group === 'isekai:rock' && f.fill).map((f) => luma(f.fill));
     const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
     // (its cracks, its torches and their bounce light it to a readable gloom: well under the open day)
     expect(mean(ground(P))).toBeLessThan(mean(ground(open)) * 0.7);

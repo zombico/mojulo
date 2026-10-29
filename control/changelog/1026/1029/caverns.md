@@ -42,6 +42,15 @@ rock (its walls the cliff's rock, its floor scree, a ceiling under the land), li
   their light falling to the floor), a `skylight` (a hole over the walk: the day's sky through it, the sun's shaft), its
   register's lamps along the walk (`light`: torch by default) and the bounce of all of it round the hall (the rock's share
   of the mean light on its floor). An anchor (`kind: 'cavern'`); `scripts/spikes/caves/cavern.mjs` captures it.
+- **Its walk of rock** (`floorKind`, `floorDress`): a cavern's trail is laid in the rock it runs through, in stretches
+  along it (worn bedrock, a limestone pavement; natural flagstones; plates; gravel; cobbles), patched with gravel, its
+  edges frayed face by face to cobbles and rubble into the scree its floor off the walk lies in, stones strewn on it;
+  each surface a tile in the cube's own rock, each face lit by the cavern's own light at its corners
+  (`cavernLightAt`). Only the hall's floor: the walls' tops and the plateau under the ceiling stay the rock's. Its edges
+  are strewn as a dirt trail's are (`local-meru/broken-land.js` strewEdge, now taking its numbers, EDGE's by default),
+  heaped evenly both sides with more and bigger stones reaching further out and in (`CAVERN_EDGE`), so no line shows
+  between the walk and the floor; no grass hat on any stone underground. It is still a trail: its beats and its walk as
+  any trail's, a level's section as any is.
 - **The meru's rock**: a trail with caves wears the meru's gen-7 rock fabric, strata and joints near the eye, inside and
   out.
 - **The geocube card** says it; `scripts/spikes/caves/cave.mjs` captures a cave from the approach, wide, at the mouth,
