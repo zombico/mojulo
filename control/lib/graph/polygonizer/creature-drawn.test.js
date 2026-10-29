@@ -6,6 +6,10 @@ import { bakeLayered } from './station-loft-detail.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered } from './station-loft.js';
 import { keepsSilhouette } from './silhouette-gates.js';
+import { bindLayered } from './station-loft-rig.js';
+import { speciesPlan } from '../fauna/species.js';
+import { withMotion, faunaBones, motionGaits } from '../fauna/rig.js';
+import { PER_RIG } from '../fauna/test-cases.js';
 
 // a digitigrade leg under a hip block, the creature door's grammar: segments chained by their binds
 const LEG = Object.freeze({
@@ -115,4 +119,14 @@ describe('the drawn creature', () => {
     expect(headAtTier(wolf, 170, { eyes: 0.8 }).regions.eye.R).toBeCloseTo(0.8 * R, 9);
     expect(() => expandPlan({ ...LEG, style: { drawn: { eyes: 3 } } })).toThrow(/style.drawn.eyes is a ratio/);
   });
+
+  it('a species bound to its skeleton binds drawn: the weights of a refined station, blended from uneven neighbours, sum to 1', () => {
+    // (a tail loft's stations blend two bones unevenly; the drawn body refines between them, and a blend by u rounded
+    // without settling missed 1 by a millionth, which the bind refused)
+    const id = PER_RIG.find((s) => speciesPlan(s).segments.some((g) => g.name === 'tail' && g.kind === 'loft'));
+    const plan = withMotion(speciesPlan(id), id, [motionGaits(id)[0]]);
+    const recipe = expandPlan(drawnPlan({ ...plan, style: { ...(plan.style || {}), drawn: true } }));
+    const skin = bindLayered(compileLayered(recipe), recipe, faunaBones(id));
+    for (const w of skin.weights) expect(Math.abs(w.reduce((t, x) => t + x, 0) - 1)).toBeLessThan(1e-9);
+  }, 60_000);
 });

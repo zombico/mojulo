@@ -53,8 +53,8 @@ export const DIALS = Object.freeze({
   armor:      { kind: 'dir', keys: ['mass', 'coverage', 'ornament'], door: 'armour card dials' },
   outfit:     { kind: 'dir', keys: ['fit', 'coverage', 'ornament', 'stylize'], door: 'outfit card dials' },
   door:       { kind: 'word', keys: ['hero', 'creature'], door: 'create_character as: hero (the hero door) or creature (the creature loop)' },
-  head:       { kind: 'word', keys: ['dragon', 'bear', 'wolf', 'felid', 'beaked', 'mandibled', 'skull', 'gaunt'], door: 'a library creature head (creature-heads/index.js HEAD_LIBRARY)' },
-  legs:       { kind: 'word', keys: ['plantigrade', 'digitigrade'], door: 'the creature plan\'s legs (THESIS stance)' },
+  head:       { kind: 'word', keys: ['dragon', 'bear', 'wolf', 'felid', 'beaked', 'mandibled', 'serpent', 'skull', 'gaunt'], door: 'a library creature head (creature-heads/index.js HEAD_LIBRARY)' },
+  legs:       { kind: 'word', keys: ['plantigrade', 'digitigrade', 'serpent'], door: 'the creature plan\'s legs (THESIS stance; serpent: a coil, beast/serpent.js)' },
   wings:      { kind: 'word', keys: ['membrane', 'feather'], door: 'the wing patterns (docs/examples/wings)' },
   pass:       { kind: 'word', many: true, keys: ['masses', 'regions', 'ornaments', 'patches', 'correctives', 'hair', 'colour'], door: 'a detail pass of the creature loop (creature-from-plan catalyst)' },
 });

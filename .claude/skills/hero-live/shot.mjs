@@ -6,10 +6,11 @@
 //   node .claude/skills/hero-live/shot.mjs [--out dir] [--shots '<json>'] [--cols n]
 //
 //   --out    live.mjs's out dir (default <tmp>/hero-live); writes shots/sheet.png and one PNG per frame
-//   --shots  a list of { variant?, label?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide', phase?: 0 … 1, hold?: { morph: w },
-//            look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's head as posed, `off` metres
-//            from it in the world: foreArmR the elbow) | { az, el, dist, at, fov } (a free camera: az degrees round from the
-//            front, el up), wire?: bool, bones?: bool }; default, per variant, the first take at mid-phase, face and full body
+//   --shots  a list of { variant?, label?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide'|'vBodySide'|'vBack'|'vMouth', phase?: 0 … 1,
+//            hold?: { morph: w }, look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's head
+//            as posed, `off` metres from it in the world: foreArmR the elbow) | { az, el, dist, at, fov } (a free camera: az
+//            degrees round from the front, el up), wire?: bool, bones?: bool }; default, per variant, the first take at
+//            mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //
 // Needs a Chromium (lib/graph/scene/chromium.js resolves and launches it; MOJULO_CHROMIUM names one it does not find); a

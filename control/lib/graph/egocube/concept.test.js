@@ -2,11 +2,14 @@
 // adornment (found, textile, ritual, craft) joins the gear: one beast across archetypes wears different things.
 import { describe, expect, it } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, CLOTHED_H } from './plan.js';
+import { planFromSheet as planFromSheetOf, CLOTHED_H } from './plan.js';
 import { conceptOf, dressByConcept, CONCEPTS } from './concept.js';
 import { ARCHETYPE_IDS } from './facets.js';
 import { compileOutfit } from '../polygonizer/outfit-plan.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
+// (these read the sixth generation's procedures: a beast-kin sheet asks for the creature biped, plan.js `gen: 6`; the
+// seventh, on the tiered body, is beast/route.test.js's)
+const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...opts });
 
 const dressed = (facets, seed = 1) => planFromSheet(rollEgocube({ seed, facets: { ancestry: 'draconic', ...facets } }), { dress: 'designed' }).create.spec.plan;
 

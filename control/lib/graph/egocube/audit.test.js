@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, contrastPair } from './plan.js';
+import { planFromSheet as planFromSheetOf, contrastPair } from './plan.js';
 import { auditPlan } from './audit.js';
 import { headPlan } from '../creature-heads/index.js';
+// (these read the sixth generation's procedures: a beast-kin sheet asks for the creature biped, plan.js `gen: 6`; the
+// seventh, on the tiered body, is beast/route.test.js's)
+const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...opts });
 
 const warden = () => rollEgocube({ seed: 3, facets: { ancestry: 'lupine' } });
 const first = (sheet) => JSON.parse(JSON.stringify(planFromSheet(sheet).create));
@@ -74,7 +77,7 @@ describe('auditPlan', () => {
 
 describe('contrastPair', () => {
   it('names the choices one facet moved, and says it is not a body to copy', () => {
-    const pair = contrastPair({ seed: 3, facets: { ancestry: 'lupine' } }, { archetype: 'ruler' }, rollEgocube);
+    const pair = contrastPair({ seed: 3, facets: { ancestry: 'lupine' } }, { archetype: 'ruler' }, rollEgocube, { gen: 6 });
     const moved = Object.fromEntries(pair.moved.map((m) => [m.choice, m]));
     expect(moved.lean.a).toBe(18);
     expect(moved.lean.b).toBeLessThan(18);
