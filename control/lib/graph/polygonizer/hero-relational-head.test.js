@@ -13,10 +13,13 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 const refused = (spec) => { try { heroRecord(spec); return null; } catch (e) { return e.message; } };
 
 describe('the relational head on the realistic body', () => {
-  it('is the realistic body\'s word: refused without it, and it takes no face, hair or expression', () => {
+  it('is the realistic body\'s word: refused without it; the door\'s hair and expression it reads onto its face', () => {
     expect(refused({ cast: 'female', head: 'relational' })).toMatch(/head: the relational head is worn by the realistic body/);
     expect(refused({ cast: 'female', form: 'realistic', head: 'relational' })).toBeNull();
-    expect(refused({ cast: 'female', form: 'realistic', head: 'relational', hair: 'bob' })).toMatch(/hair: only the landmark head or the anime head/);
+    // (the hair as the face's cut, the expression as its rest: layered.js scalpOfHair, layered.realistic-words.test.js)
+    expect(refused({ cast: 'female', form: 'realistic', head: 'relational', hair: 'bob' })).toBeNull();
+    expect(heroRecord({ cast: 'female', form: 'realistic', head: 'relational', face: { seed: 2 }, hair: 'bob' }).face.scalp).toBe('bob');
+    expect(refused({ cast: 'female', form: 'realistic', head: 'relational', headPreset: 'female' })).toMatch(/headPreset: only the landmark head or the anime head/);
     expect(heroRecord({ cast: 'female', form: 'realistic', head: 'relational' })).not.toHaveProperty('face');
   });
 

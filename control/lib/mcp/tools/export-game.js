@@ -41,7 +41,7 @@ import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
-import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
+import { withChromiumFetch, withoutChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 import { ELECTRON_TARGET, DESKTOP_GITIGNORE, desktopMainJs, desktopPackageJson, desktopReadmeLines } from '@/lib/graph/game/desktop-shell';
@@ -555,9 +555,9 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     const { emitTableRpgGame, tableRpgBookOf, tableRpgPaper } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
     await write('game.html', emitTableRpgGame(manifest, { title: sketch.title, bookHref: 'book.html' }));
     // the party's and the cast's characters photographed for the book (a browser on the machine; none, and the sheets
-    // print without)
+    // print without: never a download, whatever scope the export runs in)
     const shoot = deps.portraits ?? (await import('./table-rpg-portraits.js')).tableRpgPortraits;
-    const { portraits, foes: foePortraits, items: itemPortraits, missing } = await shoot(manifest, { paper: tableRpgPaper(manifest) });
+    const { portraits, foes: foePortraits, items: itemPortraits, missing } = await withoutChromiumFetch(() => shoot(manifest, { paper: tableRpgPaper(manifest) }));
     const book = tableRpgBookOf(manifest, { title: sketch.title, portraits, foePortraits, itemPortraits }).html, characters = tableRpgBookOf(manifest, { title: sketch.title, parts: ['party'], portraits }).html;
     await write('book.html', book);
     await write('characters.html', characters);

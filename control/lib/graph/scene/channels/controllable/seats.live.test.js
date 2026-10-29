@@ -1,4 +1,4 @@
-// Seats on the World page (an e2e suite: a real browser, skipped when none is installed; pilots.plan.md phase 3): two pads
+// Seats on the World page (an e2e suite: a real browser, skipped when none is installed): two pads
 // sit down by pushing a stick, the first is seat 1 and drives the world's pilot, the second drives its own body; each reads
 // only its own pad. The strip names who is in. Four pads take four seats in the order they press, each its own colour.
 // A world without seats emits no seats code at all.

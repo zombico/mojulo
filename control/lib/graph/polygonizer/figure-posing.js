@@ -175,6 +175,7 @@ export function resolvePose(spec = {}, base = null) {
   if (spec.spine) dof.spine = resolveSpine(spec.spine);
   if (spec.pelvis != null) dof.pelvis = spec.pelvis;          // transverse pelvic rotation (deg; + = right hip forward)
   if (spec.hinge != null) dof.hinge = spec.hinge;             // sagittal pelvic tilt / hip hinge (deg; + = trunk hinges forward over the hips)
+  if (spec.unbound != null) dof.unbound = spec.unbound;       // the ranges × this, the hinges free to bend back (figure-vajra.js UNBOUND: a skeleton's)
   if (spec.shoulders != null) dof.shoulders = spec.shoulders; // transverse shoulder-girdle rotation (deg; + = right shoulder forward)
   for (const k of ['wristL', 'wristR']) if (spec[k] != null) dof[k] = spec[k];   // wrist { flex, deviation } (the hand's ankle)
   for (const k of ['fingersL', 'fingersR']) if (spec[k] != null) dof[k] = spec[k]; // knuckle curl (the hand's toe)
@@ -365,7 +366,7 @@ export function gait(params = {}, base = null) {
   // plantedness: 1 through a foot's stance half, dipping smoothly to 0 mid-swing (so the
   // swing foot lifts and the stance↔stance handoff through double support never snaps).
   const planted = (ph) => { const u = (((ph % 1) + 1) % 1); return 1 - (u >= 0.5 ? 0.5 * (1 - SM.cos(TAU_G * (u - 0.5) / 0.5)) : 0); };
-  return (rawPhase) => {
+  const cycle = (rawPhase) => {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
     const cyc = SM.cos(TAU_G * phase);                       // +1 = left leg fully forward
     const sway = SM.sin(TAU_G * (phase - 0.5));              // lists toward the bearing leg
@@ -425,6 +426,101 @@ export function gait(params = {}, base = null) {
       ...(p.vault ? { plant: { L: planted(phase), R: planted(phase - 0.5) } } : {}),
       ...(p.vault && rise !== null ? { heelLift: { L: heelUp(rise * roll(phase)), R: heelUp(rise * roll(phase - 0.5)) } } : {}),
     };
+  };
+  // the UNDEAD's dials (undeadGait, below): absent, the walk is the cycle itself, byte for byte
+  return UNDEAD_GAIT_KEYS.some((key) => p[key]) ? undeadGait(cycle, p, { swing }) : cycle;
+}
+
+// ── the undead's walks: dials over the walk's own cycle (absent ⇒ the walk as it was) ───────────────────────────────
+// hobble     0 … 1  how lame one leg is (the others below scale with it); hobbleSide −1 the left, +1 the right
+// stiff      0 … 1  the bad leg's knee barely bends: it swings round wide instead of lifting (circumduction)
+// drag       0 … 1  the bad foot scrapes along the floor through its swing, its toe pointed down
+// hitch      0 … 1  the trunk lurches over the bad leg as it bears (the antalgic list)
+// shortStep  0 … 1  the bad leg steps short of the good one
+// lurch      0 … 1  the trunk swings side to side over each bearing foot, the head lolling with it
+// stagger    0 … 1  the timing stumbles: each step comes early or late, unevenly
+// jerk       0 … 1  the motion goes staccato, held and then snapped from pose to pose (a marionette's march)
+// armReach   degrees the arms are held raised forward through the walk (the corpse reaching)
+// THE SKELETON'S (no flesh holds its bones to a person's ranges): the joints UNBOUND and the motion thrown past them
+// unbound    1 … 4  every joint's range × this, the elbows and knees free to bend the wrong way (figure-vajra.js UNBOUND)
+// flail      0 … 1  the arms flung far past the swing, out to the sides on the back swing, the elbows whipping and snapping back
+// loll       0 … 1  the skull swung loose on its neck: lolling side to side, bobbing, turning half round, lagging the step
+// swivel     0 … 1  the hips and the shoulders wrenched round each step, the spine twisting with them
+// snap       0 … 1  the bearing knee snaps backwards through its stance
+// chatter    0 … 1  the jaw clattering open and shut through the walk (a rig with a jaw: the skeleton's)
+export const UNDEAD_GAIT = Object.freeze({ hobble: 0, hobbleSide: 1, stiff: 0, drag: 0, hitch: 0, shortStep: 0, lurch: 0, stagger: 0, jerk: 0, armReach: 0, unbound: 1, flail: 0, loll: 0, swivel: 0, snap: 0, chatter: 0 });
+const UNDEAD_GAIT_KEYS = ['hobble', 'lurch', 'stagger', 'jerk', 'armReach', 'flail', 'loll', 'swivel', 'snap', 'chatter'];
+function undeadGait(cycle, p, { swing }) {
+  const H = Math.max(0, Math.min(1, p.hobble ?? 0)), S = (p.hobbleSide ?? 1) < 0 ? 'L' : 'R', st = H * (p.stiff ?? 0), dg = H * (p.drag ?? 0), ht = H * (p.hitch ?? 0), ss = H * (p.shortStep ?? 0);
+  const lurch = p.lurch ?? 0, stagger = p.stagger ?? 0, jerk = p.jerk ?? 0, reach = p.armReach ?? 0, N = 8;
+  const U = p.unbound ?? 1, fl = p.flail ?? 0, lo = p.loll ?? 0, sw = p.swivel ?? 0, sn = p.snap ?? 0, ch = p.chatter ?? 0;
+  // the time a step is taken at: stumbling (early or late by step), then held and snapped (staccato)
+  const warp = (u) => {
+    let t = u + stagger * 0.045 * (SM.sin(TAU_G * u * 2 + 0.7) + 0.6 * SM.sin(TAU_G * u * 3 + 2.1));
+    if (jerk > 0) { const q = Math.floor(t * N), f = t * N - q, snap = f < 0.55 ? 0 : smoothG((f - 0.55) / 0.45); t = t * (1 - jerk) + ((q + snap) / N) * jerk; }
+    return ((t % 1) + 1) % 1;
+  };
+  return (rawPhase) => {
+    const u = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1, phase = warp(u), d = cycle(phase / (p.cadence || 1));
+    const out = { ...d, hipL: { ...d.hipL }, hipR: { ...d.hipR }, spine: { ...d.spine }, shL: { ...d.shL }, shR: { ...d.shR }, neck: { ...d.neck }, head: { ...d.head }, ...(d.plant ? { plant: { ...d.plant } } : {}) };
+    if (H > 0) {
+      // the bad leg: its swing window and its stance (the left swings over .5 … 1, the right over 0 … .5)
+      const bs = S === 'L' ? swing(phase - 0.5) : swing(phase), bearing = S === 'L' ? Math.max(0, SM.sin(TAU_G * phase)) : Math.max(0, -SM.sin(TAU_G * phase));
+      const hip = S === 'L' ? out.hipL : out.hipR, knee = S === 'L' ? 'kneeL' : 'kneeR', ankle = S === 'L' ? 'ankleL' : 'ankleR';
+      // stiff: the knee's bend drawn in, the leg swung round wide instead (abduction: + yaw on the left, − on the right)
+      out[knee] = p.stanceKnee * (1 - 0.6 * st) + (d[knee] - p.stanceKnee) * (1 - 0.85 * st) * (1 - 0.6 * dg);
+      hip.yaw = (hip.yaw ?? 0) + (S === 'L' ? 1 : -1) * 16 * st * bs;
+      // shortStep: the bad leg's forward reach cut short (forward is + pitch on either side)
+      if (hip.pitch > 0) hip.pitch *= 1 - 0.55 * ss;
+      // drag: the toe pointed down through the swing (plantarflexion is −), the foot kept near the floor
+      out[ankle] = d[ankle] - 26 * dg * bs;
+      // (under ½, so the dragged foot never reads as a stance to a planner that times the feet by their plant)
+      if (out.plant) out.plant[S] = Math.max(out.plant[S], 0.45 * dg * bs);
+      // hitch: the trunk lists over the bad leg as it bears (toward the left is − lateral)
+      out.spine.lateral = (out.spine.lateral ?? 0) + (S === 'L' ? -1 : 1) * 0.18 * ht * bearing;
+    }
+    if (lurch > 0) {
+      // the trunk swings over each bearing foot, the gaze no longer held level against it
+      out.spine.lateral = (out.spine.lateral ?? 0) * (1 + 3 * lurch);
+      out.weight = (d.weight ?? 0) * (1 + 1.5 * lurch);
+      out.head.yaw = (d.head.yaw ?? 0) * (1 - lurch);
+      out.shoulders = (d.shoulders ?? 0) * (1 + lurch);
+    }
+    // the arms held raised forward through the walk (forward is + pitch at the shoulder)
+    if (reach) { out.shL.pitch = (d.shL.pitch ?? 0) + reach; out.shR.pitch = (d.shR.pitch ?? 0) + reach; }
+    // THE SKELETON'S: thrown past the joints (unbound lifts their ranges, so what is thrown here is not cut back)
+    if (U > 1) out.unbound = U;
+    if (sw) {
+      // the hips and the shoulders wrenched round, the spine's twist with them
+      out.pelvis = (d.pelvis ?? 0) * (1 + 6 * sw);
+      out.shoulders = (out.shoulders ?? 0) * (1 + 6 * sw);
+      out.spine.axial = (out.spine.axial ?? 0) * (1 + 4 * sw);
+    }
+    if (fl) {
+      // the arms flung on past the swing (forward is + pitch; the left forward as the cycle's cosine falls), out to the
+      // side on the back swing (abduction: + yaw on the left, − on the right), the elbows whipping a beat behind and
+      // snapping straight and back (a negative fold, which only an unbound elbow takes)
+      const c = SM.cos(TAU_G * phase), whip = SM.sin(TAU_G * (phase - 0.15));
+      out.shL.pitch = (out.shL.pitch ?? 0) - 70 * fl * c; out.shR.pitch = (out.shR.pitch ?? 0) + 70 * fl * c;
+      out.shL.yaw = (out.shL.yaw ?? 0) + 34 * fl * Math.max(0, c); out.shR.yaw = (out.shR.yaw ?? 0) - 34 * fl * Math.max(0, -c);
+      out.elbowL = (d.elbowL ?? 0) + fl * (70 * Math.max(0, whip) - 40 * Math.max(0, -whip));
+      out.elbowR = (d.elbowR ?? 0) + fl * (70 * Math.max(0, -whip) - 40 * Math.max(0, whip));
+    }
+    if (lo) {
+      // the skull loose on the neck: lolling with the stride a beat behind it, bobbing twice a cycle, turning round
+      out.neck.yaw = (out.neck.yaw ?? 0) + 28 * lo * SM.sin(TAU_G * phase + 0.6);
+      out.head.yaw = (out.head.yaw ?? 0) + 48 * lo * SM.sin(TAU_G * phase + 1.1);
+      out.head.pitch = (out.head.pitch ?? 0) + 30 * lo * SM.sin(2 * TAU_G * phase + 0.4);
+      out.head.turn = (out.head.turn ?? 0) + 60 * lo * SM.sin(TAU_G * phase + 1.6);
+    }
+    if (sn) {
+      // the bearing knee snapped back through its stance (the left bears over 0 … .5, the right over .5 … 1)
+      out.kneeL = (out.kneeL ?? d.kneeL) - 45 * sn * Math.max(0, SM.sin(TAU_G * phase));
+      out.kneeR = (out.kneeR ?? d.kneeR) - 45 * sn * Math.max(0, -SM.sin(TAU_G * phase));
+    }
+    // the jaw clattering, six times a cycle
+    if (ch) out.jaw = Math.round(16 * ch * (0.5 + 0.5 * SM.sin(6 * TAU_G * phase)) * 1000) / 1000;
+    return out;
   };
 }
 

@@ -1135,7 +1135,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // no-ops without rule.wall. Its gear added the 'swing' body owner after the wall (the swinger's line: swing.js; a held
     // wall wins) and the 'gear-pose' pass after 'wall-pose'; no-ops without rule.gear.
     // Local multiplayer added the 'seats' pre-step before the groups and the pilot swap (a seat with no player this frame hands its body
-    // to its AI, or holds it: pilots.plan.md); a no-op without spec.seats. And the 'group-leash' pass last, before the
+    // to its AI, or holds it); a no-op without spec.seats. And the 'group-leash' pass last, before the
     // camera (a shared camera's playing pilots held inside the frame's reach); a no-op without seats or with one playing.
     // Lives per seat added the 'seat-falls' pass before it (a seated body below the floor back beside the others, a life
     // spent when the world counts them); a no-op without seats.

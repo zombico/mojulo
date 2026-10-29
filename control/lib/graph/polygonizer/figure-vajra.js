@@ -159,6 +159,19 @@ export const FIGURE_EDGES = [
 // axis (C1–C2), ≈ 80° together — a real cervical rotation; the atlas carries most of a glance.
 export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 180, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, hipRoll: 45, pelvis: 20, hinge: 80, shoulders: 30, knee: 150, wrist: 70, wristTwist: 120, neckTurn: 35, headTurn: 45 };
 
+// UNBOUND (`dof.unbound`, a factor 1 … 4: a body no flesh holds together, the skeleton's): every range above, the spine's
+// caps and drives and the turns, × the factor, and the hinges free to bend the wrong way by (factor − 1) × HYPER degrees
+// (an elbow or a knee snapping back), each hinge's fold at most HINGE_MAX. Absent or 1 ⇒ the ranges as they are, byte for byte.
+const HYPER = 35, HINGE_MAX = 178;
+const unboundOf = (dof) => (Number.isFinite(dof?.unbound) && dof.unbound > 1 ? Math.min(4, dof.unbound) : 1);
+const UNBOUND = new Map();
+function boundsOf(dof) {
+  const U = unboundOf(dof);
+  if (U === 1) return { L: LIMITS, U: 1, hyper: 0 };
+  if (!UNBOUND.has(U)) UNBOUND.set(U, Object.freeze(Object.fromEntries(Object.entries(LIMITS).map(([k, v]) => [k, ['elbow', 'knee'].includes(k) ? Math.min(HINGE_MAX, v * U) : v * U]))));
+  return { L: UNBOUND.get(U), U, hyper: (U - 1) * HYPER };
+}
+
 // ─── The cervical chain — a head aim shared down the neck, within its range ────
 // `dof.cervical` (a hero under laws 15: station-loft-rig.js `cervical`) reads the head and the neck as the cervical
 // spine they stand for, with its real range instead of two 45° cones. The NECK is the lower column (C2–C7, bending at
@@ -363,7 +376,7 @@ function arcTurn(v, a, b) {
   if (s < 1e-12) return d > 0 ? v : rotAxis(v, { x: 0, y: 0, z: 0 }, normalize3(cross3(a, Math.abs(a.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 })), 180);
   return rotAxis(v, { x: 0, y: 0, z: 0 }, { x: c.x / s, y: c.y / s, z: c.z / s }, SM.atan2(s, d) * 180 / Math.PI);
 }
-const turnsOf = (dof) => [clamp(dof.neck?.turn || 0, -LIMITS.neckTurn, LIMITS.neckTurn), clamp(dof.head?.turn || 0, -LIMITS.headTurn, LIMITS.headTurn)];
+const turnsOf = (dof) => { const { L } = boundsOf(dof); return [clamp(dof.neck?.turn || 0, -L.neckTurn, L.neckTurn), clamp(dof.head?.turn || 0, -L.headTurn, L.headTurn)]; };
 
 // Apply the turn to the posed map `m` (after the neck/head swivels; `base` its rest) and emit the twist pairs.
 // `turnTop(pivot, axis, deg)` performs the headTop rotation (articulate rotates the point;
@@ -407,7 +420,7 @@ export const CLAVICLE_IN = 0.375;   // the clavicle's inner end: this share of t
 
 export function articulate(dof = {}, base = null) {
   const m = restFrom(base);
-  const L = LIMITS;
+  const { L, U, hyper } = boundsOf(dof);
   // THE SCAPULA (a base's `scapulaAcr<S>` / `scapulaSup<S>` / `scapulaInf<S>`: a rig's, station-loft-rig.js): the
   // acromion and the blade's two angles, each a SHADOW of the shoulder, turned and carried by every turn and lift the
   // shoulder takes (the trunk's bends, the girdle's), and then turned upward by the scapulohumeral rhythm (the girdle
@@ -419,13 +432,13 @@ export function articulate(dof = {}, base = null) {
   // pivots (proximal→distal, so each rides its parent → the trunk curves).
   if (dof.spine) {
     const { sagittal = 0, lateral = 0, axial = 0 } = dof.spine;
-    let sg = clamp(sagittal, -1, 1), la = clamp(lateral, -1, 1);
-    const ax = clamp(axial, -1, 1);
+    let sg = clamp(sagittal, -U, U), la = clamp(lateral, -U, U);
+    const ax = clamp(axial, -U, U);
     // Unify the curl: forward-fold and side-bend draw from ONE flexibility
     // budget, so a diagonal bend (down AND to the side) rides a single natural
     // cone instead of summing to a superhuman fold. Twist is its own axis.
     const r = SM.hypot(sg, la);
-    if (r > 1) { sg /= r; la /= r; }
+    if (r > U) { sg *= U / r; la *= U / r; }
     for (const j of SPINE_ORDER) {
       const cap = SPINE_CAP[j], sub = SPINE_SUB[j];
       const bend = sg >= 0 ? sg * cap.flex : sg * cap.ext;   // +flex (forward), −extend (arch)
@@ -512,10 +525,10 @@ export function articulate(dof = {}, base = null) {
   }
   if (dof.hipL) swivelSub(m, LEG_L, 'hipL', dof.hipL.yaw || 0, dof.hipL.pitch || 0, L.hip);
   if (dof.hipR) swivelSub(m, LEG_R, 'hipR', dof.hipR.yaw || 0, dof.hipR.pitch || 0, L.hip);
-  hingeFold(m, 'elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, 0, L.elbow));
-  hingeFold(m, 'elbowR', 'wristR', REF_FWD, clamp(dof.elbowR || 0, 0, L.elbow));
-  hingeFold(m, 'kneeL', 'ankleL', REF_BACK, clamp(dof.kneeL || 0, 0, L.knee));
-  hingeFold(m, 'kneeR', 'ankleR', REF_BACK, clamp(dof.kneeR || 0, 0, L.knee));
+  hingeFold(m, 'elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, -hyper, L.elbow));
+  hingeFold(m, 'elbowR', 'wristR', REF_FWD, clamp(dof.elbowR || 0, -hyper, L.elbow));
+  hingeFold(m, 'kneeL', 'ankleL', REF_BACK, clamp(dof.kneeL || 0, -hyper, L.knee));
+  hingeFold(m, 'kneeR', 'ankleR', REF_BACK, clamp(dof.kneeR || 0, -hyper, L.knee));
   // shoulder AXIAL rotation (external/internal) — the 3rd ball-joint DOF. Applied
   // AFTER the elbow bend so it swings the now-bent forearm out of the sagittal
   // plane (e.g. forearm-up for a wave). Rotates the wrist about the upper-arm axis.
@@ -607,7 +620,7 @@ function rodMat(axis, deg) {
 export function articulateTransforms(dof = {}, base = null, opts = {}) {
   const m = restFrom(base);
   const T = Object.fromEntries(Object.keys(BONE_CARRIERS).map((b) => [b, { m: I3(), t: { x: 0, y: 0, z: 0 } }]));
-  const L = LIMITS;
+  const { L, U, hyper } = boundsOf(dof);
   // RIGID UPPER BODY (suits): the torso bone is a single rigid chest plate, so
   // its shoulder sockets must turn WITH it. By default the torso bone rides only
   // the lower spine (pelvis + navel joints), lagging the sockets by the neckHub-
@@ -663,10 +676,10 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
   // ── the exact articulate() sequence ──
   if (dof.spine) {
     const { sagittal = 0, lateral = 0, axial = 0 } = dof.spine;
-    let sg = clamp(sagittal, -1, 1), la = clamp(lateral, -1, 1);
-    const ax = clamp(axial, -1, 1);
+    let sg = clamp(sagittal, -U, U), la = clamp(lateral, -U, U);
+    const ax = clamp(axial, -U, U);
     const r = SM.hypot(sg, la);
-    if (r > 1) { sg /= r; la /= r; }
+    if (r > U) { sg *= U / r; la *= U / r; }
     for (const j of SPINE_ORDER) {
       const cap = SPINE_CAP[j];
       // rigidUpper: the chest bone follows the neckHub joint too (see the flag note) —
@@ -691,10 +704,10 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
   if (dof.shR) swivel(ARMS_R, 'shoulderR', dof.shR.yaw || 0, dof.shR.pitch || 0, L.shoulder);
   if (dof.hipL) swivel(LEG_L, 'hipL', dof.hipL.yaw || 0, dof.hipL.pitch || 0, L.hip);
   if (dof.hipR) swivel(LEG_R, 'hipR', dof.hipR.yaw || 0, dof.hipR.pitch || 0, L.hip);
-  hinge('elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, 0, L.elbow));
-  hinge('elbowR', 'wristR', REF_FWD, clamp(dof.elbowR || 0, 0, L.elbow));
-  hinge('kneeL', 'ankleL', REF_BACK, clamp(dof.kneeL || 0, 0, L.knee));
-  hinge('kneeR', 'ankleR', REF_BACK, clamp(dof.kneeR || 0, 0, L.knee));
+  hinge('elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, -hyper, L.elbow));
+  hinge('elbowR', 'wristR', REF_FWD, clamp(dof.elbowR || 0, -hyper, L.elbow));
+  hinge('kneeL', 'ankleL', REF_BACK, clamp(dof.kneeL || 0, -hyper, L.knee));
+  hinge('kneeR', 'ankleR', REF_BACK, clamp(dof.kneeR || 0, -hyper, L.knee));
   for (const s of ['L', 'R']) {
     const roll = dof['sh' + s] && dof['sh' + s].roll;
     if (!roll) continue;

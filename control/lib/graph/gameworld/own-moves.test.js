@@ -25,7 +25,7 @@ describe('beast foes: a foe whose look names a species is made through the anima
     expect(D.figures['foe-1']).toMatchObject({ walker: true });
     expect(D.figures['tower-1'].library).toBe('quaternius-ual');
     expect(() => readQuick({ goal: 'shoot', foe: { species: 'wolf' } })).toThrow(/carry guns/);
-    expect(() => readQuick({ goal: 'battle', foe: { species: 'wolf', cast: 'male' } })).toThrow(/species alone/);
+    expect(() => readQuick({ goal: 'battle', foe: { species: 'wolf', cast: 'male' } })).toThrow(/what grows it \(not cast\)/);
     expect(() => readQuick({ goal: 'battle', foe: { species: 'gryphonx' } })).toThrow(/foe\.species/);
     expect(() => readGameworld({ ...MEADOWMARK_HERO, battles: { foe: { species: 'gryphonx' } } })).toThrow(/battles\.foe\.species/);
   });

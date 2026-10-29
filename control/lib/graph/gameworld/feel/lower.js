@@ -58,7 +58,7 @@ const LOST = Object.freeze({
   guard: 'the guard: the block, the parry and its window, witch time',
   charge: 'the hold-release charge',
   pound: 'the stomp attack',
-  'land.stomp': 'the stomp on a body\'s head',
+  'land.stomp': 'the stomp on a body\'s head (carried only where a level stands foes: gameworld/foes.js lays it on the hero there)',
   armor: 'offense armor on the moves',
   'moves.string.armor': 'offense armor on the moves',
   glide: 'the glider (a power\'s `glideFall` is the runtime\'s nearest: a capped fall)',

@@ -19,7 +19,7 @@
  * Pure and deterministic; absent from every hero until a caller asks (no door field yet).
  */
 import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
-import { resolveMotion, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
+import { resolveMotion, WALK_MINT, SPRINT_MINT, UNDEAD_GAIT } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
 import { AURAS, heroAura } from './hero-aura.js';
@@ -414,7 +414,7 @@ const MOTION_WORDS = (() => {
   return `have ${plainNames.filter((n) => !['hold', 'guard'].includes(MOTION_GAITS[n].motion)).join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the holds ${HOLD_WORDS.join(', ')}; the guards ${GUARD_WORDS.filter((n) => !/Left$/.test(n)).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
 })();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
-export function validateHeroMotion(motion, dials = { walk: { ...WALK_MINT, ...HERO_WALK }, sprint: { ...SPRINT_MINT, ...HERO_RUN } }) {
+export function validateHeroMotion(motion, dials = { walk: { ...WALK_MINT, ...HERO_WALK, ...UNDEAD_GAIT }, sprint: { ...SPRINT_MINT, ...HERO_RUN } }) {
   if (motion === undefined) return [];
   if (!isObj(motion)) return [`motion: an object of gaits and moves (${MOTION_WORDS}), each true or { <the gait's dials>, tilt, seconds } ({ seconds } for a jump, stop or move)`];
   const errs = [];

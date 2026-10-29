@@ -43,8 +43,8 @@ function posesOf(id, ctx) {
 }
 const still = (p) => ({ ...p, tail: 'rest', loop: 'stare' });
 
-const smooth = (u) => u * u * (3 - 2 * u);
-const snap = (u) => 1 - (1 - u) ** 3;
+export const smooth = (u) => u * u * (3 - 2 * u);
+export const snap = (u) => 1 - (1 - u) ** 3;
 const fallIn = (u) => u * u;   // a body falling gathers speed
 
 /** The reactions: keys `[t, pose, ease?]` over the one-shot, each span eased by the key it arrives at. */
@@ -84,8 +84,9 @@ function rowsOf([x, y, z, w]) {
     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
   ];
 }
-/** Two posed frames blended at t: every bone's rotation slerped, its head and tail eased between them. */
-function blend(A, B, t) {
+/** Two posed frames blended at t: every bone's rotation slerped, its head and tail eased between them (a strike's
+ * one-shot blends its poses the same way: ./strike.js). */
+export function blend(A, B, t) {
   const bones = {};
   for (const [id, a] of Object.entries(A.bones)) {
     const b = B.bones[id];

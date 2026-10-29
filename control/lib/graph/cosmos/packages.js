@@ -19,4 +19,6 @@ export const PACKAGES = Object.freeze({
   'comic-street': { name: 'The breakable street: props that shatter under a blow or a thrown body', effort: 'M' },
   cape: { name: 'The cape: a garment that trails the gait and lifts in a leap', effort: 'M' },
   'comic-panel': { name: 'The comic panel: a beat held as a still with a border, a caption and an onomatopoeia', effort: 'S' },
+  // hostile encounters (10-27): the foe classes' moves and attacks that do not run yet, priced so the sweep ranks them
+  'hostile-encounters': { name: 'Hostile encounters: foe classes on a level, the touch and the stomp, the pace, the hop, the dive and the charge', effort: 'L' },
 });

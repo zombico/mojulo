@@ -14,6 +14,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createGameHandler, getGameVocabHandler } from './create-game.js';
 import { updateSketchHandler } from './sketches.js';
 import { exportGameHandler } from './export-game.js';
+import { withChromiumFetch, chromiumFetchAllowed } from '@/lib/graph/scene/chromium-consent';
 import { emitTableRpgGame, tableRpgBookOf } from '@/lib/graph/table-rpg/table-rpg-manifest';
 import { SUNKEN_CHAPEL } from '@/lib/graph/table-rpg/fixtures/sunken-chapel';
 import { STARTER_PARTY } from '@/lib/graph/table-rpg/table-rpg-starter';
@@ -95,6 +96,10 @@ describe('create_game — a table game (table_rpg)', () => {
     expect(none.book_url).toMatch(/book\.html$/);
     expect(none.note).toMatch(/No PDF was printed \(no browser here\)/);
     await expect(exportGameHandler({ ref: 'tr_well', era: 'gen-6' })).rejects.toThrow(/era is read by a game's World pages/);
+    // the portraits never fetch a browser, even when the export runs inside a caller's consent to one
+    let mayFetch = null;
+    await withChromiumFetch(() => exportGameHandler({ ref: 'tr_well' }, {}, { printPdf: async () => Buffer.from('%PDF-stub'), portraits: async () => { mayFetch = chromiumFetchAllowed(); return { portraits: {}, missing: [] }; } }));
+    expect(mayFetch).toBe(false);
   });
 
   it('the party made real characters through the character loop: a sheet and a body each, recorded on the member', async () => {

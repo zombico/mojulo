@@ -41,14 +41,19 @@ import { LEVEL_ROLES, meruStack } from './meru.js';
 import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
+import { railOf, allowanceOf, rankOf, layWithin } from '../era/compose-purpose.js';
+import { placeHomeWindows } from './home-windows.js';
+import { windowLaws } from './window-laws.js';
+import { readForm, partyWallsOf, planForm, stairWidthOf, FORM_FOOTPRINT } from './house-forms.js';
 import { FURNITURE_LANGUAGES, FURNITURE_LANGUAGE_NAMES, DEFAULT_LANGUAGE, COMPOSED_ROLES, composeForRole } from '../furnishings/languages.js';
 import { FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
-import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
+import { houseStyleOpts, houseStyleKey, homeLook } from './floorplan-styles.js';
 import { doorApproaches } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { buildRoof } from '../architecture/roof.js';
+import { gableSkinFaces } from './gable-skin.js';
 import { surfaceTexture, collectFaceTextures } from '../landscape/surface-textures.js';
 import { tessellateForBake } from '../scene/bake-prep.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
@@ -121,6 +126,10 @@ export const FLOORPLAN_DEFAULTS = {
   doorLeafTint: '#7d5a36', // stained-wood leaf
   entryDoorTint: '#355f74', // painted exterior front door
   facadeStyle: 'siding',    // 'siding' (clapboard, default) | 'brick' (running bond) | 'tofu' (modern block) | 'metal' (sheet cladding)
+                            // | 'stone' (ashlar: a brownstone's) | 'render' (smooth stucco, any storey) | 'boards' (vertical timber)
+  stoneBodyTint: '#7a5a46', stoneJointTint: '#5e4536', stoneUnit: [2.6, 1.15],   // a brownstone's coursed ashlar
+  renderBodyTint: '#ece8df', renderRevealTint: '#cfcac0',                         // a stucco's body and its reveals
+  boardTint: '#2b2826', boardJointTint: '#161412', boardWidth: 0.5,               // vertical boards (charred cedar by default)
   facadeMetal: null,        // metal cladding's surface (metal-surfaces S5): a { metal, finish?, … } spec; default by cladding
   cladding: 'standing-seam', // metal cladding: 'standing-seam' | 'corrugated' | 'panel'
   roofMetal: null,          // a metal-surface spec for the roof sheet (same as roof: { style, metal })
@@ -132,6 +141,7 @@ export const FLOORPLAN_DEFAULTS = {
   brickUnit: [1.9, 0.5],      // [brick length, course height] in ft — stylized ~2× so the bond reads at house scale without a per-brick face explosion
   tofuBodyTint: '#e0dbcf',    // modern stucco/concrete block — clean pale body
   tofuRevealTint: '#8f8a7d',  // crisp shadow line at floor reveals / corners / under the parapet
+  copingTint: '#d6cfbf',      // a masonry gable's coping and a loft window's head (Portland stone)
   porch: false,               // opt-in: a covered front porch (deck + posts + roof) off the entry
   stoop: false,               // opt-in: a raised entry stoop (landing + steps), no roof
   deck: false,                // opt-in: a railed wood deck off the terrace slider (needs terrace:true)
@@ -174,9 +184,26 @@ function roofSpec(roof) {
 // Cap an envelope footprint {x0,x1,y0,y1} with a real roof at wall-top z. The eave
 // overhang covers the small footprint↔outer-wall gap, so the centerline footprint is
 // close enough. Returns buildRoof's { faces, textureKeys }.
-function envelopeRoof(footprint, topZ, o, eyes = null) {
+function envelopeRoof(footprint, topZ, o, eyes = null, gableSkin = null) {
   const fp = { x: footprint.x0, y: footprint.y0, w: footprint.x1 - footprint.x0, d: footprint.y1 - footprint.y0, z: topZ };
-  return buildRoof(fp, { ...roofSpec(o.roof), ...(o.roofMetal ? { metal: o.roofMetal } : {}), light: o.light, roomHeight: o.wallHeight, ...(eyes ? { eyes } : {}) });
+  return buildRoof(fp, { ...roofSpec(o.roof), ...(o.roofMetal ? { metal: o.roofMetal } : {}), light: o.light, roomHeight: o.wallHeight, ...(eyes ? { eyes } : {}), ...(gableSkin ? { gableSkin } : {}) });
+}
+
+// A home's gables (houseLook 2, gable-skin.js) wear the facade of the wall below them: its own tints, read as the facade
+// skins read them, its courses carried on from the top storey's (`courseZ`)
+function gableSkinSpec(o, courseZ) {
+  const D = FLOORPLAN_DEFAULTS, f = o.facadeStyle || 'siding', trim = o.facadeTrimTint || D.facadeTrimTint;
+  const t = o.exteriorThickness ?? o.wallThickness, coping = o.copingTint || D.copingTint;
+  if (f === 'brick') return { facade: f, body: o.brickBodyTint || D.brickBodyTint, joint: o.brickMortarTint || D.brickMortarTint, unit: o.brickUnit || D.brickUnit, trim, coping, t, courseZ };
+  if (f === 'stone') return { facade: f, body: o.stoneBodyTint ?? D.stoneBodyTint, joint: o.stoneJointTint ?? D.stoneJointTint, unit: o.stoneUnit ?? D.stoneUnit, trim, coping, t, courseZ };
+  if (f === 'boards') return { facade: f, body: o.boardTint || D.boardTint, joint: o.boardJointTint || D.boardJointTint, unit: [o.boardWidth || D.boardWidth, 1], trim, coping, t, courseZ };
+  if (f === 'metal') {
+    const mat = resolveMaterial(o.facadeMetal || METAL_CLADDING[Object.hasOwn(METAL_CLADDING, o.cladding ?? '') ? o.cladding : 'standing-seam']);
+    return { facade: f, body: mat.base, joint: scaleHex(mat.base, 0.7), unit: [1.33, 1], trim, coping, t, courseZ };
+  }
+  if (f === 'render') return { facade: f, body: o.renderBodyTint ?? D.renderBodyTint, trim, coping: scaleHex(o.renderBodyTint ?? D.renderBodyTint, 1.04), t, courseZ };
+  if (f === 'tofu') return { facade: f, body: o.tofuBodyTint || D.tofuBodyTint, trim, coping: scaleHex(o.tofuBodyTint || D.tofuBodyTint, 1.06), t, courseZ };
+  return { facade: 'siding', body: o.facadeSidingTint || D.facadeSidingTint, trim, coping: trim, t, courseZ };
 }
 
 // A solid GROUND plane at z, extended past the footprint — the exterior-view datum
@@ -200,6 +227,7 @@ export function floorplanExteriorCameras(fp, zTop, _opts = {}) {
 }
 
 const Q = 1e-3;
+const OBSCURED_GLASS = '#d9dfe0';   // frosted: a bathroom's pane
 const ql = (v) => Math.round(v / Q);            // line/coord bucket key
 const eps = 1e-6;
 
@@ -356,7 +384,9 @@ export function placeOpenings(graph, doors = [], opts = {}) {
     }
   }
   if (o.entryDoor) placeEntryDoor(graph, o);
-  if (o.windows) {
+  // a home's windows (houseLook 2, home-windows.js): placed by the facade's grid and what each room is for
+  if (o.windows && (o.houseLook ?? 1) >= 2) placeHomeWindows(graph, o, { runAtPoint, tol: matchTol, shared: o._homeWindows ?? null });
+  else if (o.windows) {
     // WINDOWS scale with the ROOM (small rooms → small windows, big rooms → bigger windows):
     // iterate cells, and on each EXTERIOR wall place a window sized to that wall's length,
     // with a long wall getting a ROW of them. So a bathroom gets one small window and a great
@@ -380,6 +410,10 @@ export function placeOpenings(graph, doors = [], opts = {}) {
       if (Math.abs(cy1 - fp.y1) < btol) edges.push(['h', cy1, cx0, cx1]);
       if (Math.abs(cx0 - fp.x0) < btol) edges.push(['v', cx0, cy0, cy1]);
       if (Math.abs(cx1 - fp.x1) < btol) edges.push(['v', cx1, cy0, cy1]);
+      // (a townhouse's party walls take no window: house-forms.js)
+      const party = partyWallsOf(o);
+      if (party.includes('W')) { const i = edges.findIndex((e) => e[0] === 'v' && e[1] === cx0 && Math.abs(cx0 - fp.x0) < btol); if (i >= 0) edges.splice(i, 1); }
+      if (party.includes('E')) { const i = edges.findIndex((e) => e[0] === 'v' && e[1] === cx1 && Math.abs(cx1 - fp.x1) < btol); if (i >= 0) edges.splice(i, 1); }
       for (const [orient, at, lo, hi] of edges) {
         const L = hi - lo;
         const ww = Math.max(2.2, Math.min(6, L * 0.38)) * styleW;       // unit size ∝ the room's wall, capped
@@ -796,6 +830,16 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // `furnishing: 'fitted'` composes the same pieces, and its fixtures are already built at true size
   else if (o.furnishing === 'composed' || fitted) elements = composedPieces(elements, rect, seed, o);
   if (!elements.length) return [];
+  // a game's rail (era/compose-purpose.js): the room's pieces laid in their rank within its allowance, each costed at
+  // the game's grain; what it left out is said in the spend. A show, or a recipe without a purpose, lays them all.
+  const allowance = allowanceOf(o);
+  if (allowance != null) {
+    const box = { x0, x1, y0, y1 }, roleOf = (e) => { const id = pieceOfType(e.type); return id ? FURNISHINGS[id].role : null; };
+    const laid = layWithin(elements, { allowance, costOf: (e) => roomElementFaces([e], box, baseZ, o).length, rankOf: (e) => rankOf(roleOf(e)) });
+    if (o._spend) o._spend.push({ glyph, at: [r2(x0), r2(y0), r2(baseZ)], spent: laid.spent, allowance, ...(laid.over ? { over: true } : {}), kept: laid.kept.length, dropped: laid.dropped.map((d) => ({ type: d.piece.type, cost: d.cost })) });
+    elements = laid.kept;
+    if (!elements.length) return [];
+  }
   // a reader's collector (structure/read.js): the pieces as data, beside the faces; absent, nothing reads it
   if (o._objects) o._objects.push({ source: o.furnishing === 'composed' || fitted ? (fitted ? 'fitted' : 'composed') : o.furnishing === 'constructed' ? 'constructed' : 'archetype', glyph, baseZ, interior: { x0, x1, y0, y1 }, elements });
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
@@ -888,6 +932,8 @@ function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
       : { light: o.light }),
     // share mode: the tabletop props (a place setting, a laptop) are their meshes, at feet
     ...(o.furnishScale === 'share' ? { tabletop: { assets: true, heightScale: 1 / FLOORPLAN_METERS_PER_UNIT } } : {}),
+    // a game's rail (era/compose-purpose.js): each piece at the coarser grain (in feet), nothing set on a table
+    ...(railOf(o.purpose)?.grain ? { readable: { cell: railOf(o.purpose).grain / FLOORPLAN_METERS_PER_UNIT }, tabletop: false } : {}),
     includeShell: false, deferDiffusion: false,
   });
   return out.faces || [];
@@ -1275,50 +1321,60 @@ function openingAssemblyFaces(run, op, baseZ, o) {
   if (isWindow) {
     bar(a, b, z0, z0 + fw);               // sill board
     const ga = a + fw, gb = b - fw, gz0 = z0 + fw, gz1 = z1 - fw;
-    faces.push(planeQuad(run, ga, gb, gz0, gz1,
-      o.glassTint || FLOORPLAN_DEFAULTS.glassTint, { water: true, doubleSided: true }));   // glass behind
+    // (a bathroom's glass is obscured, home-windows.js: a pale frosted pane, no reflection to see through)
+    faces.push(op.obscured ? planeQuad(run, ga, gb, gz0, gz1, OBSCURED_GLASS, { doubleSided: true })
+      : planeQuad(run, ga, gb, gz0, gz1, o.glassTint || FLOORPLAN_DEFAULTS.glassTint, { water: true, doubleSided: true }));   // glass behind
     // MUNTINS — the divided-light pattern (a window 'concept'), proud of the glass. Style is
     // explicit (op.style / o.windowStyle) or defaulted from the facade: siding→colonial grid,
     // brick→2-over-2 double-hung, tofu→clean picture pane.
     const style = winStyle;
-    const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : 0.8);
-    const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
-    const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
-    if (style === 'casement' || (style === 'plain' && W > (o.windowMullionAt ?? FLOORPLAN_DEFAULTS.windowMullionAt))) {
-      vbar((ga + gb) / 2);                                              // paired casement / 2-sash
-    } else if (style === 'double-hung') {
-      hbar((gz0 + gz1) / 2); vbar((ga + gb) / 2);                       // 2-over-2: meeting rail + centre muntin
-    } else if (style === 'colonial') {
-      const cols = Math.max(2, Math.round(W / 1.3)), rows = Math.max(2, Math.round(Hh / 1.7));
-      for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // divided-light grid (lite count scales with size)
-      for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
-    } else if (style === 'transom') {
-      hbar(gz1 - Math.min(0.8, Hh * 0.3));                              // a transom lite over the main sash
-    } else if (style === 'french') {
-      vbar((ga + gb) / 2);                                             // paired french doors: centre mullion...
-      const lites = Math.max(3, Math.round(Hh / 1.5));                 // ...with a tall stack of divided lights
-      for (let j = 1; j < lites; j += 1) hbar(gz0 + (j * Hh) / lites);
-    } else if (style === 'german') {
-      hbar(gz1 - Math.min(1.3, Hh * 0.26));                            // european tilt-turn: a top transom (Oberlicht)...
-      vbar((ga + gb) / 2);                                            // ...over two large clean sashes
-    } else if (style === 'crittall') {
-      const cols = Math.max(2, Math.round(W / 0.9)), rows = Math.max(3, Math.round(Hh / 0.75));
-      for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // a fine steel grid of small lights
-      for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
-    } else if (style === 'prairie') {
-      const m = Math.min(0.45, W * 0.15, Hh * 0.15);                    // narrow border lights round a clear centre
-      vbar(ga + m); vbar(gb - m); hbar(gz0 + m); hbar(gz1 - m);
-    } else if (style === 'cottage') {
-      const split = gz0 + Hh * 0.66;                                    // the top third divided, the lower sash clear
-      hbar(split);
-      const cols = Math.max(2, Math.round(W / 1.1));
-      for (let i = 1; i < cols; i += 1) bar(ga + (i * W) / cols - mt / 2, ga + (i * W) / cols + mt / 2, split, gz1);
-    } else if (style === 'six-over-six') {
-      hbar((gz0 + gz1) / 2);                                            // two sashes, each three across and two up
-      for (let i = 1; i < 3; i += 1) vbar(ga + (i * W) / 3);
-      hbar(gz0 + Hh / 4); hbar(gz0 + (3 * Hh) / 4);
-    }
-    // 'picture' → no muntins (a single clean pane)
+    // the divided lights of one unit across [ga, gb]; a mulled pair (home-windows.js) is two units either side of a
+    // mullion the frame's width
+    const lites = (ga, gb) => {
+      // (a home's muntins, houseLook 2, are a home's: slim bars, not the frame's own width)
+      const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : (o.houseLook ?? 1) >= 2 ? 0.5 : 0.8);
+      const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
+      const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
+      if (style === 'casement' || (style === 'plain' && W > (o.windowMullionAt ?? FLOORPLAN_DEFAULTS.windowMullionAt))) {
+        vbar((ga + gb) / 2);                                              // paired casement / 2-sash
+      } else if (style === 'double-hung') {
+        hbar((gz0 + gz1) / 2); vbar((ga + gb) / 2);                       // 2-over-2: meeting rail + centre muntin
+      } else if (style === 'colonial') {
+        const cols = Math.max(2, Math.round(W / 1.3)), rows = Math.max(2, Math.round(Hh / 1.7));
+        for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // divided-light grid (lite count scales with size)
+        for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
+      } else if (style === 'transom') {
+        hbar(gz1 - Math.min(0.8, Hh * 0.3));                              // a transom lite over the main sash
+      } else if (style === 'french') {
+        vbar((ga + gb) / 2);                                             // paired french doors: centre mullion...
+        const lites = Math.max(3, Math.round(Hh / 1.5));                 // ...with a tall stack of divided lights
+        for (let j = 1; j < lites; j += 1) hbar(gz0 + (j * Hh) / lites);
+      } else if (style === 'german') {
+        hbar(gz1 - Math.min(1.3, Hh * 0.26));                            // european tilt-turn: a top transom (Oberlicht)...
+        vbar((ga + gb) / 2);                                            // ...over two large clean sashes
+      } else if (style === 'crittall') {
+        const cols = Math.max(2, Math.round(W / 0.9)), rows = Math.max(3, Math.round(Hh / 0.75));
+        for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // a fine steel grid of small lights
+        for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
+      } else if (style === 'prairie') {
+        const m = Math.min(0.45, W * 0.15, Hh * 0.15);                    // narrow border lights round a clear centre
+        vbar(ga + m); vbar(gb - m); hbar(gz0 + m); hbar(gz1 - m);
+      } else if (style === 'cottage') {
+        const split = gz0 + Hh * 0.66;                                    // the top third divided, the lower sash clear
+        hbar(split);
+        const cols = Math.max(2, Math.round(W / 1.1));
+        for (let i = 1; i < cols; i += 1) bar(ga + (i * W) / cols - mt / 2, ga + (i * W) / cols + mt / 2, split, gz1);
+      } else if (style === 'slider') {
+        const mid = (ga + gb) / 2;                                        // two sashes sliding past: the meeting stiles side by side
+        vbar(mid - mt * 0.7); vbar(mid + mt * 0.7);
+      } else if (style === 'six-over-six') {
+        hbar((gz0 + gz1) / 2);                                            // two sashes, each three across and two up
+        for (let i = 1; i < 3; i += 1) vbar(ga + (i * W) / 3);
+        hbar(gz0 + Hh / 4); hbar(gz0 + (3 * Hh) / 4);
+      }
+      // 'picture' → no muntins (a single clean pane)
+    };
+    if (op.pair) { const mid = (ga + gb) / 2; bar(mid - fw / 2, mid + fw / 2, gz0, gz1); lites(ga, mid - fw / 2); lites(mid + fw / 2, gb); } else lites(ga, gb);
   } else {
     if (op.double) { const mid = (a + b) / 2; bar(mid - fw / 2, mid + fw / 2, z0, z1); }   // paired door: meeting mullion
     // leaf per opening KIND: cased = open archway (no leaf); sliding = panel slid along the
@@ -1577,6 +1633,10 @@ function facadeDecor(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   if (o.facadeStyle === 'brick') return brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   if (o.facadeStyle === 'tofu') return tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   if (o.facadeStyle === 'metal') return metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
+  // (stone is coursed ashlar on the brick's bond, its units large; render the tofu's planar body at any storey height)
+  if (o.facadeStyle === 'stone') return brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, { ...o, brickBodyTint: o.stoneBodyTint ?? FLOORPLAN_DEFAULTS.stoneBodyTint, brickMortarTint: o.stoneJointTint ?? FLOORPLAN_DEFAULTS.stoneJointTint, brickUnit: o.stoneUnit ?? FLOORPLAN_DEFAULTS.stoneUnit });
+  if (o.facadeStyle === 'render') return tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, { ...o, tofuBodyTint: o.renderBodyTint ?? FLOORPLAN_DEFAULTS.renderBodyTint, tofuRevealTint: o.renderRevealTint ?? FLOORPLAN_DEFAULTS.renderRevealTint });
+  if (o.facadeStyle === 'boards') return boardFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   const faces = [];
   const side = run.exteriorSide;
   if (!side) return faces;
@@ -1712,6 +1772,33 @@ function brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   const sz0 = Math.max(fz0, baseZ + H - ch * 1.4), sz1 = baseZ + H - jt;
   rect(s0, s1, sz0 - jt, sz0, mortar, 0.05);
   for (let x = Math.floor(s0 / (bw / 2)) * (bw / 2); x <= s1; x += bw / 2) rect(x, x + jt, sz0, sz1, mortar, 0.05);
+  return faces;
+}
+
+/** Board facade — vertical timber boards on a dark open joint, a plinth below and a slim head board: charred cedar
+ *  (yakisugi) on a Japanese house, larch or cedar on a Nordic or Dutch one. Mirrors the other skins' outward plane. */
+function boardFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
+  const faces = [];
+  const side = run.exteriorSide;
+  if (!side) return faces;
+  const tHalf = t / 2;
+  const N = run.orientation === 'h' ? [0, side, 0] : [side, 0, 0];
+  const board = o.boardTint || FLOORPLAN_DEFAULTS.boardTint, joint = o.boardJointTint || FLOORPLAN_DEFAULTS.boardJointTint;
+  const bw = o.boardWidth || FLOORPLAN_DEFAULTS.boardWidth, gap = 0.035;
+  const rect = (a0, a1, lo, hi, color, lift) => {
+    const A0 = Math.max(s0, a0), A1 = Math.min(s1, a1), L = Math.max(zb, lo), Hi = Math.min(zt, hi);
+    if (A1 - A0 < 0.02 || Hi - L < 0.02) return;
+    const off = side * (tHalf + lift);
+    const corners = run.orientation === 'h'
+      ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
+      : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, group: 'facade:skin' });
+  };
+  rect(s0, s1, baseZ, baseZ + 0.8, o.facadeWaterTableTint || FLOORPLAN_DEFAULTS.facadeWaterTableTint, 0.05);  // plinth
+  rect(s0, s1, baseZ + 0.8, baseZ + H, joint, 0.03);                                                           // the open joint
+  // the boards, each a hair apart, every other one a shade off (cut from different stock)
+  for (let a = Math.floor(s0 / bw) * bw, i = 0; a < s1; a += bw, i += 1) rect(a + gap / 2, a + bw - gap / 2, baseZ + 0.8, baseZ + H - 0.2, scaleHex(board, i % 2 ? 0.94 : 1), 0.045);
+  rect(s0, s1, baseZ + H - 0.2, baseZ + H, scaleHex(board, 0.85), 0.05);                                       // head board
   return faces;
 }
 
@@ -1951,7 +2038,7 @@ function fitWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o, fit) {
 export function structurizeFloorplan(input = {}, opts = {}) {
   // a house style (floorplan-styles.js) supplies defaults under the manifest's own keys; the
   // stacked house resolves it once and passes `_styled`, so a level never re-draws it
-  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto' });
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto', ...homeLook(input, opts) });
   const given = { ...styled, ...opts };
   const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...given };
   const plan = Array.isArray(input.rooms)
@@ -2211,8 +2298,18 @@ export function renderFloorplanToHtml(input = {}, opts = {}) {
  * inline the three.js vendor bundle (required by renderWorldToPng for headless
  * rasterization).
  */
+
+// a game's spend, room by room (era/compose-purpose.js): collected while the rooms are furnished, read out beside the
+// faces as `rails` (the page draws none of it); absent a purpose with an allowance, no collector and no key
+const r2 = (v) => Math.round(v * 100) / 100;
+const spendOf = (opts) => (allowanceOf(opts) != null ? [] : null);
+function railsReport(opts, spend) {
+  return { purpose: opts.purpose, grain: railOf(opts.purpose).grain, allowance: { room: allowanceOf(opts) }, spent: spend.reduce((n, r) => n + r.spent, 0), rooms: spend };
+}
+
 export function assembleFloorWorldScene(input = {}, opts = {}) {
-  const s = structurizeFloorplan(input, { ...opts, _worldTier: true });   // the walk tier: a one-cell room gets its ceiling
+  const spend = spendOf(opts);
+  const s = structurizeFloorplan(input, { ...opts, _worldTier: true, ...(spend ? { _spend: spend } : {}) });   // the walk tier: a one-cell room gets its ceiling
   const exterior = opts.view === 'exterior';
   const viewBox = opts.viewBox || { width: 1120, height: 760 };
   const wallHeight = opts.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight;
@@ -2246,6 +2343,7 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     // and the engine score scale by this so every importer receives metres (the engine-leg
     // finding: the lounge landed in Unreal at 3.28× with a 10 m ceiling).
     metersPerUnit: s.metersPerUnit,
+    ...(spend ? { rails: railsReport(opts, spend) } : {}),
   });
 }
 
@@ -2671,10 +2769,13 @@ export function placeStairs(footprint, meru, spec = {}, opts = {}) {
   const build = spec.switchback ? buildSwitchbackFlight : buildStairFlight;
   const flight = build({
     anchor, direction,
-    width: spec.width ?? o.width, going: spec.going ?? o.going, riser: spec.riser ?? o.riser,
+    // (the stair's width is the stair's: a house's own `width`, its footprint, rides in `opts` and used to become
+    // the flight's, a stair as wide as the house cut through its every slab)
+    width: spec.width ?? STAIR_DEFAULTS.width, going: spec.going ?? o.going, riser: spec.riser ?? o.riser,
     baseZ: lowerZ, totalRise: upperZ - lowerZ, treadTint: o.treadTint, riserTint: o.riserTint,
     railTint: o.railTint, postTint: o.postTint, railHeight: o.railHeight, wellGap: o.wellGap, light: opts.light,
-    maxRun: (along - 2 * (t + margin)) * 0.7,
+    // (a form's stair zone is laid for its whole flight: that is its run, never the detached house's share of the length)
+    maxRun: spec.maxRun ?? (along - 2 * (t + margin)) * 0.7,
   });
   return { fromIndex, toIndex, upperIndex, ...flight };
 }
@@ -2708,6 +2809,12 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
     : { anchor: [r.x + inset + width, r.y + inset], direction: '+y', hostRoomIndex: i, hostGlyph: r.glyph };
 }
 
+/** The stair zone's span across a program house's spine: a switchback's two flights and its well, or one flight, each
+ * as wide as the widest flight asked for (placeStairs lays each at its own width, so its zone must hold it). */
+export function stairSpanOf(stairSpecs, switchbackDefault = false) {
+  const w = stairWidthOf(stairSpecs);
+  return stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? 2 * w + STAIR_DEFAULTS.wellGap + 1.2 : w + 0.4;
+}
 /**
  * Structurize a multi-level house: each level reuses the floorplan glyphs at its
  * own baseZ along the meru. Shared footprint → the envelope stacks into one shell.
@@ -2718,7 +2825,7 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
  * @returns {{ meru, levels:[{ index, role, baseZ, structure }], faces, footprint }}
  */
 export function structurizeHouse(input = {}, opts = {}) {
-  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto' });
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto', ...homeLook(input, opts) });
   const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...styled, ...opts, _styled: true };
   // tofu is a HIGH-CEILING modern read — raise the storey heights for that style (the meru
   // stacks the taller floors, stairs scale their rise to match) unless the caller set heights.
@@ -2736,8 +2843,10 @@ export function structurizeHouse(input = {}, opts = {}) {
   // tier bounds the program AND supplies a sensible default footprint (house-scale, not
   // dorm) when the caller doesn't pass width/height. Explicit width/height always win.
   const tierCfg = resolveTier(input.tier);
-  const width = input.width ?? tierCfg.footprint.width;
-  const height = input.height ?? tierCfg.footprint.height;
+  // a house's form (house-forms.js): a townhouse or a block plans every storey as it is lived in, on its own footprint
+  const form = readForm(input);
+  const width = input.width ?? (FORM_FOOTPRINT[form] || tierCfg.footprint).width;
+  const height = input.height ?? (FORM_FOOTPRINT[form] || tierCfg.footprint).height;
 
   // footprint is deterministic from width/height (generatePlan tiles [2..W-2]×[2..H-2]),
   // so stairs can be placed + their slots cut before the levels are extruded.
@@ -2767,17 +2876,27 @@ export function structurizeHouse(input = {}, opts = {}) {
   // so the reserved stair span (and the upper landing that must cover it) grows to fit.
   // design.repair: the generator keeps a passage past the stair (floorplan-design.js names its width)
   const repairPassage = o.design && o.design.repair ? designRules(o.design, framing ? framing.tradition : null).passage : null;
-  let switchbackDefault = useProgram;
+  let switchbackDefault = useProgram && form === 'detached';   // (a form's stair is a straight flight in its hall)
   let stairRun = null;
-  const spanFor = () => (stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4));
+  const stairW = stairWidthOf(stairSpecs);
+  const spanFor = () => stairSpanOf(stairSpecs, switchbackDefault);
   let stairSpan = spanFor();
   // ground first so its open core fixes the shared stair zone the others must keep open.
   const order = [...resolved].sort((a, b) => (a.index === 0 ? -1 : b.index === 0 ? 1 : a.index - b.index));
   const planByIndex = new Map();
   let stairZone = null, stairDir = '+x';
+  let formPlan = null;
   const makePlans = () => { for (const r of order) {
     if (Array.isArray(r.rooms) && r.rooms.length) {
       planByIndex.set(r.index, { rooms: r.rooms, halls: r.halls || [], doors: r.doors || [] });
+      continue;
+    }
+    if (form !== 'detached') {
+      // (one stair zone for every storey: sized for the tallest floor-to-floor the stack has)
+      const rise = Math.max(o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight, o.upperHeight ?? FLOORPLAN_DEFAULTS.upperHeight) + (o.floorDrop ?? FLOORPLAN_DEFAULTS.floorDrop);
+      formPlan ||= planForm(form, { width, height, indices: resolved.map((x) => x.index), rise, seed: input.seed ?? 1, stairWidth: stairW });
+      planByIndex.set(r.index, formPlan.plans.get(r.index));
+      stairZone = formPlan.stairZone; stairDir = formPlan.stairDir;
       continue;
     }
     if (useProgram) {
@@ -2795,7 +2914,7 @@ export function structurizeHouse(input = {}, opts = {}) {
   makePlans();
   // (repair) a U-return whose zone and a passage past it would cost the upper floor a row of rooms gives way to a
   // straight flight along the hall, its zone running on to the landing at its head
-  if (repairPassage != null && useProgram && hasUpper && stairZone && stairSpecs.some((s) => s.switchback === undefined)
+  if (form === 'detached' && repairPassage != null && useProgram && hasUpper && stairZone && stairSpecs.some((s) => s.switchback === undefined)
     && !upperHallFits({ width, height, inset: 2, reservedOpen: stairZone, passage: repairPassage })) {
     switchbackDefault = false;
     stairSpan = spanFor();
@@ -2830,7 +2949,8 @@ export function structurizeHouse(input = {}, opts = {}) {
       : null;
     const core = programCore || (s.anchor ? null
       : chooseStairCore(planByIndex.get(upperIdx), fpGuess, { width, runLength: estRun, margin: STAIR_DEFAULTS.margin, t: o.wallThickness }));
-    const placed = placeStairs(fpGuess, meru, { ...s, switchback: s.switchback ?? switchbackDefault, fromZ, toZ, ...(core ? { anchor: core.anchor, direction: core.direction } : {}) }, { ...o });
+    const formRun = formPlan && stairZone ? { maxRun: stairDir.includes('y') ? stairZone.y1 - stairZone.y0 : stairZone.x1 - stairZone.x0 } : {};
+    const placed = placeStairs(fpGuess, meru, { ...s, switchback: s.switchback ?? switchbackDefault, fromZ, toZ, ...(core ? { anchor: core.anchor, direction: core.direction } : {}), ...formRun }, { ...o });
     return { ...placed, core };
   });
   const slabHolesByIndex = {};
@@ -2853,6 +2973,8 @@ export function structurizeHouse(input = {}, opts = {}) {
   const faces = [];
   const levels = [];
   let footprint = null;
+  // a home's windows (houseLook 2): one grid per facade and the axes glazed below, shared up the stack
+  const homeShared = o.windows && (o.houseLook ?? 1) >= 2 ? { axes: new Map(), glazed: new Set(), compass: null } : null;
   for (const r of resolved) {
     const index = r.index;
     if (exterior && index < 0) continue;   // hide the basement in the exterior read
@@ -2872,6 +2994,7 @@ export function structurizeHouse(input = {}, opts = {}) {
         ceilings: (exterior && index === maxIndex) ? true : (r.ceilings ?? o.ceilings),
         ...(framedView ? { _framed: true } : {}),
         ...(o.fitOut ? { _levelIndex: index } : {}),   // the storey a fit-out names (fitOutOf)
+        ...(homeShared ? { _homeWindows: homeShared } : {}),
       },
     );
     faces.push(...s.faces);
@@ -2925,7 +3048,15 @@ export function structurizeHouse(input = {}, opts = {}) {
     // a covered roof picks its tiles' level from the house's cameras, as the frame does
     const covered = !!roofSpec(o.roof).covering;
     const eyes = covered ? houseEyes(footprint, levels[0].baseZ - o.floorDrop, top.baseZ + top.height + (footprint.y1 - footprint.y0) / 2, { cameras: o.cameras }) : null;
-    const r = envelopeRoof(footprint, top.baseZ + top.height, o, eyes);
+    // a home of look 2 carries its facade up its gables (gable-skin.js); its street gable is the one on the front door's wall
+    let gableSkin = null;
+    if (o.facadeDecor && (o.houseLook ?? 1) >= 2) {
+      const spec = gableSkinSpec(o, top.baseZ + 1.05);
+      const entry = levels.flatMap((L) => L.structure.wallGraph.runs).find((r) => !r.interior && (r.openings || []).some((op) => op.entry));
+      const onEntry = (c) => !!entry && c.every((p) => Math.abs(p[entry.orientation === 'h' ? 1 : 0] - entry.at) < 1);
+      gableSkin = (corners, info) => gableSkinFaces(corners, spec, { ...info, street: onEntry(corners) });
+    }
+    const r = envelopeRoof(footprint, top.baseZ + top.height, o, eyes, gableSkin);
     faces.push(...r.faces);
     roofTextureKeys = r.textureKeys;
     if (r.repeats) roofRepeats.push(...r.repeats.map((x) => ({ ...x, roof: true })));
@@ -2975,7 +3106,9 @@ export function structurizeHouse(input = {}, opts = {}) {
     const repeats = [...roofRepeats, ...fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }))];
     return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
   }
-  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
+  // a home's windows read as an architect reads the drawings (window-laws.js): absent houseLook 2, no key
+  const windowsRead = homeShared ? { compass: homeShared.compass, ...windowLaws(levels) } : null;
+  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}), ...(windowsRead ? { windows: windowsRead } : {}) };
 }
 
 /** Cameras for a multi-level house (pulls back to take in the whole stack — and lot). */
@@ -3013,7 +3146,8 @@ function camerasForBounds(fp, zMin, zMax, viewBox) {
  * explode:0 keeps the true flush stack; exterior is a solid massing and is never exploded.
  */
 export function assembleHouseWorldScene(input = {}, opts = {}) {
-  const house = structurizeHouse(input, opts);
+  const spend = spendOf(opts);
+  const house = structurizeHouse(input, spend ? { ...opts, _spend: spend } : opts);
   const exterior = opts.view === 'exterior';
   const viewBox = opts.viewBox || { width: 1120, height: 840 };
   const gap = exterior ? 0 : (opts.explode || 0);   // exterior is a solid massing — never exploded
@@ -3062,6 +3196,7 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
     ...(repeats.length ? { repeats } : {}),
     // authored in FEET like the single floor; the GLB root and engine score scale by this.
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
+    ...(spend ? { rails: railsReport(opts, spend) } : {}),
   });
 }
 

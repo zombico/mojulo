@@ -17,16 +17,21 @@ import { safeJson } from '../emit-util.js';
 //   parallax  near the eye each tile's height (the ORM's blue, 1 the crest) is marched along the view (`pom`: steps, and the
 //             distances it fades out between), so a joint sinks and a stone stands; far off the map lies flat
 //   tone      the frame is tone-mapped (three's Neutral, exposure 1: what the solve solved for)
+//   beats     a lamp a beat changes (`beat`: alarm, pulse, flicker; its `rate`, era/compose-plot.js BEATS) is in no corner's
+//             bake: the page lays its light whole (its falloff and its cosine on the face, no shadow), its key swung by the
+//             beat in time. Only a room with one carries this code
 //
 // A mesh with no baked light, and the `keep` groups (the torches' flames and iron, glass), stay as built and untoned; the
 // `panes` (see-through glass) reflect the room by Fresnel from `f0`, and the painted glints are hidden. The
 // live light's actors' shadow (channels/cast-shadows.js) patches these materials as it patched the paint's.
 // `__mojForm` is the machine gate's probe: the lamps, the live set, the maps and how each was read, the materials made.
 // Absent `form` ⇒ NOT emitted.
-// `cfg`: { lights: [{ at, key, radius, live }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
+// `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
 //          void?: '#rrggbb' (a toned room's) }
 export function formScript(cfg) {
+  // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
+  const NB = cfg.lights.filter((l) => l.beat).length;
   return `
 // --- form: a room's surfaces as material over its baked light (gen-7) ---
 const __mojForm = (function () {
@@ -34,9 +39,12 @@ const __mojForm = (function () {
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
   const U = { uFLp: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uFLk: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
     uFLr: { value: new Array(K).fill(1) }, uFFall: { value: F.fall }, uFAmb: { value: new THREE.Vector3(...F.ambient) }, uFPom: { value: new THREE.Vector4(F.pom.near, F.pom.far, F.relief.near, F.relief.far) } };
-  const VERT = 'attribute vec3 aLit;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n';
+${NB ? `  const BL = F.lights.map((l, i) => ({ l, i })).filter(({ l }) => l.beat);
+  Object.assign(U, { uFBp: { value: BL.map(() => new THREE.Vector3()) }, uFBk: { value: BL.map(() => new THREE.Vector3()) }, uFBr: { value: BL.map(({ l }) => l.radius) } });
+` : ''}  const VERT = 'attribute vec3 aLit;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n';
   const FRAG = 'uniform vec3 uFLp[' + K + '];\\nuniform vec3 uFLk[' + K + '];\\nuniform float uFLr[' + K + '];\\nuniform float uFFall;\\nuniform vec3 uFAmb;\\nuniform vec4 uFPom;\\nuniform vec3 uFMean;\\nuniform float uFDepth;\\nuniform sampler2D uFNorm;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n'
-    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n';
+    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n'${NB ? `
+    + 'uniform vec3 uFBp[${NB}];\\nuniform vec3 uFBk[${NB}];\\nuniform float uFBr[${NB}];\\n'` : ''};
   // the face's own frame from the screen's derivatives (its normal, and the tile's directions on it), then the parallax:
   // the tile's height marched along the view in that frame, near the eye
   const POM = \`vec3 fq0 = dFdx( vFPos ), fq1 = dFdy( vFPos ), fN = normalize( cross( fq0, fq1 ) ), fT = vec3( 0.0 ), fB = vec3( 0.0 );
@@ -86,7 +94,14 @@ if ( fNear > 0.0 ) {
   fDirect = fVis * ( fAdd * diffuseColor.rgb + fSpec );
 }
 #endif
-\`;
+${NB ? `vec3 fBeat = vec3( 0.0 );
+for ( int i = 0; i < ${NB}; i++ ) {
+  vec3 d = uFBp[ i ] - vFPos; float r = length( d );
+  float t = clamp( 1.0 - max( r, 1.1 ) / uFBr[ i ], 0.0, 1.0 );
+  fBeat += uFBk[ i ] * pow( t * t, uFFall ) * max( dot( fN, d / max( r, 1e-3 ) ), 0.0 );
+}
+fDirect += fBeat * diffuseColor.rgb;
+` : ''}\`;
   const lit = (params, M) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
@@ -139,7 +154,7 @@ if ( fNear > 0.0 ) {
   });
 
   // the live set: the nearest lamps that may light the relief, each slot fading to its next lamp
-  const lamps = F.lights.map((l, i) => ({ i, at: new THREE.Vector3(...l.at), key: new THREE.Vector3(...l.key), r: l.radius })).filter((l, i) => F.lights[i].live);
+  const lamps = F.lights.map((l, i) => ({ i, at: new THREE.Vector3(...l.at), key: new THREE.Vector3(...l.key), r: l.radius })).filter((l, i) => F.lights[i].live${NB ? ' && !F.lights[i].beat' : ''});
   const slots = Array.from({ length: Math.min(F.live, lamps.length) }, () => ({ lamp: null, next: null, w: 0 }));
   const eye = new THREE.Vector3(), tmp = new THREE.Vector3();
   let lastPick = -1, lastT = -1;
@@ -170,7 +185,15 @@ if ( fNear > 0.0 ) {
       U.uFLk.value[k].copy(sl.lamp ? sl.lamp.key : tmp.set(0, 0, 0)).multiplyScalar(sl.w);
       U.uFLr.value[k] = sl.lamp ? sl.lamp.r : 1;
     });
-    probe.first = true;
+${NB ? `    // the beats: each key swung in time (an alarm's sweep, a pulse's breath, a flicker's drops), at \`probe.at\` when set
+    const now = probe.at ?? t / 1000;
+    BL.forEach(({ l, i }, k) => {
+      const ph = 2 * Math.PI * l.rate * now, step = Math.floor(now * l.rate), h = ((Math.sin((step + i * 17.17) * 12.9898) * 43758.5453) % 1 + 1) % 1;
+      const w = l.beat === 'alarm' ? Math.pow(0.5 + 0.5 * Math.sin(ph), 6) : l.beat === 'pulse' ? 0.55 + 0.45 * Math.sin(ph) : h < 0.15 ? 0.15 + h * 2 : 1;
+      U.uFBp.value[k].set(...l.at).applyMatrix4(cam.matrixWorldInverse);
+      U.uFBk.value[k].set(...l.key).multiplyScalar(w);
+    });
+` : ''}    probe.first = true;
   };
   return probe;
 })();

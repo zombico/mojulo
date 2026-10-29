@@ -24,6 +24,8 @@ import { STRUCTURE_USES } from './out-structures.js';
 import { ANCHOR_IDS, ANCHOR_STRUCTURES, decompileAnchor } from './out-anchor-structure.js';
 import { readGeocube, cubeBuildings } from './geocube.js';
 import { readStyle } from './arch-style.js';
+import { composeForBuild } from './compose.js';
+import { bayKitOf } from './style/bay-kits.js';
 
 // a room: [role, w range, d range, the role it opens off, { h: storeys tall, n: how many, p: the chance it is there,
 // s: its storey, over: true when it is the room over the one it opens off (climbed to by a stair, storeys.js), or the
@@ -115,14 +117,15 @@ function shared(a, b) {
  * kit's doorway; the entry keeps its front (-y) clear for the way in. Rooms the packer cannot seat are dropped and
  * said.
  */
-export function planProgram(program, kitId = 'gothic-stone', { civilization = null } = {}) {
+export function planProgram(program, kitId = 'gothic-stone', { civilization = null, kit: card = null } = {}) {
   if (!program || typeof program !== 'object') throw new Error(`program: give { use } (${PROGRAM_IDS.join(', ')})`);
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
   // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
   const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays'] : ['use', 'seed', 'rooms', 'add', 'civilization'];
   for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
-  const kit = STAGE_KITS[kitId];
+  // (a composed interior's card, compose.js, where it is not the kit's own: its doorways set the corridors' widths)
+  const kit = card ?? STAGE_KITS[kitId];
   if (!kit || !kit.grid) throw new Error(`program: kit '${kitId}' is open ground; a program is laid in a room kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid).join(', ')})`);
   const lang = languageOf(program.civilization ?? civilization, kitId);
   const rnd = mulberry32((program.seed ?? 1) * 2654435761 + use.length * 97);
@@ -244,7 +247,9 @@ export function withProgram(m) {
   // on a cube, the cube's builders speak (its seeds' anchor, else their style's language) unless the program names a
   // civilization
   const S = seeds?.anchor === undefined && seeds?.style !== undefined ? readStyle(seeds.style) : null;
-  const P = planProgram(program, kitId, { civilization: seeds?.anchor ?? (S ? S.language.id ?? S.language.doc : null) });
+  // (a composed interior is laid for the kit it composes: compose.js)
+  const card = m.compose !== undefined && kitId.startsWith('bay-') ? bayKitOf(composeForBuild({ ...m, kit: kitId })) : null;
+  const P = planProgram(program, kitId, { civilization: seeds?.anchor ?? (S ? S.language.id ?? S.language.doc : null), ...(card ? { kit: card } : {}) });
   if (seeds && program && !seeds.uses.some((u) => u.use === program.use)) P.findings.push({ id: 'off-cube', says: `the cube '${cube.id}' does not recommend a ${program.use} (it builds ${seeds.uses.map((u) => u.use).join(', ')}); built anyway` });
   const level = rest.level && typeof rest.level === 'object' && rest.level.goal == null && P.goal ? { ...rest.level, goal: P.goal } : rest.level;
   return {

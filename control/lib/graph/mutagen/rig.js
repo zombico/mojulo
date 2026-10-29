@@ -20,7 +20,8 @@ export function oozeBody(species, spec = {}) {
   // (a game's setting dresses the colours only: the body, and so its rig id, are the oozes')
   const M = resolveMutagen(spec.ooze, { seed: spec.seed, key: species, stylism: spec.stylism, setting: spec.setting });
   if (!M) return { rid: species, plan: null, report: {}, mutagen: null };
-  const report = {}, plan = oozeFauna(speciesParams(species), M, report);
+  // (a coat dressed in its world, `spec.colors`: the animal door's `coat: 'world'`; colours only, so the rig is the same)
+  const P0 = speciesParams(species), report = {}, plan = oozeFauna(spec.colors ? { ...P0, colors: spec.colors } : P0, M, report);
   const rid = `${species}~${fnv(JSON.stringify({ oozes: M.oozes, seed: M.seed, stylism: spec.stylism ?? null })).toString(36)}`;
   const over = graftLocomotion(report, bodyLocomotion(species));
   registerBody(rid, { species, P: report.params, plan, over });

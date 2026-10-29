@@ -22,6 +22,7 @@
  * cameras — Lambert depends on the face normal vs the world light, not the camera.
  */
 
+import { readableFaces } from './readable-rung.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { plantPool, plantRepeats, groveItems } from '../vegetation/pool.js';
 import { makeLight, litFactor, scaleHex, hexToRgb, rgbToHex, withBands, resolveToon } from '../polygonizer/vexar.js';
@@ -738,7 +739,7 @@ function polarDiscFaces({ cx, cy, R, baseZ = 0, heightAt, toward, base, shade, g
   return faces;
 }
 
-export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, tabletop, lighting, light, lamps = [], tint = [1, 1, 1], gravityDarken = true, includeShell = true, shellOmit = ['frontWall'], wallSurface, deferDiffusion = false, bands } = {}) {
+export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, tabletop, lighting, light, lamps = [], tint = [1, 1, 1], gravityDarken = true, includeShell = true, shellOmit = ['frontWall'], wallSurface, deferDiffusion = false, bands, readable = null } = {}) {
   const plan = resolveRoomSceneElementPlan({ elements, roomBasis, presets, tabletop }, roomBasis);
   const surfaces = resolveRoomSurfaces(roomBasis);
   const { xRange, yRange, zRange } = surfaces.ranges;
@@ -815,7 +816,8 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
     const assetHit = ((el.surface === 'floor' || (onProp && el.assetProp)) && elevated) ? roomFurnitureAssetFaces(el, { light: L }) : null;
 
     if (assetHit) {                                // workbench-authored room asset
-      for (const f of assetHit.faces) faces.push(f);   // a dense asset: no spread (see extraFaces below)
+      // (`readable: { cell }`, a game's rung, scene/readable-rung.js: the piece's own faces at a coarser grain)
+      for (const f of readable ? readableFaces(assetHit.faces, readable) : assetHit.faces) faces.push(f);   // a dense asset: no spread (see extraFaces below)
       if (assetHit.contactFootprint && !onProp) contactFootprints.push(assetHit.contactFootprint);
     } else if (onProp && elevated && !net) {       // tabletop prop without a dedicated net: generic shaded box
       const quads = boxFaceQuads(base, top);

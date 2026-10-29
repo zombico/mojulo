@@ -41,6 +41,8 @@
  *                                         // its walk or building (quick.js levelGoalMechanics): pickups along it, a boss
  *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
  *                                         // unseen; none: reach the exit
+ *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages, one a free beat (foes.js): hostile
+ *                                         // classes in the hero's way; its hp then takes their hits
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
  *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
  *                                         // civilization's language, entered at its way in, played to its goal room
@@ -75,6 +77,8 @@
  *                                         // (juice.js), laid on every level as `fxStyle`; absent, none is laid
  *     battles?: { party?, packs?, per?, boss?, foe?, … },   // party battles on the trails, the party carried (battles.js)
  *     minigames?: true | false | [{ game, … }],   // the games inside the game, kept on the trails (minigames.js)
+ *     foes?: { '<id>': { class, rank?, skill?, skin? } },   // the bestiary: the foe classes it fields (foes.js); a
+ *                                         // level stands them with its own `foes`
  *     moves?: true,                       // every person the run makes (the hero, its foes, guards, keepers) is made
  *                                         // with its own hit, stagger, fall and rise, and plays them (egocube/moves.js)
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
@@ -117,6 +121,7 @@ import { readRunner } from '../worlds/controllable/runner.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
+import { readBestiary, readLevelFoes } from './foes.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
@@ -195,8 +200,8 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal'];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'foes', 'story', 'quests', 'front', ...RESERVED];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -480,6 +485,10 @@ export function readGameworld(W) {
   // what a civilization says in words is tunnelled through its blocks, on the world's kit
   for (const id of civIds) if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, style.kit, seed);
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
+  // the BESTIARY (foes.js): the foe classes the world fields, each resolved once so a bad word says so here
+  const quickGame = W.quick !== undefined && W.quick !== null;
+  if (W.foes !== undefined && W.foes !== null && quickGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
+  const foes = W.foes === undefined || W.foes === null ? null : readBestiary(W.foes);
   const ids = Object.keys(W.levels), levels = {}, sceneSets = {};
   for (const id of ids) {
     const L = W.levels[id], at = `levels.${id}`;
@@ -496,6 +505,12 @@ export function readGameworld(W) {
       for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);
       if (Gl.collect !== undefined && Gl.collect !== true && !(typeof Gl.collect === 'string' && /^[a-z][a-z-]{0,23}$/.test(Gl.collect))) throw new Error(`gameworld: ${at}.goal.collect is true (gems) or what lies along the way, one lower-case word (relic, coin, key…)`);
       for (const k of ['boss', 'health', 'guards']) if (Gl[k] !== undefined && Gl[k] !== true) throw new Error(`gameworld: ${at}.goal.${k} is true`);
+    }
+    // the level's foes (foes.js): which of the bestiary stand on its trails; a walk's stages only
+    if (L.foes !== undefined) {
+      if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
+      if (L.walk === undefined) throw new Error(`gameworld: ${at}.foes stand on a walk's trails (a building, a city, a road or a run takes none yet)`);
+      readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
     if (L.arena !== undefined) {
@@ -662,7 +677,7 @@ export function readGameworld(W) {
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**

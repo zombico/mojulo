@@ -39,7 +39,7 @@ from its glyph (the glyph table is in
   chesterfields and club chairs in velvet and tweed, a modern one tapered legs and bouclé. Each room picks per role,
   seeded by the house, so the chairs round one table match, re-rolling the seed refurnishes, and one house keeps one
   timber. Each piece's group names its style (`asset:composed-furniture:chesterfield-main`). `furnitureLanguage:
-  'cottage' | 'brick' | 'modern' | 'tofu' | 'mission'` overrides the style's; `furniture: { <role>: { like?, forms?,
+  'cottage' | 'brick' | 'modern' | 'tofu' | 'mission' | 'brownstone' | 'terrace' | 'canal' | 'kyosho'` overrides the style's; `furniture: { <role>: { like?, forms?,
   finish? } | 'omit' }` (roles: sofa, easy-chair, dining-chair, coffee-table, dining-table, bookcase, media,
   sideboard, dresser, nightstand) sets a role in every room, and a room's own `furniture` wins: `{ sofa: { like:
   'chesterfield', finish: { fabric: 'tartan' } } }`, `{ 'easy-chair': { forms: { legs: 'bun' } } }`, `{ media:
@@ -115,8 +115,9 @@ washroom and entry corners. `furnishing: 'constructed'` furnishes its units with
 
 ## House styles
 
-A new house is minted with `style: 'auto'`: the seed picks a family and its variant. Name one, or
-`style: null` for the plain house:
+A new house is minted with `style: 'auto'`: the seed picks a family and its variant (a house of `houseLook: 2` from
+its `form` and `design.tradition`: a townhouse its tradition's street house, brownstone, terrace, canal or kyosho; a
+block a modern one). Name one, or `style: null` for the plain house:
 
 | style | outside | inside |
 | --- | --- | --- |
@@ -125,6 +126,10 @@ A new house is minted with `style: 'auto'`: the seed picks a family and its vari
 | `modern` | charcoal or grey siding; shed or butterfly roof; picture or casement windows | white and grey paint; pale oak; ash or ink furniture |
 | `tofu` | pale block, crisp reveals, high ceilings; flat deck or stacked-room roof | white paint; pale boards; oat and sand furniture |
 | `mission` | warm stucco; clay mission or pavilion roof; casement or french windows | warm paint; terracotta tile in wet rooms; dark wood, rust or indigo fabric |
+| `brownstone` | coursed brown sandstone (`facadeStyle: 'stone'`); flat roof behind a deep cornice; tall sashes, a dark door | herringbone oak, mouldings; walnut, velvet and bouclé |
+| `terrace` | London stock brick or white stucco (`'render'`); slate, its ridge with the street; six-over-six sashes, a bold door | herringbone, encaustic tile; roll arms, linen and tartan |
+| `canal` | dark or warm Dutch brick; a steep gable to the street, or flat; tall tilt-turn and french windows in anthracite | wide pale oak; low and spare, oak and ash |
+| `kyosho` | white render, charred cedar boards (`'boards'`) or corrugated galvalume; mono-pitch or flat; aluminium sliders | hinoki floors; low, plain, linen |
 
 A style only sets defaults: any knob on the manifest wins (`style: 'brick', brickBodyTint: '#…'`).
 It turns on `facadeDecor`, `wallDecor`, `floorStyle: 'auto'` and `furnishScale: 'share'`. Its

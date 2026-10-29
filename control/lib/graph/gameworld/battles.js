@@ -94,7 +94,7 @@ export function readBattles(v, characters = null, ids = null) {
   const packs = v.packs === undefined ? null : (Array.isArray(v.packs) && v.packs.length ? v.packs.map((p, i) => packOf(p, `.packs[${i}]`)) : (() => { throw err('.packs is a list of packs, each 1 to 6 foe ids'); })());
   if (v.per !== undefined && !(Number.isInteger(v.per) && v.per >= 0 && v.per <= 6)) throw err('.per is the packs on each trail stage, 0 to 6');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
-  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), or { species } for a beast');
+  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), or { species, ooze?, stylism? } for a beast');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   if (v.rest !== undefined && typeof v.rest !== 'boolean') throw err('.rest is false for no rest at each stage\'s start');
   if (v.random !== undefined) {
