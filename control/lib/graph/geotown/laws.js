@@ -21,11 +21,15 @@ export const GEOTOWN_LAWS = Object.freeze({
   green: 'the soft ground (verges, yards, parks) at least the pattern\'s share of the map',
   mansions: 'a midtown mansion\'s property much larger than its street\'s houses\', two at most in a block segment',
   fits: 'each segment tuned to its cell: its rows\' frontages spread inside the pattern\'s stretch, its plots no more than half again as deep as they need',
+  sites: 'a school\'s or a sports field\'s site near its rails (0.6–1.7 of them) and its surfaces\' shares near the site to scale\'s',
+  apart: 'two playing fields (a school\'s, a sports field\'s) never side by side across one street: a block of something else between them',
   parking: 'room for parking: the stalls of its parking lanes, its front pads and its garages, at least its streetscape\'s least a household',
   evokes: 'an evocation keeps the town to scale\'s measures: how its plots share their ground, and its mix of semis and detached houses',
 });
 // how far an evocation's shares may stand from the town to scale's before the law advises
 export const EVOKE_TOLERANCE = Object.freeze({ share: 0.08, semis: 0.3, deep: 1.5 });
+// how far a site may stand from its rails, and its shares from the site to scale's
+export const SITE_TOLERANCE = Object.freeze({ size: [0.6, 1.7], share: 0.1 });
 // (the street's own houses: a mansion is measured as a mansion)
 const housesOf = (d) => d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses' && pl.form !== 'mansion');
 // a mansion's property is at least this many times the mean of its street's houses', two at most in a segment
@@ -103,13 +107,19 @@ export function geotownLaws(d) {
     const room = d.parking.stalls + d.parking.pads + 2 * d.parking.garages;
     law('parking', room / homes >= PK.least - 1e-9, `${r2(room / homes)} stalls a household (least ${PK.least}): ${d.parking.stalls} on the street (${d.parking.sides}), ${d.parking.pads} front pads, ${d.parking.garages} garages, for ${homes} households`);
   }
+  if (d.beside && d.sites?.length > 1) law('apart', d.beside.length === 0, d.beside.length ? `side by side: ${d.beside.map(([a, b]) => `${a} and ${b}`).join(', ')}` : `${d.sites.length} fields, none side by side`);
+  if (d.sites?.length) {
+    const T = SITE_TOLERANCE, bad = d.sites.filter((s) => s.stretch < T.size[0] || s.stretch > T.size[1] || s.deepen < T.size[0] || s.deepen > T.size[1] || s.off > T.share);
+    law('sites', bad.length === 0, d.sites.map((s) => `${s.block} ${s.type} ${Math.round(s.long)} × ${Math.round(s.deep)} m (${r2(s.stretch)} × ${r2(s.deepen)} of its rails), shares off ${r2(s.off)}`).join('; '));
+  }
   if (d.evoked) {
     // (a row of one building other than a house, a walk-up, cannot be recut: its lot takes its cell's slack as grounds)
     const F = d.evoked.fits, ST = P.evoke.stretch, bad = F.filter((f) => (!(f.n === 1 && f.kind !== 'houses') && (f.stretch < ST[0] - 0.1 || f.stretch > ST[1] + 0.1)) || f.deep > EVOKE_TOLERANCE.deep);
     law('fits', bad.length === 0, F.length ? `${F.length} rows: spread ${r2(Math.min(...F.map((f) => f.stretch)))}–${r2(Math.max(...F.map((f) => f.stretch)))}, as deep as ${r2(Math.max(...F.map((f) => f.deep)))} of their need${bad.length ? `; ${bad.map((f) => `${f.block}${f.side}`).join(', ')} past it` : ''}` : 'no rows');
     const own = plotShares(d), ref = d.evoked.ref, keys = ['house', 'front', 'side', 'back'];
     const off = Math.max(...keys.map((k) => Math.abs(own[k] - ref[k]))), semis = Math.abs(own.semis - ref.semis);
-    law('evokes', off <= EVOKE_TOLERANCE.share && semis <= EVOKE_TOLERANCE.semis, `${d.evoked.shows} plots for ${d.evoked.stands.plots}: ${keys.map((k) => `${k} ${r2(own[k])}/${r2(ref[k])}`).join(', ')}; semis ${r2(own.semis)}/${r2(ref.semis)}`);
+    // (a segment of no houses, a school's or a sports field's or a park, is held by `sites`)
+    if (housesOf(d).length) law('evokes', off <= EVOKE_TOLERANCE.share && semis <= EVOKE_TOLERANCE.semis, `${d.evoked.shows} plots for ${d.evoked.stands.plots}: ${keys.map((k) => `${k} ${r2(own[k])}/${r2(ref[k])}`).join(', ')}; semis ${r2(own.semis)}/${r2(ref.semis)}`);
   }
   return out;
 }

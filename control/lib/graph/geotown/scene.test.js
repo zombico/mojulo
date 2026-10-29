@@ -154,4 +154,21 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(fitFront(f, 2.5).porch).toBe('door');
     expect(fitFront(f, 1.2)).toEqual({ bay: 'square', bayStoreys: 'upper' });
   });
+
+  it('builds a school and a sports field on their level ground: a track, a pitch, goals and lines, a diamond; trees on their lawns only', () => {
+    for (const segment of ['school', 'sports']) {
+      const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, segment } }, p = assembleGeotownScene(E), d = designGeotown(E.geotown, { seed: 3 });
+      expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+      const groups = new Set(p.faces.map((f) => f.group));
+      for (const g of ['geotown:line', 'geotown:goal', 'geotown:stripe', ...(segment === 'school' ? ['geotown:track'] : ['geotown:dirt', 'geotown:court', 'geotown:net', 'geotown:lamp'])]) expect(groups.has(g)).toBe(true);
+      expect(p.cameras.some((c) => c.name === 'field')).toBe(true);
+      if (segment === 'school') { expect(p.anchors.some((a) => a.row === 'school')).toBe(true); expect(p.cameras.some((c) => c.name === 'school')).toBe(true); }
+      // no tree on a field, a court, a track or a diamond's dirt; each twice a person's height
+      const hard = d.surfaces.filter((s) => ['field', 'court', 'track', 'infield', 'service'].includes(s.cls) && s.area === undefined);
+      for (const t of p.repeats.flatMap((r) => r.transforms)) {
+        expect(t.scale).toBeGreaterThanOrEqual(3.6 - 1e-6);
+        expect(hard.some((s) => t.pos[0] > s.rect[0] && t.pos[0] < s.rect[2] && t.pos[1] > s.rect[1] && t.pos[1] < s.rect[3])).toBe(false);
+      }
+    }
+  });
 });

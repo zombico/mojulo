@@ -37,12 +37,16 @@ import { sectionOf, SURFACE_IDS, SEGMENTS } from './pattern.js';
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { geotownLaws, plotShares } from './laws.js';
+import { sitePlan, siteShares } from './sites.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const roll = (R, [lo, hi]) => r3(lo + (hi - lo) * R());
 const area = (r) => (r[2] - r[0]) * (r[3] - r[1]);
 // a dwelling's least width (era/out-structures.js STRUCTURE_USES.dwelling.lot.w), a hair over it
 const HOUSE_LEAST = 5.55;
+// a site composed among its neighbours asks this much of its least rails; its surfaces grouped by what the ground is for
+const SITE_YIELD = 0.75;
+const SITE_GROUPS = Object.freeze({ building: ['house'], lot: ['front', 'path', 'side'], play: ['field', 'track', 'infield', 'court', 'play'], green: ['grounds', 'park'], paved: ['service', 'park-path'] });
 const rectOf = (p, q) => [r3(Math.min(p[0], q[0])), r3(Math.min(p[1], q[1])), r3(Math.max(p[0], q[0])), r3(Math.max(p[1], q[1]))];
 
 // ── the land ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -99,8 +103,9 @@ export function geotownLand(hills, frame, seed = 1, field = null) {
 // ── the streets ──────────────────────────────────────────────────────────────────────────────────────────────────────
 /** The right-of-way's pieces, each street in its own section (`SX[k]`, `SY[j]`): each between its crossings, each
  *  crossing's road cross and walked corners. → [{ cls, rect, street?, crossing?, side?, kerbs? }] (`kerbs`: the sides of
- *  a road piece a kerb stands on). */
-function streetPieces(X, Y, SX, SY) {
+ *  a road piece a kerb stands on). `gone` the pieces a wide block swallows ('ns-k:j', 'ew-j:k'): a crossing at its edge
+ *  walks across the swallowed arm (its kerb along the road), one inside it is the block's. */
+function streetPieces(X, Y, SX, SY, gone = new Set()) {
   const out = [];
   const ns = (k, ya, yb, seg) => {
     const x = X[k], id = `ns-${k}`, { R, verge: V, half, edge } = SX[k];
@@ -114,13 +119,16 @@ function streetPieces(X, Y, SX, SY) {
     if (V > 0) out.push({ cls: edge, rect: [xa, r3(y - R - V), xb, r3(y - R)], street: id, seg, side: 's' }, { cls: edge, rect: [xa, r3(y + R), xb, r3(y + R + V)], street: id, seg, side: 'n' });
     out.push({ cls: 'walk', rect: [xa, r3(y - half), xb, r3(y - R - V)], street: id, seg, side: 's' }, { cls: 'walk', rect: [xa, r3(y + R + V), xb, r3(y + half)], street: id, seg, side: 'n' });
   };
-  for (let k = 0; k < X.length; k++) for (let j = 0; j + 1 < Y.length; j++) ns(k, r3(Y[j] + SY[j].half), r3(Y[j + 1] - SY[j + 1].half), j);
-  for (let j = 0; j < Y.length; j++) for (let k = 0; k + 1 < X.length; k++) ew(j, r3(X[k] + SX[k].half), r3(X[k + 1] - SX[k + 1].half), k);
+  for (let k = 0; k < X.length; k++) for (let j = 0; j + 1 < Y.length; j++) if (!gone.has(`ns-${k}:${j}`)) ns(k, r3(Y[j] + SY[j].half), r3(Y[j + 1] - SY[j + 1].half), j);
+  for (let j = 0; j < Y.length; j++) for (let k = 0; k + 1 < X.length; k++) if (!gone.has(`ew-${j}:${k}`)) ew(j, r3(X[k] + SX[k].half), r3(X[k + 1] - SX[k + 1].half), k);
   for (let k = 0; k < X.length; k++) for (let j = 0; j < Y.length; j++) {
     const x = X[k], y = Y[j], c = `${k}:${j}`, Rx = SX[k].R, hx = SX[k].half, Ry = SY[j].R, hy = SY[j].half;
-    out.push({ cls: 'road', rect: [r3(x - Rx), r3(y - Ry), r3(x + Rx), r3(y + Ry)], crossing: c });
-    out.push({ cls: 'road', rect: [r3(x - Rx), r3(y + Ry), r3(x + Rx), r3(y + hy)], crossing: c, kerbs: ['-x', '+x'] }, { cls: 'road', rect: [r3(x - Rx), r3(y - hy), r3(x + Rx), r3(y - Ry)], crossing: c, kerbs: ['-x', '+x'] });
-    out.push({ cls: 'road', rect: [r3(x + Rx), r3(y - Ry), r3(x + hx), r3(y + Ry)], crossing: c, kerbs: ['-y', '+y'] }, { cls: 'road', rect: [r3(x - hx), r3(y - Ry), r3(x - Rx), r3(y + Ry)], crossing: c, kerbs: ['-y', '+y'] });
+    const N = gone.has(`ns-${k}:${j}`), S = gone.has(`ns-${k}:${j - 1}`), E = gone.has(`ew-${j}:${k}`), Wt = gone.has(`ew-${j}:${k - 1}`);
+    if (N && S && E && Wt) continue;
+    const arm = (g, r, kerbs) => out.push(g ? { cls: 'walk', rect: r, crossing: c } : { cls: 'road', rect: r, crossing: c, kerbs });
+    out.push({ cls: 'road', rect: [r3(x - Rx), r3(y - Ry), r3(x + Rx), r3(y + Ry)], crossing: c, ...(N || S || E || Wt ? { kerbs: [N && '+y', S && '-y', E && '+x', Wt && '-x'].filter(Boolean) } : {}) });
+    arm(N, [r3(x - Rx), r3(y + Ry), r3(x + Rx), r3(y + hy)], ['-x', '+x']); arm(S, [r3(x - Rx), r3(y - hy), r3(x + Rx), r3(y - Ry)], ['-x', '+x']);
+    arm(E, [r3(x + Rx), r3(y - Ry), r3(x + hx), r3(y + Ry)], ['-y', '+y']); arm(Wt, [r3(x - hx), r3(y - Ry), r3(x - Rx), r3(y + Ry)], ['-y', '+y']);
     for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) out.push({ cls: 'walk', rect: rectOf([x + sx * Rx, y + sy * Ry], [x + sx * hx, y + sy * hy]), crossing: c, corner: true });
   }
   return out;
@@ -216,6 +224,14 @@ function cutOf(P, K, n, R, L = null, big = 0) {
   return K.kind === 'houses' ? cutCount(P, n, R, big) : cutPlain(K, K.kind, n, R);
 }
 
+/** A school's lot (sites.js `plan.plot`) as a plot's measures: its frontage and depth, its setback, its building's
+ *  envelope and side yards, its path, its allocation (its rear its schoolyard, a court). */
+function schoolLot(T) {
+  const [sL, sR] = T.sides, env = [sL, T.setback, r3(T.w - sR), r3(T.setback + T.depth)], pw = T.path;
+  return { w: T.w, d: T.d, setback: T.setback, house: { depth: T.depth, sides: [sL, sR], env }, path: { u: r3(T.w / 2), w: pw },
+    alloc: { front: r3(T.w * T.setback - pw * T.setback), path: r3(pw * T.setback), house: r3((env[2] - env[0]) * T.depth), side: r3((sL + sR) * T.depth), back: 0, service: 0, drive: 0, court: r3(T.w * (T.d - env[3])) } };
+}
+
 /** A plot's local (u along its frontage, v into it) rect → world. */
 const toWorld = (pl, [u0, v0, u1, v1]) => {
   const at = (u, v) => [pl.A[0] + pl.ex[0] * u + pl.ey[0] * v, pl.A[1] + pl.ex[1] * u + pl.ey[1] * v];
@@ -234,6 +250,30 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   for (let j = 0; j < Rn; j++) for (let i = 0; i < C; i++) {
     const id = blockId(i, j), type = T.cells[j][i], main = { w: SX[i].rank === 'main', e: SX[i + 1].rank === 'main', s: SY[j].rank === 'main', n: SY[j + 1].rank === 'main' };
     cells.push({ id, i, j, type, built: T.blocks[id]?.built ?? true, ...rowsOf(type, main) });
+  }
+  // wide segments side by side (a park, a school, a sports field) are ONE block, no street between them: each rectangle
+  // of one wide type, grown east then north from its south-west cell; its front a side on a main street, else across its
+  // run (a run east to west fronts south, one north to south west)
+  const cellAt = new Map(cells.map((c) => [`${c.i}:${c.j}`, c])), unitOf = new Map(), gone = new Set();
+  for (const c of cells) {
+    if (unitOf.has(c.id) || !SEGMENTS[c.type].wide) continue;
+    const free = (i, j) => { const q = cellAt.get(`${i}:${j}`); return !!q && q.type === c.type && !unitOf.has(q.id); };
+    let i1 = c.i, j1 = c.j;
+    while (free(i1 + 1, c.j)) i1++;
+    while (Array.from({ length: i1 - c.i + 1 }, (_, k) => c.i + k).every((i) => free(i, j1 + 1))) j1++;
+    const g = { i0: c.i, j0: c.j, i1, j1, cells: [] };
+    for (let j = c.j; j <= j1; j++) for (let i = c.i; i <= i1; i++) { const q = cellAt.get(`${i}:${j}`); unitOf.set(q.id, g); g.cells.push(q); }
+    for (let k = c.i + 1; k <= i1; k++) for (let j = c.j; j <= j1; j++) gone.add(`ns-${k}:${j}`);
+    for (let k = c.j + 1; k <= j1; k++) for (let i = c.i; i <= i1; i++) gone.add(`ew-${k}:${i}`);
+  }
+  const units = [];
+  for (const c of cells) {
+    const g = unitOf.get(c.id);
+    if (!g) { units.push({ ...c, i0: c.i, j0: c.j, i1: c.i, j1: c.j, cells: [c] }); continue; }
+    if (g.cells[0] !== c) continue;
+    const main = { s: SY[g.j0].rank === 'main', n: SY[g.j1 + 1].rank === 'main', w: SX[g.i0].rank === 'main', e: SX[g.i1 + 1].rank === 'main' };
+    // (the town to scale's site fronts its block's long side, its shape known when it is laid)
+    units.push({ id: c.id, i: g.i0, j: g.j0, ...g, type: c.type, built: c.built, axis: 'y', rows: [], front: ['s', 'n', 'w', 'e'].find((k) => main[k]) ?? (!evoked ? null : g.j1 - g.j0 > g.i1 - g.i0 ? 'w' : 's') });
   }
   // ── 2 needs: each row cut by its count (an evocation), its length and its depth; a row of houses holds one count a
   // row of cells, so a block's two rows of houses close on one length ──
@@ -255,7 +295,22 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
       r.need.len = r3(r.cut.reduce((a, p) => a + p.w, 0) + 2 * K.corner);
     } else r.need.len = lengths[c.j];
   }
+  // a site's need, shared over the cells it spans less the streets it swallows: its rails, but along a column or a row
+  // of cells its neighbours set (a neighbourhood's) it yields to them, asking only SITE_YIELD of its least (its plan
+  // proportions to the cells it is given); the town to scale's takes the block it is laid on, as a park takes its cell
+  for (const u of units) {
+    const site = SEGMENTS[u.type].site, S = site ? P.sites?.[site] : null;
+    if (!S?.site || !evoked) continue;
+    const Rs = streamOf(seed, 'site', u.id), long = roll(Rs, S.site.long), deep = roll(Rs, S.site.deep), alongX = u.front === 's' || u.front === 'n';
+    u.want = { long, deep };
+    const cols = cells.some((c) => c.i >= u.i0 && c.i <= u.i1 && c.rows.length), rows = cells.some((c) => c.j >= u.j0 && c.j <= u.j1 && c.rows.length);
+    const [lx, ly] = alongX ? [long, deep] : [deep, long], [qx, qy] = alongX ? [S.site.long[0], S.site.deep[0]] : [S.site.deep[0], S.site.long[0]];
+    const wx = cols ? qx * SITE_YIELD : lx, wy = rows ? qy * SITE_YIELD : ly, ni = u.i1 - u.i0 + 1, nj = u.j1 - u.j0 + 1;
+    const sx = Array.from({ length: ni - 1 }, (_, k) => SX[u.i0 + 1 + k].row).reduce((a, b) => a + b, 0), sy = Array.from({ length: nj - 1 }, (_, k) => SY[u.j0 + 1 + k].row).reduce((a, b) => a + b, 0);
+    for (const c of u.cells) c.siteNeed = { x: r3(Math.max(0, (wx - sx) / ni)), y: r3(Math.max(0, (wy - sy) / nj)) };
+  }
   const need = (c) => {
+    if (c.siteNeed) return c.siteNeed;
     if (!c.rows.length) return { x: 0, y: 0 };
     const len = Math.max(...c.rows.map((r) => r.need.len)), dep = c.rows.reduce((a, r) => a + r.need.depth, 0);
     return c.axis === 'y' ? { x: dep, y: len } : { x: len, y: dep };
@@ -269,24 +324,42 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   const frame = { W: r3(X[C] + SX[C].half), D: r3(Y[Rn] + SY[Rn].half), margin: T.margin };
   // ── 4 streets ──
   const streets = [...X.map((x, k) => ({ id: `ns-${k}`, axis: 'y', at: x, from: 0, to: frame.D, rank: SX[k].rank })), ...Y.map((y, j) => ({ id: `ew-${j}`, axis: 'x', at: y, from: 0, to: frame.W, rank: SY[j].rank }))];
-  const pieces = streetPieces(X, Y, SX, SY);
+  const pieces = streetPieces(X, Y, SX, SY, gone);
   // ── 7 the land (read before the plots: a pad is levelled over its walk); an evocation's is a window of the town to
   // scale's, its middle over that town's middle, so its slopes are the town's and not its hills squeezed into a block ──
   const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
   const win = ref && !field ? ((ox, oy) => (x, y) => ref.land.N(x + ox, y + oy))((ref.frame.W - frame.W) / 2, (ref.frame.D - frame.D) / 2) : field;
   const land = geotownLand(T.hills, frame, seed, win), walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
   // ── 5, 6 the plots, each segment tuned to its cell, and their budget ──
-  const blocks = [], plots = [], fits = [], surfaces = pieces.map((p) => ({ cls: p.cls, rect: p.rect, ...(p.street ? { street: p.street } : { crossing: p.crossing }) }));
-  for (const c of cells) {
-    const rect = [r3(X[c.i] + SX[c.i].half), r3(Y[c.j] + SY[c.j].half), r3(X[c.i + 1] - SX[c.i + 1].half), r3(Y[c.j + 1] - SY[c.j + 1].half)], [x0, y0, x1, y1] = rect;
-    const B = { id: c.id, i: c.i, j: c.j, rect, use: c.type, built: c.built, axis: c.axis, rows: [] };
+  const blocks = [], plots = [], fits = [], sites = [], surfaces = pieces.map((p) => ({ cls: p.cls, rect: p.rect, ...(p.street ? { street: p.street } : { crossing: p.crossing }) }));
+  for (const c of units) {
+    const rect = [r3(X[c.i0] + SX[c.i0].half), r3(Y[c.j0] + SY[c.j0].half), r3(X[c.i1 + 1] - SX[c.i1 + 1].half), r3(Y[c.j1 + 1] - SY[c.j1 + 1].half)], [x0, y0, x1, y1] = rect;
+    const B = { id: c.id, i: c.i0, j: c.j0, i1: c.i1, j1: c.j1, ...(c.cells.length > 1 ? { cells: c.cells.map((q) => q.id) } : {}), rect, use: c.type, built: c.built, axis: c.axis, rows: [] };
     blocks.push(B);
-    if (!c.rows.length) {
-      // a park: the land as it lies, a cross of paths through its middle
-      const pw = P.parkPath, xc = (x0 + x1) / 2, yc = (y0 + y1) / 2;
-      B.paths = [[x0, r3(yc - pw / 2), x1, r3(yc + pw / 2)], [r3(xc - pw / 2), y0, r3(xc + pw / 2), r3(yc - pw / 2)], [r3(xc - pw / 2), r3(yc + pw / 2), r3(xc + pw / 2), y1]];
-      for (const r of B.paths) surfaces.push({ cls: 'park-path', rect: r, block: B.id });
-      for (const r of [[x0, y0, r3(xc - pw / 2), r3(yc - pw / 2)], [r3(xc + pw / 2), y0, x1, r3(yc - pw / 2)], [x0, r3(yc + pw / 2), r3(xc - pw / 2), y1], [r3(xc + pw / 2), r3(yc + pw / 2), x1, y1]]) surfaces.push({ cls: 'park', rect: r, block: B.id });
+    const site = SEGMENTS[c.type].site;
+    if (site) {
+      // a SITE (sites.js): its plan in its front street's frame, proportioned to its block; a school's lot a plot
+      const S = P.sites[site], f = c.front ?? (x1 - x0 >= y1 - y0 ? 's' : 'w'), { ex, ey } = FRAMES[f], A0 = startOf(f, rect), alongX = f === 's' || f === 'n', fr = { A: A0, ex, ey };
+      const L = r3(alongX ? x1 - x0 : y1 - y0), Dd = r3(alongX ? y1 - y0 : x1 - x0), Rp = () => streamOf(seed, 'site', `${B.id}:plan`);
+      const plan = sitePlan(site, S, { L, D: Dd, R: Rp() });
+      B.site = { type: site, front: f, A: A0, ex, ey, L, D: Dd, what: plan.what };
+      for (const p of plan.parts) surfaces.push({ cls: p.cls, rect: toWorld(fr, p.rect), block: B.id, ...(p.what ? { what: p.what } : {}), ...(p.area !== undefined ? { area: p.area } : {}), ...(p.inside ? { inside: p.inside } : {}), ...(p.kind ? { kind: p.kind, use: p.kind } : {}) });
+      if (site === 'park') B.paths = plan.parts.filter((p) => p.cls === 'park-path').map((p) => toWorld(fr, p.rect));
+      let lot = {};
+      if (plan.plot) {
+        const pl = { id: `${B.id}-school`, block: B.id, side: f, k: 0, kind: 'school', use: P.rows.school.use, form: 'school', ...schoolLot(plan.plot), A: A0, ex, ey, rear: 'court', built: B.built };
+        pl.rect = toWorld(pl, [0, 0, pl.w, pl.d]);
+        plots.push(pl); lot = pl.alloc;
+      }
+      // (what it shows against the site to scale: its size against its rails, its surfaces' shares against theirs)
+      if (S.site) {
+        const want = c.want ?? { long: (S.site.long[0] + S.site.long[1]) / 2, deep: (S.site.deep[0] + S.site.deep[1]) / 2 }, ref = sitePlan(site, S, { L: want.long, D: want.deep, R: Rp() });
+        // (by what the ground is for: a field with or without its track is the same playing ground)
+        const group = (sh) => Object.fromEntries(Object.entries(SITE_GROUPS).map(([g, ks]) => [g, ks.reduce((a, k) => a + (sh[k] ?? 0), 0)]));
+        const own = group(siteShares(plan, L, Dd, lot)), to = group(siteShares(ref, want.long, want.deep, ref.plot ? schoolLot(ref.plot).alloc : {}));
+        const off = Math.max(...Object.keys(SITE_GROUPS).map((k) => Math.abs(own[k] - to[k])));
+        sites.push({ block: B.id, type: site, long: L, deep: Dd, want: { long: r3(want.long), deep: r3(want.deep) }, stretch: r3(L / want.long), deepen: r3(Dd / want.deep), off: r3(off) });
+      }
       continue;
     }
     const along = c.axis === 'y' ? y1 - y0 : x1 - x0, across = c.axis === 'y' ? x1 - x0 : y1 - y0, depSum = c.rows.reduce((a, r) => a + r.need.depth, 0);
@@ -376,6 +449,16 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
     const wf = fronts.reduce((a, p) => a + walkZ(...p), 0) / g.length, n = mids.reduce((a, p) => a + land.N(...p), 0) / g.length, z = padOf(rail, wf, n);
     for (const pl of g) pl.pad = z;
   }
+  // a site's ground (a school's, a sports field's) one level: the land under it, held between its walks' lowest and a
+  // metre over their highest, in risers (a park lies on the land as it is)
+  for (const B of blocks) if (B.site && B.site.type !== 'park') {
+    const [x0, y0, x1, y1] = B.rect, edge = [];
+    for (let t = 0; t <= 8; t++) { const x = x0 + ((x1 - x0) * t) / 8, y = y0 + ((y1 - y0) * t) / 8; edge.push(walkZ(x, y0), walkZ(x, y1), walkZ(x0, y), walkZ(x1, y)); }
+    let n = 0, k = 0;
+    for (let a = 1; a < 6; a++) for (let b = 1; b < 6; b++) { n += land.N(x0 + ((x1 - x0) * a) / 6, y0 + ((y1 - y0) * b) / 6); k++; }
+    const z = Math.max(Math.min(...edge) + 0.15, Math.min(Math.max(...edge) + 1, n / k));
+    B.z = r3(Math.round(z / P.pad.riser) * P.pad.riser);
+  }
   // ── 8 parking: a front PAD where a house's front yard is deep and near level (its streetscape's share), off its path;
   // a LANE along the kerb on the sides of each street its streetscape parks (those that face a block), its stalls clear
   // of the crossings and of every drive across it ──
@@ -391,7 +474,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
     pl.alloc = { ...pl.alloc, front: r3(pl.alloc.front - a), drive: r3(pl.alloc.drive + a) };
   }
   // (a plot's front fronts a street's side: its row's side → that street and the side of it the plot stands on)
-  const frontOn = (pl) => { const B = blocks.find((b) => b.id === pl.block); return { w: [`ns-${B.i}`, 'e'], e: [`ns-${B.i + 1}`, 'w'], s: [`ew-${B.j}`, 'n'], n: [`ew-${B.j + 1}`, 's'] }[pl.side]; };
+  const frontOn = (pl) => { const B = blocks.find((b) => b.id === pl.block); return { w: [`ns-${B.i}`, 'e'], e: [`ns-${B.i1 + 1}`, 'w'], s: [`ew-${B.j}`, 'n'], n: [`ew-${B.j1 + 1}`, 's'] }[pl.side]; };
   const cuts = new Map();
   for (const pl of plots) {
     const open = [pl.park, pl.mansion?.drive].filter(Boolean);
@@ -443,7 +526,10 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // neighbourhoods at them)
   const ports = [['ns-0', 'w', SX[0], [X[0], 0], [X[0], frame.D]], [`ns-${C}`, 'e', SX[C], [X[C], 0], [X[C], frame.D]], ['ew-0', 's', SY[0], [0, Y[0]], [frame.W, Y[0]]], [`ew-${Rn}`, 'n', SY[Rn], [0, Y[Rn]], [frame.W, Y[Rn]]]]
     .map(([id, side, S, a, b]) => ({ id, side, rank: S.rank, row: r3(S.row), from: a.map(r3), to: b.map(r3), z: [r3(land.S(...a)), r3(land.S(...b))] }));
-  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking };
+  // (playing fields side by side: two field sites whose blocks face each other across one street)
+  const fieldy = blocks.filter((b) => b.site && b.site.type !== 'park'), touch = (a, b) => (a.i1 + 1 === b.i || b.i1 + 1 === a.i) && a.j <= b.j1 && b.j <= a.j1 || (a.j1 + 1 === b.j || b.j1 + 1 === a.j) && a.i <= b.i1 && b.i <= a.i1;
+  const beside = fieldy.flatMap((a, k) => fieldy.slice(k + 1).filter((b) => touch(a, b)).map((b) => [a.id, b.id]));
+  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside };
   // an evocation stands for the town laid to scale: its houses' measures are read against that town's (laws.js `evokes`)
   if (evoked) D.evoked = { level: T.evoke, stands: { plots: ref.plots.length, blocks: ref.blocks.length }, shows: plots.length, ref: plotShares(ref), fits };
   D.laws = geotownLaws(D);
@@ -456,7 +542,7 @@ export function ledgerOf(surfaces, blocks, frame) {
   const zero = () => Object.fromEntries(SURFACE_IDS.map((k) => [k, 0]));
   const town = zero(), per = Object.fromEntries(blocks.map((b) => [b.id, zero()])), streets = zero(), uses = {};
   for (const s of surfaces) {
-    const a = area(s.rect), into = s.block ? per[s.block] : streets;
+    const a = s.area ?? area(s.rect), into = s.block ? per[s.block] : streets;
     town[s.cls] += a; into[s.cls] += a;
     if (s.inside) { town[s.inside] -= a; into[s.inside] -= a; }
     if (s.kind) uses[s.kind] = (uses[s.kind] ?? 0) + a;

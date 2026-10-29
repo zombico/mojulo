@@ -248,3 +248,46 @@ describe('a streetscape: how close to the city, read from the sidewalk', () => {
     expect(law(pads, 'closes').ok).toBe(true);
   });
 });
+
+describe('a site: a block given to one program, evoked as the houses are', () => {
+  const at = (d, cls) => d.surfaces.filter((s) => s.cls === cls).reduce((a, s) => a + (s.area ?? (s.rect[2] - s.rect[0]) * (s.rect[3] - s.rect[1])), 0);
+  it('evokes a school on two segments\' ground: one block, no street through it, its lot, yard, staff lot and field round a track', () => {
+    const d = designGeotown({ segment: 'school' }, { seed: 3, field: plane }), B = d.blocks[0];
+    expect(d.spec.grid).toEqual([2, 1]);
+    expect(d.blocks.length).toBe(1);
+    expect(B.cells).toEqual(['A1', 'B1']);
+    // the street between its two cells is the block's: no piece of ns-1 stands inside it, its crossings walk across
+    const inside = (r) => r[0] >= B.rect[0] - 1e-6 && r[2] <= B.rect[2] + 1e-6 && r[1] >= B.rect[1] - 1e-6 && r[3] <= B.rect[3] + 1e-6;
+    expect(d.pieces.some((p) => inside(p.rect))).toBe(false);
+    expect(d.pieces.some((p) => p.crossing === '1:0' && p.cls === 'walk' && !p.corner)).toBe(true);
+    const school = d.plots.filter((pl) => pl.kind === 'school');
+    expect(school.length).toBe(1);
+    expect(school[0].rear).toBe('court');
+    for (const cls of ['field', 'track', 'service', 'grounds', 'court']) expect(at(d, cls)).toBeGreaterThan(0);
+    for (const id of ['closes', 'sites', 'frontage']) expect(law(d, id).ok).toBe(true);
+    expect(d.laws.some((l) => l.law === 'evokes')).toBe(false);
+  });
+
+  it('evokes a sports field: its diamond\'s dirt out of its turf, a pitch, courts, a field house on its lawn', () => {
+    const d = designGeotown({ segment: 'sports' }, { seed: 1, field: plane }), w = d.blocks[0].site.what;
+    expect(w.diamond && w.pitch && w.courts && w.fieldhouse).toBeTruthy();
+    expect(at(d, 'infield')).toBeGreaterThan(0);
+    expect(d.ledger.uses.fieldhouse).toBeGreaterThan(0);
+    for (const id of ['closes', 'sites']) expect(law(d, id).ok).toBe(true);
+  });
+
+  it('composes: wide letters side by side one block, each site yielding to its neighbours\' cells; to scale, the block it is laid on', () => {
+    const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'school-and-field' }, { seed: 3, field: plane });
+    expect(d.blocks.filter((b) => b.site && b.site.type !== 'park').map((b) => `${b.id}:${b.use}:${b.cells.join('')}`)).toEqual(['A1:school:A1B1', 'A3:sports:A3B3']);
+    // its two fields a row of houses and a park apart; side by side, the law advises
+    expect(law(d, 'apart').ok).toBe(true);
+    expect(law(designGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['FFH', 'SSH'] } }, { seed: 3, field: plane }), 'apart').ok).toBe(false);
+    expect(d.blocks.find((b) => b.use === 'school').site.front).toBe('s');
+    for (const s of d.sites) expect(s.deepen).toBeLessThan(1);
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+    const m = designGeotown({ evoke: 'metro', grid: [2, 2], blocks: { B1: { use: 'school' } } }, { seed: 3, field: plane }), S = m.blocks.find((b) => b.use === 'school');
+    // (its long side its front: the town to scale's blocks run north)
+    expect(S.site.front).toBe('w');
+    for (const id of ['closes', 'sites', 'coverage']) expect(law(m, id).ok).toBe(true);
+  });
+});

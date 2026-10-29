@@ -7,10 +7,13 @@
  *                                                                   // (the default), four or more composed into a
  *                                                                   // neighbourhood, or every plot to scale (metro)
  *     segment?: <segment type>,                                     // the segment's kind (pattern.js SEGMENTS: houses,
- *                                                                   // main-street, apartments, park): houses by default
- *     neighbourhood?: <id> | { layout: ['HHP', …], main?: ['ew-0', …] },   // the pattern's neighbourhood (its
+ *                                                                   // main-street, apartments, park, school, sports):
+ *                                                                   // houses by default; a school or a sports field two
+ *                                                                   // cells, one block
+ *     neighbourhood?: <id> | { layout: ['HSS', …], main?: ['ew-0', …] },   // the pattern's neighbourhood (its
  *                                                                   // `neighbourhoods`), or one written: rows of
- *                                                                   // letters north to south, the main streets
+ *                                                                   // letters north to south (a wide letter side by
+ *                                                                   // side, P S F, one block), the main streets
  *     pattern?: <pattern id> | { from: <pattern id>, …changes },   // the block pattern (pattern.js PATTERNS)
  *     grid?:    [cols, rows],                                       // the town laid to scale (metro): blocks across (x,
  *                                                                   // east) and along (y, north), 1–4
@@ -147,8 +150,9 @@ function readLayout(spec, evoke, P) {
     if (spec.neighbourhood !== undefined) no('neighbourhood is evoke: \'neighbourhood\'s; a segment is one block');
     const t = spec.segment ?? 'houses';
     if (!SEGMENTS[t]) no(`segment is ${SEGMENT_IDS.join(', ')} (got ${JSON.stringify(spec.segment)})`);
-    // (a main-street segment alone fronts its main street to the south)
-    return { grid: [1, 1], cells: [[t]], mains: SEGMENTS[t].main ? ['ew-0'] : [] };
+    // (a main-street segment alone fronts its main street to the south; a wide one spans its `span` cells, one block)
+    const n = SEGMENTS[t].span ?? 1;
+    return { grid: [n, 1], cells: [Array(n).fill(t)], mains: SEGMENTS[t].main ? ['ew-0'] : [] };
   }
   if (spec.segment !== undefined) no('segment is evoke: \'segment\'s; a neighbourhood\'s segments are its layout\'s');
   const N0 = spec.neighbourhood ?? Object.keys(P.neighbourhoods ?? {})[0], ids = Object.keys(P.neighbourhoods ?? {});
@@ -193,7 +197,7 @@ export function readGeotown(spec = {}) {
       if (!isObj(b)) no(`blocks.${id} is { use?, built? }`);
       for (const k of Object.keys(b)) if (!['use', 'built'].includes(k)) no(`blocks.${id}.${k} is not a setting (use, built)`);
       if (b.use !== undefined && !SEGMENT_IDS.includes(b.use)) no(`blocks.${id}.use is ${SEGMENT_IDS.join(', ')}`);
-      if (b.use !== undefined && evoke === 'metro' && !['houses', 'park'].includes(b.use)) no(`blocks.${id}.use is houses or park in the town to scale (metro)`);
+      if (b.use !== undefined && evoke === 'metro' && !['houses', 'park', 'school', 'sports'].includes(b.use)) no(`blocks.${id}.use is houses, park, school or sports in the town to scale (metro)`);
       if (b.built !== undefined && typeof b.built !== 'boolean') no(`blocks.${id}.built is false (laid, not yet built) or true`);
       blocks[id] = { ...b };
     }

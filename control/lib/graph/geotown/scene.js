@@ -53,6 +53,7 @@ import { buildingKits } from './houses.js';
 import { frontOf, FRONT } from './fronts.js';
 import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, carOf, CAR_PAINTS, ZONES } from './yards.js';
 import { gatesOf } from './gates.js';
+import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
@@ -142,6 +143,11 @@ function coloursOf(cube) {
     mat: '#24262a', grill: '#2b2b2d', mulch: mix('#5b4232', C.floor, 0.2), compost: '#4f5a3c', rail: mix('#ece8de', C.trim, 0.2),
     // a gated front: its iron, its low wall's brick, its piers' stone
     iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
+    // a site's ground and its things: lawn, turf and its mown stripes, the lines, a court, a track, a diamond's dirt, the
+    // chips under a playground; goals, nets, fences, a field house's block walls, lamps, a flag, seats
+    grounds: mix(C.grass, C.foliage, 0.08), field: mix('#4f8f3a', C.grass, 0.35), turf: mix('#4f8f3a', C.grass, 0.35), stripe: mix('#5e9e46', C.grass, 0.35), line: '#f2f0e8',
+    court: '#3f6f5a', track: '#a5503a', infield: '#b08560', dirt: '#b08560', base: '#f4f2ec', play: '#8a6a4a', chips: '#8a6a4a', netting: '#3a3f44', fence: '#2f4a3a',
+    goal: '#f2f0e8', net: '#2a2c2e', board: '#e8e6e0', lamp: '#d8d4c8', flag: '#c8322f', seat: '#7b8a96', block: mix('#c2b49a', C.stone, 0.25),
     // a main street's paving by its kerb, its trees' grates; a shop's yard and a walk-up's lot, its lines, its bins
     furnish: mix('#b39f88', C.floor, 0.25), pit: '#3b3a38', service: mix('#55585c', C.floor, 0.15), line: '#e8e4d8', bin: '#3f5a46', cabin: '#2b3036',
   };
@@ -181,7 +187,7 @@ export function fitFront(front, F) {
 }
 
 /** The street a block's row fronts: its line's id and its section. */
-const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.x[B.i] } : side === 'e' ? { id: `ns-${B.i + 1}`, S: d.sections.x[B.i + 1] } : side === 's' ? { id: `ew-${B.j}`, S: d.sections.y[B.j] } : { id: `ew-${B.j + 1}`, S: d.sections.y[B.j + 1] });
+const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.x[B.i] } : side === 'e' ? { id: `ns-${B.i1 + 1}`, S: d.sections.x[B.i1 + 1] } : side === 's' ? { id: `ew-${B.j}`, S: d.sections.y[B.j] } : { id: `ew-${B.j1 + 1}`, S: d.sections.y[B.j1 + 1] });
 
 /** The geocube kind's geotown: the town's map stood on the cube's land at its hour. */
 export function assembleGeotownScene(m, ctx = {}) {
@@ -464,6 +470,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the parks: the land as it lies, eased to the walks round it; their paths on the same lattice ──
   const parkZ = (B) => (x, y) => { const [x0, y0, x1, y1] = B.rect, e = Math.min(x - x0, x1 - x, y - y0, y1 - y), t = smooth(0, 14, e); return wk(x, y) * (1 - t) + N(x, y) * t; };
   const inRect = (r, x, y, pad = 0) => x > r[0] - pad && x < r[2] + pad && y > r[1] - pad && y < r[3] + pad;
+  // (a site's things that no tree stands in: its playground, its pavilion, its field house, its lot, in the world)
+  const siteRects = (B) => { const St = B.site; if (!St) return []; const Wl = (u, v) => [St.A[0] + St.ex[0] * u + St.ey[0] * v, St.A[1] + St.ex[1] * u + St.ey[1] * v]; return ['playground', 'pavilion', 'fieldhouse', 'lot'].map((k) => St.what[k]).filter(Boolean).map((r) => { const a = Wl(r[0], r[1]), b = Wl(r[2], r[3]); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]; }); };
   for (const B of d.blocks) {
     if (!B.paths) continue;
     const [x0, y0, x1, y1] = B.rect, z = parkZ(B), edgesX = B.paths.flatMap((r) => [r[0], r[2]]), edgesY = B.paths.flatMap((r) => [r[1], r[3]]);
@@ -476,9 +484,94 @@ export function assembleGeotownScene(m, ctx = {}) {
     const R = streamOf(seed, 'green', `park:${B.id}`), want = Math.round(((x1 - x0) * (y1 - y0) / 10000) * P.grow.park);
     for (let k = 0, tries = 0; k < want && tries < want * 12; tries++) {
       const x = x0 + 4 + R() * (x1 - x0 - 8), y = y0 + 4 + R() * (y1 - y0 - 8);
-      if (B.paths.some((r) => inRect(r, x, y, 3))) continue;
+      if (B.paths.some((r) => inRect(r, x, y, 3)) || siteRects(B).some((r) => inRect(r, x, y, 3))) continue;
       const sp = P.grow.parkTrees[Math.floor(R() * P.grow.parkTrees.length)];
       grows(sp, x, y, z(x, y), treeH(sp, 0.4 + 0.6 * R()), 'park'); k++;
+    }
+  }
+  // ── the SITES (sites.js): a school's or a sports field's ground one level, each part drawn as what it is, its edges
+  // standing over (or under) the walks round it and its school's lot; their things on it; a park's things on its land ──
+  const siteCount = {};
+  for (const B of d.blocks) {
+    const St = B.site;
+    if (!St) continue;
+    siteCount[St.type] = (siteCount[St.type] ?? 0) + 1;
+    const Wl = (u, v) => [St.A[0] + St.ex[0] * u + St.ey[0] * v, St.A[1] + St.ex[1] * u + St.ey[1] * v], park = St.type === 'park', pz = park ? parkZ(B) : null;
+    const zOf = (u, v) => (park ? pz(...Wl(u, v)) : B.z), Rs = streamOf(seed, 'site', `${B.id}:draw`), w = St.what;
+    // a thing in the site's frame, on its ground (a park's at the land under its middle)
+    const thing = (fs, z0 = null) => {
+      for (const f of fs) {
+        const o = f.out, want = unit([St.ex[0] * o[0] + St.ey[0] * o[1], St.ex[1] * o[0] + St.ey[1] * o[1], o[2]]);
+        put(f.corners.map(([u, v, z]) => { const [x, y] = Wl(u, v); return [x, y, (z0 ?? zOf(u, v)) + z]; }), `geotown:${f.role}`, f.hex ?? col[f.role] ?? col.metal, want);
+      }
+    };
+    // (a thing stands on its ground's highest corner: on a park's slope its floor proud on the low side, never buried)
+    const mid = (r) => Math.max(zOf(r[0], r[1]), zOf(r[2], r[1]), zOf(r[2], r[3]), zOf(r[0], r[3]), zOf((r[0] + r[2]) / 2, (r[1] + r[3]) / 2)), box2 = (r) => { const a = Wl(r[0], r[1]), b = Wl(r[2], r[3]); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]; };
+    const building = (r, fs, of) => { const z0 = mid(r); thing(fs, z0); const q = box2(r); colliders.push({ min: P3([q[0], q[1], z0]), max: P3([q[2], q[3], z0 + 5]), of: `${B.id}:${of}:house` }); };
+    if (park) {
+      // (its chips laid on the land, its play things on their highest point)
+      if (w.playground) { const [chips, ...rest] = playgroundOf(w.playground, Rs); thing([chips]); thing(rest, mid(w.playground)); }
+      if (w.pavilion) building(w.pavilion, pavilionOf(w.pavilion), 'pavilion');
+      // benches along the paths, a side each by turns, clear of the crossing
+      for (const p of w.paths) {
+        const along = p[2] - p[0] >= p[3] - p[1] ? 'u' : 'v', [a0, a1] = along === 'u' ? [p[0], p[2]] : [p[1], p[3]], c = along === 'u' ? (p[1] + p[3]) / 2 : (p[0] + p[2]) / 2, half = (along === 'u' ? p[3] - p[1] : p[2] - p[0]) / 2;
+        let k = 0;
+        for (let s = a0 + 6; s < a1 - 6; s += P.sites.park.bench) {
+          const side = k++ % 2 ? 1 : -1, cu = along === 'u' ? s : c + side * (half + 0.6), cv = along === 'u' ? c + side * (half + 0.6) : s;
+          if (Math.hypot(cu - St.L / 2, cv - St.D / 2) < 8) continue;
+          thing(benchOf(cu, cv, along, -side), zOf(cu, cv));
+        }
+      }
+      continue;
+    }
+    // its ground: each part one level quad (a track's ring and its turf, a diamond's dirt drawn as they lie)
+    const lot = d.plots.find((pl) => pl.block === B.id && pl.kind === 'school');
+    for (const s of d.surfaces) {
+      if (s.block !== B.id || s.plot || s.what === 'track' || s.what === 'field' || s.cls === 'infield' || s.cls === 'house') continue;
+      const [x0, y0, x1, y1] = s.rect;
+      put([[x0, y0, B.z], [x1, y0, B.z], [x1, y1, B.z], [x0, y1, B.z]], `geotown:${s.cls}`, col[s.cls] ?? col.lawn);
+    }
+    if (w.pitch) thing(pitchOf(w.pitch, Rs));
+    if (w.track) thing(trackOf(w.track, P.sites.school.track.band));
+    if (w.diamond) thing(diamondOf(w.diamond, Rs));
+    if (w.courts) thing(courtsOf(w.courts.rect, w.courts.n));
+    if (w.lot) thing(lotOf(w.lot, Rs));
+    if (w.fieldhouse) building(w.fieldhouse, fieldhouseOf(w.fieldhouse), 'fieldhouse');
+    if (w.flag) thing(flagOf(...w.flag), lot?.pad ?? B.z);
+    if (w.yard && lot) thing(hoopsOf(w.yard), lot.pad);
+    // bleachers along the pitch's near side, its lights at its corners (a sports field's)
+    if (w.pitch) { const p = w.pitch, um = (p[0] + p[2]) / 2; thing(bleachersOf(um - 10, um + 10, (w.track ?? p)[1] - 0.5, 1)); if (St.type === 'sports') thing(lightsOf(p)); }
+    // its edges: over (or under) the walk round it, the school's lot's own pad along its lot; and between that pad and
+    // the site's ground inside it
+    const [x0, y0, x1, y1] = B.rect, lr = lot?.rect, inLot = (x, y) => lr && x > lr[0] - 1e-6 && x < lr[2] + 1e-6 && y > lr[1] - 1e-6 && y < lr[3] + 1e-6;
+    const front = lot ? [W(lot, 0, 0, 0), W(lot, lot.w, 0, 0)] : null, onFront = (x, y) => front && Math.abs((x - front[0][0]) * lot.ey[0] + (y - front[0][1]) * lot.ey[1]) < 1e-6;
+    for (const [a, b, out] of [[[x0, y0], [x1, y0], [0, -1, 0]], [[x1, y0], [x1, y1], [1, 0, 0]], [[x1, y1], [x0, y1], [0, 1, 0]], [[x0, y1], [x0, y0], [-1, 0, 0]]]) {
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(len / CELL)), ts = new Set(Array.from({ length: n + 1 }, (_, k) => k / n));
+      if (lr) for (const v of [lr[0], lr[2]]) if (a[1] === b[1]) ts.add(Math.max(0, Math.min(1, (v - a[0]) / (b[0] - a[0])))); for (const v of lr ? [lr[1], lr[3]] : []) if (a[0] === b[0]) ts.add(Math.max(0, Math.min(1, (v - a[1]) / (b[1] - a[1]))));
+      const t = [...ts].sort((p, q) => p - q);
+      for (let k = 0; k + 1 < t.length; k++) {
+        const p = [a[0] + (b[0] - a[0]) * t[k], a[1] + (b[1] - a[1]) * t[k]], q = [a[0] + (b[0] - a[0]) * t[k + 1], a[1] + (b[1] - a[1]) * t[k + 1]], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+        if (onFront(...m) && inLot(...m)) continue;
+        const z = inLot(...m) ? lot.pad : B.z;
+        if (Math.abs(z - wk(...m)) > 0.01) wall([[...p, wk(...p)], [...q, wk(...q)], [...q, z], [...p, z]], z > wk(...m) ? out : out.map((x) => -x));
+      }
+    }
+    if (lot && Math.abs(lot.pad - B.z) > 0.01) {
+      const toward = lot.pad > B.z ? 1 : -1;
+      wall([W(lot, lot.w, 0, B.z), W(lot, lot.w, lot.d, B.z), W(lot, lot.w, lot.d, lot.pad), W(lot, lot.w, 0, lot.pad)], [lot.ex[0] * toward, lot.ex[1] * toward, 0]);
+      wall([W(lot, 0, lot.d, B.z), W(lot, lot.w, lot.d, B.z), W(lot, lot.w, lot.d, lot.pad), W(lot, 0, lot.d, lot.pad)], [lot.ey[0] * toward, lot.ey[1] * toward, 0]);
+    }
+    // trees along its lawns (none on its fields, courts or track), at their stride, each still held to its room
+    for (const s of d.surfaces) {
+      if (s.block !== B.id || s.cls !== 'grounds' || s.area !== undefined || s.plot) continue;
+      const [gx0, gy0, gx1, gy1] = s.rect, ax = gx1 - gx0 >= gy1 - gy0, len = ax ? gx1 - gx0 : gy1 - gy0, wid = ax ? gy1 - gy0 : gx1 - gx0;
+      if (wid < 3) continue;
+      for (let t = 4 + Rs() * 4; t < len - 3; t += P.grow.stride * (1.1 + 0.4 * Rs())) {
+        if (Rs() < 0.3) continue;
+        const x = ax ? gx0 + t : (gx0 + gx1) / 2, y = ax ? (gy0 + gy1) / 2 : gy0 + t, sp = P.grow.parkTrees[Math.floor(Rs() * P.grow.parkTrees.length)];
+        if (siteRects(B).some((r) => inRect(r, x, y, 2))) continue;
+        grows(sp, x, y, B.z, treeH(sp, 0.35 + 0.55 * Rs()), 'grounds');
+      }
     }
   }
   // ── the margin: the town's border only, the land just round it eased from the outer walks to the natural ground;
@@ -553,6 +646,17 @@ export function assembleGeotownScene(m, ctx = {}) {
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));
+  // a school from the walk across its street, its doors before it; a site's fields from beyond its corner, over its trees
+  const Sb = d.blocks.find((b) => b.site?.type === 'school'), Sl = Sb && d.plots.find((pl) => pl.block === Sb.id && pl.kind === 'school');
+  if (Sl) {
+    const Sq = lineOf(d, Sb, Sl.side).S, e = W(Sl, Sl.w / 2 - 16, -(Sq.row - Sq.walk / 2), 0), t = W(Sl, Sl.w / 2, Sl.setback + 4, 0);
+    cameras.push(cam('school', [e[0], e[1], wk(e[0], e[1]) + 1.7], [t[0], t[1], Sl.pad + 6], 70));
+  }
+  const Fb = d.blocks.find((b) => b.site?.what?.diamond) ?? d.blocks.find((b) => b.site?.what?.track) ?? d.blocks.find((b) => b.site?.what?.pitch);
+  if (Fb) {
+    const St = Fb.site, Wl = (u, v) => [St.A[0] + St.ex[0] * u + St.ey[0] * v, St.A[1] + St.ex[1] * u + St.ey[1] * v], p = St.what.pitch, e = Wl(-12, St.D + 12), t = Wl((p[0] + p[2]) / 2, (p[1] + p[3]) / 2);
+    cameras.push(cam('field', [e[0], e[1], Fb.z + 30], [t[0], t[1], Fb.z], 62));
+  }
   // a mansion from its street's walk, a little along: its lawn before it, its drive beside it
   const Mq = d.plots.find((pl) => pl.form === 'mansion' && pl.built);
   if (Mq) {
@@ -604,8 +708,8 @@ export function assembleGeotownScene(m, ctx = {}) {
     Object.assign(textures, pool.textures || {});
   }
   // ── the route round the first block's walks (the dummy's), from its far corner ──
-  const sx0 = d.sections.x[B0.i], sx1 = d.sections.x[B0.i + 1], sy0 = d.sections.y[B0.j], sy1 = d.sections.y[B0.j + 1];
-  const xa = d.X[B0.i] + sx0.half - sx0.walk / 2, xb = d.X[B0.i + 1] - sx1.half + sx1.walk / 2, ya = d.Y[B0.j] + sy0.half - sy0.walk / 2, yb = d.Y[B0.j + 1] - sy1.half + sy1.walk / 2;
+  const sx0 = d.sections.x[B0.i], sx1 = d.sections.x[B0.i1 + 1], sy0 = d.sections.y[B0.j], sy1 = d.sections.y[B0.j1 + 1];
+  const xa = d.X[B0.i] + sx0.half - sx0.walk / 2, xb = d.X[B0.i1 + 1] - sx1.half + sx1.walk / 2, ya = d.Y[B0.j] + sy0.half - sy0.walk / 2, yb = d.Y[B0.j1 + 1] - sy1.half + sy1.walk / 2;
   const ring = [[xa, ya], [xb, ya], [xb, yb], [xa, yb]], route = [];
   for (let k = 0; k < 4; k++) { const p = ring[k], q = ring[(k + 1) % 4], n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 2)); for (let i = 0; i < n; i++) { const x = p[0] + ((q[0] - p[0]) * i) / n, y = p[1] + ((q[1] - p[1]) * i) / n; route.push(P3([x, y, wk(x, y)])); } }
   route.push(route[0]);

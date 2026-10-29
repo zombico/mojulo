@@ -8,8 +8,11 @@
  *
  *   SURFACES        { <surface>: { read, grows: [growth…], soft } }: `grows` what the scene may put on it (grass, a
  *                   street tree, a tree, a shrub), none on a hard surface; `soft` whether it counts as green ground
- *   SEGMENTS        { <type>: { read, axis, rows } }: a block segment's kind: `houses` two rows of houses, `main-street`
- *                   a row of shops on the main street and houses behind, `apartments` a walk-up and houses, `park`.
+ *   SEGMENTS        { <type>: { read, axis, rows, site?, wide?, span? } }: a block segment's kind: `houses` two rows of
+ *                   houses, `main-street` a row of shops on the main street and houses behind, `apartments` a walk-up and
+ *                   houses; a SITE given to one program (sites.js): `park`, `school`, `sports`. A `wide` one spans the
+ *                   cells its letter fills side by side in a layout (no street between them), and `span` cells alone
+ *                   (a school or a sports field is two segments' ground).
  *                   `axis` the way its rows run when no main street turns it ('y': they face the streets east and west)
  *   PATTERNS        { <id>: the pattern }; PATTERN_IDS; DEFAULT_PATTERN. A pattern's STREETSCAPES (its `streetscapes`, the
  *                   first the default) are how close its neighbourhood is to the city, read from the sidewalk: each a
@@ -37,6 +40,12 @@ export const SURFACES = Object.freeze({
   service: { read: 'a service yard or a lot behind a shop or a walk-up: paving, bins, parking', grows: [], soft: false },
   drive: { read: 'a driveway: from the street down a mansion\'s side to its garage, or a parking pad in a front yard', grows: [], soft: false },
   parking: { read: 'a parking lane along the kerb, out of the carriageway: its stalls clear of every drive, cars in most', grows: [], soft: false },
+  grounds: { read: 'a school\'s or a sports field\'s lawn: round its fields, before its building, trees along it', grows: ['grass', 'tree', 'shrub'], soft: true },
+  field: { read: 'a playing field\'s turf, mown and marked: nothing grows on it but grass', grows: ['grass'], soft: true },
+  court: { read: 'a hard court or a schoolyard: asphalt or acrylic, painted', grows: [], soft: false },
+  track: { read: 'a running track round a field', grows: [], soft: false },
+  infield: { read: 'a ball diamond\'s dirt', grows: [], soft: false },
+  play: { read: 'a playground on its chips', grows: [], soft: false },
 });
 export const SURFACE_IDS = Object.freeze(Object.keys(SURFACES));
 
@@ -44,11 +53,13 @@ export const SEGMENTS = Object.freeze({
   houses: Object.freeze({ read: 'one block of houses, two rows back to back, their back yards meeting', axis: 'y', rows: Object.freeze(['houses', 'houses']) }),
   'main-street': Object.freeze({ read: 'shops built to the main street\'s walk, their service yards behind, houses backing onto them from the street behind', axis: 'x', rows: Object.freeze(['shops', 'houses']), main: true }),
   apartments: Object.freeze({ read: 'a walk-up on its lawn, its lot behind, and a row of houses back to back with it', axis: 'y', rows: Object.freeze(['apartments', 'houses']) }),
-  park: Object.freeze({ read: 'a park: the land as it lies, paths across it', axis: 'y', rows: Object.freeze([]) }),
+  park: Object.freeze({ read: 'a park: the land as it lies, paths across it, a playground and a pavilion', axis: 'y', rows: Object.freeze([]), site: 'park', wide: true, span: 1 }),
+  school: Object.freeze({ read: 'a school: its building on its own lot facing its street, a schoolyard behind it, a staff lot beside it, its field and track behind', axis: 'y', rows: Object.freeze([]), site: 'school', wide: true, span: 2 }),
+  sports: Object.freeze({ read: 'a local sports field: a ball diamond, a pitch under its lights, tennis courts, a field house and its lot', axis: 'y', rows: Object.freeze([]), site: 'sports', wide: true, span: 2 }),
 });
 export const SEGMENT_IDS = Object.freeze(Object.keys(SEGMENTS));
 // a neighbourhood's layout words: a letter a segment
-export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park' });
+export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park', S: 'school', F: 'sports' });
 
 export const PATTERNS = Object.freeze({
   'bay-and-gable': {
@@ -76,8 +87,6 @@ export const PATTERNS = Object.freeze({
     back: 7.5,
     // a front path's width, from the walk to the door
     path: 1.2,
-    // a park's paths: a cross through its middle
-    parkPath: 2.4,
     // the share of a plot the house's envelope covers
     coverage: [0.2, 0.5],
     // the steepest street (rise over run): steeper is advice
@@ -116,6 +125,9 @@ export const PATTERNS = Object.freeze({
     // its rear is (`service`: hard), its pad over its walk
     rows: {
       shops: { read: 'shops in a row, party wall to party wall, built to the walk, a flat or two over each', use: 'shop', frontage: [6, 8.5], corner: 1.2, depth: [24, 30], building: [14, 18], setback: [0, 0], side: [0, 0], storeys: [2, 3], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 }, palettes: ['#a55a42', '#8c4a3a', '#c9a57a', '#d8cbb3', '#6f4a3c'] },
+      // (a school's building on its site's own lot: sites.js lays the lot, these are its building's)
+      school: { read: 'a three-storey brick school, tall lights in long rows, a canopy over its doors', use: 'dwelling', frontage: [36, 95], corner: 0, depth: [30, 48], building: [13, 18], setback: [5, 9], side: [4, 12], storeys: [3, 3], rear: 'court', front: { canopy: true }, pad: { least: 0.3, most: 1.8 },
+        style: { from: 'walk-up', read: 'a collegiate brick school: three storeys of tall lights between stone bands, a deep cornice', language: { elements: { lights: { w: 1.4, h: 2, bay: 3.2 } }, compose: { mass: { w: 44, d: 16 } } }, palette: { stone: '#9a4f3a' } } },
       apartments: { read: 'a brick walk-up, four storeys, its entrance under a canopy, a lawn before it and a lot behind', use: 'dwelling', frontage: [24, 34], corner: 2, depth: [36, 42], building: [12, 15], setback: [5, 7], side: [3, 5], storeys: [4, 4], style: 'walk-up', rear: 'service', front: { canopy: true }, pad: { least: 0.45, most: 1.8 } },
     },
     // AN EVOCATION's counts: houses a row, shops a row, walk-ups a row; a segment's rows recut when what it is composed
@@ -140,6 +152,17 @@ export const PATTERNS = Object.freeze({
           front: { bay: 'square', bayStoreys: 'upper', porch: 'full' } },
       },
       yards: { near: { patio: 2, deck: 1 }, mid: { pool: 3, lawn: 1 }, back: { tree: 2, beds: 1, shed: 1 }, balcony: 0.6 },
+    },
+    // THE SITES (sites.js), each PROPORTIONED to the block it is given (its share of the site, the metres a clamp): its
+    // `site` rails (metres along its front street and into the block, the town to scale's; an evocation's tuned to its
+    // cells), a school's lot (its share of the site's length and depth), its staff lot, its setback and building (shares
+    // of its lot), the lawn round its field, its track (a lane band, the least field that holds one); a sports field's
+    // front strip, lot, field house, courts (from a site this long, each court's ground, the most); a park's path, its
+    // playground and pavilion
+    sites: {
+      school: { read: 'a public school: a brick building on its street, a schoolyard of courts behind it, a staff lot beside it, a field and a track behind', site: { long: [120, 150], deep: [80, 100] }, lot: { long: 0.48, deep: 0.42 }, parking: 0.18, setback: 0.2, building: { deep: 0.42, side: 0.12 }, margin: 4, track: { band: 5, least: [70, 38] } },
+      sports: { read: 'a local sports field: a ball diamond, a pitch under its lights and its bleachers, tennis courts, a field house and its lot', site: { long: [120, 150], deep: [80, 100] }, front: 0.14, parking: 0.2, house: { w: 12, d: 8 }, margin: 3, courts: { from: 110, w: 36, d: 18, most: 3 } },
+      park: { read: 'a neighbourhood park: two paths across it, a playground on its chips, a pavilion and its picnic tables, benches along the paths', path: 2.4, playground: { w: 16, d: 12 }, pavilion: { w: 9, d: 6 }, bench: 16 },
     },
     // THE STREETSCAPES: how close the neighbourhood is to the city, read from its sidewalk (the first the default). Each
     // changes the pattern a level deep: its street section, its plots, mix, block, house and setback (how far a house
@@ -167,6 +190,7 @@ export const PATTERNS = Object.freeze({
       annex: { read: 'an Annex: houses on their long streets, a parkette, a walk-up among the houses, the main street\'s shops along the south', layout: ['HHP', 'HAH', 'MMM'], main: ['ew-0'] },
       'main-street': { read: 'a main street of shops both sides, houses behind them', layout: ['MM', 'MM'], main: ['ew-1'] },
       'quiet-streets': { read: 'houses only, a park among them', layout: ['HH', 'HP'], main: [] },
+      'school-and-field': { read: 'a school on the main street, its field behind it, houses and a park between it and a sports field to the north', layout: ['FFH', 'HPH', 'SSM'], main: ['ew-0'] },
     },
   },
 });

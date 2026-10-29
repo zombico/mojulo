@@ -113,13 +113,17 @@ A cube that names no domains offers one per terrain and one per interior.
   its own plan behind its own fence, a feature by its back door, in its middle and by its back fence (patio, deck;
   lawn, beds, swing and slide, trampoline, pool; shed, kitchen garden, a large shade tree), a balcony over some, the
   pattern's `yards` their weights; `main-street` shops built to a main street's walk under their signs and
-  awnings, service yards behind, houses backing onto them; `apartments` a walk-up and its lot among houses; `park`;
+  awnings, service yards behind, houses backing onto them; `apartments` a walk-up and its lot among houses; `park` (a
+  playground, a pavilion, benches); `school` (its building, schoolyard, staff lot, a field round a track) and `sports`
+  (a diamond, a pitch under lights, tennis courts, a field house), each two segments' ground, one block, proportioned
+  to its cells (the `sites` law; `apart`: never two fields side by side);
   a houses segment may hold a MIDTOWN MANSION or two, `evoke.mansions`, each on a plot at least twice a house's, set
   back on its lawn, its drive to a garage, a pool in its yard, a revival of its pattern's `mansion.types`);
-  `neighbourhood` four or more segments composed (the pattern's `annex`, `main-street`, `quiet-streets`, or `{ layout:
-  ['HHP', 'HAH', 'MMM'], main: ['ew-0'] }`: rows of letters north to south, H houses, M main-street, A apartments, P
-  park; `main` the streets that are main, wider, their walks paved to the kerb), each segment tuned to its cell (its
-  rows recut and spread, its `fits` law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
+  `neighbourhood` four or more segments composed (the pattern's `annex`, `main-street`, `quiet-streets`,
+  `school-and-field`, or `{ layout: ['HHP', 'HAH', 'MMM'], main: ['ew-0'] }`: rows of letters north to south, H houses,
+  M main-street, A apartments, P park, S school, F sports, a wide letter side by side one block; `main` the streets that
+  are main, wider, their walks paved to the kerb), each segment tuned to its cell (its rows recut and spread, its `fits`
+  law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
   them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
   (`evokes`) on a window of its land. `streetscape` how close to the city, read from its sidewalk: `leafy` (the
   default; a wide boulevard of maples, deep lawns, one side parked), `snug` (a grass strip and a tree here and there,

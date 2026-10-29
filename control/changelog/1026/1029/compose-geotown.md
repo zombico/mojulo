@@ -49,6 +49,21 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   its cell stretches past the pattern's `evoke.stretch` recut by count, then spread to fill it, its rows' depths shared
   out (its `fits` law). The ledger counts the buildings' footprints by use; `ports` are its perimeter streets, their
   ranks and their ends' heights, where a geocity graph joins neighbourhoods.
+- **Sites** (`geotown/sites.js`): a block given to one program, evoked as the houses are. `school` (letter S) a brick
+  school of three storeys on its own lot facing its street (a canopy over its doors, a flagpole), a schoolyard of
+  courts and hoops behind it, a staff lot beside it, its field behind round a track where the field holds one;
+  `sports` (F) a local field: a softball diamond (its dirt, bases, mound, backstop, outfield fence), a pitch under its
+  lights and beside its bleachers, tennis courts in their fence, a field house and a lot; `park` (P) now its playground
+  on its chips, a pavilion and its picnic tables, benches along its paths. A school or a sports field is two segments'
+  ground: `segment: 'school'` lays two cells as one block, and in a layout wide letters side by side are one block, no
+  street through it (its crossings walk across). Each site is proportioned to the block it is given: alone it takes
+  its pattern's rails (`pattern.sites`), composed it yields to its neighbours' cells, to scale it takes the block it is
+  laid on, fronting its long side or a main street; its `sites` law holds it near its rails and its grounds' shares
+  (building, lot, playing ground, green, paved) near the site to scale's. Its ground is one level (the land under it,
+  held to its walks), retaining faces round it and its school's lot; its fields and courts grow nothing, its lawns
+  their trees, each held to its room. Every square metre is still one surface: the new `grounds`, `field`, `court`,
+  `track`, `infield`, `play`; a part drawn round (a track, a diamond's dirt) carries its own area. The `apart` law: two
+  playing fields never side by side across one street. The pattern's neighbourhood `school-and-field`.
 - **Streetscapes** (`streetscape`, the pattern's `streetscapes`): how close a neighbourhood is to the city, read from
   its sidewalk. `leafy` (the default) the Annex: a wide boulevard of maples, deep front lawns, a parked side, a gate
   here and there; `snug` closer to the city: a narrow strip of grass by the kerb and a tree here and there, narrow
