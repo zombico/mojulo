@@ -4,7 +4,7 @@
 //
 //   node docs/images/src/wcd-demo/stills.mjs <workDir>     (reads <workDir>/made.json)
 import { register } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,7 +25,9 @@ const work = path.resolve(process.argv[2]);
 const made = JSON.parse(readFileSync(path.join(work, 'made.json'), 'utf8'));
 // the levels, in the world's order, off its own record of what its runs made
 const worldRow = SketchRepository.getByRef(made.world), record = worldRow.manifest.made ?? {};
+made.names = Object.fromEntries(Object.entries(worldRow.manifest.levels ?? {}).map(([id, L]) => [id, L.name ?? id]));
 made.levels ??= Object.fromEntries(Object.keys(worldRow.manifest.levels ?? {}).map((id) => [id, record[Object.keys(record).find((k) => k.startsWith(`level-${id}-`))]?.ref]).filter(([, ref]) => ref));
+writeFileSync(path.join(work, 'made.json'), JSON.stringify(made, null, 1));
 const W = 1280, H = 720;
 const browser = await launchChromium({ executablePath: await resolveChromium({ allowFetch: false }), headless: true, args: CHROMIUM_WEBGL_ARGS });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
