@@ -82,6 +82,9 @@ describe('the realistic hero, minted and exported', () => {
     const breath = root.listAnimations().find((a) => a.getName() === 'breath:emote:idle');
     expect(breath.listChannels().map((c) => `${c.getTargetNode().getName()}.${c.getTargetPath()}`)).toEqual(expect.arrayContaining(['body:torso.rotation', 'body:clavicleL.rotation', 'body:upperArmR.translation']));
     expect(root.listAnimations().some((a) => a.getName() === 'breath:face:hello')).toBe(true);
+    // (and its head: the neck turned by its share, the head and the jaw by the whole, carried round)
+    const head = root.listAnimations().find((a) => a.getName() === 'head:emote:idle');
+    expect(head.listChannels().map((c) => `${c.getTargetNode().getName()}.${c.getTargetPath()}`)).toEqual(expect.arrayContaining(['body:neck.rotation', 'body:head.rotation', 'body:jaw.translation']));
     expect(faceX.breathing).toMatch(/additive/);
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];

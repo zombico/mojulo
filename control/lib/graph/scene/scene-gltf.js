@@ -26,6 +26,7 @@
 
 import { aquaWaterBodies } from '../materials/aqua-export.js';
 import { breathBones } from '../face-acting/breath.js';
+import { headBones } from '../face-acting/head.js';
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 import { resolveMetalSurface } from '../materials/metal-surface.js';
@@ -991,7 +992,7 @@ class GlbBuilder {
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
         ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio.map((A) => (A.bytes ? { at: A.at, recording: A.recording, mimeType: 'audio/wav', bufferView: this.addView(A.bytes, 0) } : { at: A.at, recording: A.recording, missing: true })) } : {}) })),
           performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, recording, mimeType, bufferView }: the WAV embedded in the file\'s own buffer, `missing` where the machine that exported it held no such recording) starts `at` seconds into the clip' } : {}),
-        ...(Object.values({ ...(fig.face.performances ?? {}), ...(fig.face.emotes ?? {}) }).some((x) => x.breath) && !parents ? { breathing: 'each face clip breathes: `breath:<clip>` (face-acting/breath.js), the body\'s breath its state of mind breathes (calm low and slow, wary high and quick, a startle\'s held breath and the sigh it settles with): the torso tipped back a little with each breath in and the clavicles lifted in a high one, the upper body\'s joints carried; keyed with the face clip, each joint its rest head plus its offset: play it as an additive layer over the body clip, the rest pose its reference' } : {}),
+        ...(Object.values({ ...(fig.face.performances ?? {}), ...(fig.face.emotes ?? {}) }).some((x) => x.breath) && !parents ? { breathing: 'each face clip breathes: `breath:<clip>` (face-acting/breath.js), the body\'s breath its state of mind breathes (calm low and slow, wary high and quick, a startle\'s held breath and the sigh it settles with): the torso tipped back a little with each breath in and the clavicles lifted in a high one, the upper body\'s joints carried; keyed with the face clip, each joint its rest head plus its offset: play it as an additive layer over the body clip, the rest pose its reference; and its head (`head:<clip>`, face-acting/head.js): the neck\'s turn and tilt, the head following the larger looks while the eyes keep the gaze, the head and the jaw carried round the neck, another additive layer' } : {}),
         ...(fig.face.emotes ? { emotes: Object.entries(fig.face.emotes).map(([clip, E]) => ({ clip: `emote:${clip}`, emote: E.emote, seconds: E.seconds, loop: true, ...(E.gaps.length ? { gaps: E.gaps } : {}) })),
           emoting: 'an emote (face-acting/emotes.js) is a held state as a face-only clip that LOOPS (its last key its first): a LINEAR weights channel on the mesh node, keyed at 30 fps, the face held and living on its targets, the eyes on the look targets, parallel where it looks at nothing and converged where it focuses (a listener on a speaker\'s face), never crossed; play it looping over a body clip, its face weights masked, and lay a line\'s mouth over it by `mouth`',
           ...(fig.face.mouth ? { mouth: { ...fig.face.mouth, about: 'who owns the mouth while a line is spoken over a face clip (face-acting/mouth.js): the driver (a lip-sync, a take\'s line) owns `driver`; the face\'s `rounded.targets` are drawn in by rounded.share × the greatest of `rounded.by`; its `released.targets` let go by released.share while the line runs (eased over released.ease seconds); then each driver target is the greater of the face\'s and the driver\'s' } } : {}) } : {}),
@@ -1083,7 +1084,7 @@ class GlbBuilder {
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: `face:${take}`, samplers, channels });
       animations++;
-      if (!parents && P.breath) animations += this.addBreathClip(`face:${take}`, bones, jointNodes, P);
+      if (!parents) animations += this.addBodyLayers(`face:${take}`, bones, jointNodes, P);
     }
     // the face's EMOTES (the door's `emote`: face-acting/emotes.js): each a held state's loop `emote:<clip>`, as a take is
     if (hasFace && fig.face.emotes) for (const [clip, E] of Object.entries(fig.face.emotes)) {
@@ -1092,20 +1093,30 @@ class GlbBuilder {
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: `emote:${clip}`, samplers, channels });
       animations++;
-      if (!parents && E.breath) animations += this.addBreathClip(`emote:${clip}`, bones, jointNodes, E);
+      if (!parents) animations += this.addBodyLayers(`emote:${clip}`, bones, jointNodes, E);
     }
     return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };
   }
 
   /**
-   * A face clip's BREATH on the body (face-acting/breath.js breathBones): `breath:<clip>`, the torso's and the clavicles'
-   * rotations and the offsets of the joints they carry, each joint its rest head plus its offset, keyed with the face
-   * clip's own times (LINEAR): played alone it breathes the rest pose; an engine plays it as an additive layer over a body
-   * clip (the rest pose its reference). The flat skeleton's (a nested one's joints carry each other: not written). → 1
-   * when written, 0 when the rig has none of the joints a breath moves.
+   * A face clip's layers on the body, each keyed with the face clip: its BREATH (face-acting/breath.js breathBones,
+   * `breath:<clip>`: the torso and the clavicles turned, the joints they carry offset) and its HEAD (head.js headBones,
+   * `head:<clip>`: the neck turned by its share, the head and the jaw by the whole and carried round). → how many written.
    */
-  addBreathClip(clipName, bones, jointNodes, T) {
-    const at = new Map(bones.map((b, bi) => [b.id, bi])), B = breathBones(Object.fromEntries(bones.map((b) => [b.id, b.head])), T.breath);
+  addBodyLayers(clipName, bones, jointNodes, T) {
+    const heads = Object.fromEntries(bones.map((b) => [b.id, b.head]));
+    return (T.breath ? this.addLayerClip(`breath:${clipName}`, bones, jointNodes, T, breathBones(heads, T.breath)) : 0)
+      + (T.head ? this.addLayerClip(`head:${clipName}`, bones, jointNodes, T, headBones(heads, T.head)) : 0);
+  }
+
+  /**
+   * One body layer (`B`: { id: { r?: quaternions, d?: offsets } } per frame): the joints' rotations and their rest heads
+   * plus their offsets, keyed with the face clip's own times (LINEAR): played alone it moves the rest pose; an engine
+   * plays it as an additive layer over a body clip (the rest pose its reference). The flat skeleton's (a nested one's
+   * joints carry each other: not written). → 1 when written, 0 when the rig has none of the joints it moves.
+   */
+  addLayerClip(animName, bones, jointNodes, T, B) {
+    const at = new Map(bones.map((b, bi) => [b.id, bi]));
     if (!Object.keys(B).length) return 0;
     const times = Float32Array.from(T.t), input = this.floatAccessor(times, 1, { min: [0], max: [times[times.length - 1]] }, null), samplers = [], channels = [];
     for (const [id, M] of Object.entries(B)) {
@@ -1118,7 +1129,7 @@ class GlbBuilder {
       }
     }
     if (!channels.length) return 0;
-    this.json.animations.push({ name: `breath:${clipName}`, samplers, channels });
+    this.json.animations.push({ name: animName, samplers, channels });
     return 1;
   }
 

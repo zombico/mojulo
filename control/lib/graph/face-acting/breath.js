@@ -31,7 +31,7 @@ export const BREATH = Object.freeze({
 });
 /** the body's breath: the torso's tip back at a full breath (degrees, low and high), the clavicles' lift at a full high
  * breath (degrees), the joints the clavicles carry (by name, a side's), the joints the torso carries (all above it) */
-export const BODY_BREATH = Object.freeze({ torso: Object.freeze([0.8, 2.4]), clavicle: 6, arm: /^(upperArm|foreArm|hand|thumb|index|middle|ring|pinky|little|shoulderFold)\d?([LR])$/ });
+export const BODY_BREATH = Object.freeze({ torso: Object.freeze([0.8, 2.4]), clavicle: 6, arm: /^(upperArm|foreArm|hand|thumb|index|middle|ring|pinky|little|shoulderFold|elbowFold|elbowCrease)\d?([LR])$/ });
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const lerp = (a, b, t) => a + (b - a) * t;

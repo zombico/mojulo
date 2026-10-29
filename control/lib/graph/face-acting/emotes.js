@@ -12,7 +12,9 @@
  * (glances off to a side, unfocused, and back) }, blink: { rate (a minute), slow? (× the blink's length) }, stirs?: [{ face, every: [s, s], up, hold, down
  * (s) } | { tell (an upper-face gesture, parts.js UPPER_GESTURES), intensity?, every }], alert? (its wariness,
  * alert.js: 0 calm … 1 on guard; a spec's `alert` over it, the face's fear raising it), breath? ({ rate?, depth?,
- * high?, sigh?: [s, s] }: its own over the breath its state breathes, breath.js), seconds (the loop) }. Each part of the face
+ * high?, sigh?: [s, s] }: its own over the breath its state breathes, breath.js), head? ({ yaw?, pitch?, roll? (degrees,
+ * its carriage), follow? (0 … 1, how far the head follows the eyes' larger looks), sway? (degrees) }: head.js; a stir's
+ * `head` a turn, nod or tilt it makes), seconds (the loop) }. Each part of the face
  * lives in the hold its own way and pulls on the others as parts.js says.
  *
  *   • THE REGARD: at the far point where it names no distance (the eyes parallel, looking at nothing), focused where it
@@ -31,6 +33,7 @@ import { BLINK, GAZE, CAPTURE_FPS } from './perform.js';
 import { PARTS, partOf, couple, tellOf, lookLids, lookPulses } from './parts.js';
 import { fearOf, alertFace, alertEyes, alertBlink, alertErrors, addState } from './alert.js';
 import { breathOf, breathTake, breathFace, SIGH_SECONDS } from './breath.js';
+import { headTake } from './head.js';
 import { vergence, EYES } from './gaze.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
@@ -40,42 +43,42 @@ export const FACE_EMOTES = Object.freeze({
     reads: 'nothing on it but the face\'s own unevenness: one brow a touch higher, a corner a touch lower, a lid a touch heavier; looking at nothing',
     face: { AU2L: 0.12, AU4R: 0.08, AU45R: 0.08, AU15R: 0.1, AU12L: 0.06, AU6L: 0.08, AU24: 0.06 },
     eyes: { yaw: 0, pitch: -4, drift: 0.5, refix: { every: [2.5, 5], reach: [1, 3] } },
-    blink: { rate: 14 }, seconds: 8,
+    blink: { rate: 14 }, head: { pitch: -2, roll: 2, follow: 0.5, sway: 0.6 }, seconds: 8,
   },
   vacant: {
     words: ['zoned out', 'vacant', 'spaced out', 'thousand-yard stare', 'blank stare'],
     reads: 'nobody home: the lids a little heavy, the lips just apart, the eyes still on nothing and seldom blinking',
     face: { AU45L: 0.22, AU45R: 0.16, AU25: 0.14, AU26: 0.03, AU1: 0.06, AU2R: 0.08 }, breath: { rate: 10 },
     eyes: { yaw: 0, pitch: -2, drift: 0.3, refix: null },
-    blink: { rate: 7, slow: 1.3 }, seconds: 8,
+    blink: { rate: 7, slow: 1.3 }, head: { pitch: -4, roll: -3, follow: 0.2, sway: 0.3 }, seconds: 8,
   },
   daydream: {
     words: ['daydreaming', 'lost in thought', 'far away', 'wistful', 'dreamy'],
     reads: 'far away and pleasantly so: the eyes up and off, a half smile on one side, the brows a little lifted',
     face: { AU12L: 0.22, AU6L: 0.2, AU1: 0.12, AU2L: 0.22, AU45: 0.08 },
     eyes: { yaw: 14, pitch: 9, drift: 0.6, refix: { every: [3, 6], reach: [1, 3] } },
-    blink: { rate: 10 }, stirs: [{ tell: 'eyeSmile', every: [4, 8] }], seconds: 8,
+    blink: { rate: 10 }, head: { yaw: 6, pitch: 5, roll: 6, follow: 0.6, sway: 0.8 }, stirs: [{ tell: 'eyeSmile', every: [4, 8] }], seconds: 8,
   },
   absorbed: {
     words: ['absorbed', 'turning it over', 'concentrating', 'inward', 'brooding'],
     reads: 'turned inward, working something over: the eyes down and off, one brow drawn, the lips pressed and working',
     face: { AU4R: 0.3, AU4L: 0.08, AU7R: 0.32, AU24: 0.18, AU17: 0.12, AU14R: 0.15 },
     eyes: { yaw: -9, pitch: -11, drift: 0.4, refix: { every: [1.5, 3.5], reach: [1.5, 4] } },
-    blink: { rate: 9 }, stirs: [{ face: { AU24: 0.2, AU17: 0.15 }, every: [3, 6], up: 0.3, hold: 0.6, down: 0.6 }, { tell: 'knit', every: [4, 7] }], seconds: 8,
+    blink: { rate: 9 }, head: { yaw: -4, pitch: -8, roll: -4, follow: 0.4, sway: 0.4 }, stirs: [{ face: { AU24: 0.2, AU17: 0.15 }, every: [3, 6], up: 0.3, hold: 0.6, down: 0.6 }, { tell: 'knit', every: [4, 7] }], seconds: 8,
   },
   waiting: {
     words: ['waiting', 'bored', 'patient', 'killing time', 'restless'],
     reads: 'patient and a little bored: the eyes wandering, one cheek drawn in, now and then a held sigh in the chin',
     face: { AU14L: 0.2, AU2R: 0.18, AU45: 0.1, AU24: 0.08 }, breath: { sigh: [5, 9] },
     eyes: { yaw: 4, pitch: -3, drift: 0.6, refix: { every: [1.2, 2.8], reach: [3, 9] } },
-    blink: { rate: 16 }, stirs: [{ face: { AU17: 0.25, AU24: 0.2, AU14R: 0.15 }, every: [3.5, 6], up: 0.35, hold: 0.5, down: 0.8 }], seconds: 8,
+    blink: { rate: 16 }, head: { roll: 3, follow: 0.6, sway: 1.2 }, stirs: [{ face: { AU17: 0.25, AU24: 0.2, AU14R: 0.15 }, every: [3.5, 6], up: 0.35, hold: 0.5, down: 0.8, head: { roll: -4, pitch: -2 } }], seconds: 8,
   },
   drowsy: {
     words: ['drowsy', 'sleepy', 'nodding off', 'heavy-lidded', 'tired'],
     reads: 'fighting sleep: the lids heavy, one heavier, the brows lifting to hold them, the lids sinking and caught, the blinks slow',
     face: { AU45L: 0.42, AU45R: 0.34, AU1: 0.14, AU2L: 0.26, AU2R: 0.06, AU25: 0.12 }, breath: { rate: 9, depth: 0.6, sigh: [5, 8] },
     eyes: { yaw: 0, pitch: -7, drift: 0.4, refix: null },
-    blink: { rate: 9, slow: 2.2 }, stirs: [{ face: { AU45: 0.65 }, every: [3, 6], up: 0.9, hold: 0.5, down: 0.6 }], seconds: 10,
+    blink: { rate: 9, slow: 2.2 }, head: { pitch: -6, roll: 4, follow: 0.3, sway: 0.5 }, stirs: [{ face: { AU45: 0.65 }, every: [3, 6], up: 0.9, hold: 0.5, down: 0.6, head: { pitch: -10 } }], seconds: 10,
   },
   listening: {
     words: ['listening', 'hearing someone out', 'attentive', 'in conversation', 'paying attention'],
@@ -86,14 +89,14 @@ export const FACE_EMOTES = Object.freeze({
     eyes: { yaw: 0, pitch: 0, distance: 1.1, drift: 0.2,
       scan: { points: [[-1.6, 1.3], [1.6, 1.3], [0, -2.6]], weights: [0.4, 0.4, 0.2], dwell: [0.5, 1.4] },
       away: { every: [5, 10], hold: [0.4, 0.9], reach: [7, 14] } },
-    blink: { rate: 15 }, stirs: [{ tell: 'eyeSmile', intensity: 0.5, every: [5, 9] }], seconds: 12,
+    blink: { rate: 15 }, head: { pitch: -2, roll: 7, follow: 0.5, sway: 0.6 }, stirs: [{ tell: 'eyeSmile', intensity: 0.5, every: [5, 9] }], seconds: 12,
   },
   wary: {
     words: ['wary', 'on guard', 'watchful', 'uneasy', 'vigilant', 'alert'],
     reads: 'on guard: the eyes on something a few metres off and checking to the sides, the lids up, the brows faintly set, the blinks held back and quick, a narrowing of the eyes now and then',
     face: { AU1: 0.06, AU4R: 0.22, AU7L: 0.2, AU24: 0.12 },
     eyes: { yaw: 0, pitch: -2, distance: 4, drift: 0.3, refix: { every: [1.2, 2.5], reach: [2, 5] } },
-    blink: { rate: 12 }, alert: 0.75, stirs: [{ tell: 'appraise', intensity: 0.6, every: [4, 8] }], seconds: 12,
+    blink: { rate: 12 }, alert: 0.75, head: { pitch: -5, follow: 0.4, sway: 0.2 }, stirs: [{ tell: 'appraise', intensity: 0.6, every: [4, 8] }], seconds: 12,
   },
 });
 export const FACE_EMOTE_NAMES = Object.freeze(Object.keys(FACE_EMOTES));
@@ -143,10 +146,13 @@ export function emoteState(spec, { floor = 0 } = {}) {
   // (its wariness: the spec's, else the card's, raised by any fear the face holds; alert.js)
   const a = Math.max(S.alert ?? C.alert ?? 0, floor, fearOf(face));
   // (a stir is the card's own units, or an upper-face gesture's, parts.js: `tell`, mirrored with the emote)
-  const stir = (st) => { if (!st.tell) return { ...st, face: scale(st.face) }; const G = tellOf({ gesture: st.tell, mirror: !!S.mirror, intensity: K * (st.intensity ?? 1) }); return { every: st.every, up: G.up, hold: G.hold, down: G.down, face: G.units, tell: st.tell }; };
+  const flipHead = (h) => (h ? { ...h, ...(h.yaw !== undefined ? { yaw: (S.mirror ? -1 : 1) * h.yaw } : {}), ...(h.roll !== undefined ? { roll: (S.mirror ? -1 : 1) * h.roll } : {}) } : undefined);
+  const stir = (st) => { if (!st.tell) return { ...st, face: scale(st.face ?? {}), ...(st.head ? { head: flipHead(st.head) } : {}) }; const G = tellOf({ gesture: st.tell, mirror: !!S.mirror, intensity: K * (st.intensity ?? 1) }); return { every: st.every, up: G.up, hold: G.hold, down: G.down, face: G.units, tell: st.tell }; };
   return { emote: S.emote, card: C, face: addState(face, alertFace(a)), stirs: (C.stirs ?? []).map(stir), alert: a,
     home: { yaw: (S.mirror ? -1 : 1) * C.eyes.yaw, pitch: C.eyes.pitch, v: C.eyes.distance ? vergence(C.eyes.distance) : 0 }, flip: S.mirror ? -1 : 1,
-    eyes: alertEyes(C.eyes, a), blink: alertBlink(C.blink, a) };
+    eyes: alertEyes(C.eyes, a), blink: alertBlink(C.blink, a),
+    // (its carriage, mirrored with it: the warier, the more the head follows the eyes and the stiller it sways; head.js)
+    head: { yaw: 0, pitch: 0, roll: 0, ...flipHead(C.head), follow: Math.min(1, (C.head?.follow ?? 0.5) + 0.4 * a), sway: (C.head?.sway ?? 0.5) * (1 - 0.5 * a) } };
 }
 
 /**
@@ -224,10 +230,12 @@ export function emoteTake(spec) {
   };
   const events = { blinks: [], saccades: [], stirs: [] };
   // THE STIRS: a moment the held face moves (a lip pressed, the lids sinking and caught), then settles back
+  const headPulses = [];
   for (const st of E.stirs) {
     const len = st.up + st.hold + st.down;
     for (const t of round(span([0.5, 2]), len, () => span(st.every))) {
       for (const [k, v] of Object.entries(st.face)) layer(k, t, st.up, st.hold, st.down, v);
+      if (st.head) headPulses.push({ t, up: st.up, hold: st.hold, down: st.down, ...st.head });
       events.stirs.push({ t: r4(t), dur: r4(len), ...(st.tell ? { tell: st.tell } : {}) });
     }
   }
@@ -255,6 +263,11 @@ export function emoteTake(spec) {
     pitch[i] = Math.max(-LIMIT, Math.min(LIMIT, at.pitch + wander(drift.pitch, t)));
   }
   fix.forEach((f, k) => { const p = fix[(k - 1 + fix.length) % fix.length], amp = Math.hypot(f.yaw - p.yaw, f.pitch - p.pitch); if (amp > 0.5) events.saccades.push({ t: r4(f.t), dur: r4(GAZE.saccade.base + GAZE.saccade.perDeg * amp), amp: r4(amp) }); });
+  // THE HEAD (head.js): its carriage and sway (whole cycles round the loop), its stirs, following the larger looks; the
+  // eyes kept on the gaze by turning back in the head
+  const hw = () => [wave(span([0.05, 0.12])), wave(span([0.15, 0.3]))], waves = { yaw: hw(), pitch: hw(), roll: hw() };
+  const head = headTake({ gaze: { yaw, pitch }, pose: () => E.head, pulses: headPulses, n, fps, loop: true, waves });
+  for (let i = 0; i < n; i++) { yaw[i] = head.eyes.yaw[i]; pitch[i] = head.eyes.pitch[i]; }
   // THE LOOK MOVES THE FACE: the lids and brows following the eye, a large glance's moment of widened lids (parts.js)
   lookLids(curves, pitch, n);
   lookPulses(events.saccades, () => E.alert, layer);
@@ -289,7 +302,8 @@ export function emoteTake(spec) {
     fps, seconds: r4(P), frames: n, loop: true, emote: S.emote,
     curves: Object.fromEntries(Object.keys(curves).sort().map((k) => [k, curves[k].map(r4)])),
     gaze: { yaw: yaw.map(r4), pitch: pitch.map(r4), ...(verg.some((v) => v > 0) ? { vergence: verg.map(r4) } : {}) },
-    breath: { v: breath.v.map(r4), high: breath.high.map(r4) }, events,
+    breath: { v: breath.v.map(r4), high: breath.high.map(r4) },
+    head: { yaw: head.yaw.map(r4), pitch: head.pitch.map(r4), roll: head.roll.map(r4) }, events,
   };
 }
 

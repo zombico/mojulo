@@ -58,7 +58,8 @@ describe('emotes: the face\'s held states, general, never cross-eyed', () => {
         expect(E.L.yaw).toBeCloseTo(E.R.yaw, 4);
       }
       const reach = C.eyes.drift + (C.eyes.refix ? C.eyes.refix.reach[1] : 0) + 0.01;
-      for (let i = 0; i < T.frames; i++) expect(Math.hypot(T.gaze.yaw[i] - C.eyes.yaw, T.gaze.pitch[i] - C.eyes.pitch)).toBeLessThan(reach * Math.SQRT2);
+      // (where the eyes are sent: their turn in the head and the head's own)
+      for (let i = 0; i < T.frames; i++) expect(Math.hypot(T.gaze.yaw[i] + T.head.yaw[i] - C.eyes.yaw, T.gaze.pitch[i] + T.head.pitch[i] - C.eyes.pitch)).toBeLessThan(reach * Math.SQRT2);
       expect(eyeTurns(T.gaze.yaw[0], T.gaze.pitch[0]).L).toEqual(eyeTurns(T.gaze.yaw[0], T.gaze.pitch[0]).R);
     }
     expect(emoteTake(REFIX).events.saccades.length).toBeGreaterThan(0);
@@ -103,9 +104,11 @@ describe('emotes as the base layer: under an emotion, and held by a performance\
     const C = FACE_EMOTES[REFIX], T = perform({ seed: 3, seconds: 6, beats: [{ at: 0, face: 'neutral' }, { at: 1, emote: REFIX }, { at: 4, emote: REFIX, gaze: 'listener' }] });
     const mid = captureFrame(T, Math.round(2.2 * T.fps));
     for (const [k, v] of Object.entries(C.face).filter(([k]) => auOf(k)[0] !== 'AU45')) expect(Math.abs((mid[k] ?? 0) - v)).toBeLessThan(0.25 * v + 0.01);
-    expect(T.gaze.yaw[Math.round(1.6 * T.fps)]).toBeCloseTo(C.eyes.yaw, 0);
-    expect(T.gaze.pitch[Math.round(1.6 * T.fps)]).toBeCloseTo(C.eyes.pitch, 0);
-    expect(Math.abs(T.gaze.pitch[Math.round(4.5 * T.fps)])).toBeLessThan(Math.abs(C.eyes.pitch));
+    // (where the eyes are sent: their turn in the head and the head's own)
+    const sent = (ax, t) => T.gaze[ax][Math.round(t * T.fps)] + T.head[ax][Math.round(t * T.fps)];
+    expect(sent('yaw', 1.6)).toBeCloseTo(C.eyes.yaw, 0);
+    expect(sent('pitch', 1.6)).toBeCloseTo(C.eyes.pitch, 0);
+    expect(Math.abs(sent('pitch', 4.5))).toBeLessThan(Math.abs(C.eyes.pitch));
     expect(perform({ seed: 3, beats: [{ at: 0, face: 'neutral' }] }).events.stirs).toBeUndefined();
     expect(performanceErrors({ beats: [{ at: 0, emote: 'sulking' }] })[0]).toMatch(/^beats\[0\]\.emote: 'sulking'/);
   });

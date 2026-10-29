@@ -102,3 +102,18 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   engine plays it as an additive layer over any body clip, the rest pose its reference (the flat skeleton's; the GLB's
   `face.breathing` says so). `/hero-live` plays each take's breath additively over the body's idle, synced to it, and
   `face.mjs` writes it for its clips. The nostrils' flare (FACS 38) is a gap: the realistic head has no such action yet.
+- **The neck turns and tilts** (`face-acting/head.js`): the head as the face acting carries it. A CARRIAGE (its turn,
+  nod and tilt: an emote card's `head`, a beat's own `head: { yaw, pitch, roll }`), a slow sway, and the larger looks
+  FOLLOWED: a look within ten degrees is the eyes' alone; past it the head takes a share, starting a moment after the
+  eyes and arriving slower (a critically damped spring, quicker the larger the turn), and always what would turn the
+  eyes in the head past their comfortable reach (18°), while the eyes turn back to keep the gaze where it was sent (a
+  take's `gaze` is now the eyes' turn in the head, its `head` the head's). A stir may move the head (`drowsy`'s lids
+  sinking take its head down with them, `waiting` shifts it with its sighs); a spoken word's emphasis nods it; the
+  warier, the more the head follows and the stiller it sways. The cards' carriages: `listening` tilted, `daydream`
+  tilted and lifted toward where it looks, `absorbed` down and to a side, `drowsy` low, `wary` its chin tucked, `rest`
+  a touch, `vacant` still.
+- **The head on the body** (`headBones`, `head:<clip>` in the GLB): each face clip's head as a body clip keyed with it,
+  the neck's joint turned by its share about its root and the head's and the jaw's by the whole, carried round it; an
+  additive layer as the breath is. `/hero-live` plays it with the breath, and `face.mjs` writes it. And `/hero-live`'s
+  tuned clips no longer shake the body: they were bound to their joints by uuid where the loader binds by name, two
+  mixers writing one joint (`heroLive.probe` reads the playback and found it).

@@ -200,9 +200,10 @@ async function load(v) {
       if (tracks.length) actions[C.name] = { action: mixer.clipAction(new THREE.AnimationClip(C.name, C.seconds, tracks)), seconds: C.seconds, face: true };
     }
   }
-  // (each face clip's BREATH on the body, `breath:<clip>` (face-acting/breath.js), the GLB's and face.mjs's: played as an
-  // additive layer over the body's idle with its clip, the rest pose its reference, captured here before anything plays)
-  const breaths = {}, restOf = (name) => root.getObjectByName(name);
+  // (each face clip's layers on the body, its BREATH and its HEAD (`breath:<clip>`, `head:<clip>`: face-acting/breath.js,
+  // head.js), the GLB's and face.mjs's: played as additive layers over the body's idle with its clip, the rest pose their
+  // reference, captured here before anything plays)
+  const layers = {}, restOf = (name) => root.getObjectByName(name);
   const additive = (clip) => {
     const ref = new THREE.AnimationClip(`${clip.name}:rest`, 0, clip.tracks.map((tr) => {
       const [node, prop] = [tr.name.slice(0, tr.name.lastIndexOf('.')), tr.name.slice(tr.name.lastIndexOf('.') + 1)], o = restOf(node) ?? root.getObjectByProperty('uuid', node);
@@ -212,8 +213,9 @@ async function load(v) {
     THREE.AnimationUtils.makeClipAdditive(clip, 0, ref);
     return mixer.clipAction(clip);
   };
-  for (const clip of gltf.animations) if (clip.name.startsWith('breath:')) breaths[clip.name.slice(7)] = additive(clip);
-  for (const B of side?.breaths ?? []) {
+  const put = (kind, of, action) => { (layers[of] ??= {})[kind] = action; };
+  for (const clip of gltf.animations) { const m = /^(breath|head):(.*)$/.exec(clip.name); if (m) put(m[1], m[2], additive(clip)); }
+  for (const [kind, list] of [['breath', side?.breaths], ['head', side?.heads]]) for (const B of list ?? []) {
     const tracks = [];
     for (const J of B.joints) {
       const o = restOf(THREE.PropertyBinding.sanitizeNodeName(J.node)); if (!o) continue;
@@ -222,7 +224,7 @@ async function load(v) {
       if (J.r) tracks.push(new THREE.QuaternionKeyframeTrack(`${o.name || o.uuid}.quaternion`, B.t, J.r));
       if (J.p) tracks.push(new THREE.VectorKeyframeTrack(`${o.name || o.uuid}.position`, B.t, J.p));
     }
-    if (tracks.length) breaths[B.of] = additive(new THREE.AnimationClip(`breath:${B.of}`, B.t.at(-1), tracks));
+    if (tracks.length) put(kind, B.of, additive(new THREE.AnimationClip(`${kind}:${B.of}`, B.t.at(-1), tracks)));
   }
   // (the body's idle under a take: its own face's weights left out, so the take alone drives the face, as an engine
   // layers it under a mask on the morph weights; two actions on one weights track would be averaged)
@@ -237,7 +239,7 @@ async function load(v) {
     const bytes = await gltf.parser.getDependency('bufferView', A.bufferView);
     (audio[P.clip] ??= []).push({ at: A.at, src: URL.createObjectURL(new Blob([bytes], { type: A.mimeType ?? 'audio/wav' })) });
   }
-  v.loaded = { breaths, audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+  v.loaded = { layers, audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
     stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
   return v.loaded;
 }
@@ -301,9 +303,11 @@ function play(name, { phase = 0, fade = 0.35 } = {}) {
   S.take = Object.keys(L.actions).find((k) => L.actions[k] === T);
   next.reset(); next.setLoop(THREE.LoopRepeat, Infinity); next.timeScale = (next.getClip().duration / T.seconds) * S.speed;
   next.time = phase * next.getClip().duration; next.paused = S.paused; next.play();
-  // (the take's breath with it, on the body)
-  if (S.breath && S.breath !== L.breaths[S.take]) { S.breath.stop(); S.breath = null; }
-  if (L.breaths[S.take]) { const b = L.breaths[S.take]; b.reset(); b.setLoop(THREE.LoopRepeat, Infinity); b.play(); S.breath = b; syncBreath(next); }
+  // (the take's layers with it, on the body: its breath, its head)
+  for (const x of S.layers ?? []) x.stop();
+  S.layers = Object.values(L.layers[S.take] ?? {});
+  for (const x of S.layers) { x.reset(); x.setLoop(THREE.LoopRepeat, Infinity); x.play(); }
+  syncBreath(next);
   if (prev && prev !== next && prev !== S.under) { if (fade > 0 && !T.face && !L.actions[Object.keys(L.actions).find((k) => L.actions[k].action === prev)]?.face) prev.crossFadeTo(next, fade, false); else prev.stop(); }
   if (S.paused) L.mixer.update(0);
   markTakes();
@@ -316,7 +320,7 @@ async function selectVariant(id) {
   for (const [k, b] of Object.entries(variantButtons)) b.setAttribute('aria-pressed', String(k === id));
   status.textContent = `Loading ${v.label}…`;
   let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
-  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; S.breath = null; }
+  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; S.layers = []; }
   S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
   setWire($('wire').checked);
   renderTakes(L); renderMeters(L); renderRead(v);
@@ -331,11 +335,11 @@ function setWire(on) { const L = cur(); for (const m of [L?.body?.material].flat
 
 // ─── the transport and the toggles ──────────────────────────────────────────
 /** the breath kept with its take: its time, its speed, paused with it */
-function syncBreath(a) { if (S.breath && a) { S.breath.time = a.time; S.breath.timeScale = a.timeScale; S.breath.paused = a.paused; } }
+function syncBreath(a) { if (a) for (const x of S.layers ?? []) { x.time = a.time; x.timeScale = a.timeScale; x.paused = a.paused; } }
 function setPaused(p) {
   S.paused = p; $('playPause').textContent = p ? 'Play' : 'Pause'; $('playPause').setAttribute('aria-label', p ? 'Play' : 'Pause');
   const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.paused = p;
-  if (S.breath) S.breath.paused = p;
+  for (const x of S.layers ?? []) x.paused = p;
 }
 $('playPause').addEventListener('click', () => setPaused(!S.paused));
 function seek(phase) {
@@ -440,10 +444,10 @@ window.heroLive = {
     const L = cur(), a = L && S.take && L.actions[S.take]?.action; if (!a) return null;
     setPaused(true);
     // (a layer left out of the read: its action off for it)
-    for (const [on, x] of [[under, S.under], [breath, S.breath]]) if (x) x.setEffectiveWeight(on ? 1 : 0);
+    for (const [on, xs] of [[under, [S.under]], [breath, S.layers ?? []]]) for (const x of xs) if (x) x.setEffectiveWeight(on ? 1 : 0);
     const bones = joints.map((j) => L.body.skeleton.bones.find((x) => x.name.endsWith(j)));
     return times.map((t) => {
-      for (const x of [a, S.under, S.breath].filter(Boolean)) x.time = t % x.getClip().duration;
+      for (const x of [a, S.under, ...(S.layers ?? [])].filter(Boolean)) x.time = t % x.getClip().duration;
       L.mixer.update(0); L.root.updateMatrixWorld(true);
       return { t, joints: Object.fromEntries(bones.map((b, i) => [joints[i], b ? new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).toArray().map((v) => +v.toFixed(6)) : null])),
         morph: Object.fromEntries(Object.entries(L.morph).map(([n, i]) => [n, +L.body.morphTargetInfluences[i].toFixed(5)])) };

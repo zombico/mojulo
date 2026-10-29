@@ -14,7 +14,8 @@
  * name or { emote, mirror?, intensity? }; the base the beat's `face` adds to, its regard where the beat names no gaze, its
  * blinks' rate and pace but while speaking, its stirs, until the next beat), tell? (an upper-face gesture, parts.js
  * UPPER_GESTURES: a name, { gesture, at?, mirror?, intensity? } or a list: a one-sided brow, the smile in the eyes, an
- * appraising squint …, laid over the face from the beat or its own `at`), alert? (0 calm … 1 on guard, alert.js: carried
+ * appraising squint …, laid over the face from the beat or its own `at`), head? ({ yaw?, pitch?, roll? }
+ * degrees: the head's carriage from the beat, head.js; else its emote's, else level), sigh? (a sigh on the beat), alert? (0 calm … 1 on guard, alert.js: carried
  * to the beats after it), startle? (a startle on the beat: the reflex blink, then the eyes wide) }], alert? (the
  * performance's wariness, 0 … 1), seconds?,
  * intensity? (1), seed? (1), fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds
@@ -45,6 +46,9 @@
  *     more of them ride the gaze's shifts, the eyes CHECK their surroundings (glances off, focused), the lids rise and
  *     the brows take fear's set a little; a STARTLE blinks hard and the eyes fly wide. And THE LOOK moves the face
  *     (parts.js): the upper lid follows the eye down and lifts looking up, a large glance widens the lids for a moment.
+ *   • THE HEAD (head.js): a carriage, a sway, and the larger looks followed: the head turns a moment after the eyes and
+ *     slower, the eyes turning back in the head to keep the gaze (`gaze` is the eyes' turn in the head; `head` the
+ *     head's); an emphasized word nods it.
  *   • THE GAZE: fixations with a little drift, saccades between them timed by the main sequence (a saccade's duration
  *     grows with its amplitude: about 21 ms plus 2.2 ms a degree), the eyes away while thinking (gaze aversion while
  *     retrieving), on the listener while listening, glancing off now and then while speaking.
@@ -63,6 +67,7 @@ import { vergence, EYES } from './gaze.js';
 import { PARTS, partOf, couple, tellErrors, tellOf, lookLids, lookPulses } from './parts.js';
 import { ALERT, STARTLE, fearOf, alertFace, alertBlink, alertErrors, addState } from './alert.js';
 import { BREATH, breathOf, breathTake, breathFace, settle, reliefAt, SIGH_SECONDS } from './breath.js';
+import { HEAD, headTake } from './head.js';
 
 export const CAPTURE_FPS = 60;
 /** a change's timing, seconds: [shortest, longest], the onset rising, the offset falling; the upper face's lead */
@@ -122,6 +127,8 @@ export function performanceErrors(P) {
     if (b.tell !== undefined) for (const T of [b.tell].flat()) errs.push(...tellErrors(T).map((e) => `${at}.${e}`));
     errs.push(...alertErrors(b.alert, `${at}.alert`));
     if (b.startle !== undefined && typeof b.startle !== 'boolean') errs.push(`${at}.startle: true | false`);
+    if (b.sigh !== undefined && typeof b.sigh !== 'boolean') errs.push(`${at}.sigh: true | false`);
+    if (b.head !== undefined && !(b.head && typeof b.head === 'object' && ['yaw', 'pitch', 'roll'].every((k) => b.head[k] === undefined || Number.isFinite(b.head[k])))) errs.push(`${at}.head: { yaw?, pitch?, roll? } degrees (its carriage: +yaw the figure's right, +pitch up, +roll the top to the right)`);
     // (a recording is saved by the character door, which keeps its id: a path here would play nothing)
     if (b.say && typeof b.say === 'object' && b.say.audio !== undefined) errs.push(`${at}.say.audio: a recording is saved by the door (create_character or update_character, recordings.js), which keeps its id; a performance holds no path`);
     const g = b.gaze;
@@ -224,12 +231,14 @@ export function perform(P) {
   }
   // THE EMOTES' STIRS: within a beat that holds an emote, its moments (a lip pressed, the lids sinking and caught)
   if (beats.some((b) => b.E)) events.stirs = [];
+  const headStirs = [];
   beats.forEach((b, bi) => {
     const end = bi + 1 < beats.length ? beats[bi + 1].at : seconds;
     for (const st of b.E?.stirs ?? []) {
       const len = st.up + st.hold + st.down;
       for (let t = b.at + span([0.5, 2]); t + len < end; t += len + span(st.every)) {
         for (const [k, v] of Object.entries(st.face)) layer(k, t, st.up, st.hold, st.down, clamp01(v * K));
+        if (st.head) headStirs.push({ t, up: st.up, hold: st.hold, down: st.down, ...st.head });
         events.stirs.push({ t: r4(t), dur: r4(len) });
       }
     }
@@ -323,6 +332,13 @@ export function perform(P) {
       yaw[i] = cur.yaw; pitch[i] = cur.pitch; verg[i] = vNow;
     }
   }
+  // THE HEAD (head.js): each beat's carriage (its own `head`, its emote's, else level), its sway, its emote's stirs, the
+  // nods of its emphasized words, following the larger looks; the eyes turned back in the head to keep the gaze
+  const carriage = (t) => { const b = beatAt(t), a = alertAt(t), H = b?.head ?? b?.E?.head ?? {}; return { yaw: H.yaw ?? 0, pitch: H.pitch ?? 0, roll: H.roll ?? 0, follow: Math.min(1, (b?.E?.head.follow ?? 0.5) + (b?.E ? 0 : 0.4 * a)), sway: (b?.E?.head.sway ?? 0.4) * (b?.E ? 1 : 1 - 0.5 * a) }; };
+  const nods = events.batons.map((x) => ({ t: x.t, up: HEAD.baton.down, hold: 0.05, down: HEAD.baton.up, pitch: HEAD.baton.pitch }));
+  const hw = () => [[2 * Math.PI * span([0.05, 0.12]), 2 * Math.PI * rnd()], [2 * Math.PI * span([0.15, 0.3]), 2 * Math.PI * rnd()]];
+  const head = headTake({ gaze: { yaw, pitch }, pose: carriage, pulses: [...headStirs, ...nods], n, fps, waves: { yaw: hw(), pitch: hw(), roll: hw() } });
+  for (let i = 0; i < n; i++) { yaw[i] = head.eyes.yaw[i]; pitch[i] = head.eyes.pitch[i]; }
   // THE LOOK MOVES THE FACE: the lids and the brows following the eye, a large glance's moment of widened lids, the
   // more the warier (parts.js)
   lookLids(curves, pitch, n);
@@ -366,7 +382,8 @@ export function perform(P) {
     fps, seconds, frames: n,
     curves: Object.fromEntries(Object.keys(curves).sort().map((k) => [k, curves[k].map(r4)])),
     gaze: { yaw: yaw.map(r4), pitch: pitch.map(r4), ...(verg.some((v) => v > 0) ? { vergence: verg.map(r4) } : {}) },
-    breath: { v: breath.v.map(r4), high: breath.high.map(r4) }, events,
+    breath: { v: breath.v.map(r4), high: breath.high.map(r4) },
+    head: { yaw: head.yaw.map(r4), pitch: head.pitch.map(r4), roll: head.roll.map(r4) }, events,
   };
 }
 

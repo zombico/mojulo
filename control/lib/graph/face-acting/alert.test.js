@@ -43,7 +43,9 @@ describe('alert: wariness, and fear raising it', () => {
 
   it('moves the lids with the look: the upper lid follows the eye down, a glance widens them, more on guard', () => {
     const D = perform({ seed: 1, seconds: 3, beats: [{ at: 0, face: 'neutral', gaze: 'down' }] }), i = Math.round(2 * D.fps);
-    expect(Math.min(D.curves.AU45L[i], D.curves.AU45R[i])).toBeGreaterThan(LOOK.down * -GAZE.down.pitch * 0.9);
+    // (the lid follows the eye in its orbit: the gaze less the head's share of it)
+    expect(-D.gaze.pitch[i]).toBeGreaterThan(-GAZE.down.pitch * 0.8);
+    expect(Math.min(D.curves.AU45L[i], D.curves.AU45R[i])).toBeGreaterThan(LOOK.down * -D.gaze.pitch[i] * 0.9);
     const glance = (alert) => perform({ seed: 1, seconds: 3, beats: [{ at: 0, face: 'neutral', gaze: 'listener', alert }, { at: 1, face: 'neutral', gaze: { yaw: 18, pitch: 0 }, alert }] });
     const lift = (T) => Math.max(...(T.curves.AU5L ?? T.curves.AU5).slice(Math.round(0.9 * T.fps), Math.round(1.5 * T.fps)));
     expect(lift(glance(0))).toBeGreaterThanOrEqual(LOOK.pulse.base * 0.9);
