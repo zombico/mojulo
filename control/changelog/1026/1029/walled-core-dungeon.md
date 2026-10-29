@@ -17,3 +17,13 @@ panels and load-bearing doodads, stocked by use. Built so far:
   or palette, read through the composer; the light is the theme's, set once), `same-level` (a lift or a teleporter moves
   within one level).
 - **The card** `gameworld-wcd` (`get_game_vocab`), its words the tables' own.
+- **A base's buildings** (`era/programs.js` `BASE_USES`): nine corridor-and-core uses whose rooms are what a base is
+  stocked for: `hangar-bay` (the ready room and shops, the hangar off its end), `barracks` (bunk rooms on two storeys,
+  the first sergeant at the top), `armoury` (the issue window, cleaning, rack cages, the vault), `comms` (radio rooms,
+  the server room, crypto at the top), `command` (staff offices, briefing, the operations centre), `mess` (the
+  scullery and stores, the dining hall off it, the quartermaster), `med-bay` (triage, wards, theatres, the pharmacy),
+  `cell-block` (processing, cells, interview rooms, isolation) and `plant` (switchgear and pumps, the generator hall,
+  plant control). Each is on the bay kit of what it is (a hangar's steel, a barracks' painted block, a comms room's
+  white panels, a plant's concrete), so layers walked one after another look unlike each other. A space's `use`, a
+  level's `building: { use }`, anywhere a building use is read. The world card names them as "a base's"; the WCD card
+  lists them.

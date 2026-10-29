@@ -31,7 +31,7 @@ import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { MARKED_ENGINES } from '../scene/engines/registry.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
-import { PROGRAM_IDS } from '../era/programs.js';
+import { PROGRAM_IDS, PROGRAMS, BASE_USES } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
@@ -139,8 +139,8 @@ function worldCard() {
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
-    `  or building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? } | { ref } in place of the walk:`,
-    '  a building played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
+    `  or building: { use: ${PROGRAM_IDS.filter((u) => !BASE_USES.includes(u)).join(' | ')} | a base's (gameworld-wcd), seed?, goal?,`,
+    '  civilization? } | { ref } in place of the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
@@ -545,6 +545,9 @@ function wcdCard() {
     ...Object.entries(WCD_VIAS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
     "  gate          what opens it: { clearance: 1…9 } (a keycard's level) or { power: '<id>' } (a power found in the world)",
     '  oneWay        it opens only from `from`: a shortcut back out, or a drop',
+    '',
+    'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
+    ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
     '',
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
     ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),

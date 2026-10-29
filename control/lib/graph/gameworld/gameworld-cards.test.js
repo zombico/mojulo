@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gameworldCards, GAMEWORLD_CARD_IDS, QUICK_GOAL_CARD_IDS, quickGoalCardById, genreCardById } from './gameworld-cards.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
+import { BASE_USES } from '../era/programs.js';
 import { FOLK_KEYS } from '../folk/folk.js';
 import { SHAPES } from '../folk/domicile.js';
 import { SIDEQUEST_KEYS } from '../folk/sidequests.js';
@@ -47,7 +48,7 @@ describe('the rail\'s cards', () => {
     on('gameworld-adornment', RAILS.flatMap((r) => r.stems));
     on('gameworld-equipment', Object.keys(CLASS_SLOTS));
     on('gameworld-foes', [...Object.keys(FOE_CLASSES), ...Object.keys(MOVES), ...Object.keys(ATTACKS), ...Object.keys(STOMPS), ...Object.keys(FOE_RANKS)]);
-    on('gameworld-wcd', [...Object.keys(WCD_KINDS), ...Object.keys(WCD_VIAS), ...Object.keys(WCD_PRINCIPLES)]);
+    on('gameworld-wcd', [...Object.keys(WCD_KINDS), ...Object.keys(WCD_VIAS), ...Object.keys(WCD_PRINCIPLES), ...BASE_USES]);
     on('gameworld-folk', [...FOLK_KEYS, ...Object.keys(SHAPES), ...['D + 0', 'D + P', 'D of F (P + C2)', 'D + C1'], ...SIDEQUEST_KEYS]);
   });
 
