@@ -38,3 +38,17 @@ off the body's envelope, and its buckle was four bars round a point.
   worn, never listed `unworn` (it was, on the realistic body too).
 - Pins moved, each with its reason in its header: the outfit laws' pin (version 1 rewritten in place, unreleased, for
   the waistband), the statue characterization's draped and belted cases, the adult-form chibi's ranger recipe.
+- **The jacket opens on the game body** (`polygonizer/authored-jacket.js`, from the kit hook, which now runs for a plan
+  with a tailoring as well as one with adornments). An outfit naming a jacket's construction (`front: 'zip'`, `open`,
+  `rib`, `pockets: 'flap'`, `epaulettes`, `collar: 'shirt'`: the `flight` card) was a closed tube on the game body with
+  its opening painted on. Now its trunk pieces (`outer_torso`, `outerTail_pelvis`) and its collar are opened at the centre
+  front in place (`openFront`, ten points a side: the game body's cloth is ring12), keeping their names and their
+  stations, so what was placed on them and the dials still find them; their trims are carried across the opening. Its
+  zip, rib waistband and cuffs, flapped pockets, collar points and epaulettes are laid on a view of the jacket as the
+  realistic body makes it (its trunk one tube, `oneTube`), weighted by ring and following the dials (a zip and a rib
+  waistband never swing with a hinge). The door no longer says the jacket's construction is the realistic body's.
+- `jacketPieces` takes `{ rings, around }`, and its rib waistband lies on the first garment with a ring at the band's own
+  height (on a game body the shirt's body ends above the band, its tail at it).
+- **A pocket, a flap and a collar's point drew inside out** (`patchOn`, on both bodies): the compiler turns a part out by
+  its first band face, which lay at the section's end, a pocket wide and 2.5 mm thick, and read either way, so they drew
+  dark. The ring now starts at its outer face's middle.

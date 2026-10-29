@@ -14,7 +14,7 @@
 //             collar), buttons?: 1 | 2 | 3 (in a row); any of them gives the jacket a V onto the shirt, its lapels and its
 //             buttons (single with a notch lapel, double with a peak, unless named); its SHAPE: shoulder?: natural |
 //             structured (squared on a pad), waist?: suppressed (taken in) | straight (a sack, chest to hip); its
-//             CONSTRUCTION (a jacket's, on the realistic body: body-relational-jacket.js): front: 'zip' (closed on a zip
+//             CONSTRUCTION (a jacket's, on either body: body-relational-jacket.js, authored-jacket.js): front: 'zip' (closed on a zip
 //             down the centre, no V), collar: 'shirt' (a falling collar, its points snapped to the chest; true the stand
 //             collar), rib?: cuffs | waist | both (knit rib bands, the body and the sleeves bloused over them),
 //             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
@@ -225,7 +225,7 @@ const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 
 export const OUTER_FRONTS = Object.freeze(['single', 'double', 'zip']), OUTER_LAPELS = Object.freeze(['notch', 'peak', 'shawl', 'none']);
 /** a jacket's SHAPE words (the tailor's too): its shoulder and its waist */
 export const OUTER_SHOULDERS = Object.freeze(['natural', 'structured']), OUTER_WAISTS = Object.freeze(['suppressed', 'straight']);
-/** a jacket's CONSTRUCTION words (the realistic body's: body-relational-jacket.js): its rib bands, its pockets, the cloth */
+/** a jacket's CONSTRUCTION words (either body's: body-relational-jacket.js, authored-jacket.js): its rib bands, its pockets, the cloth */
 export const OUTER_RIBS = Object.freeze(['cuffs', 'waist', 'both']), OUTER_POCKETS = Object.freeze(['flap', 'none']), OUTER_CLOTHS = Object.freeze(['leather', 'canvas', 'wool', 'denim', 'nylon', 'cotton']);
 const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);

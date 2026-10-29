@@ -218,8 +218,10 @@ The game body (the authored and the tiered hero) wears the same kit by the same 
 its weights read by ring, its sparse rings read with rings put between them, a belt sampled round at its own density, no
 lower than the hips' widest). A pouch on a leg rides the leg and hangs below a pouch above it, never through it. Not yet:
 the kneepads on either body, and every piece the kit does not make (a panel, a cape, a hood, a plate) are still the
-authored kernel's, laid on the body's envelope; the jacket's construction and the folds are the realistic body's alone
-so far, and the folds are geometry only (no fold normal map, no weave).
+authored kernel's, laid on the body's envelope. The game body's jacket opens too (`polygonizer/authored-jacket.js`: its
+trunk pieces opened in place, keeping their names, and its zip, rib bands, pockets, collar points and epaulettes laid on
+the jacket as one tube); its tailoring (the V, the lapels, the shoulder, the waist) and the folds are the realistic
+body's alone so far, and the folds are geometry only (no fold normal map, no weave).
 
 ## Against the outfit laws
 
