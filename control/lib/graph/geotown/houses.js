@@ -41,7 +41,8 @@ const SIGNS = ['#1f2a33', '#3a2a1f', '#e8e0cc', '#24382a', '#5a1f1f', '#2a2f45']
 /** The buildings of an evocation's rows, each kind's kits spoken and dressed once, and the dice that pick one for a
  *  building: a houses row the pattern's TYPES on its style (when the style is a starter; a written style is one
  *  language, no types), a shop row its own brick each (its `palettes`, the main-street style's) with its own awning and
- *  sign, a walk-up its style, a midtown mansion one of the pattern's `mansion.types` (kind 'mansions'). → { kit(kind, id) → { id, kind, use, read?, L, dress, band, front, awning?, sign? } | null,
+ *  sign, a walk-up its style, a midtown mansion one of the pattern's `mansion.types` (kind 'mansions'), an edge's avenue
+ *  building its type's (`<type>:<variant>`, the type the design chose). → { kit(kind, id) → { id, kind, use, read?, L, dress, band, front, awning?, sign? } | null,
  *  pick(kind, R, prev) → id, sStyle } */
 export function buildingKits(P, styleId, cube, kitId, seed) {
   const sStyle = structureStyle(kitId, seed), cache = new Map(), typed = !!P.types && typeof styleId === 'string' && !!STYLE_STARTERS[styleId];
@@ -61,6 +62,13 @@ export function buildingKits(P, styleId, cube, kitId, seed) {
       return make(`mansions:${id}`, { from: styleId, read: T.read, ...(T.style ?? {}) }, `pattern.mansion.types.${id}.style`, { kind, type: `mansion-${id}`, use: 'dwelling', read: T.read, band: T.storeys ?? [3, 3], front: T.front ?? {}, accent: true });
     }
     const K = P.rows[kind], n = Number(id) || 0;
+    if (K.types) {
+      // (a typed row, an edge's avenue: `<type>:<variant>`, the variant its brick, awning and sign)
+      const [t, v0] = String(id).split(':'), T = K.types[t], v = Number(v0) || 0, pal = P.rows.shops?.palettes ?? [];
+      const palette = t === 'shop' && pal.length ? { stone: pal[v % pal.length] } : {};
+      return make(`${kind}:${t}:${t === 'shop' ? v % Math.max(1, pal.length) : 0}`, { from: T.from ?? K.style, read: T.read, ...(T.style ?? {}), ...(Object.keys(palette).length ? { palette: { ...(T.style?.palette ?? {}), ...palette } } : {}) }, `pattern.rows.${kind}.types.${t}`,
+        { kind, type: `${kind}-${t}`, use: T.use ?? K.use, read: T.read, band: T.storeys ?? K.storeys, front: T.front ?? K.front ?? {}, awning: AWNINGS[v % AWNINGS.length], sign: SIGNS[(v * 3 + 1) % SIGNS.length] });
+    }
     if (kind === 'shops') return make(`shops:${n}`, { from: K.style, palette: { stone: K.palettes[n % K.palettes.length] } }, `pattern.rows.shops`, { kind, type: `shop-${n}`, use: K.use, band: K.storeys, front: K.front ?? {}, awning: AWNINGS[n % AWNINGS.length], sign: SIGNS[(n * 3 + 1) % SIGNS.length] });
     return make(`${kind}:0`, K.style, `pattern.rows.${kind}`, { kind, type: kind, use: K.use, band: K.storeys, front: K.front ?? {}, accent: true });
   };

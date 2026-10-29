@@ -15,6 +15,7 @@
  *   fenceOf(fence, [u0, v0], [u1, v1], z0) → the fence's faces along a line (a thin box, or a hedge's thick one)
  *   carOf(u, v, along, hex) → a car's faces standing at (u, v), its length along 'u' or 'v', its body painted `hex`
  *   CAR_PAINTS   the cars' paints
+ *   garageOf(rect, door?) → a garage's faces, its door at v0 (a mansion's drive) or v1 (a lane behind)
  *   serviceOf(kind, { w, v0, v1, R }) → { faces }: a shop's service yard (its bins, now and then a car) or a walk-up's lot
  *                (its stalls painted, cars in some), from the building's back wall (v0) to the plot's back line (v1)
  *
@@ -245,11 +246,12 @@ export function serviceOf(kind, { w, v0, v1, R }) {
   return { faces: out };
 }
 
-/** A mansion's garage over [u0, v0, u1, v1] in its plot's frame: its walls, a gable roof along v, its door to the drive. */
-export function garageOf([u0, v0, u1, v1]) {
-  const out = box(u0, v0, u1, v1, 0, 2.6, 'garage').slice(1);
+/** A garage over [u0, v0, u1, v1] in its plot's frame: its walls, a gable roof along v, its door to the drive (a
+ *  mansion's, at v0) or to the lane behind (a house's off a lane, `door` 'v1'). */
+export function garageOf([u0, v0, u1, v1], door = 'v0') {
+  const out = box(u0, v0, u1, v1, 0, 2.6, 'garage').slice(1), at = door === 'v1' ? v1 : v0, s = door === 'v1' ? 1 : -1;
   out.push(...gable(u0, v0, u1, v1, 2.6, 1.1, 0.25, 'roof').map((f) => (f.role === 'shed' ? { ...f, role: 'garage' } : f)));
-  out.push({ corners: [P(u0 + 0.4, v0 - 0.02, 0.02), P(u1 - 0.4, v0 - 0.02, 0.02), P(u1 - 0.4, v0 - 0.02, 2.3), P(u0 + 0.4, v0 - 0.02, 2.3)], out: [0, -1, 0], role: 'door' });
-  for (let z = 0.6; z < 2.3; z += 0.55) out.push({ corners: [P(u0 + 0.4, v0 - 0.04, z), P(u1 - 0.4, v0 - 0.04, z), P(u1 - 0.4, v0 - 0.04, z + 0.04), P(u0 + 0.4, v0 - 0.04, z + 0.04)], out: [0, -1, 0], role: 'garage' });
+  out.push({ corners: [P(u0 + 0.4, at + s * 0.02, 0.02), P(u1 - 0.4, at + s * 0.02, 0.02), P(u1 - 0.4, at + s * 0.02, 2.3), P(u0 + 0.4, at + s * 0.02, 2.3)], out: [0, s, 0], role: 'door' });
+  for (let z = 0.6; z < 2.3; z += 0.55) out.push({ corners: [P(u0 + 0.4, at + s * 0.04, z), P(u1 - 0.4, at + s * 0.04, z), P(u1 - 0.4, at + s * 0.04, z + 0.04), P(u0 + 0.4, at + s * 0.04, z + 0.04)], out: [0, s, 0], role: 'garage' });
   return out;
 }

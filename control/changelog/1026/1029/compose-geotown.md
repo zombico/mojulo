@@ -64,6 +64,13 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   their trees, each held to its room. Every square metre is still one surface: the new `grounds`, `field`, `court`,
   `track`, `infield`, `play`; a part drawn round (a track, a diamond's dirt) carries its own area. The `apart` law: two
   playing fields never side by side across one street. The pattern's neighbourhood `school-and-field`.
+- **The edge** (letter E, `segment: 'edge'`): a neighbourhood's edge on a MAJOR street (the pattern's `major` section:
+  four lanes, a narrower walk, its trees in pits, sparse; a layout's `major` lines, a lone edge's south street). Its
+  AVENUE row faces the major street: two-storey buildings each a type (`rows.avenue.types`: a shop with a flat over it, a
+  small office under its canopy, a shop behind its forecourt of parking, a house turned to business on its lawn), no two
+  neighbours alike, each at its type's setback and frontage; a public LANE behind them (the `lane` surface), and the
+  houses behind it facing their quiet street, some with a garage off the lane (counted in `parking`). The pattern's
+  neighbourhood `edges`: quiet streets between two major ones.
 - **Streetscapes** (`streetscape`, the pattern's `streetscapes`): how close a neighbourhood is to the city, read from
   its sidewalk. `leafy` (the default) the Annex: a wide boulevard of maples, deep front lawns, a parked side, a gate
   here and there; `snug` closer to the city: a narrow strip of grass by the kerb and a tree here and there, narrow

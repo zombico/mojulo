@@ -116,13 +116,16 @@ A cube that names no domains offers one per terrain and one per interior.
   awnings, service yards behind, houses backing onto them; `apartments` a walk-up and its lot among houses; `park` (a
   playground, a pavilion, benches); `school` (its building, schoolyard, staff lot, a field round a track) and `sports`
   (a diamond, a pitch under lights, tennis courts, a field house), each two segments' ground, one block, proportioned
-  to its cells (the `sites` law; `apart`: never two fields side by side);
+  to its cells (the `sites` law; `apart`: never two fields side by side); `edge` a neighbourhood's edge on a MAJOR
+  street (four lanes, sparse trees in pits): two-storey shops, offices, a forecourt plaza and converted houses facing
+  it, each its type, a public lane behind them with garages off it, houses behind the lane;
   a houses segment may hold a MIDTOWN MANSION or two, `evoke.mansions`, each on a plot at least twice a house's, set
   back on its lawn, its drive to a garage, a pool in its yard, a revival of its pattern's `mansion.types`);
   `neighbourhood` four or more segments composed (the pattern's `annex`, `main-street`, `quiet-streets`,
-  `school-and-field`, or `{ layout: ['HHP', 'HAH', 'MMM'], main: ['ew-0'] }`: rows of letters north to south, H houses,
-  M main-street, A apartments, P park, S school, F sports, a wide letter side by side one block; `main` the streets that
-  are main, wider, their walks paved to the kerb), each segment tuned to its cell (its rows recut and spread, its `fits`
+  `school-and-field`, `edges`, or `{ layout: ['EEE', 'HPH', 'EEE'], main?, major?: ['ew-0', 'ew-3'] }`: rows of
+  letters north to south, H houses, M main-street, A apartments, P park, S school, F sports, E edge, a wide letter side
+  by side one block; `main` the streets that are main, wider, their walks paved to the kerb; `major` the arterials an
+  edge faces), each segment tuned to its cell (its rows recut and spread, its `fits`
   law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
   them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
   (`evokes`) on a window of its land. `streetscape` how close to the city, read from its sidewalk: `leafy` (the

@@ -171,4 +171,15 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
       }
     }
   });
+
+  it('builds an edge: its avenue\'s buildings each its type, its lane and the garages opening onto it, an avenue view', () => {
+    const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, segment: 'edge' } }, p = assembleGeotownScene(E), d = designGeotown(E.geotown, { seed: 3 });
+    expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+    const av = p.anchors.filter((a) => a.row === 'avenue');
+    expect(av.length).toBe(d.plots.filter((pl) => pl.kind === 'avenue').length);
+    expect(new Set(av.map((a) => a.type)).size).toBeGreaterThan(2);
+    const groups = new Set(p.faces.map((f) => f.group));
+    for (const g of ['geotown:lane', 'geotown:garage', 'geotown:sign', 'geotown:canvas']) expect(groups.has(g)).toBe(true);
+    expect(p.cameras.some((c) => c.name === 'avenue')).toBe(true);
+  });
 });

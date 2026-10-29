@@ -142,7 +142,7 @@ function coloursOf(cube) {
     // a yard's things: a trampoline's mat, a grill, mulch round a tree, a compost bin, a balcony's rail
     mat: '#24262a', grill: '#2b2b2d', mulch: mix('#5b4232', C.floor, 0.2), compost: '#4f5a3c', rail: mix('#ece8de', C.trim, 0.2),
     // a gated front: its iron, its low wall's brick, its piers' stone
-    iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
+    lane: mix('#55585c', C.floor, 0.12), iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
     // a site's ground and its things: lawn, turf and its mown stripes, the lines, a court, a track, a diamond's dirt, the
     // chips under a playground; goals, nets, fences, a field house's block walls, lamps, a flag, seats
     grounds: mix(C.grass, C.foliage, 0.08), field: mix('#4f8f3a', C.grass, 0.35), turf: mix('#4f8f3a', C.grass, 0.35), stripe: mix('#5e9e46', C.grass, 0.35), line: '#f2f0e8',
@@ -243,7 +243,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     let prev = null;
     for (const pl of d.plots.filter((q) => q.block === B.id && q.side === r.side).sort((p, q) => p.k - q.k)) {
       const key = pl.pair ?? pl.id;
-      if (!types.has(key)) { prev = kits.pick(familyOf(pl), R, prev); types.set(key, prev); }
+      if (!types.has(key)) { prev = pl.type ? `${pl.type}:${pl.k}` : kits.pick(familyOf(pl), R, prev); types.set(key, prev); }
     }
   }
   // ── the plots ──
@@ -312,9 +312,19 @@ export function assembleGeotownScene(m, ctx = {}) {
           }
         }
       }
-    } else if (Math.abs(pad - wkAt(w / 2)) > 0.01) {
+    } else {
       // a building built to its walk: its threshold's face between the walk and its floor, along its front
-      put([W(pl, 0, 0, wkAt(0)), W(pl, w, 0, wkAt(w)), W(pl, w, 0, pad), W(pl, 0, 0, pad)], 'geotown:step', col.kerb, [-pl.ey[0], -pl.ey[1], 0]);
+      if (Math.abs(pad - wkAt(w / 2)) > 0.01) put([W(pl, 0, 0, wkAt(0)), W(pl, w, 0, wkAt(w)), W(pl, w, 0, pad), W(pl, 0, 0, pad)], 'geotown:step', col.kerb, [-pl.ey[0], -pl.ey[1], 0]);
+      // (an avenue's building set back by its type: its forecourt of parking, cars nose in, or its lawn and path)
+      const F1 = env[1];
+      if (F1 > 1e-3) {
+        put([W(pl, 0, 0, pad), W(pl, w, 0, pad), W(pl, w, F1, pad), W(pl, 0, F1, pad)], `geotown:${pl.paved ? 'service' : 'front'}`, pl.paved ? col.service : lawn);
+        if (pw > 0) put([W(pl, a, 0, pad + 0.01), W(pl, b, 0, pad + 0.01), W(pl, b, F1, pad + 0.01), W(pl, a, F1, pad + 0.01)], 'geotown:path', col.path);
+        if (pl.paved && F1 > 5) for (let u = 1.6; u + 1.2 < w; u += 2.8) {
+          if (u + 1 > a && u - 1 < b) continue;
+          if (R() < 0.6) for (const f of carOf(u, F1 / 2, 'v', CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)])) yardFace(pl, f);
+        }
+      }
     }
     // the pad: the side yards (a mansion's drive-side its drive), the building's ground, the back yard or the service
     // yard (round a mansion's apron and garage), one level quad each
@@ -325,6 +335,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     const apron = Mn?.garage ? [Mn.drive[0], F3, Mn.drive[1], Mn.garage[1]] : null;
     for (const q of lessRects([0, F3, w, dep], [apron, Mn?.garage].filter(Boolean))) quadAt(...q, pl.rear, pl.rear === 'back' ? lawn : col.service);
     if (apron) { quadAt(...apron, 'drive', col.drive); quadAt(...Mn.garage, 'drive', col.drive); for (const f of garageOf(Mn.garage)) yardFace(pl, f); }
+    if (pl.laneGarage && pl.built) for (const f of garageOf(pl.laneGarage, 'v1')) yardFace(pl, f);
     // a hedge along a house's front line, a share of the households keep one (not across the path)
     if (pl.kind === 'houses' && F > 1.5 && R() < P.grow.front) {
       hedges++;
@@ -398,7 +409,7 @@ export function assembleGeotownScene(m, ctx = {}) {
           pl.fence = Mn ? 'hedge' : pickWeighted(Ry, P.fences);
           const busy = Mn?.garage ? [Math.min(Mn.drive[0], Mn.garage[0]) - 0.5, Math.max(Mn.drive[1], Mn.garage[2]) + 0.5] : null;
           const [ua, ub] = busy ? (Mn.left ? [busy[1], w] : [0, busy[0]]) : [0, w];
-          const Y = yardOf(want, { w: ub - ua, v0, v1: dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
+          const Y = yardOf(want, { w: ub - ua, v0, v1: pl.laneGarage ? pl.laneGarage[1] - 0.6 : dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
           if (!Mn) yardPrev.set(key, Y.plan);
           const drawn = ZONES.map((z) => Y.plan[z]).filter((x) => x !== 'lawn');
           for (const x of drawn) yardsOf[x] = (yardsOf[x] ?? 0) + 1;
@@ -455,6 +466,17 @@ export function assembleGeotownScene(m, ctx = {}) {
       else { const y = Math.abs(a[3] - b[1]) < 1e-3 ? a[3] : a[1], x0 = Math.max(a[0], b[0]), x1 = Math.min(a[2], b[2]), toQ = Math.sign((b[1] + b[3]) / 2 - y); wall([[x0, y, p.pad], [x1, y, p.pad], [x1, y, q.pad], [x0, y, q.pad]], [0, p.pad > q.pad ? toQ : -toQ, 0]); }
     }
   }
+  // ── an edge's LANE: the streets' ground between its rows' backs; a face where each lot's pad stands over (or under) it ──
+  for (const B of d.blocks) {
+    if (!B.lane) continue;
+    const [x0, y0, x1, y1] = B.lane, ax = x1 - x0 >= y1 - y0, xs = ax ? breaks(x0, x1, plotXs, CELL) : [x0, x1], ys = ax ? [y0, y1] : breaks(y0, y1, plotYs, CELL);
+    for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y)]), 'geotown:lane', col.lane);
+    for (const pl of d.plots.filter((q) => q.block === B.id)) {
+      const a = W(pl, 0, pl.d, 0), b = W(pl, pl.w, pl.d, 0), za = S(a[0], a[1]), zb = S(b[0], b[1]);
+      if (Math.abs(pl.pad - (za + zb) / 2) < 0.01) continue;
+      wall([[a[0], a[1], za], [b[0], b[1], zb], [b[0], b[1], pl.pad], [a[0], a[1], pl.pad]], pl.pad > (za + zb) / 2 ? [pl.ey[0], pl.ey[1], 0] : [-pl.ey[0], -pl.ey[1], 0]);
+    }
+  }
   // ── an evocation's fences: between each yard and the next (from the buildings' back walls), on its flanks, and along
   // the back line (the first row's), each plot's own kind, standing on the higher of the two pads ──
   if (evoked) for (const B of d.blocks) rowsOf(B).forEach((rowP0, ri) => {
@@ -464,7 +486,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (q) for (const f of fenceOf(p.fence, [p.w, Math.max(vb(p), vb(q))], [p.w, p.d], Math.max(0, q.pad - p.pad))) yardFace(p, f);
       if (k === 0) for (const f of fenceOf(p.fence, [0, vb(p)], [0, p.d], 0)) yardFace(p, f);
       if (!q) for (const f of fenceOf(p.fence, [p.w, vb(p)], [p.w, p.d], 0)) yardFace(p, f);
-      if (ri === 0) for (const f of fenceOf(p.fence, [0, p.d], [p.w, p.d], 0)) yardFace(p, f);
+      if (ri === 0 || B.lane) for (const [u0, u1] of p.laneGarage ? [[0, p.laneGarage[0]], [p.laneGarage[2], p.w]] : [[0, p.w]]) if (u1 - u0 > 0.2) for (const f of fenceOf(p.fence, [u0, p.d], [u1, p.d], 0)) yardFace(p, f);
     });
   });
   // ── the parks: the land as it lies, eased to the walks round it; their paths on the same lattice ──
@@ -593,8 +615,9 @@ export function assembleGeotownScene(m, ctx = {}) {
     if ((p.cls !== 'verge' && p.cls !== 'furnish') || !facesBlock(p)) continue;
     const [x0, y0, x1, y1] = p.rect, ax = x1 - x0 > y1 - y0, len = ax ? x1 - x0 : y1 - y0, R = streamOf(seed, 'green', `street:${p.street}:${p.seg}:${p.side}`), pits = p.cls === 'furnish';
     // (a boulevard's trees at its streetscape's stride, its share of them planted, none at a drive's kerb cut; a main
-    // street's pits at the pattern's)
-    const stride = pits ? P.grow.stride : P.trees?.stride ?? P.grow.stride, share = pits ? 1 : P.trees?.share ?? 1, cut = d.parking?.cuts?.[`${p.street}:${p.side}`] ?? [];
+    // street's pits at the pattern's; a major street's sparse, `major.trees`)
+    const major = d.streets.find((s) => s.id === p.street)?.rank === 'major' ? P.major?.trees : null, cut = d.parking?.cuts?.[`${p.street}:${p.side}`] ?? [];
+    const stride = major ? major.stride : pits ? P.grow.stride : P.trees?.stride ?? P.grow.stride, share = major ? major.share : pits ? 1 : P.trees?.share ?? 1;
     if (!(share > 0)) continue;
     for (let s = 3 + R() * stride * 0.6; s < len - 3; s += stride * (0.85 + 0.3 * R())) {
       const x = ax ? x0 + s : (x0 + x1) / 2, y = ax ? (y0 + y1) / 2 : y0 + s, sp = P.grow.street[Math.floor(R() * P.grow.street.length)];
@@ -646,6 +669,8 @@ export function assembleGeotownScene(m, ctx = {}) {
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));
+  const V0 = rowWith('avenue');
+  if (V0) cameras.push(along(V0, 'avenue', 24));
   // a school from the walk across its street, its doors before it; a site's fields from beyond its corner, over its trees
   const Sb = d.blocks.find((b) => b.site?.type === 'school'), Sl = Sb && d.plots.find((pl) => pl.block === Sb.id && pl.kind === 'school');
   if (Sl) {

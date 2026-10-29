@@ -291,3 +291,31 @@ describe('a site: a block given to one program, evoked as the houses are', () =>
     for (const id of ['closes', 'sites', 'coverage']) expect(law(m, id).ok).toBe(true);
   });
 });
+
+describe('an edge: two-storey buildings facing a major street, a lane behind, houses behind it', () => {
+  it('turns its avenue to its major street, each building a type its neighbour is not, at its type\'s setback; a lane between its rows', () => {
+    const d = designGeotown({ segment: 'edge' }, { seed: 3, field: plane }), B = d.blocks[0], T = PATTERNS[DEFAULT_PATTERN].rows.avenue.types;
+    expect(d.streets.find((s) => s.id === 'ew-0').rank).toBe('major');
+    expect(d.sections.y[0].row).toBeGreaterThan(d.sections.y[1].row);
+    expect(B.rows.map((r) => `${r.side}:${r.kind}`)).toEqual(['s:avenue', 'n:houses']);
+    const av = d.plots.filter((pl) => pl.kind === 'avenue').sort((p, q) => p.k - q.k);
+    for (let k = 1; k < av.length; k++) expect(av[k].type).not.toBe(av[k - 1].type);
+    for (const pl of av) expect(pl.house.env[1]).toBeCloseTo(T[pl.type].setback ?? 0, 6);
+    // the lane: between the avenue's backs and the houses', its own surface; the houses' garages off it are parking
+    expect(B.lane).toBeTruthy();
+    expect(d.ledger.town.lane).toBeGreaterThan(0);
+    const homes = d.plots.filter((pl) => pl.kind === 'houses');
+    expect(homes.every((pl) => !(pl.rect[0] < B.lane[2] && pl.rect[2] > B.lane[0] && pl.rect[1] < B.lane[3] && pl.rect[3] > B.lane[1]))).toBe(true);
+    expect(d.parking.laneGarages).toBe(homes.filter((pl) => pl.laneGarage).length);
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+  });
+
+  it('composes the edges of a neighbourhood: each edge\'s avenue facing its own major street', () => {
+    const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'edges' }, { seed: 1, field: plane });
+    const faces = d.blocks.filter((b) => b.use === 'edge').map((b) => b.rows[0]);
+    expect(faces.every((r) => r.kind === 'avenue')).toBe(true);
+    expect(new Set(faces.map((r) => r.side))).toEqual(new Set(['s', 'n']));
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(() => readGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['EE', 'HH'], main: ['ew-0'], major: ['ew-0'] } })).toThrow(/is main or major, not both/);
+  });
+});
