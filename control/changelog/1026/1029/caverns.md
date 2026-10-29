@@ -42,16 +42,20 @@ rock (its walls the cliff's rock, its floor scree, a ceiling under the land), li
   their light falling to the floor), a `skylight` (a hole over the walk: the day's sky through it, the sun's shaft), its
   register's lamps along the walk (`light`: torch by default) and the bounce of all of it round the hall (the rock's share
   of the mean light on its floor). An anchor (`kind: 'cavern'`); `scripts/spikes/caves/cavern.mjs` captures it.
-- **Its walk of rock** (`floorKind`, `floorDress`): a cavern's trail is laid in the rock it runs through, in stretches
-  along it (worn bedrock, a limestone pavement; natural flagstones; plates; gravel; cobbles), patched with gravel, its
-  edges frayed face by face to cobbles and rubble into the scree its floor off the walk lies in, stones strewn on it;
-  each surface a tile in the cube's own rock, each face lit by the cavern's own light at its corners
+- **Its floor, soil and scree** (`floorKind`, `floorDress`): a cavern's ground is soil, its walk packed earth and the
+  floor off it a darker dirt; scree lies round its rocks (its walls' feet, its formations, its boulders, the bigger
+  stones strewn on it; a pebble sheds none), rubble nearest; its walk is broken by stretches of the rock it runs through
+  (worn bedrock, a limestone pavement; natural flagstones; plates) and patched with gravel, its edge frayed face by face
+  into the dirt; each surface a tile in the cube's own soil or rock, each face lit by the cavern's own light at its corners
   (`cavernLightAt`). Only the hall's floor: the walls' tops and the plateau under the ceiling stay the rock's. Its edges
   are strewn as a dirt trail's are (`local-meru/broken-land.js` strewEdge, now taking its numbers, EDGE's by default),
   heaped evenly both sides with more and bigger stones reaching further out and in (`CAVERN_EDGE`), so no line shows
   between the walk and the floor; no grass hat on any stone underground. It is still a trail: its beats and its walk as
   any trail's, a level's section as any is.
-- **The meru's rock**: a trail with caves wears the meru's gen-7 rock fabric, strata and joints near the eye, inside and
+- **Its wall rocks** (`wallRocks`): small rocks (0.3 to 1.1 m, most small) heaped along the foot of every wall, the far
+  cliff's and the open side's, one to three a step, found where the land lies level past the wall's face, out of the
+  walk: the land's boulders, no hat.
+- **The meru's rock**: a trail with caves, or a cavern, wears the meru's gen-7 rock fabric, strata and joints near the eye, inside and
   out.
 - **The geocube card** says it; `scripts/spikes/caves/cave.mjs` captures a cave from the approach, wide, at the mouth,
   from its far end and up at its ceiling.

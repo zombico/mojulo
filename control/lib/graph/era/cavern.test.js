@@ -4,7 +4,7 @@
 // than the open, lit by its register's lamps, and a skylight lets the day in.
 
 import { describe, it, expect } from 'vitest';
-import { readCavern, formationFaces, floorKind, CAVERN, FLOOR } from './cavern.js';
+import { readCavern, formationFaces, floorKind, wallRocks, CAVERN, FLOOR, WALL_ROCKS } from './cavern.js';
 import { assembleStageScene } from './stage.js';
 
 const GROWS = /:(grass|crown|wood|blossom|bush|flower|ikebana|ridge)$/;
@@ -35,14 +35,28 @@ describe('the cavern', () => {
 
 describe('its floor', () => {
   // a straight walk 3 m wide down a site 60 m long
-  const site = { trailX: () => 10, trailDist: (x) => Math.abs(x - 10), halfWAt: () => 1.5, D: 60 };
-  it('is its walk of rock, its stretches varied along it, frayed at its edges into the scree off it', () => {
-    const walk = new Set(), edge = new Set();
-    for (let y = 1; y < 60; y += 0.5) { walk.add(floorKind(site, 10, y)); edge.add(floorKind(site, 11.6, y)); }
-    expect([...walk].filter((k) => ['bedrock', 'flags', 'plates', 'cobbles'].includes(k)).length).toBeGreaterThanOrEqual(3);
-    expect([...edge].some((k) => ['rubble', 'cobbles'].includes(k))).toBe(true);
-    for (let y = 1; y < 60; y += 3) expect(['scree', 'rubble']).toContain(floorKind(site, 20, y));
-    expect(Object.keys(FLOOR)).toEqual(expect.arrayContaining(['bedrock', 'flags', 'gravel', 'scree']));
+  const site = { trailX: () => 10, trailDist: (x) => Math.abs(x - 10), halfWAt: () => 1.5, D: 60, cliffX: () => -100, fringeAt: () => 0.8 };
+  it('is soil, its walk broken by stretches of rock, scree round its rocks, the floor off the walk its dirt', () => {
+    const walk = [];
+    for (let y = 1; y < 60; y += 0.5) walk.push(floorKind(site, 10, y));
+    // (the walk mostly soil, a stretch of its rock coming round along it)
+    expect(walk.filter((k) => k === 'soil').length).toBeGreaterThan(walk.length * 0.4);
+    expect(walk.some((k) => ['bedrock', 'flags', 'plates'].includes(k))).toBe(true);
+    // (off the walk dirt, far from any rock; round a rock scree, rubble nearest)
+    expect(floorKind(site, 20, 30)).toBe('dirt');
+    const near = (x, y) => Math.max(0, Math.hypot(x - 20, y - 30) - 0.5);
+    expect(floorKind(site, 20.6, 30, 1, near)).toBe('rubble');
+    expect(['scree', 'dirt']).toContain(floorKind(site, 21.5, 30, 1, near));
+    expect(Object.keys(FLOOR)).toEqual(expect.arrayContaining(['soil', 'dirt', 'bedrock', 'flags', 'gravel', 'scree']));
+  });
+
+  it("heaps small rocks along every wall's foot, out of the walk", () => {
+    const W = { ...site, cliffX: () => 0, fringeAt: () => 0.8, ground: (x) => (x < 1 ? 15 : x > 18.3 ? 15 : 0) };
+    const R = wallRocks(W, readCavern(true));
+    expect(R.length).toBeGreaterThan(40);
+    expect(R.every((r) => W.trailDist(r.x, r.y) > W.halfWAt(r.y) + 0.8 && r.s >= WALL_ROCKS.size[0] && r.s <= WALL_ROCKS.size[1])).toBe(true);
+    // (at the foot, on the level land, never up a wall's face)
+    expect(R.every((r) => r.z0 === 0)).toBe(true);
   });
 });
 

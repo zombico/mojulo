@@ -256,38 +256,43 @@ export function crackFaces(site, C) {
   return out;
 }
 
-// ── its floor: the walk of rock ───────────────────────────────────────────────────────────────────────────────────────
+// ── its floor: soil, scree by its rocks, the walk ──────────────────────────────────────────────────────────────────────
 /**
- * The cavern's FLOOR, its walk made of the rock it runs through: in stretches along it worn bedrock (a limestone
- * pavement, karst), natural flagstones, plates and gravel, patched with gravel; at its edges frayed to cobbles and rubble,
- * face by face, into the scree the floor off it lies in, so the walk blends into it rather than stopping at a line. Each
- * surface a tile painted in the cube's own rock (`palette.rock`), its faces' light kept and their colour the tile's.
- *   FLOOR                          the surfaces: their cut and the metres each is laid at
- *   floorKind(site, x, y, seed)    which surface a point of the floor is
- *   floorDress(faces, site, st, C, { open, seed })  the floor's faces (its walk, `isekai:trail`, and its scree) dressed:
- *                                  each its surface's tile, its fill the cavern's own light at its corners (cavernLightAt)
+ * The cavern's FLOOR. Its ground is SOIL, the walk packed earth and the floor off it a darker dirt; SCREE lies round its
+ * rocks (at the walls' feet, round its formations, its boulders and the stones strewn on it), rubble nearest; and the
+ * walk is broken by stretches of the rock it runs through (worn bedrock, a limestone pavement; flagstones; plates) and
+ * patched with gravel. Its edge frays face by face into the floor's dirt. Each surface a tile in the cube's own soil or
+ * rock, each face lit by the cavern's own light.
+ *   FLOOR                                    the surfaces: their cut, the metres each is laid at, soil's or rock's
+ *   floorKind(site, x, y, seed, near)        which surface a point of the floor is; `near(x, y)` metres to its nearest rock
+ *   floorDress(faces, site, st, C, { open, seed, rocks })  the floor's faces dressed: each its surface's tile, its fill the
+ *                                            cavern's own light at its corners (cavernLightAt); `rocks` [{ x, y, r }]
  */
 export const FLOOR = Object.freeze({
+  soil: Object.freeze({ gen: 'dressed', cut: 'path', metres: 1.5, grit: 0.5, tone: 1, of: 'soil' }),
+  dirt: Object.freeze({ gen: 'dressed', cut: 'path', metres: 1.8, grit: 0.7, tone: 0.78, of: 'soil' }),
   bedrock: Object.freeze({ gen: 'dressed', cut: 'karst', metres: 3.6, rows: 3, cols: 2, grit: 0.5, tone: 1.1 }),
   flags: Object.freeze({ gen: 'flagstone', metres: 2.4, cells: 5, wobble: 2.5, lost: 0.08, cracked: 0.25, tone: 1.05 }),
   plates: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'plates', metres: 1.8, grit: 0.5, tone: 0.95 }),
   gravel: Object.freeze({ gen: 'dressed', cut: 'gravel', metres: 1.2, grit: 0.6, tone: 1 }),
-  cobbles: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'cobbles', metres: 1.5, grit: 0.6, tone: 0.95 }),
   rubble: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'rubble', metres: 1.5, grit: 0.7, tone: 0.85 }),
   scree: Object.freeze({ gen: 'dressed', cut: 'scree', form: 'blocks', metres: 1.5, grit: 0.7, tone: 0.8 }),
 });
-// the walk's stretches, in the order its along-noise runs through them
-const WALK = ['bedrock', 'flags', 'plates', 'gravel', 'cobbles'];
+// the walk's rocky stretches, in the order its along-noise runs through them
+const WALK = ['bedrock', 'flags', 'plates'];
+// how near a rock its scree lies (metres, its noise's reach on it), its rubble nearer
+const SCREE = Object.freeze({ reach: 1.4, vary: 1.0, rubble: 0.5, least: 0.32 });
 
-/** Each surface's tile, in the cube's rock: its family and the metres it is laid at. Memoised by the rock's colour. */
+/** Each surface's tile, in the cube's soil or rock: its family and the metres it is laid at. Memoised by their colours. */
 const tiles = new Map();
 function floorTiles(st) {
-  const R = st.palette?.rock ?? [[96, 92, 88], [128, 124, 118], [160, 156, 150]], mid = R[Math.floor(R.length / 2)], dark = R[Math.max(0, Math.floor(R.length / 2) - 1)];
-  const k = JSON.stringify([mid, dark]);
+  const ramp = (r, d) => { const R = r ?? d; return [R[Math.floor(R.length / 2)], R[Math.max(0, Math.floor(R.length / 2) - 1)]]; };
+  const rock = ramp(st.palette?.rock, [[96, 92, 88], [128, 124, 118], [160, 156, 150]]), soil = ramp(st.palette?.soil, [[88, 70, 52], [120, 96, 72], [150, 124, 96]]);
+  const k = JSON.stringify([rock, soil]);
   if (tiles.has(k)) return tiles.get(k);
   const c = (rgb, t) => rgb.map((v) => Math.max(0, Math.min(255, Math.round(v * t))));
   const out = Object.fromEntries(Object.entries(FLOOR).map(([id, F]) => {
-    const { gen, metres, tone, ...o } = F, stone = c(mid, tone), mortar = c(dark, tone * 0.8);
+    const { gen, metres, tone, of, ...o } = F, [mid, dark] = of === 'soil' ? soil : rock, stone = c(mid, tone), mortar = c(dark, tone * 0.8);
     const spec = gen === 'flagstone' ? { gen, stone, mortar, gravel: c(dark, 0.9), cells: o.cells, wobble: o.wobble, lost: o.lost, cracked: o.cracked, seed: 7 } : { gen, stone, mortar, ...o, seed: 7, scale: metres };
     return [id, { family: tileFamilyOf(spec, `cavern floor ${id}`), metres }];
   }));
@@ -295,31 +300,48 @@ function floorTiles(st) {
   return out;
 }
 
-export function floorKind(site, x, y, seed = 1) {
+export function floorKind(site, x, y, seed = 1, near = () => Infinity) {
   const d = site.trailDist(x, y) / Math.max(0.5, site.halfWAt(y)), cell = hash(Math.floor(x * 2), Math.floor(y * 2), seed + 701);
-  // off the walk: its scree, rubble in patches
-  if (d > 1.15) return vnoise(x * 0.25, y * 0.25, seed + 703) > 0.72 ? 'rubble' : 'scree';
-  // its edge, frayed: the nearer the edge the likelier a face is the edge's stone
+  // round its rocks, scree, rubble nearest: how near is the rock's, its reach the noise's
+  const r = near(x, y), reach = SCREE.reach + SCREE.vary * (vnoise(x * 0.4, y * 0.4, seed + 703) - 0.5) * 2;
+  if (r < SCREE.rubble) return 'rubble';
+  if (r < reach) return cell < (r - SCREE.rubble) / Math.max(0.1, reach - SCREE.rubble) ? 'dirt' : 'scree';
+  // off the walk, its dirt; its edge frayed into it face by face
+  if (d > 1.15) return 'dirt';
   const edge = 0.7 + 0.25 * (vnoise(x * 0.5, y * 0.5, seed + 707) - 0.5);
-  if (d > edge && cell < (d - edge) / (1.15 - edge)) return cell < 0.5 * (d - edge) / (1.15 - edge) ? 'rubble' : 'cobbles';
-  // the walk: its stretch along it, a patch of gravel here and there
+  if (d > edge && cell < (d - edge) / (1.15 - edge)) return 'dirt';
+  // the walk: soil, broken by stretches of its rock along it, a patch of gravel here and there
   if (vnoise(x * 0.35, y * 0.35, seed + 709) > 0.86) return 'gravel';
-  // (a value noise keeps to its middle: stretched, so every stretch comes round along a trail)
+  // (a value noise keeps to its middle: stretched, so a stretch of rock comes round along a trail a third of the way)
   const n = Math.max(0, Math.min(0.999, (vnoise(0.5, y * 0.045, seed + 711) - 0.22) / 0.56));
-  return WALK[Math.floor(n * WALK.length)];
+  return n < 0.66 ? 'soil' : WALK[Math.floor(((n - 0.66) / 0.34) * WALK.length)];
+}
+
+/** Metres to the nearest rock of a list ([{ x, y, r }], each `r` its reach), read off a grid of 2 m cells; and to the
+ *  cavern's walls (the far cliff's foot, the open side's wall's), which are rock too. */
+function nearRock(site, rocks) {
+  const C = 2, cells = new Map(), key = (i, j) => `${i},${j}`;
+  // (a rock sheds scree as it is big: a pebble strewn on the walk none)
+  for (const q of rocks.filter((r) => r.r >= SCREE.least)) { const k = key(Math.floor(q.x / C), Math.floor(q.y / C)); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(q); }
+  return (x, y) => {
+    let best = Math.min(Math.max(0, x - site.cliffX(y) - 0.5), Math.max(0, site.trailX(y) + site.halfWAt(y) + site.fringeAt(y) + CAVERN.gap - x));
+    const i0 = Math.floor(x / C), j0 = Math.floor(y / C);
+    for (let j = j0 - 2; j <= j0 + 2; j++) for (let i = i0 - 2; i <= i0 + 2; i++) for (const q of cells.get(key(i, j)) ?? []) best = Math.min(best, Math.max(0, Math.hypot(x - q.x, y - q.y) - q.r));
+    return best;
+  };
 }
 
 // what a floor face lit by the whole day would carry: its tile at its own colour (the page draws tile × fill)
 const FLOOR_WHITE = 0.85;
-export function floorDress(faces, site, st, C, { open = 1, seed = 1 } = {}) {
-  const T = floorTiles(st), gain = 1 / Math.max(0.12, open), hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+export function floorDress(faces, site, st, C, { open = 1, seed = 1, rocks = [] } = {}) {
+  const T = floorTiles(st), gain = 1 / Math.max(0.12, open), near = nearRock(site, rocks), hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
   return faces.map((f) => {
     // (the hall's floor only, between the far cliff and the wall raised on its open side, inside its ends: up on the walls'
     // tops and the plateau, under the ceiling, the land is the rock's)
     if (!f.fill || !f.corners || f.lamp || f.texture || !/^isekai:(trail|scree)$/.test(f.group) || !f.normal || f.normal[2] < 0.5) return f;
     const m = [0, 1].map((k) => f.corners.reduce((s, c) => s + c[k], 0) / f.corners.length);
     if (m[0] < site.cliffX(m[1]) + 0.5 || m[0] > site.trailX(m[1]) + site.halfWAt(m[1]) + site.fringeAt(m[1]) + CAVERN.gap + 1 || m[1] < CAVERN.endRun * 0.5 || m[1] > site.D - CAVERN.endRun * 0.5) return f;
-    const kind = floorKind(site, m[0], m[1], seed), t = T[kind];
+    const kind = floorKind(site, m[0], m[1], seed, near), t = T[kind];
     // (its light the cavern's own at each corner, the tile its colour: what the bake laid under the ceiling is the
     // cavern's light, nothing of the day's but its cracks and skylight; one of the tile's four variants a cell)
     const lit = f.corners.map((c) => hex(cavernLightAt(site, C, [c[0], c[1], c[2] + 0.1], f.normal, gain).map((v) => 255 * FLOOR_WHITE * Math.min(1.4, v))));
@@ -328,6 +350,36 @@ export function floorDress(faces, site, st, C, { open = 1, seed = 1 } = {}) {
     const { sunShare: _s, ...rest } = f;
     return { ...rest, texture: `${t.family}-${v}`, textureLit: true, uv: f.corners.map((c) => [r5(c[0] / t.metres), r5(c[1] / t.metres)]), fill: mean, cornerFills: lit, floor: kind };
   });
+}
+
+/**
+ * Its WALL ROCKS: small rocks heaped along the foot of every wall (the far cliff's, the open side's), a step apart, one to
+ * three a step, most small, out of the walk: what has come down off the rock. → [{ x, y, z0, s, v }] (`s` metres across)
+ */
+export const WALL_ROCKS = Object.freeze({ step: 1.1, most: 3, size: [0.3, 1.1], reach: 1.8 });
+export function wallRocks(site, C, seed = 1) {
+  const out = [], W = WALL_ROCKS;
+  let v = 30000;
+  // (a wall's foot: from behind its face, out over it, the first place past a steep step the land lies level, a quarter
+  // metre at a time; the land over the wall is level too, so the face must be passed first)
+  const footOf = (x0, dir, y) => {
+    let x = x0, steep = false;
+    for (let k = 0; k < 60; k++, x += dir * 0.25) { const dz = Math.abs(site.ground(x + dir * 0.25, y) - site.ground(x, y)); if (dz >= 0.12) steep = true; else if (steep) return x; }
+    return x;
+  };
+  for (let y = CAVERN.endRun; y < site.D - CAVERN.endRun; y += W.step) {
+    const foot = [footOf(site.cliffX(y) - 3, 1, y), footOf(site.trailX(y) + site.halfWAt(y) + site.fringeAt(y) + CAVERN.gap + CAVERN.face, -1, y)];
+    foot.forEach((fx, side) => {
+      const n = 1 + Math.floor(hash(Math.round(y * 10), side, seed + 801) * W.most);
+      for (let k = 0; k < n; k++, v++) {
+        const out1 = W.reach * hash(v, 1, seed + 803) ** 1.5, x = side ? fx - out1 : fx + out1, yy = y + (hash(v, 2, seed + 807) - 0.5) * W.step;
+        if (site.trailDist(x, yy) < site.halfWAt(yy) + 0.8) continue;
+        const s = W.size[0] + (W.size[1] - W.size[0]) * hash(v, 3, seed + 809) ** 2;
+        out.push({ x: r5(x), y: r5(yy), z0: r5(site.ground(x, yy)), s: r5(s), v });
+      }
+    });
+  }
+  return out;
 }
 
 /** A cavern's walk's edge strewn (local-meru/broken-land.js strewEdge's numbers): stones every step heaped evenly both

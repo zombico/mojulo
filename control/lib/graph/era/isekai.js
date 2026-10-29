@@ -79,7 +79,7 @@ import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
 import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './cave.js';
-import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, crackFaces, floorDress, CAVERN_EDGE } from './cavern.js';
+import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, crackFaces, floorDress, wallRocks, CAVERN_EDGE } from './cavern.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
 const CAVE_GRIT = 0.6;
 
@@ -501,6 +501,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // hat on any; not among the land's rocks, so nothing else stands by them)
   // (and the CAVERN's formations: stalagmites, stalactites and columns, the land's rock, no hat)
   if (site.cavern) for (const it of formations(site, site.cavern, seed)) boulders.push({ it, sides: formationFaces(it, seed, st.tiles.rock.scale), cap: [], rim: [], s: it.r, cave: true });
+  // (and its WALL ROCKS: small rocks heaped along every wall's foot, the land's boulders, no hat: era/cavern.js wallRocks)
+  if (site.cavern) for (const w of wallRocks(site, site.cavern, seed)) { const it = { x: w.x, y: w.y, z0: w.z0, size: w.s / st.rubble.unit, v: w.v }; boulders.push({ it, ...boulderFaces(st, it, seed, broken), cave: true }); }
   if (site.caves) for (const it of site.caves.flatMap((c) => caveRocks(c, st.rubble.unit))) { const b0 = boulderFaces(st, it, seed, broken), b = it.flip ? flipBoulder(b0, it.z0) : b0; boulders.push({ it, ...b, cave: true }); }
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
@@ -889,8 +891,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       if (SH.skin === undefined) return rockFabric({ ...base, rockColour: null, green: null });
       if (SH.rocks === undefined) return rockFabric({ ...base, skin: SH.skin });
       return { ...rockFabric({ ...base, skin: SH.skin, groups: FABRIC_GROUPS }), also: rockFabric({ ...base, skin: SH.rocks, seed: seed + 101, groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
-    })() } : site.caves ? {
-      // (a land with caves wears the meru's rock, inside and out: its fabric, strata and joints near the eye, at the grit
+    })() } : site.caves || site.cavern ? {
+      // (a land with caves, or a cavern, wears the meru's rock, inside and out: its fabric, strata and joints near the eye, at the grit
       // the meru's gen-7 rock is broken to, local-meru/scene.js FORM_GRIT)
       fabric: rockFabric({ joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: CAVE_GRIT, sun: dir, seed, rockColour: null, green: null }) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
@@ -909,7 +911,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     payload.faces = cavernLight([...payload.faces, ...lampFs], site, site.cavern, { open: hourDim(st) });
     // (its floor: its walk of the rock it runs through, frayed into its scree, lit by the cavern's own light: era/cavern.js
     // floorDress)
-    payload.faces = floorDress(payload.faces, site, st, site.cavern, { open: hourDim(st), seed });
+    // (its scree round every rock it has: a boulder's or a wall rock's reach its half breadth, a formation's its radius, a
+    // strewn stone's where it lies)
+    const rockAt = (b) => { if (b.it) return { x: b.it.x, y: b.it.y, r: b.it.kind ? b.it.r : (b.s ?? 0.5) / 2 }; const cs = b.sides.flatMap((f) => f.corners); return { x: cs.reduce((a, c) => a + c[0], 0) / cs.length, y: cs.reduce((a, c) => a + c[1], 0) / cs.length, r: (b.s ?? 0.3) / 2 }; };
+    payload.faces = floorDress(payload.faces, site, st, site.cavern, { open: hourDim(st), seed, rocks: boulders.filter((b) => b.sides?.length).map(rockAt) });
     // (with a skylight the day's own sky shows through it, the ceiling hiding the rest; without, a room's)
     if (!site.cavern.skylight) payload.sky = { preset: 'interior' };
     payload.bg = site.cavern.skylight ? payload.bg : '#08090b';
