@@ -163,7 +163,8 @@ async function load(v) {
   const loader = new GLTFLoader();
   let gltf;
   if (M.packed) {
-    const { glb } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
+    // (one file, or its parts in order: a big hero packs past the host's text-file ceiling)
+    const glb = (await Promise.all([].concat(v.file).map((f) => fetch(f).then((r) => { if (!r.ok) throw new Error(`${f}: ${r.status}`); return r.json(); })))).map((p) => p.glb).join('');
     const bin = atob(glb), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
     gltf = await loader.parseAsync(buf.buffer, '');
