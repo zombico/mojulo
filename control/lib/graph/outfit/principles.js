@@ -6,7 +6,8 @@
 //   2. CLOTH HUGS AND TAPERS. Shoulders, waist and hips are supports; the ease keeps the body's own RATIOS (the calf over
 //      the ankle, the ribs over the waist), so a limb's definition survives the cloth. A hem falls away only where it is
 //      CUT to: a short sleeve, an untucked tail, trousers cut `straight` or `wide` (TROUSER_CUTS), a skirt by its cut. A
-//      top falls from what holds it out (the bust, the shoulder blades) and returns to the waist.
+//      top falls from what holds it out (the bust, the shoulder blades) and returns to the waist. A WAISTBAND has no ease:
+//      it sits on what it is worn over (the skin, a tucked tail), and the cloth takes its ease back by the hips' widest.
 //   3. HEMS LAND ON LANDMARKS. Lengths are words (LENGTHS), never numbers: a sleeve ends at the cap, mid upper arm, the
 //      elbow, mid forearm or the wrist; a top at the ribs, the waist, the hip or mid-thigh; a leg at the crotch, mid
 //      thigh, the knee, mid calf or the ankle; a skirt at the upper thigh, mid thigh, the knee, mid calf or the ankle.

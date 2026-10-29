@@ -131,6 +131,34 @@ export function clearanceOver(below, band = 0.02) {
   return (c) => { const near = below.filter((q) => Math.abs(q[2] - c[2]) < band); return (dh) => { let m = 0; for (const q of near) { const vx = q[0] - c[0], vy = q[1] - c[1], pr = vx * dh[0] + vy * dh[1]; if (pr > m && Math.abs(vx * dh[1] - vy * dh[0]) < 0.025) m = pr; } return m; }; };
 }
 
+/** THE WAISTBAND's zone on a trunk piece `P`, its rings from its station `from` up (the band): { zw, zb, zt } the hips'
+ * widest ring below it (the piece's own widest), the band's foot and its top; null when no ring is in the band */
+export function waistbandOf(P, from) {
+  const C = P.stations.map((st) => mean(P.slots.map((sl) => st.points[sl]))), R = P.stations.map((st, i) => P.slots.reduce((t, sl) => t + Math.hypot(st.points[sl][0] - C[i][0], st.points[sl][1] - C[i][1]), 0) / P.slots.length);
+  const band = C.filter((_, i) => (P.stations[i].u ?? -Infinity) >= from - 1e-9).map((c) => c[2]);
+  if (!band.length) return null;
+  const zb = Math.min(...band), below = C.map((c, i) => [c[2], R[i]]).filter(([z]) => z < zb);
+  return { zw: below.length ? below.reduce((x, y) => (y[1] > x[1] ? y : x))[0] : zb, zb, zt: Math.max(...band) };
+}
+/** THE WAISTBAND CINCHED: `P`'s rings in the band (`zone`, waistbandOf's: from its foot to its top) brought in onto what
+ * is worn under them (`under`: the skin's points and the layers before it) a hair off (`gap`), never into it; below, eased
+ * back to where they stood by the hips' widest; above (a tucked layer's, `above` m), eased back out as it leaves the
+ * band. What is under is read within `band` m of each ring's height (the hips widening below are not the waist's).
+ * A layer tucked under a waistband is cinched with it: each in the order worn, then the band over them. In place */
+export function cinchWaist(P, under, { zw, zb, zt }, { gap = 0.002, above = 0.03, band = 0.006 } = {}) {
+  const C = P.stations.map((st) => mean(P.slots.map((sl) => st.points[sl]))), need = clearanceOver(under, band);
+  P.stations.forEach((st, i) => {
+    const z = C[i][2], w = z < zb ? ease3((z - zw) / Math.max(1e-6, zb - zw)) : z > zt ? 1 - ease3((z - zt) / above) : 1;
+    if (w <= 0) return;
+    const reach = need(C[i]);
+    for (const sl of P.slots) {
+      const p = st.points[sl], h = [p[0] - C[i][0], p[1] - C[i][1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1), 0], to = reach(d) + gap;
+      if (to < r) st.points[sl] = [C[i][0] + d[0] * (r + (to - r) * w), C[i][1] + d[1] * (r + (to - r) * w), p[2]].map(r6);
+    }
+  });
+  return P;
+}
+
 /** a FLARE along a piece's run: each ring's points `a` (m) out from its middle at its first station, `b` at its last,
  * in between by its share of the run; its caps a third of the end ring's radius on beyond it again. In place */
 export function flareRun(P, [a, b]) {

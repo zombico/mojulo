@@ -133,7 +133,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     // law 2: the leg TAPERS with the body unless its CUT says otherwise (TROUSER_CUTS: the ease's share and the hang's
     // share at its hem: skinny close and straight down, tapered the default, straight and wide falling away)
     const fam = bottom.family ?? 'woven', cut = TROUSER_CUTS[bottom.cut ?? 'tapered'], e = easeOf(fam) * cut.ease, h = hangOf(fam) * cut.hang, leg = lengths.leg = stepLength('leg', bottom.leg ?? 'long', dials.coverage);
-    if (structured) bottoms.push({ id: 'bottomSeat', part: 'pelvis', ease: easeOf(fam) * Math.min(1, cut.ease) * (tuck ? 1.25 : 1), rings: { u: [6 - EDGE.waistband] }, group: 'Bottom' });
+    if (structured) bottoms.push({ id: 'bottomSeat', part: 'pelvis', ease: easeOf(fam) * Math.min(1, cut.ease) * (tuck ? 1.25 : 1), rings: { u: [6 - EDGE.waistband] }, waistband: r6(6 - EDGE.waistband), group: 'Bottom' });
     const thigh = { brief: structured ? null : [0, 0.25], short: [0, 0.45], knee: [0, 1], capri: [0, 1], long: [0, 1] }[leg];
     const shin = leg === 'capri' || leg === 'long' ? [0, leg === 'long' ? 0.94 : 0.55] : null;
     // a wide leg falls from the hip: its thigh carries half the hang to the knee, so the shin's flare continues it

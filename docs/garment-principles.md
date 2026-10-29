@@ -69,6 +69,12 @@ female fitted 0.72–0.80; anime male hero 0.70–0.80, anime female 0.62–0.75
 0.02, fitted 0.03–0.11 (the published minimum wearing ease: bust 2½–4 in, waist 1–1.5, hip 2–4 [snippet: Threads, NMSU
 C-228]), semi 0.11–0.20, loose 0.20–0.35, oversized above [practice].
 
+**A waistband has no ease.** Trousers (and any bottom with a waistband) sit on what they are worn over at the waist: the
+skin, or a tail tucked under them, which the band presses flat with it; the cloth takes its own ease back by the hips'
+widest. On both bodies, whatever the fit: the fit is the seat's and the leg's, never the waist's (outfit law 2; the game
+body's kernel `waistband`, body-garment.js; the realistic tailor's `cinchWaist`). Ease at the waist reads as bulk, and a
+belt over it as a ledge.
+
 **One volume, one fitted; or the outline returns.** A loose half reads as a shape over a fitted one. Loose above AND
 below still reads as a figure when the cloth comes back to the body at RETURN POINTS (`e ≤ 0.10`): the waist under a
 sash or belt, the cuffs, the ankles; without them it is a sack. At least two, one of them the waist; anime/game at least
@@ -208,8 +214,12 @@ and keeps reading as the body moves.
 - **A knit rib gathers.** A rib waistband or cuff is a band cinched round what is under it, tighter than the cloth it
   finishes, and the body or the sleeve blouses over it.
 
-Not yet: the game body (the tiered form) and the authored kernel lay their kit as slabs on the body's envelope; the
-realistic kneepads are still those. The folds are geometry only (no fold normal map, no weave).
+The game body (the authored and the tiered hero) wears the same kit by the same rules (`polygonizer/authored-kit.js`:
+its weights read by ring, its sparse rings read with rings put between them, a belt sampled round at its own density, no
+lower than the hips' widest). A pouch on a leg rides the leg and hangs below a pouch above it, never through it. Not yet:
+the kneepads on either body, and every piece the kit does not make (a panel, a cape, a hood, a plate) are still the
+authored kernel's, laid on the body's envelope; the jacket's construction and the folds are the realistic body's alone
+so far, and the folds are geometry only (no fold normal map, no weave).
 
 ## Against the outfit laws
 

@@ -95,6 +95,7 @@ import { loosePants, LOOSE_GARMENTS } from '@/lib/graph/polygonizer/body-relatio
 import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi';
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
 import { kitPieces } from '@/lib/graph/polygonizer/body-relational-kit';
+import { authoredKit } from '@/lib/graph/polygonizer/authored-kit';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
@@ -701,7 +702,9 @@ function wearFeet(R, hero, W, id) {
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(expandPlan(full), hero); } catch (err) {
+  // (a hero's kit on the game body made as pieces on its cloth before the kernel bakes the rest: authored-kit.js; an
+  // armour build's straps and ridges are its plates' own, stacked over them by the kernel)
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(expandPlan(full, hero && !isArmorBuild(hero.adorn) ? { kit: authoredKit } : {}), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -1365,16 +1368,19 @@ export function dressReadout(hero, plan, mesh, recipe) {
   if (hero.detail === undefined && hero.adorn === undefined && hero.paint === undefined && hero.outfit === undefined) return null;
   const word = (v) => (v === undefined ? 'none' : typeof v === 'string' ? v : isArmorBuild(v) ? `armor:${typeof v.style === 'string' ? v.style : 'inline'}` : 'data');
   const DRESS = /^(crease|tile|patch|pad|spur|spine|stud|ring|cuff|wrap|collar)\./;
+  // (the kit made as pieces: its belts and their buckles, `<id>…_<trunk segment>`, and the rest, `…_kit`)
+  const KIT_PIECE = /_kit$|^(belt|\w*Belt)(Buckle\w*)?_[a-z]+$/;
   const parts = Object.keys(mesh?.parts || {}); const count = (re) => parts.filter((n) => re.test(n)).length;
-  const out = { detail: word(hero.detail), adorn: word(hero.adorn), ...(hero.paint !== undefined ? { paint: (Array.isArray(hero.paint) ? hero.paint : [hero.paint]).map((x) => (typeof x === 'string' ? x : 'data')) } : {}), ...(hero.outfit !== undefined ? { outfit: isOutfitBuild(hero.outfit) ? outfitReadout(hero.outfit, plan, { drawn: hero.head === 'anime' ? 'anime' : null }) : (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).map((x) => (typeof x === 'string' ? x : x.id)) } : {}), ...(mesh ? { parts: { detail: count(DRESS), adorn: count(/^adorn\./) } } : {}) };
+  const out = { detail: word(hero.detail), adorn: word(hero.adorn), ...(hero.paint !== undefined ? { paint: (Array.isArray(hero.paint) ? hero.paint : [hero.paint]).map((x) => (typeof x === 'string' ? x : 'data')) } : {}), ...(hero.outfit !== undefined ? { outfit: isOutfitBuild(hero.outfit) ? outfitReadout(hero.outfit, plan, { drawn: hero.head === 'anime' ? 'anime' : null }) : (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).map((x) => (typeof x === 'string' ? x : x.id)) } : {}), ...(mesh ? { parts: { detail: count(DRESS), adorn: count(/^adorn\./), ...(count(KIT_PIECE) ? { kit: count(KIT_PIECE) } : {}) } } : {}) };
   if (isArmorBuild(hero.adorn)) out.armor = armorReadout(hero.adorn, dressContext(plan.style));   // the style, dials, pieces worn, focal
   // (a GHOST adornment is thread on cloth, no plate of its own: its legibility is the families' below, not a share of a plate)
   // (a piece the mesh does not carry is not judged: the realistic body wears the kit's trunk panels, hoops, feet and
   // shoulders as field shells of its own and leaves the head's and the optional pieces off, body-relational-armour.js;
   // those are `unworn`, named, never "does not read")
   const plated = mesh ? plan.adorn?.filter((A) => !A.ghost && mesh.parts?.[`adorn.${A.id}`]) ?? [] : [];
-  // (a belt the realistic tailor made as cloth, `<id>_<part>` (body-relational-wear.js `belts`), is worn: a band, not a plate)
-  const tailored = (A) => parts.some((n) => n.startsWith(`${A.id}_`));
+  // (a belt made as cloth, `<id>_<part>` (body-relational-wear.js `belts`, authored-kit.js), and a piece of the kit made as
+  // the thing it is, `<id>…_kit` (body-relational-kit.js), are worn: a band or a pouch, not a plate)
+  const tailored = (A) => parts.some((n) => n.startsWith(`${A.id}_`) || (n.startsWith(A.id) && n.endsWith('_kit')));
   const off = mesh ? plan.adorn?.filter((A) => !A.ghost && !mesh.parts?.[`adorn.${A.id}`] && !tailored(A)) ?? [] : [];
   if (off.length) out.unworn = off.map((A) => A.id);
   if (plated.length) out.adornments = justify(mesh, plated.map((A) => ({ id: A.id, signature: A.signature.kind }))).map((r) => ({ id: r.id, signature: r.signature, verdict: r.verdict, exposed: r.sigExposed, share: r.sigShare }));

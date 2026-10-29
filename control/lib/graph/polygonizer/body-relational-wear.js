@@ -47,7 +47,7 @@
  * Pure and deterministic.
  */
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
-import { oneTube, drapeRun, flareRun, fairRun, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, bindRibbon, carrySkirt, clearanceOver, cutV, cutOpening, armholes, clearOver, lapelBand, buttonOn, bladeOn, squareShoulders, takeIn, fallStraight, clothWalker } from './body-relational-tailor.js';
+import { oneTube, drapeRun, flareRun, fairRun, waistbandOf, cinchWaist, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, bindRibbon, carrySkirt, clearanceOver, cutV, cutOpening, armholes, clearOver, lapelBand, buttonOn, bladeOn, squareShoulders, takeIn, fallStraight, clothWalker } from './body-relational-tailor.js';
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 import { beltOn, frameBuckle } from './body-relational-kit.js';
 import { foldCloth } from './body-relational-folds.js';
@@ -151,6 +151,16 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       }
       // each piece's flare along its own run
       for (const g of body) if (g.flare) for (const S of ['', 'R', 'L']) if (made[`${G}_${seg(g)}${S}`]) flareRun(made[`${G}_${seg(g)}${S}`], g.flare);
+      // THE WAISTBAND (a piece's `waistband`: outfit law 2): no ease, on the skin and the layers worn before it, the cloth's
+      // own ease back by the hips' widest
+      // (a layer tucked under it, worn before it, cinched with it: each in the order worn, then the band over them)
+      for (const g of body) if (Number.isFinite(g.waistband) && made[`${G}_${seg(g)}`]) {
+        const zone = waistbandOf(made[`${G}_${seg(g)}`], g.waistband); if (!zone) continue;
+        const ptsOf = (Q) => Q.stations.flatMap((x) => Object.values(x.points)), under = ['torso', 'pelvis'].map((k) => recipe.parts[k]).filter(Boolean).flatMap(ptsOf);
+        const tucked = Object.entries(parts).filter(([k, Q]) => Q.garment && /_(body|torso|pelvis)$/.test(k)).map(([, Q]) => Q);
+        for (const Q of tucked) { cinchWaist(Q, under, zone); under.push(...ptsOf(Q)); }
+        cinchWaist(made[`${G}_${seg(g)}`], under, zone, { gap: tucked.length ? LAYER : 0.002 });
+      }
       // (the last piece down each limb, and whether it stops short of the limb's end)
       const short = (s) => { const g = body.find((x) => seg(x) === s); return g && windowOf(g)[1] < uMax(s) - 0.05; };
       for (const S of ['R', 'L']) for (const [a, b, name] of [['upperArm', 'foreArm', 'arm'], ['thigh', 'shank', 'leg']]) {

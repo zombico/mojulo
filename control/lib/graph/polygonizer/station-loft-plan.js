@@ -299,8 +299,11 @@ export function validatePlan(plan) {
 // ── expansion ──
 /** `body`: a re-sampled body (a recipe whose layer-1 parts stand in for the plan's own, the realistic form's slice, its
  * parts absent there dropped): placed where the plan's body is, after the head's seam, so the dress (garments, paint,
- * details, body detail and adornment) is made on it. Absent, the plan's own body */
-export function expandPlan(plan, { body = null } = {}) {
+ * details, body detail and adornment) is made on it. Absent, the plan's own body.
+ * `kit`: `(recipe, adorn) → { parts, taken }`, run on the dressed recipe before the adornment bake (the game body's kit
+ * as pieces: authored-kit.js): its parts put in the recipe (a garment it reshaped, its own), the adornments it `taken`
+ * left to it, the rest baked. Absent, the adornment baked whole */
+export function expandPlan(plan, { body = null, kit = null } = {}) {
   validatePlan(plan);
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
   const style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
@@ -412,15 +415,23 @@ export function expandPlan(plan, { body = null } = {}) {
   }
   // body detail, then adornment: the dragon's passes as data, baked as pinned parts on the refined rest carrier (a
   // pinned part inherits its pin face's weights; refinement extends the bind blends so skinning is unchanged)
-  if (plan.body || plan.adorn) {
-    const errs = [...(plan.body ? validateBody(plan.body, recipe.parts) : []), ...(plan.adorn ? validateKit(plan.adorn, recipe.parts) : [])];
+  // the KIT as pieces (the `kit` hook): made on the dressed recipe, the kernel baking what it leaves
+  let adorn = plan.adorn;
+  if (kit && adorn?.length) {
+    const errs = validateKit(adorn, recipe.parts); if (errs.length) fail(`adorn: ${errs.join('; ')}`);
+    let K; try { K = kit(recipe, adorn); } catch (err) { fail(`adorn: ${err.message}`); }
+    Object.assign(recipe.parts, K.parts);
+    adorn = adorn.filter((A) => !K.taken.has(A.id));
+  }
+  if (plan.body || adorn?.length) {
+    const errs = [...(plan.body ? validateBody(plan.body, recipe.parts) : []), ...(adorn ? validateKit(adorn, recipe.parts) : [])];
     if (errs.length) fail(errs.join('; '));
     const source = JSON.parse(JSON.stringify(recipe)); let fig;
     try {
-      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body, { under: plan.adorn || [] }); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
+      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body, { under: adorn || [] }); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
       else fig = { mesh: compileLayered(recipe, {}), parts: {} };
-      if (plan.adorn?.length) bakeAdorn(recipe, fig, plan.adorn, { source });
-    } catch (err) { fail(`${plan.body && plan.adorn ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }
+      if (adorn?.length) bakeAdorn(recipe, fig, adorn, { source });
+    } catch (err) { fail(`${plan.body && adorn?.length ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }
   }
   // rig: joints and bones may carry `$S`; a `perSide` bone block expands to its R bones then its L bones
   if (plan.rig) {

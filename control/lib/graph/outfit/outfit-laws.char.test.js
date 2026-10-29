@@ -20,14 +20,16 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // (rings re-pinned for the hero laws 2, a body change: the hero minted now lifts its neck's root, hero-form.js
 // SHOULDER_LINE, and the garments that reach the shoulders follow it; the expansions, the laws hashes, unchanged; and
 // again for the hero laws 3, hero-form.js LEG_SET, the leg turned back about the ankle: every garment on the legs or
-// the seat follows the hip's joint)
+// the seat follows the hip's joint; and laws and rings rewritten in place for the waistband (1029, unreleased, at the
+// operator's word: outfit law 2, a waistband has no ease, body-garment.js `waistband` on the trousers' seat; the dress
+// has no seat and keeps its bytes)
 const PINS = {
   1: {
-    'out': { laws: '6b63e2d4125c3c4d', rings: 'b0b17af3f724b51d' },
-    'tucked': { laws: '2699679ced951074', rings: '93b7fe6a8f127edd' },
+    'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
+    'tucked': { laws: 'a293c920ca0f83b2', rings: 'a8043d9f2316e9bf' },
     'dress': { laws: 'bb1fe989040c0422', rings: '2653063e545832d6' },
-    'outer': { laws: '537daebbd9973246', rings: 'b1531c36edba8029' },
-    'panels': { laws: '157d53eaabdb1ce6', rings: 'a66206304b231551' },
+    'outer': { laws: '127769bbfdd8e767', rings: '2cac6f6a931b74fa' },
+    'panels': { laws: 'd114d51d72f13d3b', rings: 'c15d7ac52b14da7d' },
   },
 };
 

@@ -49,7 +49,8 @@
  * `proportional` (a copy piece's: the radius at which its ease is as given): each ring's ease scales with its own radius,
  * so the cloth keeps the body's ratios and a limb's taper survives. `dense`: the cloth's rings resampled to at least
  * twelve points (densePart), so a six-sided limb is not a six-sided sleeve. Both are absent → as before (the kernel only
- * grows: outfit/principles.js, the update law). Pure, deterministic.
+ * grows: outfit/principles.js, the update law). `waistband` (a copy piece's: the station parameter its band starts at):
+ * the band on what it is worn over with no ease, the cloth's own ease back by the hips' widest ring. Pure, deterministic.
  */
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
@@ -57,7 +58,7 @@ import { rigidityErrors } from './rigidity.js';
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -97,6 +98,7 @@ export function validateGarments(G) {
     if (P.toe !== undefined && !(Number.isFinite(P.toe) && P.toe > 0)) errs.push(`${at}.toe: the toe box's height as a share of the foot's (> 0)`);
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
     if (P.proportional !== undefined && !(Number.isFinite(P.proportional) && P.proportional > 0)) errs.push(`${at}.proportional: the radius (m) at which the ease is as given; each ring's ease scales with its own radius, so the body's taper survives (> 0)`);
+    if (P.waistband !== undefined && !Number.isFinite(P.waistband)) errs.push(`${at}.waistband: the station parameter its waistband starts at (the band sits on what it is worn over, no ease)`);
     if (P.girth !== undefined && !(P.girth && typeof P.girth === 'object' && !Array.isArray(P.girth) && Object.entries(P.girth).every(([k, v]) => GIRTH_LANDMARKS.includes(k) && Number.isFinite(v) && v >= 0))) errs.push(`${at}.girth: { landmark: metres of girth over the body (≥ 0) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`);
     if (P.dense !== undefined && typeof P.dense !== 'boolean') errs.push(`${at}.dense: true (the cloth's rings resampled to at least twelve points, rounded) or false`);
     for (const k of Object.keys(P)) if (!GARMENT_FIELDS.includes(k)) errs.push(`${at}.${k}: not a garment field (${GARMENT_FIELDS.join(', ')})`);
@@ -264,8 +266,17 @@ export function garmentParts(parts, garments, dials = {}) {
             const q = S.findIndex(([i]) => i >= j); const [i0, s0] = S[q - 1], [i1, s1] = S[q]; return s0 + (s1 - s0) * (j - i0) / (i1 - i0); };
           easeAt = (j) => easeOf(j) * shareAt(j); }
       }
-      const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e = easeAt(j) + fl[0] * (1 - f) + fl[1] * f;
-        return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], mul(N[j][k], e + H[j][k])).map(r6)])) }; });
+      // THE WAISTBAND (`waistband`, the station parameter its band starts at): the band sits on what it is worn over with no
+      // ease (a hair off the layers under it, the drape's lift dropped), and the cloth below takes its own ease back by the
+      // hips' widest ring, so trousers are never bulky at the waist
+      const band = Number.isFinite(P.waistband) && rings.some((r) => r.u >= P.waistband - 1e-9) ? (() => {
+        const g = rings.map((r) => ringG(part.slots.map((sl) => r.points[sl]))), zw = C[g.indexOf(Math.max(...g))][2];
+        const zb = Math.min(...rings.map((r, j) => (r.u >= P.waistband - 1e-9 ? C[j][2] : Infinity)));
+        return rings.map((r, j) => { if (r.u >= P.waistband - 1e-9) return 0; const t = Math.max(0, Math.min(1, (zb - C[j][2]) / Math.max(1e-6, zb - zw))); return t * t * (3 - 2 * t); });
+      })() : null;
+      const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e0 = easeAt(j) + fl[0] * (1 - f) + fl[1] * f;
+        const e = band ? Math.max(SKIN_HAIR, e0 * band[j]) : e0, h = (k) => (band ? H0[j][k] + (H[j][k] - H0[j][k]) * band[j] : H[j][k]);
+        return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], mul(N[j][k], e + h(k))).map(r6)])) }; });
       const name = `${P.id}_${src}`;
       // the caps pinched on the axis a little beyond the end rings (a cap in its ring's plane has no outward side)
       const axis = unit(sub(C[n - 1], C[0])), rad = (j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(stations[j].points[sl], C[j])), 0, 0]))[0];
