@@ -18,7 +18,8 @@ const PRIMARIES = Object.freeze({ Top: '#c62828', Bottom: '#1a237e', Shoes: '#1a
 // on the body's skin, which the suit covers. The closed motifs (diamond, chevron) read at a glance; the star is three
 // strokes (station-loft-adorn.js MOTIFS: an asterisk) and reads as stitches, so the classic suit wears the diamond
 const EMBLEM = (motif) => [{ prim: 'embroidery', role: 'chest', motif }];
-const CAPE = (over = {}) => ({ kind: 'cloak', wrap: 0.55, hem: 'calf', flare: 0.16, rigidity: 'soft', ...over });
+// (to the ankle: a hem at the calf, or the shin just under it, ends on the calf's widest, which the outline reader flags)
+const CAPE = (over = {}) => ({ kind: 'cloak', wrap: 0.55, hem: 'ankle', flare: 0.16, rigidity: 'soft', ...over });
 // the bodysuit as cloth: a knit top with long sleeves and a knit bottom with long skinny legs, skin-fit, so both bodies
 // wear it (the layered one also takes the catsuit paint under it)
 const BODYSUIT = { fit: 'skin', feet: 'boots', top: { family: 'knit', sleeve: 'long', hem: 'hip' }, bottom: { family: 'knit', leg: 'long', cut: 'skinny' } };
@@ -50,7 +51,7 @@ export const SUITS = Object.freeze({
     },
   },
   armored: {
-    reads: 'the armoured suit: the armored-hero hardsuit, a faceplate helm, a reactor chest; the mastermind in his shell',
+    reads: 'the armoured suit: the armored-hero hardsuit, a faceplate helm, a reactor chest; the mastermind in a shell',
     palette: { Plate: '#37474f', Helm: '#263238', Visor: '#e53935', Lens: '#e53935', Reactor: '#e53935', Suit: '#1c2024', Trim: '#b0bec5' },
     at: {
       tiered: { adorn: { type: 'armor', style: 'armored-hero', dials: { stylize: 0.6, coverage: 0.85, mass: 0.6, ornament: 1 } } },

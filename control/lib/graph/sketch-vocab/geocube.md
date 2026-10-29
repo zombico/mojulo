@@ -94,6 +94,9 @@ A cube that names no domains offers one per terrain and one per interior.
   street lies on (as a stage's `trail` does): `surface` a ground word (earth, the dirt, by default; stone-road and
   gravel laid in the dirt; flags, setts, brick-paving, pavement, asphalt kept), and on a gritty cube's dirt `rubble` at
   its edges and `patches` (worn, damp, gravel, crown, puddle), each `false` for none;
+  `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
+  (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
+  recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

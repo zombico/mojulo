@@ -12,6 +12,8 @@
  *   foeFigure(ref, look)             a foe's: a beast on its own gaits and reactions when its look names a `species`
  *                                    (a wolf pack, a giant spider), its swing on its strike clip when the look carries
  *                                    one (`strike`, a fielded foe's blow), else a person on the library
+ *   modelFigure(ref, height)         a model made elsewhere (foes/model.js), worn as a person on the library: its figure
+ *                                    the latest rigged .glb bound onto `ref`, stood `height` metres (worlds/world-scene.js)
  *   beastLook(look)                  the species a foe's look names, or null (a person)
  *   readBeastFoe(look, why, where, fail)   a beast foe's look read: a species the fauna knows, and the oozes and stylism
  *                                    that grow it (the animal door's); `why` refuses it where a person's hands are needed
@@ -34,6 +36,8 @@ export const FIGURE_LIBRARY = 'quaternius-ual';
 export const PERSON_BODY = Object.freeze({ eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 });
 
 export const libraryFigure = (ref, { moves = null } = {}) => ({ heroRef: ref, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' }, ...(moves ? { moves } : {}) });
+
+export const modelFigure = (ref, height) => ({ modelRef: ref, height, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
 
 export const fieldFigure = (ref, field) => (field?.own
   ? { heroRef: ref, walker: true, clips: field.own, ...(field.moves ? { moves: field.moves } : {}) }
@@ -68,7 +72,7 @@ export function mergeExtras(a, b) {
   if (!a) return b;
   if (!b) return a;
   const play = { ...(a.play ?? {}), ...(b.play ?? {}) };
-  for (const k of ['cues', 'minigames', 'spots', 'menus']) if (a.play?.[k] && b.play?.[k]) play[k] = [...a.play[k], ...b.play[k]];
+  for (const k of ['cues', 'minigames', 'spots', 'menus', 'quests', 'routines']) if (a.play?.[k] && b.play?.[k]) play[k] = [...a.play[k], ...b.play[k]];
   const mechanics = [...(a.mechanics ?? [])];
   for (const m of b.mechanics ?? []) if (!mechanics.some((x) => x.kind === m.kind && x.slice === m.slice)) mechanics.push(m);
   return { ...a, ...b, figures: { ...(a.figures ?? {}), ...(b.figures ?? {}) }, entities: [...(a.entities ?? []), ...(b.entities ?? [])], play, mechanics };

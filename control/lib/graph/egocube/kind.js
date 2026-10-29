@@ -124,11 +124,12 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
   const node = m.cast !== undefined ? (member === undefined ? nodes[0] : nodes.find((n) => n.path === member)) : years === undefined ? nodes[0] : nodes.find((n) => n.years === years);
   if (!node) throw new Error(m.cast !== undefined ? `egocube: the cast has no member '${member}' (${nodes.map((n) => n.path).join(', ')})` : `egocube: no node at ${years} years (the thread has ${nodes.map((n) => n.years).join(', ')})`);
   const of = node.member ? { member: { path: node.path, relation: node.member.relation, ...(node.member.bond ? { bond: node.member.bond } : {}), body: node.member.body } } : {};
-  // a beast (cast.js): a real species, through the animal door; its temperament is the cast's reading of it
+  // a beast (cast.js): a real species, through the animal door; its temperament is the cast's reading of it, its ooze
+  // (the mutagen's words) the game creature the species is made into
   if (node.member?.body === 'beast') {
-    const { species } = node.member.beast;
+    const { species, ooze } = node.member.beast;
     // (with its two gaits rigged, so it can cross a level's map beside its keeper, and on legs its flinch, fall and rise)
-    return { node: { path: node.path, band: 'beast' }, ...of, create: { as: 'animal', spec: { species, motion: beastMovesOf(species).motion }, title: title ?? `${node.path} · ${species}` }, after: [], ledger: [] };
+    return { node: { path: node.path, band: 'beast' }, ...of, create: { as: 'animal', spec: { species, motion: beastMovesOf(species).motion, ...(ooze !== undefined ? { ooze } : {}) }, title: title ?? `${node.path} · ${species}` }, after: [], ledger: [] };
   }
   const out = output ?? m.output ?? 'character';
   if (!OUTPUTS.includes(out)) throw new Error(`egocube: output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')}`);

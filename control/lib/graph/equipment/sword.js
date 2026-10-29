@@ -26,7 +26,7 @@ const BLADES = {
 };
 
 const ROLL = 90; // the curved-path loft frame puts profile u on y; turn the edge onto x
-function bladeLoft({ variant, L, W, T, z0, edge, rng, role }) {
+export function bladeLoft({ variant, L, W, T, z0, edge, rng, role }) {
   const v = BLADES[variant] || BLADES.straight;
   const n = 40, path = [], stations = [];
   // barbs (brutal): seeded notches along the spine side

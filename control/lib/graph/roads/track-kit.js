@@ -25,7 +25,8 @@
  *   banded     the tile in the window of the face's light band (a stop up lit, a stop down in shade), drawn as it is
  *
  *   trackKit(kit) → { id, pole, ramps, paints, surface(name, corners, uv), paint(name, corners, extra?),
- *                     wall(name, corners, inside), flat(name, stop), piece(group paint, corners, value, normal, mark) }
+ *                     wall(name, corners, inside), flat(name, stop), piece(group paint, corners, value, normal, mark),
+ *                     tint(hex, corners, normal?) }
  *     kit: a kit's id (a written kit, or a look already registered), or { id } or a look in words { look, base?, seed? }
  *     composed here (gameworld/tunnel-land.js composeLook: the same words, the same look, in any process); with
  *     `pole: 'voxel'`, the VOXEL look (voxel-look.js): a battle racer's flat colour under the isekai light, set pieces
@@ -195,6 +196,16 @@ export function trackKit(kit) {
       if (pole === 'shaded') return { corners: c, fill: sixthLit(rgb, n), ...extra };
       const k = pole === 'material' ? Math.min(1, lam(n)) : lam(n) >= CEL ? 1 : 0.72;
       return { corners: c, fill: hex(rgb.map((v) => v * k)), ...extra };
+    },
+    /** A flat colour of the caller's own (a stand's seats, its crowd, a board), lit as a paint by the face's normal
+     *  (`normal`, else its winding) and turned to wind with it; never tiled. */
+    tint(h, corners, normal = null) {
+      const wn = normalOf(corners), c = normal && wn[0] * normal[0] + wn[1] * normal[1] + wn[2] * normal[2] < 0 ? corners.slice().reverse() : corners;
+      const n = normal ?? wn, rgb = hexRgb(h);
+      if (pole === 'voxel') return { corners: c, fill: isekaiLit(rgb, n) };
+      if (pole === 'shaded') return { corners: c, fill: sixthLit(rgb, n) };
+      const k = pole === 'material' ? Math.min(1, lam(n)) : lam(n) >= CEL ? 1 : 0.72;
+      return { corners: c, fill: hex(rgb.map((v) => v * k)) };
     },
     /** A wall of a material, turned away from `inside` (a barrier's face, an edge down to the ground). */
     wall(m, corners, inside) {

@@ -32,21 +32,48 @@ export const EXPRESSIONS = {
  * low) — the face in motion's (western-face rig) */
 export const WESTERN_CHANNELS = Object.freeze(['browRaise', 'browTilt', 'mouthCorner', 'aperture', 'jawOpen', 'blink']);
 export const CHANNEL_RANGES = Object.freeze({ browRaise: [-0.01, 0.015], browTilt: [-0.012, 0.012], mouthCorner: [-0.006, 0.01], aperture: [0.5, 1.4], jawOpen: [0, 25], blink: [0, 1] });
-/** An expression: a word (its channels, as before) or `{ word?, …channels }` (the word's, neutral's when absent, with
- * the channels given over it). */
+/** THE EYE LOOKS: the eyes, the brows and the lids alone, a library over the expression words. A look sets the eye
+ * region's channels (`EYE_REGION`, from their rest) and nothing else, so it lays over any word's mouth: `{ word:
+ * 'smile', eyes: 'worried' }`. The brow's tilt + draws the inner ends down (the corrugator's set), − lifts them (the
+ * worried brow); the aperture over 1 shows the white over the iris, under 1 the lower lids rise (a squint); the blink
+ * the upper lid's closure (drawn at the eye's knots: 0.2 a heavy lid, 0.5 the half lid). Artists' readings; the eyes
+ * gate tunes them. */
+export const EYE_REGION = Object.freeze(['browRaise', 'browTilt', 'aperture', 'blink']);
+const EYE_REST = Object.freeze({ browRaise: 0, browTilt: 0, aperture: 1, blink: 0 });
+export const EYE_LOOKS = Object.freeze({
+  rest: {},
+  alert: { browRaise: 0.004, aperture: 1.15 },
+  wide: { browRaise: 0.007, aperture: 1.3 },
+  surprised: { browRaise: 0.013, aperture: 1.38 },
+  afraid: { browRaise: 0.01, browTilt: -0.01, aperture: 1.35 },
+  worried: { browRaise: 0.002, browTilt: -0.01, aperture: 1.05 },
+  sad: { browTilt: -0.008, aperture: 0.9, blink: 0.2 },
+  tired: { browTilt: -0.003, blink: 0.2 },
+  sleepy: { browRaise: 0.002, blink: 0.5 },
+  warm: { browRaise: 0.002, aperture: 0.8 },
+  focused: { browRaise: -0.003, browTilt: 0.004, aperture: 0.85 },
+  stern: { browRaise: -0.005, browTilt: 0.007, aperture: 0.9 },
+  glare: { browRaise: -0.009, browTilt: 0.011, aperture: 0.75 },
+  squint: { browRaise: -0.003, aperture: 0.6 },
+  wince: { browRaise: -0.007, browTilt: 0.008, aperture: 0.5, blink: 0.2 },
+  shut: { blink: 1 },
+});
+/** An expression: a word (its channels, as before) or `{ word?, eyes?, …channels }` (the word's, neutral's when absent,
+ * its eye region the look's when `eyes` names one, with the channels given over both). */
 export function resolveWesternExpression(spec = 'neutral') {
   if (typeof spec === 'string') return EXPRESSIONS[spec];
-  const { word = 'neutral', ...ch } = spec;
-  return { ...EXPRESSIONS[word], ...ch };
+  const { word = 'neutral', eyes, ...ch } = spec;
+  return { ...EXPRESSIONS[word], ...(eyes ? { ...EYE_REST, ...EYE_LOOKS[eyes] } : {}), ...ch };
 }
 /** Error lines for an expression (a word or a channel object). */
 export function westernExpressionErrors(spec, at = 'expression') {
   if (spec === undefined) return [];
-  if (typeof spec === 'string') return EXPRESSIONS[spec] ? [] : [`${at}: one of ${Object.keys(EXPRESSIONS).join(', ')}, or { word?, ${WESTERN_CHANNELS.join(', ')} }`];
-  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${at}: a word (${Object.keys(EXPRESSIONS).join(', ')}) or { word?, ${WESTERN_CHANNELS.join(', ')} }`];
+  if (typeof spec === 'string') return EXPRESSIONS[spec] ? [] : [`${at}: one of ${Object.keys(EXPRESSIONS).join(', ')}, or { word?, eyes?, ${WESTERN_CHANNELS.join(', ')} }`];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${at}: a word (${Object.keys(EXPRESSIONS).join(', ')}) or { word?, eyes?, ${WESTERN_CHANNELS.join(', ')} }`];
   const errs = [];
   for (const [k, v] of Object.entries(spec)) {
     if (k === 'word') { if (!EXPRESSIONS[v]) errs.push(`${at}.word: one of ${Object.keys(EXPRESSIONS).join(', ')}`); continue; }
+    if (k === 'eyes') { if (!Object.hasOwn(EYE_LOOKS, v)) errs.push(`${at}.eyes: an eye look, one of ${Object.keys(EYE_LOOKS).join(', ')}`); continue; }
     if (!WESTERN_CHANNELS.includes(k)) { errs.push(`${at}.${k}: not a channel (${WESTERN_CHANNELS.join(', ')})`); continue; }
     const [lo, hi] = CHANNEL_RANGES[k]; if (!(Number.isFinite(v) && v >= lo && v <= hi)) errs.push(`${at}.${k}: a number in ${lo} … ${hi}`);
   }

@@ -42,7 +42,7 @@ import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, 
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
-import { withProgram } from '../era/programs.js';
+import { withProgram, PROGRAMS } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
@@ -57,7 +57,13 @@ import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
-import { mergeExtras, libraryFigure, fieldFigure, stand, PERSON_BODY } from './stage-figures.js';
+import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
+import { standFoe } from './foes.js';
+
+/** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
+ * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
+const SNEAK_GUARD = Object.freeze({ class: 'guard', skin: { people: 'human' } });
+const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelCard, lowerFeel } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
 
@@ -227,7 +233,8 @@ export function roadwayEnds(manifest) {
   if (ROAD_ENDS.size > 16) ROAD_ENDS.clear();
   let plan;
   try { plan = manifest.scape ? planScapedTrack(manifest) : planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
-  const T = trackContract(plan), surface = trackSurface(plan), pole = T.grid[0];
+  // (a duel's player starts in lane one: its grid's second slot, lane two's the rival's)
+  const T = trackContract(plan), surface = trackSurface(plan), pole = T.duel ? T.duel.grid[1] : T.grid[0];
   const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
   const at = (x, y) => surface([x, y, 1e4]);
   for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: trackLaws(trackCensus(plan)) })) Object.defineProperty(out, k, { value: v, enumerable: false });
@@ -319,6 +326,12 @@ function readEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: groundSampler(P.faces ?? [], /:rock$/), enumerable: false });
   // what stands solid on it (boxes), for a law to keep a track clear; not data either
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
+  // the town's houses as they stand (stage-buildings.js `town-<use>-<n>`): each door, the way it faces out and, walked
+  // into, its rooms; where the folk stand (folk-cast.js). Not data either: a house the street had no frontage for is
+  // not here
+  const townDoors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && /^(house|building)-town-/.test(a.id) && Array.isArray(a.at) && Array.isArray(a.N))
+    .map((a) => ({ id: a.id.replace(/^(house|building)-/, ''), use: a.use, at: a.at, N: a.N, enter: a.enter ?? null, ...(Array.isArray(a.rooms) ? { rooms: a.rooms } : {}) }));
+  Object.defineProperty(out, 'townDoors', { value: townDoors, enumerable: false });
   return out;
 }
 
@@ -514,11 +527,13 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const watchers = guards?.ref ? guards.posts(ends) : null;
   if (guards?.ref) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
+    // (each a GUARD, stood as every hostile is: foes.js standFoe, its narrow sweeping gaze the class's; the sneak's own:
+    // watchers, never fought, a short way from their posts)
+    const part = { figures, entities };
     for (const [k, g] of watchers.entries()) {
       // (a pool of guards' figures, each its own roll, cycled: quick.js refAt)
-      figures[g.id] = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
-      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, ...PERSON_BODY };
-      entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
+      const figure = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
+      standFoe(G, part, { id: g.id, entry: SNEAK_GUARD, at: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading }, { figure, tune: SNEAK_TUNE });
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
@@ -623,7 +638,7 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests'];
 function mergePlay(base, extra) {
   if (!base) return extra;
   const out = { ...base, ...extra };
@@ -685,7 +700,8 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   // (a party all with the pilot from the start carries no flag between levels)
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
-  if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
+  // (beside a stage's own: a town's sidequests, folk-cast.js)
+  if (G.quests?.length) play = { ...(play ?? {}), quests: [...(play?.quests ?? []), ...levelQuests(G.quests)], carry: STORY_SLICE };
   if (scenes.length) {
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
@@ -912,10 +928,12 @@ const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-st
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
 export function buildingStage(B) {
   const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
-    ...(geocube !== undefined ? { geocube } : { kit: kit ?? roomKitFor(anchor) }),
-    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}) },
+    ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
+    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
   };
 }

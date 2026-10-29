@@ -46,6 +46,8 @@ const TARGET_ELEMENT_ARRAY_BUFFER = 34963;
 const COMPONENT_BYTE = 5120;
 const COMPONENT_SHORT = 5122;
 const MODE_TRIANGLES = 4;
+// a figure atlas with edges (the hero's hair cards) is alpha tested at this cover: a strand's soft edge in, the gap between out
+const HAIR_ALPHA_CUTOFF = 0.4;
 // GLB chunk/header magic words (little-endian uint32).
 const GLB_MAGIC = 0x46546c67; // 'glTF'
 const CHUNK_JSON = 0x4e4f534a; // 'JSON'
@@ -417,7 +419,7 @@ class GlbBuilder {
     return this.json.accessors.length - 1;
   }
 
-  unlitMaterial({ alpha = null, baseColorTexture = null, name } = {}) {
+  unlitMaterial({ alpha = null, alphaCutoff = null, baseColorTexture = null, name } = {}) {
     if (!this.unlitDeclared) {
       this.json.extensionsUsed.push('KHR_materials_unlit');
       this.unlitDeclared = true;
@@ -431,6 +433,7 @@ class GlbBuilder {
     const mat = { doubleSided: true, pbrMetallicRoughness: pbr, extensions: { KHR_materials_unlit: {} } };
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
+    else if (alphaCutoff != null) { mat.alphaMode = 'MASK'; mat.alphaCutoff = alphaCutoff; }
     this.json.materials.push(mat);
     return this.json.materials.length - 1;
   }
@@ -439,7 +442,7 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, normalTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
       // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
       baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
@@ -453,6 +456,8 @@ class GlbBuilder {
     if (normalTexture != null) mat.normalTexture = { index: normalTexture };
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
+    // (a texture whose alpha cuts its edges, a hair card's strands: tested, not blended, so it sorts as the opaque do)
+    else if (alphaCutoff != null) { mat.alphaMode = 'MASK'; mat.alphaCutoff = alphaCutoff; }
     // A glowing surface (a pot-light lens): core emissiveFactor, plus KHR_materials_emissive_strength
     // above 1 so a lit importer (Blender / Godot / Unity / Interchange) renders it as a light source
     // in its own right — not a lit albedo that reads dark under a ceiling nothing lights.
@@ -769,7 +774,8 @@ class GlbBuilder {
     // extras (`mojulo.height`: an engine that reads parallax or displacement binds it). Absent ⇒ byte-identical.
     const covered = this.lit && tex === null && fig.coverTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.uv === 'string' && typeof p.nrm === 'string' && typeof p.tan === 'string'));
     const ctex = covered ? Object.fromEntries(['base', 'normal', 'orm', 'height'].map((k) => [k, this.imageFromDataUrl(fig.coverTex[k])])) : null;
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
+    // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested)
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null || ctex ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);

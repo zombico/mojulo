@@ -46,6 +46,7 @@ export const WINDOW_STYLES = Object.freeze({
   german: 'tilt-turn sashes under a transom', crittall: 'a fine grid of steel bars, black-framed',
   prairie: 'a border of narrow lights round a clear centre', cottage: 'divided lights in the top third only',
   'six-over-six': 'two sashes of six lights each',
+  slider: 'two sashes sliding past each other, the meeting stiles side by side: the Japanese hikichigai',
 });
 
 // ── walls ───────────────────────────────────────────────────────────────────────────────────────────────────────

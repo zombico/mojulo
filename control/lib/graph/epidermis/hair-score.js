@@ -94,3 +94,51 @@ export function scoreHair(chart, D, depiction, { reference = null, px = 160, vie
   const r3 = (v) => Math.round(v * 1000) / 1000;
   return { coverage: r3(bare ? covered / bare : 1), bladeCover: r3(bare ? byBlades / bare : 1), silhouette: reference ? r3(union ? inter / union : 1) : null, faces: (depiction.strips?.faces.length ?? 0) + (depiction.cap?.faces.length ?? 0), views: out, box };
 }
+
+/**
+ * THE OVERLAP PRINCIPLE (the lock hair's, hair-locks.js; the operator's, 2026-10-28): from every view, the hair-bearing
+ * scalp shows the hair's MASS, never the scalp. What is under the locks (the shell, the skin) may show only in a SPLIT: a
+ * gap between locks no wider than `split` (m), or the groom's part line. Each scalp pixel a view sees is the mass's, a
+ * split's (the shell or the skin with the mass within `split` on both sides of it), or OPEN (the scalp shown: a wider gap,
+ * or an edge the mass lies on one side of only, as a hairline's band); `exempt(p)` a point the principle passes over
+ * (stubble, where the shell is the hair). Every section the turntable sees counts. Measured orthographically as scoreHair
+ * is; a machine gate, advisory.
+ *
+ *   overlapHair(chart, D, { mass, under }, { split, px, views, exempt, partOf }) → { open, split, mass, passes, worst, views, openAt }
+ */
+export const OVERLAP = Object.freeze({ split: 0.004, open: 0.01, px: 128 });
+export function overlapHair(chart, D, { mass, under = [] }, { S = null, split = OVERLAP.split, px = OVERLAP.px, views = Object.keys(SCORE_VIEWS), exempt = null, partOf = null, maps = false } = {}) {
+  const head = { vertices: chart.vertices, faces: chart.faces };
+  const grows = chart.samples.map((s, i) => { if (!s || s.feature) return false; const H = dermisAt(s, D, { detail: false }).hair; return H.tract === 'scalp' && H.kind === 'terminal' && !(partOf && partOf(s)) && !(exempt && exempt(chart.vertices[i])); });
+  const scalpFace = chart.faces.map((t) => t.every((v) => grows[v]));
+  const layers = [head, ...(mass ? [mass] : []), ...under.filter(Boolean)];
+  const lo = [0, 1, 2].map((k) => Math.min(...layers.flatMap((M) => M.vertices.map((p) => p[k])))), hi = [0, 1, 2].map((k) => Math.max(...layers.flatMap((M) => M.vertices.map((p) => p[k]))));
+  const box = { c: lo.map((v, k) => (v + hi[k]) / 2), s: 1.08 * Math.max(...hi.map((v, k) => v - lo[k])) };
+  const reach = Math.max(1, Math.round((split / box.s) * px));
+  let seen = 0, open = 0, inSplit = 0, byMass = 0;
+  const out = {}, openFaces = new Set(), pictures = maps ? {} : null;
+  for (const view of views) {
+    const H = rasterize([head], view, px, box), W = rasterize(layers, view, px, box);
+    // (a SPLIT: the mass within `reach` pixels on both sides of it, along one of four lines; an edge with mass on one
+    // side only, a hairline's band, is open)
+    const isMass = (x, y) => x >= 0 && y >= 0 && x < px && y < px && W.mesh[y * px + x] === 1;
+    const sees = (x, y, dx, dy) => { for (let k = 1; k <= reach; k++) if (isMass(x + dx * k, y + dy * k)) return true; return false; };
+    const between = (o) => { const x = o % px, y = (o - x) / px; return [[1, 0], [0, 1], [1, 1], [1, -1]].some(([dx, dy]) => sees(x, y, dx, dy) && sees(x, y, -dx, -dy)); };
+    let vs = 0, vo = 0, vsp = 0, vm = 0;
+    const pic = maps ? new Uint8Array(px * px) : null;
+    for (let o = 0; o < px * px; o++) {
+      if (!(H.mesh[o] === 0 && scalpFace[H.face[o]])) continue;
+      vs++;
+      if (W.mesh[o] === 1) vm++; else if (between(o)) { vsp++; if (pic) pic[o] = 2; } else { vo++; openFaces.add(H.face[o]); if (pic) pic[o] = 3; }
+    }
+    seen += vs; open += vo; inSplit += vsp; byMass += vm;
+    if (pic) { for (let o = 0; o < px * px; o++) if (!pic[o]) pic[o] = W.mesh[o] === 1 ? 1 : W.mesh[o] >= 0 ? 4 : 0; pictures[String(view)] = pic; }
+    out[String(view)] = { scalp: vs, open: vs ? vo / vs : 0, split: vs ? vsp / vs : 0 };
+  }
+  const r3 = (v) => Math.round(v * 1000) / 1000, o = seen ? open / seen : 0;
+  return { open: r3(o), split: r3(seen ? inSplit / seen : 0), mass: r3(seen ? byMass / seen : 1), passes: o <= OVERLAP.open, worst: r3(Math.max(0, ...Object.values(out).map((v) => v.open))), views: out,
+    // (where the scalp shows: the open faces' middles, for whoever fills them)
+    // (`maps`: each view's pixels, 0 nothing, 1 the mass, 2 a split, 3 open, 4 the rest: what a sheet shows)
+    ...(pictures ? { maps: pictures, px } : {}),
+    openAt: [...openFaces].sort((a, b) => a - b).map((f) => [0, 1, 2].map((k) => chart.faces[f].reduce((a, v) => a + chart.vertices[v][k], 0) / 3)) };
+}

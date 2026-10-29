@@ -58,6 +58,12 @@ const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'ear
 const ONE_PINS = { male: 'd141a71485ddcf02', female: '54cd21f82280678f' };
 // the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
 const NECK_PINS = { male: '459d30a9fc5f3008', female: '23a186409b0578cd' };
+// the EAR RAISED to the canon (realistic laws 10, head-relational.js EAR_RAISE): its top at the brow line, the lobule at
+// the nose's base (the one skin's ear and the skin it welds to move with it)
+const EAR_PINS = { male: '0f388164cbe3cf89', female: '4f512d419c09c8d3' };
+// the lids SEATED (realistic laws 11, head-relational-eye.js SEAT: the brow's arc and ties lower, the fold a pad, a deep-set
+// eye forward), over the ear raised; re-pinned when the seat (laws 10 on 1027-hero-pack-v2) came after the raised ear
+const SEATED_PINS = { male: '8433041062f5791b', female: '62a42715c85075d3' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
@@ -70,8 +76,20 @@ describe('the relational head, pinned', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 2 } }) }).recipe;
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
+  // (laws 9: the cervical neck's head as it stood before the ear was raised)
   for (const [cast, pin] of Object.entries(NECK_PINS)) it(`${cast}, one skin on the cervical neck`, { timeout: 240000 }, () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 9 } }) }).recipe;
+    expect(pinOf(r, ONE_PARTS)).toBe(pin);
+  });
+  for (const [cast, pin] of Object.entries(EAR_PINS)) it(`${cast}, the ear raised`, { timeout: 240000 }, () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 10 } }) }).recipe;
+    expect(r.headFit.seat).toBeUndefined();
+    expect(pinOf(r, ONE_PARTS)).toBe(pin);
+  });
+  // (a hero minted now, laws 11, has its lids seated on the globes: head-relational-eye.js SEAT)
+  for (const [cast, pin] of Object.entries(SEATED_PINS)) it(`${cast}, one skin, the ear raised, the lids seated`, { timeout: 240000 }, () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational' }) }).recipe;
+    expect(r.headFit.seat).toBe(true);
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
 });

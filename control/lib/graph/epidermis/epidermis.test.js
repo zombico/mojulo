@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { readEpidermis, growEpidermis, browLine, BROW_SHAPES, LASH_SHAPES } from './epidermis.js';
+import { readEpidermis, growEpidermis, growLashes, browLine, BROW_SHAPES, LASH_SHAPES, SEATED_LOWER } from './epidermis.js';
 import { relationalHead } from '../polygonizer/head-relational.js';
 
 const head = relationalHead({ sex: 'male' });
@@ -53,6 +53,18 @@ describe('the epidermis cube', () => {
     // the upper curl up, the lower down
     expect(mean(of(grown, 'lash').map(tipElev))).toBeGreaterThan(0);
     expect(mean(of(grown, 'lashLow').map(tipElev))).toBeLessThan(0);
+  });
+  it('on a seated lid, roots the lower lashes up the margin\'s front and grows them shorter', () => {
+    // (the same margins, free space: only the seat's own numbers differ)
+    const rig = head.relational.eyeRigs.find((r) => r.side === 'R'), lash = readEpidermis('default').hair.lashes;
+    const low = (seated) => growLashes(rig.margins, 'R', lash, 1, {}, { seated }).filter((s) => s.groom === 'lashLow');
+    const [loose, seated] = [low(false), low(true)], len = (ss) => mean(ss.map((s) => lengthMm({ pts: s.pts.map((p) => ({ x: p.x * head.relational.V, y: p.y * head.relational.V, z: p.z * head.relational.V })) })));
+    expect(seated.length).toBe(loose.length);
+    expect(mean(seated.map((s) => s.pts[0].z))).toBeGreaterThan(mean(loose.map((s) => s.pts[0].z)));
+    expect(len(seated) / len(loose)).toBeCloseTo(SEATED_LOWER.length, 1);
+    // (the upper lashes are the seat's no business)
+    const up = (seated) => growLashes(rig.margins, 'R', lash, 1, {}, { seated }).filter((s) => s.groom === 'lash');
+    expect(up(true)).toEqual(up(false));
   });
   it('rides the lid: a shut lid\'s lashes hang, clear of the skin', () => {
     const shutHead = relationalHead({ sex: 'male', eyes: 'closed' });

@@ -55,7 +55,7 @@ export function tubeAB(out, a, b, r, sides, surf) {
 }
 
 /** A self-lit face (a lamp's diffuser, a status lamp): its own fill, emissive in the GLB, a halo when `glow`. */
-const lit = (corners, n, fill, group, glow = null, strength = 3) => ({ corners: corners.map(P), normal: n, outNormal: n, fill, group, emissive: hexRgb(fill), emissiveStrength: strength, ...(glow ? { glow } : {}) });
+export const lit = (corners, n, fill, group, glow = null, strength = 3) => ({ corners: corners.map(P), normal: n, outNormal: n, fill, group, emissive: hexRgb(fill), emissiveStrength: strength, ...(glow ? { glow } : {}) });
 
 /** A troffer hung on two chains: a steel housing, a glowing diffuser under it. `c` its centre, long along `ax`. */
 export function troffer(out, c, ax, T, top, surf, dead = false, halo = true) {
@@ -194,7 +194,7 @@ export function labRoom(out, r, ri, kit, surf, decay = null) {
   return { seats, bays, structure: { trusses, ducts, zD, tray: { at: st, z: zT }, alongY, troffers: zL, ...(hole ? { hole: { rect: hole.rect, fallen } } : {}), ...(sparks.length ? { sparks } : {}) } };
 }
 
-const wallFrameOf = (r, s) => {
+export const wallFrameOf = (r, s) => {
   if (s === '-y') return { o: [r.x0, r.y0, 0], U: [1, 0, 0], N: [0, 1, 0], len: r.x1 - r.x0, coord: (p) => p[0], start: r.x0 };
   if (s === '+y') return { o: [r.x1, r.y1, 0], U: [-1, 0, 0], N: [0, -1, 0], len: r.x1 - r.x0, coord: (p) => p[0], start: r.x1 };
   if (s === '-x') return { o: [r.x0, r.y1, 0], U: [0, -1, 0], N: [1, 0, 0], len: r.y1 - r.y0, coord: (p) => p[1], start: r.y1 };

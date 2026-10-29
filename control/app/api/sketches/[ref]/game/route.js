@@ -86,6 +86,21 @@ export async function GET(request, { params }) {
       });
     }
 
+    // A table game (lib/graph/table-rpg): played in text on its own page, the kernel carried in it; its book beside it.
+    if (sketch.manifest.engine === 'table-rpg') {
+      const { emitTableRpgGame } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+      let html;
+      try {
+        html = emitTableRpgGame(sketch.manifest, { title: sketch.title, bookHref: `/api/sketches/${encodeURIComponent(ref)}/bible` });
+      } catch (err) {
+        return NextResponse.json({ error: err.message }, { status: 422 });
+      }
+      return new Response(html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': 'inline', 'Cache-Control': 'no-store' },
+      });
+    }
+
     let resolved;
     try {
       resolved = resolveGame(sketch.manifest, (r) => SketchRepository.getByRef(r), levelSrc, worldSrc);

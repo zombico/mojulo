@@ -98,6 +98,7 @@ export const PAGE_MARKS = Object.freeze({
   ...Object.fromEntries(PAGE_OPTIONS.map((k) => [k, OPTION])),
   faces: m(P, 'the greybox and its look (roblox-project.js, roblox-look.js): every upward face as floor slabs on a grid, each in its faces\' colour and a Roblox material named by its texture, else by what the material shelf stamped (a metal Metal, glass Glass); the rest of the level voxelized into decoration boxes of their faces\' colours (no body or ray meets them); smooth shapes come out in voxels, a backdrop and ground cover drawn as cards are left to the sky and the slabs; the mesh rides beside the project as model.glb for Studio\'s 3D Importer'),
   colliders: m(B, 'each box collider an anchored Part, unseen as on the page (roblox-project.js greyboxModel)'),
+  form: m(A, 'the form render\'s land and rooms (gen-7) are not carried yet: the greybox reads the painted faces'),
   repeats: m(P, 'each instance placed as the page places it and voxelized into the look\'s decoration boxes (roblox-look.js), not instanced'),
   textures: m(P, 'a texture travels as its mean colour (alpha-weighted, times the face\'s tint) and a material its name picks (roblox-look.js); the image itself does not'),
   figures: m(P, 'a rigged figure stands as a block figure of its body\'s size (MojuloServer): its mesh, clips, face and ink are not carried'),
@@ -138,6 +139,10 @@ export const EVENT_MARKS = Object.freeze({
   quests: m(P, 'bus.json quests (kernel/quests.luau): a word as one begins, moves on, ends (MojuloServer); there is no journal to open'),
   ...absent(['style', 'register', 'menus', 'looks', 'fxLight', 'fxStyle', 'rim', 'trail', 'minigames', 'rpg']),
   vanish: m(A, 'a downed foe\'s disposal (its fade: gameworld/vanish.js, the page\'s transits) is the page\'s: a downed body stays down'),
+  wreck: m(A, 'a destroyed foe\'s pieces (its dismantle or cleave, a mode\'s shed: scene/channels/wreck-channel.js) are the page\'s: a downed body stays down whole'),
+  layer0: m(A, 'a layer-0 foe\'s looks laid on the body it wears now (docs/foes.md) are the page\'s: the kernel draws no status looks on a foe'),
+  born: m(A, 'the statuses a foe is born under (foes/states.js), drawn in their looks, are the page\'s: the kernel\'s foe is born bare'),
+  arrive: m(A, 'a summoner\'s summons arriving in their transit (worlds/controllable/summon.js) are the page\'s: the kernel calls no summons'),
 });
 
 // ── a figure's gaits, power.systems, space.traversal, space.links, the mind ─────────────────────────────────────────

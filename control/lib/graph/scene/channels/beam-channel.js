@@ -2,7 +2,7 @@ import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { wavePoints, sprayPoints } from '../../playscape/elements/elements.js';
 import { strandPoints, beamLength } from '../../playscape/elements/beams.js';
-import { GLYPHS_SRC, SPRAY_SRC, CEL_GLYPHS_SRC, CEL_GLYPHS } from './moment-channel.js';
+import { GLYPHS_SRC, SPRAY_SRC, CEL_GLYPHS_SRC, CEL_GLYPHS, VOXEL_GLYPHS_SRC, VOXEL_GLYPHS } from './moment-channel.js';
 import { GNOISE2_PAGE_SRC } from '../../noise/noise.js';
 import { NOISE_GLSL } from '../../noise/noise-glsl.js';
 
@@ -47,6 +47,8 @@ export function beamScript(specs, { fx = false } = {}) {
   // the cel look (a composed floor's, scene/juice-style.js): flat bands with hard edges across a ribbon and a head, and
   // the cel glyphs for its sparks. Only emitted when an attack carries it
   const cel = specs.some((B) => B.strands.some((S) => S.cel)) || specs.some((B) => B.sparks && CEL_GLYPHS.includes(B.sparks.glyph));
+  // and the voxel glyph (a floor at the voxel fidelity: its sparks are cubes)
+  const voxel = specs.some((B) => B.sparks && VOXEL_GLYPHS.includes(B.sparks.glyph));
   // `fx` (the world's fxLight, scene/effect-light.js): each head, a ray's body and a charging orb throw their light
   return `
 // BEAMS: attacks fired from a hand at a target, once each, on the world clock (ink, glow and a white core)
@@ -131,7 +133,8 @@ const __bmP0 = new THREE.Vector3(), __bmP1 = new THREE.Vector3();` : ''}
 const __bmLength = ${beamLength.toString()};${charge ? `
 const __bmWave = ${wavePoints.toString()};` : ''}
 const __bmGlyph = ${GLYPHS_SRC};${cel ? `
-${CEL_GLYPHS_SRC};` : ''}${sparks ? `
+${CEL_GLYPHS_SRC};` : ''}${voxel ? `
+${VOXEL_GLYPHS_SRC};` : ''}${sparks ? `
 const __bmSpray = ${sprayPoints.toString()};
 ${SPRAY_SRC.replace(/__spr/g, '__bmSpr')}` : ''}
 // across a ribbon: soft (glow), firm (core), hard (ink)

@@ -63,6 +63,15 @@ describe('the mounts', () => {
     expect(top[1]).toBeGreaterThan(gearRestPoint(bw, bw.sockets.grip.origin)[1]);
     expect(Math.hypot(...[0, 1, 2].map((i) => nock[i] - top[i]))).toBeGreaterThan(0.04);
   });
+  it('a haft (a staff of the arm reach) is held as a blade: the grip in the fist, the head forward and down, the heel behind the hand', () => {
+    const { hero: h3, R: R3 } = heroOf({ cast: 'male', gear: { right: { item: 'staff', style: 'historical', parts: { head: 'mace', reach: 'arm' } } } });
+    const [g] = gearMounts(h3, R3);
+    expect(segDist(gearRestPoint(g, g.sockets.grip.origin), R3.joints.wristR, R3.joints.knucklesR)).toBeLessThan(0.03);
+    const tip = gearRestPoint(g, g.sockets.tip.origin), grip = gearRestPoint(g, g.sockets.grip.origin), heel = gearRestPoint(g, g.sockets.heel.origin);
+    expect(tip[1] - grip[1]).toBeGreaterThan(0.3);   // the head forward of the hand
+    expect(heel[1]).toBeLessThan(grip[1]);           // the heel behind it, not down at the floor
+    expect(heel[2]).toBeGreaterThan(0.3);
+  });
   it('back and hip gear ride the torso and the pelvis, behind and at the side', () => {
     expect(G.back.bone).toBe('torso'); expect(G.hip.bone).toBe('pelvis');
     const mid = gearRestPoint(G.back, [0, 0, G.back.trace.length / 2]); expect(mid[1]).toBeLessThan(J.navel[1] - 0.05);

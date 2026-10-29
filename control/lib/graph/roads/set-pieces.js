@@ -295,24 +295,28 @@ const GROUP_PAINT = Object.freeze({
 /** Which surface group wins a cube it shares (voxel-look.js): the detail over the body it stands proud of. */
 const VOXEL_PRIORITY = Object.freeze({ 'tech:glass': 3, 'tech:trim': 3, 'tech:light': 3, 'str:accent': 3, 'tech:frame': 2, 'tech:cable': 1 });
 
+// a tint's colours as the kit's colourOf gives a group's (0–1 channels): lit as it is, a top a touch up, a shade down
+const tintColours = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); return { lit: c, top: c.map((v) => Math.min(1, v * 1.06)), shade: c.map((v) => v * 0.8) }; };
+
 /** A built piece's faces in the kit (track-kit.js): each group its material or flat colour, its value a stop, lit by the
- *  roadway's light (the kit's pole decides: a tile × light, or the band's stop); polygons fanned to four corners. */
+ *  roadway's light (the kit's pole decides: a tile × light, or the band's stop); polygons fanned to four corners. A face
+ *  with a `tint` (a '#rrggbb' of the caller's: a stand's seats, its crowd) is that colour, lit as a paint. */
 export function paintPiece(faces, K, { voxel = null } = {}) {
   // the voxel look: the piece a shell of cubes on its grid, under the isekai light (voxel-look.js); `voxel` a coarser
   // grid for a far thing (the surrounds: a wood, a butte, a village)
   if (K.pole === 'voxel' && faces.length) {
     const box = { lo: [0, 1, 2].map((i) => Math.min(...faces.flatMap((f) => f.corners.map((p) => p[i])))), hi: [0, 1, 2].map((i) => Math.max(...faces.flatMap((f) => f.corners.map((p) => p[i])))) };
-    const vox = voxelize(faces, { size: voxel ?? voxelSizeFor(box), colourOf: (f) => K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile), priorityOf: (f) => VOXEL_PRIORITY[f.group] ?? (f.tile ? -1 : 0) });   // (a seam: a mark on a body, never over it)
+    const vox = voxelize(faces, { size: voxel ?? voxelSizeFor(box), colourOf: (f) => (f.tint ? tintColours(f.tint) : K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile)), priorityOf: (f) => VOXEL_PRIORITY[f.group] ?? (f.tile ? -1 : 0) });   // (a seam: a mark on a body, never over it)
     return voxelFaces(vox, { light: K.light });
   }
   // the shaded look: the piece's own polygons, lit per corner the sixth generation's way (shaded-look.js)
-  if (K.pole === 'shaded') return shadeFaces(faces, { colourOf: (f) => K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit });
+  if (K.pole === 'shaded') return shadeFaces(faces, { colourOf: (f) => (f.tint ? tintColours(f.tint).lit : K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit) });
   const out = [];
   for (const f of faces) {
     const G = GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'];
     const c = f.corners, n = c.length;
     const pieces = n <= 4 ? [c] : Array.from({ length: Math.ceil((n - 2) / 2) }, (_, j) => { const i = 1 + 2 * j; return i + 2 < n ? [c[0], c[i], c[i + 1], c[i + 2]] : [c[0], c[i], c[i + 1]]; });
-    for (const q of pieces) out.push(K.piece(G, q, f.value ?? 0.6, f.normal, !!f.tile));
+    for (const q of pieces) out.push(f.tint ? K.tint(f.tint, q, f.normal) : K.piece(G, q, f.value ?? 0.6, f.normal, !!f.tile));
   }
   return out;
 }

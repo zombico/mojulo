@@ -20,7 +20,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSy
 import path from 'node:path';
 import { getServerVersion } from '../../server-version.js';
 
-export const FACE_STORE_VERSION = 'v2';   // v2: the lashes turned with their lids
+export const FACE_STORE_VERSION = 'v3';   // v2: the lashes turned with their lids; v3: the eyes' own targets (wide, squint, worried)
 /** the heads kept (each a few megabytes) */
 export const KEEP = 24;
 const MAGIC = 'MJFR1\n';

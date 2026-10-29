@@ -43,6 +43,7 @@ const PKG = 'hostile-encounters';
 
 // a foe's own moves (worlds/controllable/foe.js): played on the web; no engine kernel plays them yet
 const FOE = 'lib/graph/worlds/controllable/foe.js';
+const SUMMON = 'lib/graph/worlds/controllable/summon.js';
 const WEB_ONLY = { godot: 'absent', roblox: 'absent' };
 
 export const MOVES = Object.freeze({
@@ -128,6 +129,11 @@ export const ATTACKS = Object.freeze({
     line: 'its charge is the blow: whatever it runs into is hit',
     verb: 'contact', during: 'charge', timing: { startup: 36, recovery: 30 },
     status: 'built', lowers: FOE, ...WEB_ONLY,
+  },
+  call: {
+    line: 'it calls its summons into the fight on a wind-up: its blow is them (its entry\'s `summons`)',
+    verb: null, timing: { startup: 45, recovery: 30 },
+    status: 'built', lowers: SUMMON, ...WEB_ONLY,
   },
   none: {
     line: 'it does not attack',

@@ -126,7 +126,8 @@ describe('the racer\'s smooth finish', () => {
 
   it('rides a racer\'s recipe, and is deterministic', () => {
     const arch = round.archetype;
-    expect(racerSpec({ archetype: arch, seed: 3, shade: 'smooth' })).toEqual({ facets: { archetype: arch }, seed: 3, shade: 'smooth' });
+    // (an entry's shade is kept; the light it is minted in, the form render's, unless it names its own)
+    expect(racerSpec({ archetype: arch, seed: 3, shade: 'smooth' })).toEqual({ facets: { archetype: arch }, seed: 3, shade: 'smooth', light: 'form' });
     expect(() => racerSpec({ archetype: arch, shade: 'glossy' })).toThrow(/shade is one of/);
     const a = racerOf({ facets: { archetype: hard.archetype }, seed: 5, shade: 'smooth' }).S.figure;
     const b = racerOf({ facets: { archetype: hard.archetype }, seed: 5, shade: 'smooth' }).S.figure;

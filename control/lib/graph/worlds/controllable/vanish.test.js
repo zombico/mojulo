@@ -10,6 +10,21 @@ const DT = 1 / 30;
 const body = (id, pos, vanish) => ({ id, team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 20, ...(vanish ? { vanish } : {}) }, transform: { pos, heading: 0 } });
 const run = (st, n) => { for (let i = 0; i < n; i++) E.stepWorld(st, {}, DT, { ground: () => 0 }); return st; };
 
+describe('a mode with a class of its own', () => {
+  it('defeated into the next mode, it fights as that one: its rule over its own', () => {
+    const e = body('a', [0, 0, 0], { is: 'fade', linger: 0.5 });
+    e.rule = { type: 'static', speed: 2 };
+    e.body = { ...e.body, type: 'figure-rig', figure: 'shell', modes: [{ figure: 'shell', hp: 20 }, { figure: 'bare', hp: 10, rule: { speed: 5 } }] };
+    const st = E.createWorld({ entities: [e] });
+    run(st, 1);
+    const a = st.byId.a;
+    Object.assign(a, { downed: true }); a.body.hp = 0;
+    run(st, 1);
+    expect(a.body).toMatchObject({ figure: 'bare', hp: 10 });
+    expect(a.rule).toMatchObject({ type: 'static', speed: 5 });
+  });
+});
+
 describe('a downed body goes', () => {
   it('it lies for its linger, then goes, its transit out of its kind and colour', () => {
     const st = E.createWorld({ entities: [body('a', [0, 0, 0], { is: 'motes', linger: 0.5, rgb: [0.2, 0.6, 0.5] }), body('b', [4, 0, 0])] });

@@ -1,8 +1,8 @@
 /**
  * REALITY: how it looks and how its assets are made. The geocube's facet.
  *
- * A facet is data. Each setting either names a SOURCE (a table in the tree whose keys are the values; the generator
- * reads it, scripts/gen-cosmos-registry.mjs) or lists its VALUES by hand, each with a status and a note. Statuses:
+ * A facet is data. Each setting either names a SOURCE (a table in the tree whose keys are the values; the registry
+ * reads it live, read-sources.js) or lists its VALUES by hand, each with a status and a note. Statuses:
  *   built    a general module makes it today
  *   local    it exists inside one game only: a mine, not a capability
  *   partial  part of it exists; the note says what is missing

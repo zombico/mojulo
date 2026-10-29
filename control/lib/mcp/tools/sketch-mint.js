@@ -10,11 +10,16 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
+import { compassOf } from '@/lib/graph/polygonizer/home-windows';
+import { readForm, formErrors, FORM_FOOTPRINT, FORM_MAX_RISE } from '@/lib/graph/polygonizer/house-forms';
 import { stampSolid } from '@/lib/graph/era/solid';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
 import { resolveArt } from '../../graph/era/art-direction.js';
+import { resolveCompose } from '../../graph/era/compose.js';
+import { resolveProps } from '../../graph/era/compose-lay.js';
 import { resolvePlayUi } from '../../graph/playscape/ui/direction.js';
 import path from 'node:path';
 import { randomInt } from 'node:crypto';
@@ -72,7 +77,7 @@ import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
-import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { houseStyleOpts, houseStyleKey, readLook } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
@@ -80,7 +85,7 @@ import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { stampAuthoredMotion } from '@/lib/graph/polygonizer/motion-stamp.js';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
-import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
+import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec, assertHeroNameFree } from '@/lib/mcp/tools/layered';
 import { rollStored } from '@/lib/graph/egocube/kind.js';
 import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeWork } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -471,6 +476,24 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // and varied: each room arranged from the house seed (`layout: 'varied'`), its furniture composed in the style's
     // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
     if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
+    // and for something (era/compose-purpose.js): a level is a game's, built readable within its allowance; a house a
+    // show's, every piece at its best. Stamped, so a row minted before purposes is built as it was
+    finalized = { ...finalized, purpose: purposeAtMint(finalized) };
+    allowanceOf(finalized);   // a malformed allowance refuses here, naming what it is
+    // and a home's look (floorplan-styles.js HOME_WINDOWS): its windows from its tradition, never a workshop's steel
+    // grid; stamped, so every house minted before keeps its windows
+    if (finalized.houseLook === undefined) finalized = { ...finalized, houseLook: 2 };
+    readLook(finalized.houseLook);
+    // a house's own north (home-windows.js): a malformed compass refuses here, naming what it is
+    if (finalized.compass !== undefined) compassOf({ compass: finalized.compass });
+    // and its form (house-forms.js): a townhouse or a block, its party walls, and a footprint that holds its stair and
+    // rooms (at the tallest storey a house style raises); a bad one refuses here, not first at /world
+    const form = readForm(finalized);
+    if (form !== 'detached') {
+      const fp = FORM_FOOTPRINT[form], rise = FORM_MAX_RISE;
+      const errs = formErrors(form, { width: finalized.width ?? fp.width, height: finalized.height ?? fp.height, rise });
+      if (errs.length) throw new Error(`Invalid manifest: form: ${errs.join('; ')}`);
+    }
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
     // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out
@@ -623,6 +646,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
   // (an art palette or a tone given a palette spec, `{ from }`, solved into their ramps first: color-theorist)
   manifest = resolveArt(resolveArtPalette(resolveTonePalette(resolveStagePalette(manifest))));
+  // a composed interior's intent (era/compose.js): read into its axes here and stored; the build reads the axes; its
+  // things laid as the default the operator then patches by id (compose-lay.js)
+  manifest = resolveProps(resolveCompose(manifest));
   // an interior's palette (color-theorist/stamp.js): rolled for a new room that names no style, kept by an edit
   manifest = stampTerrainPalette(stampLookPalette(stampInteriorPalette(manifest, existingSketch?.manifest ?? null)));
   // a scene asked in words (gameworld/scene-words.js): its words read into the geocube kind's keys here, at authoring
@@ -722,6 +748,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
         // otherwise pass silently)
         const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
         const prev = existingSketch?.manifest;
+        // a named hero's name is its own on this machine: an edit that names it, or renames it, is held to that
+        if (manifest.hero.name && manifest.hero.name !== prev?.hero?.name) assertHeroNameFree(manifest.hero.name, existingSketch?.ref ?? ref);
         if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the stored plan differs from what the hero generates now (hand-edited under /plan, or the hero\'s generator changed since it was stored); this /hero edit regenerated the plan and replaced it (a layered row keeps no revisions, so the old plan is not archived)');
         manifest = expandLayeredManifest(manifest, { from: 'hero' });
       } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
@@ -1055,6 +1083,11 @@ export async function updateSketchHandler(input) {
     // A board game (lib/graph/tabletop): no store, no levels. Its gate is that the game compiles and its page is made.
     const { emitTabletopGame } = await import('../../graph/tabletop/tabletop-manifest.js');
     try { emitTabletopGame(manifest); } catch (err) { throw new Error(`Invalid board game: ${err.message}`); }
+    nextManifest = manifest;
+  } else if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'table-rpg') {
+    // A table game (lib/graph/table-rpg): no store, no levels. Its gate is that the module plays and its page is made.
+    const { emitTableRpgGame } = await import('../../graph/table-rpg/table-rpg-manifest.js');
+    try { emitTableRpgGame(manifest); } catch (err) { throw new Error(`Invalid table game: ${err.message}`); }
     nextManifest = manifest;
   } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md

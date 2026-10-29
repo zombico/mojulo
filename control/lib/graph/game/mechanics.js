@@ -410,6 +410,13 @@ const MECHANICS = {
       };
       const rivals = Array.isArray(p.rivals) ? p.rivals.filter((r) => typeof r === 'string' && r) : [];
       const pass = `__pass_${i}`;
+      // a rival's own checkpoints, as many as the player's (a duel's other lane: the place is counted in passes)
+      const own = {};
+      for (const [r, list] of Object.entries(p.rivalCheckpoints ?? {})) {
+        if (!rivals.includes(r)) throw new Error(`laps[${ctx.i}]: rivalCheckpoints names '${r}', no rival`);
+        if (!(Array.isArray(list) && list.length === cps.length && list.every((c) => c && Array.isArray(c.at)))) throw new Error(`laps[${ctx.i}]: rivalCheckpoints.${r} is ${cps.length} checkpoints, as many as the player's, in order`);
+        own[r] = list;
+      }
       // the rivals' zones watch what their ids share (rival-1, rival-2 … → rival-*)
       let share = rivals[0] ?? '';
       for (const r of rivals) while (!r.startsWith(share)) share = share.slice(0, -1);
@@ -467,11 +474,19 @@ const MECHANICS = {
           if (rivals.length) world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: pass });
           world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'lap' });
         }
-        // the rivals' passes: one zone for them all, each rival its own next checkpoint
+        // the rivals' passes: one zone for them all, each rival its own next checkpoint; a rival with its own ring
+        // (`rivalCheckpoints`: a duel's other lane) its own zone at its own j-th
         if (rivals.length) {
           const rz = `rcp_${i}_${j}`;
-          world.sources.push({ type: 'zone', zone: rz, at: c.at, ...zoneOf(c), planar: c.planar !== false, watch: `${share}*` });
+          if (rivals.some((r) => !own[r])) world.sources.push({ type: 'zone', zone: rz, at: c.at, ...zoneOf(c), planar: c.planar !== false, watch: `${share}*` });
           rivals.forEach((r) => {
+            if (own[r]) {
+              const oc = own[r][j], oz = `${rz}_${r}`, rnext = `__cp_${i}_${r}`, rdue = { var: rnext, eq: j };
+              world.sources.push({ type: 'zone', zone: oz, at: oc.at, ...zoneOf(oc), planar: oc.planar !== false, watch: r });
+              world.reactions.push({ on: 'enter', match: { zone: oz, entity: r }, if: rdue, do: 'emit', type: `__rpass_${i}_${r}` });
+              world.reactions.push({ on: 'enter', match: { zone: oz, entity: r }, if: rdue, do: 'set', var: rnext, to: j < last ? j + 1 : 0 });
+              return;
+            }
             const rnext = `__cp_${i}_${r}`, rdue = { var: rnext, eq: j };
             world.reactions.push({ on: 'enter', match: { zone: rz, entity: r }, if: rdue, do: 'emit', type: `__rpass_${i}_${r}` });
             world.reactions.push({ on: 'enter', match: { zone: rz, entity: r }, if: rdue, do: 'set', var: rnext, to: j < last ? j + 1 : 0 });

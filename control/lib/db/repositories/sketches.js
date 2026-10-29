@@ -481,6 +481,17 @@ export const SketchRepository = {
    * The rows of the given kinds, last touched first, whole (manifest included): the dashboard's project shelves read
    * a few kinds and decide from the recipe which rows are projects of their own.
    */
+  /** The hero named `name` (a layered row whose hero's name is it, case and spacing aside), or null: a named hero's name
+   * is its own on this machine (layered.js assertHeroNameFree), so there is one at most. */
+  heroByName(name) {
+    if (typeof name !== 'string' || !name.trim()) return null;
+    const handle = db(), scope = spaceFilter(), key = name.trim().replace(/\s+/g, ' ').toLowerCase();
+    const row = handle
+      .prepare(`SELECT * FROM sketches WHERE kind = 'layered' AND lower(json_extract(manifest_json, '$.hero.name')) = ?${scope.sql} ORDER BY ${TOUCHED_ORDER} LIMIT 1`)
+      .get(key, ...scope.params);
+    return row ? rowToSketch(row) : null;
+  },
+
   listByKinds({ kinds = [], limit = 200 } = {}) {
     if (!Array.isArray(kinds) || !kinds.length) return [];
     const handle = db();

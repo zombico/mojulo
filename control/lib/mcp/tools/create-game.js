@@ -229,12 +229,54 @@ async function mintTabletop(input, context) {
   };
 }
 
+// A table game (lib/graph/table-rpg): a pen-and-paper RPG played in text, no store, no levels; its own page and its book.
+async function mintTableRpg(input, context) {
+  const { title, table_rpg: tableRpg, ref, folder_ref: folderRef } = input;
+  const mixed = ['tabletop', 'store', 'levels', 'menu', 'music', 'setup', 'links', 'difficulty', 'shell', 'run', 'front', 'audits'].filter((k) => input[k] !== undefined);
+  if (mixed.length) throw new Error(`a table game (table_rpg) has no ${mixed.join(', ')}: it is its own page and its own book`);
+  if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
+  if (folderRef !== undefined && !SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
+  const { buildTableRpgGameManifest, readTableRpg, tableRpgReadout } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+  let manifest = buildTableRpgGameManifest({ title, tableRpg });
+  const sketch = SketchRepository.create({ title: manifest.title, manifest, ref, ...(folderRef ? { folderRef } : {}) });
+  // the party and the cast's leaders made real characters through the character loop (their sheets and their bodies,
+  // children of the game's ref), each recorded on its member or its foe, unless the game says characters: false
+  let made = [], failed = [];
+  if (tableRpg.characters !== false) {
+    const { makeTableCharacters } = await import('./table-rpg-portraits.js');
+    const out = await makeTableCharacters({ ref: sketch.ref, tableRpg, title: manifest.title });
+    made = out.made; failed = out.failed;
+    if (made.length) {
+      manifest = { ...manifest, tableRpg: out.tableRpg };
+      SketchRepository.update({ ref: sketch.ref, manifest });
+    }
+  }
+  const { K, checks, findings } = readTableRpg(manifest.tableRpg);
+  const at = encodeURIComponent(sketch.ref), playUrl = `/api/sketches/${at}/game`;
+  const { party, factions, findings: found } = tableRpgReadout(K, checks);
+  return {
+    ok: true,
+    ref: sketch.ref,
+    engine: 'table-rpg',
+    rules: K.sys.name,
+    party: party.map((p) => ({ ...p, ...(made.find((m) => m.id === p.id) ? { character: made.find((m) => m.id === p.id).character } : {}) })),
+    ...(factions ? { factions: factions.map((F) => ({ ...F, characters: Object.fromEntries(made.filter((m) => m.foe && K.foes[m.foe]?.faction === F.id).map((m) => [m.foe, m.character])) })) } : {}),
+    ...(found.length || findings.length || failed.length ? { findings: [...found, ...findings.map((f) => ({ where: 'book', ...f })), ...failed.map((f) => ({ where: 'characters', level: 'advice', text: `${f.foe ?? f.item} was not made ${f.item ? 'an artifact' : 'a character'}: ${f.why}` }))] } : {}),
+    url: `/sketches/${at}`,
+    playUrl,
+    bookUrl: `/api/sketches/${at}/bible`,
+    charactersUrl: `/api/sketches/${at}/bible?parts=party`,
+    share: shareForContext(context, { ref: sketch.ref, engine: 'table-rpg', playUrl }),
+  };
+}
+
 export async function createGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
   const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   if (input.tabletop !== undefined) return mintTabletop(input, context);
+  if (input.table_rpg !== undefined) return mintTableRpg(input, context);
   try {
     const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
     // the game is complete: now is when the operator is asked how to share it (share-offer.js)
@@ -259,6 +301,11 @@ export async function getGameVocabHandler(input) {
     const { tabletopCard } = await import('@/lib/graph/tabletop/tabletop-card');
     return { ok: true, card: tabletopCard(), _telemetrySignal: { id_requested: true, found: true } };
   }
+  // the table games' card (create_game's `table_rpg`): served by id, named on its routing card
+  if (id === 'table-rpg') {
+    const { tableRpgCard } = await import('@/lib/graph/table-rpg/table-rpg-card');
+    return { ok: true, card: tableRpgCard(), _telemetrySignal: { id_requested: true, found: true } };
+  }
   // the arcade rules' card (the contest goal's sports as modules): served by id, named on the contest card
   if (id === 'contest-arcade' || (typeof id === 'string' && id.startsWith('contest-arcade-'))) {
     const { arcadeRulesCard } = await import('@/lib/graph/contest/arcade-rules');
@@ -278,7 +325,7 @@ export async function getGameVocabHandler(input) {
   if (id) {
     const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'tabletop', 'contest-arcade', 'contest-arcade-<family>', 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'tabletop', 'table-rpg', 'contest-arcade', 'contest-arcade-<family>', 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
@@ -357,6 +404,10 @@ export function registerGameTools() {
           type: 'object',
           description: "A board game against the computer instead of levels (no store): { game: 'chess'|'checkers' | a game written out from systems (board, pieces and their moves, rules; resources, dice, building, cards, trading), human?, level?: easy|fair|hard, view?: plan|table, seed?, clock?: { base, inc? } s }. A published game by name: ask its rules first. get_game_vocab({ id: 'tabletop' }).",
         },
+        table_rpg: {
+          type: 'object',
+          description: "A pen-and-paper RPG played in text, its characters rolled, its book printed (no store, no levels): get_game_vocab({ id: 'table-rpg' }).",
+        },
         store: {
           type: 'object',
           description: "The typed store: { slices: [{ name, kind, init? }] }. kind ∈ character|inventory|party|progression|flags. Manuals: get_game_vocab({ id: 'slice-<kind>' }).",
@@ -409,7 +460,8 @@ export function registerGameTools() {
         auto_audit: { type: 'boolean', description: "AUTO-RUN each level's mechanic-derived completability audit (reach-exit → walk to the exit; survive → idle past the timer) instead of requiring a hand-authored traversal. Levels built from auto-auditable mechanics pass the gate with no motion_ref. Runs a headless traversal per such level (slower). Levels with no auto-auditable mechanic still need a motion_ref or allow_unaudited." },
         allow_unaudited: { type: 'boolean', description: "Promote levels that lack a completability audit. The contract dry-run still runs (always). Recorded per level in the result (audited:false). Default false — a game is beatable-by-construction unless you opt out." },
       },
-      // store and levels are a level game's; a board game (tabletop) has neither, and the handler refuses a mix
+      // store and levels are a level game's; a board game (tabletop) and a table game (table_rpg) have neither, and the
+      // handler refuses a mix
       required: ['title'],
     },
     handler: createGameHandler,

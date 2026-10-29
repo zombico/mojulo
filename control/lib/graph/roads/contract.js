@@ -15,6 +15,9 @@
  *     bands: [{ kind, o0, o1, surface, corners? }]       one side's, mirrored; kerbs only on the corners
  *     ramps: [{ kind, s0, s1, lip, landing, band }]      band: lip speeds (m/s) that land it
  *     crossings: [{ s, clearance }]
+ *     duel?: { lap, gap, fair, starts: [{ s, at, heading }] ×2, grid: [lane two's slot, lane one's], legs: [[cp], [cp]] }
+ *                                                        a duel's (course.js designDuel): a car's lap is one leg, its
+ *                                                        next the other; the grid and the checkpoints are then the duel's
  *   }
  *   trackSurface(plan) → (p) => z: the highest drawn surface under a probe at p (a car's ground hook), else the terrain
  *   racingLine(plan, { step?, reach?, iterations? }) → [{ s, o, x, y, z }]
@@ -115,6 +118,19 @@ export function trackContract(plan, { leg = 20, slots = 8 } = {}) {
     const row = Math.floor(k / 2), side = k % 2 ? -1 : 1, s = s0 - (4 + 6 * row);
     return { at: pt(closed ? s : Math.max(0, s), 2 * side), heading: hd(at(s).heading) };
   });
+  // a duel (course.js designDuel): two cars a lane apart, half the alignment between their starts; each half its own
+  // checkpoints, as many in each (a place is counted in passes), none on the crossover; the grid's first slot lane
+  // two's (a rival's), the second lane one's (the player's behind the rivals)
+  const duel = course.duel ? (() => {
+    const { starts, lap, gap: apart, fair } = course.duel, Kd = Math.max(4, Math.round(lap / leg));
+    const legOf = (from) => Array.from({ length: Kd }, (_, j) => {
+      let s = from + (lap * (j + 1)) / Kd;
+      if (j < Kd - 1) for (let k = 0; k < 4 && !away(s); k++) s += X.outer;
+      return { at: pt(s), radius: r3(X.road + 1) };
+    });
+    const slotAt = (s) => ({ at: pt(s - 4), heading: hd(at(s - 4).heading) });
+    return { lap: r3(lap), gap: apart, fair, starts: starts.map((s) => ({ s: r3(s), at: pt(s), heading: hd(at(s).heading) })), grid: [slotAt(starts[1]), slotAt(starts[0])], legs: [legOf(starts[0]), legOf(starts[1])] };
+  })() : null;
   const sectors = [1, 2].map((j) => { const s = s0 + ((s1 - s0) * j) / 3; return { s: r3(s), at: pt(s) }; });
   const T = X.T;
   const bands = [
@@ -129,8 +145,9 @@ export function trackContract(plan, { leg = 20, slots = 8 } = {}) {
     columns: ['s', 'x', 'y', 'z', 'heading', 'bank'], stations,
     start: { s: r3(s0), at: pt(s0), heading: hd(at(s0).heading) },
     finish: { s: r3(s1 % L), at: pt(s1) },
-    sectors, checkpoints, grid, line, bands,
+    sectors, checkpoints: duel ? duel.legs[0] : checkpoints, grid: duel ? duel.grid : grid, line, bands,
     ramps: course.ramps.map((r) => ({ ...r, ...(r.lip ? { lip: { ...r.lip, at: pt(r.lip.s) } } : {}) })),
     crossings: plan.crossings.map((c) => ({ s: [c.s1, c.s2], at: c.at, dz: c.dz })),
+    ...(duel ? { duel } : {}),
   };
 }

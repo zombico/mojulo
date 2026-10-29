@@ -12,10 +12,13 @@
  *   --json     print the whole report as JSON instead of the summary
  */
 import { fileURLToPath } from 'node:url';
-import { sweep } from '../lib/graph/cosmos/sweep.js';
-import { fixture } from '../lib/graph/cosmos/fixtures.js';
-import { dryRun } from '../lib/graph/cosmos/cosmos.js';
 import { ENGINES, MARKED_ENGINES } from '../lib/graph/scene/engines/registry.js';
+import { register } from 'node:module';
+// (the cosmos registry reads its tables live, and they import by '@/': plain Node takes the repo's resolver first)
+if (!process.env.VITEST) register('./mcp-stdio-loader.mjs', import.meta.url);
+const { sweep } = await import('../lib/graph/cosmos/sweep.js');
+const { fixture } = await import('../lib/graph/cosmos/fixtures.js');
+const { dryRun } = await import('../lib/graph/cosmos/cosmos.js');
 
 export function parseArgs(argv) {
   const opts = { n: 500, seed: 1, density: 0.2, roll: 'fair', around: null, top: 15, fixture: null, json: false };

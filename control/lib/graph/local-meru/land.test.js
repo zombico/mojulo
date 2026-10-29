@@ -51,9 +51,10 @@ describe('the land: the upland-morning preset', () => {
   it('is valley-morning\'s look on a terrain ground, with the land words on', () => {
     const up = readGeocube('upland-morning'), valley = readGeocube('valley-morning'), low = lowerGeocube(up, 'outside');
     expect(up.colour).toEqual(valley.colour);
-    expect(low.meru.ground).toMatchObject({ span: 45, height: 3.5, from: { heartbeat: 'rocky-irregular' } });
+    // (on the meru island, every cube's: three times the island, its ground three times the span and the height)
+    expect(low.meru.ground).toMatchObject({ span: 135, height: 10.5, from: { heartbeat: 'rocky-irregular' } });
     expect(low.meru.shading).toMatchObject({ mix: 1, facet: 4, valley: 0.7 });
-    expect(low.meru.island).toMatchObject({ geology: true, walk: 'base', seabed: 'merged' });
+    expect(low.meru.island).toMatchObject({ geology: true, walk: 'none', seabed: 'merged', scale: 3, cover: 'soil' });
     // a variant may take its ground away, as any cube's terrain may
     expect(lowerGeocube(readGeocube({ from: 'upland-morning', outside: { ...up.outside, ground: undefined, terrains: { bare: { ground: false } } } }), 'outside', 'bare').meru).not.toHaveProperty('ground');
   });

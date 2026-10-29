@@ -23,7 +23,7 @@ describe('an outfit card worn by the tailor', () => {
   beforeAll(() => { suit = card('suit'); mesh = compileLayered(suit); }, 300_000);
 
   it('the suit: a shirt and a jacket each a body and two sleeves, stand collars, shoes, a belt and its buckle, the trims painted on; the authored pieces gone', () => {
-    for (const k of ['top_body', 'top_armR', 'outer_body', 'outer_armL', 'topCollar_neck', 'outerCollar_neck', 'shoes_footR', 'belt_bottom', 'beltBuckle_bottom', 'bottom_pelvis', 'bottom_legR']) expect(suit.parts[k], k).toBeTruthy();
+    for (const k of ['top_body', 'top_armR', 'outer_body', 'outer_armL', 'topCollar_neck', 'outerCollar_neck', 'shoes_footR', 'belt_bottom', 'beltBuckleTop_bottom', 'beltBuckleTongue_bottom', 'bottom_pelvis', 'bottom_legR']) expect(suit.parts[k], k).toBeTruthy();
     expect(Object.keys(suit.parts).some((k) => /^(topSleeve|topCuff|outerSleeve|bottomSeat|bottomLeg)_/.test(k))).toBe(false);
     // (the expander's trims painted on the cloth's faces, moved there by the pieces' aliases)
     const trimmed = new Set(mesh.faces.map((t, fi) => (/^(top|outer|bottom)/.test(mesh.provenance[t[0]].part) ? mesh.groups[fi] : null)).filter(Boolean));
@@ -41,7 +41,7 @@ describe('an outfit card worn by the tailor', () => {
   });
 
   it('the jacket over the belt: at the belt\'s height every point of the jacket outside the band and its buckle', () => {
-    const J = suit.parts.outer_body, belt = ['belt_bottom', 'beltBuckle_bottom'].map((k) => suit.parts[k]).filter(Boolean).flatMap(pointsOf), z = belt.reduce((t, q) => t + q[2], 0) / belt.length;
+    const J = suit.parts.outer_body, belt = Object.keys(suit.parts).filter((k) => /^belt(Buckle\w*)?_bottom$/.test(k)).map((k) => suit.parts[k]).flatMap(pointsOf), z = belt.reduce((t, q) => t + q[2], 0) / belt.length;
     const need = clearanceOver(belt), st = J.stations.reduce((b, x) => (Math.abs(centre(J, x)[2] - z) < Math.abs(centre(J, b)[2] - z) ? x : b)), c = centre(J, st), under = need([c[0], c[1], z]);
     for (const p of Object.values(st.points)) { const h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...h); expect(r).toBeGreaterThan(under([h[0] / r, h[1] / r, 0])); }
   });
@@ -80,7 +80,9 @@ describe('an outfit card worn by the tailor', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', physique: 'heavyset', stylism: { genre: 'modern', silhouette: 'bell', canon: 'western' } }) }).recipe;
     const coat = Object.entries(r.parts).find(([k]) => /^outer_(body|torso)$/.test(k))?.[1], sash = Object.entries(r.parts).find(([k]) => /^sash_/.test(k))?.[1];
     expect(coat).toBeTruthy(); expect(sash).toBeTruthy();
-    expect(sash.stations.length).toBe(2);
+    // (one section top to bottom: its middle rings the same ring, realistic laws 8's belt)
+    const mid = sash.stations.slice(2, -2);
+    for (const st of mid) expect(radius(sash, st)).toBeCloseTo(radius(sash, mid[0]), 6);
     const z = centre(sash, sash.stations[0])[2], ring = coat.stations.reduce((b, st) => (Math.abs(centre(coat, st)[2] - z) < Math.abs(centre(coat, b)[2] - z) ? st : b));
     expect(radius(sash, sash.stations[0])).toBeGreaterThan(radius(coat, ring) - 0.004);
   }, 300_000);

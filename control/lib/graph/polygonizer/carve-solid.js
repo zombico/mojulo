@@ -49,7 +49,31 @@ export function normalizeContours(contours, { box = 1, flipY = true, center = tr
 const qbez = (p0, c, p1, t) => { const m = 1 - t; return [m * m * p0[0] + 2 * m * t * c[0] + t * t * p1[0], m * m * p0[1] + 2 * m * t * c[1] + t * t * p1[1]]; };
 const cbez = (p0, a, b, p1, t) => { const m = 1 - t; return [m*m*m*p0[0] + 3*m*m*t*a[0] + 3*m*t*t*b[0] + t*t*t*p1[0], m*m*m*p0[1] + 3*m*m*t*a[1] + 3*m*t*t*b[1] + t*t*t*p1[1]]; };
 
-export function parseSvgPath(d, { curveSteps = 18 } = {}) {
+// an SVG arc (the endpoint form: rx ry rotation large-arc sweep x y) as points along it, the end point last; a radius too
+// small for the chord is scaled up, as SVG does; a zero radius is a line
+function arcPoints(p0, rx, ry, phiDeg, large, sweep, p1, steps) {
+  if (!(rx && ry) || (p0[0] === p1[0] && p0[1] === p1[1])) return [p1];
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  const phi = (phiDeg * Math.PI) / 180, c = Math.cos(phi), s = Math.sin(phi);
+  const dx = (p0[0] - p1[0]) / 2, dy = (p0[1] - p1[1]) / 2, x1 = c * dx + s * dy, y1 = -s * dx + c * dy;
+  const lam = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
+  if (lam > 1) { rx *= Math.sqrt(lam); ry *= Math.sqrt(lam); }
+  const num = rx * rx * ry * ry - rx * rx * y1 * y1 - ry * ry * x1 * x1, den = rx * rx * y1 * y1 + ry * ry * x1 * x1;
+  const k = (large === sweep ? -1 : 1) * Math.sqrt(Math.max(0, num / den)), cx1 = (k * rx * y1) / ry, cy1 = (-k * ry * x1) / rx;
+  const cx = c * cx1 - s * cy1 + (p0[0] + p1[0]) / 2, cy = s * cx1 + c * cy1 + (p0[1] + p1[1]) / 2;
+  const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+  const t0 = ang(1, 0, (x1 - cx1) / rx, (y1 - cy1) / ry);
+  let dt = ang((x1 - cx1) / rx, (y1 - cy1) / ry, (-x1 - cx1) / rx, (-y1 - cy1) / ry);
+  if (!sweep && dt > 0) dt -= 2 * Math.PI; else if (sweep && dt < 0) dt += 2 * Math.PI;
+  const n = Math.max(2, Math.ceil((steps * Math.abs(dt)) / (Math.PI / 2))), out = [];
+  for (let i = 1; i < n; i++) { const t = t0 + (dt * i) / n, ex = rx * Math.cos(t), ey = ry * Math.sin(t); out.push([c * ex - s * ey + cx, s * ex + c * ey + cy]); }
+  out.push(p1);
+  return out;
+}
+
+/** An SVG path's `d` → its contours. `arcs`: an arc (A) drawn along the arc, `curveSteps` points a quarter turn; absent,
+ * an arc is a line to its end (the carved solids' reading, kept so their bytes never move). */
+export function parseSvgPath(d, { curveSteps = 18, arcs = false } = {}) {
   const toks = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:[eE][-+]?\d+)?/g) || [];
   const contours = [];
   let ring = null, cur = [0, 0], start = [0, 0], cmd = null, prevC = null, prevQ = null, k = 0;
@@ -74,7 +98,11 @@ export function parseSvgPath(d, { curveSteps = 18 } = {}) {
       const p1 = [num() + off[0], num() + off[1]];
       for (let i = 1; i <= curveSteps; i++) push(qbez(cur, c, p1, i / curveSteps));
       prevQ = c; prevC = null; cur = p1;
-    } else if (C === 'A') { k += 5; cur = [num() + off[0], num() + off[1]]; push(cur); prevC = prevQ = null; } // arc → line (approx)
+    } else if (C === 'A') {
+      if (arcs) { const rx = num(), ry = num(), rot = num(), large = num() ? 1 : 0, sweep = num() ? 1 : 0, p1 = [num() + off[0], num() + off[1]]; for (const p of arcPoints(cur, rx, ry, rot, large, sweep, p1, curveSteps)) push(p); cur = p1; }
+      else { k += 5; cur = [num() + off[0], num() + off[1]]; push(cur); } // arc → line (approx)
+      prevC = prevQ = null;
+    }
     else if (C === 'Z') { if (ring && ring.length > 2) contours.push(ring); ring = [start.slice()]; cur = [...start]; prevC = prevQ = null; }
     else break;
   }

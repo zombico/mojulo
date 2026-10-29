@@ -2,7 +2,7 @@
 // they stand, and nothing laid where none is named. Placement is tested on a stage's own ends (its beats), the runner on
 // the hero sample: a bestiary alone mints nothing, a level that stands foes mints one beast per entry it fields.
 import { describe, it, expect } from 'vitest';
-import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, fieldedIds, stompOf, SWARM } from './foes.js';
+import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, withFoeWin, fieldedIds, stompOf, SWARM } from './foes.js';
 import { FEELS } from './feel/cards.js';
 import { MADE_KEY } from './made.js';
 import { settingOfGame } from './cast-setting.js';
@@ -65,9 +65,9 @@ describe('a stage\'s foes', () => {
     const X = hostileCast(G, 'one', ENDS, { refs: { a: 'w-foes-a' } });
     const f = resolveFoe({ class: SOLO.id, rank: 'boss' });
     const e = X.entities[0];
-    expect(e).toMatchObject({ id: 'foe-a-1', team: 'foes', body: { type: 'figure-rig', figure: 'foe-a-1', hittable: true, hp: f.toll.hp } });
+    expect(e).toMatchObject({ id: 'foe-a-1', team: 'foes', body: { type: 'figure-rig', figure: 'foe-a', hittable: true, hp: f.toll.hp } });
     expect(e.rule.mind).toEqual(f.entity.rule.mind);
-    expect(X.figures['foe-a-1'].heroRef).toBe('w-foes-a');
+    expect(X.figures['foe-a'].heroRef).toBe('w-foes-a');
     expect(X.pilot.body.hittable).toBe(true);
     // its hp bar shows only while the hero targets it, clear of its body (the World page's foe bars)
     expect(e.body.hpBar).toBe('target');
@@ -88,7 +88,7 @@ describe('a stage\'s foes', () => {
     const f = resolveFoe({ class: BLADE.id }), X = hostileCast(world({ a: { class: BLADE.id } }, true), 'one', ENDS, { refs: { a: 'w-foes-a' } });
     expect(f.strike).toEqual(f.attack.timing);
     expect(X.entities[0].rule.loadout[0].strikeContact).toEqual(strikeWindow(f.attack.timing));
-    expect(X.figures['foe-a-1'].moves).toMatchObject({ swing_neutral: 'strike', swing_forward: 'strike' });
+    expect(X.figures['foe-a'].moves).toMatchObject({ swing_neutral: 'strike', swing_forward: 'strike' });
   });
   it('the hero\'s hp takes their hits: the goal\'s own hp, else one laid before its terminal', () => {
     const exit = { kind: 'reach-exit', at: [0, 0, 0] };
@@ -148,7 +148,7 @@ describe('the run', () => {
     const below = PEOPLE.find((x) => doorOf(x) === 'creature'), above = PEOPLE.find((x) => doorOf(x) === 'hero');
     for (const people of [above, below]) {
       const G = world({ a: { class: SOLO.id, skin: { people } } }, true), X = hostileCast(G, 'one', ENDS, { refs: { a: 'w-foes-a' } });
-      const fig = X.figures['foe-a-1'], e = X.entities[0];
+      const fig = X.figures['foe-a'], e = X.entities[0];
       expect(fig.heroRef).toBe('w-foes-a');
       expect(fig.moves).toMatchObject({ topple: expect.any(String), swing_neutral: expect.any(String) });
       // (a beast-kin below the door stands on the tiered body, egocube/plan.js beastOnTiered: a person's library, as above it)
@@ -156,6 +156,81 @@ describe('the run', () => {
       expect(e.rule.collideHeight).toBeGreaterThan(1.5);
       expect(e.body.vanish).toBeTruthy();
     }
+  });
+  it('a model made elsewhere is made by no step: it stands on its own ref, a person on the library at its height', () => {
+    const skin = { meshRef: 'sk-model', height: 2.2 };
+    const steps = runSteps(heroWith({ a: { class: SOLO.id, skin } }, true), { ref: 'gw' });
+    expect(steps.some((s) => s.key.startsWith('foes-a'))).toBe(false);
+    const X = hostileCast(world({ a: { class: SOLO.id, skin } }, true), 'one', ENDS, { refs: { a: 'sk-model' } });
+    const fig = X.figures['foe-a'], e = X.entities[0];
+    expect(fig).toMatchObject({ modelRef: 'sk-model', height: resolveFoe({ class: SOLO.id, skin }).measured.height, library: expect.any(String) });
+    expect(e.body.egg.cz * 2).toBeCloseTo(2.2 * resolveFoe({ class: SOLO.id, skin }).scale, 3);
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { meshRef: 'sk-model', species: 'wolf' } } })).toThrow(/no key 'species' beside meshRef/);
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { meshRef: 'sk-model', height: 40 } } })).toThrow(/height is the metres it stands/);
+  });
+  it('a summoner stands its summons asleep beside it, made by their own entry, called by its rule; refused by name', () => {
+    const W = { boss: { class: 'summoner', summons: { foe: 'bones', count: 2, bound: false } }, bones: { class: SOLO.id } };
+    const G = world(W, { from: ['boss'] });
+    expect(fieldedIds(G)).toEqual(['boss', 'bones']);
+    const X = hostileCast(G, 'one', ENDS, { refs: { boss: 'w-foes-boss', bones: 'w-foes-bones' } });
+    const m = X.entities.find((e) => e.id === 'foe-boss-1'), s = X.entities.filter((e) => e.rule.summoned && e.rule.summoned.by === m.id);
+    expect(m.rule.summon).toMatchObject({ ids: ['foe-boss-1-s1', 'foe-boss-1-s2'], at: 2 });
+    expect(s.map((e) => [e.id, e.dormant, e.rule.summoned.bound])).toEqual([['foe-boss-1-s1', true, false], ['foe-boss-1-s2', true, false]]);
+    expect(X.entities.find((e) => e.id === 'foe-boss-1-s1').body.figure).toBe('foe-bones');
+    expect(X.figures['foe-bones'].heroRef).toBe('w-foes-bones');
+    expect(() => readBestiary({ boss: { class: 'summoner' } })).toThrow(/a summoner names what it calls/);
+    expect(() => readBestiary({ a: { class: SOLO.id, summons: { foe: 'a' } } })).toThrow(/only a summoner calls/);
+    expect(() => readBestiary({ boss: { class: 'summoner', summons: { foe: 'boss' } } })).toThrow(/another foe of the bestiary/);
+    expect(() => readBestiary({ b: { class: 'summoner', summons: { foe: 'c' } }, c: { class: 'summoner', summons: { foe: 'b' } } })).toThrow(/does not call a summoner/);
+  });
+  it('every body an entry stands wears one figure, the entry\'s: the page builds each its own rig from one pack', () => {
+    const X = hostileCast(world({ a: { class: SOLO.id } }, { count: 3 }), 'one', ENDS, { refs: { a: 'w-foes-a' } });
+    expect(X.entities.filter((e) => e.team === 'foes').map((e) => e.body.figure)).toEqual(['foe-a', 'foe-a', 'foe-a']);
+    expect(Object.keys(X.figures)).toEqual(['foe-a']);
+  });
+  it('a foe that becomes another is defeated through its modes: each a figure, its health and its class; the last dies', () => {
+    const BEAST = CLASSES.find((c) => resolveFoe({ class: c.id }).entity.rule.speed);
+    const W = { knight: { class: SOLO.id, becomes: 'bones' }, bones: { class: BEAST.id, vanish: { die: 'dismantle' } } };
+    const G = world(W, { from: ['knight'], count: 1, win: 'clear' });
+    expect(fieldedIds(G)).toEqual(['knight', 'bones']);
+    const X = hostileCast(G, 'one', ENDS, { refs: { knight: 'w-foes-knight', bones: 'w-foes-bones' } });
+    const e = X.entities.find((x) => x.id === 'foe-knight-1');
+    expect(e.body.modes.map((m) => m.figure)).toEqual(['foe-knight', 'foe-bones']);
+    expect(e.body.modes[1]).toMatchObject({ hp: resolveFoe({ class: BEAST.id }).toll.hp, rule: { speed: resolveFoe({ class: BEAST.id }).entity.rule.speed } });
+    expect(X.figures['foe-bones']).toBeTruthy();
+    expect(e.body.vanish.die).toBe('dismantle');   // (only the last dies: its death is the last's)
+    expect(withFoeWin(G, 'one', ENDS, [{ kind: 'reach-exit', at: ENDS.exit }])[0].count).toBe(1);
+    expect(() => readBestiary({ a: { class: SOLO.id, becomes: 'b' }, b: { class: SOLO.id, becomes: 'a' } })).toThrow(/modes loop back/);
+    expect(() => readBestiary({ a: { class: SOLO.id, becomes: 'a' } })).toThrow(/becomes is the foe of the bestiary it becomes/);
+  });
+  it('a pair stands its partner beside it, each naming the other with the same rows; fielded, counted, refused by name', () => {
+    const W = { scylla: { class: SOLO.id, pair: { foe: 'charybdis', down: 'revive', swap: 0.4 } }, charybdis: { class: SOLO.id } };
+    const G = world(W, { from: ['scylla'], count: 1, win: 'clear' });
+    expect(fieldedIds(G)).toEqual(['scylla', 'charybdis']);
+    const X = hostileCast(G, 'one', ENDS, { refs: { scylla: 'w-foes-scylla', charybdis: 'w-foes-charybdis' } });
+    const a = X.entities.find((e) => e.id === 'foe-scylla-1'), b = X.entities.find((e) => e.id === 'foe-scylla-1-p');
+    expect(a.rule.pair).toEqual({ with: b.id, cover: true, down: 'revive', swap: 0.4, back: 6 });
+    expect(b.rule.pair).toEqual({ ...a.rule.pair, with: a.id });
+    expect(b.body.figure).toBe('foe-charybdis');
+    expect(X.figures['foe-charybdis'].heroRef).toBe('w-foes-charybdis');
+    expect(withFoeWin(G, 'one', ENDS, [{ kind: 'reach-exit', at: ENDS.exit }])).toEqual([{ kind: 'defeat-all', who: 'foe-*', count: 2, label: 'Down' }]);
+    expect(() => readBestiary({ a: { class: SOLO.id, pair: { foe: 'a' } } })).toThrow(/another foe of the bestiary/);
+    expect(() => readBestiary({ a: { class: SOLO.id, pair: { foe: 'b' } }, b: { class: SOLO.id, pair: { foe: 'a' } } })).toThrow(/has a relation of its own/);
+    expect(() => readBestiary({ a: { class: SOLO.id, pair: { foe: 'b', down: 'flee' } }, b: { class: SOLO.id } })).toThrow(/down is what one does when the other falls/);
+  });
+  it('a stage won by clearing it ends when every foe on it falls, a summoner\'s summons counted; else by its exit', () => {
+    const W = { boss: { class: 'summoner', summons: { foe: 'bones', count: 2 } }, bones: { class: SOLO.id } };
+    const mech = [{ kind: 'fail-on-death', startHp: 20 }, { kind: 'reach-exit', at: ENDS.exit, radius: 2.5 }];
+    const G = world(W, { from: ['boss'], count: 1, win: 'clear' });
+    expect(withFoeWin(G, 'one', ENDS, mech)).toEqual([mech[0], { kind: 'defeat-all', who: 'foe-*', count: 3, label: 'Down' }]);
+    expect(withFoeWin(world(W, { from: ['boss'], count: 1 }), 'one', ENDS, mech)).toEqual(mech);
+    expect(() => world(W, { from: ['boss'], win: 'all' })).toThrow(/win is how the stage is won: exit .* or clear/);
+  });
+  it('a level its foes stand on is re-made when an entry changes (its cast is not in its args), one without as before', () => {
+    const print = (foes, levelFoes) => runSteps(heroWith(foes, levelFoes), { ref: 'gw' }).filter((s) => s.key.startsWith('level-')).map((s) => s.print);
+    const a = { class: SOLO.id }, b = { class: SOLO.id, vanish: { die: 'cleave' } };
+    expect(print({ a }, true)).not.toEqual(print({ a: b }, true));
+    expect(print({ a })).toEqual(print({ a: b }));
   });
   it('a battle\'s beast foe may be grown, and its figure is minted with what grows it', () => {
     const W = { ...MEADOWMARK_HERO, battles: { foe: { species: 'wolf', ooze: 'dire' } } };

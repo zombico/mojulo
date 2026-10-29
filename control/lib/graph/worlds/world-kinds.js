@@ -47,6 +47,7 @@ import { bakeSampler, stackTints, stackFace, bakePieces } from '@/lib/graph/poly
 import { levelClothBake, recipeTones } from '@/lib/graph/materials/dress-materials';
 import { readGeocube } from '@/lib/graph/era/geocube';
 import { fieldPaintOf, fieldColours } from '@/lib/graph/polygonizer/field-paint';
+import { heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
 import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
 import { TIERED_FACE_TINT, tieredPole, heroShade } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
@@ -516,7 +517,7 @@ export const WORLD_KINDS = {
     title: 'mojulo stage',
     walk: true,
     ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
-    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}) }),
+    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }),
   },
   // a geocube (era/geocube.js): one style for a level's inside and outside, shown as one of its two specimens, the
   // bare room or the island landform, each built by the stage. A level is then a stage recipe with `geocube`.
@@ -531,7 +532,7 @@ export const WORLD_KINDS = {
         const { city, cube, pick, style } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true, ...(ctx.liveSun ? { liveSun: true } : {}) }), { metersPerUnit: CITY_METERS_PER_UNIT });
         return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) } }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
-      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}) }, assembleStageScene);
+      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
   },
@@ -672,8 +673,9 @@ export const WORLD_KINDS = {
   'vehicle-instance': {
     // no default title — assembleInstanceStudio applies its own when the sketch carries none.
     title: undefined,
+    // (a race machine's instance, { racer } or { supercar }, its theme worn: the family layer builds it)
     resolve: (m, ctx) => assembleInstanceStudio(
-      { type: m.type, family: m.family, decoration: m.decoration },
+      { type: m.type, family: m.family, decoration: m.decoration, ...(m.racer ? { racer: m.racer } : {}), ...(m.supercar ? { supercar: m.supercar } : {}) },
       { pose: m.pose, viewBox: m.viewBox, title: ctx.title },
     ),
   },
@@ -697,6 +699,9 @@ export const WORLD_KINDS = {
       // surfaces tagged; its base below. Absent ⇒ byte-identical.
       const creature = !m.hero && m.statue ? m.statue : null;
       if (creature) { const errs = validateCreatureStatue(creature); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); m = { ...m, recipe: carveCreatureRecipe(m.recipe, creature) }; }
+      // A NAMED HERO'S EMBLEM (hero-emblem.js, `hero.emblem`): lowered to field paint under the row's own, on the place it is
+      // worn, its roles coloured from the palette as it reads now. Absent ⇒ the row's field paint as it is
+      if (m.hero?.emblem) m = { ...m, fieldPaint: heroFieldPaint(m) };
       // FIELD PAINT (field-paint.js, opt-in `fieldPaint`): the colours its entries name join the palette. Absent ⇒ as before
       if (Array.isArray(m.fieldPaint) && m.fieldPaint.length) { const fcol = fieldColours(m.fieldPaint); if (Object.keys(fcol).length) m = { ...m, recipe: { ...m.recipe, palette: { ...(m.recipe.palette || {}), ...fcol } } }; }
       // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),

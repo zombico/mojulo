@@ -8,7 +8,7 @@
  *   castOfScale(scale, { n? })                                    the relations a game of that size asks for
  *
  *   anchor:   { brief?, facets?, path = 'hero', body?: 'person' | 'beastkin', faction? }
- *   cast:     { <key>: { relation, n?, roles?, rank?, bond?, body?, faction?, brief?, facets?, species?, mascot?,
+ *   cast:     { <key>: { relation, n?, roles?, rank?, bond?, body?, faction?, brief?, facets?, species?, ooze?, mascot?,
  *                        tune?, wildcard? } }
  *             A key is a path below the anchor ('rival', 'emperor', 'emperor/dragon'): a member's relation is to its
  *             parent (the anchor at the top), which comes first. `n` makes that many (`party-1` … `party-n`); `roles`
@@ -26,7 +26,8 @@
  * BONDS AND BODIES. `bond: 'party'` is first party (it fights in the party, in a class); `bond: 'familiar'` is second
  * party, kept by its parent (a stand, a summon, a companion), and wears its keeper's accent. A body is a person (the
  * hero door), beast-kin (a beast lineage: cat-folk on the hero door, Kimahri below it, by its humanity), a beast (a real
- * species, the animal door: Red XIII) or a mascot (mascot.js: the poke-companion). A beast and a mascot carry the roll's temperament (role,
+ * species, the animal door: Red XIII; its `ooze` the mutagen's words, mutagen/oozes/, that make the species a game
+ * creature, dire or mythical, of frost or of bone, carried to the animal door) or a mascot (mascot.js: the poke-companion). A beast and a mascot carry the roll's temperament (role,
  * archetype, motivation, order) beside their own body. Unasked, a party member's and a familiar's body is thrown on its
  * own die, leaned by the setting's era and genre; every other relation is a person.
  *
@@ -48,6 +49,7 @@ import { readSetting, mascotWeight } from './setting.js';
 import { rollMascot } from './mascot.js';
 import { ARCHETYPE_PROMISE, ARCHETYPE_HUE } from './mascot-from-person.js';
 import { HEIGHT, AGE_SCALE } from './plan.js';
+import { oozeErrors } from '../mutagen/compose.js';
 
 export const MAX_REDRAWS = 6;
 
@@ -139,7 +141,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`cast: ${m}`);
 const TOP_KEYS = ['anchor', 'cast', 'factions', 'setting', 'bodies', 'seed'];
 const ANCHOR_KEYS = ['brief', 'facets', 'path', 'body', 'faction'];
-const MEMBER_KEYS = ['relation', 'n', 'roles', 'rank', 'bond', 'body', 'faction', 'brief', 'facets', 'species', 'mascot', 'tune', 'wildcard'];
+const MEMBER_KEYS = ['relation', 'n', 'roles', 'rank', 'bond', 'body', 'faction', 'brief', 'facets', 'species', 'ooze', 'mascot', 'tune', 'wildcard'];
 const TUNE_KEYS = ['archetype', 'technique', 'size', 'shadow', 'looseness', 'silhouette'];
 const FACTION_KEYS = ['tradition', 'era', 'lean'];
 const SEGMENT = /^[a-z][a-z0-9-]{0,23}$/;
@@ -187,6 +189,11 @@ export function readCastRequest(q = {}) {
     if (m.body !== undefined && !BODIES.includes(m.body)) throw err(`${at}.body is one of ${BODIES.join(', ')}`);
     if (m.species !== undefined && !(typeof m.species === 'string' && m.species)) throw err(`${at}.species is a species id (fauna: wolf, lion, greatHornedOwl …)`);
     if (m.species !== undefined && (m.body ?? 'beast') !== 'beast') throw err(`${at}.species is a beast's`);
+    if (m.ooze !== undefined) {
+      if ((m.body ?? (m.species !== undefined ? 'beast' : undefined)) !== 'beast') throw err(`${at}.ooze makes a beast a game creature: give body: 'beast'`);
+      const bad = oozeErrors(m.ooze, `${at}.ooze`);
+      if (bad.length) throw err(bad.join('; '));
+    }
     if (m.mascot !== undefined && !isObj(m.mascot)) throw err(`${at}.mascot is the mascot's facets (mascot.js)`);
     if (m.brief !== undefined && typeof m.brief !== 'string') throw err(`${at}.brief is words`);
     if (m.facets !== undefined && !isObj(m.facets)) throw err(`${at}.facets is the Egocube's facets`);
@@ -383,7 +390,7 @@ function rollMember({ path, parent, spec, anchor, root, partySoFar, seed, settin
     const known = [...Object.values(BEASTS), ...Object.values(PARTY_BEASTS)].flat().find(([id]) => id === spec.species);
     const pool = (bond === 'party' ? PARTY_BEASTS : BEASTS)[temperament.role] ?? BEASTS[temperament.role];
     const chosen = spec.species ? [spec.species, known?.[1] ?? 'beast'] : pickOne(die(seed, path, 'species'), pool);
-    return { ...rec, temperament, given, reading: person.reading, beast: { species: chosen[0], family: chosen[1] }, ...(accent ? { accent } : {}) };
+    return { ...rec, temperament, given, reading: person.reading, beast: { species: chosen[0], family: chosen[1], ...(spec.ooze !== undefined ? { ooze: spec.ooze } : {}) }, ...(accent ? { accent } : {}) };
   }
   const mf = { promise: ARCHETYPE_PROMISE[temperament.archetype], ...(accent ? { hue: accent } : {}), ...(spec.mascot ?? {}) };
   const sheet = rollMascot({ facets: mf, seed, path, ...(own !== undefined ? { setting: own } : {}) });

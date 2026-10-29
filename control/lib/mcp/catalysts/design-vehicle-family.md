@@ -2,7 +2,7 @@
 {
   "id": "design-vehicle-family",
   "name": "Populate a vehicle fleet library",
-  "summary": "Add a new ENTRY to the procedural vehicle libraries the world-populators sample — a new aircraft livery scheme, a car paint, or a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box). Introspect the family via the vehicle family layer, author the candidate params, eyeball it with preview_vehicle_instance, then commit it to the registry so it flows into create_transportation_hub automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
+  "summary": "Add a new ENTRY to the procedural vehicle libraries the world-populators sample — a new aircraft livery scheme, a car paint, or a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box) — or a THEME for the race machines (racer / supercar), a card the user writes with no source edit. Introspect the family via the vehicle family layer, author the candidate params, eyeball it with preview_vehicle_instance, then commit it to the registry so it flows into create_transportation_hub automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
   "valueHook": "Design a new airline livery or a regional-jet preset once and the airport starts spawning it — the fleet derives from the registry, so a new entry needs no populator edit.",
   "version": 1,
   "category": "world-building",
@@ -12,7 +12,7 @@
     { "name": "intent", "prompt": "What are you adding to the fleet libraries? (e.g. 'a teal-and-gold widebody livery', 'a forest-green taxi paint', 'a stubby regional-jet preset')" },
     { "name": "family", "prompt": "Which family? fixed-wing-aircraft | ground-car | ground-box (or 'auto' to infer from the intent)", "default": "auto" }
   ],
-  "mcpTools": { "mojulo": ["preview_vehicle_instance", "create_transportation_hub", "semantic_search"] },
+  "mcpTools": { "mojulo": ["preview_vehicle_instance", "mint_solid", "create_game", "create_transportation_hub", "semantic_search"] },
   "outputContract": { "summary": "A new registry entry (livery scheme / paint / frame preset) committed to the vehicle source, previewed in /world, and confirmed in a populated hub.", "fields": ["family", "entry", "previewRef"] }
 }
 ---
@@ -75,6 +75,26 @@ Edit the source file from the table in §1 to add the entry. Keep it consistent 
 weight is its relative frequency; `contexts` gates WHERE it spawns (`airfield` for apron aircraft,
 `street`/`lot` for cars, etc.).
 
+## Race machines: a theme is the user's, not the source's
+
+The `racer` and `supercar` families are grammars, not nets: their types are the driver archetypes and the supercar
+library's cards, and their decoration is a THEME (`control/lib/graph/car-designer/vehicle-theme.js`). A theme needs no
+source edit and no registry row: it is a card the user writes into the recipe, so it lives with the user's work.
+
+1. Introspect: `describeFamily('racer')` gives the archetypes, the starters, the finishes and the parts vocabulary a
+   theme's `prefer` names; `describeFamily('supercar')` the presets and the supercar's surface words.
+2. Start from the nearest starter (`candy`, `steampunk`, `neon`, `military`, `royal`, `heritage`) and write only what
+   differs: `{ from: 'steampunk', palette: { body: '#20304a' }, finish: { trim: 'copper' } }`. A theme from scratch is
+   the same card without `from` (the `vehicle` solid card lists its keys).
+3. Preview it on a racer and on a supercar: `mint_solid { kind: 'vehicle', spec: { racer: { archetype, theme } } }`, then
+   `{ supercar: { preset, theme } }`. Read the racer's stats: the parts the theme reached for, any law it was left
+   advised on (a preferred part that hides the driver is a theme to rethink, not a law to waive).
+4. Race it: `create_game` with `{ goal: 'race', racers: 6, series: <the theme> }` (or `supercars`): every car wears it,
+   each its own variation, and the roster's balance still holds.
+
+Only a NEW PART or a new FINISH is a source edit (the parts library, `FINISHES`); a new starter is a card added to
+`THEMES` when a theme proves worth shipping.
+
 ## 5. Confirm in a populated world
 
 Mint a hub and look: `create_transportation_hub({ mode:'airport', seed: 7, density: 0.9 })`. The new
@@ -88,7 +108,7 @@ livery/preset should appear in the apron fleet (re-roll the seed a few times —
   existing presets' lengths.
 - **`size` multiplier** — leave `size:1` unless the net's own proportions aren't already real-world
   (the streetcar bakes its 2.5× length into the net, not `size`).
-- **No new families here** — this catalyst adds ENTRIES within the three existing families. A new
-  family (watercraft, rail) needs a new net builder + a `VEHICLE_FAMILIES` entry first.
+- **No new families here** — this catalyst adds ENTRIES within the existing families (and themes on the race
+  machines). A new family (watercraft, rail) needs a new net builder or grammar + a `VEHICLE_FAMILIES` entry first.
 - **A civilization's technology is not this** — vehicles, tech-structures and weapons a world bible crafts from
   words are grown in the technology solver: `design-tech-family`.

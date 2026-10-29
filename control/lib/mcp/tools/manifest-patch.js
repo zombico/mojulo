@@ -19,7 +19,7 @@
  *   { op: 'remove', id: 'g_stop' }  |  { op: 'remove', path: '/reliefs/3' }
  *   { op: 'add',    into: 'lathes', entry: { id: 'usbcap', … } }        append a monomer
  *
- * Ids resolve across every monomer array (`lathes` … `shells`); an id carried by two entries is
+ * Ids resolve across every monomer array (`lathes` … `shells`) and a composed stage's `props`; an id carried by two entries is
  * refused with both locations named. Unnamed monomers are reachable only by `path` — naming a
  * part is what makes it editable. Removing a monomer that a `cuts` entry or a `movers` entry
  * still names is refused with the dependant named, so a patch cannot store a recipe whose cut or
@@ -33,6 +33,9 @@ import { MONOMER_KIND_OF_KEY } from '@/lib/graph/polygonizer/workbench-cuts';
 
 export const PATCH_OPS = Object.freeze(['set', 'remove', 'add']);
 export const MONOMER_ARRAYS = Object.freeze(Object.keys(MONOMER_KIND_OF_KEY));
+// the lists whose entries an op may name by id: the workbench's monomers, and a composed stage's things (`props`,
+// era/compose-dress.js: laid as a default, each the operator's to set, remove or add to)
+export const ID_ARRAYS = Object.freeze([...MONOMER_ARRAYS, 'props']);
 
 const isObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isId = (v) => typeof v === 'string' && v.length > 0;
@@ -82,7 +85,7 @@ function arrayIndex(arr, seg, path, where, allowEnd) {
 function indexIds(doc) {
   const byId = new Map();
   const dupes = new Map();
-  for (const key of MONOMER_ARRAYS) {
+  for (const key of ID_ARRAYS) {
     const arr = Array.isArray(doc[key]) ? doc[key] : [];
     arr.forEach((spec, index) => {
       if (!isObject(spec) || !isId(spec.id)) return;
@@ -145,7 +148,7 @@ function refuseIfDepended(doc, key, spec, where, label) {
 
 /** After a path op under a monomer array, name the part the readout will look for. */
 function touchMonomerAt(doc, segments, touched) {
-  if (segments.length < 2 || !MONOMER_ARRAYS.includes(segments[0]) || !/^\d+$/.test(segments[1])) return;
+  if (segments.length < 2 || !ID_ARRAYS.includes(segments[0]) || !/^\d+$/.test(segments[1])) return;
   const entry = Array.isArray(doc[segments[0]]) ? doc[segments[0]][Number(segments[1])] : undefined;
   if (isObject(entry) && isId(entry.id)) touched.add(entry.id);
   else touched.add(`/${segments[0]}/${segments[1]}`);
@@ -214,7 +217,7 @@ function applyRemove(doc, op, where, touched) {
 
 function applyAdd(doc, op, where, touched) {
   const { into, entry } = op;
-  if (!MONOMER_ARRAYS.includes(into)) throw new Error(`${where}: \`add\` needs \`into\`, one of ${MONOMER_ARRAYS.join(' | ')}`);
+  if (!ID_ARRAYS.includes(into)) throw new Error(`${where}: \`add\` needs \`into\`, one of ${ID_ARRAYS.join(' | ')}`);
   if (!isObject(entry)) throw new Error(`${where}: \`add\` needs \`entry\`, the monomer object`);
   if (entry.id !== undefined) {
     if (!isId(entry.id)) throw new Error(`${where}: \`entry.id\` must be a non-empty string when given`);

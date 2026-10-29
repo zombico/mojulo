@@ -12,6 +12,7 @@
  *               look's own, so a palette's colours dress them
  *
  *   settingOfGame(G, quick?)  → the setting; `G` a read world (readGameworld's), `quick` the world's quick spec
+ *   wearUnderlayer(spec, rail) / wearUniform(spec, uniform)   the two dressings a rolled figure takes (the folk's too)
  *   quickFigure(G, quick, key, setting?, { variant?, uniform?, kit? })  → { spec, toon?, sheet, pending } a quick game's
  *                               figure it names none of (QUICK_FIGURES), rolled in the setting and dressed in the kit's
  *                               underlayer (a role with a sport's `kit` of its own, the athlete, in that: sportswear/kits.js);
@@ -66,6 +67,22 @@ export function settingOfGame(G, quick = null) {
  * faces, never one) */
 export const CAST_POOL = 3;
 
+/** The world's underlayer (hero-looks.js UNDERLAYERS) in place of the stock clothed body and the role's kit: the base a
+ * book hero wears. A modern or a future person dresses as its rolled look instead (the caller does not lay one). */
+export function wearUnderlayer(spec, rail) {
+  const { detail: _d, adorn: _a, ...rest } = spec;
+  return { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}) } };
+}
+
+/** A rank's member in the first's uniform (`uniform` the first's spec): its clothes, their colours, its kit and gear, the
+ * silhouette and the look's owned tones (a rank of troopers is one plate, one helm), on a face of its own. */
+export function wearUniform(spec, uniform) {
+  const { outfit: _o, detail: _d, adorn: _a, gear: _g, stylism: _s, paint: _p, kit: _k, ...own } = spec;
+  const { Outer: _out, Emblem: _em, Shoes: _sh, ...ownPalette } = own.palette;
+  return { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear', 'stylism', 'paint', 'kit'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
+    palette: { ...ownPalette, ...Object.fromEntries(['Top', 'Bottom', 'Outer', 'Emblem', 'Shoes'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
+}
+
 /**
  * The figures a quick game stands up when it names none (quick.foe, quick.tower, quick.farmhand, quick.guard): what the
  * goal asks of each (a facet, under the setting's lean for the rest) and what the play puts in its hands: a myth's or a
@@ -108,18 +125,10 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
     const card = SPORT_KITS[words.sport], colours = card?.whites ? [card.colours[0], card.colours[1], Top] : [Top];
     spec = { ...rest, palette, kit: words.colours || !Top ? words : { ...words, colours } };
   }
-  if (rail) {
-    // the world's underlayer in place of the stock clothed body and the role's kit (the base a book hero wears)
-    const { detail: _d, adorn: _a, ...rest } = spec;
-    spec = { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}) } };
-  }
+  if (rail) spec = wearUnderlayer(spec, rail);
   // a rank's member wears the first's uniform (its clothes, their colours, its kit and gear) on a face of its own
   if (uniform) {
-    // (the silhouette too, and the look's owned tones: a rank of troopers is one plate, one helm)
-    const { outfit: _o, detail: _d, adorn: _a, gear: _g, stylism: _s, paint: _p, kit: _k, ...own } = spec;
-    const { Outer: _out, Emblem: _em, Shoes: _sh, ...ownPalette } = own.palette;
-    spec = { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear', 'stylism', 'paint', 'kit'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
-      palette: { ...ownPalette, ...Object.fromEntries(['Top', 'Bottom', 'Outer', 'Emblem', 'Shoes'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
+    spec = wearUniform(spec, uniform);
     return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}), sheet: { print: fingerprint(sheet), reads: sheet.reads }, pending };
   }
   const gear = F.era?.[setting.era] ?? F.gear;

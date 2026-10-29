@@ -77,6 +77,9 @@ export const FIXTURE = [
   ['a board game projected as a hologram in the middle of an arena, against the computer', 'design_game', 'tabletop'],
   ['a floodlit football stadium with stands all round that I can walk through', 'compose_world', 'stadium'],
   ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
+  // a pen-and-paper RPG played in text and printed: create_game's table_rpg, not the live RPG's battles in a 3D field
+  ['be my game master: roll up three characters and run a one-shot dungeon in text', 'create_game', 'table_rpg'],
+  ['make a printable tabletop RPG adventure with character sheets', 'create_game', 'table_rpg'],
   // mobile genres: the match-3 saga is a reducer game, not a world game
   ['a candy crush kind of game with a level map and stars', 'create_pixelizer_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
@@ -107,6 +110,10 @@ export const FIXTURE = [
   ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
   // a building as a game level: designed as a building, played as a level
   ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
+  // a GENRE level set in a building: the game's door, the building laid from its use (era/programs.js) on a bay kit
+  ['a stealth game where you sneak up four floors of an office block to the boardroom', 'create_game'],
+  ['a shooter level fighting room to room through a research lab building', 'create_game'],
+  ['a horror level creeping through a warehouse and its offices at night', 'create_game'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that
@@ -201,9 +208,14 @@ export const COLLISION_FIXTURE = [
   // a dungeon crawler is a world of levels from a sentence: design_game's compose, not create_game's hand assembly
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
+  // a town's people (characters.folk): NPCs to chat with, a shopkeeper's errands, the same nurse in every town
+  ['fill my village with people who chat and give me little errands to run', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
   ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
+  // the table RPG and the live RPG share "RPG", "party" and "dungeon": the pen and paper is the table's, the 3D field the rail's
+  ['roll stats for my character sheet, 4d6 drop the lowest, for a pen-and-paper game', 'create_game', 'table_rpg'],
+  ['a JRPG where my party walks a dungeon and fights turn-based battles', 'design_game'],
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
   // foes on a gameworld's trails (gameworld-foes): a class at a rank on a skin, not a new tool
   ['fill the levels of my game with monsters to fight, small critters you jump on and a big nasty beast near the end', 'design_game'],
