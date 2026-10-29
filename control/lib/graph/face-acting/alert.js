@@ -5,7 +5,7 @@
  *
  *   • THE BLINKS: a wary face WATCHES: its spontaneous blinks thin (vigilance holds the eyes open), each one quicker, and
  *     more of them ride the gaze's shifts (a blink taken with a check, not while watching); a STARTLE blinks hard and
- *     fast, then the eyes fly wide and settle slowly.
+ *     fast, then the eyes fly wide; it holds the breath, and its wariness settles after with a sigh (breath.js).
  *   • THE LOOKING: the eyes dwell less, re-fixate wider and CHECK (glances off to a side or behind, larger and more
  *     often), focused on what they check (a check looks at something, a few metres off), never unfocused.
  *   • THE FACE: the upper lids raised off the iris and the brows' inner ends up and drawn together a little (fear's
@@ -24,8 +24,9 @@ export const ALERT = Object.freeze({
   face: Object.freeze({ AU5: 0.3, AU1: 0.22, AU2: 0.12, AU4: 0.1 }),
 });
 /** a STARTLE: the reflex blink (close, shut, open: s), then the eyes wide and the brows up (their heights, the rise after
- * the blink, the hold, the slow fall: s), and the alertness it leaves (a floor for the rest of the beat) */
-export const STARTLE = Object.freeze({ close: 0.04, shut: 0.04, open: 0.12, widen: Object.freeze({ AU5: 0.75, AU1: 0.5, AU2: 0.45 }), rise: 0.08, hold: 0.45, fall: 1.1, leaves: 0.7 });
+ * the blink, the hold, the slow fall: s); its wariness, full through the breath it holds and settling after
+ * (breath.js `settle`) */
+export const STARTLE = Object.freeze({ close: 0.04, shut: 0.04, open: 0.12, widen: Object.freeze({ AU5: 0.75, AU1: 0.5, AU2: 0.45 }), rise: 0.08, hold: 0.45, fall: 1.1 });
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 /** a unit's value in a state, its whole and the greater of its sides */

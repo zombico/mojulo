@@ -86,3 +86,19 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
 - **Wary** (the `wary` emote): on guard by its card (0.75): the eyes on something a few metres off, checking to the
   sides, the lids up, one brow drawn and the other eye a little narrowed, the blinks held back and quick, an appraising
   squint now and then.
+- **The breath: the mind-body loop** (`face-acting/breath.js`). The state of mind sets the breath (`breathOf`): calm
+  slow and low (the belly's), the warier faster and HIGH (the chest's, the shoulders with it) and past half through the
+  mouth; sadness slower and given to sighs; anger heavier; an emote's card may set its own (`drowsy` slow and deep with
+  sighs, `waiting` sighing now and then, `vacant` slow). The breath moves the face (`breathFace`): through the mouth the
+  lips apart and the jaw with each breath in; a held breath's lips pressed; a sigh's brows lifted on its long breath in,
+  its lips parted and its lids heavy on the breath out. And the breath settles the mind: a `startle` now holds the
+  breath, its wariness settling after (`settle`, a few seconds' e-fold) rather than holding for the whole beat, and it
+  lets go with a sigh of relief as it falls under half; the blinks, the checks and the glances' widening read the
+  wariness of the moment. A beat may sigh (`sigh: true`). Every take and loop carries its `breath` (the lungs' fill and
+  how high it sits).
+- **The breath on the body** (`breathBones`, `breath:<clip>` in the GLB): each face clip's breath as a body clip keyed
+  with it: the torso tipped back a little with each breath in (more in a high breath) and the clavicles lifted in a high
+  one, the upper body's joints carried, each arm whole from its shoulder; each joint its rest head plus its offset, so an
+  engine plays it as an additive layer over any body clip, the rest pose its reference (the flat skeleton's; the GLB's
+  `face.breathing` says so). `/hero-live` plays each take's breath additively over the body's idle, synced to it, and
+  `face.mjs` writes it for its clips. The nostrils' flare (FACS 38) is a gap: the realistic head has no such action yet.

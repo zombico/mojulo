@@ -50,7 +50,9 @@ Its EMOTES (the door's `emote`: a name, a list of names, or `{ <clip>: a name | 
 seed? } }`, `control/lib/graph/face-acting/emotes.js`: held states such as `rest`, `vacant`, `daydream`, `absorbed`,
 `waiting`, `drowsy`, `listening`, `wary`; `face` an emotion over it; `alert` 0 … 1 its wariness, `face-acting/alert.js`) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
 nothing, or focus where the emote names a distance (`listening` converges on a speaker's face a metre off and
-moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js`); to judge a loop's seam, scrub to its end and its start.
+moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js`); to judge a loop's seam, scrub to its end and its start. Each face clip breathes (`breath:<clip>`,
+`face-acting/breath.js`: the breath its state of mind breathes, on the body), played here additively over the body's
+idle with its clip; the Bust and Side views show the chest and the shoulders.
 
 TUNE THE FACE WITHOUT A MINT: an emote or a performance changes the face's weights alone, so `face.mjs` recomputes its
 clips over a hero `live.mjs` already minted, in seconds, beside its GLB (`<id>.face.json`, played over the GLB's own clip

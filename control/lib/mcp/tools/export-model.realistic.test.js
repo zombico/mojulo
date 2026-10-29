@@ -78,6 +78,11 @@ describe('the realistic hero, minted and exported', () => {
     const faceX = root.listMeshes().find((m) => m.listPrimitives().includes(prim)).getExtras()?.face;
     expect(faceX.emotes).toEqual([{ clip: 'emote:idle', emote: 'rest', seconds: 4, loop: true }]);
     expect(faceX.mouth.driver).toEqual(expect.arrayContaining(['jawOpen', 'lipsPart']));
+    // (and each face clip's breath on the body, an additive layer: the torso and the clavicles turned, the arms carried)
+    const breath = root.listAnimations().find((a) => a.getName() === 'breath:emote:idle');
+    expect(breath.listChannels().map((c) => `${c.getTargetNode().getName()}.${c.getTargetPath()}`)).toEqual(expect.arrayContaining(['body:torso.rotation', 'body:clavicleL.rotation', 'body:upperArmR.translation']));
+    expect(root.listAnimations().some((a) => a.getName() === 'breath:face:hello')).toBe(true);
+    expect(faceX.breathing).toMatch(/additive/);
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];
     for (let i = 0; i < W.getCount(); i += 97) { W.getElement(i, w); expect(Math.abs(w[0] + w[1] + w[2] + w[3] - 1)).toBeLessThan(1e-3); }

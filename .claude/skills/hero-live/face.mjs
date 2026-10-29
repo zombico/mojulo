@@ -42,6 +42,7 @@ const { emoteTake, emoteClips, FACE_EMOTE_NAMES } = await lib('face-acting/emote
 const { perform } = await lib('face-acting/perform.js');
 const { faceRead, heldWeights, regionReads, targetPart } = await lib('face-acting/emote-read.js');
 const { PART_NAMES } = await lib('face-acting/parts.js');
+const { breathBones } = await lib('face-acting/breath.js');
 const { performanceTrack, RELATIONAL_FACE_TARGETS } = await lib('polygonizer/relational-face-rig.js');
 
 const argv = process.argv.slice(2), opt = {};
@@ -63,7 +64,7 @@ for (const p of parts) if (!PART_NAMES.includes(p)) throw new Error(`hero-live f
 const isolate = (C, part) => ({ ...C, name: `${C.name}·${part}`, part, w: C.w.map((row) => row.map((v, j) => ([part, 'gaze'].includes(targetPart(C.names[j])) ? v : 0))) });
 
 // ─── the clips: an emote's loop or a take, as the rig's weights track (the export's own derivation) ─────────────
-const clipOf = (name, take) => { const K = performanceTrack(take); return { name, seconds: K.seconds, ...(take.loop ? { loop: true } : {}), t: K.t, names: [...RELATIONAL_FACE_TARGETS], w: K.w }; };
+const clipOf = (name, take) => { const K = performanceTrack(take); return { name, seconds: K.seconds, ...(take.loop ? { loop: true } : {}), t: K.t, names: [...RELATIONAL_FACE_TARGETS], w: K.w, ...(K.breath ? { breath: K.breath } : {}) }; };
 const written = [
   ...(emote !== undefined ? Object.entries(emoteClips(emote)).map(([clip, E]) => clipOf(`emote:${clip}`, emoteTake(E))) : []),
   ...(performs ? Object.entries(performs).map(([take, P]) => clipOf(`face:${take}`, perform(P))) : []),
@@ -98,7 +99,14 @@ for (const id of ids) {
     console.log(`  ${C.name.padEnd(22)} L ${R.L.max.toFixed(2)} / ${R.L.p95.toFixed(2)}   R ${R.R.max.toFixed(2)} / ${R.R.p95.toFixed(2)}   asymmetry ${R.asymmetry.max.toFixed(2)} / ${R.asymmetry.p95.toFixed(2)} mm   ${R.shows ? 'shows' : 'too faint'}`);
     console.log(`  ${''.padEnd(22)} asymmetry by region: ${Object.entries(G).map(([r, g]) => `${r} ${g.asymmetry.max.toFixed(2)}${g.shows ? '' : ' (faint)'}`).join(' · ')}`);
   }
-  if (writes) writeFileSync(sideFile, JSON.stringify({ clips, read, spec: { ...(emote !== undefined ? { emote } : {}), ...(performs ? { perform: performs } : {}) } }));
+  // (each clip's breath on this hero's body: its joints' rest heads from the GLB, the flat skeleton's; breath.js)
+  const joints = root.listSkins()[0]?.listJoints() ?? [], prefix = (n) => n.slice(0, n.indexOf(':') + 1);
+  const heads = Object.fromEntries(joints.map((j) => [j.getName().slice(prefix(j.getName()).length), j.getTranslation()]));
+  const breaths = clips.filter((C) => C.breath && !C.part).map((C) => {
+    const B = breathBones(heads, C.breath), node = (id) => `${prefix(joints[0].getName())}${id}`;
+    return { of: C.name, t: C.t, joints: Object.entries(B).map(([id, M]) => ({ node: node(id), ...(M.r ? { r: M.r } : {}), ...(M.d ? { p: M.d.map((x, i) => x + heads[id][i % 3]) } : {}) })) };
+  }).filter((B) => B.joints.length);
+  if (writes) writeFileSync(sideFile, JSON.stringify({ clips, breaths, read, spec: { ...(emote !== undefined ? { emote } : {}), ...(performs ? { perform: performs } : {}) } }));
   if (opt.sheet && (opt.variants || !shots.length)) {
     const phases = (opt.phases ?? '0.02,0.35,0.68,0.98').split(',').map(Number);
     // (the face close by default, brows to chin, where a millimetre's unevenness can be seen; --view a preset instead)

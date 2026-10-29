@@ -123,17 +123,19 @@ export function eyesOfWeights(w) {
  * bone and no target: it is left out and said in `gaps`.
  */
 export function performanceTrack(take, { fps = 30 } = {}) {
-  const step = take.fps / fps, t = [], w = [], gaps = new Set();
+  const step = take.fps / fps, t = [], w = [], gaps = new Set(), bv = [], bh = [];
   for (let f = 0; f <= (take.frames - 1) / step + 1e-9; f++) {
     const i = Math.min(take.frames - 1, Math.round(f * step)), st = {};
     for (const [k, c] of Object.entries(take.curves)) if (c[i] > 0) st[k] = c[i];
     const { weights, gaps: g } = facsWeights(st), G = gazeWeights(take.gaze.yaw[i], take.gaze.pitch[i], distanceOf(take.gaze.vergence?.[i] ?? 0));
     for (const k of Object.keys(g)) gaps.add(k);
     t.push(+(i / take.fps).toFixed(6)); w.push(RELATIONAL_FACE_TARGETS.map((n, j) => (n in G ? +G[n].toFixed(6) : weights[j])));
+    if (take.breath) { bv.push(take.breath.v[i]); bh.push(take.breath.high[i]); }
   }
   // (a spoken line's recording, where it has one: its id, face-acting/recordings.js, played from its beat)
   const audio = (take.events?.lines ?? []).filter((L) => L.recording).map((L) => ({ at: L.t, recording: L.recording }));
-  return { seconds: take.seconds, t, w, gaps: [...gaps], ...(audio.length ? { audio } : {}) };
+  // (and its breath, keyed with it: the body's, face-acting/breath.js breathBones)
+  return { seconds: take.seconds, t, w, gaps: [...gaps], ...(audio.length ? { audio } : {}), ...(take.breath ? { breath: { v: bv, high: bh } } : {}) };
 }
 /**
  * THE MOUTH'S OWNERSHIP in the rig's target names (face-acting/mouth.js `MOUTH`), the contract an engine's runtime
