@@ -195,7 +195,7 @@ async function load(v) {
         if (!idx.some((x) => x !== undefined)) return;
         const m = o.morphTargetInfluences.length, base = [...o.morphTargetInfluences], vals = new Float32Array(C.t.length * m);
         C.w.forEach((row, k) => { vals.set(base, k * m); idx.forEach((x, j) => { if (x !== undefined) vals[k * m + x] = row[j]; }); });
-        tracks.push(new THREE.NumberKeyframeTrack(`${o.uuid}.morphTargetInfluences`, C.t, vals));
+        tracks.push(new THREE.NumberKeyframeTrack(`${o.name || o.uuid}.morphTargetInfluences`, C.t, vals));
       });
       if (tracks.length) actions[C.name] = { action: mixer.clipAction(new THREE.AnimationClip(C.name, C.seconds, tracks)), seconds: C.seconds, face: true };
     }
@@ -217,8 +217,10 @@ async function load(v) {
     const tracks = [];
     for (const J of B.joints) {
       const o = restOf(THREE.PropertyBinding.sanitizeNodeName(J.node)); if (!o) continue;
-      if (J.r) tracks.push(new THREE.QuaternionKeyframeTrack(`${o.uuid}.quaternion`, B.t, J.r));
-      if (J.p) tracks.push(new THREE.VectorKeyframeTrack(`${o.uuid}.position`, B.t, J.p));
+      // (bound by the node's name, as the loader binds the body's own clips: a second binding of the same property by
+      // another key gets a mixer of its own, and the two write over each other every frame, the joints shaking)
+      if (J.r) tracks.push(new THREE.QuaternionKeyframeTrack(`${o.name || o.uuid}.quaternion`, B.t, J.r));
+      if (J.p) tracks.push(new THREE.VectorKeyframeTrack(`${o.name || o.uuid}.position`, B.t, J.p));
     }
     if (tracks.length) breaths[B.of] = additive(new THREE.AnimationClip(`breath:${B.of}`, B.t.at(-1), tracks));
   }
@@ -431,6 +433,22 @@ window.heroLive = {
   hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
   state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
+  // (a script's read of the playback at moments of the take, seconds: the take, the idle under it and its breath set to
+  // the same moment (each its own clip's time), the mixer settled; each moment's joints' world positions (m, the page's
+  // space) and the body's morph weights: what plays, measured)
+  probe: (times, joints = ['head', 'torso', 'clavicleL', 'neck'], { under = true, breath = true } = {}) => {
+    const L = cur(), a = L && S.take && L.actions[S.take]?.action; if (!a) return null;
+    setPaused(true);
+    // (a layer left out of the read: its action off for it)
+    for (const [on, x] of [[under, S.under], [breath, S.breath]]) if (x) x.setEffectiveWeight(on ? 1 : 0);
+    const bones = joints.map((j) => L.body.skeleton.bones.find((x) => x.name.endsWith(j)));
+    return times.map((t) => {
+      for (const x of [a, S.under, S.breath].filter(Boolean)) x.time = t % x.getClip().duration;
+      L.mixer.update(0); L.root.updateMatrixWorld(true);
+      return { t, joints: Object.fromEntries(bones.map((b, i) => [joints[i], b ? new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).toArray().map((v) => +v.toFixed(6)) : null])),
+        morph: Object.fromEntries(Object.entries(L.morph).map(([n, i]) => [n, +L.body.morphTargetInfluences[i].toFixed(5)])) };
+    });
+  },
   // (a camera for a script. With `bone`, a closeup on that bone as posed at this moment: its head, plus `off` m, from
   // `from`, a direction in the page's space (y up, the figure facing −z), `dist` away; a joint's fold is its child bone's
   // head: the elbow is foreArmR's. Without, a free camera: `az` degrees round the figure from its front, `el` degrees up,

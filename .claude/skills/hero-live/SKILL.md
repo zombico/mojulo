@@ -79,7 +79,10 @@ of `face-acting/parts.js`, whose timing, couplings and upper-face gestures a bea
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body and Side views, the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
-(or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.
+(or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script;
+`heroLive.probe(times, joints?, { under?, breath? })` reads the playback itself (the take, the idle under it and its
+breath set to each moment: the joints' world positions and the morph weights), so a jitter is found by the numbers and
+a layer can be left out to find whose it is.
 
 ## The adornment loop on it
 
