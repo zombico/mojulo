@@ -26,7 +26,7 @@ import { beltOn, frameBuckle, kitPieces } from './body-relational-kit.js';
 import { clearanceOver } from './body-relational-tailor.js';
 import { byShare } from './station-loft-adorn.js';
 import { compileLayered } from './station-loft.js';
-import { authoredJacket, fitJacket, sleeveSeams, shoulderUnderJacket } from './authored-jacket.js';
+import { authoredJacket, fitJacket, sleeveSeams, shoulderUnderJacket, standCollar } from './authored-jacket.js';
 import { authoredTailoring } from './authored-tailoring.js';
 
 /** a belt's section, sampled so many ways round the body */
@@ -98,6 +98,8 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
   const trunkCloth = () => Object.entries(cloth).filter(([k]) => TRUNK_CLOTH.test(k));
   // THE JACKET FITTED onto what it is worn over, and the sleeves' seam at the shoulder in the outer's colour
   // (authored-jacket.js), before the belts clear it over them
+  // (the shirt's collar stood on its neckline first, above the shirt and the jacket at the back)
+  for (const [k, P] of Object.entries(standCollar(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
   for (const [k, P] of Object.entries(fitJacket(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
   for (const [k, P] of Object.entries(sleeveSeams(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
   for (const [k, P] of Object.entries(shoulderUnderJacket(recipe, cloth))) { parts[k] = P; if (cloth[k]) cloth[k] = P; }

@@ -13,8 +13,11 @@
  *                their four neighbours' weights, its bands their trims, its addresses (`slotT`) theirs
  *   the VIEW     the pieces read as one tube (`oneTube`, the tail's rings below the body's), the shirt's too, densified
  *                for reading
- *   NO COLLARS   a lapelled jacket on the game body is its lapels alone (`collars: false`: no collar round the back of
- *                the neck), its stand collar and the shirt's under it taken off: the lapels framing the tie
+ *   NO COLLAR    a lapelled jacket on the game body is its lapels alone (`collars: false`: no collar round the back of
+ *                the neck), its stand collar taken off; the shirt's collar under it (stood on its neckline over the
+ *                jacket at the back: authored-jacket.js standCollar) all its own white
+ *   the V        read at each point's own height (the game body's rings tilt at the neckline) and its edge a seam of
+ *                the cloth, `SEAM` slots a side (`atHeight`, `seam`: cutV's)
  *
  *   authoredTailoring(recipe, cloth, tailoring, { beltZones, belts }) → { parts, removed }   the pieces made and
  *       reshaped, by name; `removed` the garments taken off (each dropped from the dials too). What the jacket is worn
@@ -27,6 +30,8 @@ import { ringSlots } from './body-relational-resample.js';
 
 /** a densified ring's points round, and the most a ring is apart from the next along a densified piece (m) */
 export const AROUND = 48, STEP = 0.015;
+/** the slots a side a tailored jacket's V is spread over, its edge a seam of the cloth (cutV's `seam`) */
+export const SEAM = 8;
 /** a jacket's pieces on the game body's trunk, top to bottom, and its stand collar */
 const PIECES = (G) => [`${G}_torso`, `${G}Tail_pelvis`], COLLAR = (G) => `${G}Collar_neck`, SHIRT = ['top_torso', 'topTail_pelvis'], SHIRT_COLLAR = 'topCollar_neck';
 
@@ -119,19 +124,21 @@ export function authoredTailoring(recipe, cloth, tailoring, { beltZones = [], be
   if (!jackets.length && !tailoring?.tie) return { parts, removed };
   // DENSE: each tailored jacket's pieces on the trunk, in place
   for (const G of jackets) for (const k of PIECES(G)) if (cloth[k]) parts[k] = densePiece(cloth[k], k, { dials: recipe.dials });
-  // (its stand collar off where its lapels make its collar)
-  // (a lapelled jacket carries no collar on the game body: its lapels alone; and the shirt's stand collar under it goes too,
-  // the lapels framing the tie)
-  const lapelled = jackets.some((G) => tailoring[G]?.lapel && tailoring[G].lapel !== 'none');
+  // (a lapelled jacket carries no collar on the game body: its lapels alone, over the shirt's collar)
   for (const G of jackets) if (tailoring[G]?.lapel && tailoring[G].lapel !== 'none' && cloth[COLLAR(G)]) removed.push(COLLAR(G));
-  if (lapelled && cloth[SHIRT_COLLAR]) removed.push(SHIRT_COLLAR);
+  // (the SHIRT'S COLLAR under a tailored jacket all the shirt collar's own white: the trim the outfit spends on a collar's
+  // edge is the suit's colour, and on a shirt collar beside the jacket it read as a second, blue collar)
+  if (jackets.length && cloth[SHIRT_COLLAR]?.bandGroups) {
+    const C = cloth[SHIRT_COLLAR], own = C.group ?? 'Collar';
+    parts[SHIRT_COLLAR] = { ...C, bandGroups: Object.fromEntries(Object.entries(C.bandGroups).map(([b, G]) => [b, G.map(() => own)])) };
+  }
   const work = { ...cloth, ...parts, ...belts };
   for (const k of removed) delete work[k];
   const before = new Set(Object.keys(work));
   const shoulders = ['R', 'L'].map((S) => recipe.parts[`upperArm${S}`]).filter(Boolean).map((P) => middle(P.stations[0])[2]);
   tailorFronts(work, recipe, tailoring, {
     beltZones, beltPts: belts.map(denseRead).flatMap((P) => P.stations.flatMap((st) => Object.values(st.points))), shoulderZ: shoulders.length ? Math.max(...shoulders) : null,
-    jacketOf: (G) => PIECES(G).filter((k) => work[k]), shirtOf: () => SHIRT.filter((k) => work[k]), view: viewOf, read: denseRead, collars: false,
+    jacketOf: (G) => PIECES(G).filter((k) => work[k]), shirtOf: () => SHIRT.filter((k) => work[k]), view: viewOf, read: denseRead, collars: false, atHeight: true, seam: SEAM,
   });
   // (what it made, and the jacket's pieces it reshaped)
   for (const [k, P] of Object.entries(work)) if (!before.has(k) || parts[k]) parts[k] = P;

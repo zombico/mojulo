@@ -75,3 +75,27 @@ off the body's envelope, and its buckle was four bars round a point.
   sleeve's colour: the white patches at a suit's shoulders and the tee's green under a flight jacket are gone. A sleeve
   starting on the arm's first ring takes its shoulder cap out past the skin's by its own ease, and one worn under another
   the outer's colour on its cap and first bands (`sleeveSeams`).
+- **The shirt's collar under a suit** (operator: "the shirt collar is the white shirt underneath, the suit jacket the
+  blue above it; they are not the same and don't overlap"). The suit's jacket carries no collar, and the shirt's collar
+  is back under it, all its own white (the trim an outfit spends on a collar's edge is the suit's colour, and read as a
+  second, blue collar). It stood level up the neck's first third, no higher than the shirt's own neckline at the back,
+  which tilts 7 cm up from the front, so the shirt and the jacket hid it there. Now it stands on the neckline
+  (`standCollar`, authored-jacket.js, on every collared shirt on the game body): its rings follow the neckline round,
+  from 1.2 cm under it to 2.6 cm over it in front and 3 cm behind, 5 mm off the neck, and it shows over the jacket at
+  the back and the sides, on the male suit and the female skirt and trouser suits.
+- **The V's edge a seam, not a row of teeth** (operator: "fix these tooth things along the inner part of the top of the
+  jacket"). The V was cut slot by slot on each ring, and where it crosses a ring's slots on the slant each ring's edge
+  stepped a slot on from the next one's, a face between them running from the shirt out to the jacket: a tooth. On the
+  game body (`cutV`'s `seam`) the same slots now lie in the V on every ring it crosses, eight a side of the front and the
+  front's own, spread from one roll line to the other, the rest over the jacket beyond them; a double front's V, off
+  the middle, the same. At its foot the V is taken in over 5 cm, its slots drawn together from as wide as they stood,
+  and the rings under it turn toward the apex, so no band fans across a bust or dives under the shirt. And the V is
+  read at each point's own height (`at`): the game body's rings at the neckline tilt 10 cm front to back, and read at
+  the ring's middle a point low on its ring was taken in to where the skin is 3 cm above it and stood through the shirt
+  as navy shards; it is taken under the nearest of the trunk, the neck and the shirt there. The realistic body's V is
+  as it was, byte for byte.
+- Pins moved, each with its reason in its header: the outfit laws' rings (the tucked shirt's collar; and, from the
+  jacket's construction before, the sleeves' seam at the shoulder and the outer layer's fit, which had moved them
+  unpinned), the statue characterization's draped cases (the sleeves' seam).
+- Not yet: a waistcoat's V shows the shirt only below the chest, the waistcoat over it up to the collar (it did before,
+  under the jacket's white walls).

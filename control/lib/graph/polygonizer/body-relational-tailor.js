@@ -379,6 +379,8 @@ export function ribbon(path, near, { w, t, over = null }) {
 
 // FRONTS
 
+/** the rise (m) over which a seamed V is taken in from its apex, and the fall under it over which its rings turn to it */
+const SEAM_FOOT = 0.05, SEAM_TURN = 0.06;
 /** the V of a tailored jacket's front: each point of the tube `P` facing the front (`front`, a horizontal unit) inside
  * the V from `apex` ([x, z], the top button) up to `necks` ([[x, z] right, [x, z] left], where the roll lines meet the
  * collar), and with `open` within `openHalf` of the apex's x on down to the hem, taken in under what the jacket is worn
@@ -386,20 +388,73 @@ export function ribbon(path, near, { w, t, over = null }) {
  * nearest each roll line (within `snap`), outside and inside, carried round to it, so the V's edge is the line and a
  * step down to the shirt; the faces it takes in painted `group` (the shirt's); nothing within `floor` above the apex
  * (the lapels close over it there); the roll lines' feet `apexHalf` either side of the apex (an open front's, the
- * width of its opening). In place */
-export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.03, snap = 0.025, group = null, floor = 0, apexHalf = 0 }) {
+ * width of its opening). `at(p)(direction)` (optional): what is under read at each point's own height as well, the
+ * nearer of the two taken (the game body's rings at the neckline tilt 10 cm front to back: read at the ring's middle
+ * alone, a point in the V low on its ring was taken in to where the skin is 3 cm above it, and stood through the shirt).
+ * `seam` (a count of slots, optional): the V's edge a SEAM of the cloth. On every ring the V crosses the same slots lie
+ * in it (`seam` a side of the front and the front's own), spread from one roll line to the other, the rest over the
+ * jacket beyond them, so no face runs from the V's inside on one ring to the jacket's outside on the next (cut across
+ * its slots, each ring's edge a slot on from the next one's, the V's edge was a row of teeth); the V taken in over its
+ * first `SEAM_FOOT` above the apex, its slots drawn together there from as wide as they stood; the rings under it turned
+ * toward the apex over `SEAM_TURN`, and only a ring taken in whole painted. In place */
+export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.03, snap = 0.025, group = null, floor = 0, apexHalf = 0, at = null, seam = 0 }) {
   const [xa, za] = apex, [[xr, zr], [xl, zl]] = necks, zTop = Math.max(zr, zl) + 0.01, side = [-front[1], front[0], 0], taken = [];
   // (side: the body's +x, the right, when the front is −y; its sign read off the right neck)
   const sgn = Math.sign(xr - xa) * Math.sign(side[0] || 1), S = scl(side, sgn || 1);
+  // (the seam's walk across the front, the back on the left to the back on the right, and how far a point is inside the V
+  // as the cut below reads it: > 0 inside)
+  const n = P.slots.length, half = n / 2, walk = [...Array.from({ length: half }, (_, j) => half + j), ...Array.from({ length: half + 1 }, (_, j) => j)];
+  const inV0 = (c) => (p) => {
+    const d = unitv([p[0] - c[0], p[1] - c[1], 0]), z = p[2];
+    if (d[0] * front[0] + d[1] * front[1] < 0.15 || z > zTop) return -1;
+    const f = (zn) => Math.min(1, Math.max(0, (z - za) / (zn - za))), xR = xa + apexHalf + (xr - xa - apexHalf) * f(zr), xL = xa - apexHalf + (xl - xa + apexHalf) * f(zl);
+    return z > za ? (z > za + floor ? Math.min(xR - p[0], p[0] - xL) : -1) : open ? openHalf - Math.abs(p[0] - xa) : -1;
+  };
   for (const st of P.stations) {
-    const c = mean(P.slots.map((sl) => st.points[sl])), need = under(c), near = { R: null, L: null, Ri: null, Li: null }, inV = new Set(); taken.push(inV);
+    // (the ring's middle as it stands: a seam crowds its slots to the front)
+    const c = mean(P.slots.map((sl) => st.points[sl]));
+    if (seam && 2 * seam + 2 < n) {
+      // THE SEAM: the ring walked across its front from the back on the left to the back on the right; the V on it from
+      // the line where it comes in to the line where it goes out (wherever it lies: a double front's is off the
+      // middle), its `seam` slots a side of the front and the front's own spread across it, the rest over the jacket
+      // on either side, just past the lines
+      const Q = walk.map((j) => st.points[P.slots[j]]), G = Q.map(inV0(c)), cross = [];
+      for (let i = 0; i + 1 < Q.length; i++) if ((G[i] > 0) !== (G[i + 1] > 0)) cross.push(i + G[i] / (G[i] - G[i + 1] || 1));
+      const L = [0]; for (let i = 1; i < Q.length; i++) L.push(L[i - 1] + len(sub(Q[i], Q[i - 1])));
+      const sAt = (x) => { const i = Math.floor(x); return L[i] + (L[i + 1] - L[i]) * (x - i); }, atS = (s) => { let i = 1; while (i < L.length - 1 && L[i] < s) i++; const f = Math.max(0, Math.min(1, (s - L[i - 1]) / Math.max(1e-12, L[i] - L[i - 1]))); return Q[i - 1].map((v, q) => v + (Q[i][q] - v) * f); };
+      const T = L[L.length - 1], i0 = half - seam, i1 = half + seam, m = Q.length - 1;
+      const lay = (sA, sB, e) => { for (let i = 1; i < m; i++) st.points[P.slots[walk[i]]] = atS(i < i0 ? ((sA - e) * i) / i0 : i <= i1 ? sA + e + ((sB - sA - 2 * e) * (i - i0)) / (i1 - i0) : sB + e + ((T - sB - e) * (i - i1)) / (m - i1)).map(r6); };
+      if (cross.length === 2 && G[Math.floor(cross[0]) + 1] > 0) {
+        // (over the V's foot, as it is taken in, its slots spread from as wide as they stood down to the V's own width:
+        // drawn onto it at once, the band from the ring under it fanned 15 cm across a bust)
+        const [sA, sB] = cross.map(sAt), w = Math.max(0, Math.min(1, (Q[half][2] - za - floor) / SEAM_FOOT)), own = L[i1] - L[i0];
+        if (w >= 1 || own <= sB - sA) lay(sA, sB, 0.001);
+        else { const mid = (sA + sB) / 2, h = (sB - sA + (own - sB + sA) * (1 - w)) / 2; lay(Math.max(0.002, mid - h), Math.min(T - 0.002, mid + h), 0.001); }
+      }
+      else {
+        // (under the V, its slots turned round the ring toward the apex, the front's onto it, by less the farther under
+        // it, nothing at the back: a double front's V lies off the middle, and the ring under its first, its slots where
+        // they stood, twisted the band between them across the chest)
+        const facing = Q.map((p) => { const d = unitv([p[0] - c[0], p[1] - c[1], 0]); return d[0] * front[0] + d[1] * front[1] >= 0.15; });
+        const k = Q.findIndex((p, i) => i < m && facing[i] && facing[i + 1] && (p[0] - xa) * (Q[i + 1][0] - xa) <= 0 && p[0] !== Q[i + 1][0]);
+        const w = Math.max(0, Math.min(1, 1 - (za - Q[half][2]) / SEAM_TURN));
+        if (k >= 0 && w > 0) {
+          const D = (sAt(k + (xa - Q[k][0]) / (Q[k + 1][0] - Q[k][0])) - L[half]) * w;
+          if (Math.abs(D) > 1e-6) for (let i = 1; i < m; i++) st.points[P.slots[walk[i]]] = atS(L[i] + D * (1 - Math.abs(L[i] - L[half]) / Math.max(1e-9, i < half ? L[half] : T - L[half]))).map(r6);
+        }
+      }
+    }
+    const need = under(c), near = { R: null, L: null, Ri: null, Li: null }, inV = new Set(); taken.push(inV);
     for (const sl of P.slots) {
       const p = st.points[sl], d = unitv([p[0] - c[0], p[1] - c[1], 0]), z = p[2];
       if (d[0] * front[0] + d[1] * front[1] < 0.15 || z > zTop) continue;
       const f = (zn) => Math.min(1, Math.max(0, (z - za) / (zn - za))), xR = xa + apexHalf + (xr - xa - apexHalf) * f(zr), xL = xa - apexHalf + (xl - xa + apexHalf) * f(zl);
       const inside = z > za ? z > za + floor && p[0] < xR && p[0] > xL : open && Math.abs(p[0] - xa) < openHalf;
       if (inside) {
-        const R = Math.max(0.01, need(d) - 0.003); st.points[sl] = [c[0] + d[0] * R, c[1] + d[1] * R, z].map(r6); inV.add(sl);
+        const a = at ? at([c[0], c[1], z])(d) : 0, r0 = Math.hypot(p[0] - c[0], p[1] - c[1]), R1 = Math.max(0.01, (a ? Math.min(a, need(d) || a) : need(d)) - 0.003);
+        // (a seam's V taken in over its first SEAM_FOOT above the apex, from the cloth as it stands: its slots spread wide on
+        // the ring under the V and drawn together on the V's first, the band between would dive under the shirt across the chest)
+        const w = seam && z > za ? Math.min(1, (z - za - floor) / SEAM_FOOT) : 1, R = w >= 1 ? R1 : r0 + (R1 - r0) * w; st.points[sl] = [c[0] + d[0] * R, c[1] + d[1] * R, z].map(r6); if (w >= 1) inV.add(sl);
         if (z > za) for (const [k, x, gap] of [['Ri', xR, xR - p[0]], ['Li', xL, p[0] - xL]]) if (gap < snap && (!near[k] || gap < near[k].gap)) near[k] = { sl, x, gap, inset: k === 'Ri' ? -0.002 : 0.002 };
         continue;
       }

@@ -20,8 +20,11 @@
  *       (default `top_body` or `top_torso`); `view(pieces)` those pieces read as one tube (default the one piece); `read(P)`
  *       a skin part as its points are read (default as it is). Each change is made on every piece; every read is of the
  *       view, made again after each change; `read` also gives the garments the jacket is worn over as their points are
- *       read; `collars: false` makes the lapels alone, each its own band, no collar round the back of the neck (the game
- *       body's suit). Pure and deterministic.
+ *       read; `collars: false` makes the lapels alone, each its own band, no collar round the back of the neck, the V's walls
+ *       in the jacket's own colour (no collar band covers them there: the shirt shows through the cut itself; the game
+ *       body's suit); `atHeight` the V's points taken in by what is under them at their own height as well, the trunk, the
+ *       neck or the shirt (cutV's `at`: the game body's rings tilt at the neckline); `seam` the V's edge a seam of the
+ *       jacket's cloth, that many slots a side in the V (cutV's). Pure and deterministic.
  */
 import { clearanceOver, cutV, cutOpening, armholes, clearOver, lapelBand, buttonOn, bladeOn, squareShoulders, takeIn, fallStraight, clothWalker, bindRibbon, bindNearest, bridgeRun } from './body-relational-tailor.js';
 
@@ -43,7 +46,7 @@ const LAPELS = Object.freeze({
 /** The tailored fronts (see the head of this file). */
 export function tailorFronts(parts, recipe, tailoring, { beltZones = [], beltPts = [], shoulderZ = null, layer = 0.0035,
   jacketOf = (G) => [[`${G}_body`, `${G}_torso`].find((k) => parts[k])].filter(Boolean), shirtOf = () => [Object.keys(parts).find((k) => /^top_(body|torso)$/.test(k))].filter(Boolean),
-  view = (Ps) => Ps[0], read = (P) => P, collars = true } = {}) {
+  view = (Ps) => Ps[0], read = (P) => P, collars = true, atHeight = false, seam = 0 } = {}) {
   const torso = recipe.parts.torso, neckSkin = recipe.parts.neck, ctr = (st) => mean(Object.values(st.points)), LAYER = layer;
   const jackets = Object.entries(tailoring || {}).filter(([k, T]) => k !== 'tie' && T && (k === 'vest' || T.lapel || T.shoulder || T.waist)), sgn = tailoring?.over === 'left' ? -1 : 1;
   if (torso && (jackets.length || tailoring?.tie)) {
@@ -79,6 +82,11 @@ export function tailorFronts(parts, recipe, tailoring, { beltZones = [], beltPts
     const skinPts = ['torso', 'pelvis', 'neck', 'thighR', 'thighL'].map((k) => recipe.parts[k]).filter(Boolean).map(read).flatMap(pointsOf);
     let vestPts = null;
     const under = clearanceOver(skinPts), shirtGroup = shirt ? shirt.group ?? 'Top' : 'Skin';
+    // (the V's points read at their own height too, on the game body: the nearest of the trunk, the neck and the shirt
+    // within 8 mm of it; where the shirt's neckline drops below the trunk's top at the front, under the neck, the collar
+    // over it)
+    const thin = atHeight ? [['torso', 'pelvis', 'thighR', 'thighL'].map((k) => recipe.parts[k]).filter(Boolean).map(read).flatMap(pointsOf), neckSkin ? pointsOf(read(neckSkin)) : [], shirt ? pointsOf(shirt) : []].filter((ps) => ps.length).map((ps) => clearanceOver(ps, 0.008)) : null;
+    const at = thin ? (p) => { const R = thin.map((f) => f(p)); return (d) => { const v = Math.min(...R.map((f) => f(d)).filter((x) => x > 0)); return v < Infinity ? v : 0; }; } : null;
     // (the neck above a jacket, 6 mm out: the surface its collar and its V's top are found on)
     const neckPts = neckSkin ? read(neckSkin).stations.flatMap((st) => { const c = ctr(st); return Object.values(st.points).map((p) => { const d = unitH(p, c); return [p[0] + d[0] * 0.006, p[1] + d[1] * 0.006, p[2]]; }); }) : [];
     for (const [G, T] of jackets) {
@@ -94,7 +102,7 @@ export function tailorFronts(parts, recipe, tailoring, { beltZones = [], beltPts
       if (G === 'vest') {
         const { cAt, surface, onFront, zTop, zBot } = surfaceOf(J(), neckPts), zS = zWaist + 0.2, n = T.buttons, step = n > 1 ? (zS - 0.012 - (zBot + 0.03)) / (n - 1) : 0;
         const cTop = cAt(zTop), zC = zTop + 0.012, NP = (deg) => surface([cTop[0] + dir(deg)[0], cTop[1] + dir(deg)[1], zC])[0], NR = NP(45), NL = NP(-45);
-        each((P) => cutV(P, under, { front, apex: [0, zS], necks: [[NR[0], NR[2]], [NL[0], NL[2]]], open: false, openHalf: 0, apexHalf: 0, group: shirtGroup, floor: 0.02 }));
+        each((P) => cutV(P, under, { front, apex: [0, zS], necks: [[NR[0], NR[2]], [NL[0], NL[2]]], open: false, openHalf: 0, apexHalf: 0, group: shirtGroup, floor: 0.02, at, seam }));
         // (its armholes, painted: from 12 cm under the shoulder joint at the side seam up to a strap 5.5 cm out past the neck's side)
         const zSh = shoulderZ ?? zTop - 0.05;
         each((P) => armholes(P, { zArm: zSh - 0.12, zTop: zSh + 0.02, xIn: Math.abs(NR[0] - cTop[0]) + 0.055, group: shirtGroup, onto: shirt }));
@@ -142,7 +150,7 @@ export function tailorFronts(parts, recipe, tailoring, { beltZones = [], beltPts
       const line = (from, N, t0 = 0) => zs(t0, 1, ROLL_N).map((t) => { const x = from[0] + (N[0] - from[0]) * t, z = from[1] + (N[2] - from[1]) * t; return onFront(x, z); });
       const shape = LAPELS[T.lapel];
       if (shape) {
-        each((P) => cutV(P, under, { front, apex: closed ? apex : [0, zS], necks: [[NR[0], NR[2]], [NL[0], NL[2]]], open: T.open, openHalf: h, apexHalf: h, group: wallGroup, floor: closed ? 0.02 : 0 }));
+        each((P) => cutV(P, under, { front, apex: closed ? apex : [0, zS], necks: [[NR[0], NR[2]], [NL[0], NL[2]]], open: T.open, openHalf: h, apexHalf: h, group: wallGroup, floor: closed ? 0.02 : 0, at, seam }));
         // the COLLAR round the back of the neck, right to left
         const collar = Array.from({ length: 23 }, (_, k) => surface([cTop[0] + dir(65 + (230 * (k + 1)) / 24)[0], cTop[1] + dir(65 + (230 * (k + 1)) / 24)[1], zC])[0]);
         // (the lapel over from its foot; the one under from where it comes out from under the front over it, tapered in

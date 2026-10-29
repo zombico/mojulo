@@ -22,14 +22,17 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // again for the hero laws 3, hero-form.js LEG_SET, the leg turned back about the ankle: every garment on the legs or
 // the seat follows the hip's joint; and laws and rings rewritten in place for the waistband (1029, unreleased, at the
 // operator's word: outfit law 2, a waistband has no ease, body-garment.js `waistband` on the trousers' seat; the dress
-// has no seat and keeps its bytes)
+// has no seat and keeps its bytes); and the rings again for the game body's construction (1029, unreleased): a sleeve
+// that starts on the arm's first ring takes its cap out past the skin's at the shoulder (authored-jacket.js sleeveSeams:
+// every case with a sleeve but the trousers worn out), the outer layer fitted onto what it is worn over (fitJacket), and
+// the shirt's collar stood on its neckline (standCollar: the tucked shirt's); the laws unchanged
 const PINS = {
   1: {
     'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
-    'tucked': { laws: 'a293c920ca0f83b2', rings: 'a8043d9f2316e9bf' },
-    'dress': { laws: 'bb1fe989040c0422', rings: '2653063e545832d6' },
-    'outer': { laws: '127769bbfdd8e767', rings: '2cac6f6a931b74fa' },
-    'panels': { laws: 'd114d51d72f13d3b', rings: 'c15d7ac52b14da7d' },
+    'tucked': { laws: 'a293c920ca0f83b2', rings: '5113129ac6be4764' },
+    'dress': { laws: 'bb1fe989040c0422', rings: '3788f9213ce322f3' },
+    'outer': { laws: '127769bbfdd8e767', rings: '2404c186875fb4d7' },
+    'panels': { laws: 'd114d51d72f13d3b', rings: '8d4abf177cd7aa55' },
   },
 };
 

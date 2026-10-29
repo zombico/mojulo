@@ -222,8 +222,12 @@ authored kernel's, laid on the body's envelope. The game body's jacket opens too
 trunk pieces opened in place, keeping their names, and its zip, rib bands, pockets, collar points and epaulettes laid on
 the jacket as one tube), and so is it tailored (`polygonizer/authored-tailoring.js` over `tailored-front.js`, the realistic
 body's own: the V, the lapels, the edge and its quarters, the buttons, the tie, the waistcoat, the shoulder and the waist,
-on its pieces densified in place). There a lapelled jacket is its lapels alone: no collar round the back of the neck, nor
-the shirt's stand collar under them. Its jacket lies on what it is worn over at a jacket's ease (`fitJacket`), and the
+on its pieces densified in place). There a lapelled jacket is its lapels alone, no collar round the back of the neck: the
+shirt's collar under it is the collar, two materials that never share a surface. The shirt's collar stands on the
+shirt's neckline (`standCollar`: its rings follow the neckline round, lower in front, and stand 3 cm over it behind), so
+it shows white over the jacket at the back and the sides, all its own colour. The V's edge is a seam of the cloth: the
+same slots lie in the V on every ring it crosses, spread from one roll line to the other, so its edge is a line, not a
+row of teeth where each ring's cut stepped a slot on from the next. Its jacket lies on what it is worn over at a jacket's ease (`fitJacket`), and the
 tiered body's shoulder sockets, which no garment covers, take the outermost sleeve's colour. The folds are the realistic
 body's alone so far, and geometry only (no fold normal map, no weave).
 

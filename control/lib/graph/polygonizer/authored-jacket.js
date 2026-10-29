@@ -20,7 +20,7 @@
  * round a twelve-sided cloth). Weights by ring (`rings`). Pure and deterministic.
  */
 import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
-import { oneTube, cinchWaist } from './body-relational-tailor.js';
+import { oneTube, cinchWaist, clearanceOver } from './body-relational-tailor.js';
 import { denseRead } from './authored-tailoring.js';
 
 /** the opened ring's points a side (its slots 4·ARC − 2) */
@@ -163,4 +163,38 @@ export function shoulderUnderJacket(recipe, cloth) {
     }
   }
   return out;
+}
+
+/** the shirt's collar on its neckline (m): its stand over the neckline at the front and at the back, how far it goes on
+ * down under it, and how far off the neck it stands */
+export const STAND = Object.freeze({ front: 0.026, back: 0.03, tuck: 0.012, ease: 0.005 });
+/**
+ * THE SHIRT'S COLLAR STOOD ON ITS NECKLINE (the game body's; on a copy → { name: piece }). The collar was a level band
+ * up the neck's first third, and the shirt's neckline tilts 7 cm from the front up to the back: at the back the collar
+ * stood no higher than the shirt's own top, and the jacket over the shirt hid it all round the neck. Its rings now
+ * follow the neckline round: from `STAND.tuck` under it to its stand over it (lower in front, higher behind), each point
+ * `STAND.ease` off the neck at its own height. Its stations, its slots, its weights and its trims are kept; its caps in
+ * the neck.
+ */
+export function standCollar(recipe, cloth) {
+  const C = cloth.topCollar_neck, shirt = cloth.top_torso, neck = recipe.parts.neck;
+  if (!C?.stations || !shirt?.stations || !neck?.stations) return {};
+  const N = denseRead(neck), NC = N.stations.map(middle).sort((a, b) => a[2] - b[2]), reach = clearanceOver(pointsOf(N), 0.008);
+  const cAt = (z) => { if (z <= NC[0][2]) return NC[0]; for (let i = 1; i < NC.length; i++) if (NC[i][2] >= z) { const f = (z - NC[i - 1][2]) / (NC[i][2] - NC[i - 1][2] || 1); return NC[i - 1].map((v, k) => v + (NC[i][k] - v) * f); } return NC[NC.length - 1]; };
+  // (the neckline: the shirt's top ring, its height by its angle round the neck)
+  const top = Object.values(shirt.stations[shirt.stations.length - 1].points), c0 = cAt(mean(top)[2]);
+  const line = top.map((p) => [Math.atan2(p[1] - c0[1], p[0] - c0[0]), p[2]]).sort((a, b) => a[0] - b[0]);
+  const zAt = (t) => {
+    const i = line.findIndex(([a]) => a >= t), [a0, z0] = i <= 0 ? [line[line.length - 1][0] - 2 * Math.PI, line[line.length - 1][1]] : line[i - 1], [a1, z1] = i < 0 ? [line[0][0] + 2 * Math.PI, line[0][1]] : line[i];
+    return z0 + (z1 - z0) * ((t - a0) / (a1 - a0 || 1));
+  };
+  const n = C.stations.length, cb = middle(C.stations[0]);
+  const stations = C.stations.map((st, i) => ({ ...st, points: Object.fromEntries(C.slots.map((sl) => {
+    const p = st.points[sl], h = [p[0] - cb[0], p[1] - cb[1]], l = Math.hypot(...h) || 1, d = [h[0] / l, h[1] / l], t = Math.atan2(d[1], d[0]);
+    const z = zAt(t) - STAND.tuck + (STAND.tuck + STAND.front + (STAND.back - STAND.front) * (1 - d[1]) / 2) * (i / (n - 1)), c = cAt(z);
+    const r = (reach([c[0], c[1], z])(d) || Math.hypot(p[0] - c[0], p[1] - c[1])) + STAND.ease;
+    return [sl, [c[0] + d[0] * r, c[1] + d[1] * r, z].map((v) => Math.round(v * 1e6) / 1e6)];
+  })) }));
+  const ends = [stations[0], stations[n - 1]].map(middle);
+  return { topCollar_neck: { ...C, stations, caps: { back: cAt(ends[0][2] - 0.004).map((v) => Math.round(v * 1e6) / 1e6), tip: cAt(ends[1][2]).map((v) => Math.round(v * 1e6) / 1e6) } } };
 }
