@@ -20,7 +20,8 @@
  * round a twelve-sided cloth). Weights by ring (`rings`). Pure and deterministic.
  */
 import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
-import { oneTube } from './body-relational-tailor.js';
+import { oneTube, cinchWaist } from './body-relational-tailor.js';
+import { denseRead } from './authored-tailoring.js';
 
 /** the opened ring's points a side (its slots 4·ARC − 2) */
 export const ARC = 10;
@@ -73,4 +74,93 @@ export function authoredJacket(recipe, cloth, J, { read = (P) => P } = {}) {
     carriers[k] = cuff ? `foreArm${cuff[1]}` : mean(P.stations.flatMap((st) => Object.values(st.points)))[2] >= zTorso ? 'torso' : 'pelvis';
   }
   return { parts, carriers };
+}
+
+/** THE FIT of a jacket on the game body: its ease over what it is worn over (m): a layer's step and a tailored jacket's
+ * wearing ease, about 2.5 cm of girth over the shirt */
+export const FIT = Object.freeze({ trunk: 0.0075, sleeve: 0.006 });
+const pointsOf = (P) => P.stations.flatMap((st) => Object.values(st.points));
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+/** a SLEEVE brought onto what it is worn over, in place: each ring's points along their own radial (square to the arm),
+ * never closer than `gap` past the farthest thing under them within a slab of the ring and a lane of the ray, never
+ * farther than they stood */
+function fitSleeve(P, under, gap) {
+  const C = P.stations.map((st) => middle(st));
+  P.stations.forEach((st, i) => {
+    const a0 = C[Math.max(0, i - 1)], a1 = C[Math.min(C.length - 1, i + 1)], ax = sub(a1, a0), l = Math.hypot(...ax) || 1, a = ax.map((v) => v / l), c = C[i];
+    const near = under.filter((q) => Math.abs(dot(sub(q, c), a)) < 0.01);
+    for (const sl of P.slots) {
+      const v = sub(st.points[sl], c), along = dot(v, a), o = v.map((x, k) => x - a[k] * along), r = Math.hypot(...o) || 1e-9, d = o.map((x) => x / r);
+      let reach = 0; for (const q of near) { const w = sub(q, c), pr = dot(w, d), lat = Math.hypot(...w.map((x, k) => x - a[k] * dot(w, a) - d[k] * pr)); if (pr > reach && lat < 0.012) reach = pr; }
+      if (!reach) continue;
+      const to = reach + gap; if (to < r) st.points[sl] = c.map((x, k) => Math.round((x + a[k] * along + d[k] * to) * 1e6) / 1e6);
+    }
+  });
+  return P;
+}
+/**
+ * THE JACKET FITTED (the game body's: the outer layer's pieces on the trunk and the arms, a coat's skirt and a panel aside),
+ * brought in onto what it is worn over: its trunk pieces level (cinchWaist over the whole piece), its sleeves square to the
+ * arm, each `FIT` past the garments worn before it there and the skin, read densified; never let out. The silhouette is the
+ * cut's, the belt's and the layers', not the ease's (docs/garment-principles.md). → { name: piece }, the pieces refitted
+ */
+export function fitJacket(recipe, cloth) {
+  const out = {}, names = Object.keys(cloth), order = (k) => names.indexOf(k);
+  const before = (k, re) => names.filter((n) => order(n) < order(k) && re.test(n)).map((n) => cloth[n]);
+  const skin = (ks) => ks.map((k) => recipe.parts[k]).filter(Boolean);
+  for (const k of BODY.filter((n) => cloth[n])) {
+    const under = [...before(k, /_(torso|pelvis)$/), ...skin(['torso', 'pelvis'])].map(denseRead).flatMap(pointsOf);
+    out[k] = cinchWaist(structuredClone(cloth[k]), under, { zw: -1e9, zb: -1e9, zt: 1e9 }, { gap: FIT.trunk, band: 0.012 });
+  }
+  for (const S of ['R', 'L']) for (const k of SLEEVE(S).filter((n) => cloth[n])) {
+    const under = [...before(k, new RegExp(`_(upperArm|foreArm)${S}$`)), ...skin([`upperArm${S}`, `foreArm${S}`])].map(denseRead).flatMap(pointsOf);
+    out[k] = fitSleeve(structuredClone(cloth[k]), under, FIT.sleeve);
+  }
+  return out;
+}
+
+/** THE SLEEVES' SEAM at the shoulder (on copies → { name: piece }). Each tube is closed at the shoulder by a cap pinched
+ * past its first ring, and the skin's reached farther over the shoulder's dome than any sleeve's: the dome showed through
+ * every layer there, painted as the shirt (a white patch on a suit's shoulder). So each sleeve that starts on the arm's
+ * first ring takes its cap out past the skin's own by its own ease there, the layers nesting at the dome as they do down
+ * the arm; and a sleeve worn under another takes the outer's colour on its cap and its first bands, where the two ends meet */
+export function sleeveSeams(recipe, cloth) {
+  const out = {}, names = Object.keys(cloth);
+  for (const S of ['R', 'L']) {
+    const arm = recipe.parts[`upperArm${S}`];
+    const sleeves = names.filter((n) => new RegExp(`^\\w+_upperArm${S}$`).test(n) && cloth[n].garment && Array.isArray(cloth[n].stations));
+    if (!sleeves.length) continue;
+    const radius = (st) => { const c = middle(st), ps = Object.values(st.points); return ps.reduce((t, p) => t + Math.hypot(...sub(p, c)), 0) / ps.length; };
+    for (const n of sleeves) {
+      const P = cloth[n];
+      if (!arm?.caps?.back || P.stations[0].id !== arm.stations[0].id) continue;
+      const cb = middle(arm.stations[0]), d = sub(arm.caps.back, cb), l = Math.hypot(...d) || 1, e = Math.max(0, radius(P.stations[0]) - radius(arm.stations[0])) + 0.002;
+      out[n] = { ...P, caps: { ...P.caps, back: arm.caps.back.map((v, k) => Math.round((v + (d[k] / l) * e) * 1e6) / 1e6) } };
+    }
+    const g = cloth[sleeves[sleeves.length - 1]].group;
+    for (const n of sleeves.slice(0, -1)) {
+      const P = out[n] ?? cloth[n], half = P.slots.length / 2, ids = P.stations.map((st) => st.id), bands = { ...(P.bandGroups || {}) };
+      for (let i = 0; i < Math.min(2, ids.length - 1); i++) bands[`${ids[i]}-${ids[i + 1]}`] = Array(half).fill(g);
+      out[n] = { ...P, bandGroups: bands, capGroups: { ...(P.capGroups || {}), back: g } };
+    }
+  }
+  return out;
+}
+
+/** THE SHOULDER SOCKETS UNDER A SLEEVE. The tiered body's shoulder is a socket of its own between the trunk and the arm
+ * (its ball, its cone and its web), which no garment covers and which is painted as the shirt: a white patch at a suit's
+ * shoulders, the tee's green under a flight jacket. Each takes the outermost sleeve's colour on its side, so the shoulder
+ * reads as the jacket over it, as a realistic jacket's one cloth over the shoulder does. → { name: part } */
+export function shoulderUnderJacket(recipe, cloth) {
+  const out = {}, names = Object.keys(cloth);
+  for (const S of ['R', 'L']) {
+    const sleeve = names.filter((n) => new RegExp(`_upperArm${S}$`).test(n) && cloth[n].garment).pop();
+    if (!sleeve) continue;
+    for (const k of [`shoulderBall${S}`, `shoulderCone${S}`, `shoulderWeb${S}`]) {
+      const P = recipe.parts[k]; if (!P || P.group === 'Skin') continue;
+      const { bandGroups: _b, capGroups: _c, ...rest } = P;
+      out[k] = { ...rest, group: cloth[sleeve].group ?? P.group };
+    }
+  }
+  return out;
 }

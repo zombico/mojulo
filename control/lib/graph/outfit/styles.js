@@ -9,7 +9,7 @@
 //             full, rigidity?: shell | stiff | crisp | soft | flowing | 0 … 1 (how the skirt moves: rigidity.js) } | false
 //             outer:  { family, sleeve, hem: waist | hip | tunic | knee | midi | maxi, open: true|false, cut?: pencil | aline |
 //             full } | false: a layer over the top and the bottom (a vest or jerkin without sleeves, a jacket, a coat);
-//             a tailored FRONT on the realistic body (the authored body's jacket unchanged): front?: single | double (one
+//             a tailored FRONT (the tailor's, on either body: tailored-front.js): front?: single | double (one
 //             row of buttons, or two with the fronts overlapped), lapel?: notch | peak | shawl | none (none: the stand
 //             collar), buttons?: 1 | 2 | 3 (in a row); any of them gives the jacket a V onto the shirt, its lapels and its
 //             buttons (single with a notch lapel, double with a peak, unless named); its SHAPE: shoulder?: natural |
@@ -29,7 +29,7 @@
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
 //             feet:   'boots' | 'shoes' | 'none'
 //             tuck:   true (the top tucked in, the bottom over its tail) | false (worn out over the bottom)
-//             tie:    true (a tie on the shirt from its collar to the belt, under a closed jacket: the realistic body's) |
+//             tie:    true (a tie on the shirt from its collar to the belt, under a closed jacket) |
 //             false
 //             waistcoat: true | { front?: 'single' | 'double', buttons?: 3–6 } (a waistcoat over the shirt and the tie and
 //             under the jacket, from the chest to below the waist, worn without a belt; its V and its buttons the realistic
@@ -177,8 +177,8 @@ export const SEEDED_OUTFITS = Object.freeze({
       "outer": { "family": "woven", "sleeve": "long", "hem": "knee", "open": true, "fit": "fitted", "collar": true }, "feet": "shoes", "tuck": true, "focal": "collar" },
     "tones": { "Outer": "#e8eaee", "Top": "#2a2e36", "Bottom": "#2a2e36", "Shoes": "#e8eaee", "Trim": "#7fb2ff", "Leather": "#2a2e36", "Buckle": "#c9ced6" }
   },
-  // the BUSINESS SUITS: a closed jacket over a shirt and tie, its front made by the tailor on the realistic body (a V,
-  // lapels, the right front over the left; the authored body wears the jacket as it always has)
+  // the BUSINESS SUITS: a closed jacket over a shirt and tie, its front made by the tailor on either body (a V, lapels,
+  // the right front over the left; on the game body its lapels alone, no collar on it nor the shirt's under it)
   business: {
     "id": "business",
     "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
@@ -221,7 +221,7 @@ export const SEEDED_OUTFITS = Object.freeze({
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];
-/** a jacket's FRONT words (the tailor's, on the realistic body): the fastening, the lapel, the buttons in a row */
+/** a jacket's FRONT words (the tailor's, on either body): the fastening, the lapel, the buttons in a row */
 export const OUTER_FRONTS = Object.freeze(['single', 'double', 'zip']), OUTER_LAPELS = Object.freeze(['notch', 'peak', 'shawl', 'none']);
 /** a jacket's SHAPE words (the tailor's too): its shoulder and its waist */
 export const OUTER_SHOULDERS = Object.freeze(['natural', 'structured']), OUTER_WAISTS = Object.freeze(['suppressed', 'straight']);
@@ -266,7 +266,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   errs.push(...one(L.feet, FEET, `${at}.language.feet`), ...one(L.focal, FOCAL, `${at}.language.focal`));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);
-  if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt, the realistic body's)`);
+  if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt)`);
   if (L.waistcoat !== undefined && typeof L.waistcoat !== 'boolean') {
     const V = L.waistcoat, w = `${at}.language.waistcoat`;
     if (!(V && typeof V === 'object' && !Array.isArray(V))) errs.push(`${w}: true, false or { front?, buttons? }`);

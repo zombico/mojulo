@@ -220,8 +220,12 @@ lower than the hips' widest). A pouch on a leg rides the leg and hangs below a p
 the kneepads on either body, and every piece the kit does not make (a panel, a cape, a hood, a plate) are still the
 authored kernel's, laid on the body's envelope. The game body's jacket opens too (`polygonizer/authored-jacket.js`: its
 trunk pieces opened in place, keeping their names, and its zip, rib bands, pockets, collar points and epaulettes laid on
-the jacket as one tube); its tailoring (the V, the lapels, the shoulder, the waist) and the folds are the realistic
-body's alone so far, and the folds are geometry only (no fold normal map, no weave).
+the jacket as one tube), and so is it tailored (`polygonizer/authored-tailoring.js` over `tailored-front.js`, the realistic
+body's own: the V, the lapels, the edge and its quarters, the buttons, the tie, the waistcoat, the shoulder and the waist,
+on its pieces densified in place). There a lapelled jacket is its lapels alone: no collar round the back of the neck, nor
+the shirt's stand collar under them. Its jacket lies on what it is worn over at a jacket's ease (`fitJacket`), and the
+tiered body's shoulder sockets, which no garment covers, take the outermost sleeve's colour. The folds are the realistic
+body's alone so far, and geometry only (no fold normal map, no weave).
 
 ## Against the outfit laws
 

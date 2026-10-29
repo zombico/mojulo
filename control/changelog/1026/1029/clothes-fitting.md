@@ -52,3 +52,26 @@ off the body's envelope, and its buckle was four bars round a point.
 - **A pocket, a flap and a collar's point drew inside out** (`patchOn`, on both bodies): the compiler turns a part out by
   its first band face, which lay at the section's end, a pocket wide and 2.5 mm thick, and read either way, so they drew
   dark. The ring now starts at its outer face's middle.
+- **The tailoring on the game body** (`polygonizer/authored-tailoring.js` over `polygonizer/tailored-front.js`). The
+  realistic body's tailored front and shape (the V onto the shirt and tie, the lapels, the right front's edge and the
+  quarters cut away below the last button, the buttons at the stance, a tie, a waistcoat's V, armholes and buttons,
+  structured shoulders, a suppressed or a straight waist) moved out of `body-relational-wear.js` into
+  `tailored-front.js`'s `tailorFronts`, every change made on each of a jacket's pieces and every read of one view of them;
+  the realistic body calls it on its one tube and is byte for byte as it was. The game body calls it on its jacket's
+  pieces densified IN PLACE (`densePiece`: 48 round, a ring every 1.5 cm, round the old ring's centre and never on its
+  chords, keeping the pieces' names and their stations' ids, the new rings' dial blends, weights, trims and addresses
+  mixed from their neighbours), what they are worn over read densified (`denseRead`). There a lapelled jacket is its
+  lapels alone (`collars: false`: two bands to the gorge, none round the back of the neck), its stand collar and the
+  shirt's under it taken off the recipe and the dials. The door no longer says the tailoring is the realistic body's.
+- `tailored-front.js`: a surface with no cloth along a ray (a shirt's neckline cut lower at the front) is read at its
+  ring's mean radius there (a tie's knot stood a metre out); the cut-away quarters show a skirt as they show trousers
+  (they were painted skin on a skirt suit, on both bodies).
+- **The jacket fitted on the game body** (`fitJacket`, operator: "tighten the fit on the jackets"): the outer layer's
+  pieces on the trunk brought onto what they are worn over at a jacket's ease (`FIT`: 7.5 mm, a layer's step and about
+  2.5 cm of girth), its sleeves square to the arm (6 mm), read densified; never let out. `cinchWaist` leaves a ray that
+  reads nothing under it as it stands (it was drawn to the axis).
+- **The shoulder under a jacket** (operator: "make the shoulder patches the same colour"): the tiered body's shoulder
+  sockets (its ball, cone and web), which no garment covers and which are painted as the shirt, take the outermost
+  sleeve's colour: the white patches at a suit's shoulders and the tee's green under a flight jacket are gone. A sleeve
+  starting on the arm's first ring takes its shoulder cap out past the skin's by its own ease, and one worn under another
+  the outer's colour on its cap and first bands (`sleeveSeams`).

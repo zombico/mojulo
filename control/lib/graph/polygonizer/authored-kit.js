@@ -26,7 +26,8 @@ import { beltOn, frameBuckle, kitPieces } from './body-relational-kit.js';
 import { clearanceOver } from './body-relational-tailor.js';
 import { byShare } from './station-loft-adorn.js';
 import { compileLayered } from './station-loft.js';
-import { authoredJacket } from './authored-jacket.js';
+import { authoredJacket, fitJacket, sleeveSeams, shoulderUnderJacket } from './authored-jacket.js';
+import { authoredTailoring } from './authored-tailoring.js';
 
 /** a belt's section, sampled so many ways round the body */
 export const BELT_ROUND = 24;
@@ -91,8 +92,15 @@ export function isBelt(A, parts) {
 /** The kit's pieces on the game body's dressed recipe (see the head of this file). */
 export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
   const P0 = recipe.parts, parts = {}, taken = new Set(), zones = [], belts = [];
+  // (the parts there before: a body part or a garment repainted here keeps its stations, only the pieces made here join the dials)
+  const existing = new Set(Object.keys(P0));
   const cloth = Object.fromEntries(Object.entries(P0).filter(([, P]) => P.garment && P.layer === 1 && Array.isArray(P.stations)));
   const trunkCloth = () => Object.entries(cloth).filter(([k]) => TRUNK_CLOTH.test(k));
+  // THE JACKET FITTED onto what it is worn over, and the sleeves' seam at the shoulder in the outer's colour
+  // (authored-jacket.js), before the belts clear it over them
+  for (const [k, P] of Object.entries(fitJacket(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
+  for (const [k, P] of Object.entries(sleeveSeams(recipe, cloth))) { parts[k] = P; cloth[k] = P; }
+  for (const [k, P] of Object.entries(shoulderUnderJacket(recipe, cloth))) { parts[k] = P; if (cloth[k]) cloth[k] = P; }
   const skin = ['torso', 'pelvis'].map((k) => P0[k]).filter(Boolean);
   // (the legs' tops, skin and cloth, which a belt slung on the hips spans; and the HIPS' WIDEST, the lowest ring of the
   // pelvis at its full girth)
@@ -141,6 +149,14 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
     }
     taken.add(A.id); zones.push([zLo, zHi]); belts.push(band);
   }
+  // THE TAILORING (a jacket's front and shape, a tie, a waistcoat: authored-tailoring.js), after the belts (a jacket's
+  // waist taken in over them), its stand collar off where its lapels make its collar
+  const tailored = authoredTailoring(recipe, cloth, tailoring, { beltZones: zones, belts });
+  for (const [k, P] of Object.entries(tailored.parts)) { parts[k] = P; if (cloth[k]) cloth[k] = P; }
+  for (const k of tailored.removed) {
+    delete recipe.parts[k]; delete cloth[k];
+    for (const [d, D] of Object.entries(recipe.dials || {})) if (D.parts?.includes(k)) recipe.dials[d] = { ...D, parts: D.parts.filter((n) => n !== k) };
+  }
   // THE JACKET AS BUILT (its construction words, `tailoring.jacket`: authored-jacket.js): opened after the belts (a
   // jacket worn over one cleared over it first), its pieces laid on it before the kit's (webbing on the outermost layer)
   const jacket = authoredJacket(recipe, cloth, tailoring?.jacket, { read: readOf });
@@ -157,7 +173,7 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
     for (const id of K.taken) taken.add(id);
   }
   // THE DIALS: every piece made here follows the live dials that move what it lies on
-  followDials(recipe, parts, adorn || [], cloth, jacket.carriers);
+  followDials(recipe, parts, adorn || [], cloth, jacket.carriers, existing);
   return { parts, taken };
 }
 
@@ -176,13 +192,13 @@ const RIGID = /(Body|Flap|Tab|Snap|Seam[RL]|Slide|Grip|Strap|Hanger)\d*_kit$/;
  * it lies on, its stations weighted as that part's surface is at their height (a rigid piece one weight, at its middle);
  * a hinge or a chain swings it with that part, a belt aside. A garment the kit reshaped is in the dials already.
  */
-function followDials(recipe, parts, adorn, cloth, carriers = {}) {
+function followDials(recipe, parts, adorn, cloth, carriers = {}, existing = new Set()) {
   // (each dial copied before it is joined: its parts, its blend and its links are the plan's own objects)
   for (const [k, d] of Object.entries(recipe.dials || {})) recipe.dials[k] = { ...d, ...(d.parts ? { parts: [...d.parts] } : {}), ...(d.blend ? { blend: { ...d.blend } } : {}), ...(Array.isArray(d.links) ? { links: d.links.map((L) => ({ ...L, ...(L.parts ? { parts: [...L.parts] } : {}) })) } : {}) };
   const dials = Object.values(recipe.dials || {});
   let n = 0;
   for (const [name, P] of Object.entries(parts)) {
-    if (cloth[name] || !Array.isArray(P.stations)) continue;
+    if (cloth[name] || existing.has(name) || !Array.isArray(P.stations)) continue;
     const bname = carriers[name] ?? carrierOf(name, adorn), body = recipe.parts[bname];
     const id = (st) => `${st}k${n}`, rename = (k) => (k === 'back' || k === 'tip' ? k : k.includes('.') ? `${id(k.slice(0, k.indexOf('.')))}${k.slice(k.indexOf('.'))}` : id(k));
     const old = P.stations.map((st) => st.id);
@@ -192,7 +208,7 @@ function followDials(recipe, parts, adorn, cloth, carriers = {}) {
     if (!body?.stations) continue;
     // (a belt and its buckle widen with what they are round, but never swing with the trunk: a band at the trunk's hem
     // spans the hinge's pivot, the trunk bending above it; so do a jacket's zip and its rib waistband, down onto the hips)
-    const rigid = RIGID.test(name) || /(Pocket|Flap|Snap|Button|Pull)[RL]?$/.test(name), swings = name.endsWith('_kit') || (!!carriers[name] && !/^outer(Zip|Rib_waist)/.test(name)), mid = mean(P.stations.map(middle));
+    const rigid = RIGID.test(name) || /(Pocket|Flap|Snap|Button|Pull)[RL]?$/.test(name) || /Button\d*[RL]?_torso$/.test(name), swings = name.endsWith('_kit') || (!!carriers[name] && !/^outer(Zip|Rib_waist)/.test(name)), mid = mean(P.stations.map(middle));
     const zs = body.stations.map((st) => [middle(st)[2], st.id]).sort((a, b) => a[0] - b[0]);
     const weightAt = (blend, z) => { const w = (k) => blend[k] ?? 0; if (z <= zs[0][0]) return w(zs[0][1]); for (let i = 1; i < zs.length; i++) if (z <= zs[i][0]) { const f = (z - zs[i - 1][0]) / Math.max(1e-9, zs[i][0] - zs[i - 1][0]); return w(zs[i - 1][1]) + (w(zs[i][1]) - w(zs[i - 1][1])) * f; } return w(zs[zs.length - 1][1]); };
     for (const d of dials) {

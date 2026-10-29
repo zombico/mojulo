@@ -152,8 +152,9 @@ export function cinchWaist(P, under, { zw, zb, zt }, { gap = 0.002, above = 0.03
     if (w <= 0) return;
     const reach = need(C[i]);
     for (const sl of P.slots) {
-      const p = st.points[sl], h = [p[0] - C[i][0], p[1] - C[i][1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1), 0], to = reach(d) + gap;
-      if (to < r) st.points[sl] = [C[i][0] + d[0] * (r + (to - r) * w), C[i][1] + d[1] * (r + (to - r) * w), p[2]].map(r6);
+      const p = st.points[sl], h = [p[0] - C[i][0], p[1] - C[i][1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1), 0], under = reach(d), to = under + gap;
+      // (nothing read under it there: left as it stands, never drawn to the axis)
+      if (under > 0 && to < r) st.points[sl] = [C[i][0] + d[0] * (r + (to - r) * w), C[i][1] + d[1] * (r + (to - r) * w), p[2]].map(r6);
     }
   });
   return P;

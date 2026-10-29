@@ -301,7 +301,7 @@ export function validatePlan(plan) {
  * parts absent there dropped): placed where the plan's body is, after the head's seam, so the dress (garments, paint,
  * details, body detail and adornment) is made on it. Absent, the plan's own body.
  * `kit`: `(recipe, adorn, { tailoring }) → { parts, taken }`, run on the dressed recipe before the adornment bake (the
- * game body's kit and jacket as pieces: authored-kit.js), when the plan has an adornment or a tailoring: its parts put in
+ * game body's kit and jacket as pieces: authored-kit.js), when the plan has an adornment, a tailoring or a garment: its parts put in
  * the recipe (a garment it reshaped, its own), the adornments it `taken` left to it, the rest baked. Absent, the
  * adornment baked whole */
 export function expandPlan(plan, { body = null, kit = null } = {}) {
@@ -418,7 +418,7 @@ export function expandPlan(plan, { body = null, kit = null } = {}) {
   // pinned part inherits its pin face's weights; refinement extends the bind blends so skinning is unchanged)
   // the KIT as pieces (the `kit` hook): made on the dressed recipe, the kernel baking what it leaves
   let adorn = plan.adorn;
-  if (kit && (adorn?.length || plan.tailoring)) {
+  if (kit && (adorn?.length || plan.tailoring || plan.garments?.length)) {
     const errs = adorn ? validateKit(adorn, recipe.parts) : []; if (errs.length) fail(`adorn: ${errs.join('; ')}`);
     let K; try { K = kit(recipe, adorn ?? [], { tailoring: plan.tailoring ?? null }); } catch (err) { fail(`adorn: ${err.message}`); }
     Object.assign(recipe.parts, K.parts);

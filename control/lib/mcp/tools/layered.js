@@ -1399,14 +1399,12 @@ export function dressReadout(hero, plan, mesh, recipe) {
     out.outline = { family: M.family, bare: M.bareFamily, fit: { top: M.fit.top.class, bottom: M.fit.bottom.class }, returns: M.returns, divisions: M.divisions.map((d) => `${d.kind}@${d.f}`), flair: M.flair.of,
       advice: Object.fromEntries(canons.map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
   }
-  // what the GAME BODY wears plain or not at all, said (advice, never a refusal): the tailoring is the realistic body's
-  // tailor's; the plating suits its library's realistic adapter's; a footwear card on the streamlined core its base
+  // what the GAME BODY wears plain or not at all, said (advice, never a refusal): the plating suits are its library's
+  // realistic adapter's; a footwear card on the streamlined core its base
   if (hero.form !== 'realistic') {
     const words = (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).filter((w) => typeof w === 'string'), only = [];
-    // (a jacket's construction, its zip or open front, rib bands, pockets, collar points and epaulettes, the game body
-    // wears too: authored-jacket.js)
-    const tailored = Object.keys(plan.tailoring ?? {}).filter((k) => k !== 'jacket');
-    if (tailored.length) only.push(`tailoring (${tailored.join(', ')}): a jacket's front and lapels, its shoulder and waist, a tie and a waistcoat's V are made on the realistic body; the game body wears the pieces plain`);
+    // (the tailoring, a jacket's front and shape, a tie and a waistcoat, and a jacket's construction, the game body wears
+    // too: authored-tailoring.js, authored-jacket.js)
     const suits = words.filter((w) => Object.hasOwn(SUITS, w)); if (suits.length) only.push(`${suits.join(', ')}: plated suits are worn on the realistic body; the game body wears none (its armour is an armour build, adorn: { type: 'armor' })`);
     // (a footwear card is the library's on the structured core, through its authored adapter; the streamlined core's feet
     // are boxes it has no foot for)
