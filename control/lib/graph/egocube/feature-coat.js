@@ -15,20 +15,21 @@
  *                                face added under a big zone, its edge a clean line, never the skin's facets
  *   coatLayers({ V, F, field, shapes, weights }, marks, { lift })   → the layers: a layer-1 open mesh part a marking, each
  *                                point bound by the skin's weights there. A mark: { name, group, strokes?, bands?, eggs?
- *                                (the territory of these shapes: where they are nearer than every other shape) }, the later
- *                                lying over the earlier
+ *                                (the territory of these shapes: where they are nearer than every other shape), regions?
+ *                                (eggs that colour and do not shape: a zone's designed outline) }, the later over the
+ *                                earlier. A layer follows the SKIN'S OWN FACES (split on them, never carried onto the
+ *                                field), so the skin, simplified, never stands through it
  *   FEATURE_COAT                 the lift (metres), each later layer's added lift, the refinement, the stroke budget
  *
  * Pure and deterministic: fixed loops, ties by index; no dice, no clock.
  */
 import { sdRoundCone } from '../polygonizer/vajra.js';
-import { simplifyMesh } from '../polygonizer/skin-net.js';
 import { eggDistance } from './feature-body.js';
 
 /** the layer's lift off the skin and each later layer's over it (metres), the refinement under a marking (levels of
- *  four-way splits), the faces a layer keeps per face of the skin under it, and the STROKE BUDGET: a figure's strokes
+ *  four-way splits), and the STROKE BUDGET: a figure's strokes
  *  and bands together (the hair's lesson: few strokes, well placed) */
-export const FEATURE_COAT = Object.freeze({ lift: 0.0016, step: 0.0009, levels: 1, keep: 1.2, budget: 24 });
+export const FEATURE_COAT = Object.freeze({ lift: 0.0016, step: 0.0009, levels: 1, budget: 24 });
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -71,6 +72,7 @@ function markField(mark, field, shapes) {
       return Math.max(Math.abs(a) - (B.w + tooth), Math.hypot(...d) - B.R);
     });
   }
+  for (const E of mark.regions ?? []) parts.push((q) => eggDistance(E, [q.x, q.y, q.z]));
   if (mark.eggs?.length) {
     const own = shapes.filter((E) => mark.eggs.includes(E.name)), rest = shapes.filter((E) => !mark.eggs.includes(E.name));
     parts.push((q) => { const p = [q.x, q.y, q.z]; let a = Infinity, b = Infinity; for (const E of own) a = Math.min(a, eggDistance(E, p)); for (const E of rest) b = Math.min(b, eggDistance(E, p)); return a - b; });
@@ -106,20 +108,20 @@ export function coatLayers({ V, F, field, shapes, weights }, marks, { lift = FEA
   return marks.map((mark, order) => {
     const m = markField(mark, field, shapes), mv = V.map(m);
     // 1. the skin's faces under the marking or at its edge (a margin of an edge's length), split `levels` times four ways,
-    // each new point carried onto the skin (no face kept here touches one not kept that is inside: no crack)
+    // each new point on the skin's face it splits (no face kept here touches one not kept that is inside: no crack)
     const edgeLen = (t) => Math.max(...[0, 1, 2].map((k) => Math.hypot(...sub(V[t[k]], V[t[(k + 1) % 3]]))));
     let P = [], T = [], idx = new Map();
     const pid = (p) => { const k = p.map((x) => Math.round(x * 1e7)).join(','); let i = idx.get(k); if (i === undefined) { i = P.length; P.push(p); idx.set(k, i); } return i; };
     for (const t of F) if (Math.min(mv[t[0]], mv[t[1]], mv[t[2]]) < edgeLen(t)) T.push(t.map((v) => pid(V[v])));
     for (let l = 0; l < levels; l++) {
       const mid = new Map(), next = [];
-      const midOf = (a, b) => { const k = a < b ? `${a}|${b}` : `${b}|${a}`; let i = mid.get(k); if (i === undefined) { i = P.length; P.push(onSkin(field, lerp(P[a], P[b], 0.5))); mid.set(k, i); } return i; };
+      const midOf = (a, b) => { const k = a < b ? `${a}|${b}` : `${b}|${a}`; let i = mid.get(k); if (i === undefined) { i = P.length; P.push(lerp(P[a], P[b], 0.5)); mid.set(k, i); } return i; };
       for (const [a, b, c] of T) { const ab = midOf(a, b), bc = midOf(b, c), ca = midOf(c, a); next.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]); }
       T = next;
     }
     // 2. clipped exactly along the marking's edge: a face across it cut on its edges' crossings (shared by both faces)
     const d = P.map(m), cut = new Map(), Q = [...P], out = [];
-    const cross = (a, b) => { const k = a < b ? `${a}|${b}` : `${b}|${a}`; let i = cut.get(k); if (i === undefined) { const t = d[a] / (d[a] - d[b]); i = Q.length; Q.push(onSkin(field, lerp(Q[a], Q[b], t))); cut.set(k, i); } return i; };
+    const cross = (a, b) => { const k = a < b ? `${a}|${b}` : `${b}|${a}`; let i = cut.get(k); if (i === undefined) { const t = d[a] / (d[a] - d[b]); i = Q.length; Q.push(lerp(Q[a], Q[b], t)); cut.set(k, i); } return i; };
     for (const t of T) {
       const inn = t.map((v) => d[v] < 0), n = inn.filter(Boolean).length;
       if (n === 3) out.push(t); else if (n === 0) continue;
@@ -129,13 +131,13 @@ export function coatLayers({ V, F, field, shapes, weights }, marks, { lift = FEA
         if (n === 2 && !inn[(k + 2) % 3] && inn[k] && inn[(k + 1) % 3]) { const bc = cross(b, c), ca = cross(c, a); out.push([a, b, bc], [a, bc, ca]); }
       }
     }
-    // 3. simplified back toward the skin's density inside, its edge kept
+    // 3. the layer's own points and faces
     const ids = [...new Set(out.flat())].sort((a, b) => a - b), re = new Map(ids.map((v, i) => [v, i]));
     const V0 = ids.map((v) => Q[v]), F0 = out.map((t) => t.map((v) => re.get(v)));
     const edges = new Map(); for (const t of F0) for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3], key = a < b ? `${a}|${b}` : `${b}|${a}`; edges.set(key, (edges.get(key) ?? 0) + 1); }
     const rim = new Set(); for (const [key, n] of edges) if (n === 1) for (const v of key.split('|')) rim.add(+v);
-    const under = F.filter((t) => Math.max(mv[t[0]], mv[t[1]], mv[t[2]]) < 0).length + rim.size / 2;
-    const S = F0.length > 64 ? simplifyMesh(V0, F0, { target: Math.max(64, Math.round(under * FEATURE_COAT.keep)), locked: V0.map((_, v) => (rim.has(v) ? 1 : 0)), turn: 0.3 }) : { V: V0, F: F0, of: V0.map((_, i) => i) };
+    // (not simplified: a collapse would move a point off the skin's face, inside a curve, and the skin would stand through)
+    const S = { V: V0, F: F0 };
     // 4. lifted off the skin, the later over the earlier; its edge walled down to the skin
     const h = lift + order * step, points = {}, normals = {}, faces = {}, blend = {};
     const N = S.V.map((p) => grad(p));

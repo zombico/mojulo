@@ -163,11 +163,11 @@ export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.f
  *   hipZ, neckZ, top   the pelvis's hub, the torso's top, the crown
  *   head    the egg the face is placed on (the cranium: its centre and radii as an ellipsoid), muzzle the mouth's
  */
-const ARM = unit([0.74, 0.1, -0.66]), SPREAD = unit(cross(ARM, [0, 1, 0]));
+const ARM = unit([0.86, 0.12, -0.5]), SPREAD = unit(cross(ARM, [0, 1, 0]));
 const at = (p, d, s) => add(p, mul(d, s));
 export const FEATURE_BUILDS = Object.freeze({
   procyonid: (() => {
-    const sh = [0.66, 0.04, 2.02], el = at(sh, ARM, 0.5), wr = at(el, ARM, 0.44), kn = at(wr, ARM, 0.24);
+    const sh = [0.88, 0.1, 2.0], el = at(sh, ARM, 0.42), wr = at(el, ARM, 0.38), kn = at(wr, ARM, 0.22);
     return Object.freeze({
       heads: 3.3,
       eggs: [
@@ -180,41 +180,41 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'chin', c: [0, 0.36, 2.37], u: [0, 1, 0], r: [0.15, 0.16, 0.12], bone: 'head', group: 'Belly', join: 0.1 },
         { name: 'nose', c: [0, 0.79, 2.58], u: [0, 1, 0.2], r: [0.09, 0.11, 0.08], bone: 'head', group: 'Nose', join: 0.03 },
         { name: 'earR', c: [0.46, -0.1, 3.24], u: [0.38, -0.1, 1], r: [0.27, 0.21, 0.08], e: 0.75, hint: [1, 0, 0], bone: 'head', join: 0.08 },
-        // the body: the chest under the head and the belly low and forward (one pear), the pale front, the haunches
-        { name: 'chest', c: [0, 0.03, 1.86], u: [0, 0, 1], r: [0.62, 0.72, 0.64], e: 0.25, bone: 'torso', join: 0.32 },
-        { name: 'belly', c: [0, 0.08, 1.02], u: [0, 0, 1], r: [0.84, 0.86, 0.82], e: 0.3, bone: 'pelvis', join: 0.32 },
-        { name: 'front', c: [0, 0.3, 1.3], u: [0, 0, 1], r: [0.72, 0.6, 0.58], e: 0.2, bone: 'pelvis', group: 'Belly', join: 0.3 },
-        { name: 'haunchR', c: [0.48, -0.06, 0.64], u: [0, 0, 1], r: [0.42, 0.38, 0.46], e: 0.2, bone: 'thighR', join: 0.24 },
-        { name: 'shinR', c: [0.46, 0.03, 0.28], u: [0, 0, 1], r: [0.2, 0.17, 0.18], bone: 'shinR', join: 0.12 },
-        { name: 'footR', c: [0.46, 0.17, 0.09], u: [0, 1, 0], r: [0.27, 0.19, 0.09], e: 0.25, hint: [1, 0, 0], bone: 'metaR', group: 'Patch', join: 0.08 },
+        // the body, the dominant mass (the reference's: wider than the head, about 2.4 heads across and 2.2 tall, nearly on
+        // the ground): the chest under the head and the belly low, round and forward, its pale front most of it, the
+        // haunches wide, the legs all but hidden under it, the feet small and turned a little out
+        { name: 'chest', c: [0, 0.05, 1.95], u: [0, 0, 1], r: [0.5, 0.95, 0.8], e: 0.2, bone: 'torso', join: 0.35 },
+        { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
+        { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
+        { name: 'haunchR', c: [0.62, 0.0, 0.5], u: [0, 0, 1], r: [0.4, 0.42, 0.45], e: 0.2, bone: 'thighR', join: 0.28 },
+        { name: 'shinR', c: [0.55, 0.08, 0.18], u: [0, 0, 1], r: [0.14, 0.15, 0.15], bone: 'shinR', join: 0.1 },
+        { name: 'footR', c: [0.56, 0.28, 0.07], u: [0.2, 1, 0], r: [0.24, 0.16, 0.075], e: 0.25, hint: [1, 0, 0], bone: 'metaR', group: 'Patch', join: 0.07 },
         // the palm: a flat egg, the hand's paddle facing front (the fingers fan across it: `digits`)
-        { name: 'pawR', c: at(wr, ARM, 0.09), u: ARM, r: [0.12, 0.12, 0.065], e: 0.15, hint: SPREAD, bone: 'handR', group: 'Patch', join: 0.04 },
+        { name: 'pawR', c: at(wr, ARM, 0.09), u: ARM, r: [0.13, 0.13, 0.075], e: 0.15, hint: SPREAD, bone: 'handR', group: 'Patch', join: 0.04 },
         // the tail: out from the lower back, rising, thick (the brush), its eggs overlapping so it reads as one
-        { name: 'tail0', c: [0, -0.86, 0.74], u: [0, -1, 0.3], r: [0.34, 0.3, 0.3], bone: 'pelvis', join: 0.26 },
-        { name: 'tail1', c: [0, -1.26, 0.92], u: [0, -0.9, 0.45], r: [0.38, 0.38, 0.36], bone: 'pelvis', join: 0.26 },
-        { name: 'tail2', c: [0, -1.6, 1.2], u: [0, -0.6, 0.8], r: [0.38, 0.38, 0.36], bone: 'pelvis', join: 0.26 },
-        { name: 'tail3', c: [0, -1.76, 1.6], u: [0, -0.15, 1], r: [0.34, 0.32, 0.3], e: 0.55, bone: 'pelvis', join: 0.26 },
+        { name: 'tail0', c: [0, -1.05, 0.62], u: [0, -1, 0.3], r: [0.4, 0.36, 0.36], bone: 'pelvis', join: 0.3 },
+        { name: 'tail1', c: [0, -1.55, 0.84], u: [0, -0.9, 0.45], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
+        { name: 'tail2', c: [0, -1.95, 1.22], u: [0, -0.6, 0.8], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
+        { name: 'tail3', c: [0, -2.12, 1.72], u: [0, -0.15, 1], r: [0.42, 0.4, 0.38], e: 0.5, bone: 'pelvis', join: 0.3 },
       ],
       // the fur's pointed details on the round masses (round blobs, pointy fur): the cheeks end in a fan of locks out,
-      // down and back; the chest's pale fur points down over the belly; the tail's brush ends in a point
+      // down and back; the tail's brush ends in a point
       tufts: [
         { name: 'cheekAR', root: [0.66, 0.04, 2.5], aim: [0.92, -0.1, -0.38], len: 0.44, r: 0.17, curl: 22, bend: [0, -0.3, -1], bone: 'head', join: 0.07 },
         { name: 'cheekBR', root: [0.6, 0.0, 2.36], aim: [0.62, -0.15, -0.78], len: 0.38, r: 0.15, curl: 18, bend: [0, -1, -0.4], bone: 'head', join: 0.07 },
         { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
-        { name: 'chestTuftR', root: [0.22, 0.58, 2.0], aim: [0.3, 0.45, -1], len: 0.3, r: 0.13, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
-        { name: 'chestTuft', root: [0, 0.62, 1.96], aim: [0, 0.5, -1], len: 0.34, r: 0.14, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
         // the dome's spikes: the cheeks' rhythm again, smaller, and NOT mirrored: three locks of falling length, their roots
         // staggered so each overlaps the next, all swept one way (to the right and a little forward, their tips curling
         // down), a combed swoosh
         { name: 'crownA', root: [-0.14, 0.16, 3.3], aim: [0.42, 0.28, 1], len: 0.4, r: 0.12, curl: 24, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
         { name: 'crownB', root: [-0.01, 0.06, 3.34], aim: [0.5, 0.2, 1], len: 0.33, r: 0.11, curl: 22, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
         { name: 'crownC', root: [0.12, -0.04, 3.32], aim: [0.6, 0.12, 1], len: 0.26, r: 0.095, curl: 20, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
-        { name: 'tailTip', root: [0, -1.8, 1.82], aim: [0, -0.35, 1], len: 0.3, r: 0.17, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
+        { name: 'tailTip', root: [0, -2.16, 2.02], aim: [0, -0.35, 1], len: 0.34, r: 0.2, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
       ],
       // the forelimbs, streamlined: two cones each, shoulder to elbow to wrist, resting out from the body
       limbs: [
-        { name: 'upperArmR', a: sh, b: el, ra: 0.16, rb: 0.125, bone: 'upperArmR', join: 0.07 },
-        { name: 'foreArmR', a: el, b: wr, ra: 0.125, rb: 0.1, bone: 'foreArmR', join: 0.05 },
+        { name: 'upperArmR', a: sh, b: el, ra: 0.2, rb: 0.16, bone: 'upperArmR', join: 0.05 },
+        { name: 'foreArmR', a: el, b: wr, ra: 0.16, rb: 0.13, bone: 'foreArmR', join: 0.04 },
       ],
       // the raccoon's hands: five long fingers fanned across the palm (the thumb shortest and set back, on the upper
       // edge), each two links on two bones from its knuckle; rounded tips, not points (fingers are not fur)
@@ -228,24 +228,24 @@ export const FEATURE_BUILDS = Object.freeze({
       marks: [
         { name: 'muzzle', group: 'Belly', eggs: ['muzzle', 'chin', 'jowlR', 'jowlL'] },
         { name: 'nose', group: 'Nose', eggs: ['nose'] },
-        { name: 'belly', group: 'Belly', eggs: ['front', 'chestTuft', 'chestTuftR', 'chestTuftL'] },
+        { name: 'belly', group: 'Belly', regions: [{ c: [0, 0.9, 1.32], u: [0, -0.1, 1], r: [1.02, 0.82, 0.55], e: 0.3 }] },
         { name: 'paws', group: 'Patch', eggs: ['pawR', 'pawL', 'footR', 'footL', ...[1, 2, 3, 4, 5].flatMap((i) => ['a', 'b'].flatMap((l) => [`digit${i}${l}R`, `digit${i}${l}L`]))] },
         { name: 'tailTip', group: 'Patch', eggs: ['tailTip'] },
         { name: 'mask', group: 'Patch', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
         { name: 'stripe', group: 'Patch', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
         { name: 'ears', group: 'EarInner', strokes: [{ both: true, points: [[0.44, 0.0, 3.08], [0.5, -0.02, 3.3], [0.55, -0.05, 3.48]], r: [0.1, 0.08, 0.02] }] },
         { name: 'rings', group: 'Patch', bands: [
-          { c: [0, -1.18, 0.88], axis: [0, -0.9, 0.45], w: 0.07, R: 0.5, teeth: 9, depth: 0.03 },
-          { c: [0, -1.56, 1.14], axis: [0, -0.6, 0.8], w: 0.07, R: 0.5, teeth: 9, depth: 0.03 },
-          { c: [0, -1.76, 1.52], axis: [0, -0.2, 1], w: 0.06, R: 0.45, teeth: 9, depth: 0.03 },
+          { c: [0, -1.5, 0.82], axis: [0, -0.9, 0.45], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
+          { c: [0, -1.92, 1.2], axis: [0, -0.6, 0.8], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
+          { c: [0, -2.12, 1.68], axis: [0, -0.2, 1], w: 0.08, R: 0.55, teeth: 9, depth: 0.035 },
         ] },
       ],
       eye: { az: 24, el: 0, r: 0.15, proud: 0.42 },
       // the mouth on the muzzle: the nose's foot, the line's middle and right corner, the pivot it opens about; a full
       // smile raises a corner `rise`, the line sags `sag` between
       mouth: { nose: [0, 0.82, 2.48], centre: [0, 0.77, 2.41], corner: [0.17, 0.63, 2.42], pivot: [0, 0.42, 2.52], rise: 0.05, sag: 0.012 },
-      joints: { hip: [0.46, 0, 0.76], knee: [0.47, 0.06, 0.42], ankle: [0.47, -0.02, 0.15], toeBase: [0.47, 0.25, 0.06], toeTip: [0.47, 0.42, 0.04], shoulder: sh, elbow: el, wrist: wr, knuckles: kn },
-      hipZ: 0.76, neckZ: 2.3, top: 3.42,
+      joints: { hip: [0.58, 0, 0.55], knee: [0.56, 0.08, 0.32], ankle: [0.55, 0.05, 0.1], toeBase: [0.57, 0.32, 0.05], toeTip: [0.59, 0.48, 0.03], shoulder: sh, elbow: el, wrist: wr, knuckles: kn },
+      hipZ: 0.55, neckZ: 2.35, top: 3.42,
       head: { C: [0, 0.02, 2.8], rx: 0.72, ry: 0.6, rz: 0.55 },
       muzzle: { C: [0, 0.54, 2.52], rx: 0.22, ry: 0.3, rz: 0.18 },
     });
@@ -288,6 +288,7 @@ function laidOut(build, height) {
   // (the coat's marks in metres: a stroke drawn `both` mirrored to the left)
   const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group,
     ...(m.eggs ? { eggs: m.eggs } : {}),
+    ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map(S), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
     ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h })) } : {}) }));
   const ell = (E) => ({ C: S(E.C), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });

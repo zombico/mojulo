@@ -12,6 +12,10 @@ follow.
   bone, its eggliness the share of its fat end. The eggs blend smoothly into one skin, netted along its surface, its
   normals from the field. The skin's weights come from the blend: a point belongs to the bones of the eggs it is made of,
   so a joint bends where its eggs meet.
+- **The raccoon's proportions are the reference's.** The body is the dominant mass, a round egg about 2.4 heads across
+  and 2.2 tall, wider than the head, sitting low on small dark feet turned a little out; the arms are short and chunky,
+  the tail as big as the body. The cream belly is a designed zone, from under the chin to near the groin and widest low:
+  a REGION egg, which colours a zone and does not shape the body.
 - **Round blobs, pointy fur details.** The masses are round, and where fur stands off them it ends in tufts: locks drawn
   as the realistic hair draws one, a rounded body tapering to a rounded point along a bending spine, melted into the
   skin at the root only so the point stays sharp. The cheeks end in a fan of them, the chest's pale fur points down,
@@ -20,7 +24,7 @@ follow.
   dropped as an ink blot: the raccoon's mask sweeps out and down to a point aimed as its cheek's lock is, the pale brow
   is an arc ending toward the outer lock, the forehead's stripe tapers to the crown. It is laid on the skin as a thin
   layer of its own, like clothes: the skin under it refined, clipped exactly along its edge, lifted a hair, its edge
-  walled so it has a thickness. Its shape is drawn in a few strokes the way hair is combed (a root, a flow, a point),
+  walled so it has a thickness; its points stay on the skin's own faces, so the skin never stands through it. Its shape is drawn in a few strokes the way hair is combed (a root, a flow, a point),
   and a figure has a stroke budget.
 - **The mouth is part of the muzzle.** A thin dark smile line lies on the skin, running from the nose's foot as the
   philtrum and out to two corners on their own bones, which lift in a smile and drop in a frown. The open mouth is a
