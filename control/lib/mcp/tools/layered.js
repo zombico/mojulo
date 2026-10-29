@@ -307,7 +307,7 @@ function realisticRecipe(recipe, hero) {
   const level = heroHairLevel(hero);
   // (under laws 7 its blades as ALPHA CARDS on the strand texture, hair-depict.js stripMesh `card`: the grass hat before)
   // (under laws 10 the hair as LOCKS, one colour, its register the face's `stylize`: hair-locks.js; the blades before)
-  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
+  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize, laws >= 13) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
   if (scalpHair) wear(scalpHair);
   // (realistic laws 10: hair a clipper took under its shell, the scalp's and a stubble's, is the skin's paint, its shadow
   // by its length: dermal-texture.js `clip`; the recipe carries where, the hero's skin paint reads it)
@@ -366,11 +366,11 @@ function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
   if (!H) { H = heroHair(S, dermis, scalp, { level, budget, cards }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
-/** a head's lock hair (realistic laws 10), kept as its blades are */
-function lockHairOf(S, dermis, scalp, level, stylize) {
-  const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null]);
+/** a head's lock hair (realistic laws 10; sealed against the neck and the body under laws 13), kept as its blades are */
+function lockHairOf(S, dermis, scalp, level, stylize, seal = false) {
+  const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null, ...(seal ? ['seal'] : [])]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroLockHair(S, dermis, scalp, { level, budget: true, stylize }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -793,8 +793,12 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * (head-relational-eye.js SEAT), where laws 2 to 10 left the skin about each opening standing proud of the globe, a tunnel
  * and a dark void between the lids and the eye; 12: the mouth with TEETH (hero-one-skin.js `teeth`: the head's dentition and
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
- * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
-export const REALISTIC_LAWS_VERSION = 12;
+ * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front;
+ * 13: the hair SEALED against the neck and the body (hero-head-layers.js HAIR_SEAL: the head's skin below its base a
+ * collider the hair falls outside, and a hanging point near the skin taking the skin's own bones, so it moves as what it
+ * lies on moves), where laws 10 to 12 let hair beside the jaw sit inside the upper neck and swept a long lock's foot
+ * through the back as the head turned */
+export const REALISTIC_LAWS_VERSION = 13;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are

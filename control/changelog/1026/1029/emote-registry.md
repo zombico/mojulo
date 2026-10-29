@@ -117,3 +117,11 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   additive layer as the breath is. `/hero-live` plays it with the breath, and `face.mjs` writes it. And `/hero-live`'s
   tuned clips no longer shake the body: they were bound to their joints by uuid where the loader binds by name, two
   mixers writing one joint (`heroLive.probe` reads the playback and found it).
+- **The hair sealed against the neck and the body** (realistic laws 13, `hero-head-layers.js` `HAIR_SEAL`): the head's
+  skin below its base (the upper neck under the jaw, which the head's one skin covers) is now a collider the hair falls
+  outside, as the neck part is; and a hanging point within a few centimetres of the skin takes that skin's own bones (the
+  neck's, the trunk's, the clavicles', the shoulder blades'), eased to the height's rule away from it, so the hair moves
+  as what it lies on moves: it rests on the neck and the shoulders as it rests on the head, never sweeping through them
+  as the head turns or the shoulders rise with a breath. On one long-haired hero: 236 hair points inside the upper neck
+  at rest (to 26 mm) and up to 360 inside the back with the head turned (to 30 mm) under laws 12; none under 13 at rest,
+  turned, tilted or nodding. A hero stamped with laws 12 or before keeps its hair.
