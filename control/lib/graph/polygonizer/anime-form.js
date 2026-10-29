@@ -174,7 +174,7 @@ export function buildAnime(r, options = {}) {
       // starts below the brow (dorsumStart) and ramps down to the tip; the muzzle bump follows the lip line
       const N = S.nose, ramp = y > N.dorsumStart ? 0 : y > N.pronasale ? dmath.pow((N.dorsumStart - y) / (N.dorsumStart - N.pronasale), 1.3) : dmath.exp(-(((y - N.pronasale) / 0.05) ** 2));
       // (`shape: 'pyramid'`, sculpt `noseShape`: the nose as a pyramid, pyramidNose)
-      if (!noseOff) z -= f.nose * (N.shape === 'pyramid' ? pyramidNose(N, x, y) : N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
+      if (!noseOff) z -= f.nose * (N.shape === 'pyramid' ? pyramidNose(N, x, y, EYE_Y) : N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
       z -= 0.025 * g(x, 0, 0.18) * g(y, S.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12);
     }
     else { if (!noseOff) z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
@@ -844,18 +844,21 @@ function eyeShapeOf(S, f, L = null) {
  * nose (fading over `noseReach` out from the bridge); each run filleted at `fillet` of it; the rings an eye in a socket is
  * built with, from its outline out to its hole's box */
 export const ORBIT = Object.freeze({ bridge: 0.035, medial: 0.17, lateral: [0.64, 0.2], apex: 0.02, up: 0.2, down: 0.24, noseDrop: 0.14, noseReach: 0.3, fillet: 0.2, rings: 8 });
-/** the pyramid nose (sculpt `noseShape: 'pyramid'`, studio units): the bridge raised `bridge` × the dorsum word at its
- * root (the sculpt's dorsumStart, faded in over `root` above it) and rising straight to the tip, `tip` × the tip word, at
- * the pronasale, cut back under it to the lip over `under`; across, a ridge between two flat side planes, `rootWidth`
- * wide at the root widening to `tipWidth` at the tip; every run filleted as the socket's (`fillet`) */
-export const PYRAMID = Object.freeze({ bridge: 0.08, tip: 0.26, root: 0.06, under: 0.055, rootWidth: 0.06, tipWidth: 0.1 });
-function pyramidNose(N, x, y) {
+/** the pyramid nose (sculpt `noseShape: 'pyramid'`, studio units): its ROOT at the eye's level, where the lids meet (so
+ * the centre line's "<" — the brow, back to the root, out to the tip — keeps step with the socket's), set back there by
+ * `nasion` (easing out `nasionUp` above to the brow and `nasionDown` below), the bridge raised `bridge` × the dorsum word
+ * at the root (faded in over `root` above it) and rising straight to the tip, `tip` × the tip word, at the pronasale, cut
+ * back under it to the lip over `under`; across, a ridge between two flat side planes, `rootWidth` wide at the root
+ * widening to `tipWidth` at the tip (the root's dip `nasionWidth` wide); every run filleted as the socket's (`fillet`) */
+export const PYRAMID = Object.freeze({ bridge: 0.02, tip: 0.16, root: 0.06, under: 0.055, rootWidth: 0.06, tipWidth: 0.1, nasion: 0.015, nasionUp: 0.12, nasionDown: 0.1, nasionWidth: 0.1 });
+function pyramidNose(N, x, y, rootY) {
   const P = PYRAMID, B0 = N.dorsum * P.bridge, T = N.tip * P.tip;
   let proj, hw;
-  if (y >= N.dorsumStart) { proj = B0 * fillet(1 - (y - N.dorsumStart) / P.root); hw = P.rootWidth; }
-  else if (y >= N.pronasale) { const s = (N.dorsumStart - y) / (N.dorsumStart - N.pronasale); proj = B0 + (T - B0) * s; hw = P.rootWidth + (P.tipWidth - P.rootWidth) * s; }
+  if (y >= rootY) { proj = B0 * fillet(1 - (y - rootY) / P.root); hw = P.rootWidth; }
+  else if (y >= N.pronasale) { const s = (rootY - y) / (rootY - N.pronasale); proj = B0 + (T - B0) * s; hw = P.rootWidth + (P.tipWidth - P.rootWidth) * s; }
   else { proj = T * fillet(1 - (N.pronasale - y) / P.under); hw = P.tipWidth; }
-  return proj * fillet(1 - Math.abs(x) / hw);
+  const dip = P.nasion * fillet(1 - (y >= rootY ? (y - rootY) / P.nasionUp : (rootY - y) / P.nasionDown)) * fillet(1 - Math.abs(x) / P.nasionWidth);
+  return proj * fillet(1 - Math.abs(x) / hw) - dip;
 }
 /** a straight run on [0, 1] with its ends filleted (`ORBIT.fillet` of it, parabolic, C1): flat planes, no point */
 const fillet = (t) => { const x = clamp(t), k = ORBIT.fillet; return (x < k ? (x * x) / (2 * k) : x <= 1 - k ? x - k / 2 : 1 - k - ((1 - x) * (1 - x)) / (2 * k)) / (1 - k); };

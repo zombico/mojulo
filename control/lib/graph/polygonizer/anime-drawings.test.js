@@ -3,7 +3,8 @@
 // lowers to); no drawing, or a neutral one, is the head byte for byte; each drawing keeps the head's topology, moves only
 // its own layer's parts and region, and folds no face; layers that share no vertex add exactly. And the head in a socket
 // (sculpt `orbit`): none at 0; the eye set back between the brow and the cheekbone, the nose and the chin kept; the
-// pyramid nose (sculpt `noseShape`) pointing out further; the drawings as whole on them.
+// pyramid nose (sculpt `noseShape`) its bridge raised from the eye's line, its tip no further out; the drawings as whole
+// on them.
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
@@ -76,15 +77,17 @@ describe('the head in a socket (sculpt orbit), and its pyramid nose (sculpt nose
     // (its rings follow the socket: more of them about each eye, the parts laid on it unchanged in count)
     expect(of(B, 'face').length).toBeGreaterThan(of(A, 'face').length); expect(of(B, 'browL').length).toBe(of(A, 'browL').length);
   });
-  it('the pyramid nose: a raised bridge and a tip that points out further; the round one, the base\'s, adds nothing', () => {
+  it('the pyramid nose: its bridge raised from the eye\'s line, its tip no further out than the round one\'s; the round one adds nothing', () => {
     expect(validateAnimeSculpt({ noseShape: 'hook' })[0]).toMatch(/noseShape: one of round, pyramid/);
     expect(sculptBuild('male', resolveAnimeSculpt({ noseShape: 'round' }))).toEqual(sculptBuild('male', resolveAnimeSculpt({})));
-    const A = head(null), B = head({ noseShape: 'pyramid' }), front = (m) => Math.max(...of(m, 'face').map((p) => p[1]));
-    const H = Math.max(...of(A, 'face').map((p) => p[2])) - Math.min(...of(A, 'face').map((p) => p[2]));
-    expect(front(B) - front(A)).toBeGreaterThan(0.005 * H);
-    // (the chin and the crown kept, to the micrometre: the tip is the face's front, so the pin's frame moves with it and
-    // each offset rounds anew)
-    for (const [k, f] of [[2, Math.min], [2, Math.max]]) expect(f(...of(B, 'face').map((p) => p[k]))).toBeCloseTo(f(...of(A, 'face').map((p) => p[k])), 6);
+    // (the same face, its points moved: the centre line's point halfway from the eye's level down to the tip)
+    const A = head(null), B = head({ noseShape: 'pyramid' }), FA = of(A, 'face'), FB = of(B, 'face');
+    const H = Math.max(...FA.map((p) => p[2])) - Math.min(...FA.map((p) => p[2])), tip = FA.reduce((a, p) => (p[1] > a[1] ? p : a)), eye = of(A, 'irisL').reduce((t, p) => t + p[2], 0) / of(A, 'irisL').length;
+    const mid = FA.map((p, i) => [p, i]).filter(([p]) => Math.abs(p[0]) < 1e-4 && p[1] > tip[1] - 0.05).reduce((a, b) => (Math.abs(b[0][2] - (eye + tip[2]) / 2) < Math.abs(a[0][2] - (eye + tip[2]) / 2) ? b : a))[1];
+    expect(FB[mid][1] - FA[mid][1]).toBeGreaterThan(0.002 * H);
+    expect(Math.max(...FB.map((p) => p[1]))).toBeLessThanOrEqual(tip[1] + 0.002 * H);
+    // (the chin and the crown kept, to the micrometre: the pin's frame moves with the face's front and each offset rounds anew)
+    for (const [k, f] of [[2, Math.min], [2, Math.max]]) expect(f(...FB.map((p) => p[k]))).toBeCloseTo(f(...FA.map((p) => p[k])), 6);
   });
   it('keeps every layer\'s drawing whole on it (under the pyramid nose too)', () => {
     for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) socketed.checkDrawing(`socketed ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);

@@ -25,5 +25,7 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   streak or raised rim shows around it. The eye, its lids, its lenses and its brow sit in the socket and act as before. A
   head without it keeps its bytes.
 - **The pyramid nose** (sculpt `noseShape: 'pyramid'`; `round`, the graphic base's, unchanged): a ridge between two flat
-  side planes, the bridge raised from its root between the eyes and rising straight to a tip that points out, its
-  underside cut back to the lip, so the nose reads in profile and at three-quarter. The tip and dorsum words still size it.
+  side planes, its root at the eye's line where the lids meet and set back a little there, the bridge rising straight to
+  a tip no further out than the round nose's, its underside cut back to the lip: in profile the centre line's "<" (the
+  brow, back to the root, out to the tip) keeps step with the socket's, so the nose reads by its bridge, not by sticking
+  out. The tip and dorsum words still size it.
