@@ -26,24 +26,29 @@ export const unrealAssetName = (ref) => String(ref).replace(/[^A-Za-z0-9]/g, '_'
 /* ------------------------------------------------------------- python --- */
 
 /** THE RELIEF (a lit figure carrying a glTF normal map: the realistic hero's, epidermis/dermal-relief.js): its slots go
- * onto M_MojuloLitRelief, the lit twin with a NormalTex input, the normal map Interchange imported bound to it as a
- * normal map (no sRGB, normal-map compression, the green flipped from glTF's OpenGL convention to Unreal's DirectX one).
- * Rebinds the swap's ensure_master, first_texture and unlit_instance; absent, the importer is the one before it. */
+ * onto M_MojuloLitCloth, the lit twin with a NormalTex input, the normal map Interchange imported bound to it as a
+ * normal map (no sRGB, normal-map compression, the green flipped from glTF's OpenGL convention to Unreal's DirectX one),
+ * and an OrmTex input (the clothes' occlusion, roughness and metalness, epidermis/cloth-relief.js, realistic laws 12:
+ * linear, its red the ambient occlusion, its green times Roughness, its blue times Metal; Metal 0 and the texture white
+ * where a figure carries none, so a relief without it is lit as before). A master of its own name: a project's
+ * M_MojuloLitRelief from an import before it is left as it was. Rebinds the swap's ensure_master, first_texture and unlit_instance; absent, the importer is the one before it. */
 const RELIEF_PY = `
 # RELIEF: the figure carries its relief as a glTF normal map on its base colour's UVs, its TANGENT beside its NORMAL (a
-# realistic hero, lit). Its slots go onto M_MojuloLitRelief (the lit twin, a NormalTex input) with the normal map
-# Interchange imported bound to it; the swap finds the two textures by Interchange's parameter names.
+# realistic hero, lit), and its clothes' ORM on the same UVs when it has one. Its slots go onto M_MojuloLitCloth (the lit
+# twin, a NormalTex and an OrmTex input) with the maps Interchange imported bound to it; the swap finds the textures by
+# Interchange's parameter names.
 RELIEF = True
 NORMAL_OF = {}
+ORM_OF = {}
 
 
 def ensure_master():
-    path = MAT_ROOT + '/M_MojuloLitRelief'
+    path = MAT_ROOT + '/M_MojuloLitCloth'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         return unreal.EditorAssetLibrary.load_asset(path)
     unreal.EditorAssetLibrary.make_directory(MAT_ROOT)
     tools = unreal.AssetToolsHelpers.get_asset_tools()
-    mat = tools.create_asset('M_MojuloLitRelief', MAT_ROOT, unreal.Material, unreal.MaterialFactoryNew())
+    mat = tools.create_asset('M_MojuloLitCloth', MAT_ROOT, unreal.Material, unreal.MaterialFactoryNew())
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     ml = unreal.MaterialEditingLibrary
     tex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -600, -200)
@@ -59,7 +64,23 @@ def ensure_master():
     rough = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -300, 200)
     rough.set_editor_property('parameter_name', 'Roughness')
     rough.set_editor_property('default_value', 0.85)
-    ml.connect_material_property(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    orm = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -600, 700)
+    orm.set_editor_property('parameter_name', 'OrmTex')
+    orm.set_editor_property('sampler_type', unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR)
+    if white is not None:
+        orm.set_editor_property('texture', white)
+    metal = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -300, 900)
+    metal.set_editor_property('parameter_name', 'Metal')
+    metal.set_editor_property('default_value', 0.0)
+    rmul = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -100, 250)
+    ml.connect_material_expressions(orm, 'G', rmul, 'A')
+    ml.connect_material_expressions(rough, '', rmul, 'B')
+    ml.connect_material_property(rmul, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    mmul = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -100, 800)
+    ml.connect_material_expressions(orm, 'B', mmul, 'A')
+    ml.connect_material_expressions(metal, '', mmul, 'B')
+    ml.connect_material_property(mmul, '', unreal.MaterialProperty.MP_METALLIC)
+    ml.connect_material_property(orm, 'R', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     ntex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -600, 400)
     ntex.set_editor_property('parameter_name', 'NormalTex')
     ntex.set_editor_property('sampler_type', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
@@ -73,8 +94,8 @@ def ensure_master():
 
 
 def textures_of(mat_iface):
-    # (base, normal): the textures Interchange put on its own material instance, told apart by their parameter's name
-    base, normal = None, None
+    # (base, normal, orm): the textures Interchange put on its own material instance, told apart by their parameter's name
+    base, normal, orm = None, None, None
     try:
         if isinstance(mat_iface, unreal.MaterialInstance):
             for tpv in mat_iface.get_editor_property('texture_parameter_values'):
@@ -84,11 +105,13 @@ def textures_of(mat_iface):
                 name = str(tpv.get_editor_property('parameter_info').get_editor_property('name')).lower()
                 if 'normal' in name:
                     normal = normal or t
+                elif 'rough' in name or 'metal' in name or 'occlusion' in name:
+                    orm = orm or t
                 else:
                     base = base or t
     except Exception:  # noqa: BLE001 — texture recovery is best-effort
         pass
-    return base, normal
+    return base, normal, orm
 
 
 def as_normal_map(t):
@@ -103,10 +126,23 @@ def as_normal_map(t):
     return t
 
 
+def as_linear(t):
+    # an ORM as Unreal reads one: linear, its channels apart (masks compression)
+    try:
+        t.set_editor_property('srgb', False)
+        t.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS)
+        unreal.EditorAssetLibrary.save_loaded_asset(t)
+    except Exception as e:  # noqa: BLE001 — UNPINNED property names
+        unreal.log_warning('[mojulo] orm map settings: ' + str(e))
+    return t
+
+
 def first_texture(mat_iface):
-    base, normal = textures_of(mat_iface) if mat_iface is not None else (None, None)
+    base, normal, orm = textures_of(mat_iface) if mat_iface is not None else (None, None, None)
     if base is not None and normal is not None:
         NORMAL_OF[base.get_path_name()] = normal
+    if base is not None and orm is not None:
+        ORM_OF[base.get_path_name()] = orm
     return base
 
 
@@ -114,7 +150,7 @@ def unlit_instance(master, tex, cache, prefix=None):
     key = tex.get_path_name() if tex is not None else '__white__'
     if key in cache:
         return cache[key]
-    name = (prefix or 'MI_MojuloLitRelief_') + (tex.get_name() if tex is not None else 'White')
+    name = (prefix or 'MI_MojuloLitCloth_') + (tex.get_name() if tex is not None else 'White')
     path = MAT_ROOT + '/' + name
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         mic = unreal.EditorAssetLibrary.load_asset(path)
@@ -128,6 +164,12 @@ def unlit_instance(master, tex, cache, prefix=None):
         if normal is not None and prefix is None:
             unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mic, 'NormalTex', as_normal_map(normal))
             note('relief', instance=name, normal=normal.get_path_name())
+        orm = ORM_OF.get(key)
+        if orm is not None and prefix is None:
+            unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mic, 'OrmTex', as_linear(orm))
+            unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'Metal', 1.0)
+            unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'Roughness', 1.0)
+            note('cloth', instance=name, orm=orm.get_path_name())
         unreal.EditorAssetLibrary.save_asset(path)
     cache[key] = mic
     return mic

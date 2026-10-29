@@ -343,6 +343,9 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
 }
 
 /** The palette a build suggests beneath the operator's own */
+/** a build's LANGUAGE (its card's under its own words), null for none: what a garment is cut and made of (cloth-relief.js
+ * reads its cloths off it) */
+export const outfitLanguage = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? languageOf(c, build.language) : null; };
 export const outfitTones = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? { ...(c.tones || {}) } : {}; };
 
 /** The readout for the hero's dress: the trace of the build as this body wears it (style, dials, lengths, focal,

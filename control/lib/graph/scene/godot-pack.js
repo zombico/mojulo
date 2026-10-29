@@ -175,6 +175,8 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       ...(!anime && f.face ? { face: true, ambientOver: f.face.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
       // THE RELIEF (epidermis/dermal-relief.js): a lit figure carrying its normal map and tangents, said by its ledger
       ...(lit && f.normalTex ? { relief: true } : {}),
+      // THE CLOTH (epidermis/cloth-relief.js, realistic laws 12): its ORM beside the map, said by its ledger
+      ...(lit && f.normalTex && f.ormTex ? { cloth: true } : {}),
     };
   })() : null;
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);

@@ -777,8 +777,11 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * cap kept as a solid shell, one colour, cards only at the hairline and the tips, its register the face's `stylize`), where
  * laws 7 to 9 grew a lawn of banded blades whose bands and grey flecks fought the light; 11: the lids seated on the globes
  * (head-relational-eye.js SEAT), where laws 2 to 10 left the skin about each opening standing proud of the globe, a tunnel
- * and a dark void between the lids and the eye */
-export const REALISTIC_LAWS_VERSION = 11;
+ * and a dark void between the lids and the eye; 12: the clothes' relief on the lit engine export (epidermis/cloth-relief.js:
+ * each garment's tube unrolled onto a cloth page of the skin's atlas, its creases where the body bends, its seams, hems
+ * and grain baked into the normal map beside the head's, and an ORM map, each cloth's roughness and metalness), where laws
+ * 5 to 11 put every garment corner on the atlas's white texel, one roughness for the whole figure; the recipe as laws 11's */
+export const REALISTIC_LAWS_VERSION = 12;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are

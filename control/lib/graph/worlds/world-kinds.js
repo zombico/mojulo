@@ -65,6 +65,8 @@ import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
+import { clothChart, clothOnRecord } from '@/lib/graph/epidermis/cloth-relief';
+import { outfitLanguage } from '@/lib/graph/outfit/expand';
 import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
@@ -798,7 +800,10 @@ export const WORLD_KINDS = {
       // World page as in an export (the page's own sizes, PAGE_SKIN: the body's a size down, the head's where the face's
       // detail is; the payload a PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
       // realistic hero with a head's fit, as before
-      const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN) }) : null;
+      // (THE CLOTH PAGE, realistic laws 12: the clothes' chart for the lit skinned export alone, the one whose relief bakes:
+      // epidermis/cloth-relief.js. Any other export, the page, a hero minted before: none, byte-identical)
+      const clothLit = light.flat && ctx.face && !character && m.hero?.form === 'realistic' && reliefOnRecord(m.hero) && clothOnRecord(m.hero);
+      const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN), ...(clothLit ? { cloth: clothChart(mesh, m.recipe, { language: outfitLanguage(m.hero.outfit) }) } : {}) }) : null;
       const facePaint = facePaint0 ?? skinPaint ?? heroSkin;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })

@@ -229,7 +229,9 @@ it shows white over the jacket at the back and the sides, all its own colour. Th
 same slots lie in the V on every ring it crosses, spread from one roll line to the other, so its edge is a line, not a
 row of teeth where each ring's cut stepped a slot on from the next. Its jacket lies on what it is worn over at a jacket's ease (`fitJacket`), and the
 tiered body's shoulder sockets, which no garment covers, take the outermost sleeve's colour. The folds are the realistic
-body's alone so far, and geometry only (no fold normal map, no weave).
+body's alone so far. On its lit engine export (realistic laws 12) the clothes carry their surface as material besides:
+creases where the body bends, seams, hems, leather's wear and the cloth's grain baked into a normal map, and each cloth's
+roughness and metalness in an ORM map (docs/realistic-body.md, the clothes' relief); the fine weave is not yet.
 
 ## Against the outfit laws
 

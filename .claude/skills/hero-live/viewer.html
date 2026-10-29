@@ -153,6 +153,34 @@ const secondsOf = (clip) => {
   return Math.min(6, Math.max(1.6, (keys - 1) * 0.75));
 };
 
+// ─── the parallax: the figure's map UVs marched into its depth map along the view, in the tangent frame its TANGENT
+// gives (the depth map white at the surface, black `depth` m in; `perM` the UVs a metre spans across and along) ─────
+function parallax(mat, height, rel) {
+  height.colorSpace = THREE.NoColorSpace;
+  const U = { uPomHeight: { value: height }, uPomPerM: { value: new THREE.Vector2(rel.perM[0], rel.perM[1]) }, uPomDepth: { value: rel.depth } };
+  mat.userData.pom = U;
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    const swap = (name) => THREE.ShaderChunk[name].replace(/v(Map|NormalMap|RoughnessMap|MetalnessMap|AoMap)Uv/g, 'pomUv');
+    for (const k of ['map_fragment', 'roughnessmap_fragment', 'metalnessmap_fragment', 'normal_fragment_maps', 'aomap_fragment']) sh.fragmentShader = sh.fragmentShader.replace(`#include <${k}>`, swap(k));
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', `uniform sampler2D uPomHeight; uniform vec2 uPomPerM; uniform float uPomDepth;
+void main() {
+  vec2 pomUv = vMapUv;
+#ifdef USE_TANGENT
+  {
+    vec3 T = normalize( vTangent ), B = normalize( vBitangent ), N = normalize( vNormal ), V = normalize( vViewPosition );
+    vec3 Vt = vec3( dot( V, T ), dot( V, B ), dot( V, N ) );
+    if ( Vt.z > 0.08 && uPomDepth > 0.0 ) {
+      vec2 dir = - Vt.xy / Vt.z * uPomDepth, duv = vec2( dir.x * uPomPerM.x, - dir.y * uPomPerM.y );
+      float layer = 1.0 / 24.0, d = 0.0, h = 1.0 - texture2D( uPomHeight, pomUv ).r;
+      for ( int i = 0; i < 24; i ++ ) { if ( d >= h ) break; d += layer; pomUv += duv * layer; h = 1.0 - texture2D( uPomHeight, pomUv ).r; }
+    }
+  }
+#endif`);
+  };
+  mat.needsUpdate = true;
+}
+
 // ─── loading a variant (a GLB, or one packed as base64 JSON where a host serves no .glb) ─────────────────────
 async function load(v) {
   if (v.loaded) return v.loaded;
@@ -170,7 +198,12 @@ async function load(v) {
     // (the body the largest skinned mesh: a held prop, a pose's pistol, is skinned to the hand too, and framed alone)
     if (o.isSkinnedMesh) { if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
   });
-  for (const m of [body?.material].flat().filter(Boolean)) { m.roughness = 0.62; m.metalness = 0; m.needsUpdate = true; }
+  // (a figure with no ORM of its own a satin skin; one carrying its clothes' ORM, realistic laws 12, as it ships)
+  for (const m of [body?.material].flat().filter(Boolean)) { if (!m.roughnessMap) { m.roughness = 0.62; m.metalness = 0; } m.needsUpdate = true; }
+  // THE PARALLAX (the clothes' depth map the GLB names in its figure material's extras, `mojulo.relief`): marched on the
+  // page as Godot's and Unreal's masters march it, so the eye sees what an engine does
+  const rel = body?.material?.userData?.mojulo?.relief;
+  if (rel && rel.height !== undefined) parallax(body.material, await gltf.parser.getDependency('texture', rel.height), rel);
   root.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(body ?? root);
   const mixer = new THREE.AnimationMixer(root), actions = {};
@@ -343,6 +376,10 @@ window.heroLive = {
   variant: (id) => selectVariant(id), take: (name) => play(name, { fade: 0 }), view: (id) => frame(id), seek, pause: setPaused,
   hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
+  // (the relief's strength on the figure's material, for an eye to read a normal map: 1 as the GLB ships it, 0 none)
+  relief: (k = 1) => { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) if (m.normalScale) m.normalScale.set(k, k); },
+  // (the parallax's depth, a share of the shipped one: 0 off)
+  parallax: (k = 1) => { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) if (m.userData.pom) m.userData.pom.uPomDepth.value = k * (m.userData.mojulo?.relief?.depth ?? 0); },
   state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
   // (a camera for a script. With `bone`, a closeup on that bone as posed at this moment: its head, plus `off` m, from
   // `from`, a direction in the page's space (y up, the figure facing −z), `dist` away; a joint's fold is its child bone's

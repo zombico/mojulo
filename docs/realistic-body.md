@@ -87,8 +87,25 @@ ear its own. The map's size follows the skin's rung (512 texels across the head'
 the head (`headSkin`, `earR`, `earL`) is baked: every other texel is flat, so the body, the hands and what the hero
 wears shade by their vertex normals as before. A hero minted under laws 4 or earlier, an unlit export and the World
 page carry none (the page's fills are unlit). Godot, Unity's glTFast and Blender read the map as they import the GLB;
-the Unreal importer binds it to its lit master (`M_MojuloLitRelief`); a Unity world pack ships figures as rigid parts,
-so the map stays behind there and its ledger says so.
+the Unreal importer binds it to its lit master (`M_MojuloLitCloth`; an import before it made `M_MojuloLitRelief`, left
+as it was); a Unity world pack ships figures as rigid parts, so the map stays behind there and its ledger says so.
+
+## The clothes' relief (realistic laws 12)
+
+A hero minted under realistic laws 12 carries its clothes' surface to an engine too (`epidermis/cloth-relief.js`). On
+the same lit skinned export each garment's tube is unrolled onto a cloth page of the skin's atlas, under the strands
+(around it by its rings' own arc, from its back so the wrap is out of sight, along it by its middles' path, in metres),
+and a height baked there: creases where the body bends (an elbow's crook, behind the knee, the hip's lap, the armpit, the
+cloth stacked at a wrist and broken at an ankle), seams (a limb's inner seam and a leg's outseam, a trunk's side seams,
+an outer layer's centre back), hems, leather's wear, the cloth's grain and a knit's rib, each its cloth's (`CLOTHS`: the
+cloth the outer names, else the outfit's language by its layer, else the group's: leather shoes and belts, rubber soles,
+steel buckles, brass, horn buttons, a silk tie). It is read into the figure's normal map beside the head's, the faces'
+tangents from their own UVs, and into an ORM map (occlusion, roughness, metalness: the GLB's `metallicRoughnessTexture`
+and `occlusionTexture`, the skin's texels the export's own roughness), so leather is satin over its creases, wool dull,
+a buckle metal. The hard goods too small to chart lie on their cloth's swatch, flat, carrying its ORM alone. Every
+feature is at least a texel and a half wide at the skin's rung (a texel 2 mm at L2, 4 at L1, 8 at L0). The recipe is
+laws 11's: a hero minted before, an unlit export and the page carry none, byte-identical. Godot binds the ORM as it
+imports the GLB; the Unreal master takes it as its `OrmTex`.
 
 ## Not yet
 
