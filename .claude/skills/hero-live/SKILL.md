@@ -48,7 +48,7 @@ under the teeth on f and v, rounded on oo and w.
 
 Its EMOTES (the door's `emote`: a name, a list of names, or `{ <clip>: a name | { emote, mirror?, intensity?, seconds?,
 seed? } }`, `control/lib/graph/face-acting/emotes.js`: held states such as `rest`, `vacant`, `daydream`, `absorbed`,
-`waiting`, `drowsy`, `listening`; `face` an emotion over it) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
+`waiting`, `drowsy`, `listening`, `wary`; `face` an emotion over it; `alert` 0 … 1 its wariness, `face-acting/alert.js`) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
 nothing, or focus where the emote names a distance (`listening` converges on a speaker's face a metre off and
 moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js`); to judge a loop's seam, scrub to its end and its start.
 

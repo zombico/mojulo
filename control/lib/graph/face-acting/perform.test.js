@@ -21,7 +21,8 @@ describe('the performer', () => {
     const T = perform(SCENE);
     for (const [k, c] of Object.entries(T.curves)) {
       for (const v of c) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }
-      if (k !== 'AU45') for (let i = 1; i < c.length; i++) expect(Math.abs(c[i] - c[i - 1])).toBeLessThan(0.34);
+      // (a blink lands on each lid's own curve where the face holds the lids by side: the lid following the eye)
+      if (!/^AU45[LR]?$/.test(k)) for (let i = 1; i < c.length; i++) expect(Math.abs(c[i] - c[i - 1])).toBeLessThan(0.34);
     }
     expect(Object.keys(captureFrame(T, Math.round(1.8 * T.fps)))).toEqual(expect.arrayContaining(Object.keys(EMOTIONS.amused)));
   });

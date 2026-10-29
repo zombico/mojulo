@@ -10,7 +10,8 @@
  * reach: [deg, deg] } | null (the small re-fixations of eyes on nothing), scan? { points: [[yaw, pitch]] (degrees from
  * home), weights, dwell: [s, s] } (a listener's eyes between a speaker's eyes and mouth), away? { every, hold, reach }
  * (glances off to a side, unfocused, and back) }, blink: { rate (a minute), slow? (× the blink's length) }, stirs?: [{ face, every: [s, s], up, hold, down
- * (s) } | { tell (an upper-face gesture, parts.js UPPER_GESTURES), every }], seconds (the loop) }. Each part of the face
+ * (s) } | { tell (an upper-face gesture, parts.js UPPER_GESTURES), intensity?, every }], alert? (its wariness,
+ * alert.js: 0 calm … 1 on guard; a spec's `alert` over it, the face's fear raising it), seconds (the loop) }. Each part of the face
  * lives in the hold its own way and pulls on the others as parts.js says.
  *
  *   • THE REGARD: at the far point where it names no distance (the eyes parallel, looking at nothing), focused where it
@@ -26,7 +27,8 @@
 import { auOf } from './facs.js';
 import { composeFace } from './emotions.js';
 import { BLINK, GAZE, CAPTURE_FPS } from './perform.js';
-import { PARTS, partOf, couple, tellOf } from './parts.js';
+import { PARTS, partOf, couple, tellOf, lookLids, lookPulses } from './parts.js';
+import { fearOf, alertFace, alertEyes, alertBlink, alertErrors, addState } from './alert.js';
 import { vergence, EYES } from './gaze.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
@@ -84,6 +86,13 @@ export const FACE_EMOTES = Object.freeze({
       away: { every: [5, 10], hold: [0.4, 0.9], reach: [7, 14] } },
     blink: { rate: 15 }, stirs: [{ tell: 'eyeSmile', intensity: 0.5, every: [5, 9] }], seconds: 12,
   },
+  wary: {
+    words: ['wary', 'on guard', 'watchful', 'uneasy', 'vigilant', 'alert'],
+    reads: 'on guard: the eyes on something a few metres off and checking to the sides, the lids up, the brows faintly set, the blinks held back and quick, a narrowing of the eyes now and then',
+    face: { AU1: 0.06, AU4R: 0.22, AU7L: 0.2, AU24: 0.12 },
+    eyes: { yaw: 0, pitch: -2, distance: 4, drift: 0.3, refix: { every: [1.2, 2.5], reach: [2, 5] } },
+    blink: { rate: 12 }, alert: 0.75, stirs: [{ tell: 'appraise', intensity: 0.6, every: [4, 8] }], seconds: 12,
+  },
 });
 export const FACE_EMOTE_NAMES = Object.freeze(Object.keys(FACE_EMOTES));
 
@@ -107,6 +116,7 @@ export function emoteErrors(spec) {
   const errs = [];
   if (!Object.hasOwn(FACE_EMOTES, S.emote)) errs.push(`emote: '${S.emote}' is not an emote (have ${FACE_EMOTE_NAMES.join(', ')})`);
   if (S.face !== undefined) try { composeFace(S.face); } catch (e) { errs.push(`face: ${e.message}`); }
+  errs.push(...alertErrors(S.alert));
   if (S.intensity !== undefined && !(Number.isFinite(S.intensity) && S.intensity >= 0 && S.intensity <= 2)) errs.push('intensity: 0 … 2');
   if (S.mirror !== undefined && typeof S.mirror !== 'boolean') errs.push('mirror: true | false');
   if (S.seconds !== undefined && !(Number.isFinite(S.seconds) && S.seconds >= 2 && S.seconds <= 60)) errs.push('seconds: 2 … 60');
@@ -121,17 +131,20 @@ export function emoteErrors(spec) {
  * adds to, so the face's own unevenness shows through it), stirs (each its face mirrored and scaled), home (the regard,
  * mirrored), eyes, blink }. The loop (`emoteTake`) and a performance's beat (perform.js) play the same resolution.
  */
-export function emoteState(spec) {
+export function emoteState(spec, { floor = 0 } = {}) {
   const errs = emoteErrors(spec);
   if (errs.length) throw new Error(`emotes: ${errs.join('; ')}`);
   const S = typeof spec === 'string' ? { emote: spec } : spec, C = FACE_EMOTES[S.emote], K = S.intensity ?? 1;
   const side = (st) => (S.mirror ? mirrored(st) : st), scale = (st) => Object.fromEntries(Object.entries(side(st)).map(([k, v]) => [k, clamp01(v * K)]));
   const face = scale(C.face);
   if (S.face !== undefined) for (const [k, v] of Object.entries(composeFace(S.face))) face[k] = clamp01((face[k] ?? 0) + v);
+  // (its wariness: the spec's, else the card's, raised by any fear the face holds; alert.js)
+  const a = Math.max(S.alert ?? C.alert ?? 0, floor, fearOf(face));
   // (a stir is the card's own units, or an upper-face gesture's, parts.js: `tell`, mirrored with the emote)
   const stir = (st) => { if (!st.tell) return { ...st, face: scale(st.face) }; const G = tellOf({ gesture: st.tell, mirror: !!S.mirror, intensity: K * (st.intensity ?? 1) }); return { every: st.every, up: G.up, hold: G.hold, down: G.down, face: G.units, tell: st.tell }; };
-  return { emote: S.emote, card: C, face, stirs: (C.stirs ?? []).map(stir),
-    home: { yaw: (S.mirror ? -1 : 1) * C.eyes.yaw, pitch: C.eyes.pitch, v: C.eyes.distance ? vergence(C.eyes.distance) : 0 }, flip: S.mirror ? -1 : 1, eyes: C.eyes, blink: C.blink };
+  return { emote: S.emote, card: C, face: addState(face, alertFace(a)), stirs: (C.stirs ?? []).map(stir), alert: a,
+    home: { yaw: (S.mirror ? -1 : 1) * C.eyes.yaw, pitch: C.eyes.pitch, v: C.eyes.distance ? vergence(C.eyes.distance) : 0 }, flip: S.mirror ? -1 : 1,
+    eyes: alertEyes(C.eyes, a), blink: alertBlink(C.blink, a) };
 }
 
 /**
@@ -148,7 +161,7 @@ export function regardFixations(E, t0, t1, rnd) {
   for (let t = t0 + 0.5 * span(every); t < t1 - 0.1;) {
     if (t >= nextAway) {
       const r = span(eyes.away.reach), side = rnd() < 0.5 ? -1 : 1;
-      out.push({ t, yaw: home.yaw + side * r, pitch: home.pitch - r * span([0.1, 0.5]), v: 0, away: true });
+      out.push({ t, yaw: home.yaw + side * r, pitch: home.pitch - r * span([0.1, 0.5]), v: eyes.away.distance ? vergence(eyes.away.distance) : 0, away: true });
       t += span(eyes.away.hold); nextAway = t + span(eyes.away.every);
       on = -1; continue;
     }
@@ -216,24 +229,13 @@ export function emoteTake(spec) {
       events.stirs.push({ t: r4(t), dur: r4(len), ...(st.tell ? { tell: st.tell } : {}) });
     }
   }
-  // THE COUPLINGS: the cheek's raise under the lower lid, the brow's weight on the lid (parts.js)
-  couple(curves, n);
-  // THE BLINKS at the card's rate, closing fast and opening slower (perform.js's), `slow` times as long
-  const slow = C.blink.slow ?? 1, mean = 60 / C.blink.rate;
-  const blink = () => [span(BLINK.close) * slow, span(BLINK.shut) * slow, span(BLINK.open) * slow];
-  const longest = (BLINK.close[1] + BLINK.shut[1] + BLINK.open[1]) * slow;
-  for (const t of round(span([0.2, 1.5]), longest, () => Math.max(BLINK.gap, mean * (0.35 + 1.3 * rnd())))) {
-    const [c, s, o] = blink();
-    layer('AU45', t, c, s, o, 1);
-    events.blinks.push({ t: r4(t), dur: r4(c + s + o), cause: 'spontaneous' });
-  }
   // THE REGARD: home, focused at its distance (else the far point); its scan, re-fixations or drift and its glances away
   // round the loop (the last kept only if it clears the first), saccades on the main sequence, the focus following
   // slower; a slow drift of whole cycles
   const home = E.home, fix = E.eyes.refix || E.eyes.scan || E.eyes.away ? regardFixations(E, 0, P, rnd) : [];
   while (fix.length > 1 && fix.at(-1).t + 0.3 > fix[0].t + P) fix.pop();
   const drift = { yaw: [wave(span([0.05, 0.15])), wave(span([0.2, 0.4]))], pitch: [wave(span([0.05, 0.15])), wave(span([0.2, 0.4]))] };
-  const wander = (ws, t) => (C.eyes.drift * ws.reduce((m, [w, ph]) => m + Math.sin(w * t + ph), 0)) / ws.length;
+  const wander = (ws, t) => (E.eyes.drift * ws.reduce((m, [w, ph]) => m + Math.sin(w * t + ph), 0)) / ws.length;
   const yaw = new Array(n), pitch = new Array(n), verg = new Array(n).fill(home.v);
   for (let i = 0; i < n; i++) {
     const t = tOf(i);
@@ -251,6 +253,29 @@ export function emoteTake(spec) {
     pitch[i] = Math.max(-LIMIT, Math.min(LIMIT, at.pitch + wander(drift.pitch, t)));
   }
   fix.forEach((f, k) => { const p = fix[(k - 1 + fix.length) % fix.length], amp = Math.hypot(f.yaw - p.yaw, f.pitch - p.pitch); if (amp > 0.5) events.saccades.push({ t: r4(f.t), dur: r4(GAZE.saccade.base + GAZE.saccade.perDeg * amp), amp: r4(amp) }); });
+  // THE LOOK MOVES THE FACE: the lids and brows following the eye, a large glance's moment of widened lids (parts.js)
+  lookLids(curves, pitch, n);
+  lookPulses(events.saccades, () => E.alert, layer);
+  // THE COUPLINGS: the cheek's raise under the lower lid, the brow's weight on the lid (parts.js)
+  couple(curves, n);
+  // THE BLINKS at the card's rate (its wariness's: alert.js), closing fast and opening slower (perform.js's), `slow` times
+  // as long; and a large gaze shift may take one (more the warier), where it clears the others
+  const slow = E.blink.slow ?? 1, mean = 60 / E.blink.rate;
+  const blink = () => [span(BLINK.close) * slow, span(BLINK.shut) * slow, span(BLINK.open) * slow];
+  const longest = (BLINK.close[1] + BLINK.shut[1] + BLINK.open[1]) * slow;
+  for (const t of round(span([0.2, 1.5]), longest, () => Math.max(BLINK.gap, mean * (0.35 + 1.3 * rnd())))) {
+    const [c, s, o] = blink();
+    layer('AU45', t, c, s, o, 1);
+    events.blinks.push({ t: r4(t), dur: r4(c + s + o), cause: 'spontaneous' });
+  }
+  const shift = E.blink.shift ?? 0;
+  if (shift > 0) for (const sac of events.saccades) {
+    if (sac.amp < BLINK.shiftDeg || !(rnd() < shift)) continue;
+    if (events.blinks.some((b) => Math.min(mod(sac.t - b.t, P), mod(b.t - sac.t, P)) < BLINK.gap)) continue;
+    const [c, s2, o] = blink();
+    layer('AU45', sac.t, c, s2, o, 1);
+    events.blinks.push({ t: sac.t, dur: r4(c + s2 + o), cause: 'gaze' });
+  }
   return {
     fps, seconds: r4(P), frames: n, loop: true, emote: S.emote,
     curves: Object.fromEntries(Object.keys(curves).sort().map((k) => [k, curves[k].map(r4)])),

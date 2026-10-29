@@ -74,3 +74,15 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   same point twice running), glancing away now and then unfocused (`eyes.away`), the brows a little lifted, a smile in
   the eyes at times. A regard's fixations (`regardFixations`) are shared by the loop and a performance's beat that holds
   an emote.
+- **Wariness** (`face-acting/alert.js`, `alert`: 0 calm … 1 on guard, a performance's or a beat's (carried on), an
+  emote spec's or its card's; the fear a face holds raises it by itself, `fearOf`): a wary face WATCHES: its
+  spontaneous blinks thin (to two fifths at 1) and quicken, more of them ride the gaze's shifts; its eyes dwell less,
+  re-fixate wider and CHECK their surroundings (glances off to a side, focused a few metres off, more often and further
+  the warier); its lids rise and its brows take fear's set a little. A beat's `startle`: the reflex blink, taken whatever
+  else wanted one near it, then the eyes fly wide and settle slowly, the beat left wary.
+- **The look moves the face** (`parts.js` `LOOK`, `lookLids`, `lookPulses`): the upper lid follows the eye down (a
+  blink's share a degree) and lifts looking up, the brows with it a little; a large glance widens the lids for a
+  moment, the more the warier. Every take and loop, calm or not.
+- **Wary** (the `wary` emote): on guard by its card (0.75): the eyes on something a few metres off, checking to the
+  sides, the lids up, one brow drawn and the other eye a little narrowed, the blinks held back and quick, an appraising
+  squint now and then.

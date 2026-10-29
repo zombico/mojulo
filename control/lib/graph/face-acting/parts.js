@@ -14,6 +14,8 @@
  *     coupled move rides its cause's timing. A floor, never a sum: a lid already narrower keeps its own.
  *   • THE GESTURES (`UPPER_GESTURES`): cards of a few units (a side its own), a rise, a hold and a fall; a beat's `tell`
  *     (perform.js) and an emote's stir (emotes.js) lay one over the face.
+ *   • THE LOOK (`LOOK`, `lookLids`, `lookPulses`): the upper lid follows the eye down and lifts looking up, the brows
+ *     with it a little; a large glance widens the lids for a moment, the more the warier (alert.js).
  * Artists' and the anatomy's readings, tuned on the eyes gate. Pure tables and arithmetic.
  */
 import { auOf } from './facs.js';
@@ -93,4 +95,41 @@ export function tellOf(T) {
   const S = typeof T === 'string' ? { gesture: T } : T, G = UPPER_GESTURES[S.gesture], K = S.intensity ?? 1;
   const units = Object.fromEntries(Object.entries(G.units).map(([k, v]) => { const [au, s] = auOf(k); return [S.mirror && s ? `${au}${s === 'L' ? 'R' : 'L'}` : k, Math.min(1, v * K)]; }));
   return { gesture: S.gesture, units, up: G.up, hold: G.hold, down: G.down, ...(S.at !== undefined ? { at: S.at } : {}) };
+}
+
+/** THE LOOK MOVES THE FACE: the upper lid follows the eye down (a blink's share a degree under level) and lifts off it
+ * looking up (the lids wide), the brows a little with an upward look; and a saccade of `pulse.min` degrees or more
+ * widens the lids for a moment, `base` calm and `alert` more on guard (alert.js), the inner brows with it on guard */
+export const LOOK = Object.freeze({ down: 0.011, up: 0.008, brow: 0.005, pulse: Object.freeze({ min: 6, base: 0.05, alert: 0.3, brow: 0.15, up: 0.05, hold: 0.15, down: 0.35 }) });
+
+/** a floor under a unit by side (its whole counted), frame by frame, `want(i)` (couple's, for a cause that is no unit) */
+function floorSides(curves, au, want, n) {
+  for (const s of ['L', 'R']) {
+    const whole = curves[au];
+    let out = curves[`${au}${s}`];
+    for (let i = 0; i < n; i++) {
+      const w = want(i) - (whole?.[i] ?? 0);
+      if (w > (out?.[i] ?? 0)) { out ??= curves[`${au}${s}`] = new Array(n).fill(0); out[i] = Math.min(1, w); }
+    }
+  }
+}
+
+/** the lids and the brows following a take's look (`pitch`, degrees a frame), in place: a floor, never a sum */
+export function lookLids(curves, pitch, n) {
+  floorSides(curves, 'AU45', (i) => LOOK.down * Math.max(0, -pitch[i]), n);
+  floorSides(curves, 'AU5', (i) => LOOK.up * Math.max(0, pitch[i]), n);
+  floorSides(curves, 'AU2', (i) => LOOK.brow * Math.max(0, pitch[i]), n);
+  return curves;
+}
+
+/** each large saccade's moment of widened lids (`layer(unit, t, up, hold, down, peak)` the caller's pulse), at the
+ * wariness `alertAt(t)` gives */
+export function lookPulses(saccades, alertAt, layer) {
+  const P = LOOK.pulse;
+  for (const s of saccades) {
+    if (s.amp < P.min) continue;
+    const a = alertAt(s.t);
+    layer('AU5', s.t, P.up, P.hold, P.down, P.base + P.alert * a);
+    if (a > 0) layer('AU1', s.t, P.up, P.hold, P.down, P.brow * a);
+  }
 }

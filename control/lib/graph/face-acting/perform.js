@@ -14,7 +14,9 @@
  * name or { emote, mirror?, intensity? }; the base the beat's `face` adds to, its regard where the beat names no gaze, its
  * blinks' rate and pace but while speaking, its stirs, until the next beat), tell? (an upper-face gesture, parts.js
  * UPPER_GESTURES: a name, { gesture, at?, mirror?, intensity? } or a list: a one-sided brow, the smile in the eyes, an
- * appraising squint …, laid over the face from the beat or its own `at`) }], seconds?,
+ * appraising squint …, laid over the face from the beat or its own `at`), alert? (0 calm … 1 on guard, alert.js: carried
+ * to the beats after it), startle? (a startle on the beat: the reflex blink, then the eyes wide) }], alert? (the
+ * performance's wariness, 0 … 1), seconds?,
  * intensity? (1), seed? (1), fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds
  * past the last beat or the last line's end, whichever is later).
  *
@@ -39,6 +41,10 @@
  *     the stretch's corners in; a pressed, tightened or sucked lip, and the face's own jaw, let go while the line runs), and keeps the rest: the
  *     brows, the eyes, the corners' set. An emphasized word lifts the brows (Ekman's baton), and a sentence's close may
  *     take a blink.
+ *   • WARINESS (alert.js): a performance's, a beat's, or the fear a face holds: the spontaneous blinks thin and quicken,
+ *     more of them ride the gaze's shifts, the eyes CHECK their surroundings (glances off, focused), the lids rise and
+ *     the brows take fear's set a little; a STARTLE blinks hard and the eyes fly wide. And THE LOOK moves the face
+ *     (parts.js): the upper lid follows the eye down and lifts looking up, a large glance widens the lids for a moment.
  *   • THE GAZE: fixations with a little drift, saccades between them timed by the main sequence (a saccade's duration
  *     grows with its amplitude: about 21 ms plus 2.2 ms a degree), the eyes away while thinking (gaze aversion while
  *     retrieving), on the listener while listening, glancing off now and then while speaking.
@@ -54,7 +60,8 @@ import { speak, speechErrors } from './speech.js';
 import { MOUTH, overMouth } from './mouth.js';
 import { emoteErrors, emoteState, sidesOf, regardFixations } from './emotes.js';
 import { vergence, EYES } from './gaze.js';
-import { PARTS, partOf, couple, tellErrors, tellOf } from './parts.js';
+import { PARTS, partOf, couple, tellErrors, tellOf, lookLids, lookPulses } from './parts.js';
+import { ALERT, STARTLE, fearOf, alertFace, alertBlink, alertErrors, addState } from './alert.js';
 
 export const CAPTURE_FPS = 60;
 /** a change's timing, seconds: [shortest, longest], the onset rising, the offset falling; the upper face's lead */
@@ -112,12 +119,15 @@ export function performanceErrors(P) {
     if (b.say !== undefined) errs.push(...speechErrors(b.say).map((e) => `${at}.${e}`));
     if (b.emote !== undefined) errs.push(...emoteErrors(b.emote).map((e) => `${at}.${e}`));
     if (b.tell !== undefined) for (const T of [b.tell].flat()) errs.push(...tellErrors(T).map((e) => `${at}.${e}`));
+    errs.push(...alertErrors(b.alert, `${at}.alert`));
+    if (b.startle !== undefined && typeof b.startle !== 'boolean') errs.push(`${at}.startle: true | false`);
     // (a recording is saved by the character door, which keeps its id: a path here would play nothing)
     if (b.say && typeof b.say === 'object' && b.say.audio !== undefined) errs.push(`${at}.say.audio: a recording is saved by the door (create_character or update_character, recordings.js), which keeps its id; a performance holds no path`);
     const g = b.gaze;
     if (g !== undefined && !(typeof g === 'string' ? ['listener', 'away', 'down', 'up'].includes(g) : g && Number.isFinite(g.yaw) && Number.isFinite(g.pitch) && (g.distance === undefined || (Number.isFinite(g.distance) && g.distance > 0)))) errs.push(`${at}.gaze: 'listener' | 'away' | 'down' | 'up' | { yaw, pitch, distance? (m) }`);
   });
   if (P.seconds !== undefined && !(Number.isFinite(P.seconds) && P.seconds > 0)) errs.push('seconds: more than 0');
+  errs.push(...alertErrors(P.alert));
   return errs;
 }
 
@@ -131,8 +141,16 @@ export function perform(P) {
   const fps = P.fps ?? CAPTURE_FPS, rnd = mulberry32((P.seed ?? 1) >>> 0), K = P.intensity ?? 1;
   const span = (r) => lerp(r[0], r[1], rnd());
   // (a beat's held state: an emote's face, the beat's own face over it, or the face alone)
-  const held = (b) => b.emote === undefined ? null : emoteState({ ...(typeof b.emote === 'string' ? { emote: b.emote } : b.emote), ...(b.face !== undefined ? { face: b.face } : {}) });
-  const beats = [...P.beats].sort((a, b) => a.at - b.at).map((b) => { const E = held(b); return { ...b, ...(b.say !== undefined && !b.state ? { state: 'speaking' } : {}), ...(E ? { E } : {}), S: Object.fromEntries(Object.entries(E ? E.face : composeFace(b.face ?? 'neutral')).map(([k, v]) => [k, clamp01(v * K)])) }; });
+  const held = (b, floor) => b.emote === undefined ? null : emoteState({ ...(typeof b.emote === 'string' ? { emote: b.emote } : b.emote), ...(b.face !== undefined ? { face: b.face } : {}) }, { floor });
+  // (each beat's wariness, alert.js: the performance's, a beat's own carried on, a startle's floor for its beat, raised
+  // by any fear its face holds; the wariness's face over its own)
+  let carry = P.alert ?? 0;
+  const beats = [...P.beats].sort((a, b) => a.at - b.at).map((b) => {
+    if (b.alert !== undefined) carry = b.alert;
+    const floor = Math.max(carry, b.startle ? STARTLE.leaves : 0), E = held(b, floor);
+    const S0 = E ? E.face : composeFace(b.face ?? 'neutral'), a = E ? E.alert : Math.max(floor, fearOf(S0));
+    return { ...b, ...(b.say !== undefined && !b.state ? { state: 'speaking' } : {}), ...(E ? { E } : {}), a, S: Object.fromEntries(Object.entries(E ? S0 : addState(S0, alertFace(a))).map(([k, v]) => [k, clamp01(v * K)])) };
+  });
   // (the lines, each spoken from its beat)
   const lines = beats.filter((b) => b.say !== undefined).map((b) => ({ at: b.at, say: b.say, take: speak(b.say, { fps }) }));
   const seconds = P.seconds ?? Math.max(beats.at(-1).at + 2, ...lines.map((L) => L.at + L.take.seconds + 0.5)), n = Math.max(1, Math.round(seconds * fps) + 1), tOf = (i) => i / fps;
@@ -222,7 +240,7 @@ export function perform(P) {
   const stateAt = (t) => { let s = 'listening'; for (const b of beats) if (b.at <= t + 1e-9 && b.state) s = b.state; return s; };
   // (the beat at a moment, and its blinks' rate: an emote's own but while speaking, else the state's)
   const beatAt = (t) => { let c = null; for (const b of beats) if (b.at <= t + 1e-9) c = b; return c; };
-  const rateAt = (t) => { const E = beatAt(t)?.E, st = stateAt(t); return E && st !== 'speaking' ? E.blink.rate : BLINK.rate[st]; };
+  const rateAt = (t) => { const b = beatAt(t), st = stateAt(t); return b?.E && st !== 'speaking' ? b.E.blink.rate : alertBlink({ rate: BLINK.rate[st] }, b?.a ?? 0).rate; };
   // (each fixation its focus `v`, the eyes' convergence in degrees: a target's distance's, gaze.js, else the far point)
   const focus = (g) => ({ yaw: g.yaw, pitch: g.pitch, v: g.v ?? (g.distance ? vergence(g.distance) : 0) });
   const awayTarget = () => ({ yaw: (rnd() < 0.5 ? -1 : 1) * span(GAZE.away.yaw), pitch: span(GAZE.away.pitch), v: 0 });
@@ -241,7 +259,15 @@ export function perform(P) {
     const every = b.E ? b.E.eyes.refix?.every ?? [2, 4] : GAZE.drift.every;
     let t = Math.max(0, b.at - DYNAMICS.lead) + span(every);
     let nextGlance = b.at + span(GAZE.glance.every);
+    // (a wary beat CHECKS: glances off to a side, focused on what they check, more often the warier: alert.js)
+    const C = ALERT.eyes.check, wary = b.a > 0.15, quick = 1 - ALERT.eyes.quicken * b.a;
+    let nextCheck = wary ? b.at + span(C.every) * quick : Infinity;
     while (t < end - 0.1) {
+      if (t >= nextCheck) {
+        const r = span(C.reach) * (1 + 0.5 * b.a), back = Math.min(end - 0.05, t + span(C.hold));
+        fix.push({ t, yaw: home.yaw + (rnd() < 0.5 ? -1 : 1) * r, pitch: home.pitch - r * span([0.05, 0.35]), v: vergence(C.distance) }); fix.push({ t: back, ...home });
+        nextCheck = back + span(C.every) * quick; t = back + span(every); continue;
+      }
       if (stateAt(t) === 'speaking' && t >= nextGlance) {
         nextGlance = t + span(GAZE.glance.every);
         if (rnd() < GAZE.glance.chance) { const a = awayTarget(), back = Math.min(end - 0.05, t + span(GAZE.glance.hold)); fix.push({ t, ...a }); fix.push({ t: back, ...home }); t = back + span(every); continue; }
@@ -268,12 +294,16 @@ export function perform(P) {
       yaw[i] = cur.yaw; pitch[i] = cur.pitch; verg[i] = vNow;
     }
   }
-  // THE BLINKS: the spontaneous, by the state's rate; the mind's, at a beat's change and with a large saccade; none on a
-  // face that holds its eyes shut, none closer than the least gap
+  // THE LOOK MOVES THE FACE: the lids and the brows following the eye, a large glance's moment of widened lids, the
+  // more the warier (parts.js)
+  lookLids(curves, pitch, n);
+  lookPulses(events.saccades, (t) => beatAt(t)?.a ?? 0, layer);
+  // THE BLINKS: the spontaneous, by the state's rate (thinned the warier); the mind's, at a beat's change and with a
+  // large saccade (more the warier); a startle's; none on a face that holds its eyes shut, none closer than the least gap
   const shut = (t) => { const i = Math.min(n - 1, Math.round(t * fps)); return Math.max(curves.AU45?.[i] ?? 0, curves.AU45L?.[i] ?? 0, curves.AU45R?.[i] ?? 0) > 0.9; };
   const wants = [];
   for (const b of beats.slice(1)) if (rnd() < BLINK.beat) wants.push({ t: b.at + 0.05, cause: 'thought' });
-  for (const s of events.saccades) if (s.amp > BLINK.shiftDeg && rnd() < BLINK.shift) wants.push({ t: s.t, cause: 'gaze' });
+  for (const s of events.saccades) if (s.amp > BLINK.shiftDeg && rnd() < BLINK.shift + ALERT.blink.shift * (beatAt(s.t)?.a ?? 0)) wants.push({ t: s.t, cause: 'gaze' });
   // (a sentence's close, in a line's pause at a stop)
   for (const L of events.lines) for (const q of L.phonemes.slice(1, -1)) if (q.p === 'sil' && q.dur >= 0.3 && rnd() < SPEAKING.phrase) wants.push({ t: q.t + 0.05, cause: 'phrase' });
   for (let t = span([0.2, 1.5]); t < seconds; ) {
@@ -281,14 +311,24 @@ export function perform(P) {
     const mean = 60 / rateAt(t);
     t += Math.max(BLINK.gap, mean * (0.35 + 1.3 * rnd()));
   }
+  // (a startle's reflex blink is taken whatever else wanted one near it)
+  const startles = beats.filter((b) => b.startle).map((b) => ({ t: b.at, cause: 'startle' }));
+  wants.splice(0, wants.length, ...wants.filter((w) => !startles.some((x) => Math.abs(w.t - x.t) < BLINK.gap)), ...startles);
   wants.sort((a, b) => a.t - b.t);
   let last = -Infinity;
   for (const w of wants) {
+    if (w.cause === 'startle') {
+      const X = STARTLE, after = w.t + X.close + X.shut + X.open * 0.5;
+      layer('AU45', w.t, X.close, X.shut, X.open, 1);
+      for (const [k, v] of Object.entries(X.widen)) layer(k, after, X.rise, X.hold, X.fall, clamp01(v * K));
+      events.blinks.push({ t: r4(w.t), dur: r4(X.close + X.shut + X.open), cause: 'startle' });
+      last = w.t; continue;
+    }
     // (and none in a brow flash, a signal sent with the eyes on the other's: the blink waits for its fall)
     const flash = events.flashes.find((f) => w.t > f.t - 0.15 && w.t < f.t + BROW_FLASH.rise + BROW_FLASH.hold + BROW_FLASH.fall);
     if (flash) w.t = flash.t + BROW_FLASH.rise + BROW_FLASH.hold + BROW_FLASH.fall;
     if (w.t - last < BLINK.gap || w.t > seconds - 0.3 || shut(w.t)) continue;
-    const slow = beatAt(w.t)?.E?.blink.slow ?? 1, c = span(BLINK.close) * slow, s = span(BLINK.shut) * slow, o = span(BLINK.open) * slow;
+    const B = beatAt(w.t), slow = B?.E?.blink.slow ?? alertBlink({ rate: 1 }, B?.a ?? 0).slow, c = span(BLINK.close) * slow, s = span(BLINK.shut) * slow, o = span(BLINK.open) * slow;
     layer('AU45', w.t, c, s, o, 1);
     events.blinks.push({ t: r4(w.t), dur: r4(c + s + o), cause: w.cause });
     last = w.t;
