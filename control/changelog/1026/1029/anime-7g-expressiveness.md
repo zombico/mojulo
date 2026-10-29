@@ -3,6 +3,6 @@
 The anime hero acts with the realistic hero's acting (its beats, emotions, gaze, lines and recordings), read as anime
 draws it: a library of drawings per layer (eyes, lids, brows, gaze, mouth, symbols), each a real form on the head that
 reads from any angle; a timing grammar (keys, holds on twos and threes, snaps, in-betweens); and an idiom (shonen,
-shojo) that says where intensity goes. The drawings are built only where a hero has acting that needs them and its
-target's tier is dense (T3, T4); everywhere else the anime head is today's, byte for byte, and a take is lowered to its
-four channels. The eyes gate is the operator's.
+shojo) that says where intensity goes. It is a higher setting of the anime head, at home from T3 (a late PS3 / PS4
+hero): asked for, it is built at any tier; unset, a take at T3 or higher gets it and below T3 is lowered to the four
+channels. A hero with no take and no setting is today's head, byte for byte. The eyes gate is the operator's.
