@@ -3,7 +3,8 @@
  *
  * The words are ratio-controls (ratio-controls.js): ratios about 1 = the design base's GRAPHIC BASE, composed by
  * product; OFFSETS about 0 (positions in fractions of the head height H, crown to chin; angles in degrees), composed by
- * sum; two shape words beside them (`fissureShape` round | almond | rect | tri, `browShape` block | taper; last wins).
+ * sum; three shape words beside them (`fissureShape` round | almond | rect | tri, `browShape` block | taper, `noseShape`
+ * round | pyramid; last wins).
  * Every word is a standard anatomy or art term: the eye level, the nose tip (pronasale) and the start of the nasal dorsum,
  * the lip line (stomion) and the mouth width, the ear's level, the palpebral fissure's height and shape, the lateral canthus set back along
  * the globe, the upper-lid band's weight, tail, angle and flick and how far it covers the iris, the iris size and oval,
@@ -102,7 +103,10 @@ export const ANIME_SCULPT = ratioControls({
 });
 export const ANIME_SCULPT_KEYS = ANIME_SCULPT.KEYS;
 /** the shape words ride beside the ratios (last wins) */
-export const SCULPT_SHAPE_KEYS = Object.freeze({ fissureShape: Object.freeze(Object.keys(FISSURE_SHAPES)), browShape: BROW_SHAPES });
+/** the nose's form: `round` the graphic base's (a ridge and a tip as soft bumps), `pyramid` a ridge between two flat
+ * side planes, the bridge raised from its root and the tip pointing out over an underside cut back to the lip */
+export const NOSE_SHAPES = Object.freeze(['round', 'pyramid']);
+export const SCULPT_SHAPE_KEYS = Object.freeze({ fissureShape: Object.freeze(Object.keys(FISSURE_SHAPES)), browShape: BROW_SHAPES, noseShape: NOSE_SHAPES });
 
 /** Error strings (empty = valid): `false` (the studio's face), `true` (the graphic base), a move, an object of words and
  * shape words, or a list of moves and objects. */
@@ -114,21 +118,21 @@ export function validateAnimeSculpt(spec, label = 'sculpt') {
     if (entry === undefined || entry === null) return;
     if (typeof entry === 'string') { if (!ANIME_SCULPT_MOVES[entry]) errs.push(`${at}: unknown sculpt move '${entry}' (have ${ANIME_SCULPT.MOVE_NAMES.join(', ')})`); return; }
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) { errs.push(`${at}: false (the studio's face), a move (${ANIME_SCULPT.MOVE_NAMES.join(', ')}), an object of words ({ ${[...ANIME_SCULPT_KEYS, ...Object.keys(SCULPT_SHAPE_KEYS)].join(', ')} }) or a list`); return; }
-    const { fissureShape, browShape, ...rest } = entry;
-    for (const [k, v] of [['fissureShape', fissureShape], ['browShape', browShape]]) if (v !== undefined && v !== null && !SCULPT_SHAPE_KEYS[k].includes(v)) errs.push(`${at}.${k}: one of ${SCULPT_SHAPE_KEYS[k].join(', ')}`);
+    const { fissureShape, browShape, noseShape, ...rest } = entry;
+    for (const [k, v] of [['fissureShape', fissureShape], ['browShape', browShape], ['noseShape', noseShape]]) if (v !== undefined && v !== null && !SCULPT_SHAPE_KEYS[k].includes(v)) errs.push(`${at}.${k}: one of ${SCULPT_SHAPE_KEYS[k].join(', ')}`);
     errs.push(...ANIME_SCULPT.validate(rest, at));
   });
   return errs;
 }
 /** `'heavy-lid'` | `{ lidWeight: 1.2, browShape: 'taper' }` | a list | `true` | `false` → `false` or every word at its
- * value `{ …ratios, fissureShape?, browShape? }` (ratios by product, offsets by sum, shapes last-wins) */
+ * value `{ …ratios, fissureShape?, browShape?, noseShape? }` (ratios by product, offsets by sum, shapes last-wins) */
 export function resolveAnimeSculpt(spec) {
   if (spec === false) return false;
   const list = spec === true ? [] : Array.isArray(spec) ? spec : [spec], shapes = {}, entries = [];
   for (const e of list) {
     if (e === undefined || e === null || e === true) continue;
     if (typeof e === 'string') { entries.push(e); continue; }
-    const { fissureShape, browShape, ...rest } = e; if (fissureShape) shapes.fissureShape = fissureShape; if (browShape) shapes.browShape = browShape; entries.push(rest);
+    const { fissureShape, browShape, noseShape, ...rest } = e; if (fissureShape) shapes.fissureShape = fissureShape; if (browShape) shapes.browShape = browShape; if (noseShape) shapes.noseShape = noseShape; entries.push(rest);
   }
   const { from: _f, ...R } = ANIME_SCULPT.resolve(entries);
   return { ...R, ...shapes };
@@ -144,7 +148,7 @@ export function sparseSculpt(resolved) {
  * past its range leaves the lattice's mouth opening), so the advice promises no closure: the door's closure check says. */
 export const animeSculptWarnings = (resolved) => (resolved ? ANIME_SCULPT.warnings(resolved).map((w) => w.replace(": the figure still closes, but the read past this is the operator's call", ": the read past this is the operator's call, and far past it the face may open (the closure check says)")) : []);
 /** the words that moved off the base, as percentages and offsets (the readout's clause) */
-export const describeAnimeSculpt = (resolved) => (resolved ? [ANIME_SCULPT.describe(resolved), ...['fissureShape', 'browShape'].filter((k) => resolved[k]).map((k) => `${k} ${resolved[k]}`)].filter(Boolean).join(', ') : '');
+export const describeAnimeSculpt = (resolved) => (resolved ? [ANIME_SCULPT.describe(resolved), ...['fissureShape', 'browShape', 'noseShape'].filter((k) => resolved[k]).map((k) => `${k} ${resolved[k]}`)].filter(Boolean).join(', ') : '');
 
 /** The door words → buildAnime's sculpt (studio construction units) for a design base; `false` → null (the studio's face). */
 export function sculptBuild(pole, resolved) {
@@ -153,6 +157,8 @@ export function sculptBuild(pole, resolved) {
   const out = { ...B };
   out.eyeLevel = r6(B.eyeLevel + h(R.eyeLevel)); out.stomion = r6(B.stomion + h(R.stomion)); out.mouthWidth = r6(B.mouthWidth * R.mouthWidth);
   out.nose = { ...B.nose, pronasale: r6(B.nose.pronasale + h(R.pronasale)), dorsumStart: r6(B.nose.dorsumStart + h(R.dorsumStart)), tip: r6(B.nose.tip * R.tipProjection), dorsum: r6(B.nose.dorsum * R.dorsumProjection) };
+  // (the pyramid nose: its form named on the build's nose; the round one, the base's, adds nothing)
+  if (R.noseShape === 'pyramid') out.nose.shape = 'pyramid';
   if (R.noseLine > 0) out.noseLine = { ...B.noseLine, top: r6(B.noseLine.top * R.noseLine) }; else delete out.noseLine;
   const shape = FISSURE_SHAPES[R.fissureShape ?? B.fissureShape]; delete out.fissureShape;
   out.fissure = { ...B.fissure, ...structuredClone(shape), h: r6((B.fissure.h ?? 1) * R.fissureHeight) };

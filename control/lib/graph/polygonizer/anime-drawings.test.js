@@ -3,12 +3,12 @@
 // lowers to); no drawing, or a neutral one, is the head byte for byte; each drawing keeps the head's topology, moves only
 // its own layer's parts and region, and folds no face; layers that share no vertex add exactly. And the head in a socket
 // (sculpt `orbit`): none at 0; the eye set back between the brow and the cheekbone, the nose and the chin kept; the
-// drawings as whole on it.
+// pyramid nose (sculpt `noseShape`) pointing out further; the drawings as whole on them.
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
 import { X, build, pts, checkDrawing, socketed } from './anime-drawings.fixture.js';
-import { sculptBuild, resolveAnimeSculpt } from './anime-sculpt.js';
+import { sculptBuild, resolveAnimeSculpt, validateAnimeSculpt } from './anime-sculpt.js';
 import { compileLayered } from './station-loft.js';
 
 const drawn = Object.entries(DRAWINGS).filter(([, D]) => D.words);
@@ -60,7 +60,7 @@ describe('the drawings, built', () => {
   });
 }, 120000);
 
-describe('the head in a socket (sculpt orbit)', () => {
+describe('the head in a socket (sculpt orbit), and its pyramid nose (sculpt noseShape)', () => {
   const head = (sculpt) => { const h = animeHead({ preset: 'male', hair: 'none', hairFit: false, ...(sculpt ? { sculpt } : {}) }); return compileLayered({ parts: h.parts, dials: {}, creases: {} }); };
   const of = (m, part) => m.vertices.filter((_, i) => m.provenance[i].part === part);
   it('none at 0: the head byte for byte', () => {
@@ -76,7 +76,17 @@ describe('the head in a socket (sculpt orbit)', () => {
     // (its rings follow the socket: more of them about each eye, the parts laid on it unchanged in count)
     expect(of(B, 'face').length).toBeGreaterThan(of(A, 'face').length); expect(of(B, 'browL').length).toBe(of(A, 'browL').length);
   });
-  it('keeps every layer\'s drawing whole on it', () => {
+  it('the pyramid nose: a raised bridge and a tip that points out further; the round one, the base\'s, adds nothing', () => {
+    expect(validateAnimeSculpt({ noseShape: 'hook' })[0]).toMatch(/noseShape: one of round, pyramid/);
+    expect(sculptBuild('male', resolveAnimeSculpt({ noseShape: 'round' }))).toEqual(sculptBuild('male', resolveAnimeSculpt({})));
+    const A = head(null), B = head({ noseShape: 'pyramid' }), front = (m) => Math.max(...of(m, 'face').map((p) => p[1]));
+    const H = Math.max(...of(A, 'face').map((p) => p[2])) - Math.min(...of(A, 'face').map((p) => p[2]));
+    expect(front(B) - front(A)).toBeGreaterThan(0.005 * H);
+    // (the chin and the crown kept, to the micrometre: the tip is the face's front, so the pin's frame moves with it and
+    // each offset rounds anew)
+    for (const [k, f] of [[2, Math.min], [2, Math.max]]) expect(f(...of(B, 'face').map((p) => p[k]))).toBeCloseTo(f(...of(A, 'face').map((p) => p[k])), 6);
+  });
+  it('keeps every layer\'s drawing whole on it (under the pyramid nose too)', () => {
     for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) socketed.checkDrawing(`socketed ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);
   });
 }, 120000);
