@@ -324,7 +324,7 @@ function earPart(fE, tragion, C) {
  * stored cranium and jaw): the face's parts alone are built, exactly as a whole build makes them; the cranium and the
  * jaw are the recipe's as given.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, seat = false, opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, seat = false, teeth = false, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
@@ -340,7 +340,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   const toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
   const fH = inHead(head.field), fBare = inHead(head.bare);
-  if (oneSkin) return oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts });
+  if (oneSkin) return oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts, teeth });
   // THE VISAGE's frame first: the cranium is let down under it by its reach (`deflate`, eased out over its rim)
   const V = visageFrame(fH, fBare, toHero(mid3(head.points.sto, head.points.ls)), C);
   const under = (q) => { const { f, h } = V.f(q); return (C.deflate * (1 - ramp((f - 0.85 * C.inner) / (0.15 * C.inner))) + C.rimDeflate * (1 - ramp((f - C.inner) / (1 - C.inner)))) * ramp((h + 0.06) / 0.02); };
@@ -522,7 +522,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
 /** the hero's recipe wearing the head as ONE SKIN (hero-one-skin.js): the seam, the neck's end and the jaw's share as
  * the pieces' build reads them, the skin, the mouth and the globes in place of the cranium, the jaw, the visage, the
  * nose and the eyes; the ears and the fit as before */
-function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts }) {
+function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts, teeth = false }) {
   const parts = r.parts, neck = parts.neck;
   // THE SEAM: the highest neck ring standing wholly outside the head by the join's width
   let seam = -1;
@@ -548,14 +548,14 @@ function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, in
     return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
   };
   const S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
-  const skin = oneSkinHead({ head, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW, opts: opts.oneSkin });
+  const skin = oneSkinHead({ head, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW, teeth, opts: opts.oneSkin });
   // the landmark head leaves (its details, its creases, its dial); the neck ends on the seam
   const gone = landmarkHeadParts(recipe.parts);
   for (const g of gone) delete parts[g];
   for (const [id, c] of Object.entries(r.creases || {})) if (gone.has(c.parent)) delete r.creases[id];
   if (r.dials?.jawOpen?.part === 'jaw') delete r.dials.jawOpen;
   // (a dial that moved the cranium and the jaw moves the skin and what is set in it)
-  const HEADS = ['headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
+  const HEADS = ['headSkin', 'mouth', ...(teeth ? ['teethUpper', 'teethLower', 'tongue'] : []), 'globeR', 'globeL', 'earR', 'earL'];
   for (const d of Object.values(r.dials || {})) if (Array.isArray(d.parts) && d.parts.some((n) => gone.has(n))) {
     const i = d.parts.findIndex((n) => gone.has(n));
     d.parts = [...d.parts.slice(0, i).filter((n) => !gone.has(n)), ...HEADS, ...d.parts.slice(i).filter((n) => !gone.has(n) && !HEADS.includes(n))];

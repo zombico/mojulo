@@ -58,3 +58,11 @@ say a line and play a scene, and play a real phone capture through the same cont
   by its own beads where an action leaves it; and the settle onto the moved skin kept to the eyes and the brows, where it
   was tuned: about the mouth and the nose it stood points out in spikes, the smile's and the frown's among them. The
   smile, the frown and every mouth target rebuild cleaner on the next export.
+- **The mouth with teeth** (realistic laws 12, `hero-one-skin.js` `teeth`): a hero minted now has teeth. The bag behind
+  the lips is cut open at its front into a cup facing in, and in it the head's own dentition, each crown a tube along its
+  bead (the incisors blades that widen and thin to a flat edge, the cheek teeth shaded deeper in), the upper on the head
+  bone and the lower and the tongue on the jaw's, so speech and an open mouth show teeth and a tongue where laws 11 showed
+  the bag's dark front. And the mouth opens as an almond, not a box: shut, the lips' cut is one point either lip's, and
+  bound wholly to its bone to the corner each side tore away along the whole cut; toward each corner both sides' share of
+  the jaw now eases to a half, so the corners stay met and move half the jaw's way, down and back along its arc. A hero
+  minted under laws 11 or before keeps its bag and its corners, byte for byte.

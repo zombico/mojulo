@@ -77,18 +77,36 @@ describe('the relational head on the realistic body', () => {
     // THE SEAM: every point of the neck's last ring is a point of the skin's rim
     const pts = Object.values(P.headSkin.mesh.points).map((p) => p.join());
     for (const p of Object.values(P.neck.stations.at(-1).points)) expect(pts).toContain(p.join());
-    // THE LIPS: the cut's two sides, one point twice (the head's above, the jaw's below), together at rest, apart opened
+    // THE LIPS: the cut's two sides, one point twice (the head's above, the jaw's below; toward the corners each half the
+    // jaw's, laws 12), together at rest, apart opened
     const blend = P.headSkin.bind.blend, at = new Map(), pairs = [];
-    for (const [id, p] of Object.entries(P.headSkin.mesh.points)) { const k = p.join(), j = blend[`st0.${id}`]?.jaw ?? 0; if (at.has(k) && Math.abs(at.get(k).j - j) === 1) pairs.push([at.get(k).id, id]); else at.set(k, { id, j }); }
+    for (const [id, p] of Object.entries(P.headSkin.mesh.points)) { const k = p.join(), j = blend[`st0.${id}`]?.jaw ?? 0; if (at.has(k) && Math.abs(at.get(k).j - j) > 1e-6) pairs.push([at.get(k).id, id]); else at.set(k, { id, j }); }
     expect(pairs.length).toBeGreaterThan(20);
     const idx = Object.fromEntries(mesh.pointIds.map((id, i) => [id, i])), pose = (p) => poseLayered(mesh, m.recipe, p, { R, skin }).mesh.vertices;
     const open = pose({ jaw: 15 }), rest = pose({}), gap = (V, [a, b]) => { const u = V[idx[`headSkin/st0.${a}`]], w = V[idx[`headSkin/st0.${b}`]]; return Math.hypot(u[0] - w[0], u[1] - w[1], u[2] - w[2]); };
     expect(Math.max(...pairs.map((q) => gap(rest, q)))).toBeLessThan(1e-5);
     expect(Math.max(...pairs.map((q) => gap(open, q)))).toBeGreaterThan(0.008);
+    // (realistic laws 12: an almond, not a box: the corners part far less than the middle, met at their ends)
+    const xOf = ([a]) => Math.abs(P.headSkin.mesh.points[a][0]), reach = Math.max(...pairs.map(xOf));
+    const mid = Math.min(...pairs.filter((q) => xOf(q) < 0.25 * reach).map((q) => gap(open, q))), corner = Math.max(...pairs.filter((q) => xOf(q) > 0.9 * reach).map((q) => gap(open, q)));
+    expect(corner).toBeLessThan(0.35 * mid);
     // the crown stays, the globes stay
     const crown = mesh.vertices.reduce((b, v, i) => (mesh.provenance[i].part === 'headSkin' && (b < 0 || v[2] > mesh.vertices[b][2]) ? i : b), -1);
     expect(Math.hypot(...[0, 1, 2].map((q) => open[crown][q] - rest[crown][q]))).toBeLessThan(1e-9);
     const g = idx['globeR/st0.front'];
     expect(Math.hypot(...[0, 1, 2].map((q) => open[g][q] - rest[g][q]))).toBeLessThan(1e-9);
+    // THE MOUTH WITH TEETH (realistic laws 12): sound, the upper teeth on the head bone, the lower and the tongue on the
+    // jaw's (still while the jaw opens, and dropped with it), every crown behind the lips' front; the cup open, facing in
+    for (const k of ['teethUpper', 'teethLower', 'tongue']) expect(A[k]?.pass, k).toBe(true);
+    expect(P.teethUpper.bind).toBe('head'); expect(P.teethLower.bind).toBe('jaw'); expect(P.tongue.bind).toBe('jaw');
+    const move = (part) => Math.max(...mesh.vertices.map((_, i) => (mesh.provenance[i].part === part ? Math.hypot(...[0, 1, 2].map((q) => open[i][q] - rest[i][q])) : 0)));
+    expect(move('teethUpper')).toBeLessThan(1e-9); expect(move('teethLower')).toBeGreaterThan(0.005); expect(move('tongue')).toBeGreaterThan(0.003);
+    const lipsFront = Math.max(...pairs.map(([a]) => P.headSkin.mesh.points[a][1]));
+    for (const k of ['teethUpper', 'teethLower']) expect(Math.max(...Object.values(P[k].mesh.points).map((p) => p[1]))).toBeLessThan(lipsFront);
+    expect(P.mouth.closure).toBe('open');
+  });
+  it('closes a bag behind the lips under laws 11, as it was minted: no teeth', { timeout: 240000 }, () => {
+    const P = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', head: 'relational', physique: { laws: 11 } }) }).recipe.parts;
+    expect(P.mouth.closure).toBe('closed'); expect(P.teethUpper).toBeUndefined(); expect(P.tongue).toBeUndefined();
   });
 });
