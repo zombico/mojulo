@@ -208,7 +208,7 @@ What it built, from the inside:
 |---|---|
 | ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
 | ![The barracks' corridor: painted block walls, open doorways into the bunk rooms, a panel on the wall](docs/images/wcd-demo-barracks-corridor.jpg) | ![The armoury's rack cage: board-formed concrete, weapon racks along the wall, a crate in the foreground](docs/images/wcd-demo-armoury-room.jpg) |
-| ![The armoury's corridor in the bunker look, in the agent's pink and violet palette: board-formed concrete, riveted columns, a cable leaving its tray to run bent along the wall, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) | ![The reactor plant's generator hall: a tall hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) |
+| ![The armoury's corridor in the bunker look on the science palette, its white walls warmed pink by the military plot's red-orange cove light: board-formed concrete, riveted columns, a cable leaving its tray to run bent along the wall, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) | ![The reactor plant's generator hall: a tall hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) |
 
 ![The world's book, its "To the core" page: the four levels as rings with the reactor at the centre, each stair on its join with the keycard that opens it, beside each layer's look and the design rules it holds](docs/images/wcd-demo-book.png)
 
@@ -216,9 +216,11 @@ One real Claude Code session on Sonnet 5.5, two asks, about four minutes of agen
 from the prompt cache, 7k written) and 60 cents at API list price. The agent read the stealth and level-design cards,
 showed a palette for each section and stopped for the yes; then it designed the world with `design_game`, every level a
 base building stocked for what it is (bunks and footlockers, weapon racks in the cages, sandbags at the guard posts, an
-extinguisher by every door), and made all four. Two things a run shows that a GIF hides: building four levels outlasts
-Claude Code's 60-second wait for a tool, so the agent saw the call time out and read the finished world back, and it said
-plainly that it had not looked at the colours yet. The book's dark briefing skin was set after the session, with one
+extinguisher by every door), and made all four. Three things a run shows that a GIF hides: building four levels outlasts
+Claude Code's 60-second wait for a tool, so the agent saw the call time out and read the finished world back; it said
+plainly that it had not looked at the colours yet; and the palettes it showed did not reach the buildings, which wear
+their looks' own (a level's palette colours an art-directed room, not a base). Since this session the draft's book shows
+each level's finishes, its walls, floor, paint and light as the build paints them, so the yes is to those. The book's dark briefing skin was set after the session, with one
 `design_game` call (`book: { skin: 'briefing' }`); a world can wear its own colours and faces the same way. The whole
 record is [session.json](docs/images/src/wcd-demo/session.json), and [the runner](docs/images/src/wcd-demo/) records a
 new session or rebuilds a cooked base from its recipe with no agent at all.

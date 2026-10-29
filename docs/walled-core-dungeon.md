@@ -22,8 +22,10 @@ construction and palette, lifts and teleporters within one level.
 
 ## In the book
 
-The world's book draws it as rings to the core, each gate on its join, with each layer's level and look and the laws'
-verdicts. The book's look is the world's `book: { skin }` (`gameworld/book-skin.js`): a preset (`briefing`) or the
+The world's book draws it as rings to the core, each gate on its join, with each layer's level, look and finishes and
+the laws' verdicts. A building level's finishes (`gameworld/finishes.js`) are what its surfaces will wear, painted from
+the stage it is built as, toned when it is, with its light: a draft's book is the approval sheet before a run. A level's
+style palette does not colour a bay building; its look or its tone does. The book's look is the world's `book: { skin }` (`gameworld/book-skin.js`): a preset (`briefing`) or the
 model's own colours, faces, frame and texture.
 
 ## A space builds its level

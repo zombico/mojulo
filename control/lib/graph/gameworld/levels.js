@@ -87,7 +87,7 @@ export function gameStages(world) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
-    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`) }); continue; }
+    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
@@ -901,6 +901,10 @@ function inPalette(manifest, P, at) {
   const status = Object.fromEntries(ART_ITEMS.map((k) => [k, 'auto']));
   return { ...manifest, art: { seed, ...rollArt(manifest.kit, seed), palette: { seed: K.spec.seed, from: K.spec, ...artPalette(K) }, status } };
 }
+
+/** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
+ *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
 
 /** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which
  *  leads back out) to its goal room. */

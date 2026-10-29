@@ -66,7 +66,7 @@ export function skinHead(K) {
   ].filter(Boolean);
   const css = [
     vars.length ? `:root{${vars.join(';')}}` : '',
-    K.accent ? `h2{color:var(--c-trail)}.mast{border-bottom-color:var(--c-trail)}.tabs a:hover{box-shadow:inset 0 3px 0 var(--c-trail)}` : '',
+    K.accent ? `a{color:var(--c-trail)}h2{color:var(--c-trail)}.mast{border-bottom-color:var(--c-trail)}.tabs a:hover{box-shadow:inset 0 3px 0 var(--c-trail)}` : '',
     K.frame === 'bracket' ? '.card,.hero,.canvas,.local,.nature,.gate,details,.stop .im,.sec-im{border-radius:0}'
       + '.card,.hero,.local,.nature,.gate{background-image:linear-gradient(var(--c-trail),var(--c-trail)),linear-gradient(var(--c-trail),var(--c-trail)),linear-gradient(var(--c-trail),var(--c-trail)),linear-gradient(var(--c-trail),var(--c-trail));'
       + 'background-repeat:no-repeat;background-size:14px 2px,2px 14px,14px 2px,2px 14px;background-position:0 0,0 0,100% 100%,100% 100%}'

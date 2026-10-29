@@ -122,6 +122,8 @@ function guide() {
     '  makes every ready step. A run keeps what did not move, remakes what did in place, leaves hand edits (force: true',
     '  overwrites). It answers each stamp, the steps, what was made and `next` step ids (gameworld-next); `readout:',
     '  \'changed\'` only what moved. `mode`: ' + Object.entries(MODES).map(([k, v]) => `${k} (${v})`).join('; ') + '.',
+    'SHOWN FIRST: asked to see it before it is built? Create the world (no run), show its book (/api/sketches/<ref>/bible:',
+    '  the plans, a building\'s finishes as the build paints them) and stop for the verdicts.',
   );
 }
 
@@ -531,8 +533,8 @@ function battlesCard() {
 function wcdCard() {
   return lines(
     'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
-    '  gates the next and takes the player deeper: across, down or up. A concept followed, not a map shape: Shadow Moses (a',
-    '  dock, a forward base, the interior base, the fortifications, the core) and the three walls (Maria, Rose, Sina) are WCDs.',
+    '  gates the next and takes the player deeper: across, down or up. A concept, not a map shape: Shadow Moses and the',
+    '  three walls (Maria, Rose, Sina) are WCDs.',
     '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
     '',
     'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
@@ -554,8 +556,9 @@ function wcdCard() {
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
     ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
     '',
-    'A layer\'s light is the theme\'s, set once; its construction and palette carry the change from the last. The book draws',
-    'the dungeon as rings to the core (its "To the core" page), each gate on its join.',
+    'A layer\'s construction and palette carry the change from the last. The book draws the dungeon as rings to the core,',
+    'each gate on its join, each layer\'s finishes beside it: the approval sheet before a run. A level\'s style palette does',
+    'not colour a bay building; its look or its tone does.',
   );
 }
 function foesCard() {

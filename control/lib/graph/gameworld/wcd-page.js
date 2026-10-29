@@ -4,10 +4,13 @@
  * critical path in the accent, a space not yet built dashed; beside it each layer's level and look, and the principles'
  * verdicts. Drawn in the book's own variables (`var(--ink)`, `var(--c-trail)`, …), so a skin (book-skin.js) recolours it.
  *
- *   wcdPage(G, esc) → the section's html, '' for a world with no dungeon
+ *   wcdPage(G, esc, finishes) → the section's html, '' for a world with no dungeon; `finishes` (finishes.js, by level)
+ *   puts each built layer's wall, base, floor and paint beside its look, so the page approves the materials too
  *
  * Pure: the same world, the same page.
  */
+
+import { finishesHtml } from './finishes.js';
 
 const S = 640, C = S / 2, R0 = 64, R1 = 270;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -49,12 +52,16 @@ function plate(W, esc) {
 }
 
 /** The dungeon's section of the book. */
-export function wcdPage(G, esc) {
+export function wcdPage(G, esc, finishes = {}) {
   const W = G.wcd;
   if (!W) return '';
   const order = Object.values(W.spaces).sort((a, b) => a.depth - b.depth);
   const level = (s) => (s.level ? esc(G.levels?.[s.level]?.name ?? s.level) : '—');
-  const look = (s) => (s.look ? esc(`${s.look.construction} · ${s.look.palette}`) : '—');
+  // (the look a layer is built in: its finishes' when its level is a building, as composed; else the look it names)
+  const look = (s) => {
+    const F = s.level ? finishes[s.level] : null, L = F?.axes ?? s.look;
+    return `${L ? esc(`${L.construction} · ${L.palette}`) : '—'}${F ? `<br>${finishesHtml(F, esc, { roles: ['wall', 'base', 'floor', 'paint'] })}` : ''}`;
+  };
   const rows = order.map((s) => `<tr><td class="mono">${s.depth}</td><td><b>${esc(s.id)}</b>${s.id === W.core ? ' <span class="stamp st-revise">core</span>' : ''}</td><td class="mono">${s.kind}</td><td>${level(s)}</td><td class="mono">${look(s)}${s.tone !== undefined ? ' · toned' : ''}</td><td class="mono">${s.built ? 'built' : 'unbuilt'}</td></tr>`).join('');
   const laws = W.laws.map((l) => `<li><span class="stamp ${l.holds ? 'st-approved' : 'st-changed'}">${l.holds ? 'holds' : 'advise'}</span> <b class="mono">${esc(l.law)}</b> <span class="muted">${esc(l.says)}</span></li>`).join('');
   return `<section class="part" id="wcd"><div class="part-h"><span class="eyebrow">The way in</span><h2>To the core</h2></div>`

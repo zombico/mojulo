@@ -31,12 +31,13 @@ describe('the rail\'s cards', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
     expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
+    // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
     // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
     // names the four building uses, office | lab-building | warehouse | clinic, 4265 bytes)
     // the foes card too (2026-10-28): its row per class (the guard, the hunter and the summoner joined) beside the
     // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member
-    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4288, 'gameworld-foes': 4608 };
+    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4288, 'gameworld-foes': 4608 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

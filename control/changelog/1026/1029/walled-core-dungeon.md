@@ -65,3 +65,10 @@ panels and load-bearing doodads, stocked by use. Built so far:
   colours (`#rrggbb`), faces (from the font shelf), frame (`rule | bracket`), texture (`none | grid | scanlines`) and
   plates (`paper | night`, the drawings kept legible on a dark page). Refused by name when malformed; a book with no
   skin prints as it did. The world card names it.
+- **The finishes, before a run** (`gameworld/finishes.js`): each building level's page of the book shows what its
+  surfaces will wear, the wall, base, floor, column, crown, ceiling, paint and band tiles painted as the build paints
+  them (read off the stage the level is built as: its composed look, art direction, recipe tiles and grime; through its
+  tone's ramps when it has one), and the colour of its plot's lights; the dungeon's page shows each layer's wall, base,
+  floor and paint beside its look, the look as composed. A level whose palette a bay building does not take says so.
+  The guide card's SHOWN FIRST: asked to see it before it is built, the agent drafts the world and shows its book.
+  `levels.js` `levelBuildingStage` is the one stage a run makes and the book reads. A skinned book's links take its accent.
