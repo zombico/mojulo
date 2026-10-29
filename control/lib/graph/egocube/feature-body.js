@@ -13,6 +13,8 @@
  *                     (the principle: round blobs, pointy fur details): a lock as the realistic hair draws one, a rounded
  *                     body tapering to a rounded point along a spine that bends `curl` degrees from its aim toward `bend`,
  *                     its root radius r, its tip's share of it; it melts into the skin at its root only, so its point stays
+ *   cone({ a, b, ra, rb, bone, group, join })   one round cone on a bone: a streamlined limb is two, shoulder to elbow to
+ *                     wrist, their radii meeting at the elbow (no egg's bulge there); a finger is two, knuckle to tip
  *   eggDistance(E, p)   an approximate signed distance (negative inside), an egg's or a tuft's
  *   eggField(eggs)      → { field(p), nearest(p), weights(p) }: the superposition (the nearest three folded by a polynomial
  *                     smooth-min) and the skin's WEIGHTS from it: a point belongs to the bones of the eggs it is made of,
@@ -63,6 +65,11 @@ export function tuft({ root, aim, len, r, tip = 0.22, curl = 0, bend = [0, 0, -1
   for (let i = 0; i < N; i++) { const q = add(p, mul(dirAt((i + 0.5) / N), len / N)); segs.push([P3(p), P3(q), rAt(i / N), rAt((i + 1) / N)]); p = q; }
   const c = mul(add(root, p), 0.5);
   return Object.freeze({ name, kind: 'tuft', segs, c, R: len / 2 + r, Rin: rAt(0.5) * 0.5, bone, group, join });
+}
+
+/** a CONE: one round cone from a to b (radii ra, rb) riding a bone: a streamlined limb's link, a finger's */
+export function cone({ a, b, ra, rb, bone, group = 'Body', join, name }) {
+  return Object.freeze({ name, kind: 'tuft', segs: [[P3(a), P3(b), ra, rb]], c: mul(add(a, b), 0.5), R: Math.hypot(...sub(b, a)) / 2 + Math.max(ra, rb), Rin: Math.min(ra, rb) * 0.9, bone, group, join });
 }
 
 /** how far an egg or a tuft reaches from its middle (an upper bound), and a ball about its middle inside it */
@@ -156,7 +163,7 @@ export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.f
  *   hipZ, neckZ, top   the pelvis's hub, the torso's top, the crown
  *   head    the egg the face is placed on (the cranium: its centre and radii as an ellipsoid), muzzle the mouth's
  */
-const ARM = unit([0.74, 0.1, -0.66]);
+const ARM = unit([0.74, 0.1, -0.66]), SPREAD = unit(cross(ARM, [0, 1, 0]));
 const at = (p, d, s) => add(p, mul(d, s));
 export const FEATURE_BUILDS = Object.freeze({
   procyonid: (() => {
@@ -180,10 +187,8 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'haunchR', c: [0.48, -0.06, 0.64], u: [0, 0, 1], r: [0.42, 0.38, 0.46], e: 0.2, bone: 'thighR', join: 0.24 },
         { name: 'shinR', c: [0.46, 0.03, 0.28], u: [0, 0, 1], r: [0.2, 0.17, 0.18], bone: 'shinR', join: 0.12 },
         { name: 'footR', c: [0.46, 0.17, 0.09], u: [0, 1, 0], r: [0.27, 0.19, 0.09], e: 0.25, hint: [1, 0, 0], bone: 'metaR', group: 'Patch', join: 0.08 },
-        // the forelimbs, resting out from the body
-        { name: 'upperArmR', c: at(sh, ARM, 0.24), u: ARM, r: [0.3, 0.17, 0.17], e: 0.1, hint: [0, 1, 0], bone: 'upperArmR', join: 0.08 },
-        { name: 'foreArmR', c: at(el, ARM, 0.22), u: ARM, r: [0.27, 0.15, 0.15], e: 0.15, hint: [0, 1, 0], bone: 'foreArmR', join: 0.08 },
-        { name: 'pawR', c: at(wr, ARM, 0.13), u: ARM, r: [0.16, 0.14, 0.1], e: 0.1, hint: [0, 1, 0], bone: 'handR', group: 'Patch', join: 0.06 },
+        // the palm: a flat egg, the hand's paddle facing front (the fingers fan across it: `digits`)
+        { name: 'pawR', c: at(wr, ARM, 0.09), u: ARM, r: [0.12, 0.12, 0.065], e: 0.15, hint: SPREAD, bone: 'handR', group: 'Patch', join: 0.04 },
         // the tail: out from the lower back, rising, thick (the brush), its eggs overlapping so it reads as one
         { name: 'tail0', c: [0, -0.86, 0.74], u: [0, -1, 0.3], r: [0.34, 0.3, 0.3], bone: 'pelvis', join: 0.26 },
         { name: 'tail1', c: [0, -1.26, 0.92], u: [0, -0.9, 0.45], r: [0.38, 0.38, 0.36], bone: 'pelvis', join: 0.26 },
@@ -198,8 +203,20 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
         { name: 'chestTuftR', root: [0.22, 0.58, 2.0], aim: [0.3, 0.45, -1], len: 0.3, r: 0.13, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
         { name: 'chestTuft', root: [0, 0.62, 1.96], aim: [0, 0.5, -1], len: 0.34, r: 0.14, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
+        // the dome's spikes: the cheeks' rhythm again, smaller, a lock in the middle and one each side combed back
+        { name: 'crown', root: [0, 0.2, 3.3], aim: [0, 0.5, 1], len: 0.3, r: 0.11, curl: 32, bend: [0, -1, 0], bone: 'head', join: 0.05 },
+        { name: 'crownR', root: [0.18, 0.14, 3.27], aim: [0.45, 0.4, 1], len: 0.25, r: 0.095, curl: 30, bend: [0.3, -1, 0], bone: 'head', join: 0.05 },
         { name: 'tailTip', root: [0, -1.8, 1.82], aim: [0, -0.35, 1], len: 0.3, r: 0.17, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
       ],
+      // the forelimbs, streamlined: two cones each, shoulder to elbow to wrist, resting out from the body
+      limbs: [
+        { name: 'upperArmR', a: sh, b: el, ra: 0.16, rb: 0.125, bone: 'upperArmR', join: 0.07 },
+        { name: 'foreArmR', a: el, b: wr, ra: 0.125, rb: 0.1, bone: 'foreArmR', join: 0.05 },
+      ],
+      // the raccoon's hands: five long fingers fanned across the palm (the thumb shortest and set back, on the upper
+      // edge), each two links on two bones from its knuckle; rounded tips, not points (fingers are not fur)
+      digits: { from: wr, along: ARM, across: SPREAD, at: [0.13, 0.15, 0.16, 0.15, 0.1], offset: [-0.085, -0.04, 0.005, 0.05, 0.09],
+        fan: [-48, -22, 2, 26, 56], len: [0.12, 0.15, 0.16, 0.14, 0.1], r: [0.036, 0.031, 0.022], join: 0.01 },
       // THE COAT (feature-coat.js): harmonious shapes, not ink blots, in few strokes. ZONES (territories of the eggs) cut
       // into the skin: the pale muzzle, the nose, the pale belly and chest, the dark paws and feet, the tail's dark tip.
       // LAYERS over it: the mask sweeping out and down to a point aimed as the cheek's lock is, the forehead's stripe
@@ -209,7 +226,7 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'muzzle', group: 'Belly', eggs: ['muzzle', 'chin', 'jowlR', 'jowlL'] },
         { name: 'nose', group: 'Nose', eggs: ['nose'] },
         { name: 'belly', group: 'Belly', eggs: ['front', 'chestTuft', 'chestTuftR', 'chestTuftL'] },
-        { name: 'paws', group: 'Patch', eggs: ['pawR', 'pawL', 'footR', 'footL'] },
+        { name: 'paws', group: 'Patch', eggs: ['pawR', 'pawL', 'footR', 'footL', ...[1, 2, 3, 4, 5].flatMap((i) => ['a', 'b'].flatMap((l) => [`digit${i}${l}R`, `digit${i}${l}L`]))] },
         { name: 'tailTip', group: 'Patch', eggs: ['tailTip'] },
         { name: 'mask', group: 'Patch', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
         { name: 'stripe', group: 'Patch', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
@@ -221,6 +238,9 @@ export const FEATURE_BUILDS = Object.freeze({
         ] },
       ],
       eye: { az: 24, el: 0, r: 0.15, proud: 0.42 },
+      // the mouth on the muzzle: the nose's foot, the line's middle and right corner, the pivot it opens about; a full
+      // smile raises a corner `rise`, the line sags `sag` between
+      mouth: { nose: [0, 0.82, 2.48], centre: [0, 0.77, 2.41], corner: [0.17, 0.63, 2.42], pivot: [0, 0.42, 2.52], rise: 0.05, sag: 0.012 },
       joints: { hip: [0.46, 0, 0.76], knee: [0.47, 0.06, 0.42], ankle: [0.47, -0.02, 0.15], toeBase: [0.47, 0.25, 0.06], toeTip: [0.47, 0.42, 0.04], shoulder: sh, elbow: el, wrist: wr, knuckles: kn },
       hipZ: 0.76, neckZ: 2.3, top: 3.42,
       head: { C: [0, 0.02, 2.8], rx: 0.72, ry: 0.6, rz: 0.55 },
@@ -243,13 +263,33 @@ function laidOut(build, height) {
     one(x.name, x.root, x.aim, x.bend, x.bone);
     if (/R$/.test(x.name)) one(twin(x.name), mirrorX(x.root), mirrorX(x.aim), x.bend ? mirrorX(x.bend) : undefined, twin(x.bone));
   }
+  for (const x of build.limbs ?? []) {
+    const one = (name, a, b, bone) => eggs.push(cone({ name, a: S(a), b: S(b), ra: x.ra * h, rb: x.rb * h, bone, group: x.group ?? 'Body', join: x.join * h }));
+    one(x.name, x.a, x.b, x.bone);
+    if (/R$/.test(x.name)) one(twin(x.name), mirrorX(x.a), mirrorX(x.b), twin(x.bone));
+  }
+  // the fingers: each a base on the palm's end, fanned from the arm across the palm, two links (the right's; mirrored)
+  const digits = [];
+  if (build.digits) {
+    const D = build.digits;
+    D.at.forEach((d0, i) => {
+      const fan = (D.fan[i] * Math.PI) / 180, dir = unit(add(mul(D.along, Math.cos(fan)), mul(D.across, Math.sin(fan))));
+      const base = add(add(D.from, mul(D.along, d0)), mul(D.across, D.offset[i])), mid = add(base, mul(dir, D.len[i] * 0.55)), tip = add(base, mul(dir, D.len[i]));
+      digits.push({ i: i + 1, base, mid, tip });
+      for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
+        eggs.push(cone({ name: `digit${i + 1}a${S0}`, a: S(m(base)), b: S(m(mid)), ra: D.r[0] * h, rb: D.r[1] * h, bone: `digit${i + 1}a${S0}`, group: 'Patch', join: D.join * h }));
+        eggs.push(cone({ name: `digit${i + 1}b${S0}`, a: S(m(mid)), b: S(m(tip)), ra: D.r[1] * h, rb: D.r[2] * h, bone: `digit${i + 1}b${S0}`, group: 'Patch', join: D.join * h }));
+      }
+    });
+  }
   // (the coat's marks in metres: a stroke drawn `both` mirrored to the left)
   const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group,
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map(S), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
     ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h })) } : {}) }));
   const ell = (E) => ({ C: S(E.C), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
-  return { h, eggs, marks, eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+  const mouth = build.mouth && { nose: S(build.mouth.nose), centre: S(build.mouth.centre), corner: S(build.mouth.corner), pivot: S(build.mouth.pivot), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
+  return { h, eggs, marks, mouth, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
 }
 
 /** the coat's layers over a skin, kept by key */
@@ -271,8 +311,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
   const skin = eggSkin(L.eggs, { zones }), F = eggField(L.eggs);
   const coat = coatOf(skin, F, L.eggs, layers);
-  // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mascot's mouth on the muzzle
-  const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: { E: L.muzzle, el: -38, w: 0.2, h: 0.13 },
+  // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
+  const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: L.mouth,
     groups: { lid: K.pattern === 'mask' ? 'Patch' : 'Body', lip: 'Belly', brow: 'Belly' } });
   const segments = [
     { name: 'skin', kind: 'mesh', group: 'Body', mesh: skin.mesh, bind: { bone: 'pelvis', blend: skin.blend } },
@@ -281,6 +321,12 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   ];
   const faceNames = face.segments.flatMap((s) => (s.mirror === 'name' ? [s.name, twin(s.name)] : [s.name]));
   const { rig, clips } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [] });
+  // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
+  for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
+    const n = (x) => `digit${d.i}${x}${S0}`;
+    rig.joints[n('Base')] = { at: m(d.base).map(r4), rides: `hand${S0}` }; rig.joints[n('Mid')] = { at: m(d.mid).map(r4), rides: `hand${S0}` }; rig.joints[n('Tip')] = { at: m(d.tip).map(r4), rides: n('a') };
+    rig.bones.push({ id: n('a'), head: n('Base'), tail: n('Mid') }, { id: n('b'), head: n('Mid'), tail: n('Tip') });
+  }
   const joints = { ...L.J };
   for (const s of segments) { for (const [n, p] of Object.entries(s.joints || {})) joints[n] = p; delete s.joints; }
   const plan = {

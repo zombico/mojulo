@@ -17,10 +17,14 @@
  *                                                                blink(), eyes } (the face mascot-form.js rigOf plays)
  *   FEATURE_FACE    the expressions as lid closures (upper 0 open … 1 shut, below 0 wider), the lower lid's rise, the brows
  *
- * The mouth is the mascot's (mascot-face.js buildFace): a dark lens with its tongue, under two lips, on the muzzle.
+ *   the mouth   INTEGRATED in the muzzle, nothing standing off it: a thin dark SMILE LINE laid on the skin (the philtrum
+ *               down from the nose, the line out to two corners), its corners on their own bones (`mouthCorner$S`:
+ *               degrees up); and the OPEN MOUTH, a dark patch on the muzzle under the line with the tongue at its foot,
+ *               shut at rest under the line and opening downward about a pivot in the muzzle (`jawOpen`: degrees),
+ *               most in the middle, the corners staying shut: an oval
  * Pure and deterministic.
  */
-import { buildFace, EXPRESSION_FACE, EXPRESSION_IDS } from './mascot-face.js';
+import { EXPRESSION_IDS } from './mascot-face.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -36,18 +40,19 @@ const side = (v, S) => (v && typeof v === 'object' && !Array.isArray(v) && S in 
 
 /** The expressions on the feature face: `lid` the upper lid's closure (0 at rest over the iris's top, 1 shut, below 0
  *  wider: the white shows over the iris), `low` the lower lid's rise (0 … 1: to meet a shut upper lid), the brows' lift
- *  and tilt (degrees; the inner end drops by the tilt); a side each where they differ. First readings for the eyes gate. */
+ *  and tilt (degrees; the inner end drops by the tilt), the mouth's opening (0 shut … 1 its widest) and smile (−1 its
+ *  corners down … 1 up); a side each where they differ. First readings for the eyes gate. */
 export const FEATURE_FACE = Object.freeze({
-  happy: { lid: 0.1, low: 0.25, brow: { lift: 5, tilt: -6 } },
-  joy: { lid: 0.88, low: 0.55, brow: { lift: 9, tilt: -6 } },
-  grin: { lid: 0.15, low: 0.35, brow: { lift: 6, tilt: -4 } },
-  content: { lid: 0.45, low: 0.3, brow: { lift: 0, tilt: -3 } },
-  determined: { lid: 0.32, low: 0.2, brow: { lift: -5, tilt: 16 } },
-  smirk: { lid: { R: 0.08, L: 0.5 }, low: { R: 0.2, L: 0.4 }, brow: { R: { lift: 11, tilt: -8 }, L: { lift: -4, tilt: 12 } } },
-  surprised: { lid: -0.45, low: 0, brow: { lift: 16, tilt: -4 } },
-  sad: { lid: 0.35, low: 0.1, brow: { lift: 4, tilt: -18 } },
-  angry: { lid: 0.35, low: 0.3, brow: { lift: -9, tilt: 24 } },
-  sleepy: { lid: 0.75, low: 0.2, brow: { lift: -3, tilt: -2 } },
+  happy: { lid: 0.1, low: 0.25, brow: { lift: 5, tilt: -6 }, mouth: { open: 0, smile: 0.7 } },
+  joy: { lid: 0.88, low: 0.55, brow: { lift: 9, tilt: -6 }, mouth: { open: 0.85, smile: 0.9 } },
+  grin: { lid: 0.15, low: 0.35, brow: { lift: 6, tilt: -4 }, mouth: { open: 0.3, smile: 1 } },
+  content: { lid: 0.45, low: 0.3, brow: { lift: 0, tilt: -3 }, mouth: { open: 0, smile: 0.4 } },
+  determined: { lid: 0.32, low: 0.2, brow: { lift: -5, tilt: 16 }, mouth: { open: 0, smile: -0.2 } },
+  smirk: { lid: { R: 0.08, L: 0.5 }, low: { R: 0.2, L: 0.4 }, brow: { R: { lift: 11, tilt: -8 }, L: { lift: -4, tilt: 12 } }, mouth: { open: 0, smile: { R: 0.9, L: -0.1 } } },
+  surprised: { lid: -0.45, low: 0, brow: { lift: 16, tilt: -4 }, mouth: { open: 0.55, smile: -0.3 } },
+  sad: { lid: 0.35, low: 0.1, brow: { lift: 4, tilt: -18 }, mouth: { open: 0, smile: -0.7 } },
+  angry: { lid: 0.35, low: 0.3, brow: { lift: -9, tilt: 24 }, mouth: { open: 0.15, smile: -0.6 } },
+  sleepy: { lid: 0.75, low: 0.2, brow: { lift: -3, tilt: -2 }, mouth: { open: 0, smile: 0.1 } },
 });
 
 /** the eye's measures, in its globe's radius: the iris's and the pupil's half-angles (degrees from the gaze); the lids'
@@ -55,6 +60,13 @@ export const FEATURE_FACE = Object.freeze({
  *  the lower's (open), the brow's place (degrees above the gaze's level, seated on the skin, its middle sunk in it by a share of its thickness)
  *  and its size */
 export const FEATURE_EYE = Object.freeze({ iris: 34, pupil: 17, toe: 3, shell: [1.05, 1.13], arch: 14, upper: [60, 103], lower: 128, back: 70, brow: { at: 50, sink: 0.12, r: [1.05, 0.3, 0.36] }, catch: 0.2 });
+
+/** the mouth: the line's width and lift off the skin, the open mouth's lift, its widest opening (degrees about its pivot),
+ *  the corners' turn at a full smile (degrees), the curve's samples and the open mouth's rows */
+export const FEATURE_MOUTH = Object.freeze({ width: 0.0042, lift: 0.0022, under: 0.0014, drop: 30, smile: 16, samples: 25, rows: 6, shut: 1.2 });
+
+/** an open mesh's rim: the edges one face uses */
+const rimOf = (faces) => { const n = new Map(); for (const t of Object.values(faces)) for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3], key = a < b ? `${a}|${b}` : `${b}|${a}`; n.set(key, (n.get(key) ?? 0) + 1); } return [...n].filter(([, c]) => c === 1).map(([k]) => k.split('|')); };
 
 /** a closed ball mesh about c, its pole along a (unit), the rings at the polar angles given (degrees), `seg` round */
 function ballMesh(c, a, b, radii, rings, seg, groupOf = () => null) {
@@ -117,7 +129,8 @@ const mx = (p) => [-p[0] + 0, p[1], p[2]];
 /**
  * The face for a skin (its field, to seat the globes on it), the head H (its centre, for the eyes' directions), the eye
  * (its azimuth and elevation on the head, degrees; its globe's radius, metres), the rest expression, the groups (lid,
- * brow) and the mouth (the muzzle's ellipsoid: buildFace's).
+ * brow) and the mouth (its points on the muzzle, metres: the nose's foot, the line's middle and right corner, the pivot it
+ * opens about).
  */
 export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
   const C = FEATURE_EYE, E = FEATURE_FACE, restE = E[rest] ?? E.happy, rg = eye.r;
@@ -174,13 +187,9 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
     chains[`browLift${S}`] = { axis: 'x', sign: 1, links: [{ pivot: `eyeC${S}`, joints: [`browTip${S}`] }] };
     chains[`brow${S}`] = { axis: 'y', sign: inner, links: [{ pivot: `eyeC${S}`, joints: [`browTip${S}`] }] };
   }
-  // THE MOUTH: the mascot's (its lids and brows left out)
-  const M = buildFace({ H, eye: { az: eye.az, el: eye.el, w: 0.15, h: 0.2, lidOut: 0.07 }, mouth, rest, ride: 'head', brows: { on: false }, groups: { lid: groups.lid, lip: groups.lip, brow: 'Brow' } });
-  const MOUTH = ['mouth', 'tongue', 'lipU', 'lipD'];
-  segments.push(...M.segments.filter((s) => MOUTH.includes(s.name)));
-  for (const [k, v] of Object.entries(M.joints)) if (/^(mouthC|lipUTip|lipDTip)$/.test(k)) joints[k] = v;
-  bones.push(...M.bones.filter((b) => b.id === 'lipU' || b.id === 'lipD'));
-  for (const k of ['lipU', 'lipD']) chains[k] = M.chains[k];
+  // THE MOUTH (integrated: on the muzzle's skin, nothing standing off it)
+  const mouthOf = mouthParts({ field, mouth, rest: restE.mouth ?? { open: 0, smile: 0 } });
+  segments.push(...mouthOf.segments); Object.assign(joints, mouthOf.joints); bones.push(...mouthOf.bones); Object.assign(chains, mouthOf.chains);
   /** an expression's channel values: its differences from the rest face (degrees) */
   const channels = (name) => {
     const X0 = E[name]; if (!X0) throw new Error(`mascot: unknown expression '${name}' (known: ${EXPRESSION_IDS.join(', ')})`);
@@ -193,7 +202,7 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
       out[`browLift${S}`] = r4((b.lift ?? 0) - (R.brow.lift ?? 0));
       out[`brow${S}`] = r4((b.tilt ?? 0) - (R.brow.tilt ?? 0));
     }
-    for (const [k, v] of Object.entries(M.channels(name))) if (k === 'lipU' || k === 'lipD') out[k] = v;
+    Object.assign(out, mouthOf.channels(X0.mouth ?? { open: 0, smile: 0 }));
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== 0));
   };
   /** the blink: both upper lids down to meet the lower ones at their rest */
@@ -201,4 +210,55 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
   return { segments, joints, bones, chains, channels, blink, eyes: { G, rg, gaze: g } };
 }
 
-export { EXPRESSION_FACE };
+/** the mouth's parts and channels: the line (the philtrum and the smile) and the open mouth, at the rest's smile and opening */
+function mouthParts({ field, mouth, rest }) {
+  const C = FEATURE_MOUTH, P3 = (p) => ({ x: p[0], y: p[1], z: p[2] }), f = (p) => field(P3(p));
+  const grad = (p, e = 1e-4) => unit([f(add(p, [e, 0, 0])) - f(sub(p, [e, 0, 0])), f(add(p, [0, e, 0])) - f(sub(p, [0, e, 0])), f(add(p, [0, 0, e])) - f(sub(p, [0, 0, e]))]);
+  const onSkin = (p) => { let q = p; for (let i = 0; i < 6; i++) { const g = grad(q), d = f(q); q = sub(q, mul(g, d)); } return q; };
+  const smileOf = (S) => side(rest.smile, S) ?? 0, hx = mouth.corner[0], piv = mouth.pivot;
+  // the line through the right corner, the middle and the left corner, its corners raised by the rest's smile, sampled
+  // along a smooth curve and carried onto the skin
+  const lift = (S, k) => [0, 0, smileOf(S) * k * mouth.rise];
+  const key = [add(mouth.corner, lift('R', 1)), add(mul(add(mouth.corner, mouth.centre), 0.5), add([0, 0, -mouth.sag], lift('R', 0.3))), mouth.centre, add(mul(add(mx(mouth.corner), mouth.centre), 0.5), add([0, 0, -mouth.sag], lift('L', 0.3))), add(mx(mouth.corner), lift('L', 1))];
+  const cr = (p0, p1, p2, p3, t) => [0, 1, 2].map((i) => 0.5 * (2 * p1[i] + (-p0[i] + p2[i]) * t + (2 * p0[i] - 5 * p1[i] + 4 * p2[i] - p3[i]) * t * t + (-p0[i] + 3 * p1[i] - 3 * p2[i] + p3[i]) * t * t * t));
+  const curve = []; const K = [key[0], ...key, key[4]];
+  for (let i = 0; i < C.samples; i++) { const u = (i / (C.samples - 1)) * 4, s0 = Math.min(3, Math.floor(u)); curve.push(onSkin(cr(K[s0], K[s0 + 1], K[s0 + 2], K[s0 + 3], u - s0))); }
+  const phil = Array.from({ length: 6 }, (_, i) => onSkin(add(mouth.nose, mul(sub(mouth.centre, mouth.nose), i / 5))));
+  // (each point's weights: the head's, handing over to its corner's bone toward the corner)
+  const cornerW = (p) => { const t = Math.min(1, Math.abs(p[0]) / hx), c = t < 0.35 ? 0 : ((t - 0.35) / 0.65) ** 2 * (3 - 2 * (t - 0.35) / 0.65); return c; };
+  const wOf = (p, open = 0) => { const c = cornerW(p) * (1 - open), w = { head: 1 - c - open }; if (c > 0) w[p[0] > 0 ? 'mouthCornerR' : 'mouthCornerL'] = c; if (open > 0) w.jawOpen = open; for (const k of Object.keys(w)) w[k] = r4(w[k]); const sum = Object.values(w).reduce((a, b) => a + b, 0); w.head = r4(w.head + 1 - sum); if (w.head <= 0) delete w.head; return w; };
+  // a ribbon along a run of points on the skin, `width` across, lifted
+  const ribbon = (run, width, h, tag, pts, nrm, faces, blend) => {
+    run.forEach((p, i) => { const n = grad(p), t = unit(sub(run[Math.min(run.length - 1, i + 1)], run[Math.max(0, i - 1)])), sd = unit(cross(n, t));
+      for (const [k, s] of [[0, -1], [1, 1]]) { const id = `${tag}${i}_${k}`; pts[id] = add(add(p, mul(sd, (s * width) / 2)), mul(n, h)).map(r6); nrm[id] = n.map(r4); blend[`st0.${id}`] = wOf(p); } });
+    for (let i = 0; i + 1 < run.length; i++) { const a = `${tag}${i}_0`, b = `${tag}${i}_1`, c = `${tag}${i + 1}_1`, d = `${tag}${i + 1}_0`, n = grad(run[i]);
+      const Q = [pts[a], pts[b], pts[c]], N = cross(sub(Q[1], Q[0]), sub(Q[2], Q[0])), flip = dot(N, n) < 0;
+      faces[`${tag}f${2 * i}`] = flip ? [a, c, b] : [a, b, c]; faces[`${tag}f${2 * i + 1}`] = flip ? [a, d, c] : [a, c, d]; }
+  };
+  const lp = {}, ln = {}, lf = {}, lb = {};
+  ribbon(curve, C.width, C.lift, 'm', lp, ln, lf, lb); ribbon(phil, C.width, C.lift, 'p', lp, ln, lf, lb);
+  // THE OPEN MOUTH: rows under the line, each turned down about the pivot by its share of the opening, most in the middle
+  const rotDown = (p, deg) => { const a = -rad(deg), c = Math.cos(a), s2 = Math.sin(a), d = sub(p, piv); return add(piv, [d[0], d[1] * c - d[2] * s2, d[1] * s2 + d[2] * c]); };
+  const openAt = (o) => Math.max(o * C.drop, C.shut), restDeg = openAt(rest.open ?? 0);
+  const op = {}, on = {}, of = {}, ob = {}, og = {}, R = C.rows;
+  curve.forEach((p, i) => { const n = grad(p), base = add(p, mul(n, C.under)), sx = Math.sqrt(Math.max(0, 1 - (p[0] / hx) ** 2));
+    for (let v = 0; v <= R; v++) { const share = (v / R) * sx, id = `o${i}_${v}`; op[id] = rotDown(base, restDeg * share).map(r6); on[id] = n.map(r4); ob[`st0.${id}`] = wOf(p, r4(share)); } });
+  for (let i = 0; i + 1 < curve.length; i++) for (let v = 0; v < R; v++) {
+    const a = `o${i}_${v}`, b = `o${i + 1}_${v}`, c = `o${i + 1}_${v + 1}`, d = `o${i}_${v + 1}`, g = v >= R - 2 && Math.abs(curve[i][0]) < 0.55 * hx ? 'Tongue' : null;
+    const out = grad(curve[i]), Q = [op[a], op[b], op[c]], N = cross(sub(Q[1], Q[0]), sub(Q[2], Q[0])), flip = dot(N, out) < 0;
+    of[`f${2 * (i * R + v)}`] = flip ? [a, c, b] : [a, b, c]; of[`f${2 * (i * R + v) + 1}`] = flip ? [a, d, c] : [a, c, d];
+    if (g) { og[`f${2 * (i * R + v)}`] = g; og[`f${2 * (i * R + v) + 1}`] = g; }
+  }
+  const mid = curve[(C.samples - 1) / 2], jawTip = add(piv, mul(unit([0, mid[1] - piv[1], mid[2] - piv[2]]), Math.hypot(mid[1] - piv[1], mid[2] - piv[2])));
+  const joints = { mouthC: { at: piv.map(r4), rides: 'head' }, jawTip: { at: jawTip.map(r4), rides: 'head' }, cornerTipR: { at: curve[0].map(r4), rides: 'head' }, cornerTipL: { at: curve.at(-1).map(r4), rides: 'head' } };
+  const bones = [{ id: 'jawOpen', head: 'mouthC', tail: 'jawTip' }, { id: 'mouthCornerR', head: 'mouthC', tail: 'cornerTipR' }, { id: 'mouthCornerL', head: 'mouthC', tail: 'cornerTipL' }];
+  const chains = { jawOpen: { axis: 'x', sign: -1, links: [{ pivot: 'mouthC', joints: ['jawTip'] }] },
+    mouthCornerR: { axis: 'y', sign: -1, links: [{ pivot: 'mouthC', joints: ['cornerTipR'] }] }, mouthCornerL: { axis: 'y', sign: 1, links: [{ pivot: 'mouthC', joints: ['cornerTipL'] }] } };
+  const segments = [
+    { name: 'mouthOpen', kind: 'mesh', closure: 'open', group: 'Mouth', mesh: { points: op, faces: of, groups: og, normals: on, boundary: rimOf(of) }, bind: { bone: 'head', blend: ob } },
+    { name: 'mouthLine', kind: 'mesh', closure: 'open', group: 'Mouth', mesh: { points: lp, faces: lf, normals: ln, boundary: rimOf(lf) }, bind: { bone: 'head', blend: lb } },
+  ];
+  /** a mouth's channels from the rest's: the opening (degrees down) and each corner's smile (degrees up) */
+  const channels = (m) => ({ jawOpen: r4(openAt(m.open ?? 0) - restDeg), mouthCornerR: r4(((side(m.smile, 'R') ?? 0) - smileOf('R')) * C.smile), mouthCornerL: r4(((side(m.smile, 'L') ?? 0) - smileOf('L')) * C.smile) });
+  return { segments, joints, bones, chains, channels };
+}

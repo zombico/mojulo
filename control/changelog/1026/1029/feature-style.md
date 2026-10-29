@@ -22,6 +22,13 @@ follow.
   layer of its own, like clothes: the skin under it refined, clipped exactly along its edge, lifted a hair, its edge
   walled so it has a thickness. Its shape is drawn in a few strokes the way hair is combed (a root, a flow, a point),
   and a figure has a stroke budget.
+- **The mouth is part of the muzzle.** A thin dark smile line lies on the skin, running from the nose's foot as the
+  philtrum and out to two corners on their own bones, which lift in a smile and drop in a frown. The open mouth is a
+  dark patch on the muzzle under the line, with the tongue at its foot. It is shut under the line at rest and opens
+  downward about a pivot in the muzzle, most in the middle, into an oval. Nothing stands off the face.
+- **Streamlined limbs and articulated fingers.** An arm is two round cones, shoulder to elbow to wrist, their radii
+  meeting at the elbow. The raccoon's hands have five fingers fanned across the palm, each two links on two bones, with
+  rounded tips. A small crown of spikes on the head's dome repeats the cheeks' rhythm, smaller.
 - **The eye is a globe, and everything about it turns about the globe's centre.** The iris and the pupil are rings about
   the gaze. Each lid is a shell a little larger than the globe, its edge arched and rolled, and it closes by turning
   round the globe rather than dropping in front of it. The brow is attached to the eye: it lifts and tilts about the same

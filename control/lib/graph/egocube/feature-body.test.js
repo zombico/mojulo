@@ -75,6 +75,15 @@ describe('the feature body', () => {
     expect(groups.filter((g) => g === 'Patch').length).toBeGreaterThan(100); expect(groups.filter((g) => g === 'Belly').length).toBeGreaterThan(300);
     for (const n of ['coatMask', 'coatStripe', 'coatEars', 'coatRings']) expect(seg(n), n).toMatchObject({ kind: 'mesh', closure: 'open' });
     expect(seg('coatMask').group).toBe('Patch');
+    // THE MOUTH, integrated: the line and the open mouth thin open layers on the muzzle, shut at rest (the rest's smile, no
+    // opening), opened down by its own bone (joy), its corners on theirs
+    for (const n of ['mouthLine', 'mouthOpen']) expect(seg(n), n).toMatchObject({ kind: 'mesh', closure: 'open', group: 'Mouth' });
+    expect(Object.values(seg('mouthOpen').mesh.groups)).toContain('Tongue');
+    expect(plan.clips.joy[1].jawOpen).toBeGreaterThan(15); expect(plan.clips.sad[1].mouthCornerR).toBeLessThan(0);
+    expect(plan.rig.chains.jawOpen.links[0].pivot).toBe('mouthC');
+    // THE FINGERS: two bones each, riding the hand, and the skin weighted to them
+    for (const b of ['digit1aR', 'digit5bL']) expect(plan.rig.bones.some((x) => x.id === b), b).toBe(true);
+    for (const b of ['digit3bR', 'digit2aL']) expect(bound.has(b), b).toBe(true);
     const toon = mascotPlanFromSheet(rollMascot({ brief: 'raccoon' }));
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);
