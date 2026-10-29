@@ -3,6 +3,8 @@ import { designGeotown, geotownLand } from './design.js';
 import { readGeotown } from './read.js';
 import { SURFACES, SURFACE_IDS, PATTERNS, DEFAULT_PATTERN } from './pattern.js';
 import { geotownSheet } from './sheet.js';
+import { yardOf, balconyOf, YARDS, ZONES } from './yards.js';
+import { mulberry32 } from '../city/plan/dice.js';
 
 // a plane rising north (4 %), so the levels have a known land to be read against
 const RISE = 0.04, plane = (x, y) => RISE * y;
@@ -175,5 +177,31 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
     const d = designGeotown({}, { seed: 4 }), m = designGeotown({ evoke: 'metro' }, { seed: 4 });
     const ox = (m.frame.W - d.frame.W) / 2, oy = (m.frame.D - d.frame.D) / 2;
     for (const [x, y] of [[10, 10], [d.frame.W / 2, d.frame.D / 2], [d.frame.W - 5, d.frame.D - 5]]) expect(d.land.N(x, y)).toBeCloseTo(m.land.N(x + ox, y + oy), 6);
+  });
+});
+
+describe('a back yard\'s plan: a feature a zone, each given its depth from the house, a feature without its room lawn', () => {
+  const inside = (Y, w, v0, v1) => Y.faces.every((f) => f.corners.every(([u, v]) => u >= -1e-6 && u <= w + 1e-6 && v >= v0 - 1e-6 && v <= v1 + 1e-6));
+  it('lays its zones in order from the back door, each inside the yard', () => {
+    for (const plan of [{ near: 'deck', mid: 'trampoline', back: 'shed' }, { near: 'patio', mid: 'play', back: 'tree' }, { near: 'lawn', mid: 'garden', back: 'beds' }]) {
+      const Y = yardOf(plan, { w: 7, v0: 10, v1: 26, R: mulberry32(5) });
+      expect(Y.plan).toEqual(plan);
+      expect(inside(Y, 7, 10, 26)).toBe(true);
+      for (const z of ZONES) expect(['any', z]).toContain(YARDS[Y.plan[z]].zone);
+    }
+    // the shade tree its yard's one large tree, by its back fence
+    const T = yardOf({ near: 'patio', mid: 'lawn', back: 'tree' }, { w: 7, v0: 10, v1: 26, R: mulberry32(1) });
+    expect(T.trees.filter((t) => t.large).length).toBe(1);
+    expect(T.trees.find((t) => t.large).v).toBeGreaterThan(22);
+  });
+
+  it('gives way where the yard is short or narrow: its back fence\'s feature first, then its middle\'s, each lawn', () => {
+    const Y = yardOf({ near: 'deck', mid: 'trampoline', back: 'shed' }, { w: 7, v0: 10, v1: 19, R: mulberry32(2) });
+    expect(Y.plan).toEqual({ near: 'deck', mid: 'trampoline', back: 'lawn' });
+    expect(yardOf({ near: 'deck', mid: 'trampoline', back: 'shed' }, { w: 7, v0: 10, v1: 17, R: mulberry32(2) }).plan).toEqual({ near: 'deck', mid: 'lawn', back: 'lawn' });
+    expect(yardOf({ near: 'lawn', mid: 'pool', back: 'lawn' }, { w: 4.5, v0: 0, v1: 20, R: mulberry32(3) }).plan.mid).toBe('lawn');
+    // a balcony stands off its wall over its own width
+    const B = balconyOf({ u0: 1, u1: 4, v: 12, z: 3, R: mulberry32(4) });
+    expect(B.every((f) => f.corners.every(([u, v]) => u >= 1 - 1e-6 && u <= 4 + 1e-6 && v >= 12 - 1e-6 && v <= 13.6))).toBe(true);
   });
 });

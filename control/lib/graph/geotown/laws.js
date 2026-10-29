@@ -55,8 +55,10 @@ export function geotownLaws(d) {
   // (a house's laws: a shop's or a walk-up's plot keeps a service yard, not a garden)
   const H = housesOf(d), backs = d.plots.filter((pl) => pl.rear === 'back').map((pl) => pl.d - pl.house.env[3]), least = backs.length ? Math.min(...backs) : Infinity;
   law('back-yard', !backs.length || least >= P.back - 1e-6, backs.length ? `the shallowest back yard ${r2(least)} m (least ${P.back})` : 'no plots');
-  const cov = H.map((pl) => pl.alloc.house / (pl.w * pl.d)), outCov = cov.filter((c) => c < P.coverage[0] || c > P.coverage[1]).length;
-  law('coverage', outCov === 0, cov.length ? `${r2(Math.min(...cov))}–${r2(Math.max(...cov))} of a plot (rail ${P.coverage.join('–')}); ${outCov} outside` : 'no plots');
+  // (an evoked row run deeper than it needs, to fill its cell, keeps its house: its rail's low end by that depth)
+  const deepOf = (pl) => Math.max(1, d.evoked?.fits.find((f) => f.block === pl.block && f.side === pl.side)?.deep ?? 1);
+  const cov = H.map((pl) => pl.alloc.house / (pl.w * pl.d)), outCov = H.filter((pl, i) => cov[i] < P.coverage[0] / deepOf(pl) - 1e-9 || cov[i] > P.coverage[1]).length;
+  law('coverage', outCov === 0, cov.length ? `${r2(Math.min(...cov))}–${r2(Math.max(...cov))} of a plot (rail ${P.coverage.join('–')}${d.evoked ? `, its low end over a row's depth stretch to ${r2(Math.max(...H.map(deepOf)))}` : ''}); ${outCov} outside` : 'no plots');
   const offRail = d.plots.filter((pl) => { const K = (pl.kind ?? 'houses') === 'houses' ? { rail: P.plot[pl.form], corner: P.plot.corner } : { rail: P.rows[pl.kind].frontage, corner: P.rows[pl.kind].corner }, [lo, hi] = K.rail, extra = pl.corner === 'both' ? 2 * K.corner : pl.corner ? K.corner : 0;
     // (an evocation's frontages spread inside its stretch to fill the cell it is tuned to)
     const [a, b] = d.evoked ? P.evoke.stretch : [1, 1];

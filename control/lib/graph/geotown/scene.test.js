@@ -113,4 +113,15 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     for (const g of ['geotown:drive', 'geotown:garage']) expect(groups.has(g)).toBe(true);
     expect(p.cameras.some((c) => c.name === 'mansion')).toBe(true);
   });
+
+  it('designs each back yard of its own: near the door, its middle, by its back fence, and a balcony over some', () => {
+    const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 } } };
+    const p = assembleGeotownScene(E), F = p.geotown.features;
+    for (const x of ['trampoline', 'shed', 'patio', 'balcony', 'pool']) expect(F[x]).toBeGreaterThan(0);
+    const groups = new Set(p.faces.map((f) => f.group));
+    for (const g of ['geotown:mat', 'geotown:pad', 'geotown:rail', 'geotown:paving', 'geotown:shed']) expect(groups.has(g)).toBe(true);
+    // a balcony's reach is its house's: no tree's crown takes it
+    expect(p.geotown.laws.find((l) => l.law === 'room').ok).toBe(true);
+    expect(p.cameras.some((c) => c.name === 'yard')).toBe(true);
+  });
 });

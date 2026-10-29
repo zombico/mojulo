@@ -26,9 +26,15 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   language, its material words laid as tiles whatever the cube's grit), never its neighbour's, a semi pair one building
   mirrored; its FRONT a canted or square bay with framed lights and a porch at the door or across the house
   (`geotown/fronts.js`). Each shop its own brick, sign and awning over a mullioned shopfront; the walk-up a canopy over
-  its door. Each back yard its own program (`geotown/yards.js`: a lawn, garden beds, a patio and its table, a deck and
-  its rail, a shed, a sandbox and swing), never its neighbour's, behind its own fence (board, picket, hedge); a shop's
-  service yard its bins and now and then a car, a walk-up's lot its painted stalls and cars.
+  its door. Each back yard its own PLAN (`geotown/yards.js`), a feature in each of three zones, each given its depth
+  in order from the house and never its row neighbour's in that zone: by the back door a patio (a table under a
+  parasol, or a grill and loungers) or a deck (its rail, steps and planters); in its middle a lawn and its tree, garden
+  beds, a swing with a sandbox or a slide, a trampoline (its mat, padded rim and net posts), a mansion's pool; by its
+  back fence a shed, a kitchen garden and compost bin, or a large shade tree (the pattern's `grow.shade`) ringed in
+  mulch over a bench. A feature without its room is lawn, the back fence's first. A share of houses (`yards.balcony`)
+  keep a balcony off an upper floor at the back, its rail and brackets, its reach the house's in the trees' room. Each
+  yard behind its own fence (board, picket, hedge); a shop's service yard its bins and now and then a car, a walk-up's
+  lot its painted stalls and cars.
 - **The midtown mansion** (`pattern.mansion`): a houses segment holds at most two (`evoke.mansions`), each a much
   larger property taking houses' frontage: set back further on a wide lawn, its drive (the pattern's `drive` finish)
   along one side yard to a garage at the back, its yard a pool in its coping and terrace, a garden or a lawn behind a
@@ -59,10 +65,12 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   and `walk-up` (four banded storeys under a deep cornice). Its house types: the gable, the Annex house (a
   sandstone ground storey with round-arched lights under a hip, a porch across it, an oriel over), the Edwardian (buff
   brick under a low hip), shingle over brick, painted brick.
-- **The laws** advise, never refuse: the budget closes, a back yard every house, coverage, frontage, the setback held,
-  the street's grade, the pad's step, the green share (to scale), `fits`, `evokes`, nothing growing on a hard surface,
-  `room`, the faces under their budget (to scale one budget; an evocation's a segment's times its segments).
+- **The laws** advise, never refuse: the budget closes, a back yard every house, coverage (its rail's low end eased
+  for an evoked row run deeper to fill its cell), frontage, the setback held, the street's grade, the pad's step, the
+  green share (to scale), `fits`, `evokes`, nothing growing on a hard surface, `room`, the faces under their budget (to
+  scale one budget; an evocation's a segment's times its segments).
 - **The sheet** (`geotown/sheet.js`): the surface-area map from above, each pad shaded by its height, the crossings'
   heights, the ledger and the laws: the town map judged before anything is built. `scripts/spikes/geotown/geotown.mjs`
-  writes it and captures the town at each hour (a street from its walk, a house, the back yards, over the block).
+  writes it and captures the town at each hour (a street from its walk, a house, the back yards, a yard from its
+  house's back window, over the block).
 - `city/plan/look.js` now holds `hourSky` (the city scene imports it from there, unchanged).

@@ -83,7 +83,7 @@ export const PATTERNS = Object.freeze({
     green: 0.35,
     // what grows: street trees at their stride (m), trees per back yard, the share of front yards with a shrub at the
     // line, park trees per hectare; the species each draws from (vegetation/species.js)
-    grow: { stride: 9, back: [0, 2], front: 0.4, park: 60, street: ['maple'], trees: ['maple', 'cherry'], parkTrees: ['maple', 'beech'] },
+    grow: { stride: 9, back: [0, 2], front: 0.4, park: 60, street: ['maple'], trees: ['maple', 'cherry'], shade: 'beech', parkTrees: ['maple', 'beech'] },
     // AN EVOCATION's houses, each designed on its own (no two neighbours of a type; a semi pair one building, mirrored
     // about its party wall): each TYPE a change to the pattern's style (era/arch-style.js { from, … }: its language's
     // elements, its material words, its palette), its storeys, and its FRONT (fronts.js: a bay, `canted` or `square`,
@@ -101,9 +101,10 @@ export const PATTERNS = Object.freeze({
       painted: { read: 'painted brick, cream with dark trim, under a steep gable, a square bay up both storeys', weight: 1,
         style: { palette: { stone: '#e2d6c2', paint: '#3b4a44' } }, front: { bay: 'square', bayStoreys: 2, porch: 'door' } },
     },
-    // an evocation's back yards, each its own (yards.js YARDS: lawn, garden, patio, deck, shed, play), and the fences
-    // between them (yards.js FENCES: board, picket, hedge); `weight` each one's share
-    yards: { lawn: 2, garden: 2, patio: 2, deck: 2, shed: 2, play: 1 },
+    // an evocation's back yards, each its own: a feature a zone (yards.js YARDS), `near` the back door, the yard's `mid`,
+    // its `back` fence, each feature's weight its share, never its row neighbour's in that zone; `balcony` the share of
+    // houses with one off an upper floor; and the fences between them (yards.js FENCES: board, picket, hedge)
+    yards: { near: { patio: 2, deck: 2, lawn: 1 }, mid: { lawn: 2, garden: 1, play: 2, trampoline: 2 }, back: { shed: 2, beds: 1, tree: 2, lawn: 1 }, balcony: 0.4 },
     fences: { board: 3, picket: 1, hedge: 1 },
     // THE ROWS a segment is made of, besides its houses (whose numbers are the pattern's own, above): each its frontage,
     // its plots' depth, its building's depth, its setback, side yards, storeys, its style and its front (fronts.js), what
@@ -133,7 +134,7 @@ export const PATTERNS = Object.freeze({
           style: { language: { elements: { wall: { storeys: [{ group: 'str:shell', value: 0.45, bond: 'rubble' }, { group: 'str:stone', value: 0.46, bond: 'brick' }] }, roof: { form: 'hip', pitch: 46 }, lights: { form: 'arch', w: 1.1 } }, compose: { mass: { w: 14, d: 16 } } }, materials: { shell: 'ashlar' }, palette: { shell: '#9c6a52' } },
           front: { bay: 'square', bayStoreys: 'upper', porch: 'full' } },
       },
-      yards: { pool: 3, garden: 1, lawn: 1 },
+      yards: { near: { patio: 2, deck: 1 }, mid: { pool: 3, lawn: 1 }, back: { tree: 2, beds: 1, shed: 1 }, balcony: 0.6 },
     },
     // THE NEIGHBOURHOODS its segments compose: `layout` rows of letters north to south (H houses, M main-street, A
     // apartments, P park: SEGMENT_LETTERS), `main` the streets that are main (ew-0 the southmost east-west, ns-0 the

@@ -110,7 +110,9 @@ A cube that names no domains offers one per terrain and one per interior.
   (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, grid?, hills?, blocks?, margin? }`: `evoke` how
   it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
   six or eight, each a type of its pattern with a bay, a porch, its own roof, walls and material tiles, each back yard
-  its own program behind its own fence; `main-street` shops built to a main street's walk under their signs and
+  its own plan behind its own fence, a feature by its back door, in its middle and by its back fence (patio, deck;
+  lawn, beds, swing and slide, trampoline, pool; shed, kitchen garden, a large shade tree), a balcony over some, the
+  pattern's `yards` their weights; `main-street` shops built to a main street's walk under their signs and
   awnings, service yards behind, houses backing onto them; `apartments` a walk-up and its lot among houses; `park`;
   a houses segment may hold a MIDTOWN MANSION or two, `evoke.mansions`, each on a plot at least twice a house's, set
   back on its lawn, its drive to a garage, a pool in its yard, a revival of its pattern's `mansion.types`);
