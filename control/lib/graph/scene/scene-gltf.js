@@ -1004,7 +1004,7 @@ class GlbBuilder {
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
-        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio.map((A) => (A.bytes ? { at: A.at, recording: A.recording, mimeType: 'audio/wav', bufferView: this.addView(A.bytes, 0) } : { at: A.at, recording: A.recording, missing: true })) } : {}) })),
+        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.interp === 'STEP' ? { interpolation: 'STEP' } : {}), ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio.map((A) => (A.bytes ? { at: A.at, recording: A.recording, mimeType: 'audio/wav', bufferView: this.addView(A.bytes, 0) } : { at: A.at, recording: A.recording, missing: true })) } : {}) })),
           performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, recording, mimeType, bufferView }: the WAV embedded in the file\'s own buffer, `missing` where the machine that exported it held no such recording) starts `at` seconds into the clip' } : {}),
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
@@ -1087,10 +1087,11 @@ class GlbBuilder {
       animations++;
     }
     // the face's PERFORMANCES (the door's `perform`: face-acting/perform.js): each take a face-only animation `face:<take>`,
-    // a LINEAR weights channel (a capture's curves, tweened between its keys), the correctives held at their rest weights
+    // a LINEAR weights channel (a capture's curves, tweened between its keys), the correctives held at their rest weights;
+    // the anime face's a STEP channel (`interp`: a drawing per frame, face-acting/anime-read.js)
     if (hasFace && fig.face.performances) for (const [take, P] of Object.entries(fig.face.performances)) {
       const samplers = [], channels = [];
-      this.addWeightsChannel(samplers, channels, { node: meshNode, t: P.t, w: corr ? P.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : P.w }, null, 'LINEAR');
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: P.t, w: corr ? P.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : P.w }, null, P.interp ?? 'LINEAR');
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: `face:${take}`, samplers, channels });
       animations++;

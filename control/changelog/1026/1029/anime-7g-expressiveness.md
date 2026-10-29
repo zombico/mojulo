@@ -35,5 +35,21 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   into it, and its edge turns under with no lip. The centre line, the chin's point and the cheekbones keep their place.
 - **The anime head's form by default** (hero laws 19, `anime-looks.js` `ANIME_FORM`): an anime hero minted now wears the
   socket (`orbit` 0.025), the pyramid nose and the jaw curved in (`jawHollow` 0.02), under every other sculpt layer, so
-  its own words move or undo each. A hero minted before keeps its head, byte for byte; the child's round face and the
-  studio's own face (`sculpt: false`) do not wear it.
+  its own words move or undo each. Each base keeps its feature bands under it (`ANIME_FORM_POLE`): the male's opening a
+  hair taller, since the socket reads his lid band a hair heavier, and the female's tip a hair further out, since the
+  pyramid sets it nearer the face; so the default hero is advised nothing. A hero minted before keeps its head, byte for
+  byte; the child's round face and the studio's own face (`sculpt: false`) do not wear it.
+- **The anime hero performs** (the door's `perform` on `head: 'anime'`; `acting: 'full' | 'basic'` on the anime head):
+  the same takes the realistic hero plays, each a face-only clip in an export (`face:<take>`), its recorded lines inside
+  the GLB and beside an engine pack's scene. Unset, a take on a target of T3 or higher draws the 7G, below it the four
+  channels; `full` draws it at any target and `basic` never.
+- **The reading** (`face-acting/anime-read.js`): a take read frame by frame as drawings, one per layer (each eye's brow
+  and lid, the gaze, the mouth): anger's knit brows and narrowed lids, surprise's raised brows and wide lids, sadness's
+  worried brows, happiness's smile, a thought's turned gaze; every layer held on twos but a spoken closure, the mouth in
+  kuchipaku (a, i, u, e, o, shut on m, b and p), the gaze stepped. Keyed STEP, so a drawing snaps instead of melting
+  through its neighbour; lowered, the same frames weigh the four channels.
+- **The 7G rig** (`anime-face-rig.js` `sevenG`): beside the four channels' targets, kept as they were, each drawing is a
+  target differenced from the exact head built at it, a brow and a lid per side and the sided mouths per side, with the
+  correctives for the pairs that do not add (a lid's shape over a turned gaze, a brow over its shut eye), so a face drawn
+  per layer is the exact build of its drawings. Its cost is stamped on the rig (`meta.sevenG`), and a hero whose layout
+  moves its vertices skips it with the reason.

@@ -46,6 +46,14 @@ Sound toggle; a browser plays sound only once the page is touched). To read a li
 phonemes' middles (`perform(P).events.lines[0].phonemes`, each `t` and `dur`): the lips shut on m, b and p, the lower lip
 under the teeth on f and v, rounded on oo and w.
 
+An anime hero's takes (`head: 'anime'`, the same `perform`) are read as anime draws them (`face-acting/anime-read.js`): a
+drawing per layer every frame (brows, lids, gaze, mouth; `polygonizer/anime-drawings.js`), held on twos but a spoken
+closure, the mouth in kuchipaku (a, i, u, e, o, shut), keyed STEP so a drawing snaps rather than melts. At `acting: 'full'`,
+or a take on a target of T3 or higher, the rig draws 7G: each drawing its own target, a brow or lid per side, with the
+correctives that keep a lid's shape over a turned gaze and a brow over a shut eye (`anime-face-rig.js` `sevenG`); otherwise
+the same take is lowered to the four channels. To read a drawing, shoot the take where a beat has settled, not on a hold's
+first frame.
+
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
 (or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.

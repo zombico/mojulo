@@ -802,7 +802,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
  * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
 export const REALISTIC_LAWS_VERSION = 12;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -980,14 +980,21 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');
   }
   // THE FACE'S PERFORMANCES (face-acting/perform.js): { <take>: a performance in beats, a beat's `say` a line it speaks
-  // (face-acting/speech.js) }, each a face-only clip in an export (`face:<take>`), the realistic face's
+  // (face-acting/speech.js) }, each a face-only clip in an export (`face:<take>`), the realistic face's and the anime
+  // face's (read as drawings: face-acting/anime-read.js)
   if (spec.perform !== undefined && spec.perform !== null) {
-    if (!relational) errs.push(`perform: a face's performance is the realistic hero's (form: 'realistic', its relational head)`);
+    if (!relational && spec.head !== 'anime') errs.push(`perform: a face's performance is the realistic hero's (form: 'realistic', its relational head) or the anime hero's (head: 'anime')`);
     else if (typeof spec.perform !== 'object' || Array.isArray(spec.perform) || !Object.keys(spec.perform).length) errs.push('perform: { <take>: { beats: [{ at, face, say?, … }], seconds?, intensity?, seed? } }');
     else for (const [take, P] of Object.entries(spec.perform)) {
       if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(take)) { errs.push(`perform.${take}: a take's name is a word (letters, digits, - and _)`); continue; }
       errs.push(...performanceErrors(P).map((e) => `perform.${take}.${e}`));
     }
+  }
+  // THE ANIME FACE'S ACTING (anime-face-rig.js sevenG): `full` draws the 7G drawings at any target, `basic` the four
+  // channels at any target; unset, a take on a target of T3 or higher draws the 7G (era/cast-spend.js DENSE_TIERS)
+  if (spec.acting !== undefined && spec.acting !== null) {
+    if (spec.head !== 'anime') errs.push(`acting: the anime head's (head: 'anime'): 'full' draws its 7G drawings, 'basic' its four channels`);
+    else if (!['full', 'basic'].includes(spec.acting)) errs.push(`acting: 'full' (the 7G drawings, at any target) | 'basic' (the four channels, at any target); unset, a take on a T3 or higher target draws the 7G`);
   }
   errs.push(...validateGear(spec.gear));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
@@ -1219,6 +1226,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   // the door's motion (hero-motion.js), stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
   if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
   if (spec.perform && typeof spec.perform === 'object' && Object.keys(spec.perform).length) hero.perform = spec.perform;
+  if (spec.acting === 'full' || spec.acting === 'basic') hero.acting = spec.acting;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key

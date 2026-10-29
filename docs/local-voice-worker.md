@@ -69,7 +69,7 @@ Kokoro predicts every phoneme's length before it renders, but the release's mode
 run derives `models/kokoro-v1.0.timed.onnx`, a copy that exposes it as a `duration` output, and `kokoro-onnx` (0.6.1 or
 later) turns it into each phoneme's span.
 
-Give the WAV to a realistic hero's beat, `perform: { <take>: { beats: [{ at, face, say: { text, audio: 'line.wav' } }] } }`
+Give the WAV to a realistic or an anime hero's beat, `perform: { <take>: { beats: [{ at, face, say: { text, audio: 'line.wav' } }] } }`
 (`create_character` or `update_character`). The door SAVES the recording as the hero's own outcome
 (`control/lib/graph/face-acting/recordings.js`: content-addressed under the outcomes directory, the beat keeping its id),
 so the take is whole without the worker that made it, and times it: by the engine's own timings when

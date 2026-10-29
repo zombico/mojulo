@@ -60,7 +60,7 @@ import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layer
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
-import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
+import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
@@ -69,6 +69,7 @@ import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cove
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
 import { relationalFaceRig, performanceTrack } from '@/lib/graph/polygonizer/relational-face-rig';
 import { perform } from '@/lib/graph/face-acting/perform';
+import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -921,6 +922,9 @@ export const WORLD_KINDS = {
         // targets as a LINEAR weights track, a face-only clip an engine layers over a body's (`face:<take>`), derived here
         // and never stored. Absent ⇒ as before.
         if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
+        // (the ANIME face's: each take read as drawings, face-acting/anime-read.js, a STEP track on its targets: the 7G
+        // drawings where its rig draws them, anime-face-rig.js sevenG, else lowered to its four channels, painted or drawn)
+        else if (face?.meta && m.hero.head === 'anime' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, animePerformanceTrack(perform(P), face.K ?? faceKnots(face.authored), { sevenG: !!face.sevenG })]));
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;

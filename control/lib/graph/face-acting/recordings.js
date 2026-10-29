@@ -104,7 +104,7 @@ export function bindPerformance(spec) {
   return { ...spec, perform };
 }
 
-/** A resolved scene's recorded lines (each figure's `face.performances`, relational-face-rig.js performanceTrack): every
+/** A resolved scene's recorded lines (each figure's `face.performances`, relational-face-rig.js performanceTrack, anime-read.js animePerformanceTrack): every
  * one this machine holds gets its `bytes` (so the GLB embeds it, scene-gltf.js); → [{ clip, at, recording, bytes|null }]
  * in the takes' order, for an engine pack to ship its WAVs beside the GLB. */
 export function attachRecordings(payload) {
