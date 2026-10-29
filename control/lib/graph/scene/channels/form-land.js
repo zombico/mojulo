@@ -18,6 +18,13 @@ import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
 import { formFloraScript } from './form-flora.js';
 
+/** THE GROUND'S OWN PARALLAX KINDS, procedural (a Voronoi field, no texture): `pebbles` (domes strewn `cell` m apart over the soil, a cell in four bare,
+ *  `depth` m tall), `cracks` (dry mud in plates `cell` m across, cracks `depth` m deep, their edges curled up), `plates`
+ *  (a second rock, slabs `cell` m across stepped `depth` m). Bare soil takes pebbles where it is damp and cracks where it
+ *  is dry (a field `dry` m across); the trail varies by stretches (a field `stretch` m across) between its powder, a
+ *  pebbled stretch and a cracked one; marched within `near` m. */
+export const GROUND_PARALLAX = Object.freeze({ pebbles: Object.freeze({ cell: 0.09, depth: 0.03 }), cracks: Object.freeze({ cell: 0.34, depth: 0.035 }),
+  plates: Object.freeze({ cell: 0.75, depth: 0.06 }), dry: 9, stretch: 7, near: 30 });
 export function formLandScript(form, flora = null) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
@@ -78,7 +85,12 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
-      sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
+      sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
+        // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
+        // height over its cells, GROUND_PARALLAX)
+        + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
+        + 'float gHt( int k, vec2 p ) { if ( k > 0 ) p += vec2( vn( p * 0.45 ), vn( p * 0.45 + 7.7 ) ) * ( k == 1 ? 0.8 : 1.6 ); vec3 v = vor5( p ); if ( k == 0 ) { float r = mix( 0.22, 0.46, fract( v.z * 7.3 ) ), q = clamp( v.x / r, 0.0, 1.0 ); return v.z < 0.28 ? 0.0 : sqrt( 1.0 - q * q ) * mix( 0.6, 1.0, v.z ); } if ( k == 1 ) return smoothstep( 0.0, mix( 0.012, 0.09, vn( p * 1.7 + 3.0 ) ), v.y ) * ( 0.8 + 0.2 * v.x ); return smoothstep( 0.0, 0.05, v.y ) * mix( 0.35, 1.0, v.z ); }\\n'
+        + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
     vec3 nW = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ), aN = abs( nW );
     vec2 uvW; vec3 tT, tB;
     if ( aN.z >= aN.x && aN.z >= aN.y ) { uvW = vWPos.xy; tT = vec3( 1.0, 0.0, 0.0 ); tB = vec3( 0.0, 1.0, 0.0 ); }
@@ -219,6 +231,45 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     diffuseColor.rgb = mix( diffuseColor.rgb, mix( diffuseColor.rgb, uPathBase, 0.55 ), dirtFrac * ws[ 2 ] / max( 1e-4, tw ) );
     diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
     roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );
+    // the ground's own PARALLAX KINDS (GROUND_PARALLAX): PEBBLES packed in the bare soil where it is damp, in the scree's
+    // fines between its stones and on a pebbled stretch of trail; CRACKED EARTH, dry mud in curled plates, in the bare soil
+    // where it is dry and on a cracked stretch of trail; FRACTURED PLATES, a second rock in patches over the rock. Each
+    // marched along the view near (eight steps), its normal from its own height, its detail fading by its cells' size on
+    // the screen, so nothing sparkles far off
+    {
+      float sS = ws[ 2 ] / max( 1e-4, tw ), rS = ws[ 0 ] / max( 1e-4, tw );
+      float gBare = uHasG > 0.5 ? 1.0 - texture2D( tGrassL, ( vWPos.xy - uGOl ) / uGMl ).b : 1.0;
+      float bare = sS * smoothstep( 0.15, 0.7, gBare ) * smoothstep( 0.55, 0.8, nW.z );
+      float dryF = smoothstep( 0.45, 0.65, vn( vWPos.xy / ${GROUND_PARALLAX.dry.toFixed(1)} + 4.2 ) );
+      float tvF = vn( vWPos.xy / ${GROUND_PARALLAX.stretch.toFixed(1)} + 55.0 ), tPeb = 1.0 - smoothstep( 0.28, 0.38, tvF ), tCrk = smoothstep( 0.62, 0.72, tvF );
+      float fines = vSplat.y * ( 1.0 - kept ) * smoothstep( 0.55, 0.8, nW.z ) * ( 1.0 - pw );
+      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
+      float wK2 = rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) ), wMax = max( wK0, max( wK1, wK2 ) );
+      if ( wMax > 0.02 ) {
+        int kd = wK0 >= wMax ? 0 : wK1 >= wMax ? 1 : 2;
+        float cellK = kd == 0 ? ${GROUND_PARALLAX.pebbles.cell.toFixed(3)} : kd == 1 ? ${GROUND_PARALLAX.cracks.cell.toFixed(3)} : ${GROUND_PARALLAX.plates.cell.toFixed(3)};
+        float depK = kd == 0 ? ${GROUND_PARALLAX.pebbles.depth.toFixed(3)} : kd == 1 ? ${GROUND_PARALLAX.cracks.depth.toFixed(3)} : ${GROUND_PARALLAX.plates.depth.toFixed(3)};
+        vec2 gp = uvW / cellK;
+        float detK = 1.0 - smoothstep( 0.25, 0.7, length( fwidth( gp ) ) );
+        if ( detK > 0.0 ) {
+          if ( camD < ${GROUND_PARALLAX.near.toFixed(1)} ) {
+            vec3 V5 = normalize( cameraPosition - vWPos ), vt5 = vec3( dot( V5, tT ), dot( V5, tB ), dot( V5, nW ) );
+            vec2 dG = vt5.xy / max( vt5.z, 0.3 ) * ( depK / cellK ) * ( 1.0 - smoothstep( ${(GROUND_PARALLAX.near * 0.6).toFixed(1)}, ${GROUND_PARALLAX.near.toFixed(1)}, camD ) ) / 8.0;
+            float lG = 0.0, hG = 1.0 - gHt( kd, gp );
+            for ( int k = 0; k < 8; k++ ) { if ( lG >= hG ) break; gp -= dG; hG = 1.0 - gHt( kd, gp ); lG += 0.125; }
+          }
+          float h0 = gHt( kd, gp ), hx = gHt( kd, gp + vec2( 0.04, 0.0 ) ), hy = gHt( kd, gp + vec2( 0.0, 0.04 ) );
+          vec3 gN = normalize( vec3( ( h0 - hx ) * depK / ( 0.04 * cellK ), ( h0 - hy ) * depK / ( 0.04 * cellK ), 1.0 ) );
+          float wG = wMax * detK, cz = vor5( gp ).z;
+          mn = normalize( mix( mn, gN, wG ) );
+          float peb = step( 0.001, h0 ), tone = kd == 0 ? mix( 0.9, mix( 0.72, 1.2, cz ) * mix( 0.7, 1.05, h0 ), peb ) : kd == 1 ? mix( 0.42, 1.08, smoothstep( 0.0, 0.6, h0 ) ) : mix( 0.62, 1.12, cz ) * mix( 0.55, 1.0, h0 );
+          // (a pebble takes a stone's own colour more than the soil's)
+          diffuseColor.rgb *= mix( 1.0, tone, wG );
+          if ( kd == 0 ) diffuseColor.rgb = mix( diffuseColor.rgb, uStoneBase * tone * mix( 0.85, 1.1, fract( cz * 13.0 ) ), 0.7 * peb * wG );
+          roughnessFactor = mix( roughnessFactor, kd == 1 ? 0.95 : 0.8, wG * 0.5 );
+        }
+      }
+    }
     vec3 dustC = mix( uPathBase, vec3( dot( uPathBase, vec3( 0.2126, 0.7152, 0.0722 ) ) ), 0.35 ) * 1.25 * mix( vec3( 1.0 ), mb, 0.3 );
     diffuseColor.rgb = mix( diffuseColor.rgb, dustC, dust * 0.85 ); roughnessFactor = mix( roughnessFactor, 1.0, dust ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), dust * 0.6 ) );
     // (the sand WET by its height over the water, at this point, not face by face: the line it leaves follows the
