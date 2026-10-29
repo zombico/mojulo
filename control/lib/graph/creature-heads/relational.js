@@ -23,6 +23,8 @@
  *   the cheeks    cheekWidth (the zygomatic arch's breadth, a share of the vault's), cheekFull (the arch's mass)
  *   the eyes      eyeSize (the globe's radius), eyeSet (0 to the side … 1 straight ahead), eyeHeight, pupil ('round' |
  *                 'slit'), iris (the cosine about the gaze inside which the globe is iris: a cat's fills its eye, 0.1)
+ *   the teeth     dentition ('canid' | 'felid': creature-heads/dentition.js), fang (the canines' length, a share of the
+ *                 dentition's own)
  *   the ears      earSize (the ear's height), earWidth (its base, a share of its height), earSet (0 on the side … 1 on
  *                 the top), earTilt (degrees out from the vertical), earPoint (0 round … 1 pointed)
  *
@@ -30,7 +32,8 @@
  *     globes, earFields }: `globes: false` leaves the eyes' globes out of the field (their sockets kept) and `ears: false`
  *     the ears, each then a part of its own (./worn.js); `globes` [{ side, centre, gaze, field, paint }] and `earFields`
  *     [{ side, field }] either way; `points` names what the one skin and the bind read (eyeR, eyeL, prn, alR, alL, sto,
- *     chR, gn, goR, condyleR, porionR, crown: the mouth's front and corner as seated on the skin)
+ *     chR, gn, goR, condyleR, porionR, crown: the mouth's front and corner as seated on the skin); `mouth` the seated
+ *     mouth line, its right half from the corner to the front (the teeth's arch: ./dentition.js)
  *   CREATURE_HEADS, CREATURE_RELATIONS, CREATURE_RELATION_NAMES
  * Pure, deterministic.
  */
@@ -44,7 +47,7 @@ export const CREATURE_RELATIONS = Object.freeze({
   muzzle: 0.7, muzzleWidth: 0.42, muzzleDepth: 0.42, taper: 0.62, muzzleDrop: 0.1, nosePad: 0.075, whisker: 0.4,
   mouthLine: 0.3, gape: 0.62, jawDepth: 0.2, chin: 0.12,
   cheekWidth: 0.92, cheekFull: 0.11,
-  eyeSize: 0.085, eyeSet: 0.6, eyeHeight: 0.6, pupil: 'round', iris: 0.45,
+  eyeSize: 0.085, eyeSet: 0.6, eyeHeight: 0.6, pupil: 'round', iris: 0.45, dentition: 'canid', fang: 1,
   earSize: 0.5, earWidth: 0.55, earSet: 0.75, earTilt: 18, earPoint: 0.8,
 });
 export const CREATURE_RELATION_NAMES = Object.freeze(Object.keys(CREATURE_RELATIONS));
@@ -58,7 +61,7 @@ export const CREATURE_HEADS = Object.freeze({
   // with slit pupils, broad ears set to the top's sides
   felid: Object.freeze({ craniumLength: 0.88, cephalic: 0.9, crown: 0.09, muzzle: 0.2, muzzleWidth: 0.46, muzzleDepth: 0.3, taper: 0.8, muzzleDrop: 0.06, stop: 0.06,
     nosePad: 0.045, whisker: 0.95, mouthLine: 0.28, gape: 0.7, jawDepth: 0.16, chin: 0.06, cheekWidth: 1.02, cheekFull: 0.14,
-    eyeSize: 0.125, eyeSet: 0.86, eyeHeight: 0.58, pupil: 'slit', iris: 0.1, earSize: 0.48, earWidth: 0.72, earSet: 0.62, earTilt: 24, earPoint: 0.65 }),
+    eyeSize: 0.125, eyeSet: 0.86, eyeHeight: 0.58, pupil: 'slit', iris: 0.1, dentition: 'felid', earSize: 0.48, earWidth: 0.72, earSet: 0.62, earTilt: 24, earPoint: 0.65 }),
 });
 
 const v3 = (x, y, z) => ({ x, y, z });
@@ -183,7 +186,10 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {}, globes
   // its own facing (sideways at the corner, turning forward at the front) to where the skin crosses and set in by a third
   // of the groove's radius, so the groove runs along the surface instead of cutting a chord under it
   const GR = [0.016, 0.011], NM = 8;
-  const seat = (q, dir, r) => { const back = 0.25; let c = S(v3(q.x - dir[0] * back, q.y - dir[1] * back, q.z)); const st = 0.003 * sc;
+  // (its march starts back along its facing, no further over than the midline, a narrow muzzle's far side being outside,
+  // and from inside the skin)
+  const seat = (q, dir, r) => { const back = dir[0] > 1e-6 ? Math.min(0.25, q.x / dir[0]) : 0.25, st = 0.003 * sc; let c = S(v3(q.x - dir[0] * back, q.y - dir[1] * back, q.z));
+    for (let i = 0; i < 200 && skin(c) >= 0; i++) c = { x: c.x - dir[0] * st, y: c.y - dir[1] * st, z: c.z };
     for (let i = 0; i < 600 && skin(c) < 0; i++) c = { x: c.x + dir[0] * st, y: c.y + dir[1] * st, z: c.z };
     return { x: c.x - dir[0] * r * 0.35 * sc, y: c.y - dir[1] * r * 0.35 * sc, z: c.z }; };
   const half = Array.from({ length: NM + 1 }, (_, i) => { const t = i / NM, q = lerp(P.mouth.corner, P.mouth.front, t), a = (t * t * Math.PI) / 2, dir = [Math.cos(a), Math.sin(a)], r = GR[0] + (GR[1] - GR[0]) * t;
@@ -227,5 +233,5 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {}, globes
   const xs = W.flatMap((w) => [w.a.x, w.b.x, w.c.x].map((x) => Math.abs(x) + Math.max(...w.r))), ys = W.flatMap((w) => [w.a.y, w.b.y, w.c.y]), zs = W.flatMap((w) => [w.a.z, w.b.z, w.c.z]);
   const pad = 0.12, X = Math.max(...xs) + pad;
   const bounds = { min: v3(-X * sc, (Math.min(...ys) - 0.35) * sc, (Math.min(...zs) - 0.3) * sc), max: v3(X * sc, (Math.max(...ys) + pad) * sc, (Math.max(...zs) + pad) * sc) };
-  return { field, bounds, points: { ...Object.fromEntries(Object.entries(P).filter(([, v]) => v && typeof v === 'object' && 'x' in v).map(([kk, v]) => [kk, S(v)])), ...named }, paint, relations: R, vajras: W, globes: globeList, earFields };
+  return { field, bounds, points: { ...Object.fromEntries(Object.entries(P).filter(([, v]) => v && typeof v === 'object' && 'x' in v).map(([kk, v]) => [kk, S(v)])), ...named }, paint, relations: R, vajras: W, globes: globeList, earFields, mouth: half.map((m) => m.c) };
 }

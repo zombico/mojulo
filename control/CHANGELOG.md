@@ -563,13 +563,22 @@ went to its eyes, teeth and lids. This theme builds its successor on the realist
     the kin's library head, toned to its coat.
   - **The coat's cover on the head**: the skin and the ears take the cover's tile by a box chart (`coverChart`, a mesh
     part's way: `beast/cover.js`), so the fur runs onto the head with no seam at the neck.
+  - **Teeth and gums** (`creature-heads/dentition.js`). The arch is the mouth's line carried in by the lip's thickness.
+    Along it the teeth are placed by a relation, `dentition` (canid | felid; `fang` the canines' length): incisors, the
+    canine, premolars, the carnassial, a molar, each a small cone (a chisel, a round fang, a blade) rooted in a ringed gum.
+    The upper row and gum are the head's, the lower the jaw's, so they part as the jaw opens. The gum lines sit a little
+    past the mouth's line, so parted, the crowns stand clear of the lips. Shut, all of it lies inside the skin: a tooth
+    that would stand out of it is moved in, then shortened, until it fits. The mouth's seated line, which the arch is
+    built from, had two points seated on the wrong side of a narrow muzzle (their march started past its far side), and
+    the groove kinked there; each march now starts no further over than the midline. hero-live gained a Mouth view.
   - **A beast's head opens its jaw in a clip** (the door's `jaw` key), the library head's too: both carried the jaw bone,
     and the door refused the key on them.
 
   Not yet: the other kin as presets, the sheet's head and the lexicon on relations, and the expression actions. The
-  coat's pattern atlas does not reach the head yet (it charts ringed parts; the head is a mesh). The head has no teeth or
-  tongue. The cat's mouth is a straight line (its cleft under the nose is a lip relation to come). A head costs some
-  seconds to net, so worn heads are kept by what a build reads.
+  coat's pattern atlas does not reach the head yet (it charts ringed parts; the head is a mesh). The head has no tongue,
+  and the mouth bag is a closed shell, so the cheek teeth sit behind its sides (every face is drawn from both sides, so a
+  bag inside the rows showed the skin's own inside). The cat's mouth is a straight line (its cleft under the nose is a lip
+  relation to come). A head costs some seconds to net, so worn heads are kept by what a build reads.
 
 Machine gate (`creature-heads/relational.test.js`): one closed skin; a relation moves what it names (the muzzle the
 nose's tip, the cephalic the vault's sides); no swelling past the beads; the eyes and the nose seated (a globe breaks the
@@ -578,7 +587,8 @@ cat surface-netted in clay from six sides (the operator's to judge). Worn (`crea
 the library head for the skin, its globes, a mouth and its ears, and without it the kin keeps its skull; the skin is
 sealed to each point of the neck's last ring; the jaw bone carries the chin and the lower lip, never the crown or the
 upper lip, and the rig's jaw tip is the chin; the cover runs onto the skin and the ears, not the eyes or the nose's pad;
-the word is refused by name. Eyes: the wolf-kin and the cat-kin through hero-live, the library heads beside them, at
+the word is refused by name; the teeth and the gums are a row on each bone, every point inside the shut skin, the canines
+the longest pair, the felid's rows shorter. Eyes: the wolf-kin and the cat-kin through hero-live, the library heads beside them, at
 rest and with the jaw open (the operator's to judge).
 
 ### The biped's coat: patterns solved in an upright body's anatomy, painted into an atlas

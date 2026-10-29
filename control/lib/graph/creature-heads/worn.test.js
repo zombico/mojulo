@@ -63,10 +63,29 @@ describe('the relational creature head, worn', () => {
     for (const k of Object.keys(hit)) expect(k).not.toMatch(/globe|NosePad|EarInner/);
   }, 120_000);
 
+  it('teeth and gums: a row on each bone, all inside the shut skin, the canine the longest, the felid\'s fewer', () => {
+    const { recipe } = mint(W), P = recipe.parts, F = recipe.creatureHead.fit;
+    expect(P.teethU.bind).toBe('head'); expect(P.gumU.bind).toBe('head'); expect(P.teethL.bind).toBe('jaw'); expect(P.gumL.bind).toBe('jaw');
+    const H = relationalCreatureHead({ preset: 'wolf', globes: false, ears: false }), fH = (q) => H.field({ x: q[0] / F.k, y: (q[1] - F.ty) / F.k, z: (q[2] - F.men) / F.k }) * F.k;
+    const pts = [...Object.values(P.teethU.mesh.points), ...Object.values(P.teethL.mesh.points), ...P.gumU.stations.flatMap((st) => Object.values(st.points)), ...P.gumL.stations.flatMap((st) => Object.values(st.points))];
+    expect(pts.length).toBeGreaterThan(500);
+    expect(Math.max(...pts.map(fH))).toBeLessThan(0);
+    // (each tooth's length, root to tip, by its tip's id: the canines the longest of each row)
+    for (const row of [P.teethU, P.teethL]) {
+      const m = row.mesh.points, tips = Object.keys(m).filter((k) => k.endsWith('tip')), len = (t) => { const i = t.slice(0, -3); return Math.hypot(...m[`${i}tip`].map((x, j) => x - m[`${i}base`][j])); };
+      expect(tips.length).toBe(18);
+      const sorted = [...tips].sort((a, b) => len(b) - len(a)), x = (t) => m[t][0];
+      expect(Math.sign(x(sorted[0]))).toBe(-Math.sign(x(sorted[1])));   // (the two longest a pair, one either side)
+    }
+    const cat = mint({ kin: 'feline', head: { relational: 'felid' } }).recipe.parts;
+    expect(Object.keys(cat.teethU.mesh.points).filter((k) => k.endsWith('tip')).length).toBe(12);
+  }, 180_000);
+
   it('refuses a skull or a relation it does not know, by name', () => {
     expect(relationalHeadErrors({ relational: 'shark' }).join()).toMatch(/wolf \| felid/);
     expect(relationalHeadErrors({ relational: 'wolf', relations: { snout: 1 } }).join()).toMatch(/relations\.snout/);
     expect(relationalHeadErrors({ relational: 'felid', relations: { pupil: 'square' } }).join()).toMatch(/'round' \| 'slit'/);
+    expect(relationalHeadErrors({ relational: 'felid', relations: { dentition: 'shark' } }).join()).toMatch(/'canid' \| 'felid'/);
     expect(validateHeroSpec({ cast: 'female', beast: W })).toEqual([]);
   });
 });

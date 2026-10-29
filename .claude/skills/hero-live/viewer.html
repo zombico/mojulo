@@ -70,6 +70,7 @@
           <button id="vSide" aria-pressed="false">Side</button>
           <button id="vBodySide" aria-pressed="false">Full side</button>
           <button id="vBack" aria-pressed="false">Back</button>
+          <button id="vMouth" aria-pressed="false">Mouth</button>
         </div>
         <div class="status" id="status" role="status">Loading the hero…</div>
       </div>
@@ -290,7 +291,9 @@ $('hold').addEventListener('change', (e) => {
 // (`side`: a profile from the figure's side at the bust, for the neck and the spine; `back`: from behind, the full figure,
 // for a coat's back and a tail)
 const VIEWS = { vFace: { dist: 0.8, at: 0.9, fov: 22, rise: -0.02 }, vBust: { dist: 1.5, at: 0.8, fov: 26, rise: 0.05 }, vBody: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1 }, vSide: { dist: 1.6, at: 0.82, fov: 26, rise: 0.02, side: true },
-  vBodySide: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1, side: true }, vBack: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1, back: true } };
+  vBodySide: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1, side: true }, vBack: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1, back: true },
+  // (`vMouth`: the mouth from the front ¾ and a little below, to see into it: the teeth, the gums)
+  vMouth: { dist: 1.1, at: 0.895, fov: 22, rise: -0.06 } };
 function frame(id) {
   S.view = id;
   for (const k of Object.keys(VIEWS)) $(k).setAttribute('aria-pressed', String(k === id));
