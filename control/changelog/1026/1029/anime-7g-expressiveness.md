@@ -29,3 +29,7 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   a tip no further out than the round nose's, its underside cut back to the lip: in profile the centre line's "<" (the
   brow, back to the root, out to the tip) keeps step with the socket's, so the nose reads by its bridge, not by sticking
   out. The tip and dorsum words still size it.
+- **The jaw curved in** (sculpt `jawHollow`, a depth of the head's height; none at 0): below the cheekbone the lower face
+  narrows toward the jaw's edge and on through its underside, gently at first and more toward the edge, every point by
+  its own distance from the middle, so the jaw's side turns down and away from a side light instead of rounding out
+  into it, and its edge turns under with no lip. The centre line, the chin's point and the cheekbones keep their place.

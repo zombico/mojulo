@@ -1,5 +1,6 @@
 // The 7G drawings' test fixture (anime-drawings.test.js, anime-drawings.deep.test.js): the default anime hero's head
-// built as the face rig builds it (and that head in a socket under a pyramid nose, sculpt `orbit` and `noseShape`), the vertices one build moves from another,
+// built as the face rig builds it (and that head in a socket under a pyramid nose, its jaw curved in: sculpt `orbit`,
+// `noseShape`, `jawHollow`), the vertices one build moves from another,
 // its folds, and a drawing's whole check.
 import { expect } from 'vitest';
 import { animeHeadAt } from './humanoid-plan.js';
@@ -39,6 +40,6 @@ export function fixtureOf(o) {
   }
   return { build, checkDrawing };
 }
-/** the default anime hero's head, and that head in a socket under a pyramid nose */
+/** the default anime hero's head, and that head in a socket under a pyramid nose, its jaw curved in */
 export const { build, checkDrawing } = fixtureOf(opts);
-export const socketed = fixtureOf({ ...opts, sculpt: [...(Array.isArray(opts.sculpt) ? opts.sculpt : opts.sculpt ? [opts.sculpt] : []), { orbit: 0.02, noseShape: 'pyramid' }] });
+export const socketed = fixtureOf({ ...opts, sculpt: [...(Array.isArray(opts.sculpt) ? opts.sculpt : opts.sculpt ? [opts.sculpt] : []), { orbit: 0.02, noseShape: 'pyramid', jawHollow: 0.02 }] });

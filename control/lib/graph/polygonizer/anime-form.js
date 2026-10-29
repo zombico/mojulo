@@ -208,6 +208,12 @@ export function buildAnime(r, options = {}) {
     // Broaden and deepen the rear jaw together rather than merely translating its corner.
     z += 0.70 * jawAmount * jawWeight * rearWeight;
     x *= 1 + 0.45 * jawAmount * jawWeight * rearWeight;
+    // jawHollow { depth }: the lower face's side curved IN toward the jaw's edge, so it turns down and away from a side
+    // light instead of rounding out into it: below the cheekbone (`apex`) the head narrows toward the middle, gently at
+    // first and more toward the jaw's edge (`edge`, eased by `curve`), the underside with it (front and back alike, so the
+    // edge turns under with no lip); every point by its own distance from the middle, so the centre line, the chin's
+    // point and the mouth's middle keep their place and no groove is cut beside the chin
+    if (S?.jawHollow && y < JAW.apex) x *= 1 - (S.jawHollow.depth / JAW.span) * dmath.pow(clamp((JAW.apex - y) / (JAW.apex - JAW.edge)), JAW.curve);
     // Positive chin height lengthens the lower chin, fading out before the mouth.
     const chinWeight = clamp((-0.66 - y) / 0.36);
     const chinLift = -0.40 * ((f.chinHeight ?? 1) - 1) * chinWeight * chinWeight;
@@ -844,6 +850,11 @@ function eyeShapeOf(S, f, L = null) {
  * nose (fading over `noseReach` out from the bridge); each run filleted at `fillet` of it; the rings an eye in a socket is
  * built with, from its outline out to its hole's box */
 export const ORBIT = Object.freeze({ bridge: 0.035, medial: 0.17, lateral: [0.64, 0.2], apex: 0.02, up: 0.2, down: 0.24, noseDrop: 0.14, noseReach: 0.3, fillet: 0.2, rings: 8 });
+/** the jaw's curve in (sculpt `jawHollow`, studio units): the head narrowed below `apex` (under the cheekbone) to its
+ * fullest at `edge` (the jaw's edge) and on through the underside, by `t^curve` along the way (no crease where it
+ * starts); its depth is the narrowing at a half-width of `span` (so a share of `depth / span` of every point's distance
+ * from the middle) */
+export const JAW = Object.freeze({ apex: -0.5, edge: -0.95, curve: 1.6, span: 0.5 });
 /** the pyramid nose (sculpt `noseShape: 'pyramid'`, studio units): its ROOT at the eye's level, where the lids meet (so
  * the centre line's "<" — the brow, back to the root, out to the tip — keeps step with the socket's), set back there by
  * `nasion` (easing out `nasionUp` above to the brow and `nasionDown` below), the bridge raised `bridge` × the dorsum word

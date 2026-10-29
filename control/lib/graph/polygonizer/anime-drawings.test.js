@@ -3,8 +3,8 @@
 // lowers to); no drawing, or a neutral one, is the head byte for byte; each drawing keeps the head's topology, moves only
 // its own layer's parts and region, and folds no face; layers that share no vertex add exactly. And the head in a socket
 // (sculpt `orbit`): none at 0; the eye set back between the brow and the cheekbone, the nose and the chin kept; the
-// pyramid nose (sculpt `noseShape`) its bridge raised from the eye's line, its tip no further out; the drawings as whole
-// on them.
+// pyramid nose (sculpt `noseShape`) its bridge raised from the eye's line, its tip no further out; the jaw curved in
+// (sculpt `jawHollow`) narrower toward its edge, its side turned down; the drawings as whole on them.
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
@@ -61,7 +61,7 @@ describe('the drawings, built', () => {
   });
 }, 120000);
 
-describe('the head in a socket (sculpt orbit), and its pyramid nose (sculpt noseShape)', () => {
+describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShape) and its jaw curved in (sculpt jawHollow)', () => {
   const head = (sculpt) => { const h = animeHead({ preset: 'male', hair: 'none', hairFit: false, ...(sculpt ? { sculpt } : {}) }); return compileLayered({ parts: h.parts, dials: {}, creases: {} }); };
   const of = (m, part) => m.vertices.filter((_, i) => m.provenance[i].part === part);
   it('none at 0: the head byte for byte', () => {
@@ -88,6 +88,18 @@ describe('the head in a socket (sculpt orbit), and its pyramid nose (sculpt nose
     expect(Math.max(...FB.map((p) => p[1]))).toBeLessThanOrEqual(tip[1] + 0.002 * H);
     // (the chin and the crown kept, to the micrometre: the pin's frame moves with the face's front and each offset rounds anew)
     for (const [k, f] of [[2, Math.min], [2, Math.max]]) expect(f(...FB.map((p) => p[k]))).toBeCloseTo(f(...FA.map((p) => p[k])), 6);
+  });
+  it('the jaw curved in: narrower toward its edge, its side turned down, the chin and the cheekbones kept; none at 0', () => {
+    expect(sculptBuild('male', resolveAnimeSculpt({ jawHollow: 0 }))).not.toHaveProperty('jawHollow');
+    const A = head(null), B = head({ jawHollow: 0.02 }), FA = of(A, 'face'), FB = of(B, 'face');
+    const zLo = Math.min(...FA.map((p) => p[2])), zHi = Math.max(...FA.map((p) => p[2])), at = (F, z0, z1) => Math.max(...F.filter((p) => p[2] > z0 && p[2] < z1).map((p) => Math.abs(p[0])));
+    // (the same face, its points moved: the jaw's edge narrower, the cheekbones' width kept; the centre line and the chin unmoved)
+    expect(at(FB, zLo + 0.08 * (zHi - zLo), zLo + 0.14 * (zHi - zLo))).toBeLessThan(at(FA, zLo + 0.08 * (zHi - zLo), zLo + 0.14 * (zHi - zLo)) * 0.97);
+    expect(at(FB, zLo + 0.45 * (zHi - zLo), zLo + 0.55 * (zHi - zLo))).toBeCloseTo(at(FA, zLo + 0.45 * (zHi - zLo), zLo + 0.55 * (zHi - zLo)), 6);
+    FA.forEach((p, i) => { if (Math.abs(p[0]) < 1e-9) expect(FB[i][1]).toBeCloseTo(p[1], 6); });
+    // (the lower face's side turned down: its faces' normals lean further down, so a side light grazes it)
+    const tilt = (m) => { const P = m.vertices; let t = 0, n = 0; m.faces.forEach((f, i) => { if (m.provenance[f[0]].part !== 'face' || m.groups[i] !== 'Skin') return; const [a, b, c] = f.map((v) => P[v]), cz = (a[2] + b[2] + c[2]) / 3, cx = (a[0] + b[0] + c[0]) / 3; if (cz > zLo + 0.25 * (zHi - zLo) || Math.abs(cx) < 0.5 * at(FA, zLo, zHi)) return; const u = b.map((x, k) => x - a[k]), w = c.map((x, k) => x - a[k]), N = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]; t += N[2] / (Math.hypot(...N) || 1); n++; }); return t / n; };
+    expect(tilt(B)).toBeLessThan(tilt(A));
   });
   it('keeps every layer\'s drawing whole on it (under the pyramid nose too)', () => {
     for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) socketed.checkDrawing(`socketed ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);
