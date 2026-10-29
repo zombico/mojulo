@@ -116,8 +116,8 @@ export function performanceTrack(take, { fps = 30 } = {}) {
     for (const k of Object.keys(g)) gaps.add(k);
     t.push(+(i / take.fps).toFixed(6)); w.push(RELATIONAL_FACE_TARGETS.map((n, j) => (n in G ? +G[n].toFixed(6) : weights[j])));
   }
-  // (a spoken line's recording, where it has one: speech.js `say.audio`, played from its beat)
-  const audio = (take.events?.lines ?? []).filter((L) => L.audio).map((L) => ({ at: L.t, file: L.audio }));
+  // (a spoken line's recording, where it has one: its id, face-acting/recordings.js, played from its beat)
+  const audio = (take.events?.lines ?? []).filter((L) => L.recording).map((L) => ({ at: L.t, recording: L.recording }));
   return { seconds: take.seconds, t, w, gaps: [...gaps], ...(audio.length ? { audio } : {}) };
 }
 /**

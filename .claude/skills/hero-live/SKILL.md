@@ -39,8 +39,10 @@ it does not find (a Playwright build: `/opt/pw-browsers/chromium-*/chrome-linux/
 
 A realistic hero's face PERFORMANCES (the door's `perform`: `{ <take>: { beats: [{ at, face, state?, gaze?, flash?, micro?,
 say? }], seconds?, intensity?, seed? } }`, `control/lib/graph/face-acting/perform.js`; a beat's `say` a line it speaks,
-`face-acting/speech.js`, `*word*` emphasized) export as face-only clips (`face:<take>`) and play here as takes of their own,
-over the body's idle, their own blinks and gaze in place of the page's. To read a line's lip-sync, shoot the take at its
+`face-acting/speech.js`, `*word*` emphasized; `say: { text, audio: '<a WAV>' }` a recorded line, saved by the door as the
+hero's own, `face-acting/recordings.js`, and embedded in the GLB) export as face-only clips (`face:<take>`) and play here as takes of their own,
+over the body's idle, their own blinks and gaze in place of the page's, a take's recordings playing with it (the
+Sound toggle; a browser plays sound only once the page is touched). To read a line's lip-sync, shoot the take at its
 phonemes' middles (`perform(P).events.lines[0].phonemes`, each `t` and `dur`): the lips shut on m, b and p, the lower lip
 under the teeth on f and v, rounded on oo and w.
 

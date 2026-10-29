@@ -5,7 +5,7 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -19,10 +19,23 @@ import { hexLin } from '../../graph/epidermis/dermal-map.js';
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { expandLayeredManifest } from './layered.js';
 
+const OUT = process.env.MOJULO_OUTCOMES_DIR;
+/** a WAV a line was recorded to: a second of a tone after a quarter of silence, 16 kHz, 16-bit */
+function toneWav(dir) {
+  const rate = 16000, n = Math.round(1.25 * rate), data = Buffer.alloc(n * 2);
+  for (let i = Math.round(0.25 * rate); i < n; i++) data.writeInt16LE(Math.round(16000 * Math.sin((2 * Math.PI * 220 * i) / rate)), i * 2);
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + data.length, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22);
+  h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(data.length, 40);
+  const at = path.join(dir, 'told.wav'); writeFileSync(at, Buffer.concat([h, data])); return at;
+}
+
 describe('the realistic hero, minted and exported', () => {
   it('mints at the door and exports a lit skinned GLB an engine reads: the joints, the clips, the correctives, the normals', async () => {
     const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'],
-      perform: { hello: { seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'amused', flash: true, gaze: 'away', say: 'Hi, you.' }] } } } });
+      perform: { hello: { seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'amused', flash: true, gaze: 'away', say: 'Hi, you.' }] },
+        // (a recorded line: the door saves it, aligns its text to it, and the export embeds it)
+        told: { beats: [{ at: 0.25, face: 'neutral', say: { text: 'Hi.', audio: toneWav(OUT) } }] } } } });
     expect(minted.ok).toBe(true);
     expect(minted.hero.head).toBe('relational');
     const out = await exportModelHandler({ ref: minted.ref, format: 'glb', clips: '_all', skinned: true, lit: true });
@@ -44,6 +57,12 @@ describe('the realistic hero, minted and exported', () => {
     expect(names).toEqual(expect.arrayContaining(['frownLeft', 'cheekRaiseRight', 'eyeLookUpLeft', 'eyeLookOutRight']));
     // (and speech's: the lips' shapes and the jaw as ARKit's jawOpen, a line spoken in the take)
     expect(names).toEqual(expect.arrayContaining(['pucker', 'funnel', 'rollLower', 'lipsPart', 'jawOpen']));
+    // (the recorded take carries its recording inside the file: its bytes a WAV in the GLB's own buffer)
+    const glb = readFileSync(out.path), json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')), bin = glb.subarray(20 + glb.readUInt32LE(12) + 8);
+    const told = json.meshes.flatMap((m) => m.extras?.face?.performances ?? []).find((p) => p.clip === 'face:told');
+    expect(told.audio).toHaveLength(1); expect(told.audio[0]).toMatchObject({ at: 0.25, mimeType: 'audio/wav' });
+    const view = json.bufferViews[told.audio[0].bufferView];
+    expect(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + 4).toString('ascii')).toBe('RIFF');
     const take = root.listAnimations().find((a) => a.getName() === 'face:hello');
     expect(take).toBeTruthy();
     expect(take.listSamplers().map((sm) => sm.getInterpolation())).toEqual(['LINEAR']);

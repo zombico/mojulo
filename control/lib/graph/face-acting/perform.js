@@ -7,8 +7,9 @@
  * ('spontaneous' | 'posed' | seconds), gaze? ('listener' | 'away' | 'down' | 'up' | { yaw, pitch } degrees), state?
  * ('listening' | 'speaking' | 'thinking' | 'attentive'), flash? (a brow flash on the beat), micro? (a face spec flashed
  * for a fifth of a second), microAt? (s, its time; the beat's by default), say? (a line spoken from the beat: speech.js,
- * a text or { text | phonemes, rate?, articulation?, audio? }: phonemes an engine timed play on the recording's own timeline,
- * the recording `audio` starting with the beat; the beat's state speaking unless it says another) }], seconds?,
+ * a text or { text | phonemes, rate?, articulation? }, or a RECORDED line as the door keeps it, { recording, seconds,
+ * timing, phonemes | envelope, words? } (recordings.js bindLine): its phonemes on the recording's own timeline, the
+ * recording starting with the beat; the beat's state speaking unless it says another) }], seconds?,
  * intensity? (1), seed? (1), fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds
  * past the last beat or the last line's end, whichever is later).
  *
@@ -96,6 +97,8 @@ export function performanceErrors(P) {
     if (b.state !== undefined && !STATES.includes(b.state)) errs.push(`${at}.state: one of ${STATES.join(', ')}`);
     if (b.onset !== undefined && !(b.onset === 'spontaneous' || b.onset === 'posed' || (Number.isFinite(b.onset) && b.onset > 0))) errs.push(`${at}.onset: 'spontaneous' | 'posed' | seconds`);
     if (b.say !== undefined) errs.push(...speechErrors(b.say).map((e) => `${at}.${e}`));
+    // (a recording is saved by the character door, which keeps its id: a path here would play nothing)
+    if (b.say && typeof b.say === 'object' && b.say.audio !== undefined) errs.push(`${at}.say.audio: a recording is saved by the door (create_character or update_character, recordings.js), which keeps its id; a performance holds no path`);
     const g = b.gaze;
     if (g !== undefined && !(typeof g === 'string' ? ['listener', 'away', 'down', 'up'].includes(g) : g && Number.isFinite(g.yaw) && Number.isFinite(g.pitch))) errs.push(`${at}.gaze: 'listener' | 'away' | 'down' | 'up' | { yaw, pitch }`);
   });
@@ -166,7 +169,9 @@ export function perform(P) {
   // THE LINES: the speech's units over the face's, the face's mouth giving way where the lips cannot do both
   for (const L of lines) {
     const T = L.take, o = Math.round(L.at * fps), env = new Array(n).fill(0);
-    const t0 = L.at + (T.events.phonemes.find((q) => q.p !== 'sil')?.t ?? 0), t1 = L.at + Math.max(...T.events.phonemes.filter((q) => q.p !== 'sil').map((q) => q.t + q.dur));
+    // (the line's span: its phonemes', or a line by loudness its whole length)
+    const spoken = T.events.phonemes.filter((q) => q.p !== 'sil');
+    const t0 = L.at + (spoken[0]?.t ?? 0), t1 = L.at + (spoken.length ? Math.max(...spoken.map((q) => q.t + q.dur)) : T.seconds);
     for (let i = 0; i < n; i++) { const t = tOf(i); env[i] = t < t0 ? ease(1 - (t0 - t) / SPEAKING.ease) : t > t1 ? ease(1 - (t - t1) / SPEAKING.ease) : 1; }
     const sp = (u, i) => { const j = i - o; return j >= 0 && j < T.frames ? T.curves[u][j] : 0; };
     for (const [k, c] of Object.entries(curves)) {
@@ -177,8 +182,8 @@ export function perform(P) {
     for (const u of Object.keys(T.curves)) { const c = curves[u] || (curves[u] = new Array(n).fill(0)); for (let i = 0; i < n; i++) c[i] = Math.max(c[i], sp(u, i)); }
     // (the batons: an emphasized word lifts the brows as it is said)
     for (const w of T.events.words) if (w.emph) { const B = SPEAKING.baton, t = L.at + w.t - 0.08; layer('AU1', t, B.rise, B.hold * w.dur, B.fall, B.AU1 * K); layer('AU2', t, B.rise, B.hold * w.dur, B.fall, B.AU2 * K); events.batons.push({ t: r4(t), word: w.w }); }
-    const audio = typeof L.say === 'object' ? L.say.audio : undefined;
-    events.lines.push({ t: r4(L.at), seconds: T.seconds, ...(audio ? { audio } : {}), words: T.events.words.map((w) => ({ ...w, t: r4(L.at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(L.at + q.t) })) });
+    const recording = typeof L.say === 'object' ? L.say.recording : undefined;
+    events.lines.push({ t: r4(L.at), seconds: T.seconds, ...(recording ? { recording } : {}), words: T.events.words.map((w) => ({ ...w, t: r4(L.at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(L.at + q.t) })) });
   }
   // THE GAZE: per beat a target (its state's default when none), saccades to it with the upper face, drift within a
   // fixation, a speaker's glances away and back

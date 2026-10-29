@@ -227,7 +227,7 @@ export function speechErrors(S) {
   const s = typeof S === 'string' ? { text: S } : S;
   if (!s || typeof s !== 'object') return ['say: a line of text, or { text, rate?, articulation? }, or { phonemes: [{ p, t?, dur? }] }'];
   const errs = [];
-  if (s.text === undefined && s.phonemes === undefined) errs.push('say: { text } or { phonemes }');
+  if (s.text === undefined && s.phonemes === undefined && s.envelope === undefined && s.audio === undefined) errs.push('say: { text } or { phonemes }, or { audio } (its recording)');
   if (s.text !== undefined && (typeof s.text !== 'string' || !/[A-Za-z0-9]/.test(s.text))) errs.push('say.text: words to speak');
   if (s.phonemes !== undefined) {
     if (!Array.isArray(s.phonemes) || !s.phonemes.length) errs.push('say.phonemes: [{ p, t?, dur? }]');
@@ -237,10 +237,23 @@ export function speechErrors(S) {
       if (!givenPhonemes(s.phonemes).phonemes.some((q) => q.p !== 'sil')) errs.push('say.phonemes: no phoneme to speak');
     }
   }
-  if (s.audio !== undefined && (typeof s.audio !== 'string' || !/\.(wav|mp3|ogg|m4a)$/i.test(s.audio))) errs.push('say.audio: the line\'s recording, a path to a .wav, .mp3, .ogg or .m4a');
+  // (a recording: given as `audio`, a WAV's path the door saves; kept as `recording`, its id, with its `seconds` and
+  // `timing`, the timed phonemes and words or, no text, the loudness `envelope`: recordings.js bindLine)
+  if (s.audio !== undefined && (typeof s.audio !== 'string' || !/\.wav$/i.test(s.audio))) errs.push('say.audio: the line\'s recording, a path to a .wav (the door saves it)');
+  if (s.recording !== undefined && !/^[0-9a-f]{16}$/.test(String(s.recording))) errs.push('say.recording: a saved recording\'s id (16 hex), as the door keeps it');
+  if (s.timing !== undefined && !TIMINGS.includes(s.timing)) errs.push(`say.timing: one of ${TIMINGS.join(', ')}`);
+  if (s.seconds !== undefined && !(Number.isFinite(s.seconds) && s.seconds > 0)) errs.push('say.seconds: the recording\'s length, more than 0');
+  if (s.words !== undefined && !(Array.isArray(s.words) && s.words.every((w) => w && typeof w.w === 'string' && Number.isFinite(w.t) && Number.isFinite(w.dur)))) errs.push('say.words: [{ w, t, dur, emph? }]');
+  if (s.envelope !== undefined && !(s.envelope && Number.isFinite(s.envelope.fps) && s.envelope.fps > 0 && Array.isArray(s.envelope.v) && s.envelope.v.length && s.envelope.v.every((x) => Number.isFinite(x) && x >= 0 && x <= 1))) errs.push('say.envelope: { fps, v: [0 … 1] }, the voice\'s loudness');
   for (const [k, lo, hi] of [['rate', 0.4, 2.5], ['articulation', 0, 2], ['jaw', 0, 2], ['lips', 0, 2]]) if (s[k] !== undefined && !(Number.isFinite(s[k]) && s[k] >= lo && s[k] <= hi)) errs.push(`say.${k}: ${lo} … ${hi}`);
   return errs;
 }
+
+/** how a recorded line is timed: by its engine (its own phonemes), its text aligned to it, or its loudness alone */
+export const TIMINGS = Object.freeze(['engine', 'aligned', 'loudness']);
+
+/** A text's rule timeline (the segments and the words, from TIMING.lead): what align.js lays on a recording */
+export function textTimeline(text, { rate = 1 } = {}) { const { segs, words } = segmentsOf({ text, rate }); return { segs, words }; }
 
 /** the segments of a line: [{ p, vis, t, dur, k (a target's scale), emph, word }] in time from 0, and its words timed */
 function segmentsOf(s) {
@@ -254,7 +267,8 @@ function segmentsOf(s) {
       const dur = q.dur ?? (p === 'sil' ? TIMING.comma : TIMING[cls]) / rate, at = q.t ?? t;
       segs.push({ p, t: at, dur, stress: q.stress, emph: false, word: -1 }); t = at + dur;
     }
-    return { segs, words: [], end: t + TIMING.tail };
+    // (the words where an aligner timed them: an emphasized one's baton)
+    return { segs, words: s.words ? s.words.map((w) => ({ ...w })) : [], end: Math.max(t + TIMING.tail, s.seconds ?? 0) };
   }
   const { phonemes, words } = phonemesOf(s.text), wt = words.map(() => ({ t: Infinity, end: 0 }));
   for (const q of phonemes) {
@@ -272,6 +286,17 @@ function segmentsOf(s) {
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
+/** a recorded line with no text: the mouth opening with the voice's loudness (`envelope`), the jaw and the lips parted
+ * by it at `LOUDNESS_MOUTH` of their reach, no viseme (no word is known to shape) */
+export const LOUDNESS_MOUTH = Object.freeze({ AU26: 0.45, AU25: 0.6, part: 0.15 });
+function byLoudness(s, fps, KJ, KL) {
+  const E = s.envelope ?? { fps: 30, v: [0] }, seconds = Math.max(s.seconds ?? 0, E.v.length / E.fps), n = Math.max(1, Math.round(seconds * fps) + 1);
+  const at = (t) => { const x = t * E.fps, i = Math.floor(x), f = x - i; return (E.v[Math.min(E.v.length - 1, i)] ?? 0) * (1 - f) + (E.v[Math.min(E.v.length - 1, i + 1)] ?? 0) * f; };
+  const curves = Object.fromEntries(SPEECH_UNITS.map((u) => [u, new Array(n).fill(0)]));
+  for (let i = 0; i < n; i++) { const e = at(i / fps); curves.AU26[i] = r4(clamp01(e * LOUDNESS_MOUTH.AU26 * KJ)); curves.AU25[i] = r4(clamp01(Math.min(1, e / LOUDNESS_MOUTH.part) * LOUDNESS_MOUTH.AU25 * KL)); }
+  return { fps, seconds: r4(seconds), frames: n, curves, events: { phonemes: [], words: [] } };
+}
+
 /**
  * A line spoken: `S` a text or { text | phonemes, rate? (1), articulation? (1), jaw? (1), lips? (1) } → { fps, seconds,
  * frames, curves: { AUxx: [per frame] } (SPEECH_UNITS), events: { phonemes: [{ p, viseme, t, dur }], words: [{ w, t, dur,
@@ -281,6 +306,7 @@ export function speak(S, { fps = SPEECH_FPS } = {}) {
   const errs = speechErrors(S);
   if (errs.length) throw new Error(`speak: ${errs.join('; ')}`);
   const s = typeof S === 'string' ? { text: S } : S, A = s.articulation ?? 1, KJ = A * (s.jaw ?? 1), KL = A * (s.lips ?? 1);
+  if (!s.phonemes && !s.text) return byLoudness(s, fps, KJ, KL);
   const { segs, words, end } = segmentsOf(s);
   // (each segment its viseme(s): a diphthong two halves, the glide second; a breath (hh) the next vowel's at a third)
   const keys = [];
