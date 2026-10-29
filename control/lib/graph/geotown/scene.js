@@ -50,7 +50,7 @@ import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
-import { frontOf, FRONT } from './fronts.js';
+import { frontOf, FRONT, box } from './fronts.js';
 import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, carOf, CAR_PAINTS, ZONES } from './yards.js';
 import { gatesOf } from './gates.js';
 import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
@@ -93,9 +93,11 @@ function lessRects(r, cuts) {
 }
 // a step's rise at most (m), a bank lower than this takes no steps; a hedge's height and depth (m)
 const STEP_RISE = 0.18, NO_STEPS = 0.25, HEDGE = { h: 0.85, d: 0.55, in: 0.25 };
-// a town tree is at least twice a person's height (the geocube's walk, era/out-ikebana.js WALK.body), its crown's reach
-// this far short of any building at the least
-const TREE_LEAST = 2 * WALK.body, TREE_GAP = 0.6;
+// a town tree's CROWN starts at least twice a person's height up (the geocube's walk, era/out-ikebana.js WALK.body): its
+// crown raised (vegetation/pool.js `clear`) below that share of its height, so a tree is at least as tall as its clear
+// trunk over that share; its crown's reach this far short of any building at the least
+export const TREE_CLEAR = 2 * WALK.body, TREE_RAISE = 0.42;
+const TREE_LEAST = TREE_CLEAR / TREE_RAISE, TREE_GAP = 0.6;
 // the town's air: a share of the cube's, since a town is seen across hundreds of metres, not a trail's seventy
 const TOWN_HAZE = 0.45;
 
@@ -142,7 +144,8 @@ function coloursOf(cube) {
     // a yard's things: a trampoline's mat, a grill, mulch round a tree, a compost bin, a balcony's rail
     mat: '#24262a', grill: '#2b2b2d', mulch: mix('#5b4232', C.floor, 0.2), compost: '#4f5a3c', rail: mix('#ece8de', C.trim, 0.2),
     // a gated front: its iron, its low wall's brick, its piers' stone
-    lane: mix('#55585c', C.floor, 0.12), iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
+    lane: mix('#55585c', C.floor, 0.12), pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
+    iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
     // a site's ground and its things: lawn, turf and its mown stripes, the lines, a court, a track, a diamond's dirt, the
     // chips under a playground; goals, nets, fences, a field house's block walls, lamps, a flag, seats
     grounds: mix(C.grass, C.foliage, 0.08), field: mix('#4f8f3a', C.grass, 0.35), turf: mix('#4f8f3a', C.grass, 0.35), stripe: mix('#5e9e46', C.grass, 0.35), line: '#f2f0e8',
@@ -249,7 +252,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the plots ──
   const W = (pl, u, v, z) => [pl.A[0] + pl.ex[0] * u + pl.ey[0] * v, pl.A[1] + pl.ex[1] * u + pl.ey[1] * v, z];
   const items = {}, grows = (sp, x, y, z, h, on) => { (items[sp] ||= []).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h), on }); };
-  // a town tree's height: from twice a person's height (the geocube's walk: era/out-ikebana.js WALK.body) to its
+  // a town tree's height: from the least whose raised crown starts twice a person's height up (TREE_LEAST) to its
   // species' most, or `top`; its room among the buildings holds it lower later
   const treeH = (sp, f, top = Infinity) => { const hh = Math.max(TREE_LEAST, Math.min(SPECIES[sp].heights[1], top)); return TREE_LEAST + (hh - TREE_LEAST) * f; };
   // a yard's or a fence's face, in its plot's frame (u, v, z over its pad), painted by its role (or its own paint)
@@ -466,6 +469,54 @@ export function assembleGeotownScene(m, ctx = {}) {
       else { const y = Math.abs(a[3] - b[1]) < 1e-3 ? a[3] : a[1], x0 = Math.max(a[0], b[0]), x1 = Math.min(a[2], b[2]), toQ = Math.sign((b[1] + b[3]) / 2 - y); wall([[x0, y, p.pad], [x1, y, p.pad], [x1, y, q.pad], [x0, y, q.pad]], [0, p.pad > q.pad ? toQ : -toQ, 0]); }
     }
   }
+  // ── the street's furniture (design.js `traffic`): its streetlights; at each controlled crossing its crosswalks (zebras
+  // at a signal, two lines at a stop), its stop lines, a stop sign on each stopped approach's right, a signal at each
+  // corner facing its approach (a mast arm over a main or major street's road) ──
+  const fx = (fs) => { for (const f of fs) put(f.corners, `geotown:${f.role}`, col[f.role] ?? col.metal, f.out); };
+  for (const Lt of d.traffic?.lights ?? []) {
+    const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4];
+    fx(box(x - 0.08, y - 0.08, x + 0.08, y + 0.08, z, z + Lt.h, 'pole'));
+    fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lt.h - 0.12, z + Lt.h, 'pole'));
+    fx(box(ax - hl[0], ay - hl[1], ax + hl[0], ay + hl[1], z + Lt.h - 0.3, z + Lt.h - 0.1, 'lamp'));
+  }
+  for (const Xc of d.traffic?.crossings ?? []) {
+    if (Xc.control === 'none') continue;
+    const [k, j] = Xc.id.split(':').map(Number), [cx, cy] = Xc.at, Sx = d.sections.x[k], Sy = d.sections.y[j];
+    for (const a of Xc.arms) {
+      // (each arm in its own frame: t out from the crossing's middle, s across it to the approaching driver's right)
+      const out = { n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] }[a], lat = [-out[1], out[0]], ns = a === 'n' || a === 's';
+      const Rr = ns ? Sx.R : Sy.R, Rb = ns ? Sy.R : Sx.R, arm = (ns ? Sy.half : Sx.half) - Rb, cw = Math.min(3, arm - 0.6), big = (ns ? Sx : Sy).rank !== 'street';
+      const Pt = (t, s) => [cx + out[0] * t + lat[0] * s, cy + out[1] * t + lat[1] * s];
+      const paint = (t0, t1, s0, s1) => put([Pt(t0, s0), Pt(t1, s0), Pt(t1, s1), Pt(t0, s1)].map(([x, y]) => [x, y, S(x, y) + 0.025]), 'geotown:line', col.line);
+      const stop = Xc.stopped.includes(a), sig = Xc.control === 'signal';
+      if (cw >= 1.2 && sig) for (let s = -Rr + 0.3; s + 0.5 <= Rr - 0.2; s += 1) paint(Rb + 0.3, Rb + 0.3 + cw, s, s + 0.5);
+      else if (cw >= 1.2 && stop) { paint(Rb + 0.3, Rb + 0.45, -Rr, Rr); paint(Rb + 0.15 + cw, Rb + 0.3 + cw, -Rr, Rr); }
+      const tl = Rb + Math.max(cw, 0) + 0.8;
+      if (sig || stop) paint(tl, tl + 0.4, 0.15, Rr - 0.15);
+      // a thing standing in the arm's frame: a face across it, facing out to the approach, at height z0..z1
+      const face = (t, s0, s1, z0, z1, role) => { const p = Pt(t, s0), q = Pt(t, s1); put([[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], z1], [p[0], p[1], z1]], `geotown:${role}`, col[role], [out[0], out[1], 0]); };
+      // (a sign or a pole that would stand past the town's frame, in its bare border, is not put up)
+      const inside = (t, s) => { const [x, y] = Pt(t, s); return x > 0 && y > 0 && x < d.frame.W && y < d.frame.D; };
+      if (stop && inside(tl + 0.6, Rr + 0.7)) {
+        const [px, py] = Pt(tl + 0.6, Rr + 0.7), z = wk(px, py), r = 0.38, c = (q) => { const [s, h] = q; const w0 = Pt(tl + 0.6 + 0.05, Rr + 0.7 + s); return [w0[0], w0[1], z + 2.45 + h]; };
+        fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.1, 'pole'));
+        const o = Array.from({ length: 8 }, (_, i) => { const th = (Math.PI / 8) * (2 * i + 1); return [r * Math.cos(th), r * Math.sin(th)]; });
+        for (const q of [[o[0], o[1], o[2], o[3]], [o[4], o[5], o[6], o[7]], [o[0], o[3], o[4], o[7]]]) put(q.map(c), 'geotown:stop', col.stop, [out[0], out[1], 0]);
+      }
+      if (sig && inside(Rb + 0.9, Rr + 0.9)) {
+        const t0 = Rb + 0.9, s0 = Rr + 0.9, [px, py] = Pt(t0, s0), z = wk(px, py);
+        fx(box(px - 0.09, py - 0.09, px + 0.09, py + 0.09, z, z + (big ? 6 : 4.2), 'pole'));
+        // its head: a box, its three lamps on the face to the approach (red over amber over green)
+        const head = (s, zb) => { const [hx, hy] = Pt(t0, s); fx(box(hx - 0.18, hy - 0.18, hx + 0.18, hy + 0.18, zb, zb + 1, 'signal')); [['red', 0.72], ['amber', 0.42], ['green', 0.12]].forEach(([role, h]) => face(t0 + 0.19, s - 0.1, s + 0.1, zb + h, zb + h + 0.2, role)); };
+        head(s0, z + 2.6);
+        if (big) {
+          const [mx, my] = Pt(t0, Rr * 0.3);
+          fx(box(Math.min(px, mx) - 0.07, Math.min(py, my) - 0.07, Math.max(px, mx) + 0.07, Math.max(py, my) + 0.07, z + 5.7, z + 5.85, 'pole'));
+          head(Rr * 0.3, z + 4.65);
+        }
+      }
+    }
+  }
   // ── an edge's LANE: the streets' ground between its rows' backs; a face where each lot's pad stands over (or under) it ──
   for (const B of d.blocks) {
     if (!B.lane) continue;
@@ -621,7 +672,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     if (!(share > 0)) continue;
     for (let s = 3 + R() * stride * 0.6; s < len - 3; s += stride * (0.85 + 0.3 * R())) {
       const x = ax ? x0 + s : (x0 + x1) / 2, y = ax ? (y0 + y1) / 2 : y0 + s, sp = P.grow.street[Math.floor(R() * P.grow.street.length)];
-      if (R() >= share || cut.some(([c0, c1]) => (ax ? x : y) > c0 - 1 && (ax ? x : y) < c1 + 1)) continue;
+      if (R() >= share || cut.some(([c0, c1]) => (ax ? x : y) > c0 - 1 && (ax ? x : y) < c1 + 1) || (d.traffic?.lights ?? []).some((Lt) => Math.hypot(Lt.at[0] - x, Lt.at[1] - y) < 2.5)) continue;
       grows(sp, x, y, wk(x, y), treeH(sp, 0.3 + 0.5 * R(), 16), p.cls);
       // (a main street's tree stands in its pit, under a grate)
       if (pits) { const g = 0.6; put([[x - g, y - g], [x + g, y - g], [x + g, y + g], [x - g, y + g]].map(([a, b]) => [a, b, wk(a, b) + 0.01]), 'geotown:pit', col.pit); }
@@ -669,8 +720,15 @@ export function assembleGeotownScene(m, ctx = {}) {
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));
-  const V0 = rowWith('avenue');
+  const V0 = rowWith('avenue'), L0 = rowWith('lowrise');
   if (V0) cameras.push(along(V0, 'avenue', 24));
+  if (L0) cameras.push(along(L0, 'lowrise', 22));
+  // a controlled crossing (a signal's, else a stop's) from its corner's walk, back along one street, across the other
+  const Xq = (d.traffic?.crossings ?? []).find((c) => c.control === 'signal' && c.arms.length === 4) ?? (d.traffic?.crossings ?? []).find((c) => c.control === 'stop' && c.arms.length === 4);
+  if (Xq) {
+    const [k, j] = Xq.id.split(':').map(Number), Sx = d.sections.x[k], Sy = d.sections.y[j], [cx, cy] = Xq.at, e = [cx + Sx.half + 2, cy - Sy.half - 9];
+    cameras.push(cam('crossing', [e[0], e[1], wk(e[0], e[1]) + 1.7], [cx - 2, cy + 4, wk(cx, cy) + 2.4], 72));
+  }
   // a school from the walk across its street, its doors before it; a site's fields from beyond its corner, over its trees
   const Sb = d.blocks.find((b) => b.site?.type === 'school'), Sl = Sb && d.plots.find((pl) => pl.block === Sb.id && pl.kind === 'school');
   if (Sl) {
@@ -703,13 +761,13 @@ export function assembleGeotownScene(m, ctx = {}) {
   const repeats = [], textures = {}, eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: (TREE_EYE * 1280) / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
   // each tree held to its ROOM: its crown's reach (its species' widest crown over its height, measured on its grown
   // variants) and a gap short of every building's footprint (its porch, bay and awning in it); one that has not room to
-  // stand twice a person's height is not planted
+  // stand tall enough for its crown to start twice a person's height up is not planted
   const footprints = colliders.filter((c) => c.of.endsWith(':house')).map((c) => [c.min[0], c.min[1], c.max[0], c.max[1]]);
   const roomAt = (x, y) => footprints.reduce((a, [x0, y0, x1, y1]) => Math.min(a, Math.hypot(Math.max(0, x0 - x, x - x1), Math.max(0, y0 - y, y - y1))), Infinity);
   const pools = {}, kept = {};
   let crowded = 0, nearest = Infinity;
   for (const sp of Object.keys(items).sort()) {
-    const pool = plantPool({ species: sp, variants: 2, seed: `geotown::${sp}`, light: LIGHT, maxLevel: 'L2', group: `geotown:tree-${sp}` });
+    const pool = plantPool({ species: sp, variants: 2, seed: `geotown::${sp}`, light: LIGHT, maxLevel: 'L2', group: `geotown:tree-${sp}`, clear: TREE_RAISE });
     const reach = Math.max(...pool.variants.map((v) => { const T = v.levels?.L1 ?? []; let r = 0, h = 0; for (const f of T) for (const c of f.corners) { r = Math.max(r, Math.hypot(c[0], c[1])); h = Math.max(h, c[2]); } return h > 0 ? r / h : 0.5; }));
     pools[sp] = pool;
     kept[sp] = [];
@@ -744,10 +802,10 @@ export function assembleGeotownScene(m, ctx = {}) {
   const hard = Object.entries(growth).filter(([on]) => !(SURFACES[on]?.grows ?? []).some((g) => g === 'tree' || g === 'street-tree')).reduce((a, [, n]) => a + n, 0);
   const laws = [...d.laws,
     { law: 'bare', ok: hard === 0, value: `trees ${Object.entries(growth).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; ${hard} on a hard surface`, want: 'nothing grows on a road, a walk, a path, a side yard or a building\'s footprint' },
-    { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; ${crowded} trees without room to stand ${TREE_LEAST} m not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, at least twice a person\'s height' },
+    { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; every crown raised to ${TREE_CLEAR} m (the least tree ${Math.round(TREE_LEAST * 10) / 10} m); ${crowded} trees without room to stand that tall not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, its crown starting at least twice a person\'s height up' },
     { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${treeFaces} faces as repeats`, want: 'only what the map needs is drawn' }];
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
-  const counts = { plots: d.plots.length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
+  const counts = { plots: d.plots.length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
   return {
     faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), colliders, anchors, cameras,
     viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geotown`,

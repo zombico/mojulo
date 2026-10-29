@@ -46,22 +46,23 @@ export const SURFACES = Object.freeze({
   track: { read: 'a running track round a field', grows: [], soft: false },
   infield: { read: 'a ball diamond\'s dirt', grows: [], soft: false },
   play: { read: 'a playground on its chips', grows: [], soft: false },
-  lane: { read: 'a public lane behind the lots: asphalt, garages opening onto it', grows: [], soft: false },
+  lane: { read: 'a public lane or a narrow alley behind the lots: asphalt, garages and back doors opening onto it', grows: [], soft: false },
 });
 export const SURFACE_IDS = Object.freeze(Object.keys(SURFACES));
 
 export const SEGMENTS = Object.freeze({
   houses: Object.freeze({ read: 'one block of houses, two rows back to back, their back yards meeting', axis: 'y', rows: Object.freeze(['houses', 'houses']) }),
-  'main-street': Object.freeze({ read: 'shops built to the main street\'s walk, their service yards behind, houses backing onto them from the street behind', axis: 'x', rows: Object.freeze(['shops', 'houses']), main: true }),
+  'main-street': Object.freeze({ read: 'shops built to the main street\'s walk, a narrow alley behind them, houses backing onto it from the street behind', axis: 'x', rows: Object.freeze(['shops', 'houses']), main: true, lane: 'alley' }),
   apartments: Object.freeze({ read: 'a walk-up on its lawn, its lot behind, and a row of houses back to back with it', axis: 'y', rows: Object.freeze(['apartments', 'houses']) }),
   park: Object.freeze({ read: 'a park: the land as it lies, paths across it, a playground and a pavilion', axis: 'y', rows: Object.freeze([]), site: 'park', wide: true, span: 1 }),
   school: Object.freeze({ read: 'a school: its building on its own lot facing its street, a schoolyard behind it, a staff lot beside it, its field and track behind', axis: 'y', rows: Object.freeze([]), site: 'school', wide: true, span: 2 }),
+  lowrise: Object.freeze({ read: 'four-storey low-rise apartments, two rows back to back, each on its lawn, balconies over its front, its lot behind', axis: 'y', rows: Object.freeze(['lowrise', 'lowrise']) }),
   edge: Object.freeze({ read: 'a neighbourhood\'s edge: two-storey shops and offices facing its major street, a lane behind them, houses behind the lane facing their quiet street', axis: 'x', rows: Object.freeze(['avenue', 'houses']), major: true, lane: true }),
   sports: Object.freeze({ read: 'a local sports field: a ball diamond, a pitch under its lights, tennis courts, a field house and its lot', axis: 'y', rows: Object.freeze([]), site: 'sports', wide: true, span: 2 }),
 });
 export const SEGMENT_IDS = Object.freeze(Object.keys(SEGMENTS));
 // a neighbourhood's layout words: a letter a segment
-export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park', S: 'school', F: 'sports', E: 'edge' });
+export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park', S: 'school', F: 'sports', E: 'edge', L: 'lowrise' });
 
 export const PATTERNS = Object.freeze({
   'bay-and-gable': {
@@ -78,6 +79,8 @@ export const PATTERNS = Object.freeze({
     // a public lane behind an edge's avenue lots, between them and the houses' back yards; the share of those houses
     // with a garage off it, and the garage
     lane: { w: 5, garages: 0.45, garage: { w: 3.4, d: 6 } },
+    // the narrow alley behind a main street's shops (their bins by their back doors, no parking yard)
+    alley: { w: 3.4 },
     // what its ground is finished in (era/arch-style.js MATERIAL_WORDS), laid as each word's tiles
     finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone', drive: 'brick-paving', lane: 'asphalt' },
     // a block's length along its houses' street (one per row of blocks), and each row of plots' depth (one per town: the
@@ -132,10 +135,13 @@ export const PATTERNS = Object.freeze({
     // its plots' depth, its building's depth, its setback, side yards, storeys, its style and its front (fronts.js), what
     // its rear is (`service`: hard), its pad over its walk
     rows: {
-      shops: { read: 'shops in a row, party wall to party wall, built to the walk, a flat or two over each', use: 'shop', frontage: [6, 8.5], corner: 1.2, depth: [24, 30], building: [14, 18], setback: [0, 0], side: [0, 0], storeys: [2, 3], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 }, palettes: ['#a55a42', '#8c4a3a', '#c9a57a', '#d8cbb3', '#6f4a3c'] },
+      shops: { read: 'shops in a row, party wall to party wall, built to the walk, a flat or two over each, an alley behind', use: 'shop', frontage: [6, 8.5], corner: 1.2, depth: [18, 22], building: [14, 17], setback: [0, 0], side: [0, 0], storeys: [2, 3], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 }, palettes: ['#a55a42', '#8c4a3a', '#c9a57a', '#d8cbb3', '#6f4a3c'] },
+      // a LOW-RISE: four storeys of flats on its lawn, balconies stacked over its front, its lot behind; each its own brick
+      lowrise: { read: 'a four-storey low-rise of flats: brick, balconies stacked over its front, a canopy at its door, its lawn before it and its lot behind', use: 'dwelling', frontage: [26, 36], corner: 2, depth: [34, 40], building: [13, 16], setback: [6, 9], side: [3, 5], storeys: [4, 4], rear: 'service', front: { canopy: true, balconies: true }, pad: { least: 0.45, most: 1.8 },
+        style: { from: 'walk-up', read: 'a post-war brick low-rise: four storeys of paired lights, a flat roof behind a plain parapet', language: { compose: { mass: { w: 28, d: 15 } } } }, palettes: ['#a3563f', '#c9a57a', '#8c5a44', '#b9875e', '#9c7a62'] },
       // AN EDGE's avenue: two-storey buildings facing the major street, each a TYPE (its frontage, its setback past the
       // walk, its front, a change to the row's style or a style of its own, its use; `paved` a forecourt of parking)
-      avenue: { read: 'two-storey shops and offices facing a major street, each its own, a lane behind them', use: 'shop', frontage: [6, 18], corner: 1.2, depth: [24, 30], building: [12, 15], setback: [0, 0], side: [0, 0.8], storeys: [2, 2], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 },
+      avenue: { read: 'two-storey shops and offices facing a major street, each its own, a lane behind them', use: 'shop', frontage: [6, 18], corner: 1.2, depth: [22, 26], building: [12, 15], setback: [0, 0], side: [0, 0.8], storeys: [2, 2], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 },
         types: {
           shop: { read: 'a shop with a flat over it: its shopfront under its sign and awning, two lights above', weight: 3, frontage: [6, 9], front: { shop: true } },
           office: { read: 'a small office: buff brick, a glazed door under a canopy, rows of lights', weight: 2, frontage: [8, 12], front: { canopy: true }, style: { palette: { stone: '#c9a57a' } } },
@@ -149,7 +155,7 @@ export const PATTERNS = Object.freeze({
     },
     // AN EVOCATION's counts: houses a row, shops a row, walk-ups a row; a segment's rows recut when what it is composed
     // with stretches them past `stretch`
-    evoke: { houses: [3, 4], shops: [8, 11], apartments: [1, 1], avenue: [5, 7], mansions: [0, 2], stretch: [0.85, 1.2] },
+    evoke: { houses: [3, 4], shops: [8, 11], apartments: [1, 1], lowrise: [2, 3], avenue: [5, 7], mansions: [0, 2], stretch: [0.85, 1.2] },
     // THE MIDTOWN MANSION: a much larger property than its street's, two at most in a block segment (`evoke.mansions`),
     // among its houses: its frontage (`plot.mansion`), its house deeper behind a wider lawn (`setback`, over the face's),
     // three storeys of its own types, a driveway down one side yard to a garage in its back garden, a pool there
@@ -184,21 +190,26 @@ export const PATTERNS = Object.freeze({
     // THE STREETSCAPES: how close the neighbourhood is to the city, read from its sidewalk (the first the default). Each
     // changes the pattern a level deep: its street section, its plots, mix, block, house and setback (how far a house
     // stands from its walk), its back yard's least, its evocation's counts; and says its street TREES (`stride` m between
-    // them, `share` of those planted: each still needs room to stand twice a person's height), its PARKING (`sides` of a
+    // them, `share` of those planted: each still needs room to stand tall enough for its crown to start twice a person's height up), its PARKING (`sides` of a
     // street parked, a lane `lane` m wide; the `share` of stalls with a car; `pads` the share of deep, near-level front
-    // yards with a parking pad; `least` stalls a household, the law's), and its GATES (`share` of fronts behind one, its
-    // `kinds` by weight: iron, wall, picket)
+    // yards with a parking pad; `least` stalls a household, the law's), its GATES (`share` of fronts behind one, its
+    // `kinds` by weight: iron, wall, picket), and its TRAFFIC (`lights` the metres between streetlights, 0 none;
+    // `signals` a signal every that many crossings along a main or major street, 0 none; `stops` the share of local
+    // crossings with all-way stops)
     streetscapes: {
       leafy: { read: 'a streetcar suburb: a wide boulevard of maples between the kerb and the walk, deep front lawns, cars parked on one side, a gate here and there',
-        trees: { stride: 9, share: 1 }, parking: { sides: 'one', lane: 2.2, share: 0.55, pads: 0.25, least: 0.5 }, gates: { share: 0.2, kinds: { picket: 2, wall: 1, iron: 1 } } },
+        trees: { stride: 9, share: 1 }, parking: { sides: 'one', lane: 2.2, share: 0.55, pads: 0.25, least: 0.5 }, gates: { share: 0.2, kinds: { picket: 2, wall: 1, iron: 1 } },
+        traffic: { lights: 36, signals: 2, stops: 0.5 } },
       snug: { read: 'closer to the city: a narrow strip of grass by the kerb and a tree here and there, narrow lots of semis a few steps from the walk, cars parked both sides, most fronts behind a low railing and its gate',
         street: { verge: 1.2, walk: 1.6 }, plot: { semi: [5.6, 6.4], detached: [6.6, 8.2], corner: 1 }, mix: { semi: 0.7, detached: 0.3 }, block: { depth: [27, 32] }, setback: [2, 3.2], house: { depth: [10, 12.5], side: [0.45, 0.9] }, back: 6,
         evoke: { houses: [4, 5], mansions: [0, 0] },
-        trees: { stride: 13, share: 0.45 }, parking: { sides: 'both', lane: 2.1, share: 0.75, pads: 0, least: 0.6 }, gates: { share: 0.65, kinds: { iron: 3, wall: 2, picket: 1 } } },
+        trees: { stride: 13, share: 0.45 }, parking: { sides: 'both', lane: 2.1, share: 0.75, pads: 0, least: 0.6 }, gates: { share: 0.65, kinds: { iron: 3, wall: 2, picket: 1 } },
+        traffic: { lights: 30, signals: 2, stops: 0.75 } },
       urban: { read: 'the city: the walk paved from the kerb to the houses\' steps and no trees on it, row-tight lots of three storeys with stoops a metre or two from the walk, cars parked both sides, every front behind its railing',
         street: { verge: 0, walk: 2.6 }, plot: { semi: [5.6, 6], detached: [6, 7], corner: 0.8 }, mix: { semi: 0.85, detached: 0.15 }, block: { depth: [24, 28] }, setback: [0.8, 1.8], house: { depth: [10, 12], storeys: [3, 3], side: [0.3, 0.6] }, back: 5,
         evoke: { houses: [5, 6], mansions: [0, 0] },
-        trees: { stride: 9, share: 0 }, parking: { sides: 'both', lane: 2.1, share: 0.85, pads: 0, least: 0.5 }, gates: { share: 1, kinds: { iron: 3, wall: 1 } } },
+        trees: { stride: 9, share: 0 }, parking: { sides: 'both', lane: 2.1, share: 0.85, pads: 0, least: 0.5 }, gates: { share: 1, kinds: { iron: 3, wall: 1 } },
+        traffic: { lights: 26, signals: 1, stops: 1 } },
     },
     // THE NEIGHBOURHOODS its segments compose: `layout` rows of letters north to south (H houses, M main-street, A
     // apartments, P park: SEGMENT_LETTERS), `main` the streets that are main (ew-0 the southmost east-west, ns-0 the
@@ -213,7 +224,7 @@ export const PATTERNS = Object.freeze({
   },
 });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
-export const STREETSCAPE_SETTINGS = Object.freeze(['setback', 'gates', 'parking', 'trees']);
+export const STREETSCAPE_SETTINGS = Object.freeze(['setback', 'gates', 'parking', 'trees', 'lights', 'signals', 'stops']);
 export const GATE_SHARES = Object.freeze({ none: 0, some: 0.35, most: 0.7, all: 1 });
 export const PARKING_SIDES = Object.freeze(['none', 'one', 'both']);
 // a gate's kinds (scene.js draws them): an iron railing, a low brick wall and its piers, a picket

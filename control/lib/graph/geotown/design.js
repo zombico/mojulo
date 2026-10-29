@@ -23,9 +23,11 @@
  *               the land's grade); each building a level PAD over the walk at its front, in risers, a semi pair one pad
  *   8 parking   a front pad where a front yard is deep and near level, a lane along the kerb on the sides its
  *               streetscape parks, its stalls clear of the crossings and of every drive across it
+ *   9 traffic   streetlights at their stride along the walks; each crossing's control (signals, stops) by its streets'
+ *               ranks, at the streetscape's intervals
  *
  *   designGeotown(spec, { seed, field? }) → { spec, seed, pattern, row, sections, frame, depth, X, Y, streets, pieces,
- *     blocks, plots, surfaces, ledger, ports, land, parking, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills)
+ *     blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills)
  *   geotownLand(hills, frame, seed, field?) → { N, S, range }: the natural ground and the streets' ground, (x, y) → m
  *
  * Every surface is an axis-aligned rect [x0, y0, x1, y1]; a plot's own frame is its front corner `A`, `ex` along its
@@ -239,6 +241,9 @@ function cutOf(P, K, n, R, L = null, big = 0) {
   return K.kind === 'houses' ? cutCount(P, n, R, big) : cutPlain(K, K.kind, n, R);
 }
 
+/** The way between a segment's rows' backs: an edge's lane, a main street's alley behind its shops, else none. */
+const laneOf = (P, type) => (SEGMENTS[type].lane === 'alley' ? P.alley?.w ?? 0 : SEGMENTS[type].lane ? P.lane?.w ?? 0 : 0);
+
 /** A school's lot (sites.js `plan.plot`) as a plot's measures: its frontage and depth, its setback, its building's
  *  envelope and side yards, its path, its allocation (its rear its schoolyard, a court). */
 function schoolLot(T) {
@@ -293,10 +298,12 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // ── 2 needs: each row cut by its count (an evocation), its length and its depth; a row of houses holds one count a
   // row of cells, so a block's two rows of houses close on one length ──
   const lengths = evoked ? null : Array.from({ length: Rn }, (_, j) => roll(streamOf(seed, 'frame', `row:${j}`), P.block.long));
-  // an evoked segment's MANSIONS: none to two (`evoke.mansions`), each in one of its rows of houses, by its own dice
+  // an evoked segment's MANSIONS: none to two (`evoke.mansions`), each in one of its rows of houses, by its own dice;
+  // none on a block that touches a main or a major street (a mansion stands back from the traffic, on a quiet street)
   if (evoked && P.mansion) for (const c of cells) {
     const homes = c.rows.filter((r) => r.kind === 'houses'), Rm = streamOf(seed, 'mansions', c.id), [lo, hi] = P.evoke.mansions ?? [0, 0];
-    const m = homes.length ? lo + Math.floor(Rm() * (hi - lo + 1)) : 0;
+    const busy = [SX[c.i], SX[c.i + 1], SY[c.j], SY[c.j + 1]].some((S) => S.rank !== 'street');
+    const m = homes.length && !busy ? lo + Math.floor(Rm() * (hi - lo + 1)) : 0;
     for (const r of homes) r.big = 0;
     for (let k = 0; k < m; k++) homes[Math.floor(Rm() * homes.length)].big++;
   }
@@ -327,7 +334,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   const need = (c) => {
     if (c.siteNeed) return c.siteNeed;
     if (!c.rows.length) return { x: 0, y: 0 };
-    const len = Math.max(...c.rows.map((r) => r.need.len)), dep = c.rows.reduce((a, r) => a + r.need.depth, 0) + (SEGMENTS[c.type].lane ? P.lane.w : 0);
+    const len = Math.max(...c.rows.map((r) => r.need.len)), dep = c.rows.reduce((a, r) => a + r.need.depth, 0) + laneOf(P, c.type);
     return c.axis === 'y' ? { x: dep, y: len } : { x: len, y: dep };
   };
   // ── 3 frame: each column as wide, each row of cells as long, as its segments need (a park takes what it is given) ──
@@ -378,7 +385,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
       continue;
     }
     // (an edge's lane between its rows: the rows share the rest)
-    const laneW = SEGMENTS[c.type].lane ? P.lane.w : 0, along = c.axis === 'y' ? y1 - y0 : x1 - x0, across = (c.axis === 'y' ? x1 - x0 : y1 - y0) - laneW, depSum = c.rows.reduce((a, r) => a + r.need.depth, 0);
+    const laneW = laneOf(P, c.type), along = c.axis === 'y' ? y1 - y0 : x1 - x0, across = (c.axis === 'y' ? x1 - x0 : y1 - y0) - laneW, depSum = c.rows.reduce((a, r) => a + r.need.depth, 0);
     let used = 0;
     c.rows.forEach((r, ri) => {
       const K = r.K, dep = ri === c.rows.length - 1 ? r3(across - used) : r3((across * r.need.depth) / depSum);
@@ -440,7 +447,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
         const flank = r.kind === 'shops' ? 0 : K.corner;
         if (cc.corner === 'start' || cc.corner === 'both') sL = r3(sL + flank);
         if (cc.corner === 'end' || cc.corner === 'both') sR = r3(sR + flank);
-        const F1 = r3(F + (big?.extra ?? 0)), env = [sL, F1, r3(w - sR), r3(F1 + Hd)], pw = F1 > 0 ? Math.min(P.path * (r.kind === 'apartments' ? 1.6 : 1), Math.max(0.6, env[2] - env[0] - 0.4)) : 0;
+        const F1 = r3(F + (big?.extra ?? 0)), env = [sL, F1, r3(w - sR), r3(F1 + Hd)], pw = F1 > 0 ? Math.min(P.path * (r.kind === 'apartments' || r.kind === 'lowrise' ? 1.6 : 1), Math.max(0.6, env[2] - env[0] - 0.4)) : 0;
         const pl = { id: `${B.id}-${r.side}${k + 1}`, block: B.id, side: r.side, k, kind: r.kind, use: K.use, form: cc.form, ...(cc.form === 'semi' ? { pair: `${B.id}-${r.side}p${cc.pair + 1}`, half: cc.half } : {}), ...(cc.corner ? { corner: cc.corner } : {}),
           ...(cc.type ? { type: cc.type, ...(K.types[cc.type].paved ? { paved: true } : {}) } : {}), ...(laneW ? { lane: true } : {}), A, ex, ey, w, d: dep, setback: F, rear: K.rear, house: { depth: Hd, sides: [sL, sR], env }, built: B.built };
         // the door's path: from the walk to the envelope's middle until a building says where its door is
@@ -485,6 +492,41 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
     const wf = fronts.reduce((a, p) => a + walkZ(...p), 0) / g.length, n = mids.reduce((a, p) => a + land.N(...p), 0) / g.length, z = padOf(rail, wf, n);
     for (const pl of g) pl.pad = z;
   }
+  // ── 9 the street's furniture: a streetlight at its stride along each block-facing walk (both sides of a main or a
+  // major street, one side of a local one), clear of every drive; each crossing controlled by its streets' ranks: a
+  // signal every `signals` crossings along a main or major street (two-way stops on the minor street between), all-way
+  // stops at a share of the local crossings (`stops`) ──
+  const TF = P.traffic ?? { lights: 0, signals: 0, stops: 0 }, lights = [], crossings = [], busy = (S) => S.rank !== 'street';
+  const facing = (id, side) => { const k = Number(id.slice(3)); return id.startsWith('ns') ? (side === 'w' ? k > 0 : k < C) : (side === 's' ? k > 0 : k < Rn); };
+  const drives = new Map();
+  for (const pl of plots) for (const [u0, u1] of [pl.mansion?.drive].filter(Boolean)) {
+    const B = blocks.find((b) => b.id === pl.block), [id, side] = { w: [`ns-${B.i}`, 'e'], e: [`ns-${B.i1 + 1}`, 'w'], s: [`ew-${B.j}`, 'n'], n: [`ew-${B.j1 + 1}`, 's'] }[pl.side], ax = id.startsWith('ns') ? 1 : 0;
+    const p = pl.A[ax] + pl.ex[ax] * u0, q = pl.A[ax] + pl.ex[ax] * u1;
+    (drives.get(`${id}:${side}`) ?? drives.set(`${id}:${side}`, []).get(`${id}:${side}`)).push([Math.min(p, q), Math.max(p, q)]);
+  }
+  if (TF.lights > 0) for (const p of pieces) {
+    if (p.cls !== 'walk' || !p.street || !facing(p.street, p.side)) continue;
+    const ns = p.street.startsWith('ns'), k = Number(p.street.slice(3)), S = ns ? SX[k] : SY[k], hi = ns ? 'e' : 'n', open = (ns ? ['w', 'e'] : ['s', 'n']).filter((sd) => facing(p.street, sd));
+    if (!busy(S) && p.side !== (open.includes(hi) ? hi : open[0])) continue;
+    const [x0, y0, x1, y1] = p.rect, [a0, a1] = ns ? [y0, y1] : [x0, x1], stride = busy(S) ? TF.lights * 0.75 : TF.lights, sg = p.side === 'e' || p.side === 'n' ? 1 : -1;
+    const lat = (ns ? X[k] : Y[k]) + sg * (S.R + (S.verge > 0 ? S.verge - 0.4 : 0.45)), cut = drives.get(`${p.street}:${p.side}`) ?? [];
+    for (let s = a0 + stride / 2; s < a1 - 2; s += stride) {
+      if (cut.some(([c0, c1]) => s > c0 - 2 && s < c1 + 2)) continue;
+      lights.push({ at: ns ? [r3(lat), r3(s)] : [r3(s), r3(lat)], toward: ns ? [-sg, 0] : [0, -sg], h: busy(S) ? 9 : 7.5, street: p.street });
+    }
+  }
+  const Rt = streamOf(seed, 'traffic', 'crossings');
+  for (let k = 0; k < X.length; k++) for (let j = 0; j < Y.length; j++) {
+    const arms = ['n', 's', 'e', 'w'].filter((a) => !gone.has({ n: `ns-${k}:${j}`, s: `ns-${k}:${j - 1}`, e: `ew-${j}:${k}`, w: `ew-${j}:${k - 1}` }[a]));
+    if (!arms.length) continue;
+    const bx = busy(SX[k]), by = busy(SY[j]), dice = Rt();
+    let control = 'none', stopped = [];
+    if (bx && by) control = 'signal';
+    else if (bx || by) { if (TF.signals > 0 && (bx ? j : k) % TF.signals === 0) control = 'signal'; else { control = 'stop'; stopped = bx ? ['e', 'w'] : ['n', 's']; } }
+    else if (dice < TF.stops) { control = 'stop'; stopped = ['n', 's', 'e', 'w']; }
+    crossings.push({ id: `${k}:${j}`, at: [X[k], Y[j]], control, arms, stopped: stopped.filter((a) => arms.includes(a)) });
+  }
+  const traffic = { lights, crossings, signals: crossings.filter((c) => c.control === 'signal').length, stops: crossings.filter((c) => c.control === 'stop').length };
   // a site's ground (a school's, a sports field's) one level: the land under it, held between its walks' lowest and a
   // metre over their highest, in risers (a park lies on the land as it is)
   for (const B of blocks) if (B.site && B.site.type !== 'park') {
@@ -566,7 +608,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // (playing fields side by side: two field sites whose blocks face each other across one street)
   const fieldy = blocks.filter((b) => b.site && b.site.type !== 'park'), touch = (a, b) => (a.i1 + 1 === b.i || b.i1 + 1 === a.i) && a.j <= b.j1 && b.j <= a.j1 || (a.j1 + 1 === b.j || b.j1 + 1 === a.j) && a.i <= b.i1 && b.i <= a.i1;
   const beside = fieldy.flatMap((a, k) => fieldy.slice(k + 1).filter((b) => touch(a, b)).map((b) => [a.id, b.id]));
-  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside };
+  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic };
   // an evocation stands for the town laid to scale: its houses' measures are read against that town's (laws.js `evokes`)
   if (evoked) D.evoked = { level: T.evoke, stands: { plots: ref.plots.length, blocks: ref.blocks.length }, shows: plots.length, ref: plotShares(ref), fits };
   D.laws = geotownLaws(D);

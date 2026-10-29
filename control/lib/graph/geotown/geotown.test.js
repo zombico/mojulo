@@ -319,3 +319,39 @@ describe('an edge: two-storey buildings facing a major street, a lane behind, ho
     expect(() => readGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['EE', 'HH'], main: ['ew-0'], major: ['ew-0'] } })).toThrow(/is main or major, not both/);
   });
 });
+
+describe('the logic of a neighbourhood\'s parts: mansions off the busy streets, alleys behind shops, low-rises, its traffic', () => {
+  it('keeps its mansions off every block that touches a main or major street', () => {
+    for (const seed of [1, 2, 3]) {
+      const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'annex' }, { seed, field: plane });
+      for (const pl of d.plots.filter((q) => q.form === 'mansion')) { const B = d.blocks.find((b) => b.id === pl.block); expect([d.sections.x[B.i], d.sections.x[B.i1 + 1], d.sections.y[B.j], d.sections.y[B.j1 + 1]].every((S) => S.rank === 'street')).toBe(true); }
+      if (d.plots.some((q) => q.form === 'mansion')) expect(law(d, 'mansions').ok).toBe(true);
+    }
+  });
+
+  it('backs a main street\'s shops onto a narrow alley, their yards a strip, not a lot', () => {
+    const d = designGeotown({ segment: 'main-street' }, { seed: 2, field: plane }), B = d.blocks[0];
+    expect(B.lane[3] - B.lane[1]).toBeCloseTo(PATTERNS[DEFAULT_PATTERN].alley.w, 6);
+    for (const pl of d.plots.filter((q) => q.kind === 'shops')) expect(pl.d - pl.house.env[3]).toBeLessThan(8);
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+  });
+
+  it('lays its low-rises: two rows of four-storey flats on their lawns, their lots behind', () => {
+    const d = designGeotown({ segment: 'lowrise' }, { seed: 3, field: plane });
+    expect(d.blocks[0].rows.map((r) => r.kind)).toEqual(['lowrise', 'lowrise']);
+    expect(d.plots.every((pl) => pl.kind === 'lowrise' && pl.setback > 0 && pl.rear === 'service')).toBe(true);
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+  });
+
+  it('controls its crossings by its streets\' ranks, at its intervals; its lights at their stride', () => {
+    const d = designGeotown({ segment: 'main-street' }, { seed: 2, field: plane }), along = d.traffic.crossings.filter((c) => c.id.endsWith(':0'));
+    // along the main street (ew-0): a signal every `signals` crossings, the minor street stopped between them
+    for (const c of along) { const k = Number(c.id.split(':')[0]); expect(c.control).toBe(k % d.pattern.traffic.signals === 0 ? 'signal' : 'stop'); if (c.control === 'stop') expect(c.stopped.sort()).toEqual(['n', 's'].filter((a) => c.arms.includes(a))); }
+    const none = designGeotown({ streetscape: { from: 'leafy', stops: 0, lights: 0 } }, { seed: 2, field: plane }), all = designGeotown({ streetscape: { from: 'leafy', stops: 1, lights: 20 } }, { seed: 2, field: plane });
+    expect(none.traffic.crossings.every((c) => c.control === 'none')).toBe(true);
+    expect(none.traffic.lights.length).toBe(0);
+    expect(all.traffic.crossings.every((c) => c.control === 'stop' && c.stopped.length === c.arms.length)).toBe(true);
+    expect(all.traffic.lights.length).toBeGreaterThan(designGeotown({}, { seed: 2, field: plane }).traffic.lights.length);
+    expect(() => readGeotown({ streetscape: { lights: 5 } })).toThrow(/streetscape.lights is the metres between streetlights/);
+  });
+});

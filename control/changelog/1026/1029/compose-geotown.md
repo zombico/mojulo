@@ -71,6 +71,20 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   neighbours alike, each at its type's setback and frontage; a public LANE behind them (the `lane` surface), and the
   houses behind it facing their quiet street, some with a garage off the lane (counted in `parking`). The pattern's
   neighbourhood `edges`: quiet streets between two major ones.
+- **Low-rise apartments** (letter L, `segment: 'lowrise'`): rows of four-storey low-rises on their lawns, each its own
+  brick, balconies stacked over their fronts (`fronts.js` `balconies`), a canopy at the door, their lots behind.
+- **Alleys behind storefronts**: a main-street segment's shops back onto a narrow alley (the `lane` surface, the
+  pattern's `alley` width), not a parking yard: their lots shallower, a strip for bins behind each; the houses behind
+  back onto the alley too.
+- **Mansions away from the main street**: none on a block that touches a main or major street (the `mansions` law).
+- **The pad's step** is measured past the walk's own fall between two fronts: a long frontage on a slope falls with its
+  street.
+- **Street furniture** (`d.traffic`, parametric): streetlights at a stride along each block-facing walk (both sides of a
+  main or major street, staggered on a local one), clear of drives; each crossing controlled by its streets' ranks:
+  signals every `signals` crossings along a main or major street (two-way stops on the minor street between them),
+  all-way stops at a share (`stops`) of the local crossings; crosswalks at every controlled crossing (zebras at
+  signals, two lines at stops), stop lines, stop signs, signal poles with their heads (a mast arm over a wide road).
+  A streetscape sets them and a recipe changes them: `streetscape: { lights: m, signals: n, stops: share }`.
 - **Streetscapes** (`streetscape`, the pattern's `streetscapes`): how close a neighbourhood is to the city, read from
   its sidewalk. `leafy` (the default) the Annex: a wide boulevard of maples, deep front lawns, a parked side, a gate
   here and there; `snug` closer to the city: a narrow strip of grass by the kerb and a tree here and there, narrow
@@ -90,10 +104,12 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
 - **Finishes** (`pattern.finishes`): the ground laid in material words as tiles: the road's asphalt, the walk's scored
   concrete, a main street's brick furnishing strip and its trees' grates, brick paths, gravel side yards, a stone kerb.
 - **Trees only in the town, held to their room**: no belt round the town and none on a perimeter street's outer side
-  (the margin is a bare border); a tree at least twice a person's height (the geocube's walk, `era/out-ikebana.js`
-  WALK.body), held lower where its crown (its species' widest over its height, measured on its grown variants) would
-  reach within 0.6 m of a building's footprint, porches, bays and awnings in it; one without room is not planted (the
-  `room` law).
+  (the margin is a bare border); each tree's CROWN starts at least twice a person's height up (the geocube's walk,
+  `era/out-ikebana.js` WALK.body): its crown raised as a street tree's is (`vegetation/pool.js` `clear`, opt-in: the
+  whole crown carried up a clear trunk to that share of its height), so a tree stands at least as tall as that asks;
+  held lower where its crown (its species' widest over its height, measured on its raised variants) would reach within
+  0.6 m of a building's footprint, porches, bays and awnings in it; one without room to stand that tall is not planted
+  (the `room` law), so a tight street loses trees rather than growing low ones.
 - **What grows where** (`geotown/pattern.js` SURFACES): street trees on the boulevards at their stride, trees in back
   yards and parks, none on a road, walk, path or side yard; the trees grown variants stamped as repeats under a
   budget, each species its share.

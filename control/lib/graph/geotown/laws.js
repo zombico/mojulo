@@ -17,9 +17,9 @@ export const GEOTOWN_LAWS = Object.freeze({
   frontage: 'every plot\'s frontage inside its form\'s rail (a corner\'s wider by the corner)',
   setback: 'a block face holds one front yard depth',
   grade: 'no street steeper than the pattern\'s grade',
-  'pad-step': 'neighbouring pads along a row step at most the pattern\'s step',
+  'pad-step': 'neighbouring pads along a row step at most the pattern\'s step beyond their walk\'s own fall',
   green: 'the soft ground (verges, yards, parks) at least the pattern\'s share of the map',
-  mansions: 'a midtown mansion\'s property much larger than its street\'s houses\', two at most in a block segment',
+  mansions: 'a midtown mansion\'s property much larger than its street\'s houses\', two at most in a block segment, none on a block touching a main or major street',
   fits: 'each segment tuned to its cell: its rows\' frontages spread inside the pattern\'s stretch, its plots no more than half again as deep as they need',
   sites: 'a school\'s or a sports field\'s site near its rails (0.6–1.7 of them) and its surfaces\' shares near the site to scale\'s',
   apart: 'two playing fields (a school\'s, a sports field\'s) never side by side across one street: a block of something else between them',
@@ -84,9 +84,11 @@ export function geotownLaws(d) {
   law('grade', steep <= P.grade + 1e-9, `the steepest ${r3(steep)} (${where ?? 'none'}), the pattern's most ${P.grade}`);
   // pads along each row, in walking order; and the wall where a block's two rows meet at their back line
   let step = 0, wall = 0;
+  // (a step beyond the street's own fall between the two fronts: a long frontage on a slope falls with its walk)
+  const walkAt = (pl) => d.land.S(pl.A[0] + pl.ex[0] * pl.w / 2, pl.A[1] + pl.ex[1] * pl.w / 2);
   for (const b of d.blocks) for (const r of b.rows ?? []) {
     const row = d.plots.filter((pl) => pl.block === b.id && pl.side === r.side).sort((p, q) => p.k - q.k);
-    for (let k = 1; k < row.length; k++) step = Math.max(step, Math.abs(row[k].pad - row[k - 1].pad));
+    for (let k = 1; k < row.length; k++) step = Math.max(step, Math.abs(row[k].pad - row[k - 1].pad) - Math.abs(walkAt(row[k]) - walkAt(row[k - 1])));
   }
   for (const b of d.blocks) {
     const [ra, rb] = b.rows ?? [];
@@ -94,7 +96,7 @@ export function geotownLaws(d) {
     const A = d.plots.filter((pl) => pl.block === b.id && pl.side === ra.side), B = d.plots.filter((pl) => pl.block === b.id && pl.side === rb.side);
     for (const p of A) for (const q of B) if (backTouch(p, q)) wall = Math.max(wall, Math.abs(p.pad - q.pad));
   }
-  law('pad-step', step <= P.pad.step + 1e-9, `the largest step between neighbours ${r2(step)} m (most ${P.pad.step}); the highest back wall ${r2(wall)} m`);
+  law('pad-step', step <= P.pad.step + 1e-9, `the largest step between neighbours ${r2(step)} m past their walk's fall (most ${P.pad.step}); the highest back wall ${r2(wall)} m`);
   const soft = Object.entries(d.ledger.town).filter(([k]) => SURFACES[k].soft).reduce((a, [, v]) => a + v, 0) / (d.ledger.total || 1);
   // (an evocation's streets ring a block or two: its ground is read by `evokes`, the plots' shares, not the map's)
   if (!d.evoked) law('green', soft >= P.green - 1e-9, `${r2(soft)} of the map is soft ground (least ${P.green})`);
@@ -103,7 +105,9 @@ export function geotownLaws(d) {
     const mean = H.reduce((a, pl) => a + pl.w * pl.d, 0) / (H.length || 1), per = {};
     for (const pl of big) per[pl.block] = (per[pl.block] ?? 0) + 1;
     const least = Math.min(...big.map((pl) => (pl.w * pl.d) / (mean || 1))), most = Math.max(...Object.values(per));
-    law('mansions', least >= MANSION.larger - 1e-9 && most <= MANSION.most, `${big.length} mansions, the least ${r2(least)} times its street's mean house plot; at most ${most} in a segment`);
+    // (none on a block touching a main or a major street)
+    const busy = big.filter((pl) => { const B = d.blocks.find((b) => b.id === pl.block); return [d.sections.x[B.i], d.sections.x[(B.i1 ?? B.i) + 1], d.sections.y[B.j], d.sections.y[(B.j1 ?? B.j) + 1]].some((S) => S.rank !== 'street'); });
+    law('mansions', least >= MANSION.larger - 1e-9 && most <= MANSION.most && !busy.length, `${big.length} mansions, the least ${r2(least)} times its street's mean house plot; at most ${most} in a segment; ${busy.length} on a block touching a main or major street`);
   }
   // (a household a house's plot, a mansion's among them; a walk-up's and a shop's lots are their own)
   const PK = P.parking, homes = d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length;

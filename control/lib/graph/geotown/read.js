@@ -22,13 +22,17 @@
  *     hills?:   false | { height?, span?, from? },                  // the land: metres from its lowest to its highest
  *                                                                   // (0–40, 10), metres its painting spans (100–2000,
  *                                                                   // 600), the painted landscape it is read from
- *     streetscape?: <id> | { from?: <id>, setback?, gates?, parking?, trees? },   // how close to the city, read from
- *                                                                   // its sidewalk (the pattern's `streetscapes`: leafy,
+ *     streetscape?: <id> | { from?, setback?, gates?, parking?, trees?, lights?, signals?, stops? },
+ *                                                                   // how close to the city, read from its sidewalk
+ *                                                                   // (the pattern's `streetscapes`: leafy,
  *                                                                   // snug, urban): `setback` [least, most] metres from
  *                                                                   // the walk to a house (0–12), `gates` none | some |
  *                                                                   // most | all or a share, `parking` none | one | both
  *                                                                   // sides of a street, `trees` the share of street
- *                                                                   // trees planted (0–1)
+ *                                                                   // trees planted (0–1), `lights` metres between
+ *                                                                   // streetlights (0 none), `signals` a signal every n
+ *                                                                   // crossings along a main or major street, `stops`
+ *                                                                   // the share of local crossings stopped all ways
  *     blocks?:  { '<A1>': { use?: <segment type>, built?: false } },   // a block by hand, on the grid's board
  *     margin?:  metres of the land drawn round the town, its border (0–120, 12)
  *   }
@@ -111,6 +115,11 @@ export function readStreetscape(P, v) {
   out.trees = { stride: P.grow.stride, share: 1, ...S.trees };
   out.parking = { sides: 'none', lane: 2.2, share: 0, pads: 0, least: 0, ...S.parking };
   out.gates = { share: 0, kinds: { iron: 1 }, ...S.gates };
+  out.traffic = { lights: 0, signals: 0, stops: 0, ...S.traffic };
+  if (ch.lights !== undefined && !(ch.lights === 0 || (typeof ch.lights === 'number' && ch.lights >= 12 && ch.lights <= 80))) no('streetscape.lights is the metres between streetlights, 12 to 80, or 0 for none');
+  if (ch.signals !== undefined && !(Number.isInteger(ch.signals) && ch.signals >= 0 && ch.signals <= 4)) no('streetscape.signals is a signal every that many crossings along a main or major street, 1 to 4, or 0 for none');
+  if (ch.stops !== undefined && !(typeof ch.stops === 'number' && ch.stops >= 0 && ch.stops <= 1)) no('streetscape.stops is the share of local crossings with all-way stops, 0 to 1');
+  for (const k of ['lights', 'signals', 'stops']) if (ch[k] !== undefined) out.traffic = { ...out.traffic, [k]: ch[k] };
   if (ch.setback !== undefined) {
     const r = ch.setback;
     if (!(Array.isArray(r) && r.length === 2 && r.every(Number.isFinite) && r[0] >= 0 && r[0] <= r[1] && r[1] <= 12)) no('streetscape.setback is [least, most] metres from the walk to a house, 0 to 12');

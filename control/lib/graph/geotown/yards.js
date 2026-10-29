@@ -231,7 +231,7 @@ export function carOf(u, v, along, hex) {
 /** A shop's service yard or a walk-up's lot, built. */
 export function serviceOf(kind, { w, v0, v1, R }) {
   const out = [], depth = v1 - v0;
-  if (kind === 'apartments') {
+  if (kind === 'apartments' || kind === 'lowrise') {
     // stalls across the lot, their lines painted, a car in some
     const vA = v0 + 2.5, vB = Math.min(v1 - 1, vA + 5.2);
     for (let u = 1; u + 2.6 <= w - 1; u += 2.6) {

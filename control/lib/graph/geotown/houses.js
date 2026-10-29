@@ -70,9 +70,11 @@ export function buildingKits(P, styleId, cube, kitId, seed) {
         { kind, type: `${kind}-${t}`, use: T.use ?? K.use, read: T.read, band: T.storeys ?? K.storeys, front: T.front ?? K.front ?? {}, awning: AWNINGS[v % AWNINGS.length], sign: SIGNS[(v * 3 + 1) % SIGNS.length] });
     }
     if (kind === 'shops') return make(`shops:${n}`, { from: K.style, palette: { stone: K.palettes[n % K.palettes.length] } }, `pattern.rows.shops`, { kind, type: `shop-${n}`, use: K.use, band: K.storeys, front: K.front ?? {}, awning: AWNINGS[n % AWNINGS.length], sign: SIGNS[(n * 3 + 1) % SIGNS.length] });
+    // (a row of buildings each its own brick, a low-rise's: its style with its palette's n-th brick)
+    if (K.palettes) { const S = typeof K.style === 'string' ? { from: K.style } : K.style; return make(`${kind}:${n}`, { ...S, palette: { ...(S.palette ?? {}), stone: K.palettes[n % K.palettes.length] } }, `pattern.rows.${kind}`, { kind, type: `${kind}-${n}`, use: K.use, band: K.storeys, front: K.front ?? {}, accent: true }); }
     return make(`${kind}:0`, K.style, `pattern.rows.${kind}`, { kind, type: kind, use: K.use, band: K.storeys, front: K.front ?? {}, accent: true });
   };
-  const ids = (kind) => (kind === 'houses' ? (typed ? Object.keys(P.types) : ['0']) : kind === 'mansions' ? Object.keys(P.mansion?.types ?? { 0: 1 }) : kind === 'shops' ? P.rows.shops.palettes.map((_, i) => String(i)) : ['0']);
+  const ids = (kind) => (kind === 'houses' ? (typed ? Object.keys(P.types) : ['0']) : kind === 'mansions' ? Object.keys(P.mansion?.types ?? { 0: 1 }) : P.rows[kind]?.palettes ? P.rows[kind].palettes.map((_, i) => String(i)) : ['0']);
   const weight = (kind, id) => (kind === 'houses' && typed ? P.types[id].weight ?? 1 : kind === 'mansions' ? P.mansion?.types?.[id]?.weight ?? 1 : 1);
   // a kit by its weight, never the one before it in the row
   const pick = (kind, R, prev = null) => {
