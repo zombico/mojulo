@@ -5,13 +5,16 @@
  * every card is general: any realistic face plays any emote, and a new emote is a card, not code.
  *
  * A CARD: { words (what people call it), reads (what it shows), face (a FACS state, each side its own: an emote is
- * asymmetric by construction, as a face at rest is), eyes: { yaw, pitch (degrees, the regard's home), drift (degrees,
- * the eyes' slow wander), refix: { every: [s, s], reach: [deg, deg] } | null (the small re-fixations of eyes on
- * nothing) }, blink: { rate (a minute), slow? (× the blink's length) }, stirs?: [{ face, every: [s, s], up, hold, down
+ * asymmetric by construction, as a face at rest is), eyes: { yaw, pitch (degrees, the regard's home), distance? (m: the
+ * eyes focus there, converged; none, the far point), drift (degrees, the eyes' slow wander), refix: { every: [s, s],
+ * reach: [deg, deg] } | null (the small re-fixations of eyes on nothing), scan? { points: [[yaw, pitch]] (degrees from
+ * home), weights, dwell: [s, s] } (a listener's eyes between a speaker's eyes and mouth), away? { every, hold, reach }
+ * (glances off to a side, unfocused, and back) }, blink: { rate (a minute), slow? (× the blink's length) }, stirs?: [{ face, every: [s, s], up, hold, down
  * (s) } | { tell (an upper-face gesture, parts.js UPPER_GESTURES), every }], seconds (the loop) }. Each part of the face
  * lives in the hold its own way and pulls on the others as parts.js says.
  *
- *   • THE REGARD is the far point: no distance, the eyes parallel (gaze.js), looking at nothing and never cross-eyed.
+ *   • THE REGARD: at the far point where it names no distance (the eyes parallel, looking at nothing), focused where it
+ *     does (converged on it, gaze.js: a listener on a speaker's face), unfocused in a glance away; never cross-eyed.
  *   • THE LOOP is seamless: every wave of the moving hold and of the drift turns a whole number of times in it, and the
  *     blinks, the stirs and the fixations are laid round it, so the last frame is the first.
  *   • THE MOUTH is the face's set alone (the corners, a lip pressed or just apart): speech's articulation is not an
@@ -24,6 +27,7 @@ import { auOf } from './facs.js';
 import { composeFace } from './emotions.js';
 import { BLINK, GAZE, CAPTURE_FPS } from './perform.js';
 import { PARTS, partOf, couple, tellOf } from './parts.js';
+import { vergence, EYES } from './gaze.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
 export const FACE_EMOTES = Object.freeze({
@@ -68,6 +72,17 @@ export const FACE_EMOTES = Object.freeze({
     face: { AU45L: 0.42, AU45R: 0.34, AU1: 0.14, AU2L: 0.26, AU2R: 0.06, AU25: 0.12 },
     eyes: { yaw: 0, pitch: -7, drift: 0.4, refix: null },
     blink: { rate: 9, slow: 2.2 }, stirs: [{ face: { AU45: 0.65 }, every: [3, 6], up: 0.9, hold: 0.5, down: 0.6 }], seconds: 10,
+  },
+  listening: {
+    words: ['listening', 'hearing someone out', 'attentive', 'in conversation', 'paying attention'],
+    reads: 'listening to someone close by: the eyes on their face, moving between their eyes and their mouth, the brows a little lifted with interest, a glance away now and then, a smile in the eyes at times',
+    face: { AU1: 0.1, AU2L: 0.16, AU2R: 0.08, AU12L: 0.08, AU6L: 0.08 },
+    // (a speaker's face a little over a metre off: their eyes about a degree and a half either side and above its middle,
+    // their mouth below; a listener looks mostly at the eyes)
+    eyes: { yaw: 0, pitch: 0, distance: 1.1, drift: 0.2,
+      scan: { points: [[-1.6, 1.3], [1.6, 1.3], [0, -2.6]], weights: [0.4, 0.4, 0.2], dwell: [0.5, 1.4] },
+      away: { every: [5, 10], hold: [0.4, 0.9], reach: [7, 14] } },
+    blink: { rate: 15 }, stirs: [{ tell: 'eyeSmile', intensity: 0.5, every: [5, 9] }], seconds: 12,
   },
 });
 export const FACE_EMOTE_NAMES = Object.freeze(Object.keys(FACE_EMOTES));
@@ -114,9 +129,42 @@ export function emoteState(spec) {
   const face = scale(C.face);
   if (S.face !== undefined) for (const [k, v] of Object.entries(composeFace(S.face))) face[k] = clamp01((face[k] ?? 0) + v);
   // (a stir is the card's own units, or an upper-face gesture's, parts.js: `tell`, mirrored with the emote)
-  const stir = (st) => { if (!st.tell) return { ...st, face: scale(st.face) }; const G = tellOf({ gesture: st.tell, mirror: !!S.mirror, intensity: K }); return { every: st.every, up: G.up, hold: G.hold, down: G.down, face: G.units, tell: st.tell }; };
+  const stir = (st) => { if (!st.tell) return { ...st, face: scale(st.face) }; const G = tellOf({ gesture: st.tell, mirror: !!S.mirror, intensity: K * (st.intensity ?? 1) }); return { every: st.every, up: G.up, hold: G.hold, down: G.down, face: G.units, tell: st.tell }; };
   return { emote: S.emote, card: C, face, stirs: (C.stirs ?? []).map(stir),
-    home: { yaw: (S.mirror ? -1 : 1) * C.eyes.yaw, pitch: C.eyes.pitch }, eyes: C.eyes, blink: C.blink };
+    home: { yaw: (S.mirror ? -1 : 1) * C.eyes.yaw, pitch: C.eyes.pitch, v: C.eyes.distance ? vergence(C.eyes.distance) : 0 }, flip: S.mirror ? -1 : 1, eyes: C.eyes, blink: C.blink };
+}
+
+/**
+ * A regard's fixations from `t0` to `t1` (s), after its home ({ t, yaw, pitch, v (the eyes' convergence, degrees: its
+ * focus), away? }): a SCAN over its points (degrees from home, each by its weight, never the same twice running: a
+ * listener's eyes moving between a speaker's eyes and mouth), else RE-FIXATIONS within its reach, else its drift alone;
+ * and its GLANCES AWAY, the eyes off to a side and unfocused (the far point) and back. `rnd` the caller's dice.
+ */
+export function regardFixations(E, t0, t1, rnd) {
+  const span = (r) => lerp(r[0], r[1], rnd()), eyes = E.eyes, home = E.home, out = [];
+  const every = eyes.scan?.dwell ?? eyes.refix?.every ?? [2, 4];
+  let nextAway = eyes.away ? t0 + span(eyes.away.every) : Infinity, on = -1;
+  // (the first a half interval in: a regard begun is already looking)
+  for (let t = t0 + 0.5 * span(every); t < t1 - 0.1;) {
+    if (t >= nextAway) {
+      const r = span(eyes.away.reach), side = rnd() < 0.5 ? -1 : 1;
+      out.push({ t, yaw: home.yaw + side * r, pitch: home.pitch - r * span([0.1, 0.5]), v: 0, away: true });
+      t += span(eyes.away.hold); nextAway = t + span(eyes.away.every);
+      on = -1; continue;
+    }
+    if (eyes.scan) {
+      // (a point by its weight, never the one the eyes are on)
+      const W = eyes.scan.weights.map((w, j) => (j === on ? 0 : w)), sum = W.reduce((a, b) => a + b, 0);
+      let x = rnd() * sum, j = 0; while (j < W.length - 1 && (x -= W[j]) > 0) j++;
+      on = j; const [py, pp] = eyes.scan.points[j];
+      out.push({ t, yaw: home.yaw + E.flip * py, pitch: home.pitch + pp, v: home.v });
+    } else if (eyes.refix) {
+      const r = span(eyes.refix.reach), a = 2 * Math.PI * rnd();
+      out.push({ t, yaw: home.yaw + r * Math.cos(a), pitch: home.pitch + 0.6 * r * Math.sin(a), v: home.v });
+    } else out.push({ t, yaw: home.yaw + eyes.drift * (2 * rnd() - 1), pitch: home.pitch + eyes.drift * (2 * rnd() - 1), v: home.v });
+    t += span(every);
+  }
+  return out;
 }
 
 /**
@@ -179,24 +227,25 @@ export function emoteTake(spec) {
     layer('AU45', t, c, s, o, 1);
     events.blinks.push({ t: r4(t), dur: r4(c + s + o), cause: 'spontaneous' });
   }
-  // THE REGARD: home, the far point; re-fixations near it, saccades on the main sequence; a slow drift of whole cycles
-  const home = E.home, fix = [];
-  if (C.eyes.refix) for (const t of round(span(C.eyes.refix.every) * 0.5, 0.1, () => span(C.eyes.refix.every))) {
-    const r = span(C.eyes.refix.reach), a = 2 * Math.PI * rnd();
-    fix.push({ t, yaw: home.yaw + r * Math.cos(a), pitch: home.pitch + 0.6 * r * Math.sin(a) });
-  }
+  // THE REGARD: home, focused at its distance (else the far point); its scan, re-fixations or drift and its glances away
+  // round the loop (the last kept only if it clears the first), saccades on the main sequence, the focus following
+  // slower; a slow drift of whole cycles
+  const home = E.home, fix = E.eyes.refix || E.eyes.scan || E.eyes.away ? regardFixations(E, 0, P, rnd) : [];
+  while (fix.length > 1 && fix.at(-1).t + 0.3 > fix[0].t + P) fix.pop();
   const drift = { yaw: [wave(span([0.05, 0.15])), wave(span([0.2, 0.4]))], pitch: [wave(span([0.05, 0.15])), wave(span([0.2, 0.4]))] };
   const wander = (ws, t) => (C.eyes.drift * ws.reduce((m, [w, ph]) => m + Math.sin(w * t + ph), 0)) / ws.length;
-  const yaw = new Array(n), pitch = new Array(n);
+  const yaw = new Array(n), pitch = new Array(n), verg = new Array(n).fill(home.v);
   for (let i = 0; i < n; i++) {
     const t = tOf(i);
     let at = { ...home };
     if (fix.length) {
-      // (the fixation the eyes are on: the last begun, round the loop; mid-saccade, between it and the one before)
+      // (the fixation the eyes are on: the last begun, round the loop; mid-saccade, between it and the one before; the
+      // focus easing from the one before's over EYES.verge)
       let k = fix.length - 1; for (let j = 0; j < fix.length; j++) if (fix[j].t <= t) k = j;
       const to = fix[k], from = fix[(k - 1 + fix.length) % fix.length], amp = Math.hypot(to.yaw - from.yaw, to.pitch - from.pitch);
-      const u = mod(t - to.t, P) / (GAZE.saccade.base + GAZE.saccade.perDeg * amp);
+      const since = mod(t - to.t, P), u = since / (GAZE.saccade.base + GAZE.saccade.perDeg * amp);
       at = u >= 1 ? to : { yaw: lerp(from.yaw, to.yaw, ease(u)), pitch: lerp(from.pitch, to.pitch, ease(u)) };
+      verg[i] = lerp(from.v, to.v, ease(since / EYES.verge));
     }
     yaw[i] = Math.max(-LIMIT, Math.min(LIMIT, at.yaw + wander(drift.yaw, t)));
     pitch[i] = Math.max(-LIMIT, Math.min(LIMIT, at.pitch + wander(drift.pitch, t)));
@@ -205,7 +254,7 @@ export function emoteTake(spec) {
   return {
     fps, seconds: r4(P), frames: n, loop: true, emote: S.emote,
     curves: Object.fromEntries(Object.keys(curves).sort().map((k) => [k, curves[k].map(r4)])),
-    gaze: { yaw: yaw.map(r4), pitch: pitch.map(r4) }, events,
+    gaze: { yaw: yaw.map(r4), pitch: pitch.map(r4), ...(verg.some((v) => v > 0) ? { vergence: verg.map(r4) } : {}) }, events,
   };
 }
 

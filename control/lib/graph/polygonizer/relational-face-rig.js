@@ -36,7 +36,7 @@ import { FACE_FPS, drawEye } from './anime-face-rig.js';
 import { faceStoreKey, readFaceStore, writeFaceStore } from './relational-face-store.js';
 import { facsActions, FACS_UNITS, auOf } from '../face-acting/facs.js';
 import { MOUTH } from '../face-acting/mouth.js';
-import { eyeTurns } from '../face-acting/gaze.js';
+import { eyeTurns, distanceOf } from '../face-acting/gaze.js';
 import { validateRig, bindLayered, skinLayered, boneFrames, rigNodesAt } from './station-loft-rig.js';
 
 /** THE GAZE as ARKit's look targets: each eye's globe turned about its centre `GAZE_TURN` degrees up, down, in (toward
@@ -119,14 +119,15 @@ export function eyesOfWeights(w) {
 /**
  * A TAKE (face-acting/perform.js `perform`) as the rig's weights track: { seconds, t: [s], w: [[weights per target]] }
  * at `fps` (30: LINEAR keys, an engine tweens between them), each frame's FACS state on its targets and the gaze on the
- * look targets; the jaw (AU26) is a bone and no target: it is left out and said in `gaps`.
+ * look targets (each eye by the eyes' law, converged where the take focuses: `gaze.vergence`); the jaw (AU26) is a
+ * bone and no target: it is left out and said in `gaps`.
  */
 export function performanceTrack(take, { fps = 30 } = {}) {
   const step = take.fps / fps, t = [], w = [], gaps = new Set();
   for (let f = 0; f <= (take.frames - 1) / step + 1e-9; f++) {
     const i = Math.min(take.frames - 1, Math.round(f * step)), st = {};
     for (const [k, c] of Object.entries(take.curves)) if (c[i] > 0) st[k] = c[i];
-    const { weights, gaps: g } = facsWeights(st), G = gazeWeights(take.gaze.yaw[i], take.gaze.pitch[i], take.gaze.distance?.[i]);
+    const { weights, gaps: g } = facsWeights(st), G = gazeWeights(take.gaze.yaw[i], take.gaze.pitch[i], distanceOf(take.gaze.vergence?.[i] ?? 0));
     for (const k of Object.keys(g)) gaps.add(k);
     t.push(+(i / take.fps).toFixed(6)); w.push(RELATIONAL_FACE_TARGETS.map((n, j) => (n in G ? +G[n].toFixed(6) : weights[j])));
   }

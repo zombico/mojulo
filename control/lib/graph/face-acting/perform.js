@@ -4,7 +4,8 @@
  * micro-expression, a brow flash). The nonverbal face: what it feels, where it looks, how it lives between the beats.
  *
  * A PERFORMANCE: { beats: [{ at (s), face (emotions.js composeFace's spec: a word, a blend, a mask …), onset?
- * ('spontaneous' | 'posed' | seconds), gaze? ('listener' | 'away' | 'down' | 'up' | { yaw, pitch } degrees), state?
+ * ('spontaneous' | 'posed' | seconds), gaze? ('listener' | 'away' | 'down' | 'up' | { yaw, pitch, distance? } degrees and
+ * metres: the eyes focus at the distance, gaze.js; the listener at a conversation's), state?
  * ('listening' | 'speaking' | 'thinking' | 'attentive'), flash? (a brow flash on the beat), micro? (a face spec flashed
  * for a fifth of a second), microAt? (s, its time; the beat's by default), say? (a line spoken from the beat: speech.js,
  * a text or { text | phonemes, rate?, articulation? }, or a RECORDED line as the door keeps it, { recording, seconds,
@@ -51,7 +52,8 @@ import { auOf } from './facs.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { speak, speechErrors } from './speech.js';
 import { MOUTH, overMouth } from './mouth.js';
-import { emoteErrors, emoteState, sidesOf } from './emotes.js';
+import { emoteErrors, emoteState, sidesOf, regardFixations } from './emotes.js';
+import { vergence, EYES } from './gaze.js';
 import { PARTS, partOf, couple, tellErrors, tellOf } from './parts.js';
 
 export const CAPTURE_FPS = 60;
@@ -80,10 +82,11 @@ export const BLINK = Object.freeze({
   rate: Object.freeze({ listening: 15, speaking: 24, thinking: 10, attentive: 8 }),
   close: [0.07, 0.1], shut: [0.03, 0.06], open: [0.12, 0.2], gap: 0.6, beat: 0.5, shift: 0.6, shiftDeg: 15,
 });
-/** the gaze: named targets (degrees: +yaw the figure's right, +pitch up), aversion's reach, the drift (its period and
+/** the gaze: named targets (degrees: +yaw the figure's right, +pitch up; the listener a face across a conversation, the
+ * eyes focused on it, the rest at the far point), aversion's reach, the drift (its period and
  * size), the main sequence (s: base + perDeg × amplitude), a speaker's glances (how often, how long) */
 export const GAZE = Object.freeze({
-  listener: Object.freeze({ yaw: 0, pitch: 0 }), down: Object.freeze({ yaw: 0, pitch: -15 }), up: Object.freeze({ yaw: 0, pitch: 12 }),
+  listener: Object.freeze({ yaw: 0, pitch: 0, distance: 1.1 }), down: Object.freeze({ yaw: 0, pitch: -15 }), up: Object.freeze({ yaw: 0, pitch: 12 }),
   away: Object.freeze({ yaw: [12, 22], pitch: [-6, 10] }), drift: Object.freeze({ every: [0.4, 1.2], deg: 0.8 }),
   saccade: Object.freeze({ base: 0.021, perDeg: 0.0022 }), glance: Object.freeze({ every: [3, 6], hold: [0.5, 1.1], chance: 0.35 }),
 });
@@ -112,7 +115,7 @@ export function performanceErrors(P) {
     // (a recording is saved by the character door, which keeps its id: a path here would play nothing)
     if (b.say && typeof b.say === 'object' && b.say.audio !== undefined) errs.push(`${at}.say.audio: a recording is saved by the door (create_character or update_character, recordings.js), which keeps its id; a performance holds no path`);
     const g = b.gaze;
-    if (g !== undefined && !(typeof g === 'string' ? ['listener', 'away', 'down', 'up'].includes(g) : g && Number.isFinite(g.yaw) && Number.isFinite(g.pitch))) errs.push(`${at}.gaze: 'listener' | 'away' | 'down' | 'up' | { yaw, pitch }`);
+    if (g !== undefined && !(typeof g === 'string' ? ['listener', 'away', 'down', 'up'].includes(g) : g && Number.isFinite(g.yaw) && Number.isFinite(g.pitch) && (g.distance === undefined || (Number.isFinite(g.distance) && g.distance > 0)))) errs.push(`${at}.gaze: 'listener' | 'away' | 'down' | 'up' | { yaw, pitch, distance? (m) }`);
   });
   if (P.seconds !== undefined && !(Number.isFinite(P.seconds) && P.seconds > 0)) errs.push('seconds: more than 0');
   return errs;
@@ -220,17 +223,21 @@ export function perform(P) {
   // (the beat at a moment, and its blinks' rate: an emote's own but while speaking, else the state's)
   const beatAt = (t) => { let c = null; for (const b of beats) if (b.at <= t + 1e-9) c = b; return c; };
   const rateAt = (t) => { const E = beatAt(t)?.E, st = stateAt(t); return E && st !== 'speaking' ? E.blink.rate : BLINK.rate[st]; };
-  const awayTarget = () => ({ yaw: (rnd() < 0.5 ? -1 : 1) * span(GAZE.away.yaw), pitch: span(GAZE.away.pitch) });
-  const targetOf = (b) => { const g = b.gaze ?? (b.E ? b.E.home : b.state === 'thinking' ? 'away' : undefined); return g === undefined ? null : typeof g === 'object' ? { yaw: g.yaw, pitch: g.pitch } : g === 'away' ? awayTarget() : { ...GAZE[g] }; };
-  const fix = [];   // fixations: { t, yaw, pitch }, in time order
-  let gz = { ...GAZE.listener };
+  // (each fixation its focus `v`, the eyes' convergence in degrees: a target's distance's, gaze.js, else the far point)
+  const focus = (g) => ({ yaw: g.yaw, pitch: g.pitch, v: g.v ?? (g.distance ? vergence(g.distance) : 0) });
+  const awayTarget = () => ({ yaw: (rnd() < 0.5 ? -1 : 1) * span(GAZE.away.yaw), pitch: span(GAZE.away.pitch), v: 0 });
+  const targetOf = (b) => { const g = b.gaze ?? (b.E ? b.E.home : b.state === 'thinking' ? 'away' : undefined); return g === undefined ? null : typeof g === 'object' ? focus(g) : g === 'away' ? awayTarget() : focus(GAZE[g]); };
+  const fix = [];   // fixations: { t, yaw, pitch, v }, in time order
+  let gz = focus(GAZE.listener);
   fix.push({ t: 0, ...gz });
   beats.forEach((b, bi) => {
     const tgt = targetOf(b);
     if (tgt) { gz = tgt; fix.push({ t: Math.max(0, b.at - DYNAMICS.lead), ...gz }); }
     // (within the beat: drift, and a speaker's glances)
     const end = bi + 1 < beats.length ? beats[bi + 1].at : seconds, home = { ...gz };
-    // (an emote's own: its re-fixations near its regard, or its drift alone)
+    // (an emote's own regard where the beat holds one and names no gaze: its scan, re-fixations or drift, its glances
+    // away: emotes.js; else the drift and a speaker's glances)
+    if (b.E && b.gaze === undefined) { fix.push(...regardFixations(b.E, Math.max(0, b.at - DYNAMICS.lead), end, rnd)); return; }
     const every = b.E ? b.E.eyes.refix?.every ?? [2, 4] : GAZE.drift.every;
     let t = Math.max(0, b.at - DYNAMICS.lead) + span(every);
     let nextGlance = b.at + span(GAZE.glance.every);
@@ -239,24 +246,26 @@ export function perform(P) {
         nextGlance = t + span(GAZE.glance.every);
         if (rnd() < GAZE.glance.chance) { const a = awayTarget(), back = Math.min(end - 0.05, t + span(GAZE.glance.hold)); fix.push({ t, ...a }); fix.push({ t: back, ...home }); t = back + span(every); continue; }
       }
-      if (b.E?.eyes.refix) { const r = span(b.E.eyes.refix.reach), a = 2 * Math.PI * rnd(); fix.push({ t, yaw: home.yaw + r * Math.cos(a), pitch: home.pitch + 0.6 * r * Math.sin(a) }); }
-      else { const d = b.E ? b.E.eyes.drift : GAZE.drift.deg; fix.push({ t, yaw: home.yaw + d * (2 * rnd() - 1), pitch: home.pitch + d * (2 * rnd() - 1) }); }
+      if (b.E?.eyes.refix) { const r = span(b.E.eyes.refix.reach), a = 2 * Math.PI * rnd(); fix.push({ t, yaw: home.yaw + r * Math.cos(a), pitch: home.pitch + 0.6 * r * Math.sin(a), v: home.v }); }
+      else { const d = b.E ? b.E.eyes.drift : GAZE.drift.deg; fix.push({ t, yaw: home.yaw + d * (2 * rnd() - 1), pitch: home.pitch + d * (2 * rnd() - 1), v: home.v }); }
       t += span(every);
     }
   });
   fix.sort((a, b) => a.t - b.t);
-  const yaw = new Array(n), pitch = new Array(n);
+  const yaw = new Array(n), pitch = new Array(n), verg = new Array(n);
   {
-    let k = 0, from = { yaw: 0, pitch: 0 }, cur = { yaw: 0, pitch: 0 }, sac = null;
+    // (the focus eases from where it is to each fixation's over EYES.verge, slower than the saccade)
+    let k = 0, from = { yaw: 0, pitch: 0 }, cur = { yaw: 0, pitch: 0 }, sac = null, vFrom = fix[0].v, vNow = fix[0].v;
     for (let i = 0; i < n; i++) {
       const t = tOf(i);
       while (k < fix.length && fix[k].t <= t) {
-        from = { ...cur }; const f = fix[k++], amp = Math.hypot(f.yaw - from.yaw, f.pitch - from.pitch);
+        from = { ...cur }; vFrom = vNow; const f = fix[k++], amp = Math.hypot(f.yaw - from.yaw, f.pitch - from.pitch);
         sac = { t0: f.t, dur: GAZE.saccade.base + GAZE.saccade.perDeg * amp, to: f };
         if (amp > 2) events.saccades.push({ t: r4(f.t), dur: r4(sac.dur), amp: r4(amp) });
       }
       if (sac) { const u = (t - sac.t0) / sac.dur; cur = u >= 1 ? { yaw: sac.to.yaw, pitch: sac.to.pitch } : { yaw: lerp(from.yaw, sac.to.yaw, ease(u)), pitch: lerp(from.pitch, sac.to.pitch, ease(u)) }; }
-      yaw[i] = cur.yaw; pitch[i] = cur.pitch;
+      if (sac) vNow = lerp(vFrom, sac.to.v, ease((t - sac.t0) / EYES.verge));
+      yaw[i] = cur.yaw; pitch[i] = cur.pitch; verg[i] = vNow;
     }
   }
   // THE BLINKS: the spontaneous, by the state's rate; the mind's, at a beat's change and with a large saccade; none on a
@@ -287,7 +296,7 @@ export function perform(P) {
   return {
     fps, seconds, frames: n,
     curves: Object.fromEntries(Object.keys(curves).sort().map((k) => [k, curves[k].map(r4)])),
-    gaze: { yaw: yaw.map(r4), pitch: pitch.map(r4) }, events,
+    gaze: { yaw: yaw.map(r4), pitch: pitch.map(r4), ...(verg.some((v) => v > 0) ? { vergence: verg.map(r4) } : {}) }, events,
   };
 }
 

@@ -1,7 +1,7 @@
 // gaze: the eyes' law. Two eyes look at one thing: together, converging no nearer than the near point, never apart
 // and never skewed; no distance is the far point, the eyes parallel.
 import { describe, it, expect } from 'vitest';
-import { EYES, MAX_VERGENCE, vergence, eyeTurns, gazeFaults, seatGaze } from './gaze.js';
+import { EYES, MAX_VERGENCE, vergence, distanceOf, eyeTurns, gazeFaults, seatGaze } from './gaze.js';
 import { perform, GAZE } from './perform.js';
 import { gazeWeights, eyeWeights, eyesOfWeights, performanceTrack, RELATIONAL_FACE_TARGETS, GAZE_TURN } from '../polygonizer/relational-face-rig.js';
 
@@ -54,5 +54,23 @@ describe('gaze: the eyes look at one thing, never cross-eyed', () => {
     const K = performanceTrack(T), look = RELATIONAL_FACE_TARGETS.map((n, j) => [n, j]).filter(([n]) => n.startsWith('eyeLook'));
     for (const row of K.w) expect(gazeFaults(eyesOfWeights(Object.fromEntries(look.map(([n, j]) => [n, row[j]]))))).toEqual([]);
     expect(GAZE_TURN).toBeGreaterThan(GAZE.away.yaw[1]);
+  });
+
+  it('focuses: the eyes converge on the listener a conversation away, relax looking away, and change focus slowly', () => {
+    expect(distanceOf(vergence(1.1))).toBeCloseTo(1.1, 9);
+    expect(distanceOf(0)).toBe(Infinity);
+    const T = perform({ seed: 2, seconds: 6, beats: [{ at: 0, face: 'neutral', gaze: 'listener' }, { at: 2, face: 'pensive', state: 'thinking' }, { at: 4, face: 'neutral', gaze: { yaw: 5, pitch: -3, distance: 0.6 } }] });
+    const at = (s) => T.gaze.vergence[Math.round(s * T.fps)];
+    expect(at(1.5)).toBeCloseTo(vergence(GAZE.listener.distance), 1);
+    expect(at(3.5)).toBeLessThan(0.05);
+    expect(at(5.5)).toBeCloseTo(vergence(0.6), 1);
+    // (the focus takes longer than the saccade: frames between its start and its settling)
+    const i0 = T.gaze.vergence.findIndex((v, i) => i > 4 * T.fps - 20 && v > 0.05), i1 = T.gaze.vergence.findIndex((v, i) => i > i0 && v > vergence(0.6) - 0.05);
+    expect((i1 - i0) / T.fps).toBeGreaterThan(EYES.verge * 0.5);
+    // (and the rig turns each eye by it: converged, never crossed)
+    const K = performanceTrack(T), look = RELATIONAL_FACE_TARGETS.map((n, j) => [n, j]).filter(([n]) => n.startsWith('eyeLook'));
+    const E = eyesOfWeights(Object.fromEntries(look.map(([n, j]) => [n, K.w[Math.round(1.5 * 30)][j]])));
+    expect(E.L.yaw - E.R.yaw).toBeCloseTo(vergence(GAZE.listener.distance), 0);
+    expect(gazeFaults(E)).toEqual([]);
   });
 });

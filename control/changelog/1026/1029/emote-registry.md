@@ -64,3 +64,13 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   (`<clip>·<part>`), read, played and shot beside the whole; the read's regions are the parts (the cheeks their own).
   Part by part it found the cheeks idle in most emotes and `daydream`'s cheek, `absorbed`'s narrowed lid and `drowsy`'s
   propping brow under the line: the cards are retuned.
+- **The eyes focus** (`gaze.js` `distanceOf`, `EYES.verge`; a take's `gaze.vergence`): every fixation carries a focus,
+  the eyes' convergence on its distance, and the rig turns each eye by it (`performanceTrack`); the focus follows a
+  saccade slowly, over a quarter of a second. The performer's `listener` is a face across a conversation (1.1 m), a
+  beat's gaze may name its own `distance`, and a thinking look away or a glance off relaxes the eyes to the far point.
+  Every take now converges where it looks at the listener.
+- **Listening** (the `listening` emote): the idle gaze of someone listening close by: the eyes focused on a speaker's
+  face, moving between their eyes and their mouth on short dwells (a scan, `eyes.scan`: points, weights, dwell, never the
+  same point twice running), glancing away now and then unfocused (`eyes.away`), the brows a little lifted, a smile in
+  the eyes at times. A regard's fixations (`regardFixations`) are shared by the loop and a performance's beat that holds
+  an emote.

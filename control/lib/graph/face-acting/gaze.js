@@ -6,7 +6,9 @@
  *   • they CONVERGE only as far as the target is near, and never nearer than `EYES.near` asks (a face is never
  *     cross-eyed: what is closer than that the eyes give up on, as a person's do);
  *   • they never DIVERGE (wall-eyed: past parallel, a target farther than infinity) nor SKEW (one up, one down);
- *   • a gaze with no distance looks at the FAR POINT: the eyes parallel, the gaze of someone looking at nothing.
+ *   • a gaze with no distance looks at the FAR POINT: the eyes parallel, the gaze of someone looking at nothing;
+ *   • FOCUS changes slowly (`EYES.verge`): a saccade jumps the direction in a twentieth of a second, the convergence
+ *     follows over a quarter; a take carries it per frame as `gaze.vergence` (degrees), where any fixation focuses.
  *
  * Degrees throughout: +yaw the figure's right, +pitch up; an eye's own yaw likewise (the left eye's toward the nose is
  * +yaw). `gazeFaults` reads a frame's two eyes against the law (a capture's, a hand-held channel's); `seatGaze` puts a
@@ -14,9 +16,10 @@
  * `eyesOfWeights`). Pure arithmetic.
  */
 
-/** the eyes: their spacing (m, the interpupillary distance), the nearest target they converge on (m), and the
- * tolerance (degrees) a frame's eyes may stray from the law before it is a fault (a capture's noise, a key's rounding) */
-export const EYES = Object.freeze({ ipd: 0.063, near: 0.4, tolerance: 0.5 });
+/** the eyes: their spacing (m, the interpupillary distance), the nearest target they converge on (m), the tolerance
+ * (degrees) a frame's eyes may stray from the law before it is a fault (a capture's noise, a key's rounding), and how
+ * long a change of focus takes (s: vergence is slow beside a saccade, a quarter of a second against a twentieth) */
+export const EYES = Object.freeze({ ipd: 0.063, near: 0.4, tolerance: 0.5, verge: 0.25 });
 
 const deg = (r) => (r * 180) / Math.PI, rad = (d) => (d * Math.PI) / 180;
 
@@ -27,6 +30,10 @@ export function vergence(distance = Infinity) {
   return 2 * deg(Math.atan(EYES.ipd / 2 / Math.max(EYES.near, distance)));
 }
 export const MAX_VERGENCE = vergence(EYES.near);
+/** a convergence (degrees) → the distance it focuses at (m): 0 or less the far point */
+export function distanceOf(v = 0) {
+  return v > 1e-9 ? EYES.ipd / 2 / Math.tan(rad(Math.min(v, MAX_VERGENCE) / 2)) : Infinity;
+}
 
 /**
  * A gaze → each eye's turn: { L: { yaw, pitch }, R: { yaw, pitch } } (L the figure's left eye). No distance (or an

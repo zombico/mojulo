@@ -6,11 +6,12 @@ import { FACE_EMOTES, FACE_EMOTE_NAMES, emoteTake, emoteErrors, emoteState } fro
 import { composeFace } from './emotions.js';
 import { perform, captureFrame, performanceErrors, BLINK } from './perform.js';
 import { auOf, facsActions } from './facs.js';
-import { gazeFaults, eyeTurns } from './gaze.js';
+import { gazeFaults, eyeTurns, vergence } from './gaze.js';
 import { performanceTrack, eyesOfWeights, RELATIONAL_FACE_TARGETS } from '../polygonizer/relational-face-rig.js';
 
 const pick = (test) => FACE_EMOTE_NAMES.find((k) => test(FACE_EMOTES[k]));
-const REFIX = pick((c) => c.eyes.refix && !c.stirs), STILL = pick((c) => !c.eyes.refix), STIRS = pick((c) => c.stirs?.length);
+const NOTHING = (c) => !c.eyes.distance && !c.eyes.scan && !c.eyes.away;
+const REFIX = pick((c) => NOTHING(c) && c.eyes.refix && !c.stirs), STILL = pick((c) => NOTHING(c) && !c.eyes.refix), STIRS = pick((c) => c.stirs?.length);
 const SIDED = pick((c) => Object.keys(c.face).some((k) => /[LR]$/.test(k)));
 
 describe('emotes: the face\'s held states, general, never cross-eyed', () => {
@@ -119,6 +120,26 @@ describe('emotes as the base layer: under an emotion, and held by a performance\
     const S = perform({ seed: 5, seconds: 12, beats: [{ at: 0, face: 'neutral' }, { at: 2, emote: STIRS }, { at: 10, face: 'neutral' }] });
     expect(S.events.stirs.length).toBeGreaterThan(0);
     for (const st of S.events.stirs) { expect(st.t).toBeGreaterThanOrEqual(2); expect(st.t + st.dur).toBeLessThan(10); }
+  });
+});
+
+describe('an emote that focuses: a listener on a speaker\'s face', () => {
+  const FOCUS = pick((c) => c.eyes.distance && c.eyes.scan && c.eyes.away);
+  it('converges on its distance, moves between the face\'s points, unfocuses in a glance away, and loops', () => {
+    const C = FACE_EMOTES[FOCUS], T = emoteTake({ emote: FOCUS, seconds: 30 }), v = T.gaze.vergence;
+    expect(Math.max(...v)).toBeCloseTo(vergence(C.eyes.distance), 2);
+    expect(Math.min(...v)).toBeLessThan(0.05);
+    expect(v.at(-1)).toBe(v[0]);
+    // (its jumps between the points: a step the points make, give or take the drift; and some far bigger, the glances)
+    const steps = C.eyes.scan.points.flatMap((a, i) => C.eyes.scan.points.slice(i + 1).map((b) => Math.hypot(a[0] - b[0], a[1] - b[1])));
+    const amps = T.events.saccades.map((s) => s.amp);
+    expect(amps.some((a) => steps.some((d) => Math.abs(a - d) < 0.01))).toBe(true);
+    expect(Math.max(...amps)).toBeGreaterThan(C.eyes.away.reach[0] * 0.9);
+    // (mirrored, its points to the other side; never crossed)
+    const M = emoteTake({ emote: FOCUS, mirror: true, seconds: 30 });
+    expect(Math.min(...M.gaze.yaw)).toBeLessThan(0);
+    const K = performanceTrack(T), look = RELATIONAL_FACE_TARGETS.map((n, j) => [n, j]).filter(([n]) => n.startsWith('eyeLook'));
+    for (const row of K.w) expect(gazeFaults(eyesOfWeights(Object.fromEntries(look.map(([n, j]) => [n, row[j]]))))).toEqual([]);
   });
 });
 
