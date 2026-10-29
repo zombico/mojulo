@@ -342,6 +342,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // says the sun does not move. The occlusion rows are unchanged (the half tier's strings are written only with a tier),
 // and so is every other hash: the defaults resolve in world-scene, never in the emitter.
 
+// Re-pinned 2026-10-29 (merge fixes: no plan citations in tracked code): every fixture that embeds the controllable
+// runtime. Three comments inside its serialized rules (core.js SEATS, rules-basic.js THE GROUP FRAME and SEAT FALLS)
+// cited a plan file, which CLAUDE.md forbids; on `kitchen-sink` the diff is those three comment lines and nothing else.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

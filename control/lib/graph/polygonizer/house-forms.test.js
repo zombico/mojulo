@@ -3,7 +3,7 @@
 // open side lit; the window laws hold; a footprint that cannot hold the form is refused, naming the size it needs; the
 // draw gives a form its own storeys and footprint.
 import { describe, expect, it } from 'vitest';
-import { readForm, partyWallsOf, formErrors, FORM_FOOTPRINT, FORM_MAX_RISE } from './house-forms.js';
+import { readForm, partyWallsOf, formErrors, stairWidthOf, FORM_FOOTPRINT, FORM_MAX_RISE } from './house-forms.js';
 import { structurizeHouse } from './floorplan-structure.js';
 import { drawNewHouse } from './floorplan-draw.js';
 
@@ -42,6 +42,25 @@ describe('a townhouse and a block, planned storey by storey', () => {
       for (const law of H.windows.laws) expect(law.ok, `${law.id}: ${law.says}`).toBe(true);
     });
   }
+
+  it('a wide flight keeps to the hall kept for it: the zone is as wide as the widest flight asked for', () => {
+    const wide = [{ from: 0, to: 1, width: 5 }, { from: 1, to: 2, width: 5 }];
+    expect(stairWidthOf(wide)).toBe(5);
+    expect(stairWidthOf(true)).toBe(stairWidthOf([{ width: 2 }]));
+    for (const form of ['townhouse', 'block']) {
+      const H = build({ form, stairs: wide }), fp = H.footprint;
+      for (const st of H.stairs) {
+        expect(st.slot.x0 >= fp.x0 && st.slot.x1 <= fp.x1 && st.slot.y0 >= fp.y0 && st.slot.y1 <= fp.y1, `${form}: the flight inside the house`).toBe(true);
+        // (no room's floor under the flight: it stands in the hall)
+        const rooms = H.levels.find((L) => L.index === st.fromIndex)?.structure.plan.rooms ?? [];
+        const over = rooms.filter((r) => r.glyph !== 'H' && st.slot.x0 < r.x + r.w - 0.05 && st.slot.x1 > r.x + 0.05 && st.slot.y0 < r.y + r.h - 0.05 && st.slot.y1 > r.y + 0.05);
+        expect(over.map((r) => r.glyph), `${form}: rooms under the flight`).toEqual([]);
+      }
+    }
+    // (and the footprint it needs grows with it, refused by name at mint)
+    expect(formErrors('townhouse', { width: 21, height: 48, rise: FORM_MAX_RISE })).toEqual([]);
+    expect(formErrors('townhouse', { width: 21, height: 48, rise: FORM_MAX_RISE, stairWidth: 6 })[0]).toMatch(/ft wide/);
+  });
 
   it('a mid-terrace townhouse\'s party walls take no window; an end unit\'s open side is lit', () => {
     const mid = build({ form: 'townhouse' }), end = build({ form: 'townhouse', attached: 'left' });

@@ -4,8 +4,9 @@ import {
   buildWallGraph, placeOpenings, wallRunFaces, extrudeWalls,
   structurizeFloorplan, STRUCTURAL_GLYPHS,
   houseMeru, structurizeHouse, groundDatumFaces, LEVEL_ROLES, storeyLevels,
-  buildStairFlight, placeStairs, STAIR_DEFAULTS, assembleHouseWorldScene, FLOORPLAN_METERS_PER_UNIT,
+  buildStairFlight, placeStairs, stairSpanOf, STAIR_DEFAULTS, assembleHouseWorldScene, FLOORPLAN_METERS_PER_UNIT,
 } from './floorplan-structure.js';
+import { generateProgramPlan } from './floorplan-glyphs.js';
 
 // A minimal hand-built footprint: two rooms separated by a hall, tiling a
 // 30×10 rectangle. Shared edges are exact so the wall graph dedups them.
@@ -246,6 +247,16 @@ test('a house that names its width keeps a stair of the stair\'s width (the reci
   const H = structurizeHouse(m, { ...m, view: 'cutaway' }), s = H.stairs[0].slot, fp = H.footprint;
   assert.ok(s.x0 >= fp.x0 && s.x1 <= fp.x1 && s.y0 >= fp.y0 && s.y1 <= fp.y1, 'the flight stands inside the house');
   assert.ok(Math.min(s.x1 - s.x0, s.y1 - s.y0) < 10, 'a flight, not a cut the width of the house');
+});
+
+test('a wide flight in a program house stays in the stair zone kept for it (the zone sized by the widest flight)', () => {
+  const m = { width: 44, height: 32, seed: 2, levels: [{ role: 'ground' }, { role: 'second' }], stairs: [{ from: 0, to: 1, width: 5 }] };
+  const H = structurizeHouse(m, { ...m, view: 'cutaway' }), s = H.stairs[0].slot;
+  // (the ground's zone as the house plans it, a switchback's span by default)
+  const span = stairSpanOf(m.stairs, true);
+  assert.ok(span > stairSpanOf([{ from: 0, to: 1 }], true), 'a wider flight keeps a wider zone');
+  const z = generateProgramPlan(m.seed, { width: m.width, height: m.height, role: 'ground', hasUpper: true, reservedOpen: null, inset: 2, stairSpan: span }).stairZone;
+  assert.ok(s.x0 >= z.x0 - 1e-9 && s.x1 <= z.x1 + 1e-9 && s.y0 >= z.y0 - 1e-9 && s.y1 <= z.y1 + 1e-9, 'the flight inside its zone');
 });
 
 test('a stair cuts an open slot through the destination floor slab', () => {

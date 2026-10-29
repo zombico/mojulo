@@ -12,7 +12,7 @@ import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { engineReading } from '@/lib/graph/scene/engine-score';
 
-// SEATS, END TO END (pilots.plan.md phase 5; an e2e suite: a hero is made and the level audit walks it in headless
+// SEATS, END TO END (an e2e suite: a hero is made and the level audit walks it in headless
 // Chrome): a quick game whose cube says two seats lays a hero for seat 2 on its level, the page seats the players, and
 // the level audit walks it with seat 1, its own pilot, the empty seat's hero following as the party does: the audit's run
 // and verdict are the ones the same level without seats gets. The engine legs seat one, and the export says so.

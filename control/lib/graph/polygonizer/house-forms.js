@@ -67,18 +67,26 @@ function depths(rows, total) {
   return rows.map((r) => (wet(r) ? WET : (free * weight(r)) / sum));
 }
 
-// the stair hall's dimensions: the flight's zone and the passage beside its well
-const hallOf = (rise) => {
+// the stair hall's dimensions: the flight's zone (as wide as its flight, the default's or a wider one asked for) and the
+// passage beside its well
+const hallOf = (rise, stairWidth = STAIR_DEFAULTS.width) => {
   const steps = Math.max(2, Math.round(rise / STAIR_DEFAULTS.riser)), run = steps * STAIR_DEFAULTS.going;
-  const sw = STAIR_DEFAULTS.width + 0.4;
+  const sw = Math.max(STAIR_DEFAULTS.width, stairWidth) + 0.4;
   return { run, sw, hw: sw + PASSAGE };
 };
 const ENTRY_DEPTH = 5, MIN_ROOM = 9;
 
+/** The widest flight a recipe's `stairs` asks for (ft), never under the default: the zone every storey keeps open is
+ * sized by it, so a wide flight stays in the space kept for it. */
+export function stairWidthOf(stairs) {
+  const list = Array.isArray(stairs) ? stairs : stairs && typeof stairs === 'object' ? [stairs] : [];
+  return Math.max(STAIR_DEFAULTS.width, ...list.map((s) => (s && Number.isFinite(s.width) ? s.width : STAIR_DEFAULTS.width)));
+}
+
 /** Why a footprint cannot hold the form: too shallow for its stair, too narrow for rooms beside its stair hall. */
-export function formErrors(form, { width, height, rise }) {
+export function formErrors(form, { width, height, rise, stairWidth }) {
   if (form === 'detached') return [];
-  const { run, hw } = hallOf(rise), e = [];
+  const { run, hw } = hallOf(rise, stairWidth), e = [];
   if (height - 2 * INSET < run + ENTRY_DEPTH + 2) e.push(`a ${form} ${height} ft deep cannot hold its stair (${run.toFixed(1)} ft of flight and a landing): make it at least ${Math.ceil(run + ENTRY_DEPTH + 2 + 2 * INSET)} ft deep`);
   if (form === 'townhouse' && width - 2 * INSET - hw < MIN_ROOM) e.push(`a townhouse ${width} ft wide leaves its rooms under ${MIN_ROOM} ft beside the stair hall: make it at least ${Math.ceil(hw + MIN_ROOM + 2 * INSET)} ft wide`);
   if (form === 'block' && (width - 2 * INSET - hw) / 2 < MIN_ROOM) e.push(`a block ${width} ft wide leaves its rooms under ${MIN_ROOM} ft either side of its hall: make it at least ${Math.ceil(hw + 2 * MIN_ROOM + 2 * INSET)} ft wide`);
@@ -89,13 +97,13 @@ export function formErrors(form, { width, height, rise }) {
  * Every storey of a townhouse or a block planned (the indices the stack has, 0 the ground), with the one stair zone they
  * all keep open: a straight flight of `rise` (the storey's floor-to-floor) climbing from the front of the hall.
  */
-export function planForm(form, { width, height, indices, rise, seed = 1 }) {
+export function planForm(form, { width, height, indices, rise, seed = 1, stairWidth }) {
   const U = { x0: INSET, y0: INSET, x1: width - INSET, y1: height - INSET };
-  const { run, sw, hw } = hallOf(rise);
+  const { run, sw, hw } = hallOf(rise, stairWidth);
   const centre = form === 'block';
   const hx0 = centre ? (U.x0 + U.x1) / 2 - hw / 2 : U.x0, hx1 = hx0 + hw;
   const entryDepth = ENTRY_DEPTH;
-  const errs = formErrors(form, { width, height, rise });
+  const errs = formErrors(form, { width, height, rise, stairWidth });
   if (errs.length) throw new Error(`form: ${errs.join('; ')}`);
   const stairZone = { x0: hx0, x1: hx0 + sw, y0: U.y0 + entryDepth, y1: U.y0 + entryDepth + run + 0.4 };
   const n = indices.filter((i) => i >= 0).length;

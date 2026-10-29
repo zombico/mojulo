@@ -169,7 +169,7 @@ export function buildRulesBasic(E) {
     e.lookAt = null;
   }
 
-  // THE GROUP FRAME (pilots.plan.md; a world with seats, docs/local-multiplayer-principles.md principle 2): a shared camera
+  // THE GROUP FRAME (a world with seats, docs/local-multiplayer-principles.md principle 2): a shared camera
   // (side, overhead) holds the centre of every seated pilot that is playing, and stands back until their spread fits its
   // `fov` (50°) with `margin` (2 m) round it: never nearer than the rule's own distance, never past `maxDist` (2.2 × it).
   // Past that, the group leash below holds the leader back and brings the straggler in. One playing pilot, or a world
@@ -423,7 +423,7 @@ export function buildRulesBasic(E) {
   // centre is held there, the leader held back and the straggler brought in, so nobody leaves the shot. Nothing without
   // seats, or with one pilot playing.
   const GROUP_DIST = { side: 11, overhead: 14 };
-  // SEAT FALLS (pilots.plan.md; a world with seats): a seated body below the floor is brought back beside the others,
+  // SEAT FALLS (a world with seats): a seated body below the floor is brought back beside the others,
   // just above a playing seat (seat 1's pilot first), else where it started. With lives (state.seatLives) each fall costs
   // its seat one, or the shared count one; a seat with none left is out (its body gone), and when no seat is left
   // playing the seats are over (state.seatsOver: the page ends the level, failed). Without lives seat 1's fall is the
