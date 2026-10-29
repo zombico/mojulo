@@ -147,8 +147,11 @@ function restNormals(pos, idx) {
 // legacy float32 triangle soup (part.pos) and the indexed+quantized form (part.q, packRigMesh).
 // Colours are normalized-uint8 linear values (rig-bake b64u8) → float COLOR_0, the same linear
 // space as the baked face colours. Per-vertex specular (spec/spec8) has no glTF-unlit analog and
-// is deliberately dropped, like the World's other screen embellishments.
-function decodeRigPart(part, restHead) {
+// is deliberately dropped, like the World's other screen embellishments. A vehicle's part in the form render
+// (vehicle-rig.js packFormMesh) is `{ form: { o, s, n, q, nrm, col, idx, groups, mats } }`: the same quantized mesh one
+// level down, its colours the albedo; its material slots and normals are the page's light and are not carried here.
+function decodeRigPart(part0, restHead) {
+  const part = part0.form ?? part0;
   const colU8 = b64ToBytes(part.col);
   const colors = new Float32Array(colU8.length);
   for (let i = 0; i < colU8.length; i++) colors[i] = colU8[i] / 255;
