@@ -19,12 +19,16 @@ export const GEOTOWN_LAWS = Object.freeze({
   grade: 'no street steeper than the pattern\'s grade',
   'pad-step': 'neighbouring pads along a row step at most the pattern\'s step',
   green: 'the soft ground (verges, yards, parks) at least the pattern\'s share of the map',
+  mansions: 'a midtown mansion\'s property much larger than its street\'s houses\', two at most in a block segment',
   fits: 'each segment tuned to its cell: its rows\' frontages spread inside the pattern\'s stretch, its plots no more than half again as deep as they need',
   evokes: 'an evocation keeps the town to scale\'s measures: how its plots share their ground, and its mix of semis and detached houses',
 });
 // how far an evocation's shares may stand from the town to scale's before the law advises
 export const EVOKE_TOLERANCE = Object.freeze({ share: 0.08, semis: 0.3, deep: 1.5 });
-const housesOf = (d) => d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses');
+// (the street's own houses: a mansion is measured as a mansion)
+const housesOf = (d) => d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses' && pl.form !== 'mansion');
+// a mansion's property is at least this many times the mean of its street's houses', two at most in a segment
+export const MANSION = Object.freeze({ larger: 2, most: 2 });
 
 /** How a design's plots share their ground (house, front and path, side, back, of all the plots' area) and the share of
  *  its houses that are semis. */
@@ -49,7 +53,7 @@ export function geotownLaws(d) {
   const townErr = Math.abs(d.ledger.total - d.ledger.frame);
   law('closes', townErr <= d.ledger.frame * 1e-6 + 0.01 && plotErr <= 0.01, `the map ${d.ledger.total} of ${d.ledger.frame} m²; the worst plot off by ${r3(plotErr)} m²`);
   // (a house's laws: a shop's or a walk-up's plot keeps a service yard, not a garden)
-  const H = housesOf(d), backs = H.map((pl) => pl.d - pl.setback - pl.house.depth), least = backs.length ? Math.min(...backs) : Infinity;
+  const H = housesOf(d), backs = d.plots.filter((pl) => pl.rear === 'back').map((pl) => pl.d - pl.house.env[3]), least = backs.length ? Math.min(...backs) : Infinity;
   law('back-yard', !backs.length || least >= P.back - 1e-6, backs.length ? `the shallowest back yard ${r2(least)} m (least ${P.back})` : 'no plots');
   const cov = H.map((pl) => pl.alloc.house / (pl.w * pl.d)), outCov = cov.filter((c) => c < P.coverage[0] || c > P.coverage[1]).length;
   law('coverage', outCov === 0, cov.length ? `${r2(Math.min(...cov))}–${r2(Math.max(...cov))} of a plot (rail ${P.coverage.join('–')}); ${outCov} outside` : 'no plots');
@@ -83,6 +87,13 @@ export function geotownLaws(d) {
   const soft = Object.entries(d.ledger.town).filter(([k]) => SURFACES[k].soft).reduce((a, [, v]) => a + v, 0) / (d.ledger.total || 1);
   // (an evocation's streets ring a block or two: its ground is read by `evokes`, the plots' shares, not the map's)
   if (!d.evoked) law('green', soft >= P.green - 1e-9, `${r2(soft)} of the map is soft ground (least ${P.green})`);
+  const big = d.plots.filter((pl) => pl.form === 'mansion');
+  if (big.length) {
+    const mean = H.reduce((a, pl) => a + pl.w * pl.d, 0) / (H.length || 1), per = {};
+    for (const pl of big) per[pl.block] = (per[pl.block] ?? 0) + 1;
+    const least = Math.min(...big.map((pl) => (pl.w * pl.d) / (mean || 1))), most = Math.max(...Object.values(per));
+    law('mansions', least >= MANSION.larger - 1e-9 && most <= MANSION.most, `${big.length} mansions, the least ${r2(least)} times its street's mean house plot; at most ${most} in a segment`);
+  }
   if (d.evoked) {
     const F = d.evoked.fits, ST = P.evoke.stretch, bad = F.filter((f) => f.stretch < ST[0] - 0.1 || f.stretch > ST[1] + 0.1 || f.deep > EVOKE_TOLERANCE.deep);
     law('fits', bad.length === 0, F.length ? `${F.length} rows: spread ${r2(Math.min(...F.map((f) => f.stretch)))}–${r2(Math.max(...F.map((f) => f.stretch)))}, as deep as ${r2(Math.max(...F.map((f) => f.deep)))} of their need${bad.length ? `; ${bad.map((f) => `${f.block}${f.side}`).join(', ')} past it` : ''}` : 'no rows');

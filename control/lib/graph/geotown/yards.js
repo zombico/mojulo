@@ -24,6 +24,7 @@ export const YARDS = Object.freeze({
   deck: Object.freeze({ read: 'a timber deck off the back door, its rail and its steps down to the lawn', trees: 1 }),
   shed: Object.freeze({ read: 'a garden shed at the back, gravel before it', trees: 1 }),
   play: Object.freeze({ read: 'a sandbox and a swing', trees: 1 }),
+  pool: Object.freeze({ read: 'a pool in its stone coping, a terrace of flags round it, two loungers', trees: 1 }),
 });
 export const YARD_IDS = Object.freeze(Object.keys(YARDS));
 export const FENCES = Object.freeze({
@@ -108,6 +109,16 @@ export function yardOf(program, { w, v0, v1, R }) {
       for (const du of [-0.22, 0.22]) out.push(...box(u + du - 0.01, qv - 0.01, u + du + 0.01, qv + 0.01, 0.5, top - 0.1, 'metal').slice(1));
     }
     tree(qv + 1.5, v1 - 1.5);
+  } else if (program === 'pool') {
+    // a pool in its coping, a terrace of flags round it, two loungers on the terrace
+    const pw = Math.min(4.2, w - 3), pl = Math.min(9, depth - 5), cu = w / 2, a = v0 + 2.2;
+    if (pw >= 2.5 && pl >= 4) {
+      out.push({ corners: [P(cu - pw / 2 - 1.4, a - 1.2, 0.03), P(cu + pw / 2 + 1.4, a - 1.2, 0.03), P(cu + pw / 2 + 1.4, a + pl + 1.2, 0.03), P(cu - pw / 2 - 1.4, a + pl + 1.2, 0.03)], out: [0, 0, 1], role: 'paving' });
+      out.push({ corners: [P(cu - pw / 2, a, 0.04), P(cu + pw / 2, a, 0.04), P(cu + pw / 2, a + pl, 0.04), P(cu - pw / 2, a + pl, 0.04)], out: [0, 0, 1], role: 'water' });
+      for (const [x0, y0, x1, y1] of [[cu - pw / 2 - 0.3, a - 0.3, cu + pw / 2 + 0.3, a], [cu - pw / 2 - 0.3, a + pl, cu + pw / 2 + 0.3, a + pl + 0.3], [cu - pw / 2 - 0.3, a, cu - pw / 2, a + pl], [cu + pw / 2, a, cu + pw / 2 + 0.3, a + pl]]) out.push(...box(x0, y0, x1, y1, 0.03, 0.12, 'coping'));
+      for (const k of [0, 1]) { const u = cu + pw / 2 + 0.5, v = a + 1 + k * 2.2; if (u + 0.7 < w - 0.3) out.push(...box(u, v, u + 0.7, v + 1.9, 0.03, 0.35, 'timber')); }
+      tree(Math.min(v1 - 2, a + pl + 2.5), v1 - 1.5);
+    } else tree();
   } else {
     // a lawn: its trees and nothing else
     tree(v0 + depth * 0.35, v1 - 1.8);
@@ -146,4 +157,13 @@ export function serviceOf(kind, { w, v0, v1, R }) {
   for (const k of [0, 1]) { const u = 0.8 + k * 1.1; if (u + 0.9 < w) out.push(...box(u, v0 + 0.4, u + 0.9, v0 + 1.4, 0, 1.2, 'bin')); }
   if (depth > 6.5 && w > 2.6 && R() < 0.5) out.push(...car(w / 2, v0 + Math.min(depth - 2.5, 4.5), 'v', CARS[Math.floor(R() * CARS.length)]));
   return { faces: out };
+}
+
+/** A mansion's garage over [u0, v0, u1, v1] in its plot's frame: its walls, a gable roof along v, its door to the drive. */
+export function garageOf([u0, v0, u1, v1]) {
+  const out = box(u0, v0, u1, v1, 0, 2.6, 'garage').slice(1);
+  out.push(...gable(u0, v0, u1, v1, 2.6, 1.1, 0.25, 'roof').map((f) => (f.role === 'shed' ? { ...f, role: 'garage' } : f)));
+  out.push({ corners: [P(u0 + 0.4, v0 - 0.02, 0.02), P(u1 - 0.4, v0 - 0.02, 0.02), P(u1 - 0.4, v0 - 0.02, 2.3), P(u0 + 0.4, v0 - 0.02, 2.3)], out: [0, -1, 0], role: 'door' });
+  for (let z = 0.6; z < 2.3; z += 0.55) out.push({ corners: [P(u0 + 0.4, v0 - 0.04, z), P(u1 - 0.4, v0 - 0.04, z), P(u1 - 0.4, v0 - 0.04, z + 0.04), P(u0 + 0.4, v0 - 0.04, z + 0.04)], out: [0, -1, 0], role: 'garage' });
+  return out;
 }

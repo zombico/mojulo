@@ -110,16 +110,17 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
       const d = designGeotown({}, { seed, field: plane }), B = d.blocks[0];
       expect(d.spec.evoke).toBe('segment');
       expect(d.blocks.length).toBe(1);
-      expect([6, 8]).toContain(d.plots.length);
-      // its two rows hold one count, back to back, and close on the block's length
+      // (its houses six or eight; a midtown mansion or two beside them, each on a plot of its own: see below)
+      expect([6, 8]).toContain(d.plots.filter((pl) => pl.form !== 'mansion').length);
+      // its two rows hold one count, back to back (a mansion's row fewer: it takes houses' frontage), and close on the block's length
       const rows = ['w', 'e'].map((s) => d.plots.filter((pl) => pl.side === s));
-      expect(rows[0].length).toBe(rows[1].length);
+      if (!d.plots.some((pl) => pl.form === 'mansion')) expect(rows[0].length).toBe(rows[1].length);
       for (const r of rows) expect(r.reduce((a, pl) => a + pl.w, 0)).toBeCloseTo(B.rect[3] - B.rect[1], 2);
       // it stands for the town laid to scale, whose measures it keeps
       expect(d.evoked.stands.plots).toBeGreaterThan(5 * d.plots.length);
       expect(law(d, 'evokes').ok).toBe(true);
       expect(law(d, 'closes').ok).toBe(true);
-      expect(new Set(d.plots.map((pl) => pl.form))).toEqual(new Set(['semi', 'detached']));
+      expect(new Set(d.plots.filter((pl) => pl.form !== 'mansion').map((pl) => pl.form))).toEqual(new Set(['semi', 'detached']));
     }
   });
 
@@ -141,7 +142,7 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
     const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HP', 'MA'], main: ['ew-0'] } }, { seed: 3, field: plane });
     expect(d.blocks.map((b) => `${b.id}:${b.use}`)).toEqual(['A1:main-street', 'B1:apartments', 'A2:houses', 'B2:park']);
     for (const id of ['closes', 'fits', 'frontage', 'evokes']) expect(law(d, id).ok).toBe(true);
-    expect(Object.keys(d.ledger.uses).sort()).toEqual(['apartments', 'houses', 'shops']);
+    expect(Object.keys(d.ledger.uses).filter((k) => k !== 'garage').sort()).toEqual(['apartments', 'houses', 'shops']);
     // a row its cell stretched past the rail is recut: every row's spread inside the pattern's stretch, give or take
     for (const f of d.evoked.fits) expect(f.stretch).toBeGreaterThan(d.pattern.evoke.stretch[0] - 0.1);
     // a column as wide as its widest need: the blocks of a column share their width, the rows of cells their length
@@ -150,6 +151,24 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
     // its four perimeter streets are its ports, their ranks and their ends' heights
     expect(d.ports.map((p) => `${p.side}:${p.rank}`)).toEqual(['w:street', 'e:street', 's:main', 'n:street']);
     for (const p of d.ports) expect(p.z.every(Number.isFinite)).toBe(true);
+  });
+
+  it('sets a midtown mansion or two among a segment\'s houses: a much larger property, its drive, its garage, its pool', () => {
+    const counts = [];
+    for (const seed of [1, 2, 3, 4]) {
+      const d = designGeotown({}, { seed, field: plane }), M = d.plots.filter((pl) => pl.form === 'mansion'), H = d.plots.filter((pl) => pl.kind === 'houses' && pl.form !== 'mansion');
+      counts.push(M.length);
+      expect(M.length).toBeLessThanOrEqual(PATTERNS[DEFAULT_PATTERN].evoke.mansions[1]);
+      for (const id of ['closes', 'back-yard', 'evokes', ...(M.length ? ['mansions'] : [])]) expect(law(d, id).ok).toBe(true);
+      const mean = H.reduce((a, pl) => a + pl.w * pl.d, 0) / (H.length || 1);
+      for (const pl of M) {
+        expect(pl.w * pl.d).toBeGreaterThanOrEqual(2 * mean);
+        // its drive along one side yard, its garage (when its yard has the depth) inside that yard's surfaces
+        expect(pl.alloc.drive).toBeGreaterThan(0);
+        expect(d.surfaces.some((s) => s.plot === pl.id && s.cls === 'drive')).toBe(true);
+      }
+    }
+    expect(Math.max(...counts)).toBe(2);
   });
 
   it('reads an evocation\'s land as a window of the town to scale\'s, so its slopes are the town\'s', () => {

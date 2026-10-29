@@ -11,10 +11,10 @@ import { SURFACE_IDS, SURFACES } from './pattern.js';
 
 export const SURFACE_COLOURS = Object.freeze({
   road: '#5d6066', verge: '#8fbf6a', walk: '#d9d4c8', front: '#a9d48a', path: '#c8b9a0', house: '#b5543c',
-  side: '#cfc6b4', back: '#7fb35e', park: '#5e9e4a', 'park-path': '#d8caa8', furnish: '#bfae94', service: '#8e8a84',
+  side: '#cfc6b4', back: '#7fb35e', park: '#5e9e4a', 'park-path': '#d8caa8', furnish: '#bfae94', service: '#8e8a84', drive: '#a89a86',
 });
 // a building's footprint by its row's kind
-const KIND_COLOURS = Object.freeze({ houses: '#b5543c', shops: '#6a4a8c', apartments: '#3c6a8c' });
+const KIND_COLOURS = Object.freeze({ houses: '#b5543c', shops: '#6a4a8c', apartments: '#3c6a8c', garage: '#7a6a58', mansion: '#c08a1e' });
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const r1 = (v) => Math.round(v * 10) / 10;
 const hex = (c) => c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
@@ -33,7 +33,7 @@ export function geotownSheet(d, { px = 2 } = {}) {
   for (const s of d.surfaces) {
     if (s.cls === 'path') continue;
     const z = s.plot ? padOf.get(s.plot) : null;
-    body.push(rect(s.rect, s.cls === 'house' ? KIND_COLOURS[s.kind] ?? SURFACE_COLOURS.house : z !== null && z !== undefined ? shade(SURFACE_COLOURS[s.cls], z) : SURFACE_COLOURS[s.cls]));
+    body.push(rect(s.rect, s.cls === 'house' ? KIND_COLOURS[s.mansion ? 'mansion' : s.kind] ?? SURFACE_COLOURS.house : z !== null && z !== undefined ? shade(SURFACE_COLOURS[s.cls], z) : SURFACE_COLOURS[s.cls]));
   }
   // the paths over the front yards they cross, and each plot's lines
   for (const s of d.surfaces) if (s.cls === 'path') body.push(rect(s.rect, SURFACE_COLOURS.path));

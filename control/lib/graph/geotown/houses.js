@@ -41,7 +41,7 @@ const SIGNS = ['#1f2a33', '#3a2a1f', '#e8e0cc', '#24382a', '#5a1f1f', '#2a2f45']
 /** The buildings of an evocation's rows, each kind's kits spoken and dressed once, and the dice that pick one for a
  *  building: a houses row the pattern's TYPES on its style (when the style is a starter; a written style is one
  *  language, no types), a shop row its own brick each (its `palettes`, the main-street style's) with its own awning and
- *  sign, a walk-up its style. → { kit(kind, id) → { id, kind, use, read?, L, dress, band, front, awning?, sign? } | null,
+ *  sign, a walk-up its style, a midtown mansion one of the pattern's `mansion.types` (kind 'mansions'). → { kit(kind, id) → { id, kind, use, read?, L, dress, band, front, awning?, sign? } | null,
  *  pick(kind, R, prev) → id, sStyle } */
 export function buildingKits(P, styleId, cube, kitId, seed) {
   const sStyle = structureStyle(kitId, seed), cache = new Map(), typed = !!P.types && typeof styleId === 'string' && !!STYLE_STARTERS[styleId];
@@ -55,12 +55,17 @@ export function buildingKits(P, styleId, cube, kitId, seed) {
       const T = P.types[id];
       return make(`houses:${id}`, { from: styleId, read: T.read, ...(T.style ?? {}) }, `pattern.types.${id}.style`, { kind, type: id, use: 'dwelling', read: T.read, band: T.storeys ?? P.house.storeys, front: T.front ?? {} });
     }
+    if (kind === 'mansions') {
+      if (!typed || !P.mansion?.types) return null;
+      const T = P.mansion.types[id];
+      return make(`mansions:${id}`, { from: styleId, read: T.read, ...(T.style ?? {}) }, `pattern.mansion.types.${id}.style`, { kind, type: `mansion-${id}`, use: 'dwelling', read: T.read, band: T.storeys ?? [3, 3], front: T.front ?? {}, accent: true });
+    }
     const K = P.rows[kind], n = Number(id) || 0;
     if (kind === 'shops') return make(`shops:${n}`, { from: K.style, palette: { stone: K.palettes[n % K.palettes.length] } }, `pattern.rows.shops`, { kind, type: `shop-${n}`, use: K.use, band: K.storeys, front: K.front ?? {}, awning: AWNINGS[n % AWNINGS.length], sign: SIGNS[(n * 3 + 1) % SIGNS.length] });
     return make(`${kind}:0`, K.style, `pattern.rows.${kind}`, { kind, type: kind, use: K.use, band: K.storeys, front: K.front ?? {}, accent: true });
   };
-  const ids = (kind) => (kind === 'houses' ? (typed ? Object.keys(P.types) : ['0']) : kind === 'shops' ? P.rows.shops.palettes.map((_, i) => String(i)) : ['0']);
-  const weight = (kind, id) => (kind === 'houses' && typed ? P.types[id].weight ?? 1 : 1);
+  const ids = (kind) => (kind === 'houses' ? (typed ? Object.keys(P.types) : ['0']) : kind === 'mansions' ? Object.keys(P.mansion?.types ?? { 0: 1 }) : kind === 'shops' ? P.rows.shops.palettes.map((_, i) => String(i)) : ['0']);
+  const weight = (kind, id) => (kind === 'houses' && typed ? P.types[id].weight ?? 1 : kind === 'mansions' ? P.mansion?.types?.[id]?.weight ?? 1 : 1);
   // a kit by its weight, never the one before it in the row
   const pick = (kind, R, prev = null) => {
     const all = ids(kind), pool = all.length > 1 ? all.filter((id) => id !== prev) : all, sum = pool.reduce((a, id) => a + weight(kind, id), 0);

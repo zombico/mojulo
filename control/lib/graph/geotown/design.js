@@ -168,12 +168,14 @@ function cutRow(P, L, R) {
 /** An EVOKED row of houses: `n` of them, as the pattern's mix would have them (a semi pair and a detached house at
  *  least, where the mix has both and the row holds three), in an order the dice choose; their own frontages, uncut by a
  *  block's length (the block is as long as its rows make it). → [{ form, w, pair?, half? }] */
-function cutCount(P, n, R) {
-  // (the mix is of buildings: a semi pair is one building and two houses)
+function cutCount(P, n0, R, mansions = 0) {
+  // (a mansion is one of the row's houses; the rest by the mix, which is of buildings: a semi pair is one building and
+  // two houses)
+  const big = Math.min(mansions, n0), n = n0 - big;
   const m = P.mix.semi / (P.mix.semi + P.mix.detached), semiHouses = (2 * m) / (2 * m + (1 - m));
   let pairs = P.mix.detached <= 0 ? Math.floor(n / 2) : P.mix.semi <= 0 ? 0 : Math.round((n * semiHouses) / 2);
   if (P.mix.semi > 0 && P.mix.detached > 0 && n >= 3) pairs = Math.max(1, Math.min(pairs, Math.floor((n - 1) / 2)));
-  const forms = [...Array(pairs).fill('semi'), ...Array(n - 2 * pairs).fill('detached')];
+  const forms = [...Array(pairs).fill('semi'), ...Array(n - 2 * pairs).fill('detached'), ...Array(big).fill('mansion')];
   for (let i = forms.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [forms[i], forms[j]] = [forms[j], forms[i]]; }
   const out = [];
   let pair = 0;
@@ -206,10 +208,10 @@ function kindOf(P, kind, depth) {
   return { ...K, kind, rear: K.rear ?? 'service', pad: { ...P.pad, ...K.pad }, count: P.evoke[kind] ?? [1, 1] };
 }
 
-/** A row's cut: by count (an evocation) or filling its length (the town to scale); `key` its stream's. */
-function cutOf(P, K, n, R, L = null) {
+/** A row's cut: by count (an evocation, `big` of its houses mansions) or filling its length (the town to scale). */
+function cutOf(P, K, n, R, L = null, big = 0) {
   if (L !== null) return cutRow(P, L, R);
-  return K.kind === 'houses' ? cutCount(P, n, R) : cutPlain(K, K.kind, n, R);
+  return K.kind === 'houses' ? cutCount(P, n, R, big) : cutPlain(K, K.kind, n, R);
 }
 
 /** A plot's local (u along its frontage, v into it) rect → world. */
@@ -234,13 +236,20 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // ── 2 needs: each row cut by its count (an evocation), its length and its depth; a row of houses holds one count a
   // row of cells, so a block's two rows of houses close on one length ──
   const lengths = evoked ? null : Array.from({ length: Rn }, (_, j) => roll(streamOf(seed, 'frame', `row:${j}`), P.block.long));
+  // an evoked segment's MANSIONS: none to two (`evoke.mansions`), each in one of its rows of houses, by its own dice
+  if (evoked && P.mansion) for (const c of cells) {
+    const homes = c.rows.filter((r) => r.kind === 'houses'), Rm = streamOf(seed, 'mansions', c.id), [lo, hi] = P.evoke.mansions ?? [0, 0];
+    const m = homes.length ? lo + Math.floor(Rm() * (hi - lo + 1)) : 0;
+    for (const r of homes) r.big = 0;
+    for (let k = 0; k < m; k++) homes[Math.floor(Rm() * homes.length)].big++;
+  }
   for (const c of cells) for (const r of c.rows) {
     const K = kindOf(P, r.kind, depth), R = streamOf(seed, 'plots', `${c.id}:${r.side}`);
     r.K = K; r.R = R; r.F = roll(R, K.setback);
     r.need = { depth: r.kind === 'houses' ? depth : roll(R, K.depth) };
     if (evoked) {
       r.n = r.kind === 'houses' ? K.count[0] + Math.floor(streamOf(seed, 'frame', `count:${c.j}`)() * (K.count[1] - K.count[0] + 1)) : K.count[0] + Math.floor(R() * (K.count[1] - K.count[0] + 1));
-      r.cut = cutOf(P, K, r.n, R);
+      r.cut = cutOf(P, K, r.n, R, null, r.big ?? 0);
       r.need.len = r3(r.cut.reduce((a, p) => a + p.w, 0) + 2 * K.corner);
     } else r.need.len = lengths[c.j];
   }
@@ -289,7 +298,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
         const k = along / r.need.len;
         if (k < ST[0] || k > ST[1]) {
           const n = Math.max(r.kind === 'houses' ? 2 : 1, Math.round(r.n * k));
-          cut = cutOf(P, K, n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${n}`));
+          cut = cutOf(P, K, n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${n}`), null, r.big ?? 0);
           r.n = n;
         }
         // (how far its frontages spread to fill its cell, and how much deeper its plots run than they need)
@@ -302,8 +311,15 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
       let s = 0;
       cut.forEach((cc, k) => {
         const A = [r3(A0[0] + ex[0] * s), r3(A0[1] + ex[1] * s)], w = cc.w;
-        let Hd, sL, sR;
-        if (r.kind === 'houses') {
+        let Hd, sL, sR, big = null;
+        if (cc.form === 'mansion') {
+          // a mansion: its house deeper behind a wider lawn, its drive down one side yard, the other narrower
+          const M = P.mansion, left = R() < 0.5, extra = roll(R, M.setback);
+          Hd = r3(Math.max(8, Math.min(roll(R, M.depth), dep - F - extra - P.back)));
+          const sd = roll(R, M.side.drive), so = roll(R, M.side.other);
+          sL = left ? sd : so; sR = left ? so : sd;
+          big = { extra, left };
+        } else if (r.kind === 'houses') {
           let H;
           if (cc.form === 'semi') { if (!pairs.has(cc.pair)) pairs.set(cc.pair, { depth: roll(R, P.house.depth), side: roll(R, P.house.side) }); H = pairs.get(cc.pair); }
           else H = { depth: roll(R, P.house.depth), side: roll(R, P.house.side), side2: roll(R, P.house.side) };
@@ -322,12 +338,23 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
         const flank = r.kind === 'shops' ? 0 : K.corner;
         if (cc.corner === 'start' || cc.corner === 'both') sL = r3(sL + flank);
         if (cc.corner === 'end' || cc.corner === 'both') sR = r3(sR + flank);
-        const env = [sL, F, r3(w - sR), r3(F + Hd)], pw = F > 0 ? Math.min(P.path * (r.kind === 'apartments' ? 1.6 : 1), Math.max(0.6, env[2] - env[0] - 0.4)) : 0;
+        const F1 = r3(F + (big?.extra ?? 0)), env = [sL, F1, r3(w - sR), r3(F1 + Hd)], pw = F > 0 ? Math.min(P.path * (r.kind === 'apartments' ? 1.6 : 1), Math.max(0.6, env[2] - env[0] - 0.4)) : 0;
         const pl = { id: `${B.id}-${r.side}${k + 1}`, block: B.id, side: r.side, k, kind: r.kind, use: K.use, form: cc.form, ...(cc.form === 'semi' ? { pair: `${B.id}-${r.side}p${cc.pair + 1}`, half: cc.half } : {}), ...(cc.corner ? { corner: cc.corner } : {}),
           A, ex, ey, w, d: dep, setback: F, rear: K.rear, house: { depth: Hd, sides: [sL, sR], env }, built: B.built };
         // the door's path: from the walk to the envelope's middle until a building says where its door is
         pl.path = { u: r3((env[0] + env[2]) / 2), w: r3(pw) };
-        pl.alloc = { front: r3(w * F - pw * F), path: r3(pw * F), house: r3((env[2] - env[0]) * Hd), side: r3((sL + sR) * Hd), back: K.rear === 'back' ? r3(w * (dep - F - Hd)) : 0, service: K.rear === 'service' ? r3(w * (dep - F - Hd)) : 0 };
+        const rearA = r3(w * (dep - env[3]));
+        pl.alloc = { front: r3(w * F1 - pw * F1), path: r3(pw * F1), house: r3((env[2] - env[0]) * Hd), side: r3((sL + sR) * Hd), back: K.rear === 'back' ? rearA : 0, service: K.rear === 'service' ? rearA : 0, drive: 0 };
+        if (big) {
+          // its drive: from the walk across the lawn, the drive-side yard paved, an apron to the garage in the garden
+          const M = P.mansion, dw = M.drive, sd = big.left ? sL : sR, u0 = r3(big.left ? (sL - dw) / 2 : w - sR + (sR - dw) / 2), back = dep - env[3];
+          // (its garage in the garden's back corner, a metre off the back line; the drive runs past the house to it)
+          const G = M.garage, gv0 = r3(dep - 1 - G.d), fits = gv0 >= env[3] + G.gap && w >= 2 * G.w;
+          const garage = fits ? (big.left ? [0.4, gv0, r3(0.4 + G.w), r3(gv0 + G.d)] : [r3(w - 0.4 - G.w), gv0, r3(w - 0.4), r3(gv0 + G.d)]) : null;
+          const apron = garage ? r3(dw * (gv0 - env[3])) : 0, gA = garage ? r3(G.w * G.d) : 0;
+          pl.mansion = { extra: big.extra, left: big.left, drive: [u0, r3(u0 + dw)], garage };
+          pl.alloc = { ...pl.alloc, front: r3(pl.alloc.front - dw * F1), side: r3((sd === sL ? sR : sL) * Hd), drive: r3(dw * F1 + sd * Hd + apron), house: r3(pl.alloc.house + gA), back: r3(rearA - apron - gA) };
+        }
         pl.rect = toWorld(pl, [0, 0, w, dep]);
         plots.push(pl);
         s = r3(s + w);
@@ -342,21 +369,29 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   for (const pl of plots) { const key = pl.pair ?? pl.id; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(pl); }
   for (const g of groups.values()) {
     // the walk at the structure's front middle (a pair's party wall), the land under its middle
-    const fronts = g.map((pl) => at(pl, pl.w / 2, 0)), mids = g.map((pl) => at(pl, (pl.house.env[0] + pl.house.env[2]) / 2, pl.setback + pl.house.depth / 2));
-    const wf = fronts.reduce((a, p) => a + walkZ(...p), 0) / g.length, n = mids.reduce((a, p) => a + land.N(...p), 0) / g.length, z = padOf(kinds[g[0].kind].pad, wf, n);
+    const fronts = g.map((pl) => at(pl, pl.w / 2, 0)), mids = g.map((pl) => at(pl, (pl.house.env[0] + pl.house.env[2]) / 2, (pl.house.env[1] + pl.house.env[3]) / 2));
+    const rail = g[0].form === 'mansion' ? { ...P.pad, ...P.mansion.pad } : kinds[g[0].kind].pad;
+    const wf = fronts.reduce((a, p) => a + walkZ(...p), 0) / g.length, n = mids.reduce((a, p) => a + land.N(...p), 0) / g.length, z = padOf(rail, wf, n);
     for (const pl of g) pl.pad = z;
   }
   // the surfaces each plot allocates (its path inside its front yard: the front's own area is the yard less the path)
   for (const pl of plots) {
     const { env } = pl.house, F = pl.setback, d = pl.d, w = pl.w, pu = pl.path.u, pw = pl.path.w;
-    if (F > 0) {
-      surfaces.push({ cls: 'front', rect: toWorld(pl, [0, 0, w, F]), plot: pl.id, block: pl.block, less: 'path' });
-      if (pw > 0) surfaces.push({ cls: 'path', rect: toWorld(pl, [r3(pu - pw / 2), 0, r3(pu + pw / 2), F]), plot: pl.id, block: pl.block, inside: 'front' });
+    const F1 = env[1], Mn = pl.mansion, at0 = { plot: pl.id, block: pl.block };
+    if (F1 > 0) {
+      surfaces.push({ cls: 'front', rect: toWorld(pl, [0, 0, w, F1]), ...at0, less: 'path' });
+      if (pw > 0) surfaces.push({ cls: 'path', rect: toWorld(pl, [r3(pu - pw / 2), 0, r3(pu + pw / 2), F1]), ...at0, inside: 'front' });
+      if (Mn) surfaces.push({ cls: 'drive', rect: toWorld(pl, [Mn.drive[0], 0, Mn.drive[1], F1]), ...at0, inside: 'front' });
     }
-    surfaces.push({ cls: 'house', rect: toWorld(pl, env), plot: pl.id, block: pl.block, use: pl.use, kind: pl.kind });
-    if (env[0] > 0) surfaces.push({ cls: 'side', rect: toWorld(pl, [0, F, env[0], env[3]]), plot: pl.id, block: pl.block });
-    if (env[2] < w) surfaces.push({ cls: 'side', rect: toWorld(pl, [env[2], F, w, env[3]]), plot: pl.id, block: pl.block });
-    if (env[3] < d) surfaces.push({ cls: pl.rear, rect: toWorld(pl, [0, env[3], w, d]), plot: pl.id, block: pl.block });
+    surfaces.push({ cls: 'house', rect: toWorld(pl, env), ...at0, use: pl.use, kind: pl.kind, ...(Mn ? { mansion: true } : {}) });
+    // (a mansion's drive-side yard is its drive)
+    if (env[0] > 0) surfaces.push({ cls: Mn?.left ? 'drive' : 'side', rect: toWorld(pl, [0, F1, env[0], env[3]]), ...at0 });
+    if (env[2] < w) surfaces.push({ cls: Mn && !Mn.left ? 'drive' : 'side', rect: toWorld(pl, [env[2], F1, w, env[3]]), ...at0 });
+    if (env[3] < d) surfaces.push({ cls: pl.rear, rect: toWorld(pl, [0, env[3], w, d]), ...at0 });
+    if (Mn?.garage) {
+      surfaces.push({ cls: 'drive', rect: toWorld(pl, [Mn.drive[0], env[3], Mn.drive[1], Mn.garage[1]]), ...at0, inside: pl.rear });
+      surfaces.push({ cls: 'house', rect: toWorld(pl, Mn.garage), ...at0, inside: pl.rear, use: 'garage', kind: 'garage' });
+    }
   }
   const ledger = ledgerOf(surfaces, blocks, frame);
   // the PORTS: the town's perimeter streets, each its rank and the streets' ground at its ends (a geocity's graph joins

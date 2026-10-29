@@ -51,21 +51,41 @@ import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
 import { frontOf } from './fronts.js';
-import { yardOf, fenceOf, serviceOf, YARDS } from './yards.js';
+import { yardOf, fenceOf, serviceOf, garageOf, YARDS } from './yards.js';
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
 
 export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light']);
-// the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice
-export const GEOTOWN_FACES = 60000;
+// the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
+// budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments
+export const GEOTOWN_FACES = 60000, SEGMENT_FACES = 10000;   // (a main-street segment's shopfronts and service yards, 9.1k)
 // the trees' faces, summed over their instances: each starts at its least detail and the trees the views see largest
 // step up until this is spent (vegetation/pool.js plantRepeats); the views' thresholds held this much stricter
 const TREE_FACES = 400000, TREE_EYE = 0.05;
 // a street cell's longest side (m); the park's and the margin's lattice (m)
 const CELL = 6, PARK_CELL = 6, MARGIN_CELL = 6;
 // the seeds the ground's finishes are laid with, a surface each
-const FINISH_SEEDS = { road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157 };
+const FINISH_SEEDS = { road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
+// a building's kit family: a mansion's its own
+const familyOf = (pl) => (pl.form === 'mansion' ? 'mansions' : pl.kind);
+/** A rect less some rects inside it, as rects (u0, v0, u1, v1). */
+function lessRects(r, cuts) {
+  let out = [r];
+  for (const c of cuts) {
+    const next = [];
+    for (const q of out) {
+      if (c[0] >= q[2] || c[2] <= q[0] || c[1] >= q[3] || c[3] <= q[1]) { next.push(q); continue; }
+      if (c[1] > q[1]) next.push([q[0], q[1], q[2], c[1]]);
+      if (c[3] < q[3]) next.push([q[0], c[3], q[2], q[3]]);
+      const v0 = Math.max(q[1], c[1]), v1 = Math.min(q[3], c[3]);
+      if (c[0] > q[0]) next.push([q[0], v0, c[0], v1]);
+      if (c[2] < q[2]) next.push([c[2], v0, q[2], v1]);
+    }
+    out = next;
+  }
+  return out.filter((q) => q[2] - q[0] > 1e-3 && q[3] - q[1] > 1e-3);
+}
 // a step's rise at most (m), a bank lower than this takes no steps; a hedge's height and depth (m)
 const STEP_RISE = 0.18, NO_STEPS = 0.25, HEDGE = { h: 0.85, d: 0.55, in: 0.25 };
 // a town tree is at least twice a person's height (the geocube's walk, era/out-ikebana.js WALK.body), its crown's reach
@@ -112,6 +132,8 @@ function coloursOf(cube) {
     glass: '#3b4654', timber: mix('#8b6b4c', C.floor, 0.25), deck: mix('#9a7a58', C.floor, 0.25), paving: mix('#b9b1a2', C.stone, 0.3), soil: '#5a4535',
     leaf: mix(C.foliage, C.grass, 0.25), sand: mix('#d8c69a', C.sand ?? C.floor, 0.3), shed: '#6f7d63', roof: '#4b4f55', door: '#3a3632', canvas: C.accent,
     metal: '#5c6166', gravel: '#9d978a', picket: '#ece7dc',
+    // a mansion's drive, its garage, its pool's water and coping
+    drive: mix('#8f8373', C.floor, 0.25), garage: mix('#ddd3c1', C.trim, 0.3), water: '#3f86a8', coping: '#d9d3c6',
     // a main street's paving by its kerb, its trees' grates; a shop's yard and a walk-up's lot, its lines, its bins
     furnish: mix('#b39f88', C.floor, 0.25), pit: '#3b3a38', service: mix('#55585c', C.floor, 0.15), line: '#e8e4d8', bin: '#3f5a46', cabin: '#2b3036',
   };
@@ -196,7 +218,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     let prev = null;
     for (const pl of d.plots.filter((q) => q.block === B.id && q.side === r.side).sort((p, q) => p.k - q.k)) {
       const key = pl.pair ?? pl.id;
-      if (!types.has(key)) { prev = kits.pick(pl.kind, R, prev); types.set(key, prev); }
+      if (!types.has(key)) { prev = kits.pick(familyOf(pl), R, prev); types.set(key, prev); }
     }
   }
   // ── the plots ──
@@ -219,7 +241,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     // the building: its design (a semi's second half is its partner's, mirrored about the party wall), its door
     let house = null;
     if (pl.built) {
-      const key = pl.pair ?? pl.id, R0 = streamOf(seed, 'house', key), K = kits ? kits.kit(pl.kind, types.get(key)) : null;
+      const key = pl.pair ?? pl.id, R0 = streamOf(seed, 'house', key), K = kits ? kits.kit(familyOf(pl), types.get(key)) : null;
       if (!spoken.has(key)) {
         const s = Math.floor(R0() * 1e6) + 1, [b0, b1] = K ? K.band : [sLo, sHi];
         spoken.set(key, speak(K ? K.L : L, K ? K.use : pl.use ?? 'dwelling', { w: r5(envW), d: r5(Hd) }, K ? kits.sStyle : sStyle, s, { ring: 'near', band: [b0, b1], ...(K?.accent ? { accent: true } : {}), over: { front: 0, side: 0, rear: 0, area: envW * Hd * b0 } }));
@@ -234,14 +256,21 @@ export function assembleGeotownScene(m, ctx = {}) {
     // the path to the door (or the envelope's middle), inside the front yard
     const pw = pl.path.w, pu = Math.max(pw / 2 + 0.05, Math.min(w - pw / 2 - 0.05, house ? house.doorU : pl.path.u)), a = pu - pw / 2, b = pu + pw / 2;
     if (F > 0) {
-      // the front bank: the walk's back edge up (or down) to the pad at the setback line, in three strips about the path
-      for (const [u0, u1, grp, hex] of [[0, a, 'front', lawn], [a, b, 'path', col.path], [b, w, 'front', lawn]]) {
+      // the front bank: the walk's back edge up (or down) to the pad at the setback line, in strips about the path (and a
+      // mansion's drive); a mansion's wider lawn on its pad behind it, to its house
+      const Mn = pl.mansion, F1 = env[1], cuts = [[a, b, 'path', col.path], ...(Mn ? [[Mn.drive[0], Mn.drive[1], 'drive', col.drive]] : [])].sort((p, q) => p[0] - q[0]);
+      const strips = [];
+      let u = 0;
+      for (const [c0, c1, grp, hex] of cuts) { if (c0 > u) strips.push([u, c0, 'front', lawn]); strips.push([c0, c1, grp, hex]); u = c1; }
+      if (u < w) strips.push([u, w, 'front', lawn]);
+      for (const [u0, u1, grp, hex] of strips) {
         if (u1 - u0 < 1e-3) continue;
         put([W(pl, u0, 0, wkAt(u0)), W(pl, u1, 0, wkAt(u1)), W(pl, u1, F, pad), W(pl, u0, F, pad)], `geotown:${grp}`, hex);
+        if (F1 > F + 1e-3) put([W(pl, u0, F, pad), W(pl, u1, F, pad), W(pl, u1, F1, pad), W(pl, u0, F1, pad)], `geotown:${grp}`, hex);
       }
       // the path's steps, set in the bank: each tread level with the bank at its back, its riser down to the bank at its
       // foot (up to a porch's deck where the house has one: its steps end at the deck's front)
-      const rise = pad - wkAt(pu), Fs = F - (house?.porch ?? 0);
+      const rise = pad - wkAt(pu), Fs = F - (env[1] > F + 1e-3 ? 0 : house?.porch ?? 0);
       if (Math.abs(rise) > NO_STEPS) {
         const n = Math.ceil(Math.abs(rise) / STEP_RISE), go = Fs / n, base = wkAt(pu), up = Math.sign(rise);
         for (let i = 0; i < n; i++) {
@@ -260,11 +289,15 @@ export function assembleGeotownScene(m, ctx = {}) {
       // a building built to its walk: its threshold's face between the walk and its floor, along its front
       put([W(pl, 0, 0, wkAt(0)), W(pl, w, 0, wkAt(w)), W(pl, w, 0, pad), W(pl, 0, 0, pad)], 'geotown:step', col.kerb, [-pl.ey[0], -pl.ey[1], 0]);
     }
-    // the pad: the side yards, the building's ground, the back yard or the service yard, one level quad each
-    const [sL, sR] = pl.house.sides;
+    // the pad: the side yards (a mansion's drive-side its drive), the building's ground, the back yard or the service
+    // yard (round a mansion's apron and garage), one level quad each
+    const [sL, sR] = pl.house.sides, Mn = pl.mansion, [, F1, , F3] = env;
     const quadAt = (u0, v0, u1, v1, grp, hex) => { if (u1 - u0 > 1e-3 && v1 - v0 > 1e-3) put([W(pl, u0, v0, pad), W(pl, u1, v0, pad), W(pl, u1, v1, pad), W(pl, u0, v1, pad)], `geotown:${grp}`, hex); };
-    quadAt(0, F, sL, F + Hd, 'side', col.side); quadAt(w - sR, F, w, F + Hd, 'side', col.side);
-    quadAt(sL, F, w - sR, F + Hd, 'house', col.house); quadAt(0, F + Hd, w, dep, pl.rear, pl.rear === 'back' ? lawn : col.service);
+    quadAt(0, F1, sL, F3, Mn?.left ? 'drive' : 'side', Mn?.left ? col.drive : col.side); quadAt(w - sR, F1, w, F3, Mn && !Mn.left ? 'drive' : 'side', Mn && !Mn.left ? col.drive : col.side);
+    quadAt(sL, F1, w - sR, F3, 'house', col.house);
+    const apron = Mn?.garage ? [Mn.drive[0], F3, Mn.drive[1], Mn.garage[1]] : null;
+    for (const q of lessRects([0, F3, w, dep], [apron, Mn?.garage].filter(Boolean))) quadAt(...q, pl.rear, pl.rear === 'back' ? lawn : col.service);
+    if (apron) { quadAt(...apron, 'drive', col.drive); quadAt(...Mn.garage, 'drive', col.drive); for (const f of garageOf(Mn.garage)) yardFace(pl, f); }
     // a hedge along a house's front line, a share of the households keep one (not across the path)
     if (pl.kind === 'houses' && F > 1.5 && R() < P.grow.front) {
       hedges++;
@@ -279,8 +312,8 @@ export function assembleGeotownScene(m, ctx = {}) {
     // the building on its pad: its faces (and an evocation's its tile's marks too: its lights a budget put there) from
     // its design, a semi's second half mirrored; painted and lit as a stage's town
     if (house) {
-      built++; builtOf[pl.kind] = (builtOf[pl.kind] ?? 0) + 1;
-      const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), F + c[1], pad + c[2]);
+      built++; builtOf[familyOf(pl)] = (builtOf[familyOf(pl)] ?? 0) + 1;
+      const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), env[1] + c[1], pad + c[2]);
       let top = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
       const Dr = house.kit ? house.kit.dress : dress;
       for (const f of evoked ? [...dz.faces, ...dz.tile] : dz.faces) {
@@ -306,16 +339,20 @@ export function assembleGeotownScene(m, ctx = {}) {
         }
       }
       colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
-      anchors.push({ id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, at: P3(W(pl, house.doorU, F, pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
+      anchors.push({ id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, ...(pl.form === 'mansion' ? { mansion: true } : {}), at: P3(W(pl, house.doorU, env[1], pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
       // an evocation's rear: a house's back yard its own program, a shop's service yard, a walk-up's lot
       if (evoked) {
-        const Ry = streamOf(seed, 'yards', pl.id), v0 = F + Math.min(Hd, dz.dims.D0);
+        const Ry = streamOf(seed, 'yards', pl.id), v0 = env[1] + Math.min(Hd, dz.dims.D0);
         if (pl.rear === 'back') {
-          const prog = pickWeighted(Ry, P.yards, yardPrev.get(`${pl.block}:${pl.side}`));
-          yardPrev.set(`${pl.block}:${pl.side}`, prog); yardsOf[prog] = (yardsOf[prog] ?? 0) + 1; pl.yard = prog; pl.fence = pickWeighted(Ry, P.fences);
-          const Y = yardOf(prog, { w, v0, v1: dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
-          for (const f of Y.faces) yardFace(pl, f, shedHex);
-          for (const t of Y.trees.slice(0, YARDS[prog].trees)) { const [x, y] = W(pl, t.u, t.v, 0), sp = P.grow.trees[Math.floor(Ry() * P.grow.trees.length)]; grows(sp, x, y, pad, treeH(sp, 0.25 + 0.5 * Ry()), 'back'); }
+          // (a mansion's program its own, on its lawn beside its drive and garage)
+          const Mn = pl.mansion, table = Mn ? P.mansion.yards : P.yards, prog = pickWeighted(Ry, table, Mn ? null : yardPrev.get(`${pl.block}:${pl.side}`));
+          if (!Mn) yardPrev.set(`${pl.block}:${pl.side}`, prog);
+          yardsOf[prog] = (yardsOf[prog] ?? 0) + 1; pl.yard = prog; pl.fence = Mn ? 'hedge' : pickWeighted(Ry, P.fences);
+          const busy = Mn?.garage ? [Math.min(Mn.drive[0], Mn.garage[0]) - 0.5, Math.max(Mn.drive[1], Mn.garage[2]) + 0.5] : null;
+          const [ua, ub] = busy ? (Mn.left ? [busy[1], w] : [0, busy[0]]) : [0, w];
+          const Y = yardOf(prog, { w: ub - ua, v0, v1: dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
+          for (const f of Y.faces) yardFace(pl, { ...f, corners: f.corners.map(([u, v, z]) => [u + ua, v, z]) }, shedHex);
+          for (const t of Y.trees.slice(0, YARDS[prog].trees)) { const [x, y] = W(pl, t.u + ua, t.v, 0), sp = P.grow.trees[Math.floor(Ry() * P.grow.trees.length)]; grows(sp, x, y, pad, treeH(sp, 0.25 + 0.5 * Ry()), 'back'); }
         } else {
           pl.fence = 'board';
           for (const f of serviceOf(pl.kind, { w, v0, v1: dep, R: Ry }).faces) yardFace(pl, f);
@@ -358,7 +395,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   if (evoked) for (const B of d.blocks) rowsOf(B).forEach((rowP0, ri) => {
     const rowP = rowP0.filter((pl) => pl.fence);
     rowP.forEach((p, k) => {
-      const q = rowP[k + 1], vb = (pl) => pl.setback + pl.house.depth;
+      const q = rowP[k + 1], vb = (pl) => pl.house.env[3];
       if (q) for (const f of fenceOf(p.fence, [p.w, Math.max(vb(p), vb(q))], [p.w, p.d], Math.max(0, q.pad - p.pad))) yardFace(p, f);
       if (k === 0) for (const f of fenceOf(p.fence, [0, vb(p)], [0, p.d], 0)) yardFace(p, f);
       if (!q) for (const f of fenceOf(p.fence, [p.w, vb(p)], [p.w, p.d], 0)) yardFace(p, f);
@@ -439,6 +476,12 @@ export function assembleGeotownScene(m, ctx = {}) {
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));
+  // a mansion from its street's walk, a little along: its lawn before it, its drive beside it
+  const Mq = d.plots.find((pl) => pl.form === 'mansion' && pl.built);
+  if (Mq) {
+    const B = d.blocks.find((b) => b.id === Mq.block), ws = lineOf(d, B, Mq.side).S.walk, e = [Mq.A[0] - Mq.ey[0] * ws / 2 - Mq.ex[0] * 9, Mq.A[1] - Mq.ey[1] * ws / 2 - Mq.ex[1] * 9], t = W(Mq, Mq.w / 2, Mq.house.env[1] + 4, 0);
+    cameras.push(cam('mansion', [...e, wk(...e) + 1.7], [t[0], t[1], Mq.pad + 5], 68));
+  }
   if (evoked && H0) {
     // over the back yards from the back line's end
     const p = H0.rp[0], z = Math.max(...H0.rp.map((pl) => pl.pad)), e = W(p, -3, p.d, 0), t = W(H0.rp[H0.rp.length - 1], H0.rp[H0.rp.length - 1].w * 0.5, p.d - 4, 0);
@@ -488,11 +531,12 @@ export function assembleGeotownScene(m, ctx = {}) {
   route.push(route[0]);
   const half0 = Math.floor(route.length / 2), routeFrom = [...route.slice(half0, -1), ...route.slice(0, half0 + 1)];
   // ── the laws the scene adds: nothing grows on a hard surface (a main street's pits its own); the faces' budget ──
+  const budget = evoked ? SEGMENT_FACES * d.blocks.length : GEOTOWN_FACES;
   const hard = Object.entries(growth).filter(([on]) => !(SURFACES[on]?.grows ?? []).some((g) => g === 'tree' || g === 'street-tree')).reduce((a, [, n]) => a + n, 0);
   const laws = [...d.laws,
     { law: 'bare', ok: hard === 0, value: `trees ${Object.entries(growth).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; ${hard} on a hard surface`, want: 'nothing grows on a road, a walk, a path, a side yard or a building\'s footprint' },
     { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; ${crowded} trees without room to stand ${TREE_LEAST} m not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, at least twice a person\'s height' },
-    { law: 'faces', ok: faces.length <= GEOTOWN_FACES, value: `${faces.length} faces (budget ${GEOTOWN_FACES}); trees ${treeFaces} faces as repeats`, want: 'only what the map needs is drawn' }];
+    { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${treeFaces} faces as repeats`, want: 'only what the map needs is drawn' }];
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const counts = { plots: d.plots.length, buildings: built, ...builtOf, hedges, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
   return {

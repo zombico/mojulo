@@ -14,7 +14,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
   it('grows trees only on the surfaces that grow them, and draws under its budget', () => {
     expect(law('bare').ok).toBe(true);
     expect(law('faces').ok).toBe(true);
-    expect(P.faces.length).toBeLessThanOrEqual(GEOTOWN_FACES);
+    expect(P.faces.length).toBeLessThanOrEqual(GEOTOWN_FACES);   // (the town to scale's one budget)
     let n = 0;
     for (const r of P.repeats) for (const t of r.transforms) {
       const [x, y] = t.pos, on = surfaceAt(x, y);
@@ -99,5 +99,18 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
       expect(t.scale).toBeGreaterThanOrEqual(3.6 - 1e-6);
       for (const b of boxes) expect(t.pos[0] > b.min[0] && t.pos[0] < b.max[0] && t.pos[1] > b.min[1] && t.pos[1] < b.max[1]).toBe(false);
     }
+  });
+
+  it('builds a midtown mansion as its own revival, set back on its lawn, its drive and garage, its pool', () => {
+    const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 } } };
+    const p = assembleGeotownScene(E);
+    expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+    const M = p.anchors.filter((a) => a.mansion);
+    expect(M.length).toBe(2);
+    for (const a of M) expect(a.type).toMatch(/^mansion-/);
+    expect(new Set(M.map((a) => a.type)).size).toBe(2);
+    const groups = new Set(p.faces.map((f) => f.group));
+    for (const g of ['geotown:drive', 'geotown:garage']) expect(groups.has(g)).toBe(true);
+    expect(p.cameras.some((c) => c.name === 'mansion')).toBe(true);
   });
 });

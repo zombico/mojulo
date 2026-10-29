@@ -29,6 +29,13 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   its door. Each back yard its own program (`geotown/yards.js`: a lawn, garden beds, a patio and its table, a deck and
   its rail, a shed, a sandbox and swing), never its neighbour's, behind its own fence (board, picket, hedge); a shop's
   service yard its bins and now and then a car, a walk-up's lot its painted stalls and cars.
+- **The midtown mansion** (`pattern.mansion`): a houses segment holds at most two (`evoke.mansions`), each a much
+  larger property taking houses' frontage: set back further on a wide lawn, its drive (the pattern's `drive` finish)
+  along one side yard to a garage at the back, its yard a pool in its coping and terrace, a garden or a lawn behind a
+  hedge, its house a revival of its own (`mansion.types`: Tudor, half-timbered over a stone ground storey under clay
+  tiles; Georgian, brick under a hip with a fanlight and quoins; Richardsonian, rubble stone round-arched under a
+  porch), three storeys, never its neighbour's. Its `mansions` law holds each at least twice a house's plot, at most
+  two a block; the ledger counts the garage's footprint; a `mansion` view.
 - **A neighbourhood** (`neighbourhood`: the pattern's `annex`, `main-street`, `quiet-streets`, or a written `{ layout,
   main }`, rows of letters north to south): its streets ranked, a MAIN street wider with its walk paved to the kerb and
   its trees in pits (`pattern.main`); each segment's rows turned to their streets (a main-street segment's shops face
@@ -54,7 +61,7 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   brick under a low hip), shingle over brick, painted brick.
 - **The laws** advise, never refuse: the budget closes, a back yard every house, coverage, frontage, the setback held,
   the street's grade, the pad's step, the green share (to scale), `fits`, `evokes`, nothing growing on a hard surface,
-  `room`, the faces under their budget.
+  `room`, the faces under their budget (to scale one budget; an evocation's a segment's times its segments).
 - **The sheet** (`geotown/sheet.js`): the surface-area map from above, each pad shaded by its height, the crossings'
   heights, the ledger and the laws: the town map judged before anything is built. `scripts/spikes/geotown/geotown.mjs`
   writes it and captures the town at each hour (a street from its walk, a house, the back yards, over the block).

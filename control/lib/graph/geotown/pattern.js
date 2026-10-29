@@ -31,6 +31,7 @@ export const SURFACES = Object.freeze({
   'park-path': { read: 'a path across a park', grows: [], soft: false },
   furnish: { read: 'the furnishing strip of a main street\'s walk, by its kerb: paving, its trees in pits under grates', grows: ['street-tree'], soft: false },
   service: { read: 'a service yard or a lot behind a shop or a walk-up: paving, bins, parking', grows: [], soft: false },
+  drive: { read: 'a driveway: from the street down a mansion\'s side to its garage', grows: [], soft: false },
 });
 export const SURFACE_IDS = Object.freeze(Object.keys(SURFACES));
 
@@ -54,12 +55,12 @@ export const PATTERNS = Object.freeze({
     street: { road: 8.5, kerb: 0.15, edge: 'verge', verge: 3, walk: 1.8 },
     main: { road: 13, kerb: 0.15, edge: 'furnish', verge: 1.6, walk: 3.4 },
     // what its ground is finished in (era/arch-style.js MATERIAL_WORDS), laid as each word's tiles
-    finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone' },
+    finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone', drive: 'brick-paving' },
     // a block's length along its houses' street (one per row of blocks), and each row of plots' depth (one per town: the
     // streets run straight); a block is two rows deep, back to back
     block: { long: [150, 210], depth: [34, 40] },
     // a plot's frontage by its house's form; a corner plot is wider by `corner`, its flank a side yard to the cross street
-    plot: { semi: [6.2, 7.6], detached: [8.5, 11], corner: 1.6 },
+    plot: { semi: [6.2, 7.6], detached: [8.5, 11], mansion: [17, 23], corner: 1.6 },
     mix: { semi: 0.6, detached: 0.4 },
     // the front yard's depth, held along a block face (the street holds it)
     setback: [4.5, 6.5],
@@ -113,7 +114,27 @@ export const PATTERNS = Object.freeze({
     },
     // AN EVOCATION's counts: houses a row, shops a row, walk-ups a row; a segment's rows recut when what it is composed
     // with stretches them past `stretch`
-    evoke: { houses: [3, 4], shops: [8, 11], apartments: [1, 1], stretch: [0.85, 1.2] },
+    evoke: { houses: [3, 4], shops: [8, 11], apartments: [1, 1], mansions: [0, 2], stretch: [0.85, 1.2] },
+    // THE MIDTOWN MANSION: a much larger property than its street's, two at most in a block segment (`evoke.mansions`),
+    // among its houses: its frontage (`plot.mansion`), its house deeper behind a wider lawn (`setback`, over the face's),
+    // three storeys of its own types, a driveway down one side yard to a garage in its back garden, a pool there
+    mansion: {
+      read: 'a midtown mansion: a big revival house well back on a wide lawn, its drive down one side to a garage in a deep garden',
+      setback: [2.5, 4.5], depth: [11, 13.5], side: { drive: [3.8, 4.6], other: [1.6, 2.6] }, drive: 3, garage: { w: 6, d: 6.5, gap: 2 },
+      pad: { least: 0.3, most: 0.9 },
+      types: {
+        tudor: { read: 'a Tudor revival: a stone ground storey, half-timbered stucco above, steep clay-tiled gables, leaded lights', weight: 2, storeys: [3, 3],
+          style: { language: { elements: { wall: { storeys: [{ group: 'str:shell', value: 0.5, bond: 'coursed' }, { group: 'str:plaster', value: 0.86, bond: 'none' }] }, roof: { form: 'gable', pitch: 56, eave: 0.5, group: 'str:tile', value: 0.4 }, frame: { member: 0.2, value: 0.2 }, lights: { w: 1.2, h: 1.7, glazing: 'lattice' } }, compose: { mass: { w: 14, d: 16 } } }, materials: { shell: 'ashlar', plaster: 'stucco', roof: 'clay-tile' }, palette: { shell: '#8f8270', plaster: '#ece4d2', timber: '#3b2b22' } },
+          front: { bay: 'canted', bayStoreys: 2, porch: 'door' } },
+        georgian: { read: 'a Georgian revival: red brick in three even storeys under a low hip, sash lights, a pilastered door under its fanlight, quoins', weight: 2, storeys: [3, 3],
+          style: { language: { elements: { roof: { form: 'hip', pitch: 30 }, lights: { w: 1.1, h: 1.9, glazing: 'sash' }, door: { surround: 'pilasters', fanlight: 'arch', leaf: 'panels' }, cornice: { kind: 'cornice', h: 0.4, proud: 0.25, group: 'str:paint', value: 0.9 }, quoins: { kind: 'quoins', w: 0.35, course: 0.3, group: 'str:plaster', value: 0.88 } }, compose: { mass: { w: 15, d: 14 } } }, palette: { stone: '#9c5440' } },
+          front: { porch: 'door' } },
+        richardsonian: { read: 'an Annex Romanesque: a rough sandstone ground storey, round-arched lights, brick above under a steep hip, a porch across its front', weight: 1, storeys: [3, 3],
+          style: { language: { elements: { wall: { storeys: [{ group: 'str:shell', value: 0.45, bond: 'rubble' }, { group: 'str:stone', value: 0.46, bond: 'brick' }] }, roof: { form: 'hip', pitch: 46 }, lights: { form: 'arch', w: 1.1 } }, compose: { mass: { w: 14, d: 16 } } }, materials: { shell: 'ashlar' }, palette: { shell: '#9c6a52' } },
+          front: { bay: 'square', bayStoreys: 'upper', porch: 'full' } },
+      },
+      yards: { pool: 3, garden: 1, lawn: 1 },
+    },
     // THE NEIGHBOURHOODS its segments compose: `layout` rows of letters north to south (H houses, M main-street, A
     // apartments, P park: SEGMENT_LETTERS), `main` the streets that are main (ew-0 the southmost east-west, ns-0 the
     // westmost north-south)
