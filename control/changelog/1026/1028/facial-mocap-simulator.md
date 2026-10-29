@@ -31,3 +31,12 @@ say a line and play a scene, and play a real phone capture through the same cont
   blinks come at the state's rate (more speaking than attending), at a thought's close and with a large gaze shift,
   never through a brow flash; the eyes fixate, drift and jump on the main sequence, look away while thinking and glance
   off while speaking. Seeded: the same performance plays the same take; `captureFrame` reads a frame as a FACS state.
+- **The take in the engine** (the hero door's `perform`, `relational-face-rig.js` `performanceTrack`, `scene-gltf.js`):
+  a realistic hero's `perform: { <take>: a performance }` exports each take as a face-only clip, `face:<take>`, a LINEAR
+  weights channel keyed at 30 fps that an engine layers over a body clip (the face's weights masked from it). The gaze
+  plays on ARKit's look targets (`eyeLookUp/Down/In/Out`, each eye's globe turned 25° about its centre), so the eyes move
+  with no bone; the jaw (a bone) is said apart. Refused by name on another head. `/hero-live` plays a take as a take of
+  its own over the body's idle.
+- **The globes in the face rig**: the one skin's globes were outside the rig, so the blink's sink behind the shut lid
+  never applied (a speck of iris could show through a shut lid). They are in it now: still, but for the gaze's turn and
+  the blink's sink.

@@ -37,6 +37,7 @@
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
+import { performanceErrors } from '@/lib/graph/face-acting/perform';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials, pinFrame } from '@/lib/graph/polygonizer/station-loft';
@@ -771,7 +772,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * (head-relational-eye.js SEAT), where laws 2 to 10 left the skin about each opening standing proud of the globe, a tunnel
  * and a dark void between the lids and the eye */
 export const REALISTIC_LAWS_VERSION = 11;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'perform'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -946,6 +947,16 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.blink !== undefined && spec.blink !== null) {
     if (spec.head !== 'anime' && !landmark) errs.push(`blink: the ambient blink is the anime or the landmark head's (head: 'anime' | 'landmark')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');
+  }
+  // THE FACE'S PERFORMANCES (face-acting/perform.js): { <take>: a performance in beats }, each a face-only clip in an
+  // export (`face:<take>`), the realistic face's
+  if (spec.perform !== undefined && spec.perform !== null) {
+    if (!relational) errs.push(`perform: a face's performance is the realistic hero's (form: 'realistic', its relational head)`);
+    else if (typeof spec.perform !== 'object' || Array.isArray(spec.perform) || !Object.keys(spec.perform).length) errs.push('perform: { <take>: { beats: [{ at, face, … }], seconds?, intensity?, seed? } }');
+    else for (const [take, P] of Object.entries(spec.perform)) {
+      if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(take)) { errs.push(`perform.${take}: a take's name is a word (letters, digits, - and _)`); continue; }
+      errs.push(...performanceErrors(P).map((e) => `perform.${take}.${e}`));
+    }
   }
   errs.push(...validateGear(spec.gear));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
@@ -1153,6 +1164,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.clips && typeof spec.clips === 'object' && Object.keys(spec.clips).length) hero.clips = spec.clips;
   // the door's motion (hero-motion.js), stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
   if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
+  if (spec.perform && typeof spec.perform === 'object' && Object.keys(spec.perform).length) hero.perform = spec.perform;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key

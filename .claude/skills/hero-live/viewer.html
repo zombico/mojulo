@@ -175,9 +175,16 @@ async function load(v) {
   const box = new THREE.Box3().setFromObject(body ?? root);
   const mixer = new THREE.AnimationMixer(root), actions = {};
   for (const clip of gltf.animations) if (clip.name.startsWith('body:')) actions[clip.name.slice(5)] = { action: mixer.clipAction(clip), seconds: secondsOf(clip) };
+  // (a face's PERFORMANCE, `face:<take>` (face-acting/perform.js): a take of its own, played at its own length over the
+  // body's idle; the ambient blink is the page's, not a take)
+  for (const clip of gltf.animations) if (clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
+  // (the body's idle under a take: its own face's weights left out, so the take alone drives the face, as an engine
+  // layers it under a mask on the morph weights; two actions on one weights track would be averaged)
+  const idle = gltf.animations.find((c) => c.name === 'body:idle') ?? gltf.animations.find((c) => c.name.startsWith('body:'));
+  const underClip = idle && new THREE.AnimationClip(`${idle.name}:bodyOnly`, idle.duration, idle.tracks.filter((t) => !t.name.endsWith('.morphTargetInfluences')));
   const bones = new THREE.SkeletonHelper(root); bones.visible = $('bones').checked;
   root.visible = false; scene.add(root); scene.add(bones);
-  v.loaded = { root, body, mixer, actions, bones, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+  v.loaded = { root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
     stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
   return v.loaded;
 }
@@ -233,10 +240,14 @@ function play(name, { phase = 0, fade = 0.35 } = {}) {
   const L = cur(); if (!L) return;
   const T = L.actions[name] ?? Object.values(L.actions)[0]; if (!T) return;
   const prev = S.take && L.actions[S.take]?.action, next = T.action;
+  // (a face take plays over the body's idle, which runs under it; leaving it stops the idle it brought)
+  const under = T.face ? L.under : null;
+  if (S.under && S.under !== under?.action) { S.under.stop(); S.under = null; }
+  if (under && S.under !== under.action) { const u = under.action; u.reset(); u.setLoop(THREE.LoopRepeat, Infinity); u.timeScale = (u.getClip().duration / under.seconds) * S.speed; u.paused = S.paused; u.play(); S.under = u; }
   S.take = Object.keys(L.actions).find((k) => L.actions[k] === T);
   next.reset(); next.setLoop(THREE.LoopRepeat, Infinity); next.timeScale = (next.getClip().duration / T.seconds) * S.speed;
   next.time = phase * next.getClip().duration; next.paused = S.paused; next.play();
-  if (prev && prev !== next) { if (fade > 0) prev.crossFadeTo(next, fade, false); else prev.stop(); }
+  if (prev && prev !== next && prev !== S.under) { if (fade > 0 && !T.face && !L.actions[Object.keys(L.actions).find((k) => L.actions[k].action === prev)]?.face) prev.crossFadeTo(next, fade, false); else prev.stop(); }
   if (S.paused) L.mixer.update(0);
   markTakes();
 }
@@ -248,7 +259,7 @@ async function selectVariant(id) {
   for (const [k, b] of Object.entries(variantButtons)) b.setAttribute('aria-pressed', String(k === id));
   status.textContent = `Loading ${v.label}…`;
   let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
-  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); }
+  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; }
   S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
   setWire($('wire').checked);
   renderTakes(L); renderMeters(L); renderRead(v);
@@ -326,7 +337,7 @@ renderer.setAnimationLoop(() => {
     const W = L.body?.morphTargetInfluences;
     if (W) {
       if (S.hold) for (const [n, i] of Object.entries(L.morph)) W[i] = S.holdW[n] ?? 0;
-      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(wall));
+      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused && !L.actions[S.take]?.face) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(wall));
       for (const [n, i] of Object.entries(L.morph)) { const m = meterEls[n]; if (!m) continue; const v = W[i]; m.bar.style.width = `${Math.round(Math.min(1, Math.max(0, v)) * 100)}%`; m.out.textContent = v.toFixed(2); }
     }
     const a = S.take && L.actions[S.take]?.action;

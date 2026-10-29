@@ -37,6 +37,10 @@ node .claude/skills/hero-live/shot.mjs --out /tmp/hero-live --shots '[{"variant"
 `shot.mjs` needs a Chromium: `lib/graph/scene/chromium.js` resolves and launches it, and `MOJULO_CHROMIUM` names one
 it does not find (a Playwright build: `/opt/pw-browsers/chromium-*/chrome-linux/chrome`).
 
+A realistic hero's face PERFORMANCES (the door's `perform`: `{ <take>: { beats: [{ at, face, state?, gaze?, flash?, micro? }],
+seconds?, intensity?, seed? } }`, `control/lib/graph/face-acting/perform.js`) export as face-only clips (`face:<take>`) and
+play here as takes of their own, over the body's idle, their own blinks and gaze in place of the page's.
+
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body and Side views, the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
 (or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.

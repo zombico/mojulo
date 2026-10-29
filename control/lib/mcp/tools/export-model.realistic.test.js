@@ -21,7 +21,8 @@ import { expandLayeredManifest } from './layered.js';
 
 describe('the realistic hero, minted and exported', () => {
   it('mints at the door and exports a lit skinned GLB an engine reads: the joints, the clips, the correctives, the normals', async () => {
-    const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'] } });
+    const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'],
+      perform: { hello: { seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'amused', flash: true, gaze: 'away' }] } } } });
     expect(minted.ok).toBe(true);
     expect(minted.hero.head).toBe('relational');
     const out = await exportModelHandler({ ref: minted.ref, format: 'glb', clips: '_all', skinned: true, lit: true });
@@ -39,6 +40,12 @@ describe('the realistic hero, minted and exported', () => {
     expect(names).toEqual(expect.arrayContaining(['pauldronBagR', 'shoulderLevelL', 'shoulderOverheadR']));
     // (and its face's, the realistic head's own actions: relational-face-rig.js)
     expect(names).toEqual(expect.arrayContaining(['blink', 'blinkLeft', 'smile', 'browRaise']));
+    // (the FACS units by side and the gaze's look targets; a performance a face-only LINEAR clip on them: face-acting/)
+    expect(names).toEqual(expect.arrayContaining(['frownLeft', 'cheekRaiseRight', 'eyeLookUpLeft', 'eyeLookOutRight']));
+    const take = root.listAnimations().find((a) => a.getName() === 'face:hello');
+    expect(take).toBeTruthy();
+    expect(take.listSamplers().map((sm) => sm.getInterpolation())).toEqual(['LINEAR']);
+    expect(take.listSamplers()[0].getInput().getCount()).toBe(2 * 30 + 1);
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];
     for (let i = 0; i < W.getCount(); i += 97) { W.getElement(i, w); expect(Math.abs(w[0] + w[1] + w[2] + w[3] - 1)).toBeLessThan(1e-3); }

@@ -34,6 +34,10 @@ import { FACE_FPS, drawEye } from './anime-face-rig.js';
 import { faceStoreKey, readFaceStore, writeFaceStore } from './relational-face-store.js';
 import { facsActions } from '../face-acting/facs.js';
 
+/** THE GAZE as ARKit's look targets: each eye's globe turned about its centre `GAZE_TURN` degrees up, down, in (toward
+ * the nose) and out; a gaze between them is their sum, the turn's chord (under 2% off the arc at the full turn) */
+export const GAZE_TURN = 25;
+export const GAZE_TARGETS = Object.freeze(['eyeLookUpLeft', 'eyeLookDownLeft', 'eyeLookInLeft', 'eyeLookOutLeft', 'eyeLookUpRight', 'eyeLookDownRight', 'eyeLookInRight', 'eyeLookOutRight']);
 /** the builds the targets are differenced from: each one action at full over the rest (the target's name: the action's,
  * the eyes' and the inner brow's as the landmark head names them) */
 const BUILDS = Object.freeze({ rest: null, blink: { blink: 1 }, smile: { smile: 1, smileEyes: 0.15 }, browRaise: { browRaise: 1 }, browLower: { browLower: 1 },
@@ -45,7 +49,7 @@ const BUILDS = Object.freeze({ rest: null, blink: { blink: 1 }, smile: { smile: 
 const SIDED = Object.freeze(['blink', 'smile', 'browLower', 'eyeWide', 'eyeSquint', 'browOuter', 'cheekRaise', 'sneer', 'upperLipUp', 'dimple', 'frown', 'lowerLipDown', 'stretch', 'press']);
 export const RELATIONAL_FACE_TARGETS = Object.freeze(['blink', 'blinkLeft', 'blinkRight', 'smile', 'browRaise', 'browLower', 'eyeWide', 'eyeSquint', 'browWorried',
   ...Object.keys(BUILDS).filter((k) => k !== 'rest' && !['blink', 'smile', 'browRaise', 'browLower', 'eyeWide', 'eyeSquint', 'browWorried'].includes(k)),
-  ...SIDED.filter((k) => k !== 'blink').flatMap((k) => [`${k}Left`, `${k}Right`])]);
+  ...SIDED.filter((k) => k !== 'blink').flatMap((k) => [`${k}Left`, `${k}Right`]), ...GAZE_TARGETS]);
 /** the head's action → its target (the FACS units' actions: face-acting/facs.js) */
 const TARGET_OF = Object.freeze({ blink: 'blink', smile: 'smile', browInner: 'browWorried', browOuter: 'browOuter', browLower: 'browLower', wide: 'eyeWide', squint: 'eyeSquint',
   cheekRaise: 'cheekRaise', sneer: 'sneer', upperLipUp: 'upperLipUp', dimple: 'dimple', frown: 'frown', lowerLipDown: 'lowerLipDown', chinRaise: 'chinRaise', stretch: 'stretch', tighten: 'tighten', press: 'press' });
@@ -56,7 +60,7 @@ const BLINK_SINK = 0.003;
 const GLOBE = /^(Sclera|Iris|Pupil)$/;
 /** the head's parts the actions move (hero-relational-head.js: the face over the cranium and the jaw, which lie under it
  * and are kept as stored; the ears are still) */
-const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/, LASHES = /^hairLashes$/, BROWS = /^hairBrows$/;
+const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/, LASHES = /^hairLashes$/, BROWS = /^hairBrows$/, GLOBE_PART = /^globe[RL]$/;
 const R = CHANNEL_RANGES;
 
 const MIDLINE = 0.004;
@@ -82,6 +86,28 @@ export function relationalWeights(F, knots) {
     eyeWide: Math.min(1, pos((a - 1) * open, R.aperture[1] - 1)), eyeSquint: Math.min(1, pos((1 - a) * open, 1 - R.aperture[0])),
     browWorried: Math.min(1, pos(-tilt, -R.browTilt[0])) };
   return RELATIONAL_FACE_TARGETS.map((n) => +(w[n] ?? 0).toFixed(6));
+}
+/** a gaze (degrees: +yaw the figure's right, +pitch up) → the look targets' weights ({ eyeLookUpLeft: w, … }) */
+export function gazeWeights(yaw = 0, pitch = 0) {
+  const q = (x) => Math.min(1, Math.max(0, x / GAZE_TURN));
+  return { eyeLookUpLeft: q(pitch), eyeLookUpRight: q(pitch), eyeLookDownLeft: q(-pitch), eyeLookDownRight: q(-pitch),
+    eyeLookInLeft: q(yaw), eyeLookOutRight: q(yaw), eyeLookOutLeft: q(-yaw), eyeLookInRight: q(-yaw) };
+}
+/**
+ * A TAKE (face-acting/perform.js `perform`) as the rig's weights track: { seconds, t: [s], w: [[weights per target]] }
+ * at `fps` (30: LINEAR keys, an engine tweens between them), each frame's FACS state on its targets and the gaze on the
+ * look targets; the jaw (AU26) is a bone and no target: it is left out and said in `gaps`.
+ */
+export function performanceTrack(take, { fps = 30 } = {}) {
+  const step = take.fps / fps, t = [], w = [], gaps = new Set();
+  for (let f = 0; f <= (take.frames - 1) / step + 1e-9; f++) {
+    const i = Math.min(take.frames - 1, Math.round(f * step)), st = {};
+    for (const [k, c] of Object.entries(take.curves)) if (c[i] > 0) st[k] = c[i];
+    const { weights, gaps: g } = facsWeights(st), G = gazeWeights(take.gaze.yaw[i], take.gaze.pitch[i]);
+    for (const k of Object.keys(g)) gaps.add(k);
+    t.push(+(i / take.fps).toFixed(6)); w.push(RELATIONAL_FACE_TARGETS.map((n, j) => (n in G ? +G[n].toFixed(6) : weights[j])));
+  }
+  return { seconds: take.seconds, t, w, gaps: [...gaps] };
 }
 /**
  * A FACS state (face-acting/facs.js: { AU12: 0.8, AU14R: 0.4, … }) → its weights in RELATIONAL_FACE_TARGETS' order, a
@@ -203,7 +229,8 @@ export function relationalFaceRig(m, mesh) {
   if (!hero || hero.head !== 'relational' || !fit || !(m.recipe.parts?.visage || skin)) return null;
   const P = m.recipe.parts;
   // the head's parts and everything pinned to them, in the recipe's order (the figure's vertex order)
-  const X = Object.keys(P).filter((n) => HEAD.test(n) || (P[n]?.layer === 2 && HEAD.test(P[n].pin?.parent ?? '')));
+  // (and the one skin's GLOBES, their own parts: still but for the gaze's turn and the blink's sink)
+  const X = Object.keys(P).filter((n) => HEAD.test(n) || (P[n]?.layer === 2 && HEAD.test(P[n].pin?.parent ?? '')) || (skin && GLOBE_PART.test(n) && P[n]?.mesh));
   const words = { sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), ...(fit.seat ? { seat: true } : {}) };
   const key = JSON.stringify([words, fit.k, fit.ty, fit.men, X, X.map((n) => layoutOf(P[n]))]);
   let T = RIGS.get(key);
@@ -238,12 +265,26 @@ export function relationalFaceRig(m, mesh) {
           const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) if (face[i]) for (let c = 0; c < 3; c++) d[i * 3 + c] = V[name][i][c] - V0[i][c];
           if (name === 'blink') for (let i = 0; i < n; i++) if (V.globe[i]) d[i * 3 + 1] -= BLINK_SINK;
           // (what rides the face moves as the skin under it moves, not as the one face it is pinned to tilts)
-          for (let i = 0; i < n; i++) if (!face[i]) { const N = near[i]; for (let c = 0; c < 3; c++) { let x = 0; for (let j = 0; j < N.length; j += 2) x += N[j + 1] * d[N[j] * 3 + c]; d[i * 3 + c] = x; } }
+          // (the globes are no rider: they stay, but for the blink's sink)
+          for (let i = 0; i < n; i++) if (!face[i] && !V.globe[i]) { const N = near[i]; for (let c = 0; c < 3; c++) { let x = 0; for (let j = 0; j < N.length; j += 2) x += N[j + 1] * d[N[j] * 3 + c]; d[i * 3 + c] = x; } }
           // (the lashes turned with their lids, about the globes)
           if (lashes.length) turnLashes(lashes, V0, d);
           // (the brows' cards whole)
           if (cards.length) wholeCards(cards, d);
           D[name] = d;
+        }
+        // (the gaze: each eye's globe turned about its centre; a figure without its own globes, none)
+        for (const name of GAZE_TARGETS) D[name] = new Float64Array(n * 3);
+        for (const b of balls) {
+          const left = b.c[0] < 0, a = (GAZE_TURN * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
+          const turn = { Up: (r) => [r[0], r[1] * co - r[2] * si, r[1] * si + r[2] * co], Down: (r) => [r[0], r[1] * co + r[2] * si, -r[1] * si + r[2] * co],
+            Right: (r) => [r[0] * co + r[1] * si, -r[0] * si + r[1] * co, r[2]], Left: (r) => [r[0] * co - r[1] * si, r[0] * si + r[1] * co, r[2]] };
+          const ways = { Up: 'Up', Down: 'Down', In: left ? 'Right' : 'Left', Out: left ? 'Left' : 'Right' }, side = left ? 'Left' : 'Right';
+          for (let i = 0; i < n; i++) {
+            if (!V.globe[i] || Math.hypot(V0[i][0] - b.c[0], V0[i][1] - b.c[1], V0[i][2] - b.c[2]) > 1.5 * b.r) continue;
+            const r = [0, 1, 2].map((c) => V0[i][c] - b.c[c]);
+            for (const [way, dir] of Object.entries(ways)) { const q = turn[dir](r), d = D[`eyeLook${way}${side}`]; for (let c = 0; c < 3; c++) d[i * 3 + c] = q[c] - r[c]; }
+          }
         }
         // (one side: a sided target weighed across the midline)
         for (const k of SIDED) for (const s of ['Left', 'Right']) { const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) { const w = s === 'Right' ? wRight(V0[i][0]) : 1 - wRight(V0[i][0]); for (let c = 0; c < 3; c++) d[i * 3 + c] = D[k][i * 3 + c] * w; } D[`${k}${s}`] = d; }
