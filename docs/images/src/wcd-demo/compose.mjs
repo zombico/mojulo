@@ -43,17 +43,22 @@ function chips(tools) {
 }
 /** The reply cut to fit the bubble: its opening sentence, each bullet's label and the start of what it says while they
  * fit, and the sentence it ends on (the question it puts back). Markdown and refs go. */
-function reply(text, max = 380) {
-  const plain = (s) => s.replace(/`?\/(?:sketches|api\/sketches)\/[\w/-]+`?/g, 'the book').replace(/\s*\(?`?sk_[\w-]+`?\)?/g, '').replace(/\*\*|__|`|^#+\s*/gm, '').replace(/\s+/g, ' ').trim();
+function reply(text, max = 470) {
+  const plain = (s) => s.replace(/\b(?:is )?at `?\/api\/sketches\/[\w-]+\/bible`?/g, 'is ready to read').replace(/`?\/api\/sketches\/[\w-]+\/bible`?/g, 'the book').replace(/`?\/(?:sketches|api\/sketches)\/[\w/-]+`?/g, 'a link').replace(/\s*\(?`?sk_[\w-]+`?\)?/g, '').replace(/\*\*|__|`|^#+\s*/gm, '').replace(/\s+/g, ' ').trim();
   const sentences = (s) => s.split(/(?<=[.!?])\s+(?=[A-Z])/);
   const paras = text.replace(/```[\s\S]*?```/g, '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-  const prose = paras.filter((p) => !/^([-*]|\d+\.)\s+/.test(p));
-  const lead = sentences(plain(prose[0] ?? ''))[0], end = prose.length > 1 ? sentences(plain(prose.at(-1))).at(-1) : '';
-  const bullets = text.split('\n').filter((l) => /^\s*([-*]|\d+\.)\s+/.test(l)).map((l) => {
+  const prose = paras.filter((p) => !/^([-*]|\d+\.)\s+/.test(p) && !/^\|/.test(p));
+  // (the opening two sentences, the second cut short: what was done, and what to know about it)
+  const [s1 = '', s2 = ''] = sentences(plain(prose[0] ?? '')), cut2 = s2.length > 110 ? `${s2.slice(0, 108).replace(/[\s,:;]+\S*$/, '')}…` : s2;
+  const lead = [s1, cut2].filter(Boolean).join(' '), end = prose.length > 1 ? sentences(plain(prose.at(-1))).at(-1) : '';
+  // a table's rows read as items: the first cell, then the start of the next
+  const rows = text.split('\n').filter((l) => /^\s*\|/.test(l) && !/^\s*\|[\s|:-]+\|\s*$/.test(l)).map((l) => l.split('|').slice(1, -1).map((c) => c.trim())).slice(1)
+    .map(([a, b = '']) => `- ${a}: ${b}`);
+  const bullets = [...rows, ...text.split('\n')].filter((l) => /^\s*([-*]|\d+\.)\s+/.test(l)).map((l) => {
     const b = plain(l.replace(/^\s*([-*]|\d+\.)\s+/, '')), m = b.match(/^(.{1,24}?):\s+(.*)$/), body = sentences(m ? m[2] : b)[0];
-    const cut = body.length > 70 ? `${body.slice(0, 68).replace(/\s+\S*$/, '')}…` : body;
+    const cut = body.length > 56 ? `${body.slice(0, 54).replace(/[\s,]+\S*$/, '')}…` : body;
     return m ? `${m[1]}: ${cut}` : cut;
-  });
+  }).filter((b) => !/:\s*(a link|the book)\.?$/.test(b));
   let out = lead, n = lead.length + end.length, shown = 0;
   for (const b of bullets) { if (n + b.length > max) break; out += `\n· ${b}`; n += b.length; shown++; }
   if (shown < bullets.length) out += '\n…';
@@ -76,19 +81,23 @@ function looksCard(work, turn) {
 export async function compose(work) {
   const S = JSON.parse(readFileSync(path.join(work, 'session.json'), 'utf8'));
   const img = (n) => (existsSync(path.join(work, `${n}.png`)) ? pathToFileURL(path.join(work, `${n}.png`)).href : null);
-  // what the agent showed for approval: its book's plan when it drafted one, else the looks it picked
-  const plan = img('turn-1-dungeon'), looks = plan ? null : looksCard(work, S.turns[0]);
-  if (!plan && !looks) throw new Error('compose: the first ask showed neither a plan nor looks');
-  // the book once built: in a skin set after the session (skinned-dungeon.png, from book.mjs), else as it was
-  const book = img('skinned-dungeon') ? [img('skinned-dungeon'), 'The book <span>· its skin set after the session</span>'] : img('turn-2-dungeon') ? [img('turn-2-dungeon'), 'The book <span>· to the core</span>'] : null;
   const made = JSON.parse(readFileSync(path.join(work, 'made.json'), 'utf8')), built = Object.keys(made.levels ?? {}), names = made.names ?? {};
+  // what the agent showed for approval: its book's plan when it drafted one (draft-*.png: book.mjs --draft, the book
+  // redrawn from the stored world without its run's record, in a skin set after the session; else turn-1-dungeon.png as
+  // the session drew it) and a level's finishes, else the looks it picked
+  const drafted = !!img('draft-dungeon'), plan = img('draft-dungeon') ?? img('turn-1-dungeon'), looks = plan ? null : looksCard(work, S.turns[0]);
+  if (!plan && !looks) throw new Error('compose: the first ask showed neither a plan nor looks');
+  const finLevel = built.find((l) => img(`draft-${l}-finishes`)), fin = finLevel ? img(`draft-${finLevel}-finishes`) : null;
+  const after = drafted ? ', its skin set after the session' : '';
+  // the book once built, when no plan was shown before it: in a skin set after the session, else as it was
+  const book = plan ? null : img('skinned-dungeon') ? [img('skinned-dungeon'), 'The book <span>· its skin set after the session</span>'] : img('turn-2-dungeon') ? [img('turn-2-dungeon'), 'The book <span>· to the core</span>'] : null;
   const shots = built.flatMap((l) => ['room', 'corridor'].map((s) => [img(`${l}-${s}`), `${names[l] ?? l} <span>· ${s === 'room' ? 'built' : 'its corridor'}</span>`])).filter(([u]) => u);
 
   const F = [], log = [];
   const logHtml = (extra = '') => log.join('') + extra;
   let view = null;
   const hold = (n, extra = {}) => { for (let i = 0; i < n; i++) F.push({ log: logHtml(), ...view, ...extra }); };
-  const fadeTo = (next, n = 6) => { for (let i = 1; i <= n; i++) F.push({ log: logHtml(), a: view?.a, posA: view?.posA, b: next.a, posB: next.posA, mix: ease(i / n), tag: next.tag }); view = next; };
+  const fadeTo = (next, n = 6) => { for (let i = 1; i <= n; i++) F.push({ log: logHtml(), a: view?.a, posA: view?.posA, fitA: view?.fitA, b: next.a, posB: next.posA, fitB: next.fitA, mix: ease(i / n), tag: next.tag }); view = next; };
 
   for (let i = 0; i < 6; i++) F.push({ log: '' });
   S.turns.forEach((turn, ti) => {
@@ -107,7 +116,15 @@ export async function compose(work) {
       for (let i = 1; i <= 30; i++) F.push({ log: logHtml(), a: u, posA: `${(100 * ease(i / 30)).toFixed(1)}% 50%`, tag });
       view = { ...view, posA: '100% 50%' }; hold(30);
     };
-    if (ti === 0 && plan) pan(plan, 'The plan <span>· its book, for your approval</span>');
+    if (ti === 0 && plan) {
+      pan(plan, `The plan <span>· its book, for your approval${after}</span>`);
+      // and what a level will wear: its finishes, along the board
+      if (fin) {
+        const tag = `${esc(names[finLevel] ?? finLevel)} <span>· its finishes${after}</span>`;
+        // (the whole board, fitted)
+        fadeTo({ a: fin, fitA: 'contain', tag }, 8); hold(48);
+      }
+    }
     else if (ti === 0) {
       // the looks it picked, for approval
       const tag = 'The looks <span>· for your approval</span>';
@@ -123,7 +140,7 @@ export async function compose(work) {
 
   const t = totals(S.turns);
   const end = `<h1>A ${built.length}-level base, planned, approved, built</h1>
-<div class="sub">One ask in a game maker's words, one look at the ${plan ? 'plan' : 'colours'}, one yes.</div>
+<div class="sub">One ask in a game maker's words, one look at the ${plan ? 'plan and its finishes' : 'colours'}, one yes.</div>
 <div id="stats">
 <div class="st"><div class="k">Time</div><div class="v">${clock(t.ms)}</div><div class="n">the agent working, both asks</div></div>
 <div class="st"><div class="k">Tokens</div><div class="v">≈ ${k(t.tokens)}</div><div class="n">${k(t.output)} written · ${Math.round(100 * t.cacheRead / t.tokens)}% re-read from cache</div></div>

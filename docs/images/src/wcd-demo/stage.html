@@ -68,6 +68,7 @@ window.setFrame = (f) => {
   const ia = document.getElementById('ia'), ib = document.getElementById('ib');
   ia.style.display = f.a ? '' : 'none'; if (f.a && ia.getAttribute('src') !== f.a) ia.src = f.a;
   ib.style.display = f.b ? '' : 'none'; if (f.b && ib.getAttribute('src') !== f.b) ib.src = f.b;
+  ia.style.objectFit = f.fitA || 'cover'; ib.style.objectFit = f.fitB || f.fitA || 'cover';
   ia.style.objectPosition = f.posA || '50% 50%'; ib.style.objectPosition = f.posB || f.posA || '50% 50%';
   ib.style.opacity = f.wipe != null ? 1 : f.mix ?? 0;
   // the reveal: the after shows to the left of a glowing line that sweeps across, sparkles in its wake

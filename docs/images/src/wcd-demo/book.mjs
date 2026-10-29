@@ -2,7 +2,10 @@
 // plan. run.mjs and session.mjs call it (the session between its asks, so the GIF shows the plan as the agent had it
 // when it asked for approval).
 //
-//   node docs/images/src/wcd-demo/book.mjs <workDir> <worldRef> <prefix> [level]
+//   node docs/images/src/wcd-demo/book.mjs <workDir> <worldRef> <prefix> [level] [--draft] [--skin <preset>]
+//
+// --draft draws the book as the draft had it, from the stored world without its run's record (`made`) and its verdicts
+// (`review`); --skin puts a book skin on it (gameworld/book-skin.js) in memory, the world untouched.
 //
 // Reads the data dir MOJULO_DATA_DIR names; writes <workDir>/<prefix>.html, <prefix>-dungeon.png and, with a level that
 // is made, <prefix>-<level>.png.
@@ -20,11 +23,15 @@ const { SketchRepository } = await at('lib/db/repositories/sketches.js');
 const { gameworldOf, gameworldBibleHtml } = await at('lib/graph/gameworld/index.js');
 const { resolveChromium, launchChromium } = await at('lib/graph/scene/chromium.js');
 
-const [work, ref, prefix, level] = process.argv.slice(2).map((a, i) => (i === 0 ? path.resolve(a) : a));
+const argv = process.argv.slice(2), flag = (k) => { const i = argv.indexOf(k); return i < 0 ? null : argv.splice(i, k === '--draft' ? 1 : 2).slice(1)[0] ?? true; };
+const draft = flag('--draft'), skin = flag('--skin');
+const [work, ref, prefix, level] = argv.map((a, i) => (i === 0 ? path.resolve(a) : a));
 const row = SketchRepository.getByRef(ref);
 if (!row) throw new Error(`book: no world ${ref}`);
 const html = path.join(work, `${prefix}.html`);
-writeFileSync(html, gameworldBibleHtml(gameworldOf(row.manifest)));
+const { made, review, ...rest } = row.manifest;
+const manifest = { ...(draft ? rest : row.manifest), ...(skin ? { book: { skin } } : {}) };
+writeFileSync(html, gameworldBibleHtml(gameworldOf(manifest)));
 
 const browser = await launchChromium({ executablePath: await resolveChromium({ allowFetch: false }), headless: true });
 try {
@@ -38,6 +45,13 @@ try {
     if (!el) { console.log(`book: no ${sel}`); continue; }
     await el.screenshot({ path: path.join(work, `${prefix}-${name}.png`) });
     console.log('still', `${prefix}-${name}`);
+  }
+  // the level's finishes alone, on a narrow page so its tiles wrap into a board
+  if (level) {
+    await page.setViewport({ width: 520, height: 900, deviceScaleFactor: 2 });
+    await new Promise((r) => setTimeout(r, 400));
+    const el = await page.$(`#level-${level} .finishes`);
+    if (el) { await el.screenshot({ path: path.join(work, `${prefix}-${level}-finishes.png`) }); console.log('still', `${prefix}-${level}-finishes`); }
   }
 } finally { await browser.close(); }
 process.exit(0);

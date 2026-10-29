@@ -5,7 +5,8 @@
  * verdicts. Drawn in the book's own variables (`var(--ink)`, `var(--c-trail)`, …), so a skin (book-skin.js) recolours it.
  *
  *   wcdPage(G, esc, finishes) → the section's html, '' for a world with no dungeon; `finishes` (finishes.js, by level)
- *   puts each built layer's wall, base, floor and paint beside its look, so the page approves the materials too
+ *   puts each built layer's wall, base, floor and paint beside its look, so the page approves the materials too; `made`
+ *   (the levels a run has made) says which layers are built, the rest to build, a layer kept off the path unbuilt
  *
  * Pure: the same world, the same page.
  */
@@ -52,7 +53,7 @@ function plate(W, esc) {
 }
 
 /** The dungeon's section of the book. */
-export function wcdPage(G, esc, finishes = {}) {
+export function wcdPage(G, esc, finishes = {}, made = null) {
   const W = G.wcd;
   if (!W) return '';
   const order = Object.values(W.spaces).sort((a, b) => a.depth - b.depth);
@@ -62,7 +63,7 @@ export function wcdPage(G, esc, finishes = {}) {
     const F = s.level ? finishes[s.level] : null, L = F?.axes ?? s.look;
     return `${L ? esc(`${L.construction} · ${L.palette}`) : '—'}${F ? `<br>${finishesHtml(F, esc, { roles: ['wall', 'base', 'floor', 'paint'] })}` : ''}`;
   };
-  const rows = order.map((s) => `<tr><td class="mono">${s.depth}</td><td><b>${esc(s.id)}</b>${s.id === W.core ? ' <span class="stamp st-revise">core</span>' : ''}</td><td class="mono">${s.kind}</td><td>${level(s)}</td><td class="mono">${look(s)}${s.tone !== undefined ? ' · toned' : ''}</td><td class="mono">${s.built ? 'built' : 'unbuilt'}</td></tr>`).join('');
+  const rows = order.map((s) => `<tr><td class="mono">${s.depth}</td><td><b>${esc(s.id)}</b>${s.id === W.core ? ' <span class="stamp st-revise">core</span>' : ''}</td><td class="mono">${s.kind}</td><td>${level(s)}</td><td class="mono">${look(s)}${s.tone !== undefined ? ' · toned' : ''}</td><td class="mono">${!s.built ? 'unbuilt' : s.level && made?.has(s.level) ? 'built' : 'to build'}</td></tr>`).join('');
   const laws = W.laws.map((l) => `<li><span class="stamp ${l.holds ? 'st-approved' : 'st-changed'}">${l.holds ? 'holds' : 'advise'}</span> <b class="mono">${esc(l.law)}</b> <span class="muted">${esc(l.says)}</span></li>`).join('');
   return `<section class="part" id="wcd"><div class="part-h"><span class="eyebrow">The way in</span><h2>To the core</h2></div>`
     + `<div class="wcd"><figure class="canvas wcd-plate">${plate(W, esc)}</figure><div class="card"><div class="card-h"><span class="eyebrow">Critical path</span><h3>${W.path ? W.path.map(esc).join(' › ') : 'no way in'}</h3></div>`

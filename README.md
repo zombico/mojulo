@@ -200,30 +200,33 @@ It plays in the browser as it is: `export_game` writes a self-contained folder f
 
 ### 6. "I'm making a stealth game. Build me a multi-level military base to infiltrate"
 
-![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent picks a palette for each section and asks for approval; on "Looks good, approved. Build it." it designs the game, builds the four levels and reads the result back. Then the world's book shows the way in as rings to the core, and each level as built. The last slide shows the session's time, tokens and API cost](docs/images/wcd-demo.gif)
+![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](docs/images/wcd-demo.gif)
 
 What it built, from the inside:
 
 | | |
 |---|---|
-| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
-| ![The barracks' corridor: painted block walls, open doorways into the bunk rooms, a panel on the wall](docs/images/wcd-demo-barracks-corridor.jpg) | ![The armoury's rack cage: board-formed concrete, weapon racks along the wall, a crate in the foreground](docs/images/wcd-demo-armoury-room.jpg) |
-| ![The armoury's corridor in the bunker look on the science palette, its white walls warmed pink by the military plot's red-orange cove light: board-formed concrete, riveted columns, a cable leaving its tray to run bent along the wall, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) | ![The reactor plant's generator hall: a tall hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) |
+| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
+| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor in the bunker look: board-formed concrete, yellow and green steel on its columns, a cable bent along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) |
+| ![The reactor plant's generator hall: a white-panelled hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](docs/images/wcd-demo-reactor-corridor.jpg) |
 
-![The world's book, its "To the core" page: the four levels as rings with the reactor at the centre, each stair on its join with the keycard that opens it, beside each layer's look and the design rules it holds](docs/images/wcd-demo-book.png)
+![The world's book, its "To the core" page: the four levels as rings with the reactor at the centre, each stair or door on its join with the keycard that opens it, beside each layer's look, its wall, base, floor and paint, and the design rules it holds](docs/images/wcd-demo-book.png)
 
-One real Claude Code session on Sonnet 5.5, two asks, about four minutes of agent time: roughly 1.2M tokens (91% re-read
-from the prompt cache, 7k written) and 60 cents at API list price. The agent read the stealth and level-design cards,
-showed a palette for each section and stopped for the yes; then it designed the world with `design_game`, every level a
-base building stocked for what it is (bunks and footlockers, weapon racks in the cages, sandbags at the guard posts, an
-extinguisher by every door), and made all four. Three things a run shows that a GIF hides: building four levels outlasts
-Claude Code's 60-second wait for a tool, so the agent saw the call time out and read the finished world back; it said
-plainly that it had not looked at the colours yet; and the palettes it showed did not reach the buildings, which wear
-their looks' own (a level's palette colours an art-directed room, not a base). Since this session the draft's book shows
-each level's finishes, its walls, floor, paint and light as the build paints them, so the yes is to those. The book's dark briefing skin was set after the session, with one
-`design_game` call (`book: { skin: 'briefing' }`); a world can wear its own colours and faces the same way. The whole
-record is [session.json](docs/images/src/wcd-demo/session.json), and [the runner](docs/images/src/wcd-demo/) records a
-new session or rebuilds a cooked base from its recipe with no agent at all.
+![A level's finishes in the book, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band tiles, each named by its cut and the metres it is laid at, its light's colours, and the note that its palette does not colour a bay building](docs/images/wcd-demo-finishes.png)
+
+One real Claude Code session on Sonnet 5.5, two asks, under four minutes of agent time: roughly 1.2M tokens (90% re-read
+from the prompt cache, 9k written) and 63 cents at API list price. Asked to see the plan and the looks first, the agent
+read the stealth and level-design cards, drafted the world with `design_game` without building it, and stopped on its
+book: the plan, and each building level's finishes (its walls, floor, columns, paint and light, painted as the build
+paints them; the armoury's board is above). On the yes it built all four, each level a base building stocked for what it
+is (bunks and footlockers, weapon racks in the cages, sandbags at the guard posts, an extinguisher by every door). What a
+run shows that a GIF hides: the agent also picked a palette per section, and said itself that a base building takes
+only its look's named palette, so those were not applied; building four levels outlasts Claude Code's 60-second wait
+for a tool, so it saw the build time out and read the finished world back. The book's dark briefing skin was set after
+the session, and the draft's pages in the GIF are redrawn from the stored world without its run's record; a world wears
+a skin with one `design_game` patch (`book: { skin: 'briefing' }`), or its own colours and faces. The whole record is
+[session.json](docs/images/src/wcd-demo/session.json), and [the runner](docs/images/src/wcd-demo/) records a new session
+or rebuilds a cooked base from its recipe with no agent at all.
 
 **Also from a sentence:** a character (`create_character`): a stylized hero, or the realistic hero with its face, eyes, hair, tailored wardrobe, armour and footwear ([docs/realistic-body.md](docs/realistic-body.md)), or a comic hero pack's cast, enemy crews and named heroes with their emblems; an animal mid-stride, rigged for glTF or VRM; a six-storey building with a set-back penthouse; a house as a townhouse or a modern block in a street-house tradition, an office, lab or warehouse laid from a brief, or an interior styled from a sentence; a walkable land from a geocube, a science world, a historic city at its period ([docs/historic/README.md](docs/historic/README.md)); an ambient loop or a full score synthesized from seeded math with no samples; a room's layout recovered from a photo you show your agent. The full catalog is in [docs/tour.md](docs/tour.md).
 

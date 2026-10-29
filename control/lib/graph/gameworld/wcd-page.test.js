@@ -24,4 +24,11 @@ describe("the dungeon's page", () => {
     expect(book).toContain('<section class="part" id="wcd">');
     expect(gameworldBibleHtml(MEADOWMARK)).not.toContain('id="wcd"');
   });
+
+  it('says a layer is built once a run has made its level, and to build until then', () => {
+    const [a, b] = Object.keys(MEADOWMARK.levels), spaces = { gate: { kind: 'outer', depth: 0, level: a }, core: { kind: 'inner', depth: 1, level: b } }, doors = [{ from: 'gate', to: 'core', via: 'door', gate: { clearance: 1 } }];
+    const G = readGameworld({ ...MEADOWMARK, wcd: { core: 'core', spaces, doors } }), status = (html) => [...html.matchAll(/<td class="mono">(built|to build|unbuilt)<\/td>/g)].map((m) => m[1]);
+    expect(status(wcdPage(G, esc))).toEqual(['to build', 'to build']);
+    expect(status(wcdPage(G, esc, {}, new Set([a])))).toEqual(['built', 'to build']);
+  });
 });

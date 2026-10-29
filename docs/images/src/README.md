@@ -75,8 +75,10 @@ in a game maker's words: the base and its looks shown before anything is built, 
 and stills of every level once it is built (`stills.mjs`: a corridor looked down and the room the level's use is about,
 read off the world's own record, framed landscape). `compose.mjs` sets it in the decor demo's chat: what the agent showed
 for approval (its book's plan when it drafted one, else its `pick_palette` picks, replayed from its own seeded calls),
-the book once built, each level, and the session's numbers. The committed session's book wears the `briefing` skin,
-set after the session with one `design_game` patch; `compose.mjs` tags it so. `run.mjs` is the cooked base:
+the book once built, each level, and the session's numbers. When the agent drafted the world before the yes,
+the approval frames are its book's dungeon page and a level's finishes, redrawn after the session from the stored world
+without its run's record (`book.mjs --draft`, which the GIF shows rather than the turn-one capture `session.mjs` takes)
+and in the `briefing` skin (`--skin`, in memory: the world is untouched); `compose.mjs` tags both. `run.mjs` is the cooked base:
 `world.json`, a four-level base on the dungeon's rails, minted, approved and run with no agent, then the same stills.
 
 **interior-demo.** `design_interior` three times on one ref (the Japandi room from a section, then mid-century

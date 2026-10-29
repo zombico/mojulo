@@ -72,3 +72,5 @@ panels and load-bearing doodads, stocked by use. Built so far:
   floor and paint beside its look, the look as composed. A level whose palette a bay building does not take says so.
   The guide card's SHOWN FIRST: asked to see it before it is built, the agent drafts the world and shows its book.
   `levels.js` `levelBuildingStage` is the one stage a run makes and the book reads. A skinned book's links take its accent.
+  The dungeon's page says a layer is built once a run has made its level (the world's own record), to build until then,
+  and unbuilt when it is kept off the path; it said built for every layer on the path, before any run.
