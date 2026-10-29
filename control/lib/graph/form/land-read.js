@@ -39,7 +39,7 @@ import { strHash } from '../city/plan/dice.js';
 import { landStones, stoneForms, SHAPES } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
-import { DRIFT_CELL, DRIFT_SEAM, driftForms } from './grass-drifts.js';
+import { DRIFT_CELL, DRIFT_SEAM, driftForms, weedForms } from './grass-drifts.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 /** The sward's short areas: the field's cell (metres) and the seam a short area eases into a tall one over (a share of
@@ -241,13 +241,13 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
       return (h(i, j) * (1 - a) + h(i + 1, j) * a) * (1 - b) + (h(i, j + 1) * (1 - a) + h(i + 1, j + 1) * a) * b; };
     const ease = (t) => t * t * (3 - 2 * t);
     for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - 0.27) / 0.2))); }
-    // (under snow, the share of the grass its depth leaves standing, cubed: the near blades stand their full height, so
-    // what a painted tuft shows through a cover, a blade shows only through a dusting; era/snow.js snowMap)
+    // (none where snow lies, whatever its depth: a winter's ground is the snow's, the grass under it; a snow line's land
+    // keeps its grass below the line; era/snow.js snowMap)
     if (snow) {
       const S = Buffer.from(snow.px, 'base64'), [sx, sy] = snow.size;
       for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
         const si = Math.round((x0 + ii * GCELL - snow.origin[0]) / snow.cell), sj = Math.round((y0 + j * GCELL - snow.origin[1]) / snow.cell);
-        if (si >= 0 && sj >= 0 && si < sx && sj < sy) cov[j * nx + ii] *= 1 - (S[(sj * sx + si) * 4] / 255) * (1 - snow.under ** 3);
+        if (si >= 0 && sj >= 0 && si < sx && sj < sy) cov[j * nx + ii] *= 1 - S[(sj * sx + si) * 4] / 255;
       }
     }
     // (off the trail: the path's mask takes the grass, its weight past a half)
@@ -293,6 +293,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
       for (let q = 0; q < nx * ny; q++) if (free(q)) dpx[q * 4 + k] = Math.round((share >= 1 ? 1 : ease(Math.min(1, Math.max(0, (share - rank(f(...cellXY(q)))) / DRIFT_SEAM + 0.5)))) * 255);
     });
     const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
+    // (no grass anywhere, a land wholly under snow: no grass on the page at all)
+    if (!cov.some((v) => v > 1e-3)) return null;
     return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}) };
   })() : null;
   // the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
@@ -302,7 +304,10 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   const u01b = (k) => strHash(k) / 4294967296;
   // (the drifts' plants, the library's, their colours carried into the cube's light by the ratio its grass was solved by)
   const gTarget = C.colour.grass ? lin(hexRgb(C.colour.grass)) : null;
-  const driftKinds = grassMap?.drift ? drifts.map((d) => driftForms(d, gTarget ? light.linearBases.grass.map((v, k) => v / Math.max(1e-6, gTarget[k])) : [1, 1, 1])) : null;
+  const gRatio = gTarget ? light.linearBases.grass.map((v, k) => v / Math.max(1e-6, gTarget[k])) : [1, 1, 1];
+  const driftKinds = grassMap?.drift ? drifts.map((d) => driftForms(d, gRatio)) : null;
+  // (and the weeds any grass carries a few of, the same way)
+  const weedKinds = grassMap ? weedForms(gRatio) : null;
   // (`grass: 'map'`, the World page's read: the map alone, the page grows its brush; channels/form-grass.js)
   if (grassMap && withGrass !== 'map') for (let dir = 0; dir < 3; dir++) {
     const a = (dir * Math.PI) / 3 + 0.21, ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
@@ -320,13 +325,13 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
 
   return { P, L, own, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, roleBase, FADE, underAt,
     ranges, pos, c7, spl, nrm, faceOf, cornerOf, land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, DEPTH_CELL, DEPTH_MAX, depthMap,
-    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, driftKinds, ROW, SEG, brush, dress, moss,
+    tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, driftKinds, weedKinds, ROW, SEG, brush, dress, moss,
     // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
     relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
 
 export function formPayload(R) {
-  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss, grassMap, driftKinds } = R;
+  const { P, L, light, sun, bases, water, LAYERS, GREEN, TEX, A, means, png, dicePng, SD_IN, pathTex, ranges, pos, c7, spl, nrm, box, seaX, seaY, hasSea, depthMap, dirtBase, STONES, stonePack, stoneBase, dress, relief, moss, grassMap, driftKinds, weedKinds } = R;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
@@ -347,7 +352,7 @@ export function formPayload(R) {
     // (the grass's ground map: its height and where grass grows, at GCELL; channels/form-grass.js draws the grass from it)
     grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass,
       // (the drifts: their map, a channel each, and their plants)
-      ...(driftKinds ? { drifts: { px: grassMap.drift, kinds: driftKinds } } : {}) },
+      ...(driftKinds ? { drifts: { px: grassMap.drift, kinds: driftKinds } } : {}), ...(weedKinds ? { weeds: weedKinds } : {}) },
     // (the relief's heights in 16 bits over its range, row by row up the face)
     relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
   };

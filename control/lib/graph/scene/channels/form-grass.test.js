@@ -1,10 +1,11 @@
 /**
  * The form render's grass (scene/channels/form-grass.js): every sward has its clump, the short one spares polygons, each
- * length its own areas, the far grass in patches walled by real blades, taking over by height, and the page's block parses.
+ * length its own areas, all of it placed once over the map and drawn as the camera's mode has it, and the page's block
+ * parses.
  */
 import { describe, expect, it } from 'vitest';
 
-import { GRASS_TIERS, GRASS_RINGS, SWARD_LENGTH, HANDOVER, PATCHES, formGrassScript } from './form-grass.js';
+import { GRASS_TIERS, SWARD_LENGTH, STILL_FIELD, POV_GRASS, GRASS_HEIGHT, formGrassScript } from './form-grass.js';
 import { SWARDS } from '../../era/biocube.js';
 
 // a clump's triangles: each blade a strip of segments, two triangles a segment (the tip narrowed, not closed); a
@@ -28,7 +29,7 @@ describe('form grass', () => {
     expect(top('tall')).toBeGreaterThan(top('medium'));
     expect(top('medium')).toBeGreaterThan(top('short'));
     // (on the page each tier keeps to its band: no clump where the sward is another length)
-    expect(formGrassScript()).toContain('float mine = 1.0 - step( 1.0, dL );');
+    expect(formGrassScript()).toContain('const dL = Math.abs(m.sw - SL[T.sward]) / SL.band; if (dL >= 1) return;');
   });
 
   it('the short sward is a bed: bristles scattered over the cell, so its cells run together, each with a dark twin', () => {
@@ -37,33 +38,36 @@ describe('form grass', () => {
     expect(C.dark).toBe(true);
   });
 
-  it('the far grass is patches: a low top under its tips, green alone far off; near, its tufts and a wall of real blades where no patch borders it, densest facing the eye', () => {
-    expect(PATCHES.top).toBeLessThan(PATCHES.tip[0]);
-    expect(PATCHES.tip[1]).toBeGreaterThan(1);
-    expect(PATCHES.dense.rows).toBeGreaterThanOrEqual(2);
-    expect(PATCHES.dense.gap).toBeLessThan(PATCHES.gap);
-    expect(PATCHES.warp.reach).toBeLessThan(0.5);
-    // (the patches risen under the near blades before those thin, each clump going at its own distance, none growing)
-    expect(HANDOVER.rise[1]).toBeLessThanOrEqual(HANDOVER.thin[0]);
-    expect(HANDOVER.thin[1]).toBe(1);
-    // (out in rings, each a coarser grid of the clumps that live that far: the bounds rising inside the reach, every clump
-    // gone short of the bound of its last ring)
-    expect(GRASS_RINGS.rings.every((f, k, a) => f > HANDOVER.thin[0] && f < 1 && (k === 0 || f > a[k - 1]))).toBe(true);
-    expect(formGrassScript()).toContain("'float kEnd = lvC < 0.5 ? uRings.x :");
+  it('the field: the grass and the drifts placed once over the map, in tiles, nothing following the eye, nothing dithered', () => {
     const src = formGrassScript();
-    // (far, the tops and backings only; near, chosen again as the eye crosses a cell: the walls only on the sides no
-    // patch borders, the dense ones facing the eye; a point's height the grass's where it stands, so neighbours meet)
-    expect(src).toContain('form-grass-patch');
-    expect(src).toContain('farTop.fill(tops); farBack.fill(backs);');
-    expect(src).toContain('if (!at.has(key(i + di, j + dj))) (faces ? sdn : ss).push(');
-    expect(src).toContain('farTop.mesh.onBeforeRender');
-    expect(src).toContain('float outG = fgStage( dG,');
-    expect(src).toContain("texture( tGrass, ( wpJ - uGO ) / uGM ).a");
-    // (no grass drawn as flat slices, no far tufts, nothing dithered)
+    expect(STILL_FIELD.tile).toBeGreaterThan(0);
+    expect(src).toContain('const stand = (tg, R, mat, kind = \'grass\') => {');
+    // (no grid that walks with the camera, no carpet, no far forms: what is placed is placed once)
+    expect(src).not.toContain('cameraPosition.xy / uSp');
+    expect(src).not.toContain('form-grass-patch');
+    expect(src).not.toContain("['near', 'far']");
     expect(src).not.toContain('aShell');
-    expect(src).not.toContain('uWide');
     expect(src).not.toContain('> vFade ) discard');
     expect(GRASS_TIERS.some((t) => t.sward === 'any')).toBe(false);
+  });
+
+  it('by the camera\'s mode: POV real grass to a share of the map, thinning, strands past it; aerial all of it', () => {
+    const src = formGrassScript();
+    expect(POV_GRASS.share).toBeGreaterThan(0);
+    expect(POV_GRASS.share).toBeLessThan(1);
+    expect(POV_GRASS.thin).toBeLessThan(1);
+    expect(POV_GRASS.strands.px).toBeGreaterThan(0);
+    expect(src).toContain('window.__formGrassView = (v) =>');
+    expect(src).toContain("'form-grass-strands'");
+  });
+
+  it('wanders in height (a slow field, taller and shorter stretches, each clump its own share), and carries a few weeds', () => {
+    expect(GRASS_HEIGHT.range[0]).toBeLessThan(1);
+    expect(GRASS_HEIGHT.range[1]).toBeGreaterThan(1);
+    expect(GRASS_HEIGHT.clump).toBeGreaterThan(0);
+    const src = formGrassScript();
+    expect(src).toContain('T.scale * tall(x, y) * (1 + GH.clump');
+    expect(src).toContain('const Wd = Gm.weeds;');
   });
 
   it('bends in the page\'s one gust field when it has one, and stands still when it has none', () => {

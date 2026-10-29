@@ -8,12 +8,12 @@
  * and the floor's solved bases (era/cube-light.js) for a crown and a bark, a kind's own pick from the theorist's offer
  * (era/flora-colours.js) solved the same way (its colour over the cube's foliage, times the foliage's base).
  *
- *   floraRead(plants, { kinds, bushKinds, colours, bases }) → { templates, barks, trees, n, lod, leafRef } | null
+ *   floraRead(plants, { kinds, bushKinds, colours, bases, autumn? }) → { templates, barks, trees, n, lod, leafRef, autumn? } | null
  *     (leafRef: the leaf colour a geometry's tone factors are over, linear: a blossom's or a berry's own colour back)
  *     plants: plantItems' { form, trees, bushes, shrubs } (a bamboo or a blossom card: null, its own look stays)
  *     kinds: the card's `trees.leafKinds`; bushKinds: `thickets.kinds`; colours: the cube's (#rrggbb: foliage, grass,
  *     stone, floor, accent); bases: the cube light's linear bases (foliage, floor)
- *     templates: [{ kind: 'tree' | 'bush', name, height, radius, wood, woodFar?, clumps, sites, clumpGeo, sprayGeo, bark,
+ *     templates: [{ kind: 'tree' | 'bush', name, height, radius, wood, woodFar?, clumps, sites, clumpGeo, sprayGeo, bark, litter?,
  *       pad, detail, adorn? }] (geometry packed: Float32, Int8, Uint8, Uint16/32 as base64)
  *     barks: { key: { metres, depth, base, normal, orm, height } } (PNG data URLs, BARK_SIZE a side)
  *     trees: Float32 base64, FLORA_STRIDE a plant: x y z, scale, yaw, leaf rgb (linear), bark rgb (a tint over the
@@ -125,13 +125,15 @@ function treeTemplate(species, height) {
         farGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, bundle: far }).tris)) });
     }
   }
+  // (the leaves it drops: its own outline, needles for a needled crown; channels/form-flora.js lays them round its foot)
+  const T = CACHE.get(key); if (!T.litter) T.litter = needleHabit(species) ? 'needle' : leafOutlineOf(species);
   return CACHE.get(key);
 }
 function bambooTemplate(species, height, v) {
   const key = `bamboo:${species}:${height}:${v}`;
   if (!CACHE.has(key)) {
     const B = bambooForm(species, { seed: 1 + v, height });
-    CACHE.set(key, { ...template('tree', `bamboo:${species}`, { ...B, bark: null }, B.leaf), wood: packWood(B.wood), woodFar: packWood(B.woodFar), culm: true, culmMean: B.culm.color.map((v) => r4(lin(v))) });
+    CACHE.set(key, { ...template('tree', `bamboo:${species}`, { ...B, bark: null }, B.leaf), wood: packWood(B.wood), woodFar: packWood(B.woodFar), culm: true, litter: 'lance', culmMean: B.culm.color.map((v) => r4(lin(v))) });
   }
   return CACHE.get(key);
 }
@@ -201,7 +203,16 @@ export function viewHeld(plants, cameras = [], { kinds = null } = {}) {
   return { ...plants, trees: plants.trees.map((t) => (held.has(t) ? { ...t, held: true } : t)), ...(plants.clear ? { clear: plants.clear.filter(([x, y]) => !at.has(`${x},${y}`)) } : {}) };
 }
 
-export function floraRead(plants, { kinds = null, bushKinds = null, colours, bases }) {
+/** THE FALL: the colour each deciduous species turns (linear, the scale of a cube's solved foliage), and how a level's
+ *  `autumn` (biocube `flora.autumn`, 0 to 1) turns its trees: each its own share of it (`spread`: the least and the most,
+ *  × the autumn, by its dice), and some way toward the year's yellow (`yellow`, by another die, at most `toward`), so a
+ *  wood in the fall is never one colour. A species not named here (a conifer, a palm, an evergreen) keeps its green. */
+export const AUTUMN = Object.freeze({
+  colours: Object.freeze({ maple: Object.freeze([0.62, 0.05, 0.01]), cherry: Object.freeze([0.64, 0.13, 0.02]), beech: Object.freeze([0.58, 0.22, 0.02]),
+    oak: Object.freeze([0.46, 0.17, 0.02]), willow: Object.freeze([0.62, 0.5, 0.03]) }),
+  yellow: Object.freeze([0.68, 0.5, 0.02]), toward: 0.55, spread: Object.freeze([0.35, 1.4]),
+});
+export function floraRead(plants, { kinds = null, bushKinds = null, colours, bases, autumn = 0 }) {
   if (!plants || plants.form === 'blossom') return null;
   if (!plants.trees.length && !plants.bushes.length && !plants.shrubs.length) return null;
   // the colours: the cube's foliage and bark (its floor darkened, as the land's wood class), a kind's pick its offer's
@@ -217,9 +228,16 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // (a bark's tint: half-way from its own colour to the target, so a species keeps its bark and the level its palette; a
   // culm, no bark, a green stem: its colour CULM_TO_LEAF of the way to the level's foliage, so it reads as this world's)
   const tint = (T, target) => { if (T.culm) { const m = T.culmMean; return [0, 1, 2].map((k) => r4(1 - CULM_TO_LEAF + (CULM_TO_LEAF * leafBase[k]) / Math.max(1e-4, m[k]))); } if (!T.bark) return [1, 1, 1]; const m = barks[T.bark].mean; return [0, 1, 2].map((k) => r4(0.5 + (0.5 * target[k]) / Math.max(1e-4, m[k]))); };
+  // (a deciduous tree in the fall: its leaves its own way toward its species' colour, some way to the yellow)
+  const turned = (T, p, leaf) => {
+    const fall = autumn > 0 && T.kind === 'tree' && AUTUMN.colours[T.name]; if (!fall) return leaf;
+    const d = hashN(Math.round(p.x * 100) * 31 + Math.round(p.y * 100) * 17), e = hashN(Math.round(p.x * 100) * 11 + Math.round(p.y * 100) * 43 + 5);
+    const t = Math.min(1, autumn * (AUTUMN.spread[0] + (AUTUMN.spread[1] - AUTUMN.spread[0]) * d)), y = AUTUMN.toward * e;
+    return leaf.map((v, k) => r4(v + (fall[k] + (AUTUMN.yellow[k] - fall[k]) * y - v) * t));
+  };
   const push = (T, p, h, K, soft = false, yaw0 = null) => {
     const ti = use(T), yaw = yaw0 ?? 2 * Math.PI * hashN(Math.round(p.x * 100) * 7 + Math.round(p.y * 100) * 13);
-    out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...leafOf(K), ...tint(T, barkTarget(K)), ti, soft ? 1 : 0);
+    out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...turned(T, p, leafOf(K)), ...tint(T, barkTarget(K)), ti, soft ? 1 : 0);
   };
   // the trees: each kind's species at the kind's middle height (a level's heights to the nearest HEIGHT_STEP)
   const kindAt = (t) => (t.kind >= 0 && kinds ? readKind(kinds[t.kind]) : null);
@@ -243,5 +261,5 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     const adorn = s.state === 'bloom' || s.state === 'fruit' ? s.state : null;
     push(bushTemplate(SHRUB_HABIT, 1.2, adorn, `shrub:${SHRUB_HABIT}`), s, s.h, null, !!s.soft);
   }
-  return { templates, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4) };
+  return { templates, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}) };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, speciesFor, viewHeld, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR } from './flora-read.js';
+import { floraRead, speciesFor, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -61,11 +61,23 @@ describe('the form render\'s plants', () => {
     expect(FLORA_HIDES).toContain('flora:bush');
   });
 
+  it('in the fall a deciduous species turns, an evergreen keeps its green, and no fall adds nothing', () => {
+    const F0 = floraRead(plants(), { kinds: plants().kinds, colours, bases }), F1 = floraRead(plants(), { kinds: plants().kinds, colours, bases, autumn: 0.8 });
+    expect(AUTUMN.colours.pine).toBeUndefined();
+    expect(F1.trees).toBe(F0.trees);
+    expect(F1.autumn).toBe(0.8);
+    expect(F0.autumn).toBeUndefined();
+    expect(Object.keys(AUTUMN.colours).length).toBeGreaterThan(0);
+  });
+
   it('adds nothing to the land\'s page without plants, and grows them inside it with', () => {
     const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
     expect(formLandScript(land)).toBe(formLandScript(land, null));
     const F = floraRead(plants(), { kinds: plants().kinds, colours, bases }), page = formLandScript(land, F);
     expect(page).toContain('the plants (gen-7');
     expect(formLandScript(land)).not.toContain('the plants (gen-7');
+    // (a tree drops its own leaves round its foot: a needled crown its needles, laid as alpha on the ground)
+    expect(F.templates[0].litter).toBe('needle');
+    expect(page).toContain("m.customProgramCacheKey = () => 'form-litter';");
   });
 });

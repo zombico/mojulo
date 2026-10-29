@@ -24,6 +24,24 @@ import { WIND_AT_GLSL } from './terrain-wind.js';
  * (terrain-wind.js, the grass's own: one wind), a pendulum's φ·u|u| (`phi`, `bushPhi`), the leaves' flutter `flutter` m
  * at a fresh wind; a walked-through bush SHAKES as the walker brushes it (`shake` m, settling over `settle` s).
  */
+/**
+ * THE LITTER under a tree: its fallen leaves round its foot, as alpha on the ground, no geometry a leaf. One disc a tree
+ * (`reach` × its crown's radius, at most `most` m), lying on the ground (`lift` m over the grass map's heights, a coarser
+ * read of it than the land's, so the land never shows through; never up a stone, and none drawn under one); on it, leaves of the tree's own outline (its
+ * template's `litter`: ovate, lobed, broad, lance, or needles) in cells `cell` m across, a leaf a cell where its dice
+ * fall under the litter's thickness there (`thick` at the foot, none at the rim), each turned and sized its own way,
+ * dark brown, yellowed, or its own green faded (`tones`, linear, the last a share of the tree's leaf colour); in `layers`
+ * a little apart (`depth` m), the deeper seen through the gaps of the nearer, shifted against them as the eye moves (a
+ * parallax), each deeper a shade darker. Between the leaves, nothing: the ground. A leaf is drawn only where it
+ * stands `px` pixels or more on the screen (thinning between them, its narrowest way, measured by the screen's own
+ * rate of change of the ground under it): seen far or low across, the litter thins rather than breaking into dots.
+ * In the FALL (the level's `autumn`, 0 to 1) it lies thicker and wider (`fall`: its reach, its most and its thickness
+ * each grown by as much × the autumn) and less of it brown, more of it the tree's own turned colour.
+ */
+export const LITTER = Object.freeze({ reach: 0.85, most: 4.5, cell: 0.26, size: Object.freeze([0.6, 0.92]), thick: 0.75, layers: 3, depth: 0.03, lift: 0.06, climb: 0.35, margin: 0.4, px: Object.freeze([4, 8]),
+  tones: Object.freeze([Object.freeze([0.16, 0.09, 0.04]), Object.freeze([0.42, 0.3, 0.07]), Object.freeze([0.24, 0.26, 0.1])]),
+  fall: Object.freeze({ reach: 0.75, most: 3, thick: 0.25, brown: 0.3 }) });
+const LITTER_SHAPES = Object.freeze(['ovate', 'lobed', 'broad', 'lance', 'needle']);
 export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, culmPhi: 0.012, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
 const SWAY_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, float shake, float ph ) {
   vec2 u = mojWindAt( wp.xy, max( 0.5, wp.z - base.z ), uWindT ); float m = length( u );
@@ -265,6 +283,77 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         for (const { parts } of T) for (const X of Object.values(parts)) { const A = X.im.geometry.getAttribute('aShake'); for (let k = 0; k < X.im.count; k++) A.array[k] = shake[X.slot[k]] || 0; A.needsUpdate = true; }
       }
       requestAnimationFrame(tick);
+    })();
+    // the LITTER: a disc round each tree's foot lying on the ground (the grass map's heights where it has them), its
+    // leaves drawn in the fragment: the tree's outline in cells, in layers a parallax apart, nothing between them
+    (function () {
+      const LT = ${safeJson(LITTER)}, SH = ${safeJson(LITTER_SHAPES)}, Gm = D.grass, gp = Gm ? bytes(Gm.px) : null, AU = FL.autumn || 0;
+      const zAt = (x, y, z0) => { if (!gp) return z0; const [nx, ny] = Gm.size, u = (x - Gm.origin[0]) / Gm.cell, v = (y - Gm.origin[1]) / Gm.cell, i = Math.floor(u), j = Math.floor(v), f = u - i, g = v - j;
+        const zq = (a, b) => { const q = (Math.min(ny - 1, Math.max(0, b)) * nx + Math.min(nx - 1, Math.max(0, a))) * 4; return Gm.z[0] + ((gp[q] * 256 + gp[q + 1]) / 65535) * Gm.z[1]; };
+        return (zq(i, j) * (1 - f) + zq(i + 1, j) * f) * (1 - g) + (zq(i, j + 1) * (1 - f) + zq(i + 1, j + 1) * f) * g; };
+      const pos = [], loc = [], tree = [], col = [], cov = [], idx = [], RINGS = 7, SEGS = 18;
+      for (let i = 0; i < N; i++) {
+        const b = i * STRIDE, t = FL.templates[P[b + 11]]; if (t.kind !== 'tree' || !t.litter) continue;
+        const R = Math.min(LT.most + LT.fall.most * AU, (LT.reach + LT.fall.reach * AU) * t.radius * P[b + 3]), base = pos.length / 3, sh = Math.max(0, SH.indexOf(t.litter));
+        for (let r = 0; r <= RINGS; r++) for (let k = 0; k < (r ? SEGS : 1); k++) {
+          const a = (2 * Math.PI * k) / SEGS, d = (R * r) / RINGS, x = P[b] + d * Math.cos(a), y = P[b + 1] + d * Math.sin(a);
+          // (never climbing a stone: the map's heights take a boulder's top, so the disc rises no steeper than LT.climb from the
+          // tree's foot and goes under what stands higher)
+          const zg = zAt(x, y, P[b + 2]), zc = P[b + 2] + LT.climb * d + 0.05;
+          // (covered: a stone over the ground here or within LT.margin of it, so no leaf shows at a stone's foot either)
+          const up = (u, v) => zAt(u, v, P[b + 2]) > zc + 0.1 + LT.climb * Math.hypot(u - x, v - y);
+          const near = up(x, y) || [0, 1, 2, 3, 4, 5].some((q) => up(x + LT.margin * Math.cos(q * 1.0472), y + LT.margin * Math.sin(q * 1.0472)));
+          pos.push(x, y, Math.min(zg, zc) + LT.lift); cov.push(near ? 1 : 0); loc.push(x - P[b], y - P[b + 1], R); tree.push(sh, (i * 37) % 97); col.push(P[b + 5], P[b + 6], P[b + 7]);
+        }
+        const at = (r, k) => (r ? base + 1 + (r - 1) * SEGS + (k % SEGS) : base);
+        for (let k = 0; k < SEGS; k++) idx.push(at(0, 0), at(1, k), at(1, k + 1));
+        for (let r = 1; r < RINGS; r++) for (let k = 0; k < SEGS; k++) idx.push(at(r, k), at(r + 1, k), at(r + 1, k + 1), at(r, k), at(r + 1, k + 1), at(r, k + 1));
+      }
+      if (!idx.length) return;
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aLoc', new THREE.Float32BufferAttribute(loc, 3));
+      g.setAttribute('aTree', new THREE.Float32BufferAttribute(tree, 2)); g.setAttribute('aGreen', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('aCov', new THREE.Float32BufferAttribute(cov, 1)); g.setIndex(idx);
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+      // (drawn after the solids, whole where a leaf is and nothing between, so the occlusion's prepass, which would draw the
+      // disc whole, passes it by: channels/creases.js reads a transparent material as no surface)
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0, transparent: true, depthWrite: true, polygonOffset: true, polygonOffsetFactor: 0, polygonOffsetUnits: -2 });
+      m.onBeforeCompile = (sh) => {
+        sh.vertexShader = 'attribute vec3 aLoc;\\nattribute vec2 aTree;\\nattribute vec3 aGreen;\\nattribute float aCov;\\nvarying vec3 vLoc;\\nvarying vec2 vTree;\\nvarying vec3 vGreen;\\nvarying vec3 vWp;\\nvarying float vCov;\\n' + sh.vertexShader
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vLoc = aLoc; vTree = aTree; vGreen = aGreen; vCov = aCov; vWp = ( modelMatrix * vec4( position, 1.0 ) ).xyz;');
+        const shapes = SH.map((n, k) => '    if ( s == ' + k + ' ) w = ' + ({ ovate: '0.42 * sqrt( max( 0.0, 1.0 - x * x ) ) * ( 1.05 - 0.35 * x )', lobed: '0.52 * sqrt( max( 0.0, 1.0 - x * x ) ) * ( 0.72 + 0.28 * cos( x * 9.4 ) )', broad: '0.62 * sqrt( max( 0.0, 1.0 - x * x ) )', lance: '0.2 * sqrt( max( 0.0, 1.0 - x * x ) )', needle: '0.05' })[n] + ';').join('\\n');
+        sh.fragmentShader = 'varying vec3 vLoc;\\nvarying vec2 vTree;\\nvarying vec3 vGreen;\\nvarying vec3 vWp;\\nvarying float vCov;\\n'
+          + 'float ltH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\n'
+          + 'float ltW( int s, float x ) { float w = 0.0;\\n' + shapes + '\\n  return w; }\\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', [
+            '#include <color_fragment>',
+            // (the eye's slant over the ground: a deeper layer shifts against a nearer one as it moves)
+            '  vec3 eyeL = normalize( cameraPosition - vWp ); vec2 par = eyeL.xy / max( eyeL.z, 0.3 );',
+            // (the tree's shape and seed whole numbers, rounded: an interpolated value drifts in its last digits, which the
+            // hash would turn into a different leaf at every pixel)
+            '  int sL = int( vTree.x + 0.5 ); float sd = floor( vTree.y + 0.5 ); vec3 got = vec3( -1.0 );',
+            // (how many pixels a leaf spans its narrowest way here: none drawn under the least)
+            '  vec2 fw = fwidth( vLoc.xy ); float pxL = ' + LT.cell.toFixed(3) + ' * 0.7 / max( 1e-5, max( fw.x, fw.y ) ), seen = smoothstep( ' + LT.px[0].toFixed(1) + ', ' + LT.px[1].toFixed(1) + ', pxL );',
+            // (none where a stone stands over the ground: the disc goes under it, and nothing of it shows)
+            '  if ( seen <= 0.0 || vCov > 0.01 ) discard;',
+            '  for ( int k = 0; k < ' + LT.layers + '; k++ ) {',
+            '    vec2 p = vLoc.xy + par * float( k ) * ' + LT.depth.toFixed(3) + ' + vec2( float( k ) * 0.37, float( k ) * 0.61 );',
+            '    vec2 c = floor( p / ' + LT.cell.toFixed(3) + ' ), f = p / ' + LT.cell.toFixed(3) + ' - c - 0.5; vec2 key = c + vec2( sd * 13.0, float( k ) * 57.0 );',
+            '    float thick = ' + Math.min(0.97, LT.thick + LT.fall.thick * AU).toFixed(2) + ' * ( 1.0 - smoothstep( 0.25, 1.0, length( p ) / vLoc.z ) ) * seen;',
+            '    if ( ltH( key ) > thick ) continue;',
+            '    float a = ltH( key + 3.1 ) * 6.2832, sz = mix( ' + LT.size[0].toFixed(2) + ', ' + LT.size[1].toFixed(2) + ', ltH( key + 7.7 ) ) * 0.5;',
+            '    vec2 o = ( vec2( ltH( key + 1.3 ), ltH( key + 5.9 ) ) - 0.5 ) * ( 0.5 - sz ) * 2.0, q = f - o; q = mat2( cos( a ), sin( a ), -sin( a ), cos( a ) ) * q / sz;',
+            '    if ( abs( q.x ) > 1.0 || abs( q.y ) > ltW( sL, q.x ) ) continue;',
+            // (its tone: dark brown, yellowed, or the tree's own green faded; a midrib a shade darker down its middle)
+            '    float tn = ltH( key + 9.3 ); vec3 gr = vGreen / max( 1e-3, max( vGreen.r, max( vGreen.g, vGreen.b ) ) );',
+            '    vec3 tone = tn < ' + (0.45 - LT.fall.brown * AU).toFixed(2) + ' ? vec3(' + LT.tones[0].join(', ') + ') : tn < ' + (0.8 - 0.4 * AU).toFixed(2) + ' ? vec3(' + LT.tones[1].join(', ') + ') : ' + (AU > 0 ? 'vGreen * ( 0.9 + 0.3 * ltH( key + 4.4 ) )' : 'vec3(' + LT.tones[2].join(', ') + ') * gr') + ';',
+            '    got = tone * ( 0.75 + 0.5 * ltH( key + 2.2 ) ) * ( 1.0 - 0.22 * float( k ) ) * ( sL == 4 ? 1.0 : 1.0 - 0.3 * ( 1.0 - smoothstep( 0.0, 0.1, abs( q.y ) ) ) );',
+            '    break;',
+            '  }',
+            '  if ( got.x < 0.0 ) discard;',
+            '  diffuseColor.rgb = got;'].join('\\n'));
+      };
+      m.customProgramCacheKey = () => 'form-litter';
+      const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
+      window.__formLitter = idx.length / 3;
     })();
     window.__formFlora = () => ({ ...stat, soft: soft.length, shaking: soft.filter((i) => shake[i] > 0).length });
   }

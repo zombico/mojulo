@@ -9,13 +9,14 @@
  * ratio the cube's light solved for its grass (base ÷ target, per channel), as the dirt's tones are.
  *
  *   readDrifts({ drifts?, flowers? }) → [{ id, share, mix? }]   (the biocube's words: `flora.grass.drifts`, `flora.flowers`)
- *   driftForms(drift, ratio) → { id, stands, heights, forms: [{ w, near: { p, c }, far: { p, c } }] }
+ *   driftForms(drift, ratio) → { id, stands, heights, forms: [{ w, p, c }] }   (each form grown full)
+ *   weedForms(ratio) → { share, cell, spacing, heights, forms: [{ w, kind, p, c }] }   (every weed kind in its variants)
  *     stands: the drift stands in place of the sward's blades (a kind taller than the short sward); else it lies among them.
  *     heights: [lo, hi] metres a plant is scaled to (a grass tuft is grown at unit height; a flower in its tuft's units).
  *     p: positions, three a vertex, three vertices a triangle; c: linear colours, three a vertex.
  */
 import { GRASSES, grassTuft } from '../vegetation/grass.js';
-import { WILDFLOWERS, wildflower } from '../vegetation/wildflowers.js';
+import { WILDFLOWERS, WEEDS, wildflower } from '../vegetation/wildflowers.js';
 import { decodeSrgb } from '../color-theorist/light.js';
 
 /** The drifts' field: its cell (metres) and the seam a drift eases out over (a share of the grass). */
@@ -33,11 +34,20 @@ export const FLOWER_COLOURS = Object.freeze({
   clover: { petal: [200, 104, 160] },
   lupine: { petal: [132, 100, 206] },
   poppy: { petal: [214, 56, 44], eye: [52, 40, 46] },
+  dandelion: { petal: [246, 200, 36] },
+  speedwell: { petal: [92, 124, 222], eye: [240, 240, 236] },
+  yarrow: { petal: [236, 232, 218] },
+  plantain: { petal: [118, 100, 66] },
 });
+/** The WEEDS any grass carries, outside the drifts: the library's weed kinds (vegetation/wildflowers.js WEEDS), each
+ *  grown in `variants` (a plant of its own seed each), a few of the grass's cells holding one (`share` of the cover,
+ *  gathered in loose patches about `cell` m across), standing `heights` × the tips of the grass round them (a little
+ *  over a long sward, a little over a short one), drawn at `size` × the flowers' heads. */
+export const WEED_SET = Object.freeze({ variants: 3, share: 0.05, cell: 9, spacing: 0.6, heights: Object.freeze([0.85, 1.2]), size: 1.3 });
 const STEM = [86, 128, 60];
 /** Variants grown per form (each draws its kind's whole grid on the page: a variant costs a grid), and the levels near
  *  and far. */
-const VARIANTS = 1, NEAR = 'L1', FAR = 'L0';
+const VARIANTS = 1, NEAR = 'L1';
 /** The flowers' heads, × the library's: read over the blades at a walker's distance (gen-6's stylized field reads them
  *  at twice and more). */
 export const FLOWER_SIZE = 1.7;
@@ -70,7 +80,7 @@ export function driftForms(drift, ratio) {
       const C = FLOWER_COLOURS[kind], colourOf = (t) => (t.part === 'stem' ? STEM : t.part === 'eye' ? C.eye ?? C.petal : C.petal);
       for (let v = 0; v < VARIANTS; v++) {
         const seed = 101 * v + kind.length * 7 + 3;
-        forms.push({ w: w / VARIANTS, near: pack(wildflower(kind, { seed, level: NEAR, size: FLOWER_SIZE }), colourOf, ratio), far: pack(wildflower(kind, { seed, level: FAR, size: FLOWER_SIZE }), colourOf, ratio) });
+        forms.push({ w: w / VARIANTS, ...pack(wildflower(kind, { seed, level: NEAR, size: FLOWER_SIZE }), colourOf, ratio) });
       }
     }
     const sum = forms.reduce((a, f) => a + f.w, 0) || 1;
@@ -79,7 +89,17 @@ export function driftForms(drift, ratio) {
   const G = GRASSES[drift.id];
   const forms = Array.from({ length: VARIANTS }, (_, v) => {
     const seed = 31 * v + drift.id.length * 5 + 1, colourOf = (t) => t.c;
-    return { w: r4(1 / VARIANTS), near: pack(grassTuft(drift.id, { seed, level: NEAR }), colourOf, ratio), far: pack(grassTuft(drift.id, { seed, level: FAR }), colourOf, ratio) };
+    return { w: r4(1 / VARIANTS), ...pack(grassTuft(drift.id, { seed, level: NEAR }), colourOf, ratio) };
   });
   return { id: drift.id, stands: G.heights[1] > DRIFT_STANDS, heights: G.heights, forms };
+}
+
+export function weedForms(ratio) {
+  const forms = [];
+  for (const kind of WEEDS) {
+    const C = FLOWER_COLOURS[kind], colourOf = (t) => (t.part === 'stem' ? STEM : t.part === 'eye' ? C.eye ?? C.petal : C.petal);
+    for (let v = 0; v < WEED_SET.variants; v++) forms.push({ w: r4(1 / (WEEDS.length * WEED_SET.variants)), kind, ...pack(wildflower(kind, { seed: 211 * v + kind.length * 13 + 5, level: NEAR, size: WEED_SET.size }), colourOf, ratio) });
+  }
+  const { variants: _v, size: _s, ...place } = WEED_SET;
+  return { ...place, forms };
 }

@@ -45,8 +45,7 @@
   1.5 m wide) and spray SITES (0.6 m), each facing out of the crown, scaled to hold its cell's leaf area (× a crown fill),
   the crown's own shade as occlusion, a rank. The crown is clumps everywhere (`vegetation/sprays.js` leafClump: a rosette
   of six oversized leaves of the species' outline, simplified and blunt, 36 triangles), and near the eye the SPRAYS come
-  in inside them, each whole at its own distance, as the clumps draw in: the grass's carpet and blades, nothing from
-  nothing; a clump and the sprays of its cell hold the same leaf area (leafHolds). A spray: a twig and its leaves as its
+  in inside them, each whole at its own distance, as the clumps draw in, nothing from nothing; a clump and the sprays of its cell hold the same leaf area (leafHolds). A spray: a twig and its leaves as its
   species carries them, the architecture's phyllotaxis (the golden angle, or two ranks level either side) and the leaf's
   outline (an oak's lobes, an ovate or a broad blade), each leaf folded on its midrib. Every leaf's normal bent toward the
   crown's outside, a little light through it. Far off a crown keeps fewer clumps, the kept ones grown to hold the cover:

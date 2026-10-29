@@ -117,6 +117,12 @@ describe('nothing grows on a path', () => {
     expect(withFlora(ISEKAI_MEADOW, short).grass).toEqual(withFlora(ISEKAI_MEADOW, readBiocube('meadow')).grass);
   });
 
+  it('reads how far into the fall a biome is, 0 to 1, and nothing where it names none', () => {
+    expect(readBiocube({ from: 'forest', flora: { autumn: 0.6 } }).flora.autumn).toBe(0.6);
+    expect(readBiocube({ from: 'forest' }).flora.autumn).toBeUndefined();
+    expect(() => readBiocube({ from: 'forest', flora: { autumn: 2 } })).toThrow(/flora\.autumn/);
+  });
+
   it('drifts are other grasses in areas of their own: a grass kind and a share, at most three; the card\'s grass as it was', () => {
     const W = readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 0.2, chaff: 0.1 } } } });
     expect(W.flora.grass.drifts).toEqual({ wheat: 0.2, chaff: 0.1 });
