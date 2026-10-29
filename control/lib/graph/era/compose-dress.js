@@ -201,8 +201,10 @@ export function layProps(plan) {
   const layExtinguishers = (r) => {
     const P = PIECES[EXTINGUISHER];
     for (const o of openingsOf(plan, r)) {
-      const facing = o.X ? (o.into > 0 ? '+x' : '-x') : o.into > 0 ? '+y' : '-y', v = o.at + o.into * (off + P.d / 2);
-      for (const u of [o.hi + 0.75, o.lo - 0.75]) {
+      // (off the room's own face of that wall, as the stock along its walls is: a doorway's line is the wall's middle)
+      const facing = o.X ? (o.into > 0 ? '+x' : '-x') : o.into > 0 ? '+y' : '-y';
+      const v = o.into > 0 ? (o.X ? r.x0 : r.y0) + off + P.d / 2 : (o.X ? r.x1 : r.y1) - off - P.d / 2;
+      for (const u of [o.hi + 0.75, o.lo - 0.75, o.hi + 1.2, o.lo - 1.2]) {
         const it = { id: `${r.id}/door/${EXTINGUISHER}`, kind: EXTINGUISHER, room: r.id, at: o.X ? [r5(v), r5(u)] : [r5(u), r5(v)], facing }, f = footprintOf(it);
         if (f.min[0] < r.x0 || f.max[0] > r.x1 || f.min[1] < r.y0 || f.max[1] > r.y1 || !free(r, f.min, f.max)) continue;
         add(it, P, () => 0);
@@ -244,9 +246,10 @@ export function layProps(plan) {
     if (plan.use) {
       const lines = STOCK[roleOf(r.id)];
       if (lines) {
+        // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
+        layExtinguishers(r);
         const sd = mulberry32(hashOf(`stock|${r.id}`));
         for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
-        layExtinguishers(r);
       }
       continue;
     }

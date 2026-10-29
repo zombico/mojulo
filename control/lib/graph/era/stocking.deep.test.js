@@ -9,7 +9,8 @@ import { withProgram, BASE_USES } from './programs.js';
 describe('every base building is stocked by its laws', () => {
   for (const use of BASE_USES) {
     it(use, () => {
-      const m = resolveProps(resolveCompose({ kind: 'stage', program: { use, seed: 1 }, compose: 'military greys' }));
+      // (composed as a world builds it: on its own kit's register, gameworld/levels.js buildingStage)
+      const m = resolveProps(resolveCompose({ kind: 'stage', program: { use, seed: 1 }, compose: {} }));
       for (const l of planStage(withProgram(m)).compose.dress) expect(l.ok, `${use} ${l.id}: ${l.says}`).toBe(true);
     });
   }

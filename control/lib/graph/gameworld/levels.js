@@ -927,7 +927,10 @@ const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-st
 
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
 export function buildingStage(B) {
-  const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  const { use, seed, rooms, add, kit, geocube, goal, from, anchor, look, tone } = B;
+  // (a military base's building is composed, so its rooms are stocked by their uses (era/stocking.js): by the look of the
+  // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
+  const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
   const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
@@ -935,6 +938,7 @@ export function buildingStage(B) {
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
     program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
+    ...composed, ...(tone !== undefined ? { tone } : {}),
   };
 }
 

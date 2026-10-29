@@ -47,3 +47,13 @@ panels and load-bearing doodads, stocked by use. Built so far:
   supply chain's laws sit beside the dressing's (`compose.dress`): `weapons-in-armoury`, `fuel-apart` (no drum within
   3 m of ammunition), `extinguisher-by-exit` and `stocked` (every room the tables stock holds some of its stock). Every
   other stage lays what it did.
+- **A space builds its level** (`gameworld/world.js` `resolveLevel`, `gameworld/levels.js` `buildingStage`): the WCD
+  space a building level is (its `level`) hands the building its look, composed into the stage's construction and
+  palette, and its `tone` (a space's new key, read as a stage's tone), the stage's colour; carried on the dungeon, so a
+  rerun of the world keeps it. A base building's level is composed, and so stocked, with or without a space's look (on
+  its kit's own register). A building that is no base's, named by no space, is laid as it was. A space's malformed tone
+  is refused at the world, by name.
+- **Extinguishers placed off the room's face**: they were set off the doorway's line, the wall's middle, and so stood
+  in the wall on every kit whose rooms sit a half-wall in from it, and were dropped; and they are laid before the stock,
+  so the stock does not take the wall beside a door first. The deep sweep stocks each base use as a world builds it, on
+  its own kit.

@@ -13,12 +13,15 @@
  * The recipe (a design_game world's `wcd`):
  *   { core: '<space id>',
  *     spaces: { <id>: { kind: 'inner' | 'outer', depth: 0…, level?: '<world level id>', use?: '<program use>',
- *                       look?: compose words | { words?, construction?, palette? }, built?: false } },
+ *                       look?: compose words | { words?, construction?, palette? }, tone?: a stage's tone, built?: false } },
  *     doors: [{ from, to, via: 'lift' | 'teleporter' | 'door' | 'stair', gate?: { clearance: 1…9 } | { power: '<id>' },
  *               oneWay?: true }] }
  *   depth     0 the outermost; the core the deepest. A space marked `built: false` is on the path and not made yet (a
  *             vertical slice ships the inner layers alone).
  *   oneWay    a door that opens only from `from` (a shortcut back out, or a drop): a two-way door by default.
+ *   look, tone   a space bound to a building level builds it: its look the stage's composed construction and palette
+ *             (a base building's level is composed, and so stocked, with or without one: era/stocking.js), its tone the
+ *             stage's colour (era/tone.js), carried on the dungeon so a rerun of the world keeps it.
  *   a lift and a teleporter move within one level (a lift between its storeys, a teleporter pad to pad); a door and a
  *   stair may join two levels.
  *
@@ -40,6 +43,7 @@
  */
 import { readCompose } from '../era/compose.js';
 import { PROGRAM_IDS } from '../era/programs.js';
+import { readTone } from '../era/tone.js';
 
 export const WCD_KINDS = Object.freeze({
   inner: 'a new dungeon: a place of its own, its own rooms and look; the core is always one',
@@ -60,7 +64,7 @@ export const WCD_PRINCIPLES = Object.freeze({
   'same-level': 'A lift or a teleporter moves you within one level.',
 });
 const KEYS = ['core', 'spaces', 'doors'];
-const SPACE_KEYS = ['kind', 'depth', 'level', 'use', 'look', 'built'];
+const SPACE_KEYS = ['kind', 'depth', 'level', 'use', 'look', 'tone', 'built'];
 const DOOR_KEYS = ['from', 'to', 'via', 'gate', 'oneWay'];
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -106,7 +110,8 @@ export function readWcd(spec, { levels = null } = {}) {
     if (S.level !== undefined && (typeof S.level !== 'string' || (levels && !levels.includes(S.level)))) fail(`${at}.level '${S.level}' is not a level of the world${levels ? ` (${levels.join(', ')})` : ''}`);
     if (S.use !== undefined && !PROGRAM_IDS.includes(S.use)) fail(`${at}.use '${S.use}' is not a building use (${PROGRAM_IDS.join(', ')})`);
     if (S.built !== undefined && S.built !== false) fail(`${at}.built is false (a space on the path, not made yet), or left out`);
-    spaces[id] = { id, kind: S.kind, depth: S.depth, ...(S.level ? { level: S.level } : {}), ...(S.use ? { use: S.use } : {}), look: lookOf(S.look, at), built: S.built !== false };
+    if (S.tone !== undefined) try { readTone(S.tone); } catch (e) { fail(`${at}.tone: ${e.message.replace(/^stage: tone:? ?/, '')}`); }
+    spaces[id] = { id, kind: S.kind, depth: S.depth, ...(S.level ? { level: S.level } : {}), ...(S.use ? { use: S.use } : {}), look: lookOf(S.look, at), ...(S.tone !== undefined ? { tone: S.tone } : {}), built: S.built !== false };
   }
   if (typeof spec.core !== 'string' || !spaces[spec.core]) fail(`core is one of the spaces (${Object.keys(spaces).join(', ')})`);
   if (spec.doors !== undefined && !Array.isArray(spec.doors)) fail('doors is a list of { from, to, via, gate?, oneWay? }');

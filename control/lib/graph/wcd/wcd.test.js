@@ -101,3 +101,28 @@ describe('on a design_game world', () => {
     expect('wcd' in readGameworld(MEADOWMARK)).toBe(false);
   });
 });
+
+describe("a space's look and tone build its level", () => {
+  it('composed by its look, coloured by its tone, its rooms stocked; a base building with no space is composed too', async () => {
+    const { readGameworld, resolveLevel, MEADOWMARK } = await import('../gameworld/index.js');
+    const { buildingStage } = await import('../gameworld/levels.js');
+    const { resolveCompose } = await import('../era/compose.js');
+    const { resolveProps } = await import('../era/compose-lay.js');
+    const tone = { preset: 'flat' };
+    const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, block: { building: { use: 'barracks', seed: 3 } }, plant: { building: { use: 'plant', seed: 4 } } },
+      wcd: { core: 'core', spaces: { block: { kind: 'outer', depth: 0, level: 'block', look: { construction: 'bunker', palette: 'military' }, tone }, core: { kind: 'inner', depth: 1 } },
+        doors: [{ from: 'block', to: 'core', via: 'door', gate: { clearance: 1 } }] } };
+    expect(() => readGameworld(W)).not.toThrow();
+    const stage = buildingStage(resolveLevel(W, 'block').building);
+    expect(stage).toMatchObject({ compose: { construction: 'bunker', palette: 'military' }, tone });
+    const m = resolveProps(resolveCompose(stage));
+    expect(m.props.some((it) => it.kind === 'bunk')).toBe(true);
+    // (a base building no space names: composed by its kit's own register, stocked all the same; no tone)
+    const plant = buildingStage(resolveLevel(W, 'plant').building);
+    expect(plant.compose).toEqual({});
+    expect('tone' in plant).toBe(false);
+    // (a building that is no base's, with no space: as it was)
+    expect('compose' in buildingStage({ use: 'tavern', seed: 2 })).toBe(false);
+    expect(() => readGameworld({ ...W, wcd: { ...W.wcd, spaces: { ...W.wcd.spaces, block: { ...W.wcd.spaces.block, tone: 'sepia' } } } })).toThrow(/wcd: spaces.block.tone/);
+  });
+});

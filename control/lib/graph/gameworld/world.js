@@ -731,8 +731,10 @@ export function resolveLevel(world, id) {
     const B = L.building, civId = B.civilization ?? style.civilization, C = G.civilizations[civId];
     if (civId !== style.civilization) ledger.push({ scope: 'level', at: `${id}/building`, key: 'civilization', world: style.civilization, local: civId });
     const anchor = C.anchor ?? STRUCTURE_RAILS[style.kit]?.anchor ?? null;
+    // (the walled-core dungeon's space this level is: its look composes the building, its tone colours it, wcd/wcd.js)
+    const space = G.wcd ? Object.values(G.wcd.spaces).find((sp) => sp.level === id) : null;
     const building = B.ref !== undefined ? { ref: B.ref, ...(B.goal !== undefined ? { goal: B.goal } : {}) }
-      : { ...B, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}) };
+      : { ...B, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
     return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
   }
 
