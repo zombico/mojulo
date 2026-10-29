@@ -19,6 +19,7 @@
  */
 import { CHANNEL_IDS, readDerive } from './channels.js';
 import { BUILDS } from './facets.js';
+import { UNDEAD_FORMS, UNDEAD_LAYERS } from '../undead/cards.js';
 
 /** The Monk Skin Tone scale, lightest (1) to deepest (10). */
 export const MST = Object.freeze(['#f6ede4', '#f3e7db', '#f7ead0', '#eadaba', '#d7bd96', '#a07e56', '#825c43', '#604134', '#3a312a', '#292420']);
@@ -182,6 +183,77 @@ export const LINEAGES = Object.freeze({
       { at: 0.3, ch: 'frame', line: 'a second pair of arms', derives: ['pass = masses'] },
     ],
   },
+  // THE UNDEAD FORMS (lib/graph/undead): no humanity left to roll a face from, so always the creature door; the body is
+  // the form library's, its variation by the build (a brute's zombie the hulk, its skeleton the giant)
+  zombie: {
+    reads: 'the walking dead', humanity: [0, 0.2], form: 'zombie', cover: { grey: '#9a9a90', green: '#8a9a7a', blue: '#7a8a9a' },
+    built: 'the undead form library (lib/graph/undead): wasted or swollen, hunched, the arms out, a seeded loss; the gaunt head (creature-heads/derive.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'a body kept and wrong: {pick}', pick: ['wasted to the bone', 'swollen', 'hunched and reaching'] },
+      { at: 1, ch: 'structure', line: 'a dead face: sunken eyes, the jaw slack' },
+    ],
+  },
+  skeleton: {
+    reads: 'a walking skeleton', humanity: [0, 0.05], form: 'skeleton', cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): a spine, curved ribs, a pelvis basin, knobbed bones; the skull head (creature-heads/derive.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bare bone: no flesh at all' },
+      { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
+    ],
+  },
+  // a form with LAYERS (lib/graph/undead UNDEAD_LAYERS) laid over its card: the skeleton in what is left of its clothes
+  ragged: {
+    reads: 'a skeleton in rags', humanity: [0, 0.05], form: 'skeleton', layers: ['shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton, and its clothes in torn strips from the shoulders, the hips and the arms (undead/shreds.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bare bone hung with the rags of its clothes' },
+      { at: 1, ch: 'structure', line: 'a skull: empty sockets, the teeth bared' },
+    ],
+  },
+  // the corpse with its bone showing: a gaunt zombie, parts of it gone back to the skeleton
+  rotting: {
+    reads: 'a gaunt corpse, bone bared where the flesh is gone', humanity: [0, 0.15], form: 'zombie', layers: ['bared', 'spots'], cover: { grey: '#9a9a90', green: '#8a9a7a', blue: '#7a8a9a' },
+    built: 'the undead form library (lib/graph/undead): the zombie drawn in, and parts of it bone again: its skull, an arm, a leg, one side\'s ribs (undead/bared.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'flesh gone to the bone: {pick}', pick: ['a bare arm', 'the ribs through the chest', 'a leg of bone'] },
+      { at: 1, ch: 'structure', line: 'a dead face, or the skull under it' },
+    ],
+  },
+  // the ATTACK skeleton: every limb a column of segments as the spine is, clawed, standing to strike
+  ravager: {
+    reads: 'an attack skeleton', humanity: [0, 0.05], form: 'skeleton', layers: ['attack'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton with every long bone a column of ridged segments, the forearm\'s and the shin\'s two side by side, clawed fingers, crouched to strike (undead/hero-bones.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bone in columns, as the spine is, down every limb: {pick}', pick: ['crouched to spring', 'claws raised', 'the long arms reaching'] },
+      { at: 1, ch: 'structure', line: 'a skull, the jaw dropped, watching' },
+    ],
+  },
+  // the dead under arms: what is left of their armour, their weapons in their hands
+  revenant: {
+    reads: 'a skeleton under arms', humanity: [0, 0.05], form: 'skeleton', layers: ['adorned', 'armed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton in what is left of its armour (undead/armour.js) and its clothes, its weapons in its hands (the hero\'s gear)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'bare bone in {pick}', pick: ['a dented helm and a cuirass', 'a single pauldron and bracers', 'the plate it was buried in'] },
+      { at: 1, ch: 'structure', line: 'a skull under a helm, the sockets empty' },
+    ],
+  },
+  risen: {
+    reads: 'a corpse risen under arms', humanity: [0, 0.2], form: 'zombie', layers: ['adorned', 'armed'], cover: { grey: '#9a9a90', green: '#8a9a7a', blue: '#7a8a9a' },
+    built: 'the undead form library (lib/graph/undead): the zombie in what is left of its armour (undead/armour.js), the weapon it died holding in its hand',
+    cues: [
+      { at: 1, ch: 'frame', line: 'a body kept and wrong, armoured: {pick}', pick: ['a helm askew', 'a breastplate over the wasted chest', 'a pauldron on one shoulder'] },
+      { at: 1, ch: 'structure', line: 'a dead face under a helm, the jaw slack' },
+    ],
+  },
+  // the dead between the zombie and the bone: gaunt flesh rotting back on the skeleton, in its rags
+  decayed: {
+    reads: 'a rotting corpse, half bone', humanity: [0, 0.08], form: 'skeleton', layers: ['decayed', 'shreds'], cover: { bone: '#d6cfbd', old: '#c8bfa8', grey: '#b8b4aa' },
+    built: 'the undead form library (lib/graph/undead): the skeleton, gaunt rotted flesh back on it (undead/decay.js), its clothes in rags (undead/shreds.js)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'flesh rotted back to the bone: {pick}', pick: ['the ribs through a shrunken chest', 'sinew on bare bone', 'the chest rotted open'] },
+      { at: 1, ch: 'structure', line: 'a skull under dried skin, the sockets empty' },
+    ],
+  },
 });
 
 export function ancestryIds(custom = {}) { return [...HUMAN_IDS, ...Object.keys(LINEAGES), ...Object.keys(custom)]; }
@@ -200,6 +272,8 @@ export function readLineage(id, lin) {
   if (lin.skin && !(lin.skin[0] >= 1 && lin.skin[1] <= 10 && lin.skin[0] <= lin.skin[1])) throw new Error(`${at}: skin is an MST span within 1 … 10`);
   if (lin.cover) for (const [w, hex] of Object.entries(lin.cover)) if (!HEX.test(hex)) throw new Error(`${at}: cover '${w}' is a #rrggbb colour`);
   for (const b of lin.builds || []) if (!BUILDS[b]) throw new Error(`${at}: unknown build '${b}' (known: ${Object.keys(BUILDS).join(', ')})`);
+  if (lin.form !== undefined && !UNDEAD_FORMS[lin.form]) throw new Error(`${at}: unknown form '${lin.form}' (known: ${Object.keys(UNDEAD_FORMS).join(', ')})`);
+  if (lin.layers !== undefined) { if (!lin.form) throw new Error(`${at}: layers lie over a form; give form too`); for (const l of lin.layers) if (!UNDEAD_LAYERS[l]) throw new Error(`${at}: unknown layer '${l}' (known: ${Object.keys(UNDEAD_LAYERS).join(', ')})`); }
   if (!Array.isArray(lin.cues) || !lin.cues.length) throw new Error(`${at}: cues is a list`);
   for (const c of lin.cues) {
     if (!CHANNEL_IDS.includes(c.ch)) throw new Error(`${at}: unknown channel '${c.ch}' (known: ${CHANNEL_IDS.join(', ')})`);
@@ -264,5 +338,8 @@ export function resolveAncestry(id, rand, h, custom = {}) {
   }
   const gaps = door === 'hero' && lin.cues.some((c) => h <= c.at && /ornament|cover/.test(c.ch))
     ? [`${lin.reads} on the hero door: ${lin.built}`] : [];
-  return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints };
+  // (a form, the undead's: the body is its library's, so the creature door whatever the roll)
+  // (a form stands on the tiered hero body, lib/graph/undead/tiered.js)
+  if (lin.form) door = 'hero';
+  return { kind: 'lineage', reads: `${lin.reads}, humanity ${h}`, humanity: h, door, colours, notes, derives, gaps, plan: planHints, ...(lin.form ? { form: lin.form } : {}), ...(lin.layers?.length ? { layers: [...lin.layers] } : {}) };
 }

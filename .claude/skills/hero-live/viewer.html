@@ -204,7 +204,14 @@ async function load(v) {
   const underClip = idle && new THREE.AnimationClip(`${idle.name}:bodyOnly`, idle.duration, idle.tracks.filter((t) => !t.name.endsWith('.morphTargetInfluences')));
   const bones = new THREE.SkeletonHelper(root); bones.visible = $('bones').checked;
   root.visible = false; scene.add(root); scene.add(bones);
-  v.loaded = { root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+  // (a take's recorded lines, embedded in the GLB, face-acting/recordings.js: each { at, src } by its take)
+  const audio = {};
+  for (const P of (gltf.parser.json.meshes ?? []).flatMap((m) => m.extras?.face?.performances ?? [])) for (const A of P.audio ?? []) {
+    if (!Number.isInteger(A.bufferView)) continue;
+    const bytes = await gltf.parser.getDependency('bufferView', A.bufferView);
+    (audio[P.clip] ??= []).push({ at: A.at, src: URL.createObjectURL(new Blob([bytes], { type: A.mimeType ?? 'audio/wav' })) });
+  }
+  v.loaded = { audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
     stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
   return v.loaded;
 }
@@ -369,11 +376,11 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-// ─── a take's recordings: each line's audio (live.mjs `audio`), played from its beat as the take plays, at its speed;
+// ─── a take's recordings: each line's audio (embedded in the GLB), played from its beat as the take plays, at its speed;
 // paused, scrubbed or another take, silent (a browser plays sound only after the page is touched) ────────────────────
 const audioEls = new Map();
 function syncAudio(L) {
-  const list = (S.variant && V[S.variant].audio?.[S.take]) || [], a = S.take && L.actions[S.take]?.action;
+  const list = L.audio?.[S.take] ?? [], a = S.take && L.actions[S.take]?.action;
   const now = a ? (a.time % a.getClip().duration) * (L.actions[S.take].seconds / a.getClip().duration) : 0, live = new Set();
   for (const A of list) {
     let el = audioEls.get(A.src); if (!el) { el = new Audio(A.src); el.preload = 'auto'; audioEls.set(A.src, el); }

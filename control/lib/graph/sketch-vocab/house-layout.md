@@ -36,6 +36,24 @@ is a `manifest`.
   bedrooms drawn are the bedrooms built), `windows`, `entryDoor` and a `porch` or `stoop` by style. Each is a plain
   knob in the stored recipe: "add a bedroom" is `tier.beds`, "make it one floor" is `levels: [{ role: 'ground' }]`.
   Anything given wins; `program: false` keeps the single-floor generator below.
+- `purpose` — what the house is for, stamped at mint: `'show'` (a house: every piece as drawn, every table set) or
+  `'game'` (a `level`: each piece at a coarser grain, nothing on a table, a room's pieces laid in rank within
+  `allowance: { room }` faces, what the room is for always standing). A game's World reads its spend as `rails`.
+- `houseLook` — `2`, stamped at mint: a home's windows, drawn from the house's `design.tradition` and its family
+  (North American double-hung, six-over-six, casement, picture, prairie; European casement, tilt-turn, transom,
+  French; Japanese aluminium `slider`), never the steel `crittall` grid, which a house may still name. `1` or absent:
+  the windows a house had before. Look 2 also PLACES them as an architect does: each facade a grid of axes every
+  storey keeps (windows stack, 2 ft clear of the corners, the front door's facade laid round the door); each room
+  takes the axes its use asks (daylight by room, a bedroom's egress unit, a bathroom's standard frosted unit over its
+  fixtures, a hall on the facade lit, a store blind; a big room a mulled pair). The read says the window laws.
+- `form` — the house's shape, beside its size (`tier`) and finish (`style`): `'detached'` (absent: what the generator
+  always drew), `'townhouse'` (narrow and deep, three or four storeys, the stair hall along a party wall, kitchen and
+  dining to the garden, living to the street, bedrooms above; `attached: 'both'` by default, `'left'` / `'right'` an end
+  unit, `'none'`), `'block'` (the modern block: compact, two or three storeys, a hall down its middle, an open floor
+  below). The draw gives a form its storeys and footprint; party walls take no window.
+- `compass` — the house's own north, apart from the plan's N/S/E/W (directions on the drawing): `{ north, hemisphere }`,
+  north the plan angle of true north in degrees clockwise from the plan's up. Absent, the house orients itself: its
+  living room's longest outside wall to the sun. It turns the day rooms' windows to the sun, a bedroom's to the morning.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
 - Openings: a new house is minted with `windows: true` (every bedroom needs one for egress; `false` for none);
   `entryDoor` and `ceilings` are opt-in on a plan you give.

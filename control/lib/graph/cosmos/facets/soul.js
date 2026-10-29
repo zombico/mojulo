@@ -14,7 +14,7 @@ const TOGETHER = { godot: 'absent', roblox: 'absent' };
 const VERSUS = 'lib/graph/versus/versus-core.js';
 const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on one fixed stage; no other kind seats a second player';
 // the seats kernel (controls/seats-kernel.js) seats up to four controllers; the versus fighter plays two on it, and a
-// gameworld's hero stage lays a body per seat (gameworld/levels.js seatPart, pilots.plan.md)
+// gameworld's hero stage lays a body per seat (gameworld/levels.js seatPart)
 const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a pad each, the keyboard one): the versus fighter plays two, and a gameworld\'s hero stages lay a hero per seat (levels.js seatPart; a ride, a flight, first person, building and city levels seat one); web only';
 const LEVELS = 'lib/graph/gameworld/levels.js';
 // what a pilot per seat runs (worlds/controllable/core.js spec.seats): each seat its own body, its own input, each tick

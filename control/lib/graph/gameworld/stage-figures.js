@@ -10,10 +10,13 @@
  *   fieldFigure(ref, field)          a cast member's (casting.js `field`): on the library, or a body the library does not
  *                                    fit (a beast, a mascot, a beast-kin) on its OWN clips, a `walker` (it never pilots)
  *   foeFigure(ref, look)             a foe's: a beast on its own gaits and reactions when its look names a `species`
- *                                    (a wolf pack, a giant spider), else a person on the library
+ *                                    (a wolf pack, a giant spider), its swing on its strike clip when the look carries
+ *                                    one (`strike`, a fielded foe's blow), else a person on the library
+ *   modelFigure(ref, height)         a model made elsewhere (foes/model.js), worn as a person on the library: its figure
+ *                                    the latest rigged .glb bound onto `ref`, stood `height` metres (worlds/world-scene.js)
  *   beastLook(look)                  the species a foe's look names, or null (a person)
- *   readBeastFoe(look, why, where, fail)   a beast foe's look read: a species the fauna knows and nothing else; `why`
- *                                    refuses it where a person's hands are needed
+ *   readBeastFoe(look, why, where, fail)   a beast foe's look read: a species the fauna knows, and the oozes and stylism
+ *                                    that grow it (the animal door's); `why` refuses it where a person's hands are needed
  *   PERSON_BODY                      a person's body numbers, spread after a rule's own (eye, stride, collision, step)
  *   standRule(more?)                 the rule of one who stands where it is put (static), `more` before the body
  *   standing(id, at, heading)        the entity of one who stands, its figure its own id
@@ -25,6 +28,7 @@
  */
 import { playerStates } from '../playscape/player.js';
 import { beastFieldOf } from '../egocube/moves.js';
+import { mutagenErrors } from '../mutagen/index.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -33,17 +37,24 @@ export const PERSON_BODY = Object.freeze({ eye: 0, stride: 1.6, collideRadius: 0
 
 export const libraryFigure = (ref, { moves = null } = {}) => ({ heroRef: ref, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' }, ...(moves ? { moves } : {}) });
 
+export const modelFigure = (ref, height) => ({ modelRef: ref, height, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
+
 export const fieldFigure = (ref, field) => (field?.own
   ? { heroRef: ref, walker: true, clips: field.own, ...(field.moves ? { moves: field.moves } : {}) }
   : libraryFigure(ref, { moves: field?.moves }));
 
 export const beastLook = (look) => (look && typeof look === 'object' && typeof look.species === 'string' ? look.species : null);
-export const foeFigure = (ref, look) => (beastLook(look) ? fieldFigure(ref, beastFieldOf(beastLook(look))) : libraryFigure(ref));
+export const foeFigure = (ref, look) => (beastLook(look) ? fieldFigure(ref, beastFieldOf(beastLook(look), { strike: look.strike })) : libraryFigure(ref));
 
+// a beast foe's look: its species, and what grows it (mutagen: the animal door's `ooze` and `stylism`)
+const BEAST_LOOK_KEYS = ['species', 'ooze', 'stylism'];
 export function readBeastFoe(F, why, where, fail) {
   if (why) throw fail(`${where} { species } is a beast foe: ${why}`);
-  if (Object.keys(F).length !== 1) throw fail(`${where} { species } is a beast by its species alone (its looks are the species')`);
+  const stray = Object.keys(F).filter((k) => !BEAST_LOOK_KEYS.includes(k));
+  if (stray.length) throw fail(`${where} { species, ooze?, stylism? } is a beast and what grows it (not ${stray.join(', ')})`);
   try { beastFieldOf(F.species); } catch (e) { throw fail(`${where}.species: ${e.message.replace(/^[^:]*: /, '')}`); }
+  const errs = mutagenErrors(F.ooze, undefined, F.stylism);
+  if (errs.length) throw fail(`${where}: ${errs.join('; ')}`);
 }
 
 export const standRule = (more = {}) => ({ type: 'static', ...more, ...PERSON_BODY });

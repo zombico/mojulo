@@ -38,6 +38,11 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { FOE_CLASSES, classStatus } from '../foes/index.js';
+import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
+import { SWARM, MAX_FOES, PAIR_DOWNS } from './foes.js';
+import { VANISHES, SEVERS } from './vanish.js';
+import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
@@ -490,8 +495,8 @@ function battlesCard() {
     '        fight; each class keeps its own rank, points and skill tree; learned skills stay.',
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
-    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species }: a beast on its',
-    '        own gaits (a wolf pack); walk up to one to fight.',
+    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
+    '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
@@ -518,6 +523,46 @@ function battlesCard() {
     '  steps up a trail stage (fishing). E there plays a round in a pixel window over the field (it holds still).',
     '  Its score pays gold (gold: a point) into the carried bag;',
     '  goal is the score that wins; the first win gives its prize (an item) and sets its flag (a scene or quest reads it).',
+  );
+}
+
+function foesCard() {
+  const status = (c) => classStatus(c);
+  const row = (c) => { const S = status(c); return `  ${c.id.padEnd(8)} ${c.reads}${S.status === 'built' ? '' : ` [${S.status}: ${S.short.join(', ')}]`}`; };
+  return lines(
+    'THE FOES — hostile things in the hero\'s way, by CLASS: how it moves, hurts, decides and what body it needs, never',
+    '  a species or a skin (a goomba and a foot soldier are one class dressed two ways). Any class is any rank.',
+    '',
+    'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }. skin: the',
+    '        animal door\'s words (a species, the oozes that grow it: dire, mythical, frost …); absent, the class\'s stand-in.',
+    '        A skin that does not fit its class is refused, saying why (a swooper needs wings).',
+    '        Or skin: { people, facets? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
+    '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height.',
+    '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
+    'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
+    '        count?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
+    `        count stands that many (up to ${MAX_FOES}), the extra round the beats. A swarm stands a pack of ${SWARM}. A stage they`,
+    '        stand on makes the hero hittable, its hp taking their hits.',
+    `rank    ${Object.entries(FOE_RANKS).map(([k, R]) => `${k} ×${R.downs}`).join(', ')}: the blows it takes; a boss duels.`,
+    '        skill: novice, regular, veteran, ace: how well it carries out what it decided.',
+    '',
+    'CLASSES (built unless marked: what does not run yet is said):',
+    ...Object.values(FOE_CLASSES).map(row),
+    '',
+    `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')}.`,
+    'MODES   becomes: <id>: defeated, it is that entry (skin, class, bar) till the last: a knight\'s armour, a shell.',
+    'SUMMONS a summoner\'s: { foe, count?, bound? }: another entry, asleep till called; bound (true), they fall with it.',
+    `PAIR    an entry's pair: { foe, cover?, down?: ${PAIR_DOWNS.join(' | ')}, swap? }: its partner stands beside it, each its own bar;`,
+    '        each covers the other reeling; one whose partner falls enrages, or (revive) both must fall together; swap: under',
+    '        that share of its health one leaves the field while the other stands, and comes back.',
+    `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
+    `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
+    '        A platformer squashes it, an action game throws it back, a realistic one lets it fall; then the look fades it.',
+    '        An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave | destroy,',
+    `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
+    '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
+    '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
+    'A world or level without foes is laid as it was.',
   );
 }
 
@@ -733,6 +778,7 @@ const CARDS = [
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
+  ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],

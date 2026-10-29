@@ -67,11 +67,18 @@ venv/bin/python speak.py --text "Hello, my name is Maya." --voice af_heart --out
 
 Kokoro predicts every phoneme's length before it renders, but the release's model keeps that inside; the first timed
 run derives `models/kokoro-v1.0.timed.onnx`, a copy that exposes it as a `duration` output, and `kokoro-onnx` (0.6.1 or
-later) turns it into each phoneme's span. Hand the sidecar's `phonemes` and its `audio` to a realistic hero's beat,
-`perform: { <take>: { beats: [{ at, face, say: { phonemes, audio } }] } }`: the face speaks on the recording's own
-timeline (`control/lib/graph/face-acting/speech.js` reads the engine's symbols as written), the export names the
-recording in the take's extras (`face.performances[].audio`: `{ at, file }`, not embedded), and `/hero-live` plays it
-with the take.
+later) turns it into each phoneme's span.
+
+Give the WAV to a realistic hero's beat, `perform: { <take>: { beats: [{ at, face, say: { text, audio: 'line.wav' } }] } }`
+(`create_character` or `update_character`). The door SAVES the recording as the hero's own outcome
+(`control/lib/graph/face-acting/recordings.js`: content-addressed under the outcomes directory, the beat keeping its id),
+so the take is whole without the worker that made it, and times it: by the engine's own timings when
+`line.timings.json` lies beside it, else by the text aligned to the recording (its silences the text's pauses), else, no
+text, by its loudness. Any WAV works the same way, a person's narration as well as a voice worker's. The skinned GLB
+embeds each recording in its own buffer (`face.performances[].audio`: `{ at, recording, mimeType, bufferView }`), and
+`/hero-live` plays it with the take. The engine packs carry it too: the Godot world pack keys each line on its take's
+animation as an audio track (`voice/<recording>.wav`, `figure_face.gd`), and the Unreal asset pack's importer brings each
+in as a SoundWave cued on its take's AnimSequence (`Voice/<recording>.wav`, a PlaySound notify at the line's start).
 
 ## What rides on this
 

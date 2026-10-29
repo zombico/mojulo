@@ -10,7 +10,7 @@ import { sceneScript } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
-import { statusElements, statusScript, transitKinds } from './status-channel.js';
+import { statusElements, statusScript, transitKinds, FADE_KINDS } from './status-channel.js';
 import { momentKinds, momentScript, CEL_GLYPHS, VOXEL_GLYPHS } from './moment-channel.js';
 import { titleScript, titleHex, titleBlock } from './title-channel.js';
 import { titleMaterial } from '../../game/title-material.js';
@@ -220,8 +220,13 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
-  const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
-  const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
+  // the statuses its cues put on the cast, drawn on their bodies in their looks; and those its bodies are born under
+  const els = [...(cast ? statusElements(events) : []), ...(Array.isArray(events.born) ? events.born : [])].filter((n, i, a) => a.indexOf(n) === i);
+  const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
+  // and how its downed bodies go (`vanish`, the fades the world-scene lays: gameworld/vanish.js), cast or not
+  const trs1 = Array.isArray(events.vanish) ? [...trs0, ...events.vanish.filter((k) => FADE_KINDS.includes(k) && !trs0.includes(k))] : trs0;
+  // and how a summoner's summons arrive (`arrive`, the transits its call lays: worlds/controllable/summon.js)
+  const trs = Array.isArray(events.arrive) ? [...trs1, ...events.arrive.filter((k) => !trs1.includes(k))] : trs1;
   const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
   // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none
@@ -246,7 +251,9 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const mpool = usesX((X) => !!(X && X.pool)), mbloom = usesX((X) => !!(X && X.bloom));
   const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}), ...(mvox ? { voxel: true } : {}), ...(mpool ? { pool: true } : {}), ...(mbloom ? { bloom: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
-  const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
+  // and its destroyed bodies (`wreck`, a downed body's destruction the world-scene lays: wreck-channel.js), cast or not
+  const wreck = events.wreck === true, layer0 = events.layer0 === true;   // (and its layer-0 foes: their looks on the body they wear now, docs/foes.md)
+  const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, { ...(wreck ? { wreck } : {}), ...(layer0 ? { layer0 } : {}) }) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu

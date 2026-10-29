@@ -36,7 +36,8 @@ const ease = (x) => { const t = clamp01(x); return t * t * t * (t * (t * 6 - 15)
 export function overMouth(curves, line, { fps, n }) {
   const T = line.take, o = Math.round(line.at * fps), env = new Array(n).fill(0), tOf = (i) => i / fps;
   const said = T.events.phonemes.filter((q) => q.p !== 'sil');
-  const t0 = line.at + (said[0]?.t ?? 0), t1 = line.at + Math.max(...said.map((q) => q.t + q.dur));
+  // (the line's span: its phonemes', or a line by loudness alone (speech.js's envelope) its whole length)
+  const t0 = line.at + (said[0]?.t ?? 0), t1 = line.at + (said.length ? Math.max(...said.map((q) => q.t + q.dur)) : T.seconds);
   for (let i = 0; i < n; i++) { const t = tOf(i); env[i] = t < t0 ? ease(1 - (t0 - t) / MOUTH.ease) : t > t1 ? ease(1 - (t - t1) / MOUTH.ease) : 1; }
   const sp = (u, i) => { const j = i - o; return j >= 0 && j < T.frames ? T.curves[u][j] : 0; };
   for (const [k, c] of Object.entries(curves)) {
@@ -50,7 +51,7 @@ export function overMouth(curves, line, { fps, n }) {
 
 /**
  * A line spoken over a take (perform.js's, or an emote's loop: emotes.js `emoteTake`): `say` as a beat's (speech.js: a
- * text, or { text | phonemes, rate?, articulation?, audio? }), from `at` seconds. The take runs on as long as the line
+ * text, or { text | phonemes, rate?, articulation? }, or a recorded line as the door keeps it), from `at` seconds. The take runs on as long as the line
  * needs, a loop played round, another held at its last frame. → a take (no longer a loop) with the line in
  * `events.lines`, as `perform` writes it.
  */
@@ -61,8 +62,8 @@ export function speakOver(take, say, { at = 0 } = {}) {
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   const curves = Object.fromEntries(Object.entries(take.curves).map(([k, c]) => [k, Array.from({ length: n }, (_, i) => c[src(i)])]));
   overMouth(curves, { at, take: T }, { fps, n });
-  const audio = typeof say === 'object' ? say.audio : undefined;
-  const line = { t: r4(at), seconds: T.seconds, ...(audio ? { audio } : {}), words: T.events.words.map((w) => ({ ...w, t: r4(at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(at + q.t) })) };
+  const recording = typeof say === 'object' ? say.recording : undefined;
+  const line = { t: r4(at), seconds: T.seconds, ...(recording ? { recording } : {}), words: T.events.words.map((w) => ({ ...w, t: r4(at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(at + q.t) })) };
   const { loop, ...rest } = take;
   return {
     ...rest, seconds: r4((n - 1) / fps), frames: n,

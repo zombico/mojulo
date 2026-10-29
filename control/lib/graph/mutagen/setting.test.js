@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMutagen, oozeFauna } from './index.js';
-import { oozeSetting, settingToon, dressPush, RAMP_VALUE } from './setting.js';
+import { oozeSetting, settingToon, dressPush, dressCoat, RAMP_VALUE } from './setting.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { speciesParams } from '../fauna/species.js';
 import { PER_RIG } from '../fauna/test-cases.js';
@@ -59,5 +59,29 @@ describe('mutagen: an oozed creature in its game\'s look', () => {
     expect(r.setting.dressed.length).toBeGreaterThan(0);
     for (const { to } of r.setting.dressed) expect(stopOf(to)).toBe(true);
     expect(plan.palette.Armor).toBe(r.setting.dressed.find((d) => d.at === 'armor.color').to);
+  });
+});
+
+// THE COAT IN ITS WORLD (a game's foes): the animal's own colours take the world's hue and chroma at their own value
+describe('mutagen: an animal\'s own coat in its world (coat: \'world\')', () => {
+  const id = PER_RIG[0], colors = speciesParams(id).colors;
+  it('each coat colour a stop is near takes its hue and chroma, at its own value; the face stays its own', () => {
+    const ledger = [], out = dressCoat(colors, W, ledger);
+    expect(ledger.length).toBeGreaterThan(0);
+    for (const m of ledger) {
+      expect(stopOf(m.from)).toBe(false);
+      expect(hexLch(m.to)[0]).toBeCloseTo(hexLch(m.from)[0], 0);
+      expect(out[m.at.slice('colors.'.length)]).toBe(m.to);
+    }
+    for (const k of ['iris', 'ink', 'sclera', 'nose', 'teeth', 'mouth']) if (colors[k]) expect(out[k]).toBe(colors[k]);
+  });
+  it('a quiet coat keeps its hue family: a dull brown never becomes a teal, whatever quiet stop is nearest in value', () => {
+    const brown = { coat: '#4a3c32' }, teal = [{ name: 'foliage', stops: ['#144549', '#1e4e52'] }];
+    expect(dressCoat(brown, { ramps: teal })).toEqual(brown);
+  });
+  it('no ramps, or no stop near, and the coat is its own', () => {
+    expect(dressCoat(colors, { tradition: 'anime' })).toBe(colors);
+    const far = dressCoat(colors, { ramps: [{ name: 'neon', stops: ['#00ffcc', '#ff00aa'] }] });
+    expect(far).toEqual(colors);
   });
 });

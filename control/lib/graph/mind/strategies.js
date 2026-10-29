@@ -30,7 +30,7 @@ export const STRATEGIES = Object.freeze({
     { id: 'fight-the-seen', line: 'fights whom it sees, who shot it first, and stays on its foe', needs: ['ranged'], when: { motivation: ['frag'], aggr: [2, 5] }, status: 'built', lowers: MIND },
     { id: 'warn', line: 'warns before it attacks', when: { motivation: ['territorial'] }, status: 'built', lowers: MIND },
     { id: 'open-fire', line: 'opens with fire, after its reaction time', needs: ['ranged'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
-    { id: 'close-in', line: 'closes to blade range', needs: ['melee'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
+    { id: 'close-in', line: 'closes to blade range, or to its body when it hurts by touch', needsAny: ['melee', 'contact'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
     { id: 'ignore', line: 'pays it no mind', status: 'built' },
   ],
   engage: [
@@ -41,13 +41,14 @@ export const STRATEGIES = Object.freeze({
     { id: 'kite', line: 'backs off while it shoots (the arena commander\'s posture)', needs: ['ranged', 'commanded'], when: { aggr: ATTACKS }, status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'a commander\'s kite posture, spaced by the mind' },
     { id: 'strafe', line: 'strafes side to side as it shoots', needs: ['ranged'], when: { motivation: ['frag'], aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'skirmish', line: 'holds mid range and weaves', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
-    { id: 'brawl', line: 'fights at blade range', needs: ['melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'brawl', line: 'fights at blade range, or body to body', needsAny: ['melee', 'contact'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'hold', line: 'stands its ground', status: 'built' },
   ],
   strike: [
     { id: 'counter', line: 'charges a raw swing (charge beats swing)', needs: ['tackle'], when: { aggr: [4, 4] }, status: 'built', lowers: MIND },
     { id: 'melee-commit', line: 'commits to a blade string, with a timeout', needs: ['melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'fire-burst', line: 'fires in bursts when aimed and clear', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'touch', line: 'runs into its target: the touch is the blow', needs: ['contact'], when: { aggr: ATTACKS }, status: 'built', lowers: 'lib/graph/worlds/controllable/foe.js' },
     { id: 'none', line: 'does not attack', status: 'built' },
   ],
   pressed: [

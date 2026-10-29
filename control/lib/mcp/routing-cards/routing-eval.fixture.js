@@ -110,10 +110,10 @@ export const FIXTURE = [
   ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
   // a building as a game level: designed as a building, played as a level
   ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
-  // a GENRE level set in a building: the game's door, the building laid from its use (era/programs.js) on a bay kit
-  ['a stealth game where you sneak up four floors of an office block to the boardroom', 'create_game'],
-  ['a shooter level fighting room to room through a research lab building', 'create_game'],
-  ['a horror level creeping through a warehouse and its offices at night', 'create_game'],
+  // a GENRE level set in a building: design_game's quick level, the building laid from its use (era/programs.js) on a bay kit
+  ['a stealth game where you sneak up four floors of an office block to the boardroom', 'design_game', 'quick'],
+  ['a shooter level fighting room to room through a research lab building', 'design_game', 'quick'],
+  ['a horror level creeping through a warehouse and its offices at night', 'design_game', 'quick'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that
@@ -217,6 +217,8 @@ export const COLLISION_FIXTURE = [
   ['roll stats for my character sheet, 4d6 drop the lowest, for a pen-and-paper game', 'create_game', 'table_rpg'],
   ['a JRPG where my party walks a dungeon and fights turn-based battles', 'design_game'],
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
+  // foes on a gameworld's trails (gameworld-foes): a class at a rank on a skin, not a new tool
+  ['fill the levels of my game with monsters to fight, small critters you jump on and a big nasty beast near the end', 'design_game'],
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['an endless runner for my phone where you swipe to dodge', 'design_game'],

@@ -35,7 +35,7 @@ describe('the strategy table', () => {
 
 describe('measuring a body', () => {
   it('reads the verbs from the rule and loadout, never from the mind', () => {
-    expect(actionsOf(PRESETS['arena-max'].body)).toEqual({ melee: true, ranged: true, lob: false, area: true, dash: true, dodge: true, tackle: true, jump: false });
+    expect(actionsOf(PRESETS['arena-max'].body)).toEqual({ melee: true, ranged: true, lob: false, area: true, dash: true, dodge: true, tackle: true, jump: false, contact: false });
     expect(actionsOf(SWORD)).toMatchObject({ melee: true, ranged: false, dodge: true, tackle: true });
     expect(actionsOf({ rule: { type: 'ai', loadout: [{ strike: 'melee' }] } }).melee).toBe(false);   // holds a blade, never seeks melee
     expect(actionsOf({ rule: { type: 'ai' }, weapon: { fireClass: 'lob' } })).toMatchObject({ ranged: true, lob: true });

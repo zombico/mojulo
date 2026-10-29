@@ -76,7 +76,7 @@ describe('the performer', () => {
     expect(E.events.batons.map((b) => b.word)).toEqual(['no']); expect(Math.max(...E.curves.AU2)).toBeGreaterThan(0.25);
     expect(performanceErrors({ beats: [{ at: 0, face: 'neutral', say: { text: 'hi', rate: 9 } }] })[0]).toMatch(/beats\[0\]\.say\.rate/);
     // (a line's recording rides its line, from its beat)
-    expect(perform({ seed: 1, beats: [{ at: 0.5, face: 'neutral', say: { text: 'Hi.', audio: 'hi.wav' } }] }).events.lines[0]).toMatchObject({ t: 0.5, audio: 'hi.wav' });
+    expect(perform({ seed: 1, beats: [{ at: 0.5, face: 'neutral', say: { text: 'Hi.', recording: '0123456789abcdef' } }] }).events.lines[0]).toMatchObject({ t: 0.5, recording: '0123456789abcdef' });
   });
   it('refuses by name what is not a performance', () => {
     expect(performanceErrors({})[0]).toMatch(/beats/);

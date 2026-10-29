@@ -22,6 +22,10 @@ export function fireChannelScript(cfg) {
   const u = Number.isFinite(cfg.unit) && cfg.unit > 0 && cfg.unit !== 1 ? cfg.unit : 0, k = u ? 1 / u : 1;
   // a body's fire (follow) stands on no prop: the body is its fuel
   const follow = cfg.sources.some((x) => x.follow);
+  // (one that chars the body it burns on: its `char`, a foe's base state, foes/states.js. None ⇒ byte-identical)
+  const charred = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.char));
+  // (one that stands at its own height over the body's feet, `lift` in metres: a foe's flaming at its chest. None ⇒ byte-identical)
+  const lifted = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.lift));
   const props = cfg.sources.map((x) => (x.follow ? [] : firePropParts(x))).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
   return `
 // --- fire (opt-in \`fire\`) ---
@@ -205,7 +209,17 @@ __fireEmb.m.renderOrder = 9; __fireSmk.m.renderOrder = 6;
 const __fv = new THREE.Vector3(), __fr = new THREE.Vector3(), __fu = new THREE.Vector3(), __fside = new THREE.Vector3(), __fsph = new THREE.Sphere(), __ffr = new THREE.Frustum(), __fpm = new THREE.Matrix4();
 let __firePatchT = -1;
 window.__mojFire = { cfg: FIRE, kernel: __fireK, camera, flames: __fireFlames, props: __fireProps, uniforms: __fireU, patchAll: __firePatchAll };
-const stepFire = (ms) => {
+${charred ? `// a body CHARRED while it burns (a source's \`char\`): the meshes of the body it is drawn as now darkened to that share of
+// their colour, put back when the fire goes out or the body it wears changes
+const __fireCharred = {};
+function __fireChar(id, k) {
+  const B = window.__mojCtrl && window.__mojCtrl.bodies && window.__mojCtrl.bodies[id], was = __fireCharred[id];
+  const paint = (g, v) => g.traverse((o) => { if (o.isMesh && o.material && o.material.color && !(o.userData && (o.userData.ink || o.userData.coat))) o.material.color.setScalar(v); });
+  if (was && was.g !== B) { paint(was.g, 1); delete __fireCharred[id]; }
+  if (!B || (was && was.g === B && was.k === k)) return;
+  paint(B, k); __fireCharred[id] = { g: B, k };
+}
+` : ''}const stepFire = (ms) => {
   // the page's step time: a capture frame pins it, so a fire is the same at the same t; live it runs with the wind's
   // own clock, so the flames lean in the gusts the grass bends in
   const T = ms / 1000;${follow ? `
@@ -215,11 +229,12 @@ const stepFire = (ms) => {
       const s = __fireAll[i]; if (!s.follow) continue;
       const e = W && W.byId[s.follow], st = e && !e.gone && e.statuses && e.statuses[s.el];
       const key = st ? (st.color == null ? '' : typeof st.color === 'string' ? st.color : JSON.stringify(st.color)) : null;
-      if (!st || key !== s.key) { __fireK.off[i] = null; continue; }
+      if (!st || key !== s.key) { __fireK.off[i] = null;${charred ? ' if (s.char != null) __fireChar(s.follow, 1);' : ''} continue; }${charred ? `
+      if (s.char != null) __fireChar(s.follow, s.char);` : ''}
       // its feet, and up the body by its share of the body's height (a box's, a ball's, else a figure's from its eye)
       const p = e.transform.pos, r = e.rule || {}, b = e.body || {}, h = Array.isArray(b.size) ? b.size[2] : Number.isFinite(b.radius) ? 2 * b.radius : Number.isFinite(r.eye) ? r.eye / 0.93 : 1.7;
       const foot = p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0);
-      __fireK.off[i] = [p[0], p[1], foot + s.rise * h];
+      __fireK.off[i] = [p[0], p[1], foot + ${lifted ? '(s.lift != null ? s.lift : s.rise * h)' : 's.rise * h'}];
     } }` : ''}
   if (!(ms - __firePatchT < 500 && __firePatchT >= 0)) { __firePatchT = ms; __firePatchAll(); }   // terrain chunks stream in
   camera.updateMatrixWorld();   // a capture frame steps before it renders: the eye may have just moved

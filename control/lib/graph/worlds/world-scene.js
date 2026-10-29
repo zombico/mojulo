@@ -108,6 +108,11 @@ export function stateFace(face, own, clips) {
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
+/** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
+ * that sheds a mode (its `modes`): the page's wreck plays both */
+// (a body destroyed in its going, a body with modes, or a summons whose strings may be cut: worlds/controllable/summon.js)
+const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1) || (e.rule && e.rule.summoned && e.rule.summoned.bound)));
+
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
  * how many may sit (2 to 4, at most one more than the bodies), how they join (drop-in or lobby), what an empty seat's body
@@ -137,8 +142,11 @@ export function readSeats(seats, entities, pilot = null) {
 }
 
 export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
-  let manifest;
-  if (typeof spec.heroRef === 'string') {
+  let manifest, body;
+  // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
+  // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
+  if (typeof spec.modelRef === 'string') body = await (await import('@/lib/graph/worlds/controllable/model-figure.js')).modelPack(name, spec.modelRef, { height: spec.height ?? null });
+  else if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
     // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
@@ -152,9 +160,11 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
-  const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
-  const body = scene.figures && scene.figures.body;
-  if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  if (!body) {
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
+    body = scene.figures && scene.figures.body;
+    if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  }
   const { preview, embodies, held, ...pack } = body;
   const clips = { ...pack.clips };
   // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
@@ -746,7 +756,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // payload.fireSources (a dungeon's chambers and tunnels; a terrain's sources set on the ground); `fire.sources` with
   // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
   // A play block's burning statuses (playscape elements burning / blaze) add a fire per body they may set alight.
-  const bodyFire = payload && sketch.manifest.play ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
+  // (and a status a body is born under: a foe's base state)
+  const bornAlight = Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.body && e.body.born && e.body.born.statuses && Object.keys(e.body.born.statuses).length);
+  const bodyFire = payload && (sketch.manifest.play || bornAlight) ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
   if (payload && (sketch.manifest.fire || bodyFire.length)) {
     const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
     const errs = validateFire(sketch.manifest.fire);
@@ -765,7 +777,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // operator watches from a glide/follow spectator camera (WASD free-fly, Tab cycles the watched
     // fighter). Opt-in; absent ⇒ the world seats a pilot as before (byte-identical).
     if (sketch.manifest.spectate === true) payload.spectate = true;
-    // SEATS (pilots.plan.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
+    // SEATS (docs/local-multiplayer-principles.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
     // a player's own controller on the page (scene/channels/controllable seatsScript). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.seats !== undefined) payload.seats = readSeats(sketch.manifest.seats, sketch.manifest.entities, payload.pilot);
     // AI-attack switch: `ai:'off'` loads the world passive (ai-ambient suits stand down until the
@@ -855,7 +867,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // whose clips, retargeted onto its rig, play the states `clips` hands to them (playerStates, when the world was
         // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
         // no hero is resolved, byte-identical.
-        if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
+        // (and a MODEL made elsewhere, `modelRef`: a rigged humanoid .glb bound onto a sketch, worn as a hero's pack is)
+        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string') {
           // (a composed juice floor's game type times the hero's swing: hero-swing.js swingTiming; the floor or none ⇒ its own)
           const fxs = sketch.manifest.fxStyle, swing = fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs).flavor : null;
           // THE HELD STRIKE: a platform body playing this hero whose rule carries a feel's string (its contact window,
@@ -865,6 +878,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+          // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
+          // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
+          // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
+          // cut capped in the inside its body names)
+          const wrecked = (payload.entities || []).filter((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name))) && wrecks(e));
+          if (wrecked.length) {
+            const { humanoidParents } = await import('@/lib/graph/figures/rig-tpose.js');
+            try { figure.wreck = { parent: humanoidParents(figure.bones) }; } catch { figure.wreck = {}; }
+            const cleaved = wrecked.find((e) => e.body.vanish && (e.body.vanish.die === 'cleave' || (e.body.vanish.die === 'destroy' && Object.values(e.body.vanish.by || {}).some((D) => D && D.die === 'cleave'))));
+            if (cleaved) {
+              const { slashPlane, cleaveFigure } = await import('@/lib/graph/scene/rig-cleave.js');
+              let h = 7; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 999983;
+              figure.wreck.cleave = cleaveFigure(figure, { plane: slashPlane(figure.figH, { seed: h }), ...(cleaved.body.vanish.inside ? { inside: cleaved.body.vanish.inside } : {}) });
+            }
+          }
           // (the same game type's movement juice, a platformer's or pinball's: gameworld/feel/hero-juice.js, at the
           // fidelity a machine's takes; any other game type's hero as it was)
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
@@ -1119,11 +1147,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const figureSources = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
-        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef']
+        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef', 'modelRef']
           .find((k) => typeof rawSpec[k] === 'string');
         if (refKey) figureSources[name] = `${refKey}:${rawSpec[refKey]}`;
       }
       if (Object.keys(figureSources).length) payload.figureSources = figureSources;
+      // MODES (a body's `modes`, worlds/controllable/vanish.js): each mode's figure carries what it SHEDS when defeated into
+      // the next (scene/rig-shed.js: its triangles the next lacks, bone by bone). None ⇒ the figures as they were
+      const moded = (payload.entities || []).filter((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+      if (moded.length) {
+        const { shedParts } = await import('@/lib/graph/scene/rig-shed.js');
+        for (const e of moded) e.body.modes.slice(0, -1).forEach((m, i) => {
+          const A = payload.figures[m.figure], B = payload.figures[e.body.modes[i + 1].figure];
+          if (A && B && A.rig && B.rig && !(A.shed && A.shed[e.body.modes[i + 1].figure])) A.shed = { ...(A.shed || {}), [e.body.modes[i + 1].figure]: shedParts(A, B) };
+        });
+      }
     }
     // GLYPH bodies (game-ui-language.plan.md, U1): body:{type:'glyph', form, tint?, scale?}
     // lowers here to a single-frame figure-frames body + a generated `glyph:<form>` clip — the
@@ -1251,6 +1289,28 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (ev.style !== undefined) {
       const se = validateHudStyle(ev.style, 'events.style');
       if (se.length) throw new Error(`events.style is invalid — see get_game_vocab({ id: 'hud-style' }):\n- ${se.join('\n- ')}`);
+    }
+    // the fades its downed bodies go by (a body's `vanish`, gameworld/vanish.js), played by the page's events. A world
+    // with no events has no page to play them on, and its downed bodies simply go
+    const vanish = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.body && e.body.vanish && e.body.vanish.is).filter((k) => typeof k === 'string'))] : [];
+    if (vanish.length) ev = { ...ev, vanish };
+    // and how a summoner's summons arrive (its call's transit, worlds/controllable/summon.js)
+    const arrive = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.rule && e.rule.summon && e.rule.summon.with).filter((k) => typeof k === 'string'))] : [];
+    if (arrive.length) ev = { ...ev, arrive };
+    // and whether one of them is DESTROYED (its `vanish.die` a dismantle or a cleave): the page's wreck plays its pieces
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some(wrecks)) ev = { ...ev, wreck: true };
+    // and whether it has LAYER-0 foes (a body with modes, or born under a state: docs/foes.md): a look laid on a foe is laid
+    // on the body it wears now, given the normals a rig body lacks
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && ((e.body && ((Array.isArray(e.body.modes) && e.body.modes.length > 1) || e.body.born)) || (e.rule && e.rule.pair)))) {
+      // (and each status a body is born under, its look drawn as a cue's would be: foes/states.js; and the power-up a
+      // pair's survivor takes on when its partner falls: worlds/controllable/pair.js)
+      const raged = sketch.manifest.entities.some((e) => e && e.rule && e.rule.pair && e.rule.pair.down === 'enrage') ? ['power-up'] : [];
+      const born = [...new Set([...sketch.manifest.entities.flatMap((e) => (e && e.body && e.body.born && e.body.born.statuses ? Object.keys(e.body.born.statuses) : [])), ...raged])];
+      const { LOOKS } = born.length ? await import('@/lib/graph/playscape/elements/elements.js') : { LOOKS: {} };
+      // (a state may leave its look's coat off, `coat: false`: a foe's flaming, whose fire is its look)
+      const coatless = (n) => sketch.manifest.entities.every((e) => !(e && e.body && e.body.born && e.body.born.statuses && e.body.born.statuses[n]) || e.body.born.statuses[n].coat === false);
+      const bornLooks = Object.fromEntries(born.filter((n) => LOOKS[n] && !(ev.looks && ev.looks[n])).map((n) => [n, coatless(n) ? { ...LOOKS[n], coat: false } : LOOKS[n]]));
+      ev = { ...ev, layer0: true, ...(born.length ? { born, looks: { ...(ev.looks || {}), ...bornLooks } } : {}) };
     }
     payload.events = ev;
     payload.nonBakeable = true;

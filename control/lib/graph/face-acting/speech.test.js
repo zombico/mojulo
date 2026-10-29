@@ -94,7 +94,7 @@ describe('a line an engine spoke', () => {
     expect(givenPhonemes([{ p: 'AYY' }]).bad).toEqual([0]);
     expect(givenPhonemes([{ p: 'm', t: 0, dur: 0.1 }, { p: 'ʔ', t: 0.1, dur: 0.05 }]).phonemes).toEqual([{ p: 'M', t: 0, dur: 0.15, stress: null }]);
   });
-  it('speaks on the recording\'s own timeline, and names the recording', () => {
+  it('speaks on the recording\'s own timeline; a recording is a WAV', () => {
     const T = speak({ phonemes: ENGINE, audio: 'line.wav' });
     // (the closure where the engine said the m, not where the rules would)
     const m = T.events.phonemes.find((q) => q.p === 'M');

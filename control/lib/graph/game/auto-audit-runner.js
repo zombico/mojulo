@@ -10,7 +10,7 @@
  * capture probe in G4), so the LAST probe's game.result is the completability verdict. Skips PNG
  * encoding (probes only) for speed — an audit needs the outcome, not the film.
  *
- * A level with seats (pilots.plan.md: a co-op level's `seats`) is walked by seat 1 alone, the world's pilot: the traversal
+ * A level with seats (a co-op level's `seats`) is walked by seat 1 alone, the world's pilot: the traversal
  * hands the page its own input, so no other seat is taken and each extra seat's body runs its AI (it follows the hero).
  * Completable means seat 1 can finish it; what a second player adds is the eyes gate's.
  */

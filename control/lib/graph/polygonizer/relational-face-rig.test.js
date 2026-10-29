@@ -61,7 +61,7 @@ describe('a take on the realistic face', () => {
     const S = performanceTrack(perform({ seed: 1, beats: [{ at: 0, face: 'neutral', say: 'Who are you?' }] })), at = (n) => Math.max(...S.w.map((r) => r[RELATIONAL_FACE_TARGETS.indexOf(n)]));
     expect(at('jawOpen')).toBeGreaterThan(0.1); expect(at('pucker')).toBeGreaterThan(0.3); expect(S.gaps).toEqual([]);
     // (a line's recording rides the track, where it starts; none, none)
-    expect(performanceTrack(perform({ seed: 1, beats: [{ at: 0.4, face: 'neutral', say: { text: 'Who?', audio: 'who.wav' } }] })).audio).toEqual([{ at: 0.4, file: 'who.wav' }]);
+    expect(performanceTrack(perform({ seed: 1, beats: [{ at: 0.4, face: 'neutral', say: { text: 'Who?', recording: '0123456789abcdef' } }] })).audio).toEqual([{ at: 0.4, recording: '0123456789abcdef' }]);
     expect(S.audio).toBeUndefined();
   });
 });

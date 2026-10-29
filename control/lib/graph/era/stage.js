@@ -41,7 +41,12 @@ import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
 import { bayRoom, bayLaws } from './bay.js';
-import { bayKit, BAY_REGISTERS } from './style/bay-kits.js';
+import { bayKit, bayKitOf, BAY_REGISTERS } from './style/bay-kits.js';
+import { composeForBuild, rolesPinned, beatsPinned } from './compose.js';
+import { roomRoles } from './compose-roles.js';
+import { plotLights, keyTuner } from './compose-plot.js';
+import { composeReport } from './compose-report.js';
+import { PIECES, layProps, propFaces, dressLaws } from './compose-dress.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -339,8 +344,11 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 export function planStage(m = {}) {
-  const kitId = resolveKitId(m.kit || 'gothic-stone');
-  const kit0 = stageKit(kitId);
+  // a composed interior (era/compose.js): its kit composed from a value on each bay axis, its id the bay kit it names
+  const composed = m.compose !== undefined ? composeForBuild(m) : null;
+  const kitId = resolveKitId(m.kit || (composed ? `bay-${composed.construction}` : 'gothic-stone'));
+  if (composed && !kitId.startsWith('bay-')) throw new Error(`stage: compose composes a bay room (a hangar, a warehouse, a lab, an office); kit '${kitId}' is not one`);
+  const kit0 = composed ? bayKitOf(composed) : stageKit(kitId);
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
@@ -471,8 +479,25 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
+    // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
+    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
+  // a composed interior's things (compose-dress.js): the recipe's own (`props`, laid at authoring time and edited since),
+  // else laid now; `props: false` none. A storey takes the ones in its rooms
+  if (composed || m.props !== undefined) {
+    if (m.props !== undefined && m.props !== false && !Array.isArray(m.props)) throw new Error('stage: props is a list of items ([{ id, kind, room, at, facing }]), or false for none');
+    const mine = new Set(rooms.map((r) => r.id)), list = Array.isArray(m.props) ? m.props : m.props === false || !composed ? [] : layProps(planned);
+    for (const [i, it] of list.entries()) {
+      if (!it || typeof it.id !== 'string' || !PIECES[it.kind]) throw new Error(`stage: props[${i}] is { id, kind: ${Object.keys(PIECES).join(' | ')}, room, at: [x, y], facing }`);
+      if (!m._storey && !mine.has(it.room)) throw new Error(`stage: props[${i}] (${it.id}) stands in '${it.room}', no room of this stage`);
+      if (!Array.isArray(it.at) || it.at.length !== 2 || !['+x', '-x', '+y', '-y'].includes(it.facing)) throw new Error(`stage: props[${i}] (${it.id}) needs at: [x, y] and facing: +x | -x | +y | -y`);
+      if (it.scale !== undefined && !(typeof it.scale === 'number' && it.scale >= 0.25 && it.scale <= 4)) throw new Error(`stage: props[${i}] (${it.id}).scale is 0.25 to 4`);
+    }
+    planned.props = list.filter((it) => mine.has(it.room));
+    if (planned.compose) planned.compose.dress = dressLaws(planned, planned.props);
+  }
+  return planned;
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
 function readShadows(v0) {
@@ -728,11 +753,14 @@ export function buildStageGeometry(plan) {
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
   // a storey's stairs (storeys.js): its ground cut round its flights and holes, the flights, wells and rails laid in
+  // a composed room's things (compose-dress.js): each named by its id on its faces, an anchor each
+  const props = plan.props && plan.props.length ? propFaces(plan, plan.props, surf) : null;
+  if (props) out.push(...props.faces);
   const faces = plan.cuts ? storeyCut(out, plan.cuts) : out;
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)
   const lit = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
-  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}) };
+  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}), ...(props ? { propAnchors: props.anchors } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -853,7 +881,7 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
  *  test), and its bounce in its own room. The page multiplies the two and adds only what the nearest lamps do to the
  *  relief (scene/channels/form.js). `lights` carry their shadow tests (makePointShadow) or none (a pool casts nothing);
  *  `tone` a toned room's (its light neutral, its contrast its ramp's); `roomOf(p)` names the room a point stands in. → { faces, light: the solve } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -906,10 +934,14 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   const ramp0 = tone ? ramps[tone.default] : null;
   const S = solveRoomLight({ targets, ambient: ambient6, lights, ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
-  // the light the room lays at a corner (linear, base-multiplier units)
+  // (a tuner's scale on each lamp's key, solved on these very shares: the scene composer's plot, compose-plot.js keyTuner)
+  const scale = tune ? tune({ raw, shares, keys: S.keys, ambient: S.ambient, lights }) : null;
+  const keys = scale ? S.keys.map((K, i) => K.map((v) => r4(v * scale[i]))) : S.keys;
+  // the light the room lays at a corner (linear, base-multiplier units); a lamp a beat changes (compose-plot.js BEATS) is
+  // solved with the rest but laid by the page, live, not here
   const light = (sh) => {
     const e = [...S.ambient];
-    for (let j = 0; j < sh.length; j += 2) { const K = S.keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
+    for (let j = 0; j < sh.length; j += 2) { if (lights[sh[j]].beat) continue; const K = keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
     return e.map(r4);
   };
   const colour = (base, f, c) => { const g = dirt(f, c); return base.map((v, k) => encodeSrgb(Math.min(1, v * g[k]))); };
@@ -920,7 +952,7 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
     const cols = f.corners.map((c) => colour(base, f, c)), mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / 4);
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map(light) };
   });
-  return { faces, light: S };
+  return { faces, light: scale ? { ...S, keys } : S };
 }
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
@@ -1071,7 +1103,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
-  const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
+  // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
+  const placed = resolveStageLights(plan, seats), plotted = plan.compose && plan.lights === 'auto' ? plotLights(plan, placed) : null;
+  const lights = [...(plotted ? plotted.lights : placed), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
   // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
   const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
   const braziers = Fk && Fk.braziers && portalBay ? [-1, 1].map((sg) => {
@@ -1108,8 +1142,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   };
+  const tuner = form && plan.compose ? keyTuner(plan) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}) }) : null;
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
@@ -1149,6 +1184,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(taken ? taken.items.map((it) => ({ id: it.id, kind: 'item', at: it.at, r: it.r, node: `item:${it.id}`, box: { min: P([it.at[0] - 0.31, it.at[1] - 0.31, 0]), max: P([it.at[0] + 0.31, it.at[1] + 0.31, it.at[2] + 0.4]) }, solid: true })) : []),
     ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
     ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
+    ...(geom.propAnchors || []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky
@@ -1172,6 +1208,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // key, the ambient and the falloff, for the page to light the relief by; a toned room's void; only a room read in the
     // form render
     // the bay shell's readout (bay.js): what each room built (its roof, its walkways and their entries) and its laws
+    // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
+    ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
     ...(formLit ? { form: { room: { lights: readFormLight(formLamps, formLit.light.keys), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],

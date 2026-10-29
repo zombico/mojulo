@@ -147,8 +147,11 @@ function restNormals(pos, idx) {
 // legacy float32 triangle soup (part.pos) and the indexed+quantized form (part.q, packRigMesh).
 // Colours are normalized-uint8 linear values (rig-bake b64u8) → float COLOR_0, the same linear
 // space as the baked face colours. Per-vertex specular (spec/spec8) has no glTF-unlit analog and
-// is deliberately dropped, like the World's other screen embellishments.
-function decodeRigPart(part, restHead) {
+// is deliberately dropped, like the World's other screen embellishments. A vehicle's part in the form render
+// (vehicle-rig.js packFormMesh) is `{ form: { o, s, n, q, nrm, col, idx, groups, mats } }`: the same quantized mesh one
+// level down, its colours the albedo; its material slots and normals are the page's light and are not carried here.
+function decodeRigPart(part0, restHead) {
+  const part = part0.form ?? part0;
   const colU8 = b64ToBytes(part.col);
   const colors = new Float32Array(colU8.length);
   for (let i = 0; i < colU8.length; i++) colors[i] = colU8[i] / 255;
@@ -985,8 +988,8 @@ class GlbBuilder {
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
-        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio } : {}) })),
-          performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, file }, the file as the take names it, not embedded) starts `at` seconds into the clip' } : {}),
+        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio.map((A) => (A.bytes ? { at: A.at, recording: A.recording, mimeType: 'audio/wav', bufferView: this.addView(A.bytes, 0) } : { at: A.at, recording: A.recording, missing: true })) } : {}) })),
+          performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, recording, mimeType, bufferView }: the WAV embedded in the file\'s own buffer, `missing` where the machine that exported it held no such recording) starts `at` seconds into the clip' } : {}),
         ...(fig.face.emotes ? { emotes: Object.entries(fig.face.emotes).map(([clip, E]) => ({ clip: `emote:${clip}`, emote: E.emote, seconds: E.seconds, loop: true, ...(E.gaps.length ? { gaps: E.gaps } : {}) })),
           emoting: 'an emote (face-acting/emotes.js) is a held state as a face-only clip that LOOPS (its last key its first): a LINEAR weights channel on the mesh node, keyed at 30 fps, the face held and living on its targets, the eyes on the look targets, parallel (looking at nothing, never crossed); play it looping over a body clip, its face weights masked, and lay a line\'s mouth over it by `mouth`',
           ...(fig.face.mouth ? { mouth: { ...fig.face.mouth, about: 'who owns the mouth while a line is spoken over a face clip (face-acting/mouth.js): the driver (a lip-sync, a take\'s line) owns `driver`; the face\'s `rounded.targets` are drawn in by rounded.share × the greatest of `rounded.by`; its `released.targets` let go by released.share while the line runs (eased over released.ease seconds); then each driver target is the greater of the face\'s and the driver\'s' } } : {}) } : {}),
