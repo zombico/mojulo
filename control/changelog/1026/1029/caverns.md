@@ -45,8 +45,9 @@ rock (its walls the cliff's rock, its floor scree, a ceiling under the land), li
 - **Its floor, soil and scree** (`floorKind`, `floorDress`): a cavern's ground is soil, its walk packed earth and the
   floor off it a darker dirt; scree lies round its rocks (its walls' feet, its formations, its boulders, the bigger
   stones strewn on it; a pebble sheds none), rubble nearest; its walk is broken by stretches of the rock it runs through
-  (worn bedrock, a limestone pavement; natural flagstones; plates) and patched with gravel, its edge frayed face by face
-  into the dirt; each surface a tile in the cube's own soil or rock, each face lit by the cavern's own light at its corners
+  (worn bedrock, a limestone pavement; natural flagstones; plates) and patched with gravel, its edge frayed into the
+  dirt. The surfaces are smooth fields taking the floor in order (`floorFields`), each face cut along their contours
+  (`floorPieces`), so they meet in rounded lines, never along the land's cells; each surface a tile in the cube's own soil or rock, each face lit by the cavern's own light at its corners
   (`cavernLightAt`). Only the hall's floor: the walls' tops and the plateau under the ceiling stay the rock's. Its edges
   are strewn as a dirt trail's are (`local-meru/broken-land.js` strewEdge, now taking its numbers, EDGE's by default),
   heaped evenly both sides with more and bigger stones reaching further out and in (`CAVERN_EDGE`), so no line shows

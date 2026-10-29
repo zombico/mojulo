@@ -264,7 +264,9 @@ export function crackFaces(site, C) {
  * patched with gravel. Its edge frays face by face into the floor's dirt. Each surface a tile in the cube's own soil or
  * rock, each face lit by the cavern's own light.
  *   FLOOR                                    the surfaces: their cut, the metres each is laid at, soil's or rock's
+ *   floorFields(site, seed, near)            the surfaces as smooth fields, in the order they take the floor
  *   floorKind(site, x, y, seed, near)        which surface a point of the floor is; `near(x, y)` metres to its nearest rock
+ *   floorPieces(corners, fields)             a face cut along the fields' contours, each piece its surface
  *   floorDress(faces, site, st, C, { open, seed, rocks })  the floor's faces dressed: each its surface's tile, its fill the
  *                                            cavern's own light at its corners (cavernLightAt); `rocks` [{ x, y, r }]
  */
@@ -300,21 +302,57 @@ function floorTiles(st) {
   return out;
 }
 
-export function floorKind(site, x, y, seed = 1, near = () => Infinity) {
-  const d = site.trailDist(x, y) / Math.max(0.5, site.halfWAt(y)), cell = hash(Math.floor(x * 2), Math.floor(y * 2), seed + 701);
-  // round its rocks, scree, rubble nearest: how near is the rock's, its reach the noise's
-  const r = near(x, y), reach = SCREE.reach + SCREE.vary * (vnoise(x * 0.4, y * 0.4, seed + 703) - 0.5) * 2;
-  if (r < SCREE.rubble) return 'rubble';
-  if (r < reach) return cell < (r - SCREE.rubble) / Math.max(0.1, reach - SCREE.rubble) ? 'dirt' : 'scree';
-  // off the walk, its dirt; its edge frayed into it face by face
-  if (d > 1.15) return 'dirt';
-  const edge = 0.7 + 0.25 * (vnoise(x * 0.5, y * 0.5, seed + 707) - 0.5);
-  if (d > edge && cell < (d - edge) / (1.15 - edge)) return 'dirt';
-  // the walk: soil, broken by stretches of its rock along it, a patch of gravel here and there
-  if (vnoise(x * 0.35, y * 0.35, seed + 709) > 0.86) return 'gravel';
+/**
+ * The floor's FIELDS, in the order they take it: each a smooth field over the floor, > 0 where its surface lies, so a
+ * face is cut along each one's contour (floorPieces) and the surfaces meet in rounded lines, not along the land's cells.
+ * Round a rock rubble, then scree to a reach the noise varies; past the walk's frayed edge dirt; on the walk gravel in
+ * patches, then its rock in stretches along it (plates, flags, bedrock); soil the rest.
+ */
+export function floorFields(site, seed = 1, near = () => Infinity) {
+  const d = (x, y) => site.trailDist(x, y) / Math.max(0.5, site.halfWAt(y));
   // (a value noise keeps to its middle: stretched, so a stretch of rock comes round along a trail a third of the way)
-  const n = Math.max(0, Math.min(0.999, (vnoise(0.5, y * 0.045, seed + 711) - 0.22) / 0.56));
-  return n < 0.66 ? 'soil' : WALK[Math.floor(((n - 0.66) / 0.34) * WALK.length)];
+  const n = (y) => Math.max(0, Math.min(0.999, (vnoise(0.5, y * 0.045, seed + 711) - 0.22) / 0.56));
+  return [
+    { kind: 'rubble', f: (x, y) => SCREE.rubble - near(x, y) },
+    { kind: 'scree', f: (x, y) => SCREE.reach + SCREE.vary * (vnoise(x * 0.4, y * 0.4, seed + 703) - 0.5) * 2 - near(x, y) },
+    { kind: 'dirt', f: (x, y) => d(x, y) - (0.92 + 0.3 * (vnoise(x * 0.5, y * 0.5, seed + 707) - 0.5)) },
+    { kind: 'gravel', f: (x, y) => vnoise(x * 0.35, y * 0.35, seed + 709) - 0.86 },
+    { kind: 'plates', f: (x, y) => n(y) - 0.886 },
+    { kind: 'flags', f: (x, y) => n(y) - 0.773 },
+    { kind: 'bedrock', f: (x, y) => n(y) - 0.66 },
+  ];
+}
+
+/** Which surface a point of the floor is: the first field that takes it, else soil. `near(x, y)` metres to its nearest rock. */
+export function floorKind(site, x, y, seed = 1, near = () => Infinity) {
+  for (const { kind, f } of floorFields(site, seed, near)) if (f(x, y) > 0) return kind;
+  return 'soil';
+}
+
+/** A face cut by the floor's fields in their order: each field takes the part of what is left where it is > 0, cut along
+ *  its contour (the zero read along each edge between corners), the rest soil. → [{ corners, kind }] */
+export function floorPieces(corners, fields) {
+  const out = [];
+  let rest = [corners];
+  for (const { kind, f } of fields) {
+    const next = [];
+    for (const poly of rest) {
+      const v = poly.map((c) => f(c[0], c[1]));
+      if (v.every((x) => x <= 0)) { next.push(poly); continue; }
+      if (v.every((x) => x > 0)) { out.push({ corners: poly, kind }); continue; }
+      const take = [], keep = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length], va = v[k], vb = v[(k + 1) % poly.length];
+        (va > 0 ? take : keep).push(a);
+        if (va > 0 !== vb > 0) { const t = va / (va - vb), x = [0, 1, 2].map((i) => r5(a[i] + (b[i] - a[i]) * t)); take.push(x); keep.push(x); }
+      }
+      if (take.length >= 3) out.push({ corners: take, kind });
+      if (keep.length >= 3) next.push(keep);
+    }
+    rest = next;
+  }
+  for (const poly of rest) out.push({ corners: poly, kind: 'soil' });
+  return out;
 }
 
 /** Metres to the nearest rock of a list ([{ x, y, r }], each `r` its reach), read off a grid of 2 m cells; and to the
@@ -334,21 +372,23 @@ function nearRock(site, rocks) {
 // what a floor face lit by the whole day would carry: its tile at its own colour (the page draws tile × fill)
 const FLOOR_WHITE = 0.85;
 export function floorDress(faces, site, st, C, { open = 1, seed = 1, rocks = [] } = {}) {
-  const T = floorTiles(st), gain = 1 / Math.max(0.12, open), near = nearRock(site, rocks), hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
-  return faces.map((f) => {
+  const T = floorTiles(st), gain = 1 / Math.max(0.12, open), near = nearRock(site, rocks), fields = floorFields(site, seed, near), hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+  return faces.flatMap((f) => {
     // (the hall's floor only, between the far cliff and the wall raised on its open side, inside its ends: up on the walls'
     // tops and the plateau, under the ceiling, the land is the rock's)
     if (!f.fill || !f.corners || f.lamp || f.texture || !/^isekai:(trail|scree)$/.test(f.group) || !f.normal || f.normal[2] < 0.5) return f;
     const m = [0, 1].map((k) => f.corners.reduce((s, c) => s + c[k], 0) / f.corners.length);
     if (m[0] < site.cliffX(m[1]) + 0.5 || m[0] > site.trailX(m[1]) + site.halfWAt(m[1]) + site.fringeAt(m[1]) + CAVERN.gap + 1 || m[1] < CAVERN.endRun * 0.5 || m[1] > site.D - CAVERN.endRun * 0.5) return f;
-    const kind = floorKind(site, m[0], m[1], seed, near), t = T[kind];
-    // (its light the cavern's own at each corner, the tile its colour: what the bake laid under the ceiling is the
-    // cavern's light, nothing of the day's but its cracks and skylight; one of the tile's four variants a cell)
-    const lit = f.corners.map((c) => hex(cavernLightAt(site, C, [c[0], c[1], c[2] + 0.1], f.normal, gain).map((v) => 255 * FLOOR_WHITE * Math.min(1.4, v))));
-    const mean = hex([1, 3, 5].map((i) => lit.reduce((a, h) => a + parseInt(h.slice(i, i + 2), 16), 0) / lit.length));
-    const v = 'abcd'[Math.floor(hash(Math.floor(m[0] / t.metres), Math.floor(m[1] / t.metres), seed + 713) * 4)];
+    // (cut along the floor's fields, so its surfaces meet in rounded lines; each piece its surface's tile, its light the
+    // cavern's own at each corner, the tile its colour: what the bake laid under the ceiling is the cavern's light, nothing
+    // of the day's but its cracks and skylight; one of the tile's four variants a cell)
     const { sunShare: _s, ...rest } = f;
-    return { ...rest, texture: `${t.family}-${v}`, textureLit: true, uv: f.corners.map((c) => [r5(c[0] / t.metres), r5(c[1] / t.metres)]), fill: mean, cornerFills: lit, floor: kind };
+    return floorPieces(f.corners, fields).map(({ corners, kind }) => {
+      const t = T[kind], lit = corners.map((c) => hex(cavernLightAt(site, C, [c[0], c[1], c[2] + 0.1], f.normal, gain).map((v) => 255 * FLOOR_WHITE * Math.min(1.4, v))));
+      const mean = hex([1, 3, 5].map((i) => lit.reduce((a, h) => a + parseInt(h.slice(i, i + 2), 16), 0) / lit.length));
+      const v = 'abcd'[Math.floor(hash(Math.floor(m[0] / t.metres), Math.floor(m[1] / t.metres), seed + 713) * 4)];
+      return { ...rest, corners, texture: `${t.family}-${v}`, textureLit: true, uv: corners.map((c) => [r5(c[0] / t.metres), r5(c[1] / t.metres)]), fill: mean, cornerFills: lit, floor: kind };
+    });
   });
 }
 

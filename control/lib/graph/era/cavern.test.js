@@ -4,7 +4,7 @@
 // than the open, lit by its register's lamps, and a skylight lets the day in.
 
 import { describe, it, expect } from 'vitest';
-import { readCavern, formationFaces, floorKind, wallRocks, CAVERN, FLOOR, WALL_ROCKS } from './cavern.js';
+import { readCavern, formationFaces, floorKind, floorPieces, wallRocks, CAVERN, FLOOR, WALL_ROCKS } from './cavern.js';
 import { assembleStageScene } from './stage.js';
 
 const GROWS = /:(grass|crown|wood|blossom|bush|flower|ikebana|ridge)$/;
@@ -48,6 +48,19 @@ describe('its floor', () => {
     expect(floorKind(site, 20.6, 30, 1, near)).toBe('rubble');
     expect(['scree', 'dirt']).toContain(floorKind(site, 21.5, 30, 1, near));
     expect(Object.keys(FLOOR)).toEqual(expect.arrayContaining(['soil', 'dirt', 'bedrock', 'flags', 'gravel', 'scree']));
+  });
+
+  it('meets in rounded lines: a face cut along each field\'s contour, whole, each piece its surface', () => {
+    const area = (P) => { let a = 0; for (let k = 0; k < P.length; k++) { const p = P[k], q = P[(k + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
+    const face = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]];
+    // (a circle of scree round (0, 0), 0.7 across: the corner in it, the rest soil)
+    const pieces = floorPieces(face, [{ kind: 'scree', f: (x, y) => 0.7 - Math.hypot(x, y) }]);
+    expect(pieces.map((p) => p.kind).sort()).toEqual(['scree', 'soil']);
+    expect(pieces.reduce((a, p) => a + area(p.corners), 0)).toBeCloseTo(1, 6);
+    // (the cut on the contour: its new corners 0.7 from the centre along the face's edges)
+    const cut = pieces.find((p) => p.kind === 'scree').corners.filter((c) => c[0] > 0 && c[1] === 0 || c[1] > 0 && c[0] === 0);
+    for (const c of cut) expect(Math.hypot(c[0], c[1])).toBeCloseTo(0.7, 5);
+    expect(floorPieces(face, [{ kind: 'gravel', f: () => -1 }])).toEqual([{ corners: face, kind: 'soil' }]);
   });
 
   it("heaps small rocks along every wall's foot, out of the walk", () => {
