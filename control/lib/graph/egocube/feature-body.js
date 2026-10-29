@@ -203,9 +203,12 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
         { name: 'chestTuftR', root: [0.22, 0.58, 2.0], aim: [0.3, 0.45, -1], len: 0.3, r: 0.13, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
         { name: 'chestTuft', root: [0, 0.62, 1.96], aim: [0, 0.5, -1], len: 0.34, r: 0.14, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
-        // the dome's spikes: the cheeks' rhythm again, smaller, a lock in the middle and one each side combed back
-        { name: 'crown', root: [0, 0.2, 3.3], aim: [0, 0.5, 1], len: 0.3, r: 0.11, curl: 32, bend: [0, -1, 0], bone: 'head', join: 0.05 },
-        { name: 'crownR', root: [0.18, 0.14, 3.27], aim: [0.45, 0.4, 1], len: 0.25, r: 0.095, curl: 30, bend: [0.3, -1, 0], bone: 'head', join: 0.05 },
+        // the dome's spikes: the cheeks' rhythm again, smaller, and NOT mirrored: three locks of falling length, their roots
+        // staggered so each overlaps the next, all swept one way (to the right and a little forward, their tips curling
+        // down), a combed swoosh
+        { name: 'crownA', root: [-0.14, 0.16, 3.3], aim: [0.42, 0.28, 1], len: 0.4, r: 0.12, curl: 24, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
+        { name: 'crownB', root: [-0.01, 0.06, 3.34], aim: [0.5, 0.2, 1], len: 0.33, r: 0.11, curl: 22, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
+        { name: 'crownC', root: [0.12, -0.04, 3.32], aim: [0.6, 0.12, 1], len: 0.26, r: 0.095, curl: 20, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
         { name: 'tailTip', root: [0, -1.8, 1.82], aim: [0, -0.35, 1], len: 0.3, r: 0.17, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
       ],
       // the forelimbs, streamlined: two cones each, shoulder to elbow to wrist, resting out from the body
