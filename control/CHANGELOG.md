@@ -551,9 +551,9 @@ went to its eyes, teeth and lids. This theme builds its successor on the realist
   - **The skin**: netted as ONE SKIN on the realistic hero's route (`hero-one-skin.js` `oneSkinHead`), joined smoothly
     to the neck's column and sealed point for point to the neck's highest ring that stands clear of it. Its lips are cut
     along the mouth's line, from the front back along the muzzle's sides to the corners, and turned in along the skin's
-    own facing. A mouth bag the muzzle's length lies behind them; the nose's pad is painted.
+    own facing. The nose's pad is painted.
   - **The new options** (each default the human head's, which stays byte for byte): how far back the cut reaches, which
-    way the lips turn in, the bag's own place, which rim is the seam's (the one nearest the ring: a slanted ring's low side
+    way the lips turn in, which rim is the seam's (the one nearest the ring: a slanted ring's low side
     held a pinch's hole lower than its middle) and where a globe's edges are found (along each slot, so a slit pupil is
     ringed as the lens it now is).
   - **The bind**: the jaw bone carries the lower lip, the chin and the throat ahead of the ramus; the crown stays the
@@ -571,13 +571,19 @@ went to its eyes, teeth and lids. This theme builds its successor on the realist
     that would stand out of it is moved in, then shortened, until it fits. The mouth's seated line, which the arch is
     built from, had two points seated on the wrong side of a narrow muzzle (their march started past its far side), and
     the groove kinked there; each march now starts no further over than the midline. hero-live gained a Mouth view.
+  - **The mouth's lining** (`creature-heads/mouth.js`), in place of the one skin's closed bag. The bag's band between
+    its head half and its jaw half stretched into a flat wall across the wolf's long side opening. The lining is an upper
+    shell (the cheek walls and the palate, the head's) and a lower one (the cheek walls and the floor, the jaw's), open
+    along the lips and joined only at the back by the throat, which stretches facing the eye as a throat does. A thin
+    veil down the midline, from the palate to the floor, closes the view through from one side's opening to the other's
+    (a long gape's two openings line up); edge on from the front, it never hides the teeth. The teeth and the gums stand
+    inside the lining, so the whole row shows when the mouth opens. (Its first build bound the floor to the head: a point
+    id carrying a dot is read as a station and a slot, so its jaw blend never applied.)
   - **A beast's head opens its jaw in a clip** (the door's `jaw` key), the library head's too: both carried the jaw bone,
     and the door refused the key on them.
 
   Not yet: the other kin as presets, the sheet's head and the lexicon on relations, and the expression actions. The
-  coat's pattern atlas does not reach the head yet (it charts ringed parts; the head is a mesh). The head has no tongue,
-  and the mouth bag is a closed shell, so the cheek teeth sit behind its sides (every face is drawn from both sides, so a
-  bag inside the rows showed the skin's own inside). The cat's mouth is a straight line (its cleft under the nose is a lip
+  coat's pattern atlas does not reach the head yet (it charts ringed parts; the head is a mesh). The head has no tongue. The cat's mouth is a straight line (its cleft under the nose is a lip
   relation to come). A head costs some seconds to net, so worn heads are kept by what a build reads.
 
 Machine gate (`creature-heads/relational.test.js`): one closed skin; a relation moves what it names (the muzzle the
@@ -588,7 +594,8 @@ the library head for the skin, its globes, a mouth and its ears, and without it 
 sealed to each point of the neck's last ring; the jaw bone carries the chin and the lower lip, never the crown or the
 upper lip, and the rig's jaw tip is the chin; the cover runs onto the skin and the ears, not the eyes or the nose's pad;
 the word is refused by name; the teeth and the gums are a row on each bone, every point inside the shut skin, the canines
-the longest pair, the felid's rows shorter. Eyes: the wolf-kin and the cat-kin through hero-live, the library heads beside them, at
+the longest pair, the felid's rows shorter; the mouth's lining lies inside the shut skin and no face of it joins a head
+point to a jaw point but the throat's. Eyes: the wolf-kin and the cat-kin through hero-live, the library heads beside them, at
 rest and with the jaw open (the operator's to judge).
 
 ### The biped's coat: patterns solved in an upright body's anatomy, painted into an atlas

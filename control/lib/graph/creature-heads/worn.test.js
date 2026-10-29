@@ -81,6 +81,17 @@ describe('the relational creature head, worn', () => {
     expect(Object.keys(cat.teethU.mesh.points).filter((k) => k.endsWith('tip')).length).toBe(12);
   }, 180_000);
 
+  it('the mouth\'s lining: inside the shut skin, open along the lips (no face joins the head\'s to the jaw\'s but the throat\'s)', () => {
+    const { recipe } = mint(W), L = recipe.parts.mouth, F = recipe.creatureHead.fit, bl = L.bind.blend;
+    const H = relationalCreatureHead({ preset: 'wolf', globes: false, ears: false }), fH = (q) => H.field({ x: q[0] / F.k, y: (q[1] - F.ty) / F.k, z: (q[2] - F.men) / F.k }) * F.k;
+    expect(Math.max(...Object.values(L.mesh.points).map(fH))).toBeLessThan(0);
+    const pure = (id, bone) => bl[`st0.${id}`]?.[bone] === 1;
+    const ids = Object.keys(L.mesh.points);
+    expect(ids.filter((id) => pure(id, 'head')).length).toBeGreaterThan(100); expect(ids.filter((id) => pure(id, 'jaw')).length).toBeGreaterThan(100);
+    const across = Object.values(L.mesh.faces).filter((t) => !t.includes('throat') && t.some((v) => pure(v, 'head')) && t.some((v) => pure(v, 'jaw')));
+    expect(across).toEqual([]);
+  }, 120_000);
+
   it('refuses a skull or a relation it does not know, by name', () => {
     expect(relationalHeadErrors({ relational: 'shark' }).join()).toMatch(/wolf \| felid/);
     expect(relationalHeadErrors({ relational: 'wolf', relations: { snout: 1 } }).join()).toMatch(/relations\.snout/);

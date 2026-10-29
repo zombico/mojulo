@@ -33,8 +33,7 @@ import { smin } from './vajra.js';
  * seam's rim is the rim nearest the seam ring (`seamNearest`) rather than the lowest, the turn a
  * collapse may give a face (`turn`, the cosine), the globe's rings and slots and where its edges are found (`globeEdges`:
  * along one meridian, or along each slot's), the mouth bag (its gap behind the turn-in,
- * its depth and height, how far `wide` past the corners, its rings and slots; `x` and `y` its half width and its middle's
- * place when a muzzle sets them) */
+ * its depth and height, how far `wide` past the corners, its rings and slots) */
 export const ONE_SKIN = Object.freeze({
   cell: 0.001, weld: 0.0002, faces: 30000, feature: 12, reach: { eye: 0.02, nose: 0.016, mouth: 0.02 }, lipDepth: 0.005, lipEase: 0.003, lipWindow: 0.006, mouthBack: 0.012, lipInward: false, seamNearest: false, globeEdges: 'meridian', turn: 0.5,
   globeSlots: 48, globeRings: { pupil: 2, iris: 5, sclera: 14 },
@@ -287,7 +286,7 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
   const boundary = [...count].filter(([, c]) => c === 1).map(([kk]) => kk.split('|'));
   const headSkin = { layer: 1, closure: 'open', group: 'Skin', mesh: { points, faces, groups, normals, boundary }, bind: { bone: 'head', blend } };
   // THE MOUTH: a closed bag behind the lips, its upper half the head's and its lower the jaw's
-  const B = C.bag, cx = B.x ?? chx + B.wide, cy = B.y ?? sto[1] - C.lipDepth - B.gap - B.depth / 2, mp = {}, mf = {}, mb = {}, mn = {};
+  const B = C.bag, cx = chx + B.wide, cy = sto[1] - C.lipDepth - B.gap - B.depth / 2, mp = {}, mf = {}, mb = {}, mn = {};
   const bagAt = (u, th) => { const s = Math.sin(u), c2 = Math.cos(u); return [cx * s * Math.sin(th), cy + (B.depth / 2) * s * Math.cos(th), sto[2] + (B.height / 2) * c2]; };
   mp.top = rp(bagAt(0, 0)); mp.bot = rp(bagAt(Math.PI, 0));
   for (let i = 1; i < B.rings; i++) for (let j = 0; j < B.slots; j++) mp[`r${i}s${j}`] = rp(bagAt((Math.PI * i) / B.rings, (2 * Math.PI * j) / B.slots));

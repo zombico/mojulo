@@ -76,7 +76,7 @@ const n4 = (v) => v.map((x) => Math.round(x * 1e4) / 1e4 + 0);
 
 /** an arch: the mouth's line (front first) carried in by `off` along the skin's level facing, at height `z`; read by its
  * share of length → { p (the point), t (along it, toward the corner), n (level, in toward the midline) } */
-function archOf(line0, off, z) {
+export function archOf(line0, off, z) {
   // (the line made to run back from the front all the way, then smoothed: a cat's front sits behind its whisker pads, and
   // that notch carried in folds the arch over itself)
   const line = line0.map((p) => [...p]);

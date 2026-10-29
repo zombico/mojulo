@@ -9,8 +9,9 @@
  *              on that ring (`seamSlots` points round it, on the neck's own edges): one ring, no gap, no shell inside another
  *   the skin   the head's field (the globes and the ears out) joined smoothly to the neck's column, netted, sealed to the
  *              seam, its lips cut along the mouth's line from the front back along the muzzle's sides to the corners (the
- *              upper lip the head's, the lower the jaw's; turned in along the skin's facing), a mouth bag the length of the
- *              muzzle behind them, the nose's pad painted
+ *              upper lip the head's, the lower the jaw's; turned in along the skin's facing), the nose's pad painted
+ *   the mouth  its lining open along the lips, the palate the head's, the floor the jaw's, joined at the throat
+ *              (./mouth.js: in place of the one skin's closed bag, whose band stretched into a wall across the opening)
  *   the bind   the seam's points carry the neck's blend; up the head they ease to { jaw, head }: the jaw's share ahead of the
  *              ramus (the jaw's angle to its hinge) and under the mouth's line, the cut deciding between the corners
  *   the eyes   each globe its own part (hero-one-skin.js globePart), seen through the socket the skin leaves
@@ -22,7 +23,8 @@
  * Pure and deterministic: fixed loops, ties by index; no dice, no clock.
  */
 import { relationalCreatureHead } from './relational.js';
-import { dentitionParts, ARCH } from './dentition.js';
+import { dentitionParts } from './dentition.js';
+import { mouthLining } from './mouth.js';
 import { HEAD_V } from '../polygonizer/head-relational.js';
 import { oneSkinHead } from '../polygonizer/hero-one-skin.js';
 import { neckField } from '../polygonizer/hero-relational-head.js';
@@ -32,12 +34,10 @@ import { r6 } from '../polygonizer/body-relational-vec.js';
 
 /** the worn head's density and joins: the neck's join (m: the smooth union's width, and how far outside the head the
  * seam ring stands), the seam's points, the skin's net cell and its faces, the ears' cell and faces, the lips' reach and
- * turn-in (m), the mouth bag (its width's share of the room inside the lower row, how far inside that row it stands, V,
- * its height's share of the jaw's), how broadly the jaw's share
- * eases behind the corners (m) */
+ * turn-in (m), how broadly the jaw's share eases behind the corners (m) */
 export const CREATURE_WEAR = Object.freeze({
   join: 0.012, seamSlots: 48, cell: 0.0025, faces: 10000, earCell: 0.0009, earFaces: 900,
-  lipDepth: 0.004, lipWindow: 0.008, bagWide: 0.85, bagInset: 0.02, bagHigh: 0.7, jawEase: 0.03,
+  lipDepth: 0.004, lipWindow: 0.008, jawEase: 0.03,
 });
 
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
@@ -129,14 +129,8 @@ function buildHead(neck0, worn, C) {
     const wj = r6(ramp((ahead(p) + 0.006) / 0.018) * below);
     return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
   };
-  // (the mouth bag the muzzle's length from the corners to behind the front teeth, its width a share of the room inside the
-  // lower row, its height a share of the jaw's: the incisors and the canines stand in front of it; the cheek teeth behind
-  // its sides, as a beast's cheeks hide them (every face is drawn from both sides, so a bag inside the rows showed the
-  // skin's own inside behind the teeth))
-  const jawDepth = head.relations.jawDepth * HEAD_V * k, inset = (ARCH.lower + C.bagInset) * HEAD_V * k, bagLen = Math.max(0.01, sto[1] - inset - ch[1]);
-  const bag = { x: Math.max(0.004, Math.abs(ch[0]) - inset) * C.bagWide, y: ch[1] + bagLen / 2, depth: bagLen, height: jawDepth * C.bagHigh, gap: 0.001, wide: 0, rings: 10, slots: 24 };
   const skin = oneSkinHead({ head: { ...head, globes: head.globes }, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW,
-    opts: { cell: C.cell, faces: C.faces, lipDepth: C.lipDepth, lipWindow: C.lipWindow, mouthBack: sto[1] - ch[1], lipInward: true, seamNearest: true, globeEdges: 'slot', bag } });
+    opts: { cell: C.cell, faces: C.faces, lipDepth: C.lipDepth, lipWindow: C.lipWindow, mouthBack: sto[1] - ch[1], lipInward: true, seamNearest: true, globeEdges: 'slot' } });
   // THE NOSE'S PAD painted on the skin: a face whose middle the head paints the nose
   const hs = skin.parts.headSkin, mg = hs.mesh.groups;
   for (const [id, t] of Object.entries(hs.mesh.faces)) { if (mg[id]) continue; const c = mean(t.map((v) => hs.mesh.points[v])); if (head.paint(S2(c)) === 'nose') mg[id] = 'NosePad'; }
@@ -151,6 +145,8 @@ function buildHead(neck0, worn, C) {
   }
   Object.assign(parts, skin.parts);
   // THE TEETH AND THE GUMS along the mouth's arch, inside the shut skin (./dentition.js)
+  // THE MOUTH'S LINING in place of the one skin's bag (./mouth.js)
+  parts.mouth = mouthLining({ mouth: head.mouth.map(toHero), fH, k, zL, lipDepth: C.lipDepth });
   Object.assign(parts, dentitionParts({ mouth: head.mouth.map(toHero), fH, k, zL, dentition: head.relations.dentition, fang: head.relations.fang }));
   // THE EARS, each its own part on its own field
   const E = head.earFields.find((e) => e.side === 'R'), w = head.vajras.find((v) => v.name === 'earR');
