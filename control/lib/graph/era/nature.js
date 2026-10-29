@@ -41,6 +41,7 @@ import { barkTile } from '../vegetation/tiles.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
 import { recolourCard, recolourFaces } from '../color-theorist/recolour.js';
+import { readGrade } from './grade.js';
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -749,7 +750,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
-  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), keep), trees = treeItems(st, site, seed);
+  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), trees = treeItems(st, site, seed);
   const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed);
   const puddles = puddleSpots(st, site);
   let ground = groundFaces(st, site), ribbon = trailFaces(st, site);

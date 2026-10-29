@@ -10,6 +10,7 @@
  *   EXTERIOR_PAINT   by PALETTE: the wall's and the roof's swatch, each the face and its joints
  *
  *   exteriorOf({ construction, palette }) → { wall: { family, scale, key }, roof: { family, scale, key }, cap, pitch, parapet }
+ *   stairConcrete()  → { family, scale, key }: the poured concrete of a stair up the land beside a building (era/outdoor-stair.js)
  *
  * Pure data and a lookup; a tile family is named from its numbers (era/tile-specs.js), so the same look is the same tiles.
  */
@@ -51,4 +52,9 @@ const tile = (m, sw) => {
 export function exteriorOf({ construction, palette } = {}) {
   const E = EXTERIORS[construction] ?? EXTERIORS.utility, P = EXTERIOR_PAINT[palette] ?? EXTERIOR_PAINT.utility;
   return { wall: tile(E.wall, E.own ?? P.wall), roof: tile(E.roof, E.own ?? P.roof), cap: E.cap, pitch: E.pitch ?? 0, parapet: E.parapet ?? 0 };
+}
+
+/** The poured concrete an outdoor stair and its cheeks are cast in, whatever the building beside it. */
+export function stairConcrete() {
+  return tile(d('concrete', 2, { cols: 2, rows: 1, grit: 0.6 }), { stone: [146, 144, 138], mortar: [104, 102, 98] });
 }

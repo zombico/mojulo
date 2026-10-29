@@ -21,3 +21,18 @@ the placement first; no game in it yet.
   beats, the stage's edge and the other buildings says so.
 - **The game-building card** says it; `scripts/spikes/outpost/outpost.mjs` captures one on a cube's trail at each
   hour, from the approach, wide, the yard and inside looking out.
+- **A building set into its slope** (`embed: true | { up }` on an outdoor stage's building): its way in a walkout on the
+  low land, a door out of its upper storey's back onto the high land behind (a way out of an upper storey is allowed
+  now: `stage.js` `ways`, each storey taking its own), placed where the land falls most nearly a storey across it,
+  every way round, clear of the trail, its landmark and the stage's edge with room to walk round it. The land is graded
+  to it (`era/grade.js`: pads and ramps on a trail's grid, laid before anything grows, the walk kept; each eases out
+  over its own fall) and the building stands where the first pass placed it. Beside it a concrete stair between cheek
+  walls climbs the land (`era/outdoor-stair.js`), its other side a bank; paths of slabs run from the trail to the
+  walkout, to the stair and on to the upper door, no grass through them; no window is laid under the land
+  (`bay.js`, the land against its walls). Inside, its own stairs join its two doors. The anchor's `embed` says its
+  doors, its stair, the way `through` and the way `round`; a finding says how far the land was cut and filled.
+- **Room on a trail's ground** (`trail.ground.room`, 0 to 80 m): open ground past the trail's far side, the site that much
+  wider and the trail where it was; a coast takes none.
+- **A composed building stands inside the bounds' walls**, not wholly past one (any building only checked crossing a wall).
+- **The outpost spike** takes `--embed` and `--trail`, and shoots a set-in building from the low yard, the high ground,
+  the stair's foot and along its bank.

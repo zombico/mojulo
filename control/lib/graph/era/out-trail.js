@@ -32,6 +32,7 @@ import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
+import { applyGrade } from './grade.js';
 import { readTrailDress } from './trail-dress.js';
 import { layWater, WATER } from './out-water.js';
 import { duneField, DUNE_WALK } from './out-dunes.js';
@@ -264,13 +265,13 @@ export const beatRoom = (len) => Math.max(3, Math.min(7, Math.floor((len - 2 * C
  * tree stands: the pockets, the rests, the view off a reveal), `gapAt` (where the ribbon breaks: a pit), `rocks` (the
  * landmark), `passes` (each pass's grid, for the board) and `out` (the plan, its hazards and its anchors).
  */
-export function outTrailSite(st, recipe, seed = 1) {
+export function outTrailSite(st, recipe, seed = 1, grade = null) {
   const T = readOutTrail(recipe), join = T.after ? joinOf(outTrailSite(st, T.after.recipe, T.after.seed)) : null;
-  if (T.beats) return siteOf(st, planOutTrail(st, T, seed, null, join));
+  if (T.beats) return siteOf(st, planOutTrail(st, T, seed, null, join), grade);
   // drawn beats: as many as the spine holds, fewer while exploring would run past the band (a long trail is a sparse
   // one: the run grows, the exploring stays two or three minutes)
   for (let n = beatRoom(T.run * C.speed); ; n--) {
-    const site = siteOf(st, planOutTrail(st, T, seed, n, join));
+    const site = siteOf(st, planOutTrail(st, T, seed, n, join), grade);
     if (n <= 3 || exploreSeconds(site) <= C.explore[1]) return site;
   }
 }
@@ -294,7 +295,7 @@ function landmarkSizes(st, T) {
   return [r5(T.rocks.landmark / landmarkStands(st, 1))];
 }
 
-function siteOf(st, plan) {
+function siteOf(st, plan, grade = null) {
   const { T, G, S, W, D, trailX, trailSlope, sOf, beats } = plan;
   const Lf = st.landform, halfW = st.trail.width / 2;
   const at = (kind) => beats.filter((b) => b.kind === kind);
@@ -341,7 +342,8 @@ function siteOf(st, plan) {
   const pits = at('pit').map((b) => ({ b, y: b.y, w: C.pit.w, depth: C.pit.depth }));
   const streams = at('crossing').map((b) => ({ b, y: b.y }));
   // the WATER (out-water.js, `ground.water`): laid after the walk; a coast runs the ground on past the plan's edge
-  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast ? W + WATER.coast.room : W;
+  // (`ground.room`: open ground past the trail's far side, the site that much wider)
+  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast ? W + WATER.coast.room : W + (G.room ?? 0);
 
   // the DUNES (out-dunes.js, `ground.dunes`): laid over the ground once the walk and the edits are, easing down to the
   // walk's street, the cliff's foot, a pocket, a ford and the site's edges; where they stand the bumps lie down (sand)
@@ -421,6 +423,8 @@ function siteOf(st, plan) {
       for (let i = 0; i < g.nx; i++) { const w = walkLevel(gridX(g, i), y); if (w <= 0) continue; const q = j * g.nx + i; g.z[q] = mix(g.z[q], baseZ[q] + lift, w); }
     }
   }
+  // the GRADE (era/grade.js): the land cut and filled round a building set into its slope, the walk kept
+  if (grade) applyGrade(g, grade, { gridX, gridY, keep: walkLevel });
   // the DUNES laid over it, the walk kept: their share where they stand (the sand), 0 on the street
   const duneAt = DN ? (x, y) => {
     if (open ? false : x - cliffX(y) < Lf.keep[1]) return 0;

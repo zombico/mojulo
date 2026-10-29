@@ -2,7 +2,7 @@
  * STAGE BUILDINGS — game buildings standing in open ground, walked into as terrain (`enter: 'walk'`). An outdoor
  * stage recipe's `buildings` seats each one on the land the stage already laid:
  *
- *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays? }]
+ *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays?, embed? }]
  *     use            a program (era/programs.js): its rooms and doorways, its goal room
  *     at             a pocket beat's id ('pocket-1': the building stands in the clearing, its door to the trail), or
  *                    { x, y, facing: '+x' | '-x' | '+y' | '-y' } (its door's middle, and the way the door faces out);
@@ -16,6 +16,17 @@
  *                    patches and its day dims their daylight; it wears its construction outside (style/bay-exterior.js),
  *                    a flat roof behind a parapet or a low steel one, its walls rising over a lower room's roof; and a
  *                    yard YARD deep before its front is kept clear of what grows
+ *     embed          true | { up? }: SET INTO ITS SLOPE (embedOf). Its front, the program's way in, is a walkout on the
+ *                    land before it; a door out of storey `up` (1) through its back opens on the land behind, that
+ *                    storey's height higher. It is placed where the land falls most nearly that much across it, every way
+ *                    round, clear of the trail and its landmark with room to walk round it inside the bounds; the land is
+ *                    GRADED to it (era/grade.js: a ramp along its sides, level ground before and behind) and laid again,
+ *                    the building standing where the first pass placed it. Beside it a STAIR climbs the land
+ *                    (era/outdoor-stair.js), the land under its flight a riser below its treads, its other side a bank;
+ *                    PATHS of slabs run from the trail to its walkout, along its yard to the stair and from the stair's head
+ *                    to its upper door; no window is laid where the land stands over it. Its anchor's `embed` says its
+ *                    doors, its stair, `through` (in at the upper door, down its own stairs, out at the walkout) and
+ *                    `round` (out of the walkout, up the stair, to the upper door), each point at its height
  *
  * Each building is its INSIDE (the room kit's stage, its rooms laid from the program, a way out of its entry through
  * the front wall, baked in its own torchlight), its OUTSIDE (the outer walls of every room, a plinth down to the
@@ -42,7 +53,8 @@ import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
-import { exteriorOf } from './style/bay-exterior.js';
+import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
+import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -53,6 +65,8 @@ const CLEARED = /:(wood|crown|tree|bough|rock|hat|blaze|debris|grass|grassblend|
 const FACINGS = { '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] };
 // a composed building's yard: how deep the ground before its front is kept clear (m)
 const YARD = 8;
+// a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
+const EMBED = { side: 4, back: 6 };
 
 /** The quarter turn that carries the plan's front (-y, out of the entry) onto `facing`. */
 function turnFor(facing) {
@@ -132,6 +146,29 @@ function composedOf(b) {
     compose: { ...(look.construction ? { construction: look.construction } : {}), ...(look.palette ? { palette: look.palette } : {}) },
     ...(b.tone !== undefined ? { tone: b.tone } : {}),
   };
+}
+
+/**
+ * A building SET INTO ITS SLOPE (`embed: true | { up? }`): its front (the program's way in) downhill on the lower land,
+ * a way out of its storey `up` (1 by default) through a back wall onto the land behind, which stands that storey's
+ * height higher: a walkout. The way is the outermost back wall of a room of that storey, a stair's room last (its walls
+ * are its flight's). → { up, rise, way, at } (`rise` the storey's floor over the ground's, `at` the upper way's middle in
+ * plan). Refused by name when the building has no such storey or no room of it with a back wall facing out.
+ */
+function embedOf(b, inner, i, id) {
+  const e = b.embed === true ? {} : b.embed;
+  if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).some((k) => k !== 'up')) throw new Error(`stage: buildings[${i}].embed is true or { up?: <storey> } (the storey whose back door meets the land behind)`);
+  const up = e.up ?? 1, PI = planStage(inner);
+  if (!Number.isInteger(up) || up < 1 || !PI.storeys || up >= PI.storeys.length) throw new Error(`stage: buildings[${i}] (${id}) is set into its slope at storey ${up}, but stands ${PI.storeys?.length ?? 1} storey${(PI.storeys?.length ?? 1) === 1 ? '' : 's'}: give it storeys (a plan's storeys, or a use that has them)`);
+  // (a stair's room is the last chosen: its walls are the flight's to climb along)
+  const storeyOf = new Map(inner.rooms.map((r) => [r.id, r.storey ?? 0])), stair = new Set((inner.links ?? []).filter((l) => storeyOf.get(l.from) !== storeyOf.get(l.to)).flatMap((l) => [l.from, l.to]));
+  // (a room of the storey whose back wall faces out: no room of its storey stands against it there)
+  const mine = inner.rooms.filter((r) => (r.storey ?? 0) === up);
+  const outward = (r) => !mine.some((q) => q !== r && Math.abs(q.y - (r.y + r.d)) < 1e-6 && q.x < r.x + r.w - 1e-6 && q.x + q.w > r.x + 1e-6);
+  const on = mine.filter(outward).sort((p, q) => stair.has(p.id) - stair.has(q.id) || (q.y + q.d) - (p.y + p.d) || q.w - p.w || p.x - q.x);
+  if (!on.length) throw new Error(`stage: buildings[${i}] (${id}) is set into its slope at storey ${up}, but no room of that storey has a back wall to open onto the land behind`);
+  const r = on[0];
+  return { up, rise: r5(PI.storeys[up].z0), way: { room: r.id, side: '+y' }, at: [r.x + r.w / 2, r.y + r.d] };
 }
 
 /** The kit's structure paint, or a plain one for a kit its towns are not painted for. `repoint`: a town's `paint`, a
@@ -262,13 +299,15 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false, 
         let v = s0;
         for (const w of W) {
           if (w.hi < s0 || w.lo > s1) continue;
-          face(v, w.lo, base, wallTop); face(w.lo, w.hi, w.top, wallTop); face(w.lo, w.hi, base, 0); v = w.hi;
+          // (a way out of an upper storey stands at its floor, `zr`: a building set into its slope)
+          const wt = zr + w.top;
+          face(v, w.lo, base, wallTop); face(w.lo, w.hi, wt, wallTop); face(w.lo, w.hi, base, zr); v = w.hi;
           // (solid: the way cut through the wall, outer face to inner: its jambs facing in, its head down, its threshold up)
           if (solid) {
-            faceN([at(w.lo, 0), atIn(w.lo, 0), atIn(w.lo, w.top), at(w.lo, w.top)], un, 'wall');
-            faceN([at(w.hi, 0), atIn(w.hi, 0), atIn(w.hi, w.top), at(w.hi, w.top)], un.map((x) => -x), 'wall');
-            faceN([at(w.lo, w.top), at(w.hi, w.top), atIn(w.hi, w.top), atIn(w.lo, w.top)], [0, 0, -1], 'wall');
-            faceN([at(w.lo, 0), at(w.hi, 0), atIn(w.hi, 0), atIn(w.lo, 0)], [0, 0, 1], 'wall');
+            faceN([at(w.lo, zr), atIn(w.lo, zr), atIn(w.lo, wt), at(w.lo, wt)], un, 'wall');
+            faceN([at(w.hi, zr), atIn(w.hi, zr), atIn(w.hi, wt), at(w.hi, wt)], un.map((x) => -x), 'wall');
+            faceN([at(w.lo, wt), at(w.hi, wt), atIn(w.hi, wt), atIn(w.lo, wt)], [0, 0, -1], 'wall');
+            faceN([at(w.lo, zr), at(w.hi, zr), atIn(w.hi, zr), atIn(w.lo, zr)], [0, 0, 1], 'wall');
           }
         }
         face(v, s1, base, wallTop);
@@ -350,8 +389,8 @@ function doorOf(id, x, y0, out, F, ground) {
 }
 
 /** Whether a point lies on a street's paving (its road, walks, kerbs and door paths): a lookup over their top faces. */
-function pavedBy(faces) {
-  const C = 2, cells = new Map(), tops = faces.filter((f) => /^street:(road|walk|kerb)$/.test(f.group) && f.normal[2] > 0.7);
+function pavedBy(faces, re = /^street:(road|walk|kerb)$/) {
+  const C = 2, cells = new Map(), tops = faces.filter((f) => re.test(f.group) && f.normal[2] > 0.7);
   for (const f of tops) {
     const P = f.corners.map((c) => [c[0], c[1]]), xs = P.map((p) => p[0]), ys = P.map((p) => p[1]);
     for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++) for (let j = Math.floor(Math.min(...ys) / C); j <= Math.floor(Math.max(...ys) / C); j++) {
@@ -391,9 +430,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId, manifest.town?.paint);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
   const sun = unit(payload.sky?.sun?.dir ?? [0.45, -0.55, 0.7]);
-  const seated = [], taken = [], reserved = [];
+  const seated = [], taken = [], reserved = [], grades = [], placed = [], pathFaces = [];
   const beats = (payload.anchors || []).filter((a) => a.kind === 'beat' && Array.isArray(a.at)).sort((p, q) => (p.s ?? p.at[1]) - (q.s ?? q.at[1]));
+  const stones = beats.filter((a) => a.beat === 'landmark');
   const bounds = (payload.colliders || []).filter((c) => String(c.of || '').startsWith('bound:'));
+  // (the ground the bounds' walls enclose, from the wall on each side, when every side has one)
+  const sideOf = (k) => bounds.filter((c) => String(c.of).endsWith(`:${k}`));
+  const inBounds = ['-x', '-y', '+x', '+y'].every((k) => sideOf(k).length) ? [Math.max(...sideOf('-x').map((c) => c.max[0])), Math.max(...sideOf('-y').map((c) => c.max[1])), Math.min(...sideOf('+x').map((c) => c.min[0])), Math.min(...sideOf('+y').map((c) => c.min[1]))] : null;
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
   let faces = payload.faces, lights = [...(payload.lights || [])], colliders = [...(payload.colliders || [])], anchors = [...(payload.anchors || [])];
   const cutouts = new Set(payload.cutouts || []);
@@ -411,7 +454,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;
     // a house of the town's standing as its shell (no inside): its footprint the lot's building, its door on its front
     const lot = b.lot ?? null;
-    let inner = null, entry = null, doorPlan, rects;
+    let inner = null, entry = null, doorPlan, rects, E = null;
     if (lot) {
       const fs = lot.design.faces, xs = fs.flatMap((f) => f.corners.map((c) => c[0])), ys = fs.flatMap((f) => f.corners.map((c) => c[1]));
       const dr = fs.find((f) => f.part === 'door' || f.part === 'accent');
@@ -427,7 +470,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
       inner = { ...inner0, ways: composedOf(b) ? [front, ...(inner0.ways ?? []).filter((w) => w.room !== front.room || w.side !== front.side)] : [front] };
       doorPlan = [(entry.x + entry.x + entry.w) / 2, entry.y];
       rects = inner.rooms.map((r) => [r.x - t, r.y - t, r.x + r.w + t, r.y + r.d + t]);
+      // (set into its slope: a way out of its upper storey through its back wall, onto the land behind it)
+      if (b.embed !== undefined) { E = embedOf(b, inner, i, id); inner = { ...inner, ways: [...inner.ways, E.way] }; }
     }
+    if (E && (lot || b.enter === 'door')) throw new Error(`stage: buildings[${i}] (${id}) is set into its slope (embed) and walked into: it changes no scene at a door`);
     // how the building fits standing with its door at T facing out: its floor level with the land at its door (a game
     // building is cut into its slope, not stood on stilts over it), how far the land behind stands over that floor, how
     // much cliff and trail it covers, whether it crosses the stage's bounds or another building
@@ -445,14 +491,26 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const cellsIn = (set) => { let n = 0; for (const B of boxes) for (let i = Math.floor(B[0]); i <= Math.floor(B[2]); i++) for (let j = Math.floor(B[1]); j <= Math.floor(B[3]); j++) if (set.has(`${i},${j}`)) n++; return n; };
       const hits = (B, c) => B[0] < c.max[0] && c.min[0] < B[2] && B[1] < c.max[1] && c.min[1] < B[3];
       // a building never stands on a beat of the trail (the way runs through them) or another building
-      const onBeat = boxes.some((B) => beats.some((bt) => bt.at[0] > B[0] - 2 && bt.at[0] < B[2] + 2 && bt.at[1] > B[1] - 2 && bt.at[1] < B[3] + 2));
+      // (one set into its slope keeps its walk round clear of them, and of the landmark's great stone)
+      const onBeat = boxes.some((B) => beats.some((bt) => bt.at[0] > B[0] - 2 && bt.at[0] < B[2] + 2 && bt.at[1] > B[1] - 2 && bt.at[1] < B[3] + 2))
+        || (!!E && boxes.some((B) => stones.some((a) => a.at[0] > B[0] - 9 && a.at[0] < B[2] + 9 && a.at[1] > B[1] - 9 && a.at[1] < B[3] + 9)));
       const onStreet = !!ST && String(id).startsWith('town-') && boxes.some((B) => [[B[0], B[1]], [B[2], B[1]], [B[0], B[3]], [B[2], B[3]], [(B[0] + B[2]) / 2, (B[1] + B[3]) / 2]].some(([x, y]) => offStreet(x, y)));
-      const blocked = onBeat || onStreet || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
-      return { q, rot, toWorld, boxes, zs, floor, into: Math.max(...zs) - floor, rough: cellsIn(rough), path: cellsIn(path), blocked };
+      // (a composed building, or one set into its slope, stands inside the bounds' walls, not wholly past one)
+      // (one set into its slope with room to walk round it inside them, on its grade's banks)
+      const mg = E ? 3 : 0;
+      const past = (composedOf(b) || E) && inBounds && boxes.some((B) => B[0] < inBounds[0] + mg || B[1] < inBounds[1] + mg || B[2] > inBounds[2] - mg || B[3] > inBounds[3] - mg);
+      const blocked = onBeat || onStreet || past || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
+      // (set into its slope: how far the land falls from behind it, at its upper door, to before its front, at its own)
+      const drop = E ? (ground(...toWorld([E.at[0], E.at[1] + 1.5])) ?? floor) - (ground(...toWorld([doorPlan[0], doorPlan[1] - 1.5])) ?? floor) : 0;
+      return { q, rot, toWorld, boxes, zs, floor, into: Math.max(...zs) - floor, drop, rough: cellsIn(rough), path: cellsIn(path), blocked };
     };
-    const score = (F) => (F.off ? Infinity : F.into + 3 * F.rough + (F.path ? 40 : 0) + (F.blocked ? 1000 : 0));
+    // (a building set into its slope wants the land to fall a storey across it, its front downhill, not the flattest)
+    // (and stands clear of the trail, its grade too: the walk keeps its own height, so a bank would stand beside it)
+    const score = (F) => (F.off ? Infinity : (E ? 3 * Math.abs(F.drop - E.rise) : F.into) + 3 * F.rough + (F.path ? (E ? 1000 : 40) : 0) + (F.blocked ? 1000 : 0));
     let T, facing;
-    if (b.at && typeof b.at === 'object') {
+    const was = ctx.placed?.[i] ?? null;
+    if (was) { T = was.T; facing = was.facing; }
+    else if (b.at && typeof b.at === 'object') {
       if (!Number.isFinite(b.at.x) || !Number.isFinite(b.at.y) || !FACINGS[b.at.facing]) throw new Error(`stage: buildings[${i}].at is a pocket id or { x, y, facing: +x | -x | +y | -y }`);
       T = [b.at.x, b.at.y]; facing = b.at.facing;
     } else if (typeof b.at === 'string') {
@@ -479,29 +537,57 @@ export function withBuildings(payload, manifest, ctx = {}) {
         for (const p of pockets) { const m = p.mouth ? [p.mouth[0] - p.at[0], p.mouth[1] - p.at[1]] : [0, -1]; cands.push([[p.at[0], p.at[1]], Math.abs(m[0]) >= Math.abs(m[1]) ? (m[0] >= 0 ? '+x' : '-x') : (m[1] >= 0 ? '+y' : '-y')]); }
         beats.forEach((bt, k) => {
           const a = beats[Math.max(0, k - 1)].at, c = beats[Math.min(beats.length - 1, k + 1)].at, d = unit([c[0] - a[0], c[1] - a[1], 0]), n = [-d[1], d[0]];
-          for (const off of [5, 8, 11]) for (const sg of [1, -1]) {
+          for (const off of E ? [8, 11, 14, 17, 20] : [5, 8, 11]) for (const sg of [1, -1]) {
             const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
             cands.push([[r5(bt.at[0] + sg * n[0] * off), r5(bt.at[1] + sg * n[1] * off)], f]);
           }
         });
       }
       let best = null;
-      for (const [P0, f, near = 0] of cands) { const F = fit(P0, f), sc = score(F) + near; if (!best || sc < best.sc - 1e-9) best = { T: P0, facing: f, sc }; }
+      // (set into its slope, it is tried every way round: its front where the land falls away)
+      const tries = E ? cands.flatMap(([P0, , near]) => Object.keys(FACINGS).map((f) => [P0, f, near])) : cands;
+      for (const [P0, f, near = 0] of tries) { const F = fit(P0, f), sc = score(F) + near; if (!best || sc < best.sc - 1e-9) best = { T: P0, facing: f, sc }; }
       if (!best || best.sc === Infinity) throw new Error(`stage: buildings[${i}] (${id}) finds no place on the land beside the trail; give at: { x, y, facing }`);
       // (a street's house with no free frontage left is not built: stacked on another it would be a ruin)
       if (street && best.sc >= 1000) return;
       T = best.T; facing = best.facing;
     }
-    const F = fit(T, facing);
-    if (F.off) throw new Error(`stage: buildings[${i}] (${id}) stands off the land`);
+    const F0 = fit(T, facing);
+    if (F0.off) throw new Error(`stage: buildings[${i}] (${id}) stands off the land`);
+    // (on land graded for it, it stands at the floor it was planned at)
+    const F = was ? { ...F0, floor: was.floor, into: Math.max(...F0.zs) - was.floor } : F0;
     const { q, rot, toWorld, zs, floor, into } = F;
     taken.push(...F.boxes);
     // the planning pass only claims the ground (era/reserve.js): the land is laid again round it before anything is built
     if (ctx.planOnly) {
       reserved.push(...F.boxes.map((B) => B.map(r5)));
-      // (a composed building's yard: the ground before its front, as wide as it and YARD deep, kept clear of what grows)
-      if (composedOf(b)) { const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), a = F.toWorld([x0 - 1, y0 - YARD]), c = F.toWorld([x1 + 1, y0]); reserved.push([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5)); }
+      // (a composed building's yard, or one set into its slope: the ground before its front, as wide as it and YARD deep,
+      // kept clear of what grows)
+      if (composedOf(b) || E) { const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), a = F.toWorld([x0 - 1, y0 - YARD]), c = F.toWorld([x1 + 1, y0]); reserved.push([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5)); }
       if (ST && String(id).startsWith('town-')) planned.push(T[1]);
+      // (set into its slope: the land cut and filled round it, era/grade.js, and its place kept for the second pass)
+      if (E) {
+        const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), y1 = Math.max(...rects.map((R0) => R0[3]));
+        const box = ([a0, b0, a1, b1]) => { const a = F.toWorld([a0, b0]), c = F.toWorld([a1, b1]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5); };
+        // (the ramp from its front to the wall its upper door is in, the land level behind from there: what stands further
+        // back of that wall is buried)
+        const lo = r5(floor - 0.12), hi = r5(floor + E.rise - 0.12), [dx, dy] = F.rot([0, 1]), yu = E.at[1] + t, dir = [Math.round(dx), Math.round(dy)];
+        // (its stair, era/outdoor-stair.js: up the strip beside it nearer the trail, else the other; on its side the land
+        // stands level before the flight's foot and past its head, the flight between; the other side its bank)
+        const sideAt = (sg) => { const m = F.toWorld([sg > 0 ? x1 + EMBED.side / 2 : x0 - EMBED.side / 2, (y0 + yu) / 2]); return Math.min(Infinity, ...beats.map((bt) => Math.hypot(bt.at[0] - m[0], bt.at[1] - m[1]))); };
+        const St = [1, -1].sort((p, q) => sideAt(p) - sideAt(q)).map((side) => planStair({ x0, x1, y0, yu, rise: E.rise, side })).find(Boolean) ?? null;
+        grades.push({ box: box([x0 - EMBED.side, y0, x1 + EMBED.side, yu]), z: [lo, hi], dir },
+          { box: box([x0 - EMBED.side, y0 - YARD, x1 + EMBED.side, y0]), z: lo }, { box: box([x0 - EMBED.side, yu, x1 + EMBED.side, Math.max(y1, yu + EMBED.back)]), z: hi });
+        if (St) {
+          // (laid last, each easing out only a little, so nothing laid round it leaks onto the flight; under the flight the
+          // land runs a riser and a hand below its treads: each step stands on it, none buried)
+          const [sx0, sx1] = St.side > 0 ? [x1, x1 + EMBED.side] : [x0 - EMBED.side, x0], under = St.h + 0.05, fall = STAIR.landing;
+          grades.push({ box: box([sx0, y0, sx1, St.foot]), z: lo, fall }, { box: box([sx0, St.head, sx1, yu]), z: hi, fall }, { box: box([sx0, St.foot, sx1, St.head]), z: [r5(lo - under), r5(hi - under)], dir, fall });
+        }
+        // (nothing grows on its banks, its stair's strip or the level ground behind it: they are walked round it)
+        reserved.push(box([x0 - EMBED.side, y0, x1 + EMBED.side, Math.max(y1, yu + EMBED.back)]));
+        placed[i] = { T, facing, floor, drop: r5(F.drop), stair: St };
+      }
       return;
     }
     const clearUnder = (pad, land = true) => {
@@ -561,7 +647,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // (a composed bay building takes the land's sun at its windows, turned into its plan's frame, and its windows open
     // through the shell: the sky cards that stood behind them in a room on its own are where the shell is cut)
     const bay = !!composedOf(b);
-    const P0 = assembleStageScene(bay ? { ...inner, _sun: sunIn(payload.sky, q) } : inner, ctx), ways = planStage(inner).ways ?? [];
+    // (set into its slope, the land against its walls in its plan's frame: from its front's floor to its upper storey's)
+    const inGround = E ? { _ground: { y0: Math.min(...rects.map((R0) => R0[1])), y1: E.at[1] + t, z0: -0.12, z1: r5(E.rise - 0.12) } } : {};
+    const P0 = assembleStageScene(bay ? { ...inner, ...inGround, _sun: sunIn(payload.sky, q) } : E ? { ...inner, ...inGround } : inner, ctx), ways = planStage(inner).ways ?? [];
     const holes = bay ? openingsOf(P0.faces) : null, P = bay ? { ...P0, faces: P0.faces.filter((f) => f.group !== 'stage:sky') } : P0;
     const below = Math.max(0.3, floor - Math.min(...zs) + 0.3);
     const W = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
@@ -601,7 +689,26 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const top = [[a, y1, zb], [c, y1, zb], [c, y0, zt], [a, y0, zt]].map(W), sides = [[[a, y0, zt], [a, y1, zb], [a, y0, zb]], [[c, y1, zb], [c, y0, zt], [c, y0, zb]]].map((tri) => tri.map(W));
       return [top, ...sides].map((cs) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lit = 0.35 + 0.65 * Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]); const F0 = { ...quad(cs, 'building:stoop', paint('str:stone', Math.min(1, 0.5 * lit))), normal: P3(nn), outNormal: P3(nn) }; return manifest.town?.dress ? dressTownFace(F0, 'plinth', manifest.town.dress) : F0; });
     })() : [];
-    faces = [...faces, ...moved, ...shell, ...stoop];
+    // (set into its slope: its stair beside it and the paths of slabs to its doors, from the trail, the yard and the
+    // stair's head; painted and lit as its shell is)
+    // (the level ground behind is walked along behind the building's furthest back wall, `yb`: a room standing proud of
+    // the upper door's wall, a stair's core, is walked round)
+    const St = E ? was?.stair ?? null : null, yu = E ? E.at[1] + t : 0, sx = St ? (St.x[0] + St.x[1]) / 2 : 0, yb = E ? Math.max(yu, ...rects.map((R0) => R0[3])) + 1.5 : 0;
+    const litFill = (nn) => { const lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0, day = Math.max(0, Math.min(1, payload.sky?.day ?? 1)), g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam) * (0.35 + 0.65 * day))); return `#${g.toString(16).padStart(2, '0').repeat(3)}`; };
+    const SC = E ? stairConcrete() : null, texd = (c, group) => {
+      const nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), flat = Math.abs(nn[2]) > 0.5;
+      return { ...quad(c, group, litFill(nn)), texture: SC.key, textureLit: true, uv: c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / SC.scale))), normal: P3(nn), outNormal: P3(nn) };
+    };
+    const SF = St ? stairFaces(St) : null, stairF = SF ? SF.faces.map((f) => texd(f.corners.map(W), `building:${f.group}`)) : [];
+    const doorOut = W([doorPlan[0], doorPlan[1] - 1.5, 0]), nearTrail = E ? [...path].map((k) => k.split(',').map((v) => +v + 0.5)).sort((p, q) => Math.hypot(p[0] - doorOut[0], p[1] - doorOut[1]) - Math.hypot(q[0] - doorOut[0], q[1] - doorOut[1]))[0] : null;
+    const legs = !E ? [] : [
+      ...(nearTrail ? [[nearTrail, doorOut]] : []),
+      ...(St ? [[[doorPlan[0], doorPlan[1] - 1.5], [sx, doorPlan[1] - 1.5]], [[sx, doorPlan[1] - 1.5], [sx, St.foot - 0.4]], [[sx, St.head + 0.4], [sx, yb]], [[sx, yb], [E.at[0], yb]], [[E.at[0], yb], [E.at[0], yu + 0.3]]].map(([p, q2]) => [toWorld(p), toWorld(q2)]) : []),
+    ];
+    const pathF = legs.flatMap(([p, q2]) => slabPath(p, q2, (x, y) => ground(x, y) ?? floor)).map((f) => { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[3], f.corners[0]))); return { ...quad(nn[2] < 0 ? f.corners.slice().reverse() : f.corners, 'building:path', paint('str:stone', 0.62)), normal: P3(nn[2] < 0 ? nn.map((v) => -v) : nn), outNormal: P3(nn[2] < 0 ? nn.map((v) => -v) : nn) }; });
+    if (pathF.length) pathFaces.push(...pathF);
+    if (SF) colliders.push(...SF.colliders.map((c) => { const a = W(c.min), z = W(c.max); return { min: P3([Math.min(a[0], z[0]), Math.min(a[1], z[1]), a[2]]), max: P3([Math.max(a[0], z[0]), Math.max(a[1], z[1]), z[2]]), of: `${id}:stair` }; }));
+    faces = [...faces, ...moved, ...shell, ...stoop, ...stairF, ...pathF];
     for (const c of P.cutouts || []) cutouts.add(c);
     lights.push(...(P.lights || []).map((l) => ({ ...l, name: `${id}-${l.name}`, position: P3(W(l.position)) })));
     // its colliders: the stage's own, moved (a quarter turn keeps a box a box)
@@ -617,15 +724,43 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // (on storeys, each room at its floor: storeys.js)
     const PI = planStage(inner), zIn = (r) => PI.rooms.find((q) => q.id === r.id).z0 ?? 0;
     const roomBox = (r) => { const a = W([r.x + t, r.y + t, zIn(r)]), c = W([r.x + r.w - t, r.y + r.d - t, zIn(r) + r.h]); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), a[2]]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), c[2]]) }; };
+    // (set into its slope: its two doors, upper and lower, and the way through, in at the upper, down its stairs, out at
+    // the lower, each point at its floor)
+    const embed = E ? (() => {
+      const [nx, ny] = rot([0, 1]), up = inner.rooms.find((r) => r.id === E.way.room), Lt = stageLevel(inner, { goal: entry.id, from: up.id });
+      // (each point at the floor of the storey it is walked on: down a stair from its arrival to its approach, the points
+      // on its flights between them eased)
+      const PS = planStage(inner), near = (p, q) => q && Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.05, sOf = new Map(PS.rooms.map((r) => [r.id, r.storey ?? 0]));
+      let cur = E.up;
+      const zs = Lt.route.map((p) => {
+        const st = (PS.stairs ?? []).find((x) => near(p, x.approach) || near(p, x.arrival) || (x.route ?? []).some((q) => near(p, q)));
+        if (!st) return PS.storeys[cur].z0;
+        if (near(p, st.approach)) { cur = sOf.get(st.lower); return st.z0; }
+        if (near(p, st.arrival)) { cur = sOf.get(st.upper); return st.z1; }
+        return null;
+      });
+      for (let k = 0; k < zs.length; k++) if (zs[k] === null) { let a = k - 1, c = k + 1; while (c < zs.length && zs[c] === null) c++; const za = a >= 0 ? zs[a] : E.rise, zc = c < zs.length ? zs[c] : 0; zs[k] = za + ((zc - za) * (k - a)) / (c - a); }
+      const pt = (p, zz) => P3([...toWorld(p), floor + zz]);
+      const through = [pt([E.at[0], E.at[1] + 1.5], E.rise), pt([E.at[0], E.at[1] - 1.5], E.rise), ...Lt.route.map((p, k) => pt(p, zs[k])), pt([doorPlan[0], entry.y + 1.5], 0), pt([doorPlan[0], entry.y - 1.5], 0)];
+      // (the way round outside: out of the walkout, along the yard to the stair's foot, up it, along the level ground
+      // behind to the upper door; each point on the land, or on the flight)
+      const onLand = (p) => { const [x, y] = toWorld(p); return P3([x, y, ground(x, y) ?? floor]); };
+      const round = St ? [onLand([doorPlan[0], doorPlan[1] - 1.5]), onLand([sx, doorPlan[1] - 1.5]), onLand([sx, St.foot - 0.4]),
+        ...Array.from({ length: St.n + 1 }, (_, k) => pt([sx, St.foot + k * STAIR.going - 0.15], St.lo + k * St.h)), onLand([sx, St.head + 0.4]), onLand([sx, yb]), onLand([E.at[0], yb]), onLand([E.at[0], yu + 0.3])] : null;
+      return { up: E.up, rise: E.rise, drop: r5(was?.drop ?? F0.drop), upper: { room: up.id, at: pt(E.at, E.rise), N: P3([nx, ny, 0]) }, lower: { room: entry.id, at: P3(W([doorPlan[0], doorPlan[1], 0])), N: P3(turnN([0, -1, 0])) }, through,
+        ...(St ? { stair: { side: St.side, steps: St.n, riser: St.h, foot: pt([sx, St.foot], St.lo), head: pt([sx, St.head], St.hi) }, round } : {}), paths: legs.length };
+    })() : null;
     const anchorRec = {
-      id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, ...(X ? { look: { construction: P0.compose.axes.construction, palette: P0.compose.axes.palette } } : {}), turn: q,
+      id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, ...(X ? { look: { construction: P0.compose.axes.construction, palette: P0.compose.axes.palette } } : {}), ...(embed ? { embed } : {}), turn: q,
       at: P3(W([doorPlan[0], doorPlan[1], 0])), N: P3(turnN([0, -1, 0])), floor: r5(floor),
       entry: entry.id, goal: goal?.id ?? null, rooms: inner.rooms.map((r) => ({ id: r.id, box: roomBox(r), ...(r.storey ? { storey: r.storey } : {}) })),
       route, goalAt: P3([...toWorld(L2.goal.at), floor + (L2.goal.at[2] ?? 0)]), ...(PI.storeys ? { storeys: PI.storeys.length } : {}), ...(b.goal ? { isGoal: true } : {}),
     };
     anchors.push(anchorRec);
     seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
-      findings: [...inner._program.findings.map((f) => f.says), ...(into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
+      findings: [...inner._program.findings.map((f) => f.says), ...(!E && into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
+        ...(E && !St ? [`the ${id} is set into its slope with no stair beside it: neither side is long enough to hold the flight and its landings, so its bank is the way up`] : []),
+        ...(E && Math.abs(embed.drop - E.rise) > 1 ? [`the ${id} is set into land that ${embed.drop >= 0 ? `falls ${embed.drop}` : `rises ${-embed.drop}`} m from its back to its front where its upper storey stands ${E.rise} m up: the land is cut and filled ${r5(Math.abs(embed.drop - E.rise))} m to take it`] : []),
         ...(bay && F.blocked ? [`the ${id} found no place clear of the trail's beats, the stage's edge and the other buildings: it stands over one (a smaller plan, fewer bays or wings, or at: { x, y, facing })`] : [])] });
   });
   // (planning: the street's ground is reserved too, so nothing grows on it when the land is laid again)
@@ -633,7 +768,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const [y0, y1] = streetRange(planned);
     for (let y = y0; y < y1; y += 2) { const xs = [y, y + 1, y + 2].map((q) => ST.site.trailX(Math.min(q, y1))), h = ST.span.half + 0.5; reserved.push([r5(Math.min(...xs) - h), r5(y), r5(Math.max(...xs) + h), r5(Math.min(y + 2, y1))]); }
   }
-  if (ctx.planOnly) return { reserved };
+  if (ctx.planOnly) return { reserved, ...(grades.length ? { grade: grades, placed } : {}) };
   // the street, once its houses stand: from before the first to past the last along the trail, the land's growth and
   // the trail under it cleared, a path of slabs to each door
   let liveGrass = null;
@@ -654,5 +789,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       if (payload.liveGrass) liveGrass = offPaving(payload.liveGrass, paved);
     }
   }
+  // (no grass through the paths of slabs to a building set into its slope)
+  if (pathFaces.length && (liveGrass ?? payload.liveGrass)) liveGrass = offPaving(liveGrass ?? payload.liveGrass, pavedBy(pathFaces, /^building:path$/));
   return { ...payload, faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

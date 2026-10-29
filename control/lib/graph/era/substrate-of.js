@@ -13,12 +13,13 @@ import { reserveSite } from './reserve.js';
 import { lookOf } from './style/looks.js';
 import { readShading } from '../local-meru/plan.js';
 import { substrateMap, FORMATION_TURNS } from './substrate.js';
+import { readGrade } from './grade.js';
 
 export function substrateOf(manifest = {}) {
   const id = manifest.style ?? manifest.kit ?? 'isekai-meadow', st = ISEKAI_STYLES[id] ?? lookOf(id)?.card;
   if (!st) throw new Error(`substrate: '${id}' is no isekai style or look`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
-  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), manifest._keepOut ?? null);
+  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), manifest._keepOut ?? null);
   const SH = readShading(manifest.shading), skin = SH?.skin;
   return substrateMap(st, site, { formation: typeof skin === 'string' && FORMATION_TURNS[skin] ? skin : null, seed });
 }

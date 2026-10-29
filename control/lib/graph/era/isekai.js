@@ -77,6 +77,7 @@ import { readSnow, snowRamp, snowFar, snowField, snowAlbedo, grassUnder, capOf, 
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
+import { readGrade } from './grade.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -424,7 +425,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the trail's dress (era/trail-dress.js): its surface, its rubble, its patches
   // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's)
   const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
-  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
+  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
   // (a polygon land's rock drawn toward planes, `shading.facet`: on the faces' own heights, as the island's; the land the
   // rest is placed on keeps its own)
