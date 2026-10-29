@@ -17,9 +17,9 @@
  *   eggField(eggs)      → { field(p), nearest(p), weights(p) }: the superposition (the nearest three folded by a polynomial
  *                     smooth-min) and the skin's WEIGHTS from it: a point belongs to the bones of the eggs it is made of,
  *                     each by how near it is against the nearest, over the softness of their join; at most four bones
- *   eggSkin(eggs, { cell, faces, paint })   → a layer-1 mesh part (closed), each point bound by its weights (`st0.<id>`),
- *                     each face in the group of the egg nearest its middle, or of the last PAINT egg its middle is inside
- *                     (the markings: eggs that colour and do not shape); kept by key (a few seconds a body)
+ *   eggSkin(eggs, { cell, faces, zones })   → a layer-1 mesh part (closed), each point bound by its weights (`st0.<id>`),
+ *                     the coat's ZONES cut into it along their exact edges (feature-coat.js cutSkin), with its points and
+ *                     faces as arrays (V, F) for the coat's layers; kept by key (a few seconds a body)
  *   FEATURE_BUILDS      the builds by family: relations in head units (h) → the eggs (the right side and the midline;
  *                     the left mirrored), the rig's joints, the head's ellipsoid (the face is placed on it) and the muzzle
  *   featurePlan(sheet, { title?, reactions? }) → { plan, H, height }   the creature plan: the skin, the face's parts
@@ -32,6 +32,7 @@ import { netSkin, soundMesh, simplifyMesh, fieldNormals } from '../polygonizer/s
 import { smin, sdRoundCone } from '../polygonizer/vajra.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { featureFace } from './feature-face.js';
+import { cutSkin, coatLayers, stroke, band } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -123,8 +124,8 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
 }
 
 const SKINS = new Map();
-export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.faces, group = 'Body', paint = [] } = {}) {
-  const key = JSON.stringify([eggs, cell, faces, group, paint]);
+export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.faces, group = 'Body', zones = [] } = {}) {
+  const key = JSON.stringify([eggs, cell, faces, group, zones]);
   if (SKINS.has(key)) return SKINS.get(key);
   const F = eggField(eggs), f = F.field, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const E of eggs) { const R = reachOf(E) + E.join; for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], E.c[k] - R); hi[k] = Math.max(hi[k], E.c[k] + R); } }
@@ -132,17 +133,13 @@ export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.f
   const net = netSkin(f, box, { cell, project: 2 });
   const grad = (q) => { const e = cell * 0.25, P = (x, y, z) => f({ x, y, z }); return [P(q[0] + e, q[1], q[2]) - P(q[0] - e, q[1], q[2]), P(q[0], q[1] + e, q[2]) - P(q[0], q[1] - e, q[2]), P(q[0], q[1], q[2] + e) - P(q[0], q[1], q[2] - e)]; };
   const F0 = soundMesh(net.V, net.F, { out: grad, min: 64 });
-  const S = simplifyMesh(net.V, F0, { target: faces, turn: 0.35 });
+  const S0 = simplifyMesh(net.V, F0, { target: faces, turn: 0.35 });
+  // (the coat's zones cut into it along their exact edges: feature-coat.js)
+  const S = cutSkin(S0, zones, { field: f, shapes: eggs });
   const N = fieldNormals(S.V, f, 1e-5), points = {}, normals = {}, tris = {}, groups = {}, blend = {};
   S.V.forEach((p, v) => { points[`v${v}`] = p.map(r6); normals[`v${v}`] = N[v].map(r4); blend[`st0.v${v}`] = F.weights(p); });
-  S.F.forEach((t, fi) => {
-    tris[`f${fi}`] = t.map((v) => `v${v}`);
-    const c = [0, 1, 2].map((k) => (S.V[t[0]][k] + S.V[t[1]][k] + S.V[t[2]][k]) / 3);
-    let g = eggs[F.nearest(c)].group;
-    for (const P of paint) if (eggDistance(P, c) < 0) g = P.group;   // (the markings: a face inside a paint egg takes its group)
-    if (g !== group) groups[`f${fi}`] = g;
-  });
-  const out = { mesh: { points, faces: tris, groups, normals }, blend };
+  S.F.forEach((t, fi) => { tris[`f${fi}`] = t.map((v) => `v${v}`); if (S.groups[fi] && S.groups[fi] !== group) groups[`f${fi}`] = S.groups[fi]; });
+  const out = { mesh: { points, faces: tris, groups, normals }, blend, V: S.V, F: S.F };
   if (SKINS.size >= 8) SKINS.delete(SKINS.keys().next().value);
   SKINS.set(key, out);
   return out;
@@ -199,16 +196,29 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'cheekAR', root: [0.66, 0.04, 2.5], aim: [0.92, -0.1, -0.38], len: 0.44, r: 0.17, curl: 22, bend: [0, -0.3, -1], bone: 'head', join: 0.07 },
         { name: 'cheekBR', root: [0.6, 0.0, 2.36], aim: [0.62, -0.15, -0.78], len: 0.38, r: 0.15, curl: 18, bend: [0, -1, -0.4], bone: 'head', join: 0.07 },
         { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
-        { name: 'chestR', root: [0.22, 0.58, 2.0], aim: [0.3, 0.45, -1], len: 0.3, r: 0.13, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
-        { name: 'chest', root: [0, 0.62, 1.96], aim: [0, 0.5, -1], len: 0.34, r: 0.14, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
+        { name: 'chestTuftR', root: [0.22, 0.58, 2.0], aim: [0.3, 0.45, -1], len: 0.3, r: 0.13, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
+        { name: 'chestTuft', root: [0, 0.62, 1.96], aim: [0, 0.5, -1], len: 0.34, r: 0.14, curl: 15, bend: [0, -1, 0], bone: 'torso', group: 'Belly', join: 0.06 },
         { name: 'tailTip', root: [0, -1.8, 1.82], aim: [0, -0.35, 1], len: 0.3, r: 0.17, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
       ],
-      // the markings: the mask across the eyes sweeping out and down to the cheeks, the pale brows over it, the forehead's
-      // dark stripe
-      paint: [
-        { name: 'browBandR', c: [0.3, 0.5, 3.04], u: [0.95, -0.1, -0.2], r: [0.34, 0.12, 0.3], e: 0.4, group: 'Belly' },
-        { name: 'maskR', c: [0.3, 0.42, 2.8], u: [0.88, -0.25, -0.4], r: [0.5, 0.17, 0.4], e: 0.5, hint: [0, 0, 1], group: 'Patch' },
-        { name: 'stripe', c: [0, 0.42, 3.12], u: [0, -0.6, 1], r: [0.34, 0.07, 0.2], e: 0.6, group: 'Patch' },
+      // THE COAT (feature-coat.js): harmonious shapes, not ink blots, in few strokes. ZONES (territories of the eggs) cut
+      // into the skin: the pale muzzle, the nose, the pale belly and chest, the dark paws and feet, the tail's dark tip.
+      // LAYERS over it: the mask sweeping out and down to a point aimed as the cheek's lock is, the forehead's stripe
+      // tapering to the crown, the inner ears, the tail's notched rings. (The pale brows are the face's own, attached to
+      // the eye: feature-face.js.) A stroke `both` is drawn on each side.
+      marks: [
+        { name: 'muzzle', group: 'Belly', eggs: ['muzzle', 'chin', 'jowlR', 'jowlL'] },
+        { name: 'nose', group: 'Nose', eggs: ['nose'] },
+        { name: 'belly', group: 'Belly', eggs: ['front', 'chestTuft', 'chestTuftR', 'chestTuftL'] },
+        { name: 'paws', group: 'Patch', eggs: ['pawR', 'pawL', 'footR', 'footL'] },
+        { name: 'tailTip', group: 'Patch', eggs: ['tailTip'] },
+        { name: 'mask', group: 'Patch', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
+        { name: 'stripe', group: 'Patch', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
+        { name: 'ears', group: 'EarInner', strokes: [{ both: true, points: [[0.44, 0.0, 3.08], [0.5, -0.02, 3.3], [0.55, -0.05, 3.48]], r: [0.1, 0.08, 0.02] }] },
+        { name: 'rings', group: 'Patch', bands: [
+          { c: [0, -1.18, 0.88], axis: [0, -0.9, 0.45], w: 0.07, R: 0.5, teeth: 9, depth: 0.03 },
+          { c: [0, -1.56, 1.14], axis: [0, -0.6, 0.8], w: 0.07, R: 0.5, teeth: 9, depth: 0.03 },
+          { c: [0, -1.76, 1.52], axis: [0, -0.2, 1], w: 0.06, R: 0.45, teeth: 9, depth: 0.03 },
+        ] },
       ],
       eye: { az: 24, el: 0, r: 0.15, proud: 0.42 },
       joints: { hip: [0.46, 0, 0.76], knee: [0.47, 0.06, 0.42], ankle: [0.47, -0.02, 0.15], toeBase: [0.47, 0.25, 0.06], toeTip: [0.47, 0.42, 0.04], shoulder: sh, elbow: el, wrist: wr, knuckles: kn },
@@ -233,14 +243,21 @@ function laidOut(build, height) {
     one(x.name, x.root, x.aim, x.bend, x.bone);
     if (/R$/.test(x.name)) one(twin(x.name), mirrorX(x.root), mirrorX(x.aim), x.bend ? mirrorX(x.bend) : undefined, twin(x.bone));
   }
-  const paint = [];
-  for (const x of build.paint ?? []) {
-    const one = (name, c, u, hint) => paint.push(egg({ name, c: S(c), u, r: x.r.map((v) => v * h), e: x.e ?? 0, hint, bone: null, group: x.group, join: 0 }));
-    one(x.name, x.c, x.u, x.hint);
-    if (/R$/.test(x.name)) one(twin(x.name), mirrorX(x.c), mirrorX(x.u), x.hint ? mirrorX(x.hint) : undefined);
-  }
+  // (the coat's marks in metres: a stroke drawn `both` mirrored to the left)
+  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group,
+    ...(m.eggs ? { eggs: m.eggs } : {}),
+    ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map(S), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
+    ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h })) } : {}) }));
   const ell = (E) => ({ C: S(E.C), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
-  return { h, eggs, paint, eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+  return { h, eggs, marks, eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+}
+
+/** the coat's layers over a skin, kept by key */
+const COATS = new Map();
+function coatOf(skin, F, eggs, layers) {
+  const key = JSON.stringify([skin.V.length, skin.F.length, eggs, layers]);
+  if (!COATS.has(key)) { if (COATS.size >= 8) COATS.delete(COATS.keys().next().value); COATS.set(key, coatLayers({ V: skin.V, F: skin.F, field: F.field, shapes: eggs, weights: F.weights }, layers)); }
+  return COATS.get(key);
 }
 
 /** the feature style's height: the mascot's scale (a sprout's), its head a third of it */
@@ -251,15 +268,18 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   if (!A) throw new Error('mascot: the feature style draws an animal (a species in the brief or `facets.animal`)');
   const build = FEATURE_BUILDS[A.family] ?? FEATURE_BUILDS.procyonid;
   const L = laidOut(build, FEATURE_HEIGHT), H = L.H;
-  const skin = eggSkin(L.eggs, { paint: L.paint });
+  const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
+  const skin = eggSkin(L.eggs, { zones }), F = eggField(L.eggs);
+  const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mascot's mouth on the muzzle
-  const face = featureFace({ field: eggField(L.eggs).field, H, eye: L.eye, rest: f.expression, mouth: { E: L.muzzle, el: -38, w: 0.2, h: 0.13 },
+  const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: { E: L.muzzle, el: -38, w: 0.2, h: 0.13 },
     groups: { lid: K.pattern === 'mask' ? 'Patch' : 'Body', lip: 'Belly', brow: 'Belly' } });
   const segments = [
     { name: 'skin', kind: 'mesh', group: 'Body', mesh: skin.mesh, bind: { bone: 'pelvis', blend: skin.blend } },
+    ...coat,
     ...face.segments,
   ];
-  const faceNames = segments.slice(1).flatMap((s) => (s.mirror === 'name' ? [s.name, twin(s.name)] : [s.name]));
+  const faceNames = face.segments.flatMap((s) => (s.mirror === 'name' ? [s.name, twin(s.name)] : [s.name]));
   const { rig, clips } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [] });
   const joints = { ...L.J };
   for (const s of segments) { for (const [n, p] of Object.entries(s.joints || {})) joints[n] = p; delete s.joints; }
@@ -269,7 +289,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },
     joints, segments, dials: {}, rig, clips, paint: [],
     mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature' },
-    palette: coatPalette(sheet, k, A, f),
+    palette: { EarInner: '#c9a19b', ...coatPalette(sheet, k, A, f) },
   };
   return { plan, H, height: L.top };
 }

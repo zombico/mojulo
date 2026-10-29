@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS } from './feature-body.js';
 import { FEATURE_EYE } from './feature-face.js';
+import { FEATURE_COAT, strokesOf, coatLayers } from './feature-coat.js';
 import { rollMascot } from './mascot.js';
 import { mascotPlanFromSheet } from './mascot-form.js';
 
@@ -25,10 +26,16 @@ describe('the feature body', () => {
     expect(eggDistance(T, [0.5, 0, 0])).toBeLessThan(0); expect(eggDistance(T, [0, 0.5, 0])).toBeGreaterThan(0);
   });
 
+  it('the coat refuses more strokes than its budget (few strokes, well placed)', () => {
+    const many = [{ name: 'm', group: 'Patch', strokes: Array.from({ length: FEATURE_COAT.budget + 1 }, () => ({ points: [[0, 0, 0], [0, 0, 1]], r: [0.1, 0.01] })) }];
+    expect(strokesOf(many)).toBe(FEATURE_COAT.budget + 1);
+    expect(() => coatLayers({ V: [], F: [], field: () => 1, shapes: [], weights: () => ({}) }, many)).toThrow(/budget/);
+  });
+
   it('the skin: one closed sound surface; each point\'s weights sum to one, on bones whose eggs are near it', () => {
     const build = Object.values(FEATURE_BUILDS)[0], h = 0.3;
     const eggs = build.eggs.filter((x) => !/R$/.test(x.name)).map((x) => egg({ ...x, c: x.c.map((v) => v * h), r: x.r.map((v) => v * h), join: x.join * h }));
-    const S = eggSkin(eggs, { cell: 0.012, faces: 3000 }), F = Object.values(S.mesh.faces), uses = new Map();
+    const S = eggSkin(eggs, { cell: 0.012, faces: 3000, zones: [{ name: 'nose', group: 'Nose', eggs: ['nose'] }] }), F = Object.values(S.mesh.faces), uses = new Map();
     for (const t of F) for (let a = 0; a < 3; a++) { const k = [t[a], t[(a + 1) % 3]].sort().join('|'); uses.set(k, (uses.get(k) ?? 0) + 1); }
     expect(F.length).toBeGreaterThan(1500);
     expect([...uses.values()].every((n) => n === 2)).toBe(true);
@@ -37,7 +44,7 @@ describe('the feature body', () => {
       expect(Math.abs(sum - 1), id).toBeLessThan(1e-6);
       for (const bone of Object.keys(w)) expect(Math.min(...eggs.filter((E) => E.bone === bone).map((E) => eggDistance(E, p) / E.join)), `${id} ${bone}`).toBeLessThan(4);
     }
-    // (the field's nearest egg colours a face: the nose's faces are the nose's)
+    // (a zone cut into the skin: the nose's faces are the nose's, its edge a line of points on the skin)
     expect(Object.values(S.mesh.groups)).toContain('Nose');
     expect(eggField(eggs).weights(eggs[0].c)).toEqual({ head: 1 });
   });
@@ -62,7 +69,12 @@ describe('the feature body', () => {
     const pupil = Object.entries(seg('globeR').mesh.faces).filter(([f]) => seg('globeR').mesh.groups[f] === 'Pupil').flatMap(([, t]) => t.map((v) => seg('globeR').mesh.points[v]));
     expect(pupil.length).toBeGreaterThan(20);
     for (const p of pupil) { expect(Math.abs(dist(p) - globeR)).toBeLessThan(globeR * 0.02); expect(p.reduce((s, x, i) => s + (x - G[i]) * gaze[i], 0) / globeR).toBeGreaterThan(Math.cos(FEATURE_EYE.pupil * Math.PI / 180) - 0.01); }
-    expect(Object.values(plan.segments[0].mesh.groups).filter((g) => g === 'Patch').length).toBeGreaterThan(200);
+    // THE COAT: zones cut into the skin (the paws dark, the belly pale), the markings thin open layers over it (the mask, the
+    // tail's rings), each layer's points just off the skin, within the stroke budget
+    const groups = Object.values(plan.segments[0].mesh.groups);
+    expect(groups.filter((g) => g === 'Patch').length).toBeGreaterThan(100); expect(groups.filter((g) => g === 'Belly').length).toBeGreaterThan(300);
+    for (const n of ['coatMask', 'coatStripe', 'coatEars', 'coatRings']) expect(seg(n), n).toMatchObject({ kind: 'mesh', closure: 'open' });
+    expect(seg('coatMask').group).toBe('Patch');
     const toon = mascotPlanFromSheet(rollMascot({ brief: 'raccoon' }));
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);
