@@ -17,6 +17,12 @@
 //
 //   oozeSetting(s)                         → the setting, checked (readSetting's shape and words) | null
 //   settingToon(setting)                   → the mint's `toon` (anime: { light: true }) | null
+//   dressCoat(colors, setting, ledger = [])  → the animal's own colours IN THE WORLD (an animal door's `coat: 'world'`,
+//                                            a game's foes: gameworld/foes.js): its coat and markings each taken to the
+//                                            hue and chroma of the nearest stop of a ramp of its hue and value (found as
+//                                            a made colour's is, and always of its own hue family unless it is a true
+//                                            grey), at its OWN value, so its markings keep their light and dark; a face's details (eyes, ink, teeth, nose, mouth) stay its own, and a
+//                                            colour no stop is near keeps its own. Each move ledgered
 //   dressPush(push, setting, ledger = [], { motif, coat })   → the push with its made colours dressed from the ramps,
 //                                            each move ledgered { at, from, to, ramp }; `motif: 'only'` dresses the
 //                                            ornaments' motif alone (it is decided last: a stylism may name it), `false`
@@ -24,7 +30,7 @@
 //
 // Pure; absent ⇒ the push as given and no toon, byte-identical.
 import { readSetting } from '../egocube/setting.js';
-import { hexLch } from '../polygonizer/station-loft-shade.js';
+import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { MOTIFS } from './motif.js';
 import { valueStep } from './push.js';
 import { resolveMaterial } from '../polygonizer/materials.js';
@@ -96,6 +102,26 @@ export function dressPush(push, setting, ledger = [], { motif = false, coat } = 
     for (const k of ks.slice(0, -1)) o = o[k];
     o[ks.at(-1)] = s.stop;
     ledger.push({ at, from: key, to: s.stop, ramp: s.ramp });
+  }
+  return out;
+}
+
+// below this chroma a coat colour is a true grey, with no hue of its own to keep
+const GREY_C = 4;
+// a face's details: what reads the animal's expression, never the world's
+const FACE_COLORS = Object.freeze(['iris', 'ink', 'sclera', 'pupil', 'nose', 'teeth', 'mouth', 'tongue', 'lid', 'eye']);
+export function dressCoat(colors, setting, ledger = []) {
+  const ramps = setting?.ramps;
+  if (!colors || !Array.isArray(ramps) || !ramps.length) return colors;
+  const out = {};
+  for (const [k, v] of Object.entries(colors)) {
+    // (a coat keeps its hue family: a quiet brown is still a brown, never a teal; only a true grey takes any quiet stop)
+    const own = typeof v === 'string' && HEX.test(v) && !FACE_COLORS.includes(k) ? hexLch(v) : null;
+    const best = own ? stopsFor(v, ramps).find((c) => own[1] < GREY_C || hueGap(own[2], hexLch(c.stop)[2]) <= RAMP_HUE) : null;
+    // (the stop's hue and chroma, the animal's own value: its markings keep their light and dark)
+    const to = best ? (() => { const [L] = hexLch(v), [, C, h] = hexLch(best.stop); return lchHex(L, C, h).toLowerCase(); })() : null;
+    if (to && to !== v.toLowerCase()) { out[k] = to; ledger.push({ at: `colors.${k}`, from: v, to, ramp: best.ramp }); }
+    else out[k] = v;
   }
   return out;
 }

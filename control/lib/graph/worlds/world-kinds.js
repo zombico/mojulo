@@ -940,8 +940,11 @@ export const WORLD_KINDS = {
         // (an oozed animal's motion names its species and its ooze: the body it was made with, mutagen/rig.js)
         const bugMotion = !!m.recipe.motion.bug, motion = m.recipe.motion.ooze ? { ...m.recipe.motion, species: rigSpecies(m.recipe.motion) } : m.recipe.motion;
         const B = bugMotion ? bugBones(motion) : faunaBones(motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}) });
-        scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
+        // UNDER THE CHARACTER LIGHT (a game's animal: its setting's `toon.light`) it packs as a hero does: the same lit
+        // pieces (the step, the shades, the split) and the ink, so it moves in its game beside the hero in the hero's
+        // light; packed plain it was the Lambert bake, faceted, with no smoothing (the character light turns that off)
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(character ? { character: { pieces: litPieces, hairInk: !!ink } } : {}), ...(!character && m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}) });
+        scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1, ...(character && ink ? { ink: true } : {}) } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It
       // carries the wire's framing of the UNSEATED mesh (what a stroke resolves against) and the seat, the stored

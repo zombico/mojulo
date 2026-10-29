@@ -175,21 +175,36 @@ describe("mint_solid kind 'animal' — oozes", () => {
   });
 
   // A GAME'S SETTING (mutagen/setting.js): the tradition's light stored on the row, the made colours dressed, the report
-  it("takes its game's setting: anime stores the character light and is lit as a creature; western keeps the studio's", async () => {
-    const { resolveCharacterLight, CREATURE_KEY } = await import('@/lib/graph/polygonizer/station-loft-shade');
+  it("takes its game's setting: anime stores the character light and is lit as its game's hero is; western keeps the studio's", async () => {
+    const { resolveCharacterLight } = await import('@/lib/graph/polygonizer/station-loft-shade');
+    const { resolveToonLight } = await import('@/lib/graph/polygonizer/vexar');
     const ramps = [{ name: 'timber', stops: ['#3a2a1e', '#6a4a30', '#9a7048'] }];
     const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_set_anime', spec: { species: 'wolf', ooze: 'herobot', setting: { tradition: 'anime', ramps } } });
     expect(res.ooze.setting).toMatchObject({ tradition: 'anime', light: 'character' });
     const m = SketchRepository.getByRef('an_set_anime').manifest;
     expect(m.toon).toEqual({ light: true });
     expect(m.ooze.setting.tradition).toBe('anime');
-    const L = resolveCharacterLight(m), k = Math.hypot(...CREATURE_KEY);
-    L.toLight.forEach((v, i) => expect(v).toBeCloseTo(CREATURE_KEY[i] / k, 6));
+    // (the hero's key and step: it stands in the hero's world; its shades by value are the creature's own)
+    const L = resolveCharacterLight(m), hero = resolveToonLight(true);
+    L.toLight.forEach((v, i) => expect(v).toBeCloseTo(hero.toLight[i], 6));
+    expect(L.threshold).toBe(hero.threshold);
+    expect(Object.keys(L.shade).length).toBeGreaterThan(0);
     const w = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_set_west', spec: { species: 'wolf', ooze: 'herobot', setting: { tradition: 'western', ramps } } });
     expect(w.ooze.setting.light).toBe('studio');
     expect(SketchRepository.getByRef('an_set_west').manifest.toon).toBeUndefined();
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'dire', setting: { tradition: 'noir' } } })).rejects.toThrow(/In a game's look/);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', setting: { tradition: 'anime' } } })).rejects.toThrow(/dresses a `species`/);
+  });
+
+  // THE COAT IN ITS WORLD (`coat: 'world'`, a game's foes): the species' own colours dressed from the setting's ramps,
+  // its rig untouched; refused without ramps to dress from
+  it("coat: 'world' dresses the animal's own colours from its game's ramps, and says which moved", async () => {
+    const ramps = [{ name: 'timber', stops: ['#3a2a1e', '#6a4a30', '#9a7048'] }];
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_coat_world', spec: { species: 'wolf', coat: 'world', setting: { tradition: 'western', ramps } } });
+    expect(res.coat.in).toBe('world');
+    expect(res.coat.dressed.length).toBeGreaterThan(0);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', coat: 'world' } })).rejects.toThrow(/pass the game's setting/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', coat: 'plaid', setting: { ramps } } })).rejects.toThrow(/`coat` is 'world'/);
   });
 });
 

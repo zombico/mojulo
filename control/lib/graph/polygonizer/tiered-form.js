@@ -129,7 +129,7 @@ function partRings(plan, seg) {
   if (seg.kind === 'rings') return { stations: seg.stations, caps: seg.caps };
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) }, style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
   const slots = seg.slots == null ? families[style.limbSlots] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots, e = seg.e ?? style.e;
-  if (seg.kind === 'loft') return loftPart(seg.stations, seg.caps, slots, e, { keep: seg.frame === 'keep' });
+  if (seg.kind === 'loft') return loftPart(seg.stations, seg.caps, slots, e, { keep: seg.frame === 'keep', up: seg.frame === 'up' });
   if (seg.kind === 'trunk') { const f = seg.slots ?? style.slots, fam = typeof f === 'string' ? families[f] : f; return trunkPart(seg.stations, seg.caps, fam, e); }
   const J = plan.joints;
   return segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots, e, over: seg.over, mid: seg.mid, rMid: seg.rMid, ...(seg.cap ? { cap: seg.cap } : {}), ...(seg.shape ? { shape: seg.shape } : {}) });

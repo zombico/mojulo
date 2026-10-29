@@ -175,6 +175,14 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
+  // a FOE's hp bar (`body.hpBar: 'target'`, gameworld/foes.js): shown only over the one foe the pilot targets (its lock,
+  // else the nearest its aim crosses), never over the body: above the drawn model's top, or under its feet when the top
+  // leaves the screen. No body asks for one → the emitted channel is byte-identical
+  const foeBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'target');
+  // a TARGET RIM (`body.targetRim`: an rgb, gameworld/foes.js): the foe the pilot targets (the bar's own pick) lit at its
+  // edges, a fresnel shell on the bone meshes of whatever body it now wears (a mode swapped in is lit as it comes). No body
+  // asks for one → the emitted channel is byte-identical
+  const foeRim = foeBars && (entities || []).some((e) => e && e.body && Array.isArray(e.body.targetRim));
   // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
   // entity carries a gear → the emitted channel is byte-identical
   // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
@@ -215,6 +223,9 @@ function __updateGearLines() {
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
   const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
+  // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
+  const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
@@ -543,7 +554,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
@@ -789,7 +800,8 @@ function __makeBody(e) {
   // An UNPILOTED pilotable suit runs its ambient rule at build time, so its loadout lives on
   // pilotRule — check both, or its weapons could never swap after a T take-over.
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
-    || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null);
+    || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
+    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''};
   if (lo && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
     const variants = {};
     const buildVariant = (fname) => {
@@ -2620,7 +2632,64 @@ for (const e of __world.entities) {
   el.appendChild(fl); wrap.appendChild(el);
   __ehp.push({ id: e.id, el: el, fill: fl });
 }
-const __ehpV = __ehp.length ? new THREE.Vector3() : null;
+const __ehpV = __ehp.length ? new THREE.Vector3() : null;${foeBars ? `
+// the one foe the pilot targets: its lock's, else the foe nearest the way it faces (a ground hero aims where it
+// faces: the angle on the ground, within the foe's own width and 30 m), the nearer of two equally in line
+function __foeTarget(pilot) {
+  if (!pilot) return null;
+  if (__world.lock && __world.lock.target) return __world.lock.target;
+  const h = pilot.transform.heading, p = pilot.transform.pos;
+  let best = null, bestS = Infinity;
+  for (const e of __world.entities) {
+    if (!(e.body && e.body.hpBar === 'target') || e.gone || e.downed || e === pilot) continue;
+    const dx = e.transform.pos[0] - p[0], dy = e.transform.pos[1] - p[1], d = Math.hypot(dx, dy);
+    if (d > 30 || d < 1e-6) continue;
+    const a = Math.abs(((Math.atan2(dy, dx) - h + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+    const w = (e.body.egg && e.body.egg.a) || e.body.radius || 0.5;
+    if (a <= 0.2 + Math.atan(w / d) && a * 10 + d < bestS) { bestS = a * 10 + d; best = e.id; }
+  }
+  return best;
+}
+// a foe body's drawn top above its feet (m), measured once from its mesh against its own group (where it is drawn,
+// whatever the entity did this frame); its bar stands clear of it
+const __foeTop = {}, __foeBox = new THREE.Box3();
+function __foeTopOf(e) {
+  if (__foeTop[e.id] != null) return __foeTop[e.id];
+  const g = __bodies[e.id]; if (!g) return 1;
+  g.updateMatrixWorld(true);
+  __foeBox.setFromObject(g);
+  const top = __foeBox.max.z - g.position.z;
+  return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
+}${foeRim ? `
+// the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
+// pulsing, on each bone mesh of the body it is drawn as now; moved off when the target changes or its body does
+const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position + normal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+  fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
+const __rim = { id: null, g: null, kids: [] };
+// smooth normals for a bone mesh's triangle list, once (its corners averaged where they meet), for the rim's fresnel
+function __rimNormals(geo) {
+  if (geo.attributes.normal) return;
+  const P = geo.attributes.position.array, N = new Float32Array(P.length), acc = new Map(), key = (i) => Math.round(P[i] * 1e4) + ',' + Math.round(P[i + 1] * 1e4) + ',' + Math.round(P[i + 2] * 1e4);
+  for (let t = 0; t < P.length; t += 9) {
+    const ax = P[t + 3] - P[t], ay = P[t + 4] - P[t + 1], az = P[t + 5] - P[t + 2], bx = P[t + 6] - P[t], by = P[t + 7] - P[t + 1], bz = P[t + 8] - P[t + 2];
+    const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+    for (let k = 0; k < 9; k += 3) { const q = key(t + k), a = acc.get(q) || [0, 0, 0]; a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; acc.set(q, a); }
+  }
+  for (let i = 0; i < P.length; i += 3) { const a = acc.get(key(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; N[i] = a[0] / l; N[i + 1] = a[1] / l; N[i + 2] = a[2] / l; }
+  geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+}
+function __foeRim(id) {
+  const e = id && __world.byId[id], g = e && __bodies[id];
+  if (__rim.id !== id || __rim.g !== g) {
+    for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
+    __rim.kids = []; __rim.id = id; __rim.g = g;
+    const rf = g && g.userData.rigFig;
+    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
+  }
+  __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
+}` : ''}` : ''}
 function __updateEnemyHp() {
   if (!__ehp.length) return;
   const pilot = (__world.pilotId && __world.byId[__world.pilotId]) || null;
@@ -2634,9 +2703,25 @@ function __updateEnemyHp() {
     const ez = pilot.weapon ? (pilot.weapon.eye || 0) : (pilot.collideVol ? pilot.collideVol.cz : 12);
     eye = [pilot.transform.pos[0], pilot.transform.pos[1], pilot.transform.pos[2] + ez];
   }
-  camera.updateMatrixWorld();
+  camera.updateMatrixWorld();${foeBars ? `
+  const __foeT = __foeTarget(pilot);${foeRim ? `
+  __foeRim(__foeT);` : ''}` : ''}
   for (const r of __ehp) {
-    const e = __world.byId[r.id];
+    const e = __world.byId[r.id];${foeBars ? `
+    if (e && e.body && e.body.hpBar === 'target') {
+      if (e.id !== __foeT || e.gone || e.downed) { r.el.style.display = 'none'; continue; }
+      const top = __foeTopOf(e);
+      __ehpV.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + top + 0.25).project(camera);
+      if (__ehpV.y > 0.94) __ehpV.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - 0.2).project(camera);
+      if (__ehpV.z >= 1) { r.el.style.display = 'none'; continue; }
+      r.el.style.display = '';
+      r.el.style.left = ((__ehpV.x * 0.5 + 0.5) * cw) + 'px';
+      r.el.style.top = ((-__ehpV.y * 0.5 + 0.5) * ch) + 'px';
+      const cur = Number.isFinite(e.body.hp) ? Math.max(0, e.body.hp) : e.hpMax, frac = Math.max(0, Math.min(1, cur / e.hpMax));
+      r.fill.style.width = (frac * 100).toFixed(1) + '%';
+      r.fill.style.background = frac < 0.3 ? '#ff2e2e' : '#ff5a5a';
+      continue;
+    }` : ''}
     // gone covers both the vanished wreck (finisher) and a DORMANT tutorial seat parked at its
     // authored pose — neither should float a bar over empty air.
     if (!e || e === pilot || e.gone) { r.el.style.display = 'none'; continue; }

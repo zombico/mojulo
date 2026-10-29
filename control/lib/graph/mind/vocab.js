@@ -97,6 +97,7 @@ export const ACTIONS = Object.freeze({
   dodge:  'an evasive roll',
   tackle: 'a body-check that beats a swing',
   jump:   'leaves the ground',
+  contact: 'hurts by touch: it runs into its target (a foe class\'s contact or charge: rule.foe.touch)',
 });
 export const CAPABILITY = Object.freeze({
   flier:   'moves freely in three dimensions (flight or the void)',
@@ -107,6 +108,28 @@ export const CAPABILITY = Object.freeze({
   navmesh: 'finds paths round obstacles (rule.mind.pathing: navmesh); without it, it slides along them',
   commanded: 'a commander sets its posture at strategy rate (rule.commanded)',
 });
+
+/**
+ * How a mind SEES and WATCHES, said as words a class or a game's cast names (the runtime reads their knobs:
+ * worlds/controllable/mind.js perceive, the lookout's sweep and takeCover):
+ *   SIGHTS   how far and how wide it sees: narrow (a guard's beam), wide (a soldier's view), keen (far, a lookout's)
+ *   GAZES    still (it looks where it faces) or sweep (at its post it sweeps its gaze either side, so a sneak can time it)
+ *   COVER    `cover: true`: under fire it takes cover behind what stands near and peeks out to fire
+ * sightKnobs({ sight?, gaze?, cover? }) → the rule's knobs for them ({} for none).
+ */
+export const SIGHTS = Object.freeze({
+  narrow: { line: 'sees close and in a narrow beam', knobs: { sightRange: 14, sightCone: 0.6 } },
+  wide:   { line: 'sees a fair way, in a wide view', knobs: { sightRange: 30, sightCone: 1.1 } },
+  keen:   { line: 'sees far, in a wide view', knobs: { sightRange: 60, sightCone: 1.2 } },
+});
+export const GAZES = Object.freeze({
+  still: { line: 'looks where it faces', knobs: {} },
+  sweep: { line: 'at its post, sweeps its gaze either side of its heading', knobs: { scan: 1.3, scanPeriod: 7 } },
+});
+export const COVER = Object.freeze({ line: 'under fire, takes cover behind what stands near and peeks out to fire', knobs: { cover: { radius: 7, hold: 2.5 } } });
+export function sightKnobs({ sight, gaze, cover } = {}) {
+  return { ...(sight ? SIGHTS[sight].knobs : {}), ...(gaze ? GAZES[gaze].knobs : {}), ...(cover ? COVER.knobs : {}) };
+}
 
 /** A rank's typical health floor: a boss under it is advised, never refused. Relative to the hero's 100. */
 export const RANK_HP = Object.freeze({ minion: 0, elite: 60, miniboss: 120, boss: 300 });

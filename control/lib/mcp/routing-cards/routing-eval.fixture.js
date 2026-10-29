@@ -217,6 +217,8 @@ export const COLLISION_FIXTURE = [
   ['roll stats for my character sheet, 4d6 drop the lowest, for a pen-and-paper game', 'create_game', 'table_rpg'],
   ['a JRPG where my party walks a dungeon and fights turn-based battles', 'design_game'],
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
+  // foes on a gameworld's trails (gameworld-foes): a class at a rank on a skin, not a new tool
+  ['fill the levels of my game with monsters to fight, small critters you jump on and a big nasty beast near the end', 'design_game'],
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['an endless runner for my phone where you swipe to dodge', 'design_game'],

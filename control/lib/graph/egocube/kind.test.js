@@ -63,6 +63,18 @@ describe('the egocube kind', () => {
   }, 300_000);
 });
 
+describe('a lone sheet made to play a part (`moves: true`, a bestiary\'s people)', () => {
+  it('carries its moves as a cast member\'s do, on its own door; without it, the sheet is made as it always was', () => {
+    const roll = { facets: { role: 'frontline' }, seed: 4 };
+    const S = rollStored({ kind: 'egocube', roll, moves: true }), plain = rollStored({ kind: 'egocube', roll });
+    const C = egocubeCreate(S);
+    expect(C.moves).toMatchObject({ attack: expect.any(String) });
+    expect(C.create.spec.motion).toBeTruthy();
+    expect(egocubeCreate(plain).moves).toBeUndefined();
+    expect(() => readEgocubeKind({ kind: 'egocube', roll, moves: 'yes' })).toThrow(/moves is true/);
+  });
+});
+
 describe('a cast as a cube (cast.js)', () => {
   const CAST = { kind: 'egocube', cast: { seed: 4, cast: { rival: { relation: 'rival', body: 'person' }, red: { relation: 'party', body: 'beast', species: 'wolf' } } } };
 

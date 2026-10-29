@@ -146,14 +146,16 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (/^fighter-.+-sheet$/.test(key)) {
-    // a fighter's sheet (an egocube): rolled where it is written; a changed roll rolls it anew in place
+  if (/^(fighter|foes)-.+-sheet$/.test(key)) {
+    // a fighter's sheet, or a bestiary people's (an egocube): rolled where it is written; a changed roll rolls it anew in
+    // place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key.startsWith('fighter-')) {
-    // a fighter: the character its sheet makes (create_character { egocube }). Remade (its sheet rolled anew, the
+  if (key.startsWith('fighter-') || (key.startsWith('foes-') && order.egocube)) {
+    // a fighter, or a bestiary people (gameworld/foes.js): the character its sheet makes (create_character { egocube }),
+    // a people with its moves on it. Remade (its sheet rolled anew, the
     // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so
     // the ref and its history stay
     if (action === 'make') await createCharacterHandler({ egocube: order.egocube, title: order.title, ref });

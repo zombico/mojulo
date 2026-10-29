@@ -3,7 +3,7 @@
  * skeleton. Nothing here is authored per mind: a strategy that needs a verb asks for it here, and a character gets it
  * or not by its rule, loadout and body.
  *
- *   actionsOf(entity)     → { melee, ranged, lob, area, dash, dodge, tackle, jump }   (./vocab.js ACTIONS)
+ *   actionsOf(entity)     → { melee, ranged, lob, area, dash, dodge, tackle, jump, contact }   (./vocab.js ACTIONS)
  *   capabilityOf(entity)  → { flier, swimmer, route, sight, memory, navmesh, commanded, speed, hp }   (./vocab.js CAPABILITY)
  *
  * An entity is a controllable world entity spec: `{ rule, body, weapon?, ... }`, read the way the runtime reads it. A
@@ -33,6 +33,7 @@ export function actionsOf(entity) {
     dodge: mind ? rule.dodge !== false : !!rule.dodge,
     tackle: mind ? true : !!rule.tackle,
     jump: !!(rule.jumpSpeed || rule.type === 'platform'),
+    contact: !!(rule.foe && rule.foe.touch),
   };
 }
 
@@ -41,7 +42,7 @@ export function capabilityOf(entity) {
   return {
     flier: !!(rule.space || rule.type === 'fly' || rule.flier),
     swimmer: !!rule.swimmer,
-    route: Array.isArray(rule.waypoints) && rule.waypoints.length > 0,
+    route: (Array.isArray(rule.waypoints) && rule.waypoints.length > 0) || !!(rule.foe && (rule.foe.move === 'pace' || rule.foe.move === 'hop')),
     sight: true,
     memory: !!(rule.mind && rule.mind.perception === 'memory'),
     navmesh: !!(rule.mind && rule.mind.pathing === 'navmesh'),

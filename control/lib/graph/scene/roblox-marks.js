@@ -138,6 +138,11 @@ export const EVENT_MARKS = Object.freeze({
   scenes: m(P, 'bus.json scenes (kernel/scenes.luau, the page\'s runner ported): the beats, the line and the choices as words in a box (MojuloClient; Space, Enter or E goes on, Esc skips, the arrows and 1-4 choose); the bars and the shots are not drawn (the camera is Roblox\'s)'),
   quests: m(P, 'bus.json quests (kernel/quests.luau): a word as one begins, moves on, ends (MojuloServer); there is no journal to open'),
   ...absent(['style', 'register', 'menus', 'looks', 'fxLight', 'fxStyle', 'rim', 'trail', 'minigames', 'rpg']),
+  vanish: m(A, 'a downed foe\'s disposal (its fade: gameworld/vanish.js, the page\'s transits) is the page\'s: a downed body stays down'),
+  wreck: m(A, 'a destroyed foe\'s pieces (its dismantle or cleave, a mode\'s shed: scene/channels/wreck-channel.js) are the page\'s: a downed body stays down whole'),
+  layer0: m(A, 'a layer-0 foe\'s looks laid on the body it wears now (docs/foes.md) are the page\'s: the kernel draws no status looks on a foe'),
+  born: m(A, 'the statuses a foe is born under (foes/states.js), drawn in their looks, are the page\'s: the kernel\'s foe is born bare'),
+  arrive: m(A, 'a summoner\'s summons arriving in their transit (worlds/controllable/summon.js) are the page\'s: the kernel calls no summons'),
 });
 
 // ── a figure's gaits, power.systems, space.traversal, space.links, the mind ─────────────────────────────────────────

@@ -126,9 +126,11 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const painterly = anime && !!manifest.hero.painterly;
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
-  // a BUILT ANIMAL asking for the default light (`toon.light: true`: a game's anime setting, mutagen/setting.js) is lit
-  // as a creature is, square to its own key, its shades by value and its materials drawn
-  if (own && !anime && (manifest?.toon ?? manifest?.scene?.toon)?.light === true && isBuiltAnimal(manifest)) return creatureLight(manifest);
+  // a BUILT ANIMAL asking for the default light (`toon.light: true`: a game's anime setting, mutagen/setting.js) stands
+  // in its game's world beside its hero: it is lit as the HERO is (the character key and its step, the light the world
+  // gives its people, turning with the body as the hero's does), keeping the creature's shades by value (a dark coat's
+  // form still reads) and its materials drawn
+  if (own && !anime && (manifest?.toon ?? manifest?.scene?.toon)?.light === true && isBuiltAnimal(manifest)) return creatureLight(manifest, HERO_LIT);
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return withToonMaterials(brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l), manifest, anime); }
   // a CREATURE (a layered plan that is no hero and no built animal: create_character's `as: 'creature'`, drawn or designed
   // by hand) takes the character light too, as a hero does: the toon step (a drawn one's markings stepped in it), the ink,
@@ -138,8 +140,10 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const lit = wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
   return withToonMaterials(lit, manifest, anime);
 }
-function creatureLight(manifest) {
-  const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
+// the hero's own key and step (the default character light), for a creature that stands in the hero's world
+const HERO_LIT = Object.freeze({ key: null, step: 0 });
+function creatureLight(manifest, { key = CREATURE_KEY, step = CREATURE_STEP } = {}) {
+  const base = { ...resolveToonLight(key ? { toLight: key } : true), threshold: step, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
   return withToonMaterials(wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base, manifest, true);
 }
 /** A hero (or a creature) wearing its cube's MATERIALS (recipe.surfaces, materials/dress-materials.js) under the

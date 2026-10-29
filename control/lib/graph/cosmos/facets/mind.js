@@ -8,9 +8,13 @@
  * by resolving each value (mind/cosmos.js), never written here.
  *
  * The fighting strategies run in the engine's mind (worlds/controllable/mind.js), lifted whole from the arena.
+ *
+ * `foes`: the FOE CLASSES a game fields (lib/graph/foes/: how a hostile thing moves, attacks and decides, on any body
+ * that fits it, at any rank). Each class's status and marks are found from its move and its attack (foes/cosmos.js).
  */
 import { mindAxisValues } from '../../mind/cosmos.js';
 import { marksAcross } from '../../scene/engines/registry.js';
+import { foeClassValues } from '../../foes/cosmos.js';
 
 const MIND_RULE = 'lib/graph/worlds/controllable/mind.js';
 // every value's Godot mark (scene/godot-marks.js mindMark): kernel/mind.gd runs the web's mind (since 0.26.0); the
@@ -60,6 +64,8 @@ export const MIND = Object.freeze({
         schedule: { status: 'built', lowers: 'lib/graph/playscape/ui/routines.js', note: 'play.routines: where each goes hour by hour on the level\'s clock (cues on hour, a walk and a pose); Godot keeps the day (the pose is said, not played)' },
       }),
     },
+    // built 10-27 (hostile encounters): a class is built when its move and its attack both run (foes/cosmos.js)
+    foes: { multi: true, values: foeClassValues() },
     commander: {
       values: marked('commander', {
         none: { status: 'built' },

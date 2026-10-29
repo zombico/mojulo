@@ -57,7 +57,13 @@ import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
-import { mergeExtras, libraryFigure, fieldFigure, stand, PERSON_BODY } from './stage-figures.js';
+import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
+import { standFoe } from './foes.js';
+
+/** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
+ * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
+const SNEAK_GUARD = Object.freeze({ class: 'guard', skin: { people: 'human' } });
+const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelCard, lowerFeel } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
 
@@ -521,11 +527,13 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const watchers = guards?.ref ? guards.posts(ends) : null;
   if (guards?.ref) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
+    // (each a GUARD, stood as every hostile is: foes.js standFoe, its narrow sweeping gaze the class's; the sneak's own:
+    // watchers, never fought, a short way from their posts)
+    const part = { figures, entities };
     for (const [k, g] of watchers.entries()) {
       // (a pool of guards' figures, each its own roll, cycled: quick.js refAt)
-      figures[g.id] = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
-      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, ...PERSON_BODY };
-      entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
+      const figure = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
+      standFoe(G, part, { id: g.id, entry: SNEAK_GUARD, at: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading }, { figure, tune: SNEAK_TUNE });
     }
     pilotPart = { ...pilotPart, figures, entities };
   }

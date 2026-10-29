@@ -28,6 +28,7 @@ import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
+import { variantOf, UNDEAD_CARDS } from '../undead/index.js';
 import { HAIR_LIBRARY } from '../polygonizer/humanoid-hair.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -138,7 +139,7 @@ export const MASS = Object.freeze({
   pole: { male: { chest: 0.3, shoulder: 0.33, hips: 0.22, keel: 0.02, bust: 0 }, female: { chest: 0.26, shoulder: 0.27, hips: 0.25, keel: 0, bust: 0.03 } },
   waist: { lithe: 0.6, heroic: 0.6, canonical: 0.68, stout: 0.86, brute: 0.82 },
 });
-function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical', wings = false, arms2 = false }) {
+export function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical', wings = false, arms2 = false }) {
   const P = (p) => mul(p, k), R = (r) => (Array.isArray(r) ? r.map((x) => r3(x * k * g)) : r3(r * k * g));
   const M = MASS.pole[pole] ?? MASS.pole.male, Wst = M.chest * (MASS.waist[build] ?? MASS.waist.canonical);
   // the shoulder joint sits just inside the shoulder line (the template's 0.37 inside its 0.40)
@@ -214,7 +215,7 @@ function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 
   return { J, joints, segments, details, FINGERS, fingerJoints, hasTail: !!T, extraArms, arms2 };
 }
 
-function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 = false }, stance) {
+export function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 = false }, stance) {
   const legParts = ['thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', 'toesR', 'toesL'];
   const fingerParts = FINGERS.flatMap((X) => ['R', 'L'].flatMap((S) => [`finger${X}1${S}`, `finger${X}2${S}`]));
   const armParts = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'handR', 'handL', ...fingerParts, ...extraArms];
@@ -506,6 +507,7 @@ function creature(sheet, title) {
   return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo, shapes };
 }
 
+
 // ══════════ the hero door ══════════
 
 export const BUILD_TUNE = Object.freeze({ lithe: { shoulders: 0.92, waist: 0.92, hips: 0.95 }, canonical: {}, heroic: { shoulders: 1.12, legs: 1.05, depth: 1.05 }, stout: { stature: 0.92, waist: 1.12, depth: 1.1 }, brute: { shoulders: 1.2, waist: 1.1, depth: 1.15, upperArm: 1.2, forearm: 1.2, thigh: 1.15 } });
@@ -667,7 +669,7 @@ function thesisOf(sheet, door, built) {
   const sil = derivesOf(sheet, ['silhouette']).map(readDerive).find((r) => r.family === 'silhouette')?.word || 'column';
   const iconic = (sheet.notes.cover || sheet.notes.ornament || sheet.notes.dress || [])[0]?.line || 'none named';
   if (door === 'hero') return `${sil} · biped, ${sheet.facets.build} · a ${sheet.ancestry.kind === 'human' ? 'human' : 'near-human'} face · ${iconic} · ${Math.round(HEIGHT[sheet.facets.build] * AGE_SCALE[sheet.facets.age] * 100) / 100} m`;
-  const head = built.head.standIn ? `head pending (the ${built.head.id} stands in)` : `${HEAD_LIBRARY[built.head.id].head} (${built.head.id}${built.head.provisional ? ', provisional' : ''})`;
+  const head = built.head.standIn ? `head pending (the ${built.head.id} stands in)` : `${HEAD_LIBRARY[built.head.id]?.head ?? 'a skull of its own bones'} (${built.head.id}${built.head.provisional ? ', provisional' : ''})`;
   return `${sil} · ${built.legs} biped${built.stance.lean > 8 ? ', leaning forward' : ''} · ${head} · ${iconic} · ${Math.round(built.k * 200) / 100} m`;
 }
 
@@ -716,6 +718,14 @@ export function planFromSheet(sheet, { title, dress } = {}) {
     if (dress === 'designed') { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+  }
+  // an UNDEAD form on the hero door (undead/tiered.js): a person's body, the form's card over it, bare and one tone
+  if (sheet.ancestry.form) {
+    const f = sheet.facets, tune = { ...BUILD_TUNE[f.build] };
+    const spec = { form: 'tiered', cast: f.pole, ...(Object.keys(tune).length ? { tune } : {}), palette: { Skin: legible(sheet.ancestry.colours.Skin) },
+      undead: { form: sheet.ancestry.form, build: f.build, seed: sheet.seed, ...(sheet.ancestry.layers?.length ? { layers: [...sheet.ancestry.layers] } : {}) } };
+    const built = { spec, undead: { form: sheet.ancestry.form, build: f.build } };
+    return { door, thesis: `${sheet.ancestry.reads} on the tiered body: ${UNDEAD_CARDS[variantOf(sheet.ancestry.form, f.build)].reads}`, create: { as: 'hero', title: name, spec }, after: [], ledger: ledgerOf(sheet, door, built) };
   }
   const built = hero(sheet);
   // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
