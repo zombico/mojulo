@@ -18,3 +18,9 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   clip and lid band following one outline; the lenses slid and the pupil scaled; the mouth's outline opened per lip,
   widened, its corners lifted or dropped, squared, drawn as ω or as a wave. Each keeps the head's topology and turns no
   face over, within ranges measured on the default head. A head with no drawing is the studio's, byte for byte.
+- **The eye's socket** (sculpt `orbit`, a depth of the head's height): the socket cut as planes, so the face breaks into
+  blocks in profile and at three-quarter: the brow's plane runs back to an apex just over the eye and the cheekbone's
+  comes forward from it (a "<"), and the nose's side walls angle in down along the bridge, setting the brow and nose apart
+  from the cheekbones. The planes meet in soft fillets, and an eye in a socket is built with more rings about it, so no
+  streak or raised rim shows around it. The eye, its lids, its lenses and its brow sit in the socket and act as before. A
+  head without it keeps its bytes.

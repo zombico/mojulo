@@ -179,6 +179,18 @@ export function buildAnime(r, options = {}) {
     else { if (!noseOff) z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
     // canthusSetback: the lateral canthus set back along the globe (eye-local; faded to zero at the side seam)
     if (!back && S?.canthusSetback) { const cl = 0.455 * f.spacing + 0.285 * f.eyeWidth * 0.95; z += S.canthusSetback * g(Math.abs(u), cl, 0.13) * g(y, EYE_Y, 0.14) * (1 - dmath.pow(Math.abs(u), 8)); }
+    // orbit { depth }: the eye's SOCKET cut as planes, so the face breaks in profile into the brow's block, the socket and
+    // the cheekbone's block (a "<": the brow ridge's plane runs back to an apex just over the eye, the cheek's plane runs
+    // forward from it), and in front into the nose's block and the cheek's (the socket's medial wall is the nose's side,
+    // and runs down it, so the bridge stands between two walls). Each plane is straight, its edges and the apex filleted
+    // (`fillet` of its run), so no point stands; the opening, the white, the lenses, the lid band and the brow block are
+    // built on the surface, so they sit in it
+    if (!back && S?.orbit) {
+      const O = ORBIT, au = Math.abs(u), ya = EYE_Y + O.apex, down = O.down + O.noseDrop * (1 - clamp((au - O.bridge) / O.noseReach));
+      const wu = fillet((au - O.bridge) / O.medial) * (1 - smoother((au - O.lateral[0]) / O.lateral[1]));
+      const wy = y >= ya ? fillet(1 - (y - ya) / O.up) : fillet(1 - (ya - y) / down);
+      z += S.orbit.depth * wu * wy;
+    }
     // Independent forehead and supraorbital depth; blend to the temple seam.
     if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(y, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(y, 0.34, 0.14) * sideFade; }
     // Cheek fullness is local to the front malar region; fades to zero at the side seam.
@@ -261,8 +273,12 @@ export function buildAnime(r, options = {}) {
     // (the full lattice's points, so a thinned painted lattice keeps the features' own outline sampling)
     const outer = [...xs0.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys0.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs0.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys0.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
     const ts = outer.map(([u, y]) => dmath.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
-    for (let k = 0; k <= 3; k++) { const t = k / 3; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
-    if (!options.paint) for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
+    // (the rings from the outline out to the hole's box: three, the studio's, raised a little between the two; an eye in a
+    // socket (`orbit`) takes ORBIT.rings on the surface itself, so the skin follows the socket's curve, no chord stands in
+    // front of the brow block or the lid band laid on it, and no raised frame rims the box)
+    const RK = hole.kind === 'eye' && S?.orbit ? ORBIT.rings : 3;
+    for (let k = 0; k <= RK; k++) { const t = k / RK; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); if (RK === 3) v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
+    if (!options.paint) for (let k = 0; k < RK; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
     const centerUV = hole.kind === 'eye' ? eyeUV(side, 0, 0) : mouthUV(0, 0), center = surface(...centerUV); center[2] += hole.kind === 'eye' ? -0.025 : 0.035;
     for (let i = 0; i < outer.length; i++) {
       const n = (i + 1) % outer.length;
@@ -821,6 +837,16 @@ function eyeShapeOf(S, f, L = null) {
 
 /** the 7G drawing's terms (anime-drawings.js names them): the gaze's reach (of the eye's half-width and half-height), the
  * brow's moves (of the opening; `knitIn` of the eye's half-width) and the lid's (its floor, its ease along the lid) */
+/** the orbit's planes (studio units, sculpt `orbit`): across, the nose's side wall from the bridge's edge (`bridge`, |u|)
+ * over `medial` to the socket's floor, easing out to the temple (`lateral`: its start and ease); up, the apex `apex` over
+ * the eye level, the brow's plane `up` above it and the cheek's `down` below, reaching `noseDrop` further down along the
+ * nose (fading over `noseReach` out from the bridge); each run filleted at `fillet` of it; the rings an eye in a socket is
+ * built with, from its outline out to its hole's box */
+export const ORBIT = Object.freeze({ bridge: 0.035, medial: 0.17, lateral: [0.64, 0.2], apex: 0.02, up: 0.2, down: 0.24, noseDrop: 0.14, noseReach: 0.3, fillet: 0.2, rings: 8 });
+/** a straight run on [0, 1] with its ends filleted (`ORBIT.fillet` of it, parabolic, C1): flat planes, no point */
+const fillet = (t) => { const x = clamp(t), k = ORBIT.fillet; return (x < k ? (x * x) / (2 * k) : x <= 1 - k ? x - k / 2 : 1 - k - ((1 - x) * (1 - x)) / (2 * k)) / (1 - k); };
+/** smootherstep on [0, 1] (C2 at both ends: the socket's edges ease in without a crease) */
+const smoother = (t) => { const x = clamp(t); return x * x * x * (x * (6 * x - 15) + 10); };
 export const GAZE = Object.freeze({ x: 0.3, y: 0.25 });
 export const BROW = Object.freeze({ lift: 0.6, inner: 0.9, knit: 0.9, knitIn: 0.12 });
 export const LID = Object.freeze({ floor: 0.15, ease: 1.5 });

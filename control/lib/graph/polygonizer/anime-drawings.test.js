@@ -1,11 +1,15 @@
 // The 7G anime head's drawings (anime-drawings.js) on the studio's construction (anime-form.js `drawing`), on the default
 // anime hero's head. The concepts: every drawing is named whole (a layer, a phrase, its words or channels, the face it
 // lowers to); no drawing, or a neutral one, is the head byte for byte; each drawing keeps the head's topology, moves only
-// its own layer's parts and region, and folds no face; layers that share no vertex add exactly.
+// its own layer's parts and region, and folds no face; layers that share no vertex add exactly. And the head in a socket
+// (sculpt `orbit`): none at 0; the eye set back between the brow and the cheekbone, the nose and the chin kept; the
+// drawings as whole on it.
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
-import { X, build, pts, checkDrawing } from './anime-drawings.fixture.js';
+import { X, build, pts, checkDrawing, socketed } from './anime-drawings.fixture.js';
+import { sculptBuild, resolveAnimeSculpt } from './anime-sculpt.js';
+import { compileLayered } from './station-loft.js';
 
 const drawn = Object.entries(DRAWINGS).filter(([, D]) => D.words);
 
@@ -53,5 +57,26 @@ describe('the drawings, built', () => {
     // (the lenses do not add: the lids clip them; measured 6 mm, so the gaze is drawn at positions and a lid's shape over a
     // turned gaze takes a corrective)
     expect(pair(W('lids.angry'), W('gaze.right'))).toBeGreaterThan(1e-3);
+  });
+}, 120000);
+
+describe('the head in a socket (sculpt orbit)', () => {
+  const head = (sculpt) => { const h = animeHead({ preset: 'male', hair: 'none', hairFit: false, ...(sculpt ? { sculpt } : {}) }); return compileLayered({ parts: h.parts, dials: {}, creases: {} }); };
+  const of = (m, part) => m.vertices.filter((_, i) => m.provenance[i].part === part);
+  it('none at 0: the head byte for byte', () => {
+    expect(sculptBuild('male', resolveAnimeSculpt({ orbit: 0 }))).not.toHaveProperty('orbit');
+    expect(animeHead({ preset: 'male', hair: 'none', hairFit: false, sculpt: { orbit: 0 } })).toEqual(animeHead({ preset: 'male', hair: 'none', hairFit: false }));
+  });
+  it('sets the eye back between the brow and the cheekbone, the nose and the chin kept', () => {
+    const A = head(null), B = head({ orbit: 0.02 }), mean = (P, k) => P.reduce((t, p) => t + p[k], 0) / P.length;
+    // (front is +y: the iris sits back in its socket by most of the depth, 0.02 of the head's height)
+    const H = Math.max(...of(A, 'face').map((p) => p[2])) - Math.min(...of(A, 'face').map((p) => p[2]));
+    expect(mean(of(A, 'irisL'), 1) - mean(of(B, 'irisL'), 1)).toBeGreaterThan(0.012 * H);
+    for (const [k, f] of [[1, Math.max], [2, Math.min], [2, Math.max]]) expect(f(...of(B, 'face').map((p) => p[k]))).toBeCloseTo(f(...of(A, 'face').map((p) => p[k])), 9);
+    // (its rings follow the socket: more of them about each eye, the parts laid on it unchanged in count)
+    expect(of(B, 'face').length).toBeGreaterThan(of(A, 'face').length); expect(of(B, 'browL').length).toBe(of(A, 'browL').length);
+  });
+  it('keeps every layer\'s drawing whole on it', () => {
+    for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) socketed.checkDrawing(`socketed ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);
   });
 }, 120000);

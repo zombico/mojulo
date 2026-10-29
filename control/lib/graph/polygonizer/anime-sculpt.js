@@ -7,7 +7,8 @@
  * Every word is a standard anatomy or art term: the eye level, the nose tip (pronasale) and the start of the nasal dorsum,
  * the lip line (stomion) and the mouth width, the ear's level, the palpebral fissure's height and shape, the lateral canthus set back along
  * the globe, the upper-lid band's weight, tail, angle and flick and how far it covers the iris, the iris size and oval,
- * the pupil, a catchlight, the brow's thickness, gap, length, angle and arch, a nose line down the shade side.
+ * the pupil, a catchlight, the brow's thickness, gap, length, angle and arch, a nose line down the shade side, and the
+ * ORBIT: the eye's socket set back between the brow ridge and the cheekbone (`orbit`, its depth of H; none at 0).
  *
  * The anime head wears the graphic base by default (a read-time default, like the character light: nothing is stored);
  * `false` is the studio's own face. The base per design base is two layers: a FACE layer under the face words (the
@@ -89,13 +90,13 @@ export const ANIME_SCULPT = ratioControls({
   groups: {
     placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'],
     nose: ['tipProjection', 'dorsumProjection', 'noseLine'],
-    ear: ['earLevel'], fissure: ['fissureHeight', 'canthusSetback'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
+    ear: ['earLevel'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
     iris: ['irisSize', 'irisOval', 'pupil', 'catchlight'],
     brow: ['browThick', 'browGap', 'browLength'], browAngle: ['browAngle'], browArch: ['browArch'],
   },
-  ranges: { eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
+  ranges: { orbit: [0, 0.03], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
     lidWeight: [0.6, 1.5], lidCover: [0, 1.6], browGap: [0, 2.5], browThick: [0.5, 1.6], catchlight: [0, 1.6], noseLine: [0, 1.5], canthusSetback: [0, 2] },
-  offsets: ['eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
+  offsets: ['orbit', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
   zero: ['lidCover', 'browGap', 'catchlight', 'noseLine', 'canthusSetback', 'lidTail'],
   moves: ANIME_SCULPT_MOVES,
 });
@@ -159,6 +160,8 @@ export function sculptBuild(pole, resolved) {
   out.lidCover = r6(Math.min(0.6, B.lidCover * R.lidCover)); out.irisSpan = r6(B.irisSpan * R.irisSize); out.irisOval = r6(B.irisOval * R.irisOval); out.pupil = r6(B.pupil * R.pupil);
   if (R.catchlight > 0) out.catchlight = { ...B.catchlight, r: r6(B.catchlight.r * R.catchlight) }; else delete out.catchlight;
   out.canthusSetback = r6(B.canthusSetback * R.canthusSetback);
+  // (the orbit, an offset of H: absent at 0, so a head without it keeps its build)
+  if (R.orbit > 0) out.orbit = { depth: r6(h(R.orbit)) };
   if (B.ear) out.ear = { ...B.ear, lift: r6(B.ear.lift + h(R.earLevel)) };
   out.brow = { ...B.brow, ...(R.browShape ? { shape: R.browShape } : {}), thick: r6(B.brow.thick * R.browThick), gap: r6(B.brow.gap * R.browGap), angle: r6(B.brow.angle + R.browAngle), inner: r6(B.brow.inner * R.browLength), outer: r6(B.brow.outer * R.browLength), arch: r6(B.brow.arch + R.browArch) };
   return out;
