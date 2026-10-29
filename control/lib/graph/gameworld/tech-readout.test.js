@@ -35,7 +35,8 @@ describe('tech eras: style apart from density, density by the camera', () => {
     expect(sceneLoad()).toMatchObject({ ok: true });
     expect(sceneLoad({ driven: { focus: PERSON_SCENE.heroes } }).ok).toBe(false);
     expect(pxPerMetre(6)).toBeCloseTo(2 * pxPerMetre(12), 6);
-    const hero = planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', register: 'round' }) })).mesh;
+    // (the reference was measured on the hero before laws 19: the anime head's formed socket rings its eyes with 720 more)
+    const hero = planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', register: 'round', laws: 18 }) })).mesh;
     expect(hero.faces.length).toBe(HERO_REFERENCE.triangles);
   }, 60000);
 

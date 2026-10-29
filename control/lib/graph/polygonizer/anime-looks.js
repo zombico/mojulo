@@ -117,6 +117,12 @@ export const CHILD_FACE = Object.freeze({
  * (anime-form.js ORBIT, PYRAMID, JAW). A hero's own words move or undo each (`orbit: 0`, `noseShape: 'round'`,
  * `jawHollow: 0`). */
 export const ANIME_FORM = Object.freeze({ orbit: 0.025, noseShape: 'pyramid', jawHollow: 0.02 });
+/** and per design base, what keeps the formed head in its base's feature bands (anime-sculpt.js FEATURE_BANDS): the
+ * socket reads the male's lid band a hair heavier (his opening a hair taller answers it) and the pyramid sets the
+ * female's tip a hair nearer the face */
+export const ANIME_FORM_POLE = Object.freeze({ male: Object.freeze({ fissureHeight: 1.01 }), female: Object.freeze({ tipProjection: 1.08 }) });
+/** the anime head's form this hero wears (ANIME_FORM and its base's), or null */
+export const animeFormOf = (hero) => (animeFormed(hero) ? { ...ANIME_FORM, ...ANIME_FORM_POLE[heroHeadPole(hero)] } : null);
 /** does this hero wear the anime head's form (ANIME_FORM): minted under laws 19, its face not the child's */
 export const animeFormed = (hero) => (hero.laws ?? 1) >= 19 && !childFaced(hero);
 /** does this child wear the ROUND child (laws 14: CHILD_FACE `round`, tiered-form.js CHILD_SHADE) */
@@ -142,7 +148,7 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const hairWords = own === 'none' ? null : resolveAnimeHair([...base, ...(Array.isArray(L?.hair) ? L.hair : [L?.hair])].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
   const expression = genkiExpression(hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral'), hero);
   const { from: _t, ...tune } = resolveTune([L?.tune, hero.tune, G?.tune].filter(Boolean));
-  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([animeFormed(hero) ? ANIME_FORM : null, C?.sculpt, L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
+  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([animeFormOf(hero), C?.sculpt, L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
   return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */

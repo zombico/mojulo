@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
 import { X, build, pts, checkDrawing, studio } from './anime-drawings.fixture.js';
-import { heroRecord } from '../../mcp/tools/layered.js';
+import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
 import { animeHeroEffective, ANIME_FORM } from './anime-looks.js';
 import { sculptBuild, resolveAnimeSculpt, validateAnimeSculpt } from './anime-sculpt.js';
 import { compileLayered } from './station-loft.js';
@@ -116,6 +116,8 @@ describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShap
     expect(sc({ cast: 'child' }).orbit).toBe(0); expect(sc({ cast: 'male', sculpt: false })).toBe(false);
     // (a hero's own words move each: the socket deeper, the nose round)
     expect(sc({ cast: 'male', sculpt: { orbit: 0.005, noseShape: 'round' } })).toMatchObject({ orbit: 0.03, noseShape: 'round' });
+    // (each base's formed head inside its feature bands: the default hero is advised nothing)
+    for (const cast of ['male', 'female']) expect(heroPlanOf(heroRecord({ cast, head: 'anime' })).include[0].faceMeasures.features.advice, cast).toEqual([]);
   });
   it('keeps every layer\'s drawing whole on the head before its form (laws 18)', () => {
     for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) studio.checkDrawing(`laws 18 ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);

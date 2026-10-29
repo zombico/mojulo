@@ -12,6 +12,7 @@ import { updateSketchHandler } from './sketches.js';
 import { measureSolidHandler } from './measure-solid.js';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { ANIME_FORM, ANIME_FORM_POLE } from '../../graph/polygonizer/anime-looks.js';
 
 // edit-3d-recipes.plan.md Phase 2: solids and edifices were always editable in
 // place through update_sketch's world branch (their kinds live in WORLD_KINDS),
@@ -593,7 +594,8 @@ describe('the hero door: the anime head\'s graphic face', () => {
     expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true);
     const stored = SketchRepository.getByRef('hero-sculpt');
     expect(stored.manifest.hero.sculpt).toEqual({ lidCover: 1.3, fissureShape: 'tri' });   // heavy-lid's 1.25 × 0.8 is the base's lid again: stripped; browThick 1 too
-    expect(minted.hero.sculpt).toEqual(stored.manifest.hero.sculpt);
+    // (the readout's is the face worn: the stored words over the anime head's form, hero laws 19, anime-looks.js)
+    expect(minted.hero.sculpt).toEqual({ ...ANIME_FORM, ...ANIME_FORM_POLE.male, ...stored.manifest.hero.sculpt });
     expect(minted.hero.evidence.head.sculpt).toMatch(/the graphic face, authored off its base: sculpt .*lidCover 130%.*fissureShape tri/);
     expect(minted.hero.faceMeasures.features.eyeLevel).toBeGreaterThan(0.4); expect(minted.hero.faceMeasures.head_m).toBeGreaterThan(0.2);
     expect(minted.next.reason).toMatch(/\/hero\/sculpt/);
