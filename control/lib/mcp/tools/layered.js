@@ -38,6 +38,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
 import { performanceErrors } from '@/lib/graph/face-acting/perform';
+import { emoteClipErrors } from '@/lib/graph/face-acting/emotes';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials, pinFrame } from '@/lib/graph/polygonizer/station-loft';
@@ -778,7 +779,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
  * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
 export const REALISTIC_LAWS_VERSION = 12;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'perform'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -963,6 +964,11 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
       if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(take)) { errs.push(`perform.${take}: a take's name is a word (letters, digits, - and _)`); continue; }
       errs.push(...performanceErrors(P).map((e) => `perform.${take}.${e}`));
     }
+  }
+  // THE FACE'S EMOTES (face-acting/emotes.js): held states that loop, each a face-only clip in an export (`emote:<clip>`)
+  if (spec.emote !== undefined && spec.emote !== null) {
+    if (!relational) errs.push(`emote: a face's emote is the realistic hero's (form: 'realistic', its relational head)`);
+    else errs.push(...emoteClipErrors(spec.emote).map((e) => (e.startsWith('emote') ? e : e.startsWith('[') ? `emote${e}` : `emote.${e}`)));
   }
   errs.push(...validateGear(spec.gear));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
@@ -1171,6 +1177,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   // the door's motion (hero-motion.js), stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
   if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
   if (spec.perform && typeof spec.perform === 'object' && Object.keys(spec.perform).length) hero.perform = spec.perform;
+  if (spec.emote !== undefined && spec.emote !== null) hero.emote = spec.emote;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key

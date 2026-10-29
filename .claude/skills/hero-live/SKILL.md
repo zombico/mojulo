@@ -44,6 +44,11 @@ over the body's idle, their own blinks and gaze in place of the page's. To read 
 phonemes' middles (`perform(P).events.lines[0].phonemes`, each `t` and `dur`): the lips shut on m, b and p, the lower lip
 under the teeth on f and v, rounded on oo and w.
 
+Its EMOTES (the door's `emote`: a name, a list of names, or `{ <clip>: a name | { emote, mirror?, intensity?, seconds?,
+seed? } }`, `control/lib/graph/face-acting/emotes.js`: held states such as `rest`, `vacant`, `daydream`, `absorbed`,
+`waiting`, `drowsy`) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
+nothing and are never crossed (`face-acting/gaze.js`); to judge a loop's seam, scrub to its end and its start.
+
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body and Side views, the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
 (or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.

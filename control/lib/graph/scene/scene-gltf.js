@@ -987,6 +987,9 @@ class GlbBuilder {
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
         ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio } : {}) })),
           performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, file }, the file as the take names it, not embedded) starts `at` seconds into the clip' } : {}),
+        ...(fig.face.emotes ? { emotes: Object.entries(fig.face.emotes).map(([clip, E]) => ({ clip: `emote:${clip}`, emote: E.emote, seconds: E.seconds, loop: true, ...(E.gaps.length ? { gaps: E.gaps } : {}) })),
+          emoting: 'an emote (face-acting/emotes.js) is a held state as a face-only clip that LOOPS (its last key its first): a LINEAR weights channel on the mesh node, keyed at 30 fps, the face held and living on its targets, the eyes on the look targets, parallel (looking at nothing, never crossed); play it looping over a body clip, its face weights masked, and lay a line\'s mouth over it by `mouth`',
+          ...(fig.face.mouth ? { mouth: { ...fig.face.mouth, about: 'who owns the mouth while a line is spoken over a face clip (face-acting/mouth.js): the driver (a lip-sync, a take\'s line) owns `driver`; the face\'s `rounded.targets` are drawn in by rounded.share × the greatest of `rounded.by`; its `released.targets` let go by released.share while the line runs (eased over released.ease seconds); then each driver target is the greater of the face\'s and the driver\'s' } } : {}) } : {}),
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
           ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],
@@ -1074,6 +1077,14 @@ class GlbBuilder {
       this.addWeightsChannel(samplers, channels, { node: meshNode, t: P.t, w: corr ? P.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : P.w }, null, 'LINEAR');
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: `face:${take}`, samplers, channels });
+      animations++;
+    }
+    // the face's EMOTES (the door's `emote`: face-acting/emotes.js): each a held state's loop `emote:<clip>`, as a take is
+    if (hasFace && fig.face.emotes) for (const [clip, E] of Object.entries(fig.face.emotes)) {
+      const samplers = [], channels = [];
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: E.t, w: corr ? E.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : E.w }, null, 'LINEAR');
+      if (!this.json.animations) this.json.animations = [];
+      this.json.animations.push({ name: `emote:${clip}`, samplers, channels });
       animations++;
     }
     return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };

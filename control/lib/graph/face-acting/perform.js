@@ -26,8 +26,8 @@
  *   • THE MOVING HOLD: a held expression is never dead still; each unit lives a few hundredths of its height in slow
  *     waves of its own.
  *   • THE LINES SPOKEN (speech.js): the mouth speaks over the face. Speech owns the jaw and the lips' shapes; the face's
- *     own mouth gives way where they cannot both be (a rounded lip draws the smile's and the stretch's corners in; a
- *     pressed, tightened or sucked lip, and the face's own jaw, let go while the line runs), and keeps the rest: the
+ *     own mouth gives way where they cannot both be (mouth.js `MOUTH`, the ownership: a rounded lip draws the smile's and
+ *     the stretch's corners in; a pressed, tightened or sucked lip, and the face's own jaw, let go while the line runs), and keeps the rest: the
  *     brows, the eyes, the corners' set. An emphasized word lifts the brows (Ekman's baton), and a sentence's close may
  *     take a blink.
  *   • THE GAZE: fixations with a little drift, saccades between them timed by the main sequence (a saccade's duration
@@ -42,6 +42,7 @@ import { composeFace } from './emotions.js';
 import { FACS_UNITS, auOf } from './facs.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { speak, speechErrors } from './speech.js';
+import { MOUTH, overMouth } from './mouth.js';
 
 export const CAPTURE_FPS = 60;
 /** a change's timing, seconds: [shortest, longest], the onset rising, the offset falling; the upper face's lead */
@@ -59,8 +60,7 @@ export const MICRO = Object.freeze({ onset: 0.05, hold: 0.1, offset: 0.05 });
  * dimple, the stretch), how far the line lets go of the face's closing units and its jaw, the line's envelope's ease (s);
  * an emphasized word's baton (the brows' heights, its rise and fall, s, its hold a share of the word); a sentence's
  * blink's chance */
-export const SPEAKING = Object.freeze({ round: 0.7, release: 0.85, ease: 0.15, baton: Object.freeze({ AU1: 0.3, AU2: 0.35, rise: 0.12, hold: 0.6, fall: 0.2 }), phrase: 0.5 });
-const ROUNDED = ['AU12', 'AU14', 'AU20'], RELEASED = ['AU17', 'AU23', 'AU24', 'AU28', 'AU26'];
+export const SPEAKING = Object.freeze({ round: MOUTH.round, release: MOUTH.release, ease: MOUTH.ease, baton: Object.freeze({ AU1: 0.3, AU2: 0.35, rise: 0.12, hold: 0.6, fall: 0.2 }), phrase: 0.5 });
 /** a brow flash: its units' heights, its rise, hold and fall (s) */
 export const BROW_FLASH = Object.freeze({ AU1: 0.6, AU2: 0.7, rise: 0.1, hold: 0.15, fall: 0.15 });
 /** the blinks: the spontaneous rate a minute by state, a blink's closing, shut and opening (s, [min, max]), the least
@@ -163,18 +163,10 @@ export function perform(P) {
     }
     if (b.flash) { layer('AU1', b.at, BROW_FLASH.rise, BROW_FLASH.hold, BROW_FLASH.fall, BROW_FLASH.AU1); layer('AU2', b.at, BROW_FLASH.rise, BROW_FLASH.hold, BROW_FLASH.fall, BROW_FLASH.AU2); events.flashes.push({ t: r4(b.at) }); }
   }
-  // THE LINES: the speech's units over the face's, the face's mouth giving way where the lips cannot do both
+  // THE LINES: the speech's units over the face's, the face's mouth giving way where the lips cannot do both (mouth.js)
   for (const L of lines) {
-    const T = L.take, o = Math.round(L.at * fps), env = new Array(n).fill(0);
-    const t0 = L.at + (T.events.phonemes.find((q) => q.p !== 'sil')?.t ?? 0), t1 = L.at + Math.max(...T.events.phonemes.filter((q) => q.p !== 'sil').map((q) => q.t + q.dur));
-    for (let i = 0; i < n; i++) { const t = tOf(i); env[i] = t < t0 ? ease(1 - (t0 - t) / SPEAKING.ease) : t > t1 ? ease(1 - (t - t1) / SPEAKING.ease) : 1; }
-    const sp = (u, i) => { const j = i - o; return j >= 0 && j < T.frames ? T.curves[u][j] : 0; };
-    for (const [k, c] of Object.entries(curves)) {
-      const [au] = auOf(k);
-      if (ROUNDED.includes(au)) for (let i = 0; i < n; i++) c[i] *= 1 - SPEAKING.round * Math.max(sp('AU18', i), sp('AU22', i));
-      else if (RELEASED.includes(au)) for (let i = 0; i < n; i++) c[i] *= 1 - SPEAKING.release * env[i];
-    }
-    for (const u of Object.keys(T.curves)) { const c = curves[u] || (curves[u] = new Array(n).fill(0)); for (let i = 0; i < n; i++) c[i] = Math.max(c[i], sp(u, i)); }
+    const T = L.take;
+    overMouth(curves, L, { fps, n });
     // (the batons: an emphasized word lifts the brows as it is said)
     for (const w of T.events.words) if (w.emph) { const B = SPEAKING.baton, t = L.at + w.t - 0.08; layer('AU1', t, B.rise, B.hold * w.dur, B.fall, B.AU1 * K); layer('AU2', t, B.rise, B.hold * w.dur, B.fall, B.AU2 * K); events.batons.push({ t: r4(t), word: w.w }); }
     const audio = typeof L.say === 'object' ? L.say.audio : undefined;

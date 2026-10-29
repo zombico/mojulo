@@ -177,8 +177,9 @@ async function load(v) {
   const mixer = new THREE.AnimationMixer(root), actions = {};
   for (const clip of gltf.animations) if (clip.name.startsWith('body:')) actions[clip.name.slice(5)] = { action: mixer.clipAction(clip), seconds: secondsOf(clip) };
   // (a face's PERFORMANCE, `face:<take>` (face-acting/perform.js): a take of its own, played at its own length over the
-  // body's idle; the ambient blink is the page's, not a take)
-  for (const clip of gltf.animations) if (clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
+  // body's idle; the ambient blink is the page's, not a take; an EMOTE, `emote:<clip>` (face-acting/emotes.js), a held
+  // state's loop, the same)
+  for (const clip of gltf.animations) if ((clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') || clip.name.startsWith('emote:')) actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
   // (the body's idle under a take: its own face's weights left out, so the take alone drives the face, as an engine
   // layers it under a mask on the morph weights; two actions on one weights track would be averaged)
   const idle = gltf.animations.find((c) => c.name === 'body:idle') ?? gltf.animations.find((c) => c.name.startsWith('body:'));
