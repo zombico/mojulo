@@ -155,9 +155,22 @@ else {
     mkdirSync(path.dirname(path.join(out, 'vendor/three', f)), { recursive: true }); copyFileSync(path.join(V, f), path.join(out, 'vendor/three', f));
   }
 }
+// (a performance's spoken lines' recordings, `say.audio`: copied beside the page (inlined when published), each played
+// from its beat with its take)
+const audioOf = (spec) => {
+  const out2 = {};
+  for (const [take, P] of Object.entries(spec.perform ?? {})) for (const [i, b] of (P.beats ?? []).entries()) {
+    const file = b?.say && typeof b.say === 'object' ? b.say.audio : null; if (!file || !existsSync(file)) continue;
+    const name = `${take}-${i}${path.extname(file)}`;
+    const src = opt.publish ? `data:audio/${path.extname(file).slice(1) === 'mp3' ? 'mpeg' : path.extname(file).slice(1)};base64,${readFileSync(file).toString('base64')}` : `audio/${name}`;
+    if (!opt.publish) { mkdirSync(path.join(out, 'audio'), { recursive: true }); copyFileSync(file, path.join(out, 'audio', name)); }
+    (out2[`face:${take}`] ??= []).push({ at: b.at, src });
+  }
+  return out2;
+};
 const seconds = clips ? Object.fromEntries(Object.entries(clips).filter(([, k]) => Array.isArray(k) || Array.isArray(k?.keys)).map(([n, k]) => [n, +Math.max(1.6, ((Array.isArray(k) ? k : k.keys).length - 1) * KEY_SECONDS).toFixed(2)])) : {};
 const manifest = { packed: !!opt.publish, firstTake: clips ? Object.keys(clips)[0] : null, seconds,
-  variants: made.map((v) => ({ id: v.id, label: v.label, file: `${v.id}.${opt.publish ? 'json' : 'glb'}`, mb: v.mb, spec: v.spec, read: v.read })) };
+  variants: made.map((v) => ({ id: v.id, label: v.label, file: `${v.id}.${opt.publish ? 'json' : 'glb'}`, mb: v.mb, spec: v.spec, read: v.read, audio: audioOf(v.spec) })) };
 const importmap = opt.publish
   ? { imports: { three: `https://cdn.jsdelivr.net/npm/three@${THREE_CDN}/build/three.module.min.js`, 'three/addons/': `https://cdn.jsdelivr.net/npm/three@${THREE_CDN}/examples/jsm/` } }
   : { imports: { three: './vendor/three/three.module.min.js', 'three/addons/': './vendor/three/addons/' } };
@@ -172,7 +185,7 @@ if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Obj
 
 // ─── serve (loopback only) ──────────────────────────────────────────────────
 if (opt.serve) {
-  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.glb': 'model/gltf-binary' };
+  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.glb': 'model/gltf-binary', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4' };
   createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html', file = path.resolve(out, rel);
     if (!file.startsWith(out + path.sep) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end(); return; }

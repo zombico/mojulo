@@ -985,8 +985,8 @@ class GlbBuilder {
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
-        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}) })),
-          performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked' } : {}),
+        ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio } : {}) })),
+          performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, file }, the file as the take names it, not embedded) starts `at` seconds into the clip' } : {}),
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
           ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],

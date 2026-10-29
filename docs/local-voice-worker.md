@@ -53,6 +53,26 @@ parses as the handback:
 deterministically; it is computed at the source so the worker audit can
 carry it.
 
+## Timed: a face that speaks the line
+
+`./install-local-voicegen.sh --timed` installs the Python rung for English with the phonemes' timings (it needs only
+GitHub and PyPI; the JS rung's weights are on HuggingFace). `speak.py --timings` then writes, beside the WAV,
+`<out>.timings.json`: `{ ok, audio, seconds, sample_rate, voice, model, phonemes: [{ p, t, dur }] }`, each symbol as
+Kokoro spoke it (its IPA, its stress marks, spaces and punctuation), seconds from the WAV's start:
+
+```bash
+cd ~/mojulo-voicegen
+venv/bin/python speak.py --text "Hello, my name is Maya." --voice af_heart --out maya.wav --timings
+```
+
+Kokoro predicts every phoneme's length before it renders, but the release's model keeps that inside; the first timed
+run derives `models/kokoro-v1.0.timed.onnx`, a copy that exposes it as a `duration` output, and `kokoro-onnx` (0.6.1 or
+later) turns it into each phoneme's span. Hand the sidecar's `phonemes` and its `audio` to a realistic hero's beat,
+`perform: { <take>: { beats: [{ at, face, say: { phonemes, audio } }] } }`: the face speaks on the recording's own
+timeline (`control/lib/graph/face-acting/speech.js` reads the engine's symbols as written), the export names the
+recording in the take's extras (`face.performances[].audio`: `{ at, file }`, not embedded), and `/hero-live` plays it
+with the take.
+
 ## What rides on this
 
 Today (V0): the CLI itself — text in, WAV out, driven ad hoc by the

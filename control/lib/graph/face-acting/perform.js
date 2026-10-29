@@ -7,7 +7,8 @@
  * ('spontaneous' | 'posed' | seconds), gaze? ('listener' | 'away' | 'down' | 'up' | { yaw, pitch } degrees), state?
  * ('listening' | 'speaking' | 'thinking' | 'attentive'), flash? (a brow flash on the beat), micro? (a face spec flashed
  * for a fifth of a second), microAt? (s, its time; the beat's by default), say? (a line spoken from the beat: speech.js,
- * a text or { text | phonemes, rate?, articulation? }; the beat's state speaking unless it says another) }], seconds?,
+ * a text or { text | phonemes, rate?, articulation?, audio? }: phonemes an engine timed play on the recording's own timeline,
+ * the recording `audio` starting with the beat; the beat's state speaking unless it says another) }], seconds?,
  * intensity? (1), seed? (1), fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds
  * past the last beat or the last line's end, whichever is later).
  *
@@ -113,7 +114,7 @@ export function perform(P) {
   const span = (r) => lerp(r[0], r[1], rnd());
   const beats = [...P.beats].sort((a, b) => a.at - b.at).map((b) => ({ ...b, ...(b.say !== undefined && !b.state ? { state: 'speaking' } : {}), S: Object.fromEntries(Object.entries(composeFace(b.face ?? 'neutral')).map(([k, v]) => [k, clamp01(v * K)])) }));
   // (the lines, each spoken from its beat)
-  const lines = beats.filter((b) => b.say !== undefined).map((b) => ({ at: b.at, take: speak(b.say, { fps }) }));
+  const lines = beats.filter((b) => b.say !== undefined).map((b) => ({ at: b.at, say: b.say, take: speak(b.say, { fps }) }));
   const seconds = P.seconds ?? Math.max(beats.at(-1).at + 2, ...lines.map((L) => L.at + L.take.seconds + 0.5)), n = Math.max(1, Math.round(seconds * fps) + 1), tOf = (i) => i / fps;
   const keys = [...new Set(beats.flatMap((b) => Object.keys(b.S)))].sort();
   const curves = {};
@@ -176,7 +177,8 @@ export function perform(P) {
     for (const u of Object.keys(T.curves)) { const c = curves[u] || (curves[u] = new Array(n).fill(0)); for (let i = 0; i < n; i++) c[i] = Math.max(c[i], sp(u, i)); }
     // (the batons: an emphasized word lifts the brows as it is said)
     for (const w of T.events.words) if (w.emph) { const B = SPEAKING.baton, t = L.at + w.t - 0.08; layer('AU1', t, B.rise, B.hold * w.dur, B.fall, B.AU1 * K); layer('AU2', t, B.rise, B.hold * w.dur, B.fall, B.AU2 * K); events.batons.push({ t: r4(t), word: w.w }); }
-    events.lines.push({ t: r4(L.at), seconds: T.seconds, words: T.events.words.map((w) => ({ ...w, t: r4(L.at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(L.at + q.t) })) });
+    const audio = typeof L.say === 'object' ? L.say.audio : undefined;
+    events.lines.push({ t: r4(L.at), seconds: T.seconds, ...(audio ? { audio } : {}), words: T.events.words.map((w) => ({ ...w, t: r4(L.at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(L.at + q.t) })) });
   }
   // THE GAZE: per beat a target (its state's default when none), saccades to it with the upper face, drift within a
   // fixation, a speaker's glances away and back

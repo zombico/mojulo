@@ -176,7 +176,42 @@ const IPA = Object.freeze({ 'ɑ': 'AA', 'ɑː': 'AA', 'æ': 'AE', 'ʌ': 'AH', '�
   'ɛ': 'EH', 'ɝ': 'ER', 'ɚ': 'ER', 'ɜː': 'ER', 'eɪ': 'EY', 'A': 'EY', 'ɪ': 'IH', 'i': 'IY', 'iː': 'IY', 'oʊ': 'OW', 'O': 'OW', 'əʊ': 'OW', 'ɔɪ': 'OY', 'Y': 'OY',
   'ʊ': 'UH', 'u': 'UW', 'uː': 'UW', 'b': 'B', 'p': 'P', 'm': 'M', 'f': 'F', 'v': 'V', 'θ': 'TH', 'ð': 'DH', 't': 'T', 'd': 'D', 'ɾ': 'D', 'k': 'K',
   'g': 'G', 'ɡ': 'G', 'ŋ': 'NG', 'h': 'HH', 'tʃ': 'CH', 'ʧ': 'CH', 'dʒ': 'JH', 'ʤ': 'JH', 'ʃ': 'SH', 'ʒ': 'ZH', 's': 'S', 'z': 'Z', 'n': 'N', 'l': 'L',
-  'ɹ': 'R', 'r': 'R', 'w': 'W', 'j': 'Y' });
+  'ɹ': 'R', 'r': 'R', 'w': 'W', 'j': 'Y',
+  // (and alone, where an engine writes a diphthong's or a vowel's letters apart: the pairs above merge first)
+  'a': 'AA', 'e': 'EH', 'o': 'OW', 'ɒ': 'AA', 'ɜ': 'ER', 'ᵻ': 'IH', 'ᵊ': 'AH', 'ɘ': 'AH', 'ɫ': 'L', 'x': 'K', 'ɐː': 'AA' });
+/** an engine's symbols that are no phoneme: a stress mark (its time the next phoneme's, which it stresses), a length
+ * mark or a diacritic (its time the one before's), a space (the one before's), punctuation (a pause) */
+const STRESS = /^[ˈˌ]$/u, AFTER = /^([ːˑʰʲʷ]|\p{M})+$/u, SPACE = /^\s+$/u, PAUSE = /^[,.;:!?—–…"“”()\[\]-]+$/u;
+
+/**
+ * Phonemes as given (ARPAbet, or an engine's IPA as it spoke them: speak.py `--timings`) → [{ p (ARPAbet | 'sil'), t?,
+ * dur?, stress (1 | 0 | null) }]: an engine's two-letter sounds (aɪ, oʊ, tʃ …) one phoneme, its marks, spaces and
+ * punctuation folded into their neighbours or a pause, the times kept whole. `bad`: the indices of symbols that are none
+ * of these (an ASCII one: a typo; an engine's own symbol it has no reading for is folded into the one before).
+ */
+export function givenPhonemes(list) {
+  const out = [], bad = [];
+  let carry = null, stressNext = false;
+  const extend = (q) => { const last = out.at(-1); if (last && last.dur !== undefined && q.dur !== undefined) last.dur = +(last.dur + q.dur).toFixed(4); };
+  for (let i = 0; i < list.length; i++) {
+    const q = list[i] ?? {}, sym = String(q.p ?? '');
+    if (STRESS.test(sym)) { stressNext = sym === 'ˈ'; if (q.t !== undefined && !carry) carry = { t: q.t, dur: q.dur ?? 0 }; else if (carry && q.dur !== undefined) carry.dur += q.dur; continue; }
+    if (AFTER.test(sym) || SPACE.test(sym)) { extend(q); continue; }
+    if (PAUSE.test(sym)) { const last = out.at(-1); if (last?.p === 'sil') extend(q); else out.push({ p: 'sil', ...(q.t !== undefined ? { t: q.t } : {}), ...(q.dur !== undefined ? { dur: q.dur } : {}), stress: null }); continue; }
+    // (a pair the engine wrote apart, one sound)
+    const nx = list[i + 1], pair = nx && typeof nx.p === 'string' ? IPA[sym + nx.p] : undefined;
+    let p = pair ?? arpabetOf(sym), dur = q.dur;
+    if (pair) { if (dur !== undefined && nx.dur !== undefined) dur += nx.dur; i++; }
+    if (p === null) { if (/^[A-Za-z0-9]+$/.test(sym) || !out.length) bad.push(i); else extend(q); continue; }
+    let t = q.t;
+    if (carry) { if (t !== undefined && dur !== undefined) { dur += t - carry.t; t = carry.t; } carry = null; }
+    const v = p !== 'sil' && PHONEMES[p][0].match(/vowel|diphthong/) !== null;
+    const digit = /([012])$/.exec(sym)?.[1];
+    out.push({ p, ...(t !== undefined ? { t } : {}), ...(dur !== undefined ? { dur: +dur.toFixed(4) } : {}), stress: !v ? null : digit !== undefined ? (digit === '0' ? 0 : 1) : stressNext ? 1 : list.some((x) => STRESS.test(String(x?.p))) ? 0 : 1 });
+    if (v) stressNext = false;
+  }
+  return { phonemes: out, bad };
+}
 /** a given phoneme's symbol → ARPAbet (stress digits dropped), or null */
 export function arpabetOf(sym) {
   const s = String(sym).replace(/[ˈˌ]/g, '');
@@ -186,7 +221,8 @@ export function arpabetOf(sym) {
 }
 
 /** Error lines for a line to speak (empty = valid): a text, or { text, rate?, articulation?, jaw?, lips? }, or
- * { phonemes: [{ p, t?, dur? }] } */
+ * { phonemes: [{ p, t?, dur? }] } (an engine's timings as written: speak.py `--timings`), and `audio?`, the line's
+ * recording (its path, played with the take) */
 export function speechErrors(S) {
   const s = typeof S === 'string' ? { text: S } : S;
   if (!s || typeof s !== 'object') return ['say: a line of text, or { text, rate?, articulation? }, or { phonemes: [{ p, t?, dur? }] }'];
@@ -195,11 +231,13 @@ export function speechErrors(S) {
   if (s.text !== undefined && (typeof s.text !== 'string' || !/[A-Za-z0-9]/.test(s.text))) errs.push('say.text: words to speak');
   if (s.phonemes !== undefined) {
     if (!Array.isArray(s.phonemes) || !s.phonemes.length) errs.push('say.phonemes: [{ p, t?, dur? }]');
-    else s.phonemes.forEach((q, i) => {
-      if (!q || arpabetOf(q.p) === null) errs.push(`say.phonemes[${i}].p: an ARPAbet phoneme (${Object.keys(PHONEMES).join(' ')}) or its IPA, or 'sil'`);
-      for (const k of ['t', 'dur']) if (q?.[k] !== undefined && !(Number.isFinite(q[k]) && q[k] >= 0)) errs.push(`say.phonemes[${i}].${k}: seconds, 0 or more`);
-    });
+    else {
+      for (const i of givenPhonemes(s.phonemes).bad) errs.push(`say.phonemes[${i}].p: an ARPAbet phoneme (${Object.keys(PHONEMES).join(' ')}) or its IPA, or 'sil'`);
+      s.phonemes.forEach((q, i) => { for (const k of ['t', 'dur']) if (q?.[k] !== undefined && !(Number.isFinite(q[k]) && q[k] >= 0)) errs.push(`say.phonemes[${i}].${k}: seconds, 0 or more`); });
+      if (!givenPhonemes(s.phonemes).phonemes.some((q) => q.p !== 'sil')) errs.push('say.phonemes: no phoneme to speak');
+    }
   }
+  if (s.audio !== undefined && (typeof s.audio !== 'string' || !/\.(wav|mp3|ogg|m4a)$/i.test(s.audio))) errs.push('say.audio: the line\'s recording, a path to a .wav, .mp3, .ogg or .m4a');
   for (const [k, lo, hi] of [['rate', 0.4, 2.5], ['articulation', 0, 2], ['jaw', 0, 2], ['lips', 0, 2]]) if (s[k] !== undefined && !(Number.isFinite(s[k]) && s[k] >= lo && s[k] <= hi)) errs.push(`say.${k}: ${lo} … ${hi}`);
   return errs;
 }
@@ -209,11 +247,12 @@ function segmentsOf(s) {
   const rate = s.rate ?? 1, segs = [];
   let t = TIMING.lead;
   if (s.phonemes) {
-    // (phonemes given: timed by their own times where they carry them, else by the rules' durations)
-    for (const q of s.phonemes) {
-      const p = arpabetOf(q.p), cls = p === 'sil' ? null : PHONEMES[p][0];
+    // (phonemes given: timed by their own times where they carry them, else by the rules' durations; an unstressed vowel
+    // reduced as the text's are)
+    for (const q of givenPhonemes(s.phonemes).phonemes) {
+      const p = q.p, cls = p === 'sil' ? null : PHONEMES[p][0];
       const dur = q.dur ?? (p === 'sil' ? TIMING.comma : TIMING[cls]) / rate, at = q.t ?? t;
-      segs.push({ p, t: at, dur, stress: 1, emph: false, word: -1 }); t = at + dur;
+      segs.push({ p, t: at, dur, stress: q.stress, emph: false, word: -1 }); t = at + dur;
     }
     return { segs, words: [], end: t + TIMING.tail };
   }

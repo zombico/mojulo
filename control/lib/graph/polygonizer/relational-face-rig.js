@@ -116,7 +116,9 @@ export function performanceTrack(take, { fps = 30 } = {}) {
     for (const k of Object.keys(g)) gaps.add(k);
     t.push(+(i / take.fps).toFixed(6)); w.push(RELATIONAL_FACE_TARGETS.map((n, j) => (n in G ? +G[n].toFixed(6) : weights[j])));
   }
-  return { seconds: take.seconds, t, w, gaps: [...gaps] };
+  // (a spoken line's recording, where it has one: speech.js `say.audio`, played from its beat)
+  const audio = (take.events?.lines ?? []).filter((L) => L.audio).map((L) => ({ at: L.t, file: L.audio }));
+  return { seconds: take.seconds, t, w, gaps: [...gaps], ...(audio.length ? { audio } : {}) };
 }
 /**
  * A FACS state (face-acting/facs.js: { AU12: 0.8, AU14R: 0.4, … }) → its weights in RELATIONAL_FACE_TARGETS' order, a

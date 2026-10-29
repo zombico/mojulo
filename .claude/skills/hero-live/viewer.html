@@ -93,6 +93,7 @@
       </div>
       <div class="row">
         <label><input id="blink" type="checkbox" checked> Ambient blink</label>
+        <label><input id="sound" type="checkbox" checked> Sound</label>
         <label><input id="wire" type="checkbox"> Wireframe</label>
         <label><input id="bones" type="checkbox"> Bones</label>
       </div>
@@ -342,10 +343,27 @@ renderer.setAnimationLoop(() => {
     }
     const a = S.take && L.actions[S.take]?.action;
     if (a) { const d = a.getClip().duration, p = (a.time % d) / d; if (!S.paused) $('scrub').value = p; $('timeOut').textContent = `${(p * L.actions[S.take].seconds).toFixed(2)} s`; }
+    syncAudio(L);
   }
   controls.update();
   renderer.render(scene, camera);
 });
+
+// ─── a take's recordings: each line's audio (live.mjs `audio`), played from its beat as the take plays, at its speed;
+// paused, scrubbed or another take, silent (a browser plays sound only after the page is touched) ────────────────────
+const audioEls = new Map();
+function syncAudio(L) {
+  const list = (S.variant && V[S.variant].audio?.[S.take]) || [], a = S.take && L.actions[S.take]?.action;
+  const now = a ? (a.time % a.getClip().duration) * (L.actions[S.take].seconds / a.getClip().duration) : 0, live = new Set();
+  for (const A of list) {
+    let el = audioEls.get(A.src); if (!el) { el = new Audio(A.src); el.preload = 'auto'; audioEls.set(A.src, el); }
+    live.add(el);
+    const rel = now - A.at, on = !S.paused && !S.hold && $('sound').checked && rel >= 0 && rel < (Number.isFinite(el.duration) ? el.duration : Infinity);
+    el.playbackRate = S.speed;
+    if (on) { if (Math.abs(el.currentTime - rel) > 0.12) el.currentTime = rel; if (el.paused) el.play().catch(() => {}); } else if (!el.paused) el.pause();
+  }
+  for (const el of audioEls.values()) if (!live.has(el) && !el.paused) el.pause();
+}
 
 // ─── window.heroLive: what a script (shot.mjs) drives ───────────────────────
 const ready = selectVariant(M.variants[0].id);
