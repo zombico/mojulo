@@ -78,6 +78,9 @@ import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
+import { lidFaces, caveLight, caveRocks, flipBoulder, CAVE } from './cave.js';
+// the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
+const CAVE_GRIT = 0.6;
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -431,6 +434,21 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // rest is placed on keeps its own)
   const zG = SH && SH.facet > 0 ? facetedZ(st, site.grid, SH.facet) : site.grid.z;
   const ground = isekaiGround(st, site, zG);
+  // (the CAVES' lids, era/cave.js: the ceiling under the land and the land over it, drawn as the land is: the ceiling the
+  // cliff's rock, the land over it rock where steep and ground where not; no cave, nothing changes)
+  // (and the cave's floor its own ground, not the meadow's: the land's soil, its rock at the walls' feet)
+  if (site.caves) ground.faces = ground.faces.map((f) => {
+    if (f.cel) return f;
+    const m = mean(f.corners), cv = site.caves.find((c) => c.inside(m[0], m[1]).d < c.width / 2 && c.covered(m[0], m[1]));
+    if (!cv) return f;
+    return cv.inside(m[0], m[1]).d > cv.width / 2 - CAVE.apron ? { ...f, group: 'isekai:rock', tint: st.tint.scree } : { ...f, group: 'isekai:trail', tint: st.tint.trail };
+  });
+  if (site.caves) ground.faces.push(...site.caves.flatMap((c) => lidFaces(c, site.grid, { gridX, gridY })).map((f) => {
+    const cs = f.corners.map(P), n = facet(cs, f.under ? [0, 0, -1] : f.skirt ? [f.skirt[0], f.skirt[1], 0] : [0, 0, 1]), sc = st.tiles.cliff.scale, rock = f.under || !!f.skirt || n[2] < st.slope.rock;
+    if (!rock) return { corners: cs, normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground' };
+    const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0, uv = f.under ? cs.map((p) => [r5(p[0] / sc), r5(p[1] / sc)]) : cs.map((p) => [r5(p[h] / sc), r5(p[2] / sc)]);
+    return { corners: cs, normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', uv, group: 'isekai:cliff', celN: n };
+  }));
   // (the SAND, era/substrate.js: on a polygon land whose formation turns its flats to sand, those cells' ground is drawn
   // as sand and no grass stands on it; no sand cell, nothing changes)
   // (and a land whose rock names its formation, era/substrate.js, draws its ground by it: the turned ground — sand,
@@ -469,6 +487,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // a named stone (the trail's landmark) carries its node on every face
   const named = (fs, it) => (it.node ? fs.map((f) => ({ ...f, node: it.node })) : fs);
   const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed, broken); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
+  // (the CAVES' rocks, era/cave.js caveRocks: the land's own boulders lining their walls and hung from their ceilings, no
+  // hat on any; not among the land's rocks, so nothing else stands by them)
+  if (site.caves) for (const it of site.caves.flatMap((c) => caveRocks(c, st.rubble.unit))) { const b0 = boulderFaces(st, it, seed, broken), b = it.flip ? flipBoulder(b0, it.z0) : b0; boulders.push({ it, ...b, cave: true }); }
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
   const trees = bamboo ? bambooItems(st, site, seed) : treeItems(st, site, seed);
@@ -581,14 +602,14 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // they are painted cards and painted tops, tricks the material render does not keep; the rock stays rock, its moss the
   // form's own, optional; ctx.form, worlds/world-scene.js)
   const drapes = !ctx.form;
-  const grows = !!st.grass && (!SH || !!B), hatOf = (b) => drapes && grows && b.s >= st.boulder.minHat;
+  const grows = !!st.grass && (!SH || !!B), hatOf = (b) => !b.cave && drapes && grows && b.s >= st.boulder.minHat;
   const capSnow = (f) => SF && f.normal[2] > SN.hold && SF(...mean(f.corners), f.normal) > 0;
   const asCap = (b) => (f) => (capSnow(f) ? { ...asRock(f), group: 'isekai:snow', tint: landTint['isekai:snow'] } : SH && hatOf(b) ? { ...asRock(f), group: 'isekai:ground', tint: landTint['isekai:ground'] } : asRock(f));
   const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff').map(asRock), ...boulders.flatMap((b) => [...b.sides.map(asRock), ...b.cap.map(asCap(b))])] : [];
   if (!SH) for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
   const H = st.hat, fringes = [];
   for (const b of boulders) {
-    const hatted = SH ? hatOf(b) : drapes && b.s >= st.boulder.minHat;
+    const hatted = SH ? hatOf(b) : !b.cave && drapes && b.s >= st.boulder.minHat;
     if (!SH) {
       const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
       for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
@@ -821,7 +842,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     heroCam.push({ name: 'hero', worldFraming: { cameraPosition: at.map(r5), lookAt: [t.crownAt[0], t.crownAt[1], t.crownAt[2] - 0.2 * t.crownR].map(r5), horizontalFov: Fh.fov, pictureCenter: [560, 390] } });
   }
   const payload = {
-    faces: drawnFaces,
+    // (under a cave's lid, each face lit by what it sees of the day through the mouth: era/cave.js caveLight)
+    faces: site.caves ? caveLight(drawnFaces, site.caves, { day: st.night ? 0.3 : 1 }) : drawnFaces,
     cutouts,
     ...(treeRepeats.length ? { repeats: treeRepeats } : {}),
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
@@ -846,7 +868,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       if (SH.skin === undefined) return rockFabric({ ...base, rockColour: null, green: null });
       if (SH.rocks === undefined) return rockFabric({ ...base, skin: SH.skin });
       return { ...rockFabric({ ...base, skin: SH.skin, groups: FABRIC_GROUPS }), also: rockFabric({ ...base, skin: SH.rocks, seed: seed + 101, groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
-    })() } : {}),
+    })() } : site.caves ? {
+      // (a land with caves wears the meru's rock, inside and out: its fabric, strata and joints near the eye, at the grit
+      // the meru's gen-7 rock is broken to, local-meru/scene.js FORM_GRIT)
+      fabric: rockFabric({ joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: CAVE_GRIT, sun: dir, seed, rockColour: null, green: null }) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)

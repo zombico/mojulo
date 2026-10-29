@@ -31,6 +31,17 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   angle of repose: a taller dune's face is longer), how much sand (0.75; low, crescents in patches), how far a crest wanders
   (0.35). The walk keeps a firm street through them; their sand is cut into the ground, no grass on it. A trail's own
   wins, its `dunes: false` refuses the cube's.
+- **Caves** (a trail's `ground.caves: [{ y, depth?, width?, height?, along?, mouth? }]`): cut into the far cliff of the
+  cube's rock, its mouth in the cliff's foot at station `y`, `depth` metres in (10), then `along` metres behind the face
+  (a gallery); `width` (8) and `height` (5) its size, `mouth` a taller entrance flaring down to it (a mouth taller than
+  the rock over it opens as a cleft). Its walls are the cliff's rock and its ceiling a lid of the same rock under the
+  land, worn as the meru's rock is (strata and joints near the eye); its floor the land's soil, rock at the walls' feet,
+  nothing growing on it. It is lit by what it sees: the sky through its mouth, the sunlit land before it, the light its
+  walls carry in and round a bend; deep in it is dark. Each cave is an anchor (`kind: 'cave'`: its path, size, mouth).
+  Its walls, far end and ceiling are lined with the land's own boulders (two rows up each wall, slabs hung across the
+  ceiling), its mouth the cliff's own rock. A gargantuan cave wants a taller cliff and more rock behind it:
+  `ground.cliff.height` (to 40 m) and `ground.behind` (0 to 80 m of rock behind the cliff); `ground.room` (0 to 80 m)
+  widens a trail's site past its far side.
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),
