@@ -283,6 +283,22 @@ export const STYLE_STARTERS = Object.freeze({
     materials: { stone: 'concrete', plinth: 'concrete', punched: 'concrete', pier: 'concrete', banded: 'precast', road: 'asphalt', walk: 'pavement' },
     city: { grain: 'london', skin: { stoneRhythm: ['banded', 'pier', 'grid'], mix: { glass: [0, 0.1, 0] }, towerGlass: 0.1 } },
   },
+  // (a geotown's pattern of the same name builds its houses in it: geotown/pattern.js)
+  'bay-and-gable': {
+    read: 'a Victorian and Edwardian streetcar suburb: red brick in two storeys over a stone socle, a steep slate gable to the street, tall sash lights on stone sills under stone lintels, a panelled door up two steps under its transom',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a narrow brick house end-on to its street under a steep gable', elements: {
+      wall: { storeys: [st('str:stone', 0.48, 'brick'), st('str:stone', 0.5, 'brick')] },
+      roof: { form: 'gable', pitch: 52, eave: 0.4, group: 'str:slate', value: 0.32 },
+      lights: { w: 0.95, h: 1.9, bay: 2.5, sill: 0.75, frame: 0.07, glazing: 'sash', trim: 'str:paint', trimValue: 0.92 },
+      door: { w: 1, h: 2.3, leaf: 'panels', surround: 'frame', fanlight: 'rect', steps: 2 },
+      socle: { h: 0.7, group: 'str:plaster', value: 0.66 }, sills: { group: 'str:plaster', value: 0.86 }, lintels: { group: 'str:plaster', value: 0.86 },
+      quoins: null, frame: null, shutters: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 9, d: 14 }, annex: null } },
+    materials: { stone: 'wire-brick', plaster: 'sawn-stone', roof: 'slate', plinth: 'sawn-stone', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { paint: '#efe8da' },
+    city: { grain: 'north-american' },
+  },
 });
 export const STYLE_IDS = Object.freeze(Object.keys(STYLE_STARTERS));
 
