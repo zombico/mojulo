@@ -46,8 +46,25 @@ under the teeth on f and v, rounded on oo and w.
 
 Its EMOTES (the door's `emote`: a name, a list of names, or `{ <clip>: a name | { emote, mirror?, intensity?, seconds?,
 seed? } }`, `control/lib/graph/face-acting/emotes.js`: held states such as `rest`, `vacant`, `daydream`, `absorbed`,
-`waiting`, `drowsy`) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
+`waiting`, `drowsy`; `face` an emotion over it) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
 nothing and are never crossed (`face-acting/gaze.js`); to judge a loop's seam, scrub to its end and its start.
+
+TUNE THE FACE WITHOUT A MINT: an emote or a performance changes the face's weights alone, so `face.mjs` recomputes its
+clips over a hero `live.mjs` already minted, in seconds, beside its GLB (`<id>.face.json`, played over the GLB's own clip
+of its name), reads each by the numbers on the hero's own mesh, and shoots a contact sheet:
+
+```bash
+# every emote, read and shot (the face close, each moment moved off the blinks): shots/sheet.png
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote all --sheet --phases 0.08,0.5
+# one emote under an emotion, mirrored; a performance's take beside it
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote '{"worried":{"emote":"rest","face":"worried"},"restM":{"emote":"rest","mirror":true}}' \
+     --perform '{"drift":{"beats":[{"at":0,"emote":"rest"},{"at":3,"emote":"daydream"},{"at":7,"emote":"rest","face":"worried","say":"I keep thinking about it."}]}}'
+```
+
+The read (`face-acting/emote-read.js`): per clip, held at its median key, each side's largest and 95th-percentile move
+in mm and the asymmetry's (the face against its own mirror, its sides' weights swapped: a symmetric face reads nought),
+`shows` or `too faint` (under 0.5 mm), and the asymmetry by region (the brows, the lids, the mouth). A card is tuned in
+`face-acting/emotes.js` `FACE_EMOTES` and re-read; the eyes gate stays the operator's.
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body and Side views, the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter

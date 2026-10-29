@@ -181,7 +181,7 @@ const page = readFileSync(path.join(HERE, 'viewer.html'), 'utf8')
   .replace('@MANIFEST@', JSON.stringify(manifest).replace(/</g, '\\u003c'));
 writeFileSync(path.join(out, 'index.html'), page);
 console.log(`\n${path.join(out, 'index.html')}${failed.length ? `  (failed: ${failed.join(', ')})` : ''}`);
-if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Object.fromEntries(made.map((v) => [`${v.id}.json`, path.join(out, `${v.id}.json`)])))}`);
+if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Object.fromEntries(made.flatMap((v) => [[`${v.id}.json`, path.join(out, `${v.id}.json`)], ...(existsSync(path.join(out, `${v.id}.face.json`)) ? [[`${v.id}.face.json`, path.join(out, `${v.id}.face.json`)]] : [])])))}`);
 
 // ─── serve (loopback only) ──────────────────────────────────────────────────
 if (opt.serve) {

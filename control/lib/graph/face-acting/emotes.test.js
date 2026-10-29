@@ -2,7 +2,9 @@
 // re-fixates and one that holds still, a card with stirs): the loop is seamless, the face asymmetric and mirrorable,
 // the eyes on the law (parallel, at the far point), the take the rig keys.
 import { describe, it, expect } from 'vitest';
-import { FACE_EMOTES, FACE_EMOTE_NAMES, emoteTake, emoteErrors } from './emotes.js';
+import { FACE_EMOTES, FACE_EMOTE_NAMES, emoteTake, emoteErrors, emoteState } from './emotes.js';
+import { composeFace } from './emotions.js';
+import { perform, captureFrame, performanceErrors, BLINK } from './perform.js';
 import { auOf, facsActions } from './facs.js';
 import { gazeFaults, eyeTurns } from './gaze.js';
 import { performanceTrack, eyesOfWeights, RELATIONAL_FACE_TARGETS } from '../polygonizer/relational-face-rig.js';
@@ -83,3 +85,40 @@ describe('emotes: the face\'s held states, general, never cross-eyed', () => {
     expect(() => emoteTake('sulking')).toThrow(/not an emote/);
   });
 });
+
+describe('emotes as the base layer: under an emotion, and held by a performance\'s beats', () => {
+  it('lays an emotion over an emote: the emotion\'s units added, the emote\'s own unevenness still there', () => {
+    const E = emoteState({ emote: SIDED, face: 'worried' }), W = composeFace('worried');
+    const sided = Object.keys(FACE_EMOTES[SIDED].face).find((k) => auOf(k)[1]);
+    expect(E.face[sided]).toBeGreaterThan(0);
+    expect(W[sided] ?? 0).toBe(0);
+    for (const [k, v] of Object.entries(W)) expect(E.face[k]).toBeGreaterThanOrEqual(v);
+    expect(emoteErrors({ emote: SIDED, face: 'joy' })[0]).toMatch(/^face: /);
+    // (and the loop plays it)
+    expect(Math.max(...emoteTake({ emote: SIDED, face: 'worried' }).curves.AU1)).toBeGreaterThan(0.6);
+  });
+
+  it('settles a beat into its emote\'s face and regard; an explicit gaze wins; a take with none keeps its shape', () => {
+    const C = FACE_EMOTES[REFIX], T = perform({ seed: 3, seconds: 6, beats: [{ at: 0, face: 'neutral' }, { at: 1, emote: REFIX }, { at: 4, emote: REFIX, gaze: 'listener' }] });
+    const mid = captureFrame(T, Math.round(2.2 * T.fps));
+    for (const [k, v] of Object.entries(C.face).filter(([k]) => auOf(k)[0] !== 'AU45')) expect(Math.abs((mid[k] ?? 0) - v)).toBeLessThan(0.25 * v + 0.01);
+    expect(T.gaze.yaw[Math.round(1.6 * T.fps)]).toBeCloseTo(C.eyes.yaw, 0);
+    expect(T.gaze.pitch[Math.round(1.6 * T.fps)]).toBeCloseTo(C.eyes.pitch, 0);
+    expect(Math.abs(T.gaze.pitch[Math.round(4.5 * T.fps)])).toBeLessThan(Math.abs(C.eyes.pitch));
+    expect(perform({ seed: 3, beats: [{ at: 0, face: 'neutral' }] }).events.stirs).toBeUndefined();
+    expect(performanceErrors({ beats: [{ at: 0, emote: 'sulking' }] })[0]).toMatch(/^beats\[0\]\.emote: 'sulking'/);
+  });
+
+  it('blinks at the emote\'s rate and pace, but at the state\'s while speaking; its stirs within its beats', () => {
+    const SLOW = pick((c) => (c.blink.slow ?? 1) > 1.5), C = FACE_EMOTES[SLOW];
+    const T = perform({ seed: 2, seconds: 60, beats: [{ at: 0, emote: SLOW }] }), spont = T.events.blinks.filter((b) => b.cause === 'spontaneous');
+    expect(spont.length).toBeLessThan(C.blink.rate * 2);
+    expect(Math.min(...spont.map((b) => b.dur))).toBeGreaterThan((BLINK.close[0] + BLINK.shut[0] + BLINK.open[0]) * C.blink.slow * 0.99);
+    const talk = perform({ seed: 2, seconds: 60, beats: [{ at: 0, emote: SLOW, state: 'speaking' }] }).events.blinks.filter((b) => b.cause === 'spontaneous');
+    expect(talk.length).toBeGreaterThan(spont.length);
+    const S = perform({ seed: 5, seconds: 12, beats: [{ at: 0, face: 'neutral' }, { at: 2, emote: STIRS }, { at: 10, face: 'neutral' }] });
+    expect(S.events.stirs.length).toBeGreaterThan(0);
+    for (const st of S.events.stirs) { expect(st.t).toBeGreaterThanOrEqual(2); expect(st.t + st.dur).toBeLessThan(10); }
+  });
+});
+

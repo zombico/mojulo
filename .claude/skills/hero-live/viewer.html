@@ -180,6 +180,24 @@ async function load(v) {
   // body's idle; the ambient blink is the page's, not a take; an EMOTE, `emote:<clip>` (face-acting/emotes.js), a held
   // state's loop, the same)
   for (const clip of gltf.animations) if ((clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') || clip.name.startsWith('emote:')) actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
+  // (the face's clips face.mjs wrote beside the GLB, <id>.face.json: each over the GLB's own of its name, so an emote or a
+  // take is tuned with no mint; keyed onto every mesh carrying its targets, the rest of that mesh's weights its own)
+  const side = await fetch(`${v.id}.face.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  if (side) {
+    v.faceRead = side.read ?? null;
+    for (const C of side.clips) {
+      const tracks = [];
+      root.traverse((o) => {
+        if (!o.isMesh || !o.morphTargetDictionary) return;
+        const idx = C.names.map((n) => o.morphTargetDictionary[n]);
+        if (!idx.some((x) => x !== undefined)) return;
+        const m = o.morphTargetInfluences.length, base = [...o.morphTargetInfluences], vals = new Float32Array(C.t.length * m);
+        C.w.forEach((row, k) => { vals.set(base, k * m); idx.forEach((x, j) => { if (x !== undefined) vals[k * m + x] = row[j]; }); });
+        tracks.push(new THREE.NumberKeyframeTrack(`${o.uuid}.morphTargetInfluences`, C.t, vals));
+      });
+      if (tracks.length) actions[C.name] = { action: mixer.clipAction(new THREE.AnimationClip(C.name, C.seconds, tracks)), seconds: C.seconds, face: true };
+    }
+  }
   // (the body's idle under a take: its own face's weights left out, so the take alone drives the face, as an engine
   // layers it under a mask on the morph weights; two actions on one weights track would be averaged)
   const idle = gltf.animations.find((c) => c.name === 'body:idle') ?? gltf.animations.find((c) => c.name.startsWith('body:'));
@@ -233,6 +251,7 @@ function renderRead(v) {
   if (R.adorn) add(`<b>adorn</b><pre>${esc(JSON.stringify(R.adorn, null, 1))}</pre>`);
   if (R.outline) add(`<b>outline</b><pre>${esc(JSON.stringify(R.outline, null, 1))}</pre>`);
   if (R.notes?.length) add(`<b>stylism notes</b><ul>${R.notes.map((n) => `<li>${esc(n.why ?? JSON.stringify(n))}</li>`).join('')}</ul>`);
+  if (v.faceRead) add(`<b>face read</b> (mm: max / 95th, face.mjs)<pre>${esc(Object.entries(v.faceRead).map(([c, R]) => `${c}  L ${R.L.max}/${R.L.p95}  R ${R.R.max}/${R.R.p95}  asym ${R.asymmetry.max}/${R.asymmetry.p95} ${R.shows ? 'shows' : 'too faint'}${R.regions ? `  (${Object.entries(R.regions).map(([r, a]) => `${r} ${a.max}`).join(', ')})` : ''}`).join('\n'))}</pre>`);
   add(`<b>spec</b><pre>${esc(JSON.stringify(v.spec, null, 1))}</pre>`);
 }
 
