@@ -14,6 +14,7 @@ import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
 import { compassOf } from '@/lib/graph/polygonizer/home-windows';
 import { readForm, formErrors, stairWidthOf, FORM_FOOTPRINT, FORM_MAX_RISE } from '@/lib/graph/polygonizer/house-forms';
 import { stampSolid } from '@/lib/graph/era/solid';
+import { stampSceneEra } from '@/lib/graph/era/geocube';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
@@ -672,6 +673,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
   // a new world that builds is solid (era/solid.js: no flat building polygons); an edit or a restore keeps the row's own
   if (!existingSketch && !restore) manifest = stampSolid(manifest);
+  // a new geocube scene is drawn in the form render, gen-7 (era/geocube.js stampSceneEra: new is no seed yet, so a scene
+  // restored from its export keeps its era); an edit keeps the row's
+  if (!existingSketch) manifest = stampSceneEra(manifest);
   // a geocube's trail its own seed, a new island
   manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored

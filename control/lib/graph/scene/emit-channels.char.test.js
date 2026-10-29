@@ -345,6 +345,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-10-29 (merge fixes: no plan citations in tracked code): every fixture that embeds the controllable
 // runtime. Three comments inside its serialized rules (core.js SEATS, rules-basic.js THE GROUP FRAME and SEAT FALLS)
 // cited a plan file, which CLAUDE.md forbids; on `kitchen-sink` the diff is those three comment lines and nothing else.
+// Re-pinned 2026-10-28 (the prepass sees the wind): `creases`, `creases-outline`, `occlusion` and `occlusion-creases`
+// only. The prepass draws a material that moves its vertices (a plant's wind, a spray's growth) by the vertex shader it
+// names (`userData.prepass`), so its occlusion and ink fall where the frame draws it, not beside it where it would
+// stand still. A page without such a material draws every mesh as before.
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {

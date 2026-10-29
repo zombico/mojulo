@@ -102,6 +102,7 @@ npm run test:e2e             # whole worlds through the real handlers, games who
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
+node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:

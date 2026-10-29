@@ -14,6 +14,17 @@ CLI covers the whole voice bin.
 
 Prints the same one-line JSON handback contract as speak.mjs:
   { ok, path, bytes, seconds, sample_rate, rms, voice, speed, model }
+
+TIMED (`--timings [path.json]`): when each phoneme is spoken, the audio's own
+timeline, for a face that speaks the line (control/lib/graph/face-acting/
+speech.js: a beat's `say.phonemes`). Kokoro predicts every phoneme's length
+before it renders; the release's model keeps that inside, so a copy exposing
+it as a `duration` output (`kokoro-v1.0.timed.onnx`, derived once, needs the
+`onnx` package) is what runs. The sidecar (default: the WAV's path with
+`.timings.json`) is { ok, audio, seconds, sample_rate, voice, model,
+phonemes: [{ p, t, dur }] }: each symbol as the engine spoke it (its IPA,
+its stress marks, its spaces and its punctuation), seconds from the WAV's
+start. The handback line gains `timings`, the sidecar's path.
 """
 
 import argparse
@@ -27,6 +38,30 @@ HERE = Path(__file__).resolve().parent
 MODEL_PATH = HERE / "models" / "kokoro-v1.0.onnx"
 VOICES_PATH = HERE / "models" / "voices-v1.0.bin"
 MODEL_TAG = "kokoro-v1.0.onnx"
+TIMED_PATH = HERE / "models" / "kokoro-v1.0.timed.onnx"
+# the tensor the release's graph computes each token's length in frames into (after the duration predictor's
+# sigmoid, sum, division by the speed, rounding and clipping): the copy names it `duration`
+DURATION_TENSOR = "/encoder/Cast_output_0"
+
+
+def timed_model():
+    """The model with its durations exposed, derived once beside the release's."""
+    if TIMED_PATH.exists():
+        return TIMED_PATH
+    try:
+        import onnx
+        from onnx import TensorProto, helper
+    except ImportError:
+        sys.exit("--timings needs the onnx package: venv/bin/pip install onnx (install-local-voicegen.sh --timed)")
+    m = onnx.load(str(MODEL_PATH))
+    if not any(DURATION_TENSOR in n.output for n in m.graph.node):
+        sys.exit(f"this model has no {DURATION_TENSOR}: --timings knows the kokoro-v1.0 release's graph only")
+    m.graph.node.append(helper.make_node("Identity", [DURATION_TENSOR], ["duration"], name="moj/duration"))
+    m.graph.output.append(helper.make_tensor_value_info("duration", TensorProto.INT64, None))
+    tmp = TIMED_PATH.with_suffix(".partial")
+    onnx.save(m, str(tmp))
+    tmp.rename(TIMED_PATH)
+    return TIMED_PATH
 
 # voice-id prefix -> espeak lang for the non-misaki path
 ESPEAK_LANG = {
@@ -47,6 +82,10 @@ def main():
     ap.add_argument("--speed", type=float, default=1.0)
     ap.add_argument("--out")
     ap.add_argument("--list-voices", action="store_true")
+    ap.add_argument(
+        "--timings", nargs="?", const="", default=None,
+        help="also write when each phoneme is spoken, as JSON (default path: the WAV's, .timings.json)",
+    )
     args = ap.parse_args()
 
     for p in (MODEL_PATH, VOICES_PATH):
@@ -55,7 +94,8 @@ def main():
 
     from kokoro_onnx import Kokoro
 
-    kokoro = Kokoro(str(MODEL_PATH), str(VOICES_PATH))
+    timed = args.timings is not None and not args.list_voices
+    kokoro = Kokoro(str(timed_model() if timed else MODEL_PATH), str(VOICES_PATH))
 
     if args.list_voices:
         print(json.dumps({"ok": True, "model": MODEL_TAG, "voices": sorted(kokoro.get_voices())}, indent=2))
@@ -97,12 +137,12 @@ def main():
         # return (phonemes, tokens) — accept either.
         result = ja.JAG2P()(text)
         phonemes = result if isinstance(result, str) else result[0]
-        samples, sample_rate = kokoro.create(
+        samples, sample_rate, spoken = kokoro.create_timed(
             phonemes, voice=voice, speed=args.speed, is_phonemes=True
         )
     else:
         lang = ESPEAK_LANG.get(routing_id[0], "en-us")
-        samples, sample_rate = kokoro.create(text, voice=voice, speed=args.speed, lang=lang)
+        samples, sample_rate, spoken = kokoro.create_timed(text, voice=voice, speed=args.speed, lang=lang)
 
     out_path = Path(args.out).resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,16 +154,26 @@ def main():
         w.writeframes(b"".join(int(s * 32767).to_bytes(2, "little", signed=True) for s in clipped))
 
     rms = math.sqrt(sum(s * s for s in clipped) / len(clipped)) if len(clipped) else 0.0
+    seconds = round(len(clipped) / sample_rate, 3)
+    timings_path = None
+    if timed:
+        timings_path = Path(args.timings).resolve() if args.timings else out_path.with_suffix(".timings.json")
+        timings_path.write_text(json.dumps({
+            "ok": True, "audio": str(out_path), "seconds": seconds, "sample_rate": sample_rate,
+            "voice": args.voice, "speed": args.speed, "model": MODEL_TAG,
+            "phonemes": [{"p": s.phoneme, "t": round(s.start, 4), "dur": round(s.end - s.start, 4)} for s in spoken],
+        }, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps({
         "ok": True,
         "path": str(out_path),
         "bytes": out_path.stat().st_size,
-        "seconds": round(len(clipped) / sample_rate, 3),
+        "seconds": seconds,
         "sample_rate": sample_rate,
         "rms": round(rms, 5),
         "voice": args.voice,
         "speed": args.speed,
         "model": MODEL_TAG,
+        **({"timings": str(timings_path)} if timings_path else {}),
     }))
 
 

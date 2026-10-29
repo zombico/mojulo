@@ -113,6 +113,9 @@ export const TIERED_JOINTS = Object.freeze([
   Object.freeze({ bridge: 'kneeBridgeR', upper: 'thighR', lower: 'shankR', fold: 'kneeFoldR', reach: 0.6 }),
   Object.freeze({ bridge: 'wristBridgeR', upper: 'foreArmR', lower: 'handR', fold: null, reach: 1.2 }),
 ]);
+/** a digitigrade leg's hock (a beast-kin's, beast/legs.js), bridged as the knee is with its fold to the heel's side; only
+ * a plan that names its bridge carries it (a person's ankle is not bridged) */
+export const TIERED_HOCK = Object.freeze({ bridge: 'hockBridgeR', upper: 'shankR', lower: 'footR', fold: 'hockFoldR', reach: 0.6 });
 /** the bridge's inner rings along the run (0 the upper end, 1 the lower) and each one's weights: upper, fold, lower */
 const BRIDGE_RUN = Object.freeze([[0.25, [0.5, 0.5, 0]], [0.5, [0, 1, 0]], [0.75, [0, 0.5, 0.5]]]);
 const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
@@ -125,7 +128,7 @@ const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const centre = (pts) => { const v = Object.values(pts); return [0, 1, 2].map((k) => v.reduce((t, p) => t + p[k], 0) / v.length); };
 
 /** A part's rings and caps as the plan expands them (station-loft-plan.js expandPlan), unrounded; a rings part's its own. */
-function partRings(plan, seg) {
+export function partRings(plan, seg) {
   if (seg.kind === 'rings') return { stations: seg.stations, caps: seg.caps };
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) }, style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
   const slots = seg.slots == null ? families[style.limbSlots] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots, e = seg.e ?? style.e;
@@ -180,7 +183,7 @@ function chainsOf(joints) {
 }
 /** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one.
  * `list`: the joints to look for (the hero's by default; a creature's from its own chains, creature-drawn.js). */
-export function bridgedChains(plan, list = TIERED_JOINTS) {
+export function bridgedChains(plan, list = [...TIERED_JOINTS, TIERED_HOCK]) {
   const names = new Set((plan.segments || []).map((s) => s.name)), of = chainsOf(list.filter((J) => names.has(J.bridge)));
   // (a shoulder web ends on its arm's ring: it splits with the arm's chain, or it would end on half the arm's points)
   // (the cone ends on its web's ring: it splits with them)
@@ -313,9 +316,9 @@ export const SHOULDER_CONE = Object.freeze({ ball: 0.7, reach: 0.55, start: 0.9,
  * centre): `hold(p, hi)` moves a point toward that centre until it is at most `hi` of the way to the outline (a point
  * above the top ring first set on it); `clear(p, dir, gap, most)` moves it along `dir` until it stands `gap` outside the
  * outline, at most `most` (a point already outside, or one that cannot clear, as it was). A plan without a torso leaves
- * every point. */
-function torsoSection(plan, segments) {
-  const T = segments.find((g) => g.name === 'torso'); if (!T) return { hold: (p) => p, clear: (p) => p };
+ * every point. `name`: another trunk's section (the pelvis: a beast-kin's tail socket, beast/socket.js). */
+export function torsoSection(plan, segments, name = 'torso') {
+  const T = segments.find((g) => g.name === name); if (!T) return { hold: (p) => p, clear: (p) => p };
   const S = partRings({ ...plan, segments }, T).stations.map((st) => ({ z: centre(st.points)[2], pts: Object.values(st.points), c: centre(st.points) })).sort((a, b) => a.z - b.z);
   const at = (z0) => {
     const z = Math.min(Math.max(z0, S[0].z), S[S.length - 1].z - 1e-6), i = Math.max(0, S.findIndex((r) => r.z > z) - 1), A = S[i], B = S[Math.min(i + 1, S.length - 1)];

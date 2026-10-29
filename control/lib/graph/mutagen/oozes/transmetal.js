@@ -20,6 +20,7 @@ export const ooze = {
     surfaces: { Chrome: 'chrome', Joint: 'gunmetal' },
     pistons: { size: 1 },
     armor: { color: '#8c949e', material: 'chrome' },
+    cover: { sheen: 'metal', length: 'short' },
     eyes: { color: '#ff2a2a', glow: true },
   },
 };

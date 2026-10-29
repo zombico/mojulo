@@ -129,7 +129,13 @@ between a margin and the eye. Above the crease the fold rises to the brow as a p
 upright under the brow, so a light from above reaches it; the brow's arc and its ties hang lower; a deep-set eye (its
 globe, lids and lashes) comes forward a share of the way toward the nose's tip, short of the glabella; the lower
 lashes root on the margin's front, shorter. Everything that rebuilds the head from its fit (the bake, the hair, the
-face rig) reads the same seated head. Under laws 1 the head
+face rig) reads the same seated head. Under laws 12 the mouth has TEETH (`hero-one-skin.js` `teeth`): the bag behind the
+lips is cut open at its front into a cup facing in, and in it the head's own dentition (`head-relational.js` `DENTITION`,
+each crown a tube along its vajra, the front ones blades) on the head bone above and the jaw's below, and the tongue on
+the jaw's; their colours are the palette's `Teeth`, `TeethShade` and `Tongue`. Toward each corner the lips' share of the
+jaw eases to a half (`lens`): shut, the cut's two sides are one point, and bound wholly to their bones they tore apart
+along the whole cut, the mouth opening as a box; now the corner moves half the jaw's way, down and back along its arc,
+and the mouth opens as an almond. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,

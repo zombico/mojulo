@@ -87,7 +87,10 @@ export const LEXICON = Object.freeze({
   // conifers: the alpine flora's stands on the meadow's card (a pine forest is not a bamboo one)
   pine: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } }, conifer: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } },
   spruce: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } }, fir: { kit: 'isekai-meadow', 'flora.biocube': { from: 'alpine', flora: { trees: { clusters: 11 } } } },
-  dunes: { biome: 'desert', 'trail.bumpiness': 0.7 }, dune: { biome: 'desert', 'trail.bumpiness': 0.7 }, arid: { biome: 'desert' },
+  // (the land laid in sand dunes, every trail the cube paints, open on both sides of the walk: era/out-dunes.js; a sea of
+  // sand is long ridges, its crests tall)
+  dunes: { biome: 'desert', 'outside.dunes': true, 'outside.cliff': false }, dune: { biome: 'desert', 'outside.dunes': true, 'outside.cliff': false },
+  sandy: { biome: 'desert', 'outside.dunes': { supply: 0.5 } }, erg: { biome: 'desert', 'outside.dunes': { supply: 1, height: 4 }, 'outside.cliff': false }, arid: { biome: 'desert' },
   // landmarks
   arch: { 'land.landmark': ['arch', 0.25] }, arches: { 'land.landmark': ['arch', 0.75] }, spire: { 'land.landmark': ['spire', 0.25] }, spires: { 'land.landmark': ['spire', 0.75] },
   monolith: { 'land.landmark': ['monolith', 0] }, waterfall: { 'land.landmark': ['falls', 0] }, falls: { 'land.landmark': ['falls', 0] }, cascade: { 'land.landmark': ['falls', 0] }, mesa: { 'land.landmark': ['butte', 0.25] },
@@ -141,16 +144,18 @@ export const BIOMES = Object.freeze({
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A cube (a preset id or { from, …changes }) with the land the words name laid on it: open (`outside.cliff: false`),
  * wildflowers in its grass (its biocube's, else the meadow's, with `flowers.share`), its snow, its water (`outside.water`),
+ * its dunes (`outside.dunes`),
  * a biome (BIOMES: its flora, palette, ground and water), a biocube a word names, the palette's character a word names
  * (`palette`: the theorist's axes, over the biome's). Shared by a game's cube (composeGameworld) and a scene's
  * (scene-words.js). */
-export function cubeWithLand(geocube, { open = false, flowers = null, snow = false, water = null, biome = null, biocube = null, palette = null } = {}) {
+export function cubeWithLand(geocube, { open = false, flowers = null, snow = false, water = null, dunes = null, biome = null, biocube = null, palette = null } = {}) {
   const c = typeof geocube === 'string' ? { from: geocube } : { ...geocube };
   if (open) c.outside = { ...(c.outside ?? {}), cliff: false };
   const B = biome ? BIOMES[biome] : null;
   if (B?.skin) c.outside = { ...(c.outside ?? {}), land: { ...(c.outside?.land ?? {}), skin: B.skin } };
   const W = { ...(B?.water ?? {}), ...(water ?? {}) };
   if (Object.keys(W).length) c.outside = { ...(c.outside ?? {}), water: { ...(c.outside?.water ?? {}), ...W } };
+  if (dunes !== null) c.outside = { ...(c.outside ?? {}), dunes };
   const bio = biocube ?? B?.biocube ?? null;
   if (bio !== null) c.biocube = bio;
   if (flowers !== null && bio === null) { const b = readGeocube(geocube).biocube; c.biocube = { from: typeof b === 'string' ? b : b?.from ?? 'meadow', flora: { flowers: { share: flowers } } }; }
@@ -232,7 +237,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const P = readPrompt(prompt), rand = mulberry32((seed * 2654435761) >>> 0 || 1);
   const style = { trail: {}, land: {} }, langs = [];
   let fort = null, meru = null, kit = null, count = null, weather = null, room = null, roomKit = null;
-  let openWord = null, flowers = null, snowy = false, biome = null, biocube = null, palette = null, glyphHour = null;
+  let openWord = null, flowers = null, snowy = false, dunes = null, biome = null, biocube = null, palette = null, glyphHour = null;
   const goal = {}, water = {};
   for (const { word } of P.read) {
     const r = readingOf(word);
@@ -249,6 +254,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       else if (k === 'snow') snowy = true;
       // (its water, its biome, a flora a glyph names, the palette's character, a glyph's hour: era/out-water.js, BIOMES)
       else if (k.startsWith('water.')) water[k.slice(6)] ??= v;
+      else if (k === 'outside.dunes') dunes ??= v;
       else if (k === 'biome') biome ??= v;
       else if (k === 'flora.biocube') biocube ??= v;
       else if (k === 'palette') palette ??= v;
@@ -423,7 +429,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const thing = after !== undefined && after !== null && [techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].some((d) => readIntent(d, after).traits.length > 0);
   const open = openWord !== null && !cliffWord && !thing;
   const wet = Object.keys(water).length ? water : null;
-  if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, biome, biocube, palette });
+  if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || dunes !== null || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, dunes, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {

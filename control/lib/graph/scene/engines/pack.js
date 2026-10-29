@@ -6,7 +6,8 @@
  *   loadSketch(ref)                       the stored row, or a thrown 'not found'
  *   refusePixelizer(sketch, ref, why)     a pixelizer game is a 2D reducer, not a scene: refused, with the leg's reason
  *   packHash(manifest)                    the recipe's identity (engine-score.js manifestIdentity), 16 hex
- *   resolveLevel(sketch, opts)            resolveWorldScene → facesToGlb → the engine's score, the bus, the level's sound
+ *   resolveLevel(sketch, opts)            resolveWorldScene → facesToGlb → the engine's score, the bus, the level's sound,
+ *                                         a hero's recorded lines (`voice`: [{ clip, at, recording, bytes }], in the GLB too)
  *   worldGlbStats(exported)               a world pack's GLB readout
  *   gameLevels(manifest, ref)             a game's level list, or a thrown reason
  *   levelContract(manifest)               a level's game contract as the web shell reads it, or null
@@ -31,6 +32,10 @@ import { isHumanoidRig, humanoidBonesFor } from '../../polygonizer/figure-humano
 import { tposeRig, withProfileJoints } from '../../figures/rig-tpose.js';
 import { synthesizeLevel } from '../../game/level-synth.js';
 import { normalizeLevelContract } from '../../game/level-contract.js';
+import { attachRecordings } from '../../face-acting/recordings.js';
+
+/** A hero's recorded lines (resolveLevel's `voice`) as a pack's files: each held recording once, `<dir>/<recording>.wav` */
+export const voiceFiles = (voice, dir) => [...new Map((voice ?? []).filter((v) => v.bytes).map((v) => [v.recording, v.bytes]))].map(([id, bytes]) => ({ rel: `${dir}/${id}.wav`, bytes }));
 
 export function loadSketch(ref) {
   const sketch = SketchRepository.getByRef(ref);
@@ -105,13 +110,15 @@ export async function resolveLevel(levelSketch, { engine, clips, posture = null,
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }
+  // (a realistic hero's recorded lines, face-acting/recordings.js: their bytes into the GLB and listed for the leg to ship)
+  const voice = attachRecordings(payload);
   const found = figure ? layeredFigure(payload) : null;
   const fig = found && figureClipNames(clips, found[1]).length ? found : null;
   const rest = fig && humanoid && Array.isArray(fig[1].bones) && isHumanoidRig(fig[1].bones) ? (fig[1].tpose ? fig[1] : tposeRig(fig[1])) : null;
   const glbPayload = rest ? { ...payload, figures: { ...payload.figures, [fig[0]]: rest } } : payload;
   const exported = facesToGlb(glbPayload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(rest ? { humanoid: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture, engine });
-  return { kind, payload, exported, score, fig, engine: rest, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
+  return { kind, payload, exported, score, fig, engine: rest, voice, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
 }
 
 export const worldGlbStats = (exported) => ({

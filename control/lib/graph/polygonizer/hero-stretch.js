@@ -41,11 +41,13 @@ const mv = (m, v) => [dot(m[0], v), dot(m[1], v), dot(m[2], v)];
  * many of its stations from the start (+n) or the end (−n). The thigh and the shank meet at the knee, the upper arm and
  * the forearm at the elbow; the thigh's top is the hip, the upper arm's top the shoulder. (The groin and the armpit are
  * SEAMS between parts, the thigh's top against the pelvis, the arm's against the torso: a ring of one part does not see
- * them, and the pelvis' own rings ride it rigidly, so they are not regions here.)
+ * them, and the pelvis' own rings ride it rigidly, so they are not regions here.) On the tiered body the limbs stop short
+ * of the hinge and a bridge carries the bend (tiered-form.js tieredJoints): every ring of the knee's and the elbow's
+ * bridge is that joint's too, where the limbs' own end rings stay rigid.
  */
 export const STRETCH_REGIONS = Object.freeze({
-  knee: [['thigh', -2], ['shank', 2]],
-  elbow: [['upperArm', -2], ['foreArm', 2]],
+  knee: [['thigh', -2], ['shank', 2], ['kneeBridge', Infinity]],
+  elbow: [['upperArm', -2], ['foreArm', 2], ['elbowBridge', Infinity]],
   hip: [['thigh', 2]],
   shoulder: [['upperArm', 2]],
 });

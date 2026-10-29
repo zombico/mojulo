@@ -65,7 +65,10 @@ import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
-import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
+import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
+import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
+import { relationalFaceRig, performanceTrack } from '@/lib/graph/polygonizer/relational-face-rig';
+import { perform } from '@/lib/graph/face-acting/perform';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -799,7 +802,10 @@ export const WORLD_KINDS = {
       // detail is; the payload a PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
       // realistic hero with a head's fit, as before
       const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN) }) : null;
-      const facePaint = facePaint0 ?? skinPaint ?? heroSkin;
+      // THE COAT'S PATTERN (beast/coat-atlas.js): a beast-kin's markings solved in a biped's anatomy, painted in colour into
+      // an atlas over its coat at texel density; carried as the realistic skin is. A beast with no pattern: none, as before
+      const beastCoat = !facePaint0 && !skinPaint && !heroSkin && !character && m.hero?.beast?.pattern ? beastCoatPaint(mesh, m.recipe, m.hero) : null;
+      const facePaint = facePaint0 ?? skinPaint ?? heroSkin ?? beastCoat;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
@@ -907,10 +913,14 @@ export const WORLD_KINDS = {
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN above: the GLB's base colour, under the lit export's plain corners or the unlit's baked
         // light, and the page's clips' the same atlas)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? null);
+        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));
+        // THE FACE'S PERFORMANCES (the door's `perform`, face-acting/perform.js): each take played by the realistic face's
+        // targets as a LINEAR weights track, a face-only clip an engine layers over a body's (`face:<take>`), derived here
+        // and never stored. Absent ⇒ as before.
+        if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;
@@ -920,13 +930,19 @@ export const WORLD_KINDS = {
         const correctives = ctx.face && Array.isArray(m.recipe.correctives) && m.recipe.correctives.length ? m.recipe.correctives : null;
         // THE REALISTIC BODY LIT BY AN ENGINE (the flat light: the lit export): its pack carries the studio weld's normals per
         // corner and no baked shade, so the engine's light shades one smooth skin, once. Any other figure as before.
-        const engineLit = light.flat && m.hero?.form === 'realistic' && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
+        // (and a beast-kin on the tiered body, beast/tiered.js: its coat lit by the engine over its cover's maps, below)
+        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         // THE RELIEF (epidermis/dermal-relief.js), on a realistic hero minted under realistic laws 5, lit by its engine and
         // exported skinned (ctx.face: the export that asks for the figure's blend shapes): the one skin's relief baked from
         // its own field into a normal map on the skin's atlas, each corner's tangent beside it (the GLB's normalTexture and
         // TANGENT). A hero minted before, an unlit or a rigid export and the page: none, byte-identical
-        const relief = engineLit && ctx.face && heroSkin && paintPack === heroSkin && reliefOnRecord(m.hero) ? heroRelief(mesh, m.recipe, heroSkin, engineLit) : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const relief = engineLit && ctx.face && heroSkin && paintPack === heroSkin && reliefOnRecord(m.hero) ? heroRelief(mesh, m.recipe, heroSkin, engineLit)
+          // (a beast-kin's patterned coat: its cover's relief laid onto the same atlas, beast/coat-atlas.js coatRelief)
+          : engineLit && ctx.face && beastCoat && paintPack === beastCoat ? coatRelief(mesh, beastCoat, beastCoverStyleOf(m.hero), engineLit) : null;
+        // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
+        // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
+        const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
+        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: quantMorph(P.morph) } : P));
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));

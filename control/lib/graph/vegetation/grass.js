@@ -66,6 +66,13 @@ export const GRASSES = Object.freeze({
   // tall tropical grass (Pennisetum purpureum, Imperata, Hyparrhenia): broad, stiff-ish blades, cane culms, bristly spikes
   elephant: { label: 'elephant grass', H: 2, blades: 26, w: 0.025, B: [1.5, 5], splay: [4, 30], crown: 0.2, culms: 8, culmH: 1.3, head: 'spike', headLen: 0.2, headW: 0.025,
     colors: { base: [70, 120, 48], tip: [128, 162, 70], head: [160, 124, 76] }, dry: 0.12, habit: 'sward', heights: [1.8, 3.2] },
+  // wheat gone wild (Triticum, Aegilops, a field's self-sown edge): few blades low down, many stiff culms standing well
+  // over them, each a fat bowed spike, ripe: gold, mostly straw
+  wheat: { label: 'wheat', H: 0.5, blades: 14, w: 0.008, B: [1, 3], splay: [4, 25], crown: 0.05, culms: 7, culmH: 1.7, head: 'spike', headLen: 0.1, headW: 0.016,
+    colors: { base: [150, 138, 70], tip: [214, 186, 102], head: [222, 184, 92] }, dry: 0.85, habit: 'sward', heights: [0.7, 1.05] },
+  // chaff and stubble: short broken straw lying splayed, all dry, a husk or two standing (a threshed or grazed-out patch)
+  chaff: { label: 'chaff', H: 0.22, blades: 24, w: 0.003, B: [6, 20], splay: [40, 80], crown: 0.1, culms: 2, culmH: 1.2, head: 'awn', headLen: 0.05, headW: 0.004,
+    colors: { base: [170, 150, 96], tip: [214, 196, 146], head: [222, 206, 160] }, dry: 1, habit: 'sward', heights: [0.1, 0.25] },
 });
 
 export const GRASS_STYLES = Object.freeze(['natural', 'stylized']);
