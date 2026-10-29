@@ -122,6 +122,10 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
   const sides = ['-y', '+x', '+y', '-x'].filter((s) => !r.open.includes(s)), isLong = (s) => (alongY ? s === '-x' || s === '+x' : s === '-y' || s === '+y');
   const base = S('base'), field = S('wall'), crown = surf('crown'), col = surf('column');
   const Ba = B.base, Cr = B.crown, Pl = B.pilaster, Dr = B.door;
+  // a bunker's fittings (bay-axes.js CONSTRUCTIONS.bunker shell.fittings): absent on every other construction, which lays
+  // nothing of them
+  const Fi = B.fittings;
+  if (Fi) structure.fittings = { leaves: 0, trays: 0, placards: 0 };
   // (the long wall the catwalk will stand on: the one with the fewest doorways)
   const cwSide = [...sides.filter(isLong)].sort((p, q) => r.openings[p].length - r.openings[q].length || (p < q ? -1 : 1))[0];
   for (const s of sides) {
@@ -195,10 +199,23 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       wallBox(out, F, c0 - Dr.frame, c1 + Dr.frame, top, top + Dr.frame, Dr.out, paint, paint.cell, true);
       quad(out, [onWall(F, c0 - Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, Dr.sill, LIFT * 2), onWall(F, c0 - Dr.frame, Dr.sill, LIFT * 2)], Z, hz, null, null,
         [[0, 0], [(c1 - c0 + 2 * Dr.frame) / hz.scale, 0], [(c1 - c0 + 2 * Dr.frame) / hz.scale, Dr.sill / hz.scale], [0, Dr.sill / hz.scale]]);
-      const mid = (c0 + c1) / 2, lz = top + Dr.frame + 0.25, Ld = L.door;
+      // (a bunker's door (B.fittings.leaf): its blast door parked over the opening, a slab as wide as the frame between
+      // the jambs, and chevrons down the jambs' faces; the signal lamp then sits on the leaf)
+      const Lf = Fi && Fi.leaf, leafTop = Lf ? Math.min(zc0 - 0.1, top + Dr.frame + Lf.h) : 0, leafed = !!Lf && leafTop - (top + Dr.frame) > 0.3;
+      if (leafed) {
+        wallBox(out, F, c0 - Dr.frame * 0.5, c1 + Dr.frame * 0.5, top + Dr.frame, leafTop, Dr.out + Lf.out, S('column'), 1, true);
+        // (its leading edge striped, so the slab reads as a door raised, not a wall)
+        const le = Dr.out + Lf.out + 0.003, lz0 = top + Dr.frame, lz1 = lz0 + Lf.edge, lw = c1 - c0 + Dr.frame;
+        quad(out, [onWall(F, c0 - Dr.frame * 0.5, le, lz0), onWall(F, c1 + Dr.frame * 0.5, le, lz0), onWall(F, c1 + Dr.frame * 0.5, le, lz1), onWall(F, c0 - Dr.frame * 0.5, le, lz1)], F.N, hz, null, null,
+          [[0, 0], [lw / hz.scale, 0], [lw / hz.scale, Lf.edge / hz.scale], [0, Lf.edge / hz.scale]]);
+        for (const [ua, ub] of [[c0 - Dr.frame, c0], [c1, c1 + Dr.frame]]) quad(out, [onWall(F, ua, Dr.out + 0.003, 0.1), onWall(F, ub, Dr.out + 0.003, 0.1), onWall(F, ub, Dr.out + 0.003, Lf.chevrons), onWall(F, ua, Dr.out + 0.003, Lf.chevrons)], F.N, hz, null, null,
+          [[0, 0], [(ub - ua) / hz.scale, 0], [(ub - ua) / hz.scale, (Lf.chevrons - 0.1) / hz.scale], [0, (Lf.chevrons - 0.1) / hz.scale]]);
+        structure.fittings.leaves++;
+      }
+      const mid = (c0 + c1) / 2, lz = top + Dr.frame + 0.25, Ld = L.door, lo = leafed ? Dr.out + Lf.out : Dr.out;
       if (lz + 0.2 < zc0) {
-        out.push(lit([onWall(F, mid - 0.2, Dr.out + 0.02, lz), onWall(F, mid + 0.2, Dr.out + 0.02, lz), onWall(F, mid + 0.2, Dr.out + 0.02, lz + 0.12), onWall(F, mid - 0.2, Dr.out + 0.02, lz + 0.12)], F.N, Ld.fill, 'stage:lamp', `0 0 10px 4px ${Ld.color}`, 3));
-        seats.push({ at: P(onWall(F, mid, Dr.out + 0.4, lz)), n: F.N, color: Ld.color, intensity: Ld.intensity, radius: Ld.radius, fixture: 'lamp' });
+        out.push(lit([onWall(F, mid - 0.2, lo + 0.02, lz), onWall(F, mid + 0.2, lo + 0.02, lz), onWall(F, mid + 0.2, lo + 0.02, lz + 0.12), onWall(F, mid - 0.2, lo + 0.02, lz + 0.12)], F.N, Ld.fill, 'stage:lamp', `0 0 10px 4px ${Ld.color}`, 3));
+        seats.push({ at: P(onWall(F, mid, lo + 0.4, lz)), n: F.N, color: Ld.color, intensity: Ld.intensity, radius: Ld.radius, fixture: 'lamp' });
       }
     }
     // the pilasters at the bay lines (none at a doorway's frame): a light strip down each one's face, a foot band painted
@@ -270,6 +287,39 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       louvred(out, onWall(F, u, off, z), F.U, Z, F.N, G.w, G.h, G, surf('vent'), { key: null, scale: 1, tint: Sv.plenum, group: 'stage:plenum' });
       structure.air.returns++;
       break;
+    }
+    // a bunker's cable tray (Fi.tray) along a long wall under the crown: a ladder of a floor and two lips standing off the
+    // wall on a bracket at each pilaster, broken over a doorway whose head (and parked leaf) reaches it
+    if (Fi && Fi.tray && isLong(s)) {
+      const T = Fi.tray, zt = zc0 - T.drop, reach = ([, , top]) => top + (Fi.leaf ? Fi.leaf.h : 0) > zt - 0.1;
+      const spans = [[0.2, F.len - 0.2]];
+      for (const [fa, fb, top] of framed) if (reach([fa, fb, top])) for (let i = spans.length - 1; i >= 0; i--) {
+        const [a, b] = spans[i];
+        if (fb < a || fa > b) continue;
+        spans.splice(i, 1, ...[[a, fa - 0.15], [fb + 0.15, b]].filter(([x, y]) => y - x > 1));
+      }
+      if (zt - 0.3 > Ba.h) for (const [a, b] of spans) {
+        wallBox(out, F, a, b, zt, zt + 0.02, T.off + T.w, steel, 1);
+        for (const off of [T.off, T.off + T.w - 0.02]) wallBox(out, F, a, b, zt + 0.02, zt + T.lip, off + 0.02, steel, 1, true);
+        for (const u of lines) if (u > a && u < b) wallBox(out, F, u - 0.03, u + 0.03, zt - 0.08, zt, T.off + T.w, steel, 1);
+        // (the cables it carries, laid in it: what makes a ledge a tray)
+        for (let i = 1; i < T.cables; i++) tubeAB(out, onWall(F, a + 0.05, T.off + 0.06 + i * ((T.w - 0.12) / Math.max(1, T.cables - 1)), zt + 0.05), onWall(F, b - 0.05, T.off + 0.06 + i * ((T.w - 0.12) / Math.max(1, T.cables - 1)), zt + 0.05), 0.03, 6, i % 2 ? cable : surf('services'));
+        // (and its back cable along the wall, in front of the pilasters' faces: it leaves the tray in every other bay,
+        // down at 45°, along lower, back up, so the run reads down the wall)
+        const bayDips = lines.slice(0, -1).map((u0, k) => [u0 + Pl.w / 2, lines[k + 1] - Pl.w / 2]).filter((_, k) => k % 2 === 0);
+        wallCable(out, F, dipPath(a + 0.05, b - 0.05, zt + 0.05, Math.max(Ba.h + 0.5, zt - T.dip), bayDips), Math.max(Pl.out, T.off) + 0.05, 0.035, cable);
+        structure.fittings.trays++;
+      }
+    }
+    // a bunker's signage (Fi.placard): a plate by each doorway on the side away from its breaker panel, its header striped
+    if (Fi && Fi.placard) for (const [c0] of cuts) {
+      const Q = Fi.placard, u1 = c0 - Dr.frame - Q.gap, u0 = u1 - Q.w;
+      if (!clear(u0, u1) || Q.z + Q.h > zc0 - 0.3) continue;
+      wallBox(out, F, u0, u1, Q.z, Q.z + Q.h, Q.d, paint, 1);
+      const zh = Q.z + Q.h * 0.72;
+      quad(out, [onWall(F, u0, Q.d + 0.003, zh), onWall(F, u1, Q.d + 0.003, zh), onWall(F, u1, Q.d + 0.003, Q.z + Q.h), onWall(F, u0, Q.d + 0.003, Q.z + Q.h)], F.N, hz, null, null,
+        [[0, 0], [Q.w / hz.scale, 0], [Q.w / hz.scale, (Q.z + Q.h - zh) / hz.scale], [0, (Q.z + Q.h - zh) / hz.scale]]);
+      structure.fittings.placards++;
     }
     bays.push(...lines.slice(0, -1).map((u0, k) => ({ F, side: s, k, u0, u1: lines[k + 1] })));
   }
@@ -586,6 +636,29 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
 const add3 = (p, d, k) => [p[0] + d[0] * k, p[1] + d[1] * k, p[2] + d[2] * k];
 
 // a cable sagging from a to b by `sag` at its middle (a parabola: a slack cable's catenary, near enough), in n lengths
+/** A cable laid ALONG A WALL in its plane, bent at angles: `pts` its points as [u, z] on the wall frame `F`, `off` its
+ * stand-off from the wall; each leg a straight tube, each joint covered so a bend reads as one cable. */
+export function wallCable(out, F, pts, off, r, sf) {
+  for (let i = 1; i < pts.length; i++) {
+    const [ua, za] = pts[i - 1], [ub, zb] = pts[i], len = Math.hypot(ub - ua, zb - za);
+    if (len < 1e-6) continue;
+    // (each leg run on by the cable's radius at both ends, so the two legs of a bend overlap and leave no notch)
+    const eu = ((ub - ua) / len) * r, ez = ((zb - za) / len) * r;
+    tubeAB(out, onWall(F, ua - (i > 1 ? eu : 0), off, za - (i > 1 ? ez : 0)), onWall(F, ub + (i < pts.length - 1 ? eu : 0), off, zb + (i < pts.length - 1 ? ez : 0)), r, 6, sf);
+  }
+}
+/** A cable's path from `a` to `b` at height `z`, dipping to `low` in each span of `dips` ([u0, u1]) where it fits: down at
+ * 45° (\_ ), along low, back up at 45° ( _/), the `_/‾\_` a cable makes leaving its tray to clear something and return. */
+export function dipPath(a, b, z, low, dips, margin = 0.3) {
+  const drop = z - low, pts = [[a, z]];
+  for (const [u0, u1] of dips) {
+    const p0 = Math.max(a, u0 + margin), p1 = Math.min(b, u1 - margin);
+    if (p1 - p0 < 2 * drop + 0.5) continue;
+    pts.push([p0, z], [p0 + drop, low], [p1 - drop, low], [p1, z]);
+  }
+  pts.push([b, z]);
+  return pts;
+}
 function sagCable(out, a, b, sag, r, sf, n = 6) {
   let prev = a;
   for (let i = 1; i <= n; i++) {

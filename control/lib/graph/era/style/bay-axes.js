@@ -53,6 +53,36 @@ export const CONSTRUCTIONS = Object.freeze({
     },
     roofs: ['beams', 'truss', 'vault'], braced: true, duct: 'duct:spiral-450', glass: { clear: 'glass:float-6', other: 'glass:wired-6', low: 'slot' }, booth: { dado: 0.9 },
   },
+  // a bunker: board-formed concrete to the crown, plate on its columns and leaves, a heavy blast-door frame with its leaf
+  // parked over the opening, cable trays down the long walls, stencilled placards by its doors; beams or a vault
+  bunker: {
+    surfaces: {
+      floor: [d('epoxy', 6, { ...F, cols: 1, grit: 0.7 }), d('concrete', 6, { ...F, cols: 2, rows: 2, grit: 0.6 })],
+      band: [d('grating', 1, { ...F, grit: 0.5 })],
+      hazard: [k('lab:hazard', 0.6)],
+      base: [d('concrete', 3, { cols: 2, rows: 1, grit: 0.7 })],
+      wall: [d('concrete', 4, { cols: 2, rows: 2, grit: 0.7 }), d('concrete', 3, { cols: 3, rows: 2, grit: 0.6 })],
+      crown: [d('concrete', 2.4, { cols: 4, rows: 1, grit: 0.6 })],
+      column: [d('plate', 3, { cols: 1, rows: 3, grit: 0.7 })],
+      paint: [d('plate', 2, { cols: 1, rows: 2, grit: 0.6 })],
+      services: [d('plate', 2, { cols: 1, rows: 1, grit: 0.5 })],
+      trim: [k('steel-strut', 1.2)],
+      ceiling: [d('concrete', 3, { cols: 2, rows: 2, grit: 0.5 })],
+      soffit: [d('concrete', 2.4, { cols: 2, rows: 2, grit: 0.5 })],
+      concrete: [d('concrete', 3, { cols: 2, rows: 2, grit: 0.6 })],
+      beam: [d('concrete', 4, { cols: 4, rows: 1, grit: 0.6 })],
+      duct: [k('hull-plate', 1.5)],
+      grate: [d('grating', 1, { ...F, grit: 0.4 })],
+      infill: [d('perforated', 1, { cols: 2, rows: 1, grit: 0.5 })],
+      cabinet: [d('matte', 1, { cols: 1, rows: 2, grit: 0.6 })],
+      cable: [k(null, 1)],
+    },
+    roofs: ['beams', 'vault'], braced: false, duct: 'duct:spiral-450', glass: { clear: 'glass:wired-6', other: 'glass:wired-6', low: 'slot' }, booth: { dado: 1.1 },
+    shell: {
+      door: { frame: 0.45, out: 0.28, sill: 0.45 },
+      fittings: { leaf: { h: 1.4, out: 0.18, chevrons: 2.2, edge: 0.22 }, tray: { drop: 0.45, off: 0.12, w: 0.35, lip: 0.08, cables: 3, dip: 0.9 }, placard: { w: 0.6, h: 0.42, z: 1.45, d: 0.02, gap: 0.25 } },
+    },
+  },
   // concrete block or standing-seam cladding, a sealed floor or scored slabs; trusses, a sawtooth or beams
   utility: {
     surfaces: {
@@ -261,4 +291,5 @@ export const DRESSINGS = Object.freeze({
   everyday: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3 } }, craned: false },
 });
 
-export const REGISTER_PRESETS = Object.freeze(Object.fromEntries(Object.keys(CONSTRUCTIONS).map((r) => [r, Object.freeze({ construction: r, palette: r, plot: r, dressing: r })])));
+// (a register is a value on every axis; a construction that is no register, the bunker's, is chosen on its axis alone)
+export const REGISTER_PRESETS = Object.freeze(Object.fromEntries(Object.keys(PALETTES).map((r) => [r, Object.freeze({ construction: r, palette: r, plot: r, dressing: r })])));

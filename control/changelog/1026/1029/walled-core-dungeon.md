@@ -27,3 +27,12 @@ panels and load-bearing doodads, stocked by use. Built so far:
   white panels, a plant's concrete), so layers walked one after another look unlike each other. A space's `use`, a
   level's `building: { use }`, anywhere a building use is read. The world card names them as "a base's"; the WCD card
   lists them.
+- **The bunker** (`style/bay-axes.js` construction `bunker`, `era/bay.js` `B.fittings`): board-formed concrete to the
+  crown, plate on its columns, beams or a vault, unbraced; a heavy blast-door frame with its leaf parked over the
+  opening (its leading edge striped) and chevrons down the jambs; cable trays down the long walls under the crown, one
+  cable leaving the tray in every other bay to run `\_/` along the wall (`wallCable`, `dipPath`: a cable bent at 45° in
+  the wall's plane); a stencilled placard by each door. Heard in words (`bunker`, `blast door`, `hardened`, `fortified`,
+  `underground base`: `blast door` was the military construction's word and is the bunker's now, for new recipes; a
+  stored reading keeps its own) or pinned (`compose: { construction: 'bunker' }`). The composer's word pick now takes a
+  value that is no register; the registers are the palettes' (they were the constructions'). Every other construction
+  lays none of it. `scripts/spikes/bay/bunker.mjs` captures it beside the military register.
