@@ -1757,7 +1757,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, fieldPaint, rim, strokes, statue, species, ooze, egocube, geocube, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, smooth, bake, fieldPaint, rim, strokes, statue, species, ooze, egocube, geocube, ref, folder_ref: folderRef } = input;
   const cubeErrs = creatureCubeErrors(input);
   if (cubeErrs.length) throw new Error(`layered refused:\n - ${cubeErrs.join('\n - ')}`);
   // a CREATURE carved (statue/creature.js): stored beside a plan that is not a hero, carved by the layered resolve on
@@ -1799,6 +1799,9 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     // the shader-look dials (opt-in, rigged recipes): hull-smooth bake normals and the figure rim —
     // stored as authored; the layered world resolve validates shapes on read
     ...(hullShade === true || (hullShade && typeof hullShade === 'object') ? { hullShade } : {}),
+    // a creature shaded as one smooth form (its corners' normals welded, a mesh part's its own), on the page and in the lit
+    // export (the feature style's, egocube/feature-body.js); absent ⇒ one shade per face, byte-identical
+    ...(smooth === true ? { smooth: true } : {}),
     ...(bake === true || (bake && typeof bake === 'object') ? { bake } : {}),
     ...(Array.isArray(fieldPaint) && fieldPaint.length ? { fieldPaint } : {}),   // field paint (field-paint.js): shapes cut into the faces, on every read   // the bake stack (surface-bake.js): painted light per corner, on every read
     ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),

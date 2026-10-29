@@ -84,7 +84,7 @@ export const SLOT_FAMILIES = {
 };
 const STYLE_KEYS = ['slots', 'limbSlots', 'e', 'drawn', 'body'];   // (`body`: the figure's style, 'chibi' | 'child': hero-form.js CHIBI_FORM / CHILD_FORM, read by what it wears)
 export const PLAN_SCHEMA = 'layered-plan-v1';
-const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft', 'rings'];
+const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft', 'rings', 'mesh'];
 const DETAIL_KINDS = ['claw'];
 
 // ── ring geometry (the seeds' rules, verbatim) ──
@@ -273,6 +273,7 @@ export function validatePlan(plan) {
     // RINGS: a closed loft whose rings are given point by point (every slot of its family, in loop order), for a form
     // that hugs another part's surface where no ring of radii can (a muscle's layer over the chest)
     if (seg.kind === 'rings') { claim(seg.name, 'a rings part'); const f = seg.slots ?? plan.style?.slots ?? 'ring8', fam = typeof f === 'string' ? families[f] ?? [] : f; if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`rings '${seg.name}' needs at least two stations`); for (const st of seg.stations) for (const sl of fam) if (!isVec(st.points?.[sl])) fail(`rings '${seg.name}': every station gives points for every slot of its family (${fam.join(', ')})`); if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`rings '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'plane') fail(`rings '${seg.name}' is given point by point; mirror it by 'name'`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`rings '${seg.name}' mirrors by name, so its name must end in R or L`); }
+    if (seg.kind === 'mesh') { claim(seg.name, 'a mesh part'); if (!seg.mesh || typeof seg.mesh.points !== 'object' || typeof seg.mesh.faces !== 'object' || !Object.keys(seg.mesh.faces).length) fail(`mesh '${seg.name}' needs mesh { points, faces }`); if (seg.mirror != null) fail(`mesh '${seg.name}' is given whole; it does not mirror`); if (seg.closure != null && !['open', 'closed'].includes(seg.closure)) fail(`mesh '${seg.name}' closure is 'open' or 'closed'`); }
     if (seg.kind === 'chain') { if (!Array.isArray(seg.joints) || seg.joints.length < 2) fail(`chain '${seg.name}' needs at least two joints`); seg.joints.forEach((j) => joint(j, seg)); if (!Array.isArray(seg.r) || seg.r.length !== seg.joints.length) fail(`chain '${seg.name}' needs one radius per joint`); for (let i = 0; i + 1 < seg.joints.length; i++) claim(`${seg.name}${i}`, 'a chain link'); if (seg.mirror === 'name') fail(`chain '${seg.name}' is a midline part; mirror 'name' is for a side part`); if (seg.mirror === 'plane') seg.joints.forEach((j) => midline(j, seg)); }
   }
   for (const inc of includesOf(plan)) { if (!inc.name || !inc.parts || typeof inc.parts !== 'object') fail('every include needs { name, parts, shift }'); if (!isVec(inc.shift)) fail(`include '${inc.name}' needs shift [x, y, z]`); for (const n of Object.keys(inc.parts)) claim(n, `include '${inc.name}' part`); }
@@ -319,6 +320,8 @@ export function expandPlan(plan, { body = null } = {}) {
     } else if (seg.kind === 'rings') {
       const right = finish({ slots: slotsOf(seg, 'slots'), stations: seg.stations.map((st, i) => ({ id: st.id ?? `st${i}`, points: st.points })), caps: seg.caps }, look); place(seg.name, right, seg, seg.bind);
       if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
+    } else if (seg.kind === 'mesh') {
+      place(seg.name, { layer: 1, closure: seg.closure ?? 'closed', ...(seg.group ? { group: seg.group } : {}), ...(seg.tint ? { tint: seg.tint } : {}), ...(seg.coverChart ? { coverChart: true } : {}), mesh: seg.mesh }, seg, seg.bind);
     } else if (seg.kind === 'chain') {
       const n = seg.joints.length - 1; const ov = { first: 0.4, last: 0.3, inner: 0.6, ...(seg.over || {}) };
       for (let i = 0; i < n; i++) {
