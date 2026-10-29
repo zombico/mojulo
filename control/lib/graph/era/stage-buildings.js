@@ -2,13 +2,20 @@
  * STAGE BUILDINGS — game buildings standing in open ground, walked into as terrain (`enter: 'walk'`). An outdoor
  * stage recipe's `buildings` seats each one on the land the stage already laid:
  *
- *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization? }]
+ *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays? }]
  *     use            a program (era/programs.js): its rooms and doorways, its goal room
  *     at             a pocket beat's id ('pocket-1': the building stands in the clearing, its door to the trail), or
  *                    { x, y, facing: '+x' | '-x' | '+y' | '-y' } (its door's middle, and the way the door faces out);
  *                    absent, the next pocket the trail laid
  *     civilization   the language its builders speak (an anchor): absent, the outdoor kit's own (STRUCTURE_RAILS)
  *     kit            the room kit its inside is built in: absent, a lab's for a shell language, else the stone
+ *     look, tone     a base's building (`base` uses), or a use given a `look` ({ construction?, palette? }), is COMPOSED
+ *                    as a building level is (gameworld/levels.js buildingStage): its bay kit, its rooms stocked, its tone,
+ *                    its plan's storeys, wings, loading and bays its own. Its windows open through its shell onto the
+ *                    land (the sky cards behind them are where the shell is cut), the land's sun at its hour lays their
+ *                    patches and its day dims their daylight; it wears its construction outside (style/bay-exterior.js),
+ *                    a flat roof behind a parapet or a low steel one, its walls rising over a lower room's roof; and a
+ *                    yard YARD deep before its front is kept clear of what grows
  *
  * Each building is its INSIDE (the room kit's stage, its rooms laid from the program, a way out of its entry through
  * the front wall, baked in its own torchlight), its OUTSIDE (the outer walls of every room, a plinth down to the
@@ -21,7 +28,7 @@
  * quarter turns.
  */
 import { assembleStageScene, planStage } from './stage.js';
-import { withProgram } from './programs.js';
+import { withProgram, PROGRAMS } from './programs.js';
 import { stageLevel } from '../structure/level.js';
 import { STRUCTURE_RAILS } from './out-structures.js';
 import { structurePaint, paintStop } from './out-structures-paint.js';
@@ -35,6 +42,7 @@ import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
+import { exteriorOf } from './style/bay-exterior.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -43,6 +51,8 @@ const GROUND = /:(ground|trail|top|scree)$/;
 const ROOF_T = 0.18;
 const CLEARED = /:(wood|crown|tree|bough|rock|hat|blaze|debris|grass|grassblend|shadow|card|bush|flower|ikebana)$/;
 const FACINGS = { '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] };
+// a composed building's yard: how deep the ground before its front is kept clear (m)
+const YARD = 8;
 
 /** The quarter turn that carries the plan's front (-y, out of the entry) onto `facing`. */
 function turnFor(facing) {
@@ -50,6 +60,16 @@ function turnFor(facing) {
   const q = { '-y': 0, '+x': 1, '+y': 2, '-x': 3 }[facing];
   const c = [1, 0, -1, 0][q], s = [0, 1, 0, -1][q];
   return { q, rot: ([x, y]) => [c * x - s * y, s * x + c * y] };
+}
+
+/** The land's sun (its sky's `sun.dir`, toward it, world frame) as a bay's window sun in a plan turned `q` quarters: its
+ * elevation in degrees and the way its light travels, in the plan's frame (era/bay-glass.js sunPatches), and its day. */
+function sunIn(sky, q) {
+  // (a sky with no sun, a night's or a dusk's under its moon, lays no patch; its day dims the daylight at the windows)
+  const day = r5(Math.max(0, Math.min(1, sky?.day ?? 1)));
+  if (!sky?.sun?.dir) return { el: 0, toward: [0, -1], day };
+  const dir = unit(sky.sun.dir), c = [1, 0, -1, 0][q], s = [0, 1, 0, -1][q], [x, y] = [-dir[0], -dir[1]];
+  return { el: r5((Math.asin(Math.max(-1, Math.min(1, dir[2]))) * 180) / Math.PI), toward: [r5(c * x + s * y), r5(-s * x + c * y)], day };
 }
 
 /** The land's height under a point: the highest ground face over it (the land's quads are flat enough to plane). */
@@ -93,6 +113,25 @@ function anchorOf(b, kitId) {
   const a = b.civilization ?? STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   if (typeof a === 'string' && !ANCHOR_IDS.includes(a)) throw new Error(`stage: building civilization '${a}' is not an anchor (${ANCHOR_IDS.join(', ')})`);
   return a;
+}
+
+/**
+ * A building composed as a building level is (gameworld/levels.js buildingStage): a base's use (era/programs.js
+ * `base`), or any use given a `look` ({ construction, palette }, as a walled-core dungeon's space carries it), on the bay
+ * kit its use names, its look composed and its `tone` laid, its plan's `storeys`, `wings`, `loading` and `bays` its own;
+ * null for every other building, laid as it was.
+ */
+function composedOf(b) {
+  if (!PROGRAMS[b.use]?.base && b.look === undefined) return null;
+  if (b.look !== undefined && (!b.look || typeof b.look !== 'object' || Array.isArray(b.look) || Object.keys(b.look).some((k) => !['construction', 'palette'].includes(k)))) throw new Error(`stage: building '${b.use}' look is { construction?, palette? }`);
+  // (its plan's settings as a building level takes them: era/programs.js)
+  const look = b.look ?? {}, plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
+  return {
+    kind: 'stage', kit: b.kit ?? PROGRAMS[b.use]?.kit ?? `bay-${look.construction ?? 'utility'}`,
+    program: { use: b.use, seed: b.seed ?? 1, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}), ...plan },
+    compose: { ...(look.construction ? { construction: look.construction } : {}), ...(look.palette ? { palette: look.palette } : {}) },
+    ...(b.tone !== undefined ? { tone: b.tone } : {}),
+  };
 }
 
 /** The kit's structure paint, or a plain one for a kit its towns are not painted for. `repoint`: a town's `paint`, a
@@ -159,8 +198,8 @@ const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l
  * a head and a threshold from the outer face to the inside's), each roof a slab ROOF_T thick (its underside, its fascia
  * and verges); absent, the skin as it was, every byte.
  */
-function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) {
-  const out = [], t = wall / 2, rooms = plan.rooms;
+function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false, bay = null) {
+  const out = [], t = wall / 2, rooms = plan.rooms, holes = bay?.holes ?? null, parapet = bay?.parapet ?? 0;
   // a face wound so its normal points along `n`
   const faceN = (c, n, group) => { const nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); out.push({ corners: nn[0] * n[0] + nn[1] * n[1] + nn[2] * n[2] < 0 ? c.slice().reverse() : c, group, n }); };
   // a room's roof faces as a slab: its underside and a band down each free edge (era/solid.js)
@@ -173,9 +212,12 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) 
   // over it walled up to the floor over it and flat-roofed there (hidden under it, or a terrace where it is not)
   const S = rooms.some((r) => r.storey) ? planStage(plan) : null, at0 = (r) => (S ? S.rooms.find((q) => q.id === (r.id)).z0 : 0);
   const sOf = (r) => r.storey ?? 0, under = (r) => !!S && S.flat.has(r.id);
+  const topOf = (r) => (under(r) ? S.storeys[sOf(r) + 1].z0 : Math.max(at0(r) + r.h, tops[r.id] ?? 0) + 0.35);
+  // (a bay building's flat roof stands behind a parapet: its outer walls rise past the roof, capped)
+  const flatTop = (r) => !under(r) && (cap === 'flat' || (pitch ?? 40) <= 0);
   for (const r of rooms) {
     const zr = at0(r), base = sOf(r) ? zr : -below;
-    const [x0, y0, x1, y1] = [r.x, r.y, r.x + r.w, r.y + r.d], top = under(r) ? S.storeys[sOf(r) + 1].z0 : Math.max(zr + r.h, tops[r.id] ?? 0) + 0.35;
+    const [x0, y0, x1, y1] = [r.x, r.y, r.x + r.w, r.y + r.d], top = topOf(r), wallTop = top + (parapet && flatTop(r) ? parapet : 0);
     for (const side of ['-y', '+x', '+y', '-x']) {
       const alongX = side.endsWith('y'), line = side === '-y' ? y0 : side === '+y' ? y1 : side === '-x' ? x0 : x1;
       const out0 = side.startsWith('+') ? t : -t, a0 = (alongX ? x0 : y0) - t, a1 = (alongX ? x1 : y1) + t;
@@ -184,7 +226,7 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) 
         const qLine = side === '-y' ? q.y + q.d : side === '+y' ? q.y : side === '-x' ? q.x + q.w : q.x;
         if (Math.abs(qLine - line) > 1e-6) return null;
         const lo = alongX ? q.x : q.y, hi = alongX ? q.x + q.w : q.y + q.d;
-        return [Math.max(lo, a0), Math.min(hi, a1)];
+        return [Math.max(lo, a0), Math.min(hi, a1), q];
       }).filter((s) => s && s[1] > s[0]).sort((p, q) => p[0] - q[0]);
       const free = [];
       let u = a0;
@@ -194,13 +236,33 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) 
       const atIn = (uu, z) => (alongX ? [uu, line - out0, z] : [line - out0, uu, z]);
       const n = alongX ? [0, Math.sign(out0), 0] : [Math.sign(out0), 0, 0], un = alongX ? [1, 0, 0] : [0, 1, 0];
       const W = ways.filter((w) => w.room === r.id && w.side === side);
+      // (the glazed openings on this side, `holes`: each cut through the shell, a reveal across to the room's wall)
+      const H = holes ? openingsOn(holes, alongX, line + out0, n, a0, a1) : [];
+      for (const h of H) {
+        const atP = (uu, z) => (alongX ? [uu, h.plane, z] : [h.plane, uu, z]);
+        faceN([at(h.u0, h.z0), atP(h.u0, h.z0), atP(h.u0, h.z1), at(h.u0, h.z1)], un, 'wall');
+        faceN([at(h.u1, h.z0), atP(h.u1, h.z0), atP(h.u1, h.z1), at(h.u1, h.z1)], un.map((x) => -x), 'wall');
+        faceN([at(h.u0, h.z1), at(h.u1, h.z1), atP(h.u1, h.z1), atP(h.u0, h.z1)], [0, 0, -1], 'wall');
+        faceN([at(h.u0, h.z0), at(h.u1, h.z0), atP(h.u1, h.z0), atP(h.u0, h.z0)], [0, 0, 1], 'wall');
+      }
+      // the face winds so its normal points out (cut round the openings on it)
+      const face0 = (u0, u1, z0, z1) => { if (u1 - u0 < 1e-3 || z1 - z0 < 1e-3) return; const c = [at(u0, z0), at(u1, z0), at(u1, z1), at(u0, z1)], nn = unit(cross(sub3(c[1], c[0]), sub3(c[3], c[0]))); out.push({ corners: nn[0] * n[0] + nn[1] * n[1] < 0 ? c.reverse() : c, group: 'wall', n }); };
+      const face = H.length ? (u0, u1, z0, z1) => { for (const q of cutRect(u0, u1, z0, z1, H)) face0(...q); } : face0;
+      // (a bay building: where a lower room stands against this side, its wall still rises over that room's roof)
+      if (bay) for (const [lo, hi, q] of covered) if (topOf(q) + 1e-6 < wallTop) face(lo, hi, Math.max(base, topOf(q)), wallTop);
+      // (and its parapet: an inner face down to the roof from the wall's line, and its coping)
+      const atL = (uu, z) => (alongX ? [uu, line, z] : [line, uu, z]), [r0, r1] = alongX ? [x0, x1] : [y0, y1];
+      if (wallTop > top) for (const [s0, s1] of free) {
+        const p0 = Math.max(s0, r0), p1 = Math.min(s1, r1);
+        if (p1 - p0 < 1e-3) continue;
+        faceN([atL(p0, top), atL(p1, top), atL(p1, wallTop), atL(p0, wallTop)], n.map((x) => -x), 'wall');
+        faceN([at(s0, wallTop), at(s1, wallTop), atL(Math.min(s1, r1 + t), wallTop), atL(Math.max(s0, r0 - t), wallTop)], [0, 0, 1], 'wall');
+      }
       for (const [s0, s1] of free) {
-        // the face winds so its normal points out
-        const face = (u0, u1, z0, z1) => { if (u1 - u0 < 1e-3 || z1 - z0 < 1e-3) return; const c = [at(u0, z0), at(u1, z0), at(u1, z1), at(u0, z1)], nn = unit(cross(sub3(c[1], c[0]), sub3(c[3], c[0]))); out.push({ corners: nn[0] * n[0] + nn[1] * n[1] < 0 ? c.reverse() : c, group: 'wall', n }); };
         let v = s0;
         for (const w of W) {
           if (w.hi < s0 || w.lo > s1) continue;
-          face(v, w.lo, base, top); face(w.lo, w.hi, w.top, top); face(w.lo, w.hi, base, 0); v = w.hi;
+          face(v, w.lo, base, wallTop); face(w.lo, w.hi, w.top, wallTop); face(w.lo, w.hi, base, 0); v = w.hi;
           // (solid: the way cut through the wall, outer face to inner: its jambs facing in, its head down, its threshold up)
           if (solid) {
             faceN([at(w.lo, 0), atIn(w.lo, 0), atIn(w.lo, w.top), at(w.lo, w.top)], un, 'wall');
@@ -209,11 +271,12 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) 
             faceN([at(w.lo, 0), at(w.hi, 0), atIn(w.hi, 0), atIn(w.lo, 0)], [0, 0, 1], 'wall');
           }
         }
-        face(v, s1, base, top);
+        face(v, s1, base, wallTop);
       }
     }
     // the roof: a gable along the long side (a hip when the cap is hipped), flat for a flat cap, a pyramid for a dome
-    const e = 0.45, X0 = x0 - t - e, X1 = x1 + t + e, Y0 = y0 - t - e, Y1 = y1 + t + e, along = r.w >= r.d;
+    // (behind a parapet, to the wall's line and no further)
+    const e = wallTop > top ? -t : 0.45, X0 = x0 - t - e, X1 = x1 + t + e, Y0 = y0 - t - e, Y1 = y1 + t + e, along = r.w >= r.d;
     const span = along ? Y1 - Y0 : X1 - X0, rise = cap === 'flat' || under(r) ? 0 : Math.min(r.h, (span / 2) * Math.tan(((pitch ?? 40) * Math.PI) / 180));
     const z0 = top, z1 = top + rise, from = out.length;
     if (under(r)) { out.push({ corners: [[x0 - t, y0 - t, z0], [x1 + t, y0 - t, z0], [x1 + t, y1 + t, z0], [x0 - t, y1 + t, z0]], group: 'roof', n: [0, 0, 1] }); continue; }   // (a floor over it, or a terrace walled by the storey on it)
@@ -237,6 +300,42 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}, solid = false) 
     if (solid) slab(from);
   }
   return out;
+}
+
+/**
+ * The glazed openings on one side of the shell: the holes (`{ n, plane, u0, u1, z0, z1 }`, plan coordinates, `n` the way
+ * the opening looks out, `plane` its outer face) whose outward way is this side's and whose outer face stands within a
+ * wall's breadth inside the shell's face at `shellAt`, clipped to the side's run `a0..a1`.
+ */
+function openingsOn(holes, alongX, shellAt, n, a0, a1) {
+  return holes.filter((h) => h.n[0] === n[0] && h.n[1] === n[1] && Math.abs(h.plane - shellAt) < 0.6 && h.u1 > a0 && h.u0 < a1)
+    .map((h) => ({ ...h, u0: Math.max(a0, h.u0), u1: Math.min(a1, h.u1) }));
+}
+
+/** A wall's rectangle `u0..u1 × z0..z1` less the openings in it: the strips between and round them. → [[u0, u1, z0, z1]] */
+function cutRect(u0, u1, z0, z1, H) {
+  const cuts = [...new Set([u0, u1, ...H.flatMap((h) => [h.u0, h.u1]).filter((u) => u > u0 && u < u1)])].sort((a, b) => a - b), out = [];
+  for (let k = 0; k + 1 < cuts.length; k++) {
+    const a = cuts[k], b = cuts[k + 1], mid = (a + b) / 2;
+    const over = H.filter((h) => h.u0 <= mid && h.u1 >= mid && h.z1 > z0 && h.z0 < z1).map((h) => [Math.max(z0, h.z0), Math.min(z1, h.z1)]).sort((p, q) => p[0] - q[0]);
+    let z = z0;
+    for (const [lo, hi] of over) { if (lo > z) out.push([a, b, z, lo]); z = Math.max(z, hi); }
+    if (z < z1) out.push([a, b, z, z1]);
+  }
+  return out;
+}
+
+/**
+ * A bay building's glazed openings, read off its inside before it is moved: each window's sky card (era/bay-glass.js
+ * glazeOpening) stands at the opening's outer face, as wide and as tall as it, facing in. → [{ n, plane, u0, u1, z0, z1 }]
+ */
+function openingsOf(faces) {
+  return faces.filter((f) => f.group === 'stage:sky').map((f) => {
+    const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]), zs = f.corners.map((c) => c[2]);
+    const alongX = Math.abs(f.normal[1]) > 0.5, n = alongX ? [0, -Math.sign(f.normal[1])] : [-Math.sign(f.normal[0]), 0];
+    const [u0, u1] = alongX ? [Math.min(...xs), Math.max(...xs)] : [Math.min(...ys), Math.max(...ys)];
+    return { n, plane: alongX ? ys[0] : xs[0], u0, u1, z0: Math.min(...zs), z1: Math.max(...zs) };
+  });
 }
 
 /**
@@ -319,10 +418,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
       rects = [[Math.min(...xs), Math.max(0, Math.min(...ys)), Math.max(...xs), Math.max(...ys)]];
       doorPlan = [dr ? dr.corners.reduce((a, c) => a + c[0], 0) / dr.corners.length : (rects[0][0] + rects[0][2]) / 2, 0];
     } else {
-      // the inside: the program on its room kit, a way out of the entry through its front
-      const inner0 = withProgram({ kind: 'stage', kit: b.kit ?? (anchor === 'shell' ? 'research-lab' : 'gothic-stone'), program: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}) } });
+      // the inside: the program on its room kit, a way out of the entry through its front; a base's building (or one
+      // given a look) on its bay kit and composed, as a building level is (gameworld/levels.js buildingStage), so its
+      // rooms are stocked, its own ways out (a hangar's doors) kept beside the front
+      const inner0 = withProgram(composedOf(b) ?? { kind: 'stage', kit: b.kit ?? (anchor === 'shell' ? 'research-lab' : 'gothic-stone'), program: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}) } });
       entry = inner0.rooms.find((r) => r.id === inner0._program.entry);
-      inner = { ...inner0, ways: [{ room: entry.id, side: '-y' }] };
+      const front = { room: entry.id, side: '-y' };
+      inner = { ...inner0, ways: composedOf(b) ? [front, ...(inner0.ways ?? []).filter((w) => w.room !== front.room || w.side !== front.side)] : [front] };
       doorPlan = [(entry.x + entry.x + entry.w) / 2, entry.y];
       rects = inner.rooms.map((r) => [r.x - t, r.y - t, r.x + r.w + t, r.y + r.d + t]);
     }
@@ -395,7 +497,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const { q, rot, toWorld, zs, floor, into } = F;
     taken.push(...F.boxes);
     // the planning pass only claims the ground (era/reserve.js): the land is laid again round it before anything is built
-    if (ctx.planOnly) { reserved.push(...F.boxes.map((B) => B.map(r5))); if (ST && String(id).startsWith('town-')) planned.push(T[1]); return; }
+    if (ctx.planOnly) {
+      reserved.push(...F.boxes.map((B) => B.map(r5)));
+      // (a composed building's yard: the ground before its front, as wide as it and YARD deep, kept clear of what grows)
+      if (composedOf(b)) { const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), a = F.toWorld([x0 - 1, y0 - YARD]), c = F.toWorld([x1 + 1, y0]); reserved.push([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5)); }
+      if (ST && String(id).startsWith('town-')) planned.push(T[1]);
+      return;
+    }
     const clearUnder = (pad, land = true) => {
       const grow = F.boxes.map((B) => [B[0] - pad, B[1] - pad, B[2] + pad, B[3] + pad]), mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
       faces = faces.filter((f) => { const g = f.group || ''; if (CLEARED.test(g)) { const [cx, cy] = mid(f); return !grow.some((B) => cx >= B[0] && cx <= B[2] && cy >= B[1] && cy <= B[3]); } if (land && (GROUND.test(g) || ROUGH.test(g))) { const [cx, cy] = mid(f); return !F.boxes.some((B) => cx > B[0] && cx < B[2] && cy > B[1] && cy < B[3]); } return true; });
@@ -446,11 +554,15 @@ export function withBuildings(payload, manifest, ctx = {}) {
       for (const B of F.boxes) colliders.push({ min: P3([B[0], B[1], floor - belowD]), max: P3([B[2], B[3], floor + tallD]), of: `${id}:shut` });
       const door = doorOf(id, doorPlan[0], entry.y - t, dropD > 0.05 ? runD : 0, F, ground);
       anchors.push({ id: `building-${id}`, kind: 'building', use: b.use, enter: 'door', language: L0.id, turn: q, at: P3(Wd([doorPlan[0], doorPlan[1], 0])), N: P3((() => { const [nx, ny] = rot([0, -1]); return [nx, ny, 0]; })()), floor: r5(floor),
-        door, inside: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.kit ? { kit: b.kit } : {}), ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}) }, ...(b.goal ? { isGoal: true } : {}) });
+        door, inside: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.kit ? { kit: b.kit } : {}), ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}), ...(b.look !== undefined ? { look: b.look } : {}), ...(b.tone !== undefined ? { tone: b.tone } : {}) }, ...(b.goal ? { isGoal: true } : {}) });
       seated.push({ id, use: b.use, enter: 'door', language: L0.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough, findings: inner._program.findings.map((f) => f.says) });
       return;
     }
-    const P = assembleStageScene(inner, ctx), ways = planStage(inner).ways ?? [];
+    // (a composed bay building takes the land's sun at its windows, turned into its plan's frame, and its windows open
+    // through the shell: the sky cards that stood behind them in a room on its own are where the shell is cut)
+    const bay = !!composedOf(b);
+    const P0 = assembleStageScene(bay ? { ...inner, _sun: sunIn(payload.sky, q) } : inner, ctx), ways = planStage(inner).ways ?? [];
+    const holes = bay ? openingsOf(P0.faces) : null, P = bay ? { ...P0, faces: P0.faces.filter((f) => f.group !== 'stage:sky') } : P0;
     const below = Math.max(0.3, floor - Math.min(...zs) + 0.3);
     const W = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
     const turnN = (n) => { const [x, y] = rot([n[0], n[1]]); return [x, y, n[2]]; };
@@ -466,7 +578,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const wallGroup = mass.group ?? 'str:plaster', wallV = mass.value ?? 0.7, roofGroup = capP?.group ?? wallGroup, roofV = capP?.value ?? wallV * 0.7;
     // each room's highest face inside: the roof stands over the vault, not through it
     const tops = Object.fromEntries(inner.rooms.map((r) => [r.id, Math.max(0, ...P.faces.filter((f) => { const n = f.corners.length, cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n; return cx > r.x && cx < r.x + r.w && cy > r.y && cy < r.y + r.d; }).flatMap((f) => f.corners.map((c) => c[2])))]));
-    const shell = shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid).map((s) => {
+    // (a composed bay building wears its construction outside, painted in its palette: style/bay-exterior.js)
+    const X = bay ? exteriorOf(P0.compose?.axes) : null;
+    const shell = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
+      // (lit by the land's sun where its sky has one, else by its day alone: a dusk under its moon, a night; the fill is
+      // the light the page multiplies the tile by, so a sunlit wall carries white and shows its material as painted)
+      const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
+      const T = s.group === 'roof' ? X.roof : X.wall, flat = Math.abs(nn[2]) > 0.5, day = Math.max(0, Math.min(1, payload.sky?.day ?? 1)), g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam) * (0.35 + 0.65 * day))), fill = `#${g.toString(16).padStart(2, '0').repeat(3)}`;
+      const uv = c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / T.scale)));
+      return { ...quad(c, `building:${s.group}`, fill), texture: T.key, textureLit: true, uv, normal: P3(nn), outNormal: P3(nn) };
+    }) : shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
@@ -497,14 +618,15 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const PI = planStage(inner), zIn = (r) => PI.rooms.find((q) => q.id === r.id).z0 ?? 0;
     const roomBox = (r) => { const a = W([r.x + t, r.y + t, zIn(r)]), c = W([r.x + r.w - t, r.y + r.d - t, zIn(r) + r.h]); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), a[2]]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), c[2]]) }; };
     const anchorRec = {
-      id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, turn: q,
+      id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, ...(X ? { look: { construction: P0.compose.axes.construction, palette: P0.compose.axes.palette } } : {}), turn: q,
       at: P3(W([doorPlan[0], doorPlan[1], 0])), N: P3(turnN([0, -1, 0])), floor: r5(floor),
       entry: entry.id, goal: goal?.id ?? null, rooms: inner.rooms.map((r) => ({ id: r.id, box: roomBox(r), ...(r.storey ? { storey: r.storey } : {}) })),
       route, goalAt: P3([...toWorld(L2.goal.at), floor + (L2.goal.at[2] ?? 0)]), ...(PI.storeys ? { storeys: PI.storeys.length } : {}), ...(b.goal ? { isGoal: true } : {}),
     };
     anchors.push(anchorRec);
-    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
-      findings: [...inner._program.findings.map((f) => f.says), ...(into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : [])] });
+    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
+      findings: [...inner._program.findings.map((f) => f.says), ...(into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
+        ...(bay && F.blocked ? [`the ${id} found no place clear of the trail's beats, the stage's edge and the other buildings: it stands over one (a smaller plan, fewer bays or wings, or at: { x, y, facing })`] : [])] });
   });
   // (planning: the street's ground is reserved too, so nothing grows on it when the land is laid again)
   if (ctx.planOnly && ST && planned.length) {

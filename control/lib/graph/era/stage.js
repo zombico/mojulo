@@ -348,7 +348,11 @@ export function planStage(m = {}) {
   const composed = m.compose !== undefined ? composeForBuild(m) : null;
   const kitId = resolveKitId(m.kit || (composed ? `bay-${composed.construction}` : 'gothic-stone'));
   if (composed && !kitId.startsWith('bay-')) throw new Error(`stage: compose composes a bay room (a hangar, a warehouse, a lab, an office); kit '${kitId}' is not one`);
-  const kit0 = composed ? bayKitOf(composed) : stageKit(kitId);
+  const kit00 = composed ? bayKitOf(composed) : stageKit(kitId);
+  // (a bay building seated on open ground, era/stage-buildings.js: its windows' sun is the land's, `_sun` { el, toward,
+  // day }, the daylight in at its windows as bright as the land's day)
+  const kit0 = m._sun && kit00?.B?.glass ? (({ day = 1, ...S }) => ({ ...kit00, B: { ...kit00.B, glass: { ...kit00.B.glass, sun: { ...kit00.B.glass.sun, ...S } },
+    ...(kit00.B.light?.daylight ? { light: { ...kit00.B.light, daylight: { ...kit00.B.light.daylight, intensity: r5(kit00.B.light.daylight.intensity * day) } } } : {}) } }))(m._sun) : kit00;
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface

@@ -87,6 +87,14 @@ civilization?, kit? }]`.
   rocks and grass in its footprint are cleared.
 - **No scene change:** you walk in off the trail.
 - **On storeys** (a tower, a keep): its walls rise storey on storey to its top, and you climb its stairs inside.
+- **A base's building** (`barracks`, `armoury`, `comms`, `command` and the rest of a military base's uses), or any
+  bay building given `look: { construction?, palette? }`, is composed as a building level is: its bay kit, its rooms
+  stocked, its `tone`, its plan's `storeys`, `wings`, `loading` and `bays`. It wears its construction outside
+  (corrugated sheeting, board-formed concrete, block, panels or a floated coat; a flat roof behind a parapet or a low
+  steel one). Its windows open through the shell onto the land, and the land's sun at its hour lays their light on its
+  floors. A yard before its front is kept clear. A trail's site is about 44 m across: an outpost's building is
+  `wings: 'I', bays: 1, loading: 'single'` (about 18 by 22 m on two storeys); a level's plan stands over its edge, and
+  the answer says so.
 - **On a level:** in the game designer it is `places: { buildings: [...] }`. `goal: true` ends the level in its goal
   room, and the route runs in at its door.
 

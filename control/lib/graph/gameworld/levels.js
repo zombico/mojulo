@@ -910,6 +910,11 @@ export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : inPa
  *  leads back out) to its goal room. */
 export function interiorStage(inside) {
   const anchor = typeof inside.civilization === 'string' ? inside.civilization : undefined;
+  // (a base's building, or one given a look, is composed as a building level is: its bay kit, its rooms stocked)
+  if (PROGRAMS[inside.use]?.base || inside.look !== undefined) {
+    const { level: _l, ...S } = buildingStage({ use: inside.use, seed: inside.seed ?? 1, rooms: inside.rooms, add: inside.add, kit: inside.kit, anchor, look: inside.look, tone: inside.tone });
+    return { ...S, level: { door: 'out' } };
+  }
   return {
     kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
     program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
