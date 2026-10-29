@@ -22,7 +22,7 @@
 //   --out       output dir (default <tmp>/hero-live): index.html, <id>.glb (or <id>.json with --publish),
 //               <id>.read.json, vendor/three (the control plane's three, so the page runs offline)
 //   --jobs      variants minted at once (default 2; each mint is one process)
-//   --publish   pack each GLB as base64 JSON and load three from its pinned CDN build: what an artifact host serves
+//   --publish   pack each GLB as base64 JSON (gzipped first) and load three from its pinned CDN build: what an artifact host serves
 //   --serve     serve the out dir on 127.0.0.1 (default port 8765) after writing it
 //   --reuse     keep a variant whose <id>.glb and <id>.read.json are already in --out (iterate on the page alone)
 //
@@ -31,6 +31,7 @@
 import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
+import { gzipSync } from 'node:zlib';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -147,7 +148,9 @@ for (const v of made) {
 }
 
 // ─── the page ───────────────────────────────────────────────────────────────
-if (opt.publish) for (const v of made) writeFileSync(path.join(out, `${v.id}.json`), JSON.stringify({ glb: readFileSync(path.join(out, `${v.id}.glb`)).toString('base64') }));
+// (gzipped before its base64, the browser's DecompressionStream undoing it: a realistic hero's GLB, its morph targets and
+// clips, runs past an artifact host's file limit as base64 alone)
+if (opt.publish) for (const v of made) writeFileSync(path.join(out, `${v.id}.json`), JSON.stringify({ gz: true, glb: gzipSync(readFileSync(path.join(out, `${v.id}.glb`))).toString('base64') }));
 else {
   // (the control plane's own three, copied beside the page: it runs with no network)
   const V = path.join(CONTROL, 'public/vendor/three');

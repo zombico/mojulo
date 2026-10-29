@@ -106,7 +106,9 @@ for (const id of ids) {
     const B = breathBones(heads, C.breath), node = (id) => `${prefix(joints[0].getName())}${id}`;
     return { of: C.name, t: C.t, joints: Object.entries(B).map(([id, M]) => ({ node: node(id), ...(M.r ? { r: M.r } : {}), ...(M.d ? { p: M.d.map((x, i) => x + heads[id][i % 3]) } : {}) })) };
   }).filter((B) => B.joints.length);
-  if (writes) writeFileSync(sideFile, JSON.stringify({ clips, breaths, read, spec: { ...(emote !== undefined ? { emote } : {}), ...(performs ? { perform: performs } : {}) } }));
+  // (rounded as written: a tenth of a thousandth is past what a weight, a quaternion or a millimetre shows)
+  const r4 = (x) => Math.round(x * 1e4) / 1e4, slim = (C) => ({ ...C, t: C.t.map(r4), w: C.w.map((row) => row.map(r4)), ...(C.breath ? { breath: { v: C.breath.v.map(r4), high: C.breath.high.map(r4) } } : {}) });
+  if (writes) writeFileSync(sideFile, JSON.stringify({ clips: clips.map(slim), breaths: breaths.map((B) => ({ ...B, t: B.t.map(r4), joints: B.joints.map((J) => ({ node: J.node, ...(J.r ? { r: J.r.map(r4) } : {}), ...(J.p ? { p: J.p.map(r4) } : {}) })) })), read, spec: { ...(emote !== undefined ? { emote } : {}), ...(performs ? { perform: performs } : {}) } }));
   if (opt.sheet && (opt.variants || !shots.length)) {
     const phases = (opt.phases ?? '0.02,0.35,0.68,0.98').split(',').map(Number);
     // (the face close by default, brows to chin, where a millimetre's unevenness can be seen; --view a preset instead)

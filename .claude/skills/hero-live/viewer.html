@@ -160,10 +160,12 @@ async function load(v) {
   const loader = new GLTFLoader();
   let gltf;
   if (M.packed) {
-    const { glb } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
+    const { glb, gz } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
     const bin = atob(glb), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-    gltf = await loader.parseAsync(buf.buffer, '');
+    // (gzipped by live.mjs --publish to fit a host's file limit)
+    const data = gz ? await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer() : buf.buffer;
+    gltf = await loader.parseAsync(data, '');
   } else gltf = await loader.loadAsync(v.file, (e) => { if (e.total) status.textContent = `Loading ${v.label}… ${Math.round((e.loaded / e.total) * 100)}%`; });
   const root = gltf.scene; let body = null;
   root.traverse((o) => {
