@@ -79,6 +79,35 @@ Without a checkout, ledger the notes by hand: each note `carried` (and where) or
 The plan grammar is `get_solid_vocab({ id: 'layered' })` (the Plan, Body detail and adornment sections). The creature
 loop's own card (`creature-from-plan`) holds the ring-plan forms and the art direction; this card adds the sheet.
 
+## On the seventh generation (the tiered body)
+
+A people below the hero door (a kin preset, lib/graph/beast/cards.js: the bear-, wolf-, cat-, dragon-, bird-, insect- and
+snake-kin, or one of your own) no longer takes the ring plan by hand: its sheet routes to the HERO door on the tiered body, its notes as `beast` words
+(`egocube/plan.js` `beastOf`; the ledger says where each landed). The loop's steps land there:
+- READ, DOOR, TOPOLOGY: the route (legs, a tail or an abdomen, arm-wings, a second pair of arms, a coil: words, not
+  joint tables).
+- HEAD: the kin's library skull, DRAWN AGAIN FOR THE SHEET (its structure notes and a seeded variation within a band),
+  stored as a derivation on `beast.head`. A designer's own head is the same word: `beast.head: { from: <library skull>,
+  moves, eye, regions, ornaments, palette }`, the row moves below. A new skull good enough for a people goes into the
+  library's derivations, as the snake's did.
+- MASSES: the kin's card leaned by the sheet's silhouette word and varied per sheet; a designer's own over it:
+  `beast.mass` (trunk, waist, hips, neck, upperArm, foreArm, hand, thigh, shank, foot), `beast.hump`, `beast.keel`.
+- COVER and ORNAMENTS: the coat as a material (`beast.cover`, a kind or `{ kind, length?, size?, shape?, sheen?,
+  tipped? }`: sleek or shaggy fur, fine or keeled scales, a matte, glossy or metal sheen, frosted tips), the outline
+  breakers as parts (`ridge`, `ruff`, claws).
+- OOZES: the animal door's compositions on the beast-kin (`beast.ooze: ['frost', { id: 'venom', strength: 0.5 }]`,
+  `beast.seed`): its tone, crest, claws, eyes, head moves, materials and cover. Its marks wait for a biped's pattern
+  solver (a quadruped's windows read inside out on an upright body); its size is the tune's stature.
+- DRESS: a sheet person enough wears its cut (a coil above its hips); adornment below the clothed line is pending.
+- A PEOPLE OF YOUR OWN (a lineage the presets do not know) is composed the same way: its notes read by the cue
+  lexicon (lib/graph/beast/lexicon.js) as anatomy words, its skull the library's nearest by its family words, what the
+  composer lacks (hooves, horns, wings at the back …) pending in the ledger by name. Write its cues in plain words the
+  lexicon reads, or give the words yourself: `beast` takes every part with no `kin` at all (`legs`, `toes`, `fingers`,
+  `claws`, `clawTone`, `arms`, `wings`, `tail`, `abdomen`, `mass`, `hump`, `keel`, `hunch`, `head`, `cover`, `coat`,
+  `hair`, `ridge`, `ruff`); a kin is only a preset under them.
+Fix by `update_character` on `/hero/beast/...`. A sheet asked with `gen: 6` stays on the ring plan this card teaches
+below.
+
 ## Topology: what the frame notes ask for
 
 - **Biped, digitigrade** (`legs = digitigrade`): hip → knee (forward) → hock (behind, raised) → toe base → toe tip, as

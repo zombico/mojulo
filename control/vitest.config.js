@@ -20,6 +20,7 @@ export const E2E = [
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',
+  'lib/mcp/tools/export-model.beast.test.js',
   'lib/graph/board/board-page.live.test.js',
   'lib/graph/contest/meet-page.live.test.js',
   'lib/graph/contest/court-page.live.test.js',

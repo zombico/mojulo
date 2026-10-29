@@ -26,7 +26,7 @@
 //   --serve     serve the out dir on 127.0.0.1 (default port 8765) after writing it
 //   --reuse     keep a variant whose <id>.glb and <id>.read.json are already in --out (iterate on the page alone)
 //
-// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'),
+// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'|'vBodySide'|'vBack'),
 // seek(phase), pause(bool), hold({ morph: weight }), state().
 import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';

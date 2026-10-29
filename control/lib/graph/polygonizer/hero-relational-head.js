@@ -88,7 +88,7 @@ function fitOf(parts, head, eared) {
 
 /** the neck's column as a distance: each ring a level polygon at its mean height, lerped between; closed at both ends
  * (from ring `from` up: a ray cast steeply down the side found the neck's flared base again past the seam) */
-function neckField(neck, from = 0) {
+export function neckField(neck, from = 0) {
   const rings = neck.stations.slice(from).map((st) => { const pts = neck.slots.map((s) => st.points[s]); return { z: mean(pts)[2], pts }; });
   const zTop = Math.max(...rings.at(-1).pts.map((p) => p[2])), zBot = Math.min(...rings[0].pts.map((p) => p[2]));
   const poly = (pts, x, y) => {

@@ -235,8 +235,9 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
     return peopleBody(f.measured.height, f.scale);
   }
   if (isPeople(entry)) {
-    // a people plays its own moves as a cast member does (casting.js fieldOf: a person over the library's, a people
-    // below the hero door on its creature clips), drawn from the sheet the run made it from
+    // a people plays its own moves as a cast member does (casting.js fieldOf: a person, and a beast-kin on the tiered
+    // body, over the library's; a people of the operator's own below the hero door on its creature clips), drawn from
+    // the sheet the run made it from
     const sheet = C.sheets[eid] ?? (C.sheets[eid] = rollEgocube(peopleRollOf(G, eid, entry)));
     part.figures[id] = had ?? fieldFigure(ref, fieldOf({ body: 'person', sheet }));
     return peopleBody(statureOf({ body: 'person', sheet }), f.scale);
