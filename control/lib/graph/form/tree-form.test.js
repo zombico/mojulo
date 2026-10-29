@@ -5,9 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, TREE_FORM } from './tree-form.js';
+import { treeForm, TREE_FORM, SLEEVE } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
-import { leafHolds } from '../vegetation/sprays.js';
+import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
 
 const SP = 'cherry', T = treeForm(SP, { seed: 7 });
@@ -85,5 +85,24 @@ describe('treeForm', () => {
     expect(W.woodFar.idx.length).toBeLessThanOrEqual(W.wood.idx.length);
     expect(W.trunk.length % 4).toBe(0);
     expect(W.trunk[W.trunk.length - 2]).toBeGreaterThan(W.trunk[2]);
+  }, 60_000);
+
+  it('wraps a needled crown\'s leafy runs in sleeves round their axes, each vertex knowing its axis; a broadleaf has none', () => {
+    // (one needled species, picked from the catalogue: the needles are drawn in the sleeve by the page, no needle a polygon)
+    const sp = Object.keys(SPECIES).find((s) => needleHabit(s)), C = treeForm(sp, { seed: 7 }), W = C.sleeve;
+    expect(T.sleeve).toBeUndefined();
+    expect(W.idx.length).toBeGreaterThan(0);
+    expect(W.idx.length % 3).toBe(0);
+    const n = W.pos.length / 3;
+    expect(W.out.length / 3).toBe(n); expect(W.ax.length / 3).toBe(n); expect(W.uv.length / 2).toBe(n);
+    expect(Math.max(...W.idx)).toBeLessThan(n);
+    for (let i = 0; i < W.out.length; i += 3) {
+      const r = Math.hypot(W.out[i], W.out[i + 1], W.out[i + 2]);
+      // (out of its axis no further than the needles' reach, narrowing at a run's tip; its normal that way; its axis a unit, across it)
+      expect(r).toBeLessThanOrEqual(W.radius + 1e-3); expect(r).toBeGreaterThanOrEqual(W.radius * SLEEVE.tip - 1e-3);
+      expect(W.nrm[i] * W.out[i] + W.nrm[i + 1] * W.out[i + 1] + W.nrm[i + 2] * W.out[i + 2]).toBeCloseTo(r, 2);
+      expect(Math.hypot(W.ax[i], W.ax[i + 1], W.ax[i + 2])).toBeCloseTo(1, 2);
+      expect(Math.abs(W.ax[i] * W.out[i] + W.ax[i + 1] * W.out[i + 1] + W.ax[i + 2] * W.out[i + 2])).toBeLessThan(r * 0.05 + 1e-3);
+    }
   }, 60_000);
 });

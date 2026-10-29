@@ -79,5 +79,13 @@ describe('the form render\'s plants', () => {
     // (a tree drops its own leaves round its foot: a needled crown its needles, laid as alpha on the ground)
     expect(F.templates[0].litter).toBe('needle');
     expect(page).toContain("m.customProgramCacheKey = () => 'form-litter';");
+    // (a needled crown carries its sleeves, each vertex's offset from its axis and the axis's run, and its needles are
+    // drawn in them; a broadleaf carries none)
+    const S = F.templates[0].sleeve;
+    expect(Buffer.from(S.out, 'base64').byteLength / 12).toBe(Buffer.from(S.pos, 'base64').byteLength / 12);
+    expect(Buffer.from(S.ax, 'base64').byteLength / 3).toBe(Buffer.from(S.pos, 'base64').byteLength / 12);
+    expect(S.radius).toBeGreaterThan(0);
+    expect(F.templates.filter((t) => t.kind === 'tree' && t.litter !== 'needle').every((t) => !t.sleeve)).toBe(true);
+    expect(page).toContain("'form-needles' + phi");
   });
 });

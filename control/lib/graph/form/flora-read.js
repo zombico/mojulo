@@ -94,6 +94,8 @@ const packWood = (W) => {
   // (a culm's vertex colours, sRGB bytes: its own colour and its node bands; a tree's wood takes its bark instead)
   return { pos: b64(Float32Array.from(W.pos)), nrm: b64(Int8Array.from(W.nrm, (v) => Math.round(v * 127))), uv: b64(Float32Array.from(W.uv)), idx: b64(I.from(W.idx)), big: nv > 65535, ...(W.col ? { col: b64(Uint8Array.from(W.col)) } : {}) };
 };
+// a needled crown's sleeves packed: the tube as wood is, and each vertex's offset from its run's axis and the axis's run
+const packSleeve = (W) => ({ ...packWood(W), out: b64(Float32Array.from(W.out)), ax: b64(Int8Array.from(W.ax, (v) => Math.round(v * 127))), radius: W.radius });
 // clumps and sites packed: p o d (9), scale, depth, rank
 const packSites = (L) => { const a = new Float32Array(L.length * 12); L.forEach((s, i) => a.set([...s.p, ...s.o, ...s.d, s.s, s.e, s.r], i * 12)); return b64(a); };
 
@@ -115,7 +117,8 @@ function treeTemplate(species, height) {
     // each larger, so the outline a switch shows is the same masses'. A needled crown keeps its clumps and sprays)
     const crossed = !needleHabit(species);
     const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } });
-    if (!crossed) CACHE.set(key, template('tree', species, F, species));
+    // (a needled crown: its needles in sleeves round its leafy shoots, channels/form-flora.js; no needle a polygon)
+    if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
       const B = { ...CROSS.bundle, ...(CROSS.byShape[leafOutlineOf(species)] || {}) }, far = { count: Math.max(3, Math.round(B.count * FLORA_LOD.half)), scale: r4(B.scale / Math.sqrt(FLORA_LOD.half)) };
       const T = template('tree', species, { ...F, clumps: crossClumps(F), sites: [] }, species);

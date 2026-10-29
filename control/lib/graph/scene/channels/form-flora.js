@@ -42,6 +42,18 @@ export const LITTER = Object.freeze({ reach: 0.85, most: 4.5, cell: 0.26, size: 
   tones: Object.freeze([Object.freeze([0.16, 0.09, 0.04]), Object.freeze([0.42, 0.3, 0.07]), Object.freeze([0.24, 0.26, 0.1])]),
   fall: Object.freeze({ reach: 0.75, most: 3, thick: 0.25, brown: 0.3 }) });
 const LITTER_SHAPES = Object.freeze(['ovate', 'lobed', 'broad', 'lance', 'needle']);
+/**
+ * A needled crown's NEEDLES, drawn in its sleeves (form/tree-form.js SLEEVE): a pixel of a sleeve marches into it along the
+ * eye's ray (`steps` samples across two of its radii), its depth there the true one, from the run's axis, so a ray
+ * grazing the sleeve's edge stays in its outer bristle and leaves it spiky; the needles are strands out from the axis on a
+ * grid round and along it (`cell` m), each its own length (`length`: the least and the spread, × the reach), leaning
+ * toward the shoot's tip (`tilt` m along a metre in), thickening toward the axis (`width` × the cell at the axis); the
+ * first strand the ray meets is the pixel, lighter at its tip, darker in (`shade`); meeting none it is not drawn; at the
+ * axis (`core` × the reach) the shoot. Far off, where a strand is under `solid` pixels, the sleeve is drawn whole and its
+ * edge feathered by how square the eye meets it.
+ */
+export const NEEDLE_LOOK = Object.freeze({ steps: 14, cell: Object.freeze([0.026, 0.024]), length: Object.freeze([0.6, 0.4]), tilt: 0.7, width: 0.5,
+  shade: Object.freeze([1.15, 0.5]), core: 0.08, solid: 1.2 });
 export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, culmPhi: 0.012, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
 const SWAY_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, float shake, float ph ) {
   vec2 u = mojWindAt( wp.xy, max( 0.5, wp.z - base.z ), uWindT ); float m = length( u );
@@ -175,6 +187,60 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       g.setAttribute('aOut', new THREE.BufferAttribute(out, 3)); g.setAttribute('aSite', new THREE.BufferAttribute(site, 3)); g.computeVertexNormals(); g.computeBoundingSphere();
       return { g, tris: tv / 3 };
     }
+    // a needled crown's sleeves: the tube, each vertex's offset from its run's axis and the axis's run, its coordinates
+    function sleeveGeo(W) {
+      const G = woodGeo(W), g = G.g;
+      g.setAttribute('aOut', new THREE.BufferAttribute(f32(W.out), 3)); g.setAttribute('aAx', new THREE.BufferAttribute(i8(W.ax), 3, true));
+      g.setAttribute('aUvS', g.getAttribute('uv')); g.deleteAttribute('uv');
+      return G;
+    }
+    function needleMat(phi) {
+      const NL = ${safeJson(NEEDLE_LOOK)}, m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0 });
+      const VHEAD = 'attribute vec3 aOut;\\nattribute vec3 aAx;\\nattribute vec2 aUvS;\\nvarying vec2 vUvS;\\nvarying vec3 vCoreV;\\nvarying vec3 vAxV;\\nvarying float vRadV;\\nvarying float vScaleV;\\n';
+      moves(m, phi, 1);
+      m.onBeforeCompile = (sh) => {
+        sh.vertexShader = swayHead(sh, phi, 1) + VHEAD + sh.vertexShader
+          .replace('#include <project_vertex>', SWAY_PROJECT + [
+            // (the run's axis where this vertex is, in the eye's space after the sway: the vertex less its offset from it)
+            '\\n  mat3 mvI = mat3( modelViewMatrix );',
+            '#ifdef USE_INSTANCING',
+            '  mvI = mvI * mat3( instanceMatrix );',
+            '#endif',
+            '  vec3 oV = mvI * aOut; vCoreV = mvPosition.xyz - oV; vAxV = mvI * aAx; vRadV = length( oV ); vScaleV = vRadV / max( 1e-4, length( aOut ) ); vUvS = aUvS;'].join('\\n'));
+        sh.fragmentShader = 'varying vec2 vUvS;\\nvarying vec3 vCoreV;\\nvarying vec3 vAxV;\\nvarying float vRadV;\\nvarying float vScaleV;\\nfloat nlH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', [
+            '#include <color_fragment>',
+            '  {',
+            '  vec3 P = -vViewPosition, Dv = normalize( P ), A = normalize( vAxV ); float Rr = vRadV, S = vScaleV;',
+            '  vec3 rel0 = P - vCoreV, nOut = normalize( rel0 - A * dot( rel0, A ) ), Tu = normalize( cross( A, nOut ) );',
+            '  vec2 CELL = vec2( ' + NL.cell[0].toFixed(3) + ', ' + NL.cell[1].toFixed(3) + ' );',
+            '  float hit = -1.0, dHit = 0.0, lastD = -1.0;',
+            // (far: a strand under a few pixels, the sleeve whole, its edge feathered)
+            '  float pxS = length( fwidth( vUvS ) ) / CELL.x;',
+            '  if ( pxS > ' + NL.solid.toFixed(2) + ' ) { float g = -dot( Dv, nOut ); if ( g < 0.32 * nlH( floor( vUvS / CELL ) ) ) discard; hit = 1.0; dHit = 0.35 + 0.4 * ( 1.0 - g ); }',
+            '  else for ( int i = 0; i < ' + NL.steps + '; i++ ) {',
+            '    float t = ( float( i ) + 0.5 ) / ' + NL.steps.toFixed(1) + ' * 2.0 * Rr;',
+            '    vec3 Q = P + Dv * t, rel = Q - vCoreV; float al = dot( rel, A ), rho = length( rel - A * al ), d = Rr - rho;',
+            '    lastD = d;',
+            '    if ( d < 0.0 ) { if ( i > 0 ) break; else continue; }',
+            '    if ( rho < Rr * ' + NL.core.toFixed(2) + ' ) { hit = 0.0; break; }',
+            '    vec2 q = vec2( vUvS.x + dot( Q - P, Tu ) / S, vUvS.y + dot( Q - P, A ) / S ), cell = floor( q / CELL );',
+            '    float h1 = nlH( cell ), h2 = nlH( cell + 3.1 ), h3 = nlH( cell + 7.7 ), dn = d / Rr;',
+            '    if ( dn < 1.0 - ( ' + NL.length[0].toFixed(2) + ' + ' + NL.length[1].toFixed(2) + ' * h3 ) ) continue;',
+            '    vec2 c = ( cell + 0.5 + ( vec2( h1, h2 ) - 0.5 ) * 0.6 ) * CELL; c.y -= ' + NL.tilt.toFixed(2) + ' * d / S;',
+            '    vec2 e = ( q - c ) / CELL; e.y /= 1.6;',
+            '    if ( length( e ) < ' + NL.width.toFixed(2) + ' * ( 0.3 + 0.7 * dn ) ) { hit = 1.0; dHit = dn; break; }',
+            '  }',
+            // (still inside at the march's end: the crown's dense middle)
+            '  if ( hit < 0.0 && lastD > 0.0 ) { hit = 1.0; dHit = 0.9; }',
+            '  if ( hit < 0.0 ) discard;',
+            '  diffuseColor.rgb = hit > 0.5 ? diffuseColor.rgb * mix( ' + NL.shade[0].toFixed(2) + ', ' + NL.shade[1].toFixed(2) + ', dHit ) : diffuseColor.rgb * 0.38;',
+            '  }'].join('\\n'))
+          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;');
+      };
+      m.customProgramCacheKey = () => 'form-needles' + phi;
+      return m;
+    }
     function woodGeo(W) {
       const g = new THREE.BufferGeometry(), I = W.big ? new Uint32Array(bytes(W.idx).buffer) : new Uint16Array(bytes(W.idx).buffer);
       g.setAttribute('position', new THREE.BufferAttribute(f32(W.pos), 3)); g.setAttribute('normal', new THREE.BufferAttribute(i8(W.nrm), 3, true));
@@ -214,6 +280,11 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         return { im, tris: geo.tris, slot: new Int32Array(Math.max(1, n)).fill(-1) };
       };
       const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
+      // (a needled crown: its sleeves near and far, the needles drawn in them; no crown of clumps, no sprays)
+      if (t.sleeve) {
+        const sl = sleeveGeo(t.sleeve), nm = needleMat(phi);
+        return { t, list: by[ti], parts: { wood: mk(woodGeo(t.wood), wood, true, false), woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false), crown: mk(sl, nm, true, false), crownFar: mk(sleeveGeo(t.sleeve), nm, true, false) } };
+      }
       const parts = {
         wood: mk(woodGeo(t.wood), wood, true, false), woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false),
         crown: mk(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),

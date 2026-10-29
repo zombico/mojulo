@@ -251,7 +251,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   }
   shoots.sort((a, b) => a.r - b.r);
   // (far, `far`: the limbs a few times the cut's thickness alone: a tree across a glade shows its trunk and its main limbs)
-  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine' } : {}) };
+  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
 }
 
 /** The crown's RIM, where its twigs come in near the eye (vegetation/twigs.js): the clumps on its surface (the envelope's,
@@ -296,6 +296,41 @@ function growUp(plant, height, seed = 1) {
 export const CROSSES = Object.freeze({ keep: 0.5, tip: 0.5, turn: 18, alone: 1.8 });
 /** The tips' cells (× a clump's cell) and a tip's cross (× the crown's middle clump): one cross a cell of branch ends. */
 export const TIPS = Object.freeze({ cell: 0.8, size: 0.85 });
+/** A needled crown's SLEEVES (channels/form-flora.js draws its needles in them): round each run of leafy shoots along an
+ *  axis a tube of `sides`, a ring every `every` shoots, its radius the needles' reach (`radius` by habit, m, × the tree's
+ *  scale), narrowing to `tip` × it at the run's end. One smooth sleeve a run, no needle a polygon: the needles are the
+ *  page's, found in the sleeve by its shader. */
+export const SLEEVE = Object.freeze({ sides: 5, every: 2, radius: Object.freeze({ pine: 0.15, spruce: 0.11, silverfir: 0.11 }), tip: 0.45, least: 2 });
+// the sleeves: each axis's runs of leafy shoots, a tube round each, its coordinates in metres (round it and along it),
+// each vertex knowing where its run's axis is (aOut: from the axis to it) and which way the axis runs (aAx)
+function sleevesOf(chains, habit, k) {
+  const pos = [], nrm = [], uv = [], out = [], ax = [], idx = [], R0 = (SLEEVE.radius[habit] ?? SLEEVE.radius.spruce) * Math.max(0.7, Math.min(1.4, k)), K = SLEEVE.sides;
+  const tube = (pts) => {
+    const m = pts.length; if (m < 2) return;
+    const T = pts.map((_, i) => unit(sub(pts[Math.min(m - 1, i + 1)], pts[Math.max(0, i - 1)])));
+    let N = Math.abs(T[0][2]) < 0.9 ? unit(cross([0, 0, 1], T[0])) : unit(cross([1, 0, 0], T[0])), sAt = 0;
+    const base = pos.length / 3;
+    for (let i = 0; i < m; i++) {
+      N = unit(sub(N, mul(T[i], dot(N, T[i])))); if (len(N) < 1e-6) N = unit(cross([0, 0, 1], T[i]));
+      const B = cross(T[i], N); if (i > 0) sAt += len(sub(pts[i], pts[i - 1]));
+      const r = R0 * (i === m - 1 ? SLEEVE.tip : i === 0 ? 0.8 : 1);
+      for (let j = 0; j <= K; j++) {
+        const a = (2 * Math.PI * j) / K, o = add(mul(N, dmath.cos(a)), mul(B, dmath.sin(a)));
+        pos.push(...add(pts[i], mul(o, r)).map(r4)); nrm.push(...o.map(r4)); uv.push(r4((j / K) * 2 * Math.PI * R0), r4(sAt));
+        out.push(...mul(o, r).map(r4)); ax.push(...T[i].map(r4));
+      }
+    }
+    for (let i = 0; i < m - 1; i++) for (let j = 0; j < K; j++) { const a = base + i * (K + 1) + j, b = a + K + 1; idx.push(a, a + 1, b + 1, a, b + 1, b); }
+  };
+  for (const ch of chains) {
+    // (a node and its point: the chain's first point is its base, each node the point after)
+    let run = [];
+    const flush = () => { if (run.length >= SLEEVE.least) tube(run.filter((_, i) => i % SLEEVE.every === 0 || i === run.length - 1)); run = []; };
+    (ch.nodes || []).forEach((n, i) => { if (!n.died && n.leaves) { if (!run.length) run.push(ch.pts[i]); run.push(ch.pts[i + 1]); } else flush(); });
+    flush();
+  }
+  return { pos, nrm, uv, out, ax, idx, radius: r4(R0) };
+}
 /** A crossed crown's sprays and their twigs (`twigs`): one spray a cell (`cell` × a tip's, TIPS) on a leafy node, its twig
  *  drawn under the cut, three-sided under `thin` m radius, its rings `ring` m apart on a thin one; a crown of fewer than `least` the
  *  cell narrowed, down to `narrow` of it. */
