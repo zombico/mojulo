@@ -4,7 +4,7 @@
 // its light falls with depth from the mouth, round its bend too, and a big cave lights as a small one of its shape does.
 
 import { describe, it, expect } from 'vitest';
-import { readCaves, cutCaves, lidFaces, caveClear, caveSky, formFactor, caveRocks, flipBoulder, CAVE } from './cave.js';
+import { readCaves, cutCaves, lidFaces, caveClear, caveSky, formFactor, caveRocks, flipBoulder, caveLamps, lampLight, lampFaces, lampScale, caveLight, CAVE, CAVE_LIGHTS } from './cave.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { assembleStageScene } from './stage.js';
 import { outTrailOf } from './out-trail-board.js';
@@ -90,6 +90,49 @@ describe('the cave', () => {
     const big = 1e4, sky = formFactor([0, 0, 0], [0, 0, 1], [[-big, -big, 1], [big, -big, 1], [big, big, 1], [-big, big, 1]]);
     expect(sky).toBeCloseTo(1, 2);
     expect(formFactor([0, 0, 0], [0, 0, -1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]])).toBe(0);
+  });
+});
+
+describe('its light past the day, by register', () => {
+  const lit = (light, size = 1) => { const g = cliff(); return cutCaves(g, readCaves([{ y: 60, depth: 14 * size, width: 8 * size, height: 5 * size, light }]), opts(g))[0]; };
+
+  it('lays each register its own lamps, and none for the daylight; refuses one that is none', () => {
+    expect(caveLamps(lit('daylight'))).toEqual([]);
+    const F = caveLamps(lit('fluorescent')), T = caveLamps(lit('torch')), B = caveLamps(lit('bio'));
+    expect(F.length).toBeGreaterThan(1);
+    // (tubes along the crown, sconces on both walls, growth at the walls' feet and from the ceiling)
+    const c = lit('fluorescent');
+    for (const l of F) expect(l.at[2]).toBeGreaterThan(c.floor(c.inside(l.at[0], l.at[1]).s) + 2);
+    expect(new Set(T.map((l) => l.side))).toEqual(new Set([-1, 1]));
+    expect(B.some((l) => l.hung) && B.some((l) => !l.hung)).toBe(true);
+    expect(lampFaces(lit('torch')).some((f) => f.lamp)).toBe(true);
+    expect(() => readCaves([{ y: 20, light: 'neon' }])).toThrow(/light is one of daylight, fluorescent, torch, bio/);
+  });
+
+  it('colours the rock by its register: a torch warm, a tube cold, the growth cyan-green', () => {
+    const at = (light) => { const c = lit(light), l = caveLamps(c)[0]; return lampLight(c, [l.at[0] + 0.3, l.at[1], c.floor(c.inside(l.at[0], l.at[1]).s) + 0.1], [0, 0, 1]); };
+    const T = at('torch'), F = at('fluorescent'), B = at('bio');
+    expect(T[0]).toBeGreaterThan(T[2]);
+    expect(F[2]).toBeGreaterThan(F[0]);
+    expect(B[1]).toBeGreaterThan(B[0]);
+    expect(Math.max(...T)).toBeGreaterThan(0.02);
+  });
+
+  it('lights a big cave as a small one: its lamps reach and stand as the cave is wide', () => {
+    const small = lit('torch'), big = lit('torch', 2);
+    expect(lampScale(big)).toBe(2 * lampScale(small));
+    const ls = caveLamps(small)[0], lb = caveLamps(big)[0], ps = [ls.at[0], ls.at[1] + 1.5, ls.at[2] - 1], pb = [lb.at[0], lb.at[1] + 3, lb.at[2] - 2];
+    expect(Math.abs(lampLight(small, ps, [0, -Math.sign(ls.at[1] - 60) || 1, 0])[0] - lampLight(big, pb, [0, -Math.sign(lb.at[1] - 60) || 1, 0])[0])).toBeLessThan(0.05);
+  });
+
+  it('lays the same light on the rock whatever the hour: against a darker hour\'s bake, the more', () => {
+    const c = lit('torch'), l = caveLamps(c)[0], f = { corners: [[l.at[0] - 0.5, l.at[1] - 0.5, c.floor(10) + 0.01], [l.at[0] + 0.5, l.at[1] - 0.5, c.floor(10) + 0.01], [l.at[0] + 0.5, l.at[1] + 0.5, c.floor(10) + 0.01], [l.at[0] - 0.5, l.at[1] + 0.5, c.floor(10) + 0.01]], normal: [0, 0, 1], fill: '#404040' };
+    // (the dusk's bake a third of the day's: what the lamp adds to its fill, the same as by day)
+    const dark = { ...c, light: 'daylight', _lamps: undefined }, r = (h) => parseInt(h.slice(1, 3), 16);
+    const add = (cave, fill, open) => r(caveLight([{ ...f, fill }], [cave], { open })[0].fill) - r(caveLight([{ ...f, fill }], [dark], { open })[0].fill);
+    expect(add(c, '#400000', 1)).toBeGreaterThan(4);
+    expect(Math.abs(add(c, '#140000', 0.3125) - add(c, '#400000', 1))).toBeLessThan(3);
+    expect(CAVE_LIGHTS.torch.colour[0]).toBe(1);
   });
 });
 

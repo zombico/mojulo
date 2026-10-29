@@ -4,7 +4,7 @@
 // mouth's floor); the look is the operator's.
 //
 //   node scripts/spikes/caves/cave.mjs [--out <dir>] [--cube valley-morning] [--hours noon,dusk] [--cave '{"y":36,"depth":10,"along":14}']
-//     [--ground '{"cliff":{"height":32},"behind":40}'] [--era gen-7]
+//     [--ground '{"cliff":{"height":32},"behind":40}'] [--lights fluorescent,torch,bio] [--era gen-7]
 import fs from 'node:fs';
 import path from 'node:path';
 import { register } from 'node:module';
@@ -21,6 +21,8 @@ const cube = arg('--cube', 'valley-morning'), hours = arg('--hours', 'noon,dusk'
 const cave = JSON.parse(arg('--cave', '{"y":36,"depth":10,"along":14}'));
 // (the trail's ground round it: a gargantuan cave wants a taller cliff and more rock behind it, `cliff.height`, `behind`)
 const ground = JSON.parse(arg('--ground', '{}'));
+// (the register it is lit by past its daylight: fluorescent, torch or bio; each its own page)
+const lights = arg('--lights', null)?.split(',') ?? [null];
 fs.mkdirSync(out, { recursive: true });
 
 const unit = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
@@ -38,12 +40,13 @@ function cams(C) {
 }
 
 const pages = [];
-for (const hour of hours) {
-  const manifest = { kind: 'stage', geocube: cube, trail: { ground: { ...ground, caves: Array.isArray(cave) ? cave : [cave] } }, hour };
+for (const light of lights) for (const hour of hours) {
+  const lit = (c) => (light ? { ...c, light } : c);
+  const manifest = { kind: 'stage', geocube: cube, trail: { ground: { ...ground, caves: (Array.isArray(cave) ? cave : [cave]).map(lit) } }, hour };
   const t = Date.now(), P = assembleStageScene(manifest), C = P.anchors.find((x) => x.kind === 'cave' && x.id === (process.argv.includes('--second') ? 'cave-2' : 'cave-1'));
   console.log(`${hour.padEnd(6)} ${C.id}: path ${JSON.stringify(C.path)} ${C.width} m wide, ${C.height} m high, its mouth's floor at ${C.floor} m (${Date.now() - t} ms)`);
   const { payload } = await resolveWorldScene({ ref: `cave-${hour}`, title: `a cave at ${hour}`, manifest }, { era, live: true });
-  pages.push({ name: `cave-${cube}-${hour}`, payload, cams: cams(C) });
+  pages.push({ name: `cave-${cube}-${hour}${light ? `-${light}` : ''}`, payload, cams: cams(C) });
 }
 const browser = await launchChromium({ executablePath: await resolveChromium({ allowFetch: false }), headless: true, args: CHROMIUM_WEBGL_ARGS });
 for (const p of pages) {

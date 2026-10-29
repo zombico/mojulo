@@ -33,7 +33,7 @@ import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from 
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
 import { applyGrade } from './grade.js';
-import { cutCaves, caveClear } from './cave.js';
+import { cutCaves, caveClear, caveLamps } from './cave.js';
 import { readTrailDress } from './trail-dress.js';
 import { layWater, WATER } from './out-water.js';
 import { duneField, DUNE_WALK } from './out-dunes.js';
@@ -490,7 +490,7 @@ function siteOf(st, plan, grade = null) {
   // (the water's anchors and hazards on the trail, as a ford's are)
   if (WB) { const tid = `out-trail:${plan.id}`; out.anchors.push(...[...WB.anchors, ...WB.hazards].map((a) => ({ ...a, trail: tid }))); out.hazards.push(...WB.hazards.map((a) => ({ ...a, trail: tid }))); }
   // (each cave an anchor: its centreline from the land before its mouth to its end, its width and height, its mouth's floor)
-  if (CV) out.anchors.push(...CV.map((c) => ({ id: c.id, kind: 'cave', path: c.path, width: c.width, height: c.height, ...(c.mouth !== null ? { mouth: c.mouth } : {}), floor: c.floorZ, trail: `out-trail:${plan.id}` })));
+  if (CV) out.anchors.push(...CV.map((c) => ({ id: c.id, kind: 'cave', path: c.path, width: c.width, height: c.height, ...(c.mouth !== null ? { mouth: c.mouth } : {}), light: c.light, ...(c.light !== 'daylight' ? { lamps: caveLamps(c).length } : {}), floor: c.floorZ, trail: `out-trail:${plan.id}` })));
   const origin = J ? J.origin : 0;
   const site = { W: Wg, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius, ...(open ? { open: true } : {}),
     clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin, ...(T.rocks?.boulders !== undefined ? { boulders: T.rocks.boulders } : {}),

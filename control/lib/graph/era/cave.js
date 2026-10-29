@@ -8,6 +8,8 @@
  *     depth    metres into the rock from the cliff's line (CAVE.depth)
  *     along    metres it then runs along behind the cliff's face, toward the trail's end (+) or its start (−): a gallery
  *     width    metres across, wall to wall (CAVE.width)        height   metres from its floor to its ceiling's crown
+ *     light    the register it is lit by past its daylight (CAVE_LIGHTS): 'daylight' (none, the default), 'fluorescent',
+ *              'torch' or 'bio'
  *     mouth    the mouth's height (its `height` when left out): a taller entrance, the ceiling flaring down from it to its
  *              height over a width in; a mouth taller than the rock over it opens to the sky, a cleft
  *
@@ -24,7 +26,7 @@
  */
 
 export const CAVE = Object.freeze({ width: 8, height: 5, depth: 10, along: 0, rise: 0.02, spring: 0.55, margin: 0.6, out: 3, apron: 1.2 });
-const KEYS = ['id', 'y', 'depth', 'width', 'height', 'along', 'mouth'];
+const KEYS = ['id', 'y', 'depth', 'width', 'height', 'along', 'mouth', 'light'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -42,7 +44,11 @@ export function readCaves(list, at = 'trail.ground.caves') {
     if (c.id !== undefined && (typeof c.id !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(c.id))) throw new Error(`stage: ${w}.id is a short lower-case name`);
     return { id: c.id ?? `cave-${i + 1}`, y: num('y', 0, 400, null, 'the station its mouth opens at, metres along the trail'), depth: num('depth', 2, 60, CAVE.depth, 'metres into the rock, 2 to 60'),
       width: num('width', 2, 40, CAVE.width, 'metres wall to wall, 2 to 40'), height: num('height', 2, 30, CAVE.height, 'metres floor to crown, 2 to 30'),
-      along: num('along', -200, 200, CAVE.along, 'metres along behind the face, −200 to 200'), mouth: num('mouth', 2, 40, null, 'the mouth\'s height in metres, 2 to 40') };
+      along: num('along', -200, 200, CAVE.along, 'metres along behind the face, −200 to 200'), mouth: num('mouth', 2, 40, null, 'the mouth\'s height in metres, 2 to 40'), light: (() => {
+        if (c.light === undefined) return 'daylight';
+        if (!CAVE_LIGHT_IDS.includes(c.light)) throw new Error(`stage: ${w}.light is one of ${CAVE_LIGHT_IDS.join(', ')}`);
+        return c.light;
+      })() };
   });
 }
 
@@ -245,10 +251,13 @@ export function caveSky(cave, p, n, day = 1) {
  * The faces under a cave's lid lit by what they see (caveSky): each corner's light that is not the sun's scaled by it,
  * its share of the sun kept (`sunShare`: what the page's live sun redraws). Faces out from under every lid as they were.
  */
-export function caveLight(faces, caves, { day = 1 } = {}) {
+export function caveLight(faces, caves, { day = 1, open = 1 } = {}) {
+  // (`open`: the share of the day's light a face takes in the open at this hour, its bake's light: a lamp lays its own
+  // whatever the hour, so its light against the face's baked light is the more as the hour is darker)
+  const lampGain = 1 / Math.max(0.12, open);
   const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`, rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   return faces.map((f) => {
-    if (!f.fill || !f.corners) return f;
+    if (!f.fill || !f.corners || f.lamp) return f;
     // (a face is the cave's when a corner of it stands under a lid: a wall's cell runs from the floor up into the rock)
     const n = f.normal ?? [0, 0, 1], under = (c, q) => c.covered(q[0], q[1]) && q[2] < c.ceil(q[0], q[1]) + 0.1 && c.inside(q[0], q[1]).d < c.width / 2 + CAVE.margin + 0.5;
     const cave = caves.find((c) => f.corners.some((q) => under(c, q)));
@@ -256,10 +265,15 @@ export function caveLight(faces, caves, { day = 1 } = {}) {
     const shares = Array.isArray(f.sunShare) ? f.sunShare : f.corners.map(() => f.sunShare ?? 0);
     // (each corner a hand off its face, so it does not see its own wall)
     // (a corner up in the rock is read where its face meets the ceiling)
-    const ks = f.corners.map((c, i) => { const sh = shares[i] ?? 0, z = Math.min(c[2], cave.ceil(c[0], c[1]) - 0.15), k = caveSky(cave, [c[0] + n[0] * 0.1, c[1] + n[1] * 0.1, z + n[2] * 0.1], n, day); return { all: sh + (1 - sh) * k, share: sh > 0 ? sh / (sh + (1 - sh) * k) : 0 }; });
-    const fills = (f.cornerFills ?? f.corners.map(() => f.fill)).map((c, i) => hex(rgb(c).map((v) => v * ks[i].all)));
-    const mean = ks.reduce((a, q) => a + q.all, 0) / ks.length;
-    return { ...f, fill: hex(rgb(f.fill).map((v) => v * mean)), cornerFills: fills, ...(f.sunShare !== undefined ? { sunShare: Array.isArray(f.sunShare) ? ks.map((q) => Math.round(q.share * 1e3) / 1e3) : Math.round((ks.reduce((a, q) => a + q.share, 0) / ks.length) * 1e3) / 1e3 } : {}) };
+    // (and its lamps' light, per channel: a register's colour on the rock)
+    const ks = f.corners.map((c, i) => {
+      const sh = shares[i] ?? 0, z = Math.min(c[2], cave.ceil(c[0], c[1]) - 0.15), q = [c[0] + n[0] * 0.1, c[1] + n[1] * 0.1, z + n[2] * 0.1], k = caveSky(cave, q, n, day), lm = lampLight(cave, q, n);
+      const all = sh + (1 - sh) * k, rgbK = lm.map((v) => all + v * lampGain), lum = 0.3 * rgbK[0] + 0.59 * rgbK[1] + 0.11 * rgbK[2];
+      return { all: lum, rgbK, share: sh > 0 ? sh / Math.max(1e-6, lum) : 0 };
+    });
+    const fills = (f.cornerFills ?? f.corners.map(() => f.fill)).map((c, i) => hex(rgb(c).map((v, ch) => v * ks[i].rgbK[ch])));
+    const mean = [0, 1, 2].map((ch) => ks.reduce((a, q) => a + q.rgbK[ch], 0) / ks.length);
+    return { ...f, fill: hex(rgb(f.fill).map((v, ch) => v * mean[ch])), cornerFills: fills, ...(f.sunShare !== undefined ? { sunShare: Array.isArray(f.sunShare) ? ks.map((q) => Math.round(q.share * 1e3) / 1e3) : Math.round((ks.reduce((a, q) => a + q.share, 0) / ks.length) * 1e3) / 1e3 } : {}) };
   });
 }
 
@@ -314,4 +328,96 @@ export function caveRocks(cave, unit) {
 export function flipBoulder(b, z0) {
   const fl = (f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1], 2 * z0 - c[2]]).reverse(), normal: [f.normal[0], f.normal[1], -f.normal[2]], outNormal: [f.normal[0], f.normal[1], -f.normal[2]] });
   return { ...b, sides: b.sides.map(fl), cap: b.cap.map(fl), rim: [] };
+}
+
+// ── its lamps: the register a cave is lit by past its daylight ──────────────────────────────────────────────────────
+/**
+ * CAVE_LIGHTS: what lights a cave past what its mouth lets in, by REGISTER (a cave's `light`): the same rock, a military
+ * base's or a temple's or a grotto's by its light. Each lamp lays its light on the faces that can see it (in the cave,
+ * under its ceiling) in the daylight's units (1: what an open face takes from the sky), `strength` at `near` metres and
+ * falling with the square past it, nothing past `reach`; its fixture is drawn bright, its own light (no bake darkens it).
+ * A register is laid for a cave 8 m across and scaled with this one (`lampScale`): in a hall twice as wide its lamps reach
+ * twice as far and its fixtures stand twice the size (a base's tubes become its high-bay floods, a temple's sconces its
+ * braziers), so a big cave and a small one of a shape are lit alike, as the day lights them.
+ *   fluorescent  strip tubes hung along its crown a step apart (two rows in a wide cave), cold white: a base's
+ *   torch        sconces on both walls in front of their rock, warm: a temple's
+ *   bio          clusters of glowing growth at the walls' feet and from the ceiling, cyan-green, faint: a grotto's
+ */
+export const CAVE_LIGHTS = Object.freeze({
+  fluorescent: Object.freeze({ colour: [0.88, 0.95, 1.0], strength: 0.9, near: 2.5, reach: 14, every: 4.5, fixture: '#f2f8ff' }),
+  torch: Object.freeze({ colour: [1.0, 0.66, 0.34], strength: 0.85, near: 1.4, reach: 10, every: 6, z: 2.2, fixture: '#ffb24a' }),
+  bio: Object.freeze({ colour: [0.42, 1.0, 0.82], strength: 0.5, near: 1.3, reach: 7, every: 2.6, fixture: '#7dffd8' }),
+});
+export const CAVE_LIGHT_IDS = Object.freeze(['daylight', ...Object.keys(CAVE_LIGHTS)]);
+
+// how far the ceiling's slabs hang below it, and how far the walls' lower rocks stand out of them (caveRocks)
+const slabDepth = (cave) => CAVE_ROCKS.ceiling.size * cave.width * 0.7 * CAVE_ROCKS.ceiling.tall;
+const wallOut = (cave, s) => 0.38 * (CAVE_ROCKS.wall[0][1] * cave.heightAt(s) * CAVE.spring) / 0.7;
+
+/** A cave's lamps by its register: [{ at: [x, y, z], kind, dir }] (`dir` the way along the cave at it). Memoised. */
+export function caveLamps(cave) {
+  if (cave._lamps) return cave._lamps;
+  const L = CAVE_LIGHTS[cave.light], out = [];
+  if (L) {
+    const half = cave.width / 2, total = cave.path.slice(1).reduce((a, p, k) => a + Math.hypot(p[0] - cave.path[k][0], p[1] - cave.path[k][1]), 0);
+    const step = Math.max(L.every, cave.light === 'fluorescent' ? cave.width * 0.45 : cave.light === 'torch' ? cave.width * 0.6 : 0);
+    let k = 0;
+    for (let s = CAVE.out + Math.max(2, cave.width * 0.5); s < total - 0.5; s += step, k++) {
+      const A = along(cave, s), across = [-A.dir[1], A.dir[0]], at = (t, z) => [A.at[0] + across[0] * t, A.at[1] + across[1] * t, z];
+      if (cave.light === 'fluorescent') for (const t of cave.width > 12 ? [-0.35 * half, 0.35 * half] : [0]) { const p = at(t, 0); if (cave.covered(p[0], p[1])) out.push({ at: [p[0], p[1], cave.ceil(p[0], p[1]) - slabDepth(cave) - 0.3], kind: 'fluorescent', dir: A.dir }); }
+      if (cave.light === 'torch') for (const sg of [-1, 1]) { const p = at(sg * (half - wallOut(cave, s) - 0.25), 0); if (cave.covered(p[0], p[1])) out.push({ at: [p[0], p[1], cave.floor(s) + L.z], kind: 'torch', dir: A.dir, side: sg }); }
+      if (cave.light === 'bio') { const sg = k % 2 ? 1 : -1, p = at(sg * (half - wallOut(cave, s) - 0.35), 0), q = at(-sg * 0.3 * half, 0);
+        // (its light from the glow over the growth, half a metre up, not its foot: it lights the floor round it too)
+        if (cave.covered(p[0], p[1])) out.push({ at: [p[0], p[1], cave.floor(s) + 0.5 * lampScale(cave)], kind: 'bio', dir: A.dir, foot: cave.floor(s) });
+        if (k % 2 === 0 && cave.covered(q[0], q[1])) out.push({ at: [q[0], q[1], cave.ceil(q[0], q[1]) - slabDepth(cave) * 0.6], kind: 'bio', dir: A.dir, hung: true }); }
+    }
+  }
+  cave._lamps = out.map((l) => ({ ...l, at: l.at.map((v) => Math.round(v * 1e5) / 1e5) }));
+  return cave._lamps;
+}
+
+/** How a cave's register is scaled from the 8 m cave it is laid for. */
+export const lampScale = (cave) => Math.max(1, cave.width / 8);
+
+/** The lamps' light on a point (normal `n`) in a cave, per channel, in the daylight's units. */
+export function lampLight(cave, p, n) {
+  const L = CAVE_LIGHTS[cave.light], out = [0, 0, 0];
+  if (!L) return out;
+  const k = lampScale(cave), near = L.near * k, reach = L.reach * k;
+  for (const l of caveLamps(cave)) {
+    const d = sub3(l.at, p), r = Math.hypot(...d);
+    if (r > reach || r < 1e-6) continue;
+    const cos = dot3(n, d) / r;
+    if (cos <= 0 || !sees(cave, p, l.at)) continue;
+    const e = L.strength * cos / (1 + (r / near) ** 2) * (1 - smooth(reach * 0.7, reach, r));
+    for (let c = 0; c < 3; c++) out[c] += e * L.colour[c];
+  }
+  return out;
+}
+
+/** The lamps' fixtures, drawn bright: a fluorescent's tube under its housing, a torch's flame on its bracket, a bio
+ *  cluster's crystals. → [{ corners, normal, group, fill, lamp: true }] (`lamp` faces are their own light). */
+export function lampFaces(cave) {
+  const L = CAVE_LIGHTS[cave.light], out = [];
+  if (!L) return out;
+  const box = (c, ex, ey, ez, fill, group, lamp) => {
+    const [x, y, z] = c, P = (a, b, h) => [x + ex[0] * a + ey[0] * b, y + ex[1] * a + ey[1] * b, z + h];
+    const sides = [[[-1, -1, 0], [1, -1, 0], [1, -1, 1], [-1, -1, 1], [0, -1, 0]], [[1, -1, 0], [1, 1, 0], [1, 1, 1], [1, -1, 1], [1, 0, 0]], [[1, 1, 0], [-1, 1, 0], [-1, 1, 1], [1, 1, 1], [0, 1, 0]], [[-1, 1, 0], [-1, -1, 0], [-1, -1, 1], [-1, 1, 1], [-1, 0, 0]],
+      [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1], null], [[-1, 1, 0], [1, 1, 0], [1, -1, 0], [-1, -1, 0], null]];
+    sides.forEach((q, i) => {
+      const cs = q.slice(0, 4).map(([a, b, h]) => P(a * ez[0], b * ez[1], h * ez[2] - ez[2] / 2)), nrm = i === 4 ? [0, 0, 1] : i === 5 ? [0, 0, -1] : (() => { const [a, b] = q[4]; return [ex[0] * a + ey[0] * b, ex[1] * a + ey[1] * b, 0]; })();
+      out.push({ corners: cs.map((v) => v.map((w) => Math.round(w * 1e5) / 1e5)), normal: nrm, group, fill: fill, ...(lamp ? { lamp: true } : {}) });
+    });
+  };
+  const m = lampScale(cave), sz = (v) => v.map((x) => x * m);
+  for (const l of caveLamps(cave)) {
+    const ex = l.dir, ey = [-l.dir[1], l.dir[0]];
+    if (l.kind === 'fluorescent') { box(l.at, ex, ey, sz([0.8, 0.07, 0.07]), L.fixture, 'cave:lamp', true); box([l.at[0], l.at[1], l.at[2] + 0.1 * m], ex, ey, sz([0.85, 0.12, 0.05]), '#2e3338', 'cave:fixture'); }
+    if (l.kind === 'torch') { const w = [-ey[0] * l.side, -ey[1] * l.side]; box([l.at[0] - w[0] * 0.15 * m, l.at[1] - w[1] * 0.15 * m, l.at[2] - 0.3 * m], ex, ey, sz([0.05, 0.18, 0.3]), '#2a2420', 'cave:fixture'); box([l.at[0], l.at[1], l.at[2] + 0.12 * m], ex, ey, sz([0.09, 0.09, 0.32]), L.fixture, 'cave:lamp', true); }
+    if (l.kind === 'bio') for (let k = 0; k < 4; k++) {
+      const a = (k * 1.9) % (2 * Math.PI), r = (0.12 + 0.08 * k) * m, h = (l.hung ? -1 : 1) * (0.18 + 0.1 * ((k * 7) % 3)) * m;
+      box([l.at[0] + Math.cos(a) * r, l.at[1] + Math.sin(a) * r, l.hung ? l.at[2] + h : l.foot], ex, ey, [(0.05 + 0.02 * k) * m, (0.05 + 0.02 * k) * m, Math.abs(h)], k % 2 ? L.fixture : '#4fe0b0', 'cave:lamp', true);
+    }
+  }
+  return out;
 }

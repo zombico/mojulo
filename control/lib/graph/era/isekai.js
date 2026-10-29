@@ -78,7 +78,7 @@ import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
-import { lidFaces, caveLight, caveRocks, flipBoulder, CAVE } from './cave.js';
+import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './cave.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
 const CAVE_GRIT = 0.6;
 
@@ -843,7 +843,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const payload = {
     // (under a cave's lid, each face lit by what it sees of the day through the mouth: era/cave.js caveLight)
-    faces: site.caves ? caveLight(drawnFaces, site.caves, { day: st.night ? 0.3 : 1 }) : drawnFaces,
+    // (and its lamps' fixtures by its register, their own light: caveLamps, lampFaces)
+    faces: site.caves ? caveLight([...drawnFaces, ...site.caves.flatMap((c) => lampFaces(c).map((f) => ({ ...f, outNormal: f.normal, cornerFills: f.corners.map(() => f.fill) })))], site.caves, { day: st.night ? 0.3 : 1, open: hourDim(st) }) : drawnFaces,
     cutouts,
     ...(treeRepeats.length ? { repeats: treeRepeats } : {}),
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),

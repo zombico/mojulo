@@ -24,6 +24,13 @@ rock (its walls the cliff's rock, its floor scree, a ceiling under the land), li
 - **Rock behind the cliff** (`trail.ground.behind`, 0 to 80 m): the land over the far cliff that much deeper, the cliff
   where it was, for a deep cave or a mountain's base; with `ground.cliff.height` a cave big enough to drive an elephant
   through (22 m wide, a 24 m mouth, in a 34 m cliff) lights and lines as a small one does.
+- **Its register** (a cave's `light`, `CAVE_LIGHTS`): the same rock a base's, a temple's or a grotto's by what lights it
+  past its daylight. `fluorescent` hangs tubes along its crown (two rows in a wide cave), cold white; `torch` sets
+  sconces on both walls in front of their rock, warm; `bio` grows glowing clusters at the walls' feet and from the
+  ceiling, cyan-green, faint. Each fixture is drawn bright, its own light; each lamp lays its colour on the faces that
+  can see it (in the cave, under its ceiling), falling with the square past its near distance, added to what the day
+  lays, the same at any hour (against a darker hour's bake, the more). A register is laid for a cave 8 m across and
+  scaled with the cave (`lampScale`): in a hall its tubes are high-bay floods and its sconces braziers.
 - **The meru's rock**: a trail with caves wears the meru's gen-7 rock fabric, strata and joints near the eye, inside and
   out.
 - **The geocube card** says it; `scripts/spikes/caves/cave.mjs` captures a cave from the approach, wide, at the mouth,
