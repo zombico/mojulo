@@ -948,11 +948,11 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
     if (spec.head !== 'anime' && !landmark) errs.push(`blink: the ambient blink is the anime or the landmark head's (head: 'anime' | 'landmark')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');
   }
-  // THE FACE'S PERFORMANCES (face-acting/perform.js): { <take>: a performance in beats }, each a face-only clip in an
-  // export (`face:<take>`), the realistic face's
+  // THE FACE'S PERFORMANCES (face-acting/perform.js): { <take>: a performance in beats, a beat's `say` a line it speaks
+  // (face-acting/speech.js) }, each a face-only clip in an export (`face:<take>`), the realistic face's
   if (spec.perform !== undefined && spec.perform !== null) {
     if (!relational) errs.push(`perform: a face's performance is the realistic hero's (form: 'realistic', its relational head)`);
-    else if (typeof spec.perform !== 'object' || Array.isArray(spec.perform) || !Object.keys(spec.perform).length) errs.push('perform: { <take>: { beats: [{ at, face, … }], seconds?, intensity?, seed? } }');
+    else if (typeof spec.perform !== 'object' || Array.isArray(spec.perform) || !Object.keys(spec.perform).length) errs.push('perform: { <take>: { beats: [{ at, face, say?, … }], seconds?, intensity?, seed? } }');
     else for (const [take, P] of Object.entries(spec.perform)) {
       if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(take)) { errs.push(`perform.${take}: a take's name is a word (letters, digits, - and _)`); continue; }
       errs.push(...performanceErrors(P).map((e) => `perform.${take}.${e}`));

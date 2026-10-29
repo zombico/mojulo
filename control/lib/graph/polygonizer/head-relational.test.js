@@ -151,4 +151,14 @@ describe('the face\'s muscles (FACS action units: face-acting/facs.js)', () => {
     // (the chin itself is bone: the mentalis moves the soft tissue over it)
     expect(d(c, 'chin', 'c', 'z')).toBe(0);
   });
+  it('shape the lips for speech: rounded forward and in, turned out, the lower under the teeth, parted, the bone still', () => {
+    // (each lip's middle is its vajras' last bead, its corner the first)
+    const pk = moved({ pucker: 1 }), fn = moved({ funnel: 1 }), rl = moved({ rollLower: 1 }), lp = moved({ lipsPart: 1 });
+    expect(d(pk, 'upperLipR', 'c', 'y')).toBeGreaterThan(5); expect(d(pk, 'lowerLipR', 'c', 'y')).toBeGreaterThan(5);
+    expect(Math.abs(rest.lowerLipR.a.x) - Math.abs(pk.lowerLipR.a.x)).toBeGreaterThan(5 / MM);
+    expect(d(fn, 'upperLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(fn, 'lowerLipR', 'c', 'z')).toBeLessThan(-2);
+    expect(d(rl, 'lowerLipR', 'c', 'y')).toBeLessThan(-3); expect(d(rl, 'lowerLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(rl, 'upperLipR', 'c', 'y')).toBe(0);
+    expect(d(lp, 'upperLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(lp, 'lowerLipR', 'c', 'z')).toBeLessThan(-2); expect(d(lp, 'lowerLipR', 'a', 'z')).toBe(0);
+    for (const A of [pk, fn, rl, lp]) { expect(d(A, 'chin', 'c', 'z')).toBe(0); expect(d(A, 'browPad', 'a', 'z')).toBe(0); }
+  });
 });

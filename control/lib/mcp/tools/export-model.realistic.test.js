@@ -22,7 +22,7 @@ import { expandLayeredManifest } from './layered.js';
 describe('the realistic hero, minted and exported', () => {
   it('mints at the door and exports a lit skinned GLB an engine reads: the joints, the clips, the correctives, the normals', async () => {
     const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'],
-      perform: { hello: { seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'amused', flash: true, gaze: 'away' }] } } } });
+      perform: { hello: { seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'amused', flash: true, gaze: 'away', say: 'Hi, you.' }] } } } });
     expect(minted.ok).toBe(true);
     expect(minted.hero.head).toBe('relational');
     const out = await exportModelHandler({ ref: minted.ref, format: 'glb', clips: '_all', skinned: true, lit: true });
@@ -42,6 +42,8 @@ describe('the realistic hero, minted and exported', () => {
     expect(names).toEqual(expect.arrayContaining(['blink', 'blinkLeft', 'smile', 'browRaise']));
     // (the FACS units by side and the gaze's look targets; a performance a face-only LINEAR clip on them: face-acting/)
     expect(names).toEqual(expect.arrayContaining(['frownLeft', 'cheekRaiseRight', 'eyeLookUpLeft', 'eyeLookOutRight']));
+    // (and speech's: the lips' shapes and the jaw as ARKit's jawOpen, a line spoken in the take)
+    expect(names).toEqual(expect.arrayContaining(['pucker', 'funnel', 'rollLower', 'lipsPart', 'jawOpen']));
     const take = root.listAnimations().find((a) => a.getName() === 'face:hello');
     expect(take).toBeTruthy();
     expect(take.listSamplers().map((sm) => sm.getInterpolation())).toEqual(['LINEAR']);

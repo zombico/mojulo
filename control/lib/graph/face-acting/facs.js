@@ -2,7 +2,8 @@
  * facs — the face's controls in the vocabulary of FACS (Ekman, Friesen and Hager's Facial Action Coding System): each
  * ACTION UNIT one muscle's (or a group's) visible action, the unit an actor's face, an animator's rig and a capture
  * session all read. A face's state is AU intensities, 0 … 1 (FACS scores A trace … E maximum: `INTENSITY`), each AU
- * whole (`AU12`) or a side alone (`AU12L`, `AU12R`: L the figure's left).
+ * whole (`AU12`) or a side alone (`AU12L`, `AU12R`: L the figure's left), or a lip alone where ARKit splits a unit by lip
+ * (`AU28T` the upper lip's, `AU28B` the lower's: the f's and the v's lower lip under the teeth).
  *
  *   • `FACS_UNITS`: each AU's name, its muscle, whether it acts per side, its ARKit names (Apple's 52 blendshapes, the
  *     capture format iPhone Live Link Face, MetaHuman and VRM perfect sync speak: FACS per side), and the realistic
@@ -20,7 +21,8 @@ export const INTENSITY = Object.freeze({ A: 0.2, B: 0.4, C: 0.6, D: 0.8, E: 1 })
 /**
  * The action units: `muscle`, `sided` (acts on one side alone in a face; ARKit splits it), `arkit` (the shapes that
  * capture it, per side Left then Right where sided), `action` (the realistic head's, a side by its `L`/`R` suffix where
- * `sided`; null: a gap) and `region` (upper face, lower face, eyes, jaw: what a blend of two emotions divides).
+ * `sided`, a list where the unit is two of its actions; null: a gap), `lips` (a lip alone's action, `T` the upper and `B`
+ * the lower, where ARKit splits the unit by lip) and `region` (upper face, lower face, eyes, jaw: what a blend of two emotions divides).
  */
 export const FACS_UNITS = Object.freeze({
   AU1: { name: 'inner brow raiser', muscle: 'frontalis, pars medialis', sided: false, arkit: ['browInnerUp'], action: 'browInner', region: 'upper' },
@@ -38,14 +40,14 @@ export const FACS_UNITS = Object.freeze({
   AU15: { name: 'lip corner depressor', muscle: 'depressor anguli oris (triangularis)', sided: true, arkit: ['mouthFrownLeft', 'mouthFrownRight'], action: 'frown', region: 'lower' },
   AU16: { name: 'lower lip depressor', muscle: 'depressor labii inferioris', sided: true, arkit: ['mouthLowerDownLeft', 'mouthLowerDownRight'], action: 'lowerLipDown', region: 'lower' },
   AU17: { name: 'chin raiser', muscle: 'mentalis', sided: false, arkit: ['mouthShrugLower'], action: 'chinRaise', region: 'lower' },
-  AU18: { name: 'lip pucker', muscle: 'incisivii labii superioris and inferioris', sided: false, arkit: ['mouthPucker'], action: null, region: 'lower' },
+  AU18: { name: 'lip pucker', muscle: 'incisivii labii superioris and inferioris', sided: false, arkit: ['mouthPucker'], action: 'pucker', region: 'lower' },
   AU20: { name: 'lip stretcher', muscle: 'risorius, platysma', sided: true, arkit: ['mouthStretchLeft', 'mouthStretchRight'], action: 'stretch', region: 'lower' },
-  AU22: { name: 'lip funneler', muscle: 'orbicularis oris', sided: false, arkit: ['mouthFunnel'], action: null, region: 'lower' },
+  AU22: { name: 'lip funneler', muscle: 'orbicularis oris', sided: false, arkit: ['mouthFunnel'], action: 'funnel', region: 'lower' },
   AU23: { name: 'lip tightener', muscle: 'orbicularis oris', sided: false, arkit: [], action: 'tighten', region: 'lower' },
   AU24: { name: 'lip presser', muscle: 'orbicularis oris', sided: true, arkit: ['mouthPressLeft', 'mouthPressRight'], action: 'press', region: 'lower' },
-  AU25: { name: 'lips part', muscle: 'depressor labii inferioris, relaxed mentalis or orbicularis oris', sided: false, arkit: [], action: null, region: 'lower' },
+  AU25: { name: 'lips part', muscle: 'depressor labii inferioris, relaxed mentalis or orbicularis oris', sided: false, arkit: [], action: 'lipsPart', region: 'lower' },
   AU26: { name: 'jaw drop', muscle: 'masseter, temporalis and pterygoids relaxed', sided: false, arkit: ['jawOpen'], action: 'jaw', region: 'jaw' },
-  AU28: { name: 'lip suck', muscle: 'orbicularis oris', sided: false, arkit: ['mouthRollLower', 'mouthRollUpper'], action: null, region: 'lower' },
+  AU28: { name: 'lip suck', muscle: 'orbicularis oris', sided: false, lips: { T: 'rollUpper', B: 'rollLower' }, arkit: ['mouthRollLower', 'mouthRollUpper'], action: ['rollUpper', 'rollLower'], region: 'lower' },
   AU29: { name: 'jaw thrust', muscle: 'pterygoids', sided: false, arkit: ['jawForward'], action: null, region: 'jaw' },
   AU30: { name: 'jaw sideways', muscle: 'pterygoids', sided: true, arkit: ['jawLeft', 'jawRight'], action: null, region: 'jaw' },
   AU34: { name: 'cheek puff', muscle: 'buccinator (air)', sided: false, arkit: ['cheekPuff'], action: null, region: 'lower' },
@@ -85,10 +87,11 @@ export const EMOTION_PROTOTYPES = Object.freeze({
   contempt: { AU12R: 0.4, AU14R: 0.4 },
 });
 
-/** a state's key → its AU and side (`AU12L` → ['AU12', 'L']; `AU12` → ['AU12', null]); null for a key not an AU */
+/** a state's key → its AU and side or lip (`AU12L` → ['AU12', 'L']; `AU28B` → ['AU28', 'B']; `AU12` → ['AU12', null]); null
+ * for a key not an AU (or a lip on a unit not split by lip) */
 export function auOf(key) {
-  const m = /^(AU\d+)([LR])?$/.exec(key);
-  return m && FACS_UNITS[m[1]] ? [m[1], m[2] ?? null] : null;
+  const m = /^(AU\d+)([LRTB])?$/.exec(key), U = m && FACS_UNITS[m[1]];
+  return U && (!m[2] || 'LR'.includes(m[2]) || U.lips) ? [m[1], m[2] ?? null] : null;
 }
 
 /**
@@ -101,13 +104,15 @@ export function facsActions(state = {}) {
   const put = (k, v) => { actions[k] = Math.min(1, (actions[k] ?? 0) + v); };
   for (const [key, raw] of Object.entries(state)) {
     const at = auOf(key);
-    if (!at) throw new Error(`facs: '${key}' is not an action unit (have ${FACS_UNIT_IDS.join(', ')}, a side by L or R)`);
+    if (!at) throw new Error(`facs: '${key}' is not an action unit (have ${FACS_UNIT_IDS.join(', ')}, a side by L or R, a lip by T or B where split)`);
     const [au, side] = at, U = FACS_UNITS[au], v = Math.max(0, Math.min(1, Number(raw) || 0));
     if (!v) continue;
-    // (a side alone is that side's action, which the head has or not: a side it moves only whole is a gap, never both)
-    const act = U.action && (side ? (U.sided ? `${U.action}${side}` : null) : U.action);
-    if (!act || !Object.hasOwn(ACTIONS, act)) { gaps[key] = v; continue; }
-    put(act, v);
+    // (a side alone is that side's action, which the head has or not: a side it moves only whole is a gap, never both;
+    // a lip alone its lip's)
+    const lip = side === 'T' || side === 'B';
+    const act = lip ? U.lips[side] : U.action && (side ? (U.sided ? `${U.action}${side}` : null) : U.action), acts = Array.isArray(act) ? act : [act];
+    if (!act || acts.some((x) => !Object.hasOwn(ACTIONS, x))) { gaps[key] = v; continue; }
+    for (const x of acts) put(x, v);
   }
   return { actions, gaps };
 }

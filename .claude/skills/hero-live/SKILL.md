@@ -37,9 +37,12 @@ node .claude/skills/hero-live/shot.mjs --out /tmp/hero-live --shots '[{"variant"
 `shot.mjs` needs a Chromium: `lib/graph/scene/chromium.js` resolves and launches it, and `MOJULO_CHROMIUM` names one
 it does not find (a Playwright build: `/opt/pw-browsers/chromium-*/chrome-linux/chrome`).
 
-A realistic hero's face PERFORMANCES (the door's `perform`: `{ <take>: { beats: [{ at, face, state?, gaze?, flash?, micro? }],
-seconds?, intensity?, seed? } }`, `control/lib/graph/face-acting/perform.js`) export as face-only clips (`face:<take>`) and
-play here as takes of their own, over the body's idle, their own blinks and gaze in place of the page's.
+A realistic hero's face PERFORMANCES (the door's `perform`: `{ <take>: { beats: [{ at, face, state?, gaze?, flash?, micro?,
+say? }], seconds?, intensity?, seed? } }`, `control/lib/graph/face-acting/perform.js`; a beat's `say` a line it speaks,
+`face-acting/speech.js`, `*word*` emphasized) export as face-only clips (`face:<take>`) and play here as takes of their own,
+over the body's idle, their own blinks and gaze in place of the page's. To read a line's lip-sync, shoot the take at its
+phonemes' middles (`perform(P).events.lines[0].phonemes`, each `t` and `dur`): the lips shut on m, b and p, the lower lip
+under the teeth on f and v, rounded on oo and w.
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body and Side views, the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter

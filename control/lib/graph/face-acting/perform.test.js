@@ -2,7 +2,7 @@
 // concepts: deterministic per seed; curves in range and continuous; the thought leads; a micro-expression stays under a
 // fifth of a second; blinks at the state's rate; saccades on the main sequence; nothing blinks through a shut eye.
 import { describe, expect, it } from 'vitest';
-import { perform, performanceErrors, captureFrame, BLINK, BROW_FLASH, GAZE, MICRO } from './perform.js';
+import { perform, performanceErrors, captureFrame, BLINK, BROW_FLASH, GAZE, MICRO, SPEAKING } from './perform.js';
 import { EMOTIONS } from './emotions.js';
 import { FACS_UNITS, auOf } from './facs.js';
 
@@ -60,6 +60,21 @@ describe('the performer', () => {
     for (const s of T.events.saccades) expect(s.dur).toBeCloseTo(GAZE.saccade.base + GAZE.saccade.perDeg * s.amp, 3);
     const thinking = Math.round(4.5 * T.fps);
     expect(Math.abs(T.gaze.yaw[thinking])).toBeGreaterThan(GAZE.away.yaw[0] - GAZE.drift.deg - 0.01);
+  });
+  it('speaks a line over the face: the speech\'s units laid on, a rounded lip drawing the smile in, the brows kept', () => {
+    // (a smiling face from the library, its brows' and its eyes' units kept under the line)
+    const w = Object.keys(EMOTIONS).find((x) => EMOTIONS[x].AU12 && Object.keys(EMOTIONS[x]).some((k) => regionOf(k) !== 'lower'));
+    const quiet = perform({ seed: 1, seconds: 4, beats: [{ at: 0, face: w }] }), T = perform({ seed: 1, seconds: 4, beats: [{ at: 0, face: w, say: 'Who knew you would come?' }] });
+    expect(T.events.lines).toHaveLength(1);
+    expect(Math.max(...T.curves.AU26)).toBeGreaterThan(0.1); expect(Math.max(...T.curves.AU18)).toBeGreaterThan(0.4);
+    const ou = T.curves.AU18.indexOf(Math.max(...T.curves.AU18));
+    expect(T.curves.AU12[ou]).toBeLessThan(quiet.curves.AU12[ou] * (1 - SPEAKING.round * 0.5));
+    for (const k of Object.keys(EMOTIONS[w]).filter((x) => regionOf(x) !== 'lower')) expect(T.curves[k][ou]).toBeCloseTo(quiet.curves[k][ou], 6);
+    // (the take runs to the line's end; the beat speaks unless it says another state; an emphasized word's baton)
+    expect(perform({ seed: 1, beats: [{ at: 1, face: 'neutral', say: 'This is a rather long line, said slowly and with care.' }] }).seconds).toBeGreaterThan(4);
+    const E = perform({ seed: 1, beats: [{ at: 0, face: 'neutral', say: 'I said *no*.' }] });
+    expect(E.events.batons.map((b) => b.word)).toEqual(['no']); expect(Math.max(...E.curves.AU2)).toBeGreaterThan(0.25);
+    expect(performanceErrors({ beats: [{ at: 0, face: 'neutral', say: { text: 'hi', rate: 9 } }] })[0]).toMatch(/beats\[0\]\.say\.rate/);
   });
   it('refuses by name what is not a performance', () => {
     expect(performanceErrors({})[0]).toMatch(/beats/);

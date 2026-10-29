@@ -33,11 +33,13 @@ describe('the realistic face\'s weights', () => {
 });
 
 describe('a FACS state on the realistic face', () => {
-  it('weighs each unit on its action\'s target, a side on the side\'s, and says what is no target (the jaw is a bone)', () => {
+  it('weighs each unit on its action\'s target, a side on the side\'s, a lip on the lip\'s, the jaw on jawOpen', () => {
     const at = (st) => { const { weights, gaps } = facsWeights(st); return { w: Object.fromEntries(RELATIONAL_FACE_TARGETS.map((t, i) => [t, weights[i]]).filter(([, v]) => v)), gaps }; };
     expect(at({ AU15: 0.6 })).toEqual({ w: { frown: 0.6 }, gaps: {} });
     expect(at({ AU12R: 0.4, AU14R: 0.4 })).toEqual({ w: { smileRight: 0.4, dimpleRight: 0.4 }, gaps: {} });
-    expect(at({ AU1: 0.8, AU26: 0.5 })).toEqual({ w: { browWorried: 0.8 }, gaps: { jaw: 0.5 } });
+    expect(at({ AU1: 0.8, AU26: 0.5 })).toEqual({ w: { browWorried: 0.8, jawOpen: 0.5 }, gaps: {} });
+    expect(at({ AU28B: 0.7, AU25: 0.4 })).toEqual({ w: { rollLower: 0.7, lipsPart: 0.4 }, gaps: {} });
+    expect(at({ AU28: 0.5 })).toEqual({ w: { rollUpper: 0.5, rollLower: 0.5 }, gaps: {} });
   });
 });
 
@@ -47,14 +49,17 @@ describe('a take on the realistic face', () => {
     expect(G.eyeLookUpLeft).toBe(1); expect(G.eyeLookInLeft).toBe(0.5); expect(G.eyeLookOutRight).toBe(0.5);
     expect(G.eyeLookDownLeft).toBe(0); expect(G.eyeLookOutLeft).toBe(0);
   });
-  it('keys a take at 30 fps on every target, its units and its gaze, the jaw (a bone) said', () => {
+  it('keys a take at 30 fps on every target, its units and its gaze, the jaw on jawOpen', () => {
     const T = perform({ seed: 1, seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'shocked', gaze: 'away' }] }), K = performanceTrack(T);
     expect(K.t).toHaveLength(2 * 30 + 1); expect(K.t.at(-1)).toBe(2);
     expect(K.w.every((row) => row.length === RELATIONAL_FACE_TARGETS.length)).toBe(true);
     const last = Object.fromEntries(RELATIONAL_FACE_TARGETS.map((n, i) => [n, K.w.at(-1)[i]]));
     expect(last.browRaise + last.browWorried + last.browOuter).toBeGreaterThan(0.5);
     expect(Object.keys(last).filter((k) => k.startsWith('eyeLook') && last[k] > 0.2).length).toBeGreaterThan(0);
-    expect(K.gaps).toEqual(['jaw']);
+    expect(K.gaps).toEqual([]);
+    // (a spoken line opens the jaw and shapes the lips, none of it a gap)
+    const S = performanceTrack(perform({ seed: 1, beats: [{ at: 0, face: 'neutral', say: 'Who are you?' }] })), at = (n) => Math.max(...S.w.map((r) => r[RELATIONAL_FACE_TARGETS.indexOf(n)]));
+    expect(at('jawOpen')).toBeGreaterThan(0.1); expect(at('pucker')).toBeGreaterThan(0.3); expect(S.gaps).toEqual([]);
   });
 });
 
@@ -110,6 +115,24 @@ describe('the realistic face rig', () => {
     expect(rightF).toBeLessThan(1e-4);
     // (its inner ends as far as the raise lifts them, the tail kept: most of the raise's reach at its most)
     expect(move('browWorried', /^hairBrows$/)).toBeGreaterThan(0.7 * move('browRaise', /^hairBrows$/));
+  });
+  it('parts the lips for speech, each lip its own way, and opens the jaw by the bone\'s own turn', () => {
+    // (the lips' middles: the one skin's points on the midline about the mouth's bag, the upper lip's the head bone's and
+    // the lower's the jaw's; parted, the upper rise and the lower fall)
+    const bag = Object.values(m.recipe.parts.mouth.mesh.points), zc = bag.reduce((t, q) => t + q[2], 0) / bag.length, front = Math.max(...bag.map((q) => q[1]));
+    const blend = m.recipe.parts.headSkin.bind.blend, ti = F.targets.indexOf('lipsPart'), dz = { up: [], low: [] };
+    mesh.vertices.forEach((v, i) => {
+      const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || Math.abs(v[0]) > 0.008 || Math.abs(v[2] - zc) > 0.01 || v[1] < front) return;
+      const pv = mesh.provenance[i];
+      dz[(blend[`${pv.station}.${pv.slot}`]?.jaw ?? 0) >= 0.5 ? 'low' : 'up'].push(F.rows[k * W + 3 + ti * 3 + 2]);
+    });
+    const mean = (a) => a.reduce((t, x) => t + x, 0) / a.length;
+    expect(dz.up.length).toBeGreaterThan(2); expect(dz.low.length).toBeGreaterThan(2);
+    expect(mean(dz.up)).toBeGreaterThan(0.0008); expect(mean(dz.low)).toBeLessThan(-0.0008);
+    // (the jaw: the lower face, the mouth's bag with it, by the bone; the eyes and the brows still)
+    expect(move('jawOpen', /^headSkin$/)).toBeGreaterThan(0.01); expect(move('jawOpen', /^mouth$/)).toBeGreaterThan(0.005);
+    expect(move('jawOpen', /^(globe[RL]|hairBrows|hairLashes)$/)).toBeLessThan(1e-6);
+    for (const t of ['pucker', 'funnel', 'rollLower', 'rollUpper']) { expect(move(t, /^headSkin$/)).toBeGreaterThan(0.002); expect(move(t, /^(globe[RL]|hairLashes)$/)).toBeLessThan(1e-6); }
   });
   it('turns the lashes with their lids: an upper lash points up at rest and down when the lid is shut', () => {
     // (each lash a connected blade of the lashes' faces; its root the point nearest the skin, its tip the farthest from it)

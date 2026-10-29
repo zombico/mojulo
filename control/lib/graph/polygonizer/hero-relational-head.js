@@ -620,15 +620,19 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
  * skin; the upper lid by its height from its margin up to its crease, whole to `tuck[0]` of it and none from `tuck[1]`,
  * out to `lidOutUp` past its margin; the lower out to `geoLow` along the skin), else by those bands, and its
  * weight and turn smoothed `smooth` times over the skin's neighbours. The beads carry what the lids leave (under the
- * lower lid `carryUnder` of it), and what they carry settles (in the eye's footprint `settleIn` of the settle's reach) */
-export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], tuck: [0.2, 0.7], lidOutUp: [0.0035, 0.005], smooth: 12 });
+ * lower lid `carryUnder` of it; about the mouth each lip by its own beads alone, `lipApart`; the nose held by its still
+ * beads, `noseHold`), and what they carry settles (in the eye's footprint `settleIn` of the settle's reach; only from
+ * `settleFrom` under the eyes up) */
+export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], tuck: [0.2, 0.7], lidOutUp: [0.0035, 0.005], smooth: 12, lipApart: [0.004, 0.012, 0.006], settleFrom: [0.016, 0.01], noseHold: 0.6 });
+/** the drivers of the upper lip's beads, and of the lower lip's and the jaw's (head-relational.js actionDrivers) */
+const LIP_UP = /^(bow[LR]|lipUpC|lipUpHalf)$/, LIP_DOWN = /^(loMid[LR]|lipStretch|jaw|jawHalf|foldOpen)$/;
 /**
  * Where the one skin's points go under `actions` (head-relational.js ACTIONS): `points` { id: [x, y, z] } and
  * `normals` { id: n } in the hero's frame (the rest skin's: hero-one-skin.js), the face's words and its `fit`. →
  * { id: [x, y, z] }. The skin is never re-netted per action (its faces would change): the rest's own points move, so the
  * face rig differences them (relational-face-rig.js). A point of the eye's socket behind its globe moves with the lids alone.
  */
-export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, seat = false, tune = null, fit, actions, points, normals, faces = null, opts = {} }) {
+export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, seat = false, tune = null, fit, actions, points, normals, faces = null, jawShare = null, opts = {} }) {
   const C = { ...RELATIONAL_HEAD, ...opts }, F = { ...SKIN_FOLLOW, ...(opts.follow || {}) };
   const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}), ...(seat ? { seat: true } : {}) }, tn = tune ?? HEAD_TUNES[sex];
   const rest = relationalHead({ sex, tune: tn, ears: false, ...own }), acted = relationalHead({ sex, tune: tn, ears: false, ...own, actions });
@@ -639,8 +643,26 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
   const beads = [];
   // (the beads live in the head's vajra units: HEAD_V of the head's own)
   const hv = HEAD_V, inH = (q) => ({ x: q.x * hv, y: q.y * hv, z: q.z * hv });
-  rest.vajras.forEach((w, i) => { const v = acted.vajras[i]; if (!w.drive || !v) return; ['a', 'c', 'b'].forEach((key, j) => { const d = [(v[key].x - w[key].x) * hv * k, (v[key].y - w[key].y) * hv * k, (v[key].z - w[key].z) * hv * k]; if (Math.hypot(...d) < 1e-7) return; const r = Math.max(F.beadMin, (Array.isArray(w.r) ? w.r[Math.min(j, w.r.length - 1)] : w.r) * hv * k * F.beadReach); beads.push({ p: toHero(inH(w[key])), d, r }); }); });
-  const carry = (p) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2, w = Math.exp(-d2 / (b.r * b.r)); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
+  // (each bead's LIP: +1 the upper lip's, −1 the lower's and the jaw's, 0 neither, by the drivers that move it)
+  const lipOf = (names = []) => (names.some((x) => LIP_UP.test(x)) ? 1 : names.some((x) => LIP_DOWN.test(x)) ? -1 : 0);
+  const beadR = (w, j) => Math.max(F.beadMin, (Array.isArray(w.r) ? w.r[Math.min(j, w.r.length - 1)] : w.r) * hv * k * F.beadReach);
+  rest.vajras.forEach((w, i) => { const v = acted.vajras[i]; if (!w.drive || !v) return; ['a', 'c', 'b'].forEach((key, j) => { const d = [(v[key].x - w[key].x) * hv * k, (v[key].y - w[key].y) * hv * k, (v[key].z - w[key].z) * hv * k]; if (Math.hypot(...d) < 1e-7) return; beads.push({ p: toHero(inH(w[key])), d, r: beadR(w, j), lip: lipOf(w.drive[j] || []), nose: w.group === 'nose' }); }); });
+  // THE NOSE HELD: an action that moves none of the nose's beads (all but the sneer) leaves the nose where it is, its
+  // beads in the carry as still ones over `noseHold` of their reach (no further: held wider, they pinned the cheek beside
+  // the wings and a smile folded it over itself), so the cheek and the lip drawn past its wings do not drag them (carried by the
+  // moved beads alone, the alar creases' points tore out across the cheek in spikes)
+  if (beads.length && !beads.some((b) => b.nose)) rest.vajras.forEach((w) => { if (w.group === 'nose' && !w.drive) ['a', 'c', 'b'].forEach((key, j) => beads.push({ p: toHero(inH(w[key])), d: [0, 0, 0], r: beadR(w, j) * F.noseHold, lip: 0 })); });
+  // THE LIPS APART (`jawShare` given: each point's share of the jaw bone, the one skin's cut its sides each whole): about
+  // the mouth a point of the upper lip is carried by no bead of the lower and the lower's by none of the upper, so an
+  // action that moves the lips' middles apart parts them (carried by both, the lips moved as one and never parted);
+  // easing out past the corners (`lipApart` [m past the corner, m above or below the lips' line, the ease m])
+  const ch = toHero(rest.points.chR), sto = toHero(rest.points.sto), LA = F.lipApart;
+  // (the settle is the eyes' and the brows', from `settleFrom[0]` m under the eyes' centres, eased in over
+  // `settleFrom[1]`: about the mouth, the nose and the cheeks beside them the skin folds back on itself (the lips' turn-in,
+  // the nostrils, the alar creases) or is netted coarse, and a settled point stood out as a spike on the layer beside its own)
+  const settles = (p) => ramp((p[2] - eyeC[2] + F.settleFrom[0]) / F.settleFrom[1]);
+  const apart = (id, p) => { if (!jawShare) return 0; const s = 1 - ramp((Math.abs(p[0]) - Math.abs(ch[0]) - LA[0]) / LA[2]), t = 1 - ramp((Math.abs(p[2] - sto[2]) - LA[1]) / LA[2]); return s * t * ((jawShare[id] ?? 0) >= 0.5 ? -1 : 1); };
+  const carry = (p, side = 0) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2; let w = Math.exp(-d2 / (b.r * b.r)); if (side && b.lip && Math.sign(side) !== b.lip) w *= 1 - Math.abs(side); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
   // (to the depth it had: a point the rim let down under the cranium stays that far under)
   const settle = (p, n, depth, most = F.settle) => { let T = 0; for (let it = 0; it < 4; it++) { const q = p.map((x, a) => x + n[a] * T), g = gradA(q), gn = g[0] * n[0] + g[1] * n[1] + g[2] * n[2]; if (Math.abs(gn) < 1e-6) break; const t = (depth - fA(q)) / gn, T2 = Math.max(-most, Math.min(most, T + t)); if (Math.abs(T2 - T) < 1e-6) { T = T2; break; } T = T2; } return p.map((x, a) => x + n[a] * T); };
   // (the rest eye's frame: within the eye's footprint the beads carry nothing, the lids are the eye's own)
@@ -762,8 +784,8 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
     // (only what the beads carried settles: the settle keeps a carried point on the moved skin, and a point no bead moves
     // has nothing to keep. A blink moves no bead, and settled, the skin over the lid followed the seat's cut down with the
     // shutting margin, the fold poured down the shut eye)
-    const c = carry(p).map((x) => x * (1 - (1 - F.carryUnder) * under)), q = p.map((x, a) => x + c[a]), carried = c.some((x) => Math.abs(x) > 1e-9);
-    const sq = n && carried ? settle(q, n, f0(p), F.settle * (1 - (1 - F.settleIn) * inside)) : q;
+    const c = carry(p, apart(id, p)).map((x) => x * (1 - (1 - F.carryUnder) * under)), q = p.map((x, a) => x + c[a]), carried = c.some((x) => Math.abs(x) > 1e-9);
+    const most = F.settle * (1 - (1 - F.settleIn) * inside) * settles(p), sq = n && carried && most > 1e-6 ? settle(q, n, f0(p), most) : q;
     out[id] = lid ? lid.q.map((x, a) => x + (1 - lid.w) * (sq[a] - p[a])) : sq;
   }
   return out;

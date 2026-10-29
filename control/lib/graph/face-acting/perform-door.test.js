@@ -10,11 +10,14 @@ describe('the door\'s performances', () => {
     expect(validateHeroSpec({ cast: 'female', form: 'realistic', perform: { hello: TAKE } })).toEqual([]);
     expect(heroRecord({ cast: 'female', form: 'realistic', perform: { hello: TAKE } }).perform).toEqual({ hello: TAKE });
     expect(heroRecord({ cast: 'female', form: 'realistic' }).perform).toBeUndefined();
+    // (a beat may speak a line)
+    expect(validateHeroSpec({ cast: 'female', form: 'realistic', perform: { line: { beats: [{ at: 0, face: 'amused', say: 'Hello there.' }] } } })).toEqual([]);
   });
   it('refuses them by name on another head, a take by its own errors, and a name that is no word', () => {
     expect(validateHeroSpec({ cast: 'female', perform: { hello: TAKE } })[0]).toMatch(/^perform: a face's performance is the realistic hero's/);
     expect(validateHeroSpec({ cast: 'female', form: 'realistic', perform: { hello: { beats: [{ at: 0, face: 'joy' }] } } })[0]).toMatch(/^perform\.hello\.beats\[0\]\.face/);
     expect(validateHeroSpec({ cast: 'female', form: 'realistic', perform: { 'two words': TAKE } })[0]).toMatch(/a take's name is a word/);
     expect(validateHeroSpec({ cast: 'female', form: 'realistic', perform: {} })[0]).toMatch(/^perform: \{ <take>/);
+    expect(validateHeroSpec({ cast: 'female', form: 'realistic', perform: { line: { beats: [{ at: 0, face: 'neutral', say: '' }] } } })[0]).toMatch(/^perform\.line\.beats\[0\]\.say\.text/);
   });
 });

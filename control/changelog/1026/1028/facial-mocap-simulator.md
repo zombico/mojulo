@@ -40,3 +40,21 @@ say a line and play a scene, and play a real phone capture through the same cont
 - **The globes in the face rig**: the one skin's globes were outside the rig, so the blink's sink behind the shut lid
   never applied (a speck of iris could show through a shut lid). They are in it now: still, but for the gaze's turn and
   the blink's sink.
+- **Speech over the acting face** (`face-acting/speech.js`, a beat's `say`): a beat may speak a line (a text, `*word*`
+  emphasized; or phonemes, ARPAbet or the IPA a speech engine writes, timed by their own audio where they carry times).
+  The words become phonemes by rule (a short list of the words the rules get wrong first), the phonemes the fifteen
+  visemes of the industry's lip-sync set, each holding the units it needs against its neighbours by its dominance
+  (Cohen and Massaro's coarticulation: the lips round ahead of an oo, a vowel's jaw gives way); every m, b and p shut, the
+  f and the v the lower lip under the teeth. `rate`, `articulation` (mumbled … enunciated), `jaw` and `lips`. The line
+  lays its units over the face: a rounded lip draws the smile in, a pressed or tightened mouth lets go while it speaks,
+  the brows and the eyes keep the emotion, an emphasized word lifts the brows, a sentence's close may take a blink.
+- **The mouth's speech shapes** (`head-relational.js` `ACTIONS`): `pucker` (AU18), `funnel` (AU22), `rollUpper` and
+  `rollLower` (AU28 by lip, `AU28T` and `AU28B`), `lipsPart` (AU25), each a morph target on the realistic face.
+- **The jaw in a take** (`relational-face-rig.js` `jawOpen`): the jaw bone's own turn (25°, the clips' range end) as
+  ARKit's `jawOpen` target over everything the bone moves, so a take or a capture opens the mouth with no bone and
+  layers over any body clip; the clips still turn the bone. The face store is `v7`.
+- **The realistic face's mouth, cleaner** (`hero-relational-head.js` `oneSkinFollow`): each lip carried by its own
+  muscles about the mouth, so the lips part (carried by both, the upper and the lower moved as one); the nose held still
+  by its own beads where an action leaves it; and the settle onto the moved skin kept to the eyes and the brows, where it
+  was tuned: about the mouth and the nose it stood points out in spikes, the smile's and the frown's among them. The
+  smile, the frown and every mouth target rebuild cleaner on the next export.

@@ -6,8 +6,10 @@
  * A PERFORMANCE: { beats: [{ at (s), face (emotions.js composeFace's spec: a word, a blend, a mask …), onset?
  * ('spontaneous' | 'posed' | seconds), gaze? ('listener' | 'away' | 'down' | 'up' | { yaw, pitch } degrees), state?
  * ('listening' | 'speaking' | 'thinking' | 'attentive'), flash? (a brow flash on the beat), micro? (a face spec flashed
- * for a fifth of a second), microAt? (s, its time; the beat's by default) }], seconds?, intensity? (1), seed? (1),
- * fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds past the last beat).
+ * for a fifth of a second), microAt? (s, its time; the beat's by default), say? (a line spoken from the beat: speech.js,
+ * a text or { text | phonemes, rate?, articulation? }; the beat's state speaking unless it says another) }], seconds?,
+ * intensity? (1), seed? (1), fps? (60) }. Each beat holds until the next; the take ends `seconds` in (else two seconds
+ * past the last beat or the last line's end, whichever is later).
  *
  *   • THE DYNAMICS (FACS's: an expression has an onset, an apex and an offset): a SPONTANEOUS change eases in over a
  *     third to three fifths of a second and out more slowly; a POSED one snaps in within a fifth. Each unit's timing and
@@ -22,6 +24,11 @@
  *     thought's close (a beat's change) and one with a large gaze shift, each by chance; none through a brow flash.
  *   • THE MOVING HOLD: a held expression is never dead still; each unit lives a few hundredths of its height in slow
  *     waves of its own.
+ *   • THE LINES SPOKEN (speech.js): the mouth speaks over the face. Speech owns the jaw and the lips' shapes; the face's
+ *     own mouth gives way where they cannot both be (a rounded lip draws the smile's and the stretch's corners in; a
+ *     pressed, tightened or sucked lip, and the face's own jaw, let go while the line runs), and keeps the rest: the
+ *     brows, the eyes, the corners' set. An emphasized word lifts the brows (Ekman's baton), and a sentence's close may
+ *     take a blink.
  *   • THE GAZE: fixations with a little drift, saccades between them timed by the main sequence (a saccade's duration
  *     grows with its amplitude: about 21 ms plus 2.2 ms a degree), the eyes away while thinking (gaze aversion while
  *     retrieving), on the listener while listening, glancing off now and then while speaking.
@@ -33,6 +40,7 @@
 import { composeFace } from './emotions.js';
 import { FACS_UNITS, auOf } from './facs.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
+import { speak, speechErrors } from './speech.js';
 
 export const CAPTURE_FPS = 60;
 /** a change's timing, seconds: [shortest, longest], the onset rising, the offset falling; the upper face's lead */
@@ -46,6 +54,12 @@ export const DYNAMICS = Object.freeze({
 export const MOVING_HOLD = Object.freeze({ share: 0.05, hz: Object.freeze([[0.15, 0.35], [0.4, 0.9]]) });
 /** a micro-expression's onset, hold and offset (s): a fifth of a second whole */
 export const MICRO = Object.freeze({ onset: 0.05, hold: 0.1, offset: 0.05 });
+/** speech over the face: how far a rounded lip (the pucker's, the funnel's) draws in the face's corners (the smile, the
+ * dimple, the stretch), how far the line lets go of the face's closing units and its jaw, the line's envelope's ease (s);
+ * an emphasized word's baton (the brows' heights, its rise and fall, s, its hold a share of the word); a sentence's
+ * blink's chance */
+export const SPEAKING = Object.freeze({ round: 0.7, release: 0.85, ease: 0.15, baton: Object.freeze({ AU1: 0.3, AU2: 0.35, rise: 0.12, hold: 0.6, fall: 0.2 }), phrase: 0.5 });
+const ROUNDED = ['AU12', 'AU14', 'AU20'], RELEASED = ['AU17', 'AU23', 'AU24', 'AU28', 'AU26'];
 /** a brow flash: its units' heights, its rise, hold and fall (s) */
 export const BROW_FLASH = Object.freeze({ AU1: 0.6, AU2: 0.7, rise: 0.1, hold: 0.15, fall: 0.15 });
 /** the blinks: the spontaneous rate a minute by state, a blink's closing, shut and opening (s, [min, max]), the least
@@ -80,6 +94,7 @@ export function performanceErrors(P) {
     if (b.micro !== undefined) try { composeFace(b.micro); } catch (e) { errs.push(`${at}.micro: ${e.message}`); }
     if (b.state !== undefined && !STATES.includes(b.state)) errs.push(`${at}.state: one of ${STATES.join(', ')}`);
     if (b.onset !== undefined && !(b.onset === 'spontaneous' || b.onset === 'posed' || (Number.isFinite(b.onset) && b.onset > 0))) errs.push(`${at}.onset: 'spontaneous' | 'posed' | seconds`);
+    if (b.say !== undefined) errs.push(...speechErrors(b.say).map((e) => `${at}.${e}`));
     const g = b.gaze;
     if (g !== undefined && !(typeof g === 'string' ? ['listener', 'away', 'down', 'up'].includes(g) : g && Number.isFinite(g.yaw) && Number.isFinite(g.pitch))) errs.push(`${at}.gaze: 'listener' | 'away' | 'down' | 'up' | { yaw, pitch }`);
   });
@@ -96,8 +111,10 @@ export function perform(P) {
   if (errs.length) throw new Error(`perform: ${errs.join('; ')}`);
   const fps = P.fps ?? CAPTURE_FPS, rnd = mulberry32((P.seed ?? 1) >>> 0), K = P.intensity ?? 1;
   const span = (r) => lerp(r[0], r[1], rnd());
-  const beats = [...P.beats].sort((a, b) => a.at - b.at).map((b) => ({ ...b, S: Object.fromEntries(Object.entries(composeFace(b.face ?? 'neutral')).map(([k, v]) => [k, clamp01(v * K)])) }));
-  const seconds = P.seconds ?? beats.at(-1).at + 2, n = Math.max(1, Math.round(seconds * fps) + 1), tOf = (i) => i / fps;
+  const beats = [...P.beats].sort((a, b) => a.at - b.at).map((b) => ({ ...b, ...(b.say !== undefined && !b.state ? { state: 'speaking' } : {}), S: Object.fromEntries(Object.entries(composeFace(b.face ?? 'neutral')).map(([k, v]) => [k, clamp01(v * K)])) }));
+  // (the lines, each spoken from its beat)
+  const lines = beats.filter((b) => b.say !== undefined).map((b) => ({ at: b.at, take: speak(b.say, { fps }) }));
+  const seconds = P.seconds ?? Math.max(beats.at(-1).at + 2, ...lines.map((L) => L.at + L.take.seconds + 0.5)), n = Math.max(1, Math.round(seconds * fps) + 1), tOf = (i) => i / fps;
   const keys = [...new Set(beats.flatMap((b) => Object.keys(b.S)))].sort();
   const curves = {};
   // THE UNITS: each a chain of transitions, one a beat, from where the unit is when it starts to the beat's apex
@@ -136,7 +153,7 @@ export function perform(P) {
     }
   };
   // THE MICRO-EXPRESSIONS and THE BROW FLASHES
-  const events = { blinks: [], saccades: [], micro: [], flashes: [] };
+  const events = { blinks: [], saccades: [], micro: [], flashes: [], lines: [], batons: [] };
   for (const b of beats) {
     if (b.micro !== undefined) {
       const t0 = b.microAt ?? b.at;
@@ -144,6 +161,22 @@ export function perform(P) {
       events.micro.push({ t: r4(t0), dur: r4(MICRO.onset + MICRO.hold + MICRO.offset) });
     }
     if (b.flash) { layer('AU1', b.at, BROW_FLASH.rise, BROW_FLASH.hold, BROW_FLASH.fall, BROW_FLASH.AU1); layer('AU2', b.at, BROW_FLASH.rise, BROW_FLASH.hold, BROW_FLASH.fall, BROW_FLASH.AU2); events.flashes.push({ t: r4(b.at) }); }
+  }
+  // THE LINES: the speech's units over the face's, the face's mouth giving way where the lips cannot do both
+  for (const L of lines) {
+    const T = L.take, o = Math.round(L.at * fps), env = new Array(n).fill(0);
+    const t0 = L.at + (T.events.phonemes.find((q) => q.p !== 'sil')?.t ?? 0), t1 = L.at + Math.max(...T.events.phonemes.filter((q) => q.p !== 'sil').map((q) => q.t + q.dur));
+    for (let i = 0; i < n; i++) { const t = tOf(i); env[i] = t < t0 ? ease(1 - (t0 - t) / SPEAKING.ease) : t > t1 ? ease(1 - (t - t1) / SPEAKING.ease) : 1; }
+    const sp = (u, i) => { const j = i - o; return j >= 0 && j < T.frames ? T.curves[u][j] : 0; };
+    for (const [k, c] of Object.entries(curves)) {
+      const [au] = auOf(k);
+      if (ROUNDED.includes(au)) for (let i = 0; i < n; i++) c[i] *= 1 - SPEAKING.round * Math.max(sp('AU18', i), sp('AU22', i));
+      else if (RELEASED.includes(au)) for (let i = 0; i < n; i++) c[i] *= 1 - SPEAKING.release * env[i];
+    }
+    for (const u of Object.keys(T.curves)) { const c = curves[u] || (curves[u] = new Array(n).fill(0)); for (let i = 0; i < n; i++) c[i] = Math.max(c[i], sp(u, i)); }
+    // (the batons: an emphasized word lifts the brows as it is said)
+    for (const w of T.events.words) if (w.emph) { const B = SPEAKING.baton, t = L.at + w.t - 0.08; layer('AU1', t, B.rise, B.hold * w.dur, B.fall, B.AU1 * K); layer('AU2', t, B.rise, B.hold * w.dur, B.fall, B.AU2 * K); events.batons.push({ t: r4(t), word: w.w }); }
+    events.lines.push({ t: r4(L.at), seconds: T.seconds, words: T.events.words.map((w) => ({ ...w, t: r4(L.at + w.t) })), phonemes: T.events.phonemes.map((q) => ({ ...q, t: r4(L.at + q.t) })) });
   }
   // THE GAZE: per beat a target (its state's default when none), saccades to it with the upper face, drift within a
   // fixation, a speaker's glances away and back
@@ -190,6 +223,8 @@ export function perform(P) {
   const wants = [];
   for (const b of beats.slice(1)) if (rnd() < BLINK.beat) wants.push({ t: b.at + 0.05, cause: 'thought' });
   for (const s of events.saccades) if (s.amp > BLINK.shiftDeg && rnd() < BLINK.shift) wants.push({ t: s.t, cause: 'gaze' });
+  // (a sentence's close, in a line's pause at a stop)
+  for (const L of events.lines) for (const q of L.phonemes.slice(1, -1)) if (q.p === 'sil' && q.dur >= 0.3 && rnd() < SPEAKING.phrase) wants.push({ t: q.t + 0.05, cause: 'phrase' });
   for (let t = span([0.2, 1.5]); t < seconds; ) {
     wants.push({ t, cause: 'spontaneous' });
     const mean = 60 / BLINK.rate[stateAt(t)];

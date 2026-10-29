@@ -13,7 +13,8 @@ describe('the FACS vocabulary', () => {
     expect(sided.arkit[0]).toMatch(/Left$/); expect(sided.arkit[1]).toMatch(/Right$/);
   });
   it('names an action the head has, for every unit it says the head makes', () => {
-    for (const u of Object.values(FACS_UNITS)) if (u.action) expect(Object.hasOwn(ACTIONS, u.action)).toBe(true);
+    for (const u of Object.values(FACS_UNITS)) if (u.action) for (const a of [u.action].flat()) expect(Object.hasOwn(ACTIONS, a)).toBe(true);
+    for (const u of Object.values(FACS_UNITS)) if (u.lips) for (const a of Object.values(u.lips)) expect(Object.hasOwn(ACTIONS, a)).toBe(true);
   });
   it('builds the emotion prototypes from units in the table, at FACS intensities', () => {
     for (const st of Object.values(EMOTION_PROTOTYPES)) for (const [k, v] of Object.entries(st)) {
@@ -40,6 +41,13 @@ describe('a FACS state on the realistic head', () => {
     expect(facsActions({ [au]: 0.6 })).toEqual({ actions: {}, gaps: { [au]: 0.6 } });
     const [au2] = wholeOnly;
     expect(facsActions({ [`${au2}R`]: 0.4 })).toEqual({ actions: {}, gaps: { [`${au2}R`]: 0.4 } });
+  });
+  it('makes a unit split by lip by its lip\'s action, the whole unit by both (the f\'s lower lip under the teeth)', () => {
+    const [au, u] = Object.entries(FACS_UNITS).find(([, x]) => x.lips);
+    expect(facsActions({ [`${au}B`]: 0.7 }).actions).toEqual({ [u.lips.B]: 0.7 });
+    expect(facsActions({ [au]: 0.5 }).actions).toEqual(Object.fromEntries(Object.values(u.lips).map((a) => [a, 0.5])));
+    // (a lip is no split of a unit that is not split by lip)
+    expect(() => facsActions({ AU12B: 1 })).toThrow(/not an action unit/);
   });
   it('refuses a key that is no action unit', () => {
     expect(() => facsActions({ smile: 1 })).toThrow(/not an action unit/);
