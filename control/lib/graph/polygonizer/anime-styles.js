@@ -97,15 +97,15 @@ export const ANIME_STYLES = Object.freeze({
   // under the cheekbone; softer than Shonen High's (the jaw's line two thirds squared, the jaw not curved in, the
   // socket's planes shallower), its jaw closed up into the skull as his is (the underside rising from the chin to the
   // corner, then up behind the ear, the nape lifted to meet it); the eyes large and tall under a crisp upper lid lifted
-  // to its tail, the irises large; the brows thin and a little angled; the nose and the mouth small. The female (after the same figure's heroine) wears the male's
+  // to its tail, the irises large; the brows thin and a little angled; the nose small and not pointed, the mouth small. The female (after the same figure's heroine) wears the male's
   // head, as Shonen High's does: her features softer, her brow broader, her eyes a little larger, her chin as small
   'school-kid-hero': Object.freeze({
     note: 'schoolkid-sized, action-themed (after a Kishimoto-baseline genin figure): a big round head on a short, slight frame, a soft elliptical face to a small pointed chin, large crisp eyes, a small mouth',
     male: Object.freeze({
-      face: Object.freeze({ width: 1.05, lower: 0.96, cheekVolume: 1.02, lowerCheekVolume: 0.93, jaw: 1.06, jawAngle: 1.12, chin: 0.66, chinHeight: 0.92, chinProjection: 1.04, browDepth: 1, eyeWidth: 1.06, eyeHeight: 1.08, iris: 1.04, tilt: 0.03, nose: 0.85 }),
-      sculpt: Object.freeze({ lidWeight: 1.1, lidAngle: 6, lidTail: 1.1, browThick: 0.85, browGap: 0.8, browAngle: 6, fissureHeight: 1.05, mouthWidth: 0.88, orbit: -0.01, jawHollow: -0.01, jawLine: 0.65, napeLift: 0.12 }),
+      face: Object.freeze({ width: 1.08, lower: 0.93, cheekVolume: 1.02, lowerCheekVolume: 0.93, jaw: 1.09, jawAngle: 1.16, chin: 0.68, chinHeight: 0.92, chinProjection: 1.04, browDepth: 1, eyeWidth: 1.06, eyeHeight: 1.08, iris: 1.04, tilt: 0.03, nose: 0.75 }),
+      sculpt: Object.freeze({ lidWeight: 1.1, lidAngle: 6, lidTail: 1.1, browThick: 0.85, browGap: 0.8, browAngle: 6, fissureHeight: 1.05, mouthWidth: 0.88, tipProjection: 0.85, orbit: -0.01, jawHollow: -0.01, jawLine: 0.65, napeLift: 0.12 }),
       tune: SCHOOL_KID,
-      bands: Object.freeze({ eyeLevel: [0.4, 0.45], pronasale: [0.23, 0.3], stomion: [0.12, 0.17], browThick: [0.3, 0.6], mouthWidth: [0.24, 0.34] }),
+      bands: Object.freeze({ eyeLevel: [0.4, 0.45], pronasale: [0.23, 0.3], stomion: [0.12, 0.17], browThick: [0.3, 0.6], noseProjection: [0.06, 0.12], mouthWidth: [0.24, 0.34] }),
     }),
     female: Object.freeze({
       head: 'male',

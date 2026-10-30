@@ -37,7 +37,8 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   Hero's pair take it.
 - **School-Kid Hero, a soft ellipse**: the face a little narrower and longer than the moon of the round before, leaning
   toward Shonen High's but not as angular (the jaw's line two thirds squared, its corner less high), and the mouth
-  smaller.
+  smaller; then rounded back out a little (halfway to the moon) and the nose made less pointed (lower in projection,
+  its tip less far out).
 - **The jaw closed up into the skull** on every cast but Shonen High's female, who already had it: in profile the
   underside rises from the chin to the jaw's corner and then turns up behind the ear into the skull, with no jaw hanging
   under the skull's back and no groove where the two meet (measured as the head's underside, chin to the back of the
