@@ -17,17 +17,26 @@
  *                 weight
  *   5 graph       the REGION GRAPH: each neighbourhood a node, each pair across an arterial an edge with its PORTAL
  *                 (the middle of their shared run) and its height: what a Quest Open World streams as it is passed
- *   6 ledger      water, the arterials' rights-of-way (each crossing once), parks and neighbourhoods: the frame's every
- *                 square metre once
+ *   6 heights     the HEIGHT FIELD (heights.js): each ring's median by distance inside its rail, the secondary NODES on
+ *                 the spines past the core (the neighbourhoods round one built a ring inward), the arterials' FRONTAGE
+ *                 rising to its corridor's storeys; each neighbourhood the ring it `builds` as, its interior's storeys and
+ *                 each arterial frontage's
+ *   7 parks       each neighbourhood's own PARK out of its quota (parks.js): along its shore on the water, else inside its
+ *                 interior clear of its frontages, laid before its streets so they go round it
+ *   8 ledger      water, the arterials' rights-of-way (each crossing once), parks and neighbourhoods: the frame's every
+ *                 square metre once; the green budget, reserved, given out as quotas and placed as parks
  *
  *   designGeocity(spec, { seed, field? }) → { spec, seed, metro, grammar, frame, land, seat, section, lines, crossings,
- *     regions, graph, ledger, laws }      (`field`: (x, y) → metres, the natural ground in place of fall and hills)
+ *     regions, graph, heights: { reach, nodes, storeysAt }, ledger, laws }
+ *     (`field`: (x, y) → metres, the natural ground in place of fall and hills)
  *   geocityLand(read, land, seed, field?) → { N, S, range }
  *
  * Metres, x east, y north, z up, the map's south-west corner the origin. Every rect is [x0, y0, x1, y1].
  */
 import { readGeocity } from './metro.js';
 import { geocityLaws } from './laws.js';
+import { heightsOf } from './heights.js';
+import { parksOf } from './parks.js';
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
 
@@ -197,14 +206,22 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   }
   const graph = { nodes: regions.map((r) => r.id), edges, beyond: regions.filter((r) => r.beyond.length).map((r) => r.id) };
 
-  // 6 the ledger: every square metre of the frame once (a crossing counted on one arterial)
+  // 6 the heights, 7 the parks: each neighbourhood the ring it builds as, its storeys, its frontages' and its own park
+  const dd = { seed, metro: M, seat, section, lines, regions };
+  const Hs = heightsOf(dd);
+  for (const r of regions) Object.assign(r, Hs.regions[r.id]);
+  const parks = parksOf(dd);
+  for (const r of regions) if (parks[r.id]) r.parkRect = parks[r.id];
+
+  // 8 the ledger: every square metre of the frame once (a crossing counted on one arterial)
   const waterArea = water.reduce((s, w) => s + area(w.rect), 0);
   const rowArea = NS.length * section.row * (land[3] - land[1]) + EW.length * section.row * (land[2] - land[0]) - NS.length * EW.length * section.row ** 2;
   const byRing = Object.fromEntries(['core', 'frame', 'outskirts'].map((k) => [k, r3(regions.filter((r) => r.ring === k && !r.park).reduce((s, r) => s + r.area, 0))]));
   const ledger = { total: W * D, land: r3(landArea), water: r3(waterArea), arterials: r3(rowArea), parks: r3(reserved), neighbourhoods: r3(regions.filter((r) => !r.park).reduce((s, r) => s + r.area, 0)), rings: byRing,
-    green: { budget, reserved: r3(reserved), quotas: r3(rest.reduce((s, r) => s + r.green, 0)) } };
+    green: { budget, reserved: r3(reserved), quotas: r3(rest.reduce((s, r) => s + r.green, 0)), placed: r3(Object.values(parks).reduce((s, p) => s + p.area, 0)) } };
 
-  const d = { spec: T, seed, metro: M, grammar: G, frame: { W, D }, land: { rect: land, ...L }, water, seat, section, lines, crossings, regions, graph, ledger };
+  const d = { spec: T, seed, metro: M, grammar: G, frame: { W, D }, land: { rect: land, ...L }, water, seat, section, lines, crossings, regions, graph,
+    heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger };
   d.laws = geocityLaws(d);
   return d;
 }

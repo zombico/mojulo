@@ -7,6 +7,8 @@
  *   geocityLaws(design) → [{ law, ok, value, want }]
  */
 import { sectionOf } from '../geotown/pattern.js';
+import { ringMedians } from './heights.js';
+import { interiorOf } from './parks.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -19,6 +21,10 @@ export const GEOCITY_LAWS = Object.freeze({
   ports: 'every neighbourhood fronts two arterials or more',
   open: 'every neighbourhood reached from every other across the arterials, no gate on the way',
   sideways: 'no edge of the region graph is its only way between two parts: always two ways round',
+  skyline: 'the skyline falls outward: the core\'s neighbourhoods build higher on the whole than the frame\'s, the frame\'s than the outskirts\'',
+  caps: 'every neighbourhood\'s interior inside the rail of the ring it builds as, its frontages inside theirs',
+  interior: 'every neighbourhood keeps an interior behind its arterial frontages',
+  parks: 'each neighbourhood\'s park placed as its quota asks, inside it and clear of its frontages',
 });
 
 /** The least neighbourhood a geotown of this pattern lays two blocks by two in: along its long blocks, and across their
@@ -69,6 +75,8 @@ export function partsOf(graph) {
   return parts;
 }
 
+const within = (a, b) => a[0] >= b[0] - 1e-6 && a[1] >= b[1] - 1e-6 && a[2] <= b[2] + 1e-6 && a[3] <= b[3] + 1e-6;
+
 export function geocityLaws(d) {
   const M = d.metro, L = d.ledger, out = [];
   const sum = L.water + L.arterials + L.parks + L.neighbourhoods;
@@ -94,5 +102,20 @@ export function geocityLaws(d) {
   out.push({ law: 'open', ok: parts.length === 1, value: `${parts.length} part${parts.length === 1 ? '' : 's'}`, want: 'one' });
   const bridges = bridgesOf(d.graph);
   out.push({ law: 'sideways', ok: !bridges.length, value: bridges.length ? bridges.join(', ') : 'no bridge', want: 'no bridge' });
+  if (!d.regions.every((r) => r.storeys)) return out;
+  // the heights: each ring's builders' mean median, falling outward
+  const built = d.regions.filter((r) => !r.park), mean = (k) => { const ms = built.filter((r) => r.builds === k).map((r) => r.storeys.median); return ms.length ? ms.reduce((a, b) => a + b, 0) / ms.length : null; };
+  const means = ['core', 'frame', 'outskirts'].map(mean), held = means.filter((m) => m !== null);
+  out.push({ law: 'skyline', ok: held.every((m, k) => k === 0 || m < held[k - 1]), value: ['core', 'frame', 'outskirts'].map((k, i) => `${k} ${means[i] === null ? '–' : r2(means[i])}`).join(', '), want: 'falling outward' });
+  const inside = (m, [lo, hi]) => m >= lo - 1e-6 && m <= hi + 1e-6;
+  const off = built.filter((r) => !inside(r.storeys.median, r.storeys.rail) || Object.values(r.frontage).some((f) => !inside(f.median, f.rail)));
+  const rm = ringMedians(d);
+  out.push({ law: 'caps', ok: !off.length, value: off.length ? off.map((r) => r.id).join(', ') : Object.entries(rm).filter(([, v]) => v).map(([k, v]) => `${k} ${v.join('–')}`).join(', '), want: 'inside each rail' });
+  const depth = M.heights.corridor.depth, thin = built.filter((r) => { const i = interiorOf(r, depth); return i[2] - i[0] <= 0 || i[3] - i[1] <= 0; });
+  out.push({ law: 'interior', ok: !thin.length, value: thin.length ? thin.map((r) => r.id).join(', ') : 'every one', want: `> ${depth} m frontages` });
+  const P = M.green.park, asked = built.filter((r) => r.green * P.share[r.ring] >= P.least), want = asked.reduce((s, r) => s + r.green * P.share[r.ring], 0);
+  const placed = built.reduce((s, r) => s + (r.parkRect?.area ?? 0), 0);
+  const stray = built.filter((r) => r.parkRect && !within(r.parkRect.rect, interiorOf(r, depth)));
+  out.push({ law: 'parks', ok: !stray.length && placed >= 0.9 * want - 1, value: `${built.filter((r) => r.parkRect).length} parks, ${Math.round(placed / 1e4)} of ${Math.round(want / 1e4)} ha asked${stray.length ? `; ${stray.map((r) => r.id).join(', ')} astray` : ''}`, want: '≥ 90%, inside' });
   return out;
 }

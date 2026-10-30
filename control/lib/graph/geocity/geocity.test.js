@@ -1,6 +1,7 @@
 // THE GEOCITY'S MAP: its card and reader, its land's fall, its arterials stepped out from the seat, the neighbourhoods
 // they carve and their rings, the green budget, the region graph's laws (a Quest Open World's: open, sideways), the
-// ledger. One case per procedure: the default metro (a shore, a land edge to the beyond) and the island (water all round).
+// ledger, the heights (rings, nodes, corridors) and the neighbourhoods' parks. One case per procedure: the default metro
+// (a shore, a land edge to the beyond) and the island (water all round).
 import { describe, it, expect } from 'vitest';
 import { designGeocity, columnName } from './design.js';
 import { readGeocity, METROS, METRO_IDS } from './metro.js';
@@ -124,5 +125,76 @@ describe('the laws advise, never refuse', () => {
     const P = PATTERNS[METROS[SHORE].outskirts], [a, b] = geotownLeast(P);
     expect(a).toBeGreaterThan(2 * P.block.long[0]);
     expect(b).toBeGreaterThan(4 * P.block.depth[0]);
+  });
+});
+
+describe('its heights', () => {
+  const d = designGeocity({ metro: SHORE }, { seed: 3 }), H = d.metro.heights;
+  const atRing = (k) => d.regions.filter((r) => !r.park && r.builds === k);
+
+  it('falls outward: the seat over the frame\'s reach over the outskirts, where no node reaches', () => {
+    const quiet = { metro: SHORE, heights: { nodes: { every: 0 } } }, q = designGeocity(quiet, { seed: 3 }), [sx, sy] = q.seat;
+    const away = q.metro.fall.toward === 's' ? [0, 1] : q.metro.fall.toward === 'n' ? [0, -1] : q.metro.fall.toward === 'w' ? [1, 0] : [-1, 0];
+    const at = (m) => q.heights.storeysAt(sx + away[0] * m, sy + away[1] * m);
+    const ms = [0, q.metro.rings.core + 50, q.metro.rings.frame + 50].map((m) => at(m).median);
+    expect(ms[0]).toBeGreaterThan(ms[1]);
+    expect(ms[1]).toBeGreaterThan(ms[2]);
+    expect(q.heights.nodes).toHaveLength(0);
+    expect(law(d, 'skyline').ok).toBe(true);
+  });
+
+  it('builds every neighbourhood inside its ring\'s rail, the outskirts at their storeys and lower', () => {
+    expect(law(d, 'caps').ok).toBe(true);
+    for (const r of atRing('outskirts')) expect(r.storeys.median).toBeLessThanOrEqual(H.outskirts.rail[1]);
+    for (const r of atRing('core')) expect(r.storeys.rail).toEqual(H.core.rail);
+  });
+
+  it('raises secondary nodes on the spines past the core, the neighbourhoods round them a ring inward', () => {
+    expect(d.heights.nodes.length).toBeGreaterThan(0);
+    const spines = new Set(d.lines.filter((l) => l.rank === 'spine').map((l) => l.id));
+    for (const n of d.heights.nodes) {
+      expect(spines.has(n.street)).toBe(true);
+      expect(Math.hypot(n.at[0] - d.seat[0], n.at[1] - d.seat[1])).toBeGreaterThan(d.metro.rings.core);
+      const round = d.regions.filter((r) => r.node === n.id);
+      expect(round.length).toBeGreaterThan(0);
+      const inward = { outskirts: 'frame', frame: 'core', core: 'core' };
+      for (const r of round) expect(r.builds).toBe(inward[r.ring]);
+    }
+  });
+
+  it('lifts an arterial frontage past its ring\'s rail to its corridor\'s storeys, the spine\'s more', () => {
+    const r = atRing('outskirts').find((x) => Object.values(x.frontage).some((f) => f.rank === 'spine')), f = Object.values(r.frontage).find((x) => x.rank === 'spine');
+    expect(f.rail[1]).toBe(H.corridor.spine);
+    expect(f.median).toBeGreaterThan(r.storeys.median);
+    const a = atRing('outskirts').flatMap((x) => Object.values(x.frontage)).find((x) => x.rank === 'arterial');
+    expect(a.rail[1]).toBe(Math.max(H.outskirts.rail[1], H.corridor.arterial));
+    expect(law(d, 'interior').ok).toBe(true);
+  });
+});
+
+describe('its neighbourhoods\' parks', () => {
+  const d = designGeocity({ metro: SHORE }, { seed: 3 });
+  it('places each park out of its quota: along the shore on the water, inside the interior inland', () => {
+    expect(law(d, 'parks').ok).toBe(true);
+    const shore = d.metro.water.sides[0], edge = { s: 1, n: 3, w: 0, e: 2 }[shore];
+    const onWater = d.regions.filter((r) => r.parkRect?.along === 'water');
+    expect(onWater.length).toBeGreaterThan(0);
+    for (const r of onWater) expect(r.parkRect.rect[edge]).toBe(r.rect[edge]);
+    expect(d.regions.some((r) => r.parkRect?.along === 'inland')).toBe(true);
+    expect(d.ledger.green.placed).toBeGreaterThan(0);
+  });
+  it('lays none under the least, leaving the quota to its segments', () => {
+    const q = designGeocity({ metro: SHORE, green: { park: { least: 1e6 } } }, { seed: 3 });
+    expect(q.regions.filter((r) => r.parkRect)).toHaveLength(0);
+    expect(law(q, 'parks').ok).toBe(true);
+  });
+});
+
+describe('the heights\' reader', () => {
+  it('merges a recipe\'s heights all the way down, and refuses rails that do not nest', () => {
+    const T = readGeocity({ metro: SHORE, heights: { corridor: { spine: 10 } } });
+    expect(T.metro.heights.corridor).toEqual({ ...METROS[SHORE].heights.corridor, spine: 10 });
+    expect(() => readGeocity({ heights: { outskirts: { rail: [1, 30], median: [2, 3] } } })).toThrow(/no higher than the ring inside it/);
+    expect(() => readGeocity({ heights: { frame: { median: [2, 3] } } })).toThrow(/inside its rail/);
   });
 });
