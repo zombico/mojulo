@@ -14,11 +14,11 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   the jaw, its corner level with the mouth, running in to a narrow chin set forward; flat cheeks under the cheekbones; a
   heavy brow ridge; wide, low eyes under a heavy straight lid angled to the nose, small irises; thick brows set low and
   angled hard to the bridge; a wide mouth; on a heavy frame, the neck short and thick. Her head her own base's (after an
-  Android 18 maquette): almond eyes under a level, heavy lid, straight brows, a clean jaw to a small chin, on an
-  athletic frame.
+  Android 18 maquette): almond eyes under a level, heavy lid, straight brows, her face one convex arc from under the ear
+  to a narrow chin, on an athletic frame.
 - **School-Kid Hero** (`school-kid-hero`, schoolkid-sized and action-themed, after a Kishimoto-baseline genin figure): a
   big round head and a moon face, round from its outline (the head wider, the jaw broad, its corner high) to a short
-  lower face and a small pointed chin, with no pouch on the lower cheek (the first cut's chipmunking) and less bevel than
+  lower face and a small pointed chin, with no pouch on the lower cheek (the first cut's chipmunking; the lower cheek a little slimmer than the base's) and less bevel than
   its siblings (no squared jaw line, the jaw not curved in, shallower socket planes); large, tall eyes
   under a crisp lid lifted to its tail, large irises; thin brows; a small nose; on a short, slight frame. Its bands put
   the eye level, the nose tip and the lip line lower on the head, as a child's are. Her head is the male's, as Shonen
@@ -30,3 +30,8 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   same light, as a maquette is read before it is painted; it casts no shadow on itself there (the key's shadow map laid
   a straight edge across every face that read as a crease). The two new casts were tuned over three rounds in clay; the
   eyes gate is the operator's.
+- **No chipmunking on any cast** (after Shonen High's female, whose fuller lower cheeks read as chipmunk cheeks at
+  three-quarter and were taken back in): a round cheek comes from the face's outline, never from a pouch beside the
+  mouth: the jaw fuller along its edge and narrowing into a narrow chin, the lower cheek at or below its base's, the
+  cheekbone near its base's. Z-Fighter's female, whose base's full lower cheek bulged beside her mouth, and School-Kid
+  Hero's pair take it.
