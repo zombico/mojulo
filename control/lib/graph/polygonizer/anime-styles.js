@@ -4,7 +4,8 @@
  * composeAnime), so a Shonen High rival and a Shonen High heroine are both Shonen High.
  *
  * A style names, per design base, its face (the studio's controls), its sculpt (the graphic face's words) and its body
- * tune, all as the door's own words, and its FEATURE BANDS: a style is a canon of its own, so a styled hero is advised
+ * tune, all as the door's own words; the head it wears (`head`: another base's, its face and sculpt under its own, so
+ * Shonen High's female wears the male's head tuned); and its FEATURE BANDS: a style is a canon of its own, so a styled hero is advised
  * against its style's bands (each one it names in place of the base's), never against the base it departs from.
  *
  * The door stores the word beside a RESOLVED stamp (`animeStyleResolved`, as a look's `lookResolved`): a later re-tuning
@@ -35,13 +36,17 @@ export const ANIME_STYLES = Object.freeze({
       tune: Object.freeze({ ...LEAN_LONG }),
       bands: Object.freeze({ eyeWidth: [0.17, 0.21], lid: [0.3, 0.45], mouthWidth: [0.25, 0.34], browGap: [0.3, 0.75] }),
     }),
+    // the female: the MALE's head (`head`: his skull, his profile, his jaw's line to the back of the skull, his ear), and
+    // over his face and sculpt her own layer, after Nobara's figure: her head smaller than his; her features softer (her
+    // brow's ridge, her bridge and her nose lighter, her jaw narrower, softer and turned under into a small pointed chin,
+    // her lids and brows less angled); her cheeks fuller; her eyes a little larger than his, almond under a heavier lash
+    // flicked at its tail; her brows thinner; her mouth smaller. Her body and her hair are her cast's own
     female: Object.freeze({
-      // (after Nobara's figure: the male's structure feminized, a narrow oval tapering to a small pointed chin over a
-      // soft jaw, larger almond eyes under a heavy lash line flicked at its tail, thin straight brows clear of the eye)
-      face: Object.freeze({ width: 0.92, lower: 1.06, cheekVolume: 0.855, lowerCheekVolume: 0.81, chin: 0.73, chinProjection: 1.04, jaw: 0.97, jawAngle: 0.95, browDepth: 1.15, eyeHeight: 0.9, eyeWidth: 1, iris: 0.94, tilt: 0.05, nose: 1.05 }),
-      sculpt: Object.freeze({ lidWeight: 1.32, lidCover: 1.25, lidAngle: 10, lidTail: 1.15, lidFlick: 10, browThick: 0.64, browGap: 0.575, browAngle: 12, browArch: -0.03, pupil: 0.88, fissureHeight: 0.9, bridgeRoot: 0.04, jawHollow: -0.01, napeLift: 0.1, earBack: 0.03 }),
-      tune: Object.freeze({ ...LEAN_LONG, head: 0.95, stature: 1.02, hips: 0.95 }),
-      bands: Object.freeze({ eyeWidth: [0.19, 0.25], fissure: [0.5, 0.75], browThick: [0.09, 0.2], browGap: [0.3, 0.75], lid: [0.18, 0.32], mouthWidth: [0.2, 0.27] }),
+      head: 'male',
+      face: Object.freeze({ eyeHeight: 1.06, eyeWidth: 1.02, iris: 1.03, jaw: 0.88, chin: 0.84, chinProjection: 0.94, cheekVolume: 1.08, lowerCheekVolume: 1.04, browDepth: 0.85, nose: 0.92 }),
+      sculpt: Object.freeze({ lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.8, mouthWidth: 0.9, jawHollow: 0.01, napeLift: -0.03 }),
+      tune: Object.freeze({ ...LEAN_LONG, head: 0.9, stature: 1.02, hips: 0.95 }),
+      bands: Object.freeze({ browThick: [0.2, 0.45], noseProjection: [0.06, 0.12] }),
     }),
   }),
 });
@@ -55,9 +60,11 @@ export function validateAnimeStyle(spec, label = 'animeStyle') {
 /** The stamp the door stores beside the word: each design base's face, sculpt and tune resolved, and its bands */
 export function resolveAnimeStyle(word) {
   const S = ANIME_STYLES[word]; if (!S) throw new Error(validateAnimeStyle(word)[0]);
+  // (an entry that wears another's head, `head`: that entry's face and sculpt under its own, and its bands under its own)
   const pole = (P) => {
-    const { from: _f, ...face } = resolveAnimeFace([P.face]); const { from: _t, ...tune } = resolveTune([P.tune]);
-    return { face, sculpt: resolveAnimeSculpt([P.sculpt]), tune, bands: structuredClone(P.bands) };
+    const H = P.head ? S[P.head] : null;
+    const { from: _f, ...face } = resolveAnimeFace([H?.face, P.face].filter(Boolean)); const { from: _t, ...tune } = resolveTune([P.tune]);
+    return { ...(P.head ? { head: P.head } : {}), face, sculpt: resolveAnimeSculpt([H?.sculpt, P.sculpt].filter(Boolean)), tune, bands: structuredClone({ ...(H?.bands ?? {}), ...P.bands }) };
   };
   return { word, male: pole(S.male), female: pole(S.female) };
 }

@@ -4,7 +4,7 @@
 // advised nothing by its style's bands; the body skinnier, its neck slim, under a smaller head.
 import { describe, it, expect } from 'vitest';
 import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec } from '../../mcp/tools/layered.js';
-import { animeHeroEffective, animeFaceBase, heroFeatureAdvice } from './anime-looks.js';
+import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
 
 const STYLE = ANIME_STYLE_NAMES[0];
@@ -16,14 +16,14 @@ describe('the style pole', () => {
     expect(validateHeroSpec({ cast: 'male', animeStyle: STYLE })[0]).toMatch(/^animeStyle: the anime head's/);
   });
   it('absent, the hero as before; present, under the hero\'s own words, and the base they move off', () => {
-    const plain = heroRecord({ cast: 'female', head: 'anime' });
+    const plain = heroRecord({ cast: 'male', head: 'anime' });
     expect(plain.animeStyle).toBeUndefined(); expect(plain.animeStyleResolved).toBeUndefined();
-    const styled = (spec = {}) => animeHeroEffective(heroRecord({ cast: 'female', head: 'anime', animeStyle: STYLE, ...spec }));
-    const S = ANIME_STYLES[STYLE].female, own = styled({ face: { width: 1.02 } });
+    const styled = (spec = {}) => animeHeroEffective(heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE, ...spec }));
+    const S = ANIME_STYLES[STYLE].male, own = styled({ face: { width: 1.02 } });
     expect(own.face.width).toBeCloseTo(styled().face.width * 1.02, 9);
     expect(styled().face.width).toBeCloseTo(animeHeroEffective(plain).face.width * S.face.width, 9);
     // (the style's words are not the hero's own: the hero moved off its base by its own word alone)
-    const base = animeFaceBase(heroRecord({ cast: 'female', head: 'anime', animeStyle: STYLE, face: { width: 1.02 } }));
+    const base = animeFaceBase(heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE, face: { width: 1.02 } }));
     expect(Object.entries(own.face).filter(([k, v]) => Math.abs(v - base[k]) > 1e-9).map(([k]) => k)).toEqual(['width']);
     // (the body: a smaller head on a leaner frame)
     expect(styled().tune.head).toBeLessThan(animeHeroEffective(plain).tune.head); expect(styled().tune.neckGirth).toBeLessThan(1); expect(styled().tune.upperArm).toBeLessThan(1);
@@ -37,6 +37,14 @@ describe('the style pole', () => {
     expect(normalizeHero({ ...old, animeStyleResolved: { ...old.animeStyleResolved, word: 'another' } }).animeStyleResolved).toEqual(resolveAnimeStyle(STYLE));
     const off = normalizeHero({ ...hero, animeStyle: null });
     expect(off).not.toHaveProperty('animeStyle'); expect(off).not.toHaveProperty('animeStyleResolved');
+  });
+  it('lends a cast another base\'s head: Shonen High\'s female wears the male head, tuned; her hair and her body her own', () => {
+    const her = heroRecord({ cast: 'female', head: 'anime', animeStyle: STYLE }), him = heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE });
+    expect(heroHeadPole(her)).toBe('male'); expect(heroHairPole(her)).toBe('female'); expect(heroHeadPole(heroRecord({ cast: 'female', head: 'anime' }))).toBe('female');
+    // (her face is his with her layer on it: her eyes a little taller than his, her chin narrower)
+    const F = animeHeroEffective(her).face, M = animeHeroEffective(him).face;
+    expect(F.eyeHeight).toBeGreaterThan(M.eyeHeight); expect(F.eyeHeight).toBeLessThan(M.eyeHeight * 1.1); expect(F.chin).toBeLessThan(M.chin);
+    expect(heroPlanOf(her).include[0].faceMeasures.features.eyeLevel).toBeCloseTo(heroPlanOf(him).include[0].faceMeasures.features.eyeLevel, 1);
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {

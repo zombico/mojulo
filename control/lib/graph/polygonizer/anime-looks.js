@@ -139,13 +139,13 @@ export const animeFormFaceOf = (hero) => (animeFormed(hero) ? ANIME_FORM_POLE[he
  * style's in place of both */
 export function heroFeatureAdvice(hero, features) {
   if (!features) return [];
-  const pole = heroHeadPole(hero), F = animeFormed(hero) ? ANIME_FORM_POLE[pole]?.bands : null, St = animeStyleOf(hero, pole);
+  const pole = heroHeadPole(hero), F = animeFormed(hero) ? ANIME_FORM_POLE[pole]?.bands : null, St = animeStyleOf(hero, castHeadPole(hero));
   if (!F && !St) return features.advice ?? [];
-  return featureAdvice(features, pole, { bands: { ...(F ?? {}), ...(St?.bands ?? {}) }, label: St ? `${St.word} ${pole}` : pole });
+  return featureAdvice(features, pole, { bands: { ...(F ?? {}), ...(St?.bands ?? {}) }, label: St ? `${St.word} ${castHeadPole(hero)}` : pole });
 }
 /** the face this hero's own words move off: the studio's default under its form's face and its style's (a word the
  * form or the style set is the base's or the game's, not the hero's own) */
-export const animeFaceBase = (hero) => { const { from: _f, ...B } = resolveAnimeFace([animeFormFaceOf(hero), animeStyleOf(hero, heroHeadPole(hero))?.face].filter(Boolean)); return B; };
+export const animeFaceBase = (hero) => { const { from: _f, ...B } = resolveAnimeFace([animeFormFaceOf(hero), animeStyleOf(hero, castHeadPole(hero))?.face].filter(Boolean)); return B; };
 /** does this hero wear the anime head's form (ANIME_FORM): minted under laws 19, its face not the child's */
 export const animeFormed = (hero) => (hero.laws ?? 1) >= 19 && !childFaced(hero);
 /** does this child wear the ROUND child (laws 14: CHILD_FACE `round`, tiered-form.js CHILD_SHADE) */
@@ -160,7 +160,7 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   // (the child's face its words in order, then the boy's own: a nested list would be read as one ratio object)
   const R = C && childRound(hero), boy = C && heroHeadPole(hero) === 'male';
   // THE STYLE POLE (anime-styles.js): the game's family of faces, over the head's form and under every other layer
-  const St = animeStyleOf(hero, heroHeadPole(hero));
+  const St = animeStyleOf(hero, castHeadPole(hero));
   const { from: _f, ...face } = resolveAnimeFace([animeFormFaceOf(hero), St?.face, ...(C ? C.face : []), R ? C.round : null, boy ? C.male : null, boy && R ? C.roundMale : null, L?.face, hero.face, G?.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
   // a layer may itself be a list (a family word and its controls): its entries join the layers in order, so its family is
@@ -177,9 +177,16 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */
-export const heroHeadPole = (hero) => { const pole = castPole(hero.cast); return hero.headPreset ?? (typeof pole === 'string' && HEAD_PRESETS[pole] ? pole : 'male'); };
+export const heroHeadPole = (hero) => hero.headPreset ?? styleHeadOf(hero) ?? castHeadPole(hero);
+/** the head the cast itself wears (its pole when that is a hero cast, else the male): the key a style's entry is read by */
+export const castHeadPole = (hero) => { const pole = castPole(hero.cast); return typeof pole === 'string' && HEAD_PRESETS[pole] ? pole : 'male'; };
+/** the head a style gives this cast (anime-styles.js: an entry's `head`, the female of Shonen High wearing the male's), or
+ * undefined */
+const styleHeadOf = (hero) => (hero.animeStyle ? hero.animeStyleResolved?.[castHeadPole(hero)]?.head : undefined);
 /** the anime hero's effective head: the look's stamp, the own layer on top, and the hair base of its design base (its
  * form under every family, its cut when nothing names a family) — read here, never stored (the hero door and the face
  * rig read it the same way) */
-export const animeHeroEffective = (hero) => { const pole = heroHeadPole(hero); return composeAnime(hero, animeDefaultStyle(pole), { hairBase: ANIME_HAIR_BASE[pole] }); };
+/** the design base the hero's hair and palette follow: its head's, but the cast's own where a style lends it its head */
+export const heroHairPole = (hero) => (!hero.headPreset && styleHeadOf(hero) ? castHeadPole(hero) : heroHeadPole(hero));
+export const animeHeroEffective = (hero) => { const hp = heroHairPole(hero); return composeAnime(hero, animeDefaultStyle(hp), { hairBase: ANIME_HAIR_BASE[hp] }); };
 export { ANIME_FACE };

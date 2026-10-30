@@ -27,7 +27,10 @@ lean, long faces. The eyes gate is the operator's.
   thinner, the waist and the chest's depth less, the shoulders a hair narrower, under the smaller head; the jaw's line
   reads against the neck. The body tune's new `neckGirth` (0.7 to 1.3) thins or thickens the neck, stored only when it
   moves off 1.
-- **Shonen High's female after Nobara** (the north star): the male's structure feminized: the same brow ridge and
-  bridge, softer; the line from the jaw to the back of the skull, the ear set back; a narrow oval tapering from flat
-  cheeks to a small pointed chin over a soft jaw; larger almond eyes than the male's under a heavy lash line flicked at
-  its tail; thin, straight, angled brows clear of the eye; a small mouth (her own mouth band).
+- **Shonen High's female after Nobara** (the north star): she wears the male's head (`head: 'male'` on her style
+  entry: his skull, his profile, his jaw's line to the back of the skull, his ear), and over his face her own layer:
+  her head smaller than his; her features softer (her brow's ridge, bridge and nose lighter, her jaw narrower, softer
+  and turned under into a small pointed chin, her lids and brows less angled); her cheeks fuller; her eyes a little
+  larger than his, almond under a heavier lash flicked at its tail; her brows thinner; her mouth smaller. Her body
+  and her hair are her cast's. A style entry can lend a cast another base's head this way (`heroHeadPole`; the hair and
+  the palette follow the cast, `heroHairPole`).

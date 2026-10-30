@@ -81,7 +81,7 @@ import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, 
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle } from '@/lib/graph/polygonizer/anime-styles';
-import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, heroFeatureAdvice } from '@/lib/graph/polygonizer/anime-looks';
+import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
@@ -1357,7 +1357,7 @@ function gripHands(plan, hero) {
  * darkest mark on the head. */
 const ANIME_HERO_PALETTE = Object.freeze({ male: Object.freeze({ Hair: '#644634', Ink: '#16181c' }), female: Object.freeze({ Hair: '#465365', Ink: '#16181c' }) });
 /** the hair base the door applied to an anime hero, resolved: its form, and its cut when worn (`eff.hairCut`) */
-const animeHairBaseOf = (hero, eff) => { const B = ANIME_HAIR_BASE[headPoleOf(hero)]; return resolveAnimeHair([B.form, ...(eff.hairCut ? [eff.hairCut] : [])]); };
+const animeHairBaseOf = (hero, eff) => { const B = ANIME_HAIR_BASE[heroHairPole(hero)]; return resolveAnimeHair([B.form, ...(eff.hairCut ? [eff.hairCut] : [])]); };
 /** The bust the tiered form profiles into the torso (metres): the body's own, else the adult female's default (a share of
  * her chest, as hero-form.js BUST_FORM); none on a child-coded figure. */
 function tieredBust(hero) {
@@ -1420,7 +1420,7 @@ function heroFormPlanOf(hero) {
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
-    return humanoidPlan({ preset: cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[heroHairPole(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset || heroHairPole(hero) !== headPoleOf(hero) ? { headPreset: headPoleOf(hero) } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
   const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...((hero.detail === 'swimsuit' && !childCoding(hero)) || hero.beast ? { bare: true } : {}) });
@@ -1486,7 +1486,7 @@ export function heroEvidence(hero) {
     const sc = composeAnime(hero, 'bob').sculpt, scMoved = sc === false ? null : describeAnimeSculpt(sparseSculpt(sc));
     const cut = hero.hair === 'none' ? null : animeEffective(hero).hairCut;
     return { head: { construction: 'the Anime Form Studio head (authored, no fit, no reference)', base: headPoleOf(hero), face: moved.length ? `authored off the base: ${moved.join(', ')}` : 'as the base', sculpt: sc === false ? "the studio's face (sculpt false)" : scMoved ? `the graphic face, authored off its base: ${scMoved}` : 'the graphic face, as the base',
-      hair: hero.hair === 'none' ? 'none' : cut ? `the ${headPoleOf(hero)} hair base: the ${cut} cut over its form` : "a named family over the hair base's form" }, body: 'authored: a cast and a tune, no reference' };
+      hair: hero.hair === 'none' ? 'none' : cut ? `the ${heroHairPole(hero)} hair base: the ${cut} cut over its form` : "a named family over the hair base's form" }, body: 'authored: a cast and a tune, no reference' };
   }
   if ((hero.head ?? 'landmark') !== 'landmark') return { head: typeof hero.head === 'string' ? `${hero.head}: no fit` : 'include: as given', body: 'authored: a cast and a tune, no reference' };
   const pole = headPoleOf(hero); const E = fitEvidence(pole); const moved = Object.entries(hero.face || {}).filter(([, v]) => v !== 1).map(([k]) => k);
