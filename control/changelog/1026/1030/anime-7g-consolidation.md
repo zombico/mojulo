@@ -45,3 +45,8 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   skull: the turn up at the corner within a share of hers). School-Kid Hero takes Shonen High's words for it (`jawLine`,
   `napeLift`); Z-Fighter's female moves onto the male's head, since her own base's back stopped short of it whatever
   its words. Shonen High's and Z-Fighter's males already closed by that measure and are left as they were.
+- **Z-Fighter's female set apart from Shonen High's** (on the same male head, she read as Shonen High's female's
+  cousin): shorter and wider where hers is long, a broader, rounded chin where hers is a sharp V, larger eyes set wider
+  on the true almond shape (not the male head's flat top), long thin brows a little arched, a tiny nose and a small
+  mouth; one soft oval from under the ear to the chin, the jaw's corner low. The cheek stays one arc and the jaw stays
+  closed into the skull.

@@ -70,12 +70,14 @@ export const ANIME_STYLES = Object.freeze({
   // a heavy, straight upper lid angled down to the nose, small irises; the brows thick blocks set low on the eye and
   // angled hard down to the bridge; the nose small and pointed off a raised bridge; the mouth wide and low. The female
   // (after a maquette of Android 18) wears the male's head, as Shonen High's does (her own base's left the jaw hanging
-  // under the skull in profile, past what its words could close), her layer the cool grown fighter over his: his
-  // features softened and narrowed, almond eyes under a level lid, the brows straight and thin, her face one convex
-  // arc from under the ear to a narrow chin (the jaw fuller along its edge than the cheek, the lower cheek slim, so no
-  // fullness bulges beside the mouth), the mouth small, her head seated back on her neck
+  // under the skull in profile, past what its words could close), her layer a grown woman's face drawn Toriyama's way
+  // over his, set apart from Shonen High's female where a face reads first: shorter and wider where hers is long, a
+  // broader, rounded chin where hers is a sharp V, larger eyes set wider on the true almond (not the male head's flat
+  // top), long thin brows a little arched, a tiny nose; her face one soft oval from under the ear to the chin (the jaw
+  // fuller along its edge than the cheek, its corner low, the lower cheek slim, so no fullness bulges beside the mouth),
+  // the mouth small, her head seated back on her neck
   'z-fighter': Object.freeze({
-    note: 'grown-hero-sized, martial-arts-themed (after a Goku maquette): a small, square-jawed head on a heavy frame, wide low eyes under thick brows angled hard to the bridge',
+    note: 'grown-hero-sized, martial-arts-themed (after a Goku maquette): a small, square-jawed head on a heavy frame, wide low eyes under thick brows angled hard to the bridge; the female a short, soft oval with large almond eyes',
     male: Object.freeze({
       face: Object.freeze({ width: 1.05, lower: 1.0, cheekVolume: 0.84, lowerCheekVolume: 1.0, jaw: 1.22, jawAngle: 1.12, chin: 0.92, chinProjection: 1.08, browDepth: 1.3, eyeWidth: 1.06, eyeHeight: 0.9, iris: 0.9, tilt: 0.02, nose: 1.1 }),
       sculpt: Object.freeze({ lidWeight: 1.3, lidAngle: 10, lidTail: 1.1, browThick: 1.4, browGap: 0.4, browAngle: 12, pupil: 0.8, fissureHeight: 0.92, bridgeRoot: 0.05, mouthWidth: 1.1, stomion: -0.01, napeLift: 0.12, earBack: 0.03, jawLine: 1 }),
@@ -84,10 +86,10 @@ export const ANIME_STYLES = Object.freeze({
     }),
     female: Object.freeze({
       head: 'male',
-      face: Object.freeze({ width: 0.93, lower: 0.92, cheekVolume: 1.15, lowerCheekVolume: 0.9, jaw: 0.86, jawAngle: 0.92, chin: 0.76, chinProjection: 0.94, browDepth: 0.85, eyeWidth: 1.01, iris: 0.97, nose: 0.85 }),
-      sculpt: Object.freeze({ lidWeight: 0.95, lidAngle: -4, lidFlick: 6, fissureHeight: 0.96, browThick: 0.6, browAngle: -8, bridgeRoot: -0.02, tipProjection: 0.85, mouthWidth: 0.8, jawHollow: 0.01, seatBack: 0.08 }),
+      face: Object.freeze({ width: 0.97, lower: 0.86, cheekVolume: 1.1, lowerCheekVolume: 0.9, jaw: 0.9, jawAngle: 0.9, chin: 0.85, chinProjection: 0.92, chinHeight: 0.95, browDepth: 0.85, eyeWidth: 1.03, eyeHeight: 1.12, spacing: 1.04, iris: 1.05, nose: 0.75 }),
+      sculpt: Object.freeze({ fissureShape: 'almond', lidWeight: 0.9, lidAngle: -6, lidFlick: 8, fissureHeight: 1.06, browThick: 0.55, browAngle: -10, browArch: 0.01, browLength: 1.1, bridgeRoot: -0.02, tipProjection: 0.7, mouthWidth: 0.72, jawHollow: 0.01, seatBack: 0.08 }),
       tune: Object.freeze({ ...HEAVY_HERO, head: 0.92, stature: 1.03, neckGirth: 0.95, shoulders: 1.03, depth: 1, waist: 0.96, upperArm: 1.02, forearm: 1.02, thigh: 1.04, calf: 1.03 }),
-      bands: Object.freeze({ eyeLevel: [0.41, 0.46], stomion: [0.13, 0.18], lid: [0.3, 0.5], mouthWidth: [0.22, 0.32] }),
+      bands: Object.freeze({ eyeLevel: [0.4, 0.45], pronasale: [0.23, 0.3], stomion: [0.11, 0.17], browThick: [0.25, 0.45], lid: [0.3, 0.5], noseProjection: [0.05, 0.1], mouthWidth: [0.2, 0.3] }),
     }),
   }),
   // SCHOOL-KID HERO, schoolkid-sized and action-themed (after a Kishimoto-baseline figure, a twelve-year-old genin): a big
