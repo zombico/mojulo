@@ -16,8 +16,9 @@ follow.
   and 2.2 tall, wider than the head, sitting low on small dark feet turned a little out; the arms are short and chunky,
   the tail as big as the body. The cream belly is a designed zone, from under the chin to near the groin and widest low:
   a REGION egg, which colours a zone and does not shape the body. The head stands a little apart from the body for its
-  silhouette: where a head shape meets a body shape they blend no softer than a SEAM, a crease under the jaw, and the
-  shoulders sit low and narrow enough for the cheeks' tufts to hang over them.
+  silhouette: it rides a short neck narrower than both (the hourglass: the wide body, the neck pinched, the wide head),
+  everything on it raised together; where a head shape meets the rest they blend no softer than a SEAM, a crease under
+  the jaw; the shoulders sit low and narrow enough for the cheeks' tufts to hang over them.
 - **Round blobs, pointy fur details.** The masses are round, and where fur stands off them it ends in tufts: locks drawn
   as the realistic hair draws one, a rounded body tapering to a rounded point along a bending spine, melted into the
   skin at the root only so the point stays sharp. The cheeks end in a fan of them and the tail's brush ends in one.

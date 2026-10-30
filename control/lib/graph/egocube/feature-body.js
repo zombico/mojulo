@@ -179,6 +179,8 @@ export const FEATURE_BUILDS = Object.freeze({
       splay: 0.62,
       // the head's separation from the body: a head shape meets a body shape no softer than this (h)
       seam: 0.05,
+      // the head raised over a short neck (h): the silhouette's hourglass, the wide body, the neck pinched, the wide head
+      headLift: 0.17,
       eggs: [
         // the head: a wedge (the cranium's fat end down into the jowls), the cheek ruffs flaring out at the face's widest
         // (the head wider than the body), the muzzle short and pale, its nose ball, the ears
@@ -192,6 +194,9 @@ export const FEATURE_BUILDS = Object.freeze({
         // the body, the dominant mass (the reference's: wider than the head, about 2.4 heads across and 2.2 tall, nearly on
         // the ground): the chest under the head and the belly low, round and forward, its pale front most of it, the
         // haunches wide, the legs all but hidden under it, the feet small and turned a little out
+        // the neck: short and narrower than the head and the body, on the rig's neck bone (soft into the chest, the jaw's
+        // seam above it)
+        { name: 'neck', c: [0, 0.08, 2.4], u: [0, 0.1, 1], r: [0.26, 0.56, 0.5], bone: 'neck', join: 0.16 },
         { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
         { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
         { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
@@ -240,9 +245,9 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'belly', group: 'Belly', regions: [{ c: [0, 0.9, 1.32], u: [0, -0.1, 1], r: [1.02, 0.82, 0.55], e: 0.3 }] },
         { name: 'paws', group: 'Patch', eggs: ['pawR', 'pawL', 'footR', 'footL', ...[1, 2, 3, 4, 5].flatMap((i) => ['a', 'b'].flatMap((l) => [`digit${i}${l}R`, `digit${i}${l}L`]))] },
         { name: 'tailTip', group: 'Patch', eggs: ['tailTip'] },
-        { name: 'mask', group: 'Patch', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
-        { name: 'stripe', group: 'Patch', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
-        { name: 'ears', group: 'EarInner', strokes: [{ both: true, points: [[0.44, 0.0, 3.08], [0.5, -0.02, 3.3], [0.55, -0.05, 3.48]], r: [0.1, 0.08, 0.02] }] },
+        { name: 'mask', group: 'Patch', on: 'head', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
+        { name: 'stripe', group: 'Patch', on: 'head', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
+        { name: 'ears', group: 'EarInner', on: 'head', strokes: [{ both: true, points: [[0.44, 0.0, 3.08], [0.5, -0.02, 3.3], [0.55, -0.05, 3.48]], r: [0.1, 0.08, 0.02] }] },
         { name: 'rings', group: 'Patch', levels: 0, bands: [
           { c: [0, -1.5, 0.82], axis: [0, -0.9, 0.45], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
           { c: [0, -1.92, 1.2], axis: [0, -0.6, 0.8], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
@@ -254,7 +259,7 @@ export const FEATURE_BUILDS = Object.freeze({
       // smile raises a corner `rise`, the line sags `sag` between
       mouth: { nose: [0, 0.82, 2.48], centre: [0, 0.77, 2.41], corner: [0.17, 0.63, 2.42], pivot: [0, 0.42, 2.52], rise: 0.05, sag: 0.012 },
       joints: { hip: [0.58, 0, 0.55], knee: [0.56, 0.08, 0.32], ankle: [0.55, 0.05, 0.1], toeBase: [0.57, 0.32, 0.05], toeTip: [0.59, 0.48, 0.03], shoulder: sh, elbow: el, wrist: wr, knuckles: kn },
-      hipZ: 0.55, neckZ: 2.35, top: 3.42,
+      hipZ: 0.55, neckZ: 2.3, top: 3.42,
       head: { C: [0, 0.02, 2.8], rx: 0.72, ry: 0.6, rz: 0.55 },
       muzzle: { C: [0, 0.54, 2.52], rx: 0.22, ry: 0.3, rz: 0.18 },
     });
@@ -264,14 +269,17 @@ export const FEATURE_BUILDS = Object.freeze({
 /** a build's relations at a height: the eggs mirrored and scaled to metres, the joints, the head and the muzzle */
 function laidOut(build, height) {
   const h = height / build.heads, S = (p) => p.map((x) => r6(x * h));
+  // (the HEAD'S LIFT: everything riding the head raised together, over the neck: its shapes and tufts, the face's marks,
+  // the eyes' head, the mouth, the crown)
+  const up = build.headLift ?? 0, U0 = (p) => [p[0], p[1], p[2] + up], SH = (p, bone) => S(bone === 'head' ? U0(p) : p);
   const eggs = [];
   for (const x of build.eggs) {
-    const one = (name, c, u, bone, hint) => eggs.push(egg({ name, c: S(c), u, r: x.r.map((v) => v * h), e: x.e ?? 0, hint, bone, group: x.group ?? 'Body', join: x.join * h }));
+    const one = (name, c, u, bone, hint) => eggs.push(egg({ name, c: SH(c, bone), u, r: x.r.map((v) => v * h), e: x.e ?? 0, hint, bone, group: x.group ?? 'Body', join: x.join * h }));
     one(x.name, x.c, x.u, x.bone, x.hint);
     if (/R$/.test(x.name)) one(twin(x.name), mirrorX(x.c), mirrorX(x.u), twin(x.bone), x.hint ? mirrorX(x.hint) : undefined);
   }
   for (const x of build.tufts ?? []) {
-    const one = (name, root, aim, bend, bone) => eggs.push(tuft({ name, root: S(root), aim, len: x.len * h, r: x.r * h, tip: x.tip, curl: x.curl, bend, bone, group: x.group ?? 'Body', join: x.join * h }));
+    const one = (name, root, aim, bend, bone) => eggs.push(tuft({ name, root: SH(root, bone), aim, len: x.len * h, r: x.r * h, tip: x.tip, curl: x.curl, bend, bone, group: x.group ?? 'Body', join: x.join * h }));
     one(x.name, x.root, x.aim, x.bend, x.bone);
     if (/R$/.test(x.name)) one(twin(x.name), mirrorX(x.root), mirrorX(x.aim), x.bend ? mirrorX(x.bend) : undefined, twin(x.bone));
   }
@@ -298,11 +306,11 @@ function laidOut(build, height) {
   const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group, ...(m.levels !== undefined ? { levels: m.levels } : {}),
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
-    ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map(S), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
+    ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map((p) => SH(p, m.on)), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
     ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h })) } : {}) }));
-  const ell = (E) => ({ C: S(E.C), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
-  const mouth = build.mouth && { nose: S(build.mouth.nose), centre: S(build.mouth.centre), corner: S(build.mouth.corner), pivot: S(build.mouth.pivot), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
-  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+  const ell = (E) => ({ C: S(U0(E.C)), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
+  const mouth = build.mouth && { nose: S(U0(build.mouth.nose)), centre: S(U0(build.mouth.centre)), corner: S(U0(build.mouth.corner)), pivot: S(U0(build.mouth.pivot)), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
+  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
 }
 
 /** clips with every arm direction (`armL`, `armR`: { x, y, z }) turned out until its outward share is at least `out` */
