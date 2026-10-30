@@ -53,3 +53,5 @@ lean, long faces. The eyes gate is the operator's.
   chin as a keel with a jagged wall up each side to the wider floor. Behind the chin those rows now widen to the
   floor's width, so the keel and both walls curve into one piece, and the whole floor is then shrunk in toward the
   middle (the chin and the jaw's edge at the seam kept), so what shows from below is one smaller, rounded piece.
+- **Shonen High's female, her lower face rounder**: her lower cheeks fuller and her jaw's side curved in less, so her
+  face rounds out from the cheekbone down to the chin, the chin as pointed as before.
