@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { expandLayeredManifest, heroRecord } from '../../mcp/tools/layered.js';
 import { EVEN_FACE, evenFace, RELATIONS, RELATION_POLES } from './head-relational.js';
+import { compileLayered } from './station-loft.js';
 
 const SPEC = { cast: 'female', form: 'realistic', face: { seed: 11, ethnicity: 'western' } };
 
@@ -26,5 +27,15 @@ describe('the realistic face even (laws 13)', () => {
     expect(evenFace(null, 'male').jaw).toBeCloseTo(RELATION_POLES.male.jaw + EVEN_FACE.male.jaw, 9);
     expect(evenFace(null, 'male').cheekBack).toBeCloseTo(RELATIONS.cheekBack + EVEN_FACE.male.cheekBack, 9);
     expect(recipe.headFit.relations.cheekBack).toBeCloseTo(EVEN_FACE.female.cheekBack, 9);
+  });
+  it('runs the throat in one slope from under the chin to the chest (body-relational-builds.js THROAT_LINE)', () => {
+    // (the midline's front, the skin's furthest forward at each height: from 40 mm under the chin to 200 mm, nothing more
+    // than 2.5 mm ahead of the straight line between them, where the neck's base had tented 9 mm past it)
+    const M = compileLayered(recipe), V = M.vertices, part = (i) => M.provenance[i].part;
+    const mid = V.map((_, i) => i).filter((i) => Math.abs(V[i][0]) < 0.008 && !/^(hair|hairCards|globe|mouth|teeth|tongue|ear)/.test(part(i)));
+    const chinZ = Math.min(...mid.filter((i) => part(i) === 'headSkin' && V[i][1] > 0.06).map((i) => V[i][2]));
+    const front = (dz) => Math.max(...mid.filter((i) => Math.abs(V[i][2] - (chinZ - dz)) < 0.004).map((i) => V[i][1]));
+    const a = front(0.04), b = front(0.2);
+    for (let dz = 0.06; dz < 0.2; dz += 0.02) expect(front(dz)).toBeLessThan(a + ((b - a) * (dz - 0.04)) / 0.16 + 0.0025);
   });
 });

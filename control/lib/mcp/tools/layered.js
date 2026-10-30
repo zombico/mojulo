@@ -80,7 +80,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
-import { cervicalNeck, roundOut, maleHips, withHipSpan } from '@/lib/graph/polygonizer/body-relational-builds';
+import { cervicalNeck, roundOut, maleHips, withHipSpan, throatLine } from '@/lib/graph/polygonizer/body-relational-builds';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
@@ -261,8 +261,10 @@ function realisticBuild(hero) {
   // cone, on EVERY build; laws 1 to 5 did so only under a physique with a dial set, and the athletic base, the build
   // itself byte for byte, hung the pelvis down between touching thighs to the knees: body-relational.js CROTCH)
   const R6 = laws >= 6 ? { ...R4, crotch: true } : R4;
-  // (realistic laws 9: the man's hips, a waist about as wide as them, body-relational-builds.js MALE_HIPS)
-  return laws >= 9 ? maleHips(R6, name) : R6;
+  // (realistic laws 9: the man's hips, a waist about as wide as them, body-relational-builds.js MALE_HIPS; laws 13: the
+  // throat one slope from the jaw to the chest, THROAT_LINE)
+  const R9 = laws >= 9 ? maleHips(R6, name) : R6;
+  return laws >= 13 ? throatLine(R9, name) : R9;
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it

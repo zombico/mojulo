@@ -169,7 +169,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   const J = R.joints, nz0 = J.neckHub?.[2], nz1 = J.headBase?.[2], between = crotchEase(R, W);
   const fatAt = !B.fat ? () => 0 : nz1 > nz0 ? (q) => { const x = Math.max(0, Math.min(1, (nz1 - q[2]) / (nz1 - nz0))); return B.fat * W * x * x * (3 - 2 * x) * between(q); } : (q) => B.fat * W * between(q);
   const bufM = new Array(soft.length + 1), buf2 = [0, 0];
-  const sd = (q0) => {
+  const sd0 = (q0) => {
     const q = warp(q0);
     bufM[0] = base(q); for (let i = 0; i < soft.length; i++) bufM[i + 1] = sdOf(soft[i], q);
     let d = lse(bufM, kM);
@@ -178,9 +178,25 @@ export function bodyField(R, build, { extra = [] } = {}) {
     for (const h of dimples) d = smaxp(d, -(len(sub(q, h.c)) - h.r), h.k);
     return d - fatAt(q0);
   };
+  // THE THROAT LINE (`throat`, realistic laws 13): the front from the throat to the chest no further forward than the
+  // chord between them, on the body's own surface: the neck's front `top` (W) under the head's base, under the chin, the
+  // chest's at `chest` up the torso bone; the chord's half-space cut off the front over `x0` of W either side of the
+  // midline, eased out over `x1` beyond it and past the chord's ends, blended `k` (W). The neck's root and the blend
+  // between it, the collarbones' heads and the chest had tented forward of that line, a ledge under the chin
+  const T0 = B.throat && nz1 !== undefined ? (() => {
+    const t = B.throat, z1 = nz1 - t.top * W, z2 = F.zOf(t.chest), y1 = crossing(sd0, [0, 0, z1], [0, 1, 0], 0.6)?.[1], y2 = crossing(sd0, [0, 0, z2], [0, 1, 0], 0.6)?.[1];
+    if (y1 === undefined || y2 === undefined) return null;
+    const uy = y2 - y1, uz = z2 - z1, l = Math.hypot(uy, uz), ny = -uz / l, nz = uy / l, x0 = t.x0 * W, x1 = t.x1 * W, k = t.k * W;
+    return (q, d) => {
+      const ax = Math.max(0, Math.abs(q[0]) - x0) / x1, ez = Math.max(0, q[2] - z1, z2 - q[2]) / x1;
+      return smaxp(d, ny * (q[1] - y1) + nz * (q[2] - z1) - (ax * ax + ez * ez) * x1, k);
+    };
+  })() : null;
+  const sd = T0 ? (q0) => T0(q0, sd0(q0)) : sd0;
   // a field of some masses alone (by id): a part whose rings run inside another's (the neck's root in the torso) reads
   // only its own, or its rays catch the shoulder's
-  const only = (ids) => { const sel = [...baseP, ...muscles].filter((p) => ids.includes(p.id)); return (q) => lse(sel.map((p) => sdOf(p, q)), kM) - fatAt(q); };
+  // (the throat's chord cuts it too: the neck's root is one of them)
+  const only = (ids) => { const sel = [...baseP, ...muscles].filter((p) => ids.includes(p.id)), f = (q) => lse(sel.map((p) => sdOf(p, q)), kM) - fatAt(q); return T0 ? (q) => T0(q, f(q)) : f; };
   return { build: B, frame: F, base, sd, only, fat: fatAt, bust: bustH, masses: { base: baseP, muscles, dimples } };
 }
 

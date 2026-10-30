@@ -185,3 +185,11 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   outer; laws 12 2.0, 1.8, 1.8) and the worried brow its inner end 1.6 mm, its tail kept. Face store v10. The face rig's
   test now reads the worried brow by its thirds, as its principle says: the inner end as far as the raise's, the tail
   kept.
+- **The throat in one slope** (realistic laws 13, `body-relational-builds.js` `THROAT_LINE`, `body-relational-field.js`
+  `throat`). From the side the front from under the chin to the chest bulged: the neck's root, the collarbones' heads and
+  the sternocleidomastoids' feet, blended wide, tented forward at the neck's base into a ledge under the chin (on one
+  heroine 77 mm forward 10 cm under the chin where the throat stood at 57 and the chest at 88; on one hero 92 against
+  62 and 102). The body's field is now cut back to the chord from the throat (under the head's base) to the chest, on
+  its own surface, over the front either side of the midline and eased out beyond: her front runs 56, 59, 64, 69, 73,
+  77, 81, 84, 88 mm down to the chest, his tent 92 → 77, male and female alike. Held by a principle (the midline's front
+  within 2.5 mm of the line from the throat to the chest), not a pin. Laws 12 and before keep their necks.
