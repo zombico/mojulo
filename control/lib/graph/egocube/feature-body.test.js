@@ -9,6 +9,8 @@ import { FEATURE_EYE } from './feature-face.js';
 import { FEATURE_COAT, strokesOf, coatLayers } from './feature-coat.js';
 import { rollMascot } from './mascot.js';
 import { mascotPlanFromSheet } from './mascot-form.js';
+import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
+import { expandPlan } from '../polygonizer/station-loft-plan.js';
 
 const along = (E, s) => { let lo = 0, hi = 4 * Math.max(...E.r); for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; (eggDistance(E, E.c.map((x, k) => x + E.u[k] * s * m)) < 0 ? (lo = m) : (hi = m)); } return lo; };
 
@@ -35,7 +37,7 @@ describe('the feature body', () => {
   it('the skin: one closed sound surface; each point\'s weights sum to one, on bones whose eggs are near it', () => {
     const build = Object.values(FEATURE_BUILDS)[0], h = 0.3;
     const eggs = build.eggs.filter((x) => !/R$/.test(x.name)).map((x) => egg({ ...x, c: x.c.map((v) => v * h), r: x.r.map((v) => v * h), join: x.join * h }));
-    const S = eggSkin(eggs, { cell: 0.012, faces: 3000, zones: [{ name: 'nose', group: 'Nose', eggs: ['nose'] }] }), F = Object.values(S.mesh.faces), uses = new Map();
+    const S = eggSkin(eggs, { cell: 0.01, faces: 3000, zones: [{ name: 'nose', group: 'Nose', eggs: ['nose'] }] }), F = Object.values(S.mesh.faces), uses = new Map();
     for (const t of F) for (let a = 0; a < 3; a++) { const k = [t[a], t[(a + 1) % 3]].sort().join('|'); uses.set(k, (uses.get(k) ?? 0) + 1); }
     expect(F.length).toBeGreaterThan(1500);
     expect([...uses.values()].every((n) => n === 2)).toBe(true);
@@ -92,7 +94,14 @@ describe('the feature body', () => {
     for (const b of ['digit3bR', 'digit2aL']) expect(bound.has(b), b).toBe(true);
     // A DEFAULT GAME MODEL: every part's faces together within the budget; round the belly no clip hangs an arm into it
     expect(plan.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
-    for (const keys of Object.values(plan.clips).map((c) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
+    // (on all fours the arms reach down to the floor, the trunk hinged out of their way)
+    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
+    // ON ALL FOURS, posed on the rig: the forepaws at the floor, the hind feet planted, the head held up to look ahead
+    const R = validateRig(expandPlan(plan).rig), { nodes } = rigNodesAt(R, plan.clips.fours[1]), height = plan.mascot.height;
+    for (const S of ['R', 'L']) { expect(Math.abs(nodes[`knuckles${S}`][2]), S).toBeLessThan(0.08 * height); expect(nodes[`toeBase${S}`][2]).toBeLessThan(0.03 * height); }
+    const crown = nodes.headTop.map((v, k) => v - nodes.headBase[k]);
+    expect(crown[2] / Math.hypot(...crown)).toBeGreaterThan(0.8);
+    expect(plan.clips.prowl.length).toBe(plan.clips.walk.length);
     const toon = mascotPlanFromSheet(rollMascot({ brief: 'raccoon' }));
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);

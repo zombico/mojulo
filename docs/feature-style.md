@@ -6,7 +6,10 @@ numbers, the body plans, the kit modules, the decoration dials: a species' card 
 [feature-face.js](../control/lib/graph/egocube/feature-face.js) (the eyes, lids, brows and mouth),
 [feature-coat.js](../control/lib/graph/egocube/feature-coat.js) (the markings),
 [feature-silhouettes.js](../control/lib/graph/egocube/feature-silhouettes.js) (the structure's shapes and the bellies,
-read from each species' body). The style is the mascot's third
+read from each species' body), [feature-function.js](../control/lib/graph/egocube/feature-function.js) (the limbs fitted
+so a quadruped drops onto all fours), [feature-birds.js](../control/lib/graph/egocube/feature-birds.js) (a bird's beak,
+head, plumage and golden side silhouette). The style draws no fish (`FEATURE_EXCLUDES`): one asked for is drawn in the
+toon, and the sheet says so. The style is the mascot's third
 (`style: 'feature'`, [mascot.md](mascot.md)): feature animation's animals, cartoon realism.
 
 The raccoon was designed by hand against a reference sheet. These are the principles that made it work, written so a
@@ -47,8 +50,13 @@ Every build has two halves. They are designed separately and dialled separately.
 7. **The face acts as an animated face.** The eyes are globes turned front, a white sclera, a dark iris, a catchlight.
    The lids are shells that turn about each globe's centre; the brow is attached to the eye and turns about it too.
    The mouth is part of the muzzle: a smile line whose corners lift, an open mouth that opens down into an oval.
-8. **Streamlined limbs, articulate hands.** A limb is two round cones meeting at the joint. Hands that grip have
-   fingers, two bones each, fanned across the palm. In motion the arms are splayed out of the body they would sink into.
+8. **Streamlined limbs, articulate hands, round legs.** A limb is two round cones meeting at the joint. Hands that grip
+   have fingers, two bones each, fanned across the palm. In motion the arms are splayed out of the body they would sink
+   into. A leg that shows is a mascot's, round and full (`FEATURE_PROPORTION.leg`; a bird's thinner, still round), never
+   a stick.
+10. **Equivalently functional.** The animal moves as its animal does: a quadruped stands up for the acting and drops
+   onto all fours to move, so its limbs keep the species' own proportions (big hind legs stay big, an ape's arms stay
+   long) and its body fits over them. See Function.
 9. **A default game model.** One smooth skin, a few layers and parts, a triangle budget (FEATURE_TRIANGLES), the
    whole shaded smooth by the field's normals.
 
@@ -71,13 +79,52 @@ line of its back (where spines run) and the shapes a belly takes on it.
 | **perch** | a standing bird (a pigeon, a crow, an eagle) | the body tilted forward, the breast puffed, a visible neck, wings folded on the sides, thin legs and toes |
 | **wader** | a long-legged or long-necked bird (a flamingo, an ostrich) | a small body high on stilts, a long neck |
 | **squat** | an anuran (a frog, a toad) | wide and low, the head merged into the front, the hind legs folded big at the sides, the feet splayed out in front |
-| **orb** | a fish, a whale | one egg, the face on its front, fins for limbs |
+| **orb** | a whale, a dolphin (fish are not drawn in the style) | one egg, the face on its front, fins for limbs |
 | **coil** | no legs (a snake) | a ring of loops on the ground, the body an S rising out of it, the head held out front |
 
-**Birds stand as birds.** A wing is folded along the body's side, not held out as an arm: two flat panels on the arm's
-links and a hand panel, with the primaries fanned back in the wing's own plane past the tail. A standing bird has thin
-legs in the beak's colour, three toes forward and one back; its head is smooth unless its kit names a crest. In motion
-its wings stay folded, stirring with the acting rather than swinging out as arms.
+**Birds stand as birds** (see Birds): the wings folded and prominent, round legs in their own colour, three toes
+forward and one back; the head smooth unless its kit names a crest.
+
+## Function
+
+The fauna roster's skeleton gives each species its limbs (`speciesLimbs`: the fore and hind legs' chained lengths, the
+hind against the fore, the hind foot against the hind leg). `functional` fits the silhouette to them:
+
+1. **The species' proportions.** Big hind legs (the hind more than `FEATURE_FOURS.big` times the fore: a rabbit, a
+   kangaroo, a frog) grow their haunches, their legs' girth and their feet, and stand a little taller; a fore longer
+   than the hind (an ape's) lengthens the arms.
+2. **The trunk clears the floor.** Hinged level over the hips, the trunk's lowest point may brush the floor by
+   `FEATURE_FOURS.brush` at most. The body's depth (front to back only, never its width: the front view keeps its round
+   read) is eased first, then the legs are lengthened to the hip height it needs.
+3. **The forepaws reach the floor.** The arms are lengthened until they reach it from the shoulders: over a level back
+   on straight hind legs, or, on big hind legs, with the hind legs folded under it.
+
+The pose it reaches (`foursOf`: the hinge, the hind legs' crouch, the shoulder's height against the arm's reach, the
+clearance) becomes two clips: `fours` (dropping onto all fours, held, the head turned up to look ahead) and `prowl` (the
+walk on all fours: the hind legs' own walk under the hinged trunk, the arms swinging against them, each forepaw angled
+forward where the arm is longer than the shoulder is high). Birds, snakes and the orb are not quadrupeds.
+
+## Birds
+
+A bird is told by its own beak, its plumage and its wings, all read from the roster's realistic bird:
+
+- **The beak** (`beakOf`, from the cranium's rows: its length against the skull, its length against its depth, its
+  width against its depth, how far its tip curves down, how far its upper tip overhangs) is made by `beakParts`: an upper
+  mandible bent by the droop and aimed down by the depth, a lower one tucked under it (shorter under a hook), or a flat
+  egg where it is wider than deep (a bill). So a pigeon's is a short point, an eagle's a hook, a parrot's deep, a
+  hummingbird's a needle, a toucan's huge, a duck's a bill.
+- **The head matches the beak** (`headOf`): a hooked beak's head long and low under a brow ridge (a raptor's frown), a
+  deep beak's big and round, a needle's small and sleek, a bill's broad and low, a beak longer than the skull a small
+  head behind it.
+- **The plumage** (`plumageOf`): the colours that read apart from the coat become its pattern: a crown of the head's own
+  colour (a hood down the neck where the neck shares it: an eagle's white, a mallard's green), a neck band (a pigeon's
+  green), the tail's tip (and the primaries where that is darker), wing bars (a value step of the coat's own greys), the
+  legs and the beak.
+- **The wings carry the silhouette.** Folded along the body and held a little out from it, so they read from the front
+  as from the side: big panels in the wing's own tone (a value step off the coat), a scalloped row of secondaries, long
+  primaries in the flight feathers' tone reaching past the tail. In the clips they stay folded, the elbow straight.
+- **The side silhouette is golden.** The tail, the head and the body (the beak apart) fall as 1 : φ : φ²: the head is
+  sized to the body's length over φ, and the tail's fan reaches past the body by the head's length over φ.
 
 ## Bellies
 
@@ -120,4 +167,7 @@ on one sheet, each labelled with its silhouette. The machine gate is the laws
 in `feature-body.test.js` (one species per plan: one skin, within the budget, the decoration dials at 0 leaving the
 structure bare, the arms clear of the body) and `feature-grammar.test.js` (one species per silhouette: every
 silhouette cast from the roster and each a different set of masses; a belly only where the species has one; a standing
-bird with folded wings, toes and thin legs); the eyes gate is the operator's.
+bird with folded prominent wings, toes and round legs; a quadruped's all-fours pose for one species per silhouette,
+the paws reaching and the trunk clearing, big hind legs kept big; a bird's φ side silhouette, its own beak, its
+plumage; no fish). `feature-roster.mjs --takes idle,fours` shoots the cast standing and on all fours. The eyes gate is
+the operator's.

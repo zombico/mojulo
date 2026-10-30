@@ -78,3 +78,17 @@ mascot's clips play on it, each arm splayed out of the belly it would otherwise 
 
 New mascots made in the style take it. A stored mascot keeps its own look: a minted one stores its compiled plan, and a
 stored sheet without the style reads as before.
+
+- **Equivalently functional: a quadruped stands and drops onto all fours.** Its limbs keep the species' own proportions
+  from the roster's skeleton (a rabbit's and a kangaroo's big hind legs stay big, an ape's arms stay long), its body's
+  depth eases and its legs lengthen until its trunk clears the floor hinged level over its hips, and its arms reach the
+  floor from there. Two clips play it: `fours` (onto all fours, the head up to look ahead) and `prowl` (the walk on all
+  fours). A leg that shows is round and full, a mascot's, never a stick.
+- **Each bird is its own bird.** Its beak is read from the roster's skull (a pigeon's point, an eagle's hook under a
+  frowning brow, a parrot's deep beak, a hummingbird's needle, a toucan's huge one, a duck's bill) and its head matches
+  it; its plumage is its own colours (a crown or a hood, a neck band, wing bars, dark flight feathers, its legs). Its
+  wings carry its silhouette: big folded panels held a little out from the body, a scalloped trailing edge, long
+  primaries past the tail, in their own tones, folded in every clip. Its side silhouette is golden: the tail, the head
+  and the body as 1 : φ : φ².
+- **No fish.** The style draws no fish: one asked for is drawn in the toon, and the sheet says so.
+

@@ -36,6 +36,9 @@ import { featureFace } from './feature-face.js';
 import { cutSkin, coatLayers, stroke, band } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 import { featureBuild } from './feature-grammar.js';
+import { foursClips } from './feature-function.js';
+import { plumageOf, wingTones } from './feature-birds.js';
+import { speciesParams } from '../fauna/species.js';
 import { animalCard } from './mascot-animals.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -220,12 +223,13 @@ function splayed(clips, out) {
 }
 
 /** clips with every wing held folded: each arm's direction mostly the fold's (`fold`, the right's), the clip's own a
- *  share (`play`), so a wing stirs with the acting and never swings out as an arm */
+ *  share (`play`), its elbow straight, so a wing stirs with the acting and never swings out as an arm */
 function folded(clips, fold, play = 0.2) {
   const fix = (a, sx) => { if (!a || typeof a !== 'object' || !['x', 'y', 'z'].every((k) => Number.isFinite(a[k]))) return a;
     const l = Math.hypot(a.x, a.y, a.z) || 1, d = [sx * fold[0] * (1 - play) + (a.x / l) * play, fold[1] * (1 - play) + (a.y / l) * play, fold[2] * (1 - play) + (a.z / l) * play];
     const m = Math.hypot(...d) || 1; return { x: r4(d[0] / m), y: r4(d[1] / m), z: r4(d[2] / m) }; };
-  const key = (K) => (K && typeof K === 'object' ? { ...K, ...(K.armL ? { armL: fix(K.armL, -1) } : {}), ...(K.armR ? { armR: fix(K.armR, 1) } : {}) } : K);
+  // (the elbow held straight: a bent one swings the forearm, and the feathers on it, forward like a hand)
+  const key = (K) => (K && typeof K === 'object' ? { ...K, ...(K.armL ? { armL: fix(K.armL, -1), elbowL: 0 } : {}), ...(K.armR ? { armR: fix(K.armR, 1), elbowR: 0 } : {}) } : K);
   return Object.fromEntries(Object.entries(clips).map(([n, c]) => [n, Array.isArray(c) ? c.map(key) : c && Array.isArray(c.keys) ? { ...c, keys: c.keys.map(key) } : c]));
 }
 
@@ -235,6 +239,14 @@ function coatOf(skin, F, eggs, layers) {
   const key = JSON.stringify([skin.V.length, skin.F.length, eggs, layers]);
   if (!COATS.has(key)) { if (COATS.size >= 8) COATS.delete(COATS.keys().next().value); COATS.set(key, coatLayers({ V: skin.V, F: skin.F, field: F.field, shapes: eggs, weights: F.weights }, layers)); }
   return COATS.get(key);
+}
+
+/** the palette's feature groups: a bird's plumage (its crown, its neck band, its tail's tip, its wing bars, its legs) and
+ *  its own belly's colour, over the coat's palette */
+function featurePalette(pal, id, build) {
+  if (build.plan !== 'bird') return { ...pal, Sock: pal.Beak, Wing: pal.Body, Flight: pal.Body };
+  const P = plumageOf(id), C = speciesParams(id)?.colors ?? {}, own = build.belly !== 'none' && build.belly !== 'tuxedo' && C.belly;
+  return { ...pal, ...wingTones(pal.Body, P), Sock: P.sock ?? pal.Beak, ...(P.crown ? { Crown: P.crown } : {}), ...(P.neck ? { Mane: P.neck } : {}), ...(P.bar ? { Bar: P.bar } : {}), ...(P.tip ? { Tip: P.tip } : {}), ...(own ? { Belly: C.belly } : {}) };
 }
 
 /** the feature style's height: the mascot's scale (a sprout's), its head a third of it */
@@ -262,6 +274,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // out to clear it, its direction's outward share at least the build's)
   // (a bird's wings are held folded instead)
   const clips = build.fold ? folded(clips0, build.fold) : splayed(clips0, build.splay ?? 0);
+  // (a quadruped's clips on all fours: feature-function.js)
+  Object.assign(clips, foursClips(build.fours, { walk: clips.walk, ready: clips.idle?.[0] }));
   // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
   for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
     const n = (x) => `digit${d.i}${x}${S0}`;
@@ -276,7 +290,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },
     joints, segments, dials: {}, rig, clips, paint: [],
     mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature' },
-    palette: { EarInner: '#c9a19b', ...coatPalette(sheet, k, A, f) },
+    palette: { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
   return { plan, H, height: L.top };
 }

@@ -52,7 +52,7 @@ export function silhouetteOf(id, family, plan) {
   return 'barrel';
 }
 
-const ARM_OUT = unit([0.86, 0.12, -0.5]), ARM_FOLD = unit([0.28, -0.8, -0.53]);
+const ARM_OUT = unit([0.86, 0.12, -0.5]), ARM_FOLD = unit([0.45, -0.75, -0.5]);
 
 /** the silhouettes. `body` the masses (eggs; bones torso, pelvis, thighR), `legs` 'hidden' (an egg under the haunch) or
  *  cones from the hip to the ankle, `arm` the shoulder, the arm's direction and its links' lengths and radii */

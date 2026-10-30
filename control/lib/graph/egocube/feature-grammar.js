@@ -26,9 +26,12 @@
 
 import { speciesParams } from '../fauna/species.js';
 import { SILHOUETTES, silhouetteOf, bellyOf } from './feature-silhouettes.js';
+import { functional, speciesLimbs } from './feature-function.js';
+import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const at = (p, d, s) => add(p, mul(d, s));
@@ -36,14 +39,19 @@ const sc = (r, k) => r.map((x) => x * k);
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 
 /** THE PROPORTION PRINCIPLES (h): heads tall, the seam under the jaw, the head's lift over the neck's pinch, the arms'
- *  least outward share in a clip (so none sinks into the belly) */
-export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLift: 0.12, splay: 0.62 });
+ *  least outward share in a clip (so none sinks into the belly), a showing leg's least radii at the thigh and the ankle
+ *  (a mascot's round leg; a bird's), a wing's scale (a bird's wing carries its silhouette: big) */
+export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLift: 0.12, splay: 0.62, leg: [0.27, 0.2], birdLeg: [0.14, 0.1], wing: 1.25 });
 
 /** THE DECORATION DIALS: 1 the designed amount, 0 none (the structure bare), more bolder. `tufts` the fur's and the
  *  feathers' fans (the cheeks, the tail's tip), `crown` the head's own fan, `markings` the coat's layers (the mask, the
  *  stripes, the rings, the inner ears; a coat's zones stay), `horns` horns, antlers and ossicones, `spines` a dorsal
  *  row, plates and quills, `mane` a mane's ring or crest, `fins` fins and flukes */
 export const FEATURE_DECOR = Object.freeze({ tufts: 1, crown: 1, markings: 1, horns: 1, spines: 1, mane: 1, fins: 1 });
+
+/** the families the style does not draw: a fish has no body to stand on or limbs to act with (a fish asked for in the
+ *  style is drawn in the toon, mascot.js) */
+export const FEATURE_EXCLUDES = Object.freeze(['teleost', 'chondrichthyan']);
 
 /** the family's body plan */
 export const PLAN_OF = Object.freeze({
@@ -71,7 +79,7 @@ export const PLANS = Object.freeze({
  *  (dark paws, a ringed tail) */
 export const FAMILY_TUNE = Object.freeze({
   procyonid: { fingers: 'long', paws: 'dark', rings: true, belly: 'oval' },
-  primate: { fingers: 'long', arms: 1.3, body: 0.92 },
+  primate: { fingers: 'long', body: 0.92 },
   rodent: { fingers: 'long', body: 0.95, head: 1.04 },
   ursine: { body: 1.05, tail: 'pom' },
   canine: { body: 0.86, belly: 'bib' },
@@ -101,19 +109,29 @@ export function speciesMeasures(id) {
  *  brush) or gets wrong (a hippo has no trunk; a great ape no tail) */
 export const SPECIES_KIT = Object.freeze({ squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
 
+/** a wing's fold on a silhouette that is not a standing bird's (an owl's teardrop): back and down along the side */
+const WING_FOLD = unit([0.4, -0.55, -0.73]);
+
+/** the head's two masses at a scale, about the raccoon's head (structure's own): the side silhouette's head is measured
+ *  on them */
+const HEAD0 = {
+  cranium: (hd, shape) => ({ c: [0, 0.02 * hd, 0], u: [0, 1, -0.1], r: sc([0.63, 0.72, 0.6], hd).map((x, k) => x * shape[k]), hint: [1, 0, 0] }),
+  jaw: (hd, shape) => ({ c: [0, 0.14 * hd, -0.25 * hd], u: [0, 1, -0.1], r: sc([0.48, 0.7, 0.36], hd).map((x, k) => x * shape[k]), hint: [1, 0, 0] }),
+};
+
 /** the structure of a silhouette (feature-silhouettes.js), tuned by the plan and the family: the masses, the limbs, the
  *  joints, the head's ellipsoid (the face's) */
-function structure(S, P, T) {
-  const bw = T.body ?? 1, hd = P.head * (T.head ?? 1), ar = T.arms ?? 1, ft = T.feet ?? 1, X = (p) => [p[0] * bw, p[1], p[2]];
+function structure(S, P, T, shape = [1, 1, 1]) {
+  const bw = T.body ?? 1, hd = P.head * (T.head ?? 1), ar = T.arms ?? 1, ft = Math.max(T.feet ?? 1, S.footLen ?? 1), X = (p) => [p[0] * bw, p[1], p[2]];
   const ARM = S.arm.dir, SPREAD = unit(cross(ARM, [0, 1, 0])), FLAT = unit(cross(ARM, [1, 0, 0]));
   const sh = X(S.arm.sh), el = at(sh, ARM, S.arm.len[0] * ar), wr = at(el, ARM, S.arm.len[1] * ar), kn = at(wr, ARM, 0.22);
   // (the head placed on the silhouette: its shapes are drawn about the raccoon's head, at 2.82 over the soles)
   const head = (c) => [c[0] * hd, c[1] * hd + S.hy, S.hz + (c[2] - 2.82) * hd];
   const eggs = [
     // (the cranium a FOOTBALL: long front to back, a little pointed toward the muzzle, its underside one round curve)
-    { name: 'cranium', c: head([0, 0.02, 2.82]), u: [0, 1, -0.1], r: sc([0.63, 0.72, 0.6], hd), e: 0.15, hint: [1, 0, 0], bone: 'head', join: 0.18 },
+    { name: 'cranium', c: head([0, 0.02, 2.82]), u: [0, 1, -0.1], r: sc([0.63, 0.72, 0.6], hd).map((x, k) => x * shape[k]), e: 0.15, hint: [1, 0, 0], bone: 'head', join: 0.18 },
     // (the head's lower volume filled out round: in profile a figure eight; from the front a football lying across)
-    { name: 'jaw', c: head([0, 0.14, 2.57]), u: [0, 1, -0.1], r: sc([0.48, 0.7, 0.36], hd), e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
+    { name: 'jaw', c: head([0, 0.14, 2.57]), u: [0, 1, -0.1], r: sc([0.48, 0.7, 0.36], hd).map((x, k) => x * shape[k]), e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
     // (the jowls carrying the football's points out and a little up, never drooping)
     { name: 'jowlR', c: head([0.38, 0.26, 2.55]), u: [0.86, 0.35, -0.12], r: sc([0.25, 0.21, 0.19], hd), e: 0.45, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
     ...(P.ruffs ? [{ name: 'ruffR', c: head([0.5, 0.08, 2.53]), u: [0.84, 0.05, -0.48], r: sc([0.34, 0.3, 0.26], hd), e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 }] : []),
@@ -126,10 +144,12 @@ function structure(S, P, T) {
   ];
   // the legs: hidden under the haunches, or two cones (the thigh, the shin) from the hip by the knee to the ankle
   const hip = X(S.hip), fx = S.foot[0], ankle = X([fx - 0.01, 0.05, 0.1]), knee = S.knee ? X(S.knee) : X([fx, 0.08, S.hip[2] * 0.58]);
-  const shinGroup = S.bird ? 'Beak' : undefined;
+  // (a leg that shows is a mascot's: round and full, never a stick; a bird's thinner, still round)
+  const shinGroup = S.bird ? 'Sock' : undefined, CH = S.bird ? FEATURE_PROPORTION.birdLeg : FEATURE_PROPORTION.leg;
+  const legR = [Math.max(S.legR?.[0] ?? 0, CH[0]), Math.max(S.legR?.[1] ?? 0, CH[1])].map((x) => x * (S.legScale ?? 1)), legM = (legR[0] + legR[1]) / 2;
   const legs = S.legs === 'cones' ? [
-    { name: 'thighR', a: hip, b: knee, ra: S.legR[0], rb: (S.legR[0] + S.legR[1]) / 2, bone: 'thighR', join: 0.08 },
-    { name: 'shinR', a: knee, b: ankle, ra: (S.legR[0] + S.legR[1]) / 2, rb: S.legR[1], bone: 'shinR', group: shinGroup, join: 0.05 }] : [];
+    { name: 'thighR', a: hip, b: knee, ra: legR[0], rb: legM, bone: 'thighR', join: 0.1 },
+    { name: 'shinR', a: knee, b: ankle, ra: legM, rb: legR[1], bone: 'shinR', group: shinGroup, join: 0.08 }] : [];
   if (S.legs !== 'cones') eggs.push({ name: 'shinR', c: X([fx - 0.01, 0.08, 0.18]), u: [0, 0, 1], r: [0.14, 0.15, 0.15], bone: 'shinR', join: 0.1 });
   eggs.push({ name: 'footR', c: [fx * bw, S.foot[1] * ft, 0.07], u: [0.2, 1, 0], r: [0.24 * ft, 0.16, 0.075], e: 0.25, hint: [1, 0, 0], bone: 'metaR', join: 0.07 });
   const limbs = [
@@ -146,24 +166,31 @@ function structure(S, P, T) {
 }
 
 /** THE HANDS: fingers (fanned, two bones each), hooves, wings, flippers, claws (three short fingers), none (a snake's).
- *  A WING is folded along the body's side: two flat panels on the arm's links, a hand panel, and the primaries fanned
- *  back in the wing's own plane past the tail, so a bird reads as a bird and not as a mammal with feathered arms */
-function hands(B, kind, T, D) {
+ *  A WING carries a bird's silhouette: folded along the body's side and held a little out from it, so it reads from the
+ *  front as from the side; big flat panels on the arm's links and the hand in the wing's own tone, a scalloped row of
+ *  secondaries along its trailing edge, and long primaries fanned back past the tail in the flight feathers' tone, so a
+ *  bird reads as a bird and never as a mammal with feathered arms */
+function hands(B, kind, T, D, plume = {}) {
   const { ARM, SPREAD, FLAT, sh, wr, el } = B;
   if (kind === 'none') return;
   if (kind === 'hooves') { B.eggs.push({ name: 'pawR', c: at(wr, ARM, 0.08), u: ARM, r: [0.12, 0.13, 0.12], e: 0.2, hint: SPREAD, bone: 'handR', group: 'Hoof', join: 0.03 }); return; }
   if (kind === 'flippers') { B.eggs.push({ name: 'pawR', c: at(el, ARM, 0.3), u: ARM, r: [0.42, 0.24, 0.07], e: 0.4, hint: FLAT, bone: 'handR', join: 0.06 }); return; }
   if (kind === 'wings') {
     const mid = (a, b) => mul(add(a, b), 0.5), L1 = Math.hypot(...el.map((x, k) => x - sh[k])), L2 = Math.hypot(...wr.map((x, k) => x - el[k]));
+    const W = FEATURE_PROPORTION.wing;
     B.eggs.push(
-      { name: 'wingR', c: at(mid(sh, el), FLAT, 0.06), u: ARM, r: [L1 / 2 + 0.16, 0.42, 0.08], e: 0.2, hint: FLAT, bone: 'upperArmR', join: 0.04 },
-      { name: 'wingForeR', c: at(mid(el, wr), FLAT, 0.04), u: ARM, r: [L2 / 2 + 0.14, 0.36, 0.07], e: 0.3, hint: FLAT, bone: 'foreArmR', join: 0.04 },
-      { name: 'pawR', c: at(wr, ARM, 0.1), u: ARM, r: [0.2, 0.22, 0.06], e: 0.4, hint: FLAT, bone: 'handR', join: 0.04 });
-    // (the primaries: the fan's falling rhythm, overlapping into one feathered tip back along the fold, never fingers)
-    if (D.tufts > 0) [[-7, 0.46], [-2, 0.56], [3, 0.5], [8, 0.4]].forEach(([fan, len], i) => {
-      const f = (fan * Math.PI) / 180, d = unit(add(mul(ARM, Math.cos(f)), mul(FLAT, Math.sin(f))));
-      B.tufts.push({ name: `primary${i}R`, root: at(at(wr, ARM, 0.1), FLAT, (i - 1.5) * 0.045), aim: d, len: len * D.tufts, r: 0.09, tip: 0.2, curl: 8, bend: FLAT, bone: 'handR', join: 0.05 });
-    });
+      { name: 'wingR', c: at(mid(sh, el), FLAT, 0.08), u: ARM, r: [L1 / 2 + 0.22, 0.52 * W, 0.1], e: 0.2, hint: FLAT, bone: 'upperArmR', group: 'Wing', join: 0.04 },
+      { name: 'wingForeR', c: at(mid(el, wr), FLAT, 0.04), u: ARM, r: [L2 / 2 + 0.2, 0.46 * W, 0.09], e: 0.3, hint: FLAT, bone: 'foreArmR', group: 'Wing', join: 0.04 },
+      { name: 'pawR', c: at(wr, ARM, 0.12), u: ARM, r: [0.26, 0.32 * W, 0.08], e: 0.4, hint: FLAT, bone: 'handR', group: 'Wing', join: 0.04 });
+    if (D.tufts > 0) {
+      // (the secondaries: a scalloped trailing edge, hanging back and down from the forearm's panel)
+      [0.05, 0.35, 0.65, 0.95].forEach((t, i) => B.tufts.push({ name: `secondary${i}R`, root: at(at(el, ARM, t * L2), FLAT, -0.22 * W), aim: unit(add(mul(ARM, 0.75), mul(FLAT, -0.65))), len: (0.32 + 0.05 * i) * W * D.tufts, r: 0.1, tip: 0.25, curl: 10, bend: FLAT, bone: 'foreArmR', group: 'Wing', join: 0.04 }));
+      // (the primaries: the fan's falling rhythm, long, overlapping into one feathered tip back along the fold past the tail)
+      [[-12, 0.62], [-6, 0.78], [0, 0.86], [6, 0.76], [12, 0.6]].forEach(([fan, len], i) => {
+        const f = (fan * Math.PI) / 180, d = unit(add(mul(ARM, Math.cos(f)), mul(FLAT, Math.sin(f))));
+        B.tufts.push({ name: `primary${i}R`, root: at(at(wr, ARM, 0.12), FLAT, (i - 2) * 0.06 * W), aim: d, len: len * W * D.tufts, r: 0.11, tip: 0.2, curl: 8, bend: FLAT, bone: 'handR', group: 'Flight', join: 0.05 });
+      });
+    }
     return;
   }
   B.eggs.push({ name: 'pawR', c: at(wr, ARM, 0.09), u: ARM, r: [0.13, 0.13, 0.075], e: 0.15, hint: SPREAD, bone: 'handR', group: T.paws === 'dark' ? 'Patch' : undefined, join: 0.04 });
@@ -264,13 +291,31 @@ function tailAt(tl, anchor) {
 export function featureBuild(card, { decor = {} } = {}) {
   const D = { ...FEATURE_DECOR, ...decor }, plan = PLAN_OF[card.family] ?? 'stander', P = PLANS[plan], T = FAMILY_TUNE[card.family] ?? {};
   // THE SILHOUETTE, read from the species' own body (feature-silhouettes.js)
-  const silhouette = silhouetteOf(card.id, card.family, plan), S = SILHOUETTES[silhouette];
-  const K = { ...(card.kit ?? {}), ...(S.limbless ? { tail: 'thin' } : {}), ...(SPECIES_KIT[card.id] ?? {}) };
-  const B = structure(S, P, T), H = B.headAt, onHead = (p) => H(p);
+  const silhouette = silhouetteOf(card.id, card.family, plan), S0 = SILHOUETTES[silhouette];
+  // THE FUNCTION (feature-function.js): a quadruped stands for the acting and drops onto all fours to move, so its
+  // silhouette is fitted to its limbs (the species' hind against its fore) and to the floor
+  const quad = (['stander', 'hoofed', 'reptile'].includes(plan) && !S0.limbless) || silhouette === 'squat';
+  const fn = quad ? functional(S0, speciesLimbs(card.id)) : null, S1 = fn ? fn.S : S0;
+  const K = { ...(card.kit ?? {}), ...(S1.limbless ? { tail: 'thin' } : {}), ...(SPECIES_KIT[card.id] ?? {}) };
+  // THE HANDS' KIND; a wing folds back along the body on any silhouette (an owl's too, not down its side as a flipper)
+  const handKind = S1.limbless ? 'none' : K.arms === 'flipper' ? 'flippers' : K.arms === 'wing' ? 'wings' : P.hands;
+  const S = handKind === 'wings' && !S1.bird ? { ...S1, arm: { ...S1.arm, dir: WING_FOLD } } : S1;
+  // (a bird's plumage: the colours that are its pattern, feature-birds.js)
+  const plume = plan === 'bird' ? plumageOf(card.id) : {};
+  // A BIRD'S HEAD: matched to its own beak (feature-birds.js), and sized so the side silhouette's head is the body's
+  // length over φ (the beak apart)
+  const beaked = ['beak', 'bill'].includes(K.muzzle ?? P.muzzle), bk = plan === 'bird' && beaked ? beakOf(card.id) : null, hs = headOf(bk);
+  const bodyAxis = unit(S.body.find((e) => e.name === 'belly').u), bodyMass = S.body.filter((e) => !/R$/.test(e.name));
+  const headLen = (hd) => { const [lo, hi] = extentAlong(['cranium', 'jaw'].map((n) => HEAD0[n](hd, hs.shape)), [0, 1, 0]); return hi - lo; };
+  let T1 = T;
+  if (plan === 'bird') { const [lo, hi] = extentAlong(bodyMass, bodyAxis); T1 = { ...T, head: (hi - lo) / PHI / headLen(1) / P.head }; }
+  const B = structure(S, P, T1, hs.shape), H = B.headAt, onHead = (p) => H(p);
   const headEgg = (x) => ({ ...x, c: onHead(x.c) });
   const headTuft = (x) => ({ ...x, root: onHead(x.root) });
   // THE MUZZLE (the kit's, else the plan's), its mouth and its pale zone
-  const mz = (MUZZLES[K.muzzle] ?? MUZZLES[P.muzzle])();
+  const mz = bk ? beakParts(bk, B.hd) : (MUZZLES[K.muzzle] ?? MUZZLES[P.muzzle])();
+  // (a raptor's head frowns: a brow ridge over each eye)
+  if (hs.brow) B.eggs.push({ name: 'browRidgeR', c: H([0.3, 0.5, 2.99]), u: [1, 0.25, -0.15], r: sc([0.18, 0.1, 0.06], B.hd), hint: [0, 0, 1], bone: 'head', join: 0.06 });
   B.eggs.push(...mz.eggs.map(headEgg));
   for (const l of mz.limbs ?? []) B.limbs.push({ ...l, a: onHead(l.a), b: onHead(l.b) });
   for (const t of mz.tufts ?? []) B.tufts.push(headTuft(t));
@@ -290,20 +335,25 @@ export function featureBuild(card, { decor = {} } = {}) {
   B.eggs.push(...tl.eggs);
   for (const t of tl.tufts ?? []) B.tufts.push(t);
   if (tl.tip && D.tufts > 0) B.tufts.push(dialled(tl.tip, D.tufts));
-  if (tl.fan && D.tufts > 0) [-34, -12, 12, 34].forEach((f, i) => { const a = (f * Math.PI) / 180; B.tufts.push(dialled({ name: `tailFeather${i}`, root: tl.at([0, -0.85, 0.75]), aim: [Math.sin(a), -Math.cos(a), 0.05], len: 0.6 - Math.abs(f) * 0.004, r: 0.1, tip: 0.2, curl: 10, bend: [0, 0, -1], bone: 'pelvis', join: 0.05 }, D.tufts)); });
+  // (a bird's tail: a fan along its body's axis, reaching past the body by the head's length over φ)
+  const TA = bodyAxis[1] < -0.5 ? bodyAxis : unit([0, -1, -0.35]), [, rear] = extentAlong(bodyMass, TA), belly1 = S.body.find((e) => e.name === 'belly').c;
+  const tailRoot = add(belly1, mul(TA, rear - dot(belly1, TA) - 0.25)), tailLen = headLen(B.hd) / PHI;
+  if (tl.fan && D.tufts > 0) [-40, -14, 14, 40].forEach((f, i) => {
+    const a = (f * Math.PI) / 180, aim = unit(add(mul(TA, Math.cos(a)), [Math.sin(a), 0, 0])), reachOf = tailLen * (1 - Math.abs(f) * 0.004);
+    B.tufts.push(dialled({ name: `tailFeather${i}`, root: tailRoot, aim, len: (reachOf + rear - dot(tailRoot, TA)) / dot(aim, TA), r: 0.13, tip: 0.2, curl: 6, bend: [0, 0, -1], bone: 'pelvis', group: plume.tip ? 'Tip' : undefined, join: 0.05 }, D.tufts));
+  });
   if (tl.fluke && D.fins > 0) B.tufts.push(dialled({ name: 'flukeR', root: tl.at([0, -1.5, 0.82]), aim: [1, -0.4, 0.1], len: 0.5, r: 0.14, tip: 0.2, curl: 20, bend: [0, -1, 0], bone: 'pelvis', join: 0.05 }, D.fins));
   // THE HANDS AND THE FEET
-  const handKind = S.limbless ? 'none' : K.arms === 'flipper' ? 'flippers' : K.arms === 'wing' ? 'wings' : P.hands;
-  hands(B, handKind, T, D);
+  hands(B, handKind, T, D, plume);
   const foot = B.eggs.find((e) => e.name === 'footR');
   if (K.feet === 'hooves' || P.hands === 'hooves') Object.assign(foot, { r: [0.18, 0.17, 0.12], group: 'Hoof' });
   else if (S.bird) {
     // (a standing bird's foot: three toes forward and one back off a small pad, the leg's colour)
     const a = B.joints.ankle, pad = [a[0], a[1] + 0.04, 0.05];
-    Object.assign(foot, { c: pad, r: [0.08, 0.07, 0.045], e: 0, group: 'Beak', join: 0.03 });
+    Object.assign(foot, { c: pad, r: [0.1, 0.09, 0.055], e: 0, group: 'Sock', join: 0.04 });
     [[-28, 0.24], [0, 0.28], [28, 0.24], [180, 0.14]].forEach(([fan, len], i) => {
       const f = (fan * Math.PI) / 180, d = [Math.sin(f) * 0.9, Math.cos(f), -0.08];
-      B.limbs.push({ name: `toe${i}R`, a: pad, b: add(pad, mul(unit(d), len)), ra: 0.04, rb: 0.022, bone: 'metaR', group: 'Beak', join: 0.02 });
+      B.limbs.push({ name: `toe${i}R`, a: pad, b: add(pad, mul(unit(d), len)), ra: 0.055, rb: 0.035, bone: 'metaR', group: 'Sock', join: 0.03 });
     });
   } else if (K.feet === 'webbed') Object.assign(foot, { r: [0.28, 0.24, 0.05], group: plan === 'bird' ? 'Beak' : undefined });
   else if (T.paws === 'dark') foot.group = 'Patch';
@@ -358,6 +408,9 @@ export function featureBuild(card, { decor = {} } = {}) {
   if (B.digits && (T.paws === 'dark' || K.pattern === 'socks')) B.marks.find((m) => m.name === 'paws').eggs.push(...fingers);
   if (K.pattern === 'patches') { zone('limbs', 'Patch', ['pawR', 'pawL', 'footR', 'footL', 'haunchR', 'haunchL', 'shinR', 'shinL', 'earR', 'earL']); }
   if (tl.tip && T.rings) zone('tailTip', 'Patch', ['tailTip']);
+  // (a bird's plumage: its head a crown of its own colour (a hood down the neck where the neck shares it), its neck a band)
+  if (plume.crown) zone('crown', 'Crown', ['cranium', 'jaw', 'jowlR', 'jowlL', 'browRidgeR', 'browRidgeL', ...(plume.hood ? ['neck'] : [])]);
+  if (plume.neck) zone('neckBand', 'Mane', ['neck']);
   // (every decoration that names a colour of its own and is in no zone yet: the hooves, a beak or a bill, horns, a mane, a
   // shell, the spines; its zone is its shapes' territory)
   const zoned = new Set(B.marks.flatMap((m) => m.eggs ?? [])), byGroup = {};
@@ -375,11 +428,20 @@ export function featureBuild(card, { decor = {} } = {}) {
     const m = (p) => (left ? [-p[0], p[1], p[2]] : p); return { points: [[0.02, -0.95 * wy + belly0.c[1] - 0.12, z + 0.25], [0.85 * wx, -0.35 * wy + belly0.c[1] - 0.12, z], [1.05 * wx, 0.25 * wy + belly0.c[1] - 0.12, z - 0.2]].map(m), r: [0.1, 0.08, 0.015] }; })) });
   if (ear?.inner) layers.push({ name: 'ears', group: 'EarInner', on: 'head', strokes: [{ both: true, points: ear.inner.map(onHead), r: ear.ir }] });
   if (tl.rings && T.rings) layers.push({ name: 'rings', group: 'Patch', levels: 0, bands: tl.rings.map(([c, axis, w, R]) => ({ c, axis, w, R, teeth: 9, depth: 0.035 })) });
+  // (a bird's wing bars: two strokes across the folded wing's coverts, a value step of its own greys)
+  const wing = B.eggs.find((e) => e.name === 'wingR');
+  if (plume.bar && wing) {
+    const U = unit(wing.u), V0 = unit(wing.hint), V = unit(add(V0, mul(U, -dot(V0, U)))), N0 = unit(cross(U, V)), N = N0[0] < 0 ? mul(N0, -1) : N0;
+    layers.push({ name: 'wingBars', group: 'Bar', strokes: [0.25, -0.2].map((t) => {
+      const p = add(add(wing.c, mul(U, t * wing.r[0])), mul(N, wing.r[2] * 0.9));
+      return { both: true, points: [-0.75, 0, 0.75].map((k) => add(p, mul(V, k * wing.r[1]))), r: [0.045, 0.06, 0.045] };
+    }) });
+  }
   if (D.markings > 0) B.marks.push(...layers);
   // (the marks' strokes are given in the head's frame already: `on: 'head'` lifts them with the head over the neck)
   const muzzle = mz.eggs.find((e) => e.name === 'muzzle');
   return Object.freeze({
-    family: card.family, plan, silhouette, belly: belly.kind,
+    family: card.family, plan, silhouette, belly: belly.kind, ...(fn ? { fit: fn.fit, fours: fn.fours } : {}),
     heads: S.heads, splay: FEATURE_PROPORTION.splay, ...(handKind === 'wings' ? { fold: B.ARM.map(r4) } : {}), seam: P.seam * S.seam, headLift,
     eggs: B.eggs.filter(Boolean), tufts: B.tufts.filter(Boolean), limbs: B.limbs, ...(B.digits ? { digits: B.digits } : {}), marks: B.marks,
     eye, mouth, joints: B.joints, hipZ: r4(B.hipZ), neckZ: r4(B.neckZ), top: r4(B.top + (K.ears === 'tall' ? 0.5 : 0)),
