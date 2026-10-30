@@ -8,6 +8,7 @@ import { compileLayered } from './station-loft.js';
 import { heroFaceRig } from './anime-face-rig.js';
 import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
+import { headOf } from './anime-drawings.fixture.js';
 
 const STYLE = ANIME_STYLE_NAMES[0];
 
@@ -51,6 +52,16 @@ describe('the style pole', () => {
     const rigOf = (spec) => { const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }); return heroFaceRig(M, compileLayered(M.recipe, M.dials)); };
     const R = rigOf({ cast: 'female', head: 'anime', animeStyle: STYLE, acting: 'full', register: 'lowpoly' });
     expect(R.skipped).toBeUndefined(); expect(R.meta.sevenG.targets).toBeGreaterThan(0);
+  });
+  it('squares the jaw\'s line (sculpt `jawLine`, Shonen High\'s): absent adds nothing; on, the underside behind the chin raised', () => {
+    // (the lowest skin point a third to a half of the way back from the chin, of the head's height above the chin)
+    const lowBehind = (spec) => {
+      const m = headOf(spec), skin = m.vertices.filter((_, i) => m.provenance[i].part === 'face'), zs = skin.map((p) => p[2]), z0 = Math.min(...zs), chin = skin[zs.indexOf(z0)];
+      const ys = skin.map((p) => p[1]), back = [Math.min(...ys), Math.max(...ys)].sort((a, b) => Math.abs(b - chin[1]) - Math.abs(a - chin[1]))[0], t = (p) => (p[1] - chin[1]) / (back - chin[1]);
+      return (Math.min(...skin.filter((p) => t(p) > 1 / 3 && t(p) < 0.5).map((p) => p[2])) - z0) / (Math.max(...zs) - z0);
+    };
+    expect(headOf({ cast: 'female', sculpt: { jawLine: 0 } }).vertices).toEqual(headOf({ cast: 'female' }).vertices);
+    expect(lowBehind({ cast: 'female', sculpt: { jawLine: 1 } })).toBeGreaterThan(lowBehind({ cast: 'female' }) + 0.008);
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {

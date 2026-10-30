@@ -20,8 +20,15 @@ export function moved(A, B, tol = 1e-6) {
   return out;
 }
 const normal = (P, f) => { const [a, b, c] = f.map((v) => P[+v.slice(1)]), u = b.map((x, i) => x - a[i]), w = c.map((x, i) => x - a[i]); return [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]; };
-/** the face's triangles a build turns over against the neutral (a fold) */
-export const folds = (A, N) => { const a = pts(A.face), n = pts(N.face); return Object.entries(A.face.faces).filter(([, f]) => { const p = normal(a, f), q = normal(n, f); return p[0] * q[0] + p[1] * q[1] + p[2] * q[2] <= 0; }).map(([k]) => k); };
+/** the face's triangles a build turns over against the neutral (a fold); a triangle that is a SLIVER at rest or as drawn
+ * (under SLIVER of the median face's area: the flat lips' corner, where the rim lies in the face's plane and a corner
+ * drawn down collapses it) turns over unseen and is not counted */
+export const SLIVER = 0.1;
+const area = (P, f) => Math.hypot(...normal(P, f)) / 2;
+export const folds = (A, N) => {
+  const a = pts(A.face), n = pts(N.face), F = Object.entries(A.face.faces), rest = F.map(([, f]) => area(n, f)), med = [...rest].sort((x, y) => x - y)[rest.length >> 1];
+  return F.filter(([, f], i) => { if (Math.min(rest[i], area(a, f)) < SLIVER * med) return false; const p = normal(a, f), q = normal(n, f); return p[0] * q[0] + p[1] * q[1] + p[2] * q[2] <= 0; }).map(([k]) => k);
+};
 /** the parts each layer may move */
 export const MAY = { brows: ['browL', 'browR', 'face'],   // (the face: the socket's rim warps with the brow)
   lids: ['face', 'lidL', 'lidR', 'lashLowL', 'lashLowR', 'irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR'], gaze: ['irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR'], mouth: ['face'] };

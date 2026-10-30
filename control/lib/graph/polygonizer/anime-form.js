@@ -246,7 +246,26 @@ export function buildAnime(r, options = {}) {
     // Positive chin height lengthens the lower chin, fading out before the mouth.
     const chinWeight = clamp((-0.66 - y) / 0.36);
     const chinLift = -0.40 * ((f.chinHeight ?? 1) - 1) * chinWeight * chinWeight;
-    return [x, fy(y) + lift + chinLift, z];
+    // jawLine (sculpt, a share): THE JAW'S LINE SQUARED. In profile the jaw's edge runs back from the chin nearly level to
+    // a corner set low under the ear, then straight up to the ear, and nothing hangs below it: the side seam drawn back
+    // toward the ramus (JAW_LINE.seam, by the column's nearness to the seam, so the middle of the face and the throat keep
+    // their place), the jaw corner's lift taken off the sides (each point narrowed to the row it comes down to), and the
+    // underside behind the chin raised onto the line from the chin's bottom up to the corner (a smooth max, so a point
+    // already above the line keeps its place; nothing at the side seam, so the front and back still meet). Absent at 0
+    let jaw = 0;
+    if (S?.jawLine) {
+      const J = JAW_LINE, k = S.jawLine, ws = 1 - arc;
+      z += k * (profile(y, J.seam) - seam) * ws;
+      // (a side point taken down takes the width of the row it comes down to, so from the front the jaw keeps its V)
+      const drop = k * 0.20 * dmath.sin(Math.PI * lower) * rearWeight * (f.jawAngle ?? 1) * ws;
+      jaw -= drop; x *= width(y - drop / f.lower) / width(y);
+      if (back && lower > 0) {
+        const yc = fy(-1.02) - 0.40 * ((f.chinHeight ?? 1) - 1), zc = J.seam[0][1] - 0.18 * ((f.chinProjection ?? 1) - 1) * g(-1.02, -0.91, 0.18);
+        const L = yc + J.rise * clamp((z - zc) / (J.corner - zc)), Y = fy(y) + lift + chinLift + jaw, h = Math.max(J.soft - Math.abs(Y - L), 0) / J.soft;
+        jaw += k * (Math.max(Y, L) + h * h * J.soft / 4 - Y) * smoother(clamp(lower / J.ease)) * smoother(clamp(arc / J.seamEase));
+      }
+    }
+    return [x, fy(y) + lift + chinLift + jaw, z];
   }
   // the NOSE DIALS (`nose`, anime-nose.js): the face's front drawn to a target side profile, the nose a wedge on it;
   // absent, the studio's surface
@@ -908,6 +927,11 @@ export const ORBIT = Object.freeze({ bridge: 0.035, medial: 0.17, lateral: [0.64
  * starts); its depth is the narrowing at a half-width of `span` (so a share of `depth / span` of every point's distance
  * from the middle) */
 export const JAW = Object.freeze({ apex: -0.5, edge: -0.95, curve: 1.6, span: 0.5 });
+/** the jaw's line squared (sculpt `jawLine`, studio units): the side seam's target profile [y, z] (the chin's point, back
+ * to the corner by `corner`'s depth and straight up from it), the corner's rise over the chin's bottom (`rise`), the smooth
+ * max's width (`soft`), the underside's ease in from the head's middle (`ease`, of the lower ring) and from the side seam
+ * (`seamEase`, of the back's arc: nothing at the seam, where the face's front and back meet) */
+export const JAW_LINE = Object.freeze({ seam: [[-1.02, -0.43], [-0.90, -0.30], [-0.78, -0.08], [-0.66, 0.04], [-0.30, 0.06], [1.19, 0.06]], corner: 0.02, rise: 0.13, soft: 0.03, ease: 0.3, seamEase: 0.3 });
 /** the pyramid nose (sculpt `noseShape: 'pyramid'`, studio units): its ROOT at the eye's level, where the lids meet (so
  * the centre line's "<" — the brow, back to the root, out to the tip — keeps step with the socket's), or raised toward
  * the brow (sculpt `bridgeRoot`, its dip shallower as it rises, flat at `rootUpFlat`, and its bridge standing higher by

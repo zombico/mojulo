@@ -24,15 +24,16 @@ export const ANIME_STYLES = Object.freeze({
   // and narrower, the cheeks flat, the chin a narrow V set forward; the eyes smaller in the face, a hard upper lid
   // angled up to its tail, small irises and pupils; thin brows set low and angled (the female's straight, not arched);
   // in profile, the brow's ridge forward over the eye and the bridge rising from between the brows nearly straight to
-  // the tip (after Yuji's), the male's jaw prominent and wider to a corner set low and angled, not turned under, the line
-  // from it climbing behind the jaw to under his ear (set back) and on into the back of the skull with no ledge to the
-  // nape, his chin forward; the body
+  // the tip (after Yuji's), the male's jaw prominent and wider, its edge run back from the chin nearly level to a corner
+  // set low under his ear (set back) and straight up to it (sculpt `jawLine`), nothing hanging behind the chin, the face's
+  // side rounded down to that edge, the line on behind the ear into the back of the skull with no ledge to the nape, his
+  // chin forward (the female's the same, on his head); the body
   // a high-schooler's, skinnier, its neck slim under the jaw, with a smaller head
   'shonen-high': Object.freeze({
     note: 'Bleach and JJK: teen to early-20s leads, lean and long faces, hard angled eyes under low straight brows; cool, aura, hype',
     male: Object.freeze({
-      face: Object.freeze({ width: 0.94, lower: 1.08, cheekVolume: 0.88, lowerCheekVolume: 0.86, chin: 0.9, chinProjection: 1.11, jaw: 1.12, jawAngle: 0.9, browDepth: 1.3, eyeHeight: 0.93, eyeWidth: 0.98, iris: 0.95, tilt: 0.04, nose: 1.05 }),
-      sculpt: Object.freeze({ lidWeight: 1.15, lidAngle: 8, lidTail: 1.2, browThick: 0.95, browGap: 0.55, browAngle: 9, pupil: 0.85, fissureHeight: 0.96, bridgeRoot: 0.06, jawHollow: -0.01, napeLift: 0.15, earBack: 0.04 }),
+      face: Object.freeze({ width: 0.94, lower: 1.08, cheekVolume: 0.88, lowerCheekVolume: 0.96, chin: 0.9, chinProjection: 1.11, jaw: 1.12, jawAngle: 0.9, browDepth: 1.3, eyeHeight: 0.93, eyeWidth: 0.98, iris: 0.95, tilt: 0.04, nose: 1.05 }),
+      sculpt: Object.freeze({ lidWeight: 1.15, lidAngle: 8, lidTail: 1.2, browThick: 0.95, browGap: 0.55, browAngle: 9, pupil: 0.85, fissureHeight: 0.96, bridgeRoot: 0.06, jawHollow: -0.01, napeLift: 0.15, earBack: 0.04, jawLine: 1 }),
       tune: Object.freeze({ ...LEAN_LONG }),
       bands: Object.freeze({ eyeWidth: [0.17, 0.21], lid: [0.3, 0.45], mouthWidth: [0.25, 0.34], browGap: [0.3, 0.75] }),
     }),

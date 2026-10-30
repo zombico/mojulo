@@ -34,3 +34,10 @@ lean, long faces. The eyes gate is the operator's.
   larger than his, almond under a heavier lash flicked at its tail; her brows thinner; her mouth smaller. Her body
   and her hair are her cast's. A style entry can lend a cast another base's head this way (`heroHeadPole`; the hair and
   the palette follow the cast, `heroHairPole`).
+- **The jaw's line squared** (sculpt `jawLine`, a share, absent at 0; Shonen High's male at 1, and his female on his
+  head): in profile the jaw's edge runs back from the chin nearly level to a corner set low under the ear, then
+  straight up to it, and nothing hangs behind the chin. The side seam is drawn back toward the ramus by the column's
+  nearness to it (the face's middle and the throat keep their place); the corner's lift comes off the sides, each point
+  narrowed to the row it comes down to so the jaw keeps its V from the front; the underside behind the chin is raised
+  onto the line from the chin's bottom to the corner by a smooth max. The male's lower cheeks fuller, rounding the
+  face's side down to that edge.
