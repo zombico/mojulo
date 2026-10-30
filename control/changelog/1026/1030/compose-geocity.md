@@ -130,6 +130,14 @@ passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the
   live shadows (`ctx.liveSun`) every face carries its sun share (city/plan's key share), a lit window its own light.
   Not yet: relief on the paved ground (gen-7's ground parallax reads natural soil and scree only, so a paved kind is a
   new shader's), and a sky's reflection on outdoor glass (only water, a wet road and a room's panes take one).
+- **The city changing** (`segments.js` LIVELY, the card's `lively`: each ring's shares, on each block's own dice, off
+  its civic block): a share of the blocks a BUILDING GOING UP (`construction`: what it `becomes` and its `progress`, its
+  columns and floor slabs risen that far, its concrete core above them, a tower crane over it, seen from afar; near the
+  camera scaffolding up its long faces, a bay every 2 m and every lift, plywood hoarding along its streets and
+  temporary fence panels round the rest, barriers and cones on its walk), a surface PARKING lot (asphalt, its stalls in
+  rows across an aisle, their lines and cars in most, each its paint as an instance's tint), a VACANT lot (scrub over
+  old gravel behind temporary fencing). New kit (kit.js): scaffold bay, fence panel, hoarding, barrier, cone, car,
+  stall line; new surfaces `site` (gravel) and `scrub` (soft).
 - **Near repeats** (`scene/scene-three.js`): a repeat may say `near` (world units): the page cuts its instances into
   square tiles, each its own instanced mesh on the shared geometry, shown only while the camera stands within `near`
   of it, checked before each render (so a capture, a frozen frame and the live loop agree); a textured template's faces

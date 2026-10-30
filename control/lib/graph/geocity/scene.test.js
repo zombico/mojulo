@@ -125,3 +125,22 @@ describe('the ground, near', () => {
     expect(wall.sunShare).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe('the city changing', () => {
+  const lots = D.regions.flatMap((r) => r.blocks);
+  it('gives a share of its blocks to a building going up, a parking lot and a vacant lot, each on its own dice', () => {
+    const going = lots.filter((b) => b.kind === 'construction');
+    for (const b of going) { expect(b.progress).toBeGreaterThan(0); expect(b.progress).toBeLessThan(1); expect(typeof b.becomes).toBe('string'); }
+    expect(lots.some((b) => ['construction', 'parking', 'vacant'].includes(b.kind))).toBe(true);
+  });
+  it('raises a site\'s frame and crane, scaffolds and hoards it near the camera, parks its lots\' cars in their paints', () => {
+    const going = lots.some((b) => b.kind === 'construction'), parked = lots.some((b) => b.kind === 'parking');
+    if (going) {
+      expect(group('geocity:crane').length).toBeGreaterThan(0);
+      expect(P.repeats.some((r) => r.group === 'geocity:scaffold')).toBe(true);
+      expect(P.repeats.some((r) => r.group === 'geocity:hoarding' || r.group === 'geocity:fence')).toBe(true);
+    }
+    if (parked) { const cars = P.repeats.find((r) => r.group === 'geocity:car'); expect(cars.transforms.every((t) => Array.isArray(t.tint))).toBe(true); }
+    expect(going || parked).toBe(true);
+  });
+});

@@ -167,7 +167,7 @@ export function geocityLaws(d) {
   const rail = (ring) => (ring === 'outskirts' ? [[2 * TP.block.depth[0], 2 * TP.block.depth[1]], TP.block.long] : [G.block.pitch, G.block.pitch]);
   const offPitch = lots.filter((b) => { const [rx, ry] = rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
   out.push({ law: 'pitch', ok: offPitch.length <= 0.1 * lots.length, value: `${offPitch.length} of ${lots.length} off their ring's length`, want: '≤ 10%' });
-  const OF = { core: ['tower', 'podium', 'square'], frame: ['midrise', 'slab'], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school'] };
+  const ANY = ['construction', 'parking', 'vacant'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
   const wrong = lots.filter((b) => !OF[b.ring].includes(b.kind));
   const civicLess = built.filter((r) => r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school'));
   out.push({ law: 'segments', ok: !wrong.length && civicLess.length <= Math.ceil(0.2 * built.length), value: `${Object.entries(lots.reduce((m, b) => ({ ...m, [b.kind]: (m[b.kind] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ')}${wrong.length ? `; ${wrong.length} off their ring` : ''}${civicLess.length ? `; no civic block in ${civicLess.map((r) => r.id).join(', ')}` : ''}`, want: 'each its ring\'s' });

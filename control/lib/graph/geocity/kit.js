@@ -14,7 +14,9 @@
  *     line's 10 m pair, `rail` a 10 m pair of rails at the track's gauge, `wire` a unit span (stretched by a per-axis
  *     scale), `bar` a crosswalk's bar, all along +x, flat (their light the same any way they lie);
  *     the furniture: `bench` (facing), `bin`, `hydrant`, `papers` (along the kerb its facing runs), `ring`, `bollard`,
- *     `hydro` a residential street's wooden pole, its crossarm and the lamp hung off it (facing)
+ *     `hydro` a residential street's wooden pole, its crossarm and the lamp hung off it (facing); a site's and a lot's:
+ *     `scaffold` a bay against a wall (facing out of it), `fence` a temporary panel, `hoarding` a plywood one, `barrier`,
+ *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`
  *
  * Pure; no dice.
  */
@@ -126,6 +128,38 @@ function hydro([dx, dy], L) {
     reach('street-lamp', dx, dy, 1.4, 2.0, 0.3, 7.45, 7.62, '#f0d982'),
   ], L);
 }
+/** A scaffold bay against a wall: two standards, its ledgers at the lift, a plank deck and a toe board, the bay 2 m
+ *  along the wall (x) and 2 m a lift high, standing `out` off the wall (its wall to −y, the bay toward +y facing (dx, dy)). */
+function scaffold([dx, dy], L) {
+  const steel = '#a8acb0', plank = '#b08a52', out = 1.1;
+  const B = (x0, y0, x1, y1, z0, z1, kind, tint) => (dx ? { kind, x: Math.min(dx * y0, dx * y1), w: Math.abs(y1 - y0), y: x0, d: x1 - x0, z0, z1, tint } : { kind, x: x0, w: x1 - x0, y: Math.min(dy * y0, dy * y1), d: Math.abs(y1 - y0), z0, z1, tint });
+  return realize([
+    B(-1.03, 0.25, -0.97, 0.31, 0, 2, 'scaffold', steel), B(0.97, 0.25, 1.03, 0.31, 0, 2, 'scaffold', steel),
+    B(-1.03, out, -0.97, out + 0.06, 0, 2, 'scaffold', steel), B(0.97, out, 1.03, out + 0.06, 0, 2, 'scaffold', steel),
+    B(-1, out, 1, out + 0.05, 1.95, 2, 'scaffold', steel), B(-1, out, 1, out + 0.05, 0.95, 1.0, 'scaffold', steel),
+    B(-1, 0.25, 1, out + 0.05, 1.9, 1.95, 'scaffold', plank), B(-1, out, 1, out + 0.03, 1.95, 2.12, 'scaffold', '#d8a03a'),
+  ], L);
+}
+/** A temporary fence panel (3.5 m, its mesh a pale sheet on its frame) on its two feet, along x. */
+const fence = (L) => realize([
+  { kind: 'temp-fence', x: -1.75, y: -0.02, w: 3.5, d: 0.04, z0: 0.12, z1: 2.0, tint: '#c4c8cc' },
+  ...[-1.75, 1.7].map((x) => ({ kind: 'temp-fence', x, y: -0.03, w: 0.05, d: 0.06, z0: 0, z1: 2.05, tint: '#8a8e92' })),
+  ...[-1.75, 1.7].map((x) => ({ kind: 'temp-fence', x: x - 0.2, y: -0.15, w: 0.45, d: 0.3, z0: 0, z1: 0.12, tint: '#5a5d61' })),
+], L);
+/** A site's plywood hoarding panel (2.4 m), painted, along x. */
+const hoarding = (L) => realize([{ kind: 'hoarding', x: -1.2, y: -0.03, w: 2.4, d: 0.06, z0: 0, z1: 2.44, tint: '#d6c49a' }, { kind: 'hoarding', x: -1.2, y: -0.05, w: 2.4, d: 0.1, z0: 2.4, z1: 2.5, tint: '#2f5a3a' }], L);
+/** A plastic barrier, orange and white in bands, along x. */
+const barrier = (L) => realize([0, 1, 2, 3].map((i) => ({ kind: 'barrier', x: -0.9, y: -0.2, w: 1.8, d: 0.4, z0: i * 0.22, z1: (i + 1) * 0.22, tint: i % 2 ? '#f2efe6' : '#e2662a' })), L);
+/** A traffic cone (a tapered post, the kit's round, on its square foot) and its band. */
+const cone = (L) => realize([
+  { kind: 'cone-foot', x: -0.2, y: -0.2, w: 0.4, d: 0.4, z0: 0, z1: 0.04, tint: '#2b2e31' },
+  { kind: 'power-pole', x: -0.14, y: -0.14, w: 0.28, d: 0.28, z0: 0.04, z1: 0.72, tint: '#e2662a', round: { taper: 0.2 } },
+], L);
+/** A parked car (its body pale, so an instance's tint is its paint; its cabin's glass dark), its length along x. */
+const car = ([dx], L) => {
+  const along = !!dx, Lb = 4.3, Wb = 1.8, B = (l, w, z0, z1, tint, kind = 'car') => (along ? { kind, x: -l / 2, w: l, y: -w / 2, d: w, z0, z1, tint } : { kind, y: -l / 2, d: l, x: -w / 2, w, z0, z1, tint });
+  return realize([B(Lb, Wb, 0.3, 0.95, '#e8e8e8'), B(2.3, 1.6, 0.95, 1.45, '#2a3038'), B(Lb - 0.6, Wb + 0.04, 0, 0.32, '#1c1d1f')], L);
+};
 /** A flat piece along +x, `len` long, `w` across at offset `off`, at z 0. */
 const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w / 2, 0], [len, off + w / 2, 0], [0, off + w / 2, 0]], [0, 0, 1], fill, L)];
 
@@ -148,5 +182,9 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bench: four((v) => bench(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L),
     hydro: four((v) => hydro(v, L)),
+    // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a
+    // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line
+    scaffold: four((v) => scaffold(v, L)), fence: fence(L), hoarding: hoarding(L), barrier: barrier(L), cone: cone(L),
+    car: four((v) => car(v, L)), stall: flat(5, 0.12, 0, '#e8e4d8', L),
   };
 }

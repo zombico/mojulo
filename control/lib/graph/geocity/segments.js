@@ -10,6 +10,8 @@
  *     square    the core's square: paved, planted round its edge, a kiosk or a pavilion, the streets round it lit
  *     midrise   the frame's perimeter block: mid-rise round a planted court, a laneway behind, a little parking
  *     slab      the frame's slab on its lawn (the tower in the park, the lower tall): a slab, lawn, its parking lot
+ *   and in any ring, a share of its blocks (the card's `lively`, LIVELY): a `construction` site (its building part risen,
+ *   `progress` of its storeys), a surface `parking` lot, a `vacant` lot
  *   the outskirts are the geotown's own segments (geotown/pattern.js SEGMENTS: houses, main-street, edge, lowrise,
  *   apartments, school), their ground shared as the geotown lays it: read once from the geotown's own design of each
  *   (the town to scale for houses, an evoked segment for the rest), its streets left out, so an outskirts block keeps a
@@ -36,6 +38,8 @@ export const SURFACES = Object.freeze({
   laneway: { read: 'a service laneway behind a block: loading, bins, garage doors', soft: false },
   ramp: { read: 'a parking ramp down to the garage under a podium', soft: false },
   lot: { read: 'a surface parking lot', soft: false },
+  site: { read: 'a construction site\'s ground: packed gravel and mud, its hoarding round it', soft: false },
+  scrub: { read: 'a vacant lot\'s ground: scrub and weeds over old gravel, behind a temporary fence', soft: true },
 });
 export const isSoft = (s) => (SURFACES[s] ?? TOWN_SURFACES[s])?.soft === true || s === 'park';
 
@@ -50,7 +54,16 @@ export const CARDS = Object.freeze({
     surfaces: { building: 0.52, court: 0.3, laneway: 0.12, lot: 0.06 } }),
   slab: Object.freeze({ read: 'a slab on its lawn, the lower tall: lawn across the block, its parking lot beside it', ring: 'frame',
     surfaces: { building: 0.2, lawn: 0.5, lot: 0.22, plaza: 0.08 } }),
+  // THE CITY CHANGING (any ring, a share of its blocks: the card's `lively`): a building going up, a lot of parked cars,
+  // a lot waiting
+  construction: Object.freeze({ read: 'a building going up: its core and its floors part risen, scaffolding on its faces, a tower crane, hoarding and fencing round it, barriers on the walk', ring: 'any',
+    surfaces: { building: 0.5, site: 0.42, laneway: 0.08 }, progress: [0.2, 0.75] }),
+  parking: Object.freeze({ read: 'a surface parking lot: its stalls in rows, cars in most, a strip of planting at its street', ring: 'any',
+    surfaces: { lot: 0.9, planting: 0.1 }, storeys: [0, 0] }),
+  vacant: Object.freeze({ read: 'a vacant lot: scrub over old gravel behind a temporary fence', ring: 'any',
+    surfaces: { scrub: 1 }, storeys: [0, 0] }),
 });
+export const LIVELY = Object.freeze(['construction', 'parking', 'vacant']);
 export const CARD_IDS = Object.freeze(Object.keys(CARDS));
 export const OUTSKIRTS_SEGMENTS = Object.freeze(['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school']);
 // a geotown segment's streets (its block's ground is the rest)

@@ -126,18 +126,23 @@ export function blocksOf(d) {
         : ring === 'core' ? pick(Rs, mix)
           : ring === 'frame' ? (onLong(c, 'arterial') ? 'midrise' : pick(Rs, mix))
             : onLong(c, 'arterial') ? 'edge' : onLong(c, 'collector') ? 'main-street' : pick(Rs, mix);
-      return { c, kind };
+      // the city changing: a share of the blocks (off the civic one) a site, a lot, a vacant lot, on its own dice
+      const Rl = streamOf(d.seed, 'blocks', `${r.id}.${c.i}.${c.j}:lively`), u = Rl(), L = M.lively[ring];
+      const lively = c === civicAt ? null : u < L.construction ? 'construction' : u < L.construction + L.parking ? 'parking' : u < L.construction + L.parking + L.vacant ? 'vacant' : null;
+      return { c, kind: lively ?? kind, ...(lively === 'construction' ? { becomes: kind } : {}) };
     });
 
     // storeys, towers and ground
     const H = M.heights;
-    const built = blocks.map(({ c, kind }, k) => {
+    const built = blocks.map(({ c, kind, becomes }, k) => {
       const rect = c.rect, a = r3(area(rect)), id = `${r.id}.${c.i}.${c.j}`, Rb = streamOf(d.seed, 'blocks', `${id}:build`);
       const rail = [...H[ring].rail], m0 = d.heights.storeysAt((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2).median;
       let median = Math.min(rail[1], Math.max(rail[0], m0));
       for (const [s, v] of Object.entries(c.sides)) if (v.kind === 'arterial' && r.frontage[s]) { median = Math.max(median, r.frontage[s].median); rail[1] = Math.max(rail[1], r.frontage[s].rail[1]); }
       if (CARDS[kind]?.storeys) { rail[0] = CARDS[kind].storeys[0]; rail[1] = CARDS[kind].storeys[1]; median = rail[0]; }
       const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail } };
+      // a building going up: what it becomes, and how far it has risen
+      if (kind === 'construction') { const P0 = CARDS.construction.progress; b.becomes = becomes; b.progress = r3(P0[0] + (P0[1] - P0[0]) * Rb()); }
       if (kind === 'tower') {
         // the podium, and a tower or two on its corners past the block's median (the core's tail)
         const T = CARDS.tower, pod = Math.round(T.podium[0] + (T.podium[1] - T.podium[0]) * Rb()), n = 1 + (Rb() < T.towers.second ? 1 : 0);

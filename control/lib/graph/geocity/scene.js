@@ -65,7 +65,7 @@ const HYDRANT = 90, BENCH = 70, HYDRO = 38;
 // a floor's on a face that lies flat, a wall's on an upright one; each word's seed its own
 const FINISHES = Object.freeze({
   'geocity:road': ['asphalt', 'floor'], 'geocity:walk': ['pavement', 'floor'], 'geocity:paving': ['flags', 'floor'], 'geocity:streetcar-row': ['setts', 'floor'],
-  'geocity:platform': ['pavement', 'floor'], 'geocity:retain': ['sawn-stone', 'wall'], 'geocity:house': ['wire-brick', 'wall'], 'geocity:shops': ['wire-brick', 'wall'],
+  'geocity:platform': ['pavement', 'floor'], 'geocity:site': ['gravel', 'floor'], 'geocity:lot': ['asphalt', 'floor'], 'geocity:retain': ['sawn-stone', 'wall'], 'geocity:house': ['wire-brick', 'wall'], 'geocity:shops': ['wire-brick', 'wall'],
   'geocity:avenue': ['wire-brick', 'wall'], 'geocity:midrise': ['wire-brick', 'wall'], 'geocity:lowrise': ['wire-brick', 'wall'], 'geocity:walkup': ['wire-brick', 'wall'],
   'geocity:school': ['wire-brick', 'wall'], 'geocity:podium': ['sawn-stone', 'wall'], 'geocity:slab': ['precast', 'wall'],
 });
@@ -85,6 +85,9 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 const cuts = (a, b, step) => { const n = Math.max(1, Math.ceil((b - a) / step - 1e-9)); return Array.from({ length: n + 1 }, (_, k) => a + ((b - a) * k) / n); };
 
 // the outskirts' palettes: brick and its trim, a shop's front, a roof
+// a parked car's paint as an instance's tint (linear rgb over its pale body): geotown/yards.js CAR_PAINTS
+const linC = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 16) / 255; return Math.round((c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
+const CAR_TINTS = Object.freeze(['#8a2a2a', '#2a3f6a', '#d8d6d0', '#3a3d42', '#6a6f75', '#2f5a3a', '#c9b48a'].map(linC));
 const HOUSE_BRICK = Object.freeze(['#a3563f', '#b5654a', '#9c4b36', '#c9a57a', '#d2c3a8', '#8c5a44']);
 const SHOP_FRONT = Object.freeze(['#8a3a2e', '#3e5e3a', '#24405e', '#6e5a3a', '#7a2e4a']);
 const ROOFS = Object.freeze(['#4a4f55', '#5b4a3f', '#3f4448', '#6a5a4c']);
@@ -94,7 +97,7 @@ function coloursOf(cube) {
   return {
     road: mix('#4d5055', C.floor, 0.15), walk: mix('#c8c2b4', C.stone, 0.3), kerb: mix('#b3ad9f', C.stone, 0.3), retain: mix('#9a9284', C.stone, 0.5),
     lawn: C.grass, park: mix(C.grass, C.foliage, 0.12), plaza: mix('#bdb6a8', C.stone, 0.3), lot: mix('#6a6c70', C.floor, 0.1), field: mix(C.grass, '#3f8a34', 0.4),
-    water: mix('#3e6a84', C.sky ?? '#6f97b8', 0.25), court: mix(C.grass, C.foliage, 0.25), bike: '#3f8a5a', row: mix('#8a8780', C.stone, 0.2), platform: mix('#bdb6a8', C.stone, 0.2),
+    water: mix('#3e6a84', C.sky ?? '#6f97b8', 0.25), court: mix(C.grass, C.foliage, 0.25), bike: '#3f8a5a', site: mix('#8a7a62', C.floor, 0.2), scrub: mix('#8a8a5a', C.grass, 0.35), row: mix('#8a8780', C.stone, 0.2), platform: mix('#bdb6a8', C.stone, 0.2),
   };
 }
 
@@ -231,10 +234,11 @@ export function assembleGeocityScene(m, ctx = {}) {
       ts = cuts(span[0], span[1], (span[1] - span[0]) / n).slice(0, -1).map((a, k, arr) => [a, k + 1 < arr.length ? arr[k + 1] : span[1]]);
       const terraces = ts.map(([a, c]) => { const q = piece(a, c); return { q, z: Math.max(...[[q[0], q[1]], [q[2], q[1]], [q[2], q[3]], [q[0], q[3]]].map(([x, yy]) => S(x, yy))) + KERB }; });
       const zAt = (x, yy) => { const t = terraces.find((tt) => (longY ? yy <= tt.q[3] + 1e-6 : x <= tt.q[2] + 1e-6)) ?? terraces[terraces.length - 1]; return t.z; };
-      const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) ? col.plaza : col.lawn;
+      const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) ? col.plaza : b.kind === 'construction' ? col.site : b.kind === 'parking' ? col.lot : b.kind === 'vacant' ? col.scrub : col.lawn;
+      const padGroup = padHex === col.plaza ? 'geocity:paving' : { construction: 'geocity:site', parking: 'geocity:lot', vacant: 'geocity:scrub' }[b.kind] ?? 'geocity:pad';
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
-        put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padHex === col.plaza ? 'geocity:paving' : 'geocity:pad', padHex);
+        put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, padHex);
         // its retaining faces: down to the walk on its street sides, down to the terrace below between them
         const edges = [[[a0, b0], [a1, b0], [0, -1, 0], 's'], [[a1, b0], [a1, b1], [1, 0, 0], 'e'], [[a1, b1], [a0, b1], [0, 1, 0], 'n'], [[a0, b1], [a0, b0], [-1, 0, 0], 'w']];
         for (const [p, q, nn, s] of edges) {
@@ -407,7 +411,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const b of r.blocks) {
       if (b.kind === 'park') continue;
       const [x0, y0, x1, y1] = b.rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, z = S(cx, cy) + KERB, longY = y1 - y0 >= x1 - x0;
-      if (TALL.includes(b.kind)) { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id) }); continue; }
+      if (TALL.includes(b.kind) || b.kind === 'construction') { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id), far: true }); continue; }
+      if (b.kind === 'parking' || b.kind === 'vacant') continue;
       // the low fabric as the skyline sees it: a flat mass along each long side, at the block's storeys
       const dp = Math.min(HOUSE_D + SETBACK, (longY ? x1 - x0 : y1 - y0) / 2 - 3), zt = z + Math.max(1, b.storeys.median) * STOREY + 1.5, hex = mix(HOUSE_BRICK[strHash(b.id) % HOUSE_BRICK.length], col.road, 0.25);
       if (dp < 6) continue;
@@ -443,7 +448,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
 
   /** A block's buildings, by its segment, on its terraces. */
-  function building(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
+  function building(b, { x0, y0, x1, y1, longY, zAt, Rb, far = false }) {
     const w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, med = b.storeys.median;
     const inset = (share) => { const e = ((w + h) - Math.sqrt((w + h) ** 2 - 4 * w * h * (1 - share))) / 4; return [x0 + e, y0 + e, x1 - e, y1 - e]; };
     const zc = zAt(cx, cy);
@@ -482,7 +487,66 @@ export function assembleGeocityScene(m, ctx = {}) {
       put([[lot[0], lot[1], zAt(cx, cy) + 0.02], [lot[2], lot[1], zAt(cx, cy) + 0.02], [lot[2], lot[3], zAt(cx, cy) + 0.02], [lot[0], lot[3], zAt(cx, cy) + 0.02]], 'geocity:lot', col.lot);
       box(q[0], q[1], q[2], q[3], zc, z1, ston, roofs[strHash(b.id) % roofs.length], 'geocity:slab');
       lights(q[0], q[1], q[2], q[3], zc, z1, resid, Rb);
-    } else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb });
+    } else if (b.kind === 'construction') going(b, { x0, y0, x1, y1, longY, zAt, Rb, far });
+    else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
+    else if (b.kind === 'vacant') fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence');
+    else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb });
+  }
+
+  /** A building going up (segments.js `construction`): its columns and floor slabs risen to its `progress` of the
+   *  storeys it becomes, its concrete core a little above them, a tower crane over it (seen from afar); near the camera
+   *  scaffolding up its two long faces, hoarding along its streets and temporary fencing round the rest, barriers and
+   *  cones on a walk beside it. */
+  function going(b, { x0, y0, x1, y1, longY, zAt, Rb, far }) {
+    const w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, zc = zAt(cx, cy), fh = b.ring === 'core' ? office : resid;
+    const target = Math.max(3, Math.round(b.storeys.median)), n = Math.max(2, Math.round(target * b.progress)), top = zc + n * fh;
+    const e = Math.min(w, h) * 0.18, q = [x0 + e, y0 + e, x1 - e, y1 - e], conc = '#9a9a96', yellow = '#e3b13a';
+    if (far) box(q[0], q[1], q[2], q[3], zc, top, conc, conc, 'geocity:frame');
+    else {
+      for (let k = 1; k <= n; k++) box(q[0], q[1], q[2], q[3], zc + k * fh - 0.3, zc + k * fh, conc, conc, 'geocity:frame');
+      for (const px of [q[0], (q[0] + q[2]) / 2, q[2] - 0.6]) for (const py of [q[1], (q[1] + q[3]) / 2, q[3] - 0.6]) box(px, py, px + 0.6, py + 0.6, zc, top, conc, conc, 'geocity:frame');
+    }
+    const cw = (q[2] - q[0]) * 0.22, cd = (q[3] - q[1]) * 0.22;
+    box(cx - cw / 2, cy - cd / 2, cx + cw / 2, cy + cd / 2, zc, top + 2 * fh, '#8c8c88', '#8c8c88', 'geocity:frame');
+    // the crane: its mast at a corner of the site, its jib across the building, its counter-jib and weight, its cab
+    const mx = x0 + 3, my = y0 + 3, mt = top + 3 * fh + 14, jib = Math.max(w, h) * 0.85;
+    box(mx, my, mx + 2, my + 2, zc, mt, yellow, yellow, 'geocity:crane');
+    if (longY) { box(mx - 0.4, my, mx + 2.4, my + jib, mt, mt + 1.6, yellow, yellow, 'geocity:crane'); box(mx - 0.2, my - 14, mx + 2.2, my, mt, mt + 1.4, yellow, yellow, 'geocity:crane'); box(mx - 0.8, my - 13, mx + 2.8, my - 9, mt - 2.2, mt, conc, conc, 'geocity:crane'); }
+    else { box(mx, my - 0.4, mx + jib, my + 2.4, mt, mt + 1.6, yellow, yellow, 'geocity:crane'); box(mx - 14, my - 0.2, mx, my + 2.2, mt, mt + 1.4, yellow, yellow, 'geocity:crane'); box(mx - 13, my - 0.8, mx - 9, my + 2.8, mt - 2.2, mt, conc, conc, 'geocity:crane'); }
+    box(mx + 2, my, mx + 4.2, my + 2, mt - 3, mt, '#d8d4c8', '#d8d4c8', 'geocity:crane');
+    if (far) return;
+    // near: scaffolding up its two long faces, a bay every 2 m along and every lift up
+    const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
+    for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
+    fenced(b, { x0, y0, x1, y1 }, zc, 'hoarding');
+    // barriers and cones on the walk along a street side (the one it fronts first)
+    const s = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ?? 's', o = WALK / 2;
+    for (let k = 0; k < 5; k++) {
+      const p = s === 's' ? [x0 + 6 + k * 2, y0 - o] : s === 'n' ? [x0 + 6 + k * 2, y1 + o] : s === 'w' ? [x0 - o, y0 + 6 + k * 2] : [x1 + o, y0 + 6 + k * 2];
+      stamp('barrier', [p[0], p[1], S(p[0], p[1]) + KERB], s === 'w' || s === 'e' ? Math.PI / 2 : 0);
+    }
+    for (let k = 0; k < 4; k++) { const p = s === 's' ? [x0 + 17 + k * 1.6, y0 - o] : s === 'n' ? [x0 + 17 + k * 1.6, y1 + o] : s === 'w' ? [x0 - o, y0 + 17 + k * 1.6] : [x1 + o, y0 + 17 + k * 1.6]; stamp('cone', [p[0], p[1], S(p[0], p[1]) + KERB], 0); }
+  }
+  /** A block's edge fenced near the camera: hoarding along its streets (a site's), temporary panels along the rest. */
+  function fenced(b, { x0, y0, x1, y1 }, z, street) {
+    for (const [k, a, c, fixed, ax] of [['s', x0, x1, y0 + 0.4, 'x'], ['n', x0, x1, y1 - 0.4, 'x'], ['w', y0, y1, x0 + 0.4, 'y'], ['e', y0, y1, x1 - 0.4, 'y']]) {
+      const kind = street === 'hoarding' && (b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ? 'hoarding' : 'fence', len = kind === 'hoarding' ? 2.4 : 3.5;
+      for (let t = a + len / 2; t <= c - len / 2 + 1e-6; t += len) stamp(kind, ax === 'x' ? [t, fixed, z] : [fixed, t, z], ax === 'x' ? 0 : Math.PI / 2);
+    }
+  }
+  /** A surface parking lot (segments.js `parking`): rows of stalls across its short side, an aisle between each two,
+   *  their lines and cars in most, near the camera. */
+  function parked(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
+    const z = zAt((x0 + x1) / 2, (y0 + y1) / 2), [s0, s1] = longY ? [x0, x1] : [y0, y1], [a0, a1] = longY ? [y0, y1] : [x0, x1];
+    for (let m = s0 + 2; m + 10 <= s1 - 2; m += 16.5) for (const row of [m, m + 11.5]) for (let t = a0 + 3; t + 2.6 <= a1 - 3; t += 2.6) {
+      // its line (across its row, 5 m) and, in most stalls, a car
+      stamp('stall', longY ? [row, t, z + 0.03] : [t, row, z + 0.03], longY ? 0 : Math.PI / 2);
+      if (Rb() < 0.72) {
+        const c = longY ? [row + 2.5, t + 1.3] : [t + 1.3, row + 2.5], paint = CAR_TINTS[Math.floor(Rb() * CAR_TINTS.length)];
+        stamps.has(longY ? 'car:e' : 'car:n') || stamps.set(longY ? 'car:e' : 'car:n', []);
+        stamps.get(longY ? 'car:e' : 'car:n').push({ pos: P3([c[0], c[1], z]), tint: paint });
+      }
+    }
   }
 
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */

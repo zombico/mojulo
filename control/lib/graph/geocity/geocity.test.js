@@ -211,7 +211,7 @@ describe('its blocks', () => {
   });
 
   it('gives every block a segment of its ring, an edge and a main street their street along their long side', () => {
-    const OF = { core: ['tower', 'podium', 'square'], frame: ['midrise', 'slab'], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school'] };
+    const ANY = ['construction', 'parking', 'vacant'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
     for (const b of lots) expect(OF[b.ring]).toContain(b.kind);
     const longSides = (b) => (b.rect[3] - b.rect[1] >= b.rect[2] - b.rect[0] ? ['w', 'e'] : ['s', 'n']);
     for (const b of lots.filter((x) => x.kind === 'edge')) expect(longSides(b).some((k) => b.sides[k].kind === 'arterial')).toBe(true);
