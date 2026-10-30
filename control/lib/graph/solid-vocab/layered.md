@@ -511,8 +511,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `shonen-high` (high-school-sized, action-themed): a long, narrow face, flat cheeks, a narrow V chin; small eyes under a
   hard lid angled to its tail; thin, low brows; a lean body under a smaller head. `z-fighter` (grown-hero-sized,
   martial-arts-themed): a broad, square-jawed head, wide low eyes under heavy lids, thick brows angled to the bridge, on
-  a heavy frame. `school-kid-hero` (schoolkid-sized, action-themed): a big round head, full cheeks to a small pointed
-  chin, large crisp eyes, on a short, slight frame. The feature advice reads the cast's bands. Stored as the word beside
+  a heavy frame. `school-kid-hero` (schoolkid-sized, action-themed): a big round head, a soft elliptical face to a small
+  pointed chin, large crisp eyes, a small mouth, on a short, slight frame. The feature advice reads the cast's bands. Stored as the word beside
   its resolved stamp (a re-tuned cast never moves the row); `/hero/animeStyle null` takes it off. The readout says
   `animeStyle`.
 <!-- /section -->

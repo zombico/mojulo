@@ -13,9 +13,9 @@ game: every cast is lit the same way, so any game can field any of them. The eye
 - **Z-Fighter** (`z-fighter`, grown-hero-sized and martial-arts-themed, after a Goku maquette): a broad head square at
   the jaw, its corner level with the mouth, running in to a narrow chin set forward; flat cheeks under the cheekbones; a
   heavy brow ridge; wide, low eyes under a heavy straight lid angled to the nose, small irises; thick brows set low and
-  angled hard to the bridge; a wide mouth; on a heavy frame, the neck short and thick. Her head her own base's (after an
-  Android 18 maquette): almond eyes under a level, heavy lid, straight brows, her face one convex arc from under the ear
-  to a narrow chin, on an athletic frame.
+  angled hard to the bridge; a wide mouth; on a heavy frame, the neck short and thick. Her head is the male's, as Shonen
+  High's female's is (after an Android 18 maquette): almond eyes under a level lid, thin straight brows, her face one
+  convex arc from under the ear to a narrow chin, a small mouth, on an athletic frame.
 - **School-Kid Hero** (`school-kid-hero`, schoolkid-sized and action-themed, after a Kishimoto-baseline genin figure): a
   big round head and a moon face, round from its outline (the head wider, the jaw broad, its corner high) to a short
   lower face and a small pointed chin, with no pouch on the lower cheek (the first cut's chipmunking; the lower cheek a little slimmer than the base's) and less bevel than
@@ -35,3 +35,12 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   mouth: the jaw fuller along its edge and narrowing into a narrow chin, the lower cheek at or below its base's, the
   cheekbone near its base's. Z-Fighter's female, whose base's full lower cheek bulged beside her mouth, and School-Kid
   Hero's pair take it.
+- **School-Kid Hero, a soft ellipse**: the face a little narrower and longer than the moon of the round before, leaning
+  toward Shonen High's but not as angular (the jaw's line two thirds squared, its corner less high), and the mouth
+  smaller.
+- **The jaw closed up into the skull** on every cast but Shonen High's female, who already had it: in profile the
+  underside rises from the chin to the jaw's corner and then turns up behind the ear into the skull, with no jaw hanging
+  under the skull's back and no groove where the two meet (measured as the head's underside, chin to the back of the
+  skull: the turn up at the corner within a share of hers). School-Kid Hero takes Shonen High's words for it (`jawLine`,
+  `napeLift`); Z-Fighter's female moves onto the male's head, since her own base's back stopped short of it whatever
+  its words. Shonen High's and Z-Fighter's males already closed by that measure and are left as they were.
