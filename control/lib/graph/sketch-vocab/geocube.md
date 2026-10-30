@@ -46,7 +46,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   ceiling), its mouth the cliff's own rock. A gargantuan cave wants a taller cliff and more rock behind it:
   `ground.cliff.height` (to 40 m) and `ground.behind` (0 to 80 m of rock behind the cliff); `ground.room` (0 to 80 m)
   widens a trail's site past its far side.
-- **A cavern** (a trail's `ground.cavern: true | { height?, skylight?, formations?, light?, cracks?, ends? }`): the
+- **A cavern** (a trail's `ground.cavern: true | { height?, skylight?, formations?, light?, cracks?, ends?, set? }`): the
   whole trail underground, the same geocube land closed in by its cliffs (a wall raised along the open side and across
   the ends) under a pretend ceiling of their rock, a dome its `height` (18 m) over the cliff tops. No grass, no trees;
   its ground soil (the walk packed earth, the floor off it a darker dirt), scree round its rocks (its walls' feet, its
@@ -57,7 +57,18 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   ceiling, their light falling to the floor; a `skylight: { y, r? }`, a hole over the walk, a shaft of day; and its
   register (`light`: torch, the default, fluorescent, bio, or daylight for none), its lamps along the walk; all of it
   bouncing round the hall. `ends: 'open'` leaves a passage out under a lintel where the walk runs out of each end, the day
-  beyond it; closed by default. An anchor (`kind: 'cavern'`).
+  beyond it; closed by default. An anchor (`kind: 'cavern'`). Its COLOUR KEY is the colour theorist's, solved from the
+  cube's own palette and the register (the anchor's `key`, its laws read out): the world turns the register's light inside
+  its family (a torch toward the cube's soil, a tube toward its sky, a glow toward its accent), the dark and the bounce
+  take the opposite temperature (a warm key, a cool shade), the formations are paler than the walls, a crack the cube's
+  daylight. `set` dresses it as a walk's rooms (the scene composer's roles over the trail's beats): `true` (the register's
+  use: fluorescent a base, torch a temple, bio a grotto), a use (`'base' | 'temple' | 'grotto'`) or `{ use, mood }` (mood
+  even | drama, the default, | noir). Each beat's set piece stands at its focus off the walk (a generator, an altar or a
+  geode at the landmark, a prize or a reliquary at the exit, a find in a pocket, a barrier or standards at the way in),
+  on a plinth where the land falls; crates, drums, urns, braziers, crystals or fungus beside the walk, a passage left
+  clear; every piece in the key (its accent on a set piece), lit by the cavern, its fires and glows lamps of their own;
+  a key light over each focus brings it to the mood's ratio over the walk round it (a shaft of day in a warm or glowing
+  cave, a sodium in a cold one). Its pieces are prop anchors; the cavern's anchor reads the set out (`set`: its plot and its laws).
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),

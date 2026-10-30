@@ -36,6 +36,11 @@ function cams(P) {
     cam.skylight = { pos: [bs.at[0], bs.at[1], z(bs) + 1.7], target: [spot[0], spot[1], z(bs)], vfov: 72 };
     cam.shaft = { pos: [bs.at[0], bs.at[1], z(bs) + 1.6], target: [sk.x, sk.y, C.top + C.height * 0.8], vfov: 80 };
   }
+  // (each set piece at its focus, seen from the walk a few metres before its beat: era/cavern-set.js)
+  for (const a of P.anchors.filter((q) => q.kind === 'prop' && q.set)) {
+    const b = beats.find((q) => q.id === a.beat), y = Math.max(2, a.at[1] - 7), bb = beats.reduce((m, q) => (Math.abs(q.at[1] - y) < Math.abs(m.at[1] - y) ? q : m));
+    cam[`set-${a.id.split('/')[0]}-${a.id.split('/').pop()}`] = { pos: [P.anchors.find((q) => q.id === bb.id).at[0], y, (b ?? bb).at[2] + 2.2], target: [a.at[0], a.at[1], a.at[2] + 1], vfov: 62 };
+  }
   return cam;
 }
 

@@ -385,12 +385,15 @@ export const lampScale = (cave) => Math.max(1, cave.width / 8);
 export const CRACK = Object.freeze({ colour: [0.86, 0.93, 1.0], strength: 0.9, near: 6, reach: 32, down: 0.7 });
 
 /** The lamps' light on a point (normal `n`) in a cave, per channel, in the daylight's units: the register's lamps and
- *  any of their own kind (a crack's). */
+ *  any of their own kind (a crack's), in the cave's colour key where it has one (era/cavern-key.js: `cave.key`), and a
+ *  lamp that carries its own light (`l.light`: { colour, strength, near, reach }, its metres as they are: a light plot's
+ *  key, era/cavern-set.js). */
 export function lampLight(cave, p, n) {
-  const out = [0, 0, 0], k = lampScale(cave);
+  const out = [0, 0, 0], s = lampScale(cave), key = cave.key;
   for (const l of caveLamps(cave)) {
-    const L = l.kind === 'crack' ? CRACK : CAVE_LIGHTS[cave.light];
+    const L = l.light ?? (l.kind === 'crack' ? CRACK : CAVE_LIGHTS[cave.light]);
     if (!L) continue;
+    const colour = l.light ? L.colour : l.kind === 'crack' ? (key?.crack ?? L.colour) : (key?.light ?? L.colour), k = l.light ? 1 : s;
     const near = L.near * k, reach = L.reach * k, d = sub3(l.at, p), r = Math.hypot(...d);
     if (r > reach || r < 1e-6) continue;
     const cos = dot3(n, d) / r;
@@ -398,7 +401,7 @@ export function lampLight(cave, p, n) {
     // (a crack's light falls: the more as the point stands straight under it)
     const aim = L.down ? 1 - L.down + L.down * Math.max(0, (l.at[2] - p[2]) / r) : 1;
     const e = L.strength * cos * aim / (1 + (r / near) ** 2) * (1 - smooth(reach * 0.7, reach, r));
-    for (let c = 0; c < 3; c++) out[c] += e * L.colour[c];
+    for (let c = 0; c < 3; c++) out[c] += e * colour[c];
   }
   return out;
 }
@@ -406,8 +409,10 @@ export function lampLight(cave, p, n) {
 /** The lamps' fixtures, drawn bright: a fluorescent's tube under its housing, a torch's flame on its bracket, a bio
  *  cluster's crystals. → [{ corners, normal, group, fill, lamp: true }] (`lamp` faces are their own light). */
 export function lampFaces(cave) {
-  const L = CAVE_LIGHTS[cave.light], out = [];
-  if (!L) return out;
+  const L0 = CAVE_LIGHTS[cave.light], out = [];
+  if (!L0) return out;
+  // (drawn in the cave's colour key where it has one, era/cavern-key.js)
+  const L = cave.key?.fixture ? { ...L0, fixture: cave.key.fixture } : L0, glow = cave.key?.glow ?? '#4fe0b0';
   const box = (c, ex, ey, ez, fill, group, lamp) => {
     const [x, y, z] = c, P = (a, b, h) => [x + ex[0] * a + ey[0] * b, y + ex[1] * a + ey[1] * b, z + h];
     const sides = [[[-1, -1, 0], [1, -1, 0], [1, -1, 1], [-1, -1, 1], [0, -1, 0]], [[1, -1, 0], [1, 1, 0], [1, 1, 1], [1, -1, 1], [1, 0, 0]], [[1, 1, 0], [-1, 1, 0], [-1, 1, 1], [1, 1, 1], [0, 1, 0]], [[-1, 1, 0], [-1, -1, 0], [-1, -1, 1], [-1, 1, 1], [-1, 0, 0]],
@@ -419,14 +424,14 @@ export function lampFaces(cave) {
   };
   const m = lampScale(cave), sz = (v) => v.map((x) => x * m);
   for (const l of caveLamps(cave)) {
-    // (a crack's light is drawn as its slit, era/cavern.js crackFaces)
-    if (l.kind === 'crack') continue;
+    // (a crack's light is drawn as its slit, era/cavern.js crackFaces; a lamp with its own light draws its own)
+    if (l.kind === 'crack' || l.light) continue;
     const ex = l.dir, ey = [-l.dir[1], l.dir[0]];
     if (l.kind === 'fluorescent') { box(l.at, ex, ey, sz([0.8, 0.07, 0.07]), L.fixture, 'cave:lamp', true); box([l.at[0], l.at[1], l.at[2] + 0.1 * m], ex, ey, sz([0.85, 0.12, 0.05]), '#2e3338', 'cave:fixture'); }
     if (l.kind === 'torch') { const w = [-ey[0] * l.side, -ey[1] * l.side]; box([l.at[0] - w[0] * 0.15 * m, l.at[1] - w[1] * 0.15 * m, l.at[2] - 0.3 * m], ex, ey, sz([0.05, 0.18, 0.3]), '#2a2420', 'cave:fixture'); box([l.at[0], l.at[1], l.at[2] + 0.12 * m], ex, ey, sz([0.09, 0.09, 0.32]), L.fixture, 'cave:lamp', true); }
     if (l.kind === 'bio') for (let k = 0; k < 4; k++) {
       const a = (k * 1.9) % (2 * Math.PI), r = (0.12 + 0.08 * k) * m, h = (l.hung ? -1 : 1) * (0.18 + 0.1 * ((k * 7) % 3)) * m;
-      box([l.at[0] + Math.cos(a) * r, l.at[1] + Math.sin(a) * r, l.hung ? l.at[2] + h : l.foot], ex, ey, [(0.05 + 0.02 * k) * m, (0.05 + 0.02 * k) * m, Math.abs(h)], k % 2 ? L.fixture : '#4fe0b0', 'cave:lamp', true);
+      box([l.at[0] + Math.cos(a) * r, l.at[1] + Math.sin(a) * r, l.hung ? l.at[2] + h : l.foot], ex, ey, [(0.05 + 0.02 * k) * m, (0.05 + 0.02 * k) * m, Math.abs(h)], k % 2 ? L.fixture : glow, 'cave:lamp', true);
     }
   }
   return out;

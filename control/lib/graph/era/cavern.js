@@ -15,10 +15,16 @@
  *                 needs no torch (its register 'daylight')
  *     ends        'closed' (the default: the walk ends at the rock both ways) or 'open' (a passage out under a lintel where
  *                 the walk runs out of each end, the day beyond it)
+ *     set         its set, the set designer's (era/cavern-set.js): true, a use or { use?, mood? }; none by default
  *
- *   readCavern(v, at)                       the recipe checked → { height, skylight, formations, light }
+ * It is painted and lit in one COLOUR KEY, the colour theorist's (era/cavern-key.js), solved from the world's palette and
+ * its register (`C.key`, set where the cavern is built): its lamps' colour, the shade its dark and its bounce take, its
+ * cracks' and skylight's daylight, its formations' rock and its set's colours.
+ *
+ *   readCavern(v, at)                       the recipe checked → { height, skylight, formations, light, ends, cracks, set? }
  *   encloseCavern(g, C, ctx) → { top }      the grid's open side and ends raised to the far cliff's top, the walk's
- *                                           notch through each end kept (the way on); `top` that height
+ *                                           notch through each end kept (the way on) and every pocket's bay (`ctx.bay`,
+ *                                           1 in a clearing and its spur); `top` that height
  *   cavernDome(site, C) → (x, y) → z        the ceiling: a dome over the site, its rim the cliffs' top, lumped
  *   domeFaces(site, C, seed) → faces        its underside, down-facing, cut where the skylight is
  *   formations(site, C, seed) → items       stalagmites off the walk and the water, stalactites over them and on their
@@ -27,11 +33,14 @@
  *   cavernLamps(site, C) → lamps            the register's lamps along the walk (torches both sides, tubes on posts,
  *                                           growth at the walls' feet and by the water)
  *   cavernLight(faces, site, C, { open })   each face lit by its dark, the skylight it sees and the lamps it sees
+ *   cavernSet(site, C, { rocks, seed, open }) → { faces, anchors, readout } | null   its set laid, painted and plotted,
+ *                                           its fires, glows and keys joined to its lamps (`C.plot`)
  *
  * Pure: the same recipe makes the same cavern.
  */
 import { formFactor, lampLight, CAVE_LIGHT_IDS } from './cave.js';
 import { tileFamilyOf } from './tile-specs.js';
+import { readSet, laySet, setFaces, plotKeys, setLaws, SET_USES } from './cavern-set.js';
 
 export const CAVERN = Object.freeze({ cracks: 0.5, height: 18, skylight: 10, formations: 0.5, light: 'torch', gap: 6, face: 3, endRun: 6, cell: 2, lump: 1.4, dark: 0.04 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -46,7 +55,7 @@ export function readCavern(v, at = 'trail.ground.cavern') {
   if (v === undefined || v === false) return null;
   if (v === true) v = {};
   if (!isObj(v)) throw new Error(`stage: ${at} is true or { height?, skylight?, formations?, light? }`);
-  for (const k of Object.keys(v)) if (!['height', 'skylight', 'formations', 'light', 'ends', 'cracks'].includes(k)) throw new Error(`stage: ${at}.${k} is not a cavern setting (height, skylight, formations, light, ends, cracks)`);
+  for (const k of Object.keys(v)) if (!['height', 'skylight', 'formations', 'light', 'ends', 'cracks', 'set'].includes(k)) throw new Error(`stage: ${at}.${k} is not a cavern setting (height, skylight, formations, light, ends, cracks, set)`);
   if (v.ends !== undefined && !['closed', 'open'].includes(v.ends)) throw new Error(`stage: ${at}.ends is 'closed' (the walk ends at the rock) or 'open' (a passage out at each end)`);
   const num = (o, k, lo, hi, d, w, words) => { if (o[k] === undefined) return d; if (typeof o[k] !== 'number' || !(o[k] >= lo && o[k] <= hi)) throw new Error(`stage: ${w}.${k} is ${words}`); return o[k]; };
   let skylight = null;
@@ -58,10 +67,28 @@ export function readCavern(v, at = 'trail.ground.cavern') {
   }
   const light = v.light ?? CAVERN.light;
   if (!CAVE_LIGHT_IDS.includes(light)) throw new Error(`stage: ${at}.light is one of ${CAVE_LIGHT_IDS.join(', ')}`);
-  return { height: num(v, 'height', 4, 60, CAVERN.height, at, 'metres the crown stands over its rim, 4 to 60'), skylight, formations: num(v, 'formations', 0, 1, CAVERN.formations, at, 'how thick its formations stand, 0 to 1'), light, ends: v.ends ?? 'closed', cracks: num(v, 'cracks', 0, 1, CAVERN.cracks, at, 'how many cracks let the day in, 0 to 1') };
+  const set = readSet(v.set, light, `${at}.set`);
+  return { height: num(v, 'height', 4, 60, CAVERN.height, at, 'metres the crown stands over its rim, 4 to 60'), skylight, formations: num(v, 'formations', 0, 1, CAVERN.formations, at, 'how thick its formations stand, 0 to 1'), light, ends: v.ends ?? 'closed', cracks: num(v, 'cracks', 0, 1, CAVERN.cracks, at, 'how many cracks let the day in, 0 to 1'), ...(set ? { set } : {}) };
 }
 
-export function encloseCavern(g, C, { gridX, gridY, walkLevel, trailX, edge, D, cliffX }) {
+/**
+ * The cavern's SET (era/cavern-set.js), laid before its light is: its pieces off the walk among its rocks, painted in its
+ * key; their fires and glows its lamps; the light plot's keys over its foci, solved on its own light (each focus at the
+ * mood's ratio over the walk round it). Its lamps join the cavern's (`C.plot`), so its bounce counts them.
+ * → { faces, anchors, readout } | null
+ */
+export function cavernSet(site, C, { rocks = [], seed = 1, open = 1 } = {}) {
+  if (!C.set || !C.key) return null;
+  const items = laySet(site, C, { rocks, seed }), { faces, anchors, lamps: glows } = setFaces(items, C.key, C.set.use), gain = 1 / Math.max(0.12, open);
+  const reset = (plot) => { C.plot = plot; C._asCave = null; C._bounce = null; };
+  reset(glows);
+  const lightAt = (p, n, extra) => { const base = cavernLightAt(site, C, p, n, gain); if (!extra.length) return base; const e = lampLight({ ...cavernAsCave(site, C), _lamps: extra }, p, n); return base.map((v, ch) => v + e[ch] * gain); };
+  const { lamps: keys, plot } = plotKeys(items, C.key, C.set.mood, lightAt);
+  reset([...glows, ...keys]);
+  return { faces, anchors, readout: { use: C.set.use, mood: C.set.mood, words: SET_USES[C.set.use].words, pieces: items.length, plot, laws: setLaws(site, items, plot) } };
+}
+
+export function encloseCavern(g, C, { gridX, gridY, walkLevel, trailX, edge, D, cliffX, bay = () => 0 }) {
   // the far cliff's top: the highest land behind its line
   let top = -Infinity;
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) if (gridX(g, i) < cliffX(gridY(g, j)) - 3) top = Math.max(top, g.z[j * g.nx + i]);
@@ -70,7 +97,8 @@ export function encloseCavern(g, C, { gridX, gridY, walkLevel, trailX, edge, D, 
     const x = gridX(g, i), y = gridY(g, j), q = j * g.nx + i, ex = trailX(y) + edge(y) + CAVERN.gap;
     // (the open side a wall past the walk's edge; each end a wall but for the walk's own notch through it)
     const side = smooth(ex, ex + CAVERN.face, x), end = Math.max(1 - smooth(0, CAVERN.endRun, y), smooth(D - CAVERN.endRun, D, y)) * (1 - walkLevel(x, y));
-    const w = Math.max(side, end); if (w <= 0) continue;
+    // (a pocket's bay kept out of the wall: `bay` 1 in its clearing and its spur)
+    const w = Math.max(side, end) * (1 - bay(x, y)); if (w <= 0) continue;
     const t = top - 1.2 + 2.4 * vnoise(x * 0.15, y * 0.15, 97);
     if (t > g.z[q]) { g.z[q] += (t - g.z[q]) * w; if (g.apron) g.apron[q] *= 1 - w; }
   }
@@ -148,8 +176,8 @@ export function formationFaces(it, seed = 1, scale = 1.5) {
  *  ceiling the dome; its lamps the register's along the walk. */
 export function cavernAsCave(site, C) {
   if (site.cavern._asCave) return site.cavern._asCave;
-  const z = cavernDome(site, C), cave = { light: C.light, width: 12, inside: () => ({ d: 0, s: 0 }), ceil: z, floor: () => -1e9, covered: () => true, heightAt: () => C.height };
-  cave._lamps = [...cavernLamps(site, C), ...cavernCracks(site, C).flatMap((c) => c.lamps)];
+  const z = cavernDome(site, C), cave = { light: C.light, width: 12, inside: () => ({ d: 0, s: 0 }), ceil: z, floor: () => -1e9, covered: () => true, heightAt: () => C.height, ...(C.key ? { key: C.key } : {}) };
+  cave._lamps = [...cavernLamps(site, C), ...cavernCracks(site, C).flatMap((c) => c.lamps), ...(C.plot ?? [])];
   site.cavern._asCave = cave;
   return cave;
 }
@@ -203,19 +231,25 @@ function bounceOf(site, C, cave) {
 /** The light at a point (normal `n`) in the cavern, per channel, in the day's units: its dark and skylight, its lamps and
  *  the bounce of both, the lamps' raised against the hour's bake (`gain`). */
 export function cavernLightAt(site, C, p, n, gain = 1) {
-  const cave = cavernAsCave(site, C), Bn = bounceOf(site, C, cave), k = cavernSky(site, C, p, n), lm = lampLight(cave, p, n);
-  return lm.map((v, ch) => k + Bn.sky[ch] + (v + Bn.lamp[ch]) * gain);
+  const cave = cavernAsCave(site, C), Bn = bounceOf(site, C, cave), k = cavernSky(site, C, p, n), lm = lampLight(cave, p, n), S = shadeOf(C), D = dayOf(C);
+  return lm.map((v, ch) => CAVERN.dark * S.dark[ch] + (k - CAVERN.dark) * D[ch] + Bn.sky[ch] * S.bounce[ch] + (v + Bn.lamp[ch] * S.bounce[ch]) * gain);
 }
+// (the colour key's, era/cavern-key.js: the shade its dark takes, its bounce half way (light given back keeps the key's
+// warmth in part), the daylight its skylight lets in; white without one)
+const WHITE = Object.freeze([1, 1, 1]);
+const dayOf = (C) => C.key?.crack ?? WHITE;
+const NO_SHADE = Object.freeze({ dark: WHITE, bounce: WHITE });
+const shadeOf = (C) => { if (!C.key) return NO_SHADE; if (!C._shade) C._shade = { dark: C.key.shade, bounce: C.key.shade.map((v) => (1 + v) / 2) }; return C._shade; };
 
 export function cavernLight(faces, site, C, { open = 1 } = {}) {
-  const cave = cavernAsCave(site, C), gain = 1 / Math.max(0.12, open), Bn = bounceOf(site, C, cave);
+  const cave = cavernAsCave(site, C), gain = 1 / Math.max(0.12, open), Bn = bounceOf(site, C, cave), S = shadeOf(C), D = dayOf(C);
   const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`, rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   return faces.map((f) => {
     if (!f.fill || !f.corners || f.lamp || f.self) return f;
     const n = f.normal ?? [0, 0, 1], shares = Array.isArray(f.sunShare) ? f.sunShare : f.corners.map(() => f.sunShare ?? 0);
     const ks = f.corners.map((c, i) => {
       const sh = shares[i] ?? 0, q = [c[0] + n[0] * 0.1, c[1] + n[1] * 0.1, c[2] + n[2] * 0.1], k = cavernSky(site, C, q, n), lm = lampLight(cave, q, n);
-      const all = sh + (1 - sh) * k, rgbK = lm.map((v, ch) => all + Bn.sky[ch] + (v + Bn.lamp[ch]) * gain), lum = 0.3 * rgbK[0] + 0.59 * rgbK[1] + 0.11 * rgbK[2];
+      const rgbK = lm.map((v, ch) => sh + (1 - sh) * (CAVERN.dark * S.dark[ch] + (k - CAVERN.dark) * D[ch]) + Bn.sky[ch] * S.bounce[ch] + (v + Bn.lamp[ch] * S.bounce[ch]) * gain), lum = 0.3 * rgbK[0] + 0.59 * rgbK[1] + 0.11 * rgbK[2];
       return { rgbK, share: sh > 0 ? sh / Math.max(1e-6, lum) : 0 };
     });
     const fills = (f.cornerFills ?? f.corners.map(() => f.fill)).map((c, i) => hex(rgb(c).map((v, ch) => v * ks[i].rgbK[ch])));
@@ -245,13 +279,15 @@ export function cavernCracks(site, C, seed = 1) {
   return out;
 }
 
+// (a slit's daylight drawn: the key's, lifted toward white as the stock slit's is)
+const daylightHex = (c) => `#${c.map((v) => Math.round(255 * (0.3 + 0.7 * v)).toString(16).padStart(2, '0')).join('')}`;
 /** The cracks drawn: each leg a thin slit on the ceiling's underside, bright, its own light. */
 export function crackFaces(site, C) {
   const z = cavernDome(site, C), out = [];
   for (const c of cavernCracks(site, C)) for (let i = 0; i + 1 < c.pts.length; i++) {
     const [a, b] = [c.pts[i], c.pts[i + 1]], d = [b[0] - a[0], b[1] - a[1]], l = Math.hypot(...d) || 1, w = [(-d[1] / l) * 0.18, (d[0] / l) * 0.18];
     const cs = [[a[0] - w[0], a[1] - w[1]], [b[0] - w[0], b[1] - w[1]], [b[0] + w[0], b[1] + w[1]], [a[0] + w[0], a[1] + w[1]]].map(([x, y]) => [r5(x), r5(y), r5(z(x, y) - 0.08)]);
-    out.push({ corners: cs, normal: [0, 0, -1], group: 'cave:lamp', fill: '#e6f1ff', lamp: true });
+    out.push({ corners: cs, normal: [0, 0, -1], group: 'cave:lamp', fill: C.key ? daylightHex(C.key.crack) : '#e6f1ff', lamp: true });
   }
   return out;
 }
@@ -378,7 +414,9 @@ export function floorDress(faces, site, st, C, { open = 1, seed = 1, rocks = [] 
     // tops and the plateau, under the ceiling, the land is the rock's)
     if (!f.fill || !f.corners || f.lamp || f.texture || !/^isekai:(trail|scree)$/.test(f.group) || !f.normal || f.normal[2] < 0.5) return f;
     const m = [0, 1].map((k) => f.corners.reduce((s, c) => s + c[k], 0) / f.corners.length);
-    if (m[0] < site.cliffX(m[1]) + 0.5 || m[0] > site.trailX(m[1]) + site.halfWAt(m[1]) + site.fringeAt(m[1]) + CAVERN.gap + 1 || m[1] < CAVERN.endRun * 0.5 || m[1] > site.D - CAVERN.endRun * 0.5) return f;
+    // (and a pocket's bay in the open side's wall: down on the floor, well under the walls' tops)
+    const mz = f.corners.reduce((s, c) => s + c[2], 0) / f.corners.length, hall = m[0] <= site.trailX(m[1]) + site.halfWAt(m[1]) + site.fringeAt(m[1]) + CAVERN.gap + 1 || mz < C.top - 6;
+    if (m[0] < site.cliffX(m[1]) + 0.5 || !hall || m[1] < CAVERN.endRun * 0.5 || m[1] > site.D - CAVERN.endRun * 0.5) return f;
     // (cut along the floor's fields, so its surfaces meet in rounded lines; each piece its surface's tile, its light the
     // cavern's own at each corner, the tile its colour: what the bake laid under the ceiling is the cavern's light, nothing
     // of the day's but its cracks and skylight; one of the tile's four variants a cell)

@@ -434,7 +434,9 @@ function siteOf(st, plan, grade = null) {
   const inCave = CV ? caveClear(CV) : null;
   // the CAVERN (era/cavern.js, `ground.cavern`): the open side and the ends raised to the far cliff's top, the walk's
   // notch kept; nothing grows anywhere in it
-  const CVN = G.cavern && !open ? { ...G.cavern, ...encloseCavern(g, G.cavern, { gridX, gridY, walkLevel, trailX, edge, D, cliffX }) } : null;
+  // (its pockets kept: the wall steps round each clearing and its spur, a bay in the rock, as they were carved)
+  const bay = (x, y) => pockets.reduce((m, p) => Math.max(m, 1 - smooth(p.r + 1, p.r + 4, Math.hypot(x - p.cx, y - p.cy)), 1 - smooth(2.5, 4.5, spurDist(p, x, y))), 0);
+  const CVN = G.cavern && !open ? { ...G.cavern, ...encloseCavern(g, G.cavern, { gridX, gridY, walkLevel, trailX, edge, D, cliffX, bay }) } : null;
   // the DUNES laid over it, the walk kept: their share where they stand (the sand), 0 on the street
   const duneAt = DN ? (x, y) => {
     if (open ? false : x - cliffX(y) < Lf.keep[1]) return 0;

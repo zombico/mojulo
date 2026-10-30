@@ -56,6 +56,32 @@ rock (its walls the cliff's rock, its floor scree, a ceiling under the land), li
 - **Its wall rocks** (`wallRocks`): small rocks (0.3 to 1.1 m, most small) heaped along the foot of every wall, the far
   cliff's and the open side's, one to three a step, found where the land lies level past the wall's face, out of the
   walk: the land's boulders, no hat.
+- **Its colour key** (`era/cavern-key.js` `cavernKey`, the colour theorist's offer to a cave, as `flora-colours.js` is to
+  trees): one key the cavern is painted and lit in, solved from the world's own palette and its register. The register
+  names a family of light and the world turns it inside it, never out (a torch toward the world's soil, a tube toward its
+  sky, a growth's glow toward its nearest accent); the shade is the temperature opposite the key's (a warm key, a cool
+  shade), taken by its dark and half by its bounce, so light given back keeps some of the key's warmth; the cracks and
+  the skylight let in the world's daylight; the formations are the rock lifted toward the soil, paler than the walls;
+  the set's accent is the world's accent farthest round the wheel from the key; what a set is built of (metal, stone,
+  wood, a drab, cloth) is in the key. Its laws (temperature, family, accent apart, formations lifted) are measured and
+  read out on the cavern's anchor (`key`); advice, none refuses. A cave's lamps take a key where one is given, and a
+  lamp may carry its own light (`era/cave.js` lampLight); a cave without one lights as before.
+- **Its set** (`era/cavern-set.js`, a cavern's `set: true | 'base' | 'temple' | 'grotto' | { use?, mood? }`): the set
+  designer in a cave, the scene composer's reading of a walk laid on the trail's beats, one room each (the trailhead the
+  arrival, a pinch or a crossing a passage, the landmark the landmark, a pocket a pocket, a reveal or a rest a rest, the
+  exit the climax). Each beat's set piece stands at its focus off the walk (`true`, the register's use: a base's
+  generator, a temple's altar, a grotto's geode at the landmark, scaled to the hall where it fits; a prize, a reliquary
+  or a great crystal at the exit; a find in a pocket's middle; a barrier, or standards either side of the walk, at the
+  way in), on a stone plinth where the land falls under it; clusters of the use's pieces beside the walk (the rooms'
+  crates, ammo crates, drums and tool chests, stacked where they stack; the cave's own urns, braziers, crystals and
+  fungus), never in the walk, the water, on a rock or a formation, a passage left clear. Every piece is painted in the
+  key (a set piece's paint its accent) and lit by the cavern; a brazier's fire and a crystal's glow are lamps of their
+  own in the key's light. The LIGHT PLOT hangs a key light over each focus the role weighs (`compose-plot.js`
+  LIGHT_PLOT.roles), a tight pool across the temperature from the cave's light (a cool shaft of day in a torch-lit temple
+  or a glowing grotto, a warm sodium in a fluorescent base), its strength solved so the focus stands at the mood's ratio
+  over the walk round it.
+  Each piece is a prop anchor (a collider; the set's own marked); the cavern's anchor reads the set out (its use, mood,
+  plot and laws: every piece off the walk, every focus at its ratio). Opt-in: a cavern without `set` holds none.
 - **The meru's rock**: a trail with caves, or a cavern, wears the meru's gen-7 rock fabric, strata and joints near the eye, inside and
   out.
 - **The geocube card** says it; `scripts/spikes/caves/cave.mjs` captures a cave from the approach, wide, at the mouth,

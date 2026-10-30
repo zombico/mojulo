@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import { readCavern, formationFaces, floorKind, floorPieces, wallRocks, CAVERN, FLOOR, WALL_ROCKS } from './cavern.js';
 import { assembleStageScene } from './stage.js';
+import { cavernKey } from './cavern-key.js';
+import { setFaces } from './cavern-set.js';
 
 const GROWS = /:(grass|crown|wood|blossom|bush|flower|ikebana|ridge)$/;
 const mid = (f) => [0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length);
@@ -20,6 +22,12 @@ describe('the cavern', () => {
     expect(() => readCavern({ skylight: { r: 4 } })).toThrow(/needs y/);
     expect(() => readCavern({ light: 'neon' })).toThrow(/light is one of/);
     expect(() => readCavern({ ends: 'ajar' })).toThrow(/ends is 'closed'/);
+    // (its set: the register's use by default, a use named, refused by name)
+    expect(readCavern({ set: true }).set).toEqual({ use: 'temple', mood: 'drama' });
+    expect(readCavern({ light: 'fluorescent', set: true }).set).toEqual({ use: 'base', mood: 'drama' });
+    expect(readCavern({ set: { use: 'grotto', mood: 'noir' } }).set).toEqual({ use: 'grotto', mood: 'noir' });
+    expect(() => readCavern({ set: 'hangar' })).toThrow(/use is one of/);
+    expect(() => readCavern({ set: { mood: 'jolly' } })).toThrow(/mood is one of/);
   });
 
   it('lofts a stalagmite up from its foot, a stalactite down from its root, a column between', () => {
@@ -108,6 +116,19 @@ describe('a cavern in a trail', () => {
     expect(open.filter((f) => Math.hypot(mid(f)[0] - sk.x, mid(f)[1] - sk.y) > sk.r).length).toBeLessThan(walk.length * 0.02);
   });
 
+  it('keeps its pockets: a bay in the open side\'s wall, its floor at its mouth\'s', () => {
+    const pockets = P.anchors.filter((a) => a.beat === 'pocket');
+    expect(pockets.length).toBeGreaterThan(0);
+    for (const p of pockets) expect(Math.abs(p.at[2] - p.mouth[2])).toBeLessThan(1.5);
+  });
+
+  it('is painted in its colour key: its laws hold, its formations paler than its walls; no set unless asked', () => {
+    expect(C.key.laws.every((l) => l.ok)).toBe(true);
+    expect(C.key.register).toBe(CAVERN.light);
+    expect(P.faces.some((f) => f.group === 'cave:set')).toBe(false);
+    expect(P.anchors.some((a) => a.kind === 'prop')).toBe(false);
+  });
+
   it('stands its formations off the walk, lit by its lamps and darker than the open', () => {
     const rock = P.faces.filter((f) => f.group === 'isekai:rock'), lamps = P.faces.filter((f) => f.group === 'cave:lamp');
     expect(rock.length).toBeGreaterThan(50);
@@ -117,5 +138,43 @@ describe('a cavern in a trail', () => {
     const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
     // (its cracks, its torches and their bounce light it to a readable gloom: well under the open day)
     expect(mean(ground(P))).toBeLessThan(mean(ground(open)) * 0.7);
+  });
+});
+
+describe('a cavern set', () => {
+  // (a base in the rock: the fluorescent register's use)
+  const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: { ground: { cavern: { light: 'fluorescent', set: true } } } });
+  const C = P.anchors.find((a) => a.kind === 'cavern'), props = P.anchors.filter((a) => a.kind === 'prop'), beats = P.anchors.filter((a) => a.kind === 'beat');
+
+  it('reads its beats as a walk\'s rooms: a set piece at a focus, its dressing beside the walk, a passage clear', () => {
+    expect(C.set).toMatchObject({ use: 'base', mood: 'drama' });
+    expect(props.length).toBeGreaterThan(8);
+    // (the landmark's great object, the climax's prize, each a set piece of its beat)
+    const lm = beats.find((b) => b.beat === 'landmark'), ex = beats.find((b) => b.beat === 'exit');
+    expect(props.some((a) => a.set && a.beat === lm.id && a.role === 'landmark')).toBe(true);
+    expect(props.some((a) => a.set && a.beat === ex.id && a.role === 'climax')).toBe(true);
+    expect(props.filter((a) => a.role === 'passage')).toHaveLength(0);
+  });
+
+  it('stands every piece off the walk, its focus lit at its mood\'s ratio', () => {
+    expect(C.set.laws.every((l) => l.ok)).toBe(true);
+    expect(C.set.plot.length).toBeGreaterThan(1);
+  });
+
+  it('paints every piece in the cavern\'s key, then lights it by the cavern', () => {
+    // (each surface one of the key's made colours, a set piece's paint its accent, a glow its fixture: one piece per use)
+    const K = cavernKey(null, 'torch'), made = new Set(Object.values(K.made)), glows = new Set([K.fixture, K.glow].filter(Boolean));
+    const items = ['generator', 'crate', 'brazier', 'altar', 'crystal'].map((kind, i) => ({ id: `t/${kind}`, kind, role: 'landmark', at: [i * 5, 0], z0: 0, t: [0, 1], set: kind !== 'crate' }));
+    const S = setFaces(items, K, 'temple');
+    expect(S.faces.every((f) => (f.lamp ? glows.has(f.fill) : made.has(f.fill) || f.fill === K.accent))).toBe(true);
+    expect(S.faces.some((f) => f.fill === K.accent)).toBe(true);
+    expect(S.anchors.map((a) => a.id)).toEqual(items.map((it) => it.id));
+    // (the fires and glows their own lamps, in the key's light)
+    expect(S.lamps.length).toBe(3);
+    expect(S.lamps.every((l) => l.light.colour === K.light)).toBe(true);
+    // (in the cavern, every piece lit at its corners by the cavern's light)
+    const set = P.faces.filter((f) => f.group === 'cave:set');
+    expect(set.length).toBeGreaterThan(100);
+    expect(set.every((f) => f.cornerFills?.length === f.corners.length)).toBe(true);
   });
 });
