@@ -38,7 +38,15 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   mouth's own outline stay where they were.
 - **The anime head's form by default** (hero laws 19, `anime-looks.js` `ANIME_FORM`): an anime hero minted now wears the
   socket (`orbit` 0.025), the pyramid nose, the jaw curved in (`jawHollow` 0.02) and the lips flat (`flatLips` 1), under
-  every other sculpt layer, so its own words move or undo each (`flatLips: -1` the studio's rim again). Each base keeps its feature bands under it (`ANIME_FORM_POLE`): the male's opening a
+  every other sculpt layer, so its own words move or undo each (`flatLips: -1` the studio's rim again). Each base wears
+  its own beside it (`ANIME_FORM_POLE`): the male's head narrower (`width` 0.95) and his jaw turned under by half as
+  much, so less of a plane shows under its edge; the female's chin shorter (`chinHeight` 0.9). The bases' feature bands
+  hold under it, each nudged back inside: the male's opening a hair taller, the female's nose tip a hair further out and
+  higher, her lip line a hair higher.
+- **The anime face smooth in an engine** (`export_model`, the lit, skinned export of an anime hero minted under laws
+  19): its corners carry the studio's welded shading normals and no baked shade, so the engine's light shades the face
+  as one smooth form, a painted figure's, instead of its triangles; the realistic body's path. A hero minted before
+  keeps its export, byte for byte. Each base keeps its feature bands under it (`ANIME_FORM_POLE`): the male's opening a
   hair taller, since the socket reads his lid band a hair heavier, and the female's tip a hair further out, since the
   pyramid sets it nearer the face; so the default hero is advised nothing. A hero minted before keeps its head, byte for
   byte; the child's round face and the studio's own face (`sculpt: false`) do not wear it.

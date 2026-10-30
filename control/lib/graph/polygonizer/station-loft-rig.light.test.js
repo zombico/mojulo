@@ -300,9 +300,9 @@ describe('the anime hero: the rig pack and the ink take the character light by d
     // (re-counted for the hair's top planes, which split more of the mass, the dome drape and the male hair base's crest;
     // both hulls re-counted for the structured core's relaxed stand, a little crouch that moves the hair: 6980, 8196 before)
     // re-pinned for the sideburn patches before the ears (every anime head): their hull triangles join the hair's; and for
-    // the graphic face's ears set closer in; and for the anime head's form (hero laws 19), which moves a hair triangle or
-    // two out of the degenerate (7687 and 8924 before)
-    for (const [cast, buried, hull] of [['female', 745, 7688], ['male', 1466, 8926]]) {
+    // the graphic face's ears set closer in; and for the anime head's form (hero laws 19: the hair over her shorter chin
+    // and his narrower head buries and keeps a few more of its triangles; 745, 7687 and 1466, 8924 before)
+    for (const [cast, buried, hull] of [['female', 750, 7706], ['male', 1498, 8893]]) {
       const p = cast === 'female' ? lit : await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }));
       // the hair class (hair and veil faces together, each its own closed part): its buried triangles, the culling count
       const soup = Float32Array.from(p.faces.filter((f) => f.layer === 'hair' || f.layer === 'veil').flatMap((f) => f.corners.flat()));

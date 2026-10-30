@@ -607,9 +607,9 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // the anime heroes re-pinned for the sideburn patches before the ears (every anime head wears them), and for the
     // shoulder line (hero laws 2; under laws 1 each is its pin before, still) and the leg set (laws 3; under laws 2 the same),
     // and for the anime head's form (hero laws 19, anime-looks.js ANIME_FORM: the socket, the pyramid nose, the jaw curved
-    // in, the lips flat, and each base's nudge into its feature bands, ANIME_FORM_POLE; a row stamped laws 18 builds its pin
+    // in, the lips flat, and each base's own, ANIME_FORM_POLE: his head narrower, her chin shorter; a row stamped laws 18 builds its pin
     // before, still)
-    for (const [cast, pin, pin1, pin2, pin18] of [['female', 'ed2e011564e1916a', '81ba463d89053ba0', '9d865a5a27c0918e', '4001e04845159be7'], ['male', 'ab3223fcfe34d580', 'c75efdee8cc90098', '06f4b07f30fe2390', '79e2dd997d6067ad']]) {
+    for (const [cast, pin, pin1, pin2, pin18] of [['female', '30239e100e1d4ae9', '81ba463d89053ba0', '9d865a5a27c0918e', '4001e04845159be7'], ['male', '4352032e617cc960', 'c75efdee8cc90098', '06f4b07f30fe2390', '79e2dd997d6067ad']]) {
       expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
       for (const [L, p] of [[1, pin1], [2, pin2], [18, pin18]]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', laws: L }) }))), `anime ${cast} laws ${L}`).toBe(p);
     }

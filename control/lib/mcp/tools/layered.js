@@ -80,7 +80,7 @@ import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
 import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, ANIME_PRESETS, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, animeExpressionWarnings, animeCoverageWarnings, animeFaceZoneWarnings, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS } from '@/lib/graph/polygonizer/anime-head';
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
-import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective } from '@/lib/graph/polygonizer/anime-looks';
+import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
@@ -1470,7 +1470,7 @@ export function dressReadout(hero, plan, mesh, recipe) {
  * (then the face is AUTHORED, not fitted), and the body (authored from a cast and a tune, no reference). */
 export function heroEvidence(hero) {
   if (hero.head === 'anime') {
-    const moved = Object.entries(composeAnime(hero, 'bob').face).filter(([k, v]) => v !== ANIME_FACE.DEFAULT[k]).map(([k]) => k);
+    const base = animeFaceBase(hero), moved = Object.entries(composeAnime(hero, 'bob').face).filter(([k, v]) => v !== base[k]).map(([k]) => k);
     const sc = composeAnime(hero, 'bob').sculpt, scMoved = sc === false ? null : describeAnimeSculpt(sparseSculpt(sc));
     const cut = hero.hair === 'none' ? null : animeEffective(hero).hairCut;
     return { head: { construction: 'the Anime Form Studio head (authored, no fit, no reference)', base: headPoleOf(hero), face: moved.length ? `authored off the base: ${moved.join(', ')}` : 'as the base', sculpt: sc === false ? "the studio's face (sculpt false)" : scMoved ? `the graphic face, authored off its base: ${scMoved}` : 'the graphic face, as the base',
@@ -1634,7 +1634,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), ...(hero.sculpt !== undefined ? { sculpt: hero.sculpt } : {}), tune: movedOf(hero.tune) } } : {}),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include', ...(hero.genki ? { genki: hero.genki } : {}),
     ...((F) => (F ? { realisticFace: F } : {}))(faceReadout(hero)),
-    ...(anime ? { base: headPoleOf(hero), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== ANIME_FACE.DEFAULT[k])),
+    ...(anime ? { base: headPoleOf(hero), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: ((B) => Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== B[k])))(animeFaceBase(hero)),
       sculpt: eff.sculpt === false ? false : sparseSculpt(eff.sculpt) ?? {},
       // hairMoved: what moved off the hair base the door applied (its form, and its cut when worn), the look's moves included
       hair, hairMoved: hair.style === 'none' ? {} : (() => { const B = animeHairBaseOf(hero, eff); const lockMoved = Object.keys(hair.locks || {}).filter((n) => JSON.stringify(hair.locks[n]) !== JSON.stringify(B.locks[n])); return { ...Object.fromEntries(ANIME_HAIR_KEYS.filter((k) => hair[k] !== B[k]).map((k) => [k, hair[k]])), ...(lockMoved.length ? { locks: lockMoved } : {}) }; })(),

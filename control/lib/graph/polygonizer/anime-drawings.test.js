@@ -10,7 +10,7 @@ import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordError
 import { animeHead } from './anime-head.js';
 import { X, build, pts, checkDrawing, studio } from './anime-drawings.fixture.js';
 import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
-import { animeHeroEffective, ANIME_FORM } from './anime-looks.js';
+import { animeHeroEffective, ANIME_FORM, ANIME_FORM_POLE } from './anime-looks.js';
 import { sculptBuild, resolveAnimeSculpt, validateAnimeSculpt } from './anime-sculpt.js';
 import { compileLayered } from './station-loft.js';
 
@@ -121,7 +121,11 @@ describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShap
   });
   it('a new anime hero wears them (hero laws 19); a row before, the child and the studio\'s own face do not', () => {
     const sc = (spec) => animeHeroEffective(heroRecord({ head: 'anime', ...spec })).sculpt;
-    for (const [k, v] of Object.entries(ANIME_FORM)) { expect(sc({ cast: 'male' })[k], k).toBe(v); expect(sc({ cast: 'female' })[k], k).toBe(v); }
+    for (const k of Object.keys(ANIME_FORM)) for (const cast of ['male', 'female']) expect(sc({ cast })[k], `${cast} ${k}`).toBe(resolveAnimeSculpt([ANIME_FORM, ANIME_FORM_POLE[cast].sculpt])[k]);
+    // (each base's own: the male's head narrower and his jaw turned under half as much, the female's chin shorter)
+    const fc = (spec) => animeHeroEffective(heroRecord({ head: 'anime', ...spec })).face;
+    expect(fc({ cast: 'male' }).width).toBeLessThan(fc({ cast: 'male', laws: 18 }).width); expect(sc({ cast: 'male' }).jawHollow).toBeCloseTo(sc({ cast: 'female' }).jawHollow / 2, 9);
+    expect(fc({ cast: 'female' }).chinHeight).toBeLessThan(fc({ cast: 'female', laws: 18 }).chinHeight);
     expect(sc({ cast: 'male', laws: 18 }).orbit).toBe(0); expect(sc({ cast: 'male', laws: 18 }).noseShape).toBeUndefined();
     expect(sc({ cast: 'child' }).orbit).toBe(0); expect(sc({ cast: 'male', sculpt: false })).toBe(false);
     // (a hero's own words move each: the socket deeper, the nose round)

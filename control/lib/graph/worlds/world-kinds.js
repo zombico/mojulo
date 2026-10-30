@@ -70,6 +70,7 @@ import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
 import { relationalFaceRig, performanceTrack } from '@/lib/graph/polygonizer/relational-face-rig';
 import { perform } from '@/lib/graph/face-acting/perform';
 import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
+import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -935,7 +936,9 @@ export const WORLD_KINDS = {
         // THE REALISTIC BODY LIT BY AN ENGINE (the flat light: the lit export): its pack carries the studio weld's normals per
         // corner and no baked shade, so the engine's light shades one smooth skin, once. Any other figure as before.
         // (and a beast-kin on the tiered body, beast/tiered.js: its coat lit by the engine over its cover's maps, below)
-        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
+        // (and the ANIME hero minted under hero laws 19, anime-looks.js animeFormed: its face one smooth form, as a painted
+        // figure's, not its triangles; a row before keeps its export, byte for byte)
+        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast || (m.hero?.head === 'anime' && animeFormed(m.hero))) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         // THE RELIEF (epidermis/dermal-relief.js), on a realistic hero minted under realistic laws 5, lit by its engine and
         // exported skinned (ctx.face: the export that asks for the figure's blend shapes): the one skin's relief baked from
         // its own field into a normal map on the skin's atlas, each corner's tangent beside it (the GLB's normalTexture and

@@ -118,12 +118,22 @@ export const CHILD_FACE = Object.freeze({
  * or open). A hero's own words move or undo each (`orbit: -0.025`, `noseShape: 'round'`, `jawHollow: -0.02`,
  * `flatLips: -1`). */
 export const ANIME_FORM = Object.freeze({ orbit: 0.025, noseShape: 'pyramid', jawHollow: 0.02, flatLips: 1 });
-/** and per design base, what keeps the formed head in its base's feature bands (anime-sculpt.js FEATURE_BANDS): the
- * socket reads the male's lid band a hair heavier (his opening a hair taller answers it) and the pyramid sets the
- * female's tip a hair nearer the face */
-export const ANIME_FORM_POLE = Object.freeze({ male: Object.freeze({ fissureHeight: 1.01 }), female: Object.freeze({ tipProjection: 1.08 }) });
-/** the anime head's form this hero wears (ANIME_FORM and its base's), or null */
-export const animeFormOf = (hero) => (animeFormed(hero) ? { ...ANIME_FORM, ...ANIME_FORM_POLE[heroHeadPole(hero)] } : null);
+/** and per design base, its sculpt and its face: the male's head narrower and his jaw turned under by half as much (so
+ * less of a plane shows under its edge), the female's chin shorter; each kept in its base's feature bands
+ * (anime-sculpt.js FEATURE_BANDS): the socket reads the male's lid band a hair heavier (his opening a hair taller
+ * answers it), and the pyramid sets the female's tip a hair nearer the face and her shorter chin brings her nose and
+ * lip line down the face (her tip a hair further out and higher, her lip line a hair higher, answer them) */
+export const ANIME_FORM_POLE = Object.freeze({
+  male: Object.freeze({ sculpt: Object.freeze({ fissureHeight: 1.01, jawHollow: -0.01 }), face: Object.freeze({ width: 0.95 }) }),
+  female: Object.freeze({ sculpt: Object.freeze({ tipProjection: 1.08, pronasale: 0.02, stomion: 0.004 }), face: Object.freeze({ chinHeight: 0.9 }) }),
+});
+/** the anime head's form this hero wears, as one sculpt layer (ANIME_FORM and its base's), or null */
+export const animeFormOf = (hero) => (animeFormed(hero) ? resolveAnimeSculpt([ANIME_FORM, ANIME_FORM_POLE[heroHeadPole(hero)]?.sculpt]) : null);
+/** and its face layer (its base's), or null */
+export const animeFormFaceOf = (hero) => (animeFormed(hero) ? ANIME_FORM_POLE[heroHeadPole(hero)]?.face ?? null : null);
+/** the face this hero's own words move off: the studio's default under its form's face (a word the form set is the
+ * base's, not the hero's own) */
+export const animeFaceBase = (hero) => { const { from: _f, ...B } = resolveAnimeFace([animeFormFaceOf(hero)].filter(Boolean)); return B; };
 /** does this hero wear the anime head's form (ANIME_FORM): minted under laws 19, its face not the child's */
 export const animeFormed = (hero) => (hero.laws ?? 1) >= 19 && !childFaced(hero);
 /** does this child wear the ROUND child (laws 14: CHILD_FACE `round`, tiered-form.js CHILD_SHADE) */
@@ -137,7 +147,7 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const G = genkiLayers(hero);
   // (the child's face its words in order, then the boy's own: a nested list would be read as one ratio object)
   const R = C && childRound(hero), boy = C && heroHeadPole(hero) === 'male';
-  const { from: _f, ...face } = resolveAnimeFace([...(C ? C.face : []), R ? C.round : null, boy ? C.male : null, boy && R ? C.roundMale : null, L?.face, hero.face, G?.face].filter(Boolean));
+  const { from: _f, ...face } = resolveAnimeFace([animeFormFaceOf(hero), ...(C ? C.face : []), R ? C.round : null, boy ? C.male : null, boy && R ? C.roundMale : null, L?.face, hero.face, G?.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
   // a layer may itself be a list (a family word and its controls): its entries join the layers in order, so its family is
   // read as named and its controls and lock edits compose like any other entry's
