@@ -263,6 +263,14 @@ export function buildAnime(r, options = {}) {
       // (the underside raised onto the line, and the face's side with it only at the seam, the same from front and back
       // there so the two still meet and the jaw's edge itself lies on the line, no lip left below it)
       const onLine = back ? 1 : 1 - smoother(clamp(arc / J.seamEase));
+      // (the KEEL under the chin, its bottom rows, narrow, merged into the floor beside it: behind the chin each row below
+      // `top` widened to that row's width, so the keel and the two walls up from it curve into one; then the whole floor
+      // shrunk in toward the middle by `shrink`, the rows from `from` down, the chin and the jaw's edge (the seam) kept)
+      if (back) {
+        const M = J.merge, zc0 = J.seam[0][1] - 0.18 * ((f.chinProjection ?? 1) - 1) * g(-1.02, -0.91, 0.18), behind = k * smoother(clamp((z - zc0) / M.reach)) * smoother(clamp(arc / J.seamEase));
+        if (y < M.top) x *= 1 + behind * (width(M.top) / width(y) - 1) * smoother(clamp((M.top - y) / M.ease));
+        x *= 1 - behind * M.shrink * smoother(clamp((M.from - y) / M.fade));
+      }
       if (onLine > 0 && lower > 0) {
         const yc = fy(-1.02) - 0.40 * ((f.chinHeight ?? 1) - 1), zc = J.seam[0][1] - 0.18 * ((f.chinProjection ?? 1) - 1) * g(-1.02, -0.91, 0.18);
         const L = yc + J.rise * clamp((z - zc) / (J.corner - zc)), Y = fy(y) + lift + chinLift + jaw, h = Math.max(J.soft - Math.abs(Y - L), 0) / J.soft;
@@ -936,8 +944,10 @@ export const JAW = Object.freeze({ apex: -0.5, edge: -0.95, curve: 1.6, span: 0.
  * max's width (`soft`), the underside's ease in from the head's middle (`ease`, of the lower ring) and the face's side's
  * share of the raise, whole at the seam and gone `seamEase` of the front's arc from it; the raise eased in over `chinEase`
  * behind the chin, so the chin's own underside keeps its curve; a side point the corner's lift no longer raises narrowed
- * as the row `narrow` times as far below it */
-export const JAW_LINE = Object.freeze({ seam: [[-1.02, -0.43], [-0.90, -0.30], [-0.78, -0.08], [-0.66, 0.04], [-0.30, 0.06], [1.19, 0.06]], corner: 0.02, rise: 0.13, soft: 0.03, ease: 0.3, seamEase: 0.3, chinEase: 0.15, narrow: 2 });
+ * as the row `narrow` times as far below it; the keel under the chin merged into the floor beside it and the floor
+ * shrunk in (`merge`: the rows below `top` widened to it over `ease`, from the chin back over `reach`; the floor narrowed
+ * by `shrink` from `from` down over `fade`) */
+export const JAW_LINE = Object.freeze({ seam: [[-1.02, -0.43], [-0.90, -0.30], [-0.78, -0.08], [-0.66, 0.04], [-0.30, 0.06], [1.19, 0.06]], corner: 0.02, rise: 0.13, soft: 0.03, ease: 0.3, seamEase: 0.3, chinEase: 0.15, narrow: 2, merge: { top: -0.9, reach: 0.25, ease: 0.06, shrink: 0.45, from: -0.7, fade: 0.2 } });
 /** the pyramid nose (sculpt `noseShape: 'pyramid'`, studio units): its ROOT at the eye's level, where the lids meet (so
  * the centre line's "<" — the brow, back to the root, out to the tip — keeps step with the socket's), or raised toward
  * the brow (sculpt `bridgeRoot`, its dip shallower as it rises, flat at `rootUpFlat`, and its bridge standing higher by

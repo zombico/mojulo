@@ -48,6 +48,8 @@ lean, long faces. The eyes gate is the operator's.
   curved in harder toward its edge (`jawHollow`), his female's with it.
 - **A head seated back on the neck** (sculpt `seatBack`, of the head's height; the neck stays where it is): the head's
   registration moved back along its depth, the hair's body fit with it. Shonen High's female at 0.08: the male's head
-  sat forward on her slimmer neck; seated back, her face stands as far before her neck as his before his. A piece the
-  views under the chin still show: a small dark facet at the chin's tip from below, where the underside's keel meets
-  the raised floor.
+  sat forward on her slimmer neck; seated back, her face stands as far before her neck as his before his. 
+- **The keel under the chin merged** (round three): seen from below, the head's narrow bottom rows ran back from the
+  chin as a keel with a jagged wall up each side to the wider floor. Behind the chin those rows now widen to the
+  floor's width, so the keel and both walls curve into one piece, and the whole floor is then shrunk in toward the
+  middle (the chin and the jaw's edge at the seam kept), so what shows from below is one smaller, rounded piece.
