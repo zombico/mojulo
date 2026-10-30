@@ -7,14 +7,21 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard: a 3D compiler for agents. The agent makes things to Play, Print,
-Read, Hear and Observe by conversation, characters (`create_character`) first among them; each one is a tiny deterministic recipe (a `sketches` row) that
-regenerates on every read and exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Workflows (plans,
-sweeps, stash and cook, catalysts) orchestrate the rest. Mojulo is the agent-driven upstream that feeds those
-tools, never a fidelity rival and never "just an exporter." The canonical self-description is the
-`get_substrate` drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js); keep
-user-facing copy consistent with it. The office wing (apps, daemons, contextmap, MCP-to-MCP binding) left the
-tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
+A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
+agent works through the departments: direction (`design_game`), levels and worlds, characters (`create_character`),
+gameplay and feel, art direction, audio, writing (the bibles), QA (the traversal audit), shipping (the engine legs),
+the trailer, and production (plans, sweeps, stash and cook, catalysts). Every department writes into one tiny
+deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
+GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
+are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
+Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
+sold. Mojulo is the agent-driven upstream that feeds those tools, never a fidelity rival and never "just an exporter."
+
+Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
+the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
+drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js): its one-breath answer is what the
+agent says to the person, so it and the README agree. The office wing (apps, daemons, contextmap, MCP-to-MCP binding)
+left the tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
 
 One package. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); all work happens here.
 The chatbot factory and its bot runtime left in 3.0.0 for their own project; the unmaintained 2.x line still carries them.
@@ -57,6 +64,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   claim the eyes gate passed. All gates advise and stamp; none refuse. Say which gate ran and what was seen.
   [docs/bicycles.md](docs/bicycles.md), [docs/responsibility-model.md](docs/responsibility-model.md).
 - **Recipes are starters.** Iterate in place with `update_sketch` / `edit_solid`; don't re-mint.
+- **A capability joins a department and composes.** A new row on a shelf (a place, a foe, a look, a game type) is
+  reachable from the keys that compose it, read in its book (the bibles), carried by its exports and checked by its
+  audit. One that only works alone is a spike. The README's combinations stay true only while this holds.
 - **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2
   builder in [control/book/](control/book/), not a core addition. The book ships bundled (3.1.0); the
   separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated (they cannot load in an agent box).
