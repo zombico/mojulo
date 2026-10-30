@@ -25,9 +25,10 @@
  *                 each arterial frontage's
  *   7 parks       each neighbourhood's own PARK out of its quota (parks.js): along its shore on the water, else inside its
  *                 interior clear of its frontages, laid before its streets so they go round it
- *   8 blocks      inside each neighbourhood (blocks.js): its collectors, its park's edges, its locals, the blocks they
- *                 leave, each given to a block segment by its ring (segments.js), its storeys and its ground shared out;
- *                 the park fitted to the streets
+ *   8 blocks      the GEOTOWNS it composes (towns.js: a neighbourhood laid by the geotown, fitted by its ring or its
+ *                 own recipe, on the metro's land); inside each other neighbourhood (blocks.js) its collectors, its
+ *                 park's edges, its locals, the blocks they leave, each given to a block segment by its ring
+ *                 (segments.js), its storeys and its ground shared out; the park fitted to the streets
  *   9 ledger      water, the arterials' rights-of-way (each crossing once), parks and neighbourhoods: the frame's every
  *                 square metre once; inside each neighbourhood its streets, blocks and park, every block's ground by
  *                 surface; the green budget, reserved, given out as quotas, placed as parks and grown as soft ground
@@ -49,6 +50,7 @@ import { heightsOf } from './heights.js';
 import { parksOf } from './parks.js';
 import { blocksOf } from './blocks.js';
 import { roadKinds, layoutOf } from './roads.js';
+import { townsOf, blockTownsOf } from './towns.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
@@ -235,8 +237,20 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   const parks = parksOf(dd);
   for (const r of regions) if (parks[r.id]) r.parkRect = parks[r.id];
 
-  // 8 the blocks inside each neighbourhood, the park fitted to its streets
+  // 8 the geotowns it composes (towns.js): a neighbourhood laid by the geotown on the metro's land, its own park the
+  // town's; then the blocks inside every other neighbourhood, the park fitted to its streets
+  const towns = townsOf({ seed, regions, metro: M }, T, L.N);
+  for (const r of regions) if (towns[r.id]) { r.geotown = towns[r.id]; delete r.parkRect; }
   const Bs = blocksOf({ seed, metro: M, grammar: G, spec: T, regions, heights: { storeysAt: Hs.storeysAt } });
+  // (and the blocks given to the geotown: each one of its block segments, its ground the town block's)
+  const blockTowns = blockTownsOf({ seed, regions: regions.map((r) => ({ ...r, blocks: Bs[r.id].blocks })), metro: M }, T, L.N);
+  for (const r of regions) {
+    const B = Bs[r.id];
+    if (!B.blocks.some((b) => blockTowns[b.id])) continue;
+    B.blocks = B.blocks.map((b) => (blockTowns[b.id] ? { ...b, kind: 'geotown', geotown: blockTowns[b.id], surfaces: blockTowns[b.id].surfaces } : b));
+    B.ledger.surfaces = {};
+    for (const b of B.blocks) for (const [k, v] of Object.entries(b.surfaces)) B.ledger.surfaces[k] = r3((B.ledger.surfaces[k] ?? 0) + v);
+  }
   for (const r of regions) {
     const b = Bs[r.id];
     Object.assign(r, { streets: b.streets, blocks: b.blocks, ledger: b.ledger });

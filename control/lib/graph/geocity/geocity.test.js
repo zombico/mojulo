@@ -211,7 +211,7 @@ describe('its blocks', () => {
   });
 
   it('gives every block a segment of its ring, an edge and a main street their street along their long side', () => {
-    const ANY = ['construction', 'parking', 'vacant'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
+    const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
     for (const b of lots) expect(OF[b.ring]).toContain(b.kind);
     const longSides = (b) => (b.rect[3] - b.rect[1] >= b.rect[2] - b.rect[0] ? ['w', 'e'] : ['s', 'n']);
     for (const b of lots.filter((x) => x.kind === 'edge')) expect(longSides(b).some((k) => b.sides[k].kind === 'arterial')).toBe(true);
@@ -356,5 +356,42 @@ describe('its roads', () => {
   it('drives on the left where its grammar does', () => {
     const l = layoutOf({ oneway: 0, median: false, streetcar: false }, 'ns', R, 'left'), east = l.bands.find((b) => b.kind === 'travel' && b.from > 0);
     expect(east.dir).toBe(-1);
+  });
+});
+
+describe('the geotown composed in', () => {
+  const base = designGeocity({ metro: SHORE }, { seed: 3 });
+  const core = base.regions.find((r) => r.builds === 'core' && !r.park && r.blocks.length > 3), out = base.regions.find((r) => r.builds === 'outskirts' && !r.park && !r.beyond.length);
+  const blk = out.blocks.find((b) => b.kind === 'houses' || b.kind === 'edge');
+  const d = designGeocity({ metro: SHORE, geotowns: { [core.id]: true, [blk.id]: true, [out.blocks.find((b) => b !== blk && b.kind !== 'park').id]: { segment: 'lowrise' } } }, { seed: 3 });
+
+  it('lays a neighbourhood by the geotown, fitted inside it, its streetscape by its ring, on the metro\'s land', () => {
+    const r = d.regions.find((x) => x.id === core.id), T = r.geotown;
+    expect(T.fits).toBe(true);
+    expect(T.design.pattern.streetscape).toBe('urban');
+    expect(r.blocks).toHaveLength(0);
+    expect(r.ledger.streets + r.ledger.blocks + r.ledger.park).toBeCloseTo(r.area, 0);
+    const [x, y] = [T.frame.W / 2, T.frame.D / 2];
+    expect(T.field(x, y)).toBeCloseTo(d.land.N(x + T.origin[0], y + T.origin[1]), 6);
+  });
+
+  it('lays a block by one of the geotown\'s segments, its rows filling the metro\'s block, its ground the town block\'s', () => {
+    const b = d.regions.flatMap((r) => r.blocks).find((x) => x.id === blk.id), T = b.geotown, axis = 'y', run = (q) => (axis === 'y' ? q[3] - q[1] : q[2] - q[0]);
+    expect(b.kind).toBe('geotown');
+    expect(T.fits).toBe(true);
+    expect(run(T.rect)).toBeGreaterThan(0.8 * run(b.rect));
+    expect(Object.values(b.surfaces).reduce((a, v) => a + v, 0)).toBeCloseTo(b.area, 1);
+    expect(b.surfaces.house).toBeGreaterThan(0);
+    expect(law(d, 'geotowns').ok).toBe(true);
+    expect(law(d, 'blocks').ok).toBe(true);
+  });
+
+  it('implies the evocation its recipe names, and refuses what is not there', () => {
+    const n = designGeocity({ metro: SHORE, geotowns: { [out.id]: { neighbourhood: 'quiet-streets' } } }, { seed: 3 });
+    expect(n.regions.find((x) => x.id === out.id).geotown.design.spec.evoke).toBe('neighbourhood');
+    expect(() => designGeocity({ metro: SHORE, geotowns: { Z9: true } }, { seed: 3 })).toThrow(/is not a neighbourhood/);
+    expect(() => designGeocity({ metro: SHORE, geotowns: { [`${core.id}.9.9`]: true } }, { seed: 3 })).toThrow(/is not a block/);
+    const park = base.regions.find((r) => r.park);
+    expect(() => designGeocity({ metro: SHORE, geotowns: { [park.id]: true } }, { seed: 3 })).toThrow(/the city's park/);
   });
 });

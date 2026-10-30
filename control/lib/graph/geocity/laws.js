@@ -31,6 +31,7 @@ export const GEOCITY_LAWS = Object.freeze({
   soft: 'each neighbourhood\'s green ground (its park, its yards, lawns, courts and plantings) at least most of its green quota',
   towers: 'the core\'s towers rise past their podiums and stand inside their rail, the tallest in the core',
   evokes: 'an evocation keeps the metro to scale\'s measures: each ring\'s mix of segments and its storeys, its green share, its towers a core block',
+  geotowns: 'each geotown it composes stands inside its neighbourhood (its own laws its own advice, read beside it)',
 });
 // how far an evocation's measures may stand from the metro to scale's before the law advises
 export const EVOKE_TOLERANCE = Object.freeze({ mix: 0.25, storeys: [0.8, 1.25], green: 0.05, towers: [0.6, 1.6] });
@@ -167,7 +168,7 @@ export function geocityLaws(d) {
   const rail = (ring) => (ring === 'outskirts' ? [[2 * TP.block.depth[0], 2 * TP.block.depth[1]], TP.block.long] : [G.block.pitch, G.block.pitch]);
   const offPitch = lots.filter((b) => { const [rx, ry] = rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
   out.push({ law: 'pitch', ok: offPitch.length <= 0.1 * lots.length, value: `${offPitch.length} of ${lots.length} off their ring's length`, want: '≤ 10%' });
-  const ANY = ['construction', 'parking', 'vacant'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
+  const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
   const wrong = lots.filter((b) => !OF[b.ring].includes(b.kind));
   const civicLess = built.filter((r) => r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school'));
   out.push({ law: 'segments', ok: !wrong.length && civicLess.length <= Math.ceil(0.2 * built.length), value: `${Object.entries(lots.reduce((m, b) => ({ ...m, [b.kind]: (m[b.kind] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ')}${wrong.length ? `; ${wrong.length} off their ring` : ''}${civicLess.length ? `; no civic block in ${civicLess.map((r) => r.id).join(', ')}` : ''}`, want: 'each its ring\'s' });
@@ -177,5 +178,11 @@ export function geocityLaws(d) {
   const badT = towers.filter((t) => t.storeys <= t.b.podium || t.storeys > t.b.storeys.rail[1]);
   const tallest = (k) => Math.max(0, ...lots.filter((b) => b.ring === k).map((b) => Math.max(b.storeys.median, ...(b.towers ?? []).map((t) => t.storeys))));
   out.push({ law: 'towers', ok: !badT.length && tallest('core') >= tallest('frame'), value: `${towers.length} towers, the tallest ${tallest('core')} storeys${badT.length ? `; ${badT.length} off their rail` : ''}`, want: 'past their podiums, inside their rail' });
+  const towns = [...d.regions.filter((r) => r.geotown), ...d.regions.flatMap((r) => r.blocks).filter((b) => b.geotown)];
+  if (towns.length) {
+    const over = towns.filter((r) => !r.geotown.fits).map((r) => r.id), off = towns.flatMap((r) => r.geotown.design.laws.filter((l) => !l.ok).map((l) => `${r.id} ${l.law}`));
+    // (a town's own laws are its own advice, read beside it: the metro holds it to standing inside its neighbourhood)
+    out.push({ law: 'geotowns', ok: !over.length, value: `${towns.map((r) => `${r.id} ${r.geotown.design.spec.evoke === 'metro' ? r.geotown.design.spec.grid.join('×') : r.geotown.design.spec.evoke === 'segment' ? `a ${r.geotown.spec.segment ?? 'houses'} segment` : 'a neighbourhood'}`).join(', ')}${over.length ? `; ${over.join(', ')} past their place` : ''}${off.length ? `; their own advice: ${off.join(', ')}` : ''}`, want: 'each inside its neighbourhood or its block' });
+  }
   return out;
 }

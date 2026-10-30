@@ -63,6 +63,17 @@ export function blocksOf(d) {
   const collectorRow = sectionOf(P, 'main').row;
   for (const r of d.regions) {
     const [x0, y0, x1, y1] = r.rect, ring = r.builds, R = (layer) => streamOf(d.seed, 'blocks', `${r.id}:${layer}`);
+    // a geotown's neighbourhood (towns.js): no blocks of the metro's; its ground the town's ledger (its streets, the rest
+    // its plots' and sites'), and the green round its frame
+    if (r.geotown) {
+      const town = r.geotown.design.ledger.town, STREETS = ['road', 'verge', 'walk', 'furnish', 'parking'], surfaces = {};
+      let streets = 0;
+      for (const [k, v] of Object.entries(town)) { if (!(v > 0)) continue; if (STREETS.includes(k)) streets += v; else surfaces[k] = r3(v); }
+      if (r.geotown.rest > 0) surfaces.margin = r.geotown.rest;
+      const blocksArea = Object.values(surfaces).reduce((a, v) => a + v, 0);
+      out[r.id] = { streets: [], blocks: [], park: null, ledger: { area: r.area, streets: r3(r.area - blocksArea), blocks: r3(blocksArea), park: 0, surfaces } };
+      continue;
+    }
     if (r.park) {
       out[r.id] = { streets: [], blocks: [{ id: `${r.id}.park`, rect: r.rect, area: r.area, kind: 'park', ring, sides: r.sides, storeys: { median: 0, rail: [0, 0] }, surfaces: { park: r.area } }], park: r.rect, ledger: { area: r.area, streets: 0, blocks: 0, park: r.area, surfaces: { park: r.area } } };
       continue;

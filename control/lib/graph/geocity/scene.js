@@ -42,6 +42,7 @@ import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates } from './kit.js';
+import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
@@ -210,10 +211,14 @@ export function assembleGeocityScene(m, ctx = {}) {
   const glass = G.skin.glass, stone = G.skin.stone, brick = G.skin.brick, roofs = G.skin.roof, office = G.floorH.office, resid = G.floorH.residential;
   const famOf = (fams, id) => fams[strHash(id) % fams.length];
   let firstBlock = null;
+  // (what the composed geotowns hand back: their trees, their readouts, and the textures of all)
+  const townRepeats = [], towns = {};
+  let textures = null;
   // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
   // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
   const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [];
   for (const r of d.regions) {
+    if (r.geotown) { town(r, massed && !massed.has(r.id)); continue; }
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
     if (r.park) { drape(r.rect, 'geocity:park', col.park); continue; }
     drape(r.rect, 'geocity:road', col.road);
@@ -236,6 +241,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       const zAt = (x, yy) => { const t = terraces.find((tt) => (longY ? yy <= tt.q[3] + 1e-6 : x <= tt.q[2] + 1e-6)) ?? terraces[terraces.length - 1]; return t.z; };
       const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) ? col.plaza : b.kind === 'construction' ? col.site : b.kind === 'parking' ? col.lot : b.kind === 'vacant' ? col.scrub : col.lawn;
       const padGroup = padHex === col.plaza ? 'geocity:paving' : { construction: 'geocity:site', parking: 'geocity:lot', vacant: 'geocity:scrub' }[b.kind] ?? 'geocity:pad';
+      // (a block given to the geotown: its block built by the town, the green round it; no pad of the metro's)
+      if (b.geotown) { blockTown(b, false); continue; }
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
         put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, padHex);
@@ -404,6 +411,58 @@ export function assembleGeocityScene(m, ctx = {}) {
   /** The way a kerb piece on `side` of a line reaches (toward its road: −side). */
   function facing(l, toward) { return l.axis === 'ns' ? (toward > 0 ? 'e' : 'w') : (toward > 0 ? 'n' : 's'); }
 
+  /** A geotown's neighbourhood (towns.js): the green round its frame on the land, and the town itself, built by the
+   *  geotown (geotown/scene.js, on the metro's land, at the metro's hour) and stood in its frame's place; its trees
+   *  drawn near the camera only, like the metro's. As the skyline sees it: its houses as boxes on its pads. */
+  function town(r, far) {
+    const T = r.geotown, [ox, oy] = T.origin, W = T.frame.W, D = T.frame.D, [x0, y0, x1, y1] = r.rect;
+    for (const q of [[x0, y0, x1, oy], [x0, oy + D, x1, y1], [x0, oy, ox, oy + D], [ox + W, oy, x1, oy + D]]) if (q[2] - q[0] > 0.05 && q[3] - q[1] > 0.05) drape(q, 'geocity:margin', col.lawn, 0, far ? FAR_CELL : CELL);
+    if (far) {
+      drape([ox, oy, ox + W, oy + D], 'geocity:ground', mix(col.lawn, col.road, 0.35), 0, FAR_CELL);
+      const pads = new Map(T.design.plots.map((pl) => [pl.id, pl.pad]));
+      for (const sf of T.design.surfaces.filter((x) => x.cls === 'house' && x.plot)) {
+        const q = sf.rect, z = (pads.get(sf.plot) ?? T.field((q[0] + q[2]) / 2, (q[1] + q[3]) / 2));
+        box(ox + q[0], oy + q[1], ox + q[2], oy + q[3], z, z + 8, HOUSE_BRICK[strHash(sf.plot) % HOUSE_BRICK.length], ROOFS[0], 'geocity:low');
+      }
+      return;
+    }
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field });
+    const mv = (p) => [r5(p[0] + ox), r5(p[1] + oy), p[2]];
+    for (const f of P.faces) faces.push({ ...f, corners: f.corners.map(mv) });
+    for (const rp of P.repeats ?? []) townRepeats.push({ ...rp, group: `geocity:town-${rp.group ?? 'repeat'}`, transforms: rp.transforms.map((t) => ({ ...t, pos: mv(t.pos) })), near: NEAR });
+    if (P.textures) textures = { ...(textures || {}), ...P.textures };
+    towns[r.id] = { grid: T.design.spec.grid ?? null, streetscape: T.design.pattern.streetscape, frame: T.frame, origin: T.origin, counts: P.geotown.counts, laws: P.geotown.laws.filter((l) => !l.ok).map((l) => `${l.law}: ${l.value}`) };
+  }
+
+  /** A block given to the geotown (towns.js blockTownsOf): its segment built by the geotown (on the metro's land, at its
+   *  hour), only what stands on its block (its streets the metro's), shifted into the metro's block; the green round it.
+   *  As the skyline sees it: its houses as boxes. */
+  function blockTown(b, far) {
+    const T = b.geotown, [dx, dy] = T.shift, g = T.rect, q = [g[0] + dx, g[1] + dy, g[2] + dx, g[3] + dy], [x0, y0, x1, y1] = b.rect;
+    for (const s2 of [[x0, y0, x1, Math.max(y0, q[1])], [x0, Math.min(y1, q[3]), x1, y1], [x0, Math.max(y0, q[1]), Math.max(x0, q[0]), Math.min(y1, q[3])], [Math.min(x1, q[2]), Math.max(y0, q[1]), x1, Math.min(y1, q[3])]]) if (s2[2] - s2[0] > 0.05 && s2[3] - s2[1] > 0.05) drape(s2, 'geocity:margin', col.lawn, KERB, far ? FAR_CELL : CELL);
+    const inside = (x, y) => x >= g[0] - 0.3 && x <= g[2] + 0.3 && y >= g[1] - 0.3 && y <= g[3] + 0.3;
+    if (far) {
+      const pads = new Map(T.design.plots.map((pl) => [pl.id, pl.pad]));
+      for (const sf of T.design.surfaces.filter((x) => x.cls === 'house' && x.plot && x.block === T.block)) {
+        const r0 = sf.rect, z = pads.get(sf.plot) ?? T.field((r0[0] + r0[2]) / 2, (r0[1] + r0[3]) / 2);
+        box(r0[0] + dx, r0[1] + dy, r0[2] + dx, r0[3] + dy, z, z + 8, HOUSE_BRICK[strHash(sf.plot) % HOUSE_BRICK.length], ROOFS[0], 'geocity:low');
+      }
+      return;
+    }
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field });
+    const mv = (p) => [r5(p[0] + dx), r5(p[1] + dy), p[2]];
+    for (const f of P.faces) {
+      const c = f.corners, cx = c.reduce((a, p) => a + p[0], 0) / c.length, cy = c.reduce((a, p) => a + p[1], 0) / c.length;
+      if (inside(cx, cy)) faces.push({ ...f, corners: c.map(mv) });
+    }
+    for (const rp of P.repeats ?? []) {
+      const ts = rp.transforms.filter((t) => inside(t.pos[0], t.pos[1]));
+      if (ts.length) townRepeats.push({ ...rp, group: `geocity:town-${rp.group ?? 'repeat'}`, transforms: ts.map((t) => ({ ...t, pos: mv(t.pos) })), near: NEAR });
+    }
+    if (P.textures) textures = { ...(textures || {}), ...P.textures };
+    towns[b.id] = { segment: T.spec.segment ?? null, streetscape: T.design.pattern.streetscape, rect: q.map(r5), laws: P.geotown.laws.filter((l) => !l.ok).map((l) => `${l.law}: ${l.value}`) };
+  }
+
   /** A neighbourhood as the skyline sees it: its ground one coarse drape, its tall buildings standing on it. */
   function backdrop(r) {
     if (r.park) { drape(r.rect, 'geocity:park', col.park, 0, FAR_CELL); return; }
@@ -411,6 +470,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const b of r.blocks) {
       if (b.kind === 'park') continue;
       const [x0, y0, x1, y1] = b.rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, z = S(cx, cy) + KERB, longY = y1 - y0 >= x1 - x0;
+      if (b.geotown) { blockTown(b, true); continue; }
       if (TALL.includes(b.kind) || b.kind === 'construction') { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id), far: true }); continue; }
       if (b.kind === 'parking' || b.kind === 'vacant') continue;
       // the low fabric as the skyline sees it: a flat mass along each long side, at the block's storeys
@@ -604,7 +664,6 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
   // night its windows lit on the facades' own grids (city/plan/night.js) ──
-  let textures = null;
   if (lots.length) {
     const U = CITY_METERS_PER_UNIT, u = (v) => Math.round((v / U) * 1000) / 1000;
     const boxes = lots.map((l) => {
@@ -641,7 +700,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   let fb = firstBlock?.rect ?? [sx + 20, sy + 20, sx + 60, sy + 60];
   if (E && E.evoke !== 'skyline') {
     const blocks = d.regions.flatMap((r) => r.blocks), byId = new Map(blocks.map((b) => [b.id, b]));
-    const shown = E.blocks.map((id) => byId.get(id)), hull = [Math.min(...shown.map((b) => b.rect[0])), Math.min(...shown.map((b) => b.rect[1])), Math.max(...shown.map((b) => b.rect[2])), Math.max(...shown.map((b) => b.rect[3]))];
+    // (a geotown's neighbourhood has no blocks of the metro's: the neighbourhood itself is what is shown, as one block)
+    const atR = d.regions.find((x) => x.id === E.at), shown = E.blocks.length ? E.blocks.map((id) => byId.get(id)) : [{ rect: atR?.rect ?? [sx - 60, sy - 60, sx + 60, sy + 60], storeys: { median: 3 } }];
+    const hull = [Math.min(...shown.map((b) => b.rect[0])), Math.min(...shown.map((b) => b.rect[1])), Math.max(...shown.map((b) => b.rect[2])), Math.max(...shown.map((b) => b.rect[3]))];
     const mid = [(hull[0] + hull[2]) / 2, (hull[1] + hull[3]) / 2], span = Math.max(hull[2] - hull[0], hull[3] - hull[1], 240), zm = S(mid[0], mid[1]);
     const tall = Math.max(30, ...shown.flatMap((b) => [b.storeys.median * office, ...(b.towers ?? []).map((t) => t.storeys * office)]));
     // its street: along the evoked block nearest its middle (a corridor's: along its arterial, from the seat's end)
@@ -700,6 +761,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     const N = Array.isArray(f.normal) ? f.normal : newell(f.corners), key = LIGHT.diffuse * Math.max(0, N[0] * LIGHT.toLight[0] + N[1] * LIGHT.toLight[1] + N[2] * LIGHT.toLight[2]), all = litFactor(N, LIGHT);
     faces[i] = { ...f, sunShare: all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0 };
   }
+  repeats.push(...townRepeats);
   counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);
   return {
     faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
@@ -715,6 +777,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       counts: { neighbourhoods: d.regions.length, blocks: Object.values(kinds).reduce((a, n) => a + n, 0), segments: kinds, ...counts, faces: faces.length },
       neighbourhoods: d.regions.map((r) => ({ id: r.id, ring: r.ring, builds: r.builds, storeys: r.storeys.median, blocks: r.blocks.length, park: r.park || !!r.parkRect, ...(r.node ? { node: r.node } : {}), ...(r.beyond.length ? { beyond: r.beyond } : {}) })),
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
+      ...(Object.keys(towns).length ? { geotowns: towns } : {}),
       ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
     },
   };

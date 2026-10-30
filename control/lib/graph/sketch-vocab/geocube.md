@@ -200,7 +200,10 @@ A cube that names no domains offers one per terrain and one per interior.
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
   bins, hydrants, hydro poles, street trees and tiled ground); `lively` the share of each ring's blocks going up
-  (scaffolding, a crane, hoarding, barriers), parked or vacant; `metro` a card (`lakeshore`, a Toronto by
+  (scaffolding, a crane, hoarding, barriers), parked or vacant; `geotowns` the geotown composed in at any grain, anywhere:
+  `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
+  { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;
+  `metro` a card (`lakeshore`, a Toronto by
   its lake; `harbour-island`; `{ from, …changes }`), the rest its settings over it. `evoke` how it is told: `metro`
   (the default, every block to scale), `skyline` (its tall buildings and its water), `neighbourhood` (`at` one, by
   default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or

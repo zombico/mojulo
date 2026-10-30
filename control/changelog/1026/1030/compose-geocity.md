@@ -138,6 +138,20 @@ passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the
   rows across an aisle, their lines and cars in most, each its paint as an instance's tint), a VACANT lot (scrub over
   old gravel behind temporary fencing). New kit (kit.js): scaffold bay, fence panel, hoarding, barrier, cone, car,
   stall line; new surfaces `site` (gravel) and `scrub` (soft).
+- **The geotown composed in** (`geocity/towns.js`, the recipe's `geotowns`): the two tools composable at any grain and
+  anywhere (the edge or the core), on the metro's land (the geotown's design and scene take the metro's natural ground
+  in their frame: `field`, geotown/scene.js's `ctx.field`, absent as before). A NEIGHBOURHOOD (`'D3': true`) laid by the
+  geotown fitted inside it: the outskirts' pattern to scale (compressed as the metro's own at game scale), as many
+  blocks as it holds (a block segment of its ring's where none fits), its streetscape by its ring (leafy in the
+  outskirts, snug in the frame, urban in the core), centred, the green round its frame; or the town its recipe asks
+  (`{ neighbourhood: 'annex' }`, a layout, an evocation: named, its evocation implied). A BLOCK (`'D3.2.1'`) laid by
+  one of the geotown's block segments (the block's own if it is one, else its ring's: houses, a low-rise, a main
+  street; or `{ segment }`): its rows as deep as the metro's block shares across them (a lane's or an alley's share
+  given back) and as many houses, shops or low-rises along them as the block runs, cropped to its block and centred in
+  the metro's, its ground the town block's ledger and the green round it. Built by the geotown's own scene in its place
+  (its trees near the camera only); as the skyline, its houses as boxes. A geotown's laws are its own advice, read
+  beside it; the metro's `geotowns` law holds each inside its place. A quest open world's regions take them as they
+  are (a geotown's neighbourhood is a region).
 - **The quest open world** (`lib/graph/qow/qow.js`, a `design_game` world's `qow`; `docs/quest-open-world.md`; the
   `gameworld-qow` card): the walled-core dungeon's opposite pole. Its regions a geocity's neighbourhoods and its region
   graph (`map: { geocity, seed? }`), its `spawn` (the core's by the seat), optional `locks` (the WCD's gates: a

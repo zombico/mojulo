@@ -10,8 +10,9 @@ A `design_game` world's `qow` (`control/lib/graph/qow/qow.js`); the agent's manu
 ## Parts
 
 - **Regions**: a geocity's neighbourhoods (`map: { geocity }`, the geocube's `show: 'geocity'` recipe). Each pair across
-  an arterial is joined at its portal (its street, its point, its height). A region on the map's land edge opens to the
-  beyond, where a geotown joins later.
+  an arterial is joined at its portal (its street, its point, its height). A neighbourhood or a block of it may be a
+  geotown's (the geocity's `geotowns`: the tools compose at any grain, anywhere); a region on the map's land edge opens
+  to the beyond.
 - **Spawn**: where play starts, by default the core's neighbourhood nearest the seat.
 - **Locks**: `{ region, gate: { clearance } | { power } }`, the WCD's gates, here never on the way on.
 - **Quests**: placed on regions, `main` or `side`, `after` the quests they wait on.

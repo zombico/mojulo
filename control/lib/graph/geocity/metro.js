@@ -60,7 +60,16 @@
  *                   compressed: the map, the arterials' spacing, the rings, the blocks, the streets; never a storey, a
  *                   lane or a door): PLAY. An evocation is 'game' unless it says, the metro 'real'
  *
- *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play }
+ *   and what it composes
+ *     geotowns      { '<neighbourhood id>' | '<block id>': true | { …a geotown's recipe } }: the geotown composed in, at
+ *                   any grain and anywhere (the edge or the core), on the metro's land (geocity/towns.js): a
+ *                   NEIGHBOURHOOD ('D3') fitted by its ring (true: the outskirts' pattern to scale, as many blocks as it
+ *                   holds, a segment where none fits; its streetscape leafy in the outskirts, snug in the frame, urban
+ *                   in the core) or the town its recipe asks (`{ neighbourhood: 'annex' }`, a layout, an evocation); a
+ *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
+ *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
+ *
+ *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns }
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
  */
@@ -144,9 +153,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play']);
-// (how the recipe is told, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns']);
+// (how the recipe is told, and what it composes, not a setting of its metro)
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -185,6 +194,9 @@ export function readGeocity(spec = {}) {
   if (spec.along !== undefined && evoke !== 'corridor') no('along is the arterial a corridor evocation runs along');
   if (spec.at !== undefined && typeof spec.at !== 'string') no('at is a neighbourhood\'s id (\'D3\') or a block\'s (\'D3.2.1\')');
   if (spec.along !== undefined && typeof spec.along !== 'string') no('along is an arterial\'s id (\'ns-3\')');
+  // the geotowns it composes: a neighbourhood by its id, laid by the geotown (true: fitted by its ring, or its recipe)
+  const geotowns = spec.geotowns ?? {};
+  if (!isObj(geotowns) || !Object.entries(geotowns).every(([k, v]) => /^[A-Z]+[0-9]+(\.[0-9]+\.[0-9]+)?$/.test(k) && (v === true || isObj(v)))) no('geotowns is { \'<neighbourhood id>\' | \'<block id>\': true | { …a geotown\'s recipe } }: a neighbourhood (\'D3\') or one block (\'D3.2.1\') laid by the geotown');
 
   if (!pair(M.extent, 600, 12000)) no('extent is [W, D], metres east and north, each 600 to 12000');
   const [W, D] = M.extent;
@@ -252,5 +264,5 @@ export function readGeocity(spec = {}) {
     grammar = grammarAtPlay(grammar, 'game');
     pattern = { ...pattern, block: { long: pattern.block.long.map(p), depth: pattern.block.depth.map(q) } };
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
 }

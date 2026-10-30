@@ -41,7 +41,7 @@ export const SURFACES = Object.freeze({
   site: { read: 'a construction site\'s ground: packed gravel and mud, its hoarding round it', soft: false },
   scrub: { read: 'a vacant lot\'s ground: scrub and weeds over old gravel, behind a temporary fence', soft: true },
 });
-export const isSoft = (s) => (SURFACES[s] ?? TOWN_SURFACES[s])?.soft === true || s === 'park';
+export const isSoft = (s) => (SURFACES[s] ?? TOWN_SURFACES[s])?.soft === true || s === 'park' || s === 'margin';
 
 export const CARDS = Object.freeze({
   tower: Object.freeze({ read: 'podium and tower: a podium over most of the block, a tower or two on its corners, a plaza at its foot, a laneway and a ramp', ring: 'core',

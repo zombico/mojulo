@@ -144,3 +144,18 @@ describe('the city changing', () => {
     expect(going || parked).toBe(true);
   });
 });
+
+describe('the geotown composed in, built', () => {
+  it('builds a composed neighbourhood and block by the geotown, in their places; as the skyline, boxes', () => {
+    const r = D.regions.find((x) => x.builds !== 'outskirts' && !x.park && x.blocks.length > 2), b = D.regions.find((x) => x !== r && !x.park && x.blocks.length > 2).blocks.find((x) => x.kind !== 'park');
+    const C = assembleGeocityScene({ ...M, geocity: { ...geocity, geotowns: { [r.id]: true, [b.id]: true } } });
+    expect(Object.keys(C.geocity.geotowns).sort()).toEqual([r.id, b.id].sort());
+    const town = C.faces.filter((f) => String(f.group).startsWith('geotown:'));
+    expect(town.length).toBeGreaterThan(100);
+    const inR = (f) => f.corners.every(([x, y]) => x >= r.rect[0] - 0.5 && x <= r.rect[2] + 0.5 && y >= r.rect[1] - 0.5 && y <= r.rect[3] + 0.5);
+    const inB = (f) => f.corners.every(([x, y]) => x >= b.rect[0] - 1 && x <= b.rect[2] + 1 && y >= b.rect[1] - 1 && y <= b.rect[3] + 1);
+    expect(town.every((f) => inR(f) || inB(f))).toBe(true);
+    const K = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'skyline', geotowns: { [r.id]: true } } });
+    expect(K.faces.some((f) => String(f.group).startsWith('geotown:'))).toBe(false);
+  });
+});
