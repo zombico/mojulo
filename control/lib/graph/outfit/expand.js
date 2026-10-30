@@ -391,6 +391,9 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
 /** a build's LANGUAGE (its card's under its own words), null for none: what a garment is cut and made of (cloth-relief.js
  * reads its cloths off it) */
 export const outfitLanguage = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? languageOf(c, build.language) : null; };
+/** the DESIGNED pieces a build wears (outfit-plan.js OUTFIT_KINDS: a vest, pouches, kneepads …): its card's own gear
+ * (`pieces` on the card: a team's kit) and then the build's */
+export const outfitPieces = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return [...(c && typeof c === 'object' && Array.isArray(c.pieces) ? c.pieces : []), ...(isOutfitBuild(build) && Array.isArray(build.pieces) ? build.pieces : [])]; };
 // (a layer printed in a camouflage suggests its ground as its tone: what no mark covers, outfit/camouflage.js)
 export const outfitTones = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? { ...(c.tones || {}), ...camoTone(languageOf(c, build.language)) } : {}; };
 

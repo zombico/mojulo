@@ -52,7 +52,7 @@ import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygoniz
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, withGrownFall } from '@/lib/graph/polygonizer/humanoid-hair';
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
-import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
+import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, outfitPieces, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
@@ -949,7 +949,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateOutfit(spec.outfit));
   errs.push(...validateStylism(spec.stylism));
   errs.push(...readKit(spec.kit));
-  if (isOutfitBuild(spec.outfit) && Array.isArray(spec.outfit.pieces)) for (const [i, P] of spec.outfit.pieces.entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
+  if (isOutfitBuild(spec.outfit)) for (const [i, P] of outfitPieces(spec.outfit).entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
   // the hand's words (wrist, fingers) on a hero whose hand has them: the structured core
   const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
   errs.push(...validateGesture(spec.gesture, 'gesture', { hands }));
@@ -1235,7 +1235,8 @@ export function heroPlanOf(hero) {
  * bracers …), worn over the cut on the hero's own landmarks (outfit-plan.js compileOutfit, as a creature wears them), in
  * the intent's palette roles; before the target, so a tiered kit tiers them. No pieces ⇒ the plan as it was. */
 function designedPieces(plan, hero) {
-  const O = isOutfitBuild(hero.outfit) && Array.isArray(hero.outfit.pieces) && hero.outfit.pieces.length ? hero.outfit : null;
+  // (the card's own gear first, a team's kit, then the build's: outfit/expand.js outfitPieces)
+  const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
   const { worn } = sortPieces(plan, O);
   return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }) : plan;
@@ -1582,7 +1583,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   if (core && core.core === 'structured') warnings.push(...core.advice);
   // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
   const styledOutfit = styledHero(hero).outfit;
-  if (isOutfitBuild(styledOutfit) && styledOutfit.pieces?.length) for (const u of sortPieces(plan, styledOutfit).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
+  if (isOutfitBuild(styledOutfit) && outfitPieces(styledOutfit).length) for (const u of sortPieces(plan, { ...styledOutfit, pieces: outfitPieces(styledOutfit) }).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
   const clips = clipsReadout(hero, recipe);
   const budget = heroBudget(plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);

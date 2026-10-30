@@ -588,8 +588,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   'cargo'` (a bellows pocket and its flap wrapped round each thigh); `pattern` on any layer a weave or a camouflage
   (`woodland`, `desert`, `dpm`, `tiger`, `flecktarn`, `digital`, `splinter`, `multicam`, `urban`, `snow`: its ground the
   layer's tone, its marks painted on either body, shared by every layer in the same pattern); `head` a helmet (`m1`,
-  `stahlhelm`, `brodie`, `ssh40`, `adrian`, `pasgt`, `ach`, `highcut`) or `{ helmet, cover?, band?, net?, nvg? }`, its cover
-  a camouflage or `true` (the top's), the hair under it (the game body's; the realistic head wears none yet). `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
+  `stahlhelm`, `brodie`, `ssh40`, `adrian`, `pasgt`, `ach`, `highcut`) or `{ helmet, cover?, band?, net?, nvg?, headset? }`, its cover
+  a camouflage or `true` (the top's), the hair under it (the game body's; the realistic head wears none yet). The progression's cards: `guard`, `security`, `mercenary`,
+  `pmc`, the soldier's (`bdu` …), `specops`, each carrying its gear (`pieces`; a vest's `cut: 'plate'` a plate carrier,
+  `elbowpads`). `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
   or a panel swings it with the stride and the wind against the locked body (the motion card's `--hair`, `--wind`).
   Expanded on every read by its passes: CUT, FIT, LAYER, CONSTRUCTION, ORNAMENT (from the focal out: collar or rib,
   buttons, belt; cuffs, hems, waistband, panel hems; seams), TONE (`Panel` with the rest), LEDGER (the readout's

@@ -350,13 +350,17 @@ export function kitPieces(S, cloth, kit, { L1, rings = false, around = null }) {
       taken.add(A.id);
     } else if (A.mode === 'shell' && sig?.kind === 'pack' && !sig.soft && Array.isArray(A.s) && Array.isArray(A.t)) {
       const W = byShare(Pskin, A), f = at((W.s[0] + W.s[1]) / 2, (W.t[0] + W.t[1]) / 2, A.side ?? 'R');
-      const out = unitv([f.normal[0], f.normal[1], 0]), b = [0, 0, 1], a = unitv(cross(b, out)), h = sig.h, w = sig.w, d = sig.d;
+      // (a pack that LEANS, `lean`: its face along the body's slope through its window, a back plate down the back, not
+      // stood upright off the shoulder blades)
+      const tilt = sig.lean ? (() => { const p0 = at(W.s[0], (W.t[0] + W.t[1]) / 2, A.side ?? 'R').origin, p1 = at(W.s[1], (W.t[0] + W.t[1]) / 2, A.side ?? 'R').origin; return unitv(sub(p1, p0)); })() : null;
+      const out0 = unitv([f.normal[0], f.normal[1], 0]), b = tilt && tilt[2] > 0.5 ? tilt : [0, 0, 1], a = unitv(cross([0, 0, 1], out0)), out = tilt ? unitv(cross(a, b)) : out0, h = sig.h, w = sig.w, d = sig.d;
       // (on a belt at its height: hung from it, its top a little over the belt's, its back on the belt's face)
       // (its own belt first, the one its kit made with it: `<stem>Belt`, the pouches' duty belt, found farther off, since its
       // window may lie in from the belt, where a game body's short pelvis narrows to the legs; else the nearest)
       // (a pouch on a leg rides the leg, its own rig's belt aside: a belt slung on the hips above it is not its carrier)
       const stem = A.id.replace(/[RL]\d*$/, ''), own = belts.filter(([k]) => k.startsWith(`${stem}Belt_`));
-      const belt = (own.length ? own : onTrunk ? belts : []).map(([k, P]) => { const near = pointsOf(P).filter((q) => Math.hypot(q[0] - f.origin[0], q[1] - f.origin[1]) < (own.length ? 0.15 : 0.08)); return near.length ? [k, P, Math.max(...near.map((q) => q[2]))] : null; })
+      // (a pack that does not hang, `hang: false`, a vest's back panel high on the back: where its window is, on no belt)
+      const belt = sig.hang === false ? undefined : (own.length ? own : onTrunk ? belts : []).map(([k, P]) => { const near = pointsOf(P).filter((q) => Math.hypot(q[0] - f.origin[0], q[1] - f.origin[1]) < (own.length ? 0.15 : 0.08)); return near.length ? [k, P, Math.max(...near.map((q) => q[2]))] : null; })
         .filter((x) => x && Math.abs(x[2] - f.origin[2]) < h + (own.length ? 0.1 : 0)).sort((x, y) => Math.abs(x[2] - f.origin[2]) - Math.abs(y[2] - f.origin[2]))[0];
       const o = belt ? [f.origin[0], f.origin[1], belt[2] + 0.004 - h / 2] : [...f.origin];
       // (a pouch on a leg hangs below a pouch already hung above it, never through it: a thigh rig's under a hip pouch)

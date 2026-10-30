@@ -1,7 +1,9 @@
-### Helmets by tradition, and the outermost shirt fitted
+### Helmets by tradition, the outermost shirt fitted, and the dressing progression
 
 Operator: "do helmets next, then create 'more upscaled gear' for tactical / armored teams"; then "is it just me or are the
-chest fits too wide? can we verify that we are using the corrected method".
+chest fits too wide? can we verify that we are using the corrected method"; then "lets do a dressing progression:
+Civilian Security -> Private Security, Mercenary -> PMC Squad Member, Soldiers -> Special Forces gear … this is a depiction
+layer".
 
 - **The helmet library** (`headgear/helmets.js`, a card each, lowered onto the cowl): `m1` (the steel pot), `stahlhelm`
   (the coal scuttle, its skirt flared), `brodie` (the soup bowl), `ssh40`, `adrian` (crested, peaked front and back),
@@ -22,6 +24,20 @@ chest fits too wide? can we verify that we are using the corrected method".
   (46.5 cm wide over a 42.1 cm trunk) and now stands 0.8 cm (43.7 cm). Knit tops, collarless woven tops (a tunic, a
   blouse, a statue's drape) and shirts under a jacket are unchanged. Pins moved, with the reason in their header: the
   outfit laws' tucked case.
+- **The dressing progression** (`outfit/styles.js`, each rung the one before and its gear; no service told apart):
+  `guard` (civilian security: a short-sleeved uniform shirt, a duty belt and its pouches), `security` (private security:
+  a fitted top, a low-profile plate, a holster on the thigh), `mercenary` (a field shirt, a chest rig, a thigh pouch),
+  `pmc` (a squad member: a plate carrier, the high-cut helmet with its headset, kneepads), the soldier (`bdu` and the
+  traditions' cards), `specops` (multicam, the carrier, the high-cut with its NVG and headset, knee and elbow pads).
+  - **A card carries its gear** (`pieces` on the card, outfit-plan.js OUTFIT_KINDS), worn under a build's own
+    (`outfitPieces`).
+  - **The plate carrier** (`vest` cut `plate`): the plate high on the chest, three magazine pouches a side on the flap
+    under it, a cummerbund each side round to the back panel.
+  - **Elbow pads** (`elbowpads`), and **a headset** on the helmet (`head.headset`: an earcup over each ear and a boom
+    mic).
+- **A vest's back panel lies on the back** (every vest cut): it hung from the duty belt at the hip, at the side on the
+  game body. Its window is now by shares, high on the back. Two words were added to a kit pack: `hang: false` hangs it
+  on no belt, and `lean` lays it along the body's slope (`body-relational-kit.js`).
 - Not yet:
   - The realistic head wears no helmet: the cowl reads the landmark head's cranium. It is left off there, and the
     readout says so (`gameOnly`).

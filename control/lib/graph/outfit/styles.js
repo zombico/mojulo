@@ -13,7 +13,7 @@
 //             on the realistic body's lit export its relief and its colour; or a camouflage, CAMO_WORDS: woodland,
 //             dpm, tiger, flecktarn …, its marks painted on either body: outfit/camouflage.js)
 //             head:   a helmet (headgear/helmets.js HELMETS: m1, stahlhelm, brodie, ssh40, adrian, pasgt, ach, highcut) or
-//             { helmet, cover?: true | a camouflage, band?, net?, nvg? }: worn on the head, the hair dropped under it
+//             { helmet, cover?: true | a camouflage, band?, net?, nvg?, headset? }: worn on the head, the hair dropped under it
 //             bottom: { family, leg, cut?: skinny | tapered (default) | straight | wide | breeches (full at the thigh, close from
 //             the knee: the riding and the soldier's galife), into?: 'boots' (tucked: the leg ends at the top of the boot's
 //             shaft or its puttees, bloused over it), pockets?: 'cargo' (a flapped pocket on each thigh) } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
@@ -283,6 +283,46 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "waist", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots" },
       "head": { "helmet": "brodie", "net": true }, "feet": "putteeBoots", "tuck": true, "focal": "belt" },
     "tones": { "Top": "#79683f", "Bottom": "#655733", "Button": "#4c4126", "Leather": "#3b2c1f", "Buckle": "#9a8a5a" }
+  },
+  // the PROGRESSION, each rung the one before and its gear (a depiction: no service told apart): civilian security
+  // (a uniform shirt and a duty belt), private security (a fitted top, a low-profile plate, a holster), the mercenary (a
+  // field shirt, a chest rig), the PMC squad member (a plate carrier, a high-cut helmet with its headset, kneepads), the
+  // soldier (the cards above), special forces (camouflage, the carrier, the high-cut with its NVG and headset, knee and
+  // elbow pads)
+  guard: {
+    "id": "guard",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "short", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" }, "feet": "boots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "pouches" }],
+    "tones": { "Top": "#c9d4e3", "Bottom": "#1c2230", "Shoes": "#111214", "Button": "#e8ecf2", "Leather": "#141414", "Buckle": "#b9bcc2" }
+  },
+  security: {
+    "id": "security",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "collar": "band" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "pockets": "cargo" }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "slick" }, { "kind": "pouches" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#3a3c40", "Top": "#1c1d20", "Bottom": "#2c2e33", "OutfitSecond": "#26282b", "Leather": "#121212", "Buckle": "#55575c" }
+  },
+  mercenary: {
+    "id": "mercenary",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo" }, "feet": "desertBoots", "tuck": false, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "rig" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#4a4232", "Top": "#7a6a4f", "Bottom": "#4f5038", "OutfitSecond": "#5c5240", "Leather": "#3b3226", "Buckle": "#5c5c58" }
+  },
+  pmc: {
+    "id": "pmc",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo" }, "head": { "helmet": "highcut", "headset": true }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "plate" }, { "kind": "kneepads" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#5a4f3a", "Top": "#5e5a4c", "Bottom": "#6e6550", "OutfitSecond": "#7a6a4c", "Leather": "#3a3328", "Buckle": "#4a4a46" }
+  },
+  specops: {
+    "id": "specops",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "pattern": "multicam" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "multicam" }, "head": { "helmet": "highcut", "cover": true, "nvg": true, "headset": true }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "plate" }, { "kind": "kneepads" }, { "kind": "elbowpads" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#5a4f3a", "OutfitSecond": "#6f6450", "Leather": "#3a3328", "Buckle": "#4a4a46" }
   }
 });
 
@@ -340,6 +380,8 @@ export function validateOutfitCard(card, at = 'outfit.style') {
     else if (L.bottom.kind !== undefined && L.bottom.kind !== 'trousers') errs.push(`${at}.language.bottom.kind: 'trousers' (the default) or 'skirt'`);
     else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`), ...one(L.bottom.cut, TCUT, `${at}.language.bottom.cut`)); }
   if (L.bottom && typeof L.bottom === 'object') errs.push(...one(L.bottom.into, ['boots'], `${at}.language.bottom.into`), ...one(L.bottom.pockets, ['cargo', 'none'], `${at}.language.bottom.pockets`), ...one(L.bottom.cloth, CLOTH_WORDS, `${at}.language.bottom.cloth`), ...patternErrors(L.bottom.pattern, `${at}.language.bottom.pattern`));
+  // (a card's own GEAR: designed pieces worn over its cut, outfit-plan.js OUTFIT_KINDS, a team's kit)
+  if (card.pieces !== undefined && !(Array.isArray(card.pieces) && card.pieces.every((P) => P && typeof P === 'object' && !Array.isArray(P) && typeof P.kind === 'string'))) errs.push(`${at}.pieces: a list of { kind, … } (designed pieces: a vest, pouches, kneepads …)`);
   if (L.top && typeof L.top === 'object') errs.push(...patternErrors(L.top.pattern, `${at}.language.top.pattern`));
   if (L.outer && typeof L.outer === 'object') errs.push(...patternErrors(L.outer.pattern, `${at}.language.outer.pattern`));
   if (L.waistcoat && typeof L.waistcoat === 'object') errs.push(...one(L.waistcoat.cloth, CLOTH_WORDS, `${at}.language.waistcoat.cloth`), ...patternErrors(L.waistcoat.pattern, `${at}.language.waistcoat.pattern`));

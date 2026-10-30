@@ -274,6 +274,11 @@ Fatigues are dressed from the boots up, each layer reading off the one under it:
 - **The outermost shirt is fitted as a jacket is**: a collared woven top with nothing over it is brought in onto the body
   and what is under it, a little roomier than a jacket, never let out. The silhouette is the cut's and the belt's, not
   the ease's; `fit: 'loose'` keeps it loose, and a collarless tunic or blouse hangs as it is cut.
+- **The progression** dresses one figure up a ladder, each rung the last and its gear: civilian security (a uniform
+  shirt, a duty belt), private security (a fitted top, a low-profile plate, a holster), the mercenary (a field shirt, a
+  chest rig), the PMC squad member (a plate carrier, a high-cut helmet and headset, kneepads), the soldier, special forces
+  (camouflage, the carrier, NVG and headset, knee and elbow pads). Gear is a card's `pieces`. A rung is told by what it
+  carries, never by its service.
 - **Camouflage** is a `pattern` like the weaves (`outfit/camouflage.js`: woodland, desert, DPM, tiger stripe, flecktarn,
   digital, splinter, multicam, urban, snow). Its ground is the layer's tone, and its marks are field paint cut into the
   faces, so it shows on both bodies, on the World page and in every export. Every layer printed in the same pattern shares

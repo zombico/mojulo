@@ -20,6 +20,7 @@
 //   band   an elastic band round the shell (a scrim band)
 //   net    a net over the shell
 //   nvg    a night-vision mount on the brow, the goggle stowed up on it
+//   headset  a comms headset: an earcup over each ear and a boom mic before the mouth
 //
 //   HELMETS, HELMET_WORDS      the cards, their names
 //   validateHead(head, at)     error strings
@@ -85,29 +86,29 @@ export const HELMETS = Object.freeze({
     tones: { Helmet: '#8a7652', HelmetTrim: '#3a3226' } },
 });
 export const HELMET_WORDS = Object.freeze(Object.keys(HELMETS));
-const EXTRAS = ['cover', 'band', 'net', 'nvg'];
+const EXTRAS = ['cover', 'band', 'net', 'nvg', 'headset'];
 
 /** error strings for a language's `head` */
 export function validateHead(head, at = 'head', camos = []) {
   if (head === undefined || head === false) return [];
   const o = typeof head === 'string' ? { helmet: head } : head;
-  if (!o || typeof o !== 'object' || Array.isArray(o)) return [`${at}: a helmet (${HELMET_WORDS.join(', ')}) or { helmet, cover?, band?, net?, nvg? }`];
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return [`${at}: a helmet (${HELMET_WORDS.join(', ')}) or { helmet, cover?, band?, net?, nvg?, headset? }`];
   const errs = [];
   if (!HELMETS[o.helmet]) errs.push(`${at}.helmet: one of ${HELMET_WORDS.join(', ')}`);
   for (const k of Object.keys(o)) if (k !== 'helmet' && !EXTRAS.includes(k)) errs.push(`${at}.${k}: not a head word (helmet, ${EXTRAS.join(', ')})`);
   if (o.cover !== undefined && o.cover !== true && o.cover !== false && !camos.includes(o.cover)) errs.push(`${at}.cover: true (the top's camouflage), false, or a camouflage (${camos.join(', ')})`);
-  for (const k of ['band', 'net', 'nvg']) if (o[k] !== undefined && typeof o[k] !== 'boolean') errs.push(`${at}.${k}: true or false`);
+  for (const k of ['band', 'net', 'nvg', 'headset']) if (o[k] !== undefined && typeof o[k] !== 'boolean') errs.push(`${at}.${k}: true or false`);
   return errs;
 }
 
-/** a language's head slot normalised: { helmet, cover, band, net, nvg }, or null (none). `cover` true reads the top's
+/** a language's head slot normalised: { helmet, cover, band, net, nvg, headset }, or null (none). `cover` true reads the top's
  * pattern when it is a camouflage (`isCamo`), else stays true (a cloth cover in the helmet's own tone) */
 export function headOf(L, isCamo = () => false) {
   const h = L?.head; if (!h) return null;
   const o = typeof h === 'string' ? { helmet: h } : h; if (!HELMETS[o.helmet]) return null;
   const topPat = typeof L.top?.pattern === 'string' ? L.top.pattern : L.top?.pattern?.kind;
   const cover = o.cover === true ? (isCamo(topPat) ? topPat : true) : o.cover || false;
-  return { helmet: o.helmet, cover, band: !!o.band, net: !!o.net, nvg: !!o.nvg };
+  return { helmet: o.helmet, cover, band: !!o.band, net: !!o.net, nvg: !!o.nvg, headset: !!o.headset };
 }
 
 // (a net: meridians from the crown down and rings round, thin cords; a band: one wide cord round the shell)
@@ -121,6 +122,9 @@ export function helmetKit(H) {
   const C = HELMETS[H.helmet], S = C.shell;
   const fittings = [...(C.skirt || []), ...(C.fittings || []),
     // (a night-vision mount on the brow, the goggle stowed up on it: a plate and two tubes pointing up and forward)
+    // (a comms headset: a bulky cup over each ear, out past the shell, a boom from the right cup to before the mouth)
+    ...(H.headset ? [...[1, -1].map((sg) => ({ kind: 'earpiece', at: [sg * 3.05, -0.3], r: 0.032, h: 0.02, out: 0.008, group: 'HelmetComms', capGroup: TRIM })),
+      { kind: 'arm', at: [2.95, -0.75], to: [0.75, 'mouth'], r: 0.0026, lift: 0.014, arch: 0.012, group: 'HelmetComms' }, { kind: 'valve', at: [0.7, 'mouth'], r: 0.008, group: 'HelmetComms' }] : []),
     ...(H.nvg ? [{ kind: 'earpiece', at: [0, 2.15], r: 0.017, h: 0.007, group: TRIM, capGroup: TRIM }, ...[0.32, -0.32].map((x) => ({ kind: 'scope', at: [x, 2.55], r: 0.011, len: 0.04, group: 'HelmetNvg', lensGroup: 'HelmetLens' }))] : [])];
   const ornaments = [...(H.band ? [ringAt(0.95, 0.018, 'HelmetBand', 96)] : []), ...(H.net ? [...Array.from({ length: 12 }, (_, i) => meridian(-Math.PI + (2 * Math.PI * i) / 12)), ringAt(0.45, 0.0022, 'HelmetNet'), ringAt(0.8, 0.0022, 'HelmetNet')] : [])];
   return [{ id: 'helmet', mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Helmet', rigid: true, stack: false, ghost: true,
@@ -131,5 +135,5 @@ export function helmetKit(H) {
 export function helmetTones(H) {
   if (!H) return {};
   const T = HELMETS[H.helmet].tones;
-  return { ...T, ...(H.band ? { HelmetBand: '#2b2a22' } : {}), ...(H.net ? { HelmetNet: '#3a3626' } : {}), ...(H.nvg ? { HelmetNvg: '#1d1f1c', HelmetLens: '#3d6b4f' } : {}) };
+  return { ...T, ...(H.band ? { HelmetBand: '#2b2a22' } : {}), ...(H.net ? { HelmetNet: '#3a3626' } : {}), ...(H.nvg ? { HelmetNvg: '#1d1f1c', HelmetLens: '#3d6b4f' } : {}), ...(H.headset ? { HelmetComms: '#22231f' } : {}) };
 }
