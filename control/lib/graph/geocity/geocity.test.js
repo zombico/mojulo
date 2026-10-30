@@ -7,6 +7,7 @@ import { designGeocity, columnName } from './design.js';
 import { readGeocity, METROS, METRO_IDS } from './metro.js';
 import { bridgesOf, partsOf, geotownLeast, evokesLaw } from './laws.js';
 import { geocitySheet } from './sheet.js';
+import { layoutOf } from './roads.js';
 import { PATTERNS } from '../geotown/pattern.js';
 
 const plain = (d) => JSON.stringify({ ...d, land: { ...d.land, N: undefined, S: undefined } });
@@ -311,5 +312,49 @@ describe('an evocation, at game scale', () => {
     const g = designGeocity({ metro: SHORE, evoke: 'segment' }, { seed: 3 }), other = designGeocity({ metro: SHORE, heights: { core: { median: [8, 12] } } }, { seed: 3 });
     expect(evokesLaw(g, other).ok).toBe(false);
     expect(law(real, 'evokes')).toBeUndefined();
+  });
+});
+
+describe('its roads', () => {
+  const d = designGeocity({ metro: SHORE }, { seed: 3 }), R = d.metro.roads;
+  const travel = (l) => l.bands.filter((b) => b.kind === 'travel');
+
+  it('lays a two-way major street four lanes, two each way, its parking at each kerb', () => {
+    const l = d.lines.find((x) => !x.kind.oneway);
+    expect(travel(l)).toHaveLength(R.lanes);
+    expect(new Set(travel(l).map((b) => b.dir))).toEqual(new Set([1, -1]));
+    expect(l.bands.filter((b) => b.kind === 'parking')).toHaveLength(2);
+    expect(l.road).toBeCloseTo(l.bands[l.bands.length - 1].to - l.bands[0].from, 3);
+  });
+
+  it('pairs one-way streets by the core: three lanes the same way each, the pair\'s two opposite', () => {
+    const pair = d.lines.filter((x) => x.kind.oneway);
+    expect(pair).toHaveLength(2 * R.oneway.pairs);
+    expect(pair[0].axis).toBe(pair[1].axis);
+    for (const l of pair) { expect(travel(l)).toHaveLength(R.oneway.lanes); expect(new Set(travel(l).map((b) => b.dir)).size).toBe(1); }
+    expect(travel(pair[0])[0].dir).toBe(-travel(pair[1])[0].dir);
+  });
+
+  it('parts some streets\' directions with a spacer, most not; runs streetcars on the spines, down a spacer in its own way', () => {
+    const two = d.lines.filter((x) => !x.kind.oneway), spaced = two.filter((x) => x.kind.median);
+    expect(spaced.length).toBeLessThan(two.length / 2);
+    for (const l of d.lines.filter((x) => x.rank === 'spine')) { expect(l.kind.streetcar).toBe(true); expect(l.tracks).toHaveLength(2); }
+    const row = d.lines.find((x) => x.kind.streetcar && x.kind.median);
+    if (row) for (const t of row.tracks) { const b = row.bands.find((x) => x.kind === 'streetcar-row'); expect(t.at).toBeGreaterThan(b.from); expect(t.at).toBeLessThan(b.to); }
+    const lane = d.lines.find((x) => x.kind.streetcar && !x.kind.median);
+    for (const t of lane.tracks) expect(lane.bands.some((b) => b.streetcar && t.at > b.from && t.at < b.to && b.dir === t.dir)).toBe(true);
+  });
+
+  it('keeps each street\'s own right-of-way: the neighbourhoods beside it stand off its half, the ledger closes', () => {
+    for (const r of d.regions) {
+      const w = d.lines.find((l) => l.id === r.sides.w.street);
+      if (w) expect(r.rect[0]).toBeCloseTo(w.at + w.half, 3);
+    }
+    expect(law(d, 'closes').ok).toBe(true);
+  });
+
+  it('drives on the left where its grammar does', () => {
+    const l = layoutOf({ oneway: 0, median: false, streetcar: false }, 'ns', R, 'left'), east = l.bands.find((b) => b.kind === 'travel' && b.from > 0);
+    expect(east.dir).toBe(-1);
   });
 });

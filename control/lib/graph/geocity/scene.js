@@ -41,6 +41,7 @@ import { skinLot } from '../city/plan/facades.js';
 import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
+import { kitTemplates } from './kit.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light']);
 export const GEOCITY_FACES = 200000;
@@ -51,6 +52,9 @@ const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
 const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
 // the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
 // facades on (the core's and the frame's: an outskirts block keeps its massing until it is a geotown's)
+// the street's kit: drawn within NEAR metres of the camera (the page's near repeats), a lamp every LAMP metres along a
+// kerb (the metro's stride, fractal-city.js METRO_LAMP_STEP), a streetcar's poles every POLE
+const NEAR = 320, LAMP = 31, POLE = 35;
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -71,7 +75,7 @@ function coloursOf(cube) {
   return {
     road: mix('#4d5055', C.floor, 0.15), walk: mix('#c8c2b4', C.stone, 0.3), kerb: mix('#b3ad9f', C.stone, 0.3), retain: mix('#9a9284', C.stone, 0.5),
     lawn: C.grass, park: mix(C.grass, C.foliage, 0.12), plaza: mix('#bdb6a8', C.stone, 0.3), lot: mix('#6a6c70', C.floor, 0.1), field: mix(C.grass, '#3f8a34', 0.4),
-    water: mix('#3e6a84', C.sky ?? '#6f97b8', 0.25), court: mix(C.grass, C.foliage, 0.25),
+    water: mix('#3e6a84', C.sky ?? '#6f97b8', 0.25), court: mix(C.grass, C.foliage, 0.25), bike: '#3f8a5a', row: mix('#8a8780', C.stone, 0.2), platform: mix('#bdb6a8', C.stone, 0.2),
   };
 }
 
@@ -91,6 +95,10 @@ export function assembleGeocityScene(m, ctx = {}) {
     const fill = shadeHex(hex, n, LIGHT);
     faces.push({ corners: c.map(P3), normal: P3(n), outNormal: P3(n), group, fill, cornerFills: c.map(() => fill) });
   };
+  // the street's kit stamped where it stands: each template's transforms, drawn near the camera only
+  const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
+  const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
+  const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // a pane no light shades (a lit room at night)
   const pane = (corners, n, hex) => { faces.push({ corners: corners.map(P3), normal: P3(n), outNormal: P3(n), group: 'geocity:night-window', fill: hex, cornerFills: corners.map(() => hex) }); counts.panes++; };
   // a rect draped on the land at `lift` over it, in cells
@@ -146,21 +154,26 @@ export function assembleGeocityScene(m, ctx = {}) {
   const sea = { s: [-X, -X, d.frame.W + X, wy0], n: [-X, wy1, d.frame.W + X, d.frame.D + X], w: [-X, wy0, wx0, wy1], e: [wx1, wy0, d.frame.W + X, wy1] };
   for (const w of d.water) { const q = sea[w.side]; put([[q[0], q[1], zWater], [q[2], q[1], zWater], [q[2], q[3], zWater], [q[0], q[3], zWater]], 'geocity:water', col.water); }
 
-  // ── the arterials: a road between two walks; a north-south one between the east-west ones' rights-of-way ──
+  // ── the arterials, each by its own cross-section (roads.js): a road between two walks; its spacer a planted median
+  // (or the streetcars' right-of-way) over a kerb; a bike lane painted; a north-south one between the east-west ones'
+  // rights-of-way, an east-west one over the crossings ──
   const sec = d.section, NS = d.lines.filter((l) => l.axis === 'ns'), EW = d.lines.filter((l) => l.axis === 'ew'), [lx0, ly0, lx1, ly1] = d.land.rect;
-  const ewSpans = EW.map((l) => [l.at - sec.half, l.at + sec.half]).sort((a, b) => a[0] - b[0]);
-  const runsNS = []; let y = ly0;
-  for (const [a, b] of ewSpans) { if (a > y) runsNS.push([y, a]); y = Math.max(y, b); }
-  if (ly1 > y) runsNS.push([y, ly1]);
-  const R2 = sec.road / 2;
-  for (const l of NS) for (const [a, b] of runsNS) {
-    drape([l.at - R2, a, l.at + R2, b], 'geocity:road', col.road);
-    drape([l.at - sec.half, a, l.at - R2, b], 'geocity:walk', col.walk, KERB); drape([l.at + R2, a, l.at + sec.half, b], 'geocity:walk', col.walk, KERB);
+  const runsOf = (spans, lo, hi) => { const out = []; let at = lo; for (const [a, b] of spans.slice().sort((p, q) => p[0] - q[0])) { if (a > at) out.push([at, a]); at = Math.max(at, b); } if (hi > at) out.push([at, hi]); return out; };
+  const runsNS = runsOf(EW.map((l) => [l.at - l.half, l.at + l.half]), ly0, ly1), runsEW = runsOf(NS.map((l) => [l.at - l.half, l.at + l.half]), lx0, lx1);
+  const across = (l, a, b, p, q) => (l.axis === 'ns' ? [l.at + a, p, l.at + b, q] : [p, l.at + a, q, l.at + b]);
+  for (const l of d.lines) {
+    const R2 = l.road / 2;
+    for (const [p, q] of l.axis === 'ns' ? runsNS : [[lx0, lx1]]) {
+      drape(across(l, -R2, R2, p, q), 'geocity:road', col.road);
+      drape(across(l, -l.half, -R2, p, q), 'geocity:walk', col.walk, KERB); drape(across(l, R2, l.half, p, q), 'geocity:walk', col.walk, KERB);
+      for (const b of l.bands) {
+        if (b.kind === 'median') drape(across(l, b.from, b.to, p, q), 'geocity:median', col.lawn, KERB);
+        else if (b.kind === 'streetcar-row') drape(across(l, b.from, b.to, p, q), 'geocity:streetcar-row', col.row, 0.06);
+        else if (b.kind === 'bike') drape(across(l, b.from, b.to, p, q), 'geocity:bike', col.bike, 0.03);
+      }
+    }
   }
-  for (const l of EW) {
-    drape([lx0, l.at - R2, lx1, l.at + R2], 'geocity:road', col.road);
-    drape([lx0, l.at - sec.half, lx1, l.at - R2], 'geocity:walk', col.walk, KERB); drape([lx0, l.at + R2, lx1, l.at + sec.half], 'geocity:walk', col.walk, KERB);
-  }
+  street();
 
   // ── each neighbourhood: its ground (its streets), a walk round each block, each block's terraced pad and buildings ──
   const glass = G.skin.glass, stone = G.skin.stone, brick = G.skin.brick, roofs = G.skin.roof, office = G.floorH.office, resid = G.floorH.residential;
@@ -211,6 +224,80 @@ export function assembleGeocityScene(m, ctx = {}) {
       else building(b, { x0, y0, x1, y1, longY, zAt, Rb });
     }
   }
+
+  /** THE STREET, NEAR (kit.js): along every arterial its paint (lane lines dashed between lanes one way, a double
+   *  yellow between a two-way street's directions where no spacer parts them, solid white at its parking and bike
+   *  lanes), its streetcars' rails and overhead (a pole at each kerb, a span across, a contact wire over each track),
+   *  its lamps at both kerbs (the metro's stride, staggered); at each crossing its crosswalks, a signal on each corner
+   *  (the metro's: every crossing signalled), a street-name sign, and on a streetcar line a stop each way past it (a
+   *  platform down a right-of-way). All stamped as repeats drawn only near the camera: from far the blocks suffice. */
+  function street() {
+    const lift = 0.05, at = (l, off, s) => (l.axis === 'ns' ? [l.at + off, s] : [s, l.at + off]), rotAlong = (l) => (l.axis === 'ns' ? Math.PI / 2 : 0);
+    const flat = (key, l, off, s) => { const [x, yy] = at(l, off, s); stamp(key, [x, yy, S(x, yy) + lift], rotAlong(l)); };
+    for (const l of d.lines) {
+      const runs = l.axis === 'ns' ? runsNS : runsEW, bands = l.bands.slice().sort((a, b) => a.from - b.from);
+      // the lines between bands
+      const marks = [];
+      for (let i = 0; i + 1 < bands.length; i++) {
+        const a = bands[i], b = bands[i + 1], off = a.to;
+        if (a.kind === 'travel' && b.kind === 'travel') marks.push([a.dir === b.dir ? 'dash' : 'yellow', off]);
+        else if ((a.kind === 'travel') !== (b.kind === 'travel') && ![a.kind, b.kind].some((k) => k === 'median' || k === 'streetcar-row')) marks.push(['line', off]);
+      }
+      for (const [p, q] of runs) for (const [key, off] of marks) {
+        const step = key === 'dash' ? 9 : 10;
+        for (let s0 = p + 1; s0 + step <= q - 1 + 1e-6; s0 += step) flat(key, l, off, s0);
+      }
+      // the streetcars: rails end to end (over the crossings too), and the overhead between kerb poles
+      if (l.tracks.length) {
+        const lo = l.axis === 'ns' ? ly0 : lx0, hi = l.axis === 'ns' ? ly1 : lx1;
+        for (const t of l.tracks) for (let s0 = lo; s0 + 10 <= hi; s0 += 10) flat('rail', l, t.at, s0);
+        for (const [p, q] of runs) for (let s0 = p + 6; s0 + POLE <= q; s0 += POLE) {
+          for (const side of [-1, 1]) { const [x, yy] = at(l, side * (l.road / 2 + 0.3), s0); stamp(`pole:${facing(l, -side)}`, [x, yy, S(x, yy) + KERB], 0); }
+          const [x0w, y0w] = at(l, -(l.road / 2 + 0.3), s0);
+          stamp('wire', [x0w, y0w, S(x0w, y0w) + 6.45], l.axis === 'ns' ? 0 : Math.PI / 2, [l.road + 0.6, 1, 1]);
+          for (const t of l.tracks) { const [x, yy] = at(l, t.at, s0); stamp('wire', [x, yy, S(x, yy) + 5.6], rotAlong(l), [POLE, 1, 1]); }
+        }
+      }
+      // its lamps at both kerbs, staggered, clear of the crossings
+      for (const [p, q] of runs) for (const side of [-1, 1]) for (let s0 = p + 8 + (side > 0 ? LAMP / 2 : 0); s0 <= q - 8; s0 += LAMP) {
+        const [x, yy] = at(l, side * (l.road / 2 + 0.5), s0);
+        stamp(`lamp:${facing(l, -side)}`, [x, yy, S(x, yy) + KERB], 0);
+      }
+    }
+    // the crossings
+    for (const a of NS) for (const b of EW) {
+      const x = a.at, yy = b.at, z = S(x, yy);
+      // crosswalks across each arm, just outside the crossing; stop bars behind them
+      for (const sy of [-1, 1]) for (let o = -a.road / 2 + 0.6; o <= a.road / 2 - 0.6; o += 1.2) stamp('bar', [x + o, yy + sy * (b.half + 0.6) + (sy < 0 ? -3 : 0), z + lift], Math.PI / 2);
+      for (const sx of [-1, 1]) for (let o = -b.road / 2 + 0.6; o <= b.road / 2 - 0.6; o += 1.2) stamp('bar', [x + sx * (a.half + 0.6) + (sx < 0 ? -3 : 0), yy + o, z + lift], 0);
+      // a signal on each corner, the diagonal pairs reaching over the two roads; a street-name sign on one
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+        const px = x + sx * (a.road / 2 + 0.9), py = yy + sy * (b.road / 2 + 0.9), face = sx * sy > 0 ? (sx > 0 ? 'w' : 'e') : (sy > 0 ? 's' : 'n');
+        stamp(`signal:${face}`, [px, py, S(px, py) + KERB], 0);
+      }
+      const gx = x + a.road / 2 + 1.6, gy = yy + b.road / 2 + 1.6;
+      stamp('sign', [gx, gy, S(gx, gy) + KERB], 0);
+      // a streetcar line's stops, each way past the crossing (its right-of-way's on a platform beside its track)
+      for (const l of [a, b]) {
+        if (!l.tracks.length) continue;
+        const o = l === a ? b : a, row = l.bands.some((x2) => x2.kind === 'streetcar-row');
+        for (const t of l.tracks) {
+          const s0 = (l === a ? yy : x) + t.dir * (o.half + 4), side = Math.sign(t.at) || 1;
+          if (row) {
+            const pa = side * (Math.abs(t.at) - 0.9) , pb = side * (Math.abs(t.at) - 3.1), q0 = Math.min(s0, s0 + t.dir * 30), q1 = Math.max(s0, s0 + t.dir * 30);
+            drape(across(l, Math.min(pa, pb), Math.max(pa, pb), q0, q1), 'geocity:platform', col.platform, 0.3);
+            const [px, py] = at(l, (pa + pb) / 2, s0 + t.dir * 4);
+            stamp(`stop:${facing(l, side)}`, [px, py, S(px, py) + 0.3], 0);
+          } else {
+            const [px, py] = at(l, side * (l.road / 2 + 0.8), s0);
+            stamp(`stop:${facing(l, -side)}`, [px, py, S(px, py) + KERB], 0);
+          }
+        }
+      }
+    }
+  }
+  /** The way a kerb piece on `side` of a line reaches (toward its road: −side). */
+  function facing(l, toward) { return l.axis === 'ns' ? (toward > 0 ? 'e' : 'w') : (toward > 0 ? 'n' : 's'); }
 
   /** A neighbourhood as the skyline sees it: its ground one coarse drape, its tall buildings standing on it. */
   function backdrop(r) {
@@ -369,7 +456,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   const [sx, sy] = d.seat, zs = S(sx, sy), toward = d.metro.fall.toward, out = { s: [0, -1], n: [0, 1], w: [-1, 0], e: [1, 0] }[toward];
   const top = Math.max(60, ...d.regions.flatMap((r) => r.blocks.flatMap((b) => (b.towers ?? []).map((t) => t.storeys * office))));
   const W = d.frame.W, D = d.frame.D, far = Math.max(W, D);
-  const spine = NS.find((l) => l.rank === 'spine'), up = toward === 's' ? 1 : -1, ex = spine.at + sec.half - sec.walk / 2;
+  const spine = NS.find((l) => l.rank === 'spine'), up = toward === 's' ? 1 : -1, ex = spine.at + spine.half - sec.walk / 2;
   let eye = [ex, sy + up * (sec.half + 30), 0];
   eye[2] = S(eye[0], eye[1]) + KERB + 1.7;
   let cameras = [
@@ -390,7 +477,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     let st, look;
     if (E.evoke === 'corridor') {
       const l = d.lines.find((x) => x.id === E.along), ns = l.axis === 'ns', a = ns ? sy : sx, lo = ns ? hull[1] : hull[0], hi = ns ? hull[3] : hull[2], dir = Math.abs(a - lo) <= Math.abs(a - hi) ? 1 : -1, from = Math.max(lo, Math.min(hi, a));
-      const off = l.at + sec.half - sec.walk / 2;
+      const off = l.at + l.half - sec.walk / 2;
       st = ns ? [off, from + dir * 30] : [from + dir * 30, off];
       look = ns ? [off, st[1] + dir * 160] : [st[0] + dir * 160, off];
     } else {
@@ -404,6 +491,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (over it: higher than its tallest, so a neighbour's tower never stands between)
       { name: 'evoked', worldFraming: { cameraPosition: P3([mid[0] + span * 0.75, mid[1] - span * 0.95, zm + Math.max(span * 0.55 + tall * 0.6, top * 1.1)]), lookAt: P3([mid[0], mid[1], zm + tall * 0.25]), horizontalFov: 55 } },
       { name: 'street', worldFraming: { cameraPosition: P3(eye), lookAt: P3([look[0], look[1], eye[2] + 10]), horizontalFov: 75 } },
+      // the arterial crossing nearest its street, from over one of its arms a little up: its signals, crosswalks and stops
+      ...(() => { const c = d.crossings.slice().sort((p, q) => Math.hypot(p.at[0] - st[0], p.at[1] - st[1]) - Math.hypot(q.at[0] - st[0], q.at[1] - st[1]))[0]; const cp = [c.at[0] + 3, c.at[1] - 45]; return c ? [{ name: 'crossing', worldFraming: { cameraPosition: P3([cp[0], cp[1], S(cp[0], cp[1]) + 9]), lookAt: P3([c.at[0], c.at[1], c.z + 2]), horizontalFov: 70 } }] : []; })(),
       ...cameras.filter((c) => c.name === 'skyline' || c.name === 'over'),
     ];
   } else if (E) cameras = cameras.filter((c) => c.name === 'skyline' || c.name === 'over');
@@ -417,8 +506,11 @@ export function assembleGeocityScene(m, ctx = {}) {
   const laws = [...d.laws, { law: 'faces', ok: faces.length <= GEOCITY_FACES, value: `${faces.length} faces (budget ${GEOCITY_FACES})${night ? `, ${counts.panes} lit panes` : ''}`, want: 'the metro as massing' }];
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
+  // (the kit's repeats, each drawn near the camera only; the skyline draws none)
+  const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR }));
+  counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);
   return {
-    faces, ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

@@ -195,7 +195,10 @@ A cube that names no domains offers one per terrain and one per interior.
   park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
   or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
   streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, grammar?, outskirts?, evoke?, at?, along?, play? }`: `metro` a card (`lakeshore`, a Toronto by
+  streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play? }`: `roads` each arterial's section
+  (`{ lane, parking, bike, lanes, median: { share, w }, oneway: { pairs, lanes }, streetcar: { spine, share, gauge,
+  row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
+  metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera); `metro` a card (`lakeshore`, a Toronto by
   its lake; `harbour-island`; `{ from, …changes }`), the rest its settings over it. `evoke` how it is told: `metro`
   (the default, every block to scale), `skyline` (its tall buildings and its water), `neighbourhood` (`at` one, by
   default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or

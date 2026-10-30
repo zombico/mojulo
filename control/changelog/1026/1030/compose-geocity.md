@@ -97,6 +97,29 @@ passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the
   its walk starts. Its `evokes` law (advice) holds it to the metro to scale designed beside it on the same seed: each
   ring's mix of segments and its storeys, its green share, its towers a core block. An outskirts block keeps its
   massing at detail until it is a geotown's.
+- **Roads** (`geocity/roads.js`, the card's `roads`): each arterial its own cross-section, laid band by band from its
+  centre out between the grammar's walks, its right-of-way its own (the neighbourhoods beside it stand off its half;
+  the ledger sums each). A major street FOUR LANES, two each way, parking at each kerb; a share carry a SPACER between
+  their directions (`median`: a planted median over a kerb), most do not; one-way PAIRS by the core (the two nearest
+  parallel arterials off the spine, east-west first: a Richmond and an Adelaide), THREE LANES the same way each, the
+  pair's two opposite, a bike lane on one side; STREETCAR rails (Toronto's broad gauge) on the spines and on a share
+  of the rest, in the inner lanes, or down the spacer in their own right-of-way where the street has one (a Spadina).
+  Lanes never compress at game scale. Each band carries its way (`dir`, the grammar's traffic side: left where it
+  drives on the left), so the lines are a lane graph a driver reads later.
+- **The street, near** (`geocity/kit.js`): the metro city's own doodads at true size, its kerb lamps and signals,
+  street-name signs and tram poles (fractal-city.js `kerbLamp`, `intersectionDoodads`) made round by its round kit
+  (city/round-kit.js: a tapered standard on its collar, a lathed head, lenses, galvanized posts), each baked once a
+  facing; and the paint and rails as flat pieces. Along every arterial: its lane lines dashed between lanes one way, a
+  double yellow between a two-way street's directions where no spacer parts them, solid white at its parking and bike
+  lanes, a bike lane painted green; its rails end to end and the overhead (a pole at each kerb, a span across, a
+  contact wire over each track); lamps at both kerbs at the metro's stride, staggered. At each crossing crosswalks on
+  every arm, a signal on each corner (every crossing signalled, the metro's way) its mast over the lanes, a street-name
+  sign, and on a streetcar line a stop each way past it (a platform and its shelter down a right-of-way). All stamped
+  as instanced repeats drawn only NEAR the camera: from far the blocks suffice. A `crossing` camera on an evocation.
+- **Near repeats** (`scene/scene-three.js`): a repeat may say `near` (world units): the page cuts its instances into
+  square tiles, each its own instanced mesh on the shared geometry, shown only while the camera stands within `near`
+  of it, checked before each render (so a capture, a frozen frame and the live loop agree). A world without one gains
+  not a byte.
 - **The sheet** (`geocity/sheet.js`), three views of one map: `rings` (each neighbourhood by the ring it builds as,
   shaded by its ground's height), `heights` (each by its median storeys, each arterial frontage band by its own) and
   `blocks` (its streets, the collectors darker, its blocks by segment, the towers on them); `focus` crops it round a

@@ -71,7 +71,7 @@ describe('an evocation built', () => {
     expect(N.geocity.counts.detailed).toBeGreaterThan(0);
     expect(N.faces.filter((f) => f.group === 'geocity:facade').length).toBeGreaterThan(100);
     expect(P.faces.some((f) => f.group === 'geocity:facade')).toBe(false);
-    expect(N.cameras.map((c) => c.name)).toEqual(['evoked', 'street', 'skyline', 'over']);
+    expect(N.cameras.map((c) => c.name)).toEqual(['evoked', 'street', 'crossing', 'skyline', 'over']);
     expect(N.walk.spawn).toEqual(N.cameras[1].worldFraming.cameraPosition);
     expect(N.geocity.play).toBe('game');
   });
@@ -81,5 +81,25 @@ describe('an evocation built', () => {
     expect(K.faces.some((f) => f.group === 'geocity:tower')).toBe(true);
     expect(K.cameras.map((c) => c.name)).toEqual(['skyline', 'over']);
     expect(K.faces.length).toBeLessThan(P.faces.length);
+  });
+});
+
+describe('the street, near', () => {
+  const N = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'corridor' } });
+  it('stamps the metro\'s kit and the paint as repeats drawn only near the camera; the skyline none', () => {
+    const groups = new Set(P.repeats.map((r) => r.group));
+    for (const g of ['geocity:lamp', 'geocity:signal', 'geocity:sign', 'geocity:bar', 'geocity:dash']) expect(groups.has(g)).toBe(true);
+    expect(P.repeats.every((r) => r.near > 0)).toBe(true);
+    expect(N.repeats.some((r) => r.group === 'geocity:rail' || r.group === 'geocity:pole')).toBe(true);
+    const K = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'skyline' } });
+    expect(K.repeats).toBeUndefined();
+  });
+  it('the page draws a near repeat only near the camera, and a world without one gains not a byte', async () => {
+    const { emitThreeWorld } = await import('../scene/scene-three.js');
+    const tpl = [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], normal: [0, 0, 1], fill: '#888888' }];
+    const base = { faces: tpl, inline: true }, plain = emitThreeWorld({ ...base, repeats: [{ group: 'g', template: tpl, transforms: [{ pos: [0, 0, 0] }] }] });
+    const near = emitThreeWorld({ ...base, repeats: [{ group: 'g', template: tpl, transforms: [{ pos: [0, 0, 0] }], near: 50 }] });
+    expect(plain).not.toContain('__nearTiles');
+    expect(near).toContain('__nearTiles');
   });
 });

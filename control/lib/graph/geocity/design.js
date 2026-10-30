@@ -8,7 +8,9 @@
  *                 grade and not its every hummock)
  *   2 arterials   the SPINE through the core's seat each way, then arterials stepped outward from it to the land's
  *                 edge, each step rolled inside the rail at its distance (tight at the core, looser past `reach`); each
- *                 in its grammar's major section, its profile along S (its ends' heights, its steepest grade)
+ *                 its own cross-section (roads.js: four lanes, a spacer on some, one-way pairs by the core, streetcar
+ *                 tracks; its bands, its lanes' ways) between the grammar's walks, its profile along S (its ends'
+ *                 heights, its steepest grade)
  *   3 regions     the NEIGHBOURHOODS the arterials enclose, each its rect inside their rights-of-way, its RING by its
  *                 middle's distance from the seat (the four round the seat always the core), its sides (an arterial,
  *                 the water, or the BEYOND past the map's land edge, where a geotown joins later) and its PORTS
@@ -46,6 +48,7 @@ import { geocityLaws, evokesLaw } from './laws.js';
 import { heightsOf } from './heights.js';
 import { parksOf } from './parks.js';
 import { blocksOf } from './blocks.js';
+import { roadKinds, layoutOf } from './roads.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
@@ -168,6 +171,15 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     ...xs.map((l, k) => ({ id: `ns-${k}`, axis: 'ns', at: l.at, rank: l.spine ? 'spine' : 'arterial', rect: [r3(l.at - half), land[1], r3(l.at + half), land[3]], ...profileOf(L.S, 'ns', l.at, land[1], land[3]) })),
     ...ys.map((l, j) => ({ id: `ew-${j}`, axis: 'ew', at: l.at, rank: l.spine ? 'spine' : 'arterial', rect: [land[0], r3(l.at - half), land[2], r3(l.at + half)], ...profileOf(L.S, 'ew', l.at, land[0], land[2]) })),
   ];
+  // each arterial's cross-section (roads.js): its kind (one-way, a spacer, streetcars), its bands and its tracks, its
+  // right-of-way its own road and the grammar's walks
+  const kinds = roadKinds(lines, M, seed, seat);
+  for (const l of lines) {
+    const lay = layoutOf(kinds[l.id], l.axis, M.roads, G.traffic), h = r3(lay.road / 2 + sec.walk);
+    Object.assign(l, { kind: kinds[l.id], road: lay.road, half: h, bands: lay.bands, tracks: lay.tracks, rect: l.axis === 'ns' ? [r3(l.at - h), land[1], r3(l.at + h), land[3]] : [land[0], r3(l.at - h), land[2], r3(l.at + h)] });
+  }
+  const widest = Math.max(...lines.map((l) => l.half));
+  section.half = widest; section.road = r3(Math.max(...lines.map((l) => l.road))); section.row = r3(2 * widest);
   const NS = lines.filter((l) => l.axis === 'ns'), EW = lines.filter((l) => l.axis === 'ew');
   const crossings = NS.flatMap((a) => EW.map((b) => ({ id: `${a.id}×${b.id}`, at: [a.at, b.at], z: r3(L.S(a.at, b.at)), ranks: [a.rank, b.rank], seat: a.rank === 'spine' && b.rank === 'spine' })));
 
@@ -177,7 +189,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   const regions = [];
   for (let j = 0; j + 1 < by.length; j++) for (let i = 0; i + 1 < bx.length; i++) {
     const w = NS[i - 1], e = NS[i], s = EW[j - 1], n = EW[j];
-    const rect = [r3(bx[i] + (w ? half : 0)), r3(by[j] + (s ? half : 0)), r3(bx[i + 1] - (e ? half : 0)), r3(by[j + 1] - (n ? half : 0))];
+    const rect = [r3(bx[i] + (w ? w.half : 0)), r3(by[j] + (s ? s.half : 0)), r3(bx[i + 1] - (e ? e.half : 0)), r3(by[j + 1] - (n ? n.half : 0))];
     const mid = [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2], dist = r3(Math.hypot(mid[0] - seat[0], mid[1] - seat[1]));
     const sides = { n: sideOf(n, 'n'), e: sideOf(e, 'e'), s: sideOf(s, 's'), w: sideOf(w, 'w') };
     // the four round the seat are the core whatever their size; the rest by their middles' distance
@@ -234,7 +246,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
 
   // 9 the ledger: every square metre of the frame once (a crossing counted on one arterial)
   const waterArea = water.reduce((s, w) => s + area(w.rect), 0);
-  const rowArea = NS.length * section.row * (land[3] - land[1]) + EW.length * section.row * (land[2] - land[0]) - NS.length * EW.length * section.row ** 2;
+  const rowArea = NS.reduce((a, l) => a + 2 * l.half * (land[3] - land[1]), 0) + EW.reduce((a, l) => a + 2 * l.half * (land[2] - land[0]), 0) - NS.reduce((a, p) => a + EW.reduce((b, q) => b + 4 * p.half * q.half, 0), 0);
   const byRing = Object.fromEntries(['core', 'frame', 'outskirts'].map((k) => [k, r3(regions.filter((r) => r.ring === k && !r.park).reduce((s, r) => s + r.area, 0))]));
   const ledger = { total: W * D, land: r3(landArea), water: r3(waterArea), arterials: r3(rowArea), parks: r3(reserved), neighbourhoods: r3(regions.filter((r) => !r.park).reduce((s, r) => s + r.area, 0)), rings: byRing,
     green: { budget, reserved: r3(reserved), quotas: r3(rest.reduce((s, r) => s + r.green, 0)), placed: r3(regions.reduce((s, r) => s + (r.parkRect?.area ?? 0), 0)), soft: r3(regions.reduce((s, r) => s + r.soft, 0)) } };

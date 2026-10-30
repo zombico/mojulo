@@ -40,6 +40,9 @@
  *                   school), a school's block at least `school` m²
  *     segments      { core: { tower, podium }, frame: { midrise, slab }, outskirts: { houses, apartments, lowrise } }:
  *                   the weights a block off its arterials and collectors is given to each segment by (blocks.js)
+ *     roads         each arterial's cross-section (roads.js): { lane, parking, bike, lanes, median: { share, w },
+ *                   oneway: { pairs, lanes }, streetcar: { spine, share, gauge, row } }: four lanes a major street,
+ *                   a spacer on some, one-way pairs of three lanes by the core, streetcar rails on the spines and some
  *     grade         the steepest arterial (rise over run): steeper is advice
  *     grammar       its city grammar (city/plan/grammars.js: an Earth flavour or a world grammar): its streets' sections,
  *                   its towers, its skins
@@ -92,6 +95,7 @@ export const METROS = Object.freeze({
     },
     green: { share: 0.12, parks: 1, most: 0.3, weights: { core: 0.4, frame: 1, outskirts: 1.3 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 4000, aspect: 2 } },
     streets: { collector: 600, civic: 6, school: 9000 },
+    roads: { lane: 3.3, parking: 2.4, bike: 1.6, lanes: 4, median: { share: 0.25, w: 4 }, oneway: { pairs: 1, lanes: 3 }, streetcar: { spine: true, share: 0.35, gauge: 1.495, row: 7.5 } },
     segments: { core: { tower: 3, podium: 2 }, frame: { midrise: 3, slab: 2 }, outskirts: { houses: 7, apartments: 1, lowrise: 1 } },
     grade: 0.06,
     grammar: 'north-american',
@@ -115,6 +119,7 @@ export const METROS = Object.freeze({
     },
     green: { share: 0.16, parks: 1, most: 0.35, weights: { core: 0.4, frame: 1, outskirts: 1.4 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 3000, aspect: 2 } },
     streets: { collector: 560, civic: 6, school: 8000 },
+    roads: { lane: 3.2, parking: 2.3, bike: 1.5, lanes: 4, median: { share: 0.4, w: 5 }, oneway: { pairs: 1, lanes: 3 }, streetcar: { spine: true, share: 0, gauge: 1.435, row: 7 } },
     segments: { core: { tower: 2, podium: 3 }, frame: { midrise: 4, slab: 1 }, outskirts: { houses: 8, apartments: 2, lowrise: 0 } },
     grade: 0.08,
     grammar: 'mediterranean',
@@ -135,7 +140,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play']);
 // (how the recipe is told, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play']);
 
@@ -219,6 +224,11 @@ export function readGeocity(spec = {}) {
     const w = M.segments[ring];
     if (!isObj(w) || Object.keys(w).some((k) => !ids.includes(k)) || !Object.values(w).every((v) => num(v, 0, 100)) || !Object.values(w).some((v) => v > 0)) no(`segments.${ring} is weights over ${ids.join(', ')}, one of them above 0`);
   }
+  const Rd = M.roads;
+  if (!isObj(Rd) || !num(Rd.lane, 2.5, 4.5) || !num(Rd.parking, 0, 4) || !num(Rd.bike, 0, 3) || !(Number.isInteger(Rd.lanes) && Rd.lanes >= 2 && Rd.lanes <= 8 && Rd.lanes % 2 === 0)) no('roads is { lane: 2.5–4.5 m, parking: m, bike: m, lanes: an even 2–8, median, oneway, streetcar }');
+  if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');
+  if (!isObj(Rd.oneway) || !(Number.isInteger(Rd.oneway.pairs) && Rd.oneway.pairs >= 0 && Rd.oneway.pairs <= 4) || !(Number.isInteger(Rd.oneway.lanes) && Rd.oneway.lanes >= 1 && Rd.oneway.lanes <= 5)) no('roads.oneway is { pairs: 0–4, lanes: 1–5 }');
+  if (!isObj(Rd.streetcar) || typeof Rd.streetcar.spine !== 'boolean' || !num(Rd.streetcar.share, 0, 1) || !num(Rd.streetcar.gauge, 0.6, 2) || !num(Rd.streetcar.row, 4, 20)) no('roads.streetcar is { spine: boolean, share: 0–1, gauge: metres, row: metres }');
   if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
   if (!PATTERNS[M.outskirts]) no(`outskirts is a geotown pattern (${PATTERN_IDS.join(', ')})`);
   let grammar = resolveGrammar(M.grammar, 'geocity.grammar'), pattern = { id: M.outskirts, ...PATTERNS[M.outskirts] };
