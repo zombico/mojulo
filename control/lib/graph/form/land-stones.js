@@ -41,7 +41,7 @@ export const RUBBLE_SIZES = Object.freeze([0.035, 0.18]);
 
 const u01 = (seed, tag, k) => strHash(`${seed}|${tag}|${k}`) / 4294967296;
 
-export function landStones(faces, layers, { seed = 1, density = STONE_DENSITY, sizes = STONE_SIZES, rubble = 0 } = {}) {
+export function landStones(faces, layers, { seed = 1, density = STONE_DENSITY, sizes = STONE_SIZES, rubble = 0, clear = null } = {}) {
   const out = [], M = rubble > 0 ? layers.path : null;
   // (a trail's verge: the rubble's share at a point, by its distance to the trail)
   const verge = (c) => {
@@ -70,6 +70,8 @@ export function landStones(faces, layers, { seed = 1, density = STONE_DENSITY, s
         if (p + q > 1) { p = 1 - p; q = 1 - q; }
         const r = R[0] + (R[1] - R[0]) * u01(seed, 'stone-r', key) ** 3;
         const at = [0, 1, 2].map((d) => a[d] + (b[d] - a[d]) * p + (c[d] - a[d]) * q + n[d] * r * (1 - SINK));
+        // (none in ground a thing has claimed, `clear` [[x, y, r]]: a boulder's, a trunk's, a bush's)
+        if (clear && clear.some(([x, y, R]) => Math.hypot(at[0] - x, at[1] - y) < R + r)) continue;
         out.push({ at: at.map((v) => Math.round(v * 1e4) / 1e4), r: Math.round(r * 1e4) / 1e4, n, tone: Math.round((0.85 + 0.3 * u01(seed, 'stone-t', key)) * 1e3) / 1e3, v: Math.floor(u01(seed, 'stone-v', key) * SHAPES) });
       }
     }

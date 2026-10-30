@@ -106,7 +106,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 
 **Upgrading from 2.x?** Read [Upgrading from 2.x](control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.0 on its next start, and 3.0 re-encrypts saved provider keys so 2.x can no longer read them.
 
-## Five things to say to it
+## Six things to say to it
 
 Each one is a sentence to your agent, the tool it reaches for, and the recipe that gets stored. Every example below runs keyless and offline.
 
@@ -197,6 +197,36 @@ The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: '
 `design_game` designs a game top down (the hero, its powers, gear and systems) and with `run: true` makes each ready step. Levels are worlds with a game contract (reach the exit, survive twenty seconds, win the race); `create_game` binds them, a synthesized score and the figures into one game with a typed store that carries between levels, and it does not mint until every level passes a contract dry-run and a traversal that reaches its win condition. Arena shooters with bots, kart and supercar racers with rival drivers (and a Race of Champions duel in a stadium), flight, stealth and rhythm games, fighting games, sports played as contests on a stadium under a TV broadcast package ([docs/broadcast.md](docs/broadcast.md)), board and strategy games against the computer, and a pen-and-paper table RPG with its printed game book ([docs/table-rpg.md](docs/table-rpg.md)) are built from the same parts. The action games draw their foes from shared classes ([docs/foes.md](docs/foes.md)), and a level can seat two to four players on one screen ([docs/local-multiplayer-principles.md](docs/local-multiplayer-principles.md)).
 
 It plays in the browser as it is: `export_game` writes a self-contained folder for any static host, and `target: 'desktop'` makes that folder an Electron app (`npm install && npm start`, offline; signing it is yours). The engines get a translation with a report of what did not travel: `target: 'godot'` writes a real Godot 4 project, the fullest of them; Unity gets a data pack plus an importer; `target: 'roblox'` writes a Rojo project carrying the Luau kernel and a greybox per level. Unreal takes the game's assets, not the game: `export_model { format: 'unreal' }` writes a character or a solid as its GLB plus an editor importer.
+
+### 6. "I'm making a stealth game. Build me a multi-level military base to infiltrate"
+
+![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](docs/images/wcd-demo.gif)
+
+What it built, from the inside:
+
+| | |
+|---|---|
+| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
+| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor in the bunker look: board-formed concrete, yellow and green steel on its columns, a cable bent along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) |
+| ![The reactor plant's generator hall: a white-panelled hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](docs/images/wcd-demo-reactor-corridor.jpg) |
+
+![The world's book, its "To the core" page: the four levels as rings with the reactor at the centre, each stair or door on its join with the keycard that opens it, beside each layer's look, its wall, base, floor and paint, and the design rules it holds](docs/images/wcd-demo-book.png)
+
+![A level's finishes in the book, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band tiles, each named by its cut and the metres it is laid at, its light's colours, and the note that its palette does not colour a bay building](docs/images/wcd-demo-finishes.png)
+
+One real Claude Code session on Sonnet 5.5, two asks, under four minutes of agent time: roughly 1.2M tokens (90% re-read
+from the prompt cache, 9k written) and 63 cents at API list price. Asked to see the plan and the looks first, the agent
+read the stealth and level-design cards, drafted the world with `design_game` without building it, and stopped on its
+book: the plan, and each building level's finishes (its walls, floor, columns, paint and light, painted as the build
+paints them; the armoury's board is above). On the yes it built all four, each level a base building stocked for what it
+is (bunks and footlockers, weapon racks in the cages, sandbags at the guard posts, an extinguisher by every door). What a
+run shows that a GIF hides: the agent also picked a palette per section, and said itself that a base building takes
+only its look's named palette, so those were not applied; building four levels outlasts Claude Code's 60-second wait
+for a tool, so it saw the build time out and read the finished world back. The book's dark briefing skin was set after
+the session, and the draft's pages in the GIF are redrawn from the stored world without its run's record; a world wears
+a skin with one `design_game` patch (`book: { skin: 'briefing' }`), or its own colours and faces. The whole record is
+[session.json](docs/images/src/wcd-demo/session.json), and [the runner](docs/images/src/wcd-demo/) records a new session
+or rebuilds a cooked base from its recipe with no agent at all.
 
 **Also from a sentence:** a character (`create_character`): a stylized hero, or the realistic hero with its face, eyes, hair, tailored wardrobe, armour and footwear ([docs/realistic-body.md](docs/realistic-body.md)), or a comic hero pack's cast, enemy crews and named heroes with their emblems; an animal mid-stride, rigged for glTF or VRM; a six-storey building with a set-back penthouse; a house as a townhouse or a modern block in a street-house tradition, an office, lab or warehouse laid from a brief, or an interior styled from a sentence; a walkable land from a geocube, a science world, a historic city at its period ([docs/historic/README.md](docs/historic/README.md)); an ambient loop or a full score synthesized from seeded math with no samples; a room's layout recovered from a photo you show your agent. The full catalog is in [docs/tour.md](docs/tour.md).
 

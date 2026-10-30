@@ -27,6 +27,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
+import { assembleGeotownScene } from '@/lib/graph/geotown/scene';
 import { styleReadout } from '@/lib/graph/era/arch-style';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
@@ -526,13 +527,16 @@ export const WORLD_KINDS = {
     title: 'mojulo geocube',
     walk: true,
     ao: true,
-    // (a trail, a town or a city is walked by its dummy, local-meru/dummy.js: the specimens that wait on a bake). A city
+    // (a trail, a town, a geotown or a city is walked by its dummy, local-meru/dummy.js: the specimens that wait on a bake). A city
     // (era/geocube-city.js) is the city plan's, in its units: the dummy stands a person's height in them
     resolve: (m, ctx) => {
       if (m.show === 'city') {
         const { city, cube, pick, style } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true, ...(ctx.liveSun ? { liveSun: true } : {}) }), { metersPerUnit: CITY_METERS_PER_UNIT });
         return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) } }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
+      // a neighbourhood on the cube's own land (geotown/scene.js): its map first, levelled on the land's hills, in metres
+      // (a page read by the seventh generation: the town's lawns and trees handed to the form render)
+      if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

@@ -1,0 +1,67 @@
+/**
+ * The sprays (vegetation/sprays.js): one per species' outline, the same bytes twice, a spray's triangles within the
+ * budget a cloned crown affords, its colours the leaves' own (never lit), its leaves set by the architecture's phyllotaxis.
+ */
+import { describe, expect, it } from 'vitest';
+
+import { leafSpray, leafClump, leafHolds, leafOutline, needleHabit, SPRAY_LEAVES, CLUMP } from './sprays.js';
+import { HABIT } from './conifer-mesh.js';
+import { SPECIES } from './species.js';
+import { ARCHITECTURES } from './grow.js';
+import { TONES } from './tree-mesh.js';
+
+// one tree species per outline the table names, chosen from the catalogue
+const byOutline = new Map(); for (const [k, S] of Object.entries(SPECIES)) if (S.kind === 'tree' && !needleHabit(k) && !byOutline.has(leafOutline(k))) byOutline.set(leafOutline(k), k);
+// and one needled species per habit's form (a brush, a flat spray, a pine's tufts), chosen from the catalogue
+const byHabit = new Map(); for (const k of Object.keys(SPECIES)) { const h = needleHabit(k); if (h && !byHabit.has(h)) byHabit.set(h, k); }
+
+describe('sprays', () => {
+  it('grows the same spray twice, within a clone\'s budget, its colours the leaves\' and the twig\'s own', () => {
+    for (const [outline, sp] of byOutline) {
+      const a = leafSpray(sp, { seed: 3 }), b = leafSpray(sp, { seed: 3 });
+      expect(a).toEqual(b);
+      expect(a.leaves).toBe(SPRAY_LEAVES[outline].leaves);
+      expect(a.tris.length).toBeLessThanOrEqual(64);
+      // (albedo between the leaf's two tones, the twig's shoot tone: no exposure, no sun)
+      for (const t of a.tris) {
+        if (t.kind === 'wood') expect(t.c).toEqual(TONES.shoot);
+        else for (let k = 0; k < 3; k++) { expect(t.c[k]).toBeGreaterThanOrEqual(Math.min(TONES.leaf[k], TONES.leafLit[k]) - 1e-9); expect(t.c[k]).toBeLessThanOrEqual(Math.max(TONES.leaf[k], TONES.leafLit[k]) + 1e-9); }
+      }
+    }
+  });
+
+  it('sets its leaves as its architecture does: two ranks in one plane, or round the twig', () => {
+    const distich = Object.keys(SPECIES).find((k) => SPECIES[k].kind === 'tree' && ARCHITECTURES[SPECIES[k].arch].phyllo === 'distichous');
+    const spiral = Object.keys(SPECIES).find((k) => SPECIES[k].kind === 'tree' && ARCHITECTURES[SPECIES[k].arch].phyllo === 'spiral');
+    // (how far the leaves' tips stray out of the twig's horizontal plane: a distichous spray stays flat)
+    const spread = (sp) => { const L = leafSpray(sp, { seed: 1 }).tris.filter((t) => t.kind === 'leaf'); return Math.max(...L.flatMap((t) => t.p.map((p) => Math.abs(p[2] - 0)))) / Math.max(...L.flatMap((t) => t.p.map((p) => Math.abs(p[1])))); };
+    expect(spread(distich)).toBeLessThan(spread(spiral));
+  });
+
+  it('a clump is the crown\'s mass: a rosette of the outline\'s leaves, fewer triangles a leaf it holds than a spray', () => {
+    for (const [, sp] of byOutline) {
+      const C = leafClump(sp, { seed: 2 }), H = leafHolds(sp), S = leafSpray(sp, { seed: 2 });
+      expect(leafClump(sp, { seed: 2 })).toEqual(C);
+      expect(C.tris.filter((t) => t.kind === 'leaf').length).toBe(C.tris.length);
+      expect(C.leaves).toBe(CLUMP.leaves);
+      // (a clump holds many leaves' area; per leaf held, a tenth of a spray's triangles or less)
+      expect(H.clump).toBeGreaterThan(H.spray * 4);
+      expect(C.tris.length / H.clump).toBeLessThan((S.tris.length / H.spray) / 8);
+      // (facing out: its leaves rise toward +z)
+      const z = C.tris.flatMap((t) => t.p.map((p) => p[2])); expect(Math.max(...z)).toBeGreaterThan(-Math.min(...z));
+    }
+  });
+
+  it('needles: a conifer\'s habit, the same shoot twice, its needles teeth in its habit\'s tones, a clump holding many shoots', () => {
+    expect(needleHabit(Object.keys(SPECIES).find((k) => SPECIES[k].kind === 'tree' && ARCHITECTURES[SPECIES[k].arch].needles))).toBe('silverfir');
+    expect(needleHabit(Object.keys(SPECIES).find((k) => SPECIES[k].kind === 'tree' && !ARCHITECTURES[SPECIES[k].arch].needles))).toBeNull();
+    for (const [h, sp] of byHabit) {
+      const a = leafSpray(sp, { seed: 4 }), C = leafClump(sp, { seed: 4 }), H = leafHolds(sp);
+      expect(leafSpray(sp, { seed: 4 })).toEqual(a);
+      expect(a.tris.length).toBeLessThanOrEqual(64); expect(C.tris.length).toBeLessThanOrEqual(24);
+      const [dark, lit] = HABIT[h].tone;
+      for (const t of [...a.tris, ...C.tris].filter((t) => t.kind === 'leaf')) for (let k = 0; k < 3; k++) { expect(t.c[k]).toBeGreaterThanOrEqual(Math.min(dark[k], lit[k]) - 1e-9); expect(t.c[k]).toBeLessThanOrEqual(Math.max(dark[k], lit[k]) + 1e-9); }
+      expect(H.clump).toBeGreaterThan(H.spray * 4);
+    }
+  });
+});

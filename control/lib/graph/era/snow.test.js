@@ -3,7 +3,9 @@
 // grass thinning under it, the leaves turned up carrying it; on a stage, the ground cut where it crosses, the trail
 // trodden, the far ridges capped, the bare season's trees their wood, and the page's footprint bed on it.
 import { describe, expect, it } from 'vitest';
-import { readSnow, snowField, snowRamp, snowFar, grassUnder, capOf, SNOW_DEPTHS, SNOW_DEFAULTS } from './snow.js';
+import { readSnow, snowField, snowRamp, snowFar, grassUnder, capOf, snowMap, snowBase, SNOW_DEPTHS, SNOW_DEFAULTS } from './snow.js';
+import { formLandScript } from '../scene/channels/form-land.js';
+import { formFloraScript } from '../scene/channels/form-flora.js';
 import { lchOf } from '../color-theorist/oklab.js';
 import { ISEKAI_STYLES } from './isekai.js';
 import { assembleStageScene } from './stage.js';
@@ -123,4 +125,36 @@ describe('snow on a stage', () => {
   it('names no snow on a land that is no polygon land, and adds nothing where none falls', () => {
     expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: {}, snow: 'deep' }, {})).toThrow(/polygon land/);
   });
+});
+
+describe('snow in the form render (gen-7)', () => {
+  it('maps where it lies over the site: on level ground, not down a steep face; its colour bright under the light, held', () => {
+    // (a site level to x = 5, then a face rising at 3 in 1)
+    const site = { grid: { x0: 0, y0: 0, nx: 21, ny: 21, dx: 0.5 }, ground: (x) => (x < 5 ? 0 : (x - 5) * 3) };
+    const S = readSnow('cover'), M = snowMap(site, snowField({ ...S, drift: 0 }), S, [[200, 205, 215], [230, 235, 245], [250, 252, 255]]), px = Buffer.from(M.px, 'base64');
+    const at = (x, y) => px[(Math.round(y / M.cell) * M.size[0] + Math.round(x / M.cell)) * 4];
+    expect(M.size).toEqual([21, 21]);
+    expect(at(2, 5)).toBeGreaterThan(200);
+    expect(at(8, 5)).toBeLessThan(40);
+    expect(M.cap).toEqual(capOf(S)); expect(M.under).toBeCloseTo(grassUnder(S), 4);
+    const B = snowBase(M.albedo, { ambient: { linear: [0.3, 0.32, 0.38] }, sun: { linear: [0.62, 0.6, 0.55] } });
+    for (const v of B) { expect(v).toBeGreaterThan(0.5); expect(v).toBeLessThanOrEqual(0.85); }
+  });
+
+  it('the page draws it and presses prints in it only where there is snow (or sand); the plants cap with it', () => {
+    const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } }, snow = { origin: [0, 0], cell: 0.5, size: [2, 2], px: Buffer.alloc(16).toString('base64'), depth: 0.15, hold: 0.8, drift: 0.25, base: [0.7, 0.7, 0.72], cap: { up: 0.6, share: 0.7 } };
+    const none = formLandScript(land), with_ = formLandScript({ ...land, snow });
+    for (const k of ['tSnow', '__formPrints', 'snowKo']) { expect(none).not.toContain(k); expect(with_).toContain(k); }
+    expect(formFloraScript({ templates: [], n: 0, trees: '', lod: {} })).not.toContain('tSnowL');
+    expect(formFloraScript({ templates: [], n: 0, trees: '', lod: {} }, { snow: true })).toContain('tSnowL');
+  });
+
+  it('a stage read for the form render lays no snow over its ground and no painted prints bed: the map in their place', () => {
+    const M = { kind: 'stage', trail: {}, seed: 3, geocube: { from: 'island-noon', snow: 'cover' } }, P = assembleStageScene(M, { form: true }), G6 = assembleStageScene(M, {});
+    expect(P.snowMap.size[0] * P.snowMap.size[1] * 4).toBe(Buffer.from(P.snowMap.px, 'base64').length);
+    // (what snow faces are left cap the stones, drawn as they were)
+    const snowy = (Q) => Q.faces.filter((f) => f.group === 'isekai:snow').length;
+    expect(snowy(P)).toBeLessThan(snowy(G6) * 0.1);
+    expect(P.snowPrints).toBeUndefined(); expect(G6.snowPrints).toBeTruthy(); expect(G6.snowMap).toBeUndefined();
+  }, 180000);
 });

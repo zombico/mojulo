@@ -48,8 +48,12 @@ import { readWeather } from '@/lib/graph/weather/weather';
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
-import { landRead, formPayload, DRESS_DEFAULT } from '@/lib/graph/form/land-read';
+import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { floraRead, floraBox, viewHeld, FLORA_HIDES } from '@/lib/graph/form/flora-read';
+import { snowBase, readSnow } from '@/lib/graph/era/snow';
+import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
@@ -720,15 +724,52 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
-  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones), drawn
+  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones, the
+  // biocube's moss), drawn
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was
   if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
-    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
-    const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
-    const read = landRead(payload, readGeocube(M.cube), { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress });
+    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+    // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
+    const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
+    // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
+    // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
+    // (a town's lawns are mown: the short sward, no meadow's drifts)
+    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
+    const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
+    // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
+    if (payload.plants && !town) payload.plants = viewHeld(payload.plants, payload.cameras, { kinds: payload.plants.kinds });
+    // (where the form grows its own plants, floraBox: the painted trees and bushes there are not read as land)
+    const grown = floraBox(payload.plants);
+    // (a winter, snow over the whole land with no line, grows no grass at all; under a snow line the grass stands below it)
+    const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
+    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
+    if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
+    // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
+    if (read && payload.snowMap) payload.form = { ...payload.form, land: { ...payload.form.land, snow: { ...payload.snowMap, base: snowBase(payload.snowMap.albedo, read.light) } } };
+    // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
+    // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
+    const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    if (flora) {
+      const stamped = (payload.repeats || []).map((r) => r.group).filter((g) => g && g.startsWith('isekai:trees:'));
+      payload.form = { ...payload.form, land: { ...payload.form.land, hides: [...new Set([...payload.form.land.hides, ...FLORA_HIDES, ...stamped])] }, flora };
+    }
+    // (the gen-6 live grass's blades go with the painted land: the form render's grass is its own; its wind stays, and the
+    // crowns' sway in it, so the form's grass bends in the same gusts as the trees; channels/form-grass.js)
+    if (read && payload.liveGrass) {
+      const { grid, wind, crowns, seed, cards, petals } = payload.liveGrass;
+      if (wind && grid) payload.liveGrass = { grid, wind, crowns, seed, cards, field: false, ...(petals ? { petals } : {}) };
+      else delete payload.liveGrass;
+    }
+    // (and its blade cards, never walked on: gone from the page, not only hidden)
+    if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (where the plants stand is the form render's read alone: never on a page)
+  if (payload && payload.plants) delete payload.plants;
+  if (payload && payload.dunes) delete payload.dunes;
+  if (payload && payload.snowMap) delete payload.snowMap;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word
