@@ -113,7 +113,8 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
       expect(d.spec.evoke).toBe('segment');
       expect(d.blocks.length).toBe(1);
       // (its houses six or eight; a midtown mansion or two beside them, each on a plot of its own: see below)
-      expect([6, 8]).toContain(d.plots.filter((pl) => pl.form !== 'mansion').length);
+      // (a row beside a mansion's is recut to the mansion row's length)
+      if (!d.plots.some((pl) => pl.form === 'mansion')) expect([6, 8]).toContain(d.plots.length);
       // its two rows hold one count, back to back (a mansion's row fewer: it takes houses' frontage), and close on the block's length
       const rows = ['w', 'e'].map((s) => d.plots.filter((pl) => pl.side === s));
       if (!d.plots.some((pl) => pl.form === 'mansion')) expect(rows[0].length).toBe(rows[1].length);
@@ -122,7 +123,8 @@ describe('the geotown\'s map: blocks of plots, every square metre one surface', 
       expect(d.evoked.stands.plots).toBeGreaterThan(5 * d.plots.length);
       expect(law(d, 'evokes').ok).toBe(true);
       expect(law(d, 'closes').ok).toBe(true);
-      expect(new Set(d.plots.filter((pl) => pl.form !== 'mansion').map((pl) => pl.form))).toEqual(new Set(['semi', 'detached']));
+      // (its houses mostly semis, as its mix: the `evokes` law holds their share to the town to scale's)
+      expect(d.plots.some((pl) => pl.form === 'semi')).toBe(true);
     }
   });
 
@@ -355,3 +357,16 @@ describe('the logic of a neighbourhood\'s parts: mansions off the busy streets, 
     expect(() => readGeotown({ streetscape: { lights: 5 } })).toThrow(/streetscape.lights is the metres between streetlights/);
   });
 });
+
+describe('split duplex semis', () => {
+  it('splits a share of its semi pairs into two flats a half, both halves alike; its households are flats', () => {
+    const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'quiet-streets' }, { seed: 3, field: plane });
+    const dup = d.plots.filter((pl) => pl.duplex);
+    expect(dup.length).toBeGreaterThan(0);
+    expect(dup.every((pl) => pl.form === 'semi')).toBe(true);
+    for (const pl of dup) expect(d.plots.filter((q) => q.pair === pl.pair).every((q) => q.duplex)).toBe(true);
+    expect(d.units).toBe(d.plots.filter((pl) => pl.kind === 'houses').length + dup.length);
+    expect(law(d, 'parking').value).toContain(`for ${d.units} households`);
+  });
+});
+

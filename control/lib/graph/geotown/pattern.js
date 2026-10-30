@@ -88,7 +88,10 @@ export const PATTERNS = Object.freeze({
     block: { long: [150, 210], depth: [34, 40] },
     // a plot's frontage by its house's form; a corner plot is wider by `corner`, its flank a side yard to the cross street
     plot: { semi: [6.2, 7.6], detached: [8.5, 11], mansion: [17, 23], corner: 1.6 },
-    mix: { semi: 0.6, detached: 0.4 },
+    mix: { semi: 0.75, detached: 0.25 },
+    // a SPLIT semi: the share of semi pairs split into two flats each (two doors at the porch, a porch over a porch, a
+    // steel stair at the back to the upper flat)
+    duplex: { share: 0.55, read: 'a semi split into two flats: two doors side by side, a porch over the porch, a steel stair up the back to the upper flat' },
     // the front yard's depth, held along a block face (the street holds it)
     setback: [4.5, 6.5],
     // the house: its depth (a semi pair shares one), its storeys, the side yard a detached house keeps each side and a
@@ -135,7 +138,7 @@ export const PATTERNS = Object.freeze({
     // its plots' depth, its building's depth, its setback, side yards, storeys, its style and its front (fronts.js), what
     // its rear is (`service`: hard), its pad over its walk
     rows: {
-      shops: { read: 'shops in a row, party wall to party wall, built to the walk, a flat or two over each, an alley behind', use: 'shop', frontage: [6, 8.5], corner: 1.2, depth: [18, 22], building: [14, 17], setback: [0, 0], side: [0, 0], storeys: [2, 3], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 }, palettes: ['#a55a42', '#8c4a3a', '#c9a57a', '#d8cbb3', '#6f4a3c'] },
+      shops: { read: 'shops in a row, party wall to party wall, built to the walk, a flat or two over each, an alley behind', use: 'shop', frontage: [6, 8.5], corner: 1.2, depth: [18, 22], building: [14, 17], setback: [0, 0], side: [0, 0], storeys: [2, 3], style: 'main-street', rear: 'service', front: { shop: true }, pad: { least: 0.15, most: 0.6 }, palettes: ['#a55a42', '#8c4a3a', '#c9a57a', '#d8cbb3', '#6f4a3c', '#e6e1d6', '#5c6a72', '#3a3c3e', '#9aa58c'] },
       // a LOW-RISE: four storeys of flats on its lawn, balconies stacked over its front, its lot behind; each its own brick
       lowrise: { read: 'a four-storey low-rise of flats: brick, balconies stacked over its front, a canopy at its door, its lawn before it and its lot behind', use: 'dwelling', frontage: [26, 36], corner: 2, depth: [34, 40], building: [13, 16], setback: [6, 9], side: [3, 5], storeys: [4, 4], rear: 'service', front: { canopy: true, balconies: true }, pad: { least: 0.45, most: 1.8 },
         style: { from: 'walk-up', read: 'a post-war brick low-rise: four storeys of paired lights, a flat roof behind a plain parapet', language: { compose: { mass: { w: 28, d: 15 } } } }, palettes: ['#a3563f', '#c9a57a', '#8c5a44', '#b9875e', '#9c7a62'] },
@@ -175,6 +178,19 @@ export const PATTERNS = Object.freeze({
           front: { bay: 'square', bayStoreys: 'upper', porch: 'full' } },
       },
       yards: { near: { patio: 2, deck: 1 }, mid: { pool: 3, lawn: 1 }, back: { tree: 2, beds: 1, shed: 1 }, balcony: 0.6 },
+    },
+    // A SHOP's FRONT, each its own (scene.js shopfrontOf): its sign (a band across, a board over the door, a blade off the
+    // wall, lettering on the glass, none) and its awning (sloped canvas, a flat metal canopy, a rounded one, none) by
+    // weight, never its neighbour's both; its frame's paint, its sign's, its awning's and its lettering's colours; its
+    // kick plate's height (m). Its facade's brick its row's `palettes` (some of them paint)
+    shopfronts: {
+      signs: { band: 3, board: 2, blade: 2, window: 2, none: 1 },
+      awnings: { slope: 3, flat: 2, round: 1, none: 3 },
+      frames: ['#1f2a24', '#2a2d33', '#efe9dc', '#6e2a24', '#24405e', '#3e5e3a', '#8a6a3a'],
+      signColours: ['#1f2a33', '#3a2a1f', '#e8e0cc', '#24382a', '#5a1f1f', '#2a2f45', '#c8a23a', '#d8452f', '#2f7f8a', '#f2efe6'],
+      awningColours: ['#2f5d50', '#7a2e2e', '#2e4a7a', '#b8892e', '#4a4f55', '#6a3a5a', '#c8432f', '#e8e2d2', '#355a2a', '#20262c'],
+      letterColours: ['#f2efe6', '#e2c25a', '#1f2a33', '#c8432f'],
+      kick: [0.25, 0.75],
     },
     // THE SITES (sites.js), each PROPORTIONED to the block it is given (its share of the site, the metres a clamp): its
     // `site` rails (metres along its front street and into the block, the town to scale's; an evocation's tuned to its

@@ -51,7 +51,7 @@ import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
 import { frontOf, FRONT, box } from './fronts.js';
-import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, carOf, CAR_PAINTS, ZONES } from './yards.js';
+import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, carOf, CAR_PAINTS, ZONES } from './yards.js';
 import { gatesOf } from './gates.js';
 import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
 import { backTouch } from './laws.js';
@@ -144,7 +144,7 @@ function coloursOf(cube) {
     // a yard's things: a trampoline's mat, a grill, mulch round a tree, a compost bin, a balcony's rail
     mat: '#24262a', grill: '#2b2b2d', mulch: mix('#5b4232', C.floor, 0.2), compost: '#4f5a3c', rail: mix('#ece8de', C.trim, 0.2),
     // a gated front: its iron, its low wall's brick, its piers' stone
-    lane: mix('#55585c', C.floor, 0.12), pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
+    lane: mix('#55585c', C.floor, 0.12), steel: '#3c4044', pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
     iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
     // a site's ground and its things: lawn, turf and its mown stripes, the lines, a court, a track, a diamond's dirt, the
     // chips under a playground; goals, nets, fences, a field house's block walls, lamps, a flag, seats
@@ -187,6 +187,17 @@ export function fitFront(front, F) {
   if (out.porch === 'door' && room < FRONT.porch.door) delete out.porch;
   if (out.bay && out.bayStoreys !== 'upper' && room < FRONT.bay.proj + 0.3) out.bayStoreys = 'upper';
   return out;
+}
+
+/** A shop's front, its own: its sign, its awning, its frame's paint, its colours and its kick plate by the pattern's
+ *  `shopfronts`, never its neighbour's (`prev`) sign and awning both. */
+export function shopfrontOf(Sf, R, prev = null) {
+  if (!Sf) return true;
+  const pick = (table) => { const keys = Object.keys(table), sum = keys.reduce((a, k) => a + table[k], 0); let t = R() * sum; for (const k of keys) { t -= table[k]; if (t <= 0) return k; } return keys[keys.length - 1]; };
+  const one = (list) => list[Math.floor(R() * list.length)];
+  let sign = pick(Sf.signs), awning = pick(Sf.awnings);
+  if (prev && prev.sign === sign && prev.awning === awning) awning = Object.keys(Sf.awnings).find((k) => k !== awning);
+  return { sign, awning, frame: one(Sf.frames), signHex: one(Sf.signColours), awningHex: one(Sf.awningColours), letterHex: one(Sf.letterColours), kick: Math.round((Sf.kick[0] + (Sf.kick[1] - Sf.kick[0]) * R()) * 100) / 100 };
 }
 
 /** The street a block's row fronts: its line's id and its section. */
@@ -262,6 +273,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     put(cs, `geotown:${f.role}`, f.hex ?? (f.role === 'shed' ? shedHex : col[f.role] ?? col.timber), want);
   };
   let built = 0, hedges = 0, gated = 0, padCars = 0;
+  const shopPrev = new Map();
   const builtOf = {};
   for (const pl of d.plots) {
     const { w, d: dep, setback: F, pad } = pl, { env, depth: Hd } = pl.house, envW = env[2] - env[0];
@@ -277,7 +289,11 @@ export function assembleGeotownScene(m, ctx = {}) {
       const dz = spoken.get(key), mirror = pl.half === 'R';
       const door = dz.faces.find((f) => f.part === 'door' || f.part === 'accent'), dx = door ? door.corners.reduce((a, c) => a + c[0], 0) / door.corners.length : envW / 2;
       // (its front: a bay and a porch, a shopfront, a canopy, fronts.js, in its own frame; a semi's halves mirrored)
-      const front = K ? frontOf(fitFront(K.front, env[1]), { W: dz.dims.W0, n: dz.dims.n, storeyH: dz.dims.storeyH, doorX: dx, doorW: dz.dims.doorW }) : null;
+      // (a shop's front its own, never its row neighbour's sign and awning both; a split house's two doors and porches)
+      let Kf = K?.front;
+      if (Kf?.shop) { const rk = `${pl.block}:${pl.side}`; Kf = { ...Kf, shop: shopfrontOf(P.shopfronts, streamOf(seed, 'shopfront', pl.id), shopPrev.get(rk)) }; shopPrev.set(rk, Kf.shop); pl.shopfront = Kf.shop; }
+      if (pl.duplex) Kf = { ...Kf, doors: 2, porch2: true, porch: Kf?.porch ?? 'door' };
+      const front = K ? frontOf(fitFront(Kf, env[1]), { W: dz.dims.W0, n: dz.dims.n, storeyH: dz.dims.storeyH, doorX: dx, doorW: dz.dims.doorW }) : null;
       house = { design: dz, mirror, doorU: env[0] + (mirror ? envW - dx : dx), kit: K, front, porch: front?.porch ?? 0 };
     }
     const R = streamOf(seed, 'yard', pl.id), lawn = mix(col.lawn, R() < 0.5 ? col.hedge : '#ffffff', 0.04 + 0.08 * R());
@@ -392,8 +408,9 @@ export function assembleGeotownScene(m, ctx = {}) {
           const n0 = newell(cs), nf = n0[0] * nn[0] + n0[1] * nn[1] + n0[2] * nn[2] < 0 ? n0.map((x) => -x) : n0, cw = n0 === nf ? cs : cs.slice().reverse();
           for (const c of cw) { top = Math.max(top, c[2] - pad); lo = [Math.min(lo[0], c[0]), Math.min(lo[1], c[1])]; hi = [Math.max(hi[0], c[0]), Math.max(hi[1], c[1])]; }
           const W0 = wallOf.get(Math.min(f.storey ?? 0, dz.dims.n - 1)) ?? wallOf.get(0) ?? { group: dz.dims.ground, value: 0.5 };
-          const [grp, v] = f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
-          const own = f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : col.glass;
+          // (a face with its own paint, a shop's frame, sign or awning, wears it)
+          const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
+          const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
           const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
           faces.push(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0);
         }
@@ -409,6 +426,8 @@ export function assembleGeotownScene(m, ctx = {}) {
           const Mn = pl.mansion, table = Mn ? P.mansion.yards : P.yards, key = `${pl.block}:${pl.side}`, prev = Mn ? null : yardPrev.get(key);
           const pickZ = (t, was) => (Object.keys(t).length > 1 ? pickWeighted(Ry, t, was) : Object.keys(t)[0]);
           const want = Object.fromEntries(ZONES.map((z) => [z, table[z] ? pickZ(table[z], prev?.[z] ?? null) : 'lawn']));
+          // (a split house's back door is the upper flat's stair's: its yard by the house left to it)
+          if (pl.duplex) want.near = 'lawn';
           pl.fence = Mn ? 'hedge' : pickWeighted(Ry, P.fences);
           const busy = Mn?.garage ? [Math.min(Mn.drive[0], Mn.garage[0]) - 0.5, Math.max(Mn.drive[1], Mn.garage[2]) + 0.5] : null;
           const [ua, ub] = busy ? (Mn.left ? [busy[1], w] : [0, busy[0]]) : [0, w];
@@ -423,7 +442,7 @@ export function assembleGeotownScene(m, ctx = {}) {
           for (const t of Y.trees) { const [x, y] = W(pl, t.u + ua, t.v, 0), sp = t.large ? tall : P.grow.trees[Math.floor(Ry() * P.grow.trees.length)]; grows(sp, x, y, pad, treeH(sp, t.large ? 0.8 + 0.2 * Ry() : 0.25 + 0.5 * Ry()), 'back'); }
           // a balcony off an upper floor at the back, on a share of the houses: its reach into the house's room
           const bw = Math.min(3.4, envW - 1.2);
-          if (Ry() < (table.balcony ?? 0) && dz.dims.n >= 2 && bw >= 1.8) {
+          if (Ry() < (table.balcony ?? 0) && dz.dims.n >= 2 && bw >= 1.8 && !pl.duplex) {
             const cu = (env[0] + env[2]) / 2, Cb = colliders[colliders.length - 1];
             for (const f of balconyOf({ u0: cu - bw / 2, u1: cu + bw / 2, v: v0, z: dz.dims.storeyH, R: Ry })) {
               yardFace(pl, f);
@@ -431,6 +450,8 @@ export function assembleGeotownScene(m, ctx = {}) {
             }
             drawn.push('balcony'); yardsOf.balcony = (yardsOf.balcony ?? 0) + 1;
           }
+          // a split house's steel stair from its yard to the upper flat's landing and door, at its outer side
+          if (pl.duplex && dz.dims.n >= 2) { for (const f of stairOf({ w, v0, z: dz.dims.storeyH, outer: pl.half === 'R' ? 'u1' : 'u0' })) yardFace(pl, f); drawn.push('stair'); }
           pl.yard = drawn.length ? drawn.join(', ') : 'lawn';
         } else {
           pl.fence = 'board';
@@ -715,8 +736,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   if (H0) {
     cameras.push(along(H0, 'street', 20));
     // a house from its walk, a few metres along it (between its street's trees and its front yard)
-    // (from the walk, or out at the kerb where the house stands close to it)
-    const q = H0.rp[Math.floor(H0.rp.length / 2)], Sq = lineOf(d, H0.B, q.side).S, ws = Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)), e = [q.A[0] - q.ey[0] * ws - q.ex[0] * 4, q.A[1] - q.ey[1] * ws - q.ex[1] * 4], t = W(q, q.w / 2, q.setback + 2, 0);
+    // (a split pair's when the row has one; from the walk, or out at the kerb where the house stands close to it)
+    const q = d.plots.find((pl) => pl.duplex && pl.half === 'L' && pl.built) ?? H0.rp[Math.floor(H0.rp.length / 2)], Sq = lineOf(d, d.blocks.find((b) => b.id === q.block), q.side).S, ws = Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)), e = [q.A[0] - q.ey[0] * ws - q.ex[0] * 4, q.A[1] - q.ey[1] * ws - q.ex[1] * 4], t = W(q, q.w / 2, q.setback + 2, 0);
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));
@@ -805,7 +826,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; every crown raised to ${TREE_CLEAR} m (the least tree ${Math.round(TREE_LEAST * 10) / 10} m); ${crowded} trees without room to stand that tall not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, its crown starting at least twice a person\'s height up' },
     { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${treeFaces} faces as repeats`, want: 'only what the map needs is drawn' }];
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
-  const counts = { plots: d.plots.length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
+  const counts = { plots: d.plots.length, units: d.units ?? d.plots.length, duplexes: d.plots.filter((pl) => pl.duplex).length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
   return {
     faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), colliders, anchors, cameras,
     viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geotown`,
@@ -818,7 +839,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       pattern: d.pattern.id, streetscape: d.pattern.streetscape, evoke: d.spec.evoke, grid: d.spec.grid, frame: d.frame, land: d.land.range, language: L.id ?? anchor,
       segments: d.blocks.map((b) => { const pads = d.plots.filter((pl) => pl.block === b.id).map((pl) => pl.pad); return { id: b.id, use: b.use, built: b.built, rows: (b.rows ?? []).map((r) => ({ side: r.side, kind: r.kind, count: r.count })), ...(pads.length ? { pads: [Math.min(...pads), Math.max(...pads)] } : {}) }; }),
       ports: d.ports, counts, ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
-      ...(evoked ? { stands: d.evoked.stands, shows: d.evoked.shows, yards: Object.fromEntries(d.plots.filter((pl) => pl.yard).map((pl) => [pl.id, pl.yard])), features: yardsOf } : {}),
+      ...(evoked ? { stands: d.evoked.stands, shows: d.evoked.shows, yards: Object.fromEntries(d.plots.filter((pl) => pl.yard).map((pl) => [pl.id, pl.yard])), features: yardsOf, shopfronts: Object.fromEntries(d.plots.filter((pl) => pl.shopfront).map((pl) => [pl.id, { sign: pl.shopfront.sign, awning: pl.shopfront.awning }])) } : {}),
     },
   };
 }

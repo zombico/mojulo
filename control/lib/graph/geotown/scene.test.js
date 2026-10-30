@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { assembleGeotownScene, GEOTOWN_FACES, fitFront, TREE_CLEAR, TREE_RAISE } from './scene.js';
+import { assembleGeotownScene, GEOTOWN_FACES, fitFront, shopfrontOf, TREE_CLEAR, TREE_RAISE } from './scene.js';
+import { mulberry32 } from '../city/plan/dice.js';
 import { designGeotown } from './design.js';
 import { SURFACES, PATTERNS, DEFAULT_PATTERN } from './pattern.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
@@ -197,5 +198,24 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     // a low-rise: four storeys, a balcony's door (glass) on each upper storey of its bays
     for (const a of Lr.anchors.filter((q) => q.row === 'lowrise')) expect(a.box.max[2] - a.box.min[2]).toBeGreaterThan(4 * 2.7);
     expect(Lr.faces.filter((f) => f.group === 'geotown:glass').length).toBeGreaterThan(Lr.anchors.length * 3);
+  });
+
+  it('splits its duplexes: two doors at the porch, a porch over it, a steel stair at the back; each shop its own front', () => {
+    const at = (geotown) => assembleGeotownScene({ kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, ...geotown } });
+    const H = at({}), groups = (p, g) => p.faces.filter((f) => f.group === g).length;
+    expect(H.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(H.geotown.counts.duplexes).toBeGreaterThan(0);
+    // (each split half: its second door, its upper flat's door onto its porch, its stair's door)
+    expect(groups(H, 'geotown:door')).toBeGreaterThanOrEqual(3 * H.geotown.counts.duplexes);
+    expect(groups(H, 'geotown:steel')).toBeGreaterThan(0);
+    expect(Object.values(H.geotown.yards).filter((y) => y.includes('stair')).length).toBe(H.geotown.counts.duplexes);
+    // a main street's shops: never a neighbour's sign and awning both, more than one sign and awning along the row
+    const M = at({ segment: 'main-street' }), d = designGeotown({ segment: 'main-street', hills: { height: 6 } }, { seed: 3 }), S = M.geotown.shopfronts;
+    const row = d.plots.filter((pl) => pl.kind === 'shops').sort((p, q) => p.k - q.k).map((pl) => S[pl.id]);
+    for (let k = 1; k < row.length; k++) expect(row[k].sign === row[k - 1].sign && row[k].awning === row[k - 1].awning).toBe(false);
+    expect(new Set(row.map((f) => f.sign)).size).toBeGreaterThan(1);
+    expect(new Set(row.map((f) => f.awning)).size).toBeGreaterThan(1);
+    const F = shopfrontOf(PATTERNS[DEFAULT_PATTERN].shopfronts, mulberry32(9), null);
+    expect(shopfrontOf(PATTERNS[DEFAULT_PATTERN].shopfronts, mulberry32(9), { sign: F.sign, awning: F.awning }).awning).not.toBe(F.awning);
   });
 });

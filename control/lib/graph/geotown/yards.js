@@ -12,6 +12,7 @@
  *       plan }: the yard from the house's back wall (v0) to the plot's back line (v1), each zone given its depth in
  *       order (a feature without the room is lawn: `plan` the one drawn); R its dice
  *   balconyOf({ u0, u1, v, z, R }) → faces: a balcony off the house's back wall (at v) at an upper floor (z)
+ *   stairOf({ w, v0, z, outer }) → faces: a split house's steel stair up the back wall to its upper flat's landing
  *   fenceOf(fence, [u0, v0], [u1, v1], z0) → the fence's faces along a line (a thin box, or a hedge's thick one)
  *   carOf(u, v, along, hex) → a car's faces standing at (u, v), its length along 'u' or 'v', its body painted `hex`
  *   CAR_PAINTS   the cars' paints
@@ -199,6 +200,24 @@ export function yardOf(plan, { w, v0, v1, R }) {
     trees.push({ u: r4(tu), v: r4(tv), large: true });
   }
   return { faces: out, trees, plan: fit };
+}
+
+/** A split house's stair: a landing at the upper flat's floor (`z`) against the back wall (at v0, facing +v) at the
+ *  house's `outer` side ('u0' or 'u1'), its post and rails, its door; the flight down along the wall toward the party
+ *  wall, its treads, its stringer and its rail; steel. */
+export function stairOf({ w, v0, z, outer }) {
+  const out = [], L = 1.3, D = 1.2, left = outer === 'u0', u0 = left ? 0.35 : w - 0.35 - L, u1 = u0 + L, s = left ? 1 : -1, ua = left ? u1 : u0;
+  out.push(...box(u0, v0, u1, v0 + D, z - 0.12, z, 'steel'));
+  const up = left ? u0 + 0.05 : u1 - 0.05;
+  out.push(...box(up - 0.05, v0 + D - 0.1, up + 0.05, v0 + D, 0, z - 0.12, 'steel').slice(1));
+  out.push(...box(u0, v0 + D - 0.04, u1, v0 + D, z + 0.95, z + 1, 'steel'), ...box(left ? u0 : u1 - 0.04, v0, left ? u0 + 0.04 : u1, v0 + D, z + 0.95, z + 1, 'steel'));
+  out.push({ corners: [P(u0 + 0.2, v0 + 0.02, z), P(u0 + 1.1, v0 + 0.02, z), P(u0 + 1.1, v0 + 0.02, z + 2.1), P(u0 + 0.2, v0 + 0.02, z + 2.1)], out: [0, 1, 0], role: 'door' });
+  // the flight: its run as long as the yard's width allows, a tread each riser
+  const run = Math.min(z * 1.15, w - L - 0.8), n = Math.max(6, Math.round(z / 0.28)), ue = ua + s * run;
+  for (let k = 0; k < n; k++) { const a = ua + (s * run * k) / n, b = ua + (s * run * (k + 1)) / n, zt = z - (z * (k + 1)) / n; out.push(...box(Math.min(a, b), v0 + 0.1, Math.max(a, b), v0 + 1, zt - 0.04, zt, 'steel').slice(0, 3)); }
+  out.push({ corners: [P(ua, v0 + 1.02, z), P(ue, v0 + 1.02, 0), P(ue, v0 + 1.02, 0.25), P(ua, v0 + 1.02, z + 0.25)], out: [0, 1, 0], role: 'steel' });
+  out.push({ corners: [P(ua, v0 + 1.04, z + 0.95), P(ue, v0 + 1.04, 0.95), P(ue, v0 + 1.04, 1), P(ua, v0 + 1.04, z + 1)], out: [0, 1, 0], role: 'steel' });
+  return out;
 }
 
 /** A balcony off the house's back wall (at v, facing +v) over [u0, u1], its floor at z: its slab, its rail and

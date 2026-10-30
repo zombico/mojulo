@@ -180,8 +180,8 @@ function cutRow(P, L, R) {
   return fitRow(out, L, C);
 }
 
-/** An EVOKED row of houses: `n` of them, as the pattern's mix would have them (a semi pair and a detached house at
- *  least, where the mix has both and the row holds three), in an order the dice choose; their own frontages, uncut by a
+/** An EVOKED row of houses: `n` of them, as the pattern's mix would have them (a semi pair at least, and a detached
+ *  house where the mix asks one of a row this long), in an order the dice choose; their own frontages, uncut by a
  *  block's length (the block is as long as its rows make it). → [{ form, w, pair?, half? }] */
 function cutCount(P, n0, R, mansions = 0) {
   // (a mansion is one of the row's houses; the rest by the mix, which is of buildings: a semi pair is one building and
@@ -189,7 +189,8 @@ function cutCount(P, n0, R, mansions = 0) {
   const big = Math.min(mansions, n0), n = n0 - big;
   const m = P.mix.semi / (P.mix.semi + P.mix.detached), semiHouses = (2 * m) / (2 * m + (1 - m));
   let pairs = P.mix.detached <= 0 ? Math.floor(n / 2) : P.mix.semi <= 0 ? 0 : Math.round((n * semiHouses) / 2);
-  if (P.mix.semi > 0 && P.mix.detached > 0 && n >= 3) pairs = Math.max(1, Math.min(pairs, Math.floor((n - 1) / 2)));
+  // (a semi pair at least where the mix has semis; a detached house at least where the mix asks one of a row this long)
+  if (P.mix.semi > 0 && P.mix.detached > 0 && n >= 3) pairs = Math.max(1, Math.min(pairs, n * (1 - semiHouses) >= 1 ? Math.floor((n - 1) / 2) : Math.floor(n / 2)));
   const forms = [...Array(pairs).fill('semi'), ...Array(n - 2 * pairs).fill('detached'), ...Array(big).fill('mansion')];
   for (let i = forms.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [forms[i], forms[j]] = [forms[j], forms[i]]; }
   const out = [];
@@ -479,6 +480,9 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
       });
     });
   }
+  // a split semi: a share of the pairs each half two flats (pattern.duplex), by the pair's own dice
+  const split = new Map();
+  for (const pl of plots) if (pl.pair && P.duplex) { if (!split.has(pl.pair)) split.set(pl.pair, streamOf(seed, 'duplex', pl.pair)() < P.duplex.share); if (split.get(pl.pair)) pl.duplex = true; }
   // ── 7 levels: each building a pad over the walk at its front, in risers, inside its kind's rail; a semi pair one pad ──
   const kinds = { houses: kindOf(P, 'houses', depth), ...Object.fromEntries(Object.keys(P.rows ?? {}).map((k) => [k, kindOf(P, k, depth)])) };
   const padOf = (Pd, wf, n) => { const rise = Math.max(Pd.least, Math.min(Pd.most, n - wf)); return r3(wf + Math.round(rise / P.pad.riser) * P.pad.riser); };
@@ -608,7 +612,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // (playing fields side by side: two field sites whose blocks face each other across one street)
   const fieldy = blocks.filter((b) => b.site && b.site.type !== 'park'), touch = (a, b) => (a.i1 + 1 === b.i || b.i1 + 1 === a.i) && a.j <= b.j1 && b.j <= a.j1 || (a.j1 + 1 === b.j || b.j1 + 1 === a.j) && a.i <= b.i1 && b.i <= a.i1;
   const beside = fieldy.flatMap((a, k) => fieldy.slice(k + 1).filter((b) => touch(a, b)).map((b) => [a.id, b.id]));
-  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic };
+  const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, units: plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length + plots.filter((pl) => pl.duplex).length };
   // an evocation stands for the town laid to scale: its houses' measures are read against that town's (laws.js `evokes`)
   if (evoked) D.evoked = { level: T.evoke, stands: { plots: ref.plots.length, blocks: ref.blocks.length }, shows: plots.length, ref: plotShares(ref), fits };
   D.laws = geotownLaws(D);

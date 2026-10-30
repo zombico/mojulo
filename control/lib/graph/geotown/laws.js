@@ -110,7 +110,8 @@ export function geotownLaws(d) {
     law('mansions', least >= MANSION.larger - 1e-9 && most <= MANSION.most && !busy.length, `${big.length} mansions, the least ${r2(least)} times its street's mean house plot; at most ${most} in a segment; ${busy.length} on a block touching a main or major street`);
   }
   // (a household a house's plot, a mansion's among them; a walk-up's and a shop's lots are their own)
-  const PK = P.parking, homes = d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length;
+  // (a split house two households, its two flats)
+  const PK = P.parking, homes = d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length + d.plots.filter((pl) => pl.duplex).length;
   if (d.parking && PK?.least > 0 && homes) {
     const room = d.parking.stalls + d.parking.pads + 2 * d.parking.garages + (d.parking.laneGarages ?? 0);
     law('parking', room / homes >= PK.least - 1e-9, `${r2(room / homes)} stalls a household (least ${PK.least}): ${d.parking.stalls} on the street (${d.parking.sides}), ${d.parking.pads} front pads, ${d.parking.garages + (d.parking.laneGarages ?? 0)} garages, for ${homes} households`);

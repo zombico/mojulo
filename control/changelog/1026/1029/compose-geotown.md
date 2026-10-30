@@ -71,6 +71,14 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   neighbours alike, each at its type's setback and frontage; a public LANE behind them (the `lane` surface), and the
   houses behind it facing their quiet street, some with a garage off the lane (counted in `parking`). The pattern's
   neighbourhood `edges`: quiet streets between two major ones.
+- **Split duplex semis**: more of the houses semis (the pattern's mix), and a share of the pairs (`pattern.duplex`)
+  split into two flats each: two doors side by side at the porch, a porch over a porch (the upper flat's, its own door
+  onto it), a steel stair at the back from the yard to the upper flat's landing and door, the yard by the back door
+  left to it; the households are flats (counted by the `parking` law, the ledger's `units`).
+- **Storefronts, each its own** (`pattern.shopfronts`): a shop's sign a band across, a board over its door, a blade
+  off the wall, lettering on its glass, or none; its awning sloped canvas, a flat metal canopy, a rounded one, or none;
+  its frame's paint, its sign's and its awning's colours its own, its kick plate's height, its facade now and then
+  painted; never its neighbour's sign and awning both.
 - **Low-rise apartments** (letter L, `segment: 'lowrise'`): rows of four-storey low-rises on their lawns, each its own
   brick, balconies stacked over their fronts (`fronts.js` `balconies`), a canopy at the door, their lots behind.
 - **Alleys behind storefronts**: a main-street segment's shops back onto a narrow alley (the `lane` surface, the

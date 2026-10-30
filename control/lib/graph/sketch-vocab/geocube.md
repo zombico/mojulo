@@ -109,11 +109,14 @@ A cube that names no domains offers one per terrain and one per interior.
   each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
   (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, blocks?, margin? }`: `evoke` how
   it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
-  six or eight, each a type of its pattern with a bay, a porch, its own roof, walls and material tiles, each back yard
+  six or eight, mostly semis, a share of the pairs split into two flats each (`pattern.duplex`: two doors at the porch,
+  a porch over the porch, a steel stair up the back), each a type of its pattern with a bay, a porch, its own roof,
+  walls and material tiles, each back yard
   its own plan behind its own fence, a feature by its back door, in its middle and by its back fence (patio, deck;
   lawn, beds, swing and slide, trampoline, pool; shed, kitchen garden, a large shade tree), a balcony over some, the
   pattern's `yards` their weights; `main-street` shops built to a main street's walk under their signs and
-  awnings, a narrow alley behind them, houses backing onto it; `apartments` a walk-up and its lot among houses;
+  awnings, each its own front (`pattern.shopfronts`: a sign band, a board, a blade, lettering on the glass or none; a
+  canvas, a flat canopy, a rounded awning or none; its own paint), a narrow alley behind them, houses backing onto it; `apartments` a walk-up and its lot among houses;
   `lowrise` two rows of four-storey low-rises, balconies over their fronts, their lots behind; `park` (a
   playground, a pavilion, benches); `school` (its building, schoolyard, staff lot, a field round a track) and `sports`
   (a diamond, a pitch under lights, tennis courts, a field house), each two segments' ground, one block, proportioned
