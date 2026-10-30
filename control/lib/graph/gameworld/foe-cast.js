@@ -23,7 +23,8 @@
  */
 import { readGameworld } from './world.js';
 import { fingerprint, checkReviewEntry, stampPart, MODES, FOE_CAST_PART } from './review.js';
-import { bestiaryOf, fieldedIds, modeChain, readLevelFoes, SUMMON, isModel, isPeople } from './foes.js';
+import { bestiaryOf, fieldedIds, modeChain, readLevelFoes, SUMMON, isModel, isPeople, isDressed } from './foes.js';
+import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { vanishOf, VANISHES } from './vanish.js';
 import { juiceOfGame, juiceSuggestion } from './juice.js';
 import { settingOfGame } from './cast-setting.js';
@@ -78,6 +79,10 @@ export function castStyleOf(G) {
 
 function skinOf(entry, f) {
   if (isModel(entry)) return { kind: 'model', says: `a model made elsewhere (${entry.skin.meshRef}), stood ${entry.skin.height ?? 1.8} m` };
+  if (isDressed(entry)) {
+    const D = entry.skin.dress, S = GRUNT_STYLES[D.faction], cw = D.colourway ?? Object.keys(S.colourways)[0];
+    return { kind: 'people', dress: { ...D, colourway: cw }, says: `a person dressed as the ${S.name.toLowerCase()}'s ${D.kind ?? 'crew'}, ${S.colourways[cw].reads}${D.kind ? `: ${S.kinds[D.kind].reads.replace(/^the [a-z ]+: /, '')}` : ''}${entry.skin.facets?.pole ? `, ${entry.skin.facets.pole}` : ''}` };
+  }
   if (isPeople(entry)) return { kind: 'people', says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}` };
   const own = entry.skin?.species !== undefined;
   return { kind: 'beast', says: `${words(f.body.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase())}${f.skin.ooze ? ` grown by ${[].concat(f.skin.ooze).map((o) => (typeof o === 'string' ? o : o.id ?? 'an ooze')).join(', ')}` : ''}${own ? '' : ' (its class\'s stand-in)'}` };

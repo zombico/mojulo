@@ -57,6 +57,11 @@ export const MOVES = Object.freeze({
     needs: ['ground'], mind: { motivation: 'ambient' }, own: { stretch: 6, drop: 1 },
     status: 'built', lowers: FOE, ...WEB_ONLY,
   },
+  patrol: {
+    line: 'walks its round between two posts and back; once it sees the hero the mind has it, and it walks its round again when it has seen no one for a while',
+    needs: ['ground'], mind: { motivation: 'guard' }, own: { stretch: 10, drop: 1, patrol: { calm: 4 } },
+    status: 'built', lowers: FOE, ...WEB_ONLY,
+  },
   chase: {
     line: 'hunts the hero down, sliding along what is in its way',
     needs: ['ground'], mind: { motivation: 'hunt' }, rides: ['motivation', 'hunt'],

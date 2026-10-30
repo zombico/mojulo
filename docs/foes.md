@@ -79,6 +79,21 @@ its own clips, its non-base-colour maps, a JPEG without the optional `sharp` wor
 with no skin, or missing a humanoid bone, is refused naming what is missing. Rigid per bone on the page, as every rig foe
 is; a heavy model is drawn at its own triangle count, so keep a crowd's under budget (principle 8).
 
+### Skin: a person dressed as a crew
+
+`skin: { people: 'human', dress: { faction, kind?, colourway?, body? } }` dresses a person as one of a crew
+(`foes/dress.js`). The faction is one of the comic hero pack's grunt factions (`GRUNT_STYLES`: private military,
+corporate security, a cult, a street gang …), and its kind (a rifleman, a sentry, a breacher …) gives the build, the
+clothes, the headgear and the gear. The colourway is the crew's colours, so a bestiary dressed in one colourway reads as
+one crew. Such a person is made through the hero door (`foes-<id>`, with its reactions), not the egocube's loop, and
+stands on the library as any made person does. Only a person is dressed (a people of another lineage wears its own
+roll), and its dress names its build and age: its `facets` name only its pole. The pack's western stop bakes its own
+golden light into a hero; a foe stands in its world's light, so that cube is left off. `body: 'realistic'` draws it on
+the realistic body.
+
+Every body an entry stands wears the entry's one figure, so a squad of one entry is one soldier repeated; two entries
+of one faction and colourway are two soldiers of one crew.
+
 ### Relations: a summoner and its summons
 
 A relation is between foes, not inside one: each body stays its own layer 0, and the relation reads only the contract
@@ -127,6 +142,9 @@ world, character and feel books. It reads only what the shelves already say (`ga
 
 - **The lineup.** Every foe drawn at the stature it reads at in the game (its class's presence grown by its rank; a
   person at its height), beside the hero, on a metre rule. A flier is held off the ground.
+- **Where they stand.** A level's foes stand on a walk's trails or in a building's rooms (each room between the way in
+  and the goal a beat). A building stands `ROOM_FOES` of its rooms when its level names no count, spread from the way
+  in to the goal, and the walker or the hero in it takes their hits as on a trail.
 - **The tiers.** A tile per foe by rank: its portrait once a run has made its figure (`made['foes-<id>']`), else its
   lineup silhouette, its threat, its element, its modes and relations, the levels it stands on.
 - **The cards.** One per foe: the class's `reads` (the lesson it teaches the player) first, then its numbers, its
@@ -155,8 +173,10 @@ class that scores best against the world:
 
 A class the cube's own `mind.foes` names is cast before any other. The world's era rolls one people for the whole cast
 (`ERA_PEOPLES`, seeded by the world), worn by every class that stands on two legs; a platformer's and a pinball table's
-cast stays on the stand-in beasts. The grunt and harrier stand on every walk, the elite from the middle on, and the
-boss alone on the last walk, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
+cast stays on the stand-in beasts. A cast of people is dressed as one crew (`ERA_DRESS`): its faction by era (a
+soldier's for a game whose minds are soldiers': a shooter, a stealth game), its colourway rolled, each role a kind of it
+in turn and the boss the heaviest. The grunt and harrier stand on every walk or building, the elite from the middle
+on, and one boss alone on the last, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.
 
 ## Precedence
@@ -227,6 +247,10 @@ name none. The discipline for adding one:
   the swap and the return; absent, no code.
 - `worlds/controllable/summon.test.js`: the call (near, capped, its wind-up broken by a blow), the slack while it reels,
   the strings cut on its fall and the uncalled dropped, an unbound summons fighting on; absent, no code.
+- `foes/dress.test.js`: a dress's words refused by name, its hero-door order in its kind's dress and crew's colours,
+  the pack's light left off, the realistic body on its word.
+- `worlds/controllable/foe.test.js`: a patrol walks its round unseen, a hero in its sight is the mind's, one behind a
+  wall is not, and calm, it walks its round again.
 - `gameworld/foe-cast.test.js`: the cast read for a beast, a people, a model, a mode chain and a summoner; the numbers in a
   counting flavor and a health flavor; the gate's parts going stale; the casting call adopted as written, the intent's
   own classes first, a people's era and a platformer's beasts; absent, nothing.

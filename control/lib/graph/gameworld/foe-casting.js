@@ -4,10 +4,10 @@
  * register and flavor, juice.js) and when it is set (its kit's era, cast-setting.js). It proposes and never writes: the
  * agent writes the words (`patch`) through design_game, and the creator approves them on the cast sheet.
  *
- *   castingCall(world) → null (the game fights nothing, keeps a bestiary already, or has no walk to stand a foe on) or
+ *   castingCall(world) → null (the game fights nothing, keeps a bestiary already, or has no walk or building to stand a foe on) or
  *     { foes, levels, patch, roles: [{ id, role, class, rank, skill?, skin?, score, why: [...] }], from, reasons }
  *     foes     the bestiary proposed, in the bestiary's own words (foes.js readBestiary takes it)
- *     levels   { <level id>: <its foes words> } for each walk that names none
+ *     levels   { <level id>: <its foes words> } for each walk or building that names none
  *     patch    the JSON Pointer ops that write both (design_game { patch })
  *     from     { genre, flavor, register, era, people?, mind: { <axis>: value } } what was read, and from where
  *
@@ -18,9 +18,11 @@
  * realistic game's blows), whether the world's people can play it and what the intent's target engine carries; a class the cube's own
  * `mind.foes` names is cast before any it does not. Ties go
  * to the class's order. A role's people is rolled once for the world from its era's peoples (one force, not a zoo), on
- * a class that stands on two legs; a platformer's and a pinball table's cast stays the stand-in beasts.
+ * a class that stands on two legs; a platformer's and a pinball table's cast stays the stand-in beasts. A person cast is
+ * dressed as one crew (ERA_DRESS: its faction by era, a soldier's for a game whose minds are soldiers', its colourway
+ * rolled), each role a kind of it.
  *
- * Pure and deterministic: the people is the world's seed's (mulberry32), nothing else is rolled.
+ * Pure and deterministic: the people, the crew and its colours are the world's seed's (mulberry32), nothing else is rolled.
  */
 import { readGameworld } from './world.js';
 import { cubeOfWorld } from './intent.js';
@@ -33,6 +35,7 @@ import { peopleSeed } from '../foes/people.js';
 import { fitOfPeople } from '../foes/fit.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 
 /** The cast's roles, in the order they are cast: the rank each stands at and what it is for. */
 export const ROLES = Object.freeze({
@@ -48,6 +51,13 @@ export const ERA_PEOPLES = Object.freeze({
   modern: ['human'],
   future: ['insectoid', 'human'],
 });
+/** The crews a person cast is dressed as, by era (foes/dress.js: the comic hero pack's grunt factions); a game whose
+ * minds hunt or guard as soldiers do (MILITARY) takes the first, any other one rolled from the row. */
+export const ERA_DRESS = Object.freeze({
+  modern: ['privateMilitary', 'corporateSecurity', 'streetGang'],
+  future: ['privateMilitary', 'corporateSecurity'],
+});
+const MILITARY = ['shooter', 'stealth', 'arena-shooter', 'survival-horror', 'tactics', 'rts', 'city-stalker', 'co-op-scroller'];
 /** The flavors whose cast stays beasts on their stand-ins (a stomp, a bop, a pop are a critter's). */
 const BEAST_FLAVORS = ['platformer', 'pinball'];
 /** What says a game fights: a combat of its own, or a mind that hunts, guards or holds ground. */
@@ -88,7 +98,8 @@ function pick(scored, ok, taken, named) {
 export function castingCall(world) {
   const G = readGameworld(world);
   if (G.foes !== undefined || world.quick) return null;
-  const walks = G.ids.filter((id) => G.levels[id].walk !== undefined);
+  // (where a foe can stand: a walk's trails, a building's rooms)
+  const walks = G.ids.filter((id) => G.levels[id].walk !== undefined || (G.levels[id].building !== undefined && G.levels[id].building?.ref === undefined));
   if (!walks.length) return null;
   const { cube, from: genre } = cubeOfWorld(world), mind = cube.mind ?? {}, combat = [].concat(cube.power?.combat ?? []);
   const named = [].concat(mind.foes ?? []);
@@ -98,6 +109,14 @@ export function castingCall(world) {
   const rnd = mulberry32(peopleSeed(G.seed, 'casting-call'));
   const peoples = !BEAST_FLAVORS.includes(style.flavor) && ERA_PEOPLES[era] ? ERA_PEOPLES[era] : null;
   const people = peoples ? peoples[Math.floor(rnd() * peoples.length)] : null;
+  // (a person cast is dressed as one crew: its faction by era and genre, its colours the world's roll)
+  const factions = people === 'human' ? ERA_DRESS[era] ?? null : null;
+  const faction = factions ? (MILITARY.includes(genre) ? factions[0] : factions[Math.floor(rnd() * factions.length)]) : null;
+  const F = faction ? GRUNT_STYLES[faction] : null, colourways = F ? Object.keys(F.colourways) : [];
+  const colourway = F ? colourways[Math.floor(rnd() * colourways.length)] : null;
+  // (its kinds by weight, the cast's roles taking them in turn; the boss the heaviest build's)
+  const kinds = F ? Object.entries(F.kinds).sort((a, b) => b[1].weight - a[1].weight).map(([k]) => k) : [];
+  const kindOf = (role, k) => (role === 'boss' ? kinds.find((x) => F.kinds[x].builds.includes('brute')) ?? kinds[0] : kinds[k % kinds.length]);
   const ctx = { mind: { ...mind, foes: named }, combat, flavor: style.flavor, target, people };
   const scored = Object.values(FOE_CLASSES).map((c, k) => ({ c, k, ...scoreOf(c, ctx) }));
 
@@ -112,9 +131,9 @@ export function castingCall(world) {
   const bossRank = ['miniboss', 'boss'].includes(mind.rank) ? mind.rank : 'boss';
   const skill = mind.skill && mind.skill !== 'regular' ? mind.skill : null;
   const foes = {}, roles = [];
-  for (const [role, x] of Object.entries(cast)) {
+  for (const [k, [role, x]] of Object.entries(cast).entries()) {
     const rank = role === 'boss' ? bossRank : ROLES[role].rank;
-    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people } : null;
+    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, k), colourway } } : {}) } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };
@@ -122,20 +141,21 @@ export function castingCall(world) {
     roles.push({ id: role, role: ROLES[role].line, class: x.c.id, rank, ...(skill ? { skill } : {}), ...(skin ? { skin } : {}), score: x.s, why: x.why.length ? x.why : ['the best of what is left'] });
   }
 
-  // where they stand: the grunt and the harrier on every walk, the elite from the middle on (the first of two), the boss alone on the last, won by clearing it
+  // where they stand: the grunt and the harrier on every walk, the elite from the middle on (the first of two), the boss alone on the last (one of it), won by clearing it
   const levels = {}, n = walks.length, open = walks.filter((id) => G.levels[id].foes === undefined);
   walks.forEach((id, k) => {
     if (!open.includes(id)) return;
     const last = k === n - 1 && n > 1, from = last ? ['boss'] : ['grunt', 'harrier', ...(k >= Math.floor((n - 1) / 2) ? ['elite'] : []), ...(n === 1 ? ['boss'] : [])];
-    levels[id] = { from: from.filter((r) => foes[r]), ...(last ? { win: 'clear' } : {}) };
+    levels[id] = { from: from.filter((r) => foes[r]), ...(last ? { count: 1, win: 'clear' } : {}) };
   });
   const patch = [{ op: 'add', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'add', path: `/levels/${id}/foes`, value: v }))];
   const reasons = [
     genre ? `a ${genre} (the intent's cube), its minds ${Object.entries(mind).filter(([k]) => k !== 'foes').map(([k, v]) => `${k} ${v}`).join(', ') || 'unsaid'}` : 'no genre: the cube\'s own values',
     `a ${style.flavor} game in the ${style.register} register (${style.from})`,
     people ? `set in the ${era} era: the cast is ${people === 'human' ? 'people' : `${people} folk`} where a class stands on two legs` : `${era ? `the ${era} era names no people for a ${style.flavor} cast` : 'no era'}: every foe on its class's stand-in beast`,
+    ...(F ? [`dressed as one crew, ${F.name.toLowerCase()} in ${F.colourways[colourway].reads}${MILITARY.includes(genre) ? `: a ${genre}'s soldiers` : ''}; each role a kind of it, the boss the heaviest`] : []),
     ...(bossRank !== 'boss' ? [`the boss stands as a ${bossRank}, the cube's rank`] : []),
     ...(skill ? [`every foe at ${skill} skill, the cube's`] : []),
   ];
-  return { foes, levels, patch, roles, from: { genre, flavor: style.flavor, register: style.register, era, ...(people ? { people } : {}), mind: { ...mind } }, reasons };
+  return { foes, levels, patch, roles, from: { genre, flavor: style.flavor, register: style.register, era, ...(people ? { people } : {}), ...(F ? { dress: { faction, colourway } } : {}), mind: { ...mind } }, reasons };
 }

@@ -24,10 +24,34 @@ and keeps none.
     the stand-in beasts.
   - It is proposed and never written. `design_game`'s readout carries it as a `foes` step with the patch that writes
     it, and the sheet shows it until a bestiary is written.
+- **A person dressed as a crew** (`foes/dress.js`). `skin: { people: 'human', dress: { faction, kind?, colourway?,
+  body? } }` dresses a soldier, a guard or a cultist from the comic hero pack's grunt factions: the kind's build,
+  clothes, headgear and gear, and the crew's colours.
+  - Made through the hero door (`foes-<id>`, its reactions on it) and stood on the library as any made person. The
+    pack's baked golden light is left off, so a foe stands in its world's light. `body: 'realistic'` draws it on the
+    realistic body.
+  - Only a person is dressed, and the dress names its build and age; its facets name only its pole.
+  - The casting call dresses a cast of people as one crew (`ERA_DRESS`): its faction by era, a soldier's for a shooter
+    or a stealth game, its colourway rolled, each role a kind of it and the boss the heaviest. A modern stealth world
+    is cast as private military in one colourway.
+- **Foes in a building's rooms.** `levels.<id>.foes` now stands on a building level, each room between the way in and
+  the goal a beat. Without a count a building stands `ROOM_FOES` of its rooms, spread from the way in to the goal (an
+  office has dozens of rooms). The walker or the hero in it takes their hits as on a trail: a building level now lays
+  its extra's `pilot` as a trail level does, and no building cast carried one before, so no building level moves. A
+  building made by ref still takes none. The casting call places foes in buildings too, its boss one of it.
+- **The patrol** (`foes/classes/patrol.js`, the `patrol` move in `foes/vocab.js` and `worlds/controllable/foe.js`). It
+  walks its round between two posts and back, watching ahead. A hero in its sight (the mind's range and cone, and a
+  clear line past the colliders) hands it to the mind that same step, which perceives the hero and engages. Once the
+  mind has seen no one for `calm` seconds, it walks its round again. Web only: Godot and Roblox are marked absent. The
+  regenerated hill-climb page moves by its lift (Godot 46 → 48 of 500 rolled worlds).
+- The `gameworld-foes` card names the dress and a building's rooms and gains the patrol's row. Its ceiling is re-pinned
+  at 5120 bytes (4916), with the reason beside the pin.
 - `node scripts/out-sheet.mjs foes [--genre <id>] [--propose]` writes the sheet for the example world.
 - `docs/foes.md` has the sheet and the casting call. The `gameworld-foes` and `gameworld-next` cards name them.
 
-Machine gate: `gameworld/foe-cast.test.js` passes. It covers one case per procedure (a beast, a people, a model, a mode
-chain, a summoner, a counting flavor and a health flavor, the gate going stale), plus the casting call adopted as
-written, the intent's classes first, a people's era and a platformer's beasts, and absence. Eyes gate: not run. The
-operator looks at a platformer world's sheet and a shooter world's.
+Machine gate: `gameworld/foe-cast.test.js`, `foes/dress.test.js`, the building and dressed cases in
+`gameworld/foes.test.js` and the patrol in `worlds/controllable/foe.test.js` pass. They cover one case per procedure (a
+beast, a people, a model, a mode chain, a summoner, a counting flavor and a health flavor, the gate going stale, a
+dressed person, a building's rooms, a patrol seen and unseen), plus the casting call adopted as written, the intent's
+classes first, a people's era, a platformer's beasts, a dressed crew, and absence. Eyes gate: not run. The operator
+looks at a platformer world's sheet and a shooter world's, and at a dressed soldier made through the door.

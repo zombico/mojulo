@@ -2,7 +2,8 @@
 // they stand, and nothing laid where none is named. Placement is tested on a stage's own ends (its beats), the runner on
 // the hero sample: a bestiary alone mints nothing, a level that stands foes mints one beast per entry it fields.
 import { describe, it, expect } from 'vitest';
-import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, withFoeWin, fieldedIds, stompOf, SWARM } from './foes.js';
+import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, withFoeWin, fieldedIds, stompOf, SWARM, ROOM_FOES } from './foes.js';
+import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { FEELS } from './feel/cards.js';
 import { MADE_KEY } from './made.js';
 import { settingOfGame } from './cast-setting.js';
@@ -42,6 +43,9 @@ describe('the bestiary', () => {
     expect(() => readLevelFoes({ count: 0 }, B, 'levels.one')).toThrow(/count is a whole number/);
     expect(() => readGameworld({ id: 'w', levels: { one: { runner: true, foes: true } } })).toThrow(/stand on a walk/);
     expect(() => readGameworld({ id: 'w', quick: { goal: 'reach' }, levels: { one: { ...walk } }, foes: B })).toThrow(/quick game's foes/);
+    // (a building's rooms take them; a building made by ref is played as it was made)
+    expect(() => readGameworld({ id: 'w', levels: { one: { building: { use: 'office' }, foes: true } }, foes: B })).not.toThrow();
+    expect(() => readGameworld({ id: 'w', levels: { one: { building: { ref: 'sk-house' }, foes: true } }, foes: B })).toThrow(/made by ref/);
   });
 });
 
@@ -51,6 +55,17 @@ describe('a stage\'s foes', () => {
     const P = foePlacements(G, 'one', ENDS);
     expect(P.map((p) => [p.eid, p.at[0]])).toEqual([['a', 10], ['b', 20]]);
     expect(foePlacements(G, 'one', { ...ENDS, beats: [BEATS[0], BEATS[3]] })).toEqual([]);
+  });
+  it('a building stands a few through its rooms, spread from the way in to the goal; a count stands that many', () => {
+    const rooms = Array.from({ length: ROOM_FOES * 4 }, (_, k) => ({ beat: `room-${k}`, at: [k * 5, 0, 0] }));
+    const IN = { spawn: [-5, 0, 0], exit: [rooms.length * 5, 0, 0], beats: rooms, use: 'office' };
+    const G = world({ a: { class: SOLO.id } }, true), P = foePlacements(G, 'one', IN);
+    expect(P.length).toBe(ROOM_FOES);
+    expect(P[0].at[0]).toBeGreaterThan(0);
+    expect(P[P.length - 1].at[0]).toBeGreaterThan(rooms.length * 5 * 0.75);
+    expect(foePlacements(world({ a: { class: SOLO.id } }, { count: 2 }), 'one', IN).length).toBe(2);
+    // (a trail's beats, as before: one on each)
+    expect(foePlacements(G, 'one', { ...IN, use: undefined }).length).toBe(rooms.length);
   });
   it('a count past the beats stands the rest round them; a pack stands its members as one group', () => {
     const G = world({ s: { class: PACK.id } }, { count: 3 });
@@ -155,6 +170,29 @@ describe('the run', () => {
       expect(e.rule.collideHeight).toBeGreaterThan(1.5);
       expect(e.body.vanish).toBeTruthy();
     }
+  });
+  it('a person dressed as a crew\'s is made through the hero door in its faction\'s dress, reactions on it, on the library', () => {
+    const faction = Object.keys(GRUNT_STYLES)[0], F = GRUNT_STYLES[faction], kind = Object.keys(F.kinds)[0];
+    const skin = { people: 'human', dress: { faction, kind } };
+    const steps = runSteps(heroWith({ a: { class: SOLO.id, skin } }, true), { ref: 'gw' }), made = steps.find((x) => x.key === 'foes-a');
+    expect(steps.some((x) => x.key === 'foes-a-sheet')).toBe(false);
+    expect(made.order.mint).toMatchObject({ kind: 'layered', via: 'hero', spec: { outfit: { type: 'outfit', style: F.kinds[kind].dress(made.order.mint.spec.pole ?? 'male', 'tiered').style } } });
+    expect(made.order.mint.spec.motion).toBeTruthy();
+    expect(made.order.mint.spec.geocube).toBeUndefined();
+    const X = hostileCast(world({ a: { class: SOLO.id, skin } }, true), 'one', ENDS, { refs: { a: 'w-foes-a' } });
+    expect(X.figures['foe-a']).toMatchObject({ heroRef: 'w-foes-a', library: expect.any(String) });
+    // (only a person is dressed, and its dress names its build: its pole alone is its own)
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { people: 'orcish', dress: { faction } } } })).toThrow(/only a person is dressed/);
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { people: 'human', facets: { build: 'brute' }, dress: { faction } } } })).toThrow(/names only its pole/);
+    expect(() => readBestiary({ a: { class: SOLO.id, skin: { people: 'human', dress: { faction, kind: 'astronaut' } } } })).toThrow(/has no 'astronaut'/);
+  });
+  it('a building level stands its foes in its rooms: the walker takes their hits, and a clear is won by their fall', () => {
+    const W = { id: 'w', mode: 'autonomous', foes: { a: { class: SOLO.id } }, levels: { hq: { building: { use: 'office' }, foes: { from: ['a'], count: 2, win: 'clear' } } } };
+    const level = runSteps(W, { ref: 'gw' }).find((x) => x.key.startsWith('level-hq')), M = level.order.manifest;
+    expect(M.entities.filter((e) => e.team === 'foes').length).toBe(2);
+    expect(M.entities[0].body.hittable).toBe(true);
+    expect(M.level.mechanics.map((m) => m.kind)).toEqual(expect.arrayContaining(['fail-on-death', 'defeat-all']));
+    expect(M.level.exit).toBe(false);
   });
   it('a model made elsewhere is made by no step: it stands on its own ref, a person on the library at its height', () => {
     const skin = { meshRef: 'sk-model', height: 2.2 };

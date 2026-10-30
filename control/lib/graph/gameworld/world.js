@@ -41,7 +41,7 @@
  *                                         // its walk or building (quick.js levelGoalMechanics): pickups along it, a boss
  *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
  *                                         // unseen; none: reach the exit
- *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages, one a free beat (foes.js): hostile
+ *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages (or a building's rooms), one a free beat (foes.js): hostile
  *                                         // classes in the hero's way; its hp then takes their hits
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
  *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
@@ -506,10 +506,10 @@ export function readGameworld(W) {
       if (Gl.collect !== undefined && Gl.collect !== true && !(typeof Gl.collect === 'string' && /^[a-z][a-z-]{0,23}$/.test(Gl.collect))) throw new Error(`gameworld: ${at}.goal.collect is true (gems) or what lies along the way, one lower-case word (relic, coin, key…)`);
       for (const k of ['boss', 'health', 'guards']) if (Gl[k] !== undefined && Gl[k] !== true) throw new Error(`gameworld: ${at}.goal.${k} is true`);
     }
-    // the level's foes (foes.js): which of the bestiary stand on its trails; a walk's stages only
+    // the level's foes (foes.js): which of the bestiary stand on its trails, or in a building's rooms
     if (L.foes !== undefined) {
       if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
-      if (L.walk === undefined) throw new Error(`gameworld: ${at}.foes stand on a walk's trails (a building, a city, a road or a run takes none yet)`);
+      if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
       readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one

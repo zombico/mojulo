@@ -4,7 +4,8 @@
 // that counts and one that shows health; absence costs nothing.
 import { describe, it, expect } from 'vitest';
 import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS } from './foe-cast.js';
-import { castingCall, ROLES } from './foe-casting.js';
+import { castingCall, ROLES, ERA_DRESS } from './foe-casting.js';
+import { ERA_OF_KIT } from './cast-setting.js';
 import { foeCastHtml } from './foe-cast-html.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
@@ -99,7 +100,19 @@ describe('the casting call', () => {
     expect(castingCall(adopt(fighting, P))).toBe(null);
     // (the boss alone on the last walk, won by clearing it)
     const walks = Object.keys(fighting.levels).filter((k) => fighting.levels[k].walk);
-    expect(P.levels[walks[walks.length - 1]]).toEqual({ from: ['boss'], win: 'clear' });
+    expect(P.levels[walks[walks.length - 1]]).toEqual({ from: ['boss'], count: 1, win: 'clear' });
+  });
+
+  it('a person cast is dressed as one crew, a soldier\'s for a game whose minds are soldiers\'; a building takes foes too', () => {
+    const era = Object.keys(ERA_DRESS)[0], kit = Object.keys(ERA_OF_KIT).find((k) => ERA_OF_KIT[k] === era && !/lab/.test(k) && k !== 'jungle-trail');
+    const W = world(null, null, { intent: { from: 'stealth' }, style: { kit }, levels: { one: { ...walk }, hq: { building: { use: 'office' } } } });
+    const P = castingCall(W), dressed = P.roles.filter((r) => r.skin?.dress);
+    expect(dressed.length).toBeGreaterThan(0);
+    expect(new Set(dressed.map((r) => `${r.skin.dress.faction}/${r.skin.dress.colourway}`)).size).toBe(1);
+    expect(dressed[0].skin.dress.faction).toBe(ERA_DRESS[era][0]);
+    expect(P.levels.hq).toEqual({ from: ['boss'], count: 1, win: 'clear' });
+    expect(() => readGameworld({ ...W, foes: P.foes, levels: { one: { ...walk, foes: P.levels.one }, hq: { building: { use: 'office' }, foes: P.levels.hq } } })).not.toThrow();
+    expect(foeCastOf({ ...W, foes: P.foes, levels: { one: { ...walk, foes: P.levels.one }, hq: { building: { use: 'office' } } } }).foes.find((x) => x.skin.dress).skin.says).toMatch(/dressed as/);
   });
 
   it('casts nothing for a game that fights nothing', () => {
