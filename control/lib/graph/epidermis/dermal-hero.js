@@ -25,6 +25,8 @@ import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
 import { layoutDermis, paintDermis } from './dermal-texture.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
 import { strandPage, strandCellUV } from './hair-strands.js';
+import { clothPage, clothAlbedo, CLOTH_PAGE } from './cloth-relief.js';
+import { RELIEF_SIZE, reliefRung } from './dermal-relief.js';
 
 // the strand strip's size on the atlas (no wider than the atlas)
 const STRAND_ATLAS = Object.freeze({ w: 1024, h: 256 });
@@ -197,7 +199,14 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const cards = new Map();
   mesh.faces.forEach((tri, fi) => { if (tri.every((vi) => mesh.provenance?.[vi]?.card)) cards.set(fi, tri.map((vi) => mesh.provenance[vi].card)); });
   const BW = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, W = Math.max(BW, HW);
-  const SW = cards.size ? Math.min(W, STRAND_ATLAS.w) : 0, SH = cards.size ? STRAND_ATLAS.h : 0, TH = BH + HH + SH;
+  const SW = cards.size ? Math.min(W, STRAND_ATLAS.w) : 0, SH = cards.size ? STRAND_ATLAS.h : 0;
+  // THE CLOTH PAGE (realistic laws 13, epidermis/cloth-relief.js: `opts.cloth` the clothes' chart, asked by the lit skinned
+  // export alone): under the strands, white (a cloth's colour its corners'), its texels the relief map's at the head's
+  // own scale (the map is the atlas scaled so the head's page is RELIEF_SIZE across), a texel CLOTH_PAGE.texel at the
+  // skin's full rung. No chart, no page: the atlas as before, byte for byte.
+  const rung = opts.cloth && Hd ? RELIEF_SIZE[reliefRung(recipe)] : 0, scale = rung ? rung / HW : 0;
+  const cloth = rung ? clothPage(opts.cloth, { width: Math.round(W * scale), texel: (CLOTH_PAGE.texel * RELIEF_SIZE.L2) / rung }) : null;
+  const CH = cloth ? Math.round(cloth.H / scale) : 0, TH = BH + HH + SH + CH;
   const px = new Uint8Array(W * TH * 4).fill(255);
   for (let y = 0; y < BH; y++) px.set(B.albedo.subarray(y * BW * 4, (y + 1) * BW * 4), y * W * 4);
   if (Hd) for (let y = 0; y < HH; y++) px.set(Hd.albedo.subarray(y * HW * 4, (y + 1) * HW * 4), ((BH + y) * W) * 4);
@@ -207,6 +216,8 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const plain = Object.values(recipe.parts || {}).some((P) => P?.strands === 'plain');
   const dye = !plain && hairHex && pigment.every(Number.isFinite) ? { tint: hex3(hairHex).map(lin).map((m, i) => pigment[i] / Math.max(1e-6, m)), grey: H.dermis.grey ?? 0 } : null;
   if (SH) { const S = strandPage({ w: SW, h: SH, dye }); for (let y = 0; y < SH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + y) * W) * 4); }
+  // (the clothes' PATTERNS on their page: each a grey its cloth's colour is multiplied by, white where none is)
+  if (cloth) clothAlbedo(opts.cloth, cloth, px, { W, row: BH + HH + SH, scale });
   // (a page's [s, t], t up, onto the atlas's)
   const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
@@ -216,6 +227,9 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) { fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); if (f.page === 'head') onHeadPage.add(fi); } });
   const onStrands = ([s, t]) => [(s * SW) / W, 1 - (BH + HH + (1 - t) * SH) / TH], cardUVs = new Map();
   for (const [fi, cs] of cards) if (!fis.has(fi)) cardUVs.set(fi, cs.map(([a, l, cell]) => r5(onStrands(strandCellUV(cell, [a, l])))));
+  // (a cloth face's corners on the cloth page: its texels the map's, the page's the atlas's over the map's scale)
+  const clothUVs = new Map();
+  if (cloth) mesh.faces.forEach((tri, fi) => { if (fis.has(fi) || cardUVs.has(fi)) return; const c = cloth.faceUV(fi); if (c) clothUVs.set(fi, c.map(([x, y]) => r5([x / scale / W, 1 - (BH + HH + SH + y / scale) / TH]))); });
   let face = -1;
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, TH).toString('base64')}`;
   const uvAt = (ref) => { const c = fis.get(face); if (!c || ref.vi === undefined) return white; const k = mesh.faces[face].indexOf(ref.vi); return k < 0 ? white : c[k]; };
@@ -227,7 +241,10 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   // atlas's layout: what the normal bake reads, epidermis/dermal-relief.js)
   return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
     atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0,
-    faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH] },
+    faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH], ...(cloth ? { cloth: [W, CH] } : {}) },
+    // (`clothUV(fi)` a cloth face's three corners on the cloth page, null off it; `cloth` the page for the relief to bake:
+    // its pack, its chart, the map's scale and the page's first row on the atlas)
+    ...(cloth ? { clothUV: (fi) => clothUVs.get(fi) ?? null, cloth: { page: cloth, chart: opts.cloth, scale, row: BH + HH + SH } } : {}),
     // (`cardUV(fi)` a hair card face's three corners on the strand strip, null off one; `alphaMask` the atlas has edges)
     ...(cardUVs.size ? { cardUV: (fi) => cardUVs.get(fi) ?? null, alphaMask: true } : {}) };
 }

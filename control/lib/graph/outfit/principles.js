@@ -6,7 +6,8 @@
 //   2. CLOTH HUGS AND TAPERS. Shoulders, waist and hips are supports; the ease keeps the body's own RATIOS (the calf over
 //      the ankle, the ribs over the waist), so a limb's definition survives the cloth. A hem falls away only where it is
 //      CUT to: a short sleeve, an untucked tail, trousers cut `straight` or `wide` (TROUSER_CUTS), a skirt by its cut. A
-//      top falls from what holds it out (the bust, the shoulder blades) and returns to the waist.
+//      top falls from what holds it out (the bust, the shoulder blades) and returns to the waist. A WAISTBAND has no ease:
+//      it sits on what it is worn over (the skin, a tucked tail), and the cloth takes its ease back by the hips' widest.
 //   3. HEMS LAND ON LANDMARKS. Lengths are words (LENGTHS), never numbers: a sleeve ends at the cap, mid upper arm, the
 //      elbow, mid forearm or the wrist; a top at the ribs, the waist, the hip or mid-thigh; a leg at the crotch, mid
 //      thigh, the knee, mid calf or the ankle; a skirt at the upper thigh, mid thigh, the knee, mid calf or the ankle.
@@ -59,7 +60,15 @@ export const LENGTHS = Object.freeze({
 export const SKIRT_CUTS = Object.freeze({ pencil: 0, aline: 0.1, full: 0.24 });
 /** law 2: a trouser leg's cut — `ease` the share of the family's ease, `hang` the share of the hang at its hem, `thigh`
  * the share of the hang already reached at the knee (a wide leg falls from the hip) */
+/** BREECHES' girth over the body (cm, at its landmarks: body-garment.js GIRTH_LANDMARKS), a card's own over it, and their
+ * SWELL down the thigh (body-garment.js `swell`: where, a share of the thigh from the hip, and how much more ease there, m
+ * at scale 1): the balloon is below the crotch, the thigh's widest ring only its top */
+export const BREECHES = Object.freeze({ hip: 7, thigh: 9, knee: 2, calf: 0.5, ankle: 0.5 });
+export const BREECHES_SWELL = Object.freeze([0.38, 0.032]);
 export const TROUSER_CUTS = Object.freeze({
+  // (breeches, the riding and the soldier's galife: full at the hip and the thigh, close from the knee down: a girth
+  // preset, BREECHES, under the card's own)
+  breeches: { ease: 1, hang: 0, thigh: 0 },
   skinny: { ease: 0.4, hang: 0, thigh: 0 },
   tapered: { ease: 1, hang: 0, thigh: 0 },
   straight: { ease: 1, hang: 1, thigh: 0.4 },

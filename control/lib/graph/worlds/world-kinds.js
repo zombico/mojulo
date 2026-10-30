@@ -67,6 +67,8 @@ import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
+import { clothChart, clothOnRecord } from '@/lib/graph/epidermis/cloth-relief';
+import { outfitLanguage } from '@/lib/graph/outfit/expand';
 import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
 import { relationalFaceRig, performanceTrack } from '@/lib/graph/polygonizer/relational-face-rig';
@@ -709,7 +711,7 @@ export const WORLD_KINDS = {
       if (creature) { const errs = validateCreatureStatue(creature); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); m = { ...m, recipe: carveCreatureRecipe(m.recipe, creature) }; }
       // A NAMED HERO'S EMBLEM (hero-emblem.js, `hero.emblem`): lowered to field paint under the row's own, on the place it is
       // worn, its roles coloured from the palette as it reads now. Absent ⇒ the row's field paint as it is
-      if (m.hero?.emblem) m = { ...m, fieldPaint: heroFieldPaint(m) };
+      if (m.hero?.emblem || m.hero?.outfit) { const hf = heroFieldPaint(m); if (hf !== m.fieldPaint) m = { ...m, fieldPaint: hf }; }
       // FIELD PAINT (field-paint.js, opt-in `fieldPaint`): the colours its entries name join the palette. Absent ⇒ as before
       if (Array.isArray(m.fieldPaint) && m.fieldPaint.length) { const fcol = fieldColours(m.fieldPaint); if (Object.keys(fcol).length) m = { ...m, recipe: { ...m.recipe, palette: { ...(m.recipe.palette || {}), ...fcol } } }; }
       // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),
@@ -808,7 +810,10 @@ export const WORLD_KINDS = {
       // World page as in an export (the page's own sizes, PAGE_SKIN: the body's a size down, the head's where the face's
       // detail is; the payload a PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
       // realistic hero with a head's fit, as before
-      const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN) }) : null;
+      // (THE CLOTH PAGE, realistic laws 13: the clothes' chart for the lit skinned export alone, the one whose relief bakes:
+      // epidermis/cloth-relief.js. Any other export, the page, a hero minted before: none, byte-identical)
+      const clothLit = light.flat && ctx.face && !character && m.hero?.form === 'realistic' && reliefOnRecord(m.hero) && clothOnRecord(m.hero);
+      const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN), ...(clothLit ? { cloth: clothChart(mesh, m.recipe, { language: outfitLanguage(m.hero.outfit) }) } : {}) }) : null;
       // THE COAT'S PATTERN (beast/coat-atlas.js): a beast-kin's markings solved in a biped's anatomy, painted in colour into
       // an atlas over its coat at texel density; carried as the realistic skin is. A beast with no pattern: none, as before
       const beastCoat = !facePaint0 && !skinPaint && !heroSkin && !character && m.hero?.beast?.pattern ? beastCoatPaint(mesh, m.recipe, m.hero) : null;
