@@ -65,6 +65,7 @@ import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
+import { QOW_PRINCIPLES, SIGHT } from '../qow/qow.js';
 import { BOOK_SKINS } from './book-skin.js';
 
 const lines = (...xs) => xs.flat().join('\n');
@@ -561,6 +562,26 @@ function wcdCard() {
     'not colour a bay building; its look or its tone does.',
   );
 }
+function qowCard() {
+  return lines(
+    'THE QUEST OPEN WORLD (QOW) — the walled-core dungeon\'s opposite pole. A WCD forces the player in, layer by gated layer,',
+    '  to a core; a QOW never does: its map is REGIONS joined sideways, connected and loaded as they are passed, each',
+    '  reached without a gate, always two ways round. A city or an island: its regions are a geocity\'s neighbourhoods.',
+    '',
+    'qow     on the world: { map: { geocity: { … }, seed? }, spawn?, locks?, quests?, landmarks?, stream?, level? }',
+    '  map         the regions: a geocity\'s (the geocube\'s show \'geocity\' recipe: its metro, its evoke), each neighbourhood',
+    '              a region, each pair across an arterial joined at its portal; the beyond on its land edge where more joins',
+    "  spawn       where play starts: a region's id ('D3'; by default the core's nearest the seat)",
+    "  locks       [{ region, gate: { clearance: 1…9 } | { power: '<id>' }, why? }]: optional, a side door, never the way on",
+    "  quests      [{ id, at: '<region>', kind?: main | side, after?: ['<quest id>'] }]: placed on the regions",
+    `  landmarks   'auto' (the core's tallest tower, each node's) or [{ at, name?, height? }]: seen ${SIGHT}× their height off`,
+    '  stream      { hops?, blocks? }: a region and its neighbours hops away loaded as it is passed, at most blocks blocks',
+    '  level       the world level it is played in (city hunter\'s)',
+    '',
+    'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.qow`, and never refuse)',
+    ...Object.entries(QOW_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(11)} ${v}`),
+  );
+}
 function foesCard() {
   const status = (c) => classStatus(c);
   const row = (c) => { const S = status(c); return `  ${c.id.padEnd(8)} ${c.reads}${S.status === 'built' ? '' : ` [${S.status}: ${S.short.join(', ')}]`}`; };
@@ -806,6 +827,7 @@ const CARDS = [
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
+  ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],

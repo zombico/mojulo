@@ -138,6 +138,14 @@ passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the
   rows across an aisle, their lines and cars in most, each its paint as an instance's tint), a VACANT lot (scrub over
   old gravel behind temporary fencing). New kit (kit.js): scaffold bay, fence panel, hoarding, barrier, cone, car,
   stall line; new surfaces `site` (gravel) and `scrub` (soft).
+- **The quest open world** (`lib/graph/qow/qow.js`, a `design_game` world's `qow`; `docs/quest-open-world.md`; the
+  `gameworld-qow` card): the walled-core dungeon's opposite pole. Its regions a geocity's neighbourhoods and its region
+  graph (`map: { geocity, seed? }`), its `spawn` (the core's by the seat), optional `locks` (the WCD's gates: a
+  clearance or a power, never the way on), `quests` (main or side, `after` others), `landmarks` ('auto': the core's
+  tallest tower and each node's, seen thirty times their height off), its `stream` rings (a region and its neighbours
+  `hops` away, what is loaded as it is passed), the `level` it is played in. Its principles as laws, advice in
+  design_game's readout (`advice.qow`): `open`, `sideways` (no cut vertex among the open regions), `unforced`, `seen`,
+  `streamed`, `spread`. Malformed is refused by name.
 - **Near repeats** (`scene/scene-three.js`): a repeat may say `near` (world units): the page cuts its instances into
   square tiles, each its own instanced mesh on the shared geometry, shown only while the camera stands within `near`
   of it, checked before each render (so a capture, a frozen frame and the live loop agree); a textured template's faces

@@ -223,6 +223,10 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
+  joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
+  laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
+  evocations at game scale, the street's kit near the camera only).
 - Foes: [docs/foes.md](docs/foes.md) (layer 0, the skeleton under every foe, and the shelves over it: behaviour, skin,
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
