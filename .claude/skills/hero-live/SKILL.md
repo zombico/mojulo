@@ -46,9 +46,44 @@ Sound toggle; a browser plays sound only once the page is touched). To read a li
 phonemes' middles (`perform(P).events.lines[0].phonemes`, each `t` and `dur`): the lips shut on m, b and p, the lower lip
 under the teeth on f and v, rounded on oo and w.
 
+Its EMOTES (the door's `emote`: a name, a list of names, or `{ <clip>: a name | { emote, mirror?, intensity?, seconds?,
+seed? } }`, `control/lib/graph/face-acting/emotes.js`: held states such as `rest`, `vacant`, `daydream`, `absorbed`,
+`waiting`, `drowsy`, `listening`, `wary`; `face` an emotion over it; `alert` 0 … 1 its wariness, `face-acting/alert.js`) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
+nothing, or focus where the emote names a distance (`listening` converges on a speaker's face a metre off and
+moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js`); to judge a loop's seam, scrub to its end and its start. Each face clip breathes (`breath:<clip>`,
+`face-acting/breath.js`: the breath its state of mind breathes, on the body), played here additively over the body's
+idle with its clip; the Bust and Side views show the chest and the shoulders. And its head (`head:<clip>`,
+`face-acting/head.js`: the neck's turn and tilt, the head following the larger looks), another additive layer with it.
+
+TUNE THE FACE WITHOUT A MINT: an emote or a performance changes the face's weights alone, so `face.mjs` recomputes its
+clips over a hero `live.mjs` already minted, in seconds, beside its GLB (`<id>.face.json`, played over the GLB's own clip
+of its name), reads each by the numbers on the hero's own mesh, and shoots a contact sheet:
+
+```bash
+# every emote, read and shot (the face close, each moment moved off the blinks): shots/sheet.png
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote all --sheet --phases 0.08,0.5
+# one emote under an emotion, mirrored; a performance's take beside it
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote '{"worried":{"emote":"rest","face":"worried"},"restM":{"emote":"rest","mirror":true}}' \
+     --perform '{"drift":{"beats":[{"at":0,"emote":"rest"},{"at":3,"emote":"daydream"},{"at":7,"emote":"rest","face":"worried","say":"I keep thinking about it."}]}}'
+# each emote whole and part by part (brows, lids, cheeks: `<clip>·<part>`, every other part at rest), read and shot
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --emote '["daydream","absorbed"]' --parts brows,lids,cheeks --sheet
+# the upper face's gestures over the resting face, shot mid-hold (--blinks keeps the moments as asked)
+node .claude/skills/hero-live/face.mjs --out /tmp/hero-live --sheet --blinks --phases 0.21,0.51 \
+     --perform '{"tells":{"seconds":7,"beats":[{"at":0,"emote":"rest"},{"at":1,"emote":"rest","tell":"oneBrow"},{"at":3,"emote":"rest","tell":"eyeSmile"}]}}'
+```
+
+The read (`face-acting/emote-read.js`): per clip, held at its median key, each side's largest and 95th-percentile move
+in mm and the asymmetry's (the face against its own mirror, its sides' weights swapped: a symmetric face reads nought),
+`shows` or `too faint` (under 0.5 mm), and the asymmetry by region (the brows, the lids, the cheeks, the mouth: the parts
+of `face-acting/parts.js`, whose timing, couplings and upper-face gestures a beat's `tell` plays). A card is tuned in
+`face-acting/emotes.js` `FACE_EMOTES` and re-read; the eyes gate stays the operator's.
+
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
 Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
-(or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.
+(or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script;
+`heroLive.probe(times, joints?, { under?, breath? })` reads the playback itself (the take, the idle under it and its
+breath set to each moment: the joints' world positions and the morph weights), so a jitter is found by the numbers and
+a layer can be left out to find whose it is.
 
 ## The adornment loop on it
 

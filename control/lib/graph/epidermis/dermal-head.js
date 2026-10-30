@@ -21,7 +21,7 @@
  */
 import { headFieldMesh } from '../polygonizer/head-field-view.js';
 import { RELATIONS } from '../polygonizer/head-relational.js';
-import { chartFromMesh, meshOcclusion } from './dermal-chart.js';
+import { chartFromMesh, meshOcclusion, vertexNormals } from './dermal-chart.js';
 
 /** the head's height (m): the plumb line's run, menton to vertex */
 const L_HEAD = (head) => head.landmarks.H * 1.8;
@@ -99,9 +99,9 @@ export function relationalHeadChart(head, { cells = 110 } = {}) {
  * another casts and takes no occlusion. Addressed on the head's sphere with its marks, as `relationalHeadChart`'s: the
  * surface net's, or the realistic hero's grid head read back into the head's frame (epidermis/dermal-hero.js). `earAt(vi)`
  * the ear's own points (the hero's ear parts), in place of the box about it (`earTest`), which reaches the skull's side
- * above an ear set high.
+ * above an ear set high. `moved` the same vertices in another pose (the lids shut): the occlusion the more open of the two.
  */
-export function headChartOf(head, { vertices, faces, normals }, skinAt, shutAt = () => false, { shownAt = null, earAt = null } = {}) {
+export function headChartOf(head, { vertices, faces, normals }, skinAt, shutAt = () => false, { shownAt = null, earAt = null, moved = null } = {}) {
   const M = headMarks(head), sp = headSphere(head);
   const axis = [[0, M.cy, 0], [0, M.cy, L_HEAD(head)]];
   // (`earAt(vi)` the ear's own points where the mesh knows them, its parts: else the box about the ear, earTest)
@@ -125,10 +125,14 @@ export function headChartOf(head, { vertices, faces, normals }, skinAt, shutAt =
   // the occlusion each skin point sits in, read from the mesh (a game bakes it into the skin's colour: the sockets, the
   // nostrils, the lips' line, the ear's folds, under the jaw)
   const onSkin = shownAt ? (vi) => !!chart.samples[vi] && shownAt(vi) : (vi) => !!chart.samples[vi];
-  chart.ao = meshOcclusion(vertices, normals, { skin: onSkin });
+  // (`moved`, the same points in another pose (the lids shut): each takes the more open of the two, so the skin a blink
+  // brings out of the cove under the brow does not carry the cove's shadow onto the shut lid)
+  const movedN = moved ? vertexNormals(moved, faces) : null;
+  const occ = (o) => { const a = meshOcclusion(vertices, normals, { ...o, skin: onSkin }); if (!moved) return a; const b = meshOcclusion(moved, movedN, { ...o, skin: onSkin }); return a.map((x, i) => Math.max(x, b[i])); };
+  chart.ao = occ({});
   // (and at a wider reach, read only when a dermis asks for its shading: `occlusionAt(radius, strength)`, not enumerable,
   // so the chart reads as it did)
-  Object.defineProperty(chart, 'occlusionAt', { value: (radius, strength) => meshOcclusion(vertices, normals, { radius, strength, skin: onSkin }) });
+  Object.defineProperty(chart, 'occlusionAt', { value: (radius, strength) => occ({ radius, strength }) });
   return chart;
 }
 

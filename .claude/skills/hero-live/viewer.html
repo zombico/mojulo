@@ -191,10 +191,12 @@ async function load(v) {
   const loader = new GLTFLoader();
   let gltf;
   if (M.packed) {
-    const { glb } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
+    const { glb, gz } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
     const bin = atob(glb), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-    gltf = await loader.parseAsync(buf.buffer, '');
+    // (gzipped by live.mjs --publish to fit a host's file limit)
+    const data = gz ? await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer() : buf.buffer;
+    gltf = await loader.parseAsync(data, '');
   } else gltf = await loader.loadAsync(v.file, (e) => { if (e.total) status.textContent = `Loading ${v.label}… ${Math.round((e.loaded / e.total) * 100)}%`; });
   const root = gltf.scene; let body = null;
   root.traverse((o) => {
@@ -213,8 +215,56 @@ async function load(v) {
   const mixer = new THREE.AnimationMixer(root), actions = {};
   for (const clip of gltf.animations) if (clip.name.startsWith('body:')) actions[clip.name.slice(5)] = { action: mixer.clipAction(clip), seconds: secondsOf(clip) };
   // (a face's PERFORMANCE, `face:<take>` (face-acting/perform.js): a take of its own, played at its own length over the
-  // body's idle; the ambient blink is the page's, not a take)
-  for (const clip of gltf.animations) if (clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
+  // body's idle; the ambient blink is the page's, not a take; an EMOTE, `emote:<clip>` (face-acting/emotes.js), a held
+  // state's loop, the same)
+  for (const clip of gltf.animations) if ((clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') || clip.name.startsWith('emote:')) actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
+  // (the face's clips face.mjs wrote beside the GLB, <id>.face.json: each over the GLB's own of its name, so an emote or a
+  // take is tuned with no mint; keyed onto every mesh carrying its targets, the rest of that mesh's weights its own)
+  const side = await fetch(`${v.id}.face.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  if (side) {
+    v.faceRead = side.read ?? null;
+    for (const C of side.clips) {
+      const tracks = [];
+      root.traverse((o) => {
+        if (!o.isMesh || !o.morphTargetDictionary) return;
+        const idx = C.names.map((n) => o.morphTargetDictionary[n]);
+        if (!idx.some((x) => x !== undefined)) return;
+        const m = o.morphTargetInfluences.length, base = [...o.morphTargetInfluences], vals = new Float32Array(C.t.length * m);
+        C.w.forEach((row, k) => { vals.set(base, k * m); idx.forEach((x, j) => { if (x !== undefined) vals[k * m + x] = row[j]; }); });
+        tracks.push(new THREE.NumberKeyframeTrack(`${o.name || o.uuid}.morphTargetInfluences`, C.t, vals));
+      });
+      if (tracks.length) actions[C.name] = { action: mixer.clipAction(new THREE.AnimationClip(C.name, C.seconds, tracks)), seconds: C.seconds, face: true };
+    }
+  }
+  // (each face clip's layers on the body, its BREATH and its HEAD (`breath:<clip>`, `head:<clip>`: face-acting/breath.js,
+  // head.js), the GLB's and face.mjs's: played as additive layers over the body's idle with its clip, the rest pose their
+  // reference, captured here before anything plays)
+  const layers = {}, restOf = (name) => root.getObjectByName(name);
+  const additive = (clip) => {
+    const ref = new THREE.AnimationClip(`${clip.name}:rest`, 0, clip.tracks.map((tr) => {
+      const [node, prop] = [tr.name.slice(0, tr.name.lastIndexOf('.')), tr.name.slice(tr.name.lastIndexOf('.') + 1)], o = restOf(node) ?? root.getObjectByProperty('uuid', node);
+      const v = prop === 'quaternion' ? [0, 0, 0, 1] : (o?.position ?? new THREE.Vector3()).toArray();
+      return new (prop === 'quaternion' ? THREE.QuaternionKeyframeTrack : THREE.VectorKeyframeTrack)(tr.name, [0], v);
+    }));
+    THREE.AnimationUtils.makeClipAdditive(clip, 0, ref);
+    return mixer.clipAction(clip);
+  };
+  const put = (kind, of, action) => { (layers[of] ??= {})[kind] = action; };
+  for (const clip of gltf.animations) { const m = /^(breath|head):(.*)$/.exec(clip.name); if (m) put(m[1], m[2], additive(clip)); }
+  for (const [kind, list] of [['breath', side?.breaths], ['head', side?.heads]]) for (const B of list ?? []) {
+    const tracks = [];
+    for (const J of B.joints) {
+      const o = restOf(THREE.PropertyBinding.sanitizeNodeName(J.node)); if (!o) continue;
+      // (bound by the node's name, as the loader binds the body's own clips: a second binding of the same property by
+      // another key gets a mixer of its own, and the two write over each other every frame, the joints shaking)
+      if (J.r) tracks.push(new THREE.QuaternionKeyframeTrack(`${o.name || o.uuid}.quaternion`, B.t, J.r));
+      // (rebased on this GLB's rest when the layer names the rest it was solved over: a sidecar solved on another mint of
+      // the hero, its joint elsewhere, would carry that difference into every frame, the jaw a few millimetres forward)
+      const p = J.p && J.rest ? J.p.map((x, i) => x - J.rest[i % 3] + o.position.getComponent(i % 3)) : J.p;
+      if (p) tracks.push(new THREE.VectorKeyframeTrack(`${o.name || o.uuid}.position`, B.t, p));
+    }
+    if (tracks.length) put(kind, B.of, additive(new THREE.AnimationClip(`${kind}:${B.of}`, B.t.at(-1), tracks)));
+  }
   // (the body's idle under a take: its own face's weights left out, so the take alone drives the face, as an engine
   // layers it under a mask on the morph weights; two actions on one weights track would be averaged)
   const idle = gltf.animations.find((c) => c.name === 'body:idle') ?? gltf.animations.find((c) => c.name.startsWith('body:'));
@@ -228,7 +278,7 @@ async function load(v) {
     const bytes = await gltf.parser.getDependency('bufferView', A.bufferView);
     (audio[P.clip] ??= []).push({ at: A.at, src: URL.createObjectURL(new Blob([bytes], { type: A.mimeType ?? 'audio/wav' })) });
   }
-  v.loaded = { audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+  v.loaded = { layers, audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
     stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
   return v.loaded;
 }
@@ -275,6 +325,7 @@ function renderRead(v) {
   if (R.adorn) add(`<b>adorn</b><pre>${esc(JSON.stringify(R.adorn, null, 1))}</pre>`);
   if (R.outline) add(`<b>outline</b><pre>${esc(JSON.stringify(R.outline, null, 1))}</pre>`);
   if (R.notes?.length) add(`<b>stylism notes</b><ul>${R.notes.map((n) => `<li>${esc(n.why ?? JSON.stringify(n))}</li>`).join('')}</ul>`);
+  if (v.faceRead) add(`<b>face read</b> (mm: max / 95th, face.mjs)<pre>${esc(Object.entries(v.faceRead).map(([c, R]) => `${c}  L ${R.L.max}/${R.L.p95}  R ${R.R.max}/${R.R.p95}  asym ${R.asymmetry.max}/${R.asymmetry.p95} ${R.shows ? 'shows' : 'too faint'}${R.regions ? `  (${Object.entries(R.regions).map(([r, a]) => `${r} ${a.max}`).join(', ')})` : ''}`).join('\n'))}</pre>`);
   add(`<b>spec</b><pre>${esc(JSON.stringify(v.spec, null, 1))}</pre>`);
 }
 
@@ -291,6 +342,11 @@ function play(name, { phase = 0, fade = 0.35 } = {}) {
   S.take = Object.keys(L.actions).find((k) => L.actions[k] === T);
   next.reset(); next.setLoop(THREE.LoopRepeat, Infinity); next.timeScale = (next.getClip().duration / T.seconds) * S.speed;
   next.time = phase * next.getClip().duration; next.paused = S.paused; next.play();
+  // (the take's layers with it, on the body: its breath, its head)
+  for (const x of S.layers ?? []) x.stop();
+  S.layers = Object.values(L.layers[S.take] ?? {});
+  for (const x of S.layers) { x.reset(); x.setLoop(THREE.LoopRepeat, Infinity); x.play(); }
+  syncBreath(next);
   if (prev && prev !== next && prev !== S.under) { if (fade > 0 && !T.face && !L.actions[Object.keys(L.actions).find((k) => L.actions[k].action === prev)]?.face) prev.crossFadeTo(next, fade, false); else prev.stop(); }
   if (S.paused) L.mixer.update(0);
   markTakes();
@@ -303,7 +359,7 @@ async function selectVariant(id) {
   for (const [k, b] of Object.entries(variantButtons)) b.setAttribute('aria-pressed', String(k === id));
   status.textContent = `Loading ${v.label}…`;
   let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
-  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; }
+  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; S.layers = []; }
   S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
   setWire($('wire').checked);
   renderTakes(L); renderMeters(L); renderRead(v);
@@ -317,20 +373,24 @@ async function selectVariant(id) {
 function setWire(on) { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) m.wireframe = on; }
 
 // ─── the transport and the toggles ──────────────────────────────────────────
+/** the breath kept with its take: its time, its speed, paused with it */
+function syncBreath(a) { if (a) for (const x of S.layers ?? []) { x.time = a.time; x.timeScale = a.timeScale; x.paused = a.paused; } }
 function setPaused(p) {
   S.paused = p; $('playPause').textContent = p ? 'Play' : 'Pause'; $('playPause').setAttribute('aria-label', p ? 'Play' : 'Pause');
   const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.paused = p;
+  for (const x of S.layers ?? []) x.paused = p;
 }
 $('playPause').addEventListener('click', () => setPaused(!S.paused));
 function seek(phase) {
   const L = cur(), a = L && S.take && L.actions[S.take]?.action; if (!a) return;
   setPaused(true); for (const T of Object.values(L.actions)) if (T.action !== a) T.action.stop();
-  a.setEffectiveWeight(1); a.time = Math.max(0, Math.min(1, phase)) * a.getClip().duration * 0.9999; L.mixer.update(0);
+  a.setEffectiveWeight(1); a.time = Math.max(0, Math.min(1, phase)) * a.getClip().duration * 0.9999; syncBreath(a); L.mixer.update(0);
 }
 $('scrub').addEventListener('input', (e) => seek(Number(e.target.value)));
 $('speed').addEventListener('input', (e) => {
   S.speed = Number(e.target.value); $('speedOut').textContent = `${S.speed.toFixed(2)}×`;
   const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.timeScale = (T.action.getClip().duration / T.seconds) * S.speed;
+  if (L && S.take) syncBreath(L.actions[S.take]?.action);
 });
 $('wire').addEventListener('change', (e) => setWire(e.target.checked));
 $('bones').addEventListener('change', (e) => { const L = cur(); if (L) L.bones.visible = e.target.checked; });
@@ -425,6 +485,22 @@ window.heroLive = {
   // (the parallax's depth, a share of the shipped one: 0 off)
   parallax: (k = 1) => { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) if (m.userData.pom) m.userData.pom.uPomDepth.value = k * (m.userData.mojulo?.relief?.depth ?? 0); },
   state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
+  // (a script's read of the playback at moments of the take, seconds: the take, the idle under it and its breath set to
+  // the same moment (each its own clip's time), the mixer settled; each moment's joints' world positions (m, the page's
+  // space) and the body's morph weights: what plays, measured)
+  probe: (times, joints = ['head', 'torso', 'clavicleL', 'neck'], { under = true, breath = true } = {}) => {
+    const L = cur(), a = L && S.take && L.actions[S.take]?.action; if (!a) return null;
+    setPaused(true);
+    // (a layer left out of the read: its action off for it)
+    for (const [on, xs] of [[under, [S.under]], [breath, S.layers ?? []]]) for (const x of xs) if (x) x.setEffectiveWeight(on ? 1 : 0);
+    const bones = joints.map((j) => L.body.skeleton.bones.find((x) => x.name.endsWith(j)));
+    return times.map((t) => {
+      for (const x of [a, S.under, ...(S.layers ?? [])].filter(Boolean)) x.time = t % x.getClip().duration;
+      L.mixer.update(0); L.root.updateMatrixWorld(true);
+      return { t, joints: Object.fromEntries(bones.map((b, i) => [joints[i], b ? new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).toArray().map((v) => +v.toFixed(6)) : null])),
+        morph: Object.fromEntries(Object.entries(L.morph).map(([n, i]) => [n, +L.body.morphTargetInfluences[i].toFixed(5)])) };
+    });
+  },
   // (a camera for a script. With `bone`, a closeup on that bone as posed at this moment: its head, plus `off` m, from
   // `from`, a direction in the page's space (y up, the figure facing −z), `dist` away; a joint's fold is its child bone's
   // head: the elbow is foreArmR's. Without, a free camera: `az` degrees round the figure from its front, `el` degrees up,

@@ -71,8 +71,9 @@ import { clothChart, clothOnRecord } from '@/lib/graph/epidermis/cloth-relief';
 import { outfitLanguage } from '@/lib/graph/outfit/expand';
 import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
-import { relationalFaceRig, performanceTrack } from '@/lib/graph/polygonizer/relational-face-rig';
+import { relationalFaceRig, performanceTrack, mouthTargets } from '@/lib/graph/polygonizer/relational-face-rig';
 import { perform } from '@/lib/graph/face-acting/perform';
+import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -933,6 +934,9 @@ export const WORLD_KINDS = {
         // targets as a LINEAR weights track, a face-only clip an engine layers over a body's (`face:<take>`), derived here
         // and never stored. Absent ⇒ as before.
         if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
+        // THE FACE'S EMOTES (the door's `emote`, face-acting/emotes.js): each a held state's seamless loop on the same targets
+        // (`emote:<clip>`), and the mouth's ownership for an engine's lip-sync over them. Absent ⇒ as before.
+        if (face?.meta && m.hero.head === 'relational' && m.hero.emote) { face.meta.emotes = Object.fromEntries(Object.entries(emoteClips(m.hero.emote)).map(([k, E]) => [k, { ...performanceTrack(emoteTake(E)), emote: typeof E === 'string' ? E : E.emote }])); face.meta.mouth = mouthTargets(); }
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;

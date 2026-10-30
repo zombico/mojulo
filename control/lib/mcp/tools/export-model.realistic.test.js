@@ -37,7 +37,8 @@ describe('the realistic hero, minted and exported', () => {
     const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'],
       perform: { hello: { seconds: 2, beats: [{ at: 0, face: 'neutral' }, { at: 0.5, face: 'amused', flash: true, gaze: 'away', say: 'Hi, you.' }] },
         // (a recorded line: the door saves it, aligns its text to it, and the export embeds it)
-        told: { beats: [{ at: 0.25, face: 'neutral', say: { text: 'Hi.', audio: toneWav(OUT) } }] } } } });
+        told: { beats: [{ at: 0.25, face: 'neutral', say: { text: 'Hi.', audio: toneWav(OUT) } }] } },
+      emote: { idle: { emote: 'rest', seconds: 4 } } } });
     expect(minted.ok).toBe(true);
     expect(minted.hero.head).toBe('relational');
     const out = await exportModelHandler({ ref: minted.ref, format: 'glb', clips: '_all', skinned: true, lit: true });
@@ -69,6 +70,22 @@ describe('the realistic hero, minted and exported', () => {
     expect(take).toBeTruthy();
     expect(take.listSamplers().map((sm) => sm.getInterpolation())).toEqual(['LINEAR']);
     expect(take.listSamplers()[0].getInput().getCount()).toBe(2 * 30 + 1);
+    // (an emote a face-only clip that loops: its last key its first; the mouth's ownership said for an engine's lip-sync)
+    const emote = root.listAnimations().find((a) => a.getName() === 'emote:idle'), es = emote.listSamplers()[0], ev = es.getOutput().getArray();
+    expect(es.getInterpolation()).toBe('LINEAR');
+    expect(es.getInput().getCount()).toBe(4 * 30 + 1);
+    expect([...ev.slice(ev.length - names.length)]).toEqual([...ev.slice(0, names.length)]);
+    const faceX = root.listMeshes().find((m) => m.listPrimitives().includes(prim)).getExtras()?.face;
+    expect(faceX.emotes).toEqual([{ clip: 'emote:idle', emote: 'rest', seconds: 4, loop: true }]);
+    expect(faceX.mouth.driver).toEqual(expect.arrayContaining(['jawOpen', 'lipsPart']));
+    // (and each face clip's breath on the body, an additive layer: the torso and the clavicles turned, the arms carried)
+    const breath = root.listAnimations().find((a) => a.getName() === 'breath:emote:idle');
+    expect(breath.listChannels().map((c) => `${c.getTargetNode().getName()}.${c.getTargetPath()}`)).toEqual(expect.arrayContaining(['body:torso.rotation', 'body:clavicleL.rotation', 'body:upperArmR.translation']));
+    expect(root.listAnimations().some((a) => a.getName() === 'breath:face:hello')).toBe(true);
+    // (and its head: the neck turned by its share, the head and the jaw by the whole, carried round)
+    const head = root.listAnimations().find((a) => a.getName() === 'head:emote:idle');
+    expect(head.listChannels().map((c) => `${c.getTargetNode().getName()}.${c.getTargetPath()}`)).toEqual(expect.arrayContaining(['body:neck.rotation', 'body:head.rotation', 'body:jaw.translation']));
+    expect(faceX.breathing).toMatch(/additive/);
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];
     for (let i = 0; i < W.getCount(); i += 97) { W.getElement(i, w); expect(Math.abs(w[0] + w[1] + w[2] + w[3] - 1)).toBeLessThan(1e-3); }
