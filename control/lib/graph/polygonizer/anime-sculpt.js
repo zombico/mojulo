@@ -149,7 +149,7 @@ export function sparseSculpt(resolved) {
 }
 /** Advisory: the words outside their comfortable range. A sculpt word moves the face's own construction (a lip line far
  * past its range leaves the lattice's mouth opening), so the advice promises no closure: the door's closure check says. */
-export const animeSculptWarnings = (resolved) => (resolved ? ANIME_SCULPT.warnings(resolved).map((w) => w.replace(": the figure still closes, but the read past this is the operator's call", ": the read past this is the operator's call, and far past it the face may open (the closure check says)")) : []);
+export const animeSculptWarnings = (resolved, { base = null } = {}) => (resolved ? ANIME_SCULPT.warnings(base ? Object.fromEntries(Object.entries(resolved).filter(([k, v]) => !(base[k] !== undefined && Math.abs(v - base[k]) < 1e-9))) : resolved).map((w) => w.replace(": the figure still closes, but the read past this is the operator's call", ": the read past this is the operator's call, and far past it the face may open (the closure check says)")) : []);
 /** the words that moved off the base, as percentages and offsets (the readout's clause) */
 export const describeAnimeSculpt = (resolved) => (resolved ? [ANIME_SCULPT.describe(resolved), ...['fissureShape', 'browShape', 'noseShape'].filter((k) => resolved[k]).map((k) => `${k} ${resolved[k]}`)].filter(Boolean).join(', ') : '');
 

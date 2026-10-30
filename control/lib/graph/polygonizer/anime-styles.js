@@ -49,16 +49,19 @@ export const ANIME_STYLES = Object.freeze({
     // the female: the MALE's head (`head`: his skull, his profile, his jaw's line to the back of the skull, his ear), and
     // over his face and sculpt her own layer, after Nobara's figure: her head smaller than his; her features softer (her
     // brow's ridge, her bridge and her nose lighter, her jaw narrower, softer and turned under into a small pointed chin,
-    // her lids and brows less angled); her cheeks fuller, her lower face rounded out down to the pointed chin; her eyes a little larger than his, almond under a heavier lash
-    // flicked at its tail; her brows thinner; her mouth smaller; her head seated back on her neck (`seatBack`: his head
+    // her lids and brows less angled); her face one clean line from the cheekbone down to the pointed chin, front and three-quarter, no fullness bulging at the mouth: from the front a convex arc, fuller along the jaw and narrowing into a narrow chin; her eyes a little larger than his, almond under a heavier lash
+    // flicked at its tail; her brows thinner; her mouth smaller; after the figure's proportions (the eye as drawn, its lid
+    // band and lashes in it: about a quarter of the face's width, one eye's width apart, two fifths of the eye line to
+    // the chin), her eyes larger than his and set wider, her lower face shorter, the eye line lower in it, the nose small and short (its tip raised under
+    // a root that stays), the mouth narrow and raised with it, the gap between them kept (her bands the figure's, not his); her head seated back on her neck (`seatBack`: his head
     // sits forward on her slimmer neck; back, her face stands as far before her neck as his before his). Her body and
     // her hair are her cast's own
     female: Object.freeze({
       head: 'male',
-      face: Object.freeze({ eyeHeight: 1.06, eyeWidth: 1.02, iris: 1.03, jaw: 0.88, chin: 0.84, chinProjection: 0.94, cheekVolume: 1.08, lowerCheekVolume: 1.27, browDepth: 0.85, nose: 0.92 }),
-      sculpt: Object.freeze({ lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.8, mouthWidth: 0.9, jawHollow: -0.02, napeLift: -0.03, seatBack: 0.08 }),
+      face: Object.freeze({ lower: 0.85, eyeHeight: 1.087, eyeWidth: 1.061, spacing: 1.04, iris: 1.08, jaw: 1.012, chin: 0.689, chinProjection: 0.94, cheekVolume: 1.026, lowerCheekVolume: 0.92, browDepth: 0.85, nose: 0.69 }),
+      sculpt: Object.freeze({ pronasale: 0.038, stomion: 0.06, lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.52, mouthWidth: 0.6, jawHollow: 0.01, napeLift: -0.03, seatBack: 0.08 }),
       tune: Object.freeze({ ...LEAN_LONG, head: 0.9, stature: 1.02, hips: 0.95 }),
-      bands: Object.freeze({ browThick: [0.2, 0.45], noseProjection: [0.06, 0.12] }),
+      bands: Object.freeze({ browThick: [0.2, 0.45], eyeLevel: [0.41, 0.45], pronasale: [0.28, 0.34], stomion: [0.19, 0.24], noseToMouth: [0.08, 0.12], eyeWidth: [0.19, 0.24], noseProjection: [0.035, 0.07], mouthWidth: [0.17, 0.24] }),
     }),
   }),
   // Z-FIGHTER, grown-hero-sized and martial-arts-themed (after a maquette of Goku): an adult fighter's head, small on a

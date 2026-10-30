@@ -48,6 +48,14 @@ describe('a take read as drawings', () => {
     expect(at(4.6).brows.L).toBe('brows.worried');
     expect(frames.slice(Math.round(3.6 * FACE_FPS)).some((F) => F.gaze !== 'gaze.ahead')).toBe(true);
   });
+  it('draws a smile on an open jaw as the open smile (its top lip held, the bottom dropped), not a vowel', () => {
+    // (a laugh: happiness's take with the jaw dropped through it)
+    const happy = perform({ seconds: 1.2, beats: [{ at: 0, face: 'happiness', onset: 'posed' }] });
+    const laugh = { ...happy, curves: { ...happy.curves, AU26: Array.from({ length: happy.frames }, () => 0.8) } };
+    const { frames } = animeRead(laugh), at = (t) => frames[Math.round(t * FACE_FPS)];
+    expect(at(0.8).mouth).toBe('mouth.beam');
+    expect(DRAWINGS['mouth.beam'].words.mouth.up).toBe(0);
+  });
   it('lowers to the four channels', () => {
     expect(lowerFrame({ eyeL: 0, eyeR: 1, brows: { L: 'brows.angry', R: 'brows.angry' }, lids: { L: 'lids.angry', R: 'lids.open' }, mouth: 'mouth.a', smile: 0 }))
       .toEqual({ eyeL: 0.12, eyeR: 1, smile: 0, open: 0.8, brow: 1 });

@@ -77,3 +77,6 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   meets the lid's rings), no line where the form carries it, the profile read
   by its blocks, no deformation, drawings snap. The formed head's feature bands are its own (`ANIME_FORM_POLE` bands:
   its nose stands out, its brow held off the eye), a style's over them.
+- **The open smile** (`mouth.beam`, a 7G mouth drawing): the top lip held level on the lip line, the bottom dropped
+  into a U under it and the corners lifted, so a smile can open without its top line moving; the reading draws an
+  open jaw under a smile with it (a laugh), where it drew a plain "a" and lost the smile.

@@ -78,6 +78,8 @@ export const DRAWINGS = Object.freeze({
   'mouth.wavy': d('mouth', 'a wavering, flustered mouth line', { words: { mouth: { wave: 0.7, up: 0.1, down: 0.1 } }, lower: {} }),
   'mouth.small': d('mouth', 'a small, tight mouth', { words: { mouth: { wide: 0.55 } }, lower: {} }),
   'mouth.smirk': d('mouth', 'one corner of the mouth lifted in a smirk', { words: { mouth: { corner: 1 } }, lower: { smile: 0.5 }, sided: true }),
+  // (the open smile: the top lip held on the lip line, the bottom dropped into a U under it, the corners lifted)
+  'mouth.beam': d('mouth', 'an open smile, the top lip held level and the bottom dropped into a U', { words: { mouth: { up: 0, down: 0.75, corner: 0.45, wide: 1.05 } }, lower: { open: 0.45, smile: 0.7 } }),
 });
 
 /** each layer's drawing at rest */

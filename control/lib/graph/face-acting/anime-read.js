@@ -83,10 +83,11 @@ export function animeRead(take) {
     // the gaze: its dominant turn past the step (+yaw the figure's right, +pitch up), the pupils shrunk in shock
     const yaw = take.gaze?.yaw?.[i] ?? 0, pitch = take.gaze?.pitch?.[i] ?? 0;
     face.gaze = both('AU5') > R.shock && both('AU1') > R.shock && both('AU26') > R.jaw * 0.6 ? 'gaze.shock' : Math.max(Math.abs(yaw), Math.abs(pitch)) < GAZE_STEP ? 'gaze.ahead' : Math.abs(yaw) >= Math.abs(pitch) ? (yaw > 0 ? 'gaze.right' : 'gaze.left') : pitch > 0 ? 'gaze.up' : 'gaze.down';
-    // the mouth: a spoken line's kuchipaku, else the face's own; the smile's channel rides either
+    // the mouth: a spoken line's kuchipaku, else the face's own (an open jaw under a smile its open smile, `mouth.beam`);
+    // the smile's channel rides either
     const spoken = spokenMouth(lines, t), smileL = side('AU12', 'L'), smileR = side('AU12', 'R'), jaw = both('AU26') + both('AU27');
     if (spoken) { face.mouth = spoken; face.spoken = true; face.smile = +clamp01(Math.max(smileL, smileR)).toFixed(3); }
-    else if (jaw > R.jaw) face.mouth = both('AU4') > R.anger || both('AU9') > R.anger ? 'mouth.shout' : both('AU18') + both('AU22') > R.pucker ? 'mouth.o' : 'mouth.a';
+    else if (jaw > R.jaw) face.mouth = both('AU4') > R.anger || both('AU9') > R.anger ? 'mouth.shout' : both('AU18') + both('AU22') > R.pucker ? 'mouth.o' : Math.max(smileL, smileR) > R.smile ? 'mouth.beam' : 'mouth.a';
     else if (Math.max(smileL, smileR) > R.smile) { if (Math.abs(smileL - smileR) > R.smirk) { face.mouth = 'mouth.smirk'; face.mouthSide = smileL > smileR ? 'L' : 'R'; } else face.mouth = 'mouth.smile'; }
     else if (both('AU15') > R.frown) face.mouth = 'mouth.frown';
     else if (both('AU18') + both('AU22') > R.pucker) face.mouth = 'mouth.u';
