@@ -25,7 +25,7 @@ describe('helmets', () => {
     expect(validateHead({ helmet: BARE, cover: 'paisley' }, 'h', Object.keys(CAMOS)).join()).toMatch(/h\.cover/);
     expect(validateHead({ helmet: BARE, plume: true }).join()).toMatch(/head\.plume/);
     expect(validateHead({ helmet: BARE, nvg: 'yes' }).join()).toMatch(/head\.nvg/);
-    expect(headOf({ head: BARE })).toEqual({ helmet: BARE, cover: false, band: false, net: false, nvg: false });
+    expect(headOf({ head: BARE })).toEqual({ helmet: BARE, cover: false, band: false, net: false, nvg: false, headset: false });
     // (a cover `true` takes the top's camouflage, else it is a cloth cover in the helmet's tone)
     expect(headOf({ head: { helmet: BARE, cover: true }, top: { pattern: CAMO } }, isCamo).cover).toBe(CAMO);
     expect(headOf({ head: { helmet: BARE, cover: true }, top: {} }, isCamo).cover).toBe(true);
