@@ -109,7 +109,10 @@ describe('a stage on storeys', () => {
     const R = KEEP2.rooms;
     expect(() => planStage({ ...KEEP2, rooms: [...R, { id: 'out', x: 30, y: 0, w: 4, d: 4, h: 3, storey: 1 }] })).toThrow(/stands over nothing/);
     expect(() => planStage({ ...KEEP2, rooms: [...R, { id: 'up2', x: 8, y: 0, w: 7, d: 8, h: 4, storey: 2 }], links: [...KEEP2.links, { from: 'stair', to: 'up2' }] })).toThrow(/a stair climbs one storey/);
-    expect(() => planStage({ ...KEEP2, ways: [{ room: 'guard', side: '-y' }] })).toThrow(/leaves the ground storey/);
+    // (a way out of an upper storey is a building set into its slope's: stage-buildings.js `embed`; a side with no
+    // outside wall is still refused)
+    expect(planStage({ ...KEEP2, ways: [{ room: 'guard', side: '-y' }] }).ways[0]).toMatchObject({ room: 'guard', side: '-y' });
+    expect(() => planStage({ ...KEEP2, ways: [{ room: 'guard', side: 'up' }] })).toThrow(/needs side/);
     expect(() => planStage({ ...KEEP2, rooms: R.map((r) => (r.id === 'stair' || r.id === 'landing' ? { ...r, d: 4 } : r)) })).toThrow(/finds no wall to climb along/);
     expect(() => planStage({ ...KEEP2, rooms: [{ ...R[0], storey: 1.5 }] })).toThrow(/whole number/);
   });

@@ -28,7 +28,8 @@ import { grassContact } from '../../vegetation/grass-contact.js';
 //     the root, a share of tufts gone to straw at the tips, the sun through a blade seen against it. Absent ⇒ the lock.
 //   · the cards: the static blade cards (their textured meshes, tagged with their group) discard inside the field, by the
 //     same distance from the eye the field thins by.
-//   · CROWNS: the trees' crown and wood meshes bend in the same gust field, weighted by height above the ground.
+//   · CROWNS: the trees' crown and wood meshes bend in the same gust field, weighted by height above the ground; the
+//     trunks stand (a wood vertex weighted again by how far it stands off its trunk: the limbs and leaves sway, never it).
 //   · PETALS (`petals`, a sakura's): a notched, cupped petal mesh, pixel-locked as the blades are (its ramp coordinate
 //     base to tip, its window of the blossom ramp per instance). FALLING: let go from under a crown, tumbling, carried
 //     downwind by the mean wind and nudged by the gust where it is, lying where it lands for `rest` s, then let go again
@@ -307,13 +308,46 @@ const CROWNS = `
     + ' vec2 u = mojWindAt(p.xy, p.z - g, uWindT); float m = length(u); vec2 push = u * m * uCrown.x / 80.0;'
     + ' float fl = uCrown.z * min(1.0, m / 4.0) * sin(uWindT * 2.3 + dot(p, vec3(0.7, 1.1, 0.5)));'
     + ' return vec3((push * uCrown.y + vec2(fl, -fl)) * w, -0.15 * length(push) * uCrown.y * w); }\\n';
+  // THE TRUNKS STAND: a rigid wood's vertex (CR.rigid, the trees' wood) sways by how far it stands off the nearest trunk
+  // (CR.trunks, segments foot to top with their radii: era/isekai.js trunkSway), none on the trunk's skin and all of it
+  // \`limb\` m out, so a limb bends from where it leaves the trunk and the trunk not at all; the leaves sway as they did
+  let SEG = null, HASH = null; const HC = 4;
+  if (CR.trunks) {
+    const s = atob(CR.trunks.__b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    SEG = new Float32Array(u.buffer); HASH = new Map();
+    for (let k = 0; k < SEG.length; k += 8) {
+      const r = Math.max(SEG[k + 6], SEG[k + 7]) + CR.limb;
+      for (let i = Math.floor((Math.min(SEG[k], SEG[k + 3]) - r) / HC); i <= Math.floor((Math.max(SEG[k], SEG[k + 3]) + r) / HC); i++)
+        for (let j = Math.floor((Math.min(SEG[k + 1], SEG[k + 4]) - r) / HC); j <= Math.floor((Math.max(SEG[k + 1], SEG[k + 4]) + r) / HC); j++) {
+          const key = i * 73856093 ^ j * 19349663; if (!HASH.has(key)) HASH.set(key, []); HASH.get(key).push(k);
+        }
+    }
+  }
+  // (how far p stands off the trunks' skin, by the segments in its cell; far off every trunk, CR.limb)
+  function offTrunk(x, y, z) {
+    const L = HASH.get(Math.floor(x / HC) * 73856093 ^ Math.floor(y / HC) * 19349663); let best = CR.limb;
+    if (L) for (const k of L) {
+      const ax = SEG[k], ay = SEG[k + 1], az = SEG[k + 2], dx = SEG[k + 3] - ax, dy = SEG[k + 4] - ay, dz = SEG[k + 5] - az;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy + (z - az) * dz) / Math.max(1e-9, dx * dx + dy * dy + dz * dz)));
+      const d = Math.hypot(x - ax - dx * t, y - ay - dy * t, z - az - dz * t) - (SEG[k + 6] + (SEG[k + 7] - SEG[k + 6]) * t);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+  const P = new THREE.Vector3();
   scene.traverse((o) => {
     if (!o.isMesh || !CR.groups.includes(o.userData.g) || !o.material) return;
+    const rigid = !!(SEG && CR.rigid && CR.rigid.includes(o.userData.g));
+    if (rigid) {
+      o.updateMatrixWorld(true); const pos = o.geometry.attributes.position, w = new Float32Array(pos.count);
+      for (let i = 0; i < pos.count; i++) { P.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); const d = Math.max(0, offTrunk(P.x, P.y, P.z) - 0.02) / CR.limb; w[i] = d >= 1 ? 1 : d * d * (3 - 2 * d); }
+      o.geometry.setAttribute('aSway', new THREE.BufferAttribute(w, 1));
+    }
     const mat = o.material.clone(); mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + GLSL).replace('#include <begin_vertex>', '#include <begin_vertex>\\ntransformed += mojCrown((modelMatrix * vec4(transformed, 1.0)).xyz);');
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + (rigid ? 'attribute float aSway;\\n' : '') + GLSL).replace('#include <begin_vertex>', '#include <begin_vertex>\\ntransformed += mojCrown((modelMatrix * vec4(transformed, 1.0)).xyz)' + (rigid ? ' * aSway' : '') + ';');
     };
-    mat.customProgramCacheKey = () => 'mojulo-crown-sway'; o.material = mat;
+    mat.customProgramCacheKey = () => 'mojulo-crown-sway' + (rigid ? '-rigid' : ''); o.material = mat;
   });
 })();
 `;
@@ -465,7 +499,8 @@ const PETALS = `
  *  [{ lo, sc, q, H, tris }], variants: [{ L2, L1, L0 }], size, radius, near, tile, density, height, px, drawTris, seed,
  *  sheen, contact?: { …GRASS_CONTACT_DEFAULTS, eye }, real?: { ao, back, dry, sun, sunColor }, far?: { density, width },
  *  taker, cards: [group],
- *  crowns: { groups, phi, reach, flutter, from, full } | null, wind } */
+ *  crowns: { groups, phi, reach, flutter, from, full, rigid?, trunks?, limb? } | null, wind, field?: false (the blades not drawn: the wind and the
+ *  crowns' sway kept, the form render's grass drawing its own in the same gusts; channels/form-grass.js) } */
 export function stageGrassScript(cfg) {
   const { wind, ...rest } = cfg, lg = safeJson(rest);
   return `
@@ -482,5 +517,5 @@ export function stageGrassScript(cfg) {
   window.__mojTerrain = window.__mojTerrain || { kernel: { groundAt }, cfg: {}, stat: {} };
   window.__mojTerrain.stageHeights = Z; window.__mojTerrain.stageMask = dec(G.m); window.__mojStageLG = LG;
 })();
-${terrainWindScript(wind)}${FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
+${terrainWindScript(wind)}${cfg.field === false ? '' : FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
 }

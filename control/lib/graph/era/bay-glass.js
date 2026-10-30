@@ -101,6 +101,8 @@ export function glazeOpening(out, F, u0, u1, z0, z1, G, S) {
 }
 
 export function sunPatches(out, F, panes, sun, inside) {
+  // (a sun at or under the horizon lays none: a seated building's sun is the land's, at its hour)
+  if (!(sun.el > 2)) return 0;
   const el = (sun.el * Math.PI) / 180, h = Math.hypot(...sun.toward), tw = sun.toward.map((v) => v / h);
   if (tw[0] * F.N[0] + tw[1] * F.N[1] < 0.2) return 0;
   const d = [tw[0] * Math.cos(el), tw[1] * Math.cos(el), -Math.sin(el)], look = { fill: sun.color, alpha: sun.alpha };

@@ -16,7 +16,7 @@
  * same rows → same pack bytes; the folder is wholly derived and clean-emitted on every build.
  */
 import { emitUnrealAsset, UNREAL_LEG_VERSION } from './unreal-project.js';
-import { loadSketch, packHash, resolveLevel, worldGlbStats, emitFolder, figureClip, figureClipNames, figureSkeleton } from './engines/pack.js';
+import { loadSketch, packHash, resolveLevel, worldGlbStats, emitFolder, figureClip, figureClipNames, figureSkeleton, voiceFiles } from './engines/pack.js';
 
 /** Why a row does not go to Unreal, or null when it does: a game (and a pixelizer game, a 2D reducer) is not an asset. */
 export function unrealRefusal(manifest = {}, ref = '?') {
@@ -34,7 +34,10 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
   const manifest = sketch.manifest ?? {};
   const refused = unrealRefusal(manifest, ref);
   if (refused) throw new Error(`refused: ${refused}`);
-  const { kind, exported, fig, engine } = await resolveLevel(sketch, { engine: 'unreal', clips, lit, figure: true, humanoid });
+  const { kind, exported, fig, engine, voice: lines } = await resolveLevel(sketch, { engine: 'unreal', clips, lit, figure: true, humanoid });
+  // a realistic hero's recorded lines (face-acting/recordings.js): each held one shipped at Voice/<recording>.wav, the
+  // importer cueing it on its take
+  const voice = (lines ?? []).filter((v) => v.bytes).map((v) => ({ clip: v.clip, at: v.at, file: `Voice/${v.recording}.wav` }));
   // the skinned figure: the clip the importer loops on it in the preview, and its skeleton
   const figure = fig ? (() => {
     const [name, f] = fig, clipNames = figureClipNames(clips, f);
@@ -43,7 +46,7 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.triangleCount} triangles${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, loops ${figure.clip})` : ''}`);
   const manifestHash = packHash(manifest);
   const emitted = emitUnrealAsset({
-    ref, kind: manifest.kind ?? kind, title: sketch.title ?? manifest.title ?? ref, manifestHash, lit, figure, ...(lit && fig?.[1]?.normalTex ? { relief: true } : {}),
+    ref, kind: manifest.kind ?? kind, title: sketch.title ?? manifest.title ?? ref, manifestHash, lit, figure, ...(lit && fig?.[1]?.normalTex ? { relief: true } : {}), voice,
     // (the clothes' depth map, cloth-relief.js: written beside the GLB for the importer to march the parallax with)
     ...(lit && fig?.[1]?.normalTex && fig[1].depthTex ? { parallax: { file: 'figure_depth.png', depth: fig[1].depthTex.depth, perM: fig[1].depthTex.perM } } : {}),
     remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}${humanoid ? '' : ' --no-humanoid'}`,
@@ -52,6 +55,7 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
     { rel: 'model.glb', data: exported.bytes },
     ...(lit && fig?.[1]?.normalTex && fig[1].depthTex ? [{ rel: 'figure_depth.png', data: Buffer.from(fig[1].depthTex.url.replace(/^data:image\/png;base64,/, ''), 'base64') }] : []),
     { rel: `recipe/${ref}.json`, data: JSON.stringify(manifest, null, 2) },
+    ...voiceFiles(lines, 'Voice').map(({ rel, bytes }) => ({ rel, data: bytes })),
     ...emitted.files.map((f) => ({ rel: f.file, data: f.text })),
   ] });
   return {

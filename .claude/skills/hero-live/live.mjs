@@ -26,7 +26,7 @@
 //   --serve     serve the out dir on 127.0.0.1 (default port 8765) after writing it
 //   --reuse     keep a variant whose <id>.glb and <id>.read.json are already in --out (iterate on the page alone)
 //
-// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'),
+// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'|'vBodySide'|'vBack'),
 // seek(phase), pause(bool), hold({ morph: weight }), state().
 import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';
@@ -172,7 +172,7 @@ if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Obj
 
 // ─── serve (loopback only) ──────────────────────────────────────────────────
 if (opt.serve) {
-  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.glb': 'model/gltf-binary' };
+  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.glb': 'model/gltf-binary', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4' };
   createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html', file = path.resolve(out, rel);
     if (!file.startsWith(out + path.sep) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end(); return; }

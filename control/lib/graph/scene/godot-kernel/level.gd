@@ -235,7 +235,7 @@ func _fix_materials() -> void:
 				mat.vertex_color_is_srgb = false
 
 
-# The clothes in depth (cloth-relief, realistic laws 12): score.figure_parallax names the figure's material, the depth
+# The clothes in depth (cloth-relief, realistic laws 13): score.figure_parallax names the figure's material, the depth
 # map written beside the GLB, its depth (m at black) and the UVs a metre spans across and along the atlas. Each of the
 # figure's surfaces in that material takes figure_parallax.gdshader in place of the one glTF import made, its textures
 # carried across (the base colour, the normal map, the ORM glTF import put on roughness and metallic), so its map UVs are

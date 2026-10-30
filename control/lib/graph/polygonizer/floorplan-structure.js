@@ -44,11 +44,11 @@ import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
 import { railOf, allowanceOf, rankOf, layWithin } from '../era/compose-purpose.js';
 import { placeHomeWindows } from './home-windows.js';
 import { windowLaws } from './window-laws.js';
-import { readForm, partyWallsOf, planForm, FORM_FOOTPRINT } from './house-forms.js';
+import { readForm, partyWallsOf, planForm, stairWidthOf, FORM_FOOTPRINT } from './house-forms.js';
 import { FURNITURE_LANGUAGES, FURNITURE_LANGUAGE_NAMES, DEFAULT_LANGUAGE, COMPOSED_ROLES, composeForRole } from '../furnishings/languages.js';
 import { FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
-import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
+import { houseStyleOpts, houseStyleKey, homeLook } from './floorplan-styles.js';
 import { doorApproaches } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -2298,8 +2298,6 @@ export function renderFloorplanToHtml(input = {}, opts = {}) {
  * inline the three.js vendor bundle (required by renderWorldToPng for headless
  * rasterization).
  */
-// a house's look (`houseLook`) and tradition for its style roll (floorplan-styles.js HOME_WINDOWS): absent, look 1, as before
-const homeLook = (input, opts) => ({ look: opts.houseLook ?? input.houseLook ?? 1, tradition: (opts.design ?? input.design)?.tradition ?? null, form: opts.form ?? input.form ?? null });
 
 // a game's spend, room by room (era/compose-purpose.js): collected while the rooms are furnished, read out beside the
 // faces as `rails` (the page draws none of it); absent a purpose with an allowance, no collector and no key
@@ -2811,6 +2809,12 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
     : { anchor: [r.x + inset + width, r.y + inset], direction: '+y', hostRoomIndex: i, hostGlyph: r.glyph };
 }
 
+/** The stair zone's span across a program house's spine: a switchback's two flights and its well, or one flight, each
+ * as wide as the widest flight asked for (placeStairs lays each at its own width, so its zone must hold it). */
+export function stairSpanOf(stairSpecs, switchbackDefault = false) {
+  const w = stairWidthOf(stairSpecs);
+  return stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? 2 * w + STAIR_DEFAULTS.wellGap + 1.2 : w + 0.4;
+}
 /**
  * Structurize a multi-level house: each level reuses the floorplan glyphs at its
  * own baseZ along the meru. Shared footprint → the envelope stacks into one shell.
@@ -2874,7 +2878,8 @@ export function structurizeHouse(input = {}, opts = {}) {
   const repairPassage = o.design && o.design.repair ? designRules(o.design, framing ? framing.tradition : null).passage : null;
   let switchbackDefault = useProgram && form === 'detached';   // (a form's stair is a straight flight in its hall)
   let stairRun = null;
-  const spanFor = () => (stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4));
+  const stairW = stairWidthOf(stairSpecs);
+  const spanFor = () => stairSpanOf(stairSpecs, switchbackDefault);
   let stairSpan = spanFor();
   // ground first so its open core fixes the shared stair zone the others must keep open.
   const order = [...resolved].sort((a, b) => (a.index === 0 ? -1 : b.index === 0 ? 1 : a.index - b.index));
@@ -2889,7 +2894,7 @@ export function structurizeHouse(input = {}, opts = {}) {
     if (form !== 'detached') {
       // (one stair zone for every storey: sized for the tallest floor-to-floor the stack has)
       const rise = Math.max(o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight, o.upperHeight ?? FLOORPLAN_DEFAULTS.upperHeight) + (o.floorDrop ?? FLOORPLAN_DEFAULTS.floorDrop);
-      formPlan ||= planForm(form, { width, height, indices: resolved.map((x) => x.index), rise, seed: input.seed ?? 1 });
+      formPlan ||= planForm(form, { width, height, indices: resolved.map((x) => x.index), rise, seed: input.seed ?? 1, stairWidth: stairW });
       planByIndex.set(r.index, formPlan.plans.get(r.index));
       stairZone = formPlan.stairZone; stairDir = formPlan.stairDir;
       continue;

@@ -1,12 +1,12 @@
 /**
- * CLOTH RELIEF — the realistic hero's clothes as material for an engine that lights them (realistic laws 12): each
+ * CLOTH RELIEF — the realistic hero's clothes as material for an engine that lights them (realistic laws 13): each
  * garment's tube unrolled onto a CLOTH PAGE of its skin's atlas (dermal-hero.js heroSkinPaint), its relief baked there as
  * a height (the creases where its body bends, its seams, its hems, the cloth's grain), and every texel's roughness,
  * metalness and occlusion its cloth's; read into the figure's normal map beside the head's (dermal-relief.js heroRelief)
  * and an ORM map (glTF's occlusion and metallicRoughness: scene-gltf.js), so a leather jacket shines satin over its
  * creases, a wool suit is dull, a buckle is metal.
  *
- *   clothOnRecord(hero)              a hero whose lit skinned export carries it: the realistic form minted under laws 12
+ *   clothOnRecord(hero)              a hero whose lit skinned export carries it: the realistic form minted under laws 13
  *   clothOf(group, P, language)      the cloth a face of `group` on part `P` is (CLOTHS' keys): the part's own word (an
  *                                    outer's `cloth`), else read off the outfit's language by its layer, else by group
  *   clothChart(mesh, recipe, { language })  → { islands, faceOf(fi) → { island, uv: [[u, s] × 3] (m) } | { swatch } | null,
@@ -28,7 +28,7 @@ import { streamOf, strHash } from '../city/plan/dice.js';
 import { exp, cos, sin } from '../../util/dmath.js';
 
 /** the realistic laws a hero's cloth relief is minted under (layered.js REALISTIC_LAWS_VERSION) */
-export const CLOTH_LAWS = 12;
+export const CLOTH_LAWS = 13;
 /** the cloth page: a texel (m) at the relief's full size (the head's page 512 across: RELIEF_SIZE.L2), the gutter about an
  * island and a swatch's side (texels) */
 export const CLOTH_PAGE = Object.freeze({ texel: 0.002, gutter: 4, swatch: 8 });
@@ -76,7 +76,7 @@ export const CLOTHS = Object.freeze({
 /** a group's cloth where neither the part nor the outfit's language names one */
 const GROUP_CLOTH = Object.freeze({ Shoes: 'leather', Leather: 'leather', Strap: 'leather', Sole: 'rubber', Buckle: 'steel', Brass: 'brass', Button: 'horn', Tie: 'silk', Rib: 'rib', Trim: 'rib' });
 
-/** a hero record whose lit skinned export carries its cloth's relief: the realistic form minted under realistic laws 12 */
+/** a hero record whose lit skinned export carries its cloth's relief: the realistic form minted under realistic laws 13 */
 export function clothOnRecord(hero) {
   if (!hero || hero.form !== 'realistic') return false;
   const laws = hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined;

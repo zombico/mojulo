@@ -31,7 +31,7 @@ import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { MARKED_ENGINES } from '../scene/engines/registry.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
-import { PROGRAM_IDS } from '../era/programs.js';
+import { PROGRAM_IDS, PROGRAMS, BASE_USES } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
@@ -64,6 +64,8 @@ import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
 import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
+import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
+import { BOOK_SKINS } from './book-skin.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -120,6 +122,8 @@ function guide() {
     '  makes every ready step. A run keeps what did not move, remakes what did in place, leaves hand edits (force: true',
     '  overwrites). It answers each stamp, the steps, what was made and `next` step ids (gameworld-next); `readout:',
     '  \'changed\'` only what moved. `mode`: ' + Object.entries(MODES).map(([k, v]) => `${k} (${v})`).join('; ') + '.',
+    'SHOWN FIRST: asked to see it before it is built? Create the world (no run), show its book (/api/sketches/<ref>/bible:',
+    '  the plans, a building\'s finishes as the build paints them) and stop for the verdicts.',
   );
 }
 
@@ -138,8 +142,8 @@ function worldCard() {
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
-    `  or building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? } | { ref } in place of the walk:`,
-    '  a building played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
+    `  or building: { use: ${PROGRAM_IDS.filter((u) => !BASE_USES.includes(u)).join(' | ')} | a base's (gameworld-wcd), seed?, goal?,`,
+    '  civilization? } | { ref } in place of the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
@@ -526,6 +530,37 @@ function battlesCard() {
   );
 }
 
+function wcdCard() {
+  return lines(
+    'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
+    '  gates the next and takes the player deeper: across, down or up. A concept, not a map shape: Shadow Moses and the',
+    '  three walls (Maria, Rose, Sina) are WCDs.',
+    '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
+    '',
+    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
+    '        gate?, oneWay? }] }',
+    'SPACES',
+    ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    '  depth         0 the outermost; the core the deepest',
+    "  level         the world level it is in; use: a building use (the program's rooms); look: the composer's words or",
+    '                { words?, construction?, palette? }, built into its level (a base building is composed and stocked);',
+    '                tone: the stage\'s colour (its ramps), kept on the dungeon; built: false, on the path and not made yet',
+    'DOORS (the intermediaries)',
+    ...Object.entries(WCD_VIAS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    "  gate          what opens it: { clearance: 1…9 } (a keycard's level) or { power: '<id>' } (a power found in the world)",
+    '  oneWay        it opens only from `from`: a shortcut back out, or a drop',
+    '',
+    'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
+    ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    '',
+    'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
+    ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    '',
+    'A layer\'s construction and palette carry the change from the last. The book draws the dungeon as rings to the core,',
+    'each gate on its join, each layer\'s finishes beside it: the approval sheet before a run. A level\'s style palette does',
+    'not colour a bay building; its look or its tone does.',
+  );
+}
 function foesCard() {
   const status = (c) => classStatus(c);
   const row = (c) => { const S = status(c); return `  ${c.id.padEnd(8)} ${c.reads}${S.status === 'built' ? '' : ` [${S.status}: ${S.short.join(', ')}]`}`; };
@@ -683,7 +718,9 @@ function nextCard() {
     'THE NEXT MOVES — design_game\'s readout ends with `next`: step ids, each with what it needs. What each asks:',
     '',
     '  review     gated: show the creator the bible, then approve or send back those `parts` ({ ref, approve: [...] } or',
-    '             { ref, revise: { part, note } }). The verdicts are theirs, never yours.',
+    '             { ref, revise: { part, note } }). The verdicts are theirs, never yours. The bible\'s look is the world\'s',
+    `             book: { skin: ${Object.keys(BOOK_SKINS).map((k) => `'${k}'`).join(' | ')} | { from?, paper, sheet, ink, muted, rule, accent, signal (#rrggbb),`,
+    '             display, body, mono (font names), frame: rule | bracket, texture: none | grid | scanlines, plates: paper | night } }.',
     '  advised    autonomous: the machine gate advises on those `parts`: change the page, or approve it as it stands.',
     '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
     '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
@@ -768,6 +805,7 @@ const CARDS = [
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
+  ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],

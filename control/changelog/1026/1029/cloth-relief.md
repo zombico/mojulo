@@ -6,7 +6,7 @@ engine: no UVs (every garment corner on the atlas's one white texel), a colour p
 figure (roughness 0.85, no metal), so a leather jacket, a wool suit and a brass buckle shone alike and the creases were
 geometry only.
 
-- **The clothes' relief on the lit engine export (realistic laws 12; `epidermis/cloth-relief.js`).** On the lit skinned
+- **The clothes' relief on the lit engine export (realistic laws 13; `epidermis/cloth-relief.js`).** On the lit skinned
   GLB (and so Godot, Unreal, Blender and Unity's glTFast) each garment's tube is unrolled onto a cloth page of the skin's
   atlas, under the strands: around by its rings' own arc from its back (the wrap out of sight), along by its middles'
   path, in metres, so the map's tangent space is the tube's own. A height is baked there and read into the figure's
@@ -24,7 +24,7 @@ geometry only.
 - `dermal-hero.js` `heroSkinPaint` takes the chart (`cloth`) and lays the cloth faces' corners on its page (`clothUV`);
   `dermal-relief.js` `heroRelief` bakes the page into the map, the cloth faces' tangents from their own UVs, and returns
   the ORM; the rig pack carries it (`ormTex`); `outfit/expand.js` `outfitLanguage` reads a build's language. The recipe
-  is laws 11's: a hero minted before, an unlit export and the World page carry none, byte for byte.
+  is laws 12's: a hero minted before, an unlit export and the World page carry none, byte for byte.
 - Unreal: the lit master is `M_MojuloLitCloth`, the relief's master with an `OrmTex` input (its red the ambient
   occlusion, its green times Roughness, its blue times Metal, which is 0 where a figure carries no ORM); a project's
   `M_MojuloLitRelief` from an import before is left as it was. Godot binds the ORM as its glTF import does, said in its

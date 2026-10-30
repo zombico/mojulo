@@ -11,6 +11,12 @@
 //   clover     a ball of florets, pink to violet (Trifolium pratense)
 //   lupine     a spike of stacked florets, violet, palest at the top (Lupinus)
 //   poppy      four broad crumpled petals, red, a dark eye (Papaver rhoeas)
+// and the WEEDS, low and common, scattered through any grass rather than standing in a meadow of their own (WEEDS):
+//   dandelion  a dense head of narrow gold rays in two rings, no eye of another colour (Taraxacum)
+//   speedwell  many tiny four-petalled blue flowers, low, each with a pale eye (Veronica)
+//   yarrow     a flat-topped cluster of tiny white florets on a tall stem (Achillea)
+//   plantain   a slim brown spike, its florets tight up it (Plantago)
+// (clover, a lawn's commonest weed, is one too)
 // A plant carries `stems` heads (a daisy a few, a lupine one). Each part is coloured by its kind's ramp in the kit's
 // palette (`colours`), every vertex carrying its coordinate up its part's window (stem: root 0 to head 1; petal: base 0
 // to tip 1; eye: rim 0 to centre 1), so the page locks it to the ramp's stops as it locks the blades.
@@ -32,8 +38,14 @@ export const WILDFLOWERS = Object.freeze({
   clover: { label: 'red clover', stems: [2, 4], height: [0.8, 1.0], r: 0.05, tilt: [0, 20], colours: { petal: ['violet', 'blossom', 'cloud'] } },
   lupine: { label: 'lupine', stems: [1, 1], height: [1.25, 1.5], r: 0.05, tilt: [0, 8], colours: { petal: ['violet', 'blossom', 'cloud'] } },
   poppy: { label: 'corn poppy', stems: [1, 2], height: [1.05, 1.3], r: 0.085, tilt: [5, 30], colours: { petal: ['fruit', 'soil'], eye: ['bark'] } },
+  dandelion: { label: 'dandelion', stems: [1, 3], height: [0.55, 0.85], r: 0.06, tilt: [5, 30], weed: true, colours: { petal: ['gold', 'soil'] } },
+  speedwell: { label: 'speedwell', stems: [3, 6], height: [0.45, 0.7], r: 0.03, tilt: [10, 45], weed: true, colours: { petal: ['sky', 'violet', 'cloud'], eye: ['cloud'] } },
+  yarrow: { label: 'yarrow', stems: [1, 2], height: [1.0, 1.3], r: 0.08, tilt: [0, 12], weed: true, colours: { petal: ['cloud'] } },
+  plantain: { label: 'ribwort plantain', stems: [1, 3], height: [0.9, 1.2], r: 0.035, tilt: [0, 10], weed: true, colours: { petal: ['bark', 'soil'] } },
 });
 export const WILDFLOWER_KINDS = Object.freeze(Object.keys(WILDFLOWERS));
+/** The weeds: the low common kinds any grass carries a few of, clover among them. */
+export const WEEDS = Object.freeze(['clover', ...WILDFLOWER_KINDS.filter((k) => WILDFLOWERS[k].weed)]);
 /** The ramp a part of a kind takes in a palette: the first of its names the palette has, else null. */
 export const flowerRamp = (kind, part, palette) => (WILDFLOWERS[kind].colours[part] || []).find((n) => palette[n]) ?? null;
 
@@ -54,7 +66,7 @@ const at = (F, c, x, y, z) => add(c, add(add(mul(F.u, x), mul(F.v, y)), mul(F.ax
 function head(kind, c, F, r, lv, rng, tris) {
   const tri = (p, part, v) => tris.push({ p, part, v });
   if (lv === 'L0') {
-    const part = kind === 'clover' || kind === 'lupine' ? 'petal' : 'petal', top = kind === 'lupine' ? 3 * r : 0.6 * r;
+    const part = 'petal', top = kind === 'lupine' || kind === 'plantain' ? 3 * r : 0.6 * r;
     for (const [x, y] of [[1, 0], [0, 1]]) tri([at(F, c, -x * r, -y * r, 0), at(F, c, x * r, y * r, 0), at(F, c, 0, 0, top)], part, [0.2, 0.2, 1]);
     return;
   }
@@ -82,6 +94,32 @@ function head(kind, c, F, r, lv, rng, tris) {
       const n = half ? 5 : 7; for (let i = 0; i < n; i++) petal((2 * Math.PI * (i + 0.5 * ring)) / n + rng() * 0.3, r * 0.95, r * 0.28, cup, z * r, 0.9);
     }
     disc(half ? 4 : 5, r * 0.45, r * 0.45, 'petal', 0.6, 1);
+  } else if (kind === 'dandelion') {
+    // two rings of narrow rays, the inner shorter and more upright, so the head reads dense and round
+    const a0 = rng() * Math.PI;
+    for (const [n, R0, cup] of half ? [[10, 1, 0.3]] : [[18, 1, 0.25], [12, 0.62, 0.7]]) for (let i = 0; i < n; i++) petal(a0 + (2 * Math.PI * (i + 0.5 * (R0 < 1))) / n, r * R0, r * 0.07, cup + 0.1 * rng(), 0.02 * r, 0.7);
+  } else if (kind === 'speedwell') {
+    const a0 = rng() * Math.PI;
+    for (let i = 0; i < (half ? 3 : 4); i++) petal(a0 + (Math.PI * i) / 2, r, r * 0.42, 0.15, 0, 1.1);
+    disc(half ? 3 : 5, r * 0.22, r * 0.05, 'eye', 0, 1);
+  } else if (kind === 'yarrow') {
+    // an umbel: little florets, each a tiny disc, in a flat-topped cluster a head's width across
+    const m = half ? 4 : 8;
+    for (let k = 0; k < m; k++) {
+      const a = (2 * Math.PI * k) / m + rng() * 0.5, d = k === 0 ? 0 : r * (0.45 + 0.4 * rng()), cc = at(F, c, d * dmath.cos(a), d * dmath.sin(a), r * 0.15 * rng());
+      const n = half ? 3 : 5, rr = r * 0.22; for (let i = 0; i < n; i++) { const b0 = (2 * Math.PI * i) / n, b1 = (2 * Math.PI * (i + 1)) / n;
+        tri([add(cc, add(mul(F.u, rr * dmath.cos(b0)), mul(F.v, rr * dmath.sin(b0)))), add(cc, add(mul(F.u, rr * dmath.cos(b1)), mul(F.v, rr * dmath.sin(b1)))), add(cc, mul(F.ax, rr * 0.3))], 'petal', [0.4, 0.4, 1]); }
+    }
+  } else if (kind === 'plantain') {
+    // a slim spike: tight whorls of florets the same width all the way up, its tip palest
+    const whorls = half ? 5 : 9, len = 2.4 * r;
+    for (let w = 0; w < whorls; w++) {
+      const t = w / (whorls - 1), z = t * len, rr = r * (0.6 - 0.25 * t), n = 3;
+      for (let i = 0; i < n; i++) {
+        const a = (2 * Math.PI * (i + 0.5 * (w % 2))) / n, d = [dmath.cos(a), dmath.sin(a)], sd = [-d[1], d[0]], b = at(F, c, 0, 0, z), o = at(F, c, d[0] * rr, d[1] * rr, z + 0.3 * rr);
+        tri([add(b, mul(add(mul(F.u, sd[0]), mul(F.v, sd[1])), 0.35 * rr)), add(b, mul(add(mul(F.u, sd[0]), mul(F.v, sd[1])), -0.35 * rr)), o], 'petal', [t * 0.85, t * 0.85, Math.min(1, t * 0.85 + 0.15)]);
+      }
+    }
   } else if (kind === 'lupine') {
     // a spike: whorls of florets up a third of the stem, smaller as they rise; the coordinate climbs the spike
     const whorls = half ? 4 : 7, len = 3.2 * r;

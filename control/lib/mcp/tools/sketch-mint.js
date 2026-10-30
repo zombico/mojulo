@@ -12,8 +12,9 @@
 
 import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
 import { compassOf } from '@/lib/graph/polygonizer/home-windows';
-import { readForm, formErrors, FORM_FOOTPRINT, FORM_MAX_RISE } from '@/lib/graph/polygonizer/house-forms';
+import { readForm, formErrors, stairWidthOf, FORM_FOOTPRINT, FORM_MAX_RISE } from '@/lib/graph/polygonizer/house-forms';
 import { stampSolid } from '@/lib/graph/era/solid';
+import { stampSceneEra } from '@/lib/graph/era/geocube';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
@@ -77,7 +78,7 @@ import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
-import { houseStyleOpts, houseStyleKey, readLook } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { houseStyleOpts, houseStyleKey, readLook, homeLook } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
@@ -360,6 +361,60 @@ function expandSceneWords(m, existing) {
   return out;
 }
 
+/** A HOUSE'S GATE (kind 'floorplan'): its stamps and its refusals, at mint and on every update_sketch of its manifest.
+ * At mint (`was` null) each stamp fills what the recipe leaves out. On an update a stamp fills only what the stored row
+ * carried (`was`), so a row minted before a stamp keeps its bytes, and a purpose the row's level derived is derived
+ * again from the new recipe (a level added makes it a game's, taken away a show's); a purpose the edit names stands. */
+function houseGate(m0, was = null) {
+  let m = m0;
+  const stamps = (k) => !was || was[k] !== undefined;
+  if (was && m.purpose !== undefined && m.purpose === was.purpose && was.purpose === purposeAtMint({ ...was, purpose: undefined })) {
+    const { purpose: _p, ...rest } = m; m = rest;
+  }
+  if (m.style === undefined && stamps('style')) m = { ...m, style: 'auto' };
+  else houseStyleOpts(m.style, '', undefined);   // an unknown style refuses, naming the families
+  // and varied: each room arranged from the house seed (`layout: 'varied'`), its furniture composed in the style's
+  // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
+  if (m.layout === undefined && stamps('layout')) m = { ...m, layout: 'varied' };
+  // and for something (era/compose-purpose.js): a level is a game's, built readable within its allowance; a house a
+  // show's, every piece at its best. Stamped, so a row minted before purposes is built as it was
+  if (m.purpose !== undefined || stamps('purpose')) m = { ...m, purpose: purposeAtMint(m) };
+  allowanceOf(m);   // a malformed allowance refuses here, naming what it is
+  // and a home's look (floorplan-styles.js HOME_WINDOWS): its windows from its tradition, never a workshop's steel
+  // grid; stamped, so every house minted before keeps its windows
+  if (m.houseLook === undefined && stamps('houseLook')) m = { ...m, houseLook: 2 };
+  readLook(m.houseLook);
+  // a house's own north (home-windows.js): a malformed compass refuses here, naming what it is
+  if (m.compass !== undefined) compassOf({ compass: m.compass });
+  // and its form (house-forms.js): a townhouse or a block, its party walls, and a footprint that holds its stair and
+  // rooms (at the tallest storey a house style raises); a bad one refuses here, not first at /world
+  const form = readForm(m);
+  if (form !== 'detached') {
+    const fp = FORM_FOOTPRINT[form], rise = FORM_MAX_RISE;
+    const errs = formErrors(form, { width: m.width ?? fp.width, height: m.height ?? fp.height, rise, stairWidth: stairWidthOf(m.stairs) });
+    if (errs.length) throw new Error(`Invalid manifest: form: ${errs.join('; ')}`);
+  }
+  if (m.furnishing === undefined && stamps('furnishing')) m = { ...m, furnishing: 'composed' };
+  // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
+  // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out
+  if (m.finishes === undefined && stamps('finishes') && m.style != null && m.style !== false) m = { ...m, finishes: 'auto' };
+  // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
+  const roofMetal = m.roof && typeof m.roof === 'object' ? m.roof.metal : null;
+  for (const [k, v] of [['facadeMetal', m.facadeMetal], ['roofMetal', m.roofMetal], ['roof.metal', roofMetal]]) {
+    if (v == null) continue; const e = metalSurfaceError(v); if (e) throw new Error(`Invalid manifest: ${k}: ${e}`);
+  }
+  // a metal roof sheet needs a roof that wears one: the manifest's own roof, else the one its house style draws for
+  // the exterior, its family by the house's look, tradition and form as the render rolls it (floorplan-styles.js homeLook;
+  // floorplan-structure's roofSpec reads them the same way); a flat deck, or no roof, would drop it
+  if (m.roofMetal != null || roofMetal != null) {
+    const r = m.roof, obj = r && typeof r === 'object';
+    const style = obj ? r.style || 'bungalow' : typeof r === 'string' ? r : r === true ? 'bungalow' : r === undefined ? houseStyleOpts(m.style, houseStyleKey(m), 'exterior', homeLook(m)).roof : null;
+    const e = style == null ? 'this house has no roof to wear it (roof is off, and its style draws none) — set roof to a pitched style' : roofMetalError(style, { form: obj ? r.form : null });
+    if (e) throw new Error(`Invalid manifest: ${m.roofMetal != null ? 'roofMetal' : 'roof.metal'}: ${e}`);
+  }
+  return m;
+}
+
 /** A gameworld manifest read and returned as written, or the reader's refusal. The hero its pages compose (and its
  * motion) is judged by the hero door here, so a page the door would refuse is refused when it is written, not first
  * when a run makes the hero. */
@@ -470,48 +525,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   // A NEW house is styled: `style: 'auto'` draws a seeded family and variant (siding / brick /
   // modern / tofu / mission — floorplan-styles.js). Stamped here at mint, never at render, so
   // every row minted before styles keeps its bytes; `style: null` opts a new house out.
-  if (finalized?.kind === 'floorplan') {
-    if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
-    else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
-    // and varied: each room arranged from the house seed (`layout: 'varied'`), its furniture composed in the style's
-    // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
-    if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
-    // and for something (era/compose-purpose.js): a level is a game's, built readable within its allowance; a house a
-    // show's, every piece at its best. Stamped, so a row minted before purposes is built as it was
-    finalized = { ...finalized, purpose: purposeAtMint(finalized) };
-    allowanceOf(finalized);   // a malformed allowance refuses here, naming what it is
-    // and a home's look (floorplan-styles.js HOME_WINDOWS): its windows from its tradition, never a workshop's steel
-    // grid; stamped, so every house minted before keeps its windows
-    if (finalized.houseLook === undefined) finalized = { ...finalized, houseLook: 2 };
-    readLook(finalized.houseLook);
-    // a house's own north (home-windows.js): a malformed compass refuses here, naming what it is
-    if (finalized.compass !== undefined) compassOf({ compass: finalized.compass });
-    // and its form (house-forms.js): a townhouse or a block, its party walls, and a footprint that holds its stair and
-    // rooms (at the tallest storey a house style raises); a bad one refuses here, not first at /world
-    const form = readForm(finalized);
-    if (form !== 'detached') {
-      const fp = FORM_FOOTPRINT[form], rise = FORM_MAX_RISE;
-      const errs = formErrors(form, { width: finalized.width ?? fp.width, height: finalized.height ?? fp.height, rise });
-      if (errs.length) throw new Error(`Invalid manifest: form: ${errs.join('; ')}`);
-    }
-    if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
-    // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
-    // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out
-    if (finalized.finishes === undefined && finalized.style != null && finalized.style !== false) finalized = { ...finalized, finishes: 'auto' };
-    // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
-    const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
-    for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
-      if (v == null) continue; const e = metalSurfaceError(v); if (e) throw new Error(`Invalid manifest: ${k}: ${e}`);
-    }
-    // a metal roof sheet needs a roof that wears one: the manifest's own roof, else the one its house style draws for
-    // the exterior (floorplan-structure's roofSpec reads them the same way); a flat deck, or no roof, would drop it
-    if (finalized.roofMetal != null || roofMetal != null) {
-      const r = finalized.roof, obj = r && typeof r === 'object';
-      const style = obj ? r.style || 'bungalow' : typeof r === 'string' ? r : r === true ? 'bungalow' : r === undefined ? houseStyleOpts(finalized.style, houseStyleKey(finalized), 'exterior').roof : null;
-      const e = style == null ? 'this house has no roof to wear it (roof is off, and its style draws none) — set roof to a pitched style' : roofMetalError(style, { form: obj ? r.form : null });
-      if (e) throw new Error(`Invalid manifest: ${finalized.roofMetal != null ? 'roofMetal' : 'roof.metal'}: ${e}`);
-    }
-  }
+  if (finalized?.kind === 'floorplan') finalized = houseGate(finalized);
 
   const { ok, errors } = validateSketchManifest(finalized);
   // a store's card is graded at the door too (the validator's named errors), not first at /world
@@ -659,6 +673,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
   // a new world that builds is solid (era/solid.js: no flat building polygons); an edit or a restore keeps the row's own
   if (!existingSketch && !restore) manifest = stampSolid(manifest);
+  // a new geocube scene is drawn in the form render, gen-7 (era/geocube.js stampSceneEra: new is no seed yet, so a scene
+  // restored from its export keeps its era); an edit keeps the row's
+  if (!existingSketch) manifest = stampSceneEra(manifest);
   // a geocube's trail its own seed, a new island
   manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
@@ -1168,6 +1185,9 @@ export async function updateSketchHandler(input) {
     } catch {
       finalized = expanded;
     }
+    // a house's stamps and refusals, as at mint (houseGate), filling only what the stored row carried (a recipe that
+    // becomes a house is stamped as a new one)
+    if (finalized?.kind === 'floorplan') finalized = houseGate(finalized, existingSketch?.manifest?.kind === 'floorplan' ? existingSketch.manifest : null);
     const { ok, errors } = validateSketchManifest(finalized);
     if (ok) errors.push(...validateHouseConstruction(finalized));   // as at mint
     if (!ok || errors.length) {

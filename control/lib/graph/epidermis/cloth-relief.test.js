@@ -1,4 +1,4 @@
-// cloth-relief.test.js — the realistic hero's clothes as material (realistic laws 12), on one hero in a leather flight
+// cloth-relief.test.js — the realistic hero's clothes as material (realistic laws 13), on one hero in a leather flight
 // jacket minted at the L0 rung (the cheapest skin and map): a hero minted now carries it, one minted before does not; a
 // face's cloth is its part's word, else the outfit's language by its layer, else its group's; every garment tube's face
 // lies on its island and the hard goods on their cloth's swatch, never a skin face; the atlas without a chart is the one
@@ -38,7 +38,7 @@ const glbJson = (bytes) => { const jl = bytes.readUInt32LE(12); return JSON.pars
 const partOf = (fi) => mesh.provenance[mesh.faces[fi][0]].part;
 
 describe('the realistic hero\'s cloth relief', () => {
-  it('rides a hero minted under laws 12; one minted before carries none', () => {
+  it('rides a hero minted under laws 13; one minted before carries none', () => {
     expect(m.hero.physique.laws).toBeGreaterThanOrEqual(CLOTH_LAWS);
     expect(clothOnRecord(m.hero)).toBe(true);
     expect(clothOnRecord({ ...m.hero, physique: { ...m.hero.physique, laws: CLOTH_LAWS - 1 } })).toBe(false);

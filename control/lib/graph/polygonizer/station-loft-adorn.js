@@ -263,8 +263,11 @@ function gridAt(g, sig, side) { const L = g.list.length, n = g.S.length; const i
   const j = idx(sig.j, n, Math.floor(n / 2)); return [k, j]; }
 /** where a shell's LIFTED outer skin faces `dir` (x mirrors on the L side): the outer skin's own normal, not the frame's
  * (a cap lifted over the arm has every frame normal facing up) → { c, n } */
+// (a grid two rows deep has no interior: its whole span is searched, where an interior-only search found nothing and a
+// charm's bone on its two-station cord could not be seated)
 function facePoint(g, dir, side) { const O = g.outer, K = O.length, J = O[0].length; const want = unit(side === 'L' ? [-dir[0], dir[1], dir[2]] : dir); let best = null;
-  for (let k = Math.min(1, K - 1); k < Math.max(1, K - 1); k++) for (let j = Math.min(1, J - 1); j < Math.max(1, J - 1); j++) {
+  const [k0, k1] = K > 2 ? [1, K - 1] : [0, K], [j0, j1] = J > 2 ? [1, J - 1] : [0, J];
+  for (let k = k0; k < k1; k++) for (let j = j0; j < j1; j++) {
     let n = unit(cross(sub(O[Math.min(K - 1, k + 1)][j], O[Math.max(0, k - 1)][j]), sub(O[k][Math.min(J - 1, j + 1)], O[k][Math.max(0, j - 1)])));
     if (dot(n, g.F[k][j].normal) < 0) n = mul(n, -1); const score = dot(n, want); if (!best || score > best.score) best = { score, c: O[k][j], n }; }
   return best; }

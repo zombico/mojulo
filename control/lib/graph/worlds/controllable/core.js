@@ -408,7 +408,7 @@ export function buildCore(E) {
     // AI-attack switch: `spec.ai:'off'` seats the world PASSIVE (ai-ambient suits stand down
     // until input.aiToggle wakes them); anything else — including absent — leaves authored ai live.
     const state = { entities, byId, camera, pilotId, spectate, aiEnabled: spec.ai !== 'off', aiTuning: null, colliders: normalizeColliders(spec.colliders), match: null, wreckExplodes: null, time: 0, projectiles: [], bursts: [], projSeq: 0, burstSeq: 0, clashes: [], clashSeq: 0, shieldBreaks: 0, cinematic: null };
-    // SEATS (pilots.plan.md; opt-in `spec.seats: { bodies, drop?, floor?, lives?, pool? }`): the bodies seats 2, 3 and 4 take, in order,
+    // SEATS (opt-in `spec.seats: { bodies, drop?, floor?, lives?, pool? }`): the bodies seats 2, 3 and 4 take, in order,
     // each on its pilot rule and its own input (`input.seats[n]`); seat 1 is the pilot above. A seat with no player this
     // frame leaves its body to its AI (`drop: 'ai'`, the default) or holds it still (`'pause'`); a seated body below
     // `floor` (default -20) is brought back beside the others, at a cost of one of its `lives` when the world counts them.

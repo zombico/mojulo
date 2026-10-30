@@ -12,6 +12,7 @@ export const ooze = {
     marks: [
       { on: 'torso', kind: 'spots', count: 8, size: [0.07, 0.16], group: 'Shard', color: '#c9a6ff', glow: true },
     ],
+    cover: { sheen: 'glossy', tipped: 0.4 },
     eyes: { color: '#c58cff', glow: true },
     surfaces: { Hackle: 'glass' },
   },

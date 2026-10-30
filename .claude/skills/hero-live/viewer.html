@@ -68,6 +68,9 @@
           <button id="vBust" aria-pressed="false">Bust</button>
           <button id="vBody" aria-pressed="false">Full body</button>
           <button id="vSide" aria-pressed="false">Side</button>
+          <button id="vBodySide" aria-pressed="false">Full side</button>
+          <button id="vBack" aria-pressed="false">Back</button>
+          <button id="vMouth" aria-pressed="false">Mouth</button>
         </div>
         <div class="status" id="status" role="status">Loading the hero…</div>
       </div>
@@ -93,6 +96,7 @@
       </div>
       <div class="row">
         <label><input id="blink" type="checkbox" checked> Ambient blink</label>
+        <label><input id="sound" type="checkbox" checked> Sound</label>
         <label><input id="wire" type="checkbox"> Wireframe</label>
         <label><input id="bones" type="checkbox"> Bones</label>
       </div>
@@ -208,9 +212,23 @@ async function load(v) {
   const box = new THREE.Box3().setFromObject(body ?? root);
   const mixer = new THREE.AnimationMixer(root), actions = {};
   for (const clip of gltf.animations) if (clip.name.startsWith('body:')) actions[clip.name.slice(5)] = { action: mixer.clipAction(clip), seconds: secondsOf(clip) };
+  // (a face's PERFORMANCE, `face:<take>` (face-acting/perform.js): a take of its own, played at its own length over the
+  // body's idle; the ambient blink is the page's, not a take)
+  for (const clip of gltf.animations) if (clip.name.startsWith('face:') && clip.name !== 'face:ambientBlink') actions[clip.name] = { action: mixer.clipAction(clip), seconds: clip.duration, face: true };
+  // (the body's idle under a take: its own face's weights left out, so the take alone drives the face, as an engine
+  // layers it under a mask on the morph weights; two actions on one weights track would be averaged)
+  const idle = gltf.animations.find((c) => c.name === 'body:idle') ?? gltf.animations.find((c) => c.name.startsWith('body:'));
+  const underClip = idle && new THREE.AnimationClip(`${idle.name}:bodyOnly`, idle.duration, idle.tracks.filter((t) => !t.name.endsWith('.morphTargetInfluences')));
   const bones = new THREE.SkeletonHelper(root); bones.visible = $('bones').checked;
   root.visible = false; scene.add(root); scene.add(bones);
-  v.loaded = { root, body, mixer, actions, bones, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+  // (a take's recorded lines, embedded in the GLB, face-acting/recordings.js: each { at, src } by its take)
+  const audio = {};
+  for (const P of (gltf.parser.json.meshes ?? []).flatMap((m) => m.extras?.face?.performances ?? [])) for (const A of P.audio ?? []) {
+    if (!Number.isInteger(A.bufferView)) continue;
+    const bytes = await gltf.parser.getDependency('bufferView', A.bufferView);
+    (audio[P.clip] ??= []).push({ at: A.at, src: URL.createObjectURL(new Blob([bytes], { type: A.mimeType ?? 'audio/wav' })) });
+  }
+  v.loaded = { audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
     stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
   return v.loaded;
 }
@@ -266,10 +284,14 @@ function play(name, { phase = 0, fade = 0.35 } = {}) {
   const L = cur(); if (!L) return;
   const T = L.actions[name] ?? Object.values(L.actions)[0]; if (!T) return;
   const prev = S.take && L.actions[S.take]?.action, next = T.action;
+  // (a face take plays over the body's idle, which runs under it; leaving it stops the idle it brought)
+  const under = T.face ? L.under : null;
+  if (S.under && S.under !== under?.action) { S.under.stop(); S.under = null; }
+  if (under && S.under !== under.action) { const u = under.action; u.reset(); u.setLoop(THREE.LoopRepeat, Infinity); u.timeScale = (u.getClip().duration / under.seconds) * S.speed; u.paused = S.paused; u.play(); S.under = u; }
   S.take = Object.keys(L.actions).find((k) => L.actions[k] === T);
   next.reset(); next.setLoop(THREE.LoopRepeat, Infinity); next.timeScale = (next.getClip().duration / T.seconds) * S.speed;
   next.time = phase * next.getClip().duration; next.paused = S.paused; next.play();
-  if (prev && prev !== next) { if (fade > 0) prev.crossFadeTo(next, fade, false); else prev.stop(); }
+  if (prev && prev !== next && prev !== S.under) { if (fade > 0 && !T.face && !L.actions[Object.keys(L.actions).find((k) => L.actions[k].action === prev)]?.face) prev.crossFadeTo(next, fade, false); else prev.stop(); }
   if (S.paused) L.mixer.update(0);
   markTakes();
 }
@@ -281,7 +303,7 @@ async function selectVariant(id) {
   for (const [k, b] of Object.entries(variantButtons)) b.setAttribute('aria-pressed', String(k === id));
   status.textContent = `Loading ${v.label}…`;
   let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
-  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); }
+  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; }
   S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
   setWire($('wire').checked);
   renderTakes(L); renderMeters(L); renderRead(v);
@@ -319,8 +341,12 @@ $('hold').addEventListener('change', (e) => {
 });
 
 // ─── the cameras, framed by the figure's own height ─────────────────────────
-// (`side`: a profile from the figure's side at the bust, for the neck and the spine)
-const VIEWS = { vFace: { dist: 0.8, at: 0.9, fov: 22, rise: -0.02 }, vBust: { dist: 1.5, at: 0.8, fov: 26, rise: 0.05 }, vBody: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1 }, vSide: { dist: 1.6, at: 0.82, fov: 26, rise: 0.02, side: true } };
+// (`side`: a profile from the figure's side at the bust, for the neck and the spine; `back`: from behind, the full figure,
+// for a coat's back and a tail)
+const VIEWS = { vFace: { dist: 0.8, at: 0.9, fov: 22, rise: -0.02 }, vBust: { dist: 1.5, at: 0.8, fov: 26, rise: 0.05 }, vBody: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1 }, vSide: { dist: 1.6, at: 0.82, fov: 26, rise: 0.02, side: true },
+  vBodySide: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1, side: true }, vBack: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1, back: true },
+  // (`vMouth`: the mouth from the front ¾ and a little below, to see into it: the teeth, the gums)
+  vMouth: { dist: 1.1, at: 0.895, fov: 22, rise: -0.06 } };
 function frame(id) {
   S.view = id;
   for (const k of Object.keys(VIEWS)) $(k).setAttribute('aria-pressed', String(k === id));
@@ -329,6 +355,7 @@ function frame(id) {
   camera.fov = W.fov; camera.updateProjectionMatrix();
   controls.target.copy(target);
   if (W.side) camera.position.set(target.x + W.dist, target.y + W.dist * W.rise, target.z);
+  else if (W.back) camera.position.set(target.x + W.dist * 0.3, target.y + W.dist * W.rise, target.z + W.dist * 0.95);
   else camera.position.set(target.x - W.dist * 0.3, target.y + W.dist * W.rise, target.z - W.dist * 0.95);
   controls.update();
 }
@@ -359,15 +386,32 @@ renderer.setAnimationLoop(() => {
     const W = L.body?.morphTargetInfluences;
     if (W) {
       if (S.hold) for (const [n, i] of Object.entries(L.morph)) W[i] = S.holdW[n] ?? 0;
-      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(wall));
+      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused && !L.actions[S.take]?.face) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(wall));
       for (const [n, i] of Object.entries(L.morph)) { const m = meterEls[n]; if (!m) continue; const v = W[i]; m.bar.style.width = `${Math.round(Math.min(1, Math.max(0, v)) * 100)}%`; m.out.textContent = v.toFixed(2); }
     }
     const a = S.take && L.actions[S.take]?.action;
     if (a) { const d = a.getClip().duration, p = (a.time % d) / d; if (!S.paused) $('scrub').value = p; $('timeOut').textContent = `${(p * L.actions[S.take].seconds).toFixed(2)} s`; }
+    syncAudio(L);
   }
   controls.update();
   renderer.render(scene, camera);
 });
+
+// ─── a take's recordings: each line's audio (embedded in the GLB), played from its beat as the take plays, at its speed;
+// paused, scrubbed or another take, silent (a browser plays sound only after the page is touched) ────────────────────
+const audioEls = new Map();
+function syncAudio(L) {
+  const list = L.audio?.[S.take] ?? [], a = S.take && L.actions[S.take]?.action;
+  const now = a ? (a.time % a.getClip().duration) * (L.actions[S.take].seconds / a.getClip().duration) : 0, live = new Set();
+  for (const A of list) {
+    let el = audioEls.get(A.src); if (!el) { el = new Audio(A.src); el.preload = 'auto'; audioEls.set(A.src, el); }
+    live.add(el);
+    const rel = now - A.at, on = !S.paused && !S.hold && $('sound').checked && rel >= 0 && rel < (Number.isFinite(el.duration) ? el.duration : Infinity);
+    el.playbackRate = S.speed;
+    if (on) { if (Math.abs(el.currentTime - rel) > 0.12) el.currentTime = rel; if (el.paused) el.play().catch(() => {}); } else if (!el.paused) el.pause();
+  }
+  for (const el of audioEls.values()) if (!live.has(el) && !el.paused) el.pause();
+}
 
 // ─── window.heroLive: what a script (shot.mjs) drives ───────────────────────
 const ready = selectVariant(M.variants[0].id);

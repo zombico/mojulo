@@ -49,8 +49,9 @@ const toHex = (c) => `#${c.map((x) => Math.round(Math.min(1, Math.max(0, x)) * 2
 /** the relational head's parts on the hero */
 const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|headSkin)$/;
 /** what the head wears of its own (hero-head-layers.js: its jewellery, its hair) and what is set in its one skin (the
- * globes, the mouth: hero-one-skin.js): never a garment over the body's skin */
-const HEAD_LAYER = /^(jewel|jewelJaw|hair\w*|globe[RL]|mouth)$/;
+ * globes, the mouth, and under realistic laws 12 the teeth and the tongue in it: hero-one-skin.js): never a garment over
+ * the body's skin */
+const HEAD_LAYER = /^(jewel|jewelJaw|hair\w*|globe[RL]|mouth|teeth(Upper|Lower)|tongue)$/;
 /** the body's skin parts (dermal-body.js charts them) */
 const BODY = /^(torso|neck|pelvis|upperArm[RL]|foreArm[RL]|hand[RL]|thumb[RL]|index[RL]|middle[RL]|ring[RL]|little[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL])$/;
 /** a head point this far inside its field (m) is let down under another part's skin */
@@ -199,7 +200,7 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   mesh.faces.forEach((tri, fi) => { if (tri.every((vi) => mesh.provenance?.[vi]?.card)) cards.set(fi, tri.map((vi) => mesh.provenance[vi].card)); });
   const BW = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, W = Math.max(BW, HW);
   const SW = cards.size ? Math.min(W, STRAND_ATLAS.w) : 0, SH = cards.size ? STRAND_ATLAS.h : 0;
-  // THE CLOTH PAGE (realistic laws 12, epidermis/cloth-relief.js: `opts.cloth` the clothes' chart, asked by the lit skinned
+  // THE CLOTH PAGE (realistic laws 13, epidermis/cloth-relief.js: `opts.cloth` the clothes' chart, asked by the lit skinned
   // export alone): under the strands, white (a cloth's colour its corners'), its texels the relief map's at the head's
   // own scale (the map is the atlas scaled so the head's page is RELIEF_SIZE across), a texel CLOTH_PAGE.texel at the
   // skin's full rung. No chart, no page: the atlas as before, byte for byte.

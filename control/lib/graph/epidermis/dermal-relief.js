@@ -5,7 +5,7 @@
  *
  *   heroRelief(mesh, recipe, paint, normals, opts) → { tangentAt(fi, k), atlas: { url, w, h }, orm?, stats } | null
  *
- * A paint carrying a CLOTH PAGE (realistic laws 12: heroSkinPaint's `cloth`, epidermis/cloth-relief.js) has its clothes'
+ * A paint carrying a CLOTH PAGE (realistic laws 13: heroSkinPaint's `cloth`, epidermis/cloth-relief.js) has its clothes'
  * relief baked into the same map's rows (each garment's tube unrolled there), its cloth faces' tangents built on their
  * own UVs as the head's are, an `orm` map ({ url, w, h }: occlusion, roughness, metalness; the skin's texels
  * SKIN_ROUGH) and a `depth` map ({ url, w, h, depth, perM }: the parallax's, white the surface, black `depth` m under it,
@@ -88,7 +88,7 @@ export function heroRelief(mesh, recipe, paint, normals, { size = null, dilate =
   // (the atlas's white texel, every unpainted corner's: flat about it, whatever a chart's dilation reached)
   const wx = Math.floor(paint.white[0] * width), wy = Math.floor((1 - paint.white[1]) * height);
   for (let y = Math.max(0, wy - 2); y <= Math.min(height - 1, wy + 2); y++) for (let x = Math.max(0, wx - 2); x <= Math.min(width - 1, wx + 2); x++) bake.rgb.set(FLAT, (y * width + x) * 3);
-  // THE CLOTH PAGE (realistic laws 12, epidermis/cloth-relief.js; the paint's `cloth`, at this map's own scale): its
+  // THE CLOTH PAGE (realistic laws 13, epidermis/cloth-relief.js; the paint's `cloth`, at this map's own scale): its
   // relief into the map's rows under the strands, its faces' tangents from their own UVs (the tube unrolled), and the
   // whole map's ORM beside it (the skin's texels the export's roughness, SKIN_ROUGH; a cloth's its own)
   const C = paint.cloth && Math.abs(paint.cloth.scale - scale) < 1e-9 ? paint.cloth : null;
