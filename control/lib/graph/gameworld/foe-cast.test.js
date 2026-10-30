@@ -4,8 +4,10 @@
 // that counts and one that shows health; absence costs nothing.
 import { describe, it, expect } from 'vitest';
 import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS } from './foe-cast.js';
-import { castingCall, ROLES, ERA_DRESS } from './foe-casting.js';
+import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE } from './foe-casting.js';
 import { ERA_OF_KIT } from './cast-setting.js';
+import { colorKey } from './nature.js';
+import { isGroundKit } from '../era/stage.js';
 import { foeCastHtml } from './foe-cast-html.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
@@ -64,6 +66,16 @@ describe('the cast read', () => {
     expect(foeCastOf({ ...W, juice: { register: reg } }).tiers[0].name).toBe(REGISTER_WORDS[reg].tiers[foeCastOf(W).tiers[0].rank]);
   });
 
+  it('a beast grown by oozes says each at its strength, and is a variant of the same class on the same species grown by none', () => {
+    const G = world({ base: { class: SOLO.id }, grown: { class: SOLO.id, skin: { species: SOLO.standIn, ooze: [{ id: BOSS_OOZE, strength: 0.5 }] } } }, ['base', 'grown']);
+    const by = Object.fromEntries(foeCastOf(G).foes.map((x) => [x.id, x]));
+    expect(by.grown.skin.oozes).toEqual([{ id: BOSS_OOZE, strength: 0.5 }]);
+    expect(by.grown.variantOf).toBe('base');
+    expect(by.base.relations).toEqual([expect.objectContaining({ kind: 'variant', foe: 'grown' })]);
+    // (an ooze grows its shape, never its stature)
+    expect(by.grown.stats.stature).toBe(by.base.stats.stature);
+  });
+
   it('absent, there is nothing to cast and nothing on the gate', () => {
     expect(castable(world())).toBe(false);
     expect(foeCastOf(world())).toBe(null);
@@ -115,6 +127,22 @@ describe('the casting call', () => {
     expect(foeCastOf({ ...W, foes: P.foes, levels: { one: { ...walk, foes: P.levels.one }, hq: { building: { use: 'office' } } } }).foes.find((x) => x.skin.dress).skin.says).toMatch(/dressed as/);
   });
 
+  it('grows each beast role by the world\'s oozes into variants met deeper in, the boss grown itself; an unfit growth said', () => {
+    // (an era with oozes whose kit is open ground, its cast beasts: a platformer's)
+    const kit = Object.keys(ERA_OF_KIT).find((k) => ERA_OOZES[ERA_OF_KIT[k]] && isGroundKit(k)), era = ERA_OF_KIT[kit];
+    const w3 = { ...walk };
+    const Wv = { id: 'w', seed: 3, intent: { from: 'metroidvania' }, style: { kit }, levels: { one: w3, two: w3, three: w3 }, links: [{ from: 'one', to: 'two', kind: 'road' }, { from: 'two', to: 'three', kind: 'road' }], start: 'one' };
+    const P = castingCall(Wv);
+    expect(P.from.oozes).toEqual(ERA_OOZES[era].slice(0, P.from.oozes.length));
+    expect(P.variants.length).toBeGreaterThan(0);
+    for (const v of P.variants) expect(P.foes[v.id]).toEqual({ ...P.foes[v.of], skin: { species: FOE_CLASSES[v.class].standIn, ooze: [v.ooze] } });
+    // (the first level meets the roles alone, the second their variants too)
+    expect(P.levels.one.from.some((id) => P.variants.some((v) => v.id === id))).toBe(false);
+    expect(P.levels.two.from).toEqual(expect.arrayContaining(P.variants.filter((v) => P.levels.two.from.includes(v.of)).map((v) => v.id)));
+    expect(P.foes.boss.skin.ooze[0]).toBe(BOSS_OOZE);
+    expect(() => readGameworld({ ...Wv, foes: P.foes, levels: Object.fromEntries(Object.entries(Wv.levels).map(([k, v]) => [k, { ...v, foes: P.levels[k] }])) })).not.toThrow();
+  });
+
   it('casts nothing for a game that fights nothing', () => {
     expect(castingCall(world())).toBe(null);
     expect(castingCall(world(null, null, { intent: { from: 'racing' } }))).toBe(null);
@@ -132,7 +160,7 @@ describe('the casting call', () => {
     expect(P.roles.some((r) => r.skin?.people === P.from.people)).toBe(true);
     const plat = castingCall({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
     expect(plat.from.flavor).toBe('platformer');
-    expect(plat.roles.every((r) => !r.skin)).toBe(true);
+    expect(plat.roles.every((r) => !r.skin?.people)).toBe(true);
   });
 });
 
@@ -146,11 +174,18 @@ describe('the sheet', () => {
     expect(html).not.toContain('casting-call');
     expect(foeCastHtml(W)).toBe(foeCastHtml(W));
   });
+  it('is drawn in its world\'s colours: the page\'s accent one of its kit\'s own', () => {
+    const kit = MEADOWMARK_HERO.style.kit, html = foeCastHtml({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
+    const accent = html.match(/:root\{--local:(#[0-9a-f]{6});/)?.[1];
+    expect(colorKey(kit).ramps.flatMap((r) => r.stops)).toContain(accent);
+    expect(html).toContain(kit);
+  });
 
-  it('a world that fights and keeps no bestiary shows the casting call, proposed and not written', () => {
+  it('a world that fights and keeps no bestiary shows the casting call, proposed and not written, a role an article', () => {
     const html = foeCastHtml({ ...MEADOWMARK_HERO, intent: { from: 'shooter' } });
     expect(html).toContain('id="casting-call"');
     expect(html).toContain('proposed, not written');
+    for (const r of Object.keys(ROLES)) expect(html).toContain(`id="role-${r}"`);
     expect(() => foeCastHtml(world())).toThrow(/fields no foe/);
   });
 });

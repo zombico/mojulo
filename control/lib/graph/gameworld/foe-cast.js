@@ -15,8 +15,10 @@
  *   STAT_WORDS          per flavor (juice-style.js JUICE_FLAVORS): how a foe's toll is said in that game type
  *   REGISTER_WORDS      per register (anime | western): the sheet's title and each rank's tier
  *
- * A card: { id, name, class, reads, rank, skill, tier, skin: { kind, says }, element?, stats, attack, mind, modes, states,
- *   death, relations, levels, fielded, status, marks, advisories, figure }. `figure` the step a run makes its figure at
+ * A card: { id, name, class, reads, rank, skill, tier, skin: { kind, says, species?, oozes?, stylism?, dress? }, element?,
+ *   stats, attack, mind, modes, states, death, relations, levels, fielded, status, marks, advisories, figure, variantOf? }:
+ *   a beast grown by oozes is a VARIANT of one of the same class on the same species grown by none (a relation each way).
+ *   An ooze grows the body's shape, never its stature: that is its class's presence and its rank's. `figure` the step a run makes its figure at
  *   (`foes-<id>`, runner.js), or a model's own ref; null for a mode or a relation a level never reaches.
  *
  * Pure and deterministic: no dice.
@@ -33,6 +35,7 @@ import { QUICK_GENRE } from './intent.js';
 import { foeClass } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, PACES, HERO } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
+import { normalizeOozes } from '../mutagen/compose.js';
 import { FOE_STATES } from '../foes/states.js';
 import { MOTIVATIONS, AGGRESSIVENESS, RANKS, SWITCHES, SIGHTS, GAZES, COVER, SITUATIONS } from '../mind/vocab.js';
 import { JUICE_FLAVORS, JUICE_REGISTERS } from '../scene/juice-style.js';
@@ -84,8 +87,13 @@ function skinOf(entry, f) {
     return { kind: 'people', dress: { ...D, colourway: cw }, says: `a person dressed as the ${S.name.toLowerCase()}'s ${D.kind ?? 'crew'}, ${S.colourways[cw].reads}${D.kind ? `: ${S.kinds[D.kind].reads.replace(/^the [a-z ]+: /, '')}` : ''}${entry.skin.facets?.pole ? `, ${entry.skin.facets.pole}` : ''}` };
   }
   if (isPeople(entry)) return { kind: 'people', says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}` };
-  const own = entry.skin?.species !== undefined;
-  return { kind: 'beast', says: `${words(f.body.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase())}${f.skin.ooze ? ` grown by ${[].concat(f.skin.ooze).map((o) => (typeof o === 'string' ? o : o.id ?? 'an ooze')).join(', ')}` : ''}${own ? '' : ' (its class\'s stand-in)'}` };
+  // (its oozes, each at its strength, and the stylism it is drawn in: mutagen/compose.js)
+  const own = entry.skin?.species !== undefined, oozes = f.skin.ooze !== undefined ? normalizeOozes(f.skin.ooze).filter((o) => o.strength > 0) : [];
+  const species = words(f.body.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase());
+  return {
+    kind: 'beast', species: f.body, ...(oozes.length ? { oozes } : {}), ...(f.skin.stylism !== undefined ? { stylism: f.skin.stylism } : {}),
+    says: `${species}${oozes.length ? ` grown by ${oozes.map((o) => `${o.id}${o.strength !== 1 ? ` ×${o.strength}` : ''}`).join(', ')}` : ''}${own ? '' : ' (its class\'s stand-in)'}`,
+  };
 }
 
 function statsOf(f, c, W) {
@@ -163,6 +171,16 @@ export function foeCastOf(world) {
       figure: isModel(e) ? e.skin.meshRef : made[`foes-${id}`]?.ref ?? null,
     };
   });
+  // VARIANTS: a beast grown by oozes, of a beast of the same class on the same species grown by none (the casting call's
+  // palette of the one foe); each names the other
+  for (const x of foes) {
+    if (x.skin.kind !== 'beast' || !x.skin.oozes) continue;
+    const base = foes.find((y) => y !== x && y.skin.kind === 'beast' && !y.skin.oozes && y.class === x.class && y.skin.species === x.skin.species);
+    if (!base) continue;
+    x.variantOf = base.id;
+    x.relations.push({ kind: 'variant-of', foe: base.id, says: `${words(base.id)} grown by ${x.skin.oozes.map((o) => o.id).join(', ')}` });
+    base.relations.push({ kind: 'variant', foe: x.id, says: `itself grown by ${x.skin.oozes.map((o) => o.id).join(', ')}` });
+  }
   const tiers = Object.keys(RANKS).map((rank) => ({ rank, name: R.tiers[rank], ids: foes.filter((x) => x.rank === rank).map((x) => x.id) })).filter((t) => t.ids.length);
   return { G, register: style.register, flavor: style.flavor, from: style.from, words: { ...W, ...R }, tiers, foes, hero: { height: HERO.height, hp: HERO.hp } };
 }

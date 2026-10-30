@@ -152,6 +152,11 @@ world, character and feel books. It reads only what the shelves already say (`ga
   aggressiveness, rank, skill, how it sees, what it does in each situation, how a duelist switches), its shelves, and
   what each engine keeps of it.
 
+It is drawn in its world's colours, as the world's bible is: the lineup stands on the world's own sky and ground (its
+kit's colour key), the page's accent is the kit's paint, and its parts are the bible's own blocks: the cover with its
+strip of the levels in the order they are played, an article for each role the casting call would cast, the ledger of
+what it read.
+
 Two tables adapt it to the game, rows rather than code: `STAT_WORDS` says the numbers the way the game's flavor does
 (a platformer counts the bops to down a foe and the hearts a touch costs; a realistic game shows health and damage),
 and `REGISTER_WORDS` names the sheet and its tiers in the game's register (anime or western). The flavor and register
@@ -178,6 +183,19 @@ soldier's for a game whose minds are soldiers': a shooter, a stealth game), its 
 in turn and the boss the heaviest. The grunt and harrier stand on every walk or building, the elite from the middle
 on, and one boss alone on the last, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.
+
+### Variants: a beast grown by oozes
+
+A beast grown by oozes (`skin: { species, ooze, stylism? }`, the animal door's words) is a VARIANT of a beast of the same
+class on the same species grown by none: the same foe in another coat, as a game swaps a palette. The cast sheet reads
+each ooze at its strength, draws a variant in its ooze's own colour (its row's tint) outlined in its tier's, and names
+the two to each other. An ooze grows a beast's shape and its look, never its stature, which is its class's presence and
+its rank's. In play an ooze is a look: only a state (`flaming`) gives a foe an element.
+
+The casting call grows a beast cast by the world's oozes (`ELEMENT_OOZE`: the character book's leading and supporting
+elements; `ERA_OOZES`: its era's), at most `MAX_VARIANTS`: a variant of each beast role per ooze, met from the second
+level on, and the boss grown itself (`BOSS_OOZE`, dire, with the world's first). A growth whose body no longer fits its
+class is left off and said.
 
 ## Precedence
 

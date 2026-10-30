@@ -44,6 +44,22 @@ and keeps none.
   clear line past the colliders) hands it to the mind that same step, which perceives the hero and engages. Once the
   mind has seen no one for `calm` seconds, it walks its round again. Web only: Godot and Roblox are marked absent. The
   regenerated hill-climb page moves by its lift (Godot 46 → 48 of 500 rolled worlds).
+- **Oozes as variants.** A beast grown by oozes is a variant of the same class on the same species grown by none.
+  - The cast sheet reads each ooze at its strength and its stylism, draws a variant in its ooze's own colour (the ooze
+    row's tint) outlined in its tier's, names the two to each other, and says that an ooze grows a beast's shape, never
+    its stature.
+  - The casting call grows a beast cast by the world's oozes: its character book's elements (`ELEMENT_OOZE`) and its
+    era's (`ERA_OOZES`), at most `MAX_VARIANTS`. It makes a variant of each beast role per ooze, met from the second
+    level on, and grows the boss itself (`BOSS_OOZE`, dire, with the world's first). A growth that no longer fits its
+    class is left off and said.
+- **The sheet in its world's colours.** The cast sheet is drawn as the world's bible is:
+  - The lineup stands on the world's own sky and ground (its kit's colour key), and the page's accent is the kit's
+    paint.
+  - The cover takes the lineup as its plate, with the strip of levels in the order they are played, each showing who
+    stands on it.
+  - The casting call is the bible's own blocks: the ledger of what it read, a civilization's article for each role (its
+    plate beside the hero, why this class, its variants, its dress), and the strip of who would stand where.
+  - The play order moved from the world bible into `gameworld/graph.js` (`playOrder`), shared by both.
 - The `gameworld-foes` card names the dress and a building's rooms and gains the patrol's row. Its ceiling is re-pinned
   at 5120 bytes (4916), with the reason beside the pin.
 - `node scripts/out-sheet.mjs foes [--genre <id>] [--propose]` writes the sheet for the example world.
@@ -52,6 +68,7 @@ and keeps none.
 Machine gate: `gameworld/foe-cast.test.js`, `foes/dress.test.js`, the building and dressed cases in
 `gameworld/foes.test.js` and the patrol in `worlds/controllable/foe.test.js` pass. They cover one case per procedure (a
 beast, a people, a model, a mode chain, a summoner, a counting flavor and a health flavor, the gate going stale, a
-dressed person, a building's rooms, a patrol seen and unseen), plus the casting call adopted as written, the intent's
-classes first, a people's era, a platformer's beasts, a dressed crew, and absence. Eyes gate: not run. The operator
+dressed person, a building's rooms, a patrol seen and unseen, a variant and its oozes), plus the casting call adopted
+as written, the intent's classes first, a people's era, a platformer's beasts, a dressed crew, ooze variants met deeper
+in, the sheet in its world's colours, and absence. Eyes gate: not run. The operator
 looks at a platformer world's sheet and a shooter world's, and at a dressed soldier made through the door.

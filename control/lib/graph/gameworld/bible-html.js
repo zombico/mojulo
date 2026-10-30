@@ -28,7 +28,7 @@ import { engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { rtsRoster } from '../board/board-rts-tech.js';
-import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
+import { gameworldGraph, graphOutline, graphMermaid, playOrder } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
 import { natureCard, colorKey, landFor } from './nature.js';
 import { reviewState, MODES, STAMPS } from './review.js';
@@ -214,14 +214,6 @@ function worldMapSvg(g, order) {
   }
   return `<svg class="worldmap" viewBox="0 0 ${W} ${H}" width="${W}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The world map"><defs><marker id="wm-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker></defs>${o.join('')}</svg>`;
 }
-
-// the levels in the order they are played: from the start, along its links, then any left
-function playOrder(G) {
-  const order = [G.start];
-  for (let more = true; more;) { more = false; for (const l of G.links) if (order.includes(l.from) && !order.includes(l.to)) { order.push(l.to); more = true; } }
-  return [...order, ...G.ids.filter((id) => !order.includes(id))];
-}
-
 
 /** The bible of a gameworld, as one page. */
 /** A brief's words, however it was written: a string, the composer's { prompt }, or a creator's { text, why? }. */
