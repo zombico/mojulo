@@ -183,6 +183,12 @@ function g7Targets(T, recipe, opts, X, C) {
       for (let i = 0; i < d.length; i++) d[i] -= whole[lid][i] + whole[gz][i];
       fix(lid, gz, d);
     }
+    // (a brow over a lid: the socket's rim warps with the brow over the rings the lid moves, anime-form.js BROW_RIM)
+    for (const brow of SEVEN_G.brows) for (const lid of SEVEN_G.lids) {
+      const d = diffOf(vOf({}, { ...DRAWINGS[brow].words, ...DRAWINGS[lid].words }), V0);
+      for (let i = 0; i < d.length; i++) d[i] -= whole[brow][i] + whole[lid][i];
+      fix(brow, lid, d);
+    }
     for (const brow of SEVEN_G.brows) {
       const d = diffOf(vOf({ blink: 1 }, DRAWINGS[brow].words), V0);
       for (let i = 0; i < d.length; i++) d[i] -= whole[brow][i] + T.D.blink[i];
@@ -198,7 +204,7 @@ function g7Targets(T, recipe, opts, X, C) {
  * the four channels' state (faceState: each eye's closure, drawn at its knot; the smile; the open mouth; the brow) and a
  * drawing per layer: `brows` and `lids` per eye ({ L, R }, a name or null), `gaze`, `mouth` (a name or null) and
  * `mouthSide` (a sided mouth's side, 'L' | 'R', else both). A lid's shape is drawn on an open eye only; a pair's
- * corrective rides with both of its drawings (a lid's over a turned gaze, a brow's over its shut eye).
+ * corrective rides with both of its drawings (a lid's over a turned gaze, a brow's over its lid's shape or its shut eye).
  */
 export function drawingWeights(F, K) {
   const base = faceWeights(F, K), at = new Map(K.targets.map((n, i) => [n, i])), set = (n) => { const i = at.get(n); if (i !== undefined) base[i] = 1; };
@@ -206,7 +212,7 @@ export function drawingWeights(F, K) {
   for (const s of ['L', 'R']) {
     const brow = F.brows?.[s], lid = eye[s] === 0 ? F.lids?.[s] : null;
     if (brow && DRAWINGS[brow]?.words) { set(drawTarget(brow, s)); if (eye[s] === 1) set(fixTarget(brow, 'shut', s)); }
-    if (lid && DRAWINGS[lid]?.words) { set(drawTarget(lid, s)); if (F.gaze && SEVEN_G.gazes.includes(F.gaze)) set(fixTarget(lid, F.gaze, s)); }
+    if (lid && DRAWINGS[lid]?.words) { set(drawTarget(lid, s)); if (F.gaze && SEVEN_G.gazes.includes(F.gaze)) set(fixTarget(lid, F.gaze, s)); if (brow && DRAWINGS[brow]?.words) set(fixTarget(brow, lid, s)); }
   }
   if (F.gaze && DRAWINGS[F.gaze]?.words) set(drawTarget(F.gaze));
   if (F.mouth && DRAWINGS[F.mouth]?.words) { if (DRAWINGS[F.mouth].sided) for (const s of F.mouthSide ? [F.mouthSide] : ['L', 'R']) set(drawTarget(F.mouth, s)); else set(drawTarget(F.mouth)); }

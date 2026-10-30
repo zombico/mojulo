@@ -6,6 +6,9 @@ import { expect } from 'vitest';
 import { animeHeadAt } from './humanoid-plan.js';
 import { faceRigOptions } from './anime-face-rig.js';
 import { heroRecord } from '../../mcp/tools/layered.js';
+import { animeHead } from './anime-head.js';
+import { compileLayered } from './station-loft.js';
+import { animeHeroEffective, heroHeadPole } from './anime-looks.js';
 
 export const { opts } = faceRigOptions(heroRecord({ cast: 'male', head: 'anime' }));
 export const X = ['face', 'irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR', 'lidL', 'lidR', 'browL', 'browR', 'lashLowL', 'lashLowR'];
@@ -20,7 +23,8 @@ const normal = (P, f) => { const [a, b, c] = f.map((v) => P[+v.slice(1)]), u = b
 /** the face's triangles a build turns over against the neutral (a fold) */
 export const folds = (A, N) => { const a = pts(A.face), n = pts(N.face); return Object.entries(A.face.faces).filter(([, f]) => { const p = normal(a, f), q = normal(n, f); return p[0] * q[0] + p[1] * q[1] + p[2] * q[2] <= 0; }).map(([k]) => k); };
 /** the parts each layer may move */
-export const MAY = { brows: ['browL', 'browR'], lids: ['face', 'lidL', 'lidR', 'lashLowL', 'lashLowR', 'irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR'], gaze: ['irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR'], mouth: ['face'] };
+export const MAY = { brows: ['browL', 'browR', 'face'],   // (the face: the socket's rim warps with the brow)
+  lids: ['face', 'lidL', 'lidR', 'lashLowL', 'lashLowR', 'irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR'], gaze: ['irisL', 'irisR', 'pupilL', 'pupilR', 'catchL', 'catchR'], mouth: ['face'] };
 
 /** a head's builds and its drawings' check, for the face rig's options `o` */
 export function fixtureOf(o) {
@@ -44,3 +48,25 @@ export function fixtureOf(o) {
  * before its form (a row stamped laws 18: the studio's front) */
 export const { build, checkDrawing } = fixtureOf(opts);
 export const studio = fixtureOf(faceRigOptions(heroRecord({ cast: 'male', head: 'anime', laws: 18 })).opts);
+
+/** a hero's anime head (the door's words: its form, style, look and own layers) built bald at a drawing's words and
+ * compiled: { vertices, faces, groups, provenance } */
+export function headOf(spec, words = null) {
+  const hero = heroRecord({ head: 'anime', ...spec }), eff = animeHeroEffective(hero);
+  const h = animeHead({ preset: heroHeadPole(hero), hair: 'none', hairFit: false, face: eff.face, sculpt: eff.sculpt, ...(words ? { drawing: words } : {}) });
+  return compileLayered({ parts: h.parts, dials: {}, creases: {} });
+}
+/** THE BROW NEVER COVERS THE EYE: the least height, over each eye's white (the columns its sclera spans), of the brow's
+ * bottom above the lash band's top, both eyes (negative: the brow covers the eye there) */
+export function browClearance(m) {
+  const of = (part) => m.vertices.filter((_, i) => m.provenance[i].part === part), bin = (x) => Math.round(x / 0.002);
+  const white = new Set(); m.faces.forEach((f, i) => { if (m.groups[i] === 'Sclera') for (const v of f) white.add(bin(m.vertices[v][0])); });
+  let least = Infinity;
+  for (const s of ['L', 'R']) {
+    const top = new Map(), bottom = new Map();
+    for (const p of of(`lid${s}`)) top.set(bin(p[0]), Math.max(top.get(bin(p[0])) ?? -Infinity, p[2]));
+    for (const p of of(`brow${s}`)) bottom.set(bin(p[0]), Math.min(bottom.get(bin(p[0])) ?? Infinity, p[2]));
+    for (const [k, z] of bottom) if (white.has(k) && top.has(k)) least = Math.min(least, z - top.get(k));
+  }
+  return least;
+}

@@ -533,19 +533,19 @@ export const HERO_MOVES = Object.freeze({
 });
 export const TUNE = ratioControls({
   label: 'tune',
-  groups: { scale: ['stature'], lengths: ['torso', 'neck', 'legs', 'armLength'], widths: ['shoulders', 'waist', 'hips', 'depth'], head: ['head'], limbs: ['upperArm', 'forearm', 'thigh', 'calf'] },
+  groups: { scale: ['stature'], lengths: ['torso', 'neck', 'legs', 'armLength'], widths: ['shoulders', 'waist', 'hips', 'depth'], head: ['head'], limbs: ['upperArm', 'forearm', 'thigh', 'calf'], neckGirth: ['neckGirth'] },
   aggregates: { arms: ['upperArm', 'forearm'] },
   moves: HERO_MOVES,
   ranges: { stature: [0.85, 1.15], torso: [0.85, 1.15], neck: [0.85, 1.15], legs: [0.85, 1.15], armLength: [0.8, 1.15], head: [0.85, 1.15],
     shoulders: [0.8, 1.25], waist: [0.8, 1.2], hips: [0.85, 1.2], depth: [0.85, 1.2],
-    upperArm: [0.65, 1.5], forearm: [0.65, 1.5], thigh: [0.65, 1.5], calf: [0.65, 1.5] },
+    upperArm: [0.65, 1.5], forearm: [0.65, 1.5], thigh: [0.65, 1.5], calf: [0.65, 1.5], neckGirth: [0.7, 1.3] },
 });
 export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
 /** Resolve a tune spec to every TUNE_KEYS ratio, plus `from` when a move named it (see ratio-controls.js). */
 export const resolveTune = TUNE.resolve;
 /** The controls that came after heroes were stored: a stored tune carries one only when it is moved off 1, so a hero
  * that never names it keeps its record byte for byte (the record seeds the face's tracks: anime-face-tracks faceSeed) */
-export const SPARSE_TUNE_KEYS = Object.freeze(['armLength']);
+export const SPARSE_TUNE_KEYS = Object.freeze(['armLength', 'neckGirth']);
 /** a resolved tune as a hero record stores it: every control at its value but the sparse ones at 1 */
 export const storedTune = (tune) => Object.fromEntries(Object.entries(tune).filter(([k, v]) => !(SPARSE_TUNE_KEYS.includes(k) && v === 1)));
 /** Error strings for a tune spec (empty = valid). */
@@ -622,7 +622,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // lab's contract: one control, one axis). Multiplying by 1 is exact in IEEE 754, so an untouched key changes no bytes.
   const forearmBase = b.forearm ?? b.arm, armBase = b.arm, thighBase = b.thigh;   // the thigh's muscles sit on the untuned thigh: a thickness stays radial
   const hipDepthBase = b.hipDepth ?? b.hip + 0.013;
-  b.waist *= TN.waist; b.hip *= TN.hips; b.chestDepth *= TN.depth; b.arm *= TN.upperArm; b.forearm = forearmBase * TN.forearm; b.thigh *= TN.thigh; b.calf *= TN.calf;
+  b.waist *= TN.waist; b.hip *= TN.hips; b.chestDepth *= TN.depth; b.arm *= TN.upperArm; b.forearm = forearmBase * TN.forearm; b.thigh *= TN.thigh; b.calf *= TN.calf; b.neck *= TN.neckGirth;
   const D = TN.depth;
   const S = planScale({ cast, scale, tune, proportions });
   // the structured trunk's ring family (DENSE_TRUNK on the round register) and its slots' parameters on the register's scale

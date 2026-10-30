@@ -18,7 +18,7 @@ import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAni
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
 import { resolveTune, castPole, castOf, lawCast } from './hero-form.js';
-import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
+import { ANIME_SCULPT_MOVES, resolveAnimeSculpt, featureAdvice } from './anime-sculpt.js';
 import { genkiLayers, genkiExpression } from './anime-genki.js';
 import { animeStyleOf } from './anime-styles.js';
 
@@ -118,20 +118,31 @@ export const CHILD_FACE = Object.freeze({
  * (anime-form.js ORBIT, PYRAMID, JAW), and the lips flat (no rim raised round the mouth: it reads drawn on the face, shut
  * or open). A hero's own words move or undo each (`orbit: -0.025`, `noseShape: 'round'`, `jawHollow: -0.02`,
  * `flatLips: -1`). */
-export const ANIME_FORM = Object.freeze({ orbit: 0.025, noseShape: 'pyramid', jawHollow: 0.02, flatLips: 1 });
-/** and per design base, its sculpt and its face: the male's head narrower and his jaw turned under by half as much (so
+export const ANIME_FORM = Object.freeze({ orbit: 0.025, noseShape: 'pyramid', jawHollow: 0.02, flatLips: 1, browClear: 0.05 });
+/** and per design base, its sculpt, its face and its feature bands: the male's head narrower and his jaw turned under by half as much (so
  * less of a plane shows under its edge), the female's chin shorter; each kept in its base's feature bands
  * (anime-sculpt.js FEATURE_BANDS): the socket reads the male's lid band a hair heavier (his opening a hair taller
  * answers it), and the pyramid sets the female's tip a hair nearer the face and her shorter chin brings her nose and
  * lip line down the face (her tip a hair further out and higher, her lip line a hair higher, answer them) */
 export const ANIME_FORM_POLE = Object.freeze({
-  male: Object.freeze({ sculpt: Object.freeze({ fissureHeight: 1.01, jawHollow: -0.01 }), face: Object.freeze({ width: 0.95 }) }),
-  female: Object.freeze({ sculpt: Object.freeze({ tipProjection: 1.08, pronasale: 0.02, stomion: 0.004 }), face: Object.freeze({ chinHeight: 0.9 }) }),
+  male: Object.freeze({ sculpt: Object.freeze({ fissureHeight: 1.01, jawHollow: -0.01 }), face: Object.freeze({ width: 0.95 }),
+    bands: Object.freeze({ noseProjection: [0.08, 0.13], pronasale: [0.27, 0.33], noseToMouth: [0.09, 0.15], ear: [-0.05, 0.03], browGap: [0.2, 0.75], lid: [0.25, 0.4] }) }),
+  female: Object.freeze({ sculpt: Object.freeze({ tipProjection: 1.08, pronasale: 0.02, stomion: 0.004 }), face: Object.freeze({ chinHeight: 0.9 }),
+    bands: Object.freeze({ noseProjection: [0.05, 0.09], pronasale: [0.27, 0.33], noseToMouth: [0.09, 0.15], browGap: [0.4, 0.9] }) }),
 });
 /** the anime head's form this hero wears, as one sculpt layer (ANIME_FORM and its base's), or null */
 export const animeFormOf = (hero) => (animeFormed(hero) ? resolveAnimeSculpt([ANIME_FORM, ANIME_FORM_POLE[heroHeadPole(hero)]?.sculpt]) : null);
 /** and its face layer (its base's), or null */
 export const animeFormFaceOf = (hero) => (animeFormed(hero) ? ANIME_FORM_POLE[heroHeadPole(hero)]?.face ?? null : null);
+/** The feature advice for this hero's head (anime-sculpt.js featureAdvice): its base's bands, the form's in place of
+ * those it moves (the formed head is a canon of its own: its nose stands out, its brow held off the eye), and its
+ * style's in place of both */
+export function heroFeatureAdvice(hero, features) {
+  if (!features) return [];
+  const pole = heroHeadPole(hero), F = animeFormed(hero) ? ANIME_FORM_POLE[pole]?.bands : null, St = animeStyleOf(hero, pole);
+  if (!F && !St) return features.advice ?? [];
+  return featureAdvice(features, pole, { bands: { ...(F ?? {}), ...(St?.bands ?? {}) }, label: St ? `${St.word} ${pole}` : pole });
+}
 /** the face this hero's own words move off: the studio's default under its form's face and its style's (a word the
  * form or the style set is the base's or the game's, not the hero's own) */
 export const animeFaceBase = (hero) => { const { from: _f, ...B } = resolveAnimeFace([animeFormFaceOf(hero), animeStyleOf(hero, heroHeadPole(hero))?.face].filter(Boolean)); return B; };

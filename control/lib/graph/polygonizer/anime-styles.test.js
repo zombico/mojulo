@@ -1,11 +1,10 @@
 // anime-styles: the style pole (a family of anime faces for a kind of game). The concepts: the anime head's only, a known
 // word; absent, every hero as before; a style sits under the hero's own words (they compose on it) and is the base they
 // move off; stored as its word beside a stamp that keeps the row when the table moves; each base's styled default
-// advised nothing by its style's bands; the body leaner under a smaller head.
+// advised nothing by its style's bands; the body skinnier, its neck slim, under a smaller head.
 import { describe, it, expect } from 'vitest';
 import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec } from '../../mcp/tools/layered.js';
-import { animeHeroEffective, animeFaceBase } from './anime-looks.js';
-import { featureAdvice } from './anime-sculpt.js';
+import { animeHeroEffective, animeFaceBase, heroFeatureAdvice } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
 
 const STYLE = ANIME_STYLE_NAMES[0];
@@ -27,7 +26,7 @@ describe('the style pole', () => {
     const base = animeFaceBase(heroRecord({ cast: 'female', head: 'anime', animeStyle: STYLE, face: { width: 1.02 } }));
     expect(Object.entries(own.face).filter(([k, v]) => Math.abs(v - base[k]) > 1e-9).map(([k]) => k)).toEqual(['width']);
     // (the body: a smaller head on a leaner frame)
-    expect(styled().tune.head).toBeLessThan(animeHeroEffective(plain).tune.head);
+    expect(styled().tune.head).toBeLessThan(animeHeroEffective(plain).tune.head); expect(styled().tune.neckGirth).toBeLessThan(1); expect(styled().tune.upperArm).toBeLessThan(1);
   });
   it('is stored as its word beside a stamp: kept on the same word, renewed on another, dropped with it', () => {
     const hero = heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE });
@@ -39,10 +38,10 @@ describe('the style pole', () => {
     const off = normalizeHero({ ...hero, animeStyle: null });
     expect(off).not.toHaveProperty('animeStyle'); expect(off).not.toHaveProperty('animeStyleResolved');
   });
-  it('advises each base\'s styled default nothing, by its style\'s bands', () => {
+  it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {
       const hero = heroRecord({ cast, head: 'anime', animeStyle: STYLE }), f = heroPlanOf(hero).include[0].faceMeasures.features;
-      expect(featureAdvice(f, cast, { bands: animeStyleOf(hero, cast).bands }), cast).toEqual([]);
+      expect(heroFeatureAdvice(hero, f), cast).toEqual([]);
     }
   });
 }, 300000);

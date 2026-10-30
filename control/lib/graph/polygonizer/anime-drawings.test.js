@@ -3,14 +3,15 @@
 // lowers to); no drawing, or a neutral one, is the head byte for byte; each drawing keeps the head's topology, moves only
 // its own layer's parts and region, and folds no face; layers that share no vertex add exactly. And the head in a socket
 // (sculpt `orbit`): none at 0; the eye set back between the brow and the cheekbone, the nose and the chin kept; the
-// pyramid nose (sculpt `noseShape`) its bridge raised from the eye's line, its tip no further out; the jaw curved in
-// (sculpt `jawHollow`) narrower toward its edge, its side turned down; the drawings as whole on them.
+// pyramid nose (sculpt `noseShape`) its bridge raised from the eye's line, its tip out and pointing up, no line on it; the
+// jaw curved in (sculpt `jawHollow`) narrower toward its edge, its side turned down; the drawings as whole on them. And the
+// principles (docs/anime-face-principles.md) built in: the brow never covers the eye; the socket rises with the brow.
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_LAYERS, DRAWING_REST, drawingErrors, drawingWordErrors, drawingWords, lowerFace } from './anime-drawings.js';
 import { animeHead } from './anime-head.js';
-import { X, build, pts, checkDrawing, studio } from './anime-drawings.fixture.js';
+import { X, build, pts, checkDrawing, studio, headOf, browClearance } from './anime-drawings.fixture.js';
 import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
-import { animeHeroEffective, ANIME_FORM, ANIME_FORM_POLE } from './anime-looks.js';
+import { animeHeroEffective, heroFeatureAdvice, ANIME_FORM, ANIME_FORM_POLE } from './anime-looks.js';
 import { sculptBuild, resolveAnimeSculpt, validateAnimeSculpt } from './anime-sculpt.js';
 import { compileLayered } from './station-loft.js';
 
@@ -55,7 +56,10 @@ describe('the drawings, built', () => {
     const sum = (...B) => sumOver(N, ...B);
     const err = (A, S) => Math.max(...X.flatMap((n) => pts(A[n]).map((p, i) => Math.hypot(...p.map((x, c) => x - S[n][i][c])))));
     const W = (n) => DRAWINGS[n].words, pair = (a, b, E = {}) => err(build({ ...a, ...b }, E), sum(build(a), build(b), ...(Object.keys(E).length ? [build(null, E)] : [])));
-    for (const [a, b] of [['brows.angry', 'lids.angry'], ['brows.worried', 'mouth.a'], ['lids.sad', 'mouth.shout'], ['gaze.left', 'mouth.o'], ['gaze.up', 'brows.raised']]) expect(pair(W(a), W(b)), `${a} × ${b}`).toBeLessThan(1e-6);
+    for (const [a, b] of [['brows.worried', 'mouth.a'], ['lids.sad', 'mouth.shout'], ['gaze.left', 'mouth.o'], ['gaze.up', 'brows.raised']]) expect(pair(W(a), W(b)), `${a} × ${b}`).toBeLessThan(1e-6);
+    // (a brow and a lid meet at the socket's rim, which warps with the brow over the rings the lid moves: measured near
+    // half a millimetre, so a brow over a lid's shape takes a corrective)
+    expect(pair(W('brows.raised'), W('lids.wide'))).toBeGreaterThan(1e-4);
     // (the smile widens the vowel's outline: within half a millimetre)
     expect(err(build(W('mouth.a'), { smile: 1 }), sum(build(W('mouth.a')), build(null, { smile: 1 })))).toBeLessThan(1e-3);
     // (the brow block rides up as the lids shut: on the studio's front (laws 18) within a tenth of a millimetre; in the
@@ -85,15 +89,22 @@ describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShap
     // (its rings follow the socket: more of them about each eye, the parts laid on it unchanged in count)
     expect(of(B, 'face').length).toBeGreaterThan(of(A, 'face').length); expect(of(B, 'browL').length).toBe(of(A, 'browL').length);
   });
-  it('the pyramid nose: its bridge raised from the eye\'s line, its tip no further out than the round one\'s; the round one adds nothing', () => {
+  it('the pyramid nose: its bridge raised from the eye\'s line, its tip further out than the round one\'s and pointing up, no line drawn on it; the round one adds nothing', () => {
     expect(validateAnimeSculpt({ noseShape: 'hook' })[0]).toMatch(/noseShape: one of round, pyramid/);
     expect(sculptBuild('male', resolveAnimeSculpt({ noseShape: 'round' }))).toEqual(sculptBuild('male', resolveAnimeSculpt({})));
     // (the same face, its points moved: the centre line's point halfway from the eye's level down to the tip)
     const A = head(null), B = head({ noseShape: 'pyramid' }), FA = of(A, 'face'), FB = of(B, 'face');
     const H = Math.max(...FA.map((p) => p[2])) - Math.min(...FA.map((p) => p[2])), tip = FA.reduce((a, p) => (p[1] > a[1] ? p : a)), eye = of(A, 'irisL').reduce((t, p) => t + p[2], 0) / of(A, 'irisL').length;
-    const mid = FA.map((p, i) => [p, i]).filter(([p]) => Math.abs(p[0]) < 1e-4 && p[1] > tip[1] - 0.05).reduce((a, b) => (Math.abs(b[0][2] - (eye + tip[2]) / 2) < Math.abs(a[0][2] - (eye + tip[2]) / 2) ? b : a))[1];
-    expect(FB[mid][1] - FA[mid][1]).toBeGreaterThan(0.002 * H);
-    expect(Math.max(...FB.map((p) => p[1]))).toBeLessThanOrEqual(tip[1] + 0.002 * H);
+    // (each face's centre line at the height halfway from the eye's level down to its tip, against its eye: the pyramid's
+    // own rows make the two lattices differ, and the frame each build is pinned in moves with its face's front)
+    const eyeOf = (M) => of(M, 'irisL').reduce((t, p, _, a) => [t[0] + p[1] / a.length, t[1] + p[2] / a.length], [0, 0]), eA = eyeOf(A), eB = eyeOf(B);
+    const midOf = (F, e, t) => F.filter((p) => Math.abs(p[0]) < 1e-4 && p[1] > t[1] - 0.05).reduce((a, b) => (Math.abs(b[2] - (e[1] + t[2]) / 2) < Math.abs(a[2] - (e[1] + t[2]) / 2) ? b : a));
+    const tipB = FB.reduce((a, p) => (p[1] > a[1] ? p : a));
+    expect(midOf(FB, eB, tipB)[1] - eB[0]).toBeGreaterThan(midOf(FA, eA, tip)[1] - eA[0] + 0.002 * H);
+    // (the profile's point: the tip out past the round one's and set higher, the underside cut back up to it, so it points
+    // up; the shade side's plane carries what the round nose's line drew)
+    expect(tipB[1] - eB[0]).toBeGreaterThan(tip[1] - eA[0] + 0.01 * H); expect(tipB[2] - eB[1]).toBeGreaterThan(tip[2] - eA[1]);
+    expect(sculptBuild('male', resolveAnimeSculpt({ noseShape: 'pyramid' }))).not.toHaveProperty('noseLine'); expect(sculptBuild('male', resolveAnimeSculpt({}))).toHaveProperty('noseLine');
     // (the chin and the crown kept, to the micrometre: the pin's frame moves with the face's front and each offset rounds anew)
     for (const [k, f] of [[2, Math.min], [2, Math.max]]) expect(f(...FB.map((p) => p[k]))).toBeCloseTo(f(...FA.map((p) => p[k])), 6);
   });
@@ -131,9 +142,31 @@ describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShap
     // (a hero's own words move each: the socket deeper, the nose round)
     expect(sc({ cast: 'male', sculpt: { orbit: 0.005, noseShape: 'round' } })).toMatchObject({ orbit: 0.03, noseShape: 'round' });
     // (each base's formed head inside its feature bands: the default hero is advised nothing)
-    for (const cast of ['male', 'female']) expect(heroPlanOf(heroRecord({ cast, head: 'anime' })).include[0].faceMeasures.features.advice, cast).toEqual([]);
+    for (const cast of ['male', 'female']) { const hero = heroRecord({ cast, head: 'anime' }); expect(heroFeatureAdvice(hero, heroPlanOf(hero).include[0].faceMeasures.features), cast).toEqual([]); }
   });
   it('keeps every layer\'s drawing whole on the head before its form (laws 18)', () => {
     for (const name of ['brows.angry', 'lids.angry', 'gaze.right', 'mouth.a']) studio.checkDrawing(`laws 18 ${name}`, DRAWINGS[name].layer, DRAWINGS[name].words);
   });
 }, 120000);
+
+describe('the principles, built in (docs/anime-face-principles.md)', () => {
+  it('the brow never covers the eye: the angriest brow over the widest lid, on the lowest brow, clears it; before laws 19 it did not', () => {
+    const words = drawingWords({ brows: 'brows.angry', lids: 'lids.wide' }), low = { cast: 'male', animeStyle: 'shonen-high' };
+    expect(browClearance(headOf(low, words))).toBeGreaterThan(0);
+    expect(browClearance(headOf({ ...low, laws: 18 }, words))).toBeLessThan(0);
+    // (a word takes it off: the operator's call)
+    expect(sculptBuild('male', resolveAnimeSculpt({ browClear: 0 }))).not.toHaveProperty('browClear');
+  });
+  it('the socket warps with the brow: its recess reaches higher under a raised brow', () => {
+    // (the recess's top over the eye's middle: the highest face point there set back by a quarter of the deepest)
+    // (the recess above the eye: over the eye's column and above its top, how far the socket sets the face back, summed;
+    // the same head without its socket the reference)
+    const recess = (spec, words = null) => {
+      const A = headOf(spec, words), B = headOf({ ...spec, sculpt: { ...(spec.sculpt ?? {}), orbit: -0.025 } }, words);
+      const iris = A.vertices.filter((_, i) => A.provenance[i].part === 'irisR'), ex = iris.reduce((t, p) => t + p[0] / iris.length, 0), top = Math.max(...iris.map((p) => p[2]));
+      return A.vertices.reduce((t, p, i) => (A.provenance[i].part === 'face' && Math.abs(p[0] - ex) < 0.006 && p[2] > top && p[1] > 0 ? t + (B.vertices[i][1] - p[1]) : t), 0);
+    };
+    expect(recess({ cast: 'male' }, drawingWords({ brows: 'brows.raised' }))).toBeGreaterThan(recess({ cast: 'male' }) * 1.005);
+    expect(recess({ cast: 'male' }, drawingWords({ brows: 'brows.angry' }))).toBeLessThan(recess({ cast: 'male' }));
+  });
+}, 300000);

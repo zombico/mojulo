@@ -556,10 +556,10 @@ describe('the hero door wears the anime head', () => {
     const after = SketchRepository.getByRef('hero-anime'); expect(tip(after.manifest)).not.toEqual(tip(stored.manifest));
     expect(after.manifest.recipe.parts.hairFormBackC.offsets).toEqual(stored.manifest.recipe.parts.hairFormBackC.offsets);   // the clump's sections moved, the rest held
     // under the graphic face (the default) the slider read is its face layer times the word (the female nose 0.6 × 2.6)
-    // and the feature spacing is advised against the base's bands
+    // and the feature spacing is advised against the base's bands (the form's, where it moves them)
     const w = await updateSketchHandler({ ref: 'hero-anime', patch: [{ op: 'set', path: '/hero/face/nose', value: 2.6 }, { op: 'set', path: '/hero/expression', value: 'blink' }, { op: 'set', path: '/hero/hair/style', value: 'short' }] });
-    // (the minted eyeHeight 1.05 opens the fissure just past the female band)
-    expect(w.stats.hero.warnings).toEqual([expect.stringMatching(/face\.nose 2\.6 puts the studio's slider at 1\.56,/), expect.stringMatching(/face: the opening's height over its width is 0\.8\d*, outside the female band \[0\.55, 0\.8\]: \/hero\/sculpt \{ fissureHeight: … \} moves it \(then \/hero\/sculpt\/<word>\)/), expect.stringMatching(/face: the nose projection \(of H\) is 0\.\d+, outside the female band \[0\.025, 0\.04\]: \/hero\/sculpt \{ tipProjection: … \} moves it/)]);
+    // (under hero laws 19 the formed head's own bands: its nose stands out, to [0.05, 0.09] of H, and 2.6 of it past that)
+    expect(w.stats.hero.warnings).toEqual([expect.stringMatching(/face\.nose 2\.6 puts the studio's slider at 1\.56,/), expect.stringMatching(/face: the nose projection \(of H\) is 0\.\d+, outside the female band \[0\.05, 0\.09\]: \/hero\/sculpt \{ tipProjection: … \} moves it/)]);
     // closed lids bury the lenses behind the lid skin; every expression keeps the same parts (the graphic face)
     expect(w.stats.hero.expression.blink).toBe(1); expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.irisR).toBeTruthy();
     // the hair base's form grows no crown accents (the short family's six clumps); the word by path grows them back
@@ -600,7 +600,7 @@ describe('the hero door: the anime head\'s graphic face', () => {
     expect(minted.hero.evidence.head.sculpt).toMatch(/the graphic face, authored off its base: sculpt .*lidCover 130%.*fissureShape tri/);
     expect(minted.hero.faceMeasures.features.eyeLevel).toBeGreaterThan(0.4); expect(minted.hero.faceMeasures.head_m).toBeGreaterThan(0.2);
     expect(minted.next.reason).toMatch(/\/hero\/sculpt/);
-    const parts = stored.manifest.recipe.parts; expect(parts.lidR.through).toBe('fringe'); expect(parts.noseLine).toBeTruthy(); expect(parts.lashR).toBeUndefined();
+    const parts = stored.manifest.recipe.parts; expect(parts.lidR.through).toBe('fringe'); expect(parts.noseLine).toBeUndefined(); expect(parts.lashR).toBeUndefined();   // (the formed head's pyramid nose draws no line: its shade plane carries it)
     // a word by path: regenerates the head; a word set back to the base drops out of the stored layer
     const r = await updateSketchHandler({ ref: 'hero-sculpt', patch: [{ op: 'set', path: '/hero/sculpt/browThick', value: 1.3 }, { op: 'set', path: '/hero/sculpt/lidCover', value: 1 }] });
     expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true);

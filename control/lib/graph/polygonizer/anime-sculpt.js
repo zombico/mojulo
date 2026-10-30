@@ -91,14 +91,14 @@ export const ANIME_SCULPT = ratioControls({
   label: 'sculpt',
   groups: {
     placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'], lips: ['flatLips'],
-    nose: ['tipProjection', 'dorsumProjection', 'noseLine'],
-    ear: ['earLevel'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], jaw: ['jawHollow'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
+    nose: ['tipProjection', 'dorsumProjection', 'noseLine'], bridge: ['bridgeRoot'],
+    ear: ['earLevel'], earBack: ['earBack'], napeLift: ['napeLift'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], jaw: ['jawHollow'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
     iris: ['irisSize', 'irisOval', 'pupil', 'catchlight'],
-    brow: ['browThick', 'browGap', 'browLength'], browAngle: ['browAngle'], browArch: ['browArch'],
+    brow: ['browThick', 'browGap', 'browLength'], browClear: ['browClear'], browAngle: ['browAngle'], browArch: ['browArch'],
   },
-  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], flatLips: [0, 1], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
+  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], flatLips: [0, 1], browClear: [0, 0.5], bridgeRoot: [0, 0.06], earBack: [0, 0.06], napeLift: [0, 0.15], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
     lidWeight: [0.6, 1.5], lidCover: [0, 1.6], browGap: [0, 2.5], browThick: [0.5, 1.6], catchlight: [0, 1.6], noseLine: [0, 1.5], canthusSetback: [0, 2] },
-  offsets: ['orbit', 'jawHollow', 'flatLips', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
+  offsets: ['orbit', 'jawHollow', 'flatLips', 'browClear', 'bridgeRoot', 'earBack', 'napeLift', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
   zero: ['lidCover', 'browGap', 'catchlight', 'noseLine', 'canthusSetback', 'lidTail'],
   moves: ANIME_SCULPT_MOVES,
 });
@@ -160,7 +160,10 @@ export function sculptBuild(pole, resolved) {
   out.nose = { ...B.nose, pronasale: r6(B.nose.pronasale + h(R.pronasale)), dorsumStart: r6(B.nose.dorsumStart + h(R.dorsumStart)), tip: r6(B.nose.tip * R.tipProjection), dorsum: r6(B.nose.dorsum * R.dorsumProjection) };
   // (the pyramid nose: its form named on the build's nose; the round one, the base's, adds nothing)
   if (R.noseShape === 'pyramid') out.nose.shape = 'pyramid';
-  if (R.noseLine > 0) out.noseLine = { ...B.noseLine, top: r6(B.noseLine.top * R.noseLine) }; else delete out.noseLine;
+  // (the pyramid's root raised toward the brow, an offset of H; absent at 0)
+  if (R.noseShape === 'pyramid' && R.bridgeRoot > 0) out.nose.rootUp = r6(h(R.bridgeRoot));
+  // (the pyramid nose draws no line: its shade side's plane carries what the line drew on the round one)
+  if (R.noseLine > 0 && R.noseShape !== 'pyramid') out.noseLine = { ...B.noseLine, top: r6(B.noseLine.top * R.noseLine) }; else delete out.noseLine;
   const shape = FISSURE_SHAPES[R.fissureShape ?? B.fissureShape]; delete out.fissureShape;
   out.fissure = { ...B.fissure, ...structuredClone(shape), h: r6((B.fissure.h ?? 1) * R.fissureHeight) };
   out.lidWeight = r6(B.lidWeight * R.lidWeight); out.lidTail = r6(B.lidTail * R.lidTail); out.lidTailAngle = r6(B.lidTailAngle + R.lidAngle); out.lidFlick = r6(B.lidFlick + R.lidFlick);
@@ -170,9 +173,14 @@ export function sculptBuild(pole, resolved) {
   // (the orbit, an offset of H: absent at 0, so a head without it keeps its build)
   if (R.orbit > 0) out.orbit = { depth: r6(h(R.orbit)) };
   if (R.jawHollow > 0) out.jawHollow = { depth: r6(h(R.jawHollow)) };
+  // (the back of the head's underside raised, an offset of H; absent at 0)
+  if (R.napeLift > 0) out.napeLift = r6(h(R.napeLift));
   // (the lips flat: the mouth's rim no longer raised round the opening, its share flattened; absent at 0)
   if (R.flatLips > 0) out.flatLips = r6(Math.min(1, R.flatLips));
-  if (B.ear) out.ear = { ...B.ear, lift: r6(B.ear.lift + h(R.earLevel)) };
+  // (the brow held clear of the eye, of the opening; absent at 0)
+  if (R.browClear > 0) out.browClear = r6(R.browClear);
+  // (`earBack`: the ear set back along the head, an offset of H; absent at 0)
+  if (B.ear) out.ear = { ...B.ear, lift: r6(B.ear.lift + h(R.earLevel)), ...(R.earBack > 0 ? { back: r6(h(R.earBack)) } : {}) };
   out.brow = { ...B.brow, ...(R.browShape ? { shape: R.browShape } : {}), thick: r6(B.brow.thick * R.browThick), gap: r6(B.brow.gap * R.browGap), angle: r6(B.brow.angle + R.browAngle), inner: r6(B.brow.inner * R.browLength), outer: r6(B.brow.outer * R.browLength), arch: r6(B.brow.arch + R.browArch) };
   return out;
 }

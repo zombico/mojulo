@@ -148,7 +148,9 @@ describe('the nose dials (painterly.nose)', () => {
     // the mouth's height (about a third of the way up from the chin to the eyes) and the tip's (the slab's most forward point below the eyes)
     expect(cat(bot + 0.03)).toBeLessThan(zel(bot + 0.03) - 0.008);
     let tipZ = bot, tipY = -Infinity; for (let z = bot + 0.04; z < bot + 0.12; z += 0.001) { const y = slabSide(z); if (y > tipY) { tipY = y; tipZ = z; } }
-    expect(Math.abs(cat(tipZ) - tipY)).toBeLessThan(0.004); expect(Math.abs(zel(tipZ) - tipY)).toBeLessThan(0.004);
+    // (to 6 mm: under hero laws 19 the slab wears the pyramid nose, its tip standing out past the painted face's own
+    // dials by about a millimetre more than before, 5.2 mm measured)
+    expect(Math.abs(cat(tipZ) - tipY)).toBeLessThan(0.006); expect(Math.abs(zel(tipZ) - tipY)).toBeLessThan(0.006);
     expect(zs.length).toBeGreaterThan(0);
   }, 240000);
   it('width: the underside painted darker as it widens; its faces carry the texture', () => {

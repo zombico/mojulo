@@ -64,3 +64,16 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   correctives for the pairs that do not add (a lid's shape over a turned gaze, a brow over its shut eye), so a face drawn
   per layer is the exact build of its drawings. Its cost is stamped on the rig (`meta.sevenG`), and a hero whose layout
   moves its vertices skips it with the reason.
+- **The pyramid nose points up** (`anime-form.js` PYRAMID): the tip stands out past the face and turns up, its line
+  hollowed from the bridge and its underside cut back from a point set above the pronasale to the lip, so the side
+  profile reads by it; the face gains a row halfway in each gap through the nose's band, so the tip and its underside
+  are drawn by rows, not one edge. The pyramid draws no nose line: its shade plane carries it. A new word raises its
+  root toward the brow (`bridgeRoot`), the bridge then rising from between the brows with a shallower dip.
+- **The anime face's principles** ([docs/anime-face-principles.md](../../../../docs/anime-face-principles.md)), built
+  into the head: the brow never covers the eye (sculpt `browClear`: over the eye the brow is held above the widest lid
+  any drawing draws, so a lid's drawing never moves it; the form wears 0.05), the socket follows the brow (its recess
+  rises to the brow's middle at rest, and its rim warps with the brow as it acts, raised with it, drawn down at the inner
+  end with a knit, never below the lash band; the 7G rig adds a corrective per brow over each lid where the warped rim
+  meets the lid's rings), no line where the form carries it, the profile read
+  by its blocks, no deformation, drawings snap. The formed head's feature bands are its own (`ANIME_FORM_POLE` bands:
+  its nose stands out, its brow held off the eye), a style's over them.

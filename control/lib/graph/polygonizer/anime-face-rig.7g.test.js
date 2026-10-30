@@ -2,7 +2,7 @@
 // take on a target of T3 or higher, never the painted face, never `acting: 'basic'`. A 7G rig keeps the four channels'
 // targets and rows as they were and appends the drawings' and the correctives'. A face drawn per layer, weighed onto the
 // targets, IS the exact build of its drawings: the layers that add, and the pairs that do not through their correctives
-// (a lid's shape over a turned gaze, a brow's over its shut eye).
+// (a lid's shape over a turned gaze, a brow over a lid's shape, whose socket rim warps with it, and over its shut eye).
 import { describe, it, expect } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
