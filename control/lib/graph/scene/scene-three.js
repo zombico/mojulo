@@ -1206,12 +1206,13 @@ for (const grp of GROUPS) {
 const REPEATS = ${safeJson(packedRepeats)};
 ${hasNear ? `// NEAR repeats: an entry with \`near\` is cut into square tiles of its instances, each its own InstancedMesh on the
 // shared geometry, shown only while the camera stands within \`near\` of the tile (checked before each render, so a
-// capture, a frozen frame and the live loop agree): a street's kit and paint drawn where they are seen, none far off
+// capture, a frozen frame and the live loop agree): a street's kit and paint drawn where they are seen, none far off;
+// a textured template's faces (a tree's bark) tiled the same, on their own material
 const __nearTiles = [];
-const __nearRepeat = (r, geo) => {
+const __nearRepeat = (r, geo, material = null) => {
   const T = Math.max(16, r.near / 2), tiles = new Map();
   r.t.forEach((t, i) => { const k = Math.floor(t[0] / T) + ':' + Math.floor(t[1] / T); if (!tiles.has(k)) tiles.set(k, []); tiles.get(k).push(i); });
-  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const mat = material || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   for (const [k, ids] of tiles) {
     const im = new THREE.InstancedMesh(geo, mat, ids.length);
@@ -1264,7 +1265,7 @@ for (const r of REPEATS) for (const t of (r.tex || [])) {
   g.computeBoundingSphere();
   let tex = REP_TEX[t.key];
   if (!tex) { tex = REP_TEX[t.key] = new THREE.TextureLoader().load(url); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; }
-  const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }), r.t.length);
+  ${hasNear ? 'if (r.near) { __nearRepeat(r, g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide' + cutOpt + ' })); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((q, i) => {
     Q.setFromAxisAngle(UP, q[3]); P.set(q[0], q[1], q[2]); S.set(q[4], q[4], q[4]); M.compose(P, Q, S); im.setMatrixAt(i, M);

@@ -24,10 +24,10 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
 
   it('stands every block\'s terraces over the walk round them, and each tower its storeys over its terrace', () => {
     const S = D.land.S;
-    for (const f of group('geocity:pad')) for (const [x, y, z] of f.corners) expect(z).toBeGreaterThanOrEqual(S(x, y) + 0.15 - 1e-3);
+    for (const f of [...group('geocity:pad'), ...group('geocity:paving')]) for (const [x, y, z] of f.corners) expect(z).toBeGreaterThanOrEqual(S(x, y) + 0.15 - 1e-3);
     const office = D.grammar.floorH.office, b = D.regions.flatMap((r) => r.blocks).find((x) => x.towers), t = b.towers[0];
     const roof = group('geocity:tower:roof').find((f) => f.corners.every(([x, y]) => x >= t.rect[0] - 1e-3 && x <= t.rect[2] + 1e-3 && y >= t.rect[1] - 1e-3 && y <= t.rect[3] + 1e-3));
-    const pad = group('geocity:pad').map((f) => f.corners[0][2]).filter((z) => Math.abs(roof.corners[0][2] - t.storeys * office - z) < 1e-3);
+    const pad = [...group('geocity:pad'), ...group('geocity:paving')].map((f) => f.corners[0][2]).filter((z) => Math.abs(roof.corners[0][2] - t.storeys * office - z) < 1e-3);
     expect(pad.length).toBeGreaterThan(0);
   });
 
@@ -101,5 +101,27 @@ describe('the street, near', () => {
     const near = emitThreeWorld({ ...base, repeats: [{ group: 'g', template: tpl, transforms: [{ pos: [0, 0, 0] }], near: 50 }] });
     expect(plain).not.toContain('__nearTiles');
     expect(near).toContain('__nearTiles');
+  });
+});
+
+describe('the ground, near', () => {
+  it('lays its ground and its masses in their material words, as tiles', () => {
+    const road = group('geocity:road').find((f) => f.texture), walk = group('geocity:walk').find((f) => f.texture), house = group('geocity:house').find((f) => f.texture);
+    for (const f of [road, walk, house]) { expect(f).toBeTruthy(); expect(f.uv).toHaveLength(f.corners.length); }
+    expect(road.texture).not.toBe(walk.texture);
+  });
+  it('gives a glass tower\'s walls the sun\'s sheen', () => {
+    expect(group('geocity:tower').some((f) => Array.isArray(f.spec))).toBe(true);
+  });
+  it('grows its street trees near the camera only, and takes the live sun when a page asks', () => {
+    expect(P.geocity.counts.trees).toBeGreaterThan(0);
+    const trees = P.repeats.filter((r) => String(r.group).startsWith('geocity:tree-'));
+    expect(trees.length).toBeGreaterThan(0);
+    expect(trees.every((r) => r.near > 0)).toBe(true);
+    expect(P.faces.some((f) => f.sunShare !== undefined)).toBe(false);
+    const L = assembleGeocityScene(M, { liveSun: true });
+    const up = L.faces.find((f) => f.group === 'geocity:road'), wall = L.faces.find((f) => f.group === 'geocity:house' && Math.abs(f.normal[2]) < 0.1);
+    expect(up.sunShare).toBeGreaterThan(0);
+    expect(wall.sunShare).toBeGreaterThanOrEqual(0);
   });
 });

@@ -42,6 +42,10 @@ import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates } from './kit.js';
+import { materialContext, wordTile } from '../era/arch-style.js';
+import { dressTownFace } from '../era/town-dress.js';
+import { plantPool, plantRepeats } from '../vegetation/pool.js';
+import { litFactor } from '../polygonizer/vexar.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light']);
 export const GEOCITY_FACES = 200000;
@@ -57,6 +61,19 @@ const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14
 const NEAR = 320, LAMP = 31, POLE = 35;
 // the furniture's strides (m): a hydrant, a bench and its bike rings, a residential street's hydro poles
 const HYDRANT = 90, BENCH = 70, HYDRO = 38;
+// the ground and the masses in their material words (era/arch-style.js MATERIAL_WORDS), laid as tiles (texel × light):
+// a floor's on a face that lies flat, a wall's on an upright one; each word's seed its own
+const FINISHES = Object.freeze({
+  'geocity:road': ['asphalt', 'floor'], 'geocity:walk': ['pavement', 'floor'], 'geocity:paving': ['flags', 'floor'], 'geocity:streetcar-row': ['setts', 'floor'],
+  'geocity:platform': ['pavement', 'floor'], 'geocity:retain': ['sawn-stone', 'wall'], 'geocity:house': ['wire-brick', 'wall'], 'geocity:shops': ['wire-brick', 'wall'],
+  'geocity:avenue': ['wire-brick', 'wall'], 'geocity:midrise': ['wire-brick', 'wall'], 'geocity:lowrise': ['wire-brick', 'wall'], 'geocity:walkup': ['wire-brick', 'wall'],
+  'geocity:school': ['wire-brick', 'wall'], 'geocity:podium': ['sawn-stone', 'wall'], 'geocity:slab': ['precast', 'wall'],
+});
+// a glass tower's sheen: the specular channel's strength and power (scene/channels/specular.js)
+const GLASS_SPEC = Object.freeze([0.55, 48]);
+// street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street, their species, the
+// height they are grown to (m), the detail their template keeps and its faces' budget
+const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'cherry'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -89,18 +106,28 @@ export function assembleGeocityScene(m, ctx = {}) {
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air, night = lit.night;
+  // (the finishes in the cube's material context, each a tile; geotown/scene.js finishesOf)
+  const MX = materialContext(cube), FIN = {};
+  Object.entries(FINISHES).forEach(([group, [word, as]], k) => { const T = wordTile(word, MX, 211 + 17 * k); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
   const put = (corners, group, hex, want = null) => {
     let c = corners, n = newell(c);
     if (want && n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
     if (!want && n[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
-    const fill = shadeHex(hex, n, LIGHT);
-    faces.push({ corners: c.map(P3), normal: P3(n), outNormal: P3(n), group, fill, cornerFills: c.map(() => fill) });
+    const fill = shadeHex(hex, n, LIGHT), F0 = { corners: c.map(P3), normal: P3(n), outNormal: P3(n), group, fill, cornerFills: c.map(() => fill) }, E = FIN[group];
+    faces.push(E && (E.floor ? Math.abs(n[2]) > 0.7 : Math.abs(n[2]) < 0.3) ? dressTownFace(F0, group, FIN) : F0);
   };
   // the street's kit stamped where it stands: each template's transforms, drawn near the camera only
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
   const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
+  // the street trees, by species, grown after the cameras (their detail is what the cameras see)
+  const trees = new Map();
+  const plant = (where, x, y, z, key) => {
+    const R = streamOf(seed, 'trees', key), list = TREE.species[where], sp = list[Math.floor(R() * list.length)];
+    if (!trees.has(sp)) trees.set(sp, []);
+    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R()) });
+  };
   // a pane no light shades (a lit room at night)
   const pane = (corners, n, hex) => { faces.push({ corners: corners.map(P3), normal: P3(n), outNormal: P3(n), group: 'geocity:night-window', fill: hex, cornerFills: corners.map(() => hex) }); counts.panes++; };
   // a rect draped on the land at `lift` over it, in cells
@@ -207,7 +234,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) ? col.plaza : col.lawn;
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
-        put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], `geocity:pad`, padHex);
+        put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padHex === col.plaza ? 'geocity:paving' : 'geocity:pad', padHex);
         // its retaining faces: down to the walk on its street sides, down to the terrace below between them
         const edges = [[[a0, b0], [a1, b0], [0, -1, 0], 's'], [[a1, b0], [a1, b1], [1, 0, 0], 'e'], [[a1, b1], [a0, b1], [0, 1, 0], 'n'], [[a0, b1], [a0, b0], [-1, 0, 0], 'w']];
         for (const [p, q, nn, s] of edges) {
@@ -277,6 +304,14 @@ export function assembleGeocityScene(m, ctx = {}) {
           for (let k = 0; k < 3; k++) kerb(side, 1.6, s0 + 9 + k * 1.3, 'ring', l.axis === 'ns' ? Math.PI / 2 : 0);
         }
         if (dense(p + 6)) kerb(-1, l.half - l.road / 2 - 0.7, p + 6, `papers:${facing(l, 1)}`);
+        // its street trees in their pits, where the city is close-built, clear of its lamps
+        for (const side of [-1, 1]) for (let s0 = p + 14 + (side > 0 ? TREE.pit / 2 : 0); s0 <= q - 10; s0 += TREE.pit) {
+          const lampAt = (s0 - (p + 8 + (side > 0 ? LAMP / 2 : 0))) % LAMP;
+          if (!dense(s0) || lampAt < 2 || lampAt > LAMP - 2) continue;
+          kerb(side, 1.3, s0, 'pit');
+          const [x, yy] = at(l, side * (l.road / 2 + 1.3), s0);
+          plant('dense', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`);
+        }
       }
     }
     // the crossings
@@ -339,6 +374,12 @@ export function assembleGeocityScene(m, ctx = {}) {
               prev = [x, yy, z];
             }
             for (let s0 = a + 30; s0 <= b - 10; s0 += HYDRANT) { const [x, yy] = pt(-side, s0); stamp('hydrant', [x, yy, S(x, yy) + KERB], 0); }
+            // its trees on the verge each side (a streetcar suburb's boulevard), clear of its poles
+            for (const sd of [-1, 1]) for (let s0 = a + 9 + (sd > 0 ? TREE.verge / 2 : 0); s0 <= b - 9; s0 += TREE.verge) {
+              if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
+              const [x, yy] = pt(sd, s0, st.w / 2 - WALK - 1.0);
+              plant('low', x, yy, S(x, yy), `${st.id}:${sd}:${Math.round(s0)}`);
+            }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
             for (const s0 of [a + 6, b - 6]) { const [x, yy] = pt(1, s0, kerbOff + 0.8); stamp('bin', [x, yy, S(x, yy) + KERB], 0); }
@@ -412,7 +453,10 @@ export function assembleGeocityScene(m, ctx = {}) {
       lights(pod[0], pod[1], pod[2], pod[3], zc, zp, office, Rb);
       for (const t of b.towers) {
         const [a0, b0, a1, b1] = t.rect, z0 = zAt((a0 + a1) / 2, (b0 + b1) / 2), z1 = z0 + t.storeys * office;
-        box(a0, b0, a1, b1, z0, z1, Rb() < G.skin.towerGlass ? g : frame, frame, 'geocity:tower');
+        const glassy = Rb() < G.skin.towerGlass;
+        box(a0, b0, a1, b1, z0, z1, glassy ? g : frame, frame, 'geocity:tower');
+        // (a glass tower's walls take the sun's sheen)
+        if (glassy) for (const f of faces.slice(-4)) f.spec = GLASS_SPEC;
         lights(a0, b0, a1, b1, z0, z1, office, Rb);
         counts.towers++;
       }
@@ -571,6 +615,27 @@ export function assembleGeocityScene(m, ctx = {}) {
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR }));
+  // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
+  // their crowns raised over the walk, drawn near the camera only like the kit
+  if (E?.evoke !== 'skyline' && trees.size) {
+    const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
+    for (const sp of [...trees.keys()].sort()) {
+      const pool = plantPool({ species: sp, variants: 2, seed: `geocity::${sp}`, light: LIGHT, maxLevel: TREE.level, group: `geocity:tree-${sp}`, clear: TREE.raise });
+      const placed = plantRepeats(pool, trees.get(sp), { eyes, level: TREE.level, budget: Math.round(TREE.budget / trees.size), sink: 0.05 });
+      repeats.push(...placed.repeats.map((r) => ({ ...r, group: `geocity:tree-${r.group}`, near: NEAR })));
+      if (pool.textures) textures = { ...(textures || {}), ...pool.textures };
+      counts.trees = (counts.trees ?? 0) + trees.get(sp).length;
+    }
+  }
+  // the live light's SUN SHARE (ctx.liveSun: a page taking live shadows, scene/live-light.js): each face's key part of
+  // its light by its normal (city/plan/scene.js keyShare), so a shadow takes the sun away and leaves the sky; a lit
+  // window carries its own light
+  if (ctx.liveSun) for (let i = 0; i < faces.length; i++) {
+    const f = faces[i];
+    if (f.group === 'geocity:night-window' || f.group === 'city:night-window' || f.group === 'city:night-shop') continue;
+    const N = Array.isArray(f.normal) ? f.normal : newell(f.corners), key = LIGHT.diffuse * Math.max(0, N[0] * LIGHT.toLight[0] + N[1] * LIGHT.toLight[1] + N[2] * LIGHT.toLight[2]), all = litFactor(N, LIGHT);
+    faces[i] = { ...f, sunShare: all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0 };
+  }
   counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);
   return {
     faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,

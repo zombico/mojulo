@@ -143,6 +143,8 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     rail: [...flat(10, 0.1, -gauge / 2, '#b4b7bc', L), ...flat(10, 0.1, gauge / 2, '#b4b7bc', L)],
     wire: [quad([[0, -0.015, 0], [1, -0.015, 0], [1, 0.015, 0], [0, 0.015, 0]], [0, 0, 1], '#202224', L)],
     bar: flat(3, 0.6, 0, '#e3ded0', L),
+    // a street tree's pit in the walk: its grate's dark square, centred
+    pit: [quad([[-0.7, -0.7, 0], [0.7, -0.7, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0]], [0, 0, 1], '#3b3a38', L)],
     bench: four((v) => bench(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L),
     hydro: four((v) => hydro(v, L)),

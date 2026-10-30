@@ -539,7 +539,7 @@ export const WORLD_KINDS = {
       // (a page read by the seventh generation: the town's lawns and trees handed to the form render)
       if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
-      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title }));
+      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

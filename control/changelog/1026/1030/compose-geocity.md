@@ -116,10 +116,24 @@ passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the
   every arm, a signal on each corner (every crossing signalled, the metro's way) its mast over the lanes, a street-name
   sign, and on a streetcar line a stop each way past it (a platform and its shelter down a right-of-way). All stamped
   as instanced repeats drawn only NEAR the camera: from far the blocks suffice. A `crossing` camera on an evocation.
+- **The ground, near** (visual interest where the eye is): the ground and the masses in their material words laid as
+  tiles (era/arch-style.js `wordTile`, era/town-dress.js `dressTownFace`, texel × the baked light): the roads asphalt,
+  the walks scored pavement, a hard block's pad (a tower's, a podium's, a square's, a mid-rise's) flags, a streetcar
+  right-of-way setts, retaining faces sawn stone; houses, shops, mid-rise, low-rises and schools brick, podiums sawn
+  stone, slabs precast. A glass tower's walls take the sun's sheen (`spec`, the specular channel). The furniture, near:
+  on the arterials a bin by each crossing, hydrants, and where close-built benches with bike rings, newspaper boxes at
+  a corner, a bench at each streetcar stop, street trees in their pits clear of the lamps; on a neighbourhood's own
+  streets wooden hydro poles with their crossarms, wires and hung lamps and verge trees in the outskirts, the metro's
+  kerb lamps and bins in the core and frame; round a square benches, bins and bollards (kit.js: the metro's park bin,
+  bollard, power pole and bench at a person's size, round by its kit). The trees grown from the vegetation library
+  (`plantPool` / `plantRepeats`, crowns raised over the walk), drawn near the camera like the kit. Lit live: under
+  live shadows (`ctx.liveSun`) every face carries its sun share (city/plan's key share), a lit window its own light.
+  Not yet: relief on the paved ground (gen-7's ground parallax reads natural soil and scree only, so a paved kind is a
+  new shader's), and a sky's reflection on outdoor glass (only water, a wet road and a room's panes take one).
 - **Near repeats** (`scene/scene-three.js`): a repeat may say `near` (world units): the page cuts its instances into
   square tiles, each its own instanced mesh on the shared geometry, shown only while the camera stands within `near`
-  of it, checked before each render (so a capture, a frozen frame and the live loop agree). A world without one gains
-  not a byte.
+  of it, checked before each render (so a capture, a frozen frame and the live loop agree); a textured template's faces
+  (a tree's bark) tiled the same on their own material. A world without one gains not a byte.
 - **The sheet** (`geocity/sheet.js`), three views of one map: `rings` (each neighbourhood by the ring it builds as,
   shaded by its ground's height), `heights` (each by its median storeys, each arterial frontage band by its own) and
   `blocks` (its streets, the collectors darker, its blocks by segment, the towers on them); `focus` crops it round a
