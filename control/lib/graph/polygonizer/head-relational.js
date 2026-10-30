@@ -95,6 +95,7 @@ export const RELATIONS = Object.freeze({
                         // not the canon's parts crowded into less room (− smaller)
   gonionDrop: 0,        // the jaw's corner lower than the canon's (0.03 under the stomion) / v-me (− a higher corner)
   cheeks: 0,            // the cheek's fullness: its balloon's radii × (1 + this) (+ fuller, − hollower)
+  cheekBack: 0,         // the cheek balloon's bulge set back from the cheek's apex / v-me (+ less volume forward)
   lowerCheek: 0,        // the lower cheek over the jaw's body: the balloon's lower arm bowed down and out and filled
                         // (+ a softer, rounder outline from the cheekbone to the chin; − a sharper V)
   masseter: 0,          // the jaw's muscle: the masseter's belly × (1 + this) (− a slimmer jaw's side, + a heavier one)
@@ -121,6 +122,7 @@ export const RELATIONS = Object.freeze({
   earTop: 0.5,          // the ear's top between the eye line (0) and the glabella (1): at the brow
   earBottom: 0,         // the lobule's bottom above the subnasale / v-me: level with the nose's base
   earWidth: 1,          // the ear's width over its outline's own
+  earForward: 0,        // the ear's hinge ahead of its rest (a touch ahead of the porion) / v-me
   earTilt: 6,           // degrees the ear leans back from vertical (its frame; the long axis, helix top to lobule
                         // bottom, reads ~4° more, ~10°): upright, at the clinic's 10–30 floor (a share of the nose's dorsum
                         // read ~18°, too angled)
@@ -142,6 +144,20 @@ export const RELATIONS = Object.freeze({
  */
 export const EAR_RAISE = Object.freeze({ male: Object.freeze({ earTop: 0.25, earBottom: 0.01 }), female: Object.freeze({ earTop: 0.5, earBottom: 0 }) });
 export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex] ?? EAR_RAISE.male; return { ...(rel || {}), earTop: (rel?.earTop ?? RELATIONS.earTop) + E.earTop, earBottom: (rel?.earBottom ?? RELATIONS.earBottom) + E.earBottom }; };
+/**
+ * THE EVEN FACE (realistic laws 13): the cheek's volume taken off its front and given to the jaw's side, offsets over the
+ * face's relations (or its pole's): the cheek's balloon a little smaller and its bulge set back (`cheekBack`), the
+ * cheekbone's front (`malarDepth`) and the brow's outer end (`orbitRim`) set back, the lower arm fuller over the jaw's
+ * body, the jaw's corners wider and its masseter heavier, and the ear a little forward (`earForward`), so the front's
+ * silhouette keeps its top and widens at its foot, never past the vault's own width, and the profile runs even from 3/4
+ * and below (the balloon at the pole's fullness stood forward of the face there over a jaw's side too slight, a heavy
+ * cheek over a gaunt one, and the cheekbone and the brow's outer corner stood as bumps). Laws 1–12 keep the face they had.
+ */
+export const EVEN_FACE = Object.freeze({
+  female: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, orbitRim: 0.02, lowerCheek: 0.3, jaw: 0.08, masseter: 0.3, earForward: 0.015 }),
+  male: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, orbitRim: 0.02, lowerCheek: 0.3, jaw: 0.05, masseter: 0.2, earForward: 0.015 }),
+});
+export const evenFace = (rel = null, sex = 'male') => { const E = EVEN_FACE[sex] ?? EVEN_FACE.male, P = RELATION_POLES[sex] ?? {}; return { ...(rel || {}), ...Object.fromEntries(Object.entries(E).map(([k, d]) => [k, (rel?.[k] ?? P[k] ?? RELATIONS[k]) + d])) }; };
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios each pole moves over the canon (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
@@ -481,7 +497,7 @@ export function coreVajras(P, rel = RELATIONS) {
     // sharing the bulge. `balloon` keeps its volume: when an action shortens it (a smile draws its ends toward the
     // cheek), its radii grow by √(rest length / length), so the cheek's lift in a smile comes from the relation.
     // (`cheeks`: the balloon's fullness, its anchor's and bulge's radii)
-    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 }), bk = 1 + R.cheeks;
+    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 - R.cheekBack }), bk = 1 + R.cheeks;
     // (the arms overlap end to end — their ends a corner's height apart, their radii wider than half of it — so the
     // balloon is one closed mass, not a loop with a hole through it)
     const endUp = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: 0.016 }), endLo = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: -0.016 });
@@ -897,7 +913,7 @@ export function earPart(P, rel, s, baseX) {
   const add3 = (p, q, k = 1) => ({ x: p.x + q.x * k, y: p.y + q.y * k, z: p.z + q.z * k });
   const comb = (a, ka, b, kb) => ({ x: a.x * ka + b.x * kb, y: a.y * ka + b.y * kb, z: a.z * ka + b.z * kb });
   const outward = (a, b) => { const n = { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }, l = Math.hypot(n.x, n.y, n.z) || 1, k = Math.sign(n.x) === sg ? 1 / l : -1 / l; return { x: n.x * k, y: n.y * k, z: n.z * k }; };
-  const H0 = { x: sg * baseX, y: P.porionR.y + 0.03, z: zSba + 0.481 * Hear * ct };  // the hinge at the bowl's height
+  const H0 = { x: sg * baseX, y: P.porionR.y + 0.03 + R.earForward, z: zSba + 0.481 * Hear * ct };  // the hinge at the bowl's height
   const W = R.earWidth;
   // a frame: its origin, the directions of +v and of +b (back, b = (EAR_HINGE − u)·W), its normal, and where (u, v)
   // sit at the origin; points map linearly, so each piece inverts exactly
@@ -1190,7 +1206,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   };
   // THE EARS — hinged on the skin: probe the head's own surface along the hinge's line, then hang each ear on it
   const hung = skin ? ['L', 'R'].map((s) => {
-    const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
+    const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03 + (rel?.earForward ?? 0)) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
     const baseX = (probe ? Math.abs(probe.x) / sc : Pt.porionR.x) - 0.004;   // sunk a touch into the skin, so it welds
     const e = earPart(Pt, rel, s, baseX);
     return { side: s, f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };

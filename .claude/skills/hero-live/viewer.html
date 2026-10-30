@@ -222,7 +222,10 @@ async function load(v) {
       // (bound by the node's name, as the loader binds the body's own clips: a second binding of the same property by
       // another key gets a mixer of its own, and the two write over each other every frame, the joints shaking)
       if (J.r) tracks.push(new THREE.QuaternionKeyframeTrack(`${o.name || o.uuid}.quaternion`, B.t, J.r));
-      if (J.p) tracks.push(new THREE.VectorKeyframeTrack(`${o.name || o.uuid}.position`, B.t, J.p));
+      // (rebased on this GLB's rest when the layer names the rest it was solved over: a sidecar solved on another mint of
+      // the hero, its joint elsewhere, would carry that difference into every frame, the jaw a few millimetres forward)
+      const p = J.p && J.rest ? J.p.map((x, i) => x - J.rest[i % 3] + o.position.getComponent(i % 3)) : J.p;
+      if (p) tracks.push(new THREE.VectorKeyframeTrack(`${o.name || o.uuid}.position`, B.t, p));
     }
     if (tracks.length) put(kind, B.of, additive(new THREE.AnimationClip(`${kind}:${B.of}`, B.t.at(-1), tracks)));
   }

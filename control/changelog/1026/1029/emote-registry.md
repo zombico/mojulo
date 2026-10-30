@@ -162,3 +162,26 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   Face store v9 (the corner's cap and the taut pass changed the actions under keys that did not see them). A face lock
   of one guide (`hair-locks.js` `lockStrands`) takes the default spacing: with no neighbour it was infinite and every point
   of its flow NaN, which a jaw's beard of one guide hit once the eye came forward.
+- **The face even from 3/4 and below** (realistic laws 13, `head-relational.js` `EVEN_FACE`, `evenFace`; the new relation
+  `cheekBack`). The cheek's balloon (the buccal fat and the malar pad as one mass) stood forward of the face from 3/4 and
+  below, a heavy cheek over a jaw's side too slight, a lump beside the mouth. Now offsets over the face's own relations
+  (or its pole's) take volume off the cheek's front and give it to the jaw's side: the balloon 0.15 less full and its
+  bulge set 0.06 back, the cheekbone's front and the brow's outer end each 0.02 back (`malarDepth`, `orbitRim`), its
+  lower arm 0.3 fuller over the jaw's body, the jaw's corners wider (0.08 female, 0.05 male, of the cheekbones' width), the
+  masseter heavier, and the ear 0.015 forward (the new relation `earForward`, its hinge and the probe that finds the skin
+  under it). The front's silhouette keeps its top and widens at its foot, narrowing from the temple to the jaw and never
+  wider than the vault behind it (held by `hero-face-even.test.js`, a principle and not a pin); never the hollowed, gaunt
+  cheek. Kept in the head's fit, so the bake, the hair and the face rig rebuild the same head. Laws 12
+  and before keep the cheeks they had.
+- **`/hero-live`'s emotes no longer shift the jaw.** A face sidecar (`face.mjs`) solved on an earlier mint of the hero
+  kept its head layers' joint positions over that mint's rest, so where the jaw's joint had since moved (3.3 mm), every
+  sidecar emote carried the difference: the jaw forward in all of them. The sidecar now records each joint's rest beside
+  its positions and the viewer rebases them on the GLB's own; the jaw stays 49.7 to 49.9 mm from the head in every frame.
+- **The brows move again under the one section** (`hero-relational-head.js` `SKIN_FOLLOW.browBeads`). Under laws 11 and
+  12 the brow's lift came mostly from the fold's pad, hung on the brow's strings, settling the skin up to 4 mm; the one
+  section has no pad, and the brow pad's three beads alone left the brow's inner half a fifth of their move (the hair
+  0.3 mm on a raise, the worried brow's inner end 0.3 mm). Under seat 2 the pad carries the skin along its length, six
+  beads between each end and its middle: on one hero the raise lifts the brow's hair 2.1, 1.9 and 2.7 mm (inner, middle,
+  outer; laws 12 2.0, 1.8, 1.8) and the worried brow its inner end 1.6 mm, its tail kept. Face store v10. The face rig's
+  test now reads the worried brow by its thirds, as its principle says: the inner end as far as the raise's, the tail
+  kept.

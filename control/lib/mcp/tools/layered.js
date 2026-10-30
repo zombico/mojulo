@@ -106,7 +106,7 @@ import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
-import { solveTune, raisedEar } from '@/lib/graph/polygonizer/head-relational';
+import { solveTune, raisedEar, evenFace } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -293,7 +293,7 @@ function realisticRecipe(recipe, hero) {
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
   // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 13 ? 2 : true), teeth: one && laws >= 12 });
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 13 ? 2 : true), teeth: one && laws >= 12, even: one && laws >= 13 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -386,9 +386,9 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false } = {}) {
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false, even = false } = {}) {
   // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
-  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0;
+  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own1 = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0, own = even ? { ...own1, relations: evenFace(own1.relations, sex) } : own1;
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? [seat === true ? 'seat' : `seat${seat}`] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
@@ -801,7 +801,8 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * turned, and wrapped strokes that fell through the neck round the throat and down the chest; and the space under the
  * brow ONE SECTION (head-relational-eye.js SEAT `brow`: no crease cut, the fold rising out of the lid gently), where laws
  * 11 and 12 stacked the lid's top, the crease and the fold's hooked underside there, three dark bands, and a blink had to
- * stretch the lid across them */
+ * stretch the lid across them; and the face EVEN (head-relational.js EVEN_FACE: the cheek's volume off its front and onto
+ * the jaw's side), where laws 2 to 12 stood the cheek forward of the face from 3/4 and below over a jaw's side too slight */
 export const REALISTIC_LAWS_VERSION = 13;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */

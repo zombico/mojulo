@@ -626,8 +626,10 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
  * the fold's lip (where the wall under the fold, its skin facing back within `faceIn`, first stands `lip` of the lip's
  * height out) laid along the shut lid by its share of the way, kept off it near the margin over `rollKeep`, the lip let
  * down `rollDrop` and the fold's face past it eased over `rollEase`, whole once the lid has come `rollShut` of the opening;
- * each column's turn capped at the eye's middle half's (`cornerCap`), and the rolled skin drawn `taut` [rounds, λ, μ] */
-export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], tuck: [0.2, 0.7], lidOutUp: [0.0035, 0.005], smooth: 12, roll: true, faceIn: 0.15, lip: 0.9, rollDrop: 0.05, rollHug: 0.4, rollShut: 0.6, rollKeep: [0.45, 0.65], rollEase: 0.004, cornerCap: true, taut: [4, 0.5, -0.53], lipApart: [0.004, 0.012, 0.006], settleFrom: [0.016, 0.01], noseHold: 0.6 });
+ * each column's turn capped at the eye's middle half's (`cornerCap`), and the rolled skin drawn `taut` [rounds, λ, μ]; under
+ * the brow of one section (`seat` 2) the brow pad carries the skin along its length, `browBeads` beads between each end
+ * and its middle */
+export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], tuck: [0.2, 0.7], lidOutUp: [0.0035, 0.005], smooth: 12, roll: true, faceIn: 0.15, lip: 0.9, rollDrop: 0.05, rollHug: 0.4, rollShut: 0.6, rollKeep: [0.45, 0.65], rollEase: 0.004, cornerCap: true, taut: [4, 0.5, -0.53], browBeads: 6, lipApart: [0.004, 0.012, 0.006], settleFrom: [0.016, 0.01], noseHold: 0.6 });
 /** the drivers of the upper lip's beads, and of the lower lip's and the jaw's (head-relational.js actionDrivers) */
 const LIP_UP = /^(bow[LR]|lipUpC|lipUpHalf)$/, LIP_DOWN = /^(loMid[LR]|lipStretch|jaw|jawHalf|foldOpen)$/;
 /**
@@ -651,6 +653,17 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
   const lipOf = (names = []) => (names.some((x) => LIP_UP.test(x)) ? 1 : names.some((x) => LIP_DOWN.test(x)) ? -1 : 0);
   const beadR = (w, j) => Math.max(F.beadMin, (Array.isArray(w.r) ? w.r[Math.min(j, w.r.length - 1)] : w.r) * hv * k * F.beadReach);
   rest.vajras.forEach((w, i) => { const v = acted.vajras[i]; if (!w.drive || !v) return; ['a', 'c', 'b'].forEach((key, j) => { const d = [(v[key].x - w[key].x) * hv * k, (v[key].y - w[key].y) * hv * k, (v[key].z - w[key].z) * hv * k]; if (Math.hypot(...d) < 1e-7) return; beads.push({ p: toHero(inH(w[key])), d, r: beadR(w, j), lip: lipOf(w.drive[j] || []), nose: w.group === 'nose' }); }); });
+  // (the brow of ONE SECTION, `seat` 2: the brow pad carries the skin along its whole length, `browBeads` more beads between
+  // each end and its middle; three alone pulled the brow's inner half from beads a centimetre and a half off, a fifth of
+  // their move, where the fold's pad, hung on the brow's strings, had carried it)
+  if (seat === 2) rest.vajras.forEach((w, i) => {
+    const v = acted.vajras[i]; if (w.name !== 'browPad' || !v) return;
+    for (const [e, j] of [['a', 0], ['b', 2]]) for (let q = 1; q <= F.browBeads; q++) {
+      const t = q / (F.browBeads + 1), at = (o) => ({ x: o[e].x + (o.c.x - o[e].x) * t, y: o[e].y + (o.c.y - o[e].y) * t, z: o[e].z + (o.c.z - o[e].z) * t }), p0 = at(w), p1 = at(v);
+      const d = [(p1.x - p0.x) * hv * k, (p1.y - p0.y) * hv * k, (p1.z - p0.z) * hv * k]; if (Math.hypot(...d) < 1e-7) continue;
+      beads.push({ p: toHero(inH(p0)), d, r: beadR(w, j) + (beadR(w, 1) - beadR(w, j)) * t, lip: 0 });
+    }
+  });
   // THE NOSE HELD: an action that moves none of the nose's beads (all but the sneer) leaves the nose where it is, its
   // beads in the carry as still ones over `noseHold` of their reach (no further: held wider, they pinned the cheek beside
   // the wings and a smile folded it over itself), so the cheek and the lip drawn past its wings do not drag them (carried by the
