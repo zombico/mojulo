@@ -7,8 +7,8 @@
  * by hand since a run is left as it is unless `force`; a run a step fails partway keeps the record of the steps made
  * before it, so the next run never reads them as edited. Its answer is the readout: each part's stamp, which steps may
  * start, what was made, and the next moves. The world bible is `/api/sketches/<ref>/bible`, the character bible
- * `…/bible?book=characters`, and with a feel its feel book (`…/bible?book=feel`: the stick view of its controls); the
- * sketch page shows them.
+ * `…/bible?book=characters`, with a feel its feel book (`…/bible?book=feel`: the stick view of its controls), and with
+ * foes (or a casting call's proposal) its cast sheet (`…/bible?book=foes`); the sketch page shows them.
  *
  * In one call, in order: the recipe (`world` creates or replaces it, `patch` edits it by part), then the verdicts
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
@@ -30,6 +30,7 @@ import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
   characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
+  castable, foeState, foeParts, approveFoe, castingCall,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
@@ -124,7 +125,8 @@ async function realize(step, action) {
     }
     return {};
   }
-  if (HERO_STEP.test(key)) {
+  // (a bestiary person dressed as a crew's, gameworld/foes.js isDressed: the hero door's grunt, made as a guard is)
+  if (HERO_STEP.test(key) || (key.startsWith('foes-') && order.mint)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
     // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
     else if (order.mascot) await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/plan', value: order.mint.spec.plan }], note: 'design_game: the mascot hero' });
@@ -291,7 +293,9 @@ function readout(ref, world, context = {}) {
     ] } : {}),
   };
   const stamps = [...reviewState(world), ...(world.characters ? characterState(world, { lookup, machine: edited }) : [])];
-  const parts = stamps.map((s) => ({ id: s.id, status: s.status, ...(s.machine?.length ? { advises: s.machine } : {}), ...(s.note ? { note: s.note } : {}) }));
+  // the cast sheet's parts (foe-cast.js): reviewed beside the others, never holding a run back
+  const foeStamps = castable(world) ? foeState(world) : [];
+  const parts = [...stamps, ...foeStamps].map((s) => ({ id: s.id, status: s.status, ...(s.machine?.length ? { advises: s.machine } : {}), ...(s.note ? { note: s.note } : {}) }));
   const steps = world.characters ? characterReady(world, { state: stamps.filter((s) => CHARACTER_PART_IDS.includes(s.id) || s.id === CAST_PART) }) : null;
   const made = Object.fromEntries(Object.entries(world.made ?? {}).map(([k, v]) => [k, v.ref]));
   // the next moves as step ids: what each means is the gameworld-next card (get_game_vocab),
@@ -351,6 +355,9 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // who it fights (gameworld/foe-casting.js): a world that fights and keeps no bestiary, the cast a casting call proposes
+  const call = castingCall(world);
+  if (call) next.push({ step: 'foes', suggest: Object.fromEntries(call.roles.map((r) => [r.id, `${r.class}${r.rank !== 'minion' ? ` ${r.rank}` : ''}${r.skin ? ` (${r.skin.people})` : ''}`])), why: call.reasons, patch: call.patch, card: 'gameworld-foes' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   // the land its levels cannot draw (gameworld/nature.js landToLevel): each gap, and the levels it is one on
   const landGaps = landGapsOf(world);
@@ -358,7 +365,7 @@ function readout(ref, world, context = {}) {
   const qowGaps = qowAdviceOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -367,16 +374,19 @@ function reviewWith(world, { approve, revise, note }) {
   const worldIds = reviewParts(world).map((p) => p.id);
   // the book's parts: every book's, and the cast's where it has a casting page
   const bookIds = world.characters ? [...CHARACTER_PART_IDS, ...(world.characters.casting ? [CAST_PART] : [])] : [];
+  // (and the cast sheet's: the cast, and each foe of the bestiary)
+  const foeIds = castable(world) ? foeParts(world).map((p) => p.id) : [];
   for (const part of list(approve)) {
     if (typeof part !== 'string') throw new Error('design_game: approve is a part id or a list of them');
     if (bookIds.includes(part)) review = approveCharacter(W, part, note);
+    else if (foeIds.includes(part)) review = approveFoe(W, part, note);
     else if (worldIds.includes(part)) review = approveWorldPart(W, part, note);
-    else throw new Error(`design_game: '${part}' is not a part (parts: ${[...worldIds, ...bookIds].join(', ')})`);
+    else throw new Error(`design_game: '${part}' is not a part (parts: ${[...worldIds, ...bookIds, ...foeIds].join(', ')})`);
     W = { ...W, review };
   }
   for (const r of list(revise)) {
     if (!isObj(r) || typeof r.part !== 'string' || typeof r.note !== 'string' || !r.note.trim()) throw new Error('design_game: revise is { part, note }: the part sent back and what to change');
-    if (!bookIds.includes(r.part) && !worldIds.includes(r.part)) throw new Error(`design_game: '${r.part}' is not a part`);
+    if (!bookIds.includes(r.part) && !worldIds.includes(r.part) && !foeIds.includes(r.part)) throw new Error(`design_game: '${r.part}' is not a part`);
     review = { ...review, [r.part]: { status: 'revise', note: r.note.trim() } };
   }
   return review;

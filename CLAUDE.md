@@ -238,7 +238,9 @@ Pointers only; each target carries its own design notes.
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
   evocations at game scale, the street's kit near the camera only).
 - Foes: [docs/foes.md](docs/foes.md) (layer 0, the skeleton under every foe, and the shelves over it: behaviour, skin,
-  modes, states, death; a new thing on a shelf is a row, never a foe special-cased).
+  modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
+  (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
+  none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a

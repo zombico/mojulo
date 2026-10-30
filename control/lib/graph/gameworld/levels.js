@@ -984,10 +984,14 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // pilot): the stage's own first-person walker, when no hero pilots it
   // (and the stage's extra beside it: the minigames' stalls in its rooms, their mechanics the level's)
   const X = mergeExtras(goalCast ? goalCast(ends) : null, extra ? extra(ends) : null);
+  // (what it gives whoever walks the rooms, as a trail's extra does: the foes' hits and the hero's stomp, foes.js
+  // hostileCast's `pilot`; a written feel's feet over a goal's own)
+  const feelOver = X?.pilot?.rule && G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
+  const piloted = (p) => (X?.pilot ? { ...p, ...X.pilot, rule: { ...p.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p.body, ...(X.pilot.body ?? {}) } } : p);
   if (X?.play) base = { ...base, play: mergePlay(base.play, X.play) };
   if (extra && X?.mechanics?.length) base = { ...base, level: { ...base.level, mechanics: [...(base.level?.mechanics ?? []), ...X.mechanics.filter((m) => !(base.level?.mechanics ?? []).some((x) => x.kind === m.kind && x.slice === m.slice))] } };
   if (!heroRef) {
-    if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [walker, ...X.entities], camera: lowered.camera };
+    if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
     return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G) } }, ends };
   }
@@ -998,7 +1002,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls }), moves);
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
-  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }, ...(X?.entities ?? [])], camera: P.camera, events };
+  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted({ ...P.entities[0], transform: { pos: spawn, heading } }), ...(X?.entities ?? [])], camera: P.camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
   const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}), ...juiceOf(G) };

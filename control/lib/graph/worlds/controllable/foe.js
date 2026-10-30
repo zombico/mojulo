@@ -7,6 +7,10 @@
  *   rule.foe  { move, touch?, during?, stomp, stretch?, ends?, drop?, hop?, dive?, rush?, lurk? }
  *     PACE    walks its stretch (`ends`, two points), turning at an end, at a wall it cannot pass and at a ledge (the
  *             ground ahead missing, or more than `drop` below its feet): it never walks off its floor
+ *     PATROL  the same stretch walked as a round (`patrol`: { calm s }), watching ahead as it goes: a hero in its sight (the
+ *             mind's words, `sightRange` and `sightCone`, and a clear line past the colliders, eye to eye) hands it to
+ *             the mind the same step, which perceives it and engages; once the mind has seen no one for `calm` s it
+ *             walks its round again from where it stands
  *     HOP     the same stretch in hops (`hop`: { period s, air (share of it off the ground), height m }): it travels
  *             only in the air, an arc over the ground, and sits between hops
  *     DIVE    a flier's (`dive`: { altitude, radius, telegraph s, speed, cooldown s }): it weaves round its home at
@@ -32,7 +36,7 @@
  */
 
 export function buildFoe(E) {
-  const { RULES, fwdXY, resolveBlocking, armReaction, pilotsOf } = E;
+  const { RULES, fwdXY, resolveBlocking, armReaction, pilotsOf, sightBlocked } = E;
   const ai = RULES.ai;
   const eyeOf = (r) => r.eye ?? 0;
   const groundAt = (world, x, y, z) => (world && world.ground ? world.ground([x, y, z]) : null);
@@ -87,6 +91,24 @@ export function buildFoe(E) {
     const s = stepAlong(e, r, dt, world, Math.min(r.speed ?? 2, flat(e.transform.pos, end) / dt));
     if (s.ledge || s.blocked) e.foeLeg = 1 - e.foeLeg;
     e.moving = s.moved > 0; e.locomotion = 'forward'; gait(e, r, s.moved);
+  }
+
+  // a patrol walks its round while it has seen no one lately; a hero in its sight is the mind's, which perceives it
+  // (mind.js perceive: the sighting, its count) this same step
+  function sees(e, r, p, world) {
+    const t = e.transform, q = p.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
+    if (Math.hypot(dx, dy) > (r.sightRange ?? 120)) return false;
+    const off = Math.atan2(dy, dx) - t.heading;
+    if (Math.abs(Math.atan2(Math.sin(off), Math.cos(off))) > (r.sightCone ?? 1.2)) return false;
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    return !(world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(p)], world.colliders));
+  }
+  function patrol(e, r, dt, world) {
+    const now = (world && world.time) || 0;
+    if (e.lastSeen && now - e.lastSeen.t < (r.foe.patrol.calm ?? 4)) return false;
+    for (const p of pilotsOf(world)) if (p && !p.downed && !p.gone && sees(e, r, p, world)) return false;
+    pace(e, r, dt, world);
+    return true;
   }
 
   function hop(e, r, dt, world) {
@@ -166,7 +188,7 @@ export function buildFoe(E) {
     return true;
   }
 
-  const MOVES = { pace, hop, dive, rush, lurk };
+  const MOVES = { pace, patrol, hop, dive, rush, lurk };
   RULES.ai = function foeAi(e, input, dt, world) {
     const F = e.rule.foe, own = F && MOVES[F.move];
     if (!own) return ai(e, input, dt, world);
