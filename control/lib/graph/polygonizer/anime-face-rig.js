@@ -32,7 +32,7 @@
  */
 import { compileLayered } from './station-loft.js';
 import { animeHeadAt } from './humanoid-plan.js';
-import { animeHeroEffective } from './anime-looks.js';
+import { animeHeroEffective, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_POSES, resolveAnimeExpression } from './anime-head.js';
 import { DRAWINGS } from './anime-drawings.js';
 import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
@@ -142,7 +142,7 @@ function authoredBuild(T, recipe, opts, X, C, authored, K) {
  * `animeHeadAt` takes them) and its expression channels (`authored`) — read from the record, never stored. */
 export function faceRigOptions(hero) {
   const eff = animeHeroEffective(hero);
-  const opts = { preset: hero.cast, register: hero.register, tune: eff.tune, headScale: hero.headScale, face: eff.face, sculpt: eff.sculpt, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}) };
+  const opts = { preset: hero.cast, register: hero.register, tune: eff.tune, headScale: hero.headScale, face: eff.face, sculpt: eff.sculpt, ...(hero.headPreset || heroHairPole(hero) !== heroHeadPole(hero) ? { headPreset: heroHeadPole(hero) } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}) };
   return { opts, authored: resolveAnimeExpression(eff.expression) };
 }
 

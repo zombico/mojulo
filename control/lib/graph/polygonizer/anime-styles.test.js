@@ -3,7 +3,9 @@
 // move off; stored as its word beside a stamp that keeps the row when the table moves; each base's styled default
 // advised nothing by its style's bands; the body skinnier, its neck slim, under a smaller head.
 import { describe, it, expect } from 'vitest';
-import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec } from '../../mcp/tools/layered.js';
+import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { compileLayered } from './station-loft.js';
+import { heroFaceRig } from './anime-face-rig.js';
 import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
 
@@ -45,6 +47,10 @@ describe('the style pole', () => {
     const F = animeHeroEffective(her).face, M = animeHeroEffective(him).face;
     expect(F.eyeHeight).toBeGreaterThan(M.eyeHeight); expect(F.eyeHeight).toBeLessThan(M.eyeHeight * 1.1); expect(F.chin).toBeLessThan(M.chin);
     expect(heroPlanOf(her).include[0].faceMeasures.features.eyeLevel).toBeCloseTo(heroPlanOf(him).include[0].faceMeasures.features.eyeLevel, 1);
+    // (and her face rig is built on the head she wears: its targets, and 7G's at acting full)
+    const rigOf = (spec) => { const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }); return heroFaceRig(M, compileLayered(M.recipe, M.dials)); };
+    const R = rigOf({ cast: 'female', head: 'anime', animeStyle: STYLE, acting: 'full', register: 'lowpoly' });
+    expect(R.skipped).toBeUndefined(); expect(R.meta.sevenG.targets).toBeGreaterThan(0);
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {
