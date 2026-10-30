@@ -16,7 +16,8 @@
  *   coatLayers({ V, F, field, shapes, weights }, marks, { lift })   → the layers: a layer-1 open mesh part a marking, each
  *                                point bound by the skin's weights there. A mark: { name, group, strokes?, bands?, eggs?
  *                                (the territory of these shapes: where they are nearer than every other shape), regions?
- *                                (eggs that colour and do not shape: a zone's designed outline) }, the later over the
+ *                                (eggs that colour and do not shape: a zone's designed outline), levels? (its own
+ *                                refinement: 0 for a broad band, whose edge the skin's faces already draw) }, the later over the
  *                                earlier. A layer follows the SKIN'S OWN FACES (split on them, never carried onto the
  *                                field), so the skin, simplified, never stands through it
  *   FEATURE_COAT                 the lift (metres), each later layer's added lift, the refinement, the stroke budget
@@ -113,7 +114,7 @@ export function coatLayers({ V, F, field, shapes, weights }, marks, { lift = FEA
     let P = [], T = [], idx = new Map();
     const pid = (p) => { const k = p.map((x) => Math.round(x * 1e7)).join(','); let i = idx.get(k); if (i === undefined) { i = P.length; P.push(p); idx.set(k, i); } return i; };
     for (const t of F) if (Math.min(mv[t[0]], mv[t[1]], mv[t[2]]) < edgeLen(t)) T.push(t.map((v) => pid(V[v])));
-    for (let l = 0; l < levels; l++) {
+    for (let l = 0; l < (mark.levels ?? levels); l++) {
       const mid = new Map(), next = [];
       const midOf = (a, b) => { const k = a < b ? `${a}|${b}` : `${b}|${a}`; let i = mid.get(k); if (i === undefined) { i = P.length; P.push(lerp(P[a], P[b], 0.5)); mid.set(k, i); } return i; };
       for (const [a, b, c] of T) { const ab = midOf(a, b), bc = midOf(b, c), ca = midOf(c, a); next.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]); }

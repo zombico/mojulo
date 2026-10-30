@@ -4,7 +4,7 @@
 // it; the mascot sheet in the feature style compiles to that skin on the mascot's rig, shaded smooth, its lids shells
 // turning about their globes; a sheet in any other style compiles as it did.
 import { describe, it, expect } from 'vitest';
-import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS } from './feature-body.js';
+import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES } from './feature-body.js';
 import { FEATURE_EYE } from './feature-face.js';
 import { FEATURE_COAT, strokesOf, coatLayers } from './feature-coat.js';
 import { rollMascot } from './mascot.js';
@@ -84,6 +84,9 @@ describe('the feature body', () => {
     // THE FINGERS: two bones each, riding the hand, and the skin weighted to them
     for (const b of ['digit1aR', 'digit5bL']) expect(plan.rig.bones.some((x) => x.id === b), b).toBe(true);
     for (const b of ['digit3bR', 'digit2aL']) expect(bound.has(b), b).toBe(true);
+    // A DEFAULT GAME MODEL: every part's faces together within the budget; round the belly no clip hangs an arm into it
+    expect(plan.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
+    for (const keys of Object.values(plan.clips).map((c) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
     const toon = mascotPlanFromSheet(rollMascot({ brief: 'raccoon' }));
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);

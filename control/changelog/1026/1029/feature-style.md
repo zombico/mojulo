@@ -18,14 +18,13 @@ follow.
   a REGION egg, which colours a zone and does not shape the body.
 - **Round blobs, pointy fur details.** The masses are round, and where fur stands off them it ends in tufts: locks drawn
   as the realistic hair draws one, a rounded body tapering to a rounded point along a bending spine, melted into the
-  skin at the root only so the point stays sharp. The cheeks end in a fan of them, the chest's pale fur points down,
-  and the tail's brush ends in one.
+  skin at the root only so the point stays sharp. The cheeks end in a fan of them and the tail's brush ends in one.
 - **Harmonious fur shape patterns, laid as thin layers.** A marking is designed with the head and its tufts, not
   dropped as an ink blot: the raccoon's mask sweeps out and down to a point aimed as its cheek's lock is, the pale brow
   is an arc ending toward the outer lock, the forehead's stripe tapers to the crown. It is laid on the skin as a thin
   layer of its own, like clothes: the skin under it refined, clipped exactly along its edge, lifted a hair, its edge
-  walled so it has a thickness; its points stay on the skin's own faces, so the skin never stands through it. Its shape is drawn in a few strokes the way hair is combed (a root, a flow, a point),
-  and a figure has a stroke budget.
+  walled so it has a thickness; its points stay on the skin's own faces, so the skin never stands through it. Its shape
+  is drawn in a few strokes the way hair is combed (a root, a flow, a point), and a figure has a stroke budget.
 - **The mouth is part of the muzzle.** A thin dark smile line lies on the skin, running from the nose's foot as the
   philtrum and out to two corners on their own bones, which lift in a smile and drop in a frown. The open mouth is a
   dark patch on the muzzle under the line, with the tongue at its foot. It is shut under the line at rest and opens
@@ -43,8 +42,9 @@ follow.
   smooth form on the page and in the lit export (absent, one shade per face as before); the plan takes a `mesh` part,
   given whole.
 
-The aim is a good default game model: one smooth skin, a few layers and parts, a modest triangle count, and a silhouette
-and markings that read at a distance.
+The aim is a good default game model: one smooth skin, a few layers and parts, and a silhouette and markings that read
+at a distance, within a triangle budget (the raccoon is about 17,000 triangles, skin, coat and face together). The
+mascot's clips play on it, each arm splayed out of the belly it would otherwise sink into.
 
 New mascots made in the style take it. A stored mascot keeps its own look: a minted one stores its compiled plan, and a
 stored sheet without the style reads as before.

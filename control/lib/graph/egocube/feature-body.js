@@ -48,8 +48,10 @@ const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] 
 const mirrorX = (p) => [-p[0], p[1], p[2]];
 const twin = (s) => (typeof s === 'string' ? s.replace(/R$/, 'L') : s);
 
-/** the skin: its net's cell and its faces after simplifying, as shares of the figure's height; the weights' floor */
-export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 14000, floor: 0.02, bones: 4, near: 3 });
+/** the skin: its net's cell and its faces after simplifying; the weights' floor, the bones a point may name, the eggs the
+ *  field folds. And the whole figure's TRIANGLE BUDGET: a default game model's (skin, coat, face together) */
+export const FEATURE_TRIANGLES = 18000;
+export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3 });
 
 export function egg({ c, u, r, e = 0, hint = [1, 0, 0], bone, group = 'Body', join, name }) {
   const U = unit(u), h0 = Math.abs(dot(unit(hint), U)) > 0.95 ? [0, 1, 0] : hint, Vv = unit(sub(h0, mul(U, dot(h0, U)))), W = cross(U, Vv);
@@ -170,6 +172,8 @@ export const FEATURE_BUILDS = Object.freeze({
     const sh = [0.88, 0.1, 2.0], el = at(sh, ARM, 0.42), wr = at(el, ARM, 0.38), kn = at(wr, ARM, 0.22);
     return Object.freeze({
       heads: 3.3,
+      // the arms' least outward share in a clip: round the belly, never closer to the body than this
+      splay: 0.62,
       eggs: [
         // the head: a wedge (the cranium's fat end down into the jowls), the cheek ruffs flaring out at the face's widest
         // (the head wider than the body), the muzzle short and pale, its nose ball, the ears
@@ -234,7 +238,7 @@ export const FEATURE_BUILDS = Object.freeze({
         { name: 'mask', group: 'Patch', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
         { name: 'stripe', group: 'Patch', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
         { name: 'ears', group: 'EarInner', strokes: [{ both: true, points: [[0.44, 0.0, 3.08], [0.5, -0.02, 3.3], [0.55, -0.05, 3.48]], r: [0.1, 0.08, 0.02] }] },
-        { name: 'rings', group: 'Patch', bands: [
+        { name: 'rings', group: 'Patch', levels: 0, bands: [
           { c: [0, -1.5, 0.82], axis: [0, -0.9, 0.45], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
           { c: [0, -1.92, 1.2], axis: [0, -0.6, 0.8], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
           { c: [0, -2.12, 1.68], axis: [0, -0.2, 1], w: 0.08, R: 0.55, teeth: 9, depth: 0.035 },
@@ -286,7 +290,7 @@ function laidOut(build, height) {
     });
   }
   // (the coat's marks in metres: a stroke drawn `both` mirrored to the left)
-  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group,
+  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group, ...(m.levels !== undefined ? { levels: m.levels } : {}),
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map(S), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
@@ -294,6 +298,16 @@ function laidOut(build, height) {
   const ell = (E) => ({ C: S(E.C), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
   const mouth = build.mouth && { nose: S(build.mouth.nose), centre: S(build.mouth.centre), corner: S(build.mouth.corner), pivot: S(build.mouth.pivot), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
   return { h, eggs, marks, mouth, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+}
+
+/** clips with every arm direction (`armL`, `armR`: { x, y, z }) turned out until its outward share is at least `out` */
+function splayed(clips, out) {
+  if (!out) return clips;
+  const fix = (a, sx) => { if (!a || typeof a !== 'object' || !['x', 'y', 'z'].every((k) => Number.isFinite(a[k]))) return a;
+    const l = Math.hypot(a.x, a.y, a.z) || 1, x = (a.x * sx) / l; if (x >= out) return a;
+    const rest = Math.hypot(a.y, a.z) / l || 1, k = Math.sqrt(1 - out * out) / rest; return { x: r4(sx * out), y: r4((a.y / l) * k), z: r4((a.z / l) * k) }; };
+  const key = (K) => (K && typeof K === 'object' ? { ...K, ...(K.armL ? { armL: fix(K.armL, -1) } : {}), ...(K.armR ? { armR: fix(K.armR, 1) } : {}) } : K);
+  return Object.fromEntries(Object.entries(clips).map(([n, c]) => [n, Array.isArray(c) ? c.map(key) : c && Array.isArray(c.keys) ? { ...c, keys: c.keys.map(key) } : c]));
 }
 
 /** the coat's layers over a skin, kept by key */
@@ -324,7 +338,10 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     ...face.segments,
   ];
   const faceNames = face.segments.flatMap((s) => (s.mirror === 'name' ? [s.name, twin(s.name)] : [s.name]));
-  const { rig, clips } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [] });
+  const { rig, clips: clips0 } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [] });
+  // (the mascot's clips hang the arms close to the body; round this belly they would sink into it: each arm is splayed
+  // out to clear it, its direction's outward share at least the build's)
+  const clips = splayed(clips0, build.splay ?? 0);
   // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
   for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
     const n = (x) => `digit${d.i}${x}${S0}`;

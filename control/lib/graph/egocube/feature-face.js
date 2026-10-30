@@ -92,7 +92,7 @@ function ballMesh(c, a, b, radii, rings, seg, groupOf = () => null) {
 
 /** a LID: a closed shell, a lune of the sphere about G between its back φa and its edge φe (degrees from the top, about
  *  the across axis X: 0 up, 90 the gaze's level, 180 down), the edge arched, the lip rolled; ψ across, the corners capped */
-function lidMesh(G, X, U, F, { rIn, rOut, back, edge, arch, cols = 22, rows = 9 }) {
+function lidMesh(G, X, U, F, { rIn, rOut, back, edge, arch, cols = 14, rows = 5 }) {
   const s = Math.sign(edge - back), P = [], points = {}, faces = {}, normals = {};
   const at = (r, psi, phi) => { const cp = Math.cos(rad(psi)), sp = Math.sin(rad(psi)), cf = Math.cos(rad(phi)), sf = Math.sin(rad(phi));
     return add(G, mul(add(mul(X, sp), mul(add(mul(U, cf), mul(F, sf)), cp)), r)); };
@@ -100,7 +100,7 @@ function lidMesh(G, X, U, F, { rIn, rOut, back, edge, arch, cols = 22, rows = 9 
   for (let i = 0; i <= cols; i++) {
     const psi = -PSI + (2 * PSI * i) / cols, q = psi / PSI, e = edge + s * arch * q * q, loop = [];
     for (let k = 0; k <= rows; k++) loop.push([rOut, back + ((e - back) * k) / rows]);
-    for (let k = 1; k < 6; k++) { const t = (Math.PI * k) / 6; loop.push([rm + h * Math.cos(t), e + s * lipDeg * Math.sin(t)]); }
+    for (let k = 1; k < 4; k++) { const t = (Math.PI * k) / 4; loop.push([rm + h * Math.cos(t), e + s * lipDeg * Math.sin(t)]); }
     for (let k = rows; k >= 0; k--) loop.push([rIn, back + ((e - back) * k) / rows]);
     P.push(loop.map(([r, phi]) => at(r, psi, phi)));
   }
@@ -148,9 +148,9 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
   const R0 = restOf('R');
   // THE GLOBE (the right's, mirrored): the sclera, the iris and the pupil as rings about the gaze
   const rings = [C.pupil * 0.5, C.pupil, (C.pupil + C.iris) / 2, C.iris, 50, 70, 90, 110, 130, 150, 165];
-  const globe = ballMesh(G, g, U, [rg, rg, rg], rings, 28, (al) => (al < C.pupil ? 'Pupil' : al < C.iris ? 'Iris' : null));
+  const globe = ballMesh(G, g, U, [rg, rg, rg], rings, 20, (al) => (al < C.pupil ? 'Pupil' : al < C.iris ? 'Iris' : null));
   // (the catchlight: a small bright lens on the cornea toward the key light, up and to the figure's right)
-  const lc = unit(add(g, add(mul(U, 0.42), mul(X, 0.3)))), catchlight = ballMesh(add(G, mul(lc, rg * 1.005)), lc, U, [rg * 0.03, rg * C.catch, rg * C.catch * 0.8], [30, 60, 90, 120, 150], 12);
+  const lc = unit(add(g, add(mul(U, 0.42), mul(X, 0.3)))), catchlight = ballMesh(add(G, mul(lc, rg * 1.005)), lc, U, [rg * 0.03, rg * C.catch, rg * C.catch * 0.8], [45, 90, 135], 8);
   // THE LIDS at rest: lunes about G, the upper's back over the top and behind it, the lower's under and behind
   const upper = lidMesh(G, X, U, F, { rIn: rg * C.shell[0], rOut: rg * C.shell[1], back: -C.back, edge: R0.up, arch: C.arch });
   const lower = lidMesh(G, X, U, F, { rIn: rg * C.shell[0], rOut: rg * C.shell[1], back: 180 + C.back, edge: R0.low, arch: C.arch * 0.8 });
@@ -159,7 +159,7 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
   // (seated on the skin along its direction from the globe's centre, at its rest lift)
   const reach = (d) => { let a = 0, b = 4 * rg; for (let i = 0; i < 40; i++) { const m = (a + b) / 2, p = add(G, mul(d, m)); (field({ x: p[0], y: p[1], z: p[2] }) < 0 ? (a = m) : (b = m)); } return a; };
   const browAt = (lift, tilt) => { const d = browDir(lift), c0 = add(G, mul(d, reach(d) + rg * B.r[1] * (1 - 2 * B.sink))), al = unit(add(mul(X, Math.cos(rad(tilt))), mul(U, -Math.sin(rad(tilt)))));   // (+ tilt: the inner end (−x) drops)
-    return ballMesh(c0, al, d, B.r.map((x) => x * rg), [20, 45, 70, 90, 110, 135, 160], 14); };
+    return ballMesh(c0, al, d, B.r.map((x) => x * rg), [25, 60, 90, 120, 155], 12); };
   const bLift = R0.brow.lift ?? 0, bTilt = R0.brow.tilt ?? 0, brow = browAt(bLift, bTilt);
   for (const S of ['R', 'L']) {
     const m = S === 'R' ? (p) => p : mx, mm = S === 'R' ? (M) => M : mirrorMesh, R = restOf(S);
