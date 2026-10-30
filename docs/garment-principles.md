@@ -253,6 +253,26 @@ A top's collar is built in stages from one piece, on either body (`polygonizer/s
 - `{ kind, open }` sets the front either way. The fall is a piece of its own (`topCollarFall_neck`), the collar's colour,
   carried by the stand's top ring's weights.
 
+## The soldier, from the ground up
+
+Fatigues are dressed from the boots up, each layer reading off the one under it:
+
+- **The boots** are footwear cards of the `military` family (`footwear/styles.js`: the jungle boot, the desert boot, the
+  jump boot, the jackboot, the kirza boot, the ammunition boot under puttees), worn by name from an outfit card
+  (`language.feet`), on either body.
+- **The trousers** meet them by tradition (`language.bottom`): loose to the ankle over the boot; `into: 'boots'` ending
+  just below the top of what covers the shin (a shaft's top, a puttee's wrap) and bloused over its edge; `cut: 'breeches'`
+  (the riding breeches, the galife) full down the upper thigh, its fullness a `swell` along the leg rather than at the
+  crotch, and close from the knee into a tall boot.
+- **Cargo pockets** (`pockets: 'cargo'`) are bellows patches wrapped round the side of each thigh on the trousers, their
+  rows arcs of the leg's outermost surface, swelling at the middle and flush at the edges, under a flap with its button
+  (`body-relational-kit.js` `pocketOn`), riding the leg. A pocket is cloth on cloth: never a box hung off the leg.
+- **Camouflage** is a `pattern` like the weaves (`outfit/camouflage.js`: woodland, desert, DPM, tiger stripe, flecktarn,
+  digital, splinter, multicam, urban, snow). Its ground is the layer's tone, and its marks are field paint cut into the
+  faces, so it shows on both bodies, on the World page and in every export. Every layer printed in the same pattern shares
+  one set of marks, over one box round all of them, so a mark runs on from the shirt onto the trousers. Each colour
+  paints over the ground and the colours before it, as the printer lays them.
+
 ## Against the outfit laws
 
 The ten laws in `control/lib/graph/outfit/principles.js` hold most of these as words; this note gives them measures.

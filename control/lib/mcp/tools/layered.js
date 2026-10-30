@@ -477,7 +477,8 @@ function realisticExpand(plan, hero) {
   if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
   // FOOTWEAR: a word with a footwear card (lib/graph/footwear FOOTWEAR) is the library's, in place of its segment pieces
   // (`boot…`, `shoe…`, `<word>…`)
-  const footWords = words.filter((w) => FOOTWEAR[w]), footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
+  // (an outfit card's `feet` naming a library card, as a word list's word: hero-dress.js libraryFeet)
+  const footWords = [...words.filter((w) => FOOTWEAR[w]), ...(Array.isArray(hero.outfit) || typeof hero.outfit === 'string' ? [] : libraryFeet(hero.outfit))], footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
   if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !footPiece.test(g.id)) };
   // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
   const suitWords = words.filter((w) => SUITS[w]);

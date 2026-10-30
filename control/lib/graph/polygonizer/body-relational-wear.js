@@ -48,7 +48,7 @@
  */
 import { shapeCollar } from './shirt-collar.js';
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
-import { oneTube, drapeRun, flareRun, fairRun, waistbandOf, cinchWaist, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, carrySkirt, clearanceOver, clearOver } from './body-relational-tailor.js';
+import { oneTube, drapeRun, flareRun, swellRun, fairRun, waistbandOf, cinchWaist, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, carrySkirt, clearanceOver, clearOver } from './body-relational-tailor.js';
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 import { beltOn, frameBuckle } from './body-relational-kit.js';
 import { foldCloth } from './body-relational-folds.js';
@@ -140,6 +140,8 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       }
       // each piece's flare along its own run
       for (const g of body) if (g.flare) for (const S of ['', 'R', 'L']) if (made[`${G}_${seg(g)}${S}`]) flareRun(made[`${G}_${seg(g)}${S}`], g.flare);
+      // and its swell (breeches full down the thigh)
+      for (const g of body) if (g.swell) for (const S of ['', 'R', 'L']) if (made[`${G}_${seg(g)}${S}`]) swellRun(made[`${G}_${seg(g)}${S}`], g.swell);
       // THE WAISTBAND (a piece's `waistband`: outfit law 2): no ease, on the skin and the layers worn before it, the cloth's
       // own ease back by the hips' widest
       // (a layer tucked under it, worn before it, cinched with it: each in the order worn, then the band over them)

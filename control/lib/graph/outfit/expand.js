@@ -25,7 +25,9 @@
 // garments (body-garment.js), the trims (body-paint.js, on the garment parts), the buttons (body detail rows) and the
 // belt (an adornment) are built like any other. Pure and deterministic: no dice, fixed order.
 import { collarSpec, collarRun } from './collar.js';
-import { OUTFIT_LAWS_VERSION, FAMILIES, SKIRT_CUTS, TROUSER_CUTS, outfitProportion, stepLength } from './principles.js';
+import { FOOTWEAR } from '../footwear/styles.js';
+import { camoTone } from './camouflage.js';
+import { OUTFIT_LAWS_VERSION, FAMILIES, SKIRT_CUTS, TROUSER_CUTS, BREECHES, BREECHES_SWELL, outfitProportion, stepLength } from './principles.js';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
 import { MOTIFS } from '../polygonizer/station-loft-adorn.js';
 
@@ -89,6 +91,19 @@ const shade = (h, f) => `#${hex(h).map((x) => Math.max(0, Math.min(255, Math.rou
 /** CIE L* of a '#rrggbb' */
 const lightness = (h) => { const [r, g, b] = hex(h).map((c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); const y = 0.2126 * r + 0.7152 * g + 0.0722 * b; return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
 
+/** a footwear card with what it is cut FROM merged under it (footwear/styles.js `from`: its sock merged, its adorn its own,
+ * else its kin's and its `adornPlus`) */
+const footCardOf = (w) => { const C = FOOTWEAR[w]; if (!C) return null; const B = C.from ? footCardOf(C.from) : null;
+  return B ? { ...B, ...C, sock: { ...(B.sock || {}), ...(C.sock || {}) }, adorn: C.adorn ?? [...(B.adorn || []), ...(C.adornPlus || [])] } : C; };
+/** where what the feet wear covers the shin from: its share of the shank from the knee (plain boots' shaft from 0.45, a
+ * card's from 1 − its shaft, a wrap's from its own top: puttees); null for shoes, sandals and bare feet */
+function coverTop(feet) {
+  if (feet === 'boots') return 0.45;
+  const C = footCardOf(feet); if (!C) return null;
+  const tops = [...(C.sock && C.sock.height === 'boot' ? [1 - (C.sock.shaft ?? 0.3)] : []), ...(C.adorn || []).filter((a) => a.prim === 'wrap' && (a.on ?? 'shank') === 'shank').map((a) => a.from ?? 0.3)];
+  return tops.length ? Math.min(...tops) : null;
+}
+
 /** Expand a (valid) build → { garments, paint, rows, kit, tones, trace }. `ctx`: { have: Set of body part base names,
  * scale } (hero-dress.lowerOutfit's), `palette`: the colours the derived tones read (the figure's, the card's, the
  * operator's over them). */
@@ -139,10 +154,15 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     const fam = bottom.family ?? 'woven', cut = TROUSER_CUTS[bottom.cut ?? 'tapered'], e = easeOf(fam) * cut.ease, h = hangOf(fam) * cut.hang, leg = lengths.leg = stepLength('leg', bottom.leg ?? 'long', dials.coverage);
     if (structured) bottoms.push({ id: 'bottomSeat', part: 'pelvis', ease: easeOf(fam) * Math.min(1, cut.ease) * (tuck ? 1.25 : 1), rings: { u: [6 - EDGE.waistband] }, waistband: r6(6 - EDGE.waistband), group: 'Bottom' });
     const thigh = { brief: structured ? null : [0, 0.25], short: [0, 0.45], knee: [0, 1], capri: [0, 1], long: [0, 1] }[leg];
-    const shin = leg === 'capri' || leg === 'long' ? [0, leg === 'long' ? 0.94 : 0.55] : null;
+    // INTO THE BOOTS (`into: 'boots'`, a long leg over boots): the leg ends just below the top of what covers the shin (a
+    // boot's shaft, a puttee's top: its share of the shank from the knee), its last band BLOUSED over that top's edge
+    const cover = bottom.into === 'boots' && leg === 'long' ? coverTop(feet) : null;
+    const shin = leg === 'capri' || leg === 'long' ? [0, cover !== null ? r6(Math.min(0.94, cover + 0.025)) : leg === 'long' ? 0.94 : 0.55] : null;
+    const blouse = cover !== null && shin && shin[1] - 0.12 > 0.05 ? [r6(shin[1] - 0.12), shin[1]] : null;
     // a wide leg falls from the hip: its thigh carries half the hang to the knee, so the shin's flare continues it
-    if (thigh) bottoms.push({ id: 'bottomLeg', part: 'thigh', run: thigh, ease: e, ...(h > 0 && leg !== 'brief' ? { flare: [0, thigh[1] < 1 ? h : h * cut.thigh] } : {}), ...(shin ? {} : { rings: { run: [thigh[1] - EDGE.cuff] } }), group: 'Bottom' });
-    if (shin) bottoms.push({ id: 'bottomShin', part: 'shank', run: shin, ease: e, ...(h > 0 ? { flare: [h * cut.thigh, h] } : {}), rings: { run: [shin[1] - EDGE.cuff] }, group: 'Bottom' });
+    if (thigh) bottoms.push({ id: 'bottomLeg', part: 'thigh', run: thigh, ease: e, ...(bottom.cut === 'breeches' && thigh[1] >= 1 ? { swell: [BREECHES_SWELL[0], r6(BREECHES_SWELL[1] * k)] } : {}), ...(h > 0 && leg !== 'brief' ? { flare: [0, thigh[1] < 1 ? h : h * cut.thigh] } : {}), ...(shin ? {} : { rings: { run: [thigh[1] - EDGE.cuff] } }), group: 'Bottom' });
+    if (shin) bottoms.push({ id: 'bottomShin', part: 'shank', run: blouse ? [shin[0], blouse[0]] : shin, ease: e, ...(h > 0 ? { flare: [h * cut.thigh, h] } : {}), ...(blouse ? {} : { rings: { run: [shin[1] - EDGE.cuff] } }), group: 'Bottom' });
+    if (blouse) bottoms.push({ id: 'bottomBlouse', part: 'shank', run: blouse, ease: e, flare: [r6(h), r6(h + 0.016 * k)], rings: { run: [r6(blouse[1] - EDGE.cuff)] }, group: 'Bottom' });
   }
   // a WAISTCOAT over the shirt (and its tie) and the trousers' waist, under the jacket: close woven cloth from the chest
   // to below the waist, a little over the top's ease; worn without a belt (braces under it)
@@ -200,9 +220,15 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // GIRTH TARGETS: a slot's `girth` (cm of girth over the body at its landmarks, at scale 1) on each copy piece of it; the
   // kernel finds each landmark on the body's own rings and ignores those a piece's part has not (body-garment.js)
   const withGirth = (list, S) => (S?.girth ? list.map((E) => (E.fit ? E : { ...E, girth: Object.fromEntries(Object.entries(S.girth).map(([w, c]) => [w, r6(c / 100 * k)])) })) : list);
-  tops.splice(0, tops.length, ...withGirth(tops, top)); if (!skirt) bottoms.splice(0, bottoms.length, ...withGirth(bottoms, bottom)); outs.splice(0, outs.length, ...withGirth(outs, outer));
+  // (breeches: their girth preset under the card's own: full at the thigh, close from the knee down)
+  const bottomGirth = bottom && bottom.cut === 'breeches' ? { ...bottom, girth: { ...BREECHES, ...(bottom.girth || {}) } } : bottom;
+  tops.splice(0, tops.length, ...withGirth(tops, top)); if (!skirt) bottoms.splice(0, bottoms.length, ...withGirth(bottoms, bottomGirth)); outs.splice(0, outs.length, ...withGirth(outs, outer));
   const toes = ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
-  if (feet === 'boots') shoes.push({ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' }, { id: 'boot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: toes, group: 'Shoes' });
+  // (a footwear card by name, footwear/styles.js: the library wears it on the structured core and the realistic body,
+  // hero-dress.js libraryFeet; elsewhere plain boots or shoes by its sock)
+  const footCard = feet !== 'boots' && feet !== 'shoes' && feet !== 'none' ? FOOTWEAR[feet] ?? null : null;
+  if (footCard && !structured) { const base = footCard.sock === false ? 'shoes' : footCard.sock?.height === 'boot' ? 'boots' : 'shoes'; if (base === 'boots') shoes.push({ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' }, { id: 'boot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: toes, group: 'Shoes' }); else shoes.push({ id: 'shoe', part: 'foot', fit: 'shoe', ease: 0.005 * k, toe: 0.9, over: toes, group: 'Shoes' }); }
+  else if (feet === 'boots') shoes.push({ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' }, { id: 'boot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: toes, group: 'Shoes' });
   else if (feet === 'shoes') shoes.push({ id: 'shoe', part: 'foot', fit: 'shoe', ease: 0.005 * k, toe: 0.9, over: toes, group: 'Shoes' });
   // ── 3 LAYER: tucked, the top first and the bottom over its tail; worn out, the bottom first; shoes over both
   const keep = (E) => { const ps = (Array.isArray(E.part) ? E.part : [E.part]).filter((n) => have.has(n)); return ps.length ? [{ ...E, part: ps, ...(E.over ? { over: E.over.filter((n) => have.has(n)) } : {}) }] : []; };
@@ -216,6 +242,12 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   const hemPiece = worn.has('topTail') ? { part: on('topTail', 'pelvis'), u: lengths.hem === 'tunic' ? [1.5, 1.5 + EDGE.hem] : [4, 4 + EDGE.hem] } : worn.has('top') ? { part: on('top', 'torso'), u: lengths.hem === 'crop' ? [1.4, 1.4 + EDGE.hem] : [0, EDGE.hem] } : null;
   const sleeveEnd = worn.has('topCuff') ? on('topCuff', 'foreArm') : worn.has('topSleeve') ? on('topSleeve', 'upperArm') : null;
   const legEnd = worn.has('bottomShin') ? on('bottomShin', 'shank') : worn.has('bottomLeg') ? on('bottomLeg', 'thigh') : null;
+  // CARGO POCKETS (`pockets: 'cargo'`, trousers to the knee or longer): a bellows pocket on each thigh's outer side under a
+  // flap, in the trousers' cloth, WRAPPED round the leg on the trousers (body-relational-kit.js pocketOn, its `pocket` word;
+  // the pack signature what the adornment kernel makes of it where the kit's pieces are not made)
+  if (bottom && !skirt && bottom.pockets === 'cargo' && worn.has('bottomLeg') && (lengths.leg === 'knee' || lengths.leg === 'capri' || lengths.leg === 'long'))
+    for (const S of ['R', 'L']) kit.push({ id: `cargo${S}`, mode: 'shell', part: `thigh${S}`, side: S, share: true, s: [0.42, 0.66], t: [0.3, 0.62], nt: 3, ns: 2, mugen: r6(0.008 * k), thick: r6(0.004 * k), group: 'Bottom',
+      signature: { kind: 'pack', w: r6(0.15 * k), h: r6(0.17 * k), d: r6(0.022 * k), lift: 0, chamfer: r6(0.01 * k), soft: true, flap: 0.28, group: 'Bottom' }, pocket: { flap: 0.28, bellows: r6(0.011 * k) } });
   if (wovenTop && !dress && worn.has('top')) { paint.push({ part: on('top', 'torso'), t: [0, 0.09], group: 'Placket' }); if (worn.has('topTail')) paint.push({ part: on('topTail', 'pelvis'), t: [0, 0.09], group: 'Placket' }); spent.push('placket'); }
   const edges = {
     // a collar: the woven collar's band; a knit neckline its RIB, a band of its own round the neck's root (law 7), over the top
@@ -350,7 +382,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
 /** a build's LANGUAGE (its card's under its own words), null for none: what a garment is cut and made of (cloth-relief.js
  * reads its cloths off it) */
 export const outfitLanguage = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? languageOf(c, build.language) : null; };
-export const outfitTones = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? { ...(c.tones || {}) } : {}; };
+// (a layer printed in a camouflage suggests its ground as its tone: what no mark covers, outfit/camouflage.js)
+export const outfitTones = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? { ...(c.tones || {}), ...camoTone(languageOf(c, build.language)) } : {}; };
 
 /** The readout for the hero's dress: the trace of the build as this body wears it (style, dials, lengths, focal,
  * pieces, the edges spent, any warnings). `plan`: the hero's plan (its parts and scale are read as the dress read them). */

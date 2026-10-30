@@ -19,7 +19,7 @@ import { outfitLanguage } from '../outfit/expand.js';
 import { heroSkinPaint } from './dermal-hero.js';
 import { heroRelief } from './dermal-relief.js';
 import { clothOnRecord, clothOf, clothChart, clothBake, CLOTHS, SKIN_ROUGH, CLOTH_LAWS, PATTERNS, patternOf, patternAt, knitAt } from './cloth-relief.js';
-import { PATTERN_WORDS, CLOTH_WORDS, validateOutfitCard, SEEDED_OUTFITS } from '../outfit/styles.js';
+import { PATTERN_WORDS, WEAVE_WORDS, CLOTH_WORDS, validateOutfitCard, SEEDED_OUTFITS } from '../outfit/styles.js';
 import { emitUnrealAsset } from '../scene/unreal-project.js';
 
 const PAGES = { page: 256, headPage: 256 };
@@ -129,7 +129,7 @@ describe('the realistic hero\'s cloth relief', () => {
   });
 
   it('a pattern is woven as it is made; its words are the module\'s, a layer\'s reaching its groups, an unknown refused', () => {
-    expect([...PATTERN_WORDS].sort()).toEqual(Object.keys(PATTERNS).sort());
+    expect([...WEAVE_WORDS].sort()).toEqual(Object.keys(PATTERNS).sort());
     for (const w of ['knit', 'cable', 'jersey']) expect(CLOTH_WORDS).toContain(w);
     const L = { outer: { pattern: 'herringbone' }, bottom: { pattern: { kind: 'houndstooth', scale: 2 } }, top: { pattern: 'gingham' } };
     expect(patternOf('Outer', L).kind).toBe('herringbone'); expect(patternOf('Lapel', L).kind).toBe('herringbone'); expect(patternOf('Waistcoat', L).kind).toBe('herringbone');

@@ -13,6 +13,7 @@
  * `part` a body part or a list (a base name both sides, a side name that side: body-paint.js's rule); `u` / `run`
  * the window in the part's station parameter / as a share of its span (both ends interpolated, so a hem sits where it
  * is asked); `flare` [at the window's start, at its end] adds ease toward an end (a bell sleeve, a wide trouser hem);
+ * `swell` [at, by] adds `by` of ease at the share `at` of the window, none at its ends (breeches full at the thigh);
  * `over` the parts it clears beside its own (the chest's layers); `rings` { u?, run? } adds rings inside the window where
  * an edge is finished (a hem's or a cuff's band, then painted as narrow as it is drawn). Each piece is the part `<id>_<body part>`, closed at
  * its ends by caps pinched on its axis just beyond the end rings (inside the body: what shows is the hem's edge), and
@@ -58,7 +59,7 @@ import { rigidityErrors } from './rigidity.js';
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -85,6 +86,7 @@ export function validateGarments(G) {
     if (P.u !== undefined && !isWin(P.u)) errs.push(`${at}.u: [a, b] in the part's station parameter, a ≤ b`);
     if (P.run !== undefined && !(isWin(P.run) && P.run[0] >= 0 && P.run[1] <= 1)) errs.push(`${at}.run: [a, b] shares of the part's span, 0 ≤ a ≤ b ≤ 1`);
     if (P.flare !== undefined && !(Array.isArray(P.flare) && P.flare.length === 2 && P.flare.every((x) => Number.isFinite(x) && x >= 0))) errs.push(`${at}.flare: [extra ease at the start, at the end] (m)`);
+    if (P.swell !== undefined && !(Array.isArray(P.swell) && P.swell.length === 2 && Number.isFinite(P.swell[0]) && P.swell[0] > 0 && P.swell[0] < 1 && Number.isFinite(P.swell[1]) && P.swell[1] >= 0)) errs.push(`${at}.swell: [where, a share of the window strictly inside 0 … 1, extra ease there (m)]`);
     if (P.over !== undefined && !(Array.isArray(P.over) && P.over.every((n) => typeof n === 'string'))) errs.push(`${at}.over: a list of part names`);
     if (P.rings !== undefined && !(P.rings && typeof P.rings === 'object' && Object.keys(P.rings).every((k) => ['u', 'run'].includes(k)) && Object.values(P.rings).every((v) => Array.isArray(v) && v.every(Number.isFinite)))) errs.push(`${at}.rings: { u?: [stations], run?: [shares] } — rings added inside the window`);
     if (P.fit !== undefined && !['shoe', 'skirt', 'panel', 'cape', 'hood'].includes(P.fit)) errs.push(`${at}.fit: 'shoe' (footwear on a flat sole), 'skirt' (a hull round the hips and both legs), 'panel' (a drape panel hung over an arc of that hull), 'cape' (open cloth hung from the shoulders over an arc of the hull round the trunk, the arms and the legs), 'hood' (cloth rising from the shoulders over the head, open at the face), or absent (a copy of the part's rings)`);
@@ -244,6 +246,9 @@ export function garmentParts(parts, garments, dials = {}) {
         H = H.map((row, j) => row.map((h, k) => h + need[j][k]));
       }
       const fl = P.flare ?? [0, 0];
+      // (a SWELL [at, by]: `by` more ease at the share `at` of the window, easing to none at its two ends: breeches' balloon)
+      const sw = P.swell, bump = (f) => { const a = sw[0], t = f <= a ? f / a : (1 - f) / (1 - a), q = Math.sin((Math.PI / 2) * Math.max(0, Math.min(1, t))); return sw[1] * q * q; };
+      const flAt = sw ? (f) => fl[0] * (1 - f) + fl[1] * f + bump(f) : (f) => fl[0] * (1 - f) + fl[1] * f;
       // GIRTH TARGETS: the landmark rings, found on the body's own rings before the drape (a pinned ring is cinched there)
       const ringG = (pts) => pts.reduce((g, p, k) => g + dmath.hypot(...sub(pts[(k + 1) % pts.length], p)), 0);
       const bodyG = P.girth ? rings.map((r) => ringG(part.slots.map((sl) => r.points[sl]))) : null;
@@ -253,7 +258,7 @@ export function garmentParts(parts, garments, dials = {}) {
       // it: from the top ring down, each point stands at least as far out as the one above it, less `drape` per metre
       // it falls
       if (P.drape !== undefined) for (let j = n - 2; j >= 0; j--) { const dz = Math.abs(C[j + 1][2] - C[j][2]);
-        for (let k = 0; k < part.slots.length; k++) { const sl = part.slots[k], f = (rings[j].u - ua) / span, e = easeAt(j) + fl[0] * (1 - f) + fl[1] * f, fa = (rings[j + 1].u - ua) / span, ea = easeAt(j + 1) + fl[0] * (1 - fa) + fl[1] * fa;
+        for (let k = 0; k < part.slots.length; k++) { const sl = part.slots[k], f = (rings[j].u - ua) / span, e = easeAt(j) + flAt(f), fa = (rings[j + 1].u - ua) / span, ea = easeAt(j + 1) + flAt(fa);
           const above = dmath.hypot(...sub(add(rings[j + 1].points[sl], mul(N[j + 1][k], ea + H[j + 1][k])), C[j + 1]).slice(0, 2)), here = dmath.hypot(...sub(rings[j].points[sl], C[j]).slice(0, 2));
           H[j][k] = Math.max(H[j][k], above - P.drape * dz - here - e); }
         if (pinned.has(j)) H[j] = [...H0[j]]; }   // a girth target cinches its ring: the cloth below falls from there
@@ -274,7 +279,7 @@ export function garmentParts(parts, garments, dials = {}) {
         const zb = Math.min(...rings.map((r, j) => (r.u >= P.waistband - 1e-9 ? C[j][2] : Infinity)));
         return rings.map((r, j) => { if (r.u >= P.waistband - 1e-9) return 0; const t = Math.max(0, Math.min(1, (zb - C[j][2]) / Math.max(1e-6, zb - zw))); return t * t * (3 - 2 * t); });
       })() : null;
-      const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e0 = easeAt(j) + fl[0] * (1 - f) + fl[1] * f;
+      const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e0 = easeAt(j) + flAt(f);
         const e = band ? Math.max(SKIN_HAIR, e0 * band[j]) : e0, h = (k) => (band ? H0[j][k] + (H[j][k] - H0[j][k]) * band[j] : H[j][k]);
         return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], mul(N[j][k], e + h(k))).map(r6)])) }; });
       const name = `${P.id}_${src}`;

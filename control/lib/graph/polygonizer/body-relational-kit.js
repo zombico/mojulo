@@ -42,6 +42,55 @@ const middle = (st) => mean(Object.values(st.points));
 /** the station of `P` nearest height `z` */
 const nearestStation = (P, z) => P.stations.reduce((b, st) => (Math.abs(middle(st)[2] - z) < Math.abs(middle(b)[2] - z) ? st : b));
 
+/** a CARGO POCKET's measures: its bellows (how far its middle stands out off the leg, m), its wall, the flap's overlap
+ * above the bag's mouth, its own lift off the bag and its wall, the button's size */
+export const POCKET = Object.freeze({ bellows: 0.011, t: 0.0025, lift: 0.0006, over: 0.008, flapT: 0.003, button: 0.012, cols: 11, rows: 8 });
+
+/** A CARGO POCKET WRAPPED ROUND A LEG (not hung off it): a bag `w` wide (along the leg's surface) and `h` tall, its middle
+ * at the height of `o` and the turn of `out` round the leg's axis (`axis(z)`: the leg's middle at a height), each of its
+ * rows an arc of the outermost thing worn there (`worn`, the reach out along each turn), its face bellowed out to
+ * `bellows` at its middle and flush at its edges; over its mouth a FLAP `flap` of its height, laid on the bag's own face,
+ * a button at its point. → { name: part } (`group` the bag's and the flap's, `metal` the button's) */
+export function pocketOn(o, out, axis, worn, { w, h, flap = 0.28, bellows = POCKET.bellows, group = 'Bottom', metal = 'Button', id }) {
+  const K = POCKET, th0 = Math.atan2(out[1], out[0]), z0 = o[2] + h / 2, z1 = o[2] - h / 2, zF = z0 - flap * h;
+  const near = worn.filter((q) => q[2] > z1 - 0.03 && q[2] < z0 + K.over + 0.03);
+  // (the leg's surface at a height: its reach along each turn of an arc `w` (+`grow`) wide about `out`, eased across)
+  const arc = (z, grow = 0) => {
+    const c = axis(z), r0 = reachOf(near, c, [[Math.cos(th0), Math.sin(th0), 0]], [z], { band: 0.01, lane: 0.012 })[0] || 0.06, span = (w + grow) / r0;
+    const dirs = Array.from({ length: K.cols }, (_, k) => { const a = th0 + (k / (K.cols - 1) - 0.5) * span; return [Math.cos(a), Math.sin(a), 0]; });
+    let R = reachOf(near, c, dirs, [z], { band: 0.01, lane: 0.012 }).map((r) => r || r0);
+    for (let it = 0; it < 2; it++) R = R.map((r, k) => (R[Math.max(0, k - 1)] + 2 * r + R[Math.min(R.length - 1, k + 1)]) / 4);
+    return { c, dirs, R };
+  };
+  const ease = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
+  // (the bag's bellows at (u across, v down): full in the middle, flush at its sides, its mouth and its foot)
+  const swell = (u, v) => bellows * Math.sin(Math.PI * Math.max(0, Math.min(1, u))) ** 0.6 * ease(v / 0.3) * ease((1 - v) / 0.18);
+  /** a patch's rows from `za` down to `zb`, each `lift(u, z)` off the leg and `t` thick, its section `cols` × 2 */
+  const patch = (za, zb, grow, lift, t) => {
+    const rings = [];
+    for (let r = 0; r < K.rows; r++) {
+      const z = za + (zb - za) * (r / (K.rows - 1)), { c, dirs, R } = arc(z, grow), inner = [], outer = [];
+      dirs.forEach((d, k) => { const q = add([c[0], c[1], z], scl(d, R[k] + lift(k / (K.cols - 1), z))); inner.push(q); outer.push(add(q, scl(d, t))); });
+      // (the ring starts at its outer face's middle: the compiler turns a part out by its first band face)
+      const ring = [...inner, ...outer.reverse()], m = K.cols + Math.floor((K.cols - 1) / 2);
+      rings.push([...ring.slice(m), ...ring.slice(0, m)]);
+    }
+    return tube(rings, mean(rings[0]), mean(rings[rings.length - 1]));
+  };
+  const parts = {};
+  parts[`${id}Bag`] = { ...patch(z0, z1, 0, (u, z) => K.lift + swell(u, (z0 - z) / h), K.t), group };
+  if (flap > 0) {
+    // (the flap a little wider than the bag, over its mouth, on its face: each point the bag's face under it and clear of it)
+    const g = 0.008, U = (u) => (u * (w + g) - g / 2) / w;
+    parts[`${id}Flap`] = { ...patch(z0 + K.over, zF, g, (u, z) => K.lift + (z <= z0 ? swell(U(u), (z0 - z) / h) : 0) + K.t + K.lift, K.flapT), group };
+    // (its button at the flap's point, on its face)
+    const zb = zF + 0.012, { c, R } = arc(zb), mid = (K.cols - 1) / 2, d = [Math.cos(th0), Math.sin(th0), 0];
+    const at = add([c[0], c[1], zb], scl(d, R[mid] + K.lift + swell(0.5, (z0 - zb) / h) + K.t + K.lift + K.flapT + 0.001));
+    parts[`${id}Button`] = { ...block(at, d, [0, 0, 1], { w: K.button, h: K.button, thick: 0.0025 }), group: metal };
+  }
+  return parts;
+}
+
 /** the reach of the points `pts` from `c` along each horizontal direction `dirs` (within a lane of `lane` m either side
  * of the ray, at heights `zs` ± `band`): the farthest each ray meets; a direction none meets takes its neighbours' */
 function reachOf(pts, c, dirs, zs, { band = 0.006, lane = 0.02 } = {}) {
@@ -291,7 +340,15 @@ export function kitPieces(S, cloth, kit, { L1, rings = false, around = null }) {
       const F = frameAt(L1, A.part, [s, t], side), st = Pskin.stations.reduce((b, x) => (Math.abs(middle(x)[2] - F.origin[2]) < Math.abs(middle(b)[2] - F.origin[2]) ? x : b)), c = middle(st);
       return F.normal[0] * (F.origin[0] - c[0]) + F.normal[1] * (F.origin[1] - c[1]) < 0 ? { ...F, normal: scl(F.normal, -1) } : F;
     };
-    if (A.mode === 'shell' && sig?.kind === 'pack' && !sig.soft && Array.isArray(A.s) && Array.isArray(A.t)) {
+    if (A.pocket && A.mode === 'shell' && Array.isArray(A.s) && Array.isArray(A.t)) {
+      // (a CARGO POCKET: wrapped round the leg on what is worn there, its bag and its flap riding the leg)
+      const W = byShare(Pskin, A), f = at((W.s[0] + W.s[1]) / 2, (W.t[0] + W.t[1]) / 2, A.side ?? 'R'), S = (A.side ?? 'R'), legs = new RegExp(`_(thigh|leg|shank)${S}$`);
+      const out = unitv([f.normal[0], f.normal[1], 0]), on = [Pskin, ...Object.entries(cloth).filter(([k]) => legs.test(k)).map(([, P]) => P)].flatMap(pointsOf);
+      const axis = (z) => { const st = [...Pskin.stations].sort((x, y) => Math.abs(middle(x)[2] - z) - Math.abs(middle(y)[2] - z)).slice(0, 2), [p, q] = st.map(middle), t = Math.abs(q[2] - p[2]) > 1e-6 ? Math.max(0, Math.min(1, (z - p[2]) / (q[2] - p[2]))) : 0; return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z]; };
+      const made = pocketOn(f.origin, out, axis, on, { w: sig?.w ?? 0.15, h: sig?.h ?? 0.17, flap: A.pocket.flap ?? 0.28, bellows: A.pocket.bellows ?? POCKET.bellows, group: A.group ?? 'Bottom', id: A.id });
+      for (const [k, P] of Object.entries(made)) parts[`${k}_kit`] = { ...P, bind: bindOn(P, Pskin) };
+      taken.add(A.id);
+    } else if (A.mode === 'shell' && sig?.kind === 'pack' && !sig.soft && Array.isArray(A.s) && Array.isArray(A.t)) {
       const W = byShare(Pskin, A), f = at((W.s[0] + W.s[1]) / 2, (W.t[0] + W.t[1]) / 2, A.side ?? 'R');
       const out = unitv([f.normal[0], f.normal[1], 0]), b = [0, 0, 1], a = unitv(cross(b, out)), h = sig.h, w = sig.w, d = sig.d;
       // (on a belt at its height: hung from it, its top a little over the belt's, its back on the belt's face)

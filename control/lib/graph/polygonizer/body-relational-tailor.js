@@ -173,6 +173,18 @@ export function flareRun(P, [a, b]) {
   return P;
 }
 
+/** a SWELL along a piece's run (body-garment.js's `swell`): each ring's points out from its middle by `by` (m) at the share
+ * `at` of the run, easing to none at its two ends (breeches' balloon down the thigh). In place */
+export function swellRun(P, [at, by]) {
+  if (!by) return P;
+  const S = P.stations, C = S.map((st) => mean(P.slots.map((sl) => st.points[sl]))), L = [0];
+  for (let i = 1; i < S.length; i++) L.push(L[i - 1] + len(sub(C[i], C[i - 1])));
+  const end = L[L.length - 1] || 1;
+  S.forEach((st, i) => { const f = L[i] / end, t = f <= at ? f / at : (1 - f) / (1 - at), q = Math.sin((Math.PI / 2) * Math.max(0, Math.min(1, t))), o = by * q * q;
+    if (o > 0) for (const sl of P.slots) { const p = st.points[sl], d = unitv(sub(p, C[i])); st.points[sl] = add(p, scl(d, o)).map(r6); } });
+  return P;
+}
+
 /** a run FAIRED: each slot's radius off its ring's middle smoothed along the run (a [1, 2, 1] kernel, `passes` times),
  * its first and last `keep` rings held, so a step where two pieces were joined (two limbs' cloth meeting at the elbow)
  * eases out. In place */
