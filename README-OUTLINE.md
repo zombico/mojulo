@@ -57,8 +57,8 @@ on your machine that plays in the browser and opens in Godot or Blender.
 ```
 
 - Keep the badges (npm, license, node).
-- Hero GIF `[asset]`: a played level changed by one sentence (the level running, the ask, the same level after). Not the
-  living room: `interior-demo.gif` moves to §4.
+- Hero GIF: `wcd-demo.gif` (made; one real session: the pitch, the world's book approved, four levels built, costed) is the
+  hero now. `[asset]` later: a played level changed by one sentence. The living room moved to §4.
 - One-sentence install directly under the GIF: `npx mojulo init`, then the first ask, which makes a game. Link to the
   full install page (§8).
 
@@ -271,13 +271,13 @@ Every person-facing surface gets the same first sentence ("Turn your agent into 
 | Surface | Now | To |
 |---|---|---|
 | `SUBSTRATE_POSITIONING` one-breath answer, `CLAUDE.md` "What this is" | — | **done**: the studio and its departments, the compiler underneath |
-| `README.md` | "3D compiler for agents", decor-led | §0 |
-| `control/README.md` (the npm page) | "3D compiler", its own long copy | generated from the root README, or a short pointer to it |
-| `control/package.json` `description` | long "3D compiler…" | the one-liner, ≤ 160 chars |
-| `server.json`, `glama.json` | "3D compiler…" | the one-liner |
-| `plugins/mojulo/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` | "3D compiler…" | the one-liner |
-| `plugins/mojulo/README.md` | compiler wording | match the README |
-| `control/app/layout.jsx` (dashboard meta) | "3D compiler" | the one-liner |
+| `README.md` | "3D compiler for agents", decor-led | **done (first pass)**: the tagline, the stealth-base session as the hero, games first, the departments as a table, the other outcomes after, the compiler in How it works; the department cards with their pairs wait on the captures |
+| `control/README.md` (the npm page) | "3D compiler", its own long copy | **lead done**: the stealth-base GIF and the studio paragraph; generating it from the root README is still open |
+| `control/package.json` `description` | long "3D compiler…" | **done** |
+| `server.json`, `glama.json` | "3D compiler…" | **done** |
+| `plugins/mojulo/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` | "3D compiler…" | **done** |
+| `plugins/mojulo/README.md` | compiler wording | **done** |
+| `control/app/layout.jsx` (dashboard meta) | "3D compiler" | **done** |
 | `SERVER_INSTRUCTIONS`, `forward_context`, `docs/AGENT-REFERENCE.md` | "3D compiler" | **unchanged**: they speak to the agent |
 
 ## Appendix B — docs to retire or relabel

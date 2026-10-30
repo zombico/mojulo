@@ -4,11 +4,15 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
-![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
+**Turn your agent into a game studio.** You direct; it builds.
 
-Mojulo is a **3D compiler for agents**. Ask the agent you already run (Claude Code, Codex, any MCP host) for a furnished room, a chest of drawers, a printable part or a walkable city, and it writes a small **recipe** that mojulo compiles into the real thing: a model that opens in Blender or Godot, a print-ready STL or 3MF at true size, a cutting plan and a parts list. You change the sentence, not the mesh. The recipe is the source, a few hundred bytes of JSON or an OpenSCAD program that compiles the same way on every read, so you can edit it, diff it and keep it like code; renders are disposable. Local: no API key, no account, no telemetry.
+![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](docs/images/wcd-demo.gif)
 
-!["Build a plywood chest of drawers, 900 wide, four drawers", as mojulo reports it: the piece exploded into its parts, the panels nested on full sheets with the saw kerf, the hardware list, a tip-over finding that tells you to fix it to the wall, and the build order](docs/images/dresser-shop-sheet.png)
+<sub>One real Claude Code session on Sonnet 5.5: a stealth game's base asked for, its plan and looks approved from the world's book, four levels built; under four minutes of agent time, 63 cents at API list price. The whole session is the first example below.</sub>
+
+Tell the agent you already run (Claude Code, Codex, the Claude app, ChatGPT, any MCP host) the game you want, and it works through a studio's departments: it plans the world and shows you its bible, builds the levels, casts the hero and the enemies, tunes how the game feels to play, sets the look, scores it, plays every level through to its win, and hands you a game that runs in the browser, as a desktop app or as a Godot project. Every department writes into the same small recipe on your machine, so the bible, the level you play and the export agree, and one sentence changes them all. You bring the taste; it brings the craft. Local: no API key, no account, no telemetry.
+
+The same studio designs more than games: rooms from your floor plan, a chest of drawers with its cutting plan, a printable part at true size, a walkable city.
 
 It runs wherever your agent runs: on your machine, or in the throwaway Linux box a chat app gives itself (Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio), and the recipe is small enough to carry home and compile again on your own disk. It also exports to Unity, Unreal, Roblox, glTF and OpenUSD. Your agent does the thinking; mojulo holds the state and does the geometry.
 
@@ -18,7 +22,7 @@ It runs wherever your agent runs: on your machine, or in the throwaway Linux box
 npx mojulo init
 ```
 
-Needs **Node 22.14+** and an MCP-capable coding agent (Claude Code or Codex; Claude Desktop works too). `init` finds the hosts on your machine, asks once per host, and opens the dashboard at `http://localhost:3001`. Everything lands in `~/.mojulo/`. Then open a fresh agent session and ask: **"what is this?"**
+Needs **Node 22.14+** and an MCP-capable coding agent (Claude Code or Codex; Claude Desktop works too). `init` finds the hosts on your machine, asks once per host, and opens the dashboard at `http://localhost:3001`. Everything lands in `~/.mojulo/`. Then open a fresh agent session and ask for a game, **"make me a kart racer"**, or ask **"what is this?"** for the tour.
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo`. It starts the same server pinned to one version ([plugins/mojulo](plugins/mojulo/README.md)). The plugin build leaves out the handoff tools for AI image, voice and mesh generators and never downloads a browser, ffmpeg or the search model on its own. Use the plugin or `init` for Claude Code, not both: two registrations run two servers.
 
@@ -106,37 +110,79 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 
 **Upgrading from 2.x?** Read [Upgrading from 2.x](control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.0 on its next start, and 3.0 re-encrypts saved provider keys so 2.x can no longer read them.
 
-## Six things to say to it
+## What to ask the studio
 
 Each one is a sentence to your agent, the tool it reaches for, and the recipe that gets stored. Every example below runs keyless and offline.
 
-### 1. "Write me a Raspberry Pi 4 case tray in OpenSCAD"
+### 1. "I'm making a stealth game. Build me a multi-level military base to infiltrate"
 
-The agent calls `mint_solid { kind: 'scad' }` and the program is the recipe, stored verbatim:
+That is the GIF at the top. What it built, from the inside:
 
-```openscad
-board_w = 85; board_d = 56; clear = 1; wall = 2; floor_t = 2; wall_h = 12;
-holes = [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]];   // the Pi's M2.5 pattern
-module rounded_box(w, d, h, r) { hull() for (x = [r, w - r], y = [r, d - r]) translate([x, y, 0]) cylinder(r = r, h = h, $fn = 48); }
-module tray() {
-  color("#3a3f4b") difference() {
-    rounded_box(board_w + 2 * (clear + wall), board_d + 2 * (clear + wall), floor_t + wall_h, 3);
-    translate([wall, wall, floor_t]) rounded_box(board_w + 2 * clear, board_d + 2 * clear, wall_h + 1, 1.5);
-    translate([board_w + 2 * clear + wall - 1, wall + 2, floor_t + 3]) cube([wall + 2, board_d + 2 * clear - 4, wall_h]);   // USB / Ethernet
-    translate([wall + clear + 5, -1, floor_t + 3]) cube([55, wall + 2, wall_h]);                                            // USB-C, HDMI, audio
-  }
-}
-module standoffs() {
-  color("#c9a227") for (p = holes) translate([wall + clear + p[0], wall + clear + p[1], floor_t])
-    difference() { cylinder(d = 6, h = 3, $fn = 32); translate([0, 0, -1]) cylinder(d = 2.5, h = 5, $fn = 24); }
-}
-```
+| | |
+|---|---|
+| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
+| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor in the bunker look: board-formed concrete, yellow and green steel on its columns, a cable bent along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) |
+| ![The reactor plant's generator hall: a white-panelled hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](docs/images/wcd-demo-reactor-corridor.jpg) |
 
-with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself meshes it on every read, in-process as WebAssembly with the Manifold backend, so booleans are exact and every edge is sharp. `color()` is the tint; each named part is a render group a hinge in `movers` can swing. The same ref serves the orbit view, the `.glb`, the engine packs and `model.stl` at 91 × 62 × 14 mm as written; `model.scad` hands the source back unchanged. Change `wall_h` with `update_sketch` and the readout names the one part that moved. For what OpenSCAD cannot say, a blended join, a stroked dent, seeded noise, the source calls `mojulo_field("<id>")` and a field solid from the same recipe is baked in at that spot.
+![The world's book, its "To the core" page: the four levels as rings with the reactor at the centre, each stair or door on its join with the keycard that opens it, beside each layer's look, its wall, base, floor and paint, and the design rules it holds](docs/images/wcd-demo-book.png)
 
-### 2. "We just moved in, here's our floor plan! Some ideas for how we could live in it?"
+![A level's finishes in the book, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band tiles, each named by its cut and the metres it is laid at, its light's colours, and the note that its palette does not colour a bay building](docs/images/wcd-demo-finishes.png)
 
-That is the GIF at the top: one real Claude Code session on Sonnet 5.5, three asks in a homeowner's words, with no
+One real Claude Code session on Sonnet 5.5, two asks, under four minutes of agent time: roughly 1.2M tokens (90% re-read
+from the prompt cache, 9k written) and 63 cents at API list price. Asked to see the plan and the looks first, the agent
+read the stealth and level-design cards, drafted the world with `design_game` without building it, and stopped on its
+book: the plan, and each building level's finishes (its walls, floor, columns, paint and light, painted as the build
+paints them; the armoury's board is above). On the yes it built all four, each level a base building stocked for what it
+is (bunks and footlockers, weapon racks in the cages, sandbags at the guard posts, an extinguisher by every door). What a
+run shows that a GIF hides: the agent also picked a palette per section, and said itself that a base building takes
+only its look's named palette, so those were not applied; building four levels outlasts Claude Code's 60-second wait
+for a tool, so it saw the build time out and read the finished world back. The book's dark briefing skin was set after
+the session, and the draft's pages in the GIF are redrawn from the stored world without its run's record; a world wears
+a skin with one `design_game` patch (`book: { skin: 'briefing' }`), or its own colours and faces. The whole record is
+[session.json](docs/images/src/wcd-demo/session.json), and [the runner](docs/images/src/wcd-demo/) records a new session
+or rebuilds a cooked base from its recipe with no agent at all.
+
+### 2. "Make me a kart racer, then let me play it as an app"
+
+`design_game` designs a game top down (the hero, its powers, gear and systems) and with `run: true` makes each ready step. Levels are worlds with a game contract (reach the exit, survive twenty seconds, win the race); `create_game` binds them, a synthesized score and the figures into one game with a typed store that carries between levels, and it does not mint until every level passes a contract dry-run and a traversal that reaches its win condition. Arena shooters with bots, kart and supercar racers with rival drivers (and a Race of Champions duel in a stadium), flight, stealth and rhythm games, fighting games, sports played as contests on a stadium under a TV broadcast package ([docs/broadcast.md](docs/broadcast.md)), board and strategy games against the computer, and a pen-and-paper table RPG with its printed game book ([docs/table-rpg.md](docs/table-rpg.md)) are built from the same parts. The action games draw their foes from shared classes ([docs/foes.md](docs/foes.md)), and a level can seat two to four players on one screen ([docs/local-multiplayer-principles.md](docs/local-multiplayer-principles.md)).
+
+It plays in the browser as it is: `export_game` writes a self-contained folder for any static host, and `target: 'desktop'` makes that folder an Electron app (`npm install && npm start`, offline; signing it is yours). The engines get a translation with a report of what did not travel: `target: 'godot'` writes a real Godot 4 project, the fullest of them; Unity gets a data pack plus an importer; `target: 'roblox'` writes a Rojo project carrying the Luau kernel and a greybox per level. Unreal takes the game's assets, not the game: `export_model { format: 'unreal' }` writes a character or a solid as its GLB plus an editor importer.
+
+### 3. "Build a New York-style city at real scale"
+
+![An aerial view of a generated New York-style metro: brick walk-ups with wooden water tanks on their roofs, glass and Art Deco towers, and avenues with traffic, from one compose_world call](docs/images/metro-new-york-aerial.jpg)
+
+The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: 'metro', flavor: 'new-york' } }`. `metro` builds it in proportion at about 0.8 × 0.5 km, and the flavor picks the architecture: brick walk-ups, fire escapes, water tanks and Art Deco setbacks here, or `paris`, `london`, `tokyo` and more. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. `context: { time: 'night' }` lights it for night, and `asset: { monument: 'eiffel-tower' }` stands a landmark at its real size. Open `/world` to walk it with WASD or jump between its street, aerial and skyline views. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, terrain at real scale, a walkable Cayley graph of a finite group.
+
+## The studio's departments
+
+| Department | What it does for you | Read more |
+|---|---|---|
+| **Direction** | Turns your pitch into a world and its levels, drafts the world's bible for your approval, and builds each step on your yes. | |
+| **Levels and worlds** | Lays levels as places: a base on a critical path to its core, an open world over a city's regions, caverns, buildings from a brief, a metro, an island at any hour. | [walled-core dungeons](docs/walled-core-dungeon.md), [quest open worlds](docs/quest-open-world.md) |
+| **Characters** | Casts the hero (stylized, or realistic with its face, hair, wardrobe and armour), named heroes, enemy crews and foes, creatures and animals, rigged and animated. | [the realistic body](docs/realistic-body.md), [foes](docs/foes.md), [garments](docs/garment-principles.md) |
+| **Gameplay and feel** | Sets the rules of the game type (stealth, racing, shooter, flight, fighting, rhythm, sports, board, strategy, a table RPG), how the controls feel, the hit effects, and local multiplayer. | [flight games](docs/flight-games.md), [local multiplayer](docs/local-multiplayer-principles.md) |
+| **Art direction** | Solves the palette from colour theory and draws everything in one look (anime, western or realistic), lit by the hour. | |
+| **Audio** | Scores the game and its sound effects from seeded math, with no samples; voices through an optional local speech worker. | [the voice worker](docs/local-voice-worker.md) |
+| **Writing and world** | Writes the world's bible, the character bible and the feel book, carves the title card in the game's language, and prints a game book. | [books](docs/books.md), [the table RPG](docs/table-rpg.md) |
+| **QA** | Plays every level through to its win before the game is made, and stamps what each export carried and what it lost. | [the gates](docs/bicycles.md) |
+| **Shipping** | Exports a self-contained browser game or desktop app, a Godot project, a Roblox place, Unity and Blender packs, and Unreal assets. | [where it goes](#where-it-goes) |
+| **The trailer** | Films flythroughs and recorded runs and joins them into one video; puts a broadcast package over a contest. | [broadcast](docs/broadcast.md) |
+| **Production** | Sweeps variants of anything, chains calls into plans, and keeps what you tune in your own cookbook. | |
+
+Every department writes into the same recipe, so they compose: a place, a cast, a look and a game type combine into one game, and the studio checks that the combination plays before you see it. Not in the studio: painted art (handed to image tools you bring), online multiplayer (it is local), and whole games in Unreal (it takes assets). Whether it looks good is your call as director; no gate claims a human looked.
+
+## The same studio, beyond games
+
+Design is the capability, and a game is one place it goes. The same craft builds rooms to live in, furniture with its cutting plan, and parts at true size.
+
+!["Build a plywood chest of drawers, 900 wide, four drawers", as mojulo reports it: the piece exploded into its parts, the panels nested on full sheets with the saw kerf, the hardware list, a tip-over finding that tells you to fix it to the wall, and the build order](docs/images/dresser-shop-sheet.png)
+
+### 4. "We just moved in, here's our floor plan! Some ideas for how we could live in it?"
+
+![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
+
+One real Claude Code session on Sonnet 5.5, three asks in a homeowner's words, with no
 style names and no tool names. The first carries a picture of the floor plan and nothing else. The agent reads the
 rooms off the drawing, to the inch, and builds the house with `mint_building`:
 
@@ -172,7 +218,7 @@ the GIF's room shots are `forge_motion` too, filmed from a replay of the session
 mojulo's own A-101 sheet of a house, standing in for a homeowner's upload; the agent only ever sees the picture. Every
 room opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
 
-### 3. "Build an oak dining table and show me how it goes together"
+### 5. "Build an oak dining table and show me how it goes together"
 
 ![An oak dining table in an exploded view: the top lifted clear, the four aprons pulled out of the legs with their tenons showing, and the angle brackets and screws floating where they fasten, on the World page](docs/images/oak-table-exploded.jpg)
 
@@ -186,47 +232,29 @@ The agent calls `mint_solid { kind: 'workbench' }` with one frame, and `build` w
 
 The legs take the aprons on mortise and tenon, sized so the tenons stop short of each other inside the leg, and the top sits on angle brackets. Every joint is cut through the exact kernel, and the oak is sawn from a synthetic log, so its figure and its movement follow the cut. `explode: 90` pulls each piece 90 mm back along the way it seats; set it to 0 and the table stands assembled. The report is advisory, never a refusal: each member's cut and movement, a span check, the order the pieces go together, tipping, the hardware list and a cut list. The same `frames` entry builds carcasses with doors and drawers, sofas with their upholstery, a kigumi frame, steel and masonry. Gather the piece into a stash and cook `instruction_manual` for its wordless assembly pages, or set `layout: 'kit'` to print it flat as a model kit.
 
-### 4. "Build a New York-style city at real scale"
+### 6. "Write me a Raspberry Pi 4 case tray in OpenSCAD"
 
-![An aerial view of a generated New York-style metro: brick walk-ups with wooden water tanks on their roofs, glass and Art Deco towers, and avenues with traffic, from one compose_world call](docs/images/metro-new-york-aerial.jpg)
+The agent calls `mint_solid { kind: 'scad' }` and the program is the recipe, stored verbatim:
 
-The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: 'metro', flavor: 'new-york' } }`. `metro` builds it in proportion at about 0.8 × 0.5 km, and the flavor picks the architecture: brick walk-ups, fire escapes, water tanks and Art Deco setbacks here, or `paris`, `london`, `tokyo` and more. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. `context: { time: 'night' }` lights it for night, and `asset: { monument: 'eiffel-tower' }` stands a landmark at its real size. Open `/world` to walk it with WASD or jump between its street, aerial and skyline views. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, terrain at real scale, a walkable Cayley graph of a finite group.
+```openscad
+board_w = 85; board_d = 56; clear = 1; wall = 2; floor_t = 2; wall_h = 12;
+holes = [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]];   // the Pi's M2.5 pattern
+module rounded_box(w, d, h, r) { hull() for (x = [r, w - r], y = [r, d - r]) translate([x, y, 0]) cylinder(r = r, h = h, $fn = 48); }
+module tray() {
+  color("#3a3f4b") difference() {
+    rounded_box(board_w + 2 * (clear + wall), board_d + 2 * (clear + wall), floor_t + wall_h, 3);
+    translate([wall, wall, floor_t]) rounded_box(board_w + 2 * clear, board_d + 2 * clear, wall_h + 1, 1.5);
+    translate([board_w + 2 * clear + wall - 1, wall + 2, floor_t + 3]) cube([wall + 2, board_d + 2 * clear - 4, wall_h]);   // USB / Ethernet
+    translate([wall + clear + 5, -1, floor_t + 3]) cube([55, wall + 2, wall_h]);                                            // USB-C, HDMI, audio
+  }
+}
+module standoffs() {
+  color("#c9a227") for (p = holes) translate([wall + clear + p[0], wall + clear + p[1], floor_t])
+    difference() { cylinder(d = 6, h = 3, $fn = 32); translate([0, 0, -1]) cylinder(d = 2.5, h = 5, $fn = 24); }
+}
+```
 
-### 5. "Make me a kart racer, then let me play it as an app"
-
-`design_game` designs a game top down (the hero, its powers, gear and systems) and with `run: true` makes each ready step. Levels are worlds with a game contract (reach the exit, survive twenty seconds, win the race); `create_game` binds them, a synthesized score and the figures into one game with a typed store that carries between levels, and it does not mint until every level passes a contract dry-run and a traversal that reaches its win condition. Arena shooters with bots, kart and supercar racers with rival drivers (and a Race of Champions duel in a stadium), flight, stealth and rhythm games, fighting games, sports played as contests on a stadium under a TV broadcast package ([docs/broadcast.md](docs/broadcast.md)), board and strategy games against the computer, and a pen-and-paper table RPG with its printed game book ([docs/table-rpg.md](docs/table-rpg.md)) are built from the same parts. The action games draw their foes from shared classes ([docs/foes.md](docs/foes.md)), and a level can seat two to four players on one screen ([docs/local-multiplayer-principles.md](docs/local-multiplayer-principles.md)).
-
-It plays in the browser as it is: `export_game` writes a self-contained folder for any static host, and `target: 'desktop'` makes that folder an Electron app (`npm install && npm start`, offline; signing it is yours). The engines get a translation with a report of what did not travel: `target: 'godot'` writes a real Godot 4 project, the fullest of them; Unity gets a data pack plus an importer; `target: 'roblox'` writes a Rojo project carrying the Luau kernel and a greybox per level. Unreal takes the game's assets, not the game: `export_model { format: 'unreal' }` writes a character or a solid as its GLB plus an editor importer.
-
-### 6. "I'm making a stealth game. Build me a multi-level military base to infiltrate"
-
-![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](docs/images/wcd-demo.gif)
-
-What it built, from the inside:
-
-| | |
-|---|---|
-| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
-| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor in the bunker look: board-formed concrete, yellow and green steel on its columns, a cable bent along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) |
-| ![The reactor plant's generator hall: a white-panelled hall with a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](docs/images/wcd-demo-reactor-corridor.jpg) |
-
-![The world's book, its "To the core" page: the four levels as rings with the reactor at the centre, each stair or door on its join with the keycard that opens it, beside each layer's look, its wall, base, floor and paint, and the design rules it holds](docs/images/wcd-demo-book.png)
-
-![A level's finishes in the book, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band tiles, each named by its cut and the metres it is laid at, its light's colours, and the note that its palette does not colour a bay building](docs/images/wcd-demo-finishes.png)
-
-One real Claude Code session on Sonnet 5.5, two asks, under four minutes of agent time: roughly 1.2M tokens (90% re-read
-from the prompt cache, 9k written) and 63 cents at API list price. Asked to see the plan and the looks first, the agent
-read the stealth and level-design cards, drafted the world with `design_game` without building it, and stopped on its
-book: the plan, and each building level's finishes (its walls, floor, columns, paint and light, painted as the build
-paints them; the armoury's board is above). On the yes it built all four, each level a base building stocked for what it
-is (bunks and footlockers, weapon racks in the cages, sandbags at the guard posts, an extinguisher by every door). What a
-run shows that a GIF hides: the agent also picked a palette per section, and said itself that a base building takes
-only its look's named palette, so those were not applied; building four levels outlasts Claude Code's 60-second wait
-for a tool, so it saw the build time out and read the finished world back. The book's dark briefing skin was set after
-the session, and the draft's pages in the GIF are redrawn from the stored world without its run's record; a world wears
-a skin with one `design_game` patch (`book: { skin: 'briefing' }`), or its own colours and faces. The whole record is
-[session.json](docs/images/src/wcd-demo/session.json), and [the runner](docs/images/src/wcd-demo/) records a new session
-or rebuilds a cooked base from its recipe with no agent at all.
+with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself meshes it on every read, in-process as WebAssembly with the Manifold backend, so booleans are exact and every edge is sharp. `color()` is the tint; each named part is a render group a hinge in `movers` can swing. The same ref serves the orbit view, the `.glb`, the engine packs and `model.stl` at 91 × 62 × 14 mm as written; `model.scad` hands the source back unchanged. Change `wall_h` with `update_sketch` and the readout names the one part that moved. For what OpenSCAD cannot say, a blended join, a stroked dent, seeded noise, the source calls `mojulo_field("<id>")` and a field solid from the same recipe is baked in at that spot.
 
 **Also from a sentence:** a character (`create_character`): a stylized hero, or the realistic hero with its face, eyes, hair, tailored wardrobe, armour and footwear ([docs/realistic-body.md](docs/realistic-body.md)), or a comic hero pack's cast, enemy crews and named heroes with their emblems; an animal mid-stride, rigged for glTF or VRM; a six-storey building with a set-back penthouse; a house as a townhouse or a modern block in a street-house tradition, an office, lab or warehouse laid from a brief, or an interior styled from a sentence; a walkable land from a geocube, a science world, a historic city at its period ([docs/historic/README.md](docs/historic/README.md)); an ambient loop or a full score synthesized from seeded math with no samples; a room's layout recovered from a photo you show your agent. The full catalog is in [docs/tour.md](docs/tour.md).
 
@@ -267,6 +295,8 @@ The control plane is single-operator and localhost-only by default. The stdio MC
 ---
 
 ## How it works
+
+Under the studio, mojulo is a **3D compiler for agents**. Your agent writes a small **recipe**, a few hundred bytes of JSON or an OpenSCAD program, and mojulo compiles it into the real thing the same way on every read: you change the sentence, not the mesh, and you can edit the recipe, diff it and keep it like code, while renders are disposable.
 
 A Next.js app exposes two faces over one SQLite: an MCP server (stdio for the npm package, HTTP for remote clients) that your agent calls, and a dashboard at `localhost:3001` that renders what accumulates. The compiler shape: a recipe is the source (params plus a `kind`), a kernel is the backend that regenerates it on every read, and each emitter is a target that owns its own frame and unit conversion from the native z-up metre frame. A kernel's output for given params is a compatibility promise over already-minted rows, tested byte-for-byte. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies; absence degrades one loop without breaking any.
 

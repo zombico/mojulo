@@ -1,6 +1,6 @@
 {
   "name": "mojulo",
-  "description": "The mojulo plugin, published by Franz Ombico from the zombico/mojulo repository: a local 3D compiler MCP server for Claude.",
+  "description": "The mojulo plugin, published by Franz Ombico from the zombico/mojulo repository: a local MCP server that turns Claude into a game studio.",
   "owner": {
     "name": "Franz Ombico",
     "url": "https://mojulo.ai"
@@ -9,7 +9,7 @@
     {
       "name": "mojulo",
       "source": "./plugins/mojulo",
-      "description": "A 3D compiler for Claude Code: build objects, walkable worlds and games by conversation as small recipes on your machine, exported to STL/3MF, glTF, HTML or Godot. No account, no external telemetry.",
+      "description": "Turn Claude into a game studio: you direct, Claude builds the levels, the cast, the feel, the look and the sound as small recipes on your machine, played in the browser and exported to Godot, glTF or STL/3MF. No account, no external telemetry.",
       "author": {
         "name": "Franz Ombico"
       }

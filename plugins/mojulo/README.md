@@ -1,8 +1,10 @@
 # Mojulo
 
-**Mojulo is a 3D compiler for Claude.** Describe a character, an object, a walkable
-world, a small game, a diagram or a piece of music, and Claude builds it through mojulo's tools as a
-deterministic recipe: a few hundred bytes of JSON, or
+**Mojulo turns Claude into a game studio.** You direct; Claude builds. Describe the game you want
+and Claude works through mojulo's departments: it plans the world and shows you its bible, builds the
+levels, casts the hero and the enemies, tunes how it feels to play, sets the look and scores it, and
+plays every level through before handing it over. The same studio makes characters, objects, walkable
+worlds, diagrams and music. Each one is a deterministic recipe: a few hundred bytes of JSON, or
 an OpenSCAD program, that compiles back to the same result every time. You edit and diff the
 recipe like code; every render is derived from it. From the recipe mojulo exports print-ready STL
 and 3MF at true scale, glTF, OpenUSD, a self-contained HTML page you can walk offline, and Godot,

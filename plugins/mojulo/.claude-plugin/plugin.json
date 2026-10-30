@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "displayName": "Mojulo",
-  "description": "A 3D compiler for Claude Code: build objects, walkable worlds and games by conversation as small recipes on your machine, exported to STL/3MF, glTF, HTML or Godot. No account, no external telemetry.",
+  "description": "Turn Claude into a game studio: you direct, Claude builds the levels, the cast, the feel, the look and the sound as small recipes on your machine, played in the browser and exported to Godot, glTF or STL/3MF. No account, no external telemetry.",
   "version": "3.1.1",
   "author": {
     "name": "Franz Ombico",
@@ -10,7 +10,7 @@
   "homepage": "https://mojulo.ai",
   "repository": "https://github.com/zombico/mojulo",
   "license": "Apache-2.0",
-  "keywords": ["mcp", "3d", "godot", "blender", "stl", "gltf", "procedural-generation"],
+  "keywords": ["mcp", "game-development", "3d", "godot", "blender", "stl", "gltf", "procedural-generation"],
   "mcpServers": {
     "mojulo": {
       "command": "node",

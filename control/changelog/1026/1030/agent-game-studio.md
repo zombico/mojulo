@@ -17,5 +17,11 @@ and stays the agent's word; the person reads what the compiler lets their agent 
 - **`README-OUTLINE.md`** is reframed for the rewrite: the studio's departments as the reader's questions, each
   answered by a bible page beside the screen it describes; one game shown start to finish; a grid that changes one
   department at a time to show the combinations; rooms, prints, books and science simulations as the same studio's
-  other outcomes; the compiler in How it works. The README, the npm README and the manifests follow it once the
-  captures exist (its Appendix A).
+  other outcomes; the compiler in How it works.
+- **The README and the manifests follow it.** The README opens "Turn your agent into a game studio. You direct; it
+  builds." over the stealth-base session (a real one: the pitch, the world's book approved, four levels built, its time
+  and cost), asks for games first (the base, a kart racer, a city), lays the departments out as a table with what each
+  does and where to read more, and then the same studio beyond games (the floor plan, the oak table, the Pi tray); the
+  compiler moved to How it works, and the quickstart's first ask is a game. The npm README's lead, the Claude plugin's
+  README and manifests, `package.json`, `server.json`, `glama.json` and the dashboard's meta description say the same.
+  The department cards with a bible page beside each screen wait on their captures.
