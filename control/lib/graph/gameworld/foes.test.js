@@ -181,6 +181,13 @@ describe('the run', () => {
     expect(made.order.mint.spec.geocube).toBeUndefined();
     const X = hostileCast(world({ a: { class: SOLO.id, skin } }, true), 'one', ENDS, { refs: { a: 'w-foes-a' } });
     expect(X.figures['foe-a']).toMatchObject({ heroRef: 'w-foes-a', library: expect.any(String) });
+    // (layer 0 carries it across a mode swap: dressed, defeated into a people's roll on the same stick figure; the
+    // death is the last mode's)
+    const chain = world({ a: { class: SOLO.id, skin, becomes: 'b' }, b: { class: SOLO.id, skin: { people: 'skeleton' } } }, { from: ['a'] });
+    const Y = hostileCast(chain, 'one', ENDS, { refs: { a: 'w-foes-a', b: 'w-foes-b' } }), body = Y.entities[0].body;
+    expect(body.modes.map((m) => m.figure)).toEqual(['foe-a', 'foe-b']);
+    expect(Y.figures['foe-a'].library).toBe(Y.figures['foe-b'].library);
+    expect(body.vanish.die).toBe(hostileCast(world({ b: { class: SOLO.id, skin: { people: 'skeleton' } } }, true), 'one', ENDS, { refs: { b: 'w-foes-b' } }).entities[0].body.vanish.die);
     // (only a person is dressed, and its dress names its build: its pole alone is its own)
     expect(() => readBestiary({ a: { class: SOLO.id, skin: { people: 'orcish', dress: { faction } } } })).toThrow(/only a person is dressed/);
     expect(() => readBestiary({ a: { class: SOLO.id, skin: { people: 'human', facets: { build: 'brute' }, dress: { faction } } } })).toThrow(/names only its pole/);
