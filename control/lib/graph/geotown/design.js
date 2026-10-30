@@ -265,7 +265,9 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   const T = readGeotown(spec), P = T.pattern, [C, Rn] = T.grid, evoked = T.evoke !== 'metro', ST = P.evoke.stretch;
   // ── 1 segments: each cell's kind, its rows turned to its main streets ──
   const rank = (id) => (T.mains.includes(id) ? 'main' : T.majors.includes(id) ? 'major' : 'street');
-  const SX = Array.from({ length: C + 1 }, (_, k) => sectionOf(P, rank(`ns-${k}`))), SY = Array.from({ length: Rn + 1 }, (_, j) => sectionOf(P, rank(`ew-${j}`)));
+  // (a line's bike lanes: a layout's `bike` lines, else its rank's share of them by its own dice)
+  const bike = (id) => (T.bikes ?? []).includes(id) || streamOf(seed, 'bikes', id)() < (P.bikes?.[rank(id)] ?? 0);
+  const SX = Array.from({ length: C + 1 }, (_, k) => sectionOf(P, rank(`ns-${k}`), bike(`ns-${k}`))), SY = Array.from({ length: Rn + 1 }, (_, j) => sectionOf(P, rank(`ew-${j}`), bike(`ew-${j}`)));
   const depth = roll(streamOf(seed, 'frame', 'depth'), P.block.depth);
   const cells = [];
   for (let j = 0; j < Rn; j++) for (let i = 0; i < C; i++) {
@@ -397,9 +399,11 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
       if (evoked) {
         const k = along / r.need.len;
         if (k < ST[0] || k > ST[1]) {
-          const n = Math.max(r.kind === 'houses' ? 2 : 1, Math.round(r.n * k));
-          cut = cutOf(P, K, n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${n}`), null, r.big ?? 0);
-          r.n = n;
+          // (the counts round its estimate, each cut by its own dice: the one whose frontages spread nearest their own)
+          const n0 = Math.round(r.n * k), least = r.kind === 'houses' ? 2 : 1;
+          const tries = [...new Set([n0 - 1, n0, n0 + 1].map((n) => Math.max(least, n)))].map((n) => { const cc = cutOf(P, K, n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${n}`), null, r.big ?? 0); return { n, cc, off: Math.abs(along / (cc.reduce((a, p) => a + p.w, 0) + 2 * K.corner) - 1) }; });
+          const best = tries.reduce((a, b) => (b.off < a.off - 1e-9 ? b : a));
+          cut = best.cc; r.n = best.n;
         }
         // (how far its frontages spread to fill its cell, and how much deeper its plots run than they need; a row of houses
         // squeezed under a dwelling's least frontage takes a house fewer)
@@ -567,9 +571,11 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   const STALL = 6.2, CLEAR = 6, lanes = [];
   const faces = (id, side) => { const k = Number(id.slice(3)); return id.startsWith('ns') ? (side === 'w' ? k > 0 : k < C) : (side === 's' ? k > 0 : k < Rn); };
   for (const p of pieces) {
-    if (p.cls !== 'road' || !p.street || PK.sides === 'none') continue;
+    if (p.cls !== 'road' || !p.street || (PK.sides === 'none' && (p.street.startsWith('ns') ? SX : SY)[Number(p.street.slice(3))].rank === 'street')) continue;
     const ns = p.street.startsWith('ns'), [lo, hi] = ns ? ['w', 'e'] : ['s', 'n'], open = [lo, hi].filter((s) => faces(p.street, s));
-    const sides = PK.sides === 'both' ? open : open.includes(hi) ? [hi] : open.slice(0, 1), [x0, y0, x1, y1] = p.rect, L = PK.lane;
+    // (a main or major street parked both sides whatever the streetscape; its lane the section's own `park`)
+    const S0 = ns ? SX[Number(p.street.slice(3))] : SY[Number(p.street.slice(3))], serious = S0.rank !== 'street';
+    const sides = PK.sides === 'both' || serious ? open : open.includes(hi) ? [hi] : open.slice(0, 1), [x0, y0, x1, y1] = p.rect, L = S0.park;
     for (const side of sides) {
       const rect = ns ? (side === 'w' ? [x0, y0, r3(x0 + L), y1] : [r3(x1 - L), y0, x1, y1]) : (side === 's' ? [x0, y0, x1, r3(y0 + L)] : [x0, r3(y1 - L), x1, y1]);
       const [a0, a1] = ns ? [y0, y1] : [x0, x1], cut = (cuts.get(`${p.street}:${side}`) ?? []).sort((a, b) => a[0] - b[0]), stalls = [];

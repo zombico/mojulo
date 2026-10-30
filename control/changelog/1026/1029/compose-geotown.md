@@ -79,6 +79,12 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   grows each at), each held to its room by the form's own crown, a tree without room not planted. No trail's dress: no
   rubble, dust, clay or patches, no moss, and no tree held for a raised view. The ground under a yard's or a park's
   things (a patio, a deck, a shed, a pool, beds, chips) is claimed from the grass. Any other generation: as it was.
+- **Streets by their lanes** (`pattern.street`, `main`, `major`: `lanes`, `lane`, `park` m): a local street two lanes and
+  a parked side each way, four cars across tightly; a main or major street four lanes and parking each side, parked
+  both sides whatever the streetscape; BIKE lanes on some (`pattern.bikes`: the share a rank's lines get them by their
+  dice, a layout's `bike` lines always), kerb, parking, bike lane, travel. Painted: a local street's dashed yellow
+  centre, a serious street's double yellow and its dashed white lane lines, the travel lanes' edge lines, a bike
+  lane's green and its marks.
 - **Houseplants from the plant library** (`pattern.houseplants`): read by the seventh generation, a yard's garden and
   kitchen beds grow hostas, ferns and heather, a deck's planters box, the front hedges and the hedge fences are rows of
   box, and a share of front yards keep foundation plantings by the porch (forsythia, juniper, box, a flowering shrub in

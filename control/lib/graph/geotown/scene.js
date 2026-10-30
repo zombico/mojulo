@@ -99,6 +99,8 @@ const STEP_RISE = 0.18, NO_STEPS = 0.25, HEDGE = { h: 0.85, d: 0.55, in: 0.25 };
 // trunk over that share; its crown's reach this far short of any building at the least
 export const TREE_CLEAR = 2 * WALK.body, TREE_RAISE = 0.42;
 const TREE_LEAST = TREE_CLEAR / TREE_RAISE, TREE_GAP = 0.6;
+// a bike lane's marks: the metres between them
+const BIKE_MARK = 26;
 // (read by the seventh generation) the town's soft ground the form's land draws and grows its grass on (a lawn, a
 // boulevard, a back yard, a park, a site's lawn and its fields, the border), as the form's own ground; and the things on
 // it whose ground is claimed from the grass (their tops: a patio, a deck, a shed, a pool, beds, chips, a pavilion's slab)
@@ -150,7 +152,7 @@ function coloursOf(cube) {
     // a yard's things: a trampoline's mat, a grill, mulch round a tree, a compost bin, a balcony's rail
     mat: '#24262a', grill: '#2b2b2d', mulch: mix('#5b4232', C.floor, 0.2), compost: '#4f5a3c', rail: mix('#ece8de', C.trim, 0.2),
     // a gated front: its iron, its low wall's brick, its piers' stone
-    lane: mix('#55585c', C.floor, 0.12), steel: '#3c4044', pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
+    yellow: '#e2bd3c', bike: '#3f8a52', lane: mix('#55585c', C.floor, 0.12), steel: '#3c4044', pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
     iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
     // a site's ground and its things: lawn, turf and its mown stripes, the lines, a court, a track, a diamond's dirt, the
     // chips under a playground; goals, nets, fences, a field house's block walls, lamps, a flag, seats
@@ -533,6 +535,33 @@ export function assembleGeotownScene(m, ctx = {}) {
       const [a, b] = [p.rect, q.rect], alongY = Math.abs(a[2] - b[0]) < 1e-3 || Math.abs(b[2] - a[0]) < 1e-3;
       if (alongY) { const x = Math.abs(a[2] - b[0]) < 1e-3 ? a[2] : a[0], y0 = Math.max(a[1], b[1]), y1 = Math.min(a[3], b[3]), toQ = Math.sign((b[0] + b[2]) / 2 - x); wall([[x, y0, p.pad], [x, y1, p.pad], [x, y1, q.pad], [x, y0, q.pad]], [p.pad > q.pad ? toQ : -toQ, 0, 0]); }
       else { const y = Math.abs(a[3] - b[1]) < 1e-3 ? a[3] : a[1], x0 = Math.max(a[0], b[0]), x1 = Math.min(a[2], b[2]), toQ = Math.sign((b[1] + b[3]) / 2 - y); wall([[x0, y, p.pad], [x1, y, p.pad], [x1, y, q.pad], [x0, y, q.pad]], [0, p.pad > q.pad ? toQ : -toQ, 0]); }
+    }
+  }
+  // ── the streets' paint, each by its lanes (pattern.js sectionOf): a local street's dashed yellow centre, a serious
+  // street's double yellow and its dashed white lane lines, the travel lanes' edges, a bike lane's green, its line and
+  // its marks; laid in lengths of a cell, on the street's ground ──
+  for (const p of d.pieces) {
+    if (p.cls !== 'road' || !p.street) continue;
+    const ns = p.street.startsWith('ns'), k = Number(p.street.slice(3)), Sc = (ns ? d.sections.x : d.sections.y)[k], c = (ns ? d.X : d.Y)[k], [x0, y0, x1, y1] = p.rect, [a0, a1] = ns ? [y0, y1] : [x0, x1];
+    const at = (s, o) => (ns ? [c + o, s] : [s, c + o]), tw = (Sc.lanes * Sc.lane) / 2;
+    // (a strip from s0 to s1 along it, o0 to o1 across, in lengths of a cell)
+    const strip = (s0, s1, o0, o1, group, hex, lift = 0.03) => { for (let s = s0; s < s1 - 1e-6; s += CELL) { const e = Math.min(s1, s + CELL), q = [at(s, o0), at(e, o0), at(e, o1), at(s, o1)]; put(q.map(([x, y]) => [x, y, S(x, y) + lift]), group, hex); } };
+    const solid = (o, w, hex) => strip(a0 + 0.5, a1 - 0.5, o - w / 2, o + w / 2, 'geotown:paint', hex);
+    const dashed = (o, w, hex, dash = 3, gap = 4.5) => { for (let s = a0 + 1; s + dash <= a1 - 1; s += dash + gap) strip(s, s + dash, o - w / 2, o + w / 2, 'geotown:paint', hex); };
+    if (Sc.lanes <= 2) dashed(0, 0.12, col.yellow);
+    else { solid(-0.1, 0.1, col.yellow); solid(0.1, 0.1, col.yellow); for (let i = 1; i < Sc.lanes / 2; i++) for (const sg of [-1, 1]) dashed(sg * i * Sc.lane, 0.12, col.line); }
+    for (const sg of [-1, 1]) {
+      solid(sg * tw, 0.1, col.line);
+      if (Sc.bike > 0) {
+        // (a bike lane: its green, its line by the parked cars, its marks at their stride: a cycle's two wheels and frame)
+        strip(a0 + 0.5, a1 - 0.5, sg > 0 ? tw + 0.05 : -tw - Sc.bike, sg > 0 ? tw + Sc.bike : -tw - 0.05, 'geotown:bike', col.bike, 0.02);
+        solid(sg * (tw + Sc.bike), 0.1, col.line);
+        const m = sg * (tw + Sc.bike / 2);
+        for (let s = a0 + 8; s < a1 - 8; s += BIKE_MARK) for (const ds of [-0.45, 0.45]) {
+          const ring = Array.from({ length: 7 }, (_, i) => [s + ds + 0.28 * Math.cos((Math.PI * 2 * i) / 6), m + 0.28 * Math.sin((Math.PI * 2 * i) / 6)]);
+          for (let i = 0; i < 6; i++) { const [sa, oa] = ring[i], [sb, ob] = ring[i + 1], q = [at(sa, oa - 0.03), at(sb, ob - 0.03), at(sb, ob + 0.03), at(sa, oa + 0.03)]; put(q.map(([x, y]) => [x, y, S(x, y) + 0.04]), 'geotown:paint', col.line); }
+        }
+      }
     }
   }
   // ── the street's furniture (design.js `traffic`): its streetlights; at each controlled crossing its crosswalks (zebras

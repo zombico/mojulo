@@ -19,10 +19,11 @@
  *                   change to its street section, plots, houses and setback, and its street trees, parking and gates
  *   STREETSCAPE_SETTINGS   what a recipe may change over a streetscape: setback, gates, parking, trees
  *   GATE_SHARES, PARKING_SIDES   the words for gates (none, some, most, all) and the sides a street parks
- *   sectionOf(P, rank)   a street's right-of-way by its rank ('street', 'main' or 'major'): { R, kerb, edge, verge, walk, half, row }
+ *   sectionOf(P, rank, bike?)   a street's right-of-way by its rank ('street', 'main' or 'major') and whether it has bike
+ *                   lanes: { R, kerb, edge, verge, walk, half, row, lanes, lane, park, bike } (`bike` their width, 0 none)
  *   rowOf(P)        the residential street's
  *
- * Metres throughout; a street's `road` is its whole carriageway, `verge` and `walk` are each side's.
+ * Metres throughout; a street's carriageway its lanes, its parking and its bike lanes; `verge` and `walk` are each side's.
  */
 
 export const SURFACES = Object.freeze({
@@ -69,13 +70,18 @@ export const PATTERNS = Object.freeze({
     read: 'a Victorian and Edwardian streetcar suburb (a Toronto Annex): long blocks of brick semis and detached houses, two and a half storeys with their gables to the street, each behind a front yard and a boulevard of maples, a deep back yard behind',
     // the houses' architectural style (era/arch-style.js): their language and material words, unless the recipe names one
     style: 'bay-and-gable',
-    // the right-of-way: the carriageway (two lanes and a parked side), and each side's kerb, boulevard and walk; a MAIN
-    // street's wider (four lanes and a parked side each way), its walk paved to the kerb, its trees in pits by it
-    street: { road: 8.5, kerb: 0.15, edge: 'verge', verge: 3, walk: 1.8 },
-    main: { road: 13, kerb: 0.15, edge: 'furnish', verge: 1.6, walk: 3.4 },
-    // a MAJOR street, an arterial round the neighbourhood's edge: four lanes, a narrower walk, a strip by the kerb with a
-    // tree in a pit here and there (`trees`: its stride, the share planted)
-    major: { road: 14, kerb: 0.15, edge: 'furnish', verge: 1.2, walk: 2.6, trees: { stride: 14, share: 0.5 } },
+    // the right-of-way: the carriageway its LANES (`lanes` of `lane` m, a parking lane `park` m each side, a bike lane
+    // each side where the line has one, pattern.bikes), and each side's kerb, boulevard and walk. A local street fits
+    // four cars across tightly: two lanes and a parked side each way. A MAIN street four lanes and parking each side, its
+    // walk paved to the kerb, its trees in pits by it
+    street: { lanes: 2, lane: 2.5, park: 2, kerb: 0.15, edge: 'verge', verge: 3, walk: 1.8 },
+    main: { lanes: 4, lane: 3.2, park: 2.4, kerb: 0.15, edge: 'furnish', verge: 1.6, walk: 3.4 },
+    // a MAJOR street, an arterial round the neighbourhood's edge: four lanes and parking each side, a narrower walk, a
+    // strip by the kerb with a tree in a pit here and there (`trees`: its stride, the share planted)
+    major: { lanes: 4, lane: 3.2, park: 2.4, kerb: 0.15, edge: 'furnish', verge: 1.2, walk: 2.6, trees: { stride: 14, share: 0.5 } },
+    // BIKE lanes: their width (m) and the share of each rank's lines that get one each side, by the line's dice (a
+    // layout's `bike` lines always)
+    bikes: { w: 1.6, street: 0.3, main: 0.6, major: 0.5 },
     // a public lane behind an edge's avenue lots, between them and the houses' back yards; the share of those houses
     // with a garage off it, and the garage
     lane: { w: 5, garages: 0.45, garage: { w: 3.4, d: 6 } },
@@ -259,9 +265,10 @@ export const DEFAULT_PATTERN = 'bay-and-gable';
 
 /** A street's right-of-way by its rank: its carriageway's half (`R`), the kerb, what stands by the kerb (`edge`: a
  *  verge, or a main street's furnishing strip) and how wide, each side's walk, the half and the whole. */
-export function sectionOf(P, rank = 'street') {
-  const S = rank === 'main' ? P.main : rank === 'major' ? P.major : P.street, R = S.road / 2, half = R + S.verge + S.walk;
-  return { rank, R, kerb: S.kerb, edge: S.edge ?? 'verge', verge: S.verge, walk: S.walk, half, row: 2 * half };
+export function sectionOf(P, rank = 'street', bike = false) {
+  const S = rank === 'main' ? P.main : rank === 'major' ? P.major : P.street, bw = bike ? P.bikes?.w ?? 1.6 : 0;
+  const road = S.lanes * S.lane + 2 * S.park + 2 * bw, R = road / 2, half = R + S.verge + S.walk;
+  return { rank, R, kerb: S.kerb, edge: S.edge ?? 'verge', verge: S.verge, walk: S.walk, half, row: 2 * half, lanes: S.lanes, lane: S.lane, park: S.park, bike: bw };
 }
 /** The residential street's right-of-way. */
 export const rowOf = (P) => sectionOf(P, 'street');

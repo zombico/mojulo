@@ -169,7 +169,7 @@ function readLayout(spec, evoke, P) {
   const N0 = spec.neighbourhood ?? Object.keys(P.neighbourhoods ?? {})[0], ids = Object.keys(P.neighbourhoods ?? {});
   const N = typeof N0 === 'string' ? P.neighbourhoods?.[N0] : N0;
   if (!N || !isObj(N)) no(`neighbourhood is one of the pattern's (${ids.join(', ') || 'none'}) or { layout: ['HHP', …], main?: ['ew-0', …] }`);
-  for (const k of Object.keys(N)) if (!['read', 'layout', 'main', 'major'].includes(k)) no(`neighbourhood.${k} is not a setting (layout, main, major)`);
+  for (const k of Object.keys(N)) if (!['read', 'layout', 'main', 'major', 'bike'].includes(k)) no(`neighbourhood.${k} is not a setting (layout, main, major, bike)`);
   const L = N.layout;
   if (!Array.isArray(L) || !L.length || L.length > GRID_MOST || !L.every((r) => typeof r === 'string' && r.length === L[0].length && r.length <= GRID_MOST)) no(`neighbourhood.layout is rows of letters north to south, each as long, at most ${GRID_MOST} by ${GRID_MOST}`);
   const cells = L.slice().reverse().map((r, j) => [...r].map((c, i) => SEGMENT_LETTERS[c] ?? no(`neighbourhood.layout row ${L.length - j}, column ${i + 1}: '${c}' is not a segment's letter (${Object.entries(SEGMENT_LETTERS).map(([l, t]) => `${l} ${t}`).join(', ')})`)));
@@ -178,11 +178,12 @@ function readLayout(spec, evoke, P) {
   const mains = N.main ?? [];
   if (!Array.isArray(mains)) no('neighbourhood.main is the main streets, [\'ew-0\', …]');
   // (a major street: an arterial round the edge, where an edge's avenue faces; never a main street too)
-  const majors = N.major ?? [];
+  const majors = N.major ?? [], bikes = N.bike ?? [];
   if (!Array.isArray(majors)) no('neighbourhood.major is the major streets, [\'ew-0\', …]');
-  for (const [k, list] of [['main', mains], ['major', majors]]) for (const m of list) { const x = LINE.exec(m); if (!x || Number(x[2]) > (x[1] === 'ns' ? grid[0] : grid[1])) no(`neighbourhood.${k} '${m}' is not a street of a ${grid[0]} × ${grid[1]} layout (ns-0…ns-${grid[0]}, ew-0…ew-${grid[1]})`); }
+  if (!Array.isArray(bikes)) no('neighbourhood.bike is the streets with bike lanes, [\'ns-1\', …]');
+  for (const [k, list] of [['main', mains], ['major', majors], ['bike', bikes]]) for (const m of list) { const x = LINE.exec(m); if (!x || Number(x[2]) > (x[1] === 'ns' ? grid[0] : grid[1])) no(`neighbourhood.${k} '${m}' is not a street of a ${grid[0]} × ${grid[1]} layout (ns-0…ns-${grid[0]}, ew-0…ew-${grid[1]})`); }
   for (const m of majors) if (mains.includes(m)) no(`neighbourhood: '${m}' is main or major, not both`);
-  return { grid, cells, mains: [...mains], majors: [...majors] };
+  return { grid, cells, mains: [...mains], majors: [...majors], bikes: [...bikes] };
 }
 
 /** The recipe's `geotown`, checked → the town as the design reads it. */
@@ -191,7 +192,7 @@ export function readGeotown(spec = {}) {
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of a geotown (${KEYS.join(', ')})`);
   const evoke = spec.evoke ?? DEFAULT_EVOKE;
   if (!EVOKE_IDS.includes(evoke)) no(`evoke is ${EVOKE_IDS.map((e) => `'${e}'`).join(', ')} (got ${JSON.stringify(spec.evoke)})`);
-  const pattern = readStreetscape(readPattern(spec.pattern), spec.streetscape), { grid, cells, mains, majors } = readLayout(spec, evoke, pattern);
+  const pattern = readStreetscape(readPattern(spec.pattern), spec.streetscape), { grid, cells, mains, majors, bikes = [] } = readLayout(spec, evoke, pattern);
   let hills = null;
   if (spec.hills !== false) {
     const h = spec.hills ?? {};
@@ -221,5 +222,5 @@ export function readGeotown(spec = {}) {
   if (!(typeof margin === 'number' && margin >= 0 && margin <= 120)) no('margin is the metres of land drawn round the town, 0 to 120');
   // (a block by hand changes its cell's segment)
   for (const [id, b] of Object.entries(blocks)) if (b.use) cells[Number(id[1]) - 1][LETTERS.indexOf(id[0])] = b.use;
-  return { evoke, pattern, grid, cells, mains, majors, hills, blocks, margin };
+  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin };
 }

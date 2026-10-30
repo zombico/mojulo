@@ -129,7 +129,8 @@ A cube that names no domains offers one per terrain and one per interior.
   `school-and-field`, `edges`, or `{ layout: ['EEE', 'HPH', 'EEE'], main?, major?: ['ew-0', 'ew-3'] }`: rows of
   letters north to south, H houses, M main-street, A apartments, L lowrise, P park, S school, F sports, E edge, a wide letter side
   by side one block; `main` the streets that are main, wider, their walks paved to the kerb; `major` the arterials an
-  edge faces), each segment tuned to its cell (its rows recut and spread, its `fits`
+  edge faces; `bike` the streets with bike lanes; a local street two lanes and a parked side each way, a main or major
+  street four lanes and parking each side, bike lanes on some, all painted), each segment tuned to its cell (its rows recut and spread, its `fits`
   law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
   them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
   (`evokes`) on a window of its land. `streetscape` how close to the city, read from its sidewalk: `leafy` (the

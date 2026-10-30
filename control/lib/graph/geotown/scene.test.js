@@ -243,4 +243,11 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(g6.plants).toBeUndefined();
     expect(new Set(g6.faces.map((f) => f.group)).has('geotown:front')).toBe(true);
   });
+
+  it('paints its streets by their lanes: centre lines, lane lines, edges, a bike lane\'s green and marks', () => {
+    const p = assembleGeotownScene({ kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, evoke: 'neighbourhood', neighbourhood: { layout: ['HH', 'MM'], main: ['ew-0'], bike: ['ns-1'] } } });
+    const groups = new Set(p.faces.map((f) => f.group));
+    for (const g of ['geotown:paint', 'geotown:bike']) expect(groups.has(g)).toBe(true);
+    expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+  });
 });

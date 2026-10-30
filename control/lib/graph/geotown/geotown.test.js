@@ -370,3 +370,23 @@ describe('split duplex semis', () => {
   });
 });
 
+describe('streets by their lanes', () => {
+  it('fits four cars across a local street tightly, four lanes and parking each side on a serious one; bike lanes on some', () => {
+    const P = PATTERNS[DEFAULT_PATTERN], d = designGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HH', 'MM'], main: ['ew-0'], bike: ['ns-1'] } }, { seed: 2, field: plane });
+    const all = [...d.sections.x, ...d.sections.y];
+    for (const S of all) {
+      const T = S.rank === 'street' ? P.street : P.main;
+      expect(2 * S.R).toBeCloseTo(T.lanes * T.lane + 2 * T.park + 2 * S.bike, 6);
+    }
+    // (a local street: two lanes and a parked side each way, about four car widths; a main street four lanes)
+    expect(P.street.lanes * P.street.lane + 2 * P.street.park).toBeLessThanOrEqual(4 * 2.3);
+    expect(d.sections.y[0].lanes).toBe(4);
+    // a layout's bike line has them; a main street is parked both sides whatever the streetscape
+    expect(d.sections.x[1].bike).toBeGreaterThan(0);
+    const main = d.parking.lanes.filter((l) => l.street === 'ew-0');
+    expect(main.every((l) => Math.abs((l.axis === 'x' ? l.rect[3] - l.rect[1] : l.rect[2] - l.rect[0]) - P.main.park) < 1e-6)).toBe(true);
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(() => readGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HH', 'HH'], bike: ['ns-9'] } })).toThrow(/neighbourhood.bike 'ns-9' is not a street/);
+  });
+});
+
