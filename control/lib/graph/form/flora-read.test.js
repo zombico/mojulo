@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, speciesFor, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR } from './flora-read.js';
+import { floraRead, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -89,3 +89,16 @@ describe('the form render\'s plants', () => {
     expect(page).toContain("'form-needles' + phi");
   });
 });
+
+describe('a tree that names its species (a town\'s), and the sizes the form grows them at', () => {
+  it('grows a named species, and says each tree\'s height and crown reach in the plants\' order', () => {
+    expect(speciesFor({ species: 'maple', cluster: 1 }, null)).toBe('maple');
+    expect(speciesFor({ cluster: 1 }, null)).toBe(FLORA_DEFAULT[Math.floor(0) + FLORA_DEFAULT.indexOf(speciesFor({ cluster: 1 }, null))]);
+    const plants = { form: 'blob', kinds: null, bushKinds: null, trees: [{ x: 0, y: 0, z: 0, h: 6, kind: -1, cluster: 0, species: 'beech' }, { x: 9, y: 0, z: 0, h: 9, kind: -1, cluster: 1, species: 'beech' }], bushes: [], shrubs: [] };
+    const S = treeSizes(plants);
+    expect(S.length).toBe(2);
+    expect(S[1].h).toBeGreaterThan(S[0].h);
+    for (const s of S) expect(s.r).toBeGreaterThan(0);
+  });
+});
+

@@ -9,6 +9,7 @@
  * (era/flora-colours.js) solved the same way (its colour over the cube's foliage, times the foliage's base).
  *
  *   floraRead(plants, { kinds, bushKinds, colours, bases, autumn? }) → { templates, barks, trees, n, lod, leafRef, autumn? } | null
+ *   treeSizes(plants) → [{ h, r }] each tree's height and crown reach as the form grows it
  *     (leafRef: the leaf colour a geometry's tone factors are over, linear: a blossom's or a berry's own colour back)
  *     plants: plantItems' { form, trees, bushes, shrubs } (a bamboo or a blossom card: null, its own look stays)
  *     kinds: the card's `trees.leafKinds`; bushKinds: `thickets.kinds`; colours: the cube's (#rrggbb: foliage, grass,
@@ -162,8 +163,17 @@ function barkOf(key) {
   return CACHE.get(ck);
 }
 
-/** The species a tree grows as: its kind's leaf form's, or (no kind) its cluster's among FLORA_DEFAULT. */
-export const speciesFor = (t, K) => (K ? FLORA_SPECIES[K.form] : FLORA_DEFAULT[Math.floor(hashN((t.cluster + 7) * 7919) * FLORA_DEFAULT.length)]);
+/** The species a tree grows as: its own where it names one (`species`, a town's street tree), else its kind's leaf
+ *  form's, or (no kind) its cluster's among FLORA_DEFAULT. */
+export const speciesFor = (t, K) => t.species ?? (K ? FLORA_SPECIES[K.form] : FLORA_DEFAULT[Math.floor(hashN((t.cluster + 7) * 7919) * FLORA_DEFAULT.length)]);
+/** Each tree's size as the form grows it (the plan floraRead draws by): its height and its crown's reach (m), in the
+ *  plants' order, so a caller can hold a tree to its room before it is grown. */
+export function treeSizes(plants) {
+  if (!plants || plants.form === 'bamboo' || plants.form === 'blossom' || !plants.trees.length) return [];
+  const kindAt = (t) => (t.kind >= 0 && plants.kinds ? readKind(plants.kinds[t.kind]) : null), at = new Map(plants.trees.map((t, i) => [t, i])), out = [];
+  for (const { t, T, h } of treePlan(plants, kindAt)) out[at.get(t)] = { h, r: r4(T.radius * (h / T.height)) };
+  return out;
+}
 
 // the trees' plan: each its species' template at the kind's middle height and its own height, in the order they are
 // drawn (by species, each species' trees as placed)

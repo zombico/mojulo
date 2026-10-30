@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleGeotownScene, GEOTOWN_FACES, fitFront, shopfrontOf, TREE_CLEAR, TREE_RAISE } from './scene.js';
+import { assembleGeotownScene, GEOTOWN_FACES, fitFront, shopfrontOf, TREE_CLEAR, TREE_RAISE, FORM_GROUND } from './scene.js';
 import { mulberry32 } from '../city/plan/dice.js';
 import { designGeotown } from './design.js';
 import { SURFACES, PATTERNS, DEFAULT_PATTERN } from './pattern.js';
@@ -217,5 +217,23 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(new Set(row.map((f) => f.awning)).size).toBeGreaterThan(1);
     const F = shopfrontOf(PATTERNS[DEFAULT_PATTERN].shopfronts, mulberry32(9), null);
     expect(shopfrontOf(PATTERNS[DEFAULT_PATTERN].shopfronts, mulberry32(9), { sign: F.sign, awning: F.awning }).awning).not.toBe(F.awning);
+  });
+
+  it('hands its flora to the seventh generation: its lawns the form\'s ground, its trees the form\'s, each held to its room', () => {
+    const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 } } }, p = assembleGeotownScene(E, { form: true });
+    expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+    const groups = new Set(p.faces.map((f) => f.group));
+    expect(groups.has('isekai:ground')).toBe(true);
+    for (const g of FORM_GROUND) expect(groups.has(g)).toBe(false);
+    // its trees grown by the form (no repeats), each its pattern's species, its ground and its yard's things claimed
+    expect(p.repeats.length).toBe(0);
+    expect(p.plants.trees.length).toBeGreaterThan(0);
+    expect(new Set(p.plants.trees.map((t) => t.species)).size).toBeGreaterThan(1);
+    for (const t of p.plants.trees) expect(PATTERNS[DEFAULT_PATTERN].grow.trees.concat(PATTERNS[DEFAULT_PATTERN].grow.street, PATTERNS[DEFAULT_PATTERN].grow.parkTrees, [PATTERNS[DEFAULT_PATTERN].grow.shade])).toContain(t.species);
+    expect(p.plants.clear.length).toBeGreaterThan(p.plants.trees.length);
+    // read by any other generation: its own painted lawns and its trees as repeats, as before
+    const g6 = assembleGeotownScene(E);
+    expect(g6.plants).toBeUndefined();
+    expect(new Set(g6.faces.map((f) => f.group)).has('geotown:front')).toBe(true);
   });
 });

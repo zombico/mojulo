@@ -535,7 +535,8 @@ export const WORLD_KINDS = {
         return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) } }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
       // a neighbourhood on the cube's own land (geotown/scene.js): its map first, levelled on the land's hills, in metres
-      if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title }));
+      // (a page read by the seventh generation: the town's lawns and trees handed to the form render)
+      if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

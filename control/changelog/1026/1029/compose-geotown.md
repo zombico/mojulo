@@ -71,6 +71,14 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   neighbours alike, each at its type's setback and frontage; a public LANE behind them (the `lane` surface), and the
   houses behind it facing their quiet street, some with a garage off the lane (counted in `parking`). The pattern's
   neighbourhood `edges`: quiet streets between two major ones.
+- **Its flora as the seventh generation grows it**: read by gen-7 (a page in the form render), the town hands its
+  lawns, boulevards, back yards, parks, sites' lawns and fields to the form's land as its ground (`isekai:ground`,
+  geotown/scene.js FORM_GROUND) and its trees to the form's plants: real blades of mown grass (the short sward, no
+  meadow's drifts) on them under the cube's light, its trees grown as form (bark, crowns, the litter round their feet),
+  each its own species (`form/flora-read.js`: a tree may name its `species`; `treeSizes` the height and reach the form
+  grows each at), each held to its room by the form's own crown, a tree without room not planted. No trail's dress: no
+  rubble, dust, clay or patches, no moss, and no tree held for a raised view. The ground under a yard's or a park's
+  things (a patio, a deck, a shed, a pool, beds, chips) is claimed from the grass. Any other generation: as it was.
 - **Split duplex semis**: more of the houses semis (the pattern's mix), and a share of the pairs (`pattern.duplex`)
   split into two flats each: two doors side by side at the porch, a porch over a porch (the upper flat's, its own door
   onto it), a steel stair at the back from the yard to the upper flat's landing and door, the yard by the back door

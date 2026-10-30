@@ -142,7 +142,8 @@ A cube that names no domains offers one per terrain and one per interior.
   street between), all-way stops at `stops` of the local crossings, crosswalks and stop lines where controlled. Its
   ground wears its pattern's `finishes` (the walk's scored concrete, the road's asphalt, brick paths, a stone kerb);
   trees stand only in the town, each crown raised to start twice a person's height up, each held to its room so no
-  crown reaches a building (`room`); its border is bare. `pattern` a block pattern (`bay-and-gable`, a
+  crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
+  grass and its trees grow as form (no trail's rubble or patches). `pattern` a block pattern (`bay-and-gable`, a
   Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
   houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
   segments, the ports and the laws;

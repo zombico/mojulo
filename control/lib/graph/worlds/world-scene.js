@@ -729,14 +729,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was
   if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
-    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
-    const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
+    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+    // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
+    const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
     // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
-    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = F?.moss ?? 0, sward = F?.grass?.sward;
-    const drifts = readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
+    // (a town's lawns are mown: the short sward, no meadow's drifts)
+    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
+    const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
-    if (payload.plants) payload.plants = viewHeld(payload.plants, payload.cameras, { kinds: payload.plants.kinds });
+    if (payload.plants && !town) payload.plants = viewHeld(payload.plants, payload.cameras, { kinds: payload.plants.kinds });
     // (where the form grows its own plants, floraBox: the painted trees and bushes there are not read as land)
     const grown = floraBox(payload.plants);
     // (a winter, snow over the whole land with no line, grows no grass at all; under a snow line the grass stands below it)

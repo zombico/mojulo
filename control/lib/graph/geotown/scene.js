@@ -47,6 +47,7 @@ import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace } from '../era/town-dress.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
+import { treeSizes } from '../form/flora-read.js';
 import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
@@ -98,6 +99,11 @@ const STEP_RISE = 0.18, NO_STEPS = 0.25, HEDGE = { h: 0.85, d: 0.55, in: 0.25 };
 // trunk over that share; its crown's reach this far short of any building at the least
 export const TREE_CLEAR = 2 * WALK.body, TREE_RAISE = 0.42;
 const TREE_LEAST = TREE_CLEAR / TREE_RAISE, TREE_GAP = 0.6;
+// (read by the seventh generation) the town's soft ground the form's land draws and grows its grass on (a lawn, a
+// boulevard, a back yard, a park, a site's lawn and its fields, the border), as the form's own ground; and the things on
+// it whose ground is claimed from the grass (their tops: a patio, a deck, a shed, a pool, beds, chips, a pavilion's slab)
+export const FORM_GROUND = Object.freeze(['geotown:front', 'geotown:back', 'geotown:verge', 'geotown:park', 'geotown:grounds', 'geotown:field', 'geotown:margin']);
+const CLAIMED = new Set(['paving', 'deck', 'shed', 'roof', 'garage', 'gravel', 'soil', 'sand', 'water', 'coping', 'timber', 'chips', 'mulch', 'compost', 'steel', 'dirt', 'court', 'track', 'drive', 'car']);
 // the town's air: a share of the cube's, since a town is seen across hundreds of metres, not a trail's seventy
 const TOWN_HAZE = 0.45;
 
@@ -260,6 +266,16 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (!types.has(key)) { prev = pl.type ? `${pl.type}:${pl.k}` : kits.pick(familyOf(pl), R, prev); types.set(key, prev); }
     }
   }
+  // (read by the seventh generation, ctx.form: its lawns are the form's ground and grow its grass; the ground under a
+  // yard's or a park's things is claimed from it, circles along each thing's top, so no blade grows through a patio)
+  const form = !!ctx.form, claims = [];
+  const claim = (cs, role, o) => {
+    if (!form || !CLAIMED.has(role) || o[2] < 0.5) return;
+    const xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), w = x1 - x0, h = y1 - y0, s = Math.min(w, h);
+    if (w * h < 0.25) return;
+    const n = Math.max(1, Math.ceil(Math.max(w, h) / Math.max(0.5, s))), r = r5(s * 0.6 + 0.15);
+    for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; claims.push(w >= h ? [r5(x0 + w * t), r5((y0 + y1) / 2), r] : [r5((x0 + x1) / 2), r5(y0 + h * t), r]); }
+  };
   // ── the plots ──
   const W = (pl, u, v, z) => [pl.A[0] + pl.ex[0] * u + pl.ey[0] * v, pl.A[1] + pl.ex[1] * u + pl.ey[1] * v, z];
   const items = {}, grows = (sp, x, y, z, h, on) => { (items[sp] ||= []).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h), on }); };
@@ -271,6 +287,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   const yardFace = (pl, f, shedHex = col.shed) => {
     const cs = f.corners.map(([u, v, z]) => W(pl, u, v, pl.pad + z)), o = f.out, want = unit([pl.ex[0] * o[0] + pl.ey[0] * o[1], pl.ex[1] * o[0] + pl.ey[1] * o[1], o[2]]);
     put(cs, `geotown:${f.role}`, f.hex ?? (f.role === 'shed' ? shedHex : col[f.role] ?? col.timber), want);
+    claim(cs, f.role, o);
   };
   let built = 0, hedges = 0, gated = 0, padCars = 0;
   const shopPrev = new Map();
@@ -596,7 +613,9 @@ export function assembleGeotownScene(m, ctx = {}) {
     const thing = (fs, z0 = null) => {
       for (const f of fs) {
         const o = f.out, want = unit([St.ex[0] * o[0] + St.ey[0] * o[1], St.ex[1] * o[0] + St.ey[1] * o[1], o[2]]);
-        put(f.corners.map(([u, v, z]) => { const [x, y] = Wl(u, v); return [x, y, (z0 ?? zOf(u, v)) + z]; }), `geotown:${f.role}`, f.hex ?? col[f.role] ?? col.metal, want);
+        const cs = f.corners.map(([u, v, z]) => { const [x, y] = Wl(u, v); return [x, y, (z0 ?? zOf(u, v)) + z]; });
+        put(cs, `geotown:${f.role}`, f.hex ?? col[f.role] ?? col.metal, want);
+        claim(cs, f.role, o);
       }
     };
     // (a thing stands on its ground's highest corner: on a park's slope its floor proud on the low side, never buried)
@@ -786,8 +805,25 @@ export function assembleGeotownScene(m, ctx = {}) {
   const footprints = colliders.filter((c) => c.of.endsWith(':house')).map((c) => [c.min[0], c.min[1], c.max[0], c.max[1]]);
   const roomAt = (x, y) => footprints.reduce((a, [x0, y0, x1, y1]) => Math.min(a, Math.hypot(Math.max(0, x0 - x, x - x1), Math.max(0, y0 - y, y - y1))), Infinity);
   const pools = {}, kept = {};
-  let crowded = 0, nearest = Infinity;
-  for (const sp of Object.keys(items).sort()) {
+  let crowded = 0, nearest = Infinity, plants = null;
+  // (read by the seventh generation: the trees the form grows, form/flora-read.js, each its species at the form's own
+  // height for it, its first limbs past two people's heights; held to its room by the form's own crown, a tree without
+  // room not planted, again until every crown has its room)
+  if (form) {
+    let all = Object.keys(items).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
+    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => ({ x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp })), bushes: [], shrubs: [] });
+    for (let pass = 0; pass < 5; pass++) {
+      const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= sizes[i].r);
+      if (keep.length === all.length) break;
+      crowded += all.length - keep.length; all = keep;
+    }
+    plants = plantsOf(all);
+    const sizes = treeSizes(plants);
+    all.forEach(({ sp, it }, i) => { (kept[sp] ||= []).push({ ...it, height: sizes[i].h }); nearest = Math.min(nearest, roomAt(it.x, it.y) - sizes[i].r); });
+    // (the ground the trunks and the yard's things claim: no grass there)
+    plants.clear = [...plants.trees.map((t) => [t.x, t.y, 0.6]), ...claims];
+  }
+  for (const sp of form ? [] : Object.keys(items).sort()) {
     const pool = plantPool({ species: sp, variants: 2, seed: `geotown::${sp}`, light: LIGHT, maxLevel: 'L2', group: `geotown:tree-${sp}`, clear: TREE_RAISE });
     const reach = Math.max(...pool.variants.map((v) => { const T = v.levels?.L1 ?? []; let r = 0, h = 0; for (const f of T) for (const c of f.corners) { r = Math.max(r, Math.hypot(c[0], c[1])); h = Math.max(h, c[2]); } return h > 0 ? r / h : 0.5; }));
     pools[sp] = pool;
@@ -805,6 +841,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   for (const sp of Object.keys(kept).sort()) {
     if (!kept[sp].length) continue;
     for (const it of kept[sp]) growth[it.on] = (growth[it.on] ?? 0) + 1;
+    if (form) continue;
     const pool = pools[sp];
     const placed = plantRepeats(pool, kept[sp].map(({ on, ...it }) => it), { eyes, level: 'L2', budget: Math.round((TREE_FACES * kept[sp].length) / all), sink: 0.05 });
     treeFaces += placed.stats.drawnFaces;
@@ -824,11 +861,14 @@ export function assembleGeotownScene(m, ctx = {}) {
   const laws = [...d.laws,
     { law: 'bare', ok: hard === 0, value: `trees ${Object.entries(growth).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; ${hard} on a hard surface`, want: 'nothing grows on a road, a walk, a path, a side yard or a building\'s footprint' },
     { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; every crown raised to ${TREE_CLEAR} m (the least tree ${Math.round(TREE_LEAST * 10) / 10} m); ${crowded} trees without room to stand that tall not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, its crown starting at least twice a person\'s height up' },
-    { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${treeFaces} faces as repeats`, want: 'only what the map needs is drawn' }];
+    { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${form ? 'grown as form' : `${treeFaces} faces as repeats`}`, want: 'only what the map needs is drawn' }];
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const counts = { plots: d.plots.length, units: d.units ?? d.plots.length, duplexes: d.plots.filter((pl) => pl.duplex).length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
+  // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
+  // grass there (form/land-read.js, worlds/world-scene.js); its trees the form's, `plants`)
+  if (form) for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
   return {
-    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), colliders, anchors, cameras,
+    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
     viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geotown`,
     bg, haze: { color: air.fog.color, density: r5(air.fog.density * TOWN_HAZE) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
